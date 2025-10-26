@@ -1,0 +1,38 @@
+run:
+  # 要跳过的目录列表
+  skip-dirs:
+    - tmp
+    - web
+  
+  # 要跳过的文件列表（支持正则表达式）
+  skip-files:
+    - ".*_test\\.go$"
+  
+  # 默认超时时间
+  timeout: 5m
+
+linters:
+  # 禁用所有默认启用的linters
+  disable-all: false
+  # 启用额外的linters
+  enable:
+    - gofmt
+    - golint
+    - govet
+  
+  # 禁用特定的linters
+  disable:
+    - maligned
+    - prealloc
+
+issues:
+  # 排除特定的issue
+  exclude-rules:
+    # 排除生成代码的检查
+    - path: internal/ent
+      linters:
+        - golint
+  
+  # 最大问题数，0表示无限制
+  max-issues-per-linter: 0
+  max-same-issues: 0
