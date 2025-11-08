@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/wuwuseo/go-admin/internal/global"
+	"go-admin/internal/global"
 )
 
 func Cleanup() error {

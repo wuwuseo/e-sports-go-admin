@@ -5,14 +5,14 @@ package ent
 import (
 	"context"
 	"fmt"
+	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/predicate"
 	"math"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/wuwuseo/go-admin/internal/ent/casbinrule"
-	"github.com/wuwuseo/go-admin/internal/ent/predicate"
 )
 
 // CasbinRuleQuery is the builder for querying CasbinRule entities.

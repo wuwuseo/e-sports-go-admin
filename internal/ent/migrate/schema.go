@@ -31,17 +31,41 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
-		{Name: "username", Type: field.TypeString, Size: 255},
+		{Name: "email", Type: field.TypeString, Unique: true, Size: 255},
 		{Name: "password", Type: field.TypeString, Size: 255},
+		{Name: "name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "username", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "nickname", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "uid", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "password_salt", Type: field.TypeString, Nullable: true, Size: 255},
-		{Name: "nickname", Type: field.TypeString, Size: 255},
-		{Name: "uid", Type: field.TypeString, Size: 255},
+		{Name: "avatar", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "phone", Type: field.TypeString, Nullable: true, Size: 20},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive", "suspended"}, Default: "inactive"},
+		{Name: "last_login", Type: field.TypeTime, Nullable: true},
+		{Name: "last_ip", Type: field.TypeString, Nullable: true, Size: 50},
 	}
 	// CmfUsersTable holds the schema information for the "cmf_users" table.
 	CmfUsersTable = &schema.Table{
 		Name:       "cmf_users",
 		Columns:    CmfUsersColumns,
 		PrimaryKey: []*schema.Column{CmfUsersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "user_email",
+				Unique:  false,
+				Columns: []*schema.Column{CmfUsersColumns[3]},
+			},
+			{
+				Name:    "user_phone",
+				Unique:  false,
+				Columns: []*schema.Column{CmfUsersColumns[11]},
+			},
+			{
+				Name:    "user_username",
+				Unique:  false,
+				Columns: []*schema.Column{CmfUsersColumns[6]},
+			},
+		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{

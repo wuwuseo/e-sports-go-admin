@@ -6,10 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/ent/casbinrule"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/wuwuseo/go-admin/internal/ent/casbinrule"
 )
 
 // CasbinRuleCreate is the builder for creating a CasbinRule entity.

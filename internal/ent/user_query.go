@@ -5,14 +5,14 @@ package ent
 import (
 	"context"
 	"fmt"
+	"go-admin/internal/ent/predicate"
+	"go-admin/internal/ent/user"
 	"math"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/wuwuseo/go-admin/internal/ent/predicate"
-	"github.com/wuwuseo/go-admin/internal/ent/user"
 )
 
 // UserQuery is the builder for querying User entities.

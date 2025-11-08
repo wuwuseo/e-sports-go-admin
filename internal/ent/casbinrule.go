@@ -4,11 +4,11 @@ package ent
 
 import (
 	"fmt"
+	"go-admin/internal/ent/casbinrule"
 	"strings"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/wuwuseo/go-admin/internal/ent/casbinrule"
 )
 
 // CasbinRule is the model entity for the CasbinRule schema.

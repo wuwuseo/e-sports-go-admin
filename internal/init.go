@@ -3,12 +3,13 @@ package internal
 import (
 	"context"
 
+	"go-admin/internal/ent"
+	"go-admin/internal/global"
+
 	entsql "entgo.io/ent/dialect/sql"
 	fiberlog "github.com/gofiber/fiber/v2/log"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/orm"
-	"github.com/wuwuseo/go-admin/internal/ent"
-	"github.com/wuwuseo/go-admin/internal/global"
 )
 
 func Init(config *config.Config) error {

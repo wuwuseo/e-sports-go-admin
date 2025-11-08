@@ -5,12 +5,13 @@ package enttest
 import (
 	"context"
 
-	"github.com/wuwuseo/go-admin/internal/ent"
+	"go-admin/internal/ent"
 	// required by schema hooks.
-	_ "github.com/wuwuseo/go-admin/internal/ent/runtime"
+	_ "go-admin/internal/ent/runtime"
+
+	"go-admin/internal/ent/migrate"
 
 	"entgo.io/ent/dialect/sql/schema"
-	"github.com/wuwuseo/go-admin/internal/ent/migrate"
 )
 
 type (

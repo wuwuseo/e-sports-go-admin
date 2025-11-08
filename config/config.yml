@@ -1,11 +1,12 @@
 app:
   name: admin-api
-  port: 8081
+  port: 9501
   debug: false
   idle_timeout: 60
   prefork: false
   swagger: true
   secret: secret
+  login_expires: 86400
 
 log:
   file_path: ./data/logs/admin-api.log

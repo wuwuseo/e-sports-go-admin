@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"strings"
 
+	"go-admin/internal"
+	"go-admin/internal/global"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
-	"github.com/wuwuseo/go-admin/internal"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/wuwuseo/cmf/bootstrap"
@@ -20,6 +22,7 @@ var WebRoot embed.FS
 
 func main() {
 	bootstrap := bootstrap.NewBootstrap()
+	global.Bootstrap = bootstrap
 	bootstrap.RegisterInitFunc(internal.Init)
 	bootstrap.RegisterMiddleware(func(app *fiber.App, config *config.Config) {
 		app.Use("/", filesystem.New(filesystem.Config{

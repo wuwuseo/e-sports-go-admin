@@ -5,8 +5,7 @@ package hook
 import (
 	"context"
 	"fmt"
-
-	"github.com/wuwuseo/go-admin/internal/ent"
+	"go-admin/internal/ent"
 )
 
 // The CasbinRuleFunc type is an adapter to allow the use of ordinary

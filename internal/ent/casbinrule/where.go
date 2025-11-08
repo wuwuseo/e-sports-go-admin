@@ -3,8 +3,9 @@
 package casbinrule
 
 import (
+	"go-admin/internal/ent/predicate"
+
 	"entgo.io/ent/dialect/sql"
-	"github.com/wuwuseo/go-admin/internal/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

@@ -4,12 +4,12 @@ package ent
 
 import (
 	"context"
+	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/wuwuseo/go-admin/internal/ent/casbinrule"
-	"github.com/wuwuseo/go-admin/internal/ent/predicate"
 )
 
 // CasbinRuleDelete is the builder for deleting a CasbinRule entity.

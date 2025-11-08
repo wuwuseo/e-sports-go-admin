@@ -4,12 +4,12 @@ package ent
 
 import (
 	"fmt"
+	"go-admin/internal/ent/user"
 	"strings"
 	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
-	"github.com/wuwuseo/go-admin/internal/ent/user"
 )
 
 // User is the model entity for the User schema.
@@ -21,16 +21,30 @@ type User struct {
 	CreateTime time.Time `json:"create_time,omitempty"`
 	// UpdateTime holds the value of the "update_time" field.
 	UpdateTime time.Time `json:"update_time,omitempty"`
-	// Username holds the value of the "username" field.
-	Username string `json:"username,omitempty"`
-	// Password holds the value of the "password" field.
+	// 用户邮箱
+	Email string `json:"email,omitempty"`
+	// 用户密码
 	Password string `json:"-"`
-	// PasswordSalt holds the value of the "password_salt" field.
-	PasswordSalt string `json:"-"`
-	// Nickname holds the value of the "nickname" field.
+	// 用户姓名
+	Name string `json:"name,omitempty"`
+	// 用户名
+	Username string `json:"username,omitempty"`
+	// 用户昵称
 	Nickname string `json:"nickname,omitempty"`
-	// UID holds the value of the "uid" field.
-	UID          string `json:"uid,omitempty"`
+	// 用户唯一标识
+	UID string `json:"uid,omitempty"`
+	// 密码盐值
+	PasswordSalt string `json:"-"`
+	// 用户头像
+	Avatar string `json:"avatar,omitempty"`
+	// 手机号码
+	Phone string `json:"phone,omitempty"`
+	// 用户状态
+	Status user.Status `json:"status,omitempty"`
+	// 最后登录时间
+	LastLogin time.Time `json:"last_login,omitempty"`
+	// 最后登录IP
+	LastIP       string `json:"last_ip,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -41,9 +55,9 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldID:
 			values[i] = new(sql.NullInt64)
-		case user.FieldUsername, user.FieldPassword, user.FieldPasswordSalt, user.FieldNickname, user.FieldUID:
+		case user.FieldEmail, user.FieldPassword, user.FieldName, user.FieldUsername, user.FieldNickname, user.FieldUID, user.FieldPasswordSalt, user.FieldAvatar, user.FieldPhone, user.FieldStatus, user.FieldLastIP:
 			values[i] = new(sql.NullString)
-		case user.FieldCreateTime, user.FieldUpdateTime:
+		case user.FieldCreateTime, user.FieldUpdateTime, user.FieldLastLogin:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -78,11 +92,11 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UpdateTime = value.Time
 			}
-		case user.FieldUsername:
+		case user.FieldEmail:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field username", values[i])
+				return fmt.Errorf("unexpected type %T for field email", values[i])
 			} else if value.Valid {
-				_m.Username = value.String
+				_m.Email = value.String
 			}
 		case user.FieldPassword:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -90,11 +104,17 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Password = value.String
 			}
-		case user.FieldPasswordSalt:
+		case user.FieldName:
 			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field password_salt", values[i])
+				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
-				_m.PasswordSalt = value.String
+				_m.Name = value.String
+			}
+		case user.FieldUsername:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field username", values[i])
+			} else if value.Valid {
+				_m.Username = value.String
 			}
 		case user.FieldNickname:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -107,6 +127,42 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field uid", values[i])
 			} else if value.Valid {
 				_m.UID = value.String
+			}
+		case user.FieldPasswordSalt:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field password_salt", values[i])
+			} else if value.Valid {
+				_m.PasswordSalt = value.String
+			}
+		case user.FieldAvatar:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field avatar", values[i])
+			} else if value.Valid {
+				_m.Avatar = value.String
+			}
+		case user.FieldPhone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field phone", values[i])
+			} else if value.Valid {
+				_m.Phone = value.String
+			}
+		case user.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = user.Status(value.String)
+			}
+		case user.FieldLastLogin:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_login", values[i])
+			} else if value.Valid {
+				_m.LastLogin = value.Time
+			}
+		case user.FieldLastIP:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field last_ip", values[i])
+			} else if value.Valid {
+				_m.LastIP = value.String
 			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
@@ -150,18 +206,39 @@ func (_m *User) String() string {
 	builder.WriteString("update_time=")
 	builder.WriteString(_m.UpdateTime.Format(time.ANSIC))
 	builder.WriteString(", ")
-	builder.WriteString("username=")
-	builder.WriteString(_m.Username)
+	builder.WriteString("email=")
+	builder.WriteString(_m.Email)
 	builder.WriteString(", ")
 	builder.WriteString("password=<sensitive>")
 	builder.WriteString(", ")
-	builder.WriteString("password_salt=<sensitive>")
+	builder.WriteString("name=")
+	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	builder.WriteString("username=")
+	builder.WriteString(_m.Username)
 	builder.WriteString(", ")
 	builder.WriteString("nickname=")
 	builder.WriteString(_m.Nickname)
 	builder.WriteString(", ")
 	builder.WriteString("uid=")
 	builder.WriteString(_m.UID)
+	builder.WriteString(", ")
+	builder.WriteString("password_salt=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("avatar=")
+	builder.WriteString(_m.Avatar)
+	builder.WriteString(", ")
+	builder.WriteString("phone=")
+	builder.WriteString(_m.Phone)
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("last_login=")
+	builder.WriteString(_m.LastLogin.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("last_ip=")
+	builder.WriteString(_m.LastIP)
 	builder.WriteByte(')')
 	return builder.String()
 }

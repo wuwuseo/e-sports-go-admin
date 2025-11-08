@@ -9,13 +9,14 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/wuwuseo/go-admin/internal/ent/migrate"
+	"go-admin/internal/ent/migrate"
+
+	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/user"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
-	"github.com/wuwuseo/go-admin/internal/ent/casbinrule"
-	"github.com/wuwuseo/go-admin/internal/ent/user"
 )
 
 // Client is the client that holds all ent builders.

@@ -6,14 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/user"
 	"reflect"
 	"sync"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/wuwuseo/go-admin/internal/ent/casbinrule"
-	"github.com/wuwuseo/go-admin/internal/ent/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.

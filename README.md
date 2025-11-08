@@ -1,0 +1,480 @@
+# Go-Admin
+
+一个基于Go语言的现代化管理后台API系统，采用Fiber Web框架、Ent ORM和自定义CMF框架构建。
+
+## 🚀 特性
+
+- **高性能**: 基于Fiber框架，提供出色的性能表现
+- **类型安全**: 使用Ent ORM确保数据库操作的类型安全
+- **现代架构**: 采用分层架构设计，易于维护和扩展
+- **JWT认证**: 内置JWT认证机制，保障API安全
+- **权限控制**: 集成Casbin权限管理框架
+- **缓存支持**: 支持内存缓存和Redis缓存
+- **文件存储**: 支持本地存储和S3兼容的云存储
+- **前端集成**: 内嵌前端SPA应用，支持单页面应用路由
+- **配置管理**: 灵活的YAML配置文件管理
+- **日志系统**: 完善的日志记录和轮转机制
+
+## 📋 技术栈
+
+### 后端框架
+- **[Fiber](https://github.com/gofiber/fiber)** v2.52.9 - 高性能HTTP Web框架
+- **[Ent](https://entgo.io/)** v0.14.5 - 类型安全的ORM框架
+- **CMF** v0.0.0 - 自定义基础框架
+
+### 数据库和缓存
+- **MySQL** 5.7+ / 8.0+ - 主数据库
+- **Redis** 5.0+ - 缓存和会话存储
+
+### 认证和权限
+- **JWT** - JSON Web Token认证 (golang-jwt/jwt v5.2.2)
+- **Casbin** - 基于RBAC的权限控制
+- **bcrypt** - 密码加密算法
+
+### 开发和测试工具
+- **Go** 1.25.1+ - 编程语言
+- **Go Modules** - 依赖管理
+- **Testify** v1.11.1 - 测试框架
+- **golangci-lint** - 代码质量检查
+
+## 🏗️ 项目结构
+
+```
+go-admin/
+├── main.go                 # 应用入口
+├── go.mod                  # Go模块定义
+├── .golangci.yml           # 代码质量检查配置
+├── config/
+│   └── config.yml          # 配置文件
+├── internal/               # 内部包
+│   ├── init.go            # 初始化逻辑
+│   ├── router.go          # 路由定义
+│   ├── cleanup.go         # 清理逻辑
+│   ├── ent/               # Ent ORM生成代码
+│   │   └── schema/        # 数据模型定义
+│   ├── global/            # 全局变量和常量
+│   │   ├── global.go      # 全局变量
+│   │   └── msg.go         # 响应消息常量
+│   ├── handler/           # HTTP处理器
+│   ├── service/           # 业务逻辑层
+│   └── utils/             # 工具函数
+│       ├── response.go    # 响应工具
+│       └── utils.go       # 通用工具
+├── web/                   # 前端资源
+│   └── dist/              # 构建后的前端文件
+├── data/                  # 数据目录
+│   ├── logs/              # 日志文件
+│   └── storage/           # 文件存储
+└── docs/                  # 项目文档
+```
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Go 1.25.1 或更高版本
+- MySQL 5.7+ 或 MySQL 8.0+
+- Redis 5.0+ (可选，用于缓存)
+
+### 安装步骤
+
+1. **克隆项目**
+   ```bash
+   git clone <repository-url> go-admin
+   cd go-admin
+   ```
+
+2. **安装依赖**
+   ```bash
+   go mod download
+   ```
+
+3. **准备数据库**
+   ```sql
+   CREATE DATABASE cmf CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+
+4. **配置应用**
+   ```bash
+   # 编辑配置文件
+   vim config/config.yml
+   
+   # 修改数据库连接信息
+   database:
+     connections:
+       default:
+         host: localhost
+         port: 3306
+         user: your_username
+         password: your_password
+         name: cmf
+   ```
+
+5. **构建并运行**
+   ```bash
+   # 构建应用
+   go build -o go-admin main.go
+   
+   # 运行应用
+   ./go-admin
+   ```
+
+6. **访问应用**
+   - 前端界面: http://localhost:9501
+   - API接口: http://localhost:9501/api/v1
+
+## 📖 API文档
+
+### 公开接口
+
+#### 用户登录
+```http
+POST /api/v1/public/login
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "Bearer",
+    "expires_in": 86400
+  }
+}
+```
+
+### 受保护的接口
+
+所有 `/api/v1/admin/auth/*` 路径下的接口都需要JWT认证。
+
+#### 获取用户信息
+```http
+GET /api/v1/admin/auth/user
+Authorization: Bearer <jwt_token>
+```
+
+#### 更新用户信息
+```http
+PUT /api/v1/admin/auth/user
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "nickname": "新昵称",
+  "phone": "13800138000",
+  "avatar": "https://example.com/avatar.jpg"
+}
+```
+
+#### 修改密码
+```http
+PUT /api/v1/admin/auth/password
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+
+{
+  "old_password": "old_password123",
+  "new_password": "new_password123"
+}
+```
+
+## ⚙️ 配置说明
+
+### 应用配置
+```yaml
+app:
+  name: admin-api          # 应用名称
+  port: 9501              # 监听端口
+  debug: false            # 调试模式
+  secret: your_jwt_secret # JWT密钥 (生产环境必须修改)
+  login_expires: 86400    # JWT过期时间 (秒)
+```
+
+### 数据库配置
+```yaml
+database:
+  default: default
+  connections:
+    default:
+      driver: mysql
+      host: localhost
+      port: 3306
+      user: root
+      password: root
+      name: cmf
+      table_prefix: cmf_
+```
+
+### 缓存配置
+```yaml
+cache:
+  default: memory         # 默认使用内存缓存
+  stores:
+    memory:
+      driver: memory
+      default_ttl: 3600
+    redis:
+      driver: redis       # 可选择Redis缓存
+      default_ttl: 3600
+```
+
+更多配置选项请参考 [部署指南](docs/deployment/guide.md)。
+
+## 🏛️ 架构设计
+
+### 分层架构
+
+```mermaid
+graph TB
+    A[前端SPA应用] --> B[Fiber Web服务器]
+    B --> C[路由层 Router]
+    C --> D[处理器层 Handler]
+    D --> E[服务层 Service]
+    E --> F[数据访问层 Ent ORM]
+    F --> G[MySQL数据库]
+    
+    H[CMF框架] --> B
+    I[JWT中间件] --> C
+    J[文件系统中间件] --> B
+```
+
+### 核心组件
+
+- **路由层**: 负责HTTP请求路由和中间件管理
+- **处理器层**: 处理HTTP请求和响应
+- **服务层**: 实现业务逻辑
+- **数据访问层**: 使用Ent ORM进行数据库操作
+- **中间件**: JWT认证、文件服务、日志记录等
+
+详细架构说明请参考 [架构文档](docs/architecture/overview.md)。
+
+## 🗄️ 数据库设计
+
+### 用户表 (User)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INT | 主键，自增 |
+| email | VARCHAR(255) | 邮箱地址，唯一 |
+| password | VARCHAR(255) | 加密密码 |
+| name | VARCHAR(255) | 用户姓名 |
+| username | VARCHAR(255) | 用户名 |
+| nickname | VARCHAR(255) | 昵称 |
+| uid | VARCHAR(255) | 用户唯一标识 |
+| password_salt | VARCHAR(255) | 密码盐值 |
+| avatar | VARCHAR(1024) | 用户头像 |
+| phone | VARCHAR(20) | 手机号码 |
+| status | ENUM | 用户状态 (active/inactive/suspended) |
+| last_login | TIMESTAMP | 最后登录时间 |
+| last_ip | VARCHAR(50) | 最后登录IP |
+| create_time | TIMESTAMP | 创建时间 |
+| update_time | TIMESTAMP | 更新时间 |
+
+### 权限规则表 (CasbinRule)
+用于存储Casbin权限控制规则，支持RBAC权限模型。
+
+详细数据库设计请参考 [数据库文档](docs/database/models.md)。
+
+## 🛠️ 开发指南
+
+### 开发环境搭建
+
+1. **安装Go开发工具**
+   ```bash
+   go install golang.org/x/tools/cmd/goimports@latest
+   go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+   go install entgo.io/ent/cmd/ent@latest
+   ```
+
+2. **启动开发服务**
+   ```bash
+   # 开发模式运行
+   go run main.go
+   
+   # 或使用热重载工具
+   go install github.com/cosmtrek/air@latest
+   air
+   ```
+
+### 添加新功能
+
+1. **定义数据模型** (如需要)
+   ```bash
+   # 创建新的Ent schema
+   go run entgo.io/ent/cmd/ent new User
+   ```
+
+2. **实现业务逻辑**
+   - 在 `internal/service/` 中添加服务层代码
+   - 在 `internal/handler/` 中添加处理器代码
+
+3. **注册路由**
+   - 在 `internal/router.go` 中添加新的路由
+
+4. **运行测试**
+   ```bash
+   go test ./...
+   ```
+
+详细开发指南请参考 [开发者文档](docs/development/guide.md)。
+
+## 🧪 测试
+
+### 运行测试
+```bash
+# 运行所有测试
+go test ./...
+
+# 运行测试并显示覆盖率
+go test -cover ./...
+
+# 生成覆盖率报告
+go test -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out -o coverage.html
+```
+
+### 代码质量检查
+```bash
+# 运行代码质量检查
+golangci-lint run
+
+# 自动修复可修复的问题
+golangci-lint run --fix
+```
+
+### 测试结构
+- **单元测试**: 测试单个函数和方法
+- **集成测试**: 测试API端点和数据库交互
+- **性能测试**: 使用基准测试评估性能
+- **代码质量**: 使用golangci-lint进行静态分析
+
+## 🚀 部署
+
+### 生产环境部署
+
+1. **构建生产版本**
+   ```bash
+   CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s' -o go-admin main.go
+   ```
+
+2. **配置systemd服务**
+   ```bash
+   sudo systemctl enable go-admin
+   sudo systemctl start go-admin
+   ```
+
+3. **配置反向代理**
+   - 使用Nginx或Apache作为反向代理
+   - 配置SSL证书
+   - 设置负载均衡 (如需要)
+
+### Docker部署
+
+```bash
+# 构建Docker镜像
+docker build -t go-admin:latest .
+
+# 运行容器
+docker run -d --name go-admin -p 9501:9501 go-admin:latest
+```
+
+详细部署指南请参考 [部署文档](docs/deployment/guide.md)。
+
+## 📊 监控和运维
+
+### 健康检查
+- **应用状态**: `GET /`
+- **API状态**: `GET /api/v1/admin/login`
+
+### 日志管理
+```bash
+# 查看应用日志
+tail -f ./data/logs/admin-api.log
+
+# 查看系统服务日志
+sudo journalctl -u go-admin -f
+```
+
+### 性能监控
+- CPU使用率监控
+- 内存使用监控
+- 数据库连接池监控
+- API响应时间监控
+
+## 🔒 安全特性
+
+- **JWT认证**: 保护API端点安全
+- **密码加密**: 使用bcrypt加密用户密码
+- **SQL注入防护**: Ent ORM提供类型安全的查询
+- **CORS支持**: 配置跨域资源共享
+- **权限控制**: 基于Casbin的RBAC权限管理
+- **敏感数据保护**: 敏感字段自动隐藏
+
+## 🤝 贡献指南
+
+我们欢迎所有形式的贡献！
+
+### 贡献方式
+1. Fork 项目
+2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 创建 Pull Request
+
+### 代码规范
+- 遵循Go官方代码规范
+- 使用 `gofmt` 格式化代码
+- 添加必要的注释和文档
+- 编写单元测试
+
+### 提交信息规范
+```
+<type>(<scope>): <subject>
+
+feat: 新功能
+fix: 修复bug
+docs: 文档更新
+style: 代码格式调整
+refactor: 代码重构
+test: 测试相关
+```
+
+## 📄 许可证
+
+本项目采用 [MIT License](LICENSE) 许可证。
+
+## 📞 支持和联系
+
+- **问题反馈**: [GitHub Issues](https://github.com/your-org/go-admin/issues)
+- **功能请求**: [GitHub Discussions](https://github.com/your-org/go-admin/discussions)
+- **邮件联系**: admin@example.com
+
+## 🙏 致谢
+
+感谢以下开源项目的支持：
+
+- [Fiber](https://github.com/gofiber/fiber) - 高性能Web框架
+- [Ent](https://entgo.io/) - 类型安全的ORM
+- [Casbin](https://github.com/casbin/casbin) - 权限管理框架
+- [JWT-Go](https://github.com/golang-jwt/jwt) - JWT实现
+- [Viper](https://github.com/spf13/viper) - 配置管理
+
+## 📚 相关文档
+
+- [📖 文档导航](docs/README.md) - 完整文档索引
+- [🔌 API接口文档](docs/api/README.md) - 详细API说明
+- [🏗️ 架构设计](docs/architecture/overview.md) - 系统架构设计
+- [🗄️ 数据库设计](docs/database/models.md) - 数据模型说明
+- [🚀 部署指南](docs/deployment/guide.md) - 生产环境部署
+- [👨‍💻 开发者指南](docs/development/guide.md) - 开发环境和规范
+
+---
+
+**Go-Admin** - 让管理后台开发更简单 🚀
