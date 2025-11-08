@@ -2,8 +2,9 @@ package global
 
 // 响应常量
 const (
-	ResponseSuccessCode         = 200
-	ResponseErrorCode           = 400
+	ResponseSuccessCode         = 1
+	ResponseSuccessActionCode   = 2
+	ResponseErrorCode           = 0
 	ResponseUnauthorized        = 401
 	ResponseForbidden           = 403
 	ResponseNotFound            = 404
@@ -14,8 +15,9 @@ const (
 
 // ResponseMsg 响应消息映射
 var ResponseMsg = map[int]string{
-	ResponseSuccessCode:         "操作成功",
-	ResponseErrorCode:           "操作失败",
+	ResponseSuccessCode:         "成功",
+	ResponseSuccessActionCode:   "操作成功",
+	ResponseErrorCode:           "失败",
 	ResponseUnauthorized:        "未授权",
 	ResponseForbidden:           "拒绝访问",
 	ResponseNotFound:            "资源不存在",

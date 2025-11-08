@@ -95,7 +95,7 @@ func UpdateUser(c *fiber.Ctx) error {
 	userID := claims["id"].(string)
 	response := c.Locals("utils.Response").(*utils.Response)
 
-	var updates map[string]interface{}
+	var updates map[string]any
 	if err := c.BodyParser(&updates); err != nil {
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
