@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+
+	"github.com/wuwuseo/cmf/orm"
 )
 
 const (
@@ -42,9 +44,12 @@ const (
 	FieldLastLogin = "last_login"
 	// FieldLastIP holds the string denoting the last_ip field in the database.
 	FieldLastIP = "last_ip"
-	// Table holds the table name of the user in the database.
-	Table = "cmf_users"
 )
+
+// Table holds the table name of the user in the database.
+var TablePrefix = orm.GetTablePrefix()
+
+var Table = TablePrefix + "users"
 
 // Columns holds all SQL columns for user fields.
 var Columns = []string{

@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"go-admin/internal/global"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 type Response struct {
 	Code    int    `json:"code"`
@@ -13,8 +17,8 @@ func NewResponse() *Response {
 }
 
 func (r *Response) Success(options ...any) *Response {
-	r.Code = 200 // 默认成功状态码
-	r.Message = "success"
+	r.Code = global.ResponseSuccessCode // 默认成功状态码
+	r.Message = GetResponseMsg(r.Code)
 	if len(options) > 0 {
 		r.Data = options[0]
 
@@ -29,8 +33,8 @@ func (r *Response) Success(options ...any) *Response {
 }
 
 func (r *Response) Fail(options ...any) *Response {
-	r.Code = 400 // 默认失败状态码
-	r.Message = "fail"
+	r.Code = global.ResponseErrorCode // 默认失败状态码
+	r.Message = GetResponseMsg(r.Code)
 	if len(options) > 0 {
 		r.Code = options[0].(int)
 	}

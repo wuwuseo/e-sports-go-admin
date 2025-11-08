@@ -3,14 +3,16 @@
 package migrate
 
 import (
-	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
+	"github.com/wuwuseo/cmf/orm"
 )
 
+var TablePrefix = orm.GetTablePrefix()
+
 var (
-	// CmfCasbinRulesColumns holds the columns for the "cmf_casbin_rules" table.
-	CmfCasbinRulesColumns = []*schema.Column{
+	// CasbinRulesColumns holds the columns for the "casbin_rules" table.
+	CasbinRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "ptype", Type: field.TypeString, Default: ""},
 		{Name: "v0", Type: field.TypeString, Default: ""},
@@ -20,14 +22,52 @@ var (
 		{Name: "v4", Type: field.TypeString, Default: ""},
 		{Name: "v5", Type: field.TypeString, Default: ""},
 	}
-	// CmfCasbinRulesTable holds the schema information for the "cmf_casbin_rules" table.
-	CmfCasbinRulesTable = &schema.Table{
-		Name:       "cmf_casbin_rules",
-		Columns:    CmfCasbinRulesColumns,
-		PrimaryKey: []*schema.Column{CmfCasbinRulesColumns[0]},
+	// CasbinRulesTable holds the schema information for the "casbin_rules" table.
+	CasbinRulesTable = &schema.Table{
+		Name:       TablePrefix + "casbin_rules",
+		Columns:    CasbinRulesColumns,
+		PrimaryKey: []*schema.Column{CasbinRulesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "casbinrule_ptype_v0_v1_v2_v3_v4_v5",
+				Unique:  true,
+				Columns: []*schema.Column{CasbinRulesColumns[1], CasbinRulesColumns[2], CasbinRulesColumns[3], CasbinRulesColumns[4], CasbinRulesColumns[5], CasbinRulesColumns[6], CasbinRulesColumns[7]},
+			},
+		},
 	}
-	// CmfUsersColumns holds the columns for the "cmf_users" table.
-	CmfUsersColumns = []*schema.Column{
+	// RolesColumns holds the columns for the "roles" table.
+	RolesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Unique: true, Size: 100},
+		{Name: "display_name", Type: field.TypeString, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "is_system", Type: field.TypeBool, Default: false},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive"}, Default: "active"},
+		{Name: "created_by", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "updated_by", Type: field.TypeString, Nullable: true, Size: 255},
+	}
+	// RolesTable holds the schema information for the "roles" table.
+	RolesTable = &schema.Table{
+		Name:       TablePrefix + "roles",
+		Columns:    RolesColumns,
+		PrimaryKey: []*schema.Column{RolesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "role_name",
+				Unique:  true,
+				Columns: []*schema.Column{RolesColumns[3]},
+			},
+			{
+				Name:    "role_status",
+				Unique:  false,
+				Columns: []*schema.Column{RolesColumns[7]},
+			},
+		},
+	}
+	// UsersColumns holds the columns for the "users" table.
+	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
@@ -44,41 +84,80 @@ var (
 		{Name: "last_login", Type: field.TypeTime, Nullable: true},
 		{Name: "last_ip", Type: field.TypeString, Nullable: true, Size: 50},
 	}
-	// CmfUsersTable holds the schema information for the "cmf_users" table.
-	CmfUsersTable = &schema.Table{
-		Name:       "cmf_users",
-		Columns:    CmfUsersColumns,
-		PrimaryKey: []*schema.Column{CmfUsersColumns[0]},
+	// UsersTable holds the schema information for the "users" table.
+	UsersTable = &schema.Table{
+		Name:       TablePrefix + "users",
+		Columns:    UsersColumns,
+		PrimaryKey: []*schema.Column{UsersColumns[0]},
 		Indexes: []*schema.Index{
 			{
 				Name:    "user_email",
 				Unique:  false,
-				Columns: []*schema.Column{CmfUsersColumns[3]},
+				Columns: []*schema.Column{UsersColumns[3]},
 			},
 			{
 				Name:    "user_phone",
 				Unique:  false,
-				Columns: []*schema.Column{CmfUsersColumns[11]},
+				Columns: []*schema.Column{UsersColumns[11]},
 			},
 			{
 				Name:    "user_username",
 				Unique:  false,
-				Columns: []*schema.Column{CmfUsersColumns[6]},
+				Columns: []*schema.Column{UsersColumns[6]},
+			},
+		},
+	}
+	// UserRolesColumns holds the columns for the "user_roles" table.
+	UserRolesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "created_by", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "role_id", Type: field.TypeInt},
+	}
+	// UserRolesTable holds the schema information for the "user_roles" table.
+	UserRolesTable = &schema.Table{
+		Name:       TablePrefix + "user_roles",
+		Columns:    UserRolesColumns,
+		PrimaryKey: []*schema.Column{UserRolesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_roles_users_user",
+				Columns:    []*schema.Column{UserRolesColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_roles_roles_role",
+				Columns:    []*schema.Column{UserRolesColumns[5]},
+				RefColumns: []*schema.Column{RolesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "userrole_user_id_role_id",
+				Unique:  true,
+				Columns: []*schema.Column{UserRolesColumns[4], UserRolesColumns[5]},
+			},
+			{
+				Name:    "userrole_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserRolesColumns[4]},
+			},
+			{
+				Name:    "userrole_role_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserRolesColumns[5]},
 			},
 		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
-		CmfCasbinRulesTable,
-		CmfUsersTable,
+		CasbinRulesTable,
+		RolesTable,
+		UsersTable,
+		UserRolesTable,
 	}
 )
-
-func init() {
-	CmfCasbinRulesTable.Annotation = &entsql.Annotation{
-		Table: "cmf_casbin_rules",
-	}
-	CmfUsersTable.Annotation = &entsql.Annotation{
-		Table: "cmf_users",
-	}
-}

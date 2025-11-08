@@ -27,7 +27,7 @@ database:
       password: root
       name: cmf
       ssl_mode: false
-      table_prefix: cmf_
+      table_prefix: test_
 
 cache:
   default: memory
@@ -73,3 +73,71 @@ filesystem:
         region: ""
         bucket: ""
         endpoint: ""
+
+casbin:
+  # 默认域名称，GetDefaultEnforcer() 将返回此域的 Enforcer
+  domains_default: 'default'
+  
+  # 多域配置列表（可选）
+  # 如果不配置此项，系统会使用上面的 model_path 为默认域创建配置
+  domains:
+    # 默认域配置
+    - name: "default"
+      auto_load: true                          # 是否在启动时自动加载
+      model_text: |                            # 带域的 RBAC 模型配置
+        [request_definition]
+        r = sub, dom, obj, act
+        
+        [policy_definition]
+        p = sub, dom, obj, act
+        
+        [role_definition]
+        g = _, _, _
+        
+        [policy_effect]
+        e = some(where (p.eft == allow))
+        
+        [matchers]
+        m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act
+    
+    # ==================== 多域配置示例 ====================
+    # 可以为不同的租户或业务域配置独立的权限模型
+    
+    # 示例：租户 A 的配置
+    # - name: "tenant-a"
+    #   auto_load: true
+    #   model_path: "./config/tenant_a_model.conf"
+    
+    # 示例：租户 B 的配置（使用内联模型文本）
+    # - name: "tenant-b"
+    #   auto_load: false  # 不自动加载，首次使用时才加载
+    #   model_text: |
+    #     [request_definition]
+    #     r = sub, obj, act
+    #     
+    #     [policy_definition]
+    #     p = sub, obj, act
+    #     
+    #     [role_definition]
+    #     g = _, _
+    #     
+    #     [policy_effect]
+    #     e = some(where (p.eft == allow))
+    #     
+    #     [matchers]
+    #     m = g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act
+    
+    # 示例：特殊业务域配置
+    # - name: "special-domain"
+    #   auto_load: true
+    #   model_path: "./config/special_model.conf"
+  
+  # ==================== 配置说明 ====================
+  # 1. domains_default: 指定默认域名称
+  # 2. domains: 域配置列表，每个域包含：
+  #    - name: 域名称（必填，唯一标识）
+  #    - auto_load: 是否启动时自动加载（可选，默认 false）
+  #    - model_path: 模型文件路径（可选）
+  #    - model_text: 模型文本内容（可选，优先级高于 model_path）
+  # 3. 如果不配置 domains，系统会使用 model_path 为默认域创建配置
+  # 4. 建议高频访问的域设置 auto_load: true 以提升性能

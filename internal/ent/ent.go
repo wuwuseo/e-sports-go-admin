@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/user"
+	"go-admin/internal/ent/userrole"
 	"reflect"
 	"sync"
 
@@ -75,7 +77,9 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			casbinrule.Table: casbinrule.ValidColumn,
+			role.Table:       role.ValidColumn,
 			user.Table:       user.ValidColumn,
+			userrole.Table:   userrole.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

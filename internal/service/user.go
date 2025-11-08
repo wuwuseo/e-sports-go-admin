@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"go-admin/internal/ent"
@@ -26,6 +27,7 @@ var (
 // UserServiceInterface 定义用户服务接口
 type UserServiceInterface interface {
 	Login(ctx context.Context, req *LoginRequest) (*TokenResponse, error)
+	RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error)
 	GetUserByID(ctx context.Context, id string) (*UserResponse, error)
 	UpdateUser(ctx context.Context, id string, updates map[string]interface{}) error
 	ChangePassword(ctx context.Context, id string, oldPassword, newPassword string) error
@@ -151,18 +153,42 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	config, _ := global.Bootstrap.GetService("config")
 	// 生成JWT token
 	expiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.LoginExpires) * time.Second)
-	claims := jwt.MapClaims{
-		"id":        u.UID,
-		"subject":   u.Username,
-		"issuer":    "go-admin",
-		"expires":   jwt.NewNumericDate(expiresAt),
-		"issued_at": jwt.NewNumericDate(time.Now()),
+	// 默认域 公司代码或者部门代码
+	domain := "default"
+
+	// 生成访问令牌
+	accessClaims := jwt.MapClaims{
+		"id":         u.UID,
+		"subject":    u.Username,
+		"issuer":     "go-admin",
+		"domain":     domain,
+		"expires":    jwt.NewNumericDate(expiresAt),
+		"issued_at":  jwt.NewNumericDate(time.Now()),
+		"token_type": "access",
 	}
 
-	token, err := cmfJwt.CreateToken(claims, config.(*cmfConfig.Config).App.Secret)
+	accessToken, err := cmfJwt.CreateToken(accessClaims, config.(*cmfConfig.Config).App.Secret)
 	if err != nil {
 		return nil, err
 	}
+
+	// 生成刷新令牌 - 有效期更长
+	refreshExpiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.RefreshExpires) * time.Second)
+	refreshClaims := jwt.MapClaims{
+		"id":         u.UID,
+		"subject":    u.Username,
+		"issuer":     "go-admin",
+		"domain":     domain,
+		"expires":    jwt.NewNumericDate(refreshExpiresAt),
+		"issued_at":  jwt.NewNumericDate(time.Now()),
+		"token_type": "refresh",
+	}
+
+	refreshToken, err := cmfJwt.CreateToken(refreshClaims, config.(*cmfConfig.Config).App.Secret)
+	if err != nil {
+		return nil, err
+	}
+
 	// 更新最后登录时间和IP
 	_, err = s.client.User.UpdateOne(u).
 		SetLastLogin(time.Now()).
@@ -172,9 +198,10 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	}
 
 	return &TokenResponse{
-		AccessToken: token,
-		TokenType:   "Bearer",
-		ExpiresIn:   int64(config.(*cmfConfig.Config).App.LoginExpires), // 24小时
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    int64(config.(*cmfConfig.Config).App.LoginExpires), // 24小时
+		RefreshToken: refreshToken,
 	}, nil
 }
 
@@ -242,6 +269,90 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, updates map[str
 		return err
 	}
 	return nil
+}
+
+// RefreshToken 刷新访问令牌
+func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error) {
+	config, _ := global.Bootstrap.GetService("config")
+	secret := config.(*cmfConfig.Config).App.Secret
+
+	// 解析刷新令牌
+	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		// 验证签名方法
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid refresh token: %w", err)
+	}
+
+	// 验证令牌有效性
+	if !token.Valid {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	// 获取令牌声明
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims")
+	}
+
+	// 检查令牌类型
+	tokenType, ok := claims["token_type"].(string)
+	if !ok || tokenType != "refresh" {
+		return nil, errors.New("invalid token type")
+	}
+
+	// 获取用户ID
+	userID, ok := claims["id"].(string)
+	if !ok {
+		return nil, errors.New("invalid user id in token")
+	}
+
+	// 检查用户是否存在
+	u, err := s.client.User.Query().
+		Where(user.UID(userID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	// 检查用户状态
+	if u.Status != user.StatusActive {
+		return nil, ErrInvalidUserStatus
+	}
+
+	// 生成新的访问令牌
+	expiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.LoginExpires) * time.Second)
+	domain := claims["domain"].(string)
+
+	accessClaims := jwt.MapClaims{
+		"id":         u.UID,
+		"subject":    u.Username,
+		"issuer":     "go-admin",
+		"domain":     domain,
+		"expires":    jwt.NewNumericDate(expiresAt),
+		"issued_at":  jwt.NewNumericDate(time.Now()),
+		"token_type": "access",
+	}
+
+	newAccessToken, err := cmfJwt.CreateToken(accessClaims, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenResponse{
+		AccessToken:  newAccessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    int64(config.(*cmfConfig.Config).App.LoginExpires),
+		RefreshToken: refreshToken, // 可以继续使用原刷新令牌，或生成新的
+	}, nil
 }
 
 // ChangePassword 修改密码

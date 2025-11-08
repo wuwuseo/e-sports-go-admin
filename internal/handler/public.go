@@ -17,7 +17,7 @@ import (
 // @Accept json
 // @Produce json
 // @Param body body service.LoginRequest true "登录信息"
-// @Success 200 {object} Response{data=service.TokenResponse}
+// @Success 200 {object} utils.Response{data=service.TokenResponse}
 // @Router /api/v1/admin/login [post]
 func Login(c *fiber.Ctx) error {
 	var req service.LoginRequest
@@ -50,7 +50,7 @@ func Login(c *fiber.Ctx) error {
 // @Tags 用户管理
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} Response
+// @Success 200 {object} utils.Response
 // @Router /api/v1/admin/auth/user [get]
 func GetUser(c *fiber.Ctx) error {
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
@@ -61,9 +61,9 @@ func GetUser(c *fiber.Ctx) error {
 	user, err := userService.GetUserByID(c.Context(), userID)
 	if err != nil {
 		if err == service.ErrUserNotFound {
-			return response.Fail(404, "User not found").ToJSON(c)
+			return response.Fail(global.ResponseNotFound, "User not found").ToJSON(c)
 		}
-		return response.Fail(500, "Internal server error").ToJSON(c)
+		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
 	}
 
 	// 过滤敏感信息
@@ -88,14 +88,14 @@ func GetUser(c *fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param body body map[string]interface{} true "用户信息"
-// @Success 200 {object} Response
+// @Success 200 {object} utils.Response
 // @Router /api/v1/admin/auth/user [put]
 func UpdateUser(c *fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 	userID := claims["id"].(string)
 	response := c.Locals("utils.Response").(*utils.Response)
 
-	var updates map[string]interface{}
+	var updates map[string]any
 	if err := c.BodyParser(&updates); err != nil {
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
@@ -116,7 +116,7 @@ func UpdateUser(c *fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param body body map[string]string true "密码信息"
-// @Success 200 {object} Response
+// @Success 200 {object} utils.Response
 // @Router /api/v1/admin/auth/password [put]
 func ChangePassword(c *fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
@@ -144,4 +144,36 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	return response.Success(nil).ToJSON(c)
+}
+
+// RefreshToken 刷新访问令牌
+// @Summary 刷新访问令牌
+// @Description 使用刷新令牌获取新的访问令牌
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param body body map[string]string true "刷新令牌"
+// @Success 200 {object} utils.Response{data=service.TokenResponse}
+// @Router /api/v1/admin/refresh-token [post]
+func RefreshToken(c *fiber.Ctx) error {
+	response := c.Locals("utils.Response").(*utils.Response)
+
+	// 解析请求体
+	var req struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
+	}
+
+	// 获取用户服务
+	userService := c.Locals("service.UserService").(service.UserServiceInterface)
+
+	// 调用刷新令牌服务
+	token, err := userService.RefreshToken(c.Context(), req.RefreshToken)
+	if err != nil {
+		return response.Fail(global.ResponseUnauthorized, "Invalid refresh token").ToJSON(c)
+	}
+
+	return response.Success(token).ToJSON(c)
 }

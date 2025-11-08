@@ -80,10 +80,12 @@ func (User) Fields() []ent.Field {
 	}
 }
 
-// Edges of the User.
-func (User) Edges() []ent.Edge {
-	return nil
-}
+// // Edges of the User.
+// func (User) Edges() []ent.Edge {
+//     return []ent.Edge{
+//         edge.To("roles", Role.Type).Through("user_roles", UserRole.Type),
+//     }
+// }
 
 // Indexes of the User.
 func (User) Indexes() []ent.Index {

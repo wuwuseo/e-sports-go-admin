@@ -4,6 +4,8 @@ package casbinrule
 
 import (
 	"entgo.io/ent/dialect/sql"
+
+	"github.com/wuwuseo/cmf/orm"
 )
 
 const (
@@ -25,9 +27,12 @@ const (
 	FieldV4 = "v4"
 	// FieldV5 holds the string denoting the v5 field in the database.
 	FieldV5 = "v5"
-	// Table holds the table name of the casbinrule in the database.
-	Table = "cmf_casbin_rules"
 )
+
+// Table holds the table name of the casbinrule in the database.
+var TablePrefix = orm.GetTablePrefix()
+
+var Table = TablePrefix + "casbin_rules"
 
 // Columns holds all SQL columns for casbinrule fields.
 var Columns = []string{

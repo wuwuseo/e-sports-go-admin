@@ -17,6 +17,26 @@ import (
 	"github.com/wuwuseo/cmf/config"
 )
 
+// @title 管理系统 API
+// @version 1.0
+// @description 管理系统的API文档
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.url http://www.example.com/support
+// @contact.email support@example.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:9501
+// @BasePath /api/v1
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description 使用Bearer {token}格式进行认证
+
 //go:embed web/dist
 var WebRoot embed.FS
 
@@ -62,5 +82,8 @@ func main() {
 			log.Printf("Final cleanup error: %v", err)
 		}
 	}()
-	bootstrap.Run()
+
+	if err := bootstrap.Run(); err != nil {
+		log.Fatalf("Failed to run application: %v", err)
+	}
 }

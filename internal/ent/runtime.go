@@ -4,8 +4,10 @@ package ent
 
 import (
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
 	"go-admin/internal/ent/user"
+	"go-admin/internal/ent/userrole"
 	"time"
 )
 
@@ -43,6 +45,73 @@ func init() {
 	casbinruleDescV5 := casbinruleFields[6].Descriptor()
 	// casbinrule.DefaultV5 holds the default value on creation for the V5 field.
 	casbinrule.DefaultV5 = casbinruleDescV5.Default.(string)
+	roleMixin := schema.Role{}.Mixin()
+	roleMixinFields0 := roleMixin[0].Fields()
+	_ = roleMixinFields0
+	roleFields := schema.Role{}.Fields()
+	_ = roleFields
+	// roleDescCreateTime is the schema descriptor for create_time field.
+	roleDescCreateTime := roleMixinFields0[0].Descriptor()
+	// role.DefaultCreateTime holds the default value on creation for the create_time field.
+	role.DefaultCreateTime = roleDescCreateTime.Default.(func() time.Time)
+	// roleDescUpdateTime is the schema descriptor for update_time field.
+	roleDescUpdateTime := roleMixinFields0[1].Descriptor()
+	// role.DefaultUpdateTime holds the default value on creation for the update_time field.
+	role.DefaultUpdateTime = roleDescUpdateTime.Default.(func() time.Time)
+	// role.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	role.UpdateDefaultUpdateTime = roleDescUpdateTime.UpdateDefault.(func() time.Time)
+	// roleDescName is the schema descriptor for name field.
+	roleDescName := roleFields[1].Descriptor()
+	// role.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	role.NameValidator = func() func(string) error {
+		validators := roleDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// roleDescDisplayName is the schema descriptor for display_name field.
+	roleDescDisplayName := roleFields[2].Descriptor()
+	// role.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	role.DisplayNameValidator = func() func(string) error {
+		validators := roleDescDisplayName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(display_name string) error {
+			for _, fn := range fns {
+				if err := fn(display_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// roleDescDescription is the schema descriptor for description field.
+	roleDescDescription := roleFields[3].Descriptor()
+	// role.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	role.DescriptionValidator = roleDescDescription.Validators[0].(func(string) error)
+	// roleDescIsSystem is the schema descriptor for is_system field.
+	roleDescIsSystem := roleFields[4].Descriptor()
+	// role.DefaultIsSystem holds the default value on creation for the is_system field.
+	role.DefaultIsSystem = roleDescIsSystem.Default.(bool)
+	// roleDescCreatedBy is the schema descriptor for created_by field.
+	roleDescCreatedBy := roleFields[6].Descriptor()
+	// role.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	role.CreatedByValidator = roleDescCreatedBy.Validators[0].(func(string) error)
+	// roleDescUpdatedBy is the schema descriptor for updated_by field.
+	roleDescUpdatedBy := roleFields[7].Descriptor()
+	// role.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
+	role.UpdatedByValidator = roleDescUpdatedBy.Validators[0].(func(string) error)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0
@@ -140,4 +209,23 @@ func init() {
 	userDescLastIP := userFields[12].Descriptor()
 	// user.LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
 	user.LastIPValidator = userDescLastIP.Validators[0].(func(string) error)
+	userroleMixin := schema.UserRole{}.Mixin()
+	userroleMixinFields0 := userroleMixin[0].Fields()
+	_ = userroleMixinFields0
+	userroleFields := schema.UserRole{}.Fields()
+	_ = userroleFields
+	// userroleDescCreateTime is the schema descriptor for create_time field.
+	userroleDescCreateTime := userroleMixinFields0[0].Descriptor()
+	// userrole.DefaultCreateTime holds the default value on creation for the create_time field.
+	userrole.DefaultCreateTime = userroleDescCreateTime.Default.(func() time.Time)
+	// userroleDescUpdateTime is the schema descriptor for update_time field.
+	userroleDescUpdateTime := userroleMixinFields0[1].Descriptor()
+	// userrole.DefaultUpdateTime holds the default value on creation for the update_time field.
+	userrole.DefaultUpdateTime = userroleDescUpdateTime.Default.(func() time.Time)
+	// userrole.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	userrole.UpdateDefaultUpdateTime = userroleDescUpdateTime.UpdateDefault.(func() time.Time)
+	// userroleDescCreatedBy is the schema descriptor for created_by field.
+	userroleDescCreatedBy := userroleFields[3].Descriptor()
+	// userrole.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	userrole.CreatedByValidator = userroleDescCreatedBy.Validators[0].(func(string) error)
 }
