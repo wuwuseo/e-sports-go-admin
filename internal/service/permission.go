@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
+
+	"github.com/wuwuseo/cmf/cache"
 )
 
 var (
@@ -115,13 +118,72 @@ type PermissionServiceInterface interface {
 // PermissionService 权限服务实现
 type PermissionService struct {
 	client *ent.Client
+	cache  *cache.TypedCache[[]*PermissionResponse]
 }
 
 // NewPermissionService 创建权限服务实例
-func NewPermissionService() *PermissionService {
+func NewPermissionService(rawCache *cache.Cache[[]byte]) *PermissionService {
+	var typedCache *cache.TypedCache[[]*PermissionResponse]
+	if rawCache != nil {
+		typedCache = cache.NewTypedCache[[]*PermissionResponse](rawCache)
+	}
 	return &PermissionService{
 		client: global.ORM,
+		cache:  typedCache,
 	}
+}
+
+// cacheKey 生成缓存键
+func (s *PermissionService) cacheKey(prefix string, parts ...string) string {
+	return prefix + ":" + strings.Join(parts, ":")
+}
+
+// defaultCacheTTL 默认缓存过期时间
+func (s *PermissionService) defaultCacheTTL() time.Duration {
+	return 5 * time.Minute
+}
+
+// clearUserPermissionsCache 清除指定用户的所有权限缓存
+func (s *PermissionService) clearUserPermissionsCache(ctx context.Context, userID int, domain string) {
+	if s.cache == nil {
+		return
+	}
+	_ = s.cache.Delete(ctx, s.cacheKey("user", "menu", fmt.Sprint(userID), domain))
+	_ = s.cache.Delete(ctx, s.cacheKey("user", "button", fmt.Sprint(userID), domain))
+	_ = s.cache.Delete(ctx, s.cacheKey("user", "api", fmt.Sprint(userID), domain))
+}
+
+// clearRolePermissionsCache 清除指定角色的权限缓存
+func (s *PermissionService) clearRolePermissionsCache(ctx context.Context, roleName, domain string) {
+	if s.cache == nil {
+		return
+	}
+	_ = s.cache.Delete(ctx, s.cacheKey("role", "perms", roleName, domain))
+}
+
+// clearAllUsersPermissionsByRole 清除拥有指定角色的所有用户权限缓存
+func (s *PermissionService) clearAllUsersPermissionsByRole(ctx context.Context, roleName, domain string) {
+	if s.cache == nil {
+		return
+	}
+	// 查询拥有该角色的所有用户
+	roleEntity, err := s.client.Role.Query().Where(role.NameEQ(roleName)).Only(ctx)
+	if err != nil {
+		return
+	}
+	userRoles, err := s.client.UserRole.Query().Where(userrole.RoleIDEQ(roleEntity.ID)).All(ctx)
+	if err != nil {
+		return
+	}
+	for _, ur := range userRoles {
+		s.clearUserPermissionsCache(ctx, ur.UserID, domain)
+	}
+}
+
+// clearRoleAndUsersCache 清除角色缓存及其关联的所有用户缓存
+func (s *PermissionService) clearRoleAndUsersCache(ctx context.Context, roleName, domain string) {
+	s.clearRolePermissionsCache(ctx, roleName, domain)
+	s.clearAllUsersPermissionsByRole(ctx, roleName, domain)
 }
 
 // CreatePermission 创建权限
@@ -169,6 +231,9 @@ func (s *PermissionService) CreatePermission(ctx context.Context, req *CreatePer
 	if err != nil {
 		return fmt.Errorf("创建权限失败: %w", err)
 	}
+
+	// 清除相关缓存
+	s.clearRoleAndUsersCache(ctx, req.RoleName, req.Domain)
 
 	return nil
 }
@@ -232,6 +297,9 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, req *UpdatePer
 		return fmt.Errorf("更新权限失败: %w", err)
 	}
 
+	// 清除相关缓存
+	s.clearRoleAndUsersCache(ctx, req.RoleName, req.Domain)
+
 	return nil
 }
 
@@ -258,6 +326,9 @@ func (s *PermissionService) DeletePermission(ctx context.Context, roleName, doma
 	if err != nil {
 		return fmt.Errorf("删除权限失败: %w", err)
 	}
+
+	// 清除相关缓存
+	s.clearRoleAndUsersCache(ctx, roleName, domain)
 
 	return nil
 }
@@ -399,6 +470,9 @@ func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, roleNam
 		}
 	}
 
+	// 清除相关缓存
+	s.clearRoleAndUsersCache(ctx, roleName, domain)
+
 	return nil
 }
 
@@ -429,11 +503,24 @@ func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, roleN
 		}
 	}
 
+	// 清除相关缓存
+	s.clearRoleAndUsersCache(ctx, roleName, domain)
+
 	return nil
 }
 
 // GetRolePermissions 获取角色拥有的权限
 func (s *PermissionService) GetRolePermissions(ctx context.Context, roleName, domain string) ([]*PermissionResponse, error) {
+	cacheKey := s.cacheKey("role", "perms", roleName, domain)
+
+	// 尝试从缓存获取
+	if s.cache != nil {
+		cached, err := s.cache.Get(ctx, cacheKey)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
 	// 检查角色是否存在
 	exists, err := s.client.Role.Query().Where(role.NameEQ(roleName)).Exist(ctx)
 	if err != nil {
@@ -460,14 +547,30 @@ func (s *PermissionService) GetRolePermissions(ctx context.Context, roleName, do
 		data = append(data, s.toPermissionResponse(p))
 	}
 
+	// 写入缓存
+	if s.cache != nil {
+		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
+	}
+
 	return data, nil
 }
 
 // GetUserMenuPermissions 获取用户的菜单权限
 func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error) {
-	// 获取用户角色
+	cacheKey := s.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+
+	// 尝试从缓存获取
+	if s.cache != nil {
+		cached, err := s.cache.Get(ctx, cacheKey)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
 		Where(userrole.UserIDEQ(userID)).
+		WithRole().
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取用户角色失败: %w", err)
@@ -480,11 +583,9 @@ func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID i
 	// 提取角色名称
 	roleNames := make([]string, 0, len(userRoles))
 	for _, ur := range userRoles {
-		role, err := ur.QueryRole().Only(ctx)
-		if err != nil {
-			continue
+		if ur.Edges.Role != nil {
+			roleNames = append(roleNames, ur.Edges.Role.Name)
 		}
-		roleNames = append(roleNames, role.Name)
 	}
 
 	// 查询菜单权限
@@ -505,14 +606,30 @@ func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID i
 		data = append(data, s.toPermissionResponse(p))
 	}
 
+	// 写入缓存
+	if s.cache != nil {
+		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
+	}
+
 	return data, nil
 }
 
 // GetUserButtonPermissions 获取用户的按钮权限
 func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error) {
-	// 获取用户角色
+	cacheKey := s.cacheKey("user", "button", fmt.Sprint(userID), domain)
+
+	// 尝试从缓存获取
+	if s.cache != nil {
+		cached, err := s.cache.Get(ctx, cacheKey)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
 		Where(userrole.UserIDEQ(userID)).
+		WithRole().
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取用户角色失败: %w", err)
@@ -525,11 +642,9 @@ func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID
 	// 提取角色名称
 	roleNames := make([]string, 0, len(userRoles))
 	for _, ur := range userRoles {
-		role, err := ur.QueryRole().Only(ctx)
-		if err != nil {
-			continue
+		if ur.Edges.Role != nil {
+			roleNames = append(roleNames, ur.Edges.Role.Name)
 		}
-		roleNames = append(roleNames, role.Name)
 	}
 
 	// 查询按钮权限
@@ -550,14 +665,30 @@ func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID
 		data = append(data, s.toPermissionResponse(p))
 	}
 
+	// 写入缓存
+	if s.cache != nil {
+		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
+	}
+
 	return data, nil
 }
 
 // GetUserAPIPermissions 获取用户的API权限
 func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error) {
-	// 获取用户角色
+	cacheKey := s.cacheKey("user", "api", fmt.Sprint(userID), domain)
+
+	// 尝试从缓存获取
+	if s.cache != nil {
+		cached, err := s.cache.Get(ctx, cacheKey)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
 		Where(userrole.UserIDEQ(userID)).
+		WithRole().
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取用户角色失败: %w", err)
@@ -570,11 +701,9 @@ func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID in
 	// 提取角色名称
 	roleNames := make([]string, 0, len(userRoles))
 	for _, ur := range userRoles {
-		role, err := ur.QueryRole().Only(ctx)
-		if err != nil {
-			continue
+		if ur.Edges.Role != nil {
+			roleNames = append(roleNames, ur.Edges.Role.Name)
 		}
-		roleNames = append(roleNames, role.Name)
 	}
 
 	// 查询API权限（排除menu和button类型）
@@ -596,14 +725,20 @@ func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID in
 		data = append(data, s.toPermissionResponse(p))
 	}
 
+	// 写入缓存
+	if s.cache != nil {
+		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
+	}
+
 	return data, nil
 }
 
 // CheckPermission 检查用户是否有某个权限
 func (s *PermissionService) CheckPermission(ctx context.Context, userID int, domain, object, action string) (bool, error) {
-	// 获取用户角色
+	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
 		Where(userrole.UserIDEQ(userID)).
+		WithRole().
 		All(ctx)
 	if err != nil {
 		return false, fmt.Errorf("获取用户角色失败: %w", err)
@@ -616,11 +751,9 @@ func (s *PermissionService) CheckPermission(ctx context.Context, userID int, dom
 	// 提取角色名称
 	roleNames := make([]string, 0, len(userRoles))
 	for _, ur := range userRoles {
-		role, err := ur.QueryRole().Only(ctx)
-		if err != nil {
-			continue
+		if ur.Edges.Role != nil {
+			roleNames = append(roleNames, ur.Edges.Role.Name)
 		}
-		roleNames = append(roleNames, role.Name)
 	}
 
 	// 检查权限

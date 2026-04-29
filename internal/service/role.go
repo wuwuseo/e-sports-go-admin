@@ -9,6 +9,8 @@ import (
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
+
+	"github.com/wuwuseo/cmf/cache"
 )
 
 var (
@@ -38,12 +40,34 @@ type RoleServiceInterface interface {
 
 type RoleService struct {
 	client *ent.Client
+	cache  *cache.TypedCache[[]*PermissionResponse]
 }
 
 // NewRoleService 创建角色服务实例
-func NewRoleService() *RoleService {
+func NewRoleService(rawCache *cache.Cache[[]byte]) *RoleService {
+	var typedCache *cache.TypedCache[[]*PermissionResponse]
+	if rawCache != nil {
+		typedCache = cache.NewTypedCache[[]*PermissionResponse](rawCache)
+	}
 	return &RoleService{
 		client: global.ORM,
+		cache:  typedCache,
+	}
+}
+
+// clearUserPermissionsByRoleID 清除拥有指定角色的所有用户权限缓存
+func (s *RoleService) clearUserPermissionsByRoleID(ctx context.Context, roleID int, domain string) {
+	if s.cache == nil {
+		return
+	}
+	userRoles, err := s.client.UserRole.Query().Where(userrole.RoleIDEQ(roleID)).All(ctx)
+	if err != nil {
+		return
+	}
+	for _, ur := range userRoles {
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%d:%s", ur.UserID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%d:%s", ur.UserID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%d:%s", ur.UserID, domain))
 	}
 }
 
@@ -263,6 +287,9 @@ func (s *RoleService) UpdateRole(ctx context.Context, id int, req *UpdateRoleReq
 		return fmt.Errorf("更新角色失败: %w", err)
 	}
 
+	// 清除拥有该角色的所有用户权限缓存
+	s.clearUserPermissionsByRoleID(ctx, id, "default")
+
 	return nil
 }
 
@@ -340,6 +367,9 @@ func (s *RoleService) EnableRole(ctx context.Context, id int) error {
 		return fmt.Errorf("启用角色失败: %w", err)
 	}
 
+	// 清除拥有该角色的所有用户权限缓存
+	s.clearUserPermissionsByRoleID(ctx, id, "default")
+
 	return nil
 }
 
@@ -374,6 +404,9 @@ func (s *RoleService) DisableRole(ctx context.Context, id int) error {
 	if err != nil {
 		return fmt.Errorf("禁用角色失败: %w", err)
 	}
+
+	// 清除拥有该角色的所有用户权限缓存
+	s.clearUserPermissionsByRoleID(ctx, id, "default")
 
 	return nil
 }

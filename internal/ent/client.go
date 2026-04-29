@@ -11,7 +11,11 @@ import (
 
 	"go-admin/internal/ent/migrate"
 
+	"go-admin/internal/ent/attachment"
+	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
@@ -27,8 +31,16 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Attachment is the client for interacting with the Attachment builders.
+	Attachment *AttachmentClient
+	// AttachmentGroup is the client for interacting with the AttachmentGroup builders.
+	AttachmentGroup *AttachmentGroupClient
 	// CasbinRule is the client for interacting with the CasbinRule builders.
 	CasbinRule *CasbinRuleClient
+	// CronJob is the client for interacting with the CronJob builders.
+	CronJob *CronJobClient
+	// OperationLog is the client for interacting with the OperationLog builders.
+	OperationLog *OperationLogClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// User is the client for interacting with the User builders.
@@ -46,7 +58,11 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Attachment = NewAttachmentClient(c.config)
+	c.AttachmentGroup = NewAttachmentGroupClient(c.config)
 	c.CasbinRule = NewCasbinRuleClient(c.config)
+	c.CronJob = NewCronJobClient(c.config)
+	c.OperationLog = NewOperationLogClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserRole = NewUserRoleClient(c.config)
@@ -140,12 +156,16 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		CasbinRule: NewCasbinRuleClient(cfg),
-		Role:       NewRoleClient(cfg),
-		User:       NewUserClient(cfg),
-		UserRole:   NewUserRoleClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Attachment:      NewAttachmentClient(cfg),
+		AttachmentGroup: NewAttachmentGroupClient(cfg),
+		CasbinRule:      NewCasbinRuleClient(cfg),
+		CronJob:         NewCronJobClient(cfg),
+		OperationLog:    NewOperationLogClient(cfg),
+		Role:            NewRoleClient(cfg),
+		User:            NewUserClient(cfg),
+		UserRole:        NewUserRoleClient(cfg),
 	}, nil
 }
 
@@ -163,19 +183,23 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:        ctx,
-		config:     cfg,
-		CasbinRule: NewCasbinRuleClient(cfg),
-		Role:       NewRoleClient(cfg),
-		User:       NewUserClient(cfg),
-		UserRole:   NewUserRoleClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Attachment:      NewAttachmentClient(cfg),
+		AttachmentGroup: NewAttachmentGroupClient(cfg),
+		CasbinRule:      NewCasbinRuleClient(cfg),
+		CronJob:         NewCronJobClient(cfg),
+		OperationLog:    NewOperationLogClient(cfg),
+		Role:            NewRoleClient(cfg),
+		User:            NewUserClient(cfg),
+		UserRole:        NewUserRoleClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		CasbinRule.
+//		Attachment.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -197,26 +221,38 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.CasbinRule.Use(hooks...)
-	c.Role.Use(hooks...)
-	c.User.Use(hooks...)
-	c.UserRole.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.OperationLog,
+		c.Role, c.User, c.UserRole,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.CasbinRule.Intercept(interceptors...)
-	c.Role.Intercept(interceptors...)
-	c.User.Intercept(interceptors...)
-	c.UserRole.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.OperationLog,
+		c.Role, c.User, c.UserRole,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *AttachmentMutation:
+		return c.Attachment.mutate(ctx, m)
+	case *AttachmentGroupMutation:
+		return c.AttachmentGroup.mutate(ctx, m)
 	case *CasbinRuleMutation:
 		return c.CasbinRule.mutate(ctx, m)
+	case *CronJobMutation:
+		return c.CronJob.mutate(ctx, m)
+	case *OperationLogMutation:
+		return c.OperationLog.mutate(ctx, m)
 	case *RoleMutation:
 		return c.Role.mutate(ctx, m)
 	case *UserMutation:
@@ -225,6 +261,304 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserRole.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// AttachmentClient is a client for the Attachment schema.
+type AttachmentClient struct {
+	config
+}
+
+// NewAttachmentClient returns a client for the Attachment from the given config.
+func NewAttachmentClient(c config) *AttachmentClient {
+	return &AttachmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `attachment.Hooks(f(g(h())))`.
+func (c *AttachmentClient) Use(hooks ...Hook) {
+	c.hooks.Attachment = append(c.hooks.Attachment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `attachment.Intercept(f(g(h())))`.
+func (c *AttachmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Attachment = append(c.inters.Attachment, interceptors...)
+}
+
+// Create returns a builder for creating a Attachment entity.
+func (c *AttachmentClient) Create() *AttachmentCreate {
+	mutation := newAttachmentMutation(c.config, OpCreate)
+	return &AttachmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Attachment entities.
+func (c *AttachmentClient) CreateBulk(builders ...*AttachmentCreate) *AttachmentCreateBulk {
+	return &AttachmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AttachmentClient) MapCreateBulk(slice any, setFunc func(*AttachmentCreate, int)) *AttachmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AttachmentCreateBulk{err: fmt.Errorf("calling to AttachmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AttachmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AttachmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Attachment.
+func (c *AttachmentClient) Update() *AttachmentUpdate {
+	mutation := newAttachmentMutation(c.config, OpUpdate)
+	return &AttachmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AttachmentClient) UpdateOne(_m *Attachment) *AttachmentUpdateOne {
+	mutation := newAttachmentMutation(c.config, OpUpdateOne, withAttachment(_m))
+	return &AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AttachmentClient) UpdateOneID(id int) *AttachmentUpdateOne {
+	mutation := newAttachmentMutation(c.config, OpUpdateOne, withAttachmentID(id))
+	return &AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Attachment.
+func (c *AttachmentClient) Delete() *AttachmentDelete {
+	mutation := newAttachmentMutation(c.config, OpDelete)
+	return &AttachmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AttachmentClient) DeleteOne(_m *Attachment) *AttachmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AttachmentClient) DeleteOneID(id int) *AttachmentDeleteOne {
+	builder := c.Delete().Where(attachment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AttachmentDeleteOne{builder}
+}
+
+// Query returns a query builder for Attachment.
+func (c *AttachmentClient) Query() *AttachmentQuery {
+	return &AttachmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAttachment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Attachment entity by its id.
+func (c *AttachmentClient) Get(ctx context.Context, id int) (*Attachment, error) {
+	return c.Query().Where(attachment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AttachmentClient) GetX(ctx context.Context, id int) *Attachment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryGroup queries the group edge of a Attachment.
+func (c *AttachmentClient) QueryGroup(_m *Attachment) *AttachmentGroupQuery {
+	query := (&AttachmentGroupClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attachment.Table, attachment.FieldID, id),
+			sqlgraph.To(attachmentgroup.Table, attachmentgroup.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, attachment.GroupTable, attachment.GroupColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AttachmentClient) Hooks() []Hook {
+	return c.hooks.Attachment
+}
+
+// Interceptors returns the client interceptors.
+func (c *AttachmentClient) Interceptors() []Interceptor {
+	return c.inters.Attachment
+}
+
+func (c *AttachmentClient) mutate(ctx context.Context, m *AttachmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AttachmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AttachmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AttachmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Attachment mutation op: %q", m.Op())
+	}
+}
+
+// AttachmentGroupClient is a client for the AttachmentGroup schema.
+type AttachmentGroupClient struct {
+	config
+}
+
+// NewAttachmentGroupClient returns a client for the AttachmentGroup from the given config.
+func NewAttachmentGroupClient(c config) *AttachmentGroupClient {
+	return &AttachmentGroupClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `attachmentgroup.Hooks(f(g(h())))`.
+func (c *AttachmentGroupClient) Use(hooks ...Hook) {
+	c.hooks.AttachmentGroup = append(c.hooks.AttachmentGroup, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `attachmentgroup.Intercept(f(g(h())))`.
+func (c *AttachmentGroupClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AttachmentGroup = append(c.inters.AttachmentGroup, interceptors...)
+}
+
+// Create returns a builder for creating a AttachmentGroup entity.
+func (c *AttachmentGroupClient) Create() *AttachmentGroupCreate {
+	mutation := newAttachmentGroupMutation(c.config, OpCreate)
+	return &AttachmentGroupCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AttachmentGroup entities.
+func (c *AttachmentGroupClient) CreateBulk(builders ...*AttachmentGroupCreate) *AttachmentGroupCreateBulk {
+	return &AttachmentGroupCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AttachmentGroupClient) MapCreateBulk(slice any, setFunc func(*AttachmentGroupCreate, int)) *AttachmentGroupCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AttachmentGroupCreateBulk{err: fmt.Errorf("calling to AttachmentGroupClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AttachmentGroupCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AttachmentGroupCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AttachmentGroup.
+func (c *AttachmentGroupClient) Update() *AttachmentGroupUpdate {
+	mutation := newAttachmentGroupMutation(c.config, OpUpdate)
+	return &AttachmentGroupUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AttachmentGroupClient) UpdateOne(_m *AttachmentGroup) *AttachmentGroupUpdateOne {
+	mutation := newAttachmentGroupMutation(c.config, OpUpdateOne, withAttachmentGroup(_m))
+	return &AttachmentGroupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AttachmentGroupClient) UpdateOneID(id int) *AttachmentGroupUpdateOne {
+	mutation := newAttachmentGroupMutation(c.config, OpUpdateOne, withAttachmentGroupID(id))
+	return &AttachmentGroupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AttachmentGroup.
+func (c *AttachmentGroupClient) Delete() *AttachmentGroupDelete {
+	mutation := newAttachmentGroupMutation(c.config, OpDelete)
+	return &AttachmentGroupDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AttachmentGroupClient) DeleteOne(_m *AttachmentGroup) *AttachmentGroupDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AttachmentGroupClient) DeleteOneID(id int) *AttachmentGroupDeleteOne {
+	builder := c.Delete().Where(attachmentgroup.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AttachmentGroupDeleteOne{builder}
+}
+
+// Query returns a query builder for AttachmentGroup.
+func (c *AttachmentGroupClient) Query() *AttachmentGroupQuery {
+	return &AttachmentGroupQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAttachmentGroup},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AttachmentGroup entity by its id.
+func (c *AttachmentGroupClient) Get(ctx context.Context, id int) (*AttachmentGroup, error) {
+	return c.Query().Where(attachmentgroup.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AttachmentGroupClient) GetX(ctx context.Context, id int) *AttachmentGroup {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAttachments queries the attachments edge of a AttachmentGroup.
+func (c *AttachmentGroupClient) QueryAttachments(_m *AttachmentGroup) *AttachmentQuery {
+	query := (&AttachmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attachmentgroup.Table, attachmentgroup.FieldID, id),
+			sqlgraph.To(attachment.Table, attachment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, attachmentgroup.AttachmentsTable, attachmentgroup.AttachmentsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AttachmentGroupClient) Hooks() []Hook {
+	return c.hooks.AttachmentGroup
+}
+
+// Interceptors returns the client interceptors.
+func (c *AttachmentGroupClient) Interceptors() []Interceptor {
+	return c.inters.AttachmentGroup
+}
+
+func (c *AttachmentGroupClient) mutate(ctx context.Context, m *AttachmentGroupMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AttachmentGroupCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AttachmentGroupUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AttachmentGroupUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AttachmentGroupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AttachmentGroup mutation op: %q", m.Op())
 	}
 }
 
@@ -358,6 +692,272 @@ func (c *CasbinRuleClient) mutate(ctx context.Context, m *CasbinRuleMutation) (V
 		return (&CasbinRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CasbinRule mutation op: %q", m.Op())
+	}
+}
+
+// CronJobClient is a client for the CronJob schema.
+type CronJobClient struct {
+	config
+}
+
+// NewCronJobClient returns a client for the CronJob from the given config.
+func NewCronJobClient(c config) *CronJobClient {
+	return &CronJobClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cronjob.Hooks(f(g(h())))`.
+func (c *CronJobClient) Use(hooks ...Hook) {
+	c.hooks.CronJob = append(c.hooks.CronJob, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cronjob.Intercept(f(g(h())))`.
+func (c *CronJobClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CronJob = append(c.inters.CronJob, interceptors...)
+}
+
+// Create returns a builder for creating a CronJob entity.
+func (c *CronJobClient) Create() *CronJobCreate {
+	mutation := newCronJobMutation(c.config, OpCreate)
+	return &CronJobCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CronJob entities.
+func (c *CronJobClient) CreateBulk(builders ...*CronJobCreate) *CronJobCreateBulk {
+	return &CronJobCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CronJobClient) MapCreateBulk(slice any, setFunc func(*CronJobCreate, int)) *CronJobCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CronJobCreateBulk{err: fmt.Errorf("calling to CronJobClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CronJobCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CronJobCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CronJob.
+func (c *CronJobClient) Update() *CronJobUpdate {
+	mutation := newCronJobMutation(c.config, OpUpdate)
+	return &CronJobUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CronJobClient) UpdateOne(_m *CronJob) *CronJobUpdateOne {
+	mutation := newCronJobMutation(c.config, OpUpdateOne, withCronJob(_m))
+	return &CronJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CronJobClient) UpdateOneID(id int) *CronJobUpdateOne {
+	mutation := newCronJobMutation(c.config, OpUpdateOne, withCronJobID(id))
+	return &CronJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CronJob.
+func (c *CronJobClient) Delete() *CronJobDelete {
+	mutation := newCronJobMutation(c.config, OpDelete)
+	return &CronJobDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CronJobClient) DeleteOne(_m *CronJob) *CronJobDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CronJobClient) DeleteOneID(id int) *CronJobDeleteOne {
+	builder := c.Delete().Where(cronjob.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CronJobDeleteOne{builder}
+}
+
+// Query returns a query builder for CronJob.
+func (c *CronJobClient) Query() *CronJobQuery {
+	return &CronJobQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCronJob},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CronJob entity by its id.
+func (c *CronJobClient) Get(ctx context.Context, id int) (*CronJob, error) {
+	return c.Query().Where(cronjob.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CronJobClient) GetX(ctx context.Context, id int) *CronJob {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CronJobClient) Hooks() []Hook {
+	return c.hooks.CronJob
+}
+
+// Interceptors returns the client interceptors.
+func (c *CronJobClient) Interceptors() []Interceptor {
+	return c.inters.CronJob
+}
+
+func (c *CronJobClient) mutate(ctx context.Context, m *CronJobMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CronJobCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CronJobUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CronJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CronJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CronJob mutation op: %q", m.Op())
+	}
+}
+
+// OperationLogClient is a client for the OperationLog schema.
+type OperationLogClient struct {
+	config
+}
+
+// NewOperationLogClient returns a client for the OperationLog from the given config.
+func NewOperationLogClient(c config) *OperationLogClient {
+	return &OperationLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `operationlog.Hooks(f(g(h())))`.
+func (c *OperationLogClient) Use(hooks ...Hook) {
+	c.hooks.OperationLog = append(c.hooks.OperationLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `operationlog.Intercept(f(g(h())))`.
+func (c *OperationLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OperationLog = append(c.inters.OperationLog, interceptors...)
+}
+
+// Create returns a builder for creating a OperationLog entity.
+func (c *OperationLogClient) Create() *OperationLogCreate {
+	mutation := newOperationLogMutation(c.config, OpCreate)
+	return &OperationLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OperationLog entities.
+func (c *OperationLogClient) CreateBulk(builders ...*OperationLogCreate) *OperationLogCreateBulk {
+	return &OperationLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OperationLogClient) MapCreateBulk(slice any, setFunc func(*OperationLogCreate, int)) *OperationLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OperationLogCreateBulk{err: fmt.Errorf("calling to OperationLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OperationLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OperationLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OperationLog.
+func (c *OperationLogClient) Update() *OperationLogUpdate {
+	mutation := newOperationLogMutation(c.config, OpUpdate)
+	return &OperationLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OperationLogClient) UpdateOne(_m *OperationLog) *OperationLogUpdateOne {
+	mutation := newOperationLogMutation(c.config, OpUpdateOne, withOperationLog(_m))
+	return &OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OperationLogClient) UpdateOneID(id int) *OperationLogUpdateOne {
+	mutation := newOperationLogMutation(c.config, OpUpdateOne, withOperationLogID(id))
+	return &OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OperationLog.
+func (c *OperationLogClient) Delete() *OperationLogDelete {
+	mutation := newOperationLogMutation(c.config, OpDelete)
+	return &OperationLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OperationLogClient) DeleteOne(_m *OperationLog) *OperationLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OperationLogClient) DeleteOneID(id int) *OperationLogDeleteOne {
+	builder := c.Delete().Where(operationlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OperationLogDeleteOne{builder}
+}
+
+// Query returns a query builder for OperationLog.
+func (c *OperationLogClient) Query() *OperationLogQuery {
+	return &OperationLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOperationLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OperationLog entity by its id.
+func (c *OperationLogClient) Get(ctx context.Context, id int) (*OperationLog, error) {
+	return c.Query().Where(operationlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OperationLogClient) GetX(ctx context.Context, id int) *OperationLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OperationLogClient) Hooks() []Hook {
+	return c.hooks.OperationLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *OperationLogClient) Interceptors() []Interceptor {
+	return c.inters.OperationLog
+}
+
+func (c *OperationLogClient) mutate(ctx context.Context, m *OperationLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OperationLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OperationLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OperationLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OperationLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OperationLog mutation op: %q", m.Op())
 	}
 }
 
@@ -795,9 +1395,11 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		CasbinRule, Role, User, UserRole []ent.Hook
+		Attachment, AttachmentGroup, CasbinRule, CronJob, OperationLog, Role, User,
+		UserRole []ent.Hook
 	}
 	inters struct {
-		CasbinRule, Role, User, UserRole []ent.Interceptor
+		Attachment, AttachmentGroup, CasbinRule, CronJob, OperationLog, Role, User,
+		UserRole []ent.Interceptor
 	}
 )

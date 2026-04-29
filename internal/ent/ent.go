@@ -6,7 +6,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/ent/attachment"
+	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
@@ -76,10 +80,14 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			casbinrule.Table: casbinrule.ValidColumn,
-			role.Table:       role.ValidColumn,
-			user.Table:       user.ValidColumn,
-			userrole.Table:   userrole.ValidColumn,
+			attachment.Table:      attachment.ValidColumn,
+			attachmentgroup.Table: attachmentgroup.ValidColumn,
+			casbinrule.Table:      casbinrule.ValidColumn,
+			cronjob.Table:         cronjob.ValidColumn,
+			operationlog.Table:    operationlog.ValidColumn,
+			role.Table:            role.ValidColumn,
+			user.Table:            user.ValidColumn,
+			userrole.Table:        userrole.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

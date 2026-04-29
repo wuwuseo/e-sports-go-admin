@@ -5,10 +5,16 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/wuwuseo/cmf/jwt"
-
 	"github.com/gofiber/fiber/v2"
+	"github.com/wuwuseo/cmf/jwt"
+	"github.com/wuwuseo/cmf/validate"
 )
+
+// ChangePasswordRequest 修改密码请求
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=6"`
+}
 
 // Login 用户登录
 // @Summary 用户登录
@@ -18,16 +24,25 @@ import (
 // @Produce json
 // @Param body body service.LoginRequest true "登录信息"
 // @Success 200 {object} utils.Response{data=service.TokenResponse}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/login [post]
 func Login(c *fiber.Ctx) error {
-	var req service.LoginRequest
 	response := c.Locals("utils.Response").(*utils.Response)
-	if err := c.BodyParser(&req); err != nil {
+
+	req, err := validate.ParseAndValidate[service.LoginRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return response.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
 
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
-	token, err := userService.Login(c.Context(), &req)
+	token, err := userService.Login(c.Context(), req)
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -50,7 +65,10 @@ func Login(c *fiber.Ctx) error {
 // @Tags 用户管理
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} utils.Response
+// @Success 200 {object} utils.Response{data=map[string]interface{}}
+// @Failure 401 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user [get]
 func GetUser(c *fiber.Ctx) error {
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
@@ -89,6 +107,9 @@ func GetUser(c *fiber.Ctx) error {
 // @Security BearerAuth
 // @Param body body map[string]interface{} true "用户信息"
 // @Success 200 {object} utils.Response
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user [put]
 func UpdateUser(c *fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
@@ -105,6 +126,9 @@ func UpdateUser(c *fiber.Ctx) error {
 		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
 	}
 
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "用户管理", "更新信息", "更新用户信息: "+userID)
+
 	return response.Success(nil).ToJSON(c)
 }
 
@@ -115,23 +139,27 @@ func UpdateUser(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param body body map[string]string true "密码信息"
+// @Param body body ChangePasswordRequest true "密码信息"
 // @Success 200 {object} utils.Response
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/password [put]
 func ChangePassword(c *fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 
 	userID := claims["id"].(string)
 	response := c.Locals("utils.Response").(*utils.Response)
-	var req struct {
-		OldPassword string `json:"old_password"`
-		NewPassword string `json:"new_password"`
-	}
-	if err := c.BodyParser(&req); err != nil {
+	req, err := validate.ParseAndValidate[ChangePasswordRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return response.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
 
-	userService := c.Locals("userService").(service.UserServiceInterface)
+	userService := c.Locals("service.UserService").(service.UserServiceInterface)
 	if err := userService.ChangePassword(c.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -143,6 +171,9 @@ func ChangePassword(c *fiber.Ctx) error {
 		}
 	}
 
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "用户管理", "修改密码", "用户修改密码: "+userID)
+
 	return response.Success(nil).ToJSON(c)
 }
 
@@ -152,17 +183,20 @@ func ChangePassword(c *fiber.Ctx) error {
 // @Tags 用户管理
 // @Accept json
 // @Produce json
-// @Param body body map[string]string true "刷新令牌"
+// @Param body body service.RefreshTokenRequest true "刷新令牌"
 // @Success 200 {object} utils.Response{data=service.TokenResponse}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/refresh-token [post]
 func RefreshToken(c *fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
-	// 解析请求体
-	var req struct {
-		RefreshToken string `json:"refresh_token" validate:"required"`
-	}
-	if err := c.BodyParser(&req); err != nil {
+	req, err := validate.ParseAndValidate[service.RefreshTokenRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return response.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
 

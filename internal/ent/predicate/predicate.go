@@ -6,8 +6,20 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Attachment is the predicate function for attachment builders.
+type Attachment func(*sql.Selector)
+
+// AttachmentGroup is the predicate function for attachmentgroup builders.
+type AttachmentGroup func(*sql.Selector)
+
 // CasbinRule is the predicate function for casbinrule builders.
 type CasbinRule func(*sql.Selector)
+
+// CronJob is the predicate function for cronjob builders.
+type CronJob func(*sql.Selector)
+
+// OperationLog is the predicate function for operationlog builders.
+type OperationLog func(*sql.Selector)
 
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)

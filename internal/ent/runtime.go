@@ -3,7 +3,11 @@
 package ent
 
 import (
+	"go-admin/internal/ent/attachment"
+	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
 	"go-admin/internal/ent/user"
@@ -15,6 +19,118 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	attachmentFields := schema.Attachment{}.Fields()
+	_ = attachmentFields
+	// attachmentDescName is the schema descriptor for name field.
+	attachmentDescName := attachmentFields[1].Descriptor()
+	// attachment.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	attachment.NameValidator = func() func(string) error {
+		validators := attachmentDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescOriginalName is the schema descriptor for original_name field.
+	attachmentDescOriginalName := attachmentFields[2].Descriptor()
+	// attachment.OriginalNameValidator is a validator for the "original_name" field. It is called by the builders before save.
+	attachment.OriginalNameValidator = func() func(string) error {
+		validators := attachmentDescOriginalName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(original_name string) error {
+			for _, fn := range fns {
+				if err := fn(original_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescPath is the schema descriptor for path field.
+	attachmentDescPath := attachmentFields[3].Descriptor()
+	// attachment.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	attachment.PathValidator = func() func(string) error {
+		validators := attachmentDescPath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(_path string) error {
+			for _, fn := range fns {
+				if err := fn(_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentDescMimeType is the schema descriptor for mime_type field.
+	attachmentDescMimeType := attachmentFields[4].Descriptor()
+	// attachment.MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
+	attachment.MimeTypeValidator = attachmentDescMimeType.Validators[0].(func(string) error)
+	// attachmentDescExtension is the schema descriptor for extension field.
+	attachmentDescExtension := attachmentFields[5].Descriptor()
+	// attachment.ExtensionValidator is a validator for the "extension" field. It is called by the builders before save.
+	attachment.ExtensionValidator = attachmentDescExtension.Validators[0].(func(string) error)
+	// attachmentDescCreatedAt is the schema descriptor for created_at field.
+	attachmentDescCreatedAt := attachmentFields[9].Descriptor()
+	// attachment.DefaultCreatedAt holds the default value on creation for the created_at field.
+	attachment.DefaultCreatedAt = attachmentDescCreatedAt.Default.(func() time.Time)
+	// attachmentDescUpdatedAt is the schema descriptor for updated_at field.
+	attachmentDescUpdatedAt := attachmentFields[10].Descriptor()
+	// attachment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	attachment.DefaultUpdatedAt = attachmentDescUpdatedAt.Default.(func() time.Time)
+	// attachment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	attachment.UpdateDefaultUpdatedAt = attachmentDescUpdatedAt.UpdateDefault.(func() time.Time)
+	attachmentgroupFields := schema.AttachmentGroup{}.Fields()
+	_ = attachmentgroupFields
+	// attachmentgroupDescName is the schema descriptor for name field.
+	attachmentgroupDescName := attachmentgroupFields[1].Descriptor()
+	// attachmentgroup.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	attachmentgroup.NameValidator = func() func(string) error {
+		validators := attachmentgroupDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// attachmentgroupDescDescription is the schema descriptor for description field.
+	attachmentgroupDescDescription := attachmentgroupFields[2].Descriptor()
+	// attachmentgroup.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	attachmentgroup.DescriptionValidator = attachmentgroupDescDescription.Validators[0].(func(string) error)
+	// attachmentgroupDescSort is the schema descriptor for sort field.
+	attachmentgroupDescSort := attachmentgroupFields[3].Descriptor()
+	// attachmentgroup.DefaultSort holds the default value on creation for the sort field.
+	attachmentgroup.DefaultSort = attachmentgroupDescSort.Default.(int)
+	// attachmentgroupDescCreatedAt is the schema descriptor for created_at field.
+	attachmentgroupDescCreatedAt := attachmentgroupFields[4].Descriptor()
+	// attachmentgroup.DefaultCreatedAt holds the default value on creation for the created_at field.
+	attachmentgroup.DefaultCreatedAt = attachmentgroupDescCreatedAt.Default.(func() time.Time)
+	// attachmentgroupDescUpdatedAt is the schema descriptor for updated_at field.
+	attachmentgroupDescUpdatedAt := attachmentgroupFields[5].Descriptor()
+	// attachmentgroup.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	attachmentgroup.DefaultUpdatedAt = attachmentgroupDescUpdatedAt.Default.(func() time.Time)
+	// attachmentgroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	attachmentgroup.UpdateDefaultUpdatedAt = attachmentgroupDescUpdatedAt.UpdateDefault.(func() time.Time)
 	casbinruleFields := schema.CasbinRule{}.Fields()
 	_ = casbinruleFields
 	// casbinruleDescPtype is the schema descriptor for Ptype field.
@@ -45,6 +161,188 @@ func init() {
 	casbinruleDescV5 := casbinruleFields[6].Descriptor()
 	// casbinrule.DefaultV5 holds the default value on creation for the V5 field.
 	casbinrule.DefaultV5 = casbinruleDescV5.Default.(string)
+	cronjobFields := schema.CronJob{}.Fields()
+	_ = cronjobFields
+	// cronjobDescName is the schema descriptor for name field.
+	cronjobDescName := cronjobFields[1].Descriptor()
+	// cronjob.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	cronjob.NameValidator = func() func(string) error {
+		validators := cronjobDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cronjobDescDescription is the schema descriptor for description field.
+	cronjobDescDescription := cronjobFields[2].Descriptor()
+	// cronjob.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	cronjob.DescriptionValidator = cronjobDescDescription.Validators[0].(func(string) error)
+	// cronjobDescExpression is the schema descriptor for expression field.
+	cronjobDescExpression := cronjobFields[4].Descriptor()
+	// cronjob.ExpressionValidator is a validator for the "expression" field. It is called by the builders before save.
+	cronjob.ExpressionValidator = func() func(string) error {
+		validators := cronjobDescExpression.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(expression string) error {
+			for _, fn := range fns {
+				if err := fn(expression); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cronjobDescCommand is the schema descriptor for command field.
+	cronjobDescCommand := cronjobFields[5].Descriptor()
+	// cronjob.CommandValidator is a validator for the "command" field. It is called by the builders before save.
+	cronjob.CommandValidator = func() func(string) error {
+		validators := cronjobDescCommand.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(command string) error {
+			for _, fn := range fns {
+				if err := fn(command); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cronjobDescEnabled is the schema descriptor for enabled field.
+	cronjobDescEnabled := cronjobFields[6].Descriptor()
+	// cronjob.DefaultEnabled holds the default value on creation for the enabled field.
+	cronjob.DefaultEnabled = cronjobDescEnabled.Default.(bool)
+	// cronjobDescCreatedAt is the schema descriptor for created_at field.
+	cronjobDescCreatedAt := cronjobFields[9].Descriptor()
+	// cronjob.DefaultCreatedAt holds the default value on creation for the created_at field.
+	cronjob.DefaultCreatedAt = cronjobDescCreatedAt.Default.(func() time.Time)
+	// cronjobDescUpdatedAt is the schema descriptor for updated_at field.
+	cronjobDescUpdatedAt := cronjobFields[10].Descriptor()
+	// cronjob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	cronjob.DefaultUpdatedAt = cronjobDescUpdatedAt.Default.(func() time.Time)
+	// cronjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	cronjob.UpdateDefaultUpdatedAt = cronjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	operationlogFields := schema.OperationLog{}.Fields()
+	_ = operationlogFields
+	// operationlogDescUsername is the schema descriptor for username field.
+	operationlogDescUsername := operationlogFields[2].Descriptor()
+	// operationlog.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
+	operationlog.UsernameValidator = func() func(string) error {
+		validators := operationlogDescUsername.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(username string) error {
+			for _, fn := range fns {
+				if err := fn(username); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operationlogDescModule is the schema descriptor for module field.
+	operationlogDescModule := operationlogFields[3].Descriptor()
+	// operationlog.ModuleValidator is a validator for the "module" field. It is called by the builders before save.
+	operationlog.ModuleValidator = func() func(string) error {
+		validators := operationlogDescModule.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(module string) error {
+			for _, fn := range fns {
+				if err := fn(module); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operationlogDescAction is the schema descriptor for action field.
+	operationlogDescAction := operationlogFields[4].Descriptor()
+	// operationlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	operationlog.ActionValidator = func() func(string) error {
+		validators := operationlogDescAction.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(action string) error {
+			for _, fn := range fns {
+				if err := fn(action); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operationlogDescDescription is the schema descriptor for description field.
+	operationlogDescDescription := operationlogFields[5].Descriptor()
+	// operationlog.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	operationlog.DescriptionValidator = operationlogDescDescription.Validators[0].(func(string) error)
+	// operationlogDescMethod is the schema descriptor for method field.
+	operationlogDescMethod := operationlogFields[6].Descriptor()
+	// operationlog.MethodValidator is a validator for the "method" field. It is called by the builders before save.
+	operationlog.MethodValidator = func() func(string) error {
+		validators := operationlogDescMethod.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(method string) error {
+			for _, fn := range fns {
+				if err := fn(method); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operationlogDescPath is the schema descriptor for path field.
+	operationlogDescPath := operationlogFields[7].Descriptor()
+	// operationlog.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	operationlog.PathValidator = func() func(string) error {
+		validators := operationlogDescPath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(_path string) error {
+			for _, fn := range fns {
+				if err := fn(_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// operationlogDescIP is the schema descriptor for ip field.
+	operationlogDescIP := operationlogFields[8].Descriptor()
+	// operationlog.IPValidator is a validator for the "ip" field. It is called by the builders before save.
+	operationlog.IPValidator = operationlogDescIP.Validators[0].(func(string) error)
+	// operationlogDescUserAgent is the schema descriptor for user_agent field.
+	operationlogDescUserAgent := operationlogFields[9].Descriptor()
+	// operationlog.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	operationlog.UserAgentValidator = operationlogDescUserAgent.Validators[0].(func(string) error)
+	// operationlogDescCreatedAt is the schema descriptor for created_at field.
+	operationlogDescCreatedAt := operationlogFields[13].Descriptor()
+	// operationlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	operationlog.DefaultCreatedAt = operationlogDescCreatedAt.Default.(func() time.Time)
 	roleMixin := schema.Role{}.Mixin()
 	roleMixinFields0 := roleMixin[0].Fields()
 	_ = roleMixinFields0

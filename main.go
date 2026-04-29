@@ -2,7 +2,7 @@ package main
 
 import (
 	"embed"
-	"log"
+	stdlog "log"
 	"net/http"
 	"strings"
 
@@ -12,9 +12,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 
+	_ "go-admin/internal/tasks" // 触发 init() 注册 Go tasks
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/wuwuseo/cmf/bootstrap"
 	"github.com/wuwuseo/cmf/config"
+	"github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
 )
 
 // @title 管理系统 API
@@ -41,6 +45,17 @@ import (
 var WebRoot embed.FS
 
 func main() {
+	// 通过 Wire 初始化应用依赖
+	app, err := internal.InitializeApp()
+	if err != nil {
+		stdlog.Fatalf("Failed to initialize app: %v", err)
+	}
+	internal.SetApp(app)
+
+	// 设置全局 logger
+	log.SetDefault(app.Logger)
+	log.Info("应用依赖初始化完成")
+
 	bootstrap := bootstrap.NewBootstrap()
 	global.Bootstrap = bootstrap
 	bootstrap.RegisterInitFunc(internal.Init)
@@ -79,11 +94,11 @@ func main() {
 
 	defer func() {
 		if err := internal.Cleanup(); err != nil {
-			log.Printf("Final cleanup error: %v", err)
+			log.Error("Final cleanup error", zap.Error(err))
 		}
 	}()
 
 	if err := bootstrap.Run(); err != nil {
-		log.Fatalf("Failed to run application: %v", err)
+		log.Fatal("Failed to run application", zap.Error(err))
 	}
 }

@@ -1,6 +1,9 @@
 package middleware
 
 import (
+	"fmt"
+	"strconv"
+
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
 
@@ -11,12 +14,34 @@ import (
 // PermissionMiddleware API权限控制中间件
 func PermissionMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// 获取当前用户ID
-		userID, ok := c.Locals("user_id").(int)
+		// 从JWT中获取当前用户ID
+		claims := jwt.GetJWTUserData(c)
+		userIDVal, ok := claims["user_id"]
 		if !ok {
 			resp := utils.NewResponse()
 			return resp.Fail(fiber.StatusUnauthorized, "未授权访问").ToJSON(c)
 		}
+
+		var userID int
+		switch v := userIDVal.(type) {
+		case float64:
+			userID = int(v)
+		case int:
+			userID = v
+		case string:
+			id, err := strconv.Atoi(v)
+			if err != nil {
+				resp := utils.NewResponse()
+				return resp.Fail(fiber.StatusUnauthorized, "无效的用户ID").ToJSON(c)
+			}
+			userID = id
+		default:
+			resp := utils.NewResponse()
+			return resp.Fail(fiber.StatusUnauthorized, "无效的用户ID类型").ToJSON(c)
+		}
+
+		// 将用户ID存入Locals，供后续处理器使用
+		c.Locals("user_id", userID)
 
 		// 获取当前域（由DomainMiddleware从JWT中获取）
 		domain, ok := c.Locals("domain").(string)
@@ -36,8 +61,8 @@ func PermissionMiddleware() fiber.Handler {
 			return resp.Fail(fiber.StatusInternalServerError, "获取权限执行器失败").ToJSON(c)
 		}
 
-		// 检查权限
-		ok, err = enforcer.Enforce(userID, domain, path, method)
+		// 检查权限（Casbin enforce需要将用户ID转为字符串）
+		ok, err = enforcer.Enforce(fmt.Sprintf("%d", userID), domain, path, method)
 		if err != nil {
 			resp := utils.NewResponse()
 			return resp.Fail(fiber.StatusInternalServerError, "权限检查失败").ToJSON(c)

@@ -2,17 +2,35 @@ package internal
 
 import (
 	"go-admin/internal/global"
+
+	"github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
 )
 
 func Cleanup() error {
-	// 清理资源
-	if global.ORM != nil {
-		// 关闭数据库连接
-		if err := global.ORM.Close(); err != nil {
+	// 停止定时任务管理器（在关闭 DB 之前）
+	if global.CronManager != nil {
+		global.CronManager.Stop()
+		log.Info("定时任务管理器已停止")
+	}
+
+	// 清理 Wire 注入的数据库连接池
+	if appInstance != nil && appInstance.DB != nil {
+		if err := appInstance.DB.Close(); err != nil {
+			log.Error("关闭数据库连接池失败", zap.Error(err))
 			return err
 		}
-		// 将客户端设置为 nil，防止重复关闭
+		log.Info("数据库连接池已关闭")
+	}
+
+	// 清理 Ent client
+	if global.ORM != nil {
+		if err := global.ORM.Close(); err != nil {
+			log.Error("关闭 Ent client 失败", zap.Error(err))
+			return err
+		}
 		global.ORM = nil
+		log.Info("Ent client 已关闭")
 	}
 
 	return nil

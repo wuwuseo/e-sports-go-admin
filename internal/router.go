@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"go-admin/internal/global"
 	"go-admin/internal/handler"
 	"go-admin/internal/middleware"
 	"go-admin/internal/service"
@@ -9,9 +10,15 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
+	"github.com/wuwuseo/cmf/log"
 )
 
 func RegisterRoute(app *fiber.App, config *config.Config) {
+	// 添加请求日志中间件
+	if appInstance != nil && appInstance.Logger != nil {
+		app.Use(log.RequestLoggerMiddleware(appInstance.Logger))
+	}
+
 	api := app.Group("/api")                          // API 路由组
 	v1 := api.Group("/v1", func(c *fiber.Ctx) error { // v1 版本路由中间件
 		c.Set("Version", "1")
@@ -24,6 +31,20 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.UserService", service.NewUserService())
 		return c.Next()
 	})
+
+	// 初始化带缓存的服务
+	var permissionService service.PermissionServiceInterface
+	var roleService service.RoleServiceInterface
+	if appInstance != nil && appInstance.Cache != nil {
+		permissionService = service.NewPermissionService(appInstance.Cache)
+		roleService = service.NewRoleService(appInstance.Cache)
+	} else {
+		permissionService = service.NewPermissionService(nil)
+		roleService = service.NewRoleService(nil)
+	}
+
+	// 初始化操作日志服务
+	opLogService := service.NewOperationLogService()
 	// 公开接口
 	adminPublic.Post("/login", handler.Login)
 	adminPublic.Post("/refresh-token", handler.RefreshToken)
@@ -31,8 +52,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 需要认证的接口
 	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c *fiber.Ctx) error {
 		c.Locals("service.UserService", service.NewUserService())
-		c.Locals("service.RoleService", service.NewRoleService())
-		c.Locals("service.PermissionService", service.NewPermissionService())
+		c.Locals("service.RoleService", roleService)
+		c.Locals("service.PermissionService", permissionService)
+		c.Locals("service.OperationLogService", opLogService)
 		return c.Next()
 	}, middleware.PermissionMiddleware())
 	adminAuth.Get("/user", handler.GetUser)
@@ -69,4 +91,59 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	userPermissions.Get("/button-permissions", handler.GetUserButtonPermissions) // 获取用户按钮权限
 	userPermissions.Get("/api-permissions", handler.GetUserAPIPermissions)       // 获取用户API权限
 	userPermissions.Get("/permissions", handler.GetUserPermissions)              // 获取用户所有权限（菜单和按钮）
+
+	// 定时任务管理路由
+	cronJobService := service.NewCronJobService(global.CronManager)
+	cronJobs := adminAuth.Group("/cron-jobs", func(c *fiber.Ctx) error {
+		c.Locals("service.CronJobService", cronJobService)
+		return c.Next()
+	})
+	cronJobs.Post("", handler.CreateCronJob)                          // 创建定时任务
+	cronJobs.Get("", handler.ListCronJobs)                            // 获取定时任务列表
+	cronJobs.Get("/:id", handler.GetCronJob)                          // 获取定时任务详情
+	cronJobs.Put("/:id", handler.UpdateCronJob)                       // 更新定时任务
+	cronJobs.Delete("/:id", handler.DeleteCronJob)                    // 删除定时任务
+	cronJobs.Post("/:id/enable", handler.EnableCronJob)               // 启用定时任务
+	cronJobs.Post("/:id/disable", handler.DisableCronJob)             // 禁用定时任务
+	cronJobs.Post("/:id/run", handler.RunCronJob)                     // 立即执行
+	cronJobs.Get("/:id/logs", handler.GetCronJobLogs)                 // 获取日志列表
+	cronJobs.Get("/:id/logs/tail", handler.TailCronJobLog)            // 读取日志尾部
+	cronJobs.Get("/:id/logs/:filename", handler.GetCronJobLogContent) // 获取日志内容
+
+	// 附件分组管理路由
+	attachmentGroupService := service.NewAttachmentGroupService()
+	var attachmentService service.AttachmentServiceInterface
+	if appInstance != nil && appInstance.Filesystem != nil {
+		attachmentService = service.NewAttachmentService(appInstance.Filesystem)
+	} else {
+		attachmentService = service.NewAttachmentService(nil)
+	}
+
+	groups := adminAuth.Group("/attachment-groups", func(c *fiber.Ctx) error {
+		c.Locals("service.AttachmentGroupService", attachmentGroupService)
+		return c.Next()
+	})
+	groups.Post("/", handler.CreateAttachmentGroup)
+	groups.Get("/", handler.ListAttachmentGroups)
+	groups.Get("/:id", handler.GetAttachmentGroup)
+	groups.Put("/:id", handler.UpdateAttachmentGroup)
+	groups.Delete("/:id", handler.DeleteAttachmentGroup)
+
+	// 附件管理路由
+	attachments := adminAuth.Group("/attachments", func(c *fiber.Ctx) error {
+		c.Locals("service.AttachmentService", attachmentService)
+		return c.Next()
+	})
+	attachments.Post("/upload", handler.UploadAttachment)
+	attachments.Delete("/batch", handler.BatchDeleteAttachments)
+	attachments.Get("/", handler.ListAttachments)
+	attachments.Get("/:id", handler.GetAttachment)
+	attachments.Get("/:id/preview", handler.PreviewAttachment)
+	attachments.Delete("/:id", handler.DeleteAttachment)
+	attachments.Put("/:id/move", handler.MoveAttachment)
+
+	// 操作日志管理路由
+	opLogs := adminAuth.Group("/operation-logs")
+	opLogs.Get("/", handler.ListOperationLogs)
+	opLogs.Get("/:id", handler.GetOperationLog)
 }

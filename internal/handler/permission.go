@@ -1,13 +1,14 @@
 package handler
 
 import (
-	"strconv"
+	"fmt"
 
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/wuwuseo/cmf/validate"
 )
 
 // CreatePermission 创建权限
@@ -16,10 +17,13 @@ import (
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param permission body service.CreatePermissionRequest true "创建权限请求"
 // @Success 200 {object} utils.Response{data=interface{}}
-// @Failure 400 {object} utils.Response{error=string}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [post]
 func CreatePermission(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -28,14 +32,17 @@ func CreatePermission(c *fiber.Ctx) error {
 	// 获取权限服务
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
-	// 解析请求体
-	var req service.CreatePermissionRequest
-	if err := c.BodyParser(&req); err != nil {
-		return resp.Fail(fiber.StatusBadRequest, "无效的请求参数").ToJSON(c)
+	// 解析并验证请求体
+	req, err := validate.ParseAndValidate[service.CreatePermissionRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return resp.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
+		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
 	// 创建权限
-	err := permissionService.CreatePermission(c.Context(), &req)
+	err = permissionService.CreatePermission(c.Context(), req)
 	if err != nil {
 		if err == service.ErrPermissionAlreadyExists {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
@@ -46,6 +53,9 @@ func CreatePermission(c *fiber.Ctx) error {
 		return resp.Fail(global.ResponseInternalServerError, "创建权限失败").ToJSON(c)
 	}
 
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "权限管理", "创建", fmt.Sprintf("创建权限: %s/%s", req.Object, req.Action))
+
 	return resp.Success("权限创建成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
@@ -55,10 +65,13 @@ func CreatePermission(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param permission body service.UpdatePermissionRequest true "更新权限请求"
 // @Success 200 {object} utils.Response{data=interface{}}
-// @Failure 400 {object} utils.Response{error=string}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [put]
 func UpdatePermission(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -67,14 +80,17 @@ func UpdatePermission(c *fiber.Ctx) error {
 	// 获取权限服务
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
-	// 解析请求体
-	var req service.UpdatePermissionRequest
-	if err := c.BodyParser(&req); err != nil {
+	// 解析并验证请求体
+	req, err := validate.ParseAndValidate[service.UpdatePermissionRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return resp.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
 	// 更新权限
-	err := permissionService.UpdatePermission(c.Context(), &req)
+	err = permissionService.UpdatePermission(c.Context(), req)
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
@@ -85,6 +101,9 @@ func UpdatePermission(c *fiber.Ctx) error {
 		return resp.Fail(global.ResponseInternalServerError, "更新权限失败").ToJSON(c)
 	}
 
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "权限管理", "更新", fmt.Sprintf("更新权限: %s/%s", req.NewObject, req.NewAction))
+
 	return resp.Success("权限更新成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
@@ -94,13 +113,16 @@ func UpdatePermission(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param role_name query string true "角色名称"
 // @Param domain query string true "域"
 // @Param object query string true "权限对象"
 // @Param action query string true "权限操作"
 // @Success 200 {object} utils.Response{data=interface{}}
-// @Failure 400 {object} utils.Response{error=string}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [delete]
 func DeletePermission(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -129,6 +151,9 @@ func DeletePermission(c *fiber.Ctx) error {
 		return resp.Fail(global.ResponseInternalServerError, "删除权限失败").ToJSON(c)
 	}
 
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "权限管理", "删除", fmt.Sprintf("删除权限: %s %s/%s", roleName, object, action))
+
 	return resp.Success("权限删除成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
@@ -138,13 +163,17 @@ func DeletePermission(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param role_name query string true "角色名称"
 // @Param domain query string true "域"
 // @Param object query string true "权限对象"
 // @Param action query string true "权限操作"
 // @Success 200 {object} utils.Response{data=service.PermissionResponse}
-// @Failure 400 {object} utils.Response{error=string}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions/detail [get]
 func GetPermission(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -182,6 +211,7 @@ func GetPermission(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param page query int false "页码，默认1"
 // @Param page_size query int false "每页数量，默认10"
 // @Param keyword query string false "关键字"
@@ -189,7 +219,9 @@ func GetPermission(c *fiber.Ctx) error {
 // @Param domain query string false "域"
 // @Param role_name query string false "角色名称"
 // @Success 200 {object} utils.Response{data=service.ListPermissionsResponse}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [get]
 func ListPermissions(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -198,18 +230,21 @@ func ListPermissions(c *fiber.Ctx) error {
 	// 获取权限服务
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
-	// 解析请求参数
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
+	// 解析并验证查询参数
+	req, err := validate.ParseQueryAndValidate[service.ListPermissionsRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return resp.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
+		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
+	}
 
-	// 构建请求
-	req := &service.ListPermissionsRequest{
-		Page:     page,
-		PageSize: pageSize,
-		Keyword:  c.Query("keyword"),
-		Type:     service.PermissionType(c.Query("type")),
-		Domain:   c.Query("domain"),
-		RoleName: c.Query("role_name"),
+	// 设置默认值
+	if req.Page == 0 {
+		req.Page = 1
+	}
+	if req.PageSize == 0 {
+		req.PageSize = 10
 	}
 
 	// 获取权限列表
@@ -227,12 +262,16 @@ func ListPermissions(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param role_name query string true "角色名称"
 // @Param domain query string true "域"
 // @Param permissions body []service.PermissionRule true "权限规则列表"
 // @Success 200 {object} utils.Response{data=interface{}}
-// @Failure 400 {object} utils.Response{error=string}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/permissions/assign [post]
 func AssignPermissionsToRole(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -265,6 +304,9 @@ func AssignPermissionsToRole(c *fiber.Ctx) error {
 		return resp.Fail(global.ResponseInternalServerError, "为角色分配权限失败").ToJSON(c)
 	}
 
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "权限管理", "分配", fmt.Sprintf("为角色 %s 分配 %d 条权限", roleName, len(permissions)))
+
 	return resp.Success("为角色分配权限成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
@@ -274,12 +316,16 @@ func AssignPermissionsToRole(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param role_name query string true "角色名称"
 // @Param domain query string true "域"
 // @Param permissions body []service.PermissionRule true "权限规则列表"
 // @Success 200 {object} utils.Response{data=interface{}}
-// @Failure 400 {object} utils.Response{error=string}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/permissions/remove [post]
 func RemovePermissionsFromRole(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -312,6 +358,9 @@ func RemovePermissionsFromRole(c *fiber.Ctx) error {
 		return resp.Fail(global.ResponseInternalServerError, "从角色移除权限失败").ToJSON(c)
 	}
 
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "权限管理", "移除", fmt.Sprintf("从角色 %s 移除 %d 条权限", roleName, len(permissions)))
+
 	return resp.Success("从角色移除权限成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
@@ -321,11 +370,15 @@ func RemovePermissionsFromRole(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param role_name query string true "角色名称"
 // @Param domain query string true "域"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
-// @Failure 400 {object} utils.Response{error=string}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/permissions [get]
 func GetRolePermissions(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -361,9 +414,12 @@ func GetRolePermissions(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param domain query string false "域，默认default"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/menu-permissions [get]
 func GetUserMenuPermissions(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -393,9 +449,12 @@ func GetUserMenuPermissions(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param domain query string false "域，默认default"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/button-permissions [get]
 func GetUserButtonPermissions(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -425,9 +484,12 @@ func GetUserButtonPermissions(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param domain query string false "域，默认default"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/api-permissions [get]
 func GetUserAPIPermissions(c *fiber.Ctx) error {
 	// 获取响应工具
@@ -457,9 +519,12 @@ func GetUserAPIPermissions(c *fiber.Ctx) error {
 // @Tags 权限管理
 // @Accept json
 // @Produce json
+// @Security BearerAuth
 // @Param domain query string false "域，默认default"
 // @Success 200 {object} utils.Response{data=map[string][]service.PermissionResponse}
-// @Failure 500 {object} utils.Response{error=string}
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/permissions [get]
 func GetUserPermissions(c *fiber.Ctx) error {
 	// 获取响应工具

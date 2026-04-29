@@ -1,0 +1,491 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"go-admin/internal/cron"
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/global"
+	"go-admin/internal/tasks"
+
+	robfigcron "github.com/robfig/cron/v3"
+)
+
+var (
+	// 定时任务相关错误
+	ErrCronJobNotFound     = errors.New("定时任务不存在")
+	ErrCronJobNameExists   = errors.New("定时任务名称已存在")
+	ErrCronJobInvalidExpr  = errors.New("无效的cron表达式")
+	ErrCronJobInvalidType  = errors.New("无效的任务类型")
+	ErrCronJobTaskNotFound = errors.New("Go task未注册")
+	ErrCronJobLogNotFound  = errors.New("日志不存在")
+)
+
+// CronJobServiceInterface 定时任务服务接口
+type CronJobServiceInterface interface {
+	Create(ctx context.Context, req *CreateCronJobRequest) (*CronJobResponse, error)
+	Update(ctx context.Context, id int, req *UpdateCronJobRequest) error
+	Delete(ctx context.Context, id int) error
+	Get(ctx context.Context, id int) (*CronJobResponse, error)
+	List(ctx context.Context, req *ListCronJobsRequest) (*ListCronJobsResponse, error)
+	Enable(ctx context.Context, id int) error
+	Disable(ctx context.Context, id int) error
+	RunNow(ctx context.Context, id int) error
+	GetLogs(ctx context.Context, id int) ([]cron.LogFileInfo, error)
+	GetLogContent(ctx context.Context, id int, filename string) (string, error)
+	TailLog(ctx context.Context, id int, lines int) (string, error)
+}
+
+// CronJobService 定时任务服务
+type CronJobService struct {
+	client  *ent.Client
+	manager *cron.CronManager
+}
+
+// NewCronJobService 创建定时任务服务
+func NewCronJobService(manager *cron.CronManager) *CronJobService {
+	return &CronJobService{
+		client:  global.ORM,
+		manager: manager,
+	}
+}
+
+// CreateCronJobRequest 创建定时任务请求
+type CreateCronJobRequest struct {
+	Name        string `json:"name" validate:"required,max=100"`
+	Description string `json:"description" validate:"max=500"`
+	Type        string `json:"type" validate:"required,oneof=shell curl task"`
+	Expression  string `json:"expression" validate:"required"`
+	Command     string `json:"command" validate:"required"`
+	Enabled     *bool  `json:"enabled"`
+}
+
+// UpdateCronJobRequest 更新定时任务请求
+type UpdateCronJobRequest struct {
+	Name        *string `json:"name" validate:"omitempty,max=100"`
+	Description *string `json:"description" validate:"omitempty,max=500"`
+	Type        *string `json:"type" validate:"omitempty,oneof=shell curl task"`
+	Expression  *string `json:"expression"`
+	Command     *string `json:"command"`
+}
+
+// ListCronJobsRequest 定时任务列表请求
+type ListCronJobsRequest struct {
+	Page     int    `query:"page" validate:"min=0"`
+	PageSize int    `query:"page_size" validate:"min=0,max=100"`
+	Keyword  string `query:"keyword"`
+	Type     string `query:"type"`
+	Enabled  *bool  `query:"enabled"`
+}
+
+// CronJobResponse 定时任务响应
+type CronJobResponse struct {
+	ID          int        `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Type        string     `json:"type"`
+	Expression  string     `json:"expression"`
+	Command     string     `json:"command"`
+	Enabled     bool       `json:"enabled"`
+	LastRunAt   *time.Time `json:"last_run_at"`
+	NextRunAt   *time.Time `json:"next_run_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+// ListCronJobsResponse 定时任务列表响应
+type ListCronJobsResponse struct {
+	Total int                `json:"total"`
+	Page  int                `json:"page"`
+	Data  []*CronJobResponse `json:"data"`
+}
+
+// Create 创建定时任务
+func (s *CronJobService) Create(ctx context.Context, req *CreateCronJobRequest) (*CronJobResponse, error) {
+	// 验证 cron 表达式
+	parser := robfigcron.NewParser(robfigcron.Second | robfigcron.Minute | robfigcron.Hour | robfigcron.Dom | robfigcron.Month | robfigcron.Dow)
+	if _, err := parser.Parse(req.Expression); err != nil {
+		return nil, ErrCronJobInvalidExpr
+	}
+
+	// 如果 type=task，验证 task 名称已注册
+	if req.Type == "task" {
+		if _, ok := tasks.Get(req.Command); !ok {
+			return nil, ErrCronJobTaskNotFound
+		}
+	}
+
+	// 检查名称唯一性
+	exists, err := s.client.CronJob.Query().
+		Where(cronjob.NameEQ(req.Name)).
+		Exist(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("检查任务名称失败: %w", err)
+	}
+	if exists {
+		return nil, ErrCronJobNameExists
+	}
+
+	// 创建 DB 记录
+	builder := s.client.CronJob.Create().
+		SetName(req.Name).
+		SetType(cronjob.Type(req.Type)).
+		SetExpression(req.Expression).
+		SetCommand(req.Command)
+
+	if req.Description != "" {
+		builder.SetDescription(req.Description)
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+	builder.SetEnabled(enabled)
+
+	job, err := builder.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("创建定时任务失败: %w", err)
+	}
+
+	// 如果 enabled，注册到调度器
+	if enabled {
+		if addErr := s.manager.AddJob(job); addErr != nil {
+			// 任务已创建到 DB，记录日志但不返回错误
+			fmt.Printf("注册定时任务到调度器失败: %v\n", addErr)
+		}
+	}
+
+	return s.toCronJobResponse(job), nil
+}
+
+// Update 更新定时任务
+func (s *CronJobService) Update(ctx context.Context, id int, req *UpdateCronJobRequest) error {
+	job, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrCronJobNotFound
+		}
+		return fmt.Errorf("查询定时任务失败: %w", err)
+	}
+
+	update := s.client.CronJob.UpdateOne(job)
+
+	if req.Name != nil {
+		// 检查名称唯一性
+		exists, err := s.client.CronJob.Query().
+			Where(cronjob.NameEQ(*req.Name), cronjob.IDNEQ(id)).
+			Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("检查任务名称失败: %w", err)
+		}
+		if exists {
+			return ErrCronJobNameExists
+		}
+		update.SetName(*req.Name)
+	}
+
+	if req.Description != nil {
+		update.SetDescription(*req.Description)
+	}
+
+	newExpression := job.Expression
+	if req.Expression != nil {
+		parser := robfigcron.NewParser(robfigcron.Second | robfigcron.Minute | robfigcron.Hour | robfigcron.Dom | robfigcron.Month | robfigcron.Dow)
+		if _, err := parser.Parse(*req.Expression); err != nil {
+			return ErrCronJobInvalidExpr
+		}
+		update.SetExpression(*req.Expression)
+		newExpression = *req.Expression
+	}
+
+	newType := string(job.Type)
+	if req.Type != nil {
+		update.SetType(cronjob.Type(*req.Type))
+		newType = *req.Type
+	}
+
+	newCommand := job.Command
+	if req.Command != nil {
+		update.SetCommand(*req.Command)
+		newCommand = *req.Command
+	}
+
+	// 如果 type=task，验证 task 名称已注册
+	if newType == "task" {
+		if _, ok := tasks.Get(newCommand); !ok {
+			return ErrCronJobTaskNotFound
+		}
+	}
+
+	if _, err := update.Save(ctx); err != nil {
+		return fmt.Errorf("更新定时任务失败: %w", err)
+	}
+
+	// 如果任务是启用的，需要重新注册到调度器
+	if job.Enabled {
+		s.manager.RemoveJob(id)
+		// 重新查询更新后的 job
+		updatedJob, err := s.client.CronJob.Query().
+			Where(cronjob.IDEQ(id)).
+			Only(ctx)
+		if err == nil {
+			_ = s.manager.AddJob(updatedJob)
+		}
+	}
+
+	_ = newExpression // 已在 update builder 中使用
+
+	return nil
+}
+
+// Delete 删除定时任务
+func (s *CronJobService) Delete(ctx context.Context, id int) error {
+	job, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrCronJobNotFound
+		}
+		return fmt.Errorf("查询定时任务失败: %w", err)
+	}
+
+	// 从调度器移除
+	s.manager.RemoveJob(id)
+
+	// 删除 DB 记录
+	if err := s.client.CronJob.DeleteOne(job).Exec(ctx); err != nil {
+		return fmt.Errorf("删除定时任务失败: %w", err)
+	}
+
+	return nil
+}
+
+// Get 获取定时任务详情
+func (s *CronJobService) Get(ctx context.Context, id int) (*CronJobResponse, error) {
+	job, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrCronJobNotFound
+		}
+		return nil, fmt.Errorf("获取定时任务失败: %w", err)
+	}
+
+	return s.toCronJobResponse(job), nil
+}
+
+// List 获取定时任务列表
+func (s *CronJobService) List(ctx context.Context, req *ListCronJobsRequest) (*ListCronJobsResponse, error) {
+	if req.Page < 1 {
+		req.Page = 1
+	}
+	if req.PageSize < 1 {
+		req.PageSize = 10
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
+	}
+
+	query := s.client.CronJob.Query()
+
+	// 关键字搜索
+	if req.Keyword != "" {
+		query = query.Where(
+			cronjob.Or(
+				cronjob.NameContains(req.Keyword),
+				cronjob.DescriptionContains(req.Keyword),
+				cronjob.CommandContains(req.Keyword),
+			),
+		)
+	}
+
+	// 类型筛选
+	if req.Type != "" {
+		query = query.Where(cronjob.TypeEQ(cronjob.Type(req.Type)))
+	}
+
+	// 启用状态筛选
+	if req.Enabled != nil {
+		query = query.Where(cronjob.EnabledEQ(*req.Enabled))
+	}
+
+	// 获取总数
+	total, err := query.Count(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取定时任务总数失败: %w", err)
+	}
+
+	// 分页查询
+	offset := (req.Page - 1) * req.PageSize
+	jobs, err := query.
+		Offset(offset).
+		Limit(req.PageSize).
+		Order(ent.Desc(cronjob.FieldCreatedAt)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取定时任务列表失败: %w", err)
+	}
+
+	data := make([]*CronJobResponse, 0, len(jobs))
+	for _, job := range jobs {
+		data = append(data, s.toCronJobResponse(job))
+	}
+
+	return &ListCronJobsResponse{
+		Total: total,
+		Page:  req.Page,
+		Data:  data,
+	}, nil
+}
+
+// Enable 启用定时任务
+func (s *CronJobService) Enable(ctx context.Context, id int) error {
+	job, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrCronJobNotFound
+		}
+		return fmt.Errorf("查询定时任务失败: %w", err)
+	}
+
+	if job.Enabled {
+		return nil
+	}
+
+	if _, err := s.client.CronJob.UpdateOne(job).
+		SetEnabled(true).
+		Save(ctx); err != nil {
+		return fmt.Errorf("启用定时任务失败: %w", err)
+	}
+
+	// 重新查询并注册到调度器
+	updatedJob, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Only(ctx)
+	if err == nil {
+		_ = s.manager.AddJob(updatedJob)
+	}
+
+	return nil
+}
+
+// Disable 禁用定时任务
+func (s *CronJobService) Disable(ctx context.Context, id int) error {
+	job, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrCronJobNotFound
+		}
+		return fmt.Errorf("查询定时任务失败: %w", err)
+	}
+
+	if !job.Enabled {
+		return nil
+	}
+
+	if _, err := s.client.CronJob.UpdateOne(job).
+		SetEnabled(false).
+		ClearNextRunAt().
+		Save(ctx); err != nil {
+		return fmt.Errorf("禁用定时任务失败: %w", err)
+	}
+
+	// 从调度器移除
+	s.manager.RemoveJob(id)
+
+	return nil
+}
+
+// RunNow 立即执行定时任务
+func (s *CronJobService) RunNow(ctx context.Context, id int) error {
+	// 验证任务存在
+	exists, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("查询定时任务失败: %w", err)
+	}
+	if !exists {
+		return ErrCronJobNotFound
+	}
+
+	return s.manager.RunNow(id)
+}
+
+// GetLogs 获取定时任务日志列表
+func (s *CronJobService) GetLogs(ctx context.Context, id int) ([]cron.LogFileInfo, error) {
+	// 验证任务存在
+	exists, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Exist(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("查询定时任务失败: %w", err)
+	}
+	if !exists {
+		return nil, ErrCronJobNotFound
+	}
+
+	return s.manager.GetJobLogger().ListLogs(id)
+}
+
+// GetLogContent 获取指定日志文件内容
+func (s *CronJobService) GetLogContent(ctx context.Context, id int, filename string) (string, error) {
+	// 验证任务存在
+	exists, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Exist(ctx)
+	if err != nil {
+		return "", fmt.Errorf("查询定时任务失败: %w", err)
+	}
+	if !exists {
+		return "", ErrCronJobNotFound
+	}
+
+	return s.manager.GetJobLogger().ReadLog(id, filename)
+}
+
+// TailLog 读取最新日志的最后 N 行
+func (s *CronJobService) TailLog(ctx context.Context, id int, lines int) (string, error) {
+	// 验证任务存在
+	exists, err := s.client.CronJob.Query().
+		Where(cronjob.IDEQ(id)).
+		Exist(ctx)
+	if err != nil {
+		return "", fmt.Errorf("查询定时任务失败: %w", err)
+	}
+	if !exists {
+		return "", ErrCronJobNotFound
+	}
+
+	return s.manager.GetJobLogger().TailLog(id, lines)
+}
+
+// toCronJobResponse 转换为响应格式
+func (s *CronJobService) toCronJobResponse(job *ent.CronJob) *CronJobResponse {
+	return &CronJobResponse{
+		ID:          job.ID,
+		Name:        job.Name,
+		Description: job.Description,
+		Type:        string(job.Type),
+		Expression:  job.Expression,
+		Command:     job.Command,
+		Enabled:     job.Enabled,
+		LastRunAt:   job.LastRunAt,
+		NextRunAt:   job.NextRunAt,
+		CreatedAt:   job.CreatedAt,
+		UpdatedAt:   job.UpdatedAt,
+	}
+}

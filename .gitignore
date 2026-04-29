@@ -1,3 +1,5 @@
 web/
 tmp/
 /data/logs/*.log
+/go-admin.exe
+/data/logs/cron/job-1/*.log

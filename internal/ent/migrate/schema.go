@@ -11,16 +11,76 @@ import (
 var TablePrefix = orm.GetTablePrefix()
 
 var (
+	// AttachmentsColumns holds the columns for the "attachments" table.
+	AttachmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "original_name", Type: field.TypeString, Size: 255},
+		{Name: "path", Type: field.TypeString, Size: 1024},
+		{Name: "mime_type", Type: field.TypeString, Size: 255},
+		{Name: "extension", Type: field.TypeString, Size: 50},
+		{Name: "size", Type: field.TypeInt64},
+		{Name: "uploaded_by", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "group_id", Type: field.TypeInt, Nullable: true},
+	}
+	// AttachmentsTable holds the schema information for the "attachments" table.
+	AttachmentsTable = &schema.Table{
+		Name:       TablePrefix + "attachments",
+		Columns:    AttachmentsColumns,
+		PrimaryKey: []*schema.Column{AttachmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "attachments_attachment_groups_attachments",
+				Columns:    []*schema.Column{AttachmentsColumns[10]},
+				RefColumns: []*schema.Column{AttachmentGroupsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "attachment_group_id",
+				Unique:  false,
+				Columns: []*schema.Column{AttachmentsColumns[10]},
+			},
+			{
+				Name:    "attachment_mime_type",
+				Unique:  false,
+				Columns: []*schema.Column{AttachmentsColumns[4]},
+			},
+			{
+				Name:    "attachment_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{AttachmentsColumns[8]},
+			},
+		},
+	}
+	// AttachmentGroupsColumns holds the columns for the "attachment_groups" table.
+	AttachmentGroupsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Unique: true, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "sort", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AttachmentGroupsTable holds the schema information for the "attachment_groups" table.
+	AttachmentGroupsTable = &schema.Table{
+		Name:       TablePrefix + "attachment_groups",
+		Columns:    AttachmentGroupsColumns,
+		PrimaryKey: []*schema.Column{AttachmentGroupsColumns[0]},
+	}
 	// CasbinRulesColumns holds the columns for the "casbin_rules" table.
 	CasbinRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "ptype", Type: field.TypeString, Default: ""},
-		{Name: "v0", Type: field.TypeString, Default: ""},
-		{Name: "v1", Type: field.TypeString, Default: ""},
-		{Name: "v2", Type: field.TypeString, Default: ""},
-		{Name: "v3", Type: field.TypeString, Default: ""},
-		{Name: "v4", Type: field.TypeString, Default: ""},
-		{Name: "v5", Type: field.TypeString, Default: ""},
+		{Name: "ptype", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "v0", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "v1", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "v2", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "v3", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "v4", Type: field.TypeString, Size: 100, Default: ""},
+		{Name: "v5", Type: field.TypeString, Size: 100, Default: ""},
 	}
 	// CasbinRulesTable holds the schema information for the "casbin_rules" table.
 	CasbinRulesTable = &schema.Table{
@@ -32,6 +92,83 @@ var (
 				Name:    "casbinrule_ptype_v0_v1_v2_v3_v4_v5",
 				Unique:  true,
 				Columns: []*schema.Column{CasbinRulesColumns[1], CasbinRulesColumns[2], CasbinRulesColumns[3], CasbinRulesColumns[4], CasbinRulesColumns[5], CasbinRulesColumns[6], CasbinRulesColumns[7]},
+			},
+		},
+	}
+	// CronJobsColumns holds the columns for the "cron_jobs" table.
+	CronJobsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Unique: true, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "type", Type: field.TypeEnum, Enums: []string{"shell", "curl", "task"}},
+		{Name: "expression", Type: field.TypeString, Size: 255},
+		{Name: "command", Type: field.TypeString, Size: 2048},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "last_run_at", Type: field.TypeTime, Nullable: true},
+		{Name: "next_run_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// CronJobsTable holds the schema information for the "cron_jobs" table.
+	CronJobsTable = &schema.Table{
+		Name:       TablePrefix + "cron_jobs",
+		Columns:    CronJobsColumns,
+		PrimaryKey: []*schema.Column{CronJobsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cronjob_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{CronJobsColumns[6]},
+			},
+			{
+				Name:    "cronjob_type",
+				Unique:  false,
+				Columns: []*schema.Column{CronJobsColumns[3]},
+			},
+		},
+	}
+	// OperationLogsColumns holds the columns for the "operation_logs" table.
+	OperationLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_id", Type: field.TypeInt},
+		{Name: "username", Type: field.TypeString, Size: 255},
+		{Name: "module", Type: field.TypeString, Size: 255},
+		{Name: "action", Type: field.TypeString, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "method", Type: field.TypeString, Size: 10},
+		{Name: "path", Type: field.TypeString, Size: 1024},
+		{Name: "ip", Type: field.TypeString, Size: 50},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "request_body", Type: field.TypeString, Nullable: true},
+		{Name: "status_code", Type: field.TypeInt},
+		{Name: "duration_ms", Type: field.TypeInt64},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// OperationLogsTable holds the schema information for the "operation_logs" table.
+	OperationLogsTable = &schema.Table{
+		Name:       TablePrefix + "operation_logs",
+		Columns:    OperationLogsColumns,
+		PrimaryKey: []*schema.Column{OperationLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "operationlog_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[1]},
+			},
+			{
+				Name:    "operationlog_module",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[3]},
+			},
+			{
+				Name:    "operationlog_action",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[4]},
+			},
+			{
+				Name:    "operationlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{OperationLogsColumns[13]},
 			},
 		},
 	}
@@ -155,9 +292,19 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AttachmentsTable,
+		AttachmentGroupsTable,
 		CasbinRulesTable,
+		CronJobsTable,
+		OperationLogsTable,
 		RolesTable,
 		UsersTable,
 		UserRolesTable,
 	}
 )
+
+func init() {
+	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
+	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
+	UserRolesTable.ForeignKeys[1].RefTable = RolesTable
+}

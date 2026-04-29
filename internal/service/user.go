@@ -66,6 +66,11 @@ type TokenResponse struct {
 	RefreshToken string `json:"refresh_token,omitempty"`
 }
 
+// RefreshTokenRequest 刷新令牌请求
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
 // UserResponse 用户信息响应
 type UserResponse struct {
 	ID        string    `json:"id"`
@@ -159,6 +164,7 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	// 生成访问令牌
 	accessClaims := jwt.MapClaims{
 		"id":         u.UID,
+		"user_id":    u.ID,
 		"subject":    u.Username,
 		"issuer":     "go-admin",
 		"domain":     domain,
@@ -176,6 +182,7 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	refreshExpiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.RefreshExpires) * time.Second)
 	refreshClaims := jwt.MapClaims{
 		"id":         u.UID,
+		"user_id":    u.ID,
 		"subject":    u.Username,
 		"issuer":     "go-admin",
 		"domain":     domain,
@@ -334,6 +341,7 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 
 	accessClaims := jwt.MapClaims{
 		"id":         u.UID,
+		"user_id":    u.ID,
 		"subject":    u.Username,
 		"issuer":     "go-admin",
 		"domain":     domain,
