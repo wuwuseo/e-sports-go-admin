@@ -9,6 +9,22 @@ definitions:
       size:
         type: integer
     type: object
+  handler.AssignPermissionsRequest:
+    properties:
+      domain:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/service.PermissionRule'
+        minItems: 1
+        type: array
+      role_name:
+        type: string
+    required:
+    - domain
+    - permissions
+    - role_name
+    type: object
   handler.ChangePasswordRequest:
     properties:
       new_password:
@@ -76,6 +92,59 @@ definitions:
     required:
     - ids
     type: object
+  service.ConfigResponse:
+    properties:
+      created_at:
+        type: string
+      group:
+        type: string
+      id:
+        type: integer
+      key:
+        type: string
+      name:
+        type: string
+      remark:
+        type: string
+      status:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+      value:
+        type: string
+    type: object
+  service.CreateConfigRequest:
+    properties:
+      group:
+        maxLength: 50
+        type: string
+      key:
+        maxLength: 100
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      status:
+        type: integer
+      type:
+        enum:
+        - string
+        - number
+        - boolean
+        - json
+        type: string
+      value:
+        maxLength: 2048
+        type: string
+    required:
+    - key
+    - name
+    type: object
   service.CreateCronJobRequest:
     properties:
       command:
@@ -101,6 +170,34 @@ definitions:
     - expression
     - name
     - type
+    type: object
+  service.CreateDictDataRequest:
+    properties:
+      css_class:
+        maxLength: 100
+        type: string
+      dict_type:
+        maxLength: 100
+        type: string
+      is_default:
+        type: boolean
+      label:
+        maxLength: 100
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      value:
+        maxLength: 100
+        type: string
+    required:
+    - dict_type
+    - label
+    - value
     type: object
   service.CreateGroupRequest:
     properties:
@@ -183,6 +280,31 @@ definitions:
       updated_at:
         type: string
     type: object
+  service.DictDataResponse:
+    properties:
+      created_at:
+        type: string
+      css_class:
+        type: string
+      dict_type:
+        type: string
+      id:
+        type: integer
+      is_default:
+        type: boolean
+      label:
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      updated_at:
+        type: string
+      value:
+        type: string
+    type: object
   service.GroupResponse:
     properties:
       created_at:
@@ -209,11 +331,33 @@ definitions:
       total:
         type: integer
     type: object
+  service.ListConfigResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.ConfigResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
   service.ListCronJobsResponse:
     properties:
       data:
         items:
           $ref: '#/definitions/service.CronJobResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.ListDictDataResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.DictDataResponse'
         type: array
       page:
         type: integer
@@ -400,6 +544,33 @@ definitions:
       token_type:
         type: string
     type: object
+  service.UpdateConfigRequest:
+    properties:
+      group:
+        maxLength: 50
+        type: string
+      key:
+        maxLength: 100
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      status:
+        type: integer
+      type:
+        enum:
+        - string
+        - number
+        - boolean
+        - json
+        type: string
+      value:
+        maxLength: 2048
+        type: string
+    type: object
   service.UpdateCronJobRequest:
     properties:
       command:
@@ -417,6 +588,30 @@ definitions:
         - shell
         - curl
         - task
+        type: string
+    type: object
+  service.UpdateDictDataRequest:
+    properties:
+      css_class:
+        maxLength: 100
+        type: string
+      dict_type:
+        maxLength: 100
+        type: string
+      is_default:
+        type: boolean
+      label:
+        maxLength: 100
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      value:
+        maxLength: 100
         type: string
     type: object
   service.UpdateGroupRequest:
@@ -1053,6 +1248,339 @@ paths:
       summary: 上传附件
       tags:
       - 附件管理
+  /api/v1/admin/auth/configs:
+    get:
+      description: 获取动态配置列表，支持分页、关键字、分组和状态筛选
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      - description: 关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 分组
+        in: query
+        name: group
+        type: string
+      - description: 状态 1启用 0禁用
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取动态配置列表
+      tags:
+      - 动态配置
+    post:
+      consumes:
+      - application/json
+      description: 创建新的系统配置项
+      parameters:
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建动态配置
+      tags:
+      - 动态配置
+  /api/v1/admin/auth/configs/{id}:
+    delete:
+      description: 根据ID删除动态配置
+      parameters:
+      - description: 配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除动态配置
+      tags:
+      - 动态配置
+    get:
+      description: 根据ID获取动态配置详细信息
+      parameters:
+      - description: 配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取动态配置详情
+      tags:
+      - 动态配置
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新动态配置信息
+      parameters:
+      - description: 配置ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新动态配置
+      tags:
+      - 动态配置
+  /api/v1/admin/auth/configs/by-key/{key}:
+    get:
+      description: 根据配置键获取单个配置值（带缓存）
+      parameters:
+      - description: 配置键
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 按键获取配置
+      tags:
+      - 动态配置
+  /api/v1/admin/auth/configs/group/{group}:
+    get:
+      description: 根据分组名获取该分组下所有启用的配置列表（带缓存）
+      parameters:
+      - description: 分组名
+        in: path
+        name: group
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.ConfigResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 按分组获取配置
+      tags:
+      - 动态配置
   /api/v1/admin/auth/cron-jobs:
     get:
       description: 获取定时任务列表，支持分页和关键字筛选
@@ -1564,6 +2092,289 @@ paths:
       summary: 立即执行定时任务
       tags:
       - 定时任务管理
+  /api/v1/admin/auth/dict-data:
+    get:
+      description: 获取字典数据列表，支持分页、关键字、字典类型和状态筛选
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      - description: 关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 字典类型编码
+        in: query
+        name: dict_type
+        type: string
+      - description: 状态 1启用 0禁用
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListDictDataResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取字典数据列表
+      tags:
+      - 数据字典
+    post:
+      consumes:
+      - application/json
+      description: 创建新的字典数据项
+      parameters:
+      - description: 字典数据信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateDictDataRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.DictDataResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建字典数据
+      tags:
+      - 数据字典
+  /api/v1/admin/auth/dict-data/{id}:
+    delete:
+      description: 根据ID删除字典数据
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除字典数据
+      tags:
+      - 数据字典
+    get:
+      description: 根据ID获取字典数据详细信息
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.DictDataResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取字典数据详情
+      tags:
+      - 数据字典
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新字典数据信息
+      parameters:
+      - description: 字典数据ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateDictDataRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新字典数据
+      tags:
+      - 数据字典
+  /api/v1/admin/auth/dict-data/type/{type}:
+    get:
+      description: 根据字典类型编码获取启用的字典数据列表，用于前端下拉框数据源
+      parameters:
+      - description: 字典类型编码
+        in: path
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.DictDataResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 按类型获取字典数据
+      tags:
+      - 数据字典
   /api/v1/admin/auth/operation-logs:
     get:
       description: 获取操作日志列表，支持分页、用户名、模块、操作和时间范围筛选
@@ -1838,7 +2649,7 @@ paths:
       parameters:
       - description: 创建权限请求
         in: body
-        name: permission
+        name: body
         required: true
         schema:
           $ref: '#/definitions/service.CreatePermissionRequest'
@@ -1881,7 +2692,7 @@ paths:
       parameters:
       - description: 更新权限请求
         in: body
-        name: permission
+        name: body
         required: true
         schema:
           $ref: '#/definitions/service.UpdatePermissionRequest'
@@ -2362,24 +3173,12 @@ paths:
       - application/json
       description: 为指定角色分配多个权限
       parameters:
-      - description: 角色名称
-        in: query
-        name: role_name
-        required: true
-        type: string
-      - description: 域
-        in: query
-        name: domain
-        required: true
-        type: string
-      - description: 权限规则列表
+      - description: 分配权限请求
         in: body
-        name: permissions
+        name: request
         required: true
         schema:
-          items:
-            $ref: '#/definitions/service.PermissionRule'
-          type: array
+          $ref: '#/definitions/handler.AssignPermissionsRequest'
       produces:
       - application/json
       responses:
@@ -2422,24 +3221,12 @@ paths:
       - application/json
       description: 从指定角色移除多个权限
       parameters:
-      - description: 角色名称
-        in: query
-        name: role_name
-        required: true
-        type: string
-      - description: 域
-        in: query
-        name: domain
-        required: true
-        type: string
-      - description: 权限规则列表
+      - description: 移除权限请求
         in: body
-        name: permissions
+        name: request
         required: true
         schema:
-          items:
-            $ref: '#/definitions/service.PermissionRule'
-          type: array
+          $ref: '#/definitions/handler.AssignPermissionsRequest'
       produces:
       - application/json
       responses:

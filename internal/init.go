@@ -16,6 +16,7 @@ import (
 	"go-admin/internal/cron"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
@@ -85,11 +86,20 @@ func Init(config *config.Config) error {
 		return err
 	}
 
+	// 初始化字典种子数据
+	if err := initDictSeedData(); err != nil {
+		appInstance.Logger.Error("failed to initialize dict seed data", zap.Error(err))
+		return err
+	}
+
 	return nil
 }
 
 // initDatabase 手动初始化数据库（兼容旧模式，当 Wire 未注入时使用）
 func initDatabase(config *config.Config) error {
+	// 延迟初始化表前缀
+	ent.InitTablePrefix(orm.GetTablePrefix())
+
 	driver := orm.GetDatabaseConfig([]string{config.Database.Default}, config).Driver
 	appInstance.Logger.Info("using database driver", zap.String("driver", driver))
 	db, err := orm.GetSqlDb(driver, orm.GetDatabaseSourceDns(config, config.Database.Default))
@@ -296,5 +306,66 @@ func initSeedData() error {
 	}
 
 	appInstance.Logger.Info("seed data initialization completed")
+	return nil
+}
+
+// initDictSeedData 初始化字典种子数据（操作日志模块等）
+func initDictSeedData() error {
+	ctx := context.Background()
+	client := global.ORM
+
+	appInstance.Logger.Info("initializing dict seed data...")
+
+	// 操作日志模块字典
+	operLogModules := []struct {
+		label string
+		value string
+		sort  int
+	}{
+		{"认证", "auth", 1},
+		{"用户", "user", 2},
+		{"角色", "role", 3},
+		{"权限", "permission", 4},
+		{"附件", "attachment", 5},
+		{"定时任务", "cron", 6},
+		{"系统", "system", 7},
+	}
+
+	for _, m := range operLogModules {
+		exists, err := client.DictData.Query().
+			Where(
+				dictdata.DictTypeEQ("sys_oper_log_module"),
+				dictdata.ValueEQ(m.value),
+			).
+			Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to query dict data for %s: %w", m.value, err)
+		}
+		if !exists {
+			_, err := client.DictData.Create().
+				SetLabel(m.label).
+				SetValue(m.value).
+				SetDictType("sys_oper_log_module").
+				SetSort(m.sort).
+				SetStatus(1).
+				SetIsDefault(false).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to create dict data for %s: %w", m.value, err)
+			}
+			appInstance.Logger.Info("dict data created",
+				zap.String("dict_type", "sys_oper_log_module"),
+				zap.String("label", m.label),
+				zap.String("value", m.value),
+			)
+		} else {
+			appInstance.Logger.Warn("dict data already exists, skipping",
+				zap.String("dict_type", "sys_oper_log_module"),
+				zap.String("value", m.value),
+			)
+		}
+	}
+
+	appInstance.Logger.Info("dict seed data initialization completed")
 	return nil
 }

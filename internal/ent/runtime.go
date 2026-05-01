@@ -7,9 +7,11 @@ import (
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
+	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"time"
@@ -249,6 +251,92 @@ func init() {
 	cronjob.DefaultUpdatedAt = cronjobDescUpdatedAt.Default.(func() time.Time)
 	// cronjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	cronjob.UpdateDefaultUpdatedAt = cronjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	dictdataFields := schema.DictData{}.Fields()
+	_ = dictdataFields
+	// dictdataDescLabel is the schema descriptor for label field.
+	dictdataDescLabel := dictdataFields[1].Descriptor()
+	// dictdata.LabelValidator is a validator for the "label" field. It is called by the builders before save.
+	dictdata.LabelValidator = func() func(string) error {
+		validators := dictdataDescLabel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(label string) error {
+			for _, fn := range fns {
+				if err := fn(label); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// dictdataDescValue is the schema descriptor for value field.
+	dictdataDescValue := dictdataFields[2].Descriptor()
+	// dictdata.ValueValidator is a validator for the "value" field. It is called by the builders before save.
+	dictdata.ValueValidator = func() func(string) error {
+		validators := dictdataDescValue.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(value string) error {
+			for _, fn := range fns {
+				if err := fn(value); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// dictdataDescDictType is the schema descriptor for dict_type field.
+	dictdataDescDictType := dictdataFields[3].Descriptor()
+	// dictdata.DictTypeValidator is a validator for the "dict_type" field. It is called by the builders before save.
+	dictdata.DictTypeValidator = func() func(string) error {
+		validators := dictdataDescDictType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(dict_type string) error {
+			for _, fn := range fns {
+				if err := fn(dict_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// dictdataDescSort is the schema descriptor for sort field.
+	dictdataDescSort := dictdataFields[4].Descriptor()
+	// dictdata.DefaultSort holds the default value on creation for the sort field.
+	dictdata.DefaultSort = dictdataDescSort.Default.(int)
+	// dictdataDescStatus is the schema descriptor for status field.
+	dictdataDescStatus := dictdataFields[5].Descriptor()
+	// dictdata.DefaultStatus holds the default value on creation for the status field.
+	dictdata.DefaultStatus = dictdataDescStatus.Default.(int)
+	// dictdataDescCSSClass is the schema descriptor for css_class field.
+	dictdataDescCSSClass := dictdataFields[6].Descriptor()
+	// dictdata.CSSClassValidator is a validator for the "css_class" field. It is called by the builders before save.
+	dictdata.CSSClassValidator = dictdataDescCSSClass.Validators[0].(func(string) error)
+	// dictdataDescIsDefault is the schema descriptor for is_default field.
+	dictdataDescIsDefault := dictdataFields[7].Descriptor()
+	// dictdata.DefaultIsDefault holds the default value on creation for the is_default field.
+	dictdata.DefaultIsDefault = dictdataDescIsDefault.Default.(bool)
+	// dictdataDescRemark is the schema descriptor for remark field.
+	dictdataDescRemark := dictdataFields[8].Descriptor()
+	// dictdata.RemarkValidator is a validator for the "remark" field. It is called by the builders before save.
+	dictdata.RemarkValidator = dictdataDescRemark.Validators[0].(func(string) error)
+	// dictdataDescCreatedAt is the schema descriptor for created_at field.
+	dictdataDescCreatedAt := dictdataFields[9].Descriptor()
+	// dictdata.DefaultCreatedAt holds the default value on creation for the created_at field.
+	dictdata.DefaultCreatedAt = dictdataDescCreatedAt.Default.(func() time.Time)
+	// dictdataDescUpdatedAt is the schema descriptor for updated_at field.
+	dictdataDescUpdatedAt := dictdataFields[10].Descriptor()
+	// dictdata.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	dictdata.DefaultUpdatedAt = dictdataDescUpdatedAt.Default.(func() time.Time)
+	// dictdata.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	dictdata.UpdateDefaultUpdatedAt = dictdataDescUpdatedAt.UpdateDefault.(func() time.Time)
 	operationlogFields := schema.OperationLog{}.Fields()
 	_ = operationlogFields
 	// operationlogDescUsername is the schema descriptor for username field.
@@ -424,6 +512,76 @@ func init() {
 	roleDescUpdatedBy := roleFields[7].Descriptor()
 	// role.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
 	role.UpdatedByValidator = roleDescUpdatedBy.Validators[0].(func(string) error)
+	systemconfigFields := schema.SystemConfig{}.Fields()
+	_ = systemconfigFields
+	// systemconfigDescName is the schema descriptor for name field.
+	systemconfigDescName := systemconfigFields[1].Descriptor()
+	// systemconfig.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	systemconfig.NameValidator = func() func(string) error {
+		validators := systemconfigDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// systemconfigDescKey is the schema descriptor for key field.
+	systemconfigDescKey := systemconfigFields[2].Descriptor()
+	// systemconfig.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	systemconfig.KeyValidator = func() func(string) error {
+		validators := systemconfigDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// systemconfigDescValue is the schema descriptor for value field.
+	systemconfigDescValue := systemconfigFields[3].Descriptor()
+	// systemconfig.ValueValidator is a validator for the "value" field. It is called by the builders before save.
+	systemconfig.ValueValidator = systemconfigDescValue.Validators[0].(func(string) error)
+	// systemconfigDescType is the schema descriptor for type field.
+	systemconfigDescType := systemconfigFields[4].Descriptor()
+	// systemconfig.DefaultType holds the default value on creation for the type field.
+	systemconfig.DefaultType = systemconfigDescType.Default.(string)
+	// systemconfig.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	systemconfig.TypeValidator = systemconfigDescType.Validators[0].(func(string) error)
+	// systemconfigDescGroup is the schema descriptor for group field.
+	systemconfigDescGroup := systemconfigFields[5].Descriptor()
+	// systemconfig.GroupValidator is a validator for the "group" field. It is called by the builders before save.
+	systemconfig.GroupValidator = systemconfigDescGroup.Validators[0].(func(string) error)
+	// systemconfigDescStatus is the schema descriptor for status field.
+	systemconfigDescStatus := systemconfigFields[6].Descriptor()
+	// systemconfig.DefaultStatus holds the default value on creation for the status field.
+	systemconfig.DefaultStatus = systemconfigDescStatus.Default.(int)
+	// systemconfigDescRemark is the schema descriptor for remark field.
+	systemconfigDescRemark := systemconfigFields[7].Descriptor()
+	// systemconfig.RemarkValidator is a validator for the "remark" field. It is called by the builders before save.
+	systemconfig.RemarkValidator = systemconfigDescRemark.Validators[0].(func(string) error)
+	// systemconfigDescCreatedAt is the schema descriptor for created_at field.
+	systemconfigDescCreatedAt := systemconfigFields[8].Descriptor()
+	// systemconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
+	systemconfig.DefaultCreatedAt = systemconfigDescCreatedAt.Default.(func() time.Time)
+	// systemconfigDescUpdatedAt is the schema descriptor for updated_at field.
+	systemconfigDescUpdatedAt := systemconfigFields[9].Descriptor()
+	// systemconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	systemconfig.DefaultUpdatedAt = systemconfigDescUpdatedAt.Default.(func() time.Time)
+	// systemconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	systemconfig.UpdateDefaultUpdatedAt = systemconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

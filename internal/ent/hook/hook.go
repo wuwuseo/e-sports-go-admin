@@ -56,6 +56,18 @@ func (f CronJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CronJobMutation", m)
 }
 
+// The DictDataFunc type is an adapter to allow the use of ordinary
+// function as DictData mutator.
+type DictDataFunc func(context.Context, *ent.DictDataMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DictDataFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DictDataMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DictDataMutation", m)
+}
+
 // The OperationLogFunc type is an adapter to allow the use of ordinary
 // function as OperationLog mutator.
 type OperationLogFunc func(context.Context, *ent.OperationLogMutation) (ent.Value, error)
@@ -78,6 +90,18 @@ func (f RoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoleMutation", m)
+}
+
+// The SystemConfigFunc type is an adapter to allow the use of ordinary
+// function as SystemConfig mutator.
+type SystemConfigFunc func(context.Context, *ent.SystemConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SystemConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SystemConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemConfigMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

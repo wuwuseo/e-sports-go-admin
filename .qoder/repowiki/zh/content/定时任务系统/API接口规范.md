@@ -2,18 +2,27 @@
 
 <cite>
 **本文引用的文件**
+- [internal/init.go](file://internal/init.go)
+- [internal/cron/manager.go](file://internal/cron/manager.go)
+- [internal/cron/logger.go](file://internal/cron/logger.go)
 - [internal/handler/cron_job.go](file://internal/handler/cron_job.go)
 - [internal/service/cron_job.go](file://internal/service/cron_job.go)
 - [internal/router.go](file://internal/router.go)
 - [internal/ent/cronjob/cronjob.go](file://internal/ent/cronjob/cronjob.go)
 - [internal/middleware/permission.go](file://internal/middleware/permission.go)
 - [internal/global/msg.go](file://internal/global/msg.go)
-- [internal/cron/manager.go](file://internal/cron/manager.go)
+- [internal/global/global.go](file://internal/global/global.go)
 - [internal/cron/executor.go](file://internal/cron/executor.go)
-- [internal/cron/logger.go](file://internal/cron/logger.go)
 - [internal/tasks/registry.go](file://internal/tasks/registry.go)
 - [docs/swagger.yaml](file://docs/swagger.yaml)
 </cite>
+
+## 更新摘要
+**所做更改**
+- 更新了定时任务初始化流程，简化了启动过程
+- 更新了日志目录结构，采用更清晰的组织方式
+- 新增了Wire依赖注入的初始化机制说明
+- 更新了日志清理机制的实现细节
 
 ## 目录
 1. [简介](#简介)
@@ -28,7 +37,9 @@
 10. [附录](#附录)
 
 ## 简介
-本文件为“定时任务API接口”的完整技术文档，覆盖RESTful端点设计、任务管理与执行接口、认证与授权、参数校验、错误码与异常处理、最佳实践与常见问题等。系统基于 Fiber 框架构建，采用 JWT 进行认证、Casbin 进行细粒度权限控制，支持三种任务类型（Shell、Curl、Go Task），并提供日志采集与查看能力。
+本文件为"定时任务API接口"的完整技术文档，覆盖RESTful端点设计、任务管理与执行接口、认证与授权、参数校验、错误码与异常处理、最佳实践与常见问题等。系统基于 Fiber 框架构建，采用 JWT 进行认证、Casbin 进行细粒度权限控制，支持三种任务类型（Shell、Curl、Go Task），并提供日志采集与查看能力。
+
+**更新** 本版本反映了定时任务系统的改进，包括简化的初始化过程和更新的日志目录结构。
 
 ## 项目结构
 - 路由层：在路由中统一挂载 /api/v1/admin/auth/cron-jobs 及其子路径，绑定鉴权中间件与权限中间件。
@@ -51,7 +62,7 @@ Manager --> Logger["JobLogger<br/>日志管理"]
 Service --> ORM["Ent ORM<br/>CronJob 模型"]
 ```
 
-图表来源
+**图表来源**
 - [internal/router.go:95-112](file://internal/router.go#L95-L112)
 - [internal/handler/cron_job.go:14-58](file://internal/handler/cron_job.go#L14-L58)
 - [internal/service/cron_job.go:43-55](file://internal/service/cron_job.go#L43-L55)
@@ -60,7 +71,7 @@ Service --> ORM["Ent ORM<br/>CronJob 模型"]
 - [internal/cron/logger.go:20-32](file://internal/cron/logger.go#L20-L32)
 - [internal/ent/cronjob/cronjob.go:90-112](file://internal/ent/cronjob/cronjob.go#L90-L112)
 
-章节来源
+**章节来源**
 - [internal/router.go:95-112](file://internal/router.go#L95-L112)
 - [docs/swagger.yaml:1023-1533](file://docs/swagger.yaml#L1023-L1533)
 
@@ -84,7 +95,9 @@ Service --> ORM["Ent ORM<br/>CronJob 模型"]
   - 字段：name、description、type、expression、command、enabled、last_run_at、next_run_at、createdAt、updatedAt
   - 枚举：type ∈ {shell, curl, task}
 
-章节来源
+**更新** CronManager 的初始化过程得到了简化，现在直接通过 NewCronManager 创建并启动，同时集成了日志清理机制。
+
+**章节来源**
 - [internal/router.go:53-59](file://internal/router.go#L53-L59)
 - [internal/middleware/permission.go:14-78](file://internal/middleware/permission.go#L14-L78)
 - [internal/handler/cron_job.go:14-58](file://internal/handler/cron_job.go#L14-L58)
@@ -95,7 +108,7 @@ Service --> ORM["Ent ORM<br/>CronJob 模型"]
 - [internal/ent/cronjob/cronjob.go:90-112](file://internal/ent/cronjob/cronjob.go#L90-L112)
 
 ## 架构总览
-定时任务系统采用“路由-处理-服务-执行-日志”分层架构，结合 JWT 与 Casbin 实现认证与授权，确保接口安全可控。
+定时任务系统采用"路由-处理-服务-执行-日志"分层架构，结合 JWT 与 Casbin 实现认证与授权，确保接口安全可控。
 
 ```mermaid
 sequenceDiagram
@@ -126,7 +139,7 @@ S-->>H : 业务结果
 H-->>C : 统一响应
 ```
 
-图表来源
+**图表来源**
 - [internal/router.go:95-112](file://internal/router.go#L95-L112)
 - [internal/middleware/permission.go:14-78](file://internal/middleware/permission.go#L14-L78)
 - [internal/handler/cron_job.go:28-58](file://internal/handler/cron_job.go#L28-L58)
@@ -147,7 +160,7 @@ H-->>C : 统一响应
   - 统一响应体：{ code, message, data }
   - code 0/1/2（失败/成功/操作成功），配合全局错误码映射
 
-章节来源
+**章节来源**
 - [internal/handler/cron_job.go:14-28](file://internal/handler/cron_job.go#L14-L28)
 - [internal/middleware/permission.go:14-78](file://internal/middleware/permission.go#L14-L78)
 - [internal/global/msg.go:3-42](file://internal/global/msg.go#L3-L42)
@@ -184,7 +197,7 @@ H-->>C : 统一响应
   - 方法：POST
   - 路径：/api/v1/admin/auth/cron-jobs/{id}/run
 
-章节来源
+**章节来源**
 - [internal/handler/cron_job.go:14-220](file://internal/handler/cron_job.go#L14-L220)
 - [internal/service/cron_job.go:57-269](file://internal/service/cron_job.go#L57-L269)
 - [docs/swagger.yaml:1023-1533](file://docs/swagger.yaml#L1023-L1533)
@@ -203,7 +216,9 @@ H-->>C : 统一响应
   - 路径：/api/v1/admin/auth/cron-jobs/{id}/logs/{filename}
   - 响应：string
 
-章节来源
+**更新** 日志目录结构已更新为 {baseDir}/job-{id}/{timestamp}.log 的形式，提供更好的组织性和可维护性。
+
+**章节来源**
 - [internal/handler/cron_job.go:321-430](file://internal/handler/cron_job.go#L321-L430)
 - [internal/service/cron_job.go:428-474](file://internal/service/cron_job.go#L428-L474)
 - [internal/cron/logger.go:53-146](file://internal/cron/logger.go#L53-L146)
@@ -226,7 +241,7 @@ H-->>C : 统一响应
   - filename：路径穿越校验，仅允许合法文件名
   - lines：默认 100
 
-章节来源
+**章节来源**
 - [internal/service/cron_job.go:57-83](file://internal/service/cron_job.go#L57-L83)
 - [internal/ent/cronjob/cronjob.go:90-112](file://internal/ent/cronjob/cronjob.go#L90-L112)
 - [internal/cron/logger.go:88-105](file://internal/cron/logger.go#L88-L105)
@@ -243,7 +258,7 @@ H-->>C : 统一响应
 - Handler 层统一错误映射与响应封装
 - Service 层抛出具体错误，上层捕获并转换为统一错误码
 
-章节来源
+**章节来源**
 - [internal/global/msg.go:24-42](file://internal/global/msg.go#L24-L42)
 - [internal/handler/cron_job.go:43-54](file://internal/handler/cron_job.go#L43-L54)
 
@@ -253,11 +268,11 @@ H-->>C : 统一响应
 - 域中间件
   - 从 JWT 中提取域信息，注入到上下文
 - 权限中间件（Casbin）
-  - 以 “用户ID + 域 + 路径 + 方法” 进行授权判断
+  - 以 "用户ID + 域 + 路径 + 方法" 进行授权判断
 - 路由挂载
   - /api/v1/admin/auth/cron-jobs 及其子路径均受上述中间件保护
 
-章节来源
+**章节来源**
 - [internal/middleware/permission.go:14-78](file://internal/middleware/permission.go#L14-L78)
 - [internal/router.go:53-59](file://internal/router.go#L53-L59)
 
@@ -273,11 +288,28 @@ H-->>C : 统一响应
   - CronManager 启动时加载启用中的任务并注册到调度器
   - 启用/禁用会同步调度器；立即执行会异步触发
 
-章节来源
+**更新** CronManager 现在集成了自动日志清理功能，每天凌晨2点自动清理过期日志文件。
+
+**章节来源**
 - [internal/cron/executor.go:18-126](file://internal/cron/executor.go#L18-L126)
 - [internal/cron/logger.go:20-192](file://internal/cron/logger.go#L20-L192)
 - [internal/cron/manager.go:17-116](file://internal/cron/manager.go#L17-L116)
 - [internal/tasks/registry.go:11-33](file://internal/tasks/registry.go#L11-L33)
+
+### 初始化流程改进
+- 简化初始化过程
+  - CronManager 直接通过 NewCronManager 创建并启动
+  - 集成日志清理机制，无需额外配置
+- 日志目录结构
+  - 采用 {baseDir}/job-{id}/{timestamp}.log 的组织方式
+  - 支持自动过期清理和目录管理
+
+**更新** 新的初始化流程大幅简化了配置复杂度，同时提供了更完善的日志管理能力。
+
+**章节来源**
+- [internal/init.go:66-71](file://internal/init.go#L66-L71)
+- [internal/cron/manager.go:40-77](file://internal/cron/manager.go#L40-L77)
+- [internal/cron/logger.go:34-51](file://internal/cron/logger.go#L34-L51)
 
 ## 依赖关系分析
 
@@ -321,13 +353,13 @@ CronManager --> TaskExecutor : "执行"
 CronManager --> JobLogger : "写日志/清理"
 ```
 
-图表来源
+**图表来源**
 - [internal/service/cron_job.go:28-41](file://internal/service/cron_job.go#L28-L41)
 - [internal/cron/manager.go:17-38](file://internal/cron/manager.go#L17-L38)
 - [internal/cron/executor.go:18-21](file://internal/cron/executor.go#L18-L21)
 - [internal/cron/logger.go:20-32](file://internal/cron/logger.go#L20-L32)
 
-章节来源
+**章节来源**
 - [internal/service/cron_job.go:28-41](file://internal/service/cron_job.go#L28-L41)
 - [internal/cron/manager.go:17-38](file://internal/cron/manager.go#L17-L38)
 
@@ -344,7 +376,7 @@ CronManager --> JobLogger : "写日志/清理"
   - 控制 page_size 上限，避免一次性返回过多数据
   - 对高频查询增加缓存（可选）
 
-[本节为通用建议，无需特定文件引用]
+**更新** 新的日志清理机制确保了磁盘空间的有效利用，减少了长期运行的维护成本。
 
 ## 故障排查指南
 - 常见错误与定位
@@ -358,8 +390,13 @@ CronManager --> JobLogger : "写日志/清理"
   - 使用 /logs 列表获取可用文件，再用 /logs/{filename} 或 /logs/tail 读取
 - 权限问题
   - 确认 JWT 有效、域正确、用户具备对应 API 权限
+- 初始化问题
+  - 确认 CronManager 正确启动，日志目录可写
+  - 检查日志清理任务是否正常执行
 
-章节来源
+**更新** 新增了初始化和日志清理相关的故障排查指导。
+
+**章节来源**
 - [internal/global/msg.go:65-71](file://internal/global/msg.go#L65-L71)
 - [internal/handler/cron_job.go:43-54](file://internal/handler/cron_job.go#L43-L54)
 - [internal/cron/logger.go:88-105](file://internal/cron/logger.go#L88-L105)
@@ -367,7 +404,7 @@ CronManager --> JobLogger : "写日志/清理"
 ## 结论
 本系统提供了完善的定时任务管理与执行能力，具备清晰的分层架构、严格的参数校验、统一的错误码与响应格式、完善的日志体系，以及基于 JWT 和 Casbin 的认证授权机制。通过标准化的 RESTful 接口，用户可以安全地创建、管理、执行与监控各类定时任务。
 
-[本节为总结，无需特定文件引用]
+**更新** 最新的改进版本进一步简化了初始化流程，优化了日志管理结构，提升了系统的易用性和维护性。
 
 ## 附录
 
@@ -395,5 +432,5 @@ CronManager --> JobLogger : "写日志/清理"
 - GET /api/v1/admin/auth/cron-jobs/{id}/logs/{filename}
   - 读取指定日志文件
 
-章节来源
+**章节来源**
 - [docs/swagger.yaml:1023-1533](file://docs/swagger.yaml#L1023-L1533)

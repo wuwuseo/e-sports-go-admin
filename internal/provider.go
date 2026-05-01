@@ -16,6 +16,9 @@ import (
 
 // NewEntClient 创建 Ent ORM 客户端（Wire Provider）
 func NewEntClient(cfg *config.Config, dbManager *orm.DBManager) (*ent.Client, error) {
+	// 延迟初始化表前缀：配置已加载，此时可安全获取 table_prefix
+	ent.InitTablePrefix(orm.GetTablePrefix())
+
 	driver := orm.GetDatabaseConfig([]string{cfg.Database.Default}, cfg).Driver
 	db, err := orm.GetSqlDb(driver, orm.GetDatabaseSourceDns(cfg, cfg.Database.Default))
 	if err != nil {

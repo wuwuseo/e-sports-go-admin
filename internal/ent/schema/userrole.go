@@ -34,8 +34,8 @@ func (UserRole) Fields() []ent.Field {
 // Edges of the UserRole.
 func (UserRole) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("user", User.Type).Required().Unique().Field("user_id"),
-		edge.To("role", Role.Type).Required().Unique().Field("role_id"),
+		edge.To("user", User.Type).Unique().Required().Field("user_id"),
+		edge.To("role", Role.Type).Unique().Required().Field("role_id"),
 	}
 }
 

@@ -20,10 +20,14 @@ type Tx struct {
 	CasbinRule *CasbinRuleClient
 	// CronJob is the client for interacting with the CronJob builders.
 	CronJob *CronJobClient
+	// DictData is the client for interacting with the DictData builders.
+	DictData *DictDataClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// SystemConfig is the client for interacting with the SystemConfig builders.
+	SystemConfig *SystemConfigClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserRole is the client for interacting with the UserRole builders.
@@ -163,8 +167,10 @@ func (tx *Tx) init() {
 	tx.AttachmentGroup = NewAttachmentGroupClient(tx.config)
 	tx.CasbinRule = NewCasbinRuleClient(tx.config)
 	tx.CronJob = NewCronJobClient(tx.config)
+	tx.DictData = NewDictDataClient(tx.config)
 	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
+	tx.SystemConfig = NewSystemConfigClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserRole = NewUserRoleClient(tx.config)
 }

@@ -11,6 +11,13 @@ import (
 	"github.com/wuwuseo/cmf/validate"
 )
 
+// AssignPermissionsRequest 分配权限请求
+type AssignPermissionsRequest struct {
+	RoleName    string                   `json:"role_name" validate:"required"`
+	Domain      string                   `json:"domain" validate:"required"`
+	Permissions []service.PermissionRule `json:"permissions" validate:"required,min=1"`
+}
+
 // CreatePermission 创建权限
 // @Summary 创建权限
 // @Description 为指定角色创建权限
@@ -18,7 +25,7 @@ import (
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param permission body service.CreatePermissionRequest true "创建权限请求"
+// @Param body body service.CreatePermissionRequest true "创建权限请求"
 // @Success 200 {object} utils.Response{data=interface{}}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
@@ -66,7 +73,7 @@ func CreatePermission(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param permission body service.UpdatePermissionRequest true "更新权限请求"
+// @Param body body service.UpdatePermissionRequest true "更新权限请求"
 // @Success 200 {object} utils.Response{data=interface{}}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
@@ -279,11 +286,7 @@ func AssignPermissionsToRole(c *fiber.Ctx) error {
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
 	// 解析请求体
-	var req struct {
-		RoleName    string                   `json:"role_name" validate:"required"`
-		Domain      string                   `json:"domain" validate:"required"`
-		Permissions []service.PermissionRule `json:"permissions" validate:"required,min=1"`
-	}
+	var req AssignPermissionsRequest
 	if err := c.BodyParser(&req); err != nil {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
@@ -315,7 +318,7 @@ func AssignPermissionsToRole(c *fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body RemovePermissionsRequest true "移除权限请求"
+// @Param request body AssignPermissionsRequest true "移除权限请求"
 // @Success 200 {object} utils.Response{data=interface{}}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
@@ -331,11 +334,7 @@ func RemovePermissionsFromRole(c *fiber.Ctx) error {
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
 	// 解析请求体
-	var req struct {
-		RoleName    string                   `json:"role_name" validate:"required"`
-		Domain      string                   `json:"domain" validate:"required"`
-		Permissions []service.PermissionRule `json:"permissions" validate:"required,min=1"`
-	}
+	var req AssignPermissionsRequest
 	if err := c.BodyParser(&req); err != nil {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}

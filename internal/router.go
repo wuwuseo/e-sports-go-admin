@@ -155,4 +155,35 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	opLogs.Get("/", handler.ListOperationLogs)
 	opLogs.Get("/:id", handler.GetOperationLog)
 
+	// 数据字典路由
+	dictDataService := service.NewDictDataService()
+	dictData := adminAuth.Group("/dict-data", func(c *fiber.Ctx) error {
+		c.Locals("service.DictDataService", dictDataService)
+		return c.Next()
+	})
+	dictData.Get("/type/:type", handler.GetDictDataByType)
+	dictData.Post("", handler.CreateDictData)
+	dictData.Get("", handler.ListDictData)
+	dictData.Get("/:id", handler.GetDictData)
+	dictData.Put("/:id", handler.UpdateDictData)
+	dictData.Delete("/:id", handler.DeleteDictData)
+
+	// 动态配置路由
+	var configService *service.ConfigService
+	if appInstance != nil && appInstance.Cache != nil {
+		configService = service.NewConfigService(appInstance.Cache)
+	} else {
+		configService = service.NewConfigService(nil)
+	}
+	configs := adminAuth.Group("/configs", func(c *fiber.Ctx) error {
+		c.Locals("service.ConfigService", configService)
+		return c.Next()
+	})
+	configs.Get("/by-key/:key", handler.GetConfigByKey)
+	configs.Get("/group/:group", handler.GetConfigsByGroup)
+	configs.Post("", handler.CreateConfig)
+	configs.Get("", handler.ListConfigs)
+	configs.Get("/:id", handler.GetConfig)
+	configs.Put("/:id", handler.UpdateConfig)
+	configs.Delete("/:id", handler.DeleteConfig)
 }

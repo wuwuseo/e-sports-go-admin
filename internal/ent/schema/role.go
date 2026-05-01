@@ -52,9 +52,9 @@ func (Role) Fields() []ent.Field {
 
 // Edges of the Role.
 // func (Role) Edges() []ent.Edge {
-//     return []ent.Edge{
-//         edge.From("users", User.Type).Ref("roles").Through("user_roles", UserRole.Type),
-//     }
+// 	return []ent.Edge{
+// 		edge.From("users", User.Type).Ref("roles").Through("user_roles", UserRole.Type),
+// 	}
 // }
 
 // Indexes of the Role.

@@ -15,8 +15,10 @@ import (
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 
@@ -39,10 +41,14 @@ type Client struct {
 	CasbinRule *CasbinRuleClient
 	// CronJob is the client for interacting with the CronJob builders.
 	CronJob *CronJobClient
+	// DictData is the client for interacting with the DictData builders.
+	DictData *DictDataClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// SystemConfig is the client for interacting with the SystemConfig builders.
+	SystemConfig *SystemConfigClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserRole is the client for interacting with the UserRole builders.
@@ -62,8 +68,10 @@ func (c *Client) init() {
 	c.AttachmentGroup = NewAttachmentGroupClient(c.config)
 	c.CasbinRule = NewCasbinRuleClient(c.config)
 	c.CronJob = NewCronJobClient(c.config)
+	c.DictData = NewDictDataClient(c.config)
 	c.OperationLog = NewOperationLogClient(c.config)
 	c.Role = NewRoleClient(c.config)
+	c.SystemConfig = NewSystemConfigClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserRole = NewUserRoleClient(c.config)
 }
@@ -162,8 +170,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AttachmentGroup: NewAttachmentGroupClient(cfg),
 		CasbinRule:      NewCasbinRuleClient(cfg),
 		CronJob:         NewCronJobClient(cfg),
+		DictData:        NewDictDataClient(cfg),
 		OperationLog:    NewOperationLogClient(cfg),
 		Role:            NewRoleClient(cfg),
+		SystemConfig:    NewSystemConfigClient(cfg),
 		User:            NewUserClient(cfg),
 		UserRole:        NewUserRoleClient(cfg),
 	}, nil
@@ -189,8 +199,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AttachmentGroup: NewAttachmentGroupClient(cfg),
 		CasbinRule:      NewCasbinRuleClient(cfg),
 		CronJob:         NewCronJobClient(cfg),
+		DictData:        NewDictDataClient(cfg),
 		OperationLog:    NewOperationLogClient(cfg),
 		Role:            NewRoleClient(cfg),
+		SystemConfig:    NewSystemConfigClient(cfg),
 		User:            NewUserClient(cfg),
 		UserRole:        NewUserRoleClient(cfg),
 	}, nil
@@ -222,8 +234,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.OperationLog,
-		c.Role, c.User, c.UserRole,
+		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.DictData,
+		c.OperationLog, c.Role, c.SystemConfig, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -233,8 +245,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.OperationLog,
-		c.Role, c.User, c.UserRole,
+		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.DictData,
+		c.OperationLog, c.Role, c.SystemConfig, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -251,10 +263,14 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CasbinRule.mutate(ctx, m)
 	case *CronJobMutation:
 		return c.CronJob.mutate(ctx, m)
+	case *DictDataMutation:
+		return c.DictData.mutate(ctx, m)
 	case *OperationLogMutation:
 		return c.OperationLog.mutate(ctx, m)
 	case *RoleMutation:
 		return c.Role.mutate(ctx, m)
+	case *SystemConfigMutation:
+		return c.SystemConfig.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	case *UserRoleMutation:
@@ -828,6 +844,139 @@ func (c *CronJobClient) mutate(ctx context.Context, m *CronJobMutation) (Value, 
 	}
 }
 
+// DictDataClient is a client for the DictData schema.
+type DictDataClient struct {
+	config
+}
+
+// NewDictDataClient returns a client for the DictData from the given config.
+func NewDictDataClient(c config) *DictDataClient {
+	return &DictDataClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `dictdata.Hooks(f(g(h())))`.
+func (c *DictDataClient) Use(hooks ...Hook) {
+	c.hooks.DictData = append(c.hooks.DictData, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `dictdata.Intercept(f(g(h())))`.
+func (c *DictDataClient) Intercept(interceptors ...Interceptor) {
+	c.inters.DictData = append(c.inters.DictData, interceptors...)
+}
+
+// Create returns a builder for creating a DictData entity.
+func (c *DictDataClient) Create() *DictDataCreate {
+	mutation := newDictDataMutation(c.config, OpCreate)
+	return &DictDataCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of DictData entities.
+func (c *DictDataClient) CreateBulk(builders ...*DictDataCreate) *DictDataCreateBulk {
+	return &DictDataCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DictDataClient) MapCreateBulk(slice any, setFunc func(*DictDataCreate, int)) *DictDataCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DictDataCreateBulk{err: fmt.Errorf("calling to DictDataClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DictDataCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DictDataCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for DictData.
+func (c *DictDataClient) Update() *DictDataUpdate {
+	mutation := newDictDataMutation(c.config, OpUpdate)
+	return &DictDataUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DictDataClient) UpdateOne(_m *DictData) *DictDataUpdateOne {
+	mutation := newDictDataMutation(c.config, OpUpdateOne, withDictData(_m))
+	return &DictDataUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DictDataClient) UpdateOneID(id int) *DictDataUpdateOne {
+	mutation := newDictDataMutation(c.config, OpUpdateOne, withDictDataID(id))
+	return &DictDataUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for DictData.
+func (c *DictDataClient) Delete() *DictDataDelete {
+	mutation := newDictDataMutation(c.config, OpDelete)
+	return &DictDataDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DictDataClient) DeleteOne(_m *DictData) *DictDataDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DictDataClient) DeleteOneID(id int) *DictDataDeleteOne {
+	builder := c.Delete().Where(dictdata.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DictDataDeleteOne{builder}
+}
+
+// Query returns a query builder for DictData.
+func (c *DictDataClient) Query() *DictDataQuery {
+	return &DictDataQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDictData},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a DictData entity by its id.
+func (c *DictDataClient) Get(ctx context.Context, id int) (*DictData, error) {
+	return c.Query().Where(dictdata.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DictDataClient) GetX(ctx context.Context, id int) *DictData {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *DictDataClient) Hooks() []Hook {
+	return c.hooks.DictData
+}
+
+// Interceptors returns the client interceptors.
+func (c *DictDataClient) Interceptors() []Interceptor {
+	return c.inters.DictData
+}
+
+func (c *DictDataClient) mutate(ctx context.Context, m *DictDataMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DictDataCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DictDataUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DictDataUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DictDataDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown DictData mutation op: %q", m.Op())
+	}
+}
+
 // OperationLogClient is a client for the OperationLog schema.
 type OperationLogClient struct {
 	config
@@ -1091,6 +1240,139 @@ func (c *RoleClient) mutate(ctx context.Context, m *RoleMutation) (Value, error)
 		return (&RoleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Role mutation op: %q", m.Op())
+	}
+}
+
+// SystemConfigClient is a client for the SystemConfig schema.
+type SystemConfigClient struct {
+	config
+}
+
+// NewSystemConfigClient returns a client for the SystemConfig from the given config.
+func NewSystemConfigClient(c config) *SystemConfigClient {
+	return &SystemConfigClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `systemconfig.Hooks(f(g(h())))`.
+func (c *SystemConfigClient) Use(hooks ...Hook) {
+	c.hooks.SystemConfig = append(c.hooks.SystemConfig, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `systemconfig.Intercept(f(g(h())))`.
+func (c *SystemConfigClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SystemConfig = append(c.inters.SystemConfig, interceptors...)
+}
+
+// Create returns a builder for creating a SystemConfig entity.
+func (c *SystemConfigClient) Create() *SystemConfigCreate {
+	mutation := newSystemConfigMutation(c.config, OpCreate)
+	return &SystemConfigCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SystemConfig entities.
+func (c *SystemConfigClient) CreateBulk(builders ...*SystemConfigCreate) *SystemConfigCreateBulk {
+	return &SystemConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SystemConfigClient) MapCreateBulk(slice any, setFunc func(*SystemConfigCreate, int)) *SystemConfigCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SystemConfigCreateBulk{err: fmt.Errorf("calling to SystemConfigClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SystemConfigCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SystemConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SystemConfig.
+func (c *SystemConfigClient) Update() *SystemConfigUpdate {
+	mutation := newSystemConfigMutation(c.config, OpUpdate)
+	return &SystemConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SystemConfigClient) UpdateOne(_m *SystemConfig) *SystemConfigUpdateOne {
+	mutation := newSystemConfigMutation(c.config, OpUpdateOne, withSystemConfig(_m))
+	return &SystemConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SystemConfigClient) UpdateOneID(id int) *SystemConfigUpdateOne {
+	mutation := newSystemConfigMutation(c.config, OpUpdateOne, withSystemConfigID(id))
+	return &SystemConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SystemConfig.
+func (c *SystemConfigClient) Delete() *SystemConfigDelete {
+	mutation := newSystemConfigMutation(c.config, OpDelete)
+	return &SystemConfigDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SystemConfigClient) DeleteOne(_m *SystemConfig) *SystemConfigDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SystemConfigClient) DeleteOneID(id int) *SystemConfigDeleteOne {
+	builder := c.Delete().Where(systemconfig.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SystemConfigDeleteOne{builder}
+}
+
+// Query returns a query builder for SystemConfig.
+func (c *SystemConfigClient) Query() *SystemConfigQuery {
+	return &SystemConfigQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSystemConfig},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SystemConfig entity by its id.
+func (c *SystemConfigClient) Get(ctx context.Context, id int) (*SystemConfig, error) {
+	return c.Query().Where(systemconfig.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SystemConfigClient) GetX(ctx context.Context, id int) *SystemConfig {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SystemConfigClient) Hooks() []Hook {
+	return c.hooks.SystemConfig
+}
+
+// Interceptors returns the client interceptors.
+func (c *SystemConfigClient) Interceptors() []Interceptor {
+	return c.inters.SystemConfig
+}
+
+func (c *SystemConfigClient) mutate(ctx context.Context, m *SystemConfigMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SystemConfigCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SystemConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SystemConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SystemConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SystemConfig mutation op: %q", m.Op())
 	}
 }
 
@@ -1395,11 +1677,11 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Attachment, AttachmentGroup, CasbinRule, CronJob, OperationLog, Role, User,
-		UserRole []ent.Hook
+		Attachment, AttachmentGroup, CasbinRule, CronJob, DictData, OperationLog, Role,
+		SystemConfig, User, UserRole []ent.Hook
 	}
 	inters struct {
-		Attachment, AttachmentGroup, CasbinRule, CronJob, OperationLog, Role, User,
-		UserRole []ent.Interceptor
+		Attachment, AttachmentGroup, CasbinRule, CronJob, DictData, OperationLog, Role,
+		SystemConfig, User, UserRole []ent.Interceptor
 	}
 )

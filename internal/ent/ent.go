@@ -10,8 +10,10 @@ import (
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"reflect"
@@ -84,8 +86,10 @@ func checkColumn(t, c string) error {
 			attachmentgroup.Table: attachmentgroup.ValidColumn,
 			casbinrule.Table:      casbinrule.ValidColumn,
 			cronjob.Table:         cronjob.ValidColumn,
+			dictdata.Table:        dictdata.ValidColumn,
 			operationlog.Table:    operationlog.ValidColumn,
 			role.Table:            role.ValidColumn,
+			systemconfig.Table:    systemconfig.ValidColumn,
 			user.Table:            user.ValidColumn,
 			userrole.Table:        userrole.ValidColumn,
 		})

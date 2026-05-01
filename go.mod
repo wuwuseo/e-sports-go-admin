@@ -124,3 +124,4 @@ require (
 )
 
 replace github.com/wuwuseo/cmf => D:/www/cmf
+replace github.com/wuwuseo/ent => D:/www/ent

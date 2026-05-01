@@ -30,6 +30,14 @@ var (
 		Name:       TablePrefix + "attachments",
 		Columns:    AttachmentsColumns,
 		PrimaryKey: []*schema.Column{AttachmentsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "attachments_attachment_groups_attachments",
+				Columns:    []*schema.Column{AttachmentsColumns[10]},
+				RefColumns: []*schema.Column{AttachmentGroupsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "attachment_group_id",
@@ -119,6 +127,38 @@ var (
 			},
 		},
 	}
+	// DictDataColumns holds the columns for the "dict_data" table.
+	DictDataColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "label", Type: field.TypeString, Size: 100},
+		{Name: "value", Type: field.TypeString, Size: 100},
+		{Name: "dict_type", Type: field.TypeString, Size: 100},
+		{Name: "sort", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeInt, Default: 1},
+		{Name: "css_class", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "remark", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// DictDataTable holds the schema information for the "dict_data" table.
+	DictDataTable = &schema.Table{
+		Name:       TablePrefix + "dict_data",
+		Columns:    DictDataColumns,
+		PrimaryKey: []*schema.Column{DictDataColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "dictdata_dict_type",
+				Unique:  false,
+				Columns: []*schema.Column{DictDataColumns[3]},
+			},
+			{
+				Name:    "dictdata_status",
+				Unique:  false,
+				Columns: []*schema.Column{DictDataColumns[5]},
+			},
+		},
+	}
 	// OperationLogsColumns holds the columns for the "operation_logs" table.
 	OperationLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -195,6 +235,42 @@ var (
 			},
 		},
 	}
+	// SystemConfigsColumns holds the columns for the "system_configs" table.
+	SystemConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "key", Type: field.TypeString, Unique: true, Size: 100},
+		{Name: "value", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "type", Type: field.TypeString, Size: 20, Default: "string"},
+		{Name: "group", Type: field.TypeString, Nullable: true, Size: 50},
+		{Name: "status", Type: field.TypeInt, Default: 1},
+		{Name: "remark", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// SystemConfigsTable holds the schema information for the "system_configs" table.
+	SystemConfigsTable = &schema.Table{
+		Name:       TablePrefix + "system_configs",
+		Columns:    SystemConfigsColumns,
+		PrimaryKey: []*schema.Column{SystemConfigsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "systemconfig_key",
+				Unique:  true,
+				Columns: []*schema.Column{SystemConfigsColumns[2]},
+			},
+			{
+				Name:    "systemconfig_group",
+				Unique:  false,
+				Columns: []*schema.Column{SystemConfigsColumns[5]},
+			},
+			{
+				Name:    "systemconfig_status",
+				Unique:  false,
+				Columns: []*schema.Column{SystemConfigsColumns[6]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -250,6 +326,20 @@ var (
 		Name:       TablePrefix + "user_roles",
 		Columns:    UserRolesColumns,
 		PrimaryKey: []*schema.Column{UserRolesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_roles_users_user",
+				Columns:    []*schema.Column{UserRolesColumns[4]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "user_roles_roles_role",
+				Columns:    []*schema.Column{UserRolesColumns[5]},
+				RefColumns: []*schema.Column{RolesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "userrole_user_id_role_id",
@@ -274,9 +364,17 @@ var (
 		AttachmentGroupsTable,
 		CasbinRulesTable,
 		CronJobsTable,
+		DictDataTable,
 		OperationLogsTable,
 		RolesTable,
+		SystemConfigsTable,
 		UsersTable,
 		UserRolesTable,
 	}
 )
+
+func init() {
+	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
+	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
+	UserRolesTable.ForeignKeys[1].RefTable = RolesTable
+}

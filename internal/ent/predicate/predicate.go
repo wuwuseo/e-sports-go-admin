@@ -18,11 +18,17 @@ type CasbinRule func(*sql.Selector)
 // CronJob is the predicate function for cronjob builders.
 type CronJob func(*sql.Selector)
 
+// DictData is the predicate function for dictdata builders.
+type DictData func(*sql.Selector)
+
 // OperationLog is the predicate function for operationlog builders.
 type OperationLog func(*sql.Selector)
 
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
+
+// SystemConfig is the predicate function for systemconfig builders.
+type SystemConfig func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
