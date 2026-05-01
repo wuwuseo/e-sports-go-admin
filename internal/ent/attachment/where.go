@@ -91,7 +91,7 @@ func GroupID(v int) predicate.Attachment {
 }
 
 // UploadedBy applies equality check predicate on the "uploaded_by" field. It's identical to UploadedByEQ.
-func UploadedBy(v int) predicate.Attachment {
+func UploadedBy(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldEQ(FieldUploadedBy, v))
 }
 
@@ -501,43 +501,58 @@ func GroupIDNotNil() predicate.Attachment {
 }
 
 // UploadedByEQ applies the EQ predicate on the "uploaded_by" field.
-func UploadedByEQ(v int) predicate.Attachment {
+func UploadedByEQ(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldEQ(FieldUploadedBy, v))
 }
 
 // UploadedByNEQ applies the NEQ predicate on the "uploaded_by" field.
-func UploadedByNEQ(v int) predicate.Attachment {
+func UploadedByNEQ(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldNEQ(FieldUploadedBy, v))
 }
 
 // UploadedByIn applies the In predicate on the "uploaded_by" field.
-func UploadedByIn(vs ...int) predicate.Attachment {
+func UploadedByIn(vs ...string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldIn(FieldUploadedBy, vs...))
 }
 
 // UploadedByNotIn applies the NotIn predicate on the "uploaded_by" field.
-func UploadedByNotIn(vs ...int) predicate.Attachment {
+func UploadedByNotIn(vs ...string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldNotIn(FieldUploadedBy, vs...))
 }
 
 // UploadedByGT applies the GT predicate on the "uploaded_by" field.
-func UploadedByGT(v int) predicate.Attachment {
+func UploadedByGT(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldGT(FieldUploadedBy, v))
 }
 
 // UploadedByGTE applies the GTE predicate on the "uploaded_by" field.
-func UploadedByGTE(v int) predicate.Attachment {
+func UploadedByGTE(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldGTE(FieldUploadedBy, v))
 }
 
 // UploadedByLT applies the LT predicate on the "uploaded_by" field.
-func UploadedByLT(v int) predicate.Attachment {
+func UploadedByLT(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldLT(FieldUploadedBy, v))
 }
 
 // UploadedByLTE applies the LTE predicate on the "uploaded_by" field.
-func UploadedByLTE(v int) predicate.Attachment {
+func UploadedByLTE(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldLTE(FieldUploadedBy, v))
+}
+
+// UploadedByContains applies the Contains predicate on the "uploaded_by" field.
+func UploadedByContains(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContains(FieldUploadedBy, v))
+}
+
+// UploadedByHasPrefix applies the HasPrefix predicate on the "uploaded_by" field.
+func UploadedByHasPrefix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasPrefix(FieldUploadedBy, v))
+}
+
+// UploadedByHasSuffix applies the HasSuffix predicate on the "uploaded_by" field.
+func UploadedByHasSuffix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasSuffix(FieldUploadedBy, v))
 }
 
 // UploadedByIsNil applies the IsNil predicate on the "uploaded_by" field.
@@ -548,6 +563,16 @@ func UploadedByIsNil() predicate.Attachment {
 // UploadedByNotNil applies the NotNil predicate on the "uploaded_by" field.
 func UploadedByNotNil() predicate.Attachment {
 	return predicate.Attachment(sql.FieldNotNull(FieldUploadedBy))
+}
+
+// UploadedByEqualFold applies the EqualFold predicate on the "uploaded_by" field.
+func UploadedByEqualFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEqualFold(FieldUploadedBy, v))
+}
+
+// UploadedByContainsFold applies the ContainsFold predicate on the "uploaded_by" field.
+func UploadedByContainsFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContainsFold(FieldUploadedBy, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

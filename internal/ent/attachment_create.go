@@ -72,13 +72,13 @@ func (_c *AttachmentCreate) SetNillableGroupID(v *int) *AttachmentCreate {
 }
 
 // SetUploadedBy sets the "uploaded_by" field.
-func (_c *AttachmentCreate) SetUploadedBy(v int) *AttachmentCreate {
+func (_c *AttachmentCreate) SetUploadedBy(v string) *AttachmentCreate {
 	_c.mutation.SetUploadedBy(v)
 	return _c
 }
 
 // SetNillableUploadedBy sets the "uploaded_by" field if the given value is not nil.
-func (_c *AttachmentCreate) SetNillableUploadedBy(v *int) *AttachmentCreate {
+func (_c *AttachmentCreate) SetNillableUploadedBy(v *string) *AttachmentCreate {
 	if v != nil {
 		_c.SetUploadedBy(*v)
 	}
@@ -277,7 +277,7 @@ func (_c *AttachmentCreate) createSpec() (*Attachment, *sqlgraph.CreateSpec) {
 		_node.Size = value
 	}
 	if value, ok := _c.mutation.UploadedBy(); ok {
-		_spec.SetField(attachment.FieldUploadedBy, field.TypeInt, value)
+		_spec.SetField(attachment.FieldUploadedBy, field.TypeString, value)
 		_node.UploadedBy = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {

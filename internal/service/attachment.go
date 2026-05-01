@@ -26,7 +26,7 @@ var (
 
 // AttachmentServiceInterface 附件服务接口
 type AttachmentServiceInterface interface {
-	Upload(ctx context.Context, fileHeader *multipart.FileHeader, groupID *int, userID int) (*AttachmentResponse, error)
+	Upload(ctx context.Context, fileHeader *multipart.FileHeader, groupID *int, userID string) (*AttachmentResponse, error)
 	Delete(ctx context.Context, id int) error
 	BatchDelete(ctx context.Context, ids []int) error
 	Get(ctx context.Context, id int) (*AttachmentResponse, error)
@@ -59,7 +59,7 @@ type AttachmentResponse struct {
 	Extension    string `json:"extension"`
 	Size         int64  `json:"size"`
 	GroupID      int    `json:"group_id,omitempty"`
-	UploadedBy   int    `json:"uploaded_by,omitempty"`
+	UploadedBy   string `json:"uploaded_by,omitempty"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
 }
@@ -91,7 +91,7 @@ type MoveAttachmentRequest struct {
 }
 
 // Upload 上传附件
-func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.FileHeader, groupID *int, userID int) (*AttachmentResponse, error) {
+func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.FileHeader, groupID *int, userID string) (*AttachmentResponse, error) {
 	// 打开上传文件
 	file, err := fileHeader.Open()
 	if err != nil {

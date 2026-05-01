@@ -2,12 +2,17 @@ package internal
 
 import (
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 
 	"github.com/wuwuseo/cmf/log"
 	"go.uber.org/zap"
 )
 
 func Cleanup() error {
+	// 持久化 UID 计数器，确保重启后连续
+	utils.SaveUID()
+	log.Info("UID 计数器已持久化")
+
 	// 停止定时任务管理器（在关闭 DB 之前）
 	if global.CronManager != nil {
 		global.CronManager.Stop()

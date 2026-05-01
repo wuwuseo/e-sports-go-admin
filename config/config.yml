@@ -98,7 +98,7 @@ casbin:
         e = some(where (p.eft == allow))
         
         [matchers]
-        m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act
+        m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && (r.obj == p.obj || p.obj == "*") && (r.act == p.act || p.act == "*")
     
     # ==================== 多域配置示例 ====================
     # 可以为不同的租户或业务域配置独立的权限模型

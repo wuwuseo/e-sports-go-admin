@@ -48,8 +48,19 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 公开接口
 	adminPublic.Post("/login", handler.Login)
 	adminPublic.Post("/refresh-token", handler.RefreshToken)
+	adminPublic.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
 
-	// 需要认证的接口
+	// 仅认证、不需要额外权限的用户个人信息路由（必须在 adminAuth 之前声明，避免被 PermissionMiddleware 拦截）
+	adminAuthUser := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), func(c *fiber.Ctx) error {
+		c.Locals("service.UserService", service.NewUserService())
+		c.Locals("utils.Response", utils.NewResponse())
+		return c.Next()
+	})
+	adminAuthUser.Get("/user", handler.GetUser)
+	adminAuthUser.Put("/user", handler.UpdateUser)
+	adminAuthUser.Put("/password", handler.ChangePassword)
+
+	// 需要认证+权限校验的接口
 	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c *fiber.Ctx) error {
 		c.Locals("service.UserService", service.NewUserService())
 		c.Locals("service.RoleService", roleService)
@@ -57,13 +68,16 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.OperationLogService", opLogService)
 		return c.Next()
 	}, middleware.PermissionMiddleware())
-	adminAuth.Get("/user", handler.GetUser)
-	adminAuth.Put("/user", handler.UpdateUser)
-	adminAuth.Put("/password", handler.ChangePassword)
 
 	// 角色管理路由
 	roles := adminAuth.Group("/roles")
-	roles.Post("", handler.CreateRole)             // 创建角色
+	roles.Post("", handler.CreateRole) // 创建角色
+
+	// 角色权限管理路由（必须在 /:id 之前注册，避免被参数化路由捕获）
+	roles.Get("/permissions", handler.GetRolePermissions)                // 获取角色权限
+	roles.Post("/permissions/assign", handler.AssignPermissionsToRole)   // 为角色分配权限
+	roles.Post("/permissions/remove", handler.RemovePermissionsFromRole) // 从角色移除权限
+
 	roles.Get("/:id", handler.GetRole)             // 获取角色详情
 	roles.Get("", handler.ListRoles)               // 获取角色列表
 	roles.Put("/:id", handler.UpdateRole)          // 更新角色
@@ -78,12 +92,6 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	permissions.Delete("", handler.DeletePermission)  // 删除权限
 	permissions.Get("/detail", handler.GetPermission) // 获取权限详情
 	permissions.Get("", handler.ListPermissions)      // 获取权限列表
-
-	// 角色权限管理路由
-	rolePermissions := adminAuth.Group("/roles/permissions")
-	rolePermissions.Post("/assign", handler.AssignPermissionsToRole)   // 为角色分配权限
-	rolePermissions.Post("/remove", handler.RemovePermissionsFromRole) // 从角色移除权限
-	rolePermissions.Get("", handler.GetRolePermissions)                // 获取角色权限
 
 	// 用户权限路由
 	userPermissions := adminAuth.Group("/user")
@@ -146,4 +154,5 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	opLogs := adminAuth.Group("/operation-logs")
 	opLogs.Get("/", handler.ListOperationLogs)
 	opLogs.Get("/:id", handler.GetOperationLog)
+
 }

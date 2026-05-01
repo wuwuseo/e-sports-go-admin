@@ -20,7 +20,7 @@ var (
 		{Name: "mime_type", Type: field.TypeString, Size: 255},
 		{Name: "extension", Type: field.TypeString, Size: 50},
 		{Name: "size", Type: field.TypeInt64},
-		{Name: "uploaded_by", Type: field.TypeInt, Nullable: true},
+		{Name: "uploaded_by", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "group_id", Type: field.TypeInt, Nullable: true},
@@ -30,14 +30,6 @@ var (
 		Name:       TablePrefix + "attachments",
 		Columns:    AttachmentsColumns,
 		PrimaryKey: []*schema.Column{AttachmentsColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "attachments_attachment_groups_attachments",
-				Columns:    []*schema.Column{AttachmentsColumns[10]},
-				RefColumns: []*schema.Column{AttachmentGroupsColumns[0]},
-				OnDelete:   schema.SetNull,
-			},
-		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "attachment_group_id",
@@ -258,20 +250,6 @@ var (
 		Name:       TablePrefix + "user_roles",
 		Columns:    UserRolesColumns,
 		PrimaryKey: []*schema.Column{UserRolesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "user_roles_users_user",
-				Columns:    []*schema.Column{UserRolesColumns[4]},
-				RefColumns: []*schema.Column{UsersColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-			{
-				Symbol:     "user_roles_roles_role",
-				Columns:    []*schema.Column{UserRolesColumns[5]},
-				RefColumns: []*schema.Column{RolesColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "userrole_user_id_role_id",
@@ -302,9 +280,3 @@ var (
 		UserRolesTable,
 	}
 )
-
-func init() {
-	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
-	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
-	UserRolesTable.ForeignKeys[1].RefTable = RolesTable
-}

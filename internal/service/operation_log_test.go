@@ -31,7 +31,7 @@ func createTestLog(t *testing.T, client *ent.Client, entry *LogEntry) *ent.Opera
 	ctx := context.Background()
 
 	builder := client.OperationLog.Create().
-		SetUserID(entry.UserID).
+		SetUserID(0).
 		SetUsername(entry.Username).
 		SetModule(entry.Module).
 		SetAction(entry.Action).
@@ -64,7 +64,7 @@ func TestLogOperation(t *testing.T) {
 
 	// Log is async, so we use it then wait
 	err := svc.Log(ctx, &LogEntry{
-		UserID:      1,
+		UserUID:     "uid-admin",
 		Username:    "admin",
 		Module:      "用户管理",
 		Action:      "创建",
@@ -100,7 +100,7 @@ func TestListOperationLogs(t *testing.T) {
 	// Create test logs directly
 	for i := 0; i < 5; i++ {
 		createTestLog(t, client, &LogEntry{
-			UserID:     1,
+			UserUID:    "uid-admin",
 			Username:   "admin",
 			Module:     "用户管理",
 			Action:     "查询",
@@ -143,7 +143,7 @@ func TestListOperationLogs_FilterByModule(t *testing.T) {
 	modules := []string{"用户管理", "角色管理", "用户管理"}
 	for i, mod := range modules {
 		createTestLog(t, client, &LogEntry{
-			UserID:     1,
+			UserUID:    "uid-admin",
 			Username:   "admin",
 			Module:     mod,
 			Action:     "查询",
@@ -171,7 +171,7 @@ func TestListOperationLogs_FilterByAction(t *testing.T) {
 	actions := []string{"创建", "更新", "删除", "创建"}
 	for i, act := range actions {
 		createTestLog(t, client, &LogEntry{
-			UserID:     1,
+			UserUID:    "uid-admin",
 			Username:   "admin",
 			Module:     "用户管理",
 			Action:     act,
@@ -199,7 +199,7 @@ func TestListOperationLogs_FilterByUsername(t *testing.T) {
 	users := []string{"admin", "editor", "admin_test"}
 	for i, user := range users {
 		createTestLog(t, client, &LogEntry{
-			UserID:     i + 1,
+			UserUID:    fmt.Sprintf("uid-%d", i+1),
 			Username:   user,
 			Module:     "用户管理",
 			Action:     "查询",
@@ -228,7 +228,7 @@ func TestListOperationLogs_FilterByTimeRange(t *testing.T) {
 	// Create logs
 	for i := 0; i < 3; i++ {
 		createTestLog(t, client, &LogEntry{
-			UserID:     1,
+			UserUID:    "uid-admin",
 			Username:   "admin",
 			Module:     "用户管理",
 			Action:     "查询",
@@ -280,7 +280,7 @@ func TestGetOperationLog(t *testing.T) {
 	ctx := context.Background()
 
 	l := createTestLog(t, client, &LogEntry{
-		UserID:      1,
+		UserUID:     "uid-admin",
 		Username:    "admin",
 		Module:      "角色管理",
 		Action:      "创建",
@@ -298,8 +298,8 @@ func TestGetOperationLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
-	if resp.UserID != 1 {
-		t.Fatalf("expected user_id 1, got %d", resp.UserID)
+	if resp.UserID != 0 {
+		t.Fatalf("expected user_id 0, got %d", resp.UserID)
 	}
 	if resp.Username != "admin" {
 		t.Fatalf("expected username 'admin', got '%s'", resp.Username)

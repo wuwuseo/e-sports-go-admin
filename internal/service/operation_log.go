@@ -36,7 +36,7 @@ func NewOperationLogService() *OperationLogService {
 
 // LogEntry 日志记录条目
 type LogEntry struct {
-	UserID      int
+	UserUID     string
 	Username    string
 	Module      string // "角色管理", "权限管理", "用户管理", "附件管理", "附件分组"
 	Action      string // "创建", "更新", "删除", "上传", "启用", "禁用" 等
@@ -90,7 +90,7 @@ func (s *OperationLogService) Log(ctx context.Context, entry *LogEntry) error {
 	go func() {
 		bgCtx := context.Background()
 		builder := s.client.OperationLog.Create().
-			SetUserID(entry.UserID).
+			SetUserID(0).
 			SetUsername(entry.Username).
 			SetModule(entry.Module).
 			SetAction(entry.Action).

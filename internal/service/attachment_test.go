@@ -284,7 +284,7 @@ func TestUploadAttachment(t *testing.T) {
 	fileData := []byte("hello world test file content")
 	fh := createTestFileHeader(t, "test-doc.txt", "text/plain", fileData)
 
-	resp, err := svc.Upload(ctx, fh, nil, 1)
+	resp, err := svc.Upload(ctx, fh, nil, "uid-1")
 	if err != nil {
 		t.Fatalf("Upload failed: %v", err)
 	}
@@ -300,8 +300,8 @@ func TestUploadAttachment(t *testing.T) {
 	if resp.Size != int64(len(fileData)) {
 		t.Fatalf("expected size %d, got %d", len(fileData), resp.Size)
 	}
-	if resp.UploadedBy != 1 {
-		t.Fatalf("expected uploaded_by 1, got %d", resp.UploadedBy)
+	if resp.UploadedBy != "uid-1" {
+		t.Fatalf("expected uploaded_by 'uid-1', got '%s'", resp.UploadedBy)
 	}
 }
 

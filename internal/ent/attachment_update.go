@@ -141,23 +141,16 @@ func (_u *AttachmentUpdate) ClearGroupID() *AttachmentUpdate {
 }
 
 // SetUploadedBy sets the "uploaded_by" field.
-func (_u *AttachmentUpdate) SetUploadedBy(v int) *AttachmentUpdate {
-	_u.mutation.ResetUploadedBy()
+func (_u *AttachmentUpdate) SetUploadedBy(v string) *AttachmentUpdate {
 	_u.mutation.SetUploadedBy(v)
 	return _u
 }
 
 // SetNillableUploadedBy sets the "uploaded_by" field if the given value is not nil.
-func (_u *AttachmentUpdate) SetNillableUploadedBy(v *int) *AttachmentUpdate {
+func (_u *AttachmentUpdate) SetNillableUploadedBy(v *string) *AttachmentUpdate {
 	if v != nil {
 		_u.SetUploadedBy(*v)
 	}
-	return _u
-}
-
-// AddUploadedBy adds value to the "uploaded_by" field.
-func (_u *AttachmentUpdate) AddUploadedBy(v int) *AttachmentUpdate {
-	_u.mutation.AddUploadedBy(v)
 	return _u
 }
 
@@ -289,13 +282,10 @@ func (_u *AttachmentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		_spec.AddField(attachment.FieldSize, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.UploadedBy(); ok {
-		_spec.SetField(attachment.FieldUploadedBy, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedUploadedBy(); ok {
-		_spec.AddField(attachment.FieldUploadedBy, field.TypeInt, value)
+		_spec.SetField(attachment.FieldUploadedBy, field.TypeString, value)
 	}
 	if _u.mutation.UploadedByCleared() {
-		_spec.ClearField(attachment.FieldUploadedBy, field.TypeInt)
+		_spec.ClearField(attachment.FieldUploadedBy, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(attachment.FieldUpdatedAt, field.TypeTime, value)
@@ -461,23 +451,16 @@ func (_u *AttachmentUpdateOne) ClearGroupID() *AttachmentUpdateOne {
 }
 
 // SetUploadedBy sets the "uploaded_by" field.
-func (_u *AttachmentUpdateOne) SetUploadedBy(v int) *AttachmentUpdateOne {
-	_u.mutation.ResetUploadedBy()
+func (_u *AttachmentUpdateOne) SetUploadedBy(v string) *AttachmentUpdateOne {
 	_u.mutation.SetUploadedBy(v)
 	return _u
 }
 
 // SetNillableUploadedBy sets the "uploaded_by" field if the given value is not nil.
-func (_u *AttachmentUpdateOne) SetNillableUploadedBy(v *int) *AttachmentUpdateOne {
+func (_u *AttachmentUpdateOne) SetNillableUploadedBy(v *string) *AttachmentUpdateOne {
 	if v != nil {
 		_u.SetUploadedBy(*v)
 	}
-	return _u
-}
-
-// AddUploadedBy adds value to the "uploaded_by" field.
-func (_u *AttachmentUpdateOne) AddUploadedBy(v int) *AttachmentUpdateOne {
-	_u.mutation.AddUploadedBy(v)
 	return _u
 }
 
@@ -639,13 +622,10 @@ func (_u *AttachmentUpdateOne) sqlSave(ctx context.Context) (_node *Attachment, 
 		_spec.AddField(attachment.FieldSize, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.UploadedBy(); ok {
-		_spec.SetField(attachment.FieldUploadedBy, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedUploadedBy(); ok {
-		_spec.AddField(attachment.FieldUploadedBy, field.TypeInt, value)
+		_spec.SetField(attachment.FieldUploadedBy, field.TypeString, value)
 	}
 	if _u.mutation.UploadedByCleared() {
-		_spec.ClearField(attachment.FieldUploadedBy, field.TypeInt)
+		_spec.ClearField(attachment.FieldUploadedBy, field.TypeString)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(attachment.FieldUpdatedAt, field.TypeTime, value)

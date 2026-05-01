@@ -51,10 +51,10 @@ func (Attachment) Fields() []ent.Field {
 			Optional().
 			StructTag(`json:"group_id,omitempty"`).
 			Comment("分组ID"),
-		field.Int("uploaded_by").
+		field.String("uploaded_by").
 			Optional().
 			StructTag(`json:"uploaded_by,omitempty"`).
-			Comment("上传用户ID"),
+			Comment("上传用户UID"),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now).

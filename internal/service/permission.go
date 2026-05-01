@@ -10,6 +10,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
 
@@ -66,12 +67,12 @@ type UpdatePermissionRequest struct {
 
 // ListPermissionsRequest 权限列表请求
 type ListPermissionsRequest struct {
-	Page     int            `json:"page" validate:"min=1"`
-	PageSize int            `json:"page_size" validate:"min=1,max=100"`
-	Keyword  string         `json:"keyword"`
-	Type     PermissionType `json:"type"`
-	Domain   string         `json:"domain"`
-	RoleName string         `json:"role_name"`
+	Page     int            `query:"page" json:"page" validate:"min=1"`
+	PageSize int            `query:"page_size" json:"page_size" validate:"min=1,max=100"`
+	Keyword  string         `query:"keyword" json:"keyword"`
+	Type     PermissionType `query:"type" json:"type"`
+	Domain   string         `query:"domain" json:"domain"`
+	RoleName string         `query:"role_name" json:"role_name"`
 }
 
 // PermissionResponse 权限响应
@@ -107,12 +108,12 @@ type PermissionServiceInterface interface {
 	GetRolePermissions(ctx context.Context, roleName, domain string) ([]*PermissionResponse, error)
 
 	// 用户权限获取
-	GetUserMenuPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error)
-	GetUserButtonPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error)
-	GetUserAPIPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error)
+	GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
+	GetUserButtonPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
+	GetUserAPIPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
 
 	// 权限验证
-	CheckPermission(ctx context.Context, userID int, domain, object, action string) (bool, error)
+	CheckPermission(ctx context.Context, userID string, domain, object, action string) (bool, error)
 }
 
 // PermissionService 权限服务实现
@@ -556,8 +557,8 @@ func (s *PermissionService) GetRolePermissions(ctx context.Context, roleName, do
 }
 
 // GetUserMenuPermissions 获取用户的菜单权限
-func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error) {
-	cacheKey := s.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
+	cacheKey := s.cacheKey("user", "menu", userID, domain)
 
 	// 尝试从缓存获取
 	if s.cache != nil {
@@ -567,9 +568,15 @@ func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID i
 		}
 	}
 
+	// 通过UID查找用户的数据库ID
+	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+	}
+
 	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(userID)).
+		Where(userrole.UserIDEQ(u.ID)).
 		WithRole().
 		All(ctx)
 	if err != nil {
@@ -615,8 +622,8 @@ func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID i
 }
 
 // GetUserButtonPermissions 获取用户的按钮权限
-func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error) {
-	cacheKey := s.cacheKey("user", "button", fmt.Sprint(userID), domain)
+func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
+	cacheKey := s.cacheKey("user", "button", userID, domain)
 
 	// 尝试从缓存获取
 	if s.cache != nil {
@@ -626,9 +633,15 @@ func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID
 		}
 	}
 
+	// 通过UID查找用户的数据库ID
+	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+	}
+
 	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(userID)).
+		Where(userrole.UserIDEQ(u.ID)).
 		WithRole().
 		All(ctx)
 	if err != nil {
@@ -674,8 +687,8 @@ func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID
 }
 
 // GetUserAPIPermissions 获取用户的API权限
-func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID int, domain string) ([]*PermissionResponse, error) {
-	cacheKey := s.cacheKey("user", "api", fmt.Sprint(userID), domain)
+func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
+	cacheKey := s.cacheKey("user", "api", userID, domain)
 
 	// 尝试从缓存获取
 	if s.cache != nil {
@@ -685,9 +698,15 @@ func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID in
 		}
 	}
 
+	// 通过UID查找用户的数据库ID
+	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+	}
+
 	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(userID)).
+		Where(userrole.UserIDEQ(u.ID)).
 		WithRole().
 		All(ctx)
 	if err != nil {
@@ -734,10 +753,16 @@ func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID in
 }
 
 // CheckPermission 检查用户是否有某个权限
-func (s *PermissionService) CheckPermission(ctx context.Context, userID int, domain, object, action string) (bool, error) {
+func (s *PermissionService) CheckPermission(ctx context.Context, userID string, domain, object, action string) (bool, error) {
+	// 通过UID查找用户的数据库ID
+	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
+	if err != nil {
+		return false, fmt.Errorf("获取用户信息失败: %w", err)
+	}
+
 	// 获取用户角色（使用eager loading预加载角色）
 	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(userID)).
+		Where(userrole.UserIDEQ(u.ID)).
 		WithRole().
 		All(ctx)
 	if err != nil {

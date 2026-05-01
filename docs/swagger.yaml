@@ -20,6 +20,27 @@ definitions:
     - new_password
     - old_password
     type: object
+  handler.GetPublicKeyResponse:
+    properties:
+      algorithm:
+        description: 加密算法
+        type: string
+      created_at:
+        description: 密钥创建时间
+        type: string
+      expires_at:
+        description: 密钥过期时间
+        type: string
+      key_id:
+        description: 密钥ID
+        type: string
+      public_key:
+        description: 公钥内容
+        type: string
+      rotate_cycle:
+        description: 密钥轮换周期
+        type: string
+    type: object
   service.AttachmentResponse:
     properties:
       created_at:
@@ -43,7 +64,7 @@ definitions:
       updated_at:
         type: string
       uploaded_by:
-        type: integer
+        type: string
     type: object
   service.BatchDeleteRequest:
     properties:
@@ -245,11 +266,23 @@ definitions:
     properties:
       email:
         type: string
+      encrypted_email:
+        description: 加密的邮箱（用于等保要求）
+        type: string
+      encrypted_password:
+        description: 加密的密码（用于等保要求）
+        type: string
+      key_id:
+        description: 加密密钥ID
+        type: string
+      nonce:
+        description: 随机数（防止重放攻击）
+        type: string
       password:
         type: string
-    required:
-    - email
-    - password
+      timestamp:
+        description: 请求时间戳（防止重放攻击）
+        type: integer
     type: object
   service.MoveAttachmentRequest:
     properties:
@@ -1642,55 +1675,11 @@ paths:
       summary: 获取操作日志详情
       tags:
       - 操作日志
-  /api/v1/admin/auth/operation-logs/cleanup:
-    delete:
-      description: 删除指定时间之前的操作日志
-      parameters:
-      - description: 清理此时间之前的日志（RFC3339格式）
-        in: query
-        name: before
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  additionalProperties:
-                    type: integer
-                  type: object
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - BearerAuth: []
-      summary: 清理操作日志
-      tags:
-      - 操作日志
   /api/v1/admin/auth/password:
     put:
       consumes:
       - application/json
-      description: 修改当前登录用户的密码
+      description: 修改当前登录用户的密码，仅需 JWT 认证，无需额外权限检查
       parameters:
       - description: 密码信息
         in: body
@@ -1723,9 +1712,9 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: 修改密码
+      summary: 修改当前用户密码
       tags:
-      - 用户管理
+      - 用户个人信息
   /api/v1/admin/auth/permissions:
     delete:
       consumes:
@@ -2489,7 +2478,7 @@ paths:
       - 权限管理
   /api/v1/admin/auth/user:
     get:
-      description: 获取当前登录用户的详细信息
+      description: 获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查
       produces:
       - application/json
       responses:
@@ -2517,13 +2506,13 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: 获取用户信息
+      summary: 获取当前用户信息
       tags:
-      - 用户管理
+      - 用户个人信息
     put:
       consumes:
       - application/json
-      description: 更新当前登录用户的信息
+      description: 更新当前登录用户的信息，仅需 JWT 认证，无需额外权限检查
       parameters:
       - description: 用户信息
         in: body
@@ -2553,9 +2542,9 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: 更新用户信息
+      summary: 更新当前用户信息
       tags:
-      - 用户管理
+      - 用户个人信息
   /api/v1/admin/auth/user/api-permissions:
     get:
       consumes:
@@ -2722,7 +2711,46 @@ paths:
       summary: 获取用户所有权限
       tags:
       - 权限管理
-  /api/v1/admin/login:
+  /api/v1/admin/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: 使用刷新令牌获取新的访问令牌
+      parameters:
+      - description: 刷新令牌
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.TokenResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 刷新访问令牌
+      tags:
+      - 用户管理
+  /api/v1/public/login:
     post:
       consumes:
       - application/json
@@ -2769,18 +2797,9 @@ paths:
       summary: 用户登录
       tags:
       - 用户管理
-  /api/v1/admin/refresh-token:
-    post:
-      consumes:
-      - application/json
-      description: 使用刷新令牌获取新的访问令牌
-      parameters:
-      - description: 刷新令牌
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/service.RefreshTokenRequest'
+  /api/v1/public/public-key:
+    get:
+      description: 获取用于加密登录请求的RSA公钥
       produces:
       - application/json
       responses:
@@ -2791,21 +2810,13 @@ paths:
             - $ref: '#/definitions/utils.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/service.TokenResponse'
+                  $ref: '#/definitions/handler.GetPublicKeyResponse'
               type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/utils.Response'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/utils.Response'
-      summary: 刷新访问令牌
+      summary: 获取RSA公钥
       tags:
       - 用户管理
 securityDefinitions:

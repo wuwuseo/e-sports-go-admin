@@ -16,16 +16,11 @@ import (
 // logOperation 记录操作日志的辅助函数
 func logOperation(c *fiber.Ctx, logService service.OperationLogServiceInterface, module, action, description string) {
 	claims := jwt.GetJWTUserData(c)
-	userID := 0
+	userUID := ""
 	username := ""
 	if claims != nil {
-		if id, ok := claims["user_id"]; ok {
-			switch v := id.(type) {
-			case float64:
-				userID = int(v)
-			case int:
-				userID = v
-			}
+		if id, ok := claims["id"].(string); ok {
+			userUID = id
 		}
 		if name, ok := claims["subject"].(string); ok {
 			username = name
@@ -33,11 +28,12 @@ func logOperation(c *fiber.Ctx, logService service.OperationLogServiceInterface,
 	}
 
 	logService.Log(context.Background(), &service.LogEntry{
-		UserID:      userID,
+		UserUID:     userUID,
 		Username:    username,
 		Module:      module,
 		Action:      action,
 		Description: description,
+		RequestBody: utils.SafeGetBody(c),
 		Method:      c.Method(),
 		Path:        c.Path(),
 		IP:          c.IP(),

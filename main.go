@@ -60,9 +60,13 @@ func main() {
 	global.Bootstrap = bootstrap
 	bootstrap.RegisterInitFunc(internal.Init)
 	bootstrap.RegisterMiddleware(func(app *fiber.App, config *config.Config) {
+		// 使用 Next 函数让 API 请求跳过文件系统中间件
 		app.Use("/", filesystem.New(filesystem.Config{
 			Root:       http.FS(WebRoot),
 			PathPrefix: "web/dist",
+			Next: func(c *fiber.Ctx) bool {
+				return strings.HasPrefix(c.Path(), "/api/")
+			},
 		}))
 
 		// 添加一个通用的处理程序，用于处理 SPA 路由
@@ -73,14 +77,13 @@ func main() {
 				return c.Next()
 			}
 
-			_, err := WebRoot.Open("web/dist" + path)
-
-			// 如果文件不存在，则返回 index.html
-			if err != nil {
+			// 如果文件系统中间件未命中（返回404），则提供 index.html
+			if c.Response().StatusCode() == fiber.StatusNotFound {
 				indexFile, err := WebRoot.ReadFile("web/dist/index.html")
 				if err != nil {
 					return err
 				}
+				c.Response().SetStatusCode(fiber.StatusOK)
 				c.Type("html")
 				return c.Send(indexFile)
 			}

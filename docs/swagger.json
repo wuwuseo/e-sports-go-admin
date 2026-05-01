@@ -1840,79 +1840,6 @@
                 }
             }
         },
-        "/api/v1/admin/auth/operation-logs/cleanup": {
-            "delete": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "删除指定时间之前的操作日志",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "操作日志"
-                ],
-                "summary": "清理操作日志",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "清理此时间之前的日志（RFC3339格式）",
-                        "name": "before",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                                "type": "integer"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "403": {
-                        "description": "Forbidden",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/auth/operation-logs/{id}": {
             "get": {
                 "security": [
@@ -1996,7 +1923,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "修改当前登录用户的密码",
+                "description": "修改当前登录用户的密码，仅需 JWT 认证，无需额外权限检查",
                 "consumes": [
                     "application/json"
                 ],
@@ -2004,9 +1931,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "用户管理"
+                    "用户个人信息"
                 ],
-                "summary": "修改密码",
+                "summary": "修改当前用户密码",
                 "parameters": [
                     {
                         "description": "密码信息",
@@ -3280,14 +3207,14 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取当前登录用户的详细信息",
+                "description": "获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "用户管理"
+                    "用户个人信息"
                 ],
-                "summary": "获取用户信息",
+                "summary": "获取当前用户信息",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -3334,7 +3261,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "更新当前登录用户的信息",
+                "description": "更新当前登录用户的信息，仅需 JWT 认证，无需额外权限检查",
                 "consumes": [
                     "application/json"
                 ],
@@ -3342,9 +3269,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "用户管理"
+                    "用户个人信息"
                 ],
-                "summary": "更新用户信息",
+                "summary": "更新当前用户信息",
                 "parameters": [
                     {
                         "description": "用户信息",
@@ -3664,7 +3591,71 @@
                 }
             }
         },
-        "/api/v1/admin/login": {
+        "/api/v1/admin/refresh-token": {
+            "post": {
+                "description": "使用刷新令牌获取新的访问令牌",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "刷新访问令牌",
+                "parameters": [
+                    {
+                        "description": "刷新令牌",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.RefreshTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/public/login": {
             "post": {
                 "description": "用户登录并获取访问令牌",
                 "consumes": [
@@ -3740,30 +3731,16 @@
                 }
             }
         },
-        "/api/v1/admin/refresh-token": {
-            "post": {
-                "description": "使用刷新令牌获取新的访问令牌",
-                "consumes": [
-                    "application/json"
-                ],
+        "/api/v1/public/public-key": {
+            "get": {
+                "description": "获取用于加密登录请求的RSA公钥",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "用户管理"
                 ],
-                "summary": "刷新访问令牌",
-                "parameters": [
-                    {
-                        "description": "刷新令牌",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.RefreshTokenRequest"
-                        }
-                    }
-                ],
+                "summary": "获取RSA公钥",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -3776,23 +3753,11 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/service.TokenResponse"
+                                            "$ref": "#/definitions/handler.GetPublicKeyResponse"
                                         }
                                     }
                                 }
                             ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
@@ -3836,6 +3801,35 @@
                 }
             }
         },
+        "handler.GetPublicKeyResponse": {
+            "type": "object",
+            "properties": {
+                "algorithm": {
+                    "description": "加密算法",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "密钥创建时间",
+                    "type": "string"
+                },
+                "expires_at": {
+                    "description": "密钥过期时间",
+                    "type": "string"
+                },
+                "key_id": {
+                    "description": "密钥ID",
+                    "type": "string"
+                },
+                "public_key": {
+                    "description": "公钥内容",
+                    "type": "string"
+                },
+                "rotate_cycle": {
+                    "description": "密钥轮换周期",
+                    "type": "string"
+                }
+            }
+        },
         "service.AttachmentResponse": {
             "type": "object",
             "properties": {
@@ -3870,7 +3864,7 @@
                     "type": "string"
                 },
                 "uploaded_by": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -4169,16 +4163,32 @@
         },
         "service.LoginRequest": {
             "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
             "properties": {
                 "email": {
                     "type": "string"
                 },
+                "encrypted_email": {
+                    "description": "加密的邮箱（用于等保要求）",
+                    "type": "string"
+                },
+                "encrypted_password": {
+                    "description": "加密的密码（用于等保要求）",
+                    "type": "string"
+                },
+                "key_id": {
+                    "description": "加密密钥ID",
+                    "type": "string"
+                },
+                "nonce": {
+                    "description": "随机数（防止重放攻击）",
+                    "type": "string"
+                },
                 "password": {
                     "type": "string"
+                },
+                "timestamp": {
+                    "description": "请求时间戳（防止重放攻击）",
+                    "type": "integer"
                 }
             }
         },

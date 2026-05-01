@@ -32,8 +32,8 @@ type Attachment struct {
 	Size int64 `json:"size"`
 	// 分组ID
 	GroupID int `json:"group_id,omitempty"`
-	// 上传用户ID
-	UploadedBy int `json:"uploaded_by,omitempty"`
+	// 上传用户UID
+	UploadedBy string `json:"uploaded_by,omitempty"`
 	// 创建时间
 	CreatedAt time.Time `json:"created_at"`
 	// 更新时间
@@ -69,9 +69,9 @@ func (*Attachment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case attachment.FieldID, attachment.FieldSize, attachment.FieldGroupID, attachment.FieldUploadedBy:
+		case attachment.FieldID, attachment.FieldSize, attachment.FieldGroupID:
 			values[i] = new(sql.NullInt64)
-		case attachment.FieldName, attachment.FieldOriginalName, attachment.FieldPath, attachment.FieldMimeType, attachment.FieldExtension:
+		case attachment.FieldName, attachment.FieldOriginalName, attachment.FieldPath, attachment.FieldMimeType, attachment.FieldExtension, attachment.FieldUploadedBy:
 			values[i] = new(sql.NullString)
 		case attachment.FieldCreatedAt, attachment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -139,10 +139,10 @@ func (_m *Attachment) assignValues(columns []string, values []any) error {
 				_m.GroupID = int(value.Int64)
 			}
 		case attachment.FieldUploadedBy:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
+			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field uploaded_by", values[i])
 			} else if value.Valid {
-				_m.UploadedBy = int(value.Int64)
+				_m.UploadedBy = value.String
 			}
 		case attachment.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -219,7 +219,7 @@ func (_m *Attachment) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.GroupID))
 	builder.WriteString(", ")
 	builder.WriteString("uploaded_by=")
-	builder.WriteString(fmt.Sprintf("%v", _m.UploadedBy))
+	builder.WriteString(_m.UploadedBy)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

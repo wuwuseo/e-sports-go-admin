@@ -44,26 +44,25 @@ const (
 // AttachmentMutation represents an operation that mutates the Attachment nodes in the graph.
 type AttachmentMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	name           *string
-	original_name  *string
-	_path          *string
-	mime_type      *string
-	extension      *string
-	size           *int64
-	addsize        *int64
-	uploaded_by    *int
-	adduploaded_by *int
-	created_at     *time.Time
-	updated_at     *time.Time
-	clearedFields  map[string]struct{}
-	group          *int
-	clearedgroup   bool
-	done           bool
-	oldValue       func(context.Context) (*Attachment, error)
-	predicates     []predicate.Attachment
+	op            Op
+	typ           string
+	id            *int
+	name          *string
+	original_name *string
+	_path         *string
+	mime_type     *string
+	extension     *string
+	size          *int64
+	addsize       *int64
+	uploaded_by   *string
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	group         *int
+	clearedgroup  bool
+	done          bool
+	oldValue      func(context.Context) (*Attachment, error)
+	predicates    []predicate.Attachment
 }
 
 var _ ent.Mutation = (*AttachmentMutation)(nil)
@@ -456,13 +455,12 @@ func (m *AttachmentMutation) ResetGroupID() {
 }
 
 // SetUploadedBy sets the "uploaded_by" field.
-func (m *AttachmentMutation) SetUploadedBy(i int) {
-	m.uploaded_by = &i
-	m.adduploaded_by = nil
+func (m *AttachmentMutation) SetUploadedBy(s string) {
+	m.uploaded_by = &s
 }
 
 // UploadedBy returns the value of the "uploaded_by" field in the mutation.
-func (m *AttachmentMutation) UploadedBy() (r int, exists bool) {
+func (m *AttachmentMutation) UploadedBy() (r string, exists bool) {
 	v := m.uploaded_by
 	if v == nil {
 		return
@@ -473,7 +471,7 @@ func (m *AttachmentMutation) UploadedBy() (r int, exists bool) {
 // OldUploadedBy returns the old "uploaded_by" field's value of the Attachment entity.
 // If the Attachment object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *AttachmentMutation) OldUploadedBy(ctx context.Context) (v int, err error) {
+func (m *AttachmentMutation) OldUploadedBy(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldUploadedBy is only allowed on UpdateOne operations")
 	}
@@ -487,28 +485,9 @@ func (m *AttachmentMutation) OldUploadedBy(ctx context.Context) (v int, err erro
 	return oldValue.UploadedBy, nil
 }
 
-// AddUploadedBy adds i to the "uploaded_by" field.
-func (m *AttachmentMutation) AddUploadedBy(i int) {
-	if m.adduploaded_by != nil {
-		*m.adduploaded_by += i
-	} else {
-		m.adduploaded_by = &i
-	}
-}
-
-// AddedUploadedBy returns the value that was added to the "uploaded_by" field in this mutation.
-func (m *AttachmentMutation) AddedUploadedBy() (r int, exists bool) {
-	v := m.adduploaded_by
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
 // ClearUploadedBy clears the value of the "uploaded_by" field.
 func (m *AttachmentMutation) ClearUploadedBy() {
 	m.uploaded_by = nil
-	m.adduploaded_by = nil
 	m.clearedFields[attachment.FieldUploadedBy] = struct{}{}
 }
 
@@ -521,7 +500,6 @@ func (m *AttachmentMutation) UploadedByCleared() bool {
 // ResetUploadedBy resets all changes to the "uploaded_by" field.
 func (m *AttachmentMutation) ResetUploadedBy() {
 	m.uploaded_by = nil
-	m.adduploaded_by = nil
 	delete(m.clearedFields, attachment.FieldUploadedBy)
 }
 
@@ -805,7 +783,7 @@ func (m *AttachmentMutation) SetField(name string, value ent.Value) error {
 		m.SetGroupID(v)
 		return nil
 	case attachment.FieldUploadedBy:
-		v, ok := value.(int)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -836,9 +814,6 @@ func (m *AttachmentMutation) AddedFields() []string {
 	if m.addsize != nil {
 		fields = append(fields, attachment.FieldSize)
 	}
-	if m.adduploaded_by != nil {
-		fields = append(fields, attachment.FieldUploadedBy)
-	}
 	return fields
 }
 
@@ -849,8 +824,6 @@ func (m *AttachmentMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case attachment.FieldSize:
 		return m.AddedSize()
-	case attachment.FieldUploadedBy:
-		return m.AddedUploadedBy()
 	}
 	return nil, false
 }
@@ -866,13 +839,6 @@ func (m *AttachmentMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddSize(v)
-		return nil
-	case attachment.FieldUploadedBy:
-		v, ok := value.(int)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.AddUploadedBy(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Attachment numeric field %s", name)

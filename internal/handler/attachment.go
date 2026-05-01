@@ -47,10 +47,7 @@ func UploadAttachment(c *fiber.Ctx) error {
 	}
 
 	// 从JWT获取用户ID
-	userID := 0
-	if uid, ok := c.Locals("user_id").(float64); ok {
-		userID = int(uid)
-	}
+	userID := c.Locals("uid").(string)
 
 	attachment, err := svc.Upload(c.Context(), fileHeader, groupID, userID)
 	if err != nil {

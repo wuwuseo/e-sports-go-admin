@@ -3,3 +3,5 @@ tmp/
 /data/logs/*.log
 /go-admin.exe
 /data/logs/cron/job-1/*.log
+/data/logs
+/data/.uid_counter

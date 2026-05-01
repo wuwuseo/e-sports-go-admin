@@ -62,7 +62,7 @@ func newTestPermissionService(t *testing.T) (*PermissionService, *ent.Client, *c
 }
 
 // setupTestData creates a role, user, user_role, and casbin rule for testing
-func setupTestData(t *testing.T, client *ent.Client, roleName, domain string) (userID int) {
+func setupTestData(t *testing.T, client *ent.Client, roleName, domain string) (userUID string) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -76,11 +76,13 @@ func setupTestData(t *testing.T, client *ent.Client, roleName, domain string) (u
 		t.Fatalf("failed to create role: %v", err)
 	}
 
-	// Create user
+	// Create user with UID
+	uid := fmt.Sprintf("uid-%s", roleName)
 	u, err := client.User.Create().
 		SetEmail(fmt.Sprintf("%s@test.com", roleName)).
 		SetPassword("hashedpwd").
 		SetStatus("active").
+		SetUID(uid).
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -108,7 +110,7 @@ func setupTestData(t *testing.T, client *ent.Client, roleName, domain string) (u
 		t.Fatalf("failed to create casbin rule: %v", err)
 	}
 
-	return u.ID
+	return uid
 }
 
 func TestGetUserMenuPermissions_CacheHit(t *testing.T) {
@@ -127,7 +129,7 @@ func TestGetUserMenuPermissions_CacheHit(t *testing.T) {
 	}
 
 	// Verify cache is populated
-	cacheKey := svc.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+	cacheKey := svc.cacheKey("user", "menu", userID, domain)
 	cached, err := typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatalf("cache should be populated, got error: %v", err)
@@ -159,7 +161,7 @@ func TestAssignPermissionsToRole_ClearsCache(t *testing.T) {
 	}
 
 	// Verify cache is populated
-	cacheKey := svc.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+	cacheKey := svc.cacheKey("user", "menu", userID, domain)
 	_, err = typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatalf("cache should be populated: %v", err)
@@ -201,7 +203,7 @@ func TestRemovePermissionsFromRole_ClearsCache(t *testing.T) {
 		t.Fatalf("GetUserMenuPermissions failed: %v", err)
 	}
 
-	cacheKey := svc.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+	cacheKey := svc.cacheKey("user", "menu", userID, domain)
 	_, err = typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatalf("cache should be populated: %v", err)
@@ -243,7 +245,7 @@ func TestCreatePermission_ClearsCache(t *testing.T) {
 		t.Fatalf("populate cache failed: %v", err)
 	}
 
-	cacheKey := svc.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+	cacheKey := svc.cacheKey("user", "menu", userID, domain)
 	_, err = typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatalf("cache should be populated: %v", err)
@@ -280,7 +282,7 @@ func TestUpdatePermission_ClearsCache(t *testing.T) {
 		t.Fatalf("populate cache failed: %v", err)
 	}
 
-	cacheKey := svc.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+	cacheKey := svc.cacheKey("user", "menu", userID, domain)
 	_, err = typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatalf("cache should be populated: %v", err)
@@ -318,7 +320,7 @@ func TestDeletePermission_ClearsCache(t *testing.T) {
 		t.Fatalf("populate cache failed: %v", err)
 	}
 
-	cacheKey := svc.cacheKey("user", "menu", fmt.Sprint(userID), domain)
+	cacheKey := svc.cacheKey("user", "menu", userID, domain)
 	_, err = typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatalf("cache should be populated: %v", err)
@@ -413,6 +415,7 @@ func TestGetUserButtonPermissions_CacheHitAndInvalidation(t *testing.T) {
 		SetEmail("btn@test.com").
 		SetPassword("pwd").
 		SetStatus("active").
+		SetUID("uid-btn").
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -430,7 +433,7 @@ func TestGetUserButtonPermissions_CacheHitAndInvalidation(t *testing.T) {
 	}
 
 	// First call
-	perms, err := svc.GetUserButtonPermissions(ctx, u.ID, domain)
+	perms, err := svc.GetUserButtonPermissions(ctx, u.UID, domain)
 	if err != nil {
 		t.Fatalf("GetUserButtonPermissions failed: %v", err)
 	}
@@ -439,7 +442,7 @@ func TestGetUserButtonPermissions_CacheHitAndInvalidation(t *testing.T) {
 	}
 
 	// Verify cache
-	cacheKey := svc.cacheKey("user", "button", fmt.Sprint(u.ID), domain)
+	cacheKey := svc.cacheKey("user", "button", u.UID, domain)
 	_, err = typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatal("button cache should be populated")
@@ -476,6 +479,7 @@ func TestGetUserAPIPermissions_CacheHitAndInvalidation(t *testing.T) {
 		SetEmail("api@test.com").
 		SetPassword("pwd").
 		SetStatus("active").
+		SetUID("uid-api").
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -493,7 +497,7 @@ func TestGetUserAPIPermissions_CacheHitAndInvalidation(t *testing.T) {
 	}
 
 	// First call
-	perms, err := svc.GetUserAPIPermissions(ctx, u.ID, domain)
+	perms, err := svc.GetUserAPIPermissions(ctx, u.UID, domain)
 	if err != nil {
 		t.Fatalf("GetUserAPIPermissions failed: %v", err)
 	}
@@ -502,7 +506,7 @@ func TestGetUserAPIPermissions_CacheHitAndInvalidation(t *testing.T) {
 	}
 
 	// Verify cache populated
-	cacheKey := svc.cacheKey("user", "api", fmt.Sprint(u.ID), domain)
+	cacheKey := svc.cacheKey("user", "api", u.UID, domain)
 	_, err = typedCache.Get(ctx, cacheKey)
 	if err != nil {
 		t.Fatal("api cache should be populated")

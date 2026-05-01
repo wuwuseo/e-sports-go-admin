@@ -9,6 +9,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 	cmfConfig "github.com/wuwuseo/cmf/config"
@@ -28,9 +29,9 @@ var (
 type UserServiceInterface interface {
 	Login(ctx context.Context, req *LoginRequest) (*TokenResponse, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error)
-	GetUserByID(ctx context.Context, id string) (*UserResponse, error)
-	UpdateUser(ctx context.Context, id string, updates map[string]interface{}) error
-	ChangePassword(ctx context.Context, id string, oldPassword, newPassword string) error
+	GetUserByUID(ctx context.Context, uid string) (*UserResponse, error)
+	UpdateUser(ctx context.Context, uid string, updates map[string]interface{}) error
+	ChangePassword(ctx context.Context, uid string, oldPassword, newPassword string) error
 }
 
 type UserService struct {
@@ -54,8 +55,13 @@ type RegisterRequest struct {
 
 // LoginRequest 用户登录请求
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
+	Email             string `json:"email"`
+	Password          string `json:"password"`
+	EncryptedEmail    string `json:"encrypted_email"`    // 加密的邮箱（用于等保要求）
+	EncryptedPassword string `json:"encrypted_password"` // 加密的密码（用于等保要求）
+	Timestamp         int64  `json:"timestamp"`          // 请求时间戳（防止重放攻击）
+	Nonce             string `json:"nonce"`              // 随机数（防止重放攻击）
+	KeyID             string `json:"key_id"`             // 加密密钥ID
 }
 
 // TokenResponse 登录token响应
@@ -123,6 +129,7 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 		SetUsername(req.Username).
 		SetNickname(req.Nickname).
 		SetPhone(req.Phone).
+		SetUID(utils.GenerateUID()).
 		SetStatus(user.StatusInactive). // 需要邮箱验证后才能激活
 		Save(ctx)
 
@@ -164,9 +171,8 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	// 生成访问令牌
 	accessClaims := jwt.MapClaims{
 		"id":         u.UID,
-		"user_id":    u.ID,
 		"subject":    u.Username,
-		"issuer":     "go-admin",
+		"issuer":     config.(*cmfConfig.Config).App.Name,
 		"domain":     domain,
 		"expires":    jwt.NewNumericDate(expiresAt),
 		"issued_at":  jwt.NewNumericDate(time.Now()),
@@ -182,9 +188,8 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	refreshExpiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.RefreshExpires) * time.Second)
 	refreshClaims := jwt.MapClaims{
 		"id":         u.UID,
-		"user_id":    u.ID,
 		"subject":    u.Username,
-		"issuer":     "go-admin",
+		"issuer":     config.(*cmfConfig.Config).App.Name,
 		"domain":     domain,
 		"expires":    jwt.NewNumericDate(refreshExpiresAt),
 		"issued_at":  jwt.NewNumericDate(time.Now()),
@@ -213,9 +218,30 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 }
 
 // GetUserByID 根据ID获取用户信息
-func (s *UserService) GetUserByID(ctx context.Context, id string) (*UserResponse, error) {
+func (s *UserService) GetUserByID(ctx context.Context, id int) (*UserResponse, error) {
 	u, err := s.client.User.Query().
-		Where(user.UID(id)).
+		Where(user.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	return &UserResponse{
+		ID:       u.UID,
+		Email:    u.Email,
+		Username: u.Username,
+		Nickname: u.Nickname,
+		Phone:    u.Phone,
+		Avatar:   u.Avatar,
+	}, nil
+}
+
+func (s *UserService) GetUserByUID(ctx context.Context, uid string) (*UserResponse, error) {
+	u, err := s.client.User.Query().
+		Where(user.UIDEQ(uid)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -235,10 +261,10 @@ func (s *UserService) GetUserByID(ctx context.Context, id string) (*UserResponse
 }
 
 // UpdateUser 更新用户信息
-func (s *UserService) UpdateUser(ctx context.Context, id string, updates map[string]interface{}) error {
+func (s *UserService) UpdateUser(ctx context.Context, uid string, updates map[string]interface{}) error {
 	// 先检查用户是否存在
 	exists, err := s.client.User.Query().
-		Where(user.UID(id)).
+		Where(user.UIDEQ(uid)).
 		Exist(ctx)
 	if err != nil {
 		return err
@@ -248,7 +274,7 @@ func (s *UserService) UpdateUser(ctx context.Context, id string, updates map[str
 	}
 
 	update := s.client.User.Update().
-		Where(user.UID(id))
+		Where(user.UIDEQ(uid))
 
 	for key, value := range updates {
 		switch key {
@@ -321,7 +347,7 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 
 	// 检查用户是否存在
 	u, err := s.client.User.Query().
-		Where(user.UID(userID)).
+		Where(user.UIDEQ(userID)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -341,9 +367,8 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 
 	accessClaims := jwt.MapClaims{
 		"id":         u.UID,
-		"user_id":    u.ID,
 		"subject":    u.Username,
-		"issuer":     "go-admin",
+		"issuer":     config.(*cmfConfig.Config).App.Name,
 		"domain":     domain,
 		"expires":    jwt.NewNumericDate(expiresAt),
 		"issued_at":  jwt.NewNumericDate(time.Now()),
@@ -364,10 +389,10 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 }
 
 // ChangePassword 修改密码
-func (s *UserService) ChangePassword(ctx context.Context, id string, oldPassword, newPassword string) error {
+func (s *UserService) ChangePassword(ctx context.Context, uid string, oldPassword, newPassword string) error {
 	// 获取用户信息
 	u, err := s.client.User.Query().
-		Where(user.UID(id)).
+		Where(user.UIDEQ(uid)).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

@@ -102,10 +102,10 @@ type RoleResponse struct {
 
 // ListRolesRequest 角色列表请求
 type ListRolesRequest struct {
-	Page     int    `json:"page" validate:"min=1"`
-	PageSize int    `json:"page_size" validate:"min=1,max=100"`
-	Keyword  string `json:"keyword"`
-	Status   string `json:"status"`
+	Page     int    `query:"page" json:"page" validate:"min=1"`
+	PageSize int    `query:"page_size" json:"page_size" validate:"min=1,max=100"`
+	Keyword  string `query:"keyword" json:"keyword"`
+	Status   string `query:"status" json:"status"`
 }
 
 // ListRolesResponse 角色列表响应

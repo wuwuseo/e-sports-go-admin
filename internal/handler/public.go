@@ -1,14 +1,59 @@
 package handler
 
 import (
+	"fmt"
+	"time"
+
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/wuwuseo/cmf/crypto"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/validate"
 )
+
+// GetPublicKeyResponse 获取公钥响应
+type GetPublicKeyResponse struct {
+	KeyID       string `json:"key_id"`       // 密钥ID
+	PublicKey   string `json:"public_key"`   // 公钥内容
+	Algorithm   string `json:"algorithm"`    // 加密算法
+	CreatedAt   string `json:"created_at"`   // 密钥创建时间
+	ExpiresAt   string `json:"expires_at"`   // 密钥过期时间
+	RotateCycle string `json:"rotate_cycle"` // 密钥轮换周期
+}
+
+// GetPublicKey 获取RSA公钥
+// @Summary 获取RSA公钥
+// @Description 获取用于加密登录请求的RSA公钥
+// @Tags 用户管理
+// @Produce json
+// @Success 200 {object} utils.Response{data=GetPublicKeyResponse}
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/public/public-key [get]
+func GetPublicKey(c *fiber.Ctx) error {
+	response := c.Locals("utils.Response").(*utils.Response)
+
+	keyManager := crypto.GetKeyManager()
+	keyID, publicKeyPEM, err := keyManager.GetPublicKeyPEM()
+	if err != nil {
+		return response.Fail(global.ResponseInternalServerError, "Failed to get public key").ToJSON(c)
+	}
+
+	// // 设置缓存控制头（缓存1小时，因为密钥24小时才轮换）
+	// c.Set("Cache-Control", "public, max-age=3600, stale-while-revalidate=600")
+	// c.Set("ETag", fmt.Sprintf("\"%s\"", keyID))
+
+	return response.Success(GetPublicKeyResponse{
+		KeyID:       keyID,
+		PublicKey:   publicKeyPEM,
+		Algorithm:   "RSA-2048",
+		CreatedAt:   time.Now().Format(time.RFC3339),
+		ExpiresAt:   time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+		RotateCycle: "24h",
+	}).ToJSON(c)
+}
 
 // ChangePasswordRequest 修改密码请求
 type ChangePasswordRequest struct {
@@ -29,7 +74,7 @@ type ChangePasswordRequest struct {
 // @Failure 403 {object} utils.Response
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Router /api/v1/admin/login [post]
+// @Router /api/v1/public/login [post]
 func Login(c *fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -39,6 +84,46 @@ func Login(c *fiber.Ctx) error {
 			return response.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
 		}
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
+	}
+
+	// 如果使用了加密字段，必须提供时间戳和nonce防止重放攻击
+	if req.EncryptedEmail != "" && req.EncryptedPassword != "" {
+		// 验证时间戳（5分钟有效窗口）
+		if req.Timestamp == 0 {
+			return response.Fail(global.ResponseErrorCode, "Missing timestamp").ToJSON(c)
+		}
+		if !crypto.ValidateTimestamp(req.Timestamp, 5*time.Minute) {
+			return response.Fail(global.ResponseErrorCode, "Timestamp expired").ToJSON(c)
+		}
+
+		// 验证nonce
+		if req.Nonce == "" {
+			return response.Fail(global.ResponseErrorCode, "Missing nonce").ToJSON(c)
+		}
+		nonceStore := crypto.GetNonceStore()
+		if !nonceStore.Add(req.Nonce) {
+			return response.Fail(global.ResponseErrorCode, "Nonce already used").ToJSON(c)
+		}
+
+		// 验证密钥ID
+		if req.KeyID == "" {
+			return response.Fail(global.ResponseErrorCode, "Missing key_id").ToJSON(c)
+		}
+
+		// 使用密钥管理器解密数据
+		keyManager := crypto.GetKeyManager()
+		decryptedEmail, err := keyManager.DecryptData(req.KeyID, req.EncryptedEmail)
+		if err != nil {
+			return response.Fail(global.ResponseErrorCode, "Failed to decrypt email: "+err.Error()).ToJSON(c)
+		}
+
+		decryptedPassword, err := keyManager.DecryptData(req.KeyID, req.EncryptedPassword)
+		if err != nil {
+			return response.Fail(global.ResponseErrorCode, "Failed to decrypt password: "+err.Error()).ToJSON(c)
+		}
+
+		req.Email = decryptedEmail
+		req.Password = decryptedPassword
 	}
 
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
@@ -60,9 +145,9 @@ func Login(c *fiber.Ctx) error {
 }
 
 // GetUser 获取当前用户信息
-// @Summary 获取用户信息
-// @Description 获取当前登录用户的详细信息
-// @Tags 用户管理
+// @Summary 获取当前用户信息
+// @Description 获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查
+// @Tags 用户个人信息
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} utils.Response{data=map[string]interface{}}
@@ -76,7 +161,7 @@ func GetUser(c *fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 	claims := jwt.GetJWTUserData(c)
 	userID := claims["id"].(string)
-	user, err := userService.GetUserByID(c.Context(), userID)
+	user, err := userService.GetUserByUID(c.Context(), userID)
 	if err != nil {
 		if err == service.ErrUserNotFound {
 			return response.Fail(global.ResponseNotFound, "User not found").ToJSON(c)
@@ -99,9 +184,9 @@ func GetUser(c *fiber.Ctx) error {
 }
 
 // UpdateUser 更新用户信息
-// @Summary 更新用户信息
-// @Description 更新当前登录用户的信息
-// @Tags 用户管理
+// @Summary 更新当前用户信息
+// @Description 更新当前登录用户的信息，仅需 JWT 认证，无需额外权限检查
+// @Tags 用户个人信息
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -127,15 +212,15 @@ func UpdateUser(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "用户管理", "更新信息", "更新用户信息: "+userID)
+	logOperation(c, logService, "用户管理", "更新信息", fmt.Sprintf("更新用户信息: %s", userID))
 
 	return response.Success(nil).ToJSON(c)
 }
 
 // ChangePassword 修改密码
-// @Summary 修改密码
-// @Description 修改当前登录用户的密码
-// @Tags 用户管理
+// @Summary 修改当前用户密码
+// @Description 修改当前登录用户的密码，仅需 JWT 认证，无需额外权限检查
+// @Tags 用户个人信息
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -172,7 +257,7 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "用户管理", "修改密码", "用户修改密码: "+userID)
+	logOperation(c, logService, "用户管理", "修改密码", fmt.Sprintf("用户修改密码: %s", userID))
 
 	return response.Success(nil).ToJSON(c)
 }

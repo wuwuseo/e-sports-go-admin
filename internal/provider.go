@@ -25,7 +25,7 @@ func NewEntClient(cfg *config.Config, dbManager *orm.DBManager) (*ent.Client, er
 	client := ent.NewClient(ent.Driver(drv))
 
 	// 自动迁移 schema（WithDropIndex/WithDropColumn 确保 schema 变更时自动清理旧索引和旧列）
-	if err := client.Schema.Create(context.Background(), migrate.WithDropIndex(true), migrate.WithDropColumn(true)); err != nil {
+	if err := client.Schema.Create(context.Background(), migrate.WithDropIndex(true), migrate.WithDropColumn(true), migrate.WithForeignKeys(false)); err != nil {
 		return nil, err
 	}
 
