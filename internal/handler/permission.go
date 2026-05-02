@@ -61,7 +61,7 @@ func CreatePermission(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "权限管理", "创建", fmt.Sprintf("创建权限: %s/%s", req.Object, req.Action))
+	logOperation(c, logService, "permission", "创建", fmt.Sprintf("创建权限: %s/%s", req.Object, req.Action))
 
 	return resp.Success("权限创建成功", global.ResponseSuccessCode).ToJSON(c)
 }
@@ -109,7 +109,7 @@ func UpdatePermission(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "权限管理", "更新", fmt.Sprintf("更新权限: %s/%s", req.NewObject, req.NewAction))
+	logOperation(c, logService, "permission", "更新", fmt.Sprintf("更新权限: %s/%s", req.NewObject, req.NewAction))
 
 	return resp.Success("权限更新成功", global.ResponseSuccessCode).ToJSON(c)
 }
@@ -159,7 +159,7 @@ func DeletePermission(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "权限管理", "删除", fmt.Sprintf("删除权限: %s %s/%s", roleName, object, action))
+	logOperation(c, logService, "permission", "删除", fmt.Sprintf("删除权限: %s %s/%s", roleName, object, action))
 
 	return resp.Success("权限删除成功", global.ResponseSuccessCode).ToJSON(c)
 }
@@ -306,7 +306,7 @@ func AssignPermissionsToRole(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "权限管理", "分配", fmt.Sprintf("为角色 %s 分配 %d 条权限", req.RoleName, len(req.Permissions)))
+	logOperation(c, logService, "permission", "分配", fmt.Sprintf("为角色 %s 分配 %d 条权限", req.RoleName, len(req.Permissions)))
 
 	return resp.Success("为角色分配权限成功", global.ResponseSuccessCode).ToJSON(c)
 }
@@ -354,7 +354,7 @@ func RemovePermissionsFromRole(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "权限管理", "移除", fmt.Sprintf("从角色 %s 移除 %d 条权限", req.RoleName, len(req.Permissions)))
+	logOperation(c, logService, "permission", "移除", fmt.Sprintf("从角色 %s 移除 %d 条权限", req.RoleName, len(req.Permissions)))
 
 	return resp.Success("从角色移除权限成功", global.ResponseSuccessCode).ToJSON(c)
 }

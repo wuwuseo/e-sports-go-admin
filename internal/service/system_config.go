@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/global"
 
@@ -80,6 +81,12 @@ type ConfigResponse struct {
 	Remark    string    `json:"remark,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ConfigGroup 配置分组选项
+type ConfigGroup struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
 }
 
 // ListConfigResponse 配置列表响应
@@ -266,6 +273,30 @@ func (s *ConfigService) GetByGroup(ctx context.Context, group string) ([]*Config
 	}
 
 	return data, nil
+}
+
+// GetGroups 获取配置分组选项（来自字典数据 sys_config_group）
+func (s *ConfigService) GetGroups(ctx context.Context) ([]*ConfigGroup, error) {
+	items, err := s.client.DictData.Query().
+		Where(
+			dictdata.DictTypeEQ("sys_config_group"),
+			dictdata.StatusEQ(1),
+		).
+		Order(ent.Asc(dictdata.FieldSort)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取配置分组失败: %w", err)
+	}
+
+	groups := make([]*ConfigGroup, 0, len(items))
+	for _, item := range items {
+		groups = append(groups, &ConfigGroup{
+			Label: item.Label,
+			Value: item.Value,
+		})
+	}
+
+	return groups, nil
 }
 
 // Update 更新配置

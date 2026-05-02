@@ -212,7 +212,7 @@ func UpdateUser(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "用户管理", "更新信息", fmt.Sprintf("更新用户信息: %s", userID))
+	logOperation(c, logService, "user", "更新信息", fmt.Sprintf("更新用户信息: %s", userID))
 
 	return response.Success(nil).ToJSON(c)
 }
@@ -257,7 +257,7 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "用户管理", "修改密码", fmt.Sprintf("用户修改密码: %s", userID))
+	logOperation(c, logService, "user", "修改密码", fmt.Sprintf("用户修改密码: %s", userID))
 
 	return response.Success(nil).ToJSON(c)
 }

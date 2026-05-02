@@ -38,7 +38,7 @@ func NewOperationLogService() *OperationLogService {
 type LogEntry struct {
 	UserUID     string
 	Username    string
-	Module      string // "角色管理", "权限管理", "用户管理", "附件管理", "附件分组"
+	Module      string
 	Action      string // "创建", "更新", "删除", "上传", "启用", "禁用" 等
 	Description string
 	Method      string

@@ -179,6 +179,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.ConfigService", configService)
 		return c.Next()
 	})
+	configs.Get("/groups", handler.GetConfigGroups)
 	configs.Get("/by-key/:key", handler.GetConfigByKey)
 	configs.Get("/group/:group", handler.GetConfigsByGroup)
 	configs.Post("", handler.CreateConfig)

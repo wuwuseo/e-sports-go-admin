@@ -48,7 +48,7 @@ func CreateAttachmentGroup(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "附件分组", "创建", "创建附件分组: "+req.Name)
+	logOperation(c, logService, "attachment", "创建", "创建附件分组: "+req.Name)
 
 	return resp.Success(group, global.ResponseSuccessCode, "分组创建成功").ToJSON(c)
 }
@@ -175,7 +175,7 @@ func UpdateAttachmentGroup(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "附件分组", "更新", fmt.Sprintf("更新附件分组 ID:%d", id))
+	logOperation(c, logService, "attachment", "更新", fmt.Sprintf("更新附件分组 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "分组更新成功").ToJSON(c)
 }
@@ -216,7 +216,7 @@ func DeleteAttachmentGroup(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "附件分组", "删除", fmt.Sprintf("删除附件分组 ID:%d", id))
+	logOperation(c, logService, "attachment", "删除", fmt.Sprintf("删除附件分组 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "分组删除成功").ToJSON(c)
 }

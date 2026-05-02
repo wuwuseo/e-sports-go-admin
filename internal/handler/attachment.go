@@ -55,7 +55,7 @@ func UploadAttachment(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "附件管理", "上传", "上传附件: "+fileHeader.Filename)
+	logOperation(c, logService, "attachment", "上传", "上传附件: "+fileHeader.Filename)
 
 	return resp.Success(attachment, global.ResponseSuccessCode, "上传成功").ToJSON(c)
 }
@@ -212,7 +212,7 @@ func DeleteAttachment(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "附件管理", "删除", fmt.Sprintf("删除附件 ID:%d", id))
+	logOperation(c, logService, "attachment", "删除", fmt.Sprintf("删除附件 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "附件删除成功").ToJSON(c)
 }
@@ -248,7 +248,7 @@ func BatchDeleteAttachments(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "附件管理", "批量删除", fmt.Sprintf("批量删除 %d 个附件", len(req.IDs)))
+	logOperation(c, logService, "attachment", "批量删除", fmt.Sprintf("批量删除 %d 个附件", len(req.IDs)))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "批量删除成功").ToJSON(c)
 }
@@ -294,7 +294,7 @@ func MoveAttachment(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "附件管理", "移动分组", fmt.Sprintf("移动附件 ID:%d", id))
+	logOperation(c, logService, "attachment", "移动分组", fmt.Sprintf("移动附件 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "移动成功").ToJSON(c)
 }

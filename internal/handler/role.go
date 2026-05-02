@@ -52,7 +52,7 @@ func CreateRole(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "角色管理", "创建", "创建角色: "+req.Name)
+	logOperation(c, logService, "role", "创建", "创建角色: "+req.Name)
 
 	return resp.Success(role, global.ResponseSuccessCode, "角色创建成功").ToJSON(c)
 }
@@ -178,7 +178,7 @@ func UpdateRole(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "角色管理", "更新", fmt.Sprintf("更新角色 ID:%d", id))
+	logOperation(c, logService, "role", "更新", fmt.Sprintf("更新角色 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "角色更新成功").ToJSON(c)
 }
@@ -222,7 +222,7 @@ func DeleteRole(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "角色管理", "删除", fmt.Sprintf("删除角色 ID:%d", id))
+	logOperation(c, logService, "role", "删除", fmt.Sprintf("删除角色 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "角色删除成功").ToJSON(c)
 }
@@ -259,7 +259,7 @@ func EnableRole(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "角色管理", "启用", fmt.Sprintf("启用角色 ID:%d", id))
+	logOperation(c, logService, "role", "启用", fmt.Sprintf("启用角色 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "角色启用成功").ToJSON(c)
 }
@@ -296,7 +296,7 @@ func DisableRole(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "角色管理", "禁用", fmt.Sprintf("禁用角色 ID:%d", id))
+	logOperation(c, logService, "role", "禁用", fmt.Sprintf("禁用角色 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "角色禁用成功").ToJSON(c)
 }

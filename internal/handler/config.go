@@ -48,7 +48,7 @@ func CreateConfig(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "动态配置", "创建", fmt.Sprintf("创建配置: %s", req.Key))
+	logOperation(c, logService, "system", "创建", fmt.Sprintf("创建配置: %s", req.Key))
 
 	return resp.Success(item, global.ResponseSuccessCode, "配置创建成功").ToJSON(c)
 }
@@ -195,6 +195,29 @@ func GetConfigsByGroup(c *fiber.Ctx) error {
 	return resp.Success(items, global.ResponseSuccessCode, "获取配置成功").ToJSON(c)
 }
 
+// GetConfigGroups 获取配置分组选项（作为tabs分组）
+// @Summary 获取配置分组选项
+// @Description 获取配置分组选项，用于前端tabs切换，来源为字典数据 sys_config_group，value 与配置的 group 字段关联
+// @Tags 动态配置
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.Response{data=[]service.ConfigGroup}
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/admin/auth/configs/groups [get]
+func GetConfigGroups(c *fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	svc := c.Locals("service.ConfigService").(*service.ConfigService)
+
+	groups, err := svc.GetGroups(c.Context())
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "获取配置分组失败").ToJSON(c)
+	}
+
+	return resp.Success(groups, global.ResponseSuccessCode, "获取配置分组成功").ToJSON(c)
+}
+
 // UpdateConfig 更新动态配置
 // @Summary 更新动态配置
 // @Description 根据ID更新动态配置信息
@@ -240,7 +263,7 @@ func UpdateConfig(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "动态配置", "更新", fmt.Sprintf("更新配置 ID:%d", id))
+	logOperation(c, logService, "system", "更新", fmt.Sprintf("更新配置 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "配置更新成功").ToJSON(c)
 }
@@ -276,7 +299,7 @@ func DeleteConfig(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "动态配置", "删除", fmt.Sprintf("删除配置 ID:%d", id))
+	logOperation(c, logService, "system", "删除", fmt.Sprintf("删除配置 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "配置删除成功").ToJSON(c)
 }

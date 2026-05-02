@@ -18,6 +18,7 @@ import (
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
@@ -89,6 +90,12 @@ func Init(config *config.Config) error {
 	// 初始化字典种子数据
 	if err := initDictSeedData(); err != nil {
 		appInstance.Logger.Error("failed to initialize dict seed data", zap.Error(err))
+		return err
+	}
+
+	// 初始化动态配置种子数据
+	if err := initSystemConfigSeedData(); err != nil {
+		appInstance.Logger.Error("failed to initialize system config seed data", zap.Error(err))
 		return err
 	}
 
@@ -366,6 +373,105 @@ func initDictSeedData() error {
 		}
 	}
 
+	// 系统配置分组字典
+	configGroups := []struct {
+		label string
+		value string
+		sort  int
+	}{
+		{"基本配置", "basic", 1},
+	}
+
+	for _, cg := range configGroups {
+		exists, err := client.DictData.Query().
+			Where(
+				dictdata.DictTypeEQ("sys_config_group"),
+				dictdata.ValueEQ(cg.value),
+			).
+			Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to query dict data for config group %s: %w", cg.value, err)
+		}
+		if !exists {
+			_, err := client.DictData.Create().
+				SetLabel(cg.label).
+				SetValue(cg.value).
+				SetDictType("sys_config_group").
+				SetSort(cg.sort).
+				SetStatus(1).
+				SetIsDefault(false).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to create dict data for config group %s: %w", cg.value, err)
+			}
+			appInstance.Logger.Info("dict data created",
+				zap.String("dict_type", "sys_config_group"),
+				zap.String("label", cg.label),
+				zap.String("value", cg.value),
+			)
+		} else {
+			appInstance.Logger.Warn("dict data already exists, skipping",
+				zap.String("dict_type", "sys_config_group"),
+				zap.String("value", cg.value),
+			)
+		}
+	}
+
 	appInstance.Logger.Info("dict seed data initialization completed")
+	return nil
+}
+
+// initSystemConfigSeedData 初始化动态配置种子数据
+func initSystemConfigSeedData() error {
+	ctx := context.Background()
+	client := global.ORM
+
+	appInstance.Logger.Info("initializing system config seed data...")
+
+	// 基本配置项
+	basicConfigs := []struct {
+		name   string
+		key    string
+		value  string
+		group  string
+		typeV  string
+		remark string
+	}{
+		{"站点名称", "site_name", "xxx站", "basic", "string", "网站名称，显示在页面标题和页脚"},
+		{"备案信息", "icp_info", "", "basic", "string", "ICP备案号，如：京ICP备XXXXXXXX号"},
+	}
+
+	for _, c := range basicConfigs {
+		exists, err := client.SystemConfig.Query().
+			Where(systemconfig.KeyEQ(c.key)).
+			Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("检查系统配置键 %s 失败: %w", c.key, err)
+		}
+		if !exists {
+			_, err := client.SystemConfig.Create().
+				SetName(c.name).
+				SetKey(c.key).
+				SetValue(c.value).
+				SetGroup(c.group).
+				SetType(c.typeV).
+				SetStatus(1).
+				SetRemark(c.remark).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("创建系统配置 %s 失败: %w", c.key, err)
+			}
+			appInstance.Logger.Info("system config created",
+				zap.String("key", c.key),
+				zap.String("value", c.value),
+			)
+		} else {
+			appInstance.Logger.Warn("system config already exists, skipping",
+				zap.String("key", c.key),
+			)
+		}
+	}
+
+	appInstance.Logger.Info("system config seed data initialization completed")
 	return nil
 }

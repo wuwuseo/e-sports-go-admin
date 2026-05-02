@@ -56,7 +56,7 @@ func CreateCronJob(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "定时任务管理", "创建", "创建定时任务: "+job.Name)
+	logOperation(c, logService, "cron", "创建", "创建定时任务: "+job.Name)
 
 	return resp.Success(job, global.ResponseSuccessCode, "定时任务创建成功").ToJSON(c)
 }
@@ -188,7 +188,7 @@ func UpdateCronJob(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "定时任务管理", "更新", fmt.Sprintf("更新定时任务 ID:%d", id))
+	logOperation(c, logService, "cron", "更新", fmt.Sprintf("更新定时任务 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "定时任务更新成功").ToJSON(c)
 }
@@ -224,7 +224,7 @@ func DeleteCronJob(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "定时任务管理", "删除", fmt.Sprintf("删除定时任务 ID:%d", id))
+	logOperation(c, logService, "cron", "删除", fmt.Sprintf("删除定时任务 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "定时任务删除成功").ToJSON(c)
 }
@@ -260,7 +260,7 @@ func EnableCronJob(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "定时任务管理", "启用", fmt.Sprintf("启用定时任务 ID:%d", id))
+	logOperation(c, logService, "cron", "启用", fmt.Sprintf("启用定时任务 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "定时任务启用成功").ToJSON(c)
 }
@@ -296,7 +296,7 @@ func DisableCronJob(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "定时任务管理", "禁用", fmt.Sprintf("禁用定时任务 ID:%d", id))
+	logOperation(c, logService, "cron", "禁用", fmt.Sprintf("禁用定时任务 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "定时任务禁用成功").ToJSON(c)
 }
@@ -332,7 +332,7 @@ func RunCronJob(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "定时任务管理", "执行", fmt.Sprintf("手动执行定时任务 ID:%d", id))
+	logOperation(c, logService, "cron", "执行", fmt.Sprintf("手动执行定时任务 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "定时任务已触发执行").ToJSON(c)
 }

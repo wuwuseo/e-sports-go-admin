@@ -45,7 +45,7 @@ func CreateDictData(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "数据字典", "创建", fmt.Sprintf("创建字典项: %s/%s", req.DictType, req.Label))
+	logOperation(c, logService, "system", "创建", fmt.Sprintf("创建字典项: %s/%s", req.DictType, req.Label))
 
 	return resp.Success(item, global.ResponseSuccessCode, "字典数据创建成功").ToJSON(c)
 }
@@ -199,7 +199,7 @@ func UpdateDictData(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "数据字典", "更新", fmt.Sprintf("更新字典项 ID:%d", id))
+	logOperation(c, logService, "system", "更新", fmt.Sprintf("更新字典项 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "字典数据更新成功").ToJSON(c)
 }
@@ -235,7 +235,7 @@ func DeleteDictData(c *fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "数据字典", "删除", fmt.Sprintf("删除字典项 ID:%d", id))
+	logOperation(c, logService, "system", "删除", fmt.Sprintf("删除字典项 ID:%d", id))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "字典数据删除成功").ToJSON(c)
 }
