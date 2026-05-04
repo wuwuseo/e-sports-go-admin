@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -791,6 +792,7 @@ func TestUnifiedUpload_ConcurrencyLimit(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
+			runtime.Gosched() // 提高并发请求重叠概率，增强信号量竞争确定性
 			fh := createTestFileHeader(t, "conclimit.dat", "application/octet-stream", []byte("BBBBBBBBBB"))
 			_, e := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
 				FileHeader:  fh,

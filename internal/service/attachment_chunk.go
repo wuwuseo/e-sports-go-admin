@@ -465,6 +465,16 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 				if !isMimeTypeAllowed(detected) {
 					return nil, fmt.Errorf("不支持的文件类型: %s", detected)
 				}
+			} else {
+				// 空文件无法检测真实MIME，回退到客户端声明校验
+				if !isMimeTypeAllowed(mimeType) {
+					return nil, fmt.Errorf("不支持的文件类型: %s", mimeType)
+				}
+			}
+		} else {
+			// 文件打开失败，回退到客户端声明校验
+			if !isMimeTypeAllowed(mimeType) {
+				return nil, fmt.Errorf("不支持的文件类型: %s", mimeType)
 			}
 		}
 	} else if !isMimeTypeAllowed(mimeType) {
@@ -638,7 +648,7 @@ func StartChunkSessionCleanup() {
 				log.Info("分片会话清理协程已停止")
 				return
 			case <-ticker.C:
-				cleanupExpiredSessions()
+				CleanupExpiredSessions()
 			}
 		}
 	}()
@@ -651,8 +661,8 @@ func StopChunkSessionCleanup() {
 	}
 }
 
-// cleanupExpiredSessions 清理所有过期会话
-func cleanupExpiredSessions() {
+// CleanupExpiredSessions 清理所有过期会话（导出供优雅关闭前最后调用一次）
+func CleanupExpiredSessions() {
 	now := time.Now()
 	var expiredIDs []string
 

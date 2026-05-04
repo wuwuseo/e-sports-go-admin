@@ -14,6 +14,10 @@ func Cleanup() error {
 	utils.SaveUID()
 	log.Info("UID 计数器已持久化")
 
+	// 优雅关闭前执行最后一次过期分片会话清理
+	service.CleanupExpiredSessions()
+	log.Info("已执行最后一次过期分片会话清理")
+
 	// 停止分片上传会话清理协程
 	service.StopChunkSessionCleanup()
 	log.Info("分片上传会话清理协程已停止")
