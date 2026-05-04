@@ -88,18 +88,21 @@ func Init(config *config.Config) error {
 
 	// 初始化种子数据
 	if err := initSeedData(); err != nil {
+		service.StopChunkSessionCleanup()
 		appInstance.Logger.Error("failed to initialize seed data", zap.Error(err))
 		return err
 	}
 
 	// 初始化字典种子数据
 	if err := initDictSeedData(); err != nil {
+		service.StopChunkSessionCleanup()
 		appInstance.Logger.Error("failed to initialize dict seed data", zap.Error(err))
 		return err
 	}
 
 	// 初始化动态配置种子数据
 	if err := initSystemConfigSeedData(); err != nil {
+		service.StopChunkSessionCleanup()
 		appInstance.Logger.Error("failed to initialize system config seed data", zap.Error(err))
 		return err
 	}

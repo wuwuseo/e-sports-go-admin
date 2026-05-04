@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -114,32 +115,12 @@ func UploadAttachment(c *fiber.Ctx) error {
 
 	result, err := svc.UnifiedUpload(c.Context(), req)
 	if err != nil {
-		errMsg := err.Error()
-		// 区分已知错误码
-		if strings.Contains(errMsg, "分片上传会话不存在") || strings.Contains(errMsg, "分片上传会话已结束") {
-			return resp.Fail(global.ErrCodeChunkUploadNotFound, errMsg).ToJSON(c)
+		// S5: 使用 errors.As 精准映射错误码，替代脆弱的 strings.Contains 字符串匹配
+		var chunkErr *service.ChunkUploadError
+		if errors.As(err, &chunkErr) {
+			return resp.Fail(chunkErr.Code, err.Error()).ToJSON(c)
 		}
-		if strings.Contains(errMsg, "分片上传会话已过期") {
-			return resp.Fail(global.ErrCodeChunkUploadExpired, errMsg).ToJSON(c)
-		}
-		if strings.Contains(errMsg, "分片") && strings.Contains(errMsg, "尚未上传") {
-			return resp.Fail(global.ErrCodeChunkUploadMergeFailed, errMsg).ToJSON(c)
-		}
-		if strings.Contains(errMsg, "无效的分片索引") {
-			return resp.Fail(global.ErrCodeChunkUploadInvalidChunk, errMsg).ToJSON(c)
-		}
-		if strings.Contains(errMsg, "文件大小超过限制") || strings.Contains(errMsg, "文件总大小超过限制") {
-			return resp.Fail(global.ErrCodeFileSizeExceeded, errMsg).ToJSON(c)
-		}
-		if strings.Contains(errMsg, "单分片大小超过限制") {
-			return resp.Fail(global.ErrCodeChunkSizeExceeded, errMsg).ToJSON(c)
-		}
-		if strings.Contains(errMsg, "不支持的文件类型") {
-			return resp.Fail(global.ErrCodeMimeTypeNotAllowed, errMsg).ToJSON(c)
-		}
-		if strings.Contains(errMsg, "并发数超限") {
-			return resp.Fail(global.ErrCodeUploadConcurrencyLimit, errMsg).ToJSON(c)
-		}
+		// 兜底：未识别的错误
 		return resp.Fail(global.ErrCodeAttachmentUploadFailed, "上传失败").ToJSON(c)
 	}
 

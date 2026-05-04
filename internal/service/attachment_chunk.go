@@ -21,6 +21,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/wuwuseo/cmf/log"
 	"go.uber.org/zap"
+
+	"go-admin/internal/global"
 )
 
 // ChunkInitRequest 分片上传初始化请求
@@ -105,6 +107,31 @@ type chunkSession struct {
 	sem         chan struct{} // 并发控制信号量，限制同一会话的并发分片上传数
 }
 
+// ChunkUploadError 分片上传错误，携带错误码供 Handler 层通过 errors.As 精准映射
+// 替代原有的 strings.Contains 字符串匹配，消除 Service↔Handler 间的隐式契约
+type ChunkUploadError struct {
+	Code    int
+	Message string
+}
+
+func (e *ChunkUploadError) Error() string {
+	return e.Message
+}
+
+// 分片上传预定义哨兵错误
+var (
+	ErrChunkSessionNotFound    = &ChunkUploadError{global.ErrCodeChunkUploadNotFound, "分片上传会话不存在"}
+	ErrChunkSessionEnded       = &ChunkUploadError{global.ErrCodeChunkUploadNotFound, "分片上传会话已结束"}
+	ErrChunkSessionExpired     = &ChunkUploadError{global.ErrCodeChunkUploadExpired, "分片上传会话已过期"}
+	ErrChunkInvalidIndex       = &ChunkUploadError{global.ErrCodeChunkUploadInvalidChunk, "无效的分片索引"}
+	ErrChunkMergeIncomplete    = &ChunkUploadError{global.ErrCodeChunkUploadMergeFailed, "部分分片尚未上传"}
+	ErrChunkConcurrencyLimit   = &ChunkUploadError{global.ErrCodeUploadConcurrencyLimit, "上传并发数超限，请稍后重试"}
+	ErrFileSizeExceeded        = &ChunkUploadError{global.ErrCodeFileSizeExceeded, "文件大小超过限制"}
+	ErrChunkedFileSizeExceeded = &ChunkUploadError{global.ErrCodeFileSizeExceeded, "文件总大小超过限制"}
+	ErrChunkSizeExceeded       = &ChunkUploadError{global.ErrCodeChunkSizeExceeded, "单分片大小超过限制"}
+	ErrMimeTypeNotAllowed      = &ChunkUploadError{global.ErrCodeMimeTypeNotAllowed, "不支持的文件类型"}
+)
+
 // chunkStore 管理所有分片上传会话
 var chunkStore = sync.Map{} // upload_id → *chunkSession
 
@@ -165,7 +192,9 @@ var allowedMimeTypes = map[string]bool{
 	"video/x-msvideo": true,
 	"video/quicktime": true,
 	// 通用
-	"application/octet-stream": true,
+	// S4: 移除 application/octet-stream——它是无法识别格式时的默认回退值，
+	// 放行会允许任意无魔数二进制文件通过 MIME 校验，削弱防护效果。
+	// 合法文件应匹配到具体 MIME 类型。
 }
 
 // isMimeTypeAllowed 检查 MIME 类型是否在白名单中
@@ -274,7 +303,7 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 	// 查找会话
 	val, ok := chunkStore.Load(uploadID)
 	if !ok {
-		return nil, fmt.Errorf("分片上传会话不存在")
+		return nil, ErrChunkSessionNotFound
 	}
 	session, ok := val.(*chunkSession)
 	if !ok {
@@ -283,17 +312,17 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 
 	// 检查会话是否已被合并/取消标记删除
 	if session.deleted.Load() {
-		return nil, fmt.Errorf("分片上传会话已结束")
+		return nil, ErrChunkSessionEnded
 	}
 
 	// 检查会话是否已过期
 	if time.Now().After(session.ExpiresAt) {
-		return nil, fmt.Errorf("分片上传会话已过期")
+		return nil, ErrChunkSessionExpired
 	}
 
 	// 校验分片索引
 	if chunkIndex < 0 || chunkIndex >= session.TotalChunks {
-		return nil, fmt.Errorf("无效的分片索引: %d", chunkIndex)
+		return nil, fmt.Errorf("%w: %d", ErrChunkInvalidIndex, chunkIndex)
 	}
 
 	// 并发控制：通过信号量限制同一会话的并发分片数
@@ -303,12 +332,22 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 	case <-ctx.Done():
 		return nil, fmt.Errorf("上传已取消")
 	default:
-		return nil, fmt.Errorf("上传并发数超限，请稍后重试")
+		return nil, ErrChunkConcurrencyLimit
 	}
 
 	// 二次检查：获取信号量后再次确认会话未被删除
 	if session.deleted.Load() {
-		return nil, fmt.Errorf("分片上传会话已结束")
+		return nil, ErrChunkSessionEnded
+	}
+
+	// W3: 二次检查过期时间——防止 CleanupExpiredSessions 在信号量获取间隙标记删除后的 TOCTOU
+	if time.Now().After(session.ExpiresAt) {
+		return nil, ErrChunkSessionExpired
+	}
+
+	// W1: 用 fileHeader.Size 做实际大小校验，防止客户端声明 ChunkSize 绕过限制导致 OOM
+	if fileHeader.Size > maxChunkSize {
+		return nil, fmt.Errorf("%w（最大 %dMB）", ErrChunkSizeExceeded, maxChunkSize/(1024*1024))
 	}
 
 	// 打开上传的分片
@@ -337,7 +376,7 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 	// 写入后二次检查：防止写入期间 session 被 Cancel/Merge 删除导致孤儿分片
 	// 不主动删除已写入的 chunk 文件——MergeChunks 的 defer RemoveAll 会统一清理目录
 	if session.deleted.Load() {
-		return nil, fmt.Errorf("分片上传会话已结束")
+		return nil, ErrChunkSessionEnded
 	}
 
 	// 标记分片已上传
@@ -356,7 +395,7 @@ func (s *AttachmentService) MergeChunks(ctx context.Context, uploadID string, us
 	// 原子化获取并删除会话，防止并发重复合并
 	val, ok := chunkStore.LoadAndDelete(uploadID)
 	if !ok {
-		return nil, fmt.Errorf("分片上传会话不存在或已合并")
+		return nil, ErrChunkSessionNotFound
 	}
 	session, ok := val.(*chunkSession)
 	if !ok {
@@ -377,7 +416,7 @@ func (s *AttachmentService) MergeChunks(ctx context.Context, uploadID string, us
 	for i := 0; i < session.TotalChunks; i++ {
 		if !session.Uploaded[i] {
 			session.mu.Unlock()
-			return nil, fmt.Errorf("分片 %d 尚未上传", i)
+			return nil, fmt.Errorf("%w: 分片 %d", ErrChunkMergeIncomplete, i)
 		}
 	}
 	session.mu.Unlock()
@@ -458,34 +497,43 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 		file, err := req.FileHeader.Open()
 		if err == nil {
 			buf := make([]byte, 512)
-			n, _ := io.ReadFull(file, buf)
+			n, readErr := io.ReadFull(file, buf)
 			file.Close()
+			// S6: 区分 EOF/UnexpectedEOF（正常短读/读取不足）与其他 I/O 错误
+			if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
+				// 真实 I/O 错误，回退到客户端声明校验而非静默放行
+				if !isMimeTypeAllowed(mimeType) {
+					return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
+				}
+				// I/O 错误仍记录日志供排查
+				log.Warn("MIME 检测读取文件头失败，回退到客户端声明校验", zap.Error(readErr))
+			}
 			if n > 0 {
 				detected := http.DetectContentType(buf[:n])
 				if !isMimeTypeAllowed(detected) {
-					return nil, fmt.Errorf("不支持的文件类型: %s", detected)
+					return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, detected)
 				}
 			} else {
 				// 空文件无法检测真实MIME，回退到客户端声明校验
 				if !isMimeTypeAllowed(mimeType) {
-					return nil, fmt.Errorf("不支持的文件类型: %s", mimeType)
+					return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
 				}
 			}
 		} else {
 			// 文件打开失败，回退到客户端声明校验
 			if !isMimeTypeAllowed(mimeType) {
-				return nil, fmt.Errorf("不支持的文件类型: %s", mimeType)
+				return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
 			}
 		}
 	} else if !isMimeTypeAllowed(mimeType) {
-		return nil, fmt.Errorf("不支持的文件类型: %s", mimeType)
+		return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
 	}
 
 	// 安全校验 2 & 3：文件大小上限 & 分片大小上限
 	if req.TotalChunks == 0 {
 		// 简单上传：限制单文件大小
 		if req.FileHeader != nil && req.FileHeader.Size > maxSimpleFileSize {
-			return nil, fmt.Errorf("文件大小超过限制（最大 %dMB）", maxSimpleFileSize/(1024*1024))
+			return nil, fmt.Errorf("%w（最大 %dMB）", ErrFileSizeExceeded, maxSimpleFileSize/(1024*1024))
 		}
 		attachment, err := s.Upload(ctx, req.FileHeader, req.GroupID, req.UserID)
 		if err != nil {
@@ -496,10 +544,10 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 
 	// 分片上传：校验总文件大小 & 单片大小
 	if req.FileSize > maxChunkedFileSize {
-		return nil, fmt.Errorf("文件总大小超过限制（最大 %dGB）", maxChunkedFileSize/(1024*1024*1024))
+		return nil, fmt.Errorf("%w（最大 %dGB）", ErrChunkedFileSizeExceeded, maxChunkedFileSize/(1024*1024*1024))
 	}
 	if req.ChunkSize > maxChunkSize {
-		return nil, fmt.Errorf("单分片大小超过限制（最大 %dMB）", maxChunkSize/(1024*1024))
+		return nil, fmt.Errorf("%w（最大 %dMB）", ErrChunkSizeExceeded, maxChunkSize/(1024*1024))
 	}
 
 	// 分片上传
