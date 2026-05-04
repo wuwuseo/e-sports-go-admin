@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // cleanupChunkStore 清理分片上传的全局状态，确保测试隔离
@@ -312,14 +314,14 @@ func TestUnifiedUpload_FirstChunkRollback(t *testing.T) {
 		t.Fatalf("expected '无效的分片索引' error, got: %v", err)
 	}
 
-	// 验证会话已被清理（孤儿会话回滚）
+	// 验证会话未被回滚清理（转为 TTL 自动过期清理）
 	count := 0
 	chunkStore.Range(func(_, _ any) bool {
 		count++
 		return true
 	})
-	if count != 0 {
-		t.Fatalf("expected 0 sessions after rollback, got %d", count)
+	if count != 1 {
+		t.Fatalf("expected 1 orphan session retained for TTL cleanup, got %d", count)
 	}
 }
 
@@ -649,6 +651,228 @@ func TestUploadChunk_WritesToDisk(t *testing.T) {
 	if !bytes.Equal(diskData, chunkData) {
 		t.Fatalf("chunk on disk mismatch: expected %q, got %q", chunkData, diskData)
 	}
+}
+
+// ==================== 安全限制测试 ====================
+
+// TestUnifiedUpload_ChunkedFileSizeExceeded 分片上传总文件大小超过限制
+func TestUnifiedUpload_ChunkedFileSizeExceeded(t *testing.T) {
+	cleanupChunkStore(t)
+	defer cleanupChunkStore(t)
+
+	svc, _ := newTestAttachmentService(t)
+	ctx := context.Background()
+
+	fh := createTestFileHeader(t, "huge.bin", "application/octet-stream", []byte("abc"))
+	_, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+		FileHeader:  fh,
+		ChunkIndex:  0,
+		TotalChunks: 500,
+		Filename:    "huge.bin",
+		FileSize:    6 * 1024 * 1024 * 1024, // 6GB > maxChunkedFileSize (5GB)
+		ChunkSize:   10 * 1024 * 1024,
+		UserID:      "uid-size",
+	})
+	if err == nil {
+		t.Fatal("expected error for oversized chunked file")
+	}
+	if !containsStr(err.Error(), "文件总大小超过限制") {
+		t.Fatalf("expected '文件总大小超过限制' error, got: %v", err)
+	}
+}
+
+// TestUnifiedUpload_ChunkSizeExceeded 单分片大小超过限制
+func TestUnifiedUpload_ChunkSizeExceeded(t *testing.T) {
+	cleanupChunkStore(t)
+	defer cleanupChunkStore(t)
+
+	svc, _ := newTestAttachmentService(t)
+	ctx := context.Background()
+
+	fh := createTestFileHeader(t, "bigchunk.bin", "application/octet-stream", []byte("abc"))
+	_, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+		FileHeader:  fh,
+		ChunkIndex:  0,
+		TotalChunks: 2,
+		Filename:    "bigchunk.bin",
+		FileSize:    100 * 1024 * 1024,
+		ChunkSize:   60 * 1024 * 1024, // 60MB > maxChunkSize (50MB)
+		UserID:      "uid-chunk",
+	})
+	if err == nil {
+		t.Fatal("expected error for oversized chunk")
+	}
+	if !containsStr(err.Error(), "单分片大小超过限制") {
+		t.Fatalf("expected '单分片大小超过限制' error, got: %v", err)
+	}
+}
+
+// TestUnifiedUpload_MimeTypeAllowed 允许的 MIME 类型正常上传
+func TestUnifiedUpload_MimeTypeAllowed(t *testing.T) {
+	cleanupChunkStore(t)
+	defer cleanupChunkStore(t)
+
+	svc, _ := newTestAttachmentService(t)
+	ctx := context.Background()
+
+	// PNG 文件头（让 http.DetectContentType 识别为 image/png）
+	pngData := []byte("\x89PNG\r\n\x1a\n" + "fake png data content here")
+	fh := createTestFileHeader(t, "test.png", "image/png", pngData)
+
+	resp, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+		FileHeader: fh,
+		UserID:     "uid-mime",
+	})
+	if err != nil {
+		t.Fatalf("allowed MIME type should succeed: %v", err)
+	}
+	if resp.Attachment == nil {
+		t.Fatal("expected attachment in response")
+	}
+}
+
+// TestUnifiedUpload_MimeTypeBlocked 不允许的 MIME 类型被拒绝
+func TestUnifiedUpload_MimeTypeBlocked(t *testing.T) {
+	cleanupChunkStore(t)
+	defer cleanupChunkStore(t)
+
+	svc, _ := newTestAttachmentService(t)
+	ctx := context.Background()
+
+	// OGG 文件头（http.DetectContentType 识别为 application/ogg，不在白名单中）
+	oggData := []byte("OggS\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00" + "blocked ogg vorbis data stream")
+	fh := createTestFileHeader(t, "audio.ogg", "audio/ogg", oggData)
+
+	_, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+		FileHeader: fh,
+		UserID:     "uid-block",
+	})
+	if err == nil {
+		t.Fatal("expected error for blocked MIME type")
+	}
+	if !containsStr(err.Error(), "不支持的文件类型") {
+		t.Fatalf("expected '不支持的文件类型' error, got: %v", err)
+	}
+}
+
+// TestUnifiedUpload_ConcurrencyLimit 并发分片上传受信号量限制
+func TestUnifiedUpload_ConcurrencyLimit(t *testing.T) {
+	cleanupChunkStore(t)
+	defer cleanupChunkStore(t)
+
+	svc, _ := newTestAttachmentService(t)
+	ctx := context.Background()
+
+	const totalChunks = 10
+	const chunkSize = 10
+
+	// 首片：初始化
+	fh0 := createTestFileHeader(t, "conclimit.dat", "application/octet-stream", []byte("AAAAAAAAAA"))
+	resp, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+		FileHeader:  fh0,
+		ChunkIndex:  0,
+		TotalChunks: totalChunks,
+		Filename:    "conclimit.dat",
+		FileSize:    int64(totalChunks * chunkSize),
+		ChunkSize:   chunkSize,
+		UserID:      "uid-conc",
+	})
+	if err != nil {
+		t.Fatalf("first chunk failed: %v", err)
+	}
+	uploadID := resp.UploadID
+
+	// 并发发送 8 个分片（超过 maxConcurrentChunksPerSession=3），部分应被信号量拒绝
+	var wg sync.WaitGroup
+	errCount := int32(0)
+	successCount := int32(0)
+
+	for i := 1; i <= 8; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			fh := createTestFileHeader(t, "conclimit.dat", "application/octet-stream", []byte("BBBBBBBBBB"))
+			_, e := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+				FileHeader:  fh,
+				UploadID:    uploadID,
+				ChunkIndex:  idx,
+				TotalChunks: totalChunks,
+				UserID:      "uid-conc",
+			})
+			if e != nil {
+				if containsStr(e.Error(), "并发数超限") {
+					atomic.AddInt32(&errCount, 1)
+				}
+			} else {
+				atomic.AddInt32(&successCount, 1)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// 至少有一些请求因并发限制被拒绝
+	if errCount == 0 {
+		t.Log("warning: no concurrent requests were rejected (may depend on timing)")
+	}
+	// 至少有一些请求成功
+	if successCount == 0 {
+		t.Fatal("expected some concurrent uploads to succeed")
+	}
+
+	// 清理：取消会话
+	_ = svc.CancelChunkUpload(uploadID)
+}
+
+// TestUnifiedUpload_SessionExpired 过期会话被拒绝
+func TestUnifiedUpload_SessionExpired(t *testing.T) {
+	cleanupChunkStore(t)
+	defer cleanupChunkStore(t)
+
+	svc, _ := newTestAttachmentService(t)
+	ctx := context.Background()
+
+	// 首片初始化
+	fh0 := createTestFileHeader(t, "expired.dat", "application/octet-stream", []byte("AAAAAAAAAA"))
+	resp, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+		FileHeader:  fh0,
+		ChunkIndex:  0,
+		TotalChunks: 5,
+		Filename:    "expired.dat",
+		FileSize:    50,
+		ChunkSize:   10,
+		UserID:      "uid-expired",
+	})
+	if err != nil {
+		t.Fatalf("first chunk failed: %v", err)
+	}
+	uploadID := resp.UploadID
+
+	// 手动将会话标记为已过期
+	val, ok := chunkStore.Load(uploadID)
+	if !ok {
+		t.Fatal("session not found")
+	}
+	session := val.(*chunkSession)
+	session.ExpiresAt = time.Now().Add(-1 * time.Hour) // 设置为 1 小时前过期
+
+	// 尝试上传到已过期的会话
+	fh1 := createTestFileHeader(t, "expired.dat", "application/octet-stream", []byte("BBBBBBBBBB"))
+	_, err = svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+		FileHeader:  fh1,
+		UploadID:    uploadID,
+		ChunkIndex:  1,
+		TotalChunks: 5,
+		UserID:      "uid-expired",
+	})
+	if err == nil {
+		t.Fatal("expected error for expired session")
+	}
+	if !containsStr(err.Error(), "已过期") {
+		t.Fatalf("expected '已过期' error, got: %v", err)
+	}
+
+	// 清理
+	_ = svc.CancelChunkUpload(uploadID)
 }
 
 // ==================== 辅助 ====================

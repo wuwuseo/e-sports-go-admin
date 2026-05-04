@@ -22,6 +22,7 @@ import (
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
+	"go-admin/internal/service"
 	"go-admin/internal/utils"
 )
 
@@ -75,6 +76,10 @@ func Init(config *config.Config) error {
 	// 初始化Nonce存储（防止重放攻击）
 	crypto.InitNonceStore(5 * time.Minute)
 	appInstance.Logger.Info("Nonce store initialized")
+
+	// 启动分片上传会话过期清理协程
+	service.StartChunkSessionCleanup()
+	appInstance.Logger.Info("chunk session cleanup goroutine started")
 
 	// 初始化密钥管理器（支持密钥轮换）
 	// 密钥有效期7天，每24小时轮换一次

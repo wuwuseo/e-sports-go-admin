@@ -8,15 +8,19 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
 )
 
 // ChunkInitRequest 分片上传初始化请求
@@ -95,15 +99,97 @@ type chunkSession struct {
 	GroupID     *int
 	Uploaded    map[int]bool // 已上传的分片索引
 	CreatedAt   time.Time
+	ExpiresAt   time.Time // 会话过期时间
 	mu          sync.Mutex
-	deleted     atomic.Bool // LoadAndDelete 后标记，阻止并发 UploadChunk 写入
+	deleted     atomic.Bool   // LoadAndDelete 后标记，阻止并发 UploadChunk 写入
+	sem         chan struct{} // 并发控制信号量，限制同一会话的并发分片上传数
 }
 
 // chunkStore 管理所有分片上传会话
 var chunkStore = sync.Map{} // upload_id → *chunkSession
 
+// chunkCleanupCancel 分片会话清理协程的取消函数
+var chunkCleanupCancel context.CancelFunc
+
 // chunkBaseDir 分片存储的基础目录（相对执行目录）
 const chunkBaseDir = "./data/storage/chunks"
+
+// 上传安全限制常量
+const (
+	maxSimpleFileSize             = 100 * 1024 * 1024      // 简单上传最大 100MB
+	maxChunkedFileSize            = 5 * 1024 * 1024 * 1024 // 分片上传总文件最大 5GB
+	maxChunkSize                  = 50 * 1024 * 1024       // 单分片最大 50MB
+	maxConcurrentChunksPerSession = 3                      // 同一会话最大并发分片数
+	sessionTTL                    = 24 * time.Hour         // 分片会话过期时间
+	cleanupInterval               = 1 * time.Hour          // 过期会话清理间隔
+)
+
+// allowedMimeTypes 允许上传的 MIME 类型白名单
+var allowedMimeTypes = map[string]bool{
+	// 图片
+	"image/jpeg":    true,
+	"image/png":     true,
+	"image/gif":     true,
+	"image/webp":    true,
+	"image/svg+xml": true,
+	"image/bmp":     true,
+	"image/tiff":    true,
+	// 文档
+	"application/pdf":  true,
+	"text/plain":       true,
+	"text/csv":         true,
+	"text/html":        true,
+	"text/xml":         true,
+	"application/json": true,
+	"application/xml":  true,
+	// Office 文档
+	"application/msword": true,
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+	"application/vnd.ms-excel": true,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         true,
+	"application/vnd.ms-powerpoint":                                             true,
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
+	// 压缩包
+	"application/zip":              true,
+	"application/x-rar-compressed": true,
+	"application/x-7z-compressed":  true,
+	"application/gzip":             true,
+	"application/x-tar":            true,
+	// 音视频
+	"audio/mpeg":      true,
+	"audio/wav":       true,
+	"audio/ogg":       true,
+	"audio/aac":       true,
+	"video/mp4":       true,
+	"video/webm":      true,
+	"video/x-msvideo": true,
+	"video/quicktime": true,
+	// 通用
+	"application/octet-stream": true,
+}
+
+// isMimeTypeAllowed 检查 MIME 类型是否在白名单中
+func isMimeTypeAllowed(mimeType string) bool {
+	if mimeType == "" {
+		return true // 未指定 MIME 时放行，后续会默认设为 application/octet-stream
+	}
+	// 去除参数（如 charset=utf-8）
+	if idx := strings.Index(mimeType, ";"); idx > 0 {
+		mimeType = strings.TrimSpace(mimeType[:idx])
+	}
+	// 精确匹配
+	if allowedMimeTypes[mimeType] {
+		return true
+	}
+	// 通配符匹配（如 image/*）
+	if idx := strings.Index(mimeType, "/"); idx > 0 {
+		wildcard := mimeType[:idx] + "/*"
+		if allowedMimeTypes[wildcard] {
+			return true
+		}
+	}
+	return false
+}
 
 // getExt 获取文件扩展名（不含点）
 func getExt(filename string) string {
@@ -126,6 +212,7 @@ func generateDeterministicUploadID(filename string, fileSize int64, userID strin
 
 // initChunkSession 初始化分片上传会话（内部方法，支持外部指定 uploadID 实现幂等）
 func (s *AttachmentService) initChunkSession(uploadID string, req *ChunkInitRequest) (*ChunkInitResponse, error) {
+	now := time.Now()
 	session := &chunkSession{
 		UploadID:    uploadID,
 		Filename:    req.Filename,
@@ -135,7 +222,9 @@ func (s *AttachmentService) initChunkSession(uploadID string, req *ChunkInitRequ
 		MimeType:    req.MimeType,
 		GroupID:     req.GroupID,
 		Uploaded:    make(map[int]bool),
-		CreatedAt:   time.Now(),
+		CreatedAt:   now,
+		ExpiresAt:   now.Add(sessionTTL),
+		sem:         make(chan struct{}, maxConcurrentChunksPerSession),
 	}
 
 	// 确保分片目录存在
@@ -197,9 +286,29 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 		return nil, fmt.Errorf("分片上传会话已结束")
 	}
 
+	// 检查会话是否已过期
+	if time.Now().After(session.ExpiresAt) {
+		return nil, fmt.Errorf("分片上传会话已过期")
+	}
+
 	// 校验分片索引
 	if chunkIndex < 0 || chunkIndex >= session.TotalChunks {
 		return nil, fmt.Errorf("无效的分片索引: %d", chunkIndex)
+	}
+
+	// 并发控制：通过信号量限制同一会话的并发分片数
+	select {
+	case session.sem <- struct{}{}:
+		defer func() { <-session.sem }()
+	case <-ctx.Done():
+		return nil, fmt.Errorf("上传已取消")
+	default:
+		return nil, fmt.Errorf("上传并发数超限，请稍后重试")
+	}
+
+	// 二次检查：获取信号量后再次确认会话未被删除
+	if session.deleted.Load() {
+		return nil, fmt.Errorf("分片上传会话已结束")
 	}
 
 	// 打开上传的分片
@@ -339,8 +448,35 @@ func (s *AttachmentService) mergeChunks(ctx context.Context, session *chunkSessi
 // - TotalChunks > 0 && UploadID != ""：后续分片，追加到已有会话
 // - ChunkIndex == TotalChunks - 1：最后一片，自动合并并返回附件信息
 func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploadRequest) (*UnifiedUploadResponse, error) {
-	// 简单上传
+	// 安全校验 1：MIME 类型白名单
+	mimeType := req.MimeType
+	if mimeType == "" && req.FileHeader != nil {
+		mimeType = req.FileHeader.Header.Get("Content-Type")
+	}
+	// 通过 http.DetectContentType 二次检测真实 MIME（读取文件头，不信任客户端声明）
+	if req.FileHeader != nil {
+		file, err := req.FileHeader.Open()
+		if err == nil {
+			buf := make([]byte, 512)
+			n, _ := io.ReadFull(file, buf)
+			file.Close()
+			if n > 0 {
+				detected := http.DetectContentType(buf[:n])
+				if !isMimeTypeAllowed(detected) {
+					return nil, fmt.Errorf("不支持的文件类型: %s", detected)
+				}
+			}
+		}
+	} else if !isMimeTypeAllowed(mimeType) {
+		return nil, fmt.Errorf("不支持的文件类型: %s", mimeType)
+	}
+
+	// 安全校验 2 & 3：文件大小上限 & 分片大小上限
 	if req.TotalChunks == 0 {
+		// 简单上传：限制单文件大小
+		if req.FileHeader != nil && req.FileHeader.Size > maxSimpleFileSize {
+			return nil, fmt.Errorf("文件大小超过限制（最大 %dMB）", maxSimpleFileSize/(1024*1024))
+		}
 		attachment, err := s.Upload(ctx, req.FileHeader, req.GroupID, req.UserID)
 		if err != nil {
 			return nil, err
@@ -348,18 +484,24 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 		return &UnifiedUploadResponse{Attachment: attachment}, nil
 	}
 
+	// 分片上传：校验总文件大小 & 单片大小
+	if req.FileSize > maxChunkedFileSize {
+		return nil, fmt.Errorf("文件总大小超过限制（最大 %dGB）", maxChunkedFileSize/(1024*1024*1024))
+	}
+	if req.ChunkSize > maxChunkSize {
+		return nil, fmt.Errorf("单分片大小超过限制（最大 %dMB）", maxChunkSize/(1024*1024))
+	}
+
 	// 分片上传
 	uploadID := req.UploadID
 	isFirstChunk := uploadID == ""
-
-	// 跟踪当前请求是否赢得了 LoadOrStore 竞态（只有赢家负责失败回滚清理）
-	var initWon bool
 
 	// 首次分片：使用确定性 upload_id + LoadOrStore 实现原子化初始化
 	if isFirstChunk {
 		uploadID = generateDeterministicUploadID(req.Filename, req.FileSize, req.UserID)
 
 		// 预创建会话对象
+		now := time.Now()
 		session := &chunkSession{
 			UploadID:    uploadID,
 			Filename:    req.Filename,
@@ -369,13 +511,13 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 			MimeType:    req.MimeType,
 			GroupID:     req.GroupID,
 			Uploaded:    make(map[int]bool),
-			CreatedAt:   time.Now(),
+			CreatedAt:   now,
+			ExpiresAt:   now.Add(sessionTTL),
+			sem:         make(chan struct{}, maxConcurrentChunksPerSession),
 		}
 
 		// 原子化：LoadOrStore 保证仅一个协程执行 I/O 初始化（修复 TOCTOU）
 		if _, loaded := chunkStore.LoadOrStore(uploadID, session); !loaded {
-			initWon = true
-
 			// 创建分片目录
 			chunkDir := filepath.Join(chunkBaseDir, uploadID)
 			if err := os.MkdirAll(chunkDir, 0755); err != nil {
@@ -406,11 +548,7 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 	// 上传分片
 	_, err := s.UploadChunk(ctx, uploadID, req.ChunkIndex, req.FileHeader)
 	if err != nil {
-		// 仅当本请求赢得了初始化竞态时才清理孤儿会话（修复回滚误删并发会话 #3）
-		if isFirstChunk && initWon {
-			chunkStore.Delete(uploadID)
-			_ = os.RemoveAll(filepath.Join(chunkBaseDir, uploadID))
-		}
+		// 孤儿会话交由 sessionTTL 定期清理，避免误删并发成功的分片数据
 		return nil, err
 	}
 
@@ -481,6 +619,71 @@ func (s *AttachmentService) CancelChunkUpload(uploadID string) error {
 		return fmt.Errorf("清理分片目录失败: %w", err)
 	}
 	return nil
+}
+
+// StartChunkSessionCleanup 启动分片会话过期清理协程
+// 定期扫描 chunkStore，清理过期的会话及其磁盘分片目录
+// 应在应用启动时作为后台 goroutine 调用
+func StartChunkSessionCleanup() {
+	ctx, cancel := context.WithCancel(context.Background())
+	chunkCleanupCancel = cancel
+
+	go func() {
+		ticker := time.NewTicker(cleanupInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Info("分片会话清理协程已停止")
+				return
+			case <-ticker.C:
+				cleanupExpiredSessions()
+			}
+		}
+	}()
+}
+
+// StopChunkSessionCleanup 停止分片会话清理协程
+func StopChunkSessionCleanup() {
+	if chunkCleanupCancel != nil {
+		chunkCleanupCancel()
+	}
+}
+
+// cleanupExpiredSessions 清理所有过期会话
+func cleanupExpiredSessions() {
+	now := time.Now()
+	var expiredIDs []string
+
+	chunkStore.Range(func(key, value any) bool {
+		session, ok := value.(*chunkSession)
+		if !ok {
+			return true
+		}
+		if now.After(session.ExpiresAt) {
+			expiredIDs = append(expiredIDs, key.(string))
+		}
+		return true
+	})
+
+	for _, uploadID := range expiredIDs {
+		// 原子化移除会话
+		val, loaded := chunkStore.LoadAndDelete(uploadID)
+		if !loaded {
+			continue
+		}
+		if session, ok := val.(*chunkSession); ok {
+			session.deleted.Store(true)
+		}
+		// 清理磁盘目录
+		chunkDir := filepath.Join(chunkBaseDir, uploadID)
+		if err := os.RemoveAll(chunkDir); err != nil {
+			log.Error("清理过期分片目录失败", zap.String("upload_id", uploadID), zap.Error(err))
+		} else {
+			log.Info("已清理过期分片会话", zap.String("upload_id", uploadID))
+		}
+	}
 }
 
 // 确保 AttachmentService 实现了分片上传接口（编译期检查）

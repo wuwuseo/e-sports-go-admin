@@ -39,6 +39,11 @@ const (
 	ErrCodeChunkUploadNotFound     = 3007 // 分片上传会话不存在
 	ErrCodeChunkUploadInvalidChunk = 3008 // 无效的分片索引
 	ErrCodeChunkUploadMergeFailed  = 3009 // 分片合并失败
+	ErrCodeFileSizeExceeded        = 3010 // 文件大小超过限制
+	ErrCodeChunkSizeExceeded       = 3011 // 单分片大小超过限制
+	ErrCodeMimeTypeNotAllowed      = 3012 // MIME类型不允许
+	ErrCodeUploadConcurrencyLimit  = 3013 // 上传并发数超限
+	ErrCodeChunkUploadExpired      = 3014 // 分片上传会话已过期
 
 	// 操作日志错误码 (5000-5099)
 	ErrCodeOperationLogNotFound = 5001
@@ -83,6 +88,11 @@ var ResponseMsg = map[int]string{
 	ErrCodeChunkUploadNotFound:     "分片上传会话不存在",
 	ErrCodeChunkUploadInvalidChunk: "无效的分片索引",
 	ErrCodeChunkUploadMergeFailed:  "分片合并失败",
+	ErrCodeFileSizeExceeded:        "文件大小超过限制",
+	ErrCodeChunkSizeExceeded:       "单分片大小超过限制",
+	ErrCodeMimeTypeNotAllowed:      "不支持的文件类型",
+	ErrCodeUploadConcurrencyLimit:  "上传并发数超限，请稍后重试",
+	ErrCodeChunkUploadExpired:      "分片上传会话已过期",
 
 	// 操作日志错误消息
 	ErrCodeOperationLogNotFound: "操作日志不存在",

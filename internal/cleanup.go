@@ -2,6 +2,7 @@ package internal
 
 import (
 	"go-admin/internal/global"
+	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
 	"github.com/wuwuseo/cmf/log"
@@ -12,6 +13,10 @@ func Cleanup() error {
 	// 持久化 UID 计数器，确保重启后连续
 	utils.SaveUID()
 	log.Info("UID 计数器已持久化")
+
+	// 停止分片上传会话清理协程
+	service.StopChunkSessionCleanup()
+	log.Info("分片上传会话清理协程已停止")
 
 	// 停止定时任务管理器（在关闭 DB 之前）
 	if global.CronManager != nil {
