@@ -325,6 +325,12 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 		return nil, fmt.Errorf("%w: %d", ErrChunkInvalidIndex, chunkIndex)
 	}
 
+	// W1: 用 fileHeader.Size 做实际大小校验，防止客户端声明 ChunkSize 绕过限制导致 OOM
+	// 放在信号量之前——fileHeader.Size 来自请求元数据，无需信号量保护，提前拒绝避免浪费并发槽位
+	if fileHeader.Size > maxChunkSize {
+		return nil, fmt.Errorf("%w（最大 %dMB）", ErrChunkSizeExceeded, maxChunkSize/(1024*1024))
+	}
+
 	// 并发控制：通过信号量限制同一会话的并发分片数
 	select {
 	case session.sem <- struct{}{}:
@@ -343,11 +349,6 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 	// W3: 二次检查过期时间——防止 CleanupExpiredSessions 在信号量获取间隙标记删除后的 TOCTOU
 	if time.Now().After(session.ExpiresAt) {
 		return nil, ErrChunkSessionExpired
-	}
-
-	// W1: 用 fileHeader.Size 做实际大小校验，防止客户端声明 ChunkSize 绕过限制导致 OOM
-	if fileHeader.Size > maxChunkSize {
-		return nil, fmt.Errorf("%w（最大 %dMB）", ErrChunkSizeExceeded, maxChunkSize/(1024*1024))
 	}
 
 	// 打开上传的分片
