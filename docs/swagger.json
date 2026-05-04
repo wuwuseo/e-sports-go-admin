@@ -5004,7 +5004,9 @@
                         "string",
                         "number",
                         "boolean",
-                        "json"
+                        "json",
+                        "array",
+                        "array2d"
                     ]
                 },
                 "value": {
@@ -5635,7 +5637,9 @@
                         "string",
                         "number",
                         "boolean",
-                        "json"
+                        "json",
+                        "array",
+                        "array2d"
                     ]
                 },
                 "value": {

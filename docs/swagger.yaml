@@ -144,6 +144,8 @@ definitions:
         - number
         - boolean
         - json
+        - array
+        - array2d
         type: string
       value:
         maxLength: 2048
@@ -573,6 +575,8 @@ definitions:
         - number
         - boolean
         - json
+        - array
+        - array2d
         type: string
       value:
         maxLength: 2048

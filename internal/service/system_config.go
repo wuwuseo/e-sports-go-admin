@@ -43,7 +43,7 @@ type CreateConfigRequest struct {
 	Name   string `json:"name" validate:"required,max=100"`
 	Key    string `json:"key" validate:"required,max=100"`
 	Value  string `json:"value" validate:"max=2048"`
-	Type   string `json:"type" validate:"omitempty,oneof=string number boolean json"`
+	Type   string `json:"type" validate:"omitempty,oneof=string number boolean json array array2d"`
 	Group  string `json:"group" validate:"omitempty,max=50"`
 	Status *int   `json:"status"`
 	Remark string `json:"remark" validate:"omitempty,max=500"`
@@ -54,7 +54,7 @@ type UpdateConfigRequest struct {
 	Name   *string `json:"name" validate:"omitempty,max=100"`
 	Key    *string `json:"key" validate:"omitempty,max=100"`
 	Value  *string `json:"value" validate:"omitempty,max=2048"`
-	Type   *string `json:"type" validate:"omitempty,oneof=string number boolean json"`
+	Type   *string `json:"type" validate:"omitempty,oneof=string number boolean json array array2d"`
 	Group  *string `json:"group" validate:"omitempty,max=50"`
 	Status *int    `json:"status"`
 	Remark *string `json:"remark" validate:"omitempty,max=500"`

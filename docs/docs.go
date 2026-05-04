@@ -5010,7 +5010,9 @@ const docTemplate = `{
                         "string",
                         "number",
                         "boolean",
-                        "json"
+                        "json",
+                        "array",
+                        "array2d"
                     ]
                 },
                 "value": {
@@ -5641,7 +5643,9 @@ const docTemplate = `{
                         "string",
                         "number",
                         "boolean",
-                        "json"
+                        "json",
+                        "array",
+                        "array2d"
                     ]
                 },
                 "value": {
