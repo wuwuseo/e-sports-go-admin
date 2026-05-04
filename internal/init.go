@@ -388,6 +388,7 @@ func initDictSeedData() error {
 		sort  int
 	}{
 		{"基本配置", "basic", 1},
+		{"附件配置", "attachment", 2},
 	}
 
 	for _, cg := range configGroups {
@@ -449,7 +450,22 @@ func initSystemConfigSeedData() error {
 		{"备案信息", "icp_info", "", "basic", "string", "ICP备案号，如：京ICP备XXXXXXXX号"},
 	}
 
-	for _, c := range basicConfigs {
+	// 附件配置项
+	attachmentConfigs := []struct {
+		name   string
+		key    string
+		value  string
+		group  string
+		typeV  string
+		remark string
+	}{
+		{"分片上传阈值", "attachment.chunk_threshold", "5242880", "attachment", "number", "文件大小超过此阈值（字节）自动切换分片上传，默认5MB"},
+		{"分片大小", "attachment.chunk_size", "10485760", "attachment", "number", "分片上传时每片大小（字节），默认10MB"},
+	}
+
+	allConfigs := append(basicConfigs, attachmentConfigs...)
+
+	for _, c := range allConfigs {
 		exists, err := client.SystemConfig.Query().
 			Where(systemconfig.KeyEQ(c.key)).
 			Exist(ctx)
