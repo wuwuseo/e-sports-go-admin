@@ -143,6 +143,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		return c.Next()
 	})
 	attachments.Post("/upload", handler.UploadAttachment)
+	// 分片上传查询与取消路由（上传已统一到 /upload）
+	attachments.Get("/chunk/status/:upload_id", handler.GetChunkUploadStatus)
+	attachments.Delete("/chunk/:upload_id", handler.CancelChunkUpload)
 	attachments.Delete("/batch", handler.BatchDeleteAttachments)
 	attachments.Get("/", handler.ListAttachments)
 	attachments.Get("/:id", handler.GetAttachment)

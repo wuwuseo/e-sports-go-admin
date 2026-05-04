@@ -564,6 +564,98 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/auth/attachments/chunk/status/{upload_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "查询分片上传进度",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "附件管理"
+                ],
+                "summary": "获取分片上传状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "上传会话ID",
+                        "name": "upload_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.ChunkStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/attachments/chunk/{upload_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "取消分片上传并清理已上传的分片数据",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "附件管理"
+                ],
+                "summary": "取消分片上传",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "上传会话ID",
+                        "name": "upload_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/auth/attachments/upload": {
             "post": {
                 "security": [
@@ -571,7 +663,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "上传文件附件，支持指定分组",
+                "description": "上传文件附件。简单上传仅需 file + group_id；分片上传需额外提供 chunk_index、total_chunks、filename、file_size、chunk_size。首次分片无需 upload_id，后续分片需携带 upload_id",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -595,6 +687,48 @@ const docTemplate = `{
                         "description": "分组ID",
                         "name": "group_id",
                         "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分片索引（0-based，启用分片上传时必填）",
+                        "name": "chunk_index",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "总片数（启用分片上传时必填）",
+                        "name": "total_chunks",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "上传会话ID（后续分片必填，首片不传）",
+                        "name": "upload_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "原始文件名（首片必填）",
+                        "name": "filename",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "文件总大小（首片必填）",
+                        "name": "file_size",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "单片大小（首片必填）",
+                        "name": "chunk_size",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "MIME类型",
+                        "name": "mime_type",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -609,7 +743,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/service.AttachmentResponse"
+                                            "$ref": "#/definitions/service.UnifiedUploadResponse"
                                         }
                                     }
                                 }
@@ -4932,6 +5066,35 @@ const docTemplate = `{
                 }
             }
         },
+        "service.ChunkStatusResponse": {
+            "type": "object",
+            "properties": {
+                "chunk_size": {
+                    "type": "integer"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "mime_type": {
+                    "type": "string"
+                },
+                "total_chunks": {
+                    "type": "integer"
+                },
+                "upload_id": {
+                    "type": "string"
+                },
+                "uploaded_chunks": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "service.ConfigGroup": {
             "type": "object",
             "properties": {
@@ -5611,6 +5774,32 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "token_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.UnifiedUploadResponse": {
+            "type": "object",
+            "properties": {
+                "attachment": {
+                    "description": "简单上传或分片合并后的附件信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/service.AttachmentResponse"
+                        }
+                    ]
+                },
+                "chunk_index": {
+                    "type": "integer"
+                },
+                "received": {
+                    "type": "boolean"
+                },
+                "total_chunks": {
+                    "type": "integer"
+                },
+                "upload_id": {
+                    "description": "分片确认（非最后一片时返回）",
                     "type": "string"
                 }
             }

@@ -36,6 +36,9 @@ const (
 	ErrCodeAttachmentGroupExists   = 3004
 	ErrCodeAttachmentUploadFailed  = 3005
 	ErrCodeAttachmentDeleteFailed  = 3006
+	ErrCodeChunkUploadNotFound     = 3007 // 分片上传会话不存在
+	ErrCodeChunkUploadInvalidChunk = 3008 // 无效的分片索引
+	ErrCodeChunkUploadMergeFailed  = 3009 // 分片合并失败
 
 	// 操作日志错误码 (5000-5099)
 	ErrCodeOperationLogNotFound = 5001
@@ -77,6 +80,9 @@ var ResponseMsg = map[int]string{
 	ErrCodeAttachmentGroupExists:   "附件分组名称已存在",
 	ErrCodeAttachmentUploadFailed:  "附件上传失败",
 	ErrCodeAttachmentDeleteFailed:  "附件删除失败",
+	ErrCodeChunkUploadNotFound:     "分片上传会话不存在",
+	ErrCodeChunkUploadInvalidChunk: "无效的分片索引",
+	ErrCodeChunkUploadMergeFailed:  "分片合并失败",
 
 	// 操作日志错误消息
 	ErrCodeOperationLogNotFound: "操作日志不存在",
