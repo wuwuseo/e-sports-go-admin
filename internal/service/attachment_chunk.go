@@ -456,10 +456,17 @@ func (s *AttachmentService) mergeChunks(ctx context.Context, session *chunkSessi
 		return nil, fmt.Errorf("存储文件失败: %w", err)
 	}
 
-	// 确定 MIME 类型
+	// 确定 MIME 类型：优先使用客户端声明的 MIME（已在首片通过 DetectContentType 校验），
+	// 未声明时从合并后的文件数据中检测真实 MIME，避免默认设为 application/octet-stream
 	mimeType := session.MimeType
 	if mimeType == "" {
-		mimeType = "application/octet-stream"
+		mergedData := buf.Bytes()
+		if len(mergedData) > 0 {
+			mimeType = http.DetectContentType(mergedData)
+		}
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
 	}
 
 	// 创建数据库记录
@@ -521,6 +528,11 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 					detected := http.DetectContentType(buf[:n])
 					if !isMimeTypeAllowed(detected) {
 						return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, detected)
+					}
+					// 将检测到的真实 MIME 回传给 req，确保首片 session 存储正确的 MIME 类型
+					// 而非依赖客户端可能未填的 mime_type 字段（为空时默认 application/octet-stream）
+					if req.MimeType == "" {
+						req.MimeType = detected
 					}
 				} else {
 					// 空文件无法检测真实MIME，回退到客户端声明校验

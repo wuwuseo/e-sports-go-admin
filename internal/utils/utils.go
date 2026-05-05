@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"go-admin/internal/global"
 	"os"
 	"path/filepath"
@@ -46,12 +47,51 @@ func GetResponseMsg(code int) string {
 }
 
 // SafeGetBody 安全获取请求体内容，限制最大读取长度，避免大文件导致内存溢出
+// 对于 multipart/form-data（文件上传），仅提取文本字段，过滤掉二进制文件内容
 func SafeGetBody(c fiber.Ctx) string {
+	contentType := strings.ToLower(string(c.Request().Header.ContentType()))
+
+	// 文件上传请求：解析 multipart form，仅保留文本字段
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		// 先获取原始 body 作为降级后备（此调用会将 body 读入 fasthttp 缓冲区，
+		// 后续 c.MultipartForm() 直接从缓冲区解析，两者互不干扰）
+		rawBody := c.Body()
+
+		form, err := c.MultipartForm()
+		if err == nil && form != nil {
+			var fields []string
+			for key, values := range form.Value {
+				for _, v := range values {
+					fields = append(fields, fmt.Sprintf("%s=%s", key, v))
+				}
+			}
+			// 标注文件字段（不包含二进制内容）
+			for key, files := range form.File {
+				for _, f := range files {
+					fields = append(fields, fmt.Sprintf("%s=<file:%s,%dbytes>", key, f.Filename, f.Size))
+				}
+			}
+			result := strings.Join(fields, ", ")
+			if len(result) > 2048 {
+				result = result[:2048] + "..."
+			}
+			return result
+		}
+		// 解析失败时回退到截断处理（使用已保存的 rawBody，避免从已消费流中读取）
+		if len(rawBody) == 0 {
+			return ""
+		}
+		if len(rawBody) > 2048 {
+			return string(rawBody[:2048]) + "..."
+		}
+		return string(rawBody)
+	}
+
+	// 非文件上传：截断处理
 	body := c.Body()
 	if len(body) == 0 {
 		return ""
 	}
-	// 仅保留前 2048 字节，防止存储超大请求体
 	maxLen := 2048
 	if len(body) > maxLen {
 		body = body[:maxLen]
