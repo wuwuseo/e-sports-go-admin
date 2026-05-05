@@ -488,47 +488,57 @@ func (s *AttachmentService) mergeChunks(ctx context.Context, session *chunkSessi
 // - TotalChunks > 0 && UploadID != ""：后续分片，追加到已有会话
 // - ChunkIndex == TotalChunks - 1：最后一片，自动合并并返回附件信息
 func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploadRequest) (*UnifiedUploadResponse, error) {
+	// 判断是否为文件头分片或简单上传（只有这两种情况需要做二进制 MIME 检测）
+	// isFileHeaderChunk 要求 ChunkIndex==0 且 UploadID 为空，防止乱序首片绕过文件头魔数检测
+	isFileHeaderChunk := req.TotalChunks > 0 && req.ChunkIndex == 0 && req.UploadID == ""
+	isSimpleUpload := req.TotalChunks == 0
+
 	// 安全校验 1：MIME 类型白名单
-	mimeType := req.MimeType
-	if mimeType == "" && req.FileHeader != nil {
-		mimeType = req.FileHeader.Header.Get("Content-Type")
-	}
-	// 通过 http.DetectContentType 二次检测真实 MIME（读取文件头，不信任客户端声明）
-	if req.FileHeader != nil {
-		file, err := req.FileHeader.Open()
-		if err == nil {
-			buf := make([]byte, 512)
-			n, readErr := io.ReadFull(file, buf)
-			file.Close()
-			// S6: 区分 EOF/UnexpectedEOF（正常短读/读取不足）与其他 I/O 错误
-			if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
-				// 真实 I/O 错误，回退到客户端声明校验而非静默放行
-				if !isMimeTypeAllowed(mimeType) {
-					return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
+	// 仅简单上传和首个分片做 http.DetectContentType 二进制检测（读取文件头魔数）
+	// 后续分片的前 512 字节来自文件中部，不含魔数，DetectContentType 会误判为 application/octet-stream
+	if isSimpleUpload || isFileHeaderChunk {
+		mimeType := req.MimeType
+		if mimeType == "" && req.FileHeader != nil {
+			mimeType = req.FileHeader.Header.Get("Content-Type")
+		}
+		// 通过 http.DetectContentType 二次检测真实 MIME（读取文件头，不信任客户端声明）
+		if req.FileHeader != nil {
+			file, err := req.FileHeader.Open()
+			if err == nil {
+				buf := make([]byte, 512)
+				n, readErr := io.ReadFull(file, buf)
+				file.Close()
+				// S6: 区分 EOF/UnexpectedEOF（正常短读/读取不足）与其他 I/O 错误
+				if readErr != nil && readErr != io.EOF && readErr != io.ErrUnexpectedEOF {
+					// 真实 I/O 错误，回退到客户端声明校验而非静默放行
+					if !isMimeTypeAllowed(mimeType) {
+						return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
+					}
+					// I/O 错误仍记录日志供排查
+					log.Warn("MIME 检测读取文件头失败，回退到客户端声明校验", zap.Error(readErr))
 				}
-				// I/O 错误仍记录日志供排查
-				log.Warn("MIME 检测读取文件头失败，回退到客户端声明校验", zap.Error(readErr))
-			}
-			if n > 0 {
-				detected := http.DetectContentType(buf[:n])
-				if !isMimeTypeAllowed(detected) {
-					return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, detected)
+				if n > 0 {
+					detected := http.DetectContentType(buf[:n])
+					if !isMimeTypeAllowed(detected) {
+						return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, detected)
+					}
+				} else {
+					// 空文件无法检测真实MIME，回退到客户端声明校验
+					if !isMimeTypeAllowed(mimeType) {
+						return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
+					}
 				}
 			} else {
-				// 空文件无法检测真实MIME，回退到客户端声明校验
+				// 文件打开失败，回退到客户端声明校验
 				if !isMimeTypeAllowed(mimeType) {
 					return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
 				}
 			}
-		} else {
-			// 文件打开失败，回退到客户端声明校验
-			if !isMimeTypeAllowed(mimeType) {
-				return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
-			}
+		} else if !isMimeTypeAllowed(mimeType) {
+			return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
 		}
-	} else if !isMimeTypeAllowed(mimeType) {
-		return nil, fmt.Errorf("%w: %s", ErrMimeTypeNotAllowed, mimeType)
 	}
+	// 后续分片：MIME 已在首片验证过，跳过二进制检测
 
 	// 安全校验 2 & 3：文件大小上限 & 分片大小上限
 	if req.TotalChunks == 0 {

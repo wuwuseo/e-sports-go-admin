@@ -7,6 +7,7 @@ app:
   swagger: true
   secret: secret
   login_expires: 86400
+  body_limit: 10485760
 
 log:
   file_path: ./data/logs/admin-api.log
