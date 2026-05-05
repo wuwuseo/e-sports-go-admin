@@ -4,13 +4,13 @@ import (
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/jwt"
 )
 
 // PermissionMiddleware API权限控制中间件
 func PermissionMiddleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// 从JWT中获取当前用户UID
 		claims := jwt.GetJWTUserData(c)
 		userIDVal, ok := claims["id"]
@@ -65,7 +65,7 @@ func PermissionMiddleware() fiber.Handler {
 
 // DomainMiddleware 域中间件，用于设置当前域
 func DomainMiddleware() fiber.Handler {
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		// 从JWT获取域信息
 		claims := jwt.GetJWTUserData(c)
 		domain, ok := claims["domain"].(string)

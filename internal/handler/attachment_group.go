@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/validate"
 )
 
@@ -27,7 +27,7 @@ import (
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachment-groups [post]
-func CreateAttachmentGroup(c *fiber.Ctx) error {
+func CreateAttachmentGroup(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentGroupService").(*service.AttachmentGroupService)
 
@@ -68,7 +68,7 @@ func CreateAttachmentGroup(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachment-groups [get]
-func ListAttachmentGroups(c *fiber.Ctx) error {
+func ListAttachmentGroups(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentGroupService").(*service.AttachmentGroupService)
 
@@ -109,7 +109,7 @@ func ListAttachmentGroups(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachment-groups/{id} [get]
-func GetAttachmentGroup(c *fiber.Ctx) error {
+func GetAttachmentGroup(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentGroupService").(*service.AttachmentGroupService)
 
@@ -146,7 +146,7 @@ func GetAttachmentGroup(c *fiber.Ctx) error {
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachment-groups/{id} [put]
-func UpdateAttachmentGroup(c *fiber.Ctx) error {
+func UpdateAttachmentGroup(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentGroupService").(*service.AttachmentGroupService)
 
@@ -195,7 +195,7 @@ func UpdateAttachmentGroup(c *fiber.Ctx) error {
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachment-groups/{id} [delete]
-func DeleteAttachmentGroup(c *fiber.Ctx) error {
+func DeleteAttachmentGroup(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentGroupService").(*service.AttachmentGroupService)
 

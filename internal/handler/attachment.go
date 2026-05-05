@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/validate"
 )
 
@@ -36,7 +36,7 @@ import (
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/upload [post]
-func UploadAttachment(c *fiber.Ctx) error {
+func UploadAttachment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 
@@ -152,7 +152,7 @@ func UploadAttachment(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments [get]
-func ListAttachments(c *fiber.Ctx) error {
+func ListAttachments(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 
@@ -193,7 +193,7 @@ func ListAttachments(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/{id} [get]
-func GetAttachment(c *fiber.Ctx) error {
+func GetAttachment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 
@@ -227,7 +227,7 @@ func GetAttachment(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/{id}/preview [get]
-func PreviewAttachment(c *fiber.Ctx) error {
+func PreviewAttachment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 
@@ -270,7 +270,7 @@ func PreviewAttachment(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/{id} [delete]
-func DeleteAttachment(c *fiber.Ctx) error {
+func DeleteAttachment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 
@@ -306,7 +306,7 @@ func DeleteAttachment(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/batch [delete]
-func BatchDeleteAttachments(c *fiber.Ctx) error {
+func BatchDeleteAttachments(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 
@@ -344,7 +344,7 @@ func BatchDeleteAttachments(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/{id}/move [put]
-func MoveAttachment(c *fiber.Ctx) error {
+func MoveAttachment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 

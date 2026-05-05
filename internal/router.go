@@ -7,7 +7,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/log"
@@ -19,15 +19,15 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		app.Use(log.RequestLoggerMiddleware(appInstance.Logger))
 	}
 
-	api := app.Group("/api")                          // API 路由组
-	v1 := api.Group("/v1", func(c *fiber.Ctx) error { // v1 版本路由中间件
+	api := app.Group("/api")                         // API 路由组
+	v1 := api.Group("/v1", func(c fiber.Ctx) error { // v1 版本路由中间件
 		c.Set("Version", "1")
 		c.Locals("utils.Response", utils.NewResponse())
 		return c.Next()
 	})
 
 	admin := v1.Group("/admin")
-	adminPublic := v1.Group("/public", func(c *fiber.Ctx) error {
+	adminPublic := v1.Group("/public", func(c fiber.Ctx) error {
 		c.Locals("service.UserService", service.NewUserService())
 		return c.Next()
 	})
@@ -51,7 +51,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminPublic.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
 
 	// 仅认证、不需要额外权限的用户个人信息路由（必须在 adminAuth 之前声明，避免被 PermissionMiddleware 拦截）
-	adminAuthUser := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), func(c *fiber.Ctx) error {
+	adminAuthUser := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), func(c fiber.Ctx) error {
 		c.Locals("service.UserService", service.NewUserService())
 		c.Locals("utils.Response", utils.NewResponse())
 		return c.Next()
@@ -61,7 +61,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminAuthUser.Put("/password", handler.ChangePassword)
 
 	// 需要认证+权限校验的接口
-	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c *fiber.Ctx) error {
+	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.UserService", service.NewUserService())
 		c.Locals("service.RoleService", roleService)
 		c.Locals("service.PermissionService", permissionService)
@@ -102,7 +102,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 定时任务管理路由
 	cronJobService := service.NewCronJobService(global.CronManager)
-	cronJobs := adminAuth.Group("/cron-jobs", func(c *fiber.Ctx) error {
+	cronJobs := adminAuth.Group("/cron-jobs", func(c fiber.Ctx) error {
 		c.Locals("service.CronJobService", cronJobService)
 		return c.Next()
 	})
@@ -127,7 +127,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		attachmentService = service.NewAttachmentService(nil)
 	}
 
-	groups := adminAuth.Group("/attachment-groups", func(c *fiber.Ctx) error {
+	groups := adminAuth.Group("/attachment-groups", func(c fiber.Ctx) error {
 		c.Locals("service.AttachmentGroupService", attachmentGroupService)
 		return c.Next()
 	})
@@ -138,7 +138,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	groups.Delete("/:id", handler.DeleteAttachmentGroup)
 
 	// 附件管理路由
-	attachments := adminAuth.Group("/attachments", func(c *fiber.Ctx) error {
+	attachments := adminAuth.Group("/attachments", func(c fiber.Ctx) error {
 		c.Locals("service.AttachmentService", attachmentService)
 		return c.Next()
 	})
@@ -160,7 +160,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 数据字典路由
 	dictDataService := service.NewDictDataService()
-	dictData := adminAuth.Group("/dict-data", func(c *fiber.Ctx) error {
+	dictData := adminAuth.Group("/dict-data", func(c fiber.Ctx) error {
 		c.Locals("service.DictDataService", dictDataService)
 		return c.Next()
 	})
@@ -178,7 +178,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	} else {
 		configService = service.NewConfigService(nil)
 	}
-	configs := adminAuth.Group("/configs", func(c *fiber.Ctx) error {
+	configs := adminAuth.Group("/configs", func(c fiber.Ctx) error {
 		c.Locals("service.ConfigService", configService)
 		return c.Next()
 	})

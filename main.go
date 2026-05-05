@@ -2,15 +2,15 @@ package main
 
 import (
 	"embed"
+	"io/fs"
 	stdlog "log"
-	"net/http"
 	"strings"
 
 	"go-admin/internal"
 	"go-admin/internal/global"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/static"
 
 	_ "go-admin/internal/tasks" // 触发 init() 注册 Go tasks
 
@@ -60,36 +60,35 @@ func main() {
 	global.Bootstrap = bootstrap
 	bootstrap.RegisterInitFunc(internal.Init)
 	bootstrap.RegisterMiddleware(func(app *fiber.App, config *config.Config) {
-		// 使用 Next 函数让 API 请求跳过文件系统中间件
-		app.Use("/", filesystem.New(filesystem.Config{
-			Root:       http.FS(WebRoot),
-			PathPrefix: "web/dist",
-			Next: func(c *fiber.Ctx) bool {
-				return strings.HasPrefix(c.Path(), "/api/")
-			},
-		}))
-
-		// 添加一个通用的处理程序，用于处理 SPA 路由
-		app.Use(func(c *fiber.Ctx) error {
-			// 如果是API请求，则继续走后端路由
-			path := c.Path()
-			if strings.HasPrefix(path, "/api/") {
+		// 静态文件服务（跳过 API 路由）
+		// 使用 fs.Sub 从嵌入的文件系统中提取 web/dist 子目录，
+		// 使 URL 路径 /assets/xxx 能正确映射到 web/dist/assets/xxx
+		subFS, err := fs.Sub(WebRoot, "web/dist")
+		if err != nil {
+			stdlog.Fatalf("Failed to create sub filesystem: %v", err)
+		}
+		staticHandler := static.New("", static.Config{
+			FS:     subFS,
+			Browse: false,
+		})
+		app.Use(func(c fiber.Ctx) error {
+			if strings.HasPrefix(c.Path(), "/api/") {
 				return c.Next()
 			}
+			return staticHandler(c)
+		})
 
-			// 如果文件系统中间件未命中（返回404），则提供 index.html
-			if c.Response().StatusCode() == fiber.StatusNotFound {
-				indexFile, err := WebRoot.ReadFile("web/dist/index.html")
-				if err != nil {
-					return err
-				}
-				c.Response().SetStatusCode(fiber.StatusOK)
-				c.Type("html")
-				return c.Send(indexFile)
+		// SPA fallback：静态文件未命中时返回 index.html
+		app.Use(func(c fiber.Ctx) error {
+			if strings.HasPrefix(c.Path(), "/api/") {
+				return c.Next()
 			}
-
-			// 如果文件存在，则继续处理
-			return c.Next()
+			indexFile, err := fs.ReadFile(subFS, "index.html")
+			if err != nil {
+				return err
+			}
+			c.Type("html")
+			return c.Send(indexFile)
 		})
 	})
 	bootstrap.RegisterRoute(internal.RegisterRoute)

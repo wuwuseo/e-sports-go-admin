@@ -7,7 +7,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 // GetChunkUploadStatus 获取分片上传状态
@@ -20,7 +20,7 @@ import (
 // @Success 200 {object} utils.Response{data=service.ChunkStatusResponse}
 // @Failure 400 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/chunk/status/{upload_id} [get]
-func GetChunkUploadStatus(c *fiber.Ctx) error {
+func GetChunkUploadStatus(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 
@@ -50,7 +50,7 @@ func GetChunkUploadStatus(c *fiber.Ctx) error {
 // @Success 200 {object} utils.Response
 // @Failure 400 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/chunk/{upload_id} [delete]
-func CancelChunkUpload(c *fiber.Ctx) error {
+func CancelChunkUpload(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
 

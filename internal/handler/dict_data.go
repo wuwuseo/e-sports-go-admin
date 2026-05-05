@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/validate"
 )
 
@@ -27,7 +27,7 @@ import (
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/dict-data [post]
-func CreateDictData(c *fiber.Ctx) error {
+func CreateDictData(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.DictDataService").(*service.DictDataService)
 
@@ -67,7 +67,7 @@ func CreateDictData(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/dict-data [get]
-func ListDictData(c *fiber.Ctx) error {
+func ListDictData(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.DictDataService").(*service.DictDataService)
 
@@ -108,7 +108,7 @@ func ListDictData(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/dict-data/{id} [get]
-func GetDictData(c *fiber.Ctx) error {
+func GetDictData(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.DictDataService").(*service.DictDataService)
 
@@ -141,7 +141,7 @@ func GetDictData(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/dict-data/type/{type} [get]
-func GetDictDataByType(c *fiber.Ctx) error {
+func GetDictDataByType(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.DictDataService").(*service.DictDataService)
 
@@ -174,7 +174,7 @@ func GetDictDataByType(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/dict-data/{id} [put]
-func UpdateDictData(c *fiber.Ctx) error {
+func UpdateDictData(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.DictDataService").(*service.DictDataService)
 
@@ -218,7 +218,7 @@ func UpdateDictData(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/dict-data/{id} [delete]
-func DeleteDictData(c *fiber.Ctx) error {
+func DeleteDictData(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.DictDataService").(*service.DictDataService)
 

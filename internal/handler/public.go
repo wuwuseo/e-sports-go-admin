@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/crypto"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/validate"
@@ -32,7 +32,7 @@ type GetPublicKeyResponse struct {
 // @Success 200 {object} utils.Response{data=GetPublicKeyResponse}
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/public/public-key [get]
-func GetPublicKey(c *fiber.Ctx) error {
+func GetPublicKey(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
 	keyManager := crypto.GetKeyManager()
@@ -75,7 +75,7 @@ type ChangePasswordRequest struct {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/public/login [post]
-func Login(c *fiber.Ctx) error {
+func Login(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
 	req, err := validate.ParseAndValidate[service.LoginRequest](c)
@@ -155,7 +155,7 @@ func Login(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user [get]
-func GetUser(c *fiber.Ctx) error {
+func GetUser(c fiber.Ctx) error {
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
 
 	response := c.Locals("utils.Response").(*utils.Response)
@@ -196,13 +196,13 @@ func GetUser(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user [put]
-func UpdateUser(c *fiber.Ctx) error {
+func UpdateUser(c fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 	userID := claims["id"].(string)
 	response := c.Locals("utils.Response").(*utils.Response)
 
 	var updates map[string]any
-	if err := c.BodyParser(&updates); err != nil {
+	if err := c.Bind().Body(&updates); err != nil {
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
 
@@ -231,7 +231,7 @@ func UpdateUser(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/password [put]
-func ChangePassword(c *fiber.Ctx) error {
+func ChangePassword(c fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 
 	userID := claims["id"].(string)
@@ -274,7 +274,7 @@ func ChangePassword(c *fiber.Ctx) error {
 // @Failure 401 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/refresh-token [post]
-func RefreshToken(c *fiber.Ctx) error {
+func RefreshToken(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
 	req, err := validate.ParseAndValidate[service.RefreshTokenRequest](c)

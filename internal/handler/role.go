@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/validate"
 )
 
@@ -27,7 +27,7 @@ import (
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles [post]
-func CreateRole(c *fiber.Ctx) error {
+func CreateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
 
@@ -71,7 +71,7 @@ func CreateRole(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/{id} [get]
-func GetRole(c *fiber.Ctx) error {
+func GetRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
 
@@ -108,7 +108,7 @@ func GetRole(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles [get]
-func ListRoles(c *fiber.Ctx) error {
+func ListRoles(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
 
@@ -152,7 +152,7 @@ func ListRoles(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/{id} [put]
-func UpdateRole(c *fiber.Ctx) error {
+func UpdateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
 
@@ -198,7 +198,7 @@ func UpdateRole(c *fiber.Ctx) error {
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/{id} [delete]
-func DeleteRole(c *fiber.Ctx) error {
+func DeleteRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
 
@@ -241,7 +241,7 @@ func DeleteRole(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/{id}/enable [put]
-func EnableRole(c *fiber.Ctx) error {
+func EnableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
 
@@ -278,7 +278,7 @@ func EnableRole(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/{id}/disable [put]
-func DisableRole(c *fiber.Ctx) error {
+func DisableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
 

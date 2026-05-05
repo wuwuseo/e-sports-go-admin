@@ -48,7 +48,7 @@ func newTestRoleService(t *testing.T) (*RoleService, *ent.Client, *cache.TypedCa
 }
 
 // setupRoleTestData creates a role, user, user_role and populates user permission caches
-func setupRoleTestData(t *testing.T, client *ent.Client, typedCache *cache.TypedCache[[]*PermissionResponse], roleName, domain string) (roleID, userID int) {
+func setupRoleTestData(t *testing.T, client *ent.Client, typedCache *cache.TypedCache[[]*PermissionResponse], roleName, domain string) (roleID int, userUID string) {
 	t.Helper()
 	ctx := context.Background()
 
@@ -67,6 +67,7 @@ func setupRoleTestData(t *testing.T, client *ent.Client, typedCache *cache.Typed
 		SetEmail(fmt.Sprintf("%s@roletest.com", roleName)).
 		SetPassword("hashedpwd").
 		SetStatus("active").
+		SetUID(fmt.Sprintf("uid-%s", roleName)).
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
@@ -81,17 +82,17 @@ func setupRoleTestData(t *testing.T, client *ent.Client, typedCache *cache.Typed
 		t.Fatalf("failed to create user_role: %v", err)
 	}
 
-	// Populate user permission caches
-	menuKey := fmt.Sprintf("user:menu:%d:%s", u.ID, domain)
-	buttonKey := fmt.Sprintf("user:button:%d:%s", u.ID, domain)
-	apiKey := fmt.Sprintf("user:api:%d:%s", u.ID, domain)
+	// Populate user permission caches using UID (matching production cache keys)
+	menuKey := fmt.Sprintf("user:menu:%s:%s", u.UID, domain)
+	buttonKey := fmt.Sprintf("user:button:%s:%s", u.UID, domain)
+	apiKey := fmt.Sprintf("user:api:%s:%s", u.UID, domain)
 
 	dummyPerms := []*PermissionResponse{{ID: 1, RoleName: roleName, Domain: domain, Object: "/test", Action: "menu"}}
 	_ = typedCache.SetWithExpiration(ctx, menuKey, dummyPerms, svc_defaultCacheTTL)
 	_ = typedCache.SetWithExpiration(ctx, buttonKey, dummyPerms, svc_defaultCacheTTL)
 	_ = typedCache.SetWithExpiration(ctx, apiKey, dummyPerms, svc_defaultCacheTTL)
 
-	return r.ID, u.ID
+	return r.ID, u.UID
 }
 
 var svc_defaultCacheTTL = 5 * time.Minute
@@ -100,10 +101,10 @@ func TestUpdateRole_ClearsUserPermissionsCache(t *testing.T) {
 	svc, client, typedCache := newTestRoleService(t)
 	ctx := context.Background()
 	domain := "default"
-	roleID, userID := setupRoleTestData(t, client, typedCache, "update_role", domain)
+	roleID, userUID := setupRoleTestData(t, client, typedCache, "update_role", domain)
 
 	// Verify caches are populated
-	menuKey := fmt.Sprintf("user:menu:%d:%s", userID, domain)
+	menuKey := fmt.Sprintf("user:menu:%s:%s", userUID, domain)
 	_, err := typedCache.Get(ctx, menuKey)
 	if err != nil {
 		t.Fatalf("menu cache should be populated: %v", err)
@@ -122,12 +123,12 @@ func TestUpdateRole_ClearsUserPermissionsCache(t *testing.T) {
 	if err == nil {
 		t.Fatal("menu cache should be invalidated after UpdateRole")
 	}
-	buttonKey := fmt.Sprintf("user:button:%d:%s", userID, domain)
+	buttonKey := fmt.Sprintf("user:button:%s:%s", userUID, domain)
 	_, err = typedCache.Get(ctx, buttonKey)
 	if err == nil {
 		t.Fatal("button cache should be invalidated after UpdateRole")
 	}
-	apiKey := fmt.Sprintf("user:api:%d:%s", userID, domain)
+	apiKey := fmt.Sprintf("user:api:%s:%s", userUID, domain)
 	_, err = typedCache.Get(ctx, apiKey)
 	if err == nil {
 		t.Fatal("api cache should be invalidated after UpdateRole")
@@ -152,6 +153,7 @@ func TestEnableRole_ClearsUserPermissionsCache(t *testing.T) {
 		SetEmail("enable@roletest.com").
 		SetPassword("pwd").
 		SetStatus("active").
+		SetUID("uid-enable_role").
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -161,10 +163,14 @@ func TestEnableRole_ClearsUserPermissionsCache(t *testing.T) {
 		t.Fatalf("create user_role failed: %v", err)
 	}
 
-	// Populate caches
-	menuKey := fmt.Sprintf("user:menu:%d:%s", u.ID, domain)
+	// Populate caches using UID (matching production cache keys)
+	menuKey := fmt.Sprintf("user:menu:%s:%s", u.UID, domain)
+	buttonKey := fmt.Sprintf("user:button:%s:%s", u.UID, domain)
+	apiKey := fmt.Sprintf("user:api:%s:%s", u.UID, domain)
 	dummyPerms := []*PermissionResponse{{ID: 1}}
 	_ = typedCache.SetWithExpiration(ctx, menuKey, dummyPerms, svc_defaultCacheTTL)
+	_ = typedCache.SetWithExpiration(ctx, buttonKey, dummyPerms, svc_defaultCacheTTL)
+	_ = typedCache.SetWithExpiration(ctx, apiKey, dummyPerms, svc_defaultCacheTTL)
 
 	// EnableRole
 	err = svc.EnableRole(ctx, r.ID)
@@ -172,10 +178,18 @@ func TestEnableRole_ClearsUserPermissionsCache(t *testing.T) {
 		t.Fatalf("EnableRole failed: %v", err)
 	}
 
-	// Verify cache cleared
+	// Verify all user permission caches are cleared
 	_, err = typedCache.Get(ctx, menuKey)
 	if err == nil {
 		t.Fatal("menu cache should be invalidated after EnableRole")
+	}
+	_, err = typedCache.Get(ctx, buttonKey)
+	if err == nil {
+		t.Fatal("button cache should be invalidated after EnableRole")
+	}
+	_, err = typedCache.Get(ctx, apiKey)
+	if err == nil {
+		t.Fatal("api cache should be invalidated after EnableRole")
 	}
 }
 
@@ -197,6 +211,7 @@ func TestDisableRole_ClearsUserPermissionsCache(t *testing.T) {
 		SetEmail("disable@roletest.com").
 		SetPassword("pwd").
 		SetStatus("active").
+		SetUID("uid-disable_role").
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("create user failed: %v", err)
@@ -206,10 +221,10 @@ func TestDisableRole_ClearsUserPermissionsCache(t *testing.T) {
 		t.Fatalf("create user_role failed: %v", err)
 	}
 
-	// Populate caches
-	menuKey := fmt.Sprintf("user:menu:%d:%s", u.ID, domain)
-	buttonKey := fmt.Sprintf("user:button:%d:%s", u.ID, domain)
-	apiKey := fmt.Sprintf("user:api:%d:%s", u.ID, domain)
+	// Populate caches using UID (matching production cache keys)
+	menuKey := fmt.Sprintf("user:menu:%s:%s", u.UID, domain)
+	buttonKey := fmt.Sprintf("user:button:%s:%s", u.UID, domain)
+	apiKey := fmt.Sprintf("user:api:%s:%s", u.UID, domain)
 	dummyPerms := []*PermissionResponse{{ID: 1}}
 	_ = typedCache.SetWithExpiration(ctx, menuKey, dummyPerms, svc_defaultCacheTTL)
 	_ = typedCache.SetWithExpiration(ctx, buttonKey, dummyPerms, svc_defaultCacheTTL)

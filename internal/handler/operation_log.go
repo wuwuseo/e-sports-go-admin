@@ -8,13 +8,13 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/validate"
 )
 
 // logOperation 记录操作日志的辅助函数
-func logOperation(c *fiber.Ctx, logService service.OperationLogServiceInterface, module, action, description string) {
+func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, module, action, description string) {
 	claims := jwt.GetJWTUserData(c)
 	userUID := ""
 	username := ""
@@ -61,7 +61,7 @@ func logOperation(c *fiber.Ctx, logService service.OperationLogServiceInterface,
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/operation-logs [get]
-func ListOperationLogs(c *fiber.Ctx) error {
+func ListOperationLogs(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
 
@@ -102,7 +102,7 @@ func ListOperationLogs(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/operation-logs/{id} [get]
-func GetOperationLog(c *fiber.Ctx) error {
+func GetOperationLog(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
 

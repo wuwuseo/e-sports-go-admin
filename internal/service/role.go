@@ -60,14 +60,21 @@ func (s *RoleService) clearUserPermissionsByRoleID(ctx context.Context, roleID i
 	if s.cache == nil {
 		return
 	}
-	userRoles, err := s.client.UserRole.Query().Where(userrole.RoleIDEQ(roleID)).All(ctx)
+	userRoles, err := s.client.UserRole.Query().
+		Where(userrole.RoleIDEQ(roleID)).
+		WithUser().
+		All(ctx)
 	if err != nil {
 		return
 	}
 	for _, ur := range userRoles {
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%d:%s", ur.UserID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%d:%s", ur.UserID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%d:%s", ur.UserID, domain))
+		if ur.Edges.User == nil {
+			continue
+		}
+		uid := ur.Edges.User.UID
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", uid, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", uid, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", uid, domain))
 	}
 }
 

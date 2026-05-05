@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/validate"
 )
 
@@ -27,7 +27,7 @@ import (
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs [post]
-func CreateCronJob(c *fiber.Ctx) error {
+func CreateCronJob(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -78,7 +78,7 @@ func CreateCronJob(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs [get]
-func ListCronJobs(c *fiber.Ctx) error {
+func ListCronJobs(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -119,7 +119,7 @@ func ListCronJobs(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id} [get]
-func GetCronJob(c *fiber.Ctx) error {
+func GetCronJob(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -155,7 +155,7 @@ func GetCronJob(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id} [put]
-func UpdateCronJob(c *fiber.Ctx) error {
+func UpdateCronJob(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -207,7 +207,7 @@ func UpdateCronJob(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id} [delete]
-func DeleteCronJob(c *fiber.Ctx) error {
+func DeleteCronJob(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -243,7 +243,7 @@ func DeleteCronJob(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id}/enable [post]
-func EnableCronJob(c *fiber.Ctx) error {
+func EnableCronJob(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -279,7 +279,7 @@ func EnableCronJob(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id}/disable [post]
-func DisableCronJob(c *fiber.Ctx) error {
+func DisableCronJob(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -315,7 +315,7 @@ func DisableCronJob(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id}/run [post]
-func RunCronJob(c *fiber.Ctx) error {
+func RunCronJob(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -351,7 +351,7 @@ func RunCronJob(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id}/logs [get]
-func GetCronJobLogs(c *fiber.Ctx) error {
+func GetCronJobLogs(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -386,7 +386,7 @@ func GetCronJobLogs(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id}/logs/{filename} [get]
-func GetCronJobLogContent(c *fiber.Ctx) error {
+func GetCronJobLogContent(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -426,7 +426,7 @@ func GetCronJobLogContent(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/cron-jobs/{id}/logs/tail [get]
-func TailCronJobLog(c *fiber.Ctx) error {
+func TailCronJobLog(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	cronJobService := c.Locals("service.CronJobService").(*service.CronJobService)
 
@@ -435,7 +435,11 @@ func TailCronJobLog(c *fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的任务ID").ToJSON(c)
 	}
 
-	lines := c.QueryInt("lines", 100)
+	linesStr := c.Query("lines", "100")
+	lines, err := strconv.Atoi(linesStr)
+	if err != nil {
+		lines = 100
+	}
 
 	content, err := cronJobService.TailLog(c.Context(), id, lines)
 	if err != nil {

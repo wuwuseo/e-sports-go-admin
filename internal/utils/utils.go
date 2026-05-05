@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 var (
@@ -46,7 +46,7 @@ func GetResponseMsg(code int) string {
 }
 
 // SafeGetBody 安全获取请求体内容，限制最大读取长度，避免大文件导致内存溢出
-func SafeGetBody(c *fiber.Ctx) string {
+func SafeGetBody(c fiber.Ctx) string {
 	body := c.Body()
 	if len(body) == 0 {
 		return ""

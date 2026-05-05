@@ -145,13 +145,13 @@ func (s *PermissionService) defaultCacheTTL() time.Duration {
 }
 
 // clearUserPermissionsCache 清除指定用户的所有权限缓存
-func (s *PermissionService) clearUserPermissionsCache(ctx context.Context, userID int, domain string) {
+func (s *PermissionService) clearUserPermissionsCache(ctx context.Context, userUID string, domain string) {
 	if s.cache == nil {
 		return
 	}
-	_ = s.cache.Delete(ctx, s.cacheKey("user", "menu", fmt.Sprint(userID), domain))
-	_ = s.cache.Delete(ctx, s.cacheKey("user", "button", fmt.Sprint(userID), domain))
-	_ = s.cache.Delete(ctx, s.cacheKey("user", "api", fmt.Sprint(userID), domain))
+	_ = s.cache.Delete(ctx, s.cacheKey("user", "menu", userUID, domain))
+	_ = s.cache.Delete(ctx, s.cacheKey("user", "button", userUID, domain))
+	_ = s.cache.Delete(ctx, s.cacheKey("user", "api", userUID, domain))
 }
 
 // clearRolePermissionsCache 清除指定角色的权限缓存
@@ -172,12 +172,17 @@ func (s *PermissionService) clearAllUsersPermissionsByRole(ctx context.Context, 
 	if err != nil {
 		return
 	}
-	userRoles, err := s.client.UserRole.Query().Where(userrole.RoleIDEQ(roleEntity.ID)).All(ctx)
+	userRoles, err := s.client.UserRole.Query().
+		Where(userrole.RoleIDEQ(roleEntity.ID)).
+		WithUser().
+		All(ctx)
 	if err != nil {
 		return
 	}
 	for _, ur := range userRoles {
-		s.clearUserPermissionsCache(ctx, ur.UserID, domain)
+		if ur.Edges.User != nil {
+			s.clearUserPermissionsCache(ctx, ur.Edges.User.UID, domain)
+		}
 	}
 }
 

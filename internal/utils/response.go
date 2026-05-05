@@ -3,7 +3,7 @@ package utils
 import (
 	"go-admin/internal/global"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type Response struct {
@@ -44,6 +44,6 @@ func (r *Response) Fail(options ...any) *Response {
 	return r
 }
 
-func (r *Response) ToJSON(c *fiber.Ctx) error {
+func (r *Response) ToJSON(c fiber.Ctx) error {
 	return c.JSON(r)
 }

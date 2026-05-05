@@ -7,7 +7,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/validate"
 )
 
@@ -32,7 +32,7 @@ type AssignPermissionsRequest struct {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [post]
-func CreatePermission(c *fiber.Ctx) error {
+func CreatePermission(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -80,7 +80,7 @@ func CreatePermission(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [put]
-func UpdatePermission(c *fiber.Ctx) error {
+func UpdatePermission(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -131,7 +131,7 @@ func UpdatePermission(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [delete]
-func DeletePermission(c *fiber.Ctx) error {
+func DeletePermission(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -182,7 +182,7 @@ func DeletePermission(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions/detail [get]
-func GetPermission(c *fiber.Ctx) error {
+func GetPermission(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -230,7 +230,7 @@ func GetPermission(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [get]
-func ListPermissions(c *fiber.Ctx) error {
+func ListPermissions(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -278,7 +278,7 @@ func ListPermissions(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/permissions/assign [post]
-func AssignPermissionsToRole(c *fiber.Ctx) error {
+func AssignPermissionsToRole(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -287,7 +287,7 @@ func AssignPermissionsToRole(c *fiber.Ctx) error {
 
 	// 解析请求体
 	var req AssignPermissionsRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
@@ -326,7 +326,7 @@ func AssignPermissionsToRole(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/permissions/remove [post]
-func RemovePermissionsFromRole(c *fiber.Ctx) error {
+func RemovePermissionsFromRole(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -335,7 +335,7 @@ func RemovePermissionsFromRole(c *fiber.Ctx) error {
 
 	// 解析请求体
 	var req AssignPermissionsRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
@@ -375,7 +375,7 @@ func RemovePermissionsFromRole(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/roles/permissions [get]
-func GetRolePermissions(c *fiber.Ctx) error {
+func GetRolePermissions(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -416,7 +416,7 @@ func GetRolePermissions(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/menu-permissions [get]
-func GetUserMenuPermissions(c *fiber.Ctx) error {
+func GetUserMenuPermissions(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -451,7 +451,7 @@ func GetUserMenuPermissions(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/button-permissions [get]
-func GetUserButtonPermissions(c *fiber.Ctx) error {
+func GetUserButtonPermissions(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -486,7 +486,7 @@ func GetUserButtonPermissions(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/api-permissions [get]
-func GetUserAPIPermissions(c *fiber.Ctx) error {
+func GetUserAPIPermissions(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 
@@ -521,7 +521,7 @@ func GetUserAPIPermissions(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/user/permissions [get]
-func GetUserPermissions(c *fiber.Ctx) error {
+func GetUserPermissions(c fiber.Ctx) error {
 	// 获取响应工具
 	resp := c.Locals("utils.Response").(*utils.Response)
 

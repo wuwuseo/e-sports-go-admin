@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/validate"
 )
 
@@ -27,7 +27,7 @@ import (
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs [post]
-func CreateConfig(c *fiber.Ctx) error {
+func CreateConfig(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
@@ -70,7 +70,7 @@ func CreateConfig(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs [get]
-func ListConfigs(c *fiber.Ctx) error {
+func ListConfigs(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
@@ -111,7 +111,7 @@ func ListConfigs(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs/{id} [get]
-func GetConfig(c *fiber.Ctx) error {
+func GetConfig(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
@@ -145,7 +145,7 @@ func GetConfig(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs/by-key/{key} [get]
-func GetConfigByKey(c *fiber.Ctx) error {
+func GetConfigByKey(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
@@ -178,7 +178,7 @@ func GetConfigByKey(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs/group/{group} [get]
-func GetConfigsByGroup(c *fiber.Ctx) error {
+func GetConfigsByGroup(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
@@ -206,7 +206,7 @@ func GetConfigsByGroup(c *fiber.Ctx) error {
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs/groups [get]
-func GetConfigGroups(c *fiber.Ctx) error {
+func GetConfigGroups(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
@@ -235,7 +235,7 @@ func GetConfigGroups(c *fiber.Ctx) error {
 // @Failure 409 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs/{id} [put]
-func UpdateConfig(c *fiber.Ctx) error {
+func UpdateConfig(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
@@ -282,7 +282,7 @@ func UpdateConfig(c *fiber.Ctx) error {
 // @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/configs/{id} [delete]
-func DeleteConfig(c *fiber.Ctx) error {
+func DeleteConfig(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.ConfigService").(*service.ConfigService)
 
