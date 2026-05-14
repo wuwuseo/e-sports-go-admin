@@ -306,7 +306,6 @@ definitions:
         maxLength: 500
         type: string
       method:
-        maxLength: 20
         type: string
       name:
         maxLength: 100

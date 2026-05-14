@@ -6175,8 +6175,7 @@ const docTemplate = `{
                     "maxLength": 500
                 },
                 "method": {
-                    "type": "string",
-                    "maxLength": 20
+                    "type": "string"
                 },
                 "name": {
                     "type": "string",
