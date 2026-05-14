@@ -283,6 +283,56 @@ definitions:
     - display_name
     - name
     type: object
+  service.CreateSystemPermissionRequest:
+    properties:
+      code:
+        maxLength: 200
+        type: string
+      component:
+        maxLength: 200
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      domain:
+        maxLength: 100
+        type: string
+      icon:
+        maxLength: 100
+        type: string
+      is_common:
+        type: boolean
+      menu_path:
+        maxLength: 500
+        type: string
+      method:
+        maxLength: 20
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      parent_id:
+        type: integer
+      path:
+        maxLength: 500
+        type: string
+      sort_order:
+        type: integer
+      status:
+        type: integer
+      type:
+        allOf:
+        - $ref: '#/definitions/service.SystemPermissionType'
+        enum:
+        - api
+        - menu
+        - button
+    required:
+    - code
+    - domain
+    - name
+    - type
+    type: object
   service.CronJobResponse:
     properties:
       command:
@@ -434,6 +484,17 @@ definitions:
       total:
         type: integer
     type: object
+  service.ListSystemPermissionsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.SystemPermissionResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
   service.LoginRequest:
     properties:
       email:
@@ -561,6 +622,100 @@ definitions:
       updated_by:
         type: string
     type: object
+  service.SaveRolePermissionsRequest:
+    properties:
+      domain:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/service.PermissionRule'
+        type: array
+    required:
+    - domain
+    - permissions
+    type: object
+  service.SystemPermissionResponse:
+    properties:
+      code:
+        type: string
+      component:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      domain:
+        type: string
+      icon:
+        type: string
+      id:
+        type: integer
+      is_common:
+        type: boolean
+      menu_path:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+      path:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        type: integer
+      type:
+        $ref: '#/definitions/service.SystemPermissionType'
+      updated_at:
+        type: string
+    type: object
+  service.SystemPermissionTreeNode:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/service.SystemPermissionTreeNode'
+        type: array
+      code:
+        type: string
+      component:
+        type: string
+      description:
+        type: string
+      icon:
+        type: string
+      id:
+        type: integer
+      is_common:
+        type: boolean
+      menu_path:
+        type: string
+      method:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+      path:
+        type: string
+      sort_order:
+        type: integer
+      status:
+        type: integer
+      type:
+        $ref: '#/definitions/service.SystemPermissionType'
+    type: object
+  service.SystemPermissionType:
+    enum:
+    - api
+    - menu
+    - button
+    type: string
+    x-enum-varnames:
+    - SystemPermissionTypeAPI
+    - SystemPermissionTypeMenu
+    - SystemPermissionTypeButton
   service.TokenResponse:
     properties:
       access_token:
@@ -711,6 +866,45 @@ definitions:
         type: string
       updated_by:
         type: string
+    type: object
+  service.UpdateSystemPermissionRequest:
+    properties:
+      component:
+        maxLength: 200
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      icon:
+        maxLength: 100
+        type: string
+      is_common:
+        type: boolean
+      menu_path:
+        maxLength: 500
+        type: string
+      method:
+        maxLength: 20
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      parent_id:
+        type: integer
+      path:
+        maxLength: 500
+        type: string
+      sort_order:
+        type: integer
+      status:
+        type: integer
+      type:
+        allOf:
+        - $ref: '#/definitions/service.SystemPermissionType'
+        enum:
+        - api
+        - menu
+        - button
     type: object
   utils.Response:
     properties:
@@ -2694,7 +2888,7 @@ paths:
     delete:
       consumes:
       - application/json
-      description: 删除指定权限
+      description: 删除指定的权限
       parameters:
       - description: 角色名称
         in: query
@@ -2706,12 +2900,12 @@ paths:
         name: domain
         required: true
         type: string
-      - description: 权限对象
+      - description: 资源对象
         in: query
         name: object
         required: true
         type: string
-      - description: 权限操作
+      - description: 动作
         in: query
         name: action
         required: true
@@ -2725,7 +2919,8 @@ paths:
             allOf:
             - $ref: '#/definitions/utils.Response'
             - properties:
-                data: {}
+                data:
+                  type: string
               type: object
         "400":
           description: Bad Request
@@ -2737,6 +2932,10 @@ paths:
             $ref: '#/definitions/utils.Response'
         "403":
           description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/utils.Response'
         "500":
@@ -2751,7 +2950,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取权限列表，支持分页和筛选
+      description: 获取权限列表，支持分页
       parameters:
       - description: 页码，默认1
         in: query
@@ -2789,6 +2988,10 @@ paths:
                 data:
                   $ref: '#/definitions/service.ListPermissionsResponse'
               type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
         "401":
           description: Unauthorized
           schema:
@@ -2809,11 +3012,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: 为指定角色创建权限
+      description: 创建新的权限
       parameters:
       - description: 创建权限请求
         in: body
-        name: body
+        name: request
         required: true
         schema:
           $ref: '#/definitions/service.CreatePermissionRequest'
@@ -2826,7 +3029,8 @@ paths:
             allOf:
             - $ref: '#/definitions/utils.Response'
             - properties:
-                data: {}
+                data:
+                  type: string
               type: object
         "400":
           description: Bad Request
@@ -2852,11 +3056,11 @@ paths:
     put:
       consumes:
       - application/json
-      description: 更新指定权限
+      description: 更新权限信息
       parameters:
       - description: 更新权限请求
         in: body
-        name: body
+        name: request
         required: true
         schema:
           $ref: '#/definitions/service.UpdatePermissionRequest'
@@ -2869,12 +3073,70 @@ paths:
             allOf:
             - $ref: '#/definitions/utils.Response'
             - properties:
-                data: {}
+                data:
+                  type: string
               type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新权限
+      tags:
+      - 权限管理
+  /api/v1/admin/auth/permissions/all:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有权限，支持筛选，不带分页
+      parameters:
+      - description: 关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 权限类型
+        in: query
+        name: type
+        type: string
+      - description: 域
+        in: query
+        name: domain
+        type: string
+      - description: 角色名称
+        in: query
+        name: role_name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.PermissionResponse'
+                  type: array
+              type: object
         "401":
           description: Unauthorized
           schema:
@@ -2889,14 +3151,14 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: 更新权限
+      summary: 获取所有权限
       tags:
       - 权限管理
   /api/v1/admin/auth/permissions/detail:
     get:
       consumes:
       - application/json
-      description: 获取指定权限的详情
+      description: 获取指定权限的详细信息
       parameters:
       - description: 角色名称
         in: query
@@ -2908,12 +3170,12 @@ paths:
         name: domain
         required: true
         type: string
-      - description: 权限对象
+      - description: 资源对象
         in: query
         name: object
         required: true
         type: string
-      - description: 权限操作
+      - description: 动作
         in: query
         name: action
         required: true
@@ -3276,6 +3538,153 @@ paths:
       summary: 启用角色
       tags:
       - 角色管理
+  /api/v1/admin/auth/roles/{id}/permissions:
+    get:
+      description: 根据角色ID获取该角色的所有权限
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 域，默认default
+        in: query
+        name: domain
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.PermissionResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 通过角色ID获取权限
+      tags:
+      - 角色-权限管理
+    post:
+      consumes:
+      - application/json
+      description: 覆盖式保存角色权限，删除原有权限并添加新权限
+      parameters:
+      - description: 角色ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 保存角色权限请求
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.SaveRolePermissionsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 覆盖式保存角色权限
+      tags:
+      - 角色-权限管理
+  /api/v1/admin/auth/roles/all:
+    get:
+      description: 获取所有角色列表，不带分页
+      parameters:
+      - description: 关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.RoleResponse'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取所有角色
+      tags:
+      - 角色管理
   /api/v1/admin/auth/roles/permissions:
     get:
       consumes:
@@ -3287,10 +3696,9 @@ paths:
         name: role_name
         required: true
         type: string
-      - description: 域
+      - description: 域，默认default
         in: query
         name: domain
-        required: true
         type: string
       produces:
       - application/json
@@ -3427,6 +3835,284 @@ paths:
       summary: 从角色移除权限
       tags:
       - 权限管理
+  /api/v1/admin/auth/system-permissions:
+    get:
+      description: 获取权限定义列表，支持分页和筛选
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      - description: 域
+        in: query
+        name: domain
+        type: string
+      - description: 权限类型
+        in: query
+        name: type
+        type: string
+      - description: 关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListSystemPermissionsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取权限定义列表
+      tags:
+      - 权限定义管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的权限定义
+      parameters:
+      - description: 创建权限请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateSystemPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.SystemPermissionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建权限定义
+      tags:
+      - 权限定义管理
+  /api/v1/admin/auth/system-permissions/{id}:
+    delete:
+      description: 根据ID删除权限定义
+      parameters:
+      - description: 权限ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除权限定义
+      tags:
+      - 权限定义管理
+    get:
+      description: 根据ID获取权限定义详细信息
+      parameters:
+      - description: 权限ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.SystemPermissionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取权限定义详情
+      tags:
+      - 权限定义管理
+    put:
+      consumes:
+      - application/json
+      description: 更新权限定义信息
+      parameters:
+      - description: 权限ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新权限请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateSystemPermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新权限定义
+      tags:
+      - 权限定义管理
+  /api/v1/admin/auth/system-permissions/tree:
+    get:
+      description: 获取树形结构的权限列表
+      parameters:
+      - description: 域，默认default
+        in: query
+        name: domain
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.SystemPermissionTreeNode'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取权限树
+      tags:
+      - 权限定义管理
   /api/v1/admin/auth/user:
     get:
       description: 获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查
@@ -3623,7 +4309,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取当前用户的菜单和按钮权限
+      description: 获取当前用户的所有权限（菜单和按钮）
       parameters:
       - description: 域，默认default
         in: query

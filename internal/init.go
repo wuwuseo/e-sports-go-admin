@@ -320,6 +320,13 @@ func initSeedData() error {
 		appInstance.Logger.Info("casbin policy reloaded successfully")
 	}
 
+	// 5. 初始化权限定义表（system_permissions）
+	if err := service.InitSystemPermissions(ctx); err != nil {
+		appInstance.Logger.Error("failed to initialize system permissions", zap.Error(err))
+		return fmt.Errorf("failed to initialize system permissions: %w", err)
+	}
+	appInstance.Logger.Info("system permissions initialized successfully")
+
 	appInstance.Logger.Info("seed data initialization completed")
 	return nil
 }

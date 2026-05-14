@@ -12,6 +12,7 @@ import (
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"time"
@@ -582,6 +583,38 @@ func init() {
 	systemconfig.DefaultUpdatedAt = systemconfigDescUpdatedAt.Default.(func() time.Time)
 	// systemconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	systemconfig.UpdateDefaultUpdatedAt = systemconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
+	systempermissionFields := schema.SystemPermission{}.Fields()
+	_ = systempermissionFields
+	// systempermissionDescDomain is the schema descriptor for domain field.
+	systempermissionDescDomain := systempermissionFields[0].Descriptor()
+	// systempermission.DefaultDomain holds the default value on creation for the domain field.
+	systempermission.DefaultDomain = systempermissionDescDomain.Default.(string)
+	// systempermissionDescParentID is the schema descriptor for parent_id field.
+	systempermissionDescParentID := systempermissionFields[9].Descriptor()
+	// systempermission.DefaultParentID holds the default value on creation for the parent_id field.
+	systempermission.DefaultParentID = systempermissionDescParentID.Default.(int)
+	// systempermissionDescSortOrder is the schema descriptor for sort_order field.
+	systempermissionDescSortOrder := systempermissionFields[10].Descriptor()
+	// systempermission.DefaultSortOrder holds the default value on creation for the sort_order field.
+	systempermission.DefaultSortOrder = systempermissionDescSortOrder.Default.(int)
+	// systempermissionDescIsCommon is the schema descriptor for is_common field.
+	systempermissionDescIsCommon := systempermissionFields[11].Descriptor()
+	// systempermission.DefaultIsCommon holds the default value on creation for the is_common field.
+	systempermission.DefaultIsCommon = systempermissionDescIsCommon.Default.(bool)
+	// systempermissionDescStatus is the schema descriptor for status field.
+	systempermissionDescStatus := systempermissionFields[12].Descriptor()
+	// systempermission.DefaultStatus holds the default value on creation for the status field.
+	systempermission.DefaultStatus = systempermissionDescStatus.Default.(int8)
+	// systempermissionDescCreatedAt is the schema descriptor for created_at field.
+	systempermissionDescCreatedAt := systempermissionFields[14].Descriptor()
+	// systempermission.DefaultCreatedAt holds the default value on creation for the created_at field.
+	systempermission.DefaultCreatedAt = systempermissionDescCreatedAt.Default.(func() time.Time)
+	// systempermissionDescUpdatedAt is the schema descriptor for updated_at field.
+	systempermissionDescUpdatedAt := systempermissionFields[15].Descriptor()
+	// systempermission.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	systempermission.DefaultUpdatedAt = systempermissionDescUpdatedAt.Default.(func() time.Time)
+	// systempermission.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	systempermission.UpdateDefaultUpdatedAt = systempermissionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0

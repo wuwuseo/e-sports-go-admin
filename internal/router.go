@@ -35,6 +35,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 初始化带缓存的服务
 	var permissionService service.PermissionServiceInterface
 	var roleService service.RoleServiceInterface
+	var systemPermissionService service.SystemPermissionServiceInterface
 	if appInstance != nil && appInstance.Cache != nil {
 		permissionService = service.NewPermissionService(appInstance.Cache)
 		roleService = service.NewRoleService(appInstance.Cache)
@@ -42,6 +43,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		permissionService = service.NewPermissionService(nil)
 		roleService = service.NewRoleService(nil)
 	}
+	systemPermissionService = service.NewSystemPermissionService()
 
 	// 初始化操作日志服务
 	opLogService := service.NewOperationLogService()
@@ -65,6 +67,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.UserService", service.NewUserService())
 		c.Locals("service.RoleService", roleService)
 		c.Locals("service.PermissionService", permissionService)
+		c.Locals("service.SystemPermissionService", systemPermissionService)
 		c.Locals("service.OperationLogService", opLogService)
 		return c.Next()
 	}, middleware.PermissionMiddleware())
@@ -78,20 +81,33 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	roles.Post("/permissions/assign", handler.AssignPermissionsToRole)   // 为角色分配权限
 	roles.Post("/permissions/remove", handler.RemovePermissionsFromRole) // 从角色移除权限
 
-	roles.Get("/:id", handler.GetRole)             // 获取角色详情
-	roles.Get("", handler.ListRoles)               // 获取角色列表
-	roles.Put("/:id", handler.UpdateRole)          // 更新角色
-	roles.Delete("/:id", handler.DeleteRole)       // 删除角色
-	roles.Put("/:id/enable", handler.EnableRole)   // 启用角色
-	roles.Put("/:id/disable", handler.DisableRole) // 禁用角色
+	roles.Get("/all", handler.ListAllRoles)                           // 获取所有角色（不带分页）
+	roles.Get("/:id/permissions", handler.GetRolePermissionsByRoleID) // 按ID获取角色权限
+	roles.Post("/:id/permissions", handler.SaveRolePermissions)       // 覆盖式保存角色权限
+	roles.Get("/:id", handler.GetRole)                                // 获取角色详情
+	roles.Get("", handler.ListRoles)                                  // 获取角色列表
+	roles.Put("/:id", handler.UpdateRole)                             // 更新角色
+	roles.Delete("/:id", handler.DeleteRole)                          // 删除角色
+	roles.Put("/:id/enable", handler.EnableRole)                      // 启用角色
+	roles.Put("/:id/disable", handler.DisableRole)                    // 禁用角色
 
 	// 权限管理路由
 	permissions := adminAuth.Group("/permissions")
-	permissions.Post("", handler.CreatePermission)    // 创建权限
-	permissions.Put("", handler.UpdatePermission)     // 更新权限
-	permissions.Delete("", handler.DeletePermission)  // 删除权限
-	permissions.Get("/detail", handler.GetPermission) // 获取权限详情
-	permissions.Get("", handler.ListPermissions)      // 获取权限列表
+	permissions.Post("", handler.CreatePermission)      // 创建权限
+	permissions.Put("", handler.UpdatePermission)       // 更新权限
+	permissions.Delete("", handler.DeletePermission)    // 删除权限
+	permissions.Get("/detail", handler.GetPermission)   // 获取权限详情
+	permissions.Get("/all", handler.ListAllPermissions) // 获取所有权限（不带分页）
+	permissions.Get("", handler.ListPermissions)        // 获取权限列表
+
+	// 权限定义管理路由
+	systemPermissions := adminAuth.Group("/system-permissions")
+	systemPermissions.Post("", handler.CreateSystemPermission)        // 创建权限定义
+	systemPermissions.Get("", handler.ListSystemPermissions)          // 获取权限定义列表
+	systemPermissions.Get("/tree", handler.GetSystemPermissionTree)  // 获取权限树
+	systemPermissions.Get("/:id", handler.GetSystemPermission)       // 获取权限定义详情
+	systemPermissions.Put("/:id", handler.UpdateSystemPermission)    // 更新权限定义
+	systemPermissions.Delete("/:id", handler.DeleteSystemPermission) // 删除权限定义
 
 	// 用户权限路由
 	userPermissions := adminAuth.Group("/user")

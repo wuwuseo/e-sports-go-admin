@@ -15,6 +15,7 @@ import (
 	"go-admin/internal/ent/predicate"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"sync"
@@ -33,16 +34,17 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAttachment      = "Attachment"
-	TypeAttachmentGroup = "AttachmentGroup"
-	TypeCasbinRule      = "CasbinRule"
-	TypeCronJob         = "CronJob"
-	TypeDictData        = "DictData"
-	TypeOperationLog    = "OperationLog"
-	TypeRole            = "Role"
-	TypeSystemConfig    = "SystemConfig"
-	TypeUser            = "User"
-	TypeUserRole        = "UserRole"
+	TypeAttachment       = "Attachment"
+	TypeAttachmentGroup  = "AttachmentGroup"
+	TypeCasbinRule       = "CasbinRule"
+	TypeCronJob          = "CronJob"
+	TypeDictData         = "DictData"
+	TypeOperationLog     = "OperationLog"
+	TypeRole             = "Role"
+	TypeSystemConfig     = "SystemConfig"
+	TypeSystemPermission = "SystemPermission"
+	TypeUser             = "User"
+	TypeUserRole         = "UserRole"
 )
 
 // AttachmentMutation represents an operation that mutates the Attachment nodes in the graph.
@@ -6973,6 +6975,1361 @@ func (m *SystemConfigMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *SystemConfigMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown SystemConfig edge %s", name)
+}
+
+// SystemPermissionMutation represents an operation that mutates the SystemPermission nodes in the graph.
+type SystemPermissionMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	domain        *string
+	_type         *string
+	name          *string
+	code          *string
+	_path         *string
+	method        *string
+	menu_path     *string
+	icon          *string
+	component     *string
+	parent_id     *int
+	addparent_id  *int
+	sort_order    *int
+	addsort_order *int
+	is_common     *bool
+	status        *int8
+	addstatus     *int8
+	description   *string
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*SystemPermission, error)
+	predicates    []predicate.SystemPermission
+}
+
+var _ ent.Mutation = (*SystemPermissionMutation)(nil)
+
+// systempermissionOption allows management of the mutation configuration using functional options.
+type systempermissionOption func(*SystemPermissionMutation)
+
+// newSystemPermissionMutation creates new mutation for the SystemPermission entity.
+func newSystemPermissionMutation(c config, op Op, opts ...systempermissionOption) *SystemPermissionMutation {
+	m := &SystemPermissionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSystemPermission,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSystemPermissionID sets the ID field of the mutation.
+func withSystemPermissionID(id int) systempermissionOption {
+	return func(m *SystemPermissionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SystemPermission
+		)
+		m.oldValue = func(ctx context.Context) (*SystemPermission, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SystemPermission.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSystemPermission sets the old SystemPermission of the mutation.
+func withSystemPermission(node *SystemPermission) systempermissionOption {
+	return func(m *SystemPermissionMutation) {
+		m.oldValue = func(context.Context) (*SystemPermission, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SystemPermissionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SystemPermissionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SystemPermissionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SystemPermissionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SystemPermission.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetDomain sets the "domain" field.
+func (m *SystemPermissionMutation) SetDomain(s string) {
+	m.domain = &s
+}
+
+// Domain returns the value of the "domain" field in the mutation.
+func (m *SystemPermissionMutation) Domain() (r string, exists bool) {
+	v := m.domain
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDomain returns the old "domain" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldDomain(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDomain is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDomain requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDomain: %w", err)
+	}
+	return oldValue.Domain, nil
+}
+
+// ResetDomain resets all changes to the "domain" field.
+func (m *SystemPermissionMutation) ResetDomain() {
+	m.domain = nil
+}
+
+// SetType sets the "type" field.
+func (m *SystemPermissionMutation) SetType(s string) {
+	m._type = &s
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *SystemPermissionMutation) GetType() (r string, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *SystemPermissionMutation) ResetType() {
+	m._type = nil
+}
+
+// SetName sets the "name" field.
+func (m *SystemPermissionMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SystemPermissionMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SystemPermissionMutation) ResetName() {
+	m.name = nil
+}
+
+// SetCode sets the "code" field.
+func (m *SystemPermissionMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *SystemPermissionMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *SystemPermissionMutation) ResetCode() {
+	m.code = nil
+}
+
+// SetPath sets the "path" field.
+func (m *SystemPermissionMutation) SetPath(s string) {
+	m._path = &s
+}
+
+// Path returns the value of the "path" field in the mutation.
+func (m *SystemPermissionMutation) Path() (r string, exists bool) {
+	v := m._path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPath returns the old "path" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPath: %w", err)
+	}
+	return oldValue.Path, nil
+}
+
+// ClearPath clears the value of the "path" field.
+func (m *SystemPermissionMutation) ClearPath() {
+	m._path = nil
+	m.clearedFields[systempermission.FieldPath] = struct{}{}
+}
+
+// PathCleared returns if the "path" field was cleared in this mutation.
+func (m *SystemPermissionMutation) PathCleared() bool {
+	_, ok := m.clearedFields[systempermission.FieldPath]
+	return ok
+}
+
+// ResetPath resets all changes to the "path" field.
+func (m *SystemPermissionMutation) ResetPath() {
+	m._path = nil
+	delete(m.clearedFields, systempermission.FieldPath)
+}
+
+// SetMethod sets the "method" field.
+func (m *SystemPermissionMutation) SetMethod(s string) {
+	m.method = &s
+}
+
+// Method returns the value of the "method" field in the mutation.
+func (m *SystemPermissionMutation) Method() (r string, exists bool) {
+	v := m.method
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMethod returns the old "method" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldMethod(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMethod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMethod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMethod: %w", err)
+	}
+	return oldValue.Method, nil
+}
+
+// ClearMethod clears the value of the "method" field.
+func (m *SystemPermissionMutation) ClearMethod() {
+	m.method = nil
+	m.clearedFields[systempermission.FieldMethod] = struct{}{}
+}
+
+// MethodCleared returns if the "method" field was cleared in this mutation.
+func (m *SystemPermissionMutation) MethodCleared() bool {
+	_, ok := m.clearedFields[systempermission.FieldMethod]
+	return ok
+}
+
+// ResetMethod resets all changes to the "method" field.
+func (m *SystemPermissionMutation) ResetMethod() {
+	m.method = nil
+	delete(m.clearedFields, systempermission.FieldMethod)
+}
+
+// SetMenuPath sets the "menu_path" field.
+func (m *SystemPermissionMutation) SetMenuPath(s string) {
+	m.menu_path = &s
+}
+
+// MenuPath returns the value of the "menu_path" field in the mutation.
+func (m *SystemPermissionMutation) MenuPath() (r string, exists bool) {
+	v := m.menu_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMenuPath returns the old "menu_path" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldMenuPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMenuPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMenuPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMenuPath: %w", err)
+	}
+	return oldValue.MenuPath, nil
+}
+
+// ClearMenuPath clears the value of the "menu_path" field.
+func (m *SystemPermissionMutation) ClearMenuPath() {
+	m.menu_path = nil
+	m.clearedFields[systempermission.FieldMenuPath] = struct{}{}
+}
+
+// MenuPathCleared returns if the "menu_path" field was cleared in this mutation.
+func (m *SystemPermissionMutation) MenuPathCleared() bool {
+	_, ok := m.clearedFields[systempermission.FieldMenuPath]
+	return ok
+}
+
+// ResetMenuPath resets all changes to the "menu_path" field.
+func (m *SystemPermissionMutation) ResetMenuPath() {
+	m.menu_path = nil
+	delete(m.clearedFields, systempermission.FieldMenuPath)
+}
+
+// SetIcon sets the "icon" field.
+func (m *SystemPermissionMutation) SetIcon(s string) {
+	m.icon = &s
+}
+
+// Icon returns the value of the "icon" field in the mutation.
+func (m *SystemPermissionMutation) Icon() (r string, exists bool) {
+	v := m.icon
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIcon returns the old "icon" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldIcon(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIcon is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIcon requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIcon: %w", err)
+	}
+	return oldValue.Icon, nil
+}
+
+// ClearIcon clears the value of the "icon" field.
+func (m *SystemPermissionMutation) ClearIcon() {
+	m.icon = nil
+	m.clearedFields[systempermission.FieldIcon] = struct{}{}
+}
+
+// IconCleared returns if the "icon" field was cleared in this mutation.
+func (m *SystemPermissionMutation) IconCleared() bool {
+	_, ok := m.clearedFields[systempermission.FieldIcon]
+	return ok
+}
+
+// ResetIcon resets all changes to the "icon" field.
+func (m *SystemPermissionMutation) ResetIcon() {
+	m.icon = nil
+	delete(m.clearedFields, systempermission.FieldIcon)
+}
+
+// SetComponent sets the "component" field.
+func (m *SystemPermissionMutation) SetComponent(s string) {
+	m.component = &s
+}
+
+// Component returns the value of the "component" field in the mutation.
+func (m *SystemPermissionMutation) Component() (r string, exists bool) {
+	v := m.component
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldComponent returns the old "component" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldComponent(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldComponent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldComponent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldComponent: %w", err)
+	}
+	return oldValue.Component, nil
+}
+
+// ClearComponent clears the value of the "component" field.
+func (m *SystemPermissionMutation) ClearComponent() {
+	m.component = nil
+	m.clearedFields[systempermission.FieldComponent] = struct{}{}
+}
+
+// ComponentCleared returns if the "component" field was cleared in this mutation.
+func (m *SystemPermissionMutation) ComponentCleared() bool {
+	_, ok := m.clearedFields[systempermission.FieldComponent]
+	return ok
+}
+
+// ResetComponent resets all changes to the "component" field.
+func (m *SystemPermissionMutation) ResetComponent() {
+	m.component = nil
+	delete(m.clearedFields, systempermission.FieldComponent)
+}
+
+// SetParentID sets the "parent_id" field.
+func (m *SystemPermissionMutation) SetParentID(i int) {
+	m.parent_id = &i
+	m.addparent_id = nil
+}
+
+// ParentID returns the value of the "parent_id" field in the mutation.
+func (m *SystemPermissionMutation) ParentID() (r int, exists bool) {
+	v := m.parent_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldParentID returns the old "parent_id" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldParentID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldParentID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldParentID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldParentID: %w", err)
+	}
+	return oldValue.ParentID, nil
+}
+
+// AddParentID adds i to the "parent_id" field.
+func (m *SystemPermissionMutation) AddParentID(i int) {
+	if m.addparent_id != nil {
+		*m.addparent_id += i
+	} else {
+		m.addparent_id = &i
+	}
+}
+
+// AddedParentID returns the value that was added to the "parent_id" field in this mutation.
+func (m *SystemPermissionMutation) AddedParentID() (r int, exists bool) {
+	v := m.addparent_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetParentID resets all changes to the "parent_id" field.
+func (m *SystemPermissionMutation) ResetParentID() {
+	m.parent_id = nil
+	m.addparent_id = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *SystemPermissionMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *SystemPermissionMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *SystemPermissionMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *SystemPermissionMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *SystemPermissionMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// SetIsCommon sets the "is_common" field.
+func (m *SystemPermissionMutation) SetIsCommon(b bool) {
+	m.is_common = &b
+}
+
+// IsCommon returns the value of the "is_common" field in the mutation.
+func (m *SystemPermissionMutation) IsCommon() (r bool, exists bool) {
+	v := m.is_common
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsCommon returns the old "is_common" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldIsCommon(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsCommon is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsCommon requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsCommon: %w", err)
+	}
+	return oldValue.IsCommon, nil
+}
+
+// ResetIsCommon resets all changes to the "is_common" field.
+func (m *SystemPermissionMutation) ResetIsCommon() {
+	m.is_common = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SystemPermissionMutation) SetStatus(i int8) {
+	m.status = &i
+	m.addstatus = nil
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SystemPermissionMutation) Status() (r int8, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldStatus(ctx context.Context) (v int8, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// AddStatus adds i to the "status" field.
+func (m *SystemPermissionMutation) AddStatus(i int8) {
+	if m.addstatus != nil {
+		*m.addstatus += i
+	} else {
+		m.addstatus = &i
+	}
+}
+
+// AddedStatus returns the value that was added to the "status" field in this mutation.
+func (m *SystemPermissionMutation) AddedStatus() (r int8, exists bool) {
+	v := m.addstatus
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SystemPermissionMutation) ResetStatus() {
+	m.status = nil
+	m.addstatus = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *SystemPermissionMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *SystemPermissionMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *SystemPermissionMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[systempermission.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *SystemPermissionMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[systempermission.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *SystemPermissionMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, systempermission.FieldDescription)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *SystemPermissionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *SystemPermissionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *SystemPermissionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *SystemPermissionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *SystemPermissionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the SystemPermission entity.
+// If the SystemPermission object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SystemPermissionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *SystemPermissionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the SystemPermissionMutation builder.
+func (m *SystemPermissionMutation) Where(ps ...predicate.SystemPermission) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SystemPermissionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SystemPermissionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SystemPermission, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SystemPermissionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SystemPermissionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SystemPermission).
+func (m *SystemPermissionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SystemPermissionMutation) Fields() []string {
+	fields := make([]string, 0, 16)
+	if m.domain != nil {
+		fields = append(fields, systempermission.FieldDomain)
+	}
+	if m._type != nil {
+		fields = append(fields, systempermission.FieldType)
+	}
+	if m.name != nil {
+		fields = append(fields, systempermission.FieldName)
+	}
+	if m.code != nil {
+		fields = append(fields, systempermission.FieldCode)
+	}
+	if m._path != nil {
+		fields = append(fields, systempermission.FieldPath)
+	}
+	if m.method != nil {
+		fields = append(fields, systempermission.FieldMethod)
+	}
+	if m.menu_path != nil {
+		fields = append(fields, systempermission.FieldMenuPath)
+	}
+	if m.icon != nil {
+		fields = append(fields, systempermission.FieldIcon)
+	}
+	if m.component != nil {
+		fields = append(fields, systempermission.FieldComponent)
+	}
+	if m.parent_id != nil {
+		fields = append(fields, systempermission.FieldParentID)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, systempermission.FieldSortOrder)
+	}
+	if m.is_common != nil {
+		fields = append(fields, systempermission.FieldIsCommon)
+	}
+	if m.status != nil {
+		fields = append(fields, systempermission.FieldStatus)
+	}
+	if m.description != nil {
+		fields = append(fields, systempermission.FieldDescription)
+	}
+	if m.created_at != nil {
+		fields = append(fields, systempermission.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, systempermission.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SystemPermissionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case systempermission.FieldDomain:
+		return m.Domain()
+	case systempermission.FieldType:
+		return m.GetType()
+	case systempermission.FieldName:
+		return m.Name()
+	case systempermission.FieldCode:
+		return m.Code()
+	case systempermission.FieldPath:
+		return m.Path()
+	case systempermission.FieldMethod:
+		return m.Method()
+	case systempermission.FieldMenuPath:
+		return m.MenuPath()
+	case systempermission.FieldIcon:
+		return m.Icon()
+	case systempermission.FieldComponent:
+		return m.Component()
+	case systempermission.FieldParentID:
+		return m.ParentID()
+	case systempermission.FieldSortOrder:
+		return m.SortOrder()
+	case systempermission.FieldIsCommon:
+		return m.IsCommon()
+	case systempermission.FieldStatus:
+		return m.Status()
+	case systempermission.FieldDescription:
+		return m.Description()
+	case systempermission.FieldCreatedAt:
+		return m.CreatedAt()
+	case systempermission.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SystemPermissionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case systempermission.FieldDomain:
+		return m.OldDomain(ctx)
+	case systempermission.FieldType:
+		return m.OldType(ctx)
+	case systempermission.FieldName:
+		return m.OldName(ctx)
+	case systempermission.FieldCode:
+		return m.OldCode(ctx)
+	case systempermission.FieldPath:
+		return m.OldPath(ctx)
+	case systempermission.FieldMethod:
+		return m.OldMethod(ctx)
+	case systempermission.FieldMenuPath:
+		return m.OldMenuPath(ctx)
+	case systempermission.FieldIcon:
+		return m.OldIcon(ctx)
+	case systempermission.FieldComponent:
+		return m.OldComponent(ctx)
+	case systempermission.FieldParentID:
+		return m.OldParentID(ctx)
+	case systempermission.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	case systempermission.FieldIsCommon:
+		return m.OldIsCommon(ctx)
+	case systempermission.FieldStatus:
+		return m.OldStatus(ctx)
+	case systempermission.FieldDescription:
+		return m.OldDescription(ctx)
+	case systempermission.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case systempermission.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SystemPermission field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SystemPermissionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case systempermission.FieldDomain:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDomain(v)
+		return nil
+	case systempermission.FieldType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case systempermission.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case systempermission.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
+	case systempermission.FieldPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPath(v)
+		return nil
+	case systempermission.FieldMethod:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMethod(v)
+		return nil
+	case systempermission.FieldMenuPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMenuPath(v)
+		return nil
+	case systempermission.FieldIcon:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIcon(v)
+		return nil
+	case systempermission.FieldComponent:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetComponent(v)
+		return nil
+	case systempermission.FieldParentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetParentID(v)
+		return nil
+	case systempermission.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	case systempermission.FieldIsCommon:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsCommon(v)
+		return nil
+	case systempermission.FieldStatus:
+		v, ok := value.(int8)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case systempermission.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case systempermission.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case systempermission.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SystemPermission field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SystemPermissionMutation) AddedFields() []string {
+	var fields []string
+	if m.addparent_id != nil {
+		fields = append(fields, systempermission.FieldParentID)
+	}
+	if m.addsort_order != nil {
+		fields = append(fields, systempermission.FieldSortOrder)
+	}
+	if m.addstatus != nil {
+		fields = append(fields, systempermission.FieldStatus)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SystemPermissionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case systempermission.FieldParentID:
+		return m.AddedParentID()
+	case systempermission.FieldSortOrder:
+		return m.AddedSortOrder()
+	case systempermission.FieldStatus:
+		return m.AddedStatus()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SystemPermissionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case systempermission.FieldParentID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddParentID(v)
+		return nil
+	case systempermission.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	case systempermission.FieldStatus:
+		v, ok := value.(int8)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddStatus(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SystemPermission numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SystemPermissionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(systempermission.FieldPath) {
+		fields = append(fields, systempermission.FieldPath)
+	}
+	if m.FieldCleared(systempermission.FieldMethod) {
+		fields = append(fields, systempermission.FieldMethod)
+	}
+	if m.FieldCleared(systempermission.FieldMenuPath) {
+		fields = append(fields, systempermission.FieldMenuPath)
+	}
+	if m.FieldCleared(systempermission.FieldIcon) {
+		fields = append(fields, systempermission.FieldIcon)
+	}
+	if m.FieldCleared(systempermission.FieldComponent) {
+		fields = append(fields, systempermission.FieldComponent)
+	}
+	if m.FieldCleared(systempermission.FieldDescription) {
+		fields = append(fields, systempermission.FieldDescription)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SystemPermissionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SystemPermissionMutation) ClearField(name string) error {
+	switch name {
+	case systempermission.FieldPath:
+		m.ClearPath()
+		return nil
+	case systempermission.FieldMethod:
+		m.ClearMethod()
+		return nil
+	case systempermission.FieldMenuPath:
+		m.ClearMenuPath()
+		return nil
+	case systempermission.FieldIcon:
+		m.ClearIcon()
+		return nil
+	case systempermission.FieldComponent:
+		m.ClearComponent()
+		return nil
+	case systempermission.FieldDescription:
+		m.ClearDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown SystemPermission nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SystemPermissionMutation) ResetField(name string) error {
+	switch name {
+	case systempermission.FieldDomain:
+		m.ResetDomain()
+		return nil
+	case systempermission.FieldType:
+		m.ResetType()
+		return nil
+	case systempermission.FieldName:
+		m.ResetName()
+		return nil
+	case systempermission.FieldCode:
+		m.ResetCode()
+		return nil
+	case systempermission.FieldPath:
+		m.ResetPath()
+		return nil
+	case systempermission.FieldMethod:
+		m.ResetMethod()
+		return nil
+	case systempermission.FieldMenuPath:
+		m.ResetMenuPath()
+		return nil
+	case systempermission.FieldIcon:
+		m.ResetIcon()
+		return nil
+	case systempermission.FieldComponent:
+		m.ResetComponent()
+		return nil
+	case systempermission.FieldParentID:
+		m.ResetParentID()
+		return nil
+	case systempermission.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	case systempermission.FieldIsCommon:
+		m.ResetIsCommon()
+		return nil
+	case systempermission.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case systempermission.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case systempermission.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case systempermission.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SystemPermission field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SystemPermissionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SystemPermissionMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SystemPermissionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SystemPermissionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SystemPermissionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SystemPermissionMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SystemPermissionMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SystemPermission unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SystemPermissionMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SystemPermission edge %s", name)
 }
 
 // UserMutation represents an operation that mutates the User nodes in the graph.

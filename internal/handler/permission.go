@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
 
 	"go-admin/internal/global"
 	"go-admin/internal/service"
@@ -11,22 +12,15 @@ import (
 	"github.com/wuwuseo/cmf/validate"
 )
 
-// AssignPermissionsRequest 分配权限请求
-type AssignPermissionsRequest struct {
-	RoleName    string                   `json:"role_name" validate:"required"`
-	Domain      string                   `json:"domain" validate:"required"`
-	Permissions []service.PermissionRule `json:"permissions" validate:"required,min=1"`
-}
-
 // CreatePermission 创建权限
 // @Summary 创建权限
-// @Description 为指定角色创建权限
+// @Description 创建新的权限
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param body body service.CreatePermissionRequest true "创建权限请求"
-// @Success 200 {object} utils.Response{data=interface{}}
+// @Param request body service.CreatePermissionRequest true "创建权限请求"
+// @Success 200 {object} utils.Response{data=string}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
 // @Failure 403 {object} utils.Response
@@ -39,7 +33,7 @@ func CreatePermission(c fiber.Ctx) error {
 	// 获取权限服务
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
-	// 解析并验证请求体
+	// 解析请求体
 	req, err := validate.ParseAndValidate[service.CreatePermissionRequest](c)
 	if err != nil {
 		if validate.IsValidationError(err) {
@@ -51,33 +45,31 @@ func CreatePermission(c fiber.Ctx) error {
 	// 创建权限
 	err = permissionService.CreatePermission(c.Context(), req)
 	if err != nil {
-		if err == service.ErrPermissionAlreadyExists {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
-		}
 		if err == service.ErrRoleNotFound {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
+			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "创建权限失败").ToJSON(c)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "permission", "创建", fmt.Sprintf("创建权限: %s/%s", req.Object, req.Action))
+	logOperation(c, logService, "permission", "创建", fmt.Sprintf("创建权限: %s %s", req.Object, req.Action))
 
-	return resp.Success("权限创建成功", global.ResponseSuccessCode).ToJSON(c)
+	return resp.Success("创建权限成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
 // UpdatePermission 更新权限
 // @Summary 更新权限
-// @Description 更新指定权限
+// @Description 更新权限信息
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param body body service.UpdatePermissionRequest true "更新权限请求"
-// @Success 200 {object} utils.Response{data=interface{}}
+// @Param request body service.UpdatePermissionRequest true "更新权限请求"
+// @Success 200 {object} utils.Response{data=string}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
 // @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [put]
 func UpdatePermission(c fiber.Ctx) error {
@@ -87,7 +79,7 @@ func UpdatePermission(c fiber.Ctx) error {
 	// 获取权限服务
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
-	// 解析并验证请求体
+	// 解析请求体
 	req, err := validate.ParseAndValidate[service.UpdatePermissionRequest](c)
 	if err != nil {
 		if validate.IsValidationError(err) {
@@ -100,35 +92,33 @@ func UpdatePermission(c fiber.Ctx) error {
 	err = permissionService.UpdatePermission(c.Context(), req)
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrRoleNotFound {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
+			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "更新权限失败").ToJSON(c)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "permission", "更新", fmt.Sprintf("更新权限: %s/%s", req.NewObject, req.NewAction))
+	logOperation(c, logService, "permission", "更新", fmt.Sprintf("更新权限: %s %s", req.Object, req.Action))
 
-	return resp.Success("权限更新成功", global.ResponseSuccessCode).ToJSON(c)
+	return resp.Success("更新权限成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
 // DeletePermission 删除权限
 // @Summary 删除权限
-// @Description 删除指定权限
+// @Description 删除指定的权限
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param role_name query string true "角色名称"
 // @Param domain query string true "域"
-// @Param object query string true "权限对象"
-// @Param action query string true "权限操作"
-// @Success 200 {object} utils.Response{data=interface{}}
+// @Param object query string true "资源对象"
+// @Param action query string true "动作"
+// @Success 200 {object} utils.Response{data=string}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
 // @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/permissions [delete]
 func DeletePermission(c fiber.Ctx) error {
@@ -153,28 +143,28 @@ func DeletePermission(c fiber.Ctx) error {
 	err := permissionService.DeletePermission(c.Context(), roleName, domain, object, action)
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
+			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "删除权限失败").ToJSON(c)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "permission", "删除", fmt.Sprintf("删除权限: %s %s/%s", roleName, object, action))
+	logOperation(c, logService, "permission", "删除", fmt.Sprintf("删除权限: %s %s", object, action))
 
-	return resp.Success("权限删除成功", global.ResponseSuccessCode).ToJSON(c)
+	return resp.Success("删除权限成功", global.ResponseSuccessCode).ToJSON(c)
 }
 
 // GetPermission 获取权限详情
 // @Summary 获取权限详情
-// @Description 获取指定权限的详情
+// @Description 获取指定权限的详细信息
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param role_name query string true "角色名称"
 // @Param domain query string true "域"
-// @Param object query string true "权限对象"
-// @Param action query string true "权限操作"
+// @Param object query string true "资源对象"
+// @Param action query string true "动作"
 // @Success 200 {object} utils.Response{data=service.PermissionResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
@@ -204,17 +194,17 @@ func GetPermission(c fiber.Ctx) error {
 	permission, err := permissionService.GetPermission(c.Context(), roleName, domain, object, action)
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
+			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
-		return resp.Fail(global.ResponseInternalServerError, "获取权限详情失败").ToJSON(c)
+		return resp.Fail(global.ResponseInternalServerError, "获取权限失败").ToJSON(c)
 	}
 
-	return resp.Success(permission, global.ResponseSuccessCode, "获取权限详情成功").ToJSON(c)
+	return resp.Success(permission, global.ResponseSuccessCode, "获取权限成功").ToJSON(c)
 }
 
 // ListPermissions 获取权限列表
 // @Summary 获取权限列表
-// @Description 获取权限列表，支持分页和筛选
+// @Description 获取权限列表，支持分页
 // @Tags 权限管理
 // @Accept json
 // @Produce json
@@ -226,6 +216,7 @@ func GetPermission(c fiber.Ctx) error {
 // @Param domain query string false "域"
 // @Param role_name query string false "角色名称"
 // @Success 200 {object} utils.Response{data=service.ListPermissionsResponse}
+// @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
@@ -237,7 +228,7 @@ func ListPermissions(c fiber.Ctx) error {
 	// 获取权限服务
 	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
 
-	// 解析并验证查询参数
+	// 解析请求参数
 	req, err := validate.ParseQueryAndValidate[service.ListPermissionsRequest](c)
 	if err != nil {
 		if validate.IsValidationError(err) {
@@ -261,6 +252,51 @@ func ListPermissions(c fiber.Ctx) error {
 	}
 
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取权限列表成功").ToJSON(c)
+}
+
+// ListAllPermissions 获取所有权限（不带分页）
+// @Summary 获取所有权限
+// @Description 获取所有权限，支持筛选，不带分页
+// @Tags 权限管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param keyword query string false "关键字"
+// @Param type query string false "权限类型"
+// @Param domain query string false "域"
+// @Param role_name query string false "角色名称"
+// @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/admin/auth/permissions/all [get]
+func ListAllPermissions(c fiber.Ctx) error {
+	// 获取响应工具
+	resp := c.Locals("utils.Response").(*utils.Response)
+
+	// 获取权限服务
+	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
+
+	// 获取查询参数
+	keyword := c.Query("keyword")
+	permType := service.PermissionType(c.Query("type"))
+	domain := c.Query("domain")
+	roleName := c.Query("role_name")
+
+	// 获取所有权限
+	permissions, err := permissionService.ListAllPermissions(c.Context(), keyword, permType, domain, roleName)
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "获取权限列表失败").ToJSON(c)
+	}
+
+	return resp.Success(permissions, global.ResponseSuccessCode, "获取权限列表成功").ToJSON(c)
+}
+
+// AssignPermissionsRequest 分配权限请求
+type AssignPermissionsRequest struct {
+	RoleName    string                   `json:"role_name" validate:"required"`
+	Domain      string                   `json:"domain" validate:"required"`
+	Permissions []service.PermissionRule `json:"permissions" validate:"required,min=1"`
 }
 
 // AssignPermissionsToRole 为角色分配权限
@@ -367,7 +403,7 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param role_name query string true "角色名称"
-// @Param domain query string true "域"
+// @Param domain query string false "域，默认default"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
@@ -508,9 +544,9 @@ func GetUserAPIPermissions(c fiber.Ctx) error {
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取用户API权限成功").ToJSON(c)
 }
 
-// GetUserPermissions 获取用户所有权限（菜单和按钮）
+// GetUserPermissions 获取用户所有权限
 // @Summary 获取用户所有权限
-// @Description 获取当前用户的菜单和按钮权限
+// @Description 获取当前用户的所有权限（菜单和按钮）
 // @Tags 权限管理
 // @Accept json
 // @Produce json
@@ -562,4 +598,90 @@ func convertToPermissionResponseSlice(permissions []*service.PermissionResponse)
 		result[i] = *p
 	}
 	return result
+}
+
+// GetRolePermissionsByRoleID 通过角色ID获取权限
+// @Summary 通过角色ID获取权限
+// @Description 根据角色ID获取该角色的所有权限
+// @Tags 角色-权限管理
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "角色ID"
+// @Param domain query string false "域，默认default"
+// @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/admin/auth/roles/{id}/permissions [get]
+func GetRolePermissionsByRoleID(c fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
+
+	idStr := c.Params("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
+	}
+
+	domain := c.Query("domain", "default")
+
+	permissions, err := permissionService.GetRolePermissionsByRoleID(c.Context(), id, domain)
+	if err != nil {
+		if err == service.ErrRoleNotFound {
+			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		}
+		return resp.Fail(global.ResponseInternalServerError, "获取角色权限失败").ToJSON(c)
+	}
+
+	return resp.Success(permissions, global.ResponseSuccessCode, "获取角色权限成功").ToJSON(c)
+}
+
+// SaveRolePermissions 覆盖式保存角色权限
+// @Summary 覆盖式保存角色权限
+// @Description 覆盖式保存角色权限，删除原有权限并添加新权限
+// @Tags 角色-权限管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "角色ID"
+// @Param body body service.SaveRolePermissionsRequest true "保存角色权限请求"
+// @Success 200 {object} utils.Response
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/admin/auth/roles/{id}/permissions [post]
+func SaveRolePermissions(c fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	permissionService := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
+
+	idStr := c.Params("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
+	}
+
+	req, err := validate.ParseAndValidate[service.SaveRolePermissionsRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return resp.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
+		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
+	}
+
+	err = permissionService.SaveRolePermissions(c.Context(), id, req)
+	if err != nil {
+		if err == service.ErrRoleNotFound {
+			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		}
+		return resp.Fail(global.ResponseInternalServerError, "保存角色权限失败").ToJSON(c)
+	}
+
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	logOperation(c, logService, "permission", "保存", fmt.Sprintf("保存角色 ID:%d 的权限，共 %d 条", id, len(req.Permissions)))
+
+	return resp.Success(nil, global.ResponseSuccessCode, "保存角色权限成功").ToJSON(c)
 }

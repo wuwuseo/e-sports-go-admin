@@ -30,6 +30,9 @@ type Role func(*sql.Selector)
 // SystemConfig is the predicate function for systemconfig builders.
 type SystemConfig func(*sql.Selector)
 
+// SystemPermission is the predicate function for systempermission builders.
+type SystemPermission func(*sql.Selector)
+
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
 

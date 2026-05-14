@@ -19,6 +19,7 @@ import (
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 
@@ -49,6 +50,8 @@ type Client struct {
 	Role *RoleClient
 	// SystemConfig is the client for interacting with the SystemConfig builders.
 	SystemConfig *SystemConfigClient
+	// SystemPermission is the client for interacting with the SystemPermission builders.
+	SystemPermission *SystemPermissionClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserRole is the client for interacting with the UserRole builders.
@@ -72,6 +75,7 @@ func (c *Client) init() {
 	c.OperationLog = NewOperationLogClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.SystemConfig = NewSystemConfigClient(c.config)
+	c.SystemPermission = NewSystemPermissionClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserRole = NewUserRoleClient(c.config)
 }
@@ -164,18 +168,19 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:             ctx,
-		config:          cfg,
-		Attachment:      NewAttachmentClient(cfg),
-		AttachmentGroup: NewAttachmentGroupClient(cfg),
-		CasbinRule:      NewCasbinRuleClient(cfg),
-		CronJob:         NewCronJobClient(cfg),
-		DictData:        NewDictDataClient(cfg),
-		OperationLog:    NewOperationLogClient(cfg),
-		Role:            NewRoleClient(cfg),
-		SystemConfig:    NewSystemConfigClient(cfg),
-		User:            NewUserClient(cfg),
-		UserRole:        NewUserRoleClient(cfg),
+		ctx:              ctx,
+		config:           cfg,
+		Attachment:       NewAttachmentClient(cfg),
+		AttachmentGroup:  NewAttachmentGroupClient(cfg),
+		CasbinRule:       NewCasbinRuleClient(cfg),
+		CronJob:          NewCronJobClient(cfg),
+		DictData:         NewDictDataClient(cfg),
+		OperationLog:     NewOperationLogClient(cfg),
+		Role:             NewRoleClient(cfg),
+		SystemConfig:     NewSystemConfigClient(cfg),
+		SystemPermission: NewSystemPermissionClient(cfg),
+		User:             NewUserClient(cfg),
+		UserRole:         NewUserRoleClient(cfg),
 	}, nil
 }
 
@@ -193,18 +198,19 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:             ctx,
-		config:          cfg,
-		Attachment:      NewAttachmentClient(cfg),
-		AttachmentGroup: NewAttachmentGroupClient(cfg),
-		CasbinRule:      NewCasbinRuleClient(cfg),
-		CronJob:         NewCronJobClient(cfg),
-		DictData:        NewDictDataClient(cfg),
-		OperationLog:    NewOperationLogClient(cfg),
-		Role:            NewRoleClient(cfg),
-		SystemConfig:    NewSystemConfigClient(cfg),
-		User:            NewUserClient(cfg),
-		UserRole:        NewUserRoleClient(cfg),
+		ctx:              ctx,
+		config:           cfg,
+		Attachment:       NewAttachmentClient(cfg),
+		AttachmentGroup:  NewAttachmentGroupClient(cfg),
+		CasbinRule:       NewCasbinRuleClient(cfg),
+		CronJob:          NewCronJobClient(cfg),
+		DictData:         NewDictDataClient(cfg),
+		OperationLog:     NewOperationLogClient(cfg),
+		Role:             NewRoleClient(cfg),
+		SystemConfig:     NewSystemConfigClient(cfg),
+		SystemPermission: NewSystemPermissionClient(cfg),
+		User:             NewUserClient(cfg),
+		UserRole:         NewUserRoleClient(cfg),
 	}, nil
 }
 
@@ -235,7 +241,7 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.DictData,
-		c.OperationLog, c.Role, c.SystemConfig, c.User, c.UserRole,
+		c.OperationLog, c.Role, c.SystemConfig, c.SystemPermission, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -246,7 +252,7 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.DictData,
-		c.OperationLog, c.Role, c.SystemConfig, c.User, c.UserRole,
+		c.OperationLog, c.Role, c.SystemConfig, c.SystemPermission, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -271,6 +277,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Role.mutate(ctx, m)
 	case *SystemConfigMutation:
 		return c.SystemConfig.mutate(ctx, m)
+	case *SystemPermissionMutation:
+		return c.SystemPermission.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	case *UserRoleMutation:
@@ -1376,6 +1384,139 @@ func (c *SystemConfigClient) mutate(ctx context.Context, m *SystemConfigMutation
 	}
 }
 
+// SystemPermissionClient is a client for the SystemPermission schema.
+type SystemPermissionClient struct {
+	config
+}
+
+// NewSystemPermissionClient returns a client for the SystemPermission from the given config.
+func NewSystemPermissionClient(c config) *SystemPermissionClient {
+	return &SystemPermissionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `systempermission.Hooks(f(g(h())))`.
+func (c *SystemPermissionClient) Use(hooks ...Hook) {
+	c.hooks.SystemPermission = append(c.hooks.SystemPermission, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `systempermission.Intercept(f(g(h())))`.
+func (c *SystemPermissionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SystemPermission = append(c.inters.SystemPermission, interceptors...)
+}
+
+// Create returns a builder for creating a SystemPermission entity.
+func (c *SystemPermissionClient) Create() *SystemPermissionCreate {
+	mutation := newSystemPermissionMutation(c.config, OpCreate)
+	return &SystemPermissionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SystemPermission entities.
+func (c *SystemPermissionClient) CreateBulk(builders ...*SystemPermissionCreate) *SystemPermissionCreateBulk {
+	return &SystemPermissionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SystemPermissionClient) MapCreateBulk(slice any, setFunc func(*SystemPermissionCreate, int)) *SystemPermissionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SystemPermissionCreateBulk{err: fmt.Errorf("calling to SystemPermissionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SystemPermissionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SystemPermissionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SystemPermission.
+func (c *SystemPermissionClient) Update() *SystemPermissionUpdate {
+	mutation := newSystemPermissionMutation(c.config, OpUpdate)
+	return &SystemPermissionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SystemPermissionClient) UpdateOne(_m *SystemPermission) *SystemPermissionUpdateOne {
+	mutation := newSystemPermissionMutation(c.config, OpUpdateOne, withSystemPermission(_m))
+	return &SystemPermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SystemPermissionClient) UpdateOneID(id int) *SystemPermissionUpdateOne {
+	mutation := newSystemPermissionMutation(c.config, OpUpdateOne, withSystemPermissionID(id))
+	return &SystemPermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SystemPermission.
+func (c *SystemPermissionClient) Delete() *SystemPermissionDelete {
+	mutation := newSystemPermissionMutation(c.config, OpDelete)
+	return &SystemPermissionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SystemPermissionClient) DeleteOne(_m *SystemPermission) *SystemPermissionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SystemPermissionClient) DeleteOneID(id int) *SystemPermissionDeleteOne {
+	builder := c.Delete().Where(systempermission.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SystemPermissionDeleteOne{builder}
+}
+
+// Query returns a query builder for SystemPermission.
+func (c *SystemPermissionClient) Query() *SystemPermissionQuery {
+	return &SystemPermissionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSystemPermission},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SystemPermission entity by its id.
+func (c *SystemPermissionClient) Get(ctx context.Context, id int) (*SystemPermission, error) {
+	return c.Query().Where(systempermission.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SystemPermissionClient) GetX(ctx context.Context, id int) *SystemPermission {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SystemPermissionClient) Hooks() []Hook {
+	return c.hooks.SystemPermission
+}
+
+// Interceptors returns the client interceptors.
+func (c *SystemPermissionClient) Interceptors() []Interceptor {
+	return c.inters.SystemPermission
+}
+
+func (c *SystemPermissionClient) mutate(ctx context.Context, m *SystemPermissionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SystemPermissionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SystemPermissionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SystemPermissionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SystemPermissionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SystemPermission mutation op: %q", m.Op())
+	}
+}
+
 // UserClient is a client for the User schema.
 type UserClient struct {
 	config
@@ -1678,10 +1819,10 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 type (
 	hooks struct {
 		Attachment, AttachmentGroup, CasbinRule, CronJob, DictData, OperationLog, Role,
-		SystemConfig, User, UserRole []ent.Hook
+		SystemConfig, SystemPermission, User, UserRole []ent.Hook
 	}
 	inters struct {
 		Attachment, AttachmentGroup, CasbinRule, CronJob, DictData, OperationLog, Role,
-		SystemConfig, User, UserRole []ent.Interceptor
+		SystemConfig, SystemPermission, User, UserRole []ent.Interceptor
 	}
 )

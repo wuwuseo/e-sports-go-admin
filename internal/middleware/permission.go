@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"go-admin/internal/global"
+	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
@@ -33,6 +34,14 @@ func PermissionMiddleware() fiber.Handler {
 		if !ok || domain == "" {
 			resp := utils.NewResponse()
 			return resp.Fail(fiber.StatusUnauthorized, "缺少域信息").ToJSON(c)
+		}
+
+		// ✨ 超级管理员旁路检查：admin角色直接放行
+		permissionSvc := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
+		isAdmin, err := permissionSvc.CheckUserHasRole(c.Context(), userID, domain, "admin")
+		if err == nil && isAdmin {
+			c.Locals("isSuperAdmin", true)
+			return c.Next()
 		}
 
 		// 获取请求路径和方法

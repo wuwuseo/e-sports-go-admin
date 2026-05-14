@@ -24,12 +24,19 @@ var (
 	ErrInvalidRoleStatus   = errors.New("角色状态无效")
 )
 
+// ListAllRolesRequest 全量角色列表请求
+type ListAllRolesRequest struct {
+	Keyword string `query:"keyword" json:"keyword"`
+	Status  string `query:"status" json:"status"`
+}
+
 // RoleServiceInterface 角色服务接口
 type RoleServiceInterface interface {
 	// 角色管理
 	CreateRole(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error)
 	GetRole(ctx context.Context, id int) (*RoleResponse, error)
 	ListRoles(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error)
+	ListAllRoles(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error)
 	UpdateRole(ctx context.Context, id int, req *UpdateRoleRequest) error
 	DeleteRole(ctx context.Context, id int) error
 
@@ -123,24 +130,17 @@ type ListRolesResponse struct {
 }
 
 // CreateRole 创建角色
-// 需求: 1.1, 1.2, 1.3, 1.4
 func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error) {
-	// 验证角色名称不为空
 	if req.Name == "" {
 		return nil, ErrInvalidRoleName
 	}
-
-	// 验证角色名称长度
 	if len(req.Name) > 100 {
 		return nil, fmt.Errorf("角色名称不能超过100个字符")
 	}
-
-	// 验证显示名称不为空
 	if req.DisplayName == "" {
 		return nil, fmt.Errorf("显示名称不能为空")
 	}
 
-	// 检查角色名称唯一性
 	exists, err := s.client.Role.Query().
 		Where(role.NameEQ(req.Name)).
 		Exist(ctx)
@@ -151,7 +151,6 @@ func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*
 		return nil, ErrRoleNameExists
 	}
 
-	// 创建角色
 	builder := s.client.Role.Create().
 		SetName(req.Name).
 		SetDisplayName(req.DisplayName).
@@ -160,7 +159,6 @@ func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*
 	if req.Description != "" {
 		builder.SetDescription(req.Description)
 	}
-
 	if req.CreatedBy != "" {
 		builder.SetCreatedBy(req.CreatedBy)
 	}
@@ -174,7 +172,6 @@ func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*
 }
 
 // GetRole 获取角色详情
-// 需求: 2.1, 2.2
 func (s *RoleService) GetRole(ctx context.Context, id int) (*RoleResponse, error) {
 	r, err := s.client.Role.Query().
 		Where(role.IDEQ(id)).
@@ -190,9 +187,7 @@ func (s *RoleService) GetRole(ctx context.Context, id int) (*RoleResponse, error
 }
 
 // ListRoles 获取角色列表
-// 需求: 2.1, 2.3, 2.4
 func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error) {
-	// 设置默认值
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -203,10 +198,8 @@ func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*Li
 		req.PageSize = 100
 	}
 
-	// 构建查询
 	query := s.client.Role.Query()
 
-	// 关键字搜索（名称或描述）
 	if req.Keyword != "" {
 		query = query.Where(
 			role.Or(
@@ -217,18 +210,15 @@ func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*Li
 		)
 	}
 
-	// 状态筛选
 	if req.Status != "" {
 		query = query.Where(role.StatusEQ(role.Status(req.Status)))
 	}
 
-	// 获取总数
 	total, err := query.Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取角色总数失败: %w", err)
 	}
 
-	// 分页查询
 	offset := (req.Page - 1) * req.PageSize
 	roles, err := query.
 		Offset(offset).
@@ -239,7 +229,6 @@ func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*Li
 		return nil, fmt.Errorf("获取角色列表失败: %w", err)
 	}
 
-	// 转换为响应格式
 	data := make([]*RoleResponse, 0, len(roles))
 	for _, r := range roles {
 		data = append(data, s.toRoleResponse(r))
@@ -252,10 +241,41 @@ func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*Li
 	}, nil
 }
 
+// ListAllRoles 获取所有角色（不带分页）
+func (s *RoleService) ListAllRoles(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error) {
+	query := s.client.Role.Query()
+
+	if req.Keyword != "" {
+		query = query.Where(
+			role.Or(
+				role.NameContains(req.Keyword),
+				role.DisplayNameContains(req.Keyword),
+				role.DescriptionContains(req.Keyword),
+			),
+		)
+	}
+
+	if req.Status != "" {
+		query = query.Where(role.StatusEQ(role.Status(req.Status)))
+	}
+
+	roles, err := query.
+		Order(ent.Desc(role.FieldCreateTime)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取角色列表失败: %w", err)
+	}
+
+	data := make([]*RoleResponse, 0, len(roles))
+	for _, r := range roles {
+		data = append(data, s.toRoleResponse(r))
+	}
+
+	return data, nil
+}
+
 // UpdateRole 更新角色
-// 需求: 3.1, 3.2, 3.3, 3.4, 3.5
 func (s *RoleService) UpdateRole(ctx context.Context, id int, req *UpdateRoleRequest) error {
-	// 检查角色是否存在
 	r, err := s.client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -266,25 +286,20 @@ func (s *RoleService) UpdateRole(ctx context.Context, id int, req *UpdateRoleReq
 		return fmt.Errorf("查询角色失败: %w", err)
 	}
 
-	// 系统内置角色不允许修改某些字段
 	if r.IsSystem {
-		// 系统角色只允许修改描述
 		if req.DisplayName != "" && req.DisplayName != r.DisplayName {
 			return fmt.Errorf("系统内置角色不允许修改显示名称")
 		}
 	}
 
-	// 构建更新
 	update := s.client.Role.UpdateOne(r)
 
 	if req.DisplayName != "" {
 		update.SetDisplayName(req.DisplayName)
 	}
-
 	if req.Description != "" {
 		update.SetDescription(req.Description)
 	}
-
 	if req.UpdatedBy != "" {
 		update.SetUpdatedBy(req.UpdatedBy)
 	}
@@ -294,16 +309,13 @@ func (s *RoleService) UpdateRole(ctx context.Context, id int, req *UpdateRoleReq
 		return fmt.Errorf("更新角色失败: %w", err)
 	}
 
-	// 清除拥有该角色的所有用户权限缓存
 	s.clearUserPermissionsByRoleID(ctx, id, "default")
 
 	return nil
 }
 
 // DeleteRole 删除角色
-// 需求: 4.1, 4.2, 4.3, 4.4
 func (s *RoleService) DeleteRole(ctx context.Context, id int) error {
-	// 检查角色是否存在
 	r, err := s.client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -314,12 +326,10 @@ func (s *RoleService) DeleteRole(ctx context.Context, id int) error {
 		return fmt.Errorf("查询角色失败: %w", err)
 	}
 
-	// 系统内置角色不可删除
 	if r.IsSystem {
 		return ErrSystemRoleProtected
 	}
 
-	// 检查角色是否被用户使用
 	inUse, err := s.client.UserRole.Query().
 		Where(userrole.RoleIDEQ(id)).
 		Exist(ctx)
@@ -330,22 +340,16 @@ func (s *RoleService) DeleteRole(ctx context.Context, id int) error {
 		return ErrRoleInUse
 	}
 
-	// 删除角色
 	err = s.client.Role.DeleteOne(r).Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("删除角色失败: %w", err)
 	}
 
-	// TODO: 从Casbin策略中移除该角色的所有权限规则
-	// 这将在任务4中实现权限服务时处理
-
 	return nil
 }
 
 // EnableRole 启用角色
-// 需求: 7.1, 7.4
 func (s *RoleService) EnableRole(ctx context.Context, id int) error {
-	// 检查角色是否存在
 	r, err := s.client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -356,17 +360,14 @@ func (s *RoleService) EnableRole(ctx context.Context, id int) error {
 		return fmt.Errorf("查询角色失败: %w", err)
 	}
 
-	// 系统内置角色不允许修改状态
 	if r.IsSystem {
 		return fmt.Errorf("系统内置角色不允许修改状态")
 	}
 
-	// 如果已经是启用状态，直接返回
 	if r.Status == role.StatusActive {
 		return nil
 	}
 
-	// 更新状态为启用
 	_, err = s.client.Role.UpdateOne(r).
 		SetStatus(role.StatusActive).
 		Save(ctx)
@@ -374,16 +375,13 @@ func (s *RoleService) EnableRole(ctx context.Context, id int) error {
 		return fmt.Errorf("启用角色失败: %w", err)
 	}
 
-	// 清除拥有该角色的所有用户权限缓存
 	s.clearUserPermissionsByRoleID(ctx, id, "default")
 
 	return nil
 }
 
 // DisableRole 禁用角色
-// 需求: 7.1, 7.2, 7.3
 func (s *RoleService) DisableRole(ctx context.Context, id int) error {
-	// 检查角色是否存在
 	r, err := s.client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -394,17 +392,14 @@ func (s *RoleService) DisableRole(ctx context.Context, id int) error {
 		return fmt.Errorf("查询角色失败: %w", err)
 	}
 
-	// 系统内置角色不允许修改状态
 	if r.IsSystem {
 		return fmt.Errorf("系统内置角色不允许修改状态")
 	}
 
-	// 如果已经是禁用状态，直接返回
 	if r.Status == role.StatusInactive {
 		return nil
 	}
 
-	// 更新状态为禁用
 	_, err = s.client.Role.UpdateOne(r).
 		SetStatus(role.StatusInactive).
 		Save(ctx)
@@ -412,7 +407,6 @@ func (s *RoleService) DisableRole(ctx context.Context, id int) error {
 		return fmt.Errorf("禁用角色失败: %w", err)
 	}
 
-	// 清除拥有该角色的所有用户权限缓存
 	s.clearUserPermissionsByRoleID(ctx, id, "default")
 
 	return nil

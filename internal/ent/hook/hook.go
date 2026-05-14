@@ -104,6 +104,18 @@ func (f SystemConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemConfigMutation", m)
 }
 
+// The SystemPermissionFunc type is an adapter to allow the use of ordinary
+// function as SystemPermission mutator.
+type SystemPermissionFunc func(context.Context, *ent.SystemPermissionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SystemPermissionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SystemPermissionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemPermissionMutation", m)
+}
+
 // The UserFunc type is an adapter to allow the use of ordinary
 // function as User mutator.
 type UserFunc func(context.Context, *ent.UserMutation) (ent.Value, error)

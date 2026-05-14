@@ -28,6 +28,8 @@ type Tx struct {
 	Role *RoleClient
 	// SystemConfig is the client for interacting with the SystemConfig builders.
 	SystemConfig *SystemConfigClient
+	// SystemPermission is the client for interacting with the SystemPermission builders.
+	SystemPermission *SystemPermissionClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserRole is the client for interacting with the UserRole builders.
@@ -171,6 +173,7 @@ func (tx *Tx) init() {
 	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.SystemConfig = NewSystemConfigClient(tx.config)
+	tx.SystemPermission = NewSystemPermissionClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserRole = NewUserRoleClient(tx.config)
 }

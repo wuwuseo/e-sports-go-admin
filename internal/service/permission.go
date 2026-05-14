@@ -93,6 +93,12 @@ type ListPermissionsResponse struct {
 	Data  []*PermissionResponse `json:"data"`
 }
 
+// SaveRolePermissionsRequest 保存角色权限请求
+type SaveRolePermissionsRequest struct {
+	Domain      string           `json:"domain" validate:"required"`
+	Permissions []PermissionRule `json:"permissions" validate:"required"`
+}
+
 // PermissionServiceInterface 权限服务接口
 type PermissionServiceInterface interface {
 	// 权限管理
@@ -101,11 +107,14 @@ type PermissionServiceInterface interface {
 	DeletePermission(ctx context.Context, roleName, domain, object, action string) error
 	GetPermission(ctx context.Context, roleName, domain, object, action string) (*PermissionResponse, error)
 	ListPermissions(ctx context.Context, req *ListPermissionsRequest) (*ListPermissionsResponse, error)
+	ListAllPermissions(ctx context.Context, keyword string, permType PermissionType, domain string, roleName string) ([]*PermissionResponse, error)
 
 	// 角色权限管理
 	AssignPermissionsToRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error
 	RemovePermissionsFromRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error
 	GetRolePermissions(ctx context.Context, roleName, domain string) ([]*PermissionResponse, error)
+	GetRolePermissionsByRoleID(ctx context.Context, roleID int, domain string) ([]*PermissionResponse, error)
+	SaveRolePermissions(ctx context.Context, roleID int, req *SaveRolePermissionsRequest) error
 
 	// 用户权限获取
 	GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
@@ -114,6 +123,9 @@ type PermissionServiceInterface interface {
 
 	// 权限验证
 	CheckPermission(ctx context.Context, userID string, domain, object, action string) (bool, error)
+
+	// 检查用户是否拥有指定角色
+	CheckUserHasRole(ctx context.Context, userUID string, domain string, roleName string) (bool, error)
 }
 
 // PermissionService 权限服务实现
@@ -430,6 +442,51 @@ func (s *PermissionService) ListPermissions(ctx context.Context, req *ListPermis
 	}, nil
 }
 
+// ListAllPermissions 获取所有权限（不带分页）
+func (s *PermissionService) ListAllPermissions(ctx context.Context, keyword string, permType PermissionType, domain string, roleName string) ([]*PermissionResponse, error) {
+	// 构建查询
+	query := s.client.CasbinRule.Query().Where(casbinrule.PtypeEQ("p"))
+
+	// 按角色名称筛选
+	if roleName != "" {
+		query = query.Where(casbinrule.V0EQ(roleName))
+	}
+
+	// 按域筛选
+	if domain != "" {
+		query = query.Where(casbinrule.V1EQ(domain))
+	}
+
+	// 按权限类型筛选
+	if permType != "" {
+		query = query.Where(casbinrule.V4EQ(string(permType)))
+	}
+
+	// 按关键字筛选（对象或描述）
+	if keyword != "" {
+		query = query.Where(
+			casbinrule.Or(
+				casbinrule.V2Contains(keyword),
+				casbinrule.V5Contains(keyword),
+			),
+		)
+	}
+
+	// 查询所有权限
+	permissions, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取权限列表失败: %w", err)
+	}
+
+	// 转换为响应格式
+	data := make([]*PermissionResponse, 0, len(permissions))
+	for _, p := range permissions {
+		data = append(data, s.toPermissionResponse(p))
+	}
+
+	return data, nil
+}
+
 // AssignPermissionsToRole 为角色分配权限
 func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error {
 	// 检查角色是否存在
@@ -559,6 +616,107 @@ func (s *PermissionService) GetRolePermissions(ctx context.Context, roleName, do
 	}
 
 	return data, nil
+}
+
+// GetRolePermissionsByRoleID 通过角色ID获取权限
+func (s *PermissionService) GetRolePermissionsByRoleID(ctx context.Context, roleID int, domain string) ([]*PermissionResponse, error) {
+	// 先通过ID获取角色名称
+	roleEntity, err := s.client.Role.Query().
+		Where(role.IDEQ(roleID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	// 复用现有的按名称查询的方法
+	return s.GetRolePermissions(ctx, roleEntity.Name, domain)
+}
+
+// SaveRolePermissions 覆盖式保存角色权限
+func (s *PermissionService) SaveRolePermissions(ctx context.Context, roleID int, req *SaveRolePermissionsRequest) error {
+	// 先通过ID获取角色名称
+	roleEntity, err := s.client.Role.Query().
+		Where(role.IDEQ(roleID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrRoleNotFound
+		}
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	roleName := roleEntity.Name
+	domain := req.Domain
+
+	// 开启事务
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("开启事务失败: %w", err)
+	}
+
+	// 删除该角色当前所有权限
+	_, err = tx.CasbinRule.Delete().
+		Where(
+			casbinrule.PtypeEQ("p"),
+			casbinrule.V0EQ(roleName),
+			casbinrule.V1EQ(domain),
+		).Exec(ctx)
+	if err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("删除权限失败: %v, 回滚失败: %v", err, rbErr)
+		}
+		return fmt.Errorf("删除权限失败: %w", err)
+	}
+
+	// 批量创建新权限
+	for _, perm := range req.Permissions {
+		permType := determinePermissionType(perm.Action)
+
+		_, err = tx.CasbinRule.Create().
+			SetPtype("p").
+			SetV0(roleName).
+			SetV1(domain).
+			SetV2(perm.Object).
+			SetV3(perm.Action).
+			SetV4(string(permType)).
+			Save(ctx)
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				return fmt.Errorf("创建权限失败: %v, 回滚失败: %v", err, rbErr)
+			}
+			return fmt.Errorf("创建权限失败: %w", err)
+		}
+	}
+
+	// 提交事务
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	// 清除相关缓存
+	s.clearRoleAndUsersCache(ctx, roleName, domain)
+
+	return nil
+}
+
+// CheckUserHasRole 检查用户是否拥有指定角色
+func (s *PermissionService) CheckUserHasRole(ctx context.Context, userUID string, domain string, roleName string) (bool, error) {
+	// 检查 Casbin 分组规则：g, userUID, roleName, domain
+	exists, err := s.client.CasbinRule.Query().
+		Where(
+			casbinrule.PtypeEQ("g"),
+			casbinrule.V0EQ(userUID),
+			casbinrule.V1EQ(roleName),
+			casbinrule.V2EQ(domain),
+		).Exist(ctx)
+	if err != nil {
+		return false, fmt.Errorf("检查用户角色失败: %w", err)
+	}
+
+	return exists, nil
 }
 
 // GetUserMenuPermissions 获取用户的菜单权限

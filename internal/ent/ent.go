@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"reflect"
@@ -82,16 +83,17 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			attachment.Table:      attachment.ValidColumn,
-			attachmentgroup.Table: attachmentgroup.ValidColumn,
-			casbinrule.Table:      casbinrule.ValidColumn,
-			cronjob.Table:         cronjob.ValidColumn,
-			dictdata.Table:        dictdata.ValidColumn,
-			operationlog.Table:    operationlog.ValidColumn,
-			role.Table:            role.ValidColumn,
-			systemconfig.Table:    systemconfig.ValidColumn,
-			user.Table:            user.ValidColumn,
-			userrole.Table:        userrole.ValidColumn,
+			attachment.Table:       attachment.ValidColumn,
+			attachmentgroup.Table:  attachmentgroup.ValidColumn,
+			casbinrule.Table:       casbinrule.ValidColumn,
+			cronjob.Table:          cronjob.ValidColumn,
+			dictdata.Table:         dictdata.ValidColumn,
+			operationlog.Table:     operationlog.ValidColumn,
+			role.Table:             role.ValidColumn,
+			systemconfig.Table:     systemconfig.ValidColumn,
+			systempermission.Table: systempermission.ValidColumn,
+			user.Table:             user.ValidColumn,
+			userrole.Table:         userrole.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

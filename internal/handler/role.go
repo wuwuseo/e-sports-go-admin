@@ -136,6 +136,40 @@ func ListRoles(c fiber.Ctx) error {
 	return resp.Success(roles, global.ResponseSuccessCode, "获取角色列表成功").ToJSON(c)
 }
 
+// ListAllRoles 获取所有角色（不带分页）
+// @Summary 获取所有角色
+// @Description 获取所有角色列表，不带分页
+// @Tags 角色管理
+// @Produce json
+// @Security BearerAuth
+// @Param keyword query string false "关键字"
+// @Param status query string false "状态"
+// @Success 200 {object} utils.Response{data=[]service.RoleResponse}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/admin/auth/roles/all [get]
+func ListAllRoles(c fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	roleService := c.Locals("service.RoleService").(*service.RoleService)
+
+	req, err := validate.ParseQueryAndValidate[service.ListAllRolesRequest](c)
+	if err != nil {
+		if validate.IsValidationError(err) {
+			return resp.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
+		}
+		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
+	}
+
+	roles, err := roleService.ListAllRoles(c.Context(), req)
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "获取角色列表失败").ToJSON(c)
+	}
+
+	return resp.Success(roles, global.ResponseSuccessCode, "获取角色列表成功").ToJSON(c)
+}
+
 // UpdateRole 更新角色
 // @Summary 更新角色
 // @Description 根据ID更新角色信息

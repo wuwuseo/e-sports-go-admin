@@ -271,6 +271,49 @@ var (
 			},
 		},
 	}
+	// SystemPermissionsColumns holds the columns for the "system_permissions" table.
+	SystemPermissionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "domain", Type: field.TypeString, Default: "default"},
+		{Name: "type", Type: field.TypeString},
+		{Name: "name", Type: field.TypeString},
+		{Name: "code", Type: field.TypeString},
+		{Name: "path", Type: field.TypeString, Nullable: true},
+		{Name: "method", Type: field.TypeString, Nullable: true},
+		{Name: "menu_path", Type: field.TypeString, Nullable: true},
+		{Name: "icon", Type: field.TypeString, Nullable: true},
+		{Name: "component", Type: field.TypeString, Nullable: true},
+		{Name: "parent_id", Type: field.TypeInt, Default: 0},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "is_common", Type: field.TypeBool, Default: false},
+		{Name: "status", Type: field.TypeInt8, Default: 1},
+		{Name: "description", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// SystemPermissionsTable holds the schema information for the "system_permissions" table.
+	SystemPermissionsTable = &schema.Table{
+		Name:       TablePrefix + "system_permissions",
+		Columns:    SystemPermissionsColumns,
+		PrimaryKey: []*schema.Column{SystemPermissionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "systempermission_domain_code",
+				Unique:  true,
+				Columns: []*schema.Column{SystemPermissionsColumns[1], SystemPermissionsColumns[4]},
+			},
+			{
+				Name:    "systempermission_domain",
+				Unique:  false,
+				Columns: []*schema.Column{SystemPermissionsColumns[1]},
+			},
+			{
+				Name:    "systempermission_type",
+				Unique:  false,
+				Columns: []*schema.Column{SystemPermissionsColumns[2]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -368,6 +411,7 @@ var (
 		OperationLogsTable,
 		RolesTable,
 		SystemConfigsTable,
+		SystemPermissionsTable,
 		UsersTable,
 		UserRolesTable,
 	}
