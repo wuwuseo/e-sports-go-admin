@@ -47,6 +47,27 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 初始化操作日志服务
 	opLogService := service.NewOperationLogService()
+
+	// 初始化用户管理相关服务
+	var userListService service.UserListServiceInterface
+	var userActivationService service.UserActivationServiceInterface
+	var blacklistService service.BlacklistServiceInterface
+	var thirdPartyUserService service.ThirdPartyUserServiceInterface
+	var roleAssignmentService service.RoleAssignmentServiceInterface
+	var userService service.UserServiceInterface
+
+	if appInstance != nil && appInstance.Cache != nil {
+		blacklistService = service.NewBlacklistService(appInstance.Cache)
+		roleAssignmentService = service.NewRoleAssignmentService(appInstance.Cache)
+		userService = service.NewUserServiceWithCache(appInstance.Cache)
+	} else {
+		blacklistService = service.NewBlacklistService(nil)
+		roleAssignmentService = service.NewRoleAssignmentService(nil)
+		userService = service.NewUserService()
+	}
+	userListService = service.NewUserListService()
+	userActivationService = service.NewUserActivationService()
+	thirdPartyUserService = service.NewThirdPartyUserService()
 	// 公开接口
 	adminPublic.Post("/login", handler.Login)
 	adminPublic.Post("/refresh-token", handler.RefreshToken)
@@ -54,23 +75,29 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 仅认证、不需要额外权限的用户个人信息路由（必须在 adminAuth 之前声明，避免被 PermissionMiddleware 拦截）
 	adminAuthUser := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), func(c fiber.Ctx) error {
-		c.Locals("service.UserService", service.NewUserService())
+		c.Locals("service.UserService", userService)
 		c.Locals("utils.Response", utils.NewResponse())
 		return c.Next()
 	})
 	adminAuthUser.Get("/user", handler.GetUser)
 	adminAuthUser.Put("/user", handler.UpdateUser)
 	adminAuthUser.Put("/password", handler.ChangePassword)
+	adminAuthUser.Post("/logout", handler.Logout)
 
 	// 需要认证+权限校验的接口
 	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
-		c.Locals("service.UserService", service.NewUserService())
+		c.Locals("service.UserService", userService)
 		c.Locals("service.RoleService", roleService)
 		c.Locals("service.PermissionService", permissionService)
 		c.Locals("service.SystemPermissionService", systemPermissionService)
 		c.Locals("service.OperationLogService", opLogService)
+		c.Locals("service.UserListService", userListService)
+		c.Locals("service.UserActivationService", userActivationService)
+		c.Locals("service.BlacklistService", blacklistService)
+		c.Locals("service.ThirdPartyUserService", thirdPartyUserService)
+		c.Locals("service.RoleAssignmentService", roleAssignmentService)
 		return c.Next()
-	}, middleware.PermissionMiddleware())
+	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware())
 
 	// 角色管理路由
 	roles := adminAuth.Group("/roles")
@@ -206,4 +233,26 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	configs.Get("/:id", handler.GetConfig)
 	configs.Put("/:id", handler.UpdateConfig)
 	configs.Delete("/:id", handler.DeleteConfig)
+
+	// 用户管理路由
+	users := adminAuth.Group("/users")
+	users.Get("", handler.ListUsers)
+	users.Post("/export", handler.ExportUsers)
+	users.Get("/:id", handler.GetUserDetail)
+	users.Put("/:id/activate", handler.ActivateUser)
+	users.Put("/:id/deactivate", handler.DeactivateUser)
+	users.Post("/:id/blacklist", handler.AddToBlacklist)
+	users.Delete("/:id/blacklist", handler.RemoveFromBlacklist)
+	users.Get("/:id/roles", handler.GetUserRoles)
+	users.Put("/:id/roles", handler.AssignUserRoles)
+	users.Get("/:id/third-party", handler.ListUserThirdParty)
+
+	// 黑名单路由
+	blacklists := adminAuth.Group("/blacklist")
+	blacklists.Get("", handler.ListBlacklist)
+
+	// 第三方用户管理路由
+	thirdParty := adminAuth.Group("/third-party-users")
+	thirdParty.Get("", handler.ListThirdPartyUsers)
+	thirdParty.Delete("/:id", handler.UnbindThirdPartyUser)
 }

@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"context"
@@ -34,22 +34,24 @@ type ListAllRolesRequest struct {
 // RoleServiceInterface 角色服务接口
 type RoleServiceInterface interface {
 	// 角色管理
-	CreateRole(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error)
-	GetRole(ctx context.Context, id int) (*RoleResponse, error)
-	ListRoles(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error)
-	ListAllRoles(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error)
-	UpdateRole(ctx context.Context, id int, req *UpdateRoleRequest) error
-	DeleteRole(ctx context.Context, id int) error
+	Create(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error)
+	Get(ctx context.Context, id int) (*RoleResponse, error)
+	List(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error)
+	ListAll(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error)
+	Update(ctx context.Context, id int, req *UpdateRoleRequest) error
+	Delete(ctx context.Context, id int) error
 
 	// 角色状态管理
-	EnableRole(ctx context.Context, id int) error
-	DisableRole(ctx context.Context, id int) error
+	Enable(ctx context.Context, id int) error
+	Disable(ctx context.Context, id int) error
 }
 
 type RoleService struct {
-	client *ent.Client
-	cache  *cache.TypedCache[[]*PermissionResponse]
+	*CRUDBase
+	cache *cache.TypedCache[[]*PermissionResponse]
 }
+
+var _ CRUD[CreateRoleRequest, UpdateRoleRequest, ListRolesRequest, RoleResponse] = (*RoleService)(nil)
 
 // NewRoleService 创建角色服务实例
 func NewRoleService(rawCache *cache.Cache[[]byte]) *RoleService {
@@ -58,8 +60,8 @@ func NewRoleService(rawCache *cache.Cache[[]byte]) *RoleService {
 		typedCache = cache.NewTypedCache[[]*PermissionResponse](rawCache)
 	}
 	return &RoleService{
-		client: global.ORM,
-		cache:  typedCache,
+		CRUDBase: &CRUDBase{Client: global.ORM},
+		cache:    typedCache,
 	}
 }
 
@@ -68,7 +70,7 @@ func (s *RoleService) clearUserPermissionsByRoleID(ctx context.Context, roleID i
 	if s.cache == nil {
 		return
 	}
-	userRoles, err := s.client.UserRole.Query().
+	userRoles, err := s.Client.UserRole.Query().
 		Where(userrole.RoleIDEQ(roleID)).
 		WithUser().
 		All(ctx)
@@ -117,21 +119,16 @@ type RoleResponse struct {
 
 // ListRolesRequest 角色列表请求
 type ListRolesRequest struct {
-	Page     int    `query:"page" json:"page" validate:"min=1"`
-	PageSize int    `query:"page_size" json:"page_size" validate:"min=1,max=100"`
-	Keyword  string `query:"keyword" json:"keyword"`
-	Status   string `query:"status" json:"status"`
+	PaginationRequest
+	Keyword string `query:"keyword" json:"keyword"`
+	Status  string `query:"status" json:"status"`
 }
 
 // ListRolesResponse 角色列表响应
-type ListRolesResponse struct {
-	Total int             `json:"total"`
-	Page  int             `json:"page"`
-	Data  []*RoleResponse `json:"data"`
-}
+type ListRolesResponse = ListResponse[*RoleResponse]
 
 // CreateRole 创建角色
-func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error) {
+func (s *RoleService) Create(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error) {
 	if req.Name == "" {
 		return nil, ErrInvalidRoleName
 	}
@@ -142,7 +139,7 @@ func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*
 		return nil, fmt.Errorf("显示名称不能为空")
 	}
 
-	exists, err := s.client.Role.Query().
+	exists, err := s.Client.Role.Query().
 		Where(role.NameEQ(req.Name)).
 		Exist(ctx)
 	if err != nil {
@@ -152,7 +149,7 @@ func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*
 		return nil, ErrRoleNameExists
 	}
 
-	builder := s.client.Role.Create().
+	builder := s.Client.Role.Create().
 		SetName(req.Name).
 		SetDisplayName(req.DisplayName).
 		SetStatus(role.StatusActive)
@@ -172,26 +169,19 @@ func (s *RoleService) CreateRole(ctx context.Context, req *CreateRoleRequest) (*
 	return s.toRoleResponse(r), nil
 }
 
-// GetRole 获取角色详情
-func (s *RoleService) GetRole(ctx context.Context, id int) (*RoleResponse, error) {
-	r, err := s.client.Role.Query().
-		Where(role.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, ErrRoleNotFound
-		}
-		return nil, fmt.Errorf("获取角色失败: %w", err)
-	}
-
-	return s.toRoleResponse(r), nil
+// Get 获取角色详情
+func (s *RoleService) Get(ctx context.Context, id int) (*RoleResponse, error) {
+	return GetByID(ctx,
+		func(ctx context.Context) (*ent.Role, error) {
+			return s.Client.Role.Query().Where(role.IDEQ(id)).Only(ctx)
+		}, s.toRoleResponse, ErrRoleNotFound, "角色")
 }
 
 // ListRoles 获取角色列表
-func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error) {
+func (s *RoleService) List(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
-	query := s.client.Role.Query()
+	query := s.Client.Role.Query()
 
 	if req.Keyword != "" {
 		query = query.Where(
@@ -212,31 +202,22 @@ func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*Li
 		return nil, fmt.Errorf("获取角色总数失败: %w", err)
 	}
 
-	offset := (req.Page - 1) * req.PageSize
-	roles, err := query.
-		Offset(offset).
-		Limit(req.PageSize).
-		Order(ent.Desc(role.FieldCreateTime)).
-		All(ctx)
+	query = query.Order(ent.Desc(role.FieldCreateTime))
+	if req.PageSize > 0 {
+		offset := (req.Page - 1) * req.PageSize
+		query = query.Offset(offset).Limit(req.PageSize)
+	}
+	roles, err := query.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取角色列表失败: %w", err)
 	}
 
-	data := make([]*RoleResponse, 0, len(roles))
-	for _, r := range roles {
-		data = append(data, s.toRoleResponse(r))
-	}
-
-	return &ListRolesResponse{
-		Total: total,
-		Page:  req.Page,
-		Data:  data,
-	}, nil
+	return BuildList(roles, total, req.Page, s.toRoleResponse), nil
 }
 
 // ListAllRoles 获取所有角色（不带分页）
-func (s *RoleService) ListAllRoles(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error) {
-	query := s.client.Role.Query()
+func (s *RoleService) ListAll(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error) {
+	query := s.Client.Role.Query()
 
 	if req.Keyword != "" {
 		query = query.Where(
@@ -268,8 +249,8 @@ func (s *RoleService) ListAllRoles(ctx context.Context, req *ListAllRolesRequest
 }
 
 // UpdateRole 更新角色
-func (s *RoleService) UpdateRole(ctx context.Context, id int, req *UpdateRoleRequest) error {
-	r, err := s.client.Role.Query().
+func (s *RoleService) Update(ctx context.Context, id int, req *UpdateRoleRequest) error {
+	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -285,7 +266,7 @@ func (s *RoleService) UpdateRole(ctx context.Context, id int, req *UpdateRoleReq
 		}
 	}
 
-	update := s.client.Role.UpdateOne(r)
+	update := s.Client.Role.UpdateOne(r)
 
 	if req.DisplayName != "" {
 		update.SetDisplayName(req.DisplayName)
@@ -308,8 +289,8 @@ func (s *RoleService) UpdateRole(ctx context.Context, id int, req *UpdateRoleReq
 }
 
 // DeleteRole 删除角色
-func (s *RoleService) DeleteRole(ctx context.Context, id int) error {
-	r, err := s.client.Role.Query().
+func (s *RoleService) Delete(ctx context.Context, id int) error {
+	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -323,7 +304,7 @@ func (s *RoleService) DeleteRole(ctx context.Context, id int) error {
 		return ErrSystemRoleProtected
 	}
 
-	inUse, err := s.client.UserRole.Query().
+	inUse, err := s.Client.UserRole.Query().
 		Where(userrole.RoleIDEQ(id)).
 		Exist(ctx)
 	if err != nil {
@@ -333,7 +314,7 @@ func (s *RoleService) DeleteRole(ctx context.Context, id int) error {
 		return ErrRoleInUse
 	}
 
-	err = s.client.Role.DeleteOne(r).Exec(ctx)
+	err = s.Client.Role.DeleteOne(r).Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("删除角色失败: %w", err)
 	}
@@ -342,8 +323,8 @@ func (s *RoleService) DeleteRole(ctx context.Context, id int) error {
 }
 
 // EnableRole 启用角色
-func (s *RoleService) EnableRole(ctx context.Context, id int) error {
-	r, err := s.client.Role.Query().
+func (s *RoleService) Enable(ctx context.Context, id int) error {
+	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -361,7 +342,7 @@ func (s *RoleService) EnableRole(ctx context.Context, id int) error {
 		return nil
 	}
 
-	_, err = s.client.Role.UpdateOne(r).
+	_, err = s.Client.Role.UpdateOne(r).
 		SetStatus(role.StatusActive).
 		Save(ctx)
 	if err != nil {
@@ -374,8 +355,8 @@ func (s *RoleService) EnableRole(ctx context.Context, id int) error {
 }
 
 // DisableRole 禁用角色
-func (s *RoleService) DisableRole(ctx context.Context, id int) error {
-	r, err := s.client.Role.Query().
+func (s *RoleService) Disable(ctx context.Context, id int) error {
+	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -393,7 +374,7 @@ func (s *RoleService) DisableRole(ctx context.Context, id int) error {
 		return nil
 	}
 
-	_, err = s.client.Role.UpdateOne(r).
+	_, err = s.Client.Role.UpdateOne(r).
 		SetStatus(role.StatusInactive).
 		Save(ctx)
 	if err != nil {

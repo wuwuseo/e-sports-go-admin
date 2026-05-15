@@ -123,15 +123,17 @@ func GenerateUID() string {
 }
 
 // NormalizePagination 标准化分页参数
-// 默认 Page=1, PageSize=10，限制 PageSize 最大为 100
+// Page 默认值为 1，PageSize 默认值为 10，限制 PageSize 最大为 100
+// PageSize = 0 表示不分页，返回全部数据
 func NormalizePagination(page, pageSize int) (int, int) {
 	if page < 1 {
 		page = 1
 	}
-	if pageSize < 1 {
+	if pageSize == 0 {
+		// 0 表示不分页，保持不变
+	} else if pageSize < 1 {
 		pageSize = 10
-	}
-	if pageSize > 100 {
+	} else if pageSize > 100 {
 		pageSize = 100
 	}
 	return page, pageSize

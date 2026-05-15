@@ -144,6 +144,28 @@ func Login(c fiber.Ctx) error {
 	return response.Success(token).ToJSON(c)
 }
 
+// Logout 用户退出登录
+func Logout(c fiber.Ctx) error {
+	response := c.Locals("utils.Response").(*utils.Response)
+
+	claims := jwt.GetJWTUserData(c)
+	if claims == nil {
+		return response.Fail(global.ResponseUnauthorized, "未登录").ToJSON(c)
+	}
+
+	uid, ok := claims["id"].(string)
+	if !ok || uid == "" {
+		return response.Fail(global.ResponseUnauthorized, "无效的用户信息").ToJSON(c)
+	}
+
+	userService := c.Locals("service.UserService").(service.UserServiceInterface)
+	if err := userService.Logout(c.Context(), uid); err != nil {
+		return response.Fail(global.ResponseInternalServerError, "退出登录失败").ToJSON(c)
+	}
+
+	return response.Success(nil, global.ResponseSuccessActionCode, "退出成功").ToJSON(c)
+}
+
 // GetUser 获取当前用户信息
 // @Summary 获取当前用户信息
 // @Description 获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查

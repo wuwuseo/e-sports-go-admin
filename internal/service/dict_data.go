@@ -9,6 +9,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 )
 
 var (
@@ -18,13 +19,15 @@ var (
 
 // DictDataService 数据字典服务
 type DictDataService struct {
-	client *ent.Client
+	*CRUDBase
 }
+
+var _ CRUD[CreateDictDataRequest, UpdateDictDataRequest, ListDictDataRequest, DictDataResponse] = (*DictDataService)(nil)
 
 // NewDictDataService 创建数据字典服务实例
 func NewDictDataService() *DictDataService {
 	return &DictDataService{
-		client: global.ORM,
+		CRUDBase: &CRUDBase{Client: global.ORM},
 	}
 }
 
@@ -54,9 +57,7 @@ type UpdateDictDataRequest struct {
 
 // ListDictDataRequest 字典数据列表请求
 type ListDictDataRequest struct {
-	Page     int    `query:"page" validate:"min=0"`
-	PageSize int    `query:"page_size" validate:"min=0,max=100"`
-	Keyword  string `query:"keyword"`
+	ListRequest
 	DictType string `query:"dict_type"`
 	Status   *int   `query:"status"`
 }
@@ -77,15 +78,11 @@ type DictDataResponse struct {
 }
 
 // ListDictDataResponse 字典数据列表响应
-type ListDictDataResponse struct {
-	Total int                 `json:"total"`
-	Page  int                 `json:"page"`
-	Data  []*DictDataResponse `json:"data"`
-}
+type ListDictDataResponse = ListResponse[*DictDataResponse]
 
 // Create 创建字典数据
 func (s *DictDataService) Create(ctx context.Context, req *CreateDictDataRequest) (*DictDataResponse, error) {
-	builder := s.client.DictData.Create().
+	builder := s.Client.DictData.Create().
 		SetLabel(req.Label).
 		SetValue(req.Value).
 		SetDictType(req.DictType)
@@ -116,32 +113,17 @@ func (s *DictDataService) Create(ctx context.Context, req *CreateDictDataRequest
 
 // Get 获取字典数据详情
 func (s *DictDataService) Get(ctx context.Context, id int) (*DictDataResponse, error) {
-	item, err := s.client.DictData.Query().
-		Where(dictdata.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, ErrDictDataNotFound
-		}
-		return nil, fmt.Errorf("获取字典数据失败: %w", err)
-	}
-
-	return toDictDataResponse(item), nil
+	return GetByID(ctx,
+		func(ctx context.Context) (*ent.DictData, error) {
+			return s.Client.DictData.Query().Where(dictdata.IDEQ(id)).Only(ctx)
+		}, toDictDataResponse, ErrDictDataNotFound, "字典数据")
 }
 
 // List 获取字典数据列表
 func (s *DictDataService) List(ctx context.Context, req *ListDictDataRequest) (*ListDictDataResponse, error) {
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
+	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
-	query := s.client.DictData.Query()
+	query := s.Client.DictData.Query()
 
 	// 关键字搜索
 	if req.Keyword != "" {
@@ -170,31 +152,22 @@ func (s *DictDataService) List(ctx context.Context, req *ListDictDataRequest) (*
 	}
 
 	// 分页查询，按排序字段升序
-	offset := (req.Page - 1) * req.PageSize
-	items, err := query.
-		Offset(offset).
-		Limit(req.PageSize).
-		Order(ent.Asc(dictdata.FieldSort), ent.Desc(dictdata.FieldCreatedAt)).
-		All(ctx)
+	query = query.Order(ent.Asc(dictdata.FieldSort), ent.Desc(dictdata.FieldCreatedAt))
+	if req.PageSize > 0 {
+		offset := (req.Page - 1) * req.PageSize
+		query = query.Offset(offset).Limit(req.PageSize)
+	}
+	items, err := query.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取字典数据列表失败: %w", err)
 	}
 
-	data := make([]*DictDataResponse, 0, len(items))
-	for _, item := range items {
-		data = append(data, toDictDataResponse(item))
-	}
-
-	return &ListDictDataResponse{
-		Total: total,
-		Page:  req.Page,
-		Data:  data,
-	}, nil
+	return BuildList(items, total, req.Page, toDictDataResponse), nil
 }
 
 // GetByType 按字典类型获取启用状态的数据列表（按排序升序）
 func (s *DictDataService) GetByType(ctx context.Context, dictType string) ([]*DictDataResponse, error) {
-	items, err := s.client.DictData.Query().
+	items, err := s.Client.DictData.Query().
 		Where(
 			dictdata.DictTypeEQ(dictType),
 			dictdata.StatusEQ(1),
@@ -215,7 +188,7 @@ func (s *DictDataService) GetByType(ctx context.Context, dictType string) ([]*Di
 
 // Update 更新字典数据
 func (s *DictDataService) Update(ctx context.Context, id int, req *UpdateDictDataRequest) error {
-	item, err := s.client.DictData.Query().
+	item, err := s.Client.DictData.Query().
 		Where(dictdata.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -225,7 +198,7 @@ func (s *DictDataService) Update(ctx context.Context, id int, req *UpdateDictDat
 		return fmt.Errorf("查询字典数据失败: %w", err)
 	}
 
-	update := s.client.DictData.UpdateOne(item)
+	update := s.Client.DictData.UpdateOne(item)
 
 	if req.Label != nil {
 		update.SetLabel(*req.Label)
@@ -261,21 +234,14 @@ func (s *DictDataService) Update(ctx context.Context, id int, req *UpdateDictDat
 
 // Delete 删除字典数据
 func (s *DictDataService) Delete(ctx context.Context, id int) error {
-	item, err := s.client.DictData.Query().
-		Where(dictdata.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return ErrDictDataNotFound
-		}
-		return fmt.Errorf("查询字典数据失败: %w", err)
-	}
-
-	if err := s.client.DictData.DeleteOne(item).Exec(ctx); err != nil {
-		return fmt.Errorf("删除字典数据失败: %w", err)
-	}
-
-	return nil
+	return DeleteByID(ctx,
+		func(ctx context.Context) (*ent.DictData, error) {
+			return s.Client.DictData.Query().Where(dictdata.IDEQ(id)).Only(ctx)
+		},
+		func(e *ent.DictData) error {
+			return s.Client.DictData.DeleteOne(e).Exec(ctx)
+		},
+		ErrDictDataNotFound, "字典数据")
 }
 
 // toDictDataResponse 转换为响应格式
@@ -294,3 +260,4 @@ func toDictDataResponse(item *ent.DictData) *DictDataResponse {
 		UpdatedAt: item.UpdatedAt,
 	}
 }
+

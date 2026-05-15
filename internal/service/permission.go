@@ -68,8 +68,7 @@ type UpdatePermissionRequest struct {
 
 // ListPermissionsRequest 权限列表请求
 type ListPermissionsRequest struct {
-	Page     int            `query:"page" json:"page" validate:"min=1"`
-	PageSize int            `query:"page_size" json:"page_size" validate:"min=1,max=100"`
+	PaginationRequest
 	Keyword  string         `query:"keyword" json:"keyword"`
 	Type     PermissionType `query:"type" json:"type"`
 	Domain   string         `query:"domain" json:"domain"`
@@ -88,11 +87,7 @@ type PermissionResponse struct {
 }
 
 // ListPermissionsResponse 权限列表响应
-type ListPermissionsResponse struct {
-	Total int                   `json:"total"`
-	Page  int                   `json:"page"`
-	Data  []*PermissionResponse `json:"data"`
-}
+type ListPermissionsResponse = ListResponse[*PermissionResponse]
 
 // SaveRolePermissionsRequest 保存角色权限请求
 type SaveRolePermissionsRequest struct {
@@ -496,11 +491,11 @@ func (s *PermissionService) ListPermissions(ctx context.Context, req *ListPermis
 	}
 
 	// 分页查询
-	offset := (req.Page - 1) * req.PageSize
-	permissions, err := query.
-		Offset(offset).
-		Limit(req.PageSize).
-		All(ctx)
+	if req.PageSize > 0 {
+		offset := (req.Page - 1) * req.PageSize
+		query = query.Offset(offset).Limit(req.PageSize)
+	}
+	permissions, err := query.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}

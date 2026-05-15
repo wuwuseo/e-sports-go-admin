@@ -12,6 +12,9 @@ type Attachment func(*sql.Selector)
 // AttachmentGroup is the predicate function for attachmentgroup builders.
 type AttachmentGroup func(*sql.Selector)
 
+// Blacklist is the predicate function for blacklist builders.
+type Blacklist func(*sql.Selector)
+
 // CasbinRule is the predicate function for casbinrule builders.
 type CasbinRule func(*sql.Selector)
 
@@ -32,6 +35,9 @@ type SystemConfig func(*sql.Selector)
 
 // SystemPermission is the predicate function for systempermission builders.
 type SystemPermission func(*sql.Selector)
+
+// ThirdPartyUser is the predicate function for thirdpartyuser builders.
+type ThirdPartyUser func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

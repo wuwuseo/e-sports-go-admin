@@ -470,7 +470,7 @@ func (s *AttachmentService) mergeChunks(ctx context.Context, session *chunkSessi
 	}
 
 	// 创建数据库记录
-	builder := s.client.Attachment.Create().
+	builder := s.Client.Attachment.Create().
 		SetName(session.Filename).
 		SetOriginalName(session.Filename).
 		SetPath(key).

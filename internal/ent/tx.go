@@ -16,6 +16,8 @@ type Tx struct {
 	Attachment *AttachmentClient
 	// AttachmentGroup is the client for interacting with the AttachmentGroup builders.
 	AttachmentGroup *AttachmentGroupClient
+	// Blacklist is the client for interacting with the Blacklist builders.
+	Blacklist *BlacklistClient
 	// CasbinRule is the client for interacting with the CasbinRule builders.
 	CasbinRule *CasbinRuleClient
 	// CronJob is the client for interacting with the CronJob builders.
@@ -30,6 +32,8 @@ type Tx struct {
 	SystemConfig *SystemConfigClient
 	// SystemPermission is the client for interacting with the SystemPermission builders.
 	SystemPermission *SystemPermissionClient
+	// ThirdPartyUser is the client for interacting with the ThirdPartyUser builders.
+	ThirdPartyUser *ThirdPartyUserClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserRole is the client for interacting with the UserRole builders.
@@ -167,6 +171,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Attachment = NewAttachmentClient(tx.config)
 	tx.AttachmentGroup = NewAttachmentGroupClient(tx.config)
+	tx.Blacklist = NewBlacklistClient(tx.config)
 	tx.CasbinRule = NewCasbinRuleClient(tx.config)
 	tx.CronJob = NewCronJobClient(tx.config)
 	tx.DictData = NewDictDataClient(tx.config)
@@ -174,6 +179,7 @@ func (tx *Tx) init() {
 	tx.Role = NewRoleClient(tx.config)
 	tx.SystemConfig = NewSystemConfigClient(tx.config)
 	tx.SystemPermission = NewSystemPermissionClient(tx.config)
+	tx.ThirdPartyUser = NewThirdPartyUserClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.UserRole = NewUserRoleClient(tx.config)
 }

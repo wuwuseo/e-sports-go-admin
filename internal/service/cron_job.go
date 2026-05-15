@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"context"
@@ -43,15 +43,17 @@ type CronJobServiceInterface interface {
 
 // CronJobService 定时任务服务
 type CronJobService struct {
-	client  *ent.Client
+	*CRUDBase
 	manager *cron.CronManager
 }
+
+var _ CRUD[CreateCronJobRequest, UpdateCronJobRequest, ListCronJobsRequest, CronJobResponse] = (*CronJobService)(nil)
 
 // NewCronJobService 创建定时任务服务
 func NewCronJobService(manager *cron.CronManager) *CronJobService {
 	return &CronJobService{
-		client:  global.ORM,
-		manager: manager,
+		CRUDBase: &CRUDBase{Client: global.ORM},
+		manager:  manager,
 	}
 }
 
@@ -76,11 +78,9 @@ type UpdateCronJobRequest struct {
 
 // ListCronJobsRequest 定时任务列表请求
 type ListCronJobsRequest struct {
-	Page     int    `query:"page" validate:"min=0"`
-	PageSize int    `query:"page_size" validate:"min=0,max=100"`
-	Keyword  string `query:"keyword"`
-	Type     string `query:"type"`
-	Enabled  *bool  `query:"enabled"`
+	ListRequest
+	Type    string `query:"type"`
+	Enabled *bool  `query:"enabled"`
 }
 
 // CronJobResponse 定时任务响应
@@ -99,11 +99,7 @@ type CronJobResponse struct {
 }
 
 // ListCronJobsResponse 定时任务列表响应
-type ListCronJobsResponse struct {
-	Total int                `json:"total"`
-	Page  int                `json:"page"`
-	Data  []*CronJobResponse `json:"data"`
-}
+type ListCronJobsResponse = ListResponse[*CronJobResponse]
 
 // Create 创建定时任务
 func (s *CronJobService) Create(ctx context.Context, req *CreateCronJobRequest) (*CronJobResponse, error) {
@@ -121,7 +117,7 @@ func (s *CronJobService) Create(ctx context.Context, req *CreateCronJobRequest) 
 	}
 
 	// 检查名称唯一性
-	exists, err := s.client.CronJob.Query().
+	exists, err := s.Client.CronJob.Query().
 		Where(cronjob.NameEQ(req.Name)).
 		Exist(ctx)
 	if err != nil {
@@ -132,7 +128,7 @@ func (s *CronJobService) Create(ctx context.Context, req *CreateCronJobRequest) 
 	}
 
 	// 创建 DB 记录
-	builder := s.client.CronJob.Create().
+	builder := s.Client.CronJob.Create().
 		SetName(req.Name).
 		SetType(cronjob.Type(req.Type)).
 		SetExpression(req.Expression).
@@ -166,7 +162,7 @@ func (s *CronJobService) Create(ctx context.Context, req *CreateCronJobRequest) 
 
 // Update 更新定时任务
 func (s *CronJobService) Update(ctx context.Context, id int, req *UpdateCronJobRequest) error {
-	job, err := s.client.CronJob.Query().
+	job, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -176,11 +172,11 @@ func (s *CronJobService) Update(ctx context.Context, id int, req *UpdateCronJobR
 		return fmt.Errorf("查询定时任务失败: %w", err)
 	}
 
-	update := s.client.CronJob.UpdateOne(job)
+	update := s.Client.CronJob.UpdateOne(job)
 
 	if req.Name != nil {
 		// 检查名称唯一性
-		exists, err := s.client.CronJob.Query().
+		exists, err := s.Client.CronJob.Query().
 			Where(cronjob.NameEQ(*req.Name), cronjob.IDNEQ(id)).
 			Exist(ctx)
 		if err != nil {
@@ -233,7 +229,7 @@ func (s *CronJobService) Update(ctx context.Context, id int, req *UpdateCronJobR
 	if job.Enabled {
 		s.manager.RemoveJob(id)
 		// 重新查询更新后的 job
-		updatedJob, err := s.client.CronJob.Query().
+		updatedJob, err := s.Client.CronJob.Query().
 			Where(cronjob.IDEQ(id)).
 			Only(ctx)
 		if err == nil {
@@ -248,47 +244,31 @@ func (s *CronJobService) Update(ctx context.Context, id int, req *UpdateCronJobR
 
 // Delete 删除定时任务
 func (s *CronJobService) Delete(ctx context.Context, id int) error {
-	job, err := s.client.CronJob.Query().
-		Where(cronjob.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return ErrCronJobNotFound
-		}
-		return fmt.Errorf("查询定时任务失败: %w", err)
-	}
-
-	// 从调度器移除
 	s.manager.RemoveJob(id)
 
-	// 删除 DB 记录
-	if err := s.client.CronJob.DeleteOne(job).Exec(ctx); err != nil {
-		return fmt.Errorf("删除定时任务失败: %w", err)
-	}
-
-	return nil
+	return DeleteByID(ctx,
+		func(ctx context.Context) (*ent.CronJob, error) {
+			return s.Client.CronJob.Query().Where(cronjob.IDEQ(id)).Only(ctx)
+		},
+		func(e *ent.CronJob) error {
+			return s.Client.CronJob.DeleteOne(e).Exec(ctx)
+		},
+		ErrCronJobNotFound, "定时任务")
 }
 
 // Get 获取定时任务详情
 func (s *CronJobService) Get(ctx context.Context, id int) (*CronJobResponse, error) {
-	job, err := s.client.CronJob.Query().
-		Where(cronjob.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, ErrCronJobNotFound
-		}
-		return nil, fmt.Errorf("获取定时任务失败: %w", err)
-	}
-
-	return s.toCronJobResponse(job), nil
+	return GetByID(ctx,
+		func(ctx context.Context) (*ent.CronJob, error) {
+			return s.Client.CronJob.Query().Where(cronjob.IDEQ(id)).Only(ctx)
+		}, s.toCronJobResponse, ErrCronJobNotFound, "定时任务")
 }
 
 // List 获取定时任务列表
 func (s *CronJobService) List(ctx context.Context, req *ListCronJobsRequest) (*ListCronJobsResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
-	query := s.client.CronJob.Query()
+	query := s.Client.CronJob.Query()
 
 	// 关键字搜索
 	if req.Keyword != "" {
@@ -318,31 +298,22 @@ func (s *CronJobService) List(ctx context.Context, req *ListCronJobsRequest) (*L
 	}
 
 	// 分页查询
-	offset := (req.Page - 1) * req.PageSize
-	jobs, err := query.
-		Offset(offset).
-		Limit(req.PageSize).
-		Order(ent.Desc(cronjob.FieldCreatedAt)).
-		All(ctx)
+	query = query.Order(ent.Desc(cronjob.FieldCreatedAt))
+	if req.PageSize > 0 {
+		offset := (req.Page - 1) * req.PageSize
+		query = query.Offset(offset).Limit(req.PageSize)
+	}
+	jobs, err := query.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取定时任务列表失败: %w", err)
 	}
 
-	data := make([]*CronJobResponse, 0, len(jobs))
-	for _, job := range jobs {
-		data = append(data, s.toCronJobResponse(job))
-	}
-
-	return &ListCronJobsResponse{
-		Total: total,
-		Page:  req.Page,
-		Data:  data,
-	}, nil
+	return BuildList(jobs, total, req.Page, s.toCronJobResponse), nil
 }
 
 // Enable 启用定时任务
 func (s *CronJobService) Enable(ctx context.Context, id int) error {
-	job, err := s.client.CronJob.Query().
+	job, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -356,14 +327,14 @@ func (s *CronJobService) Enable(ctx context.Context, id int) error {
 		return nil
 	}
 
-	if _, err := s.client.CronJob.UpdateOne(job).
+	if _, err := s.Client.CronJob.UpdateOne(job).
 		SetEnabled(true).
 		Save(ctx); err != nil {
 		return fmt.Errorf("启用定时任务失败: %w", err)
 	}
 
 	// 重新查询并注册到调度器
-	updatedJob, err := s.client.CronJob.Query().
+	updatedJob, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Only(ctx)
 	if err == nil {
@@ -375,7 +346,7 @@ func (s *CronJobService) Enable(ctx context.Context, id int) error {
 
 // Disable 禁用定时任务
 func (s *CronJobService) Disable(ctx context.Context, id int) error {
-	job, err := s.client.CronJob.Query().
+	job, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -389,7 +360,7 @@ func (s *CronJobService) Disable(ctx context.Context, id int) error {
 		return nil
 	}
 
-	if _, err := s.client.CronJob.UpdateOne(job).
+	if _, err := s.Client.CronJob.UpdateOne(job).
 		SetEnabled(false).
 		ClearNextRunAt().
 		Save(ctx); err != nil {
@@ -405,7 +376,7 @@ func (s *CronJobService) Disable(ctx context.Context, id int) error {
 // RunNow 立即执行定时任务
 func (s *CronJobService) RunNow(ctx context.Context, id int) error {
 	// 验证任务存在
-	exists, err := s.client.CronJob.Query().
+	exists, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Exist(ctx)
 	if err != nil {
@@ -421,7 +392,7 @@ func (s *CronJobService) RunNow(ctx context.Context, id int) error {
 // GetLogs 获取定时任务日志列表
 func (s *CronJobService) GetLogs(ctx context.Context, id int) ([]cron.LogFileInfo, error) {
 	// 验证任务存在
-	exists, err := s.client.CronJob.Query().
+	exists, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Exist(ctx)
 	if err != nil {
@@ -437,7 +408,7 @@ func (s *CronJobService) GetLogs(ctx context.Context, id int) ([]cron.LogFileInf
 // GetLogContent 获取指定日志文件内容
 func (s *CronJobService) GetLogContent(ctx context.Context, id int, filename string) (string, error) {
 	// 验证任务存在
-	exists, err := s.client.CronJob.Query().
+	exists, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Exist(ctx)
 	if err != nil {
@@ -453,7 +424,7 @@ func (s *CronJobService) GetLogContent(ctx context.Context, id int, filename str
 // TailLog 读取最新日志的最后 N 行
 func (s *CronJobService) TailLog(ctx context.Context, id int, lines int) (string, error) {
 	// 验证任务存在
-	exists, err := s.client.CronJob.Query().
+	exists, err := s.Client.CronJob.Query().
 		Where(cronjob.IDEQ(id)).
 		Exist(ctx)
 	if err != nil {

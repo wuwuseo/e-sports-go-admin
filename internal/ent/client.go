@@ -13,6 +13,7 @@ import (
 
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
+	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
@@ -20,6 +21,7 @@ import (
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
+	"go-admin/internal/ent/thirdpartyuser"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 
@@ -38,6 +40,8 @@ type Client struct {
 	Attachment *AttachmentClient
 	// AttachmentGroup is the client for interacting with the AttachmentGroup builders.
 	AttachmentGroup *AttachmentGroupClient
+	// Blacklist is the client for interacting with the Blacklist builders.
+	Blacklist *BlacklistClient
 	// CasbinRule is the client for interacting with the CasbinRule builders.
 	CasbinRule *CasbinRuleClient
 	// CronJob is the client for interacting with the CronJob builders.
@@ -52,6 +56,8 @@ type Client struct {
 	SystemConfig *SystemConfigClient
 	// SystemPermission is the client for interacting with the SystemPermission builders.
 	SystemPermission *SystemPermissionClient
+	// ThirdPartyUser is the client for interacting with the ThirdPartyUser builders.
+	ThirdPartyUser *ThirdPartyUserClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// UserRole is the client for interacting with the UserRole builders.
@@ -69,6 +75,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Attachment = NewAttachmentClient(c.config)
 	c.AttachmentGroup = NewAttachmentGroupClient(c.config)
+	c.Blacklist = NewBlacklistClient(c.config)
 	c.CasbinRule = NewCasbinRuleClient(c.config)
 	c.CronJob = NewCronJobClient(c.config)
 	c.DictData = NewDictDataClient(c.config)
@@ -76,6 +83,7 @@ func (c *Client) init() {
 	c.Role = NewRoleClient(c.config)
 	c.SystemConfig = NewSystemConfigClient(c.config)
 	c.SystemPermission = NewSystemPermissionClient(c.config)
+	c.ThirdPartyUser = NewThirdPartyUserClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.UserRole = NewUserRoleClient(c.config)
 }
@@ -172,6 +180,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:           cfg,
 		Attachment:       NewAttachmentClient(cfg),
 		AttachmentGroup:  NewAttachmentGroupClient(cfg),
+		Blacklist:        NewBlacklistClient(cfg),
 		CasbinRule:       NewCasbinRuleClient(cfg),
 		CronJob:          NewCronJobClient(cfg),
 		DictData:         NewDictDataClient(cfg),
@@ -179,6 +188,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Role:             NewRoleClient(cfg),
 		SystemConfig:     NewSystemConfigClient(cfg),
 		SystemPermission: NewSystemPermissionClient(cfg),
+		ThirdPartyUser:   NewThirdPartyUserClient(cfg),
 		User:             NewUserClient(cfg),
 		UserRole:         NewUserRoleClient(cfg),
 	}, nil
@@ -202,6 +212,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:           cfg,
 		Attachment:       NewAttachmentClient(cfg),
 		AttachmentGroup:  NewAttachmentGroupClient(cfg),
+		Blacklist:        NewBlacklistClient(cfg),
 		CasbinRule:       NewCasbinRuleClient(cfg),
 		CronJob:          NewCronJobClient(cfg),
 		DictData:         NewDictDataClient(cfg),
@@ -209,6 +220,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Role:             NewRoleClient(cfg),
 		SystemConfig:     NewSystemConfigClient(cfg),
 		SystemPermission: NewSystemPermissionClient(cfg),
+		ThirdPartyUser:   NewThirdPartyUserClient(cfg),
 		User:             NewUserClient(cfg),
 		UserRole:         NewUserRoleClient(cfg),
 	}, nil
@@ -240,8 +252,9 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.DictData,
-		c.OperationLog, c.Role, c.SystemConfig, c.SystemPermission, c.User, c.UserRole,
+		c.Attachment, c.AttachmentGroup, c.Blacklist, c.CasbinRule, c.CronJob,
+		c.DictData, c.OperationLog, c.Role, c.SystemConfig, c.SystemPermission,
+		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -251,8 +264,9 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Attachment, c.AttachmentGroup, c.CasbinRule, c.CronJob, c.DictData,
-		c.OperationLog, c.Role, c.SystemConfig, c.SystemPermission, c.User, c.UserRole,
+		c.Attachment, c.AttachmentGroup, c.Blacklist, c.CasbinRule, c.CronJob,
+		c.DictData, c.OperationLog, c.Role, c.SystemConfig, c.SystemPermission,
+		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -265,6 +279,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Attachment.mutate(ctx, m)
 	case *AttachmentGroupMutation:
 		return c.AttachmentGroup.mutate(ctx, m)
+	case *BlacklistMutation:
+		return c.Blacklist.mutate(ctx, m)
 	case *CasbinRuleMutation:
 		return c.CasbinRule.mutate(ctx, m)
 	case *CronJobMutation:
@@ -279,6 +295,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SystemConfig.mutate(ctx, m)
 	case *SystemPermissionMutation:
 		return c.SystemPermission.mutate(ctx, m)
+	case *ThirdPartyUserMutation:
+		return c.ThirdPartyUser.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	case *UserRoleMutation:
@@ -583,6 +601,155 @@ func (c *AttachmentGroupClient) mutate(ctx context.Context, m *AttachmentGroupMu
 		return (&AttachmentGroupDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AttachmentGroup mutation op: %q", m.Op())
+	}
+}
+
+// BlacklistClient is a client for the Blacklist schema.
+type BlacklistClient struct {
+	config
+}
+
+// NewBlacklistClient returns a client for the Blacklist from the given config.
+func NewBlacklistClient(c config) *BlacklistClient {
+	return &BlacklistClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `blacklist.Hooks(f(g(h())))`.
+func (c *BlacklistClient) Use(hooks ...Hook) {
+	c.hooks.Blacklist = append(c.hooks.Blacklist, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `blacklist.Intercept(f(g(h())))`.
+func (c *BlacklistClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Blacklist = append(c.inters.Blacklist, interceptors...)
+}
+
+// Create returns a builder for creating a Blacklist entity.
+func (c *BlacklistClient) Create() *BlacklistCreate {
+	mutation := newBlacklistMutation(c.config, OpCreate)
+	return &BlacklistCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Blacklist entities.
+func (c *BlacklistClient) CreateBulk(builders ...*BlacklistCreate) *BlacklistCreateBulk {
+	return &BlacklistCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BlacklistClient) MapCreateBulk(slice any, setFunc func(*BlacklistCreate, int)) *BlacklistCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BlacklistCreateBulk{err: fmt.Errorf("calling to BlacklistClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BlacklistCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BlacklistCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Blacklist.
+func (c *BlacklistClient) Update() *BlacklistUpdate {
+	mutation := newBlacklistMutation(c.config, OpUpdate)
+	return &BlacklistUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BlacklistClient) UpdateOne(_m *Blacklist) *BlacklistUpdateOne {
+	mutation := newBlacklistMutation(c.config, OpUpdateOne, withBlacklist(_m))
+	return &BlacklistUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BlacklistClient) UpdateOneID(id int) *BlacklistUpdateOne {
+	mutation := newBlacklistMutation(c.config, OpUpdateOne, withBlacklistID(id))
+	return &BlacklistUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Blacklist.
+func (c *BlacklistClient) Delete() *BlacklistDelete {
+	mutation := newBlacklistMutation(c.config, OpDelete)
+	return &BlacklistDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BlacklistClient) DeleteOne(_m *Blacklist) *BlacklistDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BlacklistClient) DeleteOneID(id int) *BlacklistDeleteOne {
+	builder := c.Delete().Where(blacklist.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BlacklistDeleteOne{builder}
+}
+
+// Query returns a query builder for Blacklist.
+func (c *BlacklistClient) Query() *BlacklistQuery {
+	return &BlacklistQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBlacklist},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Blacklist entity by its id.
+func (c *BlacklistClient) Get(ctx context.Context, id int) (*Blacklist, error) {
+	return c.Query().Where(blacklist.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BlacklistClient) GetX(ctx context.Context, id int) *Blacklist {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a Blacklist.
+func (c *BlacklistClient) QueryUser(_m *Blacklist) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(blacklist.Table, blacklist.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, blacklist.UserTable, blacklist.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *BlacklistClient) Hooks() []Hook {
+	return c.hooks.Blacklist
+}
+
+// Interceptors returns the client interceptors.
+func (c *BlacklistClient) Interceptors() []Interceptor {
+	return c.inters.Blacklist
+}
+
+func (c *BlacklistClient) mutate(ctx context.Context, m *BlacklistMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BlacklistCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BlacklistUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BlacklistUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BlacklistDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Blacklist mutation op: %q", m.Op())
 	}
 }
 
@@ -1517,6 +1684,155 @@ func (c *SystemPermissionClient) mutate(ctx context.Context, m *SystemPermission
 	}
 }
 
+// ThirdPartyUserClient is a client for the ThirdPartyUser schema.
+type ThirdPartyUserClient struct {
+	config
+}
+
+// NewThirdPartyUserClient returns a client for the ThirdPartyUser from the given config.
+func NewThirdPartyUserClient(c config) *ThirdPartyUserClient {
+	return &ThirdPartyUserClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `thirdpartyuser.Hooks(f(g(h())))`.
+func (c *ThirdPartyUserClient) Use(hooks ...Hook) {
+	c.hooks.ThirdPartyUser = append(c.hooks.ThirdPartyUser, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `thirdpartyuser.Intercept(f(g(h())))`.
+func (c *ThirdPartyUserClient) Intercept(interceptors ...Interceptor) {
+	c.inters.ThirdPartyUser = append(c.inters.ThirdPartyUser, interceptors...)
+}
+
+// Create returns a builder for creating a ThirdPartyUser entity.
+func (c *ThirdPartyUserClient) Create() *ThirdPartyUserCreate {
+	mutation := newThirdPartyUserMutation(c.config, OpCreate)
+	return &ThirdPartyUserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of ThirdPartyUser entities.
+func (c *ThirdPartyUserClient) CreateBulk(builders ...*ThirdPartyUserCreate) *ThirdPartyUserCreateBulk {
+	return &ThirdPartyUserCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *ThirdPartyUserClient) MapCreateBulk(slice any, setFunc func(*ThirdPartyUserCreate, int)) *ThirdPartyUserCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &ThirdPartyUserCreateBulk{err: fmt.Errorf("calling to ThirdPartyUserClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*ThirdPartyUserCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &ThirdPartyUserCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for ThirdPartyUser.
+func (c *ThirdPartyUserClient) Update() *ThirdPartyUserUpdate {
+	mutation := newThirdPartyUserMutation(c.config, OpUpdate)
+	return &ThirdPartyUserUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *ThirdPartyUserClient) UpdateOne(_m *ThirdPartyUser) *ThirdPartyUserUpdateOne {
+	mutation := newThirdPartyUserMutation(c.config, OpUpdateOne, withThirdPartyUser(_m))
+	return &ThirdPartyUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *ThirdPartyUserClient) UpdateOneID(id int) *ThirdPartyUserUpdateOne {
+	mutation := newThirdPartyUserMutation(c.config, OpUpdateOne, withThirdPartyUserID(id))
+	return &ThirdPartyUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for ThirdPartyUser.
+func (c *ThirdPartyUserClient) Delete() *ThirdPartyUserDelete {
+	mutation := newThirdPartyUserMutation(c.config, OpDelete)
+	return &ThirdPartyUserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *ThirdPartyUserClient) DeleteOne(_m *ThirdPartyUser) *ThirdPartyUserDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *ThirdPartyUserClient) DeleteOneID(id int) *ThirdPartyUserDeleteOne {
+	builder := c.Delete().Where(thirdpartyuser.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &ThirdPartyUserDeleteOne{builder}
+}
+
+// Query returns a query builder for ThirdPartyUser.
+func (c *ThirdPartyUserClient) Query() *ThirdPartyUserQuery {
+	return &ThirdPartyUserQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeThirdPartyUser},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a ThirdPartyUser entity by its id.
+func (c *ThirdPartyUserClient) Get(ctx context.Context, id int) (*ThirdPartyUser, error) {
+	return c.Query().Where(thirdpartyuser.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *ThirdPartyUserClient) GetX(ctx context.Context, id int) *ThirdPartyUser {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a ThirdPartyUser.
+func (c *ThirdPartyUserClient) QueryUser(_m *ThirdPartyUser) *UserQuery {
+	query := (&UserClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(thirdpartyuser.Table, thirdpartyuser.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, thirdpartyuser.UserTable, thirdpartyuser.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *ThirdPartyUserClient) Hooks() []Hook {
+	return c.hooks.ThirdPartyUser
+}
+
+// Interceptors returns the client interceptors.
+func (c *ThirdPartyUserClient) Interceptors() []Interceptor {
+	return c.inters.ThirdPartyUser
+}
+
+func (c *ThirdPartyUserClient) mutate(ctx context.Context, m *ThirdPartyUserMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&ThirdPartyUserCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&ThirdPartyUserUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&ThirdPartyUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&ThirdPartyUserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown ThirdPartyUser mutation op: %q", m.Op())
+	}
+}
+
 // UserClient is a client for the User schema.
 type UserClient struct {
 	config
@@ -1818,11 +2134,13 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Attachment, AttachmentGroup, CasbinRule, CronJob, DictData, OperationLog, Role,
-		SystemConfig, SystemPermission, User, UserRole []ent.Hook
+		Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob, DictData,
+		OperationLog, Role, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Hook
 	}
 	inters struct {
-		Attachment, AttachmentGroup, CasbinRule, CronJob, DictData, OperationLog, Role,
-		SystemConfig, SystemPermission, User, UserRole []ent.Interceptor
+		Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob, DictData,
+		OperationLog, Role, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Interceptor
 	}
 )

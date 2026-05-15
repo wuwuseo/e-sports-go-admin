@@ -62,6 +62,20 @@ func (_c *UserRoleCreate) SetRoleID(v int) *UserRoleCreate {
 	return _c
 }
 
+// SetIsPrimary sets the "is_primary" field.
+func (_c *UserRoleCreate) SetIsPrimary(v bool) *UserRoleCreate {
+	_c.mutation.SetIsPrimary(v)
+	return _c
+}
+
+// SetNillableIsPrimary sets the "is_primary" field if the given value is not nil.
+func (_c *UserRoleCreate) SetNillableIsPrimary(v *bool) *UserRoleCreate {
+	if v != nil {
+		_c.SetIsPrimary(*v)
+	}
+	return _c
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_c *UserRoleCreate) SetCreatedBy(v string) *UserRoleCreate {
 	_c.mutation.SetCreatedBy(v)
@@ -135,6 +149,10 @@ func (_c *UserRoleCreate) defaults() {
 		v := userrole.DefaultUpdateTime()
 		_c.mutation.SetUpdateTime(v)
 	}
+	if _, ok := _c.mutation.IsPrimary(); !ok {
+		v := userrole.DefaultIsPrimary
+		_c.mutation.SetIsPrimary(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -150,6 +168,9 @@ func (_c *UserRoleCreate) check() error {
 	}
 	if _, ok := _c.mutation.RoleID(); !ok {
 		return &ValidationError{Name: "role_id", err: errors.New(`ent: missing required field "UserRole.role_id"`)}
+	}
+	if _, ok := _c.mutation.IsPrimary(); !ok {
+		return &ValidationError{Name: "is_primary", err: errors.New(`ent: missing required field "UserRole.is_primary"`)}
 	}
 	if v, ok := _c.mutation.CreatedBy(); ok {
 		if err := userrole.CreatedByValidator(v); err != nil {
@@ -201,6 +222,10 @@ func (_c *UserRoleCreate) createSpec() (*UserRole, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdateTime(); ok {
 		_spec.SetField(userrole.FieldUpdateTime, field.TypeTime, value)
 		_node.UpdateTime = value
+	}
+	if value, ok := _c.mutation.IsPrimary(); ok {
+		_spec.SetField(userrole.FieldIsPrimary, field.TypeBool, value)
+		_node.IsPrimary = value
 	}
 	if value, ok := _c.mutation.CreatedBy(); ok {
 		_spec.SetField(userrole.FieldCreatedBy, field.TypeString, value)

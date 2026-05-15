@@ -24,6 +24,10 @@ func (UserRole) Fields() []ent.Field {
 			Comment("用户ID"),
 		field.Int("role_id").
 			Comment("角色ID"),
+		field.Bool("is_primary").
+			Default(false).
+			StructTag(`json:"is_primary"`).
+			Comment("是否为主角色"),
 		field.String("created_by").
 			Optional().
 			MaxLen(255).
@@ -45,6 +49,7 @@ func (UserRole) Indexes() []ent.Index {
 		index.Fields("user_id", "role_id").Unique(),
 		index.Fields("user_id"),
 		index.Fields("role_id"),
+		index.Fields("user_id", "is_primary"),
 	}
 }
 

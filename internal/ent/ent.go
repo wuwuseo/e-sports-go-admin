@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
+	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
@@ -15,6 +16,7 @@ import (
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
+	"go-admin/internal/ent/thirdpartyuser"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"reflect"
@@ -85,6 +87,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			attachment.Table:       attachment.ValidColumn,
 			attachmentgroup.Table:  attachmentgroup.ValidColumn,
+			blacklist.Table:        blacklist.ValidColumn,
 			casbinrule.Table:       casbinrule.ValidColumn,
 			cronjob.Table:          cronjob.ValidColumn,
 			dictdata.Table:         dictdata.ValidColumn,
@@ -92,6 +95,7 @@ func checkColumn(t, c string) error {
 			role.Table:             role.ValidColumn,
 			systemconfig.Table:     systemconfig.ValidColumn,
 			systempermission.Table: systempermission.ValidColumn,
+			thirdpartyuser.Table:   thirdpartyuser.ValidColumn,
 			user.Table:             user.ValidColumn,
 			userrole.Table:         userrole.ValidColumn,
 		})

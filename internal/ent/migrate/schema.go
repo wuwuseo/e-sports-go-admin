@@ -71,6 +71,36 @@ var (
 		Columns:    AttachmentGroupsColumns,
 		PrimaryKey: []*schema.Column{AttachmentGroupsColumns[0]},
 	}
+	// BlacklistsColumns holds the columns for the "blacklists" table.
+	BlacklistsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "reason", Type: field.TypeString, Size: 500},
+		{Name: "operator_id", Type: field.TypeString, Size: 255},
+		{Name: "operator_name", Type: field.TypeString, Size: 255},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeInt},
+	}
+	// BlacklistsTable holds the schema information for the "blacklists" table.
+	BlacklistsTable = &schema.Table{
+		Name:       TablePrefix + "blacklists",
+		Columns:    BlacklistsColumns,
+		PrimaryKey: []*schema.Column{BlacklistsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "blacklists_users_user",
+				Columns:    []*schema.Column{BlacklistsColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "blacklist_user_id",
+				Unique:  true,
+				Columns: []*schema.Column{BlacklistsColumns[5]},
+			},
+		},
+	}
 	// CasbinRulesColumns holds the columns for the "casbin_rules" table.
 	CasbinRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -314,6 +344,60 @@ var (
 			},
 		},
 	}
+	// ThirdPartyUsersColumns holds the columns for the "third_party_users" table.
+	ThirdPartyUsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "platform", Type: field.TypeString, Size: 50},
+		{Name: "platform_name", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "openid", Type: field.TypeString, Size: 255},
+		{Name: "unionid", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "access_token", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "refresh_token", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "token_expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "nickname", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "avatar_url", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "extra_data", Type: field.TypeJSON, Nullable: true},
+		{Name: "source", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "source_user_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "company", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive"}, Default: "active"},
+		{Name: "last_sync_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "user_id", Type: field.TypeInt},
+	}
+	// ThirdPartyUsersTable holds the schema information for the "third_party_users" table.
+	ThirdPartyUsersTable = &schema.Table{
+		Name:       TablePrefix + "third_party_users",
+		Columns:    ThirdPartyUsersColumns,
+		PrimaryKey: []*schema.Column{ThirdPartyUsersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "third_party_users_users_user",
+				Columns:    []*schema.Column{ThirdPartyUsersColumns[19]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "thirdpartyuser_platform_openid",
+				Unique:  true,
+				Columns: []*schema.Column{ThirdPartyUsersColumns[1], ThirdPartyUsersColumns[3]},
+			},
+			{
+				Name:    "thirdpartyuser_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{ThirdPartyUsersColumns[19]},
+			},
+			{
+				Name:    "thirdpartyuser_platform",
+				Unique:  false,
+				Columns: []*schema.Column{ThirdPartyUsersColumns[1]},
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -360,6 +444,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
+		{Name: "is_primary", Type: field.TypeBool, Default: false},
 		{Name: "created_by", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "user_id", Type: field.TypeInt},
 		{Name: "role_id", Type: field.TypeInt},
@@ -372,13 +457,13 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "user_roles_users_user",
-				Columns:    []*schema.Column{UserRolesColumns[4]},
+				Columns:    []*schema.Column{UserRolesColumns[5]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "user_roles_roles_role",
-				Columns:    []*schema.Column{UserRolesColumns[5]},
+				Columns:    []*schema.Column{UserRolesColumns[6]},
 				RefColumns: []*schema.Column{RolesColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -387,17 +472,22 @@ var (
 			{
 				Name:    "userrole_user_id_role_id",
 				Unique:  true,
-				Columns: []*schema.Column{UserRolesColumns[4], UserRolesColumns[5]},
+				Columns: []*schema.Column{UserRolesColumns[5], UserRolesColumns[6]},
 			},
 			{
 				Name:    "userrole_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserRolesColumns[4]},
+				Columns: []*schema.Column{UserRolesColumns[5]},
 			},
 			{
 				Name:    "userrole_role_id",
 				Unique:  false,
-				Columns: []*schema.Column{UserRolesColumns[5]},
+				Columns: []*schema.Column{UserRolesColumns[6]},
+			},
+			{
+				Name:    "userrole_user_id_is_primary",
+				Unique:  false,
+				Columns: []*schema.Column{UserRolesColumns[5], UserRolesColumns[3]},
 			},
 		},
 	}
@@ -405,6 +495,7 @@ var (
 	Tables = []*schema.Table{
 		AttachmentsTable,
 		AttachmentGroupsTable,
+		BlacklistsTable,
 		CasbinRulesTable,
 		CronJobsTable,
 		DictDataTable,
@@ -412,6 +503,7 @@ var (
 		RolesTable,
 		SystemConfigsTable,
 		SystemPermissionsTable,
+		ThirdPartyUsersTable,
 		UsersTable,
 		UserRolesTable,
 	}
@@ -419,6 +511,8 @@ var (
 
 func init() {
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
+	BlacklistsTable.ForeignKeys[0].RefTable = UsersTable
+	ThirdPartyUsersTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[1].RefTable = RolesTable
 }

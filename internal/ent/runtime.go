@@ -5,6 +5,7 @@ package ent
 import (
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
+	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
@@ -13,6 +14,7 @@ import (
 	"go-admin/internal/ent/schema"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
+	"go-admin/internal/ent/thirdpartyuser"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"time"
@@ -134,6 +136,66 @@ func init() {
 	attachmentgroup.DefaultUpdatedAt = attachmentgroupDescUpdatedAt.Default.(func() time.Time)
 	// attachmentgroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	attachmentgroup.UpdateDefaultUpdatedAt = attachmentgroupDescUpdatedAt.UpdateDefault.(func() time.Time)
+	blacklistFields := schema.Blacklist{}.Fields()
+	_ = blacklistFields
+	// blacklistDescReason is the schema descriptor for reason field.
+	blacklistDescReason := blacklistFields[2].Descriptor()
+	// blacklist.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	blacklist.ReasonValidator = func() func(string) error {
+		validators := blacklistDescReason.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(reason string) error {
+			for _, fn := range fns {
+				if err := fn(reason); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// blacklistDescOperatorID is the schema descriptor for operator_id field.
+	blacklistDescOperatorID := blacklistFields[3].Descriptor()
+	// blacklist.OperatorIDValidator is a validator for the "operator_id" field. It is called by the builders before save.
+	blacklist.OperatorIDValidator = func() func(string) error {
+		validators := blacklistDescOperatorID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(operator_id string) error {
+			for _, fn := range fns {
+				if err := fn(operator_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// blacklistDescOperatorName is the schema descriptor for operator_name field.
+	blacklistDescOperatorName := blacklistFields[4].Descriptor()
+	// blacklist.OperatorNameValidator is a validator for the "operator_name" field. It is called by the builders before save.
+	blacklist.OperatorNameValidator = func() func(string) error {
+		validators := blacklistDescOperatorName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(operator_name string) error {
+			for _, fn := range fns {
+				if err := fn(operator_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// blacklistDescCreatedAt is the schema descriptor for created_at field.
+	blacklistDescCreatedAt := blacklistFields[5].Descriptor()
+	// blacklist.DefaultCreatedAt holds the default value on creation for the created_at field.
+	blacklist.DefaultCreatedAt = blacklistDescCreatedAt.Default.(func() time.Time)
 	casbinruleFields := schema.CasbinRule{}.Fields()
 	_ = casbinruleFields
 	// casbinruleDescPtype is the schema descriptor for Ptype field.
@@ -615,6 +677,90 @@ func init() {
 	systempermission.DefaultUpdatedAt = systempermissionDescUpdatedAt.Default.(func() time.Time)
 	// systempermission.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	systempermission.UpdateDefaultUpdatedAt = systempermissionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	thirdpartyuserFields := schema.ThirdPartyUser{}.Fields()
+	_ = thirdpartyuserFields
+	// thirdpartyuserDescPlatform is the schema descriptor for platform field.
+	thirdpartyuserDescPlatform := thirdpartyuserFields[2].Descriptor()
+	// thirdpartyuser.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
+	thirdpartyuser.PlatformValidator = func() func(string) error {
+		validators := thirdpartyuserDescPlatform.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(platform string) error {
+			for _, fn := range fns {
+				if err := fn(platform); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// thirdpartyuserDescPlatformName is the schema descriptor for platform_name field.
+	thirdpartyuserDescPlatformName := thirdpartyuserFields[3].Descriptor()
+	// thirdpartyuser.PlatformNameValidator is a validator for the "platform_name" field. It is called by the builders before save.
+	thirdpartyuser.PlatformNameValidator = thirdpartyuserDescPlatformName.Validators[0].(func(string) error)
+	// thirdpartyuserDescOpenid is the schema descriptor for openid field.
+	thirdpartyuserDescOpenid := thirdpartyuserFields[4].Descriptor()
+	// thirdpartyuser.OpenidValidator is a validator for the "openid" field. It is called by the builders before save.
+	thirdpartyuser.OpenidValidator = func() func(string) error {
+		validators := thirdpartyuserDescOpenid.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(openid string) error {
+			for _, fn := range fns {
+				if err := fn(openid); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// thirdpartyuserDescUnionid is the schema descriptor for unionid field.
+	thirdpartyuserDescUnionid := thirdpartyuserFields[5].Descriptor()
+	// thirdpartyuser.UnionidValidator is a validator for the "unionid" field. It is called by the builders before save.
+	thirdpartyuser.UnionidValidator = thirdpartyuserDescUnionid.Validators[0].(func(string) error)
+	// thirdpartyuserDescAccessToken is the schema descriptor for access_token field.
+	thirdpartyuserDescAccessToken := thirdpartyuserFields[6].Descriptor()
+	// thirdpartyuser.AccessTokenValidator is a validator for the "access_token" field. It is called by the builders before save.
+	thirdpartyuser.AccessTokenValidator = thirdpartyuserDescAccessToken.Validators[0].(func(string) error)
+	// thirdpartyuserDescRefreshToken is the schema descriptor for refresh_token field.
+	thirdpartyuserDescRefreshToken := thirdpartyuserFields[7].Descriptor()
+	// thirdpartyuser.RefreshTokenValidator is a validator for the "refresh_token" field. It is called by the builders before save.
+	thirdpartyuser.RefreshTokenValidator = thirdpartyuserDescRefreshToken.Validators[0].(func(string) error)
+	// thirdpartyuserDescNickname is the schema descriptor for nickname field.
+	thirdpartyuserDescNickname := thirdpartyuserFields[9].Descriptor()
+	// thirdpartyuser.NicknameValidator is a validator for the "nickname" field. It is called by the builders before save.
+	thirdpartyuser.NicknameValidator = thirdpartyuserDescNickname.Validators[0].(func(string) error)
+	// thirdpartyuserDescAvatarURL is the schema descriptor for avatar_url field.
+	thirdpartyuserDescAvatarURL := thirdpartyuserFields[10].Descriptor()
+	// thirdpartyuser.AvatarURLValidator is a validator for the "avatar_url" field. It is called by the builders before save.
+	thirdpartyuser.AvatarURLValidator = thirdpartyuserDescAvatarURL.Validators[0].(func(string) error)
+	// thirdpartyuserDescSource is the schema descriptor for source field.
+	thirdpartyuserDescSource := thirdpartyuserFields[12].Descriptor()
+	// thirdpartyuser.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	thirdpartyuser.SourceValidator = thirdpartyuserDescSource.Validators[0].(func(string) error)
+	// thirdpartyuserDescSourceUserID is the schema descriptor for source_user_id field.
+	thirdpartyuserDescSourceUserID := thirdpartyuserFields[13].Descriptor()
+	// thirdpartyuser.SourceUserIDValidator is a validator for the "source_user_id" field. It is called by the builders before save.
+	thirdpartyuser.SourceUserIDValidator = thirdpartyuserDescSourceUserID.Validators[0].(func(string) error)
+	// thirdpartyuserDescCompany is the schema descriptor for company field.
+	thirdpartyuserDescCompany := thirdpartyuserFields[14].Descriptor()
+	// thirdpartyuser.CompanyValidator is a validator for the "company" field. It is called by the builders before save.
+	thirdpartyuser.CompanyValidator = thirdpartyuserDescCompany.Validators[0].(func(string) error)
+	// thirdpartyuserDescCreatedAt is the schema descriptor for created_at field.
+	thirdpartyuserDescCreatedAt := thirdpartyuserFields[18].Descriptor()
+	// thirdpartyuser.DefaultCreatedAt holds the default value on creation for the created_at field.
+	thirdpartyuser.DefaultCreatedAt = thirdpartyuserDescCreatedAt.Default.(func() time.Time)
+	// thirdpartyuserDescUpdatedAt is the schema descriptor for updated_at field.
+	thirdpartyuserDescUpdatedAt := thirdpartyuserFields[19].Descriptor()
+	// thirdpartyuser.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	thirdpartyuser.DefaultUpdatedAt = thirdpartyuserDescUpdatedAt.Default.(func() time.Time)
+	// thirdpartyuser.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	thirdpartyuser.UpdateDefaultUpdatedAt = thirdpartyuserDescUpdatedAt.UpdateDefault.(func() time.Time)
 	userMixin := schema.User{}.Mixin()
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0
@@ -727,8 +873,12 @@ func init() {
 	userrole.DefaultUpdateTime = userroleDescUpdateTime.Default.(func() time.Time)
 	// userrole.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
 	userrole.UpdateDefaultUpdateTime = userroleDescUpdateTime.UpdateDefault.(func() time.Time)
+	// userroleDescIsPrimary is the schema descriptor for is_primary field.
+	userroleDescIsPrimary := userroleFields[3].Descriptor()
+	// userrole.DefaultIsPrimary holds the default value on creation for the is_primary field.
+	userrole.DefaultIsPrimary = userroleDescIsPrimary.Default.(bool)
 	// userroleDescCreatedBy is the schema descriptor for created_by field.
-	userroleDescCreatedBy := userroleFields[3].Descriptor()
+	userroleDescCreatedBy := userroleFields[4].Descriptor()
 	// userrole.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
 	userrole.CreatedByValidator = userroleDescCreatedBy.Validators[0].(func(string) error)
 }

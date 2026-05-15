@@ -47,6 +47,19 @@ const (
 
 	// 操作日志错误码 (5000-5099)
 	ErrCodeOperationLogNotFound = 5001
+
+	// 用户管理错误码 (6000-6099)
+	ResponseUserNotFound         = 6001
+	ResponseUserAlreadyActive    = 6002
+	ResponseUserAlreadyInactive  = 6003
+	ResponseUserBlacklisted      = 6004
+	ResponseUserNotBlacklisted   = 6005
+	ResponseCannotBlacklistSelf  = 6006
+	ResponseCannotDeactivateSelf = 6007
+	ResponseInvalidRoleIDs       = 6008
+	ResponsePrimaryRoleInvalid   = 6009
+	ResponseThirdPartyBound      = 6010
+	ResponseThirdPartyNotFound   = 6011
 )
 
 // ResponseMsg 响应消息映射
@@ -96,4 +109,17 @@ var ResponseMsg = map[int]string{
 
 	// 操作日志错误消息
 	ErrCodeOperationLogNotFound: "操作日志不存在",
+
+	// 用户管理错误消息
+	ResponseUserNotFound:         "用户不存在",
+	ResponseUserAlreadyActive:    "用户当前已处于激活状态",
+	ResponseUserAlreadyInactive:  "用户当前已处于停用状态",
+	ResponseUserBlacklisted:      "该用户已被加入黑名单，请先解除黑名单",
+	ResponseUserNotBlacklisted:   "该用户不在黑名单中",
+	ResponseCannotBlacklistSelf:  "不能将自己加入黑名单",
+	ResponseCannotDeactivateSelf: "不能停用自己的账号",
+	ResponseInvalidRoleIDs:       "包含无效的角色ID",
+	ResponsePrimaryRoleInvalid:   "主角色必须在分配的角色列表内",
+	ResponseThirdPartyBound:      "该第三方账号已被其他用户绑定",
+	ResponseThirdPartyNotFound:   "第三方用户关联不存在",
 }

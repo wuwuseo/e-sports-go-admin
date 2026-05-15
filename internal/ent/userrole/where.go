@@ -75,6 +75,11 @@ func RoleID(v int) predicate.UserRole {
 	return predicate.UserRole(sql.FieldEQ(FieldRoleID, v))
 }
 
+// IsPrimary applies equality check predicate on the "is_primary" field. It's identical to IsPrimaryEQ.
+func IsPrimary(v bool) predicate.UserRole {
+	return predicate.UserRole(sql.FieldEQ(FieldIsPrimary, v))
+}
+
 // CreatedBy applies equality check predicate on the "created_by" field. It's identical to CreatedByEQ.
 func CreatedBy(v string) predicate.UserRole {
 	return predicate.UserRole(sql.FieldEQ(FieldCreatedBy, v))
@@ -198,6 +203,16 @@ func RoleIDIn(vs ...int) predicate.UserRole {
 // RoleIDNotIn applies the NotIn predicate on the "role_id" field.
 func RoleIDNotIn(vs ...int) predicate.UserRole {
 	return predicate.UserRole(sql.FieldNotIn(FieldRoleID, vs...))
+}
+
+// IsPrimaryEQ applies the EQ predicate on the "is_primary" field.
+func IsPrimaryEQ(v bool) predicate.UserRole {
+	return predicate.UserRole(sql.FieldEQ(FieldIsPrimary, v))
+}
+
+// IsPrimaryNEQ applies the NEQ predicate on the "is_primary" field.
+func IsPrimaryNEQ(v bool) predicate.UserRole {
+	return predicate.UserRole(sql.FieldNEQ(FieldIsPrimary, v))
 }
 
 // CreatedByEQ applies the EQ predicate on the "created_by" field.

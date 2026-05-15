@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"context"
@@ -38,14 +38,20 @@ type AttachmentServiceInterface interface {
 
 // AttachmentService 附件服务
 type AttachmentService struct {
-	client     *ent.Client
+	*CRUDBase
 	filesystem *filesystem.Filesystem
 }
+
+var (
+	_ Reader[AttachmentResponse]                         = (*AttachmentService)(nil)
+	_ Lister[ListAttachmentsRequest, AttachmentResponse] = (*AttachmentService)(nil)
+	_ Deletable                                          = (*AttachmentService)(nil)
+)
 
 // NewAttachmentService 创建附件服务实例
 func NewAttachmentService(fs *filesystem.Filesystem) *AttachmentService {
 	return &AttachmentService{
-		client:     global.ORM,
+		CRUDBase:   &CRUDBase{Client: global.ORM},
 		filesystem: fs,
 	}
 }
@@ -67,24 +73,13 @@ type AttachmentResponse struct {
 
 // ListAttachmentsRequest 附件列表请求
 type ListAttachmentsRequest struct {
-	Page     int    `query:"page"`
-	PageSize int    `query:"page_size"`
-	Keyword  string `query:"keyword"`
+	ListRequest
 	GroupID  *int   `query:"group_id"`
 	MimeType string `query:"mime_type"`
 }
 
 // ListAttachmentsResponse 附件列表响应
-type ListAttachmentsResponse struct {
-	Total int                   `json:"total"`
-	Page  int                   `json:"page"`
-	Data  []*AttachmentResponse `json:"data"`
-}
-
-// BatchDeleteRequest 批量删除请求
-type BatchDeleteRequest struct {
-	IDs []int `json:"ids" validate:"required,min=1"`
-}
+type ListAttachmentsResponse = ListResponse[*AttachmentResponse]
 
 // MoveAttachmentRequest 移动附件请求
 type MoveAttachmentRequest struct {
@@ -128,7 +123,7 @@ func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.Fi
 	}
 
 	// 创建数据库记录
-	builder := s.client.Attachment.Create().
+	builder := s.Client.Attachment.Create().
 		SetName(originalName).
 		SetOriginalName(originalName).
 		SetPath(key).
@@ -150,7 +145,7 @@ func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.Fi
 
 // Delete 删除附件
 func (s *AttachmentService) Delete(ctx context.Context, id int) error {
-	a, err := s.client.Attachment.Query().
+	a, err := s.Client.Attachment.Query().
 		Where(attachment.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -164,7 +159,7 @@ func (s *AttachmentService) Delete(ctx context.Context, id int) error {
 	_ = s.filesystem.Delete(a.Path)
 
 	// 删除数据库记录
-	err = s.client.Attachment.DeleteOneID(id).Exec(ctx)
+	err = s.Client.Attachment.DeleteOneID(id).Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("删除附件记录失败: %w", err)
 	}
@@ -175,7 +170,7 @@ func (s *AttachmentService) Delete(ctx context.Context, id int) error {
 // BatchDelete 批量删除附件
 func (s *AttachmentService) BatchDelete(ctx context.Context, ids []int) error {
 	// 查询所有附件获取路径
-	attachments, err := s.client.Attachment.Query().
+	attachments, err := s.Client.Attachment.Query().
 		Where(attachment.IDIn(ids...)).
 		All(ctx)
 	if err != nil {
@@ -188,7 +183,7 @@ func (s *AttachmentService) BatchDelete(ctx context.Context, ids []int) error {
 	}
 
 	// 批量删除数据库记录
-	_, err = s.client.Attachment.Delete().
+	_, err = s.Client.Attachment.Delete().
 		Where(attachment.IDIn(ids...)).
 		Exec(ctx)
 	if err != nil {
@@ -200,24 +195,17 @@ func (s *AttachmentService) BatchDelete(ctx context.Context, ids []int) error {
 
 // Get 获取附件详情
 func (s *AttachmentService) Get(ctx context.Context, id int) (*AttachmentResponse, error) {
-	a, err := s.client.Attachment.Query().
-		Where(attachment.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, ErrAttachmentNotFound
-		}
-		return nil, fmt.Errorf("查询附件失败: %w", err)
-	}
-
-	return s.toAttachmentResponse(a), nil
+	return GetByID(ctx,
+		func(ctx context.Context) (*ent.Attachment, error) {
+			return s.Client.Attachment.Query().Where(attachment.IDEQ(id)).Only(ctx)
+		}, s.toAttachmentResponse, ErrAttachmentNotFound, "附件")
 }
 
 // List 获取附件列表
 func (s *AttachmentService) List(ctx context.Context, req *ListAttachmentsRequest) (*ListAttachmentsResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
-	query := s.client.Attachment.Query()
+	query := s.Client.Attachment.Query()
 
 	// 关键字搜索
 	if req.Keyword != "" {
@@ -244,31 +232,22 @@ func (s *AttachmentService) List(ctx context.Context, req *ListAttachmentsReques
 		return nil, fmt.Errorf("获取附件总数失败: %w", err)
 	}
 
-	offset := (req.Page - 1) * req.PageSize
-	attachments, err := query.
-		Offset(offset).
-		Limit(req.PageSize).
-		Order(ent.Desc(attachment.FieldCreatedAt)).
-		All(ctx)
+	query = query.Order(ent.Desc(attachment.FieldCreatedAt))
+	if req.PageSize > 0 {
+		offset := (req.Page - 1) * req.PageSize
+		query = query.Offset(offset).Limit(req.PageSize)
+	}
+	attachments, err := query.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取附件列表失败: %w", err)
 	}
 
-	data := make([]*AttachmentResponse, 0, len(attachments))
-	for _, a := range attachments {
-		data = append(data, s.toAttachmentResponse(a))
-	}
-
-	return &ListAttachmentsResponse{
-		Total: total,
-		Page:  req.Page,
-		Data:  data,
-	}, nil
+	return BuildList(attachments, total, req.Page, s.toAttachmentResponse), nil
 }
 
 // GetFileData 获取文件数据（用于预览/下载）
 func (s *AttachmentService) GetFileData(ctx context.Context, id int) ([]byte, string, string, error) {
-	a, err := s.client.Attachment.Query().
+	a, err := s.Client.Attachment.Query().
 		Where(attachment.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -288,7 +267,7 @@ func (s *AttachmentService) GetFileData(ctx context.Context, id int) ([]byte, st
 
 // MoveToGroup 移动附件到分组
 func (s *AttachmentService) MoveToGroup(ctx context.Context, id int, groupID *int) error {
-	a, err := s.client.Attachment.Query().
+	a, err := s.Client.Attachment.Query().
 		Where(attachment.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -298,7 +277,7 @@ func (s *AttachmentService) MoveToGroup(ctx context.Context, id int, groupID *in
 		return fmt.Errorf("查询附件失败: %w", err)
 	}
 
-	update := s.client.Attachment.UpdateOne(a)
+	update := s.Client.Attachment.UpdateOne(a)
 	if groupID != nil {
 		update.SetGroupID(*groupID)
 	} else {

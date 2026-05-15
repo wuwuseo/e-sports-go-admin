@@ -27,6 +27,8 @@ type UserRole struct {
 	UserID int `json:"user_id,omitempty"`
 	// 角色ID
 	RoleID int `json:"role_id,omitempty"`
+	// 是否为主角色
+	IsPrimary bool `json:"is_primary"`
 	// 分配者ID
 	CreatedBy string `json:"created_by,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -73,6 +75,8 @@ func (*UserRole) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case userrole.FieldIsPrimary:
+			values[i] = new(sql.NullBool)
 		case userrole.FieldID, userrole.FieldUserID, userrole.FieldRoleID:
 			values[i] = new(sql.NullInt64)
 		case userrole.FieldCreatedBy:
@@ -123,6 +127,12 @@ func (_m *UserRole) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field role_id", values[i])
 			} else if value.Valid {
 				_m.RoleID = int(value.Int64)
+			}
+		case userrole.FieldIsPrimary:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_primary", values[i])
+			} else if value.Valid {
+				_m.IsPrimary = value.Bool
 			}
 		case userrole.FieldCreatedBy:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -187,6 +197,9 @@ func (_m *UserRole) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("role_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RoleID))
+	builder.WriteString(", ")
+	builder.WriteString("is_primary=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsPrimary))
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(_m.CreatedBy)

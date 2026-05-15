@@ -11,7 +11,9 @@ import (
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
 
+	"github.com/eko/gocache/lib/v4/store"
 	"github.com/golang-jwt/jwt/v5"
+	cmfCache "github.com/wuwuseo/cmf/cache"
 	cmfConfig "github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/crypto"
 	cmfJwt "github.com/wuwuseo/cmf/jwt"
@@ -32,15 +34,24 @@ type UserServiceInterface interface {
 	GetUserByUID(ctx context.Context, uid string) (*UserResponse, error)
 	UpdateUser(ctx context.Context, uid string, updates map[string]interface{}) error
 	ChangePassword(ctx context.Context, uid string, oldPassword, newPassword string) error
+	Logout(ctx context.Context, uid string) error
 }
 
 type UserService struct {
 	client *ent.Client
+	cache  *cmfCache.Cache[[]byte]
 }
 
 func NewUserService() *UserService {
 	return &UserService{
 		client: global.ORM,
+	}
+}
+
+func NewUserServiceWithCache(rawCache *cmfCache.Cache[[]byte]) *UserService {
+	return &UserService{
+		client: global.ORM,
+		cache:  rawCache,
 	}
 }
 
@@ -134,6 +145,20 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 		Save(ctx)
 
 	return err
+}
+
+// Logout 用户退出登录，记录退出时间戳到缓存使当前Token失效
+func (s *UserService) Logout(ctx context.Context, uid string) error {
+	if s.cache == nil {
+		return nil
+	}
+
+	cfg, _ := global.Bootstrap.GetService("config")
+	ttl := time.Duration(cfg.(*cmfConfig.Config).App.LoginExpires) * time.Second
+
+	key := fmt.Sprintf("logout:uid:%s", uid)
+	timestamp := []byte(fmt.Sprintf("%d", time.Now().Unix()))
+	return s.cache.Set(ctx, key, timestamp, store.WithExpiration(ttl))
 }
 
 // Login 用户登录

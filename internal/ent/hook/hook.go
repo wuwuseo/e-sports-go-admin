@@ -32,6 +32,18 @@ func (f AttachmentGroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AttachmentGroupMutation", m)
 }
 
+// The BlacklistFunc type is an adapter to allow the use of ordinary
+// function as Blacklist mutator.
+type BlacklistFunc func(context.Context, *ent.BlacklistMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BlacklistFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BlacklistMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BlacklistMutation", m)
+}
+
 // The CasbinRuleFunc type is an adapter to allow the use of ordinary
 // function as CasbinRule mutator.
 type CasbinRuleFunc func(context.Context, *ent.CasbinRuleMutation) (ent.Value, error)
@@ -114,6 +126,18 @@ func (f SystemPermissionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemPermissionMutation", m)
+}
+
+// The ThirdPartyUserFunc type is an adapter to allow the use of ordinary
+// function as ThirdPartyUser mutator.
+type ThirdPartyUserFunc func(context.Context, *ent.ThirdPartyUserMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f ThirdPartyUserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ThirdPartyUserMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ThirdPartyUserMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

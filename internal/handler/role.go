@@ -39,7 +39,7 @@ func CreateRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	role, err := roleService.CreateRole(c.Context(), req)
+	role, err := roleService.Create(c.Context(), req)
 	if err != nil {
 		switch err {
 		case service.ErrRoleNameExists:
@@ -81,7 +81,7 @@ func GetRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	role, err := roleService.GetRole(c.Context(), id)
+	role, err := roleService.Get(c.Context(), id)
 	if err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
@@ -128,7 +128,7 @@ func ListRoles(c fiber.Ctx) error {
 		req.PageSize = 10
 	}
 
-	roles, err := roleService.ListRoles(c.Context(), req)
+	roles, err := roleService.List(c.Context(), req)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取角色列表失败").ToJSON(c)
 	}
@@ -162,7 +162,7 @@ func ListAllRoles(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	roles, err := roleService.ListAllRoles(c.Context(), req)
+	roles, err := roleService.ListAll(c.Context(), req)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取角色列表失败").ToJSON(c)
 	}
@@ -204,7 +204,7 @@ func UpdateRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	if err := roleService.UpdateRole(c.Context(), id, req); err != nil {
+	if err := roleService.Update(c.Context(), id, req); err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		}
@@ -242,7 +242,7 @@ func DeleteRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	if err := roleService.DeleteRole(c.Context(), id); err != nil {
+	if err := roleService.Delete(c.Context(), id); err != nil {
 		switch err {
 		case service.ErrRoleNotFound:
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
@@ -285,7 +285,7 @@ func EnableRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	if err := roleService.EnableRole(c.Context(), id); err != nil {
+	if err := roleService.Enable(c.Context(), id); err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		}
@@ -322,7 +322,7 @@ func DisableRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	if err := roleService.DisableRole(c.Context(), id); err != nil {
+	if err := roleService.Disable(c.Context(), id); err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		}

@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"context"
@@ -23,9 +23,11 @@ var (
 
 // ConfigService 动态配置服务
 type ConfigService struct {
-	client *ent.Client
-	cache  *cache.TypedCache[*ConfigResponse]
+	*CRUDBase
+	cache *cache.TypedCache[*ConfigResponse]
 }
+
+var _ CRUD[CreateConfigRequest, UpdateConfigRequest, ListConfigRequest, ConfigResponse] = (*ConfigService)(nil)
 
 // NewConfigService 创建动态配置服务实例
 func NewConfigService(rawCache *cache.Cache[[]byte]) *ConfigService {
@@ -34,8 +36,8 @@ func NewConfigService(rawCache *cache.Cache[[]byte]) *ConfigService {
 		typedCache = cache.NewTypedCache[*ConfigResponse](rawCache)
 	}
 	return &ConfigService{
-		client: global.ORM,
-		cache:  typedCache,
+		CRUDBase: &CRUDBase{Client: global.ORM},
+		cache:    typedCache,
 	}
 }
 
@@ -63,11 +65,9 @@ type UpdateConfigRequest struct {
 
 // ListConfigRequest 配置列表请求
 type ListConfigRequest struct {
-	Page     int    `query:"page" validate:"min=0"`
-	PageSize int    `query:"page_size" validate:"min=0,max=100"`
-	Keyword  string `query:"keyword"`
-	Group    string `query:"group"`
-	Status   *int   `query:"status"`
+	ListRequest
+	Group  string `query:"group"`
+	Status *int   `query:"status"`
 }
 
 // ConfigResponse 配置响应
@@ -91,11 +91,7 @@ type ConfigGroup struct {
 }
 
 // ListConfigResponse 配置列表响应
-type ListConfigResponse struct {
-	Total int               `json:"total"`
-	Page  int               `json:"page"`
-	Data  []*ConfigResponse `json:"data"`
-}
+type ListConfigResponse = ListResponse[*ConfigResponse]
 
 // configCacheKey 生成缓存键
 func (s *ConfigService) configCacheKey(prefix string, parts ...string) string {
@@ -113,7 +109,7 @@ func (s *ConfigService) clearConfigCache(ctx context.Context, key string) {
 // Create 创建配置
 func (s *ConfigService) Create(ctx context.Context, req *CreateConfigRequest) (*ConfigResponse, error) {
 	// 检查 key 唯一性
-	exists, err := s.client.SystemConfig.Query().
+	exists, err := s.Client.SystemConfig.Query().
 		Where(systemconfig.KeyEQ(req.Key)).
 		Exist(ctx)
 	if err != nil {
@@ -123,7 +119,7 @@ func (s *ConfigService) Create(ctx context.Context, req *CreateConfigRequest) (*
 		return nil, ErrConfigKeyExists
 	}
 
-	builder := s.client.SystemConfig.Create().
+	builder := s.Client.SystemConfig.Create().
 		SetName(req.Name).
 		SetKey(req.Key).
 		SetValue(req.Value)
@@ -151,24 +147,17 @@ func (s *ConfigService) Create(ctx context.Context, req *CreateConfigRequest) (*
 
 // Get 获取配置详情
 func (s *ConfigService) Get(ctx context.Context, id int) (*ConfigResponse, error) {
-	item, err := s.client.SystemConfig.Query().
-		Where(systemconfig.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, ErrConfigNotFound
-		}
-		return nil, fmt.Errorf("获取配置失败: %w", err)
-	}
-
-	return toConfigResponse(item), nil
+	return GetByID(ctx,
+		func(ctx context.Context) (*ent.SystemConfig, error) {
+			return s.Client.SystemConfig.Query().Where(systemconfig.IDEQ(id)).Only(ctx)
+		}, toConfigResponse, ErrConfigNotFound, "配置")
 }
 
 // List 获取配置列表
 func (s *ConfigService) List(ctx context.Context, req *ListConfigRequest) (*ListConfigResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
-	query := s.client.SystemConfig.Query()
+	query := s.Client.SystemConfig.Query()
 
 	if req.Keyword != "" {
 		query = query.Where(
@@ -192,26 +181,17 @@ func (s *ConfigService) List(ctx context.Context, req *ListConfigRequest) (*List
 		return nil, fmt.Errorf("获取配置总数失败: %w", err)
 	}
 
-	offset := (req.Page - 1) * req.PageSize
-	items, err := query.
-		Offset(offset).
-		Limit(req.PageSize).
-		Order(ent.Desc(systemconfig.FieldCreatedAt)).
-		All(ctx)
+	query = query.Order(ent.Desc(systemconfig.FieldCreatedAt))
+	if req.PageSize > 0 {
+		offset := (req.Page - 1) * req.PageSize
+		query = query.Offset(offset).Limit(req.PageSize)
+	}
+	items, err := query.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取配置列表失败: %w", err)
 	}
 
-	data := make([]*ConfigResponse, 0, len(items))
-	for _, item := range items {
-		data = append(data, toConfigResponse(item))
-	}
-
-	return &ListConfigResponse{
-		Total: total,
-		Page:  req.Page,
-		Data:  data,
-	}, nil
+	return BuildList(items, total, req.Page, toConfigResponse), nil
 }
 
 // GetByKey 按 key 获取单个配置值（带缓存）
@@ -225,7 +205,7 @@ func (s *ConfigService) GetByKey(ctx context.Context, key string) (*ConfigRespon
 		}
 	}
 
-	item, err := s.client.SystemConfig.Query().
+	item, err := s.Client.SystemConfig.Query().
 		Where(
 			systemconfig.KeyEQ(key),
 			systemconfig.StatusEQ(1),
@@ -249,7 +229,7 @@ func (s *ConfigService) GetByKey(ctx context.Context, key string) (*ConfigRespon
 
 // GetByGroup 按分组获取所有启用配置
 func (s *ConfigService) GetByGroup(ctx context.Context, group string) ([]*ConfigResponse, error) {
-	items, err := s.client.SystemConfig.Query().
+	items, err := s.Client.SystemConfig.Query().
 		Where(
 			systemconfig.GroupEQ(group),
 			systemconfig.StatusEQ(1),
@@ -270,7 +250,7 @@ func (s *ConfigService) GetByGroup(ctx context.Context, group string) ([]*Config
 
 // GetGroups 获取配置分组选项（来自字典数据 sys_config_group）
 func (s *ConfigService) GetGroups(ctx context.Context) ([]*ConfigGroup, error) {
-	items, err := s.client.DictData.Query().
+	items, err := s.Client.DictData.Query().
 		Where(
 			dictdata.DictTypeEQ("sys_config_group"),
 			dictdata.StatusEQ(1),
@@ -294,7 +274,7 @@ func (s *ConfigService) GetGroups(ctx context.Context) ([]*ConfigGroup, error) {
 
 // Update 更新配置
 func (s *ConfigService) Update(ctx context.Context, id int, req *UpdateConfigRequest) error {
-	item, err := s.client.SystemConfig.Query().
+	item, err := s.Client.SystemConfig.Query().
 		Where(systemconfig.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -304,13 +284,13 @@ func (s *ConfigService) Update(ctx context.Context, id int, req *UpdateConfigReq
 		return fmt.Errorf("查询配置失败: %w", err)
 	}
 
-	update := s.client.SystemConfig.UpdateOne(item)
+	update := s.Client.SystemConfig.UpdateOne(item)
 
 	if req.Name != nil {
 		update.SetName(*req.Name)
 	}
 	if req.Key != nil {
-		exists, err := s.client.SystemConfig.Query().
+		exists, err := s.Client.SystemConfig.Query().
 			Where(systemconfig.KeyEQ(*req.Key), systemconfig.IDNEQ(id)).
 			Exist(ctx)
 		if err != nil {
@@ -352,23 +332,21 @@ func (s *ConfigService) Update(ctx context.Context, id int, req *UpdateConfigReq
 
 // Delete 删除配置
 func (s *ConfigService) Delete(ctx context.Context, id int) error {
-	item, err := s.client.SystemConfig.Query().
-		Where(systemconfig.IDEQ(id)).
-		Only(ctx)
+	var item *ent.SystemConfig
+	err := DeleteByID(ctx,
+		func(ctx context.Context) (*ent.SystemConfig, error) {
+			item, e := s.Client.SystemConfig.Query().Where(systemconfig.IDEQ(id)).Only(ctx)
+			return item, e
+		},
+		func(e *ent.SystemConfig) error {
+			return s.Client.SystemConfig.DeleteOne(e).Exec(ctx)
+		},
+		ErrConfigNotFound, "配置")
 	if err != nil {
-		if ent.IsNotFound(err) {
-			return ErrConfigNotFound
-		}
-		return fmt.Errorf("查询配置失败: %w", err)
+		return err
 	}
 
-	if err := s.client.SystemConfig.DeleteOne(item).Exec(ctx); err != nil {
-		return fmt.Errorf("删除配置失败: %w", err)
-	}
-
-	// 删除后清除缓存
 	s.clearConfigCache(ctx, item.Key)
-
 	return nil
 }
 

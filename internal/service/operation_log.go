@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"context"
@@ -25,13 +25,13 @@ type OperationLogServiceInterface interface {
 
 // OperationLogService 操作日志服务
 type OperationLogService struct {
-	client *ent.Client
+	*CRUDBase
 }
 
 // NewOperationLogService 创建操作日志服务实例
 func NewOperationLogService() *OperationLogService {
 	return &OperationLogService{
-		client: global.ORM,
+		CRUDBase: &CRUDBase{Client: global.ORM},
 	}
 }
 
@@ -53,8 +53,7 @@ type LogEntry struct {
 
 // ListOperationLogsRequest 操作日志列表请求
 type ListOperationLogsRequest struct {
-	Page      int    `query:"page" validate:"min=1"`
-	PageSize  int    `query:"page_size" validate:"min=1,max=100"`
+	PaginationRequest
 	Username  string `query:"username"`
 	Module    string `query:"module"`
 	Action    string `query:"action"`
@@ -81,16 +80,13 @@ type OperationLogResponse struct {
 }
 
 // ListOperationLogsResponse 操作日志列表响应
-type ListOperationLogsResponse struct {
-	Total int                     `json:"total"`
-	Items []*OperationLogResponse `json:"items"`
-}
+type ListOperationLogsResponse = ListResponse[*OperationLogResponse]
 
 // Log 异步记录操作日志
 func (s *OperationLogService) Log(ctx context.Context, entry *LogEntry) error {
 	go func() {
 		bgCtx := context.Background()
-		builder := s.client.OperationLog.Create().
+		builder := s.Client.OperationLog.Create().
 			SetUserID(0).
 			SetUsername(entry.Username).
 			SetModule(entry.Module).
@@ -122,7 +118,7 @@ func (s *OperationLogService) Log(ctx context.Context, entry *LogEntry) error {
 func (s *OperationLogService) List(ctx context.Context, req *ListOperationLogsRequest) (*ListOperationLogsResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
-	query := s.client.OperationLog.Query()
+	query := s.Client.OperationLog.Query()
 
 	// 筛选条件
 	if req.Username != "" {
@@ -154,39 +150,25 @@ func (s *OperationLogService) List(ctx context.Context, req *ListOperationLogsRe
 	}
 
 	// 分页查询，按创建时间倒序
-	offset := (req.Page - 1) * req.PageSize
-	logs, err := query.
-		Offset(offset).
-		Limit(req.PageSize).
-		Order(ent.Desc(operationlog.FieldCreatedAt)).
-		All(ctx)
+	query = query.Order(ent.Desc(operationlog.FieldCreatedAt))
+	if req.PageSize > 0 {
+		offset := (req.Page - 1) * req.PageSize
+		query = query.Offset(offset).Limit(req.PageSize)
+	}
+	logs, err := query.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取操作日志列表失败: %w", err)
 	}
 
-	items := make([]*OperationLogResponse, 0, len(logs))
-	for _, l := range logs {
-		items = append(items, toOperationLogResponse(l))
-	}
-
-	return &ListOperationLogsResponse{
-		Total: total,
-		Items: items,
-	}, nil
+	return BuildList(logs, total, req.Page, toOperationLogResponse), nil
 }
 
 // Get 获取操作日志详情
 func (s *OperationLogService) Get(ctx context.Context, id int) (*OperationLogResponse, error) {
-	l, err := s.client.OperationLog.Query().
-		Where(operationlog.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return nil, ErrOperationLogNotFound
-		}
-		return nil, fmt.Errorf("获取操作日志失败: %w", err)
-	}
-	return toOperationLogResponse(l), nil
+	return GetByID(ctx,
+		func(ctx context.Context) (*ent.OperationLog, error) {
+			return s.Client.OperationLog.Query().Where(operationlog.IDEQ(id)).Only(ctx)
+		}, toOperationLogResponse, ErrOperationLogNotFound, "操作日志")
 }
 
 // toOperationLogResponse 将Ent实体转换为响应格式
@@ -208,3 +190,4 @@ func toOperationLogResponse(l *ent.OperationLog) *OperationLogResponse {
 		CreatedAt:   l.CreatedAt,
 	}
 }
+

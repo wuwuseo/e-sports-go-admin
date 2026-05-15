@@ -64,6 +64,20 @@ func (_u *UserRoleUpdate) SetNillableRoleID(v *int) *UserRoleUpdate {
 	return _u
 }
 
+// SetIsPrimary sets the "is_primary" field.
+func (_u *UserRoleUpdate) SetIsPrimary(v bool) *UserRoleUpdate {
+	_u.mutation.SetIsPrimary(v)
+	return _u
+}
+
+// SetNillableIsPrimary sets the "is_primary" field if the given value is not nil.
+func (_u *UserRoleUpdate) SetNillableIsPrimary(v *bool) *UserRoleUpdate {
+	if v != nil {
+		_u.SetIsPrimary(*v)
+	}
+	return _u
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_u *UserRoleUpdate) SetCreatedBy(v string) *UserRoleUpdate {
 	_u.mutation.SetCreatedBy(v)
@@ -177,6 +191,9 @@ func (_u *UserRoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdateTime(); ok {
 		_spec.SetField(userrole.FieldUpdateTime, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.IsPrimary(); ok {
+		_spec.SetField(userrole.FieldIsPrimary, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(userrole.FieldCreatedBy, field.TypeString, value)
@@ -292,6 +309,20 @@ func (_u *UserRoleUpdateOne) SetRoleID(v int) *UserRoleUpdateOne {
 func (_u *UserRoleUpdateOne) SetNillableRoleID(v *int) *UserRoleUpdateOne {
 	if v != nil {
 		_u.SetRoleID(*v)
+	}
+	return _u
+}
+
+// SetIsPrimary sets the "is_primary" field.
+func (_u *UserRoleUpdateOne) SetIsPrimary(v bool) *UserRoleUpdateOne {
+	_u.mutation.SetIsPrimary(v)
+	return _u
+}
+
+// SetNillableIsPrimary sets the "is_primary" field if the given value is not nil.
+func (_u *UserRoleUpdateOne) SetNillableIsPrimary(v *bool) *UserRoleUpdateOne {
+	if v != nil {
+		_u.SetIsPrimary(*v)
 	}
 	return _u
 }
@@ -439,6 +470,9 @@ func (_u *UserRoleUpdateOne) sqlSave(ctx context.Context) (_node *UserRole, err 
 	}
 	if value, ok := _u.mutation.UpdateTime(); ok {
 		_spec.SetField(userrole.FieldUpdateTime, field.TypeTime, value)
+	}
+	if value, ok := _u.mutation.IsPrimary(); ok {
+		_spec.SetField(userrole.FieldIsPrimary, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(userrole.FieldCreatedBy, field.TypeString, value)
