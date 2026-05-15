@@ -9,6 +9,7 @@ import (
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 
 	"github.com/wuwuseo/cmf/cache"
 )
@@ -188,15 +189,7 @@ func (s *RoleService) GetRole(ctx context.Context, id int) (*RoleResponse, error
 
 // ListRoles 获取角色列表
 func (s *RoleService) ListRoles(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error) {
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
+	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	query := s.client.Role.Query()
 

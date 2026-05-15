@@ -102,8 +102,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 权限定义管理路由
 	systemPermissions := adminAuth.Group("/system-permissions")
-	systemPermissions.Post("", handler.CreateSystemPermission)        // 创建权限定义
-	systemPermissions.Get("", handler.ListSystemPermissions)          // 获取权限定义列表
+	systemPermissions.Post("", handler.CreateSystemPermission)       // 创建权限定义
+	systemPermissions.Get("", handler.ListSystemPermissions)         // 获取权限定义列表
 	systemPermissions.Get("/tree", handler.GetSystemPermissionTree)  // 获取权限树
 	systemPermissions.Get("/:id", handler.GetSystemPermission)       // 获取权限定义详情
 	systemPermissions.Put("/:id", handler.UpdateSystemPermission)    // 更新权限定义

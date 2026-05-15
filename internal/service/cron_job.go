@@ -11,6 +11,7 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/global"
 	"go-admin/internal/tasks"
+	"go-admin/internal/utils"
 
 	robfigcron "github.com/robfig/cron/v3"
 )
@@ -285,15 +286,7 @@ func (s *CronJobService) Get(ctx context.Context, id int) (*CronJobResponse, err
 
 // List 获取定时任务列表
 func (s *CronJobService) List(ctx context.Context, req *ListCronJobsRequest) (*ListCronJobsResponse, error) {
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
+	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	query := s.client.CronJob.Query()
 

@@ -121,3 +121,26 @@ func GenerateUID() string {
 	uidMu.Unlock()
 	return strconv.FormatUint(next, 10)
 }
+
+// NormalizePagination 标准化分页参数
+// 默认 Page=1, PageSize=10，限制 PageSize 最大为 100
+func NormalizePagination(page, pageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	return page, pageSize
+}
+
+// BuildCacheKey 构建缓存键
+func BuildCacheKey(prefix string, parts ...string) string {
+	if len(parts) == 0 {
+		return prefix
+	}
+	return prefix + ":" + strings.Join(parts, ":")
+}

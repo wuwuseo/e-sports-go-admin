@@ -7,6 +7,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 	"log"
 	"time"
 )
@@ -119,15 +120,7 @@ func (s *OperationLogService) Log(ctx context.Context, entry *LogEntry) error {
 
 // List 获取操作日志列表
 func (s *OperationLogService) List(ctx context.Context, req *ListOperationLogsRequest) (*ListOperationLogsResponse, error) {
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
+	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	query := s.client.OperationLog.Query()
 

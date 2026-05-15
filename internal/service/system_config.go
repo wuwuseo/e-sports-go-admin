@@ -11,6 +11,7 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 
 	"github.com/wuwuseo/cmf/cache"
 )
@@ -165,15 +166,7 @@ func (s *ConfigService) Get(ctx context.Context, id int) (*ConfigResponse, error
 
 // List 获取配置列表
 func (s *ConfigService) List(ctx context.Context, req *ListConfigRequest) (*ListConfigResponse, error) {
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
+	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	query := s.client.SystemConfig.Query()
 

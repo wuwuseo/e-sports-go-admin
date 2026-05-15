@@ -13,6 +13,7 @@ import (
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 
 	"github.com/wuwuseo/cmf/cache"
 )
@@ -146,11 +147,6 @@ func NewPermissionService(rawCache *cache.Cache[[]byte]) *PermissionService {
 	}
 }
 
-// cacheKey 生成缓存键
-func (s *PermissionService) cacheKey(prefix string, parts ...string) string {
-	return prefix + ":" + strings.Join(parts, ":")
-}
-
 // defaultCacheTTL 默认缓存过期时间
 func (s *PermissionService) defaultCacheTTL() time.Duration {
 	return 5 * time.Minute
@@ -161,9 +157,9 @@ func (s *PermissionService) clearUserPermissionsCache(ctx context.Context, userU
 	if s.cache == nil {
 		return
 	}
-	_ = s.cache.Delete(ctx, s.cacheKey("user", "menu", userUID, domain))
-	_ = s.cache.Delete(ctx, s.cacheKey("user", "button", userUID, domain))
-	_ = s.cache.Delete(ctx, s.cacheKey("user", "api", userUID, domain))
+	_ = s.cache.Delete(ctx, utils.BuildCacheKey("user", "menu", userUID, domain))
+	_ = s.cache.Delete(ctx, utils.BuildCacheKey("user", "button", userUID, domain))
+	_ = s.cache.Delete(ctx, utils.BuildCacheKey("user", "api", userUID, domain))
 }
 
 // clearRolePermissionsCache 清除指定角色的权限缓存
@@ -171,7 +167,7 @@ func (s *PermissionService) clearRolePermissionsCache(ctx context.Context, roleN
 	if s.cache == nil {
 		return
 	}
-	_ = s.cache.Delete(ctx, s.cacheKey("role", "perms", roleName, domain))
+	_ = s.cache.Delete(ctx, utils.BuildCacheKey("role", "perms", roleName, domain))
 }
 
 // clearAllUsersPermissionsByRole 清除拥有指定角色的所有用户权限缓存
@@ -202,6 +198,95 @@ func (s *PermissionService) clearAllUsersPermissionsByRole(ctx context.Context, 
 func (s *PermissionService) clearRoleAndUsersCache(ctx context.Context, roleName, domain string) {
 	s.clearRolePermissionsCache(ctx, roleName, domain)
 	s.clearAllUsersPermissionsByRole(ctx, roleName, domain)
+}
+
+// getUserRoleNames 获取用户的角色名称列表
+func (s *PermissionService) getUserRoleNames(ctx context.Context, userUID string) ([]string, error) {
+	u, err := s.client.User.Query().
+		Where(user.UIDEQ(userUID)).
+		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户信息失败: %w", err)
+	}
+
+	userRoles, err := s.client.UserRole.Query().
+		Where(userrole.UserIDEQ(u.ID)).
+		WithRole().
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户角色失败: %w", err)
+	}
+
+	roleNames := make([]string, 0, len(userRoles))
+	for _, ur := range userRoles {
+		if ur.Edges.Role != nil {
+			roleNames = append(roleNames, ur.Edges.Role.Name)
+		}
+	}
+
+	return roleNames, nil
+}
+
+// getUserPermissionsByType 获取用户指定类型的权限（内部通用方法）
+func (s *PermissionService) getUserPermissionsByType(ctx context.Context, userUID, domain, permType string) ([]*PermissionResponse, error) {
+	cacheKey := utils.BuildCacheKey("user", permType, userUID, domain)
+
+	// 尝试从缓存获取
+	if s.cache != nil {
+		cached, err := s.cache.Get(ctx, cacheKey)
+		if err == nil && cached != nil {
+			return cached, nil
+		}
+	}
+
+	// 获取用户角色
+	roleNames, err := s.getUserRoleNames(ctx, userUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(roleNames) == 0 {
+		return []*PermissionResponse{}, nil
+	}
+
+	// 构建查询
+	query := s.client.CasbinRule.Query().
+		Where(
+			casbinrule.PtypeEQ("p"),
+			casbinrule.V0In(roleNames...),
+			casbinrule.V1EQ(domain),
+		)
+
+	// 根据权限类型添加过滤条件
+	switch permType {
+	case "menu":
+		query = query.Where(casbinrule.V3EQ("menu"))
+	case "button":
+		query = query.Where(casbinrule.V3EQ("button"))
+	case "api":
+		query = query.Where(
+			casbinrule.V3NEQ("menu"),
+			casbinrule.V3NEQ("button"),
+		)
+	}
+
+	permissions, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取%s权限失败: %w", permType, err)
+	}
+
+	// 转换为响应格式
+	data := make([]*PermissionResponse, 0, len(permissions))
+	for _, p := range permissions {
+		data = append(data, s.toPermissionResponse(p))
+	}
+
+	// 写入缓存
+	if s.cache != nil {
+		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
+	}
+
+	return data, nil
 }
 
 // CreatePermission 创建权限
@@ -374,16 +459,7 @@ func (s *PermissionService) GetPermission(ctx context.Context, roleName, domain,
 
 // ListPermissions 获取权限列表
 func (s *PermissionService) ListPermissions(ctx context.Context, req *ListPermissionsRequest) (*ListPermissionsResponse, error) {
-	// 设置默认值
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
+	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	// 构建查询
 	query := s.client.CasbinRule.Query().Where(casbinrule.PtypeEQ("p"))
@@ -574,7 +650,7 @@ func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, roleN
 
 // GetRolePermissions 获取角色拥有的权限
 func (s *PermissionService) GetRolePermissions(ctx context.Context, roleName, domain string) ([]*PermissionResponse, error) {
-	cacheKey := s.cacheKey("role", "perms", roleName, domain)
+	cacheKey := utils.BuildCacheKey("role", "perms", roleName, domain)
 
 	// 尝试从缓存获取
 	if s.cache != nil {
@@ -721,227 +797,29 @@ func (s *PermissionService) CheckUserHasRole(ctx context.Context, userUID string
 
 // GetUserMenuPermissions 获取用户的菜单权限
 func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
-	cacheKey := s.cacheKey("user", "menu", userID, domain)
-
-	// 尝试从缓存获取
-	if s.cache != nil {
-		cached, err := s.cache.Get(ctx, cacheKey)
-		if err == nil && cached != nil {
-			return cached, nil
-		}
-	}
-
-	// 通过UID查找用户的数据库ID
-	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户信息失败: %w", err)
-	}
-
-	// 获取用户角色（使用eager loading预加载角色）
-	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(u.ID)).
-		WithRole().
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户角色失败: %w", err)
-	}
-
-	if len(userRoles) == 0 {
-		return []*PermissionResponse{}, nil
-	}
-
-	// 提取角色名称
-	roleNames := make([]string, 0, len(userRoles))
-	for _, ur := range userRoles {
-		if ur.Edges.Role != nil {
-			roleNames = append(roleNames, ur.Edges.Role.Name)
-		}
-	}
-
-	// 查询菜单权限
-	permissions, err := s.client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("p"),
-			casbinrule.V0In(roleNames...),
-			casbinrule.V1EQ(domain),
-			casbinrule.V3EQ("menu"),
-		).All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取菜单权限失败: %w", err)
-	}
-
-	// 转换为响应格式
-	data := make([]*PermissionResponse, 0, len(permissions))
-	for _, p := range permissions {
-		data = append(data, s.toPermissionResponse(p))
-	}
-
-	// 写入缓存
-	if s.cache != nil {
-		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
-	}
-
-	return data, nil
+	return s.getUserPermissionsByType(ctx, userID, domain, "menu")
 }
 
 // GetUserButtonPermissions 获取用户的按钮权限
 func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
-	cacheKey := s.cacheKey("user", "button", userID, domain)
-
-	// 尝试从缓存获取
-	if s.cache != nil {
-		cached, err := s.cache.Get(ctx, cacheKey)
-		if err == nil && cached != nil {
-			return cached, nil
-		}
-	}
-
-	// 通过UID查找用户的数据库ID
-	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户信息失败: %w", err)
-	}
-
-	// 获取用户角色（使用eager loading预加载角色）
-	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(u.ID)).
-		WithRole().
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户角色失败: %w", err)
-	}
-
-	if len(userRoles) == 0 {
-		return []*PermissionResponse{}, nil
-	}
-
-	// 提取角色名称
-	roleNames := make([]string, 0, len(userRoles))
-	for _, ur := range userRoles {
-		if ur.Edges.Role != nil {
-			roleNames = append(roleNames, ur.Edges.Role.Name)
-		}
-	}
-
-	// 查询按钮权限
-	permissions, err := s.client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("p"),
-			casbinrule.V0In(roleNames...),
-			casbinrule.V1EQ(domain),
-			casbinrule.V3EQ("button"),
-		).All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取按钮权限失败: %w", err)
-	}
-
-	// 转换为响应格式
-	data := make([]*PermissionResponse, 0, len(permissions))
-	for _, p := range permissions {
-		data = append(data, s.toPermissionResponse(p))
-	}
-
-	// 写入缓存
-	if s.cache != nil {
-		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
-	}
-
-	return data, nil
+	return s.getUserPermissionsByType(ctx, userID, domain, "button")
 }
 
 // GetUserAPIPermissions 获取用户的API权限
 func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
-	cacheKey := s.cacheKey("user", "api", userID, domain)
-
-	// 尝试从缓存获取
-	if s.cache != nil {
-		cached, err := s.cache.Get(ctx, cacheKey)
-		if err == nil && cached != nil {
-			return cached, nil
-		}
-	}
-
-	// 通过UID查找用户的数据库ID
-	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户信息失败: %w", err)
-	}
-
-	// 获取用户角色（使用eager loading预加载角色）
-	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(u.ID)).
-		WithRole().
-		All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取用户角色失败: %w", err)
-	}
-
-	if len(userRoles) == 0 {
-		return []*PermissionResponse{}, nil
-	}
-
-	// 提取角色名称
-	roleNames := make([]string, 0, len(userRoles))
-	for _, ur := range userRoles {
-		if ur.Edges.Role != nil {
-			roleNames = append(roleNames, ur.Edges.Role.Name)
-		}
-	}
-
-	// 查询API权限（排除menu和button类型）
-	permissions, err := s.client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("p"),
-			casbinrule.V0In(roleNames...),
-			casbinrule.V1EQ(domain),
-			casbinrule.V3NEQ("menu"),
-			casbinrule.V3NEQ("button"),
-		).All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取API权限失败: %w", err)
-	}
-
-	// 转换为响应格式
-	data := make([]*PermissionResponse, 0, len(permissions))
-	for _, p := range permissions {
-		data = append(data, s.toPermissionResponse(p))
-	}
-
-	// 写入缓存
-	if s.cache != nil {
-		_ = s.cache.SetWithExpiration(ctx, cacheKey, data, s.defaultCacheTTL())
-	}
-
-	return data, nil
+	return s.getUserPermissionsByType(ctx, userID, domain, "api")
 }
 
 // CheckPermission 检查用户是否有某个权限
 func (s *PermissionService) CheckPermission(ctx context.Context, userID string, domain, object, action string) (bool, error) {
-	// 通过UID查找用户的数据库ID
-	u, err := s.client.User.Query().Where(user.UIDEQ(userID)).Only(ctx)
+	// 获取用户角色
+	roleNames, err := s.getUserRoleNames(ctx, userID)
 	if err != nil {
-		return false, fmt.Errorf("获取用户信息失败: %w", err)
+		return false, err
 	}
 
-	// 获取用户角色（使用eager loading预加载角色）
-	userRoles, err := s.client.UserRole.Query().
-		Where(userrole.UserIDEQ(u.ID)).
-		WithRole().
-		All(ctx)
-	if err != nil {
-		return false, fmt.Errorf("获取用户角色失败: %w", err)
-	}
-
-	if len(userRoles) == 0 {
+	if len(roleNames) == 0 {
 		return false, nil
-	}
-
-	// 提取角色名称
-	roleNames := make([]string, 0, len(userRoles))
-	for _, ur := range userRoles {
-		if ur.Edges.Role != nil {
-			roleNames = append(roleNames, ur.Edges.Role.Name)
-		}
 	}
 
 	// 检查权限

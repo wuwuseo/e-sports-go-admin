@@ -13,6 +13,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 
 	"github.com/google/uuid"
 	"github.com/wuwuseo/cmf/filesystem"
@@ -214,15 +215,7 @@ func (s *AttachmentService) Get(ctx context.Context, id int) (*AttachmentRespons
 
 // List 获取附件列表
 func (s *AttachmentService) List(ctx context.Context, req *ListAttachmentsRequest) (*ListAttachmentsResponse, error) {
-	if req.Page < 1 {
-		req.Page = 1
-	}
-	if req.PageSize < 1 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
+	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	query := s.client.Attachment.Query()
 
