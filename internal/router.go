@@ -236,6 +236,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 用户管理路由
 	users := adminAuth.Group("/users")
+	users.Post("", handler.CreateUser)
 	users.Get("", handler.ListUsers)
 	users.Post("/export", handler.ExportUsers)
 	users.Get("/:id", handler.GetUserDetail)

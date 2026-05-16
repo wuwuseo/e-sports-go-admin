@@ -177,10 +177,10 @@ func initSeedData() error {
 		appInstance.Logger.Warn("admin role already exists, skipping", zap.Int("id", adminRole.ID))
 	}
 
-	// 2. 创建管理员用户
+	// 2. 创建管理员用户（使用 First 避免 username 重复导致 NotSingularError）
 	adminUser, err := client.User.Query().
 		Where(user.UsernameEQ("admin")).
-		Only(ctx)
+		First(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
 			return fmt.Errorf("failed to query admin user: %w", err)

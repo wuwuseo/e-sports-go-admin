@@ -35,6 +35,7 @@ type UserServiceInterface interface {
 	UpdateUser(ctx context.Context, uid string, updates map[string]interface{}) error
 	ChangePassword(ctx context.Context, uid string, oldPassword, newPassword string) error
 	Logout(ctx context.Context, uid string) error
+	CreateUser(ctx context.Context, req *CreateUserRequest) (*UserResponse, error)
 }
 
 type UserService struct {
@@ -62,6 +63,15 @@ type RegisterRequest struct {
 	Username string `json:"username" validate:"required,min=3"`
 	Nickname string `json:"nickname"`
 	Phone    string `json:"phone" validate:"omitempty,numeric"`
+}
+
+// CreateUserRequest 管理员创建用户请求
+type CreateUserRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
+	Username string `json:"username" validate:"required,min=3"`
+	Nickname string `json:"nickname"`
+	Phone    string `json:"phone"`
 }
 
 // LoginRequest 用户登录请求
@@ -145,6 +155,61 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 		Save(ctx)
 
 	return err
+}
+
+// CreateUser 管理员创建用户
+func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*UserResponse, error) {
+	exists, err := s.client.User.Query().Where(user.EmailEQ(req.Email)).Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, ErrEmailExists
+	}
+
+	if req.Username != "" {
+		exists, err = s.client.User.Query().Where(user.UsernameEQ(req.Username)).Exist(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, ErrUsernameExists
+		}
+	}
+
+	hashedPassword, salt, err := crypto.HashPassword(req.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	create := s.client.User.Create().
+		SetEmail(req.Email).
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		SetUsername(req.Username).
+		SetUID(utils.GenerateUID()).
+		SetStatus(user.StatusInactive)
+	if req.Nickname != "" {
+		create.SetNickname(req.Nickname)
+	}
+	if req.Phone != "" {
+		create.SetPhone(req.Phone)
+	}
+
+	u, err := create.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UserResponse{
+		ID:       u.UID,
+		Email:    u.Email,
+		Username: u.Username,
+		Nickname: u.Nickname,
+		Phone:    u.Phone,
+		Avatar:   u.Avatar,
+		Status:   string(u.Status),
+	}, nil
 }
 
 // Logout 用户退出登录，记录退出时间戳到缓存使当前Token失效

@@ -193,7 +193,7 @@ func GetUser(c fiber.Ctx) error {
 
 	// 过滤敏感信息
 	userData := fiber.Map{
-		"id":       user.ID,
+		"id":       userID,
 		"email":    user.Email,
 		"username": user.Username,
 		"nickname": user.Nickname,

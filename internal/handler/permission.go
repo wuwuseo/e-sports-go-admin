@@ -468,7 +468,7 @@ func GetUserMenuPermissions(c fiber.Ctx) error {
 	// 获取用户菜单权限
 	permissions, err := permissionService.GetUserMenuPermissions(c.Context(), userID, domain)
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取用户菜单权限失败").ToJSON(c)
+		return resp.Fail(global.ResponseInternalServerError, "获取用户菜单权限失败: "+err.Error()).ToJSON(c)
 	}
 
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取用户菜单权限成功").ToJSON(c)
@@ -503,7 +503,7 @@ func GetUserButtonPermissions(c fiber.Ctx) error {
 	// 获取用户按钮权限
 	permissions, err := permissionService.GetUserButtonPermissions(c.Context(), userID, domain)
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取用户按钮权限失败").ToJSON(c)
+		return resp.Fail(global.ResponseInternalServerError, "获取用户按钮权限失败: "+err.Error()).ToJSON(c)
 	}
 
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取用户按钮权限成功").ToJSON(c)
@@ -538,7 +538,7 @@ func GetUserAPIPermissions(c fiber.Ctx) error {
 	// 获取用户API权限
 	permissions, err := permissionService.GetUserAPIPermissions(c.Context(), userID, domain)
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取用户API权限失败").ToJSON(c)
+		return resp.Fail(global.ResponseInternalServerError, "获取用户API权限失败: "+err.Error()).ToJSON(c)
 	}
 
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取用户API权限成功").ToJSON(c)
@@ -573,13 +573,13 @@ func GetUserPermissions(c fiber.Ctx) error {
 	// 获取用户菜单权限
 	menuPermissions, err := permissionService.GetUserMenuPermissions(c.Context(), userID, domain)
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取用户菜单权限失败").ToJSON(c)
+		return resp.Fail(global.ResponseInternalServerError, "获取用户菜单权限失败: "+err.Error()).ToJSON(c)
 	}
 
 	// 获取用户按钮权限
 	buttonPermissions, err := permissionService.GetUserButtonPermissions(c.Context(), userID, domain)
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取用户按钮权限失败").ToJSON(c)
+		return resp.Fail(global.ResponseInternalServerError, "获取用户按钮权限失败: "+err.Error()).ToJSON(c)
 	}
 
 	// 聚合权限

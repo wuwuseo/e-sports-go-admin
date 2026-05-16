@@ -6395,11 +6395,14 @@ const docTemplate = `{
         "service.ListOperationLogsResponse": {
             "type": "object",
             "properties": {
-                "items": {
+                "data": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/service.OperationLogResponse"
                     }
+                },
+                "page": {
+                    "type": "integer"
                 },
                 "total": {
                     "type": "integer"
@@ -7009,16 +7012,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "component": {
-                    "type": "string",
-                    "maxLength": 200
+                    "type": "string"
                 },
                 "description": {
-                    "type": "string",
-                    "maxLength": 500
+                    "type": "string"
                 },
                 "icon": {
-                    "type": "string",
-                    "maxLength": 100
+                    "type": "string"
                 },
                 "is_common": {
                     "type": "boolean"
@@ -7028,8 +7028,7 @@ const docTemplate = `{
                     "maxLength": 500
                 },
                 "method": {
-                    "type": "string",
-                    "maxLength": 20
+                    "type": "string"
                 },
                 "name": {
                     "type": "string",

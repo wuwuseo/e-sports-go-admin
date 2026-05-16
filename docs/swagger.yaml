@@ -454,10 +454,12 @@ definitions:
     type: object
   service.ListOperationLogsResponse:
     properties:
-      items:
+      data:
         items:
           $ref: '#/definitions/service.OperationLogResponse'
         type: array
+      page:
+        type: integer
       total:
         type: integer
     type: object
@@ -869,13 +871,10 @@ definitions:
   service.UpdateSystemPermissionRequest:
     properties:
       component:
-        maxLength: 200
         type: string
       description:
-        maxLength: 500
         type: string
       icon:
-        maxLength: 100
         type: string
       is_common:
         type: boolean
@@ -883,7 +882,6 @@ definitions:
         maxLength: 500
         type: string
       method:
-        maxLength: 20
         type: string
       name:
         maxLength: 100
