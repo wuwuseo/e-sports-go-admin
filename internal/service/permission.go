@@ -792,11 +792,25 @@ func (s *PermissionService) CheckUserHasRole(ctx context.Context, userUID string
 
 // GetUserMenuPermissions 获取用户的菜单权限
 func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
+	isSuperAdmin, err := s.CheckUserHasRole(ctx, userID, domain, "admin")
+	if err != nil {
+		return nil, err
+	}
+	if isSuperAdmin {
+		return getEnabledSystemMenuPermissions(ctx, domain)
+	}
 	return s.getUserPermissionsByType(ctx, userID, domain, "menu")
 }
 
 // GetUserButtonPermissions 获取用户的按钮权限
 func (s *PermissionService) GetUserButtonPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error) {
+	isSuperAdmin, err := s.CheckUserHasRole(ctx, userID, domain, "admin")
+	if err != nil {
+		return nil, err
+	}
+	if isSuperAdmin {
+		return getEnabledSystemButtonPermissions(ctx, domain)
+	}
 	return s.getUserPermissionsByType(ctx, userID, domain, "button")
 }
 
