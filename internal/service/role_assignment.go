@@ -1,0 +1,194 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/user"
+	"go-admin/internal/ent/userrole"
+	"go-admin/internal/global"
+
+	"github.com/wuwuseo/cmf/cache"
+)
+
+var (
+	ErrInvalidRoleIDs     = errors.New("包含无效的角色ID")
+	ErrPrimaryRoleInvalid = errors.New("主角色必须在分配的角色列表内")
+)
+
+// RoleItem 角色项
+type RoleItem struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"display_name"`
+	Description string `json:"description"`
+	IsPrimary   bool   `json:"is_primary"`
+}
+
+// AssignRolesRequest 分配角色请求
+type AssignRolesRequest struct {
+	RoleIDs       []int `json:"role_ids" validate:"required,min=1"`
+	PrimaryRoleID int   `json:"primary_role_id" validate:"required"`
+}
+
+// UserRolesResponse 用户角色响应
+type UserRolesResponse struct {
+	Roles         []*RoleItem `json:"roles"`
+	PrimaryRoleID int         `json:"primary_role_id"`
+	PrimaryRole   *RoleItem   `json:"primary_role"`
+}
+
+// RoleAssignmentService 角色分配服务
+type RoleAssignmentService struct {
+	client *ent.Client
+	cache  *cache.Cache[[]byte]
+}
+
+// RoleAssignmentServiceInterface 角色分配服务接口
+type RoleAssignmentServiceInterface interface {
+	GetUserRoles(ctx context.Context, userID int) (*UserRolesResponse, error)
+	AssignRoles(ctx context.Context, userID int, req *AssignRolesRequest, operatorUID string) error
+}
+
+// NewRoleAssignmentService 创建角色分配服务实例
+func NewRoleAssignmentService(rawCache *cache.Cache[[]byte]) *RoleAssignmentService {
+	return &RoleAssignmentService{
+		client: global.ORM,
+		cache:  rawCache,
+	}
+}
+
+// GetUserRoles 获取用户角色列表
+func (s *RoleAssignmentService) GetUserRoles(ctx context.Context, userID int) (*UserRolesResponse, error) {
+	_, err := s.client.User.Query().Where(user.IDEQ(userID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	userRoles, err := s.client.UserRole.Query().
+		Where(userrole.UserIDEQ(userID)).
+		WithRole(func(q *ent.RoleQuery) {
+			q.Where(role.StatusEQ(role.StatusActive))
+		}).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	roles := make([]*RoleItem, 0, len(userRoles))
+	var primaryRoleItem *RoleItem
+	primaryRoleID := 0
+
+	for _, ur := range userRoles {
+		if ur.Edges.Role == nil {
+			continue
+		}
+		item := &RoleItem{
+			ID:          ur.Edges.Role.ID,
+			Name:        ur.Edges.Role.Name,
+			DisplayName: ur.Edges.Role.DisplayName,
+			Description: ur.Edges.Role.Description,
+			IsPrimary:   ur.IsPrimary,
+		}
+		roles = append(roles, item)
+		if ur.IsPrimary {
+			primaryRoleID = ur.Edges.Role.ID
+			primaryRoleItem = item
+		}
+	}
+
+	return &UserRolesResponse{
+		Roles:         roles,
+		PrimaryRoleID: primaryRoleID,
+		PrimaryRole:   primaryRoleItem,
+	}, nil
+}
+
+// AssignRoles 分配用户角色（事务操作，先删后插）
+func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req *AssignRolesRequest, operatorUID string) error {
+	found := false
+	for _, id := range req.RoleIDs {
+		if id == req.PrimaryRoleID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return ErrPrimaryRoleInvalid
+	}
+
+	count, err := s.client.Role.Query().
+		Where(role.IDIn(req.RoleIDs...), role.StatusEQ(role.StatusActive)).
+		Count(ctx)
+	if err != nil {
+		return err
+	}
+	if count != len(req.RoleIDs) {
+		return ErrInvalidRoleIDs
+	}
+
+	u, err := s.client.User.Query().Where(user.IDEQ(userID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("开启事务失败: %w", err)
+	}
+
+	_, err = tx.UserRole.Delete().Where(userrole.UserIDEQ(userID)).Exec(ctx)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("清除旧角色失败: %w", err)
+	}
+
+	for _, roleID := range req.RoleIDs {
+		isPrimary := roleID == req.PrimaryRoleID
+		_, err = tx.UserRole.Create().
+			SetUserID(userID).
+			SetRoleID(roleID).
+			SetIsPrimary(isPrimary).
+			SetCreatedBy(operatorUID).
+			Save(ctx)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("分配角色失败: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	domain := "default"
+	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
+	if err == nil {
+		enforcer.DeleteRolesForUserInDomain(u.UID, domain)
+
+		for _, roleID := range req.RoleIDs {
+			roleObj, err := s.client.Role.Query().Where(role.IDEQ(roleID)).Only(ctx)
+			if err == nil {
+				enforcer.AddRoleForUserInDomain(u.UID, roleObj.Name, domain)
+			}
+		}
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user_roles:%d", userID))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", u.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", u.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", u.UID, domain))
+	}
+
+	return nil
+}
