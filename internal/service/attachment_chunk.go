@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -426,43 +425,72 @@ func (s *AttachmentService) MergeChunks(ctx context.Context, uploadID string, us
 }
 
 // mergeChunks 合并分片的内部实现（session 必须已从 chunkStore 中移除）
-// 使用 bytes.Buffer 逐片累积，避免临时文件 + os.ReadFile 的双重 I/O 和内存开销
+// 使用 io.MultiReader 流式合并所有分片，避免全量数据加载到内存
 func (s *AttachmentService) mergeChunks(ctx context.Context, session *chunkSession, chunkDir string, userID string) (*AttachmentResponse, error) {
 	// 生成最终存储 key
 	ext := getExt(session.Filename)
 	now := time.Now()
 	key := fmt.Sprintf("attachments/%d/%02d/%s.%s", now.Year(), now.Month(), uuid.New().String(), ext)
 
-	// 逐片读取并累积到 buffer（避免 os.ReadFile 全量读入的双重内存问题）
-	// 注意：filesystem.Set 接口要求 []byte，大文件仍有内存压力，后续可改造 filesystem 支持 io.Reader
-	var buf bytes.Buffer
+	// 构建分片文件读取器列表和计算总大小
+	var readers []io.Reader
 	var totalSize int64
+	var files []*os.File
 
 	for i := 0; i < session.TotalChunks; i++ {
 		chunkPath := filepath.Join(chunkDir, strconv.Itoa(i))
-		chunkData, err := os.ReadFile(chunkPath)
+
+		// 获取分片文件大小
+		fileInfo, err := os.Stat(chunkPath)
 		if err != nil {
-			return nil, fmt.Errorf("读取分片 %d 失败: %w", i, err)
+			for _, f := range files {
+				f.Close()
+			}
+			return nil, fmt.Errorf("获取分片 %d 信息失败: %w", i, err)
 		}
-		n, err := buf.Write(chunkData)
+		totalSize += fileInfo.Size()
+
+		// 打开分片文件
+		file, err := os.Open(chunkPath)
 		if err != nil {
-			return nil, fmt.Errorf("写入合并缓冲区失败: %w", err)
+			for _, f := range files {
+				f.Close()
+			}
+			return nil, fmt.Errorf("打开分片 %d 失败: %w", i, err)
 		}
-		totalSize += int64(n)
+		files = append(files, file)
+		readers = append(readers, file)
 	}
 
-	// 存储到文件系统
-	if err := s.filesystem.Set(key, buf.Bytes(), 0); err != nil {
+	// 创建多读取器，将所有分片串联
+	multiReader := io.MultiReader(readers...)
+
+	// 流式存储到文件系统
+	if err := s.filesystem.SetReader(key, multiReader, 0); err != nil {
+		for _, f := range files {
+			f.Close()
+		}
 		return nil, fmt.Errorf("存储文件失败: %w", err)
 	}
 
-	// 确定 MIME 类型：优先使用客户端声明的 MIME（已在首片通过 DetectContentType 校验），
-	// 未声明时从合并后的文件数据中检测真实 MIME，避免默认设为 application/octet-stream
+	// 关闭所有打开的文件
+	for _, f := range files {
+		f.Close()
+	}
+
+	// 确定 MIME 类型：优先使用客户端声明的 MIME（已在首片通过 DetectContentType 校验）
+	// 未声明时仅读取第一个分片的前 512 字节进行 MIME 类型检测，避免全量加载
 	mimeType := session.MimeType
 	if mimeType == "" {
-		mergedData := buf.Bytes()
-		if len(mergedData) > 0 {
-			mimeType = http.DetectContentType(mergedData)
+		firstChunkPath := filepath.Join(chunkDir, "0")
+		firstChunkData, err := os.ReadFile(firstChunkPath)
+		if err == nil && len(firstChunkData) > 0 {
+			// 只需要前 512 字节即可准确检测 MIME 类型
+			detectSize := 512
+			if len(firstChunkData) < detectSize {
+				detectSize = len(firstChunkData)
+			}
+			mimeType = http.DetectContentType(firstChunkData[:detectSize])
 		}
 		if mimeType == "" {
 			mimeType = "application/octet-stream"
