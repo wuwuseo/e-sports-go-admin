@@ -30,7 +30,7 @@ func NewCronManager(client *ent.Client, logDir string, retention time.Duration) 
 		client: client,
 		logger: NewJobLogger(logDir, retention),
 		executors: map[string]Executor{
-			"shell": &ShellExecutor{},
+			"shell": &CommandExecutor{},
 			"curl":  &CurlExecutor{},
 			"task":  &TaskExecutor{},
 		},

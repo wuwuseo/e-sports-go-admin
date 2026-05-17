@@ -50,6 +50,8 @@ func CreateCronJob(c fiber.Ctx) error {
 			return resp.Fail(global.ErrCodeCronJobInvalidType, "无效的任务类型").ToJSON(c)
 		case service.ErrCronJobTaskNotFound:
 			return resp.Fail(global.ErrCodeCronJobTaskNotFound, "Go task未注册").ToJSON(c)
+		case service.ErrCronJobShellNotAllowed:
+			return resp.Fail(global.ErrCodeCronJobTaskNotFound, "Shell命令未注册，需在代码中通过 cron.Register() 注册").ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "创建定时任务失败").ToJSON(c)
 		}
@@ -182,6 +184,8 @@ func UpdateCronJob(c fiber.Ctx) error {
 			return resp.Fail(global.ErrCodeCronJobInvalidExpr, "无效的cron表达式").ToJSON(c)
 		case service.ErrCronJobTaskNotFound:
 			return resp.Fail(global.ErrCodeCronJobTaskNotFound, "Go task未注册").ToJSON(c)
+		case service.ErrCronJobShellNotAllowed:
+			return resp.Fail(global.ErrCodeCronJobTaskNotFound, "Shell命令未注册，需在代码中通过 cron.Register() 注册").ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "更新定时任务失败").ToJSON(c)
 		}

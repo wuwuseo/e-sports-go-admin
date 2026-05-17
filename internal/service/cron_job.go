@@ -1,9 +1,10 @@
-﻿package service
+package service
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-admin/internal/cron"
@@ -18,12 +19,13 @@ import (
 
 var (
 	// 定时任务相关错误
-	ErrCronJobNotFound     = errors.New("定时任务不存在")
-	ErrCronJobNameExists   = errors.New("定时任务名称已存在")
-	ErrCronJobInvalidExpr  = errors.New("无效的cron表达式")
-	ErrCronJobInvalidType  = errors.New("无效的任务类型")
-	ErrCronJobTaskNotFound = errors.New("Go task未注册")
-	ErrCronJobLogNotFound  = errors.New("日志不存在")
+	ErrCronJobNotFound        = errors.New("定时任务不存在")
+	ErrCronJobNameExists      = errors.New("定时任务名称已存在")
+	ErrCronJobInvalidExpr     = errors.New("无效的cron表达式")
+	ErrCronJobInvalidType     = errors.New("无效的任务类型")
+	ErrCronJobTaskNotFound    = errors.New("Go task未注册")
+	ErrCronJobLogNotFound     = errors.New("日志不存在")
+	ErrCronJobShellNotAllowed = errors.New("Shell命令未注册，需在代码中通过cron.Register()注册")
 )
 
 // CronJobServiceInterface 定时任务服务接口
@@ -113,6 +115,14 @@ func (s *CronJobService) Create(ctx context.Context, req *CreateCronJobRequest) 
 	if req.Type == "task" {
 		if _, ok := tasks.Get(req.Command); !ok {
 			return nil, ErrCronJobTaskNotFound
+		}
+	}
+
+	// 如果 type=shell，验证命令已在安全注册表中
+	if req.Type == "shell" {
+		parts := strings.Fields(req.Command)
+		if len(parts) == 0 || !cron.IsRegistered(parts[0]) {
+			return nil, ErrCronJobShellNotAllowed
 		}
 	}
 
@@ -218,6 +228,14 @@ func (s *CronJobService) Update(ctx context.Context, id int, req *UpdateCronJobR
 	if newType == "task" {
 		if _, ok := tasks.Get(newCommand); !ok {
 			return ErrCronJobTaskNotFound
+		}
+	}
+
+	// 如果 type=shell，验证命令已在安全注册表中
+	if newType == "shell" {
+		parts := strings.Fields(newCommand)
+		if len(parts) == 0 || !cron.IsRegistered(parts[0]) {
+			return ErrCronJobShellNotAllowed
 		}
 	}
 
