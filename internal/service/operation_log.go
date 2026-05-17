@@ -1,4 +1,4 @@
-﻿package service
+package service
 
 import (
 	"context"
@@ -190,4 +190,3 @@ func toOperationLogResponse(l *ent.OperationLog) *OperationLogResponse {
 		CreatedAt:   l.CreatedAt,
 	}
 }
-

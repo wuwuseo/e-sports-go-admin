@@ -178,4 +178,3 @@ func BuildList[E, R any](
 	}
 	return &ListResponse[*R]{Total: total, Page: page, Data: data}
 }
-

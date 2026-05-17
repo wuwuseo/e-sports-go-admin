@@ -1,4 +1,4 @@
-﻿package service
+package service
 
 import (
 	"context"
@@ -332,18 +332,16 @@ func (s *ConfigService) Update(ctx context.Context, id int, req *UpdateConfigReq
 
 // Delete 删除配置
 func (s *ConfigService) Delete(ctx context.Context, id int) error {
-	var item *ent.SystemConfig
-	err := DeleteByID(ctx,
-		func(ctx context.Context) (*ent.SystemConfig, error) {
-			item, e := s.Client.SystemConfig.Query().Where(systemconfig.IDEQ(id)).Only(ctx)
-			return item, e
-		},
-		func(e *ent.SystemConfig) error {
-			return s.Client.SystemConfig.DeleteOne(e).Exec(ctx)
-		},
-		ErrConfigNotFound, "配置")
+	item, err := s.Client.SystemConfig.Query().Where(systemconfig.IDEQ(id)).Only(ctx)
 	if err != nil {
-		return err
+		if ent.IsNotFound(err) {
+			return ErrConfigNotFound
+		}
+		return fmt.Errorf("查询配置失败: %w", err)
+	}
+
+	if err := s.Client.SystemConfig.DeleteOne(item).Exec(ctx); err != nil {
+		return fmt.Errorf("删除配置失败: %w", err)
 	}
 
 	s.clearConfigCache(ctx, item.Key)

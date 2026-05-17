@@ -1,8 +1,10 @@
 package service
 
 import (
+	"errors"
 	"testing"
 
+	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
@@ -267,5 +269,805 @@ func TestPermissionService_GetUserButtonPermissions_SuperAdminReturnsEnabledButt
 	}
 	if got["shared:btn"] != PermissionTypeButton {
 		t.Fatalf("expected shared:btn button permission, got %#v", got)
+	}
+}
+
+// ======================== CreatePermission 测试 ========================
+
+func TestPermissionService_CreatePermission_Success(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	err = svc.CreatePermission(ctx, &CreatePermissionRequest{
+		RoleName:    "editor",
+		Domain:      "default",
+		Type:        PermissionTypeAPI,
+		Object:      "/api/v1/articles",
+		Action:      "GET",
+		Description: "查看文章列表",
+	})
+	if err != nil {
+		t.Fatalf("CreatePermission 失败: %v", err)
+	}
+
+	exists, err := client.CasbinRule.Query().
+		Where(
+			casbinrule.PtypeEQ("p"),
+			casbinrule.V0EQ("editor"),
+			casbinrule.V1EQ("default"),
+			casbinrule.V2EQ("/api/v1/articles"),
+			casbinrule.V3EQ("GET"),
+		).Exist(ctx)
+	if err != nil {
+		t.Fatalf("查询权限失败: %v", err)
+	}
+	if !exists {
+		t.Error("期望权限在数据库中存在, 但未找到")
+	}
+}
+
+func TestPermissionService_CreatePermission_InvalidType(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	err = svc.CreatePermission(ctx, &CreatePermissionRequest{
+		RoleName:    "editor",
+		Domain:      "default",
+		Type:        PermissionType("invalid"),
+		Object:      "/api/v1/articles",
+		Action:      "GET",
+		Description: "无效类型",
+	})
+	if !errors.Is(err, ErrInvalidPermissionType) {
+		t.Errorf("期望错误为 ErrInvalidPermissionType, 实际为 %v", err)
+	}
+}
+
+func TestPermissionService_CreatePermission_RoleNotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	svc := NewPermissionService(nil)
+	err := svc.CreatePermission(ctx, &CreatePermissionRequest{
+		RoleName:    "nonexistent",
+		Domain:      "default",
+		Type:        PermissionTypeAPI,
+		Object:      "/api/v1/articles",
+		Action:      "GET",
+		Description: "角色不存在",
+	})
+	if !errors.Is(err, ErrRoleNotFound) {
+		t.Errorf("期望错误为 ErrRoleNotFound, 实际为 %v", err)
+	}
+}
+
+func TestPermissionService_CreatePermission_Duplicate(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	req := &CreatePermissionRequest{
+		RoleName:    "editor",
+		Domain:      "default",
+		Type:        PermissionTypeAPI,
+		Object:      "/api/v1/articles",
+		Action:      "GET",
+		Description: "查看文章列表",
+	}
+
+	err = svc.CreatePermission(ctx, req)
+	if err != nil {
+		t.Fatalf("第一次 CreatePermission 失败: %v", err)
+	}
+
+	err = svc.CreatePermission(ctx, req)
+	if !errors.Is(err, ErrPermissionAlreadyExists) {
+		t.Errorf("期望错误为 ErrPermissionAlreadyExists, 实际为 %v", err)
+	}
+}
+
+// ======================== GetPermission 测试 ========================
+
+func TestPermissionService_GetPermission_Success(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/api/v1/articles").
+		SetV3("GET").
+		SetV4("api").
+		SetV5("查看文章列表").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建 CasbinRule 失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	perm, err := svc.GetPermission(ctx, "editor", "default", "/api/v1/articles", "GET")
+	if err != nil {
+		t.Fatalf("GetPermission 失败: %v", err)
+	}
+
+	if perm.RoleName != "editor" {
+		t.Errorf("期望 RoleName 为 editor, 实际为 %s", perm.RoleName)
+	}
+	if perm.Domain != "default" {
+		t.Errorf("期望 Domain 为 default, 实际为 %s", perm.Domain)
+	}
+	if perm.Object != "/api/v1/articles" {
+		t.Errorf("期望 Object 为 /api/v1/articles, 实际为 %s", perm.Object)
+	}
+	if perm.Action != "GET" {
+		t.Errorf("期望 Action 为 GET, 实际为 %s", perm.Action)
+	}
+	if perm.Type != PermissionTypeAPI {
+		t.Errorf("期望 Type 为 api, 实际为 %s", perm.Type)
+	}
+	if perm.Description != "查看文章列表" {
+		t.Errorf("期望 Description 为 查看文章列表, 实际为 %s", perm.Description)
+	}
+}
+
+func TestPermissionService_GetPermission_NotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	svc := NewPermissionService(nil)
+	_, err := svc.GetPermission(ctx, "nonexistent", "default", "/api/v1/foo", "GET")
+	if !errors.Is(err, ErrPermissionNotFound) {
+		t.Errorf("期望错误为 ErrPermissionNotFound, 实际为 %v", err)
+	}
+}
+
+// ======================== DeletePermission 测试 ========================
+
+func TestPermissionService_DeletePermission_Success(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/api/v1/articles").
+		SetV3("GET").
+		SetV4("api").
+		SetV5("查看文章列表").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建 CasbinRule 失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	err = svc.DeletePermission(ctx, "editor", "default", "/api/v1/articles", "GET")
+	if err != nil {
+		t.Fatalf("DeletePermission 失败: %v", err)
+	}
+
+	exists, err := client.CasbinRule.Query().
+		Where(
+			casbinrule.PtypeEQ("p"),
+			casbinrule.V0EQ("editor"),
+			casbinrule.V1EQ("default"),
+			casbinrule.V2EQ("/api/v1/articles"),
+			casbinrule.V3EQ("GET"),
+		).Exist(ctx)
+	if err != nil {
+		t.Fatalf("查询权限失败: %v", err)
+	}
+	if exists {
+		t.Error("删除后权限应不存在于数据库中")
+	}
+}
+
+func TestPermissionService_DeletePermission_NotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	svc := NewPermissionService(nil)
+	err := svc.DeletePermission(ctx, "nonexistent", "default", "/api/v1/foo", "GET")
+	if !errors.Is(err, ErrPermissionNotFound) {
+		t.Errorf("期望错误为 ErrPermissionNotFound, 实际为 %v", err)
+	}
+}
+
+// ======================== UpdatePermission 测试 ========================
+
+func TestPermissionService_UpdatePermission_Success(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/api/v1/articles").
+		SetV3("GET").
+		SetV4("api").
+		SetV5("查看文章列表").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建 CasbinRule 失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	err = svc.UpdatePermission(ctx, &UpdatePermissionRequest{
+		RoleName:    "editor",
+		Domain:      "default",
+		Type:        PermissionTypeAPI,
+		Object:      "/api/v1/articles",
+		Action:      "GET",
+		NewObject:   "/api/v1/posts",
+		NewAction:   "POST",
+		Description: "更新后的描述",
+	})
+	if err != nil {
+		t.Fatalf("UpdatePermission 失败: %v", err)
+	}
+
+	perm, err := svc.GetPermission(ctx, "editor", "default", "/api/v1/posts", "POST")
+	if err != nil {
+		t.Fatalf("获取更新后的权限失败: %v", err)
+	}
+
+	if perm.Object != "/api/v1/posts" {
+		t.Errorf("期望更新后的 Object 为 /api/v1/posts, 实际为 %s", perm.Object)
+	}
+	if perm.Action != "POST" {
+		t.Errorf("期望更新后的 Action 为 POST, 实际为 %s", perm.Action)
+	}
+	if perm.Description != "更新后的描述" {
+		t.Errorf("期望更新后的 Description 为 更新后的描述, 实际为 %s", perm.Description)
+	}
+}
+
+func TestPermissionService_UpdatePermission_NotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	err = svc.UpdatePermission(ctx, &UpdatePermissionRequest{
+		RoleName:    "editor",
+		Domain:      "default",
+		Type:        PermissionTypeAPI,
+		Object:      "/api/v1/notfound",
+		Action:      "GET",
+		NewObject:   "/api/v1/new",
+		NewAction:   "POST",
+		Description: "不存在的权限",
+	})
+	if !errors.Is(err, ErrPermissionNotFound) {
+		t.Errorf("期望错误为 ErrPermissionNotFound, 实际为 %v", err)
+	}
+}
+
+// ======================== GetRolePermissions 测试 ========================
+
+func TestPermissionService_GetRolePermissions_Success(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/api/v1/articles").
+		SetV3("GET").
+		SetV4("api").
+		SetV5("查看文章").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建 CasbinRule 失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/api/v1/articles").
+		SetV3("POST").
+		SetV4("api").
+		SetV5("创建文章").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建 CasbinRule 失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	perms, err := svc.GetRolePermissions(ctx, "editor", "default")
+	if err != nil {
+		t.Fatalf("GetRolePermissions 失败: %v", err)
+	}
+
+	if len(perms) != 2 {
+		t.Fatalf("期望获取2个权限, 实际获取 %d 个", len(perms))
+	}
+
+	objects := map[string]bool{}
+	for _, p := range perms {
+		if p.RoleName != "editor" {
+			t.Errorf("期望 RoleName 为 editor, 实际为 %s", p.RoleName)
+		}
+		if p.Domain != "default" {
+			t.Errorf("期望 Domain 为 default, 实际为 %s", p.Domain)
+		}
+		objects[p.Object] = true
+	}
+	if !objects["/api/v1/articles"] {
+		t.Error("期望权限集合包含 /api/v1/articles")
+	}
+}
+
+func TestPermissionService_GetRolePermissions_RoleNotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	svc := NewPermissionService(nil)
+	_, err := svc.GetRolePermissions(ctx, "nonexistent", "default")
+	if !errors.Is(err, ErrRoleNotFound) {
+		t.Errorf("期望错误为 ErrRoleNotFound, 实际为 %v", err)
+	}
+}
+
+// ======================== GetUserAPIPermissions 测试 ========================
+
+func TestPermissionService_GetUserAPIPermissions_WithPermissions(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("editor@example.com").
+		SetUsername("editor").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("Editor").
+		SetUID("uid-editor").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户失败: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户角色关联失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/api/v1/articles").
+		SetV3("GET").
+		SetV4("api").
+		SetV5("查看文章列表").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建 CasbinRule 失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/dashboard/workplace").
+		SetV3("menu").
+		SetV4("menu").
+		SetV5("工作台").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建菜单 CasbinRule 失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	perms, err := svc.GetUserAPIPermissions(ctx, editorUser.UID, "default")
+	if err != nil {
+		t.Fatalf("GetUserAPIPermissions 失败: %v", err)
+	}
+
+	if len(perms) != 1 {
+		t.Fatalf("期望获取1个API权限, 实际获取 %d 个", len(perms))
+	}
+
+	if perms[0].Object != "/api/v1/articles" {
+		t.Errorf("期望 Object 为 /api/v1/articles, 实际为 %s", perms[0].Object)
+	}
+	if perms[0].Action != "GET" {
+		t.Errorf("期望 Action 为 GET, 实际为 %s", perms[0].Action)
+	}
+	if perms[0].Type != PermissionTypeAPI {
+		t.Errorf("期望 Type 为 api, 实际为 %s", perms[0].Type)
+	}
+}
+
+func TestPermissionService_GetUserAPIPermissions_NoPermissions(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("editor@example.com").
+		SetUsername("editor").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("Editor").
+		SetUID("uid-editor-noperm").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户失败: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户角色关联失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	perms, err := svc.GetUserAPIPermissions(ctx, editorUser.UID, "default")
+	if err != nil {
+		t.Fatalf("GetUserAPIPermissions 失败: %v", err)
+	}
+
+	if len(perms) != 0 {
+		t.Errorf("期望获取0个API权限, 实际获取 %d 个", len(perms))
+	}
+}
+
+// ======================== CheckPermission 测试 ========================
+
+func TestPermissionService_CheckPermission_HasPermission(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("editor@example.com").
+		SetUsername("editor").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("Editor").
+		SetUID("uid-editor-check").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户失败: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户角色关联失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2("/api/v1/articles").
+		SetV3("GET").
+		SetV4("api").
+		SetV5("查看文章").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建 CasbinRule 失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	hasPermission, err := svc.CheckPermission(ctx, editorUser.UID, "default", "/api/v1/articles", "GET")
+	if err != nil {
+		t.Fatalf("CheckPermission 失败: %v", err)
+	}
+
+	if !hasPermission {
+		t.Error("期望用户拥有权限, 但返回 false")
+	}
+}
+
+func TestPermissionService_CheckPermission_NoPermission(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("editor@example.com").
+		SetUsername("editor").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("Editor").
+		SetUID("uid-editor-noperm").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户失败: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户角色关联失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	hasPermission, err := svc.CheckPermission(ctx, editorUser.UID, "default", "/api/v1/articles", "DELETE")
+	if err != nil {
+		t.Fatalf("CheckPermission 失败: %v", err)
+	}
+
+	if hasPermission {
+		t.Error("期望用户没有权限, 但返回 true")
+	}
+}
+
+// ======================== CheckUserHasRole 测试 ========================
+
+func TestPermissionService_CheckUserHasRole_HasRole(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.CasbinRule.Create().
+		SetPtype("g").
+		SetV0("uid-test-user").
+		SetV1("admin").
+		SetV2("default").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建分组规则失败: %v", err)
 	}
 }

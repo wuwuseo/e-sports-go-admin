@@ -260,4 +260,3 @@ func toDictDataResponse(item *ent.DictData) *DictDataResponse {
 		UpdatedAt: item.UpdatedAt,
 	}
 }
-
