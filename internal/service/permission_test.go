@@ -1061,7 +1061,16 @@ func TestPermissionService_CheckUserHasRole_HasRole(t *testing.T) {
 
 	ctx := t.Context()
 
-	_, err := client.CasbinRule.Create().
+	_, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
 		SetPtype("g").
 		SetV0("uid-test-user").
 		SetV1("admin").
@@ -1069,5 +1078,165 @@ func TestPermissionService_CheckUserHasRole_HasRole(t *testing.T) {
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("创建分组规则失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	hasRole, err := svc.CheckUserHasRole(ctx, "uid-test-user", "default", "admin")
+	if err != nil {
+		t.Fatalf("CheckUserHasRole 失败: %v", err)
+	}
+
+	if !hasRole {
+		t.Error("期望用户拥有admin角色, 但返回false")
+	}
+}
+
+func TestPermissionService_CheckUserHasRole_NoRole(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	hasRole, err := svc.CheckUserHasRole(ctx, "uid-test-norole", "default", "admin")
+	if err != nil {
+		t.Fatalf("CheckUserHasRole 失败: %v", err)
+	}
+
+	if hasRole {
+		t.Error("期望用户没有admin角色, 但返回true")
+	}
+}
+
+func TestPermissionService_CheckUserHasRole_RoleNotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	svc := NewPermissionService(nil)
+	hasRole, err := svc.CheckUserHasRole(ctx, "uid-test-user", "default", "nonexistent-role")
+	if err != nil {
+		// 如果返回错误也没关系
+	}
+	// 无论如何，用户都不应该有该角色
+	if hasRole {
+		t.Error("期望返回false, 因为角色不存在或用户没有该角色")
+	}
+}
+
+// ======================== AssignPermissionsToRole 测试 ========================
+
+func TestPermissionService_AssignPermissionsToRole_Success(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	perms := []PermissionRule{
+		{Object: "/api/v1/articles", Action: "GET"},
+		{Object: "/api/v1/articles", Action: "POST"},
+	}
+
+	err = svc.AssignPermissionsToRole(ctx, "editor", "default", perms)
+	if err != nil {
+		t.Fatalf("AssignPermissionsToRole 失败: %v", err)
+	}
+
+	gotPerms, err := svc.GetRolePermissions(ctx, "editor", "default")
+	if err != nil {
+		t.Fatalf("获取角色权限失败: %v", err)
+	}
+
+	if len(gotPerms) != 2 {
+		t.Errorf("期望2个权限, 实际为 %d", len(gotPerms))
+	}
+}
+
+func TestPermissionService_AssignPermissionsToRole_RoleNotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	svc := NewPermissionService(nil)
+	perms := []PermissionRule{
+		{Object: "/api/v1/articles", Action: "GET"},
+	}
+
+	err := svc.AssignPermissionsToRole(ctx, "nonexistent", "default", perms)
+	if !errors.Is(err, ErrRoleNotFound) {
+		t.Errorf("期望错误为 ErrRoleNotFound, 实际为 %v", err)
+	}
+}
+
+func TestPermissionService_AssignPermissionsToRole_EmptyList(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	_, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	err = svc.AssignPermissionsToRole(ctx, "editor", "default", []PermissionRule{})
+	if err != nil {
+		t.Fatalf("空列表不应该返回错误, 实际返回: %v", err)
 	}
 }

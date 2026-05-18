@@ -1,0 +1,653 @@
+package service
+
+import (
+	"context"
+	"database/sql"
+	"strings"
+	"testing"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/migrate"
+	"go-admin/internal/global"
+
+	entsql "entgo.io/ent/dialect/sql"
+	_ "modernc.org/sqlite"
+)
+
+func setupSystemPermissionTest(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:ent?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	drv := entsql.OpenDB("sqlite3", db)
+	client := ent.NewClient(ent.Driver(drv))
+	if err := client.Schema.Create(context.Background(), migrate.WithForeignKeys(false)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { client.Close() })
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+}
+
+func TestSystemPermissionService_Create(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	t.Run("成功创建菜单权限", func(t *testing.T) {
+		req := &CreateSystemPermissionRequest{
+			Domain: "default",
+			Type:   SystemPermissionTypeMenu,
+			Name:   "测试菜单",
+			Code:   "test:menu",
+			Status: 1,
+		}
+		resp, err := svc.Create(ctx, req)
+		if err != nil {
+			t.Fatalf("创建失败: %v", err)
+		}
+		if resp.ID == 0 {
+			t.Error("ID不应为0")
+		}
+		if resp.Name != "测试菜单" {
+			t.Errorf("名称不匹配: 期望 '测试菜单', 得到 '%s'", resp.Name)
+		}
+		if resp.Code != "test:menu" {
+			t.Errorf("代码不匹配: 期望 'test:menu', 得到 '%s'", resp.Code)
+		}
+		if resp.CreatedAt == "" {
+			t.Error("创建时间不应为空")
+		}
+		if resp.UpdatedAt == "" {
+			t.Error("更新时间不应为空")
+		}
+	})
+
+	t.Run("重复Code+Domain返回错误", func(t *testing.T) {
+		req1 := &CreateSystemPermissionRequest{
+			Domain: "default",
+			Type:   SystemPermissionTypeMenu,
+			Name:   "权限A",
+			Code:   "test:dup",
+			Status: 1,
+		}
+		_, err := svc.Create(ctx, req1)
+		if err != nil {
+			t.Fatalf("第一次创建失败: %v", err)
+		}
+
+		req2 := &CreateSystemPermissionRequest{
+			Domain: "default",
+			Type:   SystemPermissionTypeMenu,
+			Name:   "权限B",
+			Code:   "test:dup",
+			Status: 1,
+		}
+		_, err = svc.Create(ctx, req2)
+		if err == nil {
+			t.Fatal("期望重复代码错误，但没有收到错误")
+		}
+		if !strings.Contains(err.Error(), "权限代码已存在") {
+			t.Errorf("错误信息不匹配: %v", err)
+		}
+	})
+
+	t.Run("包含所有可选字段", func(t *testing.T) {
+		req := &CreateSystemPermissionRequest{
+			Domain:      "admin",
+			Type:        SystemPermissionTypeAPI,
+			Name:        "完整权限",
+			Code:        "test:full",
+			Path:        "/api/v1/test",
+			Method:      "GET",
+			MenuPath:    "/test",
+			Icon:        "icon-test",
+			Component:   "test/index",
+			ParentID:    0,
+			SortOrder:   10,
+			IsCommon:    true,
+			Status:      1,
+			Description: "这是一个测试描述",
+		}
+		resp, err := svc.Create(ctx, req)
+		if err != nil {
+			t.Fatalf("创建失败: %v", err)
+		}
+		if resp.Domain != "admin" {
+			t.Errorf("域不匹配: 期望 'admin', 得到 '%s'", resp.Domain)
+		}
+		if resp.Type != SystemPermissionTypeAPI {
+			t.Errorf("类型不匹配: 期望 'api', 得到 '%s'", resp.Type)
+		}
+		if resp.Path != "/api/v1/test" {
+			t.Errorf("路径不匹配: 期望 '/api/v1/test', 得到 '%s'", resp.Path)
+		}
+		if resp.Method != "GET" {
+			t.Errorf("方法不匹配: 期望 'GET', 得到 '%s'", resp.Method)
+		}
+		if resp.MenuPath != "/test" {
+			t.Errorf("菜单路径不匹配: 期望 '/test', 得到 '%s'", resp.MenuPath)
+		}
+		if resp.Icon != "icon-test" {
+			t.Errorf("图标不匹配: 期望 'icon-test', 得到 '%s'", resp.Icon)
+		}
+		if resp.Component != "test/index" {
+			t.Errorf("组件不匹配: 期望 'test/index', 得到 '%s'", resp.Component)
+		}
+		if resp.SortOrder != 10 {
+			t.Errorf("排序不匹配: 期望 10, 得到 %d", resp.SortOrder)
+		}
+		if !resp.IsCommon {
+			t.Error("期望 IsCommon 为 true")
+		}
+		if resp.Description != "这是一个测试描述" {
+			t.Errorf("描述不匹配: 期望 '这是一个测试描述', 得到 '%s'", resp.Description)
+		}
+	})
+}
+
+func TestSystemPermissionService_GetByID(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	t.Run("查询存在的权限", func(t *testing.T) {
+		createReq := &CreateSystemPermissionRequest{
+			Domain:      "default",
+			Type:        SystemPermissionTypeMenu,
+			Name:        "查询测试",
+			Code:        "test:get",
+			Description: "测试描述",
+			Status:      1,
+		}
+		created, err := svc.Create(ctx, createReq)
+		if err != nil {
+			t.Fatalf("创建失败: %v", err)
+		}
+
+		resp, err := svc.GetByID(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("查询失败: %v", err)
+		}
+		if resp.ID != created.ID {
+			t.Errorf("ID不匹配: 期望 %d, 得到 %d", created.ID, resp.ID)
+		}
+		if resp.Name != "查询测试" {
+			t.Errorf("名称不匹配: 期望 '查询测试', 得到 '%s'", resp.Name)
+		}
+		if resp.Code != "test:get" {
+			t.Errorf("代码不匹配: 期望 'test:get', 得到 '%s'", resp.Code)
+		}
+		if resp.Description != "测试描述" {
+			t.Errorf("描述不匹配: 期望 '测试描述', 得到 '%s'", resp.Description)
+		}
+	})
+
+	t.Run("查询不存在的权限返回错误", func(t *testing.T) {
+		_, err := svc.GetByID(ctx, 99999)
+		if err == nil {
+			t.Fatal("期望权限不存在错误，但没有收到错误")
+		}
+		if !strings.Contains(err.Error(), "权限不存在") {
+			t.Errorf("错误信息不匹配: %v", err)
+		}
+	})
+}
+
+func TestSystemPermissionService_List(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	seedData := []struct {
+		Domain   string
+		Type     SystemPermissionType
+		Name     string
+		Code     string
+		Status   int8
+		IsCommon bool
+	}{
+		{"default", SystemPermissionTypeMenu, "仪表盘", "dashboard", 1, true},
+		{"default", SystemPermissionTypeMenu, "系统管理", "system", 1, true},
+		{"default", SystemPermissionTypeAPI, "获取用户", "user:get", 1, false},
+		{"default", SystemPermissionTypeAPI, "创建用户", "user:create", 1, false},
+		{"default", SystemPermissionTypeButton, "删除按钮", "user:delete:btn", 0, false},
+		{"admin", SystemPermissionTypeMenu, "管理菜单", "admin:menu", 1, false},
+		{"admin", SystemPermissionTypeAPI, "管理API", "admin:api", 1, false},
+	}
+	for _, s := range seedData {
+		_, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+			Domain:   s.Domain,
+			Type:     s.Type,
+			Name:     s.Name,
+			Code:     s.Code,
+			Status:   s.Status,
+			IsCommon: s.IsCommon,
+		})
+		if err != nil {
+			t.Fatalf("创建种子数据失败: %v", err)
+		}
+	}
+
+	t.Run("无筛选条件返回全部", func(t *testing.T) {
+		resp, err := svc.List(ctx, &ListSystemPermissionsRequest{})
+		if err != nil {
+			t.Fatalf("查询列表失败: %v", err)
+		}
+		if resp.Total != 7 {
+			t.Errorf("期望总数 7, 得到 %d", resp.Total)
+		}
+		if len(resp.Data) != 7 {
+			t.Errorf("期望数据条数 7, 得到 %d", len(resp.Data))
+		}
+	})
+
+	t.Run("域筛选同时返回IsCommon=true项", func(t *testing.T) {
+		req := &ListSystemPermissionsRequest{
+			Domain: "admin",
+		}
+		resp, err := svc.List(ctx, req)
+		if err != nil {
+			t.Fatalf("查询列表失败: %v", err)
+		}
+		for _, d := range resp.Data {
+			if d.Domain != "admin" && !d.IsCommon {
+				t.Errorf("期望域为 'admin' 或是公共权限, 得到域 '%s', IsCommon=%v", d.Domain, d.IsCommon)
+			}
+		}
+	})
+
+	t.Run("类型筛选", func(t *testing.T) {
+		req := &ListSystemPermissionsRequest{
+			Type: SystemPermissionTypeAPI,
+		}
+		resp, err := svc.List(ctx, req)
+		if err != nil {
+			t.Fatalf("查询列表失败: %v", err)
+		}
+		if resp.Total != 3 {
+			t.Errorf("期望 API 类型总数 3, 得到 %d", resp.Total)
+		}
+		for _, d := range resp.Data {
+			if d.Type != SystemPermissionTypeAPI {
+				t.Errorf("期望类型 'api', 得到 '%s'", d.Type)
+			}
+		}
+	})
+
+	t.Run("关键字筛选匹配名称和代码", func(t *testing.T) {
+		req := &ListSystemPermissionsRequest{
+			ListRequest: ListRequest{
+				Keyword: "user",
+			},
+		}
+		resp, err := svc.List(ctx, req)
+		if err != nil {
+			t.Fatalf("查询列表失败: %v", err)
+		}
+		if resp.Total != 3 {
+			t.Errorf("期望匹配 'user' 关键字结果 3 条, 得到 %d", resp.Total)
+		}
+		for _, d := range resp.Data {
+			if !strings.Contains(d.Name, "user") && !strings.Contains(d.Code, "user") {
+				t.Errorf("期望名称或代码包含 'user', 得到名称 '%s' 代码 '%s'", d.Name, d.Code)
+			}
+		}
+	})
+
+	t.Run("状态筛选启用权限", func(t *testing.T) {
+		req := &ListSystemPermissionsRequest{
+			Status: 1,
+		}
+		resp, err := svc.List(ctx, req)
+		if err != nil {
+			t.Fatalf("查询列表失败: %v", err)
+		}
+		if resp.Total != 6 {
+			t.Errorf("期望状态1总数 6, 得到 %d", resp.Total)
+		}
+		for _, d := range resp.Data {
+			if d.Status != 1 {
+				t.Errorf("期望状态 1, 得到状态 %d, 代码 '%s'", d.Status, d.Code)
+			}
+		}
+	})
+}
+
+func TestSystemPermissionService_Update(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	t.Run("成功更新名称和排序", func(t *testing.T) {
+		createReq := &CreateSystemPermissionRequest{
+			Domain:    "default",
+			Type:      SystemPermissionTypeMenu,
+			Name:      "原始名称",
+			Code:      "test:update",
+			SortOrder: 5,
+			Status:    1,
+		}
+		created, err := svc.Create(ctx, createReq)
+		if err != nil {
+			t.Fatalf("创建失败: %v", err)
+		}
+
+		updateReq := &UpdateSystemPermissionRequest{
+			Name:      "新名称",
+			SortOrder: 99,
+		}
+		err = svc.Update(ctx, created.ID, updateReq)
+		if err != nil {
+			t.Fatalf("更新失败: %v", err)
+		}
+
+		updated, err := svc.GetByID(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("查询失败: %v", err)
+		}
+		if updated.Name != "新名称" {
+			t.Errorf("名称未更新: 期望 '新名称', 得到 '%s'", updated.Name)
+		}
+		if updated.SortOrder != 99 {
+			t.Errorf("排序未更新: 期望 99, 得到 %d", updated.SortOrder)
+		}
+	})
+
+	t.Run("更新不存在的权限返回错误", func(t *testing.T) {
+		req := &UpdateSystemPermissionRequest{
+			Name: "不存在",
+		}
+		err := svc.Update(ctx, 99999, req)
+		if err == nil {
+			t.Fatal("期望权限不存在错误，但没有收到错误")
+		}
+		if !strings.Contains(err.Error(), "权限不存在") {
+			t.Errorf("错误信息不匹配: %v", err)
+		}
+	})
+}
+
+func TestSystemPermissionService_Delete(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	t.Run("成功删除叶子权限", func(t *testing.T) {
+		createReq := &CreateSystemPermissionRequest{
+			Domain: "default",
+			Type:   SystemPermissionTypeMenu,
+			Name:   "待删除",
+			Code:   "test:delete:leaf",
+			Status: 1,
+		}
+		created, err := svc.Create(ctx, createReq)
+		if err != nil {
+			t.Fatalf("创建失败: %v", err)
+		}
+
+		err = svc.Delete(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("删除失败: %v", err)
+		}
+
+		_, err = svc.GetByID(ctx, created.ID)
+		if err == nil {
+			t.Fatal("期望权限已删除，但仍能查到")
+		}
+		if !strings.Contains(err.Error(), "权限不存在") {
+			t.Errorf("错误信息不匹配: %v", err)
+		}
+	})
+
+	t.Run("有子权限时删除失败", func(t *testing.T) {
+		parentReq := &CreateSystemPermissionRequest{
+			Domain: "default",
+			Type:   SystemPermissionTypeMenu,
+			Name:   "父权限",
+			Code:   "test:delete:parent",
+			Status: 1,
+		}
+		parent, err := svc.Create(ctx, parentReq)
+		if err != nil {
+			t.Fatalf("创建父权限失败: %v", err)
+		}
+
+		childReq := &CreateSystemPermissionRequest{
+			Domain:   "default",
+			Type:     SystemPermissionTypeMenu,
+			Name:     "子权限",
+			Code:     "test:delete:child",
+			ParentID: parent.ID,
+			Status:   1,
+		}
+		_, err = svc.Create(ctx, childReq)
+		if err != nil {
+			t.Fatalf("创建子权限失败: %v", err)
+		}
+
+		err = svc.Delete(ctx, parent.ID)
+		if err == nil {
+			t.Fatal("期望删除失败，但成功了")
+		}
+		if !strings.Contains(err.Error(), "请先删除子权限") {
+			t.Errorf("错误信息不匹配: %v", err)
+		}
+	})
+
+	t.Run("删除不存在的权限返回错误", func(t *testing.T) {
+		err := svc.Delete(ctx, 99999)
+		if err == nil {
+			t.Fatal("期望权限不存在错误，但没有收到错误")
+		}
+		if !strings.Contains(err.Error(), "权限不存在") {
+			t.Errorf("错误信息不匹配: %v", err)
+		}
+	})
+}
+
+func TestSystemPermissionService_GetTree(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	t.Run("构建正确的树结构", func(t *testing.T) {
+		parentReq := &CreateSystemPermissionRequest{
+			Domain:    "default",
+			Type:      SystemPermissionTypeMenu,
+			Name:      "父菜单",
+			Code:      "tree:parent",
+			SortOrder: 1,
+			Status:    1,
+		}
+		parent, err := svc.Create(ctx, parentReq)
+		if err != nil {
+			t.Fatalf("创建父权限失败: %v", err)
+		}
+
+		child1Req := &CreateSystemPermissionRequest{
+			Domain:    "default",
+			Type:      SystemPermissionTypeMenu,
+			Name:      "子菜单1",
+			Code:      "tree:child1",
+			ParentID:  parent.ID,
+			SortOrder: 1,
+			Status:    1,
+		}
+		_, err = svc.Create(ctx, child1Req)
+		if err != nil {
+			t.Fatalf("创建子权限1失败: %v", err)
+		}
+
+		child2Req := &CreateSystemPermissionRequest{
+			Domain:    "default",
+			Type:      SystemPermissionTypeMenu,
+			Name:      "子菜单2",
+			Code:      "tree:child2",
+			ParentID:  parent.ID,
+			SortOrder: 2,
+			Status:    1,
+		}
+		_, err = svc.Create(ctx, child2Req)
+		if err != nil {
+			t.Fatalf("创建子权限2失败: %v", err)
+		}
+
+		orphanReq := &CreateSystemPermissionRequest{
+			Domain:    "default",
+			Type:      SystemPermissionTypeMenu,
+			Name:      "独立菜单",
+			Code:      "tree:orphan",
+			SortOrder: 0,
+			Status:    1,
+		}
+		_, err = svc.Create(ctx, orphanReq)
+		if err != nil {
+			t.Fatalf("创建独立权限失败: %v", err)
+		}
+
+		nodes, err := svc.GetTree(ctx, "default")
+		if err != nil {
+			t.Fatalf("获取树失败: %v", err)
+		}
+
+		if len(nodes) != 2 {
+			t.Fatalf("期望根节点数 2, 得到 %d", len(nodes))
+		}
+
+		foundParent := false
+		foundOrphan := false
+		for _, node := range nodes {
+			if node.Name == "父菜单" {
+				foundParent = true
+				if len(node.Children) != 2 {
+					t.Errorf("父菜单期望 2 个子节点, 得到 %d", len(node.Children))
+				}
+			}
+			if node.Name == "独立菜单" {
+				foundOrphan = true
+				if len(node.Children) != 0 {
+					t.Errorf("独立菜单期望 0 个子节点, 得到 %d", len(node.Children))
+				}
+			}
+		}
+		if !foundParent {
+			t.Error("未找到父菜单节点")
+		}
+		if !foundOrphan {
+			t.Error("未找到独立菜单节点")
+		}
+	})
+
+	t.Run("空域返回所有权限树", func(t *testing.T) {
+		adminReq := &CreateSystemPermissionRequest{
+			Domain:    "admin",
+			Type:      SystemPermissionTypeMenu,
+			Name:      "管理域菜单",
+			Code:      "tree:all:admin",
+			SortOrder: 3,
+			Status:    1,
+		}
+		_, err := svc.Create(ctx, adminReq)
+		if err != nil {
+			t.Fatalf("创建admin域权限失败: %v", err)
+		}
+
+		nodes, err := svc.GetTree(ctx, "")
+		if err != nil {
+			t.Fatalf("获取树失败: %v", err)
+		}
+
+		foundDefault := false
+		foundAdmin := false
+		for _, node := range nodes {
+			if node.Name == "父菜单" {
+				foundDefault = true
+			}
+			if node.Name == "管理域菜单" {
+				foundAdmin = true
+			}
+		}
+		if !foundDefault {
+			t.Error("空域查询未找到default域的父菜单节点")
+		}
+		if !foundAdmin {
+			t.Error("空域查询未找到admin域的管理域菜单节点")
+		}
+	})
+}
+
+func TestSystemPermissionService_InitSeedPermissions(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	t.Run("新种子权限被创建", func(t *testing.T) {
+		seeds := []SeedPermission{
+			{Domain: "default", Type: "menu", Name: "种子菜单1", Code: "seed:menu1", SortOrder: 1, Status: 1},
+			{Domain: "default", Type: "menu", Name: "种子菜单2", Code: "seed:menu2", SortOrder: 2, Status: 1},
+			{Domain: "admin", Type: "api", Name: "种子API", Code: "seed:api", Path: "/api/seed", Method: "GET", SortOrder: 3, Status: 1},
+		}
+		err := svc.InitSeedPermissions(ctx, seeds)
+		if err != nil {
+			t.Fatalf("初始化种子权限失败: %v", err)
+		}
+
+		resp, err := svc.List(ctx, &ListSystemPermissionsRequest{})
+		if err != nil {
+			t.Fatalf("查询列表失败: %v", err)
+		}
+		if resp.Total != 3 {
+			t.Errorf("期望创建 3 条种子权限, 得到 %d", resp.Total)
+		}
+
+		foundCodes := make(map[string]bool)
+		for _, d := range resp.Data {
+			foundCodes[d.Code] = true
+		}
+		for _, seed := range seeds {
+			if !foundCodes[seed.Code] {
+				t.Errorf("未找到种子权限代码 '%s'", seed.Code)
+			}
+		}
+	})
+
+	t.Run("已存在的种子权限被跳过不产生重复", func(t *testing.T) {
+		firstSeed := []SeedPermission{
+			{Domain: "default", Type: "menu", Name: "已存在菜单", Code: "seed:skip", SortOrder: 10, Status: 1},
+			{Domain: "default", Type: "menu", Name: "新菜单", Code: "seed:new", SortOrder: 11, Status: 1},
+		}
+		err := svc.InitSeedPermissions(ctx, firstSeed)
+		if err != nil {
+			t.Fatalf("首次初始化种子权限失败: %v", err)
+		}
+
+		secondSeed := []SeedPermission{
+			{Domain: "default", Type: "menu", Name: "已存在菜单(再次)", Code: "seed:skip", SortOrder: 10, Status: 1},
+			{Domain: "default", Type: "menu", Name: "另一个新菜单", Code: "seed:another", SortOrder: 12, Status: 1},
+		}
+		err = svc.InitSeedPermissions(ctx, secondSeed)
+		if err != nil {
+			t.Fatalf("再次初始化种子权限失败: %v", err)
+		}
+
+		countByCode := make(map[string]int)
+		allResp, err := svc.List(ctx, &ListSystemPermissionsRequest{})
+		if err != nil {
+			t.Fatalf("查询列表失败: %v", err)
+		}
+		for _, d := range allResp.Data {
+			countByCode[d.Code]++
+		}
+		if countByCode["seed:skip"] != 1 {
+			t.Errorf("权限代码 'seed:skip' 出现 %d 次, 期望只出现1次(重复应被跳过)", countByCode["seed:skip"])
+		}
+		if countByCode["seed:new"] != 1 {
+			t.Errorf("权限代码 'seed:new' 出现 %d 次, 期望只出现1次", countByCode["seed:new"])
+		}
+		if countByCode["seed:another"] != 1 {
+			t.Errorf("权限代码 'seed:another' 出现 %d 次, 期望只出现1次", countByCode["seed:another"])
+		}
+	})
+}
