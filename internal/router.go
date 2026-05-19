@@ -73,6 +73,39 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminPublic.Post("/refresh-token", handler.RefreshToken)
 	adminPublic.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
 
+	// 管理员公开接口（无需认证）
+	adminPublicLogin := admin.Group("/public", func(c fiber.Ctx) error {
+		c.Locals("service.AdminService", service.NewAdminService())
+		c.Locals("utils.Response", utils.NewResponse())
+		return c.Next()
+	})
+	adminPublicLogin.Post("/login", handler.AdminLogin)
+	adminPublicLogin.Post("/refresh", handler.AdminRefreshToken)
+
+	// 管理员个人信息路由（仅需认证，无需权限检查）
+	adminAuthSelf := admin.Group("/admin-auth", jwt.NewJWTMiddleware(config.App.AdminSecret), func(c fiber.Ctx) error {
+		c.Locals("service.AdminService", service.NewAdminService())
+		c.Locals("utils.Response", utils.NewResponse())
+		return c.Next()
+	})
+	adminAuthSelf.Get("/user", handler.GetAdmin)
+	adminAuthSelf.Put("/user", handler.UpdateAdmin)
+	adminAuthSelf.Put("/password", handler.ChangeAdminPassword)
+	adminAuthSelf.Post("/logout", handler.AdminLogout)
+
+	// 超级管理员管理路由（管理其他管理员账号）
+	adminManagement := admin.Group("/admin-auth", jwt.NewJWTMiddleware(config.App.AdminSecret), func(c fiber.Ctx) error {
+		c.Locals("service.SuperAdminService", service.NewSuperAdminService())
+		c.Locals("service.AdminService", service.NewAdminService())
+		c.Locals("utils.Response", utils.NewResponse())
+		return c.Next()
+	})
+	adminManagement.Post("/admins", handler.CreateAdmin)
+	adminManagement.Get("/admins", handler.ListAdmins)
+	adminManagement.Get("/admins/:uid", handler.GetAdminDetail)
+	adminManagement.Put("/admins/:id/activate", handler.ActivateAdmin)
+	adminManagement.Put("/admins/:id/deactivate", handler.DeactivateAdmin)
+
 	// 仅认证、不需要额外权限的用户个人信息路由（必须在 adminAuth 之前声明，避免被 PermissionMiddleware 拦截）
 	adminAuthUser := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), func(c fiber.Ctx) error {
 		c.Locals("service.UserService", userService)

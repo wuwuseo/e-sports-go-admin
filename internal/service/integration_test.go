@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
@@ -42,8 +43,11 @@ func setupIntegrationTest(t *testing.T) (*ent.Client, *bootstrap.Bootstrap, func
 	cfg := &cmfConfig.Config{}
 	cfg.App.Name = "test-admin"
 	cfg.App.Secret = "test-secret-key-for-jwt"
+	cfg.App.AdminSecret = "admin-test-secret-key-for-jwt"
 	cfg.App.LoginExpires = 86400
+	cfg.App.AdminLoginExpires = 7200
 	cfg.App.RefreshExpires = 604800
+	cfg.App.AdminRefreshExpires = 86400
 
 	// 创建 Bootstrap 并注册 config
 	bs := bootstrap.NewBootstrap()
@@ -795,4 +799,147 @@ func buildTestRefreshToken(t *testing.T, uid string) string {
 		t.Fatalf("创建测试刷新令牌失败: %v", err)
 	}
 	return token
+}
+
+// ======================== 管理员登录集成测试 ========================
+
+func TestIntegration_AdminLogin_Success(t *testing.T) {
+	client, _, cleanup := setupIntegrationTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	hashedPassword, salt, err := crypto.HashPassword("adminpass123")
+	if err != nil {
+		t.Fatalf("加密管理员密码失败: %v", err)
+	}
+	client.Admin.Create().
+		SetEmail("admin@admin-test.com").
+		SetUID("uid-admin-integration").
+		SetUsername("adminuser").
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+
+	svc := NewAdminService()
+	resp, err := svc.Login(ctx, &AdminLoginRequest{
+		Email:    "admin@admin-test.com",
+		Password: "adminpass123",
+	})
+	if err != nil {
+		t.Fatalf("管理员登录失败: %v", err)
+	}
+
+	if resp.AccessToken == "" {
+		t.Fatal("期望返回访问令牌，但为空")
+	}
+	if resp.RefreshToken == "" {
+		t.Fatal("期望返回刷新令牌，但为空")
+	}
+
+	_, err = jwt.Parse(resp.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return []byte("test-secret-key-for-jwt"), nil
+	})
+	if err == nil {
+		t.Fatal("管理员Token不应能被用户密钥解析")
+	}
+
+	token, err := jwt.Parse(resp.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return []byte("admin-test-secret-key-for-jwt"), nil
+	})
+	if err != nil {
+		t.Fatalf("使用管理员密钥解析令牌失败: %v", err)
+	}
+	if !token.Valid {
+		t.Fatal("管理员访问令牌无效")
+	}
+}
+
+func TestIntegration_AdminLogin_WrongSecretIsolation(t *testing.T) {
+	client, _, cleanup := setupIntegrationTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	hashedPassword, salt, err := crypto.HashPassword("pass123")
+	if err != nil {
+		t.Fatalf("加密密码失败: %v", err)
+	}
+	client.Admin.Create().
+		SetEmail("isolation@test.com").
+		SetUID("uid-isolation").
+		SetUsername("isolationuser").
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	client.User.Create().
+		SetEmail("isolation@test.com").
+		SetUID("uid-isolation-user").
+		SetUsername("isolationuser").
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		SetStatus(user.StatusActive).
+		Save(ctx)
+
+	adminSvc := NewAdminService()
+	adminResp, err := adminSvc.Login(ctx, &AdminLoginRequest{
+		Email:    "isolation@test.com",
+		Password: "pass123",
+	})
+	if err != nil {
+		t.Fatalf("管理员登录失败: %v", err)
+	}
+
+	userSvc := NewUserService()
+	_, err = userSvc.Login(ctx, &LoginRequest{
+		Email:    "isolation@test.com",
+		Password: "pass123",
+	})
+	if err != nil {
+		t.Fatalf("用户登录失败: %v", err)
+	}
+
+	_, err = jwt.Parse(adminResp.AccessToken, func(token *jwt.Token) (interface{}, error) {
+		return []byte("test-secret-key-for-jwt"), nil
+	})
+	if err == nil {
+		t.Fatal("管理员Token不应能被用户密钥解析，隔离失败")
+	}
+}
+
+func TestIntegration_AdminRefreshToken_Success(t *testing.T) {
+	client, _, cleanup := setupIntegrationTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	hashedPassword, salt, err := crypto.HashPassword("pass123")
+	if err != nil {
+		t.Fatalf("加密管理员密码失败: %v", err)
+	}
+	client.Admin.Create().
+		SetEmail("refresh@admin-test.com").
+		SetUID("uid-admin-refresh").
+		SetUsername("refreshadmin").
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+
+	svc := NewAdminService()
+	loginResp, err := svc.Login(ctx, &AdminLoginRequest{
+		Email:    "refresh@admin-test.com",
+		Password: "pass123",
+	})
+	if err != nil {
+		t.Fatalf("管理员登录失败: %v", err)
+	}
+
+	refreshResp, err := svc.RefreshToken(ctx, loginResp.RefreshToken)
+	if err != nil {
+		t.Fatalf("管理员刷新Token失败: %v", err)
+	}
+
+	if refreshResp.AccessToken == "" {
+		t.Fatal("期望返回新的访问令牌")
+	}
 }

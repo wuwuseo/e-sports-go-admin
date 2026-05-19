@@ -11,6 +11,101 @@ import (
 var TablePrefix = orm.GetTablePrefix()
 
 var (
+	// AdminsColumns holds the columns for the "admins" table.
+	AdminsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "email", Type: field.TypeString, Unique: true, Size: 255},
+		{Name: "password", Type: field.TypeString, Size: 255},
+		{Name: "password_salt", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "uid", Type: field.TypeString, Unique: true, Size: 255},
+		{Name: "username", Type: field.TypeString, Unique: true, Size: 255},
+		{Name: "nickname", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "name", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "avatar", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "phone", Type: field.TypeString, Nullable: true, Size: 20},
+		{Name: "department", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "position", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive", "suspended"}, Default: "inactive"},
+		{Name: "last_login", Type: field.TypeTime, Nullable: true},
+		{Name: "last_ip", Type: field.TypeString, Nullable: true, Size: 50},
+	}
+	// AdminsTable holds the schema information for the "admins" table.
+	AdminsTable = &schema.Table{
+		Name:       TablePrefix + "admins",
+		Columns:    AdminsColumns,
+		PrimaryKey: []*schema.Column{AdminsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "admin_email",
+				Unique:  false,
+				Columns: []*schema.Column{AdminsColumns[3]},
+			},
+			{
+				Name:    "admin_username",
+				Unique:  false,
+				Columns: []*schema.Column{AdminsColumns[7]},
+			},
+			{
+				Name:    "admin_uid",
+				Unique:  false,
+				Columns: []*schema.Column{AdminsColumns[6]},
+			},
+		},
+	}
+	// AdminRolesColumns holds the columns for the "admin_roles" table.
+	AdminRolesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "is_primary", Type: field.TypeBool, Default: false},
+		{Name: "created_by", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "admin_id", Type: field.TypeInt},
+		{Name: "role_id", Type: field.TypeInt},
+	}
+	// AdminRolesTable holds the schema information for the "admin_roles" table.
+	AdminRolesTable = &schema.Table{
+		Name:       TablePrefix + "admin_roles",
+		Columns:    AdminRolesColumns,
+		PrimaryKey: []*schema.Column{AdminRolesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "admin_roles_admins_admin",
+				Columns:    []*schema.Column{AdminRolesColumns[5]},
+				RefColumns: []*schema.Column{AdminsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+			{
+				Symbol:     "admin_roles_roles_role",
+				Columns:    []*schema.Column{AdminRolesColumns[6]},
+				RefColumns: []*schema.Column{RolesColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "adminrole_admin_id_role_id",
+				Unique:  true,
+				Columns: []*schema.Column{AdminRolesColumns[5], AdminRolesColumns[6]},
+			},
+			{
+				Name:    "adminrole_admin_id",
+				Unique:  false,
+				Columns: []*schema.Column{AdminRolesColumns[5]},
+			},
+			{
+				Name:    "adminrole_role_id",
+				Unique:  false,
+				Columns: []*schema.Column{AdminRolesColumns[6]},
+			},
+			{
+				Name:    "adminrole_admin_id_is_primary",
+				Unique:  false,
+				Columns: []*schema.Column{AdminRolesColumns[5], AdminRolesColumns[3]},
+			},
+		},
+	}
 	// AttachmentsColumns holds the columns for the "attachments" table.
 	AttachmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -493,6 +588,8 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AdminsTable,
+		AdminRolesTable,
 		AttachmentsTable,
 		AttachmentGroupsTable,
 		BlacklistsTable,
@@ -510,6 +607,8 @@ var (
 )
 
 func init() {
+	AdminRolesTable.ForeignKeys[0].RefTable = AdminsTable
+	AdminRolesTable.ForeignKeys[1].RefTable = RolesTable
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
 	BlacklistsTable.ForeignKeys[0].RefTable = UsersTable
 	ThirdPartyUsersTable.ForeignKeys[0].RefTable = UsersTable

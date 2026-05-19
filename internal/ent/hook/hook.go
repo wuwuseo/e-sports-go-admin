@@ -8,6 +8,30 @@ import (
 	"go-admin/internal/ent"
 )
 
+// The AdminFunc type is an adapter to allow the use of ordinary
+// function as Admin mutator.
+type AdminFunc func(context.Context, *ent.AdminMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AdminFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AdminMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AdminMutation", m)
+}
+
+// The AdminRoleFunc type is an adapter to allow the use of ordinary
+// function as AdminRole mutator.
+type AdminRoleFunc func(context.Context, *ent.AdminRoleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AdminRoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AdminRoleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AdminRoleMutation", m)
+}
+
 // The AttachmentFunc type is an adapter to allow the use of ordinary
 // function as Attachment mutator.
 type AttachmentFunc func(context.Context, *ent.AttachmentMutation) (ent.Value, error)

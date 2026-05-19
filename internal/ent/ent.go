@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
@@ -85,6 +87,8 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			admin.Table:            admin.ValidColumn,
+			adminrole.Table:        adminrole.ValidColumn,
 			attachment.Table:       attachment.ValidColumn,
 			attachmentgroup.Table:  attachmentgroup.ValidColumn,
 			blacklist.Table:        blacklist.ValidColumn,

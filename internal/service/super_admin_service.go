@@ -1,0 +1,205 @@
+package service
+
+import (
+	"context"
+	"errors"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/global"
+	"go-admin/internal/utils"
+
+	"github.com/wuwuseo/cmf/crypto"
+)
+
+var (
+	ErrAdminEmailExists    = errors.New("admin email already exists")
+	ErrAdminUsernameExists = errors.New("admin username already exists")
+)
+
+// SuperAdminServiceInterface 超级管理员服务接口
+type SuperAdminServiceInterface interface {
+	CreateAdmin(ctx context.Context, req *CreateAdminRequest) (*AdminResponse, error)
+	ListAdmins(ctx context.Context, req *AdminListRequest) (*ListResponse[*AdminListItem], error)
+	ActivateAdmin(ctx context.Context, adminID int) error
+	DeactivateAdmin(ctx context.Context, adminID int) error
+}
+
+// SuperAdminService 超级管理员服务
+type SuperAdminService struct {
+	client *ent.Client
+}
+
+// NewSuperAdminService 创建超级管理员服务实例
+func NewSuperAdminService() *SuperAdminService {
+	return &SuperAdminService{
+		client: global.ORM,
+	}
+}
+
+// CreateAdminRequest 创建管理员请求
+type CreateAdminRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
+	Username string `json:"username" validate:"required,min=3"`
+	Nickname string `json:"nickname"`
+	Name     string `json:"name"`
+	Phone    string `json:"phone"`
+}
+
+// AdminListRequest 管理员列表请求
+type AdminListRequest struct {
+	Page     int    `json:"page"`
+	PageSize int    `json:"page_size"`
+	Keyword  string `json:"keyword"`
+	Status   string `json:"status"`
+}
+
+// AdminListItem 管理员列表项
+type AdminListItem struct {
+	ID       int    `json:"id"`
+	UID      string `json:"uid"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Status   string `json:"status"`
+}
+
+// CreateAdmin 创建管理员
+func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminRequest) (*AdminResponse, error) {
+	emailExists, err := s.client.Admin.Query().
+		Where(admin.EmailEQ(req.Email)).
+		Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if emailExists {
+		return nil, ErrAdminEmailExists
+	}
+
+	usernameExists, err := s.client.Admin.Query().
+		Where(admin.UsernameEQ(req.Username)).
+		Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if usernameExists {
+		return nil, ErrAdminUsernameExists
+	}
+
+	hashedPassword, salt, err := crypto.HashPassword(req.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	a, err := s.client.Admin.Create().
+		SetEmail(req.Email).
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		SetUID(utils.GenerateUID()).
+		SetUsername(req.Username).
+		SetNickname(req.Nickname).
+		SetName(req.Name).
+		SetPhone(req.Phone).
+		SetStatus(admin.StatusInactive).
+		Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AdminResponse{
+		ID:         a.UID,
+		Email:      a.Email,
+		Username:   a.Username,
+		Nickname:   a.Nickname,
+		Name:       a.Name,
+		Phone:      a.Phone,
+		Status:     string(a.Status),
+	}, nil
+}
+
+// ListAdmins 管理员列表
+func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListRequest) (*ListResponse[*AdminListItem], error) {
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 20
+	}
+
+	query := s.client.Admin.Query()
+
+	if req.Keyword != "" {
+		query = query.Where(
+			admin.Or(
+				admin.EmailContains(req.Keyword),
+				admin.UsernameContains(req.Keyword),
+				admin.NicknameContains(req.Keyword),
+			),
+		)
+	}
+
+	if req.Status != "" {
+		query = query.Where(admin.StatusEQ(admin.Status(req.Status)))
+	}
+
+	total, err := query.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	offset := (req.Page - 1) * req.PageSize
+	admins, err := query.
+		Offset(offset).
+		Limit(req.PageSize).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]*AdminListItem, len(admins))
+	for i, a := range admins {
+		items[i] = &AdminListItem{
+			ID:       a.ID,
+			UID:      a.UID,
+			Email:    a.Email,
+			Username: a.Username,
+			Nickname: a.Nickname,
+			Status:   string(a.Status),
+		}
+	}
+
+	return &ListResponse[*AdminListItem]{
+		Data:  items,
+		Total: total,
+		Page:  req.Page,
+	}, nil
+}
+
+// ActivateAdmin 激活管理员
+func (s *SuperAdminService) ActivateAdmin(ctx context.Context, adminID int) error {
+	_, err := s.client.Admin.UpdateOneID(adminID).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrAdminNotFound
+		}
+		return err
+	}
+	return nil
+}
+
+// DeactivateAdmin 停用管理员
+func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, adminID int) error {
+	_, err := s.client.Admin.UpdateOneID(adminID).
+		SetStatus(admin.StatusInactive).
+		Save(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrAdminNotFound
+		}
+		return err
+	}
+	return nil
+}

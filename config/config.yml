@@ -7,6 +7,9 @@ app:
   swagger: true
   secret: secret
   login_expires: 86400
+  admin_secret: admin-secret-key
+  admin_login_expires: 7200
+  admin_refresh_expires: 86400
   body_limit: 10485760
 
 log:

@@ -6,6 +6,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Admin is the predicate function for admin builders.
+type Admin func(*sql.Selector)
+
+// AdminRole is the predicate function for adminrole builders.
+type AdminRole func(*sql.Selector)
+
 // Attachment is the predicate function for attachment builders.
 type Attachment func(*sql.Selector)
 

@@ -3,6 +3,8 @@
 package ent
 
 import (
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
@@ -24,6 +26,120 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	adminMixin := schema.Admin{}.Mixin()
+	adminMixinFields0 := adminMixin[0].Fields()
+	_ = adminMixinFields0
+	adminFields := schema.Admin{}.Fields()
+	_ = adminFields
+	// adminDescCreateTime is the schema descriptor for create_time field.
+	adminDescCreateTime := adminMixinFields0[0].Descriptor()
+	// admin.DefaultCreateTime holds the default value on creation for the create_time field.
+	admin.DefaultCreateTime = adminDescCreateTime.Default.(func() time.Time)
+	// adminDescUpdateTime is the schema descriptor for update_time field.
+	adminDescUpdateTime := adminMixinFields0[1].Descriptor()
+	// admin.DefaultUpdateTime holds the default value on creation for the update_time field.
+	admin.DefaultUpdateTime = adminDescUpdateTime.Default.(func() time.Time)
+	// admin.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	admin.UpdateDefaultUpdateTime = adminDescUpdateTime.UpdateDefault.(func() time.Time)
+	// adminDescEmail is the schema descriptor for email field.
+	adminDescEmail := adminFields[1].Descriptor()
+	// admin.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	admin.EmailValidator = func() func(string) error {
+		validators := adminDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// adminDescPassword is the schema descriptor for password field.
+	adminDescPassword := adminFields[2].Descriptor()
+	// admin.PasswordValidator is a validator for the "password" field. It is called by the builders before save.
+	admin.PasswordValidator = func() func(string) error {
+		validators := adminDescPassword.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(password string) error {
+			for _, fn := range fns {
+				if err := fn(password); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// adminDescPasswordSalt is the schema descriptor for password_salt field.
+	adminDescPasswordSalt := adminFields[3].Descriptor()
+	// admin.PasswordSaltValidator is a validator for the "password_salt" field. It is called by the builders before save.
+	admin.PasswordSaltValidator = adminDescPasswordSalt.Validators[0].(func(string) error)
+	// adminDescUID is the schema descriptor for uid field.
+	adminDescUID := adminFields[4].Descriptor()
+	// admin.UIDValidator is a validator for the "uid" field. It is called by the builders before save.
+	admin.UIDValidator = adminDescUID.Validators[0].(func(string) error)
+	// adminDescUsername is the schema descriptor for username field.
+	adminDescUsername := adminFields[5].Descriptor()
+	// admin.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
+	admin.UsernameValidator = adminDescUsername.Validators[0].(func(string) error)
+	// adminDescNickname is the schema descriptor for nickname field.
+	adminDescNickname := adminFields[6].Descriptor()
+	// admin.NicknameValidator is a validator for the "nickname" field. It is called by the builders before save.
+	admin.NicknameValidator = adminDescNickname.Validators[0].(func(string) error)
+	// adminDescName is the schema descriptor for name field.
+	adminDescName := adminFields[7].Descriptor()
+	// admin.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	admin.NameValidator = adminDescName.Validators[0].(func(string) error)
+	// adminDescAvatar is the schema descriptor for avatar field.
+	adminDescAvatar := adminFields[8].Descriptor()
+	// admin.AvatarValidator is a validator for the "avatar" field. It is called by the builders before save.
+	admin.AvatarValidator = adminDescAvatar.Validators[0].(func(string) error)
+	// adminDescPhone is the schema descriptor for phone field.
+	adminDescPhone := adminFields[9].Descriptor()
+	// admin.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
+	admin.PhoneValidator = adminDescPhone.Validators[0].(func(string) error)
+	// adminDescDepartment is the schema descriptor for department field.
+	adminDescDepartment := adminFields[10].Descriptor()
+	// admin.DepartmentValidator is a validator for the "department" field. It is called by the builders before save.
+	admin.DepartmentValidator = adminDescDepartment.Validators[0].(func(string) error)
+	// adminDescPosition is the schema descriptor for position field.
+	adminDescPosition := adminFields[11].Descriptor()
+	// admin.PositionValidator is a validator for the "position" field. It is called by the builders before save.
+	admin.PositionValidator = adminDescPosition.Validators[0].(func(string) error)
+	// adminDescLastIP is the schema descriptor for last_ip field.
+	adminDescLastIP := adminFields[14].Descriptor()
+	// admin.LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
+	admin.LastIPValidator = adminDescLastIP.Validators[0].(func(string) error)
+	adminroleMixin := schema.AdminRole{}.Mixin()
+	adminroleMixinFields0 := adminroleMixin[0].Fields()
+	_ = adminroleMixinFields0
+	adminroleFields := schema.AdminRole{}.Fields()
+	_ = adminroleFields
+	// adminroleDescCreateTime is the schema descriptor for create_time field.
+	adminroleDescCreateTime := adminroleMixinFields0[0].Descriptor()
+	// adminrole.DefaultCreateTime holds the default value on creation for the create_time field.
+	adminrole.DefaultCreateTime = adminroleDescCreateTime.Default.(func() time.Time)
+	// adminroleDescUpdateTime is the schema descriptor for update_time field.
+	adminroleDescUpdateTime := adminroleMixinFields0[1].Descriptor()
+	// adminrole.DefaultUpdateTime holds the default value on creation for the update_time field.
+	adminrole.DefaultUpdateTime = adminroleDescUpdateTime.Default.(func() time.Time)
+	// adminrole.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	adminrole.UpdateDefaultUpdateTime = adminroleDescUpdateTime.UpdateDefault.(func() time.Time)
+	// adminroleDescIsPrimary is the schema descriptor for is_primary field.
+	adminroleDescIsPrimary := adminroleFields[3].Descriptor()
+	// adminrole.DefaultIsPrimary holds the default value on creation for the is_primary field.
+	adminrole.DefaultIsPrimary = adminroleDescIsPrimary.Default.(bool)
+	// adminroleDescCreatedBy is the schema descriptor for created_by field.
+	adminroleDescCreatedBy := adminroleFields[4].Descriptor()
+	// adminrole.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	adminrole.CreatedByValidator = adminroleDescCreatedBy.Validators[0].(func(string) error)
 	attachmentFields := schema.Attachment{}.Fields()
 	_ = attachmentFields
 	// attachmentDescName is the schema descriptor for name field.

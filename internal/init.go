@@ -15,6 +15,8 @@ import (
 	"go-admin/internal/casbin/adapter"
 	"go-admin/internal/cron"
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/role"
@@ -217,6 +219,44 @@ func initSeedData() error {
 		appInstance.Logger.Warn("admin user already exists, skipping", zap.Int("id", adminUser.ID))
 	}
 
+	// 2b. 创建管理员记录到 admins 表（分表后的管理员登录入口）
+	adminAccount, err := client.Admin.Query().
+		Where(admin.UsernameEQ("admin")).
+		First(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return fmt.Errorf("failed to query admin account: %w", err)
+		}
+		hashedPassword, salt, err := crypto.HashPassword("admin")
+		if err != nil {
+			return fmt.Errorf("failed to hash admin password: %w", err)
+		}
+		adminUID := utils.GenerateUID()
+		adminAccount, err = client.Admin.Create().
+			SetEmail("admin@example.com").
+			SetUsername("admin").
+			SetPassword(hashedPassword).
+			SetPasswordSalt(salt).
+			SetNickname("管理员").
+			SetUID(adminUID).
+			SetStatus(admin.StatusActive).
+			Save(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create admin account: %w", err)
+		}
+		appInstance.Logger.Info("admin account created in admins table", zap.Int("id", adminAccount.ID), zap.String("uid", adminUID))
+	} else {
+		if adminAccount.UID == "" {
+			adminUID := utils.GenerateUID()
+			adminAccount, err = adminAccount.Update().SetUID(adminUID).Save(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to set UID for existing admin account: %w", err)
+			}
+			appInstance.Logger.Info("admin account UID initialized", zap.String("uid", adminAccount.UID))
+		}
+		appInstance.Logger.Warn("admin account already exists in admins table, skipping", zap.Int("id", adminAccount.ID))
+	}
+
 	// 3. 创建 user_role 关联
 	userRoleExists, err := client.UserRole.Query().
 		Where(
@@ -241,6 +281,32 @@ func initSeedData() error {
 		)
 	} else {
 		appInstance.Logger.Warn("admin user_role already exists, skipping")
+	}
+
+	// 3b. 创建 admin_role 关联
+	adminRoleExists, err := client.AdminRole.Query().
+		Where(
+			adminrole.AdminIDEQ(adminAccount.ID),
+			adminrole.RoleIDEQ(adminRole.ID),
+		).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query admin_role: %w", err)
+	}
+	if !adminRoleExists {
+		_, err = client.AdminRole.Create().
+			SetAdminID(adminAccount.ID).
+			SetRoleID(adminRole.ID).
+			Save(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create admin_role: %w", err)
+		}
+		appInstance.Logger.Info("admin_role created",
+			zap.Int("admin_id", adminAccount.ID),
+			zap.Int("role_id", adminRole.ID),
+		)
+	} else {
+		appInstance.Logger.Warn("admin_role already exists, skipping")
 	}
 
 	// 4. 创建 Casbin 权限规则
@@ -303,6 +369,39 @@ func initSeedData() error {
 	} else {
 		appInstance.Logger.Warn("casbin grouping rule already exists, skipping",
 			zap.String("uid", userUIDStr),
+		)
+	}
+
+	// 4.3 管理员账号角色分配规则（g 类型）：将管理员 UID 分配到 admin 角色
+	adminUIDStr := adminAccount.UID
+	adminGroupingExists, err := client.CasbinRule.Query().
+		Where(
+			casbinrule.PtypeEQ("g"),
+			casbinrule.V0EQ(adminUIDStr),
+			casbinrule.V1EQ("admin"),
+			casbinrule.V2EQ("default"),
+		).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query admin casbin grouping rule: %w", err)
+	}
+	if !adminGroupingExists {
+		_, err = client.CasbinRule.Create().
+			SetPtype("g").
+			SetV0(adminUIDStr).
+			SetV1("admin").
+			SetV2("default").
+			Save(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create admin casbin grouping rule: %w", err)
+		}
+		appInstance.Logger.Info("admin casbin grouping rule created",
+			zap.String("uid", adminUIDStr),
+			zap.String("role", "admin"),
+		)
+	} else {
+		appInstance.Logger.Warn("admin casbin grouping rule already exists, skipping",
+			zap.String("uid", adminUIDStr),
 		)
 	}
 
