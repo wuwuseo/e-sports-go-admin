@@ -10,6 +10,18 @@ import (
 )
 
 // CreateUser 管理员创建新用户
+// @Summary 创建新用户
+// @Description 管理员创建新用户账号
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body service.CreateUserRequest true "创建用户请求"
+// @Success 200 {object} utils.Response{data=service.UserResponse} "创建成功"
+// @Failure 400 {object} utils.Response "参数错误/邮箱已存在/用户名已存在"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Router /api/v1/admin/auth/users [post]
 func CreateUser(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 

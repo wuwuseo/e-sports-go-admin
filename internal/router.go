@@ -27,7 +27,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	})
 
 	admin := v1.Group("/admin")
-	adminPublic := v1.Group("/public", func(c fiber.Ctx) error {
+	public := v1.Group("/public", func(c fiber.Ctx) error {
 		c.Locals("service.UserService", service.NewUserService())
 		return c.Next()
 	})
@@ -69,9 +69,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	userActivationService = service.NewUserActivationService()
 	thirdPartyUserService = service.NewThirdPartyUserService()
 	// 公开接口
-	adminPublic.Post("/login", handler.Login)
-	adminPublic.Post("/refresh-token", handler.RefreshToken)
-	adminPublic.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
+	public.Post("/login", handler.Login)
+	public.Post("/refresh-token", handler.RefreshToken)
+	public.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
 
 	// 管理员公开接口（无需认证）
 	adminPublicLogin := admin.Group("/public", func(c fiber.Ctx) error {
@@ -82,43 +82,10 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminPublicLogin.Post("/login", handler.AdminLogin)
 	adminPublicLogin.Post("/refresh", handler.AdminRefreshToken)
 
-	// 管理员个人信息路由（仅需认证，无需权限检查）
-	adminAuthSelf := admin.Group("/admin-auth", jwt.NewJWTMiddleware(config.App.AdminSecret), func(c fiber.Ctx) error {
-		c.Locals("service.AdminService", service.NewAdminService())
-		c.Locals("utils.Response", utils.NewResponse())
-		return c.Next()
-	})
-	adminAuthSelf.Get("/user", handler.GetAdmin)
-	adminAuthSelf.Put("/user", handler.UpdateAdmin)
-	adminAuthSelf.Put("/password", handler.ChangeAdminPassword)
-	adminAuthSelf.Post("/logout", handler.AdminLogout)
-
-	// 超级管理员管理路由（管理其他管理员账号）
-	adminManagement := admin.Group("/admin-auth", jwt.NewJWTMiddleware(config.App.AdminSecret), func(c fiber.Ctx) error {
+	// 需要认证+权限校验的接口
+	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.SuperAdminService", service.NewSuperAdminService())
 		c.Locals("service.AdminService", service.NewAdminService())
-		c.Locals("utils.Response", utils.NewResponse())
-		return c.Next()
-	})
-	adminManagement.Post("/admins", handler.CreateAdmin)
-	adminManagement.Get("/admins", handler.ListAdmins)
-	adminManagement.Get("/admins/:uid", handler.GetAdminDetail)
-	adminManagement.Put("/admins/:id/activate", handler.ActivateAdmin)
-	adminManagement.Put("/admins/:id/deactivate", handler.DeactivateAdmin)
-
-	// 仅认证、不需要额外权限的用户个人信息路由（必须在 adminAuth 之前声明，避免被 PermissionMiddleware 拦截）
-	adminAuthUser := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), func(c fiber.Ctx) error {
-		c.Locals("service.UserService", userService)
-		c.Locals("utils.Response", utils.NewResponse())
-		return c.Next()
-	})
-	adminAuthUser.Get("/user", handler.GetUser)
-	adminAuthUser.Put("/user", handler.UpdateUser)
-	adminAuthUser.Put("/password", handler.ChangePassword)
-	adminAuthUser.Post("/logout", handler.Logout)
-
-	// 需要认证+权限校验的接口
-	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.UserService", userService)
 		c.Locals("service.RoleService", roleService)
 		c.Locals("service.PermissionService", permissionService)
@@ -131,7 +98,17 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.RoleAssignmentService", roleAssignmentService)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware())
-
+	// 超级管理员管理路由（管理其他管理员账号）
+	adminAuth.Get("/user", handler.GetAdmin)
+	adminAuth.Put("/user", handler.UpdateAdmin)
+	adminAuth.Put("/password", handler.ChangeAdminPassword)
+	adminAuth.Post("/logout", handler.AdminLogout)
+	// 超级管理员管理路由（管理其他管理员账号）
+	adminAuth.Post("/admins", handler.CreateAdmin)
+	adminAuth.Get("/admins", handler.ListAdmins)
+	adminAuth.Get("/admins/:uid", handler.GetAdminDetail)
+	adminAuth.Put("/admins/:id/activate", handler.ActivateAdmin)
+	adminAuth.Put("/admins/:id/deactivate", handler.DeactivateAdmin)
 	// 角色管理路由
 	roles := adminAuth.Group("/roles")
 	roles.Post("", handler.CreateRole) // 创建角色

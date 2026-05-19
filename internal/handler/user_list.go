@@ -11,6 +11,27 @@ import (
 )
 
 // ListUsers 获取用户列表
+// @Summary 获取用户列表
+// @Description 获取用户列表，支持分页和筛选
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码，默认1"
+// @Param page_size query int false "每页数量，默认10"
+// @Param keyword query string false "搜索关键词"
+// @Param status query string false "状态筛选"
+// @Param role_id query int false "角色ID"
+// @Param platform query string false "平台"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Param sort_field query string false "排序字段，默认created_at"
+// @Param sort_order query string false "排序方向，默认desc"
+// @Param is_blacklisted query bool false "是否黑名单"
+// @Success 200 {object} utils.Response{data=service.UserListResponse} "获取成功"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Router /api/v1/admin/auth/users [get]
 func ListUsers(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -48,6 +69,19 @@ func ListUsers(c fiber.Ctx) error {
 }
 
 // GetUserDetail 获取用户详情
+// @Summary 获取用户详情
+// @Description 根据用户ID获取用户详细信息
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} utils.Response{data=service.UserDetailResponse} "获取成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Failure 404 {object} utils.Response "用户不存在"
+// @Router /api/v1/admin/auth/users/{id} [get]
 func GetUserDetail(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -71,6 +105,18 @@ func GetUserDetail(c fiber.Ctx) error {
 }
 
 // ListUserThirdParty 获取用户的第三方账号列表
+// @Summary 获取用户第三方账号列表
+// @Description 获取指定用户绑定的第三方账号列表
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} utils.Response{data=[]service.ThirdPartyUserResponse} "获取成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Router /api/v1/admin/auth/users/{id}/third-party [get]
 func ListUserThirdParty(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -89,6 +135,23 @@ func ListUserThirdParty(c fiber.Ctx) error {
 }
 
 // ExportUsers 导出用户列表
+// @Summary 导出用户列表
+// @Description 导出符合条件的用户列表为Excel
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param keyword query string false "搜索关键词"
+// @Param status query string false "状态筛选"
+// @Param role_id query int false "角色ID"
+// @Param platform query string false "平台"
+// @Param start_time query string false "开始时间"
+// @Param end_time query string false "结束时间"
+// @Success 200 {file} file "导出成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Router /api/v1/admin/auth/users/export [post]
 func ExportUsers(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 	return response.Fail(global.ResponseErrorCode, "导出功能开发中").ToJSON(c)

@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	ErrAdminNotFound      = errors.New("admin not found")
-	ErrInvalidAdminPassword   = errors.New("invalid password")
-	ErrInvalidAdminStatus = errors.New("admin is not active")
+	ErrAdminNotFound        = errors.New("admin not found")
+	ErrInvalidAdminPassword = errors.New("invalid password")
+	ErrInvalidAdminStatus   = errors.New("admin is not active")
 )
 
 // AdminServiceInterface 管理员服务接口
@@ -47,7 +47,7 @@ func NewAdminService() *AdminService {
 type AdminLoginRequest struct {
 	Email             string `json:"email"`
 	Password          string `json:"password"`
-	EncryptedEmail    string `json:"encrypted_email"`
+	EncryptedUsername string `json:"encrypted_username"`
 	EncryptedPassword string `json:"encrypted_password"`
 	Timestamp         int64  `json:"timestamp"`
 	Nonce             string `json:"nonce"`
@@ -57,7 +57,7 @@ type AdminLoginRequest struct {
 // Login 管理员登录
 func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*TokenResponse, error) {
 	a, err := s.client.Admin.Query().
-		Where(admin.EmailEQ(req.Email)).
+		Where(admin.Or(admin.EmailEQ(req.Email), admin.UsernameEQ(req.Email))).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

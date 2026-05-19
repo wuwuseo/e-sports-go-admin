@@ -11,6 +11,19 @@ import (
 )
 
 // ActivateUser 激活用户
+// @Summary 激活用户
+// @Description 激活指定用户，使其可以正常登录
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} utils.Response "激活成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Failure 404 {object} utils.Response "用户不存在"
+// @Router /api/v1/admin/auth/users/{id}/activate [put]
 func ActivateUser(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -40,6 +53,19 @@ func ActivateUser(c fiber.Ctx) error {
 }
 
 // DeactivateUser 停用用户
+// @Summary 停用用户
+// @Description 停用指定用户，使其无法登录
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} utils.Response "停用成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Failure 404 {object} utils.Response "用户不存在"
+// @Router /api/v1/admin/auth/users/{id}/deactivate [put]
 func DeactivateUser(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 

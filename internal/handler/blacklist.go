@@ -17,6 +17,20 @@ type AddToBlacklistRequest struct {
 }
 
 // AddToBlacklist 将用户加入黑名单
+// @Summary 将用户加入黑名单
+// @Description 将指定用户加入黑名单，禁止其登录
+// @Tags 黑名单
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Param request body AddToBlacklistRequest true "加入黑名单请求"
+// @Success 200 {object} utils.Response "加入成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足/不能将自己加入黑名单"
+// @Failure 404 {object} utils.Response "用户不存在"
+// @Router /api/v1/admin/auth/users/{id}/blacklist [post]
 func AddToBlacklist(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -55,6 +69,19 @@ func AddToBlacklist(c fiber.Ctx) error {
 }
 
 // RemoveFromBlacklist 将用户从黑名单移除
+// @Summary 将用户从黑名单移除
+// @Description 将指定用户从黑名单移除，恢复登录权限
+// @Tags 黑名单
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} utils.Response "移除成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Failure 404 {object} utils.Response "用户不存在/用户不在黑名单中"
+// @Router /api/v1/admin/auth/users/{id}/blacklist [delete]
 func RemoveFromBlacklist(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -82,6 +109,18 @@ func RemoveFromBlacklist(c fiber.Ctx) error {
 }
 
 // ListBlacklist 获取黑名单列表
+// @Summary 获取黑名单列表
+// @Description 获取所有在黑名单中的用户列表
+// @Tags 黑名单
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "页码，默认1"
+// @Param page_size query int false "每页数量，默认10"
+// @Success 200 {object} utils.Response{data=service.BlacklistResponse} "获取成功"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Router /api/v1/admin/auth/blacklist [get]
 func ListBlacklist(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 

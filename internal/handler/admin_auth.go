@@ -14,6 +14,18 @@ import (
 )
 
 // AdminLogin 管理员登录
+// @Summary 管理员登录
+// @Description 管理员账号密码登录，支持RSA加密登录
+// @Tags 管理员认证
+// @Accept json
+// @Produce json
+// @Param request body service.AdminLoginRequest true "登录请求"
+// @Success 200 {object} utils.Response{data=service.TokenResponse} "登录成功"
+// @Failure 400 {object} utils.Response "请求参数错误"
+// @Failure 401 {object} utils.Response "密码错误"
+// @Failure 403 {object} utils.Response "账号已禁用"
+// @Failure 404 {object} utils.Response "管理员不存在"
+// @Router /api/v1/admin/public/login [post]
 func AdminLogin(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -24,8 +36,8 @@ func AdminLogin(c fiber.Ctx) error {
 		}
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
+	if req.EncryptedUsername != "" && req.EncryptedPassword != "" {
 
-	if req.EncryptedEmail != "" && req.EncryptedPassword != "" {
 		if req.Timestamp == 0 {
 			return response.Fail(global.ResponseErrorCode, "Missing timestamp").ToJSON(c)
 		}
@@ -46,17 +58,16 @@ func AdminLogin(c fiber.Ctx) error {
 		}
 
 		keyManager := crypto.GetKeyManager()
-		decryptedEmail, err := keyManager.DecryptData(req.KeyID, req.EncryptedEmail)
+		decryptedUsername, err := keyManager.DecryptData(req.KeyID, req.EncryptedUsername)
 		if err != nil {
-			return response.Fail(global.ResponseErrorCode, "Failed to decrypt email: "+err.Error()).ToJSON(c)
+			return response.Fail(global.ResponseErrorCode, "Failed to decrypt username: "+err.Error()).ToJSON(c)
 		}
 
 		decryptedPassword, err := keyManager.DecryptData(req.KeyID, req.EncryptedPassword)
 		if err != nil {
 			return response.Fail(global.ResponseErrorCode, "Failed to decrypt password: "+err.Error()).ToJSON(c)
 		}
-
-		req.Email = decryptedEmail
+		req.Email = decryptedUsername
 		req.Password = decryptedPassword
 	}
 
@@ -79,6 +90,15 @@ func AdminLogin(c fiber.Ctx) error {
 }
 
 // AdminLogout 管理员退出登录
+// @Summary 管理员退出登录
+// @Description 管理员退出登录，清除Token
+// @Tags 管理员认证
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.Response "退出成功"
+// @Failure 401 {object} utils.Response "未登录"
+// @Router /api/v1/admin/auth/logout [post]
 func AdminLogout(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -101,6 +121,16 @@ func AdminLogout(c fiber.Ctx) error {
 }
 
 // GetAdmin 获取当前管理员信息
+// @Summary 获取当前管理员信息
+// @Description 获取当前登录管理员的个人信息
+// @Tags 管理员管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.Response{data=map[string]interface{}} "获取成功"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 404 {object} utils.Response "管理员不存在"
+// @Router /api/v1/admin/auth/user [get]
 func GetAdmin(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 	claims := jwt.GetJWTUserData(c)
@@ -132,6 +162,17 @@ func GetAdmin(c fiber.Ctx) error {
 }
 
 // UpdateAdmin 更新管理员信息
+// @Summary 更新管理员信息
+// @Description 更新当前登录管理员的个人信息
+// @Tags 管理员管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body map[string]interface{} true "更新字段"
+// @Success 200 {object} utils.Response "更新成功"
+// @Failure 400 {object} utils.Response "请求参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Router /api/v1/admin/auth/user [put]
 func UpdateAdmin(c fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 	uid := claims["id"].(string)
@@ -157,6 +198,18 @@ type ChangeAdminPasswordRequest struct {
 }
 
 // ChangeAdminPassword 管理员修改密码
+// @Summary 管理员修改密码
+// @Description 当前管理员修改自己的登录密码
+// @Tags 管理员管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ChangeAdminPasswordRequest true "修改密码请求"
+// @Success 200 {object} utils.Response "修改成功"
+// @Failure 400 {object} utils.Response "请求参数错误"
+// @Failure 401 {object} utils.Response "原密码错误"
+// @Failure 404 {object} utils.Response "管理员不存在"
+// @Router /api/v1/admin/auth/password [put]
 func ChangeAdminPassword(c fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 	uid := claims["id"].(string)
@@ -186,6 +239,16 @@ func ChangeAdminPassword(c fiber.Ctx) error {
 }
 
 // AdminRefreshToken 管理员刷新令牌
+// @Summary 管理员刷新令牌
+// @Description 使用Refresh Token刷新Access Token
+// @Tags 管理员认证
+// @Accept json
+// @Produce json
+// @Param request body service.RefreshTokenRequest true "刷新令牌请求"
+// @Success 200 {object} utils.Response{data=service.TokenResponse} "刷新成功"
+// @Failure 400 {object} utils.Response "请求参数错误"
+// @Failure 401 {object} utils.Response "Refresh Token无效或已过期"
+// @Router /api/v1/admin/public/refresh [post]
 func AdminRefreshToken(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 

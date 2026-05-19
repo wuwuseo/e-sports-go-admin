@@ -12,6 +12,19 @@ import (
 )
 
 // GetUserRoles 获取用户角色列表
+// @Summary 获取用户角色列表
+// @Description 获取指定用户的所有角色
+// @Tags 角色分配
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Success 200 {object} utils.Response{data=[]service.RoleResponse} "获取成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Failure 404 {object} utils.Response "用户不存在"
+// @Router /api/v1/admin/auth/users/{id}/roles [get]
 func GetUserRoles(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
@@ -35,6 +48,20 @@ func GetUserRoles(c fiber.Ctx) error {
 }
 
 // AssignUserRoles 分配用户角色
+// @Summary 分配用户角色
+// @Description 为指定用户分配角色，包括主角色
+// @Tags 角色分配
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "用户ID"
+// @Param request body service.AssignRolesRequest true "分配角色请求"
+// @Success 200 {object} utils.Response "分配成功"
+// @Failure 400 {object} utils.Response "参数错误/无效的角色ID/主角色无效"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Failure 404 {object} utils.Response "用户不存在"
+// @Router /api/v1/admin/auth/users/{id}/roles [put]
 func AssignUserRoles(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
