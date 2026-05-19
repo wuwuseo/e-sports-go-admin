@@ -1,6 +1,8 @@
 package ent
 
 import (
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/casbinrule"
@@ -19,6 +21,12 @@ import (
 // 该函数会更新所有 ent 生成包中的 TablePrefix、Table 变量以及 migrate 中的表名。
 func InitTablePrefix(prefix string) {
 	// 更新各实体包的 TablePrefix 和 Table
+	admin.TablePrefix = prefix
+	admin.Table = prefix + "admins"
+
+	adminrole.TablePrefix = prefix
+	adminrole.Table = prefix + "admin_roles"
+
 	attachment.TablePrefix = prefix
 	attachment.Table = prefix + "attachments"
 
@@ -51,6 +59,8 @@ func InitTablePrefix(prefix string) {
 
 	// 更新 migrate 包的 TablePrefix 和所有表的 Name 字段
 	migrate.TablePrefix = prefix
+	migrate.AdminsTable.Name = prefix + "admins"
+	migrate.AdminRolesTable.Name = prefix + "admin_roles"
 	migrate.AttachmentsTable.Name = prefix + "attachments"
 	migrate.AttachmentGroupsTable.Name = prefix + "attachment_groups"
 	migrate.CasbinRulesTable.Name = prefix + "casbin_rules"
