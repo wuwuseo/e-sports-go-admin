@@ -9,6 +9,13 @@ definitions:
       size:
         type: integer
     type: object
+  handler.AddToBlacklistRequest:
+    properties:
+      reason:
+        type: string
+    required:
+    - reason
+    type: object
   handler.AssignPermissionsRequest:
     properties:
       domain:
@@ -24,6 +31,17 @@ definitions:
     - domain
     - permissions
     - role_name
+    type: object
+  handler.ChangeAdminPasswordRequest:
+    properties:
+      new_password:
+        minLength: 6
+        type: string
+      old_password:
+        type: string
+    required:
+    - new_password
+    - old_password
     type: object
   handler.ChangePasswordRequest:
     properties:
@@ -56,6 +74,85 @@ definitions:
       rotate_cycle:
         description: 密钥轮换周期
         type: string
+    type: object
+  service.AdminListItem:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      nickname:
+        type: string
+      status:
+        type: string
+      uid:
+        type: string
+      username:
+        type: string
+    type: object
+  service.AdminListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.AdminListItem'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.AdminLoginRequest:
+    properties:
+      email:
+        type: string
+      encrypted_password:
+        type: string
+      encrypted_username:
+        type: string
+      key_id:
+        type: string
+      nonce:
+        type: string
+      password:
+        type: string
+      timestamp:
+        type: integer
+    type: object
+  service.AdminResponse:
+    properties:
+      avatar:
+        type: string
+      department:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      nickname:
+        type: string
+      phone:
+        type: string
+      position:
+        type: string
+      status:
+        type: string
+      username:
+        type: string
+    type: object
+  service.AssignRolesRequest:
+    properties:
+      primary_role_id:
+        type: integer
+      role_ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - primary_role_id
+    - role_ids
     type: object
   service.AttachmentResponse:
     properties:
@@ -91,6 +188,38 @@ definitions:
         type: array
     required:
     - ids
+    type: object
+  service.BlacklistItem:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      operator_id:
+        type: string
+      operator_name:
+        type: string
+      reason:
+        type: string
+      user_email:
+        type: string
+      user_id:
+        type: integer
+      user_name:
+        type: string
+      user_uid:
+        type: string
+    type: object
+  service.BlacklistResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.BlacklistItem'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
     type: object
   service.ChunkStatusResponse:
     properties:
@@ -140,6 +269,27 @@ definitions:
         type: string
       value:
         type: string
+    type: object
+  service.CreateAdminRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      nickname:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      username:
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
     type: object
   service.CreateConfigRequest:
     properties:
@@ -331,6 +481,25 @@ definitions:
     - domain
     - name
     - type
+    type: object
+  service.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      nickname:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+      username:
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
     type: object
   service.CronJobResponse:
     properties:
@@ -717,6 +886,82 @@ definitions:
     - SystemPermissionTypeAPI
     - SystemPermissionTypeMenu
     - SystemPermissionTypeButton
+  service.ThirdPartyAccountItem:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      nickname:
+        type: string
+      openid:
+        type: string
+      platform:
+        type: string
+      platform_name:
+        type: string
+      status:
+        type: string
+    type: object
+  service.ThirdPartyUserItem:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      nickname:
+        type: string
+      openid:
+        type: string
+      platform:
+        type: string
+      platform_name:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: integer
+      username:
+        type: string
+    type: object
+  service.ThirdPartyUserListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.ThirdPartyUserItem'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.ThirdPartyUserResponse:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      nickname:
+        type: string
+      openid:
+        type: string
+      platform:
+        type: string
+      platform_name:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: integer
+      username:
+        type: string
+    type: object
   service.TokenResponse:
     properties:
       access_token:
@@ -903,6 +1148,117 @@ definitions:
         - menu
         - button
     type: object
+  service.UserDetailResponse:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_blacklisted:
+        type: boolean
+      last_login:
+        type: string
+      name:
+        type: string
+      nickname:
+        type: string
+      phone:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/service.UserRoleItem'
+        type: array
+      status:
+        type: string
+      third_party_accounts:
+        items:
+          $ref: '#/definitions/service.ThirdPartyAccountItem'
+        type: array
+      third_party_count:
+        type: integer
+      uid:
+        type: string
+      username:
+        type: string
+    type: object
+  service.UserListItem:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_blacklisted:
+        type: boolean
+      last_login:
+        type: string
+      name:
+        type: string
+      nickname:
+        type: string
+      phone:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/service.UserRoleItem'
+        type: array
+      status:
+        type: string
+      third_party_count:
+        type: integer
+      uid:
+        type: string
+      username:
+        type: string
+    type: object
+  service.UserListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.UserListItem'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.UserResponse:
+    properties:
+      avatar:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      last_login:
+        type: string
+      nickname:
+        type: string
+      phone:
+        type: string
+      status:
+        type: string
+      username:
+        type: string
+    type: object
+  service.UserRoleItem:
+    properties:
+      display_name:
+        type: string
+      id:
+        type: integer
+      is_primary:
+        type: boolean
+      name:
+        type: string
+    type: object
   utils.Response:
     properties:
       code:
@@ -925,6 +1281,207 @@ info:
   title: 管理系统 API
   version: "1.0"
 paths:
+  /api/v1/admin/auth/admins:
+    get:
+      consumes:
+      - application/json
+      description: 获取管理员账号列表，支持分页
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认20
+        in: query
+        name: page_size
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.AdminListResponse'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取管理员列表
+      tags:
+      - 管理员管理
+    post:
+      consumes:
+      - application/json
+      description: 超级管理员创建新的管理员账号
+      parameters:
+      - description: 创建管理员请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.AdminResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建管理员账号
+      tags:
+      - 管理员管理
+  /api/v1/admin/auth/admins/{id}/activate:
+    put:
+      consumes:
+      - application/json
+      description: 激活指定的管理员账号，使其可以登录
+      parameters:
+      - description: 管理员ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 激活成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 激活管理员账号
+      tags:
+      - 管理员管理
+  /api/v1/admin/auth/admins/{id}/deactivate:
+    put:
+      consumes:
+      - application/json
+      description: 停用指定的管理员账号，使其无法登录
+      parameters:
+      - description: 管理员ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 停用成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 停用管理员账号
+      tags:
+      - 管理员管理
+  /api/v1/admin/auth/admins/{uid}:
+    get:
+      consumes:
+      - application/json
+      description: 根据UID获取管理员详细信息
+      parameters:
+      - description: 管理员UID
+        in: path
+        name: uid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.AdminResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 管理员不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取管理员详情
+      tags:
+      - 管理员管理
   /api/v1/admin/auth/attachment-groups:
     get:
       description: 获取附件分组列表，支持分页和关键字搜索
@@ -1569,6 +2126,45 @@ paths:
       summary: 上传附件
       tags:
       - 附件管理
+  /api/v1/admin/auth/blacklist:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有在黑名单中的用户列表
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.BlacklistResponse'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取黑名单列表
+      tags:
+      - 黑名单
   /api/v1/admin/auth/configs:
     get:
       description: 获取动态配置列表，支持分页、关键字、分组和状态筛选
@@ -2730,6 +3326,27 @@ paths:
       summary: 按类型获取字典数据
       tags:
       - 数据字典
+  /api/v1/admin/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: 管理员退出登录，清除Token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 退出成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未登录
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 管理员退出登录
+      tags:
+      - 管理员认证
   /api/v1/admin/auth/operation-logs:
     get:
       description: 获取操作日志列表，支持分页、用户名、模块、操作和时间范围筛选
@@ -4110,6 +4727,92 @@ paths:
       summary: 获取权限树
       tags:
       - 权限定义管理
+  /api/v1/admin/auth/third-party-users:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有第三方绑定用户列表，支持分页和筛选
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      - description: 平台筛选
+        in: query
+        name: platform
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ThirdPartyUserListResponse'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取第三方用户列表
+      tags:
+      - 第三方用户
+  /api/v1/admin/auth/third-party-users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 解绑用户的第三方登录账号
+      parameters:
+      - description: 记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 解绑成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 记录不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 解绑第三方账号
+      tags:
+      - 第三方用户
   /api/v1/admin/auth/user:
     get:
       description: 获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查
@@ -4345,6 +5048,590 @@ paths:
       summary: 获取用户所有权限
       tags:
       - 权限管理
+  /api/v1/admin/auth/users:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户列表，支持分页和筛选
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      - description: 角色ID
+        in: query
+        name: role_id
+        type: integer
+      - description: 平台
+        in: query
+        name: platform
+        type: string
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      - description: 排序字段，默认created_at
+        in: query
+        name: sort_field
+        type: string
+      - description: 排序方向，默认desc
+        in: query
+        name: sort_order
+        type: string
+      - description: 是否黑名单
+        in: query
+        name: is_blacklisted
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UserListResponse'
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+    post:
+      consumes:
+      - application/json
+      description: 管理员创建新用户账号
+      parameters:
+      - description: 创建用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UserResponse'
+              type: object
+        "400":
+          description: 参数错误/邮箱已存在/用户名已存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建新用户
+      tags:
+      - 用户管理
+  /api/v1/admin/auth/users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据用户ID获取用户详细信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UserDetailResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取用户详情
+      tags:
+      - 用户管理
+  /api/v1/admin/auth/users/{id}/activate:
+    put:
+      consumes:
+      - application/json
+      description: 激活指定用户，使其可以正常登录
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 激活成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 激活用户
+      tags:
+      - 用户管理
+  /api/v1/admin/auth/users/{id}/blacklist:
+    delete:
+      consumes:
+      - application/json
+      description: 将指定用户从黑名单移除，恢复登录权限
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 移除成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 用户不存在/用户不在黑名单中
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 将用户从黑名单移除
+      tags:
+      - 黑名单
+    post:
+      consumes:
+      - application/json
+      description: 将指定用户加入黑名单，禁止其登录
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 加入黑名单请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AddToBlacklistRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 加入成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足/不能将自己加入黑名单
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 将用户加入黑名单
+      tags:
+      - 黑名单
+  /api/v1/admin/auth/users/{id}/deactivate:
+    put:
+      consumes:
+      - application/json
+      description: 停用指定用户，使其无法登录
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 停用成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 停用用户
+      tags:
+      - 用户管理
+  /api/v1/admin/auth/users/{id}/roles:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定用户的所有角色
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.RoleResponse'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取用户角色列表
+      tags:
+      - 角色分配
+    put:
+      consumes:
+      - application/json
+      description: 为指定用户分配角色，包括主角色
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 分配角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.AssignRolesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误/无效的角色ID/主角色无效
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 用户不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 分配用户角色
+      tags:
+      - 角色分配
+  /api/v1/admin/auth/users/{id}/third-party:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定用户绑定的第三方账号列表
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.ThirdPartyUserResponse'
+                  type: array
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取用户第三方账号列表
+      tags:
+      - 用户管理
+  /api/v1/admin/auth/users/export:
+    post:
+      consumes:
+      - application/json
+      description: 导出符合条件的用户列表为Excel
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      - description: 状态筛选
+        in: query
+        name: status
+        type: string
+      - description: 角色ID
+        in: query
+        name: role_id
+        type: integer
+      - description: 平台
+        in: query
+        name: platform
+        type: string
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 导出成功
+          schema:
+            type: file
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 导出用户列表
+      tags:
+      - 用户管理
+  /api/v1/admin/public/login:
+    post:
+      consumes:
+      - application/json
+      description: 管理员账号密码登录，支持RSA加密登录
+      parameters:
+      - description: 登录请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.AdminLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 登录成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.TokenResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 密码错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 账号已禁用
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 管理员不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 管理员登录
+      tags:
+      - 管理员认证
+  /api/v1/admin/public/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用Refresh Token刷新Access Token
+      parameters:
+      - description: 刷新令牌请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 刷新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.TokenResponse'
+              type: object
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Refresh Token无效或已过期
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 管理员刷新令牌
+      tags:
+      - 管理员认证
   /api/v1/admin/refresh-token:
     post:
       consumes:
