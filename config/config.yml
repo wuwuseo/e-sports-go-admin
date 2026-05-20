@@ -26,12 +26,12 @@ database:
     default:
       driver: mysql
       host: localhost
-      port: 3306
+      port: 3307
       user: root
-      password: root
-      name: cmf
+      password: 123456
+      name: go_admin
       ssl_mode: false
-      table_prefix: test_
+      table_prefix: admin_
 
 cache:
   default: memory
@@ -49,7 +49,7 @@ redis:
     redis:
       addr: localhost:6379
       username: ""
-      password: ""
+      password: "123456"
       db: 0
       dial_timeout: 5
       read_timeout: 3

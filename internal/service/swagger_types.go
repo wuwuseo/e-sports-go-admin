@@ -28,17 +28,6 @@ type ThirdPartyUserItem struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
-// BlacklistItem 黑名单项
-type BlacklistItem struct {
-	ID         int       `json:"id"`
-	UserID     int       `json:"user_id"`
-	Username   string    `json:"username"`
-	Reason     string    `json:"reason"`
-	OperatorID string    `json:"operator_id"`
-	Operator   string    `json:"operator"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
 // BlacklistResponse 黑名单列表响应（Swagger文档专用）
 type BlacklistResponse = ListResponse[*BlacklistItem]
 

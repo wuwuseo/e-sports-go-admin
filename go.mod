@@ -140,6 +140,4 @@ require (
 	modernc.org/sqlite v1.50.1 // indirect
 )
 
-replace github.com/wuwuseo/cmf => D:/www/cmf
-
-replace github.com/wuwuseo/ent => D:/www/ent
+replace github.com/wuwuseo/cmf => /run/media/wuwu/data/docs/wwwroot/cmf
