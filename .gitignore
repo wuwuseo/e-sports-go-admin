@@ -6,3 +6,4 @@ tmp/
 /data/logs
 /data/.uid_counter
 /data/storage
+go-admin
