@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"path/filepath"
 	"strings"
@@ -95,12 +94,6 @@ func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.Fi
 	}
 	defer file.Close()
 
-	// 读取文件数据
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf("读取文件数据失败: %w", err)
-	}
-
 	// 获取文件信息
 	originalName := fileHeader.Filename
 	ext := strings.ToLower(filepath.Ext(originalName))
@@ -117,8 +110,8 @@ func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.Fi
 	now := time.Now()
 	key := fmt.Sprintf("attachments/%d/%02d/%s.%s", now.Year(), now.Month(), uuid.New().String(), ext)
 
-	// 存储文件
-	if err := s.filesystem.Set(key, data, 0); err != nil {
+	// 流式存储文件，避免将整个文件加载到内存（O(n) → O(1) 内存消耗）
+	if err := s.filesystem.SetReader(key, file, 0); err != nil {
 		return nil, fmt.Errorf("存储文件失败: %w", err)
 	}
 
