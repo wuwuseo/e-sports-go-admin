@@ -284,6 +284,20 @@ func (_u *AdminUpdate) ClearLastIP() *AdminUpdate {
 	return _u
 }
 
+// SetIsSuperAdmin sets the "is_super_admin" field.
+func (_u *AdminUpdate) SetIsSuperAdmin(v bool) *AdminUpdate {
+	_u.mutation.SetIsSuperAdmin(v)
+	return _u
+}
+
+// SetNillableIsSuperAdmin sets the "is_super_admin" field if the given value is not nil.
+func (_u *AdminUpdate) SetNillableIsSuperAdmin(v *bool) *AdminUpdate {
+	if v != nil {
+		_u.SetIsSuperAdmin(*v)
+	}
+	return _u
+}
+
 // Mutation returns the AdminMutation object of the builder.
 func (_u *AdminUpdate) Mutation() *AdminMutation {
 	return _u.mutation
@@ -478,6 +492,9 @@ func (_u *AdminUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.LastIPCleared() {
 		_spec.ClearField(admin.FieldLastIP, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsSuperAdmin(); ok {
+		_spec.SetField(admin.FieldIsSuperAdmin, field.TypeBool, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -755,6 +772,20 @@ func (_u *AdminUpdateOne) ClearLastIP() *AdminUpdateOne {
 	return _u
 }
 
+// SetIsSuperAdmin sets the "is_super_admin" field.
+func (_u *AdminUpdateOne) SetIsSuperAdmin(v bool) *AdminUpdateOne {
+	_u.mutation.SetIsSuperAdmin(v)
+	return _u
+}
+
+// SetNillableIsSuperAdmin sets the "is_super_admin" field if the given value is not nil.
+func (_u *AdminUpdateOne) SetNillableIsSuperAdmin(v *bool) *AdminUpdateOne {
+	if v != nil {
+		_u.SetIsSuperAdmin(*v)
+	}
+	return _u
+}
+
 // Mutation returns the AdminMutation object of the builder.
 func (_u *AdminUpdateOne) Mutation() *AdminMutation {
 	return _u.mutation
@@ -979,6 +1010,9 @@ func (_u *AdminUpdateOne) sqlSave(ctx context.Context) (_node *Admin, err error)
 	}
 	if _u.mutation.LastIPCleared() {
 		_spec.ClearField(admin.FieldLastIP, field.TypeString)
+	}
+	if value, ok := _u.mutation.IsSuperAdmin(); ok {
+		_spec.SetField(admin.FieldIsSuperAdmin, field.TypeBool, value)
 	}
 	_node = &Admin{config: _u.config}
 	_spec.Assign = _node.assignValues

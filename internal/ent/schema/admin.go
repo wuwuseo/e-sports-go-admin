@@ -77,6 +77,9 @@ func (Admin) Fields() []ent.Field {
 			MaxLen(50).
 			Optional().
 			Comment("最后登录IP"),
+		field.Bool("is_super_admin").
+			Default(false).
+			Comment("是否超级管理员"),
 	}
 }
 

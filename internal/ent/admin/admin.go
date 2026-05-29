@@ -48,6 +48,8 @@ const (
 	FieldLastLogin = "last_login"
 	// FieldLastIP holds the string denoting the last_ip field in the database.
 	FieldLastIP = "last_ip"
+	// FieldIsSuperAdmin holds the string denoting the is_super_admin field in the database.
+	FieldIsSuperAdmin = "is_super_admin"
 )
 
 // Table holds the table name of the admin in the database.
@@ -74,6 +76,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldLastLogin,
 	FieldLastIP,
+	FieldIsSuperAdmin,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -117,6 +120,8 @@ var (
 	PositionValidator func(string) error
 	// LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
 	LastIPValidator func(string) error
+	// DefaultIsSuperAdmin holds the default value on creation for the "is_super_admin" field.
+	DefaultIsSuperAdmin bool
 )
 
 // Status defines the type for the "status" enum field.
@@ -232,4 +237,9 @@ func ByLastLogin(opts ...sql.OrderTermOption) OrderOption {
 // ByLastIP orders the results by the last_ip field.
 func ByLastIP(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastIP, opts...).ToFunc()
+}
+
+// ByIsSuperAdmin orders the results by the is_super_admin field.
+func ByIsSuperAdmin(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsSuperAdmin, opts...).ToFunc()
 }

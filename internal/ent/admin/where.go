@@ -129,6 +129,11 @@ func LastIP(v string) predicate.Admin {
 	return predicate.Admin(sql.FieldEQ(FieldLastIP, v))
 }
 
+// IsSuperAdmin applies equality check predicate on the "is_super_admin" field. It's identical to IsSuperAdminEQ.
+func IsSuperAdmin(v bool) predicate.Admin {
+	return predicate.Admin(sql.FieldEQ(FieldIsSuperAdmin, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.Admin {
 	return predicate.Admin(sql.FieldEQ(FieldCreateTime, v))
@@ -1137,6 +1142,16 @@ func LastIPEqualFold(v string) predicate.Admin {
 // LastIPContainsFold applies the ContainsFold predicate on the "last_ip" field.
 func LastIPContainsFold(v string) predicate.Admin {
 	return predicate.Admin(sql.FieldContainsFold(FieldLastIP, v))
+}
+
+// IsSuperAdminEQ applies the EQ predicate on the "is_super_admin" field.
+func IsSuperAdminEQ(v bool) predicate.Admin {
+	return predicate.Admin(sql.FieldEQ(FieldIsSuperAdmin, v))
+}
+
+// IsSuperAdminNEQ applies the NEQ predicate on the "is_super_admin" field.
+func IsSuperAdminNEQ(v bool) predicate.Admin {
+	return predicate.Admin(sql.FieldNEQ(FieldIsSuperAdmin, v))
 }
 
 // And groups predicates with the AND operator between them.

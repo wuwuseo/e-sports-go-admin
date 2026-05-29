@@ -48,7 +48,9 @@ type Admin struct {
 	// 最后登录时间
 	LastLogin time.Time `json:"last_login,omitempty"`
 	// 最后登录IP
-	LastIP       string `json:"last_ip,omitempty"`
+	LastIP string `json:"last_ip,omitempty"`
+	// 是否超级管理员
+	IsSuperAdmin bool `json:"is_super_admin,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -57,6 +59,8 @@ func (*Admin) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case admin.FieldIsSuperAdmin:
+			values[i] = new(sql.NullBool)
 		case admin.FieldID:
 			values[i] = new(sql.NullInt64)
 		case admin.FieldEmail, admin.FieldPassword, admin.FieldPasswordSalt, admin.FieldUID, admin.FieldUsername, admin.FieldNickname, admin.FieldName, admin.FieldAvatar, admin.FieldPhone, admin.FieldDepartment, admin.FieldPosition, admin.FieldStatus, admin.FieldLastIP:
@@ -180,6 +184,12 @@ func (_m *Admin) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LastIP = value.String
 			}
+		case admin.FieldIsSuperAdmin:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field is_super_admin", values[i])
+			} else if value.Valid {
+				_m.IsSuperAdmin = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -261,6 +271,9 @@ func (_m *Admin) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("last_ip=")
 	builder.WriteString(_m.LastIP)
+	builder.WriteString(", ")
+	builder.WriteString("is_super_admin=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IsSuperAdmin))
 	builder.WriteByte(')')
 	return builder.String()
 }

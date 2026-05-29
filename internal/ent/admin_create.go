@@ -212,6 +212,20 @@ func (_c *AdminCreate) SetNillableLastIP(v *string) *AdminCreate {
 	return _c
 }
 
+// SetIsSuperAdmin sets the "is_super_admin" field.
+func (_c *AdminCreate) SetIsSuperAdmin(v bool) *AdminCreate {
+	_c.mutation.SetIsSuperAdmin(v)
+	return _c
+}
+
+// SetNillableIsSuperAdmin sets the "is_super_admin" field if the given value is not nil.
+func (_c *AdminCreate) SetNillableIsSuperAdmin(v *bool) *AdminCreate {
+	if v != nil {
+		_c.SetIsSuperAdmin(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *AdminCreate) SetID(v int) *AdminCreate {
 	_c.mutation.SetID(v)
@@ -264,6 +278,10 @@ func (_c *AdminCreate) defaults() {
 	if _, ok := _c.mutation.Status(); !ok {
 		v := admin.DefaultStatus
 		_c.mutation.SetStatus(v)
+	}
+	if _, ok := _c.mutation.IsSuperAdmin(); !ok {
+		v := admin.DefaultIsSuperAdmin
+		_c.mutation.SetIsSuperAdmin(v)
 	}
 }
 
@@ -354,6 +372,9 @@ func (_c *AdminCreate) check() error {
 		if err := admin.LastIPValidator(v); err != nil {
 			return &ValidationError{Name: "last_ip", err: fmt.Errorf(`ent: validator failed for field "Admin.last_ip": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.IsSuperAdmin(); !ok {
+		return &ValidationError{Name: "is_super_admin", err: errors.New(`ent: missing required field "Admin.is_super_admin"`)}
 	}
 	return nil
 }
@@ -450,6 +471,10 @@ func (_c *AdminCreate) createSpec() (*Admin, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LastIP(); ok {
 		_spec.SetField(admin.FieldLastIP, field.TypeString, value)
 		_node.LastIP = value
+	}
+	if value, ok := _c.mutation.IsSuperAdmin(); ok {
+		_spec.SetField(admin.FieldIsSuperAdmin, field.TypeBool, value)
+		_node.IsSuperAdmin = value
 	}
 	return _node, _spec
 }
