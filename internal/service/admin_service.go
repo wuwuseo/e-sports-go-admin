@@ -214,16 +214,17 @@ func (s *AdminService) RefreshToken(ctx context.Context, refreshToken string) (*
 
 // AdminResponse 管理员信息响应
 type AdminResponse struct {
-	ID         string `json:"id"`
-	Email      string `json:"email"`
-	Username   string `json:"username"`
-	Nickname   string `json:"nickname"`
-	Name       string `json:"name"`
-	Phone      string `json:"phone"`
-	Avatar     string `json:"avatar"`
-	Department string `json:"department"`
-	Position   string `json:"position"`
-	Status     string `json:"status"`
+	ID           string `json:"id"`
+	Email        string `json:"email"`
+	Username     string `json:"username"`
+	Nickname     string `json:"nickname"`
+	Name         string `json:"name"`
+	Phone        string `json:"phone"`
+	Avatar       string `json:"avatar"`
+	Department   string `json:"department"`
+	Position     string `json:"position"`
+	Status       string `json:"status"`
+	IsSuperAdmin bool   `json:"is_super_admin"`
 }
 
 // GetAdminByUID 根据UID获取管理员信息
@@ -239,16 +240,17 @@ func (s *AdminService) GetAdminByUID(ctx context.Context, uid string) (*AdminRes
 	}
 
 	return &AdminResponse{
-		ID:         a.UID,
-		Email:      a.Email,
-		Username:   a.Username,
-		Nickname:   a.Nickname,
-		Name:       a.Name,
-		Phone:      a.Phone,
-		Avatar:     a.Avatar,
-		Department: a.Department,
-		Position:   a.Position,
-		Status:     string(a.Status),
+		ID:           a.UID,
+		Email:        a.Email,
+		Username:     a.Username,
+		Nickname:     a.Nickname,
+		Name:         a.Name,
+		Phone:        a.Phone,
+		Avatar:       a.Avatar,
+		Department:   a.Department,
+		Position:     a.Position,
+		Status:       string(a.Status),
+		IsSuperAdmin: a.IsSuperAdmin,
 	}, nil
 }
 

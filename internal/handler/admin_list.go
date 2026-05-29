@@ -183,3 +183,47 @@ func DeactivateAdmin(c fiber.Ctx) error {
 
 	return response.Success(nil).ToJSON(c)
 }
+
+// UpdateAdmin 更新管理员信息
+// @Summary 更新管理员信息
+// @Description 更新指定管理员的基本信息和密码
+// @Tags 管理员管理
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "管理员ID"
+// @Param request body service.UpdateAdminRequest true "更新管理员请求"
+// @Success 200 {object} utils.Response{data=service.AdminResponse} "更新成功"
+// @Failure 400 {object} utils.Response "参数错误"
+// @Failure 401 {object} utils.Response "未授权"
+// @Failure 403 {object} utils.Response "权限不足"
+// @Failure 404 {object} utils.Response "管理员不存在"
+// @Router /api/v1/admin/auth/admins/{id} [put]
+func UpdateAdminByID(c fiber.Ctx) error {
+	response := c.Locals("utils.Response").(*utils.Response)
+
+	adminID, err := strconv.Atoi(c.Params("id"))
+	if err != nil || adminID <= 0 {
+		return response.Fail(global.ResponseErrorCode, "无效的管理员ID").ToJSON(c)
+	}
+
+	var req service.UpdateAdminRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
+	}
+
+	svc := c.Locals("service.SuperAdminService").(service.SuperAdminServiceInterface)
+	result, err := svc.UpdateAdmin(c.Context(), adminID, &req)
+	if err != nil {
+		switch err {
+		case service.ErrAdminNotFound:
+			return response.Fail(global.ResponseNotFound, "管理员不存在").ToJSON(c)
+		case service.ErrAdminEmailExists:
+			return response.Fail(global.ResponseErrorCode, "邮箱已存在").ToJSON(c)
+		default:
+			return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		}
+	}
+
+	return response.Success(result).ToJSON(c)
+}

@@ -17,10 +17,21 @@ var (
 	ErrAdminUsernameExists = errors.New("admin username already exists")
 )
 
+// UpdateAdminRequest 更新管理员请求
+type UpdateAdminRequest struct {
+	Nickname string `json:"nickname"`
+	Name     string `json:"name"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email" validate:"omitempty,email"`
+	Password string `json:"password" validate:"omitempty,min=6"`
+}
+
 // SuperAdminServiceInterface 超级管理员服务接口
 type SuperAdminServiceInterface interface {
 	CreateAdmin(ctx context.Context, req *CreateAdminRequest) (*AdminResponse, error)
 	ListAdmins(ctx context.Context, req *AdminListRequest) (*ListResponse[*AdminListItem], error)
+	GetAdminByID(ctx context.Context, adminID int) (*AdminResponse, error)
+	UpdateAdmin(ctx context.Context, adminID int, req *UpdateAdminRequest) (*AdminResponse, error)
 	ActivateAdmin(ctx context.Context, adminID int) error
 	DeactivateAdmin(ctx context.Context, adminID int) error
 }
@@ -108,13 +119,13 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminReq
 	}
 
 	return &AdminResponse{
-		ID:         a.UID,
-		Email:      a.Email,
-		Username:   a.Username,
-		Nickname:   a.Nickname,
-		Name:       a.Name,
-		Phone:      a.Phone,
-		Status:     string(a.Status),
+		ID:       a.UID,
+		Email:    a.Email,
+		Username: a.Username,
+		Nickname: a.Nickname,
+		Name:     a.Name,
+		Phone:    a.Phone,
+		Status:   string(a.Status),
 	}, nil
 }
 
@@ -202,4 +213,97 @@ func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, adminID int) er
 		return err
 	}
 	return nil
+}
+
+// GetAdminByID 获取管理员详情
+func (s *SuperAdminService) GetAdminByID(ctx context.Context, adminID int) (*AdminResponse, error) {
+	a, err := s.client.Admin.Query().
+		Where(admin.IDEQ(adminID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrAdminNotFound
+		}
+		return nil, err
+	}
+
+	return &AdminResponse{
+		ID:         a.UID,
+		Email:      a.Email,
+		Username:   a.Username,
+		Nickname:   a.Nickname,
+		Name:       a.Name,
+		Phone:      a.Phone,
+		Avatar:     a.Avatar,
+		Department: a.Department,
+		Position:   a.Position,
+		Status:     string(a.Status),
+	}, nil
+}
+
+// UpdateAdmin 更新管理员信息
+func (s *SuperAdminService) UpdateAdmin(ctx context.Context, adminID int, req *UpdateAdminRequest) (*AdminResponse, error) {
+	a, err := s.client.Admin.Query().
+		Where(admin.IDEQ(adminID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrAdminNotFound
+		}
+		return nil, err
+	}
+
+	// 检查邮箱是否已被其他管理员使用
+	if req.Email != "" && req.Email != a.Email {
+		emailExists, err := s.client.Admin.Query().
+			Where(admin.EmailEQ(req.Email), admin.IDNEQ(adminID)).
+			Exist(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if emailExists {
+			return nil, ErrAdminEmailExists
+		}
+	}
+
+	update := s.client.Admin.UpdateOne(a)
+
+	if req.Nickname != "" {
+		update.SetNickname(req.Nickname)
+	}
+	if req.Name != "" {
+		update.SetName(req.Name)
+	}
+	if req.Phone != "" {
+		update.SetPhone(req.Phone)
+	}
+	if req.Email != "" {
+		update.SetEmail(req.Email)
+	}
+	if req.Password != "" {
+		hashedPassword, salt, err := crypto.HashPassword(req.Password)
+		if err != nil {
+			return nil, err
+		}
+		update.SetPassword(hashedPassword)
+		update.SetPasswordSalt(salt)
+	}
+
+	updated, err := update.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AdminResponse{
+		ID:         updated.UID,
+		Email:      updated.Email,
+		Username:   updated.Username,
+		Nickname:   updated.Nickname,
+		Name:       updated.Name,
+		Phone:      updated.Phone,
+		Avatar:     updated.Avatar,
+		Department: updated.Department,
+		Position:   updated.Position,
+		Status:     string(updated.Status),
+	}, nil
 }
