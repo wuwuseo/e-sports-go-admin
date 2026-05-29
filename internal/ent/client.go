@@ -19,6 +19,7 @@ import (
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
@@ -54,6 +55,8 @@ type Client struct {
 	CronJob *CronJobClient
 	// DictData is the client for interacting with the DictData builders.
 	DictData *DictDataClient
+	// Message is the client for interacting with the Message builders.
+	Message *MessageClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
 	// Role is the client for interacting with the Role builders.
@@ -87,6 +90,7 @@ func (c *Client) init() {
 	c.CasbinRule = NewCasbinRuleClient(c.config)
 	c.CronJob = NewCronJobClient(c.config)
 	c.DictData = NewDictDataClient(c.config)
+	c.Message = NewMessageClient(c.config)
 	c.OperationLog = NewOperationLogClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.SystemConfig = NewSystemConfigClient(c.config)
@@ -194,6 +198,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CasbinRule:       NewCasbinRuleClient(cfg),
 		CronJob:          NewCronJobClient(cfg),
 		DictData:         NewDictDataClient(cfg),
+		Message:          NewMessageClient(cfg),
 		OperationLog:     NewOperationLogClient(cfg),
 		Role:             NewRoleClient(cfg),
 		SystemConfig:     NewSystemConfigClient(cfg),
@@ -228,6 +233,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CasbinRule:       NewCasbinRuleClient(cfg),
 		CronJob:          NewCronJobClient(cfg),
 		DictData:         NewDictDataClient(cfg),
+		Message:          NewMessageClient(cfg),
 		OperationLog:     NewOperationLogClient(cfg),
 		Role:             NewRoleClient(cfg),
 		SystemConfig:     NewSystemConfigClient(cfg),
@@ -265,8 +271,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Admin, c.AdminRole, c.Attachment, c.AttachmentGroup, c.Blacklist,
-		c.CasbinRule, c.CronJob, c.DictData, c.OperationLog, c.Role, c.SystemConfig,
-		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
+		c.CasbinRule, c.CronJob, c.DictData, c.Message, c.OperationLog, c.Role,
+		c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -277,8 +283,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Admin, c.AdminRole, c.Attachment, c.AttachmentGroup, c.Blacklist,
-		c.CasbinRule, c.CronJob, c.DictData, c.OperationLog, c.Role, c.SystemConfig,
-		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
+		c.CasbinRule, c.CronJob, c.DictData, c.Message, c.OperationLog, c.Role,
+		c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -303,6 +309,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CronJob.mutate(ctx, m)
 	case *DictDataMutation:
 		return c.DictData.mutate(ctx, m)
+	case *MessageMutation:
+		return c.Message.mutate(ctx, m)
 	case *OperationLogMutation:
 		return c.OperationLog.mutate(ctx, m)
 	case *RoleMutation:
@@ -1466,6 +1474,139 @@ func (c *DictDataClient) mutate(ctx context.Context, m *DictDataMutation) (Value
 	}
 }
 
+// MessageClient is a client for the Message schema.
+type MessageClient struct {
+	config
+}
+
+// NewMessageClient returns a client for the Message from the given config.
+func NewMessageClient(c config) *MessageClient {
+	return &MessageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `message.Hooks(f(g(h())))`.
+func (c *MessageClient) Use(hooks ...Hook) {
+	c.hooks.Message = append(c.hooks.Message, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `message.Intercept(f(g(h())))`.
+func (c *MessageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Message = append(c.inters.Message, interceptors...)
+}
+
+// Create returns a builder for creating a Message entity.
+func (c *MessageClient) Create() *MessageCreate {
+	mutation := newMessageMutation(c.config, OpCreate)
+	return &MessageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Message entities.
+func (c *MessageClient) CreateBulk(builders ...*MessageCreate) *MessageCreateBulk {
+	return &MessageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MessageClient) MapCreateBulk(slice any, setFunc func(*MessageCreate, int)) *MessageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MessageCreateBulk{err: fmt.Errorf("calling to MessageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MessageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MessageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Message.
+func (c *MessageClient) Update() *MessageUpdate {
+	mutation := newMessageMutation(c.config, OpUpdate)
+	return &MessageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MessageClient) UpdateOne(_m *Message) *MessageUpdateOne {
+	mutation := newMessageMutation(c.config, OpUpdateOne, withMessage(_m))
+	return &MessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MessageClient) UpdateOneID(id int) *MessageUpdateOne {
+	mutation := newMessageMutation(c.config, OpUpdateOne, withMessageID(id))
+	return &MessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Message.
+func (c *MessageClient) Delete() *MessageDelete {
+	mutation := newMessageMutation(c.config, OpDelete)
+	return &MessageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MessageClient) DeleteOne(_m *Message) *MessageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MessageClient) DeleteOneID(id int) *MessageDeleteOne {
+	builder := c.Delete().Where(message.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MessageDeleteOne{builder}
+}
+
+// Query returns a query builder for Message.
+func (c *MessageClient) Query() *MessageQuery {
+	return &MessageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMessage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Message entity by its id.
+func (c *MessageClient) Get(ctx context.Context, id int) (*Message, error) {
+	return c.Query().Where(message.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MessageClient) GetX(ctx context.Context, id int) *Message {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MessageClient) Hooks() []Hook {
+	return c.hooks.Message
+}
+
+// Interceptors returns the client interceptors.
+func (c *MessageClient) Interceptors() []Interceptor {
+	return c.inters.Message
+}
+
+func (c *MessageClient) mutate(ctx context.Context, m *MessageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MessageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MessageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MessageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MessageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Message mutation op: %q", m.Op())
+	}
+}
+
 // OperationLogClient is a client for the OperationLog schema.
 type OperationLogClient struct {
 	config
@@ -2449,12 +2590,12 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 type (
 	hooks struct {
 		Admin, AdminRole, Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob,
-		DictData, OperationLog, Role, SystemConfig, SystemPermission, ThirdPartyUser,
-		User, UserRole []ent.Hook
+		DictData, Message, OperationLog, Role, SystemConfig, SystemPermission,
+		ThirdPartyUser, User, UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob,
-		DictData, OperationLog, Role, SystemConfig, SystemPermission, ThirdPartyUser,
-		User, UserRole []ent.Interceptor
+		DictData, Message, OperationLog, Role, SystemConfig, SystemPermission,
+		ThirdPartyUser, User, UserRole []ent.Interceptor
 	}
 )

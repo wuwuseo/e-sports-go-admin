@@ -8,6 +8,7 @@ import (
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
@@ -42,6 +43,9 @@ func InitTablePrefix(prefix string) {
 	dictdata.TablePrefix = prefix
 	dictdata.Table = prefix + "dict_data"
 
+	message.TablePrefix = prefix
+	message.Table = prefix + "messages"
+
 	operationlog.TablePrefix = prefix
 	operationlog.Table = prefix + "operation_logs"
 
@@ -66,6 +70,7 @@ func InitTablePrefix(prefix string) {
 	migrate.CasbinRulesTable.Name = prefix + "casbin_rules"
 	migrate.CronJobsTable.Name = prefix + "cron_jobs"
 	migrate.DictDataTable.Name = prefix + "dict_data"
+	migrate.MessagesTable.Name = prefix + "messages"
 	migrate.OperationLogsTable.Name = prefix + "operation_logs"
 	migrate.RolesTable.Name = prefix + "roles"
 	migrate.SystemConfigsTable.Name = prefix + "system_configs"

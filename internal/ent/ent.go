@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
@@ -95,6 +96,7 @@ func checkColumn(t, c string) error {
 			casbinrule.Table:       casbinrule.ValidColumn,
 			cronjob.Table:          cronjob.ValidColumn,
 			dictdata.Table:         dictdata.ValidColumn,
+			message.Table:          message.ValidColumn,
 			operationlog.Table:     operationlog.ValidColumn,
 			role.Table:             role.ValidColumn,
 			systemconfig.Table:     systemconfig.ValidColumn,

@@ -169,6 +169,88 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/auth/admins/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新指定管理员的基本信息和密码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "管理员管理"
+                ],
+                "summary": "更新管理员信息",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "管理员ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新管理员请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.UpdateAdminRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.AdminResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "管理员不存在",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/auth/admins/{id}/activate": {
             "put": {
                 "security": [
@@ -327,6 +409,147 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "管理员不存在",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/admins/{uid}/roles": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定管理员的所有角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色分配"
+                ],
+                "summary": "获取管理员角色列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "管理员ID",
+                        "name": "uid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.UserRolesResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "权限不足",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "管理员不存在",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "为指定管理员分配角色，包括主角色",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "角色分配"
+                ],
+                "summary": "分配管理员角色",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "管理员ID",
+                        "name": "uid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "分配角色请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.AssignRolesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "分配成功",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误/无效的角色ID/主角色无效",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -3357,6 +3580,174 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/auth/messages": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "当前用户消息列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "消息类型 system/business/task",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "0=未读 1=已读",
+                        "name": "read_status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.ListResponse-service_MessageResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/read": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "标记消息已读",
+                "parameters": [
+                    {
+                        "description": "ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.MarkReadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/read-all": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "全部标记为已读",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/unread": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "获取未读数",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.UnreadCountResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/{id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "删除单条消息",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "消息 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/auth/operation-logs": {
             "get": {
                 "security": [
@@ -5135,6 +5526,39 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/auth/sse/ticket": {
+            "post": {
+                "description": "鉴权后生成 5 分钟内有效的一次性 ticket，用于建立 SSE 连接",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "颁发 SSE 临时凭证",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/auth/system-permissions": {
             "get": {
                 "security": [
@@ -6749,10 +7173,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/service.RoleResponse"
-                                            }
+                                            "$ref": "#/definitions/service.UserRolesResponse"
                                         }
                                     }
                                 }
@@ -7116,6 +7537,34 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/sse/connect": {
+            "get": {
+                "description": "通过 ticket 鉴权后建立 EventSource 长连接，接收站内消息推送",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "建立 SSE 长连接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "SSE ticket",
+                        "name": "ticket",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "客户端最后一次收到的事件 ID",
+                        "name": "lastEventId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {}
+            }
+        },
         "/api/v1/public/login": {
             "post": {
                 "description": "用户登录并获取访问令牌",
@@ -7422,6 +7871,9 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "is_super_admin": {
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -7445,7 +7897,6 @@ const docTemplate = `{
         "service.AssignRolesRequest": {
             "type": "object",
             "required": [
-                "primary_role_id",
                 "role_ids"
             ],
             "properties": {
@@ -7905,7 +8356,8 @@ const docTemplate = `{
                     "maxLength": 500
                 },
                 "method": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 20
                 },
                 "name": {
                     "type": "string",
@@ -8183,6 +8635,23 @@ const docTemplate = `{
                 }
             }
         },
+        "service.ListResponse-service_MessageResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.MessageResponse"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
         "service.ListRolesResponse": {
             "type": "object",
             "properties": {
@@ -8245,6 +8714,54 @@ const docTemplate = `{
                 "timestamp": {
                     "description": "请求时间戳（防止重放攻击）",
                     "type": "integer"
+                }
+            }
+        },
+        "service.MarkReadRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "service.MessageResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "extra": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "string"
+                },
+                "read_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "user_uid": {
+                    "type": "string"
                 }
             }
         },
@@ -8366,6 +8883,26 @@ const docTemplate = `{
             ],
             "properties": {
                 "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.RoleItem": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_primary": {
+                    "type": "boolean"
+                },
+                "name": {
                     "type": "string"
                 }
             }
@@ -8704,6 +9241,44 @@ const docTemplate = `{
                 }
             }
         },
+        "service.UnreadCountResponse": {
+            "type": "object",
+            "properties": {
+                "business": {
+                    "type": "integer"
+                },
+                "system": {
+                    "type": "integer"
+                },
+                "task": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.UpdateAdminRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "phone": {
+                    "type": "string"
+                }
+            }
+        },
         "service.UpdateConfigRequest": {
             "type": "object",
             "properties": {
@@ -8885,13 +9460,16 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "component": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 200
                 },
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 500
                 },
                 "icon": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 },
                 "is_common": {
                     "type": "boolean"
@@ -8901,7 +9479,8 @@ const docTemplate = `{
                     "maxLength": 500
                 },
                 "method": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 20
                 },
                 "name": {
                     "type": "string",
@@ -9100,6 +9679,23 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "service.UserRolesResponse": {
+            "type": "object",
+            "properties": {
+                "primary_role": {
+                    "$ref": "#/definitions/service.RoleItem"
+                },
+                "primary_role_id": {
+                    "type": "integer"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/service.RoleItem"
+                    }
                 }
             }
         },

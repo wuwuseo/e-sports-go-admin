@@ -7,6 +7,7 @@ import (
 	"github.com/wuwuseo/cmf/filesystem"
 	"github.com/wuwuseo/cmf/log"
 	"github.com/wuwuseo/cmf/orm"
+	"github.com/wuwuseo/cmf/sse"
 	"github.com/wuwuseo/cmf/validate"
 
 	"go-admin/internal/ent"
@@ -22,4 +23,6 @@ type App struct {
 	EntClient       *ent.Client
 	EnforcerManager *cmfCasbin.EnforcerManager
 	Filesystem      *filesystem.Filesystem
+	Hub             *sse.Hub
+	TicketStore     *sse.TicketStore
 }

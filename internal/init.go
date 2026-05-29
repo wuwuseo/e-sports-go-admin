@@ -21,11 +21,14 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
+
+	"github.com/wuwuseo/cmf/sse"
 )
 
 var appInstance *App
@@ -87,6 +90,16 @@ func Init(config *config.Config) error {
 	// 密钥有效期7天，每24小时轮换一次
 	crypto.InitKeyManager(7*24*time.Hour, 24*time.Hour)
 	appInstance.Logger.Info("Key manager initialized with 24h rotation cycle")
+
+	// 初始化 SSE Hub 与 Ticket 存储（站内消息实时推送）
+	if appInstance.Hub == nil {
+		appInstance.Hub = sse.NewHub(sse.WithLogger(appInstance.Logger))
+	}
+	if appInstance.TicketStore == nil {
+		appInstance.TicketStore = sse.NewTicketStore(5 * time.Minute)
+	}
+	go appInstance.TicketStore.StartCleanup(context.Background())
+	appInstance.Logger.Info("SSE Hub 与 TicketStore 初始化完成")
 
 	// 初始化种子数据
 	if err := initSeedData(); err != nil {
@@ -269,6 +282,7 @@ func initSeedData() error {
 	}
 	if !userRoleExists {
 		_, err = client.UserRole.Create().
+			SetIsPrimary(true).
 			SetUserID(adminUser.ID).
 			SetRoleID(adminRole.ID).
 			Save(ctx)
@@ -295,6 +309,7 @@ func initSeedData() error {
 	}
 	if !adminRoleExists {
 		_, err = client.AdminRole.Create().
+			SetIsPrimary(true).
 			SetAdminID(adminAccount.ID).
 			SetRoleID(adminRole.ID).
 			Save(ctx)
@@ -425,6 +440,12 @@ func initSeedData() error {
 		return fmt.Errorf("failed to initialize system permissions: %w", err)
 	}
 	appInstance.Logger.Info("system permissions initialized successfully")
+
+	// 6. 初始化普通管理员角色（normal_admin），并将所有系统权限分配给该角色
+	if err := initNormalAdminRole(ctx, client); err != nil {
+		appInstance.Logger.Error("failed to initialize normal_admin role", zap.Error(err))
+		return fmt.Errorf("failed to initialize normal_admin role: %w", err)
+	}
 
 	appInstance.Logger.Info("seed data initialization completed")
 	return nil
@@ -604,4 +625,134 @@ func initSystemConfigSeedData() error {
 
 	appInstance.Logger.Info("system config seed data initialization completed")
 	return nil
+}
+
+// initNormalAdminRole 初始化"普通管理员"角色，并将所有系统权限分配给该角色
+func initNormalAdminRole(ctx context.Context, client *ent.Client) error {
+	const (
+		normalAdminRoleName = "normal_admin"
+		domain              = "default"
+	)
+
+	// 1. 创建（或获取）普通管理员角色
+	normalAdminRole, err := client.Role.Query().
+		Where(role.NameEQ(normalAdminRoleName)).
+		Only(ctx)
+	if err != nil {
+		if !ent.IsNotFound(err) {
+			return fmt.Errorf("failed to query normal_admin role: %w", err)
+		}
+		normalAdminRole, err = client.Role.Create().
+			SetName(normalAdminRoleName).
+			SetDisplayName("普通管理员").
+			SetDescription("普通管理员，默认拥有系统所有功能权限，可按需调整").
+			SetIsSystem(true).
+			SetStatus(role.StatusActive).
+			Save(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create normal_admin role: %w", err)
+		}
+		appInstance.Logger.Info("normal_admin role created", zap.Int("id", normalAdminRole.ID))
+	} else {
+		appInstance.Logger.Warn("normal_admin role already exists, skipping",
+			zap.Int("id", normalAdminRole.ID))
+	}
+
+	// 2. 读取所有启用的系统权限（菜单、按钮、API）
+	perms, err := client.SystemPermission.Query().
+		Where(systempermission.StatusEQ(1)).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query system permissions: %w", err)
+	}
+
+	// 3. 将所有系统权限转换为 Casbin 策略并写入（已存在的跳过）
+	created, skipped := 0, 0
+	for _, p := range perms {
+		object, action, permType := buildCasbinTupleFromSystemPermission(p)
+		if object == "" {
+			continue
+		}
+
+		exists, err := client.CasbinRule.Query().
+			Where(
+				casbinrule.PtypeEQ("p"),
+				casbinrule.V0EQ(normalAdminRoleName),
+				casbinrule.V1EQ(domain),
+				casbinrule.V2EQ(object),
+				casbinrule.V3EQ(action),
+			).Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to query casbin rule for normal_admin: %w", err)
+		}
+		if exists {
+			skipped++
+			continue
+		}
+
+		_, err = client.CasbinRule.Create().
+			SetPtype("p").
+			SetV0(normalAdminRoleName).
+			SetV1(domain).
+			SetV2(object).
+			SetV3(action).
+			SetV4(permType).
+			SetV5(p.Description).
+			Save(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create casbin rule for normal_admin: %w", err)
+		}
+		created++
+	}
+	appInstance.Logger.Info("normal_admin permissions assigned",
+		zap.Int("created", created),
+		zap.Int("skipped", skipped),
+		zap.Int("total", len(perms)),
+	)
+
+	// 4. 如果 EnforcerManager 存在，重新加载策略
+	if global.EnforcerManager != nil {
+		enforcer, err := global.EnforcerManager.GetEnforcer(domain)
+		if err != nil {
+			appInstance.Logger.Error("failed to get casbin enforcer for normal_admin", zap.Error(err))
+			return fmt.Errorf("failed to get casbin enforcer: %w", err)
+		}
+		if err := enforcer.LoadPolicy(); err != nil {
+			appInstance.Logger.Error("failed to reload casbin policy after normal_admin init", zap.Error(err))
+			return fmt.Errorf("failed to reload casbin policy: %w", err)
+		}
+		appInstance.Logger.Info("casbin policy reloaded after normal_admin initialization")
+	}
+
+	return nil
+}
+
+// buildCasbinTupleFromSystemPermission 根据系统权限定义构造 Casbin 策略的 (object, action, type) 三元组
+// 与 service.systemPermissionObject 保持一致：菜单/按钮以 MenuPath/Code/Name 作为对象，API 以 Path 作为对象
+func buildCasbinTupleFromSystemPermission(p *ent.SystemPermission) (object, action, permType string) {
+	switch p.Type {
+	case "menu":
+		object = firstNonEmpty(p.MenuPath, p.Code, p.Name)
+		action = "menu"
+		permType = "menu"
+	case "button":
+		object = firstNonEmpty(p.Code, p.Name)
+		action = "button"
+		permType = "button"
+	case "api":
+		object = p.Path
+		action = p.Method
+		permType = "api"
+	}
+	return object, action, permType
+}
+
+// firstNonEmpty 返回首个非空字符串
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }

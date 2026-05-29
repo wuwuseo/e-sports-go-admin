@@ -30,6 +30,9 @@ type CronJob func(*sql.Selector)
 // DictData is the predicate function for dictdata builders.
 type DictData func(*sql.Selector)
 
+// Message is the predicate function for message builders.
+type Message func(*sql.Selector)
+
 // OperationLog is the predicate function for operationlog builders.
 type OperationLog func(*sql.Selector)
 

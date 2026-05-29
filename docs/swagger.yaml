@@ -128,6 +128,8 @@ definitions:
         type: string
       id:
         type: string
+      is_super_admin:
+        type: boolean
       name:
         type: string
       nickname:
@@ -151,7 +153,6 @@ definitions:
         minItems: 1
         type: array
     required:
-    - primary_role_id
     - role_ids
     type: object
   service.AttachmentResponse:
@@ -456,6 +457,7 @@ definitions:
         maxLength: 500
         type: string
       method:
+        maxLength: 20
         type: string
       name:
         maxLength: 100
@@ -643,6 +645,17 @@ definitions:
       total:
         type: integer
     type: object
+  service.ListResponse-service_MessageResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.MessageResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
   service.ListRolesResponse:
     properties:
       data:
@@ -686,6 +699,38 @@ definitions:
       timestamp:
         description: 请求时间戳（防止重放攻击）
         type: integer
+    type: object
+  service.MarkReadRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  service.MessageResponse:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      extra:
+        additionalProperties: {}
+        type: object
+      id:
+        type: integer
+      level:
+        type: string
+      read_at:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+      user_uid:
+        type: string
     type: object
   service.MoveAttachmentRequest:
     properties:
@@ -768,6 +813,19 @@ definitions:
         type: string
     required:
     - refresh_token
+    type: object
+  service.RoleItem:
+    properties:
+      description:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      is_primary:
+        type: boolean
+      name:
+        type: string
     type: object
   service.RoleResponse:
     properties:
@@ -989,6 +1047,31 @@ definitions:
         description: 分片确认（非最后一片时返回）
         type: string
     type: object
+  service.UnreadCountResponse:
+    properties:
+      business:
+        type: integer
+      system:
+        type: integer
+      task:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.UpdateAdminRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      nickname:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      phone:
+        type: string
+    type: object
   service.UpdateConfigRequest:
     properties:
       group:
@@ -1116,10 +1199,13 @@ definitions:
   service.UpdateSystemPermissionRequest:
     properties:
       component:
+        maxLength: 200
         type: string
       description:
+        maxLength: 500
         type: string
       icon:
+        maxLength: 100
         type: string
       is_common:
         type: boolean
@@ -1127,6 +1213,7 @@ definitions:
         maxLength: 500
         type: string
       method:
+        maxLength: 20
         type: string
       name:
         maxLength: 100
@@ -1259,6 +1346,17 @@ definitions:
       name:
         type: string
     type: object
+  service.UserRolesResponse:
+    properties:
+      primary_role:
+        $ref: '#/definitions/service.RoleItem'
+      primary_role_id:
+        type: integer
+      roles:
+        items:
+          $ref: '#/definitions/service.RoleItem'
+        type: array
+    type: object
   utils.Response:
     properties:
       code:
@@ -1366,6 +1464,56 @@ paths:
       security:
       - BearerAuth: []
       summary: 创建管理员账号
+      tags:
+      - 管理员管理
+  /api/v1/admin/auth/admins/{id}:
+    put:
+      consumes:
+      - application/json
+      description: 更新指定管理员的基本信息和密码
+      parameters:
+      - description: 管理员ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新管理员请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.AdminResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 管理员不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新管理员信息
       tags:
       - 管理员管理
   /api/v1/admin/auth/admins/{id}/activate:
@@ -1482,6 +1630,94 @@ paths:
       summary: 获取管理员详情
       tags:
       - 管理员管理
+  /api/v1/admin/auth/admins/{uid}/roles:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定管理员的所有角色
+      parameters:
+      - description: 管理员ID
+        in: path
+        name: uid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UserRolesResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 管理员不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取管理员角色列表
+      tags:
+      - 角色分配
+    put:
+      consumes:
+      - application/json
+      description: 为指定管理员分配角色，包括主角色
+      parameters:
+      - description: 管理员ID
+        in: path
+        name: uid
+        required: true
+        type: integer
+      - description: 分配角色请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.AssignRolesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 分配成功
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: 参数错误/无效的角色ID/主角色无效
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 管理员不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 分配管理员角色
+      tags:
+      - 角色分配
   /api/v1/admin/auth/attachment-groups:
     get:
       description: 获取附件分组列表，支持分页和关键字搜索
@@ -3347,6 +3583,108 @@ paths:
       summary: 管理员退出登录
       tags:
       - 管理员认证
+  /api/v1/admin/auth/messages:
+    get:
+      parameters:
+      - description: 页码
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      - description: 消息类型 system/business/task
+        in: query
+        name: type
+        type: string
+      - description: 0=未读 1=已读
+        in: query
+        name: read_status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListResponse-service_MessageResponse'
+              type: object
+      summary: 当前用户消息列表
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/{id}:
+    delete:
+      parameters:
+      - description: 消息 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 删除单条消息
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/read:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.MarkReadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 标记消息已读
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/read-all:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 全部标记为已读
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/unread:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UnreadCountResponse'
+              type: object
+      summary: 获取未读数
+      tags:
+      - 站内消息
   /api/v1/admin/auth/operation-logs:
     get:
       description: 获取操作日志列表，支持分页、用户名、模块、操作和时间范围筛选
@@ -4449,6 +4787,25 @@ paths:
       summary: 从角色移除权限
       tags:
       - 权限管理
+  /api/v1/admin/auth/sse/ticket:
+    post:
+      description: 鉴权后生成 5 分钟内有效的一次性 ticket，用于建立 SSE 连接
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      summary: 颁发 SSE 临时凭证
+      tags:
+      - 站内消息
   /api/v1/admin/auth/system-permissions:
     get:
       description: 获取权限定义列表，支持分页和筛选
@@ -5389,9 +5746,7 @@ paths:
             - $ref: '#/definitions/utils.Response'
             - properties:
                 data:
-                  items:
-                    $ref: '#/definitions/service.RoleResponse'
-                  type: array
+                  $ref: '#/definitions/service.UserRolesResponse'
               type: object
         "400":
           description: 参数错误
@@ -5671,6 +6026,25 @@ paths:
       summary: 刷新访问令牌
       tags:
       - 用户管理
+  /api/v1/admin/sse/connect:
+    get:
+      description: 通过 ticket 鉴权后建立 EventSource 长连接，接收站内消息推送
+      parameters:
+      - description: SSE ticket
+        in: query
+        name: ticket
+        required: true
+        type: string
+      - description: 客户端最后一次收到的事件 ID
+        in: query
+        name: lastEventId
+        type: integer
+      produces:
+      - text/event-stream
+      responses: {}
+      summary: 建立 SSE 长连接
+      tags:
+      - 站内消息
   /api/v1/public/login:
     post:
       consumes:

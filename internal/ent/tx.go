@@ -28,6 +28,8 @@ type Tx struct {
 	CronJob *CronJobClient
 	// DictData is the client for interacting with the DictData builders.
 	DictData *DictDataClient
+	// Message is the client for interacting with the Message builders.
+	Message *MessageClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
 	// Role is the client for interacting with the Role builders.
@@ -181,6 +183,7 @@ func (tx *Tx) init() {
 	tx.CasbinRule = NewCasbinRuleClient(tx.config)
 	tx.CronJob = NewCronJobClient(tx.config)
 	tx.DictData = NewDictDataClient(tx.config)
+	tx.Message = NewMessageClient(tx.config)
 	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.SystemConfig = NewSystemConfigClient(tx.config)

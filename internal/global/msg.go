@@ -60,6 +60,16 @@ const (
 	ResponsePrimaryRoleInvalid   = 6009
 	ResponseThirdPartyBound      = 6010
 	ResponseThirdPartyNotFound   = 6011
+
+	// 站内消息错误码 (7000-7099)
+	ResponseMessageNotFound      = 7001
+	ResponseMessageForbidden     = 7002
+	ResponseMessageInvalidTicket = 7003
+	ResponseMessageSSEFailure    = 7004
+	ResponseMessageMarkReadFail  = 7005
+	ResponseMessageDeleteFail    = 7006
+	ResponseMessageCreateFail    = 7007
+	ResponseMessageInvalidReq    = 7008
 )
 
 // ResponseMsg 响应消息映射
@@ -122,4 +132,14 @@ var ResponseMsg = map[int]string{
 	ResponsePrimaryRoleInvalid:   "主角色必须在分配的角色列表内",
 	ResponseThirdPartyBound:      "该第三方账号已被其他用户绑定",
 	ResponseThirdPartyNotFound:   "第三方用户关联不存在",
+
+	// 站内消息错误消息
+	ResponseMessageNotFound:      "消息不存在",
+	ResponseMessageForbidden:     "无权操作该消息",
+	ResponseMessageInvalidTicket: "SSE 凭证无效或已过期",
+	ResponseMessageSSEFailure:    "SSE 连接失败",
+	ResponseMessageMarkReadFail:  "标记已读失败",
+	ResponseMessageDeleteFail:    "删除消息失败",
+	ResponseMessageCreateFail:    "创建消息失败",
+	ResponseMessageInvalidReq:    "非法的消息请求参数",
 }

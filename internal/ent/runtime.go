@@ -11,6 +11,7 @@ import (
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
@@ -117,6 +118,10 @@ func init() {
 	adminDescLastIP := adminFields[14].Descriptor()
 	// admin.LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
 	admin.LastIPValidator = adminDescLastIP.Validators[0].(func(string) error)
+	// adminDescIsSuperAdmin is the schema descriptor for is_super_admin field.
+	adminDescIsSuperAdmin := adminFields[15].Descriptor()
+	// admin.DefaultIsSuperAdmin holds the default value on creation for the is_super_admin field.
+	admin.DefaultIsSuperAdmin = adminDescIsSuperAdmin.Default.(bool)
 	adminroleMixin := schema.AdminRole{}.Mixin()
 	adminroleMixinFields0 := adminroleMixin[0].Fields()
 	_ = adminroleMixinFields0
@@ -516,6 +521,60 @@ func init() {
 	dictdata.DefaultUpdatedAt = dictdataDescUpdatedAt.Default.(func() time.Time)
 	// dictdata.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	dictdata.UpdateDefaultUpdatedAt = dictdataDescUpdatedAt.UpdateDefault.(func() time.Time)
+	messageFields := schema.Message{}.Fields()
+	_ = messageFields
+	// messageDescUserUID is the schema descriptor for user_uid field.
+	messageDescUserUID := messageFields[1].Descriptor()
+	// message.DefaultUserUID holds the default value on creation for the user_uid field.
+	message.DefaultUserUID = messageDescUserUID.Default.(string)
+	// message.UserUIDValidator is a validator for the "user_uid" field. It is called by the builders before save.
+	message.UserUIDValidator = messageDescUserUID.Validators[0].(func(string) error)
+	// messageDescType is the schema descriptor for type field.
+	messageDescType := messageFields[2].Descriptor()
+	// message.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	message.TypeValidator = func() func(string) error {
+		validators := messageDescType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(_type string) error {
+			for _, fn := range fns {
+				if err := fn(_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// messageDescLevel is the schema descriptor for level field.
+	messageDescLevel := messageFields[3].Descriptor()
+	// message.DefaultLevel holds the default value on creation for the level field.
+	message.DefaultLevel = messageDescLevel.Default.(string)
+	// message.LevelValidator is a validator for the "level" field. It is called by the builders before save.
+	message.LevelValidator = messageDescLevel.Validators[0].(func(string) error)
+	// messageDescTitle is the schema descriptor for title field.
+	messageDescTitle := messageFields[4].Descriptor()
+	// message.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	message.TitleValidator = func() func(string) error {
+		validators := messageDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// messageDescCreatedAt is the schema descriptor for created_at field.
+	messageDescCreatedAt := messageFields[8].Descriptor()
+	// message.DefaultCreatedAt holds the default value on creation for the created_at field.
+	message.DefaultCreatedAt = messageDescCreatedAt.Default.(func() time.Time)
 	operationlogFields := schema.OperationLog{}.Fields()
 	_ = operationlogFields
 	// operationlogDescUsername is the schema descriptor for username field.

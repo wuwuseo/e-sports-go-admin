@@ -11,6 +11,7 @@ import (
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/log"
+	"github.com/wuwuseo/cmf/sse"
 )
 
 func RegisterRoute(app *fiber.App, config *config.Config) {
@@ -68,6 +69,15 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	userListService = service.NewUserListService()
 	userActivationService = service.NewUserActivationService()
 	thirdPartyUserService = service.NewThirdPartyUserService()
+
+	// 初始化站内消息服务（带 SSE Hub 推送能力）
+	var hub *sse.Hub
+	var ticketStore *sse.TicketStore
+	if appInstance != nil {
+		hub = appInstance.Hub
+		ticketStore = appInstance.TicketStore
+	}
+	messageService := service.NewMessageService(hub)
 	// 公开接口
 	public.Post("/login", handler.Login)
 	public.Post("/refresh-token", handler.RefreshToken)
@@ -96,9 +106,11 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.BlacklistService", blacklistService)
 		c.Locals("service.ThirdPartyUserService", thirdPartyUserService)
 		c.Locals("service.RoleAssignmentService", roleAssignmentService)
+		c.Locals("service.MessageService", messageService)
+		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware())
-	// 超级管理员管理路由（管理其他管理员账号）
+
 	adminAuth.Get("/user", handler.GetAdmin)
 	adminAuth.Put("/user", handler.UpdateAdmin)
 	adminAuth.Put("/password", handler.ChangeAdminPassword)
@@ -107,6 +119,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminAuth.Post("/admins", handler.CreateAdmin)
 	adminAuth.Get("/admins", handler.ListAdmins)
 	adminAuth.Get("/admins/:uid", handler.GetAdminDetail)
+	adminAuth.Put("/admins/:id", handler.UpdateAdminByID)
+	adminAuth.Get("/admins/:uid/roles", handler.GetAdminRoles)
+	adminAuth.Put("/admins/:uid/roles", handler.AssignAdminRoles)
 	adminAuth.Put("/admins/:id/activate", handler.ActivateAdmin)
 	adminAuth.Put("/admins/:id/deactivate", handler.DeactivateAdmin)
 	// 角色管理路由
@@ -266,4 +281,25 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	thirdParty := adminAuth.Group("/third-party-users")
 	thirdParty.Get("", handler.ListThirdPartyUsers)
 	thirdParty.Delete("/:id", handler.UnbindThirdPartyUser)
+
+	// 站内消息路由（鉴权后访问）
+	messages := adminAuth.Group("/messages")
+	messages.Get("", handler.ListMessages)
+	messages.Post("/read", handler.MarkRead)
+	messages.Post("/read-all", handler.MarkAllRead)
+	messages.Get("/unread", handler.UnreadCount)
+	messages.Delete("/:id", handler.DeleteMessage)
+
+	// SSE 凭证接口（鉴权后访问）
+	adminAuth.Post("/sse/ticket", handler.IssueSSETicket)
+
+	// SSE 连接接口（不走 BlacklistCheck/Permission，ticket 鉴权独立）
+	sseGroup := admin.Group("/sse", func(c fiber.Ctx) error {
+		c.Locals("utils.Response", utils.NewResponse())
+		c.Locals("service.MessageService", messageService)
+		c.Locals("sse.Hub", hub)
+		c.Locals("sse.TicketStore", ticketStore)
+		return c.Next()
+	})
+	sseGroup.Get("/connect", handler.SSEConnect)
 }
