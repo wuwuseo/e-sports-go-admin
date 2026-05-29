@@ -48,6 +48,9 @@ func CreatePermission(c fiber.Ctx) error {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
+		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, "创建权限失败").ToJSON(c)
 	}
 
@@ -93,6 +96,9 @@ func UpdatePermission(c fiber.Ctx) error {
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "更新权限失败").ToJSON(c)
 	}
@@ -144,6 +150,9 @@ func DeletePermission(c fiber.Ctx) error {
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "删除权限失败").ToJSON(c)
 	}
@@ -338,6 +347,9 @@ func AssignPermissionsToRole(c fiber.Ctx) error {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
+		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, "为角色分配权限失败").ToJSON(c)
 	}
 
@@ -385,6 +397,9 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 	if err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "从角色移除权限失败").ToJSON(c)
 	}
@@ -676,6 +691,9 @@ func SaveRolePermissions(c fiber.Ctx) error {
 	if err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		}
+		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "保存角色权限失败").ToJSON(c)
 	}

@@ -25,7 +25,7 @@ type CreateSystemPermissionRequest struct {
 	Name        string               `json:"name" validate:"required,max=100"`
 	Code        string               `json:"code" validate:"required,max=200"`
 	Path        string               `json:"path" validate:"max=500"`
-	Method      string               `json:"method" validate="max=20"`
+	Method      string               `json:"method" validate:"max=20"`
 	MenuPath    string               `json:"menu_path" validate:"max=500"`
 	Icon        string               `json:"icon" validate:"max=100"`
 	Component   string               `json:"component" validate:"max=200"`
@@ -41,15 +41,15 @@ type UpdateSystemPermissionRequest struct {
 	Type        SystemPermissionType `json:"type" validate:"oneof=api menu button"`
 	Name        string               `json:"name" validate:"max=100"`
 	Path        string               `json:"path" validate:"max=500"`
-	Method      string               `json:"method" validate="max=20"`
+	Method      string               `json:"method" validate:"max=20"`
 	MenuPath    string               `json:"menu_path" validate:"max=500"`
-	Icon        string               `json:"icon" validate="max=100"`
-	Component   string               `json:"component" validate="max=200"`
+	Icon        string               `json:"icon" validate:"max=100"`
+	Component   string               `json:"component" validate:"max=200"`
 	ParentID    int                  `json:"parent_id"`
 	SortOrder   int                  `json:"sort_order"`
 	IsCommon    bool                 `json:"is_common"`
 	Status      int8                 `json:"status"`
-	Description string               `json:"description" validate="max=500"`
+	Description string               `json:"description" validate:"max=500"`
 }
 
 // SystemPermissionResponse 权限响应

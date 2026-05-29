@@ -24,7 +24,16 @@ var (
 	ErrInvalidPermissionType    = errors.New("无效的权限类型")
 	ErrPermissionAlreadyExists  = errors.New("权限已存在")
 	ErrInvalidPermissionRequest = errors.New("无效的权限请求")
+	ErrSuperAdminProtected      = errors.New("超级管理员角色不允许修改权限")
 )
+
+// SuperAdminRoleName 超级管理员角色名称，禁止通过 API 修改其权限
+const SuperAdminRoleName = "admin"
+
+// isSuperAdminRole 判断是否为超级管理员角色
+func isSuperAdminRole(roleName string) bool {
+	return roleName == SuperAdminRoleName
+}
 
 // PermissionType 权限类型
 type PermissionType string
@@ -291,6 +300,11 @@ func (s *PermissionService) CreatePermission(ctx context.Context, req *CreatePer
 		return ErrInvalidPermissionType
 	}
 
+	// 禁止为超级管理员分配/创建权限
+	if isSuperAdminRole(req.RoleName) {
+		return ErrSuperAdminProtected
+	}
+
 	// 检查角色是否存在
 	exists, err := s.client.Role.Query().Where(role.NameEQ(req.RoleName)).Exist(ctx)
 	if err != nil {
@@ -341,6 +355,11 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, req *UpdatePer
 	// 验证权限类型
 	if !isValidPermissionType(req.Type) {
 		return ErrInvalidPermissionType
+	}
+
+	// 禁止修改超级管理员权限
+	if isSuperAdminRole(req.RoleName) {
+		return ErrSuperAdminProtected
 	}
 
 	// 检查角色是否存在
@@ -403,6 +422,11 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, req *UpdatePer
 
 // DeletePermission 删除权限
 func (s *PermissionService) DeletePermission(ctx context.Context, roleName, domain, object, action string) error {
+	// 禁止删除超级管理员权限
+	if isSuperAdminRole(roleName) {
+		return ErrSuperAdminProtected
+	}
+
 	// 查找要删除的权限
 	permission, err := s.client.CasbinRule.Query().
 		Where(
@@ -560,6 +584,11 @@ func (s *PermissionService) ListAllPermissions(ctx context.Context, keyword stri
 
 // AssignPermissionsToRole 为角色分配权限
 func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error {
+	// 禁止为超级管理员分配权限
+	if isSuperAdminRole(roleName) {
+		return ErrSuperAdminProtected
+	}
+
 	// 检查角色是否存在
 	exists, err := s.client.Role.Query().Where(role.NameEQ(roleName)).Exist(ctx)
 	if err != nil {
@@ -612,6 +641,11 @@ func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, roleNam
 
 // RemovePermissionsFromRole 从角色移除权限
 func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error {
+	// 禁止从超级管理员角色移除权限
+	if isSuperAdminRole(roleName) {
+		return ErrSuperAdminProtected
+	}
+
 	// 检查角色是否存在
 	exists, err := s.client.Role.Query().Where(role.NameEQ(roleName)).Exist(ctx)
 	if err != nil {
@@ -721,6 +755,11 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, roleID int,
 
 	roleName := roleEntity.Name
 	domain := req.Domain
+
+	// 禁止覆盖式保存超级管理员权限
+	if isSuperAdminRole(roleName) {
+		return ErrSuperAdminProtected
+	}
 
 	// 开启事务
 	tx, err := s.client.Tx(ctx)
