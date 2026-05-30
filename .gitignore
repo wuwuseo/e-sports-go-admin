@@ -12,7 +12,7 @@ go-admin
 
 # IDE / 工具缓存
 .codegraph/
-.qoder/agents/
+.qoder/
 CODE_WIKI.md
 docs/CODE_WIKI.md
 internal/service/data/

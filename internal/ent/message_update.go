@@ -98,6 +98,26 @@ func (_u *MessageUpdate) SetNillableContent(v *string) *MessageUpdate {
 	return _u
 }
 
+// SetContentHTML sets the "content_html" field.
+func (_u *MessageUpdate) SetContentHTML(v string) *MessageUpdate {
+	_u.mutation.SetContentHTML(v)
+	return _u
+}
+
+// SetNillableContentHTML sets the "content_html" field if the given value is not nil.
+func (_u *MessageUpdate) SetNillableContentHTML(v *string) *MessageUpdate {
+	if v != nil {
+		_u.SetContentHTML(*v)
+	}
+	return _u
+}
+
+// ClearContentHTML clears the value of the "content_html" field.
+func (_u *MessageUpdate) ClearContentHTML() *MessageUpdate {
+	_u.mutation.ClearContentHTML()
+	return _u
+}
+
 // SetExtra sets the "extra" field.
 func (_u *MessageUpdate) SetExtra(v map[string]interface{}) *MessageUpdate {
 	_u.mutation.SetExtra(v)
@@ -214,6 +234,12 @@ func (_u *MessageUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(message.FieldContent, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ContentHTML(); ok {
+		_spec.SetField(message.FieldContentHTML, field.TypeString, value)
+	}
+	if _u.mutation.ContentHTMLCleared() {
+		_spec.ClearField(message.FieldContentHTML, field.TypeString)
+	}
 	if value, ok := _u.mutation.Extra(); ok {
 		_spec.SetField(message.FieldExtra, field.TypeJSON, value)
 	}
@@ -313,6 +339,26 @@ func (_u *MessageUpdateOne) SetNillableContent(v *string) *MessageUpdateOne {
 	if v != nil {
 		_u.SetContent(*v)
 	}
+	return _u
+}
+
+// SetContentHTML sets the "content_html" field.
+func (_u *MessageUpdateOne) SetContentHTML(v string) *MessageUpdateOne {
+	_u.mutation.SetContentHTML(v)
+	return _u
+}
+
+// SetNillableContentHTML sets the "content_html" field if the given value is not nil.
+func (_u *MessageUpdateOne) SetNillableContentHTML(v *string) *MessageUpdateOne {
+	if v != nil {
+		_u.SetContentHTML(*v)
+	}
+	return _u
+}
+
+// ClearContentHTML clears the value of the "content_html" field.
+func (_u *MessageUpdateOne) ClearContentHTML() *MessageUpdateOne {
+	_u.mutation.ClearContentHTML()
 	return _u
 }
 
@@ -461,6 +507,12 @@ func (_u *MessageUpdateOne) sqlSave(ctx context.Context) (_node *Message, err er
 	}
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(message.FieldContent, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ContentHTML(); ok {
+		_spec.SetField(message.FieldContentHTML, field.TypeString, value)
+	}
+	if _u.mutation.ContentHTMLCleared() {
+		_spec.ClearField(message.FieldContentHTML, field.TypeString)
 	}
 	if value, ok := _u.mutation.Extra(); ok {
 		_spec.SetField(message.FieldExtra, field.TypeJSON, value)
