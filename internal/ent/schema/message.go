@@ -42,7 +42,11 @@ func (Message) Fields() []ent.Field {
 			Comment("标题"),
 		field.Text("content").
 			StructTag(`json:"content"`).
-			Comment("内容"),
+			Comment("内容（纯文本）"),
+		field.Text("content_html").
+			Optional().
+			StructTag(`json:"content_html,omitempty"`).
+			Comment("内容（富文本HTML），可选"),
 		field.JSON("extra", map[string]any{}).
 			Optional().
 			StructTag(`json:"extra,omitempty"`).
@@ -63,6 +67,11 @@ func (Message) Fields() []ent.Field {
 // Indexes 站内消息索引
 func (Message) Indexes() []ent.Index {
 	return []ent.Index{
+		// 列表分页：按用户、按创建时间倒序
+		index.Fields("user_uid", "created_at"),
+		// 未读统计：按用户、类型、已读时间过滤
+		index.Fields("user_uid", "type", "read_at"),
+		// 兼容旧索引：按用户、已读状态、ID
 		index.Fields("user_uid", "read_at", "id"),
 		index.Fields("type"),
 		index.Fields("created_at"),

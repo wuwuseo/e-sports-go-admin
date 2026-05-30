@@ -79,6 +79,11 @@ func Content(v string) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldContent, v))
 }
 
+// ContentHTML applies equality check predicate on the "content_html" field. It's identical to ContentHTMLEQ.
+func ContentHTML(v string) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldContentHTML, v))
+}
+
 // ReadAt applies equality check predicate on the "read_at" field. It's identical to ReadAtEQ.
 func ReadAt(v time.Time) predicate.Message {
 	return predicate.Message(sql.FieldEQ(FieldReadAt, v))
@@ -412,6 +417,81 @@ func ContentEqualFold(v string) predicate.Message {
 // ContentContainsFold applies the ContainsFold predicate on the "content" field.
 func ContentContainsFold(v string) predicate.Message {
 	return predicate.Message(sql.FieldContainsFold(FieldContent, v))
+}
+
+// ContentHTMLEQ applies the EQ predicate on the "content_html" field.
+func ContentHTMLEQ(v string) predicate.Message {
+	return predicate.Message(sql.FieldEQ(FieldContentHTML, v))
+}
+
+// ContentHTMLNEQ applies the NEQ predicate on the "content_html" field.
+func ContentHTMLNEQ(v string) predicate.Message {
+	return predicate.Message(sql.FieldNEQ(FieldContentHTML, v))
+}
+
+// ContentHTMLIn applies the In predicate on the "content_html" field.
+func ContentHTMLIn(vs ...string) predicate.Message {
+	return predicate.Message(sql.FieldIn(FieldContentHTML, vs...))
+}
+
+// ContentHTMLNotIn applies the NotIn predicate on the "content_html" field.
+func ContentHTMLNotIn(vs ...string) predicate.Message {
+	return predicate.Message(sql.FieldNotIn(FieldContentHTML, vs...))
+}
+
+// ContentHTMLGT applies the GT predicate on the "content_html" field.
+func ContentHTMLGT(v string) predicate.Message {
+	return predicate.Message(sql.FieldGT(FieldContentHTML, v))
+}
+
+// ContentHTMLGTE applies the GTE predicate on the "content_html" field.
+func ContentHTMLGTE(v string) predicate.Message {
+	return predicate.Message(sql.FieldGTE(FieldContentHTML, v))
+}
+
+// ContentHTMLLT applies the LT predicate on the "content_html" field.
+func ContentHTMLLT(v string) predicate.Message {
+	return predicate.Message(sql.FieldLT(FieldContentHTML, v))
+}
+
+// ContentHTMLLTE applies the LTE predicate on the "content_html" field.
+func ContentHTMLLTE(v string) predicate.Message {
+	return predicate.Message(sql.FieldLTE(FieldContentHTML, v))
+}
+
+// ContentHTMLContains applies the Contains predicate on the "content_html" field.
+func ContentHTMLContains(v string) predicate.Message {
+	return predicate.Message(sql.FieldContains(FieldContentHTML, v))
+}
+
+// ContentHTMLHasPrefix applies the HasPrefix predicate on the "content_html" field.
+func ContentHTMLHasPrefix(v string) predicate.Message {
+	return predicate.Message(sql.FieldHasPrefix(FieldContentHTML, v))
+}
+
+// ContentHTMLHasSuffix applies the HasSuffix predicate on the "content_html" field.
+func ContentHTMLHasSuffix(v string) predicate.Message {
+	return predicate.Message(sql.FieldHasSuffix(FieldContentHTML, v))
+}
+
+// ContentHTMLIsNil applies the IsNil predicate on the "content_html" field.
+func ContentHTMLIsNil() predicate.Message {
+	return predicate.Message(sql.FieldIsNull(FieldContentHTML))
+}
+
+// ContentHTMLNotNil applies the NotNil predicate on the "content_html" field.
+func ContentHTMLNotNil() predicate.Message {
+	return predicate.Message(sql.FieldNotNull(FieldContentHTML))
+}
+
+// ContentHTMLEqualFold applies the EqualFold predicate on the "content_html" field.
+func ContentHTMLEqualFold(v string) predicate.Message {
+	return predicate.Message(sql.FieldEqualFold(FieldContentHTML, v))
+}
+
+// ContentHTMLContainsFold applies the ContainsFold predicate on the "content_html" field.
+func ContentHTMLContainsFold(v string) predicate.Message {
+	return predicate.Message(sql.FieldContainsFold(FieldContentHTML, v))
 }
 
 // ExtraIsNil applies the IsNil predicate on the "extra" field.

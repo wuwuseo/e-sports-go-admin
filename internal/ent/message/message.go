@@ -25,6 +25,8 @@ const (
 	FieldTitle = "title"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
+	// FieldContentHTML holds the string denoting the content_html field in the database.
+	FieldContentHTML = "content_html"
 	// FieldExtra holds the string denoting the extra field in the database.
 	FieldExtra = "extra"
 	// FieldReadAt holds the string denoting the read_at field in the database.
@@ -46,6 +48,7 @@ var Columns = []string{
 	FieldLevel,
 	FieldTitle,
 	FieldContent,
+	FieldContentHTML,
 	FieldExtra,
 	FieldReadAt,
 	FieldCreatedAt,
@@ -109,6 +112,11 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 // ByContent orders the results by the content field.
 func ByContent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContent, opts...).ToFunc()
+}
+
+// ByContentHTML orders the results by the content_html field.
+func ByContentHTML(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContentHTML, opts...).ToFunc()
 }
 
 // ByReadAt orders the results by the read_at field.

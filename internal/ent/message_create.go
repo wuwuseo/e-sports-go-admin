@@ -66,6 +66,20 @@ func (_c *MessageCreate) SetContent(v string) *MessageCreate {
 	return _c
 }
 
+// SetContentHTML sets the "content_html" field.
+func (_c *MessageCreate) SetContentHTML(v string) *MessageCreate {
+	_c.mutation.SetContentHTML(v)
+	return _c
+}
+
+// SetNillableContentHTML sets the "content_html" field if the given value is not nil.
+func (_c *MessageCreate) SetNillableContentHTML(v *string) *MessageCreate {
+	if v != nil {
+		_c.SetContentHTML(*v)
+	}
+	return _c
+}
+
 // SetExtra sets the "extra" field.
 func (_c *MessageCreate) SetExtra(v map[string]interface{}) *MessageCreate {
 	_c.mutation.SetExtra(v)
@@ -246,6 +260,10 @@ func (_c *MessageCreate) createSpec() (*Message, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Content(); ok {
 		_spec.SetField(message.FieldContent, field.TypeString, value)
 		_node.Content = value
+	}
+	if value, ok := _c.mutation.ContentHTML(); ok {
+		_spec.SetField(message.FieldContentHTML, field.TypeString, value)
+		_node.ContentHTML = value
 	}
 	if value, ok := _c.mutation.Extra(); ok {
 		_spec.SetField(message.FieldExtra, field.TypeJSON, value)

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,6 +9,8 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/enttest"
+	"go-admin/internal/ent/hook"
+	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/global"
 
@@ -202,6 +205,37 @@ func TestMessageService_Delete_Forbidden(t *testing.T) {
 	}
 	if err := svc.Delete(ctx, "u1", r.ID); err != ErrMessageNotFound {
 		t.Fatalf("再次删除应返回 NotFound，得到 %v", err)
+	}
+}
+
+func TestMessageService_Delete_DoesNotDeleteWhenOwnerChangesBeforeDelete(t *testing.T) {
+	client, svc, cleanup := setupMessageTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	r, err := svc.PublishToUser(ctx, "u1", PublishMessage{Type: MessageTypeSystem, Title: "t", Content: "c"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := false
+	client.Message.Use(func(next ent.Mutator) ent.Mutator {
+		return hook.MessageFunc(func(ctx context.Context, m *ent.MessageMutation) (ent.Value, error) {
+			if m.Op().Is(ent.OpDelete|ent.OpDeleteOne) && !moved {
+				moved = true
+				if _, err := client.Message.UpdateOneID(r.ID).SetUserUID("u2").Save(ctx); err != nil {
+					return nil, err
+				}
+			}
+			return next.Mutate(ctx, m)
+		})
+	})
+
+	if err := svc.Delete(ctx, "u1", r.ID); err != ErrMessageForbidden {
+		t.Fatalf("归属变更后不应删除消息，得到 %v", err)
+	}
+	_, err = client.Message.Query().Where(message.IDEQ(r.ID), message.UserUIDEQ("u2")).Only(ctx)
+	if err != nil {
+		t.Fatalf("消息应保留给新归属用户: %v", err)
 	}
 }
 

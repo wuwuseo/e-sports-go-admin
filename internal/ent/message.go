@@ -26,8 +26,10 @@ type Message struct {
 	Level string `json:"level"`
 	// 标题
 	Title string `json:"title"`
-	// 内容
+	// 内容（纯文本）
 	Content string `json:"content"`
+	// 内容（富文本HTML），可选
+	ContentHTML string `json:"content_html,omitempty"`
 	// 业务扩展字段
 	Extra map[string]interface{} `json:"extra,omitempty"`
 	// 已读时间，nil 表示未读
@@ -46,7 +48,7 @@ func (*Message) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case message.FieldID:
 			values[i] = new(sql.NullInt64)
-		case message.FieldUserUID, message.FieldType, message.FieldLevel, message.FieldTitle, message.FieldContent:
+		case message.FieldUserUID, message.FieldType, message.FieldLevel, message.FieldTitle, message.FieldContent, message.FieldContentHTML:
 			values[i] = new(sql.NullString)
 		case message.FieldReadAt, message.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -100,6 +102,12 @@ func (_m *Message) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field content", values[i])
 			} else if value.Valid {
 				_m.Content = value.String
+			}
+		case message.FieldContentHTML:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field content_html", values[i])
+			} else if value.Valid {
+				_m.ContentHTML = value.String
 			}
 		case message.FieldExtra:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -172,6 +180,9 @@ func (_m *Message) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content=")
 	builder.WriteString(_m.Content)
+	builder.WriteString(", ")
+	builder.WriteString("content_html=")
+	builder.WriteString(_m.ContentHTML)
 	builder.WriteString(", ")
 	builder.WriteString("extra=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Extra))
