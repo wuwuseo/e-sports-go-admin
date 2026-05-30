@@ -15,6 +15,7 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
+	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/predicate"
 	"go-admin/internal/ent/role"
@@ -39,22 +40,23 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
-	TypeAdmin            = "Admin"
-	TypeAdminRole        = "AdminRole"
-	TypeAttachment       = "Attachment"
-	TypeAttachmentGroup  = "AttachmentGroup"
-	TypeBlacklist        = "Blacklist"
-	TypeCasbinRule       = "CasbinRule"
-	TypeCronJob          = "CronJob"
-	TypeDictData         = "DictData"
-	TypeMessage          = "Message"
-	TypeOperationLog     = "OperationLog"
-	TypeRole             = "Role"
-	TypeSystemConfig     = "SystemConfig"
-	TypeSystemPermission = "SystemPermission"
-	TypeThirdPartyUser   = "ThirdPartyUser"
-	TypeUser             = "User"
-	TypeUserRole         = "UserRole"
+	TypeAdmin             = "Admin"
+	TypeAdminRole         = "AdminRole"
+	TypeAttachment        = "Attachment"
+	TypeAttachmentGroup   = "AttachmentGroup"
+	TypeBlacklist         = "Blacklist"
+	TypeCasbinRule        = "CasbinRule"
+	TypeCronJob           = "CronJob"
+	TypeDictData          = "DictData"
+	TypeMessage           = "Message"
+	TypeMessagePreference = "MessagePreference"
+	TypeOperationLog      = "OperationLog"
+	TypeRole              = "Role"
+	TypeSystemConfig      = "SystemConfig"
+	TypeSystemPermission  = "SystemPermission"
+	TypeThirdPartyUser    = "ThirdPartyUser"
+	TypeUser              = "User"
+	TypeUserRole          = "UserRole"
 )
 
 // AdminMutation represents an operation that mutates the Admin nodes in the graph.
@@ -6874,6 +6876,7 @@ type MessageMutation struct {
 	level         *string
 	title         *string
 	content       *string
+	content_html  *string
 	extra         *map[string]interface{}
 	read_at       *time.Time
 	created_at    *time.Time
@@ -7167,6 +7170,55 @@ func (m *MessageMutation) ResetContent() {
 	m.content = nil
 }
 
+// SetContentHTML sets the "content_html" field.
+func (m *MessageMutation) SetContentHTML(s string) {
+	m.content_html = &s
+}
+
+// ContentHTML returns the value of the "content_html" field in the mutation.
+func (m *MessageMutation) ContentHTML() (r string, exists bool) {
+	v := m.content_html
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentHTML returns the old "content_html" field's value of the Message entity.
+// If the Message object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessageMutation) OldContentHTML(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentHTML is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentHTML requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentHTML: %w", err)
+	}
+	return oldValue.ContentHTML, nil
+}
+
+// ClearContentHTML clears the value of the "content_html" field.
+func (m *MessageMutation) ClearContentHTML() {
+	m.content_html = nil
+	m.clearedFields[message.FieldContentHTML] = struct{}{}
+}
+
+// ContentHTMLCleared returns if the "content_html" field was cleared in this mutation.
+func (m *MessageMutation) ContentHTMLCleared() bool {
+	_, ok := m.clearedFields[message.FieldContentHTML]
+	return ok
+}
+
+// ResetContentHTML resets all changes to the "content_html" field.
+func (m *MessageMutation) ResetContentHTML() {
+	m.content_html = nil
+	delete(m.clearedFields, message.FieldContentHTML)
+}
+
 // SetExtra sets the "extra" field.
 func (m *MessageMutation) SetExtra(value map[string]interface{}) {
 	m.extra = &value
@@ -7335,7 +7387,7 @@ func (m *MessageMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessageMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 9)
 	if m.user_uid != nil {
 		fields = append(fields, message.FieldUserUID)
 	}
@@ -7350,6 +7402,9 @@ func (m *MessageMutation) Fields() []string {
 	}
 	if m.content != nil {
 		fields = append(fields, message.FieldContent)
+	}
+	if m.content_html != nil {
+		fields = append(fields, message.FieldContentHTML)
 	}
 	if m.extra != nil {
 		fields = append(fields, message.FieldExtra)
@@ -7378,6 +7433,8 @@ func (m *MessageMutation) Field(name string) (ent.Value, bool) {
 		return m.Title()
 	case message.FieldContent:
 		return m.Content()
+	case message.FieldContentHTML:
+		return m.ContentHTML()
 	case message.FieldExtra:
 		return m.Extra()
 	case message.FieldReadAt:
@@ -7403,6 +7460,8 @@ func (m *MessageMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldTitle(ctx)
 	case message.FieldContent:
 		return m.OldContent(ctx)
+	case message.FieldContentHTML:
+		return m.OldContentHTML(ctx)
 	case message.FieldExtra:
 		return m.OldExtra(ctx)
 	case message.FieldReadAt:
@@ -7452,6 +7511,13 @@ func (m *MessageMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContent(v)
+		return nil
+	case message.FieldContentHTML:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentHTML(v)
 		return nil
 	case message.FieldExtra:
 		v, ok := value.(map[string]interface{})
@@ -7504,6 +7570,9 @@ func (m *MessageMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *MessageMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(message.FieldContentHTML) {
+		fields = append(fields, message.FieldContentHTML)
+	}
 	if m.FieldCleared(message.FieldExtra) {
 		fields = append(fields, message.FieldExtra)
 	}
@@ -7524,6 +7593,9 @@ func (m *MessageMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *MessageMutation) ClearField(name string) error {
 	switch name {
+	case message.FieldContentHTML:
+		m.ClearContentHTML()
+		return nil
 	case message.FieldExtra:
 		m.ClearExtra()
 		return nil
@@ -7552,6 +7624,9 @@ func (m *MessageMutation) ResetField(name string) error {
 		return nil
 	case message.FieldContent:
 		m.ResetContent()
+		return nil
+	case message.FieldContentHTML:
+		m.ResetContentHTML()
 		return nil
 	case message.FieldExtra:
 		m.ResetExtra()
@@ -7612,6 +7687,865 @@ func (m *MessageMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *MessageMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Message edge %s", name)
+}
+
+// MessagePreferenceMutation represents an operation that mutates the MessagePreference nodes in the graph.
+type MessagePreferenceMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int
+	create_time          *time.Time
+	update_time          *time.Time
+	user_uid             *string
+	desktop_notify       *bool
+	sound_notify         *bool
+	subscribe_system     *bool
+	subscribe_business   *bool
+	subscribe_task       *bool
+	do_not_disturb_start *string
+	do_not_disturb_end   *string
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*MessagePreference, error)
+	predicates           []predicate.MessagePreference
+}
+
+var _ ent.Mutation = (*MessagePreferenceMutation)(nil)
+
+// messagepreferenceOption allows management of the mutation configuration using functional options.
+type messagepreferenceOption func(*MessagePreferenceMutation)
+
+// newMessagePreferenceMutation creates new mutation for the MessagePreference entity.
+func newMessagePreferenceMutation(c config, op Op, opts ...messagepreferenceOption) *MessagePreferenceMutation {
+	m := &MessagePreferenceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMessagePreference,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMessagePreferenceID sets the ID field of the mutation.
+func withMessagePreferenceID(id int) messagepreferenceOption {
+	return func(m *MessagePreferenceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MessagePreference
+		)
+		m.oldValue = func(ctx context.Context) (*MessagePreference, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MessagePreference.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMessagePreference sets the old MessagePreference of the mutation.
+func withMessagePreference(node *MessagePreference) messagepreferenceOption {
+	return func(m *MessagePreferenceMutation) {
+		m.oldValue = func(context.Context) (*MessagePreference, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MessagePreferenceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MessagePreferenceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MessagePreference entities.
+func (m *MessagePreferenceMutation) SetID(id int) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MessagePreferenceMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MessagePreferenceMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MessagePreference.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreateTime sets the "create_time" field.
+func (m *MessagePreferenceMutation) SetCreateTime(t time.Time) {
+	m.create_time = &t
+}
+
+// CreateTime returns the value of the "create_time" field in the mutation.
+func (m *MessagePreferenceMutation) CreateTime() (r time.Time, exists bool) {
+	v := m.create_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateTime returns the old "create_time" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldCreateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateTime: %w", err)
+	}
+	return oldValue.CreateTime, nil
+}
+
+// ResetCreateTime resets all changes to the "create_time" field.
+func (m *MessagePreferenceMutation) ResetCreateTime() {
+	m.create_time = nil
+}
+
+// SetUpdateTime sets the "update_time" field.
+func (m *MessagePreferenceMutation) SetUpdateTime(t time.Time) {
+	m.update_time = &t
+}
+
+// UpdateTime returns the value of the "update_time" field in the mutation.
+func (m *MessagePreferenceMutation) UpdateTime() (r time.Time, exists bool) {
+	v := m.update_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateTime returns the old "update_time" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldUpdateTime(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateTime: %w", err)
+	}
+	return oldValue.UpdateTime, nil
+}
+
+// ResetUpdateTime resets all changes to the "update_time" field.
+func (m *MessagePreferenceMutation) ResetUpdateTime() {
+	m.update_time = nil
+}
+
+// SetUserUID sets the "user_uid" field.
+func (m *MessagePreferenceMutation) SetUserUID(s string) {
+	m.user_uid = &s
+}
+
+// UserUID returns the value of the "user_uid" field in the mutation.
+func (m *MessagePreferenceMutation) UserUID() (r string, exists bool) {
+	v := m.user_uid
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserUID returns the old "user_uid" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldUserUID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserUID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserUID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserUID: %w", err)
+	}
+	return oldValue.UserUID, nil
+}
+
+// ResetUserUID resets all changes to the "user_uid" field.
+func (m *MessagePreferenceMutation) ResetUserUID() {
+	m.user_uid = nil
+}
+
+// SetDesktopNotify sets the "desktop_notify" field.
+func (m *MessagePreferenceMutation) SetDesktopNotify(b bool) {
+	m.desktop_notify = &b
+}
+
+// DesktopNotify returns the value of the "desktop_notify" field in the mutation.
+func (m *MessagePreferenceMutation) DesktopNotify() (r bool, exists bool) {
+	v := m.desktop_notify
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDesktopNotify returns the old "desktop_notify" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldDesktopNotify(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDesktopNotify is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDesktopNotify requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDesktopNotify: %w", err)
+	}
+	return oldValue.DesktopNotify, nil
+}
+
+// ResetDesktopNotify resets all changes to the "desktop_notify" field.
+func (m *MessagePreferenceMutation) ResetDesktopNotify() {
+	m.desktop_notify = nil
+}
+
+// SetSoundNotify sets the "sound_notify" field.
+func (m *MessagePreferenceMutation) SetSoundNotify(b bool) {
+	m.sound_notify = &b
+}
+
+// SoundNotify returns the value of the "sound_notify" field in the mutation.
+func (m *MessagePreferenceMutation) SoundNotify() (r bool, exists bool) {
+	v := m.sound_notify
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSoundNotify returns the old "sound_notify" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldSoundNotify(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSoundNotify is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSoundNotify requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSoundNotify: %w", err)
+	}
+	return oldValue.SoundNotify, nil
+}
+
+// ResetSoundNotify resets all changes to the "sound_notify" field.
+func (m *MessagePreferenceMutation) ResetSoundNotify() {
+	m.sound_notify = nil
+}
+
+// SetSubscribeSystem sets the "subscribe_system" field.
+func (m *MessagePreferenceMutation) SetSubscribeSystem(b bool) {
+	m.subscribe_system = &b
+}
+
+// SubscribeSystem returns the value of the "subscribe_system" field in the mutation.
+func (m *MessagePreferenceMutation) SubscribeSystem() (r bool, exists bool) {
+	v := m.subscribe_system
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscribeSystem returns the old "subscribe_system" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldSubscribeSystem(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscribeSystem is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscribeSystem requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscribeSystem: %w", err)
+	}
+	return oldValue.SubscribeSystem, nil
+}
+
+// ResetSubscribeSystem resets all changes to the "subscribe_system" field.
+func (m *MessagePreferenceMutation) ResetSubscribeSystem() {
+	m.subscribe_system = nil
+}
+
+// SetSubscribeBusiness sets the "subscribe_business" field.
+func (m *MessagePreferenceMutation) SetSubscribeBusiness(b bool) {
+	m.subscribe_business = &b
+}
+
+// SubscribeBusiness returns the value of the "subscribe_business" field in the mutation.
+func (m *MessagePreferenceMutation) SubscribeBusiness() (r bool, exists bool) {
+	v := m.subscribe_business
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscribeBusiness returns the old "subscribe_business" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldSubscribeBusiness(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscribeBusiness is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscribeBusiness requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscribeBusiness: %w", err)
+	}
+	return oldValue.SubscribeBusiness, nil
+}
+
+// ResetSubscribeBusiness resets all changes to the "subscribe_business" field.
+func (m *MessagePreferenceMutation) ResetSubscribeBusiness() {
+	m.subscribe_business = nil
+}
+
+// SetSubscribeTask sets the "subscribe_task" field.
+func (m *MessagePreferenceMutation) SetSubscribeTask(b bool) {
+	m.subscribe_task = &b
+}
+
+// SubscribeTask returns the value of the "subscribe_task" field in the mutation.
+func (m *MessagePreferenceMutation) SubscribeTask() (r bool, exists bool) {
+	v := m.subscribe_task
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscribeTask returns the old "subscribe_task" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldSubscribeTask(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscribeTask is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscribeTask requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscribeTask: %w", err)
+	}
+	return oldValue.SubscribeTask, nil
+}
+
+// ResetSubscribeTask resets all changes to the "subscribe_task" field.
+func (m *MessagePreferenceMutation) ResetSubscribeTask() {
+	m.subscribe_task = nil
+}
+
+// SetDoNotDisturbStart sets the "do_not_disturb_start" field.
+func (m *MessagePreferenceMutation) SetDoNotDisturbStart(s string) {
+	m.do_not_disturb_start = &s
+}
+
+// DoNotDisturbStart returns the value of the "do_not_disturb_start" field in the mutation.
+func (m *MessagePreferenceMutation) DoNotDisturbStart() (r string, exists bool) {
+	v := m.do_not_disturb_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDoNotDisturbStart returns the old "do_not_disturb_start" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldDoNotDisturbStart(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDoNotDisturbStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDoNotDisturbStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDoNotDisturbStart: %w", err)
+	}
+	return oldValue.DoNotDisturbStart, nil
+}
+
+// ClearDoNotDisturbStart clears the value of the "do_not_disturb_start" field.
+func (m *MessagePreferenceMutation) ClearDoNotDisturbStart() {
+	m.do_not_disturb_start = nil
+	m.clearedFields[messagepreference.FieldDoNotDisturbStart] = struct{}{}
+}
+
+// DoNotDisturbStartCleared returns if the "do_not_disturb_start" field was cleared in this mutation.
+func (m *MessagePreferenceMutation) DoNotDisturbStartCleared() bool {
+	_, ok := m.clearedFields[messagepreference.FieldDoNotDisturbStart]
+	return ok
+}
+
+// ResetDoNotDisturbStart resets all changes to the "do_not_disturb_start" field.
+func (m *MessagePreferenceMutation) ResetDoNotDisturbStart() {
+	m.do_not_disturb_start = nil
+	delete(m.clearedFields, messagepreference.FieldDoNotDisturbStart)
+}
+
+// SetDoNotDisturbEnd sets the "do_not_disturb_end" field.
+func (m *MessagePreferenceMutation) SetDoNotDisturbEnd(s string) {
+	m.do_not_disturb_end = &s
+}
+
+// DoNotDisturbEnd returns the value of the "do_not_disturb_end" field in the mutation.
+func (m *MessagePreferenceMutation) DoNotDisturbEnd() (r string, exists bool) {
+	v := m.do_not_disturb_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDoNotDisturbEnd returns the old "do_not_disturb_end" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldDoNotDisturbEnd(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDoNotDisturbEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDoNotDisturbEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDoNotDisturbEnd: %w", err)
+	}
+	return oldValue.DoNotDisturbEnd, nil
+}
+
+// ClearDoNotDisturbEnd clears the value of the "do_not_disturb_end" field.
+func (m *MessagePreferenceMutation) ClearDoNotDisturbEnd() {
+	m.do_not_disturb_end = nil
+	m.clearedFields[messagepreference.FieldDoNotDisturbEnd] = struct{}{}
+}
+
+// DoNotDisturbEndCleared returns if the "do_not_disturb_end" field was cleared in this mutation.
+func (m *MessagePreferenceMutation) DoNotDisturbEndCleared() bool {
+	_, ok := m.clearedFields[messagepreference.FieldDoNotDisturbEnd]
+	return ok
+}
+
+// ResetDoNotDisturbEnd resets all changes to the "do_not_disturb_end" field.
+func (m *MessagePreferenceMutation) ResetDoNotDisturbEnd() {
+	m.do_not_disturb_end = nil
+	delete(m.clearedFields, messagepreference.FieldDoNotDisturbEnd)
+}
+
+// Where appends a list predicates to the MessagePreferenceMutation builder.
+func (m *MessagePreferenceMutation) Where(ps ...predicate.MessagePreference) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MessagePreferenceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MessagePreferenceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MessagePreference, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MessagePreferenceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MessagePreferenceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MessagePreference).
+func (m *MessagePreferenceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MessagePreferenceMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.create_time != nil {
+		fields = append(fields, messagepreference.FieldCreateTime)
+	}
+	if m.update_time != nil {
+		fields = append(fields, messagepreference.FieldUpdateTime)
+	}
+	if m.user_uid != nil {
+		fields = append(fields, messagepreference.FieldUserUID)
+	}
+	if m.desktop_notify != nil {
+		fields = append(fields, messagepreference.FieldDesktopNotify)
+	}
+	if m.sound_notify != nil {
+		fields = append(fields, messagepreference.FieldSoundNotify)
+	}
+	if m.subscribe_system != nil {
+		fields = append(fields, messagepreference.FieldSubscribeSystem)
+	}
+	if m.subscribe_business != nil {
+		fields = append(fields, messagepreference.FieldSubscribeBusiness)
+	}
+	if m.subscribe_task != nil {
+		fields = append(fields, messagepreference.FieldSubscribeTask)
+	}
+	if m.do_not_disturb_start != nil {
+		fields = append(fields, messagepreference.FieldDoNotDisturbStart)
+	}
+	if m.do_not_disturb_end != nil {
+		fields = append(fields, messagepreference.FieldDoNotDisturbEnd)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MessagePreferenceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case messagepreference.FieldCreateTime:
+		return m.CreateTime()
+	case messagepreference.FieldUpdateTime:
+		return m.UpdateTime()
+	case messagepreference.FieldUserUID:
+		return m.UserUID()
+	case messagepreference.FieldDesktopNotify:
+		return m.DesktopNotify()
+	case messagepreference.FieldSoundNotify:
+		return m.SoundNotify()
+	case messagepreference.FieldSubscribeSystem:
+		return m.SubscribeSystem()
+	case messagepreference.FieldSubscribeBusiness:
+		return m.SubscribeBusiness()
+	case messagepreference.FieldSubscribeTask:
+		return m.SubscribeTask()
+	case messagepreference.FieldDoNotDisturbStart:
+		return m.DoNotDisturbStart()
+	case messagepreference.FieldDoNotDisturbEnd:
+		return m.DoNotDisturbEnd()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MessagePreferenceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case messagepreference.FieldCreateTime:
+		return m.OldCreateTime(ctx)
+	case messagepreference.FieldUpdateTime:
+		return m.OldUpdateTime(ctx)
+	case messagepreference.FieldUserUID:
+		return m.OldUserUID(ctx)
+	case messagepreference.FieldDesktopNotify:
+		return m.OldDesktopNotify(ctx)
+	case messagepreference.FieldSoundNotify:
+		return m.OldSoundNotify(ctx)
+	case messagepreference.FieldSubscribeSystem:
+		return m.OldSubscribeSystem(ctx)
+	case messagepreference.FieldSubscribeBusiness:
+		return m.OldSubscribeBusiness(ctx)
+	case messagepreference.FieldSubscribeTask:
+		return m.OldSubscribeTask(ctx)
+	case messagepreference.FieldDoNotDisturbStart:
+		return m.OldDoNotDisturbStart(ctx)
+	case messagepreference.FieldDoNotDisturbEnd:
+		return m.OldDoNotDisturbEnd(ctx)
+	}
+	return nil, fmt.Errorf("unknown MessagePreference field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MessagePreferenceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case messagepreference.FieldCreateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateTime(v)
+		return nil
+	case messagepreference.FieldUpdateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateTime(v)
+		return nil
+	case messagepreference.FieldUserUID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserUID(v)
+		return nil
+	case messagepreference.FieldDesktopNotify:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDesktopNotify(v)
+		return nil
+	case messagepreference.FieldSoundNotify:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSoundNotify(v)
+		return nil
+	case messagepreference.FieldSubscribeSystem:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscribeSystem(v)
+		return nil
+	case messagepreference.FieldSubscribeBusiness:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscribeBusiness(v)
+		return nil
+	case messagepreference.FieldSubscribeTask:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscribeTask(v)
+		return nil
+	case messagepreference.FieldDoNotDisturbStart:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDoNotDisturbStart(v)
+		return nil
+	case messagepreference.FieldDoNotDisturbEnd:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDoNotDisturbEnd(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MessagePreference field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MessagePreferenceMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MessagePreferenceMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MessagePreferenceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MessagePreference numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MessagePreferenceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(messagepreference.FieldDoNotDisturbStart) {
+		fields = append(fields, messagepreference.FieldDoNotDisturbStart)
+	}
+	if m.FieldCleared(messagepreference.FieldDoNotDisturbEnd) {
+		fields = append(fields, messagepreference.FieldDoNotDisturbEnd)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MessagePreferenceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MessagePreferenceMutation) ClearField(name string) error {
+	switch name {
+	case messagepreference.FieldDoNotDisturbStart:
+		m.ClearDoNotDisturbStart()
+		return nil
+	case messagepreference.FieldDoNotDisturbEnd:
+		m.ClearDoNotDisturbEnd()
+		return nil
+	}
+	return fmt.Errorf("unknown MessagePreference nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MessagePreferenceMutation) ResetField(name string) error {
+	switch name {
+	case messagepreference.FieldCreateTime:
+		m.ResetCreateTime()
+		return nil
+	case messagepreference.FieldUpdateTime:
+		m.ResetUpdateTime()
+		return nil
+	case messagepreference.FieldUserUID:
+		m.ResetUserUID()
+		return nil
+	case messagepreference.FieldDesktopNotify:
+		m.ResetDesktopNotify()
+		return nil
+	case messagepreference.FieldSoundNotify:
+		m.ResetSoundNotify()
+		return nil
+	case messagepreference.FieldSubscribeSystem:
+		m.ResetSubscribeSystem()
+		return nil
+	case messagepreference.FieldSubscribeBusiness:
+		m.ResetSubscribeBusiness()
+		return nil
+	case messagepreference.FieldSubscribeTask:
+		m.ResetSubscribeTask()
+		return nil
+	case messagepreference.FieldDoNotDisturbStart:
+		m.ResetDoNotDisturbStart()
+		return nil
+	case messagepreference.FieldDoNotDisturbEnd:
+		m.ResetDoNotDisturbEnd()
+		return nil
+	}
+	return fmt.Errorf("unknown MessagePreference field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MessagePreferenceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MessagePreferenceMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MessagePreferenceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MessagePreferenceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MessagePreferenceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MessagePreferenceMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MessagePreferenceMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MessagePreference unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MessagePreferenceMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MessagePreference edge %s", name)
 }
 
 // OperationLogMutation represents an operation that mutates the OperationLog nodes in the graph.

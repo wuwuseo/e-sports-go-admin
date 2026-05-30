@@ -12,6 +12,7 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
+	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
@@ -572,9 +573,74 @@ func init() {
 		}
 	}()
 	// messageDescCreatedAt is the schema descriptor for created_at field.
-	messageDescCreatedAt := messageFields[8].Descriptor()
+	messageDescCreatedAt := messageFields[9].Descriptor()
 	// message.DefaultCreatedAt holds the default value on creation for the created_at field.
 	message.DefaultCreatedAt = messageDescCreatedAt.Default.(func() time.Time)
+	messagepreferenceMixin := schema.MessagePreference{}.Mixin()
+	messagepreferenceMixinFields0 := messagepreferenceMixin[0].Fields()
+	_ = messagepreferenceMixinFields0
+	messagepreferenceFields := schema.MessagePreference{}.Fields()
+	_ = messagepreferenceFields
+	// messagepreferenceDescCreateTime is the schema descriptor for create_time field.
+	messagepreferenceDescCreateTime := messagepreferenceMixinFields0[0].Descriptor()
+	// messagepreference.DefaultCreateTime holds the default value on creation for the create_time field.
+	messagepreference.DefaultCreateTime = messagepreferenceDescCreateTime.Default.(func() time.Time)
+	// messagepreferenceDescUpdateTime is the schema descriptor for update_time field.
+	messagepreferenceDescUpdateTime := messagepreferenceMixinFields0[1].Descriptor()
+	// messagepreference.DefaultUpdateTime holds the default value on creation for the update_time field.
+	messagepreference.DefaultUpdateTime = messagepreferenceDescUpdateTime.Default.(func() time.Time)
+	// messagepreference.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	messagepreference.UpdateDefaultUpdateTime = messagepreferenceDescUpdateTime.UpdateDefault.(func() time.Time)
+	// messagepreferenceDescUserUID is the schema descriptor for user_uid field.
+	messagepreferenceDescUserUID := messagepreferenceFields[1].Descriptor()
+	// messagepreference.UserUIDValidator is a validator for the "user_uid" field. It is called by the builders before save.
+	messagepreference.UserUIDValidator = func() func(string) error {
+		validators := messagepreferenceDescUserUID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(user_uid string) error {
+			for _, fn := range fns {
+				if err := fn(user_uid); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// messagepreferenceDescDesktopNotify is the schema descriptor for desktop_notify field.
+	messagepreferenceDescDesktopNotify := messagepreferenceFields[2].Descriptor()
+	// messagepreference.DefaultDesktopNotify holds the default value on creation for the desktop_notify field.
+	messagepreference.DefaultDesktopNotify = messagepreferenceDescDesktopNotify.Default.(bool)
+	// messagepreferenceDescSoundNotify is the schema descriptor for sound_notify field.
+	messagepreferenceDescSoundNotify := messagepreferenceFields[3].Descriptor()
+	// messagepreference.DefaultSoundNotify holds the default value on creation for the sound_notify field.
+	messagepreference.DefaultSoundNotify = messagepreferenceDescSoundNotify.Default.(bool)
+	// messagepreferenceDescSubscribeSystem is the schema descriptor for subscribe_system field.
+	messagepreferenceDescSubscribeSystem := messagepreferenceFields[4].Descriptor()
+	// messagepreference.DefaultSubscribeSystem holds the default value on creation for the subscribe_system field.
+	messagepreference.DefaultSubscribeSystem = messagepreferenceDescSubscribeSystem.Default.(bool)
+	// messagepreferenceDescSubscribeBusiness is the schema descriptor for subscribe_business field.
+	messagepreferenceDescSubscribeBusiness := messagepreferenceFields[5].Descriptor()
+	// messagepreference.DefaultSubscribeBusiness holds the default value on creation for the subscribe_business field.
+	messagepreference.DefaultSubscribeBusiness = messagepreferenceDescSubscribeBusiness.Default.(bool)
+	// messagepreferenceDescSubscribeTask is the schema descriptor for subscribe_task field.
+	messagepreferenceDescSubscribeTask := messagepreferenceFields[6].Descriptor()
+	// messagepreference.DefaultSubscribeTask holds the default value on creation for the subscribe_task field.
+	messagepreference.DefaultSubscribeTask = messagepreferenceDescSubscribeTask.Default.(bool)
+	// messagepreferenceDescDoNotDisturbStart is the schema descriptor for do_not_disturb_start field.
+	messagepreferenceDescDoNotDisturbStart := messagepreferenceFields[7].Descriptor()
+	// messagepreference.DefaultDoNotDisturbStart holds the default value on creation for the do_not_disturb_start field.
+	messagepreference.DefaultDoNotDisturbStart = messagepreferenceDescDoNotDisturbStart.Default.(string)
+	// messagepreference.DoNotDisturbStartValidator is a validator for the "do_not_disturb_start" field. It is called by the builders before save.
+	messagepreference.DoNotDisturbStartValidator = messagepreferenceDescDoNotDisturbStart.Validators[0].(func(string) error)
+	// messagepreferenceDescDoNotDisturbEnd is the schema descriptor for do_not_disturb_end field.
+	messagepreferenceDescDoNotDisturbEnd := messagepreferenceFields[8].Descriptor()
+	// messagepreference.DefaultDoNotDisturbEnd holds the default value on creation for the do_not_disturb_end field.
+	messagepreference.DefaultDoNotDisturbEnd = messagepreferenceDescDoNotDisturbEnd.Default.(string)
+	// messagepreference.DoNotDisturbEndValidator is a validator for the "do_not_disturb_end" field. It is called by the builders before save.
+	messagepreference.DoNotDisturbEndValidator = messagepreferenceDescDoNotDisturbEnd.Validators[0].(func(string) error)
 	operationlogFields := schema.OperationLog{}.Fields()
 	_ = operationlogFields
 	// operationlogDescUsername is the schema descriptor for username field.

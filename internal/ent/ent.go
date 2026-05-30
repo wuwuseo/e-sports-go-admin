@@ -15,6 +15,7 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
+	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
@@ -88,22 +89,23 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			admin.Table:            admin.ValidColumn,
-			adminrole.Table:        adminrole.ValidColumn,
-			attachment.Table:       attachment.ValidColumn,
-			attachmentgroup.Table:  attachmentgroup.ValidColumn,
-			blacklist.Table:        blacklist.ValidColumn,
-			casbinrule.Table:       casbinrule.ValidColumn,
-			cronjob.Table:          cronjob.ValidColumn,
-			dictdata.Table:         dictdata.ValidColumn,
-			message.Table:          message.ValidColumn,
-			operationlog.Table:     operationlog.ValidColumn,
-			role.Table:             role.ValidColumn,
-			systemconfig.Table:     systemconfig.ValidColumn,
-			systempermission.Table: systempermission.ValidColumn,
-			thirdpartyuser.Table:   thirdpartyuser.ValidColumn,
-			user.Table:             user.ValidColumn,
-			userrole.Table:         userrole.ValidColumn,
+			admin.Table:             admin.ValidColumn,
+			adminrole.Table:         adminrole.ValidColumn,
+			attachment.Table:        attachment.ValidColumn,
+			attachmentgroup.Table:   attachmentgroup.ValidColumn,
+			blacklist.Table:         blacklist.ValidColumn,
+			casbinrule.Table:        casbinrule.ValidColumn,
+			cronjob.Table:           cronjob.ValidColumn,
+			dictdata.Table:          dictdata.ValidColumn,
+			message.Table:           message.ValidColumn,
+			messagepreference.Table: messagepreference.ValidColumn,
+			operationlog.Table:      operationlog.ValidColumn,
+			role.Table:              role.ValidColumn,
+			systemconfig.Table:      systemconfig.ValidColumn,
+			systempermission.Table:  systempermission.ValidColumn,
+			thirdpartyuser.Table:    thirdpartyuser.ValidColumn,
+			user.Table:              user.ValidColumn,
+			userrole.Table:          userrole.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

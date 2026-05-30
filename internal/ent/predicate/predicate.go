@@ -33,6 +33,9 @@ type DictData func(*sql.Selector)
 // Message is the predicate function for message builders.
 type Message func(*sql.Selector)
 
+// MessagePreference is the predicate function for messagepreference builders.
+type MessagePreference func(*sql.Selector)
+
 // OperationLog is the predicate function for operationlog builders.
 type OperationLog func(*sql.Selector)
 

@@ -293,6 +293,7 @@ var (
 		{Name: "level", Type: field.TypeString, Size: 10, Default: "info"},
 		{Name: "title", Type: field.TypeString, Size: 200},
 		{Name: "content", Type: field.TypeString, Size: 2147483647},
+		{Name: "content_html", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "extra", Type: field.TypeJSON, Nullable: true},
 		{Name: "read_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
@@ -304,9 +305,19 @@ var (
 		PrimaryKey: []*schema.Column{MessagesColumns[0]},
 		Indexes: []*schema.Index{
 			{
+				Name:    "message_user_uid_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MessagesColumns[1], MessagesColumns[9]},
+			},
+			{
+				Name:    "message_user_uid_type_read_at",
+				Unique:  false,
+				Columns: []*schema.Column{MessagesColumns[1], MessagesColumns[2], MessagesColumns[8]},
+			},
+			{
 				Name:    "message_user_uid_read_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{MessagesColumns[1], MessagesColumns[7], MessagesColumns[0]},
+				Columns: []*schema.Column{MessagesColumns[1], MessagesColumns[8], MessagesColumns[0]},
 			},
 			{
 				Name:    "message_type",
@@ -316,7 +327,34 @@ var (
 			{
 				Name:    "message_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{MessagesColumns[8]},
+				Columns: []*schema.Column{MessagesColumns[9]},
+			},
+		},
+	}
+	// MessagePreferencesColumns holds the columns for the "message_preferences" table.
+	MessagePreferencesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "user_uid", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "desktop_notify", Type: field.TypeBool, Default: true},
+		{Name: "sound_notify", Type: field.TypeBool, Default: false},
+		{Name: "subscribe_system", Type: field.TypeBool, Default: true},
+		{Name: "subscribe_business", Type: field.TypeBool, Default: true},
+		{Name: "subscribe_task", Type: field.TypeBool, Default: true},
+		{Name: "do_not_disturb_start", Type: field.TypeString, Nullable: true, Size: 5, Default: ""},
+		{Name: "do_not_disturb_end", Type: field.TypeString, Nullable: true, Size: 5, Default: ""},
+	}
+	// MessagePreferencesTable holds the schema information for the "message_preferences" table.
+	MessagePreferencesTable = &schema.Table{
+		Name:       TablePrefix + "message_preferences",
+		Columns:    MessagePreferencesColumns,
+		PrimaryKey: []*schema.Column{MessagePreferencesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "messagepreference_user_uid",
+				Unique:  true,
+				Columns: []*schema.Column{MessagePreferencesColumns[3]},
 			},
 		},
 	}
@@ -633,6 +671,7 @@ var (
 		CronJobsTable,
 		DictDataTable,
 		MessagesTable,
+		MessagePreferencesTable,
 		OperationLogsTable,
 		RolesTable,
 		SystemConfigsTable,

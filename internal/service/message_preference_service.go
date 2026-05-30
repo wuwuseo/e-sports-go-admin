@@ -1,0 +1,213 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/messagepreference"
+	"go-admin/internal/global"
+)
+
+// 偏好相关领域错误
+var (
+	ErrMessagePreferenceInvalidTime = errors.New("免打扰时间格式应为 HH:mm")
+)
+
+// hhmmRegex HH:mm 格式校验（00:00 ~ 23:59）
+var hhmmRegex = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
+
+// MessagePreferenceResponse 用户偏好响应
+type MessagePreferenceResponse struct {
+	DesktopNotify      bool   `json:"desktop_notify"`
+	SoundNotify        bool   `json:"sound_notify"`
+	SubscribeSystem    bool   `json:"subscribe_system"`
+	SubscribeBusiness  bool   `json:"subscribe_business"`
+	SubscribeTask      bool   `json:"subscribe_task"`
+	DoNotDisturbStart  string `json:"do_not_disturb_start"`
+	DoNotDisturbEnd    string `json:"do_not_disturb_end"`
+}
+
+// UpdateMessagePreferenceRequest 偏好更新请求（部分更新，全部字段可选）
+type UpdateMessagePreferenceRequest struct {
+	DesktopNotify     *bool   `json:"desktop_notify,omitempty"`
+	SoundNotify       *bool   `json:"sound_notify,omitempty"`
+	SubscribeSystem   *bool   `json:"subscribe_system,omitempty"`
+	SubscribeBusiness *bool   `json:"subscribe_business,omitempty"`
+	SubscribeTask     *bool   `json:"subscribe_task,omitempty"`
+	DoNotDisturbStart *string `json:"do_not_disturb_start,omitempty"`
+	DoNotDisturbEnd   *string `json:"do_not_disturb_end,omitempty"`
+}
+
+// MessagePreferenceServiceInterface 偏好服务接口
+type MessagePreferenceServiceInterface interface {
+	GetOrDefault(ctx context.Context, uid string) (*MessagePreferenceResponse, error)
+	Update(ctx context.Context, uid string, req *UpdateMessagePreferenceRequest) (*MessagePreferenceResponse, error)
+}
+
+// MessagePreferenceService 偏好服务实现
+type MessagePreferenceService struct {
+	Client *ent.Client
+}
+
+// NewMessagePreferenceService 构造
+func NewMessagePreferenceService() *MessagePreferenceService {
+	return &MessagePreferenceService{Client: global.ORM}
+}
+
+var _ MessagePreferenceServiceInterface = (*MessagePreferenceService)(nil)
+
+// defaultPreference 返回默认偏好
+func defaultPreference() *MessagePreferenceResponse {
+	return &MessagePreferenceResponse{
+		DesktopNotify:     true,
+		SoundNotify:       false,
+		SubscribeSystem:   true,
+		SubscribeBusiness: true,
+		SubscribeTask:     true,
+		DoNotDisturbStart: "",
+		DoNotDisturbEnd:   "",
+	}
+}
+
+// GetOrDefault 查询偏好；未配置时返回默认值（不入库）
+func (s *MessagePreferenceService) GetOrDefault(ctx context.Context, uid string) (*MessagePreferenceResponse, error) {
+	if uid == "" {
+		return nil, ErrMessageForbidden
+	}
+	entity, err := s.Client.MessagePreference.Query().
+		Where(messagepreference.UserUIDEQ(uid)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return defaultPreference(), nil
+		}
+		return nil, fmt.Errorf("查询消息偏好失败: %w", err)
+	}
+	return entityToPreferenceResponse(entity), nil
+}
+
+// Update 部分更新偏好（不存在则创建）
+func (s *MessagePreferenceService) Update(ctx context.Context, uid string, req *UpdateMessagePreferenceRequest) (*MessagePreferenceResponse, error) {
+	if uid == "" {
+		return nil, ErrMessageForbidden
+	}
+	if req == nil {
+		req = &UpdateMessagePreferenceRequest{}
+	}
+
+	// 校验免打扰时间格式
+	if req.DoNotDisturbStart != nil {
+		if v := strings.TrimSpace(*req.DoNotDisturbStart); v != "" && !hhmmRegex.MatchString(v) {
+			return nil, ErrMessagePreferenceInvalidTime
+		}
+	}
+	if req.DoNotDisturbEnd != nil {
+		if v := strings.TrimSpace(*req.DoNotDisturbEnd); v != "" && !hhmmRegex.MatchString(v) {
+			return nil, ErrMessagePreferenceInvalidTime
+		}
+	}
+
+	entity, err := s.Client.MessagePreference.Query().
+		Where(messagepreference.UserUIDEQ(uid)).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("查询消息偏好失败: %w", err)
+	}
+
+	if entity == nil {
+		// 创建（基于默认值 + 请求覆盖）
+		def := defaultPreference()
+		applyUpdateToDefaults(def, req)
+		created, err := s.Client.MessagePreference.Create().
+			SetUserUID(uid).
+			SetDesktopNotify(def.DesktopNotify).
+			SetSoundNotify(def.SoundNotify).
+			SetSubscribeSystem(def.SubscribeSystem).
+			SetSubscribeBusiness(def.SubscribeBusiness).
+			SetSubscribeTask(def.SubscribeTask).
+			SetDoNotDisturbStart(def.DoNotDisturbStart).
+			SetDoNotDisturbEnd(def.DoNotDisturbEnd).
+			Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("创建消息偏好失败: %w", err)
+		}
+		return entityToPreferenceResponse(created), nil
+	}
+
+	// 更新（部分字段）
+	updater := s.Client.MessagePreference.UpdateOneID(entity.ID)
+	if req.DesktopNotify != nil {
+		updater.SetDesktopNotify(*req.DesktopNotify)
+	}
+	if req.SoundNotify != nil {
+		updater.SetSoundNotify(*req.SoundNotify)
+	}
+	if req.SubscribeSystem != nil {
+		updater.SetSubscribeSystem(*req.SubscribeSystem)
+	}
+	if req.SubscribeBusiness != nil {
+		updater.SetSubscribeBusiness(*req.SubscribeBusiness)
+	}
+	if req.SubscribeTask != nil {
+		updater.SetSubscribeTask(*req.SubscribeTask)
+	}
+	if req.DoNotDisturbStart != nil {
+		updater.SetDoNotDisturbStart(strings.TrimSpace(*req.DoNotDisturbStart))
+	}
+	if req.DoNotDisturbEnd != nil {
+		updater.SetDoNotDisturbEnd(strings.TrimSpace(*req.DoNotDisturbEnd))
+	}
+	updated, err := updater.Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("更新消息偏好失败: %w", err)
+	}
+	return entityToPreferenceResponse(updated), nil
+}
+
+// applyUpdateToDefaults 将部分更新请求覆盖到默认值
+func applyUpdateToDefaults(def *MessagePreferenceResponse, req *UpdateMessagePreferenceRequest) {
+	if req == nil {
+		return
+	}
+	if req.DesktopNotify != nil {
+		def.DesktopNotify = *req.DesktopNotify
+	}
+	if req.SoundNotify != nil {
+		def.SoundNotify = *req.SoundNotify
+	}
+	if req.SubscribeSystem != nil {
+		def.SubscribeSystem = *req.SubscribeSystem
+	}
+	if req.SubscribeBusiness != nil {
+		def.SubscribeBusiness = *req.SubscribeBusiness
+	}
+	if req.SubscribeTask != nil {
+		def.SubscribeTask = *req.SubscribeTask
+	}
+	if req.DoNotDisturbStart != nil {
+		def.DoNotDisturbStart = strings.TrimSpace(*req.DoNotDisturbStart)
+	}
+	if req.DoNotDisturbEnd != nil {
+		def.DoNotDisturbEnd = strings.TrimSpace(*req.DoNotDisturbEnd)
+	}
+}
+
+// entityToPreferenceResponse 转换 Ent 实体到响应
+func entityToPreferenceResponse(e *ent.MessagePreference) *MessagePreferenceResponse {
+	if e == nil {
+		return defaultPreference()
+	}
+	return &MessagePreferenceResponse{
+		DesktopNotify:     e.DesktopNotify,
+		SoundNotify:       e.SoundNotify,
+		SubscribeSystem:   e.SubscribeSystem,
+		SubscribeBusiness: e.SubscribeBusiness,
+		SubscribeTask:     e.SubscribeTask,
+		DoNotDisturbStart: e.DoNotDisturbStart,
+		DoNotDisturbEnd:   e.DoNotDisturbEnd,
+	}
+}
