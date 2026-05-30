@@ -3613,6 +3613,36 @@ const docTemplate = `{
                         "description": "0=未读 1=已读",
                         "name": "read_status",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "按标题/内容模糊搜索",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "消息级别 info/warning/error",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "起始时间 RFC3339",
+                        "name": "start_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间 RFC3339",
+                        "name": "end_time",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "排序 created_at_desc/created_at_asc",
+                        "name": "sort",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3628,6 +3658,215 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/service.ListResponse-service_MessageResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/broadcast": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "管理员广播消息",
+                "parameters": [
+                    {
+                        "description": "广播请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.BroadcastRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.BroadcastResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/clear": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "条件清空消息",
+                "parameters": [
+                    {
+                        "description": "清空条件（至少一个）",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.ClearMessagesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.DeleteBatchResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/delete-batch": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "批量删除消息",
+                "parameters": [
+                    {
+                        "description": "ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.DeleteBatchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.DeleteBatchResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/preference": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "获取消息偏好",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.MessagePreferenceResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "更新消息偏好",
+                "parameters": [
+                    {
+                        "description": "偏好字段（全部可选）",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.UpdateMessagePreferenceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.MessagePreferenceResponse"
                                         }
                                     }
                                 }
@@ -3690,6 +3929,39 @@ const docTemplate = `{
             }
         },
         "/api/v1/admin/auth/messages/unread": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "批量标记为未读",
+                "parameters": [
+                    {
+                        "description": "ID 列表",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.MarkUnreadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/messages/unread-count": {
             "get": {
                 "produces": [
                     "application/json"
@@ -3721,6 +3993,44 @@ const docTemplate = `{
             }
         },
         "/api/v1/admin/auth/messages/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "获取消息详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "消息 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.MessageResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
             "delete": {
                 "produces": [
                     "application/json"
@@ -8014,6 +8324,87 @@ const docTemplate = `{
                 }
             }
         },
+        "service.BroadcastRequest": {
+            "type": "object",
+            "required": [
+                "content",
+                "level",
+                "target",
+                "title",
+                "type"
+            ],
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "content_html": {
+                    "type": "string"
+                },
+                "extra": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "level": {
+                    "type": "string",
+                    "enum": [
+                        "info",
+                        "warning",
+                        "error"
+                    ]
+                },
+                "target": {
+                    "$ref": "#/definitions/service.BroadcastTarget"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "system",
+                        "business",
+                        "task"
+                    ]
+                }
+            }
+        },
+        "service.BroadcastResponse": {
+            "type": "object",
+            "properties": {
+                "delivered": {
+                    "type": "integer"
+                }
+            }
+        },
+        "service.BroadcastTarget": {
+            "type": "object",
+            "required": [
+                "scope"
+            ],
+            "properties": {
+                "role_codes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "users",
+                        "roles"
+                    ]
+                },
+                "user_uids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "service.ChunkStatusResponse": {
             "type": "object",
             "properties": {
@@ -8040,6 +8431,30 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "service.ClearMessagesRequest": {
+            "type": "object",
+            "properties": {
+                "before": {
+                    "description": "RFC3339",
+                    "type": "string"
+                },
+                "read_status": {
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1
+                    ]
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "system",
+                        "business",
+                        "task"
+                    ]
                 }
             }
         },
@@ -8455,6 +8870,29 @@ const docTemplate = `{
                 }
             }
         },
+        "service.DeleteBatchRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "service.DeleteBatchResponse": {
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "type": "integer"
+                }
+            }
+        },
         "service.DictDataResponse": {
             "type": "object",
             "properties": {
@@ -8732,10 +9170,54 @@ const docTemplate = `{
                 }
             }
         },
+        "service.MarkUnreadRequest": {
+            "type": "object",
+            "required": [
+                "ids"
+            ],
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "service.MessagePreferenceResponse": {
+            "type": "object",
+            "properties": {
+                "desktop_notify": {
+                    "type": "boolean"
+                },
+                "do_not_disturb_end": {
+                    "type": "string"
+                },
+                "do_not_disturb_start": {
+                    "type": "string"
+                },
+                "sound_notify": {
+                    "type": "boolean"
+                },
+                "subscribe_business": {
+                    "type": "boolean"
+                },
+                "subscribe_system": {
+                    "type": "boolean"
+                },
+                "subscribe_task": {
+                    "type": "boolean"
+                }
+            }
+        },
         "service.MessageResponse": {
             "type": "object",
             "properties": {
                 "content": {
+                    "type": "string"
+                },
+                "content_html": {
                     "type": "string"
                 },
                 "created_at": {
@@ -9392,6 +9874,32 @@ const docTemplate = `{
                 },
                 "sort": {
                     "type": "integer"
+                }
+            }
+        },
+        "service.UpdateMessagePreferenceRequest": {
+            "type": "object",
+            "properties": {
+                "desktop_notify": {
+                    "type": "boolean"
+                },
+                "do_not_disturb_end": {
+                    "type": "string"
+                },
+                "do_not_disturb_start": {
+                    "type": "string"
+                },
+                "sound_notify": {
+                    "type": "boolean"
+                },
+                "subscribe_business": {
+                    "type": "boolean"
+                },
+                "subscribe_system": {
+                    "type": "boolean"
+                },
+                "subscribe_task": {
+                    "type": "boolean"
                 }
             }
         },

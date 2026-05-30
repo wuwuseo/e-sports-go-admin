@@ -62,14 +62,20 @@ const (
 	ResponseThirdPartyNotFound   = 6011
 
 	// 站内消息错误码 (7000-7099)
-	ResponseMessageNotFound      = 7001
-	ResponseMessageForbidden     = 7002
-	ResponseMessageInvalidTicket = 7003
-	ResponseMessageSSEFailure    = 7004
-	ResponseMessageMarkReadFail  = 7005
-	ResponseMessageDeleteFail    = 7006
-	ResponseMessageCreateFail    = 7007
-	ResponseMessageInvalidReq    = 7008
+	ResponseMessageNotFound          = 7001
+	ResponseMessageForbidden         = 7002
+	ResponseMessageInvalidTicket     = 7003
+	ResponseMessageSSEFailure        = 7004
+	ResponseMessageMarkReadFail      = 7005
+	ResponseMessageDeleteFail        = 7006
+	ResponseMessageCreateFail        = 7007
+	ResponseMessageInvalidReq        = 7008
+	ResponseMessageBatchTooLarge     = 7009 // 批量操作 ID 超过上限
+	ResponseMessageClearNoCriteria   = 7010 // 清空操作未提供条件
+	ResponseMessagePreferenceFail    = 7011 // 偏好操作失败
+	ResponseMessageBroadcastFail     = 7012 // 广播失败
+	ResponseMessageInvalidScope      = 7013 // 无效的目标范围
+	ResponseMessageInvalidTimeFormat = 7014 // 免打扰时间格式错误
 )
 
 // ResponseMsg 响应消息映射
@@ -134,12 +140,18 @@ var ResponseMsg = map[int]string{
 	ResponseThirdPartyNotFound:   "第三方用户关联不存在",
 
 	// 站内消息错误消息
-	ResponseMessageNotFound:      "消息不存在",
-	ResponseMessageForbidden:     "无权操作该消息",
-	ResponseMessageInvalidTicket: "SSE 凭证无效或已过期",
-	ResponseMessageSSEFailure:    "SSE 连接失败",
-	ResponseMessageMarkReadFail:  "标记已读失败",
-	ResponseMessageDeleteFail:    "删除消息失败",
-	ResponseMessageCreateFail:    "创建消息失败",
-	ResponseMessageInvalidReq:    "非法的消息请求参数",
+	ResponseMessageNotFound:          "消息不存在",
+	ResponseMessageForbidden:         "无权操作该消息",
+	ResponseMessageInvalidTicket:     "SSE 凭证无效或已过期",
+	ResponseMessageSSEFailure:        "SSE 连接失败",
+	ResponseMessageMarkReadFail:      "标记已读失败",
+	ResponseMessageDeleteFail:        "删除消息失败",
+	ResponseMessageCreateFail:        "创建消息失败",
+	ResponseMessageInvalidReq:        "非法的消息请求参数",
+	ResponseMessageBatchTooLarge:     "批量操作 ID 数量超过上限",
+	ResponseMessageClearNoCriteria:   "清空操作必须至少指定一个条件",
+	ResponseMessagePreferenceFail:    "消息偏好操作失败",
+	ResponseMessageBroadcastFail:     "消息广播失败",
+	ResponseMessageInvalidScope:      "无效的广播目标范围",
+	ResponseMessageInvalidTimeFormat: "免打扰时间格式应为 HH:mm",
 }

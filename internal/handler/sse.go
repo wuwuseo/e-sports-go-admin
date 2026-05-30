@@ -7,7 +7,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/jwt"
+	"github.com/wuwuseo/cmf/log"
 	"github.com/wuwuseo/cmf/sse"
+	"go.uber.org/zap"
 )
 
 // IssueSSETicket 颁发 SSE 临时凭证
@@ -35,6 +37,9 @@ func IssueSSETicket(c fiber.Ctx) error {
 	if err != nil {
 		return response.Fail(global.ResponseInternalServerError, err.Error()).ToJSON(c)
 	}
+	log.Info("SSE ticket 颁发",
+		zap.String("user_uid", uid),
+	)
 	return response.Success(fiber.Map{"ticket": ticket, "expire_at": exp}).ToJSON(c)
 }
 
@@ -51,6 +56,15 @@ func SSEConnect(c fiber.Ctx) error {
 	store, _ := c.Locals("sse.TicketStore").(*sse.TicketStore)
 	msgSvc, _ := c.Locals("service.MessageService").(service.MessageServiceInterface)
 
+	if hub == nil {
+		log.Error("SSE 连接失败：Hub 未注入到 Locals")
+		return c.Status(fiber.StatusInternalServerError).SendString("sse hub not configured")
+	}
+	if store == nil {
+		log.Error("SSE 连接失败：TicketStore 未注入到 Locals")
+		return c.Status(fiber.StatusInternalServerError).SendString("sse ticket store not configured")
+	}
+
 	cfg := sse.StreamConfig{
 		Hub:         hub,
 		TicketStore: store,
@@ -58,5 +72,9 @@ func SSEConnect(c fiber.Ctx) error {
 	if ms, ok := msgSvc.(*service.MessageService); ok && ms != nil {
 		cfg.MissedFetcher = ms.BuildMissedFetcher()
 	}
+
+	log.Info("SSE 连接建立中",
+		zap.Int("hub_total_connections", hub.CountTotalConnections()),
+	)
 	return sse.HandleConnect(c, cfg)
 }

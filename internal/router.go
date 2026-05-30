@@ -77,7 +77,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		hub = appInstance.Hub
 		ticketStore = appInstance.TicketStore
 	}
-	messageService := service.NewMessageService(hub)
+	prefSvc := service.NewMessagePreferenceService()
+	messageService := service.NewMessageServiceWithPreference(hub, prefSvc)
+	broadcastService := service.NewMessageBroadcastService(messageService)
 	// 公开接口
 	public.Post("/login", handler.Login)
 	public.Post("/refresh-token", handler.RefreshToken)
@@ -107,6 +109,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.ThirdPartyUserService", thirdPartyUserService)
 		c.Locals("service.RoleAssignmentService", roleAssignmentService)
 		c.Locals("service.MessageService", messageService)
+		c.Locals("service.MessagePreferenceService", prefSvc)
+		c.Locals("service.MessageBroadcastService", broadcastService)
 		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware())
@@ -283,11 +287,23 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	thirdParty.Delete("/:id", handler.UnbindThirdPartyUser)
 
 	// 站内消息路由（鉴权后访问）
+	// 注意：所有静态路径（/preference、/unread-count 等）必须在 /:id 之前注册，
+	// 避免被参数化路由捕获导致 strconv.Atoi 失败
 	messages := adminAuth.Group("/messages")
 	messages.Get("", handler.ListMessages)
+	// 静态路径在前
 	messages.Post("/read", handler.MarkRead)
 	messages.Post("/read-all", handler.MarkAllRead)
-	messages.Get("/unread", handler.UnreadCount)
+	messages.Post("/unread", handler.MarkUnread)
+	messages.Get("/unread-count", handler.UnreadCount)
+	messages.Post("/delete-batch", handler.DeleteBatchMessages)
+	messages.Post("/clear", handler.ClearMessages)
+	messages.Get("/preference", handler.GetMessagePreference)
+	messages.Put("/preference", handler.UpdateMessagePreference)
+	messages.Post("/broadcast", handler.BroadcastMessage)
+	messages.Post("/test-push", handler.TestPushMessage)
+	// 参数化路由放最后
+	messages.Get("/:id", handler.GetMessage)
 	messages.Delete("/:id", handler.DeleteMessage)
 
 	// SSE 凭证接口（鉴权后访问）

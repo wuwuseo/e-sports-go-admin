@@ -99,7 +99,10 @@ func Init(config *config.Config) error {
 		appInstance.TicketStore = sse.NewTicketStore(5 * time.Minute)
 	}
 	go appInstance.TicketStore.StartCleanup(context.Background())
-	appInstance.Logger.Info("SSE Hub 与 TicketStore 初始化完成")
+	appInstance.Logger.Info("SSE Hub 与 TicketStore 初始化完成",
+		zap.String("hub_ptr", fmt.Sprintf("%p", appInstance.Hub)),
+		zap.String("ticket_store_ptr", fmt.Sprintf("%p", appInstance.TicketStore)),
+	)
 
 	// 初始化种子数据
 	if err := initSeedData(); err != nil {

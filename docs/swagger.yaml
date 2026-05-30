@@ -222,6 +222,63 @@ definitions:
       total:
         type: integer
     type: object
+  service.BroadcastRequest:
+    properties:
+      content:
+        type: string
+      content_html:
+        type: string
+      extra:
+        additionalProperties: {}
+        type: object
+      level:
+        enum:
+        - info
+        - warning
+        - error
+        type: string
+      target:
+        $ref: '#/definitions/service.BroadcastTarget'
+      title:
+        maxLength: 200
+        type: string
+      type:
+        enum:
+        - system
+        - business
+        - task
+        type: string
+    required:
+    - content
+    - level
+    - target
+    - title
+    - type
+    type: object
+  service.BroadcastResponse:
+    properties:
+      delivered:
+        type: integer
+    type: object
+  service.BroadcastTarget:
+    properties:
+      role_codes:
+        items:
+          type: string
+        type: array
+      scope:
+        enum:
+        - all
+        - users
+        - roles
+        type: string
+      user_uids:
+        items:
+          type: string
+        type: array
+    required:
+    - scope
+    type: object
   service.ChunkStatusResponse:
     properties:
       chunk_size:
@@ -240,6 +297,23 @@ definitions:
         items:
           type: integer
         type: array
+    type: object
+  service.ClearMessagesRequest:
+    properties:
+      before:
+        description: RFC3339
+        type: string
+      read_status:
+        enum:
+        - 0
+        - 1
+        type: integer
+      type:
+        enum:
+        - system
+        - business
+        - task
+        type: string
     type: object
   service.ConfigGroup:
     properties:
@@ -528,6 +602,21 @@ definitions:
       updated_at:
         type: string
     type: object
+  service.DeleteBatchRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  service.DeleteBatchResponse:
+    properties:
+      deleted:
+        type: integer
+    type: object
   service.DictDataResponse:
     properties:
       created_at:
@@ -710,9 +799,38 @@ definitions:
     required:
     - ids
     type: object
+  service.MarkUnreadRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  service.MessagePreferenceResponse:
+    properties:
+      desktop_notify:
+        type: boolean
+      do_not_disturb_end:
+        type: string
+      do_not_disturb_start:
+        type: string
+      sound_notify:
+        type: boolean
+      subscribe_business:
+        type: boolean
+      subscribe_system:
+        type: boolean
+      subscribe_task:
+        type: boolean
+    type: object
   service.MessageResponse:
     properties:
       content:
+        type: string
+      content_html:
         type: string
       created_at:
         type: string
@@ -1154,6 +1272,23 @@ definitions:
         type: string
       sort:
         type: integer
+    type: object
+  service.UpdateMessagePreferenceRequest:
+    properties:
+      desktop_notify:
+        type: boolean
+      do_not_disturb_end:
+        type: string
+      do_not_disturb_start:
+        type: string
+      sound_notify:
+        type: boolean
+      subscribe_business:
+        type: boolean
+      subscribe_system:
+        type: boolean
+      subscribe_task:
+        type: boolean
     type: object
   service.UpdatePermissionRequest:
     properties:
@@ -3602,6 +3737,26 @@ paths:
         in: query
         name: read_status
         type: integer
+      - description: 按标题/内容模糊搜索
+        in: query
+        name: keyword
+        type: string
+      - description: 消息级别 info/warning/error
+        in: query
+        name: level
+        type: string
+      - description: 起始时间 RFC3339
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间 RFC3339
+        in: query
+        name: end_time
+        type: string
+      - description: 排序 created_at_desc/created_at_asc
+        in: query
+        name: sort
+        type: string
       produces:
       - application/json
       responses:
@@ -3633,6 +3788,148 @@ paths:
           schema:
             $ref: '#/definitions/utils.Response'
       summary: 删除单条消息
+      tags:
+      - 站内消息
+    get:
+      parameters:
+      - description: 消息 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.MessageResponse'
+              type: object
+      summary: 获取消息详情
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/broadcast:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 广播请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.BroadcastRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.BroadcastResponse'
+              type: object
+      summary: 管理员广播消息
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/clear:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 清空条件（至少一个）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.ClearMessagesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.DeleteBatchResponse'
+              type: object
+      summary: 条件清空消息
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/delete-batch:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.DeleteBatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.DeleteBatchResponse'
+              type: object
+      summary: 批量删除消息
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/preference:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.MessagePreferenceResponse'
+              type: object
+      summary: 获取消息偏好
+      tags:
+      - 站内消息
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 偏好字段（全部可选）
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateMessagePreferenceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.MessagePreferenceResponse'
+              type: object
+      summary: 更新消息偏好
       tags:
       - 站内消息
   /api/v1/admin/auth/messages/read:
@@ -3669,6 +3966,27 @@ paths:
       tags:
       - 站内消息
   /api/v1/admin/auth/messages/unread:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: ID 列表
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.MarkUnreadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 批量标记为未读
+      tags:
+      - 站内消息
+  /api/v1/admin/auth/messages/unread-count:
     get:
       produces:
       - application/json
