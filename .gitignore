@@ -2,9 +2,17 @@ web/
 tmp/
 /data/logs/*.log
 *.exe
+*.exe.bak-*
 /data/logs/cron/job-1/*.log
 /data/logs
 /data/.uid_counter
 /data/storage
 go-admin
 /.env
+
+# IDE / 工具缓存
+.codegraph/
+.qoder/agents/
+CODE_WIKI.md
+docs/CODE_WIKI.md
+internal/service/data/
