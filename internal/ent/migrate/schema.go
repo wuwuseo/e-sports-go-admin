@@ -403,6 +403,46 @@ var (
 			},
 		},
 	}
+	// PluginsColumns holds the columns for the "plugins" table.
+	PluginsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "plugin_id", Type: field.TypeString, Unique: true, Size: 255},
+		{Name: "name", Type: field.TypeString, Size: 255},
+		{Name: "version", Type: field.TypeString, Size: 64},
+		{Name: "author", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "description", Type: field.TypeString, Nullable: true, Size: 1000},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"installed", "enabled", "disabled", "error"}, Default: "installed"},
+		{Name: "install_path", Type: field.TypeString, Size: 2048},
+		{Name: "manifest_json", Type: field.TypeJSON},
+		{Name: "error_message", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "installed_at", Type: field.TypeTime},
+		{Name: "enabled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// PluginsTable holds the schema information for the "plugins" table.
+	PluginsTable = &schema.Table{
+		Name:       TablePrefix + "plugins",
+		Columns:    PluginsColumns,
+		PrimaryKey: []*schema.Column{PluginsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "plugin_plugin_id",
+				Unique:  false,
+				Columns: []*schema.Column{PluginsColumns[1]},
+			},
+			{
+				Name:    "plugin_status",
+				Unique:  false,
+				Columns: []*schema.Column{PluginsColumns[6]},
+			},
+			{
+				Name:    "plugin_plugin_id_version",
+				Unique:  true,
+				Columns: []*schema.Column{PluginsColumns[1], PluginsColumns[3]},
+			},
+		},
+	}
 	// RolesColumns holds the columns for the "roles" table.
 	RolesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -673,6 +713,7 @@ var (
 		MessagesTable,
 		MessagePreferencesTable,
 		OperationLogsTable,
+		PluginsTable,
 		RolesTable,
 		SystemConfigsTable,
 		SystemPermissionsTable,

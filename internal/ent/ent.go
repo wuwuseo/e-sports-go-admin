@@ -17,6 +17,7 @@ import (
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/operationlog"
+	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
@@ -100,6 +101,7 @@ func checkColumn(t, c string) error {
 			message.Table:           message.ValidColumn,
 			messagepreference.Table: messagepreference.ValidColumn,
 			operationlog.Table:      operationlog.ValidColumn,
+			plugin.Table:            plugin.ValidColumn,
 			role.Table:              role.ValidColumn,
 			systemconfig.Table:      systemconfig.ValidColumn,
 			systempermission.Table:  systempermission.ValidColumn,

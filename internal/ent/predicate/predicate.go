@@ -39,6 +39,9 @@ type MessagePreference func(*sql.Selector)
 // OperationLog is the predicate function for operationlog builders.
 type OperationLog func(*sql.Selector)
 
+// Plugin is the predicate function for plugin builders.
+type Plugin func(*sql.Selector)
+
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
 

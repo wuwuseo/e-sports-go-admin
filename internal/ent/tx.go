@@ -34,6 +34,8 @@ type Tx struct {
 	MessagePreference *MessagePreferenceClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
+	// Plugin is the client for interacting with the Plugin builders.
+	Plugin *PluginClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// SystemConfig is the client for interacting with the SystemConfig builders.
@@ -188,6 +190,7 @@ func (tx *Tx) init() {
 	tx.Message = NewMessageClient(tx.config)
 	tx.MessagePreference = NewMessagePreferenceClient(tx.config)
 	tx.OperationLog = NewOperationLogClient(tx.config)
+	tx.Plugin = NewPluginClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
 	tx.SystemConfig = NewSystemConfigClient(tx.config)
 	tx.SystemPermission = NewSystemPermissionClient(tx.config)

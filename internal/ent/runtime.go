@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/operationlog"
+	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
 	"go-admin/internal/ent/systemconfig"
@@ -749,6 +750,106 @@ func init() {
 	operationlogDescCreatedAt := operationlogFields[13].Descriptor()
 	// operationlog.DefaultCreatedAt holds the default value on creation for the created_at field.
 	operationlog.DefaultCreatedAt = operationlogDescCreatedAt.Default.(func() time.Time)
+	pluginFields := schema.Plugin{}.Fields()
+	_ = pluginFields
+	// pluginDescPluginID is the schema descriptor for plugin_id field.
+	pluginDescPluginID := pluginFields[1].Descriptor()
+	// plugin.PluginIDValidator is a validator for the "plugin_id" field. It is called by the builders before save.
+	plugin.PluginIDValidator = func() func(string) error {
+		validators := pluginDescPluginID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(plugin_id string) error {
+			for _, fn := range fns {
+				if err := fn(plugin_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// pluginDescName is the schema descriptor for name field.
+	pluginDescName := pluginFields[2].Descriptor()
+	// plugin.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	plugin.NameValidator = func() func(string) error {
+		validators := pluginDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// pluginDescVersion is the schema descriptor for version field.
+	pluginDescVersion := pluginFields[3].Descriptor()
+	// plugin.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	plugin.VersionValidator = func() func(string) error {
+		validators := pluginDescVersion.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(version string) error {
+			for _, fn := range fns {
+				if err := fn(version); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// pluginDescAuthor is the schema descriptor for author field.
+	pluginDescAuthor := pluginFields[4].Descriptor()
+	// plugin.AuthorValidator is a validator for the "author" field. It is called by the builders before save.
+	plugin.AuthorValidator = pluginDescAuthor.Validators[0].(func(string) error)
+	// pluginDescDescription is the schema descriptor for description field.
+	pluginDescDescription := pluginFields[5].Descriptor()
+	// plugin.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	plugin.DescriptionValidator = pluginDescDescription.Validators[0].(func(string) error)
+	// pluginDescInstallPath is the schema descriptor for install_path field.
+	pluginDescInstallPath := pluginFields[7].Descriptor()
+	// plugin.InstallPathValidator is a validator for the "install_path" field. It is called by the builders before save.
+	plugin.InstallPathValidator = func() func(string) error {
+		validators := pluginDescInstallPath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(install_path string) error {
+			for _, fn := range fns {
+				if err := fn(install_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// pluginDescErrorMessage is the schema descriptor for error_message field.
+	pluginDescErrorMessage := pluginFields[9].Descriptor()
+	// plugin.ErrorMessageValidator is a validator for the "error_message" field. It is called by the builders before save.
+	plugin.ErrorMessageValidator = pluginDescErrorMessage.Validators[0].(func(string) error)
+	// pluginDescInstalledAt is the schema descriptor for installed_at field.
+	pluginDescInstalledAt := pluginFields[10].Descriptor()
+	// plugin.DefaultInstalledAt holds the default value on creation for the installed_at field.
+	plugin.DefaultInstalledAt = pluginDescInstalledAt.Default.(func() time.Time)
+	// pluginDescCreatedAt is the schema descriptor for created_at field.
+	pluginDescCreatedAt := pluginFields[12].Descriptor()
+	// plugin.DefaultCreatedAt holds the default value on creation for the created_at field.
+	plugin.DefaultCreatedAt = pluginDescCreatedAt.Default.(func() time.Time)
+	// pluginDescUpdatedAt is the schema descriptor for updated_at field.
+	pluginDescUpdatedAt := pluginFields[13].Descriptor()
+	// plugin.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	plugin.DefaultUpdatedAt = pluginDescUpdatedAt.Default.(func() time.Time)
+	// plugin.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	plugin.UpdateDefaultUpdatedAt = pluginDescUpdatedAt.UpdateDefault.(func() time.Time)
 	roleMixin := schema.Role{}.Mixin()
 	roleMixinFields0 := roleMixin[0].Fields()
 	_ = roleMixinFields0
