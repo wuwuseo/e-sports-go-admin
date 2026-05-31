@@ -76,6 +76,16 @@ const (
 	ResponseMessageBroadcastFail     = 7012 // 广播失败
 	ResponseMessageInvalidScope      = 7013 // 无效的目标范围
 	ResponseMessageInvalidTimeFormat = 7014 // 免打扰时间格式错误
+
+	// 插件管理错误码 (8000-8099)
+	ErrCodePluginNotFound        = 8001
+	ErrCodePluginAlreadyInstall  = 8002
+	ErrCodePluginPackageInvalid  = 8003
+	ErrCodePluginEnableFailed    = 8004
+	ErrCodePluginDisableFailed   = 8005
+	ErrCodePluginUninstallFail   = 8006
+	ErrCodePluginManifestInvalid = 8007
+	ErrCodePluginPathInvalid     = 8008
 )
 
 // ResponseMsg 响应消息映射
@@ -154,4 +164,14 @@ var ResponseMsg = map[int]string{
 	ResponseMessageBroadcastFail:     "消息广播失败",
 	ResponseMessageInvalidScope:      "无效的广播目标范围",
 	ResponseMessageInvalidTimeFormat: "免打扰时间格式应为 HH:mm",
+
+	// 插件管理错误消息
+	ErrCodePluginNotFound:        "插件不存在",
+	ErrCodePluginAlreadyInstall:  "插件已安装",
+	ErrCodePluginPackageInvalid:  "插件包无效",
+	ErrCodePluginEnableFailed:    "插件启用失败",
+	ErrCodePluginDisableFailed:   "插件停用失败",
+	ErrCodePluginUninstallFail:   "插件卸载失败",
+	ErrCodePluginManifestInvalid: "插件 Manifest 无效",
+	ErrCodePluginPathInvalid:     "插件路径非法",
 }

@@ -4,6 +4,7 @@ import (
 	"go-admin/internal/global"
 	"go-admin/internal/handler"
 	"go-admin/internal/middleware"
+	adminplugin "go-admin/internal/plugin"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/log"
+	cmfplugin "github.com/wuwuseo/cmf/plugin"
 	"github.com/wuwuseo/cmf/sse"
 )
 
@@ -80,6 +82,17 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	prefSvc := service.NewMessagePreferenceService()
 	messageService := service.NewMessageServiceWithPreference(hub, prefSvc)
 	broadcastService := service.NewMessageBroadcastService(messageService)
+
+	// 初始化插件管理服务
+	pluginRegistry := cmfplugin.NewMemoryExtensionRegistry()
+	pluginRuntime := cmfplugin.NewProcessRuntime()
+	pluginManager := adminplugin.NewManager(global.ORM, adminplugin.Options{
+		PluginRoot: "./data/plugins",
+		TempRoot:   "./data/plugin-tmp",
+		Registry:   pluginRegistry,
+		Runtime:    pluginRuntime,
+	})
+	pluginService := service.NewPluginService(pluginManager)
 	// 公开接口
 	public.Post("/login", handler.Login)
 	public.Post("/refresh-token", handler.RefreshToken)
@@ -111,6 +124,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.MessageService", messageService)
 		c.Locals("service.MessagePreferenceService", prefSvc)
 		c.Locals("service.MessageBroadcastService", broadcastService)
+		c.Locals("service.PluginService", pluginService)
 		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware())
@@ -189,6 +203,16 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	cronJobs.Get("/:id/logs", handler.GetCronJobLogs)                 // 获取日志列表
 	cronJobs.Get("/:id/logs/tail", handler.TailCronJobLog)            // 读取日志尾部
 	cronJobs.Get("/:id/logs/:filename", handler.GetCronJobLogContent) // 获取日志内容
+
+	// 插件管理路由
+	// 注意：静态路径 /install 必须在参数化路由 /:plugin_id 之前注册
+	plugins := adminAuth.Group("/plugins")
+	plugins.Post("/install", handler.InstallPlugin)
+	plugins.Get("", handler.ListPlugins)
+	plugins.Get("/:plugin_id", handler.GetPlugin)
+	plugins.Post("/:plugin_id/enable", handler.EnablePlugin)
+	plugins.Post("/:plugin_id/disable", handler.DisablePlugin)
+	plugins.Delete("/:plugin_id", handler.UninstallPlugin)
 
 	// 附件分组管理路由
 	attachmentGroupService := service.NewAttachmentGroupService()
