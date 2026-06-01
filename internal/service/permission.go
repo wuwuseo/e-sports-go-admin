@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/user"
@@ -206,6 +208,32 @@ func (s *PermissionService) clearRoleAndUsersCache(ctx context.Context, roleName
 
 // getUserRoleNames 获取用户的角色名称列表
 func (s *PermissionService) getUserRoleNames(ctx context.Context, userUID string) ([]string, error) {
+	a, err := s.client.Admin.Query().
+		Where(admin.UIDEQ(userUID)).
+		Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("获取管理员信息失败: %w", err)
+	}
+	if err == nil {
+		adminRoles, err := s.client.AdminRole.Query().
+			Where(adminrole.AdminIDEQ(a.ID)).
+			WithRole(func(q *ent.RoleQuery) {
+				q.Where(role.StatusEQ(role.StatusActive))
+			}).
+			All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("获取管理员角色失败: %w", err)
+		}
+
+		roleNames := make([]string, 0, len(adminRoles))
+		for _, ar := range adminRoles {
+			if ar.Edges.Role != nil {
+				roleNames = append(roleNames, ar.Edges.Role.Name)
+			}
+		}
+		return roleNames, nil
+	}
+
 	u, err := s.client.User.Query().
 		Where(user.UIDEQ(userUID)).
 		Only(ctx)
@@ -825,8 +853,23 @@ func (s *PermissionService) CheckUserHasRole(ctx context.Context, userUID string
 	if err != nil {
 		return false, fmt.Errorf("检查用户角色失败: %w", err)
 	}
+	if exists {
+		return true, nil
+	}
 
-	return exists, nil
+	roleNames, err := s.getUserRoleNames(ctx, userUID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return false, nil
+		}
+		return false, err
+	}
+	for _, name := range roleNames {
+		if name == roleName {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // GetUserMenuPermissions 获取用户的菜单权限

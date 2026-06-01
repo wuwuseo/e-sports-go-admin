@@ -5,10 +5,23 @@
 - [main.go](file://main.go)
 - [router.go](file://internal/router.go)
 - [public.go](file://internal/handler/public.go)
+- [admin_auth.go](file://internal/handler/admin_auth.go)
+- [admin_list.go](file://internal/handler/admin_list.go)
 - [permission.go](file://internal/handler/permission.go)
+- [system_permission.go](file://internal/handler/system_permission.go)
 - [role.go](file://internal/handler/role.go)
 - [attachment.go](file://internal/handler/attachment.go)
 - [config.go](file://internal/handler/config.go)
+- [dict_data.go](file://internal/handler/dict_data.go)
+- [cron_job.go](file://internal/handler/cron_job.go)
+- [operation_log.go](file://internal/handler/operation_log.go)
+- [user_create.go](file://internal/handler/user_create.go)
+- [user_list.go](file://internal/handler/user_list.go)
+- [user_activation.go](file://internal/handler/user_activation.go)
+- [blacklist.go](file://internal/handler/blacklist.go)
+- [third_party_user.go](file://internal/handler/third_party_user.go)
+- [message.go](file://internal/handler/message.go)
+- [sse.go](file://internal/handler/sse.go)
 - [permission.go](file://internal/middleware/permission.go)
 - [user.go](file://internal/service/user.go)
 - [response.go](file://internal/utils/response.go)
@@ -37,7 +50,7 @@
 
 ```mermaid
 graph TB
-A["前端SPA应用"] --> B["Fiber Web服务器"]
+A["前端SPA应用"] --> B["Fiber Web服务器 (Fiber v3)"]
 B --> C["路由层 Router<br/>/api/v1/*"]
 C --> D["处理器层 Handler"]
 D --> E["服务层 Service"]
@@ -45,16 +58,19 @@ E --> F["数据访问层 Ent ORM"]
 F --> G["MySQL数据库"]
 H["JWT中间件"] --> C
 I["权限中间件(Casbin)"] --> C
+I2["黑名单中间件(BlacklistCheck)"] --> C
 J["文件系统中间件"] --> B
+K["SSE Hub / TicketStore"] --> E
+L["插件管理器"] --> E
 ```
 
 图表来源
-- [router.go:16-190](file://internal/router.go#L16-L190)
+- [router.go:16-365](file://internal/router.go#L16-L365)
 - [main.go:47-108](file://main.go#L47-L108)
 
 章节来源
 - [README.md:231-258](file://README.md#L231-L258)
-- [router.go:16-190](file://internal/router.go#L16-L190)
+- [router.go:16-365](file://internal/router.go#L16-L365)
 - [main.go:47-108](file://main.go#L47-L108)
 
 ## 核心组件
@@ -67,7 +83,7 @@ J["文件系统中间件"] --> B
 
 章节来源
 - [main.go:47-108](file://main.go#L47-L108)
-- [router.go:16-190](file://internal/router.go#L16-L190)
+- [router.go:16-365](file://internal/router.go#L16-L365)
 - [response.go:9-50](file://internal/utils/response.go#L9-L50)
 - [config.yml:1-143](file://config/config.yml#L1-L143)
 
@@ -94,24 +110,28 @@ Handler-->>Client : "统一响应"
 ```
 
 图表来源
-- [router.go:16-190](file://internal/router.go#L16-L190)
+- [router.go:16-365](file://internal/router.go#L16-L365)
 - [user.go:139-218](file://internal/service/user.go#L139-L218)
 
 ## 详细组件分析
 
-### 认证与用户管理接口
+### 认证与管理员认证接口
 - 公开接口（无需认证）
   - GET /api/v1/public/public-key：获取 RSA 公钥，用于加密登录请求中的敏感字段。
-  - POST /api/v1/public/login：用户登录，支持明文或加密字段登录。
-  - POST /api/v1/admin/refresh-token：使用刷新令牌换取新的访问令牌。
+  - POST /api/v1/public/login：普通用户登录，支持明文或加密字段登录。
+  - POST /api/v1/public/refresh-token：普通用户刷新令牌。
+  - POST /api/v1/admin/public/login：管理员登录，支持 RSA 加密。
+  - POST /api/v1/admin/public/refresh：管理员刷新令牌。
 - 受保护接口（需 Bearer Token）
-  - GET /api/v1/admin/auth/user：获取当前用户信息。
-  - PUT /api/v1/admin/auth/user：更新当前用户信息。
-  - PUT /api/v1/admin/auth/password：修改当前用户密码。
+  - GET /api/v1/admin/auth/user：获取当前管理员信息。
+  - PUT /api/v1/admin/auth/user：更新当前管理员信息。
+  - PUT /api/v1/admin/auth/password：修改当前管理员密码。
+  - POST /api/v1/admin/auth/logout：管理员退出登录。
 
 章节来源
 - [public.go:27-299](file://internal/handler/public.go#L27-L299)
-- [router.go:48-61](file://internal/router.go#L48-L61)
+- [admin_auth.go:16-274](file://internal/handler/admin_auth.go#L16-L274)
+- [router.go:48-151](file://internal/router.go#L48-L151)
 
 #### 登录流程时序图
 ```mermaid
@@ -236,7 +256,7 @@ Attach-->>Client : "200 OK + 数据"
 
 章节来源
 - [config.go:15-283](file://internal/handler/config.go#L15-L283)
-- [router.go:171-189](file://internal/router.go#L171-L189)
+- [router.go:290-308](file://internal/router.go#L290-L308)
 
 ### 操作日志接口
 - GET /api/v1/admin/auth/operation-logs：获取操作日志列表（分页、关键字）。
@@ -260,6 +280,120 @@ Attach-->>Client : "200 OK + 数据"
 
 章节来源
 - [router.go:103-120](file://internal/router.go#L103-L120)
+
+### 管理员管理接口
+- POST /api/v1/admin/auth/admins：创建管理员。
+- GET /api/v1/admin/auth/admins：获取管理员列表（分页）。
+- GET /api/v1/admin/auth/admins/{uid}：获取管理员详情。
+- PUT /api/v1/admin/auth/admins/{id}：更新指定管理员。
+- GET /api/v1/admin/auth/admins/{uid}/roles：查询管理员角色。
+- PUT /api/v1/admin/auth/admins/{uid}/roles：分配管理员角色。
+- PUT /api/v1/admin/auth/admins/{id}/activate：启用管理员。
+- PUT /api/v1/admin/auth/admins/{id}/deactivate：禁用管理员。
+
+章节来源
+- [admin_list.go](file://internal/handler/admin_list.go)
+- [router.go:157-164](file://internal/router.go#L157-L164)
+
+### 系统权限定义接口
+- POST /api/v1/admin/auth/system-permissions：创建权限定义。
+- GET /api/v1/admin/auth/system-permissions：获取权限定义列表。
+- GET /api/v1/admin/auth/system-permissions/tree：获取权限树。
+- GET /api/v1/admin/auth/system-permissions/{id}：获取权限定义详情。
+- PUT /api/v1/admin/auth/system-permissions/{id}：更新权限定义。
+- DELETE /api/v1/admin/auth/system-permissions/{id}：删除权限定义。
+
+章节来源
+- [system_permission.go](file://internal/handler/system_permission.go)
+- [router.go:194-200](file://internal/router.go#L194-L200)
+
+### 数据字典接口
+- POST /api/v1/admin/auth/dict-data：创建字典。
+- GET /api/v1/admin/auth/dict-data：获取字典列表（分页）。
+- GET /api/v1/admin/auth/dict-data/type/{type}：按类型获取字典。
+- GET /api/v1/admin/auth/dict-data/{id}：获取字典详情。
+- PUT /api/v1/admin/auth/dict-data/{id}：更新字典。
+- DELETE /api/v1/admin/auth/dict-data/{id}：删除字典。
+
+章节来源
+- [dict_data.go](file://internal/handler/dict_data.go)
+- [router.go:277-289](file://internal/router.go#L277-L289)
+
+### 用户管理接口
+- POST /api/v1/admin/auth/users：创建用户（管理员）。
+- GET /api/v1/admin/auth/users：用户列表（分页、多条件筛选）。
+- POST /api/v1/admin/auth/users/export：导出用户。
+- GET /api/v1/admin/auth/users/{id}：获取用户详情（聚合角色、黑名单、第三方账号）。
+- PUT /api/v1/admin/auth/users/{id}/activate：激活用户。
+- PUT /api/v1/admin/auth/users/{id}/deactivate：停用用户。
+- POST /api/v1/admin/auth/users/{id}/blacklist：加入黑名单。
+- DELETE /api/v1/admin/auth/users/{id}/blacklist：移出黑名单。
+- GET /api/v1/admin/auth/users/{id}/roles：获取用户角色。
+- PUT /api/v1/admin/auth/users/{id}/roles：分配用户角色。
+- GET /api/v1/admin/auth/users/{id}/third-party：查询第三方账号。
+
+章节来源
+- [user_create.go](file://internal/handler/user_create.go)
+- [user_list.go](file://internal/handler/user_list.go)
+- [user_activation.go](file://internal/handler/user_activation.go)
+- [blacklist.go](file://internal/handler/blacklist.go)
+- [third_party_user.go](file://internal/handler/third_party_user.go)
+- [router.go:310-322](file://internal/router.go#L310-L322)
+
+### 黑名单管理接口
+- GET /api/v1/admin/auth/blacklist：黑名单列表（分页）。
+
+章节来源
+- [blacklist.go](file://internal/handler/blacklist.go)
+- [router.go:324-326](file://internal/router.go#L324-L326)
+
+### 第三方用户管理接口
+- GET /api/v1/admin/auth/third-party-users：第三方账号列表。
+- DELETE /api/v1/admin/auth/third-party-users/{id}：解绑第三方账号。
+
+章节来源
+- [third_party_user.go](file://internal/handler/third_party_user.go)
+- [router.go:329-331](file://internal/router.go#L329-L331)
+
+### 站内消息接口
+- GET /api/v1/admin/auth/messages：消息列表（分页）。
+- GET /api/v1/admin/auth/messages/{id}：消息详情。
+- POST /api/v1/admin/auth/messages/read：标记已读。
+- POST /api/v1/admin/auth/messages/read-all：标记全部已读。
+- POST /api/v1/admin/auth/messages/unread：标记未读。
+- GET /api/v1/admin/auth/messages/unread-count：未读消息统计。
+- POST /api/v1/admin/auth/messages/delete-batch：批量删除。
+- POST /api/v1/admin/auth/messages/clear：清空消息（按类型/级别）。
+- DELETE /api/v1/admin/auth/messages/{id}：删除单条消息。
+- GET /api/v1/admin/auth/messages/preference：获取消息偏好。
+- PUT /api/v1/admin/auth/messages/preference：更新消息偏好。
+- POST /api/v1/admin/auth/messages/broadcast：广播消息（按全员/用户/角色）。
+- POST /api/v1/admin/auth/messages/test-push：测试推送。
+
+章节来源
+- [message.go](file://internal/handler/message.go)
+- [router.go:333-352](file://internal/router.go#L333-L352)
+
+### SSE 接口
+- POST /api/v1/admin/auth/sse/ticket：签发 SSE 连接 Ticket。
+- GET /api/v1/admin/sse/connect：使用 Ticket 建立 SSE 连接（独立鉴权，不走权限中间件）。
+
+章节来源
+- [sse.go](file://internal/handler/sse.go)
+- [router.go:353-365](file://internal/router.go#L353-L365)
+
+### 插件管理接口
+- POST /api/v1/admin/auth/plugins/install：安装插件。
+- GET /api/v1/admin/auth/plugins：插件列表。
+- GET /api/v1/admin/auth/plugins/{plugin_id}：插件详情。
+- POST /api/v1/admin/auth/plugins/{plugin_id}/enable：启用插件。
+- POST /api/v1/admin/auth/plugins/{plugin_id}/disable：禁用插件。
+- DELETE /api/v1/admin/auth/plugins/{plugin_id}：卸载插件。
+- 插件反向代理：`/api/v1/plugin/:plugin_id/*` 将请求代理到插件进程。
+
+章节来源
+- [router.go:113-124](file://internal/router.go#L113-L124)
+- [router.go:227-235](file://internal/router.go#L227-L235)
 
 ## 依赖分析
 - 路由依赖：路由层依赖处理器层与中间件；处理器依赖服务层；服务层依赖 ORM 与外部组件（JWT、Casbin、文件系统、缓存）。
@@ -287,11 +421,11 @@ CFG --> M3
 ```
 
 图表来源
-- [router.go:16-190](file://internal/router.go#L16-L190)
+- [router.go:16-365](file://internal/router.go#L16-L365)
 - [config.yml:1-143](file://config/config.yml#L1-L143)
 
 章节来源
-- [router.go:16-190](file://internal/router.go#L16-L190)
+- [router.go:16-365](file://internal/router.go#L16-L365)
 - [config.yml:1-143](file://config/config.yml#L1-L143)
 
 ## 性能考虑
@@ -319,7 +453,7 @@ CFG --> M3
 - [response.go:9-50](file://internal/utils/response.go#L9-L50)
 
 ## 结论
-本系统提供了完善的 RESTful API，覆盖认证、用户、权限、文件、配置与日志等核心管理场景。通过 JWT 与 Casbin 实现强认证与细粒度授权，结合统一响应与中间件体系，具备良好的安全性、可维护性与扩展性。建议在生产环境中启用缓存、对象存储与完善的监控告警体系，持续优化性能与稳定性。
+本系统提供了完善的 RESTful API，覆盖认证、管理员、用户、角色、权限、文件、定时任务、配置、字典、日志、站内消息、SSE 实时推送、黑名单、第三方账号、插件管理等核心管理场景。通过 JWT 与 Casbin 实现强认证与细粒度授权，结合黑名单中间件(BlacklistCheck)、统一响应与中间件体系，具备良好的安全性、可维护性与扩展性。建议在生产环境中启用缓存、对象存储与完善的监控告警体系，持续优化性能与稳定性。
 
 ## 附录
 

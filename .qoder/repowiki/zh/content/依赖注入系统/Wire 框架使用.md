@@ -59,42 +59,42 @@ A --> J["go.mod<br/>模块与依赖"]
 ```
 
 图表来源
-- [main.go:47-57](file://main.go#L47-L57)
+- [main.go:47-106](file://main.go#L47-L106)
 - [internal/wire.go:22-37](file://internal/wire.go#L22-L37)
 - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
-- [internal/init.go:39-96](file://internal/init.go#L39-L96)
-- [internal/router.go:16-190](file://internal/router.go#L16-L190)
-- [internal/cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
-- [internal/app.go:15-26](file://internal/app.go#L15-L26)
+- [internal/init.go:46-129](file://internal/init.go#L46-L129)
+- [internal/router.go:16-365](file://internal/router.go#L16-L365)
+- [internal/cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
+- [internal/app.go:16-28](file://internal/app.go#L16-L28)
 - [internal/provider.go:17-46](file://internal/provider.go#L17-L46)
-- [config/config.yml:1-143](file://config/config.yml#L1-L143)
-- [go.mod:1-128](file://go.mod#L1-L128)
+- [config/config.yml:1-147](file://config/config.yml#L1-L147)
+- [go.mod:1-145](file://go.mod#L1-L145)
 
 章节来源
-- [main.go:47-57](file://main.go#L47-L57)
+- [main.go:47-106](file://main.go#L47-L106)
 - [internal/wire.go:22-37](file://internal/wire.go#L22-L37)
 - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
-- [internal/init.go:39-96](file://internal/init.go#L39-L96)
-- [internal/router.go:16-190](file://internal/router.go#L16-L190)
-- [internal/cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
-- [internal/app.go:15-26](file://internal/app.go#L15-L26)
+- [internal/init.go:46-129](file://internal/init.go#L46-L129)
+- [internal/router.go:16-365](file://internal/router.go#L16-L365)
+- [internal/cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
+- [internal/app.go:16-28](file://internal/app.go#L16-L28)
 - [internal/provider.go:17-46](file://internal/provider.go#L17-L46)
-- [config/config.yml:1-143](file://config/config.yml#L1-L143)
-- [go.mod:1-128](file://go.mod#L1-L128)
+- [config/config.yml:1-147](file://config/config.yml#L1-L147)
+- [go.mod:1-145](file://go.mod#L1-L145)
 
 ## 核心组件
-- 应用依赖容器 App：集中持有配置、日志、数据库、验证器、缓存、Ent 客户端、Casbin 策略管理器、文件系统等依赖
+- 应用依赖容器 App：集中持有配置、日志、数据库、验证器、缓存、Ent 客户端、Casbin 策略管理器、文件系统、SSE Hub、SSE TicketStore 等依赖
 - 声明式依赖图：通过 wire.Build 组合 ProviderSet 与自定义 Provider，形成可编译的依赖图
 - 生成代码：wire_gen.go 中的手工等价实现，用于非 wireinject 构建场景
-- 生命周期与路由：init.go 负责初始化；router.go 注册路由；cleanup.go 负责资源回收
+- 生命周期与路由：init.go 负责初始化（含 SSE Hub/TicketStore 初始化）；router.go 注册路由；cleanup.go 负责资源回收
 
 章节来源
-- [internal/app.go:15-26](file://internal/app.go#L15-L26)
+- [internal/app.go:16-28](file://internal/app.go#L16-L28)
 - [internal/wire.go:22-37](file://internal/wire.go#L22-L37)
 - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
-- [internal/init.go:39-96](file://internal/init.go#L39-L96)
-- [internal/router.go:16-190](file://internal/router.go#L16-L190)
-- [internal/cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
+- [internal/init.go:46-129](file://internal/init.go#L46-L129)
+- [internal/router.go:16-365](file://internal/router.go#L16-L365)
+- [internal/cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
 
 ## 架构总览
 Wire 在本项目中的工作流如下：
@@ -126,7 +126,7 @@ Main->>Router : "注册路由"
 - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
 - [main.go:47-57](file://main.go#L47-L57)
 - [internal/init.go:29-37](file://internal/init.go#L29-L37)
-- [internal/router.go:16-190](file://internal/router.go#L16-L190)
+- [internal/router.go:16-365](file://internal/router.go#L16-L365)
 
 ## 详细组件分析
 
@@ -181,7 +181,7 @@ J --> K["组装 App 并返回"]
 
 ### 组件三：应用依赖容器（App）
 - App 结构体集中持有应用所需的所有依赖，便于在初始化、路由、服务层复用
-- 字段覆盖：配置、日志、数据库、验证器、缓存、Ent 客户端、策略管理器、文件系统
+- 字段覆盖：配置、日志、数据库、验证器、缓存、Ent 客户端、策略管理器、文件系统、SSE Hub、SSE TicketStore
 
 ```mermaid
 classDiagram
@@ -194,14 +194,16 @@ class App {
 +EntClient
 +EnforcerManager
 +Filesystem
++Hub
++TicketStore
 }
 ```
 
 图表来源
-- [internal/app.go:15-26](file://internal/app.go#L15-L26)
+- [internal/app.go:16-28](file://internal/app.go#L16-L28)
 
 章节来源
-- [internal/app.go:15-26](file://internal/app.go#L15-L26)
+- [internal/app.go:16-28](file://internal/app.go#L16-L28)
 
 ### 组件四：自定义 Provider（Ent、Casbin、EnforcerManager）
 - NewEntClient：基于配置与数据库管理器创建 Ent 客户端，并执行 schema 自动迁移
@@ -231,8 +233,8 @@ CA-->>EM : "传入适配器与配置"
 
 ### 组件五：入口程序与生命周期
 - main.go：调用 InitializeApp 获取 App，设置全局日志与引导流程，注册中间件与路由，最后在 defer 中执行清理
-- init.go：兼容旧模式与新注入模式，优先使用 Wire 注入的依赖，否则回退到手动初始化
-- cleanup.go：在退出前保存 UID 计数器、停止定时任务、关闭数据库连接池与 Ent 客户端
+- init.go：兼容旧模式与新注入模式，优先使用 Wire 注入的依赖，否则回退到手动初始化；顺序执行：global.ORM 设置 → EnforcerManager 配置 → CronManager 启动 → Nonce 存储 → 分片清理协程 → RSA 密钥轮换 → SSE Hub/TicketStore → 种子数据
+- cleanup.go：在退出前保存 UID 计数器、清理过期分片会话、停止分片清理协程、停止定时任务、关闭数据库连接池与 Ent 客户端
 
 ```mermaid
 sequenceDiagram
@@ -249,16 +251,16 @@ M-->>C : "defer 调用清理"
 ```
 
 图表来源
-- [main.go:47-107](file://main.go#L47-L107)
-- [internal/init.go:29-96](file://internal/init.go#L29-L96)
-- [internal/router.go:16-190](file://internal/router.go#L16-L190)
-- [internal/cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
+- [main.go:47-106](file://main.go#L47-L106)
+- [internal/init.go:46-129](file://internal/init.go#L46-L129)
+- [internal/router.go:16-365](file://internal/router.go#L16-L365)
+- [internal/cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
 
 章节来源
-- [main.go:47-107](file://main.go#L47-L107)
-- [internal/init.go:29-96](file://internal/init.go#L29-L96)
-- [internal/router.go:16-190](file://internal/router.go#L16-L190)
-- [internal/cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
+- [main.go:47-106](file://main.go#L47-L106)
+- [internal/init.go:46-129](file://internal/init.go#L46-L129)
+- [internal/router.go:16-365](file://internal/router.go#L16-L365)
+- [internal/cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
 
 ## 依赖分析
 - 模块与外部依赖：go.mod 明确声明了 Wire、Ent、Casbin、Fiber、Zap 等依赖
@@ -270,20 +272,20 @@ graph TB
 M["go.mod"] --> W["github.com/google/wire"]
 M --> E["entgo.io/ent"]
 M --> C["github.com/casbin/casbin/v2"]
-M --> F["github.com/gofiber/fiber/v2"]
+M --> F["github.com/gofiber/fiber/v3"]
 M --> Z["go.uber.org/zap"]
 CFG["config/config.yml"] --> APP["应用运行时"]
 W --> GEN["internal/wire_gen.go"]
 ```
 
 图表来源
-- [go.mod:1-128](file://go.mod#L1-L128)
-- [config/config.yml:1-143](file://config/config.yml#L1-L143)
+- [go.mod:1-145](file://go.mod#L1-L145)
+- [config/config.yml:1-147](file://config/config.yml#L1-L147)
 - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
 
 章节来源
-- [go.mod:1-128](file://go.mod#L1-L128)
-- [config/config.yml:1-143](file://config/config.yml#L1-L143)
+- [go.mod:1-145](file://go.mod#L1-L145)
+- [config/config.yml:1-147](file://config/config.yml#L1-L147)
 - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
 
 ## 性能考虑
@@ -310,12 +312,12 @@ W --> GEN["internal/wire_gen.go"]
   - 排查：逐个检查配置项、数据库连接、文件系统路径、Casbin 模型等
   - 参考
     - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
-    - [config/config.yml:1-143](file://config/config.yml#L1-L143)
+    - [config/config.yml:1-147](file://config/config.yml#L1-L147)
 - 资源泄漏
   - 症状：退出时数据库连接池未关闭
   - 排查：确认 cleanup.go 中的关闭顺序与调用
   - 参考
-    - [internal/cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
+    - [internal/cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
 
 章节来源
 - [internal/wire.go:1-3](file://internal/wire.go#L1-L3)
@@ -323,8 +325,8 @@ W --> GEN["internal/wire_gen.go"]
 - [internal/wire.go:22-37](file://internal/wire.go#L22-L37)
 - [internal/provider.go:17-46](file://internal/provider.go#L17-L46)
 - [internal/wire_gen.go:17-62](file://internal/wire_gen.go#L17-L62)
-- [config/config.yml:1-143](file://config/config.yml#L1-L143)
-- [internal/cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
+- [config/config.yml:1-147](file://config/config.yml#L1-L147)
+- [internal/cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
 
 ## 结论
 本项目通过 Wire 将依赖注入声明化与编译时生成相结合，实现了清晰、可维护且高性能的应用初始化流程。配合构建标签与生成代码，既能满足开发期的快速迭代，也能在生产环境保持稳定的初始化行为。建议在团队内推广统一的 ProviderSet 使用规范与初始化顺序约定，持续优化关键路径（如 Casbin 域自动加载）。

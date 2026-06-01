@@ -146,16 +146,18 @@ func GetAdmin(c fiber.Ctx) error {
 	}
 
 	adminData := fiber.Map{
-		"id":         uid,
-		"email":      admin.Email,
-		"username":   admin.Username,
-		"nickname":   admin.Nickname,
-		"name":       admin.Name,
-		"phone":      admin.Phone,
-		"avatar":     admin.Avatar,
-		"department": admin.Department,
-		"position":   admin.Position,
-		"status":     admin.Status,
+		"id":             uid,
+		"email":          admin.Email,
+		"username":       admin.Username,
+		"nickname":       admin.Nickname,
+		"name":           admin.Name,
+		"phone":          admin.Phone,
+		"avatar":         admin.Avatar,
+		"department":     admin.Department,
+		"position":       admin.Position,
+		"status":         admin.Status,
+		"is_super_admin": admin.IsSuperAdmin,
+		"roles":          admin.Roles,
 	}
 
 	return response.Success(adminData).ToJSON(c)

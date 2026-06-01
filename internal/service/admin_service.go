@@ -7,6 +7,8 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
+	"go-admin/internal/ent/role"
 	"go-admin/internal/global"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -46,6 +48,7 @@ func NewAdminService() *AdminService {
 // AdminLoginRequest 管理员登录请求
 type AdminLoginRequest struct {
 	Email             string `json:"email"`
+	Username          string `json:"username"`
 	Password          string `json:"password"`
 	EncryptedUsername string `json:"encrypted_username"`
 	EncryptedPassword string `json:"encrypted_password"`
@@ -56,8 +59,13 @@ type AdminLoginRequest struct {
 
 // Login 管理员登录
 func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*TokenResponse, error) {
+	account := req.Email
+	if account == "" {
+		account = req.Username
+	}
+
 	a, err := s.client.Admin.Query().
-		Where(admin.Or(admin.EmailEQ(req.Email), admin.UsernameEQ(req.Email))).
+		Where(admin.Or(admin.EmailEQ(account), admin.UsernameEQ(account))).
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -214,17 +222,18 @@ func (s *AdminService) RefreshToken(ctx context.Context, refreshToken string) (*
 
 // AdminResponse 管理员信息响应
 type AdminResponse struct {
-	ID           string `json:"id"`
-	Email        string `json:"email"`
-	Username     string `json:"username"`
-	Nickname     string `json:"nickname"`
-	Name         string `json:"name"`
-	Phone        string `json:"phone"`
-	Avatar       string `json:"avatar"`
-	Department   string `json:"department"`
-	Position     string `json:"position"`
-	Status       string `json:"status"`
-	IsSuperAdmin bool   `json:"is_super_admin"`
+	ID           string   `json:"id"`
+	Email        string   `json:"email"`
+	Username     string   `json:"username"`
+	Nickname     string   `json:"nickname"`
+	Name         string   `json:"name"`
+	Phone        string   `json:"phone"`
+	Avatar       string   `json:"avatar"`
+	Department   string   `json:"department"`
+	Position     string   `json:"position"`
+	Status       string   `json:"status"`
+	IsSuperAdmin bool     `json:"is_super_admin"`
+	Roles        []string `json:"roles"`
 }
 
 // GetAdminByUID 根据UID获取管理员信息
@@ -236,6 +245,11 @@ func (s *AdminService) GetAdminByUID(ctx context.Context, uid string) (*AdminRes
 		if ent.IsNotFound(err) {
 			return nil, ErrAdminNotFound
 		}
+		return nil, err
+	}
+
+	roleNames, err := s.getAdminRoleNames(ctx, a.ID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -251,7 +265,29 @@ func (s *AdminService) GetAdminByUID(ctx context.Context, uid string) (*AdminRes
 		Position:     a.Position,
 		Status:       string(a.Status),
 		IsSuperAdmin: a.IsSuperAdmin,
+		Roles:        roleNames,
 	}, nil
+}
+
+func (s *AdminService) getAdminRoleNames(ctx context.Context, adminID int) ([]string, error) {
+	adminRoles, err := s.client.AdminRole.Query().
+		Where(adminrole.AdminIDEQ(adminID)).
+		WithRole(func(q *ent.RoleQuery) {
+			q.Where(role.StatusEQ(role.StatusActive))
+		}).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	roleNames := make([]string, 0, len(adminRoles))
+	for _, adminRole := range adminRoles {
+		if adminRole.Edges.Role == nil {
+			continue
+		}
+		roleNames = append(roleNames, adminRole.Edges.Role.Name)
+	}
+	return roleNames, nil
 }
 
 // UpdateAdmin 更新管理员信息

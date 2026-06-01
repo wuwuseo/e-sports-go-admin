@@ -80,24 +80,24 @@ WG --> A
 - [wire.go:22-37](file://internal/wire.go#L22-L37)
 - [wire_gen.go:18-62](file://internal/wire_gen.go#L18-L62)
 - [provider.go:17-46](file://internal/provider.go#L17-L46)
-- [app.go:15-26](file://internal/app.go#L15-L26)
+- [app.go:15-28](file://internal/app.go#L15-L28)
 - [adapter.go:76-113](file://internal/casbin/adapter/adapter.go#L76-L113)
 
 章节来源
 - [wire.go:1-38](file://internal/wire.go#L1-L38)
 - [wire_gen.go:1-62](file://internal/wire_gen.go#L1-L62)
 - [provider.go:1-47](file://internal/provider.go#L1-L47)
-- [app.go:1-26](file://internal/app.go#L1-L26)
+- [app.go:1-28](file://internal/app.go#L1-L28)
 - [main.go:1-108](file://main.go#L1-L108)
 
 ## 核心组件
-- App 依赖容器：集中承载配置、日志、数据库、校验器、缓存、文件系统、Ent ORM 客户端、Casbin EnforcerManager 等
+- App 依赖容器：集中承载配置、日志、数据库、校验器、缓存、文件系统、Ent ORM 客户端、Casbin EnforcerManager、SSE Hub、SSE TicketStore 等
 - 自定义 Provider：NewEntClient、NewCasbinAdapter、NewEnforcerManager
 - ProviderSet：来自 CMF 的日志、ORM、校验、缓存、文件系统 ProviderSet
 - 手动生成实现：wire_gen.go 提供非 wireinject 构建下的等效实现
 
 章节来源
-- [app.go:15-26](file://internal/app.go#L15-L26)
+- [app.go:16-28](file://internal/app.go#L16-L28)
 - [provider.go:17-46](file://internal/provider.go#L17-L46)
 - [wire.go:22-37](file://internal/wire.go#L22-L37)
 - [wire_gen.go:18-62](file://internal/wire_gen.go#L18-L62)
@@ -179,13 +179,13 @@ Main->>Main : 启动 Bootstrap 并注册 Init/Cleanup
 
 ### 作用域与生命周期管理
 - App 作为全局依赖容器，承载各子系统实例
-- 清理流程：在 Cleanup 中依次关闭数据库连接池与 Ent 客户端，确保资源释放
+- 清理流程：在 Cleanup 中依次持久化 UID、清理过期分片会话、停止分片清理协程、停止 CronManager、关闭数据库连接池与 Ent 客户端，确保资源释放
 - 生命周期：通过 Bootstrap 的 RegisterInitFunc 与 RegisterCleanupFunc 管理初始化与清理
 
 章节来源
-- [app.go:15-26](file://internal/app.go#L15-L26)
-- [cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
-- [main.go:59-96](file://main.go#L59-L96)
+- [app.go:16-28](file://internal/app.go#L16-L28)
+- [cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
+- [main.go:59-106](file://main.go#L59-L106)
 
 ### 复杂依赖关系配置示例
 - 数据库与权限控制链路：配置 -> 数据库管理器 -> Ent 客户端 -> Casbin 适配器 -> EnforcerManager
@@ -250,7 +250,7 @@ I --> APP["App 依赖容器"]
 章节来源
 - [provider.go:30-33](file://internal/provider.go#L30-L33)
 - [adapter.go:199-213](file://internal/casbin/adapter/adapter.go#L199-L213)
-- [cleanup.go:22-39](file://internal/cleanup.go#L22-L39)
+- [cleanup.go:22-49](file://internal/cleanup.go#L22-L49)
 - [config.yml:32-74](file://config/config.yml#L32-L74)
 
 ## 故障排查指南
@@ -262,7 +262,7 @@ I --> APP["App 依赖容器"]
 章节来源
 - [init.go:98-132](file://internal/init.go#L98-L132)
 - [init.go:134-310](file://internal/init.go#L134-L310)
-- [cleanup.go:11-42](file://internal/cleanup.go#L11-L42)
+- [cleanup.go:12-51](file://internal/cleanup.go#L12-L51)
 - [wire.go:24-35](file://internal/wire.go#L24-L35)
 
 ## 结论

@@ -7,6 +7,7 @@ import (
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
+	"go-admin/internal/ent/role"
 	"go-admin/internal/global"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -163,6 +164,26 @@ func TestAdminService_Login_Success(t *testing.T) {
 	}
 	if claims["id"] != "uid-admin-login" {
 		t.Errorf("期望id=uid-admin-login, 实际=%v", claims["id"])
+	}
+}
+
+func TestAdminService_Login_AcceptsUsernameField(t *testing.T) {
+	client, _, cleanup := setupAdminServiceTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	createTestAdminWithPassword(t, client, "username-login@test.com", "uid-username-login", "username_login", "adminpass123", admin.StatusActive)
+
+	svc := NewAdminService()
+	resp, err := svc.Login(ctx, &AdminLoginRequest{
+		Username: "username_login",
+		Password: "adminpass123",
+	})
+	if err != nil {
+		t.Fatalf("绠＄悊鍛樼敤 username 瀛楁鐧诲綍澶辫触: %v", err)
+	}
+	if resp.AccessToken == "" {
+		t.Fatal("鏈熸湜杩斿洖璁块棶浠ょ墝锛屼絾涓虹┖")
 	}
 }
 
@@ -353,6 +374,42 @@ func TestAdminService_GetAdminByUID_Success(t *testing.T) {
 	}
 	if result.Username != "getadmin" {
 		t.Errorf("期望Username=getadmin, 实际=%s", result.Username)
+	}
+}
+
+func TestAdminService_GetAdminByUID_ReturnsAdminRoles(t *testing.T) {
+	client, _, cleanup := setupAdminServiceTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	a := createTestAdminRaw(t, client, "roles@test.com", "uid-admin-roles", "roleadmin", "pass", admin.StatusActive)
+	r, err := client.Role.Create().
+		SetName("normal_admin").
+		SetDisplayName("普通管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+	_, err = client.AdminRole.Create().
+		SetAdminID(a.ID).
+		SetRoleID(r.ID).
+		SetIsPrimary(true).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("分配管理员角色失败: %v", err)
+	}
+
+	svc := NewAdminService()
+	result, err := svc.GetAdminByUID(ctx, "uid-admin-roles")
+	if err != nil {
+		t.Fatalf("获取管理员信息失败: %v", err)
+	}
+	if result.IsSuperAdmin {
+		t.Fatal("普通管理员不应返回 is_super_admin=true")
+	}
+	if len(result.Roles) != 1 || result.Roles[0] != "normal_admin" {
+		t.Fatalf("期望返回 normal_admin 角色，实际=%v", result.Roles)
 	}
 }
 
