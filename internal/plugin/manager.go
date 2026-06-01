@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"go-admin/internal/ent"
@@ -22,6 +23,15 @@ type Manager interface {
 	Uninstall(ctx context.Context, pluginID string) error
 	List(ctx context.Context) ([]cmfplugin.PluginInfo, error)
 	Get(ctx context.Context, pluginID string) (*cmfplugin.PluginInfo, error)
+	ResolveEndpoint(ctx context.Context, pluginID string) (*Endpoint, error)
+}
+
+type Endpoint struct {
+	PluginID  string
+	Protocol  string
+	Transport string
+	Address   string
+	Socket    string
 }
 
 type Options struct {
@@ -40,8 +50,14 @@ func NewManager(client *ent.Client, opts Options) *DefaultManager {
 	if opts.PluginRoot == "" {
 		opts.PluginRoot = filepath.Join(".", "data", "plugins")
 	}
+	if absRoot, err := filepath.Abs(opts.PluginRoot); err == nil {
+		opts.PluginRoot = absRoot
+	}
 	if opts.TempRoot == "" {
 		opts.TempRoot = filepath.Join(os.TempDir(), "go-admin-plugins")
+	}
+	if absTemp, err := filepath.Abs(opts.TempRoot); err == nil {
+		opts.TempRoot = absTemp
 	}
 	if opts.Registry == nil {
 		opts.Registry = cmfplugin.NewMemoryExtensionRegistry()
@@ -116,27 +132,12 @@ func (m *DefaultManager) Enable(ctx context.Context, pluginID string) error {
 	if err != nil {
 		return err
 	}
-	if record.Status == pluginent.StatusEnabled {
-		return nil
-	}
 	info, err := recordToInfo(record)
 	if err != nil {
 		return err
 	}
-	for _, point := range info.Manifest.ExtensionPoints {
-		if err := m.opts.Registry.Register(info.ID, point, map[string]any{"plugin_id": info.ID}); err != nil {
-			return err
-		}
-	}
-	if info.Manifest.Engine.Type == cmfplugin.EngineTypeProcess {
-		if err := m.opts.Runtime.Start(ctx, *info); err != nil {
-			_ = m.markError(ctx, record, err)
-			return ErrEnableFailed
-		}
-	}
-	if err := m.opts.Runtime.Health(ctx, pluginID); err != nil {
-		_ = m.markError(ctx, record, err)
-		return ErrEnableFailed
+	if err := m.startAndRegister(ctx, record, info); err != nil {
+		return err
 	}
 	_, err = m.client.Plugin.UpdateOne(record).
 		SetStatus(pluginent.StatusEnabled).
@@ -144,6 +145,59 @@ func (m *DefaultManager) Enable(ctx context.Context, pluginID string) error {
 		ClearErrorMessage().
 		Save(ctx)
 	return err
+}
+
+func (m *DefaultManager) RestoreEnabled(ctx context.Context) error {
+	records, err := m.client.Plugin.Query().Where(pluginent.StatusEQ(pluginent.StatusEnabled)).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		info, err := recordToInfo(record)
+		if err != nil {
+			_ = m.markError(ctx, record, err)
+			return err
+		}
+		if err := m.startAndRegister(ctx, record, info); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *DefaultManager) startAndRegister(ctx context.Context, record *ent.Plugin, info *cmfplugin.PluginInfo) error {
+	installPath, err := filepath.Abs(info.InstallPath)
+	if err != nil {
+		_ = m.markError(ctx, record, err)
+		return ErrInvalidPath
+	}
+	info = clonePluginInfoWithInstallPath(info, installPath)
+	_ = m.opts.Registry.UnregisterPlugin(info.ID)
+	for _, point := range info.Manifest.ExtensionPoints {
+		if err := m.opts.Registry.Register(info.ID, point, map[string]any{"plugin_id": info.ID}); err != nil {
+			return err
+		}
+	}
+	if info.Manifest.Engine.Type == cmfplugin.EngineTypeProcess {
+		if err := m.opts.Runtime.Start(ctx, *info); err != nil {
+			_ = m.opts.Registry.UnregisterPlugin(info.ID)
+			_ = m.markError(ctx, record, err)
+			return ErrEnableFailed
+		}
+	}
+	if err := m.opts.Runtime.Health(ctx, info.ID); err != nil {
+		_ = m.opts.Runtime.Stop(ctx, info.ID)
+		_ = m.opts.Registry.UnregisterPlugin(info.ID)
+		_ = m.markError(ctx, record, err)
+		return ErrEnableFailed
+	}
+	return nil
+}
+
+func clonePluginInfoWithInstallPath(info *cmfplugin.PluginInfo, installPath string) *cmfplugin.PluginInfo {
+	clone := *info
+	clone.InstallPath = installPath
+	return &clone
 }
 
 func (m *DefaultManager) Disable(ctx context.Context, pluginID string) error {
@@ -208,6 +262,49 @@ func (m *DefaultManager) Get(ctx context.Context, pluginID string) (*cmfplugin.P
 		return nil, err
 	}
 	return recordToInfo(record)
+}
+
+func (m *DefaultManager) ResolveEndpoint(ctx context.Context, pluginID string) (*Endpoint, error) {
+	record, err := m.findRecord(ctx, pluginID)
+	if err != nil {
+		return nil, err
+	}
+	if record.Status != pluginent.StatusEnabled {
+		return nil, ErrNotEnabled
+	}
+	info, err := recordToInfo(record)
+	if err != nil {
+		return nil, err
+	}
+	platform := runtime.GOOS + "-" + runtime.GOARCH
+	engine := info.Manifest.Engine
+	transport := engine.Transport[platform]
+	if transport == "" {
+		transport = cmfplugin.TransportTCP
+	}
+	endpoint := &Endpoint{
+		PluginID:  info.ID,
+		Protocol:  engine.Protocol,
+		Transport: transport,
+		Address:   engine.Address[platform],
+	}
+	if endpoint.Transport == cmfplugin.TransportTCP && endpoint.Address == "" {
+		return nil, ErrInvalidPath
+	}
+	if endpoint.Transport == cmfplugin.TransportUnix {
+		socket := engine.Socket[platform]
+		if socket == "" {
+			return nil, ErrInvalidPath
+		}
+		if filepath.IsAbs(socket) {
+			return nil, ErrInvalidPath
+		}
+		endpoint.Socket = filepath.Join(info.InstallPath, socket)
+		if !cmfplugin.IsWithinRoot(info.InstallPath, endpoint.Socket) {
+			return nil, ErrInvalidPath
+		}
+	}
+	return endpoint, nil
 }
 
 func (m *DefaultManager) findRecord(ctx context.Context, pluginID string) (*ent.Plugin, error) {

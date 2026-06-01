@@ -81,7 +81,7 @@ Install request:
 
 ## Phase 1 Limits
 
-Phase 1 does not include an online marketplace, payments, ratings, developer accounts, or remote auditing. Plugins use an external process runtime skeleton; HTTP/gRPC/stdio protocols are reserved in the manifest, but real protocol handshakes are implemented in later phases.
+Phase 1 does not include an online marketplace, payments, ratings, developer accounts, or remote auditing. Process plugins are started, stopped, and health-tracked by the local runtime. HTTP/gRPC/stdio protocols are reserved in the manifest, but real protocol handshakes are implemented in later phases.
 
 ## Future Expansion
 

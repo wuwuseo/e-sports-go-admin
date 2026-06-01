@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
+	"strings"
 
 	"go-admin/internal/global"
 	adminplugin "go-admin/internal/plugin"
@@ -134,6 +136,74 @@ func UninstallPlugin(c fiber.Ctx) error {
 	return resp.Success(nil, global.ResponseSuccessCode, "卸载插件成功").ToJSON(c)
 }
 
+func ProxyPlugin(c fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	pluginService := c.Locals("service.PluginService").(service.PluginServiceInterface)
+	if protectedProxyPath(c.Locals("plugin.proxy_path_prefix"), c.Params("*")) {
+		return c.SendStatus(fiber.StatusForbidden)
+	}
+	proxyResp, err := pluginService.Proxy(c.Context(), &service.PluginProxyRequest{
+		PluginID: c.Params("plugin_id"),
+		Method:   c.Method(),
+		Path:     proxyPath(c.Locals("plugin.proxy_path_prefix"), c.Params("*")),
+		Query:    string(c.Request().URI().QueryString()),
+		Header:   requestHeader(c),
+		Body:     bytes.NewReader(c.Body()),
+	})
+	if err != nil {
+		return pluginErrorResponse(resp, c, err, "代理插件请求失败")
+	}
+	for key, values := range proxyResp.Header {
+		for _, value := range values {
+			c.Append(key, value)
+		}
+	}
+	return c.Status(proxyResp.StatusCode).Send(proxyResp.Body)
+}
+
+func protectedProxyPath(prefix any, path string) bool {
+	if value, ok := prefix.(string); ok && value != "" {
+		return false
+	}
+	path = strings.Trim(path, "/")
+	return path == "admin/auth" || strings.HasPrefix(path, "admin/auth/")
+}
+
+func proxyPath(prefix any, path string) string {
+	parts := make([]string, 0, 2)
+	if value, ok := prefix.(string); ok && value != "" {
+		parts = append(parts, strings.Trim(value, "/"))
+	}
+	path = strings.Trim(path, "/")
+	if path != "" {
+		parts = append(parts, path)
+	}
+	if len(parts) == 0 {
+		return "/"
+	}
+	return "/" + strings.Join(parts, "/")
+}
+
+func requestHeader(c fiber.Ctx) map[string][]string {
+	out := make(map[string][]string)
+	for key, values := range c.GetReqHeaders() {
+		if filteredProxyHeader(key) {
+			continue
+		}
+		out[key] = append([]string(nil), values...)
+	}
+	return out
+}
+
+func filteredProxyHeader(key string) bool {
+	switch strings.ToLower(key) {
+	case "authorization", "cookie", "set-cookie", "host", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade":
+		return true
+	default:
+		return strings.HasPrefix(strings.ToLower(key), "x-forwarded-")
+	}
+}
+
 func pluginErrorResponse(resp *utils.Response, c fiber.Ctx, err error, fallback string) error {
 	switch {
 	case errors.Is(err, adminplugin.ErrNotFound):
@@ -150,6 +220,12 @@ func pluginErrorResponse(resp *utils.Response, c fiber.Ctx, err error, fallback 
 		return resp.Fail(global.ErrCodePluginDisableFailed, "插件停用失败").ToJSON(c)
 	case errors.Is(err, adminplugin.ErrUninstallFailed):
 		return resp.Fail(global.ErrCodePluginUninstallFail, "插件卸载失败").ToJSON(c)
+	case errors.Is(err, adminplugin.ErrNotEnabled):
+		return resp.Fail(global.ResponseErrorCode, "插件未启用").ToJSON(c)
+	case errors.Is(err, adminplugin.ErrProxyFailed):
+		return resp.Fail(global.ResponseInternalServerError, "代理插件请求失败").ToJSON(c)
+	case errors.Is(err, adminplugin.ErrUnsupportedTransport):
+		return resp.Fail(global.ResponseErrorCode, "插件通信方式不支持").ToJSON(c)
 	default:
 		return resp.Fail(global.ResponseInternalServerError, fallback).ToJSON(c)
 	}

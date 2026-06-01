@@ -7,6 +7,9 @@ tmp/
 /data/logs
 /data/.uid_counter
 /data/storage
+/data/plugins
+/data/plugin-packages
+/data/plugin-tmp
 go-admin
 /.env
 

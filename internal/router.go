@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"context"
+
 	"go-admin/internal/global"
 	"go-admin/internal/handler"
 	"go-admin/internal/middleware"
@@ -92,6 +94,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		Registry:   pluginRegistry,
 		Runtime:    pluginRuntime,
 	})
+	_ = pluginManager.RestoreEnabled(context.Background())
 	pluginService := service.NewPluginService(pluginManager)
 	// 公开接口
 	public.Post("/login", handler.Login)
@@ -107,8 +110,21 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminPublicLogin.Post("/login", handler.AdminLogin)
 	adminPublicLogin.Post("/refresh", handler.AdminRefreshToken)
 
-	// 需要认证+权限校验的接口
-	adminAuth := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
+	pluginProxy := v1.Group("/plugin", func(c fiber.Ctx) error {
+		c.Locals("service.PluginService", pluginService)
+		return c.Next()
+	})
+	pluginProxyAuth := []any{jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
+		c.Locals("service.PermissionService", permissionService)
+		c.Locals("plugin.proxy_path_prefix", "/admin/auth")
+		return c.Next()
+	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware(), handler.ProxyPlugin}
+	pluginProxy.All("/:plugin_id/admin/auth", pluginProxyAuth[0], pluginProxyAuth[1:]...)
+	pluginProxy.All("/:plugin_id/admin/auth/*", pluginProxyAuth[0], pluginProxyAuth[1:]...)
+	pluginProxy.All("/:plugin_id/*", handler.ProxyPlugin)
+
+	// 需要认证的接口
+	adminAuthBase := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.SuperAdminService", service.NewSuperAdminService())
 		c.Locals("service.AdminService", service.NewAdminService())
 		c.Locals("service.UserService", userService)
@@ -127,12 +143,16 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.PluginService", pluginService)
 		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
-	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware())
+	}, middleware.BlacklistCheck(blacklistService))
 
-	adminAuth.Get("/user", handler.GetAdmin)
-	adminAuth.Put("/user", handler.UpdateAdmin)
-	adminAuth.Put("/password", handler.ChangeAdminPassword)
-	adminAuth.Post("/logout", handler.AdminLogout)
+	adminAuthBase.Get("/user", handler.GetAdmin)
+	adminAuthBase.Put("/user", handler.UpdateAdmin)
+	adminAuthBase.Put("/password", handler.ChangeAdminPassword)
+	adminAuthBase.Post("/logout", handler.AdminLogout)
+
+	// 需要认证+权限校验的接口
+	adminAuth := adminAuthBase.Group("", middleware.PermissionMiddleware())
+
 	// 超级管理员管理路由（管理其他管理员账号）
 	adminAuth.Post("/admins", handler.CreateAdmin)
 	adminAuth.Get("/admins", handler.ListAdmins)

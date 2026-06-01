@@ -2,6 +2,10 @@ package service
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	adminplugin "go-admin/internal/plugin"
@@ -24,8 +28,65 @@ func TestPluginServiceInstallDelegatesToManager(t *testing.T) {
 	}
 }
 
+func TestPluginServiceProxyForwardsTCPRequest(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %s, want POST", r.Method)
+		}
+		if r.URL.Path != "/manifest" {
+			t.Fatalf("path = %s, want /manifest", r.URL.Path)
+		}
+		if r.URL.RawQuery != "debug=1" {
+			t.Fatalf("query = %s, want debug=1", r.URL.RawQuery)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(body) != `{"ping":true}` {
+			t.Fatalf("body = %s", string(body))
+		}
+		if r.Header.Get("X-Test") != "yes" {
+			t.Fatalf("X-Test = %q, want yes", r.Header.Get("X-Test"))
+		}
+		w.Header().Set("X-Plugin", "demo")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer backend.Close()
+	address := strings.TrimPrefix(backend.URL, "http://")
+	manager := &fakePluginManager{endpoint: &adminplugin.Endpoint{
+		PluginID:  "admin.example-plugin",
+		Protocol:  cmfplugin.ProtocolHTTP,
+		Transport: cmfplugin.TransportTCP,
+		Address:   address,
+	}}
+	service := NewPluginService(manager)
+	resp, err := service.Proxy(context.Background(), &PluginProxyRequest{
+		PluginID: "admin.example-plugin",
+		Method:   http.MethodPost,
+		Path:     "/manifest",
+		Query:    "debug=1",
+		Header:   http.Header{"X-Test": []string{"yes"}},
+		Body:     strings.NewReader(`{"ping":true}`),
+	})
+	if err != nil {
+		t.Fatalf("Proxy returned error: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	if resp.Header.Get("X-Plugin") != "demo" {
+		t.Fatalf("X-Plugin = %q, want demo", resp.Header.Get("X-Plugin"))
+	}
+	if string(resp.Body) != `{"ok":true}` {
+		t.Fatalf("body = %s", string(resp.Body))
+	}
+}
+
 type fakePluginManager struct {
 	installedPath string
+	endpoint      *adminplugin.Endpoint
 }
 
 func (f *fakePluginManager) Install(ctx context.Context, packagePath string) (*cmfplugin.PluginInfo, error) {
@@ -43,6 +104,12 @@ func (f *fakePluginManager) Get(ctx context.Context, pluginID string) (*cmfplugi
 		return nil, adminplugin.ErrNotFound
 	}
 	return samplePluginInfo(), nil
+}
+func (f *fakePluginManager) ResolveEndpoint(ctx context.Context, pluginID string) (*adminplugin.Endpoint, error) {
+	if f.endpoint == nil {
+		return nil, adminplugin.ErrNotFound
+	}
+	return f.endpoint, nil
 }
 
 func samplePluginInfo() *cmfplugin.PluginInfo {
