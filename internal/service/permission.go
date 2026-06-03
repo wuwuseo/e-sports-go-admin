@@ -127,6 +127,7 @@ type PermissionServiceInterface interface {
 	GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
 	GetUserButtonPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
 	GetUserAPIPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
+	GetUserRoleNames(ctx context.Context, userUID string) ([]string, error)
 
 	// 权限验证
 	CheckPermission(ctx context.Context, userID string, domain, object, action string) (bool, error)
@@ -257,6 +258,10 @@ func (s *PermissionService) getUserRoleNames(ctx context.Context, userUID string
 	}
 
 	return roleNames, nil
+}
+
+func (s *PermissionService) GetUserRoleNames(ctx context.Context, userUID string) ([]string, error) {
+	return s.getUserRoleNames(ctx, userUID)
 }
 
 // getUserPermissionsByType 获取用户指定类型的权限（内部通用方法）

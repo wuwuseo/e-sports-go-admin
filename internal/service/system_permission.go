@@ -417,16 +417,52 @@ func (s *SystemPermissionService) GetTree(ctx context.Context, domain string) ([
 
 // InitSeedPermissions 初始化种子权限（菜单、API、按钮）
 func (s *SystemPermissionService) InitSeedPermissions(ctx context.Context, seeds []SeedPermission) error {
+	seedByID := make(map[int]SeedPermission, len(seeds))
+	actualIDBySeedID := make(map[int]int, len(seeds))
 	for _, seed := range seeds {
-		exists, err := s.client.SystemPermission.Query().
+		if seed.ID > 0 {
+			seedByID[seed.ID] = seed
+		}
+	}
+
+	for _, seed := range seeds {
+		parentID, err := s.resolveSeedParentID(ctx, seed, seedByID, actualIDBySeedID)
+		if err != nil {
+			return err
+		}
+
+		existing, err := s.client.SystemPermission.Query().
 			Where(
 				systempermission.DomainEQ(seed.Domain),
 				systempermission.CodeEQ(seed.Code),
-			).Exist(ctx)
+			).Only(ctx)
 		if err != nil {
-			return fmt.Errorf("检查权限失败: %w", err)
+			if !ent.IsNotFound(err) {
+				return fmt.Errorf("检查权限失败: %w", err)
+			}
 		}
-		if exists {
+
+		if existing != nil {
+			_, err = existing.Update().
+				SetType(seed.Type).
+				SetName(seed.Name).
+				SetPath(seed.Path).
+				SetMethod(seed.Method).
+				SetMenuPath(seed.MenuPath).
+				SetIcon(seed.Icon).
+				SetComponent(seed.Component).
+				SetParentID(parentID).
+				SetSortOrder(seed.SortOrder).
+				SetIsCommon(seed.IsCommon).
+				SetStatus(seed.Status).
+				SetDescription(seed.Description).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("更新种子权限失败: %w", err)
+			}
+			if seed.ID > 0 {
+				actualIDBySeedID[seed.ID] = existing.ID
+			}
 			continue
 		}
 
@@ -445,17 +481,48 @@ func (s *SystemPermissionService) InitSeedPermissions(ctx context.Context, seeds
 			SetStatus(seed.Status).
 			SetDescription(seed.Description)
 
-		if seed.ParentID > 0 {
-			create.SetParentID(seed.ParentID)
-		}
+		create.SetParentID(parentID)
 
-		_, err = create.Save(ctx)
+		created, err := create.Save(ctx)
 		if err != nil {
 			return fmt.Errorf("创建权限失败: %w", err)
+		}
+		if seed.ID > 0 {
+			actualIDBySeedID[seed.ID] = created.ID
 		}
 	}
 
 	return nil
+}
+
+func (s *SystemPermissionService) resolveSeedParentID(ctx context.Context, seed SeedPermission, seedByID map[int]SeedPermission, actualIDBySeedID map[int]int) (int, error) {
+	if seed.ParentID <= 0 {
+		return 0, nil
+	}
+
+	if actualID, ok := actualIDBySeedID[seed.ParentID]; ok {
+		return actualID, nil
+	}
+
+	parentSeed, ok := seedByID[seed.ParentID]
+	if !ok {
+		return seed.ParentID, nil
+	}
+
+	parent, err := s.client.SystemPermission.Query().
+		Where(
+			systempermission.DomainEQ(parentSeed.Domain),
+			systempermission.CodeEQ(parentSeed.Code),
+		).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return seed.ParentID, nil
+		}
+		return 0, fmt.Errorf("查询父级种子权限失败: %w", err)
+	}
+
+	actualIDBySeedID[seed.ParentID] = parent.ID
+	return parent.ID, nil
 }
 
 // InitSystemPermissions 系统启动时初始化所有权限（包含菜单、按钮、API）
@@ -510,6 +577,50 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 45, Domain: "default", Type: "button", Name: "字典管理-编辑按钮", Code: "dict-data:edit", ParentID: 9, SortOrder: 1, IsCommon: false, Status: 1, Description: "字典管理页面编辑按钮"},
 		{ID: 46, Domain: "default", Type: "button", Name: "字典管理-删除按钮", Code: "dict-data:delete", ParentID: 9, SortOrder: 2, IsCommon: false, Status: 1, Description: "字典管理页面删除按钮"},
 		{ID: 47, Domain: "default", Type: "button", Name: "配置管理-编辑按钮", Code: "config:edit", ParentID: 10, SortOrder: 0, IsCommon: false, Status: 1, Description: "配置管理页面编辑按钮"},
+		{ID: 48, Domain: "default", Type: "menu", Name: "插件管理", Code: "plugin", MenuPath: "/system/plugin", Component: "system/plugin/index", ParentID: 3, SortOrder: 7, IsCommon: false, Status: 1, Description: "插件管理页面"},
+		{ID: 49, Domain: "default", Type: "api", Name: "获取插件列表", Code: "plugin:list", Path: "/api/v1/admin/auth/plugins", Method: "GET", ParentID: 48, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取插件列表API"},
+		{ID: 50, Domain: "default", Type: "api", Name: "获取插件详情", Code: "plugin:get", Path: "/api/v1/admin/auth/plugins/{plugin_id}", Method: "GET", ParentID: 48, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取插件详情API"},
+		{ID: 51, Domain: "default", Type: "api", Name: "安装插件", Code: "plugin:install", Path: "/api/v1/admin/auth/plugins/install", Method: "POST", ParentID: 48, SortOrder: 2, IsCommon: false, Status: 1, Description: "安装插件API"},
+		{ID: 52, Domain: "default", Type: "api", Name: "启用插件", Code: "plugin:enable", Path: "/api/v1/admin/auth/plugins/{plugin_id}/enable", Method: "POST", ParentID: 48, SortOrder: 3, IsCommon: false, Status: 1, Description: "启用插件API"},
+		{ID: 53, Domain: "default", Type: "api", Name: "禁用插件", Code: "plugin:disable", Path: "/api/v1/admin/auth/plugins/{plugin_id}/disable", Method: "POST", ParentID: 48, SortOrder: 4, IsCommon: false, Status: 1, Description: "禁用插件API"},
+		{ID: 54, Domain: "default", Type: "api", Name: "卸载插件", Code: "plugin:uninstall", Path: "/api/v1/admin/auth/plugins/{plugin_id}", Method: "DELETE", ParentID: 48, SortOrder: 5, IsCommon: false, Status: 1, Description: "卸载插件API"},
+		{ID: 55, Domain: "default", Type: "button", Name: "插件管理-新增按钮", Code: "plugin:add", ParentID: 48, SortOrder: 0, IsCommon: false, Status: 1, Description: "插件管理页面新增按钮"},
+		{ID: 56, Domain: "default", Type: "button", Name: "插件管理-编辑按钮", Code: "plugin:edit", ParentID: 48, SortOrder: 1, IsCommon: false, Status: 1, Description: "插件管理页面编辑按钮"},
+		{ID: 57, Domain: "default", Type: "button", Name: "插件管理-删除按钮", Code: "plugin:delete", ParentID: 48, SortOrder: 2, IsCommon: false, Status: 1, Description: "插件管理页面删除按钮"},
+		{ID: 59, Domain: "default", Type: "menu", Name: "消息中心", Code: "message", MenuPath: "/message", Icon: "icon-message", ParentID: 0, SortOrder: 3, IsCommon: false, Status: 1, Description: "消息中心模块"},
+		{ID: 60, Domain: "default", Type: "menu", Name: "消息列表", Code: "messagecenter", MenuPath: "/message/center", Component: "message/index", ParentID: 59, SortOrder: 0, IsCommon: false, Status: 1, Description: "消息列表页面"},
+		{ID: 61, Domain: "default", Type: "menu", Name: "消息管理", Code: "messagemanage", MenuPath: "/message/manage", Component: "message/manage", ParentID: 59, SortOrder: 1, IsCommon: false, Status: 1, Description: "消息管理页面"},
+		{ID: 62, Domain: "default", Type: "menu", Name: "发送消息", Code: "messagebroadcast", MenuPath: "/message/broadcast", Component: "message/broadcast", ParentID: 59, SortOrder: 2, IsCommon: false, Status: 1, Description: "发送消息页面"},
+		{ID: 63, Domain: "default", Type: "menu", Name: "消息偏好", Code: "messagepreference", MenuPath: "/message/preference", Component: "message/preference", ParentID: 59, SortOrder: 3, IsCommon: false, Status: 1, Description: "消息偏好页面"},
+		{ID: 64, Domain: "default", Type: "api", Name: "获取消息列表", Code: "message:list", Path: "/api/v1/admin/auth/messages", Method: "GET", ParentID: 60, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取消息列表API"},
+		{ID: 65, Domain: "default", Type: "api", Name: "获取消息详情", Code: "message:get", Path: "/api/v1/admin/auth/messages/{id}", Method: "GET", ParentID: 60, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取消息详情API"},
+		{ID: 66, Domain: "default", Type: "api", Name: "标记消息已读", Code: "message:read", Path: "/api/v1/admin/auth/messages/read", Method: "POST", ParentID: 60, SortOrder: 2, IsCommon: false, Status: 1, Description: "标记消息已读API"},
+		{ID: 67, Domain: "default", Type: "api", Name: "全部标记已读", Code: "message:read-all", Path: "/api/v1/admin/auth/messages/read-all", Method: "POST", ParentID: 60, SortOrder: 3, IsCommon: false, Status: 1, Description: "全部标记已读API"},
+		{ID: 68, Domain: "default", Type: "api", Name: "标记消息未读", Code: "message:unread", Path: "/api/v1/admin/auth/messages/unread", Method: "POST", ParentID: 60, SortOrder: 4, IsCommon: false, Status: 1, Description: "标记消息未读API"},
+		{ID: 69, Domain: "default", Type: "api", Name: "获取未读数量", Code: "message:unread-count", Path: "/api/v1/admin/auth/messages/unread-count", Method: "GET", ParentID: 60, SortOrder: 5, IsCommon: false, Status: 1, Description: "获取未读数量API"},
+		{ID: 70, Domain: "default", Type: "api", Name: "删除消息", Code: "message:delete-api", Path: "/api/v1/admin/auth/messages/{id}", Method: "DELETE", ParentID: 60, SortOrder: 6, IsCommon: false, Status: 1, Description: "删除消息API"},
+		{ID: 71, Domain: "default", Type: "api", Name: "批量删除消息", Code: "message:delete-batch", Path: "/api/v1/admin/auth/messages/delete-batch", Method: "POST", ParentID: 61, SortOrder: 0, IsCommon: false, Status: 1, Description: "批量删除消息API"},
+		{ID: 72, Domain: "default", Type: "api", Name: "清空消息", Code: "message:clear", Path: "/api/v1/admin/auth/messages/clear", Method: "POST", ParentID: 61, SortOrder: 1, IsCommon: false, Status: 1, Description: "清空消息API"},
+		{ID: 73, Domain: "default", Type: "api", Name: "获取消息偏好", Code: "messagepreference:get", Path: "/api/v1/admin/auth/messages/preference", Method: "GET", ParentID: 63, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取消息偏好API"},
+		{ID: 74, Domain: "default", Type: "api", Name: "更新消息偏好", Code: "messagepreference:update", Path: "/api/v1/admin/auth/messages/preference", Method: "PUT", ParentID: 63, SortOrder: 1, IsCommon: false, Status: 1, Description: "更新消息偏好API"},
+		{ID: 75, Domain: "default", Type: "api", Name: "发送广播消息", Code: "messagebroadcast:send", Path: "/api/v1/admin/auth/messages/broadcast", Method: "POST", ParentID: 62, SortOrder: 0, IsCommon: false, Status: 1, Description: "发送广播消息API"},
+		{ID: 76, Domain: "default", Type: "api", Name: "测试推送消息", Code: "message:test-push", Path: "/api/v1/admin/auth/messages/test-push", Method: "POST", ParentID: 62, SortOrder: 1, IsCommon: false, Status: 1, Description: "测试推送消息API"},
+		{ID: 77, Domain: "default", Type: "api", Name: "签发SSE票据", Code: "sse:ticket", Path: "/api/v1/admin/auth/sse/ticket", Method: "POST", ParentID: 60, SortOrder: 7, IsCommon: false, Status: 1, Description: "签发SSE票据API"},
+		{ID: 78, Domain: "default", Type: "button", Name: "消息中心-新增按钮", Code: "message:add", ParentID: 59, SortOrder: 0, IsCommon: false, Status: 1, Description: "消息中心新增按钮"},
+		{ID: 79, Domain: "default", Type: "button", Name: "消息中心-编辑按钮", Code: "message:edit", ParentID: 59, SortOrder: 1, IsCommon: false, Status: 1, Description: "消息中心编辑按钮"},
+		{ID: 80, Domain: "default", Type: "button", Name: "消息中心-删除按钮", Code: "message:delete", ParentID: 59, SortOrder: 2, IsCommon: false, Status: 1, Description: "消息中心删除按钮"},
+		{ID: 81, Domain: "default", Type: "button", Name: "消息列表-新增按钮", Code: "messagecenter:add", ParentID: 60, SortOrder: 0, IsCommon: false, Status: 1, Description: "消息列表新增按钮"},
+		{ID: 82, Domain: "default", Type: "button", Name: "消息列表-编辑按钮", Code: "messagecenter:edit", ParentID: 60, SortOrder: 1, IsCommon: false, Status: 1, Description: "消息列表编辑按钮"},
+		{ID: 83, Domain: "default", Type: "button", Name: "消息列表-删除按钮", Code: "messagecenter:delete", ParentID: 60, SortOrder: 2, IsCommon: false, Status: 1, Description: "消息列表删除按钮"},
+		{ID: 84, Domain: "default", Type: "button", Name: "消息管理-新增按钮", Code: "messagemanage:add", ParentID: 61, SortOrder: 0, IsCommon: false, Status: 1, Description: "消息管理新增按钮"},
+		{ID: 85, Domain: "default", Type: "button", Name: "消息管理-编辑按钮", Code: "messagemanage:edit", ParentID: 61, SortOrder: 1, IsCommon: false, Status: 1, Description: "消息管理编辑按钮"},
+		{ID: 86, Domain: "default", Type: "button", Name: "消息管理-删除按钮", Code: "messagemanage:delete", ParentID: 61, SortOrder: 2, IsCommon: false, Status: 1, Description: "消息管理删除按钮"},
+		{ID: 87, Domain: "default", Type: "button", Name: "发送消息-新增按钮", Code: "messagebroadcast:add", ParentID: 62, SortOrder: 0, IsCommon: false, Status: 1, Description: "发送消息新增按钮"},
+		{ID: 88, Domain: "default", Type: "button", Name: "发送消息-编辑按钮", Code: "messagebroadcast:edit", ParentID: 62, SortOrder: 1, IsCommon: false, Status: 1, Description: "发送消息编辑按钮"},
+		{ID: 89, Domain: "default", Type: "button", Name: "发送消息-删除按钮", Code: "messagebroadcast:delete", ParentID: 62, SortOrder: 2, IsCommon: false, Status: 1, Description: "发送消息删除按钮"},
+		{ID: 90, Domain: "default", Type: "button", Name: "消息偏好-新增按钮", Code: "messagepreference:add", ParentID: 63, SortOrder: 0, IsCommon: false, Status: 1, Description: "消息偏好新增按钮"},
+		{ID: 91, Domain: "default", Type: "button", Name: "消息偏好-编辑按钮", Code: "messagepreference:edit", ParentID: 63, SortOrder: 1, IsCommon: false, Status: 1, Description: "消息偏好编辑按钮"},
+		{ID: 92, Domain: "default", Type: "button", Name: "消息偏好-删除按钮", Code: "messagepreference:delete", ParentID: 63, SortOrder: 2, IsCommon: false, Status: 1, Description: "消息偏好删除按钮"},
 	}
 
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {

@@ -8,6 +8,7 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/migrate"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/global"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -650,4 +651,222 @@ func TestSystemPermissionService_InitSeedPermissions(t *testing.T) {
 			t.Errorf("权限代码 'seed:another' 出现 %d 次, 期望只出现1次", countByCode["seed:another"])
 		}
 	})
+}
+
+func TestSystemPermissionService_InitSeedPermissions_ResolvesSeedParentReferences(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	_, err := global.ORM.SystemPermission.Create().
+		SetDomain("default").
+		SetType("menu").
+		SetName("Unrelated").
+		SetCode("seed:unrelated").
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建无关权限失败: %v", err)
+	}
+
+	seeds := []SeedPermission{
+		{ID: 100, Domain: "default", Type: "menu", Name: "Parent", Code: "seed:parent", Status: 1},
+		{ID: 200, Domain: "default", Type: "menu", Name: "Child", Code: "seed:child", ParentID: 100, Status: 1},
+	}
+	if err := svc.InitSeedPermissions(ctx, seeds); err != nil {
+		t.Fatalf("初始化种子权限失败: %v", err)
+	}
+
+	parent, err := global.ORM.SystemPermission.Query().
+		Where(systempermission.DomainEQ("default"), systempermission.CodeEQ("seed:parent")).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("查询父权限失败: %v", err)
+	}
+	child, err := global.ORM.SystemPermission.Query().
+		Where(systempermission.DomainEQ("default"), systempermission.CodeEQ("seed:child")).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("查询子权限失败: %v", err)
+	}
+
+	if child.ParentID != parent.ID {
+		t.Fatalf("child parent_id = %d, want actual parent id %d", child.ParentID, parent.ID)
+	}
+}
+
+func TestSystemPermissionService_InitSeedPermissions_RepairsExistingParentReferences(t *testing.T) {
+	setupSystemPermissionTest(t)
+	svc := NewSystemPermissionService()
+	ctx := context.Background()
+
+	oldParent, err := global.ORM.SystemPermission.Create().
+		SetDomain("default").
+		SetType("menu").
+		SetName("Old Parent").
+		SetCode("seed:old-parent").
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建旧父权限失败: %v", err)
+	}
+	_, err = global.ORM.SystemPermission.Create().
+		SetDomain("default").
+		SetType("menu").
+		SetName("Existing Child").
+		SetCode("seed:existing-child").
+		SetParentID(oldParent.ID).
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建已有子权限失败: %v", err)
+	}
+
+	seeds := []SeedPermission{
+		{ID: 10, Domain: "default", Type: "menu", Name: "New Parent", Code: "seed:new-parent", Status: 1},
+		{ID: 11, Domain: "default", Type: "menu", Name: "Existing Child", Code: "seed:existing-child", ParentID: 10, Status: 1},
+	}
+	if err := svc.InitSeedPermissions(ctx, seeds); err != nil {
+		t.Fatalf("初始化种子权限失败: %v", err)
+	}
+
+	newParent, err := global.ORM.SystemPermission.Query().
+		Where(systempermission.DomainEQ("default"), systempermission.CodeEQ("seed:new-parent")).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("查询新父权限失败: %v", err)
+	}
+	child, err := global.ORM.SystemPermission.Query().
+		Where(systempermission.DomainEQ("default"), systempermission.CodeEQ("seed:existing-child")).
+		Only(ctx)
+	if err != nil {
+		t.Fatalf("查询已有子权限失败: %v", err)
+	}
+
+	if child.ParentID != newParent.ID {
+		t.Fatalf("existing child parent_id = %d, want repaired parent id %d", child.ParentID, newParent.ID)
+	}
+}
+
+func TestInitSystemPermissions_IncludesPluginManagementSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	expected := []seedPermissionExpectation{
+		{Code: "plugin", Type: "menu", MenuPath: "/system/plugin", ParentCode: "system"},
+		{Code: "plugin:list", Type: "api", Path: "/api/v1/admin/auth/plugins", Method: "GET", ParentCode: "plugin"},
+		{Code: "plugin:get", Type: "api", Path: "/api/v1/admin/auth/plugins/{plugin_id}", Method: "GET", ParentCode: "plugin"},
+		{Code: "plugin:install", Type: "api", Path: "/api/v1/admin/auth/plugins/install", Method: "POST", ParentCode: "plugin"},
+		{Code: "plugin:enable", Type: "api", Path: "/api/v1/admin/auth/plugins/{plugin_id}/enable", Method: "POST", ParentCode: "plugin"},
+		{Code: "plugin:disable", Type: "api", Path: "/api/v1/admin/auth/plugins/{plugin_id}/disable", Method: "POST", ParentCode: "plugin"},
+		{Code: "plugin:uninstall", Type: "api", Path: "/api/v1/admin/auth/plugins/{plugin_id}", Method: "DELETE", ParentCode: "plugin"},
+		{Code: "plugin:add", Type: "button", ParentCode: "plugin"},
+		{Code: "plugin:edit", Type: "button", ParentCode: "plugin"},
+		{Code: "plugin:delete", Type: "button", ParentCode: "plugin"},
+	}
+
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
+func TestInitSystemPermissions_IncludesMessageCenterSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	expected := []seedPermissionExpectation{
+		{Code: "message", Type: "menu", MenuPath: "/message"},
+		{Code: "messagecenter", Type: "menu", MenuPath: "/message/center", ParentCode: "message"},
+		{Code: "messagemanage", Type: "menu", MenuPath: "/message/manage", ParentCode: "message"},
+		{Code: "messagebroadcast", Type: "menu", MenuPath: "/message/broadcast", ParentCode: "message"},
+		{Code: "messagepreference", Type: "menu", MenuPath: "/message/preference", ParentCode: "message"},
+		{Code: "message:list", Type: "api", Path: "/api/v1/admin/auth/messages", Method: "GET", ParentCode: "messagecenter"},
+		{Code: "message:get", Type: "api", Path: "/api/v1/admin/auth/messages/{id}", Method: "GET", ParentCode: "messagecenter"},
+		{Code: "message:read", Type: "api", Path: "/api/v1/admin/auth/messages/read", Method: "POST", ParentCode: "messagecenter"},
+		{Code: "message:read-all", Type: "api", Path: "/api/v1/admin/auth/messages/read-all", Method: "POST", ParentCode: "messagecenter"},
+		{Code: "message:unread", Type: "api", Path: "/api/v1/admin/auth/messages/unread", Method: "POST", ParentCode: "messagecenter"},
+		{Code: "message:unread-count", Type: "api", Path: "/api/v1/admin/auth/messages/unread-count", Method: "GET", ParentCode: "messagecenter"},
+		{Code: "message:delete-api", Type: "api", Path: "/api/v1/admin/auth/messages/{id}", Method: "DELETE", ParentCode: "messagecenter"},
+		{Code: "message:delete-batch", Type: "api", Path: "/api/v1/admin/auth/messages/delete-batch", Method: "POST", ParentCode: "messagemanage"},
+		{Code: "message:clear", Type: "api", Path: "/api/v1/admin/auth/messages/clear", Method: "POST", ParentCode: "messagemanage"},
+		{Code: "messagepreference:get", Type: "api", Path: "/api/v1/admin/auth/messages/preference", Method: "GET", ParentCode: "messagepreference"},
+		{Code: "messagepreference:update", Type: "api", Path: "/api/v1/admin/auth/messages/preference", Method: "PUT", ParentCode: "messagepreference"},
+		{Code: "messagebroadcast:send", Type: "api", Path: "/api/v1/admin/auth/messages/broadcast", Method: "POST", ParentCode: "messagebroadcast"},
+		{Code: "message:test-push", Type: "api", Path: "/api/v1/admin/auth/messages/test-push", Method: "POST", ParentCode: "messagebroadcast"},
+		{Code: "sse:ticket", Type: "api", Path: "/api/v1/admin/auth/sse/ticket", Method: "POST", ParentCode: "messagecenter"},
+		{Code: "message:add", Type: "button", ParentCode: "message"},
+		{Code: "message:edit", Type: "button", ParentCode: "message"},
+		{Code: "message:delete", Type: "button", ParentCode: "message"},
+		{Code: "messagecenter:add", Type: "button", ParentCode: "messagecenter"},
+		{Code: "messagecenter:edit", Type: "button", ParentCode: "messagecenter"},
+		{Code: "messagecenter:delete", Type: "button", ParentCode: "messagecenter"},
+		{Code: "messagemanage:add", Type: "button", ParentCode: "messagemanage"},
+		{Code: "messagemanage:edit", Type: "button", ParentCode: "messagemanage"},
+		{Code: "messagemanage:delete", Type: "button", ParentCode: "messagemanage"},
+		{Code: "messagebroadcast:add", Type: "button", ParentCode: "messagebroadcast"},
+		{Code: "messagebroadcast:edit", Type: "button", ParentCode: "messagebroadcast"},
+		{Code: "messagebroadcast:delete", Type: "button", ParentCode: "messagebroadcast"},
+		{Code: "messagepreference:add", Type: "button", ParentCode: "messagepreference"},
+		{Code: "messagepreference:edit", Type: "button", ParentCode: "messagepreference"},
+		{Code: "messagepreference:delete", Type: "button", ParentCode: "messagepreference"},
+	}
+
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
+type seedPermissionExpectation struct {
+	Code       string
+	Type       string
+	Path       string
+	Method     string
+	MenuPath   string
+	ParentCode string
+}
+
+func assertSeedPermissionExists(t *testing.T, ctx context.Context, want seedPermissionExpectation) {
+	t.Helper()
+
+	query := global.ORM.SystemPermission.Query().Where(
+		systempermission.DomainEQ("default"),
+		systempermission.TypeEQ(want.Type),
+		systempermission.CodeEQ(want.Code),
+	)
+	if want.Path != "" {
+		query = query.Where(systempermission.PathEQ(want.Path))
+	}
+	if want.Method != "" {
+		query = query.Where(systempermission.MethodEQ(want.Method))
+	}
+	if want.MenuPath != "" {
+		query = query.Where(systempermission.MenuPathEQ(want.MenuPath))
+	}
+
+	perm, err := query.Only(ctx)
+	if err != nil {
+		t.Fatalf("query seed permission %s failed: %v", want.Code, err)
+	}
+	if want.ParentCode == "" {
+		return
+	}
+
+	parent, err := global.ORM.SystemPermission.Query().Where(
+		systempermission.DomainEQ("default"),
+		systempermission.CodeEQ(want.ParentCode),
+	).Only(ctx)
+	if err != nil {
+		t.Fatalf("query parent permission %s failed: %v", want.ParentCode, err)
+	}
+	if perm.ParentID != parent.ID {
+		t.Fatalf("seed permission %s parent_id = %d, want parent %s id %d", want.Code, perm.ParentID, want.ParentCode, parent.ID)
+	}
 }

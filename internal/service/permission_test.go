@@ -343,6 +343,59 @@ func TestPermissionService_GetUserMenuPermissions_AdminAccountUsesAdminRoles(t *
 	}
 }
 
+func TestPermissionService_GetUserRoleNames_AdminAccountUsesAdminRoles(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	normalRole, err := client.Role.Create().
+		SetName("normal_admin").
+		SetDisplayName("普通管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+
+	adminAccount, err := client.Admin.Create().
+		SetEmail("role-names@example.com").
+		SetUsername("role_names").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("Role Names").
+		SetUID("uid-admin-role-names").
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin failed: %v", err)
+	}
+
+	_, err = client.AdminRole.Create().
+		SetAdminID(adminAccount.ID).
+		SetRoleID(normalRole.ID).
+		SetIsPrimary(true).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	roleNames, err := svc.GetUserRoleNames(ctx, adminAccount.UID)
+	if err != nil {
+		t.Fatalf("GetUserRoleNames failed: %v", err)
+	}
+	if len(roleNames) != 1 || roleNames[0] != "normal_admin" {
+		t.Fatalf("expected normal_admin role, got %v", roleNames)
+	}
+}
+
 func TestPermissionService_CheckPermission_AdminAccountUsesAdminRoles(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),

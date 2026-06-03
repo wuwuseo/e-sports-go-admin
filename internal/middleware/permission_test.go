@@ -30,3 +30,11 @@ func TestIsSelfPermissionEndpoint_AllowsCurrentUserPermissionReads(t *testing.T)
 		t.Fatal("only read requests should bypass permission enforcement")
 	}
 }
+
+func TestMissingRoleNames_ReturnsOnlyUnsyncedRoles(t *testing.T) {
+	got := missingRoleNames([]string{"normal_admin", "auditor"}, []string{"auditor", "admin"})
+	want := []string{"normal_admin"}
+	if len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+}

@@ -325,24 +325,35 @@ func (a *Adapter) WithTx(fn func(tx *ent.Tx) error) error {
 }
 
 func loadPolicyLine(line *ent.CasbinRule, model model.Model) {
-	var p = []string{line.Ptype,
-		line.V0, line.V1, line.V2, line.V3, line.V4, line.V5}
-
-	var lineText string
-	if line.V5 != "" {
-		lineText = strings.Join(p, ", ")
-	} else if line.V4 != "" {
-		lineText = strings.Join(p[:6], ", ")
-	} else if line.V3 != "" {
-		lineText = strings.Join(p[:5], ", ")
-	} else if line.V2 != "" {
-		lineText = strings.Join(p[:4], ", ")
-	} else if line.V1 != "" {
-		lineText = strings.Join(p[:3], ", ")
-	} else if line.V0 != "" {
-		lineText = strings.Join(p[:2], ", ")
+	// 注意：V4/V5 在本项目中分别存放权限类型（type）和描述（description），
+	// 仅作为元数据使用，并不属于 Casbin 模型字段。因此根据 ptype 截取实际需要的字段，
+	// 否则 Casbin 会因 "policy size mismatch" 静默丢弃该规则。
+	// p 模型: sub, dom, obj, act -> 使用 V0..V3
+	// g 模型: user, role, dom    -> 使用 V0..V2
+	var fields []string
+	switch line.Ptype {
+	case "p":
+		fields = []string{line.V0, line.V1, line.V2, line.V3}
+	case "g", "g2", "g3":
+		fields = []string{line.V0, line.V1, line.V2}
+	default:
+		// 兜底：按非空字段截断
+		all := []string{line.V0, line.V1, line.V2, line.V3, line.V4, line.V5}
+		for i := len(all) - 1; i >= 0; i-- {
+			if all[i] != "" {
+				fields = all[:i+1]
+				break
+			}
+		}
 	}
 
+	// 去除末尾空字段
+	for len(fields) > 0 && fields[len(fields)-1] == "" {
+		fields = fields[:len(fields)-1]
+	}
+
+	parts := append([]string{line.Ptype}, fields...)
+	lineText := strings.Join(parts, ", ")
 	persist.LoadPolicyLine(lineText, model)
 }
 
