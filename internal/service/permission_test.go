@@ -321,7 +321,7 @@ func TestPermissionService_GetUserMenuPermissions_AdminAccountUsesAdminRoles(t *
 		SetV0("normal_admin").
 		SetV1("default").
 		SetV2("/dashboard/workplace").
-		SetV3("menu").
+		SetV3("MENU").
 		SetV4("menu").
 		SetV5("工作台").
 		Save(ctx)
@@ -1086,7 +1086,7 @@ func TestPermissionService_GetUserAPIPermissions_WithPermissions(t *testing.T) {
 		SetV0("editor").
 		SetV1("default").
 		SetV2("/dashboard/workplace").
-		SetV3("menu").
+		SetV3("MENU").
 		SetV4("menu").
 		SetV5("工作台").
 		Save(ctx)
@@ -1303,7 +1303,7 @@ func TestPermissionService_CheckUserHasRole_HasRole(t *testing.T) {
 
 	ctx := t.Context()
 
-	_, err := client.Role.Create().
+	adminRole, err := client.Role.Create().
 		SetName("admin").
 		SetDisplayName("管理员").
 		SetStatus(role.StatusActive).
@@ -1312,14 +1312,25 @@ func TestPermissionService_CheckUserHasRole_HasRole(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	_, err = client.CasbinRule.Create().
-		SetPtype("g").
-		SetV0("uid-test-user").
-		SetV1("admin").
-		SetV2("default").
+	adminAccount, err := client.Admin.Create().
+		SetEmail("admin@example.com").
+		SetUsername("admin").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("Admin").
+		SetUID("uid-test-user").
+		SetStatus(admin.StatusActive).
 		Save(ctx)
 	if err != nil {
-		t.Fatalf("创建分组规则失败: %v", err)
+		t.Fatalf("创建管理员失败: %v", err)
+	}
+
+	_, err = client.AdminRole.Create().
+		SetAdminID(adminAccount.ID).
+		SetRoleID(adminRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建管理员角色关联失败: %v", err)
 	}
 
 	svc := NewPermissionService(nil)

@@ -824,6 +824,25 @@ func TestInitSystemPermissions_IncludesMessageCenterSeeds(t *testing.T) {
 	}
 }
 
+func TestInitSystemPermissions_IncludesRequestedMissingAPISeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	expected := []seedPermissionExpectation{
+		{Code: "config:groups", Type: "api", Path: "/api/v1/admin/auth/configs/groups", Method: "GET", ParentCode: "system:config"},
+		{Code: "attachment-group:list", Type: "api", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentCode: "system:attachment"},
+		{Code: "dict-data:type", Type: "api", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentCode: "system:dict-data"},
+	}
+
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
 type seedPermissionExpectation struct {
 	Code       string
 	Type       string

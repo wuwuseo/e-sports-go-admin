@@ -297,14 +297,11 @@ func (s *PermissionService) getUserPermissionsByType(ctx context.Context, userUI
 	// 根据权限类型添加过滤条件
 	switch permType {
 	case "menu":
-		query = query.Where(casbinrule.V3EQ("menu"))
+		query = query.Where(casbinrule.V4EQ(string(PermissionTypeMenu)))
 	case "button":
-		query = query.Where(casbinrule.V3EQ("button"))
+		query = query.Where(casbinrule.V4EQ(string(PermissionTypeButton)))
 	case "api":
-		query = query.Where(
-			casbinrule.V3NEQ("menu"),
-			casbinrule.V3NEQ("button"),
-		)
+		query = query.Where(casbinrule.V4EQ(string(PermissionTypeAPI)))
 	}
 
 	permissions, err := query.All(ctx)
@@ -847,21 +844,6 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, roleID int,
 
 // CheckUserHasRole 检查用户是否拥有指定角色
 func (s *PermissionService) CheckUserHasRole(ctx context.Context, userUID string, domain string, roleName string) (bool, error) {
-	// 检查 Casbin 分组规则：g, userUID, roleName, domain
-	exists, err := s.client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("g"),
-			casbinrule.V0EQ(userUID),
-			casbinrule.V1EQ(roleName),
-			casbinrule.V2EQ(domain),
-		).Exist(ctx)
-	if err != nil {
-		return false, fmt.Errorf("检查用户角色失败: %w", err)
-	}
-	if exists {
-		return true, nil
-	}
-
 	roleNames, err := s.getUserRoleNames(ctx, userUID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {

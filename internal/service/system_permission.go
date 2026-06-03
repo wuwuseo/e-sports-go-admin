@@ -621,6 +621,9 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 90, Domain: "default", Type: "button", Name: "消息偏好-新增按钮", Code: "messagepreference:add", ParentID: 63, SortOrder: 0, IsCommon: false, Status: 1, Description: "消息偏好新增按钮"},
 		{ID: 91, Domain: "default", Type: "button", Name: "消息偏好-编辑按钮", Code: "messagepreference:edit", ParentID: 63, SortOrder: 1, IsCommon: false, Status: 1, Description: "消息偏好编辑按钮"},
 		{ID: 92, Domain: "default", Type: "button", Name: "消息偏好-删除按钮", Code: "messagepreference:delete", ParentID: 63, SortOrder: 2, IsCommon: false, Status: 1, Description: "消息偏好删除按钮"},
+		{ID: 93, Domain: "default", Type: "api", Name: "获取配置分组", Code: "config:groups", Path: "/api/v1/admin/auth/configs/groups", Method: "GET", ParentID: 10, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取配置分组API"},
+		{ID: 94, Domain: "default", Type: "api", Name: "获取附件分组列表", Code: "attachment-group:list", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentID: 6, SortOrder: 3, IsCommon: false, Status: 1, Description: "获取附件分组列表API"},
+		{ID: 95, Domain: "default", Type: "api", Name: "按类型获取字典数据", Code: "dict-data:type", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentID: 9, SortOrder: 1, IsCommon: false, Status: 1, Description: "按类型获取字典数据API"},
 	}
 
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {
