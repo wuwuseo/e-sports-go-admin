@@ -27,7 +27,7 @@ func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, 
 		}
 	}
 
-	logService.Log(context.Background(), &service.LogEntry{
+	_ = logService.Log(context.Background(), &service.LogEntry{
 		UserUID:     userUID,
 		Username:    username,
 		Module:      module,

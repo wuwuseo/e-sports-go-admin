@@ -146,9 +146,9 @@ func buildSafeHTTPClient(timeout time.Duration) *http.Client {
 				}
 				return dialer.DialContext(ctx, network, addr)
 			},
-			MaxIdleConns:        10,
-			IdleConnTimeout:     60 * time.Second,
-			DisableCompression:  false,
+			MaxIdleConns:       10,
+			IdleConnTimeout:    60 * time.Second,
+			DisableCompression: false,
 		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			// 限制最大重定向次数

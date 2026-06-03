@@ -50,12 +50,14 @@ func NewSuperAdminService() *SuperAdminService {
 
 // CreateAdminRequest 创建管理员请求
 type CreateAdminRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-	Username string `json:"username" validate:"required,min=3"`
-	Nickname string `json:"nickname"`
-	Name     string `json:"name"`
-	Phone    string `json:"phone"`
+	Email         string `json:"email" validate:"required,email"`
+	Password      string `json:"password" validate:"required,min=6"`
+	Username      string `json:"username" validate:"required,min=3"`
+	Nickname      string `json:"nickname"`
+	Name          string `json:"name"`
+	Phone         string `json:"phone"`
+	RoleIDs       []int  `json:"role_ids"`
+	PrimaryRoleID int    `json:"primary_role_id"`
 }
 
 // AdminListRequest 管理员列表请求
@@ -78,6 +80,10 @@ type AdminListItem struct {
 
 // CreateAdmin 创建管理员
 func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminRequest) (*AdminResponse, error) {
+	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return nil, err
+	}
+
 	emailExists, err := s.client.Admin.Query().
 		Where(admin.EmailEQ(req.Email)).
 		Exist(ctx)

@@ -87,13 +87,13 @@ func (s *BlacklistService) AddToBlacklist(ctx context.Context, userID int, reaso
 		SetOperatorName(operatorName).
 		Save(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("加入黑名单失败: %w", err)
 	}
 
 	err = tx.User.UpdateOneID(userID).SetStatus(user.StatusSuspended).Exec(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("更新用户状态失败: %w", err)
 	}
 
@@ -134,13 +134,13 @@ func (s *BlacklistService) RemoveFromBlacklist(ctx context.Context, userID int, 
 
 	err = tx.Blacklist.DeleteOne(bl).Exec(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("移除黑名单失败: %w", err)
 	}
 
 	err = tx.User.UpdateOneID(userID).SetStatus(user.StatusInactive).Exec(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("恢复用户状态失败: %w", err)
 	}
 

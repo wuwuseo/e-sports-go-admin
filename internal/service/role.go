@@ -217,7 +217,7 @@ func (s *RoleService) List(ctx context.Context, req *ListRolesRequest) (*ListRol
 
 // ListAllRoles 获取所有角色（不带分页）
 func (s *RoleService) ListAll(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error) {
-	query := s.Client.Role.Query()
+	query := s.Client.Role.Query().Where(role.NameNEQ(superAdminRoleName))
 
 	if req.Keyword != "" {
 		query = query.Where(

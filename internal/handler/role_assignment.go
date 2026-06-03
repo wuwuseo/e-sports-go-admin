@@ -90,6 +90,8 @@ func AssignUserRoles(c fiber.Ctx) error {
 			return response.Fail(global.ResponseInvalidRoleIDs, global.ResponseMsg[global.ResponseInvalidRoleIDs]).ToJSON(c)
 		case service.ErrPrimaryRoleInvalid:
 			return response.Fail(global.ResponsePrimaryRoleInvalid, global.ResponseMsg[global.ResponsePrimaryRoleInvalid]).ToJSON(c)
+		case service.ErrSuperAdminRoleAssignmentForbidden:
+			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		default:
 			return response.Fail(global.ResponseInternalServerError, "分配角色失败").ToJSON(c)
 		}
@@ -177,6 +179,8 @@ func AssignAdminRoles(c fiber.Ctx) error {
 			return response.Fail(global.ResponseInvalidRoleIDs, global.ResponseMsg[global.ResponseInvalidRoleIDs]).ToJSON(c)
 		case service.ErrPrimaryRoleInvalid:
 			return response.Fail(global.ResponsePrimaryRoleInvalid, global.ResponseMsg[global.ResponsePrimaryRoleInvalid]).ToJSON(c)
+		case service.ErrSuperAdminRoleAssignmentForbidden:
+			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		default:
 			return response.Fail(global.ResponseInternalServerError, "分配角色失败").ToJSON(c)
 		}

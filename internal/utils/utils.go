@@ -37,8 +37,10 @@ func loadCounter() uint64 {
 
 // saveCounter 将当前计数器值持久化到文件
 func saveCounter(val uint64) {
-	os.MkdirAll(filepath.Dir(counterFile), 0755)
-	os.WriteFile(counterFile, []byte(strconv.FormatUint(val, 10)), 0644)
+	if err := os.MkdirAll(filepath.Dir(counterFile), 0755); err != nil {
+		return
+	}
+	_ = os.WriteFile(counterFile, []byte(strconv.FormatUint(val, 10)), 0644)
 }
 
 // GetResponseMsg 获取响应消息

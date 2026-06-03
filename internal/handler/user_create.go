@@ -41,6 +41,8 @@ func CreateUser(c fiber.Ctx) error {
 			return response.Fail(global.ResponseErrorCode, "该邮箱已被注册").ToJSON(c)
 		case service.ErrUsernameExists:
 			return response.Fail(global.ResponseErrorCode, "该用户名已存在").ToJSON(c)
+		case service.ErrSuperAdminRoleAssignmentForbidden:
+			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		default:
 			return response.Fail(global.ResponseInternalServerError, "创建用户失败: "+err.Error()).ToJSON(c)
 		}

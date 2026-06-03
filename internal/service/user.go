@@ -67,11 +67,13 @@ type RegisterRequest struct {
 
 // CreateUserRequest 管理员创建用户请求
 type CreateUserRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
-	Username string `json:"username" validate:"required,min=3"`
-	Nickname string `json:"nickname"`
-	Phone    string `json:"phone"`
+	Email         string `json:"email" validate:"required,email"`
+	Password      string `json:"password" validate:"required,min=6"`
+	Username      string `json:"username" validate:"required,min=3"`
+	Nickname      string `json:"nickname"`
+	Phone         string `json:"phone"`
+	RoleIDs       []int  `json:"role_ids"`
+	PrimaryRoleID int    `json:"primary_role_id"`
 }
 
 // LoginRequest 用户登录请求
@@ -159,6 +161,10 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 
 // CreateUser 管理员创建用户
 func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*UserResponse, error) {
+	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return nil, err
+	}
+
 	exists, err := s.client.User.Query().Where(user.EmailEQ(req.Email)).Exist(ctx)
 	if err != nil {
 		return nil, err

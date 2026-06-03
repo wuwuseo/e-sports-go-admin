@@ -339,6 +339,15 @@ func TestRoleService_ListAll_AllRoles(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
+	_, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("超级管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建超级管理员角色失败: %v", err)
+	}
+
 	for _, name := range []string{"role_x", "role_y"} {
 		_, err := client.Role.Create().
 			SetName(name).

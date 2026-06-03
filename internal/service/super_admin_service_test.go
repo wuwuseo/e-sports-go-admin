@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"testing"
 
 	"go-admin/internal/ent"
@@ -9,8 +10,8 @@ import (
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/global"
 
-	cmfConfig "github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/bootstrap"
+	cmfConfig "github.com/wuwuseo/cmf/config"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -74,6 +75,32 @@ func TestSuperAdminService_CreateAdmin_Success(t *testing.T) {
 	}
 	if a.Status != admin.StatusInactive {
 		t.Errorf("期望初始状态为 inactive, 实际=%s", a.Status)
+	}
+}
+
+func TestSuperAdminService_CreateAdmin_RejectsSuperAdminRole(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	adminRole, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("超级管理员").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建超级管理员角色失败: %v", err)
+	}
+
+	svc := NewSuperAdminService()
+	_, err = svc.CreateAdmin(ctx, &CreateAdminRequest{
+		Email:         "forbidden-admin@test.com",
+		Password:      "adminpass123",
+		Username:      "forbiddenadmin",
+		RoleIDs:       []int{adminRole.ID},
+		PrimaryRoleID: adminRole.ID,
+	})
+	if !errors.Is(err, ErrSuperAdminRoleAssignmentForbidden) {
+		t.Errorf("期望错误为 ErrSuperAdminRoleAssignmentForbidden, 实际错误: %v", err)
 	}
 }
 

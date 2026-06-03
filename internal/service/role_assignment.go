@@ -17,9 +17,36 @@ import (
 )
 
 var (
-	ErrInvalidRoleIDs     = errors.New("包含无效的角色ID")
-	ErrPrimaryRoleInvalid = errors.New("主角色必须在分配的角色列表内")
+	ErrInvalidRoleIDs                    = errors.New("包含无效的角色ID")
+	ErrPrimaryRoleInvalid                = errors.New("主角色必须在分配的角色列表内")
+	ErrSuperAdminRoleAssignmentForbidden = errors.New("权限不足，禁止分配超级管理员角色")
 )
+
+const superAdminRoleName = "admin"
+
+func rejectSuperAdminRoleIDs(ctx context.Context, client *ent.Client, roleIDs []int) error {
+	if len(roleIDs) == 0 {
+		return nil
+	}
+
+	exists, err := client.Role.Query().
+		Where(role.IDIn(roleIDs...), role.NameEQ(superAdminRoleName)).
+		Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrSuperAdminRoleAssignmentForbidden
+	}
+	return nil
+}
+
+func requestedRoleIDs(roleIDs []int, primaryRoleID int) []int {
+	if primaryRoleID == 0 {
+		return roleIDs
+	}
+	return append(append([]int{}, roleIDs...), primaryRoleID)
+}
 
 // RoleItem 角色项
 type RoleItem struct {
@@ -120,6 +147,9 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 	if req.PrimaryRoleID == 0 {
 		req.PrimaryRoleID = req.RoleIDs[0]
 	}
+	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return err
+	}
 	found := false
 	for _, id := range req.RoleIDs {
 		if id == req.PrimaryRoleID {
@@ -156,7 +186,7 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 
 	_, err = tx.UserRole.Delete().Where(userrole.UserIDEQ(userID)).Exec(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("清除旧角色失败: %w", err)
 	}
 
@@ -169,7 +199,7 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 			SetCreatedBy(operatorUID).
 			Save(ctx)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("分配角色失败: %w", err)
 		}
 	}
@@ -181,12 +211,12 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 	domain := "default"
 	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
 	if err == nil {
-		enforcer.DeleteRolesForUserInDomain(u.UID, domain)
+		_, _ = enforcer.DeleteRolesForUserInDomain(u.UID, domain)
 
 		for _, roleID := range req.RoleIDs {
 			roleObj, err := s.client.Role.Query().Where(role.IDEQ(roleID)).Only(ctx)
 			if err == nil {
-				enforcer.AddRoleForUserInDomain(u.UID, roleObj.Name, domain)
+				_, _ = enforcer.AddRoleForUserInDomain(u.UID, roleObj.Name, domain)
 			}
 		}
 	}
@@ -256,6 +286,9 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, adminID in
 	if req.PrimaryRoleID == 0 {
 		req.PrimaryRoleID = req.RoleIDs[0]
 	}
+	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return err
+	}
 	found := false
 	for _, id := range req.RoleIDs {
 		if id == req.PrimaryRoleID {
@@ -292,7 +325,7 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, adminID in
 
 	_, err = tx.AdminRole.Delete().Where(adminrole.AdminIDEQ(adminID)).Exec(ctx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("清除旧角色失败: %w", err)
 	}
 
@@ -305,7 +338,7 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, adminID in
 			SetCreatedBy(operatorUID).
 			Save(ctx)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("分配角色失败: %w", err)
 		}
 	}
@@ -317,12 +350,12 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, adminID in
 	domain := "default"
 	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
 	if err == nil {
-		enforcer.DeleteRolesForUserInDomain(a.UID, domain)
+		_, _ = enforcer.DeleteRolesForUserInDomain(a.UID, domain)
 
 		for _, roleID := range req.RoleIDs {
 			roleObj, err := s.client.Role.Query().Where(role.IDEQ(roleID)).Only(ctx)
 			if err == nil {
-				enforcer.AddRoleForUserInDomain(a.UID, roleObj.Name, domain)
+				_, _ = enforcer.AddRoleForUserInDomain(a.UID, roleObj.Name, domain)
 			}
 		}
 	}

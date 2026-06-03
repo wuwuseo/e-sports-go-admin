@@ -35,12 +35,12 @@ type BroadcastTarget struct {
 
 // BroadcastRequest 管理员广播请求
 type BroadcastRequest struct {
-	Type        string         `json:"type"         validate:"required,oneof=system business task"`
-	Level       string         `json:"level"        validate:"required,oneof=info warning error"`
-	Title       string         `json:"title"        validate:"required,max=200"`
-	Content     string         `json:"content"      validate:"required"`
-	ContentHTML string         `json:"content_html,omitempty"`
-	Extra       map[string]any `json:"extra,omitempty"`
+	Type        string          `json:"type"         validate:"required,oneof=system business task"`
+	Level       string          `json:"level"        validate:"required,oneof=info warning error"`
+	Title       string          `json:"title"        validate:"required,max=200"`
+	Content     string          `json:"content"      validate:"required"`
+	ContentHTML string          `json:"content_html,omitempty"`
+	Extra       map[string]any  `json:"extra,omitempty"`
 	Target      BroadcastTarget `json:"target"      validate:"required"`
 }
 

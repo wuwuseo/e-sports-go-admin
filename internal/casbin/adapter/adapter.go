@@ -119,7 +119,9 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 		return err
 	}
 	for _, policy := range policies {
-		loadPolicyLine(policy, model)
+		if err := loadPolicyLine(policy, model); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -162,7 +164,9 @@ func (a *Adapter) LoadFilteredPolicy(model model.Model, filter interface{}) erro
 	}
 
 	for _, line := range lines {
-		loadPolicyLine(line, model)
+		if err := loadPolicyLine(line, model); err != nil {
+			return err
+		}
 	}
 	a.filtered = true
 
@@ -324,7 +328,7 @@ func (a *Adapter) WithTx(fn func(tx *ent.Tx) error) error {
 	return nil
 }
 
-func loadPolicyLine(line *ent.CasbinRule, model model.Model) {
+func loadPolicyLine(line *ent.CasbinRule, model model.Model) error {
 	// 注意：V4/V5 在本项目中分别存放权限类型（type）和描述（description），
 	// 仅作为元数据使用，并不属于 Casbin 模型字段。因此根据 ptype 截取实际需要的字段，
 	// 否则 Casbin 会因 "policy size mismatch" 静默丢弃该规则。
@@ -354,7 +358,7 @@ func loadPolicyLine(line *ent.CasbinRule, model model.Model) {
 
 	parts := append([]string{line.Ptype}, fields...)
 	lineText := strings.Join(parts, ", ")
-	persist.LoadPolicyLine(lineText, model)
+	return persist.LoadPolicyLine(lineText, model)
 }
 
 func (a *Adapter) toInstance(ptype string, rule []string) *ent.CasbinRule {

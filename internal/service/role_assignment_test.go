@@ -237,6 +237,76 @@ func TestRoleAssignmentService_AssignRoles_InvalidRoleIDs(t *testing.T) {
 	}
 }
 
+func TestRoleAssignmentService_AssignRoles_RejectsSuperAdminRole(t *testing.T) {
+	client := setupRoleAssignmentTest(t)
+	ctx := t.Context()
+
+	u, err := client.User.Create().
+		SetEmail("normal-user@test.com").
+		SetUID("uid-normal-user").
+		SetUsername("normaluser").
+		SetPassword("password").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建测试用户失败: %v", err)
+	}
+
+	adminRole, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("超级管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建超级管理员角色失败: %v", err)
+	}
+
+	svc := NewRoleAssignmentService(nil)
+	err = svc.AssignRoles(ctx, u.ID, &AssignRolesRequest{
+		RoleIDs:       []int{adminRole.ID},
+		PrimaryRoleID: adminRole.ID,
+	}, "operator-uid")
+
+	if !errors.Is(err, ErrSuperAdminRoleAssignmentForbidden) {
+		t.Errorf("期望错误为 ErrSuperAdminRoleAssignmentForbidden, 实际为 %v", err)
+	}
+}
+
+func TestRoleAssignmentService_AssignAdminRoles_RejectsSuperAdminRole(t *testing.T) {
+	client := setupRoleAssignmentTest(t)
+	ctx := t.Context()
+
+	a, err := client.Admin.Create().
+		SetEmail("normal-admin@test.com").
+		SetUID("uid-normal-admin").
+		SetUsername("normaladmin").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建测试管理员失败: %v", err)
+	}
+
+	adminRole, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("超级管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建超级管理员角色失败: %v", err)
+	}
+
+	svc := NewRoleAssignmentService(nil)
+	err = svc.AssignAdminRoles(ctx, a.ID, &AssignRolesRequest{
+		RoleIDs:       []int{adminRole.ID},
+		PrimaryRoleID: adminRole.ID,
+	}, "operator-uid")
+
+	if !errors.Is(err, ErrSuperAdminRoleAssignmentForbidden) {
+		t.Errorf("期望错误为 ErrSuperAdminRoleAssignmentForbidden, 实际为 %v", err)
+	}
+}
+
 func TestRoleAssignmentService_AssignRoles_UserNotFound(t *testing.T) {
 	client := setupRoleAssignmentTest(t)
 	ctx := t.Context()

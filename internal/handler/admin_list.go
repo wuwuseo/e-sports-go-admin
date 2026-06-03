@@ -44,6 +44,8 @@ func CreateAdmin(c fiber.Ctx) error {
 			return response.Fail(global.ResponseErrorCode, "邮箱已存在").ToJSON(c)
 		case service.ErrAdminUsernameExists:
 			return response.Fail(global.ResponseErrorCode, "用户名已存在").ToJSON(c)
+		case service.ErrSuperAdminRoleAssignmentForbidden:
+			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		default:
 			return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
 		}

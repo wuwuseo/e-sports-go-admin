@@ -22,13 +22,13 @@ var hhmmRegex = regexp.MustCompile(`^([01]\d|2[0-3]):[0-5]\d$`)
 
 // MessagePreferenceResponse 用户偏好响应
 type MessagePreferenceResponse struct {
-	DesktopNotify      bool   `json:"desktop_notify"`
-	SoundNotify        bool   `json:"sound_notify"`
-	SubscribeSystem    bool   `json:"subscribe_system"`
-	SubscribeBusiness  bool   `json:"subscribe_business"`
-	SubscribeTask      bool   `json:"subscribe_task"`
-	DoNotDisturbStart  string `json:"do_not_disturb_start"`
-	DoNotDisturbEnd    string `json:"do_not_disturb_end"`
+	DesktopNotify     bool   `json:"desktop_notify"`
+	SoundNotify       bool   `json:"sound_notify"`
+	SubscribeSystem   bool   `json:"subscribe_system"`
+	SubscribeBusiness bool   `json:"subscribe_business"`
+	SubscribeTask     bool   `json:"subscribe_task"`
+	DoNotDisturbStart string `json:"do_not_disturb_start"`
+	DoNotDisturbEnd   string `json:"do_not_disturb_end"`
 }
 
 // UpdateMessagePreferenceRequest 偏好更新请求（部分更新，全部字段可选）

@@ -150,6 +150,32 @@ func TestUserService_CreateUser_Success(t *testing.T) {
 	}
 }
 
+func TestUserService_CreateUser_RejectsSuperAdminRole(t *testing.T) {
+	client := setupUserTest(t)
+	ctx := t.Context()
+	svc := NewUserService()
+
+	adminRole, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("超级管理员").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建超级管理员角色失败: %v", err)
+	}
+
+	_, err = svc.CreateUser(ctx, &CreateUserRequest{
+		Email:         "forbidden-role@test.com",
+		Password:      "password123",
+		Username:      "forbiddenrole",
+		RoleIDs:       []int{adminRole.ID},
+		PrimaryRoleID: adminRole.ID,
+	})
+
+	if !errors.Is(err, ErrSuperAdminRoleAssignmentForbidden) {
+		t.Errorf("期望错误为 ErrSuperAdminRoleAssignmentForbidden, 实际错误: %v", err)
+	}
+}
+
 func TestUserService_CreateUser_EmailExists(t *testing.T) {
 	client := setupUserTest(t)
 	ctx := t.Context()
