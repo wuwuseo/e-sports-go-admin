@@ -328,30 +328,18 @@ func initSeedData() error {
 	}
 
 	// 4. 创建 Casbin 权限规则
-	// 4.1 策略规则（p 类型）：admin 角色拥有所有权限
-	policyExists, err := client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("p"),
-			casbinrule.V0EQ("admin"),
-			casbinrule.V1EQ("default"),
-			casbinrule.V2EQ("*"),
-			casbinrule.V3EQ("*"),
-		).
-		Exist(ctx)
+	enforcer, err := global.EnforcerManager.GetEnforcer("default")
 	if err != nil {
-		return fmt.Errorf("failed to query casbin policy rule: %w", err)
+		appInstance.Logger.Error("failed to get casbin enforcer", zap.Error(err))
+		return fmt.Errorf("failed to get casbin enforcer: %w", err)
 	}
-	if !policyExists {
-		_, err = client.CasbinRule.Create().
-			SetPtype("p").
-			SetV0("admin").
-			SetV1("default").
-			SetV2("*").
-			SetV3("*").
-			Save(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to create casbin policy rule: %w", err)
-		}
+
+	// 4.1 策略规则（p 类型）：admin 角色拥有所有权限
+	policyAdded, err := enforcer.AddPolicy("admin", "default", "*", "*")
+	if err != nil {
+		return fmt.Errorf("failed to create casbin policy rule: %w", err)
+	}
+	if policyAdded {
 		appInstance.Logger.Info("casbin policy rule created for admin role")
 	} else {
 		appInstance.Logger.Warn("casbin policy rule for admin role already exists, skipping")
@@ -359,27 +347,11 @@ func initSeedData() error {
 
 	// 4.2 角色分配规则（g 类型）：将用户 UID 分配到 admin 角色
 	userUIDStr := adminUser.UID
-	groupingExists, err := client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("g"),
-			casbinrule.V0EQ(userUIDStr),
-			casbinrule.V1EQ("admin"),
-			casbinrule.V2EQ("default"),
-		).
-		Exist(ctx)
+	groupingAdded, err := enforcer.AddRoleForUserInDomain(userUIDStr, "admin", "default")
 	if err != nil {
-		return fmt.Errorf("failed to query casbin grouping rule: %w", err)
+		return fmt.Errorf("failed to create casbin grouping rule: %w", err)
 	}
-	if !groupingExists {
-		_, err = client.CasbinRule.Create().
-			SetPtype("g").
-			SetV0(userUIDStr).
-			SetV1("admin").
-			SetV2("default").
-			Save(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to create casbin grouping rule: %w", err)
-		}
+	if groupingAdded {
 		appInstance.Logger.Info("casbin grouping rule created",
 			zap.String("uid", userUIDStr),
 			zap.String("role", "admin"),
@@ -392,27 +364,11 @@ func initSeedData() error {
 
 	// 4.3 管理员账号角色分配规则（g 类型）：将管理员 UID 分配到 admin 角色
 	adminUIDStr := adminAccount.UID
-	adminGroupingExists, err := client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("g"),
-			casbinrule.V0EQ(adminUIDStr),
-			casbinrule.V1EQ("admin"),
-			casbinrule.V2EQ("default"),
-		).
-		Exist(ctx)
+	adminGroupingAdded, err := enforcer.AddRoleForUserInDomain(adminUIDStr, "admin", "default")
 	if err != nil {
-		return fmt.Errorf("failed to query admin casbin grouping rule: %w", err)
+		return fmt.Errorf("failed to create admin casbin grouping rule: %w", err)
 	}
-	if !adminGroupingExists {
-		_, err = client.CasbinRule.Create().
-			SetPtype("g").
-			SetV0(adminUIDStr).
-			SetV1("admin").
-			SetV2("default").
-			Save(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to create admin casbin grouping rule: %w", err)
-		}
+	if adminGroupingAdded {
 		appInstance.Logger.Info("admin casbin grouping rule created",
 			zap.String("uid", adminUIDStr),
 			zap.String("role", "admin"),
@@ -421,20 +377,6 @@ func initSeedData() error {
 		appInstance.Logger.Warn("admin casbin grouping rule already exists, skipping",
 			zap.String("uid", adminUIDStr),
 		)
-	}
-
-	// 如果 EnforcerManager 存在，重新加载策略
-	if global.EnforcerManager != nil {
-		enforcer, err := global.EnforcerManager.GetEnforcer("default")
-		if err != nil {
-			appInstance.Logger.Error("failed to get casbin enforcer", zap.Error(err))
-			return fmt.Errorf("failed to get casbin enforcer: %w", err)
-		}
-		if err := enforcer.LoadPolicy(); err != nil {
-			appInstance.Logger.Error("failed to reload casbin policy", zap.Error(err))
-			return fmt.Errorf("failed to reload casbin policy: %w", err)
-		}
-		appInstance.Logger.Info("casbin policy reloaded successfully")
 	}
 
 	// 5. 初始化权限定义表（system_permissions）

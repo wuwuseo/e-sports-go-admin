@@ -767,10 +767,34 @@ func TestInitSystemPermissions_IncludesPluginManagementSeeds(t *testing.T) {
 		{Code: "plugin:add", Type: "button", ParentCode: "plugin"},
 		{Code: "plugin:edit", Type: "button", ParentCode: "plugin"},
 		{Code: "plugin:delete", Type: "button", ParentCode: "plugin"},
+		{Code: "plugin:import", Type: "button", ParentCode: "plugin"},
+		{Code: "role:delete-api", Type: "api", Path: "/api/v1/admin/auth/roles/{id}", Method: "DELETE", ParentCode: "system:role"},
+		{Code: "permission:delete-api", Type: "api", Path: "/api/v1/admin/auth/system-permissions/{id}", Method: "DELETE", ParentCode: "system:permission"},
+		{Code: "role:delete", Type: "button", ParentCode: "system:role"},
+		{Code: "permission:delete", Type: "button", ParentCode: "system:permission"},
 	}
 
 	for _, want := range expected {
 		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
+func TestInitSystemPermissions_CreatesNinetyFiveDefaultSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	count, err := global.ORM.SystemPermission.Query().
+		Where(systempermission.DomainEQ("default")).
+		Count(ctx)
+	if err != nil {
+		t.Fatalf("count system permissions failed: %v", err)
+	}
+	if count != 95 {
+		t.Fatalf("default system permission count = %d, want 95", count)
 	}
 }
 

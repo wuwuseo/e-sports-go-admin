@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"go-admin/internal/casbin/adapter"
+	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/enttest"
@@ -12,8 +14,58 @@ import (
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
 
+	cmfCasbin "github.com/wuwuseo/cmf/casbin"
+	"github.com/wuwuseo/cmf/config"
+
 	_ "github.com/mattn/go-sqlite3"
 )
+
+const permissionTestModel = `
+[request_definition]
+r = sub, dom, obj, act
+
+[policy_definition]
+p = sub, dom, obj, act
+
+[role_definition]
+g = _, _, _
+
+[policy_effect]
+e = some(where (p.eft == allow))
+
+[matchers]
+m = g(r.sub, p.sub, r.dom) && r.dom == p.dom && (p.obj == "*" || keyMatch2(r.obj, p.obj)) && (p.act == "*" || r.act == p.act)
+`
+
+func setupPermissionTestEnforcer(t *testing.T, client *ent.Client) {
+	t.Helper()
+
+	prevEnforcerManager := global.EnforcerManager
+	cfg := &config.Config{}
+	cfg.Casbin.DomainsDefault = "default"
+	cfg.Casbin.Domains = []struct {
+		Name      string `mapstructure:"name"`
+		AutoLoad  bool   `mapstructure:"auto_load"`
+		ModelPath string `mapstructure:"model_path"`
+		ModelText string `mapstructure:"model_text"`
+	}{
+		{
+			Name:      "default",
+			AutoLoad:  true,
+			ModelText: permissionTestModel,
+		},
+	}
+
+	adp, err := adapter.NewAdapterWithClient(client)
+	if err != nil {
+		t.Fatalf("create casbin adapter failed: %v", err)
+	}
+
+	global.EnforcerManager = cmfCasbin.InitEnforcerManager(adp, cfg)
+	t.Cleanup(func() {
+		global.EnforcerManager = prevEnforcerManager
+	})
+}
 
 func TestPermissionService_GetUserMenuPermissions_SuperAdminReturnsEnabledMenus(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
@@ -451,6 +503,8 @@ func TestPermissionService_CheckPermission_AdminAccountUsesAdminRoles(t *testing
 		t.Fatalf("create api permission failed: %v", err)
 	}
 
+	setupPermissionTestEnforcer(t, client)
+
 	svc := NewPermissionService(nil)
 	ok, err := svc.CheckPermission(ctx, adminAccount.UID, "default", "/api/v1/admin/auth/roles", "GET")
 	if err != nil {
@@ -511,6 +565,82 @@ func TestPermissionService_CheckUserHasRole_AdminAccountUsesAdminRoles(t *testin
 	}
 	if !ok {
 		t.Fatal("expected admin account DB role to satisfy role check")
+	}
+}
+
+func TestPermissionService_CheckPermission_UsesEnforcerKeyMatchPolicy(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	adminRole, err := client.Role.Create().
+		SetName("admin").
+		SetDisplayName("超级管理员").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	adminUser, err := client.User.Create().
+		SetEmail("admin@example.com").
+		SetUsername("admin").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("Admin").
+		SetUID("uid-enforcer-wildcard").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin user failed: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(adminUser.ID).
+		SetRoleID(adminRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create user role failed: %v", err)
+	}
+
+	setupPermissionTestEnforcer(t, client)
+
+	enforcer, err := global.EnforcerManager.GetEnforcer("default")
+	if err != nil {
+		t.Fatalf("get enforcer failed: %v", err)
+	}
+
+	policyAdded, err := enforcer.AddPolicy("admin", "default", "/api/v1/admin/auth/roles/:id", "DELETE")
+	if err != nil {
+		t.Fatalf("add route-template policy failed: %v", err)
+	}
+	if !policyAdded {
+		t.Fatal("route-template policy should be added")
+	}
+
+	groupAdded, err := enforcer.AddRoleForUserInDomain("uid-enforcer-wildcard", "admin", "default")
+	if err != nil {
+		t.Fatalf("add role grouping failed: %v", err)
+	}
+	if !groupAdded {
+		t.Fatal("grouping rule should be added")
+	}
+
+	svc := NewPermissionService(nil)
+
+	ok, err := svc.CheckPermission(ctx, "uid-enforcer-wildcard", "default", "/api/v1/admin/auth/roles/123", "DELETE")
+	if err != nil {
+		t.Fatalf("CheckPermission failed: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected keyMatch2 route-template policy to allow matching object")
 	}
 }
 
@@ -1225,6 +1355,8 @@ func TestPermissionService_CheckPermission_HasPermission(t *testing.T) {
 		t.Fatalf("创建 CasbinRule 失败: %v", err)
 	}
 
+	setupPermissionTestEnforcer(t, client)
+
 	svc := NewPermissionService(nil)
 	hasPermission, err := svc.CheckPermission(ctx, editorUser.UID, "default", "/api/v1/articles", "GET")
 	if err != nil {
@@ -1277,6 +1409,8 @@ func TestPermissionService_CheckPermission_NoPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("创建用户角色关联失败: %v", err)
 	}
+
+	setupPermissionTestEnforcer(t, client)
 
 	svc := NewPermissionService(nil)
 	hasPermission, err := svc.CheckPermission(ctx, editorUser.UID, "default", "/api/v1/articles", "DELETE")

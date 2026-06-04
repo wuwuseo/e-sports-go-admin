@@ -890,30 +890,46 @@ func (s *PermissionService) GetUserAPIPermissions(ctx context.Context, userID st
 
 // CheckPermission 检查用户是否有某个权限
 func (s *PermissionService) CheckPermission(ctx context.Context, userID string, domain, object, action string) (bool, error) {
-	// 获取用户角色
 	roleNames, err := s.getUserRoleNames(ctx, userID)
 	if err != nil {
 		return false, err
 	}
-
 	if len(roleNames) == 0 {
 		return false, nil
 	}
 
-	// 检查权限
-	exists, err := s.client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("p"),
-			casbinrule.V0In(roleNames...),
-			casbinrule.V1EQ(domain),
-			casbinrule.V2EQ(object),
-			casbinrule.V3EQ(action),
-		).Exist(ctx)
+	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
+	if err != nil {
+		return false, fmt.Errorf("获取权限执行器失败: %w", err)
+	}
+
+	existingRoleNames := enforcer.GetRolesForUserInDomain(userID, domain)
+	for _, roleName := range missingPermissionRoleNames(roleNames, existingRoleNames) {
+		if _, err := enforcer.AddRoleForUserInDomain(userID, roleName, domain); err != nil {
+			return false, fmt.Errorf("同步用户角色失败: %w", err)
+		}
+	}
+
+	allowed, err := enforcer.Enforce(userID, domain, object, action)
 	if err != nil {
 		return false, fmt.Errorf("检查权限失败: %w", err)
 	}
+	return allowed, nil
+}
 
-	return exists, nil
+func missingPermissionRoleNames(desired, existing []string) []string {
+	existingSet := make(map[string]struct{}, len(existing))
+	for _, roleName := range existing {
+		existingSet[roleName] = struct{}{}
+	}
+
+	missing := make([]string, 0)
+	for _, roleName := range desired {
+		if _, ok := existingSet[roleName]; !ok {
+			missing = append(missing, roleName)
+		}
+	}
+	return missing
 }
 
 // toPermissionResponse 将CasbinRule转换为PermissionResponse

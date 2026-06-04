@@ -15,12 +15,12 @@ import (
 	"go-admin/internal/global"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/wuwuseo/cmf/bootstrap"
 	cmfCache "github.com/wuwuseo/cmf/cache"
 	cmfConfig "github.com/wuwuseo/cmf/config"
-	cmfJwt "github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/crypto"
-	"github.com/wuwuseo/cmf/bootstrap"
 	"github.com/wuwuseo/cmf/filesystem"
+	cmfJwt "github.com/wuwuseo/cmf/jwt"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -676,6 +676,8 @@ func TestIntegration_E2E_RolePermissionFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("分配权限失败: %v", err)
 	}
+
+	setupPermissionTestEnforcer(t, client)
 
 	// ===== 阶段5: 验证权限 =====
 	perms, err := permSvc.GetUserAPIPermissions(ctx, u.UID, "default")
