@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v3"
 	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/jwt"
 )

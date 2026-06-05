@@ -27,9 +27,15 @@
 - **Redis** 5.0+ - 缓存和会话存储
 
 ### 认证和权限
-- **JWT** - JSON Web Token认证 (golang-jwt/jwt v5.2.2)
-- **Casbin** - 基于RBAC的权限控制
+- **JWT** - JSON Web Token认证 (golang-jwt/jwt v5.3.1)
+- **Casbin** v3.10.0 - 基于RBAC的权限控制
 - **bcrypt** - 密码加密算法
+
+### Casbin v3 升级说明
+- Casbin 已从 `github.com/casbin/casbin/v2` 升级到 `github.com/casbin/casbin/v3 v3.10.0`。
+- v3 迁移核心变更为 Go module import path 从 `/v2` 切换到 `/v3`，现有 Enforcer API、Adapter 接口和模型语法保持兼容。
+- `config/config.yml` 中的带域 RBAC 模型无需调整，仍使用 `sub, dom, obj, act`。
+- 本地 CMF 依赖已同步升级到 Casbin v3，并移除仍依赖 Casbin v2 的 `github.com/gofiber/contrib/v3/casbin` 封装。
 
 ### 开发和测试工具
 - **Go** 1.25.1+ - 编程语言

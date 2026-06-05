@@ -26,11 +26,11 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
-	"github.com/casbin/casbin/v2/persist"
+	"github.com/casbin/casbin/v3/persist"
 
 	"go-admin/internal/ent"
 
-	"github.com/casbin/casbin/v2/model"
+	"github.com/casbin/casbin/v3/model"
 
 	"github.com/pkg/errors"
 )

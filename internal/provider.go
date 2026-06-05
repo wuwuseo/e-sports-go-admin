@@ -4,7 +4,7 @@ import (
 	"context"
 
 	entsql "entgo.io/ent/dialect/sql"
-	"github.com/casbin/casbin/v2/persist"
+	"github.com/casbin/casbin/v3/persist"
 	cmfCasbin "github.com/wuwuseo/cmf/casbin"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/orm"
