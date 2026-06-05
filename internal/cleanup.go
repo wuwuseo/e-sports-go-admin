@@ -1,6 +1,9 @@
 package internal
 
 import (
+	"context"
+	"time"
+
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
@@ -27,6 +30,15 @@ func Cleanup() error {
 		global.CronManager.Stop()
 		log.Info("定时任务管理器已停止")
 	}
+
+	// 优雅关闭操作日志服务（在关闭 DB 之前）
+	operationLogCtx, operationLogCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer operationLogCancel()
+	if err := service.ShutdownDefaultOperationLogService(operationLogCtx); err != nil {
+		log.Error("操作日志服务关闭失败", zap.Error(err))
+		return err
+	}
+	log.Info("操作日志服务已停止")
 
 	// 清理 Wire 注入的数据库连接池
 	if appInstance != nil && appInstance.DB != nil {

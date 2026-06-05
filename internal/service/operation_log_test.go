@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -280,5 +281,90 @@ func TestOperationLogService_Get_NotFound(t *testing.T) {
 	}
 	if err != ErrOperationLogNotFound {
 		t.Errorf("期望 ErrOperationLogNotFound, 实际错误: %v", err)
+	}
+}
+
+func TestOperationLogService_Log_QueueBackpressure(t *testing.T) {
+	setupOperationLogTest(t)
+	svc := NewOperationLogServiceWithOptions(OperationLogOptions{
+		QueueSize:       1,
+		Workers:         0,
+		EnqueueTimeout:  10 * time.Millisecond,
+		WriteTimeout:    time.Second,
+		MaxRetries:      1,
+		MonitorInterval: 0,
+	})
+	defer svc.Shutdown(context.Background())
+
+	entry := &LogEntry{
+		Username:   "admin",
+		Module:     "user",
+		Action:     "创建",
+		Method:     "POST",
+		Path:       "/api/v1/users",
+		IP:         "127.0.0.1",
+		StatusCode: 200,
+		DurationMs: 10,
+	}
+
+	if err := svc.Log(t.Context(), entry); err != nil {
+		t.Fatalf("第一次入队失败: %v", err)
+	}
+	if err := svc.Log(t.Context(), entry); err == nil {
+		t.Fatal("队列满时应返回错误")
+	}
+
+	metrics := svc.GetMetrics()
+	if metrics["dropped_logs"] != 1 {
+		t.Fatalf("期望丢弃日志数为 1，实际为 %d", metrics["dropped_logs"])
+	}
+	if metrics["queue_size"] != 1 {
+		t.Fatalf("期望队列长度为 1，实际为 %d", metrics["queue_size"])
+	}
+}
+
+func TestOperationLogService_Log_WorkerPersistsAndShutdown(t *testing.T) {
+	setupOperationLogTest(t)
+	svc := NewOperationLogServiceWithOptions(OperationLogOptions{
+		QueueSize:       4,
+		Workers:         1,
+		EnqueueTimeout:  time.Second,
+		WriteTimeout:    time.Second,
+		MaxRetries:      1,
+		MonitorInterval: 0,
+	})
+
+	entry := &LogEntry{
+		Username:    "async_user",
+		Module:      "user",
+		Action:      "创建",
+		Description: "异步写入测试",
+		Method:      "POST",
+		Path:        "/api/v1/users",
+		IP:          "127.0.0.1",
+		UserAgent:   "test-agent",
+		RequestBody: `{"name":"async"}`,
+		StatusCode:  201,
+		DurationMs:  20,
+	}
+
+	if err := svc.Log(t.Context(), entry); err != nil {
+		t.Fatalf("日志入队失败: %v", err)
+	}
+	if err := svc.Shutdown(context.Background()); err != nil {
+		t.Fatalf("关闭日志服务失败: %v", err)
+	}
+
+	count, err := global.ORM.OperationLog.Query().Count(t.Context())
+	if err != nil {
+		t.Fatalf("查询日志数量失败: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("期望写入 1 条日志，实际写入 %d 条", count)
+	}
+
+	metrics := svc.GetMetrics()
+	if metrics["success_logs"] != 1 {
+		t.Fatalf("期望成功日志数为 1，实际为 %d", metrics["success_logs"])
 	}
 }

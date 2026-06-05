@@ -4,17 +4,33 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
-	"log"
-	"time"
 )
 
 var (
-	ErrOperationLogNotFound = errors.New("操作日志不存在")
+	ErrOperationLogNotFound  = errors.New("操作日志不存在")
+	ErrOperationLogStopped   = errors.New("操作日志服务已停止")
+	ErrOperationLogQueueFull = errors.New("操作日志队列已满")
 )
+
+const (
+	defaultOperationLogQueueSize       = 1000
+	defaultOperationLogWorkers         = 5
+	defaultOperationLogMaxRetries      = 3
+	defaultOperationLogWriteTimeout    = 5 * time.Second
+	defaultOperationLogEnqueueTimeout  = 100 * time.Millisecond
+	defaultOperationLogMonitorInterval = 30 * time.Second
+)
+
+var defaultOperationLogService atomic.Pointer[OperationLogService]
 
 // OperationLogServiceInterface 操作日志服务接口
 type OperationLogServiceInterface interface {
@@ -23,15 +39,129 @@ type OperationLogServiceInterface interface {
 	Get(ctx context.Context, id int) (*OperationLogResponse, error)
 }
 
+// OperationLogOptions 操作日志服务配置
+type OperationLogOptions struct {
+	QueueSize       int
+	Workers         int
+	MaxRetries      int
+	WriteTimeout    time.Duration
+	EnqueueTimeout  time.Duration
+	MonitorInterval time.Duration
+}
+
+// LogMetrics 操作日志指标
+type LogMetrics struct {
+	totalLogs      atomic.Int64
+	successLogs    atomic.Int64
+	failedLogs     atomic.Int64
+	retriedLogs    atomic.Int64
+	droppedLogs    atomic.Int64
+	queueSize      atomic.Int64
+	processingTime atomic.Int64
+}
+
 // OperationLogService 操作日志服务
 type OperationLogService struct {
 	*CRUDBase
+	logQueue       chan *LogEntry
+	workers        int
+	maxRetries     int
+	writeTimeout   time.Duration
+	enqueueTimeout time.Duration
+	monitorEvery   time.Duration
+	metrics        *LogMetrics
+	enqueueMu      sync.RWMutex
+	wg             sync.WaitGroup
+	closeOnce      sync.Once
+	stopMonitor    chan struct{}
+	stopped        atomic.Bool
 }
 
 // NewOperationLogService 创建操作日志服务实例
 func NewOperationLogService() *OperationLogService {
-	return &OperationLogService{
-		CRUDBase: &CRUDBase{Client: global.ORM},
+	return NewOperationLogServiceWithOptions(OperationLogOptions{
+		QueueSize:       defaultOperationLogQueueSize,
+		Workers:         defaultOperationLogWorkers,
+		MaxRetries:      defaultOperationLogMaxRetries,
+		WriteTimeout:    defaultOperationLogWriteTimeout,
+		EnqueueTimeout:  defaultOperationLogEnqueueTimeout,
+		MonitorInterval: defaultOperationLogMonitorInterval,
+	})
+}
+
+// NewOperationLogServiceWithOptions 按配置创建操作日志服务实例
+func NewOperationLogServiceWithOptions(opts OperationLogOptions) *OperationLogService {
+	opts = normalizeOperationLogOptions(opts)
+	s := &OperationLogService{
+		CRUDBase:       &CRUDBase{Client: global.ORM},
+		logQueue:       make(chan *LogEntry, opts.QueueSize),
+		workers:        opts.Workers,
+		maxRetries:     opts.MaxRetries,
+		writeTimeout:   opts.WriteTimeout,
+		enqueueTimeout: opts.EnqueueTimeout,
+		monitorEvery:   opts.MonitorInterval,
+		metrics:        &LogMetrics{},
+		stopMonitor:    make(chan struct{}),
+	}
+	s.startWorkers()
+	if s.monitorEvery > 0 {
+		s.wg.Add(1)
+		go s.monitorQueue()
+	}
+	defaultOperationLogService.Store(s)
+	return s
+}
+
+func normalizeOperationLogOptions(opts OperationLogOptions) OperationLogOptions {
+	if opts.QueueSize <= 0 {
+		opts.QueueSize = defaultOperationLogQueueSize
+	}
+	if opts.Workers < 0 {
+		opts.Workers = 0
+	}
+	if opts.MaxRetries <= 0 {
+		opts.MaxRetries = defaultOperationLogMaxRetries
+	}
+	if opts.WriteTimeout <= 0 {
+		opts.WriteTimeout = defaultOperationLogWriteTimeout
+	}
+	if opts.EnqueueTimeout <= 0 {
+		opts.EnqueueTimeout = defaultOperationLogEnqueueTimeout
+	}
+	if opts.MonitorInterval < 0 {
+		opts.MonitorInterval = 0
+	}
+	if opts.MonitorInterval == 0 {
+		return opts
+	}
+	return opts
+}
+
+func (s *OperationLogService) startWorkers() {
+	for range s.workers {
+		s.wg.Add(1)
+		go s.worker()
+	}
+}
+
+func (s *OperationLogService) worker() {
+	defer s.wg.Done()
+	for entry := range s.logQueue {
+		s.processLog(entry)
+	}
+}
+
+func (s *OperationLogService) monitorQueue() {
+	defer s.wg.Done()
+	ticker := time.NewTicker(s.monitorEvery)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			s.printMetrics()
+		case <-s.stopMonitor:
+			return
+		}
 	}
 }
 
@@ -84,34 +214,132 @@ type ListOperationLogsResponse = ListResponse[*OperationLogResponse]
 
 // Log 异步记录操作日志
 func (s *OperationLogService) Log(ctx context.Context, entry *LogEntry) error {
+	s.enqueueMu.RLock()
+	defer s.enqueueMu.RUnlock()
+	if s.stopped.Load() {
+		return ErrOperationLogStopped
+	}
+	s.metrics.totalLogs.Add(1)
+	timer := time.NewTimer(s.enqueueTimeout)
+	defer timer.Stop()
+
+	select {
+	case s.logQueue <- entry:
+		s.metrics.queueSize.Add(1)
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("日志写入超时: %w", ctx.Err())
+	case <-timer.C:
+		s.metrics.droppedLogs.Add(1)
+		log.Printf("[OperationLog] 日志队列已满，丢弃日志: %+v", entry)
+		return ErrOperationLogQueueFull
+	}
+}
+
+func (s *OperationLogService) processLog(entry *LogEntry) {
+	startTime := time.Now()
+	s.metrics.queueSize.Add(-1)
+	var lastErr error
+	for attempt := 0; attempt < s.maxRetries; attempt++ {
+		if attempt > 0 {
+			s.metrics.retriedLogs.Add(1)
+			time.Sleep(time.Duration(attempt*attempt) * 100 * time.Millisecond)
+		}
+		if err := s.writeLog(entry); err == nil {
+			s.metrics.successLogs.Add(1)
+			s.metrics.processingTime.Add(time.Since(startTime).Milliseconds())
+			return
+		} else {
+			lastErr = err
+			log.Printf("[OperationLog] 写入失败（尝试 %d/%d）: %v", attempt+1, s.maxRetries, err)
+		}
+	}
+	s.metrics.failedLogs.Add(1)
+	log.Printf("[OperationLog] 写入最终失败: %v, 日志: %+v", lastErr, entry)
+}
+
+func (s *OperationLogService) writeLog(entry *LogEntry) error {
+	ctx, cancel := context.WithTimeout(context.Background(), s.writeTimeout)
+	defer cancel()
+	builder := s.Client.OperationLog.Create().
+		SetUserID(0).
+		SetUsername(entry.Username).
+		SetModule(entry.Module).
+		SetAction(entry.Action).
+		SetMethod(entry.Method).
+		SetPath(entry.Path).
+		SetIP(entry.IP).
+		SetStatusCode(entry.StatusCode).
+		SetDurationMs(entry.DurationMs)
+
+	if entry.Description != "" {
+		builder.SetDescription(entry.Description)
+	}
+	if entry.UserAgent != "" {
+		builder.SetUserAgent(entry.UserAgent)
+	}
+	if entry.RequestBody != "" {
+		builder.SetRequestBody(entry.RequestBody)
+	}
+
+	_, err := builder.Save(ctx)
+	return err
+}
+
+// Shutdown 优雅关闭操作日志服务
+func (s *OperationLogService) Shutdown(ctx context.Context) error {
+	s.closeOnce.Do(func() {
+		s.enqueueMu.Lock()
+		defer s.enqueueMu.Unlock()
+		s.stopped.Store(true)
+		close(s.stopMonitor)
+		close(s.logQueue)
+	})
+	done := make(chan struct{})
 	go func() {
-		bgCtx := context.Background()
-		builder := s.Client.OperationLog.Create().
-			SetUserID(0).
-			SetUsername(entry.Username).
-			SetModule(entry.Module).
-			SetAction(entry.Action).
-			SetMethod(entry.Method).
-			SetPath(entry.Path).
-			SetIP(entry.IP).
-			SetStatusCode(entry.StatusCode).
-			SetDurationMs(entry.DurationMs)
-
-		if entry.Description != "" {
-			builder.SetDescription(entry.Description)
-		}
-		if entry.UserAgent != "" {
-			builder.SetUserAgent(entry.UserAgent)
-		}
-		if entry.RequestBody != "" {
-			builder.SetRequestBody(entry.RequestBody)
-		}
-
-		if _, err := builder.Save(bgCtx); err != nil {
-			log.Printf("[OperationLog] 写入操作日志失败: %v", err)
-		}
+		s.wg.Wait()
+		close(done)
 	}()
-	return nil
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("日志服务关闭超时: %w", ctx.Err())
+	}
+}
+
+// ShutdownDefaultOperationLogService 关闭默认操作日志服务
+func ShutdownDefaultOperationLogService(ctx context.Context) error {
+	svc := defaultOperationLogService.Load()
+	if svc == nil {
+		return nil
+	}
+	return svc.Shutdown(ctx)
+}
+
+// GetMetrics 获取操作日志指标
+func (s *OperationLogService) GetMetrics() map[string]int64 {
+	success := s.metrics.successLogs.Load()
+	avgTime := int64(0)
+	if success > 0 {
+		avgTime = s.metrics.processingTime.Load() / success
+	}
+	return map[string]int64{
+		"total_logs":       s.metrics.totalLogs.Load(),
+		"success_logs":     success,
+		"failed_logs":      s.metrics.failedLogs.Load(),
+		"retried_logs":     s.metrics.retriedLogs.Load(),
+		"dropped_logs":     s.metrics.droppedLogs.Load(),
+		"queue_size":       s.metrics.queueSize.Load(),
+		"avg_process_time": avgTime,
+	}
+}
+
+func (s *OperationLogService) printMetrics() {
+	metrics := s.GetMetrics()
+	log.Printf("[OperationLog] 指标 - 总计:%d 成功:%d 失败:%d 重试:%d 丢弃:%d 队列:%d 平均耗时:%dms",
+		metrics["total_logs"], metrics["success_logs"], metrics["failed_logs"],
+		metrics["retried_logs"], metrics["dropped_logs"], metrics["queue_size"], metrics["avg_process_time"])
 }
 
 // List 获取操作日志列表
