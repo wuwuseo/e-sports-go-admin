@@ -197,6 +197,251 @@ func TestPermissionService_GetUserMenuPermissions_SuperAdminReturnsEnabledMenus(
 	}
 }
 
+func TestPermissionService_GetUserMenuPermissionTree_ReturnsTree(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:permission_menu_tree?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("menu-tree@example.com").
+		SetUsername("menu-tree").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("MenuTree").
+		SetUID("uid-menu-tree").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户失败: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户角色关联失败: %v", err)
+	}
+
+	parent, err := client.SystemPermission.Create().
+		SetDomain("default").
+		SetType("menu").
+		SetName("系统管理").
+		SetCode("system").
+		SetMenuPath("/system").
+		SetSortOrder(1).
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建父菜单失败: %v", err)
+	}
+
+	child, err := client.SystemPermission.Create().
+		SetDomain("default").
+		SetType("menu").
+		SetName("用户管理").
+		SetCode("system:user").
+		SetMenuPath("/system/user").
+		SetParentID(parent.ID).
+		SetSortOrder(1).
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建子菜单失败: %v", err)
+	}
+
+	_, err = client.SystemPermission.Create().
+		SetDomain("default").
+		SetType("menu").
+		SetName("角色管理").
+		SetCode("system:role").
+		SetMenuPath("/system/role").
+		SetParentID(parent.ID).
+		SetSortOrder(2).
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建未授权菜单失败: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("editor").
+		SetV1("default").
+		SetV2(child.MenuPath).
+		SetV3(string(PermissionTypeMenu)).
+		SetV4(string(PermissionTypeMenu)).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建菜单权限失败: %v", err)
+	}
+
+	svc := NewPermissionService(nil)
+	tree, err := svc.GetUserMenuPermissionTree(ctx, editorUser.UID, "default")
+	if err != nil {
+		t.Fatalf("GetUserMenuPermissionTree 失败: %v", err)
+	}
+
+	if len(tree) != 1 {
+		t.Fatalf("期望返回1个根节点, 实际返回 %d 个", len(tree))
+	}
+	if tree[0].ID != parent.ID || tree[0].Type != SystemPermissionTypeMenu {
+		t.Fatalf("期望根节点为父菜单, 实际为 %#v", tree[0])
+	}
+	if len(tree[0].Children) != 1 {
+		t.Fatalf("期望父菜单包含1个子节点, 实际包含 %d 个", len(tree[0].Children))
+	}
+	if tree[0].Children[0].ID != child.ID {
+		t.Fatalf("期望子节点为授权菜单, 实际为 %#v", tree[0].Children[0])
+	}
+}
+
+func TestPermissionService_GetUserPermissionTree_ReturnsMixedTreeWithTypes(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:permission_mixed_tree?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("编辑者").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("mixed-tree@example.com").
+		SetUsername("mixed-tree").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetNickname("MixedTree").
+		SetUID("uid-mixed-tree").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户失败: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建用户角色关联失败: %v", err)
+	}
+
+	menu, err := client.SystemPermission.Create().
+		SetDomain("default").
+		SetType("menu").
+		SetName("用户管理").
+		SetCode("system:user").
+		SetMenuPath("/system/user").
+		SetSortOrder(1).
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建菜单失败: %v", err)
+	}
+
+	button, err := client.SystemPermission.Create().
+		SetDomain("default").
+		SetType("button").
+		SetName("新增用户").
+		SetCode("user:create").
+		SetParentID(menu.ID).
+		SetSortOrder(1).
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建按钮失败: %v", err)
+	}
+
+	api, err := client.SystemPermission.Create().
+		SetDomain("default").
+		SetType("api").
+		SetName("新增用户API").
+		SetCode("user:create-api").
+		SetPath("/api/v1/admin/auth/users").
+		SetMethod("POST").
+		SetParentID(menu.ID).
+		SetSortOrder(2).
+		SetStatus(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建API失败: %v", err)
+	}
+
+	for _, rule := range []struct {
+		object string
+		action string
+		typ    PermissionType
+	}{
+		{menu.MenuPath, string(PermissionTypeMenu), PermissionTypeMenu},
+		{button.Code, string(PermissionTypeButton), PermissionTypeButton},
+		{api.Path, api.Method, PermissionTypeAPI},
+	} {
+		_, err = client.CasbinRule.Create().
+			SetPtype("p").
+			SetV0("editor").
+			SetV1("default").
+			SetV2(rule.object).
+			SetV3(rule.action).
+			SetV4(string(rule.typ)).
+			Save(ctx)
+		if err != nil {
+			t.Fatalf("创建权限失败: %v", err)
+		}
+	}
+
+	svc := NewPermissionService(nil)
+	tree, err := svc.GetUserPermissionTree(ctx, editorUser.UID, "default")
+	if err != nil {
+		t.Fatalf("GetUserPermissionTree 失败: %v", err)
+	}
+
+	if len(tree) != 1 {
+		t.Fatalf("期望返回1个根节点, 实际返回 %d 个", len(tree))
+	}
+	if tree[0].Type != SystemPermissionTypeMenu {
+		t.Fatalf("期望根节点类型为 menu, 实际为 %s", tree[0].Type)
+	}
+	if len(tree[0].Children) != 2 {
+		t.Fatalf("期望菜单包含2个子节点, 实际包含 %d 个", len(tree[0].Children))
+	}
+
+	childTypes := map[SystemPermissionType]bool{}
+	for _, child := range tree[0].Children {
+		childTypes[child.Type] = true
+	}
+	if !childTypes[SystemPermissionTypeButton] || !childTypes[SystemPermissionTypeAPI] {
+		t.Fatalf("期望子节点包含 button 和 api 类型, 实际为 %#v", childTypes)
+	}
+}
+
 func TestPermissionService_GetUserButtonPermissions_SuperAdminReturnsEnabledButtons(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
@@ -1365,6 +1610,215 @@ func TestPermissionService_CheckPermission_HasPermission(t *testing.T) {
 
 	if !hasPermission {
 		t.Error("期望用户拥有权限, 但返回 false")
+	}
+}
+
+func TestPermissionService_AssignPermissionsToRole_ReloadsCasbinPolicy(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("Editor").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("editor-casbin@example.com").
+		SetUsername("editor-casbin").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetUID("uid-editor-casbin-reload").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create user role failed: %v", err)
+	}
+
+	setupPermissionTestEnforcer(t, client)
+
+	svc := NewPermissionService(nil)
+	err = svc.AssignPermissionsToRole(ctx, "editor", "default", []PermissionRule{
+		{Object: "/api/v1/admin/auth/plugins", Action: "GET"},
+	})
+	if err != nil {
+		t.Fatalf("AssignPermissionsToRole failed: %v", err)
+	}
+
+	ok, err := svc.CheckPermission(ctx, editorUser.UID, "default", "/api/v1/admin/auth/plugins", "GET")
+	if err != nil {
+		t.Fatalf("CheckPermission failed: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected assigned permission to be visible to Casbin immediately")
+	}
+}
+
+func TestPermissionService_SaveRolePermissions_ReloadsCasbinPolicy(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	ctx := t.Context()
+
+	editorRole, err := client.Role.Create().
+		SetName("editor-save").
+		SetDisplayName("Editor Save").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+
+	editorUser, err := client.User.Create().
+		SetEmail("editor-save-casbin@example.com").
+		SetUsername("editor-save-casbin").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetUID("uid-editor-save-casbin-reload").
+		SetStatus(user.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create user failed: %v", err)
+	}
+
+	_, err = client.UserRole.Create().
+		SetUserID(editorUser.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create user role failed: %v", err)
+	}
+
+	setupPermissionTestEnforcer(t, client)
+
+	svc := NewPermissionService(nil)
+	err = svc.SaveRolePermissions(ctx, editorRole.ID, &SaveRolePermissionsRequest{
+		Domain: "default",
+		Permissions: []PermissionRule{
+			{Object: "/api/v1/admin/auth/messages", Action: "GET"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SaveRolePermissions failed: %v", err)
+	}
+
+	ok, err := svc.CheckPermission(ctx, editorUser.UID, "default", "/api/v1/admin/auth/messages", "GET")
+	if err != nil {
+		t.Fatalf("CheckPermission failed: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected saved permission to be visible to Casbin immediately")
+	}
+}
+
+func TestPermissionService_SaveRolePermissions_ClearsAdminUserPermissionCache(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	prevORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = prevORM })
+
+	prevEnforcerManager := global.EnforcerManager
+	global.EnforcerManager = nil
+	t.Cleanup(func() { global.EnforcerManager = prevEnforcerManager })
+
+	ctx := t.Context()
+	cache := makeMemCache(t)
+	svc := NewPermissionService(cache)
+
+	editorRole, err := client.Role.Create().
+		SetName("admin-cache-role").
+		SetDisplayName("Admin Cache Role").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+
+	adminAccount, err := client.Admin.Create().
+		SetUsername("admin-cache-user").
+		SetEmail("admin-cache@example.com").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetUID("uid-admin-cache-role").
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin failed: %v", err)
+	}
+
+	_, err = client.AdminRole.Create().
+		SetAdminID(adminAccount.ID).
+		SetRoleID(editorRole.ID).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	_, err = client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0(editorRole.Name).
+		SetV1("default").
+		SetV2("old-menu").
+		SetV3("menu").
+		SetV4(string(PermissionTypeMenu)).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create old menu rule failed: %v", err)
+	}
+
+	first, err := svc.GetUserMenuPermissions(ctx, adminAccount.UID, "default")
+	if err != nil {
+		t.Fatalf("first GetUserMenuPermissions failed: %v", err)
+	}
+	if len(first) != 1 || first[0].Object != "old-menu" {
+		t.Fatalf("expected old-menu before save, got %+v", first)
+	}
+
+	err = svc.SaveRolePermissions(ctx, editorRole.ID, &SaveRolePermissionsRequest{
+		Domain: "default",
+		Permissions: []PermissionRule{
+			{Object: "new-menu", Action: "menu"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SaveRolePermissions failed: %v", err)
+	}
+
+	second, err := svc.GetUserMenuPermissions(ctx, adminAccount.UID, "default")
+	if err != nil {
+		t.Fatalf("second GetUserMenuPermissions failed: %v", err)
+	}
+	if len(second) != 1 || second[0].Object != "new-menu" {
+		t.Fatalf("expected admin permission cache to refresh to new-menu, got %+v", second)
 	}
 }
 

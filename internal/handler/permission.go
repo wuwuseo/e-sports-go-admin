@@ -9,7 +9,9 @@ import (
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/wuwuseo/cmf/log"
 	"github.com/wuwuseo/cmf/validate"
+	"go.uber.org/zap"
 )
 
 // CreatePermission 创建权限
@@ -454,18 +456,18 @@ func GetRolePermissions(c fiber.Ctx) error {
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取角色权限成功").ToJSON(c)
 }
 
-// GetUserMenuPermissions 获取用户菜单权限
-// @Summary 获取用户菜单权限
-// @Description 获取当前用户的菜单权限
+// GetUserMenuPermissions 获取用户菜单权限树
+// @Summary 获取用户菜单权限树
+// @Description 获取当前用户可访问的菜单权限树，仅返回 type=menu 的启用权限节点；普通用户按角色权限过滤，超级管理员返回当前域下全部启用菜单；当用户只拥有子菜单权限时会自动补齐父级菜单节点用于前端渲染。
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "域，默认default"
-// @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
-// @Failure 401 {object} utils.Response
-// @Failure 403 {object} utils.Response
-// @Failure 500 {object} utils.Response
+// @Param domain query string false "权限域，默认default"
+// @Success 200 {object} utils.Response{data=[]service.SystemPermissionTreeNode} "获取成功，data为菜单权限树数组，节点type固定为menu"
+// @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
+// @Failure 403 {object} utils.Response "无权限访问"
+// @Failure 500 {object} utils.Response "获取用户菜单权限失败"
 // @Router /api/v1/admin/auth/user/menu-permissions [get]
 func GetUserMenuPermissions(c fiber.Ctx) error {
 	// 获取响应工具
@@ -480,8 +482,8 @@ func GetUserMenuPermissions(c fiber.Ctx) error {
 	// 获取域
 	domain := c.Query("domain", "default")
 
-	// 获取用户菜单权限
-	permissions, err := permissionService.GetUserMenuPermissions(c.Context(), userID, domain)
+	// 获取用户菜单权限树
+	permissions, err := permissionService.GetUserMenuPermissionTree(c.Context(), userID, domain)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取用户菜单权限失败: "+err.Error()).ToJSON(c)
 	}
@@ -491,16 +493,16 @@ func GetUserMenuPermissions(c fiber.Ctx) error {
 
 // GetUserButtonPermissions 获取用户按钮权限
 // @Summary 获取用户按钮权限
-// @Description 获取当前用户的按钮权限
+// @Description 获取当前用户可访问的按钮权限列表（扁平数组），仅返回 type=button 的启用权限；普通用户按角色权限过滤，超级管理员返回当前域下全部启用按钮。
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "域，默认default"
-// @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
-// @Failure 401 {object} utils.Response
-// @Failure 403 {object} utils.Response
-// @Failure 500 {object} utils.Response
+// @Param domain query string false "权限域，默认default"
+// @Success 200 {object} utils.Response{data=[]service.PermissionResponse} "获取成功，data为按钮权限扁平数组"
+// @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
+// @Failure 403 {object} utils.Response "无权限访问"
+// @Failure 500 {object} utils.Response "获取用户按钮权限失败"
 // @Router /api/v1/admin/auth/user/button-permissions [get]
 func GetUserButtonPermissions(c fiber.Ctx) error {
 	// 获取响应工具
@@ -526,16 +528,16 @@ func GetUserButtonPermissions(c fiber.Ctx) error {
 
 // GetUserAPIPermissions 获取用户API权限
 // @Summary 获取用户API权限
-// @Description 获取当前用户的API权限
+// @Description 获取当前用户可访问的API权限列表（扁平数组），仅返回 type=api 的权限规则，用于前端或调试场景查看当前用户接口访问范围。
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "域，默认default"
-// @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
-// @Failure 401 {object} utils.Response
-// @Failure 403 {object} utils.Response
-// @Failure 500 {object} utils.Response
+// @Param domain query string false "权限域，默认default"
+// @Success 200 {object} utils.Response{data=[]service.PermissionResponse} "获取成功，data为API权限扁平数组"
+// @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
+// @Failure 403 {object} utils.Response "无权限访问"
+// @Failure 500 {object} utils.Response "获取用户API权限失败"
 // @Router /api/v1/admin/auth/user/api-permissions [get]
 func GetUserAPIPermissions(c fiber.Ctx) error {
 	// 获取响应工具
@@ -559,18 +561,18 @@ func GetUserAPIPermissions(c fiber.Ctx) error {
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取用户API权限成功").ToJSON(c)
 }
 
-// GetUserPermissions 获取用户所有权限
-// @Summary 获取用户所有权限
-// @Description 获取当前用户的所有权限（菜单和按钮）
+// GetUserPermissions 获取用户混合权限树
+// @Summary 获取用户混合权限树
+// @Description 获取当前用户可访问的混合权限树数组，包含 type=menu、type=button、type=api 的启用权限节点；普通用户按角色权限过滤，超级管理员返回当前域下全部启用权限；子节点有权限时会自动补齐父级节点。
 // @Tags 权限管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "域，默认default"
-// @Success 200 {object} utils.Response{data=map[string][]service.PermissionResponse}
-// @Failure 401 {object} utils.Response
-// @Failure 403 {object} utils.Response
-// @Failure 500 {object} utils.Response
+// @Param domain query string false "权限域，默认default"
+// @Success 200 {object} utils.Response{data=[]service.SystemPermissionTreeNode} "获取成功，data为混合权限树数组，节点type用于区分menu/button/api"
+// @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
+// @Failure 403 {object} utils.Response "无权限访问"
+// @Failure 500 {object} utils.Response "获取用户权限失败"
 // @Router /api/v1/admin/auth/user/permissions [get]
 func GetUserPermissions(c fiber.Ctx) error {
 	// 获取响应工具
@@ -585,34 +587,13 @@ func GetUserPermissions(c fiber.Ctx) error {
 	// 获取域
 	domain := c.Query("domain", "default")
 
-	// 获取用户菜单权限
-	menuPermissions, err := permissionService.GetUserMenuPermissions(c.Context(), userID, domain)
+	// 获取用户混合权限树
+	permissions, err := permissionService.GetUserPermissionTree(c.Context(), userID, domain)
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取用户菜单权限失败: "+err.Error()).ToJSON(c)
-	}
-
-	// 获取用户按钮权限
-	buttonPermissions, err := permissionService.GetUserButtonPermissions(c.Context(), userID, domain)
-	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取用户按钮权限失败: "+err.Error()).ToJSON(c)
-	}
-
-	// 聚合权限
-	permissions := map[string][]service.PermissionResponse{
-		"menu":   convertToPermissionResponseSlice(menuPermissions),
-		"button": convertToPermissionResponseSlice(buttonPermissions),
+		return resp.Fail(global.ResponseInternalServerError, "获取用户权限失败: "+err.Error()).ToJSON(c)
 	}
 
 	return resp.Success(permissions, global.ResponseSuccessCode, "获取用户权限成功").ToJSON(c)
-}
-
-// convertToPermissionResponseSlice 将指针切片转换为值切片
-func convertToPermissionResponseSlice(permissions []*service.PermissionResponse) []service.PermissionResponse {
-	result := make([]service.PermissionResponse, len(permissions))
-	for i, p := range permissions {
-		result[i] = *p
-	}
-	return result
 }
 
 // GetRolePermissionsByRoleID 通过角色ID获取权限
@@ -689,6 +670,7 @@ func SaveRolePermissions(c fiber.Ctx) error {
 
 	err = permissionService.SaveRolePermissions(c.Context(), id, req)
 	if err != nil {
+		log.Error("保存角色权限失败", zap.Int("role_id", id), zap.String("domain", req.Domain), zap.Error(err))
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		}

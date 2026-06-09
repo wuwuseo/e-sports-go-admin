@@ -1,14 +1,11 @@
 package middleware
 
 import (
-	"context"
 	"strings"
 
 	"go-admin/internal/global"
-	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
-	"github.com/casbin/casbin/v3"
 	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/jwt"
 )
@@ -40,8 +37,6 @@ func PermissionMiddleware() fiber.Handler {
 			return resp.Fail(fiber.StatusUnauthorized, "缺少域信息").ToJSON(c)
 		}
 
-		permissionSvc := c.Locals("service.PermissionService").(service.PermissionServiceInterface)
-
 		// 获取请求路径和方法
 		method := c.Method()
 		if isSelfPermissionEndpoint(c.Path(), method) {
@@ -55,11 +50,8 @@ func PermissionMiddleware() fiber.Handler {
 			return resp.Fail(fiber.StatusInternalServerError, "获取权限执行器失败").ToJSON(c)
 		}
 
-		roleNames, err := syncCasbinRoleLinks(c.Context(), permissionSvc, enforcer, userID, domain)
-		if err != nil {
-			resp := utils.NewResponse()
-			return resp.Fail(fiber.StatusInternalServerError, "同步权限角色失败").ToJSON(c)
-		}
+		// 直接从 Casbin 读取用户在当前域下的角色（角色分配时由服务层写入 Casbin）
+		roleNames := enforcer.GetRolesForUserInDomain(userID, domain)
 		if hasRoleName(roleNames, "admin") {
 			c.Locals("isSuperAdmin", true)
 		}
@@ -85,25 +77,6 @@ func PermissionMiddleware() fiber.Handler {
 
 		return c.Next()
 	}
-}
-
-func syncCasbinRoleLinks(ctx context.Context, permissionSvc service.PermissionServiceInterface, enforcer *casbin.Enforcer, userID, domain string) ([]string, error) {
-	roleNames, err := permissionSvc.GetUserRoleNames(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if len(roleNames) == 0 {
-		return roleNames, nil
-	}
-
-	existingRoleNames := enforcer.GetRolesForUserInDomain(userID, domain)
-
-	for _, roleName := range missingRoleNames(roleNames, existingRoleNames) {
-		if _, err := enforcer.AddRoleForUserInDomain(userID, roleName, domain); err != nil {
-			return nil, err
-		}
-	}
-	return roleNames, nil
 }
 
 func missingRoleNames(desired, existing []string) []string {

@@ -42,7 +42,7 @@ type PluginResponse struct {
 	Description string                    `json:"description"`
 	Status      string                    `json:"status"`
 	InstallPath string                    `json:"install_path"`
-	Manifest    *cmfplugin.PluginManifest `json:"manifest,omitempty"`
+	Manifest    *cmfplugin.PluginManifest `json:"manifest,omitempty" swaggerignore:"true"`
 }
 
 type PluginProxyRequest struct {

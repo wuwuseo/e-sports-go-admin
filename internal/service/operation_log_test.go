@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,9 @@ import (
 	"go-admin/internal/global"
 
 	_ "github.com/mattn/go-sqlite3"
+	cmflog "github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 func setupOperationLogTest(t *testing.T) {
@@ -21,6 +25,36 @@ func setupOperationLogTest(t *testing.T) {
 	prevORM := global.ORM
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
+}
+
+type capturedLogEntry struct {
+	message string
+	fields  map[string]interface{}
+}
+
+type captureLogger struct {
+	entries []capturedLogEntry
+}
+
+func (l *captureLogger) Debug(msg string, fields ...zap.Field)  { l.record(msg, fields...) }
+func (l *captureLogger) Info(msg string, fields ...zap.Field)   { l.record(msg, fields...) }
+func (l *captureLogger) Warn(msg string, fields ...zap.Field)   { l.record(msg, fields...) }
+func (l *captureLogger) Error(msg string, fields ...zap.Field)  { l.record(msg, fields...) }
+func (l *captureLogger) Fatal(msg string, fields ...zap.Field)  { l.record(msg, fields...) }
+func (l *captureLogger) With(fields ...zap.Field) cmflog.Logger { return l }
+func (l *captureLogger) Sync() error                            { return nil }
+
+func (l *captureLogger) record(msg string, fields ...zap.Field) {
+	entry := capturedLogEntry{message: msg, fields: make(map[string]interface{}, len(fields))}
+	for _, field := range fields {
+		switch field.Type {
+		case zapcore.Int64Type:
+			entry.fields[field.Key] = field.Integer
+		case zapcore.StringType:
+			entry.fields[field.Key] = field.String
+		}
+	}
+	l.entries = append(l.entries, entry)
 }
 
 func createTestLog(t *testing.T, username, module, action string, createdAt time.Time) {
@@ -39,6 +73,78 @@ func createTestLog(t *testing.T, username, module, action string, createdAt time
 		Save(t.Context())
 	if err != nil {
 		t.Fatalf("创建测试日志失败: %v", err)
+	}
+}
+
+func TestOperationLogService_PrintMetrics_UsesDefaultLogger(t *testing.T) {
+	logger := &captureLogger{}
+	previous := cmflog.GetDefault()
+	cmflog.SetDefault(logger)
+	t.Cleanup(func() { cmflog.SetDefault(previous) })
+
+	svc := &OperationLogService{metrics: &LogMetrics{}}
+	svc.metrics.totalLogs.Store(3)
+	svc.metrics.successLogs.Store(2)
+	svc.metrics.failedLogs.Store(1)
+	svc.metrics.retriedLogs.Store(4)
+	svc.metrics.droppedLogs.Store(5)
+	svc.metrics.queueSize.Store(6)
+	svc.metrics.processingTime.Store(20)
+
+	svc.printMetrics()
+
+	if len(logger.entries) != 1 {
+		t.Fatalf("期望写入1条结构化日志, 实际写入%d条", len(logger.entries))
+	}
+	entry := logger.entries[0]
+	if entry.message != "OperationLog 指标" {
+		t.Fatalf("期望日志消息为 OperationLog 指标, 实际=%s", entry.message)
+	}
+	assertMetricField(t, entry.fields, "total_logs", int64(3))
+	assertMetricField(t, entry.fields, "success_logs", int64(2))
+	assertMetricField(t, entry.fields, "failed_logs", int64(1))
+	assertMetricField(t, entry.fields, "retried_logs", int64(4))
+	assertMetricField(t, entry.fields, "dropped_logs", int64(5))
+	assertMetricField(t, entry.fields, "queue_size", int64(6))
+	assertMetricField(t, entry.fields, "avg_process_time", int64(10))
+}
+
+func TestNormalizeOperationLogRequestBody_LimitsLongBody(t *testing.T) {
+	body := strings.Repeat("a", maxOperationLogRequestBodyLen+1)
+
+	got := normalizeOperationLogRequestBody(body)
+
+	if len(got) > maxOperationLogRequestBodyLen {
+		t.Fatalf("期望请求体不超过 %d 字节, 实际=%d", maxOperationLogRequestBodyLen, len(got))
+	}
+}
+
+func TestNormalizeOperationLogRequestBody_CompressesAndDecodesBody(t *testing.T) {
+	body := `{"domain":"default","permissions":[` + strings.Repeat(`{"object":"/api/v1/admin/auth/messages","action":"GET"},`, 100) + `{}]}`
+
+	stored := normalizeOperationLogRequestBody(body)
+
+	if !strings.HasPrefix(stored, compressedOperationLogRequestBodyPrefix) {
+		t.Fatalf("期望请求体被压缩存储, 实际前缀=%q", stored[:len(compressedOperationLogRequestBodyPrefix)])
+	}
+	if len(stored) >= len(body) {
+		t.Fatalf("期望压缩后更短, 原始=%d 压缩后=%d", len(body), len(stored))
+	}
+
+	got := decodeOperationLogRequestBody(stored)
+	if got != body {
+		t.Fatalf("期望解压后等于原始请求体")
+	}
+}
+
+func assertMetricField(t *testing.T, fields map[string]interface{}, key string, expected int64) {
+	t.Helper()
+	actual, ok := fields[key]
+	if !ok {
+		t.Fatalf("缺少结构化字段 %s", key)
+	}
+	if actual != expected {
+		t.Fatalf("字段 %s 期望=%d, 实际=%v", key, expected, actual)
 	}
 }
 

@@ -3928,6 +3928,38 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/auth/messages/test-push": {
+            "post": {
+                "description": "调试用：给当前用户发一条测试消息，验证 SSE 链路",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "站内消息"
+                ],
+                "summary": "测试推送",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.MessageResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/auth/messages/unread": {
             "post": {
                 "consumes": [
@@ -4834,6 +4866,267 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/plugins": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取所有已安装的插件",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "获取插件列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.PluginResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/plugins/install": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "通过本地插件包路径安装插件",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "安装插件",
+                "parameters": [
+                    {
+                        "description": "插件安装请求",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.InstallPluginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.PluginResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/plugins/{plugin_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据插件ID获取插件详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "获取插件详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "插件ID",
+                        "name": "plugin_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.PluginResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "卸载并删除插件",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "卸载插件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "插件ID",
+                        "name": "plugin_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/plugins/{plugin_id}/disable": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "停用已启用的插件",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "停用插件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "插件ID",
+                        "name": "plugin_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/auth/plugins/{plugin_id}/enable": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "启用已安装的插件",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "启用插件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "插件ID",
+                        "name": "plugin_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -6577,7 +6870,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取当前用户的API权限",
+                "description": "获取当前用户可访问的API权限列表（扁平数组），仅返回 type=api 的权限规则，用于前端或调试场景查看当前用户接口访问范围。",
                 "consumes": [
                     "application/json"
                 ],
@@ -6591,14 +6884,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "域，默认default",
+                        "description": "权限域，默认default",
                         "name": "domain",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "获取成功，data为API权限扁平数组",
                         "schema": {
                             "allOf": [
                                 {
@@ -6619,19 +6912,19 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "未授权或JWT缺少域信息",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "无权限访问",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "获取用户API权限失败",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -6646,7 +6939,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取当前用户的按钮权限",
+                "description": "获取当前用户可访问的按钮权限列表（扁平数组），仅返回 type=button 的启用权限；普通用户按角色权限过滤，超级管理员返回当前域下全部启用按钮。",
                 "consumes": [
                     "application/json"
                 ],
@@ -6660,14 +6953,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "域，默认default",
+                        "description": "权限域，默认default",
                         "name": "domain",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "获取成功，data为按钮权限扁平数组",
                         "schema": {
                             "allOf": [
                                 {
@@ -6688,19 +6981,19 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "未授权或JWT缺少域信息",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "无权限访问",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "获取用户按钮权限失败",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -6715,7 +7008,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取当前用户的菜单权限",
+                "description": "获取当前用户可访问的菜单权限树，仅返回 type=menu 的启用权限节点；普通用户按角色权限过滤，超级管理员返回当前域下全部启用菜单；当用户只拥有子菜单权限时会自动补齐父级菜单节点用于前端渲染。",
                 "consumes": [
                     "application/json"
                 ],
@@ -6725,18 +7018,18 @@ const docTemplate = `{
                 "tags": [
                     "权限管理"
                 ],
-                "summary": "获取用户菜单权限",
+                "summary": "获取用户菜单权限树",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "域，默认default",
+                        "description": "权限域，默认default",
                         "name": "domain",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "获取成功，data为菜单权限树数组，节点type固定为menu",
                         "schema": {
                             "allOf": [
                                 {
@@ -6748,7 +7041,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/service.PermissionResponse"
+                                                "$ref": "#/definitions/service.SystemPermissionTreeNode"
                                             }
                                         }
                                     }
@@ -6757,19 +7050,19 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "未授权或JWT缺少域信息",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "无权限访问",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "获取用户菜单权限失败",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -6784,7 +7077,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取当前用户的所有权限（菜单和按钮）",
+                "description": "获取当前用户可访问的混合权限树数组，包含 type=menu、type=button、type=api 的启用权限节点；普通用户按角色权限过滤，超级管理员返回当前域下全部启用权限；子节点有权限时会自动补齐父级节点。",
                 "consumes": [
                     "application/json"
                 ],
@@ -6794,18 +7087,18 @@ const docTemplate = `{
                 "tags": [
                     "权限管理"
                 ],
-                "summary": "获取用户所有权限",
+                "summary": "获取用户混合权限树",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "域，默认default",
+                        "description": "权限域，默认default",
                         "name": "domain",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "获取成功，data为混合权限树数组，节点type用于区分menu/button/api",
                         "schema": {
                             "allOf": [
                                 {
@@ -6815,12 +7108,9 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "additionalProperties": {
-                                                "type": "array",
-                                                "items": {
-                                                    "$ref": "#/definitions/service.PermissionResponse"
-                                                }
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/service.SystemPermissionTreeNode"
                                             }
                                         }
                                     }
@@ -6829,19 +7119,19 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "未授权或JWT缺少域信息",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "403": {
-                        "description": "Forbidden",
+                        "description": "无权限访问",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "获取用户权限失败",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -8163,6 +8453,9 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "type": "integer"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -8195,6 +8488,12 @@ const docTemplate = `{
                 },
                 "position": {
                     "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "status": {
                     "type": "string"
@@ -8528,6 +8827,15 @@ const docTemplate = `{
                 "phone": {
                     "type": "string"
                 },
+                "primary_role_id": {
+                    "type": "integer"
+                },
+                "role_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "username": {
                     "type": "string",
                     "minLength": 3
@@ -8826,6 +9134,15 @@ const docTemplate = `{
                 "phone": {
                     "type": "string"
                 },
+                "primary_role_id": {
+                    "type": "integer"
+                },
+                "role_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "username": {
                     "type": "string",
                     "minLength": 3
@@ -8950,6 +9267,17 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.InstallPluginRequest": {
+            "type": "object",
+            "required": [
+                "package_path"
+            ],
+            "properties": {
+                "package_path": {
                     "type": "string"
                 }
             }
@@ -9357,6 +9685,32 @@ const docTemplate = `{
                 "PermissionTypeMenu",
                 "PermissionTypeButton"
             ]
+        },
+        "service.PluginResponse": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "install_path": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
         },
         "service.RefreshTokenRequest": {
             "type": "object",

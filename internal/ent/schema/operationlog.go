@@ -62,7 +62,7 @@ func (OperationLog) Fields() []ent.Field {
 			MaxLen(1024).
 			StructTag(`json:"user_agent,omitempty"`).
 			Comment("用户代理"),
-		field.String("request_body").
+		field.Text("request_body").
 			Optional().
 			Sensitive().
 			Comment("请求体"),

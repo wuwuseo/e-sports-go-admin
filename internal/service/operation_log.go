@@ -1,10 +1,13 @@
 package service
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,6 +16,9 @@ import (
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
+
+	"github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
 )
 
 var (
@@ -22,12 +28,14 @@ var (
 )
 
 const (
-	defaultOperationLogQueueSize       = 1000
-	defaultOperationLogWorkers         = 5
-	defaultOperationLogMaxRetries      = 3
-	defaultOperationLogWriteTimeout    = 5 * time.Second
-	defaultOperationLogEnqueueTimeout  = 100 * time.Millisecond
-	defaultOperationLogMonitorInterval = 30 * time.Second
+	defaultOperationLogQueueSize            = 1000
+	defaultOperationLogWorkers              = 5
+	defaultOperationLogMaxRetries           = 3
+	defaultOperationLogWriteTimeout         = 5 * time.Second
+	defaultOperationLogEnqueueTimeout       = 100 * time.Millisecond
+	defaultOperationLogMonitorInterval      = 30 * time.Second
+	maxOperationLogRequestBodyLen           = 65535
+	compressedOperationLogRequestBodyPrefix = "gzip:v1:"
 )
 
 var defaultOperationLogService atomic.Pointer[OperationLogService]
@@ -231,7 +239,7 @@ func (s *OperationLogService) Log(ctx context.Context, entry *LogEntry) error {
 		return fmt.Errorf("日志写入超时: %w", ctx.Err())
 	case <-timer.C:
 		s.metrics.droppedLogs.Add(1)
-		log.Printf("[OperationLog] 日志队列已满，丢弃日志: %+v", entry)
+		log.Error("OperationLog 日志队列已满，丢弃日志", zap.Any("entry", entry))
 		return ErrOperationLogQueueFull
 	}
 }
@@ -251,11 +259,11 @@ func (s *OperationLogService) processLog(entry *LogEntry) {
 			return
 		} else {
 			lastErr = err
-			log.Printf("[OperationLog] 写入失败（尝试 %d/%d）: %v", attempt+1, s.maxRetries, err)
+			log.Error("OperationLog 写入失败", zap.Int("attempt", attempt+1), zap.Int("max_retries", s.maxRetries), zap.Error(err))
 		}
 	}
 	s.metrics.failedLogs.Add(1)
-	log.Printf("[OperationLog] 写入最终失败: %v, 日志: %+v", lastErr, entry)
+	log.Error("OperationLog 写入最终失败", zap.Error(lastErr), zap.Any("entry", entry))
 }
 
 func (s *OperationLogService) writeLog(entry *LogEntry) error {
@@ -279,11 +287,59 @@ func (s *OperationLogService) writeLog(entry *LogEntry) error {
 		builder.SetUserAgent(entry.UserAgent)
 	}
 	if entry.RequestBody != "" {
-		builder.SetRequestBody(entry.RequestBody)
+		builder.SetRequestBody(normalizeOperationLogRequestBody(entry.RequestBody))
 	}
 
 	_, err := builder.Save(ctx)
 	return err
+}
+
+func normalizeOperationLogRequestBody(body string) string {
+	normalized := compressOperationLogRequestBody(body)
+	if len(normalized) <= maxOperationLogRequestBodyLen {
+		return normalized
+	}
+	return normalized[:maxOperationLogRequestBodyLen]
+}
+
+func compressOperationLogRequestBody(body string) string {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	if _, err := zw.Write([]byte(body)); err != nil {
+		return body
+	}
+	if err := zw.Close(); err != nil {
+		return body
+	}
+
+	compressed := compressedOperationLogRequestBodyPrefix + base64.StdEncoding.EncodeToString(buf.Bytes())
+	if len(compressed) >= len(body) {
+		return body
+	}
+	return compressed
+}
+
+func decodeOperationLogRequestBody(body string) string {
+	if len(body) < len(compressedOperationLogRequestBodyPrefix) || body[:len(compressedOperationLogRequestBodyPrefix)] != compressedOperationLogRequestBodyPrefix {
+		return body
+	}
+
+	payload := body[len(compressedOperationLogRequestBodyPrefix):]
+	compressed, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return body
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(compressed))
+	if err != nil {
+		return body
+	}
+	defer zr.Close()
+
+	decoded, err := io.ReadAll(zr)
+	if err != nil {
+		return body
+	}
+	return string(decoded)
 }
 
 // Shutdown 优雅关闭操作日志服务
@@ -337,9 +393,15 @@ func (s *OperationLogService) GetMetrics() map[string]int64 {
 
 func (s *OperationLogService) printMetrics() {
 	metrics := s.GetMetrics()
-	log.Printf("[OperationLog] 指标 - 总计:%d 成功:%d 失败:%d 重试:%d 丢弃:%d 队列:%d 平均耗时:%dms",
-		metrics["total_logs"], metrics["success_logs"], metrics["failed_logs"],
-		metrics["retried_logs"], metrics["dropped_logs"], metrics["queue_size"], metrics["avg_process_time"])
+	log.Info("OperationLog 指标",
+		zap.Int64("total_logs", metrics["total_logs"]),
+		zap.Int64("success_logs", metrics["success_logs"]),
+		zap.Int64("failed_logs", metrics["failed_logs"]),
+		zap.Int64("retried_logs", metrics["retried_logs"]),
+		zap.Int64("dropped_logs", metrics["dropped_logs"]),
+		zap.Int64("queue_size", metrics["queue_size"]),
+		zap.Int64("avg_process_time", metrics["avg_process_time"]),
+	)
 }
 
 // List 获取操作日志列表
@@ -412,7 +474,7 @@ func toOperationLogResponse(l *ent.OperationLog) *OperationLogResponse {
 		Path:        l.Path,
 		IP:          l.IP,
 		UserAgent:   l.UserAgent,
-		RequestBody: l.RequestBody,
+		RequestBody: decodeOperationLogRequestBody(l.RequestBody),
 		StatusCode:  l.StatusCode,
 		DurationMs:  l.DurationMs,
 		CreatedAt:   l.CreatedAt,

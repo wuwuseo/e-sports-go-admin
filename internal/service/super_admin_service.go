@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/role"
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
 
@@ -122,6 +124,55 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminReq
 		Save(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// 如果请求中携带了 RoleIDs，创建 admin_role 关联并同步到 Casbin
+	if len(req.RoleIDs) > 0 {
+		primaryID := req.PrimaryRoleID
+		if primaryID == 0 {
+			primaryID = req.RoleIDs[0]
+		}
+		// 获取角色信息（用于后续写入 Casbin g 规则）
+		roles, err := s.client.Role.Query().
+			Where(role.IDIn(req.RoleIDs...), role.StatusEQ(role.StatusActive)).
+			All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("查询角色失败: %w", err)
+		}
+		if len(roles) == 0 {
+			return nil, fmt.Errorf("没有有效的可分配角色")
+		}
+
+		// 事务：创建 admin_role 关联
+		tx, err := s.client.Tx(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("开启事务失败: %w", err)
+		}
+		for _, r := range roles {
+			isPrimary := r.ID == primaryID
+			_, err = tx.AdminRole.Create().
+				SetAdminID(a.ID).
+				SetRoleID(r.ID).
+				SetIsPrimary(isPrimary).
+				Save(ctx)
+			if err != nil {
+				_ = tx.Rollback()
+				return nil, fmt.Errorf("分配角色失败: %w", err)
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("提交事务失败: %w", err)
+		}
+
+		// 同步写入 Casbin g 规则（uid -> role_name in domain）
+		if global.EnforcerManager != nil {
+			enforcer, enfErr := global.EnforcerManager.GetEnforcer("default")
+			if enfErr == nil {
+				for _, r := range roles {
+					_, _ = enforcer.AddRoleForUserInDomain(a.UID, r.Name, "default")
+				}
+			}
+		}
 	}
 
 	return &AdminResponse{

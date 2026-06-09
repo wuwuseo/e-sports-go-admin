@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
@@ -125,6 +127,8 @@ type PermissionServiceInterface interface {
 
 	// 用户权限获取
 	GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
+	GetUserMenuPermissionTree(ctx context.Context, userID string, domain string) ([]*SystemPermissionTreeNode, error)
+	GetUserPermissionTree(ctx context.Context, userID string, domain string) ([]*SystemPermissionTreeNode, error)
 	GetUserButtonPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
 	GetUserAPIPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
 	GetUserRoleNames(ctx context.Context, userUID string) ([]string, error)
@@ -199,12 +203,42 @@ func (s *PermissionService) clearAllUsersPermissionsByRole(ctx context.Context, 
 			s.clearUserPermissionsCache(ctx, ur.Edges.User.UID, domain)
 		}
 	}
+
+	adminRoles, err := s.client.AdminRole.Query().
+		Where(adminrole.RoleIDEQ(roleEntity.ID)).
+		WithAdmin().
+		All(ctx)
+	if err != nil {
+		return
+	}
+	for _, ar := range adminRoles {
+		if ar.Edges.Admin != nil {
+			s.clearUserPermissionsCache(ctx, ar.Edges.Admin.UID, domain)
+		}
+	}
 }
 
 // clearRoleAndUsersCache 清除角色缓存及其关联的所有用户缓存
 func (s *PermissionService) clearRoleAndUsersCache(ctx context.Context, roleName, domain string) {
 	s.clearRolePermissionsCache(ctx, roleName, domain)
 	s.clearAllUsersPermissionsByRole(ctx, roleName, domain)
+}
+
+func (s *PermissionService) syncRolePermissionState(ctx context.Context, roleName, domain string) error {
+	s.clearRoleAndUsersCache(ctx, roleName, domain)
+
+	if global.EnforcerManager == nil {
+		return nil
+	}
+
+	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
+	if err != nil {
+		return fmt.Errorf("刷新 Casbin 策略失败: %w", err)
+	}
+	if err := enforcer.LoadPolicy(); err != nil {
+		return fmt.Errorf("刷新 Casbin 策略失败: %w", err)
+	}
+	return nil
 }
 
 // getUserRoleNames 获取用户的角色名称列表
@@ -375,9 +409,7 @@ func (s *PermissionService) CreatePermission(ctx context.Context, req *CreatePer
 	}
 
 	// 清除相关缓存
-	s.clearRoleAndUsersCache(ctx, req.RoleName, req.Domain)
-
-	return nil
+	return s.syncRolePermissionState(ctx, req.RoleName, req.Domain)
 }
 
 // UpdatePermission 更新权限
@@ -445,9 +477,7 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, req *UpdatePer
 	}
 
 	// 清除相关缓存
-	s.clearRoleAndUsersCache(ctx, req.RoleName, req.Domain)
-
-	return nil
+	return s.syncRolePermissionState(ctx, req.RoleName, req.Domain)
 }
 
 // DeletePermission 删除权限
@@ -480,9 +510,7 @@ func (s *PermissionService) DeletePermission(ctx context.Context, roleName, doma
 	}
 
 	// 清除相关缓存
-	s.clearRoleAndUsersCache(ctx, roleName, domain)
-
-	return nil
+	return s.syncRolePermissionState(ctx, roleName, domain)
 }
 
 // GetPermission 获取权限详情
@@ -664,9 +692,7 @@ func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, roleNam
 	}
 
 	// 清除相关缓存
-	s.clearRoleAndUsersCache(ctx, roleName, domain)
-
-	return nil
+	return s.syncRolePermissionState(ctx, roleName, domain)
 }
 
 // RemovePermissionsFromRole 从角色移除权限
@@ -702,9 +728,7 @@ func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, roleN
 	}
 
 	// 清除相关缓存
-	s.clearRoleAndUsersCache(ctx, roleName, domain)
-
-	return nil
+	return s.syncRolePermissionState(ctx, roleName, domain)
 }
 
 // GetRolePermissions 获取角色拥有的权限
@@ -837,9 +861,7 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, roleID int,
 	}
 
 	// 清除相关缓存
-	s.clearRoleAndUsersCache(ctx, roleName, domain)
-
-	return nil
+	return s.syncRolePermissionState(ctx, roleName, domain)
 }
 
 // CheckUserHasRole 检查用户是否拥有指定角色
@@ -869,6 +891,172 @@ func (s *PermissionService) GetUserMenuPermissions(ctx context.Context, userID s
 		return getEnabledSystemMenuPermissions(ctx, domain)
 	}
 	return s.getUserPermissionsByType(ctx, userID, domain, "menu")
+}
+
+// GetUserMenuPermissionTree 获取用户菜单权限树
+func (s *PermissionService) GetUserMenuPermissionTree(ctx context.Context, userID string, domain string) ([]*SystemPermissionTreeNode, error) {
+	permissions, err := s.GetUserMenuPermissions(ctx, userID, domain)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildUserPermissionTree(ctx, domain, permissions, PermissionTypeMenu)
+}
+
+// GetUserPermissionTree 获取用户混合权限树
+func (s *PermissionService) GetUserPermissionTree(ctx context.Context, userID string, domain string) ([]*SystemPermissionTreeNode, error) {
+	isSuperAdmin, err := s.CheckUserHasRole(ctx, userID, domain, "admin")
+	if err != nil {
+		return nil, err
+	}
+	if isSuperAdmin {
+		return s.buildUserPermissionTree(ctx, domain, nil, "")
+	}
+
+	permissions := make([]*PermissionResponse, 0)
+	for _, permType := range []string{"menu", "button", "api"} {
+		items, err := s.getUserPermissionsByType(ctx, userID, domain, permType)
+		if err != nil {
+			return nil, err
+		}
+		permissions = append(permissions, items...)
+	}
+	return s.buildUserPermissionTree(ctx, domain, permissions, "")
+}
+
+func (s *PermissionService) buildUserPermissionTree(ctx context.Context, domain string, permissions []*PermissionResponse, onlyType PermissionType) ([]*SystemPermissionTreeNode, error) {
+	query := s.client.SystemPermission.Query().
+		Where(systempermission.StatusEQ(1))
+
+	if domain != "" {
+		query = query.Where(systempermission.Or(
+			systempermission.DomainEQ(domain),
+			systempermission.IsCommonEQ(true),
+		))
+	}
+	if onlyType != "" {
+		query = query.Where(systempermission.TypeEQ(string(onlyType)))
+	}
+
+	systemPermissions, err := query.
+		Order(ent.Asc(systempermission.FieldSortOrder), ent.Asc(systempermission.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("获取系统权限树失败: %w", err)
+	}
+
+	includeAll := permissions == nil
+	permissionSet := buildPermissionLookup(permissions)
+	permissionByID := make(map[int]*ent.SystemPermission, len(systemPermissions))
+	included := make(map[int]struct{})
+
+	for _, p := range systemPermissions {
+		permissionByID[p.ID] = p
+	}
+
+	for _, p := range systemPermissions {
+		if includeAll || matchSystemPermission(p, permissionSet) {
+			for current := p; current != nil; current = permissionByID[current.ParentID] {
+				included[current.ID] = struct{}{}
+				if current.ParentID == 0 {
+					break
+				}
+			}
+		}
+	}
+
+	return buildSystemPermissionTree(systemPermissions, included), nil
+}
+
+func buildPermissionLookup(permissions []*PermissionResponse) map[string]struct{} {
+	lookup := make(map[string]struct{}, len(permissions))
+	for _, p := range permissions {
+		lookup[permissionLookupKey(string(p.Type), p.Object, p.Action)] = struct{}{}
+	}
+	return lookup
+}
+
+func matchSystemPermission(p *ent.SystemPermission, lookup map[string]struct{}) bool {
+	permType := p.Type
+	switch permType {
+	case string(PermissionTypeAPI):
+		_, ok := lookup[permissionLookupKey(permType, p.Path, p.Method)]
+		return ok
+	case string(PermissionTypeMenu):
+		if _, ok := lookup[permissionLookupKey(permType, systemPermissionObject(p), string(PermissionTypeMenu))]; ok {
+			return true
+		}
+		_, ok := lookup[permissionLookupKey(permType, systemPermissionObject(p), "MENU")]
+		return ok
+	case string(PermissionTypeButton):
+		_, ok := lookup[permissionLookupKey(permType, systemPermissionObject(p), string(PermissionTypeButton))]
+		return ok
+	default:
+		return false
+	}
+}
+
+func permissionLookupKey(permType, object, action string) string {
+	return permType + "\x00" + object + "\x00" + action
+}
+
+func buildSystemPermissionTree(systemPermissions []*ent.SystemPermission, included map[int]struct{}) []*SystemPermissionTreeNode {
+	nodeMap := make(map[int]*SystemPermissionTreeNode, len(included))
+	rootNodes := make([]*SystemPermissionTreeNode, 0)
+
+	for _, p := range systemPermissions {
+		if _, ok := included[p.ID]; !ok {
+			continue
+		}
+		nodeMap[p.ID] = systemPermissionToTreeNode(p)
+	}
+
+	for _, p := range systemPermissions {
+		node, ok := nodeMap[p.ID]
+		if !ok {
+			continue
+		}
+		parent, hasParent := nodeMap[p.ParentID]
+		if p.ParentID == 0 || !hasParent {
+			rootNodes = append(rootNodes, node)
+			continue
+		}
+		parent.Children = append(parent.Children, node)
+	}
+
+	sortSystemPermissionTree(rootNodes)
+	return rootNodes
+}
+
+func systemPermissionToTreeNode(p *ent.SystemPermission) *SystemPermissionTreeNode {
+	return &SystemPermissionTreeNode{
+		ID:          p.ID,
+		Type:        SystemPermissionType(p.Type),
+		Name:        p.Name,
+		Code:        p.Code,
+		Path:        p.Path,
+		Method:      p.Method,
+		MenuPath:    p.MenuPath,
+		Icon:        p.Icon,
+		Component:   p.Component,
+		ParentID:    p.ParentID,
+		SortOrder:   p.SortOrder,
+		IsCommon:    p.IsCommon,
+		Status:      p.Status,
+		Description: p.Description,
+		Children:    make([]*SystemPermissionTreeNode, 0),
+	}
+}
+
+func sortSystemPermissionTree(nodes []*SystemPermissionTreeNode) {
+	sort.Slice(nodes, func(i, j int) bool {
+		if nodes[i].SortOrder == nodes[j].SortOrder {
+			return nodes[i].ID < nodes[j].ID
+		}
+		return nodes[i].SortOrder < nodes[j].SortOrder
+	})
+	for _, node := range nodes {
+		sortSystemPermissionTree(node.Children)
+	}
 }
 
 // GetUserButtonPermissions 获取用户的按钮权限

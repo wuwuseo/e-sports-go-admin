@@ -370,7 +370,7 @@ var (
 		{Name: "path", Type: field.TypeString, Size: 1024},
 		{Name: "ip", Type: field.TypeString, Size: 50},
 		{Name: "user_agent", Type: field.TypeString, Nullable: true, Size: 1024},
-		{Name: "request_body", Type: field.TypeString, Nullable: true},
+		{Name: "request_body", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "status_code", Type: field.TypeInt},
 		{Name: "duration_ms", Type: field.TypeInt64},
 		{Name: "created_at", Type: field.TypeTime},
