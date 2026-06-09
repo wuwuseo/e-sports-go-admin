@@ -27,6 +27,9 @@ type CasbinRule func(*sql.Selector)
 // CronJob is the predicate function for cronjob builders.
 type CronJob func(*sql.Selector)
 
+// Department is the predicate function for department builders.
+type Department func(*sql.Selector)
+
 // DictData is the predicate function for dictdata builders.
 type DictData func(*sql.Selector)
 

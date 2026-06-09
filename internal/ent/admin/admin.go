@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 
 	"github.com/wuwuseo/cmf/orm"
 )
@@ -40,6 +41,8 @@ const (
 	FieldPhone = "phone"
 	// FieldDepartment holds the string denoting the department field in the database.
 	FieldDepartment = "department"
+	// FieldDepartmentID holds the string denoting the department_id field in the database.
+	FieldDepartmentID = "department_id"
 	// FieldPosition holds the string denoting the position field in the database.
 	FieldPosition = "position"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -50,6 +53,15 @@ const (
 	FieldLastIP = "last_ip"
 	// FieldIsSuperAdmin holds the string denoting the is_super_admin field in the database.
 	FieldIsSuperAdmin = "is_super_admin"
+	// EdgeDepartmentRef holds the string denoting the department_ref edge name in mutations.
+	EdgeDepartmentRef = "department_ref"
+	// DepartmentRefTable is the table that holds the department_ref relation/edge.
+	DepartmentRefTable = "admins"
+	// DepartmentRefInverseTable is the table name for the Department entity.
+	// It exists in this package in order to avoid circular dependency with the "department" package.
+	DepartmentRefInverseTable = "departments"
+	// DepartmentRefColumn is the table column denoting the department_ref relation/edge.
+	DepartmentRefColumn = "department_id"
 )
 
 // Table holds the table name of the admin in the database.
@@ -72,6 +84,7 @@ var Columns = []string{
 	FieldAvatar,
 	FieldPhone,
 	FieldDepartment,
+	FieldDepartmentID,
 	FieldPosition,
 	FieldStatus,
 	FieldLastLogin,
@@ -116,6 +129,8 @@ var (
 	PhoneValidator func(string) error
 	// DepartmentValidator is a validator for the "department" field. It is called by the builders before save.
 	DepartmentValidator func(string) error
+	// DefaultDepartmentID holds the default value on creation for the "department_id" field.
+	DefaultDepartmentID int
 	// PositionValidator is a validator for the "position" field. It is called by the builders before save.
 	PositionValidator func(string) error
 	// LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
@@ -219,6 +234,11 @@ func ByDepartment(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDepartment, opts...).ToFunc()
 }
 
+// ByDepartmentID orders the results by the department_id field.
+func ByDepartmentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDepartmentID, opts...).ToFunc()
+}
+
 // ByPosition orders the results by the position field.
 func ByPosition(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPosition, opts...).ToFunc()
@@ -242,4 +262,18 @@ func ByLastIP(opts ...sql.OrderTermOption) OrderOption {
 // ByIsSuperAdmin orders the results by the is_super_admin field.
 func ByIsSuperAdmin(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsSuperAdmin, opts...).ToFunc()
+}
+
+// ByDepartmentRefField orders the results by department_ref field.
+func ByDepartmentRefField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newDepartmentRefStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newDepartmentRefStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TablePrefix+"departments", FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, false, TablePrefix+"admins", DepartmentRefColumn),
+	)
 }

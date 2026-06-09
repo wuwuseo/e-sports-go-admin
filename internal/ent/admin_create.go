@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/department"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -156,6 +157,20 @@ func (_c *AdminCreate) SetNillableDepartment(v *string) *AdminCreate {
 	return _c
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_c *AdminCreate) SetDepartmentID(v int) *AdminCreate {
+	_c.mutation.SetDepartmentID(v)
+	return _c
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_c *AdminCreate) SetNillableDepartmentID(v *int) *AdminCreate {
+	if v != nil {
+		_c.SetDepartmentID(*v)
+	}
+	return _c
+}
+
 // SetPosition sets the "position" field.
 func (_c *AdminCreate) SetPosition(v string) *AdminCreate {
 	_c.mutation.SetPosition(v)
@@ -232,6 +247,25 @@ func (_c *AdminCreate) SetID(v int) *AdminCreate {
 	return _c
 }
 
+// SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
+func (_c *AdminCreate) SetDepartmentRefID(id int) *AdminCreate {
+	_c.mutation.SetDepartmentRefID(id)
+	return _c
+}
+
+// SetNillableDepartmentRefID sets the "department_ref" edge to the Department entity by ID if the given value is not nil.
+func (_c *AdminCreate) SetNillableDepartmentRefID(id *int) *AdminCreate {
+	if id != nil {
+		_c = _c.SetDepartmentRefID(*id)
+	}
+	return _c
+}
+
+// SetDepartmentRef sets the "department_ref" edge to the Department entity.
+func (_c *AdminCreate) SetDepartmentRef(v *Department) *AdminCreate {
+	return _c.SetDepartmentRefID(v.ID)
+}
+
 // Mutation returns the AdminMutation object of the builder.
 func (_c *AdminCreate) Mutation() *AdminMutation {
 	return _c.mutation
@@ -274,6 +308,10 @@ func (_c *AdminCreate) defaults() {
 	if _, ok := _c.mutation.UpdateTime(); !ok {
 		v := admin.DefaultUpdateTime()
 		_c.mutation.SetUpdateTime(v)
+	}
+	if _, ok := _c.mutation.DepartmentID(); !ok {
+		v := admin.DefaultDepartmentID
+		_c.mutation.SetDepartmentID(v)
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := admin.DefaultStatus
@@ -475,6 +513,23 @@ func (_c *AdminCreate) createSpec() (*Admin, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsSuperAdmin(); ok {
 		_spec.SetField(admin.FieldIsSuperAdmin, field.TypeBool, value)
 		_node.IsSuperAdmin = value
+	}
+	if nodes := _c.mutation.DepartmentRefIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   admin.DepartmentRefTable,
+			Columns: []string{admin.DepartmentRefColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(department.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.DepartmentID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

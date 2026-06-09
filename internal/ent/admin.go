@@ -5,6 +5,7 @@ package ent
 import (
 	"fmt"
 	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/department"
 	"strings"
 	"time"
 
@@ -41,6 +42,8 @@ type Admin struct {
 	Phone string `json:"phone,omitempty"`
 	// 所属部门
 	Department string `json:"department,omitempty"`
+	// DepartmentID holds the value of the "department_id" field.
+	DepartmentID int `json:"department_id,omitempty"`
 	// 职位
 	Position string `json:"position,omitempty"`
 	// 管理员状态
@@ -51,7 +54,30 @@ type Admin struct {
 	LastIP string `json:"last_ip,omitempty"`
 	// 是否超级管理员
 	IsSuperAdmin bool `json:"is_super_admin,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the AdminQuery when eager-loading is set.
+	Edges        AdminEdges `json:"edges"`
 	selectValues sql.SelectValues
+}
+
+// AdminEdges holds the relations/edges for other nodes in the graph.
+type AdminEdges struct {
+	// DepartmentRef holds the value of the department_ref edge.
+	DepartmentRef *Department `json:"department_ref,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// DepartmentRefOrErr returns the DepartmentRef value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e AdminEdges) DepartmentRefOrErr() (*Department, error) {
+	if e.DepartmentRef != nil {
+		return e.DepartmentRef, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: department.Label}
+	}
+	return nil, &NotLoadedError{edge: "department_ref"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -61,7 +87,7 @@ func (*Admin) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case admin.FieldIsSuperAdmin:
 			values[i] = new(sql.NullBool)
-		case admin.FieldID:
+		case admin.FieldID, admin.FieldDepartmentID:
 			values[i] = new(sql.NullInt64)
 		case admin.FieldEmail, admin.FieldPassword, admin.FieldPasswordSalt, admin.FieldUID, admin.FieldUsername, admin.FieldNickname, admin.FieldName, admin.FieldAvatar, admin.FieldPhone, admin.FieldDepartment, admin.FieldPosition, admin.FieldStatus, admin.FieldLastIP:
 			values[i] = new(sql.NullString)
@@ -160,6 +186,12 @@ func (_m *Admin) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Department = value.String
 			}
+		case admin.FieldDepartmentID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field department_id", values[i])
+			} else if value.Valid {
+				_m.DepartmentID = int(value.Int64)
+			}
 		case admin.FieldPosition:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field position", values[i])
@@ -201,6 +233,11 @@ func (_m *Admin) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Admin) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryDepartmentRef queries the "department_ref" edge of the Admin entity.
+func (_m *Admin) QueryDepartmentRef() *DepartmentQuery {
+	return NewAdminClient(_m.config).QueryDepartmentRef(_m)
 }
 
 // Update returns a builder for updating this Admin.
@@ -259,6 +296,9 @@ func (_m *Admin) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("department=")
 	builder.WriteString(_m.Department)
+	builder.WriteString(", ")
+	builder.WriteString("department_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DepartmentID))
 	builder.WriteString(", ")
 	builder.WriteString("position=")
 	builder.WriteString(_m.Position)

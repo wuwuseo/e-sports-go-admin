@@ -2,6 +2,7 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 	"entgo.io/ent/schema/mixin"
@@ -62,6 +63,9 @@ func (Admin) Fields() []ent.Field {
 			MaxLen(255).
 			Optional().
 			Comment("所属部门"),
+		field.Int("department_id").
+			Optional().
+			Default(0),
 		field.String("position").
 			MaxLen(255).
 			Optional().
@@ -85,7 +89,9 @@ func (Admin) Fields() []ent.Field {
 
 // Edges of the Admin.
 func (Admin) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.To("department_ref", Department.Type).Unique().Field("department_id"),
+	}
 }
 
 // Indexes of the Admin.
@@ -94,6 +100,7 @@ func (Admin) Indexes() []ent.Index {
 		index.Fields("email"),
 		index.Fields("username"),
 		index.Fields("uid"),
+		index.Fields("department_id"),
 	}
 }
 

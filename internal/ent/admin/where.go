@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 // ID filters vertices based on their ID field.
@@ -112,6 +113,11 @@ func Phone(v string) predicate.Admin {
 // Department applies equality check predicate on the "department" field. It's identical to DepartmentEQ.
 func Department(v string) predicate.Admin {
 	return predicate.Admin(sql.FieldEQ(FieldDepartment, v))
+}
+
+// DepartmentID applies equality check predicate on the "department_id" field. It's identical to DepartmentIDEQ.
+func DepartmentID(v int) predicate.Admin {
+	return predicate.Admin(sql.FieldEQ(FieldDepartmentID, v))
 }
 
 // Position applies equality check predicate on the "position" field. It's identical to PositionEQ.
@@ -924,6 +930,36 @@ func DepartmentContainsFold(v string) predicate.Admin {
 	return predicate.Admin(sql.FieldContainsFold(FieldDepartment, v))
 }
 
+// DepartmentIDEQ applies the EQ predicate on the "department_id" field.
+func DepartmentIDEQ(v int) predicate.Admin {
+	return predicate.Admin(sql.FieldEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDNEQ applies the NEQ predicate on the "department_id" field.
+func DepartmentIDNEQ(v int) predicate.Admin {
+	return predicate.Admin(sql.FieldNEQ(FieldDepartmentID, v))
+}
+
+// DepartmentIDIn applies the In predicate on the "department_id" field.
+func DepartmentIDIn(vs ...int) predicate.Admin {
+	return predicate.Admin(sql.FieldIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDNotIn applies the NotIn predicate on the "department_id" field.
+func DepartmentIDNotIn(vs ...int) predicate.Admin {
+	return predicate.Admin(sql.FieldNotIn(FieldDepartmentID, vs...))
+}
+
+// DepartmentIDIsNil applies the IsNil predicate on the "department_id" field.
+func DepartmentIDIsNil() predicate.Admin {
+	return predicate.Admin(sql.FieldIsNull(FieldDepartmentID))
+}
+
+// DepartmentIDNotNil applies the NotNil predicate on the "department_id" field.
+func DepartmentIDNotNil() predicate.Admin {
+	return predicate.Admin(sql.FieldNotNull(FieldDepartmentID))
+}
+
 // PositionEQ applies the EQ predicate on the "position" field.
 func PositionEQ(v string) predicate.Admin {
 	return predicate.Admin(sql.FieldEQ(FieldPosition, v))
@@ -1152,6 +1188,29 @@ func IsSuperAdminEQ(v bool) predicate.Admin {
 // IsSuperAdminNEQ applies the NEQ predicate on the "is_super_admin" field.
 func IsSuperAdminNEQ(v bool) predicate.Admin {
 	return predicate.Admin(sql.FieldNEQ(FieldIsSuperAdmin, v))
+}
+
+// HasDepartmentRef applies the HasEdge predicate on the "department_ref" edge.
+func HasDepartmentRef() predicate.Admin {
+	return predicate.Admin(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, DepartmentRefTable, DepartmentRefColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasDepartmentRefWith applies the HasEdge predicate on the "department_ref" edge with a given conditions (other predicates).
+func HasDepartmentRefWith(preds ...predicate.Department) predicate.Admin {
+	return predicate.Admin(func(s *sql.Selector) {
+		step := newDepartmentRefStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

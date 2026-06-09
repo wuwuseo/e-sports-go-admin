@@ -13,6 +13,7 @@ import (
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
@@ -97,6 +98,7 @@ func checkColumn(t, c string) error {
 			blacklist.Table:         blacklist.ValidColumn,
 			casbinrule.Table:        casbinrule.ValidColumn,
 			cronjob.Table:           cronjob.ValidColumn,
+			department.Table:        department.ValidColumn,
 			dictdata.Table:          dictdata.ValidColumn,
 			message.Table:           message.ValidColumn,
 			messagepreference.Table: messagepreference.ValidColumn,

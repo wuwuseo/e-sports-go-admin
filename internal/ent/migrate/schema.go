@@ -31,12 +31,21 @@ var (
 		{Name: "last_login", Type: field.TypeTime, Nullable: true},
 		{Name: "last_ip", Type: field.TypeString, Nullable: true, Size: 50},
 		{Name: "is_super_admin", Type: field.TypeBool, Default: false},
+		{Name: "department_id", Type: field.TypeInt, Nullable: true, Default: 0},
 	}
 	// AdminsTable holds the schema information for the "admins" table.
 	AdminsTable = &schema.Table{
 		Name:       TablePrefix + "admins",
 		Columns:    AdminsColumns,
 		PrimaryKey: []*schema.Column{AdminsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "admins_departments_department_ref",
+				Columns:    []*schema.Column{AdminsColumns[18]},
+				RefColumns: []*schema.Column{DepartmentsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "admin_email",
@@ -52,6 +61,11 @@ var (
 				Name:    "admin_uid",
 				Unique:  false,
 				Columns: []*schema.Column{AdminsColumns[6]},
+			},
+			{
+				Name:    "admin_department_id",
+				Unique:  false,
+				Columns: []*schema.Column{AdminsColumns[18]},
 			},
 		},
 	}
@@ -250,6 +264,48 @@ var (
 				Name:    "cronjob_type",
 				Unique:  false,
 				Columns: []*schema.Column{CronJobsColumns[3]},
+			},
+		},
+	}
+	// DepartmentsColumns holds the columns for the "departments" table.
+	DepartmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "create_time", Type: field.TypeTime},
+		{Name: "update_time", Type: field.TypeTime},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "parent_id", Type: field.TypeInt, Default: 0},
+		{Name: "path", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "sort", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive"}, Default: "active"},
+		{Name: "leader", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "phone", Type: field.TypeString, Nullable: true, Size: 20},
+		{Name: "email", Type: field.TypeString, Nullable: true, Size: 255},
+	}
+	// DepartmentsTable holds the schema information for the "departments" table.
+	DepartmentsTable = &schema.Table{
+		Name:       TablePrefix + "departments",
+		Columns:    DepartmentsColumns,
+		PrimaryKey: []*schema.Column{DepartmentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "department_parent_id",
+				Unique:  false,
+				Columns: []*schema.Column{DepartmentsColumns[4]},
+			},
+			{
+				Name:    "department_path",
+				Unique:  false,
+				Columns: []*schema.Column{DepartmentsColumns[5]},
+			},
+			{
+				Name:    "department_status",
+				Unique:  false,
+				Columns: []*schema.Column{DepartmentsColumns[7]},
+			},
+			{
+				Name:    "department_parent_id_name",
+				Unique:  true,
+				Columns: []*schema.Column{DepartmentsColumns[4], DepartmentsColumns[3]},
 			},
 		},
 	}
@@ -709,6 +765,7 @@ var (
 		BlacklistsTable,
 		CasbinRulesTable,
 		CronJobsTable,
+		DepartmentsTable,
 		DictDataTable,
 		MessagesTable,
 		MessagePreferencesTable,
@@ -724,6 +781,7 @@ var (
 )
 
 func init() {
+	AdminsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	AdminRolesTable.ForeignKeys[0].RefTable = AdminsTable
 	AdminRolesTable.ForeignKeys[1].RefTable = RolesTable
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable

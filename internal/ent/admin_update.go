@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/predicate"
 	"time"
 
@@ -210,6 +211,26 @@ func (_u *AdminUpdate) ClearDepartment() *AdminUpdate {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *AdminUpdate) SetDepartmentID(v int) *AdminUpdate {
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *AdminUpdate) SetNillableDepartmentID(v *int) *AdminUpdate {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *AdminUpdate) ClearDepartmentID() *AdminUpdate {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetPosition sets the "position" field.
 func (_u *AdminUpdate) SetPosition(v string) *AdminUpdate {
 	_u.mutation.SetPosition(v)
@@ -298,9 +319,34 @@ func (_u *AdminUpdate) SetNillableIsSuperAdmin(v *bool) *AdminUpdate {
 	return _u
 }
 
+// SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
+func (_u *AdminUpdate) SetDepartmentRefID(id int) *AdminUpdate {
+	_u.mutation.SetDepartmentRefID(id)
+	return _u
+}
+
+// SetNillableDepartmentRefID sets the "department_ref" edge to the Department entity by ID if the given value is not nil.
+func (_u *AdminUpdate) SetNillableDepartmentRefID(id *int) *AdminUpdate {
+	if id != nil {
+		_u = _u.SetDepartmentRefID(*id)
+	}
+	return _u
+}
+
+// SetDepartmentRef sets the "department_ref" edge to the Department entity.
+func (_u *AdminUpdate) SetDepartmentRef(v *Department) *AdminUpdate {
+	return _u.SetDepartmentRefID(v.ID)
+}
+
 // Mutation returns the AdminMutation object of the builder.
 func (_u *AdminUpdate) Mutation() *AdminMutation {
 	return _u.mutation
+}
+
+// ClearDepartmentRef clears the "department_ref" edge to the Department entity.
+func (_u *AdminUpdate) ClearDepartmentRef() *AdminUpdate {
+	_u.mutation.ClearDepartmentRef()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -495,6 +541,35 @@ func (_u *AdminUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.IsSuperAdmin(); ok {
 		_spec.SetField(admin.FieldIsSuperAdmin, field.TypeBool, value)
+	}
+	if _u.mutation.DepartmentRefCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   admin.DepartmentRefTable,
+			Columns: []string{admin.DepartmentRefColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(department.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DepartmentRefIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   admin.DepartmentRefTable,
+			Columns: []string{admin.DepartmentRefColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(department.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -698,6 +773,26 @@ func (_u *AdminUpdateOne) ClearDepartment() *AdminUpdateOne {
 	return _u
 }
 
+// SetDepartmentID sets the "department_id" field.
+func (_u *AdminUpdateOne) SetDepartmentID(v int) *AdminUpdateOne {
+	_u.mutation.SetDepartmentID(v)
+	return _u
+}
+
+// SetNillableDepartmentID sets the "department_id" field if the given value is not nil.
+func (_u *AdminUpdateOne) SetNillableDepartmentID(v *int) *AdminUpdateOne {
+	if v != nil {
+		_u.SetDepartmentID(*v)
+	}
+	return _u
+}
+
+// ClearDepartmentID clears the value of the "department_id" field.
+func (_u *AdminUpdateOne) ClearDepartmentID() *AdminUpdateOne {
+	_u.mutation.ClearDepartmentID()
+	return _u
+}
+
 // SetPosition sets the "position" field.
 func (_u *AdminUpdateOne) SetPosition(v string) *AdminUpdateOne {
 	_u.mutation.SetPosition(v)
@@ -786,9 +881,34 @@ func (_u *AdminUpdateOne) SetNillableIsSuperAdmin(v *bool) *AdminUpdateOne {
 	return _u
 }
 
+// SetDepartmentRefID sets the "department_ref" edge to the Department entity by ID.
+func (_u *AdminUpdateOne) SetDepartmentRefID(id int) *AdminUpdateOne {
+	_u.mutation.SetDepartmentRefID(id)
+	return _u
+}
+
+// SetNillableDepartmentRefID sets the "department_ref" edge to the Department entity by ID if the given value is not nil.
+func (_u *AdminUpdateOne) SetNillableDepartmentRefID(id *int) *AdminUpdateOne {
+	if id != nil {
+		_u = _u.SetDepartmentRefID(*id)
+	}
+	return _u
+}
+
+// SetDepartmentRef sets the "department_ref" edge to the Department entity.
+func (_u *AdminUpdateOne) SetDepartmentRef(v *Department) *AdminUpdateOne {
+	return _u.SetDepartmentRefID(v.ID)
+}
+
 // Mutation returns the AdminMutation object of the builder.
 func (_u *AdminUpdateOne) Mutation() *AdminMutation {
 	return _u.mutation
+}
+
+// ClearDepartmentRef clears the "department_ref" edge to the Department entity.
+func (_u *AdminUpdateOne) ClearDepartmentRef() *AdminUpdateOne {
+	_u.mutation.ClearDepartmentRef()
+	return _u
 }
 
 // Where appends a list predicates to the AdminUpdate builder.
@@ -1013,6 +1133,35 @@ func (_u *AdminUpdateOne) sqlSave(ctx context.Context) (_node *Admin, err error)
 	}
 	if value, ok := _u.mutation.IsSuperAdmin(); ok {
 		_spec.SetField(admin.FieldIsSuperAdmin, field.TypeBool, value)
+	}
+	if _u.mutation.DepartmentRefCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   admin.DepartmentRefTable,
+			Columns: []string{admin.DepartmentRefColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(department.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.DepartmentRefIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   admin.DepartmentRefTable,
+			Columns: []string{admin.DepartmentRefColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(department.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Admin{config: _u.config}
 	_spec.Assign = _node.assignValues

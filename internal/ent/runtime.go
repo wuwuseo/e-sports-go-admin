@@ -10,6 +10,7 @@ import (
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
@@ -112,16 +113,20 @@ func init() {
 	adminDescDepartment := adminFields[10].Descriptor()
 	// admin.DepartmentValidator is a validator for the "department" field. It is called by the builders before save.
 	admin.DepartmentValidator = adminDescDepartment.Validators[0].(func(string) error)
+	// adminDescDepartmentID is the schema descriptor for department_id field.
+	adminDescDepartmentID := adminFields[11].Descriptor()
+	// admin.DefaultDepartmentID holds the default value on creation for the department_id field.
+	admin.DefaultDepartmentID = adminDescDepartmentID.Default.(int)
 	// adminDescPosition is the schema descriptor for position field.
-	adminDescPosition := adminFields[11].Descriptor()
+	adminDescPosition := adminFields[12].Descriptor()
 	// admin.PositionValidator is a validator for the "position" field. It is called by the builders before save.
 	admin.PositionValidator = adminDescPosition.Validators[0].(func(string) error)
 	// adminDescLastIP is the schema descriptor for last_ip field.
-	adminDescLastIP := adminFields[14].Descriptor()
+	adminDescLastIP := adminFields[15].Descriptor()
 	// admin.LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
 	admin.LastIPValidator = adminDescLastIP.Validators[0].(func(string) error)
 	// adminDescIsSuperAdmin is the schema descriptor for is_super_admin field.
-	adminDescIsSuperAdmin := adminFields[15].Descriptor()
+	adminDescIsSuperAdmin := adminFields[16].Descriptor()
 	// admin.DefaultIsSuperAdmin holds the default value on creation for the is_super_admin field.
 	admin.DefaultIsSuperAdmin = adminDescIsSuperAdmin.Default.(bool)
 	adminroleMixin := schema.AdminRole{}.Mixin()
@@ -437,6 +442,65 @@ func init() {
 	cronjob.DefaultUpdatedAt = cronjobDescUpdatedAt.Default.(func() time.Time)
 	// cronjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	cronjob.UpdateDefaultUpdatedAt = cronjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	departmentMixin := schema.Department{}.Mixin()
+	departmentMixinFields0 := departmentMixin[0].Fields()
+	_ = departmentMixinFields0
+	departmentFields := schema.Department{}.Fields()
+	_ = departmentFields
+	// departmentDescCreateTime is the schema descriptor for create_time field.
+	departmentDescCreateTime := departmentMixinFields0[0].Descriptor()
+	// department.DefaultCreateTime holds the default value on creation for the create_time field.
+	department.DefaultCreateTime = departmentDescCreateTime.Default.(func() time.Time)
+	// departmentDescUpdateTime is the schema descriptor for update_time field.
+	departmentDescUpdateTime := departmentMixinFields0[1].Descriptor()
+	// department.DefaultUpdateTime holds the default value on creation for the update_time field.
+	department.DefaultUpdateTime = departmentDescUpdateTime.Default.(func() time.Time)
+	// department.UpdateDefaultUpdateTime holds the default value on update for the update_time field.
+	department.UpdateDefaultUpdateTime = departmentDescUpdateTime.UpdateDefault.(func() time.Time)
+	// departmentDescName is the schema descriptor for name field.
+	departmentDescName := departmentFields[1].Descriptor()
+	// department.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	department.NameValidator = func() func(string) error {
+		validators := departmentDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// departmentDescParentID is the schema descriptor for parent_id field.
+	departmentDescParentID := departmentFields[2].Descriptor()
+	// department.DefaultParentID holds the default value on creation for the parent_id field.
+	department.DefaultParentID = departmentDescParentID.Default.(int)
+	// departmentDescPath is the schema descriptor for path field.
+	departmentDescPath := departmentFields[3].Descriptor()
+	// department.DefaultPath holds the default value on creation for the path field.
+	department.DefaultPath = departmentDescPath.Default.(string)
+	// department.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	department.PathValidator = departmentDescPath.Validators[0].(func(string) error)
+	// departmentDescSort is the schema descriptor for sort field.
+	departmentDescSort := departmentFields[4].Descriptor()
+	// department.DefaultSort holds the default value on creation for the sort field.
+	department.DefaultSort = departmentDescSort.Default.(int)
+	// departmentDescLeader is the schema descriptor for leader field.
+	departmentDescLeader := departmentFields[6].Descriptor()
+	// department.LeaderValidator is a validator for the "leader" field. It is called by the builders before save.
+	department.LeaderValidator = departmentDescLeader.Validators[0].(func(string) error)
+	// departmentDescPhone is the schema descriptor for phone field.
+	departmentDescPhone := departmentFields[7].Descriptor()
+	// department.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
+	department.PhoneValidator = departmentDescPhone.Validators[0].(func(string) error)
+	// departmentDescEmail is the schema descriptor for email field.
+	departmentDescEmail := departmentFields[8].Descriptor()
+	// department.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	department.EmailValidator = departmentDescEmail.Validators[0].(func(string) error)
 	dictdataFields := schema.DictData{}.Fields()
 	_ = dictdataFields
 	// dictdataDescLabel is the schema descriptor for label field.

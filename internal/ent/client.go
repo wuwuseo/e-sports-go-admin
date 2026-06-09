@@ -18,6 +18,7 @@ import (
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
@@ -55,6 +56,8 @@ type Client struct {
 	CasbinRule *CasbinRuleClient
 	// CronJob is the client for interacting with the CronJob builders.
 	CronJob *CronJobClient
+	// Department is the client for interacting with the Department builders.
+	Department *DepartmentClient
 	// DictData is the client for interacting with the DictData builders.
 	DictData *DictDataClient
 	// Message is the client for interacting with the Message builders.
@@ -95,6 +98,7 @@ func (c *Client) init() {
 	c.Blacklist = NewBlacklistClient(c.config)
 	c.CasbinRule = NewCasbinRuleClient(c.config)
 	c.CronJob = NewCronJobClient(c.config)
+	c.Department = NewDepartmentClient(c.config)
 	c.DictData = NewDictDataClient(c.config)
 	c.Message = NewMessageClient(c.config)
 	c.MessagePreference = NewMessagePreferenceClient(c.config)
@@ -205,6 +209,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Blacklist:         NewBlacklistClient(cfg),
 		CasbinRule:        NewCasbinRuleClient(cfg),
 		CronJob:           NewCronJobClient(cfg),
+		Department:        NewDepartmentClient(cfg),
 		DictData:          NewDictDataClient(cfg),
 		Message:           NewMessageClient(cfg),
 		MessagePreference: NewMessagePreferenceClient(cfg),
@@ -242,6 +247,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Blacklist:         NewBlacklistClient(cfg),
 		CasbinRule:        NewCasbinRuleClient(cfg),
 		CronJob:           NewCronJobClient(cfg),
+		Department:        NewDepartmentClient(cfg),
 		DictData:          NewDictDataClient(cfg),
 		Message:           NewMessageClient(cfg),
 		MessagePreference: NewMessagePreferenceClient(cfg),
@@ -283,9 +289,9 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Admin, c.AdminRole, c.Attachment, c.AttachmentGroup, c.Blacklist,
-		c.CasbinRule, c.CronJob, c.DictData, c.Message, c.MessagePreference,
-		c.OperationLog, c.Plugin, c.Role, c.SystemConfig, c.SystemPermission,
-		c.ThirdPartyUser, c.User, c.UserRole,
+		c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
+		c.MessagePreference, c.OperationLog, c.Plugin, c.Role, c.SystemConfig,
+		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -296,9 +302,9 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Admin, c.AdminRole, c.Attachment, c.AttachmentGroup, c.Blacklist,
-		c.CasbinRule, c.CronJob, c.DictData, c.Message, c.MessagePreference,
-		c.OperationLog, c.Plugin, c.Role, c.SystemConfig, c.SystemPermission,
-		c.ThirdPartyUser, c.User, c.UserRole,
+		c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
+		c.MessagePreference, c.OperationLog, c.Plugin, c.Role, c.SystemConfig,
+		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -321,6 +327,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.CasbinRule.mutate(ctx, m)
 	case *CronJobMutation:
 		return c.CronJob.mutate(ctx, m)
+	case *DepartmentMutation:
+		return c.Department.mutate(ctx, m)
 	case *DictDataMutation:
 		return c.DictData.mutate(ctx, m)
 	case *MessageMutation:
@@ -454,6 +462,22 @@ func (c *AdminClient) GetX(ctx context.Context, id int) *Admin {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryDepartmentRef queries the department_ref edge of a Admin.
+func (c *AdminClient) QueryDepartmentRef(_m *Admin) *DepartmentQuery {
+	query := (&DepartmentClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(admin.Table, admin.FieldID, id),
+			sqlgraph.To(department.Table, department.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, admin.DepartmentRefTable, admin.DepartmentRefColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -1356,6 +1380,155 @@ func (c *CronJobClient) mutate(ctx context.Context, m *CronJobMutation) (Value, 
 		return (&CronJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CronJob mutation op: %q", m.Op())
+	}
+}
+
+// DepartmentClient is a client for the Department schema.
+type DepartmentClient struct {
+	config
+}
+
+// NewDepartmentClient returns a client for the Department from the given config.
+func NewDepartmentClient(c config) *DepartmentClient {
+	return &DepartmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `department.Hooks(f(g(h())))`.
+func (c *DepartmentClient) Use(hooks ...Hook) {
+	c.hooks.Department = append(c.hooks.Department, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `department.Intercept(f(g(h())))`.
+func (c *DepartmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Department = append(c.inters.Department, interceptors...)
+}
+
+// Create returns a builder for creating a Department entity.
+func (c *DepartmentClient) Create() *DepartmentCreate {
+	mutation := newDepartmentMutation(c.config, OpCreate)
+	return &DepartmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Department entities.
+func (c *DepartmentClient) CreateBulk(builders ...*DepartmentCreate) *DepartmentCreateBulk {
+	return &DepartmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *DepartmentClient) MapCreateBulk(slice any, setFunc func(*DepartmentCreate, int)) *DepartmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &DepartmentCreateBulk{err: fmt.Errorf("calling to DepartmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*DepartmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &DepartmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Department.
+func (c *DepartmentClient) Update() *DepartmentUpdate {
+	mutation := newDepartmentMutation(c.config, OpUpdate)
+	return &DepartmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *DepartmentClient) UpdateOne(_m *Department) *DepartmentUpdateOne {
+	mutation := newDepartmentMutation(c.config, OpUpdateOne, withDepartment(_m))
+	return &DepartmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *DepartmentClient) UpdateOneID(id int) *DepartmentUpdateOne {
+	mutation := newDepartmentMutation(c.config, OpUpdateOne, withDepartmentID(id))
+	return &DepartmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Department.
+func (c *DepartmentClient) Delete() *DepartmentDelete {
+	mutation := newDepartmentMutation(c.config, OpDelete)
+	return &DepartmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *DepartmentClient) DeleteOne(_m *Department) *DepartmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *DepartmentClient) DeleteOneID(id int) *DepartmentDeleteOne {
+	builder := c.Delete().Where(department.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &DepartmentDeleteOne{builder}
+}
+
+// Query returns a query builder for Department.
+func (c *DepartmentClient) Query() *DepartmentQuery {
+	return &DepartmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeDepartment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Department entity by its id.
+func (c *DepartmentClient) Get(ctx context.Context, id int) (*Department, error) {
+	return c.Query().Where(department.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *DepartmentClient) GetX(ctx context.Context, id int) *Department {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAdmins queries the admins edge of a Department.
+func (c *DepartmentClient) QueryAdmins(_m *Department) *AdminQuery {
+	query := (&AdminClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(department.Table, department.FieldID, id),
+			sqlgraph.To(admin.Table, admin.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, department.AdminsTable, department.AdminsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *DepartmentClient) Hooks() []Hook {
+	return c.hooks.Department
+}
+
+// Interceptors returns the client interceptors.
+func (c *DepartmentClient) Interceptors() []Interceptor {
+	return c.inters.Department
+}
+
+func (c *DepartmentClient) mutate(ctx context.Context, m *DepartmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&DepartmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&DepartmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&DepartmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&DepartmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Department mutation op: %q", m.Op())
 	}
 }
 
@@ -2874,12 +3047,13 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 type (
 	hooks struct {
 		Admin, AdminRole, Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob,
-		DictData, Message, MessagePreference, OperationLog, Plugin, Role, SystemConfig,
-		SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
+		Department, DictData, Message, MessagePreference, OperationLog, Plugin, Role,
+		SystemConfig, SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob,
-		DictData, Message, MessagePreference, OperationLog, Plugin, Role, SystemConfig,
-		SystemPermission, ThirdPartyUser, User, UserRole []ent.Interceptor
+		Department, DictData, Message, MessagePreference, OperationLog, Plugin, Role,
+		SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Interceptor
 	}
 )
