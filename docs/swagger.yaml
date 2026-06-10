@@ -77,6 +77,8 @@ definitions:
     type: object
   service.AdminListItem:
     properties:
+      department_id:
+        type: integer
       email:
         type: string
       id:
@@ -126,6 +128,8 @@ definitions:
         type: string
       department:
         type: string
+      department_id:
+        type: integer
       email:
         type: string
       id:
@@ -353,6 +357,8 @@ definitions:
     type: object
   service.CreateAdminRequest:
     properties:
+      department_id:
+        type: integer
       email:
         type: string
       name:
@@ -436,6 +442,26 @@ definitions:
     - name
     - type
     type: object
+  service.CreateDepartmentRequest:
+    properties:
+      email:
+        type: string
+      leader:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      parent_id:
+        type: integer
+      phone:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: string
+    required:
+    - name
+    type: object
   service.CreateDictDataRequest:
     properties:
       css_class:
@@ -507,6 +533,12 @@ definitions:
     properties:
       created_by:
         type: string
+      data_scope:
+        type: string
+      data_scope_department_ids:
+        items:
+          type: integer
+        type: array
       description:
         maxLength: 500
         type: string
@@ -634,6 +666,60 @@ definitions:
     properties:
       deleted:
         type: integer
+    type: object
+  service.DepartmentResponse:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      leader:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+      path:
+        type: string
+      phone:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  service.DepartmentTreeNode:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/service.DepartmentTreeNode'
+        type: array
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      leader:
+        type: string
+      name:
+        type: string
+      parent_id:
+        type: integer
+      path:
+        type: string
+      phone:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: string
+      updated_at:
+        type: string
     type: object
   service.DictDataResponse:
     properties:
@@ -993,6 +1079,12 @@ definitions:
         type: string
       created_by:
         type: string
+      data_scope:
+        type: string
+      data_scope_department_ids:
+        items:
+          type: integer
+        type: array
       description:
         type: string
       display_name:
@@ -1220,6 +1312,8 @@ definitions:
     type: object
   service.UpdateAdminRequest:
     properties:
+      department_id:
+        type: integer
       email:
         type: string
       name:
@@ -1278,6 +1372,24 @@ definitions:
         - shell
         - curl
         - task
+        type: string
+    type: object
+  service.UpdateDepartmentRequest:
+    properties:
+      email:
+        type: string
+      leader:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      parent_id:
+        type: integer
+      phone:
+        type: string
+      sort:
+        type: integer
+      status:
         type: string
     type: object
   service.UpdateDictDataRequest:
@@ -1364,6 +1476,12 @@ definitions:
     type: object
   service.UpdateRoleRequest:
     properties:
+      data_scope:
+        type: string
+      data_scope_department_ids:
+        items:
+          type: integer
+        type: array
       description:
         maxLength: 500
         type: string
@@ -1403,6 +1521,9 @@ definitions:
       sort_order:
         type: integer
       status:
+        enum:
+        - 0
+        - 1
         type: integer
       type:
         allOf:
@@ -1644,6 +1765,49 @@ paths:
       tags:
       - 管理员管理
   /api/v1/admin/auth/admins/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据 ID 获取管理员详细信息
+      parameters:
+      - description: 管理员ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.AdminResponse'
+              type: object
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: 权限不足
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: 管理员不存在
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取管理员详情
+      tags:
+      - 管理员管理
     put:
       consumes:
       - application/json
@@ -1763,51 +1927,7 @@ paths:
       summary: 停用管理员账号
       tags:
       - 管理员管理
-  /api/v1/admin/auth/admins/{uid}:
-    get:
-      consumes:
-      - application/json
-      description: 根据UID获取管理员详细信息
-      parameters:
-      - description: 管理员UID
-        in: path
-        name: uid
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 获取成功
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/service.AdminResponse'
-              type: object
-        "400":
-          description: 参数错误
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "401":
-          description: 未授权
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "403":
-          description: 权限不足
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "404":
-          description: 管理员不存在
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - BearerAuth: []
-      summary: 获取管理员详情
-      tags:
-      - 管理员管理
-  /api/v1/admin/auth/admins/{uid}/roles:
+  /api/v1/admin/auth/admins/{id}/roles:
     get:
       consumes:
       - application/json
@@ -1815,7 +1935,7 @@ paths:
       parameters:
       - description: 管理员ID
         in: path
-        name: uid
+        name: id
         required: true
         type: integer
       produces:
@@ -1858,7 +1978,7 @@ paths:
       parameters:
       - description: 管理员ID
         in: path
-        name: uid
+        name: id
         required: true
         type: integer
       - description: 分配角色请求
@@ -3456,6 +3576,236 @@ paths:
       summary: 立即执行定时任务
       tags:
       - 定时任务管理
+  /api/v1/admin/auth/departments:
+    post:
+      consumes:
+      - application/json
+      description: 创建新部门
+      parameters:
+      - description: 部门信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateDepartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.DepartmentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建部门
+      tags:
+      - 部门管理
+  /api/v1/admin/auth/departments/{id}:
+    delete:
+      description: 根据ID删除部门
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除部门
+      tags:
+      - 部门管理
+    get:
+      description: 根据ID获取部门详细信息
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.DepartmentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取部门详情
+      tags:
+      - 部门管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新部门信息
+      parameters:
+      - description: 部门ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 部门信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateDepartmentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新部门
+      tags:
+      - 部门管理
+  /api/v1/admin/auth/departments/tree:
+    get:
+      description: 获取部门树形结构
+      parameters:
+      - description: 关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 状态
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.DepartmentTreeNode'
+                  type: array
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取部门树
+      tags:
+      - 部门管理
   /api/v1/admin/auth/dict-data:
     get:
       description: 获取字典数据列表，支持分页、关键字、字典类型和状态筛选
