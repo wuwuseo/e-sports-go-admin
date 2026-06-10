@@ -92,6 +92,11 @@ const (
 	ErrCodeDepartmentHasChildren   = 9002
 	ErrCodeDepartmentCycle         = 9003
 	ErrCodeInvalidDepartmentParent = 9004
+
+	// 数据权限与系统权限错误码 (9005-9099)
+	ResponsePermissionParentCycle   = 9005
+	ResponseSelfToggleForbidden     = 9007
+	ResponseSelfRoleModifyForbidden = 9008
 )
 
 // ResponseMsg 响应消息映射
@@ -186,4 +191,9 @@ var ResponseMsg = map[int]string{
 	ErrCodeDepartmentHasChildren:   "部门下存在子部门，无法删除",
 	ErrCodeDepartmentCycle:         "父部门不能是自身或子部门",
 	ErrCodeInvalidDepartmentParent: "无效的父部门ID",
+
+	// 数据权限与系统权限错误消息
+	ResponsePermissionParentCycle:   "不能将权限的父级设为自身或其后代",
+	ResponseSelfToggleForbidden:     "不能对自己执行启用/禁用",
+	ResponseSelfRoleModifyForbidden: "不能修改自己的角色",
 }
