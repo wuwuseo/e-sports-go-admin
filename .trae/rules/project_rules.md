@@ -266,3 +266,8 @@ swag init
 - **Viper**: 配置管理
 - **YAML**: 主要配置格式 (config/config.yml)
 - 支持基于环境变量的配置
+
+## 代码查询规则
+- 查代码文件内容前，优先运行 `codegraph status` 检查索引状态。
+- 如果状态显示存在 Pending Changes 或提示需要同步，先运行 `codegraph sync` 更新索引。
+- 同步完成后，优先使用 codegraph 查询代码内容，再根据需要使用文件读取或文本搜索补充验证。
