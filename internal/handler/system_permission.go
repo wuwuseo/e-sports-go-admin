@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
 
 	"go-admin/internal/global"
@@ -80,6 +81,9 @@ func UpdateSystemPermission(c fiber.Ctx) error {
 	}
 
 	if err := svc.Update(c.Context(), id, req); err != nil {
+		if errors.Is(err, service.ErrPermissionParentCycle) {
+			return resp.Fail(global.ResponsePermissionParentCycle, global.ResponseMsg[global.ResponsePermissionParentCycle]).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, err.Error()).ToJSON(c)
 	}
 
