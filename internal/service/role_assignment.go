@@ -80,8 +80,8 @@ type RoleAssignmentService struct {
 type RoleAssignmentServiceInterface interface {
 	GetUserRoles(ctx context.Context, userID int) (*UserRolesResponse, error)
 	AssignRoles(ctx context.Context, userID int, req *AssignRolesRequest, operatorUID string) error
-	GetAdminRoles(ctx context.Context, adminID int) (*UserRolesResponse, error)
-	AssignAdminRoles(ctx context.Context, adminID int, req *AssignRolesRequest, operatorUID string) error
+	GetAdminRoles(ctx context.Context, op *EffectiveDataScope, adminID int) (*UserRolesResponse, error)
+	AssignAdminRoles(ctx context.Context, op *EffectiveDataScope, adminID int, req *AssignRolesRequest, operatorUID string) error
 }
 
 // NewRoleAssignmentService 创建角色分配服务实例
@@ -232,7 +232,10 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 }
 
 // GetAdminRoles 获取管理员角色列表
-func (s *RoleAssignmentService) GetAdminRoles(ctx context.Context, adminID int) (*UserRolesResponse, error) {
+func (s *RoleAssignmentService) GetAdminRoles(ctx context.Context, op *EffectiveDataScope, adminID int) (*UserRolesResponse, error) {
+	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
+		return nil, err
+	}
 	_, err := s.client.Admin.Query().Where(admin.IDEQ(adminID)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -281,7 +284,13 @@ func (s *RoleAssignmentService) GetAdminRoles(ctx context.Context, adminID int) 
 }
 
 // AssignAdminRoles 分配管理员角色（事务操作，先删后插）
-func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, adminID int, req *AssignRolesRequest, operatorUID string) error {
+func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, op *EffectiveDataScope, adminID int, req *AssignRolesRequest, operatorUID string) error {
+	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
+		return err
+	}
+	if op != nil && op.AdminID == adminID {
+		return ErrCannotModifySelfRoles
+	}
 	// 如果没有指定主角色，默认使用第一个角色
 	if req.PrimaryRoleID == 0 {
 		req.PrimaryRoleID = req.RoleIDs[0]
