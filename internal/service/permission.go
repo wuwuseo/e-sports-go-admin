@@ -835,8 +835,20 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, roleID int,
 		return fmt.Errorf("删除权限失败: %w", err)
 	}
 
-	// 批量创建新权限
+	// 去重：避免重复的 (object, action) 导致唯一约束冲突
+	seen := make(map[string]struct{}, len(req.Permissions))
+	deduped := make([]PermissionRule, 0, len(req.Permissions))
 	for _, perm := range req.Permissions {
+		key := perm.Object + "|" + perm.Action
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		deduped = append(deduped, perm)
+	}
+
+	// 批量创建新权限
+	for _, perm := range deduped {
 		permType := determinePermissionType(perm.Action)
 
 		_, err = tx.CasbinRule.Create().

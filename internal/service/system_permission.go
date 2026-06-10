@@ -38,18 +38,18 @@ type CreateSystemPermissionRequest struct {
 
 // UpdateSystemPermissionRequest 更新权限请求
 type UpdateSystemPermissionRequest struct {
-	Type        SystemPermissionType `json:"type" validate:"oneof=api menu button"`
-	Name        string               `json:"name" validate:"max=100"`
-	Path        string               `json:"path" validate:"max=500"`
-	Method      string               `json:"method" validate:"max=20"`
-	MenuPath    string               `json:"menu_path" validate:"max=500"`
-	Icon        string               `json:"icon" validate:"max=100"`
-	Component   string               `json:"component" validate:"max=200"`
-	ParentID    int                  `json:"parent_id"`
-	SortOrder   int                  `json:"sort_order"`
-	IsCommon    bool                 `json:"is_common"`
-	Status      int8                 `json:"status"`
-	Description string               `json:"description" validate:"max=500"`
+	Type        SystemPermissionType `json:"type" validate:"omitempty,oneof=api menu button"`
+	Name        string               `json:"name" validate:"omitempty,max=100"`
+	Path        string               `json:"path" validate:"omitempty,max=500"`
+	Method      string               `json:"method" validate:"omitempty,max=20"`
+	MenuPath    string               `json:"menu_path" validate:"omitempty,max=500"`
+	Icon        string               `json:"icon" validate:"omitempty,max=100"`
+	Component   string               `json:"component" validate:"omitempty,max=200"`
+	ParentID    *int                 `json:"parent_id"`
+	SortOrder   *int                 `json:"sort_order"`
+	IsCommon    *bool                `json:"is_common"`
+	Status      *int8                `json:"status" validate:"omitempty,oneof=0 1"`
+	Description string               `json:"description" validate:"omitempty,max=500"`
 }
 
 // SystemPermissionResponse 权限响应
@@ -203,7 +203,7 @@ func (s *SystemPermissionService) Create(ctx context.Context, req *CreateSystemP
 
 // Update 更新权限
 func (s *SystemPermissionService) Update(ctx context.Context, id int, req *UpdateSystemPermissionRequest) error {
-	_, err := s.client.SystemPermission.Query().Where(systempermission.IDEQ(id)).Only(ctx)
+	current, err := s.client.SystemPermission.Query().Where(systempermission.IDEQ(id)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return fmt.Errorf("权限不存在")
@@ -234,10 +234,18 @@ func (s *SystemPermissionService) Update(ctx context.Context, id int, req *Updat
 	if req.Component != "" {
 		update.SetComponent(req.Component)
 	}
-	update.SetParentID(req.ParentID)
-	update.SetSortOrder(req.SortOrder)
-	update.SetIsCommon(req.IsCommon)
-	update.SetStatus(req.Status)
+	if req.ParentID != nil {
+		update.SetParentID(*req.ParentID)
+	}
+	if req.SortOrder != nil {
+		update.SetSortOrder(*req.SortOrder)
+	}
+	if req.IsCommon != nil {
+		update.SetIsCommon(*req.IsCommon)
+	}
+	if req.Status != nil {
+		update.SetStatus(*req.Status)
+	}
 	if req.Description != "" {
 		update.SetDescription(req.Description)
 	}
@@ -247,6 +255,70 @@ func (s *SystemPermissionService) Update(ctx context.Context, id int, req *Updat
 		return fmt.Errorf("更新权限失败: %w", err)
 	}
 
+	// 父级被禁用时，级联禁用整个子树（包括所有后代）
+	if req.Status != nil && *req.Status == 0 && current.Status == 1 {
+		if err := s.cascadeDisableChildren(ctx, id); err != nil {
+			return fmt.Errorf("级联禁用子权限失败: %w", err)
+		}
+	}
+
+	// 父级被启用时，级联启用整个子树（包括所有后代）
+	if req.Status != nil && *req.Status == 1 && current.Status == 0 {
+		if err := s.cascadeEnableChildren(ctx, id); err != nil {
+			return fmt.Errorf("级联启用子权限失败: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// cascadeDisableChildren 递归禁用所有子权限
+func (s *SystemPermissionService) cascadeDisableChildren(ctx context.Context, parentID int) error {
+	children, err := s.client.SystemPermission.Query().
+		Where(systempermission.ParentIDEQ(parentID)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		if child.Status == 1 {
+			_, err := s.client.SystemPermission.UpdateOneID(child.ID).
+				SetStatus(0).
+				Save(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		// 递归处理孙子权限
+		if err := s.cascadeDisableChildren(ctx, child.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// cascadeEnableChildren 递归启用所有子权限
+func (s *SystemPermissionService) cascadeEnableChildren(ctx context.Context, parentID int) error {
+	children, err := s.client.SystemPermission.Query().
+		Where(systempermission.ParentIDEQ(parentID)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		if child.Status == 0 {
+			_, err := s.client.SystemPermission.UpdateOneID(child.ID).
+				SetStatus(1).
+				Save(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		// 递归处理孙子权限
+		if err := s.cascadeEnableChildren(ctx, child.ID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

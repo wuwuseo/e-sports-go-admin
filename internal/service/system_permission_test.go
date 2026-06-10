@@ -335,9 +335,10 @@ func TestSystemPermissionService_Update(t *testing.T) {
 			t.Fatalf("创建失败: %v", err)
 		}
 
+		sortOrder := 99
 		updateReq := &UpdateSystemPermissionRequest{
 			Name:      "新名称",
-			SortOrder: 99,
+			SortOrder: &sortOrder,
 		}
 		err = svc.Update(ctx, created.ID, updateReq)
 		if err != nil {
