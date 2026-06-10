@@ -169,7 +169,7 @@ func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentU
 //   op == nil          → 放行（内部调用）
 //   op.IsSuperAdmin    → 放行
 //   target.UID == op.AdminUID → 放行（访问自己）
-//   target.DepartmentID == 0  → 拒绝（未分配只对超管可见）
+//   target.DepartmentID == 0  → 在 Department/DepartmentAndChild/Custom 模式下拒绝（未分配账号在部门模式下不可见）
 //   其他               → 按 op.Scope 校验
 func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDataScope, targetAdminID int) error {
 	if op == nil || op.IsSuperAdmin {
@@ -189,6 +189,7 @@ func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDa
 	case DataScopeAll:
 		return nil
 	case DataScopeSelf:
+		// Self 已在上方 target.UID == op.AdminUID 短路放行；走到这里说明 target 不是自己，直接拒绝
 		return ErrAdminOutOfScope
 	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
 		if target.DepartmentID == 0 {
@@ -197,6 +198,9 @@ func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDa
 		if !containsInt(op.DepartmentIDs, target.DepartmentID) {
 			return ErrAdminOutOfScope
 		}
+		return nil
+	default:
+		// 未知 DataScope 默认拒绝，避免未来新增枚举值时 fail-open
+		return ErrAdminOutOfScope
 	}
-	return nil
 }
