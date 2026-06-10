@@ -954,3 +954,26 @@ func TestSystemPermission_Update_RejectsDescendantParent(t *testing.T) {
 		t.Fatalf("期望 ErrPermissionParentCycle，got %v", err)
 	}
 }
+
+func TestInitSystemPermissions_IncludesAdminManagementSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+	wantCodes := []string{
+		"admin:list", "admin:create", "admin:detail", "admin:update",
+		"admin:roles:get", "admin:roles:put", "admin:activate", "admin:deactivate",
+	}
+	for _, code := range wantCodes {
+		exists, err := global.ORM.SystemPermission.Query().
+			Where(systempermission.DomainEQ("default"), systempermission.CodeEQ(code)).
+			Exist(ctx)
+		if err != nil {
+			t.Fatalf("查询 %s 失败: %v", code, err)
+		}
+		if !exists {
+			t.Fatalf("缺失 admin seed: %s", code)
+		}
+	}
+}

@@ -786,6 +786,15 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 102, Domain: "default", Type: "button", Name: "部门管理-新增按钮", Code: "department:add", ParentID: 96, SortOrder: 0, IsCommon: false, Status: 1, Description: "部门管理页面新增按钮"},
 		{ID: 103, Domain: "default", Type: "button", Name: "部门管理-编辑按钮", Code: "department:edit", ParentID: 96, SortOrder: 1, IsCommon: false, Status: 1, Description: "部门管理页面编辑按钮"},
 		{ID: 104, Domain: "default", Type: "button", Name: "部门管理-删除按钮", Code: "department:delete", ParentID: 96, SortOrder: 2, IsCommon: false, Status: 1, Description: "部门管理页面删除按钮"},
+		// 管理员管理 API（数据权限闭环新增）
+		{ID: 110, Domain: "default", Type: "api", Name: "管理员列表", Code: "admin:list", Path: "/api/v1/admin/auth/admins", Method: "GET", ParentID: 3, SortOrder: 70, IsCommon: false, Status: 1, Description: "管理员列表API"},
+		{ID: 111, Domain: "default", Type: "api", Name: "创建管理员", Code: "admin:create", Path: "/api/v1/admin/auth/admins", Method: "POST", ParentID: 3, SortOrder: 71, IsCommon: false, Status: 1, Description: "创建管理员API"},
+		{ID: 112, Domain: "default", Type: "api", Name: "管理员详情", Code: "admin:detail", Path: "/api/v1/admin/auth/admins/{id}", Method: "GET", ParentID: 3, SortOrder: 72, IsCommon: false, Status: 1, Description: "管理员详情API"},
+		{ID: 113, Domain: "default", Type: "api", Name: "更新管理员", Code: "admin:update", Path: "/api/v1/admin/auth/admins/{id}", Method: "PUT", ParentID: 3, SortOrder: 73, IsCommon: false, Status: 1, Description: "更新管理员API"},
+		{ID: 114, Domain: "default", Type: "api", Name: "查看管理员角色", Code: "admin:roles:get", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "GET", ParentID: 3, SortOrder: 74, IsCommon: false, Status: 1, Description: "查看管理员角色API"},
+		{ID: 115, Domain: "default", Type: "api", Name: "分配管理员角色", Code: "admin:roles:put", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "PUT", ParentID: 3, SortOrder: 75, IsCommon: false, Status: 1, Description: "分配管理员角色API"},
+		{ID: 116, Domain: "default", Type: "api", Name: "启用管理员", Code: "admin:activate", Path: "/api/v1/admin/auth/admins/{id}/activate", Method: "PUT", ParentID: 3, SortOrder: 76, IsCommon: false, Status: 1, Description: "启用管理员API"},
+		{ID: 117, Domain: "default", Type: "api", Name: "禁用管理员", Code: "admin:deactivate", Path: "/api/v1/admin/auth/admins/{id}/deactivate", Method: "PUT", ParentID: 3, SortOrder: 77, IsCommon: false, Status: 1, Description: "禁用管理员API"},
 	}
 
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {
