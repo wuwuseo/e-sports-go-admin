@@ -136,3 +136,22 @@ func appendUniqueInts(base []int, values ...int) []int {
 	}
 	return base
 }
+
+// containsInt 判断切片中是否包含目标整数
+func containsInt(haystack []int, needle int) bool {
+	for _, v := range haystack {
+		if v == needle {
+			return true
+		}
+	}
+	return false
+}
+
+// NewOperatorContext 从 currentUID 构造操作者上下文
+// currentUID 为空时返回 nil（内部调用绕过校验）
+func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentUID string) (*EffectiveDataScope, error) {
+	if currentUID == "" {
+		return nil, nil
+	}
+	return s.ResolveAdminScope(ctx, currentUID)
+}
