@@ -21,11 +21,12 @@ var (
 
 // UpdateAdminRequest 更新管理员请求
 type UpdateAdminRequest struct {
-	Nickname string `json:"nickname"`
-	Name     string `json:"name"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email" validate:"omitempty,email"`
-	Password string `json:"password" validate:"omitempty,min=6"`
+	Nickname     string `json:"nickname"`
+	Name         string `json:"name"`
+	Phone        string `json:"phone"`
+	Email        string `json:"email" validate:"omitempty,email"`
+	Password     string `json:"password" validate:"omitempty,min=6"`
+	DepartmentID *int   `json:"department_id"`
 }
 
 // SuperAdminServiceInterface 超级管理员服务接口
@@ -60,6 +61,7 @@ type CreateAdminRequest struct {
 	Phone         string `json:"phone"`
 	RoleIDs       []int  `json:"role_ids"`
 	PrimaryRoleID int    `json:"primary_role_id"`
+	DepartmentID  int    `json:"department_id"`
 }
 
 // AdminListRequest 管理员列表请求
@@ -73,12 +75,13 @@ type AdminListRequest struct {
 
 // AdminListItem 管理员列表项
 type AdminListItem struct {
-	ID       int    `json:"id"`
-	UID      string `json:"uid"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Status   string `json:"status"`
+	ID           int    `json:"id"`
+	UID          string `json:"uid"`
+	Email        string `json:"email"`
+	Username     string `json:"username"`
+	Nickname     string `json:"nickname"`
+	Status       string `json:"status"`
+	DepartmentID int    `json:"department_id"`
 }
 
 // CreateAdmin 创建管理员
@@ -121,6 +124,7 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminReq
 		SetNickname(req.Nickname).
 		SetName(req.Name).
 		SetPhone(req.Phone).
+		SetDepartmentID(req.DepartmentID).
 		SetStatus(admin.StatusInactive).
 		Save(ctx)
 	if err != nil {
@@ -250,12 +254,13 @@ func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListReques
 	items := make([]*AdminListItem, len(admins))
 	for i, a := range admins {
 		items[i] = &AdminListItem{
-			ID:       a.ID,
-			UID:      a.UID,
-			Email:    a.Email,
-			Username: a.Username,
-			Nickname: a.Nickname,
-			Status:   string(a.Status),
+			ID:           a.ID,
+			UID:          a.UID,
+			Email:        a.Email,
+			Username:     a.Username,
+			Nickname:     a.Nickname,
+			Status:       string(a.Status),
+			DepartmentID: a.DepartmentID,
 		}
 	}
 
@@ -307,16 +312,17 @@ func (s *SuperAdminService) GetAdminByID(ctx context.Context, adminID int) (*Adm
 	}
 
 	return &AdminResponse{
-		ID:         a.UID,
-		Email:      a.Email,
-		Username:   a.Username,
-		Nickname:   a.Nickname,
-		Name:       a.Name,
-		Phone:      a.Phone,
-		Avatar:     a.Avatar,
-		Department: a.Department,
-		Position:   a.Position,
-		Status:     string(a.Status),
+		ID:           a.UID,
+		Email:        a.Email,
+		Username:     a.Username,
+		Nickname:     a.Nickname,
+		Name:         a.Name,
+		Phone:        a.Phone,
+		Avatar:       a.Avatar,
+		Department:   a.Department,
+		DepartmentID: a.DepartmentID,
+		Position:     a.Position,
+		Status:       string(a.Status),
 	}, nil
 }
 
@@ -367,6 +373,9 @@ func (s *SuperAdminService) UpdateAdmin(ctx context.Context, adminID int, req *U
 		update.SetPassword(hashedPassword)
 		update.SetPasswordSalt(salt)
 	}
+	if req.DepartmentID != nil {
+		update.SetDepartmentID(*req.DepartmentID)
+	}
 
 	updated, err := update.Save(ctx)
 	if err != nil {
@@ -374,15 +383,16 @@ func (s *SuperAdminService) UpdateAdmin(ctx context.Context, adminID int, req *U
 	}
 
 	return &AdminResponse{
-		ID:         updated.UID,
-		Email:      updated.Email,
-		Username:   updated.Username,
-		Nickname:   updated.Nickname,
-		Name:       updated.Name,
-		Phone:      updated.Phone,
-		Avatar:     updated.Avatar,
-		Department: updated.Department,
-		Position:   updated.Position,
-		Status:     string(updated.Status),
+		ID:           updated.UID,
+		Email:        updated.Email,
+		Username:     updated.Username,
+		Nickname:     updated.Nickname,
+		Name:         updated.Name,
+		Phone:        updated.Phone,
+		Avatar:       updated.Avatar,
+		Department:   updated.Department,
+		DepartmentID: updated.DepartmentID,
+		Position:     updated.Position,
+		Status:       string(updated.Status),
 	}, nil
 }

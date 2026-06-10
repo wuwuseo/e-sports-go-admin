@@ -230,6 +230,7 @@ type AdminResponse struct {
 	Phone        string   `json:"phone"`
 	Avatar       string   `json:"avatar"`
 	Department   string   `json:"department"`
+	DepartmentID int      `json:"department_id"`
 	Position     string   `json:"position"`
 	Status       string   `json:"status"`
 	IsSuperAdmin bool     `json:"is_super_admin"`
@@ -262,6 +263,7 @@ func (s *AdminService) GetAdminByUID(ctx context.Context, uid string) (*AdminRes
 		Phone:        a.Phone,
 		Avatar:       a.Avatar,
 		Department:   a.Department,
+		DepartmentID: a.DepartmentID,
 		Position:     a.Position,
 		Status:       string(a.Status),
 		IsSuperAdmin: a.IsSuperAdmin,
