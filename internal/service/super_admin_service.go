@@ -181,13 +181,17 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminReq
 	}
 
 	return &AdminResponse{
-		ID:       a.UID,
-		Email:    a.Email,
-		Username: a.Username,
-		Nickname: a.Nickname,
-		Name:     a.Name,
-		Phone:    a.Phone,
-		Status:   string(a.Status),
+		ID:           a.UID,
+		Email:        a.Email,
+		Username:     a.Username,
+		Nickname:     a.Nickname,
+		Name:         a.Name,
+		Phone:        a.Phone,
+		Avatar:       a.Avatar,
+		Department:   a.Department,
+		DepartmentID: a.DepartmentID,
+		Position:     a.Position,
+		Status:       string(a.Status),
 	}, nil
 }
 
