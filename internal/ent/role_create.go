@@ -102,6 +102,26 @@ func (_c *RoleCreate) SetNillableStatus(v *role.Status) *RoleCreate {
 	return _c
 }
 
+// SetDataScope sets the "data_scope" field.
+func (_c *RoleCreate) SetDataScope(v role.DataScope) *RoleCreate {
+	_c.mutation.SetDataScope(v)
+	return _c
+}
+
+// SetNillableDataScope sets the "data_scope" field if the given value is not nil.
+func (_c *RoleCreate) SetNillableDataScope(v *role.DataScope) *RoleCreate {
+	if v != nil {
+		_c.SetDataScope(*v)
+	}
+	return _c
+}
+
+// SetDataScopeDepartmentIds sets the "data_scope_department_ids" field.
+func (_c *RoleCreate) SetDataScopeDepartmentIds(v []int) *RoleCreate {
+	_c.mutation.SetDataScopeDepartmentIds(v)
+	return _c
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (_c *RoleCreate) SetCreatedBy(v string) *RoleCreate {
 	_c.mutation.SetCreatedBy(v)
@@ -187,6 +207,10 @@ func (_c *RoleCreate) defaults() {
 		v := role.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.DataScope(); !ok {
+		v := role.DefaultDataScope
+		_c.mutation.SetDataScope(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -227,6 +251,14 @@ func (_c *RoleCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := role.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Role.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.DataScope(); !ok {
+		return &ValidationError{Name: "data_scope", err: errors.New(`ent: missing required field "Role.data_scope"`)}
+	}
+	if v, ok := _c.mutation.DataScope(); ok {
+		if err := role.DataScopeValidator(v); err != nil {
+			return &ValidationError{Name: "data_scope", err: fmt.Errorf(`ent: validator failed for field "Role.data_scope": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.CreatedBy(); ok {
@@ -298,6 +330,14 @@ func (_c *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(role.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.DataScope(); ok {
+		_spec.SetField(role.FieldDataScope, field.TypeEnum, value)
+		_node.DataScope = value
+	}
+	if value, ok := _c.mutation.DataScopeDepartmentIds(); ok {
+		_spec.SetField(role.FieldDataScopeDepartmentIds, field.TypeJSON, value)
+		_node.DataScopeDepartmentIds = value
 	}
 	if value, ok := _c.mutation.CreatedBy(); ok {
 		_spec.SetField(role.FieldCreatedBy, field.TypeString, value)

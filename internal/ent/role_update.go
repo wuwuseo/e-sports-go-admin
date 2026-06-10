@@ -12,6 +12,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -107,6 +108,38 @@ func (_u *RoleUpdate) SetNillableStatus(v *role.Status) *RoleUpdate {
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetDataScope sets the "data_scope" field.
+func (_u *RoleUpdate) SetDataScope(v role.DataScope) *RoleUpdate {
+	_u.mutation.SetDataScope(v)
+	return _u
+}
+
+// SetNillableDataScope sets the "data_scope" field if the given value is not nil.
+func (_u *RoleUpdate) SetNillableDataScope(v *role.DataScope) *RoleUpdate {
+	if v != nil {
+		_u.SetDataScope(*v)
+	}
+	return _u
+}
+
+// SetDataScopeDepartmentIds sets the "data_scope_department_ids" field.
+func (_u *RoleUpdate) SetDataScopeDepartmentIds(v []int) *RoleUpdate {
+	_u.mutation.SetDataScopeDepartmentIds(v)
+	return _u
+}
+
+// AppendDataScopeDepartmentIds appends value to the "data_scope_department_ids" field.
+func (_u *RoleUpdate) AppendDataScopeDepartmentIds(v []int) *RoleUpdate {
+	_u.mutation.AppendDataScopeDepartmentIds(v)
+	return _u
+}
+
+// ClearDataScopeDepartmentIds clears the value of the "data_scope_department_ids" field.
+func (_u *RoleUpdate) ClearDataScopeDepartmentIds() *RoleUpdate {
+	_u.mutation.ClearDataScopeDepartmentIds()
 	return _u
 }
 
@@ -213,6 +246,11 @@ func (_u *RoleUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Role.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DataScope(); ok {
+		if err := role.DataScopeValidator(v); err != nil {
+			return &ValidationError{Name: "data_scope", err: fmt.Errorf(`ent: validator failed for field "Role.data_scope": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CreatedBy(); ok {
 		if err := role.CreatedByValidator(v); err != nil {
 			return &ValidationError{Name: "created_by", err: fmt.Errorf(`ent: validator failed for field "Role.created_by": %w`, err)}
@@ -258,6 +296,20 @@ func (_u *RoleUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(role.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DataScope(); ok {
+		_spec.SetField(role.FieldDataScope, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DataScopeDepartmentIds(); ok {
+		_spec.SetField(role.FieldDataScopeDepartmentIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDataScopeDepartmentIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, role.FieldDataScopeDepartmentIds, value)
+		})
+	}
+	if _u.mutation.DataScopeDepartmentIdsCleared() {
+		_spec.ClearField(role.FieldDataScopeDepartmentIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(role.FieldCreatedBy, field.TypeString, value)
@@ -370,6 +422,38 @@ func (_u *RoleUpdateOne) SetNillableStatus(v *role.Status) *RoleUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetDataScope sets the "data_scope" field.
+func (_u *RoleUpdateOne) SetDataScope(v role.DataScope) *RoleUpdateOne {
+	_u.mutation.SetDataScope(v)
+	return _u
+}
+
+// SetNillableDataScope sets the "data_scope" field if the given value is not nil.
+func (_u *RoleUpdateOne) SetNillableDataScope(v *role.DataScope) *RoleUpdateOne {
+	if v != nil {
+		_u.SetDataScope(*v)
+	}
+	return _u
+}
+
+// SetDataScopeDepartmentIds sets the "data_scope_department_ids" field.
+func (_u *RoleUpdateOne) SetDataScopeDepartmentIds(v []int) *RoleUpdateOne {
+	_u.mutation.SetDataScopeDepartmentIds(v)
+	return _u
+}
+
+// AppendDataScopeDepartmentIds appends value to the "data_scope_department_ids" field.
+func (_u *RoleUpdateOne) AppendDataScopeDepartmentIds(v []int) *RoleUpdateOne {
+	_u.mutation.AppendDataScopeDepartmentIds(v)
+	return _u
+}
+
+// ClearDataScopeDepartmentIds clears the value of the "data_scope_department_ids" field.
+func (_u *RoleUpdateOne) ClearDataScopeDepartmentIds() *RoleUpdateOne {
+	_u.mutation.ClearDataScopeDepartmentIds()
 	return _u
 }
 
@@ -489,6 +573,11 @@ func (_u *RoleUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Role.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DataScope(); ok {
+		if err := role.DataScopeValidator(v); err != nil {
+			return &ValidationError{Name: "data_scope", err: fmt.Errorf(`ent: validator failed for field "Role.data_scope": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CreatedBy(); ok {
 		if err := role.CreatedByValidator(v); err != nil {
 			return &ValidationError{Name: "created_by", err: fmt.Errorf(`ent: validator failed for field "Role.created_by": %w`, err)}
@@ -551,6 +640,20 @@ func (_u *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) {
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(role.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DataScope(); ok {
+		_spec.SetField(role.FieldDataScope, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.DataScopeDepartmentIds(); ok {
+		_spec.SetField(role.FieldDataScopeDepartmentIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedDataScopeDepartmentIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, role.FieldDataScopeDepartmentIds, value)
+		})
+	}
+	if _u.mutation.DataScopeDepartmentIdsCleared() {
+		_spec.ClearField(role.FieldDataScopeDepartmentIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.CreatedBy(); ok {
 		_spec.SetField(role.FieldCreatedBy, field.TypeString, value)

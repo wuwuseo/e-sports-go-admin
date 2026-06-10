@@ -974,11 +974,11 @@ func init() {
 	// role.DefaultIsSystem holds the default value on creation for the is_system field.
 	role.DefaultIsSystem = roleDescIsSystem.Default.(bool)
 	// roleDescCreatedBy is the schema descriptor for created_by field.
-	roleDescCreatedBy := roleFields[6].Descriptor()
+	roleDescCreatedBy := roleFields[8].Descriptor()
 	// role.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
 	role.CreatedByValidator = roleDescCreatedBy.Validators[0].(func(string) error)
 	// roleDescUpdatedBy is the schema descriptor for updated_by field.
-	roleDescUpdatedBy := roleFields[7].Descriptor()
+	roleDescUpdatedBy := roleFields[9].Descriptor()
 	// role.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
 	role.UpdatedByValidator = roleDescUpdatedBy.Validators[0].(func(string) error)
 	systemconfigFields := schema.SystemConfig{}.Fields()

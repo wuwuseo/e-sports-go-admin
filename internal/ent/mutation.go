@@ -11939,22 +11939,25 @@ func (m *PluginMutation) ResetEdge(name string) error {
 // RoleMutation represents an operation that mutates the Role nodes in the graph.
 type RoleMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	create_time   *time.Time
-	update_time   *time.Time
-	name          *string
-	display_name  *string
-	description   *string
-	is_system     *bool
-	status        *role.Status
-	created_by    *string
-	updated_by    *string
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*Role, error)
-	predicates    []predicate.Role
+	op                              Op
+	typ                             string
+	id                              *int
+	create_time                     *time.Time
+	update_time                     *time.Time
+	name                            *string
+	display_name                    *string
+	description                     *string
+	is_system                       *bool
+	status                          *role.Status
+	data_scope                      *role.DataScope
+	data_scope_department_ids       *[]int
+	appenddata_scope_department_ids []int
+	created_by                      *string
+	updated_by                      *string
+	clearedFields                   map[string]struct{}
+	done                            bool
+	oldValue                        func(context.Context) (*Role, error)
+	predicates                      []predicate.Role
 }
 
 var _ ent.Mutation = (*RoleMutation)(nil)
@@ -12326,6 +12329,107 @@ func (m *RoleMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetDataScope sets the "data_scope" field.
+func (m *RoleMutation) SetDataScope(rs role.DataScope) {
+	m.data_scope = &rs
+}
+
+// DataScope returns the value of the "data_scope" field in the mutation.
+func (m *RoleMutation) DataScope() (r role.DataScope, exists bool) {
+	v := m.data_scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDataScope returns the old "data_scope" field's value of the Role entity.
+// If the Role object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoleMutation) OldDataScope(ctx context.Context) (v role.DataScope, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDataScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDataScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDataScope: %w", err)
+	}
+	return oldValue.DataScope, nil
+}
+
+// ResetDataScope resets all changes to the "data_scope" field.
+func (m *RoleMutation) ResetDataScope() {
+	m.data_scope = nil
+}
+
+// SetDataScopeDepartmentIds sets the "data_scope_department_ids" field.
+func (m *RoleMutation) SetDataScopeDepartmentIds(i []int) {
+	m.data_scope_department_ids = &i
+	m.appenddata_scope_department_ids = nil
+}
+
+// DataScopeDepartmentIds returns the value of the "data_scope_department_ids" field in the mutation.
+func (m *RoleMutation) DataScopeDepartmentIds() (r []int, exists bool) {
+	v := m.data_scope_department_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDataScopeDepartmentIds returns the old "data_scope_department_ids" field's value of the Role entity.
+// If the Role object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *RoleMutation) OldDataScopeDepartmentIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDataScopeDepartmentIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDataScopeDepartmentIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDataScopeDepartmentIds: %w", err)
+	}
+	return oldValue.DataScopeDepartmentIds, nil
+}
+
+// AppendDataScopeDepartmentIds adds i to the "data_scope_department_ids" field.
+func (m *RoleMutation) AppendDataScopeDepartmentIds(i []int) {
+	m.appenddata_scope_department_ids = append(m.appenddata_scope_department_ids, i...)
+}
+
+// AppendedDataScopeDepartmentIds returns the list of values that were appended to the "data_scope_department_ids" field in this mutation.
+func (m *RoleMutation) AppendedDataScopeDepartmentIds() ([]int, bool) {
+	if len(m.appenddata_scope_department_ids) == 0 {
+		return nil, false
+	}
+	return m.appenddata_scope_department_ids, true
+}
+
+// ClearDataScopeDepartmentIds clears the value of the "data_scope_department_ids" field.
+func (m *RoleMutation) ClearDataScopeDepartmentIds() {
+	m.data_scope_department_ids = nil
+	m.appenddata_scope_department_ids = nil
+	m.clearedFields[role.FieldDataScopeDepartmentIds] = struct{}{}
+}
+
+// DataScopeDepartmentIdsCleared returns if the "data_scope_department_ids" field was cleared in this mutation.
+func (m *RoleMutation) DataScopeDepartmentIdsCleared() bool {
+	_, ok := m.clearedFields[role.FieldDataScopeDepartmentIds]
+	return ok
+}
+
+// ResetDataScopeDepartmentIds resets all changes to the "data_scope_department_ids" field.
+func (m *RoleMutation) ResetDataScopeDepartmentIds() {
+	m.data_scope_department_ids = nil
+	m.appenddata_scope_department_ids = nil
+	delete(m.clearedFields, role.FieldDataScopeDepartmentIds)
+}
+
 // SetCreatedBy sets the "created_by" field.
 func (m *RoleMutation) SetCreatedBy(s string) {
 	m.created_by = &s
@@ -12458,7 +12562,7 @@ func (m *RoleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *RoleMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 11)
 	if m.create_time != nil {
 		fields = append(fields, role.FieldCreateTime)
 	}
@@ -12479,6 +12583,12 @@ func (m *RoleMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, role.FieldStatus)
+	}
+	if m.data_scope != nil {
+		fields = append(fields, role.FieldDataScope)
+	}
+	if m.data_scope_department_ids != nil {
+		fields = append(fields, role.FieldDataScopeDepartmentIds)
 	}
 	if m.created_by != nil {
 		fields = append(fields, role.FieldCreatedBy)
@@ -12508,6 +12618,10 @@ func (m *RoleMutation) Field(name string) (ent.Value, bool) {
 		return m.IsSystem()
 	case role.FieldStatus:
 		return m.Status()
+	case role.FieldDataScope:
+		return m.DataScope()
+	case role.FieldDataScopeDepartmentIds:
+		return m.DataScopeDepartmentIds()
 	case role.FieldCreatedBy:
 		return m.CreatedBy()
 	case role.FieldUpdatedBy:
@@ -12535,6 +12649,10 @@ func (m *RoleMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldIsSystem(ctx)
 	case role.FieldStatus:
 		return m.OldStatus(ctx)
+	case role.FieldDataScope:
+		return m.OldDataScope(ctx)
+	case role.FieldDataScopeDepartmentIds:
+		return m.OldDataScopeDepartmentIds(ctx)
 	case role.FieldCreatedBy:
 		return m.OldCreatedBy(ctx)
 	case role.FieldUpdatedBy:
@@ -12597,6 +12715,20 @@ func (m *RoleMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetStatus(v)
 		return nil
+	case role.FieldDataScope:
+		v, ok := value.(role.DataScope)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDataScope(v)
+		return nil
+	case role.FieldDataScopeDepartmentIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDataScopeDepartmentIds(v)
+		return nil
 	case role.FieldCreatedBy:
 		v, ok := value.(string)
 		if !ok {
@@ -12644,6 +12776,9 @@ func (m *RoleMutation) ClearedFields() []string {
 	if m.FieldCleared(role.FieldDescription) {
 		fields = append(fields, role.FieldDescription)
 	}
+	if m.FieldCleared(role.FieldDataScopeDepartmentIds) {
+		fields = append(fields, role.FieldDataScopeDepartmentIds)
+	}
 	if m.FieldCleared(role.FieldCreatedBy) {
 		fields = append(fields, role.FieldCreatedBy)
 	}
@@ -12666,6 +12801,9 @@ func (m *RoleMutation) ClearField(name string) error {
 	switch name {
 	case role.FieldDescription:
 		m.ClearDescription()
+		return nil
+	case role.FieldDataScopeDepartmentIds:
+		m.ClearDataScopeDepartmentIds()
 		return nil
 	case role.FieldCreatedBy:
 		m.ClearCreatedBy()
@@ -12701,6 +12839,12 @@ func (m *RoleMutation) ResetField(name string) error {
 		return nil
 	case role.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case role.FieldDataScope:
+		m.ResetDataScope()
+		return nil
+	case role.FieldDataScopeDepartmentIds:
+		m.ResetDataScopeDepartmentIds()
 		return nil
 	case role.FieldCreatedBy:
 		m.ResetCreatedBy()

@@ -409,6 +409,36 @@ func StatusNotIn(vs ...Status) predicate.Role {
 	return predicate.Role(sql.FieldNotIn(FieldStatus, vs...))
 }
 
+// DataScopeEQ applies the EQ predicate on the "data_scope" field.
+func DataScopeEQ(v DataScope) predicate.Role {
+	return predicate.Role(sql.FieldEQ(FieldDataScope, v))
+}
+
+// DataScopeNEQ applies the NEQ predicate on the "data_scope" field.
+func DataScopeNEQ(v DataScope) predicate.Role {
+	return predicate.Role(sql.FieldNEQ(FieldDataScope, v))
+}
+
+// DataScopeIn applies the In predicate on the "data_scope" field.
+func DataScopeIn(vs ...DataScope) predicate.Role {
+	return predicate.Role(sql.FieldIn(FieldDataScope, vs...))
+}
+
+// DataScopeNotIn applies the NotIn predicate on the "data_scope" field.
+func DataScopeNotIn(vs ...DataScope) predicate.Role {
+	return predicate.Role(sql.FieldNotIn(FieldDataScope, vs...))
+}
+
+// DataScopeDepartmentIdsIsNil applies the IsNil predicate on the "data_scope_department_ids" field.
+func DataScopeDepartmentIdsIsNil() predicate.Role {
+	return predicate.Role(sql.FieldIsNull(FieldDataScopeDepartmentIds))
+}
+
+// DataScopeDepartmentIdsNotNil applies the NotNil predicate on the "data_scope_department_ids" field.
+func DataScopeDepartmentIdsNotNil() predicate.Role {
+	return predicate.Role(sql.FieldNotNull(FieldDataScopeDepartmentIds))
+}
+
 // CreatedByEQ applies the EQ predicate on the "created_by" field.
 func CreatedByEQ(v string) predicate.Role {
 	return predicate.Role(sql.FieldEQ(FieldCreatedBy, v))

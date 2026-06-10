@@ -39,6 +39,13 @@ func (Role) Fields() []ent.Field {
 			Values("active", "inactive").
 			Default("active").
 			Comment("角色状态"),
+		field.Enum("data_scope").
+			Values("all", "self", "department", "department_and_child", "custom").
+			Default("self").
+			Comment("数据权限范围"),
+		field.JSON("data_scope_department_ids", []int{}).
+			Optional().
+			Comment("自定义数据权限部门ID列表"),
 		field.String("created_by").
 			Optional().
 			MaxLen(255).

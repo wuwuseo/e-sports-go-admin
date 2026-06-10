@@ -30,6 +30,10 @@ const (
 	FieldIsSystem = "is_system"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldDataScope holds the string denoting the data_scope field in the database.
+	FieldDataScope = "data_scope"
+	// FieldDataScopeDepartmentIds holds the string denoting the data_scope_department_ids field in the database.
+	FieldDataScopeDepartmentIds = "data_scope_department_ids"
 	// FieldCreatedBy holds the string denoting the created_by field in the database.
 	FieldCreatedBy = "created_by"
 	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
@@ -51,6 +55,8 @@ var Columns = []string{
 	FieldDescription,
 	FieldIsSystem,
 	FieldStatus,
+	FieldDataScope,
+	FieldDataScopeDepartmentIds,
 	FieldCreatedBy,
 	FieldUpdatedBy,
 }
@@ -112,6 +118,35 @@ func StatusValidator(s Status) error {
 	}
 }
 
+// DataScope defines the type for the "data_scope" enum field.
+type DataScope string
+
+// DataScopeSelf is the default value of the DataScope enum.
+const DefaultDataScope = DataScopeSelf
+
+// DataScope values.
+const (
+	DataScopeAll                DataScope = "all"
+	DataScopeSelf               DataScope = "self"
+	DataScopeDepartment         DataScope = "department"
+	DataScopeDepartmentAndChild DataScope = "department_and_child"
+	DataScopeCustom             DataScope = "custom"
+)
+
+func (ds DataScope) String() string {
+	return string(ds)
+}
+
+// DataScopeValidator is a validator for the "data_scope" field enum values. It is called by the builders before save.
+func DataScopeValidator(ds DataScope) error {
+	switch ds {
+	case DataScopeAll, DataScopeSelf, DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		return nil
+	default:
+		return fmt.Errorf("role: invalid enum value for data_scope field: %q", ds)
+	}
+}
+
 // OrderOption defines the ordering options for the Role queries.
 type OrderOption func(*sql.Selector)
 
@@ -153,6 +188,11 @@ func ByIsSystem(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByDataScope orders the results by the data_scope field.
+func ByDataScope(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDataScope, opts...).ToFunc()
 }
 
 // ByCreatedBy orders the results by the created_by field.

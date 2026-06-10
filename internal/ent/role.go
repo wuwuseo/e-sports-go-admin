@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"go-admin/internal/ent/role"
 	"strings"
@@ -31,6 +32,10 @@ type Role struct {
 	IsSystem bool `json:"is_system,omitempty"`
 	// 角色状态
 	Status role.Status `json:"status,omitempty"`
+	// 数据权限范围
+	DataScope role.DataScope `json:"data_scope,omitempty"`
+	// 自定义数据权限部门ID列表
+	DataScopeDepartmentIds []int `json:"data_scope_department_ids,omitempty"`
 	// 创建者ID
 	CreatedBy string `json:"created_by,omitempty"`
 	// 更新者ID
@@ -43,11 +48,13 @@ func (*Role) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case role.FieldDataScopeDepartmentIds:
+			values[i] = new([]byte)
 		case role.FieldIsSystem:
 			values[i] = new(sql.NullBool)
 		case role.FieldID:
 			values[i] = new(sql.NullInt64)
-		case role.FieldName, role.FieldDisplayName, role.FieldDescription, role.FieldStatus, role.FieldCreatedBy, role.FieldUpdatedBy:
+		case role.FieldName, role.FieldDisplayName, role.FieldDescription, role.FieldStatus, role.FieldDataScope, role.FieldCreatedBy, role.FieldUpdatedBy:
 			values[i] = new(sql.NullString)
 		case role.FieldCreateTime, role.FieldUpdateTime:
 			values[i] = new(sql.NullTime)
@@ -113,6 +120,20 @@ func (_m *Role) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = role.Status(value.String)
+			}
+		case role.FieldDataScope:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field data_scope", values[i])
+			} else if value.Valid {
+				_m.DataScope = role.DataScope(value.String)
+			}
+		case role.FieldDataScopeDepartmentIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field data_scope_department_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DataScopeDepartmentIds); err != nil {
+					return fmt.Errorf("unmarshal field data_scope_department_ids: %w", err)
+				}
 			}
 		case role.FieldCreatedBy:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -182,6 +203,12 @@ func (_m *Role) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("data_scope=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DataScope))
+	builder.WriteString(", ")
+	builder.WriteString("data_scope_department_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DataScopeDepartmentIds))
 	builder.WriteString(", ")
 	builder.WriteString("created_by=")
 	builder.WriteString(_m.CreatedBy)

@@ -509,6 +509,8 @@ var (
 		{Name: "description", Type: field.TypeString, Nullable: true, Size: 500},
 		{Name: "is_system", Type: field.TypeBool, Default: false},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive"}, Default: "active"},
+		{Name: "data_scope", Type: field.TypeEnum, Enums: []string{"all", "self", "department", "department_and_child", "custom"}, Default: "self"},
+		{Name: "data_scope_department_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "created_by", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "updated_by", Type: field.TypeString, Nullable: true, Size: 255},
 	}
