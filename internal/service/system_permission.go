@@ -2,12 +2,16 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/global"
 )
+
+// ErrPermissionParentCycle 系统权限父子环
+var ErrPermissionParentCycle = errors.New("permission parent cycle detected")
 
 // SystemPermissionType 权限类型
 type SystemPermissionType string
@@ -211,7 +215,14 @@ func (s *SystemPermissionService) Update(ctx context.Context, id int, req *Updat
 		return fmt.Errorf("查询权限失败: %w", err)
 	}
 
-	update := s.client.SystemPermission.UpdateOneID(id)
+	// 启动事务以确保父权限更新和级联操作的数据一致性
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("启动事务失败: %w", err)
+	}
+	defer rollbackUnlessCommitted(tx)
+
+	update := tx.SystemPermission.UpdateOneID(id)
 
 	if req.Type != "" {
 		update.SetType(string(req.Type))
@@ -233,6 +244,18 @@ func (s *SystemPermissionService) Update(ctx context.Context, id int, req *Updat
 	}
 	if req.Component != "" {
 		update.SetComponent(req.Component)
+	}
+	if req.ParentID != nil && *req.ParentID != 0 {
+		if *req.ParentID == id {
+			return ErrPermissionParentCycle
+		}
+		isDescendant, err := s.isDescendantOf(ctx, *req.ParentID, id)
+		if err != nil {
+			return fmt.Errorf("检查父级环依赖失败: %w", err)
+		}
+		if isDescendant {
+			return ErrPermissionParentCycle
+		}
 	}
 	if req.ParentID != nil {
 		update.SetParentID(*req.ParentID)
@@ -257,16 +280,20 @@ func (s *SystemPermissionService) Update(ctx context.Context, id int, req *Updat
 
 	// 父级被禁用时，级联禁用整个子树（包括所有后代）
 	if req.Status != nil && *req.Status == 0 && current.Status == 1 {
-		if err := s.cascadeDisableChildren(ctx, id); err != nil {
+		if err := s.cascadeDisableChildrenTx(ctx, tx, id); err != nil {
 			return fmt.Errorf("级联禁用子权限失败: %w", err)
 		}
 	}
 
 	// 父级被启用时，级联启用整个子树（包括所有后代）
 	if req.Status != nil && *req.Status == 1 && current.Status == 0 {
-		if err := s.cascadeEnableChildren(ctx, id); err != nil {
+		if err := s.cascadeEnableChildrenTx(ctx, tx, id); err != nil {
 			return fmt.Errorf("级联启用子权限失败: %w", err)
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("提交事务失败: %w", err)
 	}
 
 	return nil
@@ -316,6 +343,56 @@ func (s *SystemPermissionService) cascadeEnableChildren(ctx context.Context, par
 		}
 		// 递归处理孙子权限
 		if err := s.cascadeEnableChildren(ctx, child.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// cascadeDisableChildrenTx 递归禁用所有子权限（事务版本）
+func (s *SystemPermissionService) cascadeDisableChildrenTx(ctx context.Context, tx *ent.Tx, parentID int) error {
+	children, err := tx.SystemPermission.Query().
+		Where(systempermission.ParentIDEQ(parentID)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		if child.Status == 1 {
+			_, err := tx.SystemPermission.UpdateOneID(child.ID).
+				SetStatus(0).
+				Save(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		// 递归处理孙子权限
+		if err := s.cascadeDisableChildrenTx(ctx, tx, child.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// cascadeEnableChildrenTx 递归启用所有子权限（事务版本）
+func (s *SystemPermissionService) cascadeEnableChildrenTx(ctx context.Context, tx *ent.Tx, parentID int) error {
+	children, err := tx.SystemPermission.Query().
+		Where(systempermission.ParentIDEQ(parentID)).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		if child.Status == 0 {
+			_, err := tx.SystemPermission.UpdateOneID(child.ID).
+				SetStatus(1).
+				Save(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		// 递归处理孙子权限
+		if err := s.cascadeEnableChildrenTx(ctx, tx, child.ID); err != nil {
 			return err
 		}
 	}
@@ -739,4 +816,36 @@ func (s *SystemPermissionService) toResponse(p *ent.SystemPermission) *SystemPer
 		CreatedAt:   p.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   p.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
+}
+
+// isDescendantOf 检查 candidateID 是否是 ancestorID 的后代（用于防止父子环依赖）
+// 通过自下而上遍历 parent_id 链实现，带 maxDepth 与 visited 双重防御
+func (s *SystemPermissionService) isDescendantOf(ctx context.Context, candidateID, ancestorID int) (bool, error) {
+	const maxDepth = 100
+	currentID := candidateID
+	visited := make(map[int]bool, maxDepth)
+	for i := 0; i < maxDepth; i++ {
+		if currentID == 0 {
+			return false, nil
+		}
+		if currentID == ancestorID {
+			return true, nil
+		}
+		if visited[currentID] {
+			return true, nil
+		}
+		visited[currentID] = true
+
+		perm, err := s.client.SystemPermission.Query().
+			Where(systempermission.IDEQ(currentID)).
+			Only(ctx)
+		if err != nil {
+			if ent.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		currentID = perm.ParentID
+	}
+	return false, fmt.Errorf("权限层级超过最大深度 %d", maxDepth)
 }

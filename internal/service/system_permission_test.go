@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 	"testing"
 
@@ -912,5 +913,44 @@ func assertSeedPermissionExists(t *testing.T, ctx context.Context, want seedPerm
 	}
 	if perm.ParentID != parent.ID {
 		t.Fatalf("seed permission %s parent_id = %d, want parent %s id %d", want.Code, perm.ParentID, want.ParentCode, parent.ID)
+	}
+}
+
+func TestSystemPermission_Update_RejectsSelfParent(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+	svc := NewSystemPermissionService()
+	created, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+		Domain: "default", Type: SystemPermissionTypeMenu, Name: "P", Code: "cycle:self",
+	})
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+	selfID := created.ID
+	err = svc.Update(ctx, selfID, &UpdateSystemPermissionRequest{ParentID: &selfID})
+	if !errors.Is(err, ErrPermissionParentCycle) {
+		t.Fatalf("期望 ErrPermissionParentCycle，got %v", err)
+	}
+}
+
+func TestSystemPermission_Update_RejectsDescendantParent(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+	svc := NewSystemPermissionService()
+	parent, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+		Domain: "default", Type: SystemPermissionTypeMenu, Name: "P", Code: "cycle:p",
+	})
+	if err != nil {
+		t.Fatalf("create parent failed: %v", err)
+	}
+	child, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+		Domain: "default", Type: SystemPermissionTypeMenu, Name: "C", Code: "cycle:c", ParentID: parent.ID,
+	})
+	if err != nil {
+		t.Fatalf("create child failed: %v", err)
+	}
+	err = svc.Update(ctx, parent.ID, &UpdateSystemPermissionRequest{ParentID: &child.ID})
+	if !errors.Is(err, ErrPermissionParentCycle) {
+		t.Fatalf("期望 ErrPermissionParentCycle，got %v", err)
 	}
 }
