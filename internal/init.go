@@ -19,6 +19,7 @@ import (
 	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
@@ -141,7 +142,7 @@ func initDatabase(config *config.Config) error {
 	}
 	drv := entsql.OpenDB(driver, db)
 	client := ent.NewClient(ent.Driver(drv))
-	if schemaErr := client.Schema.Create(context.Background()); schemaErr != nil {
+	if schemaErr := client.Schema.Create(context.Background(), migrate.WithForeignKeys(false)); schemaErr != nil {
 		appInstance.Logger.Fatal("failed creating schema resources", zap.Error(schemaErr))
 	}
 	global.ORM = client

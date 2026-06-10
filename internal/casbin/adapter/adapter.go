@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/predicate"
 
 	"entgo.io/ent/dialect"
@@ -88,7 +89,7 @@ func NewAdapter(driverName, dataSourceName string, options ...Option) (*Adapter,
 			return nil, err
 		}
 	}
-	if err := client.Schema.Create(a.ctx); err != nil {
+	if err := client.Schema.Create(a.ctx, migrate.WithForeignKeys(false)); err != nil {
 		return nil, err
 	}
 	return a, nil
@@ -106,7 +107,7 @@ func NewAdapterWithClient(client *ent.Client, options ...Option) (*Adapter, erro
 			return nil, err
 		}
 	}
-	if err := client.Schema.Create(a.ctx); err != nil {
+	if err := client.Schema.Create(a.ctx, migrate.WithForeignKeys(false)); err != nil {
 		return nil, err
 	}
 	return a, nil
