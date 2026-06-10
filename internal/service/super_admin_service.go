@@ -33,10 +33,10 @@ type UpdateAdminRequest struct {
 type SuperAdminServiceInterface interface {
 	CreateAdmin(ctx context.Context, req *CreateAdminRequest) (*AdminResponse, error)
 	ListAdmins(ctx context.Context, req *AdminListRequest) (*ListResponse[*AdminListItem], error)
-	GetAdminByID(ctx context.Context, adminID int) (*AdminResponse, error)
-	UpdateAdmin(ctx context.Context, adminID int, req *UpdateAdminRequest) (*AdminResponse, error)
-	ActivateAdmin(ctx context.Context, adminID int) error
-	DeactivateAdmin(ctx context.Context, adminID int) error
+	GetAdminByID(ctx context.Context, op *EffectiveDataScope, adminID int) (*AdminResponse, error)
+	UpdateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int, req *UpdateAdminRequest) (*AdminResponse, error)
+	ActivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error
+	DeactivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error
 }
 
 // SuperAdminService 超级管理员服务
@@ -276,7 +276,13 @@ func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListReques
 }
 
 // ActivateAdmin 激活管理员
-func (s *SuperAdminService) ActivateAdmin(ctx context.Context, adminID int) error {
+func (s *SuperAdminService) ActivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error {
+	if op != nil && op.AdminID == adminID {
+		return ErrCannotToggleSelfStatus
+	}
+	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
+		return err
+	}
 	_, err := s.client.Admin.UpdateOneID(adminID).
 		SetStatus(admin.StatusActive).
 		Save(ctx)
@@ -290,7 +296,13 @@ func (s *SuperAdminService) ActivateAdmin(ctx context.Context, adminID int) erro
 }
 
 // DeactivateAdmin 停用管理员
-func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, adminID int) error {
+func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error {
+	if op != nil && op.AdminID == adminID {
+		return ErrCannotToggleSelfStatus
+	}
+	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
+		return err
+	}
 	_, err := s.client.Admin.UpdateOneID(adminID).
 		SetStatus(admin.StatusInactive).
 		Save(ctx)
@@ -304,7 +316,10 @@ func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, adminID int) er
 }
 
 // GetAdminByID 获取管理员详情
-func (s *SuperAdminService) GetAdminByID(ctx context.Context, adminID int) (*AdminResponse, error) {
+func (s *SuperAdminService) GetAdminByID(ctx context.Context, op *EffectiveDataScope, adminID int) (*AdminResponse, error) {
+	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
+		return nil, err
+	}
 	a, err := s.client.Admin.Query().
 		Where(admin.IDEQ(adminID)).
 		Only(ctx)
@@ -331,7 +346,10 @@ func (s *SuperAdminService) GetAdminByID(ctx context.Context, adminID int) (*Adm
 }
 
 // UpdateAdmin 更新管理员信息
-func (s *SuperAdminService) UpdateAdmin(ctx context.Context, adminID int, req *UpdateAdminRequest) (*AdminResponse, error) {
+func (s *SuperAdminService) UpdateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int, req *UpdateAdminRequest) (*AdminResponse, error) {
+	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
+		return nil, err
+	}
 	a, err := s.client.Admin.Query().
 		Where(admin.IDEQ(adminID)).
 		Only(ctx)
