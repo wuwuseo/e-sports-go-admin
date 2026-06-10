@@ -277,11 +277,12 @@ func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListReques
 
 // ActivateAdmin 激活管理员
 func (s *SuperAdminService) ActivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error {
-	if op != nil && op.AdminID == adminID {
-		return ErrCannotToggleSelfStatus
-	}
+	// 先做范围检查，再做自我检查，避免越权者通过错误码探测目标管理员是否存在
 	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
 		return err
+	}
+	if op != nil && op.AdminID == adminID {
+		return ErrCannotToggleSelfStatus
 	}
 	_, err := s.client.Admin.UpdateOneID(adminID).
 		SetStatus(admin.StatusActive).
@@ -297,11 +298,12 @@ func (s *SuperAdminService) ActivateAdmin(ctx context.Context, op *EffectiveData
 
 // DeactivateAdmin 停用管理员
 func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error {
-	if op != nil && op.AdminID == adminID {
-		return ErrCannotToggleSelfStatus
-	}
+	// 先做范围检查，再做自我检查，避免越权者通过错误码探测目标管理员是否存在
 	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
 		return err
+	}
+	if op != nil && op.AdminID == adminID {
+		return ErrCannotToggleSelfStatus
 	}
 	_, err := s.client.Admin.UpdateOneID(adminID).
 		SetStatus(admin.StatusInactive).
