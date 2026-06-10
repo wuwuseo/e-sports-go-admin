@@ -3,7 +3,6 @@ package service
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 
 	"go-admin/internal/ent"
@@ -98,6 +97,20 @@ func TestDepartmentService_CreateWithMissingParentReturnsNotFound(t *testing.T) 
 	}
 }
 
+func TestDepartmentService_CreateWithNegativeParentReturnsInvalidParent(t *testing.T) {
+	_ = setupDepartmentTestClient(t)
+	ctx := t.Context()
+	svc := NewDepartmentService()
+
+	_, err := svc.Create(ctx, &CreateDepartmentRequest{
+		Name:     "Invalid Parent",
+		ParentID: -1,
+	})
+	if !errors.Is(err, ErrInvalidDepartmentParent) {
+		t.Fatalf("expected ErrInvalidDepartmentParent, got %v", err)
+	}
+}
+
 func TestDepartmentService_TreeBuildsHierarchyAndOrdersSiblings(t *testing.T) {
 	_ = setupDepartmentTestClient(t)
 	ctx := t.Context()
@@ -186,6 +199,93 @@ func TestDepartmentService_UpdateRejectsSelfAndDescendantParent(t *testing.T) {
 	}
 }
 
+func TestDepartmentService_UpdateWithNegativeParentReturnsInvalidParent(t *testing.T) {
+	_ = setupDepartmentTestClient(t)
+	ctx := t.Context()
+	svc := NewDepartmentService()
+	root := createDepartmentForTest(t, svc, "Root", 0, 0)
+
+	negativeParentID := -1
+	err := svc.Update(ctx, root.ID, &UpdateDepartmentRequest{ParentID: &negativeParentID})
+	if !errors.Is(err, ErrInvalidDepartmentParent) {
+		t.Fatalf("expected ErrInvalidDepartmentParent, got %v", err)
+	}
+}
+
+func TestDepartmentService_UpdatePreservesContactFieldsWhenOmitted(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+	svc := NewDepartmentService()
+
+	dept, err := svc.Create(ctx, &CreateDepartmentRequest{
+		Name:   "Operations",
+		Sort:   1,
+		Leader: "Ava",
+		Phone:  "13800138000",
+		Email:  "ava@example.com",
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	sort := 9
+	err = svc.Update(ctx, dept.ID, &UpdateDepartmentRequest{
+		Sort:   &sort,
+		Status: string(department.StatusInactive),
+	})
+	if err != nil {
+		t.Fatalf("Update returned error: %v", err)
+	}
+
+	updated, err := client.Department.Get(ctx, dept.ID)
+	if err != nil {
+		t.Fatalf("get department failed: %v", err)
+	}
+	if updated.Sort != sort {
+		t.Fatalf("expected sort %d, got %d", sort, updated.Sort)
+	}
+	if updated.Status != department.StatusInactive {
+		t.Fatalf("expected status inactive, got %s", updated.Status)
+	}
+	if updated.Leader != "Ava" || updated.Phone != "13800138000" || updated.Email != "ava@example.com" {
+		t.Fatalf("expected contact fields to be preserved, got leader=%q phone=%q email=%q", updated.Leader, updated.Phone, updated.Email)
+	}
+}
+
+func TestDepartmentService_UpdateClearsContactFieldsWhenEmptyPointersProvided(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+	svc := NewDepartmentService()
+
+	dept, err := svc.Create(ctx, &CreateDepartmentRequest{
+		Name:   "Support",
+		Leader: "Ben",
+		Phone:  "13900139000",
+		Email:  "ben@example.com",
+	})
+	if err != nil {
+		t.Fatalf("Create returned error: %v", err)
+	}
+
+	empty := ""
+	err = svc.Update(ctx, dept.ID, &UpdateDepartmentRequest{
+		Leader: &empty,
+		Phone:  &empty,
+		Email:  &empty,
+	})
+	if err != nil {
+		t.Fatalf("Update returned error: %v", err)
+	}
+
+	updated, err := client.Department.Get(ctx, dept.ID)
+	if err != nil {
+		t.Fatalf("get department failed: %v", err)
+	}
+	if updated.Leader != "" || updated.Phone != "" || updated.Email != "" {
+		t.Fatalf("expected contact fields to be cleared, got leader=%q phone=%q email=%q", updated.Leader, updated.Phone, updated.Email)
+	}
+}
+
 func TestDepartmentService_UpdateParentRecalculatesDescendantPaths(t *testing.T) {
 	client := setupDepartmentTestClient(t)
 	ctx := t.Context()
@@ -198,9 +298,6 @@ func TestDepartmentService_UpdateParentRecalculatesDescendantPaths(t *testing.T)
 	newParentID := newRoot.ID
 	err := svc.Update(ctx, child.ID, &UpdateDepartmentRequest{
 		ParentID: &newParentID,
-		Leader:   "",
-		Phone:    "",
-		Email:    "",
 	})
 	if err != nil {
 		t.Fatalf("Update returned error: %v", err)
@@ -233,8 +330,8 @@ func TestDepartmentService_DeleteRejectsChildrenAndDeletesLeaf(t *testing.T) {
 	child := createDepartmentForTest(t, svc, "Child", root.ID, 0)
 
 	err := svc.Delete(ctx, root.ID)
-	if err == nil || !strings.Contains(err.Error(), "department has children") {
-		t.Fatalf("expected department has children error, got %v", err)
+	if !errors.Is(err, ErrDepartmentHasChildren) {
+		t.Fatalf("expected ErrDepartmentHasChildren, got %v", err)
 	}
 
 	if err := svc.Delete(ctx, child.ID); err != nil {
@@ -246,6 +343,17 @@ func TestDepartmentService_DeleteRejectsChildrenAndDeletesLeaf(t *testing.T) {
 	}
 	if exists {
 		t.Fatal("expected child department to be deleted")
+	}
+}
+
+func TestDepartmentService_DeleteMissingDepartmentReturnsNotFound(t *testing.T) {
+	_ = setupDepartmentTestClient(t)
+	ctx := t.Context()
+	svc := NewDepartmentService()
+
+	err := svc.Delete(ctx, 99999)
+	if !errors.Is(err, ErrDepartmentNotFound) {
+		t.Fatalf("expected ErrDepartmentNotFound, got %v", err)
 	}
 }
 

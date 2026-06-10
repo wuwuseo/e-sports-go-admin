@@ -12,9 +12,11 @@ import (
 )
 
 var (
-	ErrDepartmentNotFound = errors.New("department not found")
-	ErrDepartmentDisabled = errors.New("department is disabled")
-	ErrDepartmentCycle    = errors.New("department parent cannot be itself or its child")
+	ErrDepartmentNotFound      = errors.New("department not found")
+	ErrDepartmentDisabled      = errors.New("department is disabled")
+	ErrDepartmentCycle         = errors.New("department parent cannot be itself or its child")
+	ErrInvalidDepartmentParent = errors.New("department parent id is invalid")
+	ErrDepartmentHasChildren   = errors.New("department has children")
 )
 
 type DepartmentServiceInterface interface {
@@ -47,13 +49,13 @@ type CreateDepartmentRequest struct {
 }
 
 type UpdateDepartmentRequest struct {
-	Name     string `json:"name" validate:"max=100"`
-	ParentID *int   `json:"parent_id"`
-	Sort     *int   `json:"sort"`
-	Status   string `json:"status"`
-	Leader   string `json:"leader"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
+	Name     string  `json:"name" validate:"max=100"`
+	ParentID *int    `json:"parent_id"`
+	Sort     *int    `json:"sort"`
+	Status   string  `json:"status"`
+	Leader   *string `json:"leader"`
+	Phone    *string `json:"phone"`
+	Email    *string `json:"email"`
 }
 
 type ListDepartmentsRequest struct {
@@ -81,6 +83,10 @@ type DepartmentTreeNode struct {
 }
 
 func (s *DepartmentService) Create(ctx context.Context, req *CreateDepartmentRequest) (*DepartmentResponse, error) {
+	if req.ParentID < 0 {
+		return nil, ErrInvalidDepartmentParent
+	}
+
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("start department transaction failed: %w", err)
@@ -157,6 +163,9 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 	newPath := current.Path
 	parentChanged := false
 	if req.ParentID != nil {
+		if *req.ParentID < 0 {
+			return ErrInvalidDepartmentParent
+		}
 		if *req.ParentID == id {
 			return ErrDepartmentCycle
 		}
@@ -181,10 +190,7 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 		parentChanged = *req.ParentID != current.ParentID
 	}
 
-	update := tx.Department.UpdateOne(current).
-		SetLeader(req.Leader).
-		SetPhone(req.Phone).
-		SetEmail(req.Email)
+	update := tx.Department.UpdateOne(current)
 	if req.Name != "" {
 		update.SetName(req.Name)
 	}
@@ -197,6 +203,15 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 	}
 	if req.Status != "" {
 		update.SetStatus(department.Status(req.Status))
+	}
+	if req.Leader != nil {
+		update.SetLeader(*req.Leader)
+	}
+	if req.Phone != nil {
+		update.SetPhone(*req.Phone)
+	}
+	if req.Email != nil {
+		update.SetEmail(*req.Email)
 	}
 
 	if _, err := update.Save(ctx); err != nil {
@@ -216,7 +231,13 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 }
 
 func (s *DepartmentService) Delete(ctx context.Context, id int) error {
-	dept, err := s.client.Department.Query().
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("start department transaction failed: %w", err)
+	}
+	defer rollbackUnlessCommitted(tx)
+
+	dept, err := tx.Department.Query().
 		Where(department.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -226,18 +247,21 @@ func (s *DepartmentService) Delete(ctx context.Context, id int) error {
 		return fmt.Errorf("query department failed: %w", err)
 	}
 
-	hasChildren, err := s.client.Department.Query().
+	hasChildren, err := tx.Department.Query().
 		Where(department.ParentIDEQ(id)).
 		Exist(ctx)
 	if err != nil {
 		return fmt.Errorf("check department children failed: %w", err)
 	}
 	if hasChildren {
-		return errors.New("department has children")
+		return ErrDepartmentHasChildren
 	}
 
-	if err := s.client.Department.DeleteOne(dept).Exec(ctx); err != nil {
+	if err := tx.Department.DeleteOne(dept).Exec(ctx); err != nil {
 		return fmt.Errorf("delete department failed: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit department transaction failed: %w", err)
 	}
 	return nil
 }
