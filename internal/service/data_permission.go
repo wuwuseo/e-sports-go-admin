@@ -14,6 +14,15 @@ import (
 // ErrDataPermissionAdminNotFound 数据权限解析时管理员不存在
 var ErrDataPermissionAdminNotFound = errors.New("data permission admin not found")
 
+// ErrAdminOutOfScope 目标管理员超出当前操作者数据权限范围
+var ErrAdminOutOfScope = errors.New("admin out of data scope")
+
+// ErrCannotToggleSelfStatus 禁止启用/禁用自己
+var ErrCannotToggleSelfStatus = errors.New("cannot activate or deactivate yourself")
+
+// ErrCannotModifySelfRoles 禁止修改自己的角色
+var ErrCannotModifySelfRoles = errors.New("cannot modify your own roles")
+
 // EffectiveDataScope 管理员的有效数据权限范围
 type EffectiveDataScope struct {
 	Scope         DataScope
@@ -154,4 +163,40 @@ func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentU
 		return nil, nil
 	}
 	return s.ResolveAdminScope(ctx, currentUID)
+}
+
+// ensureAdminInScope 校验 targetAdminID 是否在 op 的数据范围内
+//   op == nil          → 放行（内部调用）
+//   op.IsSuperAdmin    → 放行
+//   target.UID == op.AdminUID → 放行（访问自己）
+//   target.DepartmentID == 0  → 拒绝（未分配只对超管可见）
+//   其他               → 按 op.Scope 校验
+func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDataScope, targetAdminID int) error {
+	if op == nil || op.IsSuperAdmin {
+		return nil
+	}
+	target, err := client.Admin.Query().Where(admin.IDEQ(targetAdminID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrAdminNotFound
+		}
+		return err
+	}
+	if target.UID == op.AdminUID {
+		return nil
+	}
+	switch op.Scope {
+	case DataScopeAll:
+		return nil
+	case DataScopeSelf:
+		return ErrAdminOutOfScope
+	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		if target.DepartmentID == 0 {
+			return ErrAdminOutOfScope
+		}
+		if !containsInt(op.DepartmentIDs, target.DepartmentID) {
+			return ErrAdminOutOfScope
+		}
+	}
+	return nil
 }
