@@ -160,10 +160,10 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 超级管理员管理路由（管理其他管理员账号）
 	adminAuth.Post("/admins", handler.CreateAdmin)
 	adminAuth.Get("/admins", handler.ListAdmins)
-	adminAuth.Get("/admins/:uid", handler.GetAdminDetail)
+	adminAuth.Get("/admins/:id", handler.GetAdminDetail)
 	adminAuth.Put("/admins/:id", handler.UpdateAdminByID)
-	adminAuth.Get("/admins/:uid/roles", handler.GetAdminRoles)
-	adminAuth.Put("/admins/:uid/roles", handler.AssignAdminRoles)
+	adminAuth.Get("/admins/:id/roles", handler.GetAdminRoles)
+	adminAuth.Put("/admins/:id/roles", handler.AssignAdminRoles)
 	adminAuth.Put("/admins/:id/activate", handler.ActivateAdmin)
 	adminAuth.Put("/admins/:id/deactivate", handler.DeactivateAdmin)
 	// 角色管理路由
