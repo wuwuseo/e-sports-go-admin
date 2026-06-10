@@ -107,29 +107,35 @@ func AssignUserRoles(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param uid path int true "管理员ID"
+// @Param id path int true "管理员ID"
 // @Success 200 {object} utils.Response{data=service.UserRolesResponse} "获取成功"
 // @Failure 400 {object} utils.Response "参数错误"
 // @Failure 401 {object} utils.Response "未授权"
 // @Failure 403 {object} utils.Response "权限不足"
 // @Failure 404 {object} utils.Response "管理员不存在"
-// @Router /api/v1/admin/auth/admins/{uid}/roles [get]
+// @Router /api/v1/admin/auth/admins/{id}/roles [get]
 func GetAdminRoles(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
-	adminID, err := strconv.Atoi(c.Params("uid"))
+	adminID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Fail(global.ResponseErrorCode, "无效的管理员ID").ToJSON(c)
 	}
 
 	svc := c.Locals("service.RoleAssignmentService").(service.RoleAssignmentServiceInterface)
-	result, err := svc.GetAdminRoles(c.Context(), adminID)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	if err != nil {
+		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+	}
+
+	result, err := svc.GetAdminRoles(c.Context(), op, adminID)
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound:
 			return response.Fail(global.ResponseUserNotFound, global.ResponseMsg[global.ResponseUserNotFound]).ToJSON(c)
 		default:
-			return response.Fail(global.ResponseInternalServerError, "获取管理员角色失败").ToJSON(c)
+			return mapAdminScopeError(c, response, err)
 		}
 	}
 
@@ -143,18 +149,18 @@ func GetAdminRoles(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param uid path int true "管理员ID"
+// @Param id path int true "管理员ID"
 // @Param request body service.AssignRolesRequest true "分配角色请求"
 // @Success 200 {object} utils.Response "分配成功"
 // @Failure 400 {object} utils.Response "参数错误/无效的角色ID/主角色无效"
 // @Failure 401 {object} utils.Response "未授权"
 // @Failure 403 {object} utils.Response "权限不足"
 // @Failure 404 {object} utils.Response "管理员不存在"
-// @Router /api/v1/admin/auth/admins/{uid}/roles [put]
+// @Router /api/v1/admin/auth/admins/{id}/roles [put]
 func AssignAdminRoles(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
-	adminID, err := strconv.Atoi(c.Params("uid"))
+	adminID, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Fail(global.ResponseErrorCode, "无效的管理员ID").ToJSON(c)
 	}
@@ -167,10 +173,16 @@ func AssignAdminRoles(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
-	operatorUID := c.Locals("uid").(string)
+	operatorUID := getOperatorUID(c)
 
 	svc := c.Locals("service.RoleAssignmentService").(service.RoleAssignmentServiceInterface)
-	err = svc.AssignAdminRoles(c.Context(), adminID, req, operatorUID)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), operatorUID)
+	if err != nil {
+		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+	}
+
+	err = svc.AssignAdminRoles(c.Context(), op, adminID, req, operatorUID)
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -182,7 +194,7 @@ func AssignAdminRoles(c fiber.Ctx) error {
 		case service.ErrSuperAdminRoleAssignmentForbidden:
 			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		default:
-			return response.Fail(global.ResponseInternalServerError, "分配角色失败").ToJSON(c)
+			return mapAdminScopeError(c, response, err)
 		}
 	}
 
