@@ -781,7 +781,7 @@ func TestInitSystemPermissions_IncludesPluginManagementSeeds(t *testing.T) {
 	}
 }
 
-func TestInitSystemPermissions_CreatesNinetyFiveDefaultSeeds(t *testing.T) {
+func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	setupSystemPermissionTest(t)
 	ctx := t.Context()
 
@@ -795,8 +795,9 @@ func TestInitSystemPermissions_CreatesNinetyFiveDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	if count != 95 {
-		t.Fatalf("default system permission count = %d, want 95", count)
+	const wantCount = 112 // 95(原) + 9(部门 96-104) + 8(admin 110-117)
+	if count != wantCount {
+		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
 }
 

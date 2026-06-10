@@ -223,7 +223,7 @@ func TestSuperAdminService_ActivateAdmin_Success(t *testing.T) {
 	a := createTestAdminRaw(t, client, "activate@test.com", "uid-activate", "activateadmin", "pass", admin.StatusInactive)
 
 	svc := NewSuperAdminService()
-	err := svc.ActivateAdmin(ctx, a.ID)
+	err := svc.ActivateAdmin(ctx, nil, a.ID)
 	if err != nil {
 		t.Fatalf("激活管理员失败: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestSuperAdminService_DeactivateAdmin_Success(t *testing.T) {
 	a := createTestAdminRaw(t, client, "deactivate@test.com", "uid-deactivate", "deactivateadmin", "pass", admin.StatusActive)
 
 	svc := NewSuperAdminService()
-	err := svc.DeactivateAdmin(ctx, a.ID)
+	err := svc.DeactivateAdmin(ctx, nil, a.ID)
 	if err != nil {
 		t.Fatalf("停用管理员失败: %v", err)
 	}
@@ -256,5 +256,35 @@ func TestSuperAdminService_DeactivateAdmin_Success(t *testing.T) {
 	}
 	if updated.Status != admin.StatusInactive {
 		t.Errorf("期望状态为 inactive, 实际=%s", updated.Status)
+	}
+}
+
+// TestSuperAdminService_ActivateSelf_Forbidden 验证不允许激活自己
+func TestSuperAdminService_ActivateSelf_Forbidden(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+	a := createTestAdminRaw(t, client, "self@test.com", "u-self", "selfadmin", "pass", admin.StatusInactive)
+
+	svc := NewSuperAdminService()
+	op := &EffectiveDataScope{AdminID: a.ID, AdminUID: a.UID, IsSuperAdmin: true}
+	err := svc.ActivateAdmin(ctx, op, a.ID)
+	if !errors.Is(err, ErrCannotToggleSelfStatus) {
+		t.Fatalf("期望 ErrCannotToggleSelfStatus，got %v", err)
+	}
+}
+
+// TestSuperAdminService_DeactivateSelf_Forbidden 验证不允许停用自己
+func TestSuperAdminService_DeactivateSelf_Forbidden(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+	a := createTestAdminRaw(t, client, "selfd@test.com", "u-selfd", "selfdadmin", "pass", admin.StatusActive)
+
+	svc := NewSuperAdminService()
+	op := &EffectiveDataScope{AdminID: a.ID, AdminUID: a.UID, IsSuperAdmin: true}
+	err := svc.DeactivateAdmin(ctx, op, a.ID)
+	if !errors.Is(err, ErrCannotToggleSelfStatus) {
+		t.Fatalf("期望 ErrCannotToggleSelfStatus，got %v", err)
 	}
 }

@@ -134,6 +134,30 @@ func TestRoleAssignmentService_GetUserRoles_UserNotFound(t *testing.T) {
 	}
 }
 
+// TestRoleAssignmentService_AssignSelfRoles_Forbidden 验证不允许修改自己的角色
+func TestRoleAssignmentService_AssignSelfRoles_Forbidden(t *testing.T) {
+	client := setupRoleAssignmentTest(t)
+	ctx := t.Context()
+
+	a, err := client.Admin.Create().
+		SetEmail("selfr@test.com").
+		SetUID("u-selfr").
+		SetUsername("selfradmin").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建测试管理员失败: %v", err)
+	}
+
+	svc := NewRoleAssignmentService(nil)
+	op := &EffectiveDataScope{AdminID: a.ID, AdminUID: a.UID, IsSuperAdmin: true}
+	err = svc.AssignAdminRoles(ctx, op, a.ID, &AssignRolesRequest{}, "u-selfr")
+	if !errors.Is(err, ErrCannotModifySelfRoles) {
+		t.Fatalf("期望 ErrCannotModifySelfRoles，got %v", err)
+	}
+}
+
 func TestRoleAssignmentService_GetUserRoles_ExcludesDisabledRoles(t *testing.T) {
 	client := setupRoleAssignmentTest(t)
 	ctx := t.Context()
@@ -297,7 +321,7 @@ func TestRoleAssignmentService_AssignAdminRoles_RejectsSuperAdminRole(t *testing
 	}
 
 	svc := NewRoleAssignmentService(nil)
-	err = svc.AssignAdminRoles(ctx, a.ID, &AssignRolesRequest{
+	err = svc.AssignAdminRoles(ctx, nil, a.ID, &AssignRolesRequest{
 		RoleIDs:       []int{adminRole.ID},
 		PrimaryRoleID: adminRole.ID,
 	}, "operator-uid")
