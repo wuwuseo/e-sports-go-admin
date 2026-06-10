@@ -86,6 +86,12 @@ const (
 	ErrCodePluginUninstallFail   = 8006
 	ErrCodePluginManifestInvalid = 8007
 	ErrCodePluginPathInvalid     = 8008
+
+	// 部门管理错误码 (9000-9099)
+	ErrCodeDepartmentNotFound      = 9001
+	ErrCodeDepartmentHasChildren   = 9002
+	ErrCodeDepartmentCycle         = 9003
+	ErrCodeInvalidDepartmentParent = 9004
 )
 
 // ResponseMsg 响应消息映射
@@ -174,4 +180,10 @@ var ResponseMsg = map[int]string{
 	ErrCodePluginUninstallFail:   "插件卸载失败",
 	ErrCodePluginManifestInvalid: "插件 Manifest 无效",
 	ErrCodePluginPathInvalid:     "插件路径非法",
+
+	// 部门管理错误消息
+	ErrCodeDepartmentNotFound:      "部门不存在",
+	ErrCodeDepartmentHasChildren:   "部门下存在子部门，无法删除",
+	ErrCodeDepartmentCycle:         "父部门不能是自身或子部门",
+	ErrCodeInvalidDepartmentParent: "无效的父部门ID",
 }

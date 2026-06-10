@@ -79,6 +79,11 @@ func ListAdmins(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "Invalid query params").ToJSON(c)
 	}
 
+	// 传入当前操作者UID用于数据权限过滤
+	if uid, ok := c.Locals("uid").(string); ok {
+		req.CurrentUID = uid
+	}
+
 	if req.Page <= 0 {
 		req.Page = 1
 	}

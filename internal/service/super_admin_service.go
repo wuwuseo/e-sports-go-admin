@@ -64,10 +64,11 @@ type CreateAdminRequest struct {
 
 // AdminListRequest 管理员列表请求
 type AdminListRequest struct {
-	Page     int    `json:"page"`
-	PageSize int    `json:"page_size"`
-	Keyword  string `json:"keyword"`
-	Status   string `json:"status"`
+	Page       int    `json:"page"`
+	PageSize   int    `json:"page_size"`
+	Keyword    string `json:"keyword"`
+	Status     string `json:"status"`
+	CurrentUID string `json:"current_uid,omitempty"` // 当前操作者UID，用于数据权限过滤
 }
 
 // AdminListItem 管理员列表项
@@ -209,6 +210,27 @@ func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListReques
 
 	if req.Status != "" {
 		query = query.Where(admin.StatusEQ(admin.Status(req.Status)))
+	}
+
+	// 应用数据权限过滤
+	if req.CurrentUID != "" {
+		dataPermSvc := NewDataPermissionService(NewDepartmentService())
+		scope, err := dataPermSvc.ResolveAdminScope(ctx, req.CurrentUID)
+		if err != nil {
+			return nil, fmt.Errorf("解析数据权限失败: %w", err)
+		}
+		switch scope.Scope {
+		case DataScopeAll:
+			// 不做过滤
+		case DataScopeSelf:
+			query = query.Where(admin.UIDEQ(scope.AdminUID))
+		case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+			if len(scope.DepartmentIDs) == 0 {
+				query = query.Where(admin.IDEQ(-1)) // 无可见部门，返回空结果
+			} else {
+				query = query.Where(admin.DepartmentIDIn(scope.DepartmentIDs...))
+			}
+		}
 	}
 
 	total, err := query.Count(ctx)

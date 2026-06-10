@@ -25,6 +25,17 @@ var (
 	ErrInvalidRoleStatus   = errors.New("角色状态无效")
 )
 
+// DataScope 数据权限范围类型
+type DataScope string
+
+const (
+	DataScopeAll                DataScope = "all"
+	DataScopeSelf               DataScope = "self"
+	DataScopeDepartment         DataScope = "department"
+	DataScopeDepartmentAndChild DataScope = "department_and_child"
+	DataScopeCustom             DataScope = "custom"
+)
+
 // ListAllRolesRequest 全量角色列表请求
 type ListAllRolesRequest struct {
 	Keyword string `query:"keyword" json:"keyword"`
@@ -90,31 +101,37 @@ func (s *RoleService) clearUserPermissionsByRoleID(ctx context.Context, roleID i
 
 // CreateRoleRequest 创建角色请求
 type CreateRoleRequest struct {
-	Name        string `json:"name" validate:"required,max=100"`
-	DisplayName string `json:"display_name" validate:"required,max=255"`
-	Description string `json:"description" validate:"max=500"`
-	CreatedBy   string `json:"created_by,omitempty"`
+	Name                   string `json:"name" validate:"required,max=100"`
+	DisplayName            string `json:"display_name" validate:"required,max=255"`
+	Description            string `json:"description" validate:"max=500"`
+	CreatedBy              string `json:"created_by,omitempty"`
+	DataScope              string `json:"data_scope"`
+	DataScopeDepartmentIDs []int  `json:"data_scope_department_ids"`
 }
 
 // UpdateRoleRequest 更新角色请求
 type UpdateRoleRequest struct {
-	DisplayName string `json:"display_name" validate:"max=255"`
-	Description string `json:"description" validate:"max=500"`
-	UpdatedBy   string `json:"updated_by,omitempty"`
+	DisplayName            string `json:"display_name" validate:"max=255"`
+	Description            string `json:"description" validate:"max=500"`
+	UpdatedBy              string `json:"updated_by,omitempty"`
+	DataScope              string `json:"data_scope"`
+	DataScopeDepartmentIDs []int  `json:"data_scope_department_ids"`
 }
 
 // RoleResponse 角色响应
 type RoleResponse struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
-	Description string `json:"description"`
-	IsSystem    bool   `json:"is_system"`
-	Status      string `json:"status"`
-	CreatedBy   string `json:"created_by,omitempty"`
-	UpdatedBy   string `json:"updated_by,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	ID                     int    `json:"id"`
+	Name                   string `json:"name"`
+	DisplayName            string `json:"display_name"`
+	Description            string `json:"description"`
+	IsSystem               bool   `json:"is_system"`
+	Status                 string `json:"status"`
+	CreatedBy              string `json:"created_by,omitempty"`
+	UpdatedBy              string `json:"updated_by,omitempty"`
+	CreatedAt              string `json:"created_at"`
+	UpdatedAt              string `json:"updated_at"`
+	DataScope              string `json:"data_scope"`
+	DataScopeDepartmentIDs []int  `json:"data_scope_department_ids"`
 }
 
 // ListRolesRequest 角色列表请求
@@ -160,6 +177,13 @@ func (s *RoleService) Create(ctx context.Context, req *CreateRoleRequest) (*Role
 	if req.CreatedBy != "" {
 		builder.SetCreatedBy(req.CreatedBy)
 	}
+
+	dataScope := req.DataScope
+	if dataScope == "" {
+		dataScope = string(DataScopeSelf)
+	}
+	builder.SetDataScope(role.DataScope(dataScope))
+	builder.SetDataScopeDepartmentIds(req.DataScopeDepartmentIDs)
 
 	r, err := builder.Save(ctx)
 	if err != nil {
@@ -277,6 +301,10 @@ func (s *RoleService) Update(ctx context.Context, id int, req *UpdateRoleRequest
 	if req.UpdatedBy != "" {
 		update.SetUpdatedBy(req.UpdatedBy)
 	}
+	if req.DataScope != "" {
+		update.SetDataScope(role.DataScope(req.DataScope))
+		update.SetDataScopeDepartmentIds(req.DataScopeDepartmentIDs)
+	}
 
 	_, err = update.Save(ctx)
 	if err != nil {
@@ -389,15 +417,17 @@ func (s *RoleService) Disable(ctx context.Context, id int) error {
 // toRoleResponse 将Ent实体转换为响应格式
 func (s *RoleService) toRoleResponse(r *ent.Role) *RoleResponse {
 	return &RoleResponse{
-		ID:          r.ID,
-		Name:        r.Name,
-		DisplayName: r.DisplayName,
-		Description: r.Description,
-		IsSystem:    r.IsSystem,
-		Status:      string(r.Status),
-		CreatedBy:   r.CreatedBy,
-		UpdatedBy:   r.UpdatedBy,
-		CreatedAt:   r.CreateTime.Format("2006-01-02 15:04:05"),
-		UpdatedAt:   r.UpdateTime.Format("2006-01-02 15:04:05"),
+		ID:                     r.ID,
+		Name:                   r.Name,
+		DisplayName:            r.DisplayName,
+		Description:            r.Description,
+		IsSystem:               r.IsSystem,
+		Status:                 string(r.Status),
+		CreatedBy:              r.CreatedBy,
+		UpdatedBy:              r.UpdatedBy,
+		CreatedAt:              r.CreateTime.Format("2006-01-02 15:04:05"),
+		UpdatedAt:              r.UpdateTime.Format("2006-01-02 15:04:05"),
+		DataScope:              string(r.DataScope),
+		DataScopeDepartmentIDs: r.DataScopeDepartmentIds,
 	}
 }

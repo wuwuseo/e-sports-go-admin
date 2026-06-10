@@ -49,6 +49,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		roleService = service.NewRoleService(nil)
 	}
 	systemPermissionService = service.NewSystemPermissionService()
+	departmentService := service.NewDepartmentService()
+	dataPermissionService := service.NewDataPermissionService(departmentService)
 
 	// 初始化操作日志服务
 	opLogService := service.NewOperationLogService()
@@ -141,6 +143,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.MessagePreferenceService", prefSvc)
 		c.Locals("service.MessageBroadcastService", broadcastService)
 		c.Locals("service.PluginService", pluginService)
+		c.Locals("service.DepartmentService", departmentService)
+		c.Locals("service.DataPermissionService", dataPermissionService)
 		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService))
@@ -198,6 +202,14 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	systemPermissions.Get("/:id", handler.GetSystemPermission)       // 获取权限定义详情
 	systemPermissions.Put("/:id", handler.UpdateSystemPermission)    // 更新权限定义
 	systemPermissions.Delete("/:id", handler.DeleteSystemPermission) // 删除权限定义
+
+	// 部门管理路由
+	departments := adminAuth.Group("/departments")
+	departments.Post("", handler.CreateDepartment)
+	departments.Get("/tree", handler.ListDepartmentTree)
+	departments.Get("/:id", handler.GetDepartment)
+	departments.Put("/:id", handler.UpdateDepartment)
+	departments.Delete("/:id", handler.DeleteDepartment)
 
 	// 用户权限路由
 	userPermissions := adminAuth.Group("/user")

@@ -625,6 +625,18 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 93, Domain: "default", Type: "api", Name: "获取配置分组", Code: "config:groups", Path: "/api/v1/admin/auth/configs/groups", Method: "GET", ParentID: 10, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取配置分组API"},
 		{ID: 94, Domain: "default", Type: "api", Name: "获取附件分组列表", Code: "attachment-group:list", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentID: 6, SortOrder: 3, IsCommon: false, Status: 1, Description: "获取附件分组列表API"},
 		{ID: 95, Domain: "default", Type: "api", Name: "按类型获取字典数据", Code: "dict-data:type", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentID: 9, SortOrder: 1, IsCommon: false, Status: 1, Description: "按类型获取字典数据API"},
+		// 部门管理菜单
+		{ID: 96, Domain: "default", Type: "menu", Name: "部门管理", Code: "system:department", MenuPath: "/system/department", Component: "system/department/index", ParentID: 3, SortOrder: 8, IsCommon: false, Status: 1, Description: "部门管理页面"},
+		// 部门管理API
+		{ID: 97, Domain: "default", Type: "api", Name: "创建部门", Code: "department:create", Path: "/api/v1/admin/auth/departments", Method: "POST", ParentID: 96, SortOrder: 0, IsCommon: false, Status: 1, Description: "创建部门API"},
+		{ID: 98, Domain: "default", Type: "api", Name: "获取部门树", Code: "department:tree", Path: "/api/v1/admin/auth/departments/tree", Method: "GET", ParentID: 96, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取部门树API"},
+		{ID: 99, Domain: "default", Type: "api", Name: "获取部门详情", Code: "department:get", Path: "/api/v1/admin/auth/departments/{id}", Method: "GET", ParentID: 96, SortOrder: 2, IsCommon: false, Status: 1, Description: "获取部门详情API"},
+		{ID: 100, Domain: "default", Type: "api", Name: "更新部门", Code: "department:update", Path: "/api/v1/admin/auth/departments/{id}", Method: "PUT", ParentID: 96, SortOrder: 3, IsCommon: false, Status: 1, Description: "更新部门API"},
+		{ID: 101, Domain: "default", Type: "api", Name: "删除部门", Code: "department:delete-api", Path: "/api/v1/admin/auth/departments/{id}", Method: "DELETE", ParentID: 96, SortOrder: 4, IsCommon: false, Status: 1, Description: "删除部门API"},
+		// 部门管理按钮
+		{ID: 102, Domain: "default", Type: "button", Name: "部门管理-新增按钮", Code: "department:add", ParentID: 96, SortOrder: 0, IsCommon: false, Status: 1, Description: "部门管理页面新增按钮"},
+		{ID: 103, Domain: "default", Type: "button", Name: "部门管理-编辑按钮", Code: "department:edit", ParentID: 96, SortOrder: 1, IsCommon: false, Status: 1, Description: "部门管理页面编辑按钮"},
+		{ID: 104, Domain: "default", Type: "button", Name: "部门管理-删除按钮", Code: "department:delete", ParentID: 96, SortOrder: 2, IsCommon: false, Status: 1, Description: "部门管理页面删除按钮"},
 	}
 
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {
