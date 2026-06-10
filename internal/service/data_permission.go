@@ -21,6 +21,7 @@ type EffectiveDataScope struct {
 	AdminUID      string
 	DepartmentID  int
 	DepartmentIDs []int
+	IsSuperAdmin  bool
 }
 
 // DataPermissionService 数据权限解析服务
@@ -48,7 +49,7 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 	}
 	// 超级管理员拥有全部数据权限
 	if a.IsSuperAdmin {
-		return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID}, nil
+		return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID, IsSuperAdmin: true}, nil
 	}
 
 	// 查询管理员关联的活跃角色
@@ -67,6 +68,7 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 		AdminID:      a.ID,
 		AdminUID:     a.UID,
 		DepartmentID: a.DepartmentID,
+		IsSuperAdmin: false,
 	}
 
 	// 合并所有角色的数据权限范围，取最宽的范围
@@ -77,7 +79,7 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 		}
 		switch DataScope(r.DataScope) {
 		case DataScopeAll:
-			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID}, nil
+			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID, IsSuperAdmin: false}, nil
 		case DataScopeCustom:
 			result.Scope = mergeScope(result.Scope, DataScopeCustom)
 			result.DepartmentIDs = appendUniqueInts(result.DepartmentIDs, r.DataScopeDepartmentIds...)
