@@ -41,13 +41,19 @@ type SuperAdminServiceInterface interface {
 
 // SuperAdminService 超级管理员服务
 type SuperAdminService struct {
-	client *ent.Client
+	client      *ent.Client
+	dataPermSvc *DataPermissionService
+	deptSvc     DepartmentServiceInterface
 }
 
 // NewSuperAdminService 创建超级管理员服务实例
-func NewSuperAdminService() *SuperAdminService {
+//
+//	dataPermSvc 与 deptSvc 由路由层注入，避免在请求路径上现场 new 导致依赖不一致（如测试、多连接场景误用 DB）
+func NewSuperAdminService(dataPermSvc *DataPermissionService, deptSvc DepartmentServiceInterface) *SuperAdminService {
 	return &SuperAdminService{
-		client: global.ORM,
+		client:      global.ORM,
+		dataPermSvc: dataPermSvc,
+		deptSvc:     deptSvc,
 	}
 }
 
