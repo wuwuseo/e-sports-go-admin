@@ -1,4 +1,4 @@
-﻿package service
+package service
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
@@ -492,6 +493,146 @@ func TestRoleService_Update_NotFound(t *testing.T) {
 	}
 }
 
+func TestRoleService_Update_RejectsAssignedDeptAndChildOverflow(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	deptSvc := NewDepartmentService()
+	d, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "dept"})
+	if err != nil {
+		t.Fatalf("创建部门失败: %v", err)
+	}
+	child, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "child", ParentID: d.ID})
+	if err != nil {
+		t.Fatalf("创建子部门失败: %v", err)
+	}
+	r, err := client.Role.Create().
+		SetName("assigned_overflow").
+		SetDisplayName("assigned_overflow").
+		SetDataScope(role.DataScopeSelf).
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("holder@example.com").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("holder").
+		SetUsername("holder").
+		SetDepartmentID(d.ID).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建管理员失败: %v", err)
+	}
+	_, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx)
+	if err != nil {
+		t.Fatalf("分配管理员角色失败: %v", err)
+	}
+
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{d.ID}}
+	err = svc.Update(ctx, op, r.ID, &UpdateRoleRequest{DataScope: string(DataScopeDepartmentAndChild)})
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("期望 ErrRoleScopeEscalation，got %v; child=%d", err, child.ID)
+	}
+}
+
+func TestRoleService_Update_RejectsOutOfScopeAssignedAdmin(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	inScopeDept, err := client.Department.Create().SetName("in").Save(ctx)
+	if err != nil {
+		t.Fatalf("创建部门失败: %v", err)
+	}
+	outScopeDept, err := client.Department.Create().SetName("out").Save(ctx)
+	if err != nil {
+		t.Fatalf("创建部门失败: %v", err)
+	}
+	r, err := client.Role.Create().
+		SetName("assigned_out_scope").
+		SetDisplayName("assigned_out_scope").
+		SetDataScope(role.DataScopeSelf).
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("outside@example.com").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("outside").
+		SetUsername("outside").
+		SetDepartmentID(outScopeDept.ID).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建管理员失败: %v", err)
+	}
+	_, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx)
+	if err != nil {
+		t.Fatalf("分配管理员角色失败: %v", err)
+	}
+
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{inScopeDept.ID}}
+	err = svc.Update(ctx, op, r.ID, &UpdateRoleRequest{DisplayName: "renamed"})
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("期望 ErrRoleScopeEscalation，got %v", err)
+	}
+}
+
+func TestRoleService_Update_AllowsAssignedDeptAndChildWithinScope(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	deptSvc := NewDepartmentService()
+	d, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "dept-ok"})
+	if err != nil {
+		t.Fatalf("创建部门失败: %v", err)
+	}
+	child, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "child-ok", ParentID: d.ID})
+	if err != nil {
+		t.Fatalf("创建子部门失败: %v", err)
+	}
+	r, err := client.Role.Create().
+		SetName("assigned_within_scope").
+		SetDisplayName("assigned_within_scope").
+		SetDataScope(role.DataScopeSelf).
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色失败: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("within@example.com").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("within").
+		SetUsername("within").
+		SetDepartmentID(d.ID).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建管理员失败: %v", err)
+	}
+	_, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx)
+	if err != nil {
+		t.Fatalf("分配管理员角色失败: %v", err)
+	}
+
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{d.ID, child.ID}}
+	err = svc.Update(ctx, op, r.ID, &UpdateRoleRequest{DataScope: string(DataScopeDepartmentAndChild)})
+	if err != nil {
+		t.Fatalf("范围内 DeptAndChild 更新应放行，got %v", err)
+	}
+}
+
 func TestRoleService_Update_SystemRole_SameDisplayName(t *testing.T) {
 	client := setupTestClient(t)
 	ctx := t.Context()
@@ -559,7 +700,7 @@ func TestRoleService_Delete_Success(t *testing.T) {
 		t.Fatalf("创建测试角色失败: %v", err)
 	}
 
-	err = svc.Delete(ctx, r.ID)
+	err = svc.Delete(ctx, nil, r.ID)
 	if err != nil {
 		t.Fatalf("删除角色失败: %v", err)
 	}
@@ -588,7 +729,7 @@ func TestRoleService_Delete_SystemRole(t *testing.T) {
 		t.Fatalf("创建系统角色失败: %v", err)
 	}
 
-	err = svc.Delete(ctx, r.ID)
+	err = svc.Delete(ctx, nil, r.ID)
 	if err == nil {
 		t.Fatal("期望返回系统角色保护错误，但未返回")
 	}
@@ -602,7 +743,7 @@ func TestRoleService_Delete_NotFound(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	err := svc.Delete(ctx, 99999)
+	err := svc.Delete(ctx, nil, 99999)
 	if err == nil {
 		t.Fatal("期望返回错误，但未返回")
 	}
@@ -646,7 +787,7 @@ func TestRoleService_Delete_RoleInUse(t *testing.T) {
 		t.Fatalf("创建用户角色关联失败: %v", err)
 	}
 
-	err = svc.Delete(ctx, r.ID)
+	err = svc.Delete(ctx, nil, r.ID)
 	if err == nil {
 		t.Fatal("期望返回角色使用中错误，但未返回")
 	}
@@ -656,6 +797,87 @@ func TestRoleService_Delete_RoleInUse(t *testing.T) {
 }
 
 // ======================== Enable 测试 ========================
+
+func TestRoleService_Delete_AdminRoleInUse(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	r, err := client.Role.Create().
+		SetName("admin_role_in_use").
+		SetDisplayName("admin_role_in_use").
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("admin-role-in-use@example.com").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("admin-role-in-use").
+		SetUsername("admin_role_in_use").
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin failed: %v", err)
+	}
+	_, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	err = svc.Delete(ctx, nil, r.ID)
+	if !errors.Is(err, ErrRoleInUse) {
+		t.Fatalf("admin-assigned role should be in use, got %v", err)
+	}
+}
+
+func TestRoleService_Delete_RejectsOutOfScopeAssignedAdmin(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	inScopeDept, err := client.Department.Create().SetName("delete_in_scope").Save(ctx)
+	if err != nil {
+		t.Fatalf("create department failed: %v", err)
+	}
+	outScopeDept, err := client.Department.Create().SetName("delete_out_scope").Save(ctx)
+	if err != nil {
+		t.Fatalf("create department failed: %v", err)
+	}
+	r, err := client.Role.Create().
+		SetName("delete_out_scope_role").
+		SetDisplayName("delete_out_scope_role").
+		SetDataScope(role.DataScopeSelf).
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("delete-out-scope@example.com").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("delete-out-scope").
+		SetUsername("delete_out_scope").
+		SetDepartmentID(outScopeDept.ID).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin failed: %v", err)
+	}
+	_, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{inScopeDept.ID}}
+	err = svc.Delete(ctx, op, r.ID)
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("out-of-scope admin-assigned role delete should be rejected, got %v", err)
+	}
+}
 
 func TestRoleService_Enable_Success(t *testing.T) {
 	client := setupTestClient(t)
@@ -671,7 +893,7 @@ func TestRoleService_Enable_Success(t *testing.T) {
 		t.Fatalf("创建禁用角色失败: %v", err)
 	}
 
-	err = svc.Enable(ctx, r.ID)
+	err = svc.Enable(ctx, nil, r.ID)
 	if err != nil {
 		t.Fatalf("启用角色失败: %v", err)
 	}
@@ -699,7 +921,7 @@ func TestRoleService_Enable_AlreadyActive(t *testing.T) {
 		t.Fatalf("创建已激活角色失败: %v", err)
 	}
 
-	err = svc.Enable(ctx, r.ID)
+	err = svc.Enable(ctx, nil, r.ID)
 	if err != nil {
 		t.Errorf("已激活角色启用操作不应报错, 实际为 %v", err)
 	}
@@ -720,7 +942,7 @@ func TestRoleService_Enable_SystemRole(t *testing.T) {
 		t.Fatalf("创建系统角色失败: %v", err)
 	}
 
-	err = svc.Enable(ctx, r.ID)
+	err = svc.Enable(ctx, nil, r.ID)
 	if err == nil {
 		t.Fatal("期望返回系统角色保护错误，但未返回")
 	}
@@ -730,6 +952,48 @@ func TestRoleService_Enable_SystemRole(t *testing.T) {
 }
 
 // ======================== Disable 测试 ========================
+
+func TestRoleService_Enable_RejectsAssignedAllScopeEscalation(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	dept, err := client.Department.Create().SetName("enable_scope_dept").Save(ctx)
+	if err != nil {
+		t.Fatalf("create department failed: %v", err)
+	}
+	r, err := client.Role.Create().
+		SetName("inactive_all_scope").
+		SetDisplayName("inactive_all_scope").
+		SetDataScope(role.DataScopeAll).
+		SetStatus(role.StatusInactive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("enable-scope@example.com").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("enable-scope").
+		SetUsername("enable_scope").
+		SetDepartmentID(dept.ID).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin failed: %v", err)
+	}
+	_, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{dept.ID}}
+	err = svc.Enable(ctx, op, r.ID)
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("assigned all-scope role enable should be rejected, got %v", err)
+	}
+}
 
 func TestRoleService_Disable_Success(t *testing.T) {
 	client := setupTestClient(t)
@@ -745,7 +1009,7 @@ func TestRoleService_Disable_Success(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	err = svc.Disable(ctx, r.ID)
+	err = svc.Disable(ctx, nil, r.ID)
 	if err != nil {
 		t.Fatalf("禁用角色失败: %v", err)
 	}
@@ -773,7 +1037,7 @@ func TestRoleService_Disable_AlreadyInactive(t *testing.T) {
 		t.Fatalf("创建已禁用角色失败: %v", err)
 	}
 
-	err = svc.Disable(ctx, r.ID)
+	err = svc.Disable(ctx, nil, r.ID)
 	if err != nil {
 		t.Errorf("已禁用角色禁用操作不应报错, 实际为 %v", err)
 	}
@@ -794,7 +1058,7 @@ func TestRoleService_Disable_SystemRole(t *testing.T) {
 		t.Fatalf("创建系统角色失败: %v", err)
 	}
 
-	err = svc.Disable(ctx, r.ID)
+	err = svc.Disable(ctx, nil, r.ID)
 	if err == nil {
 		t.Fatal("期望返回系统角色保护错误，但未返回")
 	}
@@ -803,12 +1067,58 @@ func TestRoleService_Disable_SystemRole(t *testing.T) {
 	}
 }
 
+func TestRoleService_Disable_RejectsOutOfScopeAssignedAdmin(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	inScopeDept, err := client.Department.Create().SetName("disable_in_scope").Save(ctx)
+	if err != nil {
+		t.Fatalf("create department failed: %v", err)
+	}
+	outScopeDept, err := client.Department.Create().SetName("disable_out_scope").Save(ctx)
+	if err != nil {
+		t.Fatalf("create department failed: %v", err)
+	}
+	r, err := client.Role.Create().
+		SetName("disable_out_scope_role").
+		SetDisplayName("disable_out_scope_role").
+		SetDataScope(role.DataScopeSelf).
+		SetStatus(role.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("disable-out-scope@example.com").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("disable-out-scope").
+		SetUsername("disable_out_scope").
+		SetDepartmentID(outScopeDept.ID).
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin failed: %v", err)
+	}
+	_, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{inScopeDept.ID}}
+	err = svc.Disable(ctx, op, r.ID)
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("out-of-scope admin-assigned role disable should be rejected, got %v", err)
+	}
+}
+
 func TestRoleService_Disable_NotFound(t *testing.T) {
 	_ = setupTestClient(t)
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	err := svc.Disable(ctx, 99999)
+	err := svc.Disable(ctx, nil, 99999)
 	if err == nil {
 		t.Fatal("期望返回错误，但未返回")
 	}

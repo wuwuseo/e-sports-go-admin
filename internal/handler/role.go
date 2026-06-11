@@ -263,6 +263,7 @@ func UpdateRole(c fiber.Ctx) error {
 func DeleteRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -270,7 +271,12 @@ func DeleteRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	if err := roleService.Delete(c.Context(), id); err != nil {
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "删除角色失败").ToJSON(c)
+	}
+
+	if err := roleService.Delete(c.Context(), op, id); err != nil {
 		switch err {
 		case service.ErrRoleNotFound:
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
@@ -278,6 +284,8 @@ func DeleteRole(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseForbidden, "系统内置角色不可删除").ToJSON(c)
 		case service.ErrRoleInUse:
 			return resp.Fail(global.ResponseConflict, "角色正在使用中，无法删除").ToJSON(c)
+		case service.ErrRoleScopeEscalation:
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "删除角色失败").ToJSON(c)
 		}
@@ -306,6 +314,7 @@ func DeleteRole(c fiber.Ctx) error {
 func EnableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -313,9 +322,17 @@ func EnableRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	if err := roleService.Enable(c.Context(), id); err != nil {
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "启用角色失败").ToJSON(c)
+	}
+
+	if err := roleService.Enable(c.Context(), op, id); err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		}
+		if err == service.ErrRoleScopeEscalation {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "启用角色失败").ToJSON(c)
 	}
@@ -343,6 +360,7 @@ func EnableRole(c fiber.Ctx) error {
 func DisableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -350,9 +368,17 @@ func DisableRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	if err := roleService.Disable(c.Context(), id); err != nil {
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "禁用角色失败").ToJSON(c)
+	}
+
+	if err := roleService.Disable(c.Context(), op, id); err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		}
+		if err == service.ErrRoleScopeEscalation {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "禁用角色失败").ToJSON(c)
 	}

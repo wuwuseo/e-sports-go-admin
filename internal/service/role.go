@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
@@ -50,27 +51,36 @@ type RoleServiceInterface interface {
 	List(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error)
 	ListAll(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error)
 	Update(ctx context.Context, op *EffectiveDataScope, id int, req *UpdateRoleRequest) error
-	Delete(ctx context.Context, id int) error
+	Delete(ctx context.Context, op *EffectiveDataScope, id int) error
 
 	// 角色状态管理
-	Enable(ctx context.Context, id int) error
-	Disable(ctx context.Context, id int) error
+	Enable(ctx context.Context, op *EffectiveDataScope, id int) error
+	Disable(ctx context.Context, op *EffectiveDataScope, id int) error
 }
 
 type RoleService struct {
 	*CRUDBase
-	cache *cache.TypedCache[[]*PermissionResponse]
+	cache   *cache.TypedCache[[]*PermissionResponse]
+	deptSvc DepartmentServiceInterface
 }
 
 // NewRoleService 创建角色服务实例
 func NewRoleService(rawCache *cache.Cache[[]byte]) *RoleService {
+	return NewRoleServiceWithDepartmentService(rawCache, NewDepartmentService())
+}
+
+func NewRoleServiceWithDepartmentService(rawCache *cache.Cache[[]byte], deptSvc DepartmentServiceInterface) *RoleService {
 	var typedCache *cache.TypedCache[[]*PermissionResponse]
 	if rawCache != nil {
 		typedCache = cache.NewTypedCache[[]*PermissionResponse](rawCache)
 	}
+	if deptSvc == nil {
+		deptSvc = NewDepartmentService()
+	}
 	return &RoleService{
 		CRUDBase: &CRUDBase{Client: global.ORM},
 		cache:    typedCache,
+		deptSvc:  deptSvc,
 	}
 }
 
@@ -301,6 +311,13 @@ func (s *RoleService) Update(ctx context.Context, op *EffectiveDataScope, id int
 		}
 	}
 
+	if err := ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds); err != nil {
+		return err
+	}
+	if err := ensureRoleManageableForAssignedAdmins(ctx, s.Client, s.deptSvc, op, r, DataScope(req.DataScope), req.DataScopeDepartmentIDs, req.DataScope != ""); err != nil {
+		return err
+	}
+
 	update := s.Client.Role.UpdateOne(r)
 
 	if req.DisplayName != "" {
@@ -341,7 +358,7 @@ func (s *RoleService) Update(ctx context.Context, op *EffectiveDataScope, id int
 }
 
 // DeleteRole 删除角色
-func (s *RoleService) Delete(ctx context.Context, id int) error {
+func (s *RoleService) Delete(ctx context.Context, op *EffectiveDataScope, id int) error {
 	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -355,6 +372,12 @@ func (s *RoleService) Delete(ctx context.Context, id int) error {
 	if r.IsSystem {
 		return ErrSystemRoleProtected
 	}
+	if err := ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds); err != nil {
+		return err
+	}
+	if err := ensureRoleManageableForAssignedAdmins(ctx, s.Client, s.deptSvc, op, r, "", nil, false); err != nil {
+		return err
+	}
 
 	inUse, err := s.Client.UserRole.Query().
 		Where(userrole.RoleIDEQ(id)).
@@ -363,6 +386,15 @@ func (s *RoleService) Delete(ctx context.Context, id int) error {
 		return fmt.Errorf("检查角色使用情况失败: %w", err)
 	}
 	if inUse {
+		return ErrRoleInUse
+	}
+	adminInUse, err := s.Client.AdminRole.Query().
+		Where(adminrole.RoleIDEQ(id)).
+		Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("检查管理员角色使用情况失败: %w", err)
+	}
+	if adminInUse {
 		return ErrRoleInUse
 	}
 
@@ -375,7 +407,7 @@ func (s *RoleService) Delete(ctx context.Context, id int) error {
 }
 
 // EnableRole 启用角色
-func (s *RoleService) Enable(ctx context.Context, id int) error {
+func (s *RoleService) Enable(ctx context.Context, op *EffectiveDataScope, id int) error {
 	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -393,6 +425,12 @@ func (s *RoleService) Enable(ctx context.Context, id int) error {
 	if r.Status == role.StatusActive {
 		return nil
 	}
+	if err := ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds); err != nil {
+		return err
+	}
+	if err := ensureRoleManageableForAssignedAdmins(ctx, s.Client, s.deptSvc, op, r, "", nil, false); err != nil {
+		return err
+	}
 
 	_, err = s.Client.Role.UpdateOne(r).
 		SetStatus(role.StatusActive).
@@ -407,7 +445,7 @@ func (s *RoleService) Enable(ctx context.Context, id int) error {
 }
 
 // DisableRole 禁用角色
-func (s *RoleService) Disable(ctx context.Context, id int) error {
+func (s *RoleService) Disable(ctx context.Context, op *EffectiveDataScope, id int) error {
 	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -424,6 +462,12 @@ func (s *RoleService) Disable(ctx context.Context, id int) error {
 
 	if r.Status == role.StatusInactive {
 		return nil
+	}
+	if err := ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds); err != nil {
+		return err
+	}
+	if err := ensureRoleManageableForAssignedAdmins(ctx, s.Client, s.deptSvc, op, r, "", nil, false); err != nil {
+		return err
 	}
 
 	_, err = s.Client.Role.UpdateOne(r).

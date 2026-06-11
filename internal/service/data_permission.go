@@ -186,11 +186,12 @@ func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentU
 }
 
 // ensureAdminInScope 校验 targetAdminID 是否在 op 的数据范围内
-//   op == nil          → 放行（内部调用）
-//   op.IsSuperAdmin    → 放行
-//   target.UID == op.AdminUID → 放行（访问自己）
-//   target.DepartmentID == 0  → 在 Department/DepartmentAndChild/Custom 模式下拒绝（未分配账号在部门模式下不可见）
-//   其他               → 按 op.Scope 校验
+//
+//	op == nil          → 放行（内部调用）
+//	op.IsSuperAdmin    → 放行
+//	target.UID == op.AdminUID → 放行（访问自己）
+//	target.DepartmentID == 0  → 在 Department/DepartmentAndChild/Custom 模式下拒绝（未分配账号在部门模式下不可见）
+//	其他               → 按 op.Scope 校验
 func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDataScope, targetAdminID int) error {
 	if op == nil || op.IsSuperAdmin {
 		return nil
@@ -258,10 +259,11 @@ func ensureDepartmentInScope(op *EffectiveDataScope, targetDepartmentID int) err
 }
 
 // ensureRolesNotEscalating 校验候选角色的 data_scope 不超过操作者
-//   op == nil               → 放行（内部调用）
-//   op.IsSuperAdmin || All  → 放行
-//   非 All：要求 rank(role) ≤ rank(op)；Custom 角色还要求 role.DeptIDs ⊆ op.DeptIDs
-//   未知 op.Scope           → 拒绝（fail-closed）
+//
+//	op == nil               → 放行（内部调用）
+//	op.IsSuperAdmin || All  → 放行
+//	非 All：要求 rank(role) ≤ rank(op)；Custom 角色还要求 role.DeptIDs ⊆ op.DeptIDs
+//	未知 op.Scope           → 拒绝（fail-closed）
 func ensureRolesNotEscalating(ctx context.Context, client *ent.Client, op *EffectiveDataScope, roleIDs []int) error {
 	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
 		return nil
@@ -294,7 +296,8 @@ func ensureRolesNotEscalating(ctx context.Context, client *ent.Client, op *Effec
 }
 
 // ensureDepartmentExists 校验目标部门真实存在
-//   departmentID == 0 → 放行（仅超管/All 可设由 ensureDepartmentInScope 保证）
+//
+//	departmentID == 0 → 放行（仅超管/All 可设由 ensureDepartmentInScope 保证）
 func ensureDepartmentExists(ctx context.Context, client *ent.Client, departmentID int) error {
 	if departmentID == 0 {
 		return nil
@@ -310,8 +313,9 @@ func ensureDepartmentExists(ctx context.Context, client *ent.Client, departmentI
 }
 
 // resolveRoleEffectiveDepartments 计算指定角色分配给目标管理员后目标登录时实际可见的部门集合
-//   scopeIsAll=true 表示该角色让目标可看全部数据
-//   targetAdminDepartmentID==0 时 Department/DepartmentAndChild 退化为空集
+//
+//	scopeIsAll=true 表示该角色让目标可看全部数据
+//	targetAdminDepartmentID==0 时 Department/DepartmentAndChild 退化为空集
 func resolveRoleEffectiveDepartments(
 	ctx context.Context,
 	deptSvc DepartmentServiceInterface,
@@ -345,9 +349,10 @@ func resolveRoleEffectiveDepartments(
 }
 
 // ensureRolesNotEscalatingForTarget 校验候选角色分配给目标管理员后"有效部门集合" ⊆ op.DepartmentIDs
-//   op == nil / IsSuperAdmin / op.Scope=All → 放行
-//   scopeIsAll → 拒绝；effective 任一元素不在 op.DepartmentIDs → 拒绝
-//   未知 op.Scope → 拒绝
+//
+//	op == nil / IsSuperAdmin / op.Scope=All → 放行
+//	scopeIsAll → 拒绝；effective 任一元素不在 op.DepartmentIDs → 拒绝
+//	未知 op.Scope → 拒绝
 func ensureRolesNotEscalatingForTarget(
 	ctx context.Context,
 	client *ent.Client,
@@ -390,10 +395,111 @@ func ensureRolesNotEscalatingForTarget(
 	return nil
 }
 
+func adminInOperatorScope(op *EffectiveDataScope, target *ent.Admin) bool {
+	if op == nil || op.IsSuperAdmin {
+		return true
+	}
+	if target == nil {
+		return false
+	}
+	if target.UID == op.AdminUID {
+		return true
+	}
+	switch op.Scope {
+	case DataScopeAll:
+		return true
+	case DataScopeSelf:
+		return false
+	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		if target.DepartmentID == 0 {
+			return false
+		}
+		return containsInt(op.DepartmentIDs, target.DepartmentID)
+	default:
+		return false
+	}
+}
+
+func ensureRoleEffectiveDepartmentsInScope(
+	ctx context.Context,
+	deptSvc DepartmentServiceInterface,
+	op *EffectiveDataScope,
+	r *ent.Role,
+	targetAdminDepartmentID int,
+) error {
+	effective, scopeIsAll, err := resolveRoleEffectiveDepartments(ctx, deptSvc, r, targetAdminDepartmentID)
+	if err != nil {
+		return err
+	}
+	if scopeIsAll {
+		return ErrRoleScopeEscalation
+	}
+	for _, deptID := range effective {
+		if !containsInt(op.DepartmentIDs, deptID) {
+			return ErrRoleScopeEscalation
+		}
+	}
+	return nil
+}
+
+// ensureRoleManageableForAssignedAdmins 校验非超管修改角色时不会影响超出 op 范围的管理员。
+// 角色是全局对象；更新已分配角色时，必须同时保证：
+//  1. 当前所有管理员持有者都在 op 可管理范围内；
+//  2. 角色当前 data_scope 对每个持有者展开后的有效部门集合仍在 op.DepartmentIDs 内；
+//  3. 若本次修改 data_scope，新 data_scope 对每个持有者展开后也必须在 op.DepartmentIDs 内。
+func ensureRoleManageableForAssignedAdmins(
+	ctx context.Context,
+	client *ent.Client,
+	deptSvc DepartmentServiceInterface,
+	op *EffectiveDataScope,
+	currentRole *ent.Role,
+	newScope DataScope,
+	newDeptIDs []int,
+	validateNewScope bool,
+) error {
+	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+		return nil
+	}
+	if scopeRank(op.Scope) == 0 || currentRole == nil || deptSvc == nil {
+		return ErrRoleScopeEscalation
+	}
+	holders, err := client.AdminRole.Query().
+		Where(adminrole.RoleIDEQ(currentRole.ID)).
+		WithAdmin().
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	var candidate *ent.Role
+	if validateNewScope {
+		candidate = &ent.Role{
+			DataScope:              role.DataScope(newScope),
+			DataScopeDepartmentIds: newDeptIDs,
+		}
+	}
+	for _, holder := range holders {
+		target := holder.Edges.Admin
+		if !adminInOperatorScope(op, target) {
+			return ErrRoleScopeEscalation
+		}
+		if err := ensureRoleEffectiveDepartmentsInScope(ctx, deptSvc, op, currentRole, target.DepartmentID); err != nil {
+			return err
+		}
+		if validateNewScope {
+			if err := ensureRoleEffectiveDepartmentsInScope(ctx, deptSvc, op, candidate, target.DepartmentID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // ensureRoleScopeWritable 校验非超管修改 role.data_scope 时不得超过自身 op 范围
-//   op == nil / IsSuperAdmin / op.Scope=All → 放行
-//   非 All：rank(newScope) ≤ rank(op.Scope)；Custom 还要求 newDeptIDs ⊆ op.DepartmentIDs
-//   未知 newScope → 拒绝
+//
+//	op == nil / IsSuperAdmin / op.Scope=All → 放行
+//	非 All：rank(newScope) ≤ rank(op.Scope)；Custom 还要求 newDeptIDs ⊆ op.DepartmentIDs
+//	未知 newScope → 拒绝
+//
 // 说明：Role 字段写入阶段无"目标管理员"，Dept/DeptAndChild 用 rank 防御，
 // 实际分配阶段由 ensureRolesNotEscalatingForTarget 兜底。
 func ensureRoleScopeWritable(op *EffectiveDataScope, newScope DataScope, newDeptIDs []int) error {

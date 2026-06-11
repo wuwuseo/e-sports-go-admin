@@ -39,17 +39,17 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 初始化带缓存的服务
 	var permissionService service.PermissionServiceInterface
+	departmentService := service.NewDepartmentService()
 	var roleService service.RoleServiceInterface
 	var systemPermissionService service.SystemPermissionServiceInterface
 	if appInstance != nil && appInstance.Cache != nil {
 		permissionService = service.NewPermissionService(appInstance.Cache)
-		roleService = service.NewRoleService(appInstance.Cache)
+		roleService = service.NewRoleServiceWithDepartmentService(appInstance.Cache, departmentService)
 	} else {
 		permissionService = service.NewPermissionService(nil)
-		roleService = service.NewRoleService(nil)
+		roleService = service.NewRoleServiceWithDepartmentService(nil, departmentService)
 	}
 	systemPermissionService = service.NewSystemPermissionService()
-	departmentService := service.NewDepartmentService()
 	dataPermissionService := service.NewDataPermissionService(departmentService)
 
 	// 初始化操作日志服务
