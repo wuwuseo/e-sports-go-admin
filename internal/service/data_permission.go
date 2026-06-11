@@ -123,14 +123,7 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 
 // mergeScope 合并数据权限范围，取更宽的范围
 func mergeScope(current, next DataScope) DataScope {
-	rank := map[DataScope]int{
-		DataScopeSelf:               1,
-		DataScopeDepartment:         2,
-		DataScopeDepartmentAndChild: 3,
-		DataScopeCustom:             4,
-		DataScopeAll:                5,
-	}
-	if rank[next] > rank[current] {
+	if scopeRank(next) > scopeRank(current) {
 		return next
 	}
 	return current
