@@ -265,6 +265,12 @@ func mapAdminScopeError(c fiber.Ctx, response *utils.Response, err error) error 
 		return response.Fail(global.ResponseSelfRoleModifyForbidden, global.ResponseMsg[global.ResponseSelfRoleModifyForbidden]).ToJSON(c)
 	case service.ErrDepartmentOutOfScope:
 		return response.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
+	// P1: 目标角色的数据范围超出当前操作者，拒绝越权
+	case service.ErrRoleScopeEscalation:
+		return response.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+	// P2: 目标部门不存在
+	case service.ErrDepartmentNotFound:
+		return response.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
 	case service.ErrAdminNotFound:
 		return response.Fail(global.ResponseNotFound, "管理员不存在").ToJSON(c)
 	case service.ErrAdminEmailExists:
@@ -285,6 +291,12 @@ func mapAdminCreateError(c fiber.Ctx, response *utils.Response, err error) error
 		return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 	case service.ErrDepartmentOutOfScope:
 		return response.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
+	// P1: 目标角色的数据范围超出当前操作者，拒绝越权
+	case service.ErrRoleScopeEscalation:
+		return response.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+	// P2: 目标部门不存在
+	case service.ErrDepartmentNotFound:
+		return response.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
 	case service.ErrInvalidRoleIDs:
 		return response.Fail(global.ResponseErrorCode, "存在无效的角色 ID").ToJSON(c)
 	case service.ErrPrimaryRoleInvalid:

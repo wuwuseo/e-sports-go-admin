@@ -46,6 +46,9 @@ func CreateRole(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseConflict, "角色名称已存在").ToJSON(c)
 		case service.ErrInvalidRoleName:
 			return resp.Fail(global.ResponseErrorCode, "角色名称无效").ToJSON(c)
+		// P2: 目标部门不存在
+		case service.ErrDepartmentNotFound:
+			return resp.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "创建角色失败").ToJSON(c)
 		}
@@ -205,10 +208,15 @@ func UpdateRole(c fiber.Ctx) error {
 	}
 
 	if err := roleService.Update(c.Context(), id, req); err != nil {
-		if err == service.ErrRoleNotFound {
+		switch err {
+		case service.ErrRoleNotFound:
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		// P2: 目标部门不存在
+		case service.ErrDepartmentNotFound:
+			return resp.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
+		default:
+			return resp.Fail(global.ResponseInternalServerError, "更新角色失败").ToJSON(c)
 		}
-		return resp.Fail(global.ResponseInternalServerError, "更新角色失败").ToJSON(c)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)

@@ -90,6 +90,9 @@ func AssignUserRoles(c fiber.Ctx) error {
 			return response.Fail(global.ResponseInvalidRoleIDs, global.ResponseMsg[global.ResponseInvalidRoleIDs]).ToJSON(c)
 		case service.ErrPrimaryRoleInvalid:
 			return response.Fail(global.ResponsePrimaryRoleInvalid, global.ResponseMsg[global.ResponsePrimaryRoleInvalid]).ToJSON(c)
+		// P1: 目标角色的数据范围超出当前操作者，拒绝越权赋权
+		case service.ErrRoleScopeEscalation:
+			return response.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		case service.ErrSuperAdminRoleAssignmentForbidden:
 			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		default:
@@ -191,6 +194,9 @@ func AssignAdminRoles(c fiber.Ctx) error {
 			return response.Fail(global.ResponseInvalidRoleIDs, global.ResponseMsg[global.ResponseInvalidRoleIDs]).ToJSON(c)
 		case service.ErrPrimaryRoleInvalid:
 			return response.Fail(global.ResponsePrimaryRoleInvalid, global.ResponseMsg[global.ResponsePrimaryRoleInvalid]).ToJSON(c)
+		// P1: 目标角色的数据范围超出当前操作者，拒绝越权赋权
+		case service.ErrRoleScopeEscalation:
+			return response.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		case service.ErrSuperAdminRoleAssignmentForbidden:
 			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		default:
