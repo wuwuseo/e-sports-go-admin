@@ -368,6 +368,12 @@ func (s *SuperAdminService) UpdateAdmin(ctx context.Context, op *EffectiveDataSc
 	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
 		return nil, err
 	}
+	// P1-B：若 req 要改 department_id，新部门也必须在 op 范围内
+	if req.DepartmentID != nil {
+		if err := ensureDepartmentInScope(op, *req.DepartmentID); err != nil {
+			return nil, err
+		}
+	}
 	a, err := s.client.Admin.Query().
 		Where(admin.IDEQ(adminID)).
 		Only(ctx)
