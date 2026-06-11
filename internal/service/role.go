@@ -182,6 +182,15 @@ func (s *RoleService) Create(ctx context.Context, req *CreateRoleRequest) (*Role
 	if dataScope == "" {
 		dataScope = string(DataScopeSelf)
 	}
+	// P2 防御：当数据范围为自定义时，校验所有指定部门 ID 真实存在，
+	// 防止脏数据写入导致后续数据权限失效或越权
+	if dataScope == string(DataScopeCustom) && len(req.DataScopeDepartmentIDs) > 0 {
+		for _, deptID := range req.DataScopeDepartmentIDs {
+			if err := ensureDepartmentExists(ctx, s.Client, deptID); err != nil {
+				return nil, err
+			}
+		}
+	}
 	builder.SetDataScope(role.DataScope(dataScope))
 	builder.SetDataScopeDepartmentIds(req.DataScopeDepartmentIDs)
 
@@ -302,6 +311,15 @@ func (s *RoleService) Update(ctx context.Context, id int, req *UpdateRoleRequest
 		update.SetUpdatedBy(req.UpdatedBy)
 	}
 	if req.DataScope != "" {
+		// P2 防御：更新为自定义范围时，校验所有指定部门 ID 真实存在，
+		// 防止脏数据写入导致后续数据权限失效或越权
+		if req.DataScope == string(DataScopeCustom) && len(req.DataScopeDepartmentIDs) > 0 {
+			for _, deptID := range req.DataScopeDepartmentIDs {
+				if err := ensureDepartmentExists(ctx, s.Client, deptID); err != nil {
+					return err
+				}
+			}
+		}
 		update.SetDataScope(role.DataScope(req.DataScope))
 		update.SetDataScopeDepartmentIds(req.DataScopeDepartmentIDs)
 	}
