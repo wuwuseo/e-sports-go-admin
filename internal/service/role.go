@@ -45,11 +45,11 @@ type ListAllRolesRequest struct {
 // RoleServiceInterface 角色服务接口
 type RoleServiceInterface interface {
 	// 角色管理
-	Create(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error)
+	Create(ctx context.Context, op *EffectiveDataScope, req *CreateRoleRequest) (*RoleResponse, error)
 	Get(ctx context.Context, id int) (*RoleResponse, error)
 	List(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error)
 	ListAll(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error)
-	Update(ctx context.Context, id int, req *UpdateRoleRequest) error
+	Update(ctx context.Context, op *EffectiveDataScope, id int, req *UpdateRoleRequest) error
 	Delete(ctx context.Context, id int) error
 
 	// 角色状态管理
@@ -61,8 +61,6 @@ type RoleService struct {
 	*CRUDBase
 	cache *cache.TypedCache[[]*PermissionResponse]
 }
-
-var _ CRUD[CreateRoleRequest, UpdateRoleRequest, ListRolesRequest, RoleResponse] = (*RoleService)(nil)
 
 // NewRoleService 创建角色服务实例
 func NewRoleService(rawCache *cache.Cache[[]byte]) *RoleService {
@@ -145,7 +143,7 @@ type ListRolesRequest struct {
 type ListRolesResponse = ListResponse[*RoleResponse]
 
 // CreateRole 创建角色
-func (s *RoleService) Create(ctx context.Context, req *CreateRoleRequest) (*RoleResponse, error) {
+func (s *RoleService) Create(ctx context.Context, op *EffectiveDataScope, req *CreateRoleRequest) (*RoleResponse, error) {
 	if req.Name == "" {
 		return nil, ErrInvalidRoleName
 	}
@@ -181,6 +179,10 @@ func (s *RoleService) Create(ctx context.Context, req *CreateRoleRequest) (*Role
 	dataScope := req.DataScope
 	if dataScope == "" {
 		dataScope = string(DataScopeSelf)
+	}
+	// P1-A 防御：非超管不得创建超过自身范围的角色
+	if err := ensureRoleScopeWritable(op, DataScope(dataScope), req.DataScopeDepartmentIDs); err != nil {
+		return nil, err
 	}
 	// P2 防御：当数据范围为自定义时，校验所有指定部门 ID 真实存在，
 	// 防止脏数据写入导致后续数据权限失效或越权
@@ -282,7 +284,7 @@ func (s *RoleService) ListAll(ctx context.Context, req *ListAllRolesRequest) ([]
 }
 
 // UpdateRole 更新角色
-func (s *RoleService) Update(ctx context.Context, id int, req *UpdateRoleRequest) error {
+func (s *RoleService) Update(ctx context.Context, op *EffectiveDataScope, id int, req *UpdateRoleRequest) error {
 	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -311,6 +313,10 @@ func (s *RoleService) Update(ctx context.Context, id int, req *UpdateRoleRequest
 		update.SetUpdatedBy(req.UpdatedBy)
 	}
 	if req.DataScope != "" {
+		// P1-A 防御：非超管不得修改 role.data_scope 至超过自身范围
+		if err := ensureRoleScopeWritable(op, DataScope(req.DataScope), req.DataScopeDepartmentIDs); err != nil {
+			return err
+		}
 		// P2 防御：更新为自定义范围时，校验所有指定部门 ID 真实存在，
 		// 防止脏数据写入导致后续数据权限失效或越权
 		if req.DataScope == string(DataScopeCustom) && len(req.DataScopeDepartmentIDs) > 0 {
