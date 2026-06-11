@@ -97,6 +97,8 @@ const (
 	ResponsePermissionParentCycle   = 9005
 	ResponseSelfToggleForbidden     = 9007
 	ResponseSelfRoleModifyForbidden = 9008
+	// ResponseDepartmentOutOfScope 目标部门不在数据权限范围内
+	ResponseDepartmentOutOfScope = 9009
 )
 
 // ResponseMsg 响应消息映射
@@ -196,4 +198,5 @@ var ResponseMsg = map[int]string{
 	ResponsePermissionParentCycle:   "不能将权限的父级设为自身或其后代",
 	ResponseSelfToggleForbidden:     "不能对自己执行启用/禁用",
 	ResponseSelfRoleModifyForbidden: "不能修改自己的角色",
+	ResponseDepartmentOutOfScope:    "目标部门不在你的数据权限范围内",
 }
