@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"go-admin/internal/ent"
 	"go-admin/internal/ent/role"
 )
 
@@ -236,5 +237,169 @@ func TestEnsureDepartmentExists_MissingID(t *testing.T) {
 	ctx := t.Context()
 	if err := ensureDepartmentExists(ctx, client, 999999); !errors.Is(err, ErrDepartmentNotFound) {
 		t.Fatalf("期望 ErrDepartmentNotFound, got %v", err)
+	}
+}
+
+// ======================== 第四轮加固：守卫函数测试 ========================
+
+// fakeDeptSvc 用于守卫层注入，避开真实 DB 查询
+type fakeDeptSvc struct{ childIDs map[int][]int }
+
+func (f *fakeDeptSvc) ChildIDs(ctx context.Context, id int, includeSelf bool) ([]int, error) {
+	if f.childIDs == nil {
+		return nil, nil
+	}
+	return f.childIDs[id], nil
+}
+
+// 其余 DepartmentServiceInterface 方法返回零值即可
+func (f *fakeDeptSvc) Create(ctx context.Context, req *CreateDepartmentRequest) (*DepartmentResponse, error) {
+	return nil, nil
+}
+func (f *fakeDeptSvc) Update(ctx context.Context, id int, req *UpdateDepartmentRequest) error {
+	return nil
+}
+func (f *fakeDeptSvc) Delete(ctx context.Context, id int) error { return nil }
+func (f *fakeDeptSvc) Get(ctx context.Context, id int) (*DepartmentResponse, error) {
+	return nil, nil
+}
+func (f *fakeDeptSvc) Tree(ctx context.Context, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error) {
+	return nil, nil
+}
+
+func TestResolveRoleEffectiveDepartments_AllAndSelf(t *testing.T) {
+	ctx := context.Background()
+	fd := &fakeDeptSvc{}
+	eff, isAll, err := resolveRoleEffectiveDepartments(ctx, fd, &ent.Role{DataScope: "all"}, 5)
+	if err != nil || !isAll || eff != nil {
+		t.Fatalf("All 期望 isAll=true，got eff=%v isAll=%v err=%v", eff, isAll, err)
+	}
+	eff, isAll, err = resolveRoleEffectiveDepartments(ctx, fd, &ent.Role{DataScope: "self"}, 5)
+	if err != nil || isAll || eff != nil {
+		t.Fatalf("Self 期望 nil/false，got eff=%v isAll=%v err=%v", eff, isAll, err)
+	}
+}
+
+func TestResolveRoleEffectiveDepartments_DepartmentAndChild(t *testing.T) {
+	ctx := context.Background()
+	fd := &fakeDeptSvc{childIDs: map[int][]int{5: {5, 6, 7}}}
+	eff, _, _ := resolveRoleEffectiveDepartments(ctx, fd, &ent.Role{DataScope: "department"}, 5)
+	if len(eff) != 1 || eff[0] != 5 {
+		t.Fatalf("Department 期望 [5], got %v", eff)
+	}
+	eff, _, _ = resolveRoleEffectiveDepartments(ctx, fd, &ent.Role{DataScope: "department_and_child"}, 5)
+	if len(eff) != 3 {
+		t.Fatalf("DeptAndChild 期望 [5,6,7], got %v", eff)
+	}
+	eff, _, _ = resolveRoleEffectiveDepartments(ctx, fd, &ent.Role{DataScope: "department"}, 0)
+	if eff != nil {
+		t.Fatalf("targetDept=0 期望 nil, got %v", eff)
+	}
+}
+
+func TestResolveRoleEffectiveDepartments_Custom(t *testing.T) {
+	ctx := context.Background()
+	fd := &fakeDeptSvc{}
+	eff, _, _ := resolveRoleEffectiveDepartments(ctx, fd, &ent.Role{DataScope: "custom", DataScopeDepartmentIds: []int{3, 4}}, 99)
+	if len(eff) != 2 || eff[0] != 3 || eff[1] != 4 {
+		t.Fatalf("Custom 期望 [3,4], got %v", eff)
+	}
+}
+
+func TestResolveRoleEffectiveDepartments_UnknownRejected(t *testing.T) {
+	ctx := context.Background()
+	_, _, err := resolveRoleEffectiveDepartments(ctx, &fakeDeptSvc{}, &ent.Role{DataScope: "weird"}, 5)
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("未知 scope 期望 ErrRoleScopeEscalation, got %v", err)
+	}
+}
+
+func TestEnsureRolesNotEscalatingForTarget_SkipPaths(t *testing.T) {
+	ctx := context.Background()
+	if err := ensureRolesNotEscalatingForTarget(ctx, nil, nil, nil, []int{1}, 5); err != nil {
+		t.Fatalf("nil op 放行, got %v", err)
+	}
+	op := &EffectiveDataScope{IsSuperAdmin: true}
+	if err := ensureRolesNotEscalatingForTarget(ctx, nil, nil, op, []int{1}, 5); err != nil {
+		t.Fatalf("super 放行, got %v", err)
+	}
+	op = &EffectiveDataScope{Scope: DataScopeAll}
+	if err := ensureRolesNotEscalatingForTarget(ctx, nil, nil, op, []int{1}, 5); err != nil {
+		t.Fatalf("op All 放行, got %v", err)
+	}
+	op = &EffectiveDataScope{Scope: DataScopeDepartment, DepartmentIDs: []int{1}}
+	if err := ensureRolesNotEscalatingForTarget(ctx, nil, nil, op, nil, 5); err != nil {
+		t.Fatalf("空 roleIDs 放行, got %v", err)
+	}
+}
+
+func TestEnsureRolesNotEscalatingForTarget_Coverage(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	defer cleanup()
+	ctx := t.Context()
+	fd := &fakeDeptSvc{childIDs: map[int][]int{5: {5, 6, 7}}}
+
+	rAll := client.Role.Create().SetName("rt_all").SetDisplayName("rt_all").SetDataScope(role.DataScopeAll).SetStatus(role.StatusActive).SaveX(ctx)
+	rSelf := client.Role.Create().SetName("rt_self").SetDisplayName("rt_self").SetDataScope(role.DataScopeSelf).SetStatus(role.StatusActive).SaveX(ctx)
+	rDept := client.Role.Create().SetName("rt_dept").SetDisplayName("rt_dept").SetDataScope(role.DataScopeDepartment).SetStatus(role.StatusActive).SaveX(ctx)
+	rDc := client.Role.Create().SetName("rt_dc").SetDisplayName("rt_dc").SetDataScope(role.DataScopeDepartmentAndChild).SetStatus(role.StatusActive).SaveX(ctx)
+	rCustomOK := client.Role.Create().SetName("rt_cok").SetDisplayName("rt_cok").SetDataScope(role.DataScopeCustom).SetDataScopeDepartmentIds([]int{5, 6}).SetStatus(role.StatusActive).SaveX(ctx)
+	rCustomBad := client.Role.Create().SetName("rt_cbad").SetDisplayName("rt_cbad").SetDataScope(role.DataScopeCustom).SetDataScopeDepartmentIds([]int{5, 99}).SetStatus(role.StatusActive).SaveX(ctx)
+
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{5, 6, 7}}
+
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op, []int{rAll.ID}, 5); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("RoleAll 期望 Esc, got %v", err)
+	}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op, []int{rSelf.ID}, 5); err != nil {
+		t.Fatalf("RoleSelf 放行, got %v", err)
+	}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op, []int{rDept.ID}, 5); err != nil {
+		t.Fatalf("RoleDept 命中放行, got %v", err)
+	}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op, []int{rDept.ID}, 99); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("RoleDept 不命中期望 Esc, got %v", err)
+	}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op, []int{rDc.ID}, 5); err != nil {
+		t.Fatalf("RoleDC 子集放行, got %v", err)
+	}
+	op2 := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{5}}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op2, []int{rDc.ID}, 5); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("RoleDC 超集期望 Esc, got %v", err)
+	}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op, []int{rCustomOK.ID}, 5); err != nil {
+		t.Fatalf("RoleCustom 子集放行, got %v", err)
+	}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, fd, op, []int{rCustomBad.ID}, 5); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("RoleCustom 非子集期望 Esc, got %v", err)
+	}
+}
+
+func TestEnsureRoleScopeWritable(t *testing.T) {
+	if err := ensureRoleScopeWritable(nil, DataScopeAll, nil); err != nil {
+		t.Fatalf("nil 放行, got %v", err)
+	}
+	if err := ensureRoleScopeWritable(&EffectiveDataScope{IsSuperAdmin: true}, DataScopeAll, nil); err != nil {
+		t.Fatalf("super 放行, got %v", err)
+	}
+	if err := ensureRoleScopeWritable(&EffectiveDataScope{Scope: DataScopeAll}, DataScopeAll, nil); err != nil {
+		t.Fatalf("opAll 放行, got %v", err)
+	}
+	op := &EffectiveDataScope{Scope: DataScopeDepartment, DepartmentIDs: []int{1}}
+	if err := ensureRoleScopeWritable(op, DataScopeAll, nil); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("Dept→All 期望 Esc, got %v", err)
+	}
+	if err := ensureRoleScopeWritable(op, DataScopeSelf, nil); err != nil {
+		t.Fatalf("Dept→Self 放行, got %v", err)
+	}
+	op = &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{1, 2}}
+	if err := ensureRoleScopeWritable(op, DataScopeCustom, []int{1}); err != nil {
+		t.Fatalf("Custom 子集放行, got %v", err)
+	}
+	if err := ensureRoleScopeWritable(op, DataScopeCustom, []int{1, 99}); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("Custom 非子集期望 Esc, got %v", err)
+	}
+	if err := ensureRoleScopeWritable(op, DataScope("weird"), nil); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("未知 newScope 期望 Esc, got %v", err)
 	}
 }

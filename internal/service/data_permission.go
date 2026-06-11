@@ -308,3 +308,112 @@ func ensureDepartmentExists(ctx context.Context, client *ent.Client, departmentI
 	}
 	return nil
 }
+
+// resolveRoleEffectiveDepartments 计算指定角色分配给目标管理员后目标登录时实际可见的部门集合
+//   scopeIsAll=true 表示该角色让目标可看全部数据
+//   targetAdminDepartmentID==0 时 Department/DepartmentAndChild 退化为空集
+func resolveRoleEffectiveDepartments(
+	ctx context.Context,
+	deptSvc DepartmentServiceInterface,
+	r *ent.Role,
+	targetAdminDepartmentID int,
+) (effective []int, scopeIsAll bool, err error) {
+	switch DataScope(r.DataScope) {
+	case DataScopeAll:
+		return nil, true, nil
+	case DataScopeSelf:
+		return nil, false, nil
+	case DataScopeDepartment:
+		if targetAdminDepartmentID == 0 {
+			return nil, false, nil
+		}
+		return []int{targetAdminDepartmentID}, false, nil
+	case DataScopeDepartmentAndChild:
+		if targetAdminDepartmentID == 0 {
+			return nil, false, nil
+		}
+		ids, err := deptSvc.ChildIDs(ctx, targetAdminDepartmentID, true)
+		if err != nil {
+			return nil, false, err
+		}
+		return ids, false, nil
+	case DataScopeCustom:
+		return r.DataScopeDepartmentIds, false, nil
+	default:
+		return nil, false, ErrRoleScopeEscalation
+	}
+}
+
+// ensureRolesNotEscalatingForTarget 校验候选角色分配给目标管理员后"有效部门集合" ⊆ op.DepartmentIDs
+//   op == nil / IsSuperAdmin / op.Scope=All → 放行
+//   scopeIsAll → 拒绝；effective 任一元素不在 op.DepartmentIDs → 拒绝
+//   未知 op.Scope → 拒绝
+func ensureRolesNotEscalatingForTarget(
+	ctx context.Context,
+	client *ent.Client,
+	deptSvc DepartmentServiceInterface,
+	op *EffectiveDataScope,
+	roleIDs []int,
+	targetAdminDepartmentID int,
+) error {
+	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+		return nil
+	}
+	if len(roleIDs) == 0 {
+		return nil
+	}
+	if scopeRank(op.Scope) == 0 {
+		return ErrRoleScopeEscalation
+	}
+	roles, err := client.Role.Query().Where(role.IDIn(roleIDs...)).All(ctx)
+	if err != nil {
+		return err
+	}
+	opSet := make(map[int]struct{}, len(op.DepartmentIDs))
+	for _, id := range op.DepartmentIDs {
+		opSet[id] = struct{}{}
+	}
+	for _, r := range roles {
+		effective, scopeIsAll, err := resolveRoleEffectiveDepartments(ctx, deptSvc, r, targetAdminDepartmentID)
+		if err != nil {
+			return err
+		}
+		if scopeIsAll {
+			return ErrRoleScopeEscalation
+		}
+		for _, deptID := range effective {
+			if _, ok := opSet[deptID]; !ok {
+				return ErrRoleScopeEscalation
+			}
+		}
+	}
+	return nil
+}
+
+// ensureRoleScopeWritable 校验非超管修改 role.data_scope 时不得超过自身 op 范围
+//   op == nil / IsSuperAdmin / op.Scope=All → 放行
+//   非 All：rank(newScope) ≤ rank(op.Scope)；Custom 还要求 newDeptIDs ⊆ op.DepartmentIDs
+//   未知 newScope → 拒绝
+// 说明：Role 字段写入阶段无"目标管理员"，Dept/DeptAndChild 用 rank 防御，
+// 实际分配阶段由 ensureRolesNotEscalatingForTarget 兜底。
+func ensureRoleScopeWritable(op *EffectiveDataScope, newScope DataScope, newDeptIDs []int) error {
+	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+		return nil
+	}
+	opRank := scopeRank(op.Scope)
+	if opRank == 0 {
+		return ErrRoleScopeEscalation
+	}
+	newRank := scopeRank(newScope)
+	if newRank == 0 || newRank > opRank {
+		return ErrRoleScopeEscalation
+	}
+	if newScope == DataScopeCustom {
+		for _, id := range newDeptIDs {
+			if !containsInt(op.DepartmentIDs, id) {
+				return ErrRoleScopeEscalation
+			}
+		}
+	}
+	return nil
+}
