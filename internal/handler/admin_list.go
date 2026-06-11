@@ -27,6 +27,7 @@ func CreateAdmin(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 
 	svc := c.Locals("service.SuperAdminService").(service.SuperAdminServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	var req service.CreateAdminRequest
 	if err := c.Bind().Body(&req); err != nil {
@@ -37,18 +38,14 @@ func CreateAdmin(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "邮箱、密码、用户名不能为空").ToJSON(c)
 	}
 
-	result, err := svc.CreateAdmin(c.Context(), &req)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
 	if err != nil {
-		switch err {
-		case service.ErrAdminEmailExists:
-			return response.Fail(global.ResponseErrorCode, "邮箱已存在").ToJSON(c)
-		case service.ErrAdminUsernameExists:
-			return response.Fail(global.ResponseErrorCode, "用户名已存在").ToJSON(c)
-		case service.ErrSuperAdminRoleAssignmentForbidden:
-			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		default:
-			return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
-		}
+		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+	}
+
+	result, err := svc.CreateAdmin(c.Context(), op, &req)
+	if err != nil {
+		return mapAdminCreateError(c, response, err)
 	}
 
 	return response.Success(result).ToJSON(c)
@@ -266,10 +263,32 @@ func mapAdminScopeError(c fiber.Ctx, response *utils.Response, err error) error 
 		return response.Fail(global.ResponseSelfToggleForbidden, global.ResponseMsg[global.ResponseSelfToggleForbidden]).ToJSON(c)
 	case service.ErrCannotModifySelfRoles:
 		return response.Fail(global.ResponseSelfRoleModifyForbidden, global.ResponseMsg[global.ResponseSelfRoleModifyForbidden]).ToJSON(c)
+	case service.ErrDepartmentOutOfScope:
+		return response.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
 	case service.ErrAdminNotFound:
 		return response.Fail(global.ResponseNotFound, "管理员不存在").ToJSON(c)
 	case service.ErrAdminEmailExists:
 		return response.Fail(global.ResponseErrorCode, "邮箱已存在").ToJSON(c)
+	default:
+		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+	}
+}
+
+// mapAdminCreateError 把 CreateAdmin 的 service 层错误映射为 HTTP 响应
+func mapAdminCreateError(c fiber.Ctx, response *utils.Response, err error) error {
+	switch err {
+	case service.ErrAdminEmailExists:
+		return response.Fail(global.ResponseErrorCode, "邮箱已存在").ToJSON(c)
+	case service.ErrAdminUsernameExists:
+		return response.Fail(global.ResponseErrorCode, "用户名已存在").ToJSON(c)
+	case service.ErrSuperAdminRoleAssignmentForbidden:
+		return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+	case service.ErrDepartmentOutOfScope:
+		return response.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
+	case service.ErrInvalidRoleIDs:
+		return response.Fail(global.ResponseErrorCode, "存在无效的角色 ID").ToJSON(c)
+	case service.ErrPrimaryRoleInvalid:
+		return response.Fail(global.ResponseErrorCode, "主角色必须在 role_ids 列表中").ToJSON(c)
 	default:
 		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
 	}
