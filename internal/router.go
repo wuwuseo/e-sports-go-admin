@@ -65,11 +65,11 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	if appInstance != nil && appInstance.Cache != nil {
 		blacklistService = service.NewBlacklistService(appInstance.Cache)
-		roleAssignmentService = service.NewRoleAssignmentService(appInstance.Cache)
+		roleAssignmentService = service.NewRoleAssignmentService(appInstance.Cache, departmentService)
 		userService = service.NewUserServiceWithCache(appInstance.Cache)
 	} else {
 		blacklistService = service.NewBlacklistService(nil)
-		roleAssignmentService = service.NewRoleAssignmentService(nil)
+		roleAssignmentService = service.NewRoleAssignmentService(nil, departmentService)
 		userService = service.NewUserService()
 	}
 	userListService = service.NewUserListService()

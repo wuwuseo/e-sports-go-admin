@@ -72,8 +72,9 @@ type UserRolesResponse struct {
 
 // RoleAssignmentService 角色分配服务
 type RoleAssignmentService struct {
-	client *ent.Client
-	cache  *cache.Cache[[]byte]
+	client  *ent.Client
+	cache   *cache.Cache[[]byte]
+	deptSvc DepartmentServiceInterface
 }
 
 // RoleAssignmentServiceInterface 角色分配服务接口
@@ -85,10 +86,13 @@ type RoleAssignmentServiceInterface interface {
 }
 
 // NewRoleAssignmentService 创建角色分配服务实例
-func NewRoleAssignmentService(rawCache *cache.Cache[[]byte]) *RoleAssignmentService {
+//
+//	deptSvc 由路由层注入，用于按目标管理员部门展开角色有效集，避免在请求路径上现场 new
+func NewRoleAssignmentService(rawCache *cache.Cache[[]byte], deptSvc DepartmentServiceInterface) *RoleAssignmentService {
 	return &RoleAssignmentService{
-		client: global.ORM,
-		cache:  rawCache,
+		client:  global.ORM,
+		cache:   rawCache,
+		deptSvc: deptSvc,
 	}
 }
 
@@ -298,8 +302,16 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, op *Effect
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return err
 	}
-	// P1 防御：禁止越权分配——所授角色的数据范围必须被 op 完全包含
-	if err := ensureRolesNotEscalating(ctx, s.client, op, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+	// 查目标管理员部门（用于按有效集合校验角色）
+	target, err := s.client.Admin.Query().Where(admin.IDEQ(adminID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+	// P1-B 防御：按目标管理员部门展开角色有效集
+	if err := ensureRolesNotEscalatingForTarget(ctx, s.client, s.deptSvc, op, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID), target.DepartmentID); err != nil {
 		return err
 	}
 	found := false
@@ -321,14 +333,6 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, op *Effect
 	}
 	if count != len(req.RoleIDs) {
 		return ErrInvalidRoleIDs
-	}
-
-	a, err := s.client.Admin.Query().Where(admin.IDEQ(adminID)).Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return ErrUserNotFound
-		}
-		return err
 	}
 
 	tx, err := s.client.Tx(ctx)
@@ -363,21 +367,21 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, op *Effect
 	domain := "default"
 	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
 	if err == nil {
-		_, _ = enforcer.DeleteRolesForUserInDomain(a.UID, domain)
+		_, _ = enforcer.DeleteRolesForUserInDomain(target.UID, domain)
 
 		for _, roleID := range req.RoleIDs {
 			roleObj, err := s.client.Role.Query().Where(role.IDEQ(roleID)).Only(ctx)
 			if err == nil {
-				_, _ = enforcer.AddRoleForUserInDomain(a.UID, roleObj.Name, domain)
+				_, _ = enforcer.AddRoleForUserInDomain(target.UID, roleObj.Name, domain)
 			}
 		}
 	}
 
 	if s.cache != nil {
 		_ = s.cache.Delete(ctx, fmt.Sprintf("admin_roles:%d", adminID))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", a.UID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", a.UID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", a.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", target.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", target.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", target.UID, domain))
 	}
 
 	return nil

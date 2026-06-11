@@ -104,8 +104,8 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, op *EffectiveDataSc
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return nil, err
 	}
-	// P1 防御：禁止越权分配——所授角色的数据范围必须被 op 完全包含
-	if err := ensureRolesNotEscalating(ctx, s.client, op, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+	// P1-B 防御：按目标管理员部门展开角色有效集，要求 ⊆ op.DepartmentIDs
+	if err := ensureRolesNotEscalatingForTarget(ctx, s.client, s.deptSvc, op, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID), req.DepartmentID); err != nil {
 		return nil, err
 	}
 
