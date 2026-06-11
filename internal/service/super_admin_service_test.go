@@ -391,3 +391,186 @@ func TestSuperAdminService_CreateAdmin_RejectsPrimaryRoleNotInRoleIDs(t *testing
 		t.Fatalf("期望 ErrPrimaryRoleInvalid，got %v", err)
 	}
 }
+
+// ======================== Task 7: 角色提权 + 部门存在性 E2E 测试 ========================
+
+// TestSuperAdminService_CreateAdmin_RejectsRoleScopeEscalation
+// 部门管理员尝试创建管理员并授予数据范围为 All 的角色，应被拒绝（角色提权）
+func TestSuperAdminService_CreateAdmin_RejectsRoleScopeEscalation(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	// 创建真实部门，保证 op 的部门范围合法
+	dept := client.Department.Create().SetName("d1").SaveX(ctx)
+
+	// 创建一个 data_scope=All 的角色（高于操作者的 Department 范围）
+	highRole := client.Role.Create().
+		SetName("high_role").
+		SetDisplayName("高范围角色").
+		SetDataScope(role.DataScopeAll).
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+
+	// op：部门管理员，只覆盖 dept.ID
+	op := &EffectiveDataScope{
+		Scope:         DataScopeDepartment,
+		AdminID:       100,
+		AdminUID:      "u-dept-mgr",
+		DepartmentID:  dept.ID,
+		DepartmentIDs: []int{dept.ID},
+	}
+
+	svc := NewSuperAdminService()
+	_, err := svc.CreateAdmin(ctx, op, &CreateAdminRequest{
+		Email:        "esc@test.com",
+		Password:     "passw0rd",
+		Username:     "escuser",
+		DepartmentID: dept.ID,
+		RoleIDs:      []int{highRole.ID},
+	})
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("期望 ErrRoleScopeEscalation，got %v", err)
+	}
+}
+
+// TestSuperAdminService_CreateAdmin_RejectsNonExistentDepartment
+// 超管创建管理员时传入不存在的 department_id，应被 ensureDepartmentExists 拒绝
+func TestSuperAdminService_CreateAdmin_RejectsNonExistentDepartment(t *testing.T) {
+	_, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	op := &EffectiveDataScope{
+		Scope:        DataScopeAll,
+		AdminID:      1,
+		AdminUID:     "u-super",
+		IsSuperAdmin: true,
+	}
+
+	svc := NewSuperAdminService()
+	_, err := svc.CreateAdmin(ctx, op, &CreateAdminRequest{
+		Email:        "noexistdept@test.com",
+		Password:     "passw0rd",
+		Username:     "noexistdept",
+		DepartmentID: 999999,
+	})
+	if !errors.Is(err, ErrDepartmentNotFound) {
+		t.Fatalf("期望 ErrDepartmentNotFound，got %v", err)
+	}
+}
+
+// TestSuperAdminService_UpdateAdmin_RejectsNonExistentDepartmentMigration
+// 超管把管理员迁移到不存在的部门，应被 ensureDepartmentExists 拒绝
+func TestSuperAdminService_UpdateAdmin_RejectsNonExistentDepartmentMigration(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	// 先创建一个真实部门用于初始化管理员所属部门
+	dept := client.Department.Create().SetName("d1").SaveX(ctx)
+	a := createTestAdminRaw(t, client, "mig@test.com", "u-mig", "miguser", "pass", admin.StatusActive)
+	_, err := client.Admin.UpdateOneID(a.ID).SetDepartmentID(dept.ID).Save(ctx)
+	if err != nil {
+		t.Fatalf("初始化管理员部门失败: %v", err)
+	}
+
+	op := &EffectiveDataScope{
+		Scope:        DataScopeAll,
+		AdminID:      1,
+		AdminUID:     "u-super",
+		IsSuperAdmin: true,
+	}
+
+	svc := NewSuperAdminService()
+	newDept := 999999
+	_, err = svc.UpdateAdmin(ctx, op, a.ID, &UpdateAdminRequest{DepartmentID: &newDept})
+	if !errors.Is(err, ErrDepartmentNotFound) {
+		t.Fatalf("期望 ErrDepartmentNotFound，got %v", err)
+	}
+}
+
+// TestRoleAssignmentService_AssignAdminRoles_RejectsRoleScopeEscalation
+// 部门管理员尝试把 data_scope=All 的角色授予范围内管理员，应被拒绝（角色提权）
+func TestRoleAssignmentService_AssignAdminRoles_RejectsRoleScopeEscalation(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	dept := client.Department.Create().SetName("d1").SaveX(ctx)
+
+	// 目标管理员属于 dept，处于 op 范围内
+	a := createTestAdminRaw(t, client, "assign-esc@test.com", "u-assign-esc", "assignescuser", "pass", admin.StatusActive)
+	_, err := client.Admin.UpdateOneID(a.ID).SetDepartmentID(dept.ID).Save(ctx)
+	if err != nil {
+		t.Fatalf("设置目标管理员部门失败: %v", err)
+	}
+
+	highRole := client.Role.Create().
+		SetName("assign_high_role").
+		SetDisplayName("高范围角色").
+		SetDataScope(role.DataScopeAll).
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+
+	op := &EffectiveDataScope{
+		Scope:         DataScopeDepartment,
+		AdminID:       100,
+		AdminUID:      "u-dept-mgr",
+		DepartmentID:  dept.ID,
+		DepartmentIDs: []int{dept.ID},
+	}
+
+	svc := NewRoleAssignmentService(nil)
+	err = svc.AssignAdminRoles(ctx, op, a.ID, &AssignRolesRequest{
+		RoleIDs:       []int{highRole.ID},
+		PrimaryRoleID: highRole.ID,
+	}, "u-dept-mgr")
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("期望 ErrRoleScopeEscalation，got %v", err)
+	}
+}
+
+// TestRoleService_CreateRole_RejectsNonExistentCustomDepartmentID
+// 创建角色时 data_scope=custom 且包含不存在的部门 ID，应被 ensureDepartmentExists 拒绝
+func TestRoleService_CreateRole_RejectsNonExistentCustomDepartmentID(t *testing.T) {
+	_, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	svc := NewRoleService(nil)
+	_, err := svc.Create(ctx, &CreateRoleRequest{
+		Name:                   "custom_role",
+		DisplayName:            "自定义范围角色",
+		DataScope:              string(DataScopeCustom),
+		DataScopeDepartmentIDs: []int{999999},
+	})
+	if !errors.Is(err, ErrDepartmentNotFound) {
+		t.Fatalf("期望 ErrDepartmentNotFound，got %v", err)
+	}
+}
+
+// TestRoleService_UpdateRole_RejectsNonExistentCustomDepartmentID
+// 更新角色为 data_scope=custom 时传入不存在的部门 ID，应被拒绝
+func TestRoleService_UpdateRole_RejectsNonExistentCustomDepartmentID(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	// 先创建一个 Self 范围的角色
+	r := client.Role.Create().
+		SetName("update_target_role").
+		SetDisplayName("待更新角色").
+		SetDataScope(role.DataScopeSelf).
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+
+	svc := NewRoleService(nil)
+	err := svc.Update(ctx, r.ID, &UpdateRoleRequest{
+		DataScope:              string(DataScopeCustom),
+		DataScopeDepartmentIDs: []int{999999},
+	})
+	if !errors.Is(err, ErrDepartmentNotFound) {
+		t.Fatalf("期望 ErrDepartmentNotFound，got %v", err)
+	}
+}
