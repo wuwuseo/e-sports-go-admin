@@ -252,8 +252,8 @@ func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListReques
 
 	// 应用数据权限过滤
 	if req.CurrentUID != "" {
-		dataPermSvc := NewDataPermissionService(NewDepartmentService())
-		scope, err := dataPermSvc.ResolveAdminScope(ctx, req.CurrentUID)
+		// 使用注入的 dataPermSvc，避免现场 new 导致 client 不一致（DI 闭环）
+		scope, err := s.dataPermSvc.ResolveAdminScope(ctx, req.CurrentUID)
 		if err != nil {
 			return nil, fmt.Errorf("解析数据权限失败: %w", err)
 		}
