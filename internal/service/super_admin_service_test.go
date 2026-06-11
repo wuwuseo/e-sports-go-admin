@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"errors"
@@ -50,7 +50,7 @@ func TestSuperAdminService_CreateAdmin_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	result, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:    "newadmin@test.com",
 		Password: "adminpass123",
@@ -92,7 +92,7 @@ func TestSuperAdminService_CreateAdmin_RejectsSuperAdminRole(t *testing.T) {
 		t.Fatalf("创建超级管理员角色失败: %v", err)
 	}
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	_, err = svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:         "forbidden-admin@test.com",
 		Password:      "adminpass123",
@@ -119,7 +119,7 @@ func TestSuperAdminService_CreateAdmin_EmailExists(t *testing.T) {
 		SetStatus(admin.StatusActive).
 		Save(ctx)
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	_, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:    "exists@test.com",
 		Password: "pass123",
@@ -144,7 +144,7 @@ func TestSuperAdminService_CreateAdmin_UsernameExists(t *testing.T) {
 		SetStatus(admin.StatusActive).
 		Save(ctx)
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	_, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:    "user2@test.com",
 		Password: "pass123",
@@ -170,7 +170,7 @@ func TestSuperAdminService_ListAdmins_Success(t *testing.T) {
 		)
 	}
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	resp, err := svc.ListAdmins(ctx, &AdminListRequest{
 		Page:     1,
 		PageSize: 10,
@@ -199,7 +199,7 @@ func TestSuperAdminService_ListAdmins_Pagination(t *testing.T) {
 		)
 	}
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	resp, err := svc.ListAdmins(ctx, &AdminListRequest{
 		Page:     1,
 		PageSize: 2,
@@ -223,7 +223,7 @@ func TestSuperAdminService_ActivateAdmin_Success(t *testing.T) {
 
 	a := createTestAdminRaw(t, client, "activate@test.com", "uid-activate", "activateadmin", "pass", admin.StatusInactive)
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	err := svc.ActivateAdmin(ctx, nil, a.ID)
 	if err != nil {
 		t.Fatalf("激活管理员失败: %v", err)
@@ -245,7 +245,7 @@ func TestSuperAdminService_DeactivateAdmin_Success(t *testing.T) {
 
 	a := createTestAdminRaw(t, client, "deactivate@test.com", "uid-deactivate", "deactivateadmin", "pass", admin.StatusActive)
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	err := svc.DeactivateAdmin(ctx, nil, a.ID)
 	if err != nil {
 		t.Fatalf("停用管理员失败: %v", err)
@@ -267,7 +267,7 @@ func TestSuperAdminService_ActivateSelf_Forbidden(t *testing.T) {
 	ctx := t.Context()
 	a := createTestAdminRaw(t, client, "self@test.com", "u-self", "selfadmin", "pass", admin.StatusInactive)
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	op := &EffectiveDataScope{AdminID: a.ID, AdminUID: a.UID, IsSuperAdmin: true}
 	err := svc.ActivateAdmin(ctx, op, a.ID)
 	if !errors.Is(err, ErrCannotToggleSelfStatus) {
@@ -282,7 +282,7 @@ func TestSuperAdminService_DeactivateSelf_Forbidden(t *testing.T) {
 	ctx := t.Context()
 	a := createTestAdminRaw(t, client, "selfd@test.com", "u-selfd", "selfdadmin", "pass", admin.StatusActive)
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	op := &EffectiveDataScope{AdminID: a.ID, AdminUID: a.UID, IsSuperAdmin: true}
 	err := svc.DeactivateAdmin(ctx, op, a.ID)
 	if !errors.Is(err, ErrCannotToggleSelfStatus) {
@@ -296,7 +296,7 @@ func TestSuperAdminService_CreateAdmin_RejectsOutOfScopeDepartment(t *testing.T)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	// 部门管理员 op，仅能看部门 1；尝试创建到部门 99
 	op := &EffectiveDataScope{
 		Scope:         DataScopeDepartment,
@@ -337,7 +337,7 @@ func TestSuperAdminService_UpdateAdmin_RejectsOutOfScopeDepartmentMigration(t *t
 		DepartmentID:  1,
 		DepartmentIDs: []int{1},
 	}
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	newDept := 99
 	_, err = svc.UpdateAdmin(ctx, op, a.ID, &UpdateAdminRequest{DepartmentID: &newDept})
 	if !errors.Is(err, ErrDepartmentOutOfScope) {
@@ -351,7 +351,7 @@ func TestSuperAdminService_CreateAdmin_RejectsInvalidRoleIDs(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	_, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:    "y@test.com",
 		Password: "passw0rd",
@@ -379,7 +379,7 @@ func TestSuperAdminService_CreateAdmin_RejectsPrimaryRoleNotInRoleIDs(t *testing
 		t.Fatalf("创建角色 r2 失败: %v", err)
 	}
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	_, err = svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:         "z@test.com",
 		Password:      "passw0rd",
@@ -421,7 +421,7 @@ func TestSuperAdminService_CreateAdmin_RejectsRoleScopeEscalation(t *testing.T) 
 		DepartmentIDs: []int{dept.ID},
 	}
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	_, err := svc.CreateAdmin(ctx, op, &CreateAdminRequest{
 		Email:        "esc@test.com",
 		Password:     "passw0rd",
@@ -448,7 +448,7 @@ func TestSuperAdminService_CreateAdmin_RejectsNonExistentDepartment(t *testing.T
 		IsSuperAdmin: true,
 	}
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	_, err := svc.CreateAdmin(ctx, op, &CreateAdminRequest{
 		Email:        "noexistdept@test.com",
 		Password:     "passw0rd",
@@ -482,7 +482,7 @@ func TestSuperAdminService_UpdateAdmin_RejectsNonExistentDepartmentMigration(t *
 		IsSuperAdmin: true,
 	}
 
-	svc := NewSuperAdminService()
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	newDept := 999999
 	_, err = svc.UpdateAdmin(ctx, op, a.ID, &UpdateAdminRequest{DepartmentID: &newDept})
 	if !errors.Is(err, ErrDepartmentNotFound) {
@@ -521,7 +521,7 @@ func TestRoleAssignmentService_AssignAdminRoles_RejectsRoleScopeEscalation(t *te
 		DepartmentIDs: []int{dept.ID},
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	err = svc.AssignAdminRoles(ctx, op, a.ID, &AssignRolesRequest{
 		RoleIDs:       []int{highRole.ID},
 		PrimaryRoleID: highRole.ID,
@@ -539,7 +539,7 @@ func TestRoleService_CreateRole_RejectsNonExistentCustomDepartmentID(t *testing.
 	ctx := t.Context()
 
 	svc := NewRoleService(nil)
-	_, err := svc.Create(ctx, &CreateRoleRequest{
+	_, err := svc.Create(ctx, nil, &CreateRoleRequest{
 		Name:                   "custom_role",
 		DisplayName:            "自定义范围角色",
 		DataScope:              string(DataScopeCustom),
@@ -566,11 +566,149 @@ func TestRoleService_UpdateRole_RejectsNonExistentCustomDepartmentID(t *testing.
 		SaveX(ctx)
 
 	svc := NewRoleService(nil)
-	err := svc.Update(ctx, r.ID, &UpdateRoleRequest{
+	err := svc.Update(ctx, nil, r.ID, &UpdateRoleRequest{
 		DataScope:              string(DataScopeCustom),
 		DataScopeDepartmentIDs: []int{999999},
 	})
 	if !errors.Is(err, ErrDepartmentNotFound) {
 		t.Fatalf("期望 ErrDepartmentNotFound，got %v", err)
+	}
+}
+
+// TestRoleService_Create_RejectsOpDeptToAll 非超管(部门级)创建 All 范围角色 → 拒绝
+func TestRoleService_Create_RejectsOpDeptToAll(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	defer cleanup()
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+	op := &EffectiveDataScope{Scope: DataScopeDepartment, DepartmentIDs: []int{1}}
+	_, err := svc.Create(ctx, op, &CreateRoleRequest{
+		Name:        "rw_all",
+		DisplayName: "rw_all",
+		DataScope:   string(DataScopeAll),
+	})
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("Dept→All 期望 ErrRoleScopeEscalation, got %v", err)
+	}
+	_ = client
+}
+
+// TestRoleService_Update_RejectsOpDeptToAll 非超管(部门级)更新角色为 All 范围 → 拒绝
+func TestRoleService_Update_RejectsOpDeptToAll(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	defer cleanup()
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+	r, err := svc.Create(ctx, nil, &CreateRoleRequest{
+		Name:        "rw_u",
+		DisplayName: "rw_u",
+		DataScope:   string(DataScopeSelf),
+	})
+	if err != nil {
+		t.Fatalf("初始化角色失败: %v", err)
+	}
+	op := &EffectiveDataScope{Scope: DataScopeDepartment, DepartmentIDs: []int{1}}
+	err = svc.Update(ctx, op, r.ID, &UpdateRoleRequest{DataScope: string(DataScopeAll)})
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("Update Dept→All 期望 ErrRoleScopeEscalation, got %v", err)
+	}
+	_ = client
+}
+
+// TestSuperAdminService_CreateAdmin_RejectsDeptAndChildOverflow
+// CreateAdmin 分配 DeptAndChild 角色时按目标管理员部门展开子集，超出 op 范围 → 拒绝
+func TestSuperAdminService_CreateAdmin_RejectsDeptAndChildOverflow(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	defer cleanup()
+	ctx := t.Context()
+	d := client.Department.Create().SetName("P-dc").SaveX(ctx)
+	rDc := client.Role.Create().SetName("rdc").SetDisplayName("rdc").
+		SetDataScope(role.DataScopeDepartmentAndChild).
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	// 目标部门 d.ID 的子树包含未授权部门 99/100，超出 op 范围
+	fd := &fakeDeptSvc{childIDs: map[int][]int{d.ID: {d.ID, 99, 100}}}
+	svc := &SuperAdminService{client: client, deptSvc: fd, dataPermSvc: NewDataPermissionService(fd)}
+	op := &EffectiveDataScope{Scope: DataScopeCustom, DepartmentIDs: []int{d.ID}}
+	_, err := svc.CreateAdmin(ctx, op, &CreateAdminRequest{
+		Email:         "dc@e.com",
+		Username:      "dc",
+		Password:      "secret123!",
+		DepartmentID:  d.ID,
+		RoleIDs:       []int{rDc.ID},
+		PrimaryRoleID: rDc.ID,
+	})
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("DC overflow 期望 ErrRoleScopeEscalation, got %v", err)
+	}
+}
+
+// TestSuperAdminService_AssignAdminRoles_RejectsDeptAndChildOverflow
+// AssignAdminRoles 分配 DeptAndChild 角色时按目标管理员实际部门展开，超出 op → 拒绝
+func TestSuperAdminService_AssignAdminRoles_RejectsDeptAndChildOverflow(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	defer cleanup()
+	ctx := t.Context()
+	d := client.Department.Create().SetName("P-dc2").SaveX(ctx)
+	a := client.Admin.Create().
+		SetEmail("dc2@e.com").
+		SetUsername("dc2").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("uid-dc2").
+		SetNickname("n").
+		SetName("nm").
+		SetDepartmentID(d.ID).
+		SaveX(ctx)
+	rDc := client.Role.Create().SetName("rdc2").SetDisplayName("rdc2").
+		SetDataScope(role.DataScopeDepartmentAndChild).
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	fd := &fakeDeptSvc{childIDs: map[int][]int{d.ID: {d.ID, 199, 200}}}
+	svc := &RoleAssignmentService{client: client, deptSvc: fd}
+	op := &EffectiveDataScope{
+		Scope:         DataScopeCustom,
+		AdminID:       99,
+		AdminUID:      "u-mgr",
+		DepartmentIDs: []int{d.ID},
+	}
+	err := svc.AssignAdminRoles(ctx, op, a.ID, &AssignRolesRequest{
+		RoleIDs:       []int{rDc.ID},
+		PrimaryRoleID: rDc.ID,
+	}, "u-mgr")
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("Assign DC overflow 期望 ErrRoleScopeEscalation, got %v", err)
+	}
+}
+
+// TestSuperAdminService_ListAdmins_UsesInjectedDataPermSvc
+// ListAdmins 使用注入的 dataPermSvc，不再现场 new；超管不应被过滤
+func TestSuperAdminService_ListAdmins_UsesInjectedDataPermSvc(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	defer cleanup()
+	ctx := t.Context()
+	a := client.Admin.Create().
+		SetEmail("la@e.com").
+		SetUsername("la").
+		SetPassword("x").
+		SetPasswordSalt("s").
+		SetUID("uid-la").
+		SetNickname("n").
+		SetName("nm").
+		SetIsSuperAdmin(true).
+		SaveX(ctx)
+	deptSvc := NewDepartmentService()
+	dataPermSvc := NewDataPermissionService(deptSvc)
+	svc := &SuperAdminService{client: client, dataPermSvc: dataPermSvc, deptSvc: deptSvc}
+	res, err := svc.ListAdmins(ctx, &AdminListRequest{
+		CurrentUID: a.UID,
+		Page:       1,
+		PageSize:   10,
+	})
+	if err != nil {
+		t.Fatalf("ListAdmins 失败: %v", err)
+	}
+	if res == nil {
+		t.Fatal("ListAdmins 返回 nil")
 	}
 }

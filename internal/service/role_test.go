@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"errors"
@@ -33,7 +33,7 @@ func TestRoleService_Create_Success(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	resp, err := svc.Create(ctx, &CreateRoleRequest{
+	resp, err := svc.Create(ctx, nil, &CreateRoleRequest{
 		Name:        "editor",
 		DisplayName: "编辑者",
 	})
@@ -62,7 +62,7 @@ func TestRoleService_Create_EmptyName(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	_, err := svc.Create(ctx, &CreateRoleRequest{
+	_, err := svc.Create(ctx, nil, &CreateRoleRequest{
 		Name:        "",
 		DisplayName: "测试角色",
 	})
@@ -79,7 +79,7 @@ func TestRoleService_Create_EmptyDisplayName(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	_, err := svc.Create(ctx, &CreateRoleRequest{
+	_, err := svc.Create(ctx, nil, &CreateRoleRequest{
 		Name:        "test_role",
 		DisplayName: "",
 	})
@@ -96,7 +96,7 @@ func TestRoleService_Create_DuplicateName(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	_, err := svc.Create(ctx, &CreateRoleRequest{
+	_, err := svc.Create(ctx, nil, &CreateRoleRequest{
 		Name:        "editor",
 		DisplayName: "编辑者",
 	})
@@ -104,7 +104,7 @@ func TestRoleService_Create_DuplicateName(t *testing.T) {
 		t.Fatalf("首次创建角色失败: %v", err)
 	}
 
-	_, err = svc.Create(ctx, &CreateRoleRequest{
+	_, err = svc.Create(ctx, nil, &CreateRoleRequest{
 		Name:        "editor",
 		DisplayName: "编辑者2",
 	})
@@ -121,7 +121,7 @@ func TestRoleService_Create_WithOptionalFields(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	resp, err := svc.Create(ctx, &CreateRoleRequest{
+	resp, err := svc.Create(ctx, nil, &CreateRoleRequest{
 		Name:        "manager",
 		DisplayName: "管理员",
 		Description: "部门管理员角色",
@@ -452,7 +452,7 @@ func TestRoleService_Update_Success(t *testing.T) {
 		t.Fatalf("创建测试角色失败: %v", err)
 	}
 
-	err = svc.Update(ctx, r.ID, &UpdateRoleRequest{
+	err = svc.Update(ctx, nil, r.ID, &UpdateRoleRequest{
 		DisplayName: "测试工程师",
 		Description: "负责测试工作",
 		UpdatedBy:   "updater_uid",
@@ -481,7 +481,7 @@ func TestRoleService_Update_NotFound(t *testing.T) {
 	ctx := t.Context()
 	svc := NewRoleService(nil)
 
-	err := svc.Update(ctx, 99999, &UpdateRoleRequest{
+	err := svc.Update(ctx, nil, 99999, &UpdateRoleRequest{
 		DisplayName: "不存在",
 	})
 	if err == nil {
@@ -507,7 +507,7 @@ func TestRoleService_Update_SystemRole_SameDisplayName(t *testing.T) {
 		t.Fatalf("创建系统角色失败: %v", err)
 	}
 
-	err = svc.Update(ctx, r.ID, &UpdateRoleRequest{
+	err = svc.Update(ctx, nil, r.ID, &UpdateRoleRequest{
 		DisplayName: "系统角色",
 		Description: "更新描述",
 	})
@@ -531,7 +531,7 @@ func TestRoleService_Update_SystemRole_DifferentDisplayName(t *testing.T) {
 		t.Fatalf("创建系统角色失败: %v", err)
 	}
 
-	err = svc.Update(ctx, r.ID, &UpdateRoleRequest{
+	err = svc.Update(ctx, nil, r.ID, &UpdateRoleRequest{
 		DisplayName: "修改后的名称",
 	})
 	if err == nil {

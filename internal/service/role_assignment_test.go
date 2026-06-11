@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"errors"
@@ -40,7 +40,7 @@ func TestRoleAssignmentService_GetUserRoles_NoRoles(t *testing.T) {
 		t.Fatalf("创建测试用户失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	resp, err := svc.GetUserRoles(ctx, u.ID)
 	if err != nil {
 		t.Fatalf("获取用户角色失败: %v", err)
@@ -104,7 +104,7 @@ func TestRoleAssignmentService_GetUserRoles_WithRoles(t *testing.T) {
 		t.Fatalf("创建用户角色关联失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	resp, err := svc.GetUserRoles(ctx, u.ID)
 	if err != nil {
 		t.Fatalf("获取用户角色失败: %v", err)
@@ -127,7 +127,7 @@ func TestRoleAssignmentService_GetUserRoles_UserNotFound(t *testing.T) {
 	_ = setupRoleAssignmentTest(t)
 	ctx := t.Context()
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	_, err := svc.GetUserRoles(ctx, 99999)
 	if !errors.Is(err, ErrUserNotFound) {
 		t.Errorf("期望错误为 ErrUserNotFound, 实际为 %v", err)
@@ -150,7 +150,7 @@ func TestRoleAssignmentService_AssignSelfRoles_Forbidden(t *testing.T) {
 		t.Fatalf("创建测试管理员失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	op := &EffectiveDataScope{AdminID: a.ID, AdminUID: a.UID, IsSuperAdmin: true}
 	err = svc.AssignAdminRoles(ctx, op, a.ID, &AssignRolesRequest{}, "u-selfr")
 	if !errors.Is(err, ErrCannotModifySelfRoles) {
@@ -209,7 +209,7 @@ func TestRoleAssignmentService_GetUserRoles_ExcludesDisabledRoles(t *testing.T) 
 		t.Fatalf("创建用户角色关联失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	resp, err := svc.GetUserRoles(ctx, u.ID)
 	if err != nil {
 		t.Fatalf("获取用户角色失败: %v", err)
@@ -226,7 +226,7 @@ func TestRoleAssignmentService_AssignRoles_PrimaryRoleInvalid(t *testing.T) {
 	_ = setupRoleAssignmentTest(t)
 	ctx := t.Context()
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	err := svc.AssignRoles(ctx, 1, &AssignRolesRequest{
 		RoleIDs:       []int{1, 2},
 		PrimaryRoleID: 99,
@@ -250,7 +250,7 @@ func TestRoleAssignmentService_AssignRoles_InvalidRoleIDs(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	err = svc.AssignRoles(ctx, 1, &AssignRolesRequest{
 		RoleIDs:       []int{r1.ID, 99999},
 		PrimaryRoleID: r1.ID,
@@ -285,7 +285,7 @@ func TestRoleAssignmentService_AssignRoles_RejectsSuperAdminRole(t *testing.T) {
 		t.Fatalf("创建超级管理员角色失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	err = svc.AssignRoles(ctx, u.ID, &AssignRolesRequest{
 		RoleIDs:       []int{adminRole.ID},
 		PrimaryRoleID: adminRole.ID,
@@ -320,7 +320,7 @@ func TestRoleAssignmentService_AssignAdminRoles_RejectsSuperAdminRole(t *testing
 		t.Fatalf("创建超级管理员角色失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	err = svc.AssignAdminRoles(ctx, nil, a.ID, &AssignRolesRequest{
 		RoleIDs:       []int{adminRole.ID},
 		PrimaryRoleID: adminRole.ID,
@@ -344,7 +344,7 @@ func TestRoleAssignmentService_AssignRoles_UserNotFound(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc := NewRoleAssignmentService(nil)
+	svc := NewRoleAssignmentService(nil, NewDepartmentService())
 	err = svc.AssignRoles(ctx, 99999, &AssignRolesRequest{
 		RoleIDs:       []int{r1.ID},
 		PrimaryRoleID: r1.ID,

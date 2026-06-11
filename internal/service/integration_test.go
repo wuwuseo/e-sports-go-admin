@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"os"
@@ -636,7 +636,7 @@ func TestIntegration_E2E_RolePermissionFlow(t *testing.T) {
 
 	// ===== 阶段2: 创建角色 =====
 	roleSvc := NewRoleService(nil)
-	roleResp, err := roleSvc.Create(ctx, &CreateRoleRequest{
+	roleResp, err := roleSvc.Create(ctx, nil, &CreateRoleRequest{
 		Name:        "e2e-editor",
 		DisplayName: "端到端编辑者",
 	})
