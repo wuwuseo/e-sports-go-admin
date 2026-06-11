@@ -23,6 +23,9 @@ var ErrCannotToggleSelfStatus = errors.New("cannot activate or deactivate yourse
 // ErrCannotModifySelfRoles 禁止修改自己的角色
 var ErrCannotModifySelfRoles = errors.New("cannot modify your own roles")
 
+// ErrDepartmentOutOfScope 目标部门超出当前操作者数据权限范围
+var ErrDepartmentOutOfScope = errors.New("department out of data scope")
+
 // EffectiveDataScope 管理员的有效数据权限范围
 type EffectiveDataScope struct {
 	Scope         DataScope
@@ -202,5 +205,37 @@ func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDa
 	default:
 		// 未知 DataScope 默认拒绝，避免未来新增枚举值时 fail-open
 		return ErrAdminOutOfScope
+	}
+}
+
+// ensureDepartmentInScope 校验目标部门是否在 op 的数据范围内
+//
+//	op == nil          → 放行（内部调用）
+//	op.IsSuperAdmin    → 放行
+//	DataScopeAll       → 放行
+//	DataScopeSelf      → 拒绝
+//	DataScopeDepartment/DepartmentAndChild/Custom：
+//	                     targetDepartmentID == 0 → 拒绝（未分配仅超管可设）
+//	                     其他要求命中 op.DepartmentIDs
+//	未知 scope         → 拒绝（fail-closed）
+func ensureDepartmentInScope(op *EffectiveDataScope, targetDepartmentID int) error {
+	if op == nil || op.IsSuperAdmin {
+		return nil
+	}
+	switch op.Scope {
+	case DataScopeAll:
+		return nil
+	case DataScopeSelf:
+		return ErrDepartmentOutOfScope
+	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		if targetDepartmentID == 0 {
+			return ErrDepartmentOutOfScope
+		}
+		if !containsInt(op.DepartmentIDs, targetDepartmentID) {
+			return ErrDepartmentOutOfScope
+		}
+		return nil
+	default:
+		return ErrDepartmentOutOfScope
 	}
 }
