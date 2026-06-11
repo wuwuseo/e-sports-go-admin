@@ -31,7 +31,7 @@ type UpdateAdminRequest struct {
 
 // SuperAdminServiceInterface 超级管理员服务接口
 type SuperAdminServiceInterface interface {
-	CreateAdmin(ctx context.Context, req *CreateAdminRequest) (*AdminResponse, error)
+	CreateAdmin(ctx context.Context, op *EffectiveDataScope, req *CreateAdminRequest) (*AdminResponse, error)
 	ListAdmins(ctx context.Context, req *AdminListRequest) (*ListResponse[*AdminListItem], error)
 	GetAdminByID(ctx context.Context, op *EffectiveDataScope, adminID int) (*AdminResponse, error)
 	UpdateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int, req *UpdateAdminRequest) (*AdminResponse, error)
@@ -85,7 +85,12 @@ type AdminListItem struct {
 }
 
 // CreateAdmin 创建管理员
-func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminRequest) (*AdminResponse, error) {
+func (s *SuperAdminService) CreateAdmin(ctx context.Context, op *EffectiveDataScope, req *CreateAdminRequest) (*AdminResponse, error) {
+	// P1-A：目标部门必须在 op 的数据范围内
+	if err := ensureDepartmentInScope(op, req.DepartmentID); err != nil {
+		return nil, err
+	}
+
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return nil, err
 	}
@@ -115,7 +120,40 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminReq
 		return nil, err
 	}
 
-	a, err := s.client.Admin.Create().
+	// P2：预校验 RoleIDs 全部存在且 Active；PrimaryRoleID 必须在 RoleIDs 中
+	var validRoles []*ent.Role
+	primaryID := 0
+	if len(req.RoleIDs) > 0 {
+		count, err := s.client.Role.Query().
+			Where(role.IDIn(req.RoleIDs...), role.StatusEQ(role.StatusActive)).
+			Count(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("查询角色失败: %w", err)
+		}
+		if count != len(req.RoleIDs) {
+			return nil, ErrInvalidRoleIDs
+		}
+		validRoles, err = s.client.Role.Query().
+			Where(role.IDIn(req.RoleIDs...)).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		primaryID = req.PrimaryRoleID
+		if primaryID == 0 {
+			primaryID = req.RoleIDs[0]
+		} else if !containsInt(req.RoleIDs, primaryID) {
+			return nil, ErrPrimaryRoleInvalid
+		}
+	}
+
+	// P2：admin Create + admin_role Insert 同事务
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("开启事务失败: %w", err)
+	}
+
+	a, err := tx.Admin.Create().
 		SetEmail(req.Email).
 		SetPassword(hashedPassword).
 		SetPasswordSalt(salt).
@@ -128,54 +166,32 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, req *CreateAdminReq
 		SetStatus(admin.StatusInactive).
 		Save(ctx)
 	if err != nil {
+		_ = tx.Rollback()
 		return nil, err
 	}
 
-	// 如果请求中携带了 RoleIDs，创建 admin_role 关联并同步到 Casbin
-	if len(req.RoleIDs) > 0 {
-		primaryID := req.PrimaryRoleID
-		if primaryID == 0 {
-			primaryID = req.RoleIDs[0]
-		}
-		// 获取角色信息（用于后续写入 Casbin g 规则）
-		roles, err := s.client.Role.Query().
-			Where(role.IDIn(req.RoleIDs...), role.StatusEQ(role.StatusActive)).
-			All(ctx)
+	for _, r := range validRoles {
+		_, err = tx.AdminRole.Create().
+			SetAdminID(a.ID).
+			SetRoleID(r.ID).
+			SetIsPrimary(r.ID == primaryID).
+			Save(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("查询角色失败: %w", err)
+			_ = tx.Rollback()
+			return nil, fmt.Errorf("分配角色失败: %w", err)
 		}
-		if len(roles) == 0 {
-			return nil, fmt.Errorf("没有有效的可分配角色")
-		}
+	}
 
-		// 事务：创建 admin_role 关联
-		tx, err := s.client.Tx(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("开启事务失败: %w", err)
-		}
-		for _, r := range roles {
-			isPrimary := r.ID == primaryID
-			_, err = tx.AdminRole.Create().
-				SetAdminID(a.ID).
-				SetRoleID(r.ID).
-				SetIsPrimary(isPrimary).
-				Save(ctx)
-			if err != nil {
-				_ = tx.Rollback()
-				return nil, fmt.Errorf("分配角色失败: %w", err)
-			}
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("提交事务失败: %w", err)
-		}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("提交事务失败: %w", err)
+	}
 
-		// 同步写入 Casbin g 规则（uid -> role_name in domain）
-		if global.EnforcerManager != nil {
-			enforcer, enfErr := global.EnforcerManager.GetEnforcer("default")
-			if enfErr == nil {
-				for _, r := range roles {
-					_, _ = enforcer.AddRoleForUserInDomain(a.UID, r.Name, "default")
-				}
+	// Casbin 同步（事务外，与 AssignAdminRoles 行为一致）
+	if len(validRoles) > 0 && global.EnforcerManager != nil {
+		enforcer, enfErr := global.EnforcerManager.GetEnforcer("default")
+		if enfErr == nil {
+			for _, r := range validRoles {
+				_, _ = enforcer.AddRoleForUserInDomain(a.UID, r.Name, "default")
 			}
 		}
 	}
