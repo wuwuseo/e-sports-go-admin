@@ -8,6 +8,7 @@ import (
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
+	"go-admin/internal/ent/role"
 	"go-admin/internal/global"
 
 	"github.com/wuwuseo/cmf/bootstrap"
@@ -50,7 +51,7 @@ func TestSuperAdminService_CreateAdmin_Success(t *testing.T) {
 	ctx := t.Context()
 
 	svc := NewSuperAdminService()
-	result, err := svc.CreateAdmin(ctx, &CreateAdminRequest{
+	result, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:    "newadmin@test.com",
 		Password: "adminpass123",
 		Username: "newadmin",
@@ -92,7 +93,7 @@ func TestSuperAdminService_CreateAdmin_RejectsSuperAdminRole(t *testing.T) {
 	}
 
 	svc := NewSuperAdminService()
-	_, err = svc.CreateAdmin(ctx, &CreateAdminRequest{
+	_, err = svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:         "forbidden-admin@test.com",
 		Password:      "adminpass123",
 		Username:      "forbiddenadmin",
@@ -119,7 +120,7 @@ func TestSuperAdminService_CreateAdmin_EmailExists(t *testing.T) {
 		Save(ctx)
 
 	svc := NewSuperAdminService()
-	_, err := svc.CreateAdmin(ctx, &CreateAdminRequest{
+	_, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:    "exists@test.com",
 		Password: "pass123",
 		Username: "newuser",
@@ -144,7 +145,7 @@ func TestSuperAdminService_CreateAdmin_UsernameExists(t *testing.T) {
 		Save(ctx)
 
 	svc := NewSuperAdminService()
-	_, err := svc.CreateAdmin(ctx, &CreateAdminRequest{
+	_, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
 		Email:    "user2@test.com",
 		Password: "pass123",
 		Username: "existinguser",
@@ -286,5 +287,107 @@ func TestSuperAdminService_DeactivateSelf_Forbidden(t *testing.T) {
 	err := svc.DeactivateAdmin(ctx, op, a.ID)
 	if !errors.Is(err, ErrCannotToggleSelfStatus) {
 		t.Fatalf("期望 ErrCannotToggleSelfStatus，got %v", err)
+	}
+}
+
+// TestSuperAdminService_CreateAdmin_RejectsOutOfScopeDepartment 部门管理员创建越权部门管理员应被拒绝
+func TestSuperAdminService_CreateAdmin_RejectsOutOfScopeDepartment(t *testing.T) {
+	_, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	svc := NewSuperAdminService()
+	// 部门管理员 op，仅能看部门 1；尝试创建到部门 99
+	op := &EffectiveDataScope{
+		Scope:         DataScopeDepartment,
+		AdminID:       1,
+		AdminUID:      "u-mgr",
+		DepartmentID:  1,
+		DepartmentIDs: []int{1},
+	}
+	_, err := svc.CreateAdmin(ctx, op, &CreateAdminRequest{
+		Email:        "x@test.com",
+		Password:     "passw0rd",
+		Username:     "x",
+		DepartmentID: 99,
+	})
+	if !errors.Is(err, ErrDepartmentOutOfScope) {
+		t.Fatalf("期望 ErrDepartmentOutOfScope，got %v", err)
+	}
+}
+
+// TestSuperAdminService_UpdateAdmin_RejectsOutOfScopeDepartmentMigration
+// 部门管理员把范围内管理员的部门改到范围外应被拒绝
+func TestSuperAdminService_UpdateAdmin_RejectsOutOfScopeDepartmentMigration(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	a := createTestAdminRaw(t, client, "u1@test.com", "u-1", "u1", "pass", admin.StatusActive)
+	// 让目标管理员属于部门 1（在 op 范围内）
+	_, err := client.Admin.UpdateOneID(a.ID).SetDepartmentID(1).Save(ctx)
+	if err != nil {
+		t.Fatalf("设置部门失败: %v", err)
+	}
+
+	op := &EffectiveDataScope{
+		Scope:         DataScopeDepartment,
+		AdminID:       100,
+		AdminUID:      "u-mgr",
+		DepartmentID:  1,
+		DepartmentIDs: []int{1},
+	}
+	svc := NewSuperAdminService()
+	newDept := 99
+	_, err = svc.UpdateAdmin(ctx, op, a.ID, &UpdateAdminRequest{DepartmentID: &newDept})
+	if !errors.Is(err, ErrDepartmentOutOfScope) {
+		t.Fatalf("期望 ErrDepartmentOutOfScope，got %v", err)
+	}
+}
+
+// TestSuperAdminService_CreateAdmin_RejectsInvalidRoleIDs RoleIDs 含不存在的角色应被拒绝
+func TestSuperAdminService_CreateAdmin_RejectsInvalidRoleIDs(t *testing.T) {
+	_, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	svc := NewSuperAdminService()
+	_, err := svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
+		Email:    "y@test.com",
+		Password: "passw0rd",
+		Username: "y",
+		RoleIDs:  []int{999999, 999998},
+	})
+	if !errors.Is(err, ErrInvalidRoleIDs) {
+		t.Fatalf("期望 ErrInvalidRoleIDs，got %v", err)
+	}
+}
+
+// TestSuperAdminService_CreateAdmin_RejectsPrimaryRoleNotInRoleIDs PrimaryRoleID 不在 RoleIDs 中应被拒绝
+func TestSuperAdminService_CreateAdmin_RejectsPrimaryRoleNotInRoleIDs(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	// 创建两个真实的活跃角色
+	r1, err := client.Role.Create().SetName("r1").SetDisplayName("R1").SetStatus(role.StatusActive).Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色 r1 失败: %v", err)
+	}
+	r2, err := client.Role.Create().SetName("r2").SetDisplayName("R2").SetStatus(role.StatusActive).Save(ctx)
+	if err != nil {
+		t.Fatalf("创建角色 r2 失败: %v", err)
+	}
+
+	svc := NewSuperAdminService()
+	_, err = svc.CreateAdmin(ctx, nil, &CreateAdminRequest{
+		Email:         "z@test.com",
+		Password:      "passw0rd",
+		Username:      "z",
+		RoleIDs:       []int{r1.ID, r2.ID},
+		PrimaryRoleID: r1.ID + r2.ID + 9999, // 故意不在 RoleIDs 中
+	})
+	if !errors.Is(err, ErrPrimaryRoleInvalid) {
+		t.Fatalf("期望 ErrPrimaryRoleInvalid，got %v", err)
 	}
 }
