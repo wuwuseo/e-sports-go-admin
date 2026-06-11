@@ -90,8 +90,16 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, op *EffectiveDataSc
 	if err := ensureDepartmentInScope(op, req.DepartmentID); err != nil {
 		return nil, err
 	}
+	// P2 防御：目标部门必须真实存在（防止伪造 department_id 绕过外键校验时机）
+	if err := ensureDepartmentExists(ctx, s.client, req.DepartmentID); err != nil {
+		return nil, err
+	}
 
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return nil, err
+	}
+	// P1 防御：禁止越权分配——所授角色的数据范围必须被 op 完全包含
+	if err := ensureRolesNotEscalating(ctx, s.client, op, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return nil, err
 	}
 
@@ -371,6 +379,10 @@ func (s *SuperAdminService) UpdateAdmin(ctx context.Context, op *EffectiveDataSc
 	// P1-B：若 req 要改 department_id，新部门也必须在 op 范围内
 	if req.DepartmentID != nil {
 		if err := ensureDepartmentInScope(op, *req.DepartmentID); err != nil {
+			return nil, err
+		}
+		// P2 防御：新部门必须真实存在
+		if err := ensureDepartmentExists(ctx, s.client, *req.DepartmentID); err != nil {
 			return nil, err
 		}
 	}
