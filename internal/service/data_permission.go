@@ -7,6 +7,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/adminrole"
+	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/global"
 )
@@ -25,6 +26,11 @@ var ErrCannotModifySelfRoles = errors.New("cannot modify your own roles")
 
 // ErrDepartmentOutOfScope 目标部门超出当前操作者数据权限范围
 var ErrDepartmentOutOfScope = errors.New("department out of data scope")
+
+// ErrRoleScopeEscalation 目标角色的数据范围超出当前操作者
+var ErrRoleScopeEscalation = errors.New("role data scope escalation")
+
+// 注：ErrDepartmentNotFound 已在 department.go 中定义，复用同一错误值
 
 // EffectiveDataScope 管理员的有效数据权限范围
 type EffectiveDataScope struct {
@@ -128,6 +134,24 @@ func mergeScope(current, next DataScope) DataScope {
 		return next
 	}
 	return current
+}
+
+// scopeRank 返回数据权限范围的"宽度"等级，与 mergeScope 共用同一张表
+func scopeRank(s DataScope) int {
+	switch s {
+	case DataScopeSelf:
+		return 1
+	case DataScopeDepartment:
+		return 2
+	case DataScopeDepartmentAndChild:
+		return 3
+	case DataScopeCustom:
+		return 4
+	case DataScopeAll:
+		return 5
+	default:
+		return 0 // 未知范围 fail-closed
+	}
 }
 
 // appendUniqueInts 向切片追加不重复的整数
@@ -238,4 +262,56 @@ func ensureDepartmentInScope(op *EffectiveDataScope, targetDepartmentID int) err
 	default:
 		return ErrDepartmentOutOfScope
 	}
+}
+
+// ensureRolesNotEscalating 校验候选角色的 data_scope 不超过操作者
+//   op == nil               → 放行（内部调用）
+//   op.IsSuperAdmin || All  → 放行
+//   非 All：要求 rank(role) ≤ rank(op)；Custom 角色还要求 role.DeptIDs ⊆ op.DeptIDs
+//   未知 op.Scope           → 拒绝（fail-closed）
+func ensureRolesNotEscalating(ctx context.Context, client *ent.Client, op *EffectiveDataScope, roleIDs []int) error {
+	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+		return nil
+	}
+	if len(roleIDs) == 0 {
+		return nil
+	}
+	opRank := scopeRank(op.Scope)
+	if opRank == 0 {
+		return ErrRoleScopeEscalation
+	}
+	roles, err := client.Role.Query().Where(role.IDIn(roleIDs...)).All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, r := range roles {
+		rs := DataScope(r.DataScope)
+		if scopeRank(rs) > opRank {
+			return ErrRoleScopeEscalation
+		}
+		if rs == DataScopeCustom {
+			for _, deptID := range r.DataScopeDepartmentIds {
+				if !containsInt(op.DepartmentIDs, deptID) {
+					return ErrRoleScopeEscalation
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// ensureDepartmentExists 校验目标部门真实存在
+//   departmentID == 0 → 放行（仅超管/All 可设由 ensureDepartmentInScope 保证）
+func ensureDepartmentExists(ctx context.Context, client *ent.Client, departmentID int) error {
+	if departmentID == 0 {
+		return nil
+	}
+	exists, err := client.Department.Query().Where(department.IDEQ(departmentID)).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrDepartmentNotFound
+	}
+	return nil
 }
