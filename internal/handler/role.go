@@ -30,6 +30,7 @@ import (
 func CreateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	req, err := validate.ParseAndValidate[service.CreateRoleRequest](c)
 	if err != nil {
@@ -39,7 +40,13 @@ func CreateRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	role, err := roleService.Create(c.Context(), req)
+	// P1-A 防御：构造当前操作者的有效数据范围，传入 service 层做角色 scope 写入校验
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "创建角色失败").ToJSON(c)
+	}
+
+	role, err := roleService.Create(c.Context(), op, req)
 	if err != nil {
 		switch err {
 		case service.ErrRoleNameExists:
@@ -49,6 +56,9 @@ func CreateRole(c fiber.Ctx) error {
 		// P2: 目标部门不存在
 		case service.ErrDepartmentNotFound:
 			return resp.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
+		// P1-A: 目标角色的数据范围超出当前操作者
+		case service.ErrRoleScopeEscalation:
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "创建角色失败").ToJSON(c)
 		}
@@ -192,6 +202,7 @@ func ListAllRoles(c fiber.Ctx) error {
 func UpdateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -207,13 +218,22 @@ func UpdateRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	if err := roleService.Update(c.Context(), id, req); err != nil {
+	// P1-A 防御：构造当前操作者的有效数据范围，传入 service 层做角色 scope 写入校验
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "更新角色失败").ToJSON(c)
+	}
+
+	if err := roleService.Update(c.Context(), op, id, req); err != nil {
 		switch err {
 		case service.ErrRoleNotFound:
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		// P2: 目标部门不存在
 		case service.ErrDepartmentNotFound:
 			return resp.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
+		// P1-A: 目标角色的数据范围超出当前操作者
+		case service.ErrRoleScopeEscalation:
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "更新角色失败").ToJSON(c)
 		}
