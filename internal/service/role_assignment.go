@@ -298,6 +298,10 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, op *Effect
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return err
 	}
+	// P1 防御：禁止越权分配——所授角色的数据范围必须被 op 完全包含
+	if err := ensureRolesNotEscalating(ctx, s.client, op, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return err
+	}
 	found := false
 	for _, id := range req.RoleIDs {
 		if id == req.PrimaryRoleID {
