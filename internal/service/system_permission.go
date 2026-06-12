@@ -24,7 +24,7 @@ func isSensitiveAPIPermission(p *ent.SystemPermission) bool {
 // shouldFilterSensitive 判断是否需要过滤高风险权限（非超级管理员需要过滤）
 func (s *SystemPermissionService) shouldFilterSensitive(ctx context.Context, operatorUID string) (bool, error) {
 	if operatorUID == "" {
-		return false, nil
+		return !isPermissionSystemOperator(ctx), nil
 	}
 	// 查询操作者是否拥有超级管理员角色
 	isSuperAdmin, err := isUserSuperAdmin(ctx, s.client, operatorUID)
@@ -489,6 +489,19 @@ func (s *SystemPermissionService) List(ctx context.Context, operatorUID string, 
 		query = query.Where(systempermission.StatusEQ(req.Status))
 	}
 
+	filterSensitive, err := s.shouldFilterSensitive(ctx, operatorUID)
+	if err != nil {
+		return nil, fmt.Errorf("check operator permission: %w", err)
+	}
+	if filterSensitive {
+		query = query.Where(systempermission.Or(
+			systempermission.TypeNEQ(string(SystemPermissionTypeAPI)),
+			systempermission.PathIsNil(),
+			systempermission.PathEQ(""),
+			systempermission.PathNotIn(sensitivePermissionObjectList()...),
+		))
+	}
+
 	total, err := query.Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取权限总数失败: %w", err)
@@ -515,18 +528,8 @@ func (s *SystemPermissionService) List(ctx context.Context, operatorUID string, 
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
-	// 非超级管理员过滤高风险 API 权限
-	shouldFilter, err := s.shouldFilterSensitive(ctx, operatorUID)
-	if err != nil {
-		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
-	}
-
 	data := make([]*SystemPermissionResponse, 0, len(perms))
 	for _, p := range perms {
-		if shouldFilter && isSensitiveAPIPermission(p) {
-			total--
-			continue
-		}
 		data = append(data, s.toResponse(p))
 	}
 
@@ -753,7 +756,15 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 24, Domain: "default", Type: "api", Name: "删除附件", Code: "attachment:delete", Path: "/api/v1/admin/auth/attachments/{id}", Method: "DELETE", ParentID: 6, SortOrder: 2, IsCommon: false, Status: 1, Description: "删除附件API"},
 		{ID: 25, Domain: "default", Type: "api", Name: "获取定时任务列表", Code: "cron-job:list", Path: "/api/v1/admin/auth/cron-jobs", Method: "GET", ParentID: 7, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取定时任务列表API"},
 		{ID: 26, Domain: "default", Type: "api", Name: "创建定时任务", Code: "cron-job:create", Path: "/api/v1/admin/auth/cron-jobs", Method: "POST", ParentID: 7, SortOrder: 1, IsCommon: false, Status: 1, Description: "创建定时任务API"},
-		{ID: 27, Domain: "default", Type: "api", Name: "执行定时任务", Code: "cron-job:run", Path: "/api/v1/admin/auth/cron-jobs/{id}/run", Method: "POST", ParentID: 7, SortOrder: 2, IsCommon: false, Status: 1, Description: "执行定时任务API"},
+		{ID: 27, Domain: "default", Type: "api", Name: "执行定时任务", Code: "cron-job:run", Path: "/api/v1/admin/auth/cron-jobs/{id}/run", Method: "POST", ParentID: 7, SortOrder: 7, IsCommon: false, Status: 1, Description: "执行定时任务API"},
+		{ID: 122, Domain: "default", Type: "api", Name: "获取定时任务详情", Code: "cron-job:get", Path: "/api/v1/admin/auth/cron-jobs/{id}", Method: "GET", ParentID: 7, SortOrder: 2, IsCommon: false, Status: 1, Description: "获取定时任务详情API"},
+		{ID: 123, Domain: "default", Type: "api", Name: "更新定时任务", Code: "cron-job:update", Path: "/api/v1/admin/auth/cron-jobs/{id}", Method: "PUT", ParentID: 7, SortOrder: 3, IsCommon: false, Status: 1, Description: "更新定时任务API"},
+		{ID: 124, Domain: "default", Type: "api", Name: "删除定时任务", Code: "cron-job:delete-api", Path: "/api/v1/admin/auth/cron-jobs/{id}", Method: "DELETE", ParentID: 7, SortOrder: 4, IsCommon: false, Status: 1, Description: "删除定时任务API"},
+		{ID: 125, Domain: "default", Type: "api", Name: "启用定时任务", Code: "cron-job:enable", Path: "/api/v1/admin/auth/cron-jobs/{id}/enable", Method: "POST", ParentID: 7, SortOrder: 5, IsCommon: false, Status: 1, Description: "启用定时任务API"},
+		{ID: 126, Domain: "default", Type: "api", Name: "禁用定时任务", Code: "cron-job:disable", Path: "/api/v1/admin/auth/cron-jobs/{id}/disable", Method: "POST", ParentID: 7, SortOrder: 6, IsCommon: false, Status: 1, Description: "禁用定时任务API"},
+		{ID: 127, Domain: "default", Type: "api", Name: "获取定时任务日志列表", Code: "cron-job:logs", Path: "/api/v1/admin/auth/cron-jobs/{id}/logs", Method: "GET", ParentID: 7, SortOrder: 8, IsCommon: false, Status: 1, Description: "获取定时任务日志列表API"},
+		{ID: 128, Domain: "default", Type: "api", Name: "读取定时任务日志尾部", Code: "cron-job:log-tail", Path: "/api/v1/admin/auth/cron-jobs/{id}/logs/tail", Method: "GET", ParentID: 7, SortOrder: 9, IsCommon: false, Status: 1, Description: "读取定时任务日志尾部API"},
+		{ID: 129, Domain: "default", Type: "api", Name: "获取定时任务日志内容", Code: "cron-job:log-content", Path: "/api/v1/admin/auth/cron-jobs/{id}/logs/{filename}", Method: "GET", ParentID: 7, SortOrder: 10, IsCommon: false, Status: 1, Description: "获取定时任务日志内容API"},
 		{ID: 28, Domain: "default", Type: "api", Name: "获取操作日志", Code: "operation-log:list", Path: "/api/v1/admin/auth/operation-logs", Method: "GET", ParentID: 8, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取操作日志API"},
 		{ID: 29, Domain: "default", Type: "api", Name: "获取字典数据", Code: "dict-data:list", Path: "/api/v1/admin/auth/dict-data", Method: "GET", ParentID: 9, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取字典数据API"},
 		{ID: 30, Domain: "default", Type: "api", Name: "获取系统配置", Code: "config:list", Path: "/api/v1/admin/auth/configs", Method: "GET", ParentID: 10, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取系统配置API"},
@@ -822,8 +833,16 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 93, Domain: "default", Type: "api", Name: "获取配置分组", Code: "config:groups", Path: "/api/v1/admin/auth/configs/groups", Method: "GET", ParentID: 10, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取配置分组API"},
 		{ID: 120, Domain: "default", Type: "api", Name: "获取配置分组详情", Code: "config:group", Path: "/api/v1/admin/auth/configs/group/{group}", Method: "GET", ParentID: 10, SortOrder: 2, IsCommon: false, Status: 1, Description: "获取配置分组详情API"},
 		{ID: 121, Domain: "default", Type: "api", Name: "按键获取配置", Code: "config:by-key", Path: "/api/v1/admin/auth/configs/by-key/{key}", Method: "GET", ParentID: 10, SortOrder: 3, IsCommon: false, Status: 1, Description: "按键获取配置API"},
+		{ID: 130, Domain: "default", Type: "api", Name: "创建系统配置", Code: "config:create", Path: "/api/v1/admin/auth/configs", Method: "POST", ParentID: 10, SortOrder: 4, IsCommon: false, Status: 1, Description: "创建系统配置API"},
+		{ID: 131, Domain: "default", Type: "api", Name: "获取系统配置详情", Code: "config:get", Path: "/api/v1/admin/auth/configs/{id}", Method: "GET", ParentID: 10, SortOrder: 5, IsCommon: false, Status: 1, Description: "获取系统配置详情API"},
+		{ID: 132, Domain: "default", Type: "api", Name: "更新系统配置", Code: "config:update", Path: "/api/v1/admin/auth/configs/{id}", Method: "PUT", ParentID: 10, SortOrder: 6, IsCommon: false, Status: 1, Description: "更新系统配置API"},
+		{ID: 133, Domain: "default", Type: "api", Name: "删除系统配置", Code: "config:delete-api", Path: "/api/v1/admin/auth/configs/{id}", Method: "DELETE", ParentID: 10, SortOrder: 7, IsCommon: false, Status: 1, Description: "删除系统配置API"},
 		{ID: 94, Domain: "default", Type: "api", Name: "获取附件分组列表", Code: "attachment-group:list", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentID: 6, SortOrder: 3, IsCommon: false, Status: 1, Description: "获取附件分组列表API"},
 		{ID: 95, Domain: "default", Type: "api", Name: "按类型获取字典数据", Code: "dict-data:type", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentID: 9, SortOrder: 1, IsCommon: false, Status: 1, Description: "按类型获取字典数据API"},
+		{ID: 134, Domain: "default", Type: "api", Name: "创建字典数据", Code: "dict-data:create", Path: "/api/v1/admin/auth/dict-data", Method: "POST", ParentID: 9, SortOrder: 2, IsCommon: false, Status: 1, Description: "创建字典数据API"},
+		{ID: 135, Domain: "default", Type: "api", Name: "获取字典数据详情", Code: "dict-data:get", Path: "/api/v1/admin/auth/dict-data/{id}", Method: "GET", ParentID: 9, SortOrder: 3, IsCommon: false, Status: 1, Description: "获取字典数据详情API"},
+		{ID: 136, Domain: "default", Type: "api", Name: "更新字典数据", Code: "dict-data:update", Path: "/api/v1/admin/auth/dict-data/{id}", Method: "PUT", ParentID: 9, SortOrder: 4, IsCommon: false, Status: 1, Description: "更新字典数据API"},
+		{ID: 137, Domain: "default", Type: "api", Name: "删除字典数据", Code: "dict-data:delete-api", Path: "/api/v1/admin/auth/dict-data/{id}", Method: "DELETE", ParentID: 9, SortOrder: 5, IsCommon: false, Status: 1, Description: "删除字典数据API"},
 		// 部门管理菜单
 		{ID: 96, Domain: "default", Type: "menu", Name: "部门管理", Code: "system:department", MenuPath: "/system/department", Component: "system/department/index", ParentID: 3, SortOrder: 8, IsCommon: false, Status: 1, Description: "部门管理页面"},
 		// 部门管理API

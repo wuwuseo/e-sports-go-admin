@@ -66,7 +66,7 @@ func setupIntegrationTest(t *testing.T) (*ent.Client, *bootstrap.Bootstrap, func
 }
 
 func createActiveUser(t *testing.T, client *ent.Client, email, uid, username, password string) *ent.User {
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	hashedPassword, salt, err := crypto.HashPassword(password)
 	if err != nil {
 		t.Fatalf("加密密码失败: %v", err)
@@ -90,7 +90,7 @@ func createActiveUser(t *testing.T, client *ent.Client, email, uid, username, pa
 func TestIntegration_UserLogin_Success(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	createActiveUser(t, client, "login@test.com", "uid-login-integration", "loginuser", "mypassword123")
 
@@ -141,7 +141,7 @@ func TestIntegration_UserLogin_Success(t *testing.T) {
 func TestIntegration_UserLogin_InvalidPassword(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	createActiveUser(t, client, "badpass@test.com", "uid-badpass", "badpassuser", "correctpassword")
 
@@ -158,7 +158,7 @@ func TestIntegration_UserLogin_InvalidPassword(t *testing.T) {
 func TestIntegration_UserLogin_UserNotFound(t *testing.T) {
 	_, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewUserService()
 	_, err := svc.Login(ctx, &LoginRequest{
@@ -173,7 +173,7 @@ func TestIntegration_UserLogin_UserNotFound(t *testing.T) {
 func TestIntegration_UserLogin_InactiveUser(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	hashedPassword, salt, _ := crypto.HashPassword("pass")
 	client.User.Create().
@@ -200,7 +200,7 @@ func TestIntegration_UserLogin_InactiveUser(t *testing.T) {
 func TestIntegration_RefreshToken_Success(t *testing.T) {
 	client, bs, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	createActiveUser(t, client, "refresh@test.com", "uid-refresh", "refreshuser", "refreshpass")
 
@@ -241,7 +241,7 @@ func TestIntegration_RefreshToken_Success(t *testing.T) {
 func TestIntegration_RefreshToken_InvalidToken(t *testing.T) {
 	_, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewUserService()
 	_, err := svc.RefreshToken(ctx, "invalid-token-format")
@@ -253,7 +253,7 @@ func TestIntegration_RefreshToken_InvalidToken(t *testing.T) {
 func TestIntegration_RefreshToken_WrongTokenType(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	createActiveUser(t, client, "wrongtype@test.com", "uid-wrongtype", "wrongtypeuser", "pass")
 
@@ -273,7 +273,7 @@ func TestIntegration_RefreshToken_WrongTokenType(t *testing.T) {
 func TestIntegration_RefreshToken_UserDeactivated(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	u := createActiveUser(t, client, "deactivate@test.com", "uid-deactivate", "deactuser", "deactpass")
 
@@ -299,7 +299,7 @@ func TestIntegration_RefreshToken_UserDeactivated(t *testing.T) {
 func TestIntegration_ChangePassword_Success(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	createActiveUser(t, client, "changepass@test.com", "uid-changepass-int", "changepassuser", "oldpassword123")
 
@@ -322,7 +322,7 @@ func TestIntegration_ChangePassword_Success(t *testing.T) {
 func TestIntegration_ChangePassword_WrongOldPassword(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	createActiveUser(t, client, "wrongold@test.com", "uid-wrongold", "wrongolduser", "correctpass")
 
@@ -338,7 +338,7 @@ func TestIntegration_ChangePassword_WrongOldPassword(t *testing.T) {
 func TestIntegration_AttachmentService_WithFilesystem(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	// 创建测试文件系统
 	tmpDir := t.TempDir()
@@ -422,7 +422,7 @@ func TestIntegration_AttachmentService_WithFilesystem(t *testing.T) {
 func TestIntegration_CacheBasedServices(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	// 创建测试缓存配置（使用内存缓存驱动）
 	cfg := &cmfConfig.Config{}
@@ -489,7 +489,7 @@ func TestIntegration_CacheBasedServices(t *testing.T) {
 func TestIntegration_CronJob_EnableDisableFlow(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	// 创建定时任务管理器
 	tmpDir := t.TempDir()
@@ -538,7 +538,7 @@ func TestIntegration_CronJob_EnableDisableFlow(t *testing.T) {
 func TestIntegration_E2E_UserFlow(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	// ===== 阶段1: 用户注册 =====
 	svc := NewUserService()
@@ -629,7 +629,7 @@ func TestIntegration_E2E_UserFlow(t *testing.T) {
 func TestIntegration_E2E_RolePermissionFlow(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	// ===== 阶段1: 创建用户 =====
 	u := createActiveUser(t, client, "e2e-role@test.com", "uid-e2e-role", "e2eroleuser", "rolepass")
@@ -710,7 +710,7 @@ func TestIntegration_E2E_RolePermissionFlow(t *testing.T) {
 func TestIntegration_E2E_ConfigAndDictFlow(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	// ===== 阶段1: 创建字典数据 =====
 	dictSvc := NewDictDataService()
@@ -808,7 +808,7 @@ func buildTestRefreshToken(t *testing.T, uid string) string {
 func TestIntegration_AdminLogin_Success(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	hashedPassword, salt, err := crypto.HashPassword("adminpass123")
 	if err != nil {
@@ -860,7 +860,7 @@ func TestIntegration_AdminLogin_Success(t *testing.T) {
 func TestIntegration_AdminLogin_WrongSecretIsolation(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	hashedPassword, salt, err := crypto.HashPassword("pass123")
 	if err != nil {
@@ -912,7 +912,7 @@ func TestIntegration_AdminLogin_WrongSecretIsolation(t *testing.T) {
 func TestIntegration_AdminRefreshToken_Success(t *testing.T) {
 	client, _, cleanup := setupIntegrationTest(t)
 	t.Cleanup(cleanup)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	hashedPassword, salt, err := crypto.HashPassword("pass123")
 	if err != nil {

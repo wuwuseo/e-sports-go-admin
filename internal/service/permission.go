@@ -24,12 +24,13 @@ import (
 
 var (
 	// 权限相关错误
-	ErrPermissionNotFound       = errors.New("权限不存在")
-	ErrInvalidPermissionType    = errors.New("无效的权限类型")
-	ErrPermissionAlreadyExists  = errors.New("权限已存在")
-	ErrInvalidPermissionRequest = errors.New("无效的权限请求")
-	ErrSuperAdminProtected                    = errors.New("超级管理员角色不允许修改权限")
-	ErrSelfRolePermissionMutationForbidden    = errors.New("不允许修改自己所属角色的权限")
+	ErrPermissionNotFound                  = errors.New("权限不存在")
+	ErrInvalidPermissionType               = errors.New("无效的权限类型")
+	ErrPermissionAlreadyExists             = errors.New("权限已存在")
+	ErrInvalidPermissionRequest            = errors.New("无效的权限请求")
+	ErrSuperAdminProtected                 = errors.New("超级管理员角色不允许修改权限")
+	ErrSelfRolePermissionMutationForbidden = errors.New("不允许修改自己所属角色的权限")
+	ErrPermissionOperatorRequired          = errors.New("permission operator identity required")
 )
 
 // SuperAdminRoleName 超级管理员角色名称，禁止通过 API 修改其权限
@@ -60,6 +61,33 @@ var SensitivePermissionObjects = map[string]struct{}{
 func IsSensitivePermissionObject(path string) bool {
 	_, ok := SensitivePermissionObjects[path]
 	return ok
+}
+
+func sensitivePermissionObjectList() []string {
+	objects := make([]string, 0, len(SensitivePermissionObjects))
+	for object := range SensitivePermissionObjects {
+		objects = append(objects, object)
+	}
+	sort.Strings(objects)
+	return objects
+}
+
+type permissionSystemOperatorContextKey struct{}
+
+func withPermissionSystemOperator(ctx context.Context) context.Context {
+	return context.WithValue(ctx, permissionSystemOperatorContextKey{}, true)
+}
+
+func isPermissionSystemOperator(ctx context.Context) bool {
+	trusted, _ := ctx.Value(permissionSystemOperatorContextKey{}).(bool)
+	return trusted
+}
+
+func requirePermissionOperator(ctx context.Context, operatorUID string) error {
+	if operatorUID != "" || isPermissionSystemOperator(ctx) {
+		return nil
+	}
+	return ErrPermissionOperatorRequired
 }
 
 // isUserSuperAdmin 检查用户是否拥有超级管理员角色（包级别辅助函数）
@@ -236,9 +264,12 @@ func (s *PermissionService) defaultCacheTTL() time.Duration {
 }
 
 // isSelfRole 检查目标角色是否属于当前操作者
-// operatorUID 为空时直接返回 false（系统内部调用不受限制）
+// Empty operatorUID is allowed only for explicit system contexts.
 func (s *PermissionService) isSelfRole(ctx context.Context, operatorUID string, targetRoleName string) (bool, error) {
-	if operatorUID == "" {
+	if err := requirePermissionOperator(ctx, operatorUID); err != nil {
+		return false, err
+	}
+	if operatorUID == "" && isPermissionSystemOperator(ctx) {
 		return false, nil
 	}
 	roleNames, err := s.getUserRoleNames(ctx, operatorUID)
@@ -264,7 +295,7 @@ func (s *PermissionService) isSuperAdminUser(ctx context.Context, operatorUID st
 // shouldFilterSensitivePermissions 判断是否需要过滤高风险权限（非超级管理员需要过滤）
 func (s *PermissionService) shouldFilterSensitivePermissions(ctx context.Context, operatorUID string) (bool, error) {
 	if operatorUID == "" {
-		return false, nil
+		return !isPermissionSystemOperator(ctx), nil
 	}
 	isSuperAdmin, err := s.isSuperAdminUser(ctx, operatorUID)
 	if err != nil {
@@ -703,6 +734,15 @@ func (s *PermissionService) ListPermissions(ctx context.Context, operatorUID str
 		)
 	}
 
+	// 非超级管理员过滤高风险 API 权限，必须先于 Count 和分页。
+	shouldFilter, err := s.shouldFilterSensitivePermissions(ctx, operatorUID)
+	if err != nil {
+		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
+	}
+	if shouldFilter {
+		query = query.Where(casbinrule.V2NotIn(sensitivePermissionObjectList()...))
+	}
+
 	// 获取总数
 	total, err := query.Count(ctx)
 	if err != nil {
@@ -719,19 +759,9 @@ func (s *PermissionService) ListPermissions(ctx context.Context, operatorUID str
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
-	// 非超级管理员过滤高风险 API 权限
-	shouldFilter, err := s.shouldFilterSensitivePermissions(ctx, operatorUID)
-	if err != nil {
-		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
-	}
-
 	// 转换为响应格式
 	data := make([]*PermissionResponse, 0, len(permissions))
 	for _, p := range permissions {
-		if shouldFilter && IsSensitivePermissionObject(p.V2) {
-			total--
-			continue
-		}
 		data = append(data, s.toPermissionResponse(p))
 	}
 

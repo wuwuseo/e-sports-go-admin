@@ -28,7 +28,7 @@ func setupFinal3(t *testing.T) *ent.Client {
 
 func TestThirdPartyUserService_Bind_WithAllFields(t *testing.T) {
 	client := setupFinal3(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewThirdPartyUserService()
 
 	u, err := client.User.Create().
@@ -70,7 +70,7 @@ func TestThirdPartyUserService_Bind_WithAllFields(t *testing.T) {
 
 func TestConfigService_GetByKey_Exists(t *testing.T) {
 	client := setupFinal3(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewConfigService(nil)
 
 	_, err := client.SystemConfig.Create().
@@ -98,7 +98,7 @@ func TestConfigService_GetByKey_Exists(t *testing.T) {
 
 func TestSystemPermissionService_Delete_LeafNode(t *testing.T) {
 	client := setupFinal3(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewSystemPermissionService()
 
 	p, err := client.SystemPermission.Create().
@@ -122,7 +122,7 @@ func TestSystemPermissionService_Delete_LeafNode(t *testing.T) {
 
 func TestDictDataService_List_StatusFilter(t *testing.T) {
 	_ = setupFinal3(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewDictDataService()
 
 	statusOn := 1
@@ -148,7 +148,7 @@ func TestDictDataService_List_StatusFilter(t *testing.T) {
 
 func TestPermissionService_ListPermissions_TypeFilter(t *testing.T) {
 	client := setupFinal3(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().

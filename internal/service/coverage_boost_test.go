@@ -30,7 +30,7 @@ func setupCoverageTest(t *testing.T) *ent.Client {
 
 func TestPermissionService_ListPermissions_Empty(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	resp, err := svc.ListPermissions(ctx, "", &ListPermissionsRequest{
@@ -46,7 +46,7 @@ func TestPermissionService_ListPermissions_Empty(t *testing.T) {
 
 func TestPermissionService_ListPermissions_WithData(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -81,7 +81,7 @@ func TestPermissionService_ListPermissions_WithData(t *testing.T) {
 
 func TestPermissionService_ListPermissions_FilterByRoleName(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -119,7 +119,7 @@ func TestPermissionService_ListPermissions_FilterByRoleName(t *testing.T) {
 
 func TestPermissionService_ListPermissions_FilterByDomain(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -148,7 +148,7 @@ func TestPermissionService_ListPermissions_FilterByDomain(t *testing.T) {
 
 func TestPermissionService_ListPermissions_Pagination(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -185,7 +185,7 @@ func TestPermissionService_ListPermissions_Pagination(t *testing.T) {
 
 func TestPermissionService_ListAllPermissions_Empty(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	perms, err := svc.ListAllPermissions(ctx, "", "", "", "", "")
@@ -199,7 +199,7 @@ func TestPermissionService_ListAllPermissions_Empty(t *testing.T) {
 
 func TestPermissionService_ListAllPermissions_WithData(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -225,7 +225,7 @@ func TestPermissionService_ListAllPermissions_WithData(t *testing.T) {
 
 func TestPermissionService_ListAllPermissions_WithFilters(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -253,7 +253,7 @@ func TestPermissionService_ListAllPermissions_WithFilters(t *testing.T) {
 
 func TestPermissionService_RemovePermissionsFromRole_Success(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -283,7 +283,7 @@ func TestPermissionService_RemovePermissionsFromRole_Success(t *testing.T) {
 
 func TestPermissionService_RemovePermissionsFromRole_RoleNotFound(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	err := svc.RemovePermissionsFromRole(ctx, "", "nonexistent", "default", []PermissionRule{
@@ -298,7 +298,7 @@ func TestPermissionService_RemovePermissionsFromRole_RoleNotFound(t *testing.T) 
 
 func TestPermissionService_GetRolePermissionsByRoleID_Success(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	r, err := client.Role.Create().
@@ -323,7 +323,7 @@ func TestPermissionService_GetRolePermissionsByRoleID_Success(t *testing.T) {
 
 func TestPermissionService_GetRolePermissionsByRoleID_NotFound(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := svc.GetRolePermissionsByRoleID(ctx, 99999, "default")
@@ -336,7 +336,7 @@ func TestPermissionService_GetRolePermissionsByRoleID_NotFound(t *testing.T) {
 
 func TestPermissionService_SaveRolePermissions_Success(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	r, err := client.Role.Create().
@@ -371,7 +371,7 @@ func TestPermissionService_SaveRolePermissions_Success(t *testing.T) {
 
 func TestPermissionService_SaveRolePermissions_RoleNotFound(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	err := svc.SaveRolePermissions(ctx, "", 99999, &SaveRolePermissionsRequest{
@@ -403,7 +403,7 @@ func TestPermissionService_ClearUserPermissionsCache_NoCache(t *testing.T) {
 
 func TestPermissionService_ClearRoleAndUsersCache(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	r, err := client.Role.Create().
@@ -457,7 +457,7 @@ func TestPermissionService_ClearRoleAndUsersCache(t *testing.T) {
 
 func TestConfigService_GetGroups_Empty(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewConfigService(nil)
 
 	groups, err := svc.GetGroups(ctx)
@@ -471,7 +471,7 @@ func TestConfigService_GetGroups_Empty(t *testing.T) {
 
 func TestConfigService_GetGroups_WithData(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewConfigService(nil)
 
 	_, err := client.DictData.Create().
@@ -505,7 +505,7 @@ func TestConfigService_GetGroups_WithData(t *testing.T) {
 
 func TestInitSystemPermissions_Success(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	err := InitSystemPermissions(ctx)
 	if err != nil {
 		t.Fatalf("初始化系统权限失败: %v", err)
@@ -523,7 +523,7 @@ func TestInitSystemPermissions_Success(t *testing.T) {
 
 func TestInitSystemPermissions_Idempotent(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	err := InitSystemPermissions(ctx)
 	if err != nil {
 		t.Fatalf("第一次初始化失败: %v", err)
@@ -539,7 +539,7 @@ func TestInitSystemPermissions_Idempotent(t *testing.T) {
 
 func TestOperationLogService_Log_Basic(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewOperationLogService()
 
 	err := svc.Log(ctx, &LogEntry{
@@ -564,7 +564,7 @@ func TestOperationLogService_Log_Basic(t *testing.T) {
 
 func TestOperationLogService_Log_WithAllFields(t *testing.T) {
 	client := setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewOperationLogService()
 
 	err := svc.Log(ctx, &LogEntry{
@@ -636,7 +636,7 @@ func TestNewUserServiceWithCache_Nil(t *testing.T) {
 
 func TestUserService_Logout_NilCache(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewUserService()
 	err := svc.Logout(ctx, "uid-logout")
 	if err != nil {
@@ -700,7 +700,7 @@ func TestConfigService_ConfigCacheKey(t *testing.T) {
 
 func TestCronJobService_Enable_NotFound(t *testing.T) {
 	_ = setupCoverageTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, manager := setupCronJobTest(t)
 	svc := NewCronJobService(manager)
@@ -713,7 +713,7 @@ func TestCronJobService_Enable_NotFound(t *testing.T) {
 
 func TestCronJobService_Disable_NotFound(t *testing.T) {
 	_, manager := setupCronJobTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewCronJobService(manager)
 
@@ -725,7 +725,7 @@ func TestCronJobService_Disable_NotFound(t *testing.T) {
 
 func TestCronJobService_RunNow_NotFound(t *testing.T) {
 	_, manager := setupCronJobTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewCronJobService(manager)
 
@@ -737,7 +737,7 @@ func TestCronJobService_RunNow_NotFound(t *testing.T) {
 
 func TestCronJobService_GetLogs_NotFound(t *testing.T) {
 	_, manager := setupCronJobTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewCronJobService(manager)
 
@@ -749,7 +749,7 @@ func TestCronJobService_GetLogs_NotFound(t *testing.T) {
 
 func TestCronJobService_GetLogContent_NotFound(t *testing.T) {
 	_, manager := setupCronJobTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewCronJobService(manager)
 
@@ -761,7 +761,7 @@ func TestCronJobService_GetLogContent_NotFound(t *testing.T) {
 
 func TestCronJobService_TailLog_NotFound(t *testing.T) {
 	_, manager := setupCronJobTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewCronJobService(manager)
 

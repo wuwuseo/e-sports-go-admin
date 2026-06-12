@@ -795,7 +795,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 115 // 95(原) + 9(部门 96-104) + 8(admin 110-117) + 3(RBAC缺失权限)
+	const wantCount = 132
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
@@ -851,6 +851,33 @@ func TestInitSystemPermissions_IncludesMessageCenterSeeds(t *testing.T) {
 	}
 }
 
+func TestInitSystemPermissions_IncludesCronJobRouteSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	expected := []seedPermissionExpectation{
+		{Code: "cron-job:list", Type: "api", Path: "/api/v1/admin/auth/cron-jobs", Method: "GET", ParentCode: "system:cron-job"},
+		{Code: "cron-job:create", Type: "api", Path: "/api/v1/admin/auth/cron-jobs", Method: "POST", ParentCode: "system:cron-job"},
+		{Code: "cron-job:get", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}", Method: "GET", ParentCode: "system:cron-job"},
+		{Code: "cron-job:update", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}", Method: "PUT", ParentCode: "system:cron-job"},
+		{Code: "cron-job:delete-api", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}", Method: "DELETE", ParentCode: "system:cron-job"},
+		{Code: "cron-job:enable", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}/enable", Method: "POST", ParentCode: "system:cron-job"},
+		{Code: "cron-job:disable", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}/disable", Method: "POST", ParentCode: "system:cron-job"},
+		{Code: "cron-job:run", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}/run", Method: "POST", ParentCode: "system:cron-job"},
+		{Code: "cron-job:logs", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}/logs", Method: "GET", ParentCode: "system:cron-job"},
+		{Code: "cron-job:log-tail", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}/logs/tail", Method: "GET", ParentCode: "system:cron-job"},
+		{Code: "cron-job:log-content", Type: "api", Path: "/api/v1/admin/auth/cron-jobs/{id}/logs/{filename}", Method: "GET", ParentCode: "system:cron-job"},
+	}
+
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
 func TestInitSystemPermissions_IncludesRequestedMissingAPISeeds(t *testing.T) {
 	setupSystemPermissionTest(t)
 	ctx := t.Context()
@@ -862,7 +889,15 @@ func TestInitSystemPermissions_IncludesRequestedMissingAPISeeds(t *testing.T) {
 	expected := []seedPermissionExpectation{
 		{Code: "config:groups", Type: "api", Path: "/api/v1/admin/auth/configs/groups", Method: "GET", ParentCode: "system:config"},
 		{Code: "config:group", Type: "api", Path: "/api/v1/admin/auth/configs/group/{group}", Method: "GET", ParentCode: "system:config"},
+		{Code: "config:create", Type: "api", Path: "/api/v1/admin/auth/configs", Method: "POST", ParentCode: "system:config"},
+		{Code: "config:get", Type: "api", Path: "/api/v1/admin/auth/configs/{id}", Method: "GET", ParentCode: "system:config"},
+		{Code: "config:update", Type: "api", Path: "/api/v1/admin/auth/configs/{id}", Method: "PUT", ParentCode: "system:config"},
+		{Code: "config:delete-api", Type: "api", Path: "/api/v1/admin/auth/configs/{id}", Method: "DELETE", ParentCode: "system:config"},
 		{Code: "attachment-group:list", Type: "api", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentCode: "system:attachment"},
+		{Code: "dict-data:create", Type: "api", Path: "/api/v1/admin/auth/dict-data", Method: "POST", ParentCode: "system:dict-data"},
+		{Code: "dict-data:get", Type: "api", Path: "/api/v1/admin/auth/dict-data/{id}", Method: "GET", ParentCode: "system:dict-data"},
+		{Code: "dict-data:update", Type: "api", Path: "/api/v1/admin/auth/dict-data/{id}", Method: "PUT", ParentCode: "system:dict-data"},
+		{Code: "dict-data:delete-api", Type: "api", Path: "/api/v1/admin/auth/dict-data/{id}", Method: "DELETE", ParentCode: "system:dict-data"},
 		{Code: "dict-data:type", Type: "api", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentCode: "system:dict-data"},
 		{Code: "role:permissions:get", Type: "api", Path: "/api/v1/admin/auth/roles/{id}/permissions", Method: "GET", ParentCode: "system:role"},
 		{Code: "role:permissions:save", Type: "api", Path: "/api/v1/admin/auth/roles/{id}/permissions", Method: "POST", ParentCode: "system:role"},

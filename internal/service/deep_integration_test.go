@@ -17,9 +17,9 @@ import (
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
 
+	"github.com/wuwuseo/cmf/bootstrap"
 	cmfCache "github.com/wuwuseo/cmf/cache"
 	cmfConfig "github.com/wuwuseo/cmf/config"
-	"github.com/wuwuseo/cmf/bootstrap"
 	"github.com/wuwuseo/cmf/crypto"
 	"github.com/wuwuseo/cmf/filesystem"
 
@@ -85,7 +85,7 @@ func makeLocalFilesystem(t *testing.T) (*filesystem.Filesystem, string) {
 func TestIntegration_Upload_Success(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	fs, _ := makeLocalFilesystem(t)
 	fh := makeMultipartFileHeader(t, "report.pdf", []byte("Hello PDF World"))
@@ -122,7 +122,7 @@ func TestIntegration_Upload_Success(t *testing.T) {
 func TestIntegration_Upload_WithGroup(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	fs, _ := makeLocalFilesystem(t)
 	fh := makeMultipartFileHeader(t, "image.jpg", []byte("JPEG data"))
@@ -148,7 +148,7 @@ func TestIntegration_Upload_WithGroup(t *testing.T) {
 func TestIntegration_UploadChunk_Success(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_ = client
 	t.Cleanup(func() { os.RemoveAll("./data") })
@@ -260,7 +260,7 @@ func TestIntegration_UploadChunk_Expired(t *testing.T) {
 func TestIntegration_MergeChunks_Success(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	t.Cleanup(func() { os.RemoveAll("./data") })
 
@@ -324,7 +324,7 @@ func TestIntegration_MergeChunks_SessionNotFound(t *testing.T) {
 	os.MkdirAll("./data/storage/chunks", 0755)
 
 	svc := &AttachmentService{CRUDBase: &CRUDBase{Client: client}}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := svc.MergeChunks(ctx, "nonexistent-merge", "user-1")
 	if err == nil {
@@ -340,7 +340,7 @@ func TestIntegration_MergeChunks_Incomplete(t *testing.T) {
 	defer cleanup()
 
 	svc := &AttachmentService{CRUDBase: &CRUDBase{Client: client}}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	uploadID := "incomplete-001"
 	chunkDir := filepath.Join("./data/storage/chunks", uploadID)
@@ -372,7 +372,7 @@ func TestIntegration_MergeChunks_Incomplete(t *testing.T) {
 func TestIntegration_UnifiedUpload_Simple(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	fs, _ := makeLocalFilesystem(t)
 	svc := &AttachmentService{
@@ -404,7 +404,7 @@ func TestIntegration_UnifiedUpload_Simple(t *testing.T) {
 func TestIntegration_UnifiedUpload_Sharded(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	t.Cleanup(func() { os.RemoveAll("./data") })
 
@@ -483,7 +483,7 @@ func TestIntegration_UnifiedUpload_Sharded(t *testing.T) {
 func TestIntegration_CacheAllPaths(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	// === create memory cache ===
 	cfg := &cmfConfig.Config{}
@@ -607,7 +607,7 @@ func TestIntegration_BootstrapBasedAuth(t *testing.T) {
 	global.Bootstrap = bs
 	t.Cleanup(func() { global.Bootstrap = prevBS })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	hashedPassword, salt, _ := crypto.HashPassword("authpass123")
 	client.User.Create().
 		SetEmail("authtest@example.com").
@@ -665,7 +665,7 @@ func TestIntegration_BootstrapBasedAuth(t *testing.T) {
 func TestIntegration_ConfigService_CachePaths(t *testing.T) {
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	cfg := &cmfConfig.Config{}
 	cfg.Cache.Default = "memory"
@@ -734,7 +734,7 @@ func TestIntegration_UploadChunk_FullFlow(t *testing.T) {
 
 	client, cleanup := setupDeepIntegration(t)
 	defer cleanup()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_ = client
 

@@ -26,12 +26,6 @@ func domainFromCtx(c fiber.Ctx) string {
 	return domain
 }
 
-// isSuperAdminFromCtx 判断当前用户是否为超级管理员
-func isSuperAdminFromCtx(c fiber.Ctx) bool {
-	v, _ := c.Locals("isSuperAdmin").(bool)
-	return v
-}
-
 // ListMessages 当前用户消息列表
 // @Summary 当前用户消息列表
 // @Tags 站内消息
@@ -370,10 +364,6 @@ func BroadcastMessage(c fiber.Ctx) error {
 	uid := uidFromCtx(c)
 	if uid == "" {
 		return response.Fail(global.ResponseUnauthorized, "缺少用户身份").ToJSON(c)
-	}
-	// admin 权限校验
-	if !isSuperAdminFromCtx(c) {
-		return response.Fail(global.ResponseForbidden, "仅管理员可执行广播操作").ToJSON(c)
 	}
 	req, err := validate.ParseAndValidate[service.BroadcastRequest](c)
 	if err != nil {

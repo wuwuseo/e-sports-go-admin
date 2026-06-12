@@ -77,7 +77,7 @@ func TestPermissionService_GetUserMenuPermissions_SuperAdminReturnsEnabledMenus(
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	adminRole, err := client.Role.Create().
 		SetName("admin").
@@ -207,7 +207,7 @@ func TestPermissionService_GetUserMenuPermissionTree_ReturnsTree(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor").
@@ -322,7 +322,7 @@ func TestPermissionService_GetUserPermissionTree_ReturnsMixedTreeWithTypes(t *te
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor").
@@ -452,7 +452,7 @@ func TestPermissionService_GetUserButtonPermissions_SuperAdminReturnsEnabledButt
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	adminRole, err := client.Role.Create().
 		SetName("admin").
@@ -580,7 +580,7 @@ func TestPermissionService_GetUserMenuPermissions_AdminAccountUsesAdminRoles(t *
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	normalRole, err := client.Role.Create().
 		SetName("normal_admin").
@@ -650,7 +650,7 @@ func TestPermissionService_GetUserRoleNames_AdminAccountUsesAdminRoles(t *testin
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	normalRole, err := client.Role.Create().
 		SetName("normal_admin").
@@ -703,7 +703,7 @@ func TestPermissionService_CheckPermission_AdminAccountUsesAdminRoles(t *testing
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	normalRole, err := client.Role.Create().
 		SetName("normal_admin").
@@ -770,7 +770,7 @@ func TestPermissionService_CheckUserHasRole_AdminAccountUsesAdminRoles(t *testin
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	adminRole, err := client.Role.Create().
 		SetName("admin").
@@ -823,7 +823,7 @@ func TestPermissionService_CheckPermission_UsesEnforcerKeyMatchPolicy(t *testing
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	adminRole, err := client.Role.Create().
 		SetName("admin").
@@ -901,7 +901,7 @@ func TestPermissionService_CreatePermission_Success(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -951,7 +951,7 @@ func TestPermissionService_CreatePermission_InvalidType(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -986,7 +986,7 @@ func TestPermissionService_CreatePermission_RoleNotFound(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewPermissionService(nil)
 	err := svc.CreatePermission(ctx, "", &CreatePermissionRequest{
@@ -1012,7 +1012,7 @@ func TestPermissionService_CreatePermission_Duplicate(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -1056,7 +1056,7 @@ func TestPermissionService_GetPermission_Success(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -1116,7 +1116,7 @@ func TestPermissionService_GetPermission_NotFound(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewPermissionService(nil)
 	_, err := svc.GetPermission(ctx, "nonexistent", "default", "/api/v1/foo", "GET")
@@ -1137,7 +1137,7 @@ func TestPermissionService_DeletePermission_Success(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -1193,7 +1193,7 @@ func TestPermissionService_DeletePermission_NotFound(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewPermissionService(nil)
 	err := svc.DeletePermission(ctx, "", "nonexistent", "default", "/api/v1/foo", "GET")
@@ -1214,7 +1214,7 @@ func TestPermissionService_UpdatePermission_Success(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -1279,7 +1279,7 @@ func TestPermissionService_UpdatePermission_NotFound(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -1318,7 +1318,7 @@ func TestPermissionService_GetRolePermissions_Success(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -1390,7 +1390,7 @@ func TestPermissionService_GetRolePermissions_RoleNotFound(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewPermissionService(nil)
 	_, err := svc.GetRolePermissions(ctx, "nonexistent", "default")
@@ -1411,7 +1411,7 @@ func TestPermissionService_GetUserAPIPermissions_WithPermissions(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor").
@@ -1500,7 +1500,7 @@ func TestPermissionService_GetUserAPIPermissions_NoPermissions(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor").
@@ -1555,7 +1555,7 @@ func TestPermissionService_CheckPermission_HasPermission(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor").
@@ -1623,7 +1623,7 @@ func TestPermissionService_AssignPermissionsToRole_ReloadsCasbinPolicy(t *testin
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor").
@@ -1683,7 +1683,7 @@ func TestPermissionService_SaveRolePermissions_ReloadsCasbinPolicy(t *testing.T)
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor-save").
@@ -1750,7 +1750,7 @@ func TestPermissionService_SaveRolePermissions_ClearsAdminUserPermissionCache(t 
 	global.EnforcerManager = nil
 	t.Cleanup(func() { global.EnforcerManager = prevEnforcerManager })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	cache := makeMemCache(t)
 	svc := NewPermissionService(cache)
 
@@ -1832,7 +1832,7 @@ func TestPermissionService_CheckPermission_NoPermission(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	editorRole, err := client.Role.Create().
 		SetName("editor").
@@ -1889,7 +1889,7 @@ func TestPermissionService_CheckUserHasRole_HasRole(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	adminRole, err := client.Role.Create().
 		SetName("admin").
@@ -1942,7 +1942,7 @@ func TestPermissionService_CheckUserHasRole_NoRole(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("admin").
@@ -1974,7 +1974,7 @@ func TestPermissionService_CheckUserHasRole_RoleNotFound(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewPermissionService(nil)
 	hasRole, err := svc.CheckUserHasRole(ctx, "uid-test-user", "default", "nonexistent-role")
@@ -1999,7 +1999,7 @@ func TestPermissionService_AssignPermissionsToRole_Success(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").
@@ -2041,7 +2041,7 @@ func TestPermissionService_AssignPermissionsToRole_RoleNotFound(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	svc := NewPermissionService(nil)
 	perms := []PermissionRule{
@@ -2064,7 +2064,7 @@ func TestPermissionService_AssignPermissionsToRole_EmptyList(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := client.Role.Create().
 		SetName("editor").

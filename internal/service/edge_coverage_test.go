@@ -10,9 +10,9 @@ import (
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
 
+	"github.com/wuwuseo/cmf/bootstrap"
 	cmfCache "github.com/wuwuseo/cmf/cache"
 	cmfConfig "github.com/wuwuseo/cmf/config"
-	"github.com/wuwuseo/cmf/bootstrap"
 	"github.com/wuwuseo/cmf/crypto"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -33,7 +33,7 @@ func setupFinalCoverage(t *testing.T) *ent.Client {
 
 func TestUserService_Logout_WithCache(t *testing.T) {
 	client := setupFinalCoverage(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	cfg := &cmfConfig.Config{}
 	cfg.Cache.Default = "memory"
@@ -85,7 +85,7 @@ func TestUserService_Logout_Bootstrap(t *testing.T) {
 	global.Bootstrap = bs
 	t.Cleanup(func() { global.Bootstrap = prevBS })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	cacheInst := cmfCache.NewCache(ctx, cfg)
 	svc := NewUserServiceWithCache(cacheInst)
 
@@ -101,7 +101,7 @@ func TestUserService_Logout_Bootstrap(t *testing.T) {
 
 func TestPermissionService_UpdatePermission_NewObjectOnly(t *testing.T) {
 	client := setupFinalCoverage(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -132,7 +132,7 @@ func TestPermissionService_UpdatePermission_NewObjectOnly(t *testing.T) {
 
 func TestPermissionService_UpdatePermission_OnlyDescription(t *testing.T) {
 	client := setupFinalCoverage(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewPermissionService(nil)
 
 	_, err := client.Role.Create().
@@ -163,7 +163,7 @@ func TestPermissionService_UpdatePermission_OnlyDescription(t *testing.T) {
 
 func TestPermissionService_DeletePermission_CachePaths(t *testing.T) {
 	client := setupFinalCoverage(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	cfg := &cmfConfig.Config{}
 	cfg.Cache.Default = "memory"
@@ -206,7 +206,7 @@ func TestIntegration_AuthEndToEnd(t *testing.T) {
 	global.Bootstrap = bs
 	t.Cleanup(func() { global.Bootstrap = prevBS })
 
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	hash, salt, _ := crypto.HashPassword("e2e-pass")
 	client.User.Create().
 		SetEmail("e2e-auth@test.com").
@@ -251,7 +251,7 @@ func TestIntegration_AuthEndToEnd(t *testing.T) {
 
 func TestDictDataService_GetByType_NotFound(t *testing.T) {
 	_ = setupFinalCoverage(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewDictDataService()
 
 	data, err := svc.GetByType(ctx, "nonexistent_type")
