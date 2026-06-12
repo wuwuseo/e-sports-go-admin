@@ -183,7 +183,8 @@ func ListSystemPermissions(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
-	result, err := svc.List(c.Context(), req)
+	uid, _ := c.Locals("uid").(string)
+	result, err := svc.List(c.Context(), uid, req)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取权限列表失败").ToJSON(c)
 	}
@@ -209,7 +210,9 @@ func GetSystemPermissionTree(c fiber.Ctx) error {
 
 	domain := c.Query("domain", "default")
 
-	tree, err := svc.GetTree(c.Context(), domain)
+	uid, _ := c.Locals("uid").(string)
+
+	tree, err := svc.GetTree(c.Context(), uid, domain)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取权限树失败").ToJSON(c)
 	}

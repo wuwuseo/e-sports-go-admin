@@ -531,7 +531,7 @@ func TestIntegration_CacheAllPaths(t *testing.T) {
 		t.Fatalf("create role: %v", err)
 	}
 
-	err = permSvc.AssignPermissionsToRole(ctx, "perm-cache-role", "default", []PermissionRule{
+	err = permSvc.AssignPermissionsToRole(ctx, "", "perm-cache-role", "default", []PermissionRule{
 		{Object: "/api/cached", Action: "GET"},
 	})
 	if err != nil {

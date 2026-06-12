@@ -45,13 +45,17 @@ func CreatePermission(c fiber.Ctx) error {
 	}
 
 	// 创建权限
-	err = permissionService.CreatePermission(c.Context(), req)
+	uid, _ := c.Locals("uid").(string)
+	err = permissionService.CreatePermission(c.Context(), uid, req)
 	if err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSelfRolePermissionMutationForbidden {
+			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "创建权限失败").ToJSON(c)
 	}
@@ -94,13 +98,17 @@ func UpdatePermission(c fiber.Ctx) error {
 	}
 
 	// 更新权限
-	err = permissionService.UpdatePermission(c.Context(), req)
+	uid, _ := c.Locals("uid").(string)
+	err = permissionService.UpdatePermission(c.Context(), uid, req)
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSelfRolePermissionMutationForbidden {
+			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "更新权限失败").ToJSON(c)
 	}
@@ -148,13 +156,17 @@ func DeletePermission(c fiber.Ctx) error {
 	}
 
 	// 删除权限
-	err := permissionService.DeletePermission(c.Context(), roleName, domain, object, action)
+	uid, _ := c.Locals("uid").(string)
+	err := permissionService.DeletePermission(c.Context(), uid, roleName, domain, object, action)
 	if err != nil {
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSelfRolePermissionMutationForbidden {
+			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "删除权限失败").ToJSON(c)
 	}
@@ -257,7 +269,8 @@ func ListPermissions(c fiber.Ctx) error {
 	}
 
 	// 获取权限列表
-	permissions, err := permissionService.ListPermissions(c.Context(), req)
+	uid, _ := c.Locals("uid").(string)
+	permissions, err := permissionService.ListPermissions(c.Context(), uid, req)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取权限列表失败").ToJSON(c)
 	}
@@ -295,7 +308,8 @@ func ListAllPermissions(c fiber.Ctx) error {
 	roleName := c.Query("role_name")
 
 	// 获取所有权限
-	permissions, err := permissionService.ListAllPermissions(c.Context(), keyword, permType, domain, roleName)
+	uid, _ := c.Locals("uid").(string)
+	permissions, err := permissionService.ListAllPermissions(c.Context(), uid, keyword, permType, domain, roleName)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取权限列表失败").ToJSON(c)
 	}
@@ -344,13 +358,17 @@ func AssignPermissionsToRole(c fiber.Ctx) error {
 	}
 
 	// 为角色分配权限
-	err := permissionService.AssignPermissionsToRole(c.Context(), req.RoleName, req.Domain, req.Permissions)
+	uid, _ := c.Locals("uid").(string)
+	err := permissionService.AssignPermissionsToRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions)
 	if err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSelfRolePermissionMutationForbidden {
+			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "为角色分配权限失败").ToJSON(c)
 	}
@@ -395,13 +413,17 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 	}
 
 	// 从角色移除权限
-	err := permissionService.RemovePermissionsFromRole(c.Context(), req.RoleName, req.Domain, req.Permissions)
+	uid, _ := c.Locals("uid").(string)
+	err := permissionService.RemovePermissionsFromRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions)
 	if err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSelfRolePermissionMutationForbidden {
+			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "从角色移除权限失败").ToJSON(c)
 	}
@@ -668,7 +690,8 @@ func SaveRolePermissions(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	err = permissionService.SaveRolePermissions(c.Context(), id, req)
+	uid, _ := c.Locals("uid").(string)
+	err = permissionService.SaveRolePermissions(c.Context(), uid, id, req)
 	if err != nil {
 		log.Error("保存角色权限失败", zap.Int("role_id", id), zap.String("domain", req.Domain), zap.Error(err))
 		if err == service.ErrRoleNotFound {
@@ -676,6 +699,9 @@ func SaveRolePermissions(c fiber.Ctx) error {
 		}
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrSelfRolePermissionMutationForbidden {
+			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "保存角色权限失败").ToJSON(c)
 	}

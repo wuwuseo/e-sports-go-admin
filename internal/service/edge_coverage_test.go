@@ -113,10 +113,10 @@ func TestPermissionService_UpdatePermission_NewObjectOnly(t *testing.T) {
 		t.Fatalf("create role: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "update-edge-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/orig", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "update-edge-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/orig", Action: "GET"})
 
 	// update only NewObject, keep NewAction same
-	err = svc.UpdatePermission(ctx, &UpdatePermissionRequest{
+	err = svc.UpdatePermission(ctx, "", &UpdatePermissionRequest{
 		RoleName:  "update-edge-role",
 		Domain:    "default",
 		Type:      PermissionTypeAPI,
@@ -144,9 +144,9 @@ func TestPermissionService_UpdatePermission_OnlyDescription(t *testing.T) {
 		t.Fatalf("create role: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "desc-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/desc", Action: "POST", Description: "old desc"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "desc-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/desc", Action: "POST", Description: "old desc"})
 
-	err = svc.UpdatePermission(ctx, &UpdatePermissionRequest{
+	err = svc.UpdatePermission(ctx, "", &UpdatePermissionRequest{
 		RoleName:    "desc-role",
 		Domain:      "default",
 		Type:        PermissionTypeAPI,
@@ -181,9 +181,9 @@ func TestPermissionService_DeletePermission_CachePaths(t *testing.T) {
 	u, _ := client.User.Create().SetEmail("delcache@t.com").SetUID("uid-del-cache").SetUsername("delcache").SetPassword("p").SetPasswordSalt("s").SetStatus(user.StatusActive).Save(ctx)
 	client.UserRole.Create().SetUserID(u.ID).SetRoleID(r.ID).Save(ctx)
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "del-cache-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/delcache", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "del-cache-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/delcache", Action: "GET"})
 
-	err := svc.DeletePermission(ctx, "del-cache-role", "default", "/api/delcache", "GET")
+	err := svc.DeletePermission(ctx, "", "del-cache-role", "default", "/api/delcache", "GET")
 	if err != nil {
 		t.Fatalf("DeletePermission with cache: %v", err)
 	}

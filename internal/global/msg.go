@@ -103,6 +103,8 @@ const (
 	ResponseRoleScopeEscalation = 9010
 	// ResponseDepartmentNotFound 目标部门不存在
 	ResponseDepartmentNotFound = 9011
+	// ResponseSelfRolePermissionForbidden 不允许修改自己所属角色的权限
+	ResponseSelfRolePermissionForbidden = 9012
 )
 
 // ResponseMsg 响应消息映射
@@ -204,5 +206,6 @@ var ResponseMsg = map[int]string{
 	ResponseSelfRoleModifyForbidden: "不能修改自己的角色",
 	ResponseDepartmentOutOfScope:    "目标部门不在你的数据权限范围内",
 	ResponseRoleScopeEscalation:     "目标角色的数据范围超出你的权限",
-	ResponseDepartmentNotFound:      "目标部门不存在",
+	ResponseDepartmentNotFound:             "目标部门不存在",
+	ResponseSelfRolePermissionForbidden:    "不允许修改自己所属角色的权限",
 }

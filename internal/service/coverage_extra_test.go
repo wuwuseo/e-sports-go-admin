@@ -160,10 +160,10 @@ func TestPermissionService_ListPermissions_TypeFilter(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "type-filter-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/1", Action: "GET"})
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "type-filter-role", Domain: "default", Type: PermissionTypeMenu, Object: "/menu/1", Action: "menu"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "type-filter-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "type-filter-role", Domain: "default", Type: PermissionTypeMenu, Object: "/menu/1", Action: "menu"})
 
-	resp, err := svc.ListPermissions(ctx, &ListPermissionsRequest{
+	resp, err := svc.ListPermissions(ctx, "", &ListPermissionsRequest{
 		PaginationRequest: PaginationRequest{Page: 1, PageSize: 10},
 		Type:              PermissionTypeAPI,
 	})

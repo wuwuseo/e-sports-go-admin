@@ -33,7 +33,7 @@ func TestPermissionService_ListPermissions_Empty(t *testing.T) {
 	ctx := t.Context()
 	svc := NewPermissionService(nil)
 
-	resp, err := svc.ListPermissions(ctx, &ListPermissionsRequest{
+	resp, err := svc.ListPermissions(ctx, "", &ListPermissionsRequest{
 		PaginationRequest: PaginationRequest{Page: 1, PageSize: 10},
 	})
 	if err != nil {
@@ -59,7 +59,7 @@ func TestPermissionService_ListPermissions_WithData(t *testing.T) {
 	}
 
 	for i := range 3 {
-		_ = svc.CreatePermission(ctx, &CreatePermissionRequest{
+		_ = svc.CreatePermission(ctx, "", &CreatePermissionRequest{
 			RoleName: "editor",
 			Domain:   "default",
 			Type:     PermissionTypeAPI,
@@ -68,7 +68,7 @@ func TestPermissionService_ListPermissions_WithData(t *testing.T) {
 		})
 	}
 
-	resp, err := svc.ListPermissions(ctx, &ListPermissionsRequest{
+	resp, err := svc.ListPermissions(ctx, "", &ListPermissionsRequest{
 		PaginationRequest: PaginationRequest{Page: 1, PageSize: 10},
 	})
 	if err != nil {
@@ -101,11 +101,11 @@ func TestPermissionService_ListPermissions_FilterByRoleName(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "role-a", Domain: "default", Type: PermissionTypeAPI, Object: "/api/a1", Action: "GET"})
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "role-a", Domain: "default", Type: PermissionTypeAPI, Object: "/api/a2", Action: "GET"})
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "role-b", Domain: "default", Type: PermissionTypeAPI, Object: "/api/b1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "role-a", Domain: "default", Type: PermissionTypeAPI, Object: "/api/a1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "role-a", Domain: "default", Type: PermissionTypeAPI, Object: "/api/a2", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "role-b", Domain: "default", Type: PermissionTypeAPI, Object: "/api/b1", Action: "GET"})
 
-	resp, err := svc.ListPermissions(ctx, &ListPermissionsRequest{
+	resp, err := svc.ListPermissions(ctx, "", &ListPermissionsRequest{
 		PaginationRequest: PaginationRequest{Page: 1, PageSize: 10},
 		RoleName:          "role-a",
 	})
@@ -131,10 +131,10 @@ func TestPermissionService_ListPermissions_FilterByDomain(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/d1", Action: "GET"})
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "other", Type: PermissionTypeAPI, Object: "/api/d2", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/d1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "other", Type: PermissionTypeAPI, Object: "/api/d2", Action: "GET"})
 
-	resp, err := svc.ListPermissions(ctx, &ListPermissionsRequest{
+	resp, err := svc.ListPermissions(ctx, "", &ListPermissionsRequest{
 		PaginationRequest: PaginationRequest{Page: 1, PageSize: 10},
 		Domain:            "default",
 	})
@@ -161,7 +161,7 @@ func TestPermissionService_ListPermissions_Pagination(t *testing.T) {
 	}
 
 	for i := range 5 {
-		svc.CreatePermission(ctx, &CreatePermissionRequest{
+		svc.CreatePermission(ctx, "", &CreatePermissionRequest{
 			RoleName: "editor",
 			Domain:   "default",
 			Type:     PermissionTypeAPI,
@@ -170,7 +170,7 @@ func TestPermissionService_ListPermissions_Pagination(t *testing.T) {
 		})
 	}
 
-	resp, err := svc.ListPermissions(ctx, &ListPermissionsRequest{
+	resp, err := svc.ListPermissions(ctx, "", &ListPermissionsRequest{
 		PaginationRequest: PaginationRequest{Page: 2, PageSize: 2},
 	})
 	if err != nil {
@@ -188,7 +188,7 @@ func TestPermissionService_ListAllPermissions_Empty(t *testing.T) {
 	ctx := t.Context()
 	svc := NewPermissionService(nil)
 
-	perms, err := svc.ListAllPermissions(ctx, "", "", "", "")
+	perms, err := svc.ListAllPermissions(ctx, "", "", "", "", "")
 	if err != nil {
 		t.Fatalf("获取所有权限失败: %v", err)
 	}
@@ -211,10 +211,10 @@ func TestPermissionService_ListAllPermissions_WithData(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/all1", Action: "GET"})
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/all2", Action: "POST"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/all1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/all2", Action: "POST"})
 
-	perms, err := svc.ListAllPermissions(ctx, "", "", "", "")
+	perms, err := svc.ListAllPermissions(ctx, "", "", "", "", "")
 	if err != nil {
 		t.Fatalf("获取所有权限失败: %v", err)
 	}
@@ -237,10 +237,10 @@ func TestPermissionService_ListAllPermissions_WithFilters(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/filter1", Action: "GET"})
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeMenu, Object: "/menu/filter", Action: "menu"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/filter1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeMenu, Object: "/menu/filter", Action: "menu"})
 
-	perms, err := svc.ListAllPermissions(ctx, "", PermissionTypeAPI, "default", "editor")
+	perms, err := svc.ListAllPermissions(ctx, "", "", PermissionTypeAPI, "default", "editor")
 	if err != nil {
 		t.Fatalf("筛选所有权限失败: %v", err)
 	}
@@ -265,10 +265,10 @@ func TestPermissionService_RemovePermissionsFromRole_Success(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/remove1", Action: "GET"})
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/remove2", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/remove1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "editor", Domain: "default", Type: PermissionTypeAPI, Object: "/api/remove2", Action: "GET"})
 
-	err = svc.RemovePermissionsFromRole(ctx, "editor", "default", []PermissionRule{
+	err = svc.RemovePermissionsFromRole(ctx, "", "editor", "default", []PermissionRule{
 		{Object: "/api/remove1", Action: "GET"},
 	})
 	if err != nil {
@@ -286,7 +286,7 @@ func TestPermissionService_RemovePermissionsFromRole_RoleNotFound(t *testing.T) 
 	ctx := t.Context()
 	svc := NewPermissionService(nil)
 
-	err := svc.RemovePermissionsFromRole(ctx, "nonexistent", "default", []PermissionRule{
+	err := svc.RemovePermissionsFromRole(ctx, "", "nonexistent", "default", []PermissionRule{
 		{Object: "/api/test", Action: "GET"},
 	})
 	if err == nil {
@@ -310,7 +310,7 @@ func TestPermissionService_GetRolePermissionsByRoleID_Success(t *testing.T) {
 		t.Fatalf("创建角色失败: %v", err)
 	}
 
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "by-id-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/byid", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "by-id-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/byid", Action: "GET"})
 
 	perms, err := svc.GetRolePermissionsByRoleID(ctx, r.ID, "default")
 	if err != nil {
@@ -349,10 +349,10 @@ func TestPermissionService_SaveRolePermissions_Success(t *testing.T) {
 	}
 
 	// 先分配一些权限
-	svc.CreatePermission(ctx, &CreatePermissionRequest{RoleName: "save-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/old1", Action: "GET"})
+	svc.CreatePermission(ctx, "", &CreatePermissionRequest{RoleName: "save-role", Domain: "default", Type: PermissionTypeAPI, Object: "/api/old1", Action: "GET"})
 
 	// 覆盖式保存新权限
-	err = svc.SaveRolePermissions(ctx, r.ID, &SaveRolePermissionsRequest{
+	err = svc.SaveRolePermissions(ctx, "", r.ID, &SaveRolePermissionsRequest{
 		Domain: "default",
 		Permissions: []PermissionRule{
 			{Object: "/api/new1", Action: "GET"},
@@ -374,7 +374,7 @@ func TestPermissionService_SaveRolePermissions_RoleNotFound(t *testing.T) {
 	ctx := t.Context()
 	svc := NewPermissionService(nil)
 
-	err := svc.SaveRolePermissions(ctx, 99999, &SaveRolePermissionsRequest{
+	err := svc.SaveRolePermissions(ctx, "", 99999, &SaveRolePermissionsRequest{
 		Domain: "default",
 		Permissions: []PermissionRule{
 			{Object: "/api/test", Action: "GET"},
@@ -512,7 +512,7 @@ func TestInitSystemPermissions_Success(t *testing.T) {
 	}
 
 	svc := NewSystemPermissionService()
-	perms, err := svc.List(ctx, &ListSystemPermissionsRequest{})
+	perms, err := svc.List(ctx, "", &ListSystemPermissionsRequest{})
 	if err != nil {
 		t.Fatalf("获取系统权限列表失败: %v", err)
 	}

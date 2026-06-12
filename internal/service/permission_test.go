@@ -913,7 +913,7 @@ func TestPermissionService_CreatePermission_Success(t *testing.T) {
 	}
 
 	svc := NewPermissionService(nil)
-	err = svc.CreatePermission(ctx, &CreatePermissionRequest{
+	err = svc.CreatePermission(ctx, "", &CreatePermissionRequest{
 		RoleName:    "editor",
 		Domain:      "default",
 		Type:        PermissionTypeAPI,
@@ -963,7 +963,7 @@ func TestPermissionService_CreatePermission_InvalidType(t *testing.T) {
 	}
 
 	svc := NewPermissionService(nil)
-	err = svc.CreatePermission(ctx, &CreatePermissionRequest{
+	err = svc.CreatePermission(ctx, "", &CreatePermissionRequest{
 		RoleName:    "editor",
 		Domain:      "default",
 		Type:        PermissionType("invalid"),
@@ -989,7 +989,7 @@ func TestPermissionService_CreatePermission_RoleNotFound(t *testing.T) {
 	ctx := t.Context()
 
 	svc := NewPermissionService(nil)
-	err := svc.CreatePermission(ctx, &CreatePermissionRequest{
+	err := svc.CreatePermission(ctx, "", &CreatePermissionRequest{
 		RoleName:    "nonexistent",
 		Domain:      "default",
 		Type:        PermissionTypeAPI,
@@ -1033,12 +1033,12 @@ func TestPermissionService_CreatePermission_Duplicate(t *testing.T) {
 		Description: "查看文章列表",
 	}
 
-	err = svc.CreatePermission(ctx, req)
+	err = svc.CreatePermission(ctx, "", req)
 	if err != nil {
 		t.Fatalf("第一次 CreatePermission 失败: %v", err)
 	}
 
-	err = svc.CreatePermission(ctx, req)
+	err = svc.CreatePermission(ctx, "", req)
 	if !errors.Is(err, ErrPermissionAlreadyExists) {
 		t.Errorf("期望错误为 ErrPermissionAlreadyExists, 实际为 %v", err)
 	}
@@ -1162,7 +1162,7 @@ func TestPermissionService_DeletePermission_Success(t *testing.T) {
 	}
 
 	svc := NewPermissionService(nil)
-	err = svc.DeletePermission(ctx, "editor", "default", "/api/v1/articles", "GET")
+	err = svc.DeletePermission(ctx, "", "editor", "default", "/api/v1/articles", "GET")
 	if err != nil {
 		t.Fatalf("DeletePermission 失败: %v", err)
 	}
@@ -1196,7 +1196,7 @@ func TestPermissionService_DeletePermission_NotFound(t *testing.T) {
 	ctx := t.Context()
 
 	svc := NewPermissionService(nil)
-	err := svc.DeletePermission(ctx, "nonexistent", "default", "/api/v1/foo", "GET")
+	err := svc.DeletePermission(ctx, "", "nonexistent", "default", "/api/v1/foo", "GET")
 	if !errors.Is(err, ErrPermissionNotFound) {
 		t.Errorf("期望错误为 ErrPermissionNotFound, 实际为 %v", err)
 	}
@@ -1239,7 +1239,7 @@ func TestPermissionService_UpdatePermission_Success(t *testing.T) {
 	}
 
 	svc := NewPermissionService(nil)
-	err = svc.UpdatePermission(ctx, &UpdatePermissionRequest{
+	err = svc.UpdatePermission(ctx, "", &UpdatePermissionRequest{
 		RoleName:    "editor",
 		Domain:      "default",
 		Type:        PermissionTypeAPI,
@@ -1291,7 +1291,7 @@ func TestPermissionService_UpdatePermission_NotFound(t *testing.T) {
 	}
 
 	svc := NewPermissionService(nil)
-	err = svc.UpdatePermission(ctx, &UpdatePermissionRequest{
+	err = svc.UpdatePermission(ctx, "", &UpdatePermissionRequest{
 		RoleName:    "editor",
 		Domain:      "default",
 		Type:        PermissionTypeAPI,
@@ -1657,7 +1657,7 @@ func TestPermissionService_AssignPermissionsToRole_ReloadsCasbinPolicy(t *testin
 	setupPermissionTestEnforcer(t, client)
 
 	svc := NewPermissionService(nil)
-	err = svc.AssignPermissionsToRole(ctx, "editor", "default", []PermissionRule{
+	err = svc.AssignPermissionsToRole(ctx, "", "editor", "default", []PermissionRule{
 		{Object: "/api/v1/admin/auth/plugins", Action: "GET"},
 	})
 	if err != nil {
@@ -1717,7 +1717,7 @@ func TestPermissionService_SaveRolePermissions_ReloadsCasbinPolicy(t *testing.T)
 	setupPermissionTestEnforcer(t, client)
 
 	svc := NewPermissionService(nil)
-	err = svc.SaveRolePermissions(ctx, editorRole.ID, &SaveRolePermissionsRequest{
+	err = svc.SaveRolePermissions(ctx, "", editorRole.ID, &SaveRolePermissionsRequest{
 		Domain: "default",
 		Permissions: []PermissionRule{
 			{Object: "/api/v1/admin/auth/messages", Action: "GET"},
@@ -1803,7 +1803,7 @@ func TestPermissionService_SaveRolePermissions_ClearsAdminUserPermissionCache(t 
 		t.Fatalf("expected old-menu before save, got %+v", first)
 	}
 
-	err = svc.SaveRolePermissions(ctx, editorRole.ID, &SaveRolePermissionsRequest{
+	err = svc.SaveRolePermissions(ctx, "", editorRole.ID, &SaveRolePermissionsRequest{
 		Domain: "default",
 		Permissions: []PermissionRule{
 			{Object: "new-menu", Action: "menu"},
@@ -2016,7 +2016,7 @@ func TestPermissionService_AssignPermissionsToRole_Success(t *testing.T) {
 		{Object: "/api/v1/articles", Action: "POST"},
 	}
 
-	err = svc.AssignPermissionsToRole(ctx, "editor", "default", perms)
+	err = svc.AssignPermissionsToRole(ctx, "", "editor", "default", perms)
 	if err != nil {
 		t.Fatalf("AssignPermissionsToRole 失败: %v", err)
 	}
@@ -2048,7 +2048,7 @@ func TestPermissionService_AssignPermissionsToRole_RoleNotFound(t *testing.T) {
 		{Object: "/api/v1/articles", Action: "GET"},
 	}
 
-	err := svc.AssignPermissionsToRole(ctx, "nonexistent", "default", perms)
+	err := svc.AssignPermissionsToRole(ctx, "", "nonexistent", "default", perms)
 	if !errors.Is(err, ErrRoleNotFound) {
 		t.Errorf("期望错误为 ErrRoleNotFound, 实际为 %v", err)
 	}
@@ -2076,7 +2076,7 @@ func TestPermissionService_AssignPermissionsToRole_EmptyList(t *testing.T) {
 	}
 
 	svc := NewPermissionService(nil)
-	err = svc.AssignPermissionsToRole(ctx, "editor", "default", []PermissionRule{})
+	err = svc.AssignPermissionsToRole(ctx, "", "editor", "default", []PermissionRule{})
 	if err != nil {
 		t.Fatalf("空列表不应该返回错误, 实际返回: %v", err)
 	}

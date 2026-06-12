@@ -13,6 +13,27 @@ import (
 // ErrPermissionParentCycle 系统权限父子环
 var ErrPermissionParentCycle = errors.New("permission parent cycle detected")
 
+// isSensitiveAPIPermission 判断系统权限是否为高风险 API 权限
+func isSensitiveAPIPermission(p *ent.SystemPermission) bool {
+	if p.Type != "api" {
+		return false
+	}
+	return IsSensitivePermissionObject(p.Path)
+}
+
+// shouldFilterSensitive 判断是否需要过滤高风险权限（非超级管理员需要过滤）
+func (s *SystemPermissionService) shouldFilterSensitive(ctx context.Context, operatorUID string) (bool, error) {
+	if operatorUID == "" {
+		return false, nil
+	}
+	// 查询操作者是否拥有超级管理员角色
+	isSuperAdmin, err := isUserSuperAdmin(ctx, s.client, operatorUID)
+	if err != nil {
+		return false, err
+	}
+	return !isSuperAdmin, nil
+}
+
 // SystemPermissionType 权限类型
 type SystemPermissionType string
 
@@ -132,8 +153,8 @@ type SystemPermissionServiceInterface interface {
 	Update(ctx context.Context, id int, req *UpdateSystemPermissionRequest) error
 	Delete(ctx context.Context, id int) error
 	GetByID(ctx context.Context, id int) (*SystemPermissionResponse, error)
-	List(ctx context.Context, req *ListSystemPermissionsRequest) (*ListSystemPermissionsResponse, error)
-	GetTree(ctx context.Context, domain string) ([]*SystemPermissionTreeNode, error)
+	List(ctx context.Context, operatorUID string, req *ListSystemPermissionsRequest) (*ListSystemPermissionsResponse, error)
+	GetTree(ctx context.Context, operatorUID string, domain string) ([]*SystemPermissionTreeNode, error)
 	InitSeedPermissions(ctx context.Context, seeds []SeedPermission) error
 }
 
@@ -145,7 +166,6 @@ var (
 	_ Creator[CreateSystemPermissionRequest, SystemPermissionResponse] = (*SystemPermissionService)(nil)
 	_ Updater[UpdateSystemPermissionRequest]                           = (*SystemPermissionService)(nil)
 	_ Deleter                                                          = (*SystemPermissionService)(nil)
-	_ Lister[ListSystemPermissionsRequest, SystemPermissionResponse]   = (*SystemPermissionService)(nil)
 )
 
 func NewSystemPermissionService() *SystemPermissionService {
@@ -441,7 +461,7 @@ func (s *SystemPermissionService) GetByID(ctx context.Context, id int) (*SystemP
 }
 
 // List 获取权限列表
-func (s *SystemPermissionService) List(ctx context.Context, req *ListSystemPermissionsRequest) (*ListSystemPermissionsResponse, error) {
+func (s *SystemPermissionService) List(ctx context.Context, operatorUID string, req *ListSystemPermissionsRequest) (*ListSystemPermissionsResponse, error) {
 	if req.Page < 1 {
 		req.Page = 1
 	}
@@ -495,8 +515,18 @@ func (s *SystemPermissionService) List(ctx context.Context, req *ListSystemPermi
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
+	// 非超级管理员过滤高风险 API 权限
+	shouldFilter, err := s.shouldFilterSensitive(ctx, operatorUID)
+	if err != nil {
+		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
+	}
+
 	data := make([]*SystemPermissionResponse, 0, len(perms))
 	for _, p := range perms {
+		if shouldFilter && isSensitiveAPIPermission(p) {
+			total--
+			continue
+		}
 		data = append(data, s.toResponse(p))
 	}
 
@@ -508,7 +538,7 @@ func (s *SystemPermissionService) List(ctx context.Context, req *ListSystemPermi
 }
 
 // GetTree 获取权限树
-func (s *SystemPermissionService) GetTree(ctx context.Context, domain string) ([]*SystemPermissionTreeNode, error) {
+func (s *SystemPermissionService) GetTree(ctx context.Context, operatorUID string, domain string) ([]*SystemPermissionTreeNode, error) {
 	query := s.client.SystemPermission.Query()
 
 	if domain != "" {
@@ -525,10 +555,26 @@ func (s *SystemPermissionService) GetTree(ctx context.Context, domain string) ([
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
+	// 非超级管理员过滤高风险 API 权限
+	shouldFilter, err := s.shouldFilterSensitive(ctx, operatorUID)
+	if err != nil {
+		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
+	}
+
+	filteredPerms := perms
+	if shouldFilter {
+		filteredPerms = make([]*ent.SystemPermission, 0, len(perms))
+		for _, p := range perms {
+			if !isSensitiveAPIPermission(p) {
+				filteredPerms = append(filteredPerms, p)
+			}
+		}
+	}
+
 	nodeMap := make(map[int]*SystemPermissionTreeNode)
 	rootNodes := make([]*SystemPermissionTreeNode, 0)
 
-	for _, p := range perms {
+	for _, p := range filteredPerms {
 		node := &SystemPermissionTreeNode{
 			ID:          p.ID,
 			Type:        SystemPermissionType(p.Type),

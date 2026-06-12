@@ -233,7 +233,7 @@ func TestSystemPermissionService_List(t *testing.T) {
 	}
 
 	t.Run("无筛选条件返回全部", func(t *testing.T) {
-		resp, err := svc.List(ctx, &ListSystemPermissionsRequest{})
+		resp, err := svc.List(ctx, "", &ListSystemPermissionsRequest{})
 		if err != nil {
 			t.Fatalf("查询列表失败: %v", err)
 		}
@@ -249,7 +249,7 @@ func TestSystemPermissionService_List(t *testing.T) {
 		req := &ListSystemPermissionsRequest{
 			Domain: "admin",
 		}
-		resp, err := svc.List(ctx, req)
+		resp, err := svc.List(ctx, "", req)
 		if err != nil {
 			t.Fatalf("查询列表失败: %v", err)
 		}
@@ -264,7 +264,7 @@ func TestSystemPermissionService_List(t *testing.T) {
 		req := &ListSystemPermissionsRequest{
 			Type: SystemPermissionTypeAPI,
 		}
-		resp, err := svc.List(ctx, req)
+		resp, err := svc.List(ctx, "", req)
 		if err != nil {
 			t.Fatalf("查询列表失败: %v", err)
 		}
@@ -284,7 +284,7 @@ func TestSystemPermissionService_List(t *testing.T) {
 				Keyword: "user",
 			},
 		}
-		resp, err := svc.List(ctx, req)
+		resp, err := svc.List(ctx, "", req)
 		if err != nil {
 			t.Fatalf("查询列表失败: %v", err)
 		}
@@ -302,7 +302,7 @@ func TestSystemPermissionService_List(t *testing.T) {
 		req := &ListSystemPermissionsRequest{
 			Status: 1,
 		}
-		resp, err := svc.List(ctx, req)
+		resp, err := svc.List(ctx, "", req)
 		if err != nil {
 			t.Fatalf("查询列表失败: %v", err)
 		}
@@ -510,7 +510,7 @@ func TestSystemPermissionService_GetTree(t *testing.T) {
 			t.Fatalf("创建独立权限失败: %v", err)
 		}
 
-		nodes, err := svc.GetTree(ctx, "default")
+		nodes, err := svc.GetTree(ctx, "", "default")
 		if err != nil {
 			t.Fatalf("获取树失败: %v", err)
 		}
@@ -557,7 +557,7 @@ func TestSystemPermissionService_GetTree(t *testing.T) {
 			t.Fatalf("创建admin域权限失败: %v", err)
 		}
 
-		nodes, err := svc.GetTree(ctx, "")
+		nodes, err := svc.GetTree(ctx, "", "")
 		if err != nil {
 			t.Fatalf("获取树失败: %v", err)
 		}
@@ -597,7 +597,7 @@ func TestSystemPermissionService_InitSeedPermissions(t *testing.T) {
 			t.Fatalf("初始化种子权限失败: %v", err)
 		}
 
-		resp, err := svc.List(ctx, &ListSystemPermissionsRequest{})
+		resp, err := svc.List(ctx, "", &ListSystemPermissionsRequest{})
 		if err != nil {
 			t.Fatalf("查询列表失败: %v", err)
 		}
@@ -636,7 +636,7 @@ func TestSystemPermissionService_InitSeedPermissions(t *testing.T) {
 		}
 
 		countByCode := make(map[string]int)
-		allResp, err := svc.List(ctx, &ListSystemPermissionsRequest{})
+		allResp, err := svc.List(ctx, "", &ListSystemPermissionsRequest{})
 		if err != nil {
 			t.Fatalf("查询列表失败: %v", err)
 		}

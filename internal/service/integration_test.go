@@ -1,4 +1,4 @@
-﻿package service
+package service
 
 import (
 	"os"
@@ -456,7 +456,7 @@ func TestIntegration_CacheBasedServices(t *testing.T) {
 	permSvc := NewPermissionService(nil)
 
 	// 分配权限给角色
-	err = permSvc.AssignPermissionsToRole(ctx, "cache-role", "default", []PermissionRule{
+	err = permSvc.AssignPermissionsToRole(ctx, "", "cache-role", "default", []PermissionRule{
 		{Object: "/api/cache/test", Action: "GET"},
 	})
 	if err != nil {
@@ -670,7 +670,7 @@ func TestIntegration_E2E_RolePermissionFlow(t *testing.T) {
 
 	// ===== 阶段4: 分配权限给角色 =====
 	permSvc := NewPermissionService(nil)
-	err = permSvc.AssignPermissionsToRole(ctx, "e2e-editor", "default", []PermissionRule{
+	err = permSvc.AssignPermissionsToRole(ctx, "", "e2e-editor", "default", []PermissionRule{
 		{Object: "/api/articles", Action: "GET"},
 	})
 	if err != nil {

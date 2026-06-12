@@ -28,7 +28,8 @@ var (
 	ErrInvalidPermissionType    = errors.New("无效的权限类型")
 	ErrPermissionAlreadyExists  = errors.New("权限已存在")
 	ErrInvalidPermissionRequest = errors.New("无效的权限请求")
-	ErrSuperAdminProtected      = errors.New("超级管理员角色不允许修改权限")
+	ErrSuperAdminProtected                    = errors.New("超级管理员角色不允许修改权限")
+	ErrSelfRolePermissionMutationForbidden    = errors.New("不允许修改自己所属角色的权限")
 )
 
 // SuperAdminRoleName 超级管理员角色名称，禁止通过 API 修改其权限
@@ -37,6 +38,77 @@ const SuperAdminRoleName = "admin"
 // isSuperAdminRole 判断是否为超级管理员角色
 func isSuperAdminRole(roleName string) bool {
 	return roleName == SuperAdminRoleName
+}
+
+// SensitivePermissionObjects 高风险权限 API 对象路径，非超级管理员不可见
+var SensitivePermissionObjects = map[string]struct{}{
+	// 权限定义 CRUD
+	"/api/v1/admin/auth/system-permissions":      {},
+	"/api/v1/admin/auth/system-permissions/{id}": {},
+	"/api/v1/admin/auth/system-permissions/tree": {},
+	// 角色权限保存/分配/移除
+	"/api/v1/admin/auth/roles/{id}/permissions":   {},
+	"/api/v1/admin/auth/roles/permissions/assign": {},
+	"/api/v1/admin/auth/roles/permissions/remove": {},
+	// 权限 CRUD（Casbin 规则）
+	"/api/v1/admin/auth/permissions":        {},
+	"/api/v1/admin/auth/permissions/detail": {},
+	"/api/v1/admin/auth/permissions/all":    {},
+}
+
+// IsSensitivePermissionObject 判断给定路径是否为高风险权限 API
+func IsSensitivePermissionObject(path string) bool {
+	_, ok := SensitivePermissionObjects[path]
+	return ok
+}
+
+// isUserSuperAdmin 检查用户是否拥有超级管理员角色（包级别辅助函数）
+func isUserSuperAdmin(ctx context.Context, client *ent.Client, userUID string) (bool, error) {
+	if userUID == "" {
+		return false, nil
+	}
+	// 先查 admin 表
+	a, err := client.Admin.Query().Where(admin.UIDEQ(userUID)).Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return false, fmt.Errorf("获取管理员信息失败: %w", err)
+	}
+	if err == nil {
+		adminRoles, err := client.AdminRole.Query().
+			Where(adminrole.AdminIDEQ(a.ID)).
+			WithRole(func(q *ent.RoleQuery) {
+				q.Where(role.NameEQ(SuperAdminRoleName), role.StatusEQ(role.StatusActive))
+			}).
+			All(ctx)
+		if err != nil {
+			return false, fmt.Errorf("获取管理员角色失败: %w", err)
+		}
+		for _, ar := range adminRoles {
+			if ar.Edges.Role != nil {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+	// 再查 user 表
+	u, err := client.User.Query().Where(user.UIDEQ(userUID)).Only(ctx)
+	if err != nil {
+		return false, nil
+	}
+	userRoles, err := client.UserRole.Query().
+		Where(userrole.UserIDEQ(u.ID)).
+		WithRole(func(q *ent.RoleQuery) {
+			q.Where(role.NameEQ(SuperAdminRoleName), role.StatusEQ(role.StatusActive))
+		}).
+		All(ctx)
+	if err != nil {
+		return false, fmt.Errorf("获取用户角色失败: %w", err)
+	}
+	for _, ur := range userRoles {
+		if ur.Edges.Role != nil {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // PermissionType 权限类型
@@ -111,19 +183,19 @@ type SaveRolePermissionsRequest struct {
 // PermissionServiceInterface 权限服务接口
 type PermissionServiceInterface interface {
 	// 权限管理
-	CreatePermission(ctx context.Context, req *CreatePermissionRequest) error
-	UpdatePermission(ctx context.Context, req *UpdatePermissionRequest) error
-	DeletePermission(ctx context.Context, roleName, domain, object, action string) error
+	CreatePermission(ctx context.Context, operatorUID string, req *CreatePermissionRequest) error
+	UpdatePermission(ctx context.Context, operatorUID string, req *UpdatePermissionRequest) error
+	DeletePermission(ctx context.Context, operatorUID string, roleName, domain, object, action string) error
 	GetPermission(ctx context.Context, roleName, domain, object, action string) (*PermissionResponse, error)
-	ListPermissions(ctx context.Context, req *ListPermissionsRequest) (*ListPermissionsResponse, error)
-	ListAllPermissions(ctx context.Context, keyword string, permType PermissionType, domain string, roleName string) ([]*PermissionResponse, error)
+	ListPermissions(ctx context.Context, operatorUID string, req *ListPermissionsRequest) (*ListPermissionsResponse, error)
+	ListAllPermissions(ctx context.Context, operatorUID string, keyword string, permType PermissionType, domain string, roleName string) ([]*PermissionResponse, error)
 
 	// 角色权限管理
-	AssignPermissionsToRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error
-	RemovePermissionsFromRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error
+	AssignPermissionsToRole(ctx context.Context, operatorUID string, roleName, domain string, permissions []PermissionRule) error
+	RemovePermissionsFromRole(ctx context.Context, operatorUID string, roleName, domain string, permissions []PermissionRule) error
 	GetRolePermissions(ctx context.Context, roleName, domain string) ([]*PermissionResponse, error)
 	GetRolePermissionsByRoleID(ctx context.Context, roleID int, domain string) ([]*PermissionResponse, error)
-	SaveRolePermissions(ctx context.Context, roleID int, req *SaveRolePermissionsRequest) error
+	SaveRolePermissions(ctx context.Context, operatorUID string, roleID int, req *SaveRolePermissionsRequest) error
 
 	// 用户权限获取
 	GetUserMenuPermissions(ctx context.Context, userID string, domain string) ([]*PermissionResponse, error)
@@ -161,6 +233,44 @@ func NewPermissionService(rawCache *cache.Cache[[]byte]) *PermissionService {
 // defaultCacheTTL 默认缓存过期时间
 func (s *PermissionService) defaultCacheTTL() time.Duration {
 	return 5 * time.Minute
+}
+
+// isSelfRole 检查目标角色是否属于当前操作者
+// operatorUID 为空时直接返回 false（系统内部调用不受限制）
+func (s *PermissionService) isSelfRole(ctx context.Context, operatorUID string, targetRoleName string) (bool, error) {
+	if operatorUID == "" {
+		return false, nil
+	}
+	roleNames, err := s.getUserRoleNames(ctx, operatorUID)
+	if err != nil {
+		return false, fmt.Errorf("获取操作者角色失败: %w", err)
+	}
+	for _, name := range roleNames {
+		if name == targetRoleName {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// isSuperAdminUser 检查操作者是否为超级管理员
+func (s *PermissionService) isSuperAdminUser(ctx context.Context, operatorUID string) (bool, error) {
+	if operatorUID == "" {
+		return false, nil
+	}
+	return s.CheckUserHasRole(ctx, operatorUID, "", SuperAdminRoleName)
+}
+
+// shouldFilterSensitivePermissions 判断是否需要过滤高风险权限（非超级管理员需要过滤）
+func (s *PermissionService) shouldFilterSensitivePermissions(ctx context.Context, operatorUID string) (bool, error) {
+	if operatorUID == "" {
+		return false, nil
+	}
+	isSuperAdmin, err := s.isSuperAdminUser(ctx, operatorUID)
+	if err != nil {
+		return false, err
+	}
+	return !isSuperAdmin, nil
 }
 
 // clearUserPermissionsCache 清除指定用户的所有权限缓存
@@ -358,7 +468,7 @@ func (s *PermissionService) getUserPermissionsByType(ctx context.Context, userUI
 }
 
 // CreatePermission 创建权限
-func (s *PermissionService) CreatePermission(ctx context.Context, req *CreatePermissionRequest) error {
+func (s *PermissionService) CreatePermission(ctx context.Context, operatorUID string, req *CreatePermissionRequest) error {
 	// 验证权限类型
 	if !isValidPermissionType(req.Type) {
 		return ErrInvalidPermissionType
@@ -367,6 +477,15 @@ func (s *PermissionService) CreatePermission(ctx context.Context, req *CreatePer
 	// 禁止为超级管理员分配/创建权限
 	if isSuperAdminRole(req.RoleName) {
 		return ErrSuperAdminProtected
+	}
+
+	// 禁止修改自己所属角色的权限
+	isSelf, err := s.isSelfRole(ctx, operatorUID, req.RoleName)
+	if err != nil {
+		return fmt.Errorf("检查角色归属失败: %w", err)
+	}
+	if isSelf {
+		return ErrSelfRolePermissionMutationForbidden
 	}
 
 	// 检查角色是否存在
@@ -413,7 +532,7 @@ func (s *PermissionService) CreatePermission(ctx context.Context, req *CreatePer
 }
 
 // UpdatePermission 更新权限
-func (s *PermissionService) UpdatePermission(ctx context.Context, req *UpdatePermissionRequest) error {
+func (s *PermissionService) UpdatePermission(ctx context.Context, operatorUID string, req *UpdatePermissionRequest) error {
 	// 验证权限类型
 	if !isValidPermissionType(req.Type) {
 		return ErrInvalidPermissionType
@@ -422,6 +541,15 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, req *UpdatePer
 	// 禁止修改超级管理员权限
 	if isSuperAdminRole(req.RoleName) {
 		return ErrSuperAdminProtected
+	}
+
+	// 禁止修改自己所属角色的权限
+	isSelf, err := s.isSelfRole(ctx, operatorUID, req.RoleName)
+	if err != nil {
+		return fmt.Errorf("检查角色归属失败: %w", err)
+	}
+	if isSelf {
+		return ErrSelfRolePermissionMutationForbidden
 	}
 
 	// 检查角色是否存在
@@ -481,10 +609,19 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, req *UpdatePer
 }
 
 // DeletePermission 删除权限
-func (s *PermissionService) DeletePermission(ctx context.Context, roleName, domain, object, action string) error {
+func (s *PermissionService) DeletePermission(ctx context.Context, operatorUID string, roleName, domain, object, action string) error {
 	// 禁止删除超级管理员权限
 	if isSuperAdminRole(roleName) {
 		return ErrSuperAdminProtected
+	}
+
+	// 禁止修改自己所属角色的权限
+	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
+	if err != nil {
+		return fmt.Errorf("检查角色归属失败: %w", err)
+	}
+	if isSelf {
+		return ErrSelfRolePermissionMutationForbidden
 	}
 
 	// 查找要删除的权限
@@ -535,7 +672,7 @@ func (s *PermissionService) GetPermission(ctx context.Context, roleName, domain,
 }
 
 // ListPermissions 获取权限列表
-func (s *PermissionService) ListPermissions(ctx context.Context, req *ListPermissionsRequest) (*ListPermissionsResponse, error) {
+func (s *PermissionService) ListPermissions(ctx context.Context, operatorUID string, req *ListPermissionsRequest) (*ListPermissionsResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	// 构建查询
@@ -582,9 +719,19 @@ func (s *PermissionService) ListPermissions(ctx context.Context, req *ListPermis
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
+	// 非超级管理员过滤高风险 API 权限
+	shouldFilter, err := s.shouldFilterSensitivePermissions(ctx, operatorUID)
+	if err != nil {
+		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
+	}
+
 	// 转换为响应格式
 	data := make([]*PermissionResponse, 0, len(permissions))
 	for _, p := range permissions {
+		if shouldFilter && IsSensitivePermissionObject(p.V2) {
+			total--
+			continue
+		}
 		data = append(data, s.toPermissionResponse(p))
 	}
 
@@ -596,7 +743,7 @@ func (s *PermissionService) ListPermissions(ctx context.Context, req *ListPermis
 }
 
 // ListAllPermissions 获取所有权限（不带分页）
-func (s *PermissionService) ListAllPermissions(ctx context.Context, keyword string, permType PermissionType, domain string, roleName string) ([]*PermissionResponse, error) {
+func (s *PermissionService) ListAllPermissions(ctx context.Context, operatorUID string, keyword string, permType PermissionType, domain string, roleName string) ([]*PermissionResponse, error) {
 	// 构建查询
 	query := s.client.CasbinRule.Query().Where(casbinrule.PtypeEQ("p"))
 
@@ -631,9 +778,18 @@ func (s *PermissionService) ListAllPermissions(ctx context.Context, keyword stri
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
+	// 非超级管理员过滤高风险 API 权限
+	shouldFilter, err := s.shouldFilterSensitivePermissions(ctx, operatorUID)
+	if err != nil {
+		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
+	}
+
 	// 转换为响应格式
 	data := make([]*PermissionResponse, 0, len(permissions))
 	for _, p := range permissions {
+		if shouldFilter && IsSensitivePermissionObject(p.V2) {
+			continue
+		}
 		data = append(data, s.toPermissionResponse(p))
 	}
 
@@ -641,10 +797,19 @@ func (s *PermissionService) ListAllPermissions(ctx context.Context, keyword stri
 }
 
 // AssignPermissionsToRole 为角色分配权限
-func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error {
+func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, operatorUID string, roleName, domain string, permissions []PermissionRule) error {
 	// 禁止为超级管理员分配权限
 	if isSuperAdminRole(roleName) {
 		return ErrSuperAdminProtected
+	}
+
+	// 禁止修改自己所属角色的权限
+	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
+	if err != nil {
+		return fmt.Errorf("检查角色归属失败: %w", err)
+	}
+	if isSelf {
+		return ErrSelfRolePermissionMutationForbidden
 	}
 
 	// 检查角色是否存在
@@ -696,10 +861,19 @@ func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, roleNam
 }
 
 // RemovePermissionsFromRole 从角色移除权限
-func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, roleName, domain string, permissions []PermissionRule) error {
+func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, operatorUID string, roleName, domain string, permissions []PermissionRule) error {
 	// 禁止从超级管理员角色移除权限
 	if isSuperAdminRole(roleName) {
 		return ErrSuperAdminProtected
+	}
+
+	// 禁止修改自己所属角色的权限
+	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
+	if err != nil {
+		return fmt.Errorf("检查角色归属失败: %w", err)
+	}
+	if isSelf {
+		return ErrSelfRolePermissionMutationForbidden
 	}
 
 	// 检查角色是否存在
@@ -795,7 +969,7 @@ func (s *PermissionService) GetRolePermissionsByRoleID(ctx context.Context, role
 }
 
 // SaveRolePermissions 覆盖式保存角色权限
-func (s *PermissionService) SaveRolePermissions(ctx context.Context, roleID int, req *SaveRolePermissionsRequest) error {
+func (s *PermissionService) SaveRolePermissions(ctx context.Context, operatorUID string, roleID int, req *SaveRolePermissionsRequest) error {
 	// 先通过ID获取角色名称
 	roleEntity, err := s.client.Role.Query().
 		Where(role.IDEQ(roleID)).
@@ -813,6 +987,15 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, roleID int,
 	// 禁止覆盖式保存超级管理员权限
 	if isSuperAdminRole(roleName) {
 		return ErrSuperAdminProtected
+	}
+
+	// 禁止修改自己所属角色的权限
+	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
+	if err != nil {
+		return fmt.Errorf("检查角色归属失败: %w", err)
+	}
+	if isSelf {
+		return ErrSelfRolePermissionMutationForbidden
 	}
 
 	// 开启事务
