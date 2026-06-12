@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/role"
 )
 
@@ -95,6 +96,46 @@ func TestEnsureDepartmentInScope_DefaultFailClosed(t *testing.T) {
 	op := &EffectiveDataScope{Scope: "unknown_scope"}
 	if err := ensureDepartmentInScope(op, 5); !errors.Is(err, ErrDepartmentOutOfScope) {
 		t.Fatalf("未知 scope 应 fail-closed，got %v", err)
+	}
+}
+
+func TestResolveAdminScope_AdminRoleHasAllDataScope(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	adminRole := client.Role.Create().
+		SetName(SuperAdminRoleName).
+		SetDisplayName("super admin").
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	operator := client.Admin.Create().
+		SetEmail("seed-admin@test.com").
+		SetUID("seed-admin-uid").
+		SetUsername("seed-admin").
+		SetPassword("pass").
+		SetPasswordSalt("salt").
+		SetStatus(admin.StatusActive).
+		SaveX(ctx)
+	client.AdminRole.Create().
+		SetAdminID(operator.ID).
+		SetRoleID(adminRole.ID).
+		SetIsPrimary(true).
+		SaveX(ctx)
+
+	svc := NewDataPermissionService(NewDepartmentService())
+	op, err := svc.ResolveAdminScope(ctx, operator.UID)
+	if err != nil {
+		t.Fatalf("ResolveAdminScope failed: %v", err)
+	}
+	if op.Scope != DataScopeAll {
+		t.Fatalf("admin role should resolve to all data scope, got %s", op.Scope)
+	}
+	if !op.IsSuperAdmin {
+		t.Fatal("admin role should mark operator as super admin for data permission checks")
+	}
+	if err := ensureDepartmentInScope(op, 0); err != nil {
+		t.Fatalf("admin role should allow creating admin without department, got %v", err)
 	}
 }
 

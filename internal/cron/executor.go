@@ -47,7 +47,8 @@ func (e *CommandExecutor) Execute(ctx context.Context, command string, logger io
 	}
 
 	// 使用 exec.Command 直接执行，不经过 shell 解释器，防止命令注入
-	cmd := exec.CommandContext(ctx, registered.Path, args...)
+	execArgs := append(append([]string{}, registered.Args...), args...)
+	cmd := exec.CommandContext(ctx, registered.Path, execArgs...)
 	cmd.Stdout = logger
 	cmd.Stderr = logger
 	return cmd.Run()

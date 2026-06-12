@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -13,6 +14,19 @@ import (
 )
 
 // --- CommandExecutor Tests ---
+
+func TestCommandRegistry_EchoRegisteredByDefault(t *testing.T) {
+	cmd, ok := Get("echo")
+	if !ok {
+		t.Fatal("expected echo registered by default")
+	}
+	if cmd.Path == "" {
+		t.Fatal("expected echo path not empty")
+	}
+	if runtime.GOOS == "windows" && len(cmd.Args) == 0 {
+		t.Fatal("expected windows echo to include fixed powershell args")
+	}
+}
 
 func TestCommandExecutor_RegisteredSimpleCommand(t *testing.T) {
 	// 查找系统可用的 echo 命令
@@ -34,6 +48,28 @@ func TestCommandExecutor_RegisteredSimpleCommand(t *testing.T) {
 	output := strings.TrimSpace(buf.String())
 	if output != "hello" {
 		t.Fatalf("expected output 'hello', got: %q", output)
+	}
+}
+
+func TestCommandExecutor_RegisteredCommandWithFixedArgs(t *testing.T) {
+	p, err := exec.LookPath("echo")
+	if err != nil {
+		t.Skipf("echo command not found in PATH, skipping integration test: %v", err)
+	}
+	RegisterWithArgs("echo_prefix_test", p, []string{"fixed"}, 5, "Echo with fixed args test")
+	defer delete(Registry, "echo_prefix_test")
+
+	executor := &CommandExecutor{}
+	var buf bytes.Buffer
+
+	err = executor.Execute(context.Background(), "echo_prefix_test user", &buf)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	if output != "fixed user" {
+		t.Fatalf("expected output 'fixed user', got: %q", output)
 	}
 }
 

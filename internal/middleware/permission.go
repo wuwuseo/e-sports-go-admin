@@ -121,14 +121,39 @@ func isSelfPermissionEndpoint(path, method string) bool {
 
 func permissionObjectsForRequest(c fiber.Ctx) []string {
 	path := c.Path()
-	objects := []string{path}
+	method := c.Method()
+	objects := make([]string, 0, 3)
+	seen := make(map[string]struct{})
+
+	objects = appendUniquePermissionObject(objects, seen, path)
 	if route := c.Route(); route != nil {
-		routePath := normalizePermissionRoutePath(route.Path)
-		if routePath != "" && routePath != path {
-			objects = append(objects, routePath)
+		if route.Method == method && fiberRoutePathMatchesRequest(route.Path, path) {
+			objects = appendUniquePermissionObject(objects, seen, normalizePermissionRoutePath(route.Path))
+		}
+	}
+	if app := c.App(); app != nil {
+		for _, route := range app.GetRoutes(true) {
+			if route.Method != method {
+				continue
+			}
+			if !fiberRoutePathMatchesRequest(route.Path, path) {
+				continue
+			}
+			objects = appendUniquePermissionObject(objects, seen, normalizePermissionRoutePath(route.Path))
 		}
 	}
 	return objects
+}
+
+func appendUniquePermissionObject(objects []string, seen map[string]struct{}, object string) []string {
+	if object == "" {
+		return objects
+	}
+	if _, ok := seen[object]; ok {
+		return objects
+	}
+	seen[object] = struct{}{}
+	return append(objects, object)
 }
 
 func normalizePermissionRoutePath(path string) string {
@@ -142,6 +167,46 @@ func normalizePermissionRoutePath(path string) string {
 		}
 	}
 	return strings.Join(parts, "/")
+}
+
+func fiberRoutePathMatchesRequest(routePath, requestPath string) bool {
+	routeParts := splitPermissionPath(routePath)
+	requestParts := splitPermissionPath(requestPath)
+
+	for i, routePart := range routeParts {
+		if isFiberWildcardSegment(routePart) {
+			return true
+		}
+		if i >= len(requestParts) {
+			return false
+		}
+		if !fiberRouteSegmentMatchesRequest(routePart, requestParts[i]) {
+			return false
+		}
+	}
+	return len(routeParts) == len(requestParts)
+}
+
+func splitPermissionPath(path string) []string {
+	path = strings.Trim(path, "/")
+	if path == "" {
+		return nil
+	}
+	return strings.Split(path, "/")
+}
+
+func fiberRouteSegmentMatchesRequest(routeSegment, requestSegment string) bool {
+	if routeSegment == requestSegment {
+		return true
+	}
+	if strings.HasPrefix(routeSegment, ":") && len(routeSegment) > 1 {
+		return requestSegment != ""
+	}
+	return false
+}
+
+func isFiberWildcardSegment(segment string) bool {
+	return segment == "*" || strings.HasPrefix(segment, "*")
 }
 
 // DomainMiddleware 域中间件，用于设置当前域

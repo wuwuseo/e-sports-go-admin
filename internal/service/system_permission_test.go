@@ -795,7 +795,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 112 // 95(原) + 9(部门 96-104) + 8(admin 110-117)
+	const wantCount = 115 // 95(原) + 9(部门 96-104) + 8(admin 110-117) + 3(RBAC缺失权限)
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
@@ -861,8 +861,11 @@ func TestInitSystemPermissions_IncludesRequestedMissingAPISeeds(t *testing.T) {
 
 	expected := []seedPermissionExpectation{
 		{Code: "config:groups", Type: "api", Path: "/api/v1/admin/auth/configs/groups", Method: "GET", ParentCode: "system:config"},
+		{Code: "config:group", Type: "api", Path: "/api/v1/admin/auth/configs/group/{group}", Method: "GET", ParentCode: "system:config"},
 		{Code: "attachment-group:list", Type: "api", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentCode: "system:attachment"},
 		{Code: "dict-data:type", Type: "api", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentCode: "system:dict-data"},
+		{Code: "role:permissions:get", Type: "api", Path: "/api/v1/admin/auth/roles/{id}/permissions", Method: "GET", ParentCode: "system:role"},
+		{Code: "role:permissions:save", Type: "api", Path: "/api/v1/admin/auth/roles/{id}/permissions", Method: "POST", ParentCode: "system:role"},
 	}
 
 	for _, want := range expected {

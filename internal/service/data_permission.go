@@ -95,6 +95,9 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 		if r == nil {
 			continue
 		}
+		if r.Name == SuperAdminRoleName {
+			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID, IsSuperAdmin: true}, nil
+		}
 		switch DataScope(r.DataScope) {
 		case DataScopeAll:
 			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID, IsSuperAdmin: false}, nil

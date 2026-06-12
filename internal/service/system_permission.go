@@ -694,6 +694,8 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 13, Domain: "default", Type: "api", Name: "创建角色", Code: "role:create", Path: "/api/v1/admin/auth/roles", Method: "POST", ParentID: 4, SortOrder: 2, IsCommon: false, Status: 1, Description: "创建角色API"},
 		{ID: 14, Domain: "default", Type: "api", Name: "更新角色", Code: "role:update", Path: "/api/v1/admin/auth/roles/{id}", Method: "PUT", ParentID: 4, SortOrder: 3, IsCommon: false, Status: 1, Description: "更新角色API"},
 		{ID: 15, Domain: "default", Type: "api", Name: "删除角色", Code: "role:delete-api", Path: "/api/v1/admin/auth/roles/{id}", Method: "DELETE", ParentID: 4, SortOrder: 4, IsCommon: false, Status: 1, Description: "删除角色API"},
+		{ID: 118, Domain: "default", Type: "api", Name: "获取角色权限", Code: "role:permissions:get", Path: "/api/v1/admin/auth/roles/{id}/permissions", Method: "GET", ParentID: 4, SortOrder: 5, IsCommon: false, Status: 1, Description: "获取角色权限API"},
+		{ID: 119, Domain: "default", Type: "api", Name: "保存角色权限", Code: "role:permissions:save", Path: "/api/v1/admin/auth/roles/{id}/permissions", Method: "POST", ParentID: 4, SortOrder: 6, IsCommon: false, Status: 1, Description: "保存角色权限API"},
 		{ID: 16, Domain: "default", Type: "api", Name: "获取权限列表", Code: "permission:list", Path: "/api/v1/admin/auth/system-permissions", Method: "GET", ParentID: 5, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取权限列表API"},
 		{ID: 17, Domain: "default", Type: "api", Name: "获取权限详情", Code: "permission:get", Path: "/api/v1/admin/auth/system-permissions/{id}", Method: "GET", ParentID: 5, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取权限详情API"},
 		{ID: 18, Domain: "default", Type: "api", Name: "创建权限", Code: "permission:create", Path: "/api/v1/admin/auth/system-permissions", Method: "POST", ParentID: 5, SortOrder: 2, IsCommon: false, Status: 1, Description: "创建权限API"},
@@ -772,6 +774,7 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 91, Domain: "default", Type: "button", Name: "消息偏好-编辑按钮", Code: "messagepreference:edit", ParentID: 63, SortOrder: 1, IsCommon: false, Status: 1, Description: "消息偏好编辑按钮"},
 		{ID: 92, Domain: "default", Type: "button", Name: "消息偏好-删除按钮", Code: "messagepreference:delete", ParentID: 63, SortOrder: 2, IsCommon: false, Status: 1, Description: "消息偏好删除按钮"},
 		{ID: 93, Domain: "default", Type: "api", Name: "获取配置分组", Code: "config:groups", Path: "/api/v1/admin/auth/configs/groups", Method: "GET", ParentID: 10, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取配置分组API"},
+		{ID: 120, Domain: "default", Type: "api", Name: "获取配置分组详情", Code: "config:group", Path: "/api/v1/admin/auth/configs/group/{group}", Method: "GET", ParentID: 10, SortOrder: 2, IsCommon: false, Status: 1, Description: "获取配置分组详情API"},
 		{ID: 94, Domain: "default", Type: "api", Name: "获取附件分组列表", Code: "attachment-group:list", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentID: 6, SortOrder: 3, IsCommon: false, Status: 1, Description: "获取附件分组列表API"},
 		{ID: 95, Domain: "default", Type: "api", Name: "按类型获取字典数据", Code: "dict-data:type", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentID: 9, SortOrder: 1, IsCommon: false, Status: 1, Description: "按类型获取字典数据API"},
 		// 部门管理菜单
