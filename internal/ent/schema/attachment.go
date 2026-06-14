@@ -36,6 +36,31 @@ func (Attachment) Fields() []ent.Field {
 			NotEmpty().
 			StructTag(`json:"path"`).
 			Comment("存储路径/key"),
+		field.String("disk").
+			MaxLen(64).
+			Optional().
+			StructTag(`json:"disk,omitempty"`).
+			Comment("存储磁盘"),
+		field.String("driver").
+			MaxLen(64).
+			Optional().
+			StructTag(`json:"driver,omitempty"`).
+			Comment("存储驱动"),
+		field.String("directory").
+			MaxLen(1024).
+			Optional().
+			StructTag(`json:"directory,omitempty"`).
+			Comment("上传目录"),
+		field.String("content_hash").
+			MaxLen(64).
+			Optional().
+			StructTag(`json:"content_hash,omitempty"`).
+			Comment("文件内容SHA-256"),
+		field.String("original_name_hash").
+			MaxLen(64).
+			Optional().
+			StructTag(`json:"original_name_hash,omitempty"`).
+			Comment("原始文件名SHA-256"),
 		field.String("mime_type").
 			MaxLen(255).
 			StructTag(`json:"mime_type"`).
@@ -84,5 +109,6 @@ func (Attachment) Indexes() []ent.Index {
 		index.Fields("group_id"),
 		index.Fields("mime_type"),
 		index.Fields("created_at"),
+		index.Fields("content_hash", "size", "original_name_hash").Unique(),
 	}
 }

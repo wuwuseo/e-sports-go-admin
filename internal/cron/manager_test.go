@@ -1,7 +1,9 @@
 package cron
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -122,6 +124,26 @@ func TestRunNow(t *testing.T) {
 	if len(logs) == 0 {
 		t.Fatal("expected at least one log file after RunNow")
 	}
+	waitForLogFileReleased(t, filepath.Join(tmpDir, fmt.Sprintf("job-%d", job.ID), logs[0].Filename))
+}
+
+func waitForLogFileReleased(t *testing.T, path string) {
+	t.Helper()
+	probePath := path + ".probe"
+	deadline := time.Now().Add(3 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if err := os.Rename(path, probePath); err == nil {
+			if err := os.Rename(probePath, path); err != nil {
+				t.Fatalf("restore log file after probe: %v", err)
+			}
+			return
+		} else {
+			lastErr = err
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("log file was not released before cleanup: %v", lastErr)
 }
 
 func TestRunNow_NotFound(t *testing.T) {

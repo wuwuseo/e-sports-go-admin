@@ -2306,25 +2306,30 @@ func (m *AdminRoleMutation) ResetEdge(name string) error {
 // AttachmentMutation represents an operation that mutates the Attachment nodes in the graph.
 type AttachmentMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	name          *string
-	original_name *string
-	_path         *string
-	mime_type     *string
-	extension     *string
-	size          *int64
-	addsize       *int64
-	uploaded_by   *string
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	group         *int
-	clearedgroup  bool
-	done          bool
-	oldValue      func(context.Context) (*Attachment, error)
-	predicates    []predicate.Attachment
+	op                 Op
+	typ                string
+	id                 *int
+	name               *string
+	original_name      *string
+	_path              *string
+	disk               *string
+	_driver            *string
+	directory          *string
+	content_hash       *string
+	original_name_hash *string
+	mime_type          *string
+	extension          *string
+	size               *int64
+	addsize            *int64
+	uploaded_by        *string
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	group              *int
+	clearedgroup       bool
+	done               bool
+	oldValue           func(context.Context) (*Attachment, error)
+	predicates         []predicate.Attachment
 }
 
 var _ ent.Mutation = (*AttachmentMutation)(nil)
@@ -2537,6 +2542,251 @@ func (m *AttachmentMutation) OldPath(ctx context.Context) (v string, err error) 
 // ResetPath resets all changes to the "path" field.
 func (m *AttachmentMutation) ResetPath() {
 	m._path = nil
+}
+
+// SetDisk sets the "disk" field.
+func (m *AttachmentMutation) SetDisk(s string) {
+	m.disk = &s
+}
+
+// Disk returns the value of the "disk" field in the mutation.
+func (m *AttachmentMutation) Disk() (r string, exists bool) {
+	v := m.disk
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisk returns the old "disk" field's value of the Attachment entity.
+// If the Attachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AttachmentMutation) OldDisk(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisk is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisk requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisk: %w", err)
+	}
+	return oldValue.Disk, nil
+}
+
+// ClearDisk clears the value of the "disk" field.
+func (m *AttachmentMutation) ClearDisk() {
+	m.disk = nil
+	m.clearedFields[attachment.FieldDisk] = struct{}{}
+}
+
+// DiskCleared returns if the "disk" field was cleared in this mutation.
+func (m *AttachmentMutation) DiskCleared() bool {
+	_, ok := m.clearedFields[attachment.FieldDisk]
+	return ok
+}
+
+// ResetDisk resets all changes to the "disk" field.
+func (m *AttachmentMutation) ResetDisk() {
+	m.disk = nil
+	delete(m.clearedFields, attachment.FieldDisk)
+}
+
+// SetDriver sets the "driver" field.
+func (m *AttachmentMutation) SetDriver(s string) {
+	m._driver = &s
+}
+
+// Driver returns the value of the "driver" field in the mutation.
+func (m *AttachmentMutation) Driver() (r string, exists bool) {
+	v := m._driver
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDriver returns the old "driver" field's value of the Attachment entity.
+// If the Attachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AttachmentMutation) OldDriver(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDriver is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDriver requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDriver: %w", err)
+	}
+	return oldValue.Driver, nil
+}
+
+// ClearDriver clears the value of the "driver" field.
+func (m *AttachmentMutation) ClearDriver() {
+	m._driver = nil
+	m.clearedFields[attachment.FieldDriver] = struct{}{}
+}
+
+// DriverCleared returns if the "driver" field was cleared in this mutation.
+func (m *AttachmentMutation) DriverCleared() bool {
+	_, ok := m.clearedFields[attachment.FieldDriver]
+	return ok
+}
+
+// ResetDriver resets all changes to the "driver" field.
+func (m *AttachmentMutation) ResetDriver() {
+	m._driver = nil
+	delete(m.clearedFields, attachment.FieldDriver)
+}
+
+// SetDirectory sets the "directory" field.
+func (m *AttachmentMutation) SetDirectory(s string) {
+	m.directory = &s
+}
+
+// Directory returns the value of the "directory" field in the mutation.
+func (m *AttachmentMutation) Directory() (r string, exists bool) {
+	v := m.directory
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDirectory returns the old "directory" field's value of the Attachment entity.
+// If the Attachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AttachmentMutation) OldDirectory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDirectory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDirectory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDirectory: %w", err)
+	}
+	return oldValue.Directory, nil
+}
+
+// ClearDirectory clears the value of the "directory" field.
+func (m *AttachmentMutation) ClearDirectory() {
+	m.directory = nil
+	m.clearedFields[attachment.FieldDirectory] = struct{}{}
+}
+
+// DirectoryCleared returns if the "directory" field was cleared in this mutation.
+func (m *AttachmentMutation) DirectoryCleared() bool {
+	_, ok := m.clearedFields[attachment.FieldDirectory]
+	return ok
+}
+
+// ResetDirectory resets all changes to the "directory" field.
+func (m *AttachmentMutation) ResetDirectory() {
+	m.directory = nil
+	delete(m.clearedFields, attachment.FieldDirectory)
+}
+
+// SetContentHash sets the "content_hash" field.
+func (m *AttachmentMutation) SetContentHash(s string) {
+	m.content_hash = &s
+}
+
+// ContentHash returns the value of the "content_hash" field in the mutation.
+func (m *AttachmentMutation) ContentHash() (r string, exists bool) {
+	v := m.content_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentHash returns the old "content_hash" field's value of the Attachment entity.
+// If the Attachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AttachmentMutation) OldContentHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentHash: %w", err)
+	}
+	return oldValue.ContentHash, nil
+}
+
+// ClearContentHash clears the value of the "content_hash" field.
+func (m *AttachmentMutation) ClearContentHash() {
+	m.content_hash = nil
+	m.clearedFields[attachment.FieldContentHash] = struct{}{}
+}
+
+// ContentHashCleared returns if the "content_hash" field was cleared in this mutation.
+func (m *AttachmentMutation) ContentHashCleared() bool {
+	_, ok := m.clearedFields[attachment.FieldContentHash]
+	return ok
+}
+
+// ResetContentHash resets all changes to the "content_hash" field.
+func (m *AttachmentMutation) ResetContentHash() {
+	m.content_hash = nil
+	delete(m.clearedFields, attachment.FieldContentHash)
+}
+
+// SetOriginalNameHash sets the "original_name_hash" field.
+func (m *AttachmentMutation) SetOriginalNameHash(s string) {
+	m.original_name_hash = &s
+}
+
+// OriginalNameHash returns the value of the "original_name_hash" field in the mutation.
+func (m *AttachmentMutation) OriginalNameHash() (r string, exists bool) {
+	v := m.original_name_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOriginalNameHash returns the old "original_name_hash" field's value of the Attachment entity.
+// If the Attachment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AttachmentMutation) OldOriginalNameHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOriginalNameHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOriginalNameHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOriginalNameHash: %w", err)
+	}
+	return oldValue.OriginalNameHash, nil
+}
+
+// ClearOriginalNameHash clears the value of the "original_name_hash" field.
+func (m *AttachmentMutation) ClearOriginalNameHash() {
+	m.original_name_hash = nil
+	m.clearedFields[attachment.FieldOriginalNameHash] = struct{}{}
+}
+
+// OriginalNameHashCleared returns if the "original_name_hash" field was cleared in this mutation.
+func (m *AttachmentMutation) OriginalNameHashCleared() bool {
+	_, ok := m.clearedFields[attachment.FieldOriginalNameHash]
+	return ok
+}
+
+// ResetOriginalNameHash resets all changes to the "original_name_hash" field.
+func (m *AttachmentMutation) ResetOriginalNameHash() {
+	m.original_name_hash = nil
+	delete(m.clearedFields, attachment.FieldOriginalNameHash)
 }
 
 // SetMimeType sets the "mime_type" field.
@@ -2898,7 +3148,7 @@ func (m *AttachmentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AttachmentMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 15)
 	if m.name != nil {
 		fields = append(fields, attachment.FieldName)
 	}
@@ -2907,6 +3157,21 @@ func (m *AttachmentMutation) Fields() []string {
 	}
 	if m._path != nil {
 		fields = append(fields, attachment.FieldPath)
+	}
+	if m.disk != nil {
+		fields = append(fields, attachment.FieldDisk)
+	}
+	if m._driver != nil {
+		fields = append(fields, attachment.FieldDriver)
+	}
+	if m.directory != nil {
+		fields = append(fields, attachment.FieldDirectory)
+	}
+	if m.content_hash != nil {
+		fields = append(fields, attachment.FieldContentHash)
+	}
+	if m.original_name_hash != nil {
+		fields = append(fields, attachment.FieldOriginalNameHash)
 	}
 	if m.mime_type != nil {
 		fields = append(fields, attachment.FieldMimeType)
@@ -2943,6 +3208,16 @@ func (m *AttachmentMutation) Field(name string) (ent.Value, bool) {
 		return m.OriginalName()
 	case attachment.FieldPath:
 		return m.Path()
+	case attachment.FieldDisk:
+		return m.Disk()
+	case attachment.FieldDriver:
+		return m.Driver()
+	case attachment.FieldDirectory:
+		return m.Directory()
+	case attachment.FieldContentHash:
+		return m.ContentHash()
+	case attachment.FieldOriginalNameHash:
+		return m.OriginalNameHash()
 	case attachment.FieldMimeType:
 		return m.MimeType()
 	case attachment.FieldExtension:
@@ -2972,6 +3247,16 @@ func (m *AttachmentMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldOriginalName(ctx)
 	case attachment.FieldPath:
 		return m.OldPath(ctx)
+	case attachment.FieldDisk:
+		return m.OldDisk(ctx)
+	case attachment.FieldDriver:
+		return m.OldDriver(ctx)
+	case attachment.FieldDirectory:
+		return m.OldDirectory(ctx)
+	case attachment.FieldContentHash:
+		return m.OldContentHash(ctx)
+	case attachment.FieldOriginalNameHash:
+		return m.OldOriginalNameHash(ctx)
 	case attachment.FieldMimeType:
 		return m.OldMimeType(ctx)
 	case attachment.FieldExtension:
@@ -3015,6 +3300,41 @@ func (m *AttachmentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPath(v)
+		return nil
+	case attachment.FieldDisk:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisk(v)
+		return nil
+	case attachment.FieldDriver:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDriver(v)
+		return nil
+	case attachment.FieldDirectory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDirectory(v)
+		return nil
+	case attachment.FieldContentHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentHash(v)
+		return nil
+	case attachment.FieldOriginalNameHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOriginalNameHash(v)
 		return nil
 	case attachment.FieldMimeType:
 		v, ok := value.(string)
@@ -3110,6 +3430,21 @@ func (m *AttachmentMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *AttachmentMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(attachment.FieldDisk) {
+		fields = append(fields, attachment.FieldDisk)
+	}
+	if m.FieldCleared(attachment.FieldDriver) {
+		fields = append(fields, attachment.FieldDriver)
+	}
+	if m.FieldCleared(attachment.FieldDirectory) {
+		fields = append(fields, attachment.FieldDirectory)
+	}
+	if m.FieldCleared(attachment.FieldContentHash) {
+		fields = append(fields, attachment.FieldContentHash)
+	}
+	if m.FieldCleared(attachment.FieldOriginalNameHash) {
+		fields = append(fields, attachment.FieldOriginalNameHash)
+	}
 	if m.FieldCleared(attachment.FieldGroupID) {
 		fields = append(fields, attachment.FieldGroupID)
 	}
@@ -3130,6 +3465,21 @@ func (m *AttachmentMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *AttachmentMutation) ClearField(name string) error {
 	switch name {
+	case attachment.FieldDisk:
+		m.ClearDisk()
+		return nil
+	case attachment.FieldDriver:
+		m.ClearDriver()
+		return nil
+	case attachment.FieldDirectory:
+		m.ClearDirectory()
+		return nil
+	case attachment.FieldContentHash:
+		m.ClearContentHash()
+		return nil
+	case attachment.FieldOriginalNameHash:
+		m.ClearOriginalNameHash()
+		return nil
 	case attachment.FieldGroupID:
 		m.ClearGroupID()
 		return nil
@@ -3152,6 +3502,21 @@ func (m *AttachmentMutation) ResetField(name string) error {
 		return nil
 	case attachment.FieldPath:
 		m.ResetPath()
+		return nil
+	case attachment.FieldDisk:
+		m.ResetDisk()
+		return nil
+	case attachment.FieldDriver:
+		m.ResetDriver()
+		return nil
+	case attachment.FieldDirectory:
+		m.ResetDirectory()
+		return nil
+	case attachment.FieldContentHash:
+		m.ResetContentHash()
+		return nil
+	case attachment.FieldOriginalNameHash:
+		m.ResetOriginalNameHash()
 		return nil
 	case attachment.FieldMimeType:
 		m.ResetMimeType()

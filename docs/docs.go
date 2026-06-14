@@ -8899,7 +8899,19 @@ const docTemplate = `{
         "service.AttachmentResponse": {
             "type": "object",
             "properties": {
+                "content_hash": {
+                    "type": "string"
+                },
                 "created_at": {
+                    "type": "string"
+                },
+                "directory": {
+                    "type": "string"
+                },
+                "disk": {
+                    "type": "string"
+                },
+                "driver": {
                     "type": "string"
                 },
                 "extension": {

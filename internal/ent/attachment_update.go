@@ -71,6 +71,106 @@ func (_u *AttachmentUpdate) SetNillablePath(v *string) *AttachmentUpdate {
 	return _u
 }
 
+// SetDisk sets the "disk" field.
+func (_u *AttachmentUpdate) SetDisk(v string) *AttachmentUpdate {
+	_u.mutation.SetDisk(v)
+	return _u
+}
+
+// SetNillableDisk sets the "disk" field if the given value is not nil.
+func (_u *AttachmentUpdate) SetNillableDisk(v *string) *AttachmentUpdate {
+	if v != nil {
+		_u.SetDisk(*v)
+	}
+	return _u
+}
+
+// ClearDisk clears the value of the "disk" field.
+func (_u *AttachmentUpdate) ClearDisk() *AttachmentUpdate {
+	_u.mutation.ClearDisk()
+	return _u
+}
+
+// SetDriver sets the "driver" field.
+func (_u *AttachmentUpdate) SetDriver(v string) *AttachmentUpdate {
+	_u.mutation.SetDriver(v)
+	return _u
+}
+
+// SetNillableDriver sets the "driver" field if the given value is not nil.
+func (_u *AttachmentUpdate) SetNillableDriver(v *string) *AttachmentUpdate {
+	if v != nil {
+		_u.SetDriver(*v)
+	}
+	return _u
+}
+
+// ClearDriver clears the value of the "driver" field.
+func (_u *AttachmentUpdate) ClearDriver() *AttachmentUpdate {
+	_u.mutation.ClearDriver()
+	return _u
+}
+
+// SetDirectory sets the "directory" field.
+func (_u *AttachmentUpdate) SetDirectory(v string) *AttachmentUpdate {
+	_u.mutation.SetDirectory(v)
+	return _u
+}
+
+// SetNillableDirectory sets the "directory" field if the given value is not nil.
+func (_u *AttachmentUpdate) SetNillableDirectory(v *string) *AttachmentUpdate {
+	if v != nil {
+		_u.SetDirectory(*v)
+	}
+	return _u
+}
+
+// ClearDirectory clears the value of the "directory" field.
+func (_u *AttachmentUpdate) ClearDirectory() *AttachmentUpdate {
+	_u.mutation.ClearDirectory()
+	return _u
+}
+
+// SetContentHash sets the "content_hash" field.
+func (_u *AttachmentUpdate) SetContentHash(v string) *AttachmentUpdate {
+	_u.mutation.SetContentHash(v)
+	return _u
+}
+
+// SetNillableContentHash sets the "content_hash" field if the given value is not nil.
+func (_u *AttachmentUpdate) SetNillableContentHash(v *string) *AttachmentUpdate {
+	if v != nil {
+		_u.SetContentHash(*v)
+	}
+	return _u
+}
+
+// ClearContentHash clears the value of the "content_hash" field.
+func (_u *AttachmentUpdate) ClearContentHash() *AttachmentUpdate {
+	_u.mutation.ClearContentHash()
+	return _u
+}
+
+// SetOriginalNameHash sets the "original_name_hash" field.
+func (_u *AttachmentUpdate) SetOriginalNameHash(v string) *AttachmentUpdate {
+	_u.mutation.SetOriginalNameHash(v)
+	return _u
+}
+
+// SetNillableOriginalNameHash sets the "original_name_hash" field if the given value is not nil.
+func (_u *AttachmentUpdate) SetNillableOriginalNameHash(v *string) *AttachmentUpdate {
+	if v != nil {
+		_u.SetOriginalNameHash(*v)
+	}
+	return _u
+}
+
+// ClearOriginalNameHash clears the value of the "original_name_hash" field.
+func (_u *AttachmentUpdate) ClearOriginalNameHash() *AttachmentUpdate {
+	_u.mutation.ClearOriginalNameHash()
+	return _u
+}
+
 // SetMimeType sets the "mime_type" field.
 func (_u *AttachmentUpdate) SetMimeType(v string) *AttachmentUpdate {
 	_u.mutation.SetMimeType(v)
@@ -235,6 +335,31 @@ func (_u *AttachmentUpdate) check() error {
 			return &ValidationError{Name: "path", err: fmt.Errorf(`ent: validator failed for field "Attachment.path": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Disk(); ok {
+		if err := attachment.DiskValidator(v); err != nil {
+			return &ValidationError{Name: "disk", err: fmt.Errorf(`ent: validator failed for field "Attachment.disk": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Driver(); ok {
+		if err := attachment.DriverValidator(v); err != nil {
+			return &ValidationError{Name: "driver", err: fmt.Errorf(`ent: validator failed for field "Attachment.driver": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Directory(); ok {
+		if err := attachment.DirectoryValidator(v); err != nil {
+			return &ValidationError{Name: "directory", err: fmt.Errorf(`ent: validator failed for field "Attachment.directory": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContentHash(); ok {
+		if err := attachment.ContentHashValidator(v); err != nil {
+			return &ValidationError{Name: "content_hash", err: fmt.Errorf(`ent: validator failed for field "Attachment.content_hash": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OriginalNameHash(); ok {
+		if err := attachment.OriginalNameHashValidator(v); err != nil {
+			return &ValidationError{Name: "original_name_hash", err: fmt.Errorf(`ent: validator failed for field "Attachment.original_name_hash": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.MimeType(); ok {
 		if err := attachment.MimeTypeValidator(v); err != nil {
 			return &ValidationError{Name: "mime_type", err: fmt.Errorf(`ent: validator failed for field "Attachment.mime_type": %w`, err)}
@@ -268,6 +393,36 @@ func (_u *AttachmentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(attachment.FieldPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Disk(); ok {
+		_spec.SetField(attachment.FieldDisk, field.TypeString, value)
+	}
+	if _u.mutation.DiskCleared() {
+		_spec.ClearField(attachment.FieldDisk, field.TypeString)
+	}
+	if value, ok := _u.mutation.Driver(); ok {
+		_spec.SetField(attachment.FieldDriver, field.TypeString, value)
+	}
+	if _u.mutation.DriverCleared() {
+		_spec.ClearField(attachment.FieldDriver, field.TypeString)
+	}
+	if value, ok := _u.mutation.Directory(); ok {
+		_spec.SetField(attachment.FieldDirectory, field.TypeString, value)
+	}
+	if _u.mutation.DirectoryCleared() {
+		_spec.ClearField(attachment.FieldDirectory, field.TypeString)
+	}
+	if value, ok := _u.mutation.ContentHash(); ok {
+		_spec.SetField(attachment.FieldContentHash, field.TypeString, value)
+	}
+	if _u.mutation.ContentHashCleared() {
+		_spec.ClearField(attachment.FieldContentHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.OriginalNameHash(); ok {
+		_spec.SetField(attachment.FieldOriginalNameHash, field.TypeString, value)
+	}
+	if _u.mutation.OriginalNameHashCleared() {
+		_spec.ClearField(attachment.FieldOriginalNameHash, field.TypeString)
 	}
 	if value, ok := _u.mutation.MimeType(); ok {
 		_spec.SetField(attachment.FieldMimeType, field.TypeString, value)
@@ -378,6 +533,106 @@ func (_u *AttachmentUpdateOne) SetNillablePath(v *string) *AttachmentUpdateOne {
 	if v != nil {
 		_u.SetPath(*v)
 	}
+	return _u
+}
+
+// SetDisk sets the "disk" field.
+func (_u *AttachmentUpdateOne) SetDisk(v string) *AttachmentUpdateOne {
+	_u.mutation.SetDisk(v)
+	return _u
+}
+
+// SetNillableDisk sets the "disk" field if the given value is not nil.
+func (_u *AttachmentUpdateOne) SetNillableDisk(v *string) *AttachmentUpdateOne {
+	if v != nil {
+		_u.SetDisk(*v)
+	}
+	return _u
+}
+
+// ClearDisk clears the value of the "disk" field.
+func (_u *AttachmentUpdateOne) ClearDisk() *AttachmentUpdateOne {
+	_u.mutation.ClearDisk()
+	return _u
+}
+
+// SetDriver sets the "driver" field.
+func (_u *AttachmentUpdateOne) SetDriver(v string) *AttachmentUpdateOne {
+	_u.mutation.SetDriver(v)
+	return _u
+}
+
+// SetNillableDriver sets the "driver" field if the given value is not nil.
+func (_u *AttachmentUpdateOne) SetNillableDriver(v *string) *AttachmentUpdateOne {
+	if v != nil {
+		_u.SetDriver(*v)
+	}
+	return _u
+}
+
+// ClearDriver clears the value of the "driver" field.
+func (_u *AttachmentUpdateOne) ClearDriver() *AttachmentUpdateOne {
+	_u.mutation.ClearDriver()
+	return _u
+}
+
+// SetDirectory sets the "directory" field.
+func (_u *AttachmentUpdateOne) SetDirectory(v string) *AttachmentUpdateOne {
+	_u.mutation.SetDirectory(v)
+	return _u
+}
+
+// SetNillableDirectory sets the "directory" field if the given value is not nil.
+func (_u *AttachmentUpdateOne) SetNillableDirectory(v *string) *AttachmentUpdateOne {
+	if v != nil {
+		_u.SetDirectory(*v)
+	}
+	return _u
+}
+
+// ClearDirectory clears the value of the "directory" field.
+func (_u *AttachmentUpdateOne) ClearDirectory() *AttachmentUpdateOne {
+	_u.mutation.ClearDirectory()
+	return _u
+}
+
+// SetContentHash sets the "content_hash" field.
+func (_u *AttachmentUpdateOne) SetContentHash(v string) *AttachmentUpdateOne {
+	_u.mutation.SetContentHash(v)
+	return _u
+}
+
+// SetNillableContentHash sets the "content_hash" field if the given value is not nil.
+func (_u *AttachmentUpdateOne) SetNillableContentHash(v *string) *AttachmentUpdateOne {
+	if v != nil {
+		_u.SetContentHash(*v)
+	}
+	return _u
+}
+
+// ClearContentHash clears the value of the "content_hash" field.
+func (_u *AttachmentUpdateOne) ClearContentHash() *AttachmentUpdateOne {
+	_u.mutation.ClearContentHash()
+	return _u
+}
+
+// SetOriginalNameHash sets the "original_name_hash" field.
+func (_u *AttachmentUpdateOne) SetOriginalNameHash(v string) *AttachmentUpdateOne {
+	_u.mutation.SetOriginalNameHash(v)
+	return _u
+}
+
+// SetNillableOriginalNameHash sets the "original_name_hash" field if the given value is not nil.
+func (_u *AttachmentUpdateOne) SetNillableOriginalNameHash(v *string) *AttachmentUpdateOne {
+	if v != nil {
+		_u.SetOriginalNameHash(*v)
+	}
+	return _u
+}
+
+// ClearOriginalNameHash clears the value of the "original_name_hash" field.
+func (_u *AttachmentUpdateOne) ClearOriginalNameHash() *AttachmentUpdateOne {
+	_u.mutation.ClearOriginalNameHash()
 	return _u
 }
 
@@ -558,6 +813,31 @@ func (_u *AttachmentUpdateOne) check() error {
 			return &ValidationError{Name: "path", err: fmt.Errorf(`ent: validator failed for field "Attachment.path": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Disk(); ok {
+		if err := attachment.DiskValidator(v); err != nil {
+			return &ValidationError{Name: "disk", err: fmt.Errorf(`ent: validator failed for field "Attachment.disk": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Driver(); ok {
+		if err := attachment.DriverValidator(v); err != nil {
+			return &ValidationError{Name: "driver", err: fmt.Errorf(`ent: validator failed for field "Attachment.driver": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.Directory(); ok {
+		if err := attachment.DirectoryValidator(v); err != nil {
+			return &ValidationError{Name: "directory", err: fmt.Errorf(`ent: validator failed for field "Attachment.directory": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContentHash(); ok {
+		if err := attachment.ContentHashValidator(v); err != nil {
+			return &ValidationError{Name: "content_hash", err: fmt.Errorf(`ent: validator failed for field "Attachment.content_hash": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.OriginalNameHash(); ok {
+		if err := attachment.OriginalNameHashValidator(v); err != nil {
+			return &ValidationError{Name: "original_name_hash", err: fmt.Errorf(`ent: validator failed for field "Attachment.original_name_hash": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.MimeType(); ok {
 		if err := attachment.MimeTypeValidator(v); err != nil {
 			return &ValidationError{Name: "mime_type", err: fmt.Errorf(`ent: validator failed for field "Attachment.mime_type": %w`, err)}
@@ -608,6 +888,36 @@ func (_u *AttachmentUpdateOne) sqlSave(ctx context.Context) (_node *Attachment, 
 	}
 	if value, ok := _u.mutation.Path(); ok {
 		_spec.SetField(attachment.FieldPath, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Disk(); ok {
+		_spec.SetField(attachment.FieldDisk, field.TypeString, value)
+	}
+	if _u.mutation.DiskCleared() {
+		_spec.ClearField(attachment.FieldDisk, field.TypeString)
+	}
+	if value, ok := _u.mutation.Driver(); ok {
+		_spec.SetField(attachment.FieldDriver, field.TypeString, value)
+	}
+	if _u.mutation.DriverCleared() {
+		_spec.ClearField(attachment.FieldDriver, field.TypeString)
+	}
+	if value, ok := _u.mutation.Directory(); ok {
+		_spec.SetField(attachment.FieldDirectory, field.TypeString, value)
+	}
+	if _u.mutation.DirectoryCleared() {
+		_spec.ClearField(attachment.FieldDirectory, field.TypeString)
+	}
+	if value, ok := _u.mutation.ContentHash(); ok {
+		_spec.SetField(attachment.FieldContentHash, field.TypeString, value)
+	}
+	if _u.mutation.ContentHashCleared() {
+		_spec.ClearField(attachment.FieldContentHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.OriginalNameHash(); ok {
+		_spec.SetField(attachment.FieldOriginalNameHash, field.TypeString, value)
+	}
+	if _u.mutation.OriginalNameHashCleared() {
+		_spec.ClearField(attachment.FieldOriginalNameHash, field.TypeString)
 	}
 	if value, ok := _u.mutation.MimeType(); ok {
 		_spec.SetField(attachment.FieldMimeType, field.TypeString, value)

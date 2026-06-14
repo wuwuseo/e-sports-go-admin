@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"go-admin/internal/global"
 	"go-admin/internal/service"
@@ -60,6 +59,7 @@ func UploadAttachment(c fiber.Ctx) error {
 	req := &service.UnifiedUploadRequest{
 		FileHeader: fileHeader,
 		UserID:     userID,
+		Directory:  c.FormValue("directory"),
 	}
 
 	// 解析可选分组ID
@@ -238,22 +238,16 @@ func PreviewAttachment(c fiber.Ctx) error {
 
 	data, mimeType, filename, err := svc.GetFileData(c.Context(), id)
 	if err != nil {
+		if err == service.ErrAttachmentStorageUnavailable {
+			return c.Status(fiber.StatusInternalServerError).JSON(resp.Fail(global.ResponseInternalServerError, "filesystem unavailable"))
+		}
 		if err == service.ErrAttachmentNotFound {
-			return resp.Fail(global.ErrCodeAttachmentNotFound, "附件不存在").ToJSON(c)
+			return c.Status(fiber.StatusNotFound).JSON(resp.Fail(global.ErrCodeAttachmentNotFound, "attachment not found"))
 		}
 		return resp.Fail(global.ResponseInternalServerError, "获取文件失败").ToJSON(c)
 	}
 
-	c.Set("Content-Type", mimeType)
-
-	// 图片和PDF直接预览（inline），其他类型作为下载（attachment）
-	if strings.HasPrefix(mimeType, "image/") || mimeType == "application/pdf" {
-		c.Set("Content-Disposition", "inline; filename=\""+filename+"\"")
-	} else {
-		c.Set("Content-Disposition", "attachment; filename=\""+filename+"\"")
-	}
-
-	return c.Send(data)
+	return sendAttachmentData(c, data, mimeType, filename)
 }
 
 // DeleteAttachment 删除附件

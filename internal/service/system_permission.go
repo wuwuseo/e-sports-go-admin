@@ -837,6 +837,7 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 131, Domain: "default", Type: "api", Name: "获取系统配置详情", Code: "config:get", Path: "/api/v1/admin/auth/configs/{id}", Method: "GET", ParentID: 10, SortOrder: 5, IsCommon: false, Status: 1, Description: "获取系统配置详情API"},
 		{ID: 132, Domain: "default", Type: "api", Name: "更新系统配置", Code: "config:update", Path: "/api/v1/admin/auth/configs/{id}", Method: "PUT", ParentID: 10, SortOrder: 6, IsCommon: false, Status: 1, Description: "更新系统配置API"},
 		{ID: 133, Domain: "default", Type: "api", Name: "删除系统配置", Code: "config:delete-api", Path: "/api/v1/admin/auth/configs/{id}", Method: "DELETE", ParentID: 10, SortOrder: 7, IsCommon: false, Status: 1, Description: "删除系统配置API"},
+		{ID: 144, Domain: "default", Type: "api", Name: "生成附件访问地址", Code: "attachment:access-url", Path: "/api/v1/admin/auth/attachments/{id}/access-url", Method: "GET", ParentID: 6, SortOrder: 3, IsCommon: false, Status: 1, Description: "生成附件访问地址API"},
 		{ID: 94, Domain: "default", Type: "api", Name: "获取附件分组列表", Code: "attachment-group:list", Path: "/api/v1/admin/auth/attachment-groups", Method: "GET", ParentID: 6, SortOrder: 3, IsCommon: false, Status: 1, Description: "获取附件分组列表API"},
 		{ID: 95, Domain: "default", Type: "api", Name: "按类型获取字典数据", Code: "dict-data:type", Path: "/api/v1/admin/auth/dict-data/type/{type}", Method: "GET", ParentID: 9, SortOrder: 1, IsCommon: false, Status: 1, Description: "按类型获取字典数据API"},
 		{ID: 134, Domain: "default", Type: "api", Name: "创建字典数据", Code: "dict-data:create", Path: "/api/v1/admin/auth/dict-data", Method: "POST", ParentID: 9, SortOrder: 2, IsCommon: false, Status: 1, Description: "创建字典数据API"},
@@ -855,15 +856,23 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 102, Domain: "default", Type: "button", Name: "部门管理-新增按钮", Code: "department:add", ParentID: 96, SortOrder: 0, IsCommon: false, Status: 1, Description: "部门管理页面新增按钮"},
 		{ID: 103, Domain: "default", Type: "button", Name: "部门管理-编辑按钮", Code: "department:edit", ParentID: 96, SortOrder: 1, IsCommon: false, Status: 1, Description: "部门管理页面编辑按钮"},
 		{ID: 104, Domain: "default", Type: "button", Name: "部门管理-删除按钮", Code: "department:delete", ParentID: 96, SortOrder: 2, IsCommon: false, Status: 1, Description: "部门管理页面删除按钮"},
+		// 管理员管理菜单
+		{ID: 138, Domain: "default", Type: "menu", Name: "管理员管理", Code: "system:admin", MenuPath: "/system/admin", Component: "system/admin/index", ParentID: 3, SortOrder: 9, IsCommon: false, Status: 1, Description: "管理员管理页面"},
 		// 管理员管理 API（数据权限闭环新增）
-		{ID: 110, Domain: "default", Type: "api", Name: "管理员列表", Code: "admin:list", Path: "/api/v1/admin/auth/admins", Method: "GET", ParentID: 3, SortOrder: 70, IsCommon: false, Status: 1, Description: "管理员列表API"},
-		{ID: 111, Domain: "default", Type: "api", Name: "创建管理员", Code: "admin:create", Path: "/api/v1/admin/auth/admins", Method: "POST", ParentID: 3, SortOrder: 71, IsCommon: false, Status: 1, Description: "创建管理员API"},
-		{ID: 112, Domain: "default", Type: "api", Name: "管理员详情", Code: "admin:detail", Path: "/api/v1/admin/auth/admins/{id}", Method: "GET", ParentID: 3, SortOrder: 72, IsCommon: false, Status: 1, Description: "管理员详情API"},
-		{ID: 113, Domain: "default", Type: "api", Name: "更新管理员", Code: "admin:update", Path: "/api/v1/admin/auth/admins/{id}", Method: "PUT", ParentID: 3, SortOrder: 73, IsCommon: false, Status: 1, Description: "更新管理员API"},
-		{ID: 114, Domain: "default", Type: "api", Name: "查看管理员角色", Code: "admin:roles:get", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "GET", ParentID: 3, SortOrder: 74, IsCommon: false, Status: 1, Description: "查看管理员角色API"},
-		{ID: 115, Domain: "default", Type: "api", Name: "分配管理员角色", Code: "admin:roles:put", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "PUT", ParentID: 3, SortOrder: 75, IsCommon: false, Status: 1, Description: "分配管理员角色API"},
-		{ID: 116, Domain: "default", Type: "api", Name: "启用管理员", Code: "admin:activate", Path: "/api/v1/admin/auth/admins/{id}/activate", Method: "PUT", ParentID: 3, SortOrder: 76, IsCommon: false, Status: 1, Description: "启用管理员API"},
-		{ID: 117, Domain: "default", Type: "api", Name: "禁用管理员", Code: "admin:deactivate", Path: "/api/v1/admin/auth/admins/{id}/deactivate", Method: "PUT", ParentID: 3, SortOrder: 77, IsCommon: false, Status: 1, Description: "禁用管理员API"},
+		{ID: 110, Domain: "default", Type: "api", Name: "管理员列表", Code: "admin:list", Path: "/api/v1/admin/auth/admins", Method: "GET", ParentID: 138, SortOrder: 0, IsCommon: false, Status: 1, Description: "管理员列表API"},
+		{ID: 111, Domain: "default", Type: "api", Name: "创建管理员", Code: "admin:create", Path: "/api/v1/admin/auth/admins", Method: "POST", ParentID: 138, SortOrder: 1, IsCommon: false, Status: 1, Description: "创建管理员API"},
+		{ID: 112, Domain: "default", Type: "api", Name: "管理员详情", Code: "admin:detail", Path: "/api/v1/admin/auth/admins/{id}", Method: "GET", ParentID: 138, SortOrder: 2, IsCommon: false, Status: 1, Description: "管理员详情API"},
+		{ID: 113, Domain: "default", Type: "api", Name: "更新管理员", Code: "admin:update", Path: "/api/v1/admin/auth/admins/{id}", Method: "PUT", ParentID: 138, SortOrder: 3, IsCommon: false, Status: 1, Description: "更新管理员API"},
+		{ID: 114, Domain: "default", Type: "api", Name: "查看管理员角色", Code: "admin:roles:get", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "GET", ParentID: 138, SortOrder: 4, IsCommon: false, Status: 1, Description: "查看管理员角色API"},
+		{ID: 115, Domain: "default", Type: "api", Name: "分配管理员角色", Code: "admin:roles:put", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "PUT", ParentID: 138, SortOrder: 5, IsCommon: false, Status: 1, Description: "分配管理员角色API"},
+		{ID: 116, Domain: "default", Type: "api", Name: "启用管理员", Code: "admin:activate", Path: "/api/v1/admin/auth/admins/{id}/activate", Method: "PUT", ParentID: 138, SortOrder: 6, IsCommon: false, Status: 1, Description: "启用管理员API"},
+		{ID: 117, Domain: "default", Type: "api", Name: "禁用管理员", Code: "admin:deactivate", Path: "/api/v1/admin/auth/admins/{id}/deactivate", Method: "PUT", ParentID: 138, SortOrder: 7, IsCommon: false, Status: 1, Description: "禁用管理员API"},
+		// 管理员管理按钮
+		{ID: 139, Domain: "default", Type: "button", Name: "管理员管理-新增按钮", Code: "admin:add", ParentID: 138, SortOrder: 0, IsCommon: false, Status: 1, Description: "管理员管理页面新增按钮"},
+		{ID: 140, Domain: "default", Type: "button", Name: "管理员管理-编辑按钮", Code: "admin:edit", ParentID: 138, SortOrder: 1, IsCommon: false, Status: 1, Description: "管理员管理页面编辑按钮"},
+		{ID: 141, Domain: "default", Type: "button", Name: "管理员管理-分配角色按钮", Code: "admin:assign-role", ParentID: 138, SortOrder: 2, IsCommon: false, Status: 1, Description: "管理员管理页面分配角色按钮"},
+		{ID: 142, Domain: "default", Type: "button", Name: "管理员管理-启用按钮", Code: "admin:activate-btn", ParentID: 138, SortOrder: 3, IsCommon: false, Status: 1, Description: "管理员管理页面启用按钮"},
+		{ID: 143, Domain: "default", Type: "button", Name: "管理员管理-禁用按钮", Code: "admin:deactivate-btn", ParentID: 138, SortOrder: 4, IsCommon: false, Status: 1, Description: "管理员管理页面禁用按钮"},
 	}
 
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {

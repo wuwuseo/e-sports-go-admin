@@ -268,6 +268,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 附件管理路由
 	attachments := adminAuth.Group("/attachments", func(c fiber.Ctx) error {
 		c.Locals("service.AttachmentService", attachmentService)
+		c.Locals("attachment.access_secret", config.App.AdminSecret)
+		c.Locals("attachment.content_base_path", "/api/v1/attachments")
 		return c.Next()
 	})
 	attachments.Post("/upload", handler.UploadAttachment)
@@ -277,9 +279,17 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	attachments.Delete("/batch", handler.BatchDeleteAttachments)
 	attachments.Get("/", handler.ListAttachments)
 	attachments.Get("/:id", handler.GetAttachment)
+	attachments.Get("/:id/access-url", handler.GetAttachmentAccessURL)
 	attachments.Get("/:id/preview", handler.PreviewAttachment)
 	attachments.Delete("/:id", handler.DeleteAttachment)
 	attachments.Put("/:id/move", handler.MoveAttachment)
+
+	attachmentContent := v1.Group("/attachments", func(c fiber.Ctx) error {
+		c.Locals("service.AttachmentService", attachmentService)
+		c.Locals("attachment.access_secret", config.App.AdminSecret)
+		return c.Next()
+	})
+	attachmentContent.Get("/:id/content", handler.ServeAttachmentContent)
 
 	// 操作日志管理路由
 	opLogs := adminAuth.Group("/operation-logs")

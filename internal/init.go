@@ -198,7 +198,7 @@ func initSeedData() error {
 
 	// 2. 创建管理员用户（使用 First 避免 username 重复导致 NotSingularError）
 	adminUser, err := client.User.Query().
-		Where(user.UsernameEQ("admin")).
+		Where(user.Or(user.UsernameEQ("admin"), user.EmailEQ("admin@example.com"))).
 		First(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {
@@ -238,7 +238,7 @@ func initSeedData() error {
 
 	// 2b. 创建管理员记录到 admins 表（分表后的管理员登录入口）
 	adminAccount, err := client.Admin.Query().
-		Where(admin.UsernameEQ("admin")).
+		Where(admin.Or(admin.UsernameEQ("admin"), admin.EmailEQ("admin@example.com"))).
 		First(ctx)
 	if err != nil {
 		if !ent.IsNotFound(err) {

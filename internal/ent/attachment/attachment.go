@@ -22,6 +22,16 @@ const (
 	FieldOriginalName = "original_name"
 	// FieldPath holds the string denoting the path field in the database.
 	FieldPath = "path"
+	// FieldDisk holds the string denoting the disk field in the database.
+	FieldDisk = "disk"
+	// FieldDriver holds the string denoting the driver field in the database.
+	FieldDriver = "driver"
+	// FieldDirectory holds the string denoting the directory field in the database.
+	FieldDirectory = "directory"
+	// FieldContentHash holds the string denoting the content_hash field in the database.
+	FieldContentHash = "content_hash"
+	// FieldOriginalNameHash holds the string denoting the original_name_hash field in the database.
+	FieldOriginalNameHash = "original_name_hash"
 	// FieldMimeType holds the string denoting the mime_type field in the database.
 	FieldMimeType = "mime_type"
 	// FieldExtension holds the string denoting the extension field in the database.
@@ -58,6 +68,11 @@ var Columns = []string{
 	FieldName,
 	FieldOriginalName,
 	FieldPath,
+	FieldDisk,
+	FieldDriver,
+	FieldDirectory,
+	FieldContentHash,
+	FieldOriginalNameHash,
 	FieldMimeType,
 	FieldExtension,
 	FieldSize,
@@ -84,6 +99,16 @@ var (
 	OriginalNameValidator func(string) error
 	// PathValidator is a validator for the "path" field. It is called by the builders before save.
 	PathValidator func(string) error
+	// DiskValidator is a validator for the "disk" field. It is called by the builders before save.
+	DiskValidator func(string) error
+	// DriverValidator is a validator for the "driver" field. It is called by the builders before save.
+	DriverValidator func(string) error
+	// DirectoryValidator is a validator for the "directory" field. It is called by the builders before save.
+	DirectoryValidator func(string) error
+	// ContentHashValidator is a validator for the "content_hash" field. It is called by the builders before save.
+	ContentHashValidator func(string) error
+	// OriginalNameHashValidator is a validator for the "original_name_hash" field. It is called by the builders before save.
+	OriginalNameHashValidator func(string) error
 	// MimeTypeValidator is a validator for the "mime_type" field. It is called by the builders before save.
 	MimeTypeValidator func(string) error
 	// ExtensionValidator is a validator for the "extension" field. It is called by the builders before save.
@@ -117,6 +142,31 @@ func ByOriginalName(opts ...sql.OrderTermOption) OrderOption {
 // ByPath orders the results by the path field.
 func ByPath(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPath, opts...).ToFunc()
+}
+
+// ByDisk orders the results by the disk field.
+func ByDisk(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisk, opts...).ToFunc()
+}
+
+// ByDriver orders the results by the driver field.
+func ByDriver(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDriver, opts...).ToFunc()
+}
+
+// ByDirectory orders the results by the directory field.
+func ByDirectory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDirectory, opts...).ToFunc()
+}
+
+// ByContentHash orders the results by the content_hash field.
+func ByContentHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContentHash, opts...).ToFunc()
+}
+
+// ByOriginalNameHash orders the results by the original_name_hash field.
+func ByOriginalNameHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOriginalNameHash, opts...).ToFunc()
 }
 
 // ByMimeType orders the results by the mime_type field.

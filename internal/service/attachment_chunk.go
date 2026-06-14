@@ -18,9 +18,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wuwuseo/cmf/filesystem"
 	"github.com/wuwuseo/cmf/log"
 	"go.uber.org/zap"
 
+	"go-admin/internal/ent"
 	"go-admin/internal/global"
 )
 
@@ -32,6 +34,7 @@ type ChunkInitRequest struct {
 	TotalChunks int    `json:"total_chunks" validate:"required,min=1"`
 	MimeType    string `json:"mime_type"`
 	GroupID     *int   `json:"group_id"`
+	Directory   string `json:"directory"`
 }
 
 // ChunkInitResponse 分片上传初始化响应
@@ -75,6 +78,7 @@ type UnifiedUploadRequest struct {
 	ChunkSize   int64  // 单片大小（首次分片时必填）
 	MimeType    string
 	GroupID     *int
+	Directory   string
 	UserID      string
 }
 
@@ -99,6 +103,7 @@ type chunkSession struct {
 	MimeType    string
 	GroupID     *int
 	Uploaded    map[int]bool // 已上传的分片索引
+	Directory   string
 	CreatedAt   time.Time
 	ExpiresAt   time.Time // 会话过期时间
 	mu          sync.Mutex
@@ -249,6 +254,7 @@ func (s *AttachmentService) initChunkSession(uploadID string, req *ChunkInitRequ
 		TotalChunks: req.TotalChunks,
 		MimeType:    req.MimeType,
 		GroupID:     req.GroupID,
+		Directory:   req.Directory,
 		Uploaded:    make(map[int]bool),
 		CreatedAt:   now,
 		ExpiresAt:   now.Add(sessionTTL),
@@ -421,7 +427,7 @@ func (s *AttachmentService) MergeChunks(ctx context.Context, uploadID string, us
 	}
 	session.mu.Unlock()
 
-	return s.mergeChunks(ctx, session, chunkDir, userID)
+	return s.mergeChunksWithDedupe(ctx, session, chunkDir, userID)
 }
 
 // mergeChunks 合并分片的内部实现（session 必须已从 chunkStore 中移除）
@@ -522,6 +528,121 @@ func (s *AttachmentService) mergeChunks(ctx context.Context, session *chunkSessi
 // - TotalChunks > 0 && UploadID == ""：首次分片，使用确定性 upload_id 实现幂等初始化
 // - TotalChunks > 0 && UploadID != ""：后续分片，追加到已有会话
 // - ChunkIndex == TotalChunks - 1：最后一片，自动合并并返回附件信息
+func (s *AttachmentService) mergeChunksWithDedupe(ctx context.Context, session *chunkSession, chunkDir string, userID string) (*AttachmentResponse, error) {
+	if s.filesystem == nil {
+		return nil, ErrAttachmentStorageUnavailable
+	}
+
+	originalName, err := filesystem.SafeOriginalName(session.Filename)
+	if err != nil {
+		return nil, err
+	}
+	uploadDirectory, err := resolveAttachmentDirectory(session.Directory)
+	if err != nil {
+		return nil, err
+	}
+
+	hashReaders, hashFiles, err := openChunkReaders(session, chunkDir)
+	if err != nil {
+		return nil, err
+	}
+	contentHash, totalSize, err := filesystem.ContentHashReader(io.MultiReader(hashReaders...))
+	closeFiles(hashFiles)
+	if err != nil {
+		return nil, fmt.Errorf("计算分片文件哈希失败: %w", err)
+	}
+
+	originalNameHash := filesystem.HashString(originalName)
+	if duplicate, err := s.findDuplicateAttachment(ctx, contentHash, totalSize, originalNameHash); err == nil {
+		return s.toAttachmentResponse(duplicate), nil
+	} else if !ent.IsNotFound(err) {
+		return nil, fmt.Errorf("查询重复附件失败: %w", err)
+	}
+
+	ext := getExt(originalName)
+	key, err := filesystem.BuildContentAddressedKey(uploadDirectory, contentHash, originalNameHash, ext)
+	if err != nil {
+		return nil, err
+	}
+
+	readers, files, err := openChunkReaders(session, chunkDir)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.filesystem.SetReader(key, io.MultiReader(readers...), 0); err != nil {
+		closeFiles(files)
+		return nil, fmt.Errorf("存储文件失败: %w", err)
+	}
+	closeFiles(files)
+
+	mimeType := session.MimeType
+	if mimeType == "" {
+		firstChunkPath := filepath.Join(chunkDir, "0")
+		firstChunkData, err := os.ReadFile(firstChunkPath)
+		if err == nil && len(firstChunkData) > 0 {
+			detectSize := 512
+			if len(firstChunkData) < detectSize {
+				detectSize = len(firstChunkData)
+			}
+			mimeType = http.DetectContentType(firstChunkData[:detectSize])
+		}
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+	}
+
+	diskInfo := filesystem.DefaultDiskInfo(s.filesystem.Config)
+	builder := s.Client.Attachment.Create().
+		SetName(originalName).
+		SetOriginalName(originalName).
+		SetPath(key).
+		SetDisk(diskInfo.Disk).
+		SetDriver(diskInfo.Driver).
+		SetDirectory(uploadDirectory).
+		SetContentHash(contentHash).
+		SetOriginalNameHash(originalNameHash).
+		SetMimeType(mimeType).
+		SetExtension(ext).
+		SetSize(totalSize).
+		SetNillableGroupID(session.GroupID).
+		SetUploadedBy(userID)
+
+	a, err := builder.Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			if duplicate, dupErr := s.findDuplicateAttachment(ctx, contentHash, totalSize, originalNameHash); dupErr == nil {
+				return s.toAttachmentResponse(duplicate), nil
+			}
+		}
+		_ = s.filesystem.Delete(key)
+		return nil, fmt.Errorf("保存附件记录失败: %w", err)
+	}
+
+	return s.toAttachmentResponse(a), nil
+}
+
+func openChunkReaders(session *chunkSession, chunkDir string) ([]io.Reader, []*os.File, error) {
+	readers := make([]io.Reader, 0, session.TotalChunks)
+	files := make([]*os.File, 0, session.TotalChunks)
+	for i := 0; i < session.TotalChunks; i++ {
+		chunkPath := filepath.Join(chunkDir, strconv.Itoa(i))
+		file, err := os.Open(chunkPath)
+		if err != nil {
+			closeFiles(files)
+			return nil, nil, fmt.Errorf("打开分片 %d 失败: %w", i, err)
+		}
+		files = append(files, file)
+		readers = append(readers, file)
+	}
+	return readers, files, nil
+}
+
+func closeFiles(files []*os.File) {
+	for _, file := range files {
+		_ = file.Close()
+	}
+}
+
 func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploadRequest) (*UnifiedUploadResponse, error) {
 	// 判断是否为文件头分片或简单上传（只有这两种情况需要做二进制 MIME 检测）
 	// isFileHeaderChunk 要求 ChunkIndex==0 且 UploadID 为空，防止乱序首片绕过文件头魔数检测
@@ -586,7 +707,7 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 		if req.FileHeader != nil && req.FileHeader.Size > maxSimpleFileSize {
 			return nil, fmt.Errorf("%w（最大 %dMB）", ErrFileSizeExceeded, maxSimpleFileSize/(1024*1024))
 		}
-		attachment, err := s.Upload(ctx, req.FileHeader, req.GroupID, req.UserID)
+		attachment, err := s.Upload(ctx, req.FileHeader, req.GroupID, req.UserID, req.Directory)
 		if err != nil {
 			return nil, err
 		}
@@ -619,6 +740,7 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 			TotalChunks: req.TotalChunks,
 			MimeType:    req.MimeType,
 			GroupID:     req.GroupID,
+			Directory:   req.Directory,
 			Uploaded:    make(map[int]bool),
 			CreatedAt:   now,
 			ExpiresAt:   now.Add(sessionTTL),

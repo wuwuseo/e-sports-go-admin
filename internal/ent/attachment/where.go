@@ -70,6 +70,31 @@ func Path(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldEQ(FieldPath, v))
 }
 
+// Disk applies equality check predicate on the "disk" field. It's identical to DiskEQ.
+func Disk(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldDisk, v))
+}
+
+// Driver applies equality check predicate on the "driver" field. It's identical to DriverEQ.
+func Driver(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldDriver, v))
+}
+
+// Directory applies equality check predicate on the "directory" field. It's identical to DirectoryEQ.
+func Directory(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldDirectory, v))
+}
+
+// ContentHash applies equality check predicate on the "content_hash" field. It's identical to ContentHashEQ.
+func ContentHash(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldContentHash, v))
+}
+
+// OriginalNameHash applies equality check predicate on the "original_name_hash" field. It's identical to OriginalNameHashEQ.
+func OriginalNameHash(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldOriginalNameHash, v))
+}
+
 // MimeType applies equality check predicate on the "mime_type" field. It's identical to MimeTypeEQ.
 func MimeType(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldEQ(FieldMimeType, v))
@@ -298,6 +323,381 @@ func PathEqualFold(v string) predicate.Attachment {
 // PathContainsFold applies the ContainsFold predicate on the "path" field.
 func PathContainsFold(v string) predicate.Attachment {
 	return predicate.Attachment(sql.FieldContainsFold(FieldPath, v))
+}
+
+// DiskEQ applies the EQ predicate on the "disk" field.
+func DiskEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldDisk, v))
+}
+
+// DiskNEQ applies the NEQ predicate on the "disk" field.
+func DiskNEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNEQ(FieldDisk, v))
+}
+
+// DiskIn applies the In predicate on the "disk" field.
+func DiskIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldIn(FieldDisk, vs...))
+}
+
+// DiskNotIn applies the NotIn predicate on the "disk" field.
+func DiskNotIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotIn(FieldDisk, vs...))
+}
+
+// DiskGT applies the GT predicate on the "disk" field.
+func DiskGT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGT(FieldDisk, v))
+}
+
+// DiskGTE applies the GTE predicate on the "disk" field.
+func DiskGTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGTE(FieldDisk, v))
+}
+
+// DiskLT applies the LT predicate on the "disk" field.
+func DiskLT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLT(FieldDisk, v))
+}
+
+// DiskLTE applies the LTE predicate on the "disk" field.
+func DiskLTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLTE(FieldDisk, v))
+}
+
+// DiskContains applies the Contains predicate on the "disk" field.
+func DiskContains(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContains(FieldDisk, v))
+}
+
+// DiskHasPrefix applies the HasPrefix predicate on the "disk" field.
+func DiskHasPrefix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasPrefix(FieldDisk, v))
+}
+
+// DiskHasSuffix applies the HasSuffix predicate on the "disk" field.
+func DiskHasSuffix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasSuffix(FieldDisk, v))
+}
+
+// DiskIsNil applies the IsNil predicate on the "disk" field.
+func DiskIsNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldIsNull(FieldDisk))
+}
+
+// DiskNotNil applies the NotNil predicate on the "disk" field.
+func DiskNotNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotNull(FieldDisk))
+}
+
+// DiskEqualFold applies the EqualFold predicate on the "disk" field.
+func DiskEqualFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEqualFold(FieldDisk, v))
+}
+
+// DiskContainsFold applies the ContainsFold predicate on the "disk" field.
+func DiskContainsFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContainsFold(FieldDisk, v))
+}
+
+// DriverEQ applies the EQ predicate on the "driver" field.
+func DriverEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldDriver, v))
+}
+
+// DriverNEQ applies the NEQ predicate on the "driver" field.
+func DriverNEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNEQ(FieldDriver, v))
+}
+
+// DriverIn applies the In predicate on the "driver" field.
+func DriverIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldIn(FieldDriver, vs...))
+}
+
+// DriverNotIn applies the NotIn predicate on the "driver" field.
+func DriverNotIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotIn(FieldDriver, vs...))
+}
+
+// DriverGT applies the GT predicate on the "driver" field.
+func DriverGT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGT(FieldDriver, v))
+}
+
+// DriverGTE applies the GTE predicate on the "driver" field.
+func DriverGTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGTE(FieldDriver, v))
+}
+
+// DriverLT applies the LT predicate on the "driver" field.
+func DriverLT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLT(FieldDriver, v))
+}
+
+// DriverLTE applies the LTE predicate on the "driver" field.
+func DriverLTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLTE(FieldDriver, v))
+}
+
+// DriverContains applies the Contains predicate on the "driver" field.
+func DriverContains(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContains(FieldDriver, v))
+}
+
+// DriverHasPrefix applies the HasPrefix predicate on the "driver" field.
+func DriverHasPrefix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasPrefix(FieldDriver, v))
+}
+
+// DriverHasSuffix applies the HasSuffix predicate on the "driver" field.
+func DriverHasSuffix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasSuffix(FieldDriver, v))
+}
+
+// DriverIsNil applies the IsNil predicate on the "driver" field.
+func DriverIsNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldIsNull(FieldDriver))
+}
+
+// DriverNotNil applies the NotNil predicate on the "driver" field.
+func DriverNotNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotNull(FieldDriver))
+}
+
+// DriverEqualFold applies the EqualFold predicate on the "driver" field.
+func DriverEqualFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEqualFold(FieldDriver, v))
+}
+
+// DriverContainsFold applies the ContainsFold predicate on the "driver" field.
+func DriverContainsFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContainsFold(FieldDriver, v))
+}
+
+// DirectoryEQ applies the EQ predicate on the "directory" field.
+func DirectoryEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldDirectory, v))
+}
+
+// DirectoryNEQ applies the NEQ predicate on the "directory" field.
+func DirectoryNEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNEQ(FieldDirectory, v))
+}
+
+// DirectoryIn applies the In predicate on the "directory" field.
+func DirectoryIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldIn(FieldDirectory, vs...))
+}
+
+// DirectoryNotIn applies the NotIn predicate on the "directory" field.
+func DirectoryNotIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotIn(FieldDirectory, vs...))
+}
+
+// DirectoryGT applies the GT predicate on the "directory" field.
+func DirectoryGT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGT(FieldDirectory, v))
+}
+
+// DirectoryGTE applies the GTE predicate on the "directory" field.
+func DirectoryGTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGTE(FieldDirectory, v))
+}
+
+// DirectoryLT applies the LT predicate on the "directory" field.
+func DirectoryLT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLT(FieldDirectory, v))
+}
+
+// DirectoryLTE applies the LTE predicate on the "directory" field.
+func DirectoryLTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLTE(FieldDirectory, v))
+}
+
+// DirectoryContains applies the Contains predicate on the "directory" field.
+func DirectoryContains(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContains(FieldDirectory, v))
+}
+
+// DirectoryHasPrefix applies the HasPrefix predicate on the "directory" field.
+func DirectoryHasPrefix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasPrefix(FieldDirectory, v))
+}
+
+// DirectoryHasSuffix applies the HasSuffix predicate on the "directory" field.
+func DirectoryHasSuffix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasSuffix(FieldDirectory, v))
+}
+
+// DirectoryIsNil applies the IsNil predicate on the "directory" field.
+func DirectoryIsNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldIsNull(FieldDirectory))
+}
+
+// DirectoryNotNil applies the NotNil predicate on the "directory" field.
+func DirectoryNotNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotNull(FieldDirectory))
+}
+
+// DirectoryEqualFold applies the EqualFold predicate on the "directory" field.
+func DirectoryEqualFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEqualFold(FieldDirectory, v))
+}
+
+// DirectoryContainsFold applies the ContainsFold predicate on the "directory" field.
+func DirectoryContainsFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContainsFold(FieldDirectory, v))
+}
+
+// ContentHashEQ applies the EQ predicate on the "content_hash" field.
+func ContentHashEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldContentHash, v))
+}
+
+// ContentHashNEQ applies the NEQ predicate on the "content_hash" field.
+func ContentHashNEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNEQ(FieldContentHash, v))
+}
+
+// ContentHashIn applies the In predicate on the "content_hash" field.
+func ContentHashIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldIn(FieldContentHash, vs...))
+}
+
+// ContentHashNotIn applies the NotIn predicate on the "content_hash" field.
+func ContentHashNotIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotIn(FieldContentHash, vs...))
+}
+
+// ContentHashGT applies the GT predicate on the "content_hash" field.
+func ContentHashGT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGT(FieldContentHash, v))
+}
+
+// ContentHashGTE applies the GTE predicate on the "content_hash" field.
+func ContentHashGTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGTE(FieldContentHash, v))
+}
+
+// ContentHashLT applies the LT predicate on the "content_hash" field.
+func ContentHashLT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLT(FieldContentHash, v))
+}
+
+// ContentHashLTE applies the LTE predicate on the "content_hash" field.
+func ContentHashLTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLTE(FieldContentHash, v))
+}
+
+// ContentHashContains applies the Contains predicate on the "content_hash" field.
+func ContentHashContains(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContains(FieldContentHash, v))
+}
+
+// ContentHashHasPrefix applies the HasPrefix predicate on the "content_hash" field.
+func ContentHashHasPrefix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasPrefix(FieldContentHash, v))
+}
+
+// ContentHashHasSuffix applies the HasSuffix predicate on the "content_hash" field.
+func ContentHashHasSuffix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasSuffix(FieldContentHash, v))
+}
+
+// ContentHashIsNil applies the IsNil predicate on the "content_hash" field.
+func ContentHashIsNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldIsNull(FieldContentHash))
+}
+
+// ContentHashNotNil applies the NotNil predicate on the "content_hash" field.
+func ContentHashNotNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotNull(FieldContentHash))
+}
+
+// ContentHashEqualFold applies the EqualFold predicate on the "content_hash" field.
+func ContentHashEqualFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEqualFold(FieldContentHash, v))
+}
+
+// ContentHashContainsFold applies the ContainsFold predicate on the "content_hash" field.
+func ContentHashContainsFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContainsFold(FieldContentHash, v))
+}
+
+// OriginalNameHashEQ applies the EQ predicate on the "original_name_hash" field.
+func OriginalNameHashEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEQ(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashNEQ applies the NEQ predicate on the "original_name_hash" field.
+func OriginalNameHashNEQ(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNEQ(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashIn applies the In predicate on the "original_name_hash" field.
+func OriginalNameHashIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldIn(FieldOriginalNameHash, vs...))
+}
+
+// OriginalNameHashNotIn applies the NotIn predicate on the "original_name_hash" field.
+func OriginalNameHashNotIn(vs ...string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotIn(FieldOriginalNameHash, vs...))
+}
+
+// OriginalNameHashGT applies the GT predicate on the "original_name_hash" field.
+func OriginalNameHashGT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGT(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashGTE applies the GTE predicate on the "original_name_hash" field.
+func OriginalNameHashGTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldGTE(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashLT applies the LT predicate on the "original_name_hash" field.
+func OriginalNameHashLT(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLT(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashLTE applies the LTE predicate on the "original_name_hash" field.
+func OriginalNameHashLTE(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldLTE(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashContains applies the Contains predicate on the "original_name_hash" field.
+func OriginalNameHashContains(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContains(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashHasPrefix applies the HasPrefix predicate on the "original_name_hash" field.
+func OriginalNameHashHasPrefix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasPrefix(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashHasSuffix applies the HasSuffix predicate on the "original_name_hash" field.
+func OriginalNameHashHasSuffix(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldHasSuffix(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashIsNil applies the IsNil predicate on the "original_name_hash" field.
+func OriginalNameHashIsNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldIsNull(FieldOriginalNameHash))
+}
+
+// OriginalNameHashNotNil applies the NotNil predicate on the "original_name_hash" field.
+func OriginalNameHashNotNil() predicate.Attachment {
+	return predicate.Attachment(sql.FieldNotNull(FieldOriginalNameHash))
+}
+
+// OriginalNameHashEqualFold applies the EqualFold predicate on the "original_name_hash" field.
+func OriginalNameHashEqualFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldEqualFold(FieldOriginalNameHash, v))
+}
+
+// OriginalNameHashContainsFold applies the ContainsFold predicate on the "original_name_hash" field.
+func OriginalNameHashContainsFold(v string) predicate.Attachment {
+	return predicate.Attachment(sql.FieldContainsFold(FieldOriginalNameHash, v))
 }
 
 // MimeTypeEQ applies the EQ predicate on the "mime_type" field.

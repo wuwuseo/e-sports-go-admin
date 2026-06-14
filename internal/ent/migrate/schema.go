@@ -127,6 +127,11 @@ var (
 		{Name: "name", Type: field.TypeString, Size: 255},
 		{Name: "original_name", Type: field.TypeString, Size: 255},
 		{Name: "path", Type: field.TypeString, Size: 1024},
+		{Name: "disk", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "driver", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "directory", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "content_hash", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "original_name_hash", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "mime_type", Type: field.TypeString, Size: 255},
 		{Name: "extension", Type: field.TypeString, Size: 50},
 		{Name: "size", Type: field.TypeInt64},
@@ -143,7 +148,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "attachments_attachment_groups_attachments",
-				Columns:    []*schema.Column{AttachmentsColumns[10]},
+				Columns:    []*schema.Column{AttachmentsColumns[15]},
 				RefColumns: []*schema.Column{AttachmentGroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -152,17 +157,22 @@ var (
 			{
 				Name:    "attachment_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{AttachmentsColumns[10]},
+				Columns: []*schema.Column{AttachmentsColumns[15]},
 			},
 			{
 				Name:    "attachment_mime_type",
 				Unique:  false,
-				Columns: []*schema.Column{AttachmentsColumns[4]},
+				Columns: []*schema.Column{AttachmentsColumns[9]},
 			},
 			{
 				Name:    "attachment_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{AttachmentsColumns[8]},
+				Columns: []*schema.Column{AttachmentsColumns[13]},
+			},
+			{
+				Name:    "attachment_content_hash_size_original_name_hash",
+				Unique:  true,
+				Columns: []*schema.Column{AttachmentsColumns[7], AttachmentsColumns[11], AttachmentsColumns[8]},
 			},
 		},
 	}

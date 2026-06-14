@@ -795,7 +795,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 132
+	const wantCount = 139
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
@@ -1000,19 +1000,23 @@ func TestInitSystemPermissions_IncludesAdminManagementSeeds(t *testing.T) {
 	if err := InitSystemPermissions(ctx); err != nil {
 		t.Fatalf("InitSystemPermissions failed: %v", err)
 	}
-	wantCodes := []string{
-		"admin:list", "admin:create", "admin:detail", "admin:update",
-		"admin:roles:get", "admin:roles:put", "admin:activate", "admin:deactivate",
+	expected := []seedPermissionExpectation{
+		{Code: "system:admin", Type: "menu", MenuPath: "/system/admin", ParentCode: "system"},
+		{Code: "admin:list", Type: "api", Path: "/api/v1/admin/auth/admins", Method: "GET", ParentCode: "system:admin"},
+		{Code: "admin:create", Type: "api", Path: "/api/v1/admin/auth/admins", Method: "POST", ParentCode: "system:admin"},
+		{Code: "admin:detail", Type: "api", Path: "/api/v1/admin/auth/admins/{id}", Method: "GET", ParentCode: "system:admin"},
+		{Code: "admin:update", Type: "api", Path: "/api/v1/admin/auth/admins/{id}", Method: "PUT", ParentCode: "system:admin"},
+		{Code: "admin:roles:get", Type: "api", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "GET", ParentCode: "system:admin"},
+		{Code: "admin:roles:put", Type: "api", Path: "/api/v1/admin/auth/admins/{id}/roles", Method: "PUT", ParentCode: "system:admin"},
+		{Code: "admin:activate", Type: "api", Path: "/api/v1/admin/auth/admins/{id}/activate", Method: "PUT", ParentCode: "system:admin"},
+		{Code: "admin:deactivate", Type: "api", Path: "/api/v1/admin/auth/admins/{id}/deactivate", Method: "PUT", ParentCode: "system:admin"},
+		{Code: "admin:add", Type: "button", ParentCode: "system:admin"},
+		{Code: "admin:edit", Type: "button", ParentCode: "system:admin"},
+		{Code: "admin:assign-role", Type: "button", ParentCode: "system:admin"},
+		{Code: "admin:activate-btn", Type: "button", ParentCode: "system:admin"},
+		{Code: "admin:deactivate-btn", Type: "button", ParentCode: "system:admin"},
 	}
-	for _, code := range wantCodes {
-		exists, err := global.ORM.SystemPermission.Query().
-			Where(systempermission.DomainEQ("default"), systempermission.CodeEQ(code)).
-			Exist(ctx)
-		if err != nil {
-			t.Fatalf("查询 %s 失败: %v", code, err)
-		}
-		if !exists {
-			t.Fatalf("缺失 admin seed: %s", code)
-		}
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
 	}
 }

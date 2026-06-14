@@ -309,6 +309,10 @@ func (s *AdminService) UpdateAdmin(ctx context.Context, uid string, updates map[
 
 	for key, value := range updates {
 		switch key {
+		case "username":
+			if v, ok := value.(string); ok {
+				update.SetUsername(v)
+			}
 		case "nickname":
 			if v, ok := value.(string); ok {
 				update.SetNickname(v)

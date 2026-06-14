@@ -167,7 +167,15 @@ definitions:
     type: object
   service.AttachmentResponse:
     properties:
+      content_hash:
+        type: string
       created_at:
+        type: string
+      directory:
+        type: string
+      disk:
+        type: string
+      driver:
         type: string
       extension:
         type: string

@@ -143,6 +143,109 @@ func TestIntegration_Upload_WithGroup(t *testing.T) {
 	}
 }
 
+func TestIntegration_Upload_DeduplicatesByHashSizeAndOriginalName(t *testing.T) {
+	client, cleanup := setupDeepIntegration(t)
+	defer cleanup()
+	ctx := withPermissionSystemOperator(t.Context())
+
+	fs, _ := makeLocalFilesystem(t)
+	svc := &AttachmentService{
+		CRUDBase:   &CRUDBase{Client: client},
+		filesystem: fs,
+	}
+
+	fh1 := makeMultipartFileHeader(t, "avatar.png", []byte("same image bytes"))
+	fh1.Header = textproto.MIMEHeader{"Content-Type": []string{"image/png"}}
+	first, err := svc.Upload(ctx, fh1, nil, "user-001", "avatars")
+	if err != nil {
+		t.Fatalf("first Upload failed: %v", err)
+	}
+
+	fh2 := makeMultipartFileHeader(t, "avatar.png", []byte("same image bytes"))
+	fh2.Header = textproto.MIMEHeader{"Content-Type": []string{"image/png"}}
+	second, err := svc.Upload(ctx, fh2, nil, "user-002", "avatars")
+	if err != nil {
+		t.Fatalf("second Upload failed: %v", err)
+	}
+
+	if second.ID != first.ID {
+		t.Fatalf("expected duplicate upload to return attachment %d, got %d", first.ID, second.ID)
+	}
+	if first.ContentHash == "" {
+		t.Fatal("expected content hash to be set")
+	}
+	if first.Directory != "avatars" {
+		t.Fatalf("expected directory avatars, got %q", first.Directory)
+	}
+	if first.Disk != "local" || first.Driver != "local" {
+		t.Fatalf("expected local disk info, got disk=%q driver=%q", first.Disk, first.Driver)
+	}
+
+	count, err := client.Attachment.Query().Count(ctx)
+	if err != nil {
+		t.Fatalf("count attachments: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one attachment record, got %d", count)
+	}
+}
+
+func TestIntegration_Upload_SameContentDifferentOriginalNameCreatesRecord(t *testing.T) {
+	client, cleanup := setupDeepIntegration(t)
+	defer cleanup()
+	ctx := withPermissionSystemOperator(t.Context())
+
+	fs, _ := makeLocalFilesystem(t)
+	svc := &AttachmentService{
+		CRUDBase:   &CRUDBase{Client: client},
+		filesystem: fs,
+	}
+
+	fh1 := makeMultipartFileHeader(t, "avatar.png", []byte("same image bytes"))
+	fh1.Header = textproto.MIMEHeader{"Content-Type": []string{"image/png"}}
+	first, err := svc.Upload(ctx, fh1, nil, "user-001", "avatars")
+	if err != nil {
+		t.Fatalf("first Upload failed: %v", err)
+	}
+
+	fh2 := makeMultipartFileHeader(t, "logo.png", []byte("same image bytes"))
+	fh2.Header = textproto.MIMEHeader{"Content-Type": []string{"image/png"}}
+	second, err := svc.Upload(ctx, fh2, nil, "user-002", "avatars")
+	if err != nil {
+		t.Fatalf("second Upload failed: %v", err)
+	}
+
+	if second.ID == first.ID {
+		t.Fatal("expected different original_name to create a separate attachment record")
+	}
+
+	count, err := client.Attachment.Query().Count(ctx)
+	if err != nil {
+		t.Fatalf("count attachments: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected two attachment records, got %d", count)
+	}
+}
+
+func TestIntegration_Upload_RejectsUnsafeDirectory(t *testing.T) {
+	client, cleanup := setupDeepIntegration(t)
+	defer cleanup()
+	ctx := withPermissionSystemOperator(t.Context())
+
+	fs, _ := makeLocalFilesystem(t)
+	svc := &AttachmentService{
+		CRUDBase:   &CRUDBase{Client: client},
+		filesystem: fs,
+	}
+
+	fh := makeMultipartFileHeader(t, "avatar.png", []byte("image bytes"))
+	fh.Header = textproto.MIMEHeader{"Content-Type": []string{"image/png"}}
+	if _, err := svc.Upload(ctx, fh, nil, "user-001", "../avatars"); err == nil {
+		t.Fatal("expected unsafe directory to be rejected")
+	}
+}
+
 // ======================== UploadChunk ========================
 
 func TestIntegration_UploadChunk_Success(t *testing.T) {
@@ -475,6 +578,77 @@ func TestIntegration_UnifiedUpload_Sharded(t *testing.T) {
 	}
 	if string(got) != "AAAABBBB" {
 		t.Errorf("want AAAABBBB, got %s", string(got))
+	}
+}
+
+func TestIntegration_UnifiedUpload_ShardedDirectoryAndDuplicate(t *testing.T) {
+	client, cleanup := setupDeepIntegration(t)
+	defer cleanup()
+	ctx := withPermissionSystemOperator(t.Context())
+
+	t.Cleanup(func() { os.RemoveAll("./data") })
+	fs, _ := makeLocalFilesystem(t)
+	svc := &AttachmentService{
+		CRUDBase:   &CRUDBase{Client: client},
+		filesystem: fs,
+	}
+
+	uploadSharded := func(userID string) *AttachmentResponse {
+		t.Helper()
+		firstChunk := makeMultipartFileHeader(t, "notes.txt", []byte("hello "))
+		firstChunk.Header = textproto.MIMEHeader{"Content-Type": []string{"text/plain"}}
+		resp0, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+			FileHeader:  firstChunk,
+			ChunkIndex:  0,
+			TotalChunks: 2,
+			Filename:    "notes.txt",
+			FileSize:    int64(len("hello world")),
+			ChunkSize:   int64(len("hello ")),
+			MimeType:    "text/plain",
+			UserID:      userID,
+			Directory:   "docs/chunks",
+		})
+		if err != nil {
+			t.Fatalf("first chunk failed: %v", err)
+		}
+		if resp0.UploadID == "" {
+			t.Fatal("expected upload id")
+		}
+
+		secondChunk := makeMultipartFileHeader(t, "notes.txt", []byte("world"))
+		secondChunk.Header = textproto.MIMEHeader{"Content-Type": []string{"text/plain"}}
+		resp1, err := svc.UnifiedUpload(ctx, &UnifiedUploadRequest{
+			FileHeader:  secondChunk,
+			UploadID:    resp0.UploadID,
+			ChunkIndex:  1,
+			TotalChunks: 2,
+			Filename:    "notes.txt",
+			FileSize:    int64(len("hello world")),
+			ChunkSize:   int64(len("world")),
+			MimeType:    "text/plain",
+			UserID:      userID,
+			Directory:   "ignored/after/start",
+		})
+		if err != nil {
+			t.Fatalf("second chunk failed: %v", err)
+		}
+		if resp1.Attachment == nil {
+			t.Fatal("expected merged attachment")
+		}
+		return resp1.Attachment
+	}
+
+	first := uploadSharded("user-chunk-1")
+	if first.Directory != "docs/chunks" {
+		t.Fatalf("expected directory docs/chunks, got %q", first.Directory)
+	}
+	if first.ContentHash == "" {
+		t.Fatal("expected content hash")
+	}
+
+	second := uploadSharded("user-chunk-2")
+	if second.ID != first.ID {
+		t.Fatalf("expected duplicate sharded upload to return attachment %d, got %d", first.ID, second.ID)
 	}
 }
 

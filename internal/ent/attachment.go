@@ -24,6 +24,16 @@ type Attachment struct {
 	OriginalName string `json:"original_name"`
 	// 存储路径/key
 	Path string `json:"path"`
+	// 存储磁盘
+	Disk string `json:"disk,omitempty"`
+	// 存储驱动
+	Driver string `json:"driver,omitempty"`
+	// 上传目录
+	Directory string `json:"directory,omitempty"`
+	// 文件内容SHA-256
+	ContentHash string `json:"content_hash,omitempty"`
+	// 原始文件名SHA-256
+	OriginalNameHash string `json:"original_name_hash,omitempty"`
 	// MIME类型
 	MimeType string `json:"mime_type"`
 	// 文件扩展名
@@ -71,7 +81,7 @@ func (*Attachment) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case attachment.FieldID, attachment.FieldSize, attachment.FieldGroupID:
 			values[i] = new(sql.NullInt64)
-		case attachment.FieldName, attachment.FieldOriginalName, attachment.FieldPath, attachment.FieldMimeType, attachment.FieldExtension, attachment.FieldUploadedBy:
+		case attachment.FieldName, attachment.FieldOriginalName, attachment.FieldPath, attachment.FieldDisk, attachment.FieldDriver, attachment.FieldDirectory, attachment.FieldContentHash, attachment.FieldOriginalNameHash, attachment.FieldMimeType, attachment.FieldExtension, attachment.FieldUploadedBy:
 			values[i] = new(sql.NullString)
 		case attachment.FieldCreatedAt, attachment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -113,6 +123,36 @@ func (_m *Attachment) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field path", values[i])
 			} else if value.Valid {
 				_m.Path = value.String
+			}
+		case attachment.FieldDisk:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field disk", values[i])
+			} else if value.Valid {
+				_m.Disk = value.String
+			}
+		case attachment.FieldDriver:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field driver", values[i])
+			} else if value.Valid {
+				_m.Driver = value.String
+			}
+		case attachment.FieldDirectory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field directory", values[i])
+			} else if value.Valid {
+				_m.Directory = value.String
+			}
+		case attachment.FieldContentHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field content_hash", values[i])
+			} else if value.Valid {
+				_m.ContentHash = value.String
+			}
+		case attachment.FieldOriginalNameHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field original_name_hash", values[i])
+			} else if value.Valid {
+				_m.OriginalNameHash = value.String
 			}
 		case attachment.FieldMimeType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -205,6 +245,21 @@ func (_m *Attachment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("path=")
 	builder.WriteString(_m.Path)
+	builder.WriteString(", ")
+	builder.WriteString("disk=")
+	builder.WriteString(_m.Disk)
+	builder.WriteString(", ")
+	builder.WriteString("driver=")
+	builder.WriteString(_m.Driver)
+	builder.WriteString(", ")
+	builder.WriteString("directory=")
+	builder.WriteString(_m.Directory)
+	builder.WriteString(", ")
+	builder.WriteString("content_hash=")
+	builder.WriteString(_m.ContentHash)
+	builder.WriteString(", ")
+	builder.WriteString("original_name_hash=")
+	builder.WriteString(_m.OriginalNameHash)
 	builder.WriteString(", ")
 	builder.WriteString("mime_type=")
 	builder.WriteString(_m.MimeType)
