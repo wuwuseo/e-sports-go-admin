@@ -31,6 +31,7 @@ var (
 	ErrSuperAdminProtected                 = errors.New("超级管理员角色不允许修改权限")
 	ErrSelfRolePermissionMutationForbidden = errors.New("不允许修改自己所属角色的权限")
 	ErrPermissionOperatorRequired          = errors.New("permission operator identity required")
+	ErrPermissionScopeEscalation           = errors.New("permission scope escalation forbidden")
 )
 
 // SuperAdminRoleName 超级管理员角色名称，禁止通过 API 修改其权限
@@ -88,6 +89,125 @@ func requirePermissionOperator(ctx context.Context, operatorUID string) error {
 		return nil
 	}
 	return ErrPermissionOperatorRequired
+}
+
+type operatorPermissionScope struct {
+	includeAll bool
+	lookup     map[string]struct{}
+}
+
+func (s *PermissionService) getOperatorPermissionScope(ctx context.Context, operatorUID, domain string) (*operatorPermissionScope, error) {
+	if operatorUID == "" {
+		return &operatorPermissionScope{includeAll: true}, nil
+	}
+
+	isSuperAdmin, err := isUserSuperAdmin(ctx, s.client, operatorUID)
+	if err != nil {
+		return nil, err
+	}
+	if isSuperAdmin {
+		return &operatorPermissionScope{includeAll: true}, nil
+	}
+
+	roleNames, err := s.getUserRoleNames(ctx, operatorUID)
+	if err != nil {
+		return nil, err
+	}
+	if len(roleNames) == 0 {
+		return &operatorPermissionScope{lookup: map[string]struct{}{}}, nil
+	}
+
+	query := s.client.CasbinRule.Query().
+		Where(
+			casbinrule.PtypeEQ("p"),
+			casbinrule.V0In(roleNames...),
+		)
+	if domain != "" {
+		query = query.Where(casbinrule.V1EQ(domain))
+	}
+
+	rules, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get operator permissions failed: %w", err)
+	}
+
+	lookup := make(map[string]struct{}, len(rules))
+	for _, rule := range rules {
+		addPermissionLookupKeys(lookup, string(determinePermissionType(rule.V3)), rule.V2, rule.V3)
+	}
+	return &operatorPermissionScope{lookup: lookup}, nil
+}
+
+func (s *PermissionService) ensureOperatorCanManagePermissions(ctx context.Context, operatorUID, domain string, permissions []PermissionRule) error {
+	if err := requirePermissionOperator(ctx, operatorUID); err != nil {
+		return err
+	}
+
+	scope, err := s.getOperatorPermissionScope(ctx, operatorUID, domain)
+	if err != nil {
+		return err
+	}
+	for _, perm := range permissions {
+		if !scope.allowsRule(perm) {
+			return ErrPermissionScopeEscalation
+		}
+	}
+	return nil
+}
+
+func (scope *operatorPermissionScope) allowsRule(rule PermissionRule) bool {
+	if scope == nil || scope.includeAll {
+		return true
+	}
+	permType := string(determinePermissionType(rule.Action))
+	for _, key := range permissionLookupKeys(permType, rule.Object, rule.Action) {
+		if _, ok := scope.lookup[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (scope *operatorPermissionScope) allowsSystemPermission(p *ent.SystemPermission) bool {
+	if scope == nil || scope.includeAll {
+		return true
+	}
+	switch p.Type {
+	case string(PermissionTypeAPI):
+		return scope.allowsRule(PermissionRule{Object: p.Path, Action: p.Method})
+	case string(PermissionTypeMenu), string(PermissionTypeButton):
+		return scope.allowsRule(PermissionRule{Object: systemPermissionObject(p), Action: p.Type})
+	default:
+		return false
+	}
+}
+
+func addPermissionLookupKeys(lookup map[string]struct{}, permType, object, action string) {
+	for _, key := range permissionLookupKeys(permType, object, action) {
+		lookup[key] = struct{}{}
+	}
+}
+
+func permissionLookupKeys(permType, object, action string) []string {
+	keys := []string{permissionLookupKey(permType, object, action)}
+	switch PermissionType(permType) {
+	case PermissionTypeAPI:
+		upperAction := strings.ToUpper(action)
+		if upperAction != action {
+			keys = append(keys, permissionLookupKey(permType, object, upperAction))
+		}
+	case PermissionTypeMenu:
+		keys = append(keys,
+			permissionLookupKey(permType, object, string(PermissionTypeMenu)),
+			permissionLookupKey(permType, object, "MENU"),
+		)
+	case PermissionTypeButton:
+		keys = append(keys,
+			permissionLookupKey(permType, object, string(PermissionTypeButton)),
+			permissionLookupKey(permType, object, "BUTTON"),
+		)
+	}
+	return keys
 }
 
 // isUserSuperAdmin 检查用户是否拥有超级管理员角色（包级别辅助函数）
@@ -528,6 +648,10 @@ func (s *PermissionService) CreatePermission(ctx context.Context, operatorUID st
 		return ErrRoleNotFound
 	}
 
+	if err := s.ensureOperatorCanManagePermissions(ctx, operatorUID, req.Domain, []PermissionRule{{Object: req.Object, Action: req.Action}}); err != nil {
+		return err
+	}
+
 	// 检查权限是否已存在
 	exists, err = s.client.CasbinRule.Query().
 		Where(
@@ -608,6 +732,21 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, operatorUID st
 		return fmt.Errorf("查找权限失败: %w", err)
 	}
 
+	targetObject := req.Object
+	if req.NewObject != "" {
+		targetObject = req.NewObject
+	}
+	targetAction := req.Action
+	if req.NewAction != "" {
+		targetAction = req.NewAction
+	}
+	if err := s.ensureOperatorCanManagePermissions(ctx, operatorUID, req.Domain, []PermissionRule{
+		{Object: req.Object, Action: req.Action},
+		{Object: targetObject, Action: targetAction},
+	}); err != nil {
+		return err
+	}
+
 	// 构建更新
 	update := s.client.CasbinRule.UpdateOne(permission)
 
@@ -669,6 +808,10 @@ func (s *PermissionService) DeletePermission(ctx context.Context, operatorUID st
 			return ErrPermissionNotFound
 		}
 		return fmt.Errorf("查找权限失败: %w", err)
+	}
+
+	if err := s.ensureOperatorCanManagePermissions(ctx, operatorUID, domain, []PermissionRule{{Object: object, Action: action}}); err != nil {
+		return err
 	}
 
 	// 执行删除
@@ -851,6 +994,10 @@ func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, operato
 		return ErrRoleNotFound
 	}
 
+	if err := s.ensureOperatorCanManagePermissions(ctx, operatorUID, domain, permissions); err != nil {
+		return err
+	}
+
 	// 批量创建权限
 	for _, perm := range permissions {
 		// 确定权限类型
@@ -913,6 +1060,10 @@ func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, opera
 	}
 	if !exists {
 		return ErrRoleNotFound
+	}
+
+	if err := s.ensureOperatorCanManagePermissions(ctx, operatorUID, domain, permissions); err != nil {
+		return err
 	}
 
 	// 批量删除权限
@@ -1028,27 +1179,6 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, operatorUID
 		return ErrSelfRolePermissionMutationForbidden
 	}
 
-	// 开启事务
-	tx, err := s.client.Tx(ctx)
-	if err != nil {
-		return fmt.Errorf("开启事务失败: %w", err)
-	}
-
-	// 删除该角色当前所有权限
-	_, err = tx.CasbinRule.Delete().
-		Where(
-			casbinrule.PtypeEQ("p"),
-			casbinrule.V0EQ(roleName),
-			casbinrule.V1EQ(domain),
-		).Exec(ctx)
-	if err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return fmt.Errorf("删除权限失败: %v, 回滚失败: %v", err, rbErr)
-		}
-		return fmt.Errorf("删除权限失败: %w", err)
-	}
-
-	// 去重：避免重复的 (object, action) 导致唯一约束冲突
 	seen := make(map[string]struct{}, len(req.Permissions))
 	deduped := make([]PermissionRule, 0, len(req.Permissions))
 	for _, perm := range req.Permissions {
@@ -1058,6 +1188,63 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, operatorUID
 		}
 		seen[key] = struct{}{}
 		deduped = append(deduped, perm)
+	}
+
+	if err := requirePermissionOperator(ctx, operatorUID); err != nil {
+		return err
+	}
+	scope, err := s.getOperatorPermissionScope(ctx, operatorUID, domain)
+	if err != nil {
+		return err
+	}
+	for _, perm := range deduped {
+		if !scope.allowsRule(perm) {
+			return ErrPermissionScopeEscalation
+		}
+	}
+
+	// 开启事务
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("开启事务失败: %w", err)
+	}
+
+	// 删除操作者可管理范围内的旧权限；超出范围的权限保留不动。
+	if scope.includeAll {
+		_, err = tx.CasbinRule.Delete().
+			Where(
+				casbinrule.PtypeEQ("p"),
+				casbinrule.V0EQ(roleName),
+				casbinrule.V1EQ(domain),
+			).Exec(ctx)
+	} else {
+		existing, queryErr := tx.CasbinRule.Query().
+			Where(
+				casbinrule.PtypeEQ("p"),
+				casbinrule.V0EQ(roleName),
+				casbinrule.V1EQ(domain),
+			).All(ctx)
+		if queryErr != nil {
+			err = queryErr
+		} else {
+			ids := make([]int, 0, len(existing))
+			for _, rule := range existing {
+				if scope.allowsRule(PermissionRule{Object: rule.V2, Action: rule.V3}) {
+					ids = append(ids, rule.ID)
+				}
+			}
+			if len(ids) > 0 {
+				_, err = tx.CasbinRule.Delete().
+					Where(casbinrule.IDIn(ids...)).
+					Exec(ctx)
+			}
+		}
+	}
+	if err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("删除权限失败: %v, 回滚失败: %v", err, rbErr)
+		}
+		return fmt.Errorf("删除权限失败: %w", err)
 	}
 
 	// 批量创建新权限

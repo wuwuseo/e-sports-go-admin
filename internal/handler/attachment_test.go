@@ -209,7 +209,7 @@ func TestServeAttachmentContentRequiresValidToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAccessURL: %v", err)
 	}
-	token := accessURL.URL[strings.LastIndex(accessURL.URL, "token=")+len("token="):]
+	token := accessURL[strings.LastIndex(accessURL, "token=")+len("token="):]
 
 	req := httptest.NewRequest(http.MethodGet, "/attachments/"+strconv.Itoa(a.ID)+"/content?token="+token, nil)
 	resp, err := app.Test(req)
@@ -360,11 +360,11 @@ func TestGetAttachmentAccessURLReturnsS3PresignedPrivateURL(t *testing.T) {
 
 type noopStorage struct{}
 
-func (noopStorage) Get(string) ([]byte, error)                 { return nil, nil }
-func (noopStorage) Set(string, []byte, time.Duration) error    { return nil }
-func (noopStorage) Delete(string) error                        { return nil }
-func (noopStorage) Reset() error                               { return nil }
-func (noopStorage) Close() error                               { return nil }
+func (noopStorage) Get(string) ([]byte, error)              { return nil, nil }
+func (noopStorage) Set(string, []byte, time.Duration) error { return nil }
+func (noopStorage) Delete(string) error                     { return nil }
+func (noopStorage) Reset() error                            { return nil }
+func (noopStorage) Close() error                            { return nil }
 
 func TestPreviewAttachmentSendsInlineForImages(t *testing.T) {
 	app, client, _, fs := setupAttachmentHandlerTest(t)

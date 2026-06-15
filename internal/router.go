@@ -198,6 +198,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	systemPermissions := adminAuth.Group("/system-permissions")
 	systemPermissions.Post("", handler.CreateSystemPermission)       // 创建权限定义
 	systemPermissions.Get("", handler.ListSystemPermissions)         // 获取权限定义列表
+	systemPermissions.Get("/", handler.ListSystemPermissions)        // 获取权限定义列表（兼容尾斜杠）
 	systemPermissions.Get("/tree", handler.GetSystemPermissionTree)  // 获取权限树
 	systemPermissions.Get("/:id", handler.GetSystemPermission)       // 获取权限定义详情
 	systemPermissions.Put("/:id", handler.UpdateSystemPermission)    // 更新权限定义
@@ -270,6 +271,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.AttachmentService", attachmentService)
 		c.Locals("attachment.access_secret", config.App.AdminSecret)
 		c.Locals("attachment.content_base_path", "/api/v1/attachments")
+		c.Locals("attachment.access_ttl", config.Attachment.AccessURLTTL)
+		c.Locals("attachment.x_accel_enabled", config.Attachment.XAccelEnabled)
 		return c.Next()
 	})
 	attachments.Post("/upload", handler.UploadAttachment)
@@ -287,6 +290,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	attachmentContent := v1.Group("/attachments", func(c fiber.Ctx) error {
 		c.Locals("service.AttachmentService", attachmentService)
 		c.Locals("attachment.access_secret", config.App.AdminSecret)
+		c.Locals("attachment.access_ttl", config.Attachment.AccessURLTTL)
+		c.Locals("attachment.x_accel_enabled", config.Attachment.XAccelEnabled)
 		return c.Next()
 	})
 	attachmentContent.Get("/:id/content", handler.ServeAttachmentContent)

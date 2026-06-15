@@ -22,7 +22,7 @@ func GetAttachmentAccessURL(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的附件ID").ToJSON(c)
 	}
 
-	url, err := svc.CreateAccessURL(c.Context(), id, attachmentContentBasePath(c), service.AttachmentAccessTTL, attachmentAccessSecret(c))
+	accessURL, err := svc.BuildAccessURL(c.Context(), id, attachmentContentBasePath(c), attachmentAccessTTL(c), attachmentAccessSecret(c))
 	if err != nil {
 		if err == service.ErrAttachmentNotFound {
 			return resp.Fail(global.ErrCodeAttachmentNotFound, "附件不存在").ToJSON(c)
@@ -30,10 +30,7 @@ func GetAttachmentAccessURL(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseInternalServerError, "生成访问地址失败").ToJSON(c)
 	}
 
-	return resp.Success(fiber.Map{
-		"url":        url,
-		"expires_in": int64(service.AttachmentAccessTTL / time.Second),
-	}, global.ResponseSuccessCode, "生成访问地址成功").ToJSON(c)
+	return resp.Success(accessURL, global.ResponseSuccessCode, "生成访问地址成功").ToJSON(c)
 }
 
 func ServeAttachmentContent(c fiber.Ctx) error {
@@ -52,6 +49,21 @@ func ServeAttachmentContent(c fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(resp.Fail(global.ResponseUnauthorized, "访问凭证无效"))
 	}
 
+	if attachmentXAccelEnabled(c) {
+		redirect, err := svc.BuildXAccelRedirect(c.Context(), id)
+		if err != nil {
+			if err == service.ErrAttachmentNotFound {
+				return c.Status(fiber.StatusNotFound).JSON(resp.Fail(global.ErrCodeAttachmentNotFound, "附件不存在"))
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(resp.Fail(global.ResponseInternalServerError, "获取文件失败"))
+		}
+		if redirect != nil {
+			setAttachmentHeaders(c, redirect.MimeType, redirect.Filename)
+			c.Set("X-Accel-Redirect", redirect.Path)
+			return c.SendStatus(fiber.StatusOK)
+		}
+	}
+
 	data, mimeType, filename, err := svc.GetFileData(c.Context(), id)
 	if err != nil {
 		if err == service.ErrAttachmentNotFound {
@@ -64,13 +76,17 @@ func ServeAttachmentContent(c fiber.Ctx) error {
 }
 
 func sendAttachmentData(c fiber.Ctx, data []byte, mimeType string, filename string) error {
+	setAttachmentHeaders(c, mimeType, filename)
+	return c.Send(data)
+}
+
+func setAttachmentHeaders(c fiber.Ctx, mimeType string, filename string) {
 	c.Set("Content-Type", mimeType)
 	disposition := "attachment"
 	if strings.HasPrefix(mimeType, "image/") || mimeType == "application/pdf" {
 		disposition = "inline"
 	}
 	c.Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": filename}))
-	return c.Send(data)
 }
 
 func attachmentAccessSecret(c fiber.Ctx) string {
@@ -85,4 +101,16 @@ func attachmentContentBasePath(c fiber.Ctx) string {
 		return basePath
 	}
 	return "/api/v1/attachments"
+}
+
+func attachmentAccessTTL(c fiber.Ctx) time.Duration {
+	if seconds, ok := c.Locals("attachment.access_ttl").(int); ok && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	return service.AttachmentAccessTTL
+}
+
+func attachmentXAccelEnabled(c fiber.Ctx) bool {
+	enabled, ok := c.Locals("attachment.x_accel_enabled").(bool)
+	return ok && enabled
 }

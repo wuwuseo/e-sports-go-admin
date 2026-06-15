@@ -489,43 +489,34 @@ func (s *SystemPermissionService) List(ctx context.Context, operatorUID string, 
 		query = query.Where(systempermission.StatusEQ(req.Status))
 	}
 
-	filterSensitive, err := s.shouldFilterSensitive(ctx, operatorUID)
+	perms, err := query.
+		Order(ent.Asc(systempermission.FieldSortOrder)).
+		All(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("check operator permission: %w", err)
-	}
-	if filterSensitive {
-		query = query.Where(systempermission.Or(
-			systempermission.TypeNEQ(string(SystemPermissionTypeAPI)),
-			systempermission.PathIsNil(),
-			systempermission.PathEQ(""),
-			systempermission.PathNotIn(sensitivePermissionObjectList()...),
-		))
+		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
-	total, err := query.Count(ctx)
+	perms, err = s.filterByOperatorScope(ctx, operatorUID, req.Domain, perms, false)
 	if err != nil {
-		return nil, fmt.Errorf("获取权限总数失败: %w", err)
+		return nil, fmt.Errorf("check operator permission scope: %w", err)
 	}
 
-	var perms []*ent.SystemPermission
+	total := len(perms)
 
-	if req.PageSize == 0 {
-		perms, err = query.
-			Order(ent.Asc(systempermission.FieldSortOrder)).
-			All(ctx)
-	} else {
+	if req.PageSize != 0 {
 		if req.PageSize > 100 {
 			req.PageSize = 100
 		}
 		offset := (req.Page - 1) * req.PageSize
-		perms, err = query.
-			Offset(offset).
-			Limit(req.PageSize).
-			Order(ent.Asc(systempermission.FieldSortOrder)).
-			All(ctx)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("获取权限列表失败: %w", err)
+		if offset >= len(perms) {
+			perms = []*ent.SystemPermission{}
+		} else {
+			end := offset + req.PageSize
+			if end > len(perms) {
+				end = len(perms)
+			}
+			perms = perms[offset:end]
+		}
 	}
 
 	data := make([]*SystemPermissionResponse, 0, len(perms))
@@ -558,20 +549,9 @@ func (s *SystemPermissionService) GetTree(ctx context.Context, operatorUID strin
 		return nil, fmt.Errorf("获取权限列表失败: %w", err)
 	}
 
-	// 非超级管理员过滤高风险 API 权限
-	shouldFilter, err := s.shouldFilterSensitive(ctx, operatorUID)
+	filteredPerms, err := s.filterByOperatorScope(ctx, operatorUID, domain, perms, true)
 	if err != nil {
-		return nil, fmt.Errorf("检查操作者权限失败: %w", err)
-	}
-
-	filteredPerms := perms
-	if shouldFilter {
-		filteredPerms = make([]*ent.SystemPermission, 0, len(perms))
-		for _, p := range perms {
-			if !isSensitiveAPIPermission(p) {
-				filteredPerms = append(filteredPerms, p)
-			}
-		}
+		return nil, fmt.Errorf("check operator permission scope: %w", err)
 	}
 
 	nodeMap := make(map[int]*SystemPermissionTreeNode)
@@ -611,6 +591,53 @@ func (s *SystemPermissionService) GetTree(ctx context.Context, operatorUID strin
 	}
 
 	return rootNodes, nil
+}
+
+func (s *SystemPermissionService) filterByOperatorScope(ctx context.Context, operatorUID, domain string, perms []*ent.SystemPermission, includeAncestors bool) ([]*ent.SystemPermission, error) {
+	permissionSvc := &PermissionService{client: s.client}
+	scope, err := permissionSvc.getOperatorPermissionScope(ctx, operatorUID, domain)
+	if err != nil {
+		return nil, err
+	}
+	if scope.includeAll {
+		return perms, nil
+	}
+
+	if !includeAncestors {
+		filtered := make([]*ent.SystemPermission, 0, len(perms))
+		for _, p := range perms {
+			if scope.allowsSystemPermission(p) {
+				filtered = append(filtered, p)
+			}
+		}
+		return filtered, nil
+	}
+
+	permissionByID := make(map[int]*ent.SystemPermission, len(perms))
+	for _, p := range perms {
+		permissionByID[p.ID] = p
+	}
+
+	included := make(map[int]struct{})
+	for _, p := range perms {
+		if !scope.allowsSystemPermission(p) {
+			continue
+		}
+		for current := p; current != nil; current = permissionByID[current.ParentID] {
+			included[current.ID] = struct{}{}
+			if current.ParentID == 0 {
+				break
+			}
+		}
+	}
+
+	filtered := make([]*ent.SystemPermission, 0, len(included))
+	for _, p := range perms {
+		if _, ok := included[p.ID]; ok {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered, nil
 }
 
 // InitSeedPermissions 初始化种子权限（菜单、API、按钮）

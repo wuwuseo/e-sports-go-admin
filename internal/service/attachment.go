@@ -75,6 +75,21 @@ type AttachmentResponse struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
+type AttachmentAccessURL struct {
+	URL       string `json:"url"`
+	ExpiresIn int64  `json:"expires_in"`
+	Mode      string `json:"mode"`
+	Public    bool   `json:"public"`
+	Disk      string `json:"disk"`
+	Driver    string `json:"driver"`
+}
+
+type AttachmentXAccelRedirect struct {
+	Path     string
+	MimeType string
+	Filename string
+}
+
 type ListAttachmentsRequest struct {
 	ListRequest
 	GroupID  *int   `query:"group_id"`
@@ -328,6 +343,98 @@ func (s *AttachmentService) CreateAccessURL(ctx context.Context, id int, basePat
 		return "", fmt.Errorf("查询附件失败: %w", err)
 	}
 
+	return createAttachmentTokenAccessURL(id, basePath, ttl, secret)
+}
+
+func (s *AttachmentService) BuildAccessURL(ctx context.Context, id int, basePath string, ttl time.Duration, secret string) (*AttachmentAccessURL, error) {
+	a, err := s.Client.Attachment.Query().
+		Where(attachment.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrAttachmentNotFound
+		}
+		return nil, fmt.Errorf("查询附件失败: %w", err)
+	}
+
+	disk, driver := s.attachmentDiskDriver(a)
+	public := filesystem.IsPublicDirectory(attachmentDirectory(a))
+	mode := "private_local"
+	expiresIn := int64(0)
+	var accessURL string
+
+	switch strings.ToLower(driver) {
+	case "s3":
+		if s.filesystem == nil {
+			return nil, ErrAttachmentStorageUnavailable
+		}
+		if public {
+			accessURL, err = filesystem.S3PublicURL(s.filesystem.Config, disk, a.Path)
+			mode = "public_s3"
+		} else {
+			accessURL, err = filesystem.S3PresignedGetURL(ctx, s.filesystem.Config, disk, a.Path, ttl)
+			mode = "private_s3"
+			expiresIn = int64(ttl / time.Second)
+		}
+	default:
+		if public {
+			if s.filesystem == nil {
+				return nil, ErrAttachmentStorageUnavailable
+			}
+			accessURL, err = filesystem.LocalPublicURL(s.filesystem.Config, disk, a.Path)
+			mode = "public_local"
+		} else {
+			accessURL, err = createAttachmentTokenAccessURL(id, basePath, ttl, secret)
+			mode = "private_local"
+			expiresIn = int64(ttl / time.Second)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &AttachmentAccessURL{
+		URL:       accessURL,
+		ExpiresIn: expiresIn,
+		Mode:      mode,
+		Public:    public,
+		Disk:      disk,
+		Driver:    driver,
+	}, nil
+}
+
+func (s *AttachmentService) BuildXAccelRedirect(ctx context.Context, id int) (*AttachmentXAccelRedirect, error) {
+	if s.filesystem == nil {
+		return nil, ErrAttachmentStorageUnavailable
+	}
+
+	a, err := s.Client.Attachment.Query().
+		Where(attachment.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrAttachmentNotFound
+		}
+		return nil, fmt.Errorf("查询附件失败: %w", err)
+	}
+
+	_, driver := s.attachmentDiskDriver(a)
+	if strings.ToLower(driver) != "local" {
+		return nil, nil
+	}
+
+	redirectPath, err := filesystem.XAccelRedirectPath(s.filesystem.Config, a.Path)
+	if err != nil {
+		return nil, err
+	}
+	return &AttachmentXAccelRedirect{
+		Path:     redirectPath,
+		MimeType: a.MimeType,
+		Filename: a.OriginalName,
+	}, nil
+}
+
+func createAttachmentTokenAccessURL(id int, basePath string, ttl time.Duration, secret string) (string, error) {
 	token, err := crypto.SignExpiringToken(secret, attachmentAccessSubject(id), time.Now().Add(ttl))
 	if err != nil {
 		return "", err
@@ -368,6 +475,38 @@ func (s *AttachmentService) toAttachmentResponse(a *ent.Attachment) *AttachmentR
 
 func attachmentAccessSubject(id int) string {
 	return "attachment:" + strconv.Itoa(id)
+}
+
+func (s *AttachmentService) attachmentDiskDriver(a *ent.Attachment) (string, string) {
+	disk := strings.TrimSpace(a.Disk)
+	driver := strings.TrimSpace(a.Driver)
+	if s.filesystem != nil {
+		defaultInfo := filesystem.DefaultDiskInfo(s.filesystem.Config)
+		if disk == "" {
+			disk = defaultInfo.Disk
+		}
+		if driver == "" {
+			driver = defaultInfo.Driver
+		}
+	}
+	if disk == "" {
+		disk = "local"
+	}
+	if driver == "" {
+		driver = "local"
+	}
+	return disk, driver
+}
+
+func attachmentDirectory(a *ent.Attachment) string {
+	if strings.TrimSpace(a.Directory) != "" {
+		return a.Directory
+	}
+	index := strings.LastIndex(a.Path, "/")
+	if index < 0 {
+		return ""
+	}
+	return a.Path[:index]
 }
 
 func (s *AttachmentService) findDuplicateAttachment(ctx context.Context, contentHash string, size int64, originalNameHash string) (*ent.Attachment, error) {

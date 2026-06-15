@@ -54,6 +54,9 @@ func CreatePermission(c fiber.Ctx) error {
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
+		if err == service.ErrPermissionScopeEscalation {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
 		if err == service.ErrSelfRolePermissionMutationForbidden {
 			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
@@ -105,6 +108,9 @@ func UpdatePermission(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrPermissionScopeEscalation {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSelfRolePermissionMutationForbidden {
@@ -163,6 +169,9 @@ func DeletePermission(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrPermissionScopeEscalation {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSelfRolePermissionMutationForbidden {
@@ -367,6 +376,9 @@ func AssignPermissionsToRole(c fiber.Ctx) error {
 		if err == service.ErrSuperAdminProtected {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
+		if err == service.ErrPermissionScopeEscalation {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
 		if err == service.ErrSelfRolePermissionMutationForbidden {
 			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
 		}
@@ -420,6 +432,9 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrPermissionScopeEscalation {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSelfRolePermissionMutationForbidden {
@@ -698,6 +713,9 @@ func SaveRolePermissions(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		}
 		if err == service.ErrSuperAdminProtected {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
+		if err == service.ErrPermissionScopeEscalation {
 			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
 		}
 		if err == service.ErrSelfRolePermissionMutationForbidden {
