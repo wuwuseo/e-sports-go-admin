@@ -145,3 +145,5 @@ casbin:
   #    - model_text: 模型文本内容（可选，优先级高于 model_path）
   # 3. 如果不配置 domains，系统会使用 model_path 为默认域创建配置
   # 4. 建议高频访问的域设置 auto_load: true 以提升性能
+attachment:
+  x_accel_enabled: false  # 是否启用 X-Accel-Redirect 头 生产环境启用并配置
