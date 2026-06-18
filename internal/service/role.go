@@ -107,6 +107,22 @@ func (s *RoleService) clearUserPermissionsByRoleID(ctx context.Context, roleID i
 	}
 }
 
+func ensureRoleNotHeldByOperator(ctx context.Context, client *ent.Client, op *EffectiveDataScope, roleID int) error {
+	if op == nil || op.IsSuperAdmin || op.AdminID == 0 {
+		return nil
+	}
+	exists, err := client.AdminRole.Query().
+		Where(adminrole.AdminIDEQ(op.AdminID), adminrole.RoleIDEQ(roleID)).
+		Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrCannotModifySelfRoles
+	}
+	return nil
+}
+
 // CreateRoleRequest 创建角色请求
 type CreateRoleRequest struct {
 	Name                   string `json:"name" validate:"required,max=100"`
@@ -304,6 +320,9 @@ func (s *RoleService) Update(ctx context.Context, op *EffectiveDataScope, id int
 		}
 		return fmt.Errorf("查询角色失败: %w", err)
 	}
+	if err := ensureRoleNotHeldByOperator(ctx, s.Client, op, id); err != nil {
+		return err
+	}
 
 	if r.IsSystem {
 		if req.DisplayName != "" && req.DisplayName != r.DisplayName {
@@ -368,6 +387,9 @@ func (s *RoleService) Delete(ctx context.Context, op *EffectiveDataScope, id int
 		}
 		return fmt.Errorf("查询角色失败: %w", err)
 	}
+	if err := ensureRoleNotHeldByOperator(ctx, s.Client, op, id); err != nil {
+		return err
+	}
 
 	if r.IsSystem {
 		return ErrSystemRoleProtected
@@ -417,6 +439,9 @@ func (s *RoleService) Enable(ctx context.Context, op *EffectiveDataScope, id int
 		}
 		return fmt.Errorf("查询角色失败: %w", err)
 	}
+	if err := ensureRoleNotHeldByOperator(ctx, s.Client, op, id); err != nil {
+		return err
+	}
 
 	if r.IsSystem {
 		return fmt.Errorf("系统内置角色不允许修改状态")
@@ -454,6 +479,9 @@ func (s *RoleService) Disable(ctx context.Context, op *EffectiveDataScope, id in
 			return ErrRoleNotFound
 		}
 		return fmt.Errorf("查询角色失败: %w", err)
+	}
+	if err := ensureRoleNotHeldByOperator(ctx, s.Client, op, id); err != nil {
+		return err
 	}
 
 	if r.IsSystem {

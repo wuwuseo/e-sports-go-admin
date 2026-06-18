@@ -477,6 +477,48 @@ func TestRoleService_Update_Success(t *testing.T) {
 	}
 }
 
+func TestRoleService_UpdateRejectsOperatorOwnRole(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	r, err := client.Role.Create().
+		SetName("normal_admin").
+		SetDisplayName("Normal admin").
+		SetStatus(role.StatusActive).
+		SetDataScope(role.DataScopeAll).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create role failed: %v", err)
+	}
+	a, err := client.Admin.Create().
+		SetEmail("normal-admin@example.com").
+		SetUsername("normal-admin").
+		SetPassword("hash").
+		SetPasswordSalt("salt").
+		SetUID("uid-normal-admin").
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create admin failed: %v", err)
+	}
+	if _, err = client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SetIsPrimary(true).Save(ctx); err != nil {
+		t.Fatalf("create admin role failed: %v", err)
+	}
+
+	op := &EffectiveDataScope{
+		Scope:    DataScopeAll,
+		AdminID:  a.ID,
+		AdminUID: a.UID,
+	}
+	err = svc.Update(ctx, op, r.ID, &UpdateRoleRequest{
+		Description: "self edit",
+	})
+	if !errors.Is(err, ErrCannotModifySelfRoles) {
+		t.Fatalf("expected ErrCannotModifySelfRoles, got %v", err)
+	}
+}
+
 func TestRoleService_Update_NotFound(t *testing.T) {
 	_ = setupTestClient(t)
 	ctx := t.Context()

@@ -228,6 +228,8 @@ func UpdateRole(c fiber.Ctx) error {
 		switch err {
 		case service.ErrRoleNotFound:
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		case service.ErrCannotModifySelfRoles:
+			return resp.Fail(global.ResponseSelfRoleModifyForbidden, global.ResponseMsg[global.ResponseSelfRoleModifyForbidden]).ToJSON(c)
 		// P2: 目标部门不存在
 		case service.ErrDepartmentNotFound:
 			return resp.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
@@ -280,6 +282,8 @@ func DeleteRole(c fiber.Ctx) error {
 		switch err {
 		case service.ErrRoleNotFound:
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		case service.ErrCannotModifySelfRoles:
+			return resp.Fail(global.ResponseSelfRoleModifyForbidden, global.ResponseMsg[global.ResponseSelfRoleModifyForbidden]).ToJSON(c)
 		case service.ErrSystemRoleProtected:
 			return resp.Fail(global.ResponseForbidden, "系统内置角色不可删除").ToJSON(c)
 		case service.ErrRoleInUse:
@@ -331,6 +335,9 @@ func EnableRole(c fiber.Ctx) error {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		}
+		if err == service.ErrCannotModifySelfRoles {
+			return resp.Fail(global.ResponseSelfRoleModifyForbidden, global.ResponseMsg[global.ResponseSelfRoleModifyForbidden]).ToJSON(c)
+		}
 		if err == service.ErrRoleScopeEscalation {
 			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 		}
@@ -376,6 +383,9 @@ func DisableRole(c fiber.Ctx) error {
 	if err := roleService.Disable(c.Context(), op, id); err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		}
+		if err == service.ErrCannotModifySelfRoles {
+			return resp.Fail(global.ResponseSelfRoleModifyForbidden, global.ResponseMsg[global.ResponseSelfRoleModifyForbidden]).ToJSON(c)
 		}
 		if err == service.ErrRoleScopeEscalation {
 			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)

@@ -151,6 +151,38 @@ func TestDepartmentService_TreeBuildsHierarchyAndOrdersSiblings(t *testing.T) {
 	}
 }
 
+func TestDepartmentService_TreeInScopeFiltersToOperatorDepartments(t *testing.T) {
+	_ = setupDepartmentTestClient(t)
+	ctx := t.Context()
+	svc := NewDepartmentService()
+
+	root := createDepartmentForTest(t, svc, "Root", 0, 1)
+	allowed := createDepartmentForTest(t, svc, "Allowed", root.ID, 1)
+	denied := createDepartmentForTest(t, svc, "Denied", root.ID, 2)
+
+	tree, err := svc.TreeInScope(ctx, &EffectiveDataScope{
+		Scope:         DataScopeCustom,
+		DepartmentIDs: []int{allowed.ID},
+	}, &ListDepartmentsRequest{Status: string(department.StatusActive)})
+	if err != nil {
+		t.Fatalf("TreeInScope returned error: %v", err)
+	}
+	if len(tree) != 1 || tree[0].ID != allowed.ID {
+		t.Fatalf("expected only allowed department %d, got %#v", allowed.ID, tree)
+	}
+	if tree[0].ID == denied.ID {
+		t.Fatal("out-of-scope department leaked into scoped tree")
+	}
+
+	allTree, err := svc.TreeInScope(ctx, &EffectiveDataScope{Scope: DataScopeAll}, &ListDepartmentsRequest{Status: string(department.StatusActive)})
+	if err != nil {
+		t.Fatalf("TreeInScope all returned error: %v", err)
+	}
+	if len(allTree) != 1 || allTree[0].ID != root.ID || len(allTree[0].Children) != 2 {
+		t.Fatalf("expected all-scope tree to keep full hierarchy, got %#v", allTree)
+	}
+}
+
 func TestDepartmentService_ChildIDsReturnsDescendantsWithAndWithoutSelf(t *testing.T) {
 	_ = setupDepartmentTestClient(t)
 	ctx := t.Context()

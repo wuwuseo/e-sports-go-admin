@@ -75,6 +75,7 @@ func CreateDepartment(c fiber.Ctx) error {
 func ListDepartmentTree(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	req, err := validate.ParseQueryAndValidate[service.ListDepartmentsRequest](c)
 	if err != nil {
@@ -84,7 +85,12 @@ func ListDepartmentTree(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	tree, err := departmentService.Tree(c.Context(), req)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	if err != nil {
+		return resp.Fail(global.ResponseInternalServerError, "获取部门树失败").ToJSON(c)
+	}
+
+	tree, err := departmentService.TreeInScope(c.Context(), op, req)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取部门树失败").ToJSON(c)
 	}

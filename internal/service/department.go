@@ -25,6 +25,7 @@ type DepartmentServiceInterface interface {
 	Delete(ctx context.Context, id int) error
 	Get(ctx context.Context, id int) (*DepartmentResponse, error)
 	Tree(ctx context.Context, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error)
+	TreeInScope(ctx context.Context, op *EffectiveDataScope, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error)
 	ChildIDs(ctx context.Context, id int, includeSelf bool) ([]int, error)
 }
 
@@ -280,6 +281,36 @@ func (s *DepartmentService) Get(ctx context.Context, id int) (*DepartmentRespons
 }
 
 func (s *DepartmentService) Tree(ctx context.Context, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error) {
+	return s.tree(ctx, req, nil, false)
+}
+
+func (s *DepartmentService) TreeInScope(ctx context.Context, op *EffectiveDataScope, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error) {
+	allowedIDs, scoped := departmentIDsForScope(op)
+	return s.tree(ctx, req, allowedIDs, scoped)
+}
+
+func departmentIDsForScope(op *EffectiveDataScope) ([]int, bool) {
+	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+		return nil, false
+	}
+	switch op.Scope {
+	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		return op.DepartmentIDs, true
+	case DataScopeSelf:
+		return nil, true
+	default:
+		return nil, true
+	}
+}
+
+func (s *DepartmentService) tree(ctx context.Context, req *ListDepartmentsRequest, allowedIDs []int, scoped bool) ([]*DepartmentTreeNode, error) {
+	if scoped {
+		allowedIDs = uniquePositiveInts(allowedIDs)
+		if len(allowedIDs) == 0 {
+			return []*DepartmentTreeNode{}, nil
+		}
+	}
+
 	query := s.client.Department.Query()
 	if req != nil {
 		if req.Keyword != "" {
@@ -288,6 +319,9 @@ func (s *DepartmentService) Tree(ctx context.Context, req *ListDepartmentsReques
 		if req.Status != "" {
 			query = query.Where(department.StatusEQ(department.Status(req.Status)))
 		}
+	}
+	if scoped {
+		query = query.Where(department.IDIn(allowedIDs...))
 	}
 
 	departments, err := query.
@@ -321,6 +355,22 @@ func (s *DepartmentService) Tree(ctx context.Context, req *ListDepartmentsReques
 	}
 
 	return roots, nil
+}
+
+func uniquePositiveInts(values []int) []int {
+	seen := make(map[int]struct{}, len(values))
+	result := make([]int, 0, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }
 
 func (s *DepartmentService) ChildIDs(ctx context.Context, id int, includeSelf bool) ([]int, error) {

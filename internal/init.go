@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
@@ -573,12 +574,15 @@ func initSystemConfigSeedData() error {
 	return nil
 }
 
-// initNormalAdminRole 初始化"普通管理员"角色，并将所有系统权限分配给该角色
+// initNormalAdminRole seeds the built-in normal_admin role without granting
+// plugin management by default. Existing role assignments are preserved because
+// missing rules may have been deliberately removed by a super admin.
 func initNormalAdminRole(ctx context.Context, client *ent.Client) error {
 	const (
 		normalAdminRoleName = "normal_admin"
 		domain              = "default"
 	)
+	roleCreated := false
 
 	// 1. 创建（或获取）普通管理员角色
 	normalAdminRole, err := client.Role.Query().
@@ -591,16 +595,17 @@ func initNormalAdminRole(ctx context.Context, client *ent.Client) error {
 		normalAdminRole, err = client.Role.Create().
 			SetName(normalAdminRoleName).
 			SetDisplayName("普通管理员").
-			SetDescription("普通管理员，默认拥有系统所有功能权限，可按需调整").
+			SetDescription("普通管理员，默认拥有基础管理权限，可按需调整").
 			SetIsSystem(true).
 			SetStatus(role.StatusActive).
 			Save(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to create normal_admin role: %w", err)
 		}
+		roleCreated = true
 		appInstance.Logger.Info("normal_admin role created", zap.Int("id", normalAdminRole.ID))
 	} else {
-		appInstance.Logger.Warn("normal_admin role already exists, skipping",
+		appInstance.Logger.Warn("normal_admin role already exists, preserving assigned permissions",
 			zap.Int("id", normalAdminRole.ID))
 	}
 
@@ -612,47 +617,61 @@ func initNormalAdminRole(ctx context.Context, client *ent.Client) error {
 		return fmt.Errorf("failed to query system permissions: %w", err)
 	}
 
-	// 3. 将所有系统权限转换为 Casbin 策略并写入（已存在的跳过）
-	created, skipped := 0, 0
-	for _, p := range perms {
-		object, action, permType := buildCasbinTupleFromSystemPermission(p)
-		if object == "" {
-			continue
-		}
+	removedSeededExcluded, err := cleanupNormalAdminSeededExcludedPermissions(ctx, client, normalAdminRoleName, domain, perms)
+	if err != nil {
+		return err
+	}
 
-		exists, err := client.CasbinRule.Query().
-			Where(
-				casbinrule.PtypeEQ("p"),
-				casbinrule.V0EQ(normalAdminRoleName),
-				casbinrule.V1EQ(domain),
-				casbinrule.V2EQ(object),
-				casbinrule.V3EQ(action),
-			).Exist(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to query casbin rule for normal_admin: %w", err)
-		}
-		if exists {
-			skipped++
-			continue
-		}
+	created, skipped, excluded := 0, 0, 0
+	if roleCreated {
+		for _, p := range perms {
+			if !shouldSeedNormalAdminPermission(p) {
+				excluded++
+				continue
+			}
 
-		_, err = client.CasbinRule.Create().
-			SetPtype("p").
-			SetV0(normalAdminRoleName).
-			SetV1(domain).
-			SetV2(object).
-			SetV3(action).
-			SetV4(permType).
-			SetV5(p.Description).
-			Save(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to create casbin rule for normal_admin: %w", err)
+			object, action, permType := buildCasbinTupleFromSystemPermission(p)
+			if object == "" {
+				continue
+			}
+
+			exists, err := client.CasbinRule.Query().
+				Where(
+					casbinrule.PtypeEQ("p"),
+					casbinrule.V0EQ(normalAdminRoleName),
+					casbinrule.V1EQ(domain),
+					casbinrule.V2EQ(object),
+					casbinrule.V3EQ(action),
+				).Exist(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to query casbin rule for normal_admin: %w", err)
+			}
+			if exists {
+				skipped++
+				continue
+			}
+
+			_, err = client.CasbinRule.Create().
+				SetPtype("p").
+				SetV0(normalAdminRoleName).
+				SetV1(domain).
+				SetV2(object).
+				SetV3(action).
+				SetV4(permType).
+				SetV5(p.Description).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to create casbin rule for normal_admin: %w", err)
+			}
+			created++
 		}
-		created++
 	}
 	appInstance.Logger.Info("normal_admin permissions assigned",
+		zap.Bool("role_created", roleCreated),
 		zap.Int("created", created),
 		zap.Int("skipped", skipped),
+		zap.Int("excluded", excluded),
+		zap.Int("removed_seeded_excluded", removedSeededExcluded),
 		zap.Int("total", len(perms)),
 	)
 
@@ -671,6 +690,53 @@ func initNormalAdminRole(ctx context.Context, client *ent.Client) error {
 	}
 
 	return nil
+}
+
+func cleanupNormalAdminSeededExcludedPermissions(ctx context.Context, client *ent.Client, roleName, domain string, perms []*ent.SystemPermission) (int, error) {
+	removed := 0
+	for _, p := range perms {
+		if shouldSeedNormalAdminPermission(p) || p.Description == "" {
+			continue
+		}
+
+		object, action, _ := buildCasbinTupleFromSystemPermission(p)
+		if object == "" {
+			continue
+		}
+
+		deleted, err := client.CasbinRule.Delete().
+			Where(
+				casbinrule.PtypeEQ("p"),
+				casbinrule.V0EQ(roleName),
+				casbinrule.V1EQ(domain),
+				casbinrule.V2EQ(object),
+				casbinrule.V3EQ(action),
+				casbinrule.V5EQ(p.Description),
+			).Exec(ctx)
+		if err != nil {
+			return removed, fmt.Errorf("failed to clean seeded normal_admin permission %s %s: %w", object, action, err)
+		}
+		removed += deleted
+	}
+	return removed, nil
+}
+
+func shouldSeedNormalAdminPermission(p *ent.SystemPermission) bool {
+	return !isPluginManagementSystemPermission(p)
+}
+
+func isPluginManagementSystemPermission(p *ent.SystemPermission) bool {
+	code := strings.TrimSpace(p.Code)
+	if code == "plugin" || code == "system:plugin" || strings.HasPrefix(code, "plugin:") {
+		return true
+	}
+	if strings.TrimSpace(p.MenuPath) == "/system/plugin" {
+		return true
+	}
+	if strings.HasPrefix(strings.TrimSpace(p.Path), "/api/v1/admin/auth/plugins") {
+		return true
+	}
+	return false
 }
 
 // buildCasbinTupleFromSystemPermission 根据系统权限定义构造 Casbin 策略的 (object, action, type) 三元组

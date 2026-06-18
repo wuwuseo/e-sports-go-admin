@@ -307,6 +307,9 @@ func (f *fakeDeptSvc) Get(ctx context.Context, id int) (*DepartmentResponse, err
 func (f *fakeDeptSvc) Tree(ctx context.Context, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error) {
 	return nil, nil
 }
+func (f *fakeDeptSvc) TreeInScope(ctx context.Context, op *EffectiveDataScope, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error) {
+	return f.Tree(ctx, req)
+}
 
 func TestResolveRoleEffectiveDepartments_AllAndSelf(t *testing.T) {
 	ctx := context.Background()
