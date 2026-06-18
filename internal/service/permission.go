@@ -101,17 +101,14 @@ func (s *PermissionService) getOperatorPermissionScope(ctx context.Context, oper
 		return &operatorPermissionScope{includeAll: true}, nil
 	}
 
-	isSuperAdmin, err := isUserSuperAdmin(ctx, s.client, operatorUID)
+	roleNames, err := s.getEffectivePermissionRoleNames(ctx, operatorUID, domain)
 	if err != nil {
 		return nil, err
 	}
-	if isSuperAdmin {
-		return &operatorPermissionScope{includeAll: true}, nil
-	}
-
-	roleNames, err := s.getUserRoleNames(ctx, operatorUID)
-	if err != nil {
-		return nil, err
+	for _, roleName := range roleNames {
+		if isSuperAdminRole(roleName) {
+			return &operatorPermissionScope{includeAll: true}, nil
+		}
 	}
 	if len(roleNames) == 0 {
 		return &operatorPermissionScope{lookup: map[string]struct{}{}}, nil
@@ -136,6 +133,42 @@ func (s *PermissionService) getOperatorPermissionScope(ctx context.Context, oper
 		addPermissionLookupKeys(lookup, string(determinePermissionType(rule.V3)), rule.V2, rule.V3)
 	}
 	return &operatorPermissionScope{lookup: lookup}, nil
+}
+
+// getEffectivePermissionRoleNames resolves the same domain-scoped Casbin roles
+// used by PermissionMiddleware. Database role relations are retained as a
+// fallback for internal calls and tests that do not have grouping rules loaded.
+func (s *PermissionService) getEffectivePermissionRoleNames(ctx context.Context, operatorUID, domain string) ([]string, error) {
+	query := s.client.CasbinRule.Query().
+		Where(
+			casbinrule.PtypeEQ("g"),
+			casbinrule.V0EQ(operatorUID),
+		)
+	if domain != "" {
+		query = query.Where(casbinrule.V2EQ(domain))
+	}
+
+	groupingRules, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get operator runtime roles failed: %w", err)
+	}
+	if len(groupingRules) == 0 {
+		return s.getUserRoleNames(ctx, operatorUID)
+	}
+
+	seen := make(map[string]struct{}, len(groupingRules))
+	roleNames := make([]string, 0, len(groupingRules))
+	for _, rule := range groupingRules {
+		if rule.V1 == "" {
+			continue
+		}
+		if _, ok := seen[rule.V1]; ok {
+			continue
+		}
+		seen[rule.V1] = struct{}{}
+		roleNames = append(roleNames, rule.V1)
+	}
+	return roleNames, nil
 }
 
 func (s *PermissionService) ensureOperatorCanManagePermissions(ctx context.Context, operatorUID, domain string, permissions []PermissionRule) error {

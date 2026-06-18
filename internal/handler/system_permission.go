@@ -183,9 +183,21 @@ func ListSystemPermissions(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
-	uid, _ := c.Locals("uid").(string)
+	domain, ok := systemPermissionDomain(c)
+	if !ok {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
+	req.Domain = domain
+
+	uid, ok := c.Locals("uid").(string)
+	if !ok || uid == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
 	result, err := svc.List(c.Context(), uid, req)
 	if err != nil {
+		if err == service.ErrPermissionOperatorRequired {
+			return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, "获取权限列表失败").ToJSON(c)
 	}
 
@@ -208,14 +220,28 @@ func GetSystemPermissionTree(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.SystemPermissionService").(service.SystemPermissionServiceInterface)
 
-	domain := c.Query("domain", "default")
+	domain, ok := systemPermissionDomain(c)
+	if !ok {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
 
-	uid, _ := c.Locals("uid").(string)
+	uid, ok := c.Locals("uid").(string)
+	if !ok || uid == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
 
 	tree, err := svc.GetTree(c.Context(), uid, domain)
 	if err != nil {
+		if err == service.ErrPermissionOperatorRequired {
+			return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, "获取权限树失败").ToJSON(c)
 	}
 
 	return resp.Success(tree, global.ResponseSuccessCode, "获取权限树成功").ToJSON(c)
+}
+
+func systemPermissionDomain(c fiber.Ctx) (string, bool) {
+	domain, ok := c.Locals("domain").(string)
+	return domain, ok && domain != ""
 }

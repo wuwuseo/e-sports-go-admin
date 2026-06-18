@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
@@ -84,6 +85,20 @@ func createPermissionSecurityRule(t *testing.T, client *ent.Client, roleName, do
 		Save(t.Context())
 	if err != nil {
 		t.Fatalf("create permission rule %s %s failed: %v", object, action, err)
+	}
+}
+
+func createPermissionSecurityGroupingRule(t *testing.T, client *ent.Client, uid, roleName, domain string) {
+	t.Helper()
+
+	_, err := client.CasbinRule.Create().
+		SetPtype("g").
+		SetV0(uid).
+		SetV1(roleName).
+		SetV2(domain).
+		Save(t.Context())
+	if err != nil {
+		t.Fatalf("create grouping rule for %s failed: %v", uid, err)
 	}
 }
 
@@ -323,6 +338,127 @@ func TestSystemPermissionService_ListAndTree_ScopesToOperatorPermissions(t *test
 	}
 	if !systemPermissionTreeContainsCode(adminTree, pluginButton.Code) {
 		t.Fatalf("expected super admin tree to include %s", pluginButton.Code)
+	}
+}
+
+func TestSystemPermissionService_ListAndTree_ScopesAdminAccountRolePermissions(t *testing.T) {
+	client := setupPermissionSecurityTest(t)
+	ctx := t.Context()
+	svc := NewSystemPermissionService()
+
+	normalRole := createPermissionSecurityRole(t, client, "normal_admin")
+	normalAdmin, err := client.Admin.Create().
+		SetEmail("normal-admin@example.com").
+		SetUsername("normal-admin").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetUID("uid-normal-admin").
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create normal admin failed: %v", err)
+	}
+	if _, err = client.AdminRole.Create().
+		SetAdminID(normalAdmin.ID).
+		SetRoleID(normalRole.ID).
+		SetIsPrimary(true).
+		Save(ctx); err != nil {
+		t.Fatalf("assign normal_admin role failed: %v", err)
+	}
+
+	root := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeMenu, "System", "system", 0, "/system", string(PermissionTypeMenu))
+	allowedMenu := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeMenu, "Users", "system:user", root.ID, "/system/user", string(PermissionTypeMenu))
+	allowedAPI := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeAPI, "List users", "user:list", allowedMenu.ID, "/api/v1/admin/auth/users", "GET")
+	pluginMenu := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeMenu, "Plugins", "plugin", root.ID, "/system/plugin", string(PermissionTypeMenu))
+	pluginAPI := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeAPI, "List plugins", "plugin:list", pluginMenu.ID, "/api/v1/admin/auth/plugins", "GET")
+
+	createPermissionSecurityRule(t, client, normalRole.Name, "default", PermissionTypeMenu, allowedMenu.MenuPath, string(PermissionTypeMenu))
+	createPermissionSecurityRule(t, client, normalRole.Name, "default", PermissionTypeAPI, allowedAPI.Path, allowedAPI.Method)
+
+	list, err := svc.List(ctx, normalAdmin.UID, &ListSystemPermissionsRequest{
+		ListRequest: ListRequest{PaginationRequest: PaginationRequest{Page: 1}},
+		Domain:      "default",
+	})
+	if err != nil {
+		t.Fatalf("list system permissions failed: %v", err)
+	}
+	if !systemPermissionResponsesContainCode(list.Data, allowedAPI.Code) {
+		t.Fatalf("expected assigned permission %s", allowedAPI.Code)
+	}
+	if systemPermissionResponsesContainCode(list.Data, pluginAPI.Code) {
+		t.Fatalf("admin account leaked unassigned permission %s", pluginAPI.Code)
+	}
+
+	tree, err := svc.GetTree(ctx, normalAdmin.UID, "default")
+	if err != nil {
+		t.Fatalf("get system permission tree failed: %v", err)
+	}
+	if !systemPermissionTreeContainsCode(tree, allowedAPI.Code) {
+		t.Fatalf("expected assigned permission %s in tree", allowedAPI.Code)
+	}
+	if systemPermissionTreeContainsCode(tree, pluginAPI.Code) {
+		t.Fatalf("admin account tree leaked unassigned permission %s", pluginAPI.Code)
+	}
+}
+
+func TestSystemPermissionService_ListAndTree_UsesCasbinRuntimeRoles(t *testing.T) {
+	client := setupPermissionSecurityTest(t)
+	ctx := t.Context()
+	svc := NewSystemPermissionService()
+
+	adminRole := createPermissionSecurityRole(t, client, SuperAdminRoleName)
+	normalRole := createPermissionSecurityRole(t, client, "normal_admin")
+	operator, err := client.Admin.Create().
+		SetEmail("runtime-normal@example.com").
+		SetUsername("runtime-normal").
+		SetPassword("password").
+		SetPasswordSalt("salt").
+		SetUID("uid-runtime-normal").
+		SetStatus(admin.StatusActive).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create operator failed: %v", err)
+	}
+	if _, err = client.AdminRole.Create().
+		SetAdminID(operator.ID).
+		SetRoleID(adminRole.ID).
+		SetIsPrimary(true).
+		Save(ctx); err != nil {
+		t.Fatalf("create stale admin role relation failed: %v", err)
+	}
+
+	createPermissionSecurityGroupingRule(t, client, operator.UID, normalRole.Name, "default")
+
+	root := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeMenu, "System", "system", 0, "/system", string(PermissionTypeMenu))
+	allowedMenu := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeMenu, "Users", "system:user", root.ID, "/system/user", string(PermissionTypeMenu))
+	allowedAPI := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeAPI, "List users", "user:list", allowedMenu.ID, "/api/v1/admin/auth/users", "GET")
+	hiddenAPI := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeAPI, "List plugins", "plugin:list", root.ID, "/api/v1/admin/auth/plugins", "GET")
+	createPermissionSecurityRule(t, client, normalRole.Name, "default", PermissionTypeMenu, allowedMenu.MenuPath, string(PermissionTypeMenu))
+	createPermissionSecurityRule(t, client, normalRole.Name, "default", PermissionTypeAPI, allowedAPI.Path, allowedAPI.Method)
+
+	list, err := svc.List(ctx, operator.UID, &ListSystemPermissionsRequest{
+		ListRequest: ListRequest{PaginationRequest: PaginationRequest{Page: 1}},
+		Domain:      "default",
+	})
+	if err != nil {
+		t.Fatalf("list system permissions failed: %v", err)
+	}
+	if !systemPermissionResponsesContainCode(list.Data, allowedAPI.Code) {
+		t.Fatalf("expected runtime role permission %s", allowedAPI.Code)
+	}
+	if systemPermissionResponsesContainCode(list.Data, hiddenAPI.Code) {
+		t.Fatalf("list leaked permission %s outside the Casbin runtime role", hiddenAPI.Code)
+	}
+
+	tree, err := svc.GetTree(ctx, operator.UID, "default")
+	if err != nil {
+		t.Fatalf("get system permission tree failed: %v", err)
+	}
+	if !systemPermissionTreeContainsCode(tree, allowedAPI.Code) {
+		t.Fatalf("expected runtime role permission %s in tree", allowedAPI.Code)
+	}
+	if systemPermissionTreeContainsCode(tree, hiddenAPI.Code) {
+		t.Fatalf("tree leaked permission %s outside the Casbin runtime role", hiddenAPI.Code)
 	}
 }
 
