@@ -179,6 +179,47 @@ func containsInt(haystack []int, needle int) bool {
 	return false
 }
 
+// shouldBypassCheck 判断是否应跳过权限校验。
+// allowAllScope=true 时，DataScopeAll 也跳过（用于角色相关校验）；
+// allowAllScope=false 时，仅 nil 和超管跳过（DataScopeAll 由调用方的 switch 处理）。
+func shouldBypassCheck(op *EffectiveDataScope, allowAllScope bool) bool {
+	if op == nil || op.IsSuperAdmin {
+		return true
+	}
+	if allowAllScope && op.Scope == DataScopeAll {
+		return true
+	}
+	return false
+}
+
+// isDepartmentInScope 判断部门是否在操作者数据范围内。
+// 调用前必须已通过 shouldBypassCheck 校验（op 非 nil 且非超管）。
+func isDepartmentInScope(op *EffectiveDataScope, departmentID int) bool {
+	switch op.Scope {
+	case DataScopeAll:
+		return true
+	case DataScopeSelf:
+		return false
+	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		if departmentID == 0 {
+			return false
+		}
+		return containsInt(op.DepartmentIDs, departmentID)
+	default:
+		return false
+	}
+}
+
+// isCustomDeptSubset 判断 deptIDs 是否为 op.DepartmentIDs 的子集。
+func isCustomDeptSubset(op *EffectiveDataScope, deptIDs []int) bool {
+	for _, id := range deptIDs {
+		if !containsInt(op.DepartmentIDs, id) {
+			return false
+		}
+	}
+	return true
+}
+
 // NewOperatorContext 从 currentUID 构造操作者上下文
 // currentUID 为空时返回 nil（内部调用绕过校验）
 func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentUID string) (*EffectiveDataScope, error) {
@@ -196,7 +237,7 @@ func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentU
 //	target.DepartmentID == 0  → 在 Department/DepartmentAndChild/Custom 模式下拒绝（未分配账号在部门模式下不可见）
 //	其他               → 按 op.Scope 校验
 func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDataScope, targetAdminID int) error {
-	if op == nil || op.IsSuperAdmin {
+	if shouldBypassCheck(op, false) {
 		return nil
 	}
 	target, err := client.Admin.Query().Where(admin.IDEQ(targetAdminID)).Only(ctx)
@@ -209,24 +250,10 @@ func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDa
 	if target.UID == op.AdminUID {
 		return nil
 	}
-	switch op.Scope {
-	case DataScopeAll:
-		return nil
-	case DataScopeSelf:
-		// Self 已在上方 target.UID == op.AdminUID 短路放行；走到这里说明 target 不是自己，直接拒绝
-		return ErrAdminOutOfScope
-	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
-		if target.DepartmentID == 0 {
-			return ErrAdminOutOfScope
-		}
-		if !containsInt(op.DepartmentIDs, target.DepartmentID) {
-			return ErrAdminOutOfScope
-		}
-		return nil
-	default:
-		// 未知 DataScope 默认拒绝，避免未来新增枚举值时 fail-open
+	if !isDepartmentInScope(op, target.DepartmentID) {
 		return ErrAdminOutOfScope
 	}
+	return nil
 }
 
 // ensureDepartmentInScope 校验目标部门是否在 op 的数据范围内
@@ -240,25 +267,13 @@ func ensureAdminInScope(ctx context.Context, client *ent.Client, op *EffectiveDa
 //	                     其他要求命中 op.DepartmentIDs
 //	未知 scope         → 拒绝（fail-closed）
 func ensureDepartmentInScope(op *EffectiveDataScope, targetDepartmentID int) error {
-	if op == nil || op.IsSuperAdmin {
+	if shouldBypassCheck(op, false) {
 		return nil
 	}
-	switch op.Scope {
-	case DataScopeAll:
-		return nil
-	case DataScopeSelf:
-		return ErrDepartmentOutOfScope
-	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
-		if targetDepartmentID == 0 {
-			return ErrDepartmentOutOfScope
-		}
-		if !containsInt(op.DepartmentIDs, targetDepartmentID) {
-			return ErrDepartmentOutOfScope
-		}
-		return nil
-	default:
+	if !isDepartmentInScope(op, targetDepartmentID) {
 		return ErrDepartmentOutOfScope
 	}
+	return nil
 }
 
 // ensureRolesNotEscalating 校验候选角色的 data_scope 不超过操作者
@@ -268,7 +283,7 @@ func ensureDepartmentInScope(op *EffectiveDataScope, targetDepartmentID int) err
 //	非 All：要求 rank(role) ≤ rank(op)；Custom 角色还要求 role.DeptIDs ⊆ op.DeptIDs
 //	未知 op.Scope           → 拒绝（fail-closed）
 func ensureRolesNotEscalating(ctx context.Context, client *ent.Client, op *EffectiveDataScope, roleIDs []int) error {
-	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+	if shouldBypassCheck(op, true) {
 		return nil
 	}
 	if len(roleIDs) == 0 {
@@ -287,12 +302,8 @@ func ensureRolesNotEscalating(ctx context.Context, client *ent.Client, op *Effec
 		if scopeRank(rs) > opRank {
 			return ErrRoleScopeEscalation
 		}
-		if rs == DataScopeCustom {
-			for _, deptID := range r.DataScopeDepartmentIds {
-				if !containsInt(op.DepartmentIDs, deptID) {
-					return ErrRoleScopeEscalation
-				}
-			}
+		if rs == DataScopeCustom && !isCustomDeptSubset(op, r.DataScopeDepartmentIds) {
+			return ErrRoleScopeEscalation
 		}
 	}
 	return nil
@@ -364,7 +375,7 @@ func ensureRolesNotEscalatingForTarget(
 	roleIDs []int,
 	targetAdminDepartmentID int,
 ) error {
-	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+	if shouldBypassCheck(op, true) {
 		return nil
 	}
 	if len(roleIDs) == 0 {
@@ -399,7 +410,7 @@ func ensureRolesNotEscalatingForTarget(
 }
 
 func adminInOperatorScope(op *EffectiveDataScope, target *ent.Admin) bool {
-	if op == nil || op.IsSuperAdmin {
+	if shouldBypassCheck(op, false) {
 		return true
 	}
 	if target == nil {
@@ -408,19 +419,7 @@ func adminInOperatorScope(op *EffectiveDataScope, target *ent.Admin) bool {
 	if target.UID == op.AdminUID {
 		return true
 	}
-	switch op.Scope {
-	case DataScopeAll:
-		return true
-	case DataScopeSelf:
-		return false
-	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
-		if target.DepartmentID == 0 {
-			return false
-		}
-		return containsInt(op.DepartmentIDs, target.DepartmentID)
-	default:
-		return false
-	}
+	return isDepartmentInScope(op, target.DepartmentID)
 }
 
 func ensureRoleEffectiveDepartmentsInScope(
@@ -460,7 +459,7 @@ func ensureRoleManageableForAssignedAdmins(
 	newDeptIDs []int,
 	validateNewScope bool,
 ) error {
-	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+	if shouldBypassCheck(op, true) {
 		return nil
 	}
 	if scopeRank(op.Scope) == 0 || currentRole == nil || deptSvc == nil {
@@ -506,7 +505,7 @@ func ensureRoleManageableForAssignedAdmins(
 // 说明：Role 字段写入阶段无"目标管理员"，Dept/DeptAndChild 用 rank 防御，
 // 实际分配阶段由 ensureRolesNotEscalatingForTarget 兜底。
 func ensureRoleScopeWritable(op *EffectiveDataScope, newScope DataScope, newDeptIDs []int) error {
-	if op == nil || op.IsSuperAdmin || op.Scope == DataScopeAll {
+	if shouldBypassCheck(op, true) {
 		return nil
 	}
 	opRank := scopeRank(op.Scope)
@@ -517,12 +516,8 @@ func ensureRoleScopeWritable(op *EffectiveDataScope, newScope DataScope, newDept
 	if newRank == 0 || newRank > opRank {
 		return ErrRoleScopeEscalation
 	}
-	if newScope == DataScopeCustom {
-		for _, id := range newDeptIDs {
-			if !containsInt(op.DepartmentIDs, id) {
-				return ErrRoleScopeEscalation
-			}
-		}
+	if newScope == DataScopeCustom && !isCustomDeptSubset(op, newDeptIDs) {
+		return ErrRoleScopeEscalation
 	}
 	return nil
 }
