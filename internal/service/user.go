@@ -390,10 +390,6 @@ func (s *UserService) UpdateUser(ctx context.Context, uid string, updates map[st
 			if v, ok := value.(string); ok {
 				update.SetAvatar(v)
 			}
-		case "status":
-			if v, ok := value.(string); ok {
-				update.SetStatus(user.Status(v))
-			}
 		}
 	}
 

@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	adminplugin "go-admin/internal/plugin"
 
@@ -136,15 +138,73 @@ func (s *PluginService) Proxy(ctx context.Context, req *PluginProxyRequest) (*Pl
 func proxyHTTPClient(endpoint *adminplugin.Endpoint) (*http.Client, string, error) {
 	switch endpoint.Transport {
 	case cmfplugin.TransportTCP:
-		return http.DefaultClient, "http://" + endpoint.Address, nil
+		if err := isPluginAddressSafe(endpoint.Address); err != nil {
+			return nil, "", adminplugin.ErrInvalidPath
+		}
+		dialer := &net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					host, _, err := net.SplitHostPort(addr)
+					if err != nil {
+						return nil, err
+					}
+					if err := isPluginAddressSafe(host); err != nil {
+						return nil, err
+					}
+					return dialer.DialContext(ctx, network, addr)
+				},
+				MaxIdleConns:    10,
+				IdleConnTimeout: 60 * time.Second,
+			},
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 3 {
+					return fmt.Errorf("超过最大重定向次数")
+				}
+				if req.URL != nil {
+					if err := isPluginAddressSafe(req.URL.Host); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+		}
+		return client, "http://" + endpoint.Address, nil
 	case cmfplugin.TransportUnix:
 		transport := &http.Transport{DialContext: func(ctx context.Context, network string, addr string) (net.Conn, error) {
 			return net.Dial("unix", endpoint.Socket)
 		}}
-		return &http.Client{Transport: transport}, "http://unix", nil
+		return &http.Client{Transport: transport, Timeout: 30 * time.Second}, "http://unix", nil
 	default:
 		return nil, "", adminplugin.ErrUnsupportedTransport
 	}
+}
+
+// isPluginAddressSafe 校验插件代理目标地址是否安全
+// 仅允许 loopback 地址（127.0.0.0/8 和 ::1）和 localhost 域名，确保插件代理只能访问本地服务
+func isPluginAddressSafe(address string) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		host = address
+	}
+
+	ip := net.ParseIP(host)
+	if ip == nil {
+		if strings.EqualFold(host, "localhost") {
+			return nil
+		}
+		return fmt.Errorf("不允许的插件地址: %s", host)
+	}
+
+	if !ip.IsLoopback() {
+		return fmt.Errorf("插件地址必须为本地回环地址: %s", ip.String())
+	}
+
+	return nil
 }
 
 func normalizedProxyPath(path string) string {

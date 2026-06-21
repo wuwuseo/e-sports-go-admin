@@ -106,8 +106,14 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	})
 	_ = pluginManager.RestoreEnabled(context.Background())
 	pluginService := service.NewPluginService(pluginManager)
+	// 登录限流器：每分钟最多 10 次请求，防止暴力破解
+	loginLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
+		Window:   1 * time.Minute,
+		MaxCount: 10,
+	})
+
 	// 公开接口
-	public.Post("/login", handler.Login)
+	public.Post("/login", loginLimiter.Handler(), handler.Login)
 	public.Post("/refresh-token", handler.RefreshToken)
 	public.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
 	publicOAuth := public.Group("/oauth", func(c fiber.Ctx) error {
@@ -142,7 +148,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("utils.Response", utils.NewResponse())
 		return c.Next()
 	})
-	adminPublicLogin.Post("/login", handler.AdminLogin)
+	adminPublicLogin.Post("/login", loginLimiter.Handler(), handler.AdminLogin)
 	adminPublicLogin.Post("/refresh", handler.AdminRefreshToken)
 
 	pluginProxy := v1.Group("/plugin", func(c fiber.Ctx) error {
@@ -156,7 +162,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware(), handler.ProxyPlugin}
 	pluginProxy.All("/:plugin_id/admin/auth", pluginProxyAuth[0], pluginProxyAuth[1:]...)
 	pluginProxy.All("/:plugin_id/admin/auth/*", pluginProxyAuth[0], pluginProxyAuth[1:]...)
-	pluginProxy.All("/:plugin_id/*", handler.ProxyPlugin)
+	pluginProxy.All("/:plugin_id/*", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), middleware.BlacklistCheck(blacklistService), handler.ProxyPlugin)
 
 	// 需要认证的接口
 	adminAuthBase := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {

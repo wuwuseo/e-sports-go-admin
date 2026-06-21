@@ -337,10 +337,6 @@ func (s *AdminService) UpdateAdmin(ctx context.Context, uid string, updates map[
 			if v, ok := value.(string); ok {
 				update.SetPosition(v)
 			}
-		case "status":
-			if v, ok := value.(string); ok {
-				update.SetStatus(admin.Status(v))
-			}
 		}
 	}
 
