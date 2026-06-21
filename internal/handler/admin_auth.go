@@ -75,12 +75,8 @@ func AdminLogin(c fiber.Ctx) error {
 	token, err := adminService.Login(c.Context(), req)
 	if err != nil {
 		switch err {
-		case service.ErrAdminNotFound:
-			return response.Fail(global.ResponseNotFound, "Admin not found").ToJSON(c)
-		case service.ErrInvalidAdminPassword:
-			return response.Fail(global.ResponseUnauthorized, "Invalid password").ToJSON(c)
-		case service.ErrInvalidAdminStatus:
-			return response.Fail(global.ResponseForbidden, "Admin is not active").ToJSON(c)
+		case service.ErrAdminNotFound, service.ErrInvalidAdminPassword, service.ErrInvalidAdminStatus:
+			return response.Fail(global.ResponseUnauthorized, "用户名或密码错误").ToJSON(c)
 		default:
 			return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
 		}

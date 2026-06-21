@@ -14,7 +14,8 @@ import (
 )
 
 // logOperation 记录操作日志的辅助函数
-func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, module, action, description string) {
+// extraRedactKeys 用于指定额外需要脱敏的字段名（如配置项的 value 字段）
+func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, module, action, description string, extraRedactKeys ...string) {
 	claims := jwt.GetJWTUserData(c)
 	userUID := ""
 	username := ""
@@ -33,7 +34,7 @@ func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, 
 		Module:      module,
 		Action:      action,
 		Description: description,
-		RequestBody: utils.SafeGetBody(c),
+		RequestBody: utils.SafeGetBody(c, extraRedactKeys...),
 		Method:      c.Method(),
 		Path:        c.Path(),
 		IP:          c.IP(),

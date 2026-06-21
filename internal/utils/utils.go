@@ -5,6 +5,7 @@ import (
 	"go-admin/internal/global"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,9 +49,93 @@ func GetResponseMsg(code int) string {
 	return global.ResponseMsg[code]
 }
 
+// defaultSensitiveKeys 默认需要脱敏的请求体字段名（小写匹配）
+var defaultSensitiveKeys = []string{
+	"password",
+	"old_password",
+	"new_password",
+	"current_password",
+	"secret",
+	"client_secret",
+	"api_secret",
+	"secret_key",
+	"token",
+	"access_token",
+	"refresh_token",
+	"api_key",
+	"apikey",
+	"private_key",
+	"password_salt",
+	"salt",
+	"authorization",
+	"encrypted_password",
+	"encrypted_email",
+	"encrypted_username",
+}
+
+var (
+	defaultSensitiveKeysStr = func() string {
+		quoted := make([]string, len(defaultSensitiveKeys))
+		for i, k := range defaultSensitiveKeys {
+			quoted[i] = regexp.QuoteMeta(k)
+		}
+		return strings.Join(quoted, "|")
+	}()
+	defaultJSONRedactPattern  = regexp.MustCompile(`(?i)"(` + defaultSensitiveKeysStr + `)"\s*:\s*"[^"]*"`)
+	defaultFormRedactPattern  = regexp.MustCompile(`(?i)(^|&)(` + defaultSensitiveKeysStr + `)=([^&]*)`)
+)
+
+// isSensitiveKey 判断字段名是否为敏感字段（支持额外键）
+func isSensitiveKey(key string, extraKeys []string) bool {
+	lower := strings.ToLower(key)
+	for _, k := range defaultSensitiveKeys {
+		if lower == k {
+			return true
+		}
+	}
+	for _, k := range extraKeys {
+		if lower == strings.ToLower(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactSensitiveFields 对请求体中的敏感字段值进行脱敏
+// 支持 JSON 键值对和表单编码格式，extraKeys 用于追加额外需脱敏的字段（如配置项 value）
+func redactSensitiveFields(body string, extraKeys ...string) string {
+	if len(body) == 0 {
+		return body
+	}
+
+	if len(extraKeys) == 0 {
+		body = defaultJSONRedactPattern.ReplaceAllString(body, `"${1}":"***REDACTED***"`)
+		body = defaultFormRedactPattern.ReplaceAllString(body, "${1}${2}=***REDACTED***")
+		return body
+	}
+
+	keys := make([]string, 0, len(defaultSensitiveKeys)+len(extraKeys))
+	keys = append(keys, defaultSensitiveKeys...)
+	keys = append(keys, extraKeys...)
+	quoted := make([]string, len(keys))
+	for i, k := range keys {
+		quoted[i] = regexp.QuoteMeta(strings.ToLower(k))
+	}
+	alternation := strings.Join(quoted, "|")
+
+	jsonPattern := regexp.MustCompile(`(?i)"(` + alternation + `)"\s*:\s*"[^"]*"`)
+	body = jsonPattern.ReplaceAllString(body, `"${1}":"***REDACTED***"`)
+
+	formPattern := regexp.MustCompile(`(?i)(^|&)(` + alternation + `)=([^&]*)`)
+	body = formPattern.ReplaceAllString(body, "${1}${2}=***REDACTED***")
+
+	return body
+}
+
 // SafeGetBody 安全获取请求体内容，限制最大读取长度，避免大文件导致内存溢出
-// 对于 multipart/form-data（文件上传），仅提取文本字段，过滤掉二进制文件内容
-func SafeGetBody(c fiber.Ctx) string {
+// 对敏感字段（密码、令牌、密钥等）自动脱敏，防止凭据泄露到操作日志
+// extraRedactKeys 可传入额外需要脱敏的字段名（如配置项的 value 字段）
+func SafeGetBody(c fiber.Ctx, extraRedactKeys ...string) string {
 	contentType := strings.ToLower(string(c.Request().Header.ContentType()))
 
 	// 文件上传请求：解析 multipart form，仅保留文本字段
@@ -64,6 +149,9 @@ func SafeGetBody(c fiber.Ctx) string {
 			var fields []string
 			for key, values := range form.Value {
 				for _, v := range values {
+					if isSensitiveKey(key, extraRedactKeys) {
+						v = "***REDACTED***"
+					}
 					fields = append(fields, fmt.Sprintf("%s=%s", key, v))
 				}
 			}
@@ -83,23 +171,23 @@ func SafeGetBody(c fiber.Ctx) string {
 		if len(rawBody) == 0 {
 			return ""
 		}
-		if len(rawBody) > 2048 {
-			return string(rawBody[:2048]) + "..."
+		redacted := redactSensitiveFields(string(rawBody), extraRedactKeys...)
+		if len(redacted) > 2048 {
+			redacted = redacted[:2048] + "..."
 		}
-		return string(rawBody)
+		return redacted
 	}
 
-	// 非文件上传：截断处理
+	// 非文件上传：脱敏后截断
 	body := c.Body()
 	if len(body) == 0 {
 		return ""
 	}
-	maxLen := 2048
-	if len(body) > maxLen {
-		body = body[:maxLen]
-		return string(body) + "..."
+	redacted := redactSensitiveFields(string(body), extraRedactKeys...)
+	if len(redacted) > 2048 {
+		redacted = redacted[:2048] + "..."
 	}
-	return string(body)
+	return redacted
 }
 
 // SaveUID 将当前 UID 计数器值持久化到文件

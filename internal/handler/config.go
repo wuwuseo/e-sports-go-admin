@@ -48,7 +48,7 @@ func CreateConfig(c fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "system", "创建", fmt.Sprintf("创建配置: %s", req.Key))
+	logOperation(c, logService, "system", "创建", fmt.Sprintf("创建配置: %s", req.Key), "value")
 
 	return resp.Success(item, global.ResponseSuccessCode, "配置创建成功").ToJSON(c)
 }

@@ -35,10 +35,11 @@ type Endpoint struct {
 }
 
 type Options struct {
-	PluginRoot string
-	TempRoot   string
-	Registry   cmfplugin.ExtensionRegistry
-	Runtime    cmfplugin.PluginRuntime
+	PluginRoot  string
+	PackageRoot string
+	TempRoot    string
+	Registry    cmfplugin.ExtensionRegistry
+	Runtime     cmfplugin.PluginRuntime
 }
 
 type DefaultManager struct {
@@ -72,7 +73,11 @@ func (m *DefaultManager) Install(ctx context.Context, packagePath string) (*cmfp
 	if packagePath == "" {
 		return nil, ErrInvalidPackage
 	}
-	if _, err := os.Stat(packagePath); err != nil {
+	absPath, err := filepath.Abs(packagePath)
+	if err != nil || !cmfplugin.IsWithinRoot(m.opts.PackageRoot, absPath) {
+		return nil, ErrInvalidPath
+	}
+	if _, err := os.Stat(absPath); err != nil {
 		return nil, ErrInvalidPackage
 	}
 
@@ -103,7 +108,7 @@ func (m *DefaultManager) Install(ctx context.Context, packagePath string) (*cmfp
 	if err := os.RemoveAll(targetDir); err != nil {
 		return nil, fmt.Errorf("%w: clean target: %v", ErrInvalidPath, err)
 	}
-	if err := cmfplugin.SafeUnzip(packagePath, targetDir); err != nil {
+	if err := cmfplugin.SafeUnzip(absPath, targetDir); err != nil {
 		return nil, ErrInvalidPackage
 	}
 

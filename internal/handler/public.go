@@ -130,12 +130,8 @@ func Login(c fiber.Ctx) error {
 	token, err := userService.Login(c.Context(), req)
 	if err != nil {
 		switch err {
-		case service.ErrUserNotFound:
-			return response.Fail(global.ResponseNotFound, "User not found").ToJSON(c)
-		case service.ErrInvalidPassword:
-			return response.Fail(global.ResponseUnauthorized, "Invalid password").ToJSON(c)
-		case service.ErrInvalidUserStatus:
-			return response.Fail(global.ResponseForbidden, "User is not active").ToJSON(c)
+		case service.ErrUserNotFound, service.ErrInvalidPassword, service.ErrInvalidUserStatus:
+			return response.Fail(global.ResponseUnauthorized, "用户名或密码错误").ToJSON(c)
 		default:
 			return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
 		}

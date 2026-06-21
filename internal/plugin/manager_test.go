@@ -29,10 +29,11 @@ func TestManagerInstallEnableDisableUninstall(t *testing.T) {
 	registry := cmfplugin.NewMemoryExtensionRegistry()
 	runtime := &fakeRuntime{}
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(root, "data", "plugins"),
-		TempRoot:   filepath.Join(root, "tmp"),
-		Registry:   registry,
-		Runtime:    runtime,
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    registry,
+		Runtime:     runtime,
 	})
 
 	if _, err := manager.Install(ctx, pkg); err != nil {
@@ -108,10 +109,11 @@ func TestManagerInstallStoresAbsolutePathWithRelativePluginRoot(t *testing.T) {
 		}
 	}()
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join("data", "plugins"),
-		TempRoot:   filepath.Join("tmp"),
-		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
-		Runtime:    &fakeRuntime{},
+		PluginRoot:  filepath.Join("data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join("tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
 	})
 
 	if _, err := manager.Install(ctx, pkg); err != nil {
@@ -137,10 +139,11 @@ func TestManagerEnableRollsBackExtensionsWhenRuntimeStartFails(t *testing.T) {
 	pkg := writePluginPackage(t, root, "admin.example-plugin", "1.0.0")
 	registry := cmfplugin.NewMemoryExtensionRegistry()
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(root, "data", "plugins"),
-		TempRoot:   filepath.Join(root, "tmp"),
-		Registry:   registry,
-		Runtime:    &fakeRuntime{startErr: errors.New("boom")},
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    registry,
+		Runtime:     &fakeRuntime{startErr: errors.New("boom")},
 	})
 	if _, err := manager.Install(ctx, pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
@@ -171,10 +174,11 @@ func TestManagerRestoreEnabledStartsRuntimeAndRegistersExtensions(t *testing.T) 
 	root := t.TempDir()
 	pkg := writePluginPackage(t, root, "admin.example-plugin", "1.0.0")
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(root, "data", "plugins"),
-		TempRoot:   filepath.Join(root, "tmp"),
-		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
-		Runtime:    &fakeRuntime{},
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
 	})
 	if _, err := manager.Install(ctx, pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
@@ -212,10 +216,11 @@ func TestManagerEnableRestartsEnabledPluginWhenRuntimeIsNotRunning(t *testing.T)
 	root := t.TempDir()
 	pkg := writePluginPackage(t, root, "admin.example-plugin", "1.0.0")
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(root, "data", "plugins"),
-		TempRoot:   filepath.Join(root, "tmp"),
-		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
-		Runtime:    &fakeRuntime{},
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
 	})
 	if _, err := manager.Install(ctx, pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
@@ -253,14 +258,37 @@ func TestManagerInstallRejectsMissingPackage(t *testing.T) {
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
 	)
 	defer client.Close()
+	root := t.TempDir()
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(t.TempDir(), "plugins"),
-		TempRoot:   filepath.Join(t.TempDir(), "tmp"),
-		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
-		Runtime:    &fakeRuntime{},
+		PluginRoot:  filepath.Join(root, "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
 	})
-	if _, err := manager.Install(ctx, filepath.Join(t.TempDir(), "missing.zip")); err != ErrInvalidPackage {
+	if _, err := manager.Install(ctx, filepath.Join(root, "missing.zip")); err != ErrInvalidPackage {
 		t.Fatalf("err = %v, want ErrInvalidPackage", err)
+	}
+}
+
+func TestManagerInstallRejectsPathOutsidePackageRoot(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:plugin_outside_pkgroot?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	defer client.Close()
+	root := t.TempDir()
+	outsideRoot := t.TempDir()
+	pkg := writePluginPackage(t, outsideRoot, "admin.example-plugin", "1.0.0")
+	manager := NewManager(client, Options{
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
+	})
+	if _, err := manager.Install(ctx, pkg); err != ErrInvalidPath {
+		t.Fatalf("err = %v, want ErrInvalidPath", err)
 	}
 }
 
@@ -279,10 +307,11 @@ func TestManagerResolveEndpointReturnsTCPAddressForEnabledPlugin(t *testing.T) {
     `+runtime.GOOS+`-`+runtime.GOARCH+`: bin/plugin
 `)
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(root, "data", "plugins"),
-		TempRoot:   filepath.Join(root, "tmp"),
-		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
-		Runtime:    &fakeRuntime{},
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
 	})
 	if _, err := manager.Install(ctx, pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
@@ -311,10 +340,11 @@ func TestManagerResolveEndpointRejectsDisabledPlugin(t *testing.T) {
 	root := t.TempDir()
 	pkg := writePluginPackage(t, root, "admin.example-plugin", "1.0.0")
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(root, "data", "plugins"),
-		TempRoot:   filepath.Join(root, "tmp"),
-		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
-		Runtime:    &fakeRuntime{},
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
 	})
 	if _, err := manager.Install(ctx, pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
@@ -339,10 +369,11 @@ func TestManagerResolveEndpointReturnsUnixSocketInsideInstallPath(t *testing.T) 
     `+runtime.GOOS+`-`+runtime.GOARCH+`: bin/plugin
 `)
 	manager := NewManager(client, Options{
-		PluginRoot: filepath.Join(root, "data", "plugins"),
-		TempRoot:   filepath.Join(root, "tmp"),
-		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
-		Runtime:    &fakeRuntime{},
+		PluginRoot:  filepath.Join(root, "data", "plugins"),
+		PackageRoot: root,
+		TempRoot:    filepath.Join(root, "tmp"),
+		Registry:    cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:     &fakeRuntime{},
 	})
 	if _, err := manager.Install(ctx, pkg); err != nil {
 		t.Fatalf("Install returned error: %v", err)
