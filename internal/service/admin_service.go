@@ -35,13 +35,22 @@ type AdminServiceInterface interface {
 
 // AdminService 管理员服务
 type AdminService struct {
-	client *ent.Client
+	client       *ent.Client
+	blacklistSvc BlacklistServiceInterface
 }
 
 // NewAdminService 创建管理员服务实例
 func NewAdminService() *AdminService {
 	return &AdminService{
 		client: global.ORM,
+	}
+}
+
+// NewAdminServiceWithBlacklist 创建带黑名单服务的管理员服务实例（支持登出吊销令牌）
+func NewAdminServiceWithBlacklist(blacklistSvc BlacklistServiceInterface) *AdminService {
+	return &AdminService{
+		client:       global.ORM,
+		blacklistSvc: blacklistSvc,
 	}
 }
 
@@ -128,6 +137,11 @@ func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*Toke
 		Save(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// 登录成功后清除退出标记，确保新令牌不被旧的 logout 记录阻断
+	if s.blacklistSvc != nil {
+		_ = s.blacklistSvc.ClearLogout(ctx, a.UID)
 	}
 
 	return &TokenResponse{
@@ -386,6 +400,16 @@ func (s *AdminService) Logout(ctx context.Context, uid string) error {
 			return ErrAdminNotFound
 		}
 		return err
+	}
+
+	// 记录登出时间戳，使已签发的令牌在刷新令牌有效期内失效
+	if s.blacklistSvc != nil {
+		if cfg, _ := global.Bootstrap.GetService("config"); cfg != nil {
+			if config, ok := cfg.(*cmfConfig.Config); ok {
+				ttl := time.Duration(config.App.AdminRefreshExpires) * time.Second
+				_ = s.blacklistSvc.RecordLogout(ctx, uid, ttl)
+			}
+		}
 	}
 
 	return nil

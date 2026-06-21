@@ -149,9 +149,9 @@ type SeedPermission struct {
 
 // SystemPermissionServiceInterface 权限定义服务接口
 type SystemPermissionServiceInterface interface {
-	Create(ctx context.Context, req *CreateSystemPermissionRequest) (*SystemPermissionResponse, error)
-	Update(ctx context.Context, id int, req *UpdateSystemPermissionRequest) error
-	Delete(ctx context.Context, id int) error
+	Create(ctx context.Context, operatorUID string, req *CreateSystemPermissionRequest) (*SystemPermissionResponse, error)
+	Update(ctx context.Context, operatorUID string, id int, req *UpdateSystemPermissionRequest) error
+	Delete(ctx context.Context, operatorUID string, id int) error
 	GetByID(ctx context.Context, id int) (*SystemPermissionResponse, error)
 	List(ctx context.Context, operatorUID string, req *ListSystemPermissionsRequest) (*ListSystemPermissionsResponse, error)
 	GetTree(ctx context.Context, operatorUID string, domain string) ([]*SystemPermissionTreeNode, error)
@@ -162,11 +162,24 @@ type SystemPermissionService struct {
 	client *ent.Client
 }
 
-var (
-	_ Creator[CreateSystemPermissionRequest, SystemPermissionResponse] = (*SystemPermissionService)(nil)
-	_ Updater[UpdateSystemPermissionRequest]                           = (*SystemPermissionService)(nil)
-	_ Deleter                                                          = (*SystemPermissionService)(nil)
-)
+// ensureSuperAdminOrSystem 确保操作者是超级管理员或系统级调用
+// 系统权限定义的增删改属于高风险操作，仅超级管理员可执行
+func (s *SystemPermissionService) ensureSuperAdminOrSystem(ctx context.Context, operatorUID string) error {
+	if isPermissionSystemOperator(ctx) {
+		return nil
+	}
+	if operatorUID == "" {
+		return ErrPermissionOperatorRequired
+	}
+	isSuper, err := isUserSuperAdmin(ctx, s.client, operatorUID)
+	if err != nil {
+		return fmt.Errorf("检查超级管理员身份失败: %w", err)
+	}
+	if !isSuper {
+		return ErrSuperAdminProtected
+	}
+	return nil
+}
 
 func NewSystemPermissionService() *SystemPermissionService {
 	return &SystemPermissionService{
@@ -175,7 +188,11 @@ func NewSystemPermissionService() *SystemPermissionService {
 }
 
 // Create 创建权限
-func (s *SystemPermissionService) Create(ctx context.Context, req *CreateSystemPermissionRequest) (*SystemPermissionResponse, error) {
+func (s *SystemPermissionService) Create(ctx context.Context, operatorUID string, req *CreateSystemPermissionRequest) (*SystemPermissionResponse, error) {
+	if err := s.ensureSuperAdminOrSystem(ctx, operatorUID); err != nil {
+		return nil, err
+	}
+
 	exists, err := s.client.SystemPermission.Query().
 		Where(
 			systempermission.DomainEQ(req.Domain),
@@ -226,7 +243,11 @@ func (s *SystemPermissionService) Create(ctx context.Context, req *CreateSystemP
 }
 
 // Update 更新权限
-func (s *SystemPermissionService) Update(ctx context.Context, id int, req *UpdateSystemPermissionRequest) error {
+func (s *SystemPermissionService) Update(ctx context.Context, operatorUID string, id int, req *UpdateSystemPermissionRequest) error {
+	if err := s.ensureSuperAdminOrSystem(ctx, operatorUID); err != nil {
+		return err
+	}
+
 	current, err := s.client.SystemPermission.Query().Where(systempermission.IDEQ(id)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -420,7 +441,11 @@ func (s *SystemPermissionService) cascadeEnableChildrenTx(ctx context.Context, t
 }
 
 // Delete 删除权限
-func (s *SystemPermissionService) Delete(ctx context.Context, id int) error {
+func (s *SystemPermissionService) Delete(ctx context.Context, operatorUID string, id int) error {
+	if err := s.ensureSuperAdminOrSystem(ctx, operatorUID); err != nil {
+		return err
+	}
+
 	_, err := s.client.SystemPermission.Query().Where(systempermission.IDEQ(id)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

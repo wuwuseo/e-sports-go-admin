@@ -144,7 +144,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 管理员公开接口（无需认证）
 	adminPublicLogin := admin.Group("/public", func(c fiber.Ctx) error {
-		c.Locals("service.AdminService", service.NewAdminService())
+		c.Locals("service.AdminService", service.NewAdminServiceWithBlacklist(blacklistService))
 		c.Locals("utils.Response", utils.NewResponse())
 		return c.Next()
 	})
@@ -167,7 +167,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 需要认证的接口
 	adminAuthBase := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.SuperAdminService", service.NewSuperAdminService(dataPermissionService, departmentService))
-		c.Locals("service.AdminService", service.NewAdminService())
+		c.Locals("service.AdminService", service.NewAdminServiceWithBlacklist(blacklistService))
 		c.Locals("service.UserService", userService)
 		c.Locals("service.RoleService", roleService)
 		c.Locals("service.PermissionService", permissionService)

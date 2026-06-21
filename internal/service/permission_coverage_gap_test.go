@@ -340,30 +340,30 @@ func TestPermissionService_SaveRolePermissions_Deduplication(t *testing.T) {
 func TestSystemPermissionService_CascadeDisable_DeepNesting(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
-	level1, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	level1, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "Level1", Code: "cascade:l1", Status: 1,
 	})
 	if err != nil {
 		t.Fatalf("create level1 failed: %v", err)
 	}
 
-	level2, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	level2, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "Level2", Code: "cascade:l2", ParentID: level1.ID, Status: 1,
 	})
 	if err != nil {
 		t.Fatalf("create level2 failed: %v", err)
 	}
 
-	level3, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	level3, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "Level3", Code: "cascade:l3", ParentID: level2.ID, Status: 1,
 	})
 	if err != nil {
 		t.Fatalf("create level3 failed: %v", err)
 	}
 
-	level4, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	level4, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "Level4", Code: "cascade:l4", ParentID: level3.ID, Status: 1,
 	})
 	if err != nil {
@@ -371,7 +371,7 @@ func TestSystemPermissionService_CascadeDisable_DeepNesting(t *testing.T) {
 	}
 
 	disabledStatus := int8(0)
-	err = svc.Update(ctx, level1.ID, &UpdateSystemPermissionRequest{Status: &disabledStatus})
+	err = svc.Update(ctx, "", level1.ID, &UpdateSystemPermissionRequest{Status: &disabledStatus})
 	if err != nil {
 		t.Fatalf("disable level1 failed: %v", err)
 	}
@@ -390,23 +390,23 @@ func TestSystemPermissionService_CascadeDisable_DeepNesting(t *testing.T) {
 func TestSystemPermissionService_CascadeEnable_DeepNesting(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
-	level1, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	level1, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "EnableL1", Code: "enable:l1", Status: 0,
 	})
 	if err != nil {
 		t.Fatalf("create level1 failed: %v", err)
 	}
 
-	level2, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	level2, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "EnableL2", Code: "enable:l2", ParentID: level1.ID, Status: 0,
 	})
 	if err != nil {
 		t.Fatalf("create level2 failed: %v", err)
 	}
 
-	level3, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	level3, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "EnableL3", Code: "enable:l3", ParentID: level2.ID, Status: 0,
 	})
 	if err != nil {
@@ -414,7 +414,7 @@ func TestSystemPermissionService_CascadeEnable_DeepNesting(t *testing.T) {
 	}
 
 	enabledStatus := int8(1)
-	err = svc.Update(ctx, level1.ID, &UpdateSystemPermissionRequest{Status: &enabledStatus})
+	err = svc.Update(ctx, "", level1.ID, &UpdateSystemPermissionRequest{Status: &enabledStatus})
 	if err != nil {
 		t.Fatalf("enable level1 failed: %v", err)
 	}

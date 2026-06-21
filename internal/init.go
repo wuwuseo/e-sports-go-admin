@@ -776,7 +776,15 @@ func cleanupNormalAdminSeededExcludedPermissions(ctx context.Context, client *en
 }
 
 func shouldSeedNormalAdminPermission(p *ent.SystemPermission) bool {
-	return !isPluginManagementSystemPermission(p)
+	if isPluginManagementSystemPermission(p) {
+		return false
+	}
+	// 高风险权限 API（系统权限定义 CRUD、角色权限分配、Casbin 规则 CRUD、OAuth 配置）
+	// 不授予 normal_admin，仅超级管理员可持有，防止普通管理员越权修改权限定义
+	if p.Type == "api" && service.IsSensitivePermissionObject(p.Path) {
+		return false
+	}
+	return true
 }
 
 func isPluginManagementSystemPermission(p *ent.SystemPermission) bool {

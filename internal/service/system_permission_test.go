@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"context"
@@ -35,7 +35,7 @@ func setupSystemPermissionTest(t *testing.T) {
 func TestSystemPermissionService_Create(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := context.Background()
+	ctx := withPermissionSystemOperator(context.Background())
 
 	t.Run("成功创建菜单权限", func(t *testing.T) {
 		req := &CreateSystemPermissionRequest{
@@ -45,7 +45,7 @@ func TestSystemPermissionService_Create(t *testing.T) {
 			Code:   "test:menu",
 			Status: 1,
 		}
-		resp, err := svc.Create(ctx, req)
+		resp, err := svc.Create(ctx, "", req)
 		if err != nil {
 			t.Fatalf("创建失败: %v", err)
 		}
@@ -74,7 +74,7 @@ func TestSystemPermissionService_Create(t *testing.T) {
 			Code:   "test:dup",
 			Status: 1,
 		}
-		_, err := svc.Create(ctx, req1)
+		_, err := svc.Create(ctx, "", req1)
 		if err != nil {
 			t.Fatalf("第一次创建失败: %v", err)
 		}
@@ -86,7 +86,7 @@ func TestSystemPermissionService_Create(t *testing.T) {
 			Code:   "test:dup",
 			Status: 1,
 		}
-		_, err = svc.Create(ctx, req2)
+		_, err = svc.Create(ctx, "", req2)
 		if err == nil {
 			t.Fatal("期望重复代码错误，但没有收到错误")
 		}
@@ -112,7 +112,7 @@ func TestSystemPermissionService_Create(t *testing.T) {
 			Status:      1,
 			Description: "这是一个测试描述",
 		}
-		resp, err := svc.Create(ctx, req)
+		resp, err := svc.Create(ctx, "", req)
 		if err != nil {
 			t.Fatalf("创建失败: %v", err)
 		}
@@ -152,7 +152,7 @@ func TestSystemPermissionService_Create(t *testing.T) {
 func TestSystemPermissionService_GetByID(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := context.Background()
+	ctx := withPermissionSystemOperator(context.Background())
 
 	t.Run("查询存在的权限", func(t *testing.T) {
 		createReq := &CreateSystemPermissionRequest{
@@ -163,7 +163,7 @@ func TestSystemPermissionService_GetByID(t *testing.T) {
 			Description: "测试描述",
 			Status:      1,
 		}
-		created, err := svc.Create(ctx, createReq)
+		created, err := svc.Create(ctx, "", createReq)
 		if err != nil {
 			t.Fatalf("创建失败: %v", err)
 		}
@@ -200,7 +200,7 @@ func TestSystemPermissionService_GetByID(t *testing.T) {
 func TestSystemPermissionService_List(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := context.Background()
+	ctx := withPermissionSystemOperator(context.Background())
 
 	seedData := []struct {
 		Domain   string
@@ -219,7 +219,7 @@ func TestSystemPermissionService_List(t *testing.T) {
 		{"admin", SystemPermissionTypeAPI, "管理API", "admin:api", 1, false},
 	}
 	for _, s := range seedData {
-		_, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+		_, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 			Domain:   s.Domain,
 			Type:     s.Type,
 			Name:     s.Name,
@@ -320,7 +320,7 @@ func TestSystemPermissionService_List(t *testing.T) {
 func TestSystemPermissionService_Update(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := context.Background()
+	ctx := withPermissionSystemOperator(context.Background())
 
 	t.Run("成功更新名称和排序", func(t *testing.T) {
 		createReq := &CreateSystemPermissionRequest{
@@ -331,7 +331,7 @@ func TestSystemPermissionService_Update(t *testing.T) {
 			SortOrder: 5,
 			Status:    1,
 		}
-		created, err := svc.Create(ctx, createReq)
+		created, err := svc.Create(ctx, "", createReq)
 		if err != nil {
 			t.Fatalf("创建失败: %v", err)
 		}
@@ -341,7 +341,7 @@ func TestSystemPermissionService_Update(t *testing.T) {
 			Name:      "新名称",
 			SortOrder: &sortOrder,
 		}
-		err = svc.Update(ctx, created.ID, updateReq)
+		err = svc.Update(ctx, "", created.ID, updateReq)
 		if err != nil {
 			t.Fatalf("更新失败: %v", err)
 		}
@@ -362,7 +362,7 @@ func TestSystemPermissionService_Update(t *testing.T) {
 		req := &UpdateSystemPermissionRequest{
 			Name: "不存在",
 		}
-		err := svc.Update(ctx, 99999, req)
+		err := svc.Update(ctx, "", 99999, req)
 		if err == nil {
 			t.Fatal("期望权限不存在错误，但没有收到错误")
 		}
@@ -375,7 +375,7 @@ func TestSystemPermissionService_Update(t *testing.T) {
 func TestSystemPermissionService_Delete(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := context.Background()
+	ctx := withPermissionSystemOperator(context.Background())
 
 	t.Run("成功删除叶子权限", func(t *testing.T) {
 		createReq := &CreateSystemPermissionRequest{
@@ -385,12 +385,12 @@ func TestSystemPermissionService_Delete(t *testing.T) {
 			Code:   "test:delete:leaf",
 			Status: 1,
 		}
-		created, err := svc.Create(ctx, createReq)
+		created, err := svc.Create(ctx, "", createReq)
 		if err != nil {
 			t.Fatalf("创建失败: %v", err)
 		}
 
-		err = svc.Delete(ctx, created.ID)
+		err = svc.Delete(ctx, "", created.ID)
 		if err != nil {
 			t.Fatalf("删除失败: %v", err)
 		}
@@ -412,7 +412,7 @@ func TestSystemPermissionService_Delete(t *testing.T) {
 			Code:   "test:delete:parent",
 			Status: 1,
 		}
-		parent, err := svc.Create(ctx, parentReq)
+		parent, err := svc.Create(ctx, "", parentReq)
 		if err != nil {
 			t.Fatalf("创建父权限失败: %v", err)
 		}
@@ -425,12 +425,12 @@ func TestSystemPermissionService_Delete(t *testing.T) {
 			ParentID: parent.ID,
 			Status:   1,
 		}
-		_, err = svc.Create(ctx, childReq)
+		_, err = svc.Create(ctx, "", childReq)
 		if err != nil {
 			t.Fatalf("创建子权限失败: %v", err)
 		}
 
-		err = svc.Delete(ctx, parent.ID)
+		err = svc.Delete(ctx, "", parent.ID)
 		if err == nil {
 			t.Fatal("期望删除失败，但成功了")
 		}
@@ -440,7 +440,7 @@ func TestSystemPermissionService_Delete(t *testing.T) {
 	})
 
 	t.Run("删除不存在的权限返回错误", func(t *testing.T) {
-		err := svc.Delete(ctx, 99999)
+		err := svc.Delete(ctx, "", 99999)
 		if err == nil {
 			t.Fatal("期望权限不存在错误，但没有收到错误")
 		}
@@ -453,7 +453,7 @@ func TestSystemPermissionService_Delete(t *testing.T) {
 func TestSystemPermissionService_GetTree(t *testing.T) {
 	setupSystemPermissionTest(t)
 	svc := NewSystemPermissionService()
-	ctx := context.Background()
+	ctx := withPermissionSystemOperator(context.Background())
 
 	t.Run("构建正确的树结构", func(t *testing.T) {
 		parentReq := &CreateSystemPermissionRequest{
@@ -464,7 +464,7 @@ func TestSystemPermissionService_GetTree(t *testing.T) {
 			SortOrder: 1,
 			Status:    1,
 		}
-		parent, err := svc.Create(ctx, parentReq)
+		parent, err := svc.Create(ctx, "", parentReq)
 		if err != nil {
 			t.Fatalf("创建父权限失败: %v", err)
 		}
@@ -478,7 +478,7 @@ func TestSystemPermissionService_GetTree(t *testing.T) {
 			SortOrder: 1,
 			Status:    1,
 		}
-		_, err = svc.Create(ctx, child1Req)
+		_, err = svc.Create(ctx, "", child1Req)
 		if err != nil {
 			t.Fatalf("创建子权限1失败: %v", err)
 		}
@@ -492,7 +492,7 @@ func TestSystemPermissionService_GetTree(t *testing.T) {
 			SortOrder: 2,
 			Status:    1,
 		}
-		_, err = svc.Create(ctx, child2Req)
+		_, err = svc.Create(ctx, "", child2Req)
 		if err != nil {
 			t.Fatalf("创建子权限2失败: %v", err)
 		}
@@ -505,7 +505,7 @@ func TestSystemPermissionService_GetTree(t *testing.T) {
 			SortOrder: 0,
 			Status:    1,
 		}
-		_, err = svc.Create(ctx, orphanReq)
+		_, err = svc.Create(ctx, "", orphanReq)
 		if err != nil {
 			t.Fatalf("创建独立权限失败: %v", err)
 		}
@@ -552,7 +552,7 @@ func TestSystemPermissionService_GetTree(t *testing.T) {
 			SortOrder: 3,
 			Status:    1,
 		}
-		_, err := svc.Create(ctx, adminReq)
+		_, err := svc.Create(ctx, "", adminReq)
 		if err != nil {
 			t.Fatalf("创建admin域权限失败: %v", err)
 		}
@@ -957,16 +957,16 @@ func assertSeedPermissionExists(t *testing.T, ctx context.Context, want seedPerm
 
 func TestSystemPermission_Update_RejectsSelfParent(t *testing.T) {
 	setupSystemPermissionTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewSystemPermissionService()
-	created, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	created, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "P", Code: "cycle:self",
 	})
 	if err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
 	selfID := created.ID
-	err = svc.Update(ctx, selfID, &UpdateSystemPermissionRequest{ParentID: &selfID})
+	err = svc.Update(ctx, "", selfID, &UpdateSystemPermissionRequest{ParentID: &selfID})
 	if !errors.Is(err, ErrPermissionParentCycle) {
 		t.Fatalf("期望 ErrPermissionParentCycle，got %v", err)
 	}
@@ -974,21 +974,21 @@ func TestSystemPermission_Update_RejectsSelfParent(t *testing.T) {
 
 func TestSystemPermission_Update_RejectsDescendantParent(t *testing.T) {
 	setupSystemPermissionTest(t)
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 	svc := NewSystemPermissionService()
-	parent, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	parent, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "P", Code: "cycle:p",
 	})
 	if err != nil {
 		t.Fatalf("create parent failed: %v", err)
 	}
-	child, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	child, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain: "default", Type: SystemPermissionTypeMenu, Name: "C", Code: "cycle:c", ParentID: parent.ID,
 	})
 	if err != nil {
 		t.Fatalf("create child failed: %v", err)
 	}
-	err = svc.Update(ctx, parent.ID, &UpdateSystemPermissionRequest{ParentID: &child.ID})
+	err = svc.Update(ctx, "", parent.ID, &UpdateSystemPermissionRequest{ParentID: &child.ID})
 	if !errors.Is(err, ErrPermissionParentCycle) {
 		t.Fatalf("期望 ErrPermissionParentCycle，got %v", err)
 	}

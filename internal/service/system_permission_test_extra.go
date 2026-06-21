@@ -1,4 +1,4 @@
-package service
+﻿package service
 
 import (
 	"testing"
@@ -113,7 +113,7 @@ func TestSystemPermissionUpdate_DisableTriggersTransactionalCascade(t *testing.T
 
 	disable := int8(0)
 	req := &UpdateSystemPermissionRequest{Status: &disable}
-	if err := svc.Update(ctx, root.ID, req); err != nil {
+	if err := svc.Update(ctx, "", root.ID, req); err != nil {
 		t.Fatalf("Update 失败: %v", err)
 	}
 
@@ -139,7 +139,7 @@ func TestSystemPermissionUpdate_EnableTriggersTransactionalCascade(t *testing.T)
 
 	enable := int8(1)
 	req := &UpdateSystemPermissionRequest{Status: &enable}
-	if err := svc.Update(ctx, root.ID, req); err != nil {
+	if err := svc.Update(ctx, "", root.ID, req); err != nil {
 		t.Fatalf("Update 失败: %v", err)
 	}
 
@@ -165,7 +165,7 @@ func TestSystemPermissionUpdate_SelfParentRejected(t *testing.T) {
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	req := &UpdateSystemPermissionRequest{ParentID: &root.ID}
-	err := svc.Update(ctx, root.ID, req)
+	err := svc.Update(ctx, "", root.ID, req)
 	if err != ErrPermissionParentCycle {
 		t.Fatalf("期望 ErrPermissionParentCycle，got %v", err)
 	}
@@ -181,7 +181,7 @@ func TestSystemPermissionUpdate_DescendantParentRejected(t *testing.T) {
 	grand := createSystemPermissionForTest(t, client, "api", "grand", "/root/c/g", "GET", child.ID, 0, 1)
 
 	req := &UpdateSystemPermissionRequest{ParentID: &grand.ID}
-	err := svc.Update(ctx, root.ID, req)
+	err := svc.Update(ctx, "", root.ID, req)
 	if err != ErrPermissionParentCycle {
 		t.Fatalf("期望 ErrPermissionParentCycle，got %v", err)
 	}
@@ -196,7 +196,7 @@ func TestSystemPermissionCreate_DuplicateCodeRejected(t *testing.T) {
 	svc := &SystemPermissionService{}
 	ctx := t.Context()
 
-	_, err := svc.Create(ctx, &CreateSystemPermissionRequest{
+	_, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain:   "default",
 		Type:     "api",
 		Name:     "first",
@@ -209,7 +209,7 @@ func TestSystemPermissionCreate_DuplicateCodeRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("首次创建应成功，got %v", err)
 	}
-	_, err = svc.Create(ctx, &CreateSystemPermissionRequest{
+	_, err = svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain:   "default",
 		Type:     "api",
 		Name:     "second",
@@ -236,7 +236,7 @@ func TestSystemPermissionDelete_RootWithChildrenRejected(t *testing.T) {
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	_ = createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 1)
 
-	err := svc.Delete(ctx, root.ID)
+	err := svc.Delete(ctx, "", root.ID)
 	if err == nil {
 		t.Fatalf("有子权限的节点应无法删除")
 	}
@@ -250,7 +250,7 @@ func TestSystemPermissionDelete_LeafDeletedSuccessfully(t *testing.T) {
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	child := createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 1)
 
-	if err := svc.Delete(ctx, child.ID); err != nil {
+	if err := svc.Delete(ctx, "", child.ID); err != nil {
 		t.Fatalf("删除叶子节点失败: %v", err)
 	}
 	_, err := client.SystemPermission.Get(ctx, child.ID)

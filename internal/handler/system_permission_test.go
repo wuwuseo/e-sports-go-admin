@@ -161,15 +161,15 @@ type stubSystemPermissionService struct {
 	gotDomain     string
 }
 
-func (s *stubSystemPermissionService) Create(ctx context.Context, req *service.CreateSystemPermissionRequest) (*service.SystemPermissionResponse, error) {
+func (s *stubSystemPermissionService) Create(ctx context.Context, operatorUID string, req *service.CreateSystemPermissionRequest) (*service.SystemPermissionResponse, error) {
 	panic("Create 不应被调用")
 }
 
-func (s *stubSystemPermissionService) Update(ctx context.Context, id int, req *service.UpdateSystemPermissionRequest) error {
+func (s *stubSystemPermissionService) Update(ctx context.Context, operatorUID string, id int, req *service.UpdateSystemPermissionRequest) error {
 	panic("Update 不应被调用")
 }
 
-func (s *stubSystemPermissionService) Delete(ctx context.Context, id int) error {
+func (s *stubSystemPermissionService) Delete(ctx context.Context, operatorUID string, id int) error {
 	panic("Delete 不应被调用")
 }
 

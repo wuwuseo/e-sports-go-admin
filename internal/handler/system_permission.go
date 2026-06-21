@@ -30,6 +30,11 @@ func CreateSystemPermission(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.SystemPermissionService").(service.SystemPermissionServiceInterface)
 
+	uid, ok := c.Locals("uid").(string)
+	if !ok || uid == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
+
 	req, err := validate.ParseAndValidate[service.CreateSystemPermissionRequest](c)
 	if err != nil {
 		if validate.IsValidationError(err) {
@@ -38,8 +43,11 @@ func CreateSystemPermission(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
-	perm, err := svc.Create(c.Context(), req)
+	perm, err := svc.Create(c.Context(), uid, req)
 	if err != nil {
+		if errors.Is(err, service.ErrSuperAdminProtected) || errors.Is(err, service.ErrPermissionOperatorRequired) {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, err.Error()).ToJSON(c)
 	}
 
@@ -66,6 +74,11 @@ func UpdateSystemPermission(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.SystemPermissionService").(service.SystemPermissionServiceInterface)
 
+	uid, ok := c.Locals("uid").(string)
+	if !ok || uid == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
+
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -80,7 +93,10 @@ func UpdateSystemPermission(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
 
-	if err := svc.Update(c.Context(), id, req); err != nil {
+	if err := svc.Update(c.Context(), uid, id, req); err != nil {
+		if errors.Is(err, service.ErrSuperAdminProtected) || errors.Is(err, service.ErrPermissionOperatorRequired) {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
 		if errors.Is(err, service.ErrPermissionParentCycle) {
 			return resp.Fail(global.ResponsePermissionParentCycle, global.ResponseMsg[global.ResponsePermissionParentCycle]).ToJSON(c)
 		}
@@ -108,13 +124,21 @@ func DeleteSystemPermission(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.SystemPermissionService").(service.SystemPermissionServiceInterface)
 
+	uid, ok := c.Locals("uid").(string)
+	if !ok || uid == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
+
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return resp.Fail(global.ResponseErrorCode, "无效的权限ID").ToJSON(c)
 	}
 
-	if err := svc.Delete(c.Context(), id); err != nil {
+	if err := svc.Delete(c.Context(), uid, id); err != nil {
+		if errors.Is(err, service.ErrSuperAdminProtected) || errors.Is(err, service.ErrPermissionOperatorRequired) {
+			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, err.Error()).ToJSON(c)
 	}
 

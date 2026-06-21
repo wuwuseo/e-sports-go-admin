@@ -46,6 +46,8 @@ type BlacklistServiceInterface interface {
 	ListBlacklist(ctx context.Context, page, pageSize int) (*ListResponse[*BlacklistItem], error)
 	IsBlacklisted(ctx context.Context, uid string) (bool, error)
 	IsLoggedOut(ctx context.Context, uid string) (bool, error)
+	RecordLogout(ctx context.Context, uid string, ttl time.Duration) error
+	ClearLogout(ctx context.Context, uid string) error
 }
 
 // NewBlacklistService 创建黑名单服务实例
@@ -249,6 +251,15 @@ func (s *BlacklistService) IsLoggedOut(ctx context.Context, uid string) (bool, e
 		return false, nil
 	}
 	return true, nil
+}
+
+// ClearLogout 清除用户退出标记（用于重新登录后恢复会话）
+func (s *BlacklistService) ClearLogout(ctx context.Context, uid string) error {
+	if s.cache == nil {
+		return nil
+	}
+	key := fmt.Sprintf("logout:uid:%s", uid)
+	return s.cache.Delete(ctx, key)
 }
 
 func pageSafe(page, pageSize int) (int, int) {

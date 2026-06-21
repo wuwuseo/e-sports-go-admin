@@ -112,7 +112,7 @@ func TestSystemPermissionService_Delete_LeafNode(t *testing.T) {
 		t.Fatalf("创建权限失败: %v", err)
 	}
 
-	err = svc.Delete(ctx, p.ID)
+	err = svc.Delete(ctx, "", p.ID)
 	if err != nil {
 		t.Fatalf("删除叶子节点失败: %v", err)
 	}
