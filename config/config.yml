@@ -5,9 +5,9 @@ app:
   idle_timeout: 60
   prefork: false
   swagger: true
-  secret: secret
+  secret: ""  # JWT 密钥，请通过环境变量 CMF_APP_SECRET 设置强随机值，留空时启动将自动生成随机密钥
   login_expires: 86400
-  admin_secret: admin-secret-key
+  admin_secret: ""  # 管理员 JWT 密钥，请通过环境变量 CMF_APP_ADMIN_SECRET 设置强随机值，留空时启动将自动生成随机密钥
   admin_login_expires: 7200
   admin_refresh_expires: 86400
   body_limit: 10485760

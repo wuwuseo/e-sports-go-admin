@@ -2,7 +2,10 @@ package internal
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -52,6 +55,9 @@ func Init(config *config.Config) error {
 			Config: config,
 		}
 	}
+
+	// 安全校验：确保 JWT 密钥不为空或已知弱默认值，必要时生成随机密钥
+	ensureAppSecrets(config)
 
 	// 初始化数据库：优先使用 Wire 注入的 EntClient
 	if appInstance.EntClient != nil {
@@ -166,6 +172,54 @@ func initCasbin(config *config.Config) error {
 	return nil
 }
 
+// knownWeakSecrets 记录已知的弱默认密钥，启动时检测并替换
+var knownWeakSecrets = map[string]bool{
+	"":                  true,
+	"secret":            true,
+	"admin-secret-key":  true,
+	"admin-secret":      true,
+}
+
+// generateRandomSecret 生成指定字节长度的随机十六进制密钥
+func generateRandomSecret(byteLen int) string {
+	b := make([]byte, byteLen)
+	if _, err := rand.Read(b); err != nil {
+		panic(fmt.Sprintf("生成随机密钥失败: %v", err))
+	}
+	return hex.EncodeToString(b)
+}
+
+// ensureAppSecrets 校验 JWT 密钥安全性：若为空或已知弱默认值则生成随机密钥并告警
+func ensureAppSecrets(config *config.Config) {
+	if knownWeakSecrets[config.App.Secret] {
+		config.App.Secret = generateRandomSecret(32)
+		appInstance.Logger.Warn("app.secret 为空或使用已知弱默认值，已自动生成随机密钥",
+			zap.String("hint", "请在 config.yml 或环境变量 CMF_APP_SECRET 中设置强密钥；重启后已有 token 将失效"),
+		)
+	}
+	if knownWeakSecrets[config.App.AdminSecret] {
+		config.App.AdminSecret = generateRandomSecret(32)
+		appInstance.Logger.Warn("app.admin_secret 为空或使用已知弱默认值，已自动生成随机密钥",
+			zap.String("hint", "请在 config.yml 或环境变量 CMF_APP_ADMIN_SECRET 中设置强密钥；重启后已有管理员 token 将失效"),
+		)
+	}
+}
+
+// initialAdminPassword 读取初始管理员密码：优先从环境变量 ADMIN_INITIAL_PASSWORD 获取，
+// 未设置时生成随机密码并输出到日志（一次性），避免使用硬编码弱密码
+func initialAdminPassword() string {
+	if pwd := os.Getenv("ADMIN_INITIAL_PASSWORD"); pwd != "" {
+		return pwd
+	}
+	pwd := generateRandomSecret(12)
+	appInstance.Logger.Warn("ADMIN_INITIAL_PASSWORD 环境变量未设置，已生成随机初始管理员密码",
+		zap.String("username", "admin"),
+		zap.String("password", pwd),
+		zap.String("advice", "请妥善保存此密码并登录后立即修改"),
+	)
+	return pwd
+}
+
 // initSeedData 初始化超级管理员种子数据
 func initSeedData() error {
 	ctx := context.Background()
@@ -206,7 +260,7 @@ func initSeedData() error {
 			return fmt.Errorf("failed to query admin user: %w", err)
 		}
 		// 用户不存在，创建
-		hashedPassword, salt, err := crypto.HashPassword("admin")
+		hashedPassword, salt, err := crypto.HashPassword(initialAdminPassword())
 		if err != nil {
 			return fmt.Errorf("failed to hash password: %w", err)
 		}
@@ -245,7 +299,7 @@ func initSeedData() error {
 		if !ent.IsNotFound(err) {
 			return fmt.Errorf("failed to query admin account: %w", err)
 		}
-		hashedPassword, salt, err := crypto.HashPassword("admin")
+		hashedPassword, salt, err := crypto.HashPassword(initialAdminPassword())
 		if err != nil {
 			return fmt.Errorf("failed to hash admin password: %w", err)
 		}

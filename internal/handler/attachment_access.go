@@ -22,14 +22,18 @@ func GetAttachmentAccessURL(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的附件ID").ToJSON(c)
 	}
 
-	accessURL, err := svc.BuildAccessURL(c.Context(), id, attachmentContentBasePath(c), attachmentAccessTTL(c), attachmentAccessSecret(c))
+	secret := attachmentAccessSecret(c)
+	if secret == "" {
+		return resp.Fail(global.ResponseInternalServerError, "附件访问密钥未配置").ToJSON(c)
+	}
+
+	accessURL, err := svc.BuildAccessURL(c.Context(), id, attachmentContentBasePath(c), attachmentAccessTTL(c), secret)
 	if err != nil {
 		if err == service.ErrAttachmentNotFound {
 			return resp.Fail(global.ErrCodeAttachmentNotFound, "附件不存在").ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "生成访问地址失败").ToJSON(c)
 	}
-
 	return resp.Success(accessURL, global.ResponseSuccessCode, "生成访问地址成功").ToJSON(c)
 }
 
@@ -45,7 +49,11 @@ func ServeAttachmentContent(c fiber.Ctx) error {
 	if token == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(resp.Fail(global.ResponseUnauthorized, "缺少访问凭证"))
 	}
-	if err := svc.ValidateAccessToken(id, token, attachmentAccessSecret(c), time.Now()); err != nil {
+	secret := attachmentAccessSecret(c)
+	if secret == "" {
+		return c.Status(fiber.StatusInternalServerError).JSON(resp.Fail(global.ResponseInternalServerError, "附件访问密钥未配置"))
+	}
+	if err := svc.ValidateAccessToken(id, token, secret, time.Now()); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(resp.Fail(global.ResponseUnauthorized, "访问凭证无效"))
 	}
 
@@ -93,7 +101,7 @@ func attachmentAccessSecret(c fiber.Ctx) string {
 	if secret, ok := c.Locals("attachment.access_secret").(string); ok && secret != "" {
 		return secret
 	}
-	return "attachment-access-secret"
+	return ""
 }
 
 func attachmentContentBasePath(c fiber.Ctx) string {
