@@ -19,3 +19,8 @@ go-admin
 CODE_WIKI.md
 docs/CODE_WIKI.md
 internal/service/data/
+
+# Go workspace 本地开发文件，不入库
+go.work
+go.work.sum
+go.work.local
