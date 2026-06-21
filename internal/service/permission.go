@@ -56,6 +56,9 @@ var SensitivePermissionObjects = map[string]struct{}{
 	"/api/v1/admin/auth/permissions":        {},
 	"/api/v1/admin/auth/permissions/detail": {},
 	"/api/v1/admin/auth/permissions/all":    {},
+	// OAuth client credentials and redirect configuration.
+	"/api/v1/admin/auth/oauth/providers":            {},
+	"/api/v1/admin/auth/oauth/providers/{provider}": {},
 }
 
 // IsSensitivePermissionObject 判断给定路径是否为高风险权限 API

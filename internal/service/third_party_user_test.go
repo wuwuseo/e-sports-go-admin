@@ -293,9 +293,10 @@ func TestThirdPartyUserService_ListThirdPartyUsers_PlatformFilter(t *testing.T) 
 	svc := NewThirdPartyUserService()
 
 	u := createTestUserForThirdParty(t, client, "filter@test.com")
+	u2 := createTestUserForThirdParty(t, client, "filter2@test.com")
 	createTestThirdPartyUser(t, client, u.ID, "wechat", "wx1")
 	createTestThirdPartyUser(t, client, u.ID, "github", "gh1")
-	createTestThirdPartyUser(t, client, u.ID, "wechat", "wx2")
+	createTestThirdPartyUser(t, client, u2.ID, "wechat", "wx2")
 
 	resp, err := svc.ListThirdPartyUsers(ctx, 1, 10, "wechat", "")
 	if err != nil {
@@ -362,7 +363,8 @@ func TestThirdPartyUserService_ListThirdPartyUsers_Pagination(t *testing.T) {
 	u := createTestUserForThirdParty(t, client, "pagination@test.com")
 	for i := 1; i <= 5; i++ {
 		openid := "openid-" + string(rune('0'+i))
-		createTestThirdPartyUser(t, client, u.ID, "platform", openid)
+		platform := "platform-" + string(rune('0'+i))
+		createTestThirdPartyUser(t, client, u.ID, platform, openid)
 	}
 
 	// 第1页，2条

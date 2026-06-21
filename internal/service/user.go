@@ -251,6 +251,10 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	}
 
 	// 验证密码
+	if u.Password == "" {
+		return nil, ErrInvalidPassword
+	}
+
 	match, err := crypto.VerifyPassword(req.Password, u.Password, u.PasswordSalt)
 	if err != nil {
 		return nil, err

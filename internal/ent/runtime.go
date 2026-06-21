@@ -5,6 +5,7 @@ package ent
 import (
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/adminrole"
+	"go-admin/internal/ent/adminthirdpartyuser"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
@@ -14,6 +15,8 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
+	"go-admin/internal/ent/oauthproviderconfig"
+	"go-admin/internal/ent/oauthsession"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
@@ -152,6 +155,66 @@ func init() {
 	adminroleDescCreatedBy := adminroleFields[4].Descriptor()
 	// adminrole.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
 	adminrole.CreatedByValidator = adminroleDescCreatedBy.Validators[0].(func(string) error)
+	adminthirdpartyuserFields := schema.AdminThirdPartyUser{}.Fields()
+	_ = adminthirdpartyuserFields
+	// adminthirdpartyuserDescPlatform is the schema descriptor for platform field.
+	adminthirdpartyuserDescPlatform := adminthirdpartyuserFields[2].Descriptor()
+	// adminthirdpartyuser.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
+	adminthirdpartyuser.PlatformValidator = func() func(string) error {
+		validators := adminthirdpartyuserDescPlatform.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(platform string) error {
+			for _, fn := range fns {
+				if err := fn(platform); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// adminthirdpartyuserDescPlatformName is the schema descriptor for platform_name field.
+	adminthirdpartyuserDescPlatformName := adminthirdpartyuserFields[3].Descriptor()
+	// adminthirdpartyuser.PlatformNameValidator is a validator for the "platform_name" field. It is called by the builders before save.
+	adminthirdpartyuser.PlatformNameValidator = adminthirdpartyuserDescPlatformName.Validators[0].(func(string) error)
+	// adminthirdpartyuserDescOpenid is the schema descriptor for openid field.
+	adminthirdpartyuserDescOpenid := adminthirdpartyuserFields[4].Descriptor()
+	// adminthirdpartyuser.OpenidValidator is a validator for the "openid" field. It is called by the builders before save.
+	adminthirdpartyuser.OpenidValidator = func() func(string) error {
+		validators := adminthirdpartyuserDescOpenid.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(openid string) error {
+			for _, fn := range fns {
+				if err := fn(openid); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// adminthirdpartyuserDescNickname is the schema descriptor for nickname field.
+	adminthirdpartyuserDescNickname := adminthirdpartyuserFields[5].Descriptor()
+	// adminthirdpartyuser.NicknameValidator is a validator for the "nickname" field. It is called by the builders before save.
+	adminthirdpartyuser.NicknameValidator = adminthirdpartyuserDescNickname.Validators[0].(func(string) error)
+	// adminthirdpartyuserDescAvatarURL is the schema descriptor for avatar_url field.
+	adminthirdpartyuserDescAvatarURL := adminthirdpartyuserFields[6].Descriptor()
+	// adminthirdpartyuser.AvatarURLValidator is a validator for the "avatar_url" field. It is called by the builders before save.
+	adminthirdpartyuser.AvatarURLValidator = adminthirdpartyuserDescAvatarURL.Validators[0].(func(string) error)
+	// adminthirdpartyuserDescCreatedAt is the schema descriptor for created_at field.
+	adminthirdpartyuserDescCreatedAt := adminthirdpartyuserFields[10].Descriptor()
+	// adminthirdpartyuser.DefaultCreatedAt holds the default value on creation for the created_at field.
+	adminthirdpartyuser.DefaultCreatedAt = adminthirdpartyuserDescCreatedAt.Default.(func() time.Time)
+	// adminthirdpartyuserDescUpdatedAt is the schema descriptor for updated_at field.
+	adminthirdpartyuserDescUpdatedAt := adminthirdpartyuserFields[11].Descriptor()
+	// adminthirdpartyuser.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	adminthirdpartyuser.DefaultUpdatedAt = adminthirdpartyuserDescUpdatedAt.Default.(func() time.Time)
+	// adminthirdpartyuser.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	adminthirdpartyuser.UpdateDefaultUpdatedAt = adminthirdpartyuserDescUpdatedAt.UpdateDefault.(func() time.Time)
 	attachmentFields := schema.Attachment{}.Fields()
 	_ = attachmentFields
 	// attachmentDescName is the schema descriptor for name field.
@@ -726,6 +789,150 @@ func init() {
 	messagepreference.DefaultDoNotDisturbEnd = messagepreferenceDescDoNotDisturbEnd.Default.(string)
 	// messagepreference.DoNotDisturbEndValidator is a validator for the "do_not_disturb_end" field. It is called by the builders before save.
 	messagepreference.DoNotDisturbEndValidator = messagepreferenceDescDoNotDisturbEnd.Validators[0].(func(string) error)
+	oauthproviderconfigFields := schema.OAuthProviderConfig{}.Fields()
+	_ = oauthproviderconfigFields
+	// oauthproviderconfigDescProvider is the schema descriptor for provider field.
+	oauthproviderconfigDescProvider := oauthproviderconfigFields[1].Descriptor()
+	// oauthproviderconfig.ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	oauthproviderconfig.ProviderValidator = func() func(string) error {
+		validators := oauthproviderconfigDescProvider.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(provider string) error {
+			for _, fn := range fns {
+				if err := fn(provider); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// oauthproviderconfigDescDisplayName is the schema descriptor for display_name field.
+	oauthproviderconfigDescDisplayName := oauthproviderconfigFields[2].Descriptor()
+	// oauthproviderconfig.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	oauthproviderconfig.DisplayNameValidator = func() func(string) error {
+		validators := oauthproviderconfigDescDisplayName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(display_name string) error {
+			for _, fn := range fns {
+				if err := fn(display_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// oauthproviderconfigDescClientID is the schema descriptor for client_id field.
+	oauthproviderconfigDescClientID := oauthproviderconfigFields[3].Descriptor()
+	// oauthproviderconfig.ClientIDValidator is a validator for the "client_id" field. It is called by the builders before save.
+	oauthproviderconfig.ClientIDValidator = oauthproviderconfigDescClientID.Validators[0].(func(string) error)
+	// oauthproviderconfigDescClientSecretCiphertext is the schema descriptor for client_secret_ciphertext field.
+	oauthproviderconfigDescClientSecretCiphertext := oauthproviderconfigFields[4].Descriptor()
+	// oauthproviderconfig.ClientSecretCiphertextValidator is a validator for the "client_secret_ciphertext" field. It is called by the builders before save.
+	oauthproviderconfig.ClientSecretCiphertextValidator = oauthproviderconfigDescClientSecretCiphertext.Validators[0].(func(string) error)
+	// oauthproviderconfigDescCallbackURL is the schema descriptor for callback_url field.
+	oauthproviderconfigDescCallbackURL := oauthproviderconfigFields[5].Descriptor()
+	// oauthproviderconfig.CallbackURLValidator is a validator for the "callback_url" field. It is called by the builders before save.
+	oauthproviderconfig.CallbackURLValidator = oauthproviderconfigDescCallbackURL.Validators[0].(func(string) error)
+	// oauthproviderconfigDescUserRedirectURL is the schema descriptor for user_redirect_url field.
+	oauthproviderconfigDescUserRedirectURL := oauthproviderconfigFields[6].Descriptor()
+	// oauthproviderconfig.UserRedirectURLValidator is a validator for the "user_redirect_url" field. It is called by the builders before save.
+	oauthproviderconfig.UserRedirectURLValidator = oauthproviderconfigDescUserRedirectURL.Validators[0].(func(string) error)
+	// oauthproviderconfigDescAdminRedirectURL is the schema descriptor for admin_redirect_url field.
+	oauthproviderconfigDescAdminRedirectURL := oauthproviderconfigFields[7].Descriptor()
+	// oauthproviderconfig.AdminRedirectURLValidator is a validator for the "admin_redirect_url" field. It is called by the builders before save.
+	oauthproviderconfig.AdminRedirectURLValidator = oauthproviderconfigDescAdminRedirectURL.Validators[0].(func(string) error)
+	// oauthproviderconfigDescUserEnabled is the schema descriptor for user_enabled field.
+	oauthproviderconfigDescUserEnabled := oauthproviderconfigFields[8].Descriptor()
+	// oauthproviderconfig.DefaultUserEnabled holds the default value on creation for the user_enabled field.
+	oauthproviderconfig.DefaultUserEnabled = oauthproviderconfigDescUserEnabled.Default.(bool)
+	// oauthproviderconfigDescAdminEnabled is the schema descriptor for admin_enabled field.
+	oauthproviderconfigDescAdminEnabled := oauthproviderconfigFields[9].Descriptor()
+	// oauthproviderconfig.DefaultAdminEnabled holds the default value on creation for the admin_enabled field.
+	oauthproviderconfig.DefaultAdminEnabled = oauthproviderconfigDescAdminEnabled.Default.(bool)
+	// oauthproviderconfigDescCreatedAt is the schema descriptor for created_at field.
+	oauthproviderconfigDescCreatedAt := oauthproviderconfigFields[10].Descriptor()
+	// oauthproviderconfig.DefaultCreatedAt holds the default value on creation for the created_at field.
+	oauthproviderconfig.DefaultCreatedAt = oauthproviderconfigDescCreatedAt.Default.(func() time.Time)
+	// oauthproviderconfigDescUpdatedAt is the schema descriptor for updated_at field.
+	oauthproviderconfigDescUpdatedAt := oauthproviderconfigFields[11].Descriptor()
+	// oauthproviderconfig.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	oauthproviderconfig.DefaultUpdatedAt = oauthproviderconfigDescUpdatedAt.Default.(func() time.Time)
+	// oauthproviderconfig.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	oauthproviderconfig.UpdateDefaultUpdatedAt = oauthproviderconfigDescUpdatedAt.UpdateDefault.(func() time.Time)
+	oauthsessionFields := schema.OAuthSession{}.Fields()
+	_ = oauthsessionFields
+	// oauthsessionDescStateHash is the schema descriptor for state_hash field.
+	oauthsessionDescStateHash := oauthsessionFields[1].Descriptor()
+	// oauthsession.StateHashValidator is a validator for the "state_hash" field. It is called by the builders before save.
+	oauthsession.StateHashValidator = func() func(string) error {
+		validators := oauthsessionDescStateHash.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(state_hash string) error {
+			for _, fn := range fns {
+				if err := fn(state_hash); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// oauthsessionDescLoginCodeHash is the schema descriptor for login_code_hash field.
+	oauthsessionDescLoginCodeHash := oauthsessionFields[2].Descriptor()
+	// oauthsession.LoginCodeHashValidator is a validator for the "login_code_hash" field. It is called by the builders before save.
+	oauthsession.LoginCodeHashValidator = oauthsessionDescLoginCodeHash.Validators[0].(func(string) error)
+	// oauthsessionDescProvider is the schema descriptor for provider field.
+	oauthsessionDescProvider := oauthsessionFields[3].Descriptor()
+	// oauthsession.ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	oauthsession.ProviderValidator = func() func(string) error {
+		validators := oauthsessionDescProvider.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(provider string) error {
+			for _, fn := range fns {
+				if err := fn(provider); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// oauthsessionDescSubjectUID is the schema descriptor for subject_uid field.
+	oauthsessionDescSubjectUID := oauthsessionFields[6].Descriptor()
+	// oauthsession.SubjectUIDValidator is a validator for the "subject_uid" field. It is called by the builders before save.
+	oauthsession.SubjectUIDValidator = oauthsessionDescSubjectUID.Validators[0].(func(string) error)
+	// oauthsessionDescPkceVerifierCiphertext is the schema descriptor for pkce_verifier_ciphertext field.
+	oauthsessionDescPkceVerifierCiphertext := oauthsessionFields[7].Descriptor()
+	// oauthsession.PkceVerifierCiphertextValidator is a validator for the "pkce_verifier_ciphertext" field. It is called by the builders before save.
+	oauthsession.PkceVerifierCiphertextValidator = oauthsessionDescPkceVerifierCiphertext.Validators[0].(func(string) error)
+	// oauthsessionDescLoginSubjectUID is the schema descriptor for login_subject_uid field.
+	oauthsessionDescLoginSubjectUID := oauthsessionFields[9].Descriptor()
+	// oauthsession.LoginSubjectUIDValidator is a validator for the "login_subject_uid" field. It is called by the builders before save.
+	oauthsession.LoginSubjectUIDValidator = oauthsessionDescLoginSubjectUID.Validators[0].(func(string) error)
+	// oauthsessionDescErrorCode is the schema descriptor for error_code field.
+	oauthsessionDescErrorCode := oauthsessionFields[14].Descriptor()
+	// oauthsession.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
+	oauthsession.ErrorCodeValidator = oauthsessionDescErrorCode.Validators[0].(func(string) error)
+	// oauthsessionDescCreatedAt is the schema descriptor for created_at field.
+	oauthsessionDescCreatedAt := oauthsessionFields[15].Descriptor()
+	// oauthsession.DefaultCreatedAt holds the default value on creation for the created_at field.
+	oauthsession.DefaultCreatedAt = oauthsessionDescCreatedAt.Default.(func() time.Time)
+	// oauthsessionDescUpdatedAt is the schema descriptor for updated_at field.
+	oauthsessionDescUpdatedAt := oauthsessionFields[16].Descriptor()
+	// oauthsession.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	oauthsession.DefaultUpdatedAt = oauthsessionDescUpdatedAt.Default.(func() time.Time)
+	// oauthsession.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	oauthsession.UpdateDefaultUpdatedAt = oauthsessionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	operationlogFields := schema.OperationLog{}.Fields()
 	_ = operationlogFields
 	// operationlogDescUsername is the schema descriptor for username field.
@@ -1223,21 +1430,7 @@ func init() {
 	// userDescPassword is the schema descriptor for password field.
 	userDescPassword := userFields[2].Descriptor()
 	// user.PasswordValidator is a validator for the "password" field. It is called by the builders before save.
-	user.PasswordValidator = func() func(string) error {
-		validators := userDescPassword.Validators
-		fns := [...]func(string) error{
-			validators[0].(func(string) error),
-			validators[1].(func(string) error),
-		}
-		return func(password string) error {
-			for _, fn := range fns {
-				if err := fn(password); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-	}()
+	user.PasswordValidator = userDescPassword.Validators[0].(func(string) error)
 	// userDescName is the schema descriptor for name field.
 	userDescName := userFields[3].Descriptor()
 	// user.NameValidator is a validator for the "name" field. It is called by the builders before save.

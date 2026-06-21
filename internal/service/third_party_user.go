@@ -68,11 +68,18 @@ func NewThirdPartyUserService() *ThirdPartyUserService {
 
 // BindThirdPartyUser 绑定第三方账号
 func (s *ThirdPartyUserService) BindThirdPartyUser(ctx context.Context, req *BindThirdPartyRequest) (*ent.ThirdPartyUser, error) {
-	exist, err := s.client.ThirdPartyUser.Query().
-		Where(
-			thirdpartyuser.PlatformEQ(req.Platform),
-			thirdpartyuser.OpenidEQ(req.Openid),
-		).Exist(ctx)
+	exist, err := s.client.ThirdPartyUser.Query().Where(
+		thirdpartyuser.Or(
+			thirdpartyuser.And(
+				thirdpartyuser.PlatformEQ(req.Platform),
+				thirdpartyuser.OpenidEQ(req.Openid),
+			),
+			thirdpartyuser.And(
+				thirdpartyuser.UserIDEQ(req.UserID),
+				thirdpartyuser.PlatformEQ(req.Platform),
+			),
+		),
+	).Exist(ctx)
 	if err != nil {
 		return nil, err
 	}

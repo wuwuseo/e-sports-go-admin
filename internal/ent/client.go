@@ -13,6 +13,7 @@ import (
 
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/adminrole"
+	"go-admin/internal/ent/adminthirdpartyuser"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
@@ -22,6 +23,8 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
+	"go-admin/internal/ent/oauthproviderconfig"
+	"go-admin/internal/ent/oauthsession"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
@@ -46,6 +49,8 @@ type Client struct {
 	Admin *AdminClient
 	// AdminRole is the client for interacting with the AdminRole builders.
 	AdminRole *AdminRoleClient
+	// AdminThirdPartyUser is the client for interacting with the AdminThirdPartyUser builders.
+	AdminThirdPartyUser *AdminThirdPartyUserClient
 	// Attachment is the client for interacting with the Attachment builders.
 	Attachment *AttachmentClient
 	// AttachmentGroup is the client for interacting with the AttachmentGroup builders.
@@ -64,6 +69,10 @@ type Client struct {
 	Message *MessageClient
 	// MessagePreference is the client for interacting with the MessagePreference builders.
 	MessagePreference *MessagePreferenceClient
+	// OAuthProviderConfig is the client for interacting with the OAuthProviderConfig builders.
+	OAuthProviderConfig *OAuthProviderConfigClient
+	// OAuthSession is the client for interacting with the OAuthSession builders.
+	OAuthSession *OAuthSessionClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
 	// Plugin is the client for interacting with the Plugin builders.
@@ -93,6 +102,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Admin = NewAdminClient(c.config)
 	c.AdminRole = NewAdminRoleClient(c.config)
+	c.AdminThirdPartyUser = NewAdminThirdPartyUserClient(c.config)
 	c.Attachment = NewAttachmentClient(c.config)
 	c.AttachmentGroup = NewAttachmentGroupClient(c.config)
 	c.Blacklist = NewBlacklistClient(c.config)
@@ -102,6 +112,8 @@ func (c *Client) init() {
 	c.DictData = NewDictDataClient(c.config)
 	c.Message = NewMessageClient(c.config)
 	c.MessagePreference = NewMessagePreferenceClient(c.config)
+	c.OAuthProviderConfig = NewOAuthProviderConfigClient(c.config)
+	c.OAuthSession = NewOAuthSessionClient(c.config)
 	c.OperationLog = NewOperationLogClient(c.config)
 	c.Plugin = NewPluginClient(c.config)
 	c.Role = NewRoleClient(c.config)
@@ -200,27 +212,30 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		Admin:             NewAdminClient(cfg),
-		AdminRole:         NewAdminRoleClient(cfg),
-		Attachment:        NewAttachmentClient(cfg),
-		AttachmentGroup:   NewAttachmentGroupClient(cfg),
-		Blacklist:         NewBlacklistClient(cfg),
-		CasbinRule:        NewCasbinRuleClient(cfg),
-		CronJob:           NewCronJobClient(cfg),
-		Department:        NewDepartmentClient(cfg),
-		DictData:          NewDictDataClient(cfg),
-		Message:           NewMessageClient(cfg),
-		MessagePreference: NewMessagePreferenceClient(cfg),
-		OperationLog:      NewOperationLogClient(cfg),
-		Plugin:            NewPluginClient(cfg),
-		Role:              NewRoleClient(cfg),
-		SystemConfig:      NewSystemConfigClient(cfg),
-		SystemPermission:  NewSystemPermissionClient(cfg),
-		ThirdPartyUser:    NewThirdPartyUserClient(cfg),
-		User:              NewUserClient(cfg),
-		UserRole:          NewUserRoleClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		Admin:               NewAdminClient(cfg),
+		AdminRole:           NewAdminRoleClient(cfg),
+		AdminThirdPartyUser: NewAdminThirdPartyUserClient(cfg),
+		Attachment:          NewAttachmentClient(cfg),
+		AttachmentGroup:     NewAttachmentGroupClient(cfg),
+		Blacklist:           NewBlacklistClient(cfg),
+		CasbinRule:          NewCasbinRuleClient(cfg),
+		CronJob:             NewCronJobClient(cfg),
+		Department:          NewDepartmentClient(cfg),
+		DictData:            NewDictDataClient(cfg),
+		Message:             NewMessageClient(cfg),
+		MessagePreference:   NewMessagePreferenceClient(cfg),
+		OAuthProviderConfig: NewOAuthProviderConfigClient(cfg),
+		OAuthSession:        NewOAuthSessionClient(cfg),
+		OperationLog:        NewOperationLogClient(cfg),
+		Plugin:              NewPluginClient(cfg),
+		Role:                NewRoleClient(cfg),
+		SystemConfig:        NewSystemConfigClient(cfg),
+		SystemPermission:    NewSystemPermissionClient(cfg),
+		ThirdPartyUser:      NewThirdPartyUserClient(cfg),
+		User:                NewUserClient(cfg),
+		UserRole:            NewUserRoleClient(cfg),
 	}, nil
 }
 
@@ -238,27 +253,30 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:               ctx,
-		config:            cfg,
-		Admin:             NewAdminClient(cfg),
-		AdminRole:         NewAdminRoleClient(cfg),
-		Attachment:        NewAttachmentClient(cfg),
-		AttachmentGroup:   NewAttachmentGroupClient(cfg),
-		Blacklist:         NewBlacklistClient(cfg),
-		CasbinRule:        NewCasbinRuleClient(cfg),
-		CronJob:           NewCronJobClient(cfg),
-		Department:        NewDepartmentClient(cfg),
-		DictData:          NewDictDataClient(cfg),
-		Message:           NewMessageClient(cfg),
-		MessagePreference: NewMessagePreferenceClient(cfg),
-		OperationLog:      NewOperationLogClient(cfg),
-		Plugin:            NewPluginClient(cfg),
-		Role:              NewRoleClient(cfg),
-		SystemConfig:      NewSystemConfigClient(cfg),
-		SystemPermission:  NewSystemPermissionClient(cfg),
-		ThirdPartyUser:    NewThirdPartyUserClient(cfg),
-		User:              NewUserClient(cfg),
-		UserRole:          NewUserRoleClient(cfg),
+		ctx:                 ctx,
+		config:              cfg,
+		Admin:               NewAdminClient(cfg),
+		AdminRole:           NewAdminRoleClient(cfg),
+		AdminThirdPartyUser: NewAdminThirdPartyUserClient(cfg),
+		Attachment:          NewAttachmentClient(cfg),
+		AttachmentGroup:     NewAttachmentGroupClient(cfg),
+		Blacklist:           NewBlacklistClient(cfg),
+		CasbinRule:          NewCasbinRuleClient(cfg),
+		CronJob:             NewCronJobClient(cfg),
+		Department:          NewDepartmentClient(cfg),
+		DictData:            NewDictDataClient(cfg),
+		Message:             NewMessageClient(cfg),
+		MessagePreference:   NewMessagePreferenceClient(cfg),
+		OAuthProviderConfig: NewOAuthProviderConfigClient(cfg),
+		OAuthSession:        NewOAuthSessionClient(cfg),
+		OperationLog:        NewOperationLogClient(cfg),
+		Plugin:              NewPluginClient(cfg),
+		Role:                NewRoleClient(cfg),
+		SystemConfig:        NewSystemConfigClient(cfg),
+		SystemPermission:    NewSystemPermissionClient(cfg),
+		ThirdPartyUser:      NewThirdPartyUserClient(cfg),
+		User:                NewUserClient(cfg),
+		UserRole:            NewUserRoleClient(cfg),
 	}, nil
 }
 
@@ -288,10 +306,11 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Admin, c.AdminRole, c.Attachment, c.AttachmentGroup, c.Blacklist,
-		c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
-		c.MessagePreference, c.OperationLog, c.Plugin, c.Role, c.SystemConfig,
-		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
+		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
+		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
+		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
+		c.Plugin, c.Role, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
+		c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -301,10 +320,11 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Admin, c.AdminRole, c.Attachment, c.AttachmentGroup, c.Blacklist,
-		c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
-		c.MessagePreference, c.OperationLog, c.Plugin, c.Role, c.SystemConfig,
-		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
+		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
+		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
+		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
+		c.Plugin, c.Role, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
+		c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -317,6 +337,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Admin.mutate(ctx, m)
 	case *AdminRoleMutation:
 		return c.AdminRole.mutate(ctx, m)
+	case *AdminThirdPartyUserMutation:
+		return c.AdminThirdPartyUser.mutate(ctx, m)
 	case *AttachmentMutation:
 		return c.Attachment.mutate(ctx, m)
 	case *AttachmentGroupMutation:
@@ -335,6 +357,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Message.mutate(ctx, m)
 	case *MessagePreferenceMutation:
 		return c.MessagePreference.mutate(ctx, m)
+	case *OAuthProviderConfigMutation:
+		return c.OAuthProviderConfig.mutate(ctx, m)
+	case *OAuthSessionMutation:
+		return c.OAuthSession.mutate(ctx, m)
 	case *OperationLogMutation:
 		return c.OperationLog.mutate(ctx, m)
 	case *PluginMutation:
@@ -667,6 +693,155 @@ func (c *AdminRoleClient) mutate(ctx context.Context, m *AdminRoleMutation) (Val
 		return (&AdminRoleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AdminRole mutation op: %q", m.Op())
+	}
+}
+
+// AdminThirdPartyUserClient is a client for the AdminThirdPartyUser schema.
+type AdminThirdPartyUserClient struct {
+	config
+}
+
+// NewAdminThirdPartyUserClient returns a client for the AdminThirdPartyUser from the given config.
+func NewAdminThirdPartyUserClient(c config) *AdminThirdPartyUserClient {
+	return &AdminThirdPartyUserClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `adminthirdpartyuser.Hooks(f(g(h())))`.
+func (c *AdminThirdPartyUserClient) Use(hooks ...Hook) {
+	c.hooks.AdminThirdPartyUser = append(c.hooks.AdminThirdPartyUser, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `adminthirdpartyuser.Intercept(f(g(h())))`.
+func (c *AdminThirdPartyUserClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AdminThirdPartyUser = append(c.inters.AdminThirdPartyUser, interceptors...)
+}
+
+// Create returns a builder for creating a AdminThirdPartyUser entity.
+func (c *AdminThirdPartyUserClient) Create() *AdminThirdPartyUserCreate {
+	mutation := newAdminThirdPartyUserMutation(c.config, OpCreate)
+	return &AdminThirdPartyUserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AdminThirdPartyUser entities.
+func (c *AdminThirdPartyUserClient) CreateBulk(builders ...*AdminThirdPartyUserCreate) *AdminThirdPartyUserCreateBulk {
+	return &AdminThirdPartyUserCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AdminThirdPartyUserClient) MapCreateBulk(slice any, setFunc func(*AdminThirdPartyUserCreate, int)) *AdminThirdPartyUserCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AdminThirdPartyUserCreateBulk{err: fmt.Errorf("calling to AdminThirdPartyUserClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AdminThirdPartyUserCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AdminThirdPartyUserCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AdminThirdPartyUser.
+func (c *AdminThirdPartyUserClient) Update() *AdminThirdPartyUserUpdate {
+	mutation := newAdminThirdPartyUserMutation(c.config, OpUpdate)
+	return &AdminThirdPartyUserUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AdminThirdPartyUserClient) UpdateOne(_m *AdminThirdPartyUser) *AdminThirdPartyUserUpdateOne {
+	mutation := newAdminThirdPartyUserMutation(c.config, OpUpdateOne, withAdminThirdPartyUser(_m))
+	return &AdminThirdPartyUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AdminThirdPartyUserClient) UpdateOneID(id int) *AdminThirdPartyUserUpdateOne {
+	mutation := newAdminThirdPartyUserMutation(c.config, OpUpdateOne, withAdminThirdPartyUserID(id))
+	return &AdminThirdPartyUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AdminThirdPartyUser.
+func (c *AdminThirdPartyUserClient) Delete() *AdminThirdPartyUserDelete {
+	mutation := newAdminThirdPartyUserMutation(c.config, OpDelete)
+	return &AdminThirdPartyUserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AdminThirdPartyUserClient) DeleteOne(_m *AdminThirdPartyUser) *AdminThirdPartyUserDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AdminThirdPartyUserClient) DeleteOneID(id int) *AdminThirdPartyUserDeleteOne {
+	builder := c.Delete().Where(adminthirdpartyuser.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AdminThirdPartyUserDeleteOne{builder}
+}
+
+// Query returns a query builder for AdminThirdPartyUser.
+func (c *AdminThirdPartyUserClient) Query() *AdminThirdPartyUserQuery {
+	return &AdminThirdPartyUserQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAdminThirdPartyUser},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AdminThirdPartyUser entity by its id.
+func (c *AdminThirdPartyUserClient) Get(ctx context.Context, id int) (*AdminThirdPartyUser, error) {
+	return c.Query().Where(adminthirdpartyuser.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AdminThirdPartyUserClient) GetX(ctx context.Context, id int) *AdminThirdPartyUser {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryAdmin queries the admin edge of a AdminThirdPartyUser.
+func (c *AdminThirdPartyUserClient) QueryAdmin(_m *AdminThirdPartyUser) *AdminQuery {
+	query := (&AdminClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(adminthirdpartyuser.Table, adminthirdpartyuser.FieldID, id),
+			sqlgraph.To(admin.Table, admin.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, adminthirdpartyuser.AdminTable, adminthirdpartyuser.AdminColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AdminThirdPartyUserClient) Hooks() []Hook {
+	return c.hooks.AdminThirdPartyUser
+}
+
+// Interceptors returns the client interceptors.
+func (c *AdminThirdPartyUserClient) Interceptors() []Interceptor {
+	return c.inters.AdminThirdPartyUser
+}
+
+func (c *AdminThirdPartyUserClient) mutate(ctx context.Context, m *AdminThirdPartyUserMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AdminThirdPartyUserCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AdminThirdPartyUserUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AdminThirdPartyUserUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AdminThirdPartyUserDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AdminThirdPartyUser mutation op: %q", m.Op())
 	}
 }
 
@@ -1931,6 +2106,272 @@ func (c *MessagePreferenceClient) mutate(ctx context.Context, m *MessagePreferen
 	}
 }
 
+// OAuthProviderConfigClient is a client for the OAuthProviderConfig schema.
+type OAuthProviderConfigClient struct {
+	config
+}
+
+// NewOAuthProviderConfigClient returns a client for the OAuthProviderConfig from the given config.
+func NewOAuthProviderConfigClient(c config) *OAuthProviderConfigClient {
+	return &OAuthProviderConfigClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `oauthproviderconfig.Hooks(f(g(h())))`.
+func (c *OAuthProviderConfigClient) Use(hooks ...Hook) {
+	c.hooks.OAuthProviderConfig = append(c.hooks.OAuthProviderConfig, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `oauthproviderconfig.Intercept(f(g(h())))`.
+func (c *OAuthProviderConfigClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OAuthProviderConfig = append(c.inters.OAuthProviderConfig, interceptors...)
+}
+
+// Create returns a builder for creating a OAuthProviderConfig entity.
+func (c *OAuthProviderConfigClient) Create() *OAuthProviderConfigCreate {
+	mutation := newOAuthProviderConfigMutation(c.config, OpCreate)
+	return &OAuthProviderConfigCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OAuthProviderConfig entities.
+func (c *OAuthProviderConfigClient) CreateBulk(builders ...*OAuthProviderConfigCreate) *OAuthProviderConfigCreateBulk {
+	return &OAuthProviderConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OAuthProviderConfigClient) MapCreateBulk(slice any, setFunc func(*OAuthProviderConfigCreate, int)) *OAuthProviderConfigCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OAuthProviderConfigCreateBulk{err: fmt.Errorf("calling to OAuthProviderConfigClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OAuthProviderConfigCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OAuthProviderConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OAuthProviderConfig.
+func (c *OAuthProviderConfigClient) Update() *OAuthProviderConfigUpdate {
+	mutation := newOAuthProviderConfigMutation(c.config, OpUpdate)
+	return &OAuthProviderConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OAuthProviderConfigClient) UpdateOne(_m *OAuthProviderConfig) *OAuthProviderConfigUpdateOne {
+	mutation := newOAuthProviderConfigMutation(c.config, OpUpdateOne, withOAuthProviderConfig(_m))
+	return &OAuthProviderConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OAuthProviderConfigClient) UpdateOneID(id int) *OAuthProviderConfigUpdateOne {
+	mutation := newOAuthProviderConfigMutation(c.config, OpUpdateOne, withOAuthProviderConfigID(id))
+	return &OAuthProviderConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OAuthProviderConfig.
+func (c *OAuthProviderConfigClient) Delete() *OAuthProviderConfigDelete {
+	mutation := newOAuthProviderConfigMutation(c.config, OpDelete)
+	return &OAuthProviderConfigDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OAuthProviderConfigClient) DeleteOne(_m *OAuthProviderConfig) *OAuthProviderConfigDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OAuthProviderConfigClient) DeleteOneID(id int) *OAuthProviderConfigDeleteOne {
+	builder := c.Delete().Where(oauthproviderconfig.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OAuthProviderConfigDeleteOne{builder}
+}
+
+// Query returns a query builder for OAuthProviderConfig.
+func (c *OAuthProviderConfigClient) Query() *OAuthProviderConfigQuery {
+	return &OAuthProviderConfigQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOAuthProviderConfig},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OAuthProviderConfig entity by its id.
+func (c *OAuthProviderConfigClient) Get(ctx context.Context, id int) (*OAuthProviderConfig, error) {
+	return c.Query().Where(oauthproviderconfig.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OAuthProviderConfigClient) GetX(ctx context.Context, id int) *OAuthProviderConfig {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OAuthProviderConfigClient) Hooks() []Hook {
+	return c.hooks.OAuthProviderConfig
+}
+
+// Interceptors returns the client interceptors.
+func (c *OAuthProviderConfigClient) Interceptors() []Interceptor {
+	return c.inters.OAuthProviderConfig
+}
+
+func (c *OAuthProviderConfigClient) mutate(ctx context.Context, m *OAuthProviderConfigMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OAuthProviderConfigCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OAuthProviderConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OAuthProviderConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OAuthProviderConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OAuthProviderConfig mutation op: %q", m.Op())
+	}
+}
+
+// OAuthSessionClient is a client for the OAuthSession schema.
+type OAuthSessionClient struct {
+	config
+}
+
+// NewOAuthSessionClient returns a client for the OAuthSession from the given config.
+func NewOAuthSessionClient(c config) *OAuthSessionClient {
+	return &OAuthSessionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `oauthsession.Hooks(f(g(h())))`.
+func (c *OAuthSessionClient) Use(hooks ...Hook) {
+	c.hooks.OAuthSession = append(c.hooks.OAuthSession, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `oauthsession.Intercept(f(g(h())))`.
+func (c *OAuthSessionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.OAuthSession = append(c.inters.OAuthSession, interceptors...)
+}
+
+// Create returns a builder for creating a OAuthSession entity.
+func (c *OAuthSessionClient) Create() *OAuthSessionCreate {
+	mutation := newOAuthSessionMutation(c.config, OpCreate)
+	return &OAuthSessionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of OAuthSession entities.
+func (c *OAuthSessionClient) CreateBulk(builders ...*OAuthSessionCreate) *OAuthSessionCreateBulk {
+	return &OAuthSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *OAuthSessionClient) MapCreateBulk(slice any, setFunc func(*OAuthSessionCreate, int)) *OAuthSessionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &OAuthSessionCreateBulk{err: fmt.Errorf("calling to OAuthSessionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*OAuthSessionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &OAuthSessionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for OAuthSession.
+func (c *OAuthSessionClient) Update() *OAuthSessionUpdate {
+	mutation := newOAuthSessionMutation(c.config, OpUpdate)
+	return &OAuthSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *OAuthSessionClient) UpdateOne(_m *OAuthSession) *OAuthSessionUpdateOne {
+	mutation := newOAuthSessionMutation(c.config, OpUpdateOne, withOAuthSession(_m))
+	return &OAuthSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *OAuthSessionClient) UpdateOneID(id int) *OAuthSessionUpdateOne {
+	mutation := newOAuthSessionMutation(c.config, OpUpdateOne, withOAuthSessionID(id))
+	return &OAuthSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for OAuthSession.
+func (c *OAuthSessionClient) Delete() *OAuthSessionDelete {
+	mutation := newOAuthSessionMutation(c.config, OpDelete)
+	return &OAuthSessionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *OAuthSessionClient) DeleteOne(_m *OAuthSession) *OAuthSessionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *OAuthSessionClient) DeleteOneID(id int) *OAuthSessionDeleteOne {
+	builder := c.Delete().Where(oauthsession.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &OAuthSessionDeleteOne{builder}
+}
+
+// Query returns a query builder for OAuthSession.
+func (c *OAuthSessionClient) Query() *OAuthSessionQuery {
+	return &OAuthSessionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeOAuthSession},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a OAuthSession entity by its id.
+func (c *OAuthSessionClient) Get(ctx context.Context, id int) (*OAuthSession, error) {
+	return c.Query().Where(oauthsession.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *OAuthSessionClient) GetX(ctx context.Context, id int) *OAuthSession {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *OAuthSessionClient) Hooks() []Hook {
+	return c.hooks.OAuthSession
+}
+
+// Interceptors returns the client interceptors.
+func (c *OAuthSessionClient) Interceptors() []Interceptor {
+	return c.inters.OAuthSession
+}
+
+func (c *OAuthSessionClient) mutate(ctx context.Context, m *OAuthSessionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&OAuthSessionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&OAuthSessionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&OAuthSessionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&OAuthSessionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown OAuthSession mutation op: %q", m.Op())
+	}
+}
+
 // OperationLogClient is a client for the OperationLog schema.
 type OperationLogClient struct {
 	config
@@ -3046,14 +3487,15 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Admin, AdminRole, Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob,
-		Department, DictData, Message, MessagePreference, OperationLog, Plugin, Role,
-		SystemConfig, SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
+		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
+		CasbinRule, CronJob, Department, DictData, Message, MessagePreference,
+		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, SystemConfig,
+		SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
 	}
 	inters struct {
-		Admin, AdminRole, Attachment, AttachmentGroup, Blacklist, CasbinRule, CronJob,
-		Department, DictData, Message, MessagePreference, OperationLog, Plugin, Role,
-		SystemConfig, SystemPermission, ThirdPartyUser, User,
-		UserRole []ent.Interceptor
+		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
+		CasbinRule, CronJob, Department, DictData, Message, MessagePreference,
+		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, SystemConfig,
+		SystemPermission, ThirdPartyUser, User, UserRole []ent.Interceptor
 	}
 )

@@ -2,10 +2,12 @@ package internal
 
 import (
 	"context"
+	"time"
 
 	"go-admin/internal/global"
 	"go-admin/internal/handler"
 	"go-admin/internal/middleware"
+	appoauth "go-admin/internal/oauth"
 	adminplugin "go-admin/internal/plugin"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
@@ -76,6 +78,12 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	userActivationService = service.NewUserActivationService()
 	thirdPartyUserService = service.NewThirdPartyUserService()
 
+	oauthCipher, _ := appoauth.NewSecretCipherFromEnv()
+	oauthRegistry := appoauth.NewRegistry(appoauth.NewGitHubProvider())
+	oauthConfigService := service.NewOAuthProviderConfigService(global.ORM, oauthCipher, oauthRegistry)
+	oauthSessionService := service.NewOAuthSessionService(global.ORM, oauthCipher, time.Now)
+	oauthAuthService := service.NewOAuthAuthService(global.ORM, oauthRegistry, oauthConfigService, oauthSessionService, time.Now)
+
 	// 初始化站内消息服务（带 SSE Hub 推送能力）
 	var hub *sse.Hub
 	var ticketStore *sse.TicketStore
@@ -102,6 +110,31 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	public.Post("/login", handler.Login)
 	public.Post("/refresh-token", handler.RefreshToken)
 	public.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
+	publicOAuth := public.Group("/oauth", func(c fiber.Ctx) error {
+		c.Locals("service.OAuthProviderConfigService", oauthConfigService)
+		c.Locals("service.OAuthAuthService", oauthAuthService)
+		return c.Next()
+	})
+	publicOAuth.Get("/providers", handler.ListOAuthProviders)
+	publicOAuth.Get("/user/:provider/authorize", func(c fiber.Ctx) error {
+		c.Locals("oauth.subject_type", "user")
+		return handler.BeginOAuthLogin(c)
+	})
+	publicOAuth.Get("/admin/:provider/authorize", func(c fiber.Ctx) error {
+		c.Locals("oauth.subject_type", "admin")
+		return handler.BeginOAuthLogin(c)
+	})
+	publicOAuth.Get("/:provider/callback", handler.OAuthCallback)
+	publicOAuth.Post("/exchange", handler.ExchangeOAuthLoginCode)
+
+	userAuthBase := v1.Group("/user/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
+		c.Locals("service.OAuthAuthService", oauthAuthService)
+		return c.Next()
+	}, middleware.BlacklistCheck(blacklistService))
+	userOAuth := userAuthBase.Group("/oauth")
+	userOAuth.Get("/identities", handler.ListUserOAuthIdentities)
+	userOAuth.Get("/:provider/authorize", handler.BeginOAuthBind("user"))
+	userOAuth.Delete("/:provider", handler.UnbindUserOAuthIdentity)
 
 	// 管理员公开接口（无需认证）
 	adminPublicLogin := admin.Group("/public", func(c fiber.Ctx) error {
@@ -145,6 +178,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.PluginService", pluginService)
 		c.Locals("service.DepartmentService", departmentService)
 		c.Locals("service.DataPermissionService", dataPermissionService)
+		c.Locals("service.OAuthProviderConfigService", oauthConfigService)
+		c.Locals("service.OAuthAuthService", oauthAuthService)
 		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService))
@@ -153,9 +188,17 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminAuthBase.Put("/user", handler.UpdateAdmin)
 	adminAuthBase.Put("/password", handler.ChangeAdminPassword)
 	adminAuthBase.Post("/logout", handler.AdminLogout)
+	adminOAuth := adminAuthBase.Group("/oauth")
+	adminOAuth.Get("/identities", handler.ListAdminOAuthIdentities)
+	adminOAuth.Get("/:provider/authorize", handler.BeginOAuthBind("admin"))
+	adminOAuth.Delete("/:provider", handler.UnbindAdminOAuthIdentity)
 
 	// 需要认证+权限校验的接口
 	adminAuth := adminAuthBase.Group("", middleware.PermissionMiddleware())
+	adminAuth.Get("/oauth/providers", handler.ListOAuthProviderConfigs)
+	adminAuth.Get("/oauth/providers/:provider", handler.GetOAuthProviderConfig)
+	adminAuth.Put("/oauth/providers/:provider", handler.UpsertOAuthProviderConfig)
+	adminAuth.Delete("/oauth/providers/:provider", handler.DeleteOAuthProviderConfig)
 
 	// 超级管理员管理路由（管理其他管理员账号）
 	adminAuth.Post("/admins", handler.CreateAdmin)
@@ -356,6 +399,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	thirdParty := adminAuth.Group("/third-party-users")
 	thirdParty.Get("", handler.ListThirdPartyUsers)
 	thirdParty.Delete("/:id", handler.UnbindThirdPartyUser)
+	adminThirdParty := adminAuth.Group("/third-party-admins")
+	adminThirdParty.Get("", handler.ListAdminThirdPartyIdentities)
+	adminThirdParty.Delete("/:id", handler.DeleteAdminThirdPartyIdentity)
 
 	// 站内消息路由（鉴权后访问）
 	// 注意：所有静态路径（/preference、/unread-count 等）必须在 /:id 之前注册，

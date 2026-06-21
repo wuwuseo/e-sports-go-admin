@@ -21,6 +21,8 @@ func TestIsSensitivePermissionObject_ReturnsTrueForSensitivePaths(t *testing.T) 
 		"/api/v1/admin/auth/permissions",
 		"/api/v1/admin/auth/permissions/detail",
 		"/api/v1/admin/auth/permissions/all",
+		"/api/v1/admin/auth/oauth/providers",
+		"/api/v1/admin/auth/oauth/providers/{provider}",
 	}
 	for _, path := range sensitivePaths {
 		if !IsSensitivePermissionObject(path) {

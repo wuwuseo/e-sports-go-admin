@@ -121,6 +121,57 @@ var (
 			},
 		},
 	}
+	// AdminThirdPartyUsersColumns holds the columns for the "admin_third_party_users" table.
+	AdminThirdPartyUsersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "platform", Type: field.TypeString, Size: 50},
+		{Name: "platform_name", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "openid", Type: field.TypeString, Size: 255},
+		{Name: "nickname", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "avatar_url", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "extra_data", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive"}, Default: "active"},
+		{Name: "last_sync_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "admin_id", Type: field.TypeInt},
+	}
+	// AdminThirdPartyUsersTable holds the schema information for the "admin_third_party_users" table.
+	AdminThirdPartyUsersTable = &schema.Table{
+		Name:       TablePrefix + "admin_third_party_users",
+		Columns:    AdminThirdPartyUsersColumns,
+		PrimaryKey: []*schema.Column{AdminThirdPartyUsersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "admin_third_party_users_admins_admin",
+				Columns:    []*schema.Column{AdminThirdPartyUsersColumns[11]},
+				RefColumns: []*schema.Column{AdminsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "adminthirdpartyuser_platform_openid",
+				Unique:  true,
+				Columns: []*schema.Column{AdminThirdPartyUsersColumns[1], AdminThirdPartyUsersColumns[3]},
+			},
+			{
+				Name:    "adminthirdpartyuser_admin_id_platform",
+				Unique:  true,
+				Columns: []*schema.Column{AdminThirdPartyUsersColumns[11], AdminThirdPartyUsersColumns[1]},
+			},
+			{
+				Name:    "adminthirdpartyuser_admin_id",
+				Unique:  false,
+				Columns: []*schema.Column{AdminThirdPartyUsersColumns[11]},
+			},
+			{
+				Name:    "adminthirdpartyuser_platform",
+				Unique:  false,
+				Columns: []*schema.Column{AdminThirdPartyUsersColumns[1]},
+			},
+		},
+	}
 	// AttachmentsColumns holds the columns for the "attachments" table.
 	AttachmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -424,6 +475,92 @@ var (
 			},
 		},
 	}
+	// OauthProviderConfigsColumns holds the columns for the "oauth_provider_configs" table.
+	OauthProviderConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "provider", Type: field.TypeString, Unique: true, Size: 50},
+		{Name: "display_name", Type: field.TypeString, Size: 100},
+		{Name: "client_id", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "client_secret_ciphertext", Type: field.TypeString, Nullable: true, Size: 4096},
+		{Name: "callback_url", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "user_redirect_url", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "admin_redirect_url", Type: field.TypeString, Nullable: true, Size: 2048},
+		{Name: "user_enabled", Type: field.TypeBool, Default: false},
+		{Name: "admin_enabled", Type: field.TypeBool, Default: false},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// OauthProviderConfigsTable holds the schema information for the "oauth_provider_configs" table.
+	OauthProviderConfigsTable = &schema.Table{
+		Name:       TablePrefix + "oauth_provider_configs",
+		Columns:    OauthProviderConfigsColumns,
+		PrimaryKey: []*schema.Column{OauthProviderConfigsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "oauthproviderconfig_provider",
+				Unique:  true,
+				Columns: []*schema.Column{OauthProviderConfigsColumns[1]},
+			},
+			{
+				Name:    "oauthproviderconfig_user_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{OauthProviderConfigsColumns[8]},
+			},
+			{
+				Name:    "oauthproviderconfig_admin_enabled",
+				Unique:  false,
+				Columns: []*schema.Column{OauthProviderConfigsColumns[9]},
+			},
+		},
+	}
+	// OauthSessionsColumns holds the columns for the "oauth_sessions" table.
+	OauthSessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "state_hash", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "login_code_hash", Type: field.TypeString, Unique: true, Nullable: true, Size: 64},
+		{Name: "provider", Type: field.TypeString, Size: 50},
+		{Name: "subject_type", Type: field.TypeEnum, Enums: []string{"user", "admin"}},
+		{Name: "flow_type", Type: field.TypeEnum, Enums: []string{"login", "bind"}},
+		{Name: "subject_uid", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "pkce_verifier_ciphertext", Type: field.TypeString, Size: 4096},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "callback_consumed", "completed", "consumed", "failed"}, Default: "pending"},
+		{Name: "login_subject_uid", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "callback_consumed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "login_code_expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "login_code_consumed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "error_code", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// OauthSessionsTable holds the schema information for the "oauth_sessions" table.
+	OauthSessionsTable = &schema.Table{
+		Name:       TablePrefix + "oauth_sessions",
+		Columns:    OauthSessionsColumns,
+		PrimaryKey: []*schema.Column{OauthSessionsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "oauthsession_state_hash",
+				Unique:  true,
+				Columns: []*schema.Column{OauthSessionsColumns[1]},
+			},
+			{
+				Name:    "oauthsession_login_code_hash",
+				Unique:  true,
+				Columns: []*schema.Column{OauthSessionsColumns[2]},
+			},
+			{
+				Name:    "oauthsession_status_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{OauthSessionsColumns[8], OauthSessionsColumns[10]},
+			},
+			{
+				Name:    "oauthsession_provider",
+				Unique:  false,
+				Columns: []*schema.Column{OauthSessionsColumns[3]},
+			},
+		},
+	}
 	// OperationLogsColumns holds the columns for the "operation_logs" table.
 	OperationLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -659,6 +796,11 @@ var (
 		},
 		Indexes: []*schema.Index{
 			{
+				Name:    "thirdpartyuser_user_id_platform",
+				Unique:  true,
+				Columns: []*schema.Column{ThirdPartyUsersColumns[19], ThirdPartyUsersColumns[1]},
+			},
+			{
 				Name:    "thirdpartyuser_platform_openid",
 				Unique:  true,
 				Columns: []*schema.Column{ThirdPartyUsersColumns[1], ThirdPartyUsersColumns[3]},
@@ -681,7 +823,7 @@ var (
 		{Name: "create_time", Type: field.TypeTime},
 		{Name: "update_time", Type: field.TypeTime},
 		{Name: "email", Type: field.TypeString, Unique: true, Size: 255},
-		{Name: "password", Type: field.TypeString, Size: 255},
+		{Name: "password", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "name", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "username", Type: field.TypeString, Nullable: true, Size: 255},
 		{Name: "nickname", Type: field.TypeString, Nullable: true, Size: 255},
@@ -772,6 +914,7 @@ var (
 	Tables = []*schema.Table{
 		AdminsTable,
 		AdminRolesTable,
+		AdminThirdPartyUsersTable,
 		AttachmentsTable,
 		AttachmentGroupsTable,
 		BlacklistsTable,
@@ -781,6 +924,8 @@ var (
 		DictDataTable,
 		MessagesTable,
 		MessagePreferencesTable,
+		OauthProviderConfigsTable,
+		OauthSessionsTable,
 		OperationLogsTable,
 		PluginsTable,
 		RolesTable,
@@ -796,6 +941,7 @@ func init() {
 	AdminsTable.ForeignKeys[0].RefTable = DepartmentsTable
 	AdminRolesTable.ForeignKeys[0].RefTable = AdminsTable
 	AdminRolesTable.ForeignKeys[1].RefTable = RolesTable
+	AdminThirdPartyUsersTable.ForeignKeys[0].RefTable = AdminsTable
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
 	BlacklistsTable.ForeignKeys[0].RefTable = UsersTable
 	ThirdPartyUsersTable.ForeignKeys[0].RefTable = UsersTable

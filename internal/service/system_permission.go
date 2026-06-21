@@ -900,6 +900,12 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 141, Domain: "default", Type: "button", Name: "管理员管理-分配角色按钮", Code: "admin:assign-role", ParentID: 138, SortOrder: 2, IsCommon: false, Status: 1, Description: "管理员管理页面分配角色按钮"},
 		{ID: 142, Domain: "default", Type: "button", Name: "管理员管理-启用按钮", Code: "admin:activate-btn", ParentID: 138, SortOrder: 3, IsCommon: false, Status: 1, Description: "管理员管理页面启用按钮"},
 		{ID: 143, Domain: "default", Type: "button", Name: "管理员管理-禁用按钮", Code: "admin:deactivate-btn", ParentID: 138, SortOrder: 4, IsCommon: false, Status: 1, Description: "管理员管理页面禁用按钮"},
+		{ID: 145, Domain: "default", Type: "api", Name: "OAuth配置列表", Code: "oauth-config:list", Path: "/api/v1/admin/auth/oauth/providers", Method: "GET", ParentID: 10, SortOrder: 8, IsCommon: false, Status: 1, Description: "获取OAuth Provider配置列表"},
+		{ID: 146, Domain: "default", Type: "api", Name: "OAuth配置详情", Code: "oauth-config:get", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "GET", ParentID: 10, SortOrder: 9, IsCommon: false, Status: 1, Description: "获取OAuth Provider配置详情"},
+		{ID: 147, Domain: "default", Type: "api", Name: "更新OAuth配置", Code: "oauth-config:update", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "PUT", ParentID: 10, SortOrder: 10, IsCommon: false, Status: 1, Description: "创建或更新OAuth Provider配置"},
+		{ID: 148, Domain: "default", Type: "api", Name: "删除OAuth配置", Code: "oauth-config:delete", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "DELETE", ParentID: 10, SortOrder: 11, IsCommon: false, Status: 1, Description: "删除OAuth Provider配置"},
+		{ID: 149, Domain: "default", Type: "api", Name: "管理员OAuth身份列表", Code: "admin-oauth:list", Path: "/api/v1/admin/auth/third-party-admins", Method: "GET", ParentID: 138, SortOrder: 8, IsCommon: false, Status: 1, Description: "获取管理员第三方身份列表"},
+		{ID: 150, Domain: "default", Type: "api", Name: "删除管理员OAuth身份", Code: "admin-oauth:delete", Path: "/api/v1/admin/auth/third-party-admins/{id}", Method: "DELETE", ParentID: 138, SortOrder: 9, IsCommon: false, Status: 1, Description: "解绑管理员第三方身份"},
 	}
 
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {

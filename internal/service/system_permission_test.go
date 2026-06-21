@@ -795,7 +795,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 139
+	const wantCount = 145
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
@@ -1015,6 +1015,25 @@ func TestInitSystemPermissions_IncludesAdminManagementSeeds(t *testing.T) {
 		{Code: "admin:assign-role", Type: "button", ParentCode: "system:admin"},
 		{Code: "admin:activate-btn", Type: "button", ParentCode: "system:admin"},
 		{Code: "admin:deactivate-btn", Type: "button", ParentCode: "system:admin"},
+	}
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
+func TestInitSystemPermissions_IncludesOAuthManagementSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+	expected := []seedPermissionExpectation{
+		{Code: "oauth-config:list", Type: "api", Path: "/api/v1/admin/auth/oauth/providers", Method: "GET", ParentCode: "system:config"},
+		{Code: "oauth-config:get", Type: "api", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "GET", ParentCode: "system:config"},
+		{Code: "oauth-config:update", Type: "api", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "PUT", ParentCode: "system:config"},
+		{Code: "oauth-config:delete", Type: "api", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "DELETE", ParentCode: "system:config"},
+		{Code: "admin-oauth:list", Type: "api", Path: "/api/v1/admin/auth/third-party-admins", Method: "GET", ParentCode: "system:admin"},
+		{Code: "admin-oauth:delete", Type: "api", Path: "/api/v1/admin/auth/third-party-admins/{id}", Method: "DELETE", ParentCode: "system:admin"},
 	}
 	for _, want := range expected {
 		assertSeedPermissionExists(t, ctx, want)

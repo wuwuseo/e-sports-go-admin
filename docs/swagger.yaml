@@ -75,6 +75,11 @@ definitions:
         description: 密钥轮换周期
         type: string
     type: object
+  handler.OAuthExchangeRequest:
+    properties:
+      code:
+        type: string
+    type: object
   service.AdminListItem:
     properties:
       department_id:
@@ -120,6 +125,35 @@ definitions:
       timestamp:
         type: integer
       username:
+        type: string
+    type: object
+  service.AdminOAuthIdentityListItem:
+    properties:
+      admin_email:
+        type: string
+      admin_id:
+        type: integer
+      admin_name:
+        type: string
+      admin_uid:
+        type: string
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      last_sync_at:
+        type: string
+      nickname:
+        type: string
+      openid:
+        type: string
+      provider:
+        type: string
+      status:
         type: string
     type: object
   service.AdminResponse:
@@ -853,6 +887,17 @@ definitions:
       total:
         type: integer
     type: object
+  service.ListResponse-service_AdminOAuthIdentityListItem:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.AdminOAuthIdentityListItem'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
   service.ListResponse-service_MessageResponse:
     properties:
       data:
@@ -974,6 +1019,81 @@ definitions:
       group_id:
         type: integer
     type: object
+  service.OAuthIdentityResponse:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        type: string
+      id:
+        type: integer
+      last_sync_at:
+        type: string
+      nickname:
+        type: string
+      openid:
+        type: string
+      provider:
+        type: string
+      status:
+        type: string
+    type: object
+  service.OAuthProviderConfigInput:
+    properties:
+      admin_enabled:
+        type: boolean
+      admin_redirect_url:
+        maxLength: 2048
+        type: string
+      callback_url:
+        maxLength: 2048
+        type: string
+      clear_secret:
+        type: boolean
+      client_id:
+        maxLength: 255
+        type: string
+      client_secret:
+        maxLength: 2048
+        type: string
+      display_name:
+        maxLength: 100
+        type: string
+      provider:
+        maxLength: 50
+        type: string
+      user_enabled:
+        type: boolean
+      user_redirect_url:
+        maxLength: 2048
+        type: string
+    required:
+    - display_name
+    - provider
+    type: object
+  service.OAuthProviderConfigResponse:
+    properties:
+      admin_enabled:
+        type: boolean
+      admin_redirect_url:
+        type: string
+      callback_url:
+        type: string
+      client_id:
+        type: string
+      client_secret:
+        type: string
+      display_name:
+        type: string
+      provider:
+        type: string
+      secret_configured:
+        type: boolean
+      user_enabled:
+        type: boolean
+      user_redirect_url:
+        type: string
+    type: object
   service.OperationLogResponse:
     properties:
       action:
@@ -1059,6 +1179,13 @@ definitions:
       status:
         type: string
       version:
+        type: string
+    type: object
+  service.PublicOAuthProvider:
+    properties:
+      display_name:
+        type: string
+      provider:
         type: string
     type: object
   service.RefreshTokenRequest:
@@ -4421,6 +4548,152 @@ paths:
       summary: 获取未读数
       tags:
       - 站内消息
+  /api/v1/admin/auth/oauth/{provider}:
+    delete:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Unbind current administrator OAuth identity
+      tags:
+      - OAuth
+  /api/v1/admin/auth/oauth/{provider}/authorize:
+    get:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+      security:
+      - BearerAuth: []
+      summary: Begin OAuth identity binding
+      tags:
+      - OAuth
+  /api/v1/admin/auth/oauth/identities:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.OAuthIdentityResponse'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List current administrator OAuth identities
+      tags:
+      - OAuth
+  /api/v1/admin/auth/oauth/providers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.OAuthProviderConfigResponse'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List OAuth provider configurations
+      tags:
+      - OAuth configuration
+  /api/v1/admin/auth/oauth/providers/{provider}:
+    delete:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete OAuth provider configuration
+      tags:
+      - OAuth configuration
+    get:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.OAuthProviderConfigResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get OAuth provider configuration
+      tags:
+      - OAuth configuration
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: provider configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.OAuthProviderConfigInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.OAuthProviderConfigResponse'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Create or update OAuth provider configuration
+      tags:
+      - OAuth configuration
   /api/v1/admin/auth/operation-logs:
     get:
       description: 获取操作日志列表，支持分页、用户名、模块、操作和时间范围筛选
@@ -5975,6 +6248,58 @@ paths:
       summary: 获取权限树
       tags:
       - 权限定义管理
+  /api/v1/admin/auth/third-party-admins:
+    get:
+      parameters:
+      - description: page
+        in: query
+        name: page
+        type: integer
+      - description: page size
+        in: query
+        name: page_size
+        type: integer
+      - description: provider
+        in: query
+        name: provider
+        type: string
+      - description: administrator or identity keyword
+        in: query
+        name: keyword
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListResponse-service_AdminOAuthIdentityListItem'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List administrator OAuth identities
+      tags:
+      - OAuth administration
+  /api/v1/admin/auth/third-party-admins/{id}:
+    delete:
+      parameters:
+      - description: identity ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Delete administrator OAuth identity
+      tags:
+      - OAuth administration
   /api/v1/admin/auth/third-party-users:
     get:
       consumes:
@@ -6981,6 +7306,108 @@ paths:
       summary: 用户登录
       tags:
       - 用户管理
+  /api/v1/public/oauth/{provider}/callback:
+    get:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: OAuth state
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: provider authorization code
+        in: query
+        name: code
+        type: string
+      responses:
+        "302":
+          description: Found
+      summary: OAuth provider callback
+      tags:
+      - OAuth
+  /api/v1/public/oauth/admin/{provider}/authorize:
+    get:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+      summary: Begin OAuth login
+      tags:
+      - OAuth
+  /api/v1/public/oauth/exchange:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: one-time code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.OAuthExchangeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.TokenResponse'
+              type: object
+      summary: Exchange OAuth login code
+      tags:
+      - OAuth
+  /api/v1/public/oauth/providers:
+    get:
+      parameters:
+      - default: user
+        description: user or admin
+        in: query
+        name: subject_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.PublicOAuthProvider'
+                  type: array
+              type: object
+      summary: List enabled OAuth providers
+      tags:
+      - OAuth
+  /api/v1/public/oauth/user/{provider}/authorize:
+    get:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+      summary: Begin OAuth login
+      tags:
+      - OAuth
   /api/v1/public/public-key:
     get:
       description: 获取用于加密登录请求的RSA公钥
@@ -7003,6 +7430,61 @@ paths:
       summary: 获取RSA公钥
       tags:
       - 用户管理
+  /api/v1/user/auth/oauth/{provider}:
+    delete:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: Unbind current user OAuth identity
+      tags:
+      - OAuth
+  /api/v1/user/auth/oauth/{provider}/authorize:
+    get:
+      parameters:
+      - description: provider name
+        in: path
+        name: provider
+        required: true
+        type: string
+      responses:
+        "302":
+          description: Found
+      security:
+      - BearerAuth: []
+      summary: Begin OAuth identity binding
+      tags:
+      - OAuth
+  /api/v1/user/auth/oauth/identities:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.OAuthIdentityResponse'
+                  type: array
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List current user OAuth identities
+      tags:
+      - OAuth
 securityDefinitions:
   BearerAuth:
     description: 使用Bearer {token}格式进行认证

@@ -32,6 +32,18 @@ func (f AdminRoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AdminRoleMutation", m)
 }
 
+// The AdminThirdPartyUserFunc type is an adapter to allow the use of ordinary
+// function as AdminThirdPartyUser mutator.
+type AdminThirdPartyUserFunc func(context.Context, *ent.AdminThirdPartyUserMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AdminThirdPartyUserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AdminThirdPartyUserMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AdminThirdPartyUserMutation", m)
+}
+
 // The AttachmentFunc type is an adapter to allow the use of ordinary
 // function as Attachment mutator.
 type AttachmentFunc func(context.Context, *ent.AttachmentMutation) (ent.Value, error)
@@ -138,6 +150,30 @@ func (f MessagePreferenceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MessagePreferenceMutation", m)
+}
+
+// The OAuthProviderConfigFunc type is an adapter to allow the use of ordinary
+// function as OAuthProviderConfig mutator.
+type OAuthProviderConfigFunc func(context.Context, *ent.OAuthProviderConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OAuthProviderConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OAuthProviderConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OAuthProviderConfigMutation", m)
+}
+
+// The OAuthSessionFunc type is an adapter to allow the use of ordinary
+// function as OAuthSession mutator.
+type OAuthSessionFunc func(context.Context, *ent.OAuthSessionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f OAuthSessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.OAuthSessionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.OAuthSessionMutation", m)
 }
 
 // The OperationLogFunc type is an adapter to allow the use of ordinary

@@ -12,6 +12,9 @@ type Admin func(*sql.Selector)
 // AdminRole is the predicate function for adminrole builders.
 type AdminRole func(*sql.Selector)
 
+// AdminThirdPartyUser is the predicate function for adminthirdpartyuser builders.
+type AdminThirdPartyUser func(*sql.Selector)
+
 // Attachment is the predicate function for attachment builders.
 type Attachment func(*sql.Selector)
 
@@ -38,6 +41,12 @@ type Message func(*sql.Selector)
 
 // MessagePreference is the predicate function for messagepreference builders.
 type MessagePreference func(*sql.Selector)
+
+// OAuthProviderConfig is the predicate function for oauthproviderconfig builders.
+type OAuthProviderConfig func(*sql.Selector)
+
+// OAuthSession is the predicate function for oauthsession builders.
+type OAuthSession func(*sql.Selector)
 
 // OperationLog is the predicate function for operationlog builders.
 type OperationLog func(*sql.Selector)

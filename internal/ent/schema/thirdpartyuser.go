@@ -123,6 +123,7 @@ func (ThirdPartyUser) Edges() []ent.Edge {
 
 func (ThirdPartyUser) Indexes() []ent.Index {
 	return []ent.Index{
+		index.Fields("user_id", "platform").Unique(),
 		index.Fields("platform", "openid").Unique(),
 		index.Fields("user_id"),
 		index.Fields("platform"),

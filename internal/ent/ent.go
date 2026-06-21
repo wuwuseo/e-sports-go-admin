@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/adminrole"
+	"go-admin/internal/ent/adminthirdpartyuser"
 	"go-admin/internal/ent/attachment"
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
@@ -17,6 +18,8 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
+	"go-admin/internal/ent/oauthproviderconfig"
+	"go-admin/internal/ent/oauthsession"
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
@@ -91,25 +94,28 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			admin.Table:             admin.ValidColumn,
-			adminrole.Table:         adminrole.ValidColumn,
-			attachment.Table:        attachment.ValidColumn,
-			attachmentgroup.Table:   attachmentgroup.ValidColumn,
-			blacklist.Table:         blacklist.ValidColumn,
-			casbinrule.Table:        casbinrule.ValidColumn,
-			cronjob.Table:           cronjob.ValidColumn,
-			department.Table:        department.ValidColumn,
-			dictdata.Table:          dictdata.ValidColumn,
-			message.Table:           message.ValidColumn,
-			messagepreference.Table: messagepreference.ValidColumn,
-			operationlog.Table:      operationlog.ValidColumn,
-			plugin.Table:            plugin.ValidColumn,
-			role.Table:              role.ValidColumn,
-			systemconfig.Table:      systemconfig.ValidColumn,
-			systempermission.Table:  systempermission.ValidColumn,
-			thirdpartyuser.Table:    thirdpartyuser.ValidColumn,
-			user.Table:              user.ValidColumn,
-			userrole.Table:          userrole.ValidColumn,
+			admin.Table:               admin.ValidColumn,
+			adminrole.Table:           adminrole.ValidColumn,
+			adminthirdpartyuser.Table: adminthirdpartyuser.ValidColumn,
+			attachment.Table:          attachment.ValidColumn,
+			attachmentgroup.Table:     attachmentgroup.ValidColumn,
+			blacklist.Table:           blacklist.ValidColumn,
+			casbinrule.Table:          casbinrule.ValidColumn,
+			cronjob.Table:             cronjob.ValidColumn,
+			department.Table:          department.ValidColumn,
+			dictdata.Table:            dictdata.ValidColumn,
+			message.Table:             message.ValidColumn,
+			messagepreference.Table:   messagepreference.ValidColumn,
+			oauthproviderconfig.Table: oauthproviderconfig.ValidColumn,
+			oauthsession.Table:        oauthsession.ValidColumn,
+			operationlog.Table:        operationlog.ValidColumn,
+			plugin.Table:              plugin.ValidColumn,
+			role.Table:                role.ValidColumn,
+			systemconfig.Table:        systemconfig.ValidColumn,
+			systempermission.Table:    systempermission.ValidColumn,
+			thirdpartyuser.Table:      thirdpartyuser.ValidColumn,
+			user.Table:                user.ValidColumn,
+			userrole.Table:            userrole.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

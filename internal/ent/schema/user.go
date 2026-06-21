@@ -34,7 +34,7 @@ func (User) Fields() []ent.Field {
 		field.String("password").
 			MaxLen(255).
 			Sensitive().
-			NotEmpty().
+			Optional().
 			Comment("用户密码"),
 		field.String("name").
 			Optional().

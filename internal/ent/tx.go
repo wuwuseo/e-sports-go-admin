@@ -16,6 +16,8 @@ type Tx struct {
 	Admin *AdminClient
 	// AdminRole is the client for interacting with the AdminRole builders.
 	AdminRole *AdminRoleClient
+	// AdminThirdPartyUser is the client for interacting with the AdminThirdPartyUser builders.
+	AdminThirdPartyUser *AdminThirdPartyUserClient
 	// Attachment is the client for interacting with the Attachment builders.
 	Attachment *AttachmentClient
 	// AttachmentGroup is the client for interacting with the AttachmentGroup builders.
@@ -34,6 +36,10 @@ type Tx struct {
 	Message *MessageClient
 	// MessagePreference is the client for interacting with the MessagePreference builders.
 	MessagePreference *MessagePreferenceClient
+	// OAuthProviderConfig is the client for interacting with the OAuthProviderConfig builders.
+	OAuthProviderConfig *OAuthProviderConfigClient
+	// OAuthSession is the client for interacting with the OAuthSession builders.
+	OAuthSession *OAuthSessionClient
 	// OperationLog is the client for interacting with the OperationLog builders.
 	OperationLog *OperationLogClient
 	// Plugin is the client for interacting with the Plugin builders.
@@ -183,6 +189,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Admin = NewAdminClient(tx.config)
 	tx.AdminRole = NewAdminRoleClient(tx.config)
+	tx.AdminThirdPartyUser = NewAdminThirdPartyUserClient(tx.config)
 	tx.Attachment = NewAttachmentClient(tx.config)
 	tx.AttachmentGroup = NewAttachmentGroupClient(tx.config)
 	tx.Blacklist = NewBlacklistClient(tx.config)
@@ -192,6 +199,8 @@ func (tx *Tx) init() {
 	tx.DictData = NewDictDataClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)
 	tx.MessagePreference = NewMessagePreferenceClient(tx.config)
+	tx.OAuthProviderConfig = NewOAuthProviderConfigClient(tx.config)
+	tx.OAuthSession = NewOAuthSessionClient(tx.config)
 	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Plugin = NewPluginClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
