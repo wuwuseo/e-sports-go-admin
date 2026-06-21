@@ -52,7 +52,7 @@ func createSystemPermissionForTest(t *testing.T, client *ent.Client, typ, name, 
 func TestCascadeDisableChildren_RecursivelyDisablesDescendants(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	child1 := createSystemPermissionForTest(t, client, "api", "child-1", "/root/1", "GET", root.ID, 0, 1)
@@ -77,7 +77,7 @@ func TestCascadeDisableChildren_RecursivelyDisablesDescendants(t *testing.T) {
 func TestCascadeEnableChildren_RecursivelyEnablesDescendants(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 0)
 	child := createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 0)
@@ -105,7 +105,7 @@ func TestCascadeEnableChildren_RecursivelyEnablesDescendants(t *testing.T) {
 func TestSystemPermissionUpdate_DisableTriggersTransactionalCascade(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	child := createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 1)
@@ -131,7 +131,7 @@ func TestSystemPermissionUpdate_DisableTriggersTransactionalCascade(t *testing.T
 func TestSystemPermissionUpdate_EnableTriggersTransactionalCascade(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 0)
 	child := createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 0)
@@ -161,7 +161,7 @@ func TestSystemPermissionUpdate_EnableTriggersTransactionalCascade(t *testing.T)
 func TestSystemPermissionUpdate_SelfParentRejected(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	req := &UpdateSystemPermissionRequest{ParentID: &root.ID}
@@ -174,7 +174,7 @@ func TestSystemPermissionUpdate_SelfParentRejected(t *testing.T) {
 func TestSystemPermissionUpdate_DescendantParentRejected(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	child := createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 1)
@@ -194,7 +194,7 @@ func TestSystemPermissionUpdate_DescendantParentRejected(t *testing.T) {
 func TestSystemPermissionCreate_DuplicateCodeRejected(t *testing.T) {
 	_ = setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	_, err := svc.Create(ctx, "", &CreateSystemPermissionRequest{
 		Domain:   "default",
@@ -231,7 +231,7 @@ func TestSystemPermissionCreate_DuplicateCodeRejected(t *testing.T) {
 func TestSystemPermissionDelete_RootWithChildrenRejected(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	_ = createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 1)
@@ -245,7 +245,7 @@ func TestSystemPermissionDelete_RootWithChildrenRejected(t *testing.T) {
 func TestSystemPermissionDelete_LeafDeletedSuccessfully(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	root := createSystemPermissionForTest(t, client, "api", "root", "/root", "GET", 0, 0, 1)
 	child := createSystemPermissionForTest(t, client, "api", "child", "/root/c", "GET", root.ID, 0, 1)
@@ -266,7 +266,7 @@ func TestSystemPermissionDelete_LeafDeletedSuccessfully(t *testing.T) {
 func TestInitSeedPermissions_CreatesInitialSeeds(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	seeds := []SeedPermission{
 		{ID: 1001, Domain: "default", Type: "api", Name: "seed-api", Code: "seed-api-1", Path: "/seed/api", Method: "GET", ParentID: 0, SortOrder: 1, Status: 1},
@@ -292,7 +292,7 @@ func TestInitSeedPermissions_CreatesInitialSeeds(t *testing.T) {
 func TestInitSeedPermissions_IdempotentUpdate(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	seeds := []SeedPermission{
 		{ID: 2001, Domain: "default", Type: "api", Name: "old", Code: "seed-2001", Path: "/old", Method: "GET", ParentID: 0, SortOrder: 1, Status: 1, Description: "first"},
@@ -331,7 +331,7 @@ func TestInitSeedPermissions_IdempotentUpdate(t *testing.T) {
 func TestSystemPermissionList_KeywordFilterAndPagination(t *testing.T) {
 	client := setupSystemPermissionTestClient(t)
 	svc := &SystemPermissionService{}
-	ctx := t.Context()
+	ctx := withPermissionSystemOperator(t.Context())
 
 	for _, n := range []string{"alpha", "beta", "gamma"} {
 		_ = createSystemPermissionForTest(t, client, "api", n, "/"+n, "GET", 0, 0, 1)
