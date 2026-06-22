@@ -39,7 +39,7 @@ func domainFromCtx(c fiber.Ctx) string {
 // @Param start_time   query string false "起始时间 RFC3339"
 // @Param end_time     query string false "结束时间 RFC3339"
 // @Param sort         query string false "排序 created_at_desc/created_at_asc"
-// @Success 200 {object} utils.Response{data=service.ListResponse[service.MessageResponse]}
+// @Success 200 {object} utils.Response{data=service.ListMessagesResponse}
 // @Router /api/v1/admin/auth/messages [get]
 func ListMessages(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)

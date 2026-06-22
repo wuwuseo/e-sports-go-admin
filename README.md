@@ -232,6 +232,35 @@ cache:
       default_ttl: 3600
 ```
 
+### 验证码配置
+
+```yaml
+captcha:
+  store: memory              # 多实例或 prefork 必须改为 redis
+  redis_connection: redis
+  key_prefix: captcha
+```
+
+Provider 密钥使用 AES-256-GCM 加密后存入 `system_config`。环境主密钥不进入数据库：
+
+```text
+CMF_CONFIG_SECRET_ACTIVE_VERSION=v1
+CMF_CONFIG_SECRET_KEY_V1=<32字节密钥的Base64>
+```
+
+登录场景初始关闭。前端接入流程为：
+
+1. `POST /api/v1/public/captcha/challenges` 创建挑战。
+2. `POST /api/v1/public/captcha/verifications` 换取一次性票据。
+3. 登录或表单请求通过 `X-Captcha-Token` 携带票据。
+
+轮换环境主密钥后执行：
+
+```bash
+go run ./cmd/captcha-reencrypt --dry-run=true
+go run ./cmd/captcha-reencrypt --dry-run=false
+```
+
 更多配置选项请参考 [部署指南](docs/deployment/guide.md)。
 
 ## 🏛️ 架构设计

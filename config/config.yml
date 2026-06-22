@@ -61,6 +61,11 @@ redis:
       conn_max_lifetime: 24
       use_tls: false
 
+captcha:
+  store: memory
+  redis_connection: redis
+  key_prefix: captcha
+
 filesystem:
   default: local
   is_and_local: false

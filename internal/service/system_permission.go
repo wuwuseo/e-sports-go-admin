@@ -902,6 +902,44 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 143, Domain: "default", Type: "button", Name: "管理员管理-禁用按钮", Code: "admin:deactivate-btn", ParentID: 138, SortOrder: 4, IsCommon: false, Status: 1, Description: "管理员管理页面禁用按钮"},
 	}
 
+	seedData = append(seedData,
+		SeedPermission{
+			ID: 145, Domain: "default", Type: "menu", Name: "验证码管理",
+			Code: "system:captcha", MenuPath: "/system/captcha",
+			Component: "system/captcha/index", ParentID: 3, SortOrder: 10,
+			IsCommon: false, Status: 1, Description: "验证码场景和 Provider 配置管理",
+		},
+		SeedPermission{
+			ID: 146, Domain: "default", Type: "api", Name: "获取验证码设置",
+			Code: "captcha:settings", Path: "/api/v1/admin/auth/captcha/settings",
+			Method: "GET", ParentID: 145, SortOrder: 0,
+			IsCommon: false, Status: 1, Description: "获取验证码设置 API",
+		},
+		SeedPermission{
+			ID: 147, Domain: "default", Type: "api", Name: "更新验证码场景",
+			Code: "captcha:scene:update", Path: "/api/v1/admin/auth/captcha/scenes/{scene}",
+			Method: "PUT", ParentID: 145, SortOrder: 1,
+			IsCommon: false, Status: 1, Description: "更新验证码场景策略 API",
+		},
+		SeedPermission{
+			ID: 148, Domain: "default", Type: "api", Name: "更新验证码 Provider",
+			Code: "captcha:provider:update", Path: "/api/v1/admin/auth/captcha/providers/{provider}",
+			Method: "PUT", ParentID: 145, SortOrder: 2,
+			IsCommon: false, Status: 1, Description: "更新验证码 Provider 配置 API",
+		},
+		SeedPermission{
+			ID: 149, Domain: "default", Type: "api", Name: "校验验证码 Provider",
+			Code: "captcha:provider:test", Path: "/api/v1/admin/auth/captcha/providers/{provider}/test",
+			Method: "POST", ParentID: 145, SortOrder: 3,
+			IsCommon: false, Status: 1, Description: "校验验证码 Provider 配置 API",
+		},
+		SeedPermission{
+			ID: 150, Domain: "default", Type: "button", Name: "验证码管理-编辑按钮",
+			Code: "captcha:edit", ParentID: 145, SortOrder: 0,
+			IsCommon: false, Status: 1, Description: "编辑验证码设置按钮",
+		},
+	)
+
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {
 		return fmt.Errorf("初始化种子权限失败: %w", err)
 	}

@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	entgo.io/ent v0.14.5
-	github.com/casbin/casbin/v2 v2.135.0
+	github.com/casbin/casbin/v3 v3.10.0
 	github.com/eko/gocache/lib/v4 v4.2.2
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofiber/fiber/v3 v3.2.0
@@ -140,4 +140,4 @@ require (
 	modernc.org/sqlite v1.50.1 // indirect
 )
 
-replace github.com/wuwuseo/cmf => /run/media/wuwu/data/docs/wwwroot/cmf
+replace github.com/wuwuseo/cmf => ../cmf
