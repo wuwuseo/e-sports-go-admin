@@ -212,8 +212,8 @@ func (s *MessageService) Create(ctx context.Context, req *CreateMessageRequest) 
 		SetLevel(level).
 		SetTitle(req.Title).
 		SetContent(req.Content)
-	if req.ContentHTML != "" {
-		creator.SetContentHTML(req.ContentHTML)
+	if cleaned := sanitizeHTML(req.ContentHTML); cleaned != "" {
+		creator.SetContentHTML(cleaned)
 	}
 	if req.Extra != nil {
 		creator.SetExtra(req.Extra)
@@ -617,6 +617,8 @@ func (s *MessageService) BroadcastToUsers(ctx context.Context, uids []string, ms
 
 	// 批量构造创建器
 	bulk := make([]*ent.MessageCreate, 0, len(unique))
+	// 提前净化一次 HTML，避免每个用户重复计算
+	cleanedHTML := sanitizeHTML(msg.ContentHTML)
 	for _, u := range unique {
 		c := s.Client.Message.Create().
 			SetUserUID(u).
@@ -624,8 +626,8 @@ func (s *MessageService) BroadcastToUsers(ctx context.Context, uids []string, ms
 			SetLevel(level).
 			SetTitle(msg.Title).
 			SetContent(msg.Content)
-		if msg.ContentHTML != "" {
-			c.SetContentHTML(msg.ContentHTML)
+		if cleanedHTML != "" {
+			c.SetContentHTML(cleanedHTML)
 		}
 		if msg.Extra != nil {
 			c.SetExtra(msg.Extra)
