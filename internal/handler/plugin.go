@@ -161,10 +161,7 @@ func ProxyPlugin(c fiber.Ctx) error {
 	return c.Status(proxyResp.StatusCode).Send(proxyResp.Body)
 }
 
-func protectedProxyPath(prefix any, path string) bool {
-	if value, ok := prefix.(string); ok && value != "" {
-		return false
-	}
+func protectedProxyPath(_ any, path string) bool {
 	path = strings.Trim(path, "/")
 	return path == "admin/auth" || strings.HasPrefix(path, "admin/auth/")
 }
