@@ -292,6 +292,25 @@ func TestManagerInstallRejectsPathOutsidePackageRoot(t *testing.T) {
 	}
 }
 
+func TestManagerInstallRejectsPathWhenPackageRootNotConfigured(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:plugin_no_pkgrt?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	defer client.Close()
+	root := t.TempDir()
+	pkg := writePluginPackage(t, root, "admin.example-plugin", "1.0.0")
+	manager := NewManager(client, Options{
+		PluginRoot: filepath.Join(root, "data", "plugins"),
+		TempRoot:   filepath.Join(root, "tmp"),
+		Registry:   cmfplugin.NewMemoryExtensionRegistry(),
+		Runtime:    &fakeRuntime{},
+	})
+	if _, err := manager.Install(ctx, pkg); err != ErrInvalidPath {
+		t.Fatalf("err = %v, want ErrInvalidPath when PackageRoot is not configured", err)
+	}
+}
+
 func TestManagerResolveEndpointReturnsTCPAddressForEnabledPlugin(t *testing.T) {
 	ctx := context.Background()
 	client := enttest.Open(t, "sqlite3", "file:plugin_endpoint_tcp?mode=memory&cache=shared&_fk=1",
