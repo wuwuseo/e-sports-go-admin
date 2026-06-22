@@ -99,10 +99,11 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	pluginRegistry := cmfplugin.NewMemoryExtensionRegistry()
 	pluginRuntime := cmfplugin.NewProcessRuntime()
 	pluginManager := adminplugin.NewManager(global.ORM, adminplugin.Options{
-		PluginRoot: "./data/plugins",
-		TempRoot:   "./data/plugin-tmp",
-		Registry:   pluginRegistry,
-		Runtime:    pluginRuntime,
+		PluginRoot:  "./data/plugins",
+		PackageRoot: "./data/plugin-packages",
+		TempRoot:    "./data/plugin-tmp",
+		Registry:    pluginRegistry,
+		Runtime:     pluginRuntime,
 	})
 	_ = pluginManager.RestoreEnabled(context.Background())
 	pluginService := service.NewPluginService(pluginManager)

@@ -54,6 +54,16 @@ func NewManager(client *ent.Client, opts Options) *DefaultManager {
 	if absRoot, err := filepath.Abs(opts.PluginRoot); err == nil {
 		opts.PluginRoot = absRoot
 	}
+	// 安全兜底：未配置 PackageRoot 时禁止任意路径安装，
+	// 默认收敛到 ./data/plugin-packages 目录；
+	// 避免 IsWithinRoot("", absPath) 因 filepath.Abs("") 退化为 CWD，
+	// 导致整个项目目录都被视为合法插件包来源。
+	if opts.PackageRoot == "" {
+		opts.PackageRoot = filepath.Join(".", "data", "plugin-packages")
+	}
+	if absPkg, err := filepath.Abs(opts.PackageRoot); err == nil {
+		opts.PackageRoot = absPkg
+	}
 	if opts.TempRoot == "" {
 		opts.TempRoot = filepath.Join(os.TempDir(), "go-admin-plugins")
 	}
