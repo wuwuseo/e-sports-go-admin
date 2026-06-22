@@ -2,8 +2,6 @@ package cron
 
 import (
 	"fmt"
-	"os/exec"
-	"runtime"
 )
 
 // RegisteredCommand 定义注册的安全命令
@@ -15,24 +13,15 @@ type RegisteredCommand struct {
 }
 
 // Registry 全局安全命令注册表（仅允许注册过的命令被执行）
+//
+// 安全说明：
+//  1. 默认不注册任何命令。任何 shell 命令必须由应用代码显式 Register/RegisterWithArgs。
+//  2. 已移除默认的 powershell.exe / echo 注册：
+//     PowerShell 的 Write-Output 会对位置参数做子表达式求值（如 $(whoami)），
+//     即使经过 exec.Command（不走 cmd 解释器）仍可被注入命令；
+//     在 Linux 上对应的 /bin/echo 虽相对安全，但保留默认实现会让接入方误以为"echo 一定安全"。
+//  3. 业务侧若需要 echo 功能，建议直接使用 Go task 执行器 (TaskExecutor) 或注册非 shell 解释器的二进制。
 var Registry = map[string]RegisteredCommand{}
-
-func init() {
-	registerDefaultEcho()
-}
-
-func registerDefaultEcho() {
-	if runtime.GOOS == "windows" {
-		if p, err := exec.LookPath("powershell.exe"); err == nil {
-			RegisterWithArgs("echo", p, []string{"-NoProfile", "-NonInteractive", "-Command", "Write-Output"}, 20, "输出文本")
-		}
-		return
-	}
-
-	if p, err := exec.LookPath("echo"); err == nil {
-		Register("echo", p, 20, "输出文本")
-	}
-}
 
 // Register 注册一个安全命令
 // name: 命令注册名（对应 cron job 的 command 字段第一段）

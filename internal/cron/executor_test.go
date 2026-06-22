@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"os/exec"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -15,16 +14,17 @@ import (
 
 // --- CommandExecutor Tests ---
 
-func TestCommandRegistry_EchoRegisteredByDefault(t *testing.T) {
-	cmd, ok := Get("echo")
-	if !ok {
-		t.Fatal("expected echo registered by default")
+func TestCommandRegistry_EchoNotRegisteredByDefault(t *testing.T) {
+	_, ok := Get("echo")
+	if ok {
+		t.Fatal("echo should NOT be registered by default for security reasons")
 	}
-	if cmd.Path == "" {
-		t.Fatal("expected echo path not empty")
-	}
-	if runtime.GOOS == "windows" && len(cmd.Args) == 0 {
-		t.Fatal("expected windows echo to include fixed powershell args")
+
+	// 同时确认所有常见 shell 相关命令均未被注册
+	for _, name := range []string{"bash", "sh", "cmd", "powershell", "pwsh"} {
+		if _, got := Get(name); got {
+			t.Fatalf("shell command %q should NOT be registered by default", name)
+		}
 	}
 }
 
