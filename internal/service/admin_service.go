@@ -10,6 +10,7 @@ import (
 	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/global"
+	"go-admin/internal/utils"
 
 	"github.com/golang-jwt/jwt/v5"
 	cmfConfig "github.com/wuwuseo/cmf/config"
@@ -360,6 +361,11 @@ func (s *AdminService) UpdateAdmin(ctx context.Context, uid string, updates map[
 
 // ChangePassword 修改管理员密码
 func (s *AdminService) ChangePassword(ctx context.Context, uid, oldPassword, newPassword string) error {
+	// 校验新密码强度（复杂度要求）
+	if err := utils.ValidatePasswordStrength(newPassword); err != nil {
+		return err
+	}
+
 	a, err := s.client.Admin.Query().
 		Where(admin.UIDEQ(uid)).
 		Only(ctx)

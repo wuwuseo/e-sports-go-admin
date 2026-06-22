@@ -59,7 +59,7 @@ func NewUserServiceWithCache(rawCache *cmfCache.Cache[[]byte]) *UserService {
 // RegisterRequest 用户注册请求
 type RegisterRequest struct {
 	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=6"`
+	Password string `json:"password" validate:"required,min=8"`
 	Username string `json:"username" validate:"required,min=3"`
 	Nickname string `json:"nickname"`
 	Phone    string `json:"phone" validate:"omitempty,numeric"`
@@ -68,7 +68,7 @@ type RegisterRequest struct {
 // CreateUserRequest 管理员创建用户请求
 type CreateUserRequest struct {
 	Email         string `json:"email" validate:"required,email"`
-	Password      string `json:"password" validate:"required,min=6"`
+	Password      string `json:"password" validate:"required,min=8"`
 	Username      string `json:"username" validate:"required,min=3"`
 	Nickname      string `json:"nickname"`
 	Phone         string `json:"phone"`
@@ -114,6 +114,11 @@ type UserResponse struct {
 
 // Register 用户注册
 func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error {
+	// 校验密码强度（复杂度要求）
+	if err := utils.ValidatePasswordStrength(req.Password); err != nil {
+		return err
+	}
+
 	// 检查邮箱是否已存在
 	exists, err := s.client.User.Query().
 		Where(user.EmailEQ(req.Email)).
@@ -161,6 +166,11 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 
 // CreateUser 管理员创建用户
 func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*UserResponse, error) {
+	// 校验密码强度（复杂度要求）
+	if err := utils.ValidatePasswordStrength(req.Password); err != nil {
+		return nil, err
+	}
+
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return nil, err
 	}
@@ -486,6 +496,11 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 
 // ChangePassword 修改密码
 func (s *UserService) ChangePassword(ctx context.Context, uid string, oldPassword, newPassword string) error {
+	// 校验新密码强度（复杂度要求）
+	if err := utils.ValidatePasswordStrength(newPassword); err != nil {
+		return err
+	}
+
 	// 获取用户信息
 	u, err := s.client.User.Query().
 		Where(user.UIDEQ(uid)).

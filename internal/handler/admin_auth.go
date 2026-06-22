@@ -192,7 +192,7 @@ func UpdateAdmin(c fiber.Ctx) error {
 // ChangeAdminPasswordRequest 管理员修改密码请求
 type ChangeAdminPasswordRequest struct {
 	OldPassword string `json:"old_password" validate:"required"`
-	NewPassword string `json:"new_password" validate:"required,min=6"`
+	NewPassword string `json:"new_password" validate:"required,min=8"`
 }
 
 // ChangeAdminPassword 管理员修改密码

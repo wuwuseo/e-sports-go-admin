@@ -49,6 +49,61 @@ func GetResponseMsg(code int) string {
 	return global.ResponseMsg[code]
 }
 
+// 密码强度策略常量
+const (
+	// MinPasswordLength 密码最小长度（提升至8位，符合等保 2.0 三级要求）
+	MinPasswordLength = 8
+	// MaxPasswordLength 密码最大长度（防止 DoS 攻击）
+	MaxPasswordLength = 128
+)
+
+// passwordLowerRe 检查是否包含小写字母
+var passwordLowerRe = regexp.MustCompile(`[a-z]`)
+
+// passwordUpperRe 检查是否包含大写字母
+var passwordUpperRe = regexp.MustCompile(`[A-Z]`)
+
+// passwordDigitRe 检查是否包含数字
+var passwordDigitRe = regexp.MustCompile(`[0-9]`)
+
+// passwordSpecialRe 检查是否包含特殊字符
+var passwordSpecialRe = regexp.MustCompile(`[!@#$%^&*()\-_=+\[\]{};:'",.<>/?\\|` + "`" + `~]`)
+
+// ValidatePasswordStrength 校验密码强度
+// 要求：长度 8-128 位，至少包含以下四类字符中的三类：
+//   - 大写字母 (A-Z)
+//   - 小写字母 (a-z)
+//   - 数字 (0-9)
+//   - 特殊字符 (!@#$%^&*() 等)
+//
+// 返回 nil 表示合规，否则返回中文错误说明
+func ValidatePasswordStrength(password string) error {
+	if len(password) < MinPasswordLength {
+		return fmt.Errorf("密码长度不能少于 %d 位", MinPasswordLength)
+	}
+	if len(password) > MaxPasswordLength {
+		return fmt.Errorf("密码长度不能超过 %d 位", MaxPasswordLength)
+	}
+
+	categories := 0
+	if passwordLowerRe.MatchString(password) {
+		categories++
+	}
+	if passwordUpperRe.MatchString(password) {
+		categories++
+	}
+	if passwordDigitRe.MatchString(password) {
+		categories++
+	}
+	if passwordSpecialRe.MatchString(password) {
+		categories++
+	}
+	if categories < 3 {
+		return fmt.Errorf("密码必须至少包含大写字母、小写字母、数字、特殊字符中的任意三类")
+	}
+	return nil
+}
+
 // defaultSensitiveKeys 默认需要脱敏的请求体字段名（小写匹配）
 var defaultSensitiveKeys = []string{
 	"password",
@@ -81,8 +136,8 @@ var (
 		}
 		return strings.Join(quoted, "|")
 	}()
-	defaultJSONRedactPattern  = regexp.MustCompile(`(?i)"(` + defaultSensitiveKeysStr + `)"\s*:\s*"[^"]*"`)
-	defaultFormRedactPattern  = regexp.MustCompile(`(?i)(^|&)(` + defaultSensitiveKeysStr + `)=([^&]*)`)
+	defaultJSONRedactPattern = regexp.MustCompile(`(?i)"(` + defaultSensitiveKeysStr + `)"\s*:\s*"[^"]*"`)
+	defaultFormRedactPattern = regexp.MustCompile(`(?i)(^|&)(` + defaultSensitiveKeysStr + `)=([^&]*)`)
 )
 
 // isSensitiveKey 判断字段名是否为敏感字段（支持额外键）
