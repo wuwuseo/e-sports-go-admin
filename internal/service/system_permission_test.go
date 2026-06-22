@@ -781,6 +781,27 @@ func TestInitSystemPermissions_IncludesPluginManagementSeeds(t *testing.T) {
 	}
 }
 
+func TestInitSystemPermissionsIncludesCaptchaManagementSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	expected := []seedPermissionExpectation{
+		{Code: "system:captcha", Type: "menu", MenuPath: "/system/captcha", ParentCode: "system"},
+		{Code: "captcha:settings", Type: "api", Path: "/api/v1/admin/auth/captcha/settings", Method: "GET", ParentCode: "system:captcha"},
+		{Code: "captcha:scene:update", Type: "api", Path: "/api/v1/admin/auth/captcha/scenes/{scene}", Method: "PUT", ParentCode: "system:captcha"},
+		{Code: "captcha:provider:update", Type: "api", Path: "/api/v1/admin/auth/captcha/providers/{provider}", Method: "PUT", ParentCode: "system:captcha"},
+		{Code: "captcha:provider:test", Type: "api", Path: "/api/v1/admin/auth/captcha/providers/{provider}/test", Method: "POST", ParentCode: "system:captcha"},
+		{Code: "captcha:edit", Type: "button", ParentCode: "system:captcha"},
+	}
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
 func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	setupSystemPermissionTest(t)
 	ctx := t.Context()

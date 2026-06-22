@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	appcaptcha "go-admin/internal/captcha"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/global"
@@ -134,6 +135,74 @@ func TestGitHubOAuthPublicEndpointsListAndRedirect(t *testing.T) {
 	}
 	if !strings.Contains(location, "code_challenge=") || !strings.Contains(location, "state=") {
 		t.Fatalf("authorize redirect is missing PKCE/state: %q", location)
+	}
+}
+
+func TestRegisterRouteRegistersCaptchaManagementAndPublicRoutes(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:router_captcha_routes?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	defer client.Close()
+	global.ORM = client
+
+	app := fiber.New()
+	cfg := config.NewConfig()
+	cfg.App.AdminSecret = "admin-test-secret"
+	cfg.Captcha.Store = "memory"
+	RegisterRoute(app, cfg)
+
+	routes := app.GetRoutes(true)
+	for _, path := range []string{
+		"/api/v1/public/captcha/challenges",
+		"/api/v1/public/captcha/verifications",
+		"/api/v1/admin/auth/captcha/settings",
+		"/api/v1/admin/auth/captcha/scenes/:scene",
+		"/api/v1/admin/auth/captcha/providers/:provider",
+		"/api/v1/admin/auth/captcha/providers/:provider/test",
+	} {
+		assertRouteRegistered(t, routes, path)
+	}
+}
+
+func TestRegisterRouteRequiresCaptchaTokenForEnabledLoginScenes(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:router_captcha_login?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	defer client.Close()
+	global.ORM = client
+	repository := appcaptcha.NewSystemConfigRepository(client)
+	for _, scene := range []string{"user_login", "admin_login"} {
+		value, _ := json.Marshal(appcaptcha.SceneSettings{
+			Enabled:      true,
+			Provider:     "image_math",
+			ChallengeTTL: 120,
+			ProofTTL:     90,
+		})
+		if err := repository.Put(t.Context(), "captcha.scene."+scene, string(value)); err != nil {
+			t.Fatalf("seed scene %s: %v", scene, err)
+		}
+	}
+
+	app := fiber.New()
+	cfg := config.NewConfig()
+	cfg.App.AdminSecret = "admin-test-secret"
+	cfg.Captcha.Store = "memory"
+	RegisterRoute(app, cfg)
+
+	for _, path := range []string{"/api/v1/public/login", "/api/v1/admin/public/login"} {
+		response, err := app.Test(httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`)))
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		var envelope struct {
+			Code int `json:"code"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+			t.Fatalf("decode %s: %v", path, err)
+		}
+		if envelope.Code != global.ResponseCaptchaRequired {
+			t.Fatalf("POST %s code = %d", path, envelope.Code)
+		}
 	}
 }
 

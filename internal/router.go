@@ -2,8 +2,10 @@ package internal
 
 import (
 	"context"
+	"os"
 	"time"
 
+	appcaptcha "go-admin/internal/captcha"
 	"go-admin/internal/global"
 	"go-admin/internal/handler"
 	"go-admin/internal/middleware"
@@ -38,6 +40,17 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.UserService", service.NewUserService())
 		return c.Next()
 	})
+
+	captchaRuntime, err := appcaptcha.NewRuntime(
+		context.Background(),
+		global.ORM,
+		config,
+		os.Getenv,
+	)
+	if err != nil {
+		panic("initialize captcha runtime: " + err.Error())
+	}
+	captchaAdapter := appcaptcha.NewFiberAdapter(captchaRuntime.Service)
 
 	// 初始化带缓存的服务
 	var permissionService service.PermissionServiceInterface
@@ -114,7 +127,13 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	})
 
 	// 公开接口
-	public.Post("/login", loginLimiter.Handler(), handler.Login)
+	publicCaptcha := public.Group("/captcha", func(c fiber.Ctx) error {
+		c.Locals("captcha.FiberAdapter", captchaAdapter)
+		return c.Next()
+	})
+	publicCaptcha.Post("/challenges", handler.CreateCaptchaChallenge)
+	publicCaptcha.Post("/verifications", handler.VerifyCaptchaChallenge)
+	public.Post("/login", captchaAdapter.Require("user_login"),loginLimiter.Handler(), handler.Login)
 	public.Post("/refresh-token", handler.RefreshToken)
 	public.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
 	publicOAuth := public.Group("/oauth", func(c fiber.Ctx) error {
@@ -149,7 +168,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("utils.Response", utils.NewResponse())
 		return c.Next()
 	})
-	adminPublicLogin.Post("/login", loginLimiter.Handler(), handler.AdminLogin)
+	adminPublicLogin.Post("/login", captchaAdapter.Require("admin_login"),loginLimiter.Handler(), handler.AdminLogin)
 	adminPublicLogin.Post("/refresh", handler.AdminRefreshToken)
 
 	pluginProxy := v1.Group("/plugin", func(c fiber.Ctx) error {
@@ -208,6 +227,15 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	adminAuth.Delete("/oauth/providers/:provider", handler.DeleteOAuthProviderConfig)
 
 	// 超级管理员管理路由（管理其他管理员账号）
+	captchaSettings := adminAuth.Group("/captcha", func(c fiber.Ctx) error {
+		c.Locals("captcha.SettingsService", captchaRuntime.Settings)
+		return c.Next()
+	})
+	captchaSettings.Get("/settings", handler.GetCaptchaSettings)
+	captchaSettings.Put("/scenes/:scene", handler.UpdateCaptchaScene)
+	captchaSettings.Put("/providers/:provider", handler.UpdateCaptchaProvider)
+	captchaSettings.Post("/providers/:provider/test", handler.ValidateCaptchaProvider)
+
 	adminAuth.Post("/admins", handler.CreateAdmin)
 	adminAuth.Get("/admins", handler.ListAdmins)
 	adminAuth.Get("/admins/:id", handler.GetAdminDetail)

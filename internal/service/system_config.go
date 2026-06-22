@@ -19,7 +19,14 @@ import (
 var (
 	ErrConfigNotFound  = errors.New("配置不存在")
 	ErrConfigKeyExists = errors.New("配置键已存在")
+	ErrConfigReserved  = errors.New("reserved config key")
 )
+
+const reservedCaptchaConfigPrefix = "captcha."
+
+func isReservedConfigKey(key string) bool {
+	return strings.HasPrefix(key, reservedCaptchaConfigPrefix)
+}
 
 // ConfigService 动态配置服务
 type ConfigService struct {
@@ -108,6 +115,9 @@ func (s *ConfigService) clearConfigCache(ctx context.Context, key string) {
 
 // Create 创建配置
 func (s *ConfigService) Create(ctx context.Context, req *CreateConfigRequest) (*ConfigResponse, error) {
+	if isReservedConfigKey(req.Key) {
+		return nil, ErrConfigReserved
+	}
 	// 检查 key 唯一性
 	exists, err := s.Client.SystemConfig.Query().
 		Where(systemconfig.KeyEQ(req.Key)).
@@ -149,7 +159,12 @@ func (s *ConfigService) Create(ctx context.Context, req *CreateConfigRequest) (*
 func (s *ConfigService) Get(ctx context.Context, id int) (*ConfigResponse, error) {
 	return GetByID(ctx,
 		func(ctx context.Context) (*ent.SystemConfig, error) {
-			return s.Client.SystemConfig.Query().Where(systemconfig.IDEQ(id)).Only(ctx)
+			return s.Client.SystemConfig.Query().
+				Where(
+					systemconfig.IDEQ(id),
+					systemconfig.Not(systemconfig.KeyHasPrefix(reservedCaptchaConfigPrefix)),
+				).
+				Only(ctx)
 		}, toConfigResponse, ErrConfigNotFound, "配置")
 }
 
@@ -157,7 +172,8 @@ func (s *ConfigService) Get(ctx context.Context, id int) (*ConfigResponse, error
 func (s *ConfigService) List(ctx context.Context, req *ListConfigRequest) (*ListConfigResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
-	query := s.Client.SystemConfig.Query()
+	query := s.Client.SystemConfig.Query().
+		Where(systemconfig.Not(systemconfig.KeyHasPrefix(reservedCaptchaConfigPrefix)))
 
 	if req.Keyword != "" {
 		query = query.Where(
@@ -196,6 +212,9 @@ func (s *ConfigService) List(ctx context.Context, req *ListConfigRequest) (*List
 
 // GetByKey 按 key 获取单个配置值（带缓存）
 func (s *ConfigService) GetByKey(ctx context.Context, key string) (*ConfigResponse, error) {
+	if isReservedConfigKey(key) {
+		return nil, ErrConfigNotFound
+	}
 	cacheKey := s.configCacheKey("key", key)
 
 	if s.cache != nil {
@@ -233,6 +252,7 @@ func (s *ConfigService) GetByGroup(ctx context.Context, group string) ([]*Config
 		Where(
 			systemconfig.GroupEQ(group),
 			systemconfig.StatusEQ(1),
+			systemconfig.Not(systemconfig.KeyHasPrefix(reservedCaptchaConfigPrefix)),
 		).
 		Order(ent.Asc(systemconfig.FieldKey)).
 		All(ctx)
@@ -283,6 +303,9 @@ func (s *ConfigService) Update(ctx context.Context, id int, req *UpdateConfigReq
 		}
 		return fmt.Errorf("查询配置失败: %w", err)
 	}
+	if isReservedConfigKey(item.Key) {
+		return ErrConfigReserved
+	}
 
 	update := s.Client.SystemConfig.UpdateOne(item)
 
@@ -290,6 +313,9 @@ func (s *ConfigService) Update(ctx context.Context, id int, req *UpdateConfigReq
 		update.SetName(*req.Name)
 	}
 	if req.Key != nil {
+		if isReservedConfigKey(*req.Key) {
+			return ErrConfigReserved
+		}
 		exists, err := s.Client.SystemConfig.Query().
 			Where(systemconfig.KeyEQ(*req.Key), systemconfig.IDNEQ(id)).
 			Exist(ctx)
@@ -338,6 +364,9 @@ func (s *ConfigService) Delete(ctx context.Context, id int) error {
 			return ErrConfigNotFound
 		}
 		return fmt.Errorf("查询配置失败: %w", err)
+	}
+	if isReservedConfigKey(item.Key) {
+		return ErrConfigReserved
 	}
 
 	if err := s.Client.SystemConfig.DeleteOne(item).Exec(ctx); err != nil {

@@ -1,19 +1,53 @@
 package internal
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
 	cmflog "github.com/wuwuseo/cmf/log"
 
+	appcaptcha "go-admin/internal/captcha"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/global"
 )
+
+func TestInitSystemConfigSeedDataCreatesDisabledCaptchaLoginScenes(t *testing.T) {
+	client := setupInitTest(t)
+	if err := initSystemConfigSeedData(); err != nil {
+		t.Fatalf("initSystemConfigSeedData() error = %v", err)
+	}
+	for _, scene := range []string{"user_login", "admin_login"} {
+		item, err := client.SystemConfig.Query().
+			Where(systemconfig.KeyEQ("captcha.scene." + scene)).
+			Only(t.Context())
+		if err != nil {
+			t.Fatalf("query scene %s: %v", scene, err)
+		}
+		var settings appcaptcha.SceneSettings
+		if err := json.Unmarshal([]byte(item.Value), &settings); err != nil {
+			t.Fatalf("decode scene %s: %v", scene, err)
+		}
+		if settings.Enabled || settings.Provider != "image_alphanumeric" {
+			t.Fatalf("scene %s = %+v", scene, settings)
+		}
+	}
+	providerCount, err := client.SystemConfig.Query().
+		Where(systemconfig.KeyHasPrefix("captcha.provider.")).
+		Count(t.Context())
+	if err != nil {
+		t.Fatalf("count provider configs: %v", err)
+	}
+	if providerCount != 0 {
+		t.Fatalf("provider config seed count = %d", providerCount)
+	}
+}
 
 func setupInitTest(t *testing.T) *ent.Client {
 	t.Helper()

@@ -591,7 +591,34 @@ func initSystemConfigSeedData() error {
 		{"分片大小", "attachment.chunk_size", "10485760", "attachment", "number", "分片上传时每片大小（字节），默认10MB"},
 	}
 
+	captchaConfigs := []struct {
+		name   string
+		key    string
+		value  string
+		group  string
+		typeV  string
+		remark string
+	}{
+		{
+			"用户登录验证码",
+			"captcha.scene.user_login",
+			`{"enabled":false,"provider":"image_alphanumeric","challenge_ttl":120,"proof_ttl":90}`,
+			"captcha",
+			"json",
+			"用户登录验证码场景，前端完成协议接入后再启用",
+		},
+		{
+			"管理员登录验证码",
+			"captcha.scene.admin_login",
+			`{"enabled":false,"provider":"image_alphanumeric","challenge_ttl":120,"proof_ttl":90}`,
+			"captcha",
+			"json",
+			"管理员登录验证码场景，前端完成协议接入后再启用",
+		},
+	}
+
 	allConfigs := append(basicConfigs, attachmentConfigs...)
+	allConfigs = append(allConfigs, captchaConfigs...)
 
 	for _, c := range allConfigs {
 		exists, err := client.SystemConfig.Query().

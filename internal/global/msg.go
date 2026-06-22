@@ -12,6 +12,12 @@ const (
 	ResponseConflict            = 409
 	ResponseInternalServerError = 500
 
+	ResponseCaptchaRequired              = 4601
+	ResponseCaptchaInvalid               = 4602
+	ResponseCaptchaSceneInvalid          = 4603
+	ResponseCaptchaProviderUnavailable   = 4604
+	ResponseCaptchaProviderMisconfigured = 4605
+
 	// 角色相关错误码 (2000-2099)
 	ErrCodeRoleNotFound        = 2001
 	ErrCodeRoleNameExists      = 2002
@@ -201,11 +207,11 @@ var ResponseMsg = map[int]string{
 	ErrCodeInvalidDepartmentParent: "无效的父部门ID",
 
 	// 数据权限与系统权限错误消息
-	ResponsePermissionParentCycle:   "不能将权限的父级设为自身或其后代",
-	ResponseSelfToggleForbidden:     "不能对自己执行启用/禁用",
-	ResponseSelfRoleModifyForbidden: "不能修改自己的角色",
-	ResponseDepartmentOutOfScope:    "目标部门不在你的数据权限范围内",
-	ResponseRoleScopeEscalation:     "目标角色的数据范围超出你的权限",
-	ResponseDepartmentNotFound:             "目标部门不存在",
-	ResponseSelfRolePermissionForbidden:    "不允许修改自己所属角色的权限",
+	ResponsePermissionParentCycle:       "不能将权限的父级设为自身或其后代",
+	ResponseSelfToggleForbidden:         "不能对自己执行启用/禁用",
+	ResponseSelfRoleModifyForbidden:     "不能修改自己的角色",
+	ResponseDepartmentOutOfScope:        "目标部门不在你的数据权限范围内",
+	ResponseRoleScopeEscalation:         "目标角色的数据范围超出你的权限",
+	ResponseDepartmentNotFound:          "目标部门不存在",
+	ResponseSelfRolePermissionForbidden: "不允许修改自己所属角色的权限",
 }

@@ -102,6 +102,8 @@ type MessageResponse struct {
 	CreatedAt   time.Time      `json:"created_at"`
 }
 
+type ListMessagesResponse = ListResponse[MessageResponse]
+
 // UnreadCountResponse 未读数响应
 type UnreadCountResponse struct {
 	Total    int `json:"total"`
