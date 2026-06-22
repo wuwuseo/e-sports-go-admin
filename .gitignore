@@ -24,3 +24,5 @@ internal/service/data/
 go.work
 go.work.sum
 go.work.local
+/Backup
+/*.sum
