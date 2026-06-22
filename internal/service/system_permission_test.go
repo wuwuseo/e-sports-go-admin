@@ -1,4 +1,4 @@
-﻿package service
+package service
 
 import (
 	"context"
@@ -816,7 +816,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 145
+	const wantCount = 151
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}

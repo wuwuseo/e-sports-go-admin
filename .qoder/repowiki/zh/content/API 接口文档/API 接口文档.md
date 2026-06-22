@@ -118,15 +118,28 @@ Handler-->>Client : "统一响应"
 ### 认证与管理员认证接口
 - 公开接口（无需认证）
   - GET /api/v1/public/public-key：获取 RSA 公钥，用于加密登录请求中的敏感字段。
-  - POST /api/v1/public/login：普通用户登录，支持明文或加密字段登录。
+  - POST /api/v1/public/login：普通用户登录，支持明文或加密字段登录，并经过用户登录场景验证码校验与登录限流。
   - POST /api/v1/public/refresh-token：普通用户刷新令牌。
-  - POST /api/v1/admin/public/login：管理员登录，支持 RSA 加密。
+  - POST /api/v1/public/captcha/challenges：创建验证码挑战。
+  - POST /api/v1/public/captcha/verifications：校验验证码挑战。
+  - POST /api/v1/admin/public/login：管理员登录，支持 RSA 加密，并经过管理员登录场景验证码校验与登录限流。
   - POST /api/v1/admin/public/refresh：管理员刷新令牌。
+  - GET /api/v1/public/oauth/providers：获取可用 OAuth 登录提供商。
+  - GET /api/v1/public/oauth/user/{provider}/authorize：开始普通用户 OAuth 登录。
+  - GET /api/v1/public/oauth/admin/{provider}/authorize：开始管理员 OAuth 登录。
+  - GET /api/v1/public/oauth/{provider}/callback：OAuth 回调入口。
+  - POST /api/v1/public/oauth/exchange：使用 OAuth 登录码换取系统令牌。
 - 受保护接口（需 Bearer Token）
   - GET /api/v1/admin/auth/user：获取当前管理员信息。
   - PUT /api/v1/admin/auth/user：更新当前管理员信息。
   - PUT /api/v1/admin/auth/password：修改当前管理员密码。
   - POST /api/v1/admin/auth/logout：管理员退出登录。
+  - GET /api/v1/admin/auth/oauth/identities：获取当前管理员已绑定 OAuth 身份。
+  - GET /api/v1/admin/auth/oauth/{provider}/authorize：开始管理员 OAuth 绑定。
+  - DELETE /api/v1/admin/auth/oauth/{provider}：解绑管理员 OAuth 身份。
+  - GET /api/v1/user/auth/oauth/identities：获取当前普通用户已绑定 OAuth 身份。
+  - GET /api/v1/user/auth/oauth/{provider}/authorize：开始普通用户 OAuth 绑定。
+  - DELETE /api/v1/user/auth/oauth/{provider}：解绑普通用户 OAuth 身份。
 
 章节来源
 - [public.go:27-299](file://internal/handler/public.go#L27-L299)
@@ -164,6 +177,11 @@ Public-->>Client : "200 OK + TokenResponse"
 - [user.go:307-389](file://internal/service/user.go#L307-L389)
 
 ### 角色与权限管理接口
+- 角色权限安全约束
+  - 超级管理员角色 `admin` 的权限不允许通过 API 修改。
+  - 操作者不能修改自己当前持有角色的权限。
+  - 普通管理员只能管理自己已拥有的权限范围，不能通过角色权限接口给他人分配超出自身范围的权限。
+  - 保存角色权限时会对 `(object, action)` 去重，避免重复 Casbin 规则导致唯一约束冲突。
 - 角色管理
   - POST /api/v1/admin/auth/roles：创建角色。
   - GET /api/v1/admin/auth/roles：获取角色列表（分页、关键字、状态筛选）。
@@ -214,9 +232,13 @@ Next --> End
   - DELETE /api/v1/admin/auth/attachment-groups/{id}：删除分组。
 - 附件
   - POST /api/v1/admin/auth/attachments/upload：上传文件（支持指定分组）。
+  - GET /api/v1/admin/auth/attachments/chunk/status/{upload_id}：查询分片上传状态。
+  - DELETE /api/v1/admin/auth/attachments/chunk/{upload_id}：取消分片上传。
   - GET /api/v1/admin/auth/attachments：获取附件列表（分页、关键字、分组、MIME类型）。
   - GET /api/v1/admin/auth/attachments/{id}：获取附件详情。
+  - GET /api/v1/admin/auth/attachments/{id}/access-url：获取带签名的附件访问 URL。
   - GET /api/v1/admin/auth/attachments/{id}/preview：预览/下载附件。
+  - GET /api/v1/attachments/{id}/content：通过签名访问附件内容。
   - DELETE /api/v1/admin/auth/attachments/{id}：删除附件。
   - DELETE /api/v1/admin/auth/attachments/batch：批量删除附件。
   - PUT /api/v1/admin/auth/attachments/{id}/move：移动附件到分组。
@@ -275,8 +297,8 @@ Attach-->>Client : "200 OK + 数据"
 - POST /api/v1/admin/auth/cron-jobs/{id}/disable：禁用定时任务。
 - POST /api/v1/admin/auth/cron-jobs/{id}/run：立即执行定时任务。
 - GET /api/v1/admin/auth/cron-jobs/{id}/logs：获取日志列表。
-- GET /api/v1/admin/auth/cron-jobs/{id}/logs/tail：读取日志尾部。
-- GET /api/v1/admin/auth/cron-jobs/{id}/logs/{filename}：获取日志内容。
+- GET /api/v1/admin/auth/cron-jobs/{id}/logs/tail：读取最新日志尾部，`lines` 查询参数默认为 100。
+- GET /api/v1/admin/auth/cron-jobs/{id}/logs/{filename}：获取指定日志文件内容。
 
 章节来源
 - [router.go:103-120](file://internal/router.go#L103-L120)
@@ -296,11 +318,12 @@ Attach-->>Client : "200 OK + 数据"
 - [router.go:157-164](file://internal/router.go#L157-L164)
 
 ### 系统权限定义接口
-- POST /api/v1/admin/auth/system-permissions：创建权限定义。
-- GET /api/v1/admin/auth/system-permissions：获取权限定义列表。
-- GET /api/v1/admin/auth/system-permissions/tree：获取权限树。
+- POST /api/v1/admin/auth/system-permissions：创建权限定义，仅超级管理员或系统初始化上下文可执行。
+- GET /api/v1/admin/auth/system-permissions：获取权限定义列表；非超级管理员会过滤高风险 API 权限。
+- GET /api/v1/admin/auth/system-permissions/：获取权限定义列表（兼容尾斜杠）。
+- GET /api/v1/admin/auth/system-permissions/tree：获取权限树；非超级管理员会过滤高风险 API 权限。
 - GET /api/v1/admin/auth/system-permissions/{id}：获取权限定义详情。
-- PUT /api/v1/admin/auth/system-permissions/{id}：更新权限定义。
+- PUT /api/v1/admin/auth/system-permissions/{id}：更新权限定义；未提供字段保持原值，`parent_id`、`sort_order`、`is_common`、`status` 使用指针字段区分零值与未传。
 - DELETE /api/v1/admin/auth/system-permissions/{id}：删除权限定义。
 
 章节来源

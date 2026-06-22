@@ -3,8 +3,10 @@ package internal
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 

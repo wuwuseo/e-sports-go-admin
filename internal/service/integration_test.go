@@ -92,12 +92,12 @@ func TestIntegration_UserLogin_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	createActiveUser(t, client, "login@test.com", "uid-login-integration", "loginuser", "mypassword123")
+	createActiveUser(t, client, "login@test.com", "uid-login-integration", "loginuser", "Tt!12345")
 
 	svc := NewUserService()
 	resp, err := svc.Login(ctx, &LoginRequest{
 		Email:    "login@test.com",
-		Password: "mypassword123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("登录失败: %v", err)
@@ -148,7 +148,7 @@ func TestIntegration_UserLogin_InvalidPassword(t *testing.T) {
 	svc := NewUserService()
 	_, err := svc.Login(ctx, &LoginRequest{
 		Email:    "badpass@test.com",
-		Password: "wrongpassword",
+		Password: "Tt!00000",
 	})
 	if err == nil {
 		t.Fatal("期望错误密码返回错误，但未返回")
@@ -163,7 +163,7 @@ func TestIntegration_UserLogin_UserNotFound(t *testing.T) {
 	svc := NewUserService()
 	_, err := svc.Login(ctx, &LoginRequest{
 		Email:    "nonexistent@test.com",
-		Password: "anypassword",
+		Password: "Tt!12345",
 	})
 	if err == nil {
 		t.Fatal("期望不存在用户返回错误，但未返回")
@@ -202,12 +202,12 @@ func TestIntegration_RefreshToken_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	createActiveUser(t, client, "refresh@test.com", "uid-refresh", "refreshuser", "refreshpass")
+	createActiveUser(t, client, "refresh@test.com", "uid-refresh", "refreshuser", "Tt!12345")
 
 	svc := NewUserService()
 	loginResp, err := svc.Login(ctx, &LoginRequest{
 		Email:    "refresh@test.com",
-		Password: "refreshpass",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("登录失败: %v", err)
@@ -275,12 +275,12 @@ func TestIntegration_RefreshToken_UserDeactivated(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	u := createActiveUser(t, client, "deactivate@test.com", "uid-deactivate", "deactuser", "deactpass")
+	u := createActiveUser(t, client, "deactivate@test.com", "uid-deactivate", "deactuser", "Tt!12345")
 
 	svc := NewUserService()
 	loginResp, err := svc.Login(ctx, &LoginRequest{
 		Email:    "deactivate@test.com",
-		Password: "deactpass",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("登录失败: %v", err)
@@ -301,10 +301,10 @@ func TestIntegration_ChangePassword_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	createActiveUser(t, client, "changepass@test.com", "uid-changepass-int", "changepassuser", "oldpassword123")
+	createActiveUser(t, client, "changepass@test.com", "uid-changepass-int", "changepassuser", "Tt!12345")
 
 	svc := NewUserService()
-	err := svc.ChangePassword(ctx, "uid-changepass-int", "oldpassword123", "newpassword456")
+	err := svc.ChangePassword(ctx, "uid-changepass-int", "Tt!12345", "Tt!67890")
 	if err != nil {
 		t.Fatalf("修改密码失败: %v", err)
 	}
@@ -312,7 +312,7 @@ func TestIntegration_ChangePassword_Success(t *testing.T) {
 	// 验证新密码可以登录
 	_, err = svc.Login(ctx, &LoginRequest{
 		Email:    "changepass@test.com",
-		Password: "newpassword456",
+		Password: "Tt!67890",
 	})
 	if err != nil {
 		t.Fatalf("使用新密码登录失败: %v", err)
@@ -324,10 +324,10 @@ func TestIntegration_ChangePassword_WrongOldPassword(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	createActiveUser(t, client, "wrongold@test.com", "uid-wrongold", "wrongolduser", "correctpass")
+	createActiveUser(t, client, "wrongold@test.com", "uid-wrongold", "wrongolduser", "Tt!12345")
 
 	svc := NewUserService()
-	err := svc.ChangePassword(ctx, "uid-wrongold", "wrongoldpassword", "newpass")
+	err := svc.ChangePassword(ctx, "uid-wrongold", "Tt!00000", "Tt!67890")
 	if err == nil {
 		t.Fatal("期望错误旧密码返回错误，但未返回")
 	}
@@ -544,7 +544,7 @@ func TestIntegration_E2E_UserFlow(t *testing.T) {
 	svc := NewUserService()
 	err := svc.Register(ctx, &RegisterRequest{
 		Email:    "e2e@test.com",
-		Password: "e2epassword",
+		Password: "Tt!12345",
 		Username: "e2euser",
 		Nickname: "端到端用户",
 		Phone:    "13800000000",
@@ -569,7 +569,7 @@ func TestIntegration_E2E_UserFlow(t *testing.T) {
 	// ===== 阶段3: 用户登录 =====
 	loginResp, err := svc.Login(ctx, &LoginRequest{
 		Email:    "e2e@test.com",
-		Password: "e2epassword",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("登录失败: %v", err)
@@ -588,7 +588,7 @@ func TestIntegration_E2E_UserFlow(t *testing.T) {
 	}
 
 	// ===== 阶段5: 修改密码 =====
-	err = svc.ChangePassword(ctx, u.UID, "e2epassword", "newE2Epassword")
+	err = svc.ChangePassword(ctx, u.UID, "Tt!12345", "Tt!67890")
 	if err != nil {
 		t.Fatalf("修改密码失败: %v", err)
 	}
@@ -596,7 +596,7 @@ func TestIntegration_E2E_UserFlow(t *testing.T) {
 	// ===== 阶段6: 新密码登录 =====
 	newLoginResp, err := svc.Login(ctx, &LoginRequest{
 		Email:    "e2e@test.com",
-		Password: "newE2Epassword",
+		Password: "Tt!67890",
 	})
 	if err != nil {
 		t.Fatalf("新密码登录失败: %v", err)
@@ -810,7 +810,7 @@ func TestIntegration_AdminLogin_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	hashedPassword, salt, err := crypto.HashPassword("adminpass123")
+	hashedPassword, salt, err := crypto.HashPassword("Tt!12345")
 	if err != nil {
 		t.Fatalf("加密管理员密码失败: %v", err)
 	}
@@ -826,7 +826,7 @@ func TestIntegration_AdminLogin_Success(t *testing.T) {
 	svc := NewAdminService()
 	resp, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "admin@admin-test.com",
-		Password: "adminpass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)
@@ -862,7 +862,7 @@ func TestIntegration_AdminLogin_WrongSecretIsolation(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	hashedPassword, salt, err := crypto.HashPassword("pass123")
+	hashedPassword, salt, err := crypto.HashPassword("Tt!12345")
 	if err != nil {
 		t.Fatalf("加密密码失败: %v", err)
 	}
@@ -886,7 +886,7 @@ func TestIntegration_AdminLogin_WrongSecretIsolation(t *testing.T) {
 	adminSvc := NewAdminService()
 	adminResp, err := adminSvc.Login(ctx, &AdminLoginRequest{
 		Email:    "isolation@test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)
@@ -895,7 +895,7 @@ func TestIntegration_AdminLogin_WrongSecretIsolation(t *testing.T) {
 	userSvc := NewUserService()
 	_, err = userSvc.Login(ctx, &LoginRequest{
 		Email:    "isolation@test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("用户登录失败: %v", err)
@@ -914,7 +914,7 @@ func TestIntegration_AdminRefreshToken_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := withPermissionSystemOperator(t.Context())
 
-	hashedPassword, salt, err := crypto.HashPassword("pass123")
+	hashedPassword, salt, err := crypto.HashPassword("Tt!12345")
 	if err != nil {
 		t.Fatalf("加密管理员密码失败: %v", err)
 	}
@@ -930,7 +930,7 @@ func TestIntegration_AdminRefreshToken_Success(t *testing.T) {
 	svc := NewAdminService()
 	loginResp, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "refresh@admin-test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)

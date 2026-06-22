@@ -125,12 +125,12 @@ func TestAdminService_Login_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "admin@test.com", "uid-admin-login", "adminuser", "adminpass123", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "admin@test.com", "uid-admin-login", "adminuser", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
 	resp, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "admin@test.com",
-		Password: "adminpass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)
@@ -172,12 +172,12 @@ func TestAdminService_Login_AcceptsUsernameField(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "username-login@test.com", "uid-username-login", "username_login", "adminpass123", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "username-login@test.com", "uid-username-login", "username_login", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
 	resp, err := svc.Login(ctx, &AdminLoginRequest{
 		Username: "username_login",
-		Password: "adminpass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("绠＄悊鍛樼敤 username 瀛楁鐧诲綍澶辫触: %v", err)
@@ -192,12 +192,12 @@ func TestAdminService_Login_WrongPassword(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "wrong@test.com", "uid-wrong", "wronguser", "correctpass", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "wrong@test.com", "uid-wrong", "wronguser", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
 	_, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "wrong@test.com",
-		Password: "wrongpass",
+		Password: "Tt!00000",
 	})
 	if err == nil {
 		t.Fatal("期望错误密码返回错误，但未返回")
@@ -212,12 +212,12 @@ func TestAdminService_Login_InactiveAdmin(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "inactive@test.com", "uid-inactive", "inactiveuser", "pass123", admin.StatusInactive)
+	createTestAdminWithPassword(t, client, "inactive@test.com", "uid-inactive", "inactiveuser", "Tt!12345", admin.StatusInactive)
 
 	svc := NewAdminService()
 	_, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "inactive@test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err == nil {
 		t.Fatal("期望未激活管理员登录返回错误，但未返回")
@@ -235,7 +235,7 @@ func TestAdminService_Login_AdminNotFound(t *testing.T) {
 	svc := NewAdminService()
 	_, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "nonexist@test.com",
-		Password: "anypass",
+		Password: "Tt!12345",
 	})
 	if err == nil {
 		t.Fatal("期望不存在的管理员登录返回错误，但未返回")
@@ -250,12 +250,12 @@ func TestAdminService_Login_UsesAdminSecret(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "secret@test.com", "uid-secret", "secretuser", "pass123", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "secret@test.com", "uid-secret", "secretuser", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
 	resp, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "secret@test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)
@@ -284,7 +284,7 @@ func TestAdminService_Login_UpdatesLastLogin(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	a := createTestAdminWithPassword(t, client, "lastlogin@test.com", "uid-lastlogin", "lastuser", "pass123", admin.StatusActive)
+	a := createTestAdminWithPassword(t, client, "lastlogin@test.com", "uid-lastlogin", "lastuser", "Tt!12345", admin.StatusActive)
 	if !a.LastLogin.IsZero() {
 		t.Fatal("新建管理员last_login不应有值")
 	}
@@ -292,7 +292,7 @@ func TestAdminService_Login_UpdatesLastLogin(t *testing.T) {
 	svc := NewAdminService()
 	_, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "lastlogin@test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)
@@ -312,12 +312,12 @@ func TestAdminService_RefreshToken_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "refresh@test.com", "uid-refresh", "refreshuser", "pass123", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "refresh@test.com", "uid-refresh", "refreshuser", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
 	loginResp, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "refresh@test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)
@@ -478,10 +478,10 @@ func TestAdminService_ChangePassword_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "changepass@test.com", "uid-admin-changepass", "changepassadmin", "oldpassword", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "changepass@test.com", "uid-admin-changepass", "changepassadmin", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
-	err := svc.ChangePassword(ctx, "uid-admin-changepass", "oldpassword", "newpassword123")
+	err := svc.ChangePassword(ctx, "uid-admin-changepass", "Tt!12345", "Tt!67890")
 	if err != nil {
 		t.Fatalf("修改密码失败: %v", err)
 	}
@@ -491,7 +491,7 @@ func TestAdminService_ChangePassword_Success(t *testing.T) {
 		t.Fatalf("查询管理员失败: %v", err)
 	}
 
-	match, err := crypto.VerifyPassword("newpassword123", a.Password, a.PasswordSalt)
+	match, err := crypto.VerifyPassword("Tt!67890", a.Password, a.PasswordSalt)
 	if err != nil {
 		t.Fatalf("验证新密码失败: %v", err)
 	}
@@ -505,10 +505,10 @@ func TestAdminService_ChangePassword_WrongOldPassword(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "wrongold@test.com", "uid-admin-wrongold", "wrongold", "correctpass", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "wrongold@test.com", "uid-admin-wrongold", "wrongold", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
-	err := svc.ChangePassword(ctx, "uid-admin-wrongold", "wrongpassword", "newpassword")
+	err := svc.ChangePassword(ctx, "uid-admin-wrongold", "Tt!00000", "Tt!67890")
 	if err == nil {
 		t.Fatal("期望错误旧密码返回错误")
 	}
@@ -522,12 +522,12 @@ func TestAdminService_Logout_Success(t *testing.T) {
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
-	createTestAdminWithPassword(t, client, "logout@test.com", "uid-admin-logout", "logoutadmin", "pass123", admin.StatusActive)
+	createTestAdminWithPassword(t, client, "logout@test.com", "uid-admin-logout", "logoutadmin", "Tt!12345", admin.StatusActive)
 
 	svc := NewAdminService()
 	loginResp, err := svc.Login(ctx, &AdminLoginRequest{
 		Email:    "logout@test.com",
-		Password: "pass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("管理员登录失败: %v", err)

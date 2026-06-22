@@ -782,7 +782,7 @@ func TestIntegration_BootstrapBasedAuth(t *testing.T) {
 	t.Cleanup(func() { global.Bootstrap = prevBS })
 
 	ctx := withPermissionSystemOperator(t.Context())
-	hashedPassword, salt, _ := crypto.HashPassword("authpass123")
+	hashedPassword, salt, _ := crypto.HashPassword("Tt!12345")
 	client.User.Create().
 		SetEmail("authtest@example.com").
 		SetUID("uid-auth-test").
@@ -797,7 +797,7 @@ func TestIntegration_BootstrapBasedAuth(t *testing.T) {
 	// === Login ===
 	resp, err := svc.Login(ctx, &LoginRequest{
 		Email:    "authtest@example.com",
-		Password: "authpass123",
+		Password: "Tt!12345",
 	})
 	if err != nil {
 		t.Fatalf("Login: %v", err)
@@ -819,7 +819,7 @@ func TestIntegration_BootstrapBasedAuth(t *testing.T) {
 	}
 
 	// === ChangePassword ===
-	err = svc.ChangePassword(ctx, "uid-auth-test", "authpass123", "newauthpass456")
+	err = svc.ChangePassword(ctx, "uid-auth-test", "Tt!12345", "Tt!67890")
 	if err != nil {
 		t.Fatalf("ChangePassword: %v", err)
 	}
@@ -827,7 +827,7 @@ func TestIntegration_BootstrapBasedAuth(t *testing.T) {
 	// === login with new password ===
 	_, err = svc.Login(ctx, &LoginRequest{
 		Email:    "authtest@example.com",
-		Password: "newauthpass456",
+		Password: "Tt!67890",
 	})
 	if err != nil {
 		t.Fatalf("new password login: %v", err)
