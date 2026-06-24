@@ -9624,6 +9624,9 @@ const docTemplate = `{
                 "config": {
                     "type": "object"
                 },
+                "descriptor": {
+                    "type": "object"
+                },
                 "key_version": {
                     "type": "string"
                 },
@@ -9730,6 +9733,9 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "challenge_id": {
+                    "type": "string"
+                },
+                "challenge_type": {
                     "type": "string"
                 },
                 "expires_in": {

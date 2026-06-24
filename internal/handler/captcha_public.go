@@ -14,11 +14,12 @@ type CaptchaChallengeRequest struct {
 }
 
 type CaptchaChallengeResponse struct {
-	Required    bool            `json:"required"`
-	ChallengeID string          `json:"challenge_id,omitempty"`
-	Provider    string          `json:"provider,omitempty"`
-	ExpiresIn   int64           `json:"expires_in,omitempty"`
-	Payload     json.RawMessage `json:"payload,omitempty" swaggertype:"object"`
+	Required      bool            `json:"required"`
+	ChallengeID   string          `json:"challenge_id,omitempty"`
+	Provider      string          `json:"provider,omitempty"`
+	ChallengeType string          `json:"challenge_type,omitempty"`
+	ExpiresIn     int64           `json:"expires_in,omitempty"`
+	Payload       json.RawMessage `json:"payload,omitempty" swaggertype:"object"`
 }
 
 type CaptchaVerificationRequest struct {

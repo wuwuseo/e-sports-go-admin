@@ -24,10 +24,11 @@ type ProviderSettingsRequest struct {
 }
 
 type ProviderSettingsResponse struct {
-	Provider         string          `json:"provider"`
-	Config           json.RawMessage `json:"config" swaggertype:"object"`
-	SecretConfigured bool            `json:"secret_configured"`
-	KeyVersion       string          `json:"key_version,omitempty"`
+	Provider         string                         `json:"provider"`
+	Config           json.RawMessage                `json:"config" swaggertype:"object"`
+	SecretConfigured bool                           `json:"secret_configured"`
+	KeyVersion       string                         `json:"key_version,omitempty"`
+	Descriptor       *cmfcaptcha.ProviderDescriptor `json:"descriptor,omitempty" swaggertype:"object"`
 }
 
 type SettingsResponse struct {
@@ -138,6 +139,7 @@ func (s *SettingsService) UpdateProvider(
 		Config:           sanitized,
 		SecretConfigured: secretConfigured,
 		KeyVersion:       metadata.KeyVersion,
+		Descriptor:       providerDescriptor(item),
 	}, nil
 }
 
@@ -166,9 +168,11 @@ func (s *SettingsService) GetSettings(ctx context.Context) (SettingsResponse, er
 		Providers: make(map[string]ProviderSettingsResponse),
 	}
 	for _, name := range s.registry.Names() {
+		item, _ := s.registry.Get(name)
 		response.Providers[name] = ProviderSettingsResponse{
-			Provider: name,
-			Config:   json.RawMessage(`{}`),
+			Provider:   name,
+			Config:     json.RawMessage(`{}`),
+			Descriptor: providerDescriptor(item),
 		}
 	}
 	sceneEntries, err := s.sources.repository.ListPrefix(ctx, sceneKeyPrefix)
@@ -212,9 +216,19 @@ func (s *SettingsService) GetSettings(ctx context.Context) (SettingsResponse, er
 			Config:           publicConfig,
 			SecretConfigured: secretConfigured,
 			KeyVersion:       metadata.KeyVersion,
+			Descriptor:       response.Providers[name].Descriptor,
 		}
 	}
 	return response, nil
+}
+
+func providerDescriptor(item cmfcaptcha.Provider) *cmfcaptcha.ProviderDescriptor {
+	described, ok := item.(cmfcaptcha.DescribedProvider)
+	if !ok {
+		return nil
+	}
+	descriptor := described.Descriptor()
+	return &descriptor
 }
 
 func (s *SettingsService) prepareProviderConfig(

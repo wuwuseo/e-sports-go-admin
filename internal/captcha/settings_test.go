@@ -144,6 +144,16 @@ func TestSettingsServiceGetSettingsMasksProviderSecrets(t *testing.T) {
 	if strings.Contains(string(item.Config), "0123456789abcdef") {
 		t.Fatal("GetSettings() leaked provider secret")
 	}
+	for name, providerSettings := range settings.Providers {
+		if providerSettings.Descriptor == nil {
+			t.Fatalf("provider %s has no descriptor", name)
+		}
+		if providerSettings.Descriptor.ChallengeType == "" ||
+			providerSettings.Descriptor.DisplayName["zh-CN"] == "" ||
+			providerSettings.Descriptor.DisplayName["en-US"] == "" {
+			t.Fatalf("provider %s descriptor = %#v", name, providerSettings.Descriptor)
+		}
+	}
 }
 
 func TestSettingsServiceClearSecretRequiresExplicitFlag(t *testing.T) {

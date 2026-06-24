@@ -22,7 +22,13 @@ func (publicCaptchaServiceStub) CreateChallenge(
 	string,
 	cmfcaptcha.ClientMeta,
 ) (cmfcaptcha.ChallengeResult, error) {
-	return cmfcaptcha.ChallengeResult{Required: false}, nil
+	return cmfcaptcha.ChallengeResult{
+		Required:      true,
+		ChallengeID:   "challenge",
+		Provider:      "image_math",
+		ChallengeType: cmfcaptcha.ChallengeTypeImageText,
+		Payload:       json.RawMessage(`{"image_base64":"image"}`),
+	}, nil
 }
 
 func (publicCaptchaServiceStub) VerifyChallenge(
@@ -70,5 +76,34 @@ func TestPublicCaptchaHandlersDelegateToInjectedAdapter(t *testing.T) {
 		if envelope.Code != 1 {
 			t.Fatalf("POST %s code = %d", test.path, envelope.Code)
 		}
+	}
+}
+
+func TestCreateCaptchaChallengeReturnsInteractionType(t *testing.T) {
+	app := fiber.New()
+	app.Use(func(c fiber.Ctx) error {
+		c.Locals("utils.Response", utils.NewResponse())
+		c.Locals("captcha.FiberAdapter", appcaptcha.NewFiberAdapter(publicCaptchaServiceStub{}))
+		return c.Next()
+	})
+	app.Post("/challenges", CreateCaptchaChallenge)
+
+	request := httptest.NewRequest(http.MethodPost, "/challenges", strings.NewReader(`{"scene":"admin_login"}`))
+	request.Header.Set("Content-Type", "application/json")
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatalf("POST /challenges: %v", err)
+	}
+	var envelope struct {
+		Code int `json:"code"`
+		Data struct {
+			ChallengeType cmfcaptcha.ChallengeType `json:"challenge_type"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode challenge response: %v", err)
+	}
+	if envelope.Code != 1 || envelope.Data.ChallengeType != cmfcaptcha.ChallengeTypeImageText {
+		t.Fatalf("challenge response = %+v", envelope)
 	}
 }
