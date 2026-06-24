@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -377,10 +378,14 @@ func requireSuperAdmin(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if !admin.IsSuperAdmin {
+	if !isOAuthSuperAdmin(admin) {
 		return errOAuthSuperAdminRequired
 	}
 	return nil
+}
+
+func isOAuthSuperAdmin(admin *service.AdminResponse) bool {
+	return admin.IsSuperAdmin || slices.Contains(admin.Roles, service.SuperAdminRoleName)
 }
 
 var errOAuthSuperAdminRequired = errors.New("super administrator is required")

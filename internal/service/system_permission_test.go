@@ -816,7 +816,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 151
+	const wantCount = 154
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
@@ -1049,6 +1049,9 @@ func TestInitSystemPermissions_IncludesOAuthManagementSeeds(t *testing.T) {
 		t.Fatalf("InitSystemPermissions failed: %v", err)
 	}
 	expected := []seedPermissionExpectation{
+		{Code: "system:third-party-user", Type: "menu", MenuPath: "/system/third-party-user", ParentCode: "system"},
+		{Code: "third-party-user:list", Type: "api", Path: "/api/v1/admin/auth/third-party-users", Method: "GET", ParentCode: "system:third-party-user"},
+		{Code: "third-party-user:delete", Type: "api", Path: "/api/v1/admin/auth/third-party-users/{id}", Method: "DELETE", ParentCode: "system:third-party-user"},
 		{Code: "oauth-config:list", Type: "api", Path: "/api/v1/admin/auth/oauth/providers", Method: "GET", ParentCode: "system:config"},
 		{Code: "oauth-config:get", Type: "api", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "GET", ParentCode: "system:config"},
 		{Code: "oauth-config:update", Type: "api", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "PUT", ParentCode: "system:config"},

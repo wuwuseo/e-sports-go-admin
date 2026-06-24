@@ -931,6 +931,9 @@ func InitSystemPermissions(ctx context.Context) error {
 		{ID: 148, Domain: "default", Type: "api", Name: "删除OAuth配置", Code: "oauth-config:delete", Path: "/api/v1/admin/auth/oauth/providers/{provider}", Method: "DELETE", ParentID: 10, SortOrder: 11, IsCommon: false, Status: 1, Description: "删除OAuth Provider配置"},
 		{ID: 149, Domain: "default", Type: "api", Name: "管理员OAuth身份列表", Code: "admin-oauth:list", Path: "/api/v1/admin/auth/third-party-admins", Method: "GET", ParentID: 138, SortOrder: 8, IsCommon: false, Status: 1, Description: "获取管理员第三方身份列表"},
 		{ID: 150, Domain: "default", Type: "api", Name: "删除管理员OAuth身份", Code: "admin-oauth:delete", Path: "/api/v1/admin/auth/third-party-admins/{id}", Method: "DELETE", ParentID: 138, SortOrder: 9, IsCommon: false, Status: 1, Description: "解绑管理员第三方身份"},
+		{ID: 151, Domain: "default", Type: "menu", Name: "第三方用户", Code: "system:third-party-user", MenuPath: "/system/third-party-user", Component: "system/third-party-user/index", ParentID: 3, SortOrder: 11, IsCommon: false, Status: 1, Description: "普通用户第三方身份管理页面"},
+		{ID: 152, Domain: "default", Type: "api", Name: "第三方用户列表", Code: "third-party-user:list", Path: "/api/v1/admin/auth/third-party-users", Method: "GET", ParentID: 151, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取普通用户第三方身份列表"},
+		{ID: 153, Domain: "default", Type: "api", Name: "删除第三方用户身份", Code: "third-party-user:delete", Path: "/api/v1/admin/auth/third-party-users/{id}", Method: "DELETE", ParentID: 151, SortOrder: 1, IsCommon: false, Status: 1, Description: "解绑普通用户第三方身份"},
 	}
 
 	seedData = append(seedData,
