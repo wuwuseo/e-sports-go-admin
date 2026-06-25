@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,5 +280,108 @@ func TestMessageService_ListSinceID(t *testing.T) {
 	}
 	if len(list) != 2 {
 		t.Fatalf("应有 2 条补发，实际 %d", len(list))
+	}
+}
+
+// TestMessageService_CreateSanitizesContentHTML_XSS 验证 Create 路径对 ContentHTML 的 XSS 向量在落库前被净化
+func TestMessageService_CreateSanitizesContentHTML_XSS(t *testing.T) {
+	client, svc, cleanup := setupMessageTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	xssPayloads := []string{
+		`<script>alert(1)</script>`,
+		`<img src=x onerror=alert(1)>`,
+		`<a href="javascript:alert(1)">x</a>`,
+		`<svg onload=alert(1)>`,
+		`<iframe src="evil"></iframe>`,
+		`<p onclick="alert(1)">x</p>`,
+	}
+	for _, payload := range xssPayloads {
+		resp, err := svc.PublishToUser(ctx, "u1", PublishMessage{
+			Type:        MessageTypeSystem,
+			Title:       "XSS Test",
+			Content:     "test",
+			ContentHTML: payload,
+		})
+		if err != nil {
+			t.Fatalf("payload %q 创建失败: %v", payload, err)
+		}
+		entity, err := client.Message.Query().Where(message.IDEQ(resp.ID)).Only(ctx)
+		if err != nil {
+			t.Fatalf("查询消息 %d 失败: %v", resp.ID, err)
+		}
+		lower := strings.ToLower(entity.ContentHTML)
+		if strings.Contains(lower, "<script") || strings.Contains(lower, "onerror") ||
+			strings.Contains(lower, "javascript:") || strings.Contains(lower, "onload") ||
+			strings.Contains(lower, "<iframe") || strings.Contains(lower, "onclick") {
+			t.Errorf("payload %q 落库后仍包含危险内容: %q", payload, entity.ContentHTML)
+		}
+	}
+}
+
+// TestMessageService_CreateSanitizesContentHTML_PreservesSafeTags 验证 Create 路径保留安全标签
+func TestMessageService_CreateSanitizesContentHTML_PreservesSafeTags(t *testing.T) {
+	client, svc, cleanup := setupMessageTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	resp, err := svc.PublishToUser(ctx, "u1", PublishMessage{
+		Type:        MessageTypeSystem,
+		Title:       "Safe HTML Test",
+		Content:     "test",
+		ContentHTML: `<p>hello <strong>world</strong> <a href="https://example.com" target="_blank">link</a></p><br><img src="https://example.com/pic.png" alt="pic">`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entity, err := client.Message.Query().Where(message.IDEQ(resp.ID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 安全标签应被保留
+	for _, tag := range []string{"<p>", "<strong>", "</strong>", `href="https://example.com"`} {
+		if !strings.Contains(entity.ContentHTML, tag) {
+			t.Errorf("安全标签 %q 应被保留，实际 ContentHTML: %q", tag, entity.ContentHTML)
+		}
+	}
+	// 危险属性应被移除
+	lower := strings.ToLower(entity.ContentHTML)
+	if strings.Contains(lower, "onclick") || strings.Contains(lower, "javascript:") {
+		t.Errorf("危险属性不应保留，实际 ContentHTML: %q", entity.ContentHTML)
+	}
+}
+
+// TestMessageService_BroadcastToUsersSanitizesContentHTML 验证 BroadcastToUsers 路径对 ContentHTML 的 XSS 向量在落库前被净化
+func TestMessageService_BroadcastToUsersSanitizesContentHTML(t *testing.T) {
+	client, svc, cleanup := setupMessageTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	xssPayload := `<img src=x onerror="alert(1)"><a href="javascript:alert(1)">x</a>`
+	n, err := svc.BroadcastToUsers(ctx, []string{"u1", "u2"}, PublishMessage{
+		Type:        MessageTypeSystem,
+		Title:       "Broadcast XSS Test",
+		Content:     "test",
+		ContentHTML: xssPayload,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("应创建 2 条消息，实际 %d", n)
+	}
+	entities, err := client.Message.Query().Where(message.TitleEQ("Broadcast XSS Test")).All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entities) != 2 {
+		t.Fatalf("应查到 2 条消息，实际 %d", len(entities))
+	}
+	for _, entity := range entities {
+		lower := strings.ToLower(entity.ContentHTML)
+		if strings.Contains(lower, "onerror") || strings.Contains(lower, "javascript:") {
+			t.Errorf("消息 %d 落库后仍包含危险内容: %q", entity.ID, entity.ContentHTML)
+		}
 	}
 }

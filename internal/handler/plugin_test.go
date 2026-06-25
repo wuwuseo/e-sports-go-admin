@@ -99,6 +99,34 @@ func TestProxyPluginFiltersSensitiveRequestHeaders(t *testing.T) {
 	}
 }
 
+func TestProxyPluginRejectsSensitivePathWithPrefixViaCatchAll(t *testing.T) {
+	// 复现 85de8e8 漏洞场景：
+	// catch-all 路由 /api/v1/plugin/:plugin_id/* 注册在 prefix = "/admin/auth" 的插件下，
+	// 攻击者可通过 /* 捕获 admin/auth/... 路径绕过权限检查。
+	// protectedProxyPath 修复后，无论 prefix 是否设置，只要路径以 admin/auth/ 开头即拒绝。
+	pluginService := newFakePluginService()
+	app := newProxyPluginTestApp(pluginService)
+	// catch-all 路由，插件配置了 proxy_path_prefix = "/admin/auth"
+	app.Post("/api/v1/plugin/:plugin_id/*", func(c fiber.Ctx) error {
+		c.Locals("plugin.proxy_path_prefix", "/admin/auth")
+		return ProxyPlugin(c)
+	})
+
+	// 尝试通过 catch-all 路由访问 admin/auth/sensitive-path
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/plugin/admin.example-plugin/admin/auth/sensitive-path", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test returned error: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; 漏洞未修复：带 prefix 的 catch-all 路由仍可绕过敏感路径检查", resp.StatusCode)
+	}
+	if pluginService.proxyRequest != nil {
+		t.Fatalf("proxyRequest should be nil; 请求不应被转发到插件服务")
+	}
+}
+
 func newFakePluginService() *fakePluginService {
 	return &fakePluginService{
 		proxyResponse: &service.PluginProxyResponse{
