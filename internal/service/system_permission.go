@@ -340,104 +340,47 @@ func (s *SystemPermissionService) Update(ctx context.Context, operatorUID string
 	return nil
 }
 
-// cascadeDisableChildren 递归禁用所有子权限
-func (s *SystemPermissionService) cascadeDisableChildren(ctx context.Context, parentID int) error {
-	children, err := s.client.SystemPermission.Query().
+func (s *SystemPermissionService) cascadeSetChildrenStatus(ctx context.Context, client *ent.SystemPermissionClient, parentID int, fromStatus, targetStatus int8) error {
+	children, err := client.Query().
 		Where(systempermission.ParentIDEQ(parentID)).
 		All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, child := range children {
-		if child.Status == 1 {
-			_, err := s.client.SystemPermission.UpdateOneID(child.ID).
-				SetStatus(0).
+		if child.Status == fromStatus {
+			_, err := client.UpdateOneID(child.ID).
+				SetStatus(targetStatus).
 				Save(ctx)
 			if err != nil {
 				return err
 			}
 		}
-		// 递归处理孙子权限
-		if err := s.cascadeDisableChildren(ctx, child.ID); err != nil {
+		if err := s.cascadeSetChildrenStatus(ctx, client, child.ID, fromStatus, targetStatus); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// cascadeDisableChildren 递归禁用所有子权限
+func (s *SystemPermissionService) cascadeDisableChildren(ctx context.Context, parentID int) error {
+	return s.cascadeSetChildrenStatus(ctx, s.client.SystemPermission, parentID, 1, 0)
 }
 
 // cascadeEnableChildren 递归启用所有子权限
 func (s *SystemPermissionService) cascadeEnableChildren(ctx context.Context, parentID int) error {
-	children, err := s.client.SystemPermission.Query().
-		Where(systempermission.ParentIDEQ(parentID)).
-		All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		if child.Status == 0 {
-			_, err := s.client.SystemPermission.UpdateOneID(child.ID).
-				SetStatus(1).
-				Save(ctx)
-			if err != nil {
-				return err
-			}
-		}
-		// 递归处理孙子权限
-		if err := s.cascadeEnableChildren(ctx, child.ID); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.cascadeSetChildrenStatus(ctx, s.client.SystemPermission, parentID, 0, 1)
 }
 
 // cascadeDisableChildrenTx 递归禁用所有子权限（事务版本）
 func (s *SystemPermissionService) cascadeDisableChildrenTx(ctx context.Context, tx *ent.Tx, parentID int) error {
-	children, err := tx.SystemPermission.Query().
-		Where(systempermission.ParentIDEQ(parentID)).
-		All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		if child.Status == 1 {
-			_, err := tx.SystemPermission.UpdateOneID(child.ID).
-				SetStatus(0).
-				Save(ctx)
-			if err != nil {
-				return err
-			}
-		}
-		// 递归处理孙子权限
-		if err := s.cascadeDisableChildrenTx(ctx, tx, child.ID); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.cascadeSetChildrenStatus(ctx, tx.SystemPermission, parentID, 1, 0)
 }
 
 // cascadeEnableChildrenTx 递归启用所有子权限（事务版本）
 func (s *SystemPermissionService) cascadeEnableChildrenTx(ctx context.Context, tx *ent.Tx, parentID int) error {
-	children, err := tx.SystemPermission.Query().
-		Where(systempermission.ParentIDEQ(parentID)).
-		All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		if child.Status == 0 {
-			_, err := tx.SystemPermission.UpdateOneID(child.ID).
-				SetStatus(1).
-				Save(ctx)
-			if err != nil {
-				return err
-			}
-		}
-		// 递归处理孙子权限
-		if err := s.cascadeEnableChildrenTx(ctx, tx, child.ID); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.cascadeSetChildrenStatus(ctx, tx.SystemPermission, parentID, 0, 1)
 }
 
 // Delete 删除权限
