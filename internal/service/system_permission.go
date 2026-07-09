@@ -261,9 +261,10 @@ func (s *SystemPermissionService) Update(ctx context.Context, operatorUID string
 	if err != nil {
 		return fmt.Errorf("启动事务失败: %w", err)
 	}
-	defer rollbackUnlessCommitted(tx)
+	mtx := NewManagedTx(tx)
+	defer mtx.RollbackIfNotCommitted()
 
-	update := tx.SystemPermission.UpdateOneID(id)
+	update := mtx.Tx().SystemPermission.UpdateOneID(id)
 
 	if req.Type != "" {
 		update.SetType(string(req.Type))
@@ -321,19 +322,19 @@ func (s *SystemPermissionService) Update(ctx context.Context, operatorUID string
 
 	// 父级被禁用时，级联禁用整个子树（包括所有后代）
 	if req.Status != nil && *req.Status == 0 && current.Status == 1 {
-		if err := s.cascadeDisableChildrenTx(ctx, tx, id); err != nil {
+		if err := s.cascadeDisableChildrenTx(ctx, mtx.Tx(), id); err != nil {
 			return fmt.Errorf("级联禁用子权限失败: %w", err)
 		}
 	}
 
 	// 父级被启用时，级联启用整个子树（包括所有后代）
 	if req.Status != nil && *req.Status == 1 && current.Status == 0 {
-		if err := s.cascadeEnableChildrenTx(ctx, tx, id); err != nil {
+		if err := s.cascadeEnableChildrenTx(ctx, mtx.Tx(), id); err != nil {
 			return fmt.Errorf("级联启用子权限失败: %w", err)
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := mtx.Commit(); err != nil {
 		return fmt.Errorf("提交事务失败: %w", err)
 	}
 

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
+
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/global"
@@ -92,11 +95,12 @@ func (s *DepartmentService) Create(ctx context.Context, req *CreateDepartmentReq
 	if err != nil {
 		return nil, fmt.Errorf("start department transaction failed: %w", err)
 	}
-	defer rollbackUnlessCommitted(tx)
+	mtx := NewManagedTx(tx)
+	defer mtx.RollbackIfNotCommitted()
 
 	parentPath := ""
 	if req.ParentID > 0 {
-		parent, err := tx.Department.Query().
+		parent, err := mtx.Tx().Department.Query().
 			Where(department.IDEQ(req.ParentID)).
 			Only(ctx)
 		if err != nil {
@@ -112,7 +116,7 @@ func (s *DepartmentService) Create(ctx context.Context, req *CreateDepartmentReq
 	if req.Status != "" {
 		status = department.Status(req.Status)
 	}
-	created, err := tx.Department.Create().
+	created, err := mtx.Tx().Department.Create().
 		SetName(req.Name).
 		SetParentID(req.ParentID).
 		SetSort(req.Sort).
@@ -129,14 +133,14 @@ func (s *DepartmentService) Create(ctx context.Context, req *CreateDepartmentReq
 	if req.ParentID > 0 {
 		path = fmt.Sprintf("%s/%d", parentPath, created.ID)
 	}
-	created, err = tx.Department.UpdateOne(created).
+	created, err = mtx.Tx().Department.UpdateOne(created).
 		SetPath(path).
 		Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("update department path failed: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := mtx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit department transaction failed: %w", err)
 	}
 
@@ -148,9 +152,10 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 	if err != nil {
 		return fmt.Errorf("start department transaction failed: %w", err)
 	}
-	defer rollbackUnlessCommitted(tx)
+	mtx := NewManagedTx(tx)
+	defer mtx.RollbackIfNotCommitted()
 
-	current, err := tx.Department.Query().
+	current, err := mtx.Tx().Department.Query().
 		Where(department.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -172,7 +177,7 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 		}
 
 		if *req.ParentID > 0 {
-			parent, err := tx.Department.Query().
+			parent, err := mtx.Tx().Department.Query().
 				Where(department.IDEQ(*req.ParentID)).
 				Only(ctx)
 			if err != nil {
@@ -191,7 +196,7 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 		parentChanged = *req.ParentID != current.ParentID
 	}
 
-	update := tx.Department.UpdateOne(current)
+	update := mtx.Tx().Department.UpdateOne(current)
 	if req.Name != "" {
 		update.SetName(req.Name)
 	}
@@ -220,12 +225,12 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 	}
 
 	if parentChanged {
-		if err := s.rewriteDescendantPaths(ctx, tx, oldPath, newPath); err != nil {
+		if err := s.rewriteDescendantPaths(ctx, mtx.Tx(), oldPath, newPath); err != nil {
 			return err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := mtx.Commit(); err != nil {
 		return fmt.Errorf("commit department transaction failed: %w", err)
 	}
 	return nil
@@ -236,9 +241,10 @@ func (s *DepartmentService) Delete(ctx context.Context, id int) error {
 	if err != nil {
 		return fmt.Errorf("start department transaction failed: %w", err)
 	}
-	defer rollbackUnlessCommitted(tx)
+	mtx := NewManagedTx(tx)
+	defer mtx.RollbackIfNotCommitted()
 
-	dept, err := tx.Department.Query().
+	dept, err := mtx.Tx().Department.Query().
 		Where(department.IDEQ(id)).
 		Only(ctx)
 	if err != nil {
@@ -248,7 +254,7 @@ func (s *DepartmentService) Delete(ctx context.Context, id int) error {
 		return fmt.Errorf("query department failed: %w", err)
 	}
 
-	hasChildren, err := tx.Department.Query().
+	hasChildren, err := mtx.Tx().Department.Query().
 		Where(department.ParentIDEQ(id)).
 		Exist(ctx)
 	if err != nil {
@@ -258,10 +264,10 @@ func (s *DepartmentService) Delete(ctx context.Context, id int) error {
 		return ErrDepartmentHasChildren
 	}
 
-	if err := tx.Department.DeleteOne(dept).Exec(ctx); err != nil {
+	if err := mtx.Tx().Department.DeleteOne(dept).Exec(ctx); err != nil {
 		return fmt.Errorf("delete department failed: %w", err)
 	}
-	if err := tx.Commit(); err != nil {
+	if err := mtx.Commit(); err != nil {
 		return fmt.Errorf("commit department transaction failed: %w", err)
 	}
 	return nil
@@ -437,6 +443,40 @@ func (s *DepartmentService) toDepartmentResponse(dept *ent.Department) *Departme
 	}
 }
 
-func rollbackUnlessCommitted(tx *ent.Tx) {
-	_ = tx.Rollback()
+// ManagedTx 包装 ent.Tx，跟踪事务提交状态，确保仅在未提交时执行回滚
+type ManagedTx struct {
+	tx        *ent.Tx
+	committed bool
+}
+
+// NewManagedTx 创建托管事务
+func NewManagedTx(tx *ent.Tx) *ManagedTx {
+	return &ManagedTx{tx: tx}
+}
+
+// Commit 提交事务并标记为已提交
+func (m *ManagedTx) Commit() error {
+	if m.committed {
+		return fmt.Errorf("transaction already committed")
+	}
+	if err := m.tx.Commit(); err != nil {
+		return err
+	}
+	m.committed = true
+	return nil
+}
+
+// RollbackIfNotCommitted 仅在事务未提交时执行回滚，并记录回滚错误（用于 defer）
+func (m *ManagedTx) RollbackIfNotCommitted() {
+	if m.committed {
+		return
+	}
+	if err := m.tx.Rollback(); err != nil {
+		log.Error("事务回滚失败", zap.Error(err))
+	}
+}
+
+// Tx 返回底层事务对象，供业务代码使用
+func (m *ManagedTx) Tx() *ent.Tx {
+	return m.tx
 }
