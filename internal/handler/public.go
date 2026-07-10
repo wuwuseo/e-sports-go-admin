@@ -61,6 +61,33 @@ type ChangePasswordRequest struct {
 	NewPassword string `json:"new_password" validate:"required,min=8"`
 }
 
+func decryptLoginCredentials(encryptedIdentity, encryptedPassword string, timestamp int64, nonce, keyID, identityField string) (string, string, error) {
+	if timestamp == 0 {
+		return "", "", fmt.Errorf("Missing timestamp")
+	}
+	if !crypto.ValidateTimestamp(timestamp, 5*time.Minute) {
+		return "", "", fmt.Errorf("Timestamp expired")
+	}
+	if nonce == "" {
+		return "", "", fmt.Errorf("Missing nonce")
+	}
+	if !crypto.GetNonceStore().Add(nonce) {
+		return "", "", fmt.Errorf("Nonce already used")
+	}
+	if keyID == "" {
+		return "", "", fmt.Errorf("Missing key_id")
+	}
+	identity, err := crypto.GetKeyManager().DecryptData(keyID, encryptedIdentity)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to decrypt %s: %w", identityField, err)
+	}
+	password, err := crypto.GetKeyManager().DecryptData(keyID, encryptedPassword)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to decrypt password: %w", err)
+	}
+	return identity, password, nil
+}
+
 // Login 用户登录
 // @Summary 用户登录
 // @Description 用户登录并获取访问令牌
@@ -86,42 +113,13 @@ func Login(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
 
-	// 如果使用了加密字段，必须提供时间戳和nonce防止重放攻击
 	if req.EncryptedEmail != "" && req.EncryptedPassword != "" {
-		// 验证时间戳（5分钟有效窗口）
-		if req.Timestamp == 0 {
-			return response.Fail(global.ResponseErrorCode, "Missing timestamp").ToJSON(c)
-		}
-		if !crypto.ValidateTimestamp(req.Timestamp, 5*time.Minute) {
-			return response.Fail(global.ResponseErrorCode, "Timestamp expired").ToJSON(c)
-		}
-
-		// 验证nonce
-		if req.Nonce == "" {
-			return response.Fail(global.ResponseErrorCode, "Missing nonce").ToJSON(c)
-		}
-		nonceStore := crypto.GetNonceStore()
-		if !nonceStore.Add(req.Nonce) {
-			return response.Fail(global.ResponseErrorCode, "Nonce already used").ToJSON(c)
-		}
-
-		// 验证密钥ID
-		if req.KeyID == "" {
-			return response.Fail(global.ResponseErrorCode, "Missing key_id").ToJSON(c)
-		}
-
-		// 使用密钥管理器解密数据
-		keyManager := crypto.GetKeyManager()
-		decryptedEmail, err := keyManager.DecryptData(req.KeyID, req.EncryptedEmail)
+		decryptedEmail, decryptedPassword, err := decryptLoginCredentials(
+			req.EncryptedEmail, req.EncryptedPassword, req.Timestamp, req.Nonce, req.KeyID, "email",
+		)
 		if err != nil {
-			return response.Fail(global.ResponseErrorCode, "Failed to decrypt email: "+err.Error()).ToJSON(c)
+			return response.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
-
-		decryptedPassword, err := keyManager.DecryptData(req.KeyID, req.EncryptedPassword)
-		if err != nil {
-			return response.Fail(global.ResponseErrorCode, "Failed to decrypt password: "+err.Error()).ToJSON(c)
-		}
-
 		req.Email = decryptedEmail
 		req.Password = decryptedPassword
 	}

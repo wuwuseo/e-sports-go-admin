@@ -1,14 +1,11 @@
 package handler
 
 import (
-	"time"
-
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/wuwuseo/cmf/crypto"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/validate"
 )
@@ -37,35 +34,11 @@ func AdminLogin(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "Invalid request body").ToJSON(c)
 	}
 	if req.EncryptedUsername != "" && req.EncryptedPassword != "" {
-
-		if req.Timestamp == 0 {
-			return response.Fail(global.ResponseErrorCode, "Missing timestamp").ToJSON(c)
-		}
-		if !crypto.ValidateTimestamp(req.Timestamp, 5*time.Minute) {
-			return response.Fail(global.ResponseErrorCode, "Timestamp expired").ToJSON(c)
-		}
-
-		if req.Nonce == "" {
-			return response.Fail(global.ResponseErrorCode, "Missing nonce").ToJSON(c)
-		}
-		nonceStore := crypto.GetNonceStore()
-		if !nonceStore.Add(req.Nonce) {
-			return response.Fail(global.ResponseErrorCode, "Nonce already used").ToJSON(c)
-		}
-
-		if req.KeyID == "" {
-			return response.Fail(global.ResponseErrorCode, "Missing key_id").ToJSON(c)
-		}
-
-		keyManager := crypto.GetKeyManager()
-		decryptedUsername, err := keyManager.DecryptData(req.KeyID, req.EncryptedUsername)
+		decryptedUsername, decryptedPassword, err := decryptLoginCredentials(
+			req.EncryptedUsername, req.EncryptedPassword, req.Timestamp, req.Nonce, req.KeyID, "username",
+		)
 		if err != nil {
-			return response.Fail(global.ResponseErrorCode, "Failed to decrypt username: "+err.Error()).ToJSON(c)
-		}
-
-		decryptedPassword, err := keyManager.DecryptData(req.KeyID, req.EncryptedPassword)
-		if err != nil {
-			return response.Fail(global.ResponseErrorCode, "Failed to decrypt password: "+err.Error()).ToJSON(c)
+			return response.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
 		req.Email = decryptedUsername
 		req.Password = decryptedPassword
