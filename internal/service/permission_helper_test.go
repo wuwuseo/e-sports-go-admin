@@ -452,4 +452,344 @@ func TestEnsureRoleManageableForAssignedAdmins_HolderOutOfScope(t *testing.T) {
 	}
 }
 
+func TestBuildPermissionLookup_BuildsKeyMap(t *testing.T) {
+	perms := []*PermissionResponse{
+		{Type: PermissionTypeAPI, Object: "/api/test", Action: "GET"},
+		{Type: PermissionTypeMenu, Object: "/menu/home", Action: "MENU"},
+	}
+	lookup := buildPermissionLookup(perms)
+
+	apiKey := permissionLookupKey("api", "/api/test", "GET")
+	menuKey := permissionLookupKey("menu", "/menu/home", "MENU")
+
+	if _, ok := lookup[apiKey]; !ok {
+		t.Errorf("期望 API 权限键存在")
+	}
+	if _, ok := lookup[menuKey]; !ok {
+		t.Errorf("期望 Menu 权限键存在")
+	}
+	if len(lookup) != 2 {
+		t.Errorf("期望 lookup 长度为 2，实际为 %d", len(lookup))
+	}
+}
+
+func TestBuildPermissionLookup_EmptyInputReturnsEmptyMap(t *testing.T) {
+	lookup := buildPermissionLookup(nil)
+	if len(lookup) != 0 {
+		t.Errorf("期望空输入返回空 map，实际长度为 %d", len(lookup))
+	}
+
+	lookup2 := buildPermissionLookup([]*PermissionResponse{})
+	if len(lookup2) != 0 {
+		t.Errorf("期望空切片返回空 map，实际长度为 %d", len(lookup2))
+	}
+}
+
+func TestMatchSystemPermission_API(t *testing.T) {
+	lookup := map[string]struct{}{
+		permissionLookupKey("api", "/api/users", "GET"): {},
+	}
+
+	p := &ent.SystemPermission{
+		Type:   "api",
+		Path:   "/api/users",
+		Method: "GET",
+	}
+
+	if !matchSystemPermission(p, lookup) {
+		t.Error("期望匹配 API 权限")
+	}
+
+	pNoMatch := &ent.SystemPermission{
+		Type:   "api",
+		Path:   "/api/other",
+		Method: "GET",
+	}
+	if matchSystemPermission(pNoMatch, lookup) {
+		t.Error("期望不匹配非目标 API 权限")
+	}
+}
+
+func TestMatchSystemPermission_Menu(t *testing.T) {
+	lookup := map[string]struct{}{
+		permissionLookupKey("menu", "/system/users", "MENU"): {},
+	}
+
+	p := &ent.SystemPermission{
+		Type:     "menu",
+		MenuPath: "/system/users",
+	}
+
+	if !matchSystemPermission(p, lookup) {
+		t.Error("期望匹配 Menu 权限")
+	}
+
+	pNoMatch := &ent.SystemPermission{
+		Type:     "menu",
+		MenuPath: "/system/roles",
+	}
+	if matchSystemPermission(pNoMatch, lookup) {
+		t.Error("期望不匹配非目标 Menu 权限")
+	}
+}
+
+func TestMatchSystemPermission_Button(t *testing.T) {
+	lookup := map[string]struct{}{
+		permissionLookupKey("button", "user:add", "button"): {},
+	}
+
+	p := &ent.SystemPermission{
+		Type: "button",
+		Code: "user:add",
+	}
+
+	if !matchSystemPermission(p, lookup) {
+		t.Error("期望匹配 Button 权限")
+	}
+
+	pNoMatch := &ent.SystemPermission{
+		Type: "button",
+		Code: "user:edit",
+	}
+	if matchSystemPermission(pNoMatch, lookup) {
+		t.Error("期望不匹配非目标 Button 权限")
+	}
+}
+
+func TestMatchSystemPermission_UnknownType(t *testing.T) {
+	lookup := map[string]struct{}{}
+	p := &ent.SystemPermission{
+		Type: "unknown",
+	}
+	if matchSystemPermission(p, lookup) {
+		t.Error("期望未知类型返回 false")
+	}
+}
+
+func TestPermissionLookupKey_Format(t *testing.T) {
+	key := permissionLookupKey("api", "/path", "GET")
+	expected := "api\x00/path\x00GET"
+	if key != expected {
+		t.Errorf("期望 key=%q，实际=%q", expected, key)
+	}
+}
+
+func TestBuildSystemPermissionTree_BasicTree(t *testing.T) {
+	permissions := []*ent.SystemPermission{
+		{ID: 1, Name: "Root", ParentID: 0},
+		{ID: 2, Name: "Child", ParentID: 1},
+		{ID: 3, Name: "Grandchild", ParentID: 2},
+	}
+	included := map[int]struct{}{1: {}, 2: {}, 3: {}}
+
+	tree := buildSystemPermissionTree(permissions, included)
+
+	if len(tree) != 1 {
+		t.Fatalf("期望根节点数量为 1，实际为 %d", len(tree))
+	}
+	if tree[0].Name != "Root" {
+		t.Errorf("期望根节点名称为 Root，实际为 %s", tree[0].Name)
+	}
+	if len(tree[0].Children) != 1 {
+		t.Fatalf("期望子节点数量为 1，实际为 %d", len(tree[0].Children))
+	}
+	if tree[0].Children[0].Name != "Child" {
+		t.Errorf("期望子节点名称为 Child，实际为 %s", tree[0].Children[0].Name)
+	}
+}
+
+func TestBuildSystemPermissionTree_FiltersIncluded(t *testing.T) {
+	permissions := []*ent.SystemPermission{
+		{ID: 1, Name: "Root", ParentID: 0},
+		{ID: 2, Name: "Child1", ParentID: 1},
+		{ID: 3, Name: "Child2", ParentID: 1},
+	}
+	included := map[int]struct{}{1: {}, 2: {}}
+
+	tree := buildSystemPermissionTree(permissions, included)
+
+	if len(tree) != 1 {
+		t.Fatalf("期望根节点数量为 1，实际为 %d", len(tree))
+	}
+	if len(tree[0].Children) != 1 {
+		t.Fatalf("期望子节点数量为 1（排除 Child2），实际为 %d", len(tree[0].Children))
+	}
+	if tree[0].Children[0].Name != "Child1" {
+		t.Errorf("期望子节点为 Child1，实际为 %s", tree[0].Children[0].Name)
+	}
+}
+
+func TestBuildSystemPermissionTree_MultipleRoots(t *testing.T) {
+	permissions := []*ent.SystemPermission{
+		{ID: 1, Name: "Root1", ParentID: 0},
+		{ID: 2, Name: "Root2", ParentID: 0},
+		{ID: 3, Name: "Child", ParentID: 1},
+	}
+	included := map[int]struct{}{1: {}, 2: {}, 3: {}}
+
+	tree := buildSystemPermissionTree(permissions, included)
+
+	if len(tree) != 2 {
+		t.Fatalf("期望根节点数量为 2，实际为 %d", len(tree))
+	}
+}
+
+func TestCheckUserHasRole_HasRole(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:check_role_test?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	ctx := t.Context()
+
+	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	r := client.Role.Create().SetName("test-role").SetDisplayName("Test Role").SetStatus(role.StatusActive).SaveX(ctx)
+	client.UserRole.Create().SetUser(u).SetRole(r).SaveX(ctx)
+
+	svc := &PermissionService{client: client}
+	has, err := svc.CheckUserHasRole(ctx, "user1", "default", "test-role")
+	if err != nil {
+		t.Fatalf("CheckUserHasRole failed: %v", err)
+	}
+	if !has {
+		t.Error("期望用户拥有角色")
+	}
+}
+
+func TestCheckUserHasRole_NoRole(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:check_role_no_test?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	ctx := t.Context()
+
+	client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+
+	svc := &PermissionService{client: client}
+	has, err := svc.CheckUserHasRole(ctx, "user1", "default", "test-role")
+	if err != nil {
+		t.Fatalf("CheckUserHasRole failed: %v", err)
+	}
+	if has {
+		t.Error("期望用户不拥有角色")
+	}
+}
+
+func TestCheckUserHasRole_UserNotFound(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:check_role_not_found?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	ctx := t.Context()
+
+	svc := &PermissionService{client: client}
+	has, err := svc.CheckUserHasRole(ctx, "unknown-user", "default", "test-role")
+	if err != nil {
+		t.Fatalf("CheckUserHasRole failed: %v", err)
+	}
+	if has {
+		t.Error("期望不存在的用户返回 false")
+	}
+}
+
+func TestGetUserRoleNames_AdminUser(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:get_role_admin?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	ctx := t.Context()
+
+	a := client.Admin.Create().SetUID("admin1").SetUsername("admin1").SetPassword("pwd").SetEmail("admin1@test.com").SaveX(ctx)
+	r := client.Role.Create().SetName("admin").SetDisplayName("Admin").SetStatus(role.StatusActive).SaveX(ctx)
+	client.AdminRole.Create().SetAdmin(a).SetRole(r).SaveX(ctx)
+
+	svc := &PermissionService{client: client}
+	roles, err := svc.getUserRoleNames(ctx, "admin1")
+	if err != nil {
+		t.Fatalf("getUserRoleNames failed: %v", err)
+	}
+	if len(roles) != 1 || roles[0] != "admin" {
+		t.Errorf("期望角色列表为 [admin]，实际为 %v", roles)
+	}
+}
+
+func TestGetUserRoleNames_RegularUser(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:get_role_user?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	ctx := t.Context()
+
+	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	r := client.Role.Create().SetName("user-role").SetDisplayName("User Role").SetStatus(role.StatusActive).SaveX(ctx)
+	client.UserRole.Create().SetUser(u).SetRole(r).SaveX(ctx)
+
+	svc := &PermissionService{client: client}
+	roles, err := svc.getUserRoleNames(ctx, "user1")
+	if err != nil {
+		t.Fatalf("getUserRoleNames failed: %v", err)
+	}
+	if len(roles) != 1 || roles[0] != "user-role" {
+		t.Errorf("期望角色列表为 [user-role]，实际为 %v", roles)
+	}
+}
+
+func TestGetUserRoleNames_NoRoles(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:get_role_no?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	ctx := t.Context()
+
+	client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+
+	svc := &PermissionService{client: client}
+	roles, err := svc.getUserRoleNames(ctx, "user1")
+	if err != nil {
+		t.Fatalf("getUserRoleNames failed: %v", err)
+	}
+	if len(roles) != 0 {
+		t.Errorf("期望角色列表为空，实际为 %v", roles)
+	}
+}
+
+func TestGetUserPermissionsByType_Basic(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:get_perm_by_type?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	t.Cleanup(func() { client.Close() })
+
+	ctx := t.Context()
+
+	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	r := client.Role.Create().SetName("role1").SetDisplayName("Role1").SetStatus(role.StatusActive).SaveX(ctx)
+	client.UserRole.Create().SetUser(u).SetRole(r).SaveX(ctx)
+
+	client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0("role1").
+		SetV1("default").
+		SetV2("/api/test").
+		SetV3("GET").
+		SetV4("api").
+		SaveX(ctx)
+
+	svc := &PermissionService{client: client}
+	perms, err := svc.getUserPermissionsByType(ctx, "user1", "default", "api")
+	if err != nil {
+		t.Fatalf("getUserPermissionsByType failed: %v", err)
+	}
+	if len(perms) != 1 {
+		t.Errorf("期望权限数量为 1，实际为 %d", len(perms))
+	}
+	if perms[0].Object != "/api/test" {
+		t.Errorf("期望权限对象为 /api/test，实际为 %s", perms[0].Object)
+	}
+}
+
 
