@@ -38,6 +38,21 @@ func createSystemPermission(t *testing.T, ctx context.Context, client *ent.Clien
 	return p
 }
 
+func TestGetEnabledSystemPermissionsFiltersRequestedType(t *testing.T) {
+	client := setupPermissionMenuSuperadminTest(t)
+	ctx := t.Context()
+	createSystemPermission(t, ctx, client, "菜单权限", "admin", string(PermissionTypeMenu), 1, false)
+	createSystemPermission(t, ctx, client, "按钮权限", "admin", string(PermissionTypeButton), 1, false)
+
+	permissions, err := getEnabledSystemPermissions(ctx, "", PermissionTypeMenu)
+	if err != nil {
+		t.Fatalf("getEnabledSystemPermissions() error = %v", err)
+	}
+	if len(permissions) != 1 || permissions[0].Type != PermissionTypeMenu {
+		t.Fatalf("permissions = %#v", permissions)
+	}
+}
+
 // ======================== getEnabledSystemMenuPermissions 测试 ========================
 
 func TestGetEnabledSystemMenuPermissions_Empty(t *testing.T) {
