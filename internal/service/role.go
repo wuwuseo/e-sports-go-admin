@@ -430,47 +430,15 @@ func (s *RoleService) Delete(ctx context.Context, op *EffectiveDataScope, id int
 
 // EnableRole 启用角色
 func (s *RoleService) Enable(ctx context.Context, op *EffectiveDataScope, id int) error {
-	r, err := s.Client.Role.Query().
-		Where(role.IDEQ(id)).
-		Only(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return ErrRoleNotFound
-		}
-		return fmt.Errorf("查询角色失败: %w", err)
-	}
-	if err := ensureRoleNotHeldByOperator(ctx, s.Client, op, id); err != nil {
-		return err
-	}
-
-	if r.IsSystem {
-		return fmt.Errorf("系统内置角色不允许修改状态")
-	}
-
-	if r.Status == role.StatusActive {
-		return nil
-	}
-	if err := ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds); err != nil {
-		return err
-	}
-	if err := ensureRoleManageableForAssignedAdmins(ctx, s.Client, s.deptSvc, op, r, "", nil, false); err != nil {
-		return err
-	}
-
-	_, err = s.Client.Role.UpdateOne(r).
-		SetStatus(role.StatusActive).
-		Save(ctx)
-	if err != nil {
-		return fmt.Errorf("启用角色失败: %w", err)
-	}
-
-	s.clearUserPermissionsByRoleID(ctx, id, "default")
-
-	return nil
+	return s.setStatus(ctx, op, id, role.StatusActive)
 }
 
 // DisableRole 禁用角色
 func (s *RoleService) Disable(ctx context.Context, op *EffectiveDataScope, id int) error {
+	return s.setStatus(ctx, op, id, role.StatusInactive)
+}
+
+func (s *RoleService) setStatus(ctx context.Context, op *EffectiveDataScope, id int, target role.Status) error {
 	r, err := s.Client.Role.Query().
 		Where(role.IDEQ(id)).
 		Only(ctx)
@@ -488,7 +456,7 @@ func (s *RoleService) Disable(ctx context.Context, op *EffectiveDataScope, id in
 		return fmt.Errorf("系统内置角色不允许修改状态")
 	}
 
-	if r.Status == role.StatusInactive {
+	if r.Status == target {
 		return nil
 	}
 	if err := ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds); err != nil {
@@ -498,11 +466,12 @@ func (s *RoleService) Disable(ctx context.Context, op *EffectiveDataScope, id in
 		return err
 	}
 
-	_, err = s.Client.Role.UpdateOne(r).
-		SetStatus(role.StatusInactive).
-		Save(ctx)
-	if err != nil {
-		return fmt.Errorf("禁用角色失败: %w", err)
+	action := "启用"
+	if target == role.StatusInactive {
+		action = "禁用"
+	}
+	if _, err := s.Client.Role.UpdateOne(r).SetStatus(target).Save(ctx); err != nil {
+		return fmt.Errorf("%s角色失败: %w", action, err)
 	}
 
 	s.clearUserPermissionsByRoleID(ctx, id, "default")

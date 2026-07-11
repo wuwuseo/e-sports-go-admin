@@ -921,6 +921,22 @@ func TestRoleService_Delete_RejectsOutOfScopeAssignedAdmin(t *testing.T) {
 	}
 }
 
+func TestRoleServiceSetStatusUsesTargetStatus(t *testing.T) {
+	client := setupTestClient(t)
+	svc := NewRoleService(nil)
+	r := client.Role.Create().
+		SetName("set_status").
+		SetDisplayName("set status").
+		SetStatus(role.StatusInactive).
+		SaveX(t.Context())
+	if err := svc.setStatus(t.Context(), nil, r.ID, role.StatusActive); err != nil {
+		t.Fatalf("setStatus() error = %v", err)
+	}
+	if got := client.Role.GetX(t.Context(), r.ID).Status; got != role.StatusActive {
+		t.Fatalf("status = %s", got)
+	}
+}
+
 func TestRoleService_Enable_Success(t *testing.T) {
 	client := setupTestClient(t)
 	ctx := t.Context()
