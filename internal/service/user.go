@@ -272,59 +272,22 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 	if !match {
 		return nil, ErrInvalidPassword
 	}
-	config, _ := global.Bootstrap.GetService("config")
-	// 生成JWT token
-	expiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.LoginExpires) * time.Second)
-	// 默认域 公司代码或者部门代码
-	domain := "default"
-
-	// 生成访问令牌
-	accessClaims := jwt.MapClaims{
-		"id":         u.UID,
-		"subject":    u.Username,
-		"issuer":     config.(*cmfConfig.Config).App.Name,
-		"domain":     domain,
-		"expires":    jwt.NewNumericDate(expiresAt),
-		"issued_at":  jwt.NewNumericDate(time.Now()),
-		"token_type": "access",
-	}
-
-	accessToken, err := cmfJwt.CreateToken(accessClaims, config.(*cmfConfig.Config).App.Secret)
+	configService, _ := global.Bootstrap.GetService("config")
+	config := configService.(*cmfConfig.Config)
+	tokens, err := createTokenPair(
+		u.UID, u.Username, config.App.Name, config.App.Secret,
+		time.Duration(config.App.LoginExpires)*time.Second,
+		time.Duration(config.App.RefreshExpires)*time.Second,
+		time.Now,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	// 生成刷新令牌 - 有效期更长
-	refreshExpiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.RefreshExpires) * time.Second)
-	refreshClaims := jwt.MapClaims{
-		"id":         u.UID,
-		"subject":    u.Username,
-		"issuer":     config.(*cmfConfig.Config).App.Name,
-		"domain":     domain,
-		"expires":    jwt.NewNumericDate(refreshExpiresAt),
-		"issued_at":  jwt.NewNumericDate(time.Now()),
-		"token_type": "refresh",
-	}
-
-	refreshToken, err := cmfJwt.CreateToken(refreshClaims, config.(*cmfConfig.Config).App.Secret)
-	if err != nil {
+	if _, err = s.client.User.UpdateOne(u).SetLastLogin(time.Now()).Save(ctx); err != nil {
 		return nil, err
 	}
-
-	// 更新最后登录时间和IP
-	_, err = s.client.User.UpdateOne(u).
-		SetLastLogin(time.Now()).
-		Save(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &TokenResponse{
-		AccessToken:  accessToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int64(config.(*cmfConfig.Config).App.LoginExpires), // 24小时
-		RefreshToken: refreshToken,
-	}, nil
+	return tokens, nil
 }
 
 // GetUserByID 根据ID获取用户信息

@@ -98,45 +98,17 @@ func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*Toke
 
 	cfg, _ := global.Bootstrap.GetService("config")
 	config := cfg.(*cmfConfig.Config)
-
-	accessExpiresAt := time.Now().Add(time.Duration(config.App.AdminLoginExpires) * time.Second)
-	domain := "default"
-
-	accessClaims := jwt.MapClaims{
-		"id":         a.UID,
-		"subject":    a.Username,
-		"issuer":     config.App.Name,
-		"domain":     domain,
-		"expires":    jwt.NewNumericDate(accessExpiresAt),
-		"issued_at":  jwt.NewNumericDate(time.Now()),
-		"token_type": "access",
-	}
-
-	accessToken, err := cmfJwt.CreateToken(accessClaims, config.App.AdminSecret)
+	tokens, err := createTokenPair(
+		a.UID, a.Username, config.App.Name, config.App.AdminSecret,
+		time.Duration(config.App.AdminLoginExpires)*time.Second,
+		time.Duration(config.App.AdminRefreshExpires)*time.Second,
+		time.Now,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshExpiresAt := time.Now().Add(time.Duration(config.App.AdminRefreshExpires) * time.Second)
-	refreshClaims := jwt.MapClaims{
-		"id":         a.UID,
-		"subject":    a.Username,
-		"issuer":     config.App.Name,
-		"domain":     domain,
-		"expires":    jwt.NewNumericDate(refreshExpiresAt),
-		"issued_at":  jwt.NewNumericDate(time.Now()),
-		"token_type": "refresh",
-	}
-
-	refreshToken, err := cmfJwt.CreateToken(refreshClaims, config.App.AdminSecret)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = s.client.Admin.UpdateOne(a).
-		SetLastLogin(time.Now()).
-		Save(ctx)
-	if err != nil {
+	if _, err = s.client.Admin.UpdateOne(a).SetLastLogin(time.Now()).Save(ctx); err != nil {
 		return nil, err
 	}
 
@@ -145,12 +117,7 @@ func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*Toke
 		_ = s.blacklistSvc.ClearLogout(ctx, a.UID)
 	}
 
-	return &TokenResponse{
-		AccessToken:  accessToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int64(config.App.AdminLoginExpires),
-		RefreshToken: refreshToken,
-	}, nil
+	return tokens, nil
 }
 
 // RefreshToken 刷新管理员令牌

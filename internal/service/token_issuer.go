@@ -14,6 +14,29 @@ import (
 	cmfJwt "github.com/wuwuseo/cmf/jwt"
 )
 
+func createTokenPair(id, subject, issuer, secret string, accessTTL, refreshTTL time.Duration, now func() time.Time) (*TokenResponse, error) {
+	create := func(tokenType string, ttl time.Duration) (string, error) {
+		expiresAt := now().Add(ttl)
+		issuedAt := now()
+		return cmfJwt.CreateToken(jwt.MapClaims{
+			"id": id, "subject": subject, "issuer": issuer, "domain": "default",
+			"expires": jwt.NewNumericDate(expiresAt), "issued_at": jwt.NewNumericDate(issuedAt), "token_type": tokenType,
+		}, secret)
+	}
+	accessToken, err := create("access", accessTTL)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := create("refresh", refreshTTL)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenResponse{
+		AccessToken: accessToken, TokenType: "Bearer",
+		ExpiresIn: int64(accessTTL / time.Second), RefreshToken: refreshToken,
+	}, nil
+}
+
 func issueUserToken(ctx context.Context, client *ent.Client, uid string, now time.Time) (*TokenResponse, error) {
 	u, err := client.User.Query().Where(user.UIDEQ(uid)).Only(ctx)
 	if err != nil {
@@ -27,26 +50,19 @@ func issueUserToken(ctx context.Context, client *ent.Client, uid string, now tim
 	}
 	configService, _ := global.Bootstrap.GetService("config")
 	config := configService.(*cmfConfig.Config)
-	accessExpiresAt := now.Add(time.Duration(config.App.LoginExpires) * time.Second)
-	refreshExpiresAt := now.Add(time.Duration(config.App.RefreshExpires) * time.Second)
-	accessToken, err := cmfJwt.CreateToken(jwt.MapClaims{
-		"id": u.UID, "subject": u.Username, "issuer": config.App.Name, "domain": "default",
-		"expires": jwt.NewNumericDate(accessExpiresAt), "issued_at": jwt.NewNumericDate(now), "token_type": "access",
-	}, config.App.Secret)
-	if err != nil {
-		return nil, err
-	}
-	refreshToken, err := cmfJwt.CreateToken(jwt.MapClaims{
-		"id": u.UID, "subject": u.Username, "issuer": config.App.Name, "domain": "default",
-		"expires": jwt.NewNumericDate(refreshExpiresAt), "issued_at": jwt.NewNumericDate(now), "token_type": "refresh",
-	}, config.App.Secret)
+	tokens, err := createTokenPair(
+		u.UID, u.Username, config.App.Name, config.App.Secret,
+		time.Duration(config.App.LoginExpires)*time.Second,
+		time.Duration(config.App.RefreshExpires)*time.Second,
+		func() time.Time { return now },
+	)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := client.User.UpdateOne(u).SetLastLogin(now).Save(ctx); err != nil {
 		return nil, err
 	}
-	return &TokenResponse{AccessToken: accessToken, TokenType: "Bearer", ExpiresIn: int64(config.App.LoginExpires), RefreshToken: refreshToken}, nil
+	return tokens, nil
 }
 
 func issueAdminToken(ctx context.Context, client *ent.Client, uid string, now time.Time) (*TokenResponse, error) {
@@ -62,24 +78,17 @@ func issueAdminToken(ctx context.Context, client *ent.Client, uid string, now ti
 	}
 	configService, _ := global.Bootstrap.GetService("config")
 	config := configService.(*cmfConfig.Config)
-	accessExpiresAt := now.Add(time.Duration(config.App.AdminLoginExpires) * time.Second)
-	refreshExpiresAt := now.Add(time.Duration(config.App.AdminRefreshExpires) * time.Second)
-	accessToken, err := cmfJwt.CreateToken(jwt.MapClaims{
-		"id": a.UID, "subject": a.Username, "issuer": config.App.Name, "domain": "default",
-		"expires": jwt.NewNumericDate(accessExpiresAt), "issued_at": jwt.NewNumericDate(now), "token_type": "access",
-	}, config.App.AdminSecret)
-	if err != nil {
-		return nil, err
-	}
-	refreshToken, err := cmfJwt.CreateToken(jwt.MapClaims{
-		"id": a.UID, "subject": a.Username, "issuer": config.App.Name, "domain": "default",
-		"expires": jwt.NewNumericDate(refreshExpiresAt), "issued_at": jwt.NewNumericDate(now), "token_type": "refresh",
-	}, config.App.AdminSecret)
+	tokens, err := createTokenPair(
+		a.UID, a.Username, config.App.Name, config.App.AdminSecret,
+		time.Duration(config.App.AdminLoginExpires)*time.Second,
+		time.Duration(config.App.AdminRefreshExpires)*time.Second,
+		func() time.Time { return now },
+	)
 	if err != nil {
 		return nil, err
 	}
 	if _, err := client.Admin.UpdateOne(a).SetLastLogin(now).Save(ctx); err != nil {
 		return nil, err
 	}
-	return &TokenResponse{AccessToken: accessToken, TokenType: "Bearer", ExpiresIn: int64(config.App.AdminLoginExpires), RefreshToken: refreshToken}, nil
+	return tokens, nil
 }
