@@ -174,10 +174,10 @@ func initCasbin(config *config.Config) error {
 
 // knownWeakSecrets 记录已知的弱默认密钥，启动时检测并替换
 var knownWeakSecrets = map[string]bool{
-	"":                  true,
-	"secret":            true,
-	"admin-secret-key":  true,
-	"admin-secret":      true,
+	"":                 true,
+	"secret":           true,
+	"admin-secret-key": true,
+	"admin-secret":     true,
 }
 
 // generateRandomSecret 生成指定字节长度的随机十六进制密钥
@@ -456,104 +456,60 @@ func initSeedData() error {
 func initDictSeedData() error {
 	ctx := context.Background()
 	client := global.ORM
-
 	appInstance.Logger.Info("initializing dict seed data...")
-
-	// 操作日志模块字典
-	operLogModules := []struct {
-		label string
-		value string
-		sort  int
+	items := []struct {
+		dictType string
+		label    string
+		value    string
+		sort     int
 	}{
-		{"认证", "auth", 1},
-		{"用户", "user", 2},
-		{"角色", "role", 3},
-		{"权限", "permission", 4},
-		{"附件", "attachment", 5},
-		{"定时任务", "cron", 6},
-		{"系统", "system", 7},
+		{"sys_oper_log_module", "认证", "auth", 1},
+		{"sys_oper_log_module", "用户", "user", 2},
+		{"sys_oper_log_module", "角色", "role", 3},
+		{"sys_oper_log_module", "权限", "permission", 4},
+		{"sys_oper_log_module", "附件", "attachment", 5},
+		{"sys_oper_log_module", "定时任务", "cron", 6},
+		{"sys_oper_log_module", "系统", "system", 7},
+		{"sys_config_group", "基本配置", "basic", 1},
+		{"sys_config_group", "附件配置", "attachment", 2},
 	}
-
-	for _, m := range operLogModules {
+	for _, item := range items {
+		subject := item.value
+		if item.dictType == "sys_config_group" {
+			subject = "config group " + subject
+		}
 		exists, err := client.DictData.Query().
 			Where(
-				dictdata.DictTypeEQ("sys_oper_log_module"),
-				dictdata.ValueEQ(m.value),
+				dictdata.DictTypeEQ(item.dictType),
+				dictdata.ValueEQ(item.value),
 			).
 			Exist(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to query dict data for %s: %w", m.value, err)
+			return fmt.Errorf("failed to query dict data for %s: %w", subject, err)
 		}
-		if !exists {
-			_, err := client.DictData.Create().
-				SetLabel(m.label).
-				SetValue(m.value).
-				SetDictType("sys_oper_log_module").
-				SetSort(m.sort).
-				SetStatus(1).
-				SetIsDefault(false).
-				Save(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to create dict data for %s: %w", m.value, err)
-			}
-			appInstance.Logger.Info("dict data created",
-				zap.String("dict_type", "sys_oper_log_module"),
-				zap.String("label", m.label),
-				zap.String("value", m.value),
-			)
-		} else {
+		if exists {
 			appInstance.Logger.Warn("dict data already exists, skipping",
-				zap.String("dict_type", "sys_oper_log_module"),
-				zap.String("value", m.value),
+				zap.String("dict_type", item.dictType),
+				zap.String("value", item.value),
 			)
+			continue
 		}
-	}
-
-	// 系统配置分组字典
-	configGroups := []struct {
-		label string
-		value string
-		sort  int
-	}{
-		{"基本配置", "basic", 1},
-		{"附件配置", "attachment", 2},
-	}
-
-	for _, cg := range configGroups {
-		exists, err := client.DictData.Query().
-			Where(
-				dictdata.DictTypeEQ("sys_config_group"),
-				dictdata.ValueEQ(cg.value),
-			).
-			Exist(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to query dict data for config group %s: %w", cg.value, err)
+		if _, err := client.DictData.Create().
+			SetLabel(item.label).
+			SetValue(item.value).
+			SetDictType(item.dictType).
+			SetSort(item.sort).
+			SetStatus(1).
+			SetIsDefault(false).
+			Save(ctx); err != nil {
+			return fmt.Errorf("failed to create dict data for %s: %w", subject, err)
 		}
-		if !exists {
-			_, err := client.DictData.Create().
-				SetLabel(cg.label).
-				SetValue(cg.value).
-				SetDictType("sys_config_group").
-				SetSort(cg.sort).
-				SetStatus(1).
-				SetIsDefault(false).
-				Save(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to create dict data for config group %s: %w", cg.value, err)
-			}
-			appInstance.Logger.Info("dict data created",
-				zap.String("dict_type", "sys_config_group"),
-				zap.String("label", cg.label),
-				zap.String("value", cg.value),
-			)
-		} else {
-			appInstance.Logger.Warn("dict data already exists, skipping",
-				zap.String("dict_type", "sys_config_group"),
-				zap.String("value", cg.value),
-			)
-		}
+		appInstance.Logger.Info("dict data created",
+			zap.String("dict_type", item.dictType),
+			zap.String("label", item.label),
+			zap.String("value", item.value),
+		)
 	}
-
 	appInstance.Logger.Info("dict seed data initialization completed")
 	return nil
 }

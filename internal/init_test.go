@@ -11,6 +11,7 @@ import (
 	appcaptcha "go-admin/internal/captcha"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
@@ -72,6 +73,30 @@ func setupInitTest(t *testing.T) *ent.Client {
 	})
 
 	return client
+}
+
+func TestInitDictSeedDataCreatesBothGroupsIdempotently(t *testing.T) {
+	client := setupInitTest(t)
+	for range 2 {
+		if err := initDictSeedData(); err != nil {
+			t.Fatalf("initDictSeedData() error = %v", err)
+		}
+	}
+	for _, tt := range []struct {
+		dictType string
+		want     int
+	}{
+		{dictType: "sys_oper_log_module", want: 7},
+		{dictType: "sys_config_group", want: 2},
+	} {
+		count, err := client.DictData.Query().Where(dictdata.DictTypeEQ(tt.dictType)).Count(t.Context())
+		if err != nil {
+			t.Fatalf("count %s: %v", tt.dictType, err)
+		}
+		if count != tt.want {
+			t.Fatalf("count %s = %d, want %d", tt.dictType, count, tt.want)
+		}
+	}
 }
 
 func createInitSystemPermission(t *testing.T, client *ent.Client, typ, name, code string, parentID int, object, action, description string) *ent.SystemPermission {
