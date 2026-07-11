@@ -250,10 +250,7 @@ func (s *SettingsService) prepareProviderConfig(
 	}
 	secretField := providerSecretField(name)
 	delete(publicConfig, secretField)
-	merged := make(map[string]any, len(publicConfig)+1)
-	for key, value := range publicConfig {
-		merged[key] = value
-	}
+	merged := cloneConfig(publicConfig)
 	existingSecret, err := s.existingSecret(ctx, name, secretField)
 	if err != nil {
 		return nil, nil, nil, "", err

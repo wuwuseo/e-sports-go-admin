@@ -56,14 +56,12 @@ func NewRuntime(
 	if err != nil {
 		return nil, err
 	}
-	repository := NewSystemConfigRepository(client)
 	var secrets *secureconfig.Manager
 	if lookup != nil && strings.TrimSpace(lookup(secureconfig.ActiveVersionEnv)) != "" {
-		keyring, err := secureconfig.NewKeyringFromLookup(lookup)
+		secrets, err = NewSecretManager(client, lookup)
 		if err != nil {
 			return nil, fmt.Errorf("configure captcha master key: %w", err)
 		}
-		secrets = secureconfig.NewManager(repository, secureconfig.NewAESGCMCipher(keyring))
 	}
 	sources := NewDynamicSources(client, secrets)
 	return &Runtime{
