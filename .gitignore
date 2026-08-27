@@ -26,3 +26,11 @@ go.work.sum
 go.work.local
 /Backup
 /*.sum
+
+# 测试覆盖率与运行时产物
+/coverage
+/coverage_gap
+/handler_coverage
+/middleware_gap
+*.out
+internal/utils/data/
