@@ -188,7 +188,13 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	}, middleware.BlacklistCheck(blacklistService, "admin"), middleware.PermissionMiddleware(), handler.ProxyPlugin}
 	pluginProxy.All("/:plugin_id/admin/auth", pluginProxyAuth[0], pluginProxyAuth[1:]...)
 	pluginProxy.All("/:plugin_id/admin/auth/*", pluginProxyAuth[0], pluginProxyAuth[1:]...)
-	pluginProxy.All("/:plugin_id/*", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), middleware.BlacklistCheck(blacklistService, "admin"), handler.ProxyPlugin)
+	// 安全基线：通配代理路由与 /admin/auth 子路由使用同一套鉴权链，
+	// 缺少 PermissionMiddleware 会让任意已认证低权限管理员绕过 RBAC 访问插件接口。
+	// 注意：此路由不设置 plugin.proxy_path_prefix，避免给任意子路径错误拼上 /admin/auth 前缀。
+	pluginProxy.All("/:plugin_id/*", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
+		c.Locals("service.PermissionService", permissionService)
+		return c.Next()
+	}, middleware.BlacklistCheck(blacklistService, "admin"), middleware.PermissionMiddleware(), handler.ProxyPlugin)
 
 	// 需要认证的接口
 	adminAuthBase := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {

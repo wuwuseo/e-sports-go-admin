@@ -206,16 +206,17 @@ func ensureAppSecrets(config *config.Config) {
 }
 
 // initialAdminPassword 读取初始管理员密码：优先从环境变量 ADMIN_INITIAL_PASSWORD 获取，
-// 未设置时生成随机密码并输出到日志（一次性），避免使用硬编码弱密码
+// 未设置时生成随机密码并仅在标准输出一次性展示（不写入日志文件），避免使用硬编码弱密码
 func initialAdminPassword() string {
 	if pwd := os.Getenv("ADMIN_INITIAL_PASSWORD"); pwd != "" {
 		return pwd
 	}
 	pwd := generateRandomSecret(12)
-	appInstance.Logger.Warn("ADMIN_INITIAL_PASSWORD 环境变量未设置，已生成随机初始管理员密码",
+	// 安全基线：日志文件保留 180 天，明文密码一旦落盘即等同超级管理员凭证泄露，
+	// 因此初始密码只允许走标准输出，绝不进入 Logger 管道。
+	fmt.Fprintf(os.Stdout, "[初始管理员] username=admin password=%s （仅此一次输出到控制台，请立即保存并登录后修改）\n", pwd)
+	appInstance.Logger.Warn("ADMIN_INITIAL_PASSWORD 环境变量未设置，已生成随机初始管理员密码并输出到控制台（未写入日志），请登录后立即修改",
 		zap.String("username", "admin"),
-		zap.String("password", pwd),
-		zap.String("advice", "请妥善保存此密码并登录后立即修改"),
 	)
 	return pwd
 }

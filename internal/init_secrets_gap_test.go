@@ -7,6 +7,7 @@ import (
 
 	"github.com/wuwuseo/cmf/config"
 	cmflog "github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
 )
 
 // ============================================================================
@@ -204,6 +205,59 @@ func TestEnsureAppSecrets_BlacklistedSubstringsNotMisclassified(t *testing.T) {
 // ---------------------------------------------------------------------------
 // initialAdminPassword：环境变量优先于随机生成
 // ---------------------------------------------------------------------------
+
+// recordingLogger 记录所有日志调用的消息与字段，用于断言敏感值未进入日志管道。
+// 历史缺陷（VULN-H-001）将明文初始密码作为 zap.String("password", ...) 写入 Logger，
+// 日志文件保留 180 天，任何读到日志的主体即可直接接管超级管理员账户。
+type recordingLogger struct {
+	entries []string
+}
+
+func (l *recordingLogger) record(msg string, fields []zap.Field) {
+	entry := msg
+	for _, f := range fields {
+		// zap.Field.String 对 String 字段返回原始值，可捕获密码泄露
+		entry += " " + f.Key + "=" + f.String
+	}
+	l.entries = append(l.entries, entry)
+}
+
+func (l *recordingLogger) Debug(msg string, fields ...zap.Field) { l.record(msg, fields) }
+func (l *recordingLogger) Info(msg string, fields ...zap.Field)  { l.record(msg, fields) }
+func (l *recordingLogger) Warn(msg string, fields ...zap.Field)  { l.record(msg, fields) }
+func (l *recordingLogger) Error(msg string, fields ...zap.Field) { l.record(msg, fields) }
+func (l *recordingLogger) Fatal(msg string, fields ...zap.Field) { l.record(msg, fields) }
+func (l *recordingLogger) With(fields ...zap.Field) cmflog.Logger { return l }
+func (l *recordingLogger) Sync() error                            { return nil }
+
+// TestInitialAdminPassword_NotPersistedToLog 安全回归：随机生成的初始密码
+// 绝不允许出现在任何日志输出中（含消息体与结构化字段）。
+func TestInitialAdminPassword_NotPersistedToLog(t *testing.T) {
+	setupSecretsTest(t)
+	recorder := &recordingLogger{}
+	appInstance.Logger = recorder
+
+	prev, wasSet := os.LookupEnv("ADMIN_INITIAL_PASSWORD")
+	os.Unsetenv("ADMIN_INITIAL_PASSWORD")
+	t.Cleanup(func() {
+		if wasSet {
+			os.Setenv("ADMIN_INITIAL_PASSWORD", prev)
+		}
+	})
+
+	pwd := initialAdminPassword()
+	if pwd == "" {
+		t.Fatal("未设置环境变量时应生成非空随机密码")
+	}
+	if len(recorder.entries) == 0 {
+		t.Fatal("应至少记录一条不含密码的告警日志")
+	}
+	for _, entry := range recorder.entries {
+		if strings.Contains(entry, pwd) {
+			t.Fatalf("初始密码泄露到日志管道: %q", entry)
+		}
+	}
+}
 
 // TestInitialAdminPassword_RespectsEnvVar 验证设置了 ADMIN_INITIAL_PASSWORD
 // 时，优先使用该值（不再生成随机密码写入日志）。
