@@ -72,3 +72,20 @@ func mustKeyringFromLookup(t *testing.T, lookup func(string) string) *secureconf
 	}
 	return keyring
 }
+
+func TestNewSecretManager_NilClient(t *testing.T) {
+	lookup := func(name string) string { return "" }
+	_, err := NewSecretManager(nil, lookup)
+	if err == nil {
+		t.Fatal("期望 nil client 返回错误，但未返回")
+	}
+}
+
+func TestNewSecretManager_EmptyLookup(t *testing.T) {
+	client := openCaptchaTestClient(t)
+	lookup := func(name string) string { return "" }
+	_, err := NewSecretManager(client, lookup)
+	if err == nil {
+		t.Fatal("期望空 lookup 返回错误，但未返回")
+	}
+}

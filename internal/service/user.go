@@ -7,7 +7,14 @@ import (
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/blacklist"
+	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/message"
+	"go-admin/internal/ent/messagepreference"
+	"go-admin/internal/ent/oauthsession"
+	"go-admin/internal/ent/thirdpartyuser"
 	"go-admin/internal/ent/user"
+	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
 
@@ -25,6 +32,7 @@ var (
 	ErrEmailExists       = errors.New("email already exists")
 	ErrUsernameExists    = errors.New("username already exists")
 	ErrInvalidUserStatus = errors.New("user is not active")
+	ErrCannotDeleteSelf  = errors.New("不能删除自己的账号")
 )
 
 // UserServiceInterface 定义用户服务接口
@@ -36,6 +44,8 @@ type UserServiceInterface interface {
 	ChangePassword(ctx context.Context, uid string, oldPassword, newPassword string) error
 	Logout(ctx context.Context, uid string) error
 	CreateUser(ctx context.Context, req *CreateUserRequest) (*UserResponse, error)
+	UpdateManagedUser(ctx context.Context, id int, req *UpdateManagedUserRequest) error
+	DeleteManagedUser(ctx context.Context, id int, operatorUID string) error
 }
 
 type UserService struct {
@@ -74,6 +84,16 @@ type CreateUserRequest struct {
 	Phone         string `json:"phone"`
 	RoleIDs       []int  `json:"role_ids"`
 	PrimaryRoleID int    `json:"primary_role_id"`
+}
+
+// UpdateManagedUserRequest is the editable subset exposed by user management.
+type UpdateManagedUserRequest struct {
+	Email    *string `json:"email" validate:"omitempty,email"`
+	Username *string `json:"username" validate:"omitempty,min=3"`
+	Nickname *string `json:"nickname" validate:"omitempty,max=255"`
+	Phone    *string `json:"phone" validate:"omitempty,numeric"`
+	Avatar   *string `json:"avatar" validate:"omitempty,max=1024"`
+	Password *string `json:"password" validate:"omitempty,min=8"`
 }
 
 // LoginRequest 用户登录请求
@@ -432,7 +452,10 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 
 	// 生成新的访问令牌
 	expiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.LoginExpires) * time.Second)
-	domain := claims["domain"].(string)
+	domain, err := permissionDomainFromClaims(claims)
+	if err != nil {
+		return nil, err
+	}
 
 	accessClaims := jwt.MapClaims{
 		"id":         u.UID,
@@ -497,4 +520,144 @@ func (s *UserService) ChangePassword(ctx context.Context, uid string, oldPasswor
 		Save(ctx)
 
 	return err
+}
+
+// UpdateManagedUser updates a user selected by its numeric management ID.
+func (s *UserService) UpdateManagedUser(ctx context.Context, id int, req *UpdateManagedUserRequest) error {
+	u, err := s.client.User.Query().Where(user.IDEQ(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	if req.Email != nil && *req.Email != u.Email {
+		exists, err := s.client.User.Query().
+			Where(user.EmailEQ(*req.Email), user.IDNEQ(id)).
+			Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return ErrEmailExists
+		}
+	}
+	if req.Username != nil && *req.Username != u.Username {
+		exists, err := s.client.User.Query().
+			Where(user.UsernameEQ(*req.Username), user.IDNEQ(id)).
+			Exist(ctx)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return ErrUsernameExists
+		}
+	}
+
+	update := s.client.User.UpdateOne(u)
+	if req.Email != nil {
+		update.SetEmail(*req.Email)
+	}
+	if req.Username != nil {
+		update.SetUsername(*req.Username)
+	}
+	if req.Nickname != nil {
+		update.SetNickname(*req.Nickname)
+	}
+	if req.Phone != nil {
+		update.SetPhone(*req.Phone)
+	}
+	if req.Avatar != nil {
+		update.SetAvatar(*req.Avatar)
+	}
+	if req.Password != nil && *req.Password != "" {
+		if err := utils.ValidatePasswordStrength(*req.Password); err != nil {
+			return err
+		}
+		hash, salt, err := crypto.HashPassword(*req.Password)
+		if err != nil {
+			return err
+		}
+		update.SetPassword(hash).SetPasswordSalt(salt)
+	}
+
+	_, err = update.Save(ctx)
+	return err
+}
+
+// DeleteManagedUser removes a user and data owned only by that account.
+func (s *UserService) DeleteManagedUser(ctx context.Context, id int, operatorUID string) error {
+	u, err := s.client.User.Query().Where(user.IDEQ(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	if u.UID == operatorUID {
+		return ErrCannotDeleteSelf
+	}
+
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	mtx := NewManagedTx(tx)
+	defer mtx.RollbackIfNotCommitted()
+
+	deletes := []func() error{
+		func() error { _, err := tx.UserRole.Delete().Where(userrole.UserIDEQ(id)).Exec(ctx); return err },
+		func() error { _, err := tx.Blacklist.Delete().Where(blacklist.UserIDEQ(id)).Exec(ctx); return err },
+		func() error {
+			_, err := tx.ThirdPartyUser.Delete().Where(thirdpartyuser.UserIDEQ(id)).Exec(ctx)
+			return err
+		},
+		func() error { _, err := tx.Message.Delete().Where(message.UserUIDEQ(u.UID)).Exec(ctx); return err },
+		func() error {
+			_, err := tx.MessagePreference.Delete().Where(messagepreference.UserUIDEQ(u.UID)).Exec(ctx)
+			return err
+		},
+		func() error {
+			_, err := tx.OAuthSession.Delete().Where(
+				oauthsession.Or(oauthsession.SubjectUIDEQ(u.UID), oauthsession.LoginSubjectUIDEQ(u.UID)),
+			).Exec(ctx)
+			return err
+		},
+		func() error {
+			_, err := tx.CasbinRule.Delete().Where(casbinrule.PtypeEQ("g"), casbinrule.V0EQ(u.UID)).Exec(ctx)
+			return err
+		},
+		func() error { return tx.User.DeleteOneID(id).Exec(ctx) },
+	}
+	for _, remove := range deletes {
+		if err := remove(); err != nil {
+			return err
+		}
+	}
+	if err := mtx.Commit(); err != nil {
+		return err
+	}
+
+	if global.EnforcerManager != nil {
+		domain := configuredPermissionDomain()
+		if enforcer, err := global.EnforcerManager.GetEnforcer(domain); err == nil {
+			_, _ = enforcer.DeleteRolesForUserInDomain(u.UID, domain)
+		}
+	}
+	if s.cache != nil {
+		domain := configuredPermissionDomain()
+		for _, key := range []string{
+			fmt.Sprintf("user_roles:%d", id),
+			fmt.Sprintf("user:menu:%s:%s", u.UID, domain),
+			fmt.Sprintf("user:button:%s:%s", u.UID, domain),
+			fmt.Sprintf("user:api:%s:%s", u.UID, domain),
+		} {
+			_ = s.cache.Delete(ctx, key)
+		}
+		_ = s.Logout(ctx, u.UID)
+	}
+
+	return nil
 }

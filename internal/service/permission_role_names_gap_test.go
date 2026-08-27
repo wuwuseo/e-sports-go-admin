@@ -83,14 +83,13 @@ func TestGetEffectivePermissionRoleNames_NoGroupingRulesFallsBackToUserRoleNames
 	}
 }
 
-func TestGetEffectivePermissionRoleNames_GroupingRuleIsPreferredOverAdminRole(t *testing.T) {
+func TestGetEffectivePermissionRoleNames_DatabaseAssignmentOverridesStaleGroupingRule(t *testing.T) {
 	client := setupEffectiveRoleNamesTestClient(t)
 	ctx := t.Context()
 	svc := &PermissionService{client: client}
 
-	// 数据库 admin_role 关联的 Role.Name 是 stale_editor（模拟重新绑定后未清理），
-	// 但运行时 g 规则给出的角色是 runtime_editor（当前真正生效）。
-	// 解析时必须以 g 规则为准，避免延迟带来的提权。
+	// 数据库已经绑定 stale_editor，而 Casbin 仍残留 runtime_editor。
+	// g 是派生索引，授权必须以数据库绑定为准。
 	rStale := client.Role.Create().
 		SetName("stale_editor").
 		SetDisplayName("stale_editor").
@@ -123,17 +122,23 @@ func TestGetEffectivePermissionRoleNames_GroupingRuleIsPreferredOverAdminRole(t 
 	if err != nil {
 		t.Fatalf("getEffectivePermissionRoleNames 失败：%v", err)
 	}
-	if len(names) != 1 || names[0] != "runtime_editor" {
-		t.Fatalf("应以 g 规则为准返回 [runtime_editor]，got %v", names)
+	if len(names) != 1 || names[0] != "stale_editor" {
+		t.Fatalf("应以数据库绑定为准返回 [stale_editor]，got %v", names)
 	}
 }
 
-func TestGetEffectivePermissionRoleNames_SkipsEmptyV1(t *testing.T) {
+func TestGetEffectivePermissionRoleNames_IgnoresGroupingRulesWithoutDatabaseAssignment(t *testing.T) {
 	client := setupEffectiveRoleNamesTestClient(t)
 	ctx := t.Context()
 	svc := &PermissionService{client: client}
 
-	// 异常数据：V1 角色名为空
+	client.Admin.Create().
+		SetEmail("empty-v1@e.com").
+		SetUsername("empty-v1").
+		SetPassword("p").
+		SetUID("uid-empty-v1").
+		SetStatus(admin.StatusActive).
+		SaveX(ctx)
 	seedCasbinGroupingRule(t, client, "g", "uid-empty-v1", "", "default")
 	seedCasbinGroupingRule(t, client, "g", "uid-empty-v1", "real_role", "default")
 
@@ -141,40 +146,55 @@ func TestGetEffectivePermissionRoleNames_SkipsEmptyV1(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getEffectivePermissionRoleNames 失败：%v", err)
 	}
-	if len(names) != 1 || names[0] != "real_role" {
-		t.Fatalf("V1 为空的 g 规则应被跳过，got %v", names)
+	if len(names) != 0 {
+		t.Fatalf("未绑定数据库角色时应忽略全部 g 规则，got %v", names)
 	}
 }
 
-func TestGetEffectivePermissionRoleNames_DedupesRepeatedV1(t *testing.T) {
+func TestGetEffectivePermissionRoleNames_IgnoresDuplicateStaleGroupingRules(t *testing.T) {
 	client := setupEffectiveRoleNamesTestClient(t)
 	ctx := t.Context()
 	svc := &PermissionService{client: client}
 
-	// 同一角色在不同域/不同时间被多次授予，g 规则中 V1 重复出现
+	client.Admin.Create().
+		SetEmail("dup@e.com").
+		SetUsername("dup").
+		SetPassword("p").
+		SetUID("uid-dup").
+		SetStatus(admin.StatusActive).
+		SaveX(ctx)
 	seedCasbinGroupingRule(t, client, "g", "uid-dup", "editor", "default")
 	seedCasbinGroupingRule(t, client, "g", "uid-dup", "editor", "tenant-a")
 	seedCasbinGroupingRule(t, client, "g", "uid-dup", "viewer", "default")
 
-	// 不传 domain：应拉取所有域下的 g 规则
 	names, err := svc.getEffectivePermissionRoleNames(ctx, "uid-dup", "")
 	if err != nil {
 		t.Fatalf("getEffectivePermissionRoleNames 失败：%v", err)
 	}
-	if len(names) != 2 {
-		t.Fatalf("V1 重复应被去重，got %v", names)
-	}
-	// 验证顺序稳定：首次出现顺序为 editor, viewer
-	if names[0] != "editor" || names[1] != "viewer" {
-		t.Fatalf("首次出现顺序应保持 editor, viewer，got %v", names)
+	if len(names) != 0 {
+		t.Fatalf("重复的陈旧 g 规则也不得形成授权，got %v", names)
 	}
 }
 
-func TestGetEffectivePermissionRoleNames_DomainFilterScopesGroupingRules(t *testing.T) {
+func TestGetEffectivePermissionRoleNames_DomainDoesNotChangeDatabaseAssignments(t *testing.T) {
 	client := setupEffectiveRoleNamesTestClient(t)
 	ctx := t.Context()
 	svc := &PermissionService{client: client}
 
+	r := client.Role.Create().
+		SetName("editor").
+		SetDisplayName("editor").
+		SetDataScope(role.DataScopeSelf).
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	a := client.Admin.Create().
+		SetEmail("domain@e.com").
+		SetUsername("domain").
+		SetPassword("p").
+		SetUID("uid-domain").
+		SetStatus(admin.StatusActive).
+		SaveX(ctx)
+	client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SaveX(ctx)
 	seedCasbinGroupingRule(t, client, "g", "uid-domain", "editor", "default")
 	seedCasbinGroupingRule(t, client, "g", "uid-domain", "editor", "tenant-a")
 	seedCasbinGroupingRule(t, client, "g", "uid-domain", "viewer", "tenant-a")
@@ -183,8 +203,8 @@ func TestGetEffectivePermissionRoleNames_DomainFilterScopesGroupingRules(t *test
 	if err != nil {
 		t.Fatalf("getEffectivePermissionRoleNames 失败：%v", err)
 	}
-	if len(names) != 2 {
-		t.Fatalf("tenant-a 域下应只返回 2 个角色（editor, viewer 去重），got %v", names)
+	if len(names) != 1 || names[0] != "editor" {
+		t.Fatalf("数据库绑定应与陈旧 g 域无关，got %v", names)
 	}
 }
 

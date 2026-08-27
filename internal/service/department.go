@@ -23,10 +23,10 @@ var (
 )
 
 type DepartmentServiceInterface interface {
-	Create(ctx context.Context, req *CreateDepartmentRequest) (*DepartmentResponse, error)
-	Update(ctx context.Context, id int, req *UpdateDepartmentRequest) error
-	Delete(ctx context.Context, id int) error
-	Get(ctx context.Context, id int) (*DepartmentResponse, error)
+	Create(ctx context.Context, op *EffectiveDataScope, req *CreateDepartmentRequest) (*DepartmentResponse, error)
+	Update(ctx context.Context, op *EffectiveDataScope, id int, req *UpdateDepartmentRequest) error
+	Delete(ctx context.Context, op *EffectiveDataScope, id int) error
+	Get(ctx context.Context, op *EffectiveDataScope, id int) (*DepartmentResponse, error)
 	Tree(ctx context.Context, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error)
 	TreeInScope(ctx context.Context, op *EffectiveDataScope, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error)
 	ChildIDs(ctx context.Context, id int, includeSelf bool) ([]int, error)
@@ -86,9 +86,14 @@ type DepartmentTreeNode struct {
 	Children []*DepartmentTreeNode `json:"children"`
 }
 
-func (s *DepartmentService) Create(ctx context.Context, req *CreateDepartmentRequest) (*DepartmentResponse, error) {
+func (s *DepartmentService) Create(ctx context.Context, op *EffectiveDataScope, req *CreateDepartmentRequest) (*DepartmentResponse, error) {
 	if req.ParentID < 0 {
 		return nil, ErrInvalidDepartmentParent
+	}
+	// 数据范围校验：指定父部门时要求父部门在范围内；
+	// 顶级部门（ParentID=0）仅超管/All 范围可建（isDepartmentInScope 对 0 返回 false）
+	if err := ensureDepartmentInScope(op, req.ParentID); err != nil {
+		return nil, err
 	}
 
 	tx, err := s.client.Tx(ctx)
@@ -144,10 +149,16 @@ func (s *DepartmentService) Create(ctx context.Context, req *CreateDepartmentReq
 		return nil, fmt.Errorf("commit department transaction failed: %w", err)
 	}
 
+	// 部门树新增节点会扩大 DeptAndChild 角色的子树展开，整体失效数据范围缓存
+	InvalidateDataScopeByDeptTree()
+
 	return s.toDepartmentResponse(created), nil
 }
 
-func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepartmentRequest) error {
+func (s *DepartmentService) Update(ctx context.Context, op *EffectiveDataScope, id int, req *UpdateDepartmentRequest) error {
+	if err := ensureDepartmentInScope(op, id); err != nil {
+		return err
+	}
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return fmt.Errorf("start department transaction failed: %w", err)
@@ -195,6 +206,24 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 		}
 		parentChanged = *req.ParentID != current.ParentID
 	}
+	if parentChanged {
+		// ParentID=0 表示移动为根部门；这同样是一个需要授权的目标位置。
+		if err := ensureDepartmentInScope(op, *req.ParentID); err != nil {
+			return err
+		}
+		// 移动会重写整个子树的 path，因此子孙部门也必须全部在操作者范围内。
+		descendantIDs, err := mtx.Tx().Department.Query().
+			Where(department.PathHasPrefix(oldPath + "/")).
+			IDs(ctx)
+		if err != nil {
+			return fmt.Errorf("query descendant departments failed: %w", err)
+		}
+		for _, descendantID := range descendantIDs {
+			if err := ensureDepartmentInScope(op, descendantID); err != nil {
+				return err
+			}
+		}
+	}
 
 	update := mtx.Tx().Department.UpdateOne(current)
 	if req.Name != "" {
@@ -233,10 +262,17 @@ func (s *DepartmentService) Update(ctx context.Context, id int, req *UpdateDepar
 	if err := mtx.Commit(); err != nil {
 		return fmt.Errorf("commit department transaction failed: %w", err)
 	}
+
+	// 移动子树/改名会改变 DeptAndChild 展开结果，整体失效数据范围缓存
+	InvalidateDataScopeByDeptTree()
 	return nil
 }
 
-func (s *DepartmentService) Delete(ctx context.Context, id int) error {
+func (s *DepartmentService) Delete(ctx context.Context, op *EffectiveDataScope, id int) error {
+	if err := ensureDepartmentInScope(op, id); err != nil {
+		return err
+	}
+
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return fmt.Errorf("start department transaction failed: %w", err)
@@ -270,10 +306,16 @@ func (s *DepartmentService) Delete(ctx context.Context, id int) error {
 	if err := mtx.Commit(); err != nil {
 		return fmt.Errorf("commit department transaction failed: %w", err)
 	}
+
+	// 删除部门会收窄 DeptAndChild 展开结果，整体失效数据范围缓存
+	InvalidateDataScopeByDeptTree()
 	return nil
 }
 
-func (s *DepartmentService) Get(ctx context.Context, id int) (*DepartmentResponse, error) {
+func (s *DepartmentService) Get(ctx context.Context, op *EffectiveDataScope, id int) (*DepartmentResponse, error) {
+	if err := ensureDepartmentInScope(op, id); err != nil {
+		return nil, err
+	}
 	dept, err := s.client.Department.Query().
 		Where(department.IDEQ(id)).
 		Only(ctx)
@@ -379,6 +421,9 @@ func uniquePositiveInts(values []int) []int {
 	return result
 }
 
+// ChildIDs 返回部门自身（可选）及全部子孙部门 ID，基于物化路径前缀一次查询、无递归。
+// 有意不过滤 status：禁用部门仍计入数据范围，避免挂在其下的管理员突然从上级管理范围消失；
+// 如业务要求"禁用=不可见"，需在查询处加 StatusActive 过滤并同步收窄相关管理入口
 func (s *DepartmentService) ChildIDs(ctx context.Context, id int, includeSelf bool) ([]int, error) {
 	dept, err := s.client.Department.Query().
 		Where(department.IDEQ(id)).

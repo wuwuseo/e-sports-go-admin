@@ -27,7 +27,7 @@ func setupDepartmentTestClient(t *testing.T) *ent.Client {
 
 func createDepartmentForTest(t *testing.T, svc *DepartmentService, name string, parentID int, sort int) *DepartmentResponse {
 	t.Helper()
-	resp, err := svc.Create(t.Context(), &CreateDepartmentRequest{
+	resp, err := svc.Create(t.Context(), nil, &CreateDepartmentRequest{
 		Name:     name,
 		ParentID: parentID,
 		Sort:     sort,
@@ -43,7 +43,7 @@ func TestDepartmentService_CreateRootSetsPathAndDefaultStatus(t *testing.T) {
 	ctx := t.Context()
 	svc := NewDepartmentService()
 
-	resp, err := svc.Create(ctx, &CreateDepartmentRequest{Name: "Head Office"})
+	resp, err := svc.Create(ctx, nil, &CreateDepartmentRequest{Name: "Head Office"})
 	if err != nil {
 		t.Fatalf("Create returned error: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestDepartmentService_CreateChildSetsParentPath(t *testing.T) {
 	svc := NewDepartmentService()
 	parent := createDepartmentForTest(t, svc, "Engineering", 0, 0)
 
-	child, err := svc.Create(ctx, &CreateDepartmentRequest{
+	child, err := svc.Create(ctx, nil, &CreateDepartmentRequest{
 		Name:     "Platform",
 		ParentID: parent.ID,
 	})
@@ -88,7 +88,7 @@ func TestDepartmentService_CreateWithMissingParentReturnsNotFound(t *testing.T) 
 	ctx := t.Context()
 	svc := NewDepartmentService()
 
-	_, err := svc.Create(ctx, &CreateDepartmentRequest{
+	_, err := svc.Create(ctx, nil, &CreateDepartmentRequest{
 		Name:     "Ghost Team",
 		ParentID: 99999,
 	})
@@ -102,7 +102,7 @@ func TestDepartmentService_CreateWithNegativeParentReturnsInvalidParent(t *testi
 	ctx := t.Context()
 	svc := NewDepartmentService()
 
-	_, err := svc.Create(ctx, &CreateDepartmentRequest{
+	_, err := svc.Create(ctx, nil, &CreateDepartmentRequest{
 		Name:     "Invalid Parent",
 		ParentID: -1,
 	})
@@ -120,7 +120,7 @@ func TestDepartmentService_TreeBuildsHierarchyAndOrdersSiblings(t *testing.T) {
 	childB := createDepartmentForTest(t, svc, "Child B", rootA.ID, 2)
 	childA := createDepartmentForTest(t, svc, "Child A", rootA.ID, 1)
 	inactiveRoot := createDepartmentForTest(t, svc, "Inactive Root", 0, 3)
-	if err := svc.Update(ctx, inactiveRoot.ID, &UpdateDepartmentRequest{Status: string(department.StatusInactive)}); err != nil {
+	if err := svc.Update(ctx, nil, inactiveRoot.ID, &UpdateDepartmentRequest{Status: string(department.StatusInactive)}); err != nil {
 		t.Fatalf("Update returned error: %v", err)
 	}
 
@@ -219,13 +219,13 @@ func TestDepartmentService_UpdateRejectsSelfAndDescendantParent(t *testing.T) {
 	grandchild := createDepartmentForTest(t, svc, "Grandchild", child.ID, 0)
 
 	selfParentID := root.ID
-	err := svc.Update(ctx, root.ID, &UpdateDepartmentRequest{ParentID: &selfParentID})
+	err := svc.Update(ctx, nil, root.ID, &UpdateDepartmentRequest{ParentID: &selfParentID})
 	if !errors.Is(err, ErrDepartmentCycle) {
 		t.Fatalf("expected ErrDepartmentCycle for self parent, got %v", err)
 	}
 
 	descendantParentID := grandchild.ID
-	err = svc.Update(ctx, root.ID, &UpdateDepartmentRequest{ParentID: &descendantParentID})
+	err = svc.Update(ctx, nil, root.ID, &UpdateDepartmentRequest{ParentID: &descendantParentID})
 	if !errors.Is(err, ErrDepartmentCycle) {
 		t.Fatalf("expected ErrDepartmentCycle for descendant parent, got %v", err)
 	}
@@ -238,7 +238,7 @@ func TestDepartmentService_UpdateWithNegativeParentReturnsInvalidParent(t *testi
 	root := createDepartmentForTest(t, svc, "Root", 0, 0)
 
 	negativeParentID := -1
-	err := svc.Update(ctx, root.ID, &UpdateDepartmentRequest{ParentID: &negativeParentID})
+	err := svc.Update(ctx, nil, root.ID, &UpdateDepartmentRequest{ParentID: &negativeParentID})
 	if !errors.Is(err, ErrInvalidDepartmentParent) {
 		t.Fatalf("expected ErrInvalidDepartmentParent, got %v", err)
 	}
@@ -249,7 +249,7 @@ func TestDepartmentService_UpdatePreservesContactFieldsWhenOmitted(t *testing.T)
 	ctx := t.Context()
 	svc := NewDepartmentService()
 
-	dept, err := svc.Create(ctx, &CreateDepartmentRequest{
+	dept, err := svc.Create(ctx, nil, &CreateDepartmentRequest{
 		Name:   "Operations",
 		Sort:   1,
 		Leader: "Ava",
@@ -261,7 +261,7 @@ func TestDepartmentService_UpdatePreservesContactFieldsWhenOmitted(t *testing.T)
 	}
 
 	sort := 9
-	err = svc.Update(ctx, dept.ID, &UpdateDepartmentRequest{
+	err = svc.Update(ctx, nil, dept.ID, &UpdateDepartmentRequest{
 		Sort:   &sort,
 		Status: string(department.StatusInactive),
 	})
@@ -289,7 +289,7 @@ func TestDepartmentService_UpdateClearsContactFieldsWhenEmptyPointersProvided(t 
 	ctx := t.Context()
 	svc := NewDepartmentService()
 
-	dept, err := svc.Create(ctx, &CreateDepartmentRequest{
+	dept, err := svc.Create(ctx, nil, &CreateDepartmentRequest{
 		Name:   "Support",
 		Leader: "Ben",
 		Phone:  "13900139000",
@@ -300,7 +300,7 @@ func TestDepartmentService_UpdateClearsContactFieldsWhenEmptyPointersProvided(t 
 	}
 
 	empty := ""
-	err = svc.Update(ctx, dept.ID, &UpdateDepartmentRequest{
+	err = svc.Update(ctx, nil, dept.ID, &UpdateDepartmentRequest{
 		Leader: &empty,
 		Phone:  &empty,
 		Email:  &empty,
@@ -328,7 +328,7 @@ func TestDepartmentService_UpdateParentRecalculatesDescendantPaths(t *testing.T)
 	grandchild := createDepartmentForTest(t, svc, "Grandchild", child.ID, 0)
 
 	newParentID := newRoot.ID
-	err := svc.Update(ctx, child.ID, &UpdateDepartmentRequest{
+	err := svc.Update(ctx, nil, child.ID, &UpdateDepartmentRequest{
 		ParentID: &newParentID,
 	})
 	if err != nil {
@@ -361,12 +361,12 @@ func TestDepartmentService_DeleteRejectsChildrenAndDeletesLeaf(t *testing.T) {
 	root := createDepartmentForTest(t, svc, "Root", 0, 0)
 	child := createDepartmentForTest(t, svc, "Child", root.ID, 0)
 
-	err := svc.Delete(ctx, root.ID)
+	err := svc.Delete(ctx, nil, root.ID)
 	if !errors.Is(err, ErrDepartmentHasChildren) {
 		t.Fatalf("expected ErrDepartmentHasChildren, got %v", err)
 	}
 
-	if err := svc.Delete(ctx, child.ID); err != nil {
+	if err := svc.Delete(ctx, nil, child.ID); err != nil {
 		t.Fatalf("Delete leaf returned error: %v", err)
 	}
 	exists, err := client.Department.Query().Where(department.IDEQ(child.ID)).Exist(ctx)
@@ -383,7 +383,7 @@ func TestDepartmentService_DeleteMissingDepartmentReturnsNotFound(t *testing.T) 
 	ctx := t.Context()
 	svc := NewDepartmentService()
 
-	err := svc.Delete(ctx, 99999)
+	err := svc.Delete(ctx, nil, 99999)
 	if !errors.Is(err, ErrDepartmentNotFound) {
 		t.Fatalf("expected ErrDepartmentNotFound, got %v", err)
 	}
@@ -402,5 +402,245 @@ func assertIntSet(t *testing.T, got []int, want []int) {
 		if !seen[id] {
 			t.Fatalf("expected IDs %v, got %v", want, got)
 		}
+	}
+}
+
+// ======================== ManagedTx 测试 ========================
+
+func TestManagedTx_CommitSuccess(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+	err = mtx.Commit()
+	if err != nil {
+		t.Fatalf("commit should succeed: %v", err)
+	}
+}
+
+func TestManagedTx_DoubleCommitReturnsError(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+	if err := mtx.Commit(); err != nil {
+		t.Fatalf("first commit failed: %v", err)
+	}
+
+	err = mtx.Commit()
+	if err == nil {
+		t.Fatal("expected error on double commit, got nil")
+	}
+	if err.Error() != "transaction already committed" {
+		t.Fatalf("expected 'transaction already committed', got %q", err.Error())
+	}
+}
+
+func TestManagedTx_RollbackIfNotCommittedRollsBack(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+	// 未提交时，RollbackIfNotCommitted 应该执行回滚
+	mtx.RollbackIfNotCommitted()
+
+	// 验证事务已回滚：尝试在已回滚的事务上操作应该失败
+	_, err = mtx.Tx().Department.Create().SetName("test").Save(ctx)
+	if err == nil {
+		t.Error("expected error after rollback, got nil (transaction should be rolled back)")
+	}
+}
+
+func TestManagedTx_RollbackIfNotCommittedAfterCommitIsNoop(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+	if err := mtx.Commit(); err != nil {
+		t.Fatalf("commit failed: %v", err)
+	}
+
+	// 已提交后，RollbackIfNotCommitted 应该是 no-op（不执行回滚）
+	mtx.RollbackIfNotCommitted()
+
+	// 事务已提交，验证数据存在
+	count, err := client.Department.Query().Count(ctx)
+	if err != nil {
+		t.Fatalf("count departments failed: %v", err)
+	}
+	_ = count // 验证数据库连接仍然正常工作
+}
+
+func TestManagedTx_TxReturnsUnderlyingTx(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+	if mtx.Tx() != tx {
+		t.Fatal("Tx() should return the original transaction")
+	}
+}
+
+func TestManagedTx_CommitPersistsData(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+
+	// 在事务中创建部门
+	created, err := mtx.Tx().Department.Create().
+		SetName("managed_tx_test").
+		SetSort(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create department in tx failed: %v", err)
+	}
+
+	// 提交事务
+	if err := mtx.Commit(); err != nil {
+		t.Fatalf("commit failed: %v", err)
+	}
+
+	// 验证数据已持久化
+	found, err := client.Department.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("query department after commit failed: %v", err)
+	}
+	if found.Name != "managed_tx_test" {
+		t.Errorf("expected name 'managed_tx_test', got %q", found.Name)
+	}
+}
+
+func TestManagedTx_RollbackDiscardsData(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+
+	// 在事务中创建部门
+	created, err := mtx.Tx().Department.Create().
+		SetName("rollback_test").
+		SetSort(1).
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("create department in tx failed: %v", err)
+	}
+
+	// 回滚事务
+	mtx.RollbackIfNotCommitted()
+
+	// 验证数据已被回滚（查询应该失败）
+	_, err = client.Department.Get(ctx, created.ID)
+	if err == nil {
+		t.Error("expected error after rollback, data should not exist")
+	}
+}
+
+func TestManagedTx_CommitRollbackSequence(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	// 场景1：提交成功后，defer 的 RollbackIfNotCommitted 不应该回滚
+	t.Run("commit then rollbackIfNotCommitted is noop", func(t *testing.T) {
+		tx, err := client.Tx(ctx)
+		if err != nil {
+			t.Fatalf("start transaction failed: %v", err)
+		}
+		mtx := NewManagedTx(tx)
+
+		_, err = mtx.Tx().Department.Create().
+			SetName("commit_then_defer").
+			SetSort(1).
+			Save(ctx)
+		if err != nil {
+			t.Fatalf("create failed: %v", err)
+		}
+
+		if err := mtx.Commit(); err != nil {
+			t.Fatalf("commit failed: %v", err)
+		}
+
+		// 模拟 defer 场景：已提交后调用 RollbackIfNotCommitted
+		// 这应该是安全的 no-op
+		mtx.RollbackIfNotCommitted()
+	})
+
+	// 场景2：未提交时，defer 的 RollbackIfNotCommitted 应该回滚
+	t.Run("no commit then rollbackIfNotCommitted rolls back", func(t *testing.T) {
+		tx, err := client.Tx(ctx)
+		if err != nil {
+			t.Fatalf("start transaction failed: %v", err)
+		}
+		mtx := NewManagedTx(tx)
+
+		created, err := mtx.Tx().Department.Create().
+			SetName("no_commit_then_defer").
+			SetSort(2).
+			Save(ctx)
+		if err != nil {
+			t.Fatalf("create failed: %v", err)
+		}
+
+		// 不提交，直接回滚
+		mtx.RollbackIfNotCommitted()
+
+		// 验证数据不存在
+		_, err = client.Department.Get(ctx, created.ID)
+		if err == nil {
+			t.Error("expected error: data should be rolled back")
+		}
+	})
+}
+
+func TestManagedTx_NewManagedTxCreatesEmpty(t *testing.T) {
+	client := setupDepartmentTestClient(t)
+	ctx := t.Context()
+
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		t.Fatalf("start transaction failed: %v", err)
+	}
+
+	mtx := NewManagedTx(tx)
+	if mtx == nil {
+		t.Fatal("NewManagedTx should not return nil")
+	}
+	if mtx.Tx() == nil {
+		t.Fatal("Tx() should not return nil")
 	}
 }

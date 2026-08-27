@@ -21,8 +21,8 @@ func PermissionMiddleware() fiber.Handler {
 			return resp.Fail(fiber.StatusUnauthorized, "未授权访问").ToJSON(c)
 		}
 
-		var userID string = userIDVal.(string)
-		if userID == "" {
+		userID, ok := userIDVal.(string)
+		if !ok || userID == "" {
 			resp := utils.NewResponse()
 			return resp.Fail(fiber.StatusUnauthorized, "无效的用户ID类型").ToJSON(c)
 		}
@@ -52,14 +52,34 @@ func PermissionMiddleware() fiber.Handler {
 
 		// 直接从 Casbin 读取用户在当前域下的角色（角色分配时由服务层写入 Casbin）
 		roleNames := enforcer.GetRolesForUserInDomain(userID, domain)
-		if hasRoleName(roleNames, "admin") {
+		// 防御纵深：过滤禁用/已删除角色，即使 Casbin g 未同步也不放行其权限（fail-closed）
+		activeRoles, rolesDiffer, rolesResolved := global.FilterAssignedActiveRoleNames(c.Context(), userID, roleNames)
+		if !rolesResolved {
+			resp := utils.NewResponse()
+			return resp.Fail(fiber.StatusInternalServerError, "读取角色分配失败").ToJSON(c)
+		}
+		if rolesDiffer {
+			// g 是数据库角色绑定的派生索引；不一致时自动重建。
+			if _, syncErr := enforcer.DeleteRolesForUserInDomain(userID, domain); syncErr != nil {
+				resp := utils.NewResponse()
+				return resp.Fail(fiber.StatusInternalServerError, "同步角色权限失败").ToJSON(c)
+			}
+			for _, roleName := range activeRoles {
+				if _, syncErr := enforcer.AddRoleForUserInDomain(userID, roleName, domain); syncErr != nil {
+					resp := utils.NewResponse()
+					return resp.Fail(fiber.StatusInternalServerError, "同步角色权限失败").ToJSON(c)
+				}
+			}
+		}
+		if hasRoleName(activeRoles, "admin") {
 			c.Locals("isSuperAdmin", true)
 		}
 
 		// 检查权限。先用实际请求路径匹配，再用 Fiber 路由模板匹配
 		// （例如 /roles/2 -> /roles/{id}），兼容系统权限中的模板路径。
 		ok = false
-		for _, object := range permissionObjectsForRequest(c) {
+		objects := permissionObjectsForRequest(c)
+		for _, object := range objects {
 			ok, err = enforcer.Enforce(userID, domain, object, method)
 			if err != nil {
 				resp := utils.NewResponse()
@@ -77,21 +97,6 @@ func PermissionMiddleware() fiber.Handler {
 
 		return c.Next()
 	}
-}
-
-func missingRoleNames(desired, existing []string) []string {
-	existingSet := make(map[string]struct{}, len(existing))
-	for _, roleName := range existing {
-		existingSet[roleName] = struct{}{}
-	}
-
-	missing := make([]string, 0)
-	for _, roleName := range desired {
-		if _, ok := existingSet[roleName]; !ok {
-			missing = append(missing, roleName)
-		}
-	}
-	return missing
 }
 
 func hasRoleName(roleNames []string, target string) bool {

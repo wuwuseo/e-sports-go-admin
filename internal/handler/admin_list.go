@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
 
 	"go-admin/internal/global"
@@ -38,9 +39,9 @@ func CreateAdmin(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "邮箱、密码、用户名不能为空").ToJSON(c)
 	}
 
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapOperatorContextError(c, response, err, "Internal server error")
 	}
 
 	result, err := svc.CreateAdmin(c.Context(), op, &req)
@@ -76,9 +77,10 @@ func ListAdmins(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "Invalid query params").ToJSON(c)
 	}
 
-	// 传入当前操作者UID用于数据权限过滤
-	if uid, ok := c.Locals("uid").(string); ok {
-		req.CurrentUID = uid
+	// 管理员列表绝不能因认证上下文缺失而退化成无范围过滤。
+	req.CurrentUID = getOperatorUID(c)
+	if req.CurrentUID == "" {
+		return response.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
 	}
 
 	if req.Page <= 0 {
@@ -90,7 +92,7 @@ func ListAdmins(c fiber.Ctx) error {
 
 	result, err := svc.ListAdmins(c.Context(), &req)
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapAdminScopeError(c, response, err)
 	}
 
 	return response.Success(result).ToJSON(c)
@@ -121,9 +123,9 @@ func GetAdminDetail(c fiber.Ctx) error {
 	svc := c.Locals("service.SuperAdminService").(service.SuperAdminServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapOperatorContextError(c, response, err, "Internal server error")
 	}
 
 	result, err := svc.GetAdminByID(c.Context(), op, adminID)
@@ -156,9 +158,9 @@ func ActivateAdmin(c fiber.Ctx) error {
 
 	svc := c.Locals("service.SuperAdminService").(service.SuperAdminServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapOperatorContextError(c, response, err, "Internal server error")
 	}
 
 	if err := svc.ActivateAdmin(c.Context(), op, adminID); err != nil {
@@ -191,9 +193,9 @@ func DeactivateAdmin(c fiber.Ctx) error {
 
 	svc := c.Locals("service.SuperAdminService").(service.SuperAdminServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapOperatorContextError(c, response, err, "Internal server error")
 	}
 
 	if err := svc.DeactivateAdmin(c.Context(), op, adminID); err != nil {
@@ -233,9 +235,9 @@ func UpdateAdminByID(c fiber.Ctx) error {
 
 	svc := c.Locals("service.SuperAdminService").(service.SuperAdminServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapOperatorContextError(c, response, err, "Internal server error")
 	}
 
 	result, err := svc.UpdateAdmin(c.Context(), op, adminID, &req)
@@ -254,30 +256,46 @@ func getOperatorUID(c fiber.Ctx) string {
 	return ""
 }
 
+func getOperatorDomain(c fiber.Ctx) string {
+	if domain, ok := c.Locals("domain").(string); ok {
+		return domain
+	}
+	return ""
+}
+
 // mapAdminScopeError 把 service 层数据权限/自我保护错误映射为 HTTP 响应
 func mapAdminScopeError(c fiber.Ctx, response *utils.Response, err error) error {
-	switch err {
-	case service.ErrAdminOutOfScope:
+	switch {
+	case errors.Is(err, service.ErrPermissionOperatorRequired), errors.Is(err, service.ErrDataPermissionAdminNotFound):
+		return response.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	case errors.Is(err, service.ErrAdminOutOfScope):
 		return response.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
-	case service.ErrCannotToggleSelfStatus:
+	case errors.Is(err, service.ErrCannotToggleSelfStatus):
 		return response.Fail(global.ResponseSelfToggleForbidden, global.ResponseMsg[global.ResponseSelfToggleForbidden]).ToJSON(c)
-	case service.ErrCannotModifySelfRoles:
+	case errors.Is(err, service.ErrCannotModifySelfRoles):
 		return response.Fail(global.ResponseSelfRoleModifyForbidden, global.ResponseMsg[global.ResponseSelfRoleModifyForbidden]).ToJSON(c)
-	case service.ErrDepartmentOutOfScope:
+	case errors.Is(err, service.ErrDepartmentOutOfScope):
 		return response.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
 	// P1: 目标角色的数据范围超出当前操作者，拒绝越权
-	case service.ErrRoleScopeEscalation:
+	case errors.Is(err, service.ErrRoleScopeEscalation):
 		return response.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
 	// P2: 目标部门不存在
-	case service.ErrDepartmentNotFound:
+	case errors.Is(err, service.ErrDepartmentNotFound):
 		return response.Fail(global.ResponseDepartmentNotFound, global.ResponseMsg[global.ResponseDepartmentNotFound]).ToJSON(c)
-	case service.ErrAdminNotFound:
+	case errors.Is(err, service.ErrAdminNotFound):
 		return response.Fail(global.ResponseNotFound, "管理员不存在").ToJSON(c)
-	case service.ErrAdminEmailExists:
+	case errors.Is(err, service.ErrAdminEmailExists):
 		return response.Fail(global.ResponseErrorCode, "邮箱已存在").ToJSON(c)
 	default:
 		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
 	}
+}
+
+func mapOperatorContextError(c fiber.Ctx, response *utils.Response, err error, fallbackMessage string) error {
+	if errors.Is(err, service.ErrPermissionOperatorRequired) || errors.Is(err, service.ErrDataPermissionAdminNotFound) {
+		return response.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
+	return response.Fail(global.ResponseInternalServerError, fallbackMessage).ToJSON(c)
 }
 
 // mapAdminCreateError 把 CreateAdmin 的 service 层错误映射为 HTTP 响应

@@ -288,3 +288,44 @@ func TestSystemPermissionObject_NameFallback(t *testing.T) {
 		t.Errorf("期望返回 测试名称, 实际为 %s", result)
 	}
 }
+
+// TestGetEnabledSystemPermissions_DeduplicatesByObject 验证相同 Object 的权限会被去重
+func TestGetEnabledSystemPermissions_DeduplicatesByObject(t *testing.T) {
+	client := setupPermissionMenuSuperadminTest(t)
+	ctx := t.Context()
+
+	// 创建两个具有相同 MenuPath 但不同 Code 的菜单权限
+	_, err := client.SystemPermission.Create().
+		SetName("菜单A").
+		SetCode("menu-a-code").
+		SetDomain("admin").
+		SetType(string(PermissionTypeMenu)).
+		SetStatus(1).
+		SetMenuPath("/dashboard").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建权限A失败: %v", err)
+	}
+	_, err = client.SystemPermission.Create().
+		SetName("菜单B").
+		SetCode("menu-b-code").
+		SetDomain("admin").
+		SetType(string(PermissionTypeMenu)).
+		SetStatus(1).
+		SetMenuPath("/dashboard").
+		Save(ctx)
+	if err != nil {
+		t.Fatalf("创建权限B失败: %v", err)
+	}
+
+	permissions, err := getEnabledSystemPermissions(ctx, "admin", PermissionTypeMenu)
+	if err != nil {
+		t.Fatalf("getEnabledSystemPermissions() error = %v", err)
+	}
+	if len(permissions) != 1 {
+		t.Fatalf("期望去重后返回1个权限, 实际为 %d", len(permissions))
+	}
+	if permissions[0].Object != "/dashboard" {
+		t.Errorf("期望Object=/dashboard, 实际为 %s", permissions[0].Object)
+	}
+}

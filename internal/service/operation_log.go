@@ -8,12 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/operationlog"
+	"go-admin/internal/ent/predicate"
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
 
@@ -43,8 +46,8 @@ var defaultOperationLogService atomic.Pointer[OperationLogService]
 // OperationLogServiceInterface 操作日志服务接口
 type OperationLogServiceInterface interface {
 	Log(ctx context.Context, entry *LogEntry) error
-	List(ctx context.Context, req *ListOperationLogsRequest) (*ListOperationLogsResponse, error)
-	Get(ctx context.Context, id int) (*OperationLogResponse, error)
+	List(ctx context.Context, op *EffectiveDataScope, req *ListOperationLogsRequest) (*ListOperationLogsResponse, error)
+	Get(ctx context.Context, op *EffectiveDataScope, id int) (*OperationLogResponse, error)
 }
 
 // OperationLogOptions 操作日志服务配置
@@ -269,8 +272,13 @@ func (s *OperationLogService) processLog(entry *LogEntry) {
 func (s *OperationLogService) writeLog(entry *LogEntry) error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.writeTimeout)
 	defer cancel()
+	// UID 为纯数字时落库为 user_id（历史版本恒写 0，导致无法按操作者过滤）
+	userID := 0
+	if n, err := strconv.Atoi(entry.UserUID); err == nil && n > 0 {
+		userID = n
+	}
 	builder := s.Client.OperationLog.Create().
-		SetUserID(0).
+		SetUserID(userID).
 		SetUsername(entry.Username).
 		SetModule(entry.Module).
 		SetAction(entry.Action).
@@ -404,11 +412,18 @@ func (s *OperationLogService) printMetrics() {
 	)
 }
 
-// List 获取操作日志列表
-func (s *OperationLogService) List(ctx context.Context, req *ListOperationLogsRequest) (*ListOperationLogsResponse, error) {
+// List 获取操作日志列表（按操作者数据范围过滤）
+func (s *OperationLogService) List(ctx context.Context, op *EffectiveDataScope, req *ListOperationLogsRequest) (*ListOperationLogsResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	query := s.Client.OperationLog.Query()
+
+	// 数据范围过滤
+	if scopeFilter, err := s.buildScopeFilter(ctx, op); err != nil {
+		return nil, err
+	} else if scopeFilter != nil {
+		query = query.Where(scopeFilter...)
+	}
 
 	// 筛选条件
 	if req.Username != "" {
@@ -453,12 +468,83 @@ func (s *OperationLogService) List(ctx context.Context, req *ListOperationLogsRe
 	return BuildList(logs, total, req.Page, toOperationLogResponse), nil
 }
 
-// Get 获取操作日志详情
-func (s *OperationLogService) Get(ctx context.Context, id int) (*OperationLogResponse, error) {
-	return GetByID(ctx,
-		func(ctx context.Context) (*ent.OperationLog, error) {
-			return s.Client.OperationLog.Query().Where(operationlog.IDEQ(id)).Only(ctx)
-		}, toOperationLogResponse, ErrOperationLogNotFound, "操作日志")
+// Get 获取操作日志详情（超出数据范围视为不存在，避免存在性泄露）
+func (s *OperationLogService) Get(ctx context.Context, op *EffectiveDataScope, id int) (*OperationLogResponse, error) {
+	opLog, err := s.Client.OperationLog.Query().Where(operationlog.IDEQ(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrOperationLogNotFound
+		}
+		return nil, fmt.Errorf("查询操作日志失败: %w", err)
+	}
+	if !s.isLogInScope(ctx, op, opLog.Username) {
+		return nil, ErrOperationLogNotFound
+	}
+	return toOperationLogResponse(opLog), nil
+}
+
+// buildScopeFilter 构造数据范围过滤条件；返回 nil 表示不过滤（超管/All/内部调用）
+// 注：日志表 user_id 历史上恒为 0，范围过滤基于 username 实现
+func (s *OperationLogService) buildScopeFilter(ctx context.Context, op *EffectiveDataScope) ([]predicate.OperationLog, error) {
+	if shouldBypassCheck(op, false) || op.Scope == DataScopeAll {
+		return nil, nil
+	}
+	names, err := s.scopeAdminUsernames(ctx, op)
+	if err != nil {
+		return nil, err
+	}
+	if len(names) == 0 {
+		// 空集合时用不可能命中的条件，避免 In() 空切片退化
+		return []predicate.OperationLog{operationlog.UsernameEQ("__scope_empty__")}, nil
+	}
+	return []predicate.OperationLog{operationlog.UsernameIn(names...)}, nil
+}
+
+// scopeAdminUsernames 返回数据范围内可见的管理员用户名集合（始终包含操作者本人）
+func (s *OperationLogService) scopeAdminUsernames(ctx context.Context, op *EffectiveDataScope) ([]string, error) {
+	names := make([]string, 0, 4)
+	if op.Username != "" {
+		names = append(names, op.Username)
+	}
+	switch op.Scope {
+	case DataScopeSelf:
+		return names, nil
+	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		if len(op.DepartmentIDs) == 0 {
+			return names, nil
+		}
+		admins, err := s.Client.Admin.Query().
+			Where(admin.DepartmentIDIn(op.DepartmentIDs...)).
+			All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("查询范围内管理员失败: %w", err)
+		}
+		for _, a := range admins {
+			if a.Username != "" {
+				names = append(names, a.Username)
+			}
+		}
+		return names, nil
+	default:
+		return names, nil
+	}
+}
+
+// isLogInScope 判断日志是否在操作者数据范围内（基于 username）
+func (s *OperationLogService) isLogInScope(ctx context.Context, op *EffectiveDataScope, logUsername string) bool {
+	if shouldBypassCheck(op, false) || op.Scope == DataScopeAll {
+		return true
+	}
+	names, err := s.scopeAdminUsernames(ctx, op)
+	if err != nil {
+		return false
+	}
+	for _, name := range names {
+		if name == logUsername {
+			return true
+		}
+	}
+	return false
 }
 
 // toOperationLogResponse 将Ent实体转换为响应格式

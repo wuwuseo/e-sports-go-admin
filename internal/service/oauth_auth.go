@@ -543,7 +543,7 @@ type AdminOAuthIdentityListItem struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
-func (s *OAuthAuthService) ListAllAdminIdentities(ctx context.Context, page, pageSize int, provider, keyword string) (*ListResponse[*AdminOAuthIdentityListItem], error) {
+func (s *OAuthAuthService) ListAllAdminIdentities(ctx context.Context, op *EffectiveDataScope, page, pageSize int, provider, keyword string) (*ListResponse[*AdminOAuthIdentityListItem], error) {
 	if page < 1 {
 		page = 1
 	}
@@ -555,6 +555,21 @@ func (s *OAuthAuthService) ListAllAdminIdentities(ctx context.Context, page, pag
 	}
 
 	query := s.client.AdminThirdPartyUser.Query()
+	if op != nil && !op.IsSuperAdmin {
+		switch op.Scope {
+		case DataScopeAll:
+		case DataScopeSelf:
+			query = query.Where(adminthirdpartyuser.HasAdminWith(admin.UIDEQ(op.AdminUID)))
+		case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+			if len(op.DepartmentIDs) == 0 {
+				query = query.Where(adminthirdpartyuser.IDEQ(-1))
+			} else {
+				query = query.Where(adminthirdpartyuser.HasAdminWith(admin.DepartmentIDIn(op.DepartmentIDs...)))
+			}
+		default:
+			query = query.Where(adminthirdpartyuser.IDEQ(-1))
+		}
+	}
 	if provider != "" {
 		query = query.Where(adminthirdpartyuser.PlatformEQ(strings.ToLower(provider)))
 	}
@@ -601,15 +616,19 @@ func (s *OAuthAuthService) ListAllAdminIdentities(ctx context.Context, page, pag
 	return &ListResponse[*AdminOAuthIdentityListItem]{Total: total, Page: page, Data: items}, nil
 }
 
-func (s *OAuthAuthService) DeleteAdminIdentity(ctx context.Context, id int) error {
-	deleted, err := s.client.AdminThirdPartyUser.Delete().
+func (s *OAuthAuthService) DeleteAdminIdentity(ctx context.Context, op *EffectiveDataScope, id int) error {
+	identity, err := s.client.AdminThirdPartyUser.Query().
 		Where(adminthirdpartyuser.IDEQ(id)).
-		Exec(ctx)
+		WithAdmin().
+		Only(ctx)
 	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrThirdPartyNotFound
+		}
 		return err
 	}
-	if deleted == 0 {
+	if !adminInOperatorScope(op, identity.Edges.Admin) {
 		return ErrThirdPartyNotFound
 	}
-	return nil
+	return s.client.AdminThirdPartyUser.DeleteOne(identity).Exec(ctx)
 }

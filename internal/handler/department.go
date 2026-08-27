@@ -29,6 +29,7 @@ import (
 func CreateDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	req, err := validate.ParseAndValidate[service.CreateDepartmentRequest](c)
 	if err != nil {
@@ -38,7 +39,12 @@ func CreateDepartment(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	dept, err := departmentService.Create(c.Context(), req)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "创建部门失败")
+	}
+
+	dept, err := departmentService.Create(c.Context(), op, req)
 	if err != nil {
 		switch err {
 		case service.ErrDepartmentNotFound:
@@ -47,6 +53,8 @@ func CreateDepartment(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseErrorCode, "无效的父部门ID").ToJSON(c)
 		case service.ErrDepartmentCycle:
 			return resp.Fail(global.ResponseErrorCode, "父部门不能是自身或子部门").ToJSON(c)
+		case service.ErrDepartmentOutOfScope:
+			return resp.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "创建部门失败").ToJSON(c)
 		}
@@ -85,9 +93,9 @@ func ListDepartmentTree(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "获取部门树失败").ToJSON(c)
+		return mapOperatorContextError(c, resp, err, "获取部门树失败")
 	}
 
 	tree, err := departmentService.TreeInScope(c.Context(), op, req)
@@ -115,6 +123,7 @@ func ListDepartmentTree(c fiber.Ctx) error {
 func GetDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -122,10 +131,18 @@ func GetDepartment(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的部门ID").ToJSON(c)
 	}
 
-	dept, err := departmentService.Get(c.Context(), id)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取部门失败")
+	}
+
+	dept, err := departmentService.Get(c.Context(), op, id)
 	if err != nil {
 		if err == service.ErrDepartmentNotFound {
 			return resp.Fail(global.ResponseNotFound, "部门不存在").ToJSON(c)
+		}
+		if err == service.ErrDepartmentOutOfScope {
+			return resp.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "获取部门失败").ToJSON(c)
 	}
@@ -152,6 +169,7 @@ func GetDepartment(c fiber.Ctx) error {
 func UpdateDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -167,7 +185,12 @@ func UpdateDepartment(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	if err := departmentService.Update(c.Context(), id, req); err != nil {
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "更新部门失败")
+	}
+
+	if err := departmentService.Update(c.Context(), op, id, req); err != nil {
 		switch err {
 		case service.ErrDepartmentNotFound:
 			return resp.Fail(global.ResponseNotFound, "部门不存在").ToJSON(c)
@@ -175,6 +198,8 @@ func UpdateDepartment(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseErrorCode, "父部门不能是自身或子部门").ToJSON(c)
 		case service.ErrInvalidDepartmentParent:
 			return resp.Fail(global.ResponseErrorCode, "无效的父部门ID").ToJSON(c)
+		case service.ErrDepartmentOutOfScope:
+			return resp.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "更新部门失败").ToJSON(c)
 		}
@@ -204,6 +229,7 @@ func UpdateDepartment(c fiber.Ctx) error {
 func DeleteDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -211,12 +237,19 @@ func DeleteDepartment(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的部门ID").ToJSON(c)
 	}
 
-	if err := departmentService.Delete(c.Context(), id); err != nil {
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "删除部门失败")
+	}
+
+	if err := departmentService.Delete(c.Context(), op, id); err != nil {
 		switch err {
 		case service.ErrDepartmentNotFound:
 			return resp.Fail(global.ResponseNotFound, "部门不存在").ToJSON(c)
 		case service.ErrDepartmentHasChildren:
 			return resp.Fail(global.ResponseConflict, "部门下存在子部门，无法删除").ToJSON(c)
+		case service.ErrDepartmentOutOfScope:
+			return resp.Fail(global.ResponseDepartmentOutOfScope, global.ResponseMsg[global.ResponseDepartmentOutOfScope]).ToJSON(c)
 		default:
 			return resp.Fail(global.ResponseInternalServerError, "删除部门失败").ToJSON(c)
 		}

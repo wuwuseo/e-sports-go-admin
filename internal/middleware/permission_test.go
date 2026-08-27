@@ -150,14 +150,6 @@ func TestPermissionObjectsForRequest_IncludesFinalRouteTemplateFromGroupedMiddle
 	}
 }
 
-func TestMissingRoleNames_ReturnsOnlyUnsyncedRoles(t *testing.T) {
-	got := missingRoleNames([]string{"normal_admin", "auditor"}, []string{"auditor", "admin"})
-	want := []string{"normal_admin"}
-	if len(got) != len(want) || got[0] != want[0] {
-		t.Fatalf("expected %v, got %v", want, got)
-	}
-}
-
 func collectPermissionObjectsForRoute(t *testing.T, method, path string) []string {
 	t.Helper()
 

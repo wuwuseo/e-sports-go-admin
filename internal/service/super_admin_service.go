@@ -108,6 +108,14 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, op *EffectiveDataSc
 	if err := ensureRolesNotEscalatingForTarget(ctx, s.client, s.deptSvc, op, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID), req.DepartmentID); err != nil {
 		return nil, err
 	}
+	operatorUID := ""
+	if op != nil {
+		operatorUID = op.AdminUID
+	}
+	domain := permissionDomainForScope(op)
+	if err := ensureRolePermissionsNotEscalating(ctx, s.client, op, operatorUID, domain, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return nil, err
+	}
 
 	emailExists, err := s.client.Admin.Query().
 		Where(admin.EmailEQ(req.Email)).
@@ -202,10 +210,10 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, op *EffectiveDataSc
 
 	// Casbin 同步（事务外，与 AssignAdminRoles 行为一致）
 	if len(validRoles) > 0 && global.EnforcerManager != nil {
-		enforcer, enfErr := global.EnforcerManager.GetEnforcer("default")
+		enforcer, enfErr := global.EnforcerManager.GetEnforcer(domain)
 		if enfErr == nil {
 			for _, r := range validRoles {
-				_, _ = enforcer.AddRoleForUserInDomain(a.UID, r.Name, "default")
+				_, _ = enforcer.AddRoleForUserInDomain(a.UID, r.Name, domain)
 			}
 		}
 	}
@@ -227,6 +235,9 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, op *EffectiveDataSc
 
 // ListAdmins 管理员列表
 func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListRequest) (*ListResponse[*AdminListItem], error) {
+	if req == nil || req.CurrentUID == "" {
+		return nil, ErrPermissionOperatorRequired
+	}
 	if req.Page <= 0 {
 		req.Page = 1
 	}
@@ -250,24 +261,26 @@ func (s *SuperAdminService) ListAdmins(ctx context.Context, req *AdminListReques
 		query = query.Where(admin.StatusEQ(admin.Status(req.Status)))
 	}
 
-	// 应用数据权限过滤
-	if req.CurrentUID != "" {
-		// 使用注入的 dataPermSvc，避免现场 new 导致 client 不一致（DI 闭环）
-		scope, err := s.dataPermSvc.ResolveAdminScope(ctx, req.CurrentUID)
-		if err != nil {
-			return nil, fmt.Errorf("解析数据权限失败: %w", err)
-		}
-		switch scope.Scope {
-		case DataScopeAll:
-			// 不做过滤
-		case DataScopeSelf:
-			query = query.Where(admin.UIDEQ(scope.AdminUID))
-		case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
-			if len(scope.DepartmentIDs) == 0 {
-				query = query.Where(admin.IDEQ(-1)) // 无可见部门，返回空结果
-			} else {
-				query = query.Where(admin.DepartmentIDIn(scope.DepartmentIDs...))
-			}
+	// 使用注入的 dataPermSvc，避免现场 new 导致 client 不一致（DI 闭环）
+	scope, err := s.dataPermSvc.ResolveAdminScope(ctx, req.CurrentUID)
+	if err != nil {
+		return nil, fmt.Errorf("解析数据权限失败: %w", err)
+	}
+	switch scope.Scope {
+	case DataScopeAll:
+		// 不做过滤
+	case DataScopeSelf:
+		query = query.Where(admin.UIDEQ(scope.AdminUID))
+	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
+		// 与详情侧 adminInOperatorScope 保持一致：列表也必须包含"自己"，
+		// 避免自己 DepartmentID=0 或不在可见部门范围内时从列表中消失（详情却能看到）
+		if len(scope.DepartmentIDs) == 0 {
+			query = query.Where(admin.UIDEQ(scope.AdminUID)) // 无可见部门时仅能看到自己
+		} else {
+			query = query.Where(admin.Or(
+				admin.DepartmentIDIn(scope.DepartmentIDs...),
+				admin.UIDEQ(scope.AdminUID),
+			))
 		}
 	}
 
@@ -314,7 +327,17 @@ func (s *SuperAdminService) ActivateAdmin(ctx context.Context, op *EffectiveData
 	if op != nil && op.AdminID == adminID {
 		return ErrCannotToggleSelfStatus
 	}
-	_, err := s.client.Admin.UpdateOneID(adminID).
+	target, err := s.client.Admin.Query().Where(admin.IDEQ(adminID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrAdminNotFound
+		}
+		return err
+	}
+	if err := ensureAdminRolesManageable(ctx, s.client, s.deptSvc, op, target.ID, target.DepartmentID); err != nil {
+		return err
+	}
+	_, err = s.client.Admin.UpdateOneID(adminID).
 		SetStatus(admin.StatusActive).
 		Save(ctx)
 	if err != nil {
@@ -335,7 +358,17 @@ func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, op *EffectiveDa
 	if op != nil && op.AdminID == adminID {
 		return ErrCannotToggleSelfStatus
 	}
-	_, err := s.client.Admin.UpdateOneID(adminID).
+	target, err := s.client.Admin.Query().Where(admin.IDEQ(adminID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return ErrAdminNotFound
+		}
+		return err
+	}
+	if err := ensureAdminRolesManageable(ctx, s.client, s.deptSvc, op, target.ID, target.DepartmentID); err != nil {
+		return err
+	}
+	_, err = s.client.Admin.UpdateOneID(adminID).
 		SetStatus(admin.StatusInactive).
 		Save(ctx)
 	if err != nil {
@@ -361,7 +394,6 @@ func (s *SuperAdminService) GetAdminByID(ctx context.Context, op *EffectiveDataS
 		}
 		return nil, err
 	}
-
 	return &AdminResponse{
 		ID:           a.UID,
 		Email:        a.Email,
@@ -399,6 +431,13 @@ func (s *SuperAdminService) UpdateAdmin(ctx context.Context, op *EffectiveDataSc
 		if ent.IsNotFound(err) {
 			return nil, ErrAdminNotFound
 		}
+		return nil, err
+	}
+	targetDepartmentID := a.DepartmentID
+	if req.DepartmentID != nil {
+		targetDepartmentID = *req.DepartmentID
+	}
+	if err := ensureAdminRolesManageable(ctx, s.client, s.deptSvc, op, a.ID, targetDepartmentID); err != nil {
 		return nil, err
 	}
 
@@ -444,6 +483,11 @@ func (s *SuperAdminService) UpdateAdmin(ctx context.Context, op *EffectiveDataSc
 	updated, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	// 部门变更会改变该管理员的数据范围（DeptAndChild 展开等），同步失效其数据范围缓存
+	if req.DepartmentID != nil && *req.DepartmentID != a.DepartmentID {
+		s.dataPermSvc.InvalidateAdminScope(ctx, a.UID)
 	}
 
 	return &AdminResponse{

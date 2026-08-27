@@ -224,6 +224,10 @@ func initialAdminPassword() string {
 func initSeedData() error {
 	ctx := context.Background()
 	client := global.ORM
+	domain := "default"
+	if appInstance != nil && appInstance.Config != nil && appInstance.Config.Casbin.DomainsDefault != "" {
+		domain = appInstance.Config.Casbin.DomainsDefault
+	}
 
 	appInstance.Logger.Info("initializing seed data...")
 
@@ -384,14 +388,14 @@ func initSeedData() error {
 	}
 
 	// 4. 创建 Casbin 权限规则
-	enforcer, err := global.EnforcerManager.GetEnforcer("default")
+	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
 	if err != nil {
 		appInstance.Logger.Error("failed to get casbin enforcer", zap.Error(err))
 		return fmt.Errorf("failed to get casbin enforcer: %w", err)
 	}
 
 	// 4.1 策略规则（p 类型）：admin 角色拥有所有权限
-	policyAdded, err := enforcer.AddPolicy("admin", "default", "*", "*")
+	policyAdded, err := enforcer.AddPolicy("admin", domain, "*", "*")
 	if err != nil {
 		return fmt.Errorf("failed to create casbin policy rule: %w", err)
 	}
@@ -403,7 +407,7 @@ func initSeedData() error {
 
 	// 4.2 角色分配规则（g 类型）：将用户 UID 分配到 admin 角色
 	userUIDStr := adminUser.UID
-	groupingAdded, err := enforcer.AddRoleForUserInDomain(userUIDStr, "admin", "default")
+	groupingAdded, err := enforcer.AddRoleForUserInDomain(userUIDStr, "admin", domain)
 	if err != nil {
 		return fmt.Errorf("failed to create casbin grouping rule: %w", err)
 	}
@@ -420,7 +424,7 @@ func initSeedData() error {
 
 	// 4.3 管理员账号角色分配规则（g 类型）：将管理员 UID 分配到 admin 角色
 	adminUIDStr := adminAccount.UID
-	adminGroupingAdded, err := enforcer.AddRoleForUserInDomain(adminUIDStr, "admin", "default")
+	adminGroupingAdded, err := enforcer.AddRoleForUserInDomain(adminUIDStr, "admin", domain)
 	if err != nil {
 		return fmt.Errorf("failed to create admin casbin grouping rule: %w", err)
 	}
@@ -443,7 +447,7 @@ func initSeedData() error {
 	appInstance.Logger.Info("system permissions initialized successfully")
 
 	// 6. 初始化普通管理员角色（normal_admin），并将所有系统权限分配给该角色
-	if err := initNormalAdminRole(ctx, client); err != nil {
+	if err := initNormalAdminRole(ctx, client, domain); err != nil {
 		appInstance.Logger.Error("failed to initialize normal_admin role", zap.Error(err))
 		return fmt.Errorf("failed to initialize normal_admin role: %w", err)
 	}
@@ -614,11 +618,12 @@ func initSystemConfigSeedData() error {
 // initNormalAdminRole seeds the built-in normal_admin role without granting
 // plugin management by default. Existing role assignments are preserved because
 // missing rules may have been deliberately removed by a super admin.
-func initNormalAdminRole(ctx context.Context, client *ent.Client) error {
-	const (
-		normalAdminRoleName = "normal_admin"
-		domain              = "default"
-	)
+func initNormalAdminRole(ctx context.Context, client *ent.Client, domains ...string) error {
+	const normalAdminRoleName = "normal_admin"
+	domain := "default"
+	if len(domains) > 0 && domains[0] != "" {
+		domain = domains[0]
+	}
 	roleCreated := false
 
 	// 1. 创建（或获取）普通管理员角色

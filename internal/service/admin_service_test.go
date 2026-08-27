@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
@@ -14,6 +15,7 @@ import (
 	"github.com/wuwuseo/cmf/bootstrap"
 	cmfConfig "github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/crypto"
+	cmfJwt "github.com/wuwuseo/cmf/jwt"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -348,6 +350,102 @@ func TestAdminService_RefreshToken_Success(t *testing.T) {
 	claims := token.Claims.(jwt.MapClaims)
 	if claims["token_type"] != "access" {
 		t.Errorf("期望token_type=access, 实际=%v", claims["token_type"])
+	}
+}
+
+func TestAdminService_RefreshToken_InvalidToken(t *testing.T) {
+	_, _, cleanup := setupAdminServiceTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	svc := NewAdminService()
+	_, err := svc.RefreshToken(ctx, "invalid-token-format")
+	if err == nil {
+		t.Fatal("期望无效令牌返回错误，但未返回")
+	}
+}
+
+func TestAdminService_RefreshToken_WrongTokenType(t *testing.T) {
+	client, _, cleanup := setupAdminServiceTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	createTestAdminWithPassword(t, client, "wrongtype@test.com", "uid-wrongtype", "wrongtypeuser", "Tt!12345", admin.StatusActive)
+
+	svc := NewAdminService()
+	loginResp, err := svc.Login(ctx, &AdminLoginRequest{
+		Email:    "wrongtype@test.com",
+		Password: "Tt!12345",
+	})
+	if err != nil {
+		t.Fatalf("管理员登录失败: %v", err)
+	}
+
+	_, err = svc.RefreshToken(ctx, loginResp.AccessToken)
+	if err == nil {
+		t.Fatal("期望使用访问令牌刷新返回错误，但未返回")
+	}
+}
+
+func TestAdminService_RefreshToken_AdminNotFound(t *testing.T) {
+	_, _, cleanup := setupAdminServiceTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	// 构造一个有效格式但对应管理员不存在的刷新令牌
+	now := time.Now()
+	refreshClaims := jwt.MapClaims{
+		"id":         "nonexistent-admin",
+		"subject":    "ghost",
+		"issuer":     "test-admin",
+		"domain":     "default",
+		"expires":    jwt.NewNumericDate(now.Add(time.Duration(86400) * time.Second)),
+		"issued_at":  jwt.NewNumericDate(now),
+		"token_type": "refresh",
+	}
+	token, err := cmfJwt.CreateToken(refreshClaims, "admin-test-secret-key")
+	if err != nil {
+		t.Fatalf("创建测试令牌失败: %v", err)
+	}
+
+	svc := NewAdminService()
+	_, err = svc.RefreshToken(ctx, token)
+	if err == nil {
+		t.Fatal("期望不存在的管理员刷新返回错误，但未返回")
+	}
+	if err.Error() != "admin not found" {
+		t.Errorf("期望错误消息为 'admin not found', 实际=%s", err.Error())
+	}
+}
+
+func TestAdminService_RefreshToken_AdminInactive(t *testing.T) {
+	client, _, cleanup := setupAdminServiceTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+
+	a := createTestAdminWithPassword(t, client, "inactive-refresh@test.com", "uid-inactive-refresh", "inactiverefresh", "Tt!12345", admin.StatusActive)
+
+	svc := NewAdminService()
+	loginResp, err := svc.Login(ctx, &AdminLoginRequest{
+		Email:    "inactive-refresh@test.com",
+		Password: "Tt!12345",
+	})
+	if err != nil {
+		t.Fatalf("管理员登录失败: %v", err)
+	}
+
+	// 将管理员设为未激活
+	_, err = client.Admin.UpdateOne(a).SetStatus(admin.StatusInactive).Save(ctx)
+	if err != nil {
+		t.Fatalf("更新管理员状态失败: %v", err)
+	}
+
+	_, err = svc.RefreshToken(ctx, loginResp.RefreshToken)
+	if err == nil {
+		t.Fatal("期望未激活管理员刷新返回错误，但未返回")
+	}
+	if err.Error() != "admin is not active" {
+		t.Errorf("期望错误消息为 'admin is not active', 实际=%s", err.Error())
 	}
 }
 

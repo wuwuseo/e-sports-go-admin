@@ -373,10 +373,15 @@ func BroadcastMessage(c fiber.Ctx) error {
 		return response.Fail(global.ResponseErrorCode, "请求参数错误").ToJSON(c)
 	}
 	domain := domainFromCtx(c)
+	if domain == "" {
+		return response.Fail(global.ResponseUnauthorized, "缺少权限域").ToJSON(c)
+	}
 	svc := c.Locals("service.MessageBroadcastService").(service.MessageBroadcastServiceInterface)
 	data, err := svc.Broadcast(c.Context(), domain, req)
 	if err != nil {
 		switch {
+		case errors.Is(err, service.ErrPermissionOperatorRequired):
+			return response.Fail(global.ResponseUnauthorized, "缺少权限域").ToJSON(c)
 		case errors.Is(err, service.ErrBroadcastInvalidScope):
 			return response.Fail(global.ResponseMessageInvalidScope).ToJSON(c)
 		case errors.Is(err, service.ErrBroadcastUsersRequired),

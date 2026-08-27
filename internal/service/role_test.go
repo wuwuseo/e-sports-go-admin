@@ -212,6 +212,43 @@ func TestRoleService_List_NoFilters(t *testing.T) {
 	}
 }
 
+func TestRoleService_ReadsFilterRolesOutsideOperatorScope(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+
+	selfRole := client.Role.Create().
+		SetName("scoped-self").
+		SetDisplayName("Scoped Self").
+		SetDataScope(role.DataScopeSelf).
+		SaveX(ctx)
+	allRole := client.Role.Create().
+		SetName("scoped-all").
+		SetDisplayName("Scoped All").
+		SetDataScope(role.DataScopeAll).
+		SaveX(ctx)
+	client.Role.Create().
+		SetName(SuperAdminRoleName).
+		SetDisplayName("Super Admin").
+		SetDataScope(role.DataScopeAll).
+		SaveX(ctx)
+
+	op := &EffectiveDataScope{Scope: DataScopeSelf, AdminUID: "uid-limited", Domain: "default"}
+	list, err := svc.List(ctx, &ListRolesRequest{}, op)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if list.Total != 1 || len(list.Data) != 1 || list.Data[0].ID != selfRole.ID {
+		t.Fatalf("visible roles = %+v, total = %d", list.Data, list.Total)
+	}
+	if _, err := svc.Get(ctx, allRole.ID, op); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("Get outside scope error = %v, want ErrRoleScopeEscalation", err)
+	}
+	if got, err := svc.ListAll(ctx, &ListAllRolesRequest{}, op); err != nil || len(got) != 1 || got[0].ID != selfRole.ID {
+		t.Fatalf("ListAll = %+v, err = %v", got, err)
+	}
+}
+
 func TestRoleService_List_WithKeyword(t *testing.T) {
 	client := setupTestClient(t)
 	ctx := t.Context()
@@ -541,11 +578,11 @@ func TestRoleService_Update_RejectsAssignedDeptAndChildOverflow(t *testing.T) {
 	svc := NewRoleService(nil)
 
 	deptSvc := NewDepartmentService()
-	d, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "dept"})
+	d, err := deptSvc.Create(ctx, nil, &CreateDepartmentRequest{Name: "dept"})
 	if err != nil {
 		t.Fatalf("创建部门失败: %v", err)
 	}
-	child, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "child", ParentID: d.ID})
+	child, err := deptSvc.Create(ctx, nil, &CreateDepartmentRequest{Name: "child", ParentID: d.ID})
 	if err != nil {
 		t.Fatalf("创建子部门失败: %v", err)
 	}
@@ -634,11 +671,11 @@ func TestRoleService_Update_AllowsAssignedDeptAndChildWithinScope(t *testing.T) 
 	svc := NewRoleService(nil)
 
 	deptSvc := NewDepartmentService()
-	d, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "dept-ok"})
+	d, err := deptSvc.Create(ctx, nil, &CreateDepartmentRequest{Name: "dept-ok"})
 	if err != nil {
 		t.Fatalf("创建部门失败: %v", err)
 	}
-	child, err := deptSvc.Create(ctx, &CreateDepartmentRequest{Name: "child-ok", ParentID: d.ID})
+	child, err := deptSvc.Create(ctx, nil, &CreateDepartmentRequest{Name: "child-ok", ParentID: d.ID})
 	if err != nil {
 		t.Fatalf("创建子部门失败: %v", err)
 	}

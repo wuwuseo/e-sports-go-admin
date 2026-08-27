@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,7 +44,7 @@ func NewRateLimiter(config RateLimiterConfig) *RateLimiter {
 // Handler 返回 Fiber 中间件
 func (rl *RateLimiter) Handler() fiber.Handler {
 	return func(c fiber.Ctx) error {
-		key := rl.config.KeyFunc(c)
+		key := strings.Clone(rl.config.KeyFunc(c))
 		now := time.Now()
 
 		val, _ := rl.entries.LoadOrStore(key, &rateLimitEntry{})

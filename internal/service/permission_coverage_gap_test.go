@@ -429,4 +429,3 @@ func TestSystemPermissionService_CascadeEnable_DeepNesting(t *testing.T) {
 		}
 	}
 }
-

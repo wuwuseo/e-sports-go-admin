@@ -381,9 +381,9 @@ func TestUserListService_ListUsers_TimeRangeFilter(t *testing.T) {
 	svc := NewUserListService()
 	futureTime := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
 	req := &UserListRequest{
-		Page:      1,
-		PageSize:  10,
-		EndTime:   futureTime,
+		Page:     1,
+		PageSize: 10,
+		EndTime:  futureTime,
 	}
 
 	resp, err := svc.ListUsers(ctx, req)

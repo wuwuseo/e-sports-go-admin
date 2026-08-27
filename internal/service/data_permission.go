@@ -3,6 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync/atomic"
+	"time"
+
+	"github.com/wuwuseo/cmf/cache"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
@@ -35,29 +40,112 @@ var ErrRoleScopeEscalation = errors.New("role data scope escalation")
 // EffectiveDataScope 管理员的有效数据权限范围
 type EffectiveDataScope struct {
 	Scope         DataScope
+	Domain        string
 	AdminID       int
 	AdminUID      string
+	Username      string
 	DepartmentID  int
 	DepartmentIDs []int
 	IsSuperAdmin  bool
+
+	// departmentSet 是 DepartmentIDs 的集合索引，containsDepartment 惰性构建。
+	// 非导出字段不参与缓存 JSON 序列化，命中缓存反序列化后自动重建
+	departmentSet map[int]struct{}
+}
+
+// containsDepartment 判断部门是否在 DepartmentIDs 内。
+// 惰性构建 set：单请求内首次判定 O(n) 构建，后续判定 O(1)，替代逐次线性扫描
+func (s *EffectiveDataScope) containsDepartment(id int) bool {
+	if s.departmentSet == nil && len(s.DepartmentIDs) > 0 {
+		s.departmentSet = make(map[int]struct{}, len(s.DepartmentIDs))
+		for _, d := range s.DepartmentIDs {
+			s.departmentSet[d] = struct{}{}
+		}
+	}
+	_, ok := s.departmentSet[id]
+	return ok
 }
 
 // DataPermissionService 数据权限解析服务
 type DataPermissionService struct {
 	client            *ent.Client
 	departmentService DepartmentServiceInterface
+	cache             *cache.TypedCache[*EffectiveDataScope]
 }
 
 // NewDataPermissionService 创建数据权限解析服务
-func NewDataPermissionService(departmentService DepartmentServiceInterface) *DataPermissionService {
+//
+//	rawCache 可选注入共享缓存句柄，未注入（nil）时每次实时查库，兼容单测环境
+func NewDataPermissionService(departmentService DepartmentServiceInterface, rawCache ...*cache.Cache[[]byte]) *DataPermissionService {
+	var typedCache *cache.TypedCache[*EffectiveDataScope]
+	if len(rawCache) > 0 && rawCache[0] != nil {
+		typedCache = cache.NewTypedCache[*EffectiveDataScope](rawCache[0])
+	}
 	return &DataPermissionService{
 		client:            global.ORM,
 		departmentService: departmentService,
+		cache:             typedCache,
 	}
 }
 
-// ResolveAdminScope 解析管理员的有效数据权限范围
+// deptTreeScopeVersion 部门树结构版本号：增删改/移动子树时递增，使所有数据范围缓存键整体失效。
+//
+// ponytail: 进程内变量，多实例部署下其他实例靠 30s TTL 自愈（与 casbin 无 watcher 的
+// 最终一致模型对齐）；需要跨实例即时失效时，升级为版本号存共享缓存并拼入键
+var deptTreeScopeVersion atomic.Int64
+
+// InvalidateDataScopeByDeptTree 部门树结构变更后调用，使所有管理员的数据范围缓存立即失效。
+// 部门增删改/移动会改变 DeptAndChild 角色的子树展开结果，无法按管理员精准定位，整体换键最简
+func InvalidateDataScopeByDeptTree() {
+	deptTreeScopeVersion.Add(1)
+}
+
+// dataScopeCacheKey 数据范围缓存键。数据范围与权限 domain 无关，仅按管理员 UID 区分；
+// 键内拼入部门树版本号，部门结构变更后整体换键失效（旧键等待 TTL 自然回收）
+func dataScopeCacheKey(uid string) string {
+	return fmt.Sprintf("datascope:v%d:%s", deptTreeScopeVersion.Load(), uid)
+}
+
+// dataScopeCacheTTL 数据范围缓存过期时间。
+// 角色分配/启停/范围变更、管理员部门变更、部门树结构调整均已挂失效钩子，
+// 与 casbin g 规则重建同点执行，权限变更即时生效；TTL 仅作最后兜底（如多实例间版本号差异）
+func dataScopeCacheTTL() time.Duration {
+	return 30 * time.Second
+}
+
+// InvalidateAdminScope 失效指定管理员的数据范围缓存。
+// 角色重分配、管理员部门变更后必须调用，确保权限变更即时生效而非等待 TTL 过期
+func (s *DataPermissionService) InvalidateAdminScope(ctx context.Context, uids ...string) {
+	if s.cache == nil {
+		return
+	}
+	for _, uid := range uids {
+		_ = s.cache.Delete(ctx, dataScopeCacheKey(uid))
+	}
+}
+
+// ResolveAdminScope 解析管理员的有效数据权限范围（带缓存）
 func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid string) (*EffectiveDataScope, error) {
+	if s.cache == nil {
+		return s.resolveAdminScopeDB(ctx, uid)
+	}
+	key := dataScopeCacheKey(uid)
+	if cached, err := s.cache.Get(ctx, key); err == nil && cached != nil {
+		// 浅拷贝返回：调用方（如 NewOperatorContext 会写 Domain）不得污染缓存对象
+		cp := *cached
+		return &cp, nil
+	}
+	scope, err := s.resolveAdminScopeDB(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+	_ = s.cache.SetWithExpiration(ctx, key, scope, dataScopeCacheTTL())
+	cp := *scope // 同样返回拷贝，写缓存后调用方的修改不回写缓存
+	return &cp, nil
+}
+
+// resolveAdminScopeDB 实时查库解析管理员的有效数据权限范围
+func (s *DataPermissionService) resolveAdminScopeDB(ctx context.Context, uid string) (*EffectiveDataScope, error) {
 	a, err := s.client.Admin.Query().Where(admin.UIDEQ(uid)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -67,7 +155,7 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 	}
 	// 超级管理员拥有全部数据权限
 	if a.IsSuperAdmin {
-		return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID, IsSuperAdmin: true}, nil
+		return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, Username: a.Username, DepartmentID: a.DepartmentID, IsSuperAdmin: true}, nil
 	}
 
 	// 查询管理员关联的活跃角色
@@ -85,6 +173,7 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 		Scope:        DataScopeSelf,
 		AdminID:      a.ID,
 		AdminUID:     a.UID,
+		Username:     a.Username,
 		DepartmentID: a.DepartmentID,
 		IsSuperAdmin: false,
 	}
@@ -96,11 +185,11 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 			continue
 		}
 		if r.Name == SuperAdminRoleName {
-			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID, IsSuperAdmin: true}, nil
+			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, Username: a.Username, DepartmentID: a.DepartmentID, IsSuperAdmin: true}, nil
 		}
 		switch DataScope(r.DataScope) {
 		case DataScopeAll:
-			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, DepartmentID: a.DepartmentID, IsSuperAdmin: false}, nil
+			return &EffectiveDataScope{Scope: DataScopeAll, AdminID: a.ID, AdminUID: a.UID, Username: a.Username, DepartmentID: a.DepartmentID, IsSuperAdmin: false}, nil
 		case DataScopeCustom:
 			result.Scope = mergeScope(result.Scope, DataScopeCustom)
 			result.DepartmentIDs = appendUniqueInts(result.DepartmentIDs, r.DataScopeDepartmentIds...)
@@ -204,7 +293,7 @@ func isDepartmentInScope(op *EffectiveDataScope, departmentID int) bool {
 		if departmentID == 0 {
 			return false
 		}
-		return containsInt(op.DepartmentIDs, departmentID)
+		return op.containsDepartment(departmentID)
 	default:
 		return false
 	}
@@ -213,20 +302,32 @@ func isDepartmentInScope(op *EffectiveDataScope, departmentID int) bool {
 // isCustomDeptSubset 判断 deptIDs 是否为 op.DepartmentIDs 的子集。
 func isCustomDeptSubset(op *EffectiveDataScope, deptIDs []int) bool {
 	for _, id := range deptIDs {
-		if !containsInt(op.DepartmentIDs, id) {
+		if !op.containsDepartment(id) {
 			return false
 		}
 	}
 	return true
 }
 
-// NewOperatorContext 从 currentUID 构造操作者上下文
-// currentUID 为空时返回 nil（内部调用绕过校验）
-func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentUID string) (*EffectiveDataScope, error) {
+// NewOperatorContext 从 currentUID 构造请求操作者上下文。内部调用若需绕过，
+// 应显式向服务方法传 nil，而不是借空 UID 隐式放行。
+func (s *DataPermissionService) NewOperatorContext(ctx context.Context, currentUID string, domains ...string) (*EffectiveDataScope, error) {
 	if currentUID == "" {
-		return nil, nil
+		return nil, ErrPermissionOperatorRequired
 	}
-	return s.ResolveAdminScope(ctx, currentUID)
+	op, err := s.ResolveAdminScope(ctx, currentUID)
+	if err != nil {
+		return nil, err
+	}
+	domain := configuredPermissionDomain()
+	if len(domains) > 0 {
+		if domains[0] == "" {
+			return nil, ErrPermissionOperatorRequired
+		}
+		domain = domains[0]
+	}
+	op.Domain = domain
+	return op, nil
 }
 
 // ensureAdminInScope 校验 targetAdminID 是否在 op 的数据范围内
@@ -409,6 +510,40 @@ func ensureRolesNotEscalatingForTarget(
 	return nil
 }
 
+// ensureAdminRolesManageable applies both independent delegation constraints to
+// an existing administrator: its roles must not expand beyond the operator's
+// department data scope or API permission scope.
+func ensureAdminRolesManageable(
+	ctx context.Context,
+	client *ent.Client,
+	deptSvc DepartmentServiceInterface,
+	op *EffectiveDataScope,
+	targetAdminID, targetDepartmentID int,
+) error {
+	if op == nil || op.IsSuperAdmin {
+		return nil
+	}
+	adminRoles, err := client.AdminRole.Query().
+		Where(adminrole.AdminIDEQ(targetAdminID)).
+		WithRole(func(q *ent.RoleQuery) {
+			q.Where(role.StatusEQ(role.StatusActive))
+		}).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	roleIDs := make([]int, 0, len(adminRoles))
+	for _, ar := range adminRoles {
+		if ar.Edges.Role != nil {
+			roleIDs = append(roleIDs, ar.Edges.Role.ID)
+		}
+	}
+	if err := ensureRolesNotEscalatingForTarget(ctx, client, deptSvc, op, roleIDs, targetDepartmentID); err != nil {
+		return err
+	}
+	return ensureRolePermissionsNotEscalating(ctx, client, op, op.AdminUID, permissionDomainForScope(op), roleIDs)
+}
+
 func adminInOperatorScope(op *EffectiveDataScope, target *ent.Admin) bool {
 	if shouldBypassCheck(op, false) {
 		return true
@@ -437,7 +572,7 @@ func ensureRoleEffectiveDepartmentsInScope(
 		return ErrRoleScopeEscalation
 	}
 	for _, deptID := range effective {
-		if !containsInt(op.DepartmentIDs, deptID) {
+		if !op.containsDepartment(deptID) {
 			return ErrRoleScopeEscalation
 		}
 	}
@@ -479,11 +614,18 @@ func ensureRoleManageableForAssignedAdmins(
 			DataScopeDepartmentIds: newDeptIDs,
 		}
 	}
+	// 按持有者部门去重：ensureRoleEffectiveDepartmentsInScope 仅依赖 target.DepartmentID，
+	// 相同部门持有者结论相同，避免逐人重复展开部门子树（N+1 查询）
+	seenDept := make(map[int]struct{})
 	for _, holder := range holders {
 		target := holder.Edges.Admin
 		if !adminInOperatorScope(op, target) {
 			return ErrRoleScopeEscalation
 		}
+		if _, ok := seenDept[target.DepartmentID]; ok {
+			continue
+		}
+		seenDept[target.DepartmentID] = struct{}{}
 		if err := ensureRoleEffectiveDepartmentsInScope(ctx, deptSvc, op, currentRole, target.DepartmentID); err != nil {
 			return err
 		}

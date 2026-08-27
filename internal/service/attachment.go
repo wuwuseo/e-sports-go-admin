@@ -359,7 +359,7 @@ func (s *AttachmentService) BuildAccessURL(ctx context.Context, id int, basePath
 
 	disk, driver := s.attachmentDiskDriver(a)
 	public := filesystem.IsPublicDirectory(attachmentDirectory(a))
-	mode := "private_local"
+	var mode string // 所有 switch 分支都会赋值，无需初值
 	expiresIn := int64(0)
 	var accessURL string
 

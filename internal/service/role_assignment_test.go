@@ -230,7 +230,7 @@ func TestRoleAssignmentService_AssignRoles_PrimaryRoleInvalid(t *testing.T) {
 	err := svc.AssignRoles(ctx, 1, &AssignRolesRequest{
 		RoleIDs:       []int{1, 2},
 		PrimaryRoleID: 99,
-	}, "operator-uid")
+	}, "operator-uid", defaultPermissionDomain)
 
 	if !errors.Is(err, ErrPrimaryRoleInvalid) {
 		t.Errorf("期望错误为 ErrPrimaryRoleInvalid, 实际为 %v", err)
@@ -254,7 +254,7 @@ func TestRoleAssignmentService_AssignRoles_InvalidRoleIDs(t *testing.T) {
 	err = svc.AssignRoles(ctx, 1, &AssignRolesRequest{
 		RoleIDs:       []int{r1.ID, 99999},
 		PrimaryRoleID: r1.ID,
-	}, "operator-uid")
+	}, "operator-uid", defaultPermissionDomain)
 
 	if !errors.Is(err, ErrInvalidRoleIDs) {
 		t.Errorf("期望错误为 ErrInvalidRoleIDs, 实际为 %v", err)
@@ -289,7 +289,7 @@ func TestRoleAssignmentService_AssignRoles_RejectsSuperAdminRole(t *testing.T) {
 	err = svc.AssignRoles(ctx, u.ID, &AssignRolesRequest{
 		RoleIDs:       []int{adminRole.ID},
 		PrimaryRoleID: adminRole.ID,
-	}, "operator-uid")
+	}, "operator-uid", defaultPermissionDomain)
 
 	if !errors.Is(err, ErrSuperAdminRoleAssignmentForbidden) {
 		t.Errorf("期望错误为 ErrSuperAdminRoleAssignmentForbidden, 实际为 %v", err)
@@ -348,7 +348,7 @@ func TestRoleAssignmentService_AssignRoles_UserNotFound(t *testing.T) {
 	err = svc.AssignRoles(ctx, 99999, &AssignRolesRequest{
 		RoleIDs:       []int{r1.ID},
 		PrimaryRoleID: r1.ID,
-	}, "operator-uid")
+	}, "operator-uid", defaultPermissionDomain)
 
 	if !errors.Is(err, ErrUserNotFound) {
 		t.Errorf("期望错误为 ErrUserNotFound, 实际为 %v", err)

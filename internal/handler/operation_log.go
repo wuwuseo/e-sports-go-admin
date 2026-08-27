@@ -65,6 +65,7 @@ func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, 
 func ListOperationLogs(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	req, err := validate.ParseQueryAndValidate[service.ListOperationLogsRequest](c)
 	if err != nil {
@@ -81,7 +82,12 @@ func ListOperationLogs(c fiber.Ctx) error {
 		req.PageSize = 10
 	}
 
-	logs, err := logService.List(c.Context(), req)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取操作日志列表失败")
+	}
+
+	logs, err := logService.List(c.Context(), op, req)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取操作日志列表失败").ToJSON(c)
 	}
@@ -106,13 +112,19 @@ func ListOperationLogs(c fiber.Ctx) error {
 func GetOperationLog(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return resp.Fail(global.ResponseErrorCode, "无效的日志ID").ToJSON(c)
 	}
 
-	opLog, err := logService.Get(c.Context(), id)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取操作日志失败")
+	}
+
+	opLog, err := logService.Get(c.Context(), op, id)
 	if err != nil {
 		if err == service.ErrOperationLogNotFound {
 			return resp.Fail(global.ErrCodeOperationLogNotFound, "操作日志不存在").ToJSON(c)

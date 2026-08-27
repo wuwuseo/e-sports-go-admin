@@ -94,14 +94,47 @@ func TestOAuthAuthServiceListsAndDeletesManagedAdminIdentity(t *testing.T) {
 		t.Fatalf("create identity: %v", err)
 	}
 
-	result, err := service.ListAllAdminIdentities(t.Context(), 1, 10, "github", "managed-admin")
+	result, err := service.ListAllAdminIdentities(t.Context(), nil, 1, 10, "github", "managed-admin")
 	if err != nil || result.Total != 1 || len(result.Data) != 1 || result.Data[0].AdminUID != a.UID {
 		t.Fatalf("unexpected managed identities: %#v err=%v", result, err)
 	}
-	if err := service.DeleteAdminIdentity(t.Context(), identity.ID); err != nil {
+	if err := service.DeleteAdminIdentity(t.Context(), nil, identity.ID); err != nil {
 		t.Fatalf("DeleteAdminIdentity: %v", err)
 	}
-	if err := service.DeleteAdminIdentity(t.Context(), identity.ID); !errors.Is(err, ErrThirdPartyNotFound) {
+	if err := service.DeleteAdminIdentity(t.Context(), nil, identity.ID); !errors.Is(err, ErrThirdPartyNotFound) {
 		t.Fatalf("expected missing identity after delete, got %v", err)
+	}
+}
+
+func TestOAuthAuthServiceScopesManagedAdminIdentities(t *testing.T) {
+	client, service, _ := setupOAuthAuthTest(t)
+	ctx := t.Context()
+	deptA := client.Department.Create().SetName("OAuth-A").SaveX(ctx)
+	deptB := client.Department.Create().SetName("OAuth-B").SaveX(ctx)
+	adminA := client.Admin.Create().SetEmail("oauth-a@example.com").SetUID("oauth-a").SetUsername("oauth-a").
+		SetPassword("hash").SetDepartmentID(deptA.ID).SetStatus(admin.StatusActive).SaveX(ctx)
+	adminB := client.Admin.Create().SetEmail("oauth-b@example.com").SetUID("oauth-b").SetUsername("oauth-b").
+		SetPassword("hash").SetDepartmentID(deptB.ID).SetStatus(admin.StatusActive).SaveX(ctx)
+	identityA := client.AdminThirdPartyUser.Create().SetAdminID(adminA.ID).SetPlatform("github").
+		SetOpenid("oauth-a-openid").SetStatus(adminthirdpartyuser.StatusActive).SaveX(ctx)
+	identityB := client.AdminThirdPartyUser.Create().SetAdminID(adminB.ID).SetPlatform("github").
+		SetOpenid("oauth-b-openid").SetStatus(adminthirdpartyuser.StatusActive).SaveX(ctx)
+	op := &EffectiveDataScope{Scope: DataScopeCustom, AdminID: adminA.ID, AdminUID: adminA.UID, DepartmentIDs: []int{deptA.ID}}
+
+	result, err := service.ListAllAdminIdentities(ctx, op, 1, 10, "", "")
+	if err != nil {
+		t.Fatalf("ListAllAdminIdentities: %v", err)
+	}
+	if result.Total != 1 || len(result.Data) != 1 || result.Data[0].ID != identityA.ID {
+		t.Fatalf("OAuth 绑定列表泄露范围外管理员: %#v", result)
+	}
+	if err := service.DeleteAdminIdentity(ctx, op, identityB.ID); !errors.Is(err, ErrThirdPartyNotFound) {
+		t.Fatalf("删除范围外 OAuth 绑定应隐藏为不存在，got %v", err)
+	}
+	if exists := client.AdminThirdPartyUser.Query().Where(adminthirdpartyuser.IDEQ(identityB.ID)).ExistX(ctx); !exists {
+		t.Fatal("范围外 OAuth 绑定不应被删除")
+	}
+	if err := service.DeleteAdminIdentity(ctx, op, identityA.ID); err != nil {
+		t.Fatalf("删除范围内 OAuth 绑定失败: %v", err)
 	}
 }

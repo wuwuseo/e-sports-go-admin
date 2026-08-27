@@ -47,6 +47,29 @@ func TestSystemPermissionDomainUsesAuthenticatedDomain(t *testing.T) {
 	}
 }
 
+func TestPermissionDomainAllowedRejectsCrossDomain(t *testing.T) {
+	app := fiber.New()
+	var sameDomain, crossDomain, emptyDomain bool
+
+	app.Get("/permissions", func(c fiber.Ctx) error {
+		c.Locals("domain", "tenant-a")
+		sameDomain = permissionDomainAllowed(c, "tenant-a")
+		crossDomain = permissionDomainAllowed(c, "tenant-b")
+		emptyDomain = permissionDomainAllowed(c, "")
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/permissions", nil))
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if !sameDomain || crossDomain || emptyDomain {
+		t.Fatalf("domain checks = same:%v cross:%v empty:%v", sameDomain, crossDomain, emptyDomain)
+	}
+}
+
 // -------------------------------------------------------------------
 // systemPermissionDomain 边界：locals 中无 domain / domain 为空字符串
 //

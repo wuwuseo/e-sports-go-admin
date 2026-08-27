@@ -159,6 +159,8 @@ func TestSuperAdminService_ListAdmins_Success(t *testing.T) {
 	client, _, cleanup := setupSuperAdminTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
+	viewer := createTestAdminRaw(t, client, "list-viewer@test.com", "uid-list-viewer", "listviewer", "pass", admin.StatusActive)
+	viewer = client.Admin.UpdateOne(viewer).SetIsSuperAdmin(true).SaveX(ctx)
 
 	for i := 0; i < 3; i++ {
 		_ = createTestAdminRaw(t, client,
@@ -172,8 +174,9 @@ func TestSuperAdminService_ListAdmins_Success(t *testing.T) {
 
 	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	resp, err := svc.ListAdmins(ctx, &AdminListRequest{
-		Page:     1,
-		PageSize: 10,
+		CurrentUID: viewer.UID,
+		Page:       1,
+		PageSize:   10,
 	})
 	if err != nil {
 		t.Fatalf("查询管理员列表失败: %v", err)
@@ -188,6 +191,8 @@ func TestSuperAdminService_ListAdmins_Pagination(t *testing.T) {
 	client, _, cleanup := setupSuperAdminTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
+	viewer := createTestAdminRaw(t, client, "page-viewer@test.com", "uid-page-viewer", "pageviewer", "pass", admin.StatusActive)
+	viewer = client.Admin.UpdateOne(viewer).SetIsSuperAdmin(true).SaveX(ctx)
 
 	for i := 0; i < 5; i++ {
 		_ = createTestAdminRaw(t, client,
@@ -201,8 +206,9 @@ func TestSuperAdminService_ListAdmins_Pagination(t *testing.T) {
 
 	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
 	resp, err := svc.ListAdmins(ctx, &AdminListRequest{
-		Page:     1,
-		PageSize: 2,
+		CurrentUID: viewer.UID,
+		Page:       1,
+		PageSize:   2,
 	})
 	if err != nil {
 		t.Fatalf("查询管理员列表失败: %v", err)
@@ -213,6 +219,18 @@ func TestSuperAdminService_ListAdmins_Pagination(t *testing.T) {
 	}
 	if resp.Total < 5 {
 		t.Errorf("期望总数至少为5, 实际=%d", resp.Total)
+	}
+}
+
+func TestSuperAdminService_ListAdmins_RequiresOperator(t *testing.T) {
+	_, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
+	for _, req := range []*AdminListRequest{nil, {Page: 1, PageSize: 10}} {
+		if _, err := svc.ListAdmins(t.Context(), req); !errors.Is(err, ErrPermissionOperatorRequired) {
+			t.Fatalf("ListAdmins(%v) error = %v, want ErrPermissionOperatorRequired", req, err)
+		}
 	}
 }
 
@@ -431,6 +449,40 @@ func TestSuperAdminService_CreateAdmin_RejectsRoleScopeEscalation(t *testing.T) 
 	})
 	if !errors.Is(err, ErrRoleScopeEscalation) {
 		t.Fatalf("期望 ErrRoleScopeEscalation，got %v", err)
+	}
+}
+
+func TestSuperAdminService_CreateAdmin_RejectsAPIPermissionEscalation(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+	dept := client.Department.Create().SetName("api-delegation").SaveX(ctx)
+	operator := createTestAdminRaw(t, client, "api-op@test.com", "api-op", "api-op", "pass", admin.StatusActive)
+	client.Admin.UpdateOne(operator).SetDepartmentID(dept.ID).ExecX(ctx)
+	operatorRole := client.Role.Create().SetName("create_api_operator").SetDisplayName("Create API operator").
+		SetDataScope(role.DataScopeAll).SetStatus(role.StatusActive).SaveX(ctx)
+	delegatedRole := client.Role.Create().SetName("create_api_delegated").SetDisplayName("Create API delegated").
+		SetDataScope(role.DataScopeSelf).SetStatus(role.StatusActive).SaveX(ctx)
+	client.AdminRole.Create().SetAdminID(operator.ID).SetRoleID(operatorRole.ID).SaveX(ctx)
+	client.CasbinRule.Create().SetPtype("p").SetV0(operatorRole.Name).SetV1(defaultPermissionDomain).
+		SetV2("/api/v1/admin/auth/admins").SetV3("GET").SaveX(ctx)
+	client.CasbinRule.Create().SetPtype("p").SetV0(delegatedRole.Name).SetV1(defaultPermissionDomain).
+		SetV2("/api/v1/admin/auth/admins").SetV3("DELETE").SaveX(ctx)
+	op := &EffectiveDataScope{Scope: DataScopeAll, AdminID: operator.ID, AdminUID: operator.UID}
+
+	_, err := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService()).CreateAdmin(ctx, op, &CreateAdminRequest{
+		Email:         "api-target@test.com",
+		Password:      "passw0rd",
+		Username:      "api-target",
+		DepartmentID:  dept.ID,
+		RoleIDs:       []int{delegatedRole.ID},
+		PrimaryRoleID: delegatedRole.ID,
+	})
+	if !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("创建管理员时不得委派超出操作者的 API 权限，got %v", err)
+	}
+	if exists := client.Admin.Query().Where(admin.EmailEQ("api-target@test.com")).ExistX(ctx); exists {
+		t.Fatal("拒绝 API 权限提权后不应创建管理员")
 	}
 }
 

@@ -28,6 +28,13 @@ func TestContainsInt_EmptySlice(t *testing.T) {
 	}
 }
 
+func TestNewOperatorContextRejectsEmptyUID(t *testing.T) {
+	svc := NewDataPermissionService(nil)
+	if _, err := svc.NewOperatorContext(t.Context(), ""); !errors.Is(err, ErrPermissionOperatorRequired) {
+		t.Fatalf("空 UID 必须默认拒绝，got %v", err)
+	}
+}
+
 func TestEnsureAdminInScope_NilOp(t *testing.T) {
 	if err := ensureAdminInScope(context.Background(), nil, nil, 999); err != nil {
 		t.Fatalf("op==nil 应放行（且无需 client），got %v", err)
@@ -294,14 +301,14 @@ func (f *fakeDeptSvc) ChildIDs(ctx context.Context, id int, includeSelf bool) ([
 }
 
 // 其余 DepartmentServiceInterface 方法返回零值即可
-func (f *fakeDeptSvc) Create(ctx context.Context, req *CreateDepartmentRequest) (*DepartmentResponse, error) {
+func (f *fakeDeptSvc) Create(ctx context.Context, op *EffectiveDataScope, req *CreateDepartmentRequest) (*DepartmentResponse, error) {
 	return nil, nil
 }
-func (f *fakeDeptSvc) Update(ctx context.Context, id int, req *UpdateDepartmentRequest) error {
+func (f *fakeDeptSvc) Update(ctx context.Context, op *EffectiveDataScope, id int, req *UpdateDepartmentRequest) error {
 	return nil
 }
-func (f *fakeDeptSvc) Delete(ctx context.Context, id int) error { return nil }
-func (f *fakeDeptSvc) Get(ctx context.Context, id int) (*DepartmentResponse, error) {
+func (f *fakeDeptSvc) Delete(ctx context.Context, op *EffectiveDataScope, id int) error { return nil }
+func (f *fakeDeptSvc) Get(ctx context.Context, op *EffectiveDataScope, id int) (*DepartmentResponse, error) {
 	return nil, nil
 }
 func (f *fakeDeptSvc) Tree(ctx context.Context, req *ListDepartmentsRequest) ([]*DepartmentTreeNode, error) {

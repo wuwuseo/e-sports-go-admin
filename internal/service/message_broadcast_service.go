@@ -7,7 +7,10 @@ import (
 	"strings"
 
 	"go-admin/internal/ent"
-	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
+	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
 )
 
@@ -76,10 +79,10 @@ func (s *MessageBroadcastService) Broadcast(ctx context.Context, domain string, 
 		return nil, ErrMessageInvalidReq
 	}
 	if domain == "" {
-		domain = "default"
+		return nil, ErrPermissionOperatorRequired
 	}
 
-	uids, err := s.resolveTargetUIDs(ctx, domain, &req.Target)
+	uids, err := s.resolveTargetUIDs(ctx, &req.Target)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +107,7 @@ func (s *MessageBroadcastService) Broadcast(ctx context.Context, domain string, 
 }
 
 // resolveTargetUIDs 解析广播目标 → 实际 UID 列表（去重）
-func (s *MessageBroadcastService) resolveTargetUIDs(ctx context.Context, domain string, target *BroadcastTarget) ([]string, error) {
+func (s *MessageBroadcastService) resolveTargetUIDs(ctx context.Context, target *BroadcastTarget) ([]string, error) {
 	if target == nil {
 		return nil, ErrBroadcastInvalidScope
 	}
@@ -122,7 +125,7 @@ func (s *MessageBroadcastService) resolveTargetUIDs(ctx context.Context, domain 
 		if len(roleCodes) == 0 {
 			return nil, ErrBroadcastRolesRequired
 		}
-		return s.resolveRoleUIDs(ctx, domain, roleCodes)
+		return s.resolveRoleUIDs(ctx, roleCodes)
 	default:
 		return nil, ErrBroadcastInvalidScope
 	}
@@ -165,33 +168,72 @@ func (s *MessageBroadcastService) resolveAllUIDs(ctx context.Context) ([]string,
 	return out, nil
 }
 
-// resolveRoleUIDs 通过 Casbin g 规则反查指定角色下的所有用户 UID
-// g 规则格式：(Ptype="g", V0=userUID, V1=roleName, V2=domain)
-func (s *MessageBroadcastService) resolveRoleUIDs(ctx context.Context, domain string, roleCodes []string) ([]string, error) {
-	rules, err := s.Client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("g"),
-			casbinrule.V1In(roleCodes...),
-			casbinrule.V2EQ(domain),
-		).
+// resolveRoleUIDs 从业务角色关联表解析收件人。Casbin g 仅是可修复缓存，不能作为业务真值。
+func (s *MessageBroadcastService) resolveRoleUIDs(ctx context.Context, roleCodes []string) ([]string, error) {
+	userAssignments, err := s.Client.UserRole.Query().
+		Where(userrole.HasRoleWith(
+			role.NameIn(roleCodes...),
+			role.StatusEQ(role.StatusActive),
+		)).
+		WithUser().
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("查询角色用户失败: %w", err)
 	}
+	adminAssignments, err := s.Client.AdminRole.Query().
+		Where(adminrole.HasRoleWith(
+			role.NameIn(roleCodes...),
+			role.StatusEQ(role.StatusActive),
+		)).
+		WithAdmin().
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色管理员失败: %w", err)
+	}
+
 	seen := make(map[string]struct{})
-	out := make([]string, 0, len(rules))
-	for _, r := range rules {
-		uid := strings.TrimSpace(r.V0)
+	out := make([]string, 0, len(userAssignments)+len(adminAssignments))
+	appendUID := func(uid string) {
+		uid = strings.TrimSpace(uid)
 		if uid == "" {
-			continue
+			return
 		}
 		if _, ok := seen[uid]; ok {
-			continue
+			return
 		}
 		seen[uid] = struct{}{}
 		out = append(out, uid)
 	}
+	for _, assignment := range userAssignments {
+		if assignment.Edges.User != nil {
+			appendUID(assignment.Edges.User.UID)
+		}
+	}
+	for _, assignment := range adminAssignments {
+		if assignment.Edges.Admin != nil {
+			appendUID(assignment.Edges.Admin.UID)
+		}
+	}
+
+	if containsString(roleCodes, SuperAdminRoleName) {
+		superAdmins, err := s.Client.Admin.Query().Where(admin.IsSuperAdminEQ(true)).All(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("查询超级管理员失败: %w", err)
+		}
+		for _, a := range superAdmins {
+			appendUID(a.UID)
+		}
+	}
 	return out, nil
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 // dedupNonEmpty 去重 + 过滤空字符串

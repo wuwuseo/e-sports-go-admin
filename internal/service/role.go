@@ -47,9 +47,9 @@ type ListAllRolesRequest struct {
 type RoleServiceInterface interface {
 	// 角色管理
 	Create(ctx context.Context, op *EffectiveDataScope, req *CreateRoleRequest) (*RoleResponse, error)
-	Get(ctx context.Context, id int) (*RoleResponse, error)
-	List(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error)
-	ListAll(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error)
+	Get(ctx context.Context, id int, operators ...*EffectiveDataScope) (*RoleResponse, error)
+	List(ctx context.Context, req *ListRolesRequest, operators ...*EffectiveDataScope) (*ListRolesResponse, error)
+	ListAll(ctx context.Context, req *ListAllRolesRequest, operators ...*EffectiveDataScope) ([]*RoleResponse, error)
 	Update(ctx context.Context, op *EffectiveDataScope, id int, req *UpdateRoleRequest) error
 	Delete(ctx context.Context, op *EffectiveDataScope, id int) error
 
@@ -85,6 +85,7 @@ func NewRoleServiceWithDepartmentService(rawCache *cache.Cache[[]byte], deptSvc 
 }
 
 // clearUserPermissionsByRoleID 清除拥有指定角色的所有用户权限缓存
+// 同时覆盖普通用户（UserRole）与管理员（AdminRole）两类持有者
 func (s *RoleService) clearUserPermissionsByRoleID(ctx context.Context, roleID int, domain string) {
 	if s.cache == nil {
 		return
@@ -104,6 +105,25 @@ func (s *RoleService) clearUserPermissionsByRoleID(ctx context.Context, roleID i
 		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", uid, domain))
 		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", uid, domain))
 		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", uid, domain))
+	}
+
+	adminRoles, err := s.Client.AdminRole.Query().
+		Where(adminrole.RoleIDEQ(roleID)).
+		WithAdmin().
+		All(ctx)
+	if err != nil {
+		return
+	}
+	for _, ar := range adminRoles {
+		if ar.Edges.Admin == nil {
+			continue
+		}
+		uid := ar.Edges.Admin.UID
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", uid, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", uid, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", uid, domain))
+		// 数据范围缓存一并失效：角色启停/data_scope 变更处已同步 casbin，数据范围同样须即时生效
+		_ = s.cache.Delete(ctx, dataScopeCacheKey(uid))
 	}
 }
 
@@ -231,15 +251,22 @@ func (s *RoleService) Create(ctx context.Context, op *EffectiveDataScope, req *C
 }
 
 // Get 获取角色详情
-func (s *RoleService) Get(ctx context.Context, id int) (*RoleResponse, error) {
-	return GetByID(ctx,
-		func(ctx context.Context) (*ent.Role, error) {
-			return s.Client.Role.Query().Where(role.IDEQ(id)).Only(ctx)
-		}, s.toRoleResponse, ErrRoleNotFound, "角色")
+func (s *RoleService) Get(ctx context.Context, id int, operators ...*EffectiveDataScope) (*RoleResponse, error) {
+	r, err := s.Client.Role.Query().Where(role.IDEQ(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, ErrRoleNotFound
+		}
+		return nil, fmt.Errorf("获取角色失败: %w", err)
+	}
+	if len(operators) > 0 && !roleVisibleToOperator(operators[0], r) {
+		return nil, ErrRoleScopeEscalation
+	}
+	return s.toRoleResponse(r), nil
 }
 
 // ListRoles 获取角色列表
-func (s *RoleService) List(ctx context.Context, req *ListRolesRequest) (*ListRolesResponse, error) {
+func (s *RoleService) List(ctx context.Context, req *ListRolesRequest, operators ...*EffectiveDataScope) (*ListRolesResponse, error) {
 	req.Page, req.PageSize = utils.NormalizePagination(req.Page, req.PageSize)
 
 	query := s.Client.Role.Query()
@@ -258,26 +285,28 @@ func (s *RoleService) List(ctx context.Context, req *ListRolesRequest) (*ListRol
 		query = query.Where(role.StatusEQ(role.Status(req.Status)))
 	}
 
-	total, err := query.Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("获取角色总数失败: %w", err)
-	}
-
-	query = query.Order(ent.Desc(role.FieldCreateTime))
-	if req.PageSize > 0 {
-		offset := (req.Page - 1) * req.PageSize
-		query = query.Offset(offset).Limit(req.PageSize)
-	}
-	roles, err := query.All(ctx)
+	roles, err := query.Order(ent.Desc(role.FieldCreateTime)).All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取角色列表失败: %w", err)
+	}
+	if len(operators) > 0 {
+		roles = filterRolesForOperator(roles, operators[0])
+	}
+	total := len(roles)
+	if req.PageSize > 0 {
+		start := (req.Page - 1) * req.PageSize
+		if start >= len(roles) {
+			roles = nil
+		} else {
+			roles = roles[start:min(start+req.PageSize, len(roles))]
+		}
 	}
 
 	return BuildList(roles, total, req.Page, s.toRoleResponse), nil
 }
 
 // ListAllRoles 获取所有角色（不带分页）
-func (s *RoleService) ListAll(ctx context.Context, req *ListAllRolesRequest) ([]*RoleResponse, error) {
+func (s *RoleService) ListAll(ctx context.Context, req *ListAllRolesRequest, operators ...*EffectiveDataScope) ([]*RoleResponse, error) {
 	query := s.Client.Role.Query().Where(role.NameNEQ(superAdminRoleName))
 
 	if req.Keyword != "" {
@@ -300,6 +329,9 @@ func (s *RoleService) ListAll(ctx context.Context, req *ListAllRolesRequest) ([]
 	if err != nil {
 		return nil, fmt.Errorf("获取角色列表失败: %w", err)
 	}
+	if len(operators) > 0 {
+		roles = filterRolesForOperator(roles, operators[0])
+	}
 
 	data := make([]*RoleResponse, 0, len(roles))
 	for _, r := range roles {
@@ -307,6 +339,26 @@ func (s *RoleService) ListAll(ctx context.Context, req *ListAllRolesRequest) ([]
 	}
 
 	return data, nil
+}
+
+func filterRolesForOperator(roles []*ent.Role, op *EffectiveDataScope) []*ent.Role {
+	filtered := make([]*ent.Role, 0, len(roles))
+	for _, r := range roles {
+		if roleVisibleToOperator(op, r) {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
+func roleVisibleToOperator(op *EffectiveDataScope, r *ent.Role) bool {
+	if op == nil || op.IsSuperAdmin {
+		return true
+	}
+	if r == nil || r.Name == SuperAdminRoleName {
+		return false
+	}
+	return ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds) == nil
 }
 
 // UpdateRole 更新角色
@@ -371,7 +423,7 @@ func (s *RoleService) Update(ctx context.Context, op *EffectiveDataScope, id int
 		return fmt.Errorf("更新角色失败: %w", err)
 	}
 
-	s.clearUserPermissionsByRoleID(ctx, id, "default")
+	s.clearUserPermissionsByRoleID(ctx, id, permissionDomainForScope(op))
 
 	return nil
 }
@@ -425,6 +477,16 @@ func (s *RoleService) Delete(ctx context.Context, op *EffectiveDataScope, id int
 		return fmt.Errorf("删除角色失败: %w", err)
 	}
 
+	// 清理 Casbin 中该角色的 p 规则与残余 g 关联，防止孤儿规则或同名角色"复活"旧权限
+	domain := permissionDomainForScope(op)
+	if global.EnforcerManager != nil {
+		if enforcer, err := global.EnforcerManager.GetEnforcer(domain); err == nil {
+			_, _ = enforcer.RemoveFilteredPolicy(0, r.Name, domain)
+			_, _ = enforcer.RemoveFilteredGroupingPolicy(1, r.Name, domain)
+		}
+	}
+	global.InvalidateRoleStatusCache()
+
 	return nil
 }
 
@@ -436,6 +498,61 @@ func (s *RoleService) Enable(ctx context.Context, op *EffectiveDataScope, id int
 // DisableRole 禁用角色
 func (s *RoleService) Disable(ctx context.Context, op *EffectiveDataScope, id int) error {
 	return s.setStatus(ctx, op, id, role.StatusInactive)
+}
+
+// syncRoleCasbinState 按角色状态对齐 Casbin g 规则
+// 禁用 -> 删除该角色全部 g 关联（enforce 立即失效）；启用 -> 按现存绑定重建 g。
+// 先全量清理再按需重建，天然幂等并可修复历史不同步的脏数据。
+func (s *RoleService) syncRoleCasbinState(ctx context.Context, r *ent.Role, active bool, domains ...string) error {
+	if global.EnforcerManager == nil {
+		// 单元测试等未初始化 Casbin 的环境跳过同步
+		return nil
+	}
+	domain := configuredPermissionDomain()
+	if len(domains) > 0 && domains[0] != "" {
+		domain = domains[0]
+	}
+	enforcer, err := global.EnforcerManager.GetEnforcer(domain)
+	if err != nil {
+		return fmt.Errorf("获取权限执行器失败: %w", err)
+	}
+	if _, err := enforcer.RemoveFilteredGroupingPolicy(1, r.Name, domain); err != nil {
+		return fmt.Errorf("清理角色 Casbin 关联失败: %w", err)
+	}
+	if !active {
+		return nil
+	}
+	adminRoles, err := s.Client.AdminRole.Query().
+		Where(adminrole.RoleIDEQ(r.ID)).
+		WithAdmin().
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("查询角色持有管理员失败: %w", err)
+	}
+	for _, ar := range adminRoles {
+		if ar.Edges.Admin == nil {
+			continue
+		}
+		if _, err := enforcer.AddRoleForUserInDomain(ar.Edges.Admin.UID, r.Name, domain); err != nil {
+			return fmt.Errorf("恢复管理员 Casbin 角色失败: %w", err)
+		}
+	}
+	userRoles, err := s.Client.UserRole.Query().
+		Where(userrole.RoleIDEQ(r.ID)).
+		WithUser().
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("查询角色持有用户失败: %w", err)
+	}
+	for _, ur := range userRoles {
+		if ur.Edges.User == nil {
+			continue
+		}
+		if _, err := enforcer.AddRoleForUserInDomain(ur.Edges.User.UID, r.Name, domain); err != nil {
+			return fmt.Errorf("恢复用户 Casbin 角色失败: %w", err)
+		}
+	}
+	return nil
 }
 
 func (s *RoleService) setStatus(ctx context.Context, op *EffectiveDataScope, id int, target role.Status) error {
@@ -456,14 +573,15 @@ func (s *RoleService) setStatus(ctx context.Context, op *EffectiveDataScope, id 
 		return fmt.Errorf("系统内置角色不允许修改状态")
 	}
 
-	if r.Status == target {
-		return nil
-	}
 	if err := ensureRoleScopeWritable(op, DataScope(r.DataScope), r.DataScopeDepartmentIds); err != nil {
 		return err
 	}
 	if err := ensureRoleManageableForAssignedAdmins(ctx, s.Client, s.deptSvc, op, r, "", nil, false); err != nil {
 		return err
+	}
+	if r.Status == target {
+		// 状态未变化时仍对齐 Casbin，但必须先通过与真实状态变更相同的范围校验。
+		return s.syncRoleCasbinState(ctx, r, target == role.StatusActive, permissionDomainForScope(op))
 	}
 
 	action := "启用"
@@ -474,7 +592,13 @@ func (s *RoleService) setStatus(ctx context.Context, op *EffectiveDataScope, id 
 		return fmt.Errorf("%s角色失败: %w", action, err)
 	}
 
-	s.clearUserPermissionsByRoleID(ctx, id, "default")
+	if err := s.syncRoleCasbinState(ctx, r, target == role.StatusActive, permissionDomainForScope(op)); err != nil {
+		return fmt.Errorf("%s角色已生效但权限同步失败，请重试以完成同步: %w", action, err)
+	}
+
+	global.InvalidateRoleStatusCache()
+
+	s.clearUserPermissionsByRoleID(ctx, id, permissionDomainForScope(op))
 
 	return nil
 }

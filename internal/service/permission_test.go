@@ -1601,6 +1601,13 @@ func TestPermissionService_CheckPermission_HasPermission(t *testing.T) {
 	}
 
 	setupPermissionTestEnforcer(t, client)
+	enforcer, err := global.EnforcerManager.GetEnforcer("default")
+	if err != nil {
+		t.Fatalf("获取 Casbin enforcer 失败: %v", err)
+	}
+	if _, err := enforcer.AddRoleForUserInDomain(editorUser.UID, "stale-role", "default"); err != nil {
+		t.Fatalf("注入陈旧 Casbin 角色失败: %v", err)
+	}
 
 	svc := NewPermissionService(nil)
 	hasPermission, err := svc.CheckPermission(ctx, editorUser.UID, "default", "/api/v1/articles", "GET")
@@ -1610,6 +1617,10 @@ func TestPermissionService_CheckPermission_HasPermission(t *testing.T) {
 
 	if !hasPermission {
 		t.Error("期望用户拥有权限, 但返回 false")
+	}
+	roles := enforcer.GetRolesForUserInDomain(editorUser.UID, "default")
+	if len(roles) != 1 || roles[0] != editorRole.Name {
+		t.Fatalf("Casbin roles = %v, want [%s]", roles, editorRole.Name)
 	}
 }
 

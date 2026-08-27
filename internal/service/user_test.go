@@ -10,6 +10,10 @@ import (
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
 
+	"github.com/wuwuseo/cmf/bootstrap"
+	cmfConfig "github.com/wuwuseo/cmf/config"
+	"github.com/wuwuseo/cmf/crypto"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -395,6 +399,133 @@ func TestUserService_Login_UserNotActive(t *testing.T) {
 	}
 	if !errors.Is(err, ErrInvalidUserStatus) {
 		t.Errorf("期望错误为 ErrInvalidUserStatus, 实际错误: %v", err)
+	}
+}
+
+func TestUserService_Login_WrongPassword(t *testing.T) {
+	client := setupUserTest(t)
+	ctx := t.Context()
+	svc := NewUserService()
+
+	cfg := &cmfConfig.Config{}
+	cfg.App.Name = "test-user-app"
+	cfg.App.Secret = "user-test-secret"
+	cfg.App.LoginExpires = 3600
+	cfg.App.RefreshExpires = 86400
+	bs := bootstrap.NewBootstrap()
+	bs.RegisterService("config", cfg)
+	prevBootstrap := global.Bootstrap
+	global.Bootstrap = bs
+	t.Cleanup(func() { global.Bootstrap = prevBootstrap })
+
+	u := createTestUserForUserService(t, client, "wrongpass@test.com", "uid-wrongpass", "wrongpassuser", user.StatusActive)
+	hashed, salt, err := crypto.HashPassword("Tt!12345")
+	if err != nil {
+		t.Fatalf("加密密码失败: %v", err)
+	}
+	if _, err := client.User.UpdateOne(u).SetPassword(hashed).SetPasswordSalt(salt).Save(ctx); err != nil {
+		t.Fatalf("更新密码失败: %v", err)
+	}
+
+	_, err = svc.Login(ctx, &LoginRequest{
+		Email:    "wrongpass@test.com",
+		Password: "WrongPass!999",
+	})
+	if err == nil {
+		t.Fatal("期望错误密码返回错误，但未返回")
+	}
+	if !errors.Is(err, ErrInvalidPassword) {
+		t.Errorf("期望错误为 ErrInvalidPassword, 实际错误: %v", err)
+	}
+}
+
+func TestUserService_Login_EmptyPasswordUser(t *testing.T) {
+	client := setupUserTest(t)
+	ctx := t.Context()
+	svc := NewUserService()
+
+	cfg := &cmfConfig.Config{}
+	cfg.App.Name = "test-user-app"
+	cfg.App.Secret = "user-test-secret"
+	cfg.App.LoginExpires = 3600
+	cfg.App.RefreshExpires = 86400
+	bs := bootstrap.NewBootstrap()
+	bs.RegisterService("config", cfg)
+	prevBootstrap := global.Bootstrap
+	global.Bootstrap = bs
+	t.Cleanup(func() { global.Bootstrap = prevBootstrap })
+
+	u := createTestUserForUserService(t, client, "emptypass@test.com", "uid-emptypass", "emptypassuser", user.StatusActive)
+	if _, err := client.User.UpdateOne(u).SetPassword("").SetPasswordSalt("").Save(ctx); err != nil {
+		t.Fatalf("清空密码失败: %v", err)
+	}
+
+	_, err := svc.Login(ctx, &LoginRequest{
+		Email:    "emptypass@test.com",
+		Password: "Tt!12345",
+	})
+	if err == nil {
+		t.Fatal("期望空密码用户返回错误，但未返回")
+	}
+	if !errors.Is(err, ErrInvalidPassword) {
+		t.Errorf("期望错误为 ErrInvalidPassword, 实际错误: %v", err)
+	}
+}
+
+func TestUserService_Login_Success(t *testing.T) {
+	client := setupUserTest(t)
+	ctx := t.Context()
+	svc := NewUserService()
+
+	// 设置全局配置，Login 依赖 Bootstrap 获取 JWT 密钥和过期时间
+	cfg := &cmfConfig.Config{}
+	cfg.App.Name = "test-user-app"
+	cfg.App.Secret = "user-test-secret"
+	cfg.App.LoginExpires = 3600
+	cfg.App.RefreshExpires = 86400
+	bs := bootstrap.NewBootstrap()
+	bs.RegisterService("config", cfg)
+	prevBootstrap := global.Bootstrap
+	global.Bootstrap = bs
+	t.Cleanup(func() { global.Bootstrap = prevBootstrap })
+
+	// 创建带正确密码哈希的活跃用户
+	u := createTestUserForUserService(t, client, "loginok@test.com", "uid-loginok", "loginokuser", user.StatusActive)
+	hashed, salt, err := crypto.HashPassword("Tt!12345")
+	if err != nil {
+		t.Fatalf("加密密码失败: %v", err)
+	}
+	if _, err := client.User.UpdateOne(u).SetPassword(hashed).SetPasswordSalt(salt).Save(ctx); err != nil {
+		t.Fatalf("更新密码失败: %v", err)
+	}
+
+	resp, err := svc.Login(ctx, &LoginRequest{
+		Email:    "loginok@test.com",
+		Password: "Tt!12345",
+	})
+	if err != nil {
+		t.Fatalf("登录失败: %v", err)
+	}
+	if resp.AccessToken == "" {
+		t.Fatal("访问令牌不应为空")
+	}
+	if resp.RefreshToken == "" {
+		t.Fatal("刷新令牌不应为空")
+	}
+	if resp.TokenType != "Bearer" {
+		t.Errorf("令牌类型 = %s, 期望 Bearer", resp.TokenType)
+	}
+	if resp.ExpiresIn != 3600 {
+		t.Errorf("过期时间 = %d, 期望 3600", resp.ExpiresIn)
+	}
+
+	// 验证最后登录时间已更新
+	updated, err := client.User.Get(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("查询用户失败: %v", err)
+	}
+	if updated.LastLogin.IsZero() {
+		t.Error("最后登录时间应被更新")
 	}
 }
 

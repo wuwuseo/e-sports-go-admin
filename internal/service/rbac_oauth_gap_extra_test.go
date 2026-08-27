@@ -805,10 +805,10 @@ func TestOAuthAuthService_DeleteAdminIdentity_DeletesAndReturnsNotFound(t *testi
 		SaveX(ctx)
 
 	svc := newOAuthAuthForUnbindTest(t, client)
-	if err := svc.DeleteAdminIdentity(ctx, binding.ID); err != nil {
+	if err := svc.DeleteAdminIdentity(ctx, nil, binding.ID); err != nil {
 		t.Fatalf("首次删除应成功，got err=%v", err)
 	}
-	if err := svc.DeleteAdminIdentity(ctx, binding.ID); !errors.Is(err, ErrThirdPartyNotFound) {
+	if err := svc.DeleteAdminIdentity(ctx, nil, binding.ID); !errors.Is(err, ErrThirdPartyNotFound) {
 		t.Fatalf("重复删除应返回 ErrThirdPartyNotFound，got %v", err)
 	}
 }

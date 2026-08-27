@@ -66,6 +66,7 @@ const (
 	ResponsePrimaryRoleInvalid   = 6009
 	ResponseThirdPartyBound      = 6010
 	ResponseThirdPartyNotFound   = 6011
+	ResponseCannotDeleteSelf     = 6012
 
 	// 站内消息错误码 (7000-7099)
 	ResponseMessageNotFound          = 7001
@@ -173,6 +174,7 @@ var ResponseMsg = map[int]string{
 	ResponsePrimaryRoleInvalid:   "主角色必须在分配的角色列表内",
 	ResponseThirdPartyBound:      "该第三方账号已被其他用户绑定",
 	ResponseThirdPartyNotFound:   "第三方用户关联不存在",
+	ResponseCannotDeleteSelf:     "不能删除自己的账号",
 
 	// 站内消息错误消息
 	ResponseMessageNotFound:          "消息不存在",

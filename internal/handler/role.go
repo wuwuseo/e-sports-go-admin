@@ -41,9 +41,9 @@ func CreateRole(c fiber.Ctx) error {
 	}
 
 	// P1-A 防御：构造当前操作者的有效数据范围，传入 service 层做角色 scope 写入校验
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "创建角色失败").ToJSON(c)
+		return mapOperatorContextError(c, resp, err, "创建角色失败")
 	}
 
 	role, err := roleService.Create(c.Context(), op, req)
@@ -87,6 +87,7 @@ func CreateRole(c fiber.Ctx) error {
 func GetRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -94,10 +95,18 @@ func GetRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	role, err := roleService.Get(c.Context(), id)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取角色失败")
+	}
+
+	role, err := roleService.Get(c.Context(), id, op)
 	if err != nil {
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
+		}
+		if err == service.ErrRoleScopeEscalation {
+			return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "获取角色失败").ToJSON(c)
 	}
@@ -124,6 +133,7 @@ func GetRole(c fiber.Ctx) error {
 func ListRoles(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	req, err := validate.ParseQueryAndValidate[service.ListRolesRequest](c)
 	if err != nil {
@@ -141,7 +151,12 @@ func ListRoles(c fiber.Ctx) error {
 		req.PageSize = 10
 	}
 
-	roles, err := roleService.List(c.Context(), req)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取角色列表失败")
+	}
+
+	roles, err := roleService.List(c.Context(), req, op)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取角色列表失败").ToJSON(c)
 	}
@@ -166,6 +181,7 @@ func ListRoles(c fiber.Ctx) error {
 func ListAllRoles(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
 
 	req, err := validate.ParseQueryAndValidate[service.ListAllRolesRequest](c)
 	if err != nil {
@@ -175,7 +191,12 @@ func ListAllRoles(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
 
-	roles, err := roleService.ListAll(c.Context(), req)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取角色列表失败")
+	}
+
+	roles, err := roleService.ListAll(c.Context(), req, op)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取角色列表失败").ToJSON(c)
 	}
@@ -219,9 +240,9 @@ func UpdateRole(c fiber.Ctx) error {
 	}
 
 	// P1-A 防御：构造当前操作者的有效数据范围，传入 service 层做角色 scope 写入校验
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "更新角色失败").ToJSON(c)
+		return mapOperatorContextError(c, resp, err, "更新角色失败")
 	}
 
 	if err := roleService.Update(c.Context(), op, id, req); err != nil {
@@ -273,9 +294,9 @@ func DeleteRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "删除角色失败").ToJSON(c)
+		return mapOperatorContextError(c, resp, err, "删除角色失败")
 	}
 
 	if err := roleService.Delete(c.Context(), op, id); err != nil {
@@ -326,9 +347,9 @@ func EnableRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "启用角色失败").ToJSON(c)
+		return mapOperatorContextError(c, resp, err, "启用角色失败")
 	}
 
 	if err := roleService.Enable(c.Context(), op, id); err != nil {
@@ -375,9 +396,9 @@ func DisableRole(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return resp.Fail(global.ResponseInternalServerError, "禁用角色失败").ToJSON(c)
+		return mapOperatorContextError(c, resp, err, "禁用角色失败")
 	}
 
 	if err := roleService.Disable(c.Context(), op, id); err != nil {

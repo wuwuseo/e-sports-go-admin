@@ -329,10 +329,14 @@ func DeleteOAuthProviderConfig(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/third-party-admins [get]
 func ListAdminThirdPartyIdentities(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
+	op, err := oauthAdminOperatorContext(c)
+	if err != nil {
+		return oauthFailure(response, c, err)
+	}
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	pageSize, _ := strconv.Atoi(c.Query("page_size", "10"))
 	result, err := c.Locals("service.OAuthAuthService").(*service.OAuthAuthService).
-		ListAllAdminIdentities(c.Context(), page, pageSize, c.Query("provider"), c.Query("keyword"))
+		ListAllAdminIdentities(c.Context(), op, page, pageSize, c.Query("provider"), c.Query("keyword"))
 	if err != nil {
 		return oauthFailure(response, c, err)
 	}
@@ -348,15 +352,28 @@ func ListAdminThirdPartyIdentities(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/third-party-admins/{id} [delete]
 func DeleteAdminThirdPartyIdentity(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
+	op, err := oauthAdminOperatorContext(c)
+	if err != nil {
+		return oauthFailure(response, c, err)
+	}
 	id, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return response.Fail(global.ResponseErrorCode, "Invalid identity ID").ToJSON(c)
 	}
 	if err := c.Locals("service.OAuthAuthService").(*service.OAuthAuthService).
-		DeleteAdminIdentity(c.Context(), id); err != nil {
+		DeleteAdminIdentity(c.Context(), op, id); err != nil {
 		return oauthFailure(response, c, err)
 	}
 	return response.Success(nil, global.ResponseSuccessActionCode).ToJSON(c)
+}
+
+func oauthAdminOperatorContext(c fiber.Ctx) (*service.EffectiveDataScope, error) {
+	uid, ok := oauthSubjectUID(c)
+	if !ok {
+		return nil, service.ErrPermissionOperatorRequired
+	}
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	return dataPermSvc.NewOperatorContext(c.Context(), uid, getOperatorDomain(c))
 }
 
 func oauthSubjectUID(c fiber.Ctx) (string, bool) {
@@ -414,6 +431,8 @@ func redirectOAuthCallback(c fiber.Ctx, result *service.OAuthCallbackResult, cal
 
 func oauthFailure(response *utils.Response, c fiber.Ctx, err error) error {
 	switch {
+	case errors.Is(err, service.ErrPermissionOperatorRequired), errors.Is(err, service.ErrDataPermissionAdminNotFound):
+		return response.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
 	case errors.Is(err, errOAuthSuperAdminRequired):
 		return response.Fail(global.ResponseForbidden, "Super administrator is required").ToJSON(c)
 	case errors.Is(err, service.ErrOAuthProviderNotFound), errors.Is(err, service.ErrThirdPartyNotFound):

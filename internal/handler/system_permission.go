@@ -234,7 +234,7 @@ func ListSystemPermissions(c fiber.Ctx) error {
 // @Tags 权限定义管理
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "域，默认default"
+// @Param domain query string false "域，使用当前认证域"
 // @Success 200 {object} utils.Response{data=[]service.SystemPermissionTreeNode}
 // @Failure 401 {object} utils.Response
 // @Failure 403 {object} utils.Response

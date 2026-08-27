@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go-admin/internal/ent"
@@ -14,12 +15,40 @@ import (
 	cmfJwt "github.com/wuwuseo/cmf/jwt"
 )
 
+const defaultPermissionDomain = "default"
+
+func configuredPermissionDomain() string {
+	if global.Bootstrap != nil {
+		if value, ok := global.Bootstrap.GetService("config"); ok {
+			if cfg, ok := value.(*cmfConfig.Config); ok && cfg.Casbin.DomainsDefault != "" {
+				return cfg.Casbin.DomainsDefault
+			}
+		}
+	}
+	return defaultPermissionDomain
+}
+
+func permissionDomainForScope(op *EffectiveDataScope) string {
+	if op != nil && op.Domain != "" {
+		return op.Domain
+	}
+	return configuredPermissionDomain()
+}
+
+func permissionDomainFromClaims(claims jwt.MapClaims) (string, error) {
+	domain, ok := claims["domain"].(string)
+	if !ok || domain == "" {
+		return "", errors.New("invalid token domain")
+	}
+	return domain, nil
+}
+
 func createTokenPair(id, subject, issuer, secret string, accessTTL, refreshTTL time.Duration, now func() time.Time) (*TokenResponse, error) {
 	create := func(tokenType string, ttl time.Duration) (string, error) {
 		expiresAt := now().Add(ttl)
 		issuedAt := now()
 		return cmfJwt.CreateToken(jwt.MapClaims{
-			"id": id, "subject": subject, "issuer": issuer, "domain": "default",
+			"id": id, "subject": subject, "issuer": issuer, "domain": configuredPermissionDomain(),
 			"expires": jwt.NewNumericDate(expiresAt), "issued_at": jwt.NewNumericDate(issuedAt), "token_type": tokenType,
 		}, secret)
 	}

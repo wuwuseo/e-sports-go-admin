@@ -9,10 +9,10 @@ import (
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/global"
 
+	_ "github.com/mattn/go-sqlite3"
+	cmfConfig "github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/crypto"
 	"github.com/wuwuseo/cmf/filesystem"
-	cmfConfig "github.com/wuwuseo/cmf/config"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // -------------------------------------------------------------------
@@ -259,5 +259,3 @@ func TestValidateAccessToken_ValidTokenReturnsNil(t *testing.T) {
 		t.Errorf("有效 token 验证不应返回错误，got: %v", err)
 	}
 }
-
-

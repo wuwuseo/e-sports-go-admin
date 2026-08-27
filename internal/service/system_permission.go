@@ -918,6 +918,38 @@ func InitSystemPermissions(ctx context.Context) error {
 		},
 	)
 
+	// 用户管理权限（S2-5：此前无任何角色可被授予用户管理入口）
+	seedData = append(seedData,
+		SeedPermission{
+			ID: 160, Domain: "default", Type: "menu", Name: "用户管理",
+			Code: "system:user", MenuPath: "/system/user",
+			Component: "system/user/index", ParentID: 3, SortOrder: 12,
+			IsCommon: false, Status: 1, Description: "普通用户管理页面",
+		},
+		SeedPermission{ID: 161, Domain: "default", Type: "api", Name: "用户列表", Code: "user:list", Path: "/api/v1/admin/auth/users", Method: "GET", ParentID: 160, SortOrder: 0, IsCommon: false, Status: 1, Description: "用户列表API"},
+		SeedPermission{ID: 162, Domain: "default", Type: "api", Name: "创建用户", Code: "user:create", Path: "/api/v1/admin/auth/users", Method: "POST", ParentID: 160, SortOrder: 1, IsCommon: false, Status: 1, Description: "创建用户API"},
+		SeedPermission{ID: 163, Domain: "default", Type: "api", Name: "导出用户", Code: "user:export", Path: "/api/v1/admin/auth/users/export", Method: "POST", ParentID: 160, SortOrder: 2, IsCommon: false, Status: 1, Description: "导出用户API"},
+		SeedPermission{ID: 164, Domain: "default", Type: "api", Name: "用户详情", Code: "user:detail", Path: "/api/v1/admin/auth/users/{id}", Method: "GET", ParentID: 160, SortOrder: 3, IsCommon: false, Status: 1, Description: "用户详情API"},
+		SeedPermission{ID: 165, Domain: "default", Type: "api", Name: "更新用户", Code: "user:update", Path: "/api/v1/admin/auth/users/{id}", Method: "PUT", ParentID: 160, SortOrder: 4, IsCommon: false, Status: 1, Description: "更新用户API"},
+		SeedPermission{ID: 166, Domain: "default", Type: "api", Name: "删除用户", Code: "user:delete-api", Path: "/api/v1/admin/auth/users/{id}", Method: "DELETE", ParentID: 160, SortOrder: 5, IsCommon: false, Status: 1, Description: "删除用户API"},
+		SeedPermission{ID: 167, Domain: "default", Type: "api", Name: "启用用户", Code: "user:activate", Path: "/api/v1/admin/auth/users/{id}/activate", Method: "PUT", ParentID: 160, SortOrder: 6, IsCommon: false, Status: 1, Description: "启用用户API"},
+		SeedPermission{ID: 168, Domain: "default", Type: "api", Name: "禁用用户", Code: "user:deactivate", Path: "/api/v1/admin/auth/users/{id}/deactivate", Method: "PUT", ParentID: 160, SortOrder: 7, IsCommon: false, Status: 1, Description: "禁用用户API"},
+		SeedPermission{ID: 169, Domain: "default", Type: "api", Name: "加入黑名单", Code: "user:blacklist-add", Path: "/api/v1/admin/auth/users/{id}/blacklist", Method: "POST", ParentID: 160, SortOrder: 8, IsCommon: false, Status: 1, Description: "用户加入黑名单API"},
+		SeedPermission{ID: 170, Domain: "default", Type: "api", Name: "移出黑名单", Code: "user:blacklist-remove", Path: "/api/v1/admin/auth/users/{id}/blacklist", Method: "DELETE", ParentID: 160, SortOrder: 9, IsCommon: false, Status: 1, Description: "用户移出黑名单API"},
+		SeedPermission{ID: 171, Domain: "default", Type: "api", Name: "查看用户角色", Code: "user:roles-get", Path: "/api/v1/admin/auth/users/{id}/roles", Method: "GET", ParentID: 160, SortOrder: 10, IsCommon: false, Status: 1, Description: "查看用户角色API"},
+		SeedPermission{ID: 172, Domain: "default", Type: "api", Name: "分配用户角色", Code: "user:roles-put", Path: "/api/v1/admin/auth/users/{id}/roles", Method: "PUT", ParentID: 160, SortOrder: 11, IsCommon: false, Status: 1, Description: "分配用户角色API"},
+		SeedPermission{ID: 173, Domain: "default", Type: "api", Name: "用户第三方身份", Code: "user:third-party", Path: "/api/v1/admin/auth/users/{id}/third-party", Method: "GET", ParentID: 160, SortOrder: 12, IsCommon: false, Status: 1, Description: "用户第三方身份列表API"},
+		SeedPermission{ID: 174, Domain: "default", Type: "button", Name: "用户管理-新增按钮", Code: "user:add", ParentID: 160, SortOrder: 0, IsCommon: false, Status: 1, Description: "用户管理页面新增按钮"},
+		SeedPermission{ID: 175, Domain: "default", Type: "button", Name: "用户管理-编辑按钮", Code: "user:edit", ParentID: 160, SortOrder: 1, IsCommon: false, Status: 1, Description: "用户管理页面编辑按钮"},
+		SeedPermission{ID: 176, Domain: "default", Type: "button", Name: "用户管理-删除按钮", Code: "user:delete", ParentID: 160, SortOrder: 2, IsCommon: false, Status: 1, Description: "用户管理页面删除按钮"},
+		SeedPermission{ID: 177, Domain: "default", Type: "button", Name: "用户管理-分配角色按钮", Code: "user:assign-role", ParentID: 160, SortOrder: 3, IsCommon: false, Status: 1, Description: "用户管理页面分配角色按钮"},
+		SeedPermission{ID: 178, Domain: "default", Type: "button", Name: "用户管理-启用按钮", Code: "user:activate-btn", ParentID: 160, SortOrder: 4, IsCommon: false, Status: 1, Description: "用户管理页面启用按钮"},
+		SeedPermission{ID: 179, Domain: "default", Type: "button", Name: "用户管理-禁用按钮", Code: "user:deactivate-btn", ParentID: 160, SortOrder: 5, IsCommon: false, Status: 1, Description: "用户管理页面禁用按钮"},
+	)
+	for i := range seedData {
+		seedData[i].Domain = configuredPermissionDomain()
+	}
+
 	if err := svc.InitSeedPermissions(ctx, seedData); err != nil {
 		return fmt.Errorf("初始化种子权限失败: %w", err)
 	}

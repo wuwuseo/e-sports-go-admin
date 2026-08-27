@@ -133,45 +133,25 @@ func (s *PermissionService) getOperatorPermissionScope(ctx context.Context, oper
 
 	lookup := make(map[string]struct{}, len(rules))
 	for _, rule := range rules {
-		addPermissionLookupKeys(lookup, string(determinePermissionType(rule.V3)), rule.V2, rule.V3)
+		permType := PermissionType(rule.V4)
+		if !isValidPermissionType(permType) {
+			permType = determinePermissionType(rule.V3)
+		}
+		addPermissionLookupKeys(lookup, string(permType), rule.V2, rule.V3)
+		if rule.V2 == "*" && rule.V3 == "*" {
+			for _, wildcardType := range []PermissionType{PermissionTypeAPI, PermissionTypeMenu, PermissionTypeButton} {
+				addPermissionLookupKeys(lookup, string(wildcardType), rule.V2, rule.V3)
+			}
+		}
 	}
 	return &operatorPermissionScope{lookup: lookup}, nil
 }
 
-// getEffectivePermissionRoleNames resolves the same domain-scoped Casbin roles
-// used by PermissionMiddleware. Database role relations are retained as a
-// fallback for internal calls and tests that do not have grouping rules loaded.
+// getEffectivePermissionRoleNames uses active database role relations as the
+// authorization source of truth. Casbin g rules are a derived runtime index and
+// may temporarily retain a role after a failed synchronization.
 func (s *PermissionService) getEffectivePermissionRoleNames(ctx context.Context, operatorUID, domain string) ([]string, error) {
-	query := s.client.CasbinRule.Query().
-		Where(
-			casbinrule.PtypeEQ("g"),
-			casbinrule.V0EQ(operatorUID),
-		)
-	if domain != "" {
-		query = query.Where(casbinrule.V2EQ(domain))
-	}
-
-	groupingRules, err := query.All(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("get operator runtime roles failed: %w", err)
-	}
-	if len(groupingRules) == 0 {
-		return s.getUserRoleNames(ctx, operatorUID)
-	}
-
-	seen := make(map[string]struct{}, len(groupingRules))
-	roleNames := make([]string, 0, len(groupingRules))
-	for _, rule := range groupingRules {
-		if rule.V1 == "" {
-			continue
-		}
-		if _, ok := seen[rule.V1]; ok {
-			continue
-		}
-		seen[rule.V1] = struct{}{}
-		roleNames = append(roleNames, rule.V1)
-	}
-	return roleNames, nil
+	return s.getUserRoleNames(ctx, operatorUID)
 }
 
 func (s *PermissionService) ensureOperatorCanManagePermissions(ctx context.Context, operatorUID, domain string, permissions []PermissionRule) error {
@@ -191,14 +171,71 @@ func (s *PermissionService) ensureOperatorCanManagePermissions(ctx context.Conte
 	return nil
 }
 
+// ensureRolePermissionsNotEscalating requires every API/menu/button permission
+// of the delegated roles to already belong to the operator. Department data
+// scope and API permission scope are independent, so DataScopeAll does not
+// bypass this check.
+func ensureRolePermissionsNotEscalating(
+	ctx context.Context,
+	client *ent.Client,
+	op *EffectiveDataScope,
+	operatorUID, domain string,
+	roleIDs []int,
+) error {
+	if op == nil || op.IsSuperAdmin || len(roleIDs) == 0 {
+		return nil
+	}
+	if operatorUID == "" {
+		return ErrRoleScopeEscalation
+	}
+
+	scope, err := (&PermissionService{client: client}).getOperatorPermissionScope(ctx, operatorUID, domain)
+	if err != nil {
+		return err
+	}
+	roles, err := client.Role.Query().Where(role.IDIn(roleIDs...)).All(ctx)
+	if err != nil {
+		return err
+	}
+	roleNames := make([]string, 0, len(roles))
+	for _, r := range roles {
+		roleNames = append(roleNames, r.Name)
+	}
+	if len(roleNames) == 0 {
+		return nil
+	}
+
+	query := client.CasbinRule.Query().Where(
+		casbinrule.PtypeEQ("p"),
+		casbinrule.V0In(roleNames...),
+	)
+	if domain != "" {
+		query = query.Where(casbinrule.V1EQ(domain))
+	}
+	rules, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		if !scope.allowsRule(PermissionRule{Object: rule.V2, Action: rule.V3}) {
+			return ErrRoleScopeEscalation
+		}
+	}
+	return nil
+}
+
 func (scope *operatorPermissionScope) allowsRule(rule PermissionRule) bool {
 	if scope == nil || scope.includeAll {
 		return true
 	}
 	permType := string(determinePermissionType(rule.Action))
-	for _, key := range permissionLookupKeys(permType, rule.Object, rule.Action) {
-		if _, ok := scope.lookup[key]; ok {
-			return true
+	for _, object := range []string{rule.Object, "*"} {
+		for _, action := range []string{rule.Action, "*"} {
+			for _, key := range permissionLookupKeys(permType, object, action) {
+				if _, ok := scope.lookup[key]; ok {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -257,6 +294,9 @@ func isUserSuperAdmin(ctx context.Context, client *ent.Client, userUID string) (
 		return false, fmt.Errorf("获取管理员信息失败: %w", err)
 	}
 	if err == nil {
+		if a.IsSuperAdmin {
+			return true, nil
+		}
 		adminRoles, err := client.AdminRole.Query().
 			Where(adminrole.AdminIDEQ(a.ID)).
 			WithRole(func(q *ent.RoleQuery) {
@@ -557,7 +597,10 @@ func (s *PermissionService) getUserRoleNames(ctx context.Context, userUID string
 			return nil, fmt.Errorf("获取管理员角色失败: %w", err)
 		}
 
-		roleNames := make([]string, 0, len(adminRoles))
+		roleNames := make([]string, 0, len(adminRoles)+1)
+		if a.IsSuperAdmin {
+			roleNames = append(roleNames, SuperAdminRoleName)
+		}
 		for _, ar := range adminRoles {
 			if ar.Edges.Role != nil {
 				roleNames = append(roleNames, ar.Edges.Role.Name)
@@ -575,7 +618,9 @@ func (s *PermissionService) getUserRoleNames(ctx context.Context, userUID string
 
 	userRoles, err := s.client.UserRole.Query().
 		Where(userrole.UserIDEQ(u.ID)).
-		WithRole().
+		WithRole(func(q *ent.RoleQuery) {
+			q.Where(role.StatusEQ(role.StatusActive))
+		}).
 		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取用户角色失败: %w", err)
@@ -1540,9 +1585,14 @@ func (s *PermissionService) CheckPermission(ctx context.Context, userID string, 
 	}
 
 	existingRoleNames := enforcer.GetRolesForUserInDomain(userID, domain)
-	for _, roleName := range missingPermissionRoleNames(roleNames, existingRoleNames) {
-		if _, err := enforcer.AddRoleForUserInDomain(userID, roleName, domain); err != nil {
-			return false, fmt.Errorf("同步用户角色失败: %w", err)
+	if len(missingPermissionRoleNames(roleNames, existingRoleNames)) > 0 || len(missingPermissionRoleNames(existingRoleNames, roleNames)) > 0 {
+		if _, err := enforcer.DeleteRolesForUserInDomain(userID, domain); err != nil {
+			return false, fmt.Errorf("清理陈旧用户角色失败: %w", err)
+		}
+		for _, roleName := range roleNames {
+			if _, err := enforcer.AddRoleForUserInDomain(userID, roleName, domain); err != nil {
+				return false, fmt.Errorf("同步用户角色失败: %w", err)
+			}
 		}
 	}
 

@@ -8,7 +8,10 @@ import (
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
+	cmfjwt "github.com/wuwuseo/cmf/jwt"
+	"github.com/wuwuseo/cmf/log"
 	"github.com/wuwuseo/cmf/validate"
+	"go.uber.org/zap"
 )
 
 // AddToBlacklistRequest 加入黑名单请求
@@ -61,6 +64,7 @@ func AddToBlacklist(c fiber.Ctx) error {
 		case service.ErrUserBlacklisted:
 			return response.Fail(global.ResponseUserBlacklisted, global.ResponseMsg[global.ResponseUserBlacklisted]).ToJSON(c)
 		default:
+			log.Error("加入黑名单失败", zap.Int("user_id", userID), zap.Error(err))
 			return response.Fail(global.ResponseInternalServerError, "加入黑名单失败").ToJSON(c)
 		}
 	}
@@ -101,6 +105,7 @@ func RemoveFromBlacklist(c fiber.Ctx) error {
 		case service.ErrUserNotBlacklisted:
 			return response.Fail(global.ResponseUserNotBlacklisted, global.ResponseMsg[global.ResponseUserNotBlacklisted]).ToJSON(c)
 		default:
+			log.Error("移除黑名单失败", zap.Int("user_id", userID), zap.Error(err))
 			return response.Fail(global.ResponseInternalServerError, "移除黑名单失败").ToJSON(c)
 		}
 	}
@@ -138,14 +143,9 @@ func ListBlacklist(c fiber.Ctx) error {
 
 // getOperatorName 从 JWT Claims 获取操作人姓名
 func getOperatorName(c fiber.Ctx) string {
-	claims := c.Locals("claims")
-	if claims == nil {
-		return ""
-	}
-	if m, ok := claims.(map[string]interface{}); ok {
-		if name, ok := m["subject"].(string); ok {
-			return name
-		}
+	claims := cmfjwt.GetJWTUserData(c)
+	if name, ok := claims["subject"].(string); ok {
+		return name
 	}
 	return ""
 }

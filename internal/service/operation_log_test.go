@@ -153,7 +153,7 @@ func TestOperationLogService_List_EmptyList(t *testing.T) {
 	ctx := t.Context()
 	svc := NewOperationLogService()
 
-	resp, err := svc.List(ctx, &ListOperationLogsRequest{})
+	resp, err := svc.List(ctx, nil, &ListOperationLogsRequest{})
 	if err != nil {
 		t.Fatalf("查询空列表失败: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestOperationLogService_List_WithData(t *testing.T) {
 	createTestLog(t, "editor", "文章管理", "更新", now.Add(time.Second))
 	createTestLog(t, "viewer", "系统设置", "查看", now.Add(2*time.Second))
 
-	resp, err := svc.List(ctx, &ListOperationLogsRequest{})
+	resp, err := svc.List(ctx, nil, &ListOperationLogsRequest{})
 	if err != nil {
 		t.Fatalf("查询列表失败: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestOperationLogService_List_UsernameFilter(t *testing.T) {
 	createTestLog(t, "editor_user", "文章管理", "更新", now.Add(time.Second))
 	createTestLog(t, "super_admin", "系统设置", "删除", now.Add(2*time.Second))
 
-	resp, err := svc.List(ctx, &ListOperationLogsRequest{
+	resp, err := svc.List(ctx, nil, &ListOperationLogsRequest{
 		Username: "admin",
 	})
 	if err != nil {
@@ -226,7 +226,7 @@ func TestOperationLogService_List_ModuleFilter(t *testing.T) {
 	createTestLog(t, "editor", "文章管理", "更新", now.Add(time.Second))
 	createTestLog(t, "viewer", "用户管理", "删除", now.Add(2*time.Second))
 
-	resp, err := svc.List(ctx, &ListOperationLogsRequest{
+	resp, err := svc.List(ctx, nil, &ListOperationLogsRequest{
 		Module: "用户管理",
 	})
 	if err != nil {
@@ -252,7 +252,7 @@ func TestOperationLogService_List_ActionFilter(t *testing.T) {
 	createTestLog(t, "editor", "文章管理", "更新", now.Add(time.Second))
 	createTestLog(t, "viewer", "系统设置", "创建", now.Add(2*time.Second))
 
-	resp, err := svc.List(ctx, &ListOperationLogsRequest{
+	resp, err := svc.List(ctx, nil, &ListOperationLogsRequest{
 		Action: "创建",
 	})
 	if err != nil {
@@ -279,7 +279,7 @@ func TestOperationLogService_List_StartTimeFilter(t *testing.T) {
 	createTestLog(t, "viewer", "系统设置", "删除", baseTime.Add(2*time.Hour))
 
 	filterTime := baseTime.Add(30 * time.Minute)
-	resp, err := svc.List(ctx, &ListOperationLogsRequest{
+	resp, err := svc.List(ctx, nil, &ListOperationLogsRequest{
 		StartTime: filterTime.Format(time.RFC3339),
 	})
 	if err != nil {
@@ -302,7 +302,7 @@ func TestOperationLogService_List_Pagination(t *testing.T) {
 	createTestLog(t, "user4", "模块C", "查看", now.Add(3*time.Second))
 	createTestLog(t, "user5", "模块B", "创建", now.Add(4*time.Second))
 
-	resp, err := svc.List(ctx, &ListOperationLogsRequest{
+	resp, err := svc.List(ctx, nil, &ListOperationLogsRequest{
 		PaginationRequest: PaginationRequest{Page: 1, PageSize: 2},
 	})
 	if err != nil {
@@ -318,7 +318,7 @@ func TestOperationLogService_List_Pagination(t *testing.T) {
 		t.Errorf("期望 Page=1, 实际 Page=%d", resp.Page)
 	}
 
-	resp2, err := svc.List(ctx, &ListOperationLogsRequest{
+	resp2, err := svc.List(ctx, nil, &ListOperationLogsRequest{
 		PaginationRequest: PaginationRequest{Page: 3, PageSize: 2},
 	})
 	if err != nil {
@@ -340,7 +340,7 @@ func TestOperationLogService_Get_Found(t *testing.T) {
 	now := time.Now()
 	createTestLog(t, "admin", "用户管理", "创建", now)
 
-	resp, err := svc.Get(ctx, 1)
+	resp, err := svc.Get(ctx, nil, 1)
 	if err != nil {
 		t.Fatalf("获取操作日志失败: %v", err)
 	}
@@ -381,7 +381,7 @@ func TestOperationLogService_Get_NotFound(t *testing.T) {
 	ctx := t.Context()
 	svc := NewOperationLogService()
 
-	_, err := svc.Get(ctx, 99999)
+	_, err := svc.Get(ctx, nil, 99999)
 	if err == nil {
 		t.Fatal("期望返回错误, 实际返回 nil")
 	}

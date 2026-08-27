@@ -15,6 +15,7 @@ import (
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/wuwuseo/cmf/cache"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/log"
@@ -65,7 +66,12 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		roleService = service.NewRoleServiceWithDepartmentService(nil, departmentService)
 	}
 	systemPermissionService = service.NewSystemPermissionService()
-	dataPermissionService := service.NewDataPermissionService(departmentService)
+	// 数据权限服务注入共享缓存；角色分配/启停、管理员部门变更等权限变更点会同步失效数据范围缓存
+	var dataPermRawCache *cache.Cache[[]byte]
+	if appInstance != nil {
+		dataPermRawCache = appInstance.Cache
+	}
+	dataPermissionService := service.NewDataPermissionService(departmentService, dataPermRawCache)
 
 	// 初始化操作日志服务
 	opLogService := service.NewOperationLogService()
@@ -133,7 +139,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	})
 	publicCaptcha.Post("/challenges", handler.CreateCaptchaChallenge)
 	publicCaptcha.Post("/verifications", handler.VerifyCaptchaChallenge)
-	public.Post("/login", captchaAdapter.Require("user_login"),loginLimiter.Handler(), handler.Login)
+	public.Post("/login", captchaAdapter.Require("user_login"), loginLimiter.Handler(), handler.Login)
 	public.Post("/refresh-token", handler.RefreshToken)
 	public.Get("/public-key", handler.GetPublicKey) // 获取RSA公钥用于加密登录
 	publicOAuth := public.Group("/oauth", func(c fiber.Ctx) error {
@@ -168,7 +174,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("utils.Response", utils.NewResponse())
 		return c.Next()
 	})
-	adminPublicLogin.Post("/login", captchaAdapter.Require("admin_login"),loginLimiter.Handler(), handler.AdminLogin)
+	adminPublicLogin.Post("/login", captchaAdapter.Require("admin_login"), loginLimiter.Handler(), handler.AdminLogin)
 	adminPublicLogin.Post("/refresh", handler.AdminRefreshToken)
 
 	pluginProxy := v1.Group("/plugin", func(c fiber.Ctx) error {
@@ -418,6 +424,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	users.Get("", handler.ListUsers)
 	users.Post("/export", handler.ExportUsers)
 	users.Get("/:id", handler.GetUserDetail)
+	users.Put("/:id", handler.UpdateManagedUser)
+	users.Delete("/:id", handler.DeleteManagedUser)
 	users.Put("/:id/activate", handler.ActivateUser)
 	users.Put("/:id/deactivate", handler.DeactivateUser)
 	users.Post("/:id/blacklist", handler.AddToBlacklist)

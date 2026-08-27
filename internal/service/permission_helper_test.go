@@ -791,5 +791,3 @@ func TestGetUserPermissionsByType_Basic(t *testing.T) {
 		t.Errorf("期望权限对象为 /api/test，实际为 %s", perms[0].Object)
 	}
 }
-
-

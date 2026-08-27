@@ -9,9 +9,9 @@ import (
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/global"
 
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/filesystem"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func setupAttachmentService(t *testing.T) (*AttachmentService, *ent.Client) {

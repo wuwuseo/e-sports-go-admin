@@ -401,7 +401,7 @@ func TestSystemPermissionService_ListAndTree_ScopesAdminAccountRolePermissions(t
 	}
 }
 
-func TestSystemPermissionService_ListAndTree_UsesCasbinRuntimeRoles(t *testing.T) {
+func TestSystemPermissionService_ListAndTree_RejectsStaleCasbinRole(t *testing.T) {
 	client := setupPermissionSecurityTest(t)
 	ctx := t.Context()
 	svc := NewSystemPermissionService()
@@ -421,13 +421,13 @@ func TestSystemPermissionService_ListAndTree_UsesCasbinRuntimeRoles(t *testing.T
 	}
 	if _, err = client.AdminRole.Create().
 		SetAdminID(operator.ID).
-		SetRoleID(adminRole.ID).
+		SetRoleID(normalRole.ID).
 		SetIsPrimary(true).
 		Save(ctx); err != nil {
-		t.Fatalf("create stale admin role relation failed: %v", err)
+		t.Fatalf("create database role relation failed: %v", err)
 	}
 
-	createPermissionSecurityGroupingRule(t, client, operator.UID, normalRole.Name, "default")
+	createPermissionSecurityGroupingRule(t, client, operator.UID, adminRole.Name, "default")
 
 	root := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeMenu, "System", "system", 0, "/system", string(PermissionTypeMenu))
 	allowedMenu := createPermissionSecuritySystemPermission(t, ctx, client, SystemPermissionTypeMenu, "Users", "system:user", root.ID, "/system/user", string(PermissionTypeMenu))
@@ -444,10 +444,10 @@ func TestSystemPermissionService_ListAndTree_UsesCasbinRuntimeRoles(t *testing.T
 		t.Fatalf("list system permissions failed: %v", err)
 	}
 	if !systemPermissionResponsesContainCode(list.Data, allowedAPI.Code) {
-		t.Fatalf("expected runtime role permission %s", allowedAPI.Code)
+		t.Fatalf("expected database role permission %s", allowedAPI.Code)
 	}
 	if systemPermissionResponsesContainCode(list.Data, hiddenAPI.Code) {
-		t.Fatalf("list leaked permission %s outside the Casbin runtime role", hiddenAPI.Code)
+		t.Fatalf("stale Casbin admin role leaked permission %s", hiddenAPI.Code)
 	}
 
 	tree, err := svc.GetTree(ctx, operator.UID, "default")
@@ -455,10 +455,10 @@ func TestSystemPermissionService_ListAndTree_UsesCasbinRuntimeRoles(t *testing.T
 		t.Fatalf("get system permission tree failed: %v", err)
 	}
 	if !systemPermissionTreeContainsCode(tree, allowedAPI.Code) {
-		t.Fatalf("expected runtime role permission %s in tree", allowedAPI.Code)
+		t.Fatalf("expected database role permission %s in tree", allowedAPI.Code)
 	}
 	if systemPermissionTreeContainsCode(tree, hiddenAPI.Code) {
-		t.Fatalf("tree leaked permission %s outside the Casbin runtime role", hiddenAPI.Code)
+		t.Fatalf("stale Casbin admin role leaked tree permission %s", hiddenAPI.Code)
 	}
 }
 

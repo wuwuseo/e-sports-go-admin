@@ -206,8 +206,8 @@ func TestIsCustomDeptSubset_AllHitReturnsTrue(t *testing.T) {
 func TestIsCustomDeptSubset_AnyMissReturnsFalse(t *testing.T) {
 	op := &EffectiveDataScope{DepartmentIDs: []int{1, 2, 3, 4, 5}}
 	for _, deptIDs := range [][]int{
-		{1, 999},         // 第二个未命中
-		{999},            // 首个未命中
+		{1, 999},           // 第二个未命中
+		{999},              // 首个未命中
 		{1, 2, 3, 4, 5, 6}, // 末尾追加未命中
 	} {
 		if isCustomDeptSubset(op, deptIDs) {

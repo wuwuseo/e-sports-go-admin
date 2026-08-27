@@ -161,7 +161,10 @@ func (s *AdminService) RefreshToken(ctx context.Context, refreshToken string) (*
 	}
 
 	accessExpiresAt := time.Now().Add(time.Duration(config.App.AdminLoginExpires) * time.Second)
-	domain := "default"
+	domain, err := permissionDomainFromClaims(claims)
+	if err != nil {
+		return nil, err
+	}
 
 	accessClaims := jwt.MapClaims{
 		"id":         a.UID,

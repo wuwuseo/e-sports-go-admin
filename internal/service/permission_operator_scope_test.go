@@ -226,6 +226,15 @@ func TestOperatorPermissionScope_LookupMatches(t *testing.T) {
 	}
 }
 
+func TestOperatorPermissionScope_WildcardDominatesConcreteRule(t *testing.T) {
+	scope := &operatorPermissionScope{lookup: map[string]struct{}{
+		permissionLookupKey("api", "*", "*"): {},
+	}}
+	if !scope.allowsRule(PermissionRule{Object: "/api/v1/admin/auth/users", Action: "DELETE"}) {
+		t.Fatal("操作者的全局通配权限应覆盖具体 API 权限")
+	}
+}
+
 // -------------------------------------------------------------------
 // buildPermissionLookup / matchSystemPermission
 // -------------------------------------------------------------------
@@ -480,7 +489,7 @@ func TestEnsureOperatorCanManagePermissions_RegularOperatorRejectsEscalation(t *
 
 	// 尝试授予超出其范围的权限
 	err = svc.ensureOperatorCanManagePermissions(ctx, "uid-viewer", "default", []PermissionRule{
-		{Object: "/pages", Action: "GET"}, // 已持有
+		{Object: "/pages", Action: "GET"},     // 已持有
 		{Object: "/secret", Action: "DELETE"}, // 未持有
 	})
 	if !errors.Is(err, ErrPermissionScopeEscalation) {

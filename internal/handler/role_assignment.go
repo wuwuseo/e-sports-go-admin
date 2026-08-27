@@ -81,7 +81,7 @@ func AssignUserRoles(c fiber.Ctx) error {
 	operatorUID := c.Locals("uid").(string)
 
 	svc := c.Locals("service.RoleAssignmentService").(service.RoleAssignmentServiceInterface)
-	err = svc.AssignRoles(c.Context(), userID, req, operatorUID)
+	err = svc.AssignRoles(c.Context(), userID, req, operatorUID, getOperatorDomain(c))
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound:
@@ -127,9 +127,9 @@ func GetAdminRoles(c fiber.Ctx) error {
 
 	svc := c.Locals("service.RoleAssignmentService").(service.RoleAssignmentServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c))
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapOperatorContextError(c, response, err, "Internal server error")
 	}
 
 	result, err := svc.GetAdminRoles(c.Context(), op, adminID)
@@ -180,9 +180,9 @@ func AssignAdminRoles(c fiber.Ctx) error {
 
 	svc := c.Locals("service.RoleAssignmentService").(service.RoleAssignmentServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
-	op, err := dataPermSvc.NewOperatorContext(c.Context(), operatorUID)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), operatorUID, getOperatorDomain(c))
 	if err != nil {
-		return response.Fail(global.ResponseInternalServerError, "Internal server error").ToJSON(c)
+		return mapOperatorContextError(c, response, err, "Internal server error")
 	}
 
 	err = svc.AssignAdminRoles(c.Context(), op, adminID, req, operatorUID)

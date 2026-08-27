@@ -43,6 +43,9 @@ func CreatePermission(c fiber.Ctx) error {
 		}
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
+	if !permissionDomainAllowed(c, req.Domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	// 创建权限
 	uid, _ := c.Locals("uid").(string)
@@ -98,6 +101,9 @@ func UpdatePermission(c fiber.Ctx) error {
 			return resp.Fail(global.ResponseErrorCode, validate.FirstErrorMessage(err)).ToJSON(c)
 		}
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
+	}
+	if !permissionDomainAllowed(c, req.Domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
 
 	// 更新权限
@@ -160,6 +166,9 @@ func DeletePermission(c fiber.Ctx) error {
 	if roleName == "" || domain == "" || object == "" || action == "" {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
+	if !permissionDomainAllowed(c, domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	// 删除权限
 	uid, _ := c.Locals("uid").(string)
@@ -221,6 +230,9 @@ func GetPermission(c fiber.Ctx) error {
 	if roleName == "" || domain == "" || object == "" || action == "" {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
+	if !permissionDomainAllowed(c, domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	// 获取权限详情
 	permission, err := permissionService.GetPermission(c.Context(), roleName, domain, object, action)
@@ -276,6 +288,12 @@ func ListPermissions(c fiber.Ctx) error {
 	if req.PageSize == 0 {
 		req.PageSize = 10
 	}
+	if req.Domain == "" {
+		req.Domain = getOperatorDomain(c)
+	}
+	if !permissionDomainAllowed(c, req.Domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	// 获取权限列表
 	uid, _ := c.Locals("uid").(string)
@@ -315,6 +333,12 @@ func ListAllPermissions(c fiber.Ctx) error {
 	permType := service.PermissionType(c.Query("type"))
 	domain := c.Query("domain")
 	roleName := c.Query("role_name")
+	if domain == "" {
+		domain = getOperatorDomain(c)
+	}
+	if !permissionDomainAllowed(c, domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	// 获取所有权限
 	uid, _ := c.Locals("uid").(string)
@@ -364,6 +388,9 @@ func AssignPermissionsToRole(c fiber.Ctx) error {
 	// 验证参数
 	if req.RoleName == "" || req.Domain == "" || len(req.Permissions) == 0 {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
+	}
+	if !permissionDomainAllowed(c, req.Domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
 
 	// 为角色分配权限
@@ -423,6 +450,9 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 	if req.RoleName == "" || req.Domain == "" || len(req.Permissions) == 0 {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
+	if !permissionDomainAllowed(c, req.Domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	// 从角色移除权限
 	uid, _ := c.Locals("uid").(string)
@@ -457,7 +487,7 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param role_name query string true "角色名称"
-// @Param domain query string false "域，默认default"
+// @Param domain query string false "域，默认当前认证域"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
@@ -474,7 +504,10 @@ func GetRolePermissions(c fiber.Ctx) error {
 
 	// 获取请求参数
 	roleName := c.Query("role_name")
-	domain := c.Query("domain", "default")
+	domain := c.Query("domain", getOperatorDomain(c))
+	if !permissionDomainAllowed(c, domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	// 验证参数
 	if roleName == "" {
@@ -500,7 +533,7 @@ func GetRolePermissions(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "权限域，默认default"
+// @Param domain query string false "权限域，使用当前认证域"
 // @Success 200 {object} utils.Response{data=[]service.SystemPermissionTreeNode} "获取成功，data为菜单权限树数组，节点type固定为menu"
 // @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
 // @Failure 403 {object} utils.Response "无权限访问"
@@ -517,7 +550,10 @@ func GetUserMenuPermissions(c fiber.Ctx) error {
 	userID, _ := c.Locals("uid").(string)
 
 	// 获取域
-	domain := c.Query("domain", "default")
+	domain := getOperatorDomain(c)
+	if domain == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
 
 	// 获取用户菜单权限树
 	permissions, err := permissionService.GetUserMenuPermissionTree(c.Context(), userID, domain)
@@ -535,7 +571,7 @@ func GetUserMenuPermissions(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "权限域，默认default"
+// @Param domain query string false "权限域，使用当前认证域"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse} "获取成功，data为按钮权限扁平数组"
 // @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
 // @Failure 403 {object} utils.Response "无权限访问"
@@ -552,7 +588,10 @@ func GetUserButtonPermissions(c fiber.Ctx) error {
 	userID, _ := c.Locals("uid").(string)
 
 	// 获取域
-	domain := c.Query("domain", "default")
+	domain := getOperatorDomain(c)
+	if domain == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
 
 	// 获取用户按钮权限
 	permissions, err := permissionService.GetUserButtonPermissions(c.Context(), userID, domain)
@@ -570,7 +609,7 @@ func GetUserButtonPermissions(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "权限域，默认default"
+// @Param domain query string false "权限域，使用当前认证域"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse} "获取成功，data为API权限扁平数组"
 // @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
 // @Failure 403 {object} utils.Response "无权限访问"
@@ -587,7 +626,10 @@ func GetUserAPIPermissions(c fiber.Ctx) error {
 	userID, _ := c.Locals("uid").(string)
 
 	// 获取域
-	domain := c.Query("domain", "default")
+	domain := getOperatorDomain(c)
+	if domain == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
 
 	// 获取用户API权限
 	permissions, err := permissionService.GetUserAPIPermissions(c.Context(), userID, domain)
@@ -605,7 +647,7 @@ func GetUserAPIPermissions(c fiber.Ctx) error {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param domain query string false "权限域，默认default"
+// @Param domain query string false "权限域，使用当前认证域"
 // @Success 200 {object} utils.Response{data=[]service.SystemPermissionTreeNode} "获取成功，data为混合权限树数组，节点type用于区分menu/button/api"
 // @Failure 401 {object} utils.Response "未授权或JWT缺少域信息"
 // @Failure 403 {object} utils.Response "无权限访问"
@@ -622,7 +664,10 @@ func GetUserPermissions(c fiber.Ctx) error {
 	userID, _ := c.Locals("uid").(string)
 
 	// 获取域
-	domain := c.Query("domain", "default")
+	domain := getOperatorDomain(c)
+	if domain == "" {
+		return resp.Fail(global.ResponseUnauthorized, global.ResponseMsg[global.ResponseUnauthorized]).ToJSON(c)
+	}
 
 	// 获取用户混合权限树
 	permissions, err := permissionService.GetUserPermissionTree(c.Context(), userID, domain)
@@ -640,7 +685,7 @@ func GetUserPermissions(c fiber.Ctx) error {
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "角色ID"
-// @Param domain query string false "域，默认default"
+// @Param domain query string false "域，默认当前认证域"
 // @Success 200 {object} utils.Response{data=[]service.PermissionResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
@@ -658,7 +703,10 @@ func GetRolePermissionsByRoleID(c fiber.Ctx) error {
 		return resp.Fail(global.ResponseErrorCode, "无效的角色ID").ToJSON(c)
 	}
 
-	domain := c.Query("domain", "default")
+	domain := c.Query("domain", getOperatorDomain(c))
+	if !permissionDomainAllowed(c, domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	permissions, err := permissionService.GetRolePermissionsByRoleID(c.Context(), id, domain)
 	if err != nil {
@@ -704,6 +752,9 @@ func SaveRolePermissions(c fiber.Ctx) error {
 		}
 		return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 	}
+	if !permissionDomainAllowed(c, req.Domain) {
+		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
+	}
 
 	uid, _ := c.Locals("uid").(string)
 	err = permissionService.SaveRolePermissions(c.Context(), uid, id, req)
@@ -728,4 +779,9 @@ func SaveRolePermissions(c fiber.Ctx) error {
 	logOperation(c, logService, "permission", "保存", fmt.Sprintf("保存角色 ID:%d 的权限，共 %d 条", id, len(req.Permissions)))
 
 	return resp.Success(nil, global.ResponseSuccessCode, "保存角色权限成功").ToJSON(c)
+}
+
+func permissionDomainAllowed(c fiber.Ctx, requested string) bool {
+	domain := getOperatorDomain(c)
+	return domain != "" && requested == domain
 }
