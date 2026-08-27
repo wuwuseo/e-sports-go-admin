@@ -1,6 +1,11 @@
 package middleware
 
 import (
+	"context"
+	"errors"
+
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
@@ -11,7 +16,7 @@ import (
 
 // BlacklistCheck 黑名单校验中间件
 // 在JWT认证通过后、PermissionMiddleware之前执行
-func BlacklistCheck(blacklistSvc service.BlacklistServiceInterface) fiber.Handler {
+func BlacklistCheck(blacklistSvc service.BlacklistServiceInterface, accountTypes ...string) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		claims := jwt.GetJWTUserData(c)
 		if claims == nil {
@@ -20,6 +25,17 @@ func BlacklistCheck(blacklistSvc service.BlacklistServiceInterface) fiber.Handle
 		uid, ok := claims["id"].(string)
 		if !ok || uid == "" {
 			return c.Next()
+		}
+		if len(accountTypes) > 0 {
+			active, err := accountIsActive(c.Context(), uid, accountTypes[0])
+			if err != nil {
+				response := utils.NewResponse()
+				return response.Fail(global.ResponseInternalServerError, "账号状态校验异常").ToJSON(c)
+			}
+			if !active {
+				response := utils.NewResponse()
+				return response.Fail(global.ResponseUnauthorized, "账号已停用或不存在").ToJSON(c)
+			}
 		}
 
 		if blacklistSvc != nil {
@@ -45,5 +61,25 @@ func BlacklistCheck(blacklistSvc service.BlacklistServiceInterface) fiber.Handle
 		}
 
 		return c.Next()
+	}
+}
+
+func accountIsActive(ctx context.Context, uid, accountType string) (bool, error) {
+	if global.ORM == nil {
+		return false, errors.New("account store unavailable")
+	}
+	switch accountType {
+	case "admin":
+		exists, err := global.ORM.Admin.Query().
+			Where(admin.UIDEQ(uid), admin.StatusEQ(admin.StatusActive)).
+			Exist(ctx)
+		return exists, err
+	case "user":
+		exists, err := global.ORM.User.Query().
+			Where(user.UIDEQ(uid), user.StatusEQ(user.StatusActive)).
+			Exist(ctx)
+		return exists, err
+	default:
+		return false, errors.New("unsupported account type")
 	}
 }

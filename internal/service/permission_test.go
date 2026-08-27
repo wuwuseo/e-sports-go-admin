@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"go-admin/internal/casbin/adapter"
@@ -1684,6 +1686,83 @@ func TestPermissionService_AssignPermissionsToRole_ReloadsCasbinPolicy(t *testin
 	}
 }
 
+func TestCasbinHelpers_SerializeConcurrentRoleMutationAndEnforcement(t *testing.T) {
+	client := setupTestClient(t)
+	setupPermissionTestEnforcer(t, client)
+	enforcer, err := global.EnforcerManager.GetEnforcer("default")
+	if err != nil {
+		t.Fatalf("get enforcer: %v", err)
+	}
+	if added, addErr := addCasbinPolicy("default", []string{"editor", "default", "/concurrent", "GET"}); addErr != nil || !added {
+		t.Fatalf("add policy: added=%v err=%v", added, addErr)
+	}
+	enforcer.EnableAutoSave(false)
+
+	const workers = 8
+	const iterations = 50
+	errs := make(chan error, workers*iterations*2)
+	var wg sync.WaitGroup
+	for worker := 0; worker < workers; worker++ {
+		userID := fmt.Sprintf("concurrent-user-%d", worker)
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				if syncErr := replaceCasbinUserRoles(enforcer, userID, "default", []string{"editor"}); syncErr != nil {
+					errs <- syncErr
+				}
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				if _, enforceErr := enforceCasbinWithRoles(enforcer, userID, "default", "/concurrent", "GET", []string{"editor"}); enforceErr != nil {
+					errs <- enforceErr
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for syncErr := range errs {
+		t.Errorf("concurrent Casbin operation failed: %v", syncErr)
+	}
+}
+
+func TestPermissionService_CheckPermissionRejectsInactiveAdministrator(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	r := client.Role.Create().
+		SetName("inactive-check-role").
+		SetDisplayName("Inactive check role").
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	a := client.Admin.Create().
+		SetEmail("inactive-check@example.com").
+		SetUID("inactive-check-uid").
+		SetUsername("inactive-check").
+		SetPassword("hash").
+		SetStatus(admin.StatusInactive).
+		SaveX(ctx)
+	client.AdminRole.Create().SetAdminID(a.ID).SetRoleID(r.ID).SaveX(ctx)
+	setupPermissionTestEnforcer(t, client)
+	enforcer, err := global.EnforcerManager.GetEnforcer("default")
+	if err != nil {
+		t.Fatalf("get enforcer: %v", err)
+	}
+	if err := addCasbinUserRoles(enforcer, a.UID, "default", []string{r.Name}); err != nil {
+		t.Fatalf("seed role: %v", err)
+	}
+	if added, addErr := addCasbinPolicy("default", []string{r.Name, "default", "/inactive", "GET"}); addErr != nil || !added {
+		t.Fatalf("seed policy: added=%v err=%v", added, addErr)
+	}
+
+	allowed, err := NewPermissionService(nil).CheckPermission(ctx, a.UID, "default", "/inactive", "GET")
+	if err == nil || allowed {
+		t.Fatalf("inactive administrator authorized: allowed=%v err=%v", allowed, err)
+	}
+}
+
 func TestPermissionService_SaveRolePermissions_ReloadsCasbinPolicy(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
@@ -1744,6 +1823,45 @@ func TestPermissionService_SaveRolePermissions_ReloadsCasbinPolicy(t *testing.T)
 	}
 	if !ok {
 		t.Fatal("expected saved permission to be visible to Casbin immediately")
+	}
+}
+
+func TestPermissionService_RejectsOutOfScopeRolePermissionAccess(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	targetRole := client.Role.Create().
+		SetName("out-of-scope-permissions").
+		SetDisplayName("Out of scope permissions").
+		SetDataScope(role.DataScopeAll).
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0(targetRole.Name).
+		SetV1("default").
+		SetV2("/protected").
+		SetV3("GET").
+		SaveX(ctx)
+
+	svc := NewPermissionService(nil)
+	op := &EffectiveDataScope{Scope: DataScopeSelf, AdminUID: "1001"}
+	if _, err := svc.GetRolePermissions(ctx, targetRole.Name, "default", op); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("out-of-scope permission read should be rejected, got %v", err)
+	}
+	if err := svc.SaveRolePermissions(ctx, "1001", targetRole.ID, &SaveRolePermissionsRequest{
+		Domain:      "default",
+		Permissions: []PermissionRule{{Object: "/replacement", Action: "POST"}},
+	}, op); !errors.Is(err, ErrRoleScopeEscalation) {
+		t.Fatalf("out-of-scope permission mutation should be rejected, got %v", err)
+	}
+
+	rules := client.CasbinRule.Query().Where(
+		casbinrule.PtypeEQ("p"),
+		casbinrule.V0EQ(targetRole.Name),
+		casbinrule.V1EQ("default"),
+	).AllX(ctx)
+	if len(rules) != 1 || rules[0].V2 != "/protected" || rules[0].V3 != "GET" {
+		t.Fatalf("rejected mutation changed stored policy: %+v", rules)
 	}
 }
 

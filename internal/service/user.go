@@ -643,7 +643,7 @@ func (s *UserService) DeleteManagedUser(ctx context.Context, id int, operatorUID
 	if global.EnforcerManager != nil {
 		domain := configuredPermissionDomain()
 		if enforcer, err := global.EnforcerManager.GetEnforcer(domain); err == nil {
-			_, _ = enforcer.DeleteRolesForUserInDomain(u.UID, domain)
+			_ = removeCasbinUserRoles(enforcer, u.UID, domain)
 		}
 	}
 	if s.cache != nil {

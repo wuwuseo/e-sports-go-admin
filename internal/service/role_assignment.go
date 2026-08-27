@@ -214,6 +214,13 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("提交事务失败: %w", err)
 	}
+	// DB 绑定已生效；先清缓存，确保后续 Casbin 同步失败时不会继续返回旧权限。
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user_roles:%d", userID))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", u.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", u.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", u.UID, domain))
+	}
 
 	// Casbin g 重建：任一步失败立即返回错误，防止"DB 已换绑而 g 残留旧角色"的权限窗口
 	if global.EnforcerManager != nil {
@@ -221,25 +228,17 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 		if enfErr != nil {
 			return fmt.Errorf("角色已更新但 Casbin 同步失败，请重试: %w", enfErr)
 		}
-		if _, err := enforcer.DeleteRolesForUserInDomain(u.UID, domain); err != nil {
-			return fmt.Errorf("清除旧 Casbin 角色失败，请重试: %w", err)
-		}
+		roleNames := make([]string, 0, len(req.RoleIDs))
 		for _, roleID := range req.RoleIDs {
 			roleObj, qErr := s.client.Role.Query().Where(role.IDEQ(roleID)).Only(ctx)
 			if qErr != nil {
 				return fmt.Errorf("查询角色 %d 失败，请重试: %w", roleID, qErr)
 			}
-			if _, err := enforcer.AddRoleForUserInDomain(u.UID, roleObj.Name, domain); err != nil {
-				return fmt.Errorf("写入 Casbin 角色失败，请重试: %w", err)
-			}
+			roleNames = append(roleNames, roleObj.Name)
 		}
-	}
-
-	if s.cache != nil {
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user_roles:%d", userID))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", u.UID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", u.UID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", u.UID, domain))
+		if err := replaceCasbinUserRoles(enforcer, u.UID, domain, roleNames); err != nil {
+			return fmt.Errorf("重建 Casbin 角色失败，请重试: %w", err)
+		}
 	}
 
 	return nil
@@ -377,6 +376,14 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, op *Effect
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("提交事务失败: %w", err)
 	}
+	// DB 绑定已生效；先清缓存，确保 Casbin 同步失败时旧数据范围也不会继续生效。
+	if s.cache != nil {
+		_ = s.cache.Delete(ctx, fmt.Sprintf("admin_roles:%d", adminID))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", target.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", target.UID, domain))
+		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", target.UID, domain))
+		_ = s.cache.Delete(ctx, dataScopeCacheKey(target.UID))
+	}
 
 	// Casbin g 重建：任一步失败立即返回错误，防止"DB 已换绑而 g 残留旧角色"的权限窗口。
 	// 幂等可重试：重入时先全删再重建，最终一致。
@@ -385,27 +392,17 @@ func (s *RoleAssignmentService) AssignAdminRoles(ctx context.Context, op *Effect
 		if enfErr != nil {
 			return fmt.Errorf("角色已更新但 Casbin 同步失败，请重试: %w", enfErr)
 		}
-		if _, err := enforcer.DeleteRolesForUserInDomain(target.UID, domain); err != nil {
-			return fmt.Errorf("清除旧 Casbin 角色失败，请重试: %w", err)
-		}
+		roleNames := make([]string, 0, len(req.RoleIDs))
 		for _, roleID := range req.RoleIDs {
 			roleObj, qErr := s.client.Role.Query().Where(role.IDEQ(roleID)).Only(ctx)
 			if qErr != nil {
 				return fmt.Errorf("查询角色 %d 失败，请重试: %w", roleID, qErr)
 			}
-			if _, err := enforcer.AddRoleForUserInDomain(target.UID, roleObj.Name, domain); err != nil {
-				return fmt.Errorf("写入 Casbin 角色失败，请重试: %w", err)
-			}
+			roleNames = append(roleNames, roleObj.Name)
 		}
-	}
-
-	if s.cache != nil {
-		_ = s.cache.Delete(ctx, fmt.Sprintf("admin_roles:%d", adminID))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:menu:%s:%s", target.UID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:button:%s:%s", target.UID, domain))
-		_ = s.cache.Delete(ctx, fmt.Sprintf("user:api:%s:%s", target.UID, domain))
-		// 角色重分配改变目标管理员的数据范围，与上面 Casbin g 规则重建同步失效缓存
-		_ = s.cache.Delete(ctx, dataScopeCacheKey(target.UID))
+		if err := replaceCasbinUserRoles(enforcer, target.UID, domain, roleNames); err != nil {
+			return fmt.Errorf("重建 Casbin 角色失败，请重试: %w", err)
+		}
 	}
 
 	return nil

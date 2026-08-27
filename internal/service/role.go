@@ -7,6 +7,7 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/adminrole"
+	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
@@ -472,21 +473,35 @@ func (s *RoleService) Delete(ctx context.Context, op *EffectiveDataScope, id int
 		return ErrRoleInUse
 	}
 
-	err = s.Client.Role.DeleteOne(r).Exec(ctx)
+	domain := permissionDomainForScope(op)
+	tx, err := s.Client.Tx(ctx)
 	if err != nil {
+		return fmt.Errorf("开启删除角色事务失败: %w", err)
+	}
+	if _, err = tx.CasbinRule.Delete().Where(casbinrule.Or(
+		casbinrule.And(casbinrule.PtypeEQ("p"), casbinrule.V0EQ(r.Name), casbinrule.V1EQ(domain)),
+		casbinrule.And(casbinrule.PtypeEQ("g"), casbinrule.V1EQ(r.Name), casbinrule.V2EQ(domain)),
+	)).Exec(ctx); err != nil {
+		_ = tx.Rollback()
+		return fmt.Errorf("清理角色 Casbin 策略失败: %w", err)
+	}
+	if err = tx.Role.DeleteOneID(r.ID).Exec(ctx); err != nil {
+		_ = tx.Rollback()
 		return fmt.Errorf("删除角色失败: %w", err)
 	}
-
-	// 清理 Casbin 中该角色的 p 规则与残余 g 关联，防止孤儿规则或同名角色"复活"旧权限
-	domain := permissionDomainForScope(op)
-	if global.EnforcerManager != nil {
-		if enforcer, err := global.EnforcerManager.GetEnforcer(domain); err == nil {
-			_, _ = enforcer.RemoveFilteredPolicy(0, r.Name, domain)
-			_, _ = enforcer.RemoveFilteredGroupingPolicy(1, r.Name, domain)
-		}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("提交删除角色事务失败: %w", err)
 	}
 	global.InvalidateRoleStatusCache()
-
+	if global.EnforcerManager != nil {
+		enforcer, enforcerErr := global.EnforcerManager.GetEnforcer(domain)
+		if enforcerErr != nil {
+			return fmt.Errorf("角色已删除但获取 Casbin 执行器失败: %w", enforcerErr)
+		}
+		if enforcerErr = global.ReloadCasbinPolicy(domain, enforcer); enforcerErr != nil {
+			return fmt.Errorf("角色已删除但刷新 Casbin 策略失败: %w", enforcerErr)
+		}
+	}
 	return nil
 }
 
@@ -516,10 +531,11 @@ func (s *RoleService) syncRoleCasbinState(ctx context.Context, r *ent.Role, acti
 	if err != nil {
 		return fmt.Errorf("获取权限执行器失败: %w", err)
 	}
-	if _, err := enforcer.RemoveFilteredGroupingPolicy(1, r.Name, domain); err != nil {
-		return fmt.Errorf("清理角色 Casbin 关联失败: %w", err)
-	}
+	userIDs := make([]string, 0)
 	if !active {
+		if err := replaceCasbinRoleUsers(enforcer, r.Name, domain, userIDs); err != nil {
+			return fmt.Errorf("清理角色 Casbin 关联失败: %w", err)
+		}
 		return nil
 	}
 	adminRoles, err := s.Client.AdminRole.Query().
@@ -533,9 +549,7 @@ func (s *RoleService) syncRoleCasbinState(ctx context.Context, r *ent.Role, acti
 		if ar.Edges.Admin == nil {
 			continue
 		}
-		if _, err := enforcer.AddRoleForUserInDomain(ar.Edges.Admin.UID, r.Name, domain); err != nil {
-			return fmt.Errorf("恢复管理员 Casbin 角色失败: %w", err)
-		}
+		userIDs = append(userIDs, ar.Edges.Admin.UID)
 	}
 	userRoles, err := s.Client.UserRole.Query().
 		Where(userrole.RoleIDEQ(r.ID)).
@@ -548,9 +562,10 @@ func (s *RoleService) syncRoleCasbinState(ctx context.Context, r *ent.Role, acti
 		if ur.Edges.User == nil {
 			continue
 		}
-		if _, err := enforcer.AddRoleForUserInDomain(ur.Edges.User.UID, r.Name, domain); err != nil {
-			return fmt.Errorf("恢复用户 Casbin 角色失败: %w", err)
-		}
+		userIDs = append(userIDs, ur.Edges.User.UID)
+	}
+	if err := replaceCasbinRoleUsers(enforcer, r.Name, domain, userIDs); err != nil {
+		return fmt.Errorf("重建角色 Casbin 关联失败: %w", err)
 	}
 	return nil
 }
@@ -581,6 +596,8 @@ func (s *RoleService) setStatus(ctx context.Context, op *EffectiveDataScope, id 
 	}
 	if r.Status == target {
 		// 状态未变化时仍对齐 Casbin，但必须先通过与真实状态变更相同的范围校验。
+		global.InvalidateRoleStatusCache()
+		s.clearUserPermissionsByRoleID(ctx, id, permissionDomainForScope(op))
 		return s.syncRoleCasbinState(ctx, r, target == role.StatusActive, permissionDomainForScope(op))
 	}
 
@@ -591,14 +608,13 @@ func (s *RoleService) setStatus(ctx context.Context, op *EffectiveDataScope, id 
 	if _, err := s.Client.Role.UpdateOne(r).SetStatus(target).Save(ctx); err != nil {
 		return fmt.Errorf("%s角色失败: %w", action, err)
 	}
+	// DB 状态已经生效；先清缓存再同步 Casbin，确保后续同步失败也不会继续使用旧授权。
+	global.InvalidateRoleStatusCache()
+	s.clearUserPermissionsByRoleID(ctx, id, permissionDomainForScope(op))
 
 	if err := s.syncRoleCasbinState(ctx, r, target == role.StatusActive, permissionDomainForScope(op)); err != nil {
 		return fmt.Errorf("%s角色已生效但权限同步失败，请重试以完成同步: %w", action, err)
 	}
-
-	global.InvalidateRoleStatusCache()
-
-	s.clearUserPermissionsByRoleID(ctx, id, permissionDomainForScope(op))
 
 	return nil
 }

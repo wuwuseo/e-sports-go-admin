@@ -477,41 +477,41 @@ func (s *OperationLogService) Get(ctx context.Context, op *EffectiveDataScope, i
 		}
 		return nil, fmt.Errorf("查询操作日志失败: %w", err)
 	}
-	if !s.isLogInScope(ctx, op, opLog.Username) {
+	if !s.isLogInScope(ctx, op, opLog.UserID) {
 		return nil, ErrOperationLogNotFound
 	}
 	return toOperationLogResponse(opLog), nil
 }
 
 // buildScopeFilter 构造数据范围过滤条件；返回 nil 表示不过滤（超管/All/内部调用）
-// 注：日志表 user_id 历史上恒为 0，范围过滤基于 username 实现
+// 历史 user_id=0 的日志仅允许 All/超管查看，窄范围必须 fail-closed。
 func (s *OperationLogService) buildScopeFilter(ctx context.Context, op *EffectiveDataScope) ([]predicate.OperationLog, error) {
 	if shouldBypassCheck(op, false) || op.Scope == DataScopeAll {
 		return nil, nil
 	}
-	names, err := s.scopeAdminUsernames(ctx, op)
+	userIDs, err := s.scopeAdminUserIDs(ctx, op)
 	if err != nil {
 		return nil, err
 	}
-	if len(names) == 0 {
+	if len(userIDs) == 0 {
 		// 空集合时用不可能命中的条件，避免 In() 空切片退化
-		return []predicate.OperationLog{operationlog.UsernameEQ("__scope_empty__")}, nil
+		return []predicate.OperationLog{operationlog.UserIDEQ(-1)}, nil
 	}
-	return []predicate.OperationLog{operationlog.UsernameIn(names...)}, nil
+	return []predicate.OperationLog{operationlog.UserIDIn(userIDs...)}, nil
 }
 
-// scopeAdminUsernames 返回数据范围内可见的管理员用户名集合（始终包含操作者本人）
-func (s *OperationLogService) scopeAdminUsernames(ctx context.Context, op *EffectiveDataScope) ([]string, error) {
-	names := make([]string, 0, 4)
-	if op.Username != "" {
-		names = append(names, op.Username)
+// scopeAdminUserIDs 返回数据范围内可见的管理员不可变 UID 集合（始终包含操作者本人）。
+func (s *OperationLogService) scopeAdminUserIDs(ctx context.Context, op *EffectiveDataScope) ([]int, error) {
+	userIDs := make([]int, 0, 4)
+	if userID, err := strconv.Atoi(op.AdminUID); err == nil && userID > 0 {
+		userIDs = append(userIDs, userID)
 	}
 	switch op.Scope {
 	case DataScopeSelf:
-		return names, nil
+		return userIDs, nil
 	case DataScopeDepartment, DataScopeDepartmentAndChild, DataScopeCustom:
 		if len(op.DepartmentIDs) == 0 {
-			return names, nil
+			return userIDs, nil
 		}
 		admins, err := s.Client.Admin.Query().
 			Where(admin.DepartmentIDIn(op.DepartmentIDs...)).
@@ -520,27 +520,27 @@ func (s *OperationLogService) scopeAdminUsernames(ctx context.Context, op *Effec
 			return nil, fmt.Errorf("查询范围内管理员失败: %w", err)
 		}
 		for _, a := range admins {
-			if a.Username != "" {
-				names = append(names, a.Username)
+			if userID, parseErr := strconv.Atoi(a.UID); parseErr == nil && userID > 0 {
+				userIDs = append(userIDs, userID)
 			}
 		}
-		return names, nil
+		return userIDs, nil
 	default:
-		return names, nil
+		return userIDs, nil
 	}
 }
 
-// isLogInScope 判断日志是否在操作者数据范围内（基于 username）
-func (s *OperationLogService) isLogInScope(ctx context.Context, op *EffectiveDataScope, logUsername string) bool {
+// isLogInScope 判断日志是否在操作者数据范围内（基于不可变 UID）。
+func (s *OperationLogService) isLogInScope(ctx context.Context, op *EffectiveDataScope, logUserID int) bool {
 	if shouldBypassCheck(op, false) || op.Scope == DataScopeAll {
 		return true
 	}
-	names, err := s.scopeAdminUsernames(ctx, op)
+	userIDs, err := s.scopeAdminUserIDs(ctx, op)
 	if err != nil {
 		return false
 	}
-	for _, name := range names {
-		if name == logUsername {
+	for _, userID := range userIDs {
+		if userID == logUserID {
 			return true
 		}
 	}

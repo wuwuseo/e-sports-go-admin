@@ -57,10 +57,10 @@ func createDepartmentForOperationLogScopeTest(t *testing.T, client *ent.Client, 
 	return d.ID
 }
 
-func createLogForOperationLogScopeTest(t *testing.T, client *ent.Client, username string) {
+func createLogForOperationLogScopeTest(t *testing.T, client *ent.Client, userID int, username string) {
 	t.Helper()
 	_, err := client.OperationLog.Create().
-		SetUserID(1).
+		SetUserID(userID).
 		SetUsername(username).
 		SetModule("测试模块").
 		SetAction("创建").
@@ -83,10 +83,10 @@ func TestOperationLogService_List_DataScopeSelf(t *testing.T) {
 	svc := NewOperationLogServiceWithOptions(OperationLogOptions{Workers: 0, MonitorInterval: 0})
 	defer svc.Shutdown(ctx)
 
-	createLogForOperationLogScopeTest(t, client, "self_user")
-	createLogForOperationLogScopeTest(t, client, "other_user")
+	createLogForOperationLogScopeTest(t, client, 1001, "self_user")
+	createLogForOperationLogScopeTest(t, client, 1002, "other_user")
 
-	op := &EffectiveDataScope{Scope: DataScopeSelf, Username: "self_user"}
+	op := &EffectiveDataScope{Scope: DataScopeSelf, AdminUID: "1001", Username: "self_user"}
 	resp, err := svc.List(ctx, op, &ListOperationLogsRequest{})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
@@ -99,6 +99,25 @@ func TestOperationLogService_List_DataScopeSelf(t *testing.T) {
 	}
 }
 
+func TestOperationLogService_List_DataScopeSelfDoesNotLeakReusedUsername(t *testing.T) {
+	client := setupOperationLogScopeTest(t)
+	ctx := t.Context()
+	svc := NewOperationLogServiceWithOptions(OperationLogOptions{Workers: 0, MonitorInterval: 0})
+	defer svc.Shutdown(ctx)
+
+	createLogForOperationLogScopeTest(t, client, 1001, "reused_name")
+	createLogForOperationLogScopeTest(t, client, 1002, "reused_name")
+
+	op := &EffectiveDataScope{Scope: DataScopeSelf, AdminUID: "1002", Username: "reused_name"}
+	resp, err := svc.List(ctx, op, &ListOperationLogsRequest{})
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if resp.Total != 1 || len(resp.Data) != 1 || resp.Data[0].UserID != 1002 {
+		t.Fatalf("reused username exposed another administrator's log: %+v", resp.Data)
+	}
+}
+
 func TestOperationLogService_List_DataScopeDepartment(t *testing.T) {
 	client := setupOperationLogScopeTest(t)
 	ctx := t.Context()
@@ -106,15 +125,15 @@ func TestOperationLogService_List_DataScopeDepartment(t *testing.T) {
 	defer svc.Shutdown(ctx)
 
 	deptID := createDepartmentForOperationLogScopeTest(t, client, "Engineering", 0)
-	createAdminForOperationLogScopeTest(t, client, "dept1@example.com", "uid-dept1", "dept1_user", deptID)
-	createAdminForOperationLogScopeTest(t, client, "dept2@example.com", "uid-dept2", "dept2_user", deptID)
-	createAdminForOperationLogScopeTest(t, client, "other@example.com", "uid-other", "other_user", createDepartmentForOperationLogScopeTest(t, client, "Sales", 0))
+	createAdminForOperationLogScopeTest(t, client, "dept1@example.com", "2001", "dept1_user", deptID)
+	createAdminForOperationLogScopeTest(t, client, "dept2@example.com", "2002", "dept2_user", deptID)
+	createAdminForOperationLogScopeTest(t, client, "other@example.com", "3001", "other_user", createDepartmentForOperationLogScopeTest(t, client, "Sales", 0))
 
-	createLogForOperationLogScopeTest(t, client, "dept1_user")
-	createLogForOperationLogScopeTest(t, client, "dept2_user")
-	createLogForOperationLogScopeTest(t, client, "other_user")
+	createLogForOperationLogScopeTest(t, client, 2001, "dept1_user")
+	createLogForOperationLogScopeTest(t, client, 2002, "dept2_user")
+	createLogForOperationLogScopeTest(t, client, 3001, "other_user")
 
-	op := &EffectiveDataScope{Scope: DataScopeDepartment, Username: "dept1_user", DepartmentIDs: []int{deptID}}
+	op := &EffectiveDataScope{Scope: DataScopeDepartment, AdminUID: "2001", Username: "dept1_user", DepartmentIDs: []int{deptID}}
 	resp, err := svc.List(ctx, op, &ListOperationLogsRequest{})
 	if err != nil {
 		t.Fatalf("List 失败: %v", err)
@@ -130,7 +149,7 @@ func TestOperationLogService_List_DataScopeCustomEmpty(t *testing.T) {
 	svc := NewOperationLogServiceWithOptions(OperationLogOptions{Workers: 0, MonitorInterval: 0})
 	defer svc.Shutdown(ctx)
 
-	createLogForOperationLogScopeTest(t, client, "any_user")
+	createLogForOperationLogScopeTest(t, client, 4001, "any_user")
 
 	op := &EffectiveDataScope{Scope: DataScopeCustom, Username: "operator", DepartmentIDs: []int{}}
 	resp, err := svc.List(ctx, op, &ListOperationLogsRequest{})
@@ -148,8 +167,8 @@ func TestOperationLogService_List_DataScopeAll(t *testing.T) {
 	svc := NewOperationLogServiceWithOptions(OperationLogOptions{Workers: 0, MonitorInterval: 0})
 	defer svc.Shutdown(ctx)
 
-	createLogForOperationLogScopeTest(t, client, "user_a")
-	createLogForOperationLogScopeTest(t, client, "user_b")
+	createLogForOperationLogScopeTest(t, client, 1, "user_a")
+	createLogForOperationLogScopeTest(t, client, 2, "user_b")
 
 	op := &EffectiveDataScope{Scope: DataScopeAll, Username: "admin"}
 	resp, err := svc.List(ctx, op, &ListOperationLogsRequest{})
@@ -167,10 +186,10 @@ func TestOperationLogService_Get_OutOfScope(t *testing.T) {
 	svc := NewOperationLogServiceWithOptions(OperationLogOptions{Workers: 0, MonitorInterval: 0})
 	defer svc.Shutdown(ctx)
 
-	createLogForOperationLogScopeTest(t, client, "owner")
+	createLogForOperationLogScopeTest(t, client, 5001, "owner")
 
 	logID := client.OperationLog.Query().FirstX(ctx).ID
-	op := &EffectiveDataScope{Scope: DataScopeSelf, Username: "attacker"}
+	op := &EffectiveDataScope{Scope: DataScopeSelf, AdminUID: "5002", Username: "attacker"}
 	_, err := svc.Get(ctx, op, logID)
 	if err != ErrOperationLogNotFound {
 		t.Errorf("越权访问应返回 ErrOperationLogNotFound, 实际 %v", err)
@@ -183,10 +202,10 @@ func TestOperationLogService_Get_InScope(t *testing.T) {
 	svc := NewOperationLogServiceWithOptions(OperationLogOptions{Workers: 0, MonitorInterval: 0})
 	defer svc.Shutdown(ctx)
 
-	createLogForOperationLogScopeTest(t, client, "owner")
+	createLogForOperationLogScopeTest(t, client, 5001, "owner")
 
 	logID := client.OperationLog.Query().FirstX(ctx).ID
-	op := &EffectiveDataScope{Scope: DataScopeSelf, Username: "owner"}
+	op := &EffectiveDataScope{Scope: DataScopeSelf, AdminUID: "5001", Username: "owner"}
 	resp, err := svc.Get(ctx, op, logID)
 	if err != nil {
 		t.Fatalf("Get 失败: %v", err)

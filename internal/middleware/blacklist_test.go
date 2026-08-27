@@ -10,12 +10,16 @@ import (
 	"testing"
 	"time"
 
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/enttest"
+	"go-admin/internal/ent/migrate"
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
 	jwtlib "github.com/golang-jwt/jwt/v5"
+	_ "github.com/mattn/go-sqlite3"
 	cmfjwt "github.com/wuwuseo/cmf/jwt"
 )
 
@@ -23,6 +27,37 @@ import (
 type mockBlacklistSvc struct {
 	isBlacklistedFn func(ctx context.Context, uid string) (bool, error)
 	isLoggedOutFn   func(ctx context.Context, uid string) (bool, error)
+}
+
+func TestBlacklistCheck_RejectsInactiveAdminToken(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:blacklist-account-status?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	t.Cleanup(func() { _ = client.Close() })
+	previousORM := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = previousORM })
+	client.Admin.Create().
+		SetEmail("inactive-admin@example.com").
+		SetUID("inactive-admin").
+		SetUsername("inactive-admin").
+		SetPassword("hash").
+		SetStatus(admin.StatusInactive).
+		SaveX(t.Context())
+
+	app := fiber.New()
+	app.Use(cmfjwt.NewJWTMiddleware(blacklistTestSecret))
+	app.Use(BlacklistCheck(&mockBlacklistSvc{}, "admin"))
+	app.Get("/protected", func(c fiber.Ctx) error { return c.SendStatus(http.StatusOK) })
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+makeBlacklistTestToken(t, "inactive-admin"))
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	code, _ := readRespCode(t, resp)
+	if code != global.ResponseUnauthorized {
+		t.Fatalf("inactive admin response code=%d, want %d", code, global.ResponseUnauthorized)
+	}
 }
 
 func (m *mockBlacklistSvc) AddToBlacklist(_ context.Context, _ int, _, _, _ string) error {

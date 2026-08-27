@@ -642,7 +642,7 @@ func TestCheckUserHasRole_HasRole(t *testing.T) {
 
 	ctx := t.Context()
 
-	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SetStatus(user.StatusActive).SaveX(ctx)
 	r := client.Role.Create().SetName("test-role").SetDisplayName("Test Role").SetStatus(role.StatusActive).SaveX(ctx)
 	client.UserRole.Create().SetUser(u).SetRole(r).SaveX(ctx)
 
@@ -664,7 +664,7 @@ func TestCheckUserHasRole_NoRole(t *testing.T) {
 
 	ctx := t.Context()
 
-	client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SetStatus(user.StatusActive).SaveX(ctx)
 
 	svc := &PermissionService{client: client}
 	has, err := svc.CheckUserHasRole(ctx, "user1", "default", "test-role")
@@ -702,7 +702,7 @@ func TestGetUserRoleNames_AdminUser(t *testing.T) {
 
 	ctx := t.Context()
 
-	a := client.Admin.Create().SetUID("admin1").SetUsername("admin1").SetPassword("pwd").SetEmail("admin1@test.com").SaveX(ctx)
+	a := client.Admin.Create().SetUID("admin1").SetUsername("admin1").SetPassword("pwd").SetEmail("admin1@test.com").SetStatus(admin.StatusActive).SaveX(ctx)
 	r := client.Role.Create().SetName("admin").SetDisplayName("Admin").SetStatus(role.StatusActive).SaveX(ctx)
 	client.AdminRole.Create().SetAdmin(a).SetRole(r).SaveX(ctx)
 
@@ -724,7 +724,7 @@ func TestGetUserRoleNames_RegularUser(t *testing.T) {
 
 	ctx := t.Context()
 
-	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SetStatus(user.StatusActive).SaveX(ctx)
 	r := client.Role.Create().SetName("user-role").SetDisplayName("User Role").SetStatus(role.StatusActive).SaveX(ctx)
 	client.UserRole.Create().SetUser(u).SetRole(r).SaveX(ctx)
 
@@ -746,7 +746,7 @@ func TestGetUserRoleNames_NoRoles(t *testing.T) {
 
 	ctx := t.Context()
 
-	client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SetStatus(user.StatusActive).SaveX(ctx)
 
 	svc := &PermissionService{client: client}
 	roles, err := svc.getUserRoleNames(ctx, "user1")
@@ -766,7 +766,7 @@ func TestGetUserPermissionsByType_Basic(t *testing.T) {
 
 	ctx := t.Context()
 
-	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SaveX(ctx)
+	u := client.User.Create().SetUID("user1").SetUsername("user1").SetEmail("user1@test.com").SetStatus(user.StatusActive).SaveX(ctx)
 	r := client.Role.Create().SetName("role1").SetDisplayName("Role1").SetStatus(role.StatusActive).SaveX(ctx)
 	client.UserRole.Create().SetUser(u).SetRole(r).SaveX(ctx)
 

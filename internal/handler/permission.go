@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -46,11 +47,18 @@ func CreatePermission(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, req.Domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "创建权限失败")
+	}
 
 	// 创建权限
 	uid, _ := c.Locals("uid").(string)
-	err = permissionService.CreatePermission(c.Context(), uid, req)
+	err = permissionService.CreatePermission(c.Context(), uid, req, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
@@ -105,11 +113,18 @@ func UpdatePermission(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, req.Domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "更新权限失败")
+	}
 
 	// 更新权限
 	uid, _ := c.Locals("uid").(string)
-	err = permissionService.UpdatePermission(c.Context(), uid, req)
+	err = permissionService.UpdatePermission(c.Context(), uid, req, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
@@ -169,11 +184,18 @@ func DeletePermission(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "删除权限失败")
+	}
 
 	// 删除权限
 	uid, _ := c.Locals("uid").(string)
-	err := permissionService.DeletePermission(c.Context(), uid, roleName, domain, object, action)
+	err = permissionService.DeletePermission(c.Context(), uid, roleName, domain, object, action, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
@@ -233,10 +255,17 @@ func GetPermission(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取权限失败")
+	}
 
 	// 获取权限详情
-	permission, err := permissionService.GetPermission(c.Context(), roleName, domain, object, action)
+	permission, err := permissionService.GetPermission(c.Context(), roleName, domain, object, action, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrPermissionNotFound {
 			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
 		}
@@ -294,10 +323,14 @@ func ListPermissions(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, req.Domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取权限列表失败")
+	}
 
 	// 获取权限列表
 	uid, _ := c.Locals("uid").(string)
-	permissions, err := permissionService.ListPermissions(c.Context(), uid, req)
+	permissions, err := permissionService.ListPermissions(c.Context(), uid, req, op)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取权限列表失败").ToJSON(c)
 	}
@@ -339,10 +372,14 @@ func ListAllPermissions(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取权限列表失败")
+	}
 
 	// 获取所有权限
 	uid, _ := c.Locals("uid").(string)
-	permissions, err := permissionService.ListAllPermissions(c.Context(), uid, keyword, permType, domain, roleName)
+	permissions, err := permissionService.ListAllPermissions(c.Context(), uid, keyword, permType, domain, roleName, op)
 	if err != nil {
 		return resp.Fail(global.ResponseInternalServerError, "获取权限列表失败").ToJSON(c)
 	}
@@ -392,11 +429,18 @@ func AssignPermissionsToRole(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, req.Domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "分配权限失败")
+	}
 
 	// 为角色分配权限
 	uid, _ := c.Locals("uid").(string)
-	err := permissionService.AssignPermissionsToRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions)
+	err = permissionService.AssignPermissionsToRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
@@ -453,11 +497,18 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, req.Domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "移除权限失败")
+	}
 
 	// 从角色移除权限
 	uid, _ := c.Locals("uid").(string)
-	err := permissionService.RemovePermissionsFromRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions)
+	err = permissionService.RemovePermissionsFromRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
@@ -513,10 +564,17 @@ func GetRolePermissions(c fiber.Ctx) error {
 	if roleName == "" {
 		return resp.Fail(global.ResponseErrorCode, "无效的请求参数").ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取角色权限失败")
+	}
 
 	// 获取角色权限
-	permissions, err := permissionService.GetRolePermissions(c.Context(), roleName, domain)
+	permissions, err := permissionService.GetRolePermissions(c.Context(), roleName, domain, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		}
@@ -707,9 +765,16 @@ func GetRolePermissionsByRoleID(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
-
-	permissions, err := permissionService.GetRolePermissionsByRoleID(c.Context(), id, domain)
+	op, err := permissionOperatorScope(c)
 	if err != nil {
+		return mapOperatorContextError(c, resp, err, "获取角色权限失败")
+	}
+
+	permissions, err := permissionService.GetRolePermissionsByRoleID(c.Context(), id, domain, op)
+	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
 		}
@@ -755,10 +820,17 @@ func SaveRolePermissions(c fiber.Ctx) error {
 	if !permissionDomainAllowed(c, req.Domain) {
 		return resp.Fail(global.ResponseForbidden, global.ResponseMsg[global.ResponseForbidden]).ToJSON(c)
 	}
+	op, err := permissionOperatorScope(c)
+	if err != nil {
+		return mapOperatorContextError(c, resp, err, "保存角色权限失败")
+	}
 
 	uid, _ := c.Locals("uid").(string)
-	err = permissionService.SaveRolePermissions(c.Context(), uid, id, req)
+	err = permissionService.SaveRolePermissions(c.Context(), uid, id, req, op)
 	if err != nil {
+		if errors.Is(err, service.ErrRoleScopeEscalation) {
+			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		}
 		log.Error("保存角色权限失败", zap.Int("role_id", id), zap.String("domain", req.Domain), zap.Error(err))
 		if err == service.ErrRoleNotFound {
 			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
@@ -784,4 +856,9 @@ func SaveRolePermissions(c fiber.Ctx) error {
 func permissionDomainAllowed(c fiber.Ctx, requested string) bool {
 	domain := getOperatorDomain(c)
 	return domain != "" && requested == domain
+}
+
+func permissionOperatorScope(c fiber.Ctx) (*service.EffectiveDataScope, error) {
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	return dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 }

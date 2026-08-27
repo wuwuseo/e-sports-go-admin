@@ -231,16 +231,7 @@ func (a *Adapter) AddPolicy(sec string, ptype string, rule []string) error {
 // This is part of the Auto-Save feature.
 func (a *Adapter) RemovePolicy(sec string, ptype string, rule []string) error {
 	return a.WithTx(func(tx *ent.Tx) error {
-		instance := a.toInstance(ptype, rule)
-		_, err := tx.CasbinRule.Delete().Where(
-			casbinrule.PtypeEQ(instance.Ptype),
-			casbinrule.V0EQ(instance.V0),
-			casbinrule.V1EQ(instance.V1),
-			casbinrule.V2EQ(instance.V2),
-			casbinrule.V3EQ(instance.V3),
-			casbinrule.V4EQ(instance.V4),
-			casbinrule.V5EQ(instance.V5),
-		).Exec(a.ctx)
+		_, err := tx.CasbinRule.Delete().Where(policyRulePredicates(ptype, rule)...).Exec(a.ctx)
 		return err
 	})
 }
@@ -289,16 +280,7 @@ func (a *Adapter) AddPolicies(sec string, ptype string, rules [][]string) error 
 func (a *Adapter) RemovePolicies(sec string, ptype string, rules [][]string) error {
 	return a.WithTx(func(tx *ent.Tx) error {
 		for _, rule := range rules {
-			instance := a.toInstance(ptype, rule)
-			if _, err := tx.CasbinRule.Delete().Where(
-				casbinrule.PtypeEQ(instance.Ptype),
-				casbinrule.V0EQ(instance.V0),
-				casbinrule.V1EQ(instance.V1),
-				casbinrule.V2EQ(instance.V2),
-				casbinrule.V3EQ(instance.V3),
-				casbinrule.V4EQ(instance.V4),
-				casbinrule.V5EQ(instance.V5),
-			).Exec(a.ctx); err != nil {
+			if _, err := tx.CasbinRule.Delete().Where(policyRulePredicates(ptype, rule)...).Exec(a.ctx); err != nil {
 				return err
 			}
 		}
@@ -418,23 +400,25 @@ func (a *Adapter) savePolicyLine(tx *ent.Tx, ptype string, rule []string) *ent.C
 // This is part of the Auto-Save feature.
 func (a *Adapter) UpdatePolicy(sec string, ptype string, oldRule, newPolicy []string) error {
 	return a.WithTx(func(tx *ent.Tx) error {
-		rule := a.toInstance(ptype, oldRule)
-		line := tx.CasbinRule.Update().Where(
-			casbinrule.PtypeEQ(rule.Ptype),
-			casbinrule.V0EQ(rule.V0),
-			casbinrule.V1EQ(rule.V1),
-			casbinrule.V2EQ(rule.V2),
-			casbinrule.V3EQ(rule.V3),
-			casbinrule.V4EQ(rule.V4),
-			casbinrule.V5EQ(rule.V5),
-		)
-		rule = a.toInstance(ptype, newPolicy)
-		line.SetV0(rule.V0)
-		line.SetV1(rule.V1)
-		line.SetV2(rule.V2)
-		line.SetV3(rule.V3)
-		line.SetV4(rule.V4)
-		line.SetV5(rule.V5)
+		line := tx.CasbinRule.Update().Where(policyRulePredicates(ptype, oldRule)...)
+		if len(newPolicy) > 0 {
+			line.SetV0(newPolicy[0])
+		}
+		if len(newPolicy) > 1 {
+			line.SetV1(newPolicy[1])
+		}
+		if len(newPolicy) > 2 {
+			line.SetV2(newPolicy[2])
+		}
+		if len(newPolicy) > 3 {
+			line.SetV3(newPolicy[3])
+		}
+		if len(newPolicy) > 4 {
+			line.SetV4(newPolicy[4])
+		}
+		if len(newPolicy) > 5 {
+			line.SetV5(newPolicy[5])
+		}
 		_, err := line.Save(a.ctx)
 		return err
 	})
@@ -444,16 +428,7 @@ func (a *Adapter) UpdatePolicy(sec string, ptype string, oldRule, newPolicy []st
 func (a *Adapter) UpdatePolicies(sec string, ptype string, oldRules, newRules [][]string) error {
 	return a.WithTx(func(tx *ent.Tx) error {
 		for _, policy := range oldRules {
-			rule := a.toInstance(ptype, policy)
-			if _, err := tx.CasbinRule.Delete().Where(
-				casbinrule.PtypeEQ(rule.Ptype),
-				casbinrule.V0EQ(rule.V0),
-				casbinrule.V1EQ(rule.V1),
-				casbinrule.V2EQ(rule.V2),
-				casbinrule.V3EQ(rule.V3),
-				casbinrule.V4EQ(rule.V4),
-				casbinrule.V5EQ(rule.V5),
-			).Exec(a.ctx); err != nil {
+			if _, err := tx.CasbinRule.Delete().Where(policyRulePredicates(ptype, policy)...).Exec(a.ctx); err != nil {
 				return err
 			}
 		}
@@ -466,6 +441,29 @@ func (a *Adapter) UpdatePolicies(sec string, ptype string, oldRules, newRules []
 		}
 		return nil
 	})
+}
+
+func policyRulePredicates(ptype string, rule []string) []predicate.CasbinRule {
+	conditions := []predicate.CasbinRule{casbinrule.PtypeEQ(ptype)}
+	if len(rule) == 0 {
+		// An empty rule must never broaden a mutation to every row of a ptype.
+		return append(conditions, casbinrule.IDEQ(-1))
+	}
+	fields := []func(string) predicate.CasbinRule{
+		casbinrule.V0EQ,
+		casbinrule.V1EQ,
+		casbinrule.V2EQ,
+		casbinrule.V3EQ,
+		casbinrule.V4EQ,
+		casbinrule.V5EQ,
+	}
+	for i, value := range rule {
+		if i >= len(fields) {
+			break
+		}
+		conditions = append(conditions, fields[i](value))
+	}
+	return conditions
 }
 
 // UpdateFilteredPolicies deletes old rules and adds new rules.

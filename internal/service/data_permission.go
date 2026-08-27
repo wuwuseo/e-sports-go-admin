@@ -146,7 +146,7 @@ func (s *DataPermissionService) ResolveAdminScope(ctx context.Context, uid strin
 
 // resolveAdminScopeDB 实时查库解析管理员的有效数据权限范围
 func (s *DataPermissionService) resolveAdminScopeDB(ctx context.Context, uid string) (*EffectiveDataScope, error) {
-	a, err := s.client.Admin.Query().Where(admin.UIDEQ(uid)).Only(ctx)
+	a, err := s.client.Admin.Query().Where(admin.UIDEQ(uid), admin.StatusEQ(admin.StatusActive)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
 			return nil, ErrDataPermissionAdminNotFound

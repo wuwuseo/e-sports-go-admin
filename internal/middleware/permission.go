@@ -49,48 +49,56 @@ func PermissionMiddleware() fiber.Handler {
 			resp := utils.NewResponse()
 			return resp.Fail(fiber.StatusInternalServerError, "获取权限执行器失败").ToJSON(c)
 		}
+		if err := global.RefreshCasbinPolicyIfStale(domain, enforcer); err != nil {
+			resp := utils.NewResponse()
+			return resp.Fail(fiber.StatusInternalServerError, "刷新权限策略失败").ToJSON(c)
+		}
 
-		// 直接从 Casbin 读取用户在当前域下的角色（角色分配时由服务层写入 Casbin）
-		roleNames := enforcer.GetRolesForUserInDomain(userID, domain)
-		// 防御纵深：过滤禁用/已删除角色，即使 Casbin g 未同步也不放行其权限（fail-closed）
-		activeRoles, rolesDiffer, rolesResolved := global.FilterAssignedActiveRoleNames(c.Context(), userID, roleNames)
+		var (
+			activeRoles   []string
+			rolesResolved bool
+			allowed       bool
+			authorizeErr  error
+		)
+		// 读取 DB 真值、修复 g 并 Enforce 必须处于同一个写锁内，避免撤权与请求交错时
+		// 用旧角色覆盖刚提交的新绑定。
+		global.WithCasbinWrite(func() {
+			roleNames := enforcer.GetRolesForUserInDomain(userID, domain)
+			var rolesDiffer bool
+			activeRoles, rolesDiffer, rolesResolved = global.FilterAssignedActiveRoleNames(c.Context(), userID, roleNames)
+			if !rolesResolved {
+				return
+			}
+			if rolesDiffer {
+				if _, authorizeErr = enforcer.DeleteRolesForUserInDomain(userID, domain); authorizeErr != nil {
+					return
+				}
+				for _, roleName := range activeRoles {
+					if _, authorizeErr = enforcer.AddRoleForUserInDomain(userID, roleName, domain); authorizeErr != nil {
+						return
+					}
+				}
+			}
+			for _, object := range permissionObjectsForRequest(c) {
+				allowed, authorizeErr = enforcer.Enforce(userID, domain, object, method)
+				if authorizeErr != nil || allowed {
+					return
+				}
+			}
+		})
 		if !rolesResolved {
 			resp := utils.NewResponse()
 			return resp.Fail(fiber.StatusInternalServerError, "读取角色分配失败").ToJSON(c)
 		}
-		if rolesDiffer {
-			// g 是数据库角色绑定的派生索引；不一致时自动重建。
-			if _, syncErr := enforcer.DeleteRolesForUserInDomain(userID, domain); syncErr != nil {
-				resp := utils.NewResponse()
-				return resp.Fail(fiber.StatusInternalServerError, "同步角色权限失败").ToJSON(c)
-			}
-			for _, roleName := range activeRoles {
-				if _, syncErr := enforcer.AddRoleForUserInDomain(userID, roleName, domain); syncErr != nil {
-					resp := utils.NewResponse()
-					return resp.Fail(fiber.StatusInternalServerError, "同步角色权限失败").ToJSON(c)
-				}
-			}
+		if authorizeErr != nil {
+			resp := utils.NewResponse()
+			return resp.Fail(fiber.StatusInternalServerError, "权限检查或同步失败").ToJSON(c)
 		}
 		if hasRoleName(activeRoles, "admin") {
 			c.Locals("isSuperAdmin", true)
 		}
 
-		// 检查权限。先用实际请求路径匹配，再用 Fiber 路由模板匹配
-		// （例如 /roles/2 -> /roles/{id}），兼容系统权限中的模板路径。
-		ok = false
-		objects := permissionObjectsForRequest(c)
-		for _, object := range objects {
-			ok, err = enforcer.Enforce(userID, domain, object, method)
-			if err != nil {
-				resp := utils.NewResponse()
-				return resp.Fail(fiber.StatusInternalServerError, "权限检查失败").ToJSON(c)
-			}
-			if ok {
-				break
-			}
-		}
-
-		if !ok {
+		if !allowed {
 			resp := utils.NewResponse()
 			return resp.Fail(fiber.StatusForbidden, "没有权限访问该资源").ToJSON(c)
 		}

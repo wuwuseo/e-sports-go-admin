@@ -162,7 +162,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	userAuthBase := v1.Group("/user/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.OAuthAuthService", oauthAuthService)
 		return c.Next()
-	}, middleware.BlacklistCheck(blacklistService))
+	}, middleware.BlacklistCheck(blacklistService, "user"))
 	userOAuth := userAuthBase.Group("/oauth")
 	userOAuth.Get("/identities", handler.ListUserOAuthIdentities)
 	userOAuth.Get("/:provider/authorize", handler.BeginOAuthBind("user"))
@@ -185,10 +185,10 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.PermissionService", permissionService)
 		c.Locals("plugin.proxy_path_prefix", "/admin/auth")
 		return c.Next()
-	}, middleware.BlacklistCheck(blacklistService), middleware.PermissionMiddleware(), handler.ProxyPlugin}
+	}, middleware.BlacklistCheck(blacklistService, "admin"), middleware.PermissionMiddleware(), handler.ProxyPlugin}
 	pluginProxy.All("/:plugin_id/admin/auth", pluginProxyAuth[0], pluginProxyAuth[1:]...)
 	pluginProxy.All("/:plugin_id/admin/auth/*", pluginProxyAuth[0], pluginProxyAuth[1:]...)
-	pluginProxy.All("/:plugin_id/*", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), middleware.BlacklistCheck(blacklistService), handler.ProxyPlugin)
+	pluginProxy.All("/:plugin_id/*", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), middleware.BlacklistCheck(blacklistService, "admin"), handler.ProxyPlugin)
 
 	// 需要认证的接口
 	adminAuthBase := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
@@ -214,7 +214,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.OAuthAuthService", oauthAuthService)
 		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
-	}, middleware.BlacklistCheck(blacklistService))
+	}, middleware.BlacklistCheck(blacklistService, "admin"))
 
 	adminAuthBase.Get("/user", handler.GetAdmin)
 	adminAuthBase.Put("/user", handler.UpdateAdmin)

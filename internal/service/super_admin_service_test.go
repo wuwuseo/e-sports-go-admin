@@ -278,6 +278,33 @@ func TestSuperAdminService_DeactivateAdmin_Success(t *testing.T) {
 	}
 }
 
+func TestSuperAdminService_DeactivateAdmin_RemovesCasbinRoles(t *testing.T) {
+	client, _, cleanup := setupSuperAdminTest(t)
+	t.Cleanup(cleanup)
+	ctx := t.Context()
+	a := createTestAdminRaw(t, client, "deactivate-casbin@test.com", "uid-deactivate-casbin", "deactivatecasbin", "pass", admin.StatusActive)
+	setupPermissionTestEnforcer(t, client)
+	enforcer, err := global.EnforcerManager.GetEnforcer("default")
+	if err != nil {
+		t.Fatalf("get enforcer: %v", err)
+	}
+	if err := addCasbinUserRoles(enforcer, a.UID, "default", []string{"editor"}); err != nil {
+		t.Fatalf("seed Casbin role: %v", err)
+	}
+
+	svc := NewSuperAdminService(NewDataPermissionService(NewDepartmentService()), NewDepartmentService())
+	if err := svc.DeactivateAdmin(ctx, nil, a.ID); err != nil {
+		t.Fatalf("deactivate administrator: %v", err)
+	}
+	var roles []string
+	global.WithCasbinRead(func() {
+		roles = enforcer.GetRolesForUserInDomain(a.UID, "default")
+	})
+	if len(roles) != 0 {
+		t.Fatalf("inactive administrator retained Casbin roles: %v", roles)
+	}
+}
+
 // TestSuperAdminService_ActivateSelf_Forbidden 验证不允许激活自己
 func TestSuperAdminService_ActivateSelf_Forbidden(t *testing.T) {
 	client, _, cleanup := setupSuperAdminTest(t)
@@ -747,6 +774,7 @@ func TestSuperAdminService_ListAdmins_UsesInjectedDataPermSvc(t *testing.T) {
 		SetUID("uid-la").
 		SetNickname("n").
 		SetName("nm").
+		SetStatus(admin.StatusActive).
 		SetIsSuperAdmin(true).
 		SaveX(ctx)
 	deptSvc := NewDepartmentService()

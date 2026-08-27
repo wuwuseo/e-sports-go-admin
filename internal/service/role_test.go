@@ -7,14 +7,28 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
 
+	"github.com/casbin/casbin/v3/model"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+type roleStatusFailingAdapter struct{}
+
+func (*roleStatusFailingAdapter) LoadPolicy(model.Model) error {
+	return errors.New("forced policy reload failure")
+}
+func (*roleStatusFailingAdapter) SavePolicy(model.Model) error                { return nil }
+func (*roleStatusFailingAdapter) AddPolicy(string, string, []string) error    { return nil }
+func (*roleStatusFailingAdapter) RemovePolicy(string, string, []string) error { return nil }
+func (*roleStatusFailingAdapter) RemoveFilteredPolicy(string, string, int, ...string) error {
+	return nil
+}
 
 func setupTestClient(t *testing.T) *ent.Client {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
@@ -793,6 +807,53 @@ func TestRoleService_Delete_Success(t *testing.T) {
 	}
 }
 
+func TestRoleService_Delete_RemovesCasbinPoliciesBeforeRoleNameReuse(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	svc := NewRoleService(nil)
+	r := client.Role.Create().
+		SetName("reusable_role").
+		SetDisplayName("Reusable role").
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	client.CasbinRule.Create().
+		SetPtype("p").
+		SetV0(r.Name).
+		SetV1("default").
+		SetV2("/stale").
+		SetV3("GET").
+		SaveX(ctx)
+	client.CasbinRule.Create().
+		SetPtype("g").
+		SetV0("orphan-user").
+		SetV1(r.Name).
+		SetV2("default").
+		SaveX(ctx)
+
+	if err := svc.Delete(ctx, nil, r.ID); err != nil {
+		t.Fatalf("delete role failed: %v", err)
+	}
+	if count := client.CasbinRule.Query().Where(casbinrule.Or(
+		casbinrule.And(casbinrule.PtypeEQ("p"), casbinrule.V0EQ(r.Name)),
+		casbinrule.And(casbinrule.PtypeEQ("g"), casbinrule.V1EQ(r.Name)),
+	)).CountX(ctx); count != 0 {
+		t.Fatalf("deleted role left %d Casbin policies", count)
+	}
+
+	client.Role.Create().
+		SetName(r.Name).
+		SetDisplayName("Recreated role").
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	if count := client.CasbinRule.Query().Where(
+		casbinrule.PtypeEQ("p"),
+		casbinrule.V0EQ(r.Name),
+		casbinrule.V1EQ("default"),
+	).CountX(ctx); count != 0 {
+		t.Fatalf("recreated role inherited %d stale policies", count)
+	}
+}
+
 func TestRoleService_Delete_SystemRole(t *testing.T) {
 	client := setupTestClient(t)
 	ctx := t.Context()
@@ -971,6 +1032,37 @@ func TestRoleServiceSetStatusUsesTargetStatus(t *testing.T) {
 	}
 	if got := client.Role.GetX(t.Context(), r.ID).Status; got != role.StatusActive {
 		t.Fatalf("status = %s", got)
+	}
+}
+
+func TestRoleService_DisableInvalidatesActiveCacheWhenCasbinReloadFails(t *testing.T) {
+	client := setupTestClient(t)
+	ctx := t.Context()
+	r := client.Role.Create().
+		SetName("disable_reload_failure").
+		SetDisplayName("Disable reload failure").
+		SetStatus(role.StatusActive).
+		SaveX(ctx)
+	global.InvalidateRoleStatusCache()
+	if !global.RoleStatusIsActive(ctx, r.Name) {
+		t.Fatal("failed to prime active role cache")
+	}
+	setupPermissionTestEnforcer(t, client)
+	enforcer, err := global.EnforcerManager.GetEnforcer("default")
+	if err != nil {
+		t.Fatalf("get enforcer: %v", err)
+	}
+	enforcer.SetAdapter(&roleStatusFailingAdapter{})
+
+	svc := NewRoleService(nil)
+	if err := svc.Disable(ctx, nil, r.ID); err == nil {
+		t.Fatal("forced Casbin reload failure should be reported")
+	}
+	if got := client.Role.GetX(ctx, r.ID).Status; got != role.StatusInactive {
+		t.Fatalf("database status=%s, want inactive", got)
+	}
+	if global.RoleStatusIsActive(ctx, r.Name) {
+		t.Fatal("failed Casbin reload left stale active role cache")
 	}
 }
 

@@ -212,9 +212,11 @@ func (s *SuperAdminService) CreateAdmin(ctx context.Context, op *EffectiveDataSc
 	if len(validRoles) > 0 && global.EnforcerManager != nil {
 		enforcer, enfErr := global.EnforcerManager.GetEnforcer(domain)
 		if enfErr == nil {
+			roleNames := make([]string, 0, len(validRoles))
 			for _, r := range validRoles {
-				_, _ = enforcer.AddRoleForUserInDomain(a.UID, r.Name, domain)
+				roleNames = append(roleNames, r.Name)
 			}
+			_ = addCasbinUserRoles(enforcer, a.UID, domain, roleNames)
 		}
 	}
 
@@ -376,6 +378,18 @@ func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, op *EffectiveDa
 			return ErrAdminNotFound
 		}
 		return err
+	}
+	// DB 状态已经生效；即使后续 Casbin 同步失败，也不能继续返回旧的数据范围。
+	s.dataPermSvc.InvalidateAdminScope(ctx, target.UID)
+	if global.EnforcerManager != nil {
+		domain := permissionDomainForScope(op)
+		enforcer, enforcerErr := global.EnforcerManager.GetEnforcer(domain)
+		if enforcerErr != nil {
+			return fmt.Errorf("管理员已停用但获取 Casbin 执行器失败: %w", enforcerErr)
+		}
+		if enforcerErr = removeCasbinUserRoles(enforcer, target.UID, domain); enforcerErr != nil {
+			return fmt.Errorf("管理员已停用但撤销 Casbin 角色失败: %w", enforcerErr)
+		}
 	}
 	return nil
 }

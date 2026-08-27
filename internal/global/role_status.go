@@ -130,7 +130,7 @@ func assignedRoleNames(ctx context.Context, uid string) (map[string]struct{}, er
 	if ORM == nil || uid == "" {
 		return nil, errors.New("role assignment source unavailable")
 	}
-	a, err := ORM.Admin.Query().Where(admin.UIDEQ(uid)).Only(ctx)
+	a, err := ORM.Admin.Query().Where(admin.UIDEQ(uid), admin.StatusEQ(admin.StatusActive)).Only(ctx)
 	if err == nil {
 		assigned := make(map[string]struct{})
 		if a.IsSuperAdmin {
@@ -154,7 +154,7 @@ func assignedRoleNames(ctx context.Context, uid string) (map[string]struct{}, er
 		return nil, err
 	}
 
-	u, err := ORM.User.Query().Where(user.UIDEQ(uid)).Only(ctx)
+	u, err := ORM.User.Query().Where(user.UIDEQ(uid), user.StatusEQ(user.StatusActive)).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
