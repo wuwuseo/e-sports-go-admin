@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	entsql "entgo.io/ent/dialect/sql"
 	cmfCasbin "github.com/wuwuseo/cmf/casbin"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/crypto"
@@ -23,7 +22,6 @@ import (
 	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/dictdata"
-	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
@@ -141,18 +139,17 @@ func initDatabase(config *config.Config) error {
 	// 延迟初始化表前缀
 	ent.InitTablePrefix(orm.GetTablePrefix())
 
-	driver := orm.GetDatabaseConfig([]string{config.Database.Default}, config).Driver
-	appInstance.Logger.Info("using database driver", zap.String("driver", driver))
-	db, err := orm.GetSqlDb(driver, orm.GetDatabaseSourceDns(config, config.Database.Default))
+	dbManager, err := orm.NewDBManager(config)
 	if err != nil {
 		return err
 	}
-	drv := entsql.OpenDB(driver, db)
-	client := ent.NewClient(ent.Driver(drv))
-	if schemaErr := client.Schema.Create(context.Background(), migrate.WithForeignKeys(false)); schemaErr != nil {
-		appInstance.Logger.Fatal("failed creating schema resources", zap.Error(schemaErr))
+	// 复用 Wire Provider 的创建逻辑（含自动迁移），连接由 DBManager 统一管理
+	client, err := NewEntClient(config, dbManager)
+	if err != nil {
+		return err
 	}
 	global.ORM = client
+	appInstance.DB = dbManager
 	return nil
 }
 

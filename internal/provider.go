@@ -15,15 +15,22 @@ import (
 )
 
 // NewEntClient 创建 Ent ORM 客户端（Wire Provider）
-func NewEntClient(cfg *config.Config, dbManager *orm.DBManager) (*ent.Client, error) {
+// connName 可选指定数据库连接名（不传 = 默认连接），用于 Ent 接入 database.connections 中的其他连接
+func NewEntClient(cfg *config.Config, dbManager *orm.DBManager, connName ...string) (*ent.Client, error) {
 	// 延迟初始化表前缀：配置已加载，此时可安全获取 table_prefix
 	ent.InitTablePrefix(orm.GetTablePrefix())
 
-	driver := orm.GetDatabaseConfig([]string{cfg.Database.Default}, cfg).Driver
-	db, err := orm.GetSqlDb(driver, orm.GetDatabaseSourceDns(cfg, cfg.Database.Default))
+	name := ""
+	if len(connName) > 0 {
+		name = connName[0]
+	}
+
+	// 复用 DBManager 管理的连接池（与 dbManager.DB(name) 返回同一实例，避免重复建连）
+	db, err := dbManager.DB([]string{name}...)
 	if err != nil {
 		return nil, err
 	}
+	driver := orm.GetDatabaseConfig([]string{name}, cfg).Driver
 	drv := entsql.OpenDB(driver, db)
 	client := ent.NewClient(ent.Driver(drv))
 
