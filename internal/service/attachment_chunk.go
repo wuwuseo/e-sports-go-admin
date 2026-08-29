@@ -134,6 +134,7 @@ var (
 	ErrChunkedFileSizeExceeded = &ChunkUploadError{global.ErrCodeFileSizeExceeded, "文件总大小超过限制"}
 	ErrChunkSizeExceeded       = &ChunkUploadError{global.ErrCodeChunkSizeExceeded, "单分片大小超过限制"}
 	ErrMimeTypeNotAllowed      = &ChunkUploadError{global.ErrCodeMimeTypeNotAllowed, "不支持的文件类型"}
+	ErrSVGUploadBlocked        = &ChunkUploadError{global.ErrCodeMimeTypeNotAllowed, "不支持上传SVG文件：SVG可内嵌脚本，回显时存在存储型XSS风险"}
 )
 
 // chunkStore 管理所有分片上传会话
@@ -157,14 +158,13 @@ const (
 
 // allowedMimeTypes 允许上传的 MIME 类型白名单
 var allowedMimeTypes = map[string]bool{
-	// 图片
-	"image/jpeg":    true,
-	"image/png":     true,
-	"image/gif":     true,
-	"image/webp":    true,
-	"image/svg+xml": true,
-	"image/bmp":     true,
-	"image/tiff":    true,
+	// 图片（不含 image/svg+xml：SVG 可内嵌脚本，构成存储型 XSS，见 rejectBlockedUpload）
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+	"image/bmp":  true,
+	"image/tiff": true,
 	// 文档
 	"application/pdf":  true,
 	"text/plain":       true,
@@ -444,6 +444,10 @@ func (s *AttachmentService) mergeChunksWithDedupe(ctx context.Context, session *
 	if err != nil {
 		return nil, err
 	}
+	// 合并前纵深拦截：即使首片校验被绕过，落盘合并时仍按扩展名/MIME 拒绝
+	if err := rejectBlockedUpload(originalName, session.MimeType); err != nil {
+		return nil, err
+	}
 	uploadDirectory, err := resolveAttachmentDirectory(session.Directory)
 	if err != nil {
 		return nil, err
@@ -635,6 +639,15 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 
 	// 首次分片：使用确定性 upload_id + LoadOrStore 实现原子化初始化
 	if isFirstChunk {
+		// SVG 双重拦截（分片路径不经过 Upload）：按扩展名与声明 MIME 拒绝
+		declaredMime := req.MimeType
+		if declaredMime == "" && req.FileHeader != nil {
+			declaredMime = req.FileHeader.Header.Get("Content-Type")
+		}
+		if err := rejectBlockedUpload(req.Filename, declaredMime); err != nil {
+			return nil, err
+		}
+
 		uploadID = generateDeterministicUploadID(req.Filename, req.FileSize, req.UserID)
 
 		// 预创建会话对象

@@ -102,6 +102,28 @@ type MoveAttachmentRequest struct {
 	GroupID *int `json:"group_id"`
 }
 
+// isBlockedUploadExtension / isBlockedUploadMime 判定是否为被禁止上传的
+// 高风险文件类型。SVG 可内嵌脚本，回显端一旦以 inline 方式输出即构成
+// 存储型 XSS，因此按扩展名与声明 MIME 双重拦截。
+func isBlockedUploadExtension(ext string) bool {
+	return strings.EqualFold(strings.TrimSpace(ext), "svg")
+}
+
+func isBlockedUploadMime(mimeType string) bool {
+	return strings.Contains(strings.ToLower(mimeType), "svg")
+}
+
+// rejectBlockedUpload 统一拦截入口：任一命中即返回 ErrSVGUploadBlocked。
+// 仅依赖 MIME 白名单不够——SVG 内容经 http.DetectContentType 判定为
+// text/xml（在白名单内），而落库 MIME 取客户端声明，可绕过白名单。
+func rejectBlockedUpload(originalName, declaredMime string) error {
+	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(originalName), "."))
+	if isBlockedUploadExtension(ext) || isBlockedUploadMime(declaredMime) {
+		return ErrSVGUploadBlocked
+	}
+	return nil
+}
+
 func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.FileHeader, groupID *int, userID string, directory ...string) (*AttachmentResponse, error) {
 	if s.filesystem == nil {
 		return nil, ErrAttachmentStorageUnavailable
@@ -112,6 +134,9 @@ func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.Fi
 
 	originalName, err := filesystem.SafeOriginalName(fileHeader.Filename)
 	if err != nil {
+		return nil, err
+	}
+	if err := rejectBlockedUpload(originalName, fileHeader.Header.Get("Content-Type")); err != nil {
 		return nil, err
 	}
 	uploadDirectory, err := resolveAttachmentDirectory(firstString(directory))

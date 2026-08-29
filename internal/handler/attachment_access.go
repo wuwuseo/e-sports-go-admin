@@ -3,7 +3,6 @@ package handler
 import (
 	"mime"
 	"strconv"
-	"strings"
 	"time"
 
 	"go-admin/internal/global"
@@ -88,10 +87,27 @@ func sendAttachmentData(c fiber.Ctx, data []byte, mimeType string, filename stri
 	return c.Send(data)
 }
 
+// inlineMimeTypes 允许内联展示的确定性安全类型。
+// SVG/HTML/XML 等可承载脚本的类型不在其列——统一强制下载，
+// 防止存储型 XSS；配合上传端 rejectBlockedUpload 形成双保险。
+var inlineMimeTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+	"image/bmp":  true,
+	// "image/tiff": 多数浏览器可内联渲染但非确定性安全，一并强制下载
+	"application/pdf": true,
+}
+
 func setAttachmentHeaders(c fiber.Ctx, mimeType string, filename string) {
 	c.Set("Content-Type", mimeType)
+	// 内容端点专用：禁止 MIME 嗅探并将文档沙箱化为唯一源，
+	// 即使类型误判也不会以应用源执行脚本
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set("Content-Security-Policy", "sandbox")
 	disposition := "attachment"
-	if strings.HasPrefix(mimeType, "image/") || mimeType == "application/pdf" {
+	if inlineMimeTypes[mimeType] {
 		disposition = "inline"
 	}
 	c.Set("Content-Disposition", mime.FormatMediaType(disposition, map[string]string{"filename": filename}))
