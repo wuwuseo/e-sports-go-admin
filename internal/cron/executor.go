@@ -125,8 +125,52 @@ func validateURL(rawURL string) error {
 	return isSafeHost(u.Hostname())
 }
 
+// lookupIPAddr 可注入的 DNS 解析函数，便于测试模拟域名解析结果
+var lookupIPAddr = net.DefaultResolver.LookupIPAddr
+
+// resolveSafeIPs 将主机名解析为 IP 并逐个校验安全性。
+// 防护关键点：校验对象必须是"DNS 解析后的真实 IP"而非主机名字符串——
+// 仅按主机名做字符串校验时，解析到内网/元数据地址的域名（如自有域名
+// A 记录指向 10.x，或 metadata.google.internal → 169.254.169.254）可绕过拦截。
+// 多条解析记录中只要有一条不安全即整体拒绝，防止部分记录绕过。
+func resolveSafeIPs(ctx context.Context, host string) ([]net.IP, error) {
+	if ip := net.ParseIP(host); ip != nil {
+		if err := isSafeHost(host); err != nil {
+			return nil, err
+		}
+		return []net.IP{ip}, nil
+	}
+
+	if err := isSafeHost(host); err != nil {
+		return nil, err
+	}
+
+	addrs, err := lookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("解析目标主机失败: %w", err)
+	}
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("目标主机未解析到任何IP地址")
+	}
+
+	ips := make([]net.IP, 0, len(addrs))
+	for _, addr := range addrs {
+		if addr.IP == nil {
+			return nil, fmt.Errorf("目标主机解析到无效IP地址")
+		}
+		if err := isSafeHost(addr.IP.String()); err != nil {
+			return nil, err
+		}
+		ips = append(ips, addr.IP)
+	}
+	return ips, nil
+}
+
 // buildSafeHTTPClient 构建防SSRF的HTTP客户端
-// 包含连接层IP校验（防DNS重绑定）和重定向校验（防重定向到内网）
+// 连接层先解析 DNS 再对解析结果做 IP 级校验（真正防 DNS 重绑定与
+// "域名解析到内网IP"绕过），重定向校验兜底协议/端口。
+// 注意：按 IP 拨号不影响 TLS——http.Transport 的 SNI 与证书校验
+// 始终取自请求 URL 的 host，而非拨号地址。
 func buildSafeHTTPClient(timeout time.Duration) *http.Client {
 	dialer := &net.Dialer{
 		Timeout:   10 * time.Second,
@@ -137,15 +181,18 @@ func buildSafeHTTPClient(timeout time.Duration) *http.Client {
 		Timeout: timeout,
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				// 连接时二次校验目标IP，防止DNS重绑定攻击
-				host, _, err := net.SplitHostPort(addr)
+				// 连接时解析目标主机并校验解析出的每个IP，防止DNS重绑定
+				// 及"域名解析到内网IP"形式的SSRF绕过
+				host, port, err := net.SplitHostPort(addr)
 				if err != nil {
 					return nil, err
 				}
-				if err := isSafeHost(host); err != nil {
+				ips, err := resolveSafeIPs(ctx, host)
+				if err != nil {
 					return nil, err
 				}
-				return dialer.DialContext(ctx, network, addr)
+				// resolveSafeIPs 已保证所有解析结果安全，取首个IP直连
+				return dialer.DialContext(ctx, network, net.JoinHostPort(ips[0].String(), port))
 			},
 			MaxIdleConns:       10,
 			IdleConnTimeout:    60 * time.Second,

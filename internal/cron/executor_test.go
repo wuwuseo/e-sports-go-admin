@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"os/exec"
 	"strings"
 	"testing"
@@ -281,6 +282,111 @@ func TestIsSafeHost_PrivateIP(t *testing.T) {
 func TestIsSafeHost_PublicIP(t *testing.T) {
 	if err := isSafeHost("8.8.8.8"); err != nil {
 		t.Fatalf("expected no error for public IP, got: %v", err)
+	}
+}
+
+// --- resolveSafeIPs 单元测试（DNS 解析后逐 IP 校验） ---
+
+// withFakeResolver 替换可注入的 DNS 解析函数，测试结束后恢复
+func withFakeResolver(t *testing.T, fake func(ctx context.Context, host string) ([]net.IPAddr, error)) {
+	t.Helper()
+	orig := lookupIPAddr
+	lookupIPAddr = fake
+	t.Cleanup(func() { lookupIPAddr = orig })
+}
+
+func fakeResolver(host string, ips ...string) func(ctx context.Context, host string) ([]net.IPAddr, error) {
+	return func(_ context.Context, resolved string) ([]net.IPAddr, error) {
+		if resolved != host {
+			return nil, &net.DNSError{Err: "no such host", Name: resolved}
+		}
+		addrs := make([]net.IPAddr, 0, len(ips))
+		for _, ip := range ips {
+			addrs = append(addrs, net.IPAddr{IP: net.ParseIP(ip)})
+		}
+		return addrs, nil
+	}
+}
+
+func TestResolveSafeIPs_DomainResolvingToMetadataIP(t *testing.T) {
+	// 回归测试：metadata.google.internal 解析到 169.254.169.254，
+	// 修复前仅校验主机名字符串可绕过内网拦截（H1 SSRF）
+	withFakeResolver(t, fakeResolver("metadata.google.internal", "169.254.169.254"))
+	_, err := resolveSafeIPs(context.Background(), "metadata.google.internal")
+	if err == nil {
+		t.Fatal("expected error for domain resolving to metadata IP, got nil")
+	}
+	if !strings.Contains(err.Error(), "内网IP") {
+		t.Fatalf("expected internal IP rejection, got: %v", err)
+	}
+}
+
+func TestResolveSafeIPs_DomainResolvingToPrivateIP(t *testing.T) {
+	withFakeResolver(t, fakeResolver("rebind.attacker.example", "10.0.0.5"))
+	_, err := resolveSafeIPs(context.Background(), "rebind.attacker.example")
+	if err == nil {
+		t.Fatal("expected error for domain resolving to private IP, got nil")
+	}
+}
+
+func TestResolveSafeIPs_MixedRecordsRejected(t *testing.T) {
+	// 多条解析记录混合公网与内网时必须整体拒绝
+	withFakeResolver(t, fakeResolver("mixed.attacker.example", "8.8.8.8", "10.0.0.5"))
+	_, err := resolveSafeIPs(context.Background(), "mixed.attacker.example")
+	if err == nil {
+		t.Fatal("expected error for mixed public/private DNS records, got nil")
+	}
+}
+
+func TestResolveSafeIPs_DomainResolvingToPublicIP(t *testing.T) {
+	withFakeResolver(t, fakeResolver("safe.example.com", "8.8.8.8"))
+	ips, err := resolveSafeIPs(context.Background(), "safe.example.com")
+	if err != nil {
+		t.Fatalf("expected no error for domain resolving to public IP, got: %v", err)
+	}
+	if len(ips) != 1 || !ips[0].Equal(net.ParseIP("8.8.8.8")) {
+		t.Fatalf("expected resolved public IP 8.8.8.8, got: %v", ips)
+	}
+}
+
+func TestResolveSafeIPs_IPLiteral(t *testing.T) {
+	if _, err := resolveSafeIPs(context.Background(), "8.8.8.8"); err != nil {
+		t.Fatalf("expected no error for public IP literal, got: %v", err)
+	}
+	if _, err := resolveSafeIPs(context.Background(), "192.168.1.1"); err == nil {
+		t.Fatal("expected error for private IP literal")
+	}
+}
+
+func TestResolveSafeIPs_DNSFailureRejected(t *testing.T) {
+	withFakeResolver(t, func(_ context.Context, _ string) ([]net.IPAddr, error) {
+		return nil, &net.DNSError{Err: "no such host", Name: "missing.example"}
+	})
+	if _, err := resolveSafeIPs(context.Background(), "missing.example"); err == nil {
+		t.Fatal("expected error when DNS resolution fails")
+	}
+}
+
+func TestResolveSafeIPs_EmptyResultRejected(t *testing.T) {
+	withFakeResolver(t, fakeResolver("empty.example"))
+	if _, err := resolveSafeIPs(context.Background(), "empty.example"); err == nil {
+		t.Fatal("expected error when DNS returns no addresses")
+	}
+}
+
+func TestCurlExecutor_DomainResolvingToInternalIPBlocked(t *testing.T) {
+	// 端到端回归：curl 型任务请求"解析到内网的域名"必须在拨号前失败（H1 SSRF）
+	withFakeResolver(t, fakeResolver("rebind.attacker.example", "10.0.0.5"))
+	executor := &CurlExecutor{}
+	var buf bytes.Buffer
+
+	cmd := curlCommandMarshal("GET", "http://rebind.attacker.example/secret", "", nil)
+	err := executor.Execute(context.Background(), cmd, &buf)
+	if err == nil {
+		t.Fatal("expected error for domain resolving to internal IP, got nil")
+	}
+	if !strings.Contains(err.Error(), "内网IP") {
+		t.Fatalf("expected internal IP rejection, got: %v", err)
 	}
 }
 
