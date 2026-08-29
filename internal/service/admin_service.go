@@ -359,11 +359,25 @@ func (s *AdminService) ChangePassword(ctx context.Context, uid, oldPassword, new
 		return err
 	}
 
-	_, err = s.client.Admin.UpdateOne(a).
+	if _, err = s.client.Admin.UpdateOne(a).
 		SetPassword(hashedPassword).
 		SetPasswordSalt(salt).
-		Save(ctx)
-	return err
+		Save(ctx); err != nil {
+		return err
+	}
+
+	// 安全基线：改密后吊销该管理员全部已签发令牌（UID 级登出标记，覆盖
+	// 整个 refresh 有效期），被盗会话在改密后即不可用。当前会话一并失效，
+	// 需使用新密码重新登录，属安全优先的默认行为。
+	if s.blacklistSvc != nil {
+		if cfg, _ := global.Bootstrap.GetService("config"); cfg != nil {
+			if config, ok := cfg.(*cmfConfig.Config); ok {
+				_ = s.blacklistSvc.RecordLogout(ctx, uid, time.Duration(config.App.AdminRefreshExpires)*time.Second)
+			}
+		}
+	}
+
+	return nil
 }
 
 // Logout 管理员退出登录
