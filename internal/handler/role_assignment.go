@@ -81,7 +81,13 @@ func AssignUserRoles(c fiber.Ctx) error {
 	operatorUID := c.Locals("uid").(string)
 
 	svc := c.Locals("service.RoleAssignmentService").(service.RoleAssignmentServiceInterface)
-	err = svc.AssignRoles(c.Context(), userID, req, operatorUID, getOperatorDomain(c))
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), operatorUID, getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, response, err, "Internal server error")
+	}
+
+	err = svc.AssignRoles(c.Context(), userID, req, op, operatorUID, getOperatorDomain(c))
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound:

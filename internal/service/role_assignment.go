@@ -80,7 +80,7 @@ type RoleAssignmentService struct {
 // RoleAssignmentServiceInterface 角色分配服务接口
 type RoleAssignmentServiceInterface interface {
 	GetUserRoles(ctx context.Context, userID int) (*UserRolesResponse, error)
-	AssignRoles(ctx context.Context, userID int, req *AssignRolesRequest, operatorUID, domain string) error
+	AssignRoles(ctx context.Context, userID int, req *AssignRolesRequest, op *EffectiveDataScope, operatorUID, domain string) error
 	GetAdminRoles(ctx context.Context, op *EffectiveDataScope, adminID int) (*UserRolesResponse, error)
 	AssignAdminRoles(ctx context.Context, op *EffectiveDataScope, adminID int, req *AssignRolesRequest, operatorUID string) error
 }
@@ -146,7 +146,10 @@ func (s *RoleAssignmentService) GetUserRoles(ctx context.Context, userID int) (*
 }
 
 // AssignRoles 分配用户角色（事务操作，先删后插）
-func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req *AssignRolesRequest, operatorUID, domain string) error {
+//
+// op 为 nil 时仅内部调用/测试可用，跳过防提升校验；HTTP 入口必须传入
+// NewOperatorContext 构建的操作者上下文。
+func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req *AssignRolesRequest, op *EffectiveDataScope, operatorUID, domain string) error {
 	if domain == "" {
 		domain = configuredPermissionDomain()
 	}
@@ -155,6 +158,12 @@ func (s *RoleAssignmentService) AssignRoles(ctx context.Context, userID int, req
 		req.PrimaryRoleID = req.RoleIDs[0]
 	}
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return err
+	}
+	// 权限级防提升：users 表无部门维度，无法像 AssignAdminRoles 那样做
+	// 部门级范围校验，此处禁止授予包含操作者自身不具备 Casbin 权限的角色，
+	// 防止低权操作者借角色分配实现权限提升。
+	if err := ensureRolePermissionsNotEscalating(ctx, s.client, op, operatorUID, domain, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return err
 	}
 	found := false
