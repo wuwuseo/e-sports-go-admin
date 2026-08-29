@@ -43,6 +43,11 @@ func isSuperAdminRole(roleName string) bool {
 }
 
 // SensitivePermissionObjects 高风险权限 API 对象路径，非超级管理员不可见
+//
+// 安全说明：cron-jobs 管理面可创建 curl 型定时任务发起服务端 HTTP 请求，
+// 属高危 SSRF 载体，故全部 API 仅限超级管理员。既有部署重启时，
+// init.go 的 cleanupNormalAdminSeededExcludedPermissions 会自动清除
+// 历史播种到 normal_admin 的 cron 规则。
 var SensitivePermissionObjects = map[string]struct{}{
 	// 权限定义 CRUD
 	"/api/v1/admin/auth/system-permissions":      {},
@@ -59,6 +64,15 @@ var SensitivePermissionObjects = map[string]struct{}{
 	// OAuth client credentials and redirect configuration.
 	"/api/v1/admin/auth/oauth/providers":            {},
 	"/api/v1/admin/auth/oauth/providers/{provider}": {},
+	// 定时任务管理（curl 型任务可发起服务端请求，禁止普通管理员持有）
+	"/api/v1/admin/auth/cron-jobs":                      {},
+	"/api/v1/admin/auth/cron-jobs/{id}":                 {},
+	"/api/v1/admin/auth/cron-jobs/{id}/run":             {},
+	"/api/v1/admin/auth/cron-jobs/{id}/enable":          {},
+	"/api/v1/admin/auth/cron-jobs/{id}/disable":         {},
+	"/api/v1/admin/auth/cron-jobs/{id}/logs":            {},
+	"/api/v1/admin/auth/cron-jobs/{id}/logs/tail":       {},
+	"/api/v1/admin/auth/cron-jobs/{id}/logs/{filename}": {},
 }
 
 // IsSensitivePermissionObject 判断给定路径是否为高风险权限 API
