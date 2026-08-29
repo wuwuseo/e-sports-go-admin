@@ -4,7 +4,9 @@
   debug: false
   idle_timeout: 60
   prefork: false
-  swagger: true
+  # 安全基线：Swagger UI 无需认证即可访问完整 API 文档（/docs），生产环境必须保持关闭；
+  # 仅在隔离的本地开发环境临时开启
+  swagger: false
   # JWT 用户端密钥：留空时启动会自动生成随机密钥；生产环境必须通过环境变量 CMF_APP_SECRET 设置强密钥
   secret: ""
   login_expires: 86400
