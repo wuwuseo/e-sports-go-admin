@@ -1,15 +1,19 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	adminplugin "go-admin/internal/plugin"
+	"go-admin/pluginapi"
 
 	cmfplugin "github.com/wuwuseo/cmf/plugin"
 )
@@ -37,14 +41,19 @@ type InstallPluginRequest struct {
 }
 
 type PluginResponse struct {
-	ID          string                    `json:"id"`
-	Name        string                    `json:"name"`
-	Version     string                    `json:"version"`
-	Author      string                    `json:"author"`
-	Description string                    `json:"description"`
-	Status      string                    `json:"status"`
-	InstallPath string                    `json:"install_path"`
-	Manifest    *cmfplugin.PluginManifest `json:"manifest,omitempty" swaggerignore:"true"`
+	ID           string                    `json:"id"`
+	Name         string                    `json:"name"`
+	Version      string                    `json:"version"`
+	Author       string                    `json:"author"`
+	Description  string                    `json:"description"`
+	Status       string                    `json:"status"`
+	InstallPath  string                    `json:"install_path"`
+	Manifest     *cmfplugin.PluginManifest `json:"manifest,omitempty" swaggerignore:"true"`
+	ErrorMessage string                    `json:"error_message,omitempty"`
+	InstalledAt  time.Time                 `json:"installed_at"`
+	EnabledAt    *time.Time                `json:"enabled_at,omitempty"`
+	UpdatedAt    time.Time                 `json:"updated_at"`
+	Restarting   bool                      `json:"restarting"`
 }
 
 type PluginProxyRequest struct {
@@ -62,12 +71,17 @@ type PluginProxyResponse struct {
 	Body       []byte
 }
 
+const (
+	maxPluginProxyBody = pluginapi.MaxMessageSize
+	pluginProxyTimeout = 30 * time.Second
+)
+
 func (s *PluginService) Install(ctx context.Context, req *InstallPluginRequest) (*PluginResponse, error) {
 	info, err := s.manager.Install(ctx, req.PackagePath)
 	if err != nil {
 		return nil, err
 	}
-	return toPluginResponse(info), nil
+	return s.toPluginResponse(ctx, info)
 }
 
 func (s *PluginService) Enable(ctx context.Context, pluginID string) error {
@@ -89,7 +103,11 @@ func (s *PluginService) List(ctx context.Context) ([]PluginResponse, error) {
 	}
 	out := make([]PluginResponse, 0, len(items))
 	for i := range items {
-		out = append(out, *toPluginResponse(&items[i]))
+		item, err := s.toPluginResponse(ctx, &items[i])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *item)
 	}
 	return out, nil
 }
@@ -99,21 +117,64 @@ func (s *PluginService) Get(ctx context.Context, pluginID string) (*PluginRespon
 	if err != nil {
 		return nil, err
 	}
-	return toPluginResponse(info), nil
+	return s.toPluginResponse(ctx, info)
 }
 
 func (s *PluginService) Proxy(ctx context.Context, req *PluginProxyRequest) (*PluginProxyResponse, error) {
-	endpoint, err := s.manager.ResolveEndpoint(ctx, req.PluginID)
+	if req == nil {
+		return nil, adminplugin.ErrProxyFailed
+	}
+	if reservedPluginControlPath(req.Path) {
+		return nil, adminplugin.ErrPermissionDenied
+	}
+	proxyCtx, cancel := context.WithTimeout(ctx, pluginProxyTimeout)
+	defer cancel()
+	if err := s.manager.Authorize(proxyCtx, req.PluginID, req.Method, normalizedProxyPath(req.Path)); err != nil {
+		return nil, err
+	}
+	endpoint, err := s.manager.ResolveEndpoint(proxyCtx, req.PluginID)
 	if err != nil {
 		return nil, err
 	}
-	if endpoint.Protocol != cmfplugin.ProtocolHTTP {
+	body, err := readPluginBody(req.Body)
+	if err != nil {
+		return nil, adminplugin.ErrProxyFailed
+	}
+	switch endpoint.Protocol {
+	case cmfplugin.ProtocolHTTP:
+		request := *req
+		request.Body = bytes.NewReader(body)
+		return s.proxyHTTP(proxyCtx, endpoint, &request)
+	case cmfplugin.ProtocolGRPC, cmfplugin.ProtocolStdio:
+		response, err := s.manager.Invoke(proxyCtx, req.PluginID, &pluginapi.ProxyRequest{
+			Method:  req.Method,
+			Path:    normalizedProxyPath(req.Path),
+			Query:   req.Query,
+			Headers: toPluginHeaders(req.Header),
+			Body:    body,
+		})
+		if err != nil {
+			return nil, adminplugin.ErrProxyFailed
+		}
+		if response.GetStatusCode() < 100 || response.GetStatusCode() > 599 || len(response.GetBody()) > maxPluginProxyBody {
+			return nil, adminplugin.ErrProxyFailed
+		}
+		return &PluginProxyResponse{
+			StatusCode: int(response.GetStatusCode()),
+			Header:     fromPluginHeaders(response.GetHeaders()),
+			Body:       response.GetBody(),
+		}, nil
+	default:
 		return nil, adminplugin.ErrUnsupportedTransport
 	}
+}
+
+func (s *PluginService) proxyHTTP(ctx context.Context, endpoint *adminplugin.Endpoint, req *PluginProxyRequest) (*PluginProxyResponse, error) {
 	client, baseURL, err := proxyHTTPClient(endpoint)
 	if err != nil {
 		return nil, err
 	}
+	defer client.CloseIdleConnections()
 	url := baseURL + normalizedProxyPath(req.Path)
 	if req.Query != "" {
 		url += "?" + req.Query
@@ -123,16 +184,54 @@ func (s *PluginService) Proxy(ctx context.Context, req *PluginProxyRequest) (*Pl
 		return nil, err
 	}
 	httpReq.Header = req.Header.Clone()
+	if endpoint.Token != "" {
+		httpReq.Header.Set(pluginapi.TokenHeader, endpoint.Token)
+	}
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, adminplugin.ErrProxyFailed
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := readPluginBody(resp.Body)
 	if err != nil {
 		return nil, adminplugin.ErrProxyFailed
 	}
 	return &PluginProxyResponse{StatusCode: resp.StatusCode, Header: resp.Header.Clone(), Body: body}, nil
+}
+
+func readPluginBody(reader io.Reader) ([]byte, error) {
+	if reader == nil {
+		return nil, nil
+	}
+	body, err := io.ReadAll(io.LimitReader(reader, maxPluginProxyBody+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > maxPluginProxyBody {
+		return nil, errors.New("plugin body is too large")
+	}
+	return body, nil
+}
+
+func toPluginHeaders(headers http.Header) []*pluginapi.Header {
+	result := make([]*pluginapi.Header, 0, len(headers))
+	for name, values := range headers {
+		result = append(result, &pluginapi.Header{Name: name, Values: append([]string(nil), values...)})
+	}
+	return result
+}
+
+func fromPluginHeaders(headers []*pluginapi.Header) http.Header {
+	result := make(http.Header, len(headers))
+	for _, header := range headers {
+		if header == nil || header.GetName() == "" {
+			continue
+		}
+		for _, value := range header.GetValues() {
+			result.Add(header.GetName(), value)
+		}
+	}
+	return result
 }
 
 func proxyHTTPClient(endpoint *adminplugin.Endpoint) (*http.Client, string, error) {
@@ -161,22 +260,13 @@ func proxyHTTPClient(endpoint *adminplugin.Endpoint) (*http.Client, string, erro
 				MaxIdleConns:    10,
 				IdleConnTimeout: 60 * time.Second,
 			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= 3 {
-					return fmt.Errorf("超过最大重定向次数")
-				}
-				if req.URL != nil {
-					if err := isPluginAddressSafe(req.URL.Host); err != nil {
-						return err
-					}
-				}
-				return nil
-			},
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		}
 		return client, "http://" + endpoint.Address, nil
 	case cmfplugin.TransportUnix:
+		dialer := &net.Dialer{Timeout: 10 * time.Second}
 		transport := &http.Transport{DialContext: func(ctx context.Context, network string, addr string) (net.Conn, error) {
-			return net.Dial("unix", endpoint.Socket)
+			return dialer.DialContext(ctx, "unix", endpoint.Socket)
 		}}
 		return &http.Client{Transport: transport, Timeout: 30 * time.Second}, "http://unix", nil
 	default:
@@ -217,8 +307,24 @@ func normalizedProxyPath(path string) string {
 	return "/" + path
 }
 
-func toPluginResponse(info *cmfplugin.PluginInfo) *PluginResponse {
-	return &PluginResponse{
+func reservedPluginControlPath(value string) bool {
+	for range 3 {
+		decoded, err := url.PathUnescape(value)
+		if err != nil {
+			return true
+		}
+		value = decoded
+	}
+	value = normalizedProxyPath(value)
+	return pluginapi.IsControlPath(value) || value == "/_go-admin" || strings.HasPrefix(value, "/_go-admin/")
+}
+
+type pluginDiagnosticsProvider interface {
+	Diagnostics(context.Context, string) (*adminplugin.Diagnostics, error)
+}
+
+func (s *PluginService) toPluginResponse(ctx context.Context, info *cmfplugin.PluginInfo) (*PluginResponse, error) {
+	response := &PluginResponse{
 		ID:          info.ID,
 		Name:        info.Name,
 		Version:     info.Version,
@@ -228,4 +334,16 @@ func toPluginResponse(info *cmfplugin.PluginInfo) *PluginResponse {
 		InstallPath: info.InstallPath,
 		Manifest:    info.Manifest,
 	}
+	if provider, ok := s.manager.(pluginDiagnosticsProvider); ok {
+		diagnostics, err := provider.Diagnostics(ctx, info.ID)
+		if err != nil {
+			return nil, err
+		}
+		response.ErrorMessage = diagnostics.ErrorMessage
+		response.InstalledAt = diagnostics.InstalledAt
+		response.EnabledAt = diagnostics.EnabledAt
+		response.UpdatedAt = diagnostics.UpdatedAt
+		response.Restarting = diagnostics.Restarting
+	}
+	return response, nil
 }

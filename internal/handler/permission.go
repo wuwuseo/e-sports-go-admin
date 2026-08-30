@@ -859,6 +859,6 @@ func permissionDomainAllowed(c fiber.Ctx, requested string) bool {
 }
 
 func permissionOperatorScope(c fiber.Ctx) (*service.EffectiveDataScope, error) {
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 	return dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
 }

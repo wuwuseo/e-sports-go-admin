@@ -66,6 +66,11 @@ func (s *EffectiveDataScope) containsDepartment(id int) bool {
 	return ok
 }
 
+// DataPermissionOperatorProvider 提供 OperatorContext 的最小接口，用于 handler 层解耦
+type DataPermissionOperatorProvider interface {
+	NewOperatorContext(ctx context.Context, currentUID string, domains ...string) (*EffectiveDataScope, error)
+}
+
 // DataPermissionService 数据权限解析服务
 type DataPermissionService struct {
 	client            *ent.Client

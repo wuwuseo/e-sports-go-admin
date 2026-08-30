@@ -29,7 +29,7 @@ import (
 func CreateDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseAndValidate[service.CreateDepartmentRequest](c)
 	if err != nil {
@@ -83,7 +83,7 @@ func CreateDepartment(c fiber.Ctx) error {
 func ListDepartmentTree(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseQueryAndValidate[service.ListDepartmentsRequest](c)
 	if err != nil {
@@ -123,7 +123,7 @@ func ListDepartmentTree(c fiber.Ctx) error {
 func GetDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -169,7 +169,7 @@ func GetDepartment(c fiber.Ctx) error {
 func UpdateDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -229,7 +229,7 @@ func UpdateDepartment(c fiber.Ctx) error {
 func DeleteDepartment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	departmentService := c.Locals("service.DepartmentService").(service.DepartmentServiceInterface)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)

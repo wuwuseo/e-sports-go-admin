@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	adminplugin "go-admin/internal/plugin"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
@@ -84,6 +85,8 @@ func TestProxyPluginFiltersSensitiveRequestHeaders(t *testing.T) {
 	req.Header.Set("Cookie", "admin_token=secret")
 	req.Header.Set("X-Forwarded-For", "127.0.0.1")
 	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("X-Go-Admin-Plugin-Token", "attacker-token")
+	req.Header.Set("X-Go-Admin-Plugin-API", "attacker-api")
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test returned error: %v", err)
@@ -92,10 +95,87 @@ func TestProxyPluginFiltersSensitiveRequestHeaders(t *testing.T) {
 	if pluginService.proxyRequest.Header.Get("X-Test") != "yes" {
 		t.Fatalf("X-Test = %q, want yes", pluginService.proxyRequest.Header.Get("X-Test"))
 	}
-	for _, key := range []string{"Authorization", "Cookie", "X-Forwarded-For", "Connection"} {
+	for _, key := range []string{"Authorization", "Cookie", "X-Forwarded-For", "Connection", "X-Go-Admin-Plugin-Token", "X-Go-Admin-Plugin-API"} {
 		if got := pluginService.proxyRequest.Header.Get(key); got != "" {
 			t.Fatalf("%s should be filtered, got %q", key, got)
 		}
+	}
+}
+
+func TestProxyPluginFiltersSensitiveResponseHeaders(t *testing.T) {
+	pluginService := newFakePluginService()
+	pluginService.proxyResponse.Header = http.Header{
+		"X-Plugin":                  []string{"demo"},
+		"Set-Cookie":                []string{"admin_token=plugin"},
+		"Connection":                []string{"upgrade"},
+		"X-Go-Admin-Plugin-Token":   []string{"secret"},
+		"X-Go-Admin-Plugin-API":     []string{"v1"},
+		"X-Go-Admin-Plugin-ID":      []string{"admin.example-plugin"},
+		"X-Go-Admin-Plugin-Version": []string{"1.0.0"},
+		"Content-Length":            []string{"9999"},
+		"X-Bad-Value":               []string{"safe\r\nInjected: yes"},
+		"X-Bad\r\nInjected":         []string{"yes"},
+	}
+	app := newProxyPluginTestApp(pluginService)
+	app.Get("/api/v1/plugin/:plugin_id/*", ProxyPlugin)
+
+	response, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/plugin/admin.example-plugin/manifest", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.Header.Get("X-Plugin") != "demo" {
+		t.Fatalf("safe response header was removed")
+	}
+	for _, key := range []string{"Set-Cookie", "Connection", "X-Go-Admin-Plugin-Token", "X-Go-Admin-Plugin-API", "X-Go-Admin-Plugin-ID", "X-Go-Admin-Plugin-Version", "X-Bad-Value", "X-Bad\r\nInjected"} {
+		if value := response.Header.Get(key); value != "" {
+			t.Fatalf("%s should be filtered, got %q", key, value)
+		}
+	}
+	if response.Header.Get("Content-Length") == "9999" {
+		t.Fatal("plugin-controlled Content-Length was forwarded")
+	}
+}
+
+func TestProxyPluginRejectsRuntimeControlPath(t *testing.T) {
+	pluginService := newFakePluginService()
+	app := newProxyPluginTestApp(pluginService)
+	app.Post("/api/v1/plugin/:plugin_id/*", ProxyPlugin)
+
+	response, err := app.Test(httptest.NewRequest(http.MethodPost, "/api/v1/plugin/admin.example-plugin/_go-admin/shutdown", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", response.StatusCode)
+	}
+	if pluginService.proxyRequest != nil {
+		t.Fatal("runtime control request should not be forwarded")
+	}
+}
+
+func TestProtectedProxyPathRejectsEncodedRuntimeControlPaths(t *testing.T) {
+	for _, path := range []string{"health", "_go-admin/handshake", "%5fgo-admin%2fshutdown", "%255fgo-admin/shutdown"} {
+		if !protectedProxyPath(nil, path) {
+			t.Fatalf("protectedProxyPath(%q) = false", path)
+		}
+	}
+}
+
+func TestProxyPluginReturnsForbiddenForUndeclaredCapability(t *testing.T) {
+	pluginService := newFakePluginService()
+	pluginService.proxyErr = adminplugin.ErrPermissionDenied
+	app := newProxyPluginTestApp(pluginService)
+	app.Delete("/api/v1/plugin/:plugin_id/*", ProxyPlugin)
+
+	response, err := app.Test(httptest.NewRequest(http.MethodDelete, "/api/v1/plugin/admin.example-plugin/undeclared", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", response.StatusCode)
 	}
 }
 
@@ -178,6 +258,7 @@ func assertProxyResponse(t *testing.T, pluginService *fakePluginService, resp *h
 type fakePluginService struct {
 	proxyRequest  *service.PluginProxyRequest
 	proxyResponse *service.PluginProxyResponse
+	proxyErr      error
 }
 
 func (f *fakePluginService) Install(ctx context.Context, req *service.InstallPluginRequest) (*service.PluginResponse, error) {
@@ -196,5 +277,5 @@ func (f *fakePluginService) Get(ctx context.Context, pluginID string) (*service.
 }
 func (f *fakePluginService) Proxy(ctx context.Context, req *service.PluginProxyRequest) (*service.PluginProxyResponse, error) {
 	f.proxyRequest = req
-	return f.proxyResponse, nil
+	return f.proxyResponse, f.proxyErr
 }

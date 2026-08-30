@@ -1464,6 +1464,82 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/admin/auth/attachments/{id}/access-url": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据附件ID生成带签名的临时访问地址，用于前端直接访问附件内容",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "附件管理"
+                ],
+                "summary": "生成附件访问地址",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "附件ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/admin/auth/attachments/{id}/move": {
             "put": {
                 "security": [
@@ -5123,7 +5199,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "修改当前登录用户的密码，仅需 JWT 认证，无需额外权限检查",
+                "description": "当前管理员修改自己的登录密码",
                 "consumes": [
                     "application/json"
                 ],
@@ -5131,47 +5207,41 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户个人信息"
+                    "管理员管理"
                 ],
-                "summary": "修改当前用户密码",
+                "summary": "管理员修改密码",
                 "parameters": [
                     {
-                        "description": "密码信息",
-                        "name": "body",
+                        "description": "修改密码请求",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handler.ChangePasswordRequest"
+                            "$ref": "#/definitions/handler.ChangeAdminPasswordRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "修改成功",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "原密码错误",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
+                        "description": "管理员不存在",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -6251,7 +6321,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "域，默认default",
+                        "description": "域，默认当前认证域",
                         "name": "domain",
                         "in": "query"
                     }
@@ -6840,7 +6910,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "域，默认default",
+                        "description": "域，默认当前认证域",
                         "name": "domain",
                         "in": "query"
                     }
@@ -7197,7 +7267,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "域，默认default",
+                        "description": "域，使用当前认证域",
                         "name": "domain",
                         "in": "query"
                     }
@@ -7692,17 +7762,20 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查",
+                "description": "获取当前登录管理员的个人信息",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "用户个人信息"
+                    "管理员管理"
                 ],
-                "summary": "获取当前用户信息",
+                "summary": "获取当前管理员信息",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "获取成功",
                         "schema": {
                             "allOf": [
                                 {
@@ -7721,19 +7794,13 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "未授权",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
+                        "description": "管理员不存在",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -7746,7 +7813,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "更新当前登录用户的信息，仅需 JWT 认证，无需额外权限检查",
+                "description": "更新当前登录管理员的个人信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -7754,13 +7821,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "用户个人信息"
+                    "管理员管理"
                 ],
-                "summary": "更新当前用户信息",
+                "summary": "更新管理员信息",
                 "parameters": [
                     {
-                        "description": "用户信息",
-                        "name": "body",
+                        "description": "更新字段",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -7771,25 +7838,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "更新成功",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
+                        "description": "未授权",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -7818,7 +7879,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "权限域，默认default",
+                        "description": "权限域，使用当前认证域",
                         "name": "domain",
                         "in": "query"
                     }
@@ -7887,7 +7948,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "权限域，默认default",
+                        "description": "权限域，使用当前认证域",
                         "name": "domain",
                         "in": "query"
                     }
@@ -7956,7 +8017,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "权限域，默认default",
+                        "description": "权限域，使用当前认证域",
                         "name": "domain",
                         "in": "query"
                     }
@@ -8025,7 +8086,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "权限域，默认default",
+                        "description": "权限域，使用当前认证域",
                         "name": "domain",
                         "in": "query"
                     }
@@ -8410,6 +8471,104 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "用户不存在",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "更新用户",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新用户请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.UpdateManagedUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "删除用户",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -9007,70 +9166,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/refresh-token": {
-            "post": {
-                "description": "使用刷新令牌获取新的访问令牌",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "用户管理"
-                ],
-                "summary": "刷新访问令牌",
-                "parameters": [
-                    {
-                        "description": "刷新令牌",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.RefreshTokenRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/service.TokenResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/sse/connect": {
             "get": {
                 "description": "通过 ticket 鉴权后建立 EventSource 长连接，接收站内消息推送",
@@ -9097,6 +9192,107 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {}
+            }
+        },
+        "/api/v1/attachments/{id}/content": {
+            "get": {
+                "description": "通过带签名的临时 token 获取附件原始内容，token 由 access-url 接口生成；受 Content-Disposition 策略约束（安全类型内联展示，其余强制下载）",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "附件管理"
+                ],
+                "summary": "获取附件内容",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "附件ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "访问凭证",
+                        "name": "token",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "附件内容",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugin/{plugin_id}/{path}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "将请求转发给指定插件的 HTTP 接口，接受任意 HTTP 方法；/admin/auth 前缀形式会为插件路由补上 /admin/auth 前缀。实际可用接口由各插件自行定义。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "插件管理"
+                ],
+                "summary": "插件接口代理",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "插件ID",
+                        "name": "plugin_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "插件内路径",
+                        "name": "path",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/public/captcha/challenges": {
@@ -9506,6 +9702,70 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/public/refresh-token": {
+            "post": {
+                "description": "使用刷新令牌获取新的访问令牌",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "刷新访问令牌",
+                "parameters": [
+                    {
+                        "description": "刷新令牌",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.RefreshTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/service.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/user/auth/oauth/identities": {
             "get": {
                 "security": [
@@ -9775,22 +10035,6 @@ const docTemplate = `{
             }
         },
         "handler.ChangeAdminPasswordRequest": {
-            "type": "object",
-            "required": [
-                "new_password",
-                "old_password"
-            ],
-            "properties": {
-                "new_password": {
-                    "type": "string",
-                    "minLength": 8
-                },
-                "old_password": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.ChangePasswordRequest": {
             "type": "object",
             "required": [
                 "new_password",
@@ -12044,6 +12288,33 @@ const docTemplate = `{
                 },
                 "sort": {
                     "type": "integer"
+                }
+            }
+        },
+        "service.UpdateManagedUserRequest": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string",
+                    "maxLength": 1024
+                },
+                "email": {
+                    "type": "string"
+                },
+                "nickname": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 8
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string",
+                    "minLength": 3
                 }
             }
         },

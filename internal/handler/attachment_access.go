@@ -12,6 +12,20 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+// GetAttachmentAccessURL 生成附件访问地址
+// @Summary 生成附件访问地址
+// @Description 根据附件ID生成带签名的临时访问地址，用于前端直接访问附件内容
+// @Tags 附件管理
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "附件ID"
+// @Success 200 {object} utils.Response{data=string}
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 403 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/admin/auth/attachments/{id}/access-url [get]
 func GetAttachmentAccessURL(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
@@ -36,6 +50,19 @@ func GetAttachmentAccessURL(c fiber.Ctx) error {
 	return resp.Success(accessURL, global.ResponseSuccessCode, "生成访问地址成功").ToJSON(c)
 }
 
+// ServeAttachmentContent 提供附件内容
+// @Summary 获取附件内容
+// @Description 通过带签名的临时 token 获取附件原始内容，token 由 access-url 接口生成；受 Content-Disposition 策略约束（安全类型内联展示，其余强制下载）
+// @Tags 附件管理
+// @Produce application/octet-stream
+// @Param id path int true "附件ID"
+// @Param token query string true "访问凭证"
+// @Success 200 {file} binary "附件内容"
+// @Failure 400 {object} utils.Response
+// @Failure 401 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Failure 500 {object} utils.Response
+// @Router /api/v1/attachments/{id}/content [get]
 func ServeAttachmentContent(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)

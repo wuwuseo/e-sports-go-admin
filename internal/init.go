@@ -28,6 +28,7 @@ import (
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
 	"go-admin/internal/global"
+	adminqueue "go-admin/internal/queue"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
@@ -83,6 +84,12 @@ func Init(config *config.Config) error {
 		return err
 	}
 	global.CronManager = cronManager
+
+	// 初始化任务队列（asynq/Redis）：桥接 internal/tasks 注册表并启动 worker
+	if err := adminqueue.Setup(config); err != nil {
+		return fmt.Errorf("任务队列初始化失败: %w", err)
+	}
+	appInstance.Logger.Info("任务队列初始化完成")
 
 	// 初始化Nonce存储（防止重放攻击）
 	crypto.InitNonceStore(5 * time.Minute)
@@ -471,6 +478,7 @@ func initDictSeedData() error {
 		{"sys_oper_log_module", "权限", "permission", 4},
 		{"sys_oper_log_module", "附件", "attachment", 5},
 		{"sys_oper_log_module", "定时任务", "cron", 6},
+		{"sys_oper_log_module", "任务队列", "queue", 8},
 		{"sys_oper_log_module", "系统", "system", 7},
 		{"sys_config_group", "基本配置", "basic", 1},
 		{"sys_config_group", "附件配置", "attachment", 2},

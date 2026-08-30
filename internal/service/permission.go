@@ -73,6 +73,15 @@ var SensitivePermissionObjects = map[string]struct{}{
 	"/api/v1/admin/auth/cron-jobs/{id}/logs":            {},
 	"/api/v1/admin/auth/cron-jobs/{id}/logs/tail":       {},
 	"/api/v1/admin/auth/cron-jobs/{id}/logs/{filename}": {},
+	// 任务队列管理（手动入队可触发任意已注册任务，禁止普通管理员持有）
+	"/api/v1/admin/auth/queue-jobs":                     {},
+	"/api/v1/admin/auth/queue-jobs/stats":               {},
+	"/api/v1/admin/auth/queue-jobs/handlers":            {},
+	"/api/v1/admin/auth/queue-jobs/{queue}/{id}":        {},
+	"/api/v1/admin/auth/queue-jobs/{queue}/{id}/retry":  {},
+	"/api/v1/admin/auth/queue-jobs/{queue}/{id}/cancel": {},
+	// 任务队列监控页（asynqmon 只读 UI，与队列管理同基线）
+	"/api/v1/admin/auth/queue-monitor": {},
 }
 
 // IsSensitivePermissionObject 判断给定路径是否为高风险权限 API

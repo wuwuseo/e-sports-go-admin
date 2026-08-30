@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -66,5 +67,29 @@ func TestInstallRejectsPathTraversal(t *testing.T) {
 		if !errors.Is(err, ErrInvalidPath) {
 			t.Errorf("Install(%q) err = %v, want ErrInvalidPath", pkg, err)
 		}
+	}
+}
+
+func TestInstallRejectsPackageSymlinkEscapingRoot(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:plugin_symlink_escape?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
+	)
+	defer client.Close()
+
+	root := t.TempDir()
+	outsideRoot := t.TempDir()
+	outsidePackage := writePluginPackage(t, outsideRoot, "admin.example-plugin", "1.0.0")
+	link := filepath.Join(root, "plugin.zip")
+	if err := os.Symlink(outsidePackage, link); err != nil {
+		t.Skipf("symlinks are unavailable: %v", err)
+	}
+	manager := NewManager(client, Options{
+		PluginRoot: filepath.Join(root, "plugins"), PackageRoot: root,
+		Registry: cmfplugin.NewMemoryExtensionRegistry(), Runtime: &fakeRuntime{},
+	})
+
+	if _, err := manager.Install(ctx, link); !errors.Is(err, ErrInvalidPath) {
+		t.Fatalf("Install symlink error = %v, want ErrInvalidPath", err)
 	}
 }

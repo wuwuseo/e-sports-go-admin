@@ -161,16 +161,7 @@ func Logout(c fiber.Ctx) error {
 }
 
 // GetUser 获取当前用户信息
-// @Summary 获取当前用户信息
-// @Description 获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查
-// @Tags 用户个人信息
-// @Produce json
-// @Security BearerAuth
-// @Success 200 {object} utils.Response{data=map[string]interface{}}
-// @Failure 401 {object} utils.Response
-// @Failure 404 {object} utils.Response
-// @Failure 500 {object} utils.Response
-// @Router /api/v1/admin/auth/user [get]
+// 当前未挂载路由；管理端"当前用户"接口为 handler.GetAdmin（/api/v1/admin/auth/user）。
 func GetUser(c fiber.Ctx) error {
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
 
@@ -200,18 +191,7 @@ func GetUser(c fiber.Ctx) error {
 }
 
 // UpdateUser 更新用户信息
-// @Summary 更新当前用户信息
-// @Description 更新当前登录用户的信息，仅需 JWT 认证，无需额外权限检查
-// @Tags 用户个人信息
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param body body map[string]interface{} true "用户信息"
-// @Success 200 {object} utils.Response
-// @Failure 400 {object} utils.Response
-// @Failure 401 {object} utils.Response
-// @Failure 500 {object} utils.Response
-// @Router /api/v1/admin/auth/user [put]
+// 当前未挂载路由；管理端"更新当前用户"接口为 handler.UpdateAdmin（/api/v1/admin/auth/user）。
 func UpdateUser(c fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 	userID := claims["id"].(string)
@@ -234,19 +214,7 @@ func UpdateUser(c fiber.Ctx) error {
 }
 
 // ChangePassword 修改密码
-// @Summary 修改当前用户密码
-// @Description 修改当前登录用户的密码，仅需 JWT 认证，无需额外权限检查
-// @Tags 用户个人信息
-// @Accept json
-// @Produce json
-// @Security BearerAuth
-// @Param body body ChangePasswordRequest true "密码信息"
-// @Success 200 {object} utils.Response
-// @Failure 400 {object} utils.Response
-// @Failure 401 {object} utils.Response
-// @Failure 404 {object} utils.Response
-// @Failure 500 {object} utils.Response
-// @Router /api/v1/admin/auth/password [put]
+// 当前未挂载路由；管理端"修改密码"接口为 handler.ChangeAdminPassword（/api/v1/admin/auth/password）。
 func ChangePassword(c fiber.Ctx) error {
 	claims := jwt.GetJWTUserData(c)
 
@@ -289,7 +257,7 @@ func ChangePassword(c fiber.Ctx) error {
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
 // @Failure 500 {object} utils.Response
-// @Router /api/v1/admin/refresh-token [post]
+// @Router /api/v1/public/refresh-token [post]
 func RefreshToken(c fiber.Ctx) error {
 	response := c.Locals("utils.Response").(*utils.Response)
 

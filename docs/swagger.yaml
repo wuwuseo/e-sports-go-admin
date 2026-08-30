@@ -122,17 +122,6 @@ definitions:
     - new_password
     - old_password
     type: object
-  handler.ChangePasswordRequest:
-    properties:
-      new_password:
-        minLength: 8
-        type: string
-      old_password:
-        type: string
-    required:
-    - new_password
-    - old_password
-    type: object
   handler.GetPublicKeyResponse:
     properties:
       algorithm:
@@ -1641,6 +1630,25 @@ definitions:
       sort:
         type: integer
     type: object
+  service.UpdateManagedUserRequest:
+    properties:
+      avatar:
+        maxLength: 1024
+        type: string
+      email:
+        type: string
+      nickname:
+        maxLength: 255
+        type: string
+      password:
+        minLength: 8
+        type: string
+      phone:
+        type: string
+      username:
+        minLength: 3
+        type: string
+    type: object
   service.UpdateMessagePreferenceRequest:
     properties:
       desktop_notify:
@@ -2609,6 +2617,52 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取附件详情
+      tags:
+      - 附件管理
+  /api/v1/admin/auth/attachments/{id}/access-url:
+    get:
+      description: 根据附件ID生成带签名的临时访问地址，用于前端直接访问附件内容
+      parameters:
+      - description: 附件ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  type: string
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 生成附件访问地址
       tags:
       - 附件管理
   /api/v1/admin/auth/attachments/{id}/move:
@@ -5017,42 +5071,38 @@ paths:
     put:
       consumes:
       - application/json
-      description: 修改当前登录用户的密码，仅需 JWT 认证，无需额外权限检查
+      description: 当前管理员修改自己的登录密码
       parameters:
-      - description: 密码信息
+      - description: 修改密码请求
         in: body
-        name: body
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.ChangePasswordRequest'
+          $ref: '#/definitions/handler.ChangeAdminPasswordRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: 修改成功
           schema:
             $ref: '#/definitions/utils.Response'
         "400":
-          description: Bad Request
+          description: 请求参数错误
           schema:
             $ref: '#/definitions/utils.Response'
         "401":
-          description: Unauthorized
+          description: 原密码错误
           schema:
             $ref: '#/definitions/utils.Response'
         "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "500":
-          description: Internal Server Error
+          description: 管理员不存在
           schema:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: 修改当前用户密码
+      summary: 管理员修改密码
       tags:
-      - 用户个人信息
+      - 管理员管理
   /api/v1/admin/auth/permissions:
     delete:
       consumes:
@@ -5871,7 +5921,7 @@ paths:
         name: id
         required: true
         type: integer
-      - description: 域，默认default
+      - description: 域，默认当前认证域
         in: query
         name: domain
         type: string
@@ -6020,7 +6070,7 @@ paths:
         name: role_name
         required: true
         type: string
-      - description: 域，默认default
+      - description: 域，默认当前认证域
         in: query
         name: domain
         type: string
@@ -6421,7 +6471,7 @@ paths:
     get:
       description: 获取树形结构的权限列表
       parameters:
-      - description: 域，默认default
+      - description: 域，使用当前认证域
         in: query
         name: domain
         type: string
@@ -6596,12 +6646,14 @@ paths:
       - 第三方用户
   /api/v1/admin/auth/user:
     get:
-      description: 获取当前登录用户的详细信息，仅需 JWT 认证，无需额外权限检查
+      consumes:
+      - application/json
+      description: 获取当前登录管理员的个人信息
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: 获取成功
           schema:
             allOf:
             - $ref: '#/definitions/utils.Response'
@@ -6611,30 +6663,26 @@ paths:
                   type: object
               type: object
         "401":
-          description: Unauthorized
+          description: 未授权
           schema:
             $ref: '#/definitions/utils.Response'
         "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "500":
-          description: Internal Server Error
+          description: 管理员不存在
           schema:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: 获取当前用户信息
+      summary: 获取当前管理员信息
       tags:
-      - 用户个人信息
+      - 管理员管理
     put:
       consumes:
       - application/json
-      description: 更新当前登录用户的信息，仅需 JWT 认证，无需额外权限检查
+      description: 更新当前登录管理员的个人信息
       parameters:
-      - description: 用户信息
+      - description: 更新字段
         in: body
-        name: body
+        name: request
         required: true
         schema:
           additionalProperties: true
@@ -6643,33 +6691,29 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: 更新成功
           schema:
             $ref: '#/definitions/utils.Response'
         "400":
-          description: Bad Request
+          description: 请求参数错误
           schema:
             $ref: '#/definitions/utils.Response'
         "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "500":
-          description: Internal Server Error
+          description: 未授权
           schema:
             $ref: '#/definitions/utils.Response'
       security:
       - BearerAuth: []
-      summary: 更新当前用户信息
+      summary: 更新管理员信息
       tags:
-      - 用户个人信息
+      - 管理员管理
   /api/v1/admin/auth/user/api-permissions:
     get:
       consumes:
       - application/json
       description: 获取当前用户可访问的API权限列表（扁平数组），仅返回 type=api 的权限规则，用于前端或调试场景查看当前用户接口访问范围。
       parameters:
-      - description: 权限域，默认default
+      - description: 权限域，使用当前认证域
         in: query
         name: domain
         type: string
@@ -6710,7 +6754,7 @@ paths:
       - application/json
       description: 获取当前用户可访问的按钮权限列表（扁平数组），仅返回 type=button 的启用权限；普通用户按角色权限过滤，超级管理员返回当前域下全部启用按钮。
       parameters:
-      - description: 权限域，默认default
+      - description: 权限域，使用当前认证域
         in: query
         name: domain
         type: string
@@ -6751,7 +6795,7 @@ paths:
       - application/json
       description: 获取当前用户可访问的菜单权限树，仅返回 type=menu 的启用权限节点；普通用户按角色权限过滤，超级管理员返回当前域下全部启用菜单；当用户只拥有子菜单权限时会自动补齐父级菜单节点用于前端渲染。
       parameters:
-      - description: 权限域，默认default
+      - description: 权限域，使用当前认证域
         in: query
         name: domain
         type: string
@@ -6792,7 +6836,7 @@ paths:
       - application/json
       description: 获取当前用户可访问的混合权限树数组，包含 type=menu、type=button、type=api 的启用权限节点；普通用户按角色权限过滤，超级管理员返回当前域下全部启用权限；子节点有权限时会自动补齐父级节点。
       parameters:
-      - description: 权限域，默认default
+      - description: 权限域，使用当前认证域
         in: query
         name: domain
         type: string
@@ -6943,6 +6987,33 @@ paths:
       tags:
       - 用户管理
   /api/v1/admin/auth/users/{id}:
+    delete:
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除用户
+      tags:
+      - 用户管理
     get:
       consumes:
       - application/json
@@ -6984,6 +7055,41 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取用户详情
+      tags:
+      - 用户管理
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateManagedUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新用户
       tags:
       - 用户管理
   /api/v1/admin/auth/users/{id}/activate:
@@ -7409,45 +7515,6 @@ paths:
       summary: 管理员刷新令牌
       tags:
       - 管理员认证
-  /api/v1/admin/refresh-token:
-    post:
-      consumes:
-      - application/json
-      description: 使用刷新令牌获取新的访问令牌
-      parameters:
-      - description: 刷新令牌
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/service.RefreshTokenRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/service.TokenResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.Response'
-      summary: 刷新访问令牌
-      tags:
-      - 用户管理
   /api/v1/admin/sse/connect:
     get:
       description: 通过 ticket 鉴权后建立 EventSource 长连接，接收站内消息推送
@@ -7467,6 +7534,74 @@ paths:
       summary: 建立 SSE 长连接
       tags:
       - 站内消息
+  /api/v1/attachments/{id}/content:
+    get:
+      description: 通过带签名的临时 token 获取附件原始内容，token 由 access-url 接口生成；受 Content-Disposition
+        策略约束（安全类型内联展示，其余强制下载）
+      parameters:
+      - description: 附件ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 访问凭证
+        in: query
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: 附件内容
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 获取附件内容
+      tags:
+      - 附件管理
+  /api/v1/plugin/{plugin_id}/{path}:
+    get:
+      description: 将请求转发给指定插件的 HTTP 接口，接受任意 HTTP 方法；/admin/auth 前缀形式会为插件路由补上 /admin/auth
+        前缀。实际可用接口由各插件自行定义。
+      parameters:
+      - description: 插件ID
+        in: path
+        name: plugin_id
+        required: true
+        type: string
+      - description: 插件内路径
+        in: path
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 插件接口代理
+      tags:
+      - 插件管理
   /api/v1/public/captcha/challenges:
     post:
       consumes:
@@ -7712,6 +7847,45 @@ paths:
           schema:
             $ref: '#/definitions/utils.Response'
       summary: 获取RSA公钥
+      tags:
+      - 用户管理
+  /api/v1/public/refresh-token:
+    post:
+      consumes:
+      - application/json
+      description: 使用刷新令牌获取新的访问令牌
+      parameters:
+      - description: 刷新令牌
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.TokenResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 刷新访问令牌
       tags:
       - 用户管理
   /api/v1/user/auth/oauth/{provider}:

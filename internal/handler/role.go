@@ -30,7 +30,7 @@ import (
 func CreateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseAndValidate[service.CreateRoleRequest](c)
 	if err != nil {
@@ -87,7 +87,7 @@ func CreateRole(c fiber.Ctx) error {
 func GetRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -133,7 +133,7 @@ func GetRole(c fiber.Ctx) error {
 func ListRoles(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseQueryAndValidate[service.ListRolesRequest](c)
 	if err != nil {
@@ -181,7 +181,7 @@ func ListRoles(c fiber.Ctx) error {
 func ListAllRoles(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseQueryAndValidate[service.ListAllRolesRequest](c)
 	if err != nil {
@@ -223,7 +223,7 @@ func ListAllRoles(c fiber.Ctx) error {
 func UpdateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -286,7 +286,7 @@ func UpdateRole(c fiber.Ctx) error {
 func DeleteRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -339,7 +339,7 @@ func DeleteRole(c fiber.Ctx) error {
 func EnableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)
@@ -388,7 +388,7 @@ func EnableRole(c fiber.Ctx) error {
 func DisableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	roleService := c.Locals("service.RoleService").(*service.RoleService)
-	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
 	id, err := strconv.Atoi(idStr)

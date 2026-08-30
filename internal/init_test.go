@@ -86,7 +86,7 @@ func TestInitDictSeedDataCreatesBothGroupsIdempotently(t *testing.T) {
 		dictType string
 		want     int
 	}{
-		{dictType: "sys_oper_log_module", want: 7},
+		{dictType: "sys_oper_log_module", want: 8},
 		{dictType: "sys_config_group", want: 2},
 	} {
 		count, err := client.DictData.Query().Where(dictdata.DictTypeEQ(tt.dictType)).Count(t.Context())

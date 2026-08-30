@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,12 +10,13 @@ import (
 	"testing"
 
 	adminplugin "go-admin/internal/plugin"
+	"go-admin/pluginapi"
 
 	cmfplugin "github.com/wuwuseo/cmf/plugin"
 )
 
 func TestPluginServiceInstallDelegatesToManager(t *testing.T) {
-	manager := &fakePluginManager{}
+	manager := &fakePluginManager{diagnostics: &adminplugin.Diagnostics{ErrorMessage: "last crash", Restarting: true}}
 	service := NewPluginService(manager)
 	resp, err := service.Install(context.Background(), &InstallPluginRequest{PackagePath: "D:/tmp/plugin.zip"})
 	if err != nil {
@@ -25,6 +27,9 @@ func TestPluginServiceInstallDelegatesToManager(t *testing.T) {
 	}
 	if resp.ID != "admin.example-plugin" {
 		t.Fatalf("response ID = %q", resp.ID)
+	}
+	if resp.ErrorMessage != "last crash" || !resp.Restarting {
+		t.Fatalf("diagnostics were not included: %+v", resp)
 	}
 }
 
@@ -84,9 +89,100 @@ func TestPluginServiceProxyForwardsTCPRequest(t *testing.T) {
 	}
 }
 
+func TestPluginServiceProxyInvokesGRPCAndStdio(t *testing.T) {
+	for _, protocol := range []string{cmfplugin.ProtocolGRPC, cmfplugin.ProtocolStdio} {
+		t.Run(protocol, func(t *testing.T) {
+			manager := &fakePluginManager{
+				endpoint: &adminplugin.Endpoint{PluginID: "admin.example-plugin", Protocol: protocol},
+				invokeResponse: &pluginapi.ProxyResponse{
+					StatusCode: http.StatusCreated,
+					Headers:    []*pluginapi.Header{{Name: "X-Plugin", Values: []string{"demo"}}},
+					Body:       []byte(`{"ok":true}`),
+				},
+			}
+			pluginService := NewPluginService(manager)
+			response, err := pluginService.Proxy(context.Background(), &PluginProxyRequest{
+				PluginID: "admin.example-plugin",
+				Method:   http.MethodPost,
+				Path:     "manifest",
+				Query:    "debug=1",
+				Header:   http.Header{"X-Test": []string{"yes"}},
+				Body:     strings.NewReader(`{"ping":true}`),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if manager.invokeRequest.GetPath() != "/manifest" || manager.invokeRequest.GetQuery() != "debug=1" {
+				t.Fatalf("invoke request = %+v", manager.invokeRequest)
+			}
+			if string(manager.invokeRequest.GetBody()) != `{"ping":true}` {
+				t.Fatalf("invoke body = %q", manager.invokeRequest.GetBody())
+			}
+			if !manager.invokeHasDeadline {
+				t.Fatal("plugin invocation did not receive a deadline")
+			}
+			if response.StatusCode != http.StatusCreated || response.Header.Get("X-Plugin") != "demo" || string(response.Body) != `{"ok":true}` {
+				t.Fatalf("proxy response = %+v", response)
+			}
+		})
+	}
+}
+
+func TestPluginServiceProxyRejectsUndeclaredCapabilityBeforeResolvingEndpoint(t *testing.T) {
+	manager := &fakePluginManager{
+		authorizeErr: adminplugin.ErrPermissionDenied,
+		endpoint:     &adminplugin.Endpoint{PluginID: "admin.example-plugin", Protocol: cmfplugin.ProtocolHTTP},
+	}
+	service := NewPluginService(manager)
+	_, err := service.Proxy(context.Background(), &PluginProxyRequest{
+		PluginID: "admin.example-plugin", Method: http.MethodDelete, Path: "/undeclared",
+	})
+	if !errors.Is(err, adminplugin.ErrPermissionDenied) {
+		t.Fatalf("Proxy error = %v, want ErrPermissionDenied", err)
+	}
+	if manager.resolveCalled {
+		t.Fatal("endpoint was resolved before capability authorization")
+	}
+}
+
+func TestPluginServiceProxyRejectsEncodedRuntimeControlPath(t *testing.T) {
+	manager := &fakePluginManager{
+		endpoint: &adminplugin.Endpoint{PluginID: "admin.example-plugin", Protocol: cmfplugin.ProtocolHTTP},
+	}
+	service := NewPluginService(manager)
+	for _, path := range []string{"/health", "/_go-admin/shutdown", "/%5fgo-admin%2fshutdown", "/%255fgo-admin/shutdown"} {
+		_, err := service.Proxy(context.Background(), &PluginProxyRequest{
+			PluginID: "admin.example-plugin", Method: http.MethodPost, Path: path,
+		})
+		if !errors.Is(err, adminplugin.ErrPermissionDenied) {
+			t.Fatalf("Proxy(%q) error = %v, want ErrPermissionDenied", path, err)
+		}
+	}
+	if manager.resolveCalled {
+		t.Fatal("runtime control path reached endpoint resolution")
+	}
+}
+
 type fakePluginManager struct {
-	installedPath string
-	endpoint      *adminplugin.Endpoint
+	installedPath     string
+	endpoint          *adminplugin.Endpoint
+	invokeRequest     *pluginapi.ProxyRequest
+	invokeResponse    *pluginapi.ProxyResponse
+	invokeErr         error
+	invokeHasDeadline bool
+	authorizeErr      error
+	resolveCalled     bool
+	diagnostics       *adminplugin.Diagnostics
+	diagnosticsErr    error
+}
+
+func (*fakePluginManager) Close(context.Context) error { return nil }
+
+func (f *fakePluginManager) Diagnostics(context.Context, string) (*adminplugin.Diagnostics, error) {
+	if f.diagnostics == nil {
+		f.diagnostics = &adminplugin.Diagnostics{}
+	}
+	return f.diagnostics, f.diagnosticsErr
 }
 
 func (f *fakePluginManager) Install(ctx context.Context, packagePath string) (*cmfplugin.PluginInfo, error) {
@@ -105,11 +201,20 @@ func (f *fakePluginManager) Get(ctx context.Context, pluginID string) (*cmfplugi
 	}
 	return samplePluginInfo(), nil
 }
+func (f *fakePluginManager) Authorize(context.Context, string, string, string) error {
+	return f.authorizeErr
+}
 func (f *fakePluginManager) ResolveEndpoint(ctx context.Context, pluginID string) (*adminplugin.Endpoint, error) {
+	f.resolveCalled = true
 	if f.endpoint == nil {
 		return nil, adminplugin.ErrNotFound
 	}
 	return f.endpoint, nil
+}
+func (f *fakePluginManager) Invoke(ctx context.Context, pluginID string, request *pluginapi.ProxyRequest) (*pluginapi.ProxyResponse, error) {
+	f.invokeRequest = request
+	_, f.invokeHasDeadline = ctx.Deadline()
+	return f.invokeResponse, f.invokeErr
 }
 
 func samplePluginInfo() *cmfplugin.PluginInfo {

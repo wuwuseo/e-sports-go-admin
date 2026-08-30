@@ -2,7 +2,10 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	appcaptcha "go-admin/internal/captcha"
@@ -11,17 +14,23 @@ import (
 	"go-admin/internal/middleware"
 	appoauth "go-admin/internal/oauth"
 	adminplugin "go-admin/internal/plugin"
+	adminqueue "go-admin/internal/queue"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/wuwuseo/cmf/cache"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
 	"github.com/wuwuseo/cmf/log"
 	cmfplugin "github.com/wuwuseo/cmf/plugin"
+	cmfqueue "github.com/wuwuseo/cmf/queue"
 	"github.com/wuwuseo/cmf/sse"
+	"go.uber.org/zap"
 )
+
+var activePluginManager *adminplugin.DefaultManager
 
 func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 添加请求日志中间件
@@ -116,15 +125,36 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 初始化插件管理服务
 	pluginRegistry := cmfplugin.NewMemoryExtensionRegistry()
-	pluginRuntime := cmfplugin.NewProcessRuntime()
+	requirePluginSignature := config.GetBool("plugin.require_signature")
+	if value, found := os.LookupEnv("CMF_PLUGIN_REQUIRE_SIGNATURE"); found {
+		requirePluginSignature, err = strconv.ParseBool(value)
+		if err != nil {
+			panic("initialize plugin signature policy: " + err.Error())
+		}
+	}
+	trustedPluginKeyConfig := config.GetString("plugin.trusted_public_keys")
+	if value, found := os.LookupEnv("CMF_PLUGIN_TRUSTED_PUBLIC_KEYS"); found {
+		trustedPluginKeyConfig = value
+	}
+	trustedPluginKeys, err := adminplugin.ParseTrustedPublicKeys(trustedPluginKeyConfig)
+	if err != nil {
+		panic("initialize plugin trust store: " + err.Error())
+	}
+	if err := validatePluginTrustPolicy(os.Getenv("CMF_APP_ENV"), requirePluginSignature, len(trustedPluginKeys)); err != nil {
+		panic("initialize plugin trust store: " + err.Error())
+	}
 	pluginManager := adminplugin.NewManager(global.ORM, adminplugin.Options{
-		PluginRoot:  "./data/plugins",
-		PackageRoot: "./data/plugin-packages",
-		TempRoot:    "./data/plugin-tmp",
-		Registry:    pluginRegistry,
-		Runtime:     pluginRuntime,
+		PluginRoot:        "./data/plugins",
+		PackageRoot:       "./data/plugin-packages",
+		TempRoot:          "./data/plugin-tmp",
+		RequireSignature:  requirePluginSignature,
+		TrustedPublicKeys: trustedPluginKeys,
+		Registry:          pluginRegistry,
 	})
-	_ = pluginManager.RestoreEnabled(context.Background())
+	activePluginManager = pluginManager
+	if err := pluginManager.RestoreEnabled(context.Background()); err != nil {
+		log.Error("恢复插件失败", zap.Error(err))
+	}
 	pluginService := service.NewPluginService(pluginManager)
 	// 登录限流器：每分钟最多 10 次请求，防止暴力破解
 	loginLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
@@ -327,6 +357,31 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	cronJobs.Get("/:id/logs/tail", handler.TailCronJobLog)            // 读取日志尾部
 	cronJobs.Get("/:id/logs/:filename", handler.GetCronJobLogContent) // 获取日志内容
 
+	// 任务队列管理路由（静态路径先于参数化路径注册）
+	queueJobService := service.NewQueueJobService()
+	queueJobs := adminAuth.Group("/queue-jobs", func(c fiber.Ctx) error {
+		c.Locals("service.QueueJobService", queueJobService)
+		return c.Next()
+	})
+	queueJobs.Get("", handler.ListQueueTasks)                     // 任务列表（按状态筛选）
+	queueJobs.Get("/stats", handler.QueueStats)                   // 队列统计
+	queueJobs.Get("/handlers", handler.QueueHandlers)             // 已注册处理器列表
+	queueJobs.Post("", handler.EnqueueQueueTask)                  // 手动入队
+	queueJobs.Get("/:queue/:id", handler.GetQueueTask)            // 任务详情
+	queueJobs.Post("/:queue/:id/retry", handler.RetryQueueTask)   // 立即重试
+	queueJobs.Post("/:queue/:id/cancel", handler.CancelQueueTask) // 取消执行中任务
+	queueJobs.Delete("/:queue/:id", handler.DeleteQueueTask)      // 删除任务
+
+	// 任务队列监控页（asynqmon 只读 UI，默认关闭；开启时挂载在管理端认证之后）
+	if config.Queue.EnableMonitor {
+		if qcfg, ok := adminqueue.EngineConfig(); ok {
+			monitorPath := config.Queue.MonitorPath
+			adminAuth.Get(monitorPath, adaptor.HTTPHandler(cmfqueue.MonitorHandler(qcfg, monitorPath)))
+		} else {
+			log.Warn("任务队列未初始化，监控页未挂载")
+		}
+	}
+
 	// 插件管理路由
 	// 注意：静态路径 /install 必须在参数化路由 /:plugin_id 之前注册
 	plugins := adminAuth.Group("/plugins")
@@ -484,4 +539,14 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		return c.Next()
 	})
 	sseGroup.Get("/connect", handler.SSEConnect)
+}
+
+func validatePluginTrustPolicy(environment string, requireSignature bool, trustedKeyCount int) error {
+	if strings.EqualFold(strings.TrimSpace(environment), "production") && !requireSignature {
+		return errors.New("plugin signatures must be enabled in production")
+	}
+	if requireSignature && trustedKeyCount == 0 {
+		return errors.New("signatures are required but no trusted public key is configured")
+	}
+	return nil
 }

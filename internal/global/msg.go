@@ -35,6 +35,16 @@ const (
 	ErrCodeCronJobTaskNotFound = 4005 // Go task 未注册
 	ErrCodeCronJobLogNotFound  = 4006
 
+	// 任务队列错误码 (4100-4199)
+	ErrCodeQueueTaskNotFound   = 4101
+	ErrCodeQueueUnknownHandler = 4102
+	ErrCodeQueueInvalidPayload = 4103
+	ErrCodeQueueInvalidState   = 4104
+	ErrCodeQueueUnavailable    = 4105
+	ErrCodeQueueDuplicateTask  = 4106
+	ErrCodeQueueUnknownQueue   = 4107
+	ErrCodeQueueStateConflict  = 4108
+
 	// 附件管理错误码 (3000-3099)
 	ErrCodeAttachmentNotFound      = 3001
 	ErrCodeAttachmentGroupNotFound = 3002
@@ -93,6 +103,8 @@ const (
 	ErrCodePluginUninstallFail   = 8006
 	ErrCodePluginManifestInvalid = 8007
 	ErrCodePluginPathInvalid     = 8008
+	ErrCodePluginUpgradeFailed   = 8009
+	ErrCodePluginRollbackFailed  = 8010
 
 	// 部门管理错误码 (9000-9099)
 	ErrCodeDepartmentNotFound      = 9001
@@ -142,6 +154,16 @@ var ResponseMsg = map[int]string{
 	ErrCodeCronJobInvalidType:  "无效的任务类型",
 	ErrCodeCronJobTaskNotFound: "Go task未注册",
 	ErrCodeCronJobLogNotFound:  "日志不存在",
+
+	// 任务队列错误消息
+	ErrCodeQueueTaskNotFound:   "队列任务不存在",
+	ErrCodeQueueUnknownHandler: "队列任务未注册",
+	ErrCodeQueueInvalidPayload: "任务载荷必须是合法 JSON",
+	ErrCodeQueueInvalidState:   "非法的任务状态",
+	ErrCodeQueueUnavailable:    "任务队列不可用",
+	ErrCodeQueueDuplicateTask:  "任务重复入队（去重窗口内）",
+	ErrCodeQueueUnknownQueue:   "目标队列未配置",
+	ErrCodeQueueStateConflict:  "任务状态不允许该操作",
 
 	// 附件管理错误消息
 	ErrCodeAttachmentNotFound:      "附件不存在",
@@ -201,6 +223,8 @@ var ResponseMsg = map[int]string{
 	ErrCodePluginUninstallFail:   "插件卸载失败",
 	ErrCodePluginManifestInvalid: "插件 Manifest 无效",
 	ErrCodePluginPathInvalid:     "插件路径非法",
+	ErrCodePluginUpgradeFailed:   "插件升级失败，已恢复原版本",
+	ErrCodePluginRollbackFailed:  "插件升级与回滚均失败，请人工处理",
 
 	// 部门管理错误消息
 	ErrCodeDepartmentNotFound:      "部门不存在",

@@ -65,11 +65,25 @@ redis:
       conn_max_idle_time: 30
       conn_max_lifetime: 24
       use_tls: false
+    queue_redis:
+      # 任务队列专用连接：队列实际只读取 addr/username/password/db/pool_size，
+      # 其余超时/空闲参数仅对缓存等 Redis 客户端生效
+      addr: localhost:6379
+      username: ""
+      password: "root"
+      db: 1
+      pool_size: 10
 
 captcha:
   store: memory
   redis_connection: redis
   key_prefix: captcha
+
+plugin:
+  # 生产环境必须启用，并通过 CMF_PLUGIN_TRUSTED_PUBLIC_KEYS 配置一个或多个逗号分隔的 Base64 Ed25519 公钥。
+  # 签名文件与插件包同目录，命名为 <package>.zip.sig，内容为对 ZIP SHA-256 摘要签名后的 Base64。
+  require_signature: false
+  trusted_public_keys: ""
 
 filesystem:
   default: local
@@ -158,3 +172,17 @@ casbin:
 attachment:
   x_accel_enabled: false  # 是否启用 X-Accel-Redirect 头 生产环境启用并配置
 
+queue:
+  # 任务队列（asynq/Redis）：Redis 连接复用 redis.connections 中的命名连接。
+  # 生产环境要求 Redis >= 6.2（归档/死信能力依赖 ZRANGE ... BYSCORE）。
+  redis_connection: queue_redis
+  concurrency: 10            # 并发 worker 数
+  queues:                    # 消费的队列及优先级权重
+    default: 10
+  strict_priority: false     # 严格优先级模式
+  max_retry: 3               # 默认最大重试次数（超限进入死信）
+  timeout: 600               # 单任务默认处理超时（秒）
+  retention: 3600            # 成功任务保留时长（秒），供管理端查看历史
+  # 监控页（asynqmon，只读）挂载在管理端认证之后；生产环境建议保持关闭
+  enable_monitor: false
+  monitor_path: /api/v1/admin/auth/queue-monitor

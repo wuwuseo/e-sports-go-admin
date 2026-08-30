@@ -33,4 +33,9 @@ go.work.local
 /handler_coverage
 /middleware_gap
 *.out
+*.txt
+!.env.txt
 internal/utils/data/
+.zcode/
+adapter_coverage
+pluginapi/

@@ -18,7 +18,7 @@
 ## 📋 技术栈
 
 ### 后端框架
-- **[Fiber](https://github.com/gofiber/fiber)** v2.52.9 - 高性能HTTP Web框架
+- **[Fiber](https://github.com/gofiber/fiber)** v3.2.0 - 高性能HTTP Web框架
 - **[Ent](https://entgo.io/)** v0.14.5 - 类型安全的ORM框架
 - **CMF** v0.0.0 - 自定义基础框架
 
@@ -40,7 +40,7 @@
 ### 开发和测试工具
 - **Go** 1.25.1+ - 编程语言
 - **Go Modules** - 依赖管理
-- **Testify** v1.11.1 - 测试框架
+- **Swag** v1.16.4 - Swagger 文档生成（`swag init`）
 - **golangci-lint** - 代码质量检查
 
 ## 🏗️ 项目结构
@@ -53,25 +53,27 @@ go-admin/
 ├── config/
 │   └── config.yml          # 配置文件
 ├── internal/               # 内部包
-│   ├── init.go            # 初始化逻辑
-│   ├── router.go          # 路由定义
-│   ├── cleanup.go         # 清理逻辑
-│   ├── ent/               # Ent ORM生成代码
-│   │   └── schema/        # 数据模型定义
-│   ├── global/            # 全局变量和常量
-│   │   ├── global.go      # 全局变量
-│   │   └── msg.go         # 响应消息常量
-│   ├── handler/           # HTTP处理器
-│   ├── service/           # 业务逻辑层
-│   └── utils/             # 工具函数
-│       ├── response.go    # 响应工具
-│       └── utils.go       # 通用工具
-├── web/                   # 前端资源
-│   └── dist/              # 构建后的前端文件
-├── data/                  # 数据目录
-│   ├── logs/              # 日志文件
-│   └── storage/           # 文件存储
-└── docs/                  # 项目文档
+│   ├── init.go             # 初始化逻辑
+│   ├── router.go           # 路由定义
+│   ├── cleanup.go          # 清理逻辑
+│   ├── middleware/         # 中间件（JWT、权限、黑名单等）
+│   ├── handler/            # HTTP处理器
+│   ├── service/            # 业务逻辑层
+│   ├── ent/                # Ent ORM生成代码
+│   │   └── schema/         # 数据模型定义
+│   ├── global/             # 全局变量和常量
+│   ├── captcha/            # 验证码
+│   ├── casbin/             # Casbin权限
+│   ├── cron/               # 定时任务
+│   ├── oauth/              # OAuth登录
+│   ├── plugin/             # 插件系统
+│   ├── sse/                # SSE推送
+│   ├── tasks/              # 后台任务注册
+│   └── utils/              # 工具函数
+├── cmd/                    # 辅助命令（captcha-reencrypt 等）
+├── web/dist/               # 内嵌前端构建产物（go:embed）
+├── data/                   # 运行时数据（日志、文件存储）
+└── docs/                   # 项目文档与API规范
 ```
 
 ## 🚀 快速开始
@@ -97,7 +99,7 @@ go-admin/
 
 3. **准备数据库**
    ```sql
-   CREATE DATABASE cmf CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE go_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
 
 4. **配置应用**
@@ -113,7 +115,7 @@ go-admin/
          port: 3306
          user: your_username
          password: your_password
-         name: cmf
+         name: go_admin
    ```
 
 5. **构建并运行**
@@ -130,6 +132,10 @@ go-admin/
    - API接口: http://localhost:9501/api/v1
 
 ## 📖 API文档
+
+API 规范由 [Swag](https://github.com/swaggo/swag) 注解生成，产物为 `docs/swagger.json`（`docs/swagger.yaml`、`docs/docs.go` 同步生成）。修改接口后执行 `swag init -g main.go -o docs` 重新生成。
+
+Swagger UI 默认关闭（安全基线：无需认证即可查看全部 API）。在隔离的本地开发环境将 `app.swagger` 设为 `true`（或开启 `app.debug`）后，访问 `http://localhost:9501/docs` 查看。
 
 ### 公开接口
 
@@ -152,10 +158,13 @@ Content-Type: application/json
   "data": {
     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "token_type": "Bearer",
-    "expires_in": 86400
+    "expires_in": 86400,
+    "refresh_token": "..."
   }
 }
 ```
+
+为满足等保要求，登录也支持 RSA 加密传输：先请求 `GET /api/v1/public/public-key` 获取公钥，再以 `encrypted_email` / `encrypted_password` 搭配 `timestamp` / `nonce` / `key_id` 提交。刷新令牌使用 `POST /api/v1/public/refresh-token`；管理端登录与刷新分别为 `POST /api/v1/admin/public/login` 和 `POST /api/v1/admin/public/refresh`。
 
 ### 受保护的接口
 
@@ -197,12 +206,18 @@ Content-Type: application/json
 ### 应用配置
 ```yaml
 app:
-  name: admin-api          # 应用名称
-  port: 9501              # 监听端口
-  debug: false            # 调试模式
-  secret: your_jwt_secret # JWT密钥 (生产环境必须修改)
-  login_expires: 86400    # JWT过期时间 (秒)
+  name: admin-api            # 应用名称
+  port: 9501                 # 监听端口
+  debug: false               # 调试模式（开启会同时启用 Swagger UI）
+  swagger: false             # Swagger UI 开关（生产环境必须保持关闭）
+  secret: ""                 # JWT 用户端密钥：留空时启动自动生成随机密钥
+  admin_secret: ""           # JWT 管理端密钥：留空时启动自动生成随机密钥
+  login_expires: 86400       # JWT 用户端过期时间 (秒)
+  admin_login_expires: 7200  # JWT 管理端过期时间 (秒)
 ```
+
+> 生产环境必须通过环境变量设置强密钥，避免重启后随机轮换导致全员 token 失效：
+> `CMF_APP_SECRET`（用户端）与 `CMF_APP_ADMIN_SECRET`（管理端）。
 
 ### 数据库配置
 ```yaml
@@ -215,8 +230,8 @@ database:
       port: 3306
       user: root
       password: root
-      name: cmf
-      table_prefix: cmf_
+      name: go_admin
+      table_prefix: admin_
 ```
 
 ### 缓存配置
@@ -261,7 +276,7 @@ go run ./cmd/captcha-reencrypt --dry-run=true
 go run ./cmd/captcha-reencrypt --dry-run=false
 ```
 
-更多配置选项请参考 [部署指南](docs/deployment/guide.md)。
+更多配置选项请参考 [config/config.yml](config/config.yml)，文件内含逐项注释说明。
 
 ## 🏛️ 架构设计
 
@@ -289,8 +304,6 @@ graph TB
 - **数据访问层**: 使用Ent ORM进行数据库操作
 - **中间件**: JWT认证、文件服务、日志记录等
 
-详细架构说明请参考 [架构文档](docs/architecture/overview.md)。
-
 ## 🗄️ 数据库设计
 
 ### 用户表 (User)
@@ -315,7 +328,7 @@ graph TB
 ### 权限规则表 (CasbinRule)
 用于存储Casbin权限控制规则，支持RBAC权限模型。
 
-详细数据库设计请参考 [数据库文档](docs/database/models.md)。
+数据模型以 Ent schema 为准，见 `internal/ent/schema/`。
 
 ## 🛠️ 开发指南
 
@@ -341,9 +354,9 @@ graph TB
 ### 添加新功能
 
 1. **定义数据模型** (如需要)
+   在 `internal/ent/schema/` 下新增或修改 schema，然后重新生成代码：
    ```bash
-   # 创建新的Ent schema
-   go run entgo.io/ent/cmd/ent new User
+   go generate ./internal/ent
    ```
 
 2. **实现业务逻辑**
@@ -357,8 +370,6 @@ graph TB
    ```bash
    go test ./...
    ```
-
-详细开发指南请参考 [开发者文档](docs/development/guide.md)。
 
 ## 🧪 测试
 
@@ -410,23 +421,11 @@ golangci-lint run --fix
    - 配置SSL证书
    - 设置负载均衡 (如需要)
 
-### Docker部署
-
-```bash
-# 构建Docker镜像
-docker build -t go-admin:latest .
-
-# 运行容器
-docker run -d --name go-admin -p 9501:9501 go-admin:latest
-```
-
-详细部署指南请参考 [部署文档](docs/deployment/guide.md)。
-
 ## 📊 监控和运维
 
 ### 健康检查
-- **应用状态**: `GET /`
-- **API状态**: `GET /api/v1/admin/login`
+- `GET /` 返回内嵌的前端 SPA 首页，可确认服务与静态资源正常。
+- 项目未提供专门的 JSON 健康检查端点；API 可用性可通过公开接口 `GET /api/v1/public/public-key` 探测。
 
 ### 日志管理
 ```bash
@@ -504,11 +503,9 @@ test: 测试相关
 ## 📚 相关文档
 
 - [📖 文档导航](docs/README.md) - 完整文档索引
-- [🔌 API接口文档](docs/api/README.md) - 详细API说明
-- [🏗️ 架构设计](docs/architecture/overview.md) - 系统架构设计
-- [🗄️ 数据库设计](docs/database/models.md) - 数据模型说明
-- [🚀 部署指南](docs/deployment/guide.md) - 生产环境部署
-- [👨‍💻 开发者指南](docs/development/guide.md) - 开发环境和规范
+- [🔐 GitHub OAuth 接入](docs/oauth-github.md) - OAuth 配置与绑定流程
+- [📋 API 规范](docs/swagger.json) - Swag 生成的 OpenAPI 2.0 规范（Swagger UI 见上文「API文档」）
+- [🧭 AGENTS.md](AGENTS.md) - 仓库协作规范与常用命令
 
 ---
 
