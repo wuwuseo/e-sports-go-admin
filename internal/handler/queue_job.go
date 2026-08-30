@@ -21,31 +21,33 @@ func queueService(c fiber.Ctx) (*service.QueueJobService, error) {
 	return svc, nil
 }
 
-// respondQueueError 将队列相关错误映射为响应
-func respondQueueError(resp *utils.Response, err error) *fiber.Error {
+// respondQueueError 将队列相关错误映射为响应并直接发送 JSON。
+// 必须返回 ToJSON 的结果（通常为 nil）；返回 typed-nil（如 *fiber.Error(nil)）
+// 会让 Fiber 的 ErrorHandler 在 errors.As 解引用时 panic，且发生在
+// recover 中间件保护范围之外，导致整个进程崩溃。
+func respondQueueError(resp *utils.Response, c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, service.ErrQueueUnavailable):
-		resp.Fail(global.ErrCodeQueueUnavailable, "任务队列不可用")
+		return resp.Fail(global.ErrCodeQueueUnavailable, "任务队列不可用").ToJSON(c)
 	case errors.Is(err, service.ErrQueueUnknownHandler):
-		resp.Fail(global.ErrCodeQueueUnknownHandler, "队列任务未注册")
+		return resp.Fail(global.ErrCodeQueueUnknownHandler, "队列任务未注册").ToJSON(c)
 	case errors.Is(err, service.ErrQueueInvalidPayload):
-		resp.Fail(global.ErrCodeQueueInvalidPayload, "任务载荷必须是合法 JSON")
+		return resp.Fail(global.ErrCodeQueueInvalidPayload, "任务载荷必须是合法 JSON").ToJSON(c)
 	case errors.Is(err, service.ErrQueueUnknownQueue):
-		resp.Fail(global.ErrCodeQueueUnknownQueue, "目标队列未配置")
+		return resp.Fail(global.ErrCodeQueueUnknownQueue, "目标队列未配置").ToJSON(c)
 	case errors.Is(err, cmfqueue.ErrTaskNotFound):
-		resp.Fail(global.ErrCodeQueueTaskNotFound, "队列任务不存在")
+		return resp.Fail(global.ErrCodeQueueTaskNotFound, "队列任务不存在").ToJSON(c)
 	case errors.Is(err, cmfqueue.ErrQueueNotFound):
-		resp.Fail(global.ErrCodeQueueTaskNotFound, "队列不存在")
+		return resp.Fail(global.ErrCodeQueueTaskNotFound, "队列不存在").ToJSON(c)
 	case errors.Is(err, cmfqueue.ErrDuplicateTask):
-		resp.Fail(global.ErrCodeQueueDuplicateTask, "任务重复入队（去重窗口内）")
+		return resp.Fail(global.ErrCodeQueueDuplicateTask, "任务重复入队（去重窗口内）").ToJSON(c)
 	case errors.Is(err, cmfqueue.ErrTaskStateConflict):
-		resp.Fail(global.ErrCodeQueueStateConflict, "任务状态不允许该操作")
+		return resp.Fail(global.ErrCodeQueueStateConflict, "任务状态不允许该操作").ToJSON(c)
 	case errors.Is(err, cmfqueue.ErrInvalidTaskState):
-		resp.Fail(global.ErrCodeQueueInvalidState, "非法的任务状态")
+		return resp.Fail(global.ErrCodeQueueInvalidState, "非法的任务状态").ToJSON(c)
 	default:
-		resp.Fail(global.ResponseInternalServerError, "任务队列操作失败")
+		return resp.Fail(global.ResponseInternalServerError, "任务队列操作失败").ToJSON(c)
 	}
-	return nil
 }
 
 // ListQueueTasks 获取队列任务列表
@@ -68,7 +70,7 @@ func ListQueueTasks(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	req, err := validate.ParseQueryAndValidate[service.ListQueueTasksRequest](c)
@@ -89,7 +91,7 @@ func ListQueueTasks(c fiber.Ctx) error {
 
 	result, err := svc.ListTasks(c.Context(), req)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 	return resp.Success(result, global.ResponseSuccessCode, "查询成功").ToJSON(c)
 }
@@ -112,12 +114,12 @@ func GetQueueTask(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	task, err := svc.GetTask(c.Context(), c.Params("queue"), c.Params("id"))
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 	return resp.Success(task, global.ResponseSuccessCode, "查询成功").ToJSON(c)
 }
@@ -140,7 +142,7 @@ func EnqueueQueueTask(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	req, err := validate.ParseAndValidate[service.EnqueueTaskRequest](c)
@@ -153,7 +155,7 @@ func EnqueueQueueTask(c fiber.Ctx) error {
 
 	result, err := svc.Enqueue(c.Context(), req)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -181,12 +183,12 @@ func RetryQueueTask(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	queueName, taskID := c.Params("queue"), c.Params("id")
 	if err := svc.RetryTask(c.Context(), queueName, taskID); err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -213,12 +215,12 @@ func CancelQueueTask(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	taskID := c.Params("id")
 	if err := svc.CancelTask(c.Context(), taskID); err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -246,12 +248,12 @@ func DeleteQueueTask(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	queueName, taskID := c.Params("queue"), c.Params("id")
 	if err := svc.DeleteTask(c.Context(), queueName, taskID); err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -275,12 +277,12 @@ func QueueStats(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	stats, err := svc.Stats(c.Context())
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 	return resp.Success(stats, global.ResponseSuccessCode, "查询成功").ToJSON(c)
 }
@@ -300,12 +302,12 @@ func QueueHandlers(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc, err := queueService(c)
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 
 	handlers, err := svc.Handlers(c.Context())
 	if err != nil {
-		return respondQueueError(resp, err)
+		return respondQueueError(resp, c, err)
 	}
 	return resp.Success(handlers, global.ResponseSuccessCode, "查询成功").ToJSON(c)
 }
