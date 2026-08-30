@@ -29,7 +29,7 @@ import (
 // @Router /api/v1/admin/auth/roles [post]
 func CreateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseAndValidate[service.CreateRoleRequest](c)
@@ -86,7 +86,7 @@ func CreateRole(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/roles/{id} [get]
 func GetRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
@@ -132,7 +132,7 @@ func GetRole(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/roles [get]
 func ListRoles(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseQueryAndValidate[service.ListRolesRequest](c)
@@ -180,7 +180,7 @@ func ListRoles(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/roles/all [get]
 func ListAllRoles(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	req, err := validate.ParseQueryAndValidate[service.ListAllRolesRequest](c)
@@ -222,7 +222,7 @@ func ListAllRoles(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/roles/{id} [put]
 func UpdateRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
@@ -285,7 +285,7 @@ func UpdateRole(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/roles/{id} [delete]
 func DeleteRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
@@ -338,7 +338,7 @@ func DeleteRole(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/roles/{id}/enable [put]
 func EnableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
@@ -387,7 +387,7 @@ func EnableRole(c fiber.Ctx) error {
 // @Router /api/v1/admin/auth/roles/{id}/disable [put]
 func DisableRole(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
-	roleService := c.Locals("service.RoleService").(*service.RoleService)
+	roleService := c.Locals("service.RoleService").(service.RoleServiceInterface)
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 
 	idStr := c.Params("id")
