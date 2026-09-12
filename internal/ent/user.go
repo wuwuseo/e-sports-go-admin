@@ -44,7 +44,9 @@ type User struct {
 	// 最后登录时间
 	LastLogin time.Time `json:"last_login,omitempty"`
 	// 最后登录IP
-	LastIP       string `json:"last_ip,omitempty"`
+	LastIP string `json:"last_ip,omitempty"`
+	// 密码变更时递增，吊销此前签发的令牌
+	TokenVersion int `json:"-"`
 	selectValues sql.SelectValues
 }
 
@@ -53,7 +55,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case user.FieldID:
+		case user.FieldID, user.FieldTokenVersion:
 			values[i] = new(sql.NullInt64)
 		case user.FieldEmail, user.FieldPassword, user.FieldName, user.FieldUsername, user.FieldNickname, user.FieldUID, user.FieldPasswordSalt, user.FieldAvatar, user.FieldPhone, user.FieldStatus, user.FieldLastIP:
 			values[i] = new(sql.NullString)
@@ -164,6 +166,12 @@ func (_m *User) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LastIP = value.String
 			}
+		case user.FieldTokenVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field token_version", values[i])
+			} else if value.Valid {
+				_m.TokenVersion = int(value.Int64)
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -239,6 +247,9 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("last_ip=")
 	builder.WriteString(_m.LastIP)
+	builder.WriteString(", ")
+	builder.WriteString("token_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TokenVersion))
 	builder.WriteByte(')')
 	return builder.String()
 }

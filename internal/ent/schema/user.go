@@ -77,6 +77,10 @@ func (User) Fields() []ent.Field {
 			Optional().
 			MaxLen(50).
 			Comment("最后登录IP"),
+		field.Int("token_version").
+			Default(0).
+			StructTag(`json:"-"`).
+			Comment("密码变更时递增，吊销此前签发的令牌"),
 	}
 }
 

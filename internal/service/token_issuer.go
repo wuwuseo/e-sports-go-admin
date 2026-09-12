@@ -43,13 +43,14 @@ func permissionDomainFromClaims(claims jwt.MapClaims) (string, error) {
 	return domain, nil
 }
 
-func createTokenPair(id, subject, issuer, secret string, accessTTL, refreshTTL time.Duration, now func() time.Time) (*TokenResponse, error) {
+func createTokenPair(id, subject, issuer, secret string, accessTTL, refreshTTL time.Duration, now func() time.Time, tokenVersion int) (*TokenResponse, error) {
 	create := func(tokenType string, ttl time.Duration) (string, error) {
 		expiresAt := now().Add(ttl)
 		issuedAt := now()
 		return cmfJwt.CreateToken(jwt.MapClaims{
 			"id": id, "subject": subject, "issuer": issuer, "domain": configuredPermissionDomain(),
 			"expires": jwt.NewNumericDate(expiresAt), "issued_at": jwt.NewNumericDate(issuedAt), "token_type": tokenType,
+			"token_version": tokenVersion,
 		}, secret)
 	}
 	accessToken, err := create("access", accessTTL)
@@ -84,6 +85,7 @@ func issueUserToken(ctx context.Context, client *ent.Client, uid string, now tim
 		time.Duration(config.App.LoginExpires)*time.Second,
 		time.Duration(config.App.RefreshExpires)*time.Second,
 		func() time.Time { return now },
+		u.TokenVersion,
 	)
 	if err != nil {
 		return nil, err
@@ -112,6 +114,7 @@ func issueAdminToken(ctx context.Context, client *ent.Client, uid string, now ti
 		time.Duration(config.App.AdminLoginExpires)*time.Second,
 		time.Duration(config.App.AdminRefreshExpires)*time.Second,
 		func() time.Time { return now },
+		0,
 	)
 	if err != nil {
 		return nil, err

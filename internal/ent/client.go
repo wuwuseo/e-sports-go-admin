@@ -21,6 +21,7 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/loginlog"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/oauthproviderconfig"
@@ -65,6 +66,8 @@ type Client struct {
 	Department *DepartmentClient
 	// DictData is the client for interacting with the DictData builders.
 	DictData *DictDataClient
+	// LoginLog is the client for interacting with the LoginLog builders.
+	LoginLog *LoginLogClient
 	// Message is the client for interacting with the Message builders.
 	Message *MessageClient
 	// MessagePreference is the client for interacting with the MessagePreference builders.
@@ -110,6 +113,7 @@ func (c *Client) init() {
 	c.CronJob = NewCronJobClient(c.config)
 	c.Department = NewDepartmentClient(c.config)
 	c.DictData = NewDictDataClient(c.config)
+	c.LoginLog = NewLoginLogClient(c.config)
 	c.Message = NewMessageClient(c.config)
 	c.MessagePreference = NewMessagePreferenceClient(c.config)
 	c.OAuthProviderConfig = NewOAuthProviderConfigClient(c.config)
@@ -224,6 +228,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		CronJob:             NewCronJobClient(cfg),
 		Department:          NewDepartmentClient(cfg),
 		DictData:            NewDictDataClient(cfg),
+		LoginLog:            NewLoginLogClient(cfg),
 		Message:             NewMessageClient(cfg),
 		MessagePreference:   NewMessagePreferenceClient(cfg),
 		OAuthProviderConfig: NewOAuthProviderConfigClient(cfg),
@@ -265,6 +270,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		CronJob:             NewCronJobClient(cfg),
 		Department:          NewDepartmentClient(cfg),
 		DictData:            NewDictDataClient(cfg),
+		LoginLog:            NewLoginLogClient(cfg),
 		Message:             NewMessageClient(cfg),
 		MessagePreference:   NewMessagePreferenceClient(cfg),
 		OAuthProviderConfig: NewOAuthProviderConfigClient(cfg),
@@ -307,10 +313,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
-		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
-		c.UserRole,
+		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.SystemConfig, c.SystemPermission,
+		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -321,10 +327,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
-		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
-		c.UserRole,
+		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.SystemConfig, c.SystemPermission,
+		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -353,6 +359,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Department.mutate(ctx, m)
 	case *DictDataMutation:
 		return c.DictData.mutate(ctx, m)
+	case *LoginLogMutation:
+		return c.LoginLog.mutate(ctx, m)
 	case *MessageMutation:
 		return c.Message.mutate(ctx, m)
 	case *MessagePreferenceMutation:
@@ -1837,6 +1845,139 @@ func (c *DictDataClient) mutate(ctx context.Context, m *DictDataMutation) (Value
 		return (&DictDataDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown DictData mutation op: %q", m.Op())
+	}
+}
+
+// LoginLogClient is a client for the LoginLog schema.
+type LoginLogClient struct {
+	config
+}
+
+// NewLoginLogClient returns a client for the LoginLog from the given config.
+func NewLoginLogClient(c config) *LoginLogClient {
+	return &LoginLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `loginlog.Hooks(f(g(h())))`.
+func (c *LoginLogClient) Use(hooks ...Hook) {
+	c.hooks.LoginLog = append(c.hooks.LoginLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `loginlog.Intercept(f(g(h())))`.
+func (c *LoginLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LoginLog = append(c.inters.LoginLog, interceptors...)
+}
+
+// Create returns a builder for creating a LoginLog entity.
+func (c *LoginLogClient) Create() *LoginLogCreate {
+	mutation := newLoginLogMutation(c.config, OpCreate)
+	return &LoginLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LoginLog entities.
+func (c *LoginLogClient) CreateBulk(builders ...*LoginLogCreate) *LoginLogCreateBulk {
+	return &LoginLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LoginLogClient) MapCreateBulk(slice any, setFunc func(*LoginLogCreate, int)) *LoginLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LoginLogCreateBulk{err: fmt.Errorf("calling to LoginLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LoginLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LoginLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LoginLog.
+func (c *LoginLogClient) Update() *LoginLogUpdate {
+	mutation := newLoginLogMutation(c.config, OpUpdate)
+	return &LoginLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LoginLogClient) UpdateOne(_m *LoginLog) *LoginLogUpdateOne {
+	mutation := newLoginLogMutation(c.config, OpUpdateOne, withLoginLog(_m))
+	return &LoginLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LoginLogClient) UpdateOneID(id int) *LoginLogUpdateOne {
+	mutation := newLoginLogMutation(c.config, OpUpdateOne, withLoginLogID(id))
+	return &LoginLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LoginLog.
+func (c *LoginLogClient) Delete() *LoginLogDelete {
+	mutation := newLoginLogMutation(c.config, OpDelete)
+	return &LoginLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LoginLogClient) DeleteOne(_m *LoginLog) *LoginLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LoginLogClient) DeleteOneID(id int) *LoginLogDeleteOne {
+	builder := c.Delete().Where(loginlog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LoginLogDeleteOne{builder}
+}
+
+// Query returns a query builder for LoginLog.
+func (c *LoginLogClient) Query() *LoginLogQuery {
+	return &LoginLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLoginLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LoginLog entity by its id.
+func (c *LoginLogClient) Get(ctx context.Context, id int) (*LoginLog, error) {
+	return c.Query().Where(loginlog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LoginLogClient) GetX(ctx context.Context, id int) *LoginLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LoginLogClient) Hooks() []Hook {
+	return c.hooks.LoginLog
+}
+
+// Interceptors returns the client interceptors.
+func (c *LoginLogClient) Interceptors() []Interceptor {
+	return c.inters.LoginLog
+}
+
+func (c *LoginLogClient) mutate(ctx context.Context, m *LoginLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LoginLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LoginLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LoginLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LoginLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LoginLog mutation op: %q", m.Op())
 	}
 }
 
@@ -3488,14 +3629,15 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 type (
 	hooks struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
-		CasbinRule, CronJob, Department, DictData, Message, MessagePreference,
-		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, SystemConfig,
-		SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
+		CasbinRule, CronJob, Department, DictData, LoginLog, Message,
+		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
+		Role, SystemConfig, SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
-		CasbinRule, CronJob, Department, DictData, Message, MessagePreference,
-		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, SystemConfig,
-		SystemPermission, ThirdPartyUser, User, UserRole []ent.Interceptor
+		CasbinRule, CronJob, Department, DictData, LoginLog, Message,
+		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
+		Role, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Interceptor
 	}
 )

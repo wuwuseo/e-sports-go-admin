@@ -125,7 +125,9 @@ func Login(c fiber.Ctx) error {
 	}
 
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
-	token, err := userService.Login(c.Context(), req)
+	// 注入登录来源元数据（IP/UA），服务层据此记录登录日志并回写 last_ip
+	loginCtx := service.ContextWithLoginMeta(c.Context(), c.IP(), c.Get("User-Agent"))
+	token, err := userService.Login(loginCtx, req)
 	if err != nil {
 		switch err {
 		case service.ErrUserNotFound, service.ErrInvalidPassword, service.ErrInvalidUserStatus:

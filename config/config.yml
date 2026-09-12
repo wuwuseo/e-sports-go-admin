@@ -23,6 +23,8 @@ log:
   max_size: 10
   max_backups: 10
   max_age: 180
+  # 操作日志/登录日志保留天数（cleanup_expired_logs 任务使用），默认 30；负数表示不自动清理
+  retention_days: 30
 
 database:
   default: default

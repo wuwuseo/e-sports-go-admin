@@ -82,8 +82,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	}
 	dataPermissionService := service.NewDataPermissionService(departmentService, dataPermRawCache)
 
-	// 初始化操作日志服务
+	// 初始化操作日志服务与登录日志服务
 	opLogService := service.NewOperationLogService()
+	loginLogService := service.NewLoginLogService()
 
 	// 初始化用户管理相关服务
 	var userListService service.UserListServiceInterface
@@ -228,6 +229,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 
 	// 需要认证的接口
 	adminAuthBase := admin.Group("/auth", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
+		c.Locals("audit_started_at", time.Now())
 		c.Locals("service.SuperAdminService", service.NewSuperAdminService(dataPermissionService, departmentService))
 		c.Locals("service.AdminService", service.NewAdminServiceWithBlacklist(blacklistService))
 		c.Locals("service.UserService", userService)
@@ -235,6 +237,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.PermissionService", permissionService)
 		c.Locals("service.SystemPermissionService", systemPermissionService)
 		c.Locals("service.OperationLogService", opLogService)
+		c.Locals("service.LoginLogService", loginLogService)
 		c.Locals("service.UserListService", userListService)
 		c.Locals("service.UserActivationService", userActivationService)
 		c.Locals("service.BlacklistService", blacklistService)
@@ -250,7 +253,10 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.OAuthAuthService", oauthAuthService)
 		c.Locals("sse.TicketStore", ticketStore)
 		return c.Next()
-	}, middleware.BlacklistCheck(blacklistService, "admin"))
+	},
+		// 关键管理操作的自动审计：真实状态码与耗时，拒绝请求同样留痕
+		middleware.Audit(middleware.AdminAuditRules(), opLogService),
+		middleware.BlacklistCheck(blacklistService, "admin"))
 
 	adminAuthBase.Get("/user", handler.GetAdmin)
 	adminAuthBase.Put("/user", handler.UpdateAdmin)
@@ -445,6 +451,12 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	opLogs := adminAuth.Group("/operation-logs")
 	opLogs.Get("/", handler.ListOperationLogs)
 	opLogs.Get("/:id", handler.GetOperationLog)
+
+	// 登录日志管理路由
+	loginLogs := adminAuth.Group("/login-logs")
+	loginLogs.Get("", handler.ListLoginLogs)
+	loginLogs.Get("/", handler.ListLoginLogs)
+	loginLogs.Get("/:id", handler.GetLoginLog)
 
 	// 数据字典路由
 	dictDataService := service.NewDictDataService()

@@ -32,6 +32,8 @@ type Tx struct {
 	Department *DepartmentClient
 	// DictData is the client for interacting with the DictData builders.
 	DictData *DictDataClient
+	// LoginLog is the client for interacting with the LoginLog builders.
+	LoginLog *LoginLogClient
 	// Message is the client for interacting with the Message builders.
 	Message *MessageClient
 	// MessagePreference is the client for interacting with the MessagePreference builders.
@@ -197,6 +199,7 @@ func (tx *Tx) init() {
 	tx.CronJob = NewCronJobClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DictData = NewDictDataClient(tx.config)
+	tx.LoginLog = NewLoginLogClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)
 	tx.MessagePreference = NewMessagePreferenceClient(tx.config)
 	tx.OAuthProviderConfig = NewOAuthProviderConfigClient(tx.config)

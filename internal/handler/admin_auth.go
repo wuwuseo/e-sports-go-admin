@@ -45,7 +45,9 @@ func AdminLogin(c fiber.Ctx) error {
 	}
 
 	adminService := c.Locals("service.AdminService").(service.AdminServiceInterface)
-	token, err := adminService.Login(c.Context(), req)
+	// 注入登录来源元数据（IP/UA），服务层据此记录登录日志并回写 last_ip
+	loginCtx := service.ContextWithLoginMeta(c.Context(), c.IP(), c.Get("User-Agent"))
+	token, err := adminService.Login(loginCtx, req)
 	if err != nil {
 		switch err {
 		case service.ErrAdminNotFound, service.ErrInvalidAdminPassword, service.ErrInvalidAdminStatus:

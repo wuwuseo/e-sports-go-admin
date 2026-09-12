@@ -15,8 +15,9 @@ import (
 )
 
 var (
-	ErrAdminEmailExists    = errors.New("admin email already exists")
-	ErrAdminUsernameExists = errors.New("admin username already exists")
+	ErrAdminEmailExists        = errors.New("admin email already exists")
+	ErrAdminUsernameExists     = errors.New("admin username already exists")
+	ErrCannotResetSelfPassword = errors.New("不能通过初始化密码重置自己的密码，请使用修改密码功能")
 )
 
 // UpdateAdminRequest 更新管理员请求
@@ -37,6 +38,7 @@ type SuperAdminServiceInterface interface {
 	UpdateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int, req *UpdateAdminRequest) (*AdminResponse, error)
 	ActivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error
 	DeactivateAdmin(ctx context.Context, op *EffectiveDataScope, adminID int) error
+	ResetAdminPassword(ctx context.Context, op *EffectiveDataScope, adminID int) (*AdminResponse, string, error)
 }
 
 // SuperAdminService 超级管理员服务
@@ -392,6 +394,57 @@ func (s *SuperAdminService) DeactivateAdmin(ctx context.Context, op *EffectiveDa
 		}
 	}
 	return nil
+}
+
+// ResetAdminPassword 初始化管理员密码：生成随机强密码（一次性返回给操作者），
+// 旧密码即行失效。自我重置被禁止（改密需验证旧密码，走 /password 接口）；
+// 令牌吊销由 HTTP 层在成功后调用 AdminService.Logout 完成。
+func (s *SuperAdminService) ResetAdminPassword(ctx context.Context, op *EffectiveDataScope, adminID int) (*AdminResponse, string, error) {
+	if err := ensureAdminInScope(ctx, s.client, op, adminID); err != nil {
+		return nil, "", err
+	}
+	if op != nil && op.AdminID == adminID {
+		return nil, "", ErrCannotResetSelfPassword
+	}
+	a, err := s.client.Admin.Query().
+		Where(admin.IDEQ(adminID)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, "", ErrAdminNotFound
+		}
+		return nil, "", err
+	}
+
+	newPwd, err := utils.GenerateStrongPassword(resetPasswordLength)
+	if err != nil {
+		return nil, "", err
+	}
+	hashedPassword, salt, err := crypto.HashPassword(newPwd)
+	if err != nil {
+		return nil, "", err
+	}
+	updated, err := s.client.Admin.UpdateOne(a).
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		Save(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &AdminResponse{
+		ID:           updated.UID,
+		Email:        updated.Email,
+		Username:     updated.Username,
+		Nickname:     updated.Nickname,
+		Name:         updated.Name,
+		Phone:        updated.Phone,
+		Avatar:       updated.Avatar,
+		Department:   updated.Department,
+		DepartmentID: updated.DepartmentID,
+		Position:     updated.Position,
+		Status:       string(updated.Status),
+	}, newPwd, nil
 }
 
 // GetAdminByID 获取管理员详情

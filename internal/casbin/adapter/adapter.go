@@ -344,32 +344,6 @@ func loadPolicyLine(line *ent.CasbinRule, model model.Model) error {
 	return persist.LoadPolicyLine(lineText, model)
 }
 
-func (a *Adapter) toInstance(ptype string, rule []string) *ent.CasbinRule {
-	instance := &ent.CasbinRule{}
-
-	instance.Ptype = ptype
-
-	if len(rule) > 0 {
-		instance.V0 = rule[0]
-	}
-	if len(rule) > 1 {
-		instance.V1 = rule[1]
-	}
-	if len(rule) > 2 {
-		instance.V2 = rule[2]
-	}
-	if len(rule) > 3 {
-		instance.V3 = rule[3]
-	}
-	if len(rule) > 4 {
-		instance.V4 = rule[4]
-	}
-	if len(rule) > 5 {
-		instance.V5 = rule[5]
-	}
-	return instance
-}
-
 func (a *Adapter) savePolicyLine(tx *ent.Tx, ptype string, rule []string) *ent.CasbinRuleCreate {
 	line := tx.CasbinRule.Create()
 

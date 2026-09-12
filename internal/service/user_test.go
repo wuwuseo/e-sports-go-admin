@@ -139,7 +139,7 @@ func TestUserService_CreateUser_Success(t *testing.T) {
 		Phone:    "13900139000",
 	}
 
-	resp, err := svc.CreateUser(ctx, req)
+	resp, err := svc.CreateUser(ctx, nil, req)
 	if err != nil {
 		t.Fatalf("创建用户失败: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestUserService_CreateUser_RejectsSuperAdminRole(t *testing.T) {
 		t.Fatalf("创建超级管理员角色失败: %v", err)
 	}
 
-	_, err = svc.CreateUser(ctx, &CreateUserRequest{
+	_, err = svc.CreateUser(ctx, nil, &CreateUserRequest{
 		Email:         "forbidden-role@test.com",
 		Password:      "Tt!12345",
 		Username:      "forbiddenrole",
@@ -193,7 +193,7 @@ func TestUserService_CreateUser_EmailExists(t *testing.T) {
 		Username: "newuser",
 	}
 
-	_, err := svc.CreateUser(ctx, req)
+	_, err := svc.CreateUser(ctx, nil, req)
 	if err == nil {
 		t.Fatal("期望返回错误，但未返回")
 	}

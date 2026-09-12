@@ -13,6 +13,7 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/loginlog"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/oauthproviderconfig"
@@ -670,6 +671,54 @@ func init() {
 	dictdata.DefaultUpdatedAt = dictdataDescUpdatedAt.Default.(func() time.Time)
 	// dictdata.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	dictdata.UpdateDefaultUpdatedAt = dictdataDescUpdatedAt.UpdateDefault.(func() time.Time)
+	loginlogFields := schema.LoginLog{}.Fields()
+	_ = loginlogFields
+	// loginlogDescUsername is the schema descriptor for username field.
+	loginlogDescUsername := loginlogFields[1].Descriptor()
+	// loginlog.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
+	loginlog.UsernameValidator = func() func(string) error {
+		validators := loginlogDescUsername.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(username string) error {
+			for _, fn := range fns {
+				if err := fn(username); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// loginlogDescUserID is the schema descriptor for user_id field.
+	loginlogDescUserID := loginlogFields[2].Descriptor()
+	// loginlog.DefaultUserID holds the default value on creation for the user_id field.
+	loginlog.DefaultUserID = loginlogDescUserID.Default.(int)
+	// loginlogDescMessage is the schema descriptor for message field.
+	loginlogDescMessage := loginlogFields[5].Descriptor()
+	// loginlog.MessageValidator is a validator for the "message" field. It is called by the builders before save.
+	loginlog.MessageValidator = loginlogDescMessage.Validators[0].(func(string) error)
+	// loginlogDescIP is the schema descriptor for ip field.
+	loginlogDescIP := loginlogFields[6].Descriptor()
+	// loginlog.IPValidator is a validator for the "ip" field. It is called by the builders before save.
+	loginlog.IPValidator = loginlogDescIP.Validators[0].(func(string) error)
+	// loginlogDescUserAgent is the schema descriptor for user_agent field.
+	loginlogDescUserAgent := loginlogFields[7].Descriptor()
+	// loginlog.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	loginlog.UserAgentValidator = loginlogDescUserAgent.Validators[0].(func(string) error)
+	// loginlogDescBrowser is the schema descriptor for browser field.
+	loginlogDescBrowser := loginlogFields[8].Descriptor()
+	// loginlog.BrowserValidator is a validator for the "browser" field. It is called by the builders before save.
+	loginlog.BrowserValidator = loginlogDescBrowser.Validators[0].(func(string) error)
+	// loginlogDescOs is the schema descriptor for os field.
+	loginlogDescOs := loginlogFields[9].Descriptor()
+	// loginlog.OsValidator is a validator for the "os" field. It is called by the builders before save.
+	loginlog.OsValidator = loginlogDescOs.Validators[0].(func(string) error)
+	// loginlogDescCreatedAt is the schema descriptor for created_at field.
+	loginlogDescCreatedAt := loginlogFields[10].Descriptor()
+	// loginlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	loginlog.DefaultCreatedAt = loginlogDescCreatedAt.Default.(func() time.Time)
 	messageFields := schema.Message{}.Fields()
 	_ = messageFields
 	// messageDescUserUID is the schema descriptor for user_uid field.
@@ -1477,6 +1526,10 @@ func init() {
 	userDescLastIP := userFields[12].Descriptor()
 	// user.LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
 	user.LastIPValidator = userDescLastIP.Validators[0].(func(string) error)
+	// userDescTokenVersion is the schema descriptor for token_version field.
+	userDescTokenVersion := userFields[13].Descriptor()
+	// user.DefaultTokenVersion holds the default value on creation for the token_version field.
+	user.DefaultTokenVersion = userDescTokenVersion.Default.(int)
 	userroleMixin := schema.UserRole{}.Mixin()
 	userroleMixinFields0 := userroleMixin[0].Fields()
 	_ = userroleMixinFields0

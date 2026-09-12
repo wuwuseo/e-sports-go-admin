@@ -79,12 +79,14 @@ func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*Toke
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
+			s.recordLoginAttempt(ctx, account, 0, false, "账号不存在")
 			return nil, ErrAdminNotFound
 		}
 		return nil, err
 	}
 
 	if a.Status != admin.StatusActive {
+		s.recordLoginAttempt(ctx, account, a.ID, false, "账号已禁用")
 		return nil, ErrInvalidAdminStatus
 	}
 
@@ -93,6 +95,7 @@ func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*Toke
 		return nil, err
 	}
 	if !match {
+		s.recordLoginAttempt(ctx, account, a.ID, false, "密码错误")
 		return nil, ErrInvalidAdminPassword
 	}
 
@@ -103,14 +106,21 @@ func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*Toke
 		time.Duration(config.App.AdminLoginExpires)*time.Second,
 		time.Duration(config.App.AdminRefreshExpires)*time.Second,
 		time.Now,
+		0,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err = s.client.Admin.UpdateOne(a).SetLastLogin(time.Now()).Save(ctx); err != nil {
+	// 登录成功补写最近登录时间与来源 IP（来源 IP 从登录元数据上下文获取）
+	update := s.client.Admin.UpdateOne(a).SetLastLogin(time.Now())
+	if meta, ok := loginMetaFromContext(ctx); ok && meta.IP != "" {
+		update = update.SetLastIP(meta.IP)
+	}
+	if _, err = update.Save(ctx); err != nil {
 		return nil, err
 	}
+	s.recordLoginAttempt(ctx, a.Username, a.ID, true, "")
 
 	// 登录成功后清除退出标记，确保新令牌不被旧的 logout 记录阻断
 	if s.blacklistSvc != nil {
@@ -118,6 +128,34 @@ func (s *AdminService) Login(ctx context.Context, req *AdminLoginRequest) (*Toke
 	}
 
 	return tokens, nil
+}
+
+// recordLoginAttempt 记录登录成败日志。
+// 仅当请求上下文携带登录元数据（HTTP 登录入口注入）时记录；
+// 内部调用与单测上下文无元数据，跳过写入。
+func (s *AdminService) recordLoginAttempt(ctx context.Context, account string, userID int, success bool, message string) {
+	meta, ok := loginMetaFromContext(ctx)
+	if !ok || (meta.IP == "" && meta.UserAgent == "") {
+		return
+	}
+	svc := defaultLoginLogService.Load()
+	if svc == nil {
+		return
+	}
+	entry := &LoginLogEntry{
+		Username:  account,
+		UserID:    userID,
+		LoginType: "admin",
+		IP:        meta.IP,
+		UserAgent: meta.UserAgent,
+	}
+	if success {
+		entry.Status = "success"
+	} else {
+		entry.Status = "fail"
+		entry.Message = message
+	}
+	_ = svc.Record(context.WithoutCancel(ctx), entry)
 }
 
 // RefreshToken 刷新管理员令牌

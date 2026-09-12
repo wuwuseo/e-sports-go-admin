@@ -12,6 +12,7 @@ import (
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/oauthsession"
+	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/thirdpartyuser"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/ent/userrole"
@@ -24,6 +25,8 @@ import (
 	cmfConfig "github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/crypto"
 	cmfJwt "github.com/wuwuseo/cmf/jwt"
+	"github.com/wuwuseo/cmf/log"
+	"go.uber.org/zap"
 )
 
 var (
@@ -40,10 +43,12 @@ type UserServiceInterface interface {
 	Login(ctx context.Context, req *LoginRequest) (*TokenResponse, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*TokenResponse, error)
 	GetUserByUID(ctx context.Context, uid string) (*UserResponse, error)
+	GetUserByID(ctx context.Context, id int) (*UserResponse, error)
 	UpdateUser(ctx context.Context, uid string, updates map[string]interface{}) error
 	ChangePassword(ctx context.Context, uid string, oldPassword, newPassword string) error
 	Logout(ctx context.Context, uid string) error
-	CreateUser(ctx context.Context, req *CreateUserRequest) (*UserResponse, error)
+	CreateUser(ctx context.Context, op *EffectiveDataScope, req *CreateUserRequest) (*UserResponse, error)
+	ResetManagedUserPassword(ctx context.Context, id int) (string, error)
 	UpdateManagedUser(ctx context.Context, id int, req *UpdateManagedUserRequest) error
 	DeleteManagedUser(ctx context.Context, id int, operatorUID string) error
 }
@@ -185,13 +190,21 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 }
 
 // CreateUser 管理员创建用户
-func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*UserResponse, error) {
+func (s *UserService) CreateUser(ctx context.Context, op *EffectiveDataScope, req *CreateUserRequest) (*UserResponse, error) {
 	// 校验密码强度（复杂度要求）
 	if err := utils.ValidatePasswordStrength(req.Password); err != nil {
 		return nil, err
 	}
 
 	if err := rejectSuperAdminRoleIDs(ctx, s.client, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
+		return nil, err
+	}
+	domain := permissionDomainForScope(op)
+	operatorUID := ""
+	if op != nil {
+		operatorUID = op.AdminUID
+	}
+	if err := ensureRolePermissionsNotEscalating(ctx, s.client, op, operatorUID, domain, requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID)); err != nil {
 		return nil, err
 	}
 
@@ -218,23 +231,103 @@ func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*
 		return nil, err
 	}
 
-	create := s.client.User.Create().
-		SetEmail(req.Email).
-		SetPassword(hashedPassword).
-		SetPasswordSalt(salt).
-		SetUsername(req.Username).
-		SetUID(utils.GenerateUID()).
-		SetStatus(user.StatusInactive)
-	if req.Nickname != "" {
-		create.SetNickname(req.Nickname)
-	}
-	if req.Phone != "" {
-		create.SetPhone(req.Phone)
+	// 角色预校验：无效/停用角色直接拒绝，避免创建出"用户已存在但没有角色"的半成品
+	roleIDs := dedupeRoleIDs(requestedRoleIDs(req.RoleIDs, req.PrimaryRoleID))
+	var roles []*ent.Role
+	primaryRoleID := 0
+	if len(roleIDs) > 0 {
+		if req.PrimaryRoleID != 0 && !containsInt(req.RoleIDs, req.PrimaryRoleID) {
+			return nil, ErrPrimaryRoleInvalid
+		}
+		roles, err = s.client.Role.Query().
+			Where(role.IDIn(roleIDs...)).
+			All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(roles) != len(roleIDs) {
+			return nil, ErrInvalidRoleIDs
+		}
+		for _, r := range roles {
+			if r.Status != role.StatusActive {
+				return nil, ErrInvalidRoleIDs
+			}
+		}
+		primaryRoleID = req.PrimaryRoleID
+		if primaryRoleID == 0 {
+			primaryRoleID = req.RoleIDs[0]
+		}
 	}
 
-	u, err := create.Save(ctx)
-	if err != nil {
-		return nil, err
+	var u *ent.User
+	if len(roles) > 0 {
+		// 用户创建与角色绑定同事务，保证管理端一次请求即可得到可用的账号
+		tx, txErr := s.client.Tx(ctx)
+		if txErr != nil {
+			return nil, fmt.Errorf("开启事务失败: %w", txErr)
+		}
+		creator := tx.User.Create().
+			SetEmail(req.Email).
+			SetPassword(hashedPassword).
+			SetPasswordSalt(salt).
+			SetUsername(req.Username).
+			SetUID(utils.GenerateUID()).
+			SetStatus(user.StatusInactive)
+		if req.Nickname != "" {
+			creator = creator.SetNickname(req.Nickname)
+		}
+		if req.Phone != "" {
+			creator = creator.SetPhone(req.Phone)
+		}
+		u, txErr = creator.Save(ctx)
+		if txErr != nil {
+			_ = tx.Rollback()
+			return nil, txErr
+		}
+		for _, r := range roles {
+			if _, txErr = tx.UserRole.Create().
+				SetUserID(u.ID).
+				SetRoleID(r.ID).
+				SetIsPrimary(r.ID == primaryRoleID).
+				Save(ctx); txErr != nil {
+				_ = tx.Rollback()
+				return nil, fmt.Errorf("分配角色失败: %w", txErr)
+			}
+		}
+		if txErr = tx.Commit(); txErr != nil {
+			return nil, fmt.Errorf("提交事务失败: %w", txErr)
+		}
+	} else {
+		create := s.client.User.Create().
+			SetEmail(req.Email).
+			SetPassword(hashedPassword).
+			SetPasswordSalt(salt).
+			SetUsername(req.Username).
+			SetUID(utils.GenerateUID()).
+			SetStatus(user.StatusInactive)
+		if req.Nickname != "" {
+			create.SetNickname(req.Nickname)
+		}
+		if req.Phone != "" {
+			create.SetPhone(req.Phone)
+		}
+		u, err = create.Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Casbin g 同步：新账号无历史角色，追加即可；失败仅记录日志（与 CreateAdmin 行为一致）
+	if len(roles) > 0 && global.EnforcerManager != nil {
+		if enforcer, enfErr := global.EnforcerManager.GetEnforcer(domain); enfErr == nil {
+			roleNames := make([]string, 0, len(roles))
+			for _, r := range roles {
+				roleNames = append(roleNames, r.Name)
+			}
+			if err := addCasbinUserRoles(enforcer, u.UID, domain, roleNames); err != nil {
+				log.Error("CreateUser 同步 Casbin 角色失败", zap.String("uid", u.UID), zap.Error(err))
+			}
+		}
 	}
 
 	return &UserResponse{
@@ -270,6 +363,7 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 		Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
+			s.recordLoginAttempt(ctx, req.Email, 0, false, "账号不存在")
 			return nil, ErrUserNotFound
 		}
 		return nil, err
@@ -277,11 +371,13 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 
 	// 检查用户状态
 	if u.Status != user.StatusActive {
+		s.recordLoginAttempt(ctx, req.Email, u.ID, false, "账号已禁用")
 		return nil, ErrInvalidUserStatus
 	}
 
 	// 验证密码
 	if u.Password == "" {
+		s.recordLoginAttempt(ctx, req.Email, u.ID, false, "密码错误")
 		return nil, ErrInvalidPassword
 	}
 
@@ -290,6 +386,7 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 		return nil, err
 	}
 	if !match {
+		s.recordLoginAttempt(ctx, req.Email, u.ID, false, "密码错误")
 		return nil, ErrInvalidPassword
 	}
 	configService, _ := global.Bootstrap.GetService("config")
@@ -299,15 +396,99 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 		time.Duration(config.App.LoginExpires)*time.Second,
 		time.Duration(config.App.RefreshExpires)*time.Second,
 		time.Now,
+		u.TokenVersion,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err = s.client.User.UpdateOne(u).SetLastLogin(time.Now()).Save(ctx); err != nil {
+	// 登录成功补写最近登录时间与来源 IP（来源 IP 从登录元数据上下文获取）
+	update := s.client.User.UpdateOne(u).SetLastLogin(time.Now())
+	if meta, ok := loginMetaFromContext(ctx); ok && meta.IP != "" {
+		update = update.SetLastIP(meta.IP)
+	}
+	if _, err = update.Save(ctx); err != nil {
 		return nil, err
 	}
+	s.recordLoginAttempt(ctx, u.Username, u.ID, true, "")
 	return tokens, nil
+}
+
+// resetPasswordLength 管理员初始化密码的临时密码长度
+const resetPasswordLength = 16
+
+// ResetManagedUserPassword 管理员初始化用户密码：
+// 生成随机强密码（一次性返回给操作者），旧密码即行失效并吊销该用户全部令牌。
+func (s *UserService) ResetManagedUserPassword(ctx context.Context, id int) (string, error) {
+	u, err := s.client.User.Query().
+		Where(user.IDEQ(id)).
+		Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return "", ErrUserNotFound
+		}
+		return "", err
+	}
+
+	newPwd, err := utils.GenerateStrongPassword(resetPasswordLength)
+	if err != nil {
+		return "", err
+	}
+	hashedPassword, salt, err := crypto.HashPassword(newPwd)
+	if err != nil {
+		return "", err
+	}
+	if _, err = s.client.User.UpdateOne(u).
+		SetPassword(hashedPassword).
+		SetPasswordSalt(salt).
+		AddTokenVersion(1).
+		Save(ctx); err != nil {
+		return "", err
+	}
+
+	return newPwd, nil
+}
+
+// dedupeRoleIDs 去除重复的角色 ID，保持原有顺序
+func dedupeRoleIDs(roleIDs []int) []int {
+	seen := make(map[int]struct{}, len(roleIDs))
+	unique := make([]int, 0, len(roleIDs))
+	for _, id := range roleIDs {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	return unique
+}
+
+// recordLoginAttempt 记录前台用户登录成败日志。
+// 仅当请求上下文携带登录元数据（HTTP 登录入口注入）时记录；
+// 内部调用与单测上下文无元数据，跳过写入。
+func (s *UserService) recordLoginAttempt(ctx context.Context, account string, userID int, success bool, message string) {
+	meta, ok := loginMetaFromContext(ctx)
+	if !ok || (meta.IP == "" && meta.UserAgent == "") {
+		return
+	}
+	svc := defaultLoginLogService.Load()
+	if svc == nil {
+		return
+	}
+	entry := &LoginLogEntry{
+		Username:  account,
+		UserID:    userID,
+		LoginType: "user",
+		IP:        meta.IP,
+		UserAgent: meta.UserAgent,
+	}
+	if success {
+		entry.Status = "success"
+	} else {
+		entry.Status = "fail"
+		entry.Message = message
+	}
+	_ = svc.Record(context.WithoutCancel(ctx), entry)
 }
 
 // GetUserByID 根据ID获取用户信息
@@ -449,6 +630,9 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 	if u.Status != user.StatusActive {
 		return nil, ErrInvalidUserStatus
 	}
+	if !utils.TokenVersionMatches(claims["token_version"], u.TokenVersion) {
+		return nil, errors.New("refresh token has been revoked")
+	}
 
 	// 生成新的访问令牌
 	expiresAt := time.Now().Add(time.Duration(config.(*cmfConfig.Config).App.LoginExpires) * time.Second)
@@ -458,13 +642,14 @@ func (s *UserService) RefreshToken(ctx context.Context, refreshToken string) (*T
 	}
 
 	accessClaims := jwt.MapClaims{
-		"id":         u.UID,
-		"subject":    u.Username,
-		"issuer":     config.(*cmfConfig.Config).App.Name,
-		"domain":     domain,
-		"expires":    jwt.NewNumericDate(expiresAt),
-		"issued_at":  jwt.NewNumericDate(time.Now()),
-		"token_type": "access",
+		"id":            u.UID,
+		"subject":       u.Username,
+		"issuer":        config.(*cmfConfig.Config).App.Name,
+		"domain":        domain,
+		"expires":       jwt.NewNumericDate(expiresAt),
+		"issued_at":     jwt.NewNumericDate(time.Now()),
+		"token_type":    "access",
+		"token_version": u.TokenVersion,
 	}
 
 	newAccessToken, err := cmfJwt.CreateToken(accessClaims, secret)
@@ -517,6 +702,7 @@ func (s *UserService) ChangePassword(ctx context.Context, uid string, oldPasswor
 	_, err = s.client.User.UpdateOne(u).
 		SetPassword(hashedPassword).
 		SetPasswordSalt(salt).
+		AddTokenVersion(1).
 		Save(ctx)
 
 	return err
@@ -579,7 +765,7 @@ func (s *UserService) UpdateManagedUser(ctx context.Context, id int, req *Update
 		if err != nil {
 			return err
 		}
-		update.SetPassword(hash).SetPasswordSalt(salt)
+		update.SetPassword(hash).SetPasswordSalt(salt).AddTokenVersion(1)
 	}
 
 	_, err = update.Save(ctx)

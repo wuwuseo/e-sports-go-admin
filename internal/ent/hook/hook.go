@@ -128,6 +128,18 @@ func (f DictDataFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DictDataMutation", m)
 }
 
+// The LoginLogFunc type is an adapter to allow the use of ordinary
+// function as LoginLog mutator.
+type LoginLogFunc func(context.Context, *ent.LoginLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LoginLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LoginLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoginLogMutation", m)
+}
+
 // The MessageFunc type is an adapter to allow the use of ordinary
 // function as Message mutator.
 type MessageFunc func(context.Context, *ent.MessageMutation) (ent.Value, error)

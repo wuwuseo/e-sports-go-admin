@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
@@ -11,6 +12,7 @@ import (
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	"github.com/wuwuseo/cmf/jwt"
 )
 
@@ -27,7 +29,7 @@ func BlacklistCheck(blacklistSvc service.BlacklistServiceInterface, accountTypes
 			return c.Next()
 		}
 		if len(accountTypes) > 0 {
-			active, err := accountIsActive(c.Context(), uid, accountTypes[0])
+			active, err := accountIsActive(c.Context(), uid, accountTypes[0], claims)
 			if err != nil {
 				response := utils.NewResponse()
 				return response.Fail(global.ResponseInternalServerError, "账号状态校验异常").ToJSON(c)
@@ -64,7 +66,7 @@ func BlacklistCheck(blacklistSvc service.BlacklistServiceInterface, accountTypes
 	}
 }
 
-func accountIsActive(ctx context.Context, uid, accountType string) (bool, error) {
+func accountIsActive(ctx context.Context, uid, accountType string, claims jwtlib.MapClaims) (bool, error) {
 	if global.ORM == nil {
 		return false, errors.New("account store unavailable")
 	}
@@ -75,10 +77,16 @@ func accountIsActive(ctx context.Context, uid, accountType string) (bool, error)
 			Exist(ctx)
 		return exists, err
 	case "user":
-		exists, err := global.ORM.User.Query().
+		u, err := global.ORM.User.Query().
 			Where(user.UIDEQ(uid), user.StatusEQ(user.StatusActive)).
-			Exist(ctx)
-		return exists, err
+			Only(ctx)
+		if ent.IsNotFound(err) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return utils.TokenVersionMatches(claims["token_version"], u.TokenVersion), nil
 	default:
 		return false, errors.New("unsupported account type")
 	}

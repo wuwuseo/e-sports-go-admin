@@ -44,6 +44,8 @@ const (
 	FieldLastLogin = "last_login"
 	// FieldLastIP holds the string denoting the last_ip field in the database.
 	FieldLastIP = "last_ip"
+	// FieldTokenVersion holds the string denoting the token_version field in the database.
+	FieldTokenVersion = "token_version"
 )
 
 // Table holds the table name of the user in the database.
@@ -68,6 +70,7 @@ var Columns = []string{
 	FieldStatus,
 	FieldLastLogin,
 	FieldLastIP,
+	FieldTokenVersion,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -107,6 +110,8 @@ var (
 	PhoneValidator func(string) error
 	// LastIPValidator is a validator for the "last_ip" field. It is called by the builders before save.
 	LastIPValidator func(string) error
+	// DefaultTokenVersion holds the default value on creation for the "token_version" field.
+	DefaultTokenVersion int
 )
 
 // Status defines the type for the "status" enum field.
@@ -212,4 +217,9 @@ func ByLastLogin(opts ...sql.OrderTermOption) OrderOption {
 // ByLastIP orders the results by the last_ip field.
 func ByLastIP(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastIP, opts...).ToFunc()
+}
+
+// ByTokenVersion orders the results by the token_version field.
+func ByTokenVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTokenVersion, opts...).ToFunc()
 }

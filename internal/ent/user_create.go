@@ -208,6 +208,20 @@ func (_c *UserCreate) SetNillableLastIP(v *string) *UserCreate {
 	return _c
 }
 
+// SetTokenVersion sets the "token_version" field.
+func (_c *UserCreate) SetTokenVersion(v int) *UserCreate {
+	_c.mutation.SetTokenVersion(v)
+	return _c
+}
+
+// SetNillableTokenVersion sets the "token_version" field if the given value is not nil.
+func (_c *UserCreate) SetNillableTokenVersion(v *int) *UserCreate {
+	if v != nil {
+		_c.SetTokenVersion(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *UserCreate) SetID(v int) *UserCreate {
 	_c.mutation.SetID(v)
@@ -260,6 +274,10 @@ func (_c *UserCreate) defaults() {
 	if _, ok := _c.mutation.Status(); !ok {
 		v := user.DefaultStatus
 		_c.mutation.SetStatus(v)
+	}
+	if _, ok := _c.mutation.TokenVersion(); !ok {
+		v := user.DefaultTokenVersion
+		_c.mutation.SetTokenVersion(v)
 	}
 }
 
@@ -331,6 +349,9 @@ func (_c *UserCreate) check() error {
 		if err := user.LastIPValidator(v); err != nil {
 			return &ValidationError{Name: "last_ip", err: fmt.Errorf(`ent: validator failed for field "User.last_ip": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.TokenVersion(); !ok {
+		return &ValidationError{Name: "token_version", err: errors.New(`ent: missing required field "User.token_version"`)}
 	}
 	return nil
 }
@@ -419,6 +440,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.LastIP(); ok {
 		_spec.SetField(user.FieldLastIP, field.TypeString, value)
 		_node.LastIP = value
+	}
+	if value, ok := _c.mutation.TokenVersion(); ok {
+		_spec.SetField(user.FieldTokenVersion, field.TypeInt, value)
+		_node.TokenVersion = value
 	}
 	return _node, _spec
 }

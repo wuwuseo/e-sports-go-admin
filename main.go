@@ -12,7 +12,8 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
 
-	_ "go-admin/internal/tasks" // 触发 init() 注册 Go tasks
+	_ "go-admin/internal/tasks"            // 触发 init() 注册 Go tasks
+	_ "go-admin/internal/tasks/logcleanup" // 注册过期日志清理任务
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/wuwuseo/cmf/bootstrap"

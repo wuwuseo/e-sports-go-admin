@@ -16,6 +16,7 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/loginlog"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
 	"go-admin/internal/ent/oauthproviderconfig"
@@ -104,6 +105,7 @@ func checkColumn(t, c string) error {
 			cronjob.Table:             cronjob.ValidColumn,
 			department.Table:          department.ValidColumn,
 			dictdata.Table:            dictdata.ValidColumn,
+			loginlog.Table:            loginlog.ValidColumn,
 			message.Table:             message.ValidColumn,
 			messagepreference.Table:   messagepreference.ValidColumn,
 			oauthproviderconfig.Table: oauthproviderconfig.ValidColumn,

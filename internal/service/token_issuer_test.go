@@ -19,7 +19,7 @@ func TestCreateTokenPairUsesSeparateAccessAndRefreshTimes(t *testing.T) {
 		calls++
 		return value
 	}
-	pair, err := createTokenPair("uid", "subject", "issuer", "secret", time.Hour, 2*time.Hour, now)
+	pair, err := createTokenPair("uid", "subject", "issuer", "secret", time.Hour, 2*time.Hour, now, 0)
 	if err != nil {
 		t.Fatalf("createTokenPair() error = %v", err)
 	}
@@ -53,7 +53,7 @@ func TestCreateTokenPairUsesSeparateAccessAndRefreshTimes(t *testing.T) {
 func TestCreateTokenPair_EmptySecret(t *testing.T) {
 	now := time.Now
 	// 空密钥会被接受但生成无效签名的token
-	pair, err := createTokenPair("uid", "subject", "issuer", "", time.Hour, 2*time.Hour, now)
+	pair, err := createTokenPair("uid", "subject", "issuer", "", time.Hour, 2*time.Hour, now, 0)
 	if err != nil {
 		t.Fatalf("empty secret should not error in CMF jwt: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestCreateTokenPair_EmptySecret(t *testing.T) {
 func TestCreateTokenPair_ZeroDuration(t *testing.T) {
 	now := time.Now
 	// ponytail: 零时长token虽然合法但立即过期,需验证行为一致性
-	pair, err := createTokenPair("uid", "subject", "issuer", "secret", 0, 0, now)
+	pair, err := createTokenPair("uid", "subject", "issuer", "secret", 0, 0, now, 0)
 	if err != nil {
 		t.Fatalf("zero duration token creation: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestCreateTokenPair_ZeroDuration(t *testing.T) {
 // TestCreateTokenPair_DomainIsDefault 验证domain字段默认值
 func TestCreateTokenPair_DomainIsDefault(t *testing.T) {
 	now := time.Now
-	pair, err := createTokenPair("uid", "subject", "issuer", "secret", time.Hour, 2*time.Hour, now)
+	pair, err := createTokenPair("uid", "subject", "issuer", "secret", time.Hour, 2*time.Hour, now, 0)
 	if err != nil {
 		t.Fatalf("createTokenPair: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestCreateTokenPairUsesConfiguredPermissionDomain(t *testing.T) {
 	global.Bootstrap = bs
 	t.Cleanup(func() { global.Bootstrap = previousBootstrap })
 
-	pair, err := createTokenPair("uid", "subject", "issuer", "secret", time.Hour, 2*time.Hour, time.Now)
+	pair, err := createTokenPair("uid", "subject", "issuer", "secret", time.Hour, 2*time.Hour, time.Now, 0)
 	if err != nil {
 		t.Fatalf("createTokenPair: %v", err)
 	}

@@ -60,6 +60,13 @@ func Cleanup() error {
 	}
 	log.Info("操作日志服务已停止")
 
+	// 优雅关闭登录日志服务（在关闭 DB 之前）
+	if err := service.ShutdownDefaultLoginLogService(operationLogCtx); err != nil {
+		log.Error("登录日志服务关闭失败", zap.Error(err))
+		return errors.Join(pluginCloseErr, err)
+	}
+	log.Info("登录日志服务已停止")
+
 	// 清理 Wire 注入的数据库连接池
 	if appInstance != nil && appInstance.DB != nil {
 		if err := appInstance.DB.Close(); err != nil {

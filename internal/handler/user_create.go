@@ -34,7 +34,12 @@ func CreateUser(c fiber.Ctx) error {
 	}
 
 	userService := c.Locals("service.UserService").(service.UserServiceInterface)
-	result, err := userService.CreateUser(c.Context(), req)
+	dataPermSvc := c.Locals("service.DataPermissionService").(*service.DataPermissionService)
+	op, err := dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+	if err != nil {
+		return mapOperatorContextError(c, response, err, "创建用户失败")
+	}
+	result, err := userService.CreateUser(c.Context(), op, req)
 	if err != nil {
 		switch err {
 		case service.ErrEmailExists:
@@ -43,6 +48,10 @@ func CreateUser(c fiber.Ctx) error {
 			return response.Fail(global.ResponseErrorCode, "该用户名已存在").ToJSON(c)
 		case service.ErrSuperAdminRoleAssignmentForbidden:
 			return response.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+		case service.ErrRoleScopeEscalation:
+			return response.Fail(global.ResponseRoleScopeEscalation, err.Error()).ToJSON(c)
+		case service.ErrInvalidRoleIDs, service.ErrPrimaryRoleInvalid:
+			return response.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
 		default:
 			return response.Fail(global.ResponseInternalServerError, "创建用户失败: "+err.Error()).ToJSON(c)
 		}

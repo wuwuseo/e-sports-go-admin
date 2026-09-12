@@ -816,9 +816,28 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 174
+	const wantCount = 177
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
+	}
+}
+
+func TestInitSystemPermissions_IncludesLoginLogSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	expected := []seedPermissionExpectation{
+		{Code: "system:login-log", Type: "menu", MenuPath: "/system/login-log", ParentCode: "system"},
+		{Code: "login-log:list", Type: "api", Path: "/api/v1/admin/auth/login-logs", Method: "GET", ParentCode: "system:login-log"},
+		{Code: "login-log:get", Type: "api", Path: "/api/v1/admin/auth/login-logs/{id}", Method: "GET", ParentCode: "system:login-log"},
+	}
+
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
 	}
 }
 

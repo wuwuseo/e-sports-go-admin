@@ -12,16 +12,65 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
+	"go-admin/internal/service"
 
 	"github.com/gofiber/fiber/v3"
+	jwtlib "github.com/golang-jwt/jwt/v5"
 	_ "github.com/mattn/go-sqlite3"
 	cmfjwt "github.com/wuwuseo/cmf/jwt"
 )
+
+func TestBlacklistCheck_RejectsTokensAfterPasswordReset(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:reset-access?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	t.Cleanup(func() { client.Close() })
+	previous := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = previous })
+	u := client.User.Create().SetUID("reset-access").SetUsername("resetaccess").SetEmail("reset-access@example.com").SetStatus(user.StatusActive).SaveX(t.Context())
+	app := fiber.New()
+	app.Use(cmfjwt.NewJWTMiddleware(blacklistTestSecret), BlacklistCheck(nil, "user"))
+	app.Get("/protected", func(c fiber.Ctx) error { return c.JSON(fiber.Map{"code": global.ResponseSuccessCode}) })
+	request := func(raw string, want int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+		req.Header.Set("Authorization", "Bearer "+raw)
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if code, _ := readRespCode(t, resp); code != want {
+			t.Fatalf("code=%d want=%d", code, want)
+		}
+	}
+	legacy := makeBlacklistTestToken(t, u.UID)
+	request(legacy, global.ResponseSuccessCode)
+	if _, err := service.NewUserService().ResetManagedUserPassword(t.Context(), u.ID); err != nil {
+		t.Fatal(err)
+	}
+	request(legacy, global.ResponseUnauthorized)
+	for _, tc := range []struct {
+		version any
+		want    int
+	}{
+		{float64(0), global.ResponseUnauthorized},
+		{float64(1), global.ResponseSuccessCode},
+		{"1", global.ResponseUnauthorized},
+		{float64(1.5), global.ResponseUnauthorized},
+	} {
+		token, err := cmfjwt.CreateToken(jwtlib.MapClaims{"id": u.UID, "exp": time.Now().Add(time.Hour).Unix(), "token_version": tc.version}, blacklistTestSecret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request(token, tc.want)
+	}
+}
 
 // TestBlacklistCheck_RejectsInactiveUserAccount 验证 accountIsActive
 // 在 accountType="user" 时也按 status=active 严格过滤。
@@ -189,7 +238,7 @@ func TestAccountIsActive_NilORMReturnsError(t *testing.T) {
 	global.ORM = nil
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	_, err := accountIsActive(context.Background(), "uid-x", "admin")
+	_, err := accountIsActive(context.Background(), "uid-x", "admin", nil)
 	if err == nil {
 		t.Fatal("ORM 为 nil 时应返回非 nil 错误")
 	}
@@ -205,7 +254,7 @@ func TestAccountIsActive_UnknownTypeReturnsError(t *testing.T) {
 	global.ORM = client
 	t.Cleanup(func() { global.ORM = prevORM })
 
-	_, err := accountIsActive(context.Background(), "uid-x", "moderator")
+	_, err := accountIsActive(context.Background(), "uid-x", "moderator", nil)
 	if err == nil {
 		t.Fatal("未知 accountType 应返回非 nil 错误")
 	}

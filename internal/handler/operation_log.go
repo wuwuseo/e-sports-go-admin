@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"go-admin/internal/global"
 	"go-admin/internal/service"
@@ -15,6 +16,9 @@ import (
 
 // logOperation 记录操作日志的辅助函数
 // extraRedactKeys 用于指定额外需要脱敏的字段名（如配置项的 value 字段）
+//
+// 状态码取自当前响应的真实状态码；耗时取自路由链上注入的 audit_started_at
+// （router.go 在 adminAuthBase 的 locals 中间件中写入），两者皆缺省时保持旧默认。
 func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, module, action, description string, extraRedactKeys ...string) {
 	claims := jwt.GetJWTUserData(c)
 	userUID := ""
@@ -39,8 +43,25 @@ func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, 
 		Path:        c.Path(),
 		IP:          c.IP(),
 		UserAgent:   c.Get("User-Agent"),
-		StatusCode:  200,
+		StatusCode:  operationLogStatus(c),
+		DurationMs:  operationLogDurationMs(c),
 	})
+}
+
+// operationLogStatus 返回当前响应的真实状态码；响应尚未写出时回退 200
+func operationLogStatus(c fiber.Ctx) int {
+	if code := c.Response().StatusCode(); code > 0 {
+		return code
+	}
+	return 200
+}
+
+// operationLogDurationMs 返回请求开始到当前的毫秒数；无法取到开始时间时返回 0
+func operationLogDurationMs(c fiber.Ctx) int64 {
+	if start, ok := c.Locals("audit_started_at").(time.Time); ok {
+		return time.Since(start).Milliseconds()
+	}
+	return 0
 }
 
 // ListOperationLogs 获取操作日志列表

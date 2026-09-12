@@ -402,6 +402,53 @@ var (
 			},
 		},
 	}
+	// LoginLogsColumns holds the columns for the "login_logs" table.
+	LoginLogsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "username", Type: field.TypeString, Size: 255},
+		{Name: "user_id", Type: field.TypeInt, Default: 0},
+		{Name: "login_type", Type: field.TypeEnum, Enums: []string{"user", "admin"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"success", "fail"}},
+		{Name: "message", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "ip", Type: field.TypeString, Size: 50},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true, Size: 1024},
+		{Name: "browser", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "os", Type: field.TypeString, Nullable: true, Size: 100},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// LoginLogsTable holds the schema information for the "login_logs" table.
+	LoginLogsTable = &schema.Table{
+		Name:       TablePrefix + "login_logs",
+		Columns:    LoginLogsColumns,
+		PrimaryKey: []*schema.Column{LoginLogsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "loginlog_username",
+				Unique:  false,
+				Columns: []*schema.Column{LoginLogsColumns[1]},
+			},
+			{
+				Name:    "loginlog_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{LoginLogsColumns[2]},
+			},
+			{
+				Name:    "loginlog_login_type",
+				Unique:  false,
+				Columns: []*schema.Column{LoginLogsColumns[3]},
+			},
+			{
+				Name:    "loginlog_status",
+				Unique:  false,
+				Columns: []*schema.Column{LoginLogsColumns[4]},
+			},
+			{
+				Name:    "loginlog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{LoginLogsColumns[10]},
+			},
+		},
+	}
 	// MessagesColumns holds the columns for the "messages" table.
 	MessagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -834,6 +881,7 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "inactive", "suspended"}, Default: "inactive"},
 		{Name: "last_login", Type: field.TypeTime, Nullable: true},
 		{Name: "last_ip", Type: field.TypeString, Nullable: true, Size: 50},
+		{Name: "token_version", Type: field.TypeInt, Default: 0},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
@@ -922,6 +970,7 @@ var (
 		CronJobsTable,
 		DepartmentsTable,
 		DictDataTable,
+		LoginLogsTable,
 		MessagesTable,
 		MessagePreferencesTable,
 		OauthProviderConfigsTable,

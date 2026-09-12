@@ -945,6 +945,10 @@ func InitSystemPermissions(ctx context.Context) error {
 		SeedPermission{ID: 177, Domain: "default", Type: "button", Name: "用户管理-分配角色按钮", Code: "user:assign-role", ParentID: 160, SortOrder: 3, IsCommon: false, Status: 1, Description: "用户管理页面分配角色按钮"},
 		SeedPermission{ID: 178, Domain: "default", Type: "button", Name: "用户管理-启用按钮", Code: "user:activate-btn", ParentID: 160, SortOrder: 4, IsCommon: false, Status: 1, Description: "用户管理页面启用按钮"},
 		SeedPermission{ID: 179, Domain: "default", Type: "button", Name: "用户管理-禁用按钮", Code: "user:deactivate-btn", ParentID: 160, SortOrder: 5, IsCommon: false, Status: 1, Description: "用户管理页面禁用按钮"},
+		// 登录日志（菜单/API）
+		SeedPermission{ID: 180, Domain: "default", Type: "menu", Name: "登录日志", Code: "system:login-log", MenuPath: "/system/login-log", Component: "system/login-log/index", ParentID: 3, SortOrder: 13, IsCommon: false, Status: 1, Description: "登录日志页面"},
+		SeedPermission{ID: 181, Domain: "default", Type: "api", Name: "获取登录日志", Code: "login-log:list", Path: "/api/v1/admin/auth/login-logs", Method: "GET", ParentID: 180, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取登录日志列表API"},
+		SeedPermission{ID: 182, Domain: "default", Type: "api", Name: "获取登录日志详情", Code: "login-log:get", Path: "/api/v1/admin/auth/login-logs/{id}", Method: "GET", ParentID: 180, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取登录日志详情API"},
 	)
 	for i := range seedData {
 		seedData[i].Domain = configuredPermissionDomain()

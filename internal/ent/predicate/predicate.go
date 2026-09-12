@@ -36,6 +36,9 @@ type Department func(*sql.Selector)
 // DictData is the predicate function for dictdata builders.
 type DictData func(*sql.Selector)
 
+// LoginLog is the predicate function for loginlog builders.
+type LoginLog func(*sql.Selector)
+
 // Message is the predicate function for message builders.
 type Message func(*sql.Selector)
 
