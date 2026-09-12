@@ -32,13 +32,18 @@ func logOperation(c fiber.Ctx, logService service.OperationLogServiceInterface, 
 		}
 	}
 
+	// 队列载荷可能包含嵌套编码的凭据，审计只保留任务元信息，不记录原始请求体。
+	requestBody := ""
+	if module != "queue" {
+		requestBody = utils.SafeGetBody(c, extraRedactKeys...)
+	}
 	_ = logService.Log(context.Background(), &service.LogEntry{
 		UserUID:     userUID,
 		Username:    username,
 		Module:      module,
 		Action:      action,
 		Description: description,
-		RequestBody: utils.SafeGetBody(c, extraRedactKeys...),
+		RequestBody: requestBody,
 		Method:      c.Method(),
 		Path:        c.Path(),
 		IP:          c.IP(),

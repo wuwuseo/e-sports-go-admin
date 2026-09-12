@@ -13,7 +13,32 @@ import (
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
+	cmfqueue "github.com/wuwuseo/cmf/queue"
 )
+
+func TestQueueAdmissionErrorsHaveBusinessCodes(t *testing.T) {
+	for _, tt := range []struct {
+		err  error
+		code int
+	}{
+		{cmfqueue.ErrQueueFull, global.ErrCodeQueueFull},
+		{cmfqueue.ErrPayloadTooLarge, global.ErrCodeQueuePayloadTooLarge},
+		{service.ErrQueueInvalidQueueName, global.ErrCodeQueueInvalidName},
+	} {
+		app := fiber.New()
+		app.Get("/error", func(c fiber.Ctx) error { return respondQueueError(utils.NewResponse(), c, tt.err) })
+		resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/error", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var body utils.Response
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		resp.Body.Close()
+		if err != nil || body.Code != tt.code {
+			t.Fatalf("error=%v code=%d want=%d decode=%v", tt.err, body.Code, tt.code, err)
+		}
+	}
+}
 
 // queueJobProdErrorHandler 复刻生产 cmf/bootstrap 的 ErrorHandler 关键行为：
 // 对 *fiber.Error 类型走 errors.As 后读取 e.Code。
@@ -62,9 +87,8 @@ func TestRespondQueueErrorSendsJSONAndReturnsNilError(t *testing.T) {
 // 队列未初始化时 QueueStats 的错误路径必须返回业务 JSON（4105），
 // 而非触发 ErrorHandler panic / 500。
 func TestQueueStatsUnavailableReturnsJSONNotPanic(t *testing.T) {
-	saved := global.QueueInspector
-	global.QueueInspector = nil
-	t.Cleanup(func() { global.QueueInspector = saved })
+	saved := global.QueueInspector.Swap(nil)
+	t.Cleanup(func() { global.QueueInspector.Store(saved) })
 
 	app := fiber.New(fiber.Config{ErrorHandler: queueJobProdErrorHandler})
 	app.Get("/api/v1/admin/auth/queue-jobs/stats", func(c fiber.Ctx) error {

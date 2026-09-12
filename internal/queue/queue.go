@@ -6,6 +6,9 @@ package queue
 import (
 	"context"
 	"fmt"
+	"maps"
+	"regexp"
+	"sync"
 	"time"
 
 	"github.com/wuwuseo/cmf/config"
@@ -23,16 +26,30 @@ const maxTaskLogBytes = 64 * 1024
 // janitorInterval 死信清理协程的执行间隔
 const janitorInterval = 24 * time.Hour
 
-// janitorGrace 死信保留宽限期：仅清理失败时间早于该期限的死信
+// janitorGrace 死信保留宽限期：仅清理归档时间早于该期限的死信
 const janitorGrace = 7 * 24 * time.Hour
 
-var stopJanitor chan struct{}
+// queueNamePattern 队列名白名单：字母、数字、下划线、中划线，长度 1-64。
+// 队列名会拼入 asynq 的 Redis 键（asynq:{queue}:...），
+// 收紧字符集可避免构造出的名字落键到非预期前缀。
+var queueNamePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// IsValidQueueName 判断队列名是否在白名单内。
+func IsValidQueueName(name string) bool {
+	return queueNamePattern.MatchString(name)
+}
+
+var lifecycleMu sync.Mutex
+var cancelJanitor context.CancelFunc
+var janitorDone chan struct{}
 
 // configuredQueues Setup 时记录的已配置队列名，供入队校验使用
 var configuredQueues []string
 
 // ConfiguredQueues 返回配置中声明的队列名列表。
 func ConfiguredQueues() []string {
+	lifecycleMu.Lock()
+	defer lifecycleMu.Unlock()
 	out := make([]string, len(configuredQueues))
 	copy(out, configuredQueues)
 	return out
@@ -43,15 +60,30 @@ var engineConfig cmfqueue.Config
 
 // EngineConfig 返回 Setup 构建的队列配置；未初始化时第二个返回值为 false。
 func EngineConfig() (cmfqueue.Config, bool) {
-	if global.QueueServer == nil {
+	lifecycleMu.Lock()
+	defer lifecycleMu.Unlock()
+	if global.QueueServer.Load() == nil {
 		return cmfqueue.Config{}, false
 	}
-	return engineConfig, true
+	cfg := engineConfig
+	cfg.Queues = maps.Clone(cfg.Queues)
+	return cfg, true
 }
 
 // Setup 构建并启动任务队列：创建三件套、注册 tasks.Registry 中的全部任务、
 // 启动 worker 与死信清理协程，并将句柄挂载到 global。
 func Setup(cfg *config.Config) error {
+	lifecycleMu.Lock()
+	defer lifecycleMu.Unlock()
+	if global.QueueServer.Load() != nil {
+		return fmt.Errorf("任务队列已启动")
+	}
+	// 启动期校验队列名（在触碰 Redis 前快速失败）；缺省的 default 队列始终合法
+	for name := range cfg.Queue.Queues {
+		if !IsValidQueueName(name) {
+			return fmt.Errorf("队列名 %q 非法：仅允许字母、数字、下划线、中划线，长度 1-64", name)
+		}
+	}
 	qcfg, err := cmfqueue.NewConfigFromApp(cfg, cfg.Queue.RedisConnection)
 	if err != nil {
 		return err
@@ -69,7 +101,7 @@ func Setup(cfg *config.Config) error {
 		qcfg.Concurrency = cfg.Queue.Concurrency
 	}
 	if len(cfg.Queue.Queues) > 0 {
-		qcfg.Queues = cfg.Queue.Queues
+		qcfg.Queues = maps.Clone(cfg.Queue.Queues)
 	}
 	qcfg.StrictPriority = cfg.Queue.StrictPriority
 	if cfg.Queue.MaxRetry > 0 {
@@ -80,6 +112,12 @@ func Setup(cfg *config.Config) error {
 	}
 	if cfg.Queue.Retention > 0 {
 		qcfg.Retention = time.Duration(cfg.Queue.Retention) * time.Second
+	}
+	if cfg.Queue.MaxQueueSize > 0 {
+		qcfg.MaxQueueSize = cfg.Queue.MaxQueueSize
+	}
+	if cfg.Queue.MaxPayloadBytes > 0 {
+		qcfg.MaxPayloadBytes = cfg.Queue.MaxPayloadBytes
 	}
 
 	client := cmfqueue.NewClient(qcfg)
@@ -98,16 +136,24 @@ func Setup(cfg *config.Config) error {
 	if err := server.Start(); err != nil {
 		client.Close()
 		inspector.Close()
+		// 回滚本函数已写入的包级状态，避免半初始化残留
+		engineConfig = cmfqueue.Config{}
+		configuredQueues = nil
 		return err
 	}
 
-	global.QueueClient = client
-	global.QueueServer = server
-	global.QueueInspector = inspector
+	global.QueueClient.Store(client)
+	global.QueueInspector.Store(inspector)
+	global.QueueServer.Store(server)
 
-	// 启动死信清理协程：定期清理失败时间超过宽限期的 archived 任务
-	stopJanitor = make(chan struct{})
-	go runArchiveJanitor(qcfg, stopJanitor)
+	// 启动死信清理协程：立即清理，并定期清理归档时间超过宽限期的任务
+	janitorCtx, cancel := context.WithCancel(context.Background())
+	cancelJanitor = cancel
+	janitorDone = make(chan struct{})
+	go func(done chan struct{}) {
+		defer close(done)
+		runArchiveJanitor(janitorCtx, qcfg)
+	}(janitorDone)
 
 	log.Info("任务队列已启动",
 		zap.String("addr", qcfg.Addr),
@@ -121,36 +167,48 @@ func Setup(cfg *config.Config) error {
 // Shutdown 优雅停止任务队列：等待在途任务完成（受 timeout 预算约束），
 // 随后停掉清理协程并释放连接。
 func Shutdown(timeout time.Duration) {
-	if stopJanitor != nil {
-		close(stopJanitor)
-		stopJanitor = nil
+	lifecycleMu.Lock()
+	defer lifecycleMu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	if cancelJanitor != nil {
+		cancelJanitor()
+		cancelJanitor = nil
 	}
 
-	if global.QueueServer != nil {
+	server := global.QueueServer.Swap(nil)
+	client := global.QueueClient.Swap(nil)
+	inspector := global.QueueInspector.Swap(nil)
+	if server != nil {
 		done := make(chan struct{})
 		go func() {
-			global.QueueServer.Shutdown()
+			server.Shutdown()
 			close(done)
 		}()
 		select {
 		case <-done:
 			log.Info("任务队列 worker 已停止")
-		case <-time.After(timeout):
+		case <-ctx.Done():
 			log.Warn("任务队列 worker 关闭超时，放弃等待（在途任务将由下次启动恢复）")
 		}
-		global.QueueServer = nil
 	}
-	if global.QueueClient != nil {
-		if err := global.QueueClient.Close(); err != nil {
+	if client != nil {
+		if err := client.Close(); err != nil {
 			log.Error("关闭队列投递端失败", zap.Error(err))
 		}
-		global.QueueClient = nil
 	}
-	if global.QueueInspector != nil {
-		if err := global.QueueInspector.Close(); err != nil {
+	if inspector != nil {
+		if err := inspector.Close(); err != nil {
 			log.Error("关闭队列管理端失败", zap.Error(err))
 		}
-		global.QueueInspector = nil
+	}
+	if janitorDone != nil {
+		select {
+		case <-janitorDone:
+		case <-ctx.Done():
+			log.Warn("死信清理协程关闭超时")
+		}
+		janitorDone = nil
 	}
 }
 
@@ -166,6 +224,9 @@ func registerTaskHandlers(server *cmfqueue.Server) {
 // TaskFunc 的 io.Writer 接有界内存缓冲，执行结果（含日志尾部）经 zap 输出。
 func adaptTaskFunc(name string, fn tasks.TaskFunc) cmfqueue.Handler {
 	return func(ctx context.Context, t *cmfqueue.Task) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		buf := newBoundedBuffer(maxTaskLogBytes)
 		start := time.Now()
 		err := fn(ctx, buf)
@@ -187,8 +248,8 @@ func adaptTaskFunc(name string, fn tasks.TaskFunc) cmfqueue.Handler {
 }
 
 // runArchiveJanitor 死信清理协程：每个清理周期遍历配置内的队列，
-// 删除失败时间早于宽限期的 archived 任务。
-func runArchiveJanitor(qcfg cmfqueue.Config, stop <-chan struct{}) {
+// 删除归档时间早于宽限期的 archived 任务。
+func runArchiveJanitor(ctx context.Context, qcfg cmfqueue.Config) {
 	inspector := cmfqueue.NewInspector(qcfg)
 	defer inspector.Close()
 
@@ -200,21 +261,24 @@ func runArchiveJanitor(qcfg cmfqueue.Config, stop <-chan struct{}) {
 	ticker := time.NewTicker(janitorInterval)
 	defer ticker.Stop()
 	for {
+		cutoff := time.Now().Add(-janitorGrace)
+		for _, q := range queues {
+			removed, err := inspector.PruneArchivedContext(ctx, q, cutoff)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				log.Error("清理死信任务失败", zap.String("queue", q), zap.Error(err))
+				continue
+			}
+			if removed > 0 {
+				log.Info("死信任务清理完成", zap.String("queue", q), zap.Int("removed", removed))
+			}
+		}
 		select {
-		case <-stop:
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			cutoff := time.Now().Add(-janitorGrace)
-			for _, q := range queues {
-				removed, err := inspector.PruneArchived(q, cutoff)
-				if err != nil {
-					log.Error("清理死信任务失败", zap.String("queue", q), zap.Error(err))
-					continue
-				}
-				if removed > 0 {
-					log.Info("死信任务清理完成", zap.String("queue", q), zap.Int("removed", removed))
-				}
-			}
 		}
 	}
 }

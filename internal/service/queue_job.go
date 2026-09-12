@@ -23,6 +23,8 @@ var (
 	ErrQueueInvalidPayload = errors.New("任务载荷必须是合法 JSON")
 	// ErrQueueUnknownQueue 目标队列未在配置中声明（无人消费）
 	ErrQueueUnknownQueue = errors.New("目标队列未配置")
+	// ErrQueueInvalidQueueName 队列名包含非法字符（会拼入 Redis 键，必须走白名单）
+	ErrQueueInvalidQueueName = errors.New("队列名包含非法字符")
 )
 
 // QueueJobService 任务队列管理服务：封装 Inspector 的观测/管理操作与 Client 的手动入队
@@ -88,19 +90,37 @@ type EnqueueTaskResponse struct {
 
 // inspector 返回队列管理端句柄；未就绪时报错
 func (s *QueueJobService) inspector() (*cmfqueue.Inspector, error) {
-	if global.QueueInspector == nil {
+	inspector := global.QueueInspector.Load()
+	if inspector == nil {
 		return nil, ErrQueueUnavailable
 	}
-	return global.QueueInspector, nil
+	return inspector, nil
+}
+
+// normalizeQueueName 规范化并校验队列名：去首尾空白、空值回退 default，
+// 再按字符集白名单校验（队列名会拼入 asynq 的 Redis 键）。
+func normalizeQueueName(name string) (string, error) {
+	queueName := strings.TrimSpace(name)
+	if queueName == "" {
+		queueName = "default"
+	}
+	if !adminqueue.IsValidQueueName(queueName) {
+		return "", ErrQueueInvalidQueueName
+	}
+	return queueName, nil
 }
 
 // ListTasks 按状态分页列出任务
 func (s *QueueJobService) ListTasks(ctx context.Context, req *ListQueueTasksRequest) (*ListResponse[*QueueTaskResponse], error) {
+	queueName, err := normalizeQueueName(req.Queue)
+	if err != nil {
+		return nil, err
+	}
 	insp, err := s.inspector()
 	if err != nil {
 		return nil, err
 	}
-	items, total, err := insp.ListTasks(req.State, req.Queue, req.Page, req.PageSize)
+	items, total, err := insp.ListTasks(req.State, queueName, req.Page, req.PageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +136,11 @@ func (s *QueueJobService) ListTasks(ctx context.Context, req *ListQueueTasksRequ
 }
 
 // GetTask 查询单个任务详情
-func (s *QueueJobService) GetTask(ctx context.Context, queueName, taskID string) (*QueueTaskResponse, error) {
+func (s *QueueJobService) GetTask(ctx context.Context, queue, taskID string) (*QueueTaskResponse, error) {
+	queueName, err := normalizeQueueName(queue)
+	if err != nil {
+		return nil, err
+	}
 	insp, err := s.inspector()
 	if err != nil {
 		return nil, err
@@ -129,7 +153,11 @@ func (s *QueueJobService) GetTask(ctx context.Context, queueName, taskID string)
 }
 
 // RetryTask 立即执行一个 scheduled/retry/archived 状态的任务
-func (s *QueueJobService) RetryTask(ctx context.Context, queueName, taskID string) error {
+func (s *QueueJobService) RetryTask(ctx context.Context, queue, taskID string) error {
+	queueName, err := normalizeQueueName(queue)
+	if err != nil {
+		return err
+	}
 	insp, err := s.inspector()
 	if err != nil {
 		return err
@@ -147,7 +175,11 @@ func (s *QueueJobService) CancelTask(ctx context.Context, taskID string) error {
 }
 
 // DeleteTask 删除任务
-func (s *QueueJobService) DeleteTask(ctx context.Context, queueName, taskID string) error {
+func (s *QueueJobService) DeleteTask(ctx context.Context, queue, taskID string) error {
+	queueName, err := normalizeQueueName(queue)
+	if err != nil {
+		return err
+	}
 	insp, err := s.inspector()
 	if err != nil {
 		return err
@@ -157,19 +189,20 @@ func (s *QueueJobService) DeleteTask(ctx context.Context, queueName, taskID stri
 
 // Enqueue 手动入队一个任务：校验处理器已注册、载荷为合法 JSON、目标队列已配置
 func (s *QueueJobService) Enqueue(ctx context.Context, req *EnqueueTaskRequest) (*EnqueueTaskResponse, error) {
-	if global.QueueClient == nil || global.QueueServer == nil {
+	client, server := global.QueueClient.Load(), global.QueueServer.Load()
+	if client == nil || server == nil {
 		return nil, ErrQueueUnavailable
 	}
-	if !global.QueueServer.Has(req.Name) {
+	if !server.Has(req.Name) {
 		return nil, ErrQueueUnknownHandler
 	}
 	payload := []byte(req.Payload)
 	if len(payload) > 0 && !json.Valid(payload) {
 		return nil, ErrQueueInvalidPayload
 	}
-	queueName := strings.TrimSpace(req.Queue)
-	if queueName == "" {
-		queueName = "default"
+	queueName, err := normalizeQueueName(req.Queue)
+	if err != nil {
+		return nil, err
 	}
 	known := false
 	for _, q := range adminqueue.ConfiguredQueues() {
@@ -182,10 +215,7 @@ func (s *QueueJobService) Enqueue(ctx context.Context, req *EnqueueTaskRequest) 
 		return nil, ErrQueueUnknownQueue
 	}
 
-	opts := []cmfqueue.EnqueueOption{}
-	if queueName != "default" {
-		opts = append(opts, cmfqueue.WithQueue(queueName))
-	}
+	opts := []cmfqueue.EnqueueOption{cmfqueue.WithQueue(queueName)}
 	if req.DelaySeconds > 0 {
 		opts = append(opts, cmfqueue.WithDelay(time.Duration(req.DelaySeconds)*time.Second))
 	}
@@ -193,7 +223,7 @@ func (s *QueueJobService) Enqueue(ctx context.Context, req *EnqueueTaskRequest) 
 		opts = append(opts, cmfqueue.WithMaxRetry(*req.MaxRetry))
 	}
 
-	taskID, err := global.QueueClient.Enqueue(ctx, req.Name, payload, opts...)
+	taskID, err := client.Enqueue(ctx, req.Name, payload, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -232,10 +262,11 @@ func (s *QueueJobService) Stats(ctx context.Context) ([]*QueueStatsResponse, err
 
 // Handlers 返回已注册的队列任务处理器名列表
 func (s *QueueJobService) Handlers(ctx context.Context) ([]string, error) {
-	if global.QueueServer == nil {
+	server := global.QueueServer.Load()
+	if server == nil {
 		return nil, ErrQueueUnavailable
 	}
-	return global.QueueServer.RegisteredTasks(), nil
+	return server.RegisteredTasks(), nil
 }
 
 // newQueueTaskResponse 将 cmf/queue TaskInfo 转换为响应结构

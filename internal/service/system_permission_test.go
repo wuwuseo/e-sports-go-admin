@@ -816,7 +816,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 177
+	const wantCount = 186
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
@@ -834,6 +834,31 @@ func TestInitSystemPermissions_IncludesLoginLogSeeds(t *testing.T) {
 		{Code: "system:login-log", Type: "menu", MenuPath: "/system/login-log", ParentCode: "system"},
 		{Code: "login-log:list", Type: "api", Path: "/api/v1/admin/auth/login-logs", Method: "GET", ParentCode: "system:login-log"},
 		{Code: "login-log:get", Type: "api", Path: "/api/v1/admin/auth/login-logs/{id}", Method: "GET", ParentCode: "system:login-log"},
+	}
+
+	for _, want := range expected {
+		assertSeedPermissionExists(t, ctx, want)
+	}
+}
+
+func TestInitSystemPermissions_IncludesQueueJobSeeds(t *testing.T) {
+	setupSystemPermissionTest(t)
+	ctx := t.Context()
+
+	if err := InitSystemPermissions(ctx); err != nil {
+		t.Fatalf("InitSystemPermissions failed: %v", err)
+	}
+
+	expected := []seedPermissionExpectation{
+		{Code: "system:queue-job", Type: "menu", MenuPath: "/system/queue-job", ParentCode: "system"},
+		{Code: "queue-job:list", Type: "api", Path: "/api/v1/admin/auth/queue-jobs", Method: "GET", ParentCode: "system:queue-job"},
+		{Code: "queue-job:enqueue", Type: "api", Path: "/api/v1/admin/auth/queue-jobs", Method: "POST", ParentCode: "system:queue-job"},
+		{Code: "queue-job:stats", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/stats", Method: "GET", ParentCode: "system:queue-job"},
+		{Code: "queue-job:handlers", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/handlers", Method: "GET", ParentCode: "system:queue-job"},
+		{Code: "queue-job:get", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}", Method: "GET", ParentCode: "system:queue-job"},
+		{Code: "queue-job:retry", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/retry", Method: "POST", ParentCode: "system:queue-job"},
+		{Code: "queue-job:cancel", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/cancel", Method: "POST", ParentCode: "system:queue-job"},
+		{Code: "queue-job:delete", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}", Method: "DELETE", ParentCode: "system:queue-job"},
 	}
 
 	for _, want := range expected {

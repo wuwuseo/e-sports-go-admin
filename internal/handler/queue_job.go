@@ -35,6 +35,12 @@ func respondQueueError(resp *utils.Response, c fiber.Ctx, err error) error {
 		return resp.Fail(global.ErrCodeQueueInvalidPayload, "任务载荷必须是合法 JSON").ToJSON(c)
 	case errors.Is(err, service.ErrQueueUnknownQueue):
 		return resp.Fail(global.ErrCodeQueueUnknownQueue, "目标队列未配置").ToJSON(c)
+	case errors.Is(err, service.ErrQueueInvalidQueueName):
+		return resp.Fail(global.ErrCodeQueueInvalidName, "队列名仅允许字母、数字、下划线和中划线").ToJSON(c)
+	case errors.Is(err, cmfqueue.ErrQueueFull):
+		return resp.Fail(global.ErrCodeQueueFull, "队列已达到容量阈值，请稍后重试").ToJSON(c)
+	case errors.Is(err, cmfqueue.ErrPayloadTooLarge):
+		return resp.Fail(global.ErrCodeQueuePayloadTooLarge, "任务载荷超过字节上限").ToJSON(c)
 	case errors.Is(err, cmfqueue.ErrTaskNotFound):
 		return resp.Fail(global.ErrCodeQueueTaskNotFound, "队列任务不存在").ToJSON(c)
 	case errors.Is(err, cmfqueue.ErrQueueNotFound):
@@ -159,7 +165,7 @@ func EnqueueQueueTask(c fiber.Ctx) error {
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-	logOperation(c, logService, "queue", "入队", "手动入队任务: "+req.Name)
+	logOperation(c, logService, "queue", "入队", "手动入队任务: "+req.Name+"，任务 ID: "+result.TaskID)
 
 	return resp.Success(result, global.ResponseSuccessCode, "任务已入队").ToJSON(c)
 }

@@ -949,6 +949,16 @@ func InitSystemPermissions(ctx context.Context) error {
 		SeedPermission{ID: 180, Domain: "default", Type: "menu", Name: "登录日志", Code: "system:login-log", MenuPath: "/system/login-log", Component: "system/login-log/index", ParentID: 3, SortOrder: 13, IsCommon: false, Status: 1, Description: "登录日志页面"},
 		SeedPermission{ID: 181, Domain: "default", Type: "api", Name: "获取登录日志", Code: "login-log:list", Path: "/api/v1/admin/auth/login-logs", Method: "GET", ParentID: 180, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取登录日志列表API"},
 		SeedPermission{ID: 182, Domain: "default", Type: "api", Name: "获取登录日志详情", Code: "login-log:get", Path: "/api/v1/admin/auth/login-logs/{id}", Method: "GET", ParentID: 180, SortOrder: 1, IsCommon: false, Status: 1, Description: "获取登录日志详情API"},
+		// 任务队列（敏感基线同 cron-job：api 权限不自动授予 normal_admin）
+		SeedPermission{ID: 183, Domain: "default", Type: "menu", Name: "任务队列", Code: "system:queue-job", MenuPath: "/system/queue-job", Component: "system/queue-job/index", ParentID: 3, SortOrder: 14, IsCommon: false, Status: 1, Description: "任务队列管理页面"},
+		SeedPermission{ID: 184, Domain: "default", Type: "api", Name: "获取队列任务列表", Code: "queue-job:list", Path: "/api/v1/admin/auth/queue-jobs", Method: "GET", ParentID: 183, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取队列任务列表API"},
+		SeedPermission{ID: 185, Domain: "default", Type: "api", Name: "手动入队任务", Code: "queue-job:enqueue", Path: "/api/v1/admin/auth/queue-jobs", Method: "POST", ParentID: 183, SortOrder: 1, IsCommon: false, Status: 1, Description: "手动入队队列任务API"},
+		SeedPermission{ID: 186, Domain: "default", Type: "api", Name: "获取队列统计", Code: "queue-job:stats", Path: "/api/v1/admin/auth/queue-jobs/stats", Method: "GET", ParentID: 183, SortOrder: 2, IsCommon: false, Status: 1, Description: "获取队列统计API"},
+		SeedPermission{ID: 187, Domain: "default", Type: "api", Name: "获取队列处理器", Code: "queue-job:handlers", Path: "/api/v1/admin/auth/queue-jobs/handlers", Method: "GET", ParentID: 183, SortOrder: 3, IsCommon: false, Status: 1, Description: "获取已注册处理器列表API"},
+		SeedPermission{ID: 188, Domain: "default", Type: "api", Name: "获取队列任务详情", Code: "queue-job:get", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}", Method: "GET", ParentID: 183, SortOrder: 4, IsCommon: false, Status: 1, Description: "获取队列任务详情API"},
+		SeedPermission{ID: 189, Domain: "default", Type: "api", Name: "重试队列任务", Code: "queue-job:retry", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/retry", Method: "POST", ParentID: 183, SortOrder: 5, IsCommon: false, Status: 1, Description: "重试队列任务API"},
+		SeedPermission{ID: 190, Domain: "default", Type: "api", Name: "取消队列任务", Code: "queue-job:cancel", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/cancel", Method: "POST", ParentID: 183, SortOrder: 6, IsCommon: false, Status: 1, Description: "取消执行中队列任务API"},
+		SeedPermission{ID: 191, Domain: "default", Type: "api", Name: "删除队列任务", Code: "queue-job:delete", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}", Method: "DELETE", ParentID: 183, SortOrder: 7, IsCommon: false, Status: 1, Description: "删除队列任务API"},
 	)
 	for i := range seedData {
 		seedData[i].Domain = configuredPermissionDomain()

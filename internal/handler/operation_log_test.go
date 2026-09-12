@@ -20,6 +20,31 @@ import (
 
 const opLogTestSecret = "oplog-test-secret-42"
 
+func TestLogOperationQueueOmitsEncodedSecrets(t *testing.T) {
+	capture := &captureLogSvc{}
+	app := fiber.New()
+	app.Post("/queue", func(c fiber.Ctx) error {
+		logOperation(c, capture, "queue", "入队", "任务 ID: test-task")
+		return c.SendStatus(200)
+	})
+	inner, _ := json.Marshal(map[string]string{"token": "test-secret", "password": "test-password"})
+	body, _ := json.Marshal(map[string]string{"name": "health_check", "payload": string(inner)})
+	req := httptest.NewRequest(http.MethodPost, "/queue", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	called, entry := capture.captured()
+	if called != 1 || entry == nil {
+		t.Fatal("queue audit missing")
+	}
+	if entry.RequestBody != "" || !strings.Contains(entry.Description, "test-task") {
+		t.Fatalf("unsafe audit entry: %+v", entry)
+	}
+}
+
 // captureLogSvc 捕获写入的 LogEntry 供断言
 type captureLogSvc struct {
 	mu     sync.Mutex

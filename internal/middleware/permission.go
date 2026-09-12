@@ -107,6 +107,16 @@ func PermissionMiddleware() fiber.Handler {
 	}
 }
 
+// RequireSuperAdmin 必须位于 PermissionMiddleware 之后；高风险接口不接受普通角色的残留授权。
+func RequireSuperAdmin() fiber.Handler {
+	return func(c fiber.Ctx) error {
+		if super, _ := c.Locals("isSuperAdmin").(bool); !super {
+			return utils.NewResponse().Fail(fiber.StatusForbidden, "仅超级管理员可访问该资源").ToJSON(c)
+		}
+		return c.Next()
+	}
+}
+
 func hasRoleName(roleNames []string, target string) bool {
 	for _, roleName := range roleNames {
 		if roleName == target {
