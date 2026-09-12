@@ -19,7 +19,6 @@ import (
 	"go-admin/internal/utils"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/wuwuseo/cmf/cache"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
@@ -364,25 +363,15 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	cronJobs.Get("/:id/logs/:filename", handler.GetCronJobLogContent) // 获取日志内容
 
 	// 任务队列管理路由（静态路径先于参数化路径注册）
-	queueJobService := service.NewQueueJobService()
-	queueJobs := adminAuth.Group("/queue-jobs", func(c fiber.Ctx) error {
-		c.Locals("service.QueueJobService", queueJobService)
-		return c.Next()
-	})
-	queueJobs.Get("", handler.ListQueueTasks)                     // 任务列表（按状态筛选）
-	queueJobs.Get("/stats", handler.QueueStats)                   // 队列统计
-	queueJobs.Get("/handlers", handler.QueueHandlers)             // 已注册处理器列表
-	queueJobs.Post("", handler.EnqueueQueueTask)                  // 手动入队
-	queueJobs.Get("/:queue/:id", handler.GetQueueTask)            // 任务详情
-	queueJobs.Post("/:queue/:id/retry", handler.RetryQueueTask)   // 立即重试
-	queueJobs.Post("/:queue/:id/cancel", handler.CancelQueueTask) // 取消执行中任务
-	queueJobs.Delete("/:queue/:id", handler.DeleteQueueTask)      // 删除任务
+	mountQueueJobs(adminAuth)
 
 	// 任务队列监控页（asynqmon 只读 UI，默认关闭；开启时挂载在管理端认证之后）
 	if config.Queue.EnableMonitor {
 		if qcfg, ok := adminqueue.EngineConfig(); ok {
 			monitorPath := config.Queue.MonitorPath
-			adminAuth.Get(monitorPath, adaptor.HTTPHandler(cmfqueue.MonitorHandler(qcfg, monitorPath)))
+			if err := mountQueueMonitor(adminAuth, monitorPath, cmfqueue.MonitorHandler(qcfg, monitorPath)); err != nil {
+				panic(err)
+			}
 		} else {
 			log.Warn("任务队列未初始化，监控页未挂载")
 		}
@@ -446,6 +435,41 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		return c.Next()
 	})
 	attachmentContent.Get("/:id/content", handler.ServeAttachmentContent)
+
+	// 前台统一上传路由（小程序/App/Web）：复用管理端附件上传服务与全部校验逻辑，
+	// 身份来自用户JWT（config.App.Secret）+ UserIdentity，upload_subject 区分归属域，
+	// 分片会话属主校验防止跨用户/跨域续传、取消与合并
+	uploadLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
+		Window:   1 * time.Minute,
+		MaxCount: 120, // 兼容分片上传的逐片请求，同时约束滥用
+		KeyFunc: func(c fiber.Ctx) string {
+			if uid, ok := c.Locals("uid").(string); ok && uid != "" {
+				return "upload:" + uid
+			}
+			return "upload:" + c.IP()
+		},
+	})
+	frontAuth := v1.Group("/auth",
+		jwt.NewJWTMiddleware(config.App.Secret),
+		middleware.DomainMiddleware(),
+		middleware.UserIdentity(),
+		middleware.BlacklistCheck(blacklistService, "user"),
+		uploadLimiter.Handler(),
+		func(c fiber.Ctx) error {
+			c.Locals("service.AttachmentService", attachmentService)
+			// access_secret 与 /api/v1/attachments/:id/content 端点保持一致，签名访问地址互通
+			c.Locals("attachment.access_secret", config.App.AdminSecret)
+			c.Locals("attachment.content_base_path", "/api/v1/attachments")
+			c.Locals("attachment.access_ttl", config.Attachment.AccessURLTTL)
+			c.Locals("attachment.x_accel_enabled", config.Attachment.XAccelEnabled)
+			c.Locals("attachment.upload_subject", "user")
+			c.Locals("service.OperationLogService", opLogService)
+			return c.Next()
+		})
+	frontAttachments := frontAuth.Group("/attachments")
+	frontAttachments.Post("/upload", handler.UploadAttachment)
+	frontAttachments.Get("/chunk/status/:upload_id", handler.GetChunkUploadStatus)
+	frontAttachments.Delete("/chunk/:upload_id", handler.CancelChunkUpload)
 
 	// 操作日志管理路由
 	opLogs := adminAuth.Group("/operation-logs")

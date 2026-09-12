@@ -275,7 +275,7 @@ func TestIntegration_UploadChunk_Success(t *testing.T) {
 	chunkData := bytes.Repeat([]byte("A"), 1024*1024)
 	fh := makeMultipartFileHeader(t, "chunk1", chunkData)
 
-	resp, err := svc.UploadChunk(ctx, "upload-001", 0, fh)
+	resp, err := svc.UploadChunk(ctx, "", "upload-001", 0, fh)
 	if err != nil {
 		t.Fatalf("UploadChunk[0] failed: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestIntegration_UploadChunk_SessionNotFound(t *testing.T) {
 	ctx := context.Background()
 	fh := makeMultipartFileHeader(t, "chunk", []byte("data"))
 
-	_, err := svc.UploadChunk(ctx, "nonexistent-id", 0, fh)
+	_, err := svc.UploadChunk(ctx, "", "nonexistent-id", 0, fh)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -323,7 +323,7 @@ func TestIntegration_UploadChunk_InvalidIndex(t *testing.T) {
 	}
 
 	fh := makeMultipartFileHeader(t, "chunk", []byte("data"))
-	_, err = svc.UploadChunk(ctx, "idx-test", 99, fh)
+	_, err = svc.UploadChunk(ctx, "", "idx-test", 99, fh)
 	if err == nil {
 		t.Fatal("expected error for invalid index, got nil")
 	}
@@ -352,7 +352,7 @@ func TestIntegration_UploadChunk_Expired(t *testing.T) {
 	chunkStore.Store("expired-session", session)
 
 	fh := makeMultipartFileHeader(t, "chunk", []byte("data"))
-	_, err := svc.UploadChunk(ctx, "expired-session", 0, fh)
+	_, err := svc.UploadChunk(ctx, "", "expired-session", 0, fh)
 	if err == nil {
 		t.Fatal("expected expired error, got nil")
 	}
@@ -932,14 +932,14 @@ func TestIntegration_UploadChunk_FullFlow(t *testing.T) {
 
 	// upload chunk 0
 	hdr0 := makeMultipartFileHeader(t, "chunk0", bytes.Repeat([]byte{0x30}, 1024))
-	_, err = svc.UploadChunk(ctx, "full-flow-001", 0, hdr0)
+	_, err = svc.UploadChunk(ctx, "", "full-flow-001", 0, hdr0)
 	if err != nil {
 		t.Fatalf("UploadChunk 0: %v", err)
 	}
 
 	// upload chunk 1
 	hdr1 := makeMultipartFileHeader(t, "chunk1", bytes.Repeat([]byte{0x31}, 1024))
-	_, err = svc.UploadChunk(ctx, "full-flow-001", 1, hdr1)
+	_, err = svc.UploadChunk(ctx, "", "full-flow-001", 1, hdr1)
 	if err != nil {
 		t.Fatalf("UploadChunk 1: %v", err)
 	}

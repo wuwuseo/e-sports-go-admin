@@ -296,7 +296,7 @@ func TestUploadChunk_SizeExceeded(t *testing.T) {
 	// Override size
 	fh.Size = maxChunkSize + 1
 
-	_, err = svc.UploadChunk(ctx, "size-test", 0, fh)
+	_, err = svc.UploadChunk(ctx, "", "size-test", 0, fh)
 	if err == nil {
 		t.Fatal("expected size exceeded error")
 	}

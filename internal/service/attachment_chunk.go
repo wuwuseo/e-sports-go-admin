@@ -35,6 +35,7 @@ type ChunkInitRequest struct {
 	MimeType    string `json:"mime_type"`
 	GroupID     *int   `json:"group_id"`
 	Directory   string `json:"directory"`
+	UserID      string `json:"user_id"` // 会话属主，写入 session.Owner；为空则不做属主校验
 }
 
 // ChunkInitResponse 分片上传初始化响应
@@ -96,6 +97,7 @@ type UnifiedUploadResponse struct {
 // chunkSession 分片上传会话
 type chunkSession struct {
 	UploadID    string
+	Owner       string // 会话属主（上传者身份）；为空表示遗留未归属会话，不做属主校验
 	Filename    string
 	FileSize    int64
 	ChunkSize   int64
@@ -109,6 +111,16 @@ type chunkSession struct {
 	mu          sync.Mutex
 	deleted     atomic.Bool   // LoadAndDelete 后标记，阻止并发 UploadChunk 写入
 	sem         chan struct{} // 并发控制信号量，限制同一会话的并发分片上传数
+}
+
+// ensureSessionOwner 校验分片会话属主。
+// 不匹配时返回与会话不存在相同的错误，避免向调用者泄露他人会话的存在性；
+// Owner 为空的遗留会话（旧接口 InitChunkUpload 创建）保持原有行为不做限制。
+func ensureSessionOwner(session *chunkSession, callerID string) error {
+	if session.Owner != "" && callerID != session.Owner {
+		return ErrChunkSessionNotFound
+	}
+	return nil
 }
 
 // ChunkUploadError 分片上传错误，携带错误码供 Handler 层通过 errors.As 精准映射
@@ -248,6 +260,7 @@ func (s *AttachmentService) initChunkSession(uploadID string, req *ChunkInitRequ
 	now := time.Now()
 	session := &chunkSession{
 		UploadID:    uploadID,
+		Owner:       req.UserID,
 		Filename:    req.Filename,
 		FileSize:    req.FileSize,
 		ChunkSize:   req.ChunkSize,
@@ -303,8 +316,8 @@ func (s *AttachmentService) InitChunkUpload(ctx context.Context, req *ChunkInitR
 	return s.initChunkSession(uuid.New().String(), req)
 }
 
-// UploadChunk 上传单个分片
-func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, chunkIndex int, fileHeader *multipart.FileHeader) (*ChunkUploadResponse, error) {
+// UploadChunk 上传单个分片（callerID 为调用者身份，用于会话属主校验）
+func (s *AttachmentService) UploadChunk(ctx context.Context, callerID string, uploadID string, chunkIndex int, fileHeader *multipart.FileHeader) (*ChunkUploadResponse, error) {
 	// 查找会话
 	val, ok := chunkStore.Load(uploadID)
 	if !ok {
@@ -313,6 +326,11 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 	session, ok := val.(*chunkSession)
 	if !ok {
 		return nil, fmt.Errorf("分片上传会话类型错误")
+	}
+
+	// 属主校验：非本人不得向会话追加分片
+	if err := ensureSessionOwner(session, callerID); err != nil {
+		return nil, err
 	}
 
 	// 检查会话是否已被合并/取消标记删除
@@ -397,7 +415,17 @@ func (s *AttachmentService) UploadChunk(ctx context.Context, uploadID string, ch
 }
 
 // MergeChunks 合并分片并创建附件记录（使用 LoadAndDelete 原子化防止并发重复合并）
+// userID 同时作为会话属主校验依据
 func (s *AttachmentService) MergeChunks(ctx context.Context, uploadID string, userID string) (*AttachmentResponse, error) {
+	// 属主预检：必须在 LoadAndDelete 之前，避免非本人调用消耗掉他人的会话
+	if val, ok := chunkStore.Load(uploadID); ok {
+		if session, ok := val.(*chunkSession); ok {
+			if err := ensureSessionOwner(session, userID); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	// 原子化获取并删除会话，防止并发重复合并
 	val, ok := chunkStore.LoadAndDelete(uploadID)
 	if !ok {
@@ -654,6 +682,7 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 		now := time.Now()
 		session := &chunkSession{
 			UploadID:    uploadID,
+			Owner:       req.UserID,
 			Filename:    req.Filename,
 			FileSize:    req.FileSize,
 			ChunkSize:   req.ChunkSize,
@@ -697,7 +726,7 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 	}
 
 	// 上传分片
-	_, err := s.UploadChunk(ctx, uploadID, req.ChunkIndex, req.FileHeader)
+	_, err := s.UploadChunk(ctx, req.UserID, uploadID, req.ChunkIndex, req.FileHeader)
 	if err != nil {
 		// 孤儿会话交由 sessionTTL 定期清理，避免误删并发成功的分片数据
 		return nil, err
@@ -721,15 +750,20 @@ func (s *AttachmentService) UnifiedUpload(ctx context.Context, req *UnifiedUploa
 	}, nil
 }
 
-// GetChunkStatus 获取分片上传状态
-func (s *AttachmentService) GetChunkStatus(uploadID string) (*ChunkStatusResponse, error) {
+// GetChunkStatus 获取分片上传状态（callerID 为调用者身份，用于会话属主校验）
+func (s *AttachmentService) GetChunkStatus(callerID string, uploadID string) (*ChunkStatusResponse, error) {
 	val, ok := chunkStore.Load(uploadID)
 	if !ok {
-		return nil, fmt.Errorf("分片上传会话不存在")
+		return nil, ErrChunkSessionNotFound
 	}
 	session, ok := val.(*chunkSession)
 	if !ok {
 		return nil, fmt.Errorf("分片上传会话类型错误")
+	}
+
+	// 属主校验：非本人查询视为会话不存在，不泄露他人会话进度
+	if err := ensureSessionOwner(session, callerID); err != nil {
+		return nil, err
 	}
 
 	session.mu.Lock()
@@ -752,8 +786,17 @@ func (s *AttachmentService) GetChunkStatus(uploadID string) (*ChunkStatusRespons
 }
 
 // CancelChunkUpload 取消分片上传并清理数据
-// 先原子化移除会话（阻止并发 UploadChunk），再清理磁盘目录
-func (s *AttachmentService) CancelChunkUpload(uploadID string) error {
+// 先校验属主并原子化移除会话（阻止并发 UploadChunk），再清理磁盘目录
+func (s *AttachmentService) CancelChunkUpload(callerID string, uploadID string) error {
+	// 属主预检：必须在 LoadAndDelete 之前，避免非本人调用取消他人的会话
+	if val, ok := chunkStore.Load(uploadID); ok {
+		if session, ok := val.(*chunkSession); ok {
+			if err := ensureSessionOwner(session, callerID); err != nil {
+				return err
+			}
+		}
+	}
+
 	// 原子化移除会话，防止并发 UploadChunk 获取 session 后写入已删除目录
 	val, loaded := chunkStore.LoadAndDelete(uploadID)
 	if !loaded {
@@ -844,7 +887,7 @@ var _ ChunkUploadService = (*AttachmentService)(nil)
 type ChunkUploadService interface {
 	// UnifiedUpload 统一上传入口（简单上传 + 分片上传）
 	UnifiedUpload(ctx context.Context, req *UnifiedUploadRequest) (*UnifiedUploadResponse, error)
-	// 分片上传状态与取消
-	GetChunkStatus(uploadID string) (*ChunkStatusResponse, error)
-	CancelChunkUpload(uploadID string) error
+	// 分片上传状态与取消（callerID 为调用者身份，用于会话属主校验）
+	GetChunkStatus(callerID string, uploadID string) (*ChunkStatusResponse, error)
+	CancelChunkUpload(callerID string, uploadID string) error
 }

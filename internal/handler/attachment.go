@@ -13,6 +13,21 @@ import (
 	"github.com/wuwuseo/cmf/validate"
 )
 
+// attachmentUploadUserID 组合上传者身份供上传与分片接口使用：
+// 管理端保持裸 uid（存量 uploaded_by 语义不变）；前台路由通过
+// attachment.upload_subject 注入域前缀（如 user:5），使 uploaded_by
+// 与分片 upload_id 在管理端/前台用户之间天然隔离。
+func attachmentUploadUserID(c fiber.Ctx) (string, bool) {
+	uid, ok := c.Locals("uid").(string)
+	if !ok || uid == "" {
+		return "", false
+	}
+	if subject, ok := c.Locals("attachment.upload_subject").(string); ok && subject != "" {
+		return subject + ":" + uid, true
+	}
+	return uid, true
+}
+
 // UploadAttachment 上传附件（统一入口：支持简单上传和分片上传）
 // @Summary 上传附件
 // @Description 上传文件附件。简单上传仅需 file + group_id；分片上传需额外提供 chunk_index、total_chunks、filename、file_size、chunk_size。首次分片无需 upload_id，后续分片需携带 upload_id
@@ -35,6 +50,7 @@ import (
 // @Failure 403 {object} utils.Response
 // @Failure 500 {object} utils.Response
 // @Router /api/v1/admin/auth/attachments/upload [post]
+// @Router /api/v1/auth/attachments/upload [post]
 func UploadAttachment(c fiber.Ctx) error {
 	resp := c.Locals("utils.Response").(*utils.Response)
 	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
@@ -48,12 +64,11 @@ func UploadAttachment(c fiber.Ctx) error {
 	chunkIndexStr := c.FormValue("chunk_index")
 	totalChunksStr := c.FormValue("total_chunks")
 
-	// 获取用户ID
-	uid, ok := c.Locals("uid").(string)
-	if !ok || uid == "" {
+	// 获取用户ID（前台路由带 upload_subject 域前缀）
+	userID, ok := attachmentUploadUserID(c)
+	if !ok {
 		return resp.Fail(global.ResponseUnauthorized, "用户身份无效").ToJSON(c)
 	}
-	userID := uid
 
 	// 构建统一上传请求
 	req := &service.UnifiedUploadRequest{
@@ -125,9 +140,11 @@ func UploadAttachment(c fiber.Ctx) error {
 	}
 
 	// 操作日志（简单上传和分片合并时记录信息）
+	// comma-ok 判空：前台等未注入 OperationLogService 的路由组跳过记录而非 panic
 	if result.Attachment != nil {
-		logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
-		logOperation(c, logService, "attachment", "上传", fmt.Sprintf("上传附件: %s", result.Attachment.OriginalName))
+		if logService, ok := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface); ok && logService != nil {
+			logOperation(c, logService, "attachment", "上传", fmt.Sprintf("上传附件: %s", result.Attachment.OriginalName))
+		}
 		// 直接返回 Attachment 保持向后兼容：data.id 而非 data.attachment.id
 		return resp.Success(result.Attachment, global.ResponseSuccessCode, "上传成功").ToJSON(c)
 	}

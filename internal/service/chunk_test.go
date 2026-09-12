@@ -122,7 +122,7 @@ func TestGetChunkStatus_NotFound(t *testing.T) {
 	ensureChunkDir(t)
 	svc := &AttachmentService{}
 
-	_, err := svc.GetChunkStatus("nonexistent-id")
+	_, err := svc.GetChunkStatus("", "nonexistent-id")
 	if err == nil {
 		t.Fatal("期望返回错误，但未返回")
 	}
@@ -143,7 +143,7 @@ func TestGetChunkStatus_Found(t *testing.T) {
 		t.Fatalf("初始化失败: %v", err)
 	}
 
-	resp, err := svc.GetChunkStatus("status-001")
+	resp, err := svc.GetChunkStatus("", "status-001")
 	if err != nil {
 		t.Fatalf("获取分片状态失败: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestCancelChunkUpload_NotFound(t *testing.T) {
 	ensureChunkDir(t)
 	svc := &AttachmentService{}
 
-	err := svc.CancelChunkUpload("nonexistent-id")
+	err := svc.CancelChunkUpload("", "nonexistent-id")
 	if err != nil {
 		t.Fatalf("取消不存在的会话应返回nil: %v", err)
 	}
@@ -177,12 +177,12 @@ func TestCancelChunkUpload_Success(t *testing.T) {
 		t.Fatalf("初始化失败: %v", err)
 	}
 
-	err = svc.CancelChunkUpload("cancel-001")
+	err = svc.CancelChunkUpload("", "cancel-001")
 	if err != nil {
 		t.Fatalf("取消分片上传失败: %v", err)
 	}
 
-	_, err = svc.GetChunkStatus("cancel-001")
+	_, err = svc.GetChunkStatus("", "cancel-001")
 	if err == nil {
 		t.Fatal("已取消的会话查询应返回错误")
 	}
