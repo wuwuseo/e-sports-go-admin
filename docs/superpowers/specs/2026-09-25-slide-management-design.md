@@ -26,7 +26,7 @@
 |---|---|---|---|
 | id | int | autoincr, immutable, unique | |
 | title | string(100) | NotEmpty | 名称,同时作为图片 alt 文本 |
-| image | string(500) | NotEmpty | 图片 URL(统一上传接口返回的访问地址) |
+| image | string(500) | NotEmpty | 图片 URL 字符串(见下方「图片 URL 约定」) |
 | link | string(500) | Optional | 点击跳转地址 |
 | group_code | string(100) | NotEmpty | 分组编码,对应字典类型 `slide_group` 的字典值 |
 | sort | int | 默认 0 | 升序 |
@@ -35,6 +35,8 @@
 | created_at / updated_at | time | 同 dict_data 惯例 | Immutable / UpdateDefault |
 
 索引:`(group_code, status)` 复合索引,覆盖公开接口的过滤条件。
+
+**图片 URL 约定(2026-09-25 复核确认)**:附件内容的访问地址分两种模式——公开目录返回永久直链,私有目录返回带 TTL 的签名 URL。已确认 `image` 仍存 URL 字符串(与 avatar 一致),**运营约定幻灯片图片统一上传到公开目录**;私有目录图片的签名地址过期后前台会裂图,属已知取舍,不做代码层处理。管理端表单选图后由前端调用现有 access-url 解析(带缓存)得到 URL 存入。
 
 校验策略:后端只校验非空与长度,**不校验 group_code 是否存在于字典**(防拼错由管理端分组下拉保证;字典项被删后幻灯片 group_code 悬空属可接受行为,公开接口按 code 精确匹配,匹配不到返回空数组)。
 
@@ -49,6 +51,8 @@
 - `DELETE /api/v1/admin/auth/slides/{id}` — 删除。
 
 分组下拉由前端直接调现有 `GET /api/v1/admin/auth/dict-data/type/slide_group`,后端零改动。
+
+> **权限依赖(最终审查补充,2026-09-25)**:该字典接口受 API 权限种子 **ID 95**(`dict-data:type`,挂在字典管理菜单下)保护。普通管理员只授予幻灯片种子(192–200)时,分组下拉会 403 且无法建/编幻灯片——给角色分配幻灯片权限时须**同时授予 `dict-data:type` API 权限**(标准 RBAC 操作,无需代码改动)。
 
 ### 公开端(`public` 组,免登录)
 
