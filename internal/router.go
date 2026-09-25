@@ -495,6 +495,24 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	dictData.Put("/:id", handler.UpdateDictData)
 	dictData.Delete("/:id", handler.DeleteDictData)
 
+	// 幻灯片管理路由
+	slideService := service.NewSlideService()
+	slides := adminAuth.Group("/slides", func(c fiber.Ctx) error {
+		c.Locals("service.SlideService", slideService)
+		return c.Next()
+	})
+	slides.Post("", handler.CreateSlide)
+	slides.Get("", handler.ListSlides)
+	slides.Get("/:id", handler.GetSlide)
+	slides.Put("/:id", handler.UpdateSlide)
+	slides.Delete("/:id", handler.DeleteSlide)
+
+	// 公开幻灯片接口(免登录,前台按分组拉取)
+	public.Get("/slides", func(c fiber.Ctx) error {
+		c.Locals("service.SlideService", slideService)
+		return c.Next()
+	}, handler.ListPublicSlides)
+
 	// 动态配置路由
 	var configService *service.ConfigService
 	if appInstance != nil && appInstance.Cache != nil {

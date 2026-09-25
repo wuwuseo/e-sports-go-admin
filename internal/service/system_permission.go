@@ -960,6 +960,18 @@ func InitSystemPermissions(ctx context.Context) error {
 		SeedPermission{ID: 190, Domain: "default", Type: "api", Name: "取消队列任务", Code: "queue-job:cancel", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/cancel", Method: "POST", ParentID: 183, SortOrder: 6, IsCommon: false, Status: 1, Description: "取消执行中队列任务API"},
 		SeedPermission{ID: 191, Domain: "default", Type: "api", Name: "删除队列任务", Code: "queue-job:delete", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}", Method: "DELETE", ParentID: 183, SortOrder: 7, IsCommon: false, Status: 1, Description: "删除队列任务API"},
 	)
+	// 幻灯片管理权限(2026-09-25 幻灯片模块)
+	seedData = append(seedData,
+		SeedPermission{ID: 192, Domain: "default", Type: "menu", Name: "幻灯片管理", Code: "system:slide", MenuPath: "/system/slide", Component: "system/slide/index", ParentID: 3, SortOrder: 15, IsCommon: false, Status: 1, Description: "幻灯片管理页面"},
+		SeedPermission{ID: 193, Domain: "default", Type: "api", Name: "幻灯片列表", Code: "slide:list", Path: "/api/v1/admin/auth/slides", Method: "GET", ParentID: 192, SortOrder: 0, IsCommon: false, Status: 1, Description: "获取幻灯片列表API"},
+		SeedPermission{ID: 194, Domain: "default", Type: "api", Name: "创建幻灯片", Code: "slide:create", Path: "/api/v1/admin/auth/slides", Method: "POST", ParentID: 192, SortOrder: 1, IsCommon: false, Status: 1, Description: "创建幻灯片API"},
+		SeedPermission{ID: 195, Domain: "default", Type: "api", Name: "幻灯片详情", Code: "slide:get", Path: "/api/v1/admin/auth/slides/{id}", Method: "GET", ParentID: 192, SortOrder: 2, IsCommon: false, Status: 1, Description: "获取幻灯片详情API"},
+		SeedPermission{ID: 196, Domain: "default", Type: "api", Name: "更新幻灯片", Code: "slide:update", Path: "/api/v1/admin/auth/slides/{id}", Method: "PUT", ParentID: 192, SortOrder: 3, IsCommon: false, Status: 1, Description: "更新幻灯片API"},
+		SeedPermission{ID: 197, Domain: "default", Type: "api", Name: "删除幻灯片", Code: "slide:delete-api", Path: "/api/v1/admin/auth/slides/{id}", Method: "DELETE", ParentID: 192, SortOrder: 4, IsCommon: false, Status: 1, Description: "删除幻灯片API"},
+		SeedPermission{ID: 198, Domain: "default", Type: "button", Name: "幻灯片管理-新增按钮", Code: "slide:add", ParentID: 192, SortOrder: 0, IsCommon: false, Status: 1, Description: "幻灯片管理页面新增按钮"},
+		SeedPermission{ID: 199, Domain: "default", Type: "button", Name: "幻灯片管理-编辑按钮", Code: "slide:edit", ParentID: 192, SortOrder: 1, IsCommon: false, Status: 1, Description: "幻灯片管理页面编辑按钮"},
+		SeedPermission{ID: 200, Domain: "default", Type: "button", Name: "幻灯片管理-删除按钮", Code: "slide:delete", ParentID: 192, SortOrder: 2, IsCommon: false, Status: 1, Description: "幻灯片管理页面删除按钮"},
+	)
 	for i := range seedData {
 		seedData[i].Domain = configuredPermissionDomain()
 	}

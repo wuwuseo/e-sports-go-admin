@@ -482,6 +482,7 @@ func initDictSeedData() error {
 		{"sys_oper_log_module", "系统", "system", 7},
 		{"sys_config_group", "基本配置", "basic", 1},
 		{"sys_config_group", "附件配置", "attachment", 2},
+		{"slide_group", "首页 banner", "home", 1},
 	}
 	for _, item := range items {
 		subject := item.value
