@@ -48,6 +48,8 @@ type Tx struct {
 	Plugin *PluginClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// Slide is the client for interacting with the Slide builders.
+	Slide *SlideClient
 	// SystemConfig is the client for interacting with the SystemConfig builders.
 	SystemConfig *SystemConfigClient
 	// SystemPermission is the client for interacting with the SystemPermission builders.
@@ -207,6 +209,7 @@ func (tx *Tx) init() {
 	tx.OperationLog = NewOperationLogClient(tx.config)
 	tx.Plugin = NewPluginClient(tx.config)
 	tx.Role = NewRoleClient(tx.config)
+	tx.Slide = NewSlideClient(tx.config)
 	tx.SystemConfig = NewSystemConfigClient(tx.config)
 	tx.SystemPermission = NewSystemPermissionClient(tx.config)
 	tx.ThirdPartyUser = NewThirdPartyUserClient(tx.config)

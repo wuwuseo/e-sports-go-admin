@@ -224,6 +224,18 @@ func (f RoleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RoleMutation", m)
 }
 
+// The SlideFunc type is an adapter to allow the use of ordinary
+// function as Slide mutator.
+type SlideFunc func(context.Context, *ent.SlideMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SlideFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SlideMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SlideMutation", m)
+}
+
 // The SystemConfigFunc type is an adapter to allow the use of ordinary
 // function as SystemConfig mutator.
 type SystemConfigFunc func(context.Context, *ent.SystemConfigMutation) (ent.Value, error)

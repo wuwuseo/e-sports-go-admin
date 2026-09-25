@@ -60,6 +60,9 @@ type Plugin func(*sql.Selector)
 // Role is the predicate function for role builders.
 type Role func(*sql.Selector)
 
+// Slide is the predicate function for slide builders.
+type Slide func(*sql.Selector)
+
 // SystemConfig is the predicate function for systemconfig builders.
 type SystemConfig func(*sql.Selector)
 

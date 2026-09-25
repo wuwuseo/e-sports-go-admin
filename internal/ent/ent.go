@@ -24,6 +24,7 @@ import (
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/slide"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/thirdpartyuser"
@@ -113,6 +114,7 @@ func checkColumn(t, c string) error {
 			operationlog.Table:        operationlog.ValidColumn,
 			plugin.Table:              plugin.ValidColumn,
 			role.Table:                role.ValidColumn,
+			slide.Table:               slide.ValidColumn,
 			systemconfig.Table:        systemconfig.ValidColumn,
 			systempermission.Table:    systempermission.ValidColumn,
 			thirdpartyuser.Table:      thirdpartyuser.ValidColumn,

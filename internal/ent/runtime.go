@@ -22,6 +22,7 @@ import (
 	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
 	"go-admin/internal/ent/schema"
+	"go-admin/internal/ent/slide"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/thirdpartyuser"
@@ -1257,6 +1258,88 @@ func init() {
 	roleDescUpdatedBy := roleFields[9].Descriptor()
 	// role.UpdatedByValidator is a validator for the "updated_by" field. It is called by the builders before save.
 	role.UpdatedByValidator = roleDescUpdatedBy.Validators[0].(func(string) error)
+	slideFields := schema.Slide{}.Fields()
+	_ = slideFields
+	// slideDescTitle is the schema descriptor for title field.
+	slideDescTitle := slideFields[1].Descriptor()
+	// slide.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	slide.TitleValidator = func() func(string) error {
+		validators := slideDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// slideDescImage is the schema descriptor for image field.
+	slideDescImage := slideFields[2].Descriptor()
+	// slide.ImageValidator is a validator for the "image" field. It is called by the builders before save.
+	slide.ImageValidator = func() func(string) error {
+		validators := slideDescImage.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(image string) error {
+			for _, fn := range fns {
+				if err := fn(image); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// slideDescLink is the schema descriptor for link field.
+	slideDescLink := slideFields[3].Descriptor()
+	// slide.LinkValidator is a validator for the "link" field. It is called by the builders before save.
+	slide.LinkValidator = slideDescLink.Validators[0].(func(string) error)
+	// slideDescGroupCode is the schema descriptor for group_code field.
+	slideDescGroupCode := slideFields[4].Descriptor()
+	// slide.GroupCodeValidator is a validator for the "group_code" field. It is called by the builders before save.
+	slide.GroupCodeValidator = func() func(string) error {
+		validators := slideDescGroupCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(group_code string) error {
+			for _, fn := range fns {
+				if err := fn(group_code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// slideDescSort is the schema descriptor for sort field.
+	slideDescSort := slideFields[5].Descriptor()
+	// slide.DefaultSort holds the default value on creation for the sort field.
+	slide.DefaultSort = slideDescSort.Default.(int)
+	// slideDescStatus is the schema descriptor for status field.
+	slideDescStatus := slideFields[6].Descriptor()
+	// slide.DefaultStatus holds the default value on creation for the status field.
+	slide.DefaultStatus = slideDescStatus.Default.(int)
+	// slideDescRemark is the schema descriptor for remark field.
+	slideDescRemark := slideFields[7].Descriptor()
+	// slide.RemarkValidator is a validator for the "remark" field. It is called by the builders before save.
+	slide.RemarkValidator = slideDescRemark.Validators[0].(func(string) error)
+	// slideDescCreatedAt is the schema descriptor for created_at field.
+	slideDescCreatedAt := slideFields[8].Descriptor()
+	// slide.DefaultCreatedAt holds the default value on creation for the created_at field.
+	slide.DefaultCreatedAt = slideDescCreatedAt.Default.(func() time.Time)
+	// slideDescUpdatedAt is the schema descriptor for updated_at field.
+	slideDescUpdatedAt := slideFields[9].Descriptor()
+	// slide.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	slide.DefaultUpdatedAt = slideDescUpdatedAt.Default.(func() time.Time)
+	// slide.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	slide.UpdateDefaultUpdatedAt = slideDescUpdatedAt.UpdateDefault.(func() time.Time)
 	systemconfigFields := schema.SystemConfig{}.Fields()
 	_ = systemconfigFields
 	// systemconfigDescName is the schema descriptor for name field.

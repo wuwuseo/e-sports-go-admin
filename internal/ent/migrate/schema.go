@@ -726,6 +726,32 @@ var (
 			},
 		},
 	}
+	// SlidesColumns holds the columns for the "slides" table.
+	SlidesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "title", Type: field.TypeString, Size: 100},
+		{Name: "image", Type: field.TypeString, Size: 500},
+		{Name: "link", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "group_code", Type: field.TypeString, Size: 100},
+		{Name: "sort", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeInt, Default: 1},
+		{Name: "remark", Type: field.TypeString, Nullable: true, Size: 500},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// SlidesTable holds the schema information for the "slides" table.
+	SlidesTable = &schema.Table{
+		Name:       TablePrefix + "slides",
+		Columns:    SlidesColumns,
+		PrimaryKey: []*schema.Column{SlidesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "slide_group_code_status",
+				Unique:  false,
+				Columns: []*schema.Column{SlidesColumns[4], SlidesColumns[6]},
+			},
+		},
+	}
 	// SystemConfigsColumns holds the columns for the "system_configs" table.
 	SystemConfigsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -978,6 +1004,7 @@ var (
 		OperationLogsTable,
 		PluginsTable,
 		RolesTable,
+		SlidesTable,
 		SystemConfigsTable,
 		SystemPermissionsTable,
 		ThirdPartyUsersTable,

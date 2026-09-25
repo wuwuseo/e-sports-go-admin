@@ -29,6 +29,7 @@ import (
 	"go-admin/internal/ent/operationlog"
 	"go-admin/internal/ent/plugin"
 	"go-admin/internal/ent/role"
+	"go-admin/internal/ent/slide"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/ent/thirdpartyuser"
@@ -82,6 +83,8 @@ type Client struct {
 	Plugin *PluginClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
+	// Slide is the client for interacting with the Slide builders.
+	Slide *SlideClient
 	// SystemConfig is the client for interacting with the SystemConfig builders.
 	SystemConfig *SystemConfigClient
 	// SystemPermission is the client for interacting with the SystemPermission builders.
@@ -121,6 +124,7 @@ func (c *Client) init() {
 	c.OperationLog = NewOperationLogClient(c.config)
 	c.Plugin = NewPluginClient(c.config)
 	c.Role = NewRoleClient(c.config)
+	c.Slide = NewSlideClient(c.config)
 	c.SystemConfig = NewSystemConfigClient(c.config)
 	c.SystemPermission = NewSystemPermissionClient(c.config)
 	c.ThirdPartyUser = NewThirdPartyUserClient(c.config)
@@ -236,6 +240,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		OperationLog:        NewOperationLogClient(cfg),
 		Plugin:              NewPluginClient(cfg),
 		Role:                NewRoleClient(cfg),
+		Slide:               NewSlideClient(cfg),
 		SystemConfig:        NewSystemConfigClient(cfg),
 		SystemPermission:    NewSystemPermissionClient(cfg),
 		ThirdPartyUser:      NewThirdPartyUserClient(cfg),
@@ -278,6 +283,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		OperationLog:        NewOperationLogClient(cfg),
 		Plugin:              NewPluginClient(cfg),
 		Role:                NewRoleClient(cfg),
+		Slide:               NewSlideClient(cfg),
 		SystemConfig:        NewSystemConfigClient(cfg),
 		SystemPermission:    NewSystemPermissionClient(cfg),
 		ThirdPartyUser:      NewThirdPartyUserClient(cfg),
@@ -315,7 +321,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
 		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.LoginLog,
 		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
-		c.OperationLog, c.Plugin, c.Role, c.SystemConfig, c.SystemPermission,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
@@ -329,7 +335,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
 		c.Blacklist, c.CasbinRule, c.CronJob, c.Department, c.DictData, c.LoginLog,
 		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
-		c.OperationLog, c.Plugin, c.Role, c.SystemConfig, c.SystemPermission,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
@@ -375,6 +381,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Plugin.mutate(ctx, m)
 	case *RoleMutation:
 		return c.Role.mutate(ctx, m)
+	case *SlideMutation:
+		return c.Slide.mutate(ctx, m)
 	case *SystemConfigMutation:
 		return c.SystemConfig.mutate(ctx, m)
 	case *SystemPermissionMutation:
@@ -2912,6 +2920,139 @@ func (c *RoleClient) mutate(ctx context.Context, m *RoleMutation) (Value, error)
 	}
 }
 
+// SlideClient is a client for the Slide schema.
+type SlideClient struct {
+	config
+}
+
+// NewSlideClient returns a client for the Slide from the given config.
+func NewSlideClient(c config) *SlideClient {
+	return &SlideClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `slide.Hooks(f(g(h())))`.
+func (c *SlideClient) Use(hooks ...Hook) {
+	c.hooks.Slide = append(c.hooks.Slide, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `slide.Intercept(f(g(h())))`.
+func (c *SlideClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Slide = append(c.inters.Slide, interceptors...)
+}
+
+// Create returns a builder for creating a Slide entity.
+func (c *SlideClient) Create() *SlideCreate {
+	mutation := newSlideMutation(c.config, OpCreate)
+	return &SlideCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Slide entities.
+func (c *SlideClient) CreateBulk(builders ...*SlideCreate) *SlideCreateBulk {
+	return &SlideCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SlideClient) MapCreateBulk(slice any, setFunc func(*SlideCreate, int)) *SlideCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SlideCreateBulk{err: fmt.Errorf("calling to SlideClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SlideCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SlideCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Slide.
+func (c *SlideClient) Update() *SlideUpdate {
+	mutation := newSlideMutation(c.config, OpUpdate)
+	return &SlideUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SlideClient) UpdateOne(_m *Slide) *SlideUpdateOne {
+	mutation := newSlideMutation(c.config, OpUpdateOne, withSlide(_m))
+	return &SlideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SlideClient) UpdateOneID(id int) *SlideUpdateOne {
+	mutation := newSlideMutation(c.config, OpUpdateOne, withSlideID(id))
+	return &SlideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Slide.
+func (c *SlideClient) Delete() *SlideDelete {
+	mutation := newSlideMutation(c.config, OpDelete)
+	return &SlideDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SlideClient) DeleteOne(_m *Slide) *SlideDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SlideClient) DeleteOneID(id int) *SlideDeleteOne {
+	builder := c.Delete().Where(slide.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SlideDeleteOne{builder}
+}
+
+// Query returns a query builder for Slide.
+func (c *SlideClient) Query() *SlideQuery {
+	return &SlideQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSlide},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Slide entity by its id.
+func (c *SlideClient) Get(ctx context.Context, id int) (*Slide, error) {
+	return c.Query().Where(slide.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SlideClient) GetX(ctx context.Context, id int) *Slide {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SlideClient) Hooks() []Hook {
+	return c.hooks.Slide
+}
+
+// Interceptors returns the client interceptors.
+func (c *SlideClient) Interceptors() []Interceptor {
+	return c.inters.Slide
+}
+
+func (c *SlideClient) mutate(ctx context.Context, m *SlideMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SlideCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SlideUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SlideUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SlideDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Slide mutation op: %q", m.Op())
+	}
+}
+
 // SystemConfigClient is a client for the SystemConfig schema.
 type SystemConfigClient struct {
 	config
@@ -3631,13 +3772,14 @@ type (
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CronJob, Department, DictData, LoginLog, Message,
 		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, SystemConfig, SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
+		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CronJob, Department, DictData, LoginLog, Message,
 		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
 		UserRole []ent.Interceptor
 	}
 )
