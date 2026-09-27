@@ -28,11 +28,6 @@ const (
 	FieldCreatedAt = "created_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
-	// UserTable is the table that holds the user relation/edge.
-	UserTable = "blacklists"
-	// UserInverseTable is the table name for the User entity.
-	// It exists in this package in order to avoid circular dependency with the "user" package.
-	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
 	UserColumn = "user_id"
 )
@@ -41,6 +36,12 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "blacklists"
+
+// UserTable is the prefixed table for the user relation/edge.
+var UserTable = TablePrefix + "blacklists"
+
+// UserInverseTable is the prefixed table of the related entity.
+var UserInverseTable = TablePrefix + "users"
 
 // Columns holds all SQL columns for blacklist fields.
 var Columns = []string{

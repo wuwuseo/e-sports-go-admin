@@ -11,6 +11,8 @@ import (
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/democategory"
+	"go-admin/internal/ent/demoitem"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/loginlog"
@@ -527,6 +529,18 @@ func init() {
 	cronjob.DefaultUpdatedAt = cronjobDescUpdatedAt.Default.(func() time.Time)
 	// cronjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	cronjob.UpdateDefaultUpdatedAt = cronjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	democategoryFields := schema.DemoCategory{}.Fields()
+	_ = democategoryFields
+	// democategoryDescName is the schema descriptor for name field.
+	democategoryDescName := democategoryFields[0].Descriptor()
+	// democategory.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	democategory.NameValidator = democategoryDescName.Validators[0].(func(string) error)
+	demoitemFields := schema.DemoItem{}.Fields()
+	_ = demoitemFields
+	// demoitemDescTitle is the schema descriptor for title field.
+	demoitemDescTitle := demoitemFields[0].Descriptor()
+	// demoitem.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	demoitem.TitleValidator = demoitemDescTitle.Validators[0].(func(string) error)
 	departmentMixin := schema.Department{}.Mixin()
 	departmentMixinFields0 := departmentMixin[0].Fields()
 	_ = departmentMixinFields0

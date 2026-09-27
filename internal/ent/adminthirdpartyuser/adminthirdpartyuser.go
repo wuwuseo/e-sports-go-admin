@@ -41,11 +41,6 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeAdmin holds the string denoting the admin edge name in mutations.
 	EdgeAdmin = "admin"
-	// AdminTable is the table that holds the admin relation/edge.
-	AdminTable = "admin_third_party_users"
-	// AdminInverseTable is the table name for the Admin entity.
-	// It exists in this package in order to avoid circular dependency with the "admin" package.
-	AdminInverseTable = "admins"
 	// AdminColumn is the table column denoting the admin relation/edge.
 	AdminColumn = "admin_id"
 )
@@ -54,6 +49,12 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "admin_third_party_users"
+
+// AdminTable is the prefixed table for the admin relation/edge.
+var AdminTable = TablePrefix + "admin_third_party_users"
+
+// AdminInverseTable is the prefixed table of the related entity.
+var AdminInverseTable = TablePrefix + "admins"
 
 // Columns holds all SQL columns for adminthirdpartyuser fields.
 var Columns = []string{

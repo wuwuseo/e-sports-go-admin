@@ -182,8 +182,12 @@ func (s *SystemPermissionService) ensureSuperAdminOrSystem(ctx context.Context, 
 }
 
 func NewSystemPermissionService() *SystemPermissionService {
+	return NewSystemPermissionServiceWithClient(global.ORM)
+}
+
+func NewSystemPermissionServiceWithClient(client *ent.Client) *SystemPermissionService {
 	return &SystemPermissionService{
-		client: global.ORM,
+		client: client,
 	}
 }
 

@@ -57,11 +57,6 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
-	// UserTable is the table that holds the user relation/edge.
-	UserTable = "third_party_users"
-	// UserInverseTable is the table name for the User entity.
-	// It exists in this package in order to avoid circular dependency with the "user" package.
-	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
 	UserColumn = "user_id"
 )
@@ -70,6 +65,12 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "third_party_users"
+
+// UserTable is the prefixed table for the user relation/edge.
+var UserTable = TablePrefix + "third_party_users"
+
+// UserInverseTable is the prefixed table of the related entity.
+var UserInverseTable = TablePrefix + "users"
 
 // Columns holds all SQL columns for thirdpartyuser fields.
 var Columns = []string{

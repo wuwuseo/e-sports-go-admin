@@ -55,11 +55,6 @@ const (
 	FieldIsSuperAdmin = "is_super_admin"
 	// EdgeDepartmentRef holds the string denoting the department_ref edge name in mutations.
 	EdgeDepartmentRef = "department_ref"
-	// DepartmentRefTable is the table that holds the department_ref relation/edge.
-	DepartmentRefTable = "admins"
-	// DepartmentRefInverseTable is the table name for the Department entity.
-	// It exists in this package in order to avoid circular dependency with the "department" package.
-	DepartmentRefInverseTable = "departments"
 	// DepartmentRefColumn is the table column denoting the department_ref relation/edge.
 	DepartmentRefColumn = "department_id"
 )
@@ -68,6 +63,12 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "admins"
+
+// DepartmentRefTable is the prefixed table for the department_ref relation/edge.
+var DepartmentRefTable = TablePrefix + "admins"
+
+// DepartmentRefInverseTable is the prefixed table of the related entity.
+var DepartmentRefInverseTable = TablePrefix + "departments"
 
 // Columns holds all SQL columns for admin fields.
 var Columns = []string{

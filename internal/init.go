@@ -15,6 +15,7 @@ import (
 	"github.com/wuwuseo/cmf/orm"
 	"go.uber.org/zap"
 
+	"go-admin/internal/apps"
 	"go-admin/internal/casbin/adapter"
 	"go-admin/internal/cron"
 	"go-admin/internal/ent"
@@ -450,6 +451,9 @@ func initSeedData() error {
 		return fmt.Errorf("failed to initialize system permissions: %w", err)
 	}
 	appInstance.Logger.Info("system permissions initialized successfully")
+	if err := apps.Provision(ctx, appInstance.Config, client); err != nil {
+		return fmt.Errorf("initialize source feature sets: %w", err)
+	}
 
 	// 6. 初始化普通管理员角色（normal_admin），并将所有系统权限分配给该角色
 	if err := initNormalAdminRole(ctx, client, domain); err != nil {

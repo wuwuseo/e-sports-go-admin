@@ -28,6 +28,10 @@ type Tx struct {
 	CasbinRule *CasbinRuleClient
 	// CronJob is the client for interacting with the CronJob builders.
 	CronJob *CronJobClient
+	// DemoCategory is the client for interacting with the DemoCategory builders.
+	DemoCategory *DemoCategoryClient
+	// DemoItem is the client for interacting with the DemoItem builders.
+	DemoItem *DemoItemClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DictData is the client for interacting with the DictData builders.
@@ -199,6 +203,8 @@ func (tx *Tx) init() {
 	tx.Blacklist = NewBlacklistClient(tx.config)
 	tx.CasbinRule = NewCasbinRuleClient(tx.config)
 	tx.CronJob = NewCronJobClient(tx.config)
+	tx.DemoCategory = NewDemoCategoryClient(tx.config)
+	tx.DemoItem = NewDemoItemClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DictData = NewDictDataClient(tx.config)
 	tx.LoginLog = NewLoginLogClient(tx.config)

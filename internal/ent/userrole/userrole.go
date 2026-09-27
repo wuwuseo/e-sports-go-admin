@@ -32,18 +32,8 @@ const (
 	EdgeUser = "user"
 	// EdgeRole holds the string denoting the role edge name in mutations.
 	EdgeRole = "role"
-	// UserTable is the table that holds the user relation/edge.
-	UserTable = "user_roles"
-	// UserInverseTable is the table name for the User entity.
-	// It exists in this package in order to avoid circular dependency with the "user" package.
-	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
 	UserColumn = "user_id"
-	// RoleTable is the table that holds the role relation/edge.
-	RoleTable = "user_roles"
-	// RoleInverseTable is the table name for the Role entity.
-	// It exists in this package in order to avoid circular dependency with the "role" package.
-	RoleInverseTable = "roles"
 	// RoleColumn is the table column denoting the role relation/edge.
 	RoleColumn = "role_id"
 )
@@ -52,6 +42,18 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "user_roles"
+
+// UserTable is the prefixed table for the user relation/edge.
+var UserTable = TablePrefix + "user_roles"
+
+// UserInverseTable is the prefixed table of the related entity.
+var UserInverseTable = TablePrefix + "users"
+
+// RoleTable is the prefixed table for the role relation/edge.
+var RoleTable = TablePrefix + "user_roles"
+
+// RoleInverseTable is the prefixed table of the related entity.
+var RoleInverseTable = TablePrefix + "roles"
 
 // Columns holds all SQL columns for userrole fields.
 var Columns = []string{

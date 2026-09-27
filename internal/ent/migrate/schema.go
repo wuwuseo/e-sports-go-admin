@@ -328,6 +328,37 @@ var (
 			},
 		},
 	}
+	// DemoCategoriesColumns holds the columns for the "demo_categories" table.
+	DemoCategoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString},
+	}
+	// DemoCategoriesTable holds the schema information for the "demo_categories" table.
+	DemoCategoriesTable = &schema.Table{
+		Name:       TablePrefix + "demo_categories",
+		Columns:    DemoCategoriesColumns,
+		PrimaryKey: []*schema.Column{DemoCategoriesColumns[0]},
+	}
+	// DemoItemsColumns holds the columns for the "demo_items" table.
+	DemoItemsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "title", Type: field.TypeString},
+		{Name: "demo_category_items", Type: field.TypeInt, Nullable: true},
+	}
+	// DemoItemsTable holds the schema information for the "demo_items" table.
+	DemoItemsTable = &schema.Table{
+		Name:       TablePrefix + "demo_items",
+		Columns:    DemoItemsColumns,
+		PrimaryKey: []*schema.Column{DemoItemsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "demo_items_demo_categories_items",
+				Columns:    []*schema.Column{DemoItemsColumns[2]},
+				RefColumns: []*schema.Column{DemoCategoriesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// DepartmentsColumns holds the columns for the "departments" table.
 	DepartmentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -994,6 +1025,8 @@ var (
 		BlacklistsTable,
 		CasbinRulesTable,
 		CronJobsTable,
+		DemoCategoriesTable,
+		DemoItemsTable,
 		DepartmentsTable,
 		DictDataTable,
 		LoginLogsTable,
@@ -1020,6 +1053,7 @@ func init() {
 	AdminThirdPartyUsersTable.ForeignKeys[0].RefTable = AdminsTable
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
 	BlacklistsTable.ForeignKeys[0].RefTable = UsersTable
+	DemoItemsTable.ForeignKeys[0].RefTable = DemoCategoriesTable
 	ThirdPartyUsersTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[1].RefTable = RolesTable

@@ -39,11 +39,6 @@ const (
 	FieldEmail = "email"
 	// EdgeAdmins holds the string denoting the admins edge name in mutations.
 	EdgeAdmins = "admins"
-	// AdminsTable is the table that holds the admins relation/edge.
-	AdminsTable = "admins"
-	// AdminsInverseTable is the table name for the Admin entity.
-	// It exists in this package in order to avoid circular dependency with the "admin" package.
-	AdminsInverseTable = "admins"
 	// AdminsColumn is the table column denoting the admins relation/edge.
 	AdminsColumn = "department_id"
 )
@@ -52,6 +47,12 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "departments"
+
+// AdminsTable is the prefixed table for the admins relation/edge.
+var AdminsTable = TablePrefix + "admins"
+
+// AdminsInverseTable is the prefixed table of the related entity.
+var AdminsInverseTable = TablePrefix + "admins"
 
 // Columns holds all SQL columns for department fields.
 var Columns = []string{

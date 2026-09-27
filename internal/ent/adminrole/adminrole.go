@@ -32,18 +32,8 @@ const (
 	EdgeAdmin = "admin"
 	// EdgeRole holds the string denoting the role edge name in mutations.
 	EdgeRole = "role"
-	// AdminTable is the table that holds the admin relation/edge.
-	AdminTable = "admin_roles"
-	// AdminInverseTable is the table name for the Admin entity.
-	// It exists in this package in order to avoid circular dependency with the "admin" package.
-	AdminInverseTable = "admins"
 	// AdminColumn is the table column denoting the admin relation/edge.
 	AdminColumn = "admin_id"
-	// RoleTable is the table that holds the role relation/edge.
-	RoleTable = "admin_roles"
-	// RoleInverseTable is the table name for the Role entity.
-	// It exists in this package in order to avoid circular dependency with the "role" package.
-	RoleInverseTable = "roles"
 	// RoleColumn is the table column denoting the role relation/edge.
 	RoleColumn = "role_id"
 )
@@ -52,6 +42,18 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "admin_roles"
+
+// AdminTable is the prefixed table for the admin relation/edge.
+var AdminTable = TablePrefix + "admin_roles"
+
+// AdminInverseTable is the prefixed table of the related entity.
+var AdminInverseTable = TablePrefix + "admins"
+
+// RoleTable is the prefixed table for the role relation/edge.
+var RoleTable = TablePrefix + "admin_roles"
+
+// RoleInverseTable is the prefixed table of the related entity.
+var RoleInverseTable = TablePrefix + "roles"
 
 // Columns holds all SQL columns for adminrole fields.
 var Columns = []string{

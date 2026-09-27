@@ -48,11 +48,6 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// EdgeGroup holds the string denoting the group edge name in mutations.
 	EdgeGroup = "group"
-	// GroupTable is the table that holds the group relation/edge.
-	GroupTable = "attachments"
-	// GroupInverseTable is the table name for the AttachmentGroup entity.
-	// It exists in this package in order to avoid circular dependency with the "attachmentgroup" package.
-	GroupInverseTable = "attachment_groups"
 	// GroupColumn is the table column denoting the group relation/edge.
 	GroupColumn = "group_id"
 )
@@ -61,6 +56,12 @@ const (
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "attachments"
+
+// GroupTable is the prefixed table for the group relation/edge.
+var GroupTable = TablePrefix + "attachments"
+
+// GroupInverseTable is the prefixed table of the related entity.
+var GroupInverseTable = TablePrefix + "attachment_groups"
 
 // Columns holds all SQL columns for attachment fields.
 var Columns = []string{

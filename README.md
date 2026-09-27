@@ -353,6 +353,8 @@ graph TB
 
 ### 添加新功能
 
+源码功能集可在 `internal/apps/<code>/` 同时声明配置、路由、权限和 Ent 模型。参见[源码功能集开发说明](docs/source-apps.md)；新增功能集后先运行 `go generate ./internal/apps`，再运行 `go generate ./internal/ent`。
+
 1. **定义数据模型** (如需要)
    在 `internal/ent/schema/` 下新增或修改 schema，然后重新生成代码：
    ```bash

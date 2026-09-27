@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/casbin/casbin/v3/persist"
@@ -9,6 +10,7 @@ import (
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/orm"
 
+	"go-admin/internal/apps"
 	"go-admin/internal/casbin/adapter"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/migrate"
@@ -17,6 +19,9 @@ import (
 // NewEntClient 创建 Ent ORM 客户端（Wire Provider）
 // connName 可选指定数据库连接名（不传 = 默认连接），用于 Ent 接入 database.connections 中的其他连接
 func NewEntClient(cfg *config.Config, dbManager *orm.DBManager, connName ...string) (*ent.Client, error) {
+	if err := apps.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid source feature set: %w", err)
+	}
 	// 延迟初始化表前缀：配置已加载，此时可安全获取 table_prefix
 	ent.InitTablePrefix(orm.GetTablePrefix())
 

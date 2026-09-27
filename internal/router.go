@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"go-admin/internal/apps"
 	appcaptcha "go-admin/internal/captcha"
 	"go-admin/internal/global"
 	"go-admin/internal/handler"
@@ -593,6 +594,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		return c.Next()
 	})
 	sseGroup.Get("/connect", handler.SSEConnect)
+	if err := apps.Mount(v1, config, blacklistService); err != nil {
+		panic("mount source feature sets: " + err.Error())
+	}
 }
 
 func validatePluginTrustPolicy(environment string, requireSignature bool, trustedKeyCount int) error {

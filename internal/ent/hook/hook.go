@@ -104,6 +104,30 @@ func (f CronJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CronJobMutation", m)
 }
 
+// The DemoCategoryFunc type is an adapter to allow the use of ordinary
+// function as DemoCategory mutator.
+type DemoCategoryFunc func(context.Context, *ent.DemoCategoryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DemoCategoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DemoCategoryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DemoCategoryMutation", m)
+}
+
+// The DemoItemFunc type is an adapter to allow the use of ordinary
+// function as DemoItem mutator.
+type DemoItemFunc func(context.Context, *ent.DemoItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f DemoItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.DemoItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DemoItemMutation", m)
+}
+
 // The DepartmentFunc type is an adapter to allow the use of ordinary
 // function as Department mutator.
 type DepartmentFunc func(context.Context, *ent.DepartmentMutation) (ent.Value, error)
