@@ -58,6 +58,8 @@ type PluginResponse struct {
 
 type PluginProxyRequest struct {
 	PluginID string
+	Point    string
+	UserID   string
 	Method   string
 	Path     string
 	Query    string
@@ -127,9 +129,24 @@ func (s *PluginService) Proxy(ctx context.Context, req *PluginProxyRequest) (*Pl
 	if reservedPluginControlPath(req.Path) {
 		return nil, adminplugin.ErrPermissionDenied
 	}
+	if req.Point == pluginapi.ExtensionUserRoutes && req.UserID == "" {
+		return nil, adminplugin.ErrPermissionDenied
+	}
+	headers := req.Header.Clone()
+	if headers == nil {
+		headers = make(http.Header)
+	}
+	for name := range headers {
+		if strings.EqualFold(name, pluginapi.UserIDHeader) {
+			delete(headers, name)
+		}
+	}
+	if req.Point == pluginapi.ExtensionUserRoutes {
+		headers.Set(pluginapi.UserIDHeader, req.UserID)
+	}
 	proxyCtx, cancel := context.WithTimeout(ctx, pluginProxyTimeout)
 	defer cancel()
-	if err := s.manager.Authorize(proxyCtx, req.PluginID, req.Method, normalizedProxyPath(req.Path)); err != nil {
+	if err := s.manager.Authorize(proxyCtx, req.PluginID, req.Point, req.Method, normalizedProxyPath(req.Path)); err != nil {
 		return nil, err
 	}
 	endpoint, err := s.manager.ResolveEndpoint(proxyCtx, req.PluginID)
@@ -144,13 +161,14 @@ func (s *PluginService) Proxy(ctx context.Context, req *PluginProxyRequest) (*Pl
 	case cmfplugin.ProtocolHTTP:
 		request := *req
 		request.Body = bytes.NewReader(body)
+		request.Header = headers
 		return s.proxyHTTP(proxyCtx, endpoint, &request)
 	case cmfplugin.ProtocolGRPC, cmfplugin.ProtocolStdio:
 		response, err := s.manager.Invoke(proxyCtx, req.PluginID, &pluginapi.ProxyRequest{
 			Method:  req.Method,
 			Path:    normalizedProxyPath(req.Path),
 			Query:   req.Query,
-			Headers: toPluginHeaders(req.Header),
+			Headers: toPluginHeaders(headers),
 			Body:    body,
 		})
 		if err != nil {
@@ -268,7 +286,11 @@ func proxyHTTPClient(endpoint *adminplugin.Endpoint) (*http.Client, string, erro
 		transport := &http.Transport{DialContext: func(ctx context.Context, network string, addr string) (net.Conn, error) {
 			return dialer.DialContext(ctx, "unix", endpoint.Socket)
 		}}
-		return &http.Client{Transport: transport, Timeout: 30 * time.Second}, "http://unix", nil
+		return &http.Client{
+			Transport:     transport,
+			Timeout:       30 * time.Second,
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		}, "http://unix", nil
 	default:
 		return nil, "", adminplugin.ErrUnsupportedTransport
 	}

@@ -16,6 +16,7 @@ import (
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
+	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
 	appoauth "go-admin/internal/oauth"
 
@@ -60,7 +61,99 @@ func TestRegisterRouteRegistersPluginProxyRoutesWithoutProxySegment(t *testing.T
 	assertRouteRegistered(t, routes, "/api/v1/plugin/:plugin_id/*")
 	assertRouteRegistered(t, routes, "/api/v1/plugin/:plugin_id/admin/auth")
 	assertRouteRegistered(t, routes, "/api/v1/plugin/:plugin_id/admin/auth/*")
+	assertRouteRegistered(t, routes, "/api/v1/plugin/:plugin_id/public")
+	assertRouteRegistered(t, routes, "/api/v1/plugin/:plugin_id/public/*")
+	assertRouteRegistered(t, routes, "/api/v1/plugin/:plugin_id/user/auth")
+	assertRouteRegistered(t, routes, "/api/v1/plugin/:plugin_id/user/auth/*")
 	assertRouteNotRegistered(t, routes, "/proxy")
+}
+
+func TestPluginProxyPublicAndUserAuthentication(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:router_plugin_audiences?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	global.ORM = client
+	_, err := client.User.Create().SetEmail("plugin-user@example.com").SetUID("plugin-user").
+		SetStatus(user.StatusActive).Save(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := fiber.New()
+	cfg := config.NewConfig()
+	cfg.App.Secret = "user-plugin-secret"
+	cfg.App.AdminSecret = "admin-plugin-secret"
+	RegisterRoute(app, cfg)
+
+	publicResponse, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/plugin/missing/public/feed", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer publicResponse.Body.Close()
+	if publicResponse.StatusCode == http.StatusUnauthorized {
+		t.Fatal("public plugin route required a JWT")
+	}
+	var publicBody struct {
+		Code int `json:"code"`
+	}
+	if err := json.NewDecoder(publicResponse.Body).Decode(&publicBody); err != nil || publicBody.Code != global.ErrCodePluginNotFound {
+		t.Fatalf("public route did not reach plugin lookup: body=%+v, error=%v", publicBody, err)
+	}
+	controlResponse, err := app.Test(httptest.NewRequest(http.MethodPost, "/api/v1/plugin/missing/public/_go-admin/shutdown", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	controlResponse.Body.Close()
+	if controlResponse.StatusCode != http.StatusForbidden {
+		t.Fatalf("public runtime control path status = %d, want 403", controlResponse.StatusCode)
+	}
+
+	unauthenticated, err := app.Test(httptest.NewRequest(http.MethodGet, "/api/v1/plugin/missing/user/auth/profile", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unauthenticated.Body.Close()
+	if unauthenticated.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("user route without token status = %d, want 401", unauthenticated.StatusCode)
+	}
+
+	for _, test := range []struct {
+		name, tokenType string
+		expires         time.Time
+		wantAuthorized  bool
+	}{
+		{"refresh token", "refresh", time.Now().Add(time.Hour), false},
+		{"expired access token", "access", time.Now().Add(-time.Hour), false},
+		{"valid access token", "access", time.Now().Add(time.Hour), true},
+	} {
+		token, err := cmfJwt.CreateToken(jwt.MapClaims{
+			"id": "plugin-user", "domain": "default", "token_type": test.tokenType,
+			"token_version": 0, "expires": jwt.NewNumericDate(test.expires),
+		}, cfg.App.Secret)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/plugin/missing/user/auth/profile", nil)
+		request.Header.Set("Authorization", "Bearer "+token)
+		response, err := app.Test(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var body struct {
+			Code int `json:"code"`
+		}
+		if test.wantAuthorized {
+			if err := json.NewDecoder(response.Body).Decode(&body); err != nil || body.Code != global.ErrCodePluginNotFound {
+				t.Fatalf("%s did not reach plugin lookup: body=%+v, error=%v", test.name, body, err)
+			}
+		}
+		response.Body.Close()
+		if !test.wantAuthorized && response.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("%s status = %d, want 401", test.name, response.StatusCode)
+		}
+		if test.wantAuthorized && response.StatusCode == http.StatusUnauthorized {
+			t.Fatalf("%s was rejected before plugin lookup", test.name)
+		}
+	}
 }
 
 func TestRegisterRouteRegistersGitHubOAuthRoutes(t *testing.T) {

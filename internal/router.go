@@ -18,6 +18,7 @@ import (
 	adminqueue "go-admin/internal/queue"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
+	"go-admin/pluginapi"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/wuwuseo/cmf/cache"
@@ -212,9 +213,37 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		c.Locals("service.PluginService", pluginService)
 		return c.Next()
 	})
+	pluginPublic := func(c fiber.Ctx) error {
+		c.Locals("plugin.proxy_path_prefix", "/public")
+		c.Locals("plugin.proxy_point", pluginapi.ExtensionPublicRoutes)
+		return handler.ProxyPlugin(c)
+	}
+	pluginProxy.All("/:plugin_id/public", pluginPublic)
+	pluginProxy.All("/:plugin_id/public/*", pluginPublic)
+	pluginUserAuth := []any{jwt.NewJWTMiddlewareWithConfig(jwt.JWTConfig{
+		Secret: config.App.Secret,
+		ErrorHandler: func(c fiber.Ctx, _ error) error {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		},
+	}), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
+		claims := jwt.GetJWTUserData(c)
+		userID, ok := claims["id"].(string)
+		expires, validExpiry := claims["expires"].(float64)
+		if !ok || userID == "" || claims["token_type"] != "access" ||
+			!validExpiry || expires <= float64(time.Now().Unix()) {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+		c.Locals("plugin.user_id", userID)
+		c.Locals("plugin.proxy_path_prefix", "/user/auth")
+		c.Locals("plugin.proxy_point", pluginapi.ExtensionUserRoutes)
+		return c.Next()
+	}, middleware.BlacklistCheck(blacklistService, "user"), handler.ProxyPlugin}
+	pluginProxy.All("/:plugin_id/user/auth", pluginUserAuth[0], pluginUserAuth[1:]...)
+	pluginProxy.All("/:plugin_id/user/auth/*", pluginUserAuth[0], pluginUserAuth[1:]...)
 	pluginProxyAuth := []any{jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.PermissionService", permissionService)
 		c.Locals("plugin.proxy_path_prefix", "/admin/auth")
+		c.Locals("plugin.proxy_point", cmfplugin.ExtensionAdminRoutes)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService, "admin"), middleware.PermissionMiddleware(), handler.ProxyPlugin}
 	pluginProxy.All("/:plugin_id/admin/auth", pluginProxyAuth[0], pluginProxyAuth[1:]...)
@@ -224,6 +253,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// 注意：此路由不设置 plugin.proxy_path_prefix，避免给任意子路径错误拼上 /admin/auth 前缀。
 	pluginProxy.All("/:plugin_id/*", jwt.NewJWTMiddleware(config.App.AdminSecret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.PermissionService", permissionService)
+		c.Locals("plugin.proxy_point", cmfplugin.ExtensionAdminRoutes)
 		return c.Next()
 	}, middleware.BlacklistCheck(blacklistService, "admin"), middleware.PermissionMiddleware(), handler.ProxyPlugin)
 

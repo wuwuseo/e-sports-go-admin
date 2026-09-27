@@ -31,31 +31,59 @@ compatibility:
   api: v1
 extension_points:
   - admin.routes
+  - public.routes
+  - user.routes
 permissions:
   - route:register
+  - route:public:register
+  - route:user:register
 ```
 
 For stdio, set each platform transport to `stdio` and omit address/socket.
 
-Plugin API v1 supports one extension point. It requires its matching permission
-and a typed entry in `contributions.json`:
+Plugin API v1 supports three route extension points. Each requires its matching
+permission and a typed entry in `contributions.json`:
 
 | Extension point | Required permission |
 | --- | --- |
 | `admin.routes` | `route:register` |
-Other extension-point names are rejected rather than silently registered;
-they require real host consumers and a future API version. Unknown and
-duplicate permissions/extension points are also rejected. A minimal
-route contribution is:
+| `public.routes` | `route:public:register` |
+| `user.routes` | `route:user:register` |
+Other extension-point names are rejected rather than silently registered.
+Unknown and duplicate permissions/extension points are also rejected. A
+contribution using all three audiences is:
 
 ```json
 {
-  "admin.routes": [
-    {"method": "GET", "path": "/manifest"},
-    {"method": "POST", "path": "/admin/auth/items/*"}
-  ]
+  "admin.routes": [{"method": "POST", "path": "/admin/auth/items/*"}],
+  "public.routes": [{"method": "GET", "path": "/public/feed"}],
+  "user.routes": [{"method": "GET", "path": "/user/auth/profile"}]
 }
 ```
+
+The three host routes use the same plugin ID namespace and forward the
+corresponding path to the plugin process:
+
+| Host URL | Authentication | Contribution point |
+| --- | --- | --- |
+| `/api/v1/plugin/{id}/public/*` | None | `public.routes` |
+| `/api/v1/plugin/{id}/user/auth/*` | User access JWT and active account | `user.routes` |
+| `/api/v1/plugin/{id}/admin/auth/*` | Admin access JWT and Casbin permission | `admin.routes` |
+
+Each URL also works without the final `/*` segment. Existing admin plugin URLs
+outside these prefixes keep their admin JWT and Casbin checks. The catch-all
+admin route cannot enter the reserved public or user namespaces.
+Public route contributions must begin with `/public`, and user route
+contributions must begin with `/user/auth`. A declaration in one audience never
+authorizes a request in another. A plugin only exposing admin routes remains
+inaccessible to guests and ordinary users.
+
+The host removes client `Authorization`, cookies, and `X-Go-Admin-Plugin-User-ID`
+before proxying. For an authenticated user route it sets
+`X-Go-Admin-Plugin-User-ID` to the verified user UID; on public routes this
+header is absent. The plugin must use the host supplied identity instead of
+trusting identity values sent by a client. The header is also filtered from
+plugin responses.
 
 Only contributed method/path pairs are accepted by the host proxy. `*` is
 allowed as a route method and a trailing `/*` is allowed as a path wildcard.

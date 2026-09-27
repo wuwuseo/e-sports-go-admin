@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -110,6 +111,63 @@ func TestListPublicSlides_AnonymousAccessibleAndFiltered(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `"group_code":"home"`) {
 		t.Fatalf("响应应包含 group_code 字段, body = %s", string(body))
+	}
+	var publicBody struct {
+		Data []map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(body, &publicBody); err != nil {
+		t.Fatalf("decode public fields failed: %v", err)
+	}
+	for _, item := range publicBody.Data {
+		if len(item) != 5 {
+			t.Fatalf("公开响应应恰好包含五个字段, 实际 %#v", item)
+		}
+		for _, key := range []string{"id", "title", "image", "link", "group_code"} {
+			if _, ok := item[key]; !ok {
+				t.Fatalf("公开响应缺少 %s 字段, 实际 %#v", key, item)
+			}
+		}
+	}
+}
+
+func TestUpdateSlide_EmptyRequiredFieldReturnsParameterError(t *testing.T) {
+	app, svc, cleanup := setupSlidePublicTestApp(t)
+	defer cleanup()
+	created := mustCreateSlideForTest(t, svc, "原标题", "home", 0, 1)
+	app.Put("/api/v1/admin/auth/slides/:id", func(c fiber.Ctx) error {
+		c.Locals("utils.Response", utils.NewResponse())
+		c.Locals("service.SlideService", svc)
+		return UpdateSlide(c)
+	})
+
+	for _, field := range []string{"title", "image", "group_code"} {
+		t.Run(field, func(t *testing.T) {
+			body := fmt.Sprintf(`{"%s":""}`, field)
+			req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/v1/admin/auth/slides/%d", created.ID), strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("app.Test returned error: %v", err)
+			}
+			defer resp.Body.Close()
+			var result struct {
+				Code int `json:"code"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+				t.Fatalf("decode response failed: %v", err)
+			}
+			if result.Code != global.ResponseErrorCode {
+				t.Fatalf("空 %s 应返回参数错误码 %d, 实际 %d", field, global.ResponseErrorCode, result.Code)
+			}
+		})
+	}
+
+	got, err := svc.Get(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("查询幻灯片失败: %v", err)
+	}
+	if got.Title != "原标题" || got.Image == "" || got.GroupCode != "home" {
+		t.Fatalf("无效更新不应更改幻灯片, 实际 %#v", got)
 	}
 }
 

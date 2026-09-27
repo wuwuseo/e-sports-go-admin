@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -34,7 +35,7 @@ type Manager interface {
 	Uninstall(ctx context.Context, pluginID string) error
 	List(ctx context.Context) ([]cmfplugin.PluginInfo, error)
 	Get(ctx context.Context, pluginID string) (*cmfplugin.PluginInfo, error)
-	Authorize(ctx context.Context, pluginID string, method string, path string) error
+	Authorize(ctx context.Context, pluginID string, point string, method string, path string) error
 	ResolveEndpoint(ctx context.Context, pluginID string) (*Endpoint, error)
 	Invoke(ctx context.Context, pluginID string, request *pluginapi.ProxyRequest) (*pluginapi.ProxyResponse, error)
 }
@@ -662,7 +663,28 @@ func (m *DefaultManager) Diagnostics(ctx context.Context, pluginID string) (*Dia
 	}, nil
 }
 
-func (m *DefaultManager) Authorize(ctx context.Context, pluginID string, method string, requestPath string) error {
+func (m *DefaultManager) Authorize(ctx context.Context, pluginID string, point string, method string, requestPath string) error {
+	if _, known := extensionPermission[point]; !known {
+		return ErrPermissionDenied
+	}
+	for _, scope := range []struct{ point, prefix string }{
+		{pluginapi.ExtensionPublicRoutes, "/public"},
+		{pluginapi.ExtensionUserRoutes, "/user/auth"},
+	} {
+		if point == scope.point {
+			for range 3 {
+				decoded, err := url.PathUnescape(requestPath)
+				if err != nil {
+					return ErrPermissionDenied
+				}
+				requestPath = decoded
+			}
+			if strings.Contains(requestPath, "%") || !validContributionPath(requestPath, false) ||
+				(requestPath != scope.prefix && !strings.HasPrefix(requestPath, scope.prefix+"/")) {
+				return ErrPermissionDenied
+			}
+		}
+	}
 	record, err := m.findRecord(ctx, pluginID)
 	if err != nil {
 		return err
@@ -670,7 +692,7 @@ func (m *DefaultManager) Authorize(ctx context.Context, pluginID string, method 
 	if record.Status != pluginent.StatusEnabled {
 		return ErrNotEnabled
 	}
-	for _, extension := range m.opts.Registry.List(cmfplugin.ExtensionAdminRoutes) {
+	for _, extension := range m.opts.Registry.List(point) {
 		if extension.PluginID != pluginID {
 			continue
 		}

@@ -76,8 +76,14 @@ func TestManagerInstallEnableDisableUninstall(t *testing.T) {
 	if _, ok := extensions[0].Payload.([]pluginapi.AdminRouteContribution); !ok {
 		t.Fatalf("route extension payload = %T, want typed routes", extensions[0].Payload)
 	}
-	if err := manager.Authorize(ctx, "admin.example-plugin", "GET", "/manifest"); err != nil {
+	if err := manager.Authorize(ctx, "admin.example-plugin", cmfplugin.ExtensionAdminRoutes, "GET", "/manifest"); err != nil {
 		t.Fatalf("Authorize declared wildcard route: %v", err)
+	}
+	if err := manager.Authorize(ctx, "admin.example-plugin", pluginapi.ExtensionPublicRoutes, "GET", "/public/manifest"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin wildcard must not authorize public request: %v", err)
+	}
+	if err := manager.Authorize(ctx, "admin.example-plugin", pluginapi.ExtensionUserRoutes, "GET", "/user/auth/manifest"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("admin wildcard must not authorize user request: %v", err)
 	}
 	if err := manager.Disable(ctx, "admin.example-plugin"); err != nil {
 		t.Fatalf("Disable returned error: %v", err)
@@ -98,6 +104,49 @@ func TestManagerInstallEnableDisableUninstall(t *testing.T) {
 	}
 	if exists {
 		t.Fatal("expected plugin record to be deleted")
+	}
+}
+
+func TestManagerAuthorizeSeparatesRouteAudiences(t *testing.T) {
+	ctx := context.Background()
+	client := enttest.Open(t, "sqlite3", "file:plugin_route_audiences?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	registry := cmfplugin.NewMemoryExtensionRegistry()
+	manager := NewManager(client, Options{Registry: registry, Runtime: &fakeRuntime{}})
+	_, err := client.Plugin.Create().SetPluginID("example.routes").SetName("Routes").
+		SetVersion("1.0.0").SetStatus(pluginent.StatusEnabled).SetInstallPath(t.TempDir()).
+		SetManifestJSON(map[string]any{}).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for point, routes := range map[string][]pluginapi.AdminRouteContribution{
+		cmfplugin.ExtensionAdminRoutes:  {{Method: "*", Path: "/*"}},
+		pluginapi.ExtensionPublicRoutes: {{Method: "GET", Path: "/public/feed"}},
+		pluginapi.ExtensionUserRoutes:   {{Method: "POST", Path: "/user/auth/orders"}},
+	} {
+		if err := registry.Register("example.routes", point, routes); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, test := range []struct {
+		point, method, path string
+		want                bool
+	}{
+		{pluginapi.ExtensionPublicRoutes, "GET", "/public/feed", true},
+		{pluginapi.ExtensionPublicRoutes, "POST", "/public/feed", false},
+		{pluginapi.ExtensionPublicRoutes, "GET", "/admin/auth/secret", false},
+		{pluginapi.ExtensionPublicRoutes, "GET", "/public/%2e%2e/admin/auth/secret", false},
+		{pluginapi.ExtensionPublicRoutes, "GET", "/public/%252e%252e/admin/auth/secret", false},
+		{pluginapi.ExtensionUserRoutes, "POST", "/user/auth/orders", true},
+		{pluginapi.ExtensionUserRoutes, "GET", "/public/feed", false},
+		{cmfplugin.ExtensionAdminRoutes, "GET", "/admin/auth/secret", true},
+		{"unknown.routes", "GET", "/public/feed", false},
+	} {
+		err := manager.Authorize(ctx, "example.routes", test.point, test.method, test.path)
+		if (err == nil) != test.want {
+			t.Fatalf("Authorize(%q, %q, %q) = %v, want allowed %v", test.point, test.method, test.path, err, test.want)
+		}
 	}
 }
 
@@ -289,7 +338,7 @@ func TestManagerRunsSignedInstalledProcessEndToEnd(t *testing.T) {
 	if err := manager.Enable(ctx, info.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err := manager.Authorize(ctx, info.ID, http.MethodPost, "/echo"); err != nil {
+	if err := manager.Authorize(ctx, info.ID, cmfplugin.ExtensionAdminRoutes, http.MethodPost, "/echo"); err != nil {
 		t.Fatal(err)
 	}
 	response, err := manager.Invoke(ctx, info.ID, &pluginapi.ProxyRequest{

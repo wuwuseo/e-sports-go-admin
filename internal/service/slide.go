@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"go-admin/internal/ent"
@@ -79,7 +81,7 @@ type SlidePublicResponse struct {
 	ID        int    `json:"id"`
 	Title     string `json:"title"`
 	Image     string `json:"image"`
-	Link      string `json:"link,omitempty"`
+	Link      string `json:"link"`
 	GroupCode string `json:"group_code"`
 }
 
@@ -87,7 +89,7 @@ type SlidePublicResponse struct {
 func (s *SlideService) Create(ctx context.Context, req *CreateSlideRequest) (*SlideResponse, error) {
 	builder := s.Client.Slide.Create().
 		SetTitle(req.Title).
-		SetImage(req.Image).
+		SetImage(normalizeSlideImage(req.Image)).
 		SetGroupCode(req.GroupCode)
 
 	if req.Link != "" {
@@ -168,7 +170,7 @@ func (s *SlideService) Update(ctx context.Context, id int, req *UpdateSlideReque
 		update.SetTitle(*req.Title)
 	}
 	if req.Image != nil {
-		update.SetImage(*req.Image)
+		update.SetImage(normalizeSlideImage(*req.Image))
 	}
 	if req.Link != nil {
 		update.SetLink(*req.Link)
@@ -224,7 +226,7 @@ func (s *SlideService) ListPublic(ctx context.Context, groupCode string) ([]*Sli
 		data = append(data, &SlidePublicResponse{
 			ID:        item.ID,
 			Title:     item.Title,
-			Image:     item.Image,
+			Image:     normalizeSlideImage(item.Image),
 			Link:      item.Link,
 			GroupCode: item.GroupCode,
 		})
@@ -238,7 +240,7 @@ func toSlideResponse(item *ent.Slide) *SlideResponse {
 	return &SlideResponse{
 		ID:        item.ID,
 		Title:     item.Title,
-		Image:     item.Image,
+		Image:     normalizeSlideImage(item.Image),
 		Link:      item.Link,
 		GroupCode: item.GroupCode,
 		Sort:      item.Sort,
@@ -247,4 +249,17 @@ func toSlideResponse(item *ent.Slide) *SlideResponse {
 		CreatedAt: item.CreatedAt,
 		UpdatedAt: item.UpdatedAt,
 	}
+}
+
+// normalizeSlideImage removes the origin from public local upload URLs so the
+// stored path remains valid when the site is served from another host.
+func normalizeSlideImage(image string) string {
+	parsed, err := url.Parse(image)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return image
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" || !strings.HasPrefix(parsed.Path, "/uploads/") {
+		return image
+	}
+	return parsed.EscapedPath()
 }

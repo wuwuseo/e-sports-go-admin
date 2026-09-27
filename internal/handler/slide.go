@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"go-admin/internal/ent"
 	"go-admin/internal/global"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
@@ -40,6 +41,9 @@ func CreateSlide(c fiber.Ctx) error {
 
 	item, err := svc.Create(c.Context(), req)
 	if err != nil {
+		if ent.IsValidationError(err) {
+			return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
+		}
 		return resp.Fail(global.ResponseInternalServerError, "创建幻灯片失败").ToJSON(c)
 	}
 
@@ -163,6 +167,9 @@ func UpdateSlide(c fiber.Ctx) error {
 	if err := svc.Update(c.Context(), id, req); err != nil {
 		if err == service.ErrSlideNotFound {
 			return resp.Fail(global.ResponseNotFound, "幻灯片不存在").ToJSON(c)
+		}
+		if ent.IsValidationError(err) {
+			return resp.Fail(global.ResponseErrorCode, "请求参数无效").ToJSON(c)
 		}
 		return resp.Fail(global.ResponseInternalServerError, "更新幻灯片失败").ToJSON(c)
 	}

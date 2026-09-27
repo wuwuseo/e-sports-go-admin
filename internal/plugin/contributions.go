@@ -13,7 +13,9 @@ import (
 )
 
 var extensionPermission = map[string]string{
-	cmfplugin.ExtensionAdminRoutes: "route:register",
+	cmfplugin.ExtensionAdminRoutes:  "route:register",
+	pluginapi.ExtensionPublicRoutes: "route:public:register",
+	pluginapi.ExtensionUserRoutes:   "route:user:register",
 }
 
 func validateManifestCapabilities(manifest *cmfplugin.PluginManifest) error {
@@ -45,7 +47,9 @@ func validateManifestCapabilities(manifest *cmfplugin.PluginManifest) error {
 }
 
 var knownPluginPermissions = map[string]struct{}{
-	"route:register": {},
+	"route:register":        {},
+	"route:public:register": {},
+	"route:user:register":   {},
 }
 
 func validateContributions(manifest *cmfplugin.PluginManifest, contributions *pluginapi.Contributions) error {
@@ -56,16 +60,28 @@ func validateContributions(manifest *cmfplugin.PluginManifest, contributions *pl
 	for _, point := range manifest.ExtensionPoints {
 		declared[point] = struct{}{}
 	}
-	_, routesDeclared := declared[cmfplugin.ExtensionAdminRoutes]
-	if routesDeclared && len(contributions.AdminRoutes) == 0 {
-		return fmt.Errorf("extension point %q has no contributions", cmfplugin.ExtensionAdminRoutes)
-	}
-	if !routesDeclared && len(contributions.AdminRoutes) != 0 {
-		return fmt.Errorf("contributions for undeclared extension point %q", cmfplugin.ExtensionAdminRoutes)
-	}
-	for _, route := range contributions.AdminRoutes {
-		if !validContributionMethod(route.Method, true) || !validContributionPath(route.Path, true) {
-			return fmt.Errorf("invalid admin route contribution %s %s", route.Method, route.Path)
+	for _, group := range []struct {
+		point  string
+		prefix string
+		routes []pluginapi.AdminRouteContribution
+	}{
+		{cmfplugin.ExtensionAdminRoutes, "", contributions.AdminRoutes},
+		{pluginapi.ExtensionPublicRoutes, "/public", contributions.PublicRoutes},
+		{pluginapi.ExtensionUserRoutes, "/user/auth", contributions.UserRoutes},
+	} {
+		_, declaredPoint := declared[group.point]
+		if declaredPoint && len(group.routes) == 0 {
+			return fmt.Errorf("extension point %q has no contributions", group.point)
+		}
+		if !declaredPoint && len(group.routes) != 0 {
+			return fmt.Errorf("contributions for undeclared extension point %q", group.point)
+		}
+		for _, route := range group.routes {
+			if !validContributionMethod(route.Method, true) || !validContributionPath(route.Path, true) ||
+				(group.prefix != "" && (strings.Contains(route.Path, "%") ||
+					(route.Path != group.prefix && !strings.HasPrefix(route.Path, group.prefix+"/")))) {
+				return fmt.Errorf("invalid %s route contribution %s %s", group.point, route.Method, route.Path)
+			}
 		}
 	}
 	return nil
@@ -75,6 +91,10 @@ func contributionPayload(contributions *pluginapi.Contributions, point string) (
 	switch point {
 	case cmfplugin.ExtensionAdminRoutes:
 		return append([]pluginapi.AdminRouteContribution(nil), contributions.AdminRoutes...), nil
+	case pluginapi.ExtensionPublicRoutes:
+		return append([]pluginapi.AdminRouteContribution(nil), contributions.PublicRoutes...), nil
+	case pluginapi.ExtensionUserRoutes:
+		return append([]pluginapi.AdminRouteContribution(nil), contributions.UserRoutes...), nil
 	default:
 		return nil, fmt.Errorf("unsupported extension point %q", point)
 	}

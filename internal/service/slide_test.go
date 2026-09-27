@@ -10,6 +10,52 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+func TestSlideService_LocalUploadImageUsesRelativePath(t *testing.T) {
+	svc, cleanup := setupTestSlideDB(t)
+	defer cleanup()
+	ctx := t.Context()
+
+	created, err := svc.Create(ctx, &CreateSlideRequest{
+		Title:     "首页横幅",
+		Image:     "http://127.0.0.1:9501/uploads/slides/banner.png",
+		GroupCode: "home",
+	})
+	if err != nil {
+		t.Fatalf("创建幻灯片失败: %v", err)
+	}
+	if created.Image != "/uploads/slides/banner.png" {
+		t.Fatalf("创建响应图片地址 = %q", created.Image)
+	}
+
+	newImage := "https://example.com/uploads/slides/next.png"
+	if err := svc.Update(ctx, created.ID, &UpdateSlideRequest{Image: &newImage}); err != nil {
+		t.Fatalf("更新幻灯片失败: %v", err)
+	}
+	stored, err := svc.Client.Slide.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("读取幻灯片失败: %v", err)
+	}
+	if stored.Image != "/uploads/slides/next.png" {
+		t.Fatalf("数据库图片地址 = %q", stored.Image)
+	}
+	public, err := svc.ListPublic(ctx, "home")
+	if err != nil || len(public) != 1 || public[0].Image != stored.Image {
+		t.Fatalf("公开响应图片地址不一致: items=%+v, err=%v", public, err)
+	}
+}
+
+func TestNormalizeSlideImageLeavesExternalURL(t *testing.T) {
+	for _, image := range []string{
+		"https://cdn.example.com/banner.png",
+		"https://cdn.example.com/uploads/banner.png?signature=abc",
+		"/uploads/slides/banner.png",
+	} {
+		if got := normalizeSlideImage(image); got != image {
+			t.Errorf("normalizeSlideImage(%q) = %q", image, got)
+		}
+	}
+}
+
 func setupTestSlideDB(t *testing.T) (*SlideService, func()) {
 	client := enttest.Open(t, "sqlite3", "file:ent?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),

@@ -16,6 +16,9 @@ func TestProtectedProxyPath(t *testing.T) {
 		{name: "admin/auth with prefix", prefix: "/api", path: "admin/auth", want: true},
 		{name: "admin/auth subpath", prefix: nil, path: "admin/auth/login", want: true},
 		{name: "admin/auth subpath with prefix", prefix: "/plugin", path: "admin/auth/token", want: true},
+		{name: "public namespace", prefix: nil, path: "public/feed", want: true},
+		{name: "user namespace", prefix: nil, path: "user/auth/orders", want: true},
+		{name: "encoded public namespace", prefix: nil, path: "%2570ublic/feed", want: true},
 		{name: "admin/auth with leading slash", prefix: nil, path: "/admin/auth", want: true},
 		{name: "admin/auth with trailing slash", prefix: nil, path: "admin/auth/", want: true},
 		{name: "other path", prefix: nil, path: "api/user", want: false},
@@ -76,6 +79,7 @@ func TestFilteredProxyHeader(t *testing.T) {
 		{name: "x-custom", key: "X-Custom", want: false},
 		{name: "lowercase authorization", key: "authorization", want: true},
 		{name: "lowercase x-forwarded-for", key: "x-forwarded-for", want: true},
+		{name: "spoofed user identity", key: "X-Go-Admin-Plugin-User-ID", want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -140,7 +140,7 @@ func UninstallPlugin(c fiber.Ctx) error {
 
 // ProxyPlugin 插件接口代理
 // @Summary 插件接口代理
-// @Description 将请求转发给指定插件的 HTTP 接口，接受任意 HTTP 方法；/admin/auth 前缀形式会为插件路由补上 /admin/auth 前缀。实际可用接口由各插件自行定义。
+// @Description 根据 public、user.routes 或 admin.routes 路由声明和对应鉴权链，将请求转发给指定插件；接受任意 HTTP 方法。
 // @Tags 插件管理
 // @Produce json
 // @Security BearerAuth
@@ -154,8 +154,12 @@ func ProxyPlugin(c fiber.Ctx) error {
 	if protectedProxyPath(c.Locals("plugin.proxy_path_prefix"), c.Params("*")) {
 		return c.SendStatus(fiber.StatusForbidden)
 	}
+	point, _ := c.Locals("plugin.proxy_point").(string)
+	userID, _ := c.Locals("plugin.user_id").(string)
 	proxyResp, err := pluginService.Proxy(c.Context(), &service.PluginProxyRequest{
 		PluginID: c.Params("plugin_id"),
+		Point:    point,
+		UserID:   userID,
 		Method:   c.Method(),
 		Path:     proxyPath(c.Locals("plugin.proxy_path_prefix"), c.Params("*")),
 		Query:    string(c.Request().URI().QueryString()),
@@ -191,6 +195,8 @@ func protectedProxyPath(_ any, path string) bool {
 	}
 	path = strings.Trim(path, "/")
 	return path == "admin/auth" || strings.HasPrefix(path, "admin/auth/") ||
+		path == "user/auth" || strings.HasPrefix(path, "user/auth/") ||
+		path == "public" || strings.HasPrefix(path, "public/") ||
 		path == "_go-admin" || strings.HasPrefix(path, "_go-admin/") || pluginapi.IsControlPath("/"+path)
 }
 
@@ -223,7 +229,7 @@ func requestHeader(c fiber.Ctx) map[string][]string {
 func filteredProxyHeader(key string) bool {
 	switch strings.ToLower(key) {
 	case "authorization", "cookie", "set-cookie", "host", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade",
-		"x-go-admin-plugin-token", "x-go-admin-plugin-api", "x-go-admin-plugin-id", "x-go-admin-plugin-version":
+		"x-go-admin-plugin-token", "x-go-admin-plugin-api", "x-go-admin-plugin-id", "x-go-admin-plugin-version", "x-go-admin-plugin-user-id":
 		return true
 	default:
 		return strings.HasPrefix(strings.ToLower(key), "x-forwarded-")
@@ -236,7 +242,7 @@ func filteredPluginResponseHeader(key string) bool {
 	}
 	switch strings.ToLower(key) {
 	case "set-cookie", "content-length", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade",
-		"x-go-admin-plugin-token", "x-go-admin-plugin-api", "x-go-admin-plugin-id", "x-go-admin-plugin-version":
+		"x-go-admin-plugin-token", "x-go-admin-plugin-api", "x-go-admin-plugin-id", "x-go-admin-plugin-version", "x-go-admin-plugin-user-id":
 		return true
 	default:
 		return false

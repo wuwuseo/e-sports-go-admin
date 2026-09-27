@@ -112,6 +112,7 @@ func TestProxyPluginFiltersSensitiveResponseHeaders(t *testing.T) {
 		"X-Go-Admin-Plugin-API":     []string{"v1"},
 		"X-Go-Admin-Plugin-ID":      []string{"admin.example-plugin"},
 		"X-Go-Admin-Plugin-Version": []string{"1.0.0"},
+		"X-Go-Admin-Plugin-User-ID": []string{"private-user"},
 		"Content-Length":            []string{"9999"},
 		"X-Bad-Value":               []string{"safe\r\nInjected: yes"},
 		"X-Bad\r\nInjected":         []string{"yes"},
@@ -127,7 +128,7 @@ func TestProxyPluginFiltersSensitiveResponseHeaders(t *testing.T) {
 	if response.Header.Get("X-Plugin") != "demo" {
 		t.Fatalf("safe response header was removed")
 	}
-	for _, key := range []string{"Set-Cookie", "Connection", "X-Go-Admin-Plugin-Token", "X-Go-Admin-Plugin-API", "X-Go-Admin-Plugin-ID", "X-Go-Admin-Plugin-Version", "X-Bad-Value", "X-Bad\r\nInjected"} {
+	for _, key := range []string{"Set-Cookie", "Connection", "X-Go-Admin-Plugin-Token", "X-Go-Admin-Plugin-API", "X-Go-Admin-Plugin-ID", "X-Go-Admin-Plugin-Version", "X-Go-Admin-Plugin-User-ID", "X-Bad-Value", "X-Bad\r\nInjected"} {
 		if value := response.Header.Get(key); value != "" {
 			t.Fatalf("%s should be filtered, got %q", key, value)
 		}

@@ -68,20 +68,23 @@ func main() {
 		if err != nil {
 			stdlog.Fatalf("Failed to create sub filesystem: %v", err)
 		}
+		registerUploadStaticMiddleware(app, "./data/storage/public")
 		staticHandler := static.New("", static.Config{
 			FS:     subFS,
 			Browse: false,
 		})
 		app.Use(func(c fiber.Ctx) error {
-			if strings.HasPrefix(c.Path(), "/api/") {
+			if strings.HasPrefix(c.Path(), "/api/") || strings.HasPrefix(c.Path(), "/uploads/") {
 				return c.Next()
 			}
 			return staticHandler(c)
 		})
 
-		// SPA fallback：静态文件未命中时返回 index.html
+		// SPA fallback：静态文件未命中时返回 index.html（/uploads 上传直链除外，
+		// 缺失文件应返回 404 而非 HTML）
 		app.Use(func(c fiber.Ctx) error {
-			if strings.HasPrefix(c.Path(), "/api/") {
+			if strings.HasPrefix(c.Path(), "/api/") ||
+				strings.HasPrefix(c.Path(), "/uploads/") {
 				return c.Next()
 			}
 			indexFile, err := fs.ReadFile(subFS, "index.html")
@@ -104,4 +107,9 @@ func main() {
 	if err := bootstrap.Run(); err != nil {
 		log.Fatal("Failed to run application", zap.Error(err))
 	}
+}
+
+func registerUploadStaticMiddleware(app *fiber.App, root string) {
+	// Fiber uses the route prefix to map /uploads/<file> to root/<file>.
+	app.Use("/uploads", static.New(root, static.Config{Browse: false}))
 }

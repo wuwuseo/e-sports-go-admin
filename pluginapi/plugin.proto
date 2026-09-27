@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package goadmin.plugin.v1;
+
+option go_package = "go-admin/pluginapi";
+
+message Header {
+  string name = 1;
+  repeated string values = 2;
+}
+
+message ProxyRequest {
+  string method = 1;
+  string path = 2;
+  string query = 3;
+  repeated Header headers = 4;
+  bytes body = 5;
+  string token = 6;
+}
+
+message ProxyResponse {
+  int32 status_code = 1;
+  repeated Header headers = 2;
+  bytes body = 3;
+  string error = 4;
+}
+
+service Plugin {
+  rpc Proxy(ProxyRequest) returns (ProxyResponse);
+}

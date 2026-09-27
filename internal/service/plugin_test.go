@@ -89,6 +89,46 @@ func TestPluginServiceProxyForwardsTCPRequest(t *testing.T) {
 	}
 }
 
+func TestPluginServiceProxyPassesOnlyTrustedUserIdentity(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get(pluginapi.UserIDHeader); got != "trusted-user" {
+			t.Errorf("user ID = %q, want trusted-user", got)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer backend.Close()
+	manager := &fakePluginManager{endpoint: &adminplugin.Endpoint{
+		PluginID: "admin.example-plugin", Protocol: cmfplugin.ProtocolHTTP,
+		Transport: cmfplugin.TransportTCP, Address: strings.TrimPrefix(backend.URL, "http://"),
+	}}
+	pluginService := NewPluginService(manager)
+	_, err := pluginService.Proxy(context.Background(), &PluginProxyRequest{
+		PluginID: "admin.example-plugin", Point: pluginapi.ExtensionUserRoutes, UserID: "trusted-user",
+		Method: http.MethodGet, Path: "/user/auth/profile",
+		Header: http.Header{"x-go-admin-plugin-user-id": []string{"spoofed-user"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manager.authorizePoint != pluginapi.ExtensionUserRoutes {
+		t.Fatalf("authorized point = %q", manager.authorizePoint)
+	}
+	_, err = pluginService.Proxy(context.Background(), &PluginProxyRequest{
+		PluginID: "admin.example-plugin", Point: pluginapi.ExtensionUserRoutes, UserID: "trusted-user",
+		Method: http.MethodGet, Path: "/user/auth/profile",
+	})
+	if err != nil {
+		t.Fatalf("user request without client headers: %v", err)
+	}
+	_, err = pluginService.Proxy(context.Background(), &PluginProxyRequest{
+		PluginID: "admin.example-plugin", Point: pluginapi.ExtensionUserRoutes,
+		Method: http.MethodGet, Path: "/user/auth/profile",
+	})
+	if !errors.Is(err, adminplugin.ErrPermissionDenied) {
+		t.Fatalf("missing trusted user ID error = %v", err)
+	}
+}
+
 func TestPluginServiceProxyInvokesGRPCAndStdio(t *testing.T) {
 	for _, protocol := range []string{cmfplugin.ProtocolGRPC, cmfplugin.ProtocolStdio} {
 		t.Run(protocol, func(t *testing.T) {
@@ -171,6 +211,7 @@ type fakePluginManager struct {
 	invokeErr         error
 	invokeHasDeadline bool
 	authorizeErr      error
+	authorizePoint    string
 	resolveCalled     bool
 	diagnostics       *adminplugin.Diagnostics
 	diagnosticsErr    error
@@ -201,7 +242,8 @@ func (f *fakePluginManager) Get(ctx context.Context, pluginID string) (*cmfplugi
 	}
 	return samplePluginInfo(), nil
 }
-func (f *fakePluginManager) Authorize(context.Context, string, string, string) error {
+func (f *fakePluginManager) Authorize(_ context.Context, _ string, point string, _ string, _ string) error {
+	f.authorizePoint = point
 	return f.authorizeErr
 }
 func (f *fakePluginManager) ResolveEndpoint(ctx context.Context, pluginID string) (*adminplugin.Endpoint, error) {

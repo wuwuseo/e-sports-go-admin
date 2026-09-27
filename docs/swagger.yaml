@@ -662,6 +662,32 @@ definitions:
     - display_name
     - name
     type: object
+  service.CreateSlideRequest:
+    properties:
+      group_code:
+        maxLength: 100
+        type: string
+      image:
+        maxLength: 500
+        type: string
+      link:
+        maxLength: 500
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      title:
+        maxLength: 100
+        type: string
+    required:
+    - group_code
+    - image
+    - title
+    type: object
   service.CreateSystemPermissionRequest:
     properties:
       code:
@@ -856,6 +882,33 @@ definitions:
       value:
         type: string
     type: object
+  service.EnqueueTaskRequest:
+    properties:
+      delay_seconds:
+        maximum: 86400
+        minimum: 0
+        type: integer
+      max_retry:
+        maximum: 100
+        minimum: 0
+        type: integer
+      name:
+        maxLength: 191
+        type: string
+      payload:
+        maxLength: 10240
+        type: string
+      queue:
+        maxLength: 64
+        type: string
+    required:
+    - name
+    type: object
+  service.EnqueueTaskResponse:
+    properties:
+      task_id:
+        type: string
+    type: object
   service.GroupResponse:
     properties:
       created_at:
@@ -933,6 +986,17 @@ definitions:
       total:
         type: integer
     type: object
+  service.ListLoginLogsResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.LoginLogResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
   service.ListMessagesResponse:
     properties:
       data:
@@ -988,6 +1052,17 @@ definitions:
       total:
         type: integer
     type: object
+  service.ListSlideResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.SlideResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
   service.ListSystemPermissionsResponse:
     properties:
       data:
@@ -998,6 +1073,31 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  service.LoginLogResponse:
+    properties:
+      browser:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      ip:
+        type: string
+      login_type:
+        type: string
+      message:
+        type: string
+      os:
+        type: string
+      status:
+        type: string
+      user_agent:
+        type: string
+      user_id:
+        type: integer
+      username:
+        type: string
     type: object
   service.LoginRequest:
     properties:
@@ -1238,13 +1338,23 @@ definitions:
         type: string
       description:
         type: string
+      enabled_at:
+        type: string
+      error_message:
+        type: string
       id:
         type: string
       install_path:
         type: string
+      installed_at:
+        type: string
       name:
         type: string
+      restarting:
+        type: boolean
       status:
+        type: string
+      updated_at:
         type: string
       version:
         type: string
@@ -1255,6 +1365,84 @@ definitions:
         type: string
       provider:
         type: string
+    type: object
+  service.QueueStatsResponse:
+    properties:
+      active:
+        type: integer
+      archived:
+        type: integer
+      completed:
+        type: integer
+      failed:
+        type: integer
+      memory_usage:
+        type: integer
+      pending:
+        type: integer
+      processed:
+        type: integer
+      queue:
+        type: string
+      retry:
+        type: integer
+      scheduled:
+        type: integer
+      size:
+        type: integer
+    type: object
+  service.QueueTaskListResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/service.QueueTaskResponse'
+        type: array
+      page:
+        type: integer
+      total:
+        type: integer
+    type: object
+  service.QueueTaskResponse:
+    properties:
+      attempt:
+        description: 已重试次数
+        type: integer
+      completed_at:
+        description: 完成时间
+        type: string
+      id:
+        description: 任务 ID
+        type: string
+      is_orphaned:
+        description: 是否孤儿任务
+        type: boolean
+      last_error:
+        description: 最近失败原因
+        type: string
+      last_failed_at:
+        description: 最近失败时间
+        type: string
+      max_retry:
+        description: 最大重试次数
+        type: integer
+      name:
+        description: 处理器名
+        type: string
+      next_process_at:
+        description: 下次执行时间
+        type: string
+      payload:
+        description: 载荷（JSON 文本）
+        type: string
+      queue:
+        description: 所属队列
+        type: string
+      state:
+        description: 状态
+        type: string
+      timeout_seconds:
+        description: 单任务超时（秒）
+        type: number
     type: object
   service.RefreshTokenRequest:
     properties:
@@ -1316,6 +1504,42 @@ definitions:
     required:
     - domain
     - permissions
+    type: object
+  service.SlidePublicResponse:
+    properties:
+      group_code:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      link:
+        type: string
+      title:
+        type: string
+    type: object
+  service.SlideResponse:
+    properties:
+      created_at:
+        type: string
+      group_code:
+        type: string
+      id:
+        type: integer
+      image:
+        type: string
+      link:
+        type: string
+      remark:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
     type: object
   service.SystemPermissionResponse:
     properties:
@@ -1711,6 +1935,28 @@ definitions:
         maxLength: 255
         type: string
       updated_by:
+        type: string
+    type: object
+  service.UpdateSlideRequest:
+    properties:
+      group_code:
+        maxLength: 100
+        type: string
+      image:
+        maxLength: 500
+        type: string
+      link:
+        maxLength: 500
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      title:
+        maxLength: 100
         type: string
     type: object
   service.UpdateSystemPermissionRequest:
@@ -2797,7 +3043,7 @@ paths:
       - 附件管理
   /api/v1/admin/auth/attachments/chunk/{upload_id}:
     delete:
-      description: 取消分片上传并清理已上传的分片数据
+      description: 取消分片上传并清理已上传的分片数据（仅会话属主本人可取消）
       parameters:
       - description: 上传会话ID
         in: path
@@ -2822,7 +3068,7 @@ paths:
       - 附件管理
   /api/v1/admin/auth/attachments/chunk/status/{upload_id}:
     get:
-      description: 查询分片上传进度
+      description: 查询分片上传进度（仅会话属主本人可查）
       parameters:
       - description: 上传会话ID
         in: path
@@ -4486,6 +4732,121 @@ paths:
       summary: 按类型获取字典数据
       tags:
       - 数据字典
+  /api/v1/admin/auth/login-logs:
+    get:
+      description: 获取登录日志列表，支持分页、用户名、登录类型、状态、IP 和时间范围筛选
+      parameters:
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      - description: 登录账号
+        in: query
+        name: username
+        type: string
+      - description: 登录类型：user/admin
+        in: query
+        name: login_type
+        type: string
+      - description: 登录状态：success/fail
+        in: query
+        name: status
+        type: string
+      - description: 客户端IP
+        in: query
+        name: ip
+        type: string
+      - description: 开始时间（RFC3339格式）
+        in: query
+        name: start_time
+        type: string
+      - description: 结束时间（RFC3339格式）
+        in: query
+        name: end_time
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListLoginLogsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取登录日志列表
+      tags:
+      - 登录日志
+  /api/v1/admin/auth/login-logs/{id}:
+    get:
+      description: 根据ID获取登录日志详细信息
+      parameters:
+      - description: 日志ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.LoginLogResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取登录日志详情
+      tags:
+      - 登录日志
   /api/v1/admin/auth/logout:
     post:
       consumes:
@@ -5591,6 +5952,445 @@ paths:
       summary: 安装插件
       tags:
       - 插件管理
+  /api/v1/admin/auth/queue-jobs:
+    get:
+      description: 按状态分页列出队列任务
+      parameters:
+      - description: 任务状态(pending/active/scheduled/retry/archived/completed)
+        in: query
+        name: state
+        required: true
+        type: string
+      - description: 队列名，默认 default
+        in: query
+        name: queue
+        type: string
+      - description: 页码，默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量，默认10
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.QueueTaskListResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取队列任务列表
+      tags:
+      - 任务队列管理
+    post:
+      consumes:
+      - application/json
+      description: 手动向队列投递一个已注册的任务
+      parameters:
+      - description: 任务信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.EnqueueTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.EnqueueTaskResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 手动入队任务
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/{queue}/{id}:
+    delete:
+      description: 从队列中删除一个任务（执行中的任务不可删除）
+      parameters:
+      - description: 队列名
+        in: path
+        name: queue
+        required: true
+        type: string
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除队列任务
+      tags:
+      - 任务队列管理
+    get:
+      description: 按队列名和任务 ID 查询任务详情
+      parameters:
+      - description: 队列名
+        in: path
+        name: queue
+        required: true
+        type: string
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.QueueTaskResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取队列任务详情
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/{queue}/{id}/cancel:
+    post:
+      description: 向执行中的任务发出取消信号
+      parameters:
+      - description: 队列名
+        in: path
+        name: queue
+        required: true
+        type: string
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 取消队列任务
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/{queue}/{id}/retry:
+    post:
+      description: 立即执行一个处于 scheduled/retry/archived 状态的任务
+      parameters:
+      - description: 队列名
+        in: path
+        name: queue
+        required: true
+        type: string
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 重试队列任务
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/{queue}/messages/{sequence}:
+    get:
+      parameters:
+      - description: 队列名
+        in: path
+        name: queue
+        required: true
+        type: string
+      - description: 流序号
+        in: path
+        name: sequence
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 查看 JetStream 原始消息
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/{queue}/pause:
+    post:
+      parameters:
+      - description: 队列名
+        in: path
+        name: queue
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 暂停队列
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/{queue}/resume:
+    post:
+      parameters:
+      - description: 队列名
+        in: path
+        name: queue
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 恢复队列
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/capabilities:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取队列管理能力
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/handlers:
+    get:
+      description: 返回当前进程注册的全部队列任务处理器名，可作为手动入队的 name 候选
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    type: string
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取已注册任务处理器
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/overview:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取原生队列概览
+      tags:
+      - 任务队列管理
+  /api/v1/admin/auth/queue-jobs/stats:
+    get:
+      description: 返回所有队列的任务状态统计快照
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.QueueStatsResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取队列统计
+      tags:
+      - 任务队列管理
   /api/v1/admin/auth/roles:
     get:
       description: 获取角色列表，支持分页和关键字筛选
@@ -6209,6 +7009,241 @@ paths:
       summary: 从角色移除权限
       tags:
       - 权限管理
+  /api/v1/admin/auth/slides:
+    get:
+      description: 获取幻灯片列表,支持分页、分组和状态筛选
+      parameters:
+      - description: 页码,默认1
+        in: query
+        name: page
+        type: integer
+      - description: 每页数量,默认10
+        in: query
+        name: page_size
+        type: integer
+      - description: 关键字
+        in: query
+        name: keyword
+        type: string
+      - description: 分组编码
+        in: query
+        name: group_code
+        type: string
+      - description: 状态 1启用 0禁用
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ListSlideResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取幻灯片列表
+      tags:
+      - 幻灯片管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的幻灯片
+      parameters:
+      - description: 幻灯片信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateSlideRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.SlideResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建幻灯片
+      tags:
+      - 幻灯片管理
+  /api/v1/admin/auth/slides/{id}:
+    delete:
+      description: 根据ID删除幻灯片
+      parameters:
+      - description: 幻灯片ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除幻灯片
+      tags:
+      - 幻灯片管理
+    get:
+      description: 根据ID获取幻灯片详细信息
+      parameters:
+      - description: 幻灯片ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.SlideResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取幻灯片详情
+      tags:
+      - 幻灯片管理
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新幻灯片信息
+      parameters:
+      - description: 幻灯片ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateSlideRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新幻灯片
+      tags:
+      - 幻灯片管理
   /api/v1/admin/auth/sse/ticket:
     post:
       description: 鉴权后生成 5 分钟内有效的一次性 ticket，用于建立 SSE 连接
@@ -7575,10 +8610,142 @@ paths:
       summary: 获取附件内容
       tags:
       - 附件管理
+  /api/v1/auth/attachments/chunk/{upload_id}:
+    delete:
+      description: 取消分片上传并清理已上传的分片数据（仅会话属主本人可取消）
+      parameters:
+      - description: 上传会话ID
+        in: path
+        name: upload_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 取消分片上传
+      tags:
+      - 附件管理
+  /api/v1/auth/attachments/chunk/status/{upload_id}:
+    get:
+      description: 查询分片上传进度（仅会话属主本人可查）
+      parameters:
+      - description: 上传会话ID
+        in: path
+        name: upload_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.ChunkStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取分片上传状态
+      tags:
+      - 附件管理
+  /api/v1/auth/attachments/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 上传文件附件。简单上传仅需 file + group_id；分片上传需额外提供 chunk_index、total_chunks、filename、file_size、chunk_size。首次分片无需
+        upload_id，后续分片需携带 upload_id
+      parameters:
+      - description: 上传文件
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: 分组ID
+        in: formData
+        name: group_id
+        type: integer
+      - description: 分片索引（0-based，启用分片上传时必填）
+        in: formData
+        name: chunk_index
+        type: integer
+      - description: 总片数（启用分片上传时必填）
+        in: formData
+        name: total_chunks
+        type: integer
+      - description: 上传会话ID（后续分片必填，首片不传）
+        in: formData
+        name: upload_id
+        type: string
+      - description: 原始文件名（首片必填）
+        in: formData
+        name: filename
+        type: string
+      - description: 文件总大小（首片必填）
+        in: formData
+        name: file_size
+        type: integer
+      - description: 单片大小（首片必填）
+        in: formData
+        name: chunk_size
+        type: integer
+      - description: MIME类型
+        in: formData
+        name: mime_type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.UnifiedUploadResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 上传附件
+      tags:
+      - 附件管理
   /api/v1/plugin/{plugin_id}/{path}:
     get:
-      description: 将请求转发给指定插件的 HTTP 接口，接受任意 HTTP 方法；/admin/auth 前缀形式会为插件路由补上 /admin/auth
-        前缀。实际可用接口由各插件自行定义。
+      description: 根据 public、user.routes 或 admin.routes 路由声明和对应鉴权链，将请求转发给指定插件；接受任意
+        HTTP 方法。
       parameters:
       - description: 插件ID
         in: path
@@ -7888,6 +9055,35 @@ paths:
       summary: 刷新访问令牌
       tags:
       - 用户管理
+  /api/v1/public/slides:
+    get:
+      description: 免登录获取启用中的幻灯片,可按分组过滤,按sort升序返回;空结果返回空数组
+      parameters:
+      - description: 分组编码,不传返回全部分组
+        in: query
+        name: group
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.SlidePublicResponse'
+                  type: array
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 公开幻灯片列表
+      tags:
+      - 公开接口
   /api/v1/user/auth/oauth/{provider}:
     delete:
       parameters:

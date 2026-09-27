@@ -71,3 +71,36 @@ func TestValidateManifestCapabilitiesRejectsUnsupportedV1Extension(t *testing.T)
 		t.Fatal("unsupported v1 extension point was accepted")
 	}
 }
+
+func TestValidateAudienceRouteContributions(t *testing.T) {
+	manifest := &cmfplugin.PluginManifest{
+		Permissions:     []string{"route:public:register", "route:user:register"},
+		ExtensionPoints: []string{pluginapi.ExtensionPublicRoutes, pluginapi.ExtensionUserRoutes},
+	}
+	contributions := &pluginapi.Contributions{
+		PublicRoutes: []pluginapi.AdminRouteContribution{{Method: "GET", Path: "/public/feed"}},
+		UserRoutes:   []pluginapi.AdminRouteContribution{{Method: "POST", Path: "/user/auth/orders/*"}},
+	}
+	if err := validateManifestCapabilities(manifest); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateContributions(manifest, contributions); err != nil {
+		t.Fatal(err)
+	}
+	manifest.Permissions = []string{"route:public:register"}
+	if err := validateManifestCapabilities(manifest); err == nil {
+		t.Fatal("user routes without matching permission were accepted")
+	}
+	manifest.Permissions = []string{"route:public:register", "route:user:register"}
+	for _, invalidPath := range []string{"/admin/auth/secret", "/publicity/feed", "/*", "/public/../admin/auth/secret", "/public/%2e%2e/admin/auth/secret"} {
+		contributions.PublicRoutes[0].Path = invalidPath
+		if err := validateContributions(manifest, contributions); err == nil {
+			t.Fatalf("public route %q was accepted", invalidPath)
+		}
+	}
+	contributions.PublicRoutes[0].Path = "/public/feed"
+	contributions.UserRoutes[0].Path = "/public/feed"
+	if err := validateContributions(manifest, contributions); err == nil {
+		t.Fatal("user route outside /user/auth was accepted")
+	}
+}
