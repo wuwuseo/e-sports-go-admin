@@ -16,8 +16,8 @@ import (
 )
 
 func TestQueueConcurrentShutdown(t *testing.T) {
-	previous := global.QueueServer.Swap(cmfqueue.NewServer(cmfqueue.DefaultConfig()))
-	t.Cleanup(func() { global.QueueServer.Store(previous) })
+	previous := global.QueueRuntime.Swap(cmfqueue.NewLegacyRuntime(cmfqueue.DefaultConfig()))
+	t.Cleanup(func() { global.QueueRuntime.Store(previous) })
 	var wg sync.WaitGroup
 	started := make(chan struct{})
 	wg.Add(1)
@@ -36,7 +36,7 @@ func TestQueueConcurrentShutdown(t *testing.T) {
 	adminqueue.Shutdown(time.Second)
 	adminqueue.Shutdown(time.Second)
 	wg.Wait()
-	if global.QueueServer.Load() != nil {
+	if global.QueueRuntime.Load() != nil {
 		t.Fatal("server remains published after shutdown")
 	}
 }
@@ -65,8 +65,8 @@ func TestIsValidQueueName(t *testing.T) {
 // TestSetupRejectsInvalidQueueName 启动期 fail-fast：
 // 非法队列名必须在触碰 Redis 之前被拒绝（配置地址故意不可达，若走到 Ping 说明校验位置不对）。
 func TestSetupRejectsInvalidQueueName(t *testing.T) {
-	saved := global.QueueServer.Swap(nil)
-	t.Cleanup(func() { global.QueueServer.Store(saved) })
+	saved := global.QueueRuntime.Swap(nil)
+	t.Cleanup(func() { global.QueueRuntime.Store(saved) })
 
 	cfg := &config.Config{}
 	cfg.Queue.RedisConnection = "queue_redis"
@@ -82,7 +82,7 @@ func TestSetupRejectsInvalidQueueName(t *testing.T) {
 	if !strings.Contains(err.Error(), "非法") {
 		t.Fatalf("错误信息应说明队列名非法，实际: %v", err)
 	}
-	if global.QueueServer.Load() != nil {
+	if global.QueueRuntime.Load() != nil {
 		t.Fatal("Setup 失败后不应挂载队列句柄")
 	}
 }

@@ -175,6 +175,14 @@ attachment:
   x_accel_enabled: false  # 是否启用 X-Accel-Redirect 头 生产环境启用并配置
 
 queue:
+    driver: asynq             # asynq | rabbitmq | nats | nsq | kafka | amqp10
+    namespace: admin          # broker 资源前缀；切换驱动前先排空旧 broker
+    # 非 asynq 驱动须将 max_retry、retention、max_queue_size 设为 0；延时/去重等入队选项不支持。
+    # rabbitmq: {url: "amqp://guest:guest@localhost:5672/", management_url: "http://localhost:15672"}
+    # nats: {url: "nats://localhost:4222"}
+    # nsq: {nsqd: "127.0.0.1:4150", lookupd: "127.0.0.1:4161", http: "http://127.0.0.1:4151"}
+    # kafka: {brokers: ["127.0.0.1:9092"], group: "admin-tasks", partitions: 3, replication_factor: 1}
+    # amqp10: {url: "amqp://127.0.0.1:5672"}
   # 任务队列（asynq/Redis）：Redis 连接复用 redis.connections 中的命名连接。
   # 生产环境要求 Redis >= 6.2（归档/死信能力依赖 ZRANGE ... BYSCORE）。
   redis_connection: queue_redis

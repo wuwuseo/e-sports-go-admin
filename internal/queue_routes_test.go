@@ -20,6 +20,8 @@ func TestQueueRoutesRejectNonSuperAdmin(t *testing.T) {
 	for _, route := range []struct{ method, path string }{
 		{"GET", ""}, {"GET", "/stats"}, {"GET", "/handlers"}, {"POST", ""},
 		{"GET", "/default/task"}, {"POST", "/default/task/retry"}, {"POST", "/default/task/cancel"}, {"DELETE", "/default/task"},
+		{"GET", "/capabilities"}, {"GET", "/overview"},
+		{"POST", "/default/pause"}, {"POST", "/default/resume"}, {"GET", "/default/messages/1"},
 	} {
 		resp, err := app.Test(httptest.NewRequest(route.method, "/api/v1/admin/auth/queue-jobs"+route.path, nil))
 		if err != nil {

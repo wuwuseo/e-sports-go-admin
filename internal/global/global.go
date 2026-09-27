@@ -16,10 +16,6 @@ var (
 	EnforcerManager *cmfCasbin.EnforcerManager
 	CronManager     *cron.CronManager
 
-	// QueueClient 任务队列投递端（业务代码经此入队）
-	QueueClient atomic.Pointer[queue.Client]
-	// QueueServer 任务队列执行端（常驻 worker，进程内注册处理器）
-	QueueServer atomic.Pointer[queue.Server]
-	// QueueInspector 任务队列管理端（驱动管理后台 API）
-	QueueInspector atomic.Pointer[queue.Inspector]
+	// QueueRuntime 原子发布同一后端的投递、执行和管理能力。
+	QueueRuntime atomic.Pointer[queue.Runtime]
 )

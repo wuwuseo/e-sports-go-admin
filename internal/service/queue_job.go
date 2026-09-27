@@ -23,11 +23,11 @@ var (
 	ErrQueueInvalidPayload = errors.New("任务载荷必须是合法 JSON")
 	// ErrQueueUnknownQueue 目标队列未在配置中声明（无人消费）
 	ErrQueueUnknownQueue = errors.New("目标队列未配置")
-	// ErrQueueInvalidQueueName 队列名包含非法字符（会拼入 Redis 键，必须走白名单）
+	// ErrQueueInvalidQueueName 队列名包含非法字符（broker 资源名必须走白名单）
 	ErrQueueInvalidQueueName = errors.New("队列名包含非法字符")
 )
 
-// QueueJobService 任务队列管理服务：封装 Inspector 的观测/管理操作与 Client 的手动入队
+// QueueJobService 任务队列管理服务：统一调用所选 Runtime 的可用能力。
 type QueueJobService struct{}
 
 // NewQueueJobService 创建任务队列管理服务
@@ -88,17 +88,17 @@ type EnqueueTaskResponse struct {
 	TaskID string `json:"task_id"`
 }
 
-// inspector 返回队列管理端句柄；未就绪时报错
-func (s *QueueJobService) inspector() (*cmfqueue.Inspector, error) {
-	inspector := global.QueueInspector.Load()
-	if inspector == nil {
+// runtime 返回当前队列句柄；未就绪时报错。
+func (s *QueueJobService) runtime() (*cmfqueue.Runtime, error) {
+	runtime := global.QueueRuntime.Load()
+	if runtime == nil {
 		return nil, ErrQueueUnavailable
 	}
-	return inspector, nil
+	return runtime, nil
 }
 
 // normalizeQueueName 规范化并校验队列名：去首尾空白、空值回退 default，
-// 再按字符集白名单校验（队列名会拼入 asynq 的 Redis 键）。
+// 再按字符集白名单校验（队列名会成为 broker 资源名）。
 func normalizeQueueName(name string) (string, error) {
 	queueName := strings.TrimSpace(name)
 	if queueName == "" {
@@ -116,7 +116,7 @@ func (s *QueueJobService) ListTasks(ctx context.Context, req *ListQueueTasksRequ
 	if err != nil {
 		return nil, err
 	}
-	insp, err := s.inspector()
+	insp, err := s.runtime()
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (s *QueueJobService) GetTask(ctx context.Context, queue, taskID string) (*Q
 	if err != nil {
 		return nil, err
 	}
-	insp, err := s.inspector()
+	insp, err := s.runtime()
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (s *QueueJobService) RetryTask(ctx context.Context, queue, taskID string) e
 	if err != nil {
 		return err
 	}
-	insp, err := s.inspector()
+	insp, err := s.runtime()
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (s *QueueJobService) RetryTask(ctx context.Context, queue, taskID string) e
 
 // CancelTask 取消执行中的任务
 func (s *QueueJobService) CancelTask(ctx context.Context, taskID string) error {
-	insp, err := s.inspector()
+	insp, err := s.runtime()
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (s *QueueJobService) DeleteTask(ctx context.Context, queue, taskID string) 
 	if err != nil {
 		return err
 	}
-	insp, err := s.inspector()
+	insp, err := s.runtime()
 	if err != nil {
 		return err
 	}
@@ -189,11 +189,11 @@ func (s *QueueJobService) DeleteTask(ctx context.Context, queue, taskID string) 
 
 // Enqueue 手动入队一个任务：校验处理器已注册、载荷为合法 JSON、目标队列已配置
 func (s *QueueJobService) Enqueue(ctx context.Context, req *EnqueueTaskRequest) (*EnqueueTaskResponse, error) {
-	client, server := global.QueueClient.Load(), global.QueueServer.Load()
-	if client == nil || server == nil {
+	runtime, err := s.runtime()
+	if err != nil {
 		return nil, ErrQueueUnavailable
 	}
-	if !server.Has(req.Name) {
+	if !runtime.Has(req.Name) {
 		return nil, ErrQueueUnknownHandler
 	}
 	payload := []byte(req.Payload)
@@ -223,7 +223,7 @@ func (s *QueueJobService) Enqueue(ctx context.Context, req *EnqueueTaskRequest) 
 		opts = append(opts, cmfqueue.WithMaxRetry(*req.MaxRetry))
 	}
 
-	taskID, err := client.Enqueue(ctx, req.Name, payload, opts...)
+	taskID, err := runtime.Enqueue(ctx, req.Name, payload, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +232,7 @@ func (s *QueueJobService) Enqueue(ctx context.Context, req *EnqueueTaskRequest) 
 
 // Stats 返回所有队列的统计快照
 func (s *QueueJobService) Stats(ctx context.Context) ([]*QueueStatsResponse, error) {
-	insp, err := s.inspector()
+	insp, err := s.runtime()
 	if err != nil {
 		return nil, err
 	}
@@ -262,11 +262,51 @@ func (s *QueueJobService) Stats(ctx context.Context) ([]*QueueStatsResponse, err
 
 // Handlers 返回已注册的队列任务处理器名列表
 func (s *QueueJobService) Handlers(ctx context.Context) ([]string, error) {
-	server := global.QueueServer.Load()
-	if server == nil {
-		return nil, ErrQueueUnavailable
+	runtime, err := s.runtime()
+	if err != nil {
+		return nil, err
 	}
-	return server.RegisteredTasks(), nil
+	return runtime.RegisteredTasks(), nil
+}
+
+func (s *QueueJobService) Capabilities(context.Context) (cmfqueue.Capabilities, error) {
+	runtime, err := s.runtime()
+	if err != nil {
+		return cmfqueue.Capabilities{}, err
+	}
+	return runtime.Capabilities(), nil
+}
+
+func (s *QueueJobService) Overview(ctx context.Context) ([]cmfqueue.QueueOverview, error) {
+	runtime, err := s.runtime()
+	if err != nil {
+		return nil, err
+	}
+	return runtime.Overview(ctx)
+}
+
+func (s *QueueJobService) PauseQueue(ctx context.Context, queue string, pause bool) error {
+	name, err := normalizeQueueName(queue)
+	if err != nil {
+		return err
+	}
+	runtime, err := s.runtime()
+	if err != nil {
+		return err
+	}
+	return runtime.PauseQueue(ctx, name, pause)
+}
+
+func (s *QueueJobService) RawMessage(ctx context.Context, queue string, sequence uint64) (cmfqueue.RawMessage, error) {
+	name, err := normalizeQueueName(queue)
+	if err != nil {
+		return cmfqueue.RawMessage{}, err
+	}
+	runtime, err := s.runtime()
+	if err != nil {
+		return cmfqueue.RawMessage{}, err
+	}
+	return runtime.GetRawMessage(ctx, name, sequence)
 }
 
 // newQueueTaskResponse 将 cmf/queue TaskInfo 转换为响应结构

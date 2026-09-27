@@ -959,6 +959,11 @@ func InitSystemPermissions(ctx context.Context) error {
 		SeedPermission{ID: 189, Domain: "default", Type: "api", Name: "重试队列任务", Code: "queue-job:retry", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/retry", Method: "POST", ParentID: 183, SortOrder: 5, IsCommon: false, Status: 1, Description: "重试队列任务API"},
 		SeedPermission{ID: 190, Domain: "default", Type: "api", Name: "取消队列任务", Code: "queue-job:cancel", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/cancel", Method: "POST", ParentID: 183, SortOrder: 6, IsCommon: false, Status: 1, Description: "取消执行中队列任务API"},
 		SeedPermission{ID: 191, Domain: "default", Type: "api", Name: "删除队列任务", Code: "queue-job:delete", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}", Method: "DELETE", ParentID: 183, SortOrder: 7, IsCommon: false, Status: 1, Description: "删除队列任务API"},
+		SeedPermission{ID: 201, Domain: "default", Type: "api", Name: "获取队列能力", Code: "queue-job:capabilities", Path: "/api/v1/admin/auth/queue-jobs/capabilities", Method: "GET", ParentID: 183, SortOrder: 8, IsCommon: false, Status: 1},
+		SeedPermission{ID: 202, Domain: "default", Type: "api", Name: "获取队列概览", Code: "queue-job:overview", Path: "/api/v1/admin/auth/queue-jobs/overview", Method: "GET", ParentID: 183, SortOrder: 9, IsCommon: false, Status: 1},
+		SeedPermission{ID: 203, Domain: "default", Type: "api", Name: "暂停队列", Code: "queue-job:pause", Path: "/api/v1/admin/auth/queue-jobs/{queue}/pause", Method: "POST", ParentID: 183, SortOrder: 10, IsCommon: false, Status: 1},
+		SeedPermission{ID: 204, Domain: "default", Type: "api", Name: "恢复队列", Code: "queue-job:resume", Path: "/api/v1/admin/auth/queue-jobs/{queue}/resume", Method: "POST", ParentID: 183, SortOrder: 11, IsCommon: false, Status: 1},
+		SeedPermission{ID: 205, Domain: "default", Type: "api", Name: "查看原始消息", Code: "queue-job:raw-message", Path: "/api/v1/admin/auth/queue-jobs/{queue}/messages/{sequence}", Method: "GET", ParentID: 183, SortOrder: 12, IsCommon: false, Status: 1},
 	)
 	// 幻灯片管理权限(2026-09-25 幻灯片模块)
 	seedData = append(seedData,

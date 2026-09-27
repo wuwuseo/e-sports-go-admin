@@ -40,15 +40,12 @@ func TestQueueTaskRejectsInvalidQueueName(t *testing.T) {
 // TestQueueEnqueueRejectsInvalidQueueName 手动入队同样受白名单约束；
 // 校验发生在任何 Redis 命令之前，因此可用未连接的句柄直接断言。
 func TestQueueEnqueueRejectsInvalidQueueName(t *testing.T) {
-	server := cmfqueue.NewServer(cmfqueue.DefaultConfig())
-	server.Handle("t", func(ctx context.Context, task *cmfqueue.Task) error { return nil })
-	client := cmfqueue.NewClient(cmfqueue.DefaultConfig())
-	savedServer := global.QueueServer.Swap(server)
-	savedClient := global.QueueClient.Swap(client)
+	runtime := cmfqueue.NewLegacyRuntime(cmfqueue.DefaultConfig())
+	runtime.Handle("t", func(ctx context.Context, task *cmfqueue.Task) error { return nil })
+	saved := global.QueueRuntime.Swap(runtime)
 	t.Cleanup(func() {
-		global.QueueServer.Store(savedServer)
-		global.QueueClient.Store(savedClient)
-		_ = client.Close()
+		global.QueueRuntime.Store(saved)
+		runtime.Shutdown(context.Background())
 	})
 
 	svc := NewQueueJobService()

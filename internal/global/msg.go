@@ -36,17 +36,19 @@ const (
 	ErrCodeCronJobLogNotFound  = 4006
 
 	// 任务队列错误码 (4100-4199)
-	ErrCodeQueueTaskNotFound    = 4101
-	ErrCodeQueueUnknownHandler  = 4102
-	ErrCodeQueueInvalidPayload  = 4103
-	ErrCodeQueueInvalidState    = 4104
-	ErrCodeQueueUnavailable     = 4105
-	ErrCodeQueueDuplicateTask   = 4106
-	ErrCodeQueueUnknownQueue    = 4107
-	ErrCodeQueueStateConflict   = 4108
-	ErrCodeQueueFull            = 4109
-	ErrCodeQueuePayloadTooLarge = 4110
-	ErrCodeQueueInvalidName     = 4111
+	ErrCodeQueueTaskNotFound       = 4101
+	ErrCodeQueueUnknownHandler     = 4102
+	ErrCodeQueueInvalidPayload     = 4103
+	ErrCodeQueueInvalidState       = 4104
+	ErrCodeQueueUnavailable        = 4105
+	ErrCodeQueueDuplicateTask      = 4106
+	ErrCodeQueueUnknownQueue       = 4107
+	ErrCodeQueueStateConflict      = 4108
+	ErrCodeQueueFull               = 4109
+	ErrCodeQueuePayloadTooLarge    = 4110
+	ErrCodeQueueInvalidName        = 4111
+	ErrCodeQueueUnsupported        = 4112
+	ErrCodeQueueMessageNotRetained = 4113
 
 	// 附件管理错误码 (3000-3099)
 	ErrCodeAttachmentNotFound      = 3001
@@ -159,17 +161,19 @@ var ResponseMsg = map[int]string{
 	ErrCodeCronJobLogNotFound:  "日志不存在",
 
 	// 任务队列错误消息
-	ErrCodeQueueTaskNotFound:    "队列任务不存在",
-	ErrCodeQueueUnknownHandler:  "队列任务未注册",
-	ErrCodeQueueInvalidPayload:  "任务载荷必须是合法 JSON",
-	ErrCodeQueueInvalidState:    "非法的任务状态",
-	ErrCodeQueueUnavailable:     "任务队列不可用",
-	ErrCodeQueueDuplicateTask:   "任务重复入队（去重窗口内）",
-	ErrCodeQueueUnknownQueue:    "目标队列未配置",
-	ErrCodeQueueStateConflict:   "任务状态不允许该操作",
-	ErrCodeQueueFull:            "队列已达到容量阈值，请稍后重试",
-	ErrCodeQueuePayloadTooLarge: "任务载荷超过字节上限",
-	ErrCodeQueueInvalidName:     "队列名仅允许字母、数字、下划线和中划线",
+	ErrCodeQueueTaskNotFound:       "队列任务不存在",
+	ErrCodeQueueUnknownHandler:     "队列任务未注册",
+	ErrCodeQueueInvalidPayload:     "任务载荷必须是合法 JSON",
+	ErrCodeQueueInvalidState:       "非法的任务状态",
+	ErrCodeQueueUnavailable:        "任务队列不可用",
+	ErrCodeQueueDuplicateTask:      "任务重复入队（去重窗口内）",
+	ErrCodeQueueUnknownQueue:       "目标队列未配置",
+	ErrCodeQueueStateConflict:      "任务状态不允许该操作",
+	ErrCodeQueueFull:               "队列已达到容量阈值，请稍后重试",
+	ErrCodeQueuePayloadTooLarge:    "任务载荷超过字节上限",
+	ErrCodeQueueInvalidName:        "队列名仅允许字母、数字、下划线和中划线",
+	ErrCodeQueueUnsupported:        "当前队列后端不支持该操作",
+	ErrCodeQueueMessageNotRetained: "原始消息不存在或已不再保留",
 
 	// 附件管理错误消息
 	ErrCodeAttachmentNotFound:      "附件不存在",

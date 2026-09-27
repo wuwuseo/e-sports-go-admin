@@ -816,7 +816,7 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 195
+	const wantCount = 200
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}
@@ -859,6 +859,11 @@ func TestInitSystemPermissions_IncludesQueueJobSeeds(t *testing.T) {
 		{Code: "queue-job:retry", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/retry", Method: "POST", ParentCode: "system:queue-job"},
 		{Code: "queue-job:cancel", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}/cancel", Method: "POST", ParentCode: "system:queue-job"},
 		{Code: "queue-job:delete", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/{id}", Method: "DELETE", ParentCode: "system:queue-job"},
+		{Code: "queue-job:capabilities", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/capabilities", Method: "GET", ParentCode: "system:queue-job"},
+		{Code: "queue-job:overview", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/overview", Method: "GET", ParentCode: "system:queue-job"},
+		{Code: "queue-job:pause", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/pause", Method: "POST", ParentCode: "system:queue-job"},
+		{Code: "queue-job:resume", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/resume", Method: "POST", ParentCode: "system:queue-job"},
+		{Code: "queue-job:raw-message", Type: "api", Path: "/api/v1/admin/auth/queue-jobs/{queue}/messages/{sequence}", Method: "GET", ParentCode: "system:queue-job"},
 	}
 
 	for _, want := range expected {

@@ -24,6 +24,8 @@ func TestQueueAdmissionErrorsHaveBusinessCodes(t *testing.T) {
 		{cmfqueue.ErrQueueFull, global.ErrCodeQueueFull},
 		{cmfqueue.ErrPayloadTooLarge, global.ErrCodeQueuePayloadTooLarge},
 		{service.ErrQueueInvalidQueueName, global.ErrCodeQueueInvalidName},
+		{cmfqueue.ErrUnsupportedCapability, global.ErrCodeQueueUnsupported},
+		{cmfqueue.ErrMessageNotRetained, global.ErrCodeQueueMessageNotRetained},
 	} {
 		app := fiber.New()
 		app.Get("/error", func(c fiber.Ctx) error { return respondQueueError(utils.NewResponse(), c, tt.err) })
@@ -87,8 +89,8 @@ func TestRespondQueueErrorSendsJSONAndReturnsNilError(t *testing.T) {
 // 队列未初始化时 QueueStats 的错误路径必须返回业务 JSON（4105），
 // 而非触发 ErrorHandler panic / 500。
 func TestQueueStatsUnavailableReturnsJSONNotPanic(t *testing.T) {
-	saved := global.QueueInspector.Swap(nil)
-	t.Cleanup(func() { global.QueueInspector.Store(saved) })
+	saved := global.QueueRuntime.Swap(nil)
+	t.Cleanup(func() { global.QueueRuntime.Store(saved) })
 
 	app := fiber.New(fiber.Config{ErrorHandler: queueJobProdErrorHandler})
 	app.Get("/api/v1/admin/auth/queue-jobs/stats", func(c fiber.Ctx) error {

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strconv"
 
 	"go-admin/internal/global"
 	"go-admin/internal/service"
@@ -27,6 +28,10 @@ func queueService(c fiber.Ctx) (*service.QueueJobService, error) {
 // recover 中间件保护范围之外，导致整个进程崩溃。
 func respondQueueError(resp *utils.Response, c fiber.Ctx, err error) error {
 	switch {
+	case errors.Is(err, cmfqueue.ErrUnsupportedCapability):
+		return resp.Fail(global.ErrCodeQueueUnsupported, "当前队列后端不支持该操作").ToJSON(c)
+	case errors.Is(err, cmfqueue.ErrMessageNotRetained):
+		return resp.Fail(global.ErrCodeQueueMessageNotRetained, "原始消息不存在或已不再保留").ToJSON(c)
 	case errors.Is(err, service.ErrQueueUnavailable):
 		return resp.Fail(global.ErrCodeQueueUnavailable, "任务队列不可用").ToJSON(c)
 	case errors.Is(err, service.ErrQueueUnknownHandler):
@@ -56,6 +61,111 @@ func respondQueueError(resp *utils.Response, c fiber.Ctx, err error) error {
 	}
 }
 
+// QueueCapabilities 返回当前后端实际可用的管理操作。
+// @Summary 获取队列管理能力
+// @Tags 任务队列管理
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.Response
+// @Router /api/v1/admin/auth/queue-jobs/capabilities [get]
+func QueueCapabilities(c fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	svc, err := queueService(c)
+	if err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	capabilities, err := svc.Capabilities(c.Context())
+	if err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	return resp.Success(capabilities, global.ResponseSuccessCode, "查询成功").ToJSON(c)
+}
+
+// QueueOverview 返回所选后端的原生队列指标。
+// @Summary 获取原生队列概览
+// @Tags 任务队列管理
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} utils.Response
+// @Router /api/v1/admin/auth/queue-jobs/overview [get]
+func QueueOverview(c fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	svc, err := queueService(c)
+	if err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	overview, err := svc.Overview(c.Context())
+	if err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	return resp.Success(overview, global.ResponseSuccessCode, "查询成功").ToJSON(c)
+}
+
+func pauseQueue(c fiber.Ctx, pause bool) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	svc, err := queueService(c)
+	if err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	name := c.Params("queue")
+	if err := svc.PauseQueue(c.Context(), name, pause); err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
+	operation := "恢复"
+	if pause {
+		operation = "暂停"
+	}
+	logOperation(c, logService, "queue", operation, operation+"队列: "+name)
+	return resp.Success(nil, global.ResponseSuccessActionCode, "操作成功").ToJSON(c)
+}
+
+// PauseQueue 暂停 NSQ channel。
+// @Summary 暂停队列
+// @Tags 任务队列管理
+// @Produce json
+// @Security BearerAuth
+// @Param queue path string true "队列名"
+// @Success 200 {object} utils.Response
+// @Router /api/v1/admin/auth/queue-jobs/{queue}/pause [post]
+func PauseQueue(c fiber.Ctx) error { return pauseQueue(c, true) }
+
+// ResumeQueue 恢复 NSQ channel。
+// @Summary 恢复队列
+// @Tags 任务队列管理
+// @Produce json
+// @Security BearerAuth
+// @Param queue path string true "队列名"
+// @Success 200 {object} utils.Response
+// @Router /api/v1/admin/auth/queue-jobs/{queue}/resume [post]
+func ResumeQueue(c fiber.Ctx) error { return pauseQueue(c, false) }
+
+// GetQueueRawMessage 按 JetStream 流序号查看仍保留的原始消息。
+// @Summary 查看 JetStream 原始消息
+// @Tags 任务队列管理
+// @Produce json
+// @Security BearerAuth
+// @Param queue path string true "队列名"
+// @Param sequence path integer true "流序号"
+// @Success 200 {object} utils.Response
+// @Router /api/v1/admin/auth/queue-jobs/{queue}/messages/{sequence} [get]
+func GetQueueRawMessage(c fiber.Ctx) error {
+	resp := c.Locals("utils.Response").(*utils.Response)
+	svc, err := queueService(c)
+	if err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	sequence, err := strconv.ParseUint(c.Params("sequence"), 10, 64)
+	if err != nil || sequence == 0 {
+		return resp.Fail(global.ResponseErrorCode, "序号必须为正整数").ToJSON(c)
+	}
+	message, err := svc.RawMessage(c.Context(), c.Params("queue"), sequence)
+	if err != nil {
+		return respondQueueError(resp, c, err)
+	}
+	return resp.Success(message, global.ResponseSuccessCode, "查询成功").ToJSON(c)
+}
+
 // ListQueueTasks 获取队列任务列表
 // @Summary 获取队列任务列表
 // @Description 按状态分页列出队列任务
@@ -66,7 +176,7 @@ func respondQueueError(resp *utils.Response, c fiber.Ctx, err error) error {
 // @Param queue query string false "队列名，默认 default"
 // @Param page query int false "页码，默认1"
 // @Param page_size query int false "每页数量，默认10"
-// @Success 200 {object} utils.Response{data=service.ListResponse[*service.QueueTaskResponse]}
+// @Success 200 {object} utils.Response{data=service.QueueTaskListResponse}
 // @Failure 400 {object} utils.Response
 // @Failure 401 {object} utils.Response
 // @Failure 403 {object} utils.Response

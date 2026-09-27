@@ -31,5 +31,8 @@ type ThirdPartyUserItem struct {
 // BlacklistResponse 黑名单列表响应（Swagger文档专用）
 type BlacklistResponse = ListResponse[*BlacklistItem]
 
+// QueueTaskListResponse 任务队列列表响应（Swagger文档专用）
+type QueueTaskListResponse = ListResponse[*QueueTaskResponse]
+
 // ThirdPartyUserResponse 第三方用户响应（Swagger文档专用）
 type ThirdPartyUserResponse = ThirdPartyUserItem
