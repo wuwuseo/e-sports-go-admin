@@ -27,14 +27,14 @@ type Blacklist func(*sql.Selector)
 // CasbinRule is the predicate function for casbinrule builders.
 type CasbinRule func(*sql.Selector)
 
+// CmsCategory is the predicate function for cmscategory builders.
+type CmsCategory func(*sql.Selector)
+
+// CmsContent is the predicate function for cmscontent builders.
+type CmsContent func(*sql.Selector)
+
 // CronJob is the predicate function for cronjob builders.
 type CronJob func(*sql.Selector)
-
-// DemoCategory is the predicate function for democategory builders.
-type DemoCategory func(*sql.Selector)
-
-// DemoItem is the predicate function for demoitem builders.
-type DemoItem func(*sql.Selector)
 
 // Department is the predicate function for department builders.
 type Department func(*sql.Selector)

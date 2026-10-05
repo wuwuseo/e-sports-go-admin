@@ -4,7 +4,7 @@ package ent
 
 import (
 	"context"
-	"go-admin/internal/ent/democategory"
+	"go-admin/internal/ent/cmscategory"
 	"go-admin/internal/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
@@ -12,26 +12,26 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// DemoCategoryDelete is the builder for deleting a DemoCategory entity.
-type DemoCategoryDelete struct {
+// CmsCategoryDelete is the builder for deleting a CmsCategory entity.
+type CmsCategoryDelete struct {
 	config
 	hooks    []Hook
-	mutation *DemoCategoryMutation
+	mutation *CmsCategoryMutation
 }
 
-// Where appends a list predicates to the DemoCategoryDelete builder.
-func (_d *DemoCategoryDelete) Where(ps ...predicate.DemoCategory) *DemoCategoryDelete {
+// Where appends a list predicates to the CmsCategoryDelete builder.
+func (_d *CmsCategoryDelete) Where(ps ...predicate.CmsCategory) *CmsCategoryDelete {
 	_d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query and returns how many vertices were deleted.
-func (_d *DemoCategoryDelete) Exec(ctx context.Context) (int, error) {
+func (_d *CmsCategoryDelete) Exec(ctx context.Context) (int, error) {
 	return withHooks(ctx, _d.sqlExec, _d.mutation, _d.hooks)
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *DemoCategoryDelete) ExecX(ctx context.Context) int {
+func (_d *CmsCategoryDelete) ExecX(ctx context.Context) int {
 	n, err := _d.Exec(ctx)
 	if err != nil {
 		panic(err)
@@ -39,8 +39,8 @@ func (_d *DemoCategoryDelete) ExecX(ctx context.Context) int {
 	return n
 }
 
-func (_d *DemoCategoryDelete) sqlExec(ctx context.Context) (int, error) {
-	_spec := sqlgraph.NewDeleteSpec(democategory.Table, sqlgraph.NewFieldSpec(democategory.FieldID, field.TypeInt))
+func (_d *CmsCategoryDelete) sqlExec(ctx context.Context) (int, error) {
+	_spec := sqlgraph.NewDeleteSpec(cmscategory.Table, sqlgraph.NewFieldSpec(cmscategory.FieldID, field.TypeInt))
 	if ps := _d.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -56,32 +56,32 @@ func (_d *DemoCategoryDelete) sqlExec(ctx context.Context) (int, error) {
 	return affected, err
 }
 
-// DemoCategoryDeleteOne is the builder for deleting a single DemoCategory entity.
-type DemoCategoryDeleteOne struct {
-	_d *DemoCategoryDelete
+// CmsCategoryDeleteOne is the builder for deleting a single CmsCategory entity.
+type CmsCategoryDeleteOne struct {
+	_d *CmsCategoryDelete
 }
 
-// Where appends a list predicates to the DemoCategoryDelete builder.
-func (_d *DemoCategoryDeleteOne) Where(ps ...predicate.DemoCategory) *DemoCategoryDeleteOne {
+// Where appends a list predicates to the CmsCategoryDelete builder.
+func (_d *CmsCategoryDeleteOne) Where(ps ...predicate.CmsCategory) *CmsCategoryDeleteOne {
 	_d._d.mutation.Where(ps...)
 	return _d
 }
 
 // Exec executes the deletion query.
-func (_d *DemoCategoryDeleteOne) Exec(ctx context.Context) error {
+func (_d *CmsCategoryDeleteOne) Exec(ctx context.Context) error {
 	n, err := _d._d.Exec(ctx)
 	switch {
 	case err != nil:
 		return err
 	case n == 0:
-		return &NotFoundError{democategory.Label}
+		return &NotFoundError{cmscategory.Label}
 	default:
 		return nil
 	}
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (_d *DemoCategoryDeleteOne) ExecX(ctx context.Context) {
+func (_d *CmsCategoryDeleteOne) ExecX(ctx context.Context) {
 	if err := _d.Exec(ctx); err != nil {
 		panic(err)
 	}

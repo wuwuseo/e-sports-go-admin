@@ -13,9 +13,9 @@ import (
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/cmscategory"
+	"go-admin/internal/ent/cmscontent"
 	"go-admin/internal/ent/cronjob"
-	"go-admin/internal/ent/democategory"
-	"go-admin/internal/ent/demoitem"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/loginlog"
@@ -105,9 +105,9 @@ func checkColumn(t, c string) error {
 			attachmentgroup.Table:     attachmentgroup.ValidColumn,
 			blacklist.Table:           blacklist.ValidColumn,
 			casbinrule.Table:          casbinrule.ValidColumn,
+			cmscategory.Table:         cmscategory.ValidColumn,
+			cmscontent.Table:          cmscontent.ValidColumn,
 			cronjob.Table:             cronjob.ValidColumn,
-			democategory.Table:        democategory.ValidColumn,
-			demoitem.Table:            demoitem.ValidColumn,
 			department.Table:          department.ValidColumn,
 			dictdata.Table:            dictdata.ValidColumn,
 			loginlog.Table:            loginlog.ValidColumn,

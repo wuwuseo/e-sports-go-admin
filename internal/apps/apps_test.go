@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/global"
 )
 
-func TestProvisionDemoIdempotent(t *testing.T) {
+func TestProvisionCMSIdempotent(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:source_apps_provision?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 	defer client.Close()
@@ -28,34 +28,22 @@ func TestProvisionDemoIdempotent(t *testing.T) {
 		if err := Provision(t.Context(), cfg, client); err != nil {
 			t.Fatal(err)
 		}
-		if run == 0 {
-			item := client.SystemConfig.Query().Where(systemconfig.KeyEQ("app.demo.greeting")).OnlyX(t.Context())
-			item.Update().SetValue("changed by user").SaveX(t.Context())
-		}
 	}
-	item := client.SystemConfig.Query().Where(systemconfig.KeyEQ("app.demo.greeting")).OnlyX(t.Context())
-	if item.Value != "changed by user" {
-		t.Fatalf("config value overwritten: %s", item.Value)
-	}
-	count := client.SystemConfig.Query().Where(systemconfig.KeyEQ("app.demo.greeting")).CountX(t.Context())
-	if count != 1 {
-		t.Fatalf("config count = %d", count)
-	}
-	menu := client.SystemPermission.Query().Where(systempermission.CodeEQ("demo:menu")).OnlyX(t.Context())
-	for _, code := range []string{"demo:items:list", "demo:items:add"} {
+	menu := client.SystemPermission.Query().Where(systempermission.CodeEQ("cms:menu")).OnlyX(t.Context())
+	for _, code := range []string{"cms:contents:list", "cms:contents:add", "cms:categories:list"} {
 		p := client.SystemPermission.Query().Where(systempermission.CodeEQ(code)).OnlyX(t.Context())
 		if p.ParentID != menu.ID || p.Domain != "default" {
 			t.Fatalf("permission %s = %+v, menu id %d", code, p, menu.ID)
 		}
 	}
-	if count := client.SystemPermission.Query().Where(systempermission.CodeHasPrefix("demo:")).CountX(t.Context()); count != 3 {
-		t.Fatalf("demo permission count = %d", count)
+	if count := client.SystemPermission.Query().Where(systempermission.CodeHasPrefix("cms:")).CountX(t.Context()); count != 14 {
+		t.Fatalf("cms permission count = %d", count)
 	}
-	category := client.DemoCategory.Create().SetName("Group").SaveX(t.Context())
-	model := client.DemoItem.Create().SetTitle("Example").SetCategory(category).SaveX(t.Context())
-	loaded := client.DemoItem.GetX(t.Context(), model.ID)
-	if loaded.QueryCategory().OnlyX(t.Context()).ID != category.ID {
-		t.Fatal("generated internal Ent relation did not persist")
+	category := client.CmsCategory.Create().SetName("News").SaveX(t.Context())
+	model := client.CmsContent.Create().SetTitle("Example").SetCategoryID(category.ID).SaveX(t.Context())
+	loaded := client.CmsContent.GetX(t.Context(), model.ID)
+	if loaded.CategoryID != category.ID {
+		t.Fatal("generated CMS model did not persist category")
 	}
 }
 

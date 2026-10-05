@@ -92,6 +92,30 @@ func (f CasbinRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CasbinRuleMutation", m)
 }
 
+// The CmsCategoryFunc type is an adapter to allow the use of ordinary
+// function as CmsCategory mutator.
+type CmsCategoryFunc func(context.Context, *ent.CmsCategoryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CmsCategoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CmsCategoryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CmsCategoryMutation", m)
+}
+
+// The CmsContentFunc type is an adapter to allow the use of ordinary
+// function as CmsContent mutator.
+type CmsContentFunc func(context.Context, *ent.CmsContentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CmsContentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CmsContentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CmsContentMutation", m)
+}
+
 // The CronJobFunc type is an adapter to allow the use of ordinary
 // function as CronJob mutator.
 type CronJobFunc func(context.Context, *ent.CronJobMutation) (ent.Value, error)
@@ -102,30 +126,6 @@ func (f CronJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CronJobMutation", m)
-}
-
-// The DemoCategoryFunc type is an adapter to allow the use of ordinary
-// function as DemoCategory mutator.
-type DemoCategoryFunc func(context.Context, *ent.DemoCategoryMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f DemoCategoryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.DemoCategoryMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DemoCategoryMutation", m)
-}
-
-// The DemoItemFunc type is an adapter to allow the use of ordinary
-// function as DemoItem mutator.
-type DemoItemFunc func(context.Context, *ent.DemoItemMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f DemoItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.DemoItemMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DemoItemMutation", m)
 }
 
 // The DepartmentFunc type is an adapter to allow the use of ordinary

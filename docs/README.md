@@ -17,4 +17,5 @@
 - [oauth-github.md](oauth-github.md) — GitHub OAuth 接入指南：主密钥配置、OAuth App 创建、Provider 配置接口与绑定流程。
 - [plugin-protocols.md](plugin-protocols.md) — 插件协议说明：插件包结构、进程外插件运行方式与 gRPC/HTTP/stdio 传输。
 - [source-apps.md](source-apps.md) — 源码功能集开发说明：功能集的注册、校验、路由挂载与代码生成流程。
+- [cms.md](cms.md) — CMS 文章、单页、分类的公开 API 与管理接口。
 - [task-queue-backends.md](task-queue-backends.md) — 任务队列后端能力：各 driver 的 broker 连接、概览指标与管理 API 差异。

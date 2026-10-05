@@ -296,6 +296,50 @@ var (
 			},
 		},
 	}
+	// CmsCategoriesColumns holds the columns for the "cms_categories" table.
+	CmsCategoriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "name", Type: field.TypeString, Size: 100},
+		{Name: "status", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// CmsCategoriesTable holds the schema information for the "cms_categories" table.
+	CmsCategoriesTable = &schema.Table{
+		Name:       TablePrefix + "cms_categories",
+		Columns:    CmsCategoriesColumns,
+		PrimaryKey: []*schema.Column{CmsCategoriesColumns[0]},
+	}
+	// CmsContentsColumns holds the columns for the "cms_contents" table.
+	CmsContentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "title", Type: field.TypeString, Size: 200},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"article", "page"}, Default: "article"},
+		{Name: "format", Type: field.TypeEnum, Enums: []string{"markdown", "html", "image"}, Default: "markdown"},
+		{Name: "content", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "image", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "category_id", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// CmsContentsTable holds the schema information for the "cms_contents" table.
+	CmsContentsTable = &schema.Table{
+		Name:       TablePrefix + "cms_contents",
+		Columns:    CmsContentsColumns,
+		PrimaryKey: []*schema.Column{CmsContentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "cmscontent_kind_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{CmsContentsColumns[2], CmsContentsColumns[7], CmsContentsColumns[8]},
+			},
+			{
+				Name:    "cmscontent_category_id",
+				Unique:  false,
+				Columns: []*schema.Column{CmsContentsColumns[6]},
+			},
+		},
+	}
 	// CronJobsColumns holds the columns for the "cron_jobs" table.
 	CronJobsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -325,37 +369,6 @@ var (
 				Name:    "cronjob_type",
 				Unique:  false,
 				Columns: []*schema.Column{CronJobsColumns[3]},
-			},
-		},
-	}
-	// DemoCategoriesColumns holds the columns for the "demo_categories" table.
-	DemoCategoriesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "name", Type: field.TypeString},
-	}
-	// DemoCategoriesTable holds the schema information for the "demo_categories" table.
-	DemoCategoriesTable = &schema.Table{
-		Name:       TablePrefix + "demo_categories",
-		Columns:    DemoCategoriesColumns,
-		PrimaryKey: []*schema.Column{DemoCategoriesColumns[0]},
-	}
-	// DemoItemsColumns holds the columns for the "demo_items" table.
-	DemoItemsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "title", Type: field.TypeString},
-		{Name: "demo_category_items", Type: field.TypeInt, Nullable: true},
-	}
-	// DemoItemsTable holds the schema information for the "demo_items" table.
-	DemoItemsTable = &schema.Table{
-		Name:       TablePrefix + "demo_items",
-		Columns:    DemoItemsColumns,
-		PrimaryKey: []*schema.Column{DemoItemsColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "demo_items_demo_categories_items",
-				Columns:    []*schema.Column{DemoItemsColumns[2]},
-				RefColumns: []*schema.Column{DemoCategoriesColumns[0]},
-				OnDelete:   schema.SetNull,
 			},
 		},
 	}
@@ -1024,9 +1037,9 @@ var (
 		AttachmentGroupsTable,
 		BlacklistsTable,
 		CasbinRulesTable,
+		CmsCategoriesTable,
+		CmsContentsTable,
 		CronJobsTable,
-		DemoCategoriesTable,
-		DemoItemsTable,
 		DepartmentsTable,
 		DictDataTable,
 		LoginLogsTable,
@@ -1053,7 +1066,6 @@ func init() {
 	AdminThirdPartyUsersTable.ForeignKeys[0].RefTable = AdminsTable
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
 	BlacklistsTable.ForeignKeys[0].RefTable = UsersTable
-	DemoItemsTable.ForeignKeys[0].RefTable = DemoCategoriesTable
 	ThirdPartyUsersTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[1].RefTable = RolesTable

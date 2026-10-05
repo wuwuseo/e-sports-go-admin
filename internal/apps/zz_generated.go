@@ -2,5 +2,5 @@
 package apps
 
 import (
-	_ "go-admin/internal/apps/demo"
+	_ "go-admin/internal/apps/cms"
 )

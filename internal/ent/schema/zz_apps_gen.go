@@ -2,9 +2,9 @@
 package schema
 
 import (
-	appschemademo "go-admin/internal/apps/demo/schema"
+	appschemacms "go-admin/internal/apps/cms/schema"
 )
 
-type DemoCategory struct{ appschemademo.DemoCategory }
+type CmsCategory struct{ appschemacms.CmsCategory }
 
-type DemoItem struct{ appschemademo.DemoItem }
+type CmsContent struct{ appschemacms.CmsContent }

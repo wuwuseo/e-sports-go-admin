@@ -9,9 +9,9 @@ import (
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/cmscategory"
+	"go-admin/internal/ent/cmscontent"
 	"go-admin/internal/ent/cronjob"
-	"go-admin/internal/ent/democategory"
-	"go-admin/internal/ent/demoitem"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/loginlog"
@@ -83,23 +83,19 @@ func initGeneratedTablePrefixes(prefix string) {
 		casbinrule.Table = prefix + strings.TrimPrefix(casbinrule.Table, old)
 	}
 	{
+		old := cmscategory.TablePrefix
+		cmscategory.TablePrefix = prefix
+		cmscategory.Table = prefix + strings.TrimPrefix(cmscategory.Table, old)
+	}
+	{
+		old := cmscontent.TablePrefix
+		cmscontent.TablePrefix = prefix
+		cmscontent.Table = prefix + strings.TrimPrefix(cmscontent.Table, old)
+	}
+	{
 		old := cronjob.TablePrefix
 		cronjob.TablePrefix = prefix
 		cronjob.Table = prefix + strings.TrimPrefix(cronjob.Table, old)
-	}
-	{
-		old := democategory.TablePrefix
-		democategory.TablePrefix = prefix
-		democategory.ItemsInverseTable = prefix + strings.TrimPrefix(democategory.ItemsInverseTable, old)
-		democategory.ItemsTable = prefix + strings.TrimPrefix(democategory.ItemsTable, old)
-		democategory.Table = prefix + strings.TrimPrefix(democategory.Table, old)
-	}
-	{
-		old := demoitem.TablePrefix
-		demoitem.TablePrefix = prefix
-		demoitem.CategoryInverseTable = prefix + strings.TrimPrefix(demoitem.CategoryInverseTable, old)
-		demoitem.CategoryTable = prefix + strings.TrimPrefix(demoitem.CategoryTable, old)
-		demoitem.Table = prefix + strings.TrimPrefix(demoitem.Table, old)
 	}
 	{
 		old := department.TablePrefix

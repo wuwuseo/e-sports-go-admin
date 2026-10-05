@@ -33,13 +33,13 @@ func TestSourceAppProvisionPrecedesNormalAdminGrant(t *testing.T) {
 	if err := initNormalAdminRole(t.Context(), client, "default"); err != nil {
 		t.Fatal(err)
 	}
-	api := client.SystemPermission.Query().Where(systempermission.CodeEQ("demo:items:list")).OnlyX(t.Context())
+	api := client.SystemPermission.Query().Where(systempermission.CodeEQ("cms:contents:list")).OnlyX(t.Context())
 	count := client.CasbinRule.Query().Where(
 		casbinrule.PtypeEQ("p"), casbinrule.V0EQ("normal_admin"),
 		casbinrule.V2EQ(api.Path), casbinrule.V3EQ(api.Method),
 	).CountX(t.Context())
 	if count != 1 {
-		t.Fatalf("new normal_admin has %d demo API grants", count)
+		t.Fatalf("new normal_admin has %d CMS API grants", count)
 	}
 	client.CasbinRule.Delete().Where(casbinrule.PtypeEQ("p"), casbinrule.V0EQ("normal_admin"), casbinrule.V2EQ(api.Path)).ExecX(t.Context())
 	if err := initNormalAdminRole(t.Context(), client, "default"); err != nil {
@@ -117,10 +117,8 @@ func TestSourceAppRouteAuthentication(t *testing.T) {
 			t.Fatalf("GET %s uid=%s status/code=%d, want %d", path, uid, actual, want)
 		}
 	}
-	check("/api/v1/demo/ping", "", "", http.StatusOK)
-	check("/api/v1/demo/me", "", "", http.StatusUnauthorized)
-	check("/api/v1/demo/me", cfg.App.Secret, "source-user", http.StatusOK)
-	check("/api/v1/demo/items", "", "", http.StatusUnauthorized)
-	check("/api/v1/demo/items", cfg.App.AdminSecret, "source-limited", http.StatusForbidden)
-	check("/api/v1/demo/items", cfg.App.AdminSecret, super.UID, http.StatusOK)
+	check("/api/v1/cms/articles", "", "", http.StatusOK)
+	check("/api/v1/cms/admin/contents", "", "", http.StatusUnauthorized)
+	check("/api/v1/cms/admin/contents", cfg.App.AdminSecret, "source-limited", http.StatusForbidden)
+	check("/api/v1/cms/admin/contents", cfg.App.AdminSecret, super.UID, http.StatusOK)
 }

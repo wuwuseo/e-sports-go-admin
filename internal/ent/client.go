@@ -18,9 +18,9 @@ import (
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/cmscategory"
+	"go-admin/internal/ent/cmscontent"
 	"go-admin/internal/ent/cronjob"
-	"go-admin/internal/ent/democategory"
-	"go-admin/internal/ent/demoitem"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/loginlog"
@@ -63,12 +63,12 @@ type Client struct {
 	Blacklist *BlacklistClient
 	// CasbinRule is the client for interacting with the CasbinRule builders.
 	CasbinRule *CasbinRuleClient
+	// CmsCategory is the client for interacting with the CmsCategory builders.
+	CmsCategory *CmsCategoryClient
+	// CmsContent is the client for interacting with the CmsContent builders.
+	CmsContent *CmsContentClient
 	// CronJob is the client for interacting with the CronJob builders.
 	CronJob *CronJobClient
-	// DemoCategory is the client for interacting with the DemoCategory builders.
-	DemoCategory *DemoCategoryClient
-	// DemoItem is the client for interacting with the DemoItem builders.
-	DemoItem *DemoItemClient
 	// Department is the client for interacting with the Department builders.
 	Department *DepartmentClient
 	// DictData is the client for interacting with the DictData builders.
@@ -119,9 +119,9 @@ func (c *Client) init() {
 	c.AttachmentGroup = NewAttachmentGroupClient(c.config)
 	c.Blacklist = NewBlacklistClient(c.config)
 	c.CasbinRule = NewCasbinRuleClient(c.config)
+	c.CmsCategory = NewCmsCategoryClient(c.config)
+	c.CmsContent = NewCmsContentClient(c.config)
 	c.CronJob = NewCronJobClient(c.config)
-	c.DemoCategory = NewDemoCategoryClient(c.config)
-	c.DemoItem = NewDemoItemClient(c.config)
 	c.Department = NewDepartmentClient(c.config)
 	c.DictData = NewDictDataClient(c.config)
 	c.LoginLog = NewLoginLogClient(c.config)
@@ -237,9 +237,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AttachmentGroup:     NewAttachmentGroupClient(cfg),
 		Blacklist:           NewBlacklistClient(cfg),
 		CasbinRule:          NewCasbinRuleClient(cfg),
+		CmsCategory:         NewCmsCategoryClient(cfg),
+		CmsContent:          NewCmsContentClient(cfg),
 		CronJob:             NewCronJobClient(cfg),
-		DemoCategory:        NewDemoCategoryClient(cfg),
-		DemoItem:            NewDemoItemClient(cfg),
 		Department:          NewDepartmentClient(cfg),
 		DictData:            NewDictDataClient(cfg),
 		LoginLog:            NewLoginLogClient(cfg),
@@ -282,9 +282,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AttachmentGroup:     NewAttachmentGroupClient(cfg),
 		Blacklist:           NewBlacklistClient(cfg),
 		CasbinRule:          NewCasbinRuleClient(cfg),
+		CmsCategory:         NewCmsCategoryClient(cfg),
+		CmsContent:          NewCmsContentClient(cfg),
 		CronJob:             NewCronJobClient(cfg),
-		DemoCategory:        NewDemoCategoryClient(cfg),
-		DemoItem:            NewDemoItemClient(cfg),
 		Department:          NewDepartmentClient(cfg),
 		DictData:            NewDictDataClient(cfg),
 		LoginLog:            NewLoginLogClient(cfg),
@@ -331,10 +331,11 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
-		c.Blacklist, c.CasbinRule, c.CronJob, c.DemoCategory, c.DemoItem, c.Department,
-		c.DictData, c.LoginLog, c.Message, c.MessagePreference, c.OAuthProviderConfig,
-		c.OAuthSession, c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig,
-		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
+		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
+		c.Department, c.DictData, c.LoginLog, c.Message, c.MessagePreference,
+		c.OAuthProviderConfig, c.OAuthSession, c.OperationLog, c.Plugin, c.Role,
+		c.Slide, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
+		c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -345,10 +346,11 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
-		c.Blacklist, c.CasbinRule, c.CronJob, c.DemoCategory, c.DemoItem, c.Department,
-		c.DictData, c.LoginLog, c.Message, c.MessagePreference, c.OAuthProviderConfig,
-		c.OAuthSession, c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig,
-		c.SystemPermission, c.ThirdPartyUser, c.User, c.UserRole,
+		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
+		c.Department, c.DictData, c.LoginLog, c.Message, c.MessagePreference,
+		c.OAuthProviderConfig, c.OAuthSession, c.OperationLog, c.Plugin, c.Role,
+		c.Slide, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
+		c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -371,12 +373,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Blacklist.mutate(ctx, m)
 	case *CasbinRuleMutation:
 		return c.CasbinRule.mutate(ctx, m)
+	case *CmsCategoryMutation:
+		return c.CmsCategory.mutate(ctx, m)
+	case *CmsContentMutation:
+		return c.CmsContent.mutate(ctx, m)
 	case *CronJobMutation:
 		return c.CronJob.mutate(ctx, m)
-	case *DemoCategoryMutation:
-		return c.DemoCategory.mutate(ctx, m)
-	case *DemoItemMutation:
-		return c.DemoItem.mutate(ctx, m)
 	case *DepartmentMutation:
 		return c.Department.mutate(ctx, m)
 	case *DictDataMutation:
@@ -1457,6 +1459,272 @@ func (c *CasbinRuleClient) mutate(ctx context.Context, m *CasbinRuleMutation) (V
 	}
 }
 
+// CmsCategoryClient is a client for the CmsCategory schema.
+type CmsCategoryClient struct {
+	config
+}
+
+// NewCmsCategoryClient returns a client for the CmsCategory from the given config.
+func NewCmsCategoryClient(c config) *CmsCategoryClient {
+	return &CmsCategoryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cmscategory.Hooks(f(g(h())))`.
+func (c *CmsCategoryClient) Use(hooks ...Hook) {
+	c.hooks.CmsCategory = append(c.hooks.CmsCategory, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cmscategory.Intercept(f(g(h())))`.
+func (c *CmsCategoryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CmsCategory = append(c.inters.CmsCategory, interceptors...)
+}
+
+// Create returns a builder for creating a CmsCategory entity.
+func (c *CmsCategoryClient) Create() *CmsCategoryCreate {
+	mutation := newCmsCategoryMutation(c.config, OpCreate)
+	return &CmsCategoryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CmsCategory entities.
+func (c *CmsCategoryClient) CreateBulk(builders ...*CmsCategoryCreate) *CmsCategoryCreateBulk {
+	return &CmsCategoryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CmsCategoryClient) MapCreateBulk(slice any, setFunc func(*CmsCategoryCreate, int)) *CmsCategoryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CmsCategoryCreateBulk{err: fmt.Errorf("calling to CmsCategoryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CmsCategoryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CmsCategoryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CmsCategory.
+func (c *CmsCategoryClient) Update() *CmsCategoryUpdate {
+	mutation := newCmsCategoryMutation(c.config, OpUpdate)
+	return &CmsCategoryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CmsCategoryClient) UpdateOne(_m *CmsCategory) *CmsCategoryUpdateOne {
+	mutation := newCmsCategoryMutation(c.config, OpUpdateOne, withCmsCategory(_m))
+	return &CmsCategoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CmsCategoryClient) UpdateOneID(id int) *CmsCategoryUpdateOne {
+	mutation := newCmsCategoryMutation(c.config, OpUpdateOne, withCmsCategoryID(id))
+	return &CmsCategoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CmsCategory.
+func (c *CmsCategoryClient) Delete() *CmsCategoryDelete {
+	mutation := newCmsCategoryMutation(c.config, OpDelete)
+	return &CmsCategoryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CmsCategoryClient) DeleteOne(_m *CmsCategory) *CmsCategoryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CmsCategoryClient) DeleteOneID(id int) *CmsCategoryDeleteOne {
+	builder := c.Delete().Where(cmscategory.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CmsCategoryDeleteOne{builder}
+}
+
+// Query returns a query builder for CmsCategory.
+func (c *CmsCategoryClient) Query() *CmsCategoryQuery {
+	return &CmsCategoryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCmsCategory},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CmsCategory entity by its id.
+func (c *CmsCategoryClient) Get(ctx context.Context, id int) (*CmsCategory, error) {
+	return c.Query().Where(cmscategory.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CmsCategoryClient) GetX(ctx context.Context, id int) *CmsCategory {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CmsCategoryClient) Hooks() []Hook {
+	return c.hooks.CmsCategory
+}
+
+// Interceptors returns the client interceptors.
+func (c *CmsCategoryClient) Interceptors() []Interceptor {
+	return c.inters.CmsCategory
+}
+
+func (c *CmsCategoryClient) mutate(ctx context.Context, m *CmsCategoryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CmsCategoryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CmsCategoryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CmsCategoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CmsCategoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CmsCategory mutation op: %q", m.Op())
+	}
+}
+
+// CmsContentClient is a client for the CmsContent schema.
+type CmsContentClient struct {
+	config
+}
+
+// NewCmsContentClient returns a client for the CmsContent from the given config.
+func NewCmsContentClient(c config) *CmsContentClient {
+	return &CmsContentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `cmscontent.Hooks(f(g(h())))`.
+func (c *CmsContentClient) Use(hooks ...Hook) {
+	c.hooks.CmsContent = append(c.hooks.CmsContent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `cmscontent.Intercept(f(g(h())))`.
+func (c *CmsContentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CmsContent = append(c.inters.CmsContent, interceptors...)
+}
+
+// Create returns a builder for creating a CmsContent entity.
+func (c *CmsContentClient) Create() *CmsContentCreate {
+	mutation := newCmsContentMutation(c.config, OpCreate)
+	return &CmsContentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CmsContent entities.
+func (c *CmsContentClient) CreateBulk(builders ...*CmsContentCreate) *CmsContentCreateBulk {
+	return &CmsContentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CmsContentClient) MapCreateBulk(slice any, setFunc func(*CmsContentCreate, int)) *CmsContentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CmsContentCreateBulk{err: fmt.Errorf("calling to CmsContentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CmsContentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CmsContentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CmsContent.
+func (c *CmsContentClient) Update() *CmsContentUpdate {
+	mutation := newCmsContentMutation(c.config, OpUpdate)
+	return &CmsContentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CmsContentClient) UpdateOne(_m *CmsContent) *CmsContentUpdateOne {
+	mutation := newCmsContentMutation(c.config, OpUpdateOne, withCmsContent(_m))
+	return &CmsContentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CmsContentClient) UpdateOneID(id int) *CmsContentUpdateOne {
+	mutation := newCmsContentMutation(c.config, OpUpdateOne, withCmsContentID(id))
+	return &CmsContentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CmsContent.
+func (c *CmsContentClient) Delete() *CmsContentDelete {
+	mutation := newCmsContentMutation(c.config, OpDelete)
+	return &CmsContentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CmsContentClient) DeleteOne(_m *CmsContent) *CmsContentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CmsContentClient) DeleteOneID(id int) *CmsContentDeleteOne {
+	builder := c.Delete().Where(cmscontent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CmsContentDeleteOne{builder}
+}
+
+// Query returns a query builder for CmsContent.
+func (c *CmsContentClient) Query() *CmsContentQuery {
+	return &CmsContentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCmsContent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CmsContent entity by its id.
+func (c *CmsContentClient) Get(ctx context.Context, id int) (*CmsContent, error) {
+	return c.Query().Where(cmscontent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CmsContentClient) GetX(ctx context.Context, id int) *CmsContent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *CmsContentClient) Hooks() []Hook {
+	return c.hooks.CmsContent
+}
+
+// Interceptors returns the client interceptors.
+func (c *CmsContentClient) Interceptors() []Interceptor {
+	return c.inters.CmsContent
+}
+
+func (c *CmsContentClient) mutate(ctx context.Context, m *CmsContentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CmsContentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CmsContentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CmsContentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CmsContentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CmsContent mutation op: %q", m.Op())
+	}
+}
+
 // CronJobClient is a client for the CronJob schema.
 type CronJobClient struct {
 	config
@@ -1587,304 +1855,6 @@ func (c *CronJobClient) mutate(ctx context.Context, m *CronJobMutation) (Value, 
 		return (&CronJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown CronJob mutation op: %q", m.Op())
-	}
-}
-
-// DemoCategoryClient is a client for the DemoCategory schema.
-type DemoCategoryClient struct {
-	config
-}
-
-// NewDemoCategoryClient returns a client for the DemoCategory from the given config.
-func NewDemoCategoryClient(c config) *DemoCategoryClient {
-	return &DemoCategoryClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `democategory.Hooks(f(g(h())))`.
-func (c *DemoCategoryClient) Use(hooks ...Hook) {
-	c.hooks.DemoCategory = append(c.hooks.DemoCategory, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `democategory.Intercept(f(g(h())))`.
-func (c *DemoCategoryClient) Intercept(interceptors ...Interceptor) {
-	c.inters.DemoCategory = append(c.inters.DemoCategory, interceptors...)
-}
-
-// Create returns a builder for creating a DemoCategory entity.
-func (c *DemoCategoryClient) Create() *DemoCategoryCreate {
-	mutation := newDemoCategoryMutation(c.config, OpCreate)
-	return &DemoCategoryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of DemoCategory entities.
-func (c *DemoCategoryClient) CreateBulk(builders ...*DemoCategoryCreate) *DemoCategoryCreateBulk {
-	return &DemoCategoryCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *DemoCategoryClient) MapCreateBulk(slice any, setFunc func(*DemoCategoryCreate, int)) *DemoCategoryCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &DemoCategoryCreateBulk{err: fmt.Errorf("calling to DemoCategoryClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*DemoCategoryCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &DemoCategoryCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for DemoCategory.
-func (c *DemoCategoryClient) Update() *DemoCategoryUpdate {
-	mutation := newDemoCategoryMutation(c.config, OpUpdate)
-	return &DemoCategoryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *DemoCategoryClient) UpdateOne(_m *DemoCategory) *DemoCategoryUpdateOne {
-	mutation := newDemoCategoryMutation(c.config, OpUpdateOne, withDemoCategory(_m))
-	return &DemoCategoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *DemoCategoryClient) UpdateOneID(id int) *DemoCategoryUpdateOne {
-	mutation := newDemoCategoryMutation(c.config, OpUpdateOne, withDemoCategoryID(id))
-	return &DemoCategoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for DemoCategory.
-func (c *DemoCategoryClient) Delete() *DemoCategoryDelete {
-	mutation := newDemoCategoryMutation(c.config, OpDelete)
-	return &DemoCategoryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *DemoCategoryClient) DeleteOne(_m *DemoCategory) *DemoCategoryDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *DemoCategoryClient) DeleteOneID(id int) *DemoCategoryDeleteOne {
-	builder := c.Delete().Where(democategory.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &DemoCategoryDeleteOne{builder}
-}
-
-// Query returns a query builder for DemoCategory.
-func (c *DemoCategoryClient) Query() *DemoCategoryQuery {
-	return &DemoCategoryQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeDemoCategory},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a DemoCategory entity by its id.
-func (c *DemoCategoryClient) Get(ctx context.Context, id int) (*DemoCategory, error) {
-	return c.Query().Where(democategory.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *DemoCategoryClient) GetX(ctx context.Context, id int) *DemoCategory {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryItems queries the items edge of a DemoCategory.
-func (c *DemoCategoryClient) QueryItems(_m *DemoCategory) *DemoItemQuery {
-	query := (&DemoItemClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(democategory.Table, democategory.FieldID, id),
-			sqlgraph.To(demoitem.Table, demoitem.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, democategory.ItemsTable, democategory.ItemsColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *DemoCategoryClient) Hooks() []Hook {
-	return c.hooks.DemoCategory
-}
-
-// Interceptors returns the client interceptors.
-func (c *DemoCategoryClient) Interceptors() []Interceptor {
-	return c.inters.DemoCategory
-}
-
-func (c *DemoCategoryClient) mutate(ctx context.Context, m *DemoCategoryMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&DemoCategoryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&DemoCategoryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&DemoCategoryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&DemoCategoryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown DemoCategory mutation op: %q", m.Op())
-	}
-}
-
-// DemoItemClient is a client for the DemoItem schema.
-type DemoItemClient struct {
-	config
-}
-
-// NewDemoItemClient returns a client for the DemoItem from the given config.
-func NewDemoItemClient(c config) *DemoItemClient {
-	return &DemoItemClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `demoitem.Hooks(f(g(h())))`.
-func (c *DemoItemClient) Use(hooks ...Hook) {
-	c.hooks.DemoItem = append(c.hooks.DemoItem, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `demoitem.Intercept(f(g(h())))`.
-func (c *DemoItemClient) Intercept(interceptors ...Interceptor) {
-	c.inters.DemoItem = append(c.inters.DemoItem, interceptors...)
-}
-
-// Create returns a builder for creating a DemoItem entity.
-func (c *DemoItemClient) Create() *DemoItemCreate {
-	mutation := newDemoItemMutation(c.config, OpCreate)
-	return &DemoItemCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of DemoItem entities.
-func (c *DemoItemClient) CreateBulk(builders ...*DemoItemCreate) *DemoItemCreateBulk {
-	return &DemoItemCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *DemoItemClient) MapCreateBulk(slice any, setFunc func(*DemoItemCreate, int)) *DemoItemCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &DemoItemCreateBulk{err: fmt.Errorf("calling to DemoItemClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*DemoItemCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &DemoItemCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for DemoItem.
-func (c *DemoItemClient) Update() *DemoItemUpdate {
-	mutation := newDemoItemMutation(c.config, OpUpdate)
-	return &DemoItemUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *DemoItemClient) UpdateOne(_m *DemoItem) *DemoItemUpdateOne {
-	mutation := newDemoItemMutation(c.config, OpUpdateOne, withDemoItem(_m))
-	return &DemoItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *DemoItemClient) UpdateOneID(id int) *DemoItemUpdateOne {
-	mutation := newDemoItemMutation(c.config, OpUpdateOne, withDemoItemID(id))
-	return &DemoItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for DemoItem.
-func (c *DemoItemClient) Delete() *DemoItemDelete {
-	mutation := newDemoItemMutation(c.config, OpDelete)
-	return &DemoItemDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *DemoItemClient) DeleteOne(_m *DemoItem) *DemoItemDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *DemoItemClient) DeleteOneID(id int) *DemoItemDeleteOne {
-	builder := c.Delete().Where(demoitem.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &DemoItemDeleteOne{builder}
-}
-
-// Query returns a query builder for DemoItem.
-func (c *DemoItemClient) Query() *DemoItemQuery {
-	return &DemoItemQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeDemoItem},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a DemoItem entity by its id.
-func (c *DemoItemClient) Get(ctx context.Context, id int) (*DemoItem, error) {
-	return c.Query().Where(demoitem.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *DemoItemClient) GetX(ctx context.Context, id int) *DemoItem {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryCategory queries the category edge of a DemoItem.
-func (c *DemoItemClient) QueryCategory(_m *DemoItem) *DemoCategoryQuery {
-	query := (&DemoCategoryClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(demoitem.Table, demoitem.FieldID, id),
-			sqlgraph.To(democategory.Table, democategory.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, demoitem.CategoryTable, demoitem.CategoryColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *DemoItemClient) Hooks() []Hook {
-	return c.hooks.DemoItem
-}
-
-// Interceptors returns the client interceptors.
-func (c *DemoItemClient) Interceptors() []Interceptor {
-	return c.inters.DemoItem
-}
-
-func (c *DemoItemClient) mutate(ctx context.Context, m *DemoItemMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&DemoItemCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&DemoItemUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&DemoItemUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&DemoItemDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown DemoItem mutation op: %q", m.Op())
 	}
 }
 
@@ -4084,14 +4054,14 @@ func (c *UserRoleClient) mutate(ctx context.Context, m *UserRoleMutation) (Value
 type (
 	hooks struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
-		CasbinRule, CronJob, DemoCategory, DemoItem, Department, DictData, LoginLog,
+		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData, LoginLog,
 		Message, MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog,
 		Plugin, Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
 		UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
-		CasbinRule, CronJob, DemoCategory, DemoItem, Department, DictData, LoginLog,
+		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData, LoginLog,
 		Message, MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog,
 		Plugin, Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
 		UserRole []ent.Interceptor

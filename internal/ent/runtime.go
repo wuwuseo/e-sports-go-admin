@@ -10,9 +10,9 @@ import (
 	"go-admin/internal/ent/attachmentgroup"
 	"go-admin/internal/ent/blacklist"
 	"go-admin/internal/ent/casbinrule"
+	"go-admin/internal/ent/cmscategory"
+	"go-admin/internal/ent/cmscontent"
 	"go-admin/internal/ent/cronjob"
-	"go-admin/internal/ent/democategory"
-	"go-admin/internal/ent/demoitem"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/loginlog"
@@ -455,6 +455,82 @@ func init() {
 	casbinrule.DefaultV5 = casbinruleDescV5.Default.(string)
 	// casbinrule.V5Validator is a validator for the "V5" field. It is called by the builders before save.
 	casbinrule.V5Validator = casbinruleDescV5.Validators[0].(func(string) error)
+	cmscategoryFields := schema.CmsCategory{}.Fields()
+	_ = cmscategoryFields
+	// cmscategoryDescName is the schema descriptor for name field.
+	cmscategoryDescName := cmscategoryFields[0].Descriptor()
+	// cmscategory.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	cmscategory.NameValidator = func() func(string) error {
+		validators := cmscategoryDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cmscategoryDescStatus is the schema descriptor for status field.
+	cmscategoryDescStatus := cmscategoryFields[1].Descriptor()
+	// cmscategory.DefaultStatus holds the default value on creation for the status field.
+	cmscategory.DefaultStatus = cmscategoryDescStatus.Default.(int)
+	// cmscategoryDescCreatedAt is the schema descriptor for created_at field.
+	cmscategoryDescCreatedAt := cmscategoryFields[2].Descriptor()
+	// cmscategory.DefaultCreatedAt holds the default value on creation for the created_at field.
+	cmscategory.DefaultCreatedAt = cmscategoryDescCreatedAt.Default.(func() time.Time)
+	cmscontentFields := schema.CmsContent{}.Fields()
+	_ = cmscontentFields
+	// cmscontentDescTitle is the schema descriptor for title field.
+	cmscontentDescTitle := cmscontentFields[0].Descriptor()
+	// cmscontent.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	cmscontent.TitleValidator = func() func(string) error {
+		validators := cmscontentDescTitle.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title string) error {
+			for _, fn := range fns {
+				if err := fn(title); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// cmscontentDescContent is the schema descriptor for content field.
+	cmscontentDescContent := cmscontentFields[3].Descriptor()
+	// cmscontent.DefaultContent holds the default value on creation for the content field.
+	cmscontent.DefaultContent = cmscontentDescContent.Default.(string)
+	// cmscontentDescImage is the schema descriptor for image field.
+	cmscontentDescImage := cmscontentFields[4].Descriptor()
+	// cmscontent.DefaultImage holds the default value on creation for the image field.
+	cmscontent.DefaultImage = cmscontentDescImage.Default.(string)
+	// cmscontent.ImageValidator is a validator for the "image" field. It is called by the builders before save.
+	cmscontent.ImageValidator = cmscontentDescImage.Validators[0].(func(string) error)
+	// cmscontentDescCategoryID is the schema descriptor for category_id field.
+	cmscontentDescCategoryID := cmscontentFields[5].Descriptor()
+	// cmscontent.DefaultCategoryID holds the default value on creation for the category_id field.
+	cmscontent.DefaultCategoryID = cmscontentDescCategoryID.Default.(int)
+	// cmscontentDescStatus is the schema descriptor for status field.
+	cmscontentDescStatus := cmscontentFields[6].Descriptor()
+	// cmscontent.DefaultStatus holds the default value on creation for the status field.
+	cmscontent.DefaultStatus = cmscontentDescStatus.Default.(int)
+	// cmscontentDescCreatedAt is the schema descriptor for created_at field.
+	cmscontentDescCreatedAt := cmscontentFields[7].Descriptor()
+	// cmscontent.DefaultCreatedAt holds the default value on creation for the created_at field.
+	cmscontent.DefaultCreatedAt = cmscontentDescCreatedAt.Default.(func() time.Time)
+	// cmscontentDescUpdatedAt is the schema descriptor for updated_at field.
+	cmscontentDescUpdatedAt := cmscontentFields[8].Descriptor()
+	// cmscontent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	cmscontent.DefaultUpdatedAt = cmscontentDescUpdatedAt.Default.(func() time.Time)
+	// cmscontent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	cmscontent.UpdateDefaultUpdatedAt = cmscontentDescUpdatedAt.UpdateDefault.(func() time.Time)
 	cronjobFields := schema.CronJob{}.Fields()
 	_ = cronjobFields
 	// cronjobDescName is the schema descriptor for name field.
@@ -529,18 +605,6 @@ func init() {
 	cronjob.DefaultUpdatedAt = cronjobDescUpdatedAt.Default.(func() time.Time)
 	// cronjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	cronjob.UpdateDefaultUpdatedAt = cronjobDescUpdatedAt.UpdateDefault.(func() time.Time)
-	democategoryFields := schema.DemoCategory{}.Fields()
-	_ = democategoryFields
-	// democategoryDescName is the schema descriptor for name field.
-	democategoryDescName := democategoryFields[0].Descriptor()
-	// democategory.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	democategory.NameValidator = democategoryDescName.Validators[0].(func(string) error)
-	demoitemFields := schema.DemoItem{}.Fields()
-	_ = demoitemFields
-	// demoitemDescTitle is the schema descriptor for title field.
-	demoitemDescTitle := demoitemFields[0].Descriptor()
-	// demoitem.TitleValidator is a validator for the "title" field. It is called by the builders before save.
-	demoitem.TitleValidator = demoitemDescTitle.Validators[0].(func(string) error)
 	departmentMixin := schema.Department{}.Mixin()
 	departmentMixinFields0 := departmentMixin[0].Fields()
 	_ = departmentMixinFields0

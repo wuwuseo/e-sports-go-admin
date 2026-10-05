@@ -4,10 +4,8 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
-	"go-admin/internal/ent/democategory"
-	"go-admin/internal/ent/demoitem"
+	"go-admin/internal/ent/cmscontent"
 	"go-admin/internal/ent/predicate"
 	"math"
 
@@ -17,87 +15,64 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-// DemoCategoryQuery is the builder for querying DemoCategory entities.
-type DemoCategoryQuery struct {
+// CmsContentQuery is the builder for querying CmsContent entities.
+type CmsContentQuery struct {
 	config
 	ctx        *QueryContext
-	order      []democategory.OrderOption
+	order      []cmscontent.OrderOption
 	inters     []Interceptor
-	predicates []predicate.DemoCategory
-	withItems  *DemoItemQuery
+	predicates []predicate.CmsContent
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the DemoCategoryQuery builder.
-func (_q *DemoCategoryQuery) Where(ps ...predicate.DemoCategory) *DemoCategoryQuery {
+// Where adds a new predicate for the CmsContentQuery builder.
+func (_q *CmsContentQuery) Where(ps ...predicate.CmsContent) *CmsContentQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *DemoCategoryQuery) Limit(limit int) *DemoCategoryQuery {
+func (_q *CmsContentQuery) Limit(limit int) *CmsContentQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *DemoCategoryQuery) Offset(offset int) *DemoCategoryQuery {
+func (_q *CmsContentQuery) Offset(offset int) *CmsContentQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *DemoCategoryQuery) Unique(unique bool) *DemoCategoryQuery {
+func (_q *CmsContentQuery) Unique(unique bool) *CmsContentQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *DemoCategoryQuery) Order(o ...democategory.OrderOption) *DemoCategoryQuery {
+func (_q *CmsContentQuery) Order(o ...cmscontent.OrderOption) *CmsContentQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryItems chains the current query on the "items" edge.
-func (_q *DemoCategoryQuery) QueryItems() *DemoItemQuery {
-	query := (&DemoItemClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(democategory.Table, democategory.FieldID, selector),
-			sqlgraph.To(demoitem.Table, demoitem.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, democategory.ItemsTable, democategory.ItemsColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
-}
-
-// First returns the first DemoCategory entity from the query.
-// Returns a *NotFoundError when no DemoCategory was found.
-func (_q *DemoCategoryQuery) First(ctx context.Context) (*DemoCategory, error) {
+// First returns the first CmsContent entity from the query.
+// Returns a *NotFoundError when no CmsContent was found.
+func (_q *CmsContentQuery) First(ctx context.Context) (*CmsContent, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{democategory.Label}
+		return nil, &NotFoundError{cmscontent.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *DemoCategoryQuery) FirstX(ctx context.Context) *DemoCategory {
+func (_q *CmsContentQuery) FirstX(ctx context.Context) *CmsContent {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -105,22 +80,22 @@ func (_q *DemoCategoryQuery) FirstX(ctx context.Context) *DemoCategory {
 	return node
 }
 
-// FirstID returns the first DemoCategory ID from the query.
-// Returns a *NotFoundError when no DemoCategory ID was found.
-func (_q *DemoCategoryQuery) FirstID(ctx context.Context) (id int, err error) {
+// FirstID returns the first CmsContent ID from the query.
+// Returns a *NotFoundError when no CmsContent ID was found.
+func (_q *CmsContentQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{democategory.Label}
+		err = &NotFoundError{cmscontent.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *DemoCategoryQuery) FirstIDX(ctx context.Context) int {
+func (_q *CmsContentQuery) FirstIDX(ctx context.Context) int {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -128,10 +103,10 @@ func (_q *DemoCategoryQuery) FirstIDX(ctx context.Context) int {
 	return id
 }
 
-// Only returns a single DemoCategory entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one DemoCategory entity is found.
-// Returns a *NotFoundError when no DemoCategory entities are found.
-func (_q *DemoCategoryQuery) Only(ctx context.Context) (*DemoCategory, error) {
+// Only returns a single CmsContent entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one CmsContent entity is found.
+// Returns a *NotFoundError when no CmsContent entities are found.
+func (_q *CmsContentQuery) Only(ctx context.Context) (*CmsContent, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -140,14 +115,14 @@ func (_q *DemoCategoryQuery) Only(ctx context.Context) (*DemoCategory, error) {
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{democategory.Label}
+		return nil, &NotFoundError{cmscontent.Label}
 	default:
-		return nil, &NotSingularError{democategory.Label}
+		return nil, &NotSingularError{cmscontent.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *DemoCategoryQuery) OnlyX(ctx context.Context) *DemoCategory {
+func (_q *CmsContentQuery) OnlyX(ctx context.Context) *CmsContent {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -155,10 +130,10 @@ func (_q *DemoCategoryQuery) OnlyX(ctx context.Context) *DemoCategory {
 	return node
 }
 
-// OnlyID is like Only, but returns the only DemoCategory ID in the query.
-// Returns a *NotSingularError when more than one DemoCategory ID is found.
+// OnlyID is like Only, but returns the only CmsContent ID in the query.
+// Returns a *NotSingularError when more than one CmsContent ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *DemoCategoryQuery) OnlyID(ctx context.Context) (id int, err error) {
+func (_q *CmsContentQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -167,15 +142,15 @@ func (_q *DemoCategoryQuery) OnlyID(ctx context.Context) (id int, err error) {
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{democategory.Label}
+		err = &NotFoundError{cmscontent.Label}
 	default:
-		err = &NotSingularError{democategory.Label}
+		err = &NotSingularError{cmscontent.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *DemoCategoryQuery) OnlyIDX(ctx context.Context) int {
+func (_q *CmsContentQuery) OnlyIDX(ctx context.Context) int {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -183,18 +158,18 @@ func (_q *DemoCategoryQuery) OnlyIDX(ctx context.Context) int {
 	return id
 }
 
-// All executes the query and returns a list of DemoCategories.
-func (_q *DemoCategoryQuery) All(ctx context.Context) ([]*DemoCategory, error) {
+// All executes the query and returns a list of CmsContents.
+func (_q *CmsContentQuery) All(ctx context.Context) ([]*CmsContent, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*DemoCategory, *DemoCategoryQuery]()
-	return withInterceptors[[]*DemoCategory](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*CmsContent, *CmsContentQuery]()
+	return withInterceptors[[]*CmsContent](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *DemoCategoryQuery) AllX(ctx context.Context) []*DemoCategory {
+func (_q *CmsContentQuery) AllX(ctx context.Context) []*CmsContent {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -202,20 +177,20 @@ func (_q *DemoCategoryQuery) AllX(ctx context.Context) []*DemoCategory {
 	return nodes
 }
 
-// IDs executes the query and returns a list of DemoCategory IDs.
-func (_q *DemoCategoryQuery) IDs(ctx context.Context) (ids []int, err error) {
+// IDs executes the query and returns a list of CmsContent IDs.
+func (_q *CmsContentQuery) IDs(ctx context.Context) (ids []int, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(democategory.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(cmscontent.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *DemoCategoryQuery) IDsX(ctx context.Context) []int {
+func (_q *CmsContentQuery) IDsX(ctx context.Context) []int {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -224,16 +199,16 @@ func (_q *DemoCategoryQuery) IDsX(ctx context.Context) []int {
 }
 
 // Count returns the count of the given query.
-func (_q *DemoCategoryQuery) Count(ctx context.Context) (int, error) {
+func (_q *CmsContentQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*DemoCategoryQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*CmsContentQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *DemoCategoryQuery) CountX(ctx context.Context) int {
+func (_q *CmsContentQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -242,7 +217,7 @@ func (_q *DemoCategoryQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *DemoCategoryQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *CmsContentQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -255,7 +230,7 @@ func (_q *DemoCategoryQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *DemoCategoryQuery) ExistX(ctx context.Context) bool {
+func (_q *CmsContentQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -263,34 +238,22 @@ func (_q *DemoCategoryQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the DemoCategoryQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the CmsContentQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *DemoCategoryQuery) Clone() *DemoCategoryQuery {
+func (_q *CmsContentQuery) Clone() *CmsContentQuery {
 	if _q == nil {
 		return nil
 	}
-	return &DemoCategoryQuery{
+	return &CmsContentQuery{
 		config:     _q.config,
 		ctx:        _q.ctx.Clone(),
-		order:      append([]democategory.OrderOption{}, _q.order...),
+		order:      append([]cmscontent.OrderOption{}, _q.order...),
 		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.DemoCategory{}, _q.predicates...),
-		withItems:  _q.withItems.Clone(),
+		predicates: append([]predicate.CmsContent{}, _q.predicates...),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
-}
-
-// WithItems tells the query-builder to eager-load the nodes that are connected to
-// the "items" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *DemoCategoryQuery) WithItems(opts ...func(*DemoItemQuery)) *DemoCategoryQuery {
-	query := (&DemoItemClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withItems = query
-	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -299,19 +262,19 @@ func (_q *DemoCategoryQuery) WithItems(opts ...func(*DemoItemQuery)) *DemoCatego
 // Example:
 //
 //	var v []struct {
-//		Name string `json:"name"`
+//		Title string `json:"title"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.DemoCategory.Query().
-//		GroupBy(democategory.FieldName).
+//	client.CmsContent.Query().
+//		GroupBy(cmscontent.FieldTitle).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *DemoCategoryQuery) GroupBy(field string, fields ...string) *DemoCategoryGroupBy {
+func (_q *CmsContentQuery) GroupBy(field string, fields ...string) *CmsContentGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &DemoCategoryGroupBy{build: _q}
+	grbuild := &CmsContentGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = democategory.Label
+	grbuild.label = cmscontent.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -322,26 +285,26 @@ func (_q *DemoCategoryQuery) GroupBy(field string, fields ...string) *DemoCatego
 // Example:
 //
 //	var v []struct {
-//		Name string `json:"name"`
+//		Title string `json:"title"`
 //	}
 //
-//	client.DemoCategory.Query().
-//		Select(democategory.FieldName).
+//	client.CmsContent.Query().
+//		Select(cmscontent.FieldTitle).
 //		Scan(ctx, &v)
-func (_q *DemoCategoryQuery) Select(fields ...string) *DemoCategorySelect {
+func (_q *CmsContentQuery) Select(fields ...string) *CmsContentSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &DemoCategorySelect{DemoCategoryQuery: _q}
-	sbuild.label = democategory.Label
+	sbuild := &CmsContentSelect{CmsContentQuery: _q}
+	sbuild.label = cmscontent.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a DemoCategorySelect configured with the given aggregations.
-func (_q *DemoCategoryQuery) Aggregate(fns ...AggregateFunc) *DemoCategorySelect {
+// Aggregate returns a CmsContentSelect configured with the given aggregations.
+func (_q *CmsContentQuery) Aggregate(fns ...AggregateFunc) *CmsContentSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *DemoCategoryQuery) prepareQuery(ctx context.Context) error {
+func (_q *CmsContentQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -353,7 +316,7 @@ func (_q *DemoCategoryQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !democategory.ValidColumn(f) {
+		if !cmscontent.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -367,21 +330,17 @@ func (_q *DemoCategoryQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *DemoCategoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*DemoCategory, error) {
+func (_q *CmsContentQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*CmsContent, error) {
 	var (
-		nodes       = []*DemoCategory{}
-		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
-			_q.withItems != nil,
-		}
+		nodes = []*CmsContent{}
+		_spec = _q.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*DemoCategory).scanValues(nil, columns)
+		return (*CmsContent).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &DemoCategory{config: _q.config}
+		node := &CmsContent{config: _q.config}
 		nodes = append(nodes, node)
-		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -393,49 +352,10 @@ func (_q *DemoCategoryQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withItems; query != nil {
-		if err := _q.loadItems(ctx, query, nodes,
-			func(n *DemoCategory) { n.Edges.Items = []*DemoItem{} },
-			func(n *DemoCategory, e *DemoItem) { n.Edges.Items = append(n.Edges.Items, e) }); err != nil {
-			return nil, err
-		}
-	}
 	return nodes, nil
 }
 
-func (_q *DemoCategoryQuery) loadItems(ctx context.Context, query *DemoItemQuery, nodes []*DemoCategory, init func(*DemoCategory), assign func(*DemoCategory, *DemoItem)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[int]*DemoCategory)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	query.withFKs = true
-	query.Where(predicate.DemoItem(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(democategory.ItemsColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.demo_category_items
-		if fk == nil {
-			return fmt.Errorf(`foreign-key "demo_category_items" is nil for node %v`, n.ID)
-		}
-		node, ok := nodeids[*fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "demo_category_items" returned %v for node %v`, *fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
-
-func (_q *DemoCategoryQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *CmsContentQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	_spec.Node.Columns = _q.ctx.Fields
 	if len(_q.ctx.Fields) > 0 {
@@ -444,8 +364,8 @@ func (_q *DemoCategoryQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *DemoCategoryQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(democategory.Table, democategory.Columns, sqlgraph.NewFieldSpec(democategory.FieldID, field.TypeInt))
+func (_q *CmsContentQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(cmscontent.Table, cmscontent.Columns, sqlgraph.NewFieldSpec(cmscontent.FieldID, field.TypeInt))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -454,9 +374,9 @@ func (_q *DemoCategoryQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, democategory.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, cmscontent.FieldID)
 		for i := range fields {
-			if fields[i] != democategory.FieldID {
+			if fields[i] != cmscontent.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
 		}
@@ -484,12 +404,12 @@ func (_q *DemoCategoryQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *DemoCategoryQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *CmsContentQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(democategory.Table)
+	t1 := builder.Table(cmscontent.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = democategory.Columns
+		columns = cmscontent.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -516,28 +436,28 @@ func (_q *DemoCategoryQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-// DemoCategoryGroupBy is the group-by builder for DemoCategory entities.
-type DemoCategoryGroupBy struct {
+// CmsContentGroupBy is the group-by builder for CmsContent entities.
+type CmsContentGroupBy struct {
 	selector
-	build *DemoCategoryQuery
+	build *CmsContentQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *DemoCategoryGroupBy) Aggregate(fns ...AggregateFunc) *DemoCategoryGroupBy {
+func (_g *CmsContentGroupBy) Aggregate(fns ...AggregateFunc) *CmsContentGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *DemoCategoryGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *CmsContentGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*DemoCategoryQuery, *DemoCategoryGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*CmsContentQuery, *CmsContentGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *DemoCategoryGroupBy) sqlScan(ctx context.Context, root *DemoCategoryQuery, v any) error {
+func (_g *CmsContentGroupBy) sqlScan(ctx context.Context, root *CmsContentQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -564,28 +484,28 @@ func (_g *DemoCategoryGroupBy) sqlScan(ctx context.Context, root *DemoCategoryQu
 	return sql.ScanSlice(rows, v)
 }
 
-// DemoCategorySelect is the builder for selecting fields of DemoCategory entities.
-type DemoCategorySelect struct {
-	*DemoCategoryQuery
+// CmsContentSelect is the builder for selecting fields of CmsContent entities.
+type CmsContentSelect struct {
+	*CmsContentQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *DemoCategorySelect) Aggregate(fns ...AggregateFunc) *DemoCategorySelect {
+func (_s *CmsContentSelect) Aggregate(fns ...AggregateFunc) *CmsContentSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *DemoCategorySelect) Scan(ctx context.Context, v any) error {
+func (_s *CmsContentSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*DemoCategoryQuery, *DemoCategorySelect](ctx, _s.DemoCategoryQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*CmsContentQuery, *CmsContentSelect](ctx, _s.CmsContentQuery, _s, _s.inters, v)
 }
 
-func (_s *DemoCategorySelect) sqlScan(ctx context.Context, root *DemoCategoryQuery, v any) error {
+func (_s *CmsContentSelect) sqlScan(ctx context.Context, root *CmsContentQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {
