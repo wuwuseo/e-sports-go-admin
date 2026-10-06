@@ -507,26 +507,20 @@ func init() {
 	cmscontentDescContent := cmscontentFields[3].Descriptor()
 	// cmscontent.DefaultContent holds the default value on creation for the content field.
 	cmscontent.DefaultContent = cmscontentDescContent.Default.(string)
-	// cmscontentDescImage is the schema descriptor for image field.
-	cmscontentDescImage := cmscontentFields[4].Descriptor()
-	// cmscontent.DefaultImage holds the default value on creation for the image field.
-	cmscontent.DefaultImage = cmscontentDescImage.Default.(string)
-	// cmscontent.ImageValidator is a validator for the "image" field. It is called by the builders before save.
-	cmscontent.ImageValidator = cmscontentDescImage.Validators[0].(func(string) error)
 	// cmscontentDescCategoryID is the schema descriptor for category_id field.
-	cmscontentDescCategoryID := cmscontentFields[5].Descriptor()
+	cmscontentDescCategoryID := cmscontentFields[4].Descriptor()
 	// cmscontent.DefaultCategoryID holds the default value on creation for the category_id field.
 	cmscontent.DefaultCategoryID = cmscontentDescCategoryID.Default.(int)
 	// cmscontentDescStatus is the schema descriptor for status field.
-	cmscontentDescStatus := cmscontentFields[6].Descriptor()
+	cmscontentDescStatus := cmscontentFields[5].Descriptor()
 	// cmscontent.DefaultStatus holds the default value on creation for the status field.
 	cmscontent.DefaultStatus = cmscontentDescStatus.Default.(int)
 	// cmscontentDescCreatedAt is the schema descriptor for created_at field.
-	cmscontentDescCreatedAt := cmscontentFields[7].Descriptor()
+	cmscontentDescCreatedAt := cmscontentFields[6].Descriptor()
 	// cmscontent.DefaultCreatedAt holds the default value on creation for the created_at field.
 	cmscontent.DefaultCreatedAt = cmscontentDescCreatedAt.Default.(func() time.Time)
 	// cmscontentDescUpdatedAt is the schema descriptor for updated_at field.
-	cmscontentDescUpdatedAt := cmscontentFields[8].Descriptor()
+	cmscontentDescUpdatedAt := cmscontentFields[7].Descriptor()
 	// cmscontent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	cmscontent.DefaultUpdatedAt = cmscontentDescUpdatedAt.Default.(func() time.Time)
 	// cmscontent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

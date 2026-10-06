@@ -7092,7 +7092,6 @@ type CmsContentMutation struct {
 	kind           *cmscontent.Kind
 	format         *cmscontent.Format
 	content        *string
-	image          *string
 	category_id    *int
 	addcategory_id *int
 	status         *int
@@ -7347,42 +7346,6 @@ func (m *CmsContentMutation) ResetContent() {
 	m.content = nil
 }
 
-// SetImage sets the "image" field.
-func (m *CmsContentMutation) SetImage(s string) {
-	m.image = &s
-}
-
-// Image returns the value of the "image" field in the mutation.
-func (m *CmsContentMutation) Image() (r string, exists bool) {
-	v := m.image
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldImage returns the old "image" field's value of the CmsContent entity.
-// If the CmsContent object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *CmsContentMutation) OldImage(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldImage is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldImage requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldImage: %w", err)
-	}
-	return oldValue.Image, nil
-}
-
-// ResetImage resets all changes to the "image" field.
-func (m *CmsContentMutation) ResetImage() {
-	m.image = nil
-}
-
 // SetCategoryID sets the "category_id" field.
 func (m *CmsContentMutation) SetCategoryID(i int) {
 	m.category_id = &i
@@ -7601,7 +7564,7 @@ func (m *CmsContentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *CmsContentMutation) Fields() []string {
-	fields := make([]string, 0, 9)
+	fields := make([]string, 0, 8)
 	if m.title != nil {
 		fields = append(fields, cmscontent.FieldTitle)
 	}
@@ -7613,9 +7576,6 @@ func (m *CmsContentMutation) Fields() []string {
 	}
 	if m.content != nil {
 		fields = append(fields, cmscontent.FieldContent)
-	}
-	if m.image != nil {
-		fields = append(fields, cmscontent.FieldImage)
 	}
 	if m.category_id != nil {
 		fields = append(fields, cmscontent.FieldCategoryID)
@@ -7645,8 +7605,6 @@ func (m *CmsContentMutation) Field(name string) (ent.Value, bool) {
 		return m.Format()
 	case cmscontent.FieldContent:
 		return m.Content()
-	case cmscontent.FieldImage:
-		return m.Image()
 	case cmscontent.FieldCategoryID:
 		return m.CategoryID()
 	case cmscontent.FieldStatus:
@@ -7672,8 +7630,6 @@ func (m *CmsContentMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldFormat(ctx)
 	case cmscontent.FieldContent:
 		return m.OldContent(ctx)
-	case cmscontent.FieldImage:
-		return m.OldImage(ctx)
 	case cmscontent.FieldCategoryID:
 		return m.OldCategoryID(ctx)
 	case cmscontent.FieldStatus:
@@ -7718,13 +7674,6 @@ func (m *CmsContentMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContent(v)
-		return nil
-	case cmscontent.FieldImage:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetImage(v)
 		return nil
 	case cmscontent.FieldCategoryID:
 		v, ok := value.(int)
@@ -7841,9 +7790,6 @@ func (m *CmsContentMutation) ResetField(name string) error {
 		return nil
 	case cmscontent.FieldContent:
 		m.ResetContent()
-		return nil
-	case cmscontent.FieldImage:
-		m.ResetImage()
 		return nil
 	case cmscontent.FieldCategoryID:
 		m.ResetCategoryID()

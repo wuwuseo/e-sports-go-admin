@@ -16,7 +16,6 @@ func (CmsContent) Fields() []ent.Field {
 		field.Enum("kind").Values("article", "page").Default("article").StructTag(`json:"kind"`),
 		field.Enum("format").Values("markdown", "html", "image").Default("markdown").StructTag(`json:"format"`),
 		field.Text("content").Default("").StructTag(`json:"content"`),
-		field.String("image").Default("").MaxLen(500).StructTag(`json:"image"`),
 		field.Int("category_id").Default(0).StructTag(`json:"category_id"`),
 		field.Int("status").Default(0).StructTag(`json:"status"`),
 		field.Time("created_at").Default(time.Now).Immutable().StructTag(`json:"created_at"`),

@@ -24,8 +24,6 @@ const (
 	FieldFormat = "format"
 	// FieldContent holds the string denoting the content field in the database.
 	FieldContent = "content"
-	// FieldImage holds the string denoting the image field in the database.
-	FieldImage = "image"
 	// FieldCategoryID holds the string denoting the category_id field in the database.
 	FieldCategoryID = "category_id"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -48,7 +46,6 @@ var Columns = []string{
 	FieldKind,
 	FieldFormat,
 	FieldContent,
-	FieldImage,
 	FieldCategoryID,
 	FieldStatus,
 	FieldCreatedAt,
@@ -70,10 +67,6 @@ var (
 	TitleValidator func(string) error
 	// DefaultContent holds the default value on creation for the "content" field.
 	DefaultContent string
-	// DefaultImage holds the default value on creation for the "image" field.
-	DefaultImage string
-	// ImageValidator is a validator for the "image" field. It is called by the builders before save.
-	ImageValidator func(string) error
 	// DefaultCategoryID holds the default value on creation for the "category_id" field.
 	DefaultCategoryID int
 	// DefaultStatus holds the default value on creation for the "status" field.
@@ -165,11 +158,6 @@ func ByFormat(opts ...sql.OrderTermOption) OrderOption {
 // ByContent orders the results by the content field.
 func ByContent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContent, opts...).ToFunc()
-}
-
-// ByImage orders the results by the image field.
-func ByImage(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldImage, opts...).ToFunc()
 }
 
 // ByCategoryID orders the results by the category_id field.

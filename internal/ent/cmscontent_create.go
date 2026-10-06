@@ -68,20 +68,6 @@ func (_c *CmsContentCreate) SetNillableContent(v *string) *CmsContentCreate {
 	return _c
 }
 
-// SetImage sets the "image" field.
-func (_c *CmsContentCreate) SetImage(v string) *CmsContentCreate {
-	_c.mutation.SetImage(v)
-	return _c
-}
-
-// SetNillableImage sets the "image" field if the given value is not nil.
-func (_c *CmsContentCreate) SetNillableImage(v *string) *CmsContentCreate {
-	if v != nil {
-		_c.SetImage(*v)
-	}
-	return _c
-}
-
 // SetCategoryID sets the "category_id" field.
 func (_c *CmsContentCreate) SetCategoryID(v int) *CmsContentCreate {
 	_c.mutation.SetCategoryID(v)
@@ -185,10 +171,6 @@ func (_c *CmsContentCreate) defaults() {
 		v := cmscontent.DefaultContent
 		_c.mutation.SetContent(v)
 	}
-	if _, ok := _c.mutation.Image(); !ok {
-		v := cmscontent.DefaultImage
-		_c.mutation.SetImage(v)
-	}
 	if _, ok := _c.mutation.CategoryID(); !ok {
 		v := cmscontent.DefaultCategoryID
 		_c.mutation.SetCategoryID(v)
@@ -235,14 +217,6 @@ func (_c *CmsContentCreate) check() error {
 	}
 	if _, ok := _c.mutation.Content(); !ok {
 		return &ValidationError{Name: "content", err: errors.New(`ent: missing required field "CmsContent.content"`)}
-	}
-	if _, ok := _c.mutation.Image(); !ok {
-		return &ValidationError{Name: "image", err: errors.New(`ent: missing required field "CmsContent.image"`)}
-	}
-	if v, ok := _c.mutation.Image(); ok {
-		if err := cmscontent.ImageValidator(v); err != nil {
-			return &ValidationError{Name: "image", err: fmt.Errorf(`ent: validator failed for field "CmsContent.image": %w`, err)}
-		}
 	}
 	if _, ok := _c.mutation.CategoryID(); !ok {
 		return &ValidationError{Name: "category_id", err: errors.New(`ent: missing required field "CmsContent.category_id"`)}
@@ -297,10 +271,6 @@ func (_c *CmsContentCreate) createSpec() (*CmsContent, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Content(); ok {
 		_spec.SetField(cmscontent.FieldContent, field.TypeString, value)
 		_node.Content = value
-	}
-	if value, ok := _c.mutation.Image(); ok {
-		_spec.SetField(cmscontent.FieldImage, field.TypeString, value)
-		_node.Image = value
 	}
 	if value, ok := _c.mutation.CategoryID(); ok {
 		_spec.SetField(cmscontent.FieldCategoryID, field.TypeInt, value)

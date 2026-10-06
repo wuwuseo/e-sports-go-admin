@@ -64,11 +64,6 @@ func Content(v string) predicate.CmsContent {
 	return predicate.CmsContent(sql.FieldEQ(FieldContent, v))
 }
 
-// Image applies equality check predicate on the "image" field. It's identical to ImageEQ.
-func Image(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldEQ(FieldImage, v))
-}
-
 // CategoryID applies equality check predicate on the "category_id" field. It's identical to CategoryIDEQ.
 func CategoryID(v int) predicate.CmsContent {
 	return predicate.CmsContent(sql.FieldEQ(FieldCategoryID, v))
@@ -257,71 +252,6 @@ func ContentEqualFold(v string) predicate.CmsContent {
 // ContentContainsFold applies the ContainsFold predicate on the "content" field.
 func ContentContainsFold(v string) predicate.CmsContent {
 	return predicate.CmsContent(sql.FieldContainsFold(FieldContent, v))
-}
-
-// ImageEQ applies the EQ predicate on the "image" field.
-func ImageEQ(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldEQ(FieldImage, v))
-}
-
-// ImageNEQ applies the NEQ predicate on the "image" field.
-func ImageNEQ(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldNEQ(FieldImage, v))
-}
-
-// ImageIn applies the In predicate on the "image" field.
-func ImageIn(vs ...string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldIn(FieldImage, vs...))
-}
-
-// ImageNotIn applies the NotIn predicate on the "image" field.
-func ImageNotIn(vs ...string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldNotIn(FieldImage, vs...))
-}
-
-// ImageGT applies the GT predicate on the "image" field.
-func ImageGT(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldGT(FieldImage, v))
-}
-
-// ImageGTE applies the GTE predicate on the "image" field.
-func ImageGTE(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldGTE(FieldImage, v))
-}
-
-// ImageLT applies the LT predicate on the "image" field.
-func ImageLT(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldLT(FieldImage, v))
-}
-
-// ImageLTE applies the LTE predicate on the "image" field.
-func ImageLTE(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldLTE(FieldImage, v))
-}
-
-// ImageContains applies the Contains predicate on the "image" field.
-func ImageContains(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldContains(FieldImage, v))
-}
-
-// ImageHasPrefix applies the HasPrefix predicate on the "image" field.
-func ImageHasPrefix(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldHasPrefix(FieldImage, v))
-}
-
-// ImageHasSuffix applies the HasSuffix predicate on the "image" field.
-func ImageHasSuffix(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldHasSuffix(FieldImage, v))
-}
-
-// ImageEqualFold applies the EqualFold predicate on the "image" field.
-func ImageEqualFold(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldEqualFold(FieldImage, v))
-}
-
-// ImageContainsFold applies the ContainsFold predicate on the "image" field.
-func ImageContainsFold(v string) predicate.CmsContent {
-	return predicate.CmsContent(sql.FieldContainsFold(FieldImage, v))
 }
 
 // CategoryIDEQ applies the EQ predicate on the "category_id" field.

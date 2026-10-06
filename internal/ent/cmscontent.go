@@ -25,8 +25,6 @@ type CmsContent struct {
 	Format cmscontent.Format `json:"format"`
 	// Content holds the value of the "content" field.
 	Content string `json:"content"`
-	// Image holds the value of the "image" field.
-	Image string `json:"image"`
 	// CategoryID holds the value of the "category_id" field.
 	CategoryID int `json:"category_id"`
 	// Status holds the value of the "status" field.
@@ -45,7 +43,7 @@ func (*CmsContent) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case cmscontent.FieldID, cmscontent.FieldCategoryID, cmscontent.FieldStatus:
 			values[i] = new(sql.NullInt64)
-		case cmscontent.FieldTitle, cmscontent.FieldKind, cmscontent.FieldFormat, cmscontent.FieldContent, cmscontent.FieldImage:
+		case cmscontent.FieldTitle, cmscontent.FieldKind, cmscontent.FieldFormat, cmscontent.FieldContent:
 			values[i] = new(sql.NullString)
 		case cmscontent.FieldCreatedAt, cmscontent.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -93,12 +91,6 @@ func (_m *CmsContent) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field content", values[i])
 			} else if value.Valid {
 				_m.Content = value.String
-			}
-		case cmscontent.FieldImage:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field image", values[i])
-			} else if value.Valid {
-				_m.Image = value.String
 			}
 		case cmscontent.FieldCategoryID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -171,9 +163,6 @@ func (_m *CmsContent) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content=")
 	builder.WriteString(_m.Content)
-	builder.WriteString(", ")
-	builder.WriteString("image=")
-	builder.WriteString(_m.Image)
 	builder.WriteString(", ")
 	builder.WriteString("category_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CategoryID))

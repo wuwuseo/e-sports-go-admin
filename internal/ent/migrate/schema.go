@@ -316,7 +316,6 @@ var (
 		{Name: "kind", Type: field.TypeEnum, Enums: []string{"article", "page"}, Default: "article"},
 		{Name: "format", Type: field.TypeEnum, Enums: []string{"markdown", "html", "image"}, Default: "markdown"},
 		{Name: "content", Type: field.TypeString, Size: 2147483647, Default: ""},
-		{Name: "image", Type: field.TypeString, Size: 500, Default: ""},
 		{Name: "category_id", Type: field.TypeInt, Default: 0},
 		{Name: "status", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime},
@@ -331,12 +330,12 @@ var (
 			{
 				Name:    "cmscontent_kind_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{CmsContentsColumns[2], CmsContentsColumns[7], CmsContentsColumns[8]},
+				Columns: []*schema.Column{CmsContentsColumns[2], CmsContentsColumns[6], CmsContentsColumns[7]},
 			},
 			{
 				Name:    "cmscontent_category_id",
 				Unique:  false,
-				Columns: []*schema.Column{CmsContentsColumns[6]},
+				Columns: []*schema.Column{CmsContentsColumns[5]},
 			},
 		},
 	}

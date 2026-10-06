@@ -84,20 +84,6 @@ func (_u *CmsContentUpdate) SetNillableContent(v *string) *CmsContentUpdate {
 	return _u
 }
 
-// SetImage sets the "image" field.
-func (_u *CmsContentUpdate) SetImage(v string) *CmsContentUpdate {
-	_u.mutation.SetImage(v)
-	return _u
-}
-
-// SetNillableImage sets the "image" field if the given value is not nil.
-func (_u *CmsContentUpdate) SetNillableImage(v *string) *CmsContentUpdate {
-	if v != nil {
-		_u.SetImage(*v)
-	}
-	return _u
-}
-
 // SetCategoryID sets the "category_id" field.
 func (_u *CmsContentUpdate) SetCategoryID(v int) *CmsContentUpdate {
 	_u.mutation.ResetCategoryID()
@@ -204,11 +190,6 @@ func (_u *CmsContentUpdate) check() error {
 			return &ValidationError{Name: "format", err: fmt.Errorf(`ent: validator failed for field "CmsContent.format": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Image(); ok {
-		if err := cmscontent.ImageValidator(v); err != nil {
-			return &ValidationError{Name: "image", err: fmt.Errorf(`ent: validator failed for field "CmsContent.image": %w`, err)}
-		}
-	}
 	return nil
 }
 
@@ -235,9 +216,6 @@ func (_u *CmsContentUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(cmscontent.FieldContent, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.Image(); ok {
-		_spec.SetField(cmscontent.FieldImage, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CategoryID(); ok {
 		_spec.SetField(cmscontent.FieldCategoryID, field.TypeInt, value)
@@ -326,20 +304,6 @@ func (_u *CmsContentUpdateOne) SetContent(v string) *CmsContentUpdateOne {
 func (_u *CmsContentUpdateOne) SetNillableContent(v *string) *CmsContentUpdateOne {
 	if v != nil {
 		_u.SetContent(*v)
-	}
-	return _u
-}
-
-// SetImage sets the "image" field.
-func (_u *CmsContentUpdateOne) SetImage(v string) *CmsContentUpdateOne {
-	_u.mutation.SetImage(v)
-	return _u
-}
-
-// SetNillableImage sets the "image" field if the given value is not nil.
-func (_u *CmsContentUpdateOne) SetNillableImage(v *string) *CmsContentUpdateOne {
-	if v != nil {
-		_u.SetImage(*v)
 	}
 	return _u
 }
@@ -463,11 +427,6 @@ func (_u *CmsContentUpdateOne) check() error {
 			return &ValidationError{Name: "format", err: fmt.Errorf(`ent: validator failed for field "CmsContent.format": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.Image(); ok {
-		if err := cmscontent.ImageValidator(v); err != nil {
-			return &ValidationError{Name: "image", err: fmt.Errorf(`ent: validator failed for field "CmsContent.image": %w`, err)}
-		}
-	}
 	return nil
 }
 
@@ -511,9 +470,6 @@ func (_u *CmsContentUpdateOne) sqlSave(ctx context.Context) (_node *CmsContent, 
 	}
 	if value, ok := _u.mutation.Content(); ok {
 		_spec.SetField(cmscontent.FieldContent, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.Image(); ok {
-		_spec.SetField(cmscontent.FieldImage, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CategoryID(); ok {
 		_spec.SetField(cmscontent.FieldCategoryID, field.TypeInt, value)

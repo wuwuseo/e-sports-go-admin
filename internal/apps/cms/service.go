@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
@@ -15,14 +16,28 @@ import (
 )
 
 var errInvalidInput = errors.New("invalid CMS input")
-var richTextPolicy = bluemonday.UGCPolicy()
+
+// richTextAlignStyle 只放行单个 text-align 声明。浏览器对 justify* 命令一律产出
+// style="text-align: ..."（没有标签式替代），因此正文对齐必须允许这一条样式；
+// 整个 style 值必须完全匹配，其他任何 CSS 都会被丢弃。
+var richTextAlignStyle = regexp.MustCompile(
+	`(?i)^\s*text-align\s*:\s*(left|center|right|justify)\s*;?\s*$`,
+)
+
+func newRichTextPolicy() *bluemonday.Policy {
+	p := bluemonday.UGCPolicy()
+	p.AllowAttrs("style").Matching(richTextAlignStyle).
+		OnElements("p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li")
+	return p
+}
+
+var richTextPolicy = newRichTextPolicy()
 
 type contentInput struct {
 	Title      string `json:"title"`
 	Kind       string `json:"kind"`
 	Format     string `json:"format"`
 	Content    string `json:"content"`
-	Image      string `json:"image"`
 	CategoryID int    `json:"category_id"`
 	Status     int    `json:"status"`
 }
@@ -47,13 +62,33 @@ func validImageURL(value string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host != "" && u.User == nil
 }
 
+// 纯图片内容是以逗号分隔的图片地址列表，至少一张。逐条校验地址，
+// 因此不按 HTML 处理，地址里的 & 也不会被转义成实体。
+func normalizeImageList(content string) (string, error) {
+	parts := strings.Split(content, ",")
+	list := make([]string, 0, len(parts))
+	for _, part := range parts {
+		src := strings.TrimSpace(part)
+		if src == "" {
+			continue
+		}
+		if !validImageURL(src) {
+			return "", fmt.Errorf("%w: 图片地址必须是 HTTPS、HTTP 或 /uploads/ 路径", errInvalidInput)
+		}
+		list = append(list, src)
+	}
+	if len(list) == 0 {
+		return "", fmt.Errorf("%w: 纯图片内容必须指定图片", errInvalidInput)
+	}
+	return strings.Join(list, ","), nil
+}
+
 func normalizeContent(ctx context.Context, db *ent.Client, in *contentInput) error {
 	in.Title = strings.TrimSpace(in.Title)
-	in.Image = strings.TrimSpace(in.Image)
 	if len([]rune(in.Title)) == 0 || len([]rune(in.Title)) > 200 ||
 		(in.Kind != "article" && in.Kind != "page") ||
 		(in.Format != "markdown" && in.Format != "html" && in.Format != "image") ||
-		(in.Status != 0 && in.Status != 1) || in.CategoryID < 0 || len(in.Image) > 500 {
+		(in.Status != 0 && in.Status != 1) || in.CategoryID < 0 {
 		return fmt.Errorf("%w: 标题、类型、格式或状态无效", errInvalidInput)
 	}
 	if in.Kind == "page" {
@@ -67,15 +102,13 @@ func normalizeContent(ctx context.Context, db *ent.Client, in *contentInput) err
 			return fmt.Errorf("%w: 分类不存在", errInvalidInput)
 		}
 	}
-	if in.Image != "" && !validImageURL(in.Image) {
-		return fmt.Errorf("%w: 图片地址必须是 HTTPS、HTTP 或 /uploads/ 路径", errInvalidInput)
-	}
 	switch in.Format {
 	case "image":
-		if in.Image == "" {
-			return fmt.Errorf("%w: 纯图片内容必须指定图片", errInvalidInput)
+		list, err := normalizeImageList(in.Content)
+		if err != nil {
+			return err
 		}
-		in.Content = ""
+		in.Content = list
 	case "html":
 		in.Content = richTextPolicy.Sanitize(in.Content)
 		if strings.TrimSpace(in.Content) == "" {
@@ -124,10 +157,10 @@ func saveContent(ctx context.Context, db *ent.Client, id int, in contentInput) (
 	}
 	if id == 0 {
 		return db.CmsContent.Create().SetTitle(in.Title).SetKind(cmscontent.Kind(in.Kind)).SetFormat(cmscontent.Format(in.Format)).
-			SetContent(in.Content).SetImage(in.Image).SetCategoryID(in.CategoryID).SetStatus(in.Status).Save(ctx)
+			SetContent(in.Content).SetCategoryID(in.CategoryID).SetStatus(in.Status).Save(ctx)
 	}
 	return db.CmsContent.UpdateOneID(id).SetTitle(in.Title).SetKind(cmscontent.Kind(in.Kind)).SetFormat(cmscontent.Format(in.Format)).
-		SetContent(in.Content).SetImage(in.Image).SetCategoryID(in.CategoryID).SetStatus(in.Status).Save(ctx)
+		SetContent(in.Content).SetCategoryID(in.CategoryID).SetStatus(in.Status).Save(ctx)
 }
 
 func saveCategory(ctx context.Context, db *ent.Client, id int, in categoryInput) (*ent.CmsCategory, error) {
