@@ -37,6 +37,7 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
+	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
@@ -274,6 +275,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsidentitybinding.TablePrefix
 		esportsidentitybinding.TablePrefix = prefix
 		esportsidentitybinding.Table = prefix + strings.TrimPrefix(esportsidentitybinding.Table, old)
+	}
+	{
+		old := esportsledgerallocation.TablePrefix
+		esportsledgerallocation.TablePrefix = prefix
+		esportsledgerallocation.Table = prefix + strings.TrimPrefix(esportsledgerallocation.Table, old)
 	}
 	{
 		old := esportsledgerentry.TablePrefix

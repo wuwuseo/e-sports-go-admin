@@ -28,6 +28,8 @@ const (
 	FieldSelfOrderEnabled = "self_order_enabled"
 	// FieldPhone holds the string denoting the phone field in the database.
 	FieldPhone = "phone"
+	// FieldBirthday holds the string denoting the birthday field in the database.
+	FieldBirthday = "birthday"
 	// FieldConsumptionPreference holds the string denoting the consumption_preference field in the database.
 	FieldConsumptionPreference = "consumption_preference"
 	// FieldTags holds the string denoting the tags field in the database.
@@ -72,6 +74,7 @@ var Columns = []string{
 	FieldAgeStatus,
 	FieldSelfOrderEnabled,
 	FieldPhone,
+	FieldBirthday,
 	FieldConsumptionPreference,
 	FieldTags,
 	FieldSource,
@@ -107,6 +110,10 @@ var (
 	DefaultPhone string
 	// PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
 	PhoneValidator func(string) error
+	// DefaultBirthday holds the default value on creation for the "birthday" field.
+	DefaultBirthday string
+	// BirthdayValidator is a validator for the "birthday" field. It is called by the builders before save.
+	BirthdayValidator func(string) error
 	// DefaultConsumptionPreference holds the default value on creation for the "consumption_preference" field.
 	DefaultConsumptionPreference string
 	// ConsumptionPreferenceValidator is a validator for the "consumption_preference" field. It is called by the builders before save.
@@ -253,6 +260,11 @@ func BySelfOrderEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByPhone orders the results by the phone field.
 func ByPhone(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPhone, opts...).ToFunc()
+}
+
+// ByBirthday orders the results by the birthday field.
+func ByBirthday(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBirthday, opts...).ToFunc()
 }
 
 // ByConsumptionPreference orders the results by the consumption_preference field.

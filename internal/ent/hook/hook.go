@@ -428,6 +428,18 @@ func (f EsportsIdentityBindingFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsIdentityBindingMutation", m)
 }
 
+// The EsportsLedgerAllocationFunc type is an adapter to allow the use of ordinary
+// function as EsportsLedgerAllocation mutator.
+type EsportsLedgerAllocationFunc func(context.Context, *ent.EsportsLedgerAllocationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsLedgerAllocationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsLedgerAllocationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsLedgerAllocationMutation", m)
+}
+
 // The EsportsLedgerEntryFunc type is an adapter to allow the use of ordinary
 // function as EsportsLedgerEntry mutator.
 type EsportsLedgerEntryFunc func(context.Context, *ent.EsportsLedgerEntryMutation) (ent.Value, error)

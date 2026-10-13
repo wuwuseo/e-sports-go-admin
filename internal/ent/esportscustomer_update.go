@@ -139,6 +139,20 @@ func (_u *EsportsCustomerUpdate) SetNillablePhone(v *string) *EsportsCustomerUpd
 	return _u
 }
 
+// SetBirthday sets the "birthday" field.
+func (_u *EsportsCustomerUpdate) SetBirthday(v string) *EsportsCustomerUpdate {
+	_u.mutation.SetBirthday(v)
+	return _u
+}
+
+// SetNillableBirthday sets the "birthday" field if the given value is not nil.
+func (_u *EsportsCustomerUpdate) SetNillableBirthday(v *string) *EsportsCustomerUpdate {
+	if v != nil {
+		_u.SetBirthday(*v)
+	}
+	return _u
+}
+
 // SetConsumptionPreference sets the "consumption_preference" field.
 func (_u *EsportsCustomerUpdate) SetConsumptionPreference(v string) *EsportsCustomerUpdate {
 	_u.mutation.SetConsumptionPreference(v)
@@ -412,6 +426,11 @@ func (_u *EsportsCustomerUpdate) check() error {
 			return &ValidationError{Name: "phone", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.phone": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Birthday(); ok {
+		if err := esportscustomer.BirthdayValidator(v); err != nil {
+			return &ValidationError{Name: "birthday", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.birthday": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ConsumptionPreference(); ok {
 		if err := esportscustomer.ConsumptionPreferenceValidator(v); err != nil {
 			return &ValidationError{Name: "consumption_preference", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.consumption_preference": %w`, err)}
@@ -491,6 +510,9 @@ func (_u *EsportsCustomerUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.Phone(); ok {
 		_spec.SetField(esportscustomer.FieldPhone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Birthday(); ok {
+		_spec.SetField(esportscustomer.FieldBirthday, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ConsumptionPreference(); ok {
 		_spec.SetField(esportscustomer.FieldConsumptionPreference, field.TypeString, value)
@@ -683,6 +705,20 @@ func (_u *EsportsCustomerUpdateOne) SetPhone(v string) *EsportsCustomerUpdateOne
 func (_u *EsportsCustomerUpdateOne) SetNillablePhone(v *string) *EsportsCustomerUpdateOne {
 	if v != nil {
 		_u.SetPhone(*v)
+	}
+	return _u
+}
+
+// SetBirthday sets the "birthday" field.
+func (_u *EsportsCustomerUpdateOne) SetBirthday(v string) *EsportsCustomerUpdateOne {
+	_u.mutation.SetBirthday(v)
+	return _u
+}
+
+// SetNillableBirthday sets the "birthday" field if the given value is not nil.
+func (_u *EsportsCustomerUpdateOne) SetNillableBirthday(v *string) *EsportsCustomerUpdateOne {
+	if v != nil {
+		_u.SetBirthday(*v)
 	}
 	return _u
 }
@@ -973,6 +1009,11 @@ func (_u *EsportsCustomerUpdateOne) check() error {
 			return &ValidationError{Name: "phone", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.phone": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Birthday(); ok {
+		if err := esportscustomer.BirthdayValidator(v); err != nil {
+			return &ValidationError{Name: "birthday", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.birthday": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ConsumptionPreference(); ok {
 		if err := esportscustomer.ConsumptionPreferenceValidator(v); err != nil {
 			return &ValidationError{Name: "consumption_preference", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.consumption_preference": %w`, err)}
@@ -1069,6 +1110,9 @@ func (_u *EsportsCustomerUpdateOne) sqlSave(ctx context.Context) (_node *Esports
 	}
 	if value, ok := _u.mutation.Phone(); ok {
 		_spec.SetField(esportscustomer.FieldPhone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Birthday(); ok {
+		_spec.SetField(esportscustomer.FieldBirthday, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ConsumptionPreference(); ok {
 		_spec.SetField(esportscustomer.FieldConsumptionPreference, field.TypeString, value)

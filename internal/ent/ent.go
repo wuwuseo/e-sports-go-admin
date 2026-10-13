@@ -41,6 +41,7 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
+	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
@@ -184,6 +185,7 @@ func checkColumn(t, c string) error {
 			esportsgrowthledger.Table:           esportsgrowthledger.ValidColumn,
 			esportsidempotency.Table:            esportsidempotency.ValidColumn,
 			esportsidentitybinding.Table:        esportsidentitybinding.ValidColumn,
+			esportsledgerallocation.Table:       esportsledgerallocation.ValidColumn,
 			esportsledgerentry.Table:            esportsledgerentry.ValidColumn,
 			esportsmemberleveloverride.Table:    esportsmemberleveloverride.ValidColumn,
 			esportsmemberlevelrule.Table:        esportsmemberlevelrule.ValidColumn,

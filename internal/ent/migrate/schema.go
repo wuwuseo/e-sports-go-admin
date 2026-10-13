@@ -912,6 +912,7 @@ var (
 		{Name: "age_status", Type: field.TypeEnum, Enums: []string{"unknown", "adult", "minor"}, Default: "unknown"},
 		{Name: "self_order_enabled", Type: field.TypeBool, Default: false},
 		{Name: "phone", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "birthday", Type: field.TypeString, Size: 5, Default: ""},
 		{Name: "consumption_preference", Type: field.TypeString, Size: 255, Default: ""},
 		{Name: "tags", Type: field.TypeJSON, Nullable: true},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"manual", "wecom", "self", "import"}, Default: "manual"},
@@ -946,7 +947,7 @@ var (
 			{
 				Name:    "esportscustomer_wecom_corp_id_wecom_external_id",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsCustomersColumns[12], EsportsCustomersColumns[13]},
+				Columns: []*schema.Column{EsportsCustomersColumns[13], EsportsCustomersColumns[14]},
 			},
 		},
 	}
@@ -1311,6 +1312,36 @@ var (
 				Name:    "esportsidentitybinding_customer_id_status",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsIdentityBindingsColumns[1], EsportsIdentityBindingsColumns[6]},
+			},
+		},
+	}
+	// EsportsLedgerAllocationsColumns holds the columns for the "esports_ledger_allocations" table.
+	EsportsLedgerAllocationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "account_type", Type: field.TypeString, Size: 48},
+		{Name: "account_id", Type: field.TypeString, Size: 80},
+		{Name: "consume_source_type", Type: field.TypeString, Size: 48},
+		{Name: "consume_source_id", Type: field.TypeString, Size: 80},
+		{Name: "batch_source_type", Type: field.TypeString, Size: 48},
+		{Name: "batch_source_id", Type: field.TypeString, Size: 80},
+		{Name: "amount_cents", Type: field.TypeInt64},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// EsportsLedgerAllocationsTable holds the schema information for the "esports_ledger_allocations" table.
+	EsportsLedgerAllocationsTable = &schema.Table{
+		Name:       TablePrefix + "esports_ledger_allocations",
+		Columns:    EsportsLedgerAllocationsColumns,
+		PrimaryKey: []*schema.Column{EsportsLedgerAllocationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsledgerallocation_account_type_account_id_batch_source_type_batch_source_id",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsLedgerAllocationsColumns[1], EsportsLedgerAllocationsColumns[2], EsportsLedgerAllocationsColumns[5], EsportsLedgerAllocationsColumns[6]},
+			},
+			{
+				Name:    "esportsledgerallocation_consume_source_type_consume_source_id_batch_source_type_batch_source_id",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsLedgerAllocationsColumns[3], EsportsLedgerAllocationsColumns[4], EsportsLedgerAllocationsColumns[5], EsportsLedgerAllocationsColumns[6]},
 			},
 		},
 	}
@@ -2905,6 +2936,7 @@ var (
 		EsportsGrowthLedgersTable,
 		EsportsIdempotenciesTable,
 		EsportsIdentityBindingsTable,
+		EsportsLedgerAllocationsTable,
 		EsportsLedgerEntriesTable,
 		EsportsMemberLevelOverridesTable,
 		EsportsMemberLevelRulesTable,

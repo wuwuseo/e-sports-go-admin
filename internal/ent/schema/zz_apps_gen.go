@@ -100,6 +100,10 @@ type EsportsIdentityBinding struct {
 	appschemaesports.EsportsIdentityBinding
 }
 
+type EsportsLedgerAllocation struct {
+	appschemaesports.EsportsLedgerAllocation
+}
+
 type EsportsLedgerEntry struct {
 	appschemaesports.EsportsLedgerEntry
 }

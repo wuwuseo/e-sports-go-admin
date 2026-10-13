@@ -111,6 +111,9 @@ type EsportsIdempotency func(*sql.Selector)
 // EsportsIdentityBinding is the predicate function for esportsidentitybinding builders.
 type EsportsIdentityBinding func(*sql.Selector)
 
+// EsportsLedgerAllocation is the predicate function for esportsledgerallocation builders.
+type EsportsLedgerAllocation func(*sql.Selector)
+
 // EsportsLedgerEntry is the predicate function for esportsledgerentry builders.
 type EsportsLedgerEntry func(*sql.Selector)
 

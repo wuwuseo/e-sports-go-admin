@@ -46,6 +46,7 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
+	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
@@ -170,6 +171,8 @@ type Client struct {
 	EsportsIdempotency *EsportsIdempotencyClient
 	// EsportsIdentityBinding is the client for interacting with the EsportsIdentityBinding builders.
 	EsportsIdentityBinding *EsportsIdentityBindingClient
+	// EsportsLedgerAllocation is the client for interacting with the EsportsLedgerAllocation builders.
+	EsportsLedgerAllocation *EsportsLedgerAllocationClient
 	// EsportsLedgerEntry is the client for interacting with the EsportsLedgerEntry builders.
 	EsportsLedgerEntry *EsportsLedgerEntryClient
 	// EsportsMemberLevelOverride is the client for interacting with the EsportsMemberLevelOverride builders.
@@ -300,6 +303,7 @@ func (c *Client) init() {
 	c.EsportsGrowthLedger = NewEsportsGrowthLedgerClient(c.config)
 	c.EsportsIdempotency = NewEsportsIdempotencyClient(c.config)
 	c.EsportsIdentityBinding = NewEsportsIdentityBindingClient(c.config)
+	c.EsportsLedgerAllocation = NewEsportsLedgerAllocationClient(c.config)
 	c.EsportsLedgerEntry = NewEsportsLedgerEntryClient(c.config)
 	c.EsportsMemberLevelOverride = NewEsportsMemberLevelOverrideClient(c.config)
 	c.EsportsMemberLevelRule = NewEsportsMemberLevelRuleClient(c.config)
@@ -469,6 +473,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsGrowthLedger:           NewEsportsGrowthLedgerClient(cfg),
 		EsportsIdempotency:            NewEsportsIdempotencyClient(cfg),
 		EsportsIdentityBinding:        NewEsportsIdentityBindingClient(cfg),
+		EsportsLedgerAllocation:       NewEsportsLedgerAllocationClient(cfg),
 		EsportsLedgerEntry:            NewEsportsLedgerEntryClient(cfg),
 		EsportsMemberLevelOverride:    NewEsportsMemberLevelOverrideClient(cfg),
 		EsportsMemberLevelRule:        NewEsportsMemberLevelRuleClient(cfg),
@@ -565,6 +570,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsGrowthLedger:           NewEsportsGrowthLedgerClient(cfg),
 		EsportsIdempotency:            NewEsportsIdempotencyClient(cfg),
 		EsportsIdentityBinding:        NewEsportsIdentityBindingClient(cfg),
+		EsportsLedgerAllocation:       NewEsportsLedgerAllocationClient(cfg),
 		EsportsLedgerEntry:            NewEsportsLedgerEntryClient(cfg),
 		EsportsMemberLevelOverride:    NewEsportsMemberLevelOverrideClient(cfg),
 		EsportsMemberLevelRule:        NewEsportsMemberLevelRuleClient(cfg),
@@ -646,9 +652,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsDispatchPriorityGrant, c.EsportsDispatchPriorityNotice,
 		c.EsportsDispatchSeat, c.EsportsFulfillmentMakeup, c.EsportsGift,
 		c.EsportsGiftOrder, c.EsportsGrowthLedger, c.EsportsIdempotency,
-		c.EsportsIdentityBinding, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
-		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
-		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
+		c.EsportsIdentityBinding, c.EsportsLedgerAllocation, c.EsportsLedgerEntry,
+		c.EsportsMemberLevelOverride, c.EsportsMemberLevelRule, c.EsportsOrder,
+		c.EsportsOrderAddon, c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
 		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
 		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewRevision, c.EsportsProductCategory, c.EsportsQuotaHold,
@@ -678,9 +684,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsDispatchPriorityGrant, c.EsportsDispatchPriorityNotice,
 		c.EsportsDispatchSeat, c.EsportsFulfillmentMakeup, c.EsportsGift,
 		c.EsportsGiftOrder, c.EsportsGrowthLedger, c.EsportsIdempotency,
-		c.EsportsIdentityBinding, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
-		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
-		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
+		c.EsportsIdentityBinding, c.EsportsLedgerAllocation, c.EsportsLedgerEntry,
+		c.EsportsMemberLevelOverride, c.EsportsMemberLevelRule, c.EsportsOrder,
+		c.EsportsOrderAddon, c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
 		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
 		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewRevision, c.EsportsProductCategory, c.EsportsQuotaHold,
@@ -769,6 +775,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsIdempotency.mutate(ctx, m)
 	case *EsportsIdentityBindingMutation:
 		return c.EsportsIdentityBinding.mutate(ctx, m)
+	case *EsportsLedgerAllocationMutation:
+		return c.EsportsLedgerAllocation.mutate(ctx, m)
 	case *EsportsLedgerEntryMutation:
 		return c.EsportsLedgerEntry.mutate(ctx, m)
 	case *EsportsMemberLevelOverrideMutation:
@@ -5641,6 +5649,140 @@ func (c *EsportsIdentityBindingClient) mutate(ctx context.Context, m *EsportsIde
 		return (&EsportsIdentityBindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsIdentityBinding mutation op: %q", m.Op())
+	}
+}
+
+// EsportsLedgerAllocationClient is a client for the EsportsLedgerAllocation schema.
+type EsportsLedgerAllocationClient struct {
+	config
+}
+
+// NewEsportsLedgerAllocationClient returns a client for the EsportsLedgerAllocation from the given config.
+func NewEsportsLedgerAllocationClient(c config) *EsportsLedgerAllocationClient {
+	return &EsportsLedgerAllocationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsledgerallocation.Hooks(f(g(h())))`.
+func (c *EsportsLedgerAllocationClient) Use(hooks ...Hook) {
+	c.hooks.EsportsLedgerAllocation = append(c.hooks.EsportsLedgerAllocation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsledgerallocation.Intercept(f(g(h())))`.
+func (c *EsportsLedgerAllocationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsLedgerAllocation = append(c.inters.EsportsLedgerAllocation, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsLedgerAllocation entity.
+func (c *EsportsLedgerAllocationClient) Create() *EsportsLedgerAllocationCreate {
+	mutation := newEsportsLedgerAllocationMutation(c.config, OpCreate)
+	return &EsportsLedgerAllocationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsLedgerAllocation entities.
+func (c *EsportsLedgerAllocationClient) CreateBulk(builders ...*EsportsLedgerAllocationCreate) *EsportsLedgerAllocationCreateBulk {
+	return &EsportsLedgerAllocationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsLedgerAllocationClient) MapCreateBulk(slice any, setFunc func(*EsportsLedgerAllocationCreate, int)) *EsportsLedgerAllocationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsLedgerAllocationCreateBulk{err: fmt.Errorf("calling to EsportsLedgerAllocationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsLedgerAllocationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsLedgerAllocationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsLedgerAllocation.
+func (c *EsportsLedgerAllocationClient) Update() *EsportsLedgerAllocationUpdate {
+	mutation := newEsportsLedgerAllocationMutation(c.config, OpUpdate)
+	return &EsportsLedgerAllocationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsLedgerAllocationClient) UpdateOne(_m *EsportsLedgerAllocation) *EsportsLedgerAllocationUpdateOne {
+	mutation := newEsportsLedgerAllocationMutation(c.config, OpUpdateOne, withEsportsLedgerAllocation(_m))
+	return &EsportsLedgerAllocationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsLedgerAllocationClient) UpdateOneID(id int) *EsportsLedgerAllocationUpdateOne {
+	mutation := newEsportsLedgerAllocationMutation(c.config, OpUpdateOne, withEsportsLedgerAllocationID(id))
+	return &EsportsLedgerAllocationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsLedgerAllocation.
+func (c *EsportsLedgerAllocationClient) Delete() *EsportsLedgerAllocationDelete {
+	mutation := newEsportsLedgerAllocationMutation(c.config, OpDelete)
+	return &EsportsLedgerAllocationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsLedgerAllocationClient) DeleteOne(_m *EsportsLedgerAllocation) *EsportsLedgerAllocationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsLedgerAllocationClient) DeleteOneID(id int) *EsportsLedgerAllocationDeleteOne {
+	builder := c.Delete().Where(esportsledgerallocation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsLedgerAllocationDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsLedgerAllocation.
+func (c *EsportsLedgerAllocationClient) Query() *EsportsLedgerAllocationQuery {
+	return &EsportsLedgerAllocationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsLedgerAllocation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsLedgerAllocation entity by its id.
+func (c *EsportsLedgerAllocationClient) Get(ctx context.Context, id int) (*EsportsLedgerAllocation, error) {
+	return c.Query().Where(esportsledgerallocation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsLedgerAllocationClient) GetX(ctx context.Context, id int) *EsportsLedgerAllocation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsLedgerAllocationClient) Hooks() []Hook {
+	hooks := c.hooks.EsportsLedgerAllocation
+	return append(hooks[:len(hooks):len(hooks)], esportsledgerallocation.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsLedgerAllocationClient) Interceptors() []Interceptor {
+	return c.inters.EsportsLedgerAllocation
+}
+
+func (c *EsportsLedgerAllocationClient) mutate(ctx context.Context, m *EsportsLedgerAllocationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsLedgerAllocationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsLedgerAllocationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsLedgerAllocationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsLedgerAllocationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsLedgerAllocation mutation op: %q", m.Op())
 	}
 }
 
@@ -11294,18 +11436,18 @@ type (
 		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
 		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
-		EsportsIdentityBinding, EsportsLedgerEntry, EsportsMemberLevelOverride,
-		EsportsMemberLevelRule, EsportsOrder, EsportsOrderAddon, EsportsOrderEvent,
-		EsportsOutbox, EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
-		EsportsPaymentIntent, EsportsPaymentReceipt, EsportsPlayer,
-		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
-		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
-		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
-		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage,
-		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
-		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
-		UserRole []ent.Hook
+		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
+		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOrder,
+		EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox, EsportsPageAsset,
+		EsportsPageDocument, EsportsPageVersion, EsportsPaymentIntent,
+		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerReview,
+		EsportsPlayerReviewRevision, EsportsProductCategory, EsportsQuotaHold,
+		EsportsRechargeCampaign, EsportsScript, EsportsSeatTransferRequest,
+		EsportsServiceSegment, EsportsSettlement, EsportsSku, EsportsStoredValueCard,
+		EsportsStoredValuePackage, EsportsWalletAccount, EsportsWalletTx,
+		EsportsWithdrawal, LoginLog, Message, MessagePreference, OAuthProviderConfig,
+		OAuthSession, OperationLog, Plugin, Role, Slide, SystemConfig,
+		SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
@@ -11317,17 +11459,17 @@ type (
 		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
 		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
-		EsportsIdentityBinding, EsportsLedgerEntry, EsportsMemberLevelOverride,
-		EsportsMemberLevelRule, EsportsOrder, EsportsOrderAddon, EsportsOrderEvent,
-		EsportsOutbox, EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
-		EsportsPaymentIntent, EsportsPaymentReceipt, EsportsPlayer,
-		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
-		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
-		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
-		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage,
-		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
-		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
-		UserRole []ent.Interceptor
+		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
+		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOrder,
+		EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox, EsportsPageAsset,
+		EsportsPageDocument, EsportsPageVersion, EsportsPaymentIntent,
+		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerReview,
+		EsportsPlayerReviewRevision, EsportsProductCategory, EsportsQuotaHold,
+		EsportsRechargeCampaign, EsportsScript, EsportsSeatTransferRequest,
+		EsportsServiceSegment, EsportsSettlement, EsportsSku, EsportsStoredValueCard,
+		EsportsStoredValuePackage, EsportsWalletAccount, EsportsWalletTx,
+		EsportsWithdrawal, LoginLog, Message, MessagePreference, OAuthProviderConfig,
+		OAuthSession, OperationLog, Plugin, Role, Slide, SystemConfig,
+		SystemPermission, ThirdPartyUser, User, UserRole []ent.Interceptor
 	}
 )

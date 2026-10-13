@@ -79,6 +79,11 @@ func Phone(v string) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldEQ(FieldPhone, v))
 }
 
+// Birthday applies equality check predicate on the "birthday" field. It's identical to BirthdayEQ.
+func Birthday(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldBirthday, v))
+}
+
 // ConsumptionPreference applies equality check predicate on the "consumption_preference" field. It's identical to ConsumptionPreferenceEQ.
 func ConsumptionPreference(v string) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldEQ(FieldConsumptionPreference, v))
@@ -392,6 +397,71 @@ func PhoneEqualFold(v string) predicate.EsportsCustomer {
 // PhoneContainsFold applies the ContainsFold predicate on the "phone" field.
 func PhoneContainsFold(v string) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldContainsFold(FieldPhone, v))
+}
+
+// BirthdayEQ applies the EQ predicate on the "birthday" field.
+func BirthdayEQ(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldBirthday, v))
+}
+
+// BirthdayNEQ applies the NEQ predicate on the "birthday" field.
+func BirthdayNEQ(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNEQ(FieldBirthday, v))
+}
+
+// BirthdayIn applies the In predicate on the "birthday" field.
+func BirthdayIn(vs ...string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIn(FieldBirthday, vs...))
+}
+
+// BirthdayNotIn applies the NotIn predicate on the "birthday" field.
+func BirthdayNotIn(vs ...string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotIn(FieldBirthday, vs...))
+}
+
+// BirthdayGT applies the GT predicate on the "birthday" field.
+func BirthdayGT(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGT(FieldBirthday, v))
+}
+
+// BirthdayGTE applies the GTE predicate on the "birthday" field.
+func BirthdayGTE(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGTE(FieldBirthday, v))
+}
+
+// BirthdayLT applies the LT predicate on the "birthday" field.
+func BirthdayLT(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLT(FieldBirthday, v))
+}
+
+// BirthdayLTE applies the LTE predicate on the "birthday" field.
+func BirthdayLTE(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLTE(FieldBirthday, v))
+}
+
+// BirthdayContains applies the Contains predicate on the "birthday" field.
+func BirthdayContains(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldContains(FieldBirthday, v))
+}
+
+// BirthdayHasPrefix applies the HasPrefix predicate on the "birthday" field.
+func BirthdayHasPrefix(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldHasPrefix(FieldBirthday, v))
+}
+
+// BirthdayHasSuffix applies the HasSuffix predicate on the "birthday" field.
+func BirthdayHasSuffix(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldHasSuffix(FieldBirthday, v))
+}
+
+// BirthdayEqualFold applies the EqualFold predicate on the "birthday" field.
+func BirthdayEqualFold(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEqualFold(FieldBirthday, v))
+}
+
+// BirthdayContainsFold applies the ContainsFold predicate on the "birthday" field.
+func BirthdayContainsFold(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldContainsFold(FieldBirthday, v))
 }
 
 // ConsumptionPreferenceEQ applies the EQ predicate on the "consumption_preference" field.

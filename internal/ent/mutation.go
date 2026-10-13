@@ -42,6 +42,7 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
+	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
@@ -136,6 +137,7 @@ const (
 	TypeEsportsGrowthLedger           = "EsportsGrowthLedger"
 	TypeEsportsIdempotency            = "EsportsIdempotency"
 	TypeEsportsIdentityBinding        = "EsportsIdentityBinding"
+	TypeEsportsLedgerAllocation       = "EsportsLedgerAllocation"
 	TypeEsportsLedgerEntry            = "EsportsLedgerEntry"
 	TypeEsportsMemberLevelOverride    = "EsportsMemberLevelOverride"
 	TypeEsportsMemberLevelRule        = "EsportsMemberLevelRule"
@@ -26507,6 +26509,7 @@ type EsportsCustomerMutation struct {
 	age_status                *esportscustomer.AgeStatus
 	self_order_enabled        *bool
 	phone                     *string
+	birthday                  *string
 	consumption_preference    *string
 	tags                      *[]string
 	appendtags                []string
@@ -26909,6 +26912,42 @@ func (m *EsportsCustomerMutation) OldPhone(ctx context.Context) (v string, err e
 // ResetPhone resets all changes to the "phone" field.
 func (m *EsportsCustomerMutation) ResetPhone() {
 	m.phone = nil
+}
+
+// SetBirthday sets the "birthday" field.
+func (m *EsportsCustomerMutation) SetBirthday(s string) {
+	m.birthday = &s
+}
+
+// Birthday returns the value of the "birthday" field in the mutation.
+func (m *EsportsCustomerMutation) Birthday() (r string, exists bool) {
+	v := m.birthday
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBirthday returns the old "birthday" field's value of the EsportsCustomer entity.
+// If the EsportsCustomer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCustomerMutation) OldBirthday(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBirthday is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBirthday requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBirthday: %w", err)
+	}
+	return oldValue.Birthday, nil
+}
+
+// ResetBirthday resets all changes to the "birthday" field.
+func (m *EsportsCustomerMutation) ResetBirthday() {
+	m.birthday = nil
 }
 
 // SetConsumptionPreference sets the "consumption_preference" field.
@@ -27563,7 +27602,7 @@ func (m *EsportsCustomerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsCustomerMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.user_id != nil {
 		fields = append(fields, esportscustomer.FieldUserID)
 	}
@@ -27581,6 +27620,9 @@ func (m *EsportsCustomerMutation) Fields() []string {
 	}
 	if m.phone != nil {
 		fields = append(fields, esportscustomer.FieldPhone)
+	}
+	if m.birthday != nil {
+		fields = append(fields, esportscustomer.FieldBirthday)
 	}
 	if m.consumption_preference != nil {
 		fields = append(fields, esportscustomer.FieldConsumptionPreference)
@@ -27644,6 +27686,8 @@ func (m *EsportsCustomerMutation) Field(name string) (ent.Value, bool) {
 		return m.SelfOrderEnabled()
 	case esportscustomer.FieldPhone:
 		return m.Phone()
+	case esportscustomer.FieldBirthday:
+		return m.Birthday()
 	case esportscustomer.FieldConsumptionPreference:
 		return m.ConsumptionPreference()
 	case esportscustomer.FieldTags:
@@ -27693,6 +27737,8 @@ func (m *EsportsCustomerMutation) OldField(ctx context.Context, name string) (en
 		return m.OldSelfOrderEnabled(ctx)
 	case esportscustomer.FieldPhone:
 		return m.OldPhone(ctx)
+	case esportscustomer.FieldBirthday:
+		return m.OldBirthday(ctx)
 	case esportscustomer.FieldConsumptionPreference:
 		return m.OldConsumptionPreference(ctx)
 	case esportscustomer.FieldTags:
@@ -27771,6 +27817,13 @@ func (m *EsportsCustomerMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPhone(v)
+		return nil
+	case esportscustomer.FieldBirthday:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBirthday(v)
 		return nil
 	case esportscustomer.FieldConsumptionPreference:
 		v, ok := value.(string)
@@ -28026,6 +28079,9 @@ func (m *EsportsCustomerMutation) ResetField(name string) error {
 		return nil
 	case esportscustomer.FieldPhone:
 		m.ResetPhone()
+		return nil
+	case esportscustomer.FieldBirthday:
+		m.ResetBirthday()
 		return nil
 	case esportscustomer.FieldConsumptionPreference:
 		m.ResetConsumptionPreference()
@@ -39159,6 +39215,746 @@ func (m *EsportsIdentityBindingMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsIdentityBindingMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsIdentityBinding edge %s", name)
+}
+
+// EsportsLedgerAllocationMutation represents an operation that mutates the EsportsLedgerAllocation nodes in the graph.
+type EsportsLedgerAllocationMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	account_type        *string
+	account_id          *string
+	consume_source_type *string
+	consume_source_id   *string
+	batch_source_type   *string
+	batch_source_id     *string
+	amount_cents        *int64
+	addamount_cents     *int64
+	created_at          *time.Time
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*EsportsLedgerAllocation, error)
+	predicates          []predicate.EsportsLedgerAllocation
+}
+
+var _ ent.Mutation = (*EsportsLedgerAllocationMutation)(nil)
+
+// esportsledgerallocationOption allows management of the mutation configuration using functional options.
+type esportsledgerallocationOption func(*EsportsLedgerAllocationMutation)
+
+// newEsportsLedgerAllocationMutation creates new mutation for the EsportsLedgerAllocation entity.
+func newEsportsLedgerAllocationMutation(c config, op Op, opts ...esportsledgerallocationOption) *EsportsLedgerAllocationMutation {
+	m := &EsportsLedgerAllocationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsLedgerAllocation,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsLedgerAllocationID sets the ID field of the mutation.
+func withEsportsLedgerAllocationID(id int) esportsledgerallocationOption {
+	return func(m *EsportsLedgerAllocationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsLedgerAllocation
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsLedgerAllocation, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsLedgerAllocation.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsLedgerAllocation sets the old EsportsLedgerAllocation of the mutation.
+func withEsportsLedgerAllocation(node *EsportsLedgerAllocation) esportsledgerallocationOption {
+	return func(m *EsportsLedgerAllocationMutation) {
+		m.oldValue = func(context.Context) (*EsportsLedgerAllocation, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsLedgerAllocationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsLedgerAllocationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsLedgerAllocationMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsLedgerAllocationMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsLedgerAllocation.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAccountType sets the "account_type" field.
+func (m *EsportsLedgerAllocationMutation) SetAccountType(s string) {
+	m.account_type = &s
+}
+
+// AccountType returns the value of the "account_type" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) AccountType() (r string, exists bool) {
+	v := m.account_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountType returns the old "account_type" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldAccountType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountType: %w", err)
+	}
+	return oldValue.AccountType, nil
+}
+
+// ResetAccountType resets all changes to the "account_type" field.
+func (m *EsportsLedgerAllocationMutation) ResetAccountType() {
+	m.account_type = nil
+}
+
+// SetAccountID sets the "account_id" field.
+func (m *EsportsLedgerAllocationMutation) SetAccountID(s string) {
+	m.account_id = &s
+}
+
+// AccountID returns the value of the "account_id" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) AccountID() (r string, exists bool) {
+	v := m.account_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAccountID returns the old "account_id" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldAccountID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAccountID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAccountID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAccountID: %w", err)
+	}
+	return oldValue.AccountID, nil
+}
+
+// ResetAccountID resets all changes to the "account_id" field.
+func (m *EsportsLedgerAllocationMutation) ResetAccountID() {
+	m.account_id = nil
+}
+
+// SetConsumeSourceType sets the "consume_source_type" field.
+func (m *EsportsLedgerAllocationMutation) SetConsumeSourceType(s string) {
+	m.consume_source_type = &s
+}
+
+// ConsumeSourceType returns the value of the "consume_source_type" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) ConsumeSourceType() (r string, exists bool) {
+	v := m.consume_source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConsumeSourceType returns the old "consume_source_type" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldConsumeSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConsumeSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConsumeSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConsumeSourceType: %w", err)
+	}
+	return oldValue.ConsumeSourceType, nil
+}
+
+// ResetConsumeSourceType resets all changes to the "consume_source_type" field.
+func (m *EsportsLedgerAllocationMutation) ResetConsumeSourceType() {
+	m.consume_source_type = nil
+}
+
+// SetConsumeSourceID sets the "consume_source_id" field.
+func (m *EsportsLedgerAllocationMutation) SetConsumeSourceID(s string) {
+	m.consume_source_id = &s
+}
+
+// ConsumeSourceID returns the value of the "consume_source_id" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) ConsumeSourceID() (r string, exists bool) {
+	v := m.consume_source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConsumeSourceID returns the old "consume_source_id" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldConsumeSourceID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConsumeSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConsumeSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConsumeSourceID: %w", err)
+	}
+	return oldValue.ConsumeSourceID, nil
+}
+
+// ResetConsumeSourceID resets all changes to the "consume_source_id" field.
+func (m *EsportsLedgerAllocationMutation) ResetConsumeSourceID() {
+	m.consume_source_id = nil
+}
+
+// SetBatchSourceType sets the "batch_source_type" field.
+func (m *EsportsLedgerAllocationMutation) SetBatchSourceType(s string) {
+	m.batch_source_type = &s
+}
+
+// BatchSourceType returns the value of the "batch_source_type" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) BatchSourceType() (r string, exists bool) {
+	v := m.batch_source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBatchSourceType returns the old "batch_source_type" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldBatchSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBatchSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBatchSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBatchSourceType: %w", err)
+	}
+	return oldValue.BatchSourceType, nil
+}
+
+// ResetBatchSourceType resets all changes to the "batch_source_type" field.
+func (m *EsportsLedgerAllocationMutation) ResetBatchSourceType() {
+	m.batch_source_type = nil
+}
+
+// SetBatchSourceID sets the "batch_source_id" field.
+func (m *EsportsLedgerAllocationMutation) SetBatchSourceID(s string) {
+	m.batch_source_id = &s
+}
+
+// BatchSourceID returns the value of the "batch_source_id" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) BatchSourceID() (r string, exists bool) {
+	v := m.batch_source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBatchSourceID returns the old "batch_source_id" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldBatchSourceID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBatchSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBatchSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBatchSourceID: %w", err)
+	}
+	return oldValue.BatchSourceID, nil
+}
+
+// ResetBatchSourceID resets all changes to the "batch_source_id" field.
+func (m *EsportsLedgerAllocationMutation) ResetBatchSourceID() {
+	m.batch_source_id = nil
+}
+
+// SetAmountCents sets the "amount_cents" field.
+func (m *EsportsLedgerAllocationMutation) SetAmountCents(i int64) {
+	m.amount_cents = &i
+	m.addamount_cents = nil
+}
+
+// AmountCents returns the value of the "amount_cents" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) AmountCents() (r int64, exists bool) {
+	v := m.amount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountCents returns the old "amount_cents" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldAmountCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountCents: %w", err)
+	}
+	return oldValue.AmountCents, nil
+}
+
+// AddAmountCents adds i to the "amount_cents" field.
+func (m *EsportsLedgerAllocationMutation) AddAmountCents(i int64) {
+	if m.addamount_cents != nil {
+		*m.addamount_cents += i
+	} else {
+		m.addamount_cents = &i
+	}
+}
+
+// AddedAmountCents returns the value that was added to the "amount_cents" field in this mutation.
+func (m *EsportsLedgerAllocationMutation) AddedAmountCents() (r int64, exists bool) {
+	v := m.addamount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmountCents resets all changes to the "amount_cents" field.
+func (m *EsportsLedgerAllocationMutation) ResetAmountCents() {
+	m.amount_cents = nil
+	m.addamount_cents = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsLedgerAllocationMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsLedgerAllocationMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the EsportsLedgerAllocationMutation builder.
+func (m *EsportsLedgerAllocationMutation) Where(ps ...predicate.EsportsLedgerAllocation) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsLedgerAllocationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsLedgerAllocationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsLedgerAllocation, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsLedgerAllocationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsLedgerAllocationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsLedgerAllocation).
+func (m *EsportsLedgerAllocationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsLedgerAllocationMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.account_type != nil {
+		fields = append(fields, esportsledgerallocation.FieldAccountType)
+	}
+	if m.account_id != nil {
+		fields = append(fields, esportsledgerallocation.FieldAccountID)
+	}
+	if m.consume_source_type != nil {
+		fields = append(fields, esportsledgerallocation.FieldConsumeSourceType)
+	}
+	if m.consume_source_id != nil {
+		fields = append(fields, esportsledgerallocation.FieldConsumeSourceID)
+	}
+	if m.batch_source_type != nil {
+		fields = append(fields, esportsledgerallocation.FieldBatchSourceType)
+	}
+	if m.batch_source_id != nil {
+		fields = append(fields, esportsledgerallocation.FieldBatchSourceID)
+	}
+	if m.amount_cents != nil {
+		fields = append(fields, esportsledgerallocation.FieldAmountCents)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsledgerallocation.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsLedgerAllocationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsledgerallocation.FieldAccountType:
+		return m.AccountType()
+	case esportsledgerallocation.FieldAccountID:
+		return m.AccountID()
+	case esportsledgerallocation.FieldConsumeSourceType:
+		return m.ConsumeSourceType()
+	case esportsledgerallocation.FieldConsumeSourceID:
+		return m.ConsumeSourceID()
+	case esportsledgerallocation.FieldBatchSourceType:
+		return m.BatchSourceType()
+	case esportsledgerallocation.FieldBatchSourceID:
+		return m.BatchSourceID()
+	case esportsledgerallocation.FieldAmountCents:
+		return m.AmountCents()
+	case esportsledgerallocation.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsLedgerAllocationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsledgerallocation.FieldAccountType:
+		return m.OldAccountType(ctx)
+	case esportsledgerallocation.FieldAccountID:
+		return m.OldAccountID(ctx)
+	case esportsledgerallocation.FieldConsumeSourceType:
+		return m.OldConsumeSourceType(ctx)
+	case esportsledgerallocation.FieldConsumeSourceID:
+		return m.OldConsumeSourceID(ctx)
+	case esportsledgerallocation.FieldBatchSourceType:
+		return m.OldBatchSourceType(ctx)
+	case esportsledgerallocation.FieldBatchSourceID:
+		return m.OldBatchSourceID(ctx)
+	case esportsledgerallocation.FieldAmountCents:
+		return m.OldAmountCents(ctx)
+	case esportsledgerallocation.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsLedgerAllocation field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsLedgerAllocationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsledgerallocation.FieldAccountType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountType(v)
+		return nil
+	case esportsledgerallocation.FieldAccountID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAccountID(v)
+		return nil
+	case esportsledgerallocation.FieldConsumeSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConsumeSourceType(v)
+		return nil
+	case esportsledgerallocation.FieldConsumeSourceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConsumeSourceID(v)
+		return nil
+	case esportsledgerallocation.FieldBatchSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBatchSourceType(v)
+		return nil
+	case esportsledgerallocation.FieldBatchSourceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBatchSourceID(v)
+		return nil
+	case esportsledgerallocation.FieldAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountCents(v)
+		return nil
+	case esportsledgerallocation.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsLedgerAllocation field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsLedgerAllocationMutation) AddedFields() []string {
+	var fields []string
+	if m.addamount_cents != nil {
+		fields = append(fields, esportsledgerallocation.FieldAmountCents)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsLedgerAllocationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsledgerallocation.FieldAmountCents:
+		return m.AddedAmountCents()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsLedgerAllocationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsledgerallocation.FieldAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmountCents(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsLedgerAllocation numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsLedgerAllocationMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsLedgerAllocationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsLedgerAllocationMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown EsportsLedgerAllocation nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsLedgerAllocationMutation) ResetField(name string) error {
+	switch name {
+	case esportsledgerallocation.FieldAccountType:
+		m.ResetAccountType()
+		return nil
+	case esportsledgerallocation.FieldAccountID:
+		m.ResetAccountID()
+		return nil
+	case esportsledgerallocation.FieldConsumeSourceType:
+		m.ResetConsumeSourceType()
+		return nil
+	case esportsledgerallocation.FieldConsumeSourceID:
+		m.ResetConsumeSourceID()
+		return nil
+	case esportsledgerallocation.FieldBatchSourceType:
+		m.ResetBatchSourceType()
+		return nil
+	case esportsledgerallocation.FieldBatchSourceID:
+		m.ResetBatchSourceID()
+		return nil
+	case esportsledgerallocation.FieldAmountCents:
+		m.ResetAmountCents()
+		return nil
+	case esportsledgerallocation.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsLedgerAllocation field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsLedgerAllocationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsLedgerAllocationMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsLedgerAllocationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsLedgerAllocationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsLedgerAllocationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsLedgerAllocationMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsLedgerAllocationMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsLedgerAllocation unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsLedgerAllocationMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsLedgerAllocation edge %s", name)
 }
 
 // EsportsLedgerEntryMutation represents an operation that mutates the EsportsLedgerEntry nodes in the graph.

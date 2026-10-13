@@ -96,6 +96,20 @@ func (_c *EsportsCustomerCreate) SetNillablePhone(v *string) *EsportsCustomerCre
 	return _c
 }
 
+// SetBirthday sets the "birthday" field.
+func (_c *EsportsCustomerCreate) SetBirthday(v string) *EsportsCustomerCreate {
+	_c.mutation.SetBirthday(v)
+	return _c
+}
+
+// SetNillableBirthday sets the "birthday" field if the given value is not nil.
+func (_c *EsportsCustomerCreate) SetNillableBirthday(v *string) *EsportsCustomerCreate {
+	if v != nil {
+		_c.SetBirthday(*v)
+	}
+	return _c
+}
+
 // SetConsumptionPreference sets the "consumption_preference" field.
 func (_c *EsportsCustomerCreate) SetConsumptionPreference(v string) *EsportsCustomerCreate {
 	_c.mutation.SetConsumptionPreference(v)
@@ -331,6 +345,10 @@ func (_c *EsportsCustomerCreate) defaults() {
 		v := esportscustomer.DefaultPhone
 		_c.mutation.SetPhone(v)
 	}
+	if _, ok := _c.mutation.Birthday(); !ok {
+		v := esportscustomer.DefaultBirthday
+		_c.mutation.SetBirthday(v)
+	}
 	if _, ok := _c.mutation.ConsumptionPreference(); !ok {
 		v := esportscustomer.DefaultConsumptionPreference
 		_c.mutation.SetConsumptionPreference(v)
@@ -392,6 +410,14 @@ func (_c *EsportsCustomerCreate) check() error {
 	if v, ok := _c.mutation.Phone(); ok {
 		if err := esportscustomer.PhoneValidator(v); err != nil {
 			return &ValidationError{Name: "phone", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.phone": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Birthday(); !ok {
+		return &ValidationError{Name: "birthday", err: errors.New(`ent: missing required field "EsportsCustomer.birthday"`)}
+	}
+	if v, ok := _c.mutation.Birthday(); ok {
+		if err := esportscustomer.BirthdayValidator(v); err != nil {
+			return &ValidationError{Name: "birthday", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.birthday": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.ConsumptionPreference(); !ok {
@@ -502,6 +528,10 @@ func (_c *EsportsCustomerCreate) createSpec() (*EsportsCustomer, *sqlgraph.Creat
 	if value, ok := _c.mutation.Phone(); ok {
 		_spec.SetField(esportscustomer.FieldPhone, field.TypeString, value)
 		_node.Phone = value
+	}
+	if value, ok := _c.mutation.Birthday(); ok {
+		_spec.SetField(esportscustomer.FieldBirthday, field.TypeString, value)
+		_node.Birthday = value
 	}
 	if value, ok := _c.mutation.ConsumptionPreference(); ok {
 		_spec.SetField(esportscustomer.FieldConsumptionPreference, field.TypeString, value)

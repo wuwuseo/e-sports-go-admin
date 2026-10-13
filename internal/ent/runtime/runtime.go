@@ -38,6 +38,7 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
+	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
@@ -1477,42 +1478,48 @@ func init() {
 	esportscustomer.DefaultPhone = esportscustomerDescPhone.Default.(string)
 	// esportscustomer.PhoneValidator is a validator for the "phone" field. It is called by the builders before save.
 	esportscustomer.PhoneValidator = esportscustomerDescPhone.Validators[0].(func(string) error)
+	// esportscustomerDescBirthday is the schema descriptor for birthday field.
+	esportscustomerDescBirthday := esportscustomerFields[6].Descriptor()
+	// esportscustomer.DefaultBirthday holds the default value on creation for the birthday field.
+	esportscustomer.DefaultBirthday = esportscustomerDescBirthday.Default.(string)
+	// esportscustomer.BirthdayValidator is a validator for the "birthday" field. It is called by the builders before save.
+	esportscustomer.BirthdayValidator = esportscustomerDescBirthday.Validators[0].(func(string) error)
 	// esportscustomerDescConsumptionPreference is the schema descriptor for consumption_preference field.
-	esportscustomerDescConsumptionPreference := esportscustomerFields[6].Descriptor()
+	esportscustomerDescConsumptionPreference := esportscustomerFields[7].Descriptor()
 	// esportscustomer.DefaultConsumptionPreference holds the default value on creation for the consumption_preference field.
 	esportscustomer.DefaultConsumptionPreference = esportscustomerDescConsumptionPreference.Default.(string)
 	// esportscustomer.ConsumptionPreferenceValidator is a validator for the "consumption_preference" field. It is called by the builders before save.
 	esportscustomer.ConsumptionPreferenceValidator = esportscustomerDescConsumptionPreference.Validators[0].(func(string) error)
 	// esportscustomerDescWecomCorpID is the schema descriptor for wecom_corp_id field.
-	esportscustomerDescWecomCorpID := esportscustomerFields[11].Descriptor()
+	esportscustomerDescWecomCorpID := esportscustomerFields[12].Descriptor()
 	// esportscustomer.WecomCorpIDValidator is a validator for the "wecom_corp_id" field. It is called by the builders before save.
 	esportscustomer.WecomCorpIDValidator = esportscustomerDescWecomCorpID.Validators[0].(func(string) error)
 	// esportscustomerDescWecomExternalID is the schema descriptor for wecom_external_id field.
-	esportscustomerDescWecomExternalID := esportscustomerFields[12].Descriptor()
+	esportscustomerDescWecomExternalID := esportscustomerFields[13].Descriptor()
 	// esportscustomer.WecomExternalIDValidator is a validator for the "wecom_external_id" field. It is called by the builders before save.
 	esportscustomer.WecomExternalIDValidator = esportscustomerDescWecomExternalID.Validators[0].(func(string) error)
 	// esportscustomerDescMemberLevelCode is the schema descriptor for member_level_code field.
-	esportscustomerDescMemberLevelCode := esportscustomerFields[13].Descriptor()
+	esportscustomerDescMemberLevelCode := esportscustomerFields[14].Descriptor()
 	// esportscustomer.DefaultMemberLevelCode holds the default value on creation for the member_level_code field.
 	esportscustomer.DefaultMemberLevelCode = esportscustomerDescMemberLevelCode.Default.(string)
 	// esportscustomer.MemberLevelCodeValidator is a validator for the "member_level_code" field. It is called by the builders before save.
 	esportscustomer.MemberLevelCodeValidator = esportscustomerDescMemberLevelCode.Validators[0].(func(string) error)
 	// esportscustomerDescMemberPendingLevelCode is the schema descriptor for member_pending_level_code field.
-	esportscustomerDescMemberPendingLevelCode := esportscustomerFields[14].Descriptor()
+	esportscustomerDescMemberPendingLevelCode := esportscustomerFields[15].Descriptor()
 	// esportscustomer.DefaultMemberPendingLevelCode holds the default value on creation for the member_pending_level_code field.
 	esportscustomer.DefaultMemberPendingLevelCode = esportscustomerDescMemberPendingLevelCode.Default.(string)
 	// esportscustomer.MemberPendingLevelCodeValidator is a validator for the "member_pending_level_code" field. It is called by the builders before save.
 	esportscustomer.MemberPendingLevelCodeValidator = esportscustomerDescMemberPendingLevelCode.Validators[0].(func(string) error)
 	// esportscustomerDescVersion is the schema descriptor for version field.
-	esportscustomerDescVersion := esportscustomerFields[17].Descriptor()
+	esportscustomerDescVersion := esportscustomerFields[18].Descriptor()
 	// esportscustomer.DefaultVersion holds the default value on creation for the version field.
 	esportscustomer.DefaultVersion = esportscustomerDescVersion.Default.(int)
 	// esportscustomerDescCreatedAt is the schema descriptor for created_at field.
-	esportscustomerDescCreatedAt := esportscustomerFields[18].Descriptor()
+	esportscustomerDescCreatedAt := esportscustomerFields[19].Descriptor()
 	// esportscustomer.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportscustomer.DefaultCreatedAt = esportscustomerDescCreatedAt.Default.(func() time.Time)
 	// esportscustomerDescUpdatedAt is the schema descriptor for updated_at field.
-	esportscustomerDescUpdatedAt := esportscustomerFields[19].Descriptor()
+	esportscustomerDescUpdatedAt := esportscustomerFields[20].Descriptor()
 	// esportscustomer.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportscustomer.DefaultUpdatedAt = esportscustomerDescUpdatedAt.Default.(func() time.Time)
 	// esportscustomer.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2073,6 +2080,126 @@ func init() {
 	esportsidentitybindingDescCreatedAt := esportsidentitybindingFields[8].Descriptor()
 	// esportsidentitybinding.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsidentitybinding.DefaultCreatedAt = esportsidentitybindingDescCreatedAt.Default.(func() time.Time)
+	esportsledgerallocationHooks := schema.EsportsLedgerAllocation{}.Hooks()
+	esportsledgerallocation.Hooks[0] = esportsledgerallocationHooks[0]
+	esportsledgerallocationFields := schema.EsportsLedgerAllocation{}.Fields()
+	_ = esportsledgerallocationFields
+	// esportsledgerallocationDescAccountType is the schema descriptor for account_type field.
+	esportsledgerallocationDescAccountType := esportsledgerallocationFields[0].Descriptor()
+	// esportsledgerallocation.AccountTypeValidator is a validator for the "account_type" field. It is called by the builders before save.
+	esportsledgerallocation.AccountTypeValidator = func() func(string) error {
+		validators := esportsledgerallocationDescAccountType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(account_type string) error {
+			for _, fn := range fns {
+				if err := fn(account_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsledgerallocationDescAccountID is the schema descriptor for account_id field.
+	esportsledgerallocationDescAccountID := esportsledgerallocationFields[1].Descriptor()
+	// esportsledgerallocation.AccountIDValidator is a validator for the "account_id" field. It is called by the builders before save.
+	esportsledgerallocation.AccountIDValidator = func() func(string) error {
+		validators := esportsledgerallocationDescAccountID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(account_id string) error {
+			for _, fn := range fns {
+				if err := fn(account_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsledgerallocationDescConsumeSourceType is the schema descriptor for consume_source_type field.
+	esportsledgerallocationDescConsumeSourceType := esportsledgerallocationFields[2].Descriptor()
+	// esportsledgerallocation.ConsumeSourceTypeValidator is a validator for the "consume_source_type" field. It is called by the builders before save.
+	esportsledgerallocation.ConsumeSourceTypeValidator = func() func(string) error {
+		validators := esportsledgerallocationDescConsumeSourceType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(consume_source_type string) error {
+			for _, fn := range fns {
+				if err := fn(consume_source_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsledgerallocationDescConsumeSourceID is the schema descriptor for consume_source_id field.
+	esportsledgerallocationDescConsumeSourceID := esportsledgerallocationFields[3].Descriptor()
+	// esportsledgerallocation.ConsumeSourceIDValidator is a validator for the "consume_source_id" field. It is called by the builders before save.
+	esportsledgerallocation.ConsumeSourceIDValidator = func() func(string) error {
+		validators := esportsledgerallocationDescConsumeSourceID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(consume_source_id string) error {
+			for _, fn := range fns {
+				if err := fn(consume_source_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsledgerallocationDescBatchSourceType is the schema descriptor for batch_source_type field.
+	esportsledgerallocationDescBatchSourceType := esportsledgerallocationFields[4].Descriptor()
+	// esportsledgerallocation.BatchSourceTypeValidator is a validator for the "batch_source_type" field. It is called by the builders before save.
+	esportsledgerallocation.BatchSourceTypeValidator = func() func(string) error {
+		validators := esportsledgerallocationDescBatchSourceType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(batch_source_type string) error {
+			for _, fn := range fns {
+				if err := fn(batch_source_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsledgerallocationDescBatchSourceID is the schema descriptor for batch_source_id field.
+	esportsledgerallocationDescBatchSourceID := esportsledgerallocationFields[5].Descriptor()
+	// esportsledgerallocation.BatchSourceIDValidator is a validator for the "batch_source_id" field. It is called by the builders before save.
+	esportsledgerallocation.BatchSourceIDValidator = func() func(string) error {
+		validators := esportsledgerallocationDescBatchSourceID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(batch_source_id string) error {
+			for _, fn := range fns {
+				if err := fn(batch_source_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsledgerallocationDescAmountCents is the schema descriptor for amount_cents field.
+	esportsledgerallocationDescAmountCents := esportsledgerallocationFields[6].Descriptor()
+	// esportsledgerallocation.AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
+	esportsledgerallocation.AmountCentsValidator = esportsledgerallocationDescAmountCents.Validators[0].(func(int64) error)
+	// esportsledgerallocationDescCreatedAt is the schema descriptor for created_at field.
+	esportsledgerallocationDescCreatedAt := esportsledgerallocationFields[7].Descriptor()
+	// esportsledgerallocation.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsledgerallocation.DefaultCreatedAt = esportsledgerallocationDescCreatedAt.Default.(func() time.Time)
 	esportsledgerentryHooks := schema.EsportsLedgerEntry{}.Hooks()
 	esportsledgerentry.Hooks[0] = esportsledgerentryHooks[0]
 	esportsledgerentryFields := schema.EsportsLedgerEntry{}.Fields()

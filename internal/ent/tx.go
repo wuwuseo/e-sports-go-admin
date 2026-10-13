@@ -82,6 +82,8 @@ type Tx struct {
 	EsportsIdempotency *EsportsIdempotencyClient
 	// EsportsIdentityBinding is the client for interacting with the EsportsIdentityBinding builders.
 	EsportsIdentityBinding *EsportsIdentityBindingClient
+	// EsportsLedgerAllocation is the client for interacting with the EsportsLedgerAllocation builders.
+	EsportsLedgerAllocation *EsportsLedgerAllocationClient
 	// EsportsLedgerEntry is the client for interacting with the EsportsLedgerEntry builders.
 	EsportsLedgerEntry *EsportsLedgerEntryClient
 	// EsportsMemberLevelOverride is the client for interacting with the EsportsMemberLevelOverride builders.
@@ -332,6 +334,7 @@ func (tx *Tx) init() {
 	tx.EsportsGrowthLedger = NewEsportsGrowthLedgerClient(tx.config)
 	tx.EsportsIdempotency = NewEsportsIdempotencyClient(tx.config)
 	tx.EsportsIdentityBinding = NewEsportsIdentityBindingClient(tx.config)
+	tx.EsportsLedgerAllocation = NewEsportsLedgerAllocationClient(tx.config)
 	tx.EsportsLedgerEntry = NewEsportsLedgerEntryClient(tx.config)
 	tx.EsportsMemberLevelOverride = NewEsportsMemberLevelOverrideClient(tx.config)
 	tx.EsportsMemberLevelRule = NewEsportsMemberLevelRuleClient(tx.config)

@@ -30,6 +30,8 @@ type EsportsCustomer struct {
 	SelfOrderEnabled bool `json:"self_order_enabled"`
 	// Phone holds the value of the "phone" field.
 	Phone string `json:"phone"`
+	// Birthday holds the value of the "birthday" field.
+	Birthday string `json:"birthday"`
 	// ConsumptionPreference holds the value of the "consumption_preference" field.
 	ConsumptionPreference string `json:"consumption_preference"`
 	// Tags holds the value of the "tags" field.
@@ -72,7 +74,7 @@ func (*EsportsCustomer) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case esportscustomer.FieldID, esportscustomer.FieldUserID, esportscustomer.FieldOwnerAdminID, esportscustomer.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportscustomer.FieldDisplayName, esportscustomer.FieldAgeStatus, esportscustomer.FieldPhone, esportscustomer.FieldConsumptionPreference, esportscustomer.FieldSource, esportscustomer.FieldFollowStatus, esportscustomer.FieldWecomCorpID, esportscustomer.FieldWecomExternalID, esportscustomer.FieldMemberLevelCode, esportscustomer.FieldMemberPendingLevelCode:
+		case esportscustomer.FieldDisplayName, esportscustomer.FieldAgeStatus, esportscustomer.FieldPhone, esportscustomer.FieldBirthday, esportscustomer.FieldConsumptionPreference, esportscustomer.FieldSource, esportscustomer.FieldFollowStatus, esportscustomer.FieldWecomCorpID, esportscustomer.FieldWecomExternalID, esportscustomer.FieldMemberLevelCode, esportscustomer.FieldMemberPendingLevelCode:
 			values[i] = new(sql.NullString)
 		case esportscustomer.FieldLastContactAt, esportscustomer.FieldMemberDowngradeAfter, esportscustomer.FieldMemberLevelChangedAt, esportscustomer.FieldCreatedAt, esportscustomer.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -134,6 +136,12 @@ func (_m *EsportsCustomer) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field phone", values[i])
 			} else if value.Valid {
 				_m.Phone = value.String
+			}
+		case esportscustomer.FieldBirthday:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field birthday", values[i])
+			} else if value.Valid {
+				_m.Birthday = value.String
 			}
 		case esportscustomer.FieldConsumptionPreference:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -283,6 +291,9 @@ func (_m *EsportsCustomer) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("phone=")
 	builder.WriteString(_m.Phone)
+	builder.WriteString(", ")
+	builder.WriteString("birthday=")
+	builder.WriteString(_m.Birthday)
 	builder.WriteString(", ")
 	builder.WriteString("consumption_preference=")
 	builder.WriteString(_m.ConsumptionPreference)
