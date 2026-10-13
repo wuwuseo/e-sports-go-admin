@@ -126,12 +126,16 @@
 
 只有**猫粮（已结算收入）**可提现，客户预付款退款走退款单、不从这里出。提现单 `EsportsWithdrawal` 记录申请金额、手续费、代扣税费、实际到账、方式、收款账号、审核与打款留痕；管理端挂「结算」菜单的「提现审核」页签。
 
-- **申请（§6.3）**：`POST /user/player/withdrawals`（陪玩端自助，须携带 8–128 位幂等键）。校验提现方式（银行卡 / 微信 / 支付宝）、收款账号、提现门槛（`app.esports.withdrawal_min_cents`）与提现频率（`app.esports.withdrawal_min_interval_hours`，与本人最近一次申请的时间间隔）；手续费与代扣税费按 `app.esports.withdrawal_fee_bp` / `app.esports.withdrawal_tax_bp` 试算，**实际到账 = 申请金额 − 手续费 − 税费**且必须为正。四个配置键缺失或非法时回落默认值（不限门槛与频率、费率为 0）。
+- **申请（§6.3）**：`POST /user/player/withdrawals`（陪玩端自助，须携带 8–128 位幂等键）。校验提现方式（银行卡 / 微信 / 支付宝）、收款账号、提现门槛（`app.esports.withdrawal_min_cents`）与提现频率（`app.esports.withdrawal_min_interval_hours`，与本人最近一次申请的时间间隔；`app.esports.withdrawal_daily_limit`，本人当日申请次数上限，均为 `0` 表示不限）；手续费与代扣税费按**单一基点** `app.esports.withdrawal_fee_bp` / `app.esports.withdrawal_tax_bp` 或**阶梯费率** `app.esports.withdrawal_fee_tiers` / `app.esports.withdrawal_tax_tiers` 试算——阶梯为 JSON 数组（如 `[{"min_cents":0,"bp":100},{"min_cents":50000,"bp":50}]`），取「金额 ≥ `min_cents`」的最高档，配置了合法阶梯即以阶梯为准、否则回落单一基点；**实际到账 = 申请金额 − 手续费 − 税费**且必须为正。上述各配置键缺失或非法时回落默认值（不限门槛、频率与每日次数，费率为 0，无阶梯）。人工检查：把 `app.esports.withdrawal_daily_limit` 设为 1，当日第二次申请应被拒（提示今日已达上限），次日可再次申请；把 `app.esports.withdrawal_fee_tiers` 设为 `[{"min_cents":0,"bp":100},{"min_cents":50000,"bp":50}]` 后，申请 100 元应按 1%、申请 1000 元应按 0.5% 计手续费。
 - **申请即扣减猫粮**：同事务写一条 `entry_type=withdraw` 的负数猫粮流水，钱离开猫粮账户由工作室代付——这样后续申请不会再把这笔算进可提现余额，从结构上避免重复申请超额；余额不足返回中文错误。幂等靠提现单 `idem_key` 唯一索引兜底，重复提交返回既有提现单、不重复扣减。
 - **审核与打款（§6.3 / §11.2）**：首版一律财务审核。`POST /admin/withdrawals/:id/review` 通过转 `approved`；驳回须填原因、转 `rejected` 并在同事务写一条 `refund_return` 把申请金额退回猫粮（唯一索引保证只退一次）。`POST /admin/withdrawals/:id/pay` 把 `approved` 转 `paid`，记录外部打款凭证（`payout_ref`）、完税凭证（`tax_ref`）、到账时间与打款人。**打款不再动钱包**——钱在申请时已离开猫粮。
 - **查询**：管理端 `GET /admin/withdrawals`（按陪玩 / 状态）与 `GET /admin/withdrawals/:id`；陪玩端 `GET /user/player/withdrawals`、`GET /user/player/withdrawals/summary`（可提现余额、待审金额、累计已提现）。陪玩工作台 `GET /user/player/dashboard` 增加 `catfood_balance_cents`（已结算可提现）。
 
-未实现的 `ponytail` 项：提现频率只支持「时间间隔」，不限制每日次数；费率只支持单一万分比，阶梯费率与差异化税率未实现；手续费与税费在申请时确定性计算，财务不能在审核时改价；提现到银行卡 / 微信 / 支付宝的**真实打款通道未接入**，凭证为人工登记；提现是否计入财务收款回执与对账报表未接线；「已提现」不单独落收入状态，由提现单与猫粮流水共同表达。
+已实现**每日提现次数上限（§6.3）**：系统配置 `app.esports.withdrawal_daily_limit`（按业务时区 UTC+8 自然日，`0` = 不限），申请时统计本人当日提现申请数（含已驳回），达上限返回参数错误。
+
+已实现**阶梯费率（§11.2）**：手续费与代扣税费均可按金额分档（`app.esports.withdrawal_fee_tiers` / `app.esports.withdrawal_tax_tiers`，JSON 数组取「金额 ≥ `min_cents`」的最高档），未配置合法阶梯时回落单一基点。
+
+未实现的 `ponytail` 项：差异化税率（按陪玩 / 渠道区分费率）未实现；手续费与税费在申请时确定性计算，财务不能在审核时改价；提现到银行卡 / 微信 / 支付宝的**真实打款通道未接入**，凭证为人工登记；提现是否计入财务收款回执与对账报表未接线；「已提现」不单独落收入状态，由提现单与猫粮流水共同表达。
 
 ### 优先派单权与独占优先通知（§5.4 / §5.5 首版）
 

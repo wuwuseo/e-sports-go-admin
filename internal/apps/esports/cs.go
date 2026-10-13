@@ -457,8 +457,14 @@ func countOrders(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
 	return q.Count(ctx)
 }
 
-// cstZone 是生日礼遇匹配所用的业务时区（UTC+8），避免按 UTC 自然日跨天错配。
+// cstZone 是业务时区（UTC+8），用于生日礼遇匹配与提现每日次数等自然日口径，避免按 UTC 跨天错配。
 var cstZone = time.FixedZone("CST", 8*60*60)
+
+// businessDayStart 返回 now 所在业务时区（UTC+8）自然日的起始时刻（转回 UTC），供按自然日统计。
+func businessDayStart(now time.Time) time.Time {
+	local := now.In(cstZone)
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, cstZone).UTC()
+}
 
 // countCustomerBirthdaysDue 统计今日生日的归属客户数，用于客服生日礼遇待办（§10.4）。非超管只统计归属本人客户。
 func countCustomerBirthdaysDue(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) (int, error) {

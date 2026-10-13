@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -20,25 +21,91 @@ import (
 const (
 	withdrawalMinCentsKey    = "app.esports.withdrawal_min_cents"
 	withdrawalMinIntervalKey = "app.esports.withdrawal_min_interval_hours"
+	withdrawalDailyLimitKey  = "app.esports.withdrawal_daily_limit"
 	withdrawalFeeBpKey       = "app.esports.withdrawal_fee_bp"
 	withdrawalTaxBpKey       = "app.esports.withdrawal_tax_bp"
+	// 阶梯费率（§11.2）：JSON 数组按金额分档覆盖单一基点，如
+	// [{"min_cents":0,"bp":100},{"min_cents":50000,"bp":50}]，取「min_cents ≤ 金额」的最高档。
+	withdrawalFeeTiersKey = "app.esports.withdrawal_fee_tiers"
+	withdrawalTaxTiersKey = "app.esports.withdrawal_tax_tiers"
 	// 提现明细来源类型，驳回退回用独立来源类型以便区分。
 	withdrawalSourceType       = "withdrawal"
 	withdrawalRejectSourceType = "withdrawal_reject"
 )
 
+// withdrawalTier 是阶梯费率的一档：金额 ≥ MinCents 时适用 Bp 基点（万分比）。
+type withdrawalTier struct {
+	MinCents int64 `json:"min_cents"`
+	Bp       int   `json:"bp"`
+}
+
 // withdrawalPolicy 提现策略快照。
 type withdrawalPolicy struct {
 	MinCents         int64
 	MinIntervalHours int
-	FeeBp            int
-	TaxBp            int
+	// DailyLimit 每日提现次数上限（按业务时区 UTC+8 的自然日），0 = 不限。
+	DailyLimit int
+	FeeBp      int
+	TaxBp      int
+	// 阶梯费率：非空时按金额命中档位覆盖单一基点，FeeBp / TaxBp 作为无阶梯时的回落值。
+	FeeTiers []withdrawalTier
+	TaxTiers []withdrawalTier
 }
 
-// withdrawalPolicyOf 读取提现策略配置。四个键一次查出，缺失或非法回落默认值。
+// feeBpFor 返回该金额适用的手续费基点：配置了阶梯则取命中档，否则回落单一费率。
+func (p withdrawalPolicy) feeBpFor(amountCents int64) int {
+	if bp, ok := tierBpFor(p.FeeTiers, amountCents); ok {
+		return bp
+	}
+	return p.FeeBp
+}
+
+// taxBpFor 返回该金额适用的代扣税费基点，口径同 feeBpFor。
+func (p withdrawalPolicy) taxBpFor(amountCents int64) int {
+	if bp, ok := tierBpFor(p.TaxTiers, amountCents); ok {
+		return bp
+	}
+	return p.TaxBp
+}
+
+// tierBpFor 在阶梯中取「MinCents ≤ 金额」的最高档基点；无命中返回 ok=false（由调用方回落单一费率）。
+func tierBpFor(tiers []withdrawalTier, amountCents int64) (int, bool) {
+	idx := -1
+	for i, tier := range tiers {
+		if amountCents >= tier.MinCents && (idx < 0 || tier.MinCents > tiers[idx].MinCents) {
+			idx = i
+		}
+	}
+	if idx < 0 {
+		return 0, false
+	}
+	return tiers[idx].Bp, true
+}
+
+// parseWithdrawalTiers 解析阶梯费率配置：JSON 数组，逐档校验基点 0~10000、金额非负；
+// 任一项非法或为空即视为未配置（返回 nil，回落单一费率）。
+func parseWithdrawalTiers(raw string) []withdrawalTier {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var tiers []withdrawalTier
+	if err := json.Unmarshal([]byte(raw), &tiers); err != nil || len(tiers) == 0 {
+		return nil
+	}
+	for _, tier := range tiers {
+		if tier.MinCents < 0 || tier.Bp < 0 || tier.Bp > 10000 {
+			return nil
+		}
+	}
+	return tiers
+}
+
+// withdrawalPolicyOf 读取提现策略配置。各键一次查出，缺失或非法回落默认值。
 func withdrawalPolicyOf(ctx context.Context, db *ent.Client) withdrawalPolicy {
 	items, err := db.SystemConfig.Query().Where(systemconfig.KeyIn(
-		withdrawalMinCentsKey, withdrawalMinIntervalKey, withdrawalFeeBpKey, withdrawalTaxBpKey,
+		withdrawalMinCentsKey, withdrawalMinIntervalKey, withdrawalDailyLimitKey,
+		withdrawalFeeBpKey, withdrawalTaxBpKey, withdrawalFeeTiersKey, withdrawalTaxTiersKey,
 	)).Select(systemconfig.FieldKey, systemconfig.FieldValue).All(ctx)
 	if err != nil {
 		return withdrawalPolicy{}
@@ -61,8 +128,11 @@ func withdrawalPolicyOf(ctx context.Context, db *ent.Client) withdrawalPolicy {
 	return withdrawalPolicy{
 		MinCents:         int64(parse(withdrawalMinCentsKey, 0, 100_000_000, 0)),
 		MinIntervalHours: parse(withdrawalMinIntervalKey, 0, 24*30, 0),
+		DailyLimit:       parse(withdrawalDailyLimitKey, 0, 100, 0),
 		FeeBp:            parse(withdrawalFeeBpKey, 0, 10000, 0),
 		TaxBp:            parse(withdrawalTaxBpKey, 0, 10000, 0),
+		FeeTiers:         parseWithdrawalTiers(values[withdrawalFeeTiersKey]),
+		TaxTiers:         parseWithdrawalTiers(values[withdrawalTaxTiersKey]),
 	}
 }
 
@@ -117,8 +187,22 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 			}
 		}
 	}
-	fee := in.AmountCents * int64(policy.FeeBp) / 10000
-	tax := in.AmountCents * int64(policy.TaxBp) / 10000
+	// 每日提现次数上限（§6.3）：按业务时区（UTC+8）自然日统计当日申请数（含已驳回）。
+	if policy.DailyLimit > 0 {
+		count, err := db.EsportsWithdrawal.Query().Where(
+			esportswithdrawal.PlayerIDEQ(playerID),
+			esportswithdrawal.CreatedAtGTE(businessDayStart(now)),
+		).Count(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if count >= policy.DailyLimit {
+			return nil, fmt.Errorf("%w：今日提现申请已达上限 %d 次", errInvalidInput, policy.DailyLimit)
+		}
+	}
+	// 阶梯费率（§11.2）：命中档位按档位基点，否则回落单一费率。
+	fee := in.AmountCents * int64(policy.feeBpFor(in.AmountCents)) / 10000
+	tax := in.AmountCents * int64(policy.taxBpFor(in.AmountCents)) / 10000
 	net := in.AmountCents - fee - tax
 	if net <= 0 {
 		return nil, fmt.Errorf("%w：扣除手续费与税费后实际到账须为正", errInvalidInput)
