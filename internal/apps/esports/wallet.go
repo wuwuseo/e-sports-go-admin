@@ -270,7 +270,8 @@ func walletEntry(ctx context.Context, db *ent.Client, operatorID int, accountTyp
 	if current.PrincipalCents+in.PrincipalCents < 0 || current.BonusCents+in.BonusCents < 0 {
 		return nil, errInsufficientBalance
 	}
-	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+	txNo := uuid.NewString()
+	if _, err = tx.EsportsWalletTx.Create().SetTxNo(txNo).
 		SetAccountType(esportswallettx.AccountType(normalized)).SetOwnerID(ownerID).
 		SetEntryType(entryType).SetPrincipalDeltaCents(in.PrincipalCents).
 		SetBonusDeltaCents(in.BonusCents).SetSourceType("manual_" + entryType.String()).
@@ -279,6 +280,19 @@ func walletEntry(ctx context.Context, db *ent.Client, operatorID int, accountTyp
 			return nil, errConflict
 		}
 		return nil, err
+	}
+	// 批次账本（§4.5）：充值的正向部分写入批次，供消费时按批次逐笔扣减（§4.3）。
+	if batchCents := in.PrincipalCents + in.BonusCents; batchCents > 0 {
+		if _, err = tx.EsportsLedgerEntry.Create().
+			SetAccountType(normalized).SetAccountID(strconv.Itoa(ownerID)).
+			SetSourceType("wallet_tx").SetSourceID(txNo).
+			SetEntryRole("recharge_batch").SetDeltaCents(batchCents).
+			SetFundBatch(key).Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -397,6 +411,11 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 		SetAccountID(strconv.Itoa(customer.ID)).SetSourceType("wallet_tx").
 		SetSourceID(strconv.Itoa(walletTx.ID)).SetEntryRole("applied_order_prepayment").
 		SetDeltaCents(payable).Save(ctx); err != nil {
+		return nil, err
+	}
+	// 批次级逐笔扣减（§4.3 / §4.5）：记录本次余额消费动用了哪些充值批次。
+	if err = allocateLedgerConsumption(ctx, tx, walletCustomerBalance, strconv.Itoa(customer.ID),
+		"order", order.OrderNo, payable); err != nil {
 		return nil, err
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).

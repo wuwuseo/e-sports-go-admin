@@ -171,6 +171,20 @@ func memberDiscountBps(ctx context.Context, db *ent.Client, levelCode string) (i
 	return rule.DiscountBps, nil
 }
 
+// memberPrepayBonusCents 按会员等级的储值卡赠送比例（§10.4）算开卡赠送额（分）；
+// 未定级、等级停用或比例为 0 时返回 0。整数向下取整，按 (q*bps + r*bps/10000) 分解避免溢出。
+func memberPrepayBonusCents(ctx context.Context, db *ent.Client, levelCode string, principalCents int64) (int64, error) {
+	rule, err := memberRuleByCode(ctx, db, levelCode)
+	if err != nil || rule == nil {
+		return 0, err
+	}
+	if rule.Status != esportsmemberlevelrule.StatusEnabled || rule.PrepayBonusBps <= 0 || principalCents <= 0 {
+		return 0, nil
+	}
+	bps := int64(rule.PrepayBonusBps)
+	return principalCents/memberDiscountBpsFull*bps + principalCents%memberDiscountBpsFull*bps/memberDiscountBpsFull, nil
+}
+
 // memberDiscountCents 按折扣基点算折扣额（分）。折后应付 = 规则价 * bps / 10000，向下取整。
 // 用 (q*bps + r*bps/10000) 分解求商，避免 subtotal*bps 整数溢出。
 // 纯函数，便于测试。

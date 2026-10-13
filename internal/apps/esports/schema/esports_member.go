@@ -24,7 +24,7 @@ func (EsportsMemberLevelRule) Fields() []ent.Field {
 		field.Int("discount_bps").Default(10000).StructTag(`json:"discount_bps"`),
 		// 会员订单在客服派单池置顶（§10.4）。
 		field.Bool("priority_dispatch").Default(false).StructTag(`json:"priority_dispatch"`),
-		// 储值卡开卡赠送比例基点（§10.4）；储值卡开卡流程尚未实现，此处仅预留配置位。
+		// 储值卡开卡赠送比例基点（§10.4）：开卡（未选套餐且未手填赠送）时按本金 × bps / 10000 赠送。
 		field.Int("prepay_bonus_bps").Default(0).StructTag(`json:"prepay_bonus_bps"`),
 		field.Int("sort_order").Default(0).StructTag(`json:"sort_order"`),
 		field.Enum("status").Values("enabled", "disabled").Default("enabled").StructTag(`json:"status"`),

@@ -35,6 +35,34 @@ func (EsportsLedgerEntry) Indexes() []ent.Index {
 	}
 }
 
+// EsportsLedgerAllocation 记录一笔消费（consume_source_*）动用了哪些正向批次（batch_source_*）
+// 各多少金额，用于批次级逐笔扣减追溯（§4.3 / §11.3）。仅增不改。
+type EsportsLedgerAllocation struct{ ent.Schema }
+
+func (EsportsLedgerAllocation) Hooks() []ent.Hook { return appendOnlyHooks() }
+
+func (EsportsLedgerAllocation) Fields() []ent.Field {
+	return []ent.Field{
+		field.String("account_type").NotEmpty().MaxLen(48).StructTag(`json:"account_type"`),
+		field.String("account_id").NotEmpty().MaxLen(80).StructTag(`json:"account_id"`),
+		// 本次消费的流水来源（对应一条负向 ledger entry）。
+		field.String("consume_source_type").NotEmpty().MaxLen(48).StructTag(`json:"consume_source_type"`),
+		field.String("consume_source_id").NotEmpty().MaxLen(80).StructTag(`json:"consume_source_id"`),
+		// 被扣减的批次（对应一条正向 ledger entry）。
+		field.String("batch_source_type").NotEmpty().MaxLen(48).StructTag(`json:"batch_source_type"`),
+		field.String("batch_source_id").NotEmpty().MaxLen(80).StructTag(`json:"batch_source_id"`),
+		field.Int64("amount_cents").Positive().StructTag(`json:"amount_cents"`),
+		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
+	}
+}
+
+func (EsportsLedgerAllocation) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("account_type", "account_id", "batch_source_type", "batch_source_id"),
+		index.Fields("consume_source_type", "consume_source_id", "batch_source_type", "batch_source_id").Unique(),
+	}
+}
+
 type EsportsIdempotency struct{ ent.Schema }
 
 func (EsportsIdempotency) Hooks() []ent.Hook { return appendOnlyHooks() }

@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ const (
 // customerProfileInput 客户档案可编辑字段（§8.3）。跟进状态可选传，空表示不改。
 type customerProfileInput struct {
 	Phone                 string   `json:"phone"`
+	Birthday              string   `json:"birthday"`
 	ConsumptionPreference string   `json:"consumption_preference"`
 	Tags                  []string `json:"tags"`
 	FollowStatus          string   `json:"follow_status"`
@@ -92,8 +94,10 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 		return nil, err
 	}
 	in.Phone = strings.TrimSpace(in.Phone)
+	in.Birthday = strings.TrimSpace(in.Birthday)
 	in.ConsumptionPreference = strings.TrimSpace(in.ConsumptionPreference)
-	if len(in.Phone) > 32 || len([]rune(in.ConsumptionPreference)) > 255 {
+	if len(in.Phone) > 32 || len([]rune(in.ConsumptionPreference)) > 255 ||
+		(in.Birthday != "" && !validBirthday(in.Birthday)) {
 		return nil, errInvalidInput
 	}
 	// 标签去空、去重、限长限数，避免同一标签重复堆积。
@@ -114,7 +118,8 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 		return nil, errInvalidInput
 	}
 	update := db.EsportsCustomer.UpdateOneID(customerID).
-		SetPhone(in.Phone).SetConsumptionPreference(in.ConsumptionPreference).SetTags(tags).AddVersion(1)
+		SetPhone(in.Phone).SetBirthday(in.Birthday).
+		SetConsumptionPreference(in.ConsumptionPreference).SetTags(tags).AddVersion(1)
 	if in.FollowStatus != "" {
 		if !validFollowStatus(in.FollowStatus) {
 			return nil, errInvalidInput
@@ -125,6 +130,22 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 		return nil, err
 	}
 	return db.EsportsCustomer.Get(ctx, customerID)
+}
+
+// validBirthday 校验生日格式为 MM-DD（月 01-12、日 01-31）；空串由调用方先排除。
+func validBirthday(value string) bool {
+	if len(value) != 5 || value[2] != '-' {
+		return false
+	}
+	month, err := strconv.Atoi(value[:2])
+	if err != nil || month < 1 || month > 12 {
+		return false
+	}
+	day, err := strconv.Atoi(value[3:])
+	if err != nil || day < 1 || day > 31 {
+		return false
+	}
+	return true
 }
 
 // customerProfileOverview 汇总客户档案（§8.2）：基本信息、消费 / 充值 / 送礼 / 余额 / 成长值。
@@ -436,8 +457,20 @@ func countOrders(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
 	return q.Count(ctx)
 }
 
-// csWorkbenchTodos 组装客服待办提醒（§8.2）：订单超时、待结单、售后待处理、跟进到期。
-// ponytail: 储值卡到期提醒依赖尚未实现的储值卡开卡流程，暂不产出该项。
+// cstZone 是生日礼遇匹配所用的业务时区（UTC+8），避免按 UTC 自然日跨天错配。
+var cstZone = time.FixedZone("CST", 8*60*60)
+
+// countCustomerBirthdaysDue 统计今日生日的归属客户数，用于客服生日礼遇待办（§10.4）。非超管只统计归属本人客户。
+func countCustomerBirthdaysDue(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) (int, error) {
+	today := now.In(cstZone).Format("01-02")
+	q := db.EsportsCustomer.Query().Where(esportscustomer.BirthdayEQ(today))
+	if !isSuper {
+		q.Where(esportscustomer.OwnerAdminIDEQ(adminID))
+	}
+	return q.Count(ctx)
+}
+
+// csWorkbenchTodos 组装客服待办提醒（§8.2）：订单超时、待结单、售后待处理、跟进到期、储值卡到期、生日礼遇（§10.4）。
 func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) ([]csTodoItem, error) {
 	overdue := db.EsportsOrder.Query().Where(
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
@@ -476,11 +509,17 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
+	// 生日礼遇提醒（§10.4）：今日生日的归属客户，提醒客服跟进。
+	birthdayCount, err := countCustomerBirthdaysDue(ctx, db, adminID, isSuper, now)
+	if err != nil {
+		return nil, err
+	}
 	return []csTodoItem{
 		{Key: "overdue_payment", Label: "待付款已超时订单", Count: overdueCount},
 		{Key: "pending_close", Label: "待结单", Count: closeCount},
 		{Key: "pending_aftersale", Label: "售后待处理", Count: aftersaleCount},
 		{Key: "due_follow_up", Label: "跟进已到期", Count: followCount},
 		{Key: "stored_value_due", Label: "储值卡临近到期", Count: storedValueDueCount},
+		{Key: "customer_birthday", Label: "今日生日客户", Count: birthdayCount},
 	}, nil
 }

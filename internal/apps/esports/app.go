@@ -159,6 +159,8 @@ func init() {
 			{Method: "GET", Path: "/admin/wallets/:id/transactions", Auth: cmfapp.AuthAdmin, Handler: adminWalletTransactions},
 			{Method: "POST", Path: "/admin/wallets/:id/recharge", Auth: cmfapp.AuthAdmin, Handler: walletMutationHandler(false)},
 			{Method: "POST", Path: "/admin/wallets/:id/adjust", Auth: cmfapp.AuthAdmin, Handler: walletMutationHandler(true)},
+			// 批次分摊明细（§4.3 / §11.3）：查「每笔消费动用了哪些批次」。
+			{Method: "GET", Path: "/admin/ledger-allocations", Auth: cmfapp.AuthAdmin, Handler: adminLedgerAllocations},
 			// 充值活动：活动配置与按活动自动匹配赠送的充值。
 			{Method: "GET", Path: "/admin/campaigns", Auth: cmfapp.AuthAdmin, Handler: adminCampaigns},
 			{Method: "POST", Path: "/admin/campaigns", Auth: cmfapp.AuthAdmin, Handler: createCampaignHandler},
@@ -381,6 +383,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看钱包流水", Code: "esports:wallets:transactions", Path: "/api/v1/esports/admin/wallets/{id}/transactions", Method: "GET", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "钱包充值", Code: "esports:wallets:recharge", Path: "/api/v1/esports/admin/wallets/{id}/recharge", Method: "POST", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "钱包调整", Code: "esports:wallets:adjust", Path: "/api/v1/esports/admin/wallets/{id}/adjust", Method: "POST", Parent: "esports:wallet:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看批次分摊明细", Code: "esports:wallets:ledger_allocations", Path: "/api/v1/esports/admin/ledger-allocations", Method: "GET", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermButton, Name: "钱包操作按钮", Code: "esports:wallets:manage", Parent: "esports:wallet:menu"},
 
 			// 报单模块。

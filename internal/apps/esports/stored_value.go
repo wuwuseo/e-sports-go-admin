@@ -169,7 +169,8 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		return nil, err
 	}
 	defer tx.Rollback()
-	if _, err = tx.EsportsCustomer.Get(ctx, in.CustomerID); err != nil {
+	customer, err := tx.EsportsCustomer.Get(ctx, in.CustomerID)
+	if err != nil {
 		return nil, err
 	}
 	// 选套餐（§4.4）：本金 / 赠送由套餐决定，覆盖入参给定值；记录套餐 ID 供追溯。
@@ -185,6 +186,13 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		in.PrincipalCents = pkg.PrincipalCents
 		in.BonusCents = pkg.BonusCents
 		packageID = &pkg.ID
+	} else if in.BonusCents == 0 && in.PaymentChannel != "customer_balance" {
+		// 未选套餐且未手填赠送：按客户会员等级的赠送比例开卡（§10.4），等级越高赠送越多；余额购卡不赠送。
+		bonus, bonusErr := memberPrepayBonusCents(ctx, tx.Client(), customer.MemberLevelCode, in.PrincipalCents)
+		if bonusErr != nil {
+			return nil, bonusErr
+		}
+		in.BonusCents = bonus
 	}
 	validUntil, scope, err := validateStoredValueOpen(in, now)
 	if err != nil {
@@ -420,6 +428,11 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
 		}
+		return nil, err
+	}
+	// 批次级逐笔扣减（§4.3 / §11.3）：记录本次卡消费动用了哪些开卡批次。
+	if err = allocateLedgerConsumption(ctx, tx, storedValuePrepayAccount, strconv.Itoa(card.ID),
+		"order", order.OrderNo, payable); err != nil {
 		return nil, err
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).

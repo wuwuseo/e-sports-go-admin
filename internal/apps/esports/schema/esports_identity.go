@@ -20,6 +20,8 @@ func (EsportsCustomer) Fields() []ent.Field {
 		field.Bool("self_order_enabled").Default(false).StructTag(`json:"self_order_enabled"`),
 		// 客服端客户档案（§8.3）：手机号、消费偏好、客户标签、建档来源、跟进状态与最近联系时间。
 		field.String("phone").MaxLen(32).Default("").StructTag(`json:"phone"`),
+		// 生日（月-日，如 03-15），用于生日礼遇待办（§10.4）；空表示未填。
+		field.String("birthday").MaxLen(5).Default("").StructTag(`json:"birthday"`),
 		field.String("consumption_preference").MaxLen(255).Default("").StructTag(`json:"consumption_preference"`),
 		field.JSON("tags", []string{}).Optional().StructTag(`json:"tags"`),
 		field.Enum("source").Values("manual", "wecom", "self", "import").Default("manual").StructTag(`json:"source"`),
