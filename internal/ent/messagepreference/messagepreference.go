@@ -35,6 +35,12 @@ const (
 	FieldDoNotDisturbStart = "do_not_disturb_start"
 	// FieldDoNotDisturbEnd holds the string denoting the do_not_disturb_end field in the database.
 	FieldDoNotDisturbEnd = "do_not_disturb_end"
+	// FieldChannelSms holds the string denoting the channel_sms field in the database.
+	FieldChannelSms = "channel_sms"
+	// FieldChannelMail holds the string denoting the channel_mail field in the database.
+	FieldChannelMail = "channel_mail"
+	// FieldChannelPush holds the string denoting the channel_push field in the database.
+	FieldChannelPush = "channel_push"
 )
 
 // Table holds the table name of the messagepreference in the database.
@@ -55,6 +61,9 @@ var Columns = []string{
 	FieldSubscribeTask,
 	FieldDoNotDisturbStart,
 	FieldDoNotDisturbEnd,
+	FieldChannelSms,
+	FieldChannelMail,
+	FieldChannelPush,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -94,6 +103,12 @@ var (
 	DefaultDoNotDisturbEnd string
 	// DoNotDisturbEndValidator is a validator for the "do_not_disturb_end" field. It is called by the builders before save.
 	DoNotDisturbEndValidator func(string) error
+	// DefaultChannelSms holds the default value on creation for the "channel_sms" field.
+	DefaultChannelSms bool
+	// DefaultChannelMail holds the default value on creation for the "channel_mail" field.
+	DefaultChannelMail bool
+	// DefaultChannelPush holds the default value on creation for the "channel_push" field.
+	DefaultChannelPush bool
 )
 
 // OrderOption defines the ordering options for the MessagePreference queries.
@@ -152,4 +167,19 @@ func ByDoNotDisturbStart(opts ...sql.OrderTermOption) OrderOption {
 // ByDoNotDisturbEnd orders the results by the do_not_disturb_end field.
 func ByDoNotDisturbEnd(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDoNotDisturbEnd, opts...).ToFunc()
+}
+
+// ByChannelSms orders the results by the channel_sms field.
+func ByChannelSms(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannelSms, opts...).ToFunc()
+}
+
+// ByChannelMail orders the results by the channel_mail field.
+func ByChannelMail(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannelMail, opts...).ToFunc()
+}
+
+// ByChannelPush orders the results by the channel_push field.
+func ByChannelPush(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannelPush, opts...).ToFunc()
 }

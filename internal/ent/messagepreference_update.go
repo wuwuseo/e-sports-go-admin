@@ -158,6 +158,48 @@ func (_u *MessagePreferenceUpdate) ClearDoNotDisturbEnd() *MessagePreferenceUpda
 	return _u
 }
 
+// SetChannelSms sets the "channel_sms" field.
+func (_u *MessagePreferenceUpdate) SetChannelSms(v bool) *MessagePreferenceUpdate {
+	_u.mutation.SetChannelSms(v)
+	return _u
+}
+
+// SetNillableChannelSms sets the "channel_sms" field if the given value is not nil.
+func (_u *MessagePreferenceUpdate) SetNillableChannelSms(v *bool) *MessagePreferenceUpdate {
+	if v != nil {
+		_u.SetChannelSms(*v)
+	}
+	return _u
+}
+
+// SetChannelMail sets the "channel_mail" field.
+func (_u *MessagePreferenceUpdate) SetChannelMail(v bool) *MessagePreferenceUpdate {
+	_u.mutation.SetChannelMail(v)
+	return _u
+}
+
+// SetNillableChannelMail sets the "channel_mail" field if the given value is not nil.
+func (_u *MessagePreferenceUpdate) SetNillableChannelMail(v *bool) *MessagePreferenceUpdate {
+	if v != nil {
+		_u.SetChannelMail(*v)
+	}
+	return _u
+}
+
+// SetChannelPush sets the "channel_push" field.
+func (_u *MessagePreferenceUpdate) SetChannelPush(v bool) *MessagePreferenceUpdate {
+	_u.mutation.SetChannelPush(v)
+	return _u
+}
+
+// SetNillableChannelPush sets the "channel_push" field if the given value is not nil.
+func (_u *MessagePreferenceUpdate) SetNillableChannelPush(v *bool) *MessagePreferenceUpdate {
+	if v != nil {
+		_u.SetChannelPush(*v)
+	}
+	return _u
+}
+
 // Mutation returns the MessagePreferenceMutation object of the builder.
 func (_u *MessagePreferenceUpdate) Mutation() *MessagePreferenceMutation {
 	return _u.mutation
@@ -263,6 +305,15 @@ func (_u *MessagePreferenceUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if _u.mutation.DoNotDisturbEndCleared() {
 		_spec.ClearField(messagepreference.FieldDoNotDisturbEnd, field.TypeString)
+	}
+	if value, ok := _u.mutation.ChannelSms(); ok {
+		_spec.SetField(messagepreference.FieldChannelSms, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChannelMail(); ok {
+		_spec.SetField(messagepreference.FieldChannelMail, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChannelPush(); ok {
+		_spec.SetField(messagepreference.FieldChannelPush, field.TypeBool, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -414,6 +465,48 @@ func (_u *MessagePreferenceUpdateOne) ClearDoNotDisturbEnd() *MessagePreferenceU
 	return _u
 }
 
+// SetChannelSms sets the "channel_sms" field.
+func (_u *MessagePreferenceUpdateOne) SetChannelSms(v bool) *MessagePreferenceUpdateOne {
+	_u.mutation.SetChannelSms(v)
+	return _u
+}
+
+// SetNillableChannelSms sets the "channel_sms" field if the given value is not nil.
+func (_u *MessagePreferenceUpdateOne) SetNillableChannelSms(v *bool) *MessagePreferenceUpdateOne {
+	if v != nil {
+		_u.SetChannelSms(*v)
+	}
+	return _u
+}
+
+// SetChannelMail sets the "channel_mail" field.
+func (_u *MessagePreferenceUpdateOne) SetChannelMail(v bool) *MessagePreferenceUpdateOne {
+	_u.mutation.SetChannelMail(v)
+	return _u
+}
+
+// SetNillableChannelMail sets the "channel_mail" field if the given value is not nil.
+func (_u *MessagePreferenceUpdateOne) SetNillableChannelMail(v *bool) *MessagePreferenceUpdateOne {
+	if v != nil {
+		_u.SetChannelMail(*v)
+	}
+	return _u
+}
+
+// SetChannelPush sets the "channel_push" field.
+func (_u *MessagePreferenceUpdateOne) SetChannelPush(v bool) *MessagePreferenceUpdateOne {
+	_u.mutation.SetChannelPush(v)
+	return _u
+}
+
+// SetNillableChannelPush sets the "channel_push" field if the given value is not nil.
+func (_u *MessagePreferenceUpdateOne) SetNillableChannelPush(v *bool) *MessagePreferenceUpdateOne {
+	if v != nil {
+		_u.SetChannelPush(*v)
+	}
+	return _u
+}
+
 // Mutation returns the MessagePreferenceMutation object of the builder.
 func (_u *MessagePreferenceUpdateOne) Mutation() *MessagePreferenceMutation {
 	return _u.mutation
@@ -549,6 +642,15 @@ func (_u *MessagePreferenceUpdateOne) sqlSave(ctx context.Context) (_node *Messa
 	}
 	if _u.mutation.DoNotDisturbEndCleared() {
 		_spec.ClearField(messagepreference.FieldDoNotDisturbEnd, field.TypeString)
+	}
+	if value, ok := _u.mutation.ChannelSms(); ok {
+		_spec.SetField(messagepreference.FieldChannelSms, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChannelMail(); ok {
+		_spec.SetField(messagepreference.FieldChannelMail, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ChannelPush(); ok {
+		_spec.SetField(messagepreference.FieldChannelPush, field.TypeBool, value)
 	}
 	_node = &MessagePreference{config: _u.config}
 	_spec.Assign = _node.assignValues

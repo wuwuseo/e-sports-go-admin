@@ -18,7 +18,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func setupMessageTest(t *testing.T) (*ent.Client, *MessageService, func()) {
+// setupMessageTest 构造带独立 Hub 的消息服务（模拟生产：每个 app 实例一个 Hub）
+func setupMessageTest(t *testing.T) (*ent.Client, *MessageService, *sse.Hub, func()) {
 	client := enttest.Open(t, "sqlite3", "file:msg?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)),
 	)
@@ -33,11 +34,11 @@ func setupMessageTest(t *testing.T) (*ent.Client, *MessageService, func()) {
 		client.Close()
 		global.ORM = prevORM
 	}
-	return client, svc, cleanup
+	return client, svc, hub, cleanup
 }
 
 func TestMessageService_PublishToUser_PersistAndPush(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, hub, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -48,8 +49,8 @@ func TestMessageService_PublishToUser_PersistAndPush(t *testing.T) {
 		Send:    make(chan sse.Event, 16),
 		Done:    make(chan struct{}),
 	}
-	svc.Hub.Register(c)
-	defer svc.Hub.Unregister(c)
+	hub.Register(c)
+	defer hub.Unregister(c)
 
 	resp, err := svc.PublishToUser(ctx, "u1", PublishMessage{
 		Type:    MessageTypeBusiness,
@@ -99,7 +100,7 @@ func TestMessageService_PublishToUser_HubNil(t *testing.T) {
 }
 
 func TestMessageService_List_Pagination(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -127,7 +128,7 @@ func TestMessageService_List_Pagination(t *testing.T) {
 }
 
 func TestMessageService_MarkRead_OnlyOwn(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -145,7 +146,7 @@ func TestMessageService_MarkRead_OnlyOwn(t *testing.T) {
 }
 
 func TestMessageService_MarkAllRead(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -167,7 +168,7 @@ func TestMessageService_MarkAllRead(t *testing.T) {
 }
 
 func TestMessageService_UnreadCount(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -192,7 +193,7 @@ func TestMessageService_UnreadCount(t *testing.T) {
 }
 
 func TestMessageService_Delete_Forbidden(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -210,7 +211,7 @@ func TestMessageService_Delete_Forbidden(t *testing.T) {
 }
 
 func TestMessageService_Delete_DoesNotDeleteWhenOwnerChangesBeforeDelete(t *testing.T) {
-	client, svc, cleanup := setupMessageTest(t)
+	client, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -241,16 +242,16 @@ func TestMessageService_Delete_DoesNotDeleteWhenOwnerChangesBeforeDelete(t *test
 }
 
 func TestMessageService_Broadcast(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, hub, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
 	c1 := &sse.Client{UserUID: "u1", ConnID: "c1", Send: make(chan sse.Event, 16), Done: make(chan struct{})}
 	c2 := &sse.Client{UserUID: "u2", ConnID: "c2", Send: make(chan sse.Event, 16), Done: make(chan struct{})}
-	svc.Hub.Register(c1)
-	svc.Hub.Register(c2)
-	defer svc.Hub.Unregister(c1)
-	defer svc.Hub.Unregister(c2)
+	hub.Register(c1)
+	hub.Register(c2)
+	defer hub.Unregister(c1)
+	defer hub.Unregister(c2)
 
 	_, err := svc.Broadcast(ctx, PublishMessage{Type: MessageTypeSystem, Title: "g", Content: "g"})
 	if err != nil {
@@ -266,7 +267,7 @@ func TestMessageService_Broadcast(t *testing.T) {
 }
 
 func TestMessageService_ListSinceID(t *testing.T) {
-	_, svc, cleanup := setupMessageTest(t)
+	_, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -285,7 +286,7 @@ func TestMessageService_ListSinceID(t *testing.T) {
 
 // TestMessageService_CreateSanitizesContentHTML_XSS 验证 Create 路径对 ContentHTML 的 XSS 向量在落库前被净化
 func TestMessageService_CreateSanitizesContentHTML_XSS(t *testing.T) {
-	client, svc, cleanup := setupMessageTest(t)
+	client, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -322,7 +323,7 @@ func TestMessageService_CreateSanitizesContentHTML_XSS(t *testing.T) {
 
 // TestMessageService_CreateSanitizesContentHTML_PreservesSafeTags 验证 Create 路径保留安全标签
 func TestMessageService_CreateSanitizesContentHTML_PreservesSafeTags(t *testing.T) {
-	client, svc, cleanup := setupMessageTest(t)
+	client, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 
@@ -354,7 +355,7 @@ func TestMessageService_CreateSanitizesContentHTML_PreservesSafeTags(t *testing.
 
 // TestMessageService_BroadcastToUsersSanitizesContentHTML 验证 BroadcastToUsers 路径对 ContentHTML 的 XSS 向量在落库前被净化
 func TestMessageService_BroadcastToUsersSanitizesContentHTML(t *testing.T) {
-	client, svc, cleanup := setupMessageTest(t)
+	client, svc, _, cleanup := setupMessageTest(t)
 	t.Cleanup(cleanup)
 	ctx := t.Context()
 

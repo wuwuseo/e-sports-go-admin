@@ -29,6 +29,10 @@ type MessagePreferenceResponse struct {
 	SubscribeTask     bool   `json:"subscribe_task"`
 	DoNotDisturbStart string `json:"do_not_disturb_start"`
 	DoNotDisturbEnd   string `json:"do_not_disturb_end"`
+	// 外部触达渠道开关（站内信由 desktop_notify 控制）
+	ChannelSMS  bool `json:"channel_sms"`
+	ChannelMail bool `json:"channel_mail"`
+	ChannelPush bool `json:"channel_push"`
 }
 
 // UpdateMessagePreferenceRequest 偏好更新请求（部分更新，全部字段可选）
@@ -40,6 +44,9 @@ type UpdateMessagePreferenceRequest struct {
 	SubscribeTask     *bool   `json:"subscribe_task,omitempty"`
 	DoNotDisturbStart *string `json:"do_not_disturb_start,omitempty"`
 	DoNotDisturbEnd   *string `json:"do_not_disturb_end,omitempty"`
+	ChannelSMS        *bool   `json:"channel_sms,omitempty"`
+	ChannelMail       *bool   `json:"channel_mail,omitempty"`
+	ChannelPush       *bool   `json:"channel_push,omitempty"`
 }
 
 // MessagePreferenceServiceInterface 偏好服务接口
@@ -70,6 +77,9 @@ func defaultPreference() *MessagePreferenceResponse {
 		SubscribeTask:     true,
 		DoNotDisturbStart: "",
 		DoNotDisturbEnd:   "",
+		ChannelSMS:        false,
+		ChannelMail:       false,
+		ChannelPush:       false,
 	}
 }
 
@@ -131,6 +141,9 @@ func (s *MessagePreferenceService) Update(ctx context.Context, uid string, req *
 			SetSubscribeTask(def.SubscribeTask).
 			SetDoNotDisturbStart(def.DoNotDisturbStart).
 			SetDoNotDisturbEnd(def.DoNotDisturbEnd).
+			SetChannelSms(def.ChannelSMS).
+			SetChannelMail(def.ChannelMail).
+			SetChannelPush(def.ChannelPush).
 			Save(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("创建消息偏好失败: %w", err)
@@ -160,6 +173,15 @@ func (s *MessagePreferenceService) Update(ctx context.Context, uid string, req *
 	}
 	if req.DoNotDisturbEnd != nil {
 		updater.SetDoNotDisturbEnd(strings.TrimSpace(*req.DoNotDisturbEnd))
+	}
+	if req.ChannelSMS != nil {
+		updater.SetChannelSms(*req.ChannelSMS)
+	}
+	if req.ChannelMail != nil {
+		updater.SetChannelMail(*req.ChannelMail)
+	}
+	if req.ChannelPush != nil {
+		updater.SetChannelPush(*req.ChannelPush)
 	}
 	updated, err := updater.Save(ctx)
 	if err != nil {
@@ -194,6 +216,15 @@ func applyUpdateToDefaults(def *MessagePreferenceResponse, req *UpdateMessagePre
 	if req.DoNotDisturbEnd != nil {
 		def.DoNotDisturbEnd = strings.TrimSpace(*req.DoNotDisturbEnd)
 	}
+	if req.ChannelSMS != nil {
+		def.ChannelSMS = *req.ChannelSMS
+	}
+	if req.ChannelMail != nil {
+		def.ChannelMail = *req.ChannelMail
+	}
+	if req.ChannelPush != nil {
+		def.ChannelPush = *req.ChannelPush
+	}
 }
 
 // entityToPreferenceResponse 转换 Ent 实体到响应
@@ -209,5 +240,8 @@ func entityToPreferenceResponse(e *ent.MessagePreference) *MessagePreferenceResp
 		SubscribeTask:     e.SubscribeTask,
 		DoNotDisturbStart: e.DoNotDisturbStart,
 		DoNotDisturbEnd:   e.DoNotDisturbEnd,
+		ChannelSMS:        e.ChannelSms,
+		ChannelMail:       e.ChannelMail,
+		ChannelPush:       e.ChannelPush,
 	}
 }

@@ -16,6 +16,8 @@ go-admin
 # IDE / 工具缓存
 .codegraph/
 .qoder/
+.workbuddy/
+.zcodeignore
 CODE_WIKI.md
 docs/CODE_WIKI.md
 internal/service/data/

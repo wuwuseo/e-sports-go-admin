@@ -174,15 +174,46 @@ casbin:
 attachment:
   x_accel_enabled: false  # 是否启用 X-Accel-Redirect 头 生产环境启用并配置
 
+# ==================== 消息通知多渠道配置 ====================
+# 站内信（SSE 实时推送）无需配置，始终启用；
+# 以下外部渠道均为「未配置即自动禁用」，不影响主流程与消息落库。
+# 密钥类字段建议通过环境变量注入，例如 CMF_NOTIFY_SMS_ACCESS_KEY。
+notify:
+  sms:
+    enabled: false            # 是否启用短信渠道
+    provider: ""              # 服务商标识：aliyun | tencent | 自建网关标识
+    endpoint: ""              # 短信网关 HTTP 接口（项目以内部网关适配各厂商 SDK）
+    access_key: ""            # 网关 AccessKey
+    secret_key: ""            # 网关 SecretKey
+    sign_name: ""             # 短信签名，如「XX科技」
+    template_code: ""         # 短信模板编号（走模板短信时必填）
+    timeout: 10               # 单次请求超时（秒）
+  mail:
+    enabled: false            # 是否启用邮件渠道
+    endpoint: ""              # 邮件网关 HTTP 接口
+    token: ""                 # 网关 Bearer Token
+    from: ""                  # 发件人地址
+    timeout: 10               # 单次请求超时（秒）
+  push:
+    enabled: false            # 是否启用极光推送渠道
+    app_key: ""               # 极光 AppKey
+    master_secret: ""         # 极光 Master Secret
+    host: "https://api.jpush.cn"  # 极光 REST API 地址（海外可改为 https://api.jpush.cn 对应区域）
+    timeout: 10               # 单次请求超时（秒）
+
 queue:
-    driver: asynq             # asynq | rabbitmq | nats | nsq | kafka | amqp10
-    namespace: admin          # broker 资源前缀；切换驱动前先排空旧 broker
-    # 非 asynq 驱动须将 max_retry、retention、max_queue_size 设为 0；延时/去重等入队选项不支持。
-    # rabbitmq: {url: "amqp://guest:guest@localhost:5672/", management_url: "http://localhost:15672"}
-    # nats: {url: "nats://localhost:4222"}
-    # nsq: {nsqd: "127.0.0.1:4150", lookupd: "127.0.0.1:4161", http: "http://127.0.0.1:4151"}
-    # kafka: {brokers: ["127.0.0.1:9092"], group: "admin-tasks", partitions: 3, replication_factor: 1}
-    # amqp10: {url: "amqp://127.0.0.1:5672"}
+  driver: rabbitmq          # asynq | rabbitmq | nats | nsq | kafka | amqp10
+  namespace: admin          # broker 资源前缀；切换驱动前先排空旧 broker
+  rabbitmq:
+    url: ""                 # 本地开发环境通过 CMF_QUEUE_RABBITMQ_URL 注入
+    management_url: http://127.0.0.1:15672
+  # RabbitMQ、NATS、NSQ、Kafka 支持 max_retry（失败超限写入 broker 死信资源）；AMQP 1.0 须设为 0。
+  # RabbitMQ、NATS、Kafka 支持逐任务管理和延时入队；NSQ 支持延时但逐任务管理受 broker 限制。
+  # 非 asynq 驱动须将 retention、max_queue_size 设为 0；去重仍不支持。
+  # nats: {url: "nats://localhost:4222"}
+  # nsq: {nsqd: "127.0.0.1:4150", lookupd: "127.0.0.1:4161", http: "http://127.0.0.1:4151"}
+  # kafka: {brokers: ["127.0.0.1:9092"], group: "admin-tasks", partitions: 3, replication_factor: 1}
+  # amqp10: {url: "amqp://127.0.0.1:5672"}
   # 任务队列（asynq/Redis）：Redis 连接复用 redis.connections 中的命名连接。
   # 生产环境要求 Redis >= 6.2（归档/死信能力依赖 ZRANGE ... BYSCORE）。
   redis_connection: queue_redis
@@ -190,10 +221,10 @@ queue:
   queues:                    # 消费的队列及优先级权重
     default: 10
   strict_priority: false     # 严格优先级模式
-  max_retry: 3               # 默认最大重试次数（超限进入死信）
+  max_retry: 0               # 默认最大重试次数（超限进入死信）
   timeout: 600               # 单任务默认处理超时（秒）
-  retention: 3600            # 成功任务保留时长（秒），供管理端查看历史
-  max_queue_size: 10000      # 每队列存量任务准入阈值（含成功/死信历史），多进程为软阈值
+  retention: 0               # 成功任务保留时长（秒），供管理端查看历史
+  max_queue_size: 0          # 每队列存量任务准入阈值（含成功/死信历史），多进程为软阈值
   max_payload_bytes: 65536   # 单任务载荷字节上限（投递端和执行端）
   # 监控页（asynqmon，只读）挂载在管理端认证之后；生产环境建议保持关闭
   enable_monitor: false

@@ -551,6 +551,9 @@ var (
 		{Name: "subscribe_task", Type: field.TypeBool, Default: true},
 		{Name: "do_not_disturb_start", Type: field.TypeString, Nullable: true, Size: 5, Default: ""},
 		{Name: "do_not_disturb_end", Type: field.TypeString, Nullable: true, Size: 5, Default: ""},
+		{Name: "channel_sms", Type: field.TypeBool, Default: false},
+		{Name: "channel_mail", Type: field.TypeBool, Default: false},
+		{Name: "channel_push", Type: field.TypeBool, Default: false},
 	}
 	// MessagePreferencesTable holds the schema information for the "message_preferences" table.
 	MessagePreferencesTable = &schema.Table{

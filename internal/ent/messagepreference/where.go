@@ -104,6 +104,21 @@ func DoNotDisturbEnd(v string) predicate.MessagePreference {
 	return predicate.MessagePreference(sql.FieldEQ(FieldDoNotDisturbEnd, v))
 }
 
+// ChannelSms applies equality check predicate on the "channel_sms" field. It's identical to ChannelSmsEQ.
+func ChannelSms(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldEQ(FieldChannelSms, v))
+}
+
+// ChannelMail applies equality check predicate on the "channel_mail" field. It's identical to ChannelMailEQ.
+func ChannelMail(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldEQ(FieldChannelMail, v))
+}
+
+// ChannelPush applies equality check predicate on the "channel_push" field. It's identical to ChannelPushEQ.
+func ChannelPush(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldEQ(FieldChannelPush, v))
+}
+
 // CreateTimeEQ applies the EQ predicate on the "create_time" field.
 func CreateTimeEQ(v time.Time) predicate.MessagePreference {
 	return predicate.MessagePreference(sql.FieldEQ(FieldCreateTime, v))
@@ -447,6 +462,36 @@ func DoNotDisturbEndEqualFold(v string) predicate.MessagePreference {
 // DoNotDisturbEndContainsFold applies the ContainsFold predicate on the "do_not_disturb_end" field.
 func DoNotDisturbEndContainsFold(v string) predicate.MessagePreference {
 	return predicate.MessagePreference(sql.FieldContainsFold(FieldDoNotDisturbEnd, v))
+}
+
+// ChannelSmsEQ applies the EQ predicate on the "channel_sms" field.
+func ChannelSmsEQ(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldEQ(FieldChannelSms, v))
+}
+
+// ChannelSmsNEQ applies the NEQ predicate on the "channel_sms" field.
+func ChannelSmsNEQ(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldNEQ(FieldChannelSms, v))
+}
+
+// ChannelMailEQ applies the EQ predicate on the "channel_mail" field.
+func ChannelMailEQ(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldEQ(FieldChannelMail, v))
+}
+
+// ChannelMailNEQ applies the NEQ predicate on the "channel_mail" field.
+func ChannelMailNEQ(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldNEQ(FieldChannelMail, v))
+}
+
+// ChannelPushEQ applies the EQ predicate on the "channel_push" field.
+func ChannelPushEQ(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldEQ(FieldChannelPush, v))
+}
+
+// ChannelPushNEQ applies the NEQ predicate on the "channel_push" field.
+func ChannelPushNEQ(v bool) predicate.MessagePreference {
+	return predicate.MessagePreference(sql.FieldNEQ(FieldChannelPush, v))
 }
 
 // And groups predicates with the AND operator between them.

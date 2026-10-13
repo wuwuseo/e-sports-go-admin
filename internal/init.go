@@ -118,6 +118,13 @@ func Init(config *config.Config) error {
 		zap.String("ticket_store_ptr", fmt.Sprintf("%p", appInstance.TicketStore)),
 	)
 
+	// 初始化通知渠道注册表（站内信 + 短信 / 邮件 / 极光推送，按 notify.* 配置启用）
+	appInstance.Notifiers = service.BuildNotifiers(appInstance.Hub)
+	appInstance.Logger.Info("通知渠道注册完成",
+		zap.Strings("channels", appInstance.Notifiers.Names()),
+		zap.Strings("disabled_missing_config", appInstance.Notifiers.Disabled()),
+	)
+
 	// 初始化种子数据
 	if err := initSeedData(); err != nil {
 		service.StopChunkSessionCleanup()

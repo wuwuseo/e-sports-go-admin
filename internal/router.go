@@ -114,15 +114,21 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	oauthSessionService := service.NewOAuthSessionService(global.ORM, oauthCipher, time.Now)
 	oauthAuthService := service.NewOAuthAuthService(global.ORM, oauthRegistry, oauthConfigService, oauthSessionService, time.Now)
 
-	// 初始化站内消息服务（带 SSE Hub 推送能力）
+	// 初始化站内消息服务（多渠道：站内信 SSE / 短信 / 邮件 / 极光推送）
 	var hub *sse.Hub
 	var ticketStore *sse.TicketStore
+	var notifierRegistry *service.NotifierRegistry
 	if appInstance != nil {
 		hub = appInstance.Hub
 		ticketStore = appInstance.TicketStore
+		notifierRegistry = appInstance.Notifiers
+	}
+	if notifierRegistry == nil {
+		// 兜底：App 未初始化注册表时至少保证站内信渠道可用
+		notifierRegistry = service.BuildNotifiers(hub)
 	}
 	prefSvc := service.NewMessagePreferenceService()
-	messageService := service.NewMessageServiceWithPreference(hub, prefSvc)
+	messageService := service.NewMessageServiceWithNotifiers(notifierRegistry, prefSvc)
 	broadcastService := service.NewMessageBroadcastService(messageService)
 
 	// 初始化插件管理服务

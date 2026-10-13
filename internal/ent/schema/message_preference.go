@@ -57,6 +57,18 @@ func (MessagePreference) Fields() []ent.Field {
 			Optional().
 			StructTag(`json:"do_not_disturb_end"`).
 			Comment("免打扰结束时间 HH:mm"),
+		field.Bool("channel_sms").
+			Default(false).
+			StructTag(`json:"channel_sms"`).
+			Comment("是否启用短信通知渠道"),
+		field.Bool("channel_mail").
+			Default(false).
+			StructTag(`json:"channel_mail"`).
+			Comment("是否启用邮件通知渠道"),
+		field.Bool("channel_push").
+			Default(false).
+			StructTag(`json:"channel_push"`).
+			Comment("是否启用极光推送渠道"),
 	}
 }
 

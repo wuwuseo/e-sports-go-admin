@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wuwuseo/cmf/log"
@@ -39,11 +40,6 @@ const (
 
 	// 全员广播时 user_uid 字段的值
 	MessageBroadcastUID = ""
-
-	// SSE 推送的事件名
-	SSEEventMessage        = "message"
-	SSEEventUnreadCount    = "unread_count"
-	SSEEventMessageDeleted = "message_deleted"
 
 	// 批量操作 ID 长度上限
 	MessageBatchIDsMaxLen = 200
@@ -173,27 +169,67 @@ type MessageServiceInterface interface {
 // ========== 实现 ==========
 
 // MessageService 站内消息服务实现
+//
+// 落库与投递分离：消息统一持久化到 admin_messages，
+// 实时触达由 NotifierRegistry 中的各渠道负责（站内信 / 短信 / 邮件 / 极光推送）。
 type MessageService struct {
 	Client        *ent.Client
-	Hub           *sse.Hub
+	Notifiers     *NotifierRegistry
 	PreferenceSvc MessagePreferenceServiceInterface // 可为 nil
 }
 
-// NewMessageService 构造函数
-func NewMessageService(hub *sse.Hub) *MessageService {
+// NewMessageService 构造函数（仅站内信渠道）
+func NewMessageService(hub SSEHub) *MessageService {
+	reg := NewNotifierRegistry()
+	reg.Register(NewInAppNotifier(hub))
 	return &MessageService{
-		Client: global.ORM,
-		Hub:    hub,
+		Client:    global.ORM,
+		Notifiers: reg,
 	}
 }
 
-// NewMessageServiceWithPreference 带偏好服务的构造函数
-func NewMessageServiceWithPreference(hub *sse.Hub, prefSvc MessagePreferenceServiceInterface) *MessageService {
+// NewMessageServiceWithPreference 带偏好服务的构造函数（仅站内信渠道）
+func NewMessageServiceWithPreference(hub SSEHub, prefSvc MessagePreferenceServiceInterface) *MessageService {
+	reg := NewNotifierRegistry()
+	reg.Register(NewInAppNotifier(hub))
 	return &MessageService{
 		Client:        global.ORM,
-		Hub:           hub,
+		Notifiers:     reg,
 		PreferenceSvc: prefSvc,
 	}
+}
+
+// NewMessageServiceWithNotifiers 使用完整渠道注册表构造（多渠道）
+func NewMessageServiceWithNotifiers(reg *NotifierRegistry, prefSvc MessagePreferenceServiceInterface) *MessageService {
+	if reg == nil {
+		reg = NewNotifierRegistry()
+	}
+	return &MessageService{
+		Client:        global.ORM,
+		Notifiers:     reg,
+		PreferenceSvc: prefSvc,
+	}
+}
+
+// InApp 返回站内信渠道（未注册时返回 nil）
+func (s *MessageService) InApp() *InAppNotifier {
+	if s == nil || s.Notifiers == nil {
+		return nil
+	}
+	if n, ok := s.Notifiers.Get(ChannelInApp); ok {
+		if inApp, ok := n.(*InAppNotifier); ok {
+			return inApp
+		}
+	}
+	return nil
+}
+
+// Hub 返回站内信渠道持有的 SSE Hub（兼容既有调用方与测试）
+func (s *MessageService) Hub() SSEHub {
+	if n := s.InApp(); n != nil {
+		return n.Hub()
+	}
+	return nil
 }
 
 // 编译期接口实现断言
@@ -225,9 +261,12 @@ func (s *MessageService) Create(ctx context.Context, req *CreateMessageRequest) 
 		return nil, fmt.Errorf("创建消息失败: %w", err)
 	}
 	resp := s.toResponse(entity)
-	s.push(req.UserUID, resp)
-	// 主动下发未读数（非广播场景）
-	if req.UserUID != MessageBroadcastUID {
+	if req.UserUID == MessageBroadcastUID {
+		// 全员广播：站内信走 Hub.Broadcast，不触发外部渠道群发
+		s.dispatchBroadcast(ctx, payloadFromResponse(resp))
+	} else {
+		s.dispatch(ctx, payloadFromResponse(resp))
+		// 主动下发未读数（非广播场景）
 		s.pushUnreadCount(ctx, req.UserUID)
 	}
 	return resp, nil
@@ -641,40 +680,26 @@ func (s *MessageService) BroadcastToUsers(ctx context.Context, uids []string, ms
 		return 0, fmt.Errorf("批量入库消息失败: %w", err)
 	}
 
-	hubTotal := 0
-	if s.Hub != nil {
-		hubTotal = s.Hub.CountTotalConnections()
+	var hubTotal int
+	if inApp := s.InApp(); inApp != nil && inApp.Enabled() {
+		hubTotal = inApp.Hub().CountTotalConnections()
 	}
-	log.Info("BroadcastToUsers 入库完成，开始推送",
+	log.Info("BroadcastToUsers 入库完成，开始分发",
 		zap.Int("target_count", len(entities)),
 		zap.String("type", msg.Type),
 		zap.Int("hub_total_connections", hubTotal),
 	)
 
-	// 按偏好过滤推送
-	pushed := 0
-	skipped := 0
+	// 逐用户按偏好分发；订阅关闭 / 免打扰 / 渠道关闭均由 dispatch 内部决策
+	delivered := 0
 	for _, e := range entities {
-		// 偏好未启用：默认全推送
-		if s.PreferenceSvc != nil {
-			pref, perr := s.PreferenceSvc.GetOrDefault(ctx, e.UserUID)
-			if perr == nil && pref != nil && !isSubscribedType(pref, msg.Type) {
-				// 跳过推送，仅入库
-				skipped++
-				log.Info("BroadcastToUsers 按偏好跳过推送",
-					zap.String("user_uid", e.UserUID),
-					zap.String("type", msg.Type),
-				)
-				continue
-			}
-		}
-		s.push(e.UserUID, s.toResponse(e))
+		s.dispatch(ctx, payloadFromResponse(s.toResponse(e)))
 		s.pushUnreadCount(ctx, e.UserUID)
-		pushed++
+		delivered++
 	}
-	log.Info("BroadcastToUsers 推送完成",
-		zap.Int("pushed", pushed),
-		zap.Int("skipped_by_preference", skipped),
+	log.Info("BroadcastToUsers 分发完成",
+		zap.Int("delivered", delivered),
+		zap.Int("target_count", len(entities)),
 	)
 	return len(entities), nil
 }
@@ -694,66 +719,118 @@ func isSubscribedType(pref *MessagePreferenceResponse, t string) bool {
 	return true
 }
 
-// push 根据消息接收者决定调用 Hub.PushToUser 还是 Broadcast
-func (s *MessageService) push(userUID string, resp *MessageResponse) {
-	if s.Hub == nil {
-		log.Warn("SSE 推送跳过：Hub 未初始化",
-			zap.String("user_uid", userUID),
-		)
+// dispatch 按用户偏好向所有可用渠道并发分发消息
+//
+// 投递策略：
+//   - 站内信（SSE 实时推送）同步先行：内存操作，微秒级完成，保证消息立即抵达在线用户；
+//   - 短信 / 邮件 / 极光推送等外部渠道并发投递：总耗时 = 最慢渠道，而非各渠道之和；
+//   - 每个外部渠道独立受自身 HTTP 客户端超时约束（见 notifierConfig timeout），
+//     单渠道失败或超时只记录日志，不影响其他渠道与主流程。
+//
+// 注意：payload.UserUID 允许为空字符串（全员广播场景，见 MessageBroadcastUID）。
+func (s *MessageService) dispatch(ctx context.Context, payload NotifyPayload) {
+	if s.Notifiers == nil {
 		return
 	}
-	if resp == nil {
-		return
+	var pref *MessagePreferenceResponse
+	if s.PreferenceSvc != nil && payload.UserUID != "" {
+		if p, err := s.PreferenceSvc.GetOrDefault(ctx, payload.UserUID); err == nil {
+			pref = p
+		}
 	}
-	evt := sse.Event{
-		ID:    strconv.Itoa(resp.ID),
-		Event: SSEEventMessage,
-		Data:  resp,
+	now := time.Now()
+
+	var (
+		mu       sync.Mutex
+		wg       sync.WaitGroup
+		delivered []string
+	)
+	record := func(name string) {
+		mu.Lock()
+		delivered = append(delivered, name)
+		mu.Unlock()
 	}
-	if userUID == MessageBroadcastUID {
-		total := s.Hub.CountTotalConnections()
-		log.Info("SSE 全员广播",
-			zap.String("event", SSEEventMessage),
-			zap.Int("msg_id", resp.ID),
-			zap.Int("online_total", total),
+
+	for _, name := range s.Notifiers.Names() {
+		if !s.Notifiers.ShouldDeliver(pref, payload.Type, name, now) {
+			continue
+		}
+		if name == ChannelInApp {
+			// 站内信同步先行，不等待外部渠道
+			if err := s.Notifiers.Dispatch(ctx, name, payload); err == nil {
+				record(name)
+			}
+			continue
+		}
+		// 外部渠道并发投递；失败已在 Dispatch 内部记录日志
+		wg.Add(1)
+		go func(ch string) {
+			defer wg.Done()
+			if err := s.Notifiers.Dispatch(ctx, ch, payload); err == nil {
+				record(ch)
+			}
+		}(name)
+	}
+	// 等待全部外部渠道返回后再记汇总日志；
+	// 各渠道自带超时，此处不会无限阻塞
+	wg.Wait()
+
+	if len(delivered) > 0 {
+		log.Info("消息已分发",
+			zap.Int("msg_id", payload.MessageID),
+			zap.String("user_uid", payload.UserUID),
+			zap.Strings("channels", delivered),
 		)
-		s.Hub.Broadcast(evt)
-	} else {
-		conns := s.Hub.CountUserConnections(userUID)
-		log.Info("SSE 推送给用户",
-			zap.String("event", SSEEventMessage),
-			zap.Int("msg_id", resp.ID),
-			zap.String("user_uid", userUID),
-			zap.Int("user_connections", conns),
-		)
-		s.Hub.PushToUser(userUID, evt)
 	}
 }
 
-// pushUnreadCount 主动下发未读数事件
+// dispatchBroadcast 全员广播专用分发：站内信走 Hub.Broadcast，
+// 外部渠道（短信/邮件/推送）不参与全员广播，避免无差别群发打扰。
+//
+// 与 dispatch 分开实现的原因：站内信渠道在 UserUID 为空时会广播，
+// 若复用 dispatch 会导致「单用户消息」被广播给所有人。
+func (s *MessageService) dispatchBroadcast(ctx context.Context, payload NotifyPayload) {
+	if s.Notifiers == nil {
+		return
+	}
+	inApp := s.InApp()
+	if inApp == nil || !inApp.Enabled() {
+		return
+	}
+	if !s.Notifiers.ShouldDeliver(nil, payload.Type, ChannelInApp, time.Now()) {
+		return
+	}
+	// UserUID 保持空字符串，站内信渠道据此走 Hub.Broadcast 全员下发
+	if err := s.Notifiers.Dispatch(ctx, ChannelInApp, payload); err != nil {
+		return
+	}
+	log.Info("全员广播已推送站内信",
+		zap.Int("msg_id", payload.MessageID),
+		zap.Int("online_total", inApp.Hub().CountTotalConnections()),
+	)
+}
+
+// pushUnreadCount 主动下发未读数事件（仅站内信渠道）
 func (s *MessageService) pushUnreadCount(ctx context.Context, userUID string) {
-	if s.Hub == nil || userUID == "" {
+	if userUID == "" {
+		return
+	}
+	inApp := s.InApp()
+	if inApp == nil || !inApp.Enabled() {
 		return
 	}
 	cnt, err := s.UnreadCount(ctx, userUID)
 	if err != nil || cnt == nil {
 		return
 	}
-	s.Hub.PushToUser(userUID, sse.Event{
-		Event: SSEEventUnreadCount,
-		Data:  cnt,
-	})
+	inApp.PushUnreadCount(userUID, cnt)
 }
 
-// pushMessageDeleted 主动下发消息删除事件
+// pushMessageDeleted 主动下发消息删除事件（仅站内信渠道）
 func (s *MessageService) pushMessageDeleted(userUID string, ids []int) {
-	if s.Hub == nil || userUID == "" || len(ids) == 0 {
-		return
+	if inApp := s.InApp(); inApp != nil {
+		inApp.PushDeleted(userUID, ids)
 	}
-	s.Hub.PushToUser(userUID, sse.Event{
-		Event: SSEEventMessageDeleted,
-		Data:  map[string]any{"ids": ids},
-	})
 }
 
 // toResponse Ent 实体 -> 响应 DTO

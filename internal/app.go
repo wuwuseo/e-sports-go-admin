@@ -11,6 +11,7 @@ import (
 	"github.com/wuwuseo/cmf/validate"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/service"
 )
 
 // App 应用依赖容器
@@ -25,4 +26,6 @@ type App struct {
 	Filesystem      *filesystem.Filesystem
 	Hub             *sse.Hub
 	TicketStore     *sse.TicketStore
+	// Notifiers 通知渠道注册表（站内信 / 短信 / 邮件 / 极光推送）
+	Notifiers *service.NotifierRegistry
 }

@@ -152,6 +152,48 @@ func (_c *MessagePreferenceCreate) SetNillableDoNotDisturbEnd(v *string) *Messag
 	return _c
 }
 
+// SetChannelSms sets the "channel_sms" field.
+func (_c *MessagePreferenceCreate) SetChannelSms(v bool) *MessagePreferenceCreate {
+	_c.mutation.SetChannelSms(v)
+	return _c
+}
+
+// SetNillableChannelSms sets the "channel_sms" field if the given value is not nil.
+func (_c *MessagePreferenceCreate) SetNillableChannelSms(v *bool) *MessagePreferenceCreate {
+	if v != nil {
+		_c.SetChannelSms(*v)
+	}
+	return _c
+}
+
+// SetChannelMail sets the "channel_mail" field.
+func (_c *MessagePreferenceCreate) SetChannelMail(v bool) *MessagePreferenceCreate {
+	_c.mutation.SetChannelMail(v)
+	return _c
+}
+
+// SetNillableChannelMail sets the "channel_mail" field if the given value is not nil.
+func (_c *MessagePreferenceCreate) SetNillableChannelMail(v *bool) *MessagePreferenceCreate {
+	if v != nil {
+		_c.SetChannelMail(*v)
+	}
+	return _c
+}
+
+// SetChannelPush sets the "channel_push" field.
+func (_c *MessagePreferenceCreate) SetChannelPush(v bool) *MessagePreferenceCreate {
+	_c.mutation.SetChannelPush(v)
+	return _c
+}
+
+// SetNillableChannelPush sets the "channel_push" field if the given value is not nil.
+func (_c *MessagePreferenceCreate) SetNillableChannelPush(v *bool) *MessagePreferenceCreate {
+	if v != nil {
+		_c.SetChannelPush(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *MessagePreferenceCreate) SetID(v int) *MessagePreferenceCreate {
 	_c.mutation.SetID(v)
@@ -229,6 +271,18 @@ func (_c *MessagePreferenceCreate) defaults() {
 		v := messagepreference.DefaultDoNotDisturbEnd
 		_c.mutation.SetDoNotDisturbEnd(v)
 	}
+	if _, ok := _c.mutation.ChannelSms(); !ok {
+		v := messagepreference.DefaultChannelSms
+		_c.mutation.SetChannelSms(v)
+	}
+	if _, ok := _c.mutation.ChannelMail(); !ok {
+		v := messagepreference.DefaultChannelMail
+		_c.mutation.SetChannelMail(v)
+	}
+	if _, ok := _c.mutation.ChannelPush(); !ok {
+		v := messagepreference.DefaultChannelPush
+		_c.mutation.SetChannelPush(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -271,6 +325,15 @@ func (_c *MessagePreferenceCreate) check() error {
 		if err := messagepreference.DoNotDisturbEndValidator(v); err != nil {
 			return &ValidationError{Name: "do_not_disturb_end", err: fmt.Errorf(`ent: validator failed for field "MessagePreference.do_not_disturb_end": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ChannelSms(); !ok {
+		return &ValidationError{Name: "channel_sms", err: errors.New(`ent: missing required field "MessagePreference.channel_sms"`)}
+	}
+	if _, ok := _c.mutation.ChannelMail(); !ok {
+		return &ValidationError{Name: "channel_mail", err: errors.New(`ent: missing required field "MessagePreference.channel_mail"`)}
+	}
+	if _, ok := _c.mutation.ChannelPush(); !ok {
+		return &ValidationError{Name: "channel_push", err: errors.New(`ent: missing required field "MessagePreference.channel_push"`)}
 	}
 	return nil
 }
@@ -343,6 +406,18 @@ func (_c *MessagePreferenceCreate) createSpec() (*MessagePreference, *sqlgraph.C
 	if value, ok := _c.mutation.DoNotDisturbEnd(); ok {
 		_spec.SetField(messagepreference.FieldDoNotDisturbEnd, field.TypeString, value)
 		_node.DoNotDisturbEnd = value
+	}
+	if value, ok := _c.mutation.ChannelSms(); ok {
+		_spec.SetField(messagepreference.FieldChannelSms, field.TypeBool, value)
+		_node.ChannelSms = value
+	}
+	if value, ok := _c.mutation.ChannelMail(); ok {
+		_spec.SetField(messagepreference.FieldChannelMail, field.TypeBool, value)
+		_node.ChannelMail = value
+	}
+	if value, ok := _c.mutation.ChannelPush(); ok {
+		_spec.SetField(messagepreference.FieldChannelPush, field.TypeBool, value)
+		_node.ChannelPush = value
 	}
 	return _node, _spec
 }

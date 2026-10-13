@@ -12474,6 +12474,9 @@ type MessagePreferenceMutation struct {
 	subscribe_task       *bool
 	do_not_disturb_start *string
 	do_not_disturb_end   *string
+	channel_sms          *bool
+	channel_mail         *bool
+	channel_push         *bool
 	clearedFields        map[string]struct{}
 	done                 bool
 	oldValue             func(context.Context) (*MessagePreference, error)
@@ -12970,6 +12973,114 @@ func (m *MessagePreferenceMutation) ResetDoNotDisturbEnd() {
 	delete(m.clearedFields, messagepreference.FieldDoNotDisturbEnd)
 }
 
+// SetChannelSms sets the "channel_sms" field.
+func (m *MessagePreferenceMutation) SetChannelSms(b bool) {
+	m.channel_sms = &b
+}
+
+// ChannelSms returns the value of the "channel_sms" field in the mutation.
+func (m *MessagePreferenceMutation) ChannelSms() (r bool, exists bool) {
+	v := m.channel_sms
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelSms returns the old "channel_sms" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldChannelSms(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelSms is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelSms requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelSms: %w", err)
+	}
+	return oldValue.ChannelSms, nil
+}
+
+// ResetChannelSms resets all changes to the "channel_sms" field.
+func (m *MessagePreferenceMutation) ResetChannelSms() {
+	m.channel_sms = nil
+}
+
+// SetChannelMail sets the "channel_mail" field.
+func (m *MessagePreferenceMutation) SetChannelMail(b bool) {
+	m.channel_mail = &b
+}
+
+// ChannelMail returns the value of the "channel_mail" field in the mutation.
+func (m *MessagePreferenceMutation) ChannelMail() (r bool, exists bool) {
+	v := m.channel_mail
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelMail returns the old "channel_mail" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldChannelMail(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelMail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelMail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelMail: %w", err)
+	}
+	return oldValue.ChannelMail, nil
+}
+
+// ResetChannelMail resets all changes to the "channel_mail" field.
+func (m *MessagePreferenceMutation) ResetChannelMail() {
+	m.channel_mail = nil
+}
+
+// SetChannelPush sets the "channel_push" field.
+func (m *MessagePreferenceMutation) SetChannelPush(b bool) {
+	m.channel_push = &b
+}
+
+// ChannelPush returns the value of the "channel_push" field in the mutation.
+func (m *MessagePreferenceMutation) ChannelPush() (r bool, exists bool) {
+	v := m.channel_push
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelPush returns the old "channel_push" field's value of the MessagePreference entity.
+// If the MessagePreference object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MessagePreferenceMutation) OldChannelPush(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelPush is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelPush requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelPush: %w", err)
+	}
+	return oldValue.ChannelPush, nil
+}
+
+// ResetChannelPush resets all changes to the "channel_push" field.
+func (m *MessagePreferenceMutation) ResetChannelPush() {
+	m.channel_push = nil
+}
+
 // Where appends a list predicates to the MessagePreferenceMutation builder.
 func (m *MessagePreferenceMutation) Where(ps ...predicate.MessagePreference) {
 	m.predicates = append(m.predicates, ps...)
@@ -13004,7 +13115,7 @@ func (m *MessagePreferenceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MessagePreferenceMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 13)
 	if m.create_time != nil {
 		fields = append(fields, messagepreference.FieldCreateTime)
 	}
@@ -13035,6 +13146,15 @@ func (m *MessagePreferenceMutation) Fields() []string {
 	if m.do_not_disturb_end != nil {
 		fields = append(fields, messagepreference.FieldDoNotDisturbEnd)
 	}
+	if m.channel_sms != nil {
+		fields = append(fields, messagepreference.FieldChannelSms)
+	}
+	if m.channel_mail != nil {
+		fields = append(fields, messagepreference.FieldChannelMail)
+	}
+	if m.channel_push != nil {
+		fields = append(fields, messagepreference.FieldChannelPush)
+	}
 	return fields
 }
 
@@ -13063,6 +13183,12 @@ func (m *MessagePreferenceMutation) Field(name string) (ent.Value, bool) {
 		return m.DoNotDisturbStart()
 	case messagepreference.FieldDoNotDisturbEnd:
 		return m.DoNotDisturbEnd()
+	case messagepreference.FieldChannelSms:
+		return m.ChannelSms()
+	case messagepreference.FieldChannelMail:
+		return m.ChannelMail()
+	case messagepreference.FieldChannelPush:
+		return m.ChannelPush()
 	}
 	return nil, false
 }
@@ -13092,6 +13218,12 @@ func (m *MessagePreferenceMutation) OldField(ctx context.Context, name string) (
 		return m.OldDoNotDisturbStart(ctx)
 	case messagepreference.FieldDoNotDisturbEnd:
 		return m.OldDoNotDisturbEnd(ctx)
+	case messagepreference.FieldChannelSms:
+		return m.OldChannelSms(ctx)
+	case messagepreference.FieldChannelMail:
+		return m.OldChannelMail(ctx)
+	case messagepreference.FieldChannelPush:
+		return m.OldChannelPush(ctx)
 	}
 	return nil, fmt.Errorf("unknown MessagePreference field %s", name)
 }
@@ -13170,6 +13302,27 @@ func (m *MessagePreferenceMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDoNotDisturbEnd(v)
+		return nil
+	case messagepreference.FieldChannelSms:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelSms(v)
+		return nil
+	case messagepreference.FieldChannelMail:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelMail(v)
+		return nil
+	case messagepreference.FieldChannelPush:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelPush(v)
 		return nil
 	}
 	return fmt.Errorf("unknown MessagePreference field %s", name)
@@ -13264,6 +13417,15 @@ func (m *MessagePreferenceMutation) ResetField(name string) error {
 		return nil
 	case messagepreference.FieldDoNotDisturbEnd:
 		m.ResetDoNotDisturbEnd()
+		return nil
+	case messagepreference.FieldChannelSms:
+		m.ResetChannelSms()
+		return nil
+	case messagepreference.FieldChannelMail:
+		m.ResetChannelMail()
+		return nil
+	case messagepreference.FieldChannelPush:
+		m.ResetChannelPush()
 		return nil
 	}
 	return fmt.Errorf("unknown MessagePreference field %s", name)

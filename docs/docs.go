@@ -13102,6 +13102,16 @@ const docTemplate = `{
         "service.MessagePreferenceResponse": {
             "type": "object",
             "properties": {
+                "channel_mail": {
+                    "type": "boolean"
+                },
+                "channel_push": {
+                    "type": "boolean"
+                },
+                "channel_sms": {
+                    "description": "外部触达渠道开关（站内信由 desktop_notify 控制）",
+                    "type": "boolean"
+                },
                 "desktop_notify": {
                     "type": "boolean"
                 },
@@ -14189,6 +14199,15 @@ const docTemplate = `{
         "service.UpdateMessagePreferenceRequest": {
             "type": "object",
             "properties": {
+                "channel_mail": {
+                    "type": "boolean"
+                },
+                "channel_push": {
+                    "type": "boolean"
+                },
+                "channel_sms": {
+                    "type": "boolean"
+                },
                 "desktop_notify": {
                     "type": "boolean"
                 },

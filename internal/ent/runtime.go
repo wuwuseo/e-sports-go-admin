@@ -911,6 +911,18 @@ func init() {
 	messagepreference.DefaultDoNotDisturbEnd = messagepreferenceDescDoNotDisturbEnd.Default.(string)
 	// messagepreference.DoNotDisturbEndValidator is a validator for the "do_not_disturb_end" field. It is called by the builders before save.
 	messagepreference.DoNotDisturbEndValidator = messagepreferenceDescDoNotDisturbEnd.Validators[0].(func(string) error)
+	// messagepreferenceDescChannelSms is the schema descriptor for channel_sms field.
+	messagepreferenceDescChannelSms := messagepreferenceFields[9].Descriptor()
+	// messagepreference.DefaultChannelSms holds the default value on creation for the channel_sms field.
+	messagepreference.DefaultChannelSms = messagepreferenceDescChannelSms.Default.(bool)
+	// messagepreferenceDescChannelMail is the schema descriptor for channel_mail field.
+	messagepreferenceDescChannelMail := messagepreferenceFields[10].Descriptor()
+	// messagepreference.DefaultChannelMail holds the default value on creation for the channel_mail field.
+	messagepreference.DefaultChannelMail = messagepreferenceDescChannelMail.Default.(bool)
+	// messagepreferenceDescChannelPush is the schema descriptor for channel_push field.
+	messagepreferenceDescChannelPush := messagepreferenceFields[11].Descriptor()
+	// messagepreference.DefaultChannelPush holds the default value on creation for the channel_push field.
+	messagepreference.DefaultChannelPush = messagepreferenceDescChannelPush.Default.(bool)
 	oauthproviderconfigFields := schema.OAuthProviderConfig{}.Fields()
 	_ = oauthproviderconfigFields
 	// oauthproviderconfigDescProvider is the schema descriptor for provider field.

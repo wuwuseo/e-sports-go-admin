@@ -37,7 +37,13 @@ type MessagePreference struct {
 	DoNotDisturbStart string `json:"do_not_disturb_start"`
 	// 免打扰结束时间 HH:mm
 	DoNotDisturbEnd string `json:"do_not_disturb_end"`
-	selectValues    sql.SelectValues
+	// 是否启用短信通知渠道
+	ChannelSms bool `json:"channel_sms"`
+	// 是否启用邮件通知渠道
+	ChannelMail bool `json:"channel_mail"`
+	// 是否启用极光推送渠道
+	ChannelPush  bool `json:"channel_push"`
+	selectValues sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -45,7 +51,7 @@ func (*MessagePreference) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case messagepreference.FieldDesktopNotify, messagepreference.FieldSoundNotify, messagepreference.FieldSubscribeSystem, messagepreference.FieldSubscribeBusiness, messagepreference.FieldSubscribeTask:
+		case messagepreference.FieldDesktopNotify, messagepreference.FieldSoundNotify, messagepreference.FieldSubscribeSystem, messagepreference.FieldSubscribeBusiness, messagepreference.FieldSubscribeTask, messagepreference.FieldChannelSms, messagepreference.FieldChannelMail, messagepreference.FieldChannelPush:
 			values[i] = new(sql.NullBool)
 		case messagepreference.FieldID:
 			values[i] = new(sql.NullInt64)
@@ -134,6 +140,24 @@ func (_m *MessagePreference) assignValues(columns []string, values []any) error 
 			} else if value.Valid {
 				_m.DoNotDisturbEnd = value.String
 			}
+		case messagepreference.FieldChannelSms:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field channel_sms", values[i])
+			} else if value.Valid {
+				_m.ChannelSms = value.Bool
+			}
+		case messagepreference.FieldChannelMail:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field channel_mail", values[i])
+			} else if value.Valid {
+				_m.ChannelMail = value.Bool
+			}
+		case messagepreference.FieldChannelPush:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field channel_push", values[i])
+			} else if value.Valid {
+				_m.ChannelPush = value.Bool
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -199,6 +223,15 @@ func (_m *MessagePreference) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("do_not_disturb_end=")
 	builder.WriteString(_m.DoNotDisturbEnd)
+	builder.WriteString(", ")
+	builder.WriteString("channel_sms=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChannelSms))
+	builder.WriteString(", ")
+	builder.WriteString("channel_mail=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChannelMail))
+	builder.WriteString(", ")
+	builder.WriteString("channel_push=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChannelPush))
 	builder.WriteByte(')')
 	return builder.String()
 }
