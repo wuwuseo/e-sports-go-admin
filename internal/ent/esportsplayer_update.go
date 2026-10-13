@@ -12,6 +12,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -167,6 +168,24 @@ func (_u *EsportsPlayerUpdate) AddConcurrentLimit(v int) *EsportsPlayerUpdate {
 	return _u
 }
 
+// SetGames sets the "games" field.
+func (_u *EsportsPlayerUpdate) SetGames(v []string) *EsportsPlayerUpdate {
+	_u.mutation.SetGames(v)
+	return _u
+}
+
+// AppendGames appends value to the "games" field.
+func (_u *EsportsPlayerUpdate) AppendGames(v []string) *EsportsPlayerUpdate {
+	_u.mutation.AppendGames(v)
+	return _u
+}
+
+// ClearGames clears the value of the "games" field.
+func (_u *EsportsPlayerUpdate) ClearGames() *EsportsPlayerUpdate {
+	_u.mutation.ClearGames()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsPlayerUpdate) SetVersion(v int) *EsportsPlayerUpdate {
 	_u.mutation.ResetVersion()
@@ -312,6 +331,17 @@ func (_u *EsportsPlayerUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if value, ok := _u.mutation.AddedConcurrentLimit(); ok {
 		_spec.AddField(esportsplayer.FieldConcurrentLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Games(); ok {
+		_spec.SetField(esportsplayer.FieldGames, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGames(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsplayer.FieldGames, value)
+		})
+	}
+	if _u.mutation.GamesCleared() {
+		_spec.ClearField(esportsplayer.FieldGames, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsplayer.FieldVersion, field.TypeInt, value)
@@ -478,6 +508,24 @@ func (_u *EsportsPlayerUpdateOne) SetNillableConcurrentLimit(v *int) *EsportsPla
 // AddConcurrentLimit adds value to the "concurrent_limit" field.
 func (_u *EsportsPlayerUpdateOne) AddConcurrentLimit(v int) *EsportsPlayerUpdateOne {
 	_u.mutation.AddConcurrentLimit(v)
+	return _u
+}
+
+// SetGames sets the "games" field.
+func (_u *EsportsPlayerUpdateOne) SetGames(v []string) *EsportsPlayerUpdateOne {
+	_u.mutation.SetGames(v)
+	return _u
+}
+
+// AppendGames appends value to the "games" field.
+func (_u *EsportsPlayerUpdateOne) AppendGames(v []string) *EsportsPlayerUpdateOne {
+	_u.mutation.AppendGames(v)
+	return _u
+}
+
+// ClearGames clears the value of the "games" field.
+func (_u *EsportsPlayerUpdateOne) ClearGames() *EsportsPlayerUpdateOne {
+	_u.mutation.ClearGames()
 	return _u
 }
 
@@ -656,6 +704,17 @@ func (_u *EsportsPlayerUpdateOne) sqlSave(ctx context.Context) (_node *EsportsPl
 	}
 	if value, ok := _u.mutation.AddedConcurrentLimit(); ok {
 		_spec.AddField(esportsplayer.FieldConcurrentLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.Games(); ok {
+		_spec.SetField(esportsplayer.FieldGames, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGames(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsplayer.FieldGames, value)
+		})
+	}
+	if _u.mutation.GamesCleared() {
+		_spec.ClearField(esportsplayer.FieldGames, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsplayer.FieldVersion, field.TypeInt, value)

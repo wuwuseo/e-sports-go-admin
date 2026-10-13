@@ -116,6 +116,12 @@ func (_c *EsportsPlayerCreate) SetNillableConcurrentLimit(v *int) *EsportsPlayer
 	return _c
 }
 
+// SetGames sets the "games" field.
+func (_c *EsportsPlayerCreate) SetGames(v []string) *EsportsPlayerCreate {
+	_c.mutation.SetGames(v)
+	return _c
+}
+
 // SetVersion sets the "version" field.
 func (_c *EsportsPlayerCreate) SetVersion(v int) *EsportsPlayerCreate {
 	_c.mutation.SetVersion(v)
@@ -341,6 +347,10 @@ func (_c *EsportsPlayerCreate) createSpec() (*EsportsPlayer, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.ConcurrentLimit(); ok {
 		_spec.SetField(esportsplayer.FieldConcurrentLimit, field.TypeInt, value)
 		_node.ConcurrentLimit = value
+	}
+	if value, ok := _c.mutation.Games(); ok {
+		_spec.SetField(esportsplayer.FieldGames, field.TypeJSON, value)
+		_node.Games = value
 	}
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsplayer.FieldVersion, field.TypeInt, value)

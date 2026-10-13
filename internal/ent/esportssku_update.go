@@ -174,6 +174,20 @@ func (_u *EsportsSkuUpdate) AddRequiredSeats(v int) *EsportsSkuUpdate {
 	return _u
 }
 
+// SetRequiredLevel sets the "required_level" field.
+func (_u *EsportsSkuUpdate) SetRequiredLevel(v esportssku.RequiredLevel) *EsportsSkuUpdate {
+	_u.mutation.SetRequiredLevel(v)
+	return _u
+}
+
+// SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
+func (_u *EsportsSkuUpdate) SetNillableRequiredLevel(v *esportssku.RequiredLevel) *EsportsSkuUpdate {
+	if v != nil {
+		_u.SetRequiredLevel(*v)
+	}
+	return _u
+}
+
 // SetQuotaTotal sets the "quota_total" field.
 func (_u *EsportsSkuUpdate) SetQuotaTotal(v int64) *EsportsSkuUpdate {
 	_u.mutation.ResetQuotaTotal()
@@ -377,6 +391,11 @@ func (_u *EsportsSkuUpdate) check() error {
 			return &ValidationError{Name: "required_seats", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.required_seats": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequiredLevel(); ok {
+		if err := esportssku.RequiredLevelValidator(v); err != nil {
+			return &ValidationError{Name: "required_level", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.required_level": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := esportssku.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.status": %w`, err)}
@@ -435,6 +454,9 @@ func (_u *EsportsSkuUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if value, ok := _u.mutation.AddedRequiredSeats(); ok {
 		_spec.AddField(esportssku.FieldRequiredSeats, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RequiredLevel(); ok {
+		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.QuotaTotal(); ok {
 		_spec.SetField(esportssku.FieldQuotaTotal, field.TypeInt64, value)
@@ -635,6 +657,20 @@ func (_u *EsportsSkuUpdateOne) SetNillableRequiredSeats(v *int) *EsportsSkuUpdat
 // AddRequiredSeats adds value to the "required_seats" field.
 func (_u *EsportsSkuUpdateOne) AddRequiredSeats(v int) *EsportsSkuUpdateOne {
 	_u.mutation.AddRequiredSeats(v)
+	return _u
+}
+
+// SetRequiredLevel sets the "required_level" field.
+func (_u *EsportsSkuUpdateOne) SetRequiredLevel(v esportssku.RequiredLevel) *EsportsSkuUpdateOne {
+	_u.mutation.SetRequiredLevel(v)
+	return _u
+}
+
+// SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
+func (_u *EsportsSkuUpdateOne) SetNillableRequiredLevel(v *esportssku.RequiredLevel) *EsportsSkuUpdateOne {
+	if v != nil {
+		_u.SetRequiredLevel(*v)
+	}
 	return _u
 }
 
@@ -854,6 +890,11 @@ func (_u *EsportsSkuUpdateOne) check() error {
 			return &ValidationError{Name: "required_seats", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.required_seats": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RequiredLevel(); ok {
+		if err := esportssku.RequiredLevelValidator(v); err != nil {
+			return &ValidationError{Name: "required_level", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.required_level": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := esportssku.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.status": %w`, err)}
@@ -929,6 +970,9 @@ func (_u *EsportsSkuUpdateOne) sqlSave(ctx context.Context) (_node *EsportsSku, 
 	}
 	if value, ok := _u.mutation.AddedRequiredSeats(); ok {
 		_spec.AddField(esportssku.FieldRequiredSeats, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RequiredLevel(); ok {
+		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.QuotaTotal(); ok {
 		_spec.SetField(esportssku.FieldQuotaTotal, field.TypeInt64, value)

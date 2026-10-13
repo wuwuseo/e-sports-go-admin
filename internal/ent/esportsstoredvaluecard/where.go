@@ -94,6 +94,11 @@ func ValidUntil(v time.Time) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldValidUntil, v))
 }
 
+// PackageID applies equality check predicate on the "package_id" field. It's identical to PackageIDEQ.
+func PackageID(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPackageID, v))
+}
+
 // OpenedByAdminID applies equality check predicate on the "opened_by_admin_id" field. It's identical to OpenedByAdminIDEQ.
 func OpenedByAdminID(v int) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldOpenedByAdminID, v))
@@ -547,6 +552,56 @@ func StatusIn(vs ...Status) predicate.EsportsStoredValueCard {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// PackageIDEQ applies the EQ predicate on the "package_id" field.
+func PackageIDEQ(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPackageID, v))
+}
+
+// PackageIDNEQ applies the NEQ predicate on the "package_id" field.
+func PackageIDNEQ(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldPackageID, v))
+}
+
+// PackageIDIn applies the In predicate on the "package_id" field.
+func PackageIDIn(vs ...int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldPackageID, vs...))
+}
+
+// PackageIDNotIn applies the NotIn predicate on the "package_id" field.
+func PackageIDNotIn(vs ...int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldPackageID, vs...))
+}
+
+// PackageIDGT applies the GT predicate on the "package_id" field.
+func PackageIDGT(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldPackageID, v))
+}
+
+// PackageIDGTE applies the GTE predicate on the "package_id" field.
+func PackageIDGTE(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldPackageID, v))
+}
+
+// PackageIDLT applies the LT predicate on the "package_id" field.
+func PackageIDLT(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldPackageID, v))
+}
+
+// PackageIDLTE applies the LTE predicate on the "package_id" field.
+func PackageIDLTE(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldPackageID, v))
+}
+
+// PackageIDIsNil applies the IsNil predicate on the "package_id" field.
+func PackageIDIsNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIsNull(FieldPackageID))
+}
+
+// PackageIDNotNil applies the NotNil predicate on the "package_id" field.
+func PackageIDNotNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotNull(FieldPackageID))
 }
 
 // OpenedByAdminIDEQ applies the EQ predicate on the "opened_by_admin_id" field.

@@ -183,6 +183,9 @@ type EsportsSku func(*sql.Selector)
 // EsportsStoredValueCard is the predicate function for esportsstoredvaluecard builders.
 type EsportsStoredValueCard func(*sql.Selector)
 
+// EsportsStoredValuePackage is the predicate function for esportsstoredvaluepackage builders.
+type EsportsStoredValuePackage func(*sql.Selector)
+
 // EsportsWalletAccount is the predicate function for esportswalletaccount builders.
 type EsportsWalletAccount func(*sql.Selector)
 

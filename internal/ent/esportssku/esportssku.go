@@ -34,6 +34,8 @@ const (
 	FieldServiceUnitName = "service_unit_name"
 	// FieldRequiredSeats holds the string denoting the required_seats field in the database.
 	FieldRequiredSeats = "required_seats"
+	// FieldRequiredLevel holds the string denoting the required_level field in the database.
+	FieldRequiredLevel = "required_level"
 	// FieldQuotaTotal holds the string denoting the quota_total field in the database.
 	FieldQuotaTotal = "quota_total"
 	// FieldQuotaReserved holds the string denoting the quota_reserved field in the database.
@@ -69,6 +71,7 @@ var Columns = []string{
 	FieldServiceUnits,
 	FieldServiceUnitName,
 	FieldRequiredSeats,
+	FieldRequiredLevel,
 	FieldQuotaTotal,
 	FieldQuotaReserved,
 	FieldQuotaSold,
@@ -150,6 +153,34 @@ func ServiceTypeValidator(st ServiceType) error {
 	}
 }
 
+// RequiredLevel defines the type for the "required_level" enum field.
+type RequiredLevel string
+
+// RequiredLevelNovice is the default value of the RequiredLevel enum.
+const DefaultRequiredLevel = RequiredLevelNovice
+
+// RequiredLevel values.
+const (
+	RequiredLevelNovice  RequiredLevel = "novice"
+	RequiredLevelSkilled RequiredLevel = "skilled"
+	RequiredLevelSenior  RequiredLevel = "senior"
+	RequiredLevelMentor  RequiredLevel = "mentor"
+)
+
+func (rl RequiredLevel) String() string {
+	return string(rl)
+}
+
+// RequiredLevelValidator is a validator for the "required_level" field enum values. It is called by the builders before save.
+func RequiredLevelValidator(rl RequiredLevel) error {
+	switch rl {
+	case RequiredLevelNovice, RequiredLevelSkilled, RequiredLevelSenior, RequiredLevelMentor:
+		return nil
+	default:
+		return fmt.Errorf("esportssku: invalid enum value for required_level field: %q", rl)
+	}
+}
+
 // Status defines the type for the "status" enum field.
 type Status string
 
@@ -228,6 +259,11 @@ func ByServiceUnitName(opts ...sql.OrderTermOption) OrderOption {
 // ByRequiredSeats orders the results by the required_seats field.
 func ByRequiredSeats(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequiredSeats, opts...).ToFunc()
+}
+
+// ByRequiredLevel orders the results by the required_level field.
+func ByRequiredLevel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequiredLevel, opts...).ToFunc()
 }
 
 // ByQuotaTotal orders the results by the quota_total field.

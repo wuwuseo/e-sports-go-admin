@@ -35,6 +35,8 @@ type EsportsSku struct {
 	ServiceUnitName string `json:"service_unit_name"`
 	// RequiredSeats holds the value of the "required_seats" field.
 	RequiredSeats int `json:"required_seats"`
+	// RequiredLevel holds the value of the "required_level" field.
+	RequiredLevel esportssku.RequiredLevel `json:"required_level"`
 	// QuotaTotal holds the value of the "quota_total" field.
 	QuotaTotal int64 `json:"quota_total"`
 	// QuotaReserved holds the value of the "quota_reserved" field.
@@ -61,7 +63,7 @@ func (*EsportsSku) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldUnitPriceCents, esportssku.FieldServiceUnits, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldStatus:
+		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldRequiredLevel, esportssku.FieldStatus:
 			values[i] = new(sql.NullString)
 		case esportssku.FieldCreatedAt, esportssku.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -140,6 +142,12 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field required_seats", values[i])
 			} else if value.Valid {
 				_m.RequiredSeats = int(value.Int64)
+			}
+		case esportssku.FieldRequiredLevel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field required_level", values[i])
+			} else if value.Valid {
+				_m.RequiredLevel = esportssku.RequiredLevel(value.String)
 			}
 		case esportssku.FieldQuotaTotal:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -253,6 +261,9 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("required_seats=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredSeats))
+	builder.WriteString(", ")
+	builder.WriteString("required_level=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequiredLevel))
 	builder.WriteString(", ")
 	builder.WriteString("quota_total=")
 	builder.WriteString(fmt.Sprintf("%v", _m.QuotaTotal))

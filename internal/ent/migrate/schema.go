@@ -1416,6 +1416,7 @@ var (
 		{Name: "addon_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "addon_units", Type: field.TypeInt64, Default: 0},
 		{Name: "required_seats", Type: field.TypeInt},
+		{Name: "required_level", Type: field.TypeEnum, Enums: []string{"novice", "skilled", "senior", "mentor"}, Default: "novice"},
 		{Name: "quote_version", Type: field.TypeInt, Default: 1},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "fulfillment_status", Type: field.TypeEnum, Enums: []string{"pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled"}, Default: "pending_payment"},
@@ -1461,12 +1462,12 @@ var (
 			{
 				Name:    "esportsorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[43]},
+				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[44]},
 			},
 			{
 				Name:    "esportsorder_responsible_admin_id_fulfillment_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[5], EsportsOrdersColumns[17]},
+				Columns: []*schema.Column{EsportsOrdersColumns[5], EsportsOrdersColumns[18]},
 			},
 		},
 	}
@@ -1722,6 +1723,7 @@ var (
 		{Name: "level_appraised_at", Type: field.TypeTime, Nullable: true},
 		{Name: "daily_limit", Type: field.TypeInt, Default: 0},
 		{Name: "concurrent_limit", Type: field.TypeInt, Default: 0},
+		{Name: "games", Type: field.TypeJSON, Nullable: true},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -2050,6 +2052,7 @@ var (
 		{Name: "service_units", Type: field.TypeInt64},
 		{Name: "service_unit_name", Type: field.TypeString, Size: 32},
 		{Name: "required_seats", Type: field.TypeInt, Default: 1},
+		{Name: "required_level", Type: field.TypeEnum, Enums: []string{"novice", "skilled", "senior", "mentor"}, Default: "novice"},
 		{Name: "quota_total", Type: field.TypeInt64, Default: -1},
 		{Name: "quota_reserved", Type: field.TypeInt64, Default: 0},
 		{Name: "quota_sold", Type: field.TypeInt64, Default: 0},
@@ -2073,12 +2076,12 @@ var (
 			{
 				Name:    "esportssku_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkusColumns[14]},
+				Columns: []*schema.Column{EsportsSkusColumns[15]},
 			},
 			{
 				Name:    "esportssku_category_id_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkusColumns[4], EsportsSkusColumns[13]},
+				Columns: []*schema.Column{EsportsSkusColumns[4], EsportsSkusColumns[14]},
 			},
 		},
 	}
@@ -2097,6 +2100,7 @@ var (
 		{Name: "valid_from", Type: field.TypeTime},
 		{Name: "valid_until", Type: field.TypeTime},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "exhausted", "refund_pending", "refunded", "expired", "frozen"}, Default: "active"},
+		{Name: "package_id", Type: field.TypeInt, Nullable: true},
 		{Name: "opened_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "refund_quote", Type: field.TypeJSON, Nullable: true},
 		{Name: "refund_requested_by_admin_id", Type: field.TypeInt, Nullable: true},
@@ -2128,6 +2132,37 @@ var (
 				Name:    "esportsstoredvaluecard_status_valid_until",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsStoredValueCardsColumns[12], EsportsStoredValueCardsColumns[11]},
+			},
+		},
+	}
+	// EsportsStoredValuePackagesColumns holds the columns for the "esports_stored_value_packages" table.
+	EsportsStoredValuePackagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "code", Type: field.TypeString, Size: 64},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "principal_cents", Type: field.TypeInt64},
+		{Name: "bonus_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"on_sale", "off_sale"}, Default: "on_sale"},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsStoredValuePackagesTable holds the schema information for the "esports_stored_value_packages" table.
+	EsportsStoredValuePackagesTable = &schema.Table{
+		Name:       TablePrefix + "esports_stored_value_packages",
+		Columns:    EsportsStoredValuePackagesColumns,
+		PrimaryKey: []*schema.Column{EsportsStoredValuePackagesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsstoredvaluepackage_code",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsStoredValuePackagesColumns[1]},
+			},
+			{
+				Name:    "esportsstoredvaluepackage_status_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsStoredValuePackagesColumns[5], EsportsStoredValuePackagesColumns[6]},
 			},
 		},
 	}
@@ -2894,6 +2929,7 @@ var (
 		EsportsSettlementsTable,
 		EsportsSkusTable,
 		EsportsStoredValueCardsTable,
+		EsportsStoredValuePackagesTable,
 		EsportsWalletAccountsTable,
 		EsportsWalletTxesTable,
 		EsportsWithdrawalsTable,

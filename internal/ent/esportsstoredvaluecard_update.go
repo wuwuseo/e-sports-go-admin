@@ -208,6 +208,33 @@ func (_u *EsportsStoredValueCardUpdate) SetNillableStatus(v *esportsstoredvaluec
 	return _u
 }
 
+// SetPackageID sets the "package_id" field.
+func (_u *EsportsStoredValueCardUpdate) SetPackageID(v int) *EsportsStoredValueCardUpdate {
+	_u.mutation.ResetPackageID()
+	_u.mutation.SetPackageID(v)
+	return _u
+}
+
+// SetNillablePackageID sets the "package_id" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillablePackageID(v *int) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetPackageID(*v)
+	}
+	return _u
+}
+
+// AddPackageID adds value to the "package_id" field.
+func (_u *EsportsStoredValueCardUpdate) AddPackageID(v int) *EsportsStoredValueCardUpdate {
+	_u.mutation.AddPackageID(v)
+	return _u
+}
+
+// ClearPackageID clears the value of the "package_id" field.
+func (_u *EsportsStoredValueCardUpdate) ClearPackageID() *EsportsStoredValueCardUpdate {
+	_u.mutation.ClearPackageID()
+	return _u
+}
+
 // SetOpenedByAdminID sets the "opened_by_admin_id" field.
 func (_u *EsportsStoredValueCardUpdate) SetOpenedByAdminID(v int) *EsportsStoredValueCardUpdate {
 	_u.mutation.ResetOpenedByAdminID()
@@ -527,6 +554,15 @@ func (_u *EsportsStoredValueCardUpdate) sqlSave(ctx context.Context) (_node int,
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldStatus, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.PackageID(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPackageID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPackageID(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldPackageID, field.TypeInt, value)
+	}
+	if _u.mutation.PackageIDCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldPackageID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.OpenedByAdminID(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldOpenedByAdminID, field.TypeInt, value)
 	}
@@ -783,6 +819,33 @@ func (_u *EsportsStoredValueCardUpdateOne) SetNillableStatus(v *esportsstoredval
 	if v != nil {
 		_u.SetStatus(*v)
 	}
+	return _u
+}
+
+// SetPackageID sets the "package_id" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetPackageID(v int) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ResetPackageID()
+	_u.mutation.SetPackageID(v)
+	return _u
+}
+
+// SetNillablePackageID sets the "package_id" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillablePackageID(v *int) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetPackageID(*v)
+	}
+	return _u
+}
+
+// AddPackageID adds value to the "package_id" field.
+func (_u *EsportsStoredValueCardUpdateOne) AddPackageID(v int) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.AddPackageID(v)
+	return _u
+}
+
+// ClearPackageID clears the value of the "package_id" field.
+func (_u *EsportsStoredValueCardUpdateOne) ClearPackageID() *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ClearPackageID()
 	return _u
 }
 
@@ -1134,6 +1197,15 @@ func (_u *EsportsStoredValueCardUpdateOne) sqlSave(ctx context.Context) (_node *
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PackageID(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPackageID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPackageID(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldPackageID, field.TypeInt, value)
+	}
+	if _u.mutation.PackageIDCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldPackageID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.OpenedByAdminID(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldOpenedByAdminID, field.TypeInt, value)

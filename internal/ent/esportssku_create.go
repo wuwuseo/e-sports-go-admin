@@ -98,6 +98,20 @@ func (_c *EsportsSkuCreate) SetNillableRequiredSeats(v *int) *EsportsSkuCreate {
 	return _c
 }
 
+// SetRequiredLevel sets the "required_level" field.
+func (_c *EsportsSkuCreate) SetRequiredLevel(v esportssku.RequiredLevel) *EsportsSkuCreate {
+	_c.mutation.SetRequiredLevel(v)
+	return _c
+}
+
+// SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
+func (_c *EsportsSkuCreate) SetNillableRequiredLevel(v *esportssku.RequiredLevel) *EsportsSkuCreate {
+	if v != nil {
+		_c.SetRequiredLevel(*v)
+	}
+	return _c
+}
+
 // SetQuotaTotal sets the "quota_total" field.
 func (_c *EsportsSkuCreate) SetQuotaTotal(v int64) *EsportsSkuCreate {
 	_c.mutation.SetQuotaTotal(v)
@@ -253,6 +267,10 @@ func (_c *EsportsSkuCreate) defaults() {
 		v := esportssku.DefaultRequiredSeats
 		_c.mutation.SetRequiredSeats(v)
 	}
+	if _, ok := _c.mutation.RequiredLevel(); !ok {
+		v := esportssku.DefaultRequiredLevel
+		_c.mutation.SetRequiredLevel(v)
+	}
 	if _, ok := _c.mutation.QuotaTotal(); !ok {
 		v := esportssku.DefaultQuotaTotal
 		_c.mutation.SetQuotaTotal(v)
@@ -353,6 +371,14 @@ func (_c *EsportsSkuCreate) check() error {
 			return &ValidationError{Name: "required_seats", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.required_seats": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.RequiredLevel(); !ok {
+		return &ValidationError{Name: "required_level", err: errors.New(`ent: missing required field "EsportsSku.required_level"`)}
+	}
+	if v, ok := _c.mutation.RequiredLevel(); ok {
+		if err := esportssku.RequiredLevelValidator(v); err != nil {
+			return &ValidationError{Name: "required_level", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.required_level": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.QuotaTotal(); !ok {
 		return &ValidationError{Name: "quota_total", err: errors.New(`ent: missing required field "EsportsSku.quota_total"`)}
 	}
@@ -443,6 +469,10 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RequiredSeats(); ok {
 		_spec.SetField(esportssku.FieldRequiredSeats, field.TypeInt, value)
 		_node.RequiredSeats = value
+	}
+	if value, ok := _c.mutation.RequiredLevel(); ok {
+		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeEnum, value)
+		_node.RequiredLevel = value
 	}
 	if value, ok := _c.mutation.QuotaTotal(); ok {
 		_spec.SetField(esportssku.FieldQuotaTotal, field.TypeInt64, value)

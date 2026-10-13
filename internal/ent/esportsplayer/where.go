@@ -389,6 +389,16 @@ func ConcurrentLimitLTE(v int) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldLTE(FieldConcurrentLimit, v))
 }
 
+// GamesIsNil applies the IsNil predicate on the "games" field.
+func GamesIsNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIsNull(FieldGames))
+}
+
+// GamesNotNil applies the NotNil predicate on the "games" field.
+func GamesNotNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotNull(FieldGames))
+}
+
 // VersionEQ applies the EQ predicate on the "version" field.
 func VersionEQ(v int) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldVersion, v))

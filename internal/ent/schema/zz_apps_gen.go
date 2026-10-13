@@ -186,6 +186,10 @@ type EsportsStoredValueCard struct {
 	appschemaesports.EsportsStoredValueCard
 }
 
+type EsportsStoredValuePackage struct {
+	appschemaesports.EsportsStoredValuePackage
+}
+
 type EsportsWalletAccount struct {
 	appschemaesports.EsportsWalletAccount
 }

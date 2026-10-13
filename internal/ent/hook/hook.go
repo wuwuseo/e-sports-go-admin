@@ -716,6 +716,18 @@ func (f EsportsStoredValueCardFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsStoredValueCardMutation", m)
 }
 
+// The EsportsStoredValuePackageFunc type is an adapter to allow the use of ordinary
+// function as EsportsStoredValuePackage mutator.
+type EsportsStoredValuePackageFunc func(context.Context, *ent.EsportsStoredValuePackageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsStoredValuePackageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsStoredValuePackageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsStoredValuePackageMutation", m)
+}
+
 // The EsportsWalletAccountFunc type is an adapter to allow the use of ordinary
 // function as EsportsWalletAccount mutator.
 type EsportsWalletAccountFunc func(context.Context, *ent.EsportsWalletAccountMutation) (ent.Value, error)

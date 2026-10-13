@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"go-admin/internal/ent/esportsplayer"
 	"strings"
@@ -33,6 +34,8 @@ type EsportsPlayer struct {
 	DailyLimit int `json:"daily_limit"`
 	// ConcurrentLimit holds the value of the "concurrent_limit" field.
 	ConcurrentLimit int `json:"concurrent_limit"`
+	// Games holds the value of the "games" field.
+	Games []string `json:"games"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -47,6 +50,8 @@ func (*EsportsPlayer) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case esportsplayer.FieldGames:
+			values[i] = new([]byte)
 		case esportsplayer.FieldID, esportsplayer.FieldUserID, esportsplayer.FieldDailyLimit, esportsplayer.FieldConcurrentLimit, esportsplayer.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportsplayer.FieldDisplayName, esportsplayer.FieldQualification, esportsplayer.FieldPresence, esportsplayer.FieldLevel:
@@ -122,6 +127,14 @@ func (_m *EsportsPlayer) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field concurrent_limit", values[i])
 			} else if value.Valid {
 				_m.ConcurrentLimit = int(value.Int64)
+			}
+		case esportsplayer.FieldGames:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field games", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Games); err != nil {
+					return fmt.Errorf("unmarshal field games: %w", err)
+				}
 			}
 		case esportsplayer.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -202,6 +215,9 @@ func (_m *EsportsPlayer) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("concurrent_limit=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ConcurrentLimit))
+	builder.WriteString(", ")
+	builder.WriteString("games=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Games))
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Version))

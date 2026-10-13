@@ -579,6 +579,26 @@ func RequiredSeatsLTE(v int) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldLTE(FieldRequiredSeats, v))
 }
 
+// RequiredLevelEQ applies the EQ predicate on the "required_level" field.
+func RequiredLevelEQ(v RequiredLevel) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldRequiredLevel, v))
+}
+
+// RequiredLevelNEQ applies the NEQ predicate on the "required_level" field.
+func RequiredLevelNEQ(v RequiredLevel) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldRequiredLevel, v))
+}
+
+// RequiredLevelIn applies the In predicate on the "required_level" field.
+func RequiredLevelIn(vs ...RequiredLevel) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldRequiredLevel, vs...))
+}
+
+// RequiredLevelNotIn applies the NotIn predicate on the "required_level" field.
+func RequiredLevelNotIn(vs ...RequiredLevel) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldRequiredLevel, vs...))
+}
+
 // QuotaTotalEQ applies the EQ predicate on the "quota_total" field.
 func QuotaTotalEQ(v int64) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldQuotaTotal, v))

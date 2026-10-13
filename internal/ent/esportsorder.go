@@ -45,6 +45,8 @@ type EsportsOrder struct {
 	AddonUnits int64 `json:"addon_units"`
 	// RequiredSeats holds the value of the "required_seats" field.
 	RequiredSeats int `json:"required_seats"`
+	// RequiredLevel holds the value of the "required_level" field.
+	RequiredLevel esportsorder.RequiredLevel `json:"required_level"`
 	// QuoteVersion holds the value of the "quote_version" field.
 	QuoteVersion int `json:"quote_version"`
 	// Version holds the value of the "version" field.
@@ -115,7 +117,7 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldDepositedByAdminID:
 			values[i] = new(sql.NullInt64)
-		case esportsorder.FieldOrderNo, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus:
+		case esportsorder.FieldOrderNo, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus:
 			values[i] = new(sql.NullString)
 		case esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -225,6 +227,12 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field required_seats", values[i])
 			} else if value.Valid {
 				_m.RequiredSeats = int(value.Int64)
+			}
+		case esportsorder.FieldRequiredLevel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field required_level", values[i])
+			} else if value.Valid {
+				_m.RequiredLevel = esportsorder.RequiredLevel(value.String)
 			}
 		case esportsorder.FieldQuoteVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -501,6 +509,9 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("required_seats=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredSeats))
+	builder.WriteString(", ")
+	builder.WriteString("required_level=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequiredLevel))
 	builder.WriteString(", ")
 	builder.WriteString("quote_version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.QuoteVersion))

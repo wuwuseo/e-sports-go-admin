@@ -152,6 +152,20 @@ func (_c *EsportsOrderCreate) SetRequiredSeats(v int) *EsportsOrderCreate {
 	return _c
 }
 
+// SetRequiredLevel sets the "required_level" field.
+func (_c *EsportsOrderCreate) SetRequiredLevel(v esportsorder.RequiredLevel) *EsportsOrderCreate {
+	_c.mutation.SetRequiredLevel(v)
+	return _c
+}
+
+// SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableRequiredLevel(v *esportsorder.RequiredLevel) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetRequiredLevel(*v)
+	}
+	return _c
+}
+
 // SetQuoteVersion sets the "quote_version" field.
 func (_c *EsportsOrderCreate) SetQuoteVersion(v int) *EsportsOrderCreate {
 	_c.mutation.SetQuoteVersion(v)
@@ -615,6 +629,10 @@ func (_c *EsportsOrderCreate) defaults() {
 		v := esportsorder.DefaultAddonUnits
 		_c.mutation.SetAddonUnits(v)
 	}
+	if _, ok := _c.mutation.RequiredLevel(); !ok {
+		v := esportsorder.DefaultRequiredLevel
+		_c.mutation.SetRequiredLevel(v)
+	}
 	if _, ok := _c.mutation.QuoteVersion(); !ok {
 		v := esportsorder.DefaultQuoteVersion
 		_c.mutation.SetQuoteVersion(v)
@@ -753,6 +771,14 @@ func (_c *EsportsOrderCreate) check() error {
 	if v, ok := _c.mutation.RequiredSeats(); ok {
 		if err := esportsorder.RequiredSeatsValidator(v); err != nil {
 			return &ValidationError{Name: "required_seats", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.required_seats": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RequiredLevel(); !ok {
+		return &ValidationError{Name: "required_level", err: errors.New(`ent: missing required field "EsportsOrder.required_level"`)}
+	}
+	if v, ok := _c.mutation.RequiredLevel(); ok {
+		if err := esportsorder.RequiredLevelValidator(v); err != nil {
+			return &ValidationError{Name: "required_level", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.required_level": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.QuoteVersion(); !ok {
@@ -929,6 +955,10 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.RequiredSeats(); ok {
 		_spec.SetField(esportsorder.FieldRequiredSeats, field.TypeInt, value)
 		_node.RequiredSeats = value
+	}
+	if value, ok := _c.mutation.RequiredLevel(); ok {
+		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeEnum, value)
+		_node.RequiredLevel = value
 	}
 	if value, ok := _c.mutation.QuoteVersion(); ok {
 		_spec.SetField(esportsorder.FieldQuoteVersion, field.TypeInt, value)

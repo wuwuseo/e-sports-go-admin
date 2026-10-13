@@ -32,6 +32,8 @@ const (
 	FieldDailyLimit = "daily_limit"
 	// FieldConcurrentLimit holds the string denoting the concurrent_limit field in the database.
 	FieldConcurrentLimit = "concurrent_limit"
+	// FieldGames holds the string denoting the games field in the database.
+	FieldGames = "games"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -56,6 +58,7 @@ var Columns = []string{
 	FieldLevelAppraisedAt,
 	FieldDailyLimit,
 	FieldConcurrentLimit,
+	FieldGames,
 	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,

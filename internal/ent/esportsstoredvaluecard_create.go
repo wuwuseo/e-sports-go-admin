@@ -132,6 +132,20 @@ func (_c *EsportsStoredValueCardCreate) SetNillableStatus(v *esportsstoredvaluec
 	return _c
 }
 
+// SetPackageID sets the "package_id" field.
+func (_c *EsportsStoredValueCardCreate) SetPackageID(v int) *EsportsStoredValueCardCreate {
+	_c.mutation.SetPackageID(v)
+	return _c
+}
+
+// SetNillablePackageID sets the "package_id" field if the given value is not nil.
+func (_c *EsportsStoredValueCardCreate) SetNillablePackageID(v *int) *EsportsStoredValueCardCreate {
+	if v != nil {
+		_c.SetPackageID(*v)
+	}
+	return _c
+}
+
 // SetOpenedByAdminID sets the "opened_by_admin_id" field.
 func (_c *EsportsStoredValueCardCreate) SetOpenedByAdminID(v int) *EsportsStoredValueCardCreate {
 	_c.mutation.SetOpenedByAdminID(v)
@@ -492,6 +506,10 @@ func (_c *EsportsStoredValueCardCreate) createSpec() (*EsportsStoredValueCard, *
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.PackageID(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPackageID, field.TypeInt, value)
+		_node.PackageID = &value
 	}
 	if value, ok := _c.mutation.OpenedByAdminID(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldOpenedByAdminID, field.TypeInt, value)

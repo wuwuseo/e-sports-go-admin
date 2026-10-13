@@ -42,6 +42,8 @@ type EsportsStoredValueCard struct {
 	ValidUntil time.Time `json:"valid_until"`
 	// Status holds the value of the "status" field.
 	Status esportsstoredvaluecard.Status `json:"status"`
+	// PackageID holds the value of the "package_id" field.
+	PackageID *int `json:"package_id"`
 	// OpenedByAdminID holds the value of the "opened_by_admin_id" field.
 	OpenedByAdminID *int `json:"opened_by_admin_id"`
 	// RefundQuote holds the value of the "refund_quote" field.
@@ -74,7 +76,7 @@ func (*EsportsStoredValueCard) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case esportsstoredvaluecard.FieldContractConfirmed:
 			values[i] = new(sql.NullBool)
-		case esportsstoredvaluecard.FieldID, esportsstoredvaluecard.FieldCustomerID, esportsstoredvaluecard.FieldPrincipalCents, esportsstoredvaluecard.FieldBonusCents, esportsstoredvaluecard.FieldOpenedByAdminID, esportsstoredvaluecard.FieldRefundRequestedByAdminID, esportsstoredvaluecard.FieldRefundDecidedByAdminID, esportsstoredvaluecard.FieldRefundedCents, esportsstoredvaluecard.FieldVersion:
+		case esportsstoredvaluecard.FieldID, esportsstoredvaluecard.FieldCustomerID, esportsstoredvaluecard.FieldPrincipalCents, esportsstoredvaluecard.FieldBonusCents, esportsstoredvaluecard.FieldPackageID, esportsstoredvaluecard.FieldOpenedByAdminID, esportsstoredvaluecard.FieldRefundRequestedByAdminID, esportsstoredvaluecard.FieldRefundDecidedByAdminID, esportsstoredvaluecard.FieldRefundedCents, esportsstoredvaluecard.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportsstoredvaluecard.FieldCardNo, esportsstoredvaluecard.FieldSource, esportsstoredvaluecard.FieldPaymentChannel, esportsstoredvaluecard.FieldPaymentRef, esportsstoredvaluecard.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -174,6 +176,13 @@ func (_m *EsportsStoredValueCard) assignValues(columns []string, values []any) e
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = esportsstoredvaluecard.Status(value.String)
+			}
+		case esportsstoredvaluecard.FieldPackageID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field package_id", values[i])
+			} else if value.Valid {
+				_m.PackageID = new(int)
+				*_m.PackageID = int(value.Int64)
 			}
 		case esportsstoredvaluecard.FieldOpenedByAdminID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -313,6 +322,11 @@ func (_m *EsportsStoredValueCard) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.PackageID; v != nil {
+		builder.WriteString("package_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	if v := _m.OpenedByAdminID; v != nil {
 		builder.WriteString("opened_by_admin_id=")

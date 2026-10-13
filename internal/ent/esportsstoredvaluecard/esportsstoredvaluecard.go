@@ -40,6 +40,8 @@ const (
 	FieldValidUntil = "valid_until"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldPackageID holds the string denoting the package_id field in the database.
+	FieldPackageID = "package_id"
 	// FieldOpenedByAdminID holds the string denoting the opened_by_admin_id field in the database.
 	FieldOpenedByAdminID = "opened_by_admin_id"
 	// FieldRefundQuote holds the string denoting the refund_quote field in the database.
@@ -82,6 +84,7 @@ var Columns = []string{
 	FieldValidFrom,
 	FieldValidUntil,
 	FieldStatus,
+	FieldPackageID,
 	FieldOpenedByAdminID,
 	FieldRefundQuote,
 	FieldRefundRequestedByAdminID,
@@ -273,6 +276,11 @@ func ByValidUntil(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByPackageID orders the results by the package_id field.
+func ByPackageID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPackageID, opts...).ToFunc()
 }
 
 // ByOpenedByAdminID orders the results by the opened_by_admin_id field.

@@ -844,6 +844,26 @@ func RequiredSeatsLTE(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldLTE(FieldRequiredSeats, v))
 }
 
+// RequiredLevelEQ applies the EQ predicate on the "required_level" field.
+func RequiredLevelEQ(v RequiredLevel) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRequiredLevel, v))
+}
+
+// RequiredLevelNEQ applies the NEQ predicate on the "required_level" field.
+func RequiredLevelNEQ(v RequiredLevel) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldRequiredLevel, v))
+}
+
+// RequiredLevelIn applies the In predicate on the "required_level" field.
+func RequiredLevelIn(vs ...RequiredLevel) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldRequiredLevel, vs...))
+}
+
+// RequiredLevelNotIn applies the NotIn predicate on the "required_level" field.
+func RequiredLevelNotIn(vs ...RequiredLevel) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldRequiredLevel, vs...))
+}
+
 // QuoteVersionEQ applies the EQ predicate on the "quote_version" field.
 func QuoteVersionEQ(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldQuoteVersion, v))
