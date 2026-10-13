@@ -198,18 +198,15 @@ notify:
     enabled: false            # 是否启用极光推送渠道
     app_key: ""               # 极光 AppKey
     master_secret: ""         # 极光 Master Secret
-    host: "https://api.jpush.cn"  # 极光 REST API 地址（海外可改为 https://api.jpush.cn 对应区域）
+    host: "https://api.jpush.cn"  # 极光 REST API 地址（海外可改为对应区域）
     timeout: 10               # 单次请求超时（秒）
+    production: true          # APNs 是否生产环境；开发/沙箱调试 iOS 推送时设为 false
 
 queue:
-  driver: rabbitmq          # asynq | rabbitmq | nats | nsq | kafka | amqp10
+  driver: asynq             # asynq | rabbitmq | nats | nsq | kafka | amqp10
   namespace: admin          # broker 资源前缀；切换驱动前先排空旧 broker
-  rabbitmq:
-    url: ""                 # 本地开发环境通过 CMF_QUEUE_RABBITMQ_URL 注入
-    management_url: http://127.0.0.1:15672
-  # RabbitMQ、NATS、NSQ、Kafka 支持 max_retry（失败超限写入 broker 死信资源）；AMQP 1.0 须设为 0。
-  # RabbitMQ、NATS、Kafka 支持逐任务管理和延时入队；NSQ 支持延时但逐任务管理受 broker 限制。
-  # 非 asynq 驱动须将 retention、max_queue_size 设为 0；去重仍不支持。
+  # 非 asynq 驱动须将 max_retry、retention、max_queue_size 设为 0；延时/去重等入队选项不支持。
+  # rabbitmq: {url: "amqp://guest:guest@localhost:5672/", management_url: "http://localhost:15672"}
   # nats: {url: "nats://localhost:4222"}
   # nsq: {nsqd: "127.0.0.1:4150", lookupd: "127.0.0.1:4161", http: "http://127.0.0.1:4151"}
   # kafka: {brokers: ["127.0.0.1:9092"], group: "admin-tasks", partitions: 3, replication_factor: 1}
@@ -221,10 +218,10 @@ queue:
   queues:                    # 消费的队列及优先级权重
     default: 10
   strict_priority: false     # 严格优先级模式
-  max_retry: 0               # 默认最大重试次数（超限进入死信）
+  max_retry: 3               # 默认最大重试次数（超限进入死信）
   timeout: 600               # 单任务默认处理超时（秒）
-  retention: 0               # 成功任务保留时长（秒），供管理端查看历史
-  max_queue_size: 0          # 每队列存量任务准入阈值（含成功/死信历史），多进程为软阈值
+  retention: 3600            # 成功任务保留时长（秒），供管理端查看历史
+  max_queue_size: 10000      # 每队列存量任务准入阈值（含成功/死信历史），多进程为软阈值
   max_payload_bytes: 65536   # 单任务载荷字节上限（投递端和执行端）
   # 监控页（asynqmon，只读）挂载在管理端认证之后；生产环境建议保持关闭
   enable_monitor: false

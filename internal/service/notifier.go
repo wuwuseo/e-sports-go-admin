@@ -269,11 +269,12 @@ type notifierConfig struct {
 	mailFrom     string
 	mailTimeout  time.Duration
 
-	pushEnabled bool
-	jpushAppKey string
-	jpushMaster string
-	jpushHost   string
-	pushTimeout time.Duration
+	pushEnabled    bool
+	jpushAppKey    string
+	jpushMaster    string
+	jpushHost      string
+	pushTimeout    time.Duration
+	pushProduction bool // APNs 是否生产环境（false 时推送走沙箱）
 }
 
 // loadNotifierConfig 从 config.yml 读取 notify.* 配置段
@@ -296,6 +297,8 @@ func loadNotifierConfig() notifierConfig {
 		jpushAppKey: strings.TrimSpace(config.GetString("notify.push.app_key")),
 		jpushMaster: strings.TrimSpace(config.GetString("notify.push.master_secret")),
 		jpushHost:   strings.TrimSpace(config.GetString("notify.push.host")),
+		// apns_production 默认值由 config.yml 显式声明（true=生产 APNs）
+		pushProduction: config.GetBool("notify.push.production"),
 	}
 	cfg.smsTimeout = durationSeconds(config.GetInt("notify.sms.timeout"), 10)
 	cfg.mailTimeout = durationSeconds(config.GetInt("notify.mail.timeout"), 10)

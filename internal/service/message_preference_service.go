@@ -52,6 +52,7 @@ type UpdateMessagePreferenceRequest struct {
 // MessagePreferenceServiceInterface 偏好服务接口
 type MessagePreferenceServiceInterface interface {
 	GetOrDefault(ctx context.Context, uid string) (*MessagePreferenceResponse, error)
+	GetByUIDs(ctx context.Context, uids []string) (map[string]*MessagePreferenceResponse, error)
 	Update(ctx context.Context, uid string, req *UpdateMessagePreferenceRequest) (*MessagePreferenceResponse, error)
 }
 
@@ -98,6 +99,33 @@ func (s *MessagePreferenceService) GetOrDefault(ctx context.Context, uid string)
 		return nil, fmt.Errorf("查询消息偏好失败: %w", err)
 	}
 	return entityToPreferenceResponse(entity), nil
+}
+
+// GetByUIDs 批量查询多个用户的偏好；未配置的用户使用默认值兜底。
+// 用于批量广播场景，避免逐用户 GetOrDefault 造成 N+1 查询。
+func (s *MessagePreferenceService) GetByUIDs(ctx context.Context, uids []string) (map[string]*MessagePreferenceResponse, error) {
+	result := make(map[string]*MessagePreferenceResponse, len(uids))
+	if len(uids) == 0 {
+		return result, nil
+	}
+	entities, err := s.Client.MessagePreference.Query().
+		Where(messagepreference.UserUIDIn(uids...)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("批量查询消息偏好失败: %w", err)
+	}
+	found := make(map[string]struct{}, len(entities))
+	for _, e := range entities {
+		result[e.UserUID] = entityToPreferenceResponse(e)
+		found[e.UserUID] = struct{}{}
+	}
+	// 未配置的用户填默认值
+	for _, uid := range uids {
+		if _, ok := found[uid]; !ok {
+			result[uid] = defaultPreference()
+		}
+	}
+	return result, nil
 }
 
 // Update 部分更新偏好（不存在则创建）

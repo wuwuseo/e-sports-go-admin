@@ -8,11 +8,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
 
-// 短信文案默认截断长度（按电信规范单条 70 字，超出走长短信）
+// 短信正文最大字符数（按 rune 计）；超出截断，避免按多条计费或触发网关拒绝。
+// 注：电信标准单条短信为 70 个中文字符（140 字节），此处 140 rune 为兼容长短信的保守上限。
 const smsContentMaxRunes = 140
 
 // SMSNotifier 短信渠道
@@ -66,6 +68,9 @@ func (n *SMSNotifier) Send(ctx context.Context, payload NotifyPayload) error {
 	if phone == "" {
 		return ErrNotifierNoRecipient
 	}
+	if !phonePattern.MatchString(phone) {
+		return fmt.Errorf("非法的手机号格式: %q", phone)
+	}
 	return n.sender.Send(ctx, phone, payload)
 }
 
@@ -99,6 +104,10 @@ type smsGatewayResponse struct {
 }
 
 func (s *httpSMSender) Send(ctx context.Context, phone string, payload NotifyPayload) error {
+	// 携带访问凭证时，强制要求 HTTPS，避免 access_key/secret_key 明文在网络中传输
+	if (s.accessKey != "" || s.secretKey != "") && !isHTTPS(s.endpoint) {
+		return fmt.Errorf("短信网关携带凭证时必须使用 https endpoint")
+	}
 	reqBody := smsGatewayRequest{
 		Phone:    phone,
 		Content:  buildSMSContent(payload),
@@ -158,9 +167,6 @@ func buildSMSContent(payload NotifyPayload) string {
 		text = strings.TrimSpace(payload.Title)
 	}
 	body := strings.TrimSpace(payload.Title + " " + text)
-	if title := strings.TrimSpace(payload.Title); title != "" && body == "" {
-		body = title
-	}
 	runes := []rune(body)
 	if len(runes) > smsContentMaxRunes {
 		return string(runes[:smsContentMaxRunes])
@@ -181,6 +187,12 @@ func recipientFromExtra(extra map[string]any, keys ...string) string {
 	}
 	return ""
 }
+
+// phonePattern 中国大陆手机号（11 位，1 开头）；如需国际号段请扩展
+var phonePattern = regexp.MustCompile(`^1[3-9]\d{9}$`)
+
+// emailPattern 基础邮箱格式校验（RFC 5322 简版，覆盖常见场景）
+var emailPattern = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
 // mailSender 邮件投递最小抽象
 type mailSender interface {
@@ -225,6 +237,9 @@ func (n *MailNotifier) Send(ctx context.Context, payload NotifyPayload) error {
 	email := recipientFromExtra(payload.Extra, "email", "mail")
 	if email == "" {
 		return ErrNotifierNoRecipient
+	}
+	if !emailPattern.MatchString(email) {
+		return fmt.Errorf("非法的邮箱格式: %q", email)
 	}
 	return n.sender.Send(ctx, email, payload)
 }
@@ -304,6 +319,7 @@ func NewPushNotifier(cfg notifierConfig) *PushNotifier {
 			appKey:     cfg.jpushAppKey,
 			masterKey:  cfg.jpushMaster,
 			host:       cfg.jpushHost,
+			production: cfg.pushProduction,
 			httpClient: &http.Client{Timeout: cfg.pushTimeout},
 		}
 	}
@@ -334,6 +350,7 @@ type jpushSender struct {
 	appKey     string
 	masterKey  string
 	host       string
+	production bool // APNs 是否生产环境
 	httpClient *http.Client
 }
 
@@ -344,10 +361,10 @@ type jpushAudience struct {
 }
 
 type jpushNotification struct {
-	Alert    string                 `json:"alert"`
-	Android  map[string]any         `json:"android,omitempty"`
-	IOS      map[string]any         `json:"ios,omitempty"`
-	Extras   map[string]any         `json:"extras,omitempty"`
+	Alert   string         `json:"alert"`
+	Android map[string]any `json:"android,omitempty"`
+	IOS     map[string]any `json:"ios,omitempty"`
+	Extras  map[string]any `json:"extras,omitempty"`
 }
 
 type jpushPushRequest struct {
@@ -367,6 +384,10 @@ type jpushResponse struct {
 }
 
 func (s *jpushSender) Send(ctx context.Context, payload NotifyPayload) error {
+	// JPush 走 Basic Auth(appKey, masterSecret)，强制 HTTPS 防止凭证泄露
+	if !isHTTPS(s.host) {
+		return fmt.Errorf("极光推送 host 必须使用 https")
+	}
 	audience := buildJPushAudience(payload)
 	if len(audience.RegistrationID) == 0 && len(audience.Alias) == 0 && len(audience.Tag) == 0 {
 		return ErrNotifierNoRecipient
@@ -402,7 +423,7 @@ func (s *jpushSender) Send(ctx context.Context, payload NotifyPayload) error {
 			Extras: extras,
 		},
 		Options: map[string]any{
-			"apns_production": true,
+			"apns_production": s.production,
 			"time_to_live":    86400,
 		},
 	}
@@ -472,6 +493,15 @@ func splitAndTrim(v string) []string {
 	return out
 }
 
+// isHTTPS 校验地址是否使用 https 协议（凭证类投递必须走 TLS）
+func isHTTPS(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Scheme, "https")
+}
+
 // 编译期接口实现断言
 var (
 	_ Notifier = (*InAppNotifier)(nil)
@@ -479,6 +509,3 @@ var (
 	_ Notifier = (*MailNotifier)(nil)
 	_ Notifier = (*PushNotifier)(nil)
 )
-
-// ensure url import used (kept for future endpoint validation)
-var _ = url.Parse
