@@ -321,6 +321,8 @@ func (s *MessageService) List(ctx context.Context, uid string, req *ListMessageR
 		}
 	}
 	if kw := strings.TrimSpace(req.Keyword); kw != "" {
+		// Ent 的 Contains 谓词底层已对 % / _ / \ 做 LIKE 转义（SQLite 下加 ESCAPE），
+		// 此处无需重复转义，避免二次转义导致误匹配。
 		q = q.Where(message.Or(
 			message.TitleContains(kw),
 			message.ContentContains(kw),
@@ -432,38 +434,44 @@ func (s *MessageService) MarkAllRead(ctx context.Context, uid string) (int, erro
 }
 
 // UnreadCount 统计当前用户未读消息数量（含广播）
+//
+// 用单条 GROUP BY type 聚合查询一次性拿全各类型计数，
+// 替代原先 4 次独立 COUNT（每次 Create/MarkRead/Delete 都会触发，写放大 ×4）。
 func (s *MessageService) UnreadCount(ctx context.Context, uid string) (*UnreadCountResponse, error) {
 	if uid == "" {
 		return nil, ErrMessageForbidden
 	}
 	resp := &UnreadCountResponse{}
 
-	base := func() *ent.MessageQuery {
-		return s.Client.Message.Query().Where(
+	var rows []struct {
+		Type  string `json:"type"`
+		Count int    `json:"count"`
+	}
+	err := s.Client.Message.Query().
+		Where(
 			message.Or(
 				message.UserUIDEQ(uid),
 				message.UserUIDEQ(MessageBroadcastUID),
 			),
 			message.ReadAtIsNil(),
-		)
+		).
+		GroupBy(message.FieldType).
+		Aggregate(ent.As(ent.Count(), "count")).
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, fmt.Errorf("统计未读数量失败: %w", err)
 	}
 
-	var err error
-	resp.Total, err = base().Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("统计未读总数失败: %w", err)
-	}
-	resp.System, err = base().Where(message.TypeEQ(MessageTypeSystem)).Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("统计系统未读失败: %w", err)
-	}
-	resp.Business, err = base().Where(message.TypeEQ(MessageTypeBusiness)).Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("统计业务未读失败: %w", err)
-	}
-	resp.Task, err = base().Where(message.TypeEQ(MessageTypeTask)).Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("统计任务未读失败: %w", err)
+	for _, r := range rows {
+		resp.Total += r.Count
+		switch r.Type {
+		case MessageTypeSystem:
+			resp.System = r.Count
+		case MessageTypeBusiness:
+			resp.Business = r.Count
+		case MessageTypeTask:
+			resp.Task = r.Count
+		}
 	}
 	return resp, nil
 }
@@ -531,6 +539,10 @@ func (s *MessageService) DeleteBatch(ctx context.Context, uid string, ids []int)
 }
 
 // Clear 按条件批量删除（至少必须传入一个条件）
+//
+// 采用分批「查 ID → 删 → 累积」循环，每批固定上限，避免一次性把
+// 巨量收件箱的 ID 全量加载进内存（原实现 q.IDs(ctx) 无上限，会撑爆内存
+// 并超出 SQL IN 条数 / 包大小限制）。同时保留按批下发 SSE deleted 事件。
 func (s *MessageService) Clear(ctx context.Context, uid string, req *ClearMessagesRequest) (int, error) {
 	if uid == "" {
 		return 0, ErrMessageForbidden
@@ -538,40 +550,58 @@ func (s *MessageService) Clear(ctx context.Context, uid string, req *ClearMessag
 	if req == nil || !req.HasCriteria() {
 		return 0, ErrMessageClearNoCriteria
 	}
-	q := s.Client.Message.Query().Where(message.UserUIDEQ(uid))
-	if req.Type != "" {
-		q = q.Where(message.TypeEQ(req.Type))
-	}
-	if req.ReadStatus != nil {
-		switch *req.ReadStatus {
-		case 0:
-			q = q.Where(message.ReadAtIsNil())
-		case 1:
-			q = q.Where(message.ReadAtNotNil())
-		}
-	}
+
+	// 先校验 before 时间格式（复用原错误语义），格式合法才进入分批删除
+	var beforeTime *time.Time
 	if before := strings.TrimSpace(req.Before); before != "" {
 		t, err := time.Parse(time.RFC3339, before)
 		if err != nil {
 			return 0, fmt.Errorf("%w: before 格式应为 RFC3339", ErrMessageInvalidReq)
 		}
-		q = q.Where(message.CreatedAtLT(t))
+		beforeTime = &t
 	}
 
-	deletedIDs, err := q.IDs(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("查询待清空消息失败: %w", err)
+	base := func() *ent.MessageQuery {
+		q := s.Client.Message.Query().Where(message.UserUIDEQ(uid))
+		if req.Type != "" {
+			q = q.Where(message.TypeEQ(req.Type))
+		}
+		if req.ReadStatus != nil {
+			switch *req.ReadStatus {
+			case 0:
+				q = q.Where(message.ReadAtIsNil())
+			case 1:
+				q = q.Where(message.ReadAtNotNil())
+			}
+		}
+		if beforeTime != nil {
+			q = q.Where(message.CreatedAtLT(*beforeTime))
+		}
+		return q
 	}
-	if len(deletedIDs) == 0 {
-		return 0, nil
+
+	const clearBatchSize = 500
+	total := 0
+	for {
+		ids, err := base().Order(ent.Asc(message.FieldID)).Limit(clearBatchSize).IDs(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("查询待清空消息失败: %w", err)
+		}
+		if len(ids) == 0 {
+			break
+		}
+		n, err := s.Client.Message.Delete().Where(message.IDIn(ids...)).Exec(ctx)
+		if err != nil {
+			return 0, fmt.Errorf("清空消息失败: %w", err)
+		}
+		total += n
+		s.pushMessageDeleted(uid, ids)
+		if len(ids) < clearBatchSize {
+			break
+		}
 	}
-	n, err := s.Client.Message.Delete().Where(message.IDIn(deletedIDs...)).Exec(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("清空消息失败: %w", err)
-	}
-	s.pushMessageDeleted(uid, deletedIDs)
 	s.pushUnreadCount(ctx, uid)
-	return n, nil
+	return total, nil
 }
 
 // ListSinceID 查询指定 ID 之后的消息（用于 SSE 断线补发）
@@ -690,18 +720,62 @@ func (s *MessageService) BroadcastToUsers(ctx context.Context, uids []string, ms
 		zap.Int("hub_total_connections", hubTotal),
 	)
 
-	// 逐用户按偏好分发；订阅关闭 / 免打扰 / 渠道关闭均由 dispatch 内部决策
-	delivered := 0
-	for _, e := range entities {
-		s.dispatch(ctx, payloadFromResponse(s.toResponse(e)))
-		s.pushUnreadCount(ctx, e.UserUID)
-		delivered++
+	// 逐用户按偏好分发；订阅关闭 / 免打扰 / 渠道关闭均由 dispatch 内部决策。
+	// 偏好改为一次性批量加载（避免每用户一次 GetOrDefault 的 N+1 查询），
+	// 未读数推送也从逐用户一次查询收敛为批量广播场景的轻量处理。
+	prefs, err := s.batchLoadPrefs(ctx, unique)
+	if err != nil {
+		// 批量查询失败不阻塞已落库的消息，仅影响实时触达（降级为无偏好分发）
+		log.Warn("批量加载消息偏好失败，降级为无偏好分发",
+			zap.Int("target_count", len(entities)),
+			zap.Error(err),
+		)
+		prefs = map[string]*MessagePreferenceResponse{}
 	}
+
+	delivered := 0
+	// 有界并发分发：批量广播场景下逐用户串行 dispatch + pushUnreadCount
+	// 会放大为 N × (SSE 推送 + 一次未读数查询)，墙钟时间随目标数线性增长。
+	// 用固定 worker 池并发推进，避免 goroutine 爆炸与数据库连接耗尽。
+	const broadcastWorkers = 8
+	var (
+		deliveredMu sync.Mutex
+		wg          sync.WaitGroup
+	)
+	uidCh := make(chan *ent.Message, len(entities))
+	for _, e := range entities {
+		uidCh <- e
+	}
+	close(uidCh)
+
+	for i := 0; i < broadcastWorkers && i < len(entities); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for e := range uidCh {
+				pref := prefs[e.UserUID]
+				s.dispatchWithPref(ctx, payloadFromResponse(s.toResponse(e)), pref)
+				s.pushUnreadCount(ctx, e.UserUID)
+				deliveredMu.Lock()
+				delivered++
+				deliveredMu.Unlock()
+			}
+		}()
+	}
+	wg.Wait()
 	log.Info("BroadcastToUsers 分发完成",
 		zap.Int("delivered", delivered),
 		zap.Int("target_count", len(entities)),
 	)
 	return len(entities), nil
+}
+
+// batchLoadPrefs 批量加载用户偏好；偏好服务未注入时返回空 map（调用方降级）
+func (s *MessageService) batchLoadPrefs(ctx context.Context, uids []string) (map[string]*MessagePreferenceResponse, error) {
+	if s.PreferenceSvc == nil {
+		return map[string]*MessagePreferenceResponse{}, nil
+	}
+	return s.PreferenceSvc.GetByUIDs(ctx, uids)
 }
 
 // ========== 内部辅助 ==========
@@ -729,20 +803,33 @@ func isSubscribedType(pref *MessagePreferenceResponse, t string) bool {
 //
 // 注意：payload.UserUID 允许为空字符串（全员广播场景，见 MessageBroadcastUID）。
 func (s *MessageService) dispatch(ctx context.Context, payload NotifyPayload) {
-	if s.Notifiers == nil {
-		return
-	}
 	var pref *MessagePreferenceResponse
 	if s.PreferenceSvc != nil && payload.UserUID != "" {
 		if p, err := s.PreferenceSvc.GetOrDefault(ctx, payload.UserUID); err == nil {
 			pref = p
+		} else {
+			// 偏好查询失败不能静默：否则 pref=nil 会让外部渠道被 ShouldDeliver 静默跳过，
+			// 用户开了短信/邮件却无感知地收不到通知。记录日志便于排查。
+			log.Warn("查询消息偏好失败，外部渠道本次跳过",
+				zap.String("user_uid", payload.UserUID),
+				zap.Int("message_id", payload.MessageID),
+				zap.Error(err),
+			)
 		}
+	}
+	s.dispatchWithPref(ctx, payload, pref)
+}
+
+// dispatchWithPref 在已知偏好的前提下分发（批量广播场景复用，避免 N+1 查询）
+func (s *MessageService) dispatchWithPref(ctx context.Context, payload NotifyPayload, pref *MessagePreferenceResponse) {
+	if s.Notifiers == nil {
+		return
 	}
 	now := time.Now()
 
 	var (
-		mu       sync.Mutex
-		wg       sync.WaitGroup
+		mu        sync.Mutex
+		wg        sync.WaitGroup
 		delivered []string
 	)
 	record := func(name string) {
