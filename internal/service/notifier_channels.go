@@ -167,9 +167,6 @@ func buildSMSContent(payload NotifyPayload) string {
 		text = strings.TrimSpace(payload.Title)
 	}
 	body := strings.TrimSpace(payload.Title + " " + text)
-	if title := strings.TrimSpace(payload.Title); title != "" && body == "" {
-		body = title
-	}
 	runes := []rune(body)
 	if len(runes) > smsContentMaxRunes {
 		return string(runes[:smsContentMaxRunes])

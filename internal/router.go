@@ -131,6 +131,12 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	messageService := service.NewMessageServiceWithNotifiers(notifierRegistry, prefSvc)
 	broadcastService := service.NewMessageBroadcastService(messageService)
 
+	// 注册外部渠道异步投递处理器：短信/邮件/极光推送经任务队列 worker 消费。
+	// 队列运行时未初始化（Setup 失败或测试环境）时跳过，投递端会自动降级为同步。
+	if rt := global.QueueRuntime.Load(); rt != nil {
+		rt.Handle(service.TaskNotifyExternal, service.NewExternalDispatchHandler(notifierRegistry))
+	}
+
 	// 初始化插件管理服务
 	pluginRegistry := cmfplugin.NewMemoryExtensionRegistry()
 	requirePluginSignature := config.GetBool("plugin.require_signature")

@@ -793,13 +793,12 @@ func isSubscribedType(pref *MessagePreferenceResponse, t string) bool {
 	return true
 }
 
-// dispatch 按用户偏好向所有可用渠道并发分发消息
+// dispatch 按用户偏好向所有可用渠道分发消息
 //
 // 投递策略：
-//   - 站内信（SSE 实时推送）同步先行：内存操作，微秒级完成，保证消息立即抵达在线用户；
-//   - 短信 / 邮件 / 极光推送等外部渠道并发投递：总耗时 = 最慢渠道，而非各渠道之和；
-//   - 每个外部渠道独立受自身 HTTP 客户端超时约束（见 notifierConfig timeout），
-//     单渠道失败或超时只记录日志，不影响其他渠道与主流程。
+//   - 站内信（SSE 实时推送）同步投递：内存操作，微秒级完成，保证消息立即抵达在线用户；
+//   - 短信 / 邮件 / 极光推送等外部渠道入队异步投递：由任务队列 worker 消费，
+//     单渠道失败或超时由队列重试，不影响消息写入请求与站内信触达。
 //
 // 注意：payload.UserUID 允许为空字符串（全员广播场景，见 MessageBroadcastUID）。
 func (s *MessageService) dispatch(ctx context.Context, payload NotifyPayload) {
@@ -821,46 +820,34 @@ func (s *MessageService) dispatch(ctx context.Context, payload NotifyPayload) {
 }
 
 // dispatchWithPref 在已知偏好的前提下分发（批量广播场景复用，避免 N+1 查询）
+//
+// 投递策略：
+//   - 站内信（SSE 实时推送）同步投递：内存操作，微秒级完成，保证消息立即抵达在线用户；
+//   - 短信 / 邮件 / 极光推送等外部渠道入队异步投递：由任务队列 worker 消费执行，
+//     不阻塞消息写入请求，单条消息 API 延迟与外部渠道网络耗时解耦。
 func (s *MessageService) dispatchWithPref(ctx context.Context, payload NotifyPayload, pref *MessagePreferenceResponse) {
 	if s.Notifiers == nil {
 		return
 	}
 	now := time.Now()
 
-	var (
-		mu        sync.Mutex
-		wg        sync.WaitGroup
-		delivered []string
-	)
-	record := func(name string) {
-		mu.Lock()
-		delivered = append(delivered, name)
-		mu.Unlock()
-	}
-
+	var delivered []string
 	for _, name := range s.Notifiers.Names() {
 		if !s.Notifiers.ShouldDeliver(pref, payload.Type, name, now) {
 			continue
 		}
 		if name == ChannelInApp {
-			// 站内信同步先行，不等待外部渠道
+			// 站内信同步投递，实时触达
 			if err := s.Notifiers.Dispatch(ctx, name, payload); err == nil {
-				record(name)
+				delivered = append(delivered, name)
 			}
 			continue
 		}
-		// 外部渠道并发投递；失败已在 Dispatch 内部记录日志
-		wg.Add(1)
-		go func(ch string) {
-			defer wg.Done()
-			if err := s.Notifiers.Dispatch(ctx, ch, payload); err == nil {
-				record(ch)
-			}
-		}(name)
+		// 外部渠道入队异步投递；入队失败已在 enqueueExternal 内降级同步并记录
+		if err := s.Notifiers.enqueueExternal(ctx, name, payload); err == nil {
+			delivered = append(delivered, name)
+		}
 	}
-	// 等待全部外部渠道返回后再记汇总日志；
-	// 各渠道自带超时，此处不会无限阻塞
-	wg.Wait()
 
 	if len(delivered) > 0 {
 		log.Info("消息已分发",

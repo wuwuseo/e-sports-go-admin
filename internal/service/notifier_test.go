@@ -582,9 +582,10 @@ func (s *slowStubNotifier) count() int {
 	return len(s.done)
 }
 
-// TestMessageService_Dispatch_Concurrent 外部渠道应并发投递：
-// 两个各耗时 150ms 的渠道，总耗时应远小于串行的 300ms。
-func TestMessageService_Dispatch_Concurrent(t *testing.T) {
+// TestMessageService_Dispatch_ExternalEnqueuedOrFallback 外部渠道分发：
+// 队列未初始化（QueueRuntime 为 nil）时降级为同步投递，保证不丢通知；
+// 同时站内信应同步先行送达，不被外部渠道阻塞。
+func TestMessageService_Dispatch_ExternalEnqueuedOrFallback(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:conc?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 	defer client.Close()
@@ -616,11 +617,9 @@ func TestMessageService_Dispatch_Concurrent(t *testing.T) {
 		t.Fatalf("更新偏好失败: %v", err)
 	}
 
-	start := time.Now()
 	_, err := svc.PublishToUser(ctx, "u1", PublishMessage{
-		Type: MessageTypeSystem, Title: "并发测试", Content: "c",
+		Type: MessageTypeSystem, Title: "降级测试", Content: "c",
 	})
-	elapsed := time.Since(start)
 	if err != nil {
 		t.Fatalf("发布失败: %v", err)
 	}
@@ -632,22 +631,15 @@ func TestMessageService_Dispatch_Concurrent(t *testing.T) {
 		t.Error("站内信应在外部渠道完成前先行送达")
 	}
 
+	// 队列未初始化时降级同步投递：两个外部渠道应各投递 1 次
 	if slowSMS.count() != 1 || slowMail.count() != 1 {
-		t.Fatalf("两个慢渠道应各投递 1 次，实际 sms=%d mail=%d", slowSMS.count(), slowMail.count())
-	}
-
-	// 并发下总耗时 ≈ 单渠道耗时（150ms），串行则需要 300ms
-	if elapsed >= 290*time.Millisecond {
-		t.Errorf("外部渠道应并发投递，总耗时 %v 接近串行时间，疑似未并发", elapsed)
-	}
-	if elapsed < 140*time.Millisecond {
-		t.Errorf("总耗时 %v 短于单个渠道耗时，渠道可能未真正执行", elapsed)
+		t.Fatalf("队列未初始化时外部渠道应降级同步各投递 1 次，实际 sms=%d mail=%d", slowSMS.count(), slowMail.count())
 	}
 }
 
-// TestMessageService_Dispatch_InAppNotBlockedBySlowChannel 站内信送达时间
-// 不应受慢速外部渠道影响（同步先行策略）。
-func TestMessageService_Dispatch_InAppNotBlockedBySlowChannel(t *testing.T) {
+// TestMessageService_Dispatch_InAppNotBlockedByExternal 站内信送达时间
+// 不应受外部渠道影响（站内信同步先行，外部渠道入队异步）。
+func TestMessageService_Dispatch_InAppNotBlockedByExternal(t *testing.T) {
 	client := enttest.Open(t, "sqlite3", "file:conc2?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 	defer client.Close()
@@ -673,8 +665,8 @@ func TestMessageService_Dispatch_InAppNotBlockedBySlowChannel(t *testing.T) {
 	}
 
 	// 用独立 goroutine 记录站内信事件的真实到达时刻。
-	// 不能在 PublishToUser 返回后才计时：发布主流程会 wg.Wait() 等待外部渠道
-	// （150ms），而站内信事件在 dispatch 内同步先行、0ms 即写入 c.Send 缓冲区。
+	// 不能在 PublishToUser 返回后才计时：外部渠道在队列初始化时会入队异步执行，
+	// 队列未初始化时降级同步投递（慢渠道 150ms），二者都会晚于站内信事件。
 	start := time.Now()
 	arrived := make(chan time.Duration, 1)
 	go func() {
@@ -702,6 +694,6 @@ func TestMessageService_Dispatch_InAppNotBlockedBySlowChannel(t *testing.T) {
 	}
 	// 站内信应在远小于 150ms（慢渠道耗时）内送达
 	if since > 120*time.Millisecond {
-		t.Errorf("站内信被慢渠道阻塞，送达耗时 %v", since)
+		t.Errorf("站内信被外部渠道阻塞，送达耗时 %v", since)
 	}
 }

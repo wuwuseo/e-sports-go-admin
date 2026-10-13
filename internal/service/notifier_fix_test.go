@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
+
+	cmfqueue "github.com/wuwuseo/cmf/queue"
 
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
@@ -139,7 +142,54 @@ func TestMessageService_Clear_BatchDelete(t *testing.T) {
 	}
 }
 
-// ========== List keyword 通配符转义（Ent 内置） ==========
+// ========== 外部渠道异步投递 handler ==========
+
+// TestExternalDispatchHandler 验证队列处理器能反序列化载荷并投递到目标渠道。
+func TestExternalDispatchHandler(t *testing.T) {
+	reg := NewNotifierRegistry()
+	sms := &stubNotifier{name: ChannelSMS, enabled: true}
+	reg.Register(sms)
+
+	handler := NewExternalDispatchHandler(reg)
+
+	payload := NotifyPayload{
+		MessageID: 42,
+		UserUID:   "u1",
+		Type:      MessageTypeSystem,
+		Title:     "t",
+		Content:   "c",
+	}
+	raw, err := json.Marshal(externalDispatchPayload{Channel: ChannelSMS, Payload: payload})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := handler(t.Context(), &cmfqueue.Task{Name: TaskNotifyExternal, Payload: raw}); err != nil {
+		t.Fatalf("handler 投递失败: %v", err)
+	}
+	if sms.count() != 1 {
+		t.Fatalf("短信渠道应投递 1 次，实际 %d", sms.count())
+	}
+}
+
+// TestExternalDispatchHandler_InvalidPayload 非法载荷应返回错误（重试无意义）。
+func TestExternalDispatchHandler_InvalidPayload(t *testing.T) {
+	reg := NewNotifierRegistry()
+	handler := NewExternalDispatchHandler(reg)
+	if err := handler(t.Context(), &cmfqueue.Task{Name: TaskNotifyExternal, Payload: []byte("{bad json")}); err == nil {
+		t.Fatal("非法 JSON 载荷应返回错误")
+	}
+}
+
+// TestExternalDispatchHandler_UnknownChannel 未注册渠道应返回错误。
+func TestExternalDispatchHandler_UnknownChannel(t *testing.T) {
+	reg := NewNotifierRegistry()
+	handler := NewExternalDispatchHandler(reg)
+	raw, _ := json.Marshal(externalDispatchPayload{Channel: ChannelSMS, Payload: NotifyPayload{}})
+	if err := handler(t.Context(), &cmfqueue.Task{Name: TaskNotifyExternal, Payload: raw}); err == nil {
+		t.Fatal("未注册渠道应返回错误")
+	}
+}
 
 // 验证 Ent 的 Contains 谓词已内置 LIKE 通配符转义：
 // 输入 % / _ 应被当作字面量匹配，而非通配符导致全表扫描或误匹配。
