@@ -42,6 +42,8 @@ func (EsportsSku) Fields() []ent.Field {
 		field.Int64("service_units").Positive().StructTag(`json:"service_units"`),
 		field.String("service_unit_name").NotEmpty().MaxLen(32).StructTag(`json:"service_unit_name"`),
 		field.Int("required_seats").Positive().Default(1).StructTag(`json:"required_seats"`),
+		// 所需技能等级（§5.5）：陪玩等级不得低于该值（novice 最低 = 无门槛）。
+		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
 		field.Int64("quota_total").Default(-1).StructTag(`json:"quota_total"`), // -1 means unlimited; quota counts purchased SKU units.
 		field.Int64("quota_reserved").Default(0).StructTag(`json:"quota_reserved"`),
 		field.Int64("quota_sold").Default(0).StructTag(`json:"quota_sold"`),

@@ -146,6 +146,13 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err = checkPlayerDispatchLimit(ctx, tx, player, now); err != nil {
 		return nil, err
 	}
+	game, err := orderGameIn(ctx, tx, order.SkuID)
+	if err != nil {
+		return nil, err
+	}
+	if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+		return nil, err
+	}
 	if err = ensureDispatchSeats(ctx, tx, order); err != nil {
 		return nil, err
 	}

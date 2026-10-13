@@ -418,9 +418,18 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 			load[*seat.PlayerID]++
 		}
 	}
+	game, err := orderGame(ctx, db, order.SkuID)
+	if err != nil {
+		return nil, err
+	}
+	requiredLevel := order.RequiredLevel.String()
 	candidates := make([]*dispatchCandidate, 0, len(players))
 	for _, player := range players {
 		if occupied[player.ID] {
+			continue
+		}
+		// 游戏分区权限 + 技能等级（§5.5）：不满足硬性条件的陪玩不出现在候选池。
+		if err := checkPlayerGameLevel(player, game, requiredLevel); err != nil {
 			continue
 		}
 		rating, err := playerRatingSummary(ctx, db, player.ID)

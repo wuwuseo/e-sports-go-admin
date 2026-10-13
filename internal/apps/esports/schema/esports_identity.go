@@ -67,6 +67,8 @@ func (EsportsPlayer) Fields() []ent.Field {
 		// daily_limit 每日可履约席位数（按接单自然日）；concurrent_limit 同一时段并发可履约席位数。
 		field.Int("daily_limit").Default(0).StructTag(`json:"daily_limit"`),
 		field.Int("concurrent_limit").Default(0).StructTag(`json:"concurrent_limit"`),
+		// 接单游戏分区（§5.5 / §6.4）：空表示不限；否则只接这些游戏分区的订单。
+		field.JSON("games", []string{}).Optional().StructTag(`json:"games"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),

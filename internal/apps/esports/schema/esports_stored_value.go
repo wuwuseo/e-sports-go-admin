@@ -37,6 +37,8 @@ func (EsportsStoredValueCard) Fields() []ent.Field {
 		// refunded 已退卡 / expired 已过期（不再可消费，仍可走退卡）/ frozen 冻结。
 		field.Enum("status").Values("active", "exhausted", "refund_pending", "refunded", "expired", "frozen").
 			Default("active").StructTag(`json:"status"`),
+		// 开卡所选套餐（§4.4）：可选，用于追溯赠送到账依据；手动开卡为空。
+		field.Int("package_id").Optional().Nillable().StructTag(`json:"package_id"`),
 		field.Int("opened_by_admin_id").Optional().Nillable().StructTag(`json:"opened_by_admin_id"`),
 		// 退卡试算明细（可退本金 / 未消费赠送作废 / 计算过程），申请时写入并快照。
 		field.JSON("refund_quote", map[string]any{}).Optional().StructTag(`json:"refund_quote"`),

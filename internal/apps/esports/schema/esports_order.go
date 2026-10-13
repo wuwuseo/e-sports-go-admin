@@ -27,6 +27,8 @@ func (EsportsOrder) Fields() []ent.Field {
 	field.Int64("addon_cents").Default(0).StructTag(`json:"addon_cents"`),
 	field.Int64("addon_units").Default(0).StructTag(`json:"addon_units"`),
 		field.Int("required_seats").Positive().StructTag(`json:"required_seats"`),
+		// 所需技能等级快照（§5.5）：报单时从 SKU 快照，用于接单硬性校验。
+		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
 		field.Int("quote_version").Default(1).StructTag(`json:"quote_version"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Enum("fulfillment_status").Values("pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled").Default("pending_payment").StructTag(`json:"fulfillment_status"`),

@@ -16,6 +16,7 @@ import (
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportswallettx"
 )
 
@@ -55,6 +56,8 @@ type storedValueOpenInput struct {
 	Source            string `json:"source"`
 	PaymentChannel    string `json:"payment_channel"`
 	PaymentRef        string `json:"payment_ref"`
+	// 可选：选定套餐后本金 / 赠送由套餐决定，忽略入参的 principal_cents / bonus_cents（§4.4）。
+	PackageID         int    `json:"package_id"`
 	PrincipalCents    int64  `json:"principal_cents"`
 	BonusCents        int64  `json:"bonus_cents"`
 	ApplicableScope   []int  `json:"applicable_scope"`
@@ -158,10 +161,6 @@ func storedValueCardViewOf(ctx context.Context, db *ent.Client, card *ent.Esport
 // openStoredValueCard 开卡（§4.4）：外部收款开卡直接入账并留凭证；用客户余额购卡属账户间划转，
 // 同一事务内减少余额本金、增加储值卡本金并产生配对流水。重复幂等键由唯一索引兜底返回冲突。
 func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in storedValueOpenInput, now time.Time) (*storedValueCardView, error) {
-	validUntil, scope, err := validateStoredValueOpen(in, now)
-	if err != nil {
-		return nil, err
-	}
 	key := strings.TrimSpace(in.IdempotencyKey)
 	ref := strings.TrimSpace(in.PaymentRef)
 	note := strings.TrimSpace(in.Note)
@@ -171,6 +170,24 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 	}
 	defer tx.Rollback()
 	if _, err = tx.EsportsCustomer.Get(ctx, in.CustomerID); err != nil {
+		return nil, err
+	}
+	// 选套餐（§4.4）：本金 / 赠送由套餐决定，覆盖入参给定值；记录套餐 ID 供追溯。
+	var packageID *int
+	if in.PackageID > 0 {
+		pkg, pkgErr := tx.EsportsStoredValuePackage.Get(ctx, in.PackageID)
+		if pkgErr != nil {
+			return nil, pkgErr
+		}
+		if pkg.Status != esportsstoredvaluepackage.StatusOnSale {
+			return nil, fmt.Errorf("%w：该储值卡套餐已下架", errInvalidInput)
+		}
+		in.PrincipalCents = pkg.PrincipalCents
+		in.BonusCents = pkg.BonusCents
+		packageID = &pkg.ID
+	}
+	validUntil, scope, err := validateStoredValueOpen(in, now)
+	if err != nil {
 		return nil, err
 	}
 	utc := now.UTC()
@@ -206,7 +223,7 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		}
 	}
 	// 卡号冲突（理论概率极低）交由唯一索引拒绝，调用方重试即可。
-	card, err := tx.EsportsStoredValueCard.Create().SetCardNo(newStoredValueCardNo()).
+	creator := tx.EsportsStoredValueCard.Create().SetCardNo(newStoredValueCardNo()).
 		SetCustomerID(in.CustomerID).
 		SetSource(esportsstoredvaluecard.Source(in.Source)).
 		SetPaymentChannel(esportsstoredvaluecard.PaymentChannel(in.PaymentChannel)).
@@ -214,7 +231,11 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		SetApplicableScope(scope).SetContractConfirmed(true).
 		SetValidFrom(utc).SetValidUntil(validUntil).
 		SetStatus(esportsstoredvaluecard.StatusActive).
-		SetOpenedByAdminID(adminID).Save(ctx)
+		SetOpenedByAdminID(adminID)
+	if packageID != nil {
+		creator = creator.SetPackageID(*packageID)
+	}
+	card, err := creator.Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict

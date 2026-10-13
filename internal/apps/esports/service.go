@@ -389,7 +389,8 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, adminID int, in orderIn
 		SetQuantity(in.Quantity).SetUnitPriceCents(sku.UnitPriceCents).
 		SetDiscountCents(discount).SetPayableCents(payable).
 		SetPromisedServiceUnits(sku.ServiceUnits * in.Quantity).
-		SetRequiredSeats(sku.RequiredSeats).SetPaymentDeadline(deadline)
+		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(esportsorder.RequiredLevel(sku.RequiredLevel)).
+		SetPaymentDeadline(deadline)
 	if in.PreferredPlayerID > 0 {
 		creator = creator.SetPreferredPlayerID(in.PreferredPlayerID)
 	}

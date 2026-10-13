@@ -337,6 +337,11 @@ func init() {
 			{Method: "POST", Path: "/admin/stored-value-cards/:id/refund-request", Auth: cmfapp.AuthAdmin, Handler: requestStoredValueRefundHandler},
 			{Method: "POST", Path: "/admin/stored-value-cards/:id/refund-decision", Auth: cmfapp.AuthAdmin, Handler: decideStoredValueRefundHandler},
 			{Method: "POST", Path: "/admin/orders/:id/pay-by-stored-value-card", Auth: cmfapp.AuthAdmin, Handler: payOrderByStoredValueCardHandler},
+			// 储值卡套餐（§4.4）：档位维护，开卡时择一。
+			{Method: "GET", Path: "/admin/stored-value-packages", Auth: cmfapp.AuthAdmin, Handler: listStoredValuePackagesHandler},
+			{Method: "POST", Path: "/admin/stored-value-packages", Auth: cmfapp.AuthAdmin, Handler: createStoredValuePackageHandler},
+			{Method: "PUT", Path: "/admin/stored-value-packages/:id", Auth: cmfapp.AuthAdmin, Handler: updateStoredValuePackageHandler},
+			{Method: "POST", Path: "/admin/stored-value-packages/:id/status", Auth: cmfapp.AuthAdmin, Handler: setStoredValuePackageStatusHandler},
 		},
 		Permissions: []cmfapp.Permission{
 			// 商品模块：一个模块一个菜单。
@@ -559,6 +564,10 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "储值卡核销订单", Code: "esports:stored_value:pay_order", Path: "/api/v1/esports/admin/orders/{id}/pay-by-stored-value-card", Method: "POST", Parent: "esports:stored_value:menu"},
 			{Type: cmfapp.PermButton, Name: "储值卡操作按钮", Code: "esports:stored_value:manage", Parent: "esports:stored_value:menu"},
 			{Type: cmfapp.PermButton, Name: "储值卡退卡审核按钮", Code: "esports:stored_value:refund_approve", Parent: "esports:stored_value:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看储值卡套餐", Code: "esports:stored_value:package_list", Path: "/api/v1/esports/admin/stored-value-packages", Method: "GET", Parent: "esports:stored_value:menu"},
+			{Type: cmfapp.PermAPI, Name: "新建套餐", Code: "esports:stored_value:package_create", Path: "/api/v1/esports/admin/stored-value-packages", Method: "POST", Parent: "esports:stored_value:menu"},
+			{Type: cmfapp.PermAPI, Name: "编辑套餐", Code: "esports:stored_value:package_update", Path: "/api/v1/esports/admin/stored-value-packages/{id}", Method: "PUT", Parent: "esports:stored_value:menu"},
+			{Type: cmfapp.PermAPI, Name: "上下架套餐", Code: "esports:stored_value:package_status", Path: "/api/v1/esports/admin/stored-value-packages/{id}/status", Method: "POST", Parent: "esports:stored_value:menu"},
 		},
 	})
 }

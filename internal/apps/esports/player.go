@@ -61,9 +61,11 @@ type playerUpdateInput struct {
 	// 接单上限（§5.5 / §6.4）：0 = 不限。
 	DailyLimit      int `json:"daily_limit"`
 	ConcurrentLimit int `json:"concurrent_limit"`
+	// 接单游戏分区（§5.5 / §6.4）：空表示不限。
+	Games []string `json:"games"`
 }
 
-// updatePlayer 管理端修改昵称/资格/在线状态/接单上限，条件更新后 version 递增。
+// updatePlayer 管理端修改昵称/资格/在线状态/接单上限/接单游戏，条件更新后 version 递增。
 func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateInput) (*ent.EsportsPlayer, error) {
 	in.DisplayName = strings.TrimSpace(in.DisplayName)
 	validQualification := in.Qualification == "pending" || in.Qualification == "qualified" || in.Qualification == "suspended"
@@ -76,7 +78,8 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 		SetDisplayName(in.DisplayName).
 		SetQualification(esportsplayer.Qualification(in.Qualification)).
 		SetPresence(esportsplayer.Presence(in.Presence)).
-		SetDailyLimit(in.DailyLimit).SetConcurrentLimit(in.ConcurrentLimit).AddVersion(1).Save(ctx)
+		SetDailyLimit(in.DailyLimit).SetConcurrentLimit(in.ConcurrentLimit).
+		SetGames(in.Games).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -279,13 +282,29 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 		return errConflict
 	}
 	target := esportsdispatchseat.StatusRejected
+	var player *ent.EsportsPlayer
 	if accept {
 		target = esportsdispatchseat.StatusAccepted
-		player, err := tx.EsportsPlayer.Get(ctx, playerID)
+		player, err = tx.EsportsPlayer.Get(ctx, playerID)
 		if err != nil {
 			return err
 		}
+		// 接受瞬间再次原子校验接单上限（§5.9），此时席位仍为 invited、不计入并发。
 		if err = checkPlayerDispatchLimit(ctx, tx, player, now); err != nil {
+			return err
+		}
+	}
+	// 提前查订单：接受时校验分区 / 等级（§5.5），拒绝时用于回退判断。
+	order, err := tx.EsportsOrder.Get(ctx, seat.OrderID)
+	if err != nil {
+		return err
+	}
+	if accept {
+		game, gErr := orderGameIn(ctx, tx, order.SkuID)
+		if gErr != nil {
+			return gErr
+		}
+		if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
 			return err
 		}
 	}
@@ -298,10 +317,6 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 	}
 	if changed != 1 {
 		return errConflict
-	}
-	order, err := tx.EsportsOrder.Get(ctx, seat.OrderID)
-	if err != nil {
-		return err
 	}
 	actorID := strconv.Itoa(playerID)
 	if accept {
@@ -426,6 +441,13 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 	}
 	if order.RequiredSeats != 1 {
 		return nil, errConflict
+	}
+	game, err := orderGameIn(ctx, tx, order.SkuID)
+	if err != nil {
+		return nil, err
+	}
+	if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+		return nil, err
 	}
 	// 两种可抢状态：① 已释放到大厅的 grabbing；② 优先通知窗口内的待派单（仅限被通知的本人）。
 	fromNotice := order.FulfillmentStatus == esportsorder.FulfillmentStatusPendingDispatch &&
