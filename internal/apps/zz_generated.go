@@ -3,4 +3,5 @@ package apps
 
 import (
 	_ "go-admin/internal/apps/cms"
+	_ "go-admin/internal/apps/esports"
 )

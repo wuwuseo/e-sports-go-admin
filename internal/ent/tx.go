@@ -36,6 +36,106 @@ type Tx struct {
 	Department *DepartmentClient
 	// DictData is the client for interacting with the DictData builders.
 	DictData *DictDataClient
+	// EsportsAfterSale is the client for interacting with the EsportsAfterSale builders.
+	EsportsAfterSale *EsportsAfterSaleClient
+	// EsportsAgeCheck is the client for interacting with the EsportsAgeCheck builders.
+	EsportsAgeCheck *EsportsAgeCheckClient
+	// EsportsAssessment is the client for interacting with the EsportsAssessment builders.
+	EsportsAssessment *EsportsAssessmentClient
+	// EsportsAssessmentAppeal is the client for interacting with the EsportsAssessmentAppeal builders.
+	EsportsAssessmentAppeal *EsportsAssessmentAppealClient
+	// EsportsAssessmentRule is the client for interacting with the EsportsAssessmentRule builders.
+	EsportsAssessmentRule *EsportsAssessmentRuleClient
+	// EsportsAssessmentScore is the client for interacting with the EsportsAssessmentScore builders.
+	EsportsAssessmentScore *EsportsAssessmentScoreClient
+	// EsportsCloseRule is the client for interacting with the EsportsCloseRule builders.
+	EsportsCloseRule *EsportsCloseRuleClient
+	// EsportsCommissionEntry is the client for interacting with the EsportsCommissionEntry builders.
+	EsportsCommissionEntry *EsportsCommissionEntryClient
+	// EsportsCommissionRule is the client for interacting with the EsportsCommissionRule builders.
+	EsportsCommissionRule *EsportsCommissionRuleClient
+	// EsportsConfirmation is the client for interacting with the EsportsConfirmation builders.
+	EsportsConfirmation *EsportsConfirmationClient
+	// EsportsCsCommissionEntry is the client for interacting with the EsportsCsCommissionEntry builders.
+	EsportsCsCommissionEntry *EsportsCsCommissionEntryClient
+	// EsportsCsCommissionRule is the client for interacting with the EsportsCsCommissionRule builders.
+	EsportsCsCommissionRule *EsportsCsCommissionRuleClient
+	// EsportsCustomer is the client for interacting with the EsportsCustomer builders.
+	EsportsCustomer *EsportsCustomerClient
+	// EsportsCustomerFollowUp is the client for interacting with the EsportsCustomerFollowUp builders.
+	EsportsCustomerFollowUp *EsportsCustomerFollowUpClient
+	// EsportsDispatchPriorityGrant is the client for interacting with the EsportsDispatchPriorityGrant builders.
+	EsportsDispatchPriorityGrant *EsportsDispatchPriorityGrantClient
+	// EsportsDispatchPriorityNotice is the client for interacting with the EsportsDispatchPriorityNotice builders.
+	EsportsDispatchPriorityNotice *EsportsDispatchPriorityNoticeClient
+	// EsportsDispatchSeat is the client for interacting with the EsportsDispatchSeat builders.
+	EsportsDispatchSeat *EsportsDispatchSeatClient
+	// EsportsFulfillmentMakeup is the client for interacting with the EsportsFulfillmentMakeup builders.
+	EsportsFulfillmentMakeup *EsportsFulfillmentMakeupClient
+	// EsportsGift is the client for interacting with the EsportsGift builders.
+	EsportsGift *EsportsGiftClient
+	// EsportsGiftOrder is the client for interacting with the EsportsGiftOrder builders.
+	EsportsGiftOrder *EsportsGiftOrderClient
+	// EsportsGrowthLedger is the client for interacting with the EsportsGrowthLedger builders.
+	EsportsGrowthLedger *EsportsGrowthLedgerClient
+	// EsportsIdempotency is the client for interacting with the EsportsIdempotency builders.
+	EsportsIdempotency *EsportsIdempotencyClient
+	// EsportsIdentityBinding is the client for interacting with the EsportsIdentityBinding builders.
+	EsportsIdentityBinding *EsportsIdentityBindingClient
+	// EsportsLedgerEntry is the client for interacting with the EsportsLedgerEntry builders.
+	EsportsLedgerEntry *EsportsLedgerEntryClient
+	// EsportsMemberLevelOverride is the client for interacting with the EsportsMemberLevelOverride builders.
+	EsportsMemberLevelOverride *EsportsMemberLevelOverrideClient
+	// EsportsMemberLevelRule is the client for interacting with the EsportsMemberLevelRule builders.
+	EsportsMemberLevelRule *EsportsMemberLevelRuleClient
+	// EsportsOrder is the client for interacting with the EsportsOrder builders.
+	EsportsOrder *EsportsOrderClient
+	// EsportsOrderAddon is the client for interacting with the EsportsOrderAddon builders.
+	EsportsOrderAddon *EsportsOrderAddonClient
+	// EsportsOrderEvent is the client for interacting with the EsportsOrderEvent builders.
+	EsportsOrderEvent *EsportsOrderEventClient
+	// EsportsOutbox is the client for interacting with the EsportsOutbox builders.
+	EsportsOutbox *EsportsOutboxClient
+	// EsportsPageAsset is the client for interacting with the EsportsPageAsset builders.
+	EsportsPageAsset *EsportsPageAssetClient
+	// EsportsPageDocument is the client for interacting with the EsportsPageDocument builders.
+	EsportsPageDocument *EsportsPageDocumentClient
+	// EsportsPageVersion is the client for interacting with the EsportsPageVersion builders.
+	EsportsPageVersion *EsportsPageVersionClient
+	// EsportsPaymentIntent is the client for interacting with the EsportsPaymentIntent builders.
+	EsportsPaymentIntent *EsportsPaymentIntentClient
+	// EsportsPaymentReceipt is the client for interacting with the EsportsPaymentReceipt builders.
+	EsportsPaymentReceipt *EsportsPaymentReceiptClient
+	// EsportsPlayer is the client for interacting with the EsportsPlayer builders.
+	EsportsPlayer *EsportsPlayerClient
+	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
+	EsportsPlayerReview *EsportsPlayerReviewClient
+	// EsportsPlayerReviewRevision is the client for interacting with the EsportsPlayerReviewRevision builders.
+	EsportsPlayerReviewRevision *EsportsPlayerReviewRevisionClient
+	// EsportsProductCategory is the client for interacting with the EsportsProductCategory builders.
+	EsportsProductCategory *EsportsProductCategoryClient
+	// EsportsQuotaHold is the client for interacting with the EsportsQuotaHold builders.
+	EsportsQuotaHold *EsportsQuotaHoldClient
+	// EsportsRechargeCampaign is the client for interacting with the EsportsRechargeCampaign builders.
+	EsportsRechargeCampaign *EsportsRechargeCampaignClient
+	// EsportsScript is the client for interacting with the EsportsScript builders.
+	EsportsScript *EsportsScriptClient
+	// EsportsSeatTransferRequest is the client for interacting with the EsportsSeatTransferRequest builders.
+	EsportsSeatTransferRequest *EsportsSeatTransferRequestClient
+	// EsportsServiceSegment is the client for interacting with the EsportsServiceSegment builders.
+	EsportsServiceSegment *EsportsServiceSegmentClient
+	// EsportsSettlement is the client for interacting with the EsportsSettlement builders.
+	EsportsSettlement *EsportsSettlementClient
+	// EsportsSku is the client for interacting with the EsportsSku builders.
+	EsportsSku *EsportsSkuClient
+	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
+	EsportsStoredValueCard *EsportsStoredValueCardClient
+	// EsportsWalletAccount is the client for interacting with the EsportsWalletAccount builders.
+	EsportsWalletAccount *EsportsWalletAccountClient
+	// EsportsWalletTx is the client for interacting with the EsportsWalletTx builders.
+	EsportsWalletTx *EsportsWalletTxClient
+	// EsportsWithdrawal is the client for interacting with the EsportsWithdrawal builders.
+	EsportsWithdrawal *EsportsWithdrawalClient
 	// LoginLog is the client for interacting with the LoginLog builders.
 	LoginLog *LoginLogClient
 	// Message is the client for interacting with the Message builders.
@@ -207,6 +307,56 @@ func (tx *Tx) init() {
 	tx.CronJob = NewCronJobClient(tx.config)
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DictData = NewDictDataClient(tx.config)
+	tx.EsportsAfterSale = NewEsportsAfterSaleClient(tx.config)
+	tx.EsportsAgeCheck = NewEsportsAgeCheckClient(tx.config)
+	tx.EsportsAssessment = NewEsportsAssessmentClient(tx.config)
+	tx.EsportsAssessmentAppeal = NewEsportsAssessmentAppealClient(tx.config)
+	tx.EsportsAssessmentRule = NewEsportsAssessmentRuleClient(tx.config)
+	tx.EsportsAssessmentScore = NewEsportsAssessmentScoreClient(tx.config)
+	tx.EsportsCloseRule = NewEsportsCloseRuleClient(tx.config)
+	tx.EsportsCommissionEntry = NewEsportsCommissionEntryClient(tx.config)
+	tx.EsportsCommissionRule = NewEsportsCommissionRuleClient(tx.config)
+	tx.EsportsConfirmation = NewEsportsConfirmationClient(tx.config)
+	tx.EsportsCsCommissionEntry = NewEsportsCsCommissionEntryClient(tx.config)
+	tx.EsportsCsCommissionRule = NewEsportsCsCommissionRuleClient(tx.config)
+	tx.EsportsCustomer = NewEsportsCustomerClient(tx.config)
+	tx.EsportsCustomerFollowUp = NewEsportsCustomerFollowUpClient(tx.config)
+	tx.EsportsDispatchPriorityGrant = NewEsportsDispatchPriorityGrantClient(tx.config)
+	tx.EsportsDispatchPriorityNotice = NewEsportsDispatchPriorityNoticeClient(tx.config)
+	tx.EsportsDispatchSeat = NewEsportsDispatchSeatClient(tx.config)
+	tx.EsportsFulfillmentMakeup = NewEsportsFulfillmentMakeupClient(tx.config)
+	tx.EsportsGift = NewEsportsGiftClient(tx.config)
+	tx.EsportsGiftOrder = NewEsportsGiftOrderClient(tx.config)
+	tx.EsportsGrowthLedger = NewEsportsGrowthLedgerClient(tx.config)
+	tx.EsportsIdempotency = NewEsportsIdempotencyClient(tx.config)
+	tx.EsportsIdentityBinding = NewEsportsIdentityBindingClient(tx.config)
+	tx.EsportsLedgerEntry = NewEsportsLedgerEntryClient(tx.config)
+	tx.EsportsMemberLevelOverride = NewEsportsMemberLevelOverrideClient(tx.config)
+	tx.EsportsMemberLevelRule = NewEsportsMemberLevelRuleClient(tx.config)
+	tx.EsportsOrder = NewEsportsOrderClient(tx.config)
+	tx.EsportsOrderAddon = NewEsportsOrderAddonClient(tx.config)
+	tx.EsportsOrderEvent = NewEsportsOrderEventClient(tx.config)
+	tx.EsportsOutbox = NewEsportsOutboxClient(tx.config)
+	tx.EsportsPageAsset = NewEsportsPageAssetClient(tx.config)
+	tx.EsportsPageDocument = NewEsportsPageDocumentClient(tx.config)
+	tx.EsportsPageVersion = NewEsportsPageVersionClient(tx.config)
+	tx.EsportsPaymentIntent = NewEsportsPaymentIntentClient(tx.config)
+	tx.EsportsPaymentReceipt = NewEsportsPaymentReceiptClient(tx.config)
+	tx.EsportsPlayer = NewEsportsPlayerClient(tx.config)
+	tx.EsportsPlayerReview = NewEsportsPlayerReviewClient(tx.config)
+	tx.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(tx.config)
+	tx.EsportsProductCategory = NewEsportsProductCategoryClient(tx.config)
+	tx.EsportsQuotaHold = NewEsportsQuotaHoldClient(tx.config)
+	tx.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(tx.config)
+	tx.EsportsScript = NewEsportsScriptClient(tx.config)
+	tx.EsportsSeatTransferRequest = NewEsportsSeatTransferRequestClient(tx.config)
+	tx.EsportsServiceSegment = NewEsportsServiceSegmentClient(tx.config)
+	tx.EsportsSettlement = NewEsportsSettlementClient(tx.config)
+	tx.EsportsSku = NewEsportsSkuClient(tx.config)
+	tx.EsportsStoredValueCard = NewEsportsStoredValueCardClient(tx.config)
+	tx.EsportsWalletAccount = NewEsportsWalletAccountClient(tx.config)
+	tx.EsportsWalletTx = NewEsportsWalletTxClient(tx.config)
+	tx.EsportsWithdrawal = NewEsportsWithdrawalClient(tx.config)
 	tx.LoginLog = NewLoginLogClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)
 	tx.MessagePreference = NewMessagePreferenceClient(tx.config)

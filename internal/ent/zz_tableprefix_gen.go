@@ -14,6 +14,56 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsagecheck"
+	"go-admin/internal/ent/esportsassessment"
+	"go-admin/internal/ent/esportsassessmentappeal"
+	"go-admin/internal/ent/esportsassessmentrule"
+	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloserule"
+	"go-admin/internal/ent/esportscommissionentry"
+	"go-admin/internal/ent/esportscommissionrule"
+	"go-admin/internal/ent/esportsconfirmation"
+	"go-admin/internal/ent/esportscscommissionentry"
+	"go-admin/internal/ent/esportscscommissionrule"
+	"go-admin/internal/ent/esportscustomer"
+	"go-admin/internal/ent/esportscustomerfollowup"
+	"go-admin/internal/ent/esportsdispatchprioritygrant"
+	"go-admin/internal/ent/esportsdispatchprioritynotice"
+	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsfulfillmentmakeup"
+	"go-admin/internal/ent/esportsgift"
+	"go-admin/internal/ent/esportsgiftorder"
+	"go-admin/internal/ent/esportsgrowthledger"
+	"go-admin/internal/ent/esportsidempotency"
+	"go-admin/internal/ent/esportsidentitybinding"
+	"go-admin/internal/ent/esportsledgerentry"
+	"go-admin/internal/ent/esportsmemberleveloverride"
+	"go-admin/internal/ent/esportsmemberlevelrule"
+	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportsorderevent"
+	"go-admin/internal/ent/esportsoutbox"
+	"go-admin/internal/ent/esportspageasset"
+	"go-admin/internal/ent/esportspagedocument"
+	"go-admin/internal/ent/esportspageversion"
+	"go-admin/internal/ent/esportspaymentintent"
+	"go-admin/internal/ent/esportspaymentreceipt"
+	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayerreview"
+	"go-admin/internal/ent/esportsplayerreviewrevision"
+	"go-admin/internal/ent/esportsproductcategory"
+	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportsrechargecampaign"
+	"go-admin/internal/ent/esportsscript"
+	"go-admin/internal/ent/esportsseattransferrequest"
+	"go-admin/internal/ent/esportsservicesegment"
+	"go-admin/internal/ent/esportssettlement"
+	"go-admin/internal/ent/esportssku"
+	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportswalletaccount"
+	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/ent/esportswithdrawal"
 	"go-admin/internal/ent/loginlog"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
@@ -108,6 +158,256 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := dictdata.TablePrefix
 		dictdata.TablePrefix = prefix
 		dictdata.Table = prefix + strings.TrimPrefix(dictdata.Table, old)
+	}
+	{
+		old := esportsaftersale.TablePrefix
+		esportsaftersale.TablePrefix = prefix
+		esportsaftersale.Table = prefix + strings.TrimPrefix(esportsaftersale.Table, old)
+	}
+	{
+		old := esportsagecheck.TablePrefix
+		esportsagecheck.TablePrefix = prefix
+		esportsagecheck.Table = prefix + strings.TrimPrefix(esportsagecheck.Table, old)
+	}
+	{
+		old := esportsassessment.TablePrefix
+		esportsassessment.TablePrefix = prefix
+		esportsassessment.Table = prefix + strings.TrimPrefix(esportsassessment.Table, old)
+	}
+	{
+		old := esportsassessmentappeal.TablePrefix
+		esportsassessmentappeal.TablePrefix = prefix
+		esportsassessmentappeal.Table = prefix + strings.TrimPrefix(esportsassessmentappeal.Table, old)
+	}
+	{
+		old := esportsassessmentrule.TablePrefix
+		esportsassessmentrule.TablePrefix = prefix
+		esportsassessmentrule.Table = prefix + strings.TrimPrefix(esportsassessmentrule.Table, old)
+	}
+	{
+		old := esportsassessmentscore.TablePrefix
+		esportsassessmentscore.TablePrefix = prefix
+		esportsassessmentscore.Table = prefix + strings.TrimPrefix(esportsassessmentscore.Table, old)
+	}
+	{
+		old := esportscloserule.TablePrefix
+		esportscloserule.TablePrefix = prefix
+		esportscloserule.Table = prefix + strings.TrimPrefix(esportscloserule.Table, old)
+	}
+	{
+		old := esportscommissionentry.TablePrefix
+		esportscommissionentry.TablePrefix = prefix
+		esportscommissionentry.Table = prefix + strings.TrimPrefix(esportscommissionentry.Table, old)
+	}
+	{
+		old := esportscommissionrule.TablePrefix
+		esportscommissionrule.TablePrefix = prefix
+		esportscommissionrule.Table = prefix + strings.TrimPrefix(esportscommissionrule.Table, old)
+	}
+	{
+		old := esportsconfirmation.TablePrefix
+		esportsconfirmation.TablePrefix = prefix
+		esportsconfirmation.Table = prefix + strings.TrimPrefix(esportsconfirmation.Table, old)
+	}
+	{
+		old := esportscscommissionentry.TablePrefix
+		esportscscommissionentry.TablePrefix = prefix
+		esportscscommissionentry.Table = prefix + strings.TrimPrefix(esportscscommissionentry.Table, old)
+	}
+	{
+		old := esportscscommissionrule.TablePrefix
+		esportscscommissionrule.TablePrefix = prefix
+		esportscscommissionrule.Table = prefix + strings.TrimPrefix(esportscscommissionrule.Table, old)
+	}
+	{
+		old := esportscustomer.TablePrefix
+		esportscustomer.TablePrefix = prefix
+		esportscustomer.Table = prefix + strings.TrimPrefix(esportscustomer.Table, old)
+	}
+	{
+		old := esportscustomerfollowup.TablePrefix
+		esportscustomerfollowup.TablePrefix = prefix
+		esportscustomerfollowup.Table = prefix + strings.TrimPrefix(esportscustomerfollowup.Table, old)
+	}
+	{
+		old := esportsdispatchprioritygrant.TablePrefix
+		esportsdispatchprioritygrant.TablePrefix = prefix
+		esportsdispatchprioritygrant.Table = prefix + strings.TrimPrefix(esportsdispatchprioritygrant.Table, old)
+	}
+	{
+		old := esportsdispatchprioritynotice.TablePrefix
+		esportsdispatchprioritynotice.TablePrefix = prefix
+		esportsdispatchprioritynotice.Table = prefix + strings.TrimPrefix(esportsdispatchprioritynotice.Table, old)
+	}
+	{
+		old := esportsdispatchseat.TablePrefix
+		esportsdispatchseat.TablePrefix = prefix
+		esportsdispatchseat.Table = prefix + strings.TrimPrefix(esportsdispatchseat.Table, old)
+	}
+	{
+		old := esportsfulfillmentmakeup.TablePrefix
+		esportsfulfillmentmakeup.TablePrefix = prefix
+		esportsfulfillmentmakeup.Table = prefix + strings.TrimPrefix(esportsfulfillmentmakeup.Table, old)
+	}
+	{
+		old := esportsgift.TablePrefix
+		esportsgift.TablePrefix = prefix
+		esportsgift.Table = prefix + strings.TrimPrefix(esportsgift.Table, old)
+	}
+	{
+		old := esportsgiftorder.TablePrefix
+		esportsgiftorder.TablePrefix = prefix
+		esportsgiftorder.Table = prefix + strings.TrimPrefix(esportsgiftorder.Table, old)
+	}
+	{
+		old := esportsgrowthledger.TablePrefix
+		esportsgrowthledger.TablePrefix = prefix
+		esportsgrowthledger.Table = prefix + strings.TrimPrefix(esportsgrowthledger.Table, old)
+	}
+	{
+		old := esportsidempotency.TablePrefix
+		esportsidempotency.TablePrefix = prefix
+		esportsidempotency.Table = prefix + strings.TrimPrefix(esportsidempotency.Table, old)
+	}
+	{
+		old := esportsidentitybinding.TablePrefix
+		esportsidentitybinding.TablePrefix = prefix
+		esportsidentitybinding.Table = prefix + strings.TrimPrefix(esportsidentitybinding.Table, old)
+	}
+	{
+		old := esportsledgerentry.TablePrefix
+		esportsledgerentry.TablePrefix = prefix
+		esportsledgerentry.Table = prefix + strings.TrimPrefix(esportsledgerentry.Table, old)
+	}
+	{
+		old := esportsmemberleveloverride.TablePrefix
+		esportsmemberleveloverride.TablePrefix = prefix
+		esportsmemberleveloverride.Table = prefix + strings.TrimPrefix(esportsmemberleveloverride.Table, old)
+	}
+	{
+		old := esportsmemberlevelrule.TablePrefix
+		esportsmemberlevelrule.TablePrefix = prefix
+		esportsmemberlevelrule.Table = prefix + strings.TrimPrefix(esportsmemberlevelrule.Table, old)
+	}
+	{
+		old := esportsorder.TablePrefix
+		esportsorder.TablePrefix = prefix
+		esportsorder.Table = prefix + strings.TrimPrefix(esportsorder.Table, old)
+	}
+	{
+		old := esportsorderaddon.TablePrefix
+		esportsorderaddon.TablePrefix = prefix
+		esportsorderaddon.Table = prefix + strings.TrimPrefix(esportsorderaddon.Table, old)
+	}
+	{
+		old := esportsorderevent.TablePrefix
+		esportsorderevent.TablePrefix = prefix
+		esportsorderevent.Table = prefix + strings.TrimPrefix(esportsorderevent.Table, old)
+	}
+	{
+		old := esportsoutbox.TablePrefix
+		esportsoutbox.TablePrefix = prefix
+		esportsoutbox.Table = prefix + strings.TrimPrefix(esportsoutbox.Table, old)
+	}
+	{
+		old := esportspageasset.TablePrefix
+		esportspageasset.TablePrefix = prefix
+		esportspageasset.Table = prefix + strings.TrimPrefix(esportspageasset.Table, old)
+	}
+	{
+		old := esportspagedocument.TablePrefix
+		esportspagedocument.TablePrefix = prefix
+		esportspagedocument.Table = prefix + strings.TrimPrefix(esportspagedocument.Table, old)
+	}
+	{
+		old := esportspageversion.TablePrefix
+		esportspageversion.TablePrefix = prefix
+		esportspageversion.Table = prefix + strings.TrimPrefix(esportspageversion.Table, old)
+	}
+	{
+		old := esportspaymentintent.TablePrefix
+		esportspaymentintent.TablePrefix = prefix
+		esportspaymentintent.Table = prefix + strings.TrimPrefix(esportspaymentintent.Table, old)
+	}
+	{
+		old := esportspaymentreceipt.TablePrefix
+		esportspaymentreceipt.TablePrefix = prefix
+		esportspaymentreceipt.Table = prefix + strings.TrimPrefix(esportspaymentreceipt.Table, old)
+	}
+	{
+		old := esportsplayer.TablePrefix
+		esportsplayer.TablePrefix = prefix
+		esportsplayer.Table = prefix + strings.TrimPrefix(esportsplayer.Table, old)
+	}
+	{
+		old := esportsplayerreview.TablePrefix
+		esportsplayerreview.TablePrefix = prefix
+		esportsplayerreview.Table = prefix + strings.TrimPrefix(esportsplayerreview.Table, old)
+	}
+	{
+		old := esportsplayerreviewrevision.TablePrefix
+		esportsplayerreviewrevision.TablePrefix = prefix
+		esportsplayerreviewrevision.Table = prefix + strings.TrimPrefix(esportsplayerreviewrevision.Table, old)
+	}
+	{
+		old := esportsproductcategory.TablePrefix
+		esportsproductcategory.TablePrefix = prefix
+		esportsproductcategory.Table = prefix + strings.TrimPrefix(esportsproductcategory.Table, old)
+	}
+	{
+		old := esportsquotahold.TablePrefix
+		esportsquotahold.TablePrefix = prefix
+		esportsquotahold.Table = prefix + strings.TrimPrefix(esportsquotahold.Table, old)
+	}
+	{
+		old := esportsrechargecampaign.TablePrefix
+		esportsrechargecampaign.TablePrefix = prefix
+		esportsrechargecampaign.Table = prefix + strings.TrimPrefix(esportsrechargecampaign.Table, old)
+	}
+	{
+		old := esportsscript.TablePrefix
+		esportsscript.TablePrefix = prefix
+		esportsscript.Table = prefix + strings.TrimPrefix(esportsscript.Table, old)
+	}
+	{
+		old := esportsseattransferrequest.TablePrefix
+		esportsseattransferrequest.TablePrefix = prefix
+		esportsseattransferrequest.Table = prefix + strings.TrimPrefix(esportsseattransferrequest.Table, old)
+	}
+	{
+		old := esportsservicesegment.TablePrefix
+		esportsservicesegment.TablePrefix = prefix
+		esportsservicesegment.Table = prefix + strings.TrimPrefix(esportsservicesegment.Table, old)
+	}
+	{
+		old := esportssettlement.TablePrefix
+		esportssettlement.TablePrefix = prefix
+		esportssettlement.Table = prefix + strings.TrimPrefix(esportssettlement.Table, old)
+	}
+	{
+		old := esportssku.TablePrefix
+		esportssku.TablePrefix = prefix
+		esportssku.Table = prefix + strings.TrimPrefix(esportssku.Table, old)
+	}
+	{
+		old := esportsstoredvaluecard.TablePrefix
+		esportsstoredvaluecard.TablePrefix = prefix
+		esportsstoredvaluecard.Table = prefix + strings.TrimPrefix(esportsstoredvaluecard.Table, old)
+	}
+	{
+		old := esportswalletaccount.TablePrefix
+		esportswalletaccount.TablePrefix = prefix
+		esportswalletaccount.Table = prefix + strings.TrimPrefix(esportswalletaccount.Table, old)
+	}
+	{
+		old := esportswallettx.TablePrefix
+		esportswallettx.TablePrefix = prefix
+		esportswallettx.Table = prefix + strings.TrimPrefix(esportswallettx.Table, old)
+	}
+	{
+		old := esportswithdrawal.TablePrefix
+		esportswithdrawal.TablePrefix = prefix
+		esportswithdrawal.Table = prefix + strings.TrimPrefix(esportswithdrawal.Table, old)
 	}
 	{
 		old := loginlog.TablePrefix

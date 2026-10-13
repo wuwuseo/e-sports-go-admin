@@ -42,6 +42,156 @@ type Department func(*sql.Selector)
 // DictData is the predicate function for dictdata builders.
 type DictData func(*sql.Selector)
 
+// EsportsAfterSale is the predicate function for esportsaftersale builders.
+type EsportsAfterSale func(*sql.Selector)
+
+// EsportsAgeCheck is the predicate function for esportsagecheck builders.
+type EsportsAgeCheck func(*sql.Selector)
+
+// EsportsAssessment is the predicate function for esportsassessment builders.
+type EsportsAssessment func(*sql.Selector)
+
+// EsportsAssessmentAppeal is the predicate function for esportsassessmentappeal builders.
+type EsportsAssessmentAppeal func(*sql.Selector)
+
+// EsportsAssessmentRule is the predicate function for esportsassessmentrule builders.
+type EsportsAssessmentRule func(*sql.Selector)
+
+// EsportsAssessmentScore is the predicate function for esportsassessmentscore builders.
+type EsportsAssessmentScore func(*sql.Selector)
+
+// EsportsCloseRule is the predicate function for esportscloserule builders.
+type EsportsCloseRule func(*sql.Selector)
+
+// EsportsCommissionEntry is the predicate function for esportscommissionentry builders.
+type EsportsCommissionEntry func(*sql.Selector)
+
+// EsportsCommissionRule is the predicate function for esportscommissionrule builders.
+type EsportsCommissionRule func(*sql.Selector)
+
+// EsportsConfirmation is the predicate function for esportsconfirmation builders.
+type EsportsConfirmation func(*sql.Selector)
+
+// EsportsCsCommissionEntry is the predicate function for esportscscommissionentry builders.
+type EsportsCsCommissionEntry func(*sql.Selector)
+
+// EsportsCsCommissionRule is the predicate function for esportscscommissionrule builders.
+type EsportsCsCommissionRule func(*sql.Selector)
+
+// EsportsCustomer is the predicate function for esportscustomer builders.
+type EsportsCustomer func(*sql.Selector)
+
+// EsportsCustomerFollowUp is the predicate function for esportscustomerfollowup builders.
+type EsportsCustomerFollowUp func(*sql.Selector)
+
+// EsportsDispatchPriorityGrant is the predicate function for esportsdispatchprioritygrant builders.
+type EsportsDispatchPriorityGrant func(*sql.Selector)
+
+// EsportsDispatchPriorityNotice is the predicate function for esportsdispatchprioritynotice builders.
+type EsportsDispatchPriorityNotice func(*sql.Selector)
+
+// EsportsDispatchSeat is the predicate function for esportsdispatchseat builders.
+type EsportsDispatchSeat func(*sql.Selector)
+
+// EsportsFulfillmentMakeup is the predicate function for esportsfulfillmentmakeup builders.
+type EsportsFulfillmentMakeup func(*sql.Selector)
+
+// EsportsGift is the predicate function for esportsgift builders.
+type EsportsGift func(*sql.Selector)
+
+// EsportsGiftOrder is the predicate function for esportsgiftorder builders.
+type EsportsGiftOrder func(*sql.Selector)
+
+// EsportsGrowthLedger is the predicate function for esportsgrowthledger builders.
+type EsportsGrowthLedger func(*sql.Selector)
+
+// EsportsIdempotency is the predicate function for esportsidempotency builders.
+type EsportsIdempotency func(*sql.Selector)
+
+// EsportsIdentityBinding is the predicate function for esportsidentitybinding builders.
+type EsportsIdentityBinding func(*sql.Selector)
+
+// EsportsLedgerEntry is the predicate function for esportsledgerentry builders.
+type EsportsLedgerEntry func(*sql.Selector)
+
+// EsportsMemberLevelOverride is the predicate function for esportsmemberleveloverride builders.
+type EsportsMemberLevelOverride func(*sql.Selector)
+
+// EsportsMemberLevelRule is the predicate function for esportsmemberlevelrule builders.
+type EsportsMemberLevelRule func(*sql.Selector)
+
+// EsportsOrder is the predicate function for esportsorder builders.
+type EsportsOrder func(*sql.Selector)
+
+// EsportsOrderAddon is the predicate function for esportsorderaddon builders.
+type EsportsOrderAddon func(*sql.Selector)
+
+// EsportsOrderEvent is the predicate function for esportsorderevent builders.
+type EsportsOrderEvent func(*sql.Selector)
+
+// EsportsOutbox is the predicate function for esportsoutbox builders.
+type EsportsOutbox func(*sql.Selector)
+
+// EsportsPageAsset is the predicate function for esportspageasset builders.
+type EsportsPageAsset func(*sql.Selector)
+
+// EsportsPageDocument is the predicate function for esportspagedocument builders.
+type EsportsPageDocument func(*sql.Selector)
+
+// EsportsPageVersion is the predicate function for esportspageversion builders.
+type EsportsPageVersion func(*sql.Selector)
+
+// EsportsPaymentIntent is the predicate function for esportspaymentintent builders.
+type EsportsPaymentIntent func(*sql.Selector)
+
+// EsportsPaymentReceipt is the predicate function for esportspaymentreceipt builders.
+type EsportsPaymentReceipt func(*sql.Selector)
+
+// EsportsPlayer is the predicate function for esportsplayer builders.
+type EsportsPlayer func(*sql.Selector)
+
+// EsportsPlayerReview is the predicate function for esportsplayerreview builders.
+type EsportsPlayerReview func(*sql.Selector)
+
+// EsportsPlayerReviewRevision is the predicate function for esportsplayerreviewrevision builders.
+type EsportsPlayerReviewRevision func(*sql.Selector)
+
+// EsportsProductCategory is the predicate function for esportsproductcategory builders.
+type EsportsProductCategory func(*sql.Selector)
+
+// EsportsQuotaHold is the predicate function for esportsquotahold builders.
+type EsportsQuotaHold func(*sql.Selector)
+
+// EsportsRechargeCampaign is the predicate function for esportsrechargecampaign builders.
+type EsportsRechargeCampaign func(*sql.Selector)
+
+// EsportsScript is the predicate function for esportsscript builders.
+type EsportsScript func(*sql.Selector)
+
+// EsportsSeatTransferRequest is the predicate function for esportsseattransferrequest builders.
+type EsportsSeatTransferRequest func(*sql.Selector)
+
+// EsportsServiceSegment is the predicate function for esportsservicesegment builders.
+type EsportsServiceSegment func(*sql.Selector)
+
+// EsportsSettlement is the predicate function for esportssettlement builders.
+type EsportsSettlement func(*sql.Selector)
+
+// EsportsSku is the predicate function for esportssku builders.
+type EsportsSku func(*sql.Selector)
+
+// EsportsStoredValueCard is the predicate function for esportsstoredvaluecard builders.
+type EsportsStoredValueCard func(*sql.Selector)
+
+// EsportsWalletAccount is the predicate function for esportswalletaccount builders.
+type EsportsWalletAccount func(*sql.Selector)
+
+// EsportsWalletTx is the predicate function for esportswallettx builders.
+type EsportsWalletTx func(*sql.Selector)
+
+// EsportsWithdrawal is the predicate function for esportswithdrawal builders.
+type EsportsWithdrawal func(*sql.Selector)
+
 // LoginLog is the predicate function for loginlog builders.
 type LoginLog func(*sql.Selector)
 

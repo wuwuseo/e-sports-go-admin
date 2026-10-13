@@ -3,8 +3,197 @@ package schema
 
 import (
 	appschemacms "go-admin/internal/apps/cms/schema"
+	appschemaesports "go-admin/internal/apps/esports/schema"
 )
 
 type CmsCategory struct{ appschemacms.CmsCategory }
 
 type CmsContent struct{ appschemacms.CmsContent }
+
+type EsportsAfterSale struct {
+	appschemaesports.EsportsAfterSale
+}
+
+type EsportsAgeCheck struct {
+	appschemaesports.EsportsAgeCheck
+}
+
+type EsportsAssessment struct {
+	appschemaesports.EsportsAssessment
+}
+
+type EsportsAssessmentAppeal struct {
+	appschemaesports.EsportsAssessmentAppeal
+}
+
+type EsportsAssessmentRule struct {
+	appschemaesports.EsportsAssessmentRule
+}
+
+type EsportsAssessmentScore struct {
+	appschemaesports.EsportsAssessmentScore
+}
+
+type EsportsCloseRule struct {
+	appschemaesports.EsportsCloseRule
+}
+
+type EsportsCommissionEntry struct {
+	appschemaesports.EsportsCommissionEntry
+}
+
+type EsportsCommissionRule struct {
+	appschemaesports.EsportsCommissionRule
+}
+
+type EsportsConfirmation struct {
+	appschemaesports.EsportsConfirmation
+}
+
+type EsportsCsCommissionEntry struct {
+	appschemaesports.EsportsCsCommissionEntry
+}
+
+type EsportsCsCommissionRule struct {
+	appschemaesports.EsportsCsCommissionRule
+}
+
+type EsportsCustomer struct {
+	appschemaesports.EsportsCustomer
+}
+
+type EsportsCustomerFollowUp struct {
+	appschemaesports.EsportsCustomerFollowUp
+}
+
+type EsportsDispatchPriorityGrant struct {
+	appschemaesports.EsportsDispatchPriorityGrant
+}
+
+type EsportsDispatchPriorityNotice struct {
+	appschemaesports.EsportsDispatchPriorityNotice
+}
+
+type EsportsDispatchSeat struct {
+	appschemaesports.EsportsDispatchSeat
+}
+
+type EsportsFulfillmentMakeup struct {
+	appschemaesports.EsportsFulfillmentMakeup
+}
+
+type EsportsGift struct{ appschemaesports.EsportsGift }
+
+type EsportsGiftOrder struct {
+	appschemaesports.EsportsGiftOrder
+}
+
+type EsportsGrowthLedger struct {
+	appschemaesports.EsportsGrowthLedger
+}
+
+type EsportsIdempotency struct {
+	appschemaesports.EsportsIdempotency
+}
+
+type EsportsIdentityBinding struct {
+	appschemaesports.EsportsIdentityBinding
+}
+
+type EsportsLedgerEntry struct {
+	appschemaesports.EsportsLedgerEntry
+}
+
+type EsportsMemberLevelOverride struct {
+	appschemaesports.EsportsMemberLevelOverride
+}
+
+type EsportsMemberLevelRule struct {
+	appschemaesports.EsportsMemberLevelRule
+}
+
+type EsportsOrder struct{ appschemaesports.EsportsOrder }
+
+type EsportsOrderAddon struct {
+	appschemaesports.EsportsOrderAddon
+}
+
+type EsportsOrderEvent struct {
+	appschemaesports.EsportsOrderEvent
+}
+
+type EsportsOutbox struct{ appschemaesports.EsportsOutbox }
+
+type EsportsPageAsset struct {
+	appschemaesports.EsportsPageAsset
+}
+
+type EsportsPageDocument struct {
+	appschemaesports.EsportsPageDocument
+}
+
+type EsportsPageVersion struct {
+	appschemaesports.EsportsPageVersion
+}
+
+type EsportsPaymentIntent struct {
+	appschemaesports.EsportsPaymentIntent
+}
+
+type EsportsPaymentReceipt struct {
+	appschemaesports.EsportsPaymentReceipt
+}
+
+type EsportsPlayer struct{ appschemaesports.EsportsPlayer }
+
+type EsportsPlayerReview struct {
+	appschemaesports.EsportsPlayerReview
+}
+
+type EsportsPlayerReviewRevision struct {
+	appschemaesports.EsportsPlayerReviewRevision
+}
+
+type EsportsProductCategory struct {
+	appschemaesports.EsportsProductCategory
+}
+
+type EsportsQuotaHold struct {
+	appschemaesports.EsportsQuotaHold
+}
+
+type EsportsRechargeCampaign struct {
+	appschemaesports.EsportsRechargeCampaign
+}
+
+type EsportsScript struct{ appschemaesports.EsportsScript }
+
+type EsportsSeatTransferRequest struct {
+	appschemaesports.EsportsSeatTransferRequest
+}
+
+type EsportsServiceSegment struct {
+	appschemaesports.EsportsServiceSegment
+}
+
+type EsportsSettlement struct {
+	appschemaesports.EsportsSettlement
+}
+
+type EsportsSku struct{ appschemaesports.EsportsSku }
+
+type EsportsStoredValueCard struct {
+	appschemaesports.EsportsStoredValueCard
+}
+
+type EsportsWalletAccount struct {
+	appschemaesports.EsportsWalletAccount
+}
+
+type EsportsWalletTx struct {
+	appschemaesports.EsportsWalletTx
+}
+
+type EsportsWithdrawal struct {
+	appschemaesports.EsportsWithdrawal
+}

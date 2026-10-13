@@ -18,6 +18,56 @@ import (
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
+	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsagecheck"
+	"go-admin/internal/ent/esportsassessment"
+	"go-admin/internal/ent/esportsassessmentappeal"
+	"go-admin/internal/ent/esportsassessmentrule"
+	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloserule"
+	"go-admin/internal/ent/esportscommissionentry"
+	"go-admin/internal/ent/esportscommissionrule"
+	"go-admin/internal/ent/esportsconfirmation"
+	"go-admin/internal/ent/esportscscommissionentry"
+	"go-admin/internal/ent/esportscscommissionrule"
+	"go-admin/internal/ent/esportscustomer"
+	"go-admin/internal/ent/esportscustomerfollowup"
+	"go-admin/internal/ent/esportsdispatchprioritygrant"
+	"go-admin/internal/ent/esportsdispatchprioritynotice"
+	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsfulfillmentmakeup"
+	"go-admin/internal/ent/esportsgift"
+	"go-admin/internal/ent/esportsgiftorder"
+	"go-admin/internal/ent/esportsgrowthledger"
+	"go-admin/internal/ent/esportsidempotency"
+	"go-admin/internal/ent/esportsidentitybinding"
+	"go-admin/internal/ent/esportsledgerentry"
+	"go-admin/internal/ent/esportsmemberleveloverride"
+	"go-admin/internal/ent/esportsmemberlevelrule"
+	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportsorderevent"
+	"go-admin/internal/ent/esportsoutbox"
+	"go-admin/internal/ent/esportspageasset"
+	"go-admin/internal/ent/esportspagedocument"
+	"go-admin/internal/ent/esportspageversion"
+	"go-admin/internal/ent/esportspaymentintent"
+	"go-admin/internal/ent/esportspaymentreceipt"
+	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayerreview"
+	"go-admin/internal/ent/esportsplayerreviewrevision"
+	"go-admin/internal/ent/esportsproductcategory"
+	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportsrechargecampaign"
+	"go-admin/internal/ent/esportsscript"
+	"go-admin/internal/ent/esportsseattransferrequest"
+	"go-admin/internal/ent/esportsservicesegment"
+	"go-admin/internal/ent/esportssettlement"
+	"go-admin/internal/ent/esportssku"
+	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportswalletaccount"
+	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/ent/esportswithdrawal"
 	"go-admin/internal/ent/loginlog"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
@@ -98,32 +148,82 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			admin.Table:               admin.ValidColumn,
-			adminrole.Table:           adminrole.ValidColumn,
-			adminthirdpartyuser.Table: adminthirdpartyuser.ValidColumn,
-			attachment.Table:          attachment.ValidColumn,
-			attachmentgroup.Table:     attachmentgroup.ValidColumn,
-			blacklist.Table:           blacklist.ValidColumn,
-			casbinrule.Table:          casbinrule.ValidColumn,
-			cmscategory.Table:         cmscategory.ValidColumn,
-			cmscontent.Table:          cmscontent.ValidColumn,
-			cronjob.Table:             cronjob.ValidColumn,
-			department.Table:          department.ValidColumn,
-			dictdata.Table:            dictdata.ValidColumn,
-			loginlog.Table:            loginlog.ValidColumn,
-			message.Table:             message.ValidColumn,
-			messagepreference.Table:   messagepreference.ValidColumn,
-			oauthproviderconfig.Table: oauthproviderconfig.ValidColumn,
-			oauthsession.Table:        oauthsession.ValidColumn,
-			operationlog.Table:        operationlog.ValidColumn,
-			plugin.Table:              plugin.ValidColumn,
-			role.Table:                role.ValidColumn,
-			slide.Table:               slide.ValidColumn,
-			systemconfig.Table:        systemconfig.ValidColumn,
-			systempermission.Table:    systempermission.ValidColumn,
-			thirdpartyuser.Table:      thirdpartyuser.ValidColumn,
-			user.Table:                user.ValidColumn,
-			userrole.Table:            userrole.ValidColumn,
+			admin.Table:                         admin.ValidColumn,
+			adminrole.Table:                     adminrole.ValidColumn,
+			adminthirdpartyuser.Table:           adminthirdpartyuser.ValidColumn,
+			attachment.Table:                    attachment.ValidColumn,
+			attachmentgroup.Table:               attachmentgroup.ValidColumn,
+			blacklist.Table:                     blacklist.ValidColumn,
+			casbinrule.Table:                    casbinrule.ValidColumn,
+			cmscategory.Table:                   cmscategory.ValidColumn,
+			cmscontent.Table:                    cmscontent.ValidColumn,
+			cronjob.Table:                       cronjob.ValidColumn,
+			department.Table:                    department.ValidColumn,
+			dictdata.Table:                      dictdata.ValidColumn,
+			esportsaftersale.Table:              esportsaftersale.ValidColumn,
+			esportsagecheck.Table:               esportsagecheck.ValidColumn,
+			esportsassessment.Table:             esportsassessment.ValidColumn,
+			esportsassessmentappeal.Table:       esportsassessmentappeal.ValidColumn,
+			esportsassessmentrule.Table:         esportsassessmentrule.ValidColumn,
+			esportsassessmentscore.Table:        esportsassessmentscore.ValidColumn,
+			esportscloserule.Table:              esportscloserule.ValidColumn,
+			esportscommissionentry.Table:        esportscommissionentry.ValidColumn,
+			esportscommissionrule.Table:         esportscommissionrule.ValidColumn,
+			esportsconfirmation.Table:           esportsconfirmation.ValidColumn,
+			esportscscommissionentry.Table:      esportscscommissionentry.ValidColumn,
+			esportscscommissionrule.Table:       esportscscommissionrule.ValidColumn,
+			esportscustomer.Table:               esportscustomer.ValidColumn,
+			esportscustomerfollowup.Table:       esportscustomerfollowup.ValidColumn,
+			esportsdispatchprioritygrant.Table:  esportsdispatchprioritygrant.ValidColumn,
+			esportsdispatchprioritynotice.Table: esportsdispatchprioritynotice.ValidColumn,
+			esportsdispatchseat.Table:           esportsdispatchseat.ValidColumn,
+			esportsfulfillmentmakeup.Table:      esportsfulfillmentmakeup.ValidColumn,
+			esportsgift.Table:                   esportsgift.ValidColumn,
+			esportsgiftorder.Table:              esportsgiftorder.ValidColumn,
+			esportsgrowthledger.Table:           esportsgrowthledger.ValidColumn,
+			esportsidempotency.Table:            esportsidempotency.ValidColumn,
+			esportsidentitybinding.Table:        esportsidentitybinding.ValidColumn,
+			esportsledgerentry.Table:            esportsledgerentry.ValidColumn,
+			esportsmemberleveloverride.Table:    esportsmemberleveloverride.ValidColumn,
+			esportsmemberlevelrule.Table:        esportsmemberlevelrule.ValidColumn,
+			esportsorder.Table:                  esportsorder.ValidColumn,
+			esportsorderaddon.Table:             esportsorderaddon.ValidColumn,
+			esportsorderevent.Table:             esportsorderevent.ValidColumn,
+			esportsoutbox.Table:                 esportsoutbox.ValidColumn,
+			esportspageasset.Table:              esportspageasset.ValidColumn,
+			esportspagedocument.Table:           esportspagedocument.ValidColumn,
+			esportspageversion.Table:            esportspageversion.ValidColumn,
+			esportspaymentintent.Table:          esportspaymentintent.ValidColumn,
+			esportspaymentreceipt.Table:         esportspaymentreceipt.ValidColumn,
+			esportsplayer.Table:                 esportsplayer.ValidColumn,
+			esportsplayerreview.Table:           esportsplayerreview.ValidColumn,
+			esportsplayerreviewrevision.Table:   esportsplayerreviewrevision.ValidColumn,
+			esportsproductcategory.Table:        esportsproductcategory.ValidColumn,
+			esportsquotahold.Table:              esportsquotahold.ValidColumn,
+			esportsrechargecampaign.Table:       esportsrechargecampaign.ValidColumn,
+			esportsscript.Table:                 esportsscript.ValidColumn,
+			esportsseattransferrequest.Table:    esportsseattransferrequest.ValidColumn,
+			esportsservicesegment.Table:         esportsservicesegment.ValidColumn,
+			esportssettlement.Table:             esportssettlement.ValidColumn,
+			esportssku.Table:                    esportssku.ValidColumn,
+			esportsstoredvaluecard.Table:        esportsstoredvaluecard.ValidColumn,
+			esportswalletaccount.Table:          esportswalletaccount.ValidColumn,
+			esportswallettx.Table:               esportswallettx.ValidColumn,
+			esportswithdrawal.Table:             esportswithdrawal.ValidColumn,
+			loginlog.Table:                      loginlog.ValidColumn,
+			message.Table:                       message.ValidColumn,
+			messagepreference.Table:             messagepreference.ValidColumn,
+			oauthproviderconfig.Table:           oauthproviderconfig.ValidColumn,
+			oauthsession.Table:                  oauthsession.ValidColumn,
+			operationlog.Table:                  operationlog.ValidColumn,
+			plugin.Table:                        plugin.ValidColumn,
+			role.Table:                          role.ValidColumn,
+			slide.Table:                         slide.ValidColumn,
+			systemconfig.Table:                  systemconfig.ValidColumn,
+			systempermission.Table:              systempermission.ValidColumn,
+			thirdpartyuser.Table:                thirdpartyuser.ValidColumn,
+			user.Table:                          user.ValidColumn,
+			userrole.Table:                      userrole.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)
