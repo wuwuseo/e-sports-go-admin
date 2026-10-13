@@ -1,0 +1,113 @@
+package esports
+
+import (
+	"context"
+	"strconv"
+	"time"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportsorder"
+)
+
+// depositOrder 存单：对一张已有订单点「存单」，把订单冻结存起来。
+// 存单不是货币 / 储值账户 / 开卡套餐，只是订单上的一个冻结标记：
+// 冻结不改变履约状态，也不释放 SKU 名额占用（不动 quota_reserved、不碰 EsportsQuotaHold）。
+//
+// 前置条件（任一不满足返回 errConflict）：
+//  1. 订单已付款（payment_status = paid），未付款单一律不许存单；
+//  2. 订单尚未存单（deposit_status = none）；
+//  3. 订单未结束（履约状态不属于 completed / cancelled）。
+//
+// 并发保护：条件 UPDATE 带 version + deposit_status=none + payment_status=paid，
+// changed != 1 即视为状态已变化返回 errConflict，避免并发重复存单。
+//
+// ponytail: 冻结只加标记，不阻止改价 / 取消 / 派单 / 结单等其他订单操作；
+// 若要硬冻结（冻结期间禁止一切变更），需在各变更入口加 deposit_status 守卫。
+func depositOrder(ctx context.Context, db *ent.Client, orderID, adminID int, now time.Time) (*ent.EsportsOrder, error) {
+	if orderID < 1 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	// 只有已付款、未存单、未结束的订单可存单。
+	if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
+		order.DepositStatus != esportsorder.DepositStatusNone ||
+		order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
+		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
+		return nil, errConflict
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+		esportsorder.DepositStatusEQ(esportsorder.DepositStatusNone),
+		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusPaid),
+	).SetDepositStatus(esportsorder.DepositStatusFrozen).
+		SetDepositedAt(now.UTC()).SetDepositedByAdminID(adminID).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.deposited").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"deposit_status": "frozen", "note": "存单冻结标记，不改变履约状态、不释放名额",
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrder.Get(ctx, orderID)
+}
+
+// restoreOrder 恢复存单：把冻结标记清掉（叫「恢复」，不叫「解冻」）。
+// 恢复不动 fulfillment_status、不动名额占用，仅清空存单标记与存单时间。
+func restoreOrder(ctx context.Context, db *ent.Client, orderID, adminID int, now time.Time) (*ent.EsportsOrder, error) {
+	if orderID < 1 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.DepositStatus != esportsorder.DepositStatusFrozen {
+		return nil, errConflict
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+		esportsorder.DepositStatusEQ(esportsorder.DepositStatusFrozen),
+	).SetDepositStatus(esportsorder.DepositStatusNone).
+		ClearDepositedAt().ClearDepositedByAdminID().AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.restored").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"deposit_status": "none", "note": "恢复存单，仅清除冻结标记",
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrder.Get(ctx, orderID)
+}

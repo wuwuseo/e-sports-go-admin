@@ -1,0 +1,390 @@
+package esports
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscommissionentry"
+	"go-admin/internal/ent/esportscommissionrule"
+	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsorderaddon"
+)
+
+// 加钟（§3.3 订单操作 / §6.2 陪玩端加钟确认 / §12.5 特殊场景）：
+// 客服对服务中订单发起加钟（追加金额与工时），陪玩确认后按**确认时点锁定的分成规则**生成
+// `kind=addon` 的加钟分成明细，并把追加金额与追加服务量累加到订单（只增不改）。
+// 加钟金额不改写原订单报价快照（`payable_cents` 保持原报价事实）。
+
+// addonInput 加钟申请入参。
+type addonInput struct {
+	AddedCents int64  `json:"added_cents"`
+	AddedUnits int64  `json:"added_units"`
+	Note       string `json:"note"`
+}
+
+// addonNo 生成加钟单号，前缀 AD。
+func addonNo() string { return "AD" + uuid.NewString() }
+
+// validAddonStatus 校验加钟单状态。
+func validAddonStatus(status string) bool {
+	switch status {
+	case "pending", "confirmed", "rejected", "cancelled":
+		return true
+	}
+	return false
+}
+
+// addonCommissionCents 按规则计算本次加钟的陪玩分成（§12.5：按加钟确认时锁定的规则计算）。
+// 基数取本次追加金额；fixed_per_unit 以追加服务量为单位数。
+// ponytail: 加钟分成不受「分成之和 ≤ 可分基数」上限约束（加钟属追加服务，基数与原订单独立）。
+func addonCommissionCents(rule *ent.EsportsCommissionRule, addedCents, addedUnits int64) int64 {
+	if rule == nil {
+		return 0
+	}
+	switch rule.CalcMode {
+	case esportscommissionrule.CalcModePercent:
+		return addedCents * int64(rule.ValueBp) / 10000
+	case esportscommissionrule.CalcModeFixedPerOrder:
+		return rule.ValueCents
+	case esportscommissionrule.CalcModeFixedPerUnit:
+		return rule.ValueCents * addedUnits
+	default:
+		return 0
+	}
+}
+
+// requestOrderAddon 客服对服务中订单发起加钟：落一条 pending 加钟单等待陪玩确认。
+// 约束：订单须为服务中；追加金额与追加服务量至少一项为正；同一订单同时只允许一条待确认加钟。
+func requestOrderAddon(ctx context.Context, db *ent.Client, orderID, adminID int,
+	in addonInput, now time.Time) (*ent.EsportsOrderAddon, error) {
+	in.Note = strings.TrimSpace(in.Note)
+	if orderID < 1 || adminID < 1 || len([]rune(in.Note)) > 255 ||
+		in.AddedCents < 0 || in.AddedUnits < 0 || (in.AddedCents == 0 && in.AddedUnits == 0) {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
+		return nil, fmt.Errorf("%w：仅服务中的订单可发起加钟", errInvalidInput)
+	}
+	pending, err := tx.EsportsOrderAddon.Query().Where(
+		esportsorderaddon.OrderIDEQ(orderID),
+		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+	).Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if pending {
+		return nil, fmt.Errorf("%w：该订单已有待确认的加钟，请等待陪玩确认", errConflict)
+	}
+	addon, err := tx.EsportsOrderAddon.Create().
+		SetAddonNo(addonNo()).SetOrderID(orderID).
+		SetAddedCents(in.AddedCents).SetAddedUnits(in.AddedUnits).
+		SetRequestedByAdminID(adminID).SetNote(in.Note).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+		SetOrderVersion(newVersion).SetEventType("order.addon_requested").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"addon_no": addon.AddonNo, "added_cents": addon.AddedCents, "added_units": addon.AddedUnits,
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("order.addon_requested:" + addon.AddonNo).
+		SetEventType("order.addon_requested").SetAggregateRef(order.OrderNo).
+		SetPayload(map[string]interface{}{
+			"order_no": order.OrderNo, "addon_no": addon.AddonNo,
+			"added_cents": addon.AddedCents, "added_units": addon.AddedUnits,
+		}).Save(ctx); err != nil {
+		if !ent.IsConstraintError(err) {
+			return nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrderAddon.Get(ctx, addon.ID)
+}
+
+// listOrderAddons 某订单的加钟单列表（管理端）。
+func listOrderAddons(ctx context.Context, db *ent.Client, orderID int) ([]*ent.EsportsOrderAddon, error) {
+	if orderID < 1 {
+		return nil, errInvalidInput
+	}
+	return db.EsportsOrderAddon.Query().Where(
+		esportsorderaddon.OrderIDEQ(orderID),
+	).Order(ent.Desc(esportsorderaddon.FieldID)).Limit(100).All(ctx)
+}
+
+// listPlayerPendingAddons 陪玩端「我的加钟通知」：本人在该订单上有 accepted 席位的待确认加钟。
+func listPlayerPendingAddons(ctx context.Context, db *ent.Client, playerID int) ([]*ent.EsportsOrderAddon, error) {
+	if playerID < 1 {
+		return nil, errInvalidInput
+	}
+	seats, err := db.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.PlayerIDEQ(playerID),
+		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
+	).Select(esportsdispatchseat.FieldOrderID).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	orderIDs := make([]int, 0, len(seats))
+	for _, seat := range seats {
+		orderIDs = append(orderIDs, seat.OrderID)
+	}
+	if len(orderIDs) == 0 {
+		return []*ent.EsportsOrderAddon{}, nil
+	}
+	return db.EsportsOrderAddon.Query().Where(
+		esportsorderaddon.OrderIDIn(orderIDs...),
+		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+	).Order(ent.Desc(esportsorderaddon.FieldID)).Limit(100).All(ctx)
+}
+
+// confirmOrderAddon 陪玩确认加钟（§6.2）：把追加金额与服务量累加到订单，并按确认时点锁定的
+// 分成规则生成 kind=addon 的加钟分成明细；不改写原订单报价快照。
+func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID int, now time.Time) (*ent.EsportsOrderAddon, error) {
+	if playerID < 1 || addonID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	addon, err := tx.EsportsOrderAddon.Get(ctx, addonID)
+	if err != nil {
+		return nil, err
+	}
+	if addon.Status != esportsorderaddon.StatusPending {
+		return nil, errConflict
+	}
+	seat, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(addon.OrderID),
+		esportsdispatchseat.PlayerIDEQ(playerID),
+		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
+	).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, errForbidden
+		}
+		return nil, err
+	}
+	order, err := tx.EsportsOrder.Get(ctx, addon.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
+		return nil, errConflict
+	}
+	// 确认时点锁定分成规则并计算本次加钟分成（§12.5）。
+	rule, err := resolveCommissionRuleIn(ctx, tx.EsportsCommissionRule, tx.EsportsServiceSegment,
+		tx.EsportsDispatchSeat, tx.EsportsSku, tx.EsportsProductCategory, order)
+	if err != nil {
+		return nil, err
+	}
+	commission := addonCommissionCents(rule, addon.AddedCents, addon.AddedUnits)
+
+	update := tx.EsportsOrderAddon.Update().Where(
+		esportsorderaddon.IDEQ(addon.ID),
+		esportsorderaddon.VersionEQ(addon.Version),
+		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+	).SetStatus(esportsorderaddon.StatusConfirmed).
+		SetConfirmedPlayerID(playerID).SetConfirmedAt(now.UTC()).
+		SetCommissionCents(commission).AddVersion(1)
+	if rule != nil {
+		update = update.SetRuleID(rule.ID).SetRuleNo(rule.RuleNo).SetRuleVersion(rule.Version)
+	}
+	changed, err := update.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	// 订单累加加钟金额与服务量（只增不改）。
+	changed, err = tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
+		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusInService),
+	).AddAddonCents(addon.AddedCents).AddAddonUnits(addon.AddedUnits).
+		AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	if commission > 0 && rule != nil {
+		if _, err = tx.EsportsCommissionEntry.Create().
+			SetIdemKey("commission:addon:" + addon.AddonNo + ":" + strconv.Itoa(playerID)).
+			SetOrderID(order.ID).SetPlayerID(playerID).
+			SetKind(esportscommissionentry.KindAddon).SetSeatIndex(seat.SeatIndex).
+			SetRuleID(rule.ID).SetRuleNo(rule.RuleNo).SetRuleVersion(rule.Version).
+			SetCalcMode(esportscommissionentry.CalcMode(rule.CalcMode.String())).
+			SetBaseCents(addon.AddedCents).SetAmountCents(commission).
+			SetStatus(esportscommissionentry.StatusPendingSettlement).
+			SetNote("加钟分成（" + addon.AddonNo + "）").Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
+	}
+	// 订单事件占用新版本号（唯一索引 (order_id, order_version)）。
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.addon_confirmed").
+		SetActorType("player").SetActorID(strconv.Itoa(playerID)).
+		SetDetails(map[string]interface{}{
+			"addon_no": addon.AddonNo, "added_cents": addon.AddedCents,
+			"added_units": addon.AddedUnits, "commission_cents": commission,
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrderAddon.Get(ctx, addonID)
+}
+
+// rejectOrderAddon 陪玩拒绝加钟：仅本人在该订单上有 accepted 席位时可拒绝，须填原因。
+func rejectOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID int,
+	reason string, now time.Time) (*ent.EsportsOrderAddon, error) {
+	reason = strings.TrimSpace(reason)
+	if playerID < 1 || addonID < 1 || reason == "" || len([]rune(reason)) > 255 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	addon, err := tx.EsportsOrderAddon.Get(ctx, addonID)
+	if err != nil {
+		return nil, err
+	}
+	if addon.Status != esportsorderaddon.StatusPending {
+		return nil, errConflict
+	}
+	seatExists, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(addon.OrderID),
+		esportsdispatchseat.PlayerIDEQ(playerID),
+		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
+	).Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !seatExists {
+		return nil, errForbidden
+	}
+	changed, err := tx.EsportsOrderAddon.Update().Where(
+		esportsorderaddon.IDEQ(addon.ID),
+		esportsorderaddon.VersionEQ(addon.Version),
+		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+	).SetStatus(esportsorderaddon.StatusRejected).
+		SetRejectReason(reason).SetConfirmedPlayerID(playerID).
+		SetConfirmedAt(now.UTC()).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	order, err := tx.EsportsOrder.Get(ctx, addon.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(newVersion).SetEventType("order.addon_rejected").
+		SetActorType("player").SetActorID(strconv.Itoa(playerID)).
+		SetDetails(map[string]interface{}{
+			"addon_no": addon.AddonNo, "reason": reason,
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrderAddon.Get(ctx, addonID)
+}
+
+// cancelOrderAddon 客服取消待确认的加钟（陪玩未回应时撤回申请）。
+func cancelOrderAddon(ctx context.Context, db *ent.Client, addonID, adminID int,
+	now time.Time) (*ent.EsportsOrderAddon, error) {
+	if addonID < 1 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	addon, err := tx.EsportsOrderAddon.Get(ctx, addonID)
+	if err != nil {
+		return nil, err
+	}
+	if addon.Status != esportsorderaddon.StatusPending {
+		return nil, errConflict
+	}
+	changed, err := tx.EsportsOrderAddon.Update().Where(
+		esportsorderaddon.IDEQ(addon.ID),
+		esportsorderaddon.VersionEQ(addon.Version),
+		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+	).SetStatus(esportsorderaddon.StatusCancelled).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	order, err := tx.EsportsOrder.Get(ctx, addon.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(newVersion).SetEventType("order.addon_cancelled").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{"addon_no": addon.AddonNo}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrderAddon.Get(ctx, addonID)
+}
+
+// hasPendingAddon 判断订单是否存在未处理（待陪玩确认）的加钟，供结单条件校验（§3.4）。
+func hasPendingAddon(ctx context.Context, db *ent.Client, orderID int) (bool, error) {
+	return db.EsportsOrderAddon.Query().Where(
+		esportsorderaddon.OrderIDEQ(orderID),
+		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+	).Exist(ctx)
+}

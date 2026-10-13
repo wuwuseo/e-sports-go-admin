@@ -13,6 +13,7 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/attachment"
+	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/global"
 	"go-admin/internal/utils"
 
@@ -214,6 +215,16 @@ func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.Fi
 	return s.toAttachmentResponse(a), nil
 }
 
+// attachmentInUse 判断附件是否被业务单据引用。当前仅有陪玩报单的年龄核验证据
+// 引用附件；后续新增引用方时应扩展为引用方登记，而不是逐个硬编码。
+func (s *AttachmentService) attachmentInUse(ctx context.Context, ids []int) (bool, error) {
+	if len(ids) == 0 {
+		return false, nil
+	}
+	return s.Client.EsportsAgeCheck.Query().
+		Where(esportsagecheck.EvidenceAttachmentIDIn(ids...)).Exist(ctx)
+}
+
 func (s *AttachmentService) Delete(ctx context.Context, id int) error {
 	a, err := s.Client.Attachment.Query().
 		Where(attachment.IDEQ(id)).
@@ -223,6 +234,12 @@ func (s *AttachmentService) Delete(ctx context.Context, id int) error {
 			return ErrAttachmentNotFound
 		}
 		return fmt.Errorf("查询附件失败: %w", err)
+	}
+
+	if inUse, err := s.attachmentInUse(ctx, []int{id}); err != nil {
+		return fmt.Errorf("检查附件引用失败: %w", err)
+	} else if inUse {
+		return ErrAttachmentDeleteFailed
 	}
 
 	if s.filesystem != nil {
@@ -243,6 +260,12 @@ func (s *AttachmentService) BatchDelete(ctx context.Context, ids []int) error {
 		All(ctx)
 	if err != nil {
 		return fmt.Errorf("查询附件失败: %w", err)
+	}
+
+	if inUse, err := s.attachmentInUse(ctx, ids); err != nil {
+		return fmt.Errorf("检查附件引用失败: %w", err)
+	} else if inUse {
+		return ErrAttachmentDeleteFailed
 	}
 
 	if s.filesystem != nil {

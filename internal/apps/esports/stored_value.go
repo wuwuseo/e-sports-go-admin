@@ -1,0 +1,776 @@
+package esports
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscustomer"
+	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportssku"
+	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportswallettx"
+)
+
+// 储值卡（预付账户，§4.4 / §11.3）。
+//
+// 记账口径：卡内余额不落库，由 EsportsWalletTx 中 account_type=stored_value_card、owner_id=卡 ID 的
+// 流水求和派生，本金与赠送分列——每张卡就是一个独立账户，归属人由卡上的 customer_id 得出。
+// 预付款批次另记 EsportsLedgerEntry（account_type=stored_value_prepay，account_id=卡 ID），
+// 供 §11.6「来源批次」追溯；(source_type, source_id, entry_role) 唯一索引保证重复提交不重复入账。
+const (
+	walletStoredValueCard = "stored_value_card"
+	// 开卡的流水来源类型，source_id 取调用方幂等键，重复提交由唯一索引兜底。
+	storedValueSourceOpen = "stored_value_card_open"
+	// 预付款批次账本账户类型。
+	storedValuePrepayAccount = "stored_value_prepay"
+	// 到期提醒默认提前天数（§4.4 到期提醒）。
+	storedValueDueDays = 30
+	// 单张开卡最多绑定的适用商品数。
+	storedValueMaxScope = 200
+)
+
+// errStoredValueUnusable 储值卡当前不可用于该笔核销。
+var errStoredValueUnusable = errors.New("储值卡不可用：已过期或状态不允许消费")
+
+// storedValueCardView 是储值卡视图：卡登记信息 + 由流水派生的余额与已消费额。
+type storedValueCardView struct {
+	*ent.EsportsStoredValueCard
+	PrincipalRemainingCents int64 `json:"principal_remaining_cents"`
+	BonusRemainingCents     int64 `json:"bonus_remaining_cents"`
+	BalanceCents            int64 `json:"balance_cents"`
+	ConsumedCents           int64 `json:"consumed_cents"`
+}
+
+// storedValueOpenInput 是开卡入参（§4.4）：客服代办或客户自助购买。
+type storedValueOpenInput struct {
+	CustomerID        int    `json:"customer_id"`
+	Source            string `json:"source"`
+	PaymentChannel    string `json:"payment_channel"`
+	PaymentRef        string `json:"payment_ref"`
+	PrincipalCents    int64  `json:"principal_cents"`
+	BonusCents        int64  `json:"bonus_cents"`
+	ApplicableScope   []int  `json:"applicable_scope"`
+	ContractConfirmed bool   `json:"contract_confirmed"`
+	ValidUntil        string `json:"valid_until"`
+	ValidityDays      int    `json:"validity_days"`
+	Note              string `json:"note"`
+	IdempotencyKey    string `json:"idempotency_key"`
+}
+
+func newStoredValueCardNo() string {
+	raw := strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))
+	return "SV" + raw[:12]
+}
+
+// validateStoredValueOpen 校验开卡入参，返回规范化后的有效期与适用商品（SKU ID 去重）。
+// 任一不满足返回 errInvalidInput，调用方不得写库。
+func validateStoredValueOpen(in storedValueOpenInput, now time.Time) (time.Time, []int, error) {
+	key := strings.TrimSpace(in.IdempotencyKey)
+	ref := strings.TrimSpace(in.PaymentRef)
+	if in.CustomerID < 1 || in.PrincipalCents <= 0 || in.BonusCents < 0 {
+		return time.Time{}, nil, errInvalidInput
+	}
+	if in.Source != "staff" && in.Source != "self" {
+		return time.Time{}, nil, errInvalidInput
+	}
+	if len(key) < 8 || len(key) > 128 || len([]rune(in.Note)) > 255 {
+		return time.Time{}, nil, errInvalidInput
+	}
+	// 开卡必须确认合同（§4.4 记录合同确认）。
+	if !in.ContractConfirmed {
+		return time.Time{}, nil, fmt.Errorf("%w：开卡前须确认储值卡合同", errInvalidInput)
+	}
+	switch in.PaymentChannel {
+	case "wechat_work", "merchant_qr", "corporate_transfer":
+		// 外部收款须留凭证号，便于财务核验。
+		if ref == "" || len(ref) > 128 {
+			return time.Time{}, nil, fmt.Errorf("%w：外部收款开卡须填写支付凭证号", errInvalidInput)
+		}
+	case "customer_balance":
+		// 账户间划转：钱来自客户余额本金，不存在外部凭证，也不产生赠送权益。
+		if ref != "" {
+			return time.Time{}, nil, errInvalidInput
+		}
+		if in.BonusCents != 0 {
+			return time.Time{}, nil, fmt.Errorf("%w：用余额购卡不支持赠送权益", errInvalidInput)
+		}
+	default:
+		return time.Time{}, nil, errInvalidInput
+	}
+	validUntil := now.UTC().AddDate(0, 0, in.ValidityDays)
+	if raw := strings.TrimSpace(in.ValidUntil); raw != "" {
+		parsed, err := parseReportTime(raw)
+		if err != nil {
+			return time.Time{}, nil, errInvalidInput
+		}
+		validUntil = parsed.UTC()
+	}
+	if !now.UTC().Before(validUntil) {
+		return time.Time{}, nil, fmt.Errorf("%w：储值卡有效期必须晚于当前时间", errInvalidInput)
+	}
+	scope := make([]int, 0, len(in.ApplicableScope))
+	seen := map[int]bool{}
+	for _, skuID := range in.ApplicableScope {
+		if skuID < 1 || seen[skuID] {
+			return time.Time{}, nil, errInvalidInput
+		}
+		seen[skuID] = true
+		scope = append(scope, skuID)
+	}
+	if len(scope) > storedValueMaxScope {
+		return time.Time{}, nil, errInvalidInput
+	}
+	return validUntil, scope, nil
+}
+
+// storedValueCardBalance 汇总卡内余额（本金 / 赠送分列）。
+func storedValueCardBalance(ctx context.Context, db *ent.Client, cardID int) (walletBalance, error) {
+	return walletBalanceOf(ctx, db, walletStoredValueCard, cardID)
+}
+
+func storedValueCardBalanceTx(ctx context.Context, tx *ent.Tx, cardID int) (walletBalance, error) {
+	return walletBalanceTx(ctx, tx, walletStoredValueCard, cardID)
+}
+
+// storedValueCardViewOf 组装卡视图。已消费额由「开卡总额 − 当前余额」派生，不额外落库。
+func storedValueCardViewOf(ctx context.Context, db *ent.Client, card *ent.EsportsStoredValueCard) (*storedValueCardView, error) {
+	balance, err := storedValueCardBalance(ctx, db, card.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &storedValueCardView{
+		EsportsStoredValueCard:  card,
+		PrincipalRemainingCents: balance.PrincipalCents,
+		BonusRemainingCents:     balance.BonusCents,
+		BalanceCents:            balance.total(),
+		ConsumedCents:           card.PrincipalCents + card.BonusCents - balance.total(),
+	}, nil
+}
+
+// openStoredValueCard 开卡（§4.4）：外部收款开卡直接入账并留凭证；用客户余额购卡属账户间划转，
+// 同一事务内减少余额本金、增加储值卡本金并产生配对流水。重复幂等键由唯一索引兜底返回冲突。
+func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in storedValueOpenInput, now time.Time) (*storedValueCardView, error) {
+	validUntil, scope, err := validateStoredValueOpen(in, now)
+	if err != nil {
+		return nil, err
+	}
+	key := strings.TrimSpace(in.IdempotencyKey)
+	ref := strings.TrimSpace(in.PaymentRef)
+	note := strings.TrimSpace(in.Note)
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if _, err = tx.EsportsCustomer.Get(ctx, in.CustomerID); err != nil {
+		return nil, err
+	}
+	utc := now.UTC()
+	if in.PaymentChannel == "customer_balance" {
+		balance, err := walletBalanceTx(ctx, tx, walletCustomerBalance, in.CustomerID)
+		if err != nil {
+			return nil, err
+		}
+		// 划转只动本金批次（§4.4）；赠送权益不可由划转产生，已在入参校验拦住。
+		if balance.PrincipalCents < in.PrincipalCents {
+			return nil, errInsufficientBalance
+		}
+		if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+			SetAccountType(esportswallettx.AccountTypeCustomerBalance).SetOwnerID(in.CustomerID).
+			SetEntryType(esportswallettx.EntryTypeConsume).
+			SetPrincipalDeltaCents(-in.PrincipalCents).SetBonusDeltaCents(0).
+			SetSourceType(storedValueSourceOpen).SetSourceID(key).
+			SetOperatorID(adminID).SetNote("用余额购卡").Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
+		if _, err = tx.EsportsLedgerEntry.Create().
+			SetAccountType(walletCustomerBalance).SetAccountID(strconv.Itoa(in.CustomerID)).
+			SetSourceType(storedValueSourceOpen).SetSourceID(key).
+			SetEntryRole("stored_value_transfer_out").SetDeltaCents(-in.PrincipalCents).
+			SetFundBatch("stored_value_card").Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
+	}
+	// 卡号冲突（理论概率极低）交由唯一索引拒绝，调用方重试即可。
+	card, err := tx.EsportsStoredValueCard.Create().SetCardNo(newStoredValueCardNo()).
+		SetCustomerID(in.CustomerID).
+		SetSource(esportsstoredvaluecard.Source(in.Source)).
+		SetPaymentChannel(esportsstoredvaluecard.PaymentChannel(in.PaymentChannel)).
+		SetPaymentRef(ref).SetPrincipalCents(in.PrincipalCents).SetBonusCents(in.BonusCents).
+		SetApplicableScope(scope).SetContractConfirmed(true).
+		SetValidFrom(utc).SetValidUntil(validUntil).
+		SetStatus(esportsstoredvaluecard.StatusActive).
+		SetOpenedByAdminID(adminID).Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	create := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
+		SetEntryType(esportswallettx.EntryTypeRecharge).
+		SetPrincipalDeltaCents(in.PrincipalCents).SetBonusDeltaCents(in.BonusCents).
+		SetSourceType(storedValueSourceOpen).SetSourceID(key).
+		SetOperatorID(adminID).SetNote(note).
+		SetRuleSnapshot(map[string]any{
+			"card_no": card.CardNo, "payment_channel": string(card.PaymentChannel),
+			"payment_ref": ref, "applicable_scope": scope, "valid_until": validUntil,
+		})
+	// 赠送权益随卡有效期到期（§4.5 赠送过期）。
+	if in.BonusCents > 0 {
+		create.SetBonusExpiresAt(validUntil)
+	}
+	if _, err = create.Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	fundBatch := ref
+	if fundBatch == "" {
+		fundBatch = "balance_transfer"
+	}
+	if _, err = tx.EsportsLedgerEntry.Create().
+		SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
+		SetSourceType(storedValueSourceOpen).SetSourceID(key).
+		SetEntryRole("card_open").SetDeltaCents(in.PrincipalCents + in.BonusCents).
+		SetFundBatch(fundBatch).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return storedValueCardViewOf(ctx, db, card)
+}
+
+// storedValueCardUsable 校验卡可用于该订单：归属客户一致、状态可用、在有效期内、适用商品命中。
+func storedValueCardUsable(card *ent.EsportsStoredValueCard, customerID, skuID int, now time.Time) error {
+	if card.CustomerID != customerID {
+		return fmt.Errorf("%w：储值卡不属于该客户", errInvalidInput)
+	}
+	if card.Status == esportsstoredvaluecard.StatusRefundPending ||
+		card.Status == esportsstoredvaluecard.StatusRefunded ||
+		card.Status == esportsstoredvaluecard.StatusFrozen {
+		return errStoredValueUnusable
+	}
+	utc := now.UTC()
+	if utc.Before(card.ValidFrom) || !utc.Before(card.ValidUntil) ||
+		card.Status == esportsstoredvaluecard.StatusExpired {
+		return errStoredValueUnusable
+	}
+	if scope := card.ApplicableScope; len(scope) > 0 {
+		matched := false
+		for _, id := range scope {
+			if id == skuID {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return fmt.Errorf("%w：该订单商品不在储值卡适用范围内", errInvalidInput)
+		}
+	}
+	return nil
+}
+
+// payOrderWithStoredValueCard 用储值卡足额核销订单（§4.4 消费）：同事务扣减卡内流水、置订单
+// 储值卡标记与关联卡 ID 并转入待派单。扣减顺序固定为先赠送权益、后本金。
+// ponytail: 扣减顺序可配置（先本金/按比例）未落地；存单与储值卡混合支付未实现。
+func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, orderID, cardID int, now time.Time) (*ent.EsportsOrder, error) {
+	if orderID < 1 || cardID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
+		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
+		return nil, errConflict
+	}
+	customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)
+	if err != nil {
+		return nil, err
+	}
+	if customer.AgeStatus != esportscustomer.AgeStatusAdult {
+		return nil, errAgeUnverified
+	}
+	sku, err := tx.EsportsSku.Get(ctx, order.SkuID)
+	if err != nil {
+		return nil, err
+	}
+	if sku.Status != esportssku.StatusOnSale {
+		return nil, errConflict
+	}
+	card, err := tx.EsportsStoredValueCard.Get(ctx, cardID)
+	if err != nil {
+		return nil, err
+	}
+	if err = storedValueCardUsable(card, order.CustomerID, order.SkuID, now); err != nil {
+		return nil, err
+	}
+	balance, err := storedValueCardBalanceTx(ctx, tx, card.ID)
+	if err != nil {
+		return nil, err
+	}
+	payable := order.PayableCents
+	if balance.total() < payable {
+		return nil, errInsufficientBalance
+	}
+	principalDeduct, bonusDeduct := splitPrepayDeduction(
+		prepayDeductionOrder(ctx, tx.Client()), balance.PrincipalCents, balance.BonusCents, payable)
+	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
+		SetEntryType(esportswallettx.EntryTypeConsume).
+		SetPrincipalDeltaCents(-principalDeduct).SetBonusDeltaCents(-bonusDeduct).
+		SetSourceType("order").SetSourceID(order.OrderNo).
+		SetOperatorID(adminID).SetNote("订单储值卡核销").Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
+		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
+		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
+	).SetPaymentStatus(esportsorder.PaymentStatusPaid).
+		SetPaymentChannel(esportsorder.PaymentChannelStoredValueCard).
+		SetStoredValueCardID(card.ID).
+		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).
+		SetPaidAt(now.UTC()).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	// 进入待派单：若该游戏分区有优先派单权生效名单，则只通知名单内陪玩（§5.4 业务口径）。
+	if err = onOrderEnteredPendingDispatch(ctx, tx, order.ID, now); err != nil {
+		return nil, err
+	}
+	hold, err := tx.EsportsQuotaHold.Query().Where(esportsquotahold.OrderIDEQ(order.ID)).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if hold.Status != esportsquotahold.StatusReserved {
+		return nil, errConflict
+	}
+	changed, err = tx.EsportsQuotaHold.Update().Where(
+		esportsquotahold.IDEQ(hold.ID), esportsquotahold.StatusEQ(esportsquotahold.StatusReserved),
+	).SetStatus(esportsquotahold.StatusSold).Save(ctx)
+	if err != nil || changed != 1 {
+		return nil, errConflict
+	}
+	changed, err = tx.EsportsSku.Update().Where(
+		esportssku.IDEQ(hold.SkuID), esportssku.QuotaReservedGTE(hold.Quantity),
+	).AddQuotaReserved(-hold.Quantity).AddQuotaSold(hold.Quantity).AddVersion(1).Save(ctx)
+	if err != nil || changed != 1 {
+		return nil, errConflict
+	}
+	// 预付款批次账本：核销冲减对应卡片批次。
+	if _, err = tx.EsportsLedgerEntry.Create().
+		SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
+		SetSourceType("order").SetSourceID(order.OrderNo).
+		SetEntryRole("card_consume").SetDeltaCents(-payable).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.payment_verified").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"channel": walletStoredValueCard, "card_id": card.ID, "card_no": card.CardNo,
+			"applied_cents": payable, "principal_deducted": principalDeduct, "bonus_deducted": bonusDeduct,
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("order.payment_verified:" + order.OrderNo).
+		SetEventType("order.payment_verified").SetAggregateRef(order.OrderNo).
+		SetPayload(map[string]interface{}{"order_no": order.OrderNo, "channel": walletStoredValueCard}).Save(ctx); err != nil {
+		return nil, err
+	}
+	// 余额用尽即转 exhausted：避免列表里把空卡显示为可用卡。
+	if remaining := balance.total() - payable; remaining <= 0 {
+		if _, err = tx.EsportsStoredValueCard.Update().Where(
+			esportsstoredvaluecard.IDEQ(card.ID),
+			esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
+		).SetStatus(esportsstoredvaluecard.StatusExhausted).AddVersion(1).Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrder.Get(ctx, orderID)
+}
+
+// storedValueOrderConsistent 校验储值卡订单的「标记 / 关联卡 / 核销流水」三者一致（§4.6）。
+// 不一致时结单与结算都应拒绝，避免拿一张没有核销凭证的卡单去结单。
+func storedValueOrderConsistent(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) error {
+	if order.PaymentChannel != esportsorder.PaymentChannelStoredValueCard {
+		return nil
+	}
+	if order.StoredValueCardID == nil {
+		return fmt.Errorf("%w：订单标记为储值卡支付但未关联储值卡，无法结单", errInvalidInput)
+	}
+	if _, err := db.EsportsStoredValueCard.Get(ctx, *order.StoredValueCardID); err != nil {
+		return fmt.Errorf("%w：订单关联的储值卡不存在，无法结单", errInvalidInput)
+	}
+	exists, err := db.EsportsWalletTx.Query().Where(
+		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeStoredValueCard),
+		esportswallettx.OwnerIDEQ(*order.StoredValueCardID),
+		esportswallettx.SourceTypeEQ("order"),
+		esportswallettx.SourceIDEQ(order.OrderNo),
+		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeConsume),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("%w：订单缺少储值卡核销流水，无法结单", errInvalidInput)
+	}
+	return nil
+}
+
+// listStoredValueCards 列出储值卡：customer_id / status 可选过滤，remind_days 命中「临近有效期」。
+func listStoredValueCards(ctx context.Context, db *ent.Client, customerID int, status string, remindDays, limit int, now time.Time) ([]*storedValueCardView, error) {
+	if limit < 1 || limit > 200 {
+		limit = 100
+	}
+	q := db.EsportsStoredValueCard.Query()
+	if customerID > 0 {
+		q.Where(esportsstoredvaluecard.CustomerIDEQ(customerID))
+	}
+	if status = strings.TrimSpace(status); status != "" {
+		switch status {
+		case "active", "exhausted", "refund_pending", "refunded", "expired", "frozen":
+			q.Where(esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.Status(status)))
+		default:
+			return nil, errInvalidInput
+		}
+	}
+	if remindDays > 0 {
+		// 到期提醒：仅看仍可用且有效期落在提醒窗口内的卡。
+		q.Where(
+			esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
+			esportsstoredvaluecard.ValidUntilLTE(now.UTC().AddDate(0, 0, remindDays)),
+		)
+	}
+	cards, err := q.Order(ent.Desc(esportsstoredvaluecard.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]*storedValueCardView, 0, len(cards))
+	for _, card := range cards {
+		view, err := storedValueCardViewOf(ctx, db, card)
+		if err != nil {
+			return nil, err
+		}
+		views = append(views, view)
+	}
+	return views, nil
+}
+
+// listStoredValueCardTransactions 列出某张卡的流水（开卡 / 核销 / 退款 / 作废），供档案与对账查看。
+func listStoredValueCardTransactions(ctx context.Context, db *ent.Client, cardID, limit int) ([]*ent.EsportsWalletTx, error) {
+	if cardID < 1 {
+		return nil, errInvalidInput
+	}
+	if limit < 1 || limit > 200 {
+		limit = 100
+	}
+	return db.EsportsWalletTx.Query().Where(
+		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeStoredValueCard),
+		esportswallettx.OwnerIDEQ(cardID),
+	).Order(ent.Desc(esportswallettx.FieldID)).Limit(limit).All(ctx)
+}
+
+// countStoredValueCardsDue 统计临近有效期、仍可用的储值卡，用于客服待办提醒（§4.4 到期提醒）。
+func countStoredValueCardsDue(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time, withinDays int) (int, error) {
+	if withinDays < 1 {
+		withinDays = storedValueDueDays
+	}
+	q := db.EsportsStoredValueCard.Query().Where(
+		esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
+		esportsstoredvaluecard.ValidUntilLTE(now.UTC().AddDate(0, 0, withinDays)),
+	)
+	if !isSuper {
+		// ponytail: 用「归属客服的客户 ID 子集」过滤，客服客户到数千级时改为冗余归属列或反向边。
+		ids, err := db.EsportsCustomer.Query().Where(esportscustomer.OwnerAdminIDEQ(adminID)).
+			Limit(2000).Select(esportscustomer.FieldID).Ints(ctx)
+		if err != nil {
+			return 0, err
+		}
+		if len(ids) == 0 {
+			return 0, nil
+		}
+		q.Where(esportsstoredvaluecard.CustomerIDIn(ids...))
+	}
+	return q.Count(ctx)
+}
+
+// expireStoredValueCards 把已过有效期的可用卡标记为 expired。只改状态、不动金额：未消费本金
+// 仍按合同走退卡流程，避免到期直接没收预付款引发争议。
+// ponytail: 到期是否自动作废赠送权益、是否自动发起退卡待审未实现。
+func expireStoredValueCards(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
+	if limit < 1 {
+		limit = 200
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	ids, err := db.EsportsStoredValueCard.Query().Where(
+		esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
+		esportsstoredvaluecard.ValidUntilLTE(now.UTC()),
+	).Limit(limit).Select(esportsstoredvaluecard.FieldID).Ints(ctx)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, id := range ids {
+		changed, err := db.EsportsStoredValueCard.Update().Where(
+			esportsstoredvaluecard.IDEQ(id),
+			esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
+			esportsstoredvaluecard.ValidUntilLTE(now.UTC()),
+		).SetStatus(esportsstoredvaluecard.StatusExpired).AddVersion(1).Save(ctx)
+		if err != nil {
+			return total, err
+		}
+		total += changed
+	}
+	return total, nil
+}
+
+// storedValueRefundQuote 退卡试算（§4.4）：可退 = 未消费本金；未消费赠送按合同作废、不折现。
+// 纯函数，便于测试与在接口上「展示计算明细」。
+func storedValueRefundQuote(card *ent.EsportsStoredValueCard, balance walletBalance, now time.Time) (map[string]any, int64) {
+	refundable := balance.PrincipalCents
+	if refundable < 0 {
+		refundable = 0
+	}
+	bonusForfeited := balance.BonusCents
+	if bonusForfeited < 0 {
+		bonusForfeited = 0
+	}
+	quote := map[string]any{
+		"card_no":                   card.CardNo,
+		"opened_principal_cents":    card.PrincipalCents,
+		"opened_bonus_cents":        card.BonusCents,
+		"consumed_principal_cents":  card.PrincipalCents - balance.PrincipalCents,
+		"consumed_bonus_cents":      card.BonusCents - balance.BonusCents,
+		"remaining_principal_cents": balance.PrincipalCents,
+		"remaining_bonus_cents":     balance.BonusCents,
+		"refundable_cents":          refundable,
+		"bonus_forfeited_cents":     bonusForfeited,
+		"valid_until":               card.ValidUntil,
+		"quoted_at":                 now.UTC(),
+	}
+	return quote, refundable
+}
+
+// storedValueRefundQuoteFor 读取当前余额并试算，供接口直接展示。
+func storedValueRefundQuoteFor(ctx context.Context, db *ent.Client, card *ent.EsportsStoredValueCard, now time.Time) (map[string]any, int64, error) {
+	balance, err := storedValueCardBalance(ctx, db, card.ID)
+	if err != nil {
+		return nil, 0, err
+	}
+	quote, refundable := storedValueRefundQuote(card, balance, now)
+	return quote, refundable, nil
+}
+
+// requestStoredValueRefund 申请退卡：状态转 refund_pending 并快照试算明细，等财务审核。
+func requestStoredValueRefund(ctx context.Context, db *ent.Client, adminID, cardID int, now time.Time) (*storedValueCardView, error) {
+	if cardID < 1 {
+		return nil, errInvalidInput
+	}
+	card, err := db.EsportsStoredValueCard.Get(ctx, cardID)
+	if err != nil {
+		return nil, err
+	}
+	switch card.Status {
+	case esportsstoredvaluecard.StatusActive, esportsstoredvaluecard.StatusExhausted, esportsstoredvaluecard.StatusExpired:
+	case esportsstoredvaluecard.StatusRefundPending:
+		return nil, errConflict
+	default:
+		return nil, errStoredValueUnusable
+	}
+	quote, refundable, err := storedValueRefundQuoteFor(ctx, db, card, now)
+	if err != nil {
+		return nil, err
+	}
+	if refundable <= 0 {
+		return nil, fmt.Errorf("%w：该卡已无未消费本金，无需退卡", errInvalidInput)
+	}
+	changed, err := db.EsportsStoredValueCard.Update().Where(
+		esportsstoredvaluecard.IDEQ(card.ID),
+		esportsstoredvaluecard.VersionEQ(card.Version),
+		esportsstoredvaluecard.StatusIn(
+			esportsstoredvaluecard.StatusActive,
+			esportsstoredvaluecard.StatusExhausted,
+			esportsstoredvaluecard.StatusExpired),
+	).SetStatus(esportsstoredvaluecard.StatusRefundPending).
+		SetRefundQuote(quote).SetRefundRequestedByAdminID(adminID).
+		SetRefundRequestedAt(now.UTC()).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	updated, err := db.EsportsStoredValueCard.Get(ctx, card.ID)
+	if err != nil {
+		return nil, err
+	}
+	return storedValueCardViewOf(ctx, db, updated)
+}
+
+// decideStoredValueRefund 财务审核退卡：通过与驳回都要求与申请人不同人（不得自审）。
+// 通过时在同一事务内写 refund_return 冲减本金与赠送并置 refunded；驳回把状态还原为可用状态。
+func decideStoredValueRefund(ctx context.Context, db *ent.Client, adminID, cardID int, approve bool, now time.Time) (*storedValueCardView, error) {
+	if cardID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	card, err := tx.EsportsStoredValueCard.Get(ctx, cardID)
+	if err != nil {
+		return nil, err
+	}
+	if card.Status != esportsstoredvaluecard.StatusRefundPending {
+		return nil, errConflict
+	}
+	if card.RefundRequestedByAdminID != nil && *card.RefundRequestedByAdminID == adminID {
+		return nil, fmt.Errorf("%w：退卡审核不得由申请人本人执行", errInvalidInput)
+	}
+	utc := now.UTC()
+	if !approve {
+		// 驳回：按当前余额与有效期还原为可用状态，并清掉试算快照避免误读。
+		balance, err := storedValueCardBalanceTx(ctx, tx, card.ID)
+		if err != nil {
+			return nil, err
+		}
+		restored := esportsstoredvaluecard.StatusActive
+		switch {
+		case !utc.Before(card.ValidUntil):
+			restored = esportsstoredvaluecard.StatusExpired
+		case balance.total() <= 0:
+			restored = esportsstoredvaluecard.StatusExhausted
+		}
+		changed, err := tx.EsportsStoredValueCard.Update().Where(
+			esportsstoredvaluecard.IDEQ(card.ID),
+			esportsstoredvaluecard.VersionEQ(card.Version),
+			esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusRefundPending),
+		).SetStatus(restored).ClearRefundQuote().
+			SetRefundDecidedByAdminID(adminID).AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+		updated, err := db.EsportsStoredValueCard.Get(ctx, card.ID)
+		if err != nil {
+			return nil, err
+		}
+		return storedValueCardViewOf(ctx, db, updated)
+	}
+	balance, err := storedValueCardBalanceTx(ctx, tx, card.ID)
+	if err != nil {
+		return nil, err
+	}
+	_, refundable := storedValueRefundQuote(card, balance, now)
+	if refundable <= 0 {
+		return nil, fmt.Errorf("%w：该卡已无未消费本金，无需退卡", errInvalidInput)
+	}
+	forfeited := balance.total() - refundable
+	// 退卡：本金退回、赠送作废，两者分列记账（§4.4 赠送与本金额分开记账）。
+	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
+		SetEntryType(esportswallettx.EntryTypeRefundReturn).
+		SetPrincipalDeltaCents(-balance.PrincipalCents).SetBonusDeltaCents(-balance.BonusCents).
+		SetSourceType("stored_value_refund").SetSourceID(card.CardNo).
+		SetOperatorID(adminID).SetNote("退卡：本金退回，赠送作废").Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	if _, err = tx.EsportsLedgerEntry.Create().
+		SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
+		SetSourceType("stored_value_refund").SetSourceID(card.CardNo).
+		SetEntryRole("card_refund").SetDeltaCents(-balance.total()).
+		SetFundBatch(card.CardNo).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	changed, err := tx.EsportsStoredValueCard.Update().Where(
+		esportsstoredvaluecard.IDEQ(card.ID),
+		esportsstoredvaluecard.VersionEQ(card.Version),
+		esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusRefundPending),
+	).SetStatus(esportsstoredvaluecard.StatusRefunded).
+		SetRefundedCents(refundable).
+		SetRefundDecidedByAdminID(adminID).SetRefundedAt(utc).
+		AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	// 试算里的作废赠送额随卡落档，便于对账解释「本金退了、赠送没退」。
+	if forfeited > 0 {
+		if _, err = tx.EsportsLedgerEntry.Create().
+			SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
+			SetSourceType("stored_value_refund").SetSourceID(card.CardNo).
+			SetEntryRole("card_bonus_forfeit").SetDeltaCents(0).
+			SetFundBatch(card.CardNo).Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	updated, err := db.EsportsStoredValueCard.Get(ctx, card.ID)
+	if err != nil {
+		return nil, err
+	}
+	return storedValueCardViewOf(ctx, db, updated)
+}

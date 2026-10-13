@@ -1,0 +1,206 @@
+package esports
+
+import (
+	"time"
+
+	"github.com/gofiber/fiber/v3"
+
+	"go-admin/internal/ent"
+	"go-admin/internal/global"
+)
+
+// requestPlayer 从当前登录用户解析陪玩档案，解析失败按 errForbidden 处理。
+func requestPlayer(c fiber.Ctx) (*ent.EsportsPlayer, error) {
+	uid, _ := c.Locals("uid").(string)
+	return currentPlayer(c.Context(), global.ORM, uid)
+}
+
+func adminPlayers(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	players, err := listPlayers(c.Context(), global.ORM, c.Query("keyword"), queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, players)
+}
+
+func createPlayer(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	var in playerInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	player, err := savePlayer(c.Context(), global.ORM, in)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, player)
+}
+
+func updatePlayerHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "陪玩")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in playerUpdateInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	player, err := updatePlayer(c.Context(), global.ORM, id, in)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, player)
+}
+
+func playerDashboardHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	view, err := playerDashboard(c.Context(), global.ORM, player.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
+}
+
+func playerPresenceHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Online bool `json:"online"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	updated, err := setPlayerPresence(c.Context(), global.ORM, player.ID, in.Online)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, updated)
+}
+
+func playerInvitesHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	invites, err := listPlayerInvites(c.Context(), global.ORM, player.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, invites)
+}
+
+func playerAcceptInviteHandler(c fiber.Ctx) error {
+	return respondInviteHandler(c, true)
+}
+
+func playerRejectInviteHandler(c fiber.Ctx) error {
+	return respondInviteHandler(c, false)
+}
+
+// respondInviteHandler 接受 / 拒绝邀请共用：:id 为席位 ID。
+func respondInviteHandler(c fiber.Ctx, accept bool) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	seatID, err := parsePathID(c, "邀请")
+	if err != nil {
+		return businessError(c, err)
+	}
+	if err := respondPlayerInvite(c.Context(), global.ORM, player.ID, seatID, accept, time.Now()); err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, fiber.Map{"seat_id": seatID, "accepted": accept})
+}
+
+func playerGrabHallHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orders, err := listGrabHall(c.Context(), global.ORM, player.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, orders)
+}
+
+func playerGrabHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	order, err := grabPlayerOrder(c.Context(), global.ORM, player.ID, orderID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
+func playerOrdersHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orders, err := listPlayerOrders(c.Context(), global.ORM, player.ID, c.Query("bucket"))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, orders)
+}
+
+func playerStartServiceHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	order, err := startPlayerService(c.Context(), global.ORM, player.ID, orderID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
+func playerFinishServiceHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		ReportedUnits int64  `json:"reported_units"`
+		EvidenceRef   string `json:"evidence_ref"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	order, err := finishPlayerService(c.Context(), global.ORM, player.ID, orderID, in.ReportedUnits, in.EvidenceRef, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
