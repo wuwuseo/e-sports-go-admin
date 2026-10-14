@@ -330,6 +330,48 @@ func (_c *EsportsAfterSaleCreate) SetNillableCustomerDeclineReason(v *string) *E
 	return _c
 }
 
+// SetAcceptedAt sets the "accepted_at" field.
+func (_c *EsportsAfterSaleCreate) SetAcceptedAt(v time.Time) *EsportsAfterSaleCreate {
+	_c.mutation.SetAcceptedAt(v)
+	return _c
+}
+
+// SetNillableAcceptedAt sets the "accepted_at" field if the given value is not nil.
+func (_c *EsportsAfterSaleCreate) SetNillableAcceptedAt(v *time.Time) *EsportsAfterSaleCreate {
+	if v != nil {
+		_c.SetAcceptedAt(*v)
+	}
+	return _c
+}
+
+// SetPlannedAt sets the "planned_at" field.
+func (_c *EsportsAfterSaleCreate) SetPlannedAt(v time.Time) *EsportsAfterSaleCreate {
+	_c.mutation.SetPlannedAt(v)
+	return _c
+}
+
+// SetNillablePlannedAt sets the "planned_at" field if the given value is not nil.
+func (_c *EsportsAfterSaleCreate) SetNillablePlannedAt(v *time.Time) *EsportsAfterSaleCreate {
+	if v != nil {
+		_c.SetPlannedAt(*v)
+	}
+	return _c
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (_c *EsportsAfterSaleCreate) SetApprovedAt(v time.Time) *EsportsAfterSaleCreate {
+	_c.mutation.SetApprovedAt(v)
+	return _c
+}
+
+// SetNillableApprovedAt sets the "approved_at" field if the given value is not nil.
+func (_c *EsportsAfterSaleCreate) SetNillableApprovedAt(v *time.Time) *EsportsAfterSaleCreate {
+	if v != nil {
+		_c.SetApprovedAt(*v)
+	}
+	return _c
+}
+
 // SetHandlerAdminID sets the "handler_admin_id" field.
 func (_c *EsportsAfterSaleCreate) SetHandlerAdminID(v int) *EsportsAfterSaleCreate {
 	_c.mutation.SetHandlerAdminID(v)
@@ -820,6 +862,18 @@ func (_c *EsportsAfterSaleCreate) createSpec() (*EsportsAfterSale, *sqlgraph.Cre
 	if value, ok := _c.mutation.CustomerDeclineReason(); ok {
 		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
 		_node.CustomerDeclineReason = value
+	}
+	if value, ok := _c.mutation.AcceptedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldAcceptedAt, field.TypeTime, value)
+		_node.AcceptedAt = &value
+	}
+	if value, ok := _c.mutation.PlannedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldPlannedAt, field.TypeTime, value)
+		_node.PlannedAt = &value
+	}
+	if value, ok := _c.mutation.ApprovedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldApprovedAt, field.TypeTime, value)
+		_node.ApprovedAt = &value
 	}
 	if value, ok := _c.mutation.HandlerAdminID(); ok {
 		_spec.SetField(esportsaftersale.FieldHandlerAdminID, field.TypeInt, value)

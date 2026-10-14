@@ -10854,6 +10854,9 @@ type EsportsAfterSaleMutation struct {
 	addcustomer_confirmed_by_admin_id *int
 	customer_declined_at              *time.Time
 	customer_decline_reason           *string
+	accepted_at                       *time.Time
+	planned_at                        *time.Time
+	approved_at                       *time.Time
 	handler_admin_id                  *int
 	addhandler_admin_id               *int
 	approver_admin_id                 *int
@@ -12146,6 +12149,153 @@ func (m *EsportsAfterSaleMutation) ResetCustomerDeclineReason() {
 	m.customer_decline_reason = nil
 }
 
+// SetAcceptedAt sets the "accepted_at" field.
+func (m *EsportsAfterSaleMutation) SetAcceptedAt(t time.Time) {
+	m.accepted_at = &t
+}
+
+// AcceptedAt returns the value of the "accepted_at" field in the mutation.
+func (m *EsportsAfterSaleMutation) AcceptedAt() (r time.Time, exists bool) {
+	v := m.accepted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcceptedAt returns the old "accepted_at" field's value of the EsportsAfterSale entity.
+// If the EsportsAfterSale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMutation) OldAcceptedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcceptedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcceptedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcceptedAt: %w", err)
+	}
+	return oldValue.AcceptedAt, nil
+}
+
+// ClearAcceptedAt clears the value of the "accepted_at" field.
+func (m *EsportsAfterSaleMutation) ClearAcceptedAt() {
+	m.accepted_at = nil
+	m.clearedFields[esportsaftersale.FieldAcceptedAt] = struct{}{}
+}
+
+// AcceptedAtCleared returns if the "accepted_at" field was cleared in this mutation.
+func (m *EsportsAfterSaleMutation) AcceptedAtCleared() bool {
+	_, ok := m.clearedFields[esportsaftersale.FieldAcceptedAt]
+	return ok
+}
+
+// ResetAcceptedAt resets all changes to the "accepted_at" field.
+func (m *EsportsAfterSaleMutation) ResetAcceptedAt() {
+	m.accepted_at = nil
+	delete(m.clearedFields, esportsaftersale.FieldAcceptedAt)
+}
+
+// SetPlannedAt sets the "planned_at" field.
+func (m *EsportsAfterSaleMutation) SetPlannedAt(t time.Time) {
+	m.planned_at = &t
+}
+
+// PlannedAt returns the value of the "planned_at" field in the mutation.
+func (m *EsportsAfterSaleMutation) PlannedAt() (r time.Time, exists bool) {
+	v := m.planned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlannedAt returns the old "planned_at" field's value of the EsportsAfterSale entity.
+// If the EsportsAfterSale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMutation) OldPlannedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlannedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlannedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlannedAt: %w", err)
+	}
+	return oldValue.PlannedAt, nil
+}
+
+// ClearPlannedAt clears the value of the "planned_at" field.
+func (m *EsportsAfterSaleMutation) ClearPlannedAt() {
+	m.planned_at = nil
+	m.clearedFields[esportsaftersale.FieldPlannedAt] = struct{}{}
+}
+
+// PlannedAtCleared returns if the "planned_at" field was cleared in this mutation.
+func (m *EsportsAfterSaleMutation) PlannedAtCleared() bool {
+	_, ok := m.clearedFields[esportsaftersale.FieldPlannedAt]
+	return ok
+}
+
+// ResetPlannedAt resets all changes to the "planned_at" field.
+func (m *EsportsAfterSaleMutation) ResetPlannedAt() {
+	m.planned_at = nil
+	delete(m.clearedFields, esportsaftersale.FieldPlannedAt)
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (m *EsportsAfterSaleMutation) SetApprovedAt(t time.Time) {
+	m.approved_at = &t
+}
+
+// ApprovedAt returns the value of the "approved_at" field in the mutation.
+func (m *EsportsAfterSaleMutation) ApprovedAt() (r time.Time, exists bool) {
+	v := m.approved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedAt returns the old "approved_at" field's value of the EsportsAfterSale entity.
+// If the EsportsAfterSale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMutation) OldApprovedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedAt: %w", err)
+	}
+	return oldValue.ApprovedAt, nil
+}
+
+// ClearApprovedAt clears the value of the "approved_at" field.
+func (m *EsportsAfterSaleMutation) ClearApprovedAt() {
+	m.approved_at = nil
+	m.clearedFields[esportsaftersale.FieldApprovedAt] = struct{}{}
+}
+
+// ApprovedAtCleared returns if the "approved_at" field was cleared in this mutation.
+func (m *EsportsAfterSaleMutation) ApprovedAtCleared() bool {
+	_, ok := m.clearedFields[esportsaftersale.FieldApprovedAt]
+	return ok
+}
+
+// ResetApprovedAt resets all changes to the "approved_at" field.
+func (m *EsportsAfterSaleMutation) ResetApprovedAt() {
+	m.approved_at = nil
+	delete(m.clearedFields, esportsaftersale.FieldApprovedAt)
+}
+
 // SetHandlerAdminID sets the "handler_admin_id" field.
 func (m *EsportsAfterSaleMutation) SetHandlerAdminID(i int) {
 	m.handler_admin_id = &i
@@ -12603,7 +12753,7 @@ func (m *EsportsAfterSaleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsAfterSaleMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 36)
 	if m.after_sale_no != nil {
 		fields = append(fields, esportsaftersale.FieldAfterSaleNo)
 	}
@@ -12678,6 +12828,15 @@ func (m *EsportsAfterSaleMutation) Fields() []string {
 	}
 	if m.customer_decline_reason != nil {
 		fields = append(fields, esportsaftersale.FieldCustomerDeclineReason)
+	}
+	if m.accepted_at != nil {
+		fields = append(fields, esportsaftersale.FieldAcceptedAt)
+	}
+	if m.planned_at != nil {
+		fields = append(fields, esportsaftersale.FieldPlannedAt)
+	}
+	if m.approved_at != nil {
+		fields = append(fields, esportsaftersale.FieldApprovedAt)
 	}
 	if m.handler_admin_id != nil {
 		fields = append(fields, esportsaftersale.FieldHandlerAdminID)
@@ -12761,6 +12920,12 @@ func (m *EsportsAfterSaleMutation) Field(name string) (ent.Value, bool) {
 		return m.CustomerDeclinedAt()
 	case esportsaftersale.FieldCustomerDeclineReason:
 		return m.CustomerDeclineReason()
+	case esportsaftersale.FieldAcceptedAt:
+		return m.AcceptedAt()
+	case esportsaftersale.FieldPlannedAt:
+		return m.PlannedAt()
+	case esportsaftersale.FieldApprovedAt:
+		return m.ApprovedAt()
 	case esportsaftersale.FieldHandlerAdminID:
 		return m.HandlerAdminID()
 	case esportsaftersale.FieldApproverAdminID:
@@ -12836,6 +13001,12 @@ func (m *EsportsAfterSaleMutation) OldField(ctx context.Context, name string) (e
 		return m.OldCustomerDeclinedAt(ctx)
 	case esportsaftersale.FieldCustomerDeclineReason:
 		return m.OldCustomerDeclineReason(ctx)
+	case esportsaftersale.FieldAcceptedAt:
+		return m.OldAcceptedAt(ctx)
+	case esportsaftersale.FieldPlannedAt:
+		return m.OldPlannedAt(ctx)
+	case esportsaftersale.FieldApprovedAt:
+		return m.OldApprovedAt(ctx)
 	case esportsaftersale.FieldHandlerAdminID:
 		return m.OldHandlerAdminID(ctx)
 	case esportsaftersale.FieldApproverAdminID:
@@ -13035,6 +13206,27 @@ func (m *EsportsAfterSaleMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCustomerDeclineReason(v)
+		return nil
+	case esportsaftersale.FieldAcceptedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcceptedAt(v)
+		return nil
+	case esportsaftersale.FieldPlannedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlannedAt(v)
+		return nil
+	case esportsaftersale.FieldApprovedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedAt(v)
 		return nil
 	case esportsaftersale.FieldHandlerAdminID:
 		v, ok := value.(int)
@@ -13302,6 +13494,15 @@ func (m *EsportsAfterSaleMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsaftersale.FieldCustomerDeclinedAt) {
 		fields = append(fields, esportsaftersale.FieldCustomerDeclinedAt)
 	}
+	if m.FieldCleared(esportsaftersale.FieldAcceptedAt) {
+		fields = append(fields, esportsaftersale.FieldAcceptedAt)
+	}
+	if m.FieldCleared(esportsaftersale.FieldPlannedAt) {
+		fields = append(fields, esportsaftersale.FieldPlannedAt)
+	}
+	if m.FieldCleared(esportsaftersale.FieldApprovedAt) {
+		fields = append(fields, esportsaftersale.FieldApprovedAt)
+	}
 	if m.FieldCleared(esportsaftersale.FieldHandlerAdminID) {
 		fields = append(fields, esportsaftersale.FieldHandlerAdminID)
 	}
@@ -13348,6 +13549,15 @@ func (m *EsportsAfterSaleMutation) ClearField(name string) error {
 		return nil
 	case esportsaftersale.FieldCustomerDeclinedAt:
 		m.ClearCustomerDeclinedAt()
+		return nil
+	case esportsaftersale.FieldAcceptedAt:
+		m.ClearAcceptedAt()
+		return nil
+	case esportsaftersale.FieldPlannedAt:
+		m.ClearPlannedAt()
+		return nil
+	case esportsaftersale.FieldApprovedAt:
+		m.ClearApprovedAt()
 		return nil
 	case esportsaftersale.FieldHandlerAdminID:
 		m.ClearHandlerAdminID()
@@ -13443,6 +13653,15 @@ func (m *EsportsAfterSaleMutation) ResetField(name string) error {
 		return nil
 	case esportsaftersale.FieldCustomerDeclineReason:
 		m.ResetCustomerDeclineReason()
+		return nil
+	case esportsaftersale.FieldAcceptedAt:
+		m.ResetAcceptedAt()
+		return nil
+	case esportsaftersale.FieldPlannedAt:
+		m.ResetPlannedAt()
+		return nil
+	case esportsaftersale.FieldApprovedAt:
+		m.ResetApprovedAt()
 		return nil
 	case esportsaftersale.FieldHandlerAdminID:
 		m.ResetHandlerAdminID()

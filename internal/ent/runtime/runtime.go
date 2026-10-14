@@ -879,21 +879,21 @@ func init() {
 	// esportsaftersale.CustomerDeclineReasonValidator is a validator for the "customer_decline_reason" field. It is called by the builders before save.
 	esportsaftersale.CustomerDeclineReasonValidator = esportsaftersaleDescCustomerDeclineReason.Validators[0].(func(string) error)
 	// esportsaftersaleDescResolution is the schema descriptor for resolution field.
-	esportsaftersaleDescResolution := esportsaftersaleFields[28].Descriptor()
+	esportsaftersaleDescResolution := esportsaftersaleFields[31].Descriptor()
 	// esportsaftersale.DefaultResolution holds the default value on creation for the resolution field.
 	esportsaftersale.DefaultResolution = esportsaftersaleDescResolution.Default.(string)
 	// esportsaftersale.ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
 	esportsaftersale.ResolutionValidator = esportsaftersaleDescResolution.Validators[0].(func(string) error)
 	// esportsaftersaleDescVersion is the schema descriptor for version field.
-	esportsaftersaleDescVersion := esportsaftersaleFields[29].Descriptor()
+	esportsaftersaleDescVersion := esportsaftersaleFields[32].Descriptor()
 	// esportsaftersale.DefaultVersion holds the default value on creation for the version field.
 	esportsaftersale.DefaultVersion = esportsaftersaleDescVersion.Default.(int)
 	// esportsaftersaleDescCreatedAt is the schema descriptor for created_at field.
-	esportsaftersaleDescCreatedAt := esportsaftersaleFields[31].Descriptor()
+	esportsaftersaleDescCreatedAt := esportsaftersaleFields[34].Descriptor()
 	// esportsaftersale.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsaftersale.DefaultCreatedAt = esportsaftersaleDescCreatedAt.Default.(func() time.Time)
 	// esportsaftersaleDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsaftersaleDescUpdatedAt := esportsaftersaleFields[32].Descriptor()
+	esportsaftersaleDescUpdatedAt := esportsaftersaleFields[35].Descriptor()
 	// esportsaftersale.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsaftersale.DefaultUpdatedAt = esportsaftersaleDescUpdatedAt.Default.(func() time.Time)
 	// esportsaftersale.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

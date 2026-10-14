@@ -67,6 +67,12 @@ type EsportsAfterSale struct {
 	CustomerDeclinedAt *time.Time `json:"customer_declined_at"`
 	// CustomerDeclineReason holds the value of the "customer_decline_reason" field.
 	CustomerDeclineReason string `json:"customer_decline_reason"`
+	// AcceptedAt holds the value of the "accepted_at" field.
+	AcceptedAt *time.Time `json:"accepted_at"`
+	// PlannedAt holds the value of the "planned_at" field.
+	PlannedAt *time.Time `json:"planned_at"`
+	// ApprovedAt holds the value of the "approved_at" field.
+	ApprovedAt *time.Time `json:"approved_at"`
 	// HandlerAdminID holds the value of the "handler_admin_id" field.
 	HandlerAdminID *int `json:"handler_admin_id"`
 	// ApproverAdminID holds the value of the "approver_admin_id" field.
@@ -95,7 +101,7 @@ func (*EsportsAfterSale) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case esportsaftersale.FieldAfterSaleNo, esportsaftersale.FieldSourceType, esportsaftersale.FieldKind, esportsaftersale.FieldChannel, esportsaftersale.FieldDemand, esportsaftersale.FieldExpectedPlan, esportsaftersale.FieldEvidenceRef, esportsaftersale.FieldContact, esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty, esportsaftersale.FieldPlanAction, esportsaftersale.FieldMakeupKind, esportsaftersale.FieldCustomerConfirmChannel, esportsaftersale.FieldCustomerDeclineReason, esportsaftersale.FieldResolution:
 			values[i] = new(sql.NullString)
-		case esportsaftersale.FieldCustomerConfirmedAt, esportsaftersale.FieldCustomerDeclinedAt, esportsaftersale.FieldResolvedAt, esportsaftersale.FieldCreatedAt, esportsaftersale.FieldUpdatedAt:
+		case esportsaftersale.FieldCustomerConfirmedAt, esportsaftersale.FieldCustomerDeclinedAt, esportsaftersale.FieldAcceptedAt, esportsaftersale.FieldPlannedAt, esportsaftersale.FieldApprovedAt, esportsaftersale.FieldResolvedAt, esportsaftersale.FieldCreatedAt, esportsaftersale.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -275,6 +281,27 @@ func (_m *EsportsAfterSale) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CustomerDeclineReason = value.String
 			}
+		case esportsaftersale.FieldAcceptedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field accepted_at", values[i])
+			} else if value.Valid {
+				_m.AcceptedAt = new(time.Time)
+				*_m.AcceptedAt = value.Time
+			}
+		case esportsaftersale.FieldPlannedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field planned_at", values[i])
+			} else if value.Valid {
+				_m.PlannedAt = new(time.Time)
+				*_m.PlannedAt = value.Time
+			}
+		case esportsaftersale.FieldApprovedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field approved_at", values[i])
+			} else if value.Valid {
+				_m.ApprovedAt = new(time.Time)
+				*_m.ApprovedAt = value.Time
+			}
 		case esportsaftersale.FieldHandlerAdminID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field handler_admin_id", values[i])
@@ -451,6 +478,21 @@ func (_m *EsportsAfterSale) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("customer_decline_reason=")
 	builder.WriteString(_m.CustomerDeclineReason)
+	builder.WriteString(", ")
+	if v := _m.AcceptedAt; v != nil {
+		builder.WriteString("accepted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.PlannedAt; v != nil {
+		builder.WriteString("planned_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ApprovedAt; v != nil {
+		builder.WriteString("approved_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	if v := _m.HandlerAdminID; v != nil {
 		builder.WriteString("handler_admin_id=")

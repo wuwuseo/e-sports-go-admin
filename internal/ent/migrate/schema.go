@@ -473,6 +473,9 @@ var (
 		{Name: "customer_confirmed_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "customer_declined_at", Type: field.TypeTime, Nullable: true},
 		{Name: "customer_decline_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "accepted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "planned_at", Type: field.TypeTime, Nullable: true},
+		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
 		{Name: "handler_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "approver_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "executor_admin_id", Type: field.TypeInt, Nullable: true},
@@ -501,7 +504,7 @@ var (
 			{
 				Name:    "esportsaftersale_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsAfterSalesColumns[10], EsportsAfterSalesColumns[32]},
+				Columns: []*schema.Column{EsportsAfterSalesColumns[10], EsportsAfterSalesColumns[35]},
 			},
 		},
 	}

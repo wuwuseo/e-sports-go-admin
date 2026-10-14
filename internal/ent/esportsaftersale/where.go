@@ -139,6 +139,21 @@ func CustomerDeclineReason(v string) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerDeclineReason, v))
 }
 
+// AcceptedAt applies equality check predicate on the "accepted_at" field. It's identical to AcceptedAtEQ.
+func AcceptedAt(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldAcceptedAt, v))
+}
+
+// PlannedAt applies equality check predicate on the "planned_at" field. It's identical to PlannedAtEQ.
+func PlannedAt(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldPlannedAt, v))
+}
+
+// ApprovedAt applies equality check predicate on the "approved_at" field. It's identical to ApprovedAtEQ.
+func ApprovedAt(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldApprovedAt, v))
+}
+
 // HandlerAdminID applies equality check predicate on the "handler_admin_id" field. It's identical to HandlerAdminIDEQ.
 func HandlerAdminID(v int) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldHandlerAdminID, v))
@@ -1237,6 +1252,156 @@ func CustomerDeclineReasonEqualFold(v string) predicate.EsportsAfterSale {
 // CustomerDeclineReasonContainsFold applies the ContainsFold predicate on the "customer_decline_reason" field.
 func CustomerDeclineReasonContainsFold(v string) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldContainsFold(FieldCustomerDeclineReason, v))
+}
+
+// AcceptedAtEQ applies the EQ predicate on the "accepted_at" field.
+func AcceptedAtEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldAcceptedAt, v))
+}
+
+// AcceptedAtNEQ applies the NEQ predicate on the "accepted_at" field.
+func AcceptedAtNEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldAcceptedAt, v))
+}
+
+// AcceptedAtIn applies the In predicate on the "accepted_at" field.
+func AcceptedAtIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldAcceptedAt, vs...))
+}
+
+// AcceptedAtNotIn applies the NotIn predicate on the "accepted_at" field.
+func AcceptedAtNotIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldAcceptedAt, vs...))
+}
+
+// AcceptedAtGT applies the GT predicate on the "accepted_at" field.
+func AcceptedAtGT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldAcceptedAt, v))
+}
+
+// AcceptedAtGTE applies the GTE predicate on the "accepted_at" field.
+func AcceptedAtGTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldAcceptedAt, v))
+}
+
+// AcceptedAtLT applies the LT predicate on the "accepted_at" field.
+func AcceptedAtLT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldAcceptedAt, v))
+}
+
+// AcceptedAtLTE applies the LTE predicate on the "accepted_at" field.
+func AcceptedAtLTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldAcceptedAt, v))
+}
+
+// AcceptedAtIsNil applies the IsNil predicate on the "accepted_at" field.
+func AcceptedAtIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldAcceptedAt))
+}
+
+// AcceptedAtNotNil applies the NotNil predicate on the "accepted_at" field.
+func AcceptedAtNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldAcceptedAt))
+}
+
+// PlannedAtEQ applies the EQ predicate on the "planned_at" field.
+func PlannedAtEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldPlannedAt, v))
+}
+
+// PlannedAtNEQ applies the NEQ predicate on the "planned_at" field.
+func PlannedAtNEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldPlannedAt, v))
+}
+
+// PlannedAtIn applies the In predicate on the "planned_at" field.
+func PlannedAtIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldPlannedAt, vs...))
+}
+
+// PlannedAtNotIn applies the NotIn predicate on the "planned_at" field.
+func PlannedAtNotIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldPlannedAt, vs...))
+}
+
+// PlannedAtGT applies the GT predicate on the "planned_at" field.
+func PlannedAtGT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldPlannedAt, v))
+}
+
+// PlannedAtGTE applies the GTE predicate on the "planned_at" field.
+func PlannedAtGTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldPlannedAt, v))
+}
+
+// PlannedAtLT applies the LT predicate on the "planned_at" field.
+func PlannedAtLT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldPlannedAt, v))
+}
+
+// PlannedAtLTE applies the LTE predicate on the "planned_at" field.
+func PlannedAtLTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldPlannedAt, v))
+}
+
+// PlannedAtIsNil applies the IsNil predicate on the "planned_at" field.
+func PlannedAtIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldPlannedAt))
+}
+
+// PlannedAtNotNil applies the NotNil predicate on the "planned_at" field.
+func PlannedAtNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldPlannedAt))
+}
+
+// ApprovedAtEQ applies the EQ predicate on the "approved_at" field.
+func ApprovedAtEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldApprovedAt, v))
+}
+
+// ApprovedAtNEQ applies the NEQ predicate on the "approved_at" field.
+func ApprovedAtNEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldApprovedAt, v))
+}
+
+// ApprovedAtIn applies the In predicate on the "approved_at" field.
+func ApprovedAtIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldApprovedAt, vs...))
+}
+
+// ApprovedAtNotIn applies the NotIn predicate on the "approved_at" field.
+func ApprovedAtNotIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldApprovedAt, vs...))
+}
+
+// ApprovedAtGT applies the GT predicate on the "approved_at" field.
+func ApprovedAtGT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldApprovedAt, v))
+}
+
+// ApprovedAtGTE applies the GTE predicate on the "approved_at" field.
+func ApprovedAtGTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldApprovedAt, v))
+}
+
+// ApprovedAtLT applies the LT predicate on the "approved_at" field.
+func ApprovedAtLT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldApprovedAt, v))
+}
+
+// ApprovedAtLTE applies the LTE predicate on the "approved_at" field.
+func ApprovedAtLTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldApprovedAt, v))
+}
+
+// ApprovedAtIsNil applies the IsNil predicate on the "approved_at" field.
+func ApprovedAtIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldApprovedAt))
+}
+
+// ApprovedAtNotNil applies the NotNil predicate on the "approved_at" field.
+func ApprovedAtNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldApprovedAt))
 }
 
 // HandlerAdminIDEQ applies the EQ predicate on the "handler_admin_id" field.

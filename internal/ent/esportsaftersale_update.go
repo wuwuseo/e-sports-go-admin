@@ -469,6 +469,66 @@ func (_u *EsportsAfterSaleUpdate) SetNillableCustomerDeclineReason(v *string) *E
 	return _u
 }
 
+// SetAcceptedAt sets the "accepted_at" field.
+func (_u *EsportsAfterSaleUpdate) SetAcceptedAt(v time.Time) *EsportsAfterSaleUpdate {
+	_u.mutation.SetAcceptedAt(v)
+	return _u
+}
+
+// SetNillableAcceptedAt sets the "accepted_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableAcceptedAt(v *time.Time) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetAcceptedAt(*v)
+	}
+	return _u
+}
+
+// ClearAcceptedAt clears the value of the "accepted_at" field.
+func (_u *EsportsAfterSaleUpdate) ClearAcceptedAt() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearAcceptedAt()
+	return _u
+}
+
+// SetPlannedAt sets the "planned_at" field.
+func (_u *EsportsAfterSaleUpdate) SetPlannedAt(v time.Time) *EsportsAfterSaleUpdate {
+	_u.mutation.SetPlannedAt(v)
+	return _u
+}
+
+// SetNillablePlannedAt sets the "planned_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillablePlannedAt(v *time.Time) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetPlannedAt(*v)
+	}
+	return _u
+}
+
+// ClearPlannedAt clears the value of the "planned_at" field.
+func (_u *EsportsAfterSaleUpdate) ClearPlannedAt() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearPlannedAt()
+	return _u
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (_u *EsportsAfterSaleUpdate) SetApprovedAt(v time.Time) *EsportsAfterSaleUpdate {
+	_u.mutation.SetApprovedAt(v)
+	return _u
+}
+
+// SetNillableApprovedAt sets the "approved_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableApprovedAt(v *time.Time) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetApprovedAt(*v)
+	}
+	return _u
+}
+
+// ClearApprovedAt clears the value of the "approved_at" field.
+func (_u *EsportsAfterSaleUpdate) ClearApprovedAt() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearApprovedAt()
+	return _u
+}
+
 // SetHandlerAdminID sets the "handler_admin_id" field.
 func (_u *EsportsAfterSaleUpdate) SetHandlerAdminID(v int) *EsportsAfterSaleUpdate {
 	_u.mutation.ResetHandlerAdminID()
@@ -863,6 +923,24 @@ func (_u *EsportsAfterSaleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.CustomerDeclineReason(); ok {
 		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AcceptedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldAcceptedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AcceptedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldAcceptedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PlannedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldPlannedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PlannedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldPlannedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ApprovedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldApprovedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ApprovedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldApprovedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.HandlerAdminID(); ok {
 		_spec.SetField(esportsaftersale.FieldHandlerAdminID, field.TypeInt, value)
@@ -1370,6 +1448,66 @@ func (_u *EsportsAfterSaleUpdateOne) SetNillableCustomerDeclineReason(v *string)
 	return _u
 }
 
+// SetAcceptedAt sets the "accepted_at" field.
+func (_u *EsportsAfterSaleUpdateOne) SetAcceptedAt(v time.Time) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetAcceptedAt(v)
+	return _u
+}
+
+// SetNillableAcceptedAt sets the "accepted_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableAcceptedAt(v *time.Time) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetAcceptedAt(*v)
+	}
+	return _u
+}
+
+// ClearAcceptedAt clears the value of the "accepted_at" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearAcceptedAt() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearAcceptedAt()
+	return _u
+}
+
+// SetPlannedAt sets the "planned_at" field.
+func (_u *EsportsAfterSaleUpdateOne) SetPlannedAt(v time.Time) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetPlannedAt(v)
+	return _u
+}
+
+// SetNillablePlannedAt sets the "planned_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillablePlannedAt(v *time.Time) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetPlannedAt(*v)
+	}
+	return _u
+}
+
+// ClearPlannedAt clears the value of the "planned_at" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearPlannedAt() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearPlannedAt()
+	return _u
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (_u *EsportsAfterSaleUpdateOne) SetApprovedAt(v time.Time) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetApprovedAt(v)
+	return _u
+}
+
+// SetNillableApprovedAt sets the "approved_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableApprovedAt(v *time.Time) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetApprovedAt(*v)
+	}
+	return _u
+}
+
+// ClearApprovedAt clears the value of the "approved_at" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearApprovedAt() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearApprovedAt()
+	return _u
+}
+
 // SetHandlerAdminID sets the "handler_admin_id" field.
 func (_u *EsportsAfterSaleUpdateOne) SetHandlerAdminID(v int) *EsportsAfterSaleUpdateOne {
 	_u.mutation.ResetHandlerAdminID()
@@ -1794,6 +1932,24 @@ func (_u *EsportsAfterSaleUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if value, ok := _u.mutation.CustomerDeclineReason(); ok {
 		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AcceptedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldAcceptedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AcceptedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldAcceptedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PlannedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldPlannedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PlannedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldPlannedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ApprovedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldApprovedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ApprovedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldApprovedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.HandlerAdminID(); ok {
 		_spec.SetField(esportsaftersale.FieldHandlerAdminID, field.TypeInt, value)

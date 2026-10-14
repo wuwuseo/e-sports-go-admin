@@ -66,6 +66,12 @@ const (
 	FieldCustomerDeclinedAt = "customer_declined_at"
 	// FieldCustomerDeclineReason holds the string denoting the customer_decline_reason field in the database.
 	FieldCustomerDeclineReason = "customer_decline_reason"
+	// FieldAcceptedAt holds the string denoting the accepted_at field in the database.
+	FieldAcceptedAt = "accepted_at"
+	// FieldPlannedAt holds the string denoting the planned_at field in the database.
+	FieldPlannedAt = "planned_at"
+	// FieldApprovedAt holds the string denoting the approved_at field in the database.
+	FieldApprovedAt = "approved_at"
 	// FieldHandlerAdminID holds the string denoting the handler_admin_id field in the database.
 	FieldHandlerAdminID = "handler_admin_id"
 	// FieldApproverAdminID holds the string denoting the approver_admin_id field in the database.
@@ -117,6 +123,9 @@ var Columns = []string{
 	FieldCustomerConfirmedByAdminID,
 	FieldCustomerDeclinedAt,
 	FieldCustomerDeclineReason,
+	FieldAcceptedAt,
+	FieldPlannedAt,
+	FieldApprovedAt,
 	FieldHandlerAdminID,
 	FieldApproverAdminID,
 	FieldExecutorAdminID,
@@ -535,6 +544,21 @@ func ByCustomerDeclinedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByCustomerDeclineReason orders the results by the customer_decline_reason field.
 func ByCustomerDeclineReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCustomerDeclineReason, opts...).ToFunc()
+}
+
+// ByAcceptedAt orders the results by the accepted_at field.
+func ByAcceptedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAcceptedAt, opts...).ToFunc()
+}
+
+// ByPlannedAt orders the results by the planned_at field.
+func ByPlannedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPlannedAt, opts...).ToFunc()
+}
+
+// ByApprovedAt orders the results by the approved_at field.
+func ByApprovedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldApprovedAt, opts...).ToFunc()
 }
 
 // ByHandlerAdminID orders the results by the handler_admin_id field.
