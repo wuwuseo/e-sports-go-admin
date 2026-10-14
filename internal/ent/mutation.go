@@ -25,6 +25,8 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseapproval"
+	"go-admin/internal/ent/esportscloseapprovalflow"
 	"go-admin/internal/ent/esportscloseformfield"
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
@@ -124,6 +126,8 @@ const (
 	TypeEsportsAssessmentAppeal       = "EsportsAssessmentAppeal"
 	TypeEsportsAssessmentRule         = "EsportsAssessmentRule"
 	TypeEsportsAssessmentScore        = "EsportsAssessmentScore"
+	TypeEsportsCloseApproval          = "EsportsCloseApproval"
+	TypeEsportsCloseApprovalFlow      = "EsportsCloseApprovalFlow"
 	TypeEsportsCloseFormField         = "EsportsCloseFormField"
 	TypeEsportsCloseFormSnapshot      = "EsportsCloseFormSnapshot"
 	TypeEsportsCloseFormTemplate      = "EsportsCloseFormTemplate"
@@ -18522,6 +18526,2106 @@ func (m *EsportsAssessmentScoreMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsAssessmentScoreMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsAssessmentScore edge %s", name)
+}
+
+// EsportsCloseApprovalMutation represents an operation that mutates the EsportsCloseApproval nodes in the graph.
+type EsportsCloseApprovalMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	order_id        *int
+	addorder_id     *int
+	flow_id         *int
+	addflow_id      *int
+	flow_code       *string
+	flow_version    *int
+	addflow_version *int
+	current_seq     *int
+	addcurrent_seq  *int
+	status          *esportscloseapproval.Status
+	steps           *[]schematier.CloseApprovalStep
+	appendsteps     []schematier.CloseApprovalStep
+	version         *int
+	addversion      *int
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*EsportsCloseApproval, error)
+	predicates      []predicate.EsportsCloseApproval
+}
+
+var _ ent.Mutation = (*EsportsCloseApprovalMutation)(nil)
+
+// esportscloseapprovalOption allows management of the mutation configuration using functional options.
+type esportscloseapprovalOption func(*EsportsCloseApprovalMutation)
+
+// newEsportsCloseApprovalMutation creates new mutation for the EsportsCloseApproval entity.
+func newEsportsCloseApprovalMutation(c config, op Op, opts ...esportscloseapprovalOption) *EsportsCloseApprovalMutation {
+	m := &EsportsCloseApprovalMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCloseApproval,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCloseApprovalID sets the ID field of the mutation.
+func withEsportsCloseApprovalID(id int) esportscloseapprovalOption {
+	return func(m *EsportsCloseApprovalMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCloseApproval
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCloseApproval, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCloseApproval.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCloseApproval sets the old EsportsCloseApproval of the mutation.
+func withEsportsCloseApproval(node *EsportsCloseApproval) esportscloseapprovalOption {
+	return func(m *EsportsCloseApprovalMutation) {
+		m.oldValue = func(context.Context) (*EsportsCloseApproval, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCloseApprovalMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCloseApprovalMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCloseApprovalMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCloseApprovalMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCloseApproval.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *EsportsCloseApprovalMutation) SetOrderID(i int) {
+	m.order_id = &i
+	m.addorder_id = nil
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *EsportsCloseApprovalMutation) OrderID() (r int, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldOrderID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// AddOrderID adds i to the "order_id" field.
+func (m *EsportsCloseApprovalMutation) AddOrderID(i int) {
+	if m.addorder_id != nil {
+		*m.addorder_id += i
+	} else {
+		m.addorder_id = &i
+	}
+}
+
+// AddedOrderID returns the value that was added to the "order_id" field in this mutation.
+func (m *EsportsCloseApprovalMutation) AddedOrderID() (r int, exists bool) {
+	v := m.addorder_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *EsportsCloseApprovalMutation) ResetOrderID() {
+	m.order_id = nil
+	m.addorder_id = nil
+}
+
+// SetFlowID sets the "flow_id" field.
+func (m *EsportsCloseApprovalMutation) SetFlowID(i int) {
+	m.flow_id = &i
+	m.addflow_id = nil
+}
+
+// FlowID returns the value of the "flow_id" field in the mutation.
+func (m *EsportsCloseApprovalMutation) FlowID() (r int, exists bool) {
+	v := m.flow_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFlowID returns the old "flow_id" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldFlowID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFlowID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFlowID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFlowID: %w", err)
+	}
+	return oldValue.FlowID, nil
+}
+
+// AddFlowID adds i to the "flow_id" field.
+func (m *EsportsCloseApprovalMutation) AddFlowID(i int) {
+	if m.addflow_id != nil {
+		*m.addflow_id += i
+	} else {
+		m.addflow_id = &i
+	}
+}
+
+// AddedFlowID returns the value that was added to the "flow_id" field in this mutation.
+func (m *EsportsCloseApprovalMutation) AddedFlowID() (r int, exists bool) {
+	v := m.addflow_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFlowID resets all changes to the "flow_id" field.
+func (m *EsportsCloseApprovalMutation) ResetFlowID() {
+	m.flow_id = nil
+	m.addflow_id = nil
+}
+
+// SetFlowCode sets the "flow_code" field.
+func (m *EsportsCloseApprovalMutation) SetFlowCode(s string) {
+	m.flow_code = &s
+}
+
+// FlowCode returns the value of the "flow_code" field in the mutation.
+func (m *EsportsCloseApprovalMutation) FlowCode() (r string, exists bool) {
+	v := m.flow_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFlowCode returns the old "flow_code" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldFlowCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFlowCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFlowCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFlowCode: %w", err)
+	}
+	return oldValue.FlowCode, nil
+}
+
+// ResetFlowCode resets all changes to the "flow_code" field.
+func (m *EsportsCloseApprovalMutation) ResetFlowCode() {
+	m.flow_code = nil
+}
+
+// SetFlowVersion sets the "flow_version" field.
+func (m *EsportsCloseApprovalMutation) SetFlowVersion(i int) {
+	m.flow_version = &i
+	m.addflow_version = nil
+}
+
+// FlowVersion returns the value of the "flow_version" field in the mutation.
+func (m *EsportsCloseApprovalMutation) FlowVersion() (r int, exists bool) {
+	v := m.flow_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFlowVersion returns the old "flow_version" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldFlowVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFlowVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFlowVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFlowVersion: %w", err)
+	}
+	return oldValue.FlowVersion, nil
+}
+
+// AddFlowVersion adds i to the "flow_version" field.
+func (m *EsportsCloseApprovalMutation) AddFlowVersion(i int) {
+	if m.addflow_version != nil {
+		*m.addflow_version += i
+	} else {
+		m.addflow_version = &i
+	}
+}
+
+// AddedFlowVersion returns the value that was added to the "flow_version" field in this mutation.
+func (m *EsportsCloseApprovalMutation) AddedFlowVersion() (r int, exists bool) {
+	v := m.addflow_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFlowVersion resets all changes to the "flow_version" field.
+func (m *EsportsCloseApprovalMutation) ResetFlowVersion() {
+	m.flow_version = nil
+	m.addflow_version = nil
+}
+
+// SetCurrentSeq sets the "current_seq" field.
+func (m *EsportsCloseApprovalMutation) SetCurrentSeq(i int) {
+	m.current_seq = &i
+	m.addcurrent_seq = nil
+}
+
+// CurrentSeq returns the value of the "current_seq" field in the mutation.
+func (m *EsportsCloseApprovalMutation) CurrentSeq() (r int, exists bool) {
+	v := m.current_seq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentSeq returns the old "current_seq" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldCurrentSeq(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentSeq is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentSeq requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentSeq: %w", err)
+	}
+	return oldValue.CurrentSeq, nil
+}
+
+// AddCurrentSeq adds i to the "current_seq" field.
+func (m *EsportsCloseApprovalMutation) AddCurrentSeq(i int) {
+	if m.addcurrent_seq != nil {
+		*m.addcurrent_seq += i
+	} else {
+		m.addcurrent_seq = &i
+	}
+}
+
+// AddedCurrentSeq returns the value that was added to the "current_seq" field in this mutation.
+func (m *EsportsCloseApprovalMutation) AddedCurrentSeq() (r int, exists bool) {
+	v := m.addcurrent_seq
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCurrentSeq resets all changes to the "current_seq" field.
+func (m *EsportsCloseApprovalMutation) ResetCurrentSeq() {
+	m.current_seq = nil
+	m.addcurrent_seq = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsCloseApprovalMutation) SetStatus(e esportscloseapproval.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsCloseApprovalMutation) Status() (r esportscloseapproval.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldStatus(ctx context.Context) (v esportscloseapproval.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsCloseApprovalMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSteps sets the "steps" field.
+func (m *EsportsCloseApprovalMutation) SetSteps(sas []schematier.CloseApprovalStep) {
+	m.steps = &sas
+	m.appendsteps = nil
+}
+
+// Steps returns the value of the "steps" field in the mutation.
+func (m *EsportsCloseApprovalMutation) Steps() (r []schematier.CloseApprovalStep, exists bool) {
+	v := m.steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSteps returns the old "steps" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldSteps(ctx context.Context) (v []schematier.CloseApprovalStep, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSteps: %w", err)
+	}
+	return oldValue.Steps, nil
+}
+
+// AppendSteps adds sas to the "steps" field.
+func (m *EsportsCloseApprovalMutation) AppendSteps(sas []schematier.CloseApprovalStep) {
+	m.appendsteps = append(m.appendsteps, sas...)
+}
+
+// AppendedSteps returns the list of values that were appended to the "steps" field in this mutation.
+func (m *EsportsCloseApprovalMutation) AppendedSteps() ([]schematier.CloseApprovalStep, bool) {
+	if len(m.appendsteps) == 0 {
+		return nil, false
+	}
+	return m.appendsteps, true
+}
+
+// ClearSteps clears the value of the "steps" field.
+func (m *EsportsCloseApprovalMutation) ClearSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+	m.clearedFields[esportscloseapproval.FieldSteps] = struct{}{}
+}
+
+// StepsCleared returns if the "steps" field was cleared in this mutation.
+func (m *EsportsCloseApprovalMutation) StepsCleared() bool {
+	_, ok := m.clearedFields[esportscloseapproval.FieldSteps]
+	return ok
+}
+
+// ResetSteps resets all changes to the "steps" field.
+func (m *EsportsCloseApprovalMutation) ResetSteps() {
+	m.steps = nil
+	m.appendsteps = nil
+	delete(m.clearedFields, esportscloseapproval.FieldSteps)
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsCloseApprovalMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsCloseApprovalMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsCloseApprovalMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsCloseApprovalMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsCloseApprovalMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCloseApprovalMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCloseApprovalMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCloseApprovalMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsCloseApprovalMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsCloseApprovalMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsCloseApproval entity.
+// If the EsportsCloseApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsCloseApprovalMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsCloseApprovalMutation builder.
+func (m *EsportsCloseApprovalMutation) Where(ps ...predicate.EsportsCloseApproval) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCloseApprovalMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCloseApprovalMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCloseApproval, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCloseApprovalMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCloseApprovalMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCloseApproval).
+func (m *EsportsCloseApprovalMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCloseApprovalMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.order_id != nil {
+		fields = append(fields, esportscloseapproval.FieldOrderID)
+	}
+	if m.flow_id != nil {
+		fields = append(fields, esportscloseapproval.FieldFlowID)
+	}
+	if m.flow_code != nil {
+		fields = append(fields, esportscloseapproval.FieldFlowCode)
+	}
+	if m.flow_version != nil {
+		fields = append(fields, esportscloseapproval.FieldFlowVersion)
+	}
+	if m.current_seq != nil {
+		fields = append(fields, esportscloseapproval.FieldCurrentSeq)
+	}
+	if m.status != nil {
+		fields = append(fields, esportscloseapproval.FieldStatus)
+	}
+	if m.steps != nil {
+		fields = append(fields, esportscloseapproval.FieldSteps)
+	}
+	if m.version != nil {
+		fields = append(fields, esportscloseapproval.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscloseapproval.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportscloseapproval.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCloseApprovalMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseapproval.FieldOrderID:
+		return m.OrderID()
+	case esportscloseapproval.FieldFlowID:
+		return m.FlowID()
+	case esportscloseapproval.FieldFlowCode:
+		return m.FlowCode()
+	case esportscloseapproval.FieldFlowVersion:
+		return m.FlowVersion()
+	case esportscloseapproval.FieldCurrentSeq:
+		return m.CurrentSeq()
+	case esportscloseapproval.FieldStatus:
+		return m.Status()
+	case esportscloseapproval.FieldSteps:
+		return m.Steps()
+	case esportscloseapproval.FieldVersion:
+		return m.Version()
+	case esportscloseapproval.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportscloseapproval.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCloseApprovalMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscloseapproval.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case esportscloseapproval.FieldFlowID:
+		return m.OldFlowID(ctx)
+	case esportscloseapproval.FieldFlowCode:
+		return m.OldFlowCode(ctx)
+	case esportscloseapproval.FieldFlowVersion:
+		return m.OldFlowVersion(ctx)
+	case esportscloseapproval.FieldCurrentSeq:
+		return m.OldCurrentSeq(ctx)
+	case esportscloseapproval.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportscloseapproval.FieldSteps:
+		return m.OldSteps(ctx)
+	case esportscloseapproval.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportscloseapproval.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportscloseapproval.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCloseApproval field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseApprovalMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseapproval.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case esportscloseapproval.FieldFlowID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFlowID(v)
+		return nil
+	case esportscloseapproval.FieldFlowCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFlowCode(v)
+		return nil
+	case esportscloseapproval.FieldFlowVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFlowVersion(v)
+		return nil
+	case esportscloseapproval.FieldCurrentSeq:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentSeq(v)
+		return nil
+	case esportscloseapproval.FieldStatus:
+		v, ok := value.(esportscloseapproval.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportscloseapproval.FieldSteps:
+		v, ok := value.([]schematier.CloseApprovalStep)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSteps(v)
+		return nil
+	case esportscloseapproval.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportscloseapproval.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportscloseapproval.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApproval field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCloseApprovalMutation) AddedFields() []string {
+	var fields []string
+	if m.addorder_id != nil {
+		fields = append(fields, esportscloseapproval.FieldOrderID)
+	}
+	if m.addflow_id != nil {
+		fields = append(fields, esportscloseapproval.FieldFlowID)
+	}
+	if m.addflow_version != nil {
+		fields = append(fields, esportscloseapproval.FieldFlowVersion)
+	}
+	if m.addcurrent_seq != nil {
+		fields = append(fields, esportscloseapproval.FieldCurrentSeq)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportscloseapproval.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCloseApprovalMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseapproval.FieldOrderID:
+		return m.AddedOrderID()
+	case esportscloseapproval.FieldFlowID:
+		return m.AddedFlowID()
+	case esportscloseapproval.FieldFlowVersion:
+		return m.AddedFlowVersion()
+	case esportscloseapproval.FieldCurrentSeq:
+		return m.AddedCurrentSeq()
+	case esportscloseapproval.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseApprovalMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseapproval.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderID(v)
+		return nil
+	case esportscloseapproval.FieldFlowID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFlowID(v)
+		return nil
+	case esportscloseapproval.FieldFlowVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFlowVersion(v)
+		return nil
+	case esportscloseapproval.FieldCurrentSeq:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCurrentSeq(v)
+		return nil
+	case esportscloseapproval.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApproval numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCloseApprovalMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportscloseapproval.FieldSteps) {
+		fields = append(fields, esportscloseapproval.FieldSteps)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCloseApprovalMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCloseApprovalMutation) ClearField(name string) error {
+	switch name {
+	case esportscloseapproval.FieldSteps:
+		m.ClearSteps()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApproval nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCloseApprovalMutation) ResetField(name string) error {
+	switch name {
+	case esportscloseapproval.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case esportscloseapproval.FieldFlowID:
+		m.ResetFlowID()
+		return nil
+	case esportscloseapproval.FieldFlowCode:
+		m.ResetFlowCode()
+		return nil
+	case esportscloseapproval.FieldFlowVersion:
+		m.ResetFlowVersion()
+		return nil
+	case esportscloseapproval.FieldCurrentSeq:
+		m.ResetCurrentSeq()
+		return nil
+	case esportscloseapproval.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportscloseapproval.FieldSteps:
+		m.ResetSteps()
+		return nil
+	case esportscloseapproval.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportscloseapproval.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportscloseapproval.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApproval field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCloseApprovalMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCloseApprovalMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCloseApprovalMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCloseApprovalMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCloseApprovalMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCloseApprovalMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCloseApprovalMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseApproval unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCloseApprovalMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseApproval edge %s", name)
+}
+
+// EsportsCloseApprovalFlowMutation represents an operation that mutates the EsportsCloseApprovalFlow nodes in the graph.
+type EsportsCloseApprovalFlowMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *int
+	code                   *string
+	name                   *string
+	scope                  *esportscloseapprovalflow.Scope
+	scope_key              *string
+	min_cents              *int64
+	addmin_cents           *int64
+	nodes                  *[]schematier.CloseApprovalNode
+	appendnodes            []schematier.CloseApprovalNode
+	status                 *esportscloseapprovalflow.Status
+	version                *int
+	addversion             *int
+	created_by_admin_id    *int
+	addcreated_by_admin_id *int
+	note                   *string
+	created_at             *time.Time
+	updated_at             *time.Time
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*EsportsCloseApprovalFlow, error)
+	predicates             []predicate.EsportsCloseApprovalFlow
+}
+
+var _ ent.Mutation = (*EsportsCloseApprovalFlowMutation)(nil)
+
+// esportscloseapprovalflowOption allows management of the mutation configuration using functional options.
+type esportscloseapprovalflowOption func(*EsportsCloseApprovalFlowMutation)
+
+// newEsportsCloseApprovalFlowMutation creates new mutation for the EsportsCloseApprovalFlow entity.
+func newEsportsCloseApprovalFlowMutation(c config, op Op, opts ...esportscloseapprovalflowOption) *EsportsCloseApprovalFlowMutation {
+	m := &EsportsCloseApprovalFlowMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCloseApprovalFlow,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCloseApprovalFlowID sets the ID field of the mutation.
+func withEsportsCloseApprovalFlowID(id int) esportscloseapprovalflowOption {
+	return func(m *EsportsCloseApprovalFlowMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCloseApprovalFlow
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCloseApprovalFlow, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCloseApprovalFlow.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCloseApprovalFlow sets the old EsportsCloseApprovalFlow of the mutation.
+func withEsportsCloseApprovalFlow(node *EsportsCloseApprovalFlow) esportscloseapprovalflowOption {
+	return func(m *EsportsCloseApprovalFlowMutation) {
+		m.oldValue = func(context.Context) (*EsportsCloseApprovalFlow, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCloseApprovalFlowMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCloseApprovalFlowMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCloseApprovalFlowMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCloseApprovalFlowMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCloseApprovalFlow.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCode sets the "code" field.
+func (m *EsportsCloseApprovalFlowMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetCode() {
+	m.code = nil
+}
+
+// SetName sets the "name" field.
+func (m *EsportsCloseApprovalFlowMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetName() {
+	m.name = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *EsportsCloseApprovalFlowMutation) SetScope(e esportscloseapprovalflow.Scope) {
+	m.scope = &e
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) Scope() (r esportscloseapprovalflow.Scope, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldScope(ctx context.Context) (v esportscloseapprovalflow.Scope, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetScope() {
+	m.scope = nil
+}
+
+// SetScopeKey sets the "scope_key" field.
+func (m *EsportsCloseApprovalFlowMutation) SetScopeKey(s string) {
+	m.scope_key = &s
+}
+
+// ScopeKey returns the value of the "scope_key" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) ScopeKey() (r string, exists bool) {
+	v := m.scope_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeKey returns the old "scope_key" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldScopeKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeKey: %w", err)
+	}
+	return oldValue.ScopeKey, nil
+}
+
+// ResetScopeKey resets all changes to the "scope_key" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetScopeKey() {
+	m.scope_key = nil
+}
+
+// SetMinCents sets the "min_cents" field.
+func (m *EsportsCloseApprovalFlowMutation) SetMinCents(i int64) {
+	m.min_cents = &i
+	m.addmin_cents = nil
+}
+
+// MinCents returns the value of the "min_cents" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) MinCents() (r int64, exists bool) {
+	v := m.min_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinCents returns the old "min_cents" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldMinCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinCents: %w", err)
+	}
+	return oldValue.MinCents, nil
+}
+
+// AddMinCents adds i to the "min_cents" field.
+func (m *EsportsCloseApprovalFlowMutation) AddMinCents(i int64) {
+	if m.addmin_cents != nil {
+		*m.addmin_cents += i
+	} else {
+		m.addmin_cents = &i
+	}
+}
+
+// AddedMinCents returns the value that was added to the "min_cents" field in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) AddedMinCents() (r int64, exists bool) {
+	v := m.addmin_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMinCents resets all changes to the "min_cents" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetMinCents() {
+	m.min_cents = nil
+	m.addmin_cents = nil
+}
+
+// SetNodes sets the "nodes" field.
+func (m *EsportsCloseApprovalFlowMutation) SetNodes(san []schematier.CloseApprovalNode) {
+	m.nodes = &san
+	m.appendnodes = nil
+}
+
+// Nodes returns the value of the "nodes" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) Nodes() (r []schematier.CloseApprovalNode, exists bool) {
+	v := m.nodes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNodes returns the old "nodes" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldNodes(ctx context.Context) (v []schematier.CloseApprovalNode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNodes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNodes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNodes: %w", err)
+	}
+	return oldValue.Nodes, nil
+}
+
+// AppendNodes adds san to the "nodes" field.
+func (m *EsportsCloseApprovalFlowMutation) AppendNodes(san []schematier.CloseApprovalNode) {
+	m.appendnodes = append(m.appendnodes, san...)
+}
+
+// AppendedNodes returns the list of values that were appended to the "nodes" field in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) AppendedNodes() ([]schematier.CloseApprovalNode, bool) {
+	if len(m.appendnodes) == 0 {
+		return nil, false
+	}
+	return m.appendnodes, true
+}
+
+// ClearNodes clears the value of the "nodes" field.
+func (m *EsportsCloseApprovalFlowMutation) ClearNodes() {
+	m.nodes = nil
+	m.appendnodes = nil
+	m.clearedFields[esportscloseapprovalflow.FieldNodes] = struct{}{}
+}
+
+// NodesCleared returns if the "nodes" field was cleared in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) NodesCleared() bool {
+	_, ok := m.clearedFields[esportscloseapprovalflow.FieldNodes]
+	return ok
+}
+
+// ResetNodes resets all changes to the "nodes" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetNodes() {
+	m.nodes = nil
+	m.appendnodes = nil
+	delete(m.clearedFields, esportscloseapprovalflow.FieldNodes)
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsCloseApprovalFlowMutation) SetStatus(e esportscloseapprovalflow.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) Status() (r esportscloseapprovalflow.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldStatus(ctx context.Context) (v esportscloseapprovalflow.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsCloseApprovalFlowMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsCloseApprovalFlowMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedByAdminID sets the "created_by_admin_id" field.
+func (m *EsportsCloseApprovalFlowMutation) SetCreatedByAdminID(i int) {
+	m.created_by_admin_id = &i
+	m.addcreated_by_admin_id = nil
+}
+
+// CreatedByAdminID returns the value of the "created_by_admin_id" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) CreatedByAdminID() (r int, exists bool) {
+	v := m.created_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedByAdminID returns the old "created_by_admin_id" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldCreatedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedByAdminID: %w", err)
+	}
+	return oldValue.CreatedByAdminID, nil
+}
+
+// AddCreatedByAdminID adds i to the "created_by_admin_id" field.
+func (m *EsportsCloseApprovalFlowMutation) AddCreatedByAdminID(i int) {
+	if m.addcreated_by_admin_id != nil {
+		*m.addcreated_by_admin_id += i
+	} else {
+		m.addcreated_by_admin_id = &i
+	}
+}
+
+// AddedCreatedByAdminID returns the value that was added to the "created_by_admin_id" field in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) AddedCreatedByAdminID() (r int, exists bool) {
+	v := m.addcreated_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreatedByAdminID clears the value of the "created_by_admin_id" field.
+func (m *EsportsCloseApprovalFlowMutation) ClearCreatedByAdminID() {
+	m.created_by_admin_id = nil
+	m.addcreated_by_admin_id = nil
+	m.clearedFields[esportscloseapprovalflow.FieldCreatedByAdminID] = struct{}{}
+}
+
+// CreatedByAdminIDCleared returns if the "created_by_admin_id" field was cleared in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) CreatedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportscloseapprovalflow.FieldCreatedByAdminID]
+	return ok
+}
+
+// ResetCreatedByAdminID resets all changes to the "created_by_admin_id" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetCreatedByAdminID() {
+	m.created_by_admin_id = nil
+	m.addcreated_by_admin_id = nil
+	delete(m.clearedFields, esportscloseapprovalflow.FieldCreatedByAdminID)
+}
+
+// SetNote sets the "note" field.
+func (m *EsportsCloseApprovalFlowMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCloseApprovalFlowMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsCloseApprovalFlowMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsCloseApprovalFlowMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsCloseApprovalFlow entity.
+// If the EsportsCloseApprovalFlow object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseApprovalFlowMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsCloseApprovalFlowMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsCloseApprovalFlowMutation builder.
+func (m *EsportsCloseApprovalFlowMutation) Where(ps ...predicate.EsportsCloseApprovalFlow) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCloseApprovalFlowMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCloseApprovalFlowMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCloseApprovalFlow, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCloseApprovalFlowMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCloseApprovalFlowMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCloseApprovalFlow).
+func (m *EsportsCloseApprovalFlowMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCloseApprovalFlowMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.code != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldCode)
+	}
+	if m.name != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldName)
+	}
+	if m.scope != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldScope)
+	}
+	if m.scope_key != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldScopeKey)
+	}
+	if m.min_cents != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldMinCents)
+	}
+	if m.nodes != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldNodes)
+	}
+	if m.status != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldStatus)
+	}
+	if m.version != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldVersion)
+	}
+	if m.created_by_admin_id != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldCreatedByAdminID)
+	}
+	if m.note != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldNote)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCloseApprovalFlowMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseapprovalflow.FieldCode:
+		return m.Code()
+	case esportscloseapprovalflow.FieldName:
+		return m.Name()
+	case esportscloseapprovalflow.FieldScope:
+		return m.Scope()
+	case esportscloseapprovalflow.FieldScopeKey:
+		return m.ScopeKey()
+	case esportscloseapprovalflow.FieldMinCents:
+		return m.MinCents()
+	case esportscloseapprovalflow.FieldNodes:
+		return m.Nodes()
+	case esportscloseapprovalflow.FieldStatus:
+		return m.Status()
+	case esportscloseapprovalflow.FieldVersion:
+		return m.Version()
+	case esportscloseapprovalflow.FieldCreatedByAdminID:
+		return m.CreatedByAdminID()
+	case esportscloseapprovalflow.FieldNote:
+		return m.Note()
+	case esportscloseapprovalflow.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportscloseapprovalflow.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCloseApprovalFlowMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscloseapprovalflow.FieldCode:
+		return m.OldCode(ctx)
+	case esportscloseapprovalflow.FieldName:
+		return m.OldName(ctx)
+	case esportscloseapprovalflow.FieldScope:
+		return m.OldScope(ctx)
+	case esportscloseapprovalflow.FieldScopeKey:
+		return m.OldScopeKey(ctx)
+	case esportscloseapprovalflow.FieldMinCents:
+		return m.OldMinCents(ctx)
+	case esportscloseapprovalflow.FieldNodes:
+		return m.OldNodes(ctx)
+	case esportscloseapprovalflow.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportscloseapprovalflow.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportscloseapprovalflow.FieldCreatedByAdminID:
+		return m.OldCreatedByAdminID(ctx)
+	case esportscloseapprovalflow.FieldNote:
+		return m.OldNote(ctx)
+	case esportscloseapprovalflow.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportscloseapprovalflow.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCloseApprovalFlow field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseApprovalFlowMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseapprovalflow.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
+	case esportscloseapprovalflow.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case esportscloseapprovalflow.FieldScope:
+		v, ok := value.(esportscloseapprovalflow.Scope)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
+		return nil
+	case esportscloseapprovalflow.FieldScopeKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeKey(v)
+		return nil
+	case esportscloseapprovalflow.FieldMinCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinCents(v)
+		return nil
+	case esportscloseapprovalflow.FieldNodes:
+		v, ok := value.([]schematier.CloseApprovalNode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNodes(v)
+		return nil
+	case esportscloseapprovalflow.FieldStatus:
+		v, ok := value.(esportscloseapprovalflow.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportscloseapprovalflow.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportscloseapprovalflow.FieldCreatedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedByAdminID(v)
+		return nil
+	case esportscloseapprovalflow.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case esportscloseapprovalflow.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportscloseapprovalflow.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApprovalFlow field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCloseApprovalFlowMutation) AddedFields() []string {
+	var fields []string
+	if m.addmin_cents != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldMinCents)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldVersion)
+	}
+	if m.addcreated_by_admin_id != nil {
+		fields = append(fields, esportscloseapprovalflow.FieldCreatedByAdminID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCloseApprovalFlowMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseapprovalflow.FieldMinCents:
+		return m.AddedMinCents()
+	case esportscloseapprovalflow.FieldVersion:
+		return m.AddedVersion()
+	case esportscloseapprovalflow.FieldCreatedByAdminID:
+		return m.AddedCreatedByAdminID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseApprovalFlowMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseapprovalflow.FieldMinCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMinCents(v)
+		return nil
+	case esportscloseapprovalflow.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	case esportscloseapprovalflow.FieldCreatedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedByAdminID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApprovalFlow numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCloseApprovalFlowMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportscloseapprovalflow.FieldNodes) {
+		fields = append(fields, esportscloseapprovalflow.FieldNodes)
+	}
+	if m.FieldCleared(esportscloseapprovalflow.FieldCreatedByAdminID) {
+		fields = append(fields, esportscloseapprovalflow.FieldCreatedByAdminID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCloseApprovalFlowMutation) ClearField(name string) error {
+	switch name {
+	case esportscloseapprovalflow.FieldNodes:
+		m.ClearNodes()
+		return nil
+	case esportscloseapprovalflow.FieldCreatedByAdminID:
+		m.ClearCreatedByAdminID()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApprovalFlow nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCloseApprovalFlowMutation) ResetField(name string) error {
+	switch name {
+	case esportscloseapprovalflow.FieldCode:
+		m.ResetCode()
+		return nil
+	case esportscloseapprovalflow.FieldName:
+		m.ResetName()
+		return nil
+	case esportscloseapprovalflow.FieldScope:
+		m.ResetScope()
+		return nil
+	case esportscloseapprovalflow.FieldScopeKey:
+		m.ResetScopeKey()
+		return nil
+	case esportscloseapprovalflow.FieldMinCents:
+		m.ResetMinCents()
+		return nil
+	case esportscloseapprovalflow.FieldNodes:
+		m.ResetNodes()
+		return nil
+	case esportscloseapprovalflow.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportscloseapprovalflow.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportscloseapprovalflow.FieldCreatedByAdminID:
+		m.ResetCreatedByAdminID()
+		return nil
+	case esportscloseapprovalflow.FieldNote:
+		m.ResetNote()
+		return nil
+	case esportscloseapprovalflow.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportscloseapprovalflow.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseApprovalFlow field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCloseApprovalFlowMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCloseApprovalFlowMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseApprovalFlow unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCloseApprovalFlowMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseApprovalFlow edge %s", name)
 }
 
 // EsportsCloseFormFieldMutation represents an operation that mutates the EsportsCloseFormField nodes in the graph.

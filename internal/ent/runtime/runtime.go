@@ -21,6 +21,8 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseapproval"
+	"go-admin/internal/ent/esportscloseapprovalflow"
 	"go-admin/internal/ent/esportscloseformfield"
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
@@ -1060,6 +1062,112 @@ func init() {
 	esportsassessmentscoreDescCreatedAt := esportsassessmentscoreFields[5].Descriptor()
 	// esportsassessmentscore.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsassessmentscore.DefaultCreatedAt = esportsassessmentscoreDescCreatedAt.Default.(func() time.Time)
+	esportscloseapprovalFields := schema.EsportsCloseApproval{}.Fields()
+	_ = esportscloseapprovalFields
+	// esportscloseapprovalDescOrderID is the schema descriptor for order_id field.
+	esportscloseapprovalDescOrderID := esportscloseapprovalFields[0].Descriptor()
+	// esportscloseapproval.OrderIDValidator is a validator for the "order_id" field. It is called by the builders before save.
+	esportscloseapproval.OrderIDValidator = esportscloseapprovalDescOrderID.Validators[0].(func(int) error)
+	// esportscloseapprovalDescFlowID is the schema descriptor for flow_id field.
+	esportscloseapprovalDescFlowID := esportscloseapprovalFields[1].Descriptor()
+	// esportscloseapproval.DefaultFlowID holds the default value on creation for the flow_id field.
+	esportscloseapproval.DefaultFlowID = esportscloseapprovalDescFlowID.Default.(int)
+	// esportscloseapprovalDescFlowCode is the schema descriptor for flow_code field.
+	esportscloseapprovalDescFlowCode := esportscloseapprovalFields[2].Descriptor()
+	// esportscloseapproval.DefaultFlowCode holds the default value on creation for the flow_code field.
+	esportscloseapproval.DefaultFlowCode = esportscloseapprovalDescFlowCode.Default.(string)
+	// esportscloseapproval.FlowCodeValidator is a validator for the "flow_code" field. It is called by the builders before save.
+	esportscloseapproval.FlowCodeValidator = esportscloseapprovalDescFlowCode.Validators[0].(func(string) error)
+	// esportscloseapprovalDescFlowVersion is the schema descriptor for flow_version field.
+	esportscloseapprovalDescFlowVersion := esportscloseapprovalFields[3].Descriptor()
+	// esportscloseapproval.DefaultFlowVersion holds the default value on creation for the flow_version field.
+	esportscloseapproval.DefaultFlowVersion = esportscloseapprovalDescFlowVersion.Default.(int)
+	// esportscloseapprovalDescCurrentSeq is the schema descriptor for current_seq field.
+	esportscloseapprovalDescCurrentSeq := esportscloseapprovalFields[4].Descriptor()
+	// esportscloseapproval.DefaultCurrentSeq holds the default value on creation for the current_seq field.
+	esportscloseapproval.DefaultCurrentSeq = esportscloseapprovalDescCurrentSeq.Default.(int)
+	// esportscloseapprovalDescVersion is the schema descriptor for version field.
+	esportscloseapprovalDescVersion := esportscloseapprovalFields[7].Descriptor()
+	// esportscloseapproval.DefaultVersion holds the default value on creation for the version field.
+	esportscloseapproval.DefaultVersion = esportscloseapprovalDescVersion.Default.(int)
+	// esportscloseapprovalDescCreatedAt is the schema descriptor for created_at field.
+	esportscloseapprovalDescCreatedAt := esportscloseapprovalFields[8].Descriptor()
+	// esportscloseapproval.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscloseapproval.DefaultCreatedAt = esportscloseapprovalDescCreatedAt.Default.(func() time.Time)
+	// esportscloseapprovalDescUpdatedAt is the schema descriptor for updated_at field.
+	esportscloseapprovalDescUpdatedAt := esportscloseapprovalFields[9].Descriptor()
+	// esportscloseapproval.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportscloseapproval.DefaultUpdatedAt = esportscloseapprovalDescUpdatedAt.Default.(func() time.Time)
+	// esportscloseapproval.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportscloseapproval.UpdateDefaultUpdatedAt = esportscloseapprovalDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportscloseapprovalflowFields := schema.EsportsCloseApprovalFlow{}.Fields()
+	_ = esportscloseapprovalflowFields
+	// esportscloseapprovalflowDescCode is the schema descriptor for code field.
+	esportscloseapprovalflowDescCode := esportscloseapprovalflowFields[0].Descriptor()
+	// esportscloseapprovalflow.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	esportscloseapprovalflow.CodeValidator = func() func(string) error {
+		validators := esportscloseapprovalflowDescCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(code string) error {
+			for _, fn := range fns {
+				if err := fn(code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscloseapprovalflowDescName is the schema descriptor for name field.
+	esportscloseapprovalflowDescName := esportscloseapprovalflowFields[1].Descriptor()
+	// esportscloseapprovalflow.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	esportscloseapprovalflow.NameValidator = func() func(string) error {
+		validators := esportscloseapprovalflowDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscloseapprovalflowDescScopeKey is the schema descriptor for scope_key field.
+	esportscloseapprovalflowDescScopeKey := esportscloseapprovalflowFields[3].Descriptor()
+	// esportscloseapprovalflow.DefaultScopeKey holds the default value on creation for the scope_key field.
+	esportscloseapprovalflow.DefaultScopeKey = esportscloseapprovalflowDescScopeKey.Default.(string)
+	// esportscloseapprovalflow.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	esportscloseapprovalflow.ScopeKeyValidator = esportscloseapprovalflowDescScopeKey.Validators[0].(func(string) error)
+	// esportscloseapprovalflowDescMinCents is the schema descriptor for min_cents field.
+	esportscloseapprovalflowDescMinCents := esportscloseapprovalflowFields[4].Descriptor()
+	// esportscloseapprovalflow.DefaultMinCents holds the default value on creation for the min_cents field.
+	esportscloseapprovalflow.DefaultMinCents = esportscloseapprovalflowDescMinCents.Default.(int64)
+	// esportscloseapprovalflowDescVersion is the schema descriptor for version field.
+	esportscloseapprovalflowDescVersion := esportscloseapprovalflowFields[7].Descriptor()
+	// esportscloseapprovalflow.DefaultVersion holds the default value on creation for the version field.
+	esportscloseapprovalflow.DefaultVersion = esportscloseapprovalflowDescVersion.Default.(int)
+	// esportscloseapprovalflowDescNote is the schema descriptor for note field.
+	esportscloseapprovalflowDescNote := esportscloseapprovalflowFields[9].Descriptor()
+	// esportscloseapprovalflow.DefaultNote holds the default value on creation for the note field.
+	esportscloseapprovalflow.DefaultNote = esportscloseapprovalflowDescNote.Default.(string)
+	// esportscloseapprovalflow.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	esportscloseapprovalflow.NoteValidator = esportscloseapprovalflowDescNote.Validators[0].(func(string) error)
+	// esportscloseapprovalflowDescCreatedAt is the schema descriptor for created_at field.
+	esportscloseapprovalflowDescCreatedAt := esportscloseapprovalflowFields[10].Descriptor()
+	// esportscloseapprovalflow.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscloseapprovalflow.DefaultCreatedAt = esportscloseapprovalflowDescCreatedAt.Default.(func() time.Time)
+	// esportscloseapprovalflowDescUpdatedAt is the schema descriptor for updated_at field.
+	esportscloseapprovalflowDescUpdatedAt := esportscloseapprovalflowFields[11].Descriptor()
+	// esportscloseapprovalflow.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportscloseapprovalflow.DefaultUpdatedAt = esportscloseapprovalflowDescUpdatedAt.Default.(func() time.Time)
+	// esportscloseapprovalflow.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportscloseapprovalflow.UpdateDefaultUpdatedAt = esportscloseapprovalflowDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportscloseformfieldFields := schema.EsportsCloseFormField{}.Fields()
 	_ = esportscloseformfieldFields
 	// esportscloseformfieldDescKey is the schema descriptor for key field.

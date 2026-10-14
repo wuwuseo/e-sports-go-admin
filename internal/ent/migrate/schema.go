@@ -662,6 +662,72 @@ var (
 			},
 		},
 	}
+	// EsportsCloseApprovalsColumns holds the columns for the "esports_close_approvals" table.
+	EsportsCloseApprovalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "order_id", Type: field.TypeInt},
+		{Name: "flow_id", Type: field.TypeInt, Default: 0},
+		{Name: "flow_code", Type: field.TypeString, Size: 48, Default: ""},
+		{Name: "flow_version", Type: field.TypeInt, Default: 0},
+		{Name: "current_seq", Type: field.TypeInt, Default: 1},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected"}, Default: "pending"},
+		{Name: "steps", Type: field.TypeJSON, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsCloseApprovalsTable holds the schema information for the "esports_close_approvals" table.
+	EsportsCloseApprovalsTable = &schema.Table{
+		Name:       TablePrefix + "esports_close_approvals",
+		Columns:    EsportsCloseApprovalsColumns,
+		PrimaryKey: []*schema.Column{EsportsCloseApprovalsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportscloseapproval_order_id",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCloseApprovalsColumns[1]},
+			},
+			{
+				Name:    "esportscloseapproval_status_current_seq",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCloseApprovalsColumns[6], EsportsCloseApprovalsColumns[5]},
+			},
+		},
+	}
+	// EsportsCloseApprovalFlowsColumns holds the columns for the "esports_close_approval_flows" table.
+	EsportsCloseApprovalFlowsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "code", Type: field.TypeString, Size: 48},
+		{Name: "name", Type: field.TypeString, Size: 64},
+		{Name: "scope", Type: field.TypeEnum, Enums: []string{"global", "game", "sku"}, Default: "global"},
+		{Name: "scope_key", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "min_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "nodes", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "history"}, Default: "draft"},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsCloseApprovalFlowsTable holds the schema information for the "esports_close_approval_flows" table.
+	EsportsCloseApprovalFlowsTable = &schema.Table{
+		Name:       TablePrefix + "esports_close_approval_flows",
+		Columns:    EsportsCloseApprovalFlowsColumns,
+		PrimaryKey: []*schema.Column{EsportsCloseApprovalFlowsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportscloseapprovalflow_code_version",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCloseApprovalFlowsColumns[1], EsportsCloseApprovalFlowsColumns[8]},
+			},
+			{
+				Name:    "esportscloseapprovalflow_status_scope",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCloseApprovalFlowsColumns[7], EsportsCloseApprovalFlowsColumns[3]},
+			},
+		},
+	}
 	// EsportsCloseFormFieldsColumns holds the columns for the "esports_close_form_fields" table.
 	EsportsCloseFormFieldsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -3057,6 +3123,8 @@ var (
 		EsportsAssessmentAppealsTable,
 		EsportsAssessmentRulesTable,
 		EsportsAssessmentScoresTable,
+		EsportsCloseApprovalsTable,
+		EsportsCloseApprovalFlowsTable,
 		EsportsCloseFormFieldsTable,
 		EsportsCloseFormSnapshotsTable,
 		EsportsCloseFormTemplatesTable,

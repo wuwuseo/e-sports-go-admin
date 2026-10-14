@@ -24,6 +24,8 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseapproval"
+	"go-admin/internal/ent/esportscloseapprovalflow"
 	"go-admin/internal/ent/esportscloseformfield"
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
@@ -172,6 +174,8 @@ func checkColumn(t, c string) error {
 			esportsassessmentappeal.Table:       esportsassessmentappeal.ValidColumn,
 			esportsassessmentrule.Table:         esportsassessmentrule.ValidColumn,
 			esportsassessmentscore.Table:        esportsassessmentscore.ValidColumn,
+			esportscloseapproval.Table:          esportscloseapproval.ValidColumn,
+			esportscloseapprovalflow.Table:      esportscloseapprovalflow.ValidColumn,
 			esportscloseformfield.Table:         esportscloseformfield.ValidColumn,
 			esportscloseformsnapshot.Table:      esportscloseformsnapshot.ValidColumn,
 			esportscloseformtemplate.Table:      esportscloseformtemplate.ValidColumn,

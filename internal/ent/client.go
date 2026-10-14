@@ -29,6 +29,8 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseapproval"
+	"go-admin/internal/ent/esportscloseapprovalflow"
 	"go-admin/internal/ent/esportscloseformfield"
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
@@ -141,6 +143,10 @@ type Client struct {
 	EsportsAssessmentRule *EsportsAssessmentRuleClient
 	// EsportsAssessmentScore is the client for interacting with the EsportsAssessmentScore builders.
 	EsportsAssessmentScore *EsportsAssessmentScoreClient
+	// EsportsCloseApproval is the client for interacting with the EsportsCloseApproval builders.
+	EsportsCloseApproval *EsportsCloseApprovalClient
+	// EsportsCloseApprovalFlow is the client for interacting with the EsportsCloseApprovalFlow builders.
+	EsportsCloseApprovalFlow *EsportsCloseApprovalFlowClient
 	// EsportsCloseFormField is the client for interacting with the EsportsCloseFormField builders.
 	EsportsCloseFormField *EsportsCloseFormFieldClient
 	// EsportsCloseFormSnapshot is the client for interacting with the EsportsCloseFormSnapshot builders.
@@ -298,6 +304,8 @@ func (c *Client) init() {
 	c.EsportsAssessmentAppeal = NewEsportsAssessmentAppealClient(c.config)
 	c.EsportsAssessmentRule = NewEsportsAssessmentRuleClient(c.config)
 	c.EsportsAssessmentScore = NewEsportsAssessmentScoreClient(c.config)
+	c.EsportsCloseApproval = NewEsportsCloseApprovalClient(c.config)
+	c.EsportsCloseApprovalFlow = NewEsportsCloseApprovalFlowClient(c.config)
 	c.EsportsCloseFormField = NewEsportsCloseFormFieldClient(c.config)
 	c.EsportsCloseFormSnapshot = NewEsportsCloseFormSnapshotClient(c.config)
 	c.EsportsCloseFormTemplate = NewEsportsCloseFormTemplateClient(c.config)
@@ -472,6 +480,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsAssessmentAppeal:       NewEsportsAssessmentAppealClient(cfg),
 		EsportsAssessmentRule:         NewEsportsAssessmentRuleClient(cfg),
 		EsportsAssessmentScore:        NewEsportsAssessmentScoreClient(cfg),
+		EsportsCloseApproval:          NewEsportsCloseApprovalClient(cfg),
+		EsportsCloseApprovalFlow:      NewEsportsCloseApprovalFlowClient(cfg),
 		EsportsCloseFormField:         NewEsportsCloseFormFieldClient(cfg),
 		EsportsCloseFormSnapshot:      NewEsportsCloseFormSnapshotClient(cfg),
 		EsportsCloseFormTemplate:      NewEsportsCloseFormTemplateClient(cfg),
@@ -573,6 +583,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsAssessmentAppeal:       NewEsportsAssessmentAppealClient(cfg),
 		EsportsAssessmentRule:         NewEsportsAssessmentRuleClient(cfg),
 		EsportsAssessmentScore:        NewEsportsAssessmentScoreClient(cfg),
+		EsportsCloseApproval:          NewEsportsCloseApprovalClient(cfg),
+		EsportsCloseApprovalFlow:      NewEsportsCloseApprovalFlowClient(cfg),
 		EsportsCloseFormField:         NewEsportsCloseFormFieldClient(cfg),
 		EsportsCloseFormSnapshot:      NewEsportsCloseFormSnapshotClient(cfg),
 		EsportsCloseFormTemplate:      NewEsportsCloseFormTemplateClient(cfg),
@@ -670,7 +682,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
 		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
 		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
-		c.EsportsAssessmentScore, c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
+		c.EsportsAssessmentScore, c.EsportsCloseApproval, c.EsportsCloseApprovalFlow,
+		c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
 		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCloseSubmitRule,
 		c.EsportsCommissionEntry, c.EsportsCommissionRule, c.EsportsConfirmation,
 		c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule, c.EsportsCustomer,
@@ -704,7 +717,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
 		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
 		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
-		c.EsportsAssessmentScore, c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
+		c.EsportsAssessmentScore, c.EsportsCloseApproval, c.EsportsCloseApprovalFlow,
+		c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
 		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCloseSubmitRule,
 		c.EsportsCommissionEntry, c.EsportsCommissionRule, c.EsportsConfirmation,
 		c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule, c.EsportsCustomer,
@@ -769,6 +783,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsAssessmentRule.mutate(ctx, m)
 	case *EsportsAssessmentScoreMutation:
 		return c.EsportsAssessmentScore.mutate(ctx, m)
+	case *EsportsCloseApprovalMutation:
+		return c.EsportsCloseApproval.mutate(ctx, m)
+	case *EsportsCloseApprovalFlowMutation:
+		return c.EsportsCloseApprovalFlow.mutate(ctx, m)
 	case *EsportsCloseFormFieldMutation:
 		return c.EsportsCloseFormField.mutate(ctx, m)
 	case *EsportsCloseFormSnapshotMutation:
@@ -3421,6 +3439,272 @@ func (c *EsportsAssessmentScoreClient) mutate(ctx context.Context, m *EsportsAss
 		return (&EsportsAssessmentScoreDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsAssessmentScore mutation op: %q", m.Op())
+	}
+}
+
+// EsportsCloseApprovalClient is a client for the EsportsCloseApproval schema.
+type EsportsCloseApprovalClient struct {
+	config
+}
+
+// NewEsportsCloseApprovalClient returns a client for the EsportsCloseApproval from the given config.
+func NewEsportsCloseApprovalClient(c config) *EsportsCloseApprovalClient {
+	return &EsportsCloseApprovalClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportscloseapproval.Hooks(f(g(h())))`.
+func (c *EsportsCloseApprovalClient) Use(hooks ...Hook) {
+	c.hooks.EsportsCloseApproval = append(c.hooks.EsportsCloseApproval, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportscloseapproval.Intercept(f(g(h())))`.
+func (c *EsportsCloseApprovalClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsCloseApproval = append(c.inters.EsportsCloseApproval, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsCloseApproval entity.
+func (c *EsportsCloseApprovalClient) Create() *EsportsCloseApprovalCreate {
+	mutation := newEsportsCloseApprovalMutation(c.config, OpCreate)
+	return &EsportsCloseApprovalCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsCloseApproval entities.
+func (c *EsportsCloseApprovalClient) CreateBulk(builders ...*EsportsCloseApprovalCreate) *EsportsCloseApprovalCreateBulk {
+	return &EsportsCloseApprovalCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsCloseApprovalClient) MapCreateBulk(slice any, setFunc func(*EsportsCloseApprovalCreate, int)) *EsportsCloseApprovalCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsCloseApprovalCreateBulk{err: fmt.Errorf("calling to EsportsCloseApprovalClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsCloseApprovalCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsCloseApprovalCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsCloseApproval.
+func (c *EsportsCloseApprovalClient) Update() *EsportsCloseApprovalUpdate {
+	mutation := newEsportsCloseApprovalMutation(c.config, OpUpdate)
+	return &EsportsCloseApprovalUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsCloseApprovalClient) UpdateOne(_m *EsportsCloseApproval) *EsportsCloseApprovalUpdateOne {
+	mutation := newEsportsCloseApprovalMutation(c.config, OpUpdateOne, withEsportsCloseApproval(_m))
+	return &EsportsCloseApprovalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsCloseApprovalClient) UpdateOneID(id int) *EsportsCloseApprovalUpdateOne {
+	mutation := newEsportsCloseApprovalMutation(c.config, OpUpdateOne, withEsportsCloseApprovalID(id))
+	return &EsportsCloseApprovalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsCloseApproval.
+func (c *EsportsCloseApprovalClient) Delete() *EsportsCloseApprovalDelete {
+	mutation := newEsportsCloseApprovalMutation(c.config, OpDelete)
+	return &EsportsCloseApprovalDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsCloseApprovalClient) DeleteOne(_m *EsportsCloseApproval) *EsportsCloseApprovalDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsCloseApprovalClient) DeleteOneID(id int) *EsportsCloseApprovalDeleteOne {
+	builder := c.Delete().Where(esportscloseapproval.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsCloseApprovalDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsCloseApproval.
+func (c *EsportsCloseApprovalClient) Query() *EsportsCloseApprovalQuery {
+	return &EsportsCloseApprovalQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsCloseApproval},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsCloseApproval entity by its id.
+func (c *EsportsCloseApprovalClient) Get(ctx context.Context, id int) (*EsportsCloseApproval, error) {
+	return c.Query().Where(esportscloseapproval.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsCloseApprovalClient) GetX(ctx context.Context, id int) *EsportsCloseApproval {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsCloseApprovalClient) Hooks() []Hook {
+	return c.hooks.EsportsCloseApproval
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsCloseApprovalClient) Interceptors() []Interceptor {
+	return c.inters.EsportsCloseApproval
+}
+
+func (c *EsportsCloseApprovalClient) mutate(ctx context.Context, m *EsportsCloseApprovalMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsCloseApprovalCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsCloseApprovalUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsCloseApprovalUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsCloseApprovalDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsCloseApproval mutation op: %q", m.Op())
+	}
+}
+
+// EsportsCloseApprovalFlowClient is a client for the EsportsCloseApprovalFlow schema.
+type EsportsCloseApprovalFlowClient struct {
+	config
+}
+
+// NewEsportsCloseApprovalFlowClient returns a client for the EsportsCloseApprovalFlow from the given config.
+func NewEsportsCloseApprovalFlowClient(c config) *EsportsCloseApprovalFlowClient {
+	return &EsportsCloseApprovalFlowClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportscloseapprovalflow.Hooks(f(g(h())))`.
+func (c *EsportsCloseApprovalFlowClient) Use(hooks ...Hook) {
+	c.hooks.EsportsCloseApprovalFlow = append(c.hooks.EsportsCloseApprovalFlow, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportscloseapprovalflow.Intercept(f(g(h())))`.
+func (c *EsportsCloseApprovalFlowClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsCloseApprovalFlow = append(c.inters.EsportsCloseApprovalFlow, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsCloseApprovalFlow entity.
+func (c *EsportsCloseApprovalFlowClient) Create() *EsportsCloseApprovalFlowCreate {
+	mutation := newEsportsCloseApprovalFlowMutation(c.config, OpCreate)
+	return &EsportsCloseApprovalFlowCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsCloseApprovalFlow entities.
+func (c *EsportsCloseApprovalFlowClient) CreateBulk(builders ...*EsportsCloseApprovalFlowCreate) *EsportsCloseApprovalFlowCreateBulk {
+	return &EsportsCloseApprovalFlowCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsCloseApprovalFlowClient) MapCreateBulk(slice any, setFunc func(*EsportsCloseApprovalFlowCreate, int)) *EsportsCloseApprovalFlowCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsCloseApprovalFlowCreateBulk{err: fmt.Errorf("calling to EsportsCloseApprovalFlowClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsCloseApprovalFlowCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsCloseApprovalFlowCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsCloseApprovalFlow.
+func (c *EsportsCloseApprovalFlowClient) Update() *EsportsCloseApprovalFlowUpdate {
+	mutation := newEsportsCloseApprovalFlowMutation(c.config, OpUpdate)
+	return &EsportsCloseApprovalFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsCloseApprovalFlowClient) UpdateOne(_m *EsportsCloseApprovalFlow) *EsportsCloseApprovalFlowUpdateOne {
+	mutation := newEsportsCloseApprovalFlowMutation(c.config, OpUpdateOne, withEsportsCloseApprovalFlow(_m))
+	return &EsportsCloseApprovalFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsCloseApprovalFlowClient) UpdateOneID(id int) *EsportsCloseApprovalFlowUpdateOne {
+	mutation := newEsportsCloseApprovalFlowMutation(c.config, OpUpdateOne, withEsportsCloseApprovalFlowID(id))
+	return &EsportsCloseApprovalFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsCloseApprovalFlow.
+func (c *EsportsCloseApprovalFlowClient) Delete() *EsportsCloseApprovalFlowDelete {
+	mutation := newEsportsCloseApprovalFlowMutation(c.config, OpDelete)
+	return &EsportsCloseApprovalFlowDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsCloseApprovalFlowClient) DeleteOne(_m *EsportsCloseApprovalFlow) *EsportsCloseApprovalFlowDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsCloseApprovalFlowClient) DeleteOneID(id int) *EsportsCloseApprovalFlowDeleteOne {
+	builder := c.Delete().Where(esportscloseapprovalflow.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsCloseApprovalFlowDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsCloseApprovalFlow.
+func (c *EsportsCloseApprovalFlowClient) Query() *EsportsCloseApprovalFlowQuery {
+	return &EsportsCloseApprovalFlowQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsCloseApprovalFlow},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsCloseApprovalFlow entity by its id.
+func (c *EsportsCloseApprovalFlowClient) Get(ctx context.Context, id int) (*EsportsCloseApprovalFlow, error) {
+	return c.Query().Where(esportscloseapprovalflow.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsCloseApprovalFlowClient) GetX(ctx context.Context, id int) *EsportsCloseApprovalFlow {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsCloseApprovalFlowClient) Hooks() []Hook {
+	return c.hooks.EsportsCloseApprovalFlow
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsCloseApprovalFlowClient) Interceptors() []Interceptor {
+	return c.inters.EsportsCloseApprovalFlow
+}
+
+func (c *EsportsCloseApprovalFlowClient) mutate(ctx context.Context, m *EsportsCloseApprovalFlowMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsCloseApprovalFlowCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsCloseApprovalFlowUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsCloseApprovalFlowUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsCloseApprovalFlowDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsCloseApprovalFlow mutation op: %q", m.Op())
 	}
 }
 
@@ -11998,11 +12282,12 @@ type (
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData,
 		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
-		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseFormField,
-		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
-		EsportsCloseSubmitRule, EsportsCommissionEntry, EsportsCommissionRule,
-		EsportsConfirmation, EsportsCsCommissionEntry, EsportsCsCommissionRule,
-		EsportsCustomer, EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
+		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseApproval,
+		EsportsCloseApprovalFlow, EsportsCloseFormField, EsportsCloseFormSnapshot,
+		EsportsCloseFormTemplate, EsportsCloseRule, EsportsCloseSubmitRule,
+		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
+		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
+		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
 		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
 		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
@@ -12022,11 +12307,12 @@ type (
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData,
 		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
-		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseFormField,
-		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
-		EsportsCloseSubmitRule, EsportsCommissionEntry, EsportsCommissionRule,
-		EsportsConfirmation, EsportsCsCommissionEntry, EsportsCsCommissionRule,
-		EsportsCustomer, EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
+		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseApproval,
+		EsportsCloseApprovalFlow, EsportsCloseFormField, EsportsCloseFormSnapshot,
+		EsportsCloseFormTemplate, EsportsCloseRule, EsportsCloseSubmitRule,
+		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
+		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
+		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
 		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
 		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,

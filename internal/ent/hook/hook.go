@@ -224,6 +224,30 @@ func (f EsportsAssessmentScoreFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsAssessmentScoreMutation", m)
 }
 
+// The EsportsCloseApprovalFunc type is an adapter to allow the use of ordinary
+// function as EsportsCloseApproval mutator.
+type EsportsCloseApprovalFunc func(context.Context, *ent.EsportsCloseApprovalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCloseApprovalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCloseApprovalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCloseApprovalMutation", m)
+}
+
+// The EsportsCloseApprovalFlowFunc type is an adapter to allow the use of ordinary
+// function as EsportsCloseApprovalFlow mutator.
+type EsportsCloseApprovalFlowFunc func(context.Context, *ent.EsportsCloseApprovalFlowMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCloseApprovalFlowFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCloseApprovalFlowMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCloseApprovalFlowMutation", m)
+}
+
 // The EsportsCloseFormFieldFunc type is an adapter to allow the use of ordinary
 // function as EsportsCloseFormField mutator.
 type EsportsCloseFormFieldFunc func(context.Context, *ent.EsportsCloseFormFieldMutation) (ent.Value, error)
