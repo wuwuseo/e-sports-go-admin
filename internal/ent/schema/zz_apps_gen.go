@@ -34,6 +34,18 @@ type EsportsAssessmentScore struct {
 	appschemaesports.EsportsAssessmentScore
 }
 
+type EsportsCloseFormField struct {
+	appschemaesports.EsportsCloseFormField
+}
+
+type EsportsCloseFormSnapshot struct {
+	appschemaesports.EsportsCloseFormSnapshot
+}
+
+type EsportsCloseFormTemplate struct {
+	appschemaesports.EsportsCloseFormTemplate
+}
+
 type EsportsCloseRule struct {
 	appschemaesports.EsportsCloseRule
 }

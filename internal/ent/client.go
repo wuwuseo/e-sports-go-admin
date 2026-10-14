@@ -29,6 +29,9 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseformfield"
+	"go-admin/internal/ent/esportscloseformsnapshot"
+	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscloserule"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
@@ -137,6 +140,12 @@ type Client struct {
 	EsportsAssessmentRule *EsportsAssessmentRuleClient
 	// EsportsAssessmentScore is the client for interacting with the EsportsAssessmentScore builders.
 	EsportsAssessmentScore *EsportsAssessmentScoreClient
+	// EsportsCloseFormField is the client for interacting with the EsportsCloseFormField builders.
+	EsportsCloseFormField *EsportsCloseFormFieldClient
+	// EsportsCloseFormSnapshot is the client for interacting with the EsportsCloseFormSnapshot builders.
+	EsportsCloseFormSnapshot *EsportsCloseFormSnapshotClient
+	// EsportsCloseFormTemplate is the client for interacting with the EsportsCloseFormTemplate builders.
+	EsportsCloseFormTemplate *EsportsCloseFormTemplateClient
 	// EsportsCloseRule is the client for interacting with the EsportsCloseRule builders.
 	EsportsCloseRule *EsportsCloseRuleClient
 	// EsportsCommissionEntry is the client for interacting with the EsportsCommissionEntry builders.
@@ -286,6 +295,9 @@ func (c *Client) init() {
 	c.EsportsAssessmentAppeal = NewEsportsAssessmentAppealClient(c.config)
 	c.EsportsAssessmentRule = NewEsportsAssessmentRuleClient(c.config)
 	c.EsportsAssessmentScore = NewEsportsAssessmentScoreClient(c.config)
+	c.EsportsCloseFormField = NewEsportsCloseFormFieldClient(c.config)
+	c.EsportsCloseFormSnapshot = NewEsportsCloseFormSnapshotClient(c.config)
+	c.EsportsCloseFormTemplate = NewEsportsCloseFormTemplateClient(c.config)
 	c.EsportsCloseRule = NewEsportsCloseRuleClient(c.config)
 	c.EsportsCommissionEntry = NewEsportsCommissionEntryClient(c.config)
 	c.EsportsCommissionRule = NewEsportsCommissionRuleClient(c.config)
@@ -456,6 +468,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsAssessmentAppeal:       NewEsportsAssessmentAppealClient(cfg),
 		EsportsAssessmentRule:         NewEsportsAssessmentRuleClient(cfg),
 		EsportsAssessmentScore:        NewEsportsAssessmentScoreClient(cfg),
+		EsportsCloseFormField:         NewEsportsCloseFormFieldClient(cfg),
+		EsportsCloseFormSnapshot:      NewEsportsCloseFormSnapshotClient(cfg),
+		EsportsCloseFormTemplate:      NewEsportsCloseFormTemplateClient(cfg),
 		EsportsCloseRule:              NewEsportsCloseRuleClient(cfg),
 		EsportsCommissionEntry:        NewEsportsCommissionEntryClient(cfg),
 		EsportsCommissionRule:         NewEsportsCommissionRuleClient(cfg),
@@ -553,6 +568,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsAssessmentAppeal:       NewEsportsAssessmentAppealClient(cfg),
 		EsportsAssessmentRule:         NewEsportsAssessmentRuleClient(cfg),
 		EsportsAssessmentScore:        NewEsportsAssessmentScoreClient(cfg),
+		EsportsCloseFormField:         NewEsportsCloseFormFieldClient(cfg),
+		EsportsCloseFormSnapshot:      NewEsportsCloseFormSnapshotClient(cfg),
+		EsportsCloseFormTemplate:      NewEsportsCloseFormTemplateClient(cfg),
 		EsportsCloseRule:              NewEsportsCloseRuleClient(cfg),
 		EsportsCommissionEntry:        NewEsportsCommissionEntryClient(cfg),
 		EsportsCommissionRule:         NewEsportsCommissionRuleClient(cfg),
@@ -646,7 +664,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
 		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
 		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
-		c.EsportsAssessmentScore, c.EsportsCloseRule, c.EsportsCommissionEntry,
+		c.EsportsAssessmentScore, c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
+		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCommissionEntry,
 		c.EsportsCommissionRule, c.EsportsConfirmation, c.EsportsCsCommissionEntry,
 		c.EsportsCsCommissionRule, c.EsportsCustomer, c.EsportsCustomerFollowUp,
 		c.EsportsDispatchPriorityGrant, c.EsportsDispatchPriorityNotice,
@@ -678,7 +697,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
 		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
 		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
-		c.EsportsAssessmentScore, c.EsportsCloseRule, c.EsportsCommissionEntry,
+		c.EsportsAssessmentScore, c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
+		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCommissionEntry,
 		c.EsportsCommissionRule, c.EsportsConfirmation, c.EsportsCsCommissionEntry,
 		c.EsportsCsCommissionRule, c.EsportsCustomer, c.EsportsCustomerFollowUp,
 		c.EsportsDispatchPriorityGrant, c.EsportsDispatchPriorityNotice,
@@ -741,6 +761,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsAssessmentRule.mutate(ctx, m)
 	case *EsportsAssessmentScoreMutation:
 		return c.EsportsAssessmentScore.mutate(ctx, m)
+	case *EsportsCloseFormFieldMutation:
+		return c.EsportsCloseFormField.mutate(ctx, m)
+	case *EsportsCloseFormSnapshotMutation:
+		return c.EsportsCloseFormSnapshot.mutate(ctx, m)
+	case *EsportsCloseFormTemplateMutation:
+		return c.EsportsCloseFormTemplate.mutate(ctx, m)
 	case *EsportsCloseRuleMutation:
 		return c.EsportsCloseRule.mutate(ctx, m)
 	case *EsportsCommissionEntryMutation:
@@ -3385,6 +3411,405 @@ func (c *EsportsAssessmentScoreClient) mutate(ctx context.Context, m *EsportsAss
 		return (&EsportsAssessmentScoreDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsAssessmentScore mutation op: %q", m.Op())
+	}
+}
+
+// EsportsCloseFormFieldClient is a client for the EsportsCloseFormField schema.
+type EsportsCloseFormFieldClient struct {
+	config
+}
+
+// NewEsportsCloseFormFieldClient returns a client for the EsportsCloseFormField from the given config.
+func NewEsportsCloseFormFieldClient(c config) *EsportsCloseFormFieldClient {
+	return &EsportsCloseFormFieldClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportscloseformfield.Hooks(f(g(h())))`.
+func (c *EsportsCloseFormFieldClient) Use(hooks ...Hook) {
+	c.hooks.EsportsCloseFormField = append(c.hooks.EsportsCloseFormField, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportscloseformfield.Intercept(f(g(h())))`.
+func (c *EsportsCloseFormFieldClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsCloseFormField = append(c.inters.EsportsCloseFormField, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsCloseFormField entity.
+func (c *EsportsCloseFormFieldClient) Create() *EsportsCloseFormFieldCreate {
+	mutation := newEsportsCloseFormFieldMutation(c.config, OpCreate)
+	return &EsportsCloseFormFieldCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsCloseFormField entities.
+func (c *EsportsCloseFormFieldClient) CreateBulk(builders ...*EsportsCloseFormFieldCreate) *EsportsCloseFormFieldCreateBulk {
+	return &EsportsCloseFormFieldCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsCloseFormFieldClient) MapCreateBulk(slice any, setFunc func(*EsportsCloseFormFieldCreate, int)) *EsportsCloseFormFieldCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsCloseFormFieldCreateBulk{err: fmt.Errorf("calling to EsportsCloseFormFieldClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsCloseFormFieldCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsCloseFormFieldCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsCloseFormField.
+func (c *EsportsCloseFormFieldClient) Update() *EsportsCloseFormFieldUpdate {
+	mutation := newEsportsCloseFormFieldMutation(c.config, OpUpdate)
+	return &EsportsCloseFormFieldUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsCloseFormFieldClient) UpdateOne(_m *EsportsCloseFormField) *EsportsCloseFormFieldUpdateOne {
+	mutation := newEsportsCloseFormFieldMutation(c.config, OpUpdateOne, withEsportsCloseFormField(_m))
+	return &EsportsCloseFormFieldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsCloseFormFieldClient) UpdateOneID(id int) *EsportsCloseFormFieldUpdateOne {
+	mutation := newEsportsCloseFormFieldMutation(c.config, OpUpdateOne, withEsportsCloseFormFieldID(id))
+	return &EsportsCloseFormFieldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsCloseFormField.
+func (c *EsportsCloseFormFieldClient) Delete() *EsportsCloseFormFieldDelete {
+	mutation := newEsportsCloseFormFieldMutation(c.config, OpDelete)
+	return &EsportsCloseFormFieldDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsCloseFormFieldClient) DeleteOne(_m *EsportsCloseFormField) *EsportsCloseFormFieldDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsCloseFormFieldClient) DeleteOneID(id int) *EsportsCloseFormFieldDeleteOne {
+	builder := c.Delete().Where(esportscloseformfield.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsCloseFormFieldDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsCloseFormField.
+func (c *EsportsCloseFormFieldClient) Query() *EsportsCloseFormFieldQuery {
+	return &EsportsCloseFormFieldQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsCloseFormField},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsCloseFormField entity by its id.
+func (c *EsportsCloseFormFieldClient) Get(ctx context.Context, id int) (*EsportsCloseFormField, error) {
+	return c.Query().Where(esportscloseformfield.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsCloseFormFieldClient) GetX(ctx context.Context, id int) *EsportsCloseFormField {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsCloseFormFieldClient) Hooks() []Hook {
+	return c.hooks.EsportsCloseFormField
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsCloseFormFieldClient) Interceptors() []Interceptor {
+	return c.inters.EsportsCloseFormField
+}
+
+func (c *EsportsCloseFormFieldClient) mutate(ctx context.Context, m *EsportsCloseFormFieldMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsCloseFormFieldCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsCloseFormFieldUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsCloseFormFieldUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsCloseFormFieldDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsCloseFormField mutation op: %q", m.Op())
+	}
+}
+
+// EsportsCloseFormSnapshotClient is a client for the EsportsCloseFormSnapshot schema.
+type EsportsCloseFormSnapshotClient struct {
+	config
+}
+
+// NewEsportsCloseFormSnapshotClient returns a client for the EsportsCloseFormSnapshot from the given config.
+func NewEsportsCloseFormSnapshotClient(c config) *EsportsCloseFormSnapshotClient {
+	return &EsportsCloseFormSnapshotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportscloseformsnapshot.Hooks(f(g(h())))`.
+func (c *EsportsCloseFormSnapshotClient) Use(hooks ...Hook) {
+	c.hooks.EsportsCloseFormSnapshot = append(c.hooks.EsportsCloseFormSnapshot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportscloseformsnapshot.Intercept(f(g(h())))`.
+func (c *EsportsCloseFormSnapshotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsCloseFormSnapshot = append(c.inters.EsportsCloseFormSnapshot, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsCloseFormSnapshot entity.
+func (c *EsportsCloseFormSnapshotClient) Create() *EsportsCloseFormSnapshotCreate {
+	mutation := newEsportsCloseFormSnapshotMutation(c.config, OpCreate)
+	return &EsportsCloseFormSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsCloseFormSnapshot entities.
+func (c *EsportsCloseFormSnapshotClient) CreateBulk(builders ...*EsportsCloseFormSnapshotCreate) *EsportsCloseFormSnapshotCreateBulk {
+	return &EsportsCloseFormSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsCloseFormSnapshotClient) MapCreateBulk(slice any, setFunc func(*EsportsCloseFormSnapshotCreate, int)) *EsportsCloseFormSnapshotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsCloseFormSnapshotCreateBulk{err: fmt.Errorf("calling to EsportsCloseFormSnapshotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsCloseFormSnapshotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsCloseFormSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsCloseFormSnapshot.
+func (c *EsportsCloseFormSnapshotClient) Update() *EsportsCloseFormSnapshotUpdate {
+	mutation := newEsportsCloseFormSnapshotMutation(c.config, OpUpdate)
+	return &EsportsCloseFormSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsCloseFormSnapshotClient) UpdateOne(_m *EsportsCloseFormSnapshot) *EsportsCloseFormSnapshotUpdateOne {
+	mutation := newEsportsCloseFormSnapshotMutation(c.config, OpUpdateOne, withEsportsCloseFormSnapshot(_m))
+	return &EsportsCloseFormSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsCloseFormSnapshotClient) UpdateOneID(id int) *EsportsCloseFormSnapshotUpdateOne {
+	mutation := newEsportsCloseFormSnapshotMutation(c.config, OpUpdateOne, withEsportsCloseFormSnapshotID(id))
+	return &EsportsCloseFormSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsCloseFormSnapshot.
+func (c *EsportsCloseFormSnapshotClient) Delete() *EsportsCloseFormSnapshotDelete {
+	mutation := newEsportsCloseFormSnapshotMutation(c.config, OpDelete)
+	return &EsportsCloseFormSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsCloseFormSnapshotClient) DeleteOne(_m *EsportsCloseFormSnapshot) *EsportsCloseFormSnapshotDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsCloseFormSnapshotClient) DeleteOneID(id int) *EsportsCloseFormSnapshotDeleteOne {
+	builder := c.Delete().Where(esportscloseformsnapshot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsCloseFormSnapshotDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsCloseFormSnapshot.
+func (c *EsportsCloseFormSnapshotClient) Query() *EsportsCloseFormSnapshotQuery {
+	return &EsportsCloseFormSnapshotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsCloseFormSnapshot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsCloseFormSnapshot entity by its id.
+func (c *EsportsCloseFormSnapshotClient) Get(ctx context.Context, id int) (*EsportsCloseFormSnapshot, error) {
+	return c.Query().Where(esportscloseformsnapshot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsCloseFormSnapshotClient) GetX(ctx context.Context, id int) *EsportsCloseFormSnapshot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsCloseFormSnapshotClient) Hooks() []Hook {
+	return c.hooks.EsportsCloseFormSnapshot
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsCloseFormSnapshotClient) Interceptors() []Interceptor {
+	return c.inters.EsportsCloseFormSnapshot
+}
+
+func (c *EsportsCloseFormSnapshotClient) mutate(ctx context.Context, m *EsportsCloseFormSnapshotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsCloseFormSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsCloseFormSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsCloseFormSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsCloseFormSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsCloseFormSnapshot mutation op: %q", m.Op())
+	}
+}
+
+// EsportsCloseFormTemplateClient is a client for the EsportsCloseFormTemplate schema.
+type EsportsCloseFormTemplateClient struct {
+	config
+}
+
+// NewEsportsCloseFormTemplateClient returns a client for the EsportsCloseFormTemplate from the given config.
+func NewEsportsCloseFormTemplateClient(c config) *EsportsCloseFormTemplateClient {
+	return &EsportsCloseFormTemplateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportscloseformtemplate.Hooks(f(g(h())))`.
+func (c *EsportsCloseFormTemplateClient) Use(hooks ...Hook) {
+	c.hooks.EsportsCloseFormTemplate = append(c.hooks.EsportsCloseFormTemplate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportscloseformtemplate.Intercept(f(g(h())))`.
+func (c *EsportsCloseFormTemplateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsCloseFormTemplate = append(c.inters.EsportsCloseFormTemplate, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsCloseFormTemplate entity.
+func (c *EsportsCloseFormTemplateClient) Create() *EsportsCloseFormTemplateCreate {
+	mutation := newEsportsCloseFormTemplateMutation(c.config, OpCreate)
+	return &EsportsCloseFormTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsCloseFormTemplate entities.
+func (c *EsportsCloseFormTemplateClient) CreateBulk(builders ...*EsportsCloseFormTemplateCreate) *EsportsCloseFormTemplateCreateBulk {
+	return &EsportsCloseFormTemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsCloseFormTemplateClient) MapCreateBulk(slice any, setFunc func(*EsportsCloseFormTemplateCreate, int)) *EsportsCloseFormTemplateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsCloseFormTemplateCreateBulk{err: fmt.Errorf("calling to EsportsCloseFormTemplateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsCloseFormTemplateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsCloseFormTemplateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsCloseFormTemplate.
+func (c *EsportsCloseFormTemplateClient) Update() *EsportsCloseFormTemplateUpdate {
+	mutation := newEsportsCloseFormTemplateMutation(c.config, OpUpdate)
+	return &EsportsCloseFormTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsCloseFormTemplateClient) UpdateOne(_m *EsportsCloseFormTemplate) *EsportsCloseFormTemplateUpdateOne {
+	mutation := newEsportsCloseFormTemplateMutation(c.config, OpUpdateOne, withEsportsCloseFormTemplate(_m))
+	return &EsportsCloseFormTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsCloseFormTemplateClient) UpdateOneID(id int) *EsportsCloseFormTemplateUpdateOne {
+	mutation := newEsportsCloseFormTemplateMutation(c.config, OpUpdateOne, withEsportsCloseFormTemplateID(id))
+	return &EsportsCloseFormTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsCloseFormTemplate.
+func (c *EsportsCloseFormTemplateClient) Delete() *EsportsCloseFormTemplateDelete {
+	mutation := newEsportsCloseFormTemplateMutation(c.config, OpDelete)
+	return &EsportsCloseFormTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsCloseFormTemplateClient) DeleteOne(_m *EsportsCloseFormTemplate) *EsportsCloseFormTemplateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsCloseFormTemplateClient) DeleteOneID(id int) *EsportsCloseFormTemplateDeleteOne {
+	builder := c.Delete().Where(esportscloseformtemplate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsCloseFormTemplateDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsCloseFormTemplate.
+func (c *EsportsCloseFormTemplateClient) Query() *EsportsCloseFormTemplateQuery {
+	return &EsportsCloseFormTemplateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsCloseFormTemplate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsCloseFormTemplate entity by its id.
+func (c *EsportsCloseFormTemplateClient) Get(ctx context.Context, id int) (*EsportsCloseFormTemplate, error) {
+	return c.Query().Where(esportscloseformtemplate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsCloseFormTemplateClient) GetX(ctx context.Context, id int) *EsportsCloseFormTemplate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsCloseFormTemplateClient) Hooks() []Hook {
+	return c.hooks.EsportsCloseFormTemplate
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsCloseFormTemplateClient) Interceptors() []Interceptor {
+	return c.inters.EsportsCloseFormTemplate
+}
+
+func (c *EsportsCloseFormTemplateClient) mutate(ctx context.Context, m *EsportsCloseFormTemplateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsCloseFormTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsCloseFormTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsCloseFormTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsCloseFormTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsCloseFormTemplate mutation op: %q", m.Op())
 	}
 }
 
@@ -11430,7 +11855,8 @@ type (
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData,
 		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
-		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseRule,
+		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseFormField,
+		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
 		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
 		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
 		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
@@ -11453,7 +11879,8 @@ type (
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData,
 		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
-		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseRule,
+		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseFormField,
+		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
 		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
 		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
 		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,

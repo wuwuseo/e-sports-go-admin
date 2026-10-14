@@ -25,6 +25,9 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseformfield"
+	"go-admin/internal/ent/esportscloseformsnapshot"
+	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscloserule"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
@@ -120,6 +123,9 @@ const (
 	TypeEsportsAssessmentAppeal       = "EsportsAssessmentAppeal"
 	TypeEsportsAssessmentRule         = "EsportsAssessmentRule"
 	TypeEsportsAssessmentScore        = "EsportsAssessmentScore"
+	TypeEsportsCloseFormField         = "EsportsCloseFormField"
+	TypeEsportsCloseFormSnapshot      = "EsportsCloseFormSnapshot"
+	TypeEsportsCloseFormTemplate      = "EsportsCloseFormTemplate"
 	TypeEsportsCloseRule              = "EsportsCloseRule"
 	TypeEsportsCommissionEntry        = "EsportsCommissionEntry"
 	TypeEsportsCommissionRule         = "EsportsCommissionRule"
@@ -17934,6 +17940,3116 @@ func (m *EsportsAssessmentScoreMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsAssessmentScoreMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsAssessmentScore edge %s", name)
+}
+
+// EsportsCloseFormFieldMutation represents an operation that mutates the EsportsCloseFormField nodes in the graph.
+type EsportsCloseFormFieldMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	key           *string
+	label         *string
+	field_type    *esportscloseformfield.FieldType
+	required      *bool
+	options       *[]string
+	appendoptions []string
+	max_length    *int
+	addmax_length *int
+	enabled       *bool
+	sort_order    *int
+	addsort_order *int
+	note          *string
+	version       *int
+	addversion    *int
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*EsportsCloseFormField, error)
+	predicates    []predicate.EsportsCloseFormField
+}
+
+var _ ent.Mutation = (*EsportsCloseFormFieldMutation)(nil)
+
+// esportscloseformfieldOption allows management of the mutation configuration using functional options.
+type esportscloseformfieldOption func(*EsportsCloseFormFieldMutation)
+
+// newEsportsCloseFormFieldMutation creates new mutation for the EsportsCloseFormField entity.
+func newEsportsCloseFormFieldMutation(c config, op Op, opts ...esportscloseformfieldOption) *EsportsCloseFormFieldMutation {
+	m := &EsportsCloseFormFieldMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCloseFormField,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCloseFormFieldID sets the ID field of the mutation.
+func withEsportsCloseFormFieldID(id int) esportscloseformfieldOption {
+	return func(m *EsportsCloseFormFieldMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCloseFormField
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCloseFormField, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCloseFormField.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCloseFormField sets the old EsportsCloseFormField of the mutation.
+func withEsportsCloseFormField(node *EsportsCloseFormField) esportscloseformfieldOption {
+	return func(m *EsportsCloseFormFieldMutation) {
+		m.oldValue = func(context.Context) (*EsportsCloseFormField, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCloseFormFieldMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCloseFormFieldMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCloseFormFieldMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCloseFormFieldMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCloseFormField.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetKey sets the "key" field.
+func (m *EsportsCloseFormFieldMutation) SetKey(s string) {
+	m.key = &s
+}
+
+// Key returns the value of the "key" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) Key() (r string, exists bool) {
+	v := m.key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKey returns the old "key" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKey: %w", err)
+	}
+	return oldValue.Key, nil
+}
+
+// ResetKey resets all changes to the "key" field.
+func (m *EsportsCloseFormFieldMutation) ResetKey() {
+	m.key = nil
+}
+
+// SetLabel sets the "label" field.
+func (m *EsportsCloseFormFieldMutation) SetLabel(s string) {
+	m.label = &s
+}
+
+// Label returns the value of the "label" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) Label() (r string, exists bool) {
+	v := m.label
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLabel returns the old "label" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldLabel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLabel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLabel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLabel: %w", err)
+	}
+	return oldValue.Label, nil
+}
+
+// ResetLabel resets all changes to the "label" field.
+func (m *EsportsCloseFormFieldMutation) ResetLabel() {
+	m.label = nil
+}
+
+// SetFieldType sets the "field_type" field.
+func (m *EsportsCloseFormFieldMutation) SetFieldType(et esportscloseformfield.FieldType) {
+	m.field_type = &et
+}
+
+// FieldType returns the value of the "field_type" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) FieldType() (r esportscloseformfield.FieldType, exists bool) {
+	v := m.field_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFieldType returns the old "field_type" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldFieldType(ctx context.Context) (v esportscloseformfield.FieldType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFieldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFieldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFieldType: %w", err)
+	}
+	return oldValue.FieldType, nil
+}
+
+// ResetFieldType resets all changes to the "field_type" field.
+func (m *EsportsCloseFormFieldMutation) ResetFieldType() {
+	m.field_type = nil
+}
+
+// SetRequired sets the "required" field.
+func (m *EsportsCloseFormFieldMutation) SetRequired(b bool) {
+	m.required = &b
+}
+
+// Required returns the value of the "required" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) Required() (r bool, exists bool) {
+	v := m.required
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequired returns the old "required" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldRequired(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequired is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequired requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequired: %w", err)
+	}
+	return oldValue.Required, nil
+}
+
+// ResetRequired resets all changes to the "required" field.
+func (m *EsportsCloseFormFieldMutation) ResetRequired() {
+	m.required = nil
+}
+
+// SetOptions sets the "options" field.
+func (m *EsportsCloseFormFieldMutation) SetOptions(s []string) {
+	m.options = &s
+	m.appendoptions = nil
+}
+
+// Options returns the value of the "options" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) Options() (r []string, exists bool) {
+	v := m.options
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOptions returns the old "options" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldOptions(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOptions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOptions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOptions: %w", err)
+	}
+	return oldValue.Options, nil
+}
+
+// AppendOptions adds s to the "options" field.
+func (m *EsportsCloseFormFieldMutation) AppendOptions(s []string) {
+	m.appendoptions = append(m.appendoptions, s...)
+}
+
+// AppendedOptions returns the list of values that were appended to the "options" field in this mutation.
+func (m *EsportsCloseFormFieldMutation) AppendedOptions() ([]string, bool) {
+	if len(m.appendoptions) == 0 {
+		return nil, false
+	}
+	return m.appendoptions, true
+}
+
+// ClearOptions clears the value of the "options" field.
+func (m *EsportsCloseFormFieldMutation) ClearOptions() {
+	m.options = nil
+	m.appendoptions = nil
+	m.clearedFields[esportscloseformfield.FieldOptions] = struct{}{}
+}
+
+// OptionsCleared returns if the "options" field was cleared in this mutation.
+func (m *EsportsCloseFormFieldMutation) OptionsCleared() bool {
+	_, ok := m.clearedFields[esportscloseformfield.FieldOptions]
+	return ok
+}
+
+// ResetOptions resets all changes to the "options" field.
+func (m *EsportsCloseFormFieldMutation) ResetOptions() {
+	m.options = nil
+	m.appendoptions = nil
+	delete(m.clearedFields, esportscloseformfield.FieldOptions)
+}
+
+// SetMaxLength sets the "max_length" field.
+func (m *EsportsCloseFormFieldMutation) SetMaxLength(i int) {
+	m.max_length = &i
+	m.addmax_length = nil
+}
+
+// MaxLength returns the value of the "max_length" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) MaxLength() (r int, exists bool) {
+	v := m.max_length
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxLength returns the old "max_length" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldMaxLength(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxLength is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxLength requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxLength: %w", err)
+	}
+	return oldValue.MaxLength, nil
+}
+
+// AddMaxLength adds i to the "max_length" field.
+func (m *EsportsCloseFormFieldMutation) AddMaxLength(i int) {
+	if m.addmax_length != nil {
+		*m.addmax_length += i
+	} else {
+		m.addmax_length = &i
+	}
+}
+
+// AddedMaxLength returns the value that was added to the "max_length" field in this mutation.
+func (m *EsportsCloseFormFieldMutation) AddedMaxLength() (r int, exists bool) {
+	v := m.addmax_length
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxLength resets all changes to the "max_length" field.
+func (m *EsportsCloseFormFieldMutation) ResetMaxLength() {
+	m.max_length = nil
+	m.addmax_length = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *EsportsCloseFormFieldMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *EsportsCloseFormFieldMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *EsportsCloseFormFieldMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *EsportsCloseFormFieldMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *EsportsCloseFormFieldMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *EsportsCloseFormFieldMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// SetNote sets the "note" field.
+func (m *EsportsCloseFormFieldMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *EsportsCloseFormFieldMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsCloseFormFieldMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsCloseFormFieldMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsCloseFormFieldMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsCloseFormFieldMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCloseFormFieldMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCloseFormFieldMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsCloseFormFieldMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsCloseFormFieldMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsCloseFormField entity.
+// If the EsportsCloseFormField object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormFieldMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsCloseFormFieldMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsCloseFormFieldMutation builder.
+func (m *EsportsCloseFormFieldMutation) Where(ps ...predicate.EsportsCloseFormField) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCloseFormFieldMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCloseFormFieldMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCloseFormField, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCloseFormFieldMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCloseFormFieldMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCloseFormField).
+func (m *EsportsCloseFormFieldMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCloseFormFieldMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.key != nil {
+		fields = append(fields, esportscloseformfield.FieldKey)
+	}
+	if m.label != nil {
+		fields = append(fields, esportscloseformfield.FieldLabel)
+	}
+	if m.field_type != nil {
+		fields = append(fields, esportscloseformfield.FieldFieldType)
+	}
+	if m.required != nil {
+		fields = append(fields, esportscloseformfield.FieldRequired)
+	}
+	if m.options != nil {
+		fields = append(fields, esportscloseformfield.FieldOptions)
+	}
+	if m.max_length != nil {
+		fields = append(fields, esportscloseformfield.FieldMaxLength)
+	}
+	if m.enabled != nil {
+		fields = append(fields, esportscloseformfield.FieldEnabled)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, esportscloseformfield.FieldSortOrder)
+	}
+	if m.note != nil {
+		fields = append(fields, esportscloseformfield.FieldNote)
+	}
+	if m.version != nil {
+		fields = append(fields, esportscloseformfield.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscloseformfield.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportscloseformfield.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCloseFormFieldMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseformfield.FieldKey:
+		return m.Key()
+	case esportscloseformfield.FieldLabel:
+		return m.Label()
+	case esportscloseformfield.FieldFieldType:
+		return m.FieldType()
+	case esportscloseformfield.FieldRequired:
+		return m.Required()
+	case esportscloseformfield.FieldOptions:
+		return m.Options()
+	case esportscloseformfield.FieldMaxLength:
+		return m.MaxLength()
+	case esportscloseformfield.FieldEnabled:
+		return m.Enabled()
+	case esportscloseformfield.FieldSortOrder:
+		return m.SortOrder()
+	case esportscloseformfield.FieldNote:
+		return m.Note()
+	case esportscloseformfield.FieldVersion:
+		return m.Version()
+	case esportscloseformfield.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportscloseformfield.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCloseFormFieldMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscloseformfield.FieldKey:
+		return m.OldKey(ctx)
+	case esportscloseformfield.FieldLabel:
+		return m.OldLabel(ctx)
+	case esportscloseformfield.FieldFieldType:
+		return m.OldFieldType(ctx)
+	case esportscloseformfield.FieldRequired:
+		return m.OldRequired(ctx)
+	case esportscloseformfield.FieldOptions:
+		return m.OldOptions(ctx)
+	case esportscloseformfield.FieldMaxLength:
+		return m.OldMaxLength(ctx)
+	case esportscloseformfield.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case esportscloseformfield.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	case esportscloseformfield.FieldNote:
+		return m.OldNote(ctx)
+	case esportscloseformfield.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportscloseformfield.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportscloseformfield.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCloseFormField field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseFormFieldMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseformfield.FieldKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKey(v)
+		return nil
+	case esportscloseformfield.FieldLabel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLabel(v)
+		return nil
+	case esportscloseformfield.FieldFieldType:
+		v, ok := value.(esportscloseformfield.FieldType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFieldType(v)
+		return nil
+	case esportscloseformfield.FieldRequired:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequired(v)
+		return nil
+	case esportscloseformfield.FieldOptions:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOptions(v)
+		return nil
+	case esportscloseformfield.FieldMaxLength:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxLength(v)
+		return nil
+	case esportscloseformfield.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case esportscloseformfield.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	case esportscloseformfield.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case esportscloseformfield.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportscloseformfield.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportscloseformfield.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormField field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCloseFormFieldMutation) AddedFields() []string {
+	var fields []string
+	if m.addmax_length != nil {
+		fields = append(fields, esportscloseformfield.FieldMaxLength)
+	}
+	if m.addsort_order != nil {
+		fields = append(fields, esportscloseformfield.FieldSortOrder)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportscloseformfield.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCloseFormFieldMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseformfield.FieldMaxLength:
+		return m.AddedMaxLength()
+	case esportscloseformfield.FieldSortOrder:
+		return m.AddedSortOrder()
+	case esportscloseformfield.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseFormFieldMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseformfield.FieldMaxLength:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxLength(v)
+		return nil
+	case esportscloseformfield.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	case esportscloseformfield.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormField numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCloseFormFieldMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportscloseformfield.FieldOptions) {
+		fields = append(fields, esportscloseformfield.FieldOptions)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCloseFormFieldMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCloseFormFieldMutation) ClearField(name string) error {
+	switch name {
+	case esportscloseformfield.FieldOptions:
+		m.ClearOptions()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormField nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCloseFormFieldMutation) ResetField(name string) error {
+	switch name {
+	case esportscloseformfield.FieldKey:
+		m.ResetKey()
+		return nil
+	case esportscloseformfield.FieldLabel:
+		m.ResetLabel()
+		return nil
+	case esportscloseformfield.FieldFieldType:
+		m.ResetFieldType()
+		return nil
+	case esportscloseformfield.FieldRequired:
+		m.ResetRequired()
+		return nil
+	case esportscloseformfield.FieldOptions:
+		m.ResetOptions()
+		return nil
+	case esportscloseformfield.FieldMaxLength:
+		m.ResetMaxLength()
+		return nil
+	case esportscloseformfield.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case esportscloseformfield.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	case esportscloseformfield.FieldNote:
+		m.ResetNote()
+		return nil
+	case esportscloseformfield.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportscloseformfield.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportscloseformfield.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormField field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCloseFormFieldMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCloseFormFieldMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCloseFormFieldMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCloseFormFieldMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCloseFormFieldMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCloseFormFieldMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCloseFormFieldMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseFormField unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCloseFormFieldMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseFormField edge %s", name)
+}
+
+// EsportsCloseFormSnapshotMutation represents an operation that mutates the EsportsCloseFormSnapshot nodes in the graph.
+type EsportsCloseFormSnapshotMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int
+	order_id                 *int
+	addorder_id              *int
+	template_id              *int
+	addtemplate_id           *int
+	template_code            *string
+	template_version         *int
+	addtemplate_version      *int
+	values                   *map[string]interface{}
+	note                     *string
+	submitted_by_admin_id    *int
+	addsubmitted_by_admin_id *int
+	created_at               *time.Time
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*EsportsCloseFormSnapshot, error)
+	predicates               []predicate.EsportsCloseFormSnapshot
+}
+
+var _ ent.Mutation = (*EsportsCloseFormSnapshotMutation)(nil)
+
+// esportscloseformsnapshotOption allows management of the mutation configuration using functional options.
+type esportscloseformsnapshotOption func(*EsportsCloseFormSnapshotMutation)
+
+// newEsportsCloseFormSnapshotMutation creates new mutation for the EsportsCloseFormSnapshot entity.
+func newEsportsCloseFormSnapshotMutation(c config, op Op, opts ...esportscloseformsnapshotOption) *EsportsCloseFormSnapshotMutation {
+	m := &EsportsCloseFormSnapshotMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCloseFormSnapshot,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCloseFormSnapshotID sets the ID field of the mutation.
+func withEsportsCloseFormSnapshotID(id int) esportscloseformsnapshotOption {
+	return func(m *EsportsCloseFormSnapshotMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCloseFormSnapshot
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCloseFormSnapshot, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCloseFormSnapshot.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCloseFormSnapshot sets the old EsportsCloseFormSnapshot of the mutation.
+func withEsportsCloseFormSnapshot(node *EsportsCloseFormSnapshot) esportscloseformsnapshotOption {
+	return func(m *EsportsCloseFormSnapshotMutation) {
+		m.oldValue = func(context.Context) (*EsportsCloseFormSnapshot, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCloseFormSnapshotMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCloseFormSnapshotMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCloseFormSnapshotMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCloseFormSnapshotMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCloseFormSnapshot.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *EsportsCloseFormSnapshotMutation) SetOrderID(i int) {
+	m.order_id = &i
+	m.addorder_id = nil
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) OrderID() (r int, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldOrderID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// AddOrderID adds i to the "order_id" field.
+func (m *EsportsCloseFormSnapshotMutation) AddOrderID(i int) {
+	if m.addorder_id != nil {
+		*m.addorder_id += i
+	} else {
+		m.addorder_id = &i
+	}
+}
+
+// AddedOrderID returns the value that was added to the "order_id" field in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) AddedOrderID() (r int, exists bool) {
+	v := m.addorder_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetOrderID() {
+	m.order_id = nil
+	m.addorder_id = nil
+}
+
+// SetTemplateID sets the "template_id" field.
+func (m *EsportsCloseFormSnapshotMutation) SetTemplateID(i int) {
+	m.template_id = &i
+	m.addtemplate_id = nil
+}
+
+// TemplateID returns the value of the "template_id" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) TemplateID() (r int, exists bool) {
+	v := m.template_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTemplateID returns the old "template_id" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldTemplateID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTemplateID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTemplateID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTemplateID: %w", err)
+	}
+	return oldValue.TemplateID, nil
+}
+
+// AddTemplateID adds i to the "template_id" field.
+func (m *EsportsCloseFormSnapshotMutation) AddTemplateID(i int) {
+	if m.addtemplate_id != nil {
+		*m.addtemplate_id += i
+	} else {
+		m.addtemplate_id = &i
+	}
+}
+
+// AddedTemplateID returns the value that was added to the "template_id" field in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) AddedTemplateID() (r int, exists bool) {
+	v := m.addtemplate_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTemplateID resets all changes to the "template_id" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetTemplateID() {
+	m.template_id = nil
+	m.addtemplate_id = nil
+}
+
+// SetTemplateCode sets the "template_code" field.
+func (m *EsportsCloseFormSnapshotMutation) SetTemplateCode(s string) {
+	m.template_code = &s
+}
+
+// TemplateCode returns the value of the "template_code" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) TemplateCode() (r string, exists bool) {
+	v := m.template_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTemplateCode returns the old "template_code" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldTemplateCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTemplateCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTemplateCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTemplateCode: %w", err)
+	}
+	return oldValue.TemplateCode, nil
+}
+
+// ResetTemplateCode resets all changes to the "template_code" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetTemplateCode() {
+	m.template_code = nil
+}
+
+// SetTemplateVersion sets the "template_version" field.
+func (m *EsportsCloseFormSnapshotMutation) SetTemplateVersion(i int) {
+	m.template_version = &i
+	m.addtemplate_version = nil
+}
+
+// TemplateVersion returns the value of the "template_version" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) TemplateVersion() (r int, exists bool) {
+	v := m.template_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTemplateVersion returns the old "template_version" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldTemplateVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTemplateVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTemplateVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTemplateVersion: %w", err)
+	}
+	return oldValue.TemplateVersion, nil
+}
+
+// AddTemplateVersion adds i to the "template_version" field.
+func (m *EsportsCloseFormSnapshotMutation) AddTemplateVersion(i int) {
+	if m.addtemplate_version != nil {
+		*m.addtemplate_version += i
+	} else {
+		m.addtemplate_version = &i
+	}
+}
+
+// AddedTemplateVersion returns the value that was added to the "template_version" field in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) AddedTemplateVersion() (r int, exists bool) {
+	v := m.addtemplate_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTemplateVersion resets all changes to the "template_version" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetTemplateVersion() {
+	m.template_version = nil
+	m.addtemplate_version = nil
+}
+
+// SetValues sets the "values" field.
+func (m *EsportsCloseFormSnapshotMutation) SetValues(value map[string]interface{}) {
+	m.values = &value
+}
+
+// Values returns the value of the "values" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) Values() (r map[string]interface{}, exists bool) {
+	v := m.values
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValues returns the old "values" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldValues(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValues is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValues requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValues: %w", err)
+	}
+	return oldValue.Values, nil
+}
+
+// ClearValues clears the value of the "values" field.
+func (m *EsportsCloseFormSnapshotMutation) ClearValues() {
+	m.values = nil
+	m.clearedFields[esportscloseformsnapshot.FieldValues] = struct{}{}
+}
+
+// ValuesCleared returns if the "values" field was cleared in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) ValuesCleared() bool {
+	_, ok := m.clearedFields[esportscloseformsnapshot.FieldValues]
+	return ok
+}
+
+// ResetValues resets all changes to the "values" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetValues() {
+	m.values = nil
+	delete(m.clearedFields, esportscloseformsnapshot.FieldValues)
+}
+
+// SetNote sets the "note" field.
+func (m *EsportsCloseFormSnapshotMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetSubmittedByAdminID sets the "submitted_by_admin_id" field.
+func (m *EsportsCloseFormSnapshotMutation) SetSubmittedByAdminID(i int) {
+	m.submitted_by_admin_id = &i
+	m.addsubmitted_by_admin_id = nil
+}
+
+// SubmittedByAdminID returns the value of the "submitted_by_admin_id" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) SubmittedByAdminID() (r int, exists bool) {
+	v := m.submitted_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubmittedByAdminID returns the old "submitted_by_admin_id" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldSubmittedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubmittedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubmittedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubmittedByAdminID: %w", err)
+	}
+	return oldValue.SubmittedByAdminID, nil
+}
+
+// AddSubmittedByAdminID adds i to the "submitted_by_admin_id" field.
+func (m *EsportsCloseFormSnapshotMutation) AddSubmittedByAdminID(i int) {
+	if m.addsubmitted_by_admin_id != nil {
+		*m.addsubmitted_by_admin_id += i
+	} else {
+		m.addsubmitted_by_admin_id = &i
+	}
+}
+
+// AddedSubmittedByAdminID returns the value that was added to the "submitted_by_admin_id" field in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) AddedSubmittedByAdminID() (r int, exists bool) {
+	v := m.addsubmitted_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSubmittedByAdminID clears the value of the "submitted_by_admin_id" field.
+func (m *EsportsCloseFormSnapshotMutation) ClearSubmittedByAdminID() {
+	m.submitted_by_admin_id = nil
+	m.addsubmitted_by_admin_id = nil
+	m.clearedFields[esportscloseformsnapshot.FieldSubmittedByAdminID] = struct{}{}
+}
+
+// SubmittedByAdminIDCleared returns if the "submitted_by_admin_id" field was cleared in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) SubmittedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportscloseformsnapshot.FieldSubmittedByAdminID]
+	return ok
+}
+
+// ResetSubmittedByAdminID resets all changes to the "submitted_by_admin_id" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetSubmittedByAdminID() {
+	m.submitted_by_admin_id = nil
+	m.addsubmitted_by_admin_id = nil
+	delete(m.clearedFields, esportscloseformsnapshot.FieldSubmittedByAdminID)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCloseFormSnapshotMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCloseFormSnapshotMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCloseFormSnapshot entity.
+// If the EsportsCloseFormSnapshot object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormSnapshotMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCloseFormSnapshotMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the EsportsCloseFormSnapshotMutation builder.
+func (m *EsportsCloseFormSnapshotMutation) Where(ps ...predicate.EsportsCloseFormSnapshot) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCloseFormSnapshotMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCloseFormSnapshotMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCloseFormSnapshot, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCloseFormSnapshotMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCloseFormSnapshotMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCloseFormSnapshot).
+func (m *EsportsCloseFormSnapshotMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCloseFormSnapshotMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.order_id != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldOrderID)
+	}
+	if m.template_id != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldTemplateID)
+	}
+	if m.template_code != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldTemplateCode)
+	}
+	if m.template_version != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldTemplateVersion)
+	}
+	if m.values != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldValues)
+	}
+	if m.note != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldNote)
+	}
+	if m.submitted_by_admin_id != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldSubmittedByAdminID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCloseFormSnapshotMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseformsnapshot.FieldOrderID:
+		return m.OrderID()
+	case esportscloseformsnapshot.FieldTemplateID:
+		return m.TemplateID()
+	case esportscloseformsnapshot.FieldTemplateCode:
+		return m.TemplateCode()
+	case esportscloseformsnapshot.FieldTemplateVersion:
+		return m.TemplateVersion()
+	case esportscloseformsnapshot.FieldValues:
+		return m.Values()
+	case esportscloseformsnapshot.FieldNote:
+		return m.Note()
+	case esportscloseformsnapshot.FieldSubmittedByAdminID:
+		return m.SubmittedByAdminID()
+	case esportscloseformsnapshot.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCloseFormSnapshotMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscloseformsnapshot.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case esportscloseformsnapshot.FieldTemplateID:
+		return m.OldTemplateID(ctx)
+	case esportscloseformsnapshot.FieldTemplateCode:
+		return m.OldTemplateCode(ctx)
+	case esportscloseformsnapshot.FieldTemplateVersion:
+		return m.OldTemplateVersion(ctx)
+	case esportscloseformsnapshot.FieldValues:
+		return m.OldValues(ctx)
+	case esportscloseformsnapshot.FieldNote:
+		return m.OldNote(ctx)
+	case esportscloseformsnapshot.FieldSubmittedByAdminID:
+		return m.OldSubmittedByAdminID(ctx)
+	case esportscloseformsnapshot.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCloseFormSnapshot field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseFormSnapshotMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseformsnapshot.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case esportscloseformsnapshot.FieldTemplateID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTemplateID(v)
+		return nil
+	case esportscloseformsnapshot.FieldTemplateCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTemplateCode(v)
+		return nil
+	case esportscloseformsnapshot.FieldTemplateVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTemplateVersion(v)
+		return nil
+	case esportscloseformsnapshot.FieldValues:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValues(v)
+		return nil
+	case esportscloseformsnapshot.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case esportscloseformsnapshot.FieldSubmittedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubmittedByAdminID(v)
+		return nil
+	case esportscloseformsnapshot.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormSnapshot field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCloseFormSnapshotMutation) AddedFields() []string {
+	var fields []string
+	if m.addorder_id != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldOrderID)
+	}
+	if m.addtemplate_id != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldTemplateID)
+	}
+	if m.addtemplate_version != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldTemplateVersion)
+	}
+	if m.addsubmitted_by_admin_id != nil {
+		fields = append(fields, esportscloseformsnapshot.FieldSubmittedByAdminID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCloseFormSnapshotMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseformsnapshot.FieldOrderID:
+		return m.AddedOrderID()
+	case esportscloseformsnapshot.FieldTemplateID:
+		return m.AddedTemplateID()
+	case esportscloseformsnapshot.FieldTemplateVersion:
+		return m.AddedTemplateVersion()
+	case esportscloseformsnapshot.FieldSubmittedByAdminID:
+		return m.AddedSubmittedByAdminID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseFormSnapshotMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseformsnapshot.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderID(v)
+		return nil
+	case esportscloseformsnapshot.FieldTemplateID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTemplateID(v)
+		return nil
+	case esportscloseformsnapshot.FieldTemplateVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTemplateVersion(v)
+		return nil
+	case esportscloseformsnapshot.FieldSubmittedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubmittedByAdminID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormSnapshot numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCloseFormSnapshotMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportscloseformsnapshot.FieldValues) {
+		fields = append(fields, esportscloseformsnapshot.FieldValues)
+	}
+	if m.FieldCleared(esportscloseformsnapshot.FieldSubmittedByAdminID) {
+		fields = append(fields, esportscloseformsnapshot.FieldSubmittedByAdminID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCloseFormSnapshotMutation) ClearField(name string) error {
+	switch name {
+	case esportscloseformsnapshot.FieldValues:
+		m.ClearValues()
+		return nil
+	case esportscloseformsnapshot.FieldSubmittedByAdminID:
+		m.ClearSubmittedByAdminID()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormSnapshot nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCloseFormSnapshotMutation) ResetField(name string) error {
+	switch name {
+	case esportscloseformsnapshot.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case esportscloseformsnapshot.FieldTemplateID:
+		m.ResetTemplateID()
+		return nil
+	case esportscloseformsnapshot.FieldTemplateCode:
+		m.ResetTemplateCode()
+		return nil
+	case esportscloseformsnapshot.FieldTemplateVersion:
+		m.ResetTemplateVersion()
+		return nil
+	case esportscloseformsnapshot.FieldValues:
+		m.ResetValues()
+		return nil
+	case esportscloseformsnapshot.FieldNote:
+		m.ResetNote()
+		return nil
+	case esportscloseformsnapshot.FieldSubmittedByAdminID:
+		m.ResetSubmittedByAdminID()
+		return nil
+	case esportscloseformsnapshot.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormSnapshot field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCloseFormSnapshotMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCloseFormSnapshotMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseFormSnapshot unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCloseFormSnapshotMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseFormSnapshot edge %s", name)
+}
+
+// EsportsCloseFormTemplateMutation represents an operation that mutates the EsportsCloseFormTemplate nodes in the graph.
+type EsportsCloseFormTemplateMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *int
+	code                   *string
+	name                   *string
+	scope                  *esportscloseformtemplate.Scope
+	scope_key              *string
+	min_cents              *int64
+	addmin_cents           *int64
+	max_cents              *int64
+	addmax_cents           *int64
+	fields                 *[]schematier.CloseFormFieldBinding
+	appendfields           []schematier.CloseFormFieldBinding
+	status                 *esportscloseformtemplate.Status
+	version                *int
+	addversion             *int
+	created_by_admin_id    *int
+	addcreated_by_admin_id *int
+	note                   *string
+	created_at             *time.Time
+	updated_at             *time.Time
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*EsportsCloseFormTemplate, error)
+	predicates             []predicate.EsportsCloseFormTemplate
+}
+
+var _ ent.Mutation = (*EsportsCloseFormTemplateMutation)(nil)
+
+// esportscloseformtemplateOption allows management of the mutation configuration using functional options.
+type esportscloseformtemplateOption func(*EsportsCloseFormTemplateMutation)
+
+// newEsportsCloseFormTemplateMutation creates new mutation for the EsportsCloseFormTemplate entity.
+func newEsportsCloseFormTemplateMutation(c config, op Op, opts ...esportscloseformtemplateOption) *EsportsCloseFormTemplateMutation {
+	m := &EsportsCloseFormTemplateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCloseFormTemplate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCloseFormTemplateID sets the ID field of the mutation.
+func withEsportsCloseFormTemplateID(id int) esportscloseformtemplateOption {
+	return func(m *EsportsCloseFormTemplateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCloseFormTemplate
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCloseFormTemplate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCloseFormTemplate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCloseFormTemplate sets the old EsportsCloseFormTemplate of the mutation.
+func withEsportsCloseFormTemplate(node *EsportsCloseFormTemplate) esportscloseformtemplateOption {
+	return func(m *EsportsCloseFormTemplateMutation) {
+		m.oldValue = func(context.Context) (*EsportsCloseFormTemplate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCloseFormTemplateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCloseFormTemplateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCloseFormTemplateMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCloseFormTemplateMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCloseFormTemplate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCode sets the "code" field.
+func (m *EsportsCloseFormTemplateMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *EsportsCloseFormTemplateMutation) ResetCode() {
+	m.code = nil
+}
+
+// SetName sets the "name" field.
+func (m *EsportsCloseFormTemplateMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *EsportsCloseFormTemplateMutation) ResetName() {
+	m.name = nil
+}
+
+// SetScope sets the "scope" field.
+func (m *EsportsCloseFormTemplateMutation) SetScope(e esportscloseformtemplate.Scope) {
+	m.scope = &e
+}
+
+// Scope returns the value of the "scope" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) Scope() (r esportscloseformtemplate.Scope, exists bool) {
+	v := m.scope
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScope returns the old "scope" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldScope(ctx context.Context) (v esportscloseformtemplate.Scope, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScope is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScope requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScope: %w", err)
+	}
+	return oldValue.Scope, nil
+}
+
+// ResetScope resets all changes to the "scope" field.
+func (m *EsportsCloseFormTemplateMutation) ResetScope() {
+	m.scope = nil
+}
+
+// SetScopeKey sets the "scope_key" field.
+func (m *EsportsCloseFormTemplateMutation) SetScopeKey(s string) {
+	m.scope_key = &s
+}
+
+// ScopeKey returns the value of the "scope_key" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) ScopeKey() (r string, exists bool) {
+	v := m.scope_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeKey returns the old "scope_key" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldScopeKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeKey: %w", err)
+	}
+	return oldValue.ScopeKey, nil
+}
+
+// ResetScopeKey resets all changes to the "scope_key" field.
+func (m *EsportsCloseFormTemplateMutation) ResetScopeKey() {
+	m.scope_key = nil
+}
+
+// SetMinCents sets the "min_cents" field.
+func (m *EsportsCloseFormTemplateMutation) SetMinCents(i int64) {
+	m.min_cents = &i
+	m.addmin_cents = nil
+}
+
+// MinCents returns the value of the "min_cents" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) MinCents() (r int64, exists bool) {
+	v := m.min_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinCents returns the old "min_cents" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldMinCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinCents: %w", err)
+	}
+	return oldValue.MinCents, nil
+}
+
+// AddMinCents adds i to the "min_cents" field.
+func (m *EsportsCloseFormTemplateMutation) AddMinCents(i int64) {
+	if m.addmin_cents != nil {
+		*m.addmin_cents += i
+	} else {
+		m.addmin_cents = &i
+	}
+}
+
+// AddedMinCents returns the value that was added to the "min_cents" field in this mutation.
+func (m *EsportsCloseFormTemplateMutation) AddedMinCents() (r int64, exists bool) {
+	v := m.addmin_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMinCents resets all changes to the "min_cents" field.
+func (m *EsportsCloseFormTemplateMutation) ResetMinCents() {
+	m.min_cents = nil
+	m.addmin_cents = nil
+}
+
+// SetMaxCents sets the "max_cents" field.
+func (m *EsportsCloseFormTemplateMutation) SetMaxCents(i int64) {
+	m.max_cents = &i
+	m.addmax_cents = nil
+}
+
+// MaxCents returns the value of the "max_cents" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) MaxCents() (r int64, exists bool) {
+	v := m.max_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxCents returns the old "max_cents" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldMaxCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxCents: %w", err)
+	}
+	return oldValue.MaxCents, nil
+}
+
+// AddMaxCents adds i to the "max_cents" field.
+func (m *EsportsCloseFormTemplateMutation) AddMaxCents(i int64) {
+	if m.addmax_cents != nil {
+		*m.addmax_cents += i
+	} else {
+		m.addmax_cents = &i
+	}
+}
+
+// AddedMaxCents returns the value that was added to the "max_cents" field in this mutation.
+func (m *EsportsCloseFormTemplateMutation) AddedMaxCents() (r int64, exists bool) {
+	v := m.addmax_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxCents resets all changes to the "max_cents" field.
+func (m *EsportsCloseFormTemplateMutation) ResetMaxCents() {
+	m.max_cents = nil
+	m.addmax_cents = nil
+}
+
+// SetFields sets the "fields" field.
+func (m *EsportsCloseFormTemplateMutation) SetFields(sffb []schematier.CloseFormFieldBinding) {
+	m.fields = &sffb
+	m.appendfields = nil
+}
+
+// GetFields returns the value of the "fields" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) GetFields() (r []schematier.CloseFormFieldBinding, exists bool) {
+	v := m.fields
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFields returns the old "fields" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldFields(ctx context.Context) (v []schematier.CloseFormFieldBinding, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFields is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFields requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFields: %w", err)
+	}
+	return oldValue.Fields, nil
+}
+
+// AppendFields adds sffb to the "fields" field.
+func (m *EsportsCloseFormTemplateMutation) AppendFields(sffb []schematier.CloseFormFieldBinding) {
+	m.appendfields = append(m.appendfields, sffb...)
+}
+
+// AppendedFields returns the list of values that were appended to the "fields" field in this mutation.
+func (m *EsportsCloseFormTemplateMutation) AppendedFields() ([]schematier.CloseFormFieldBinding, bool) {
+	if len(m.appendfields) == 0 {
+		return nil, false
+	}
+	return m.appendfields, true
+}
+
+// ClearFields clears the value of the "fields" field.
+func (m *EsportsCloseFormTemplateMutation) ClearFields() {
+	m.fields = nil
+	m.appendfields = nil
+	m.clearedFields[esportscloseformtemplate.FieldFields] = struct{}{}
+}
+
+// FieldsCleared returns if the "fields" field was cleared in this mutation.
+func (m *EsportsCloseFormTemplateMutation) FieldsCleared() bool {
+	_, ok := m.clearedFields[esportscloseformtemplate.FieldFields]
+	return ok
+}
+
+// ResetFields resets all changes to the "fields" field.
+func (m *EsportsCloseFormTemplateMutation) ResetFields() {
+	m.fields = nil
+	m.appendfields = nil
+	delete(m.clearedFields, esportscloseformtemplate.FieldFields)
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsCloseFormTemplateMutation) SetStatus(e esportscloseformtemplate.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) Status() (r esportscloseformtemplate.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldStatus(ctx context.Context) (v esportscloseformtemplate.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsCloseFormTemplateMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsCloseFormTemplateMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsCloseFormTemplateMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsCloseFormTemplateMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsCloseFormTemplateMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedByAdminID sets the "created_by_admin_id" field.
+func (m *EsportsCloseFormTemplateMutation) SetCreatedByAdminID(i int) {
+	m.created_by_admin_id = &i
+	m.addcreated_by_admin_id = nil
+}
+
+// CreatedByAdminID returns the value of the "created_by_admin_id" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) CreatedByAdminID() (r int, exists bool) {
+	v := m.created_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedByAdminID returns the old "created_by_admin_id" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldCreatedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedByAdminID: %w", err)
+	}
+	return oldValue.CreatedByAdminID, nil
+}
+
+// AddCreatedByAdminID adds i to the "created_by_admin_id" field.
+func (m *EsportsCloseFormTemplateMutation) AddCreatedByAdminID(i int) {
+	if m.addcreated_by_admin_id != nil {
+		*m.addcreated_by_admin_id += i
+	} else {
+		m.addcreated_by_admin_id = &i
+	}
+}
+
+// AddedCreatedByAdminID returns the value that was added to the "created_by_admin_id" field in this mutation.
+func (m *EsportsCloseFormTemplateMutation) AddedCreatedByAdminID() (r int, exists bool) {
+	v := m.addcreated_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreatedByAdminID clears the value of the "created_by_admin_id" field.
+func (m *EsportsCloseFormTemplateMutation) ClearCreatedByAdminID() {
+	m.created_by_admin_id = nil
+	m.addcreated_by_admin_id = nil
+	m.clearedFields[esportscloseformtemplate.FieldCreatedByAdminID] = struct{}{}
+}
+
+// CreatedByAdminIDCleared returns if the "created_by_admin_id" field was cleared in this mutation.
+func (m *EsportsCloseFormTemplateMutation) CreatedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportscloseformtemplate.FieldCreatedByAdminID]
+	return ok
+}
+
+// ResetCreatedByAdminID resets all changes to the "created_by_admin_id" field.
+func (m *EsportsCloseFormTemplateMutation) ResetCreatedByAdminID() {
+	m.created_by_admin_id = nil
+	m.addcreated_by_admin_id = nil
+	delete(m.clearedFields, esportscloseformtemplate.FieldCreatedByAdminID)
+}
+
+// SetNote sets the "note" field.
+func (m *EsportsCloseFormTemplateMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *EsportsCloseFormTemplateMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCloseFormTemplateMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCloseFormTemplateMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsCloseFormTemplateMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsCloseFormTemplateMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsCloseFormTemplate entity.
+// If the EsportsCloseFormTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCloseFormTemplateMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsCloseFormTemplateMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsCloseFormTemplateMutation builder.
+func (m *EsportsCloseFormTemplateMutation) Where(ps ...predicate.EsportsCloseFormTemplate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCloseFormTemplateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCloseFormTemplateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCloseFormTemplate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCloseFormTemplateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCloseFormTemplateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCloseFormTemplate).
+func (m *EsportsCloseFormTemplateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCloseFormTemplateMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.code != nil {
+		fields = append(fields, esportscloseformtemplate.FieldCode)
+	}
+	if m.name != nil {
+		fields = append(fields, esportscloseformtemplate.FieldName)
+	}
+	if m.scope != nil {
+		fields = append(fields, esportscloseformtemplate.FieldScope)
+	}
+	if m.scope_key != nil {
+		fields = append(fields, esportscloseformtemplate.FieldScopeKey)
+	}
+	if m.min_cents != nil {
+		fields = append(fields, esportscloseformtemplate.FieldMinCents)
+	}
+	if m.max_cents != nil {
+		fields = append(fields, esportscloseformtemplate.FieldMaxCents)
+	}
+	if m.fields != nil {
+		fields = append(fields, esportscloseformtemplate.FieldFields)
+	}
+	if m.status != nil {
+		fields = append(fields, esportscloseformtemplate.FieldStatus)
+	}
+	if m.version != nil {
+		fields = append(fields, esportscloseformtemplate.FieldVersion)
+	}
+	if m.created_by_admin_id != nil {
+		fields = append(fields, esportscloseformtemplate.FieldCreatedByAdminID)
+	}
+	if m.note != nil {
+		fields = append(fields, esportscloseformtemplate.FieldNote)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscloseformtemplate.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportscloseformtemplate.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCloseFormTemplateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseformtemplate.FieldCode:
+		return m.Code()
+	case esportscloseformtemplate.FieldName:
+		return m.Name()
+	case esportscloseformtemplate.FieldScope:
+		return m.Scope()
+	case esportscloseformtemplate.FieldScopeKey:
+		return m.ScopeKey()
+	case esportscloseformtemplate.FieldMinCents:
+		return m.MinCents()
+	case esportscloseformtemplate.FieldMaxCents:
+		return m.MaxCents()
+	case esportscloseformtemplate.FieldFields:
+		return m.GetFields()
+	case esportscloseformtemplate.FieldStatus:
+		return m.Status()
+	case esportscloseformtemplate.FieldVersion:
+		return m.Version()
+	case esportscloseformtemplate.FieldCreatedByAdminID:
+		return m.CreatedByAdminID()
+	case esportscloseformtemplate.FieldNote:
+		return m.Note()
+	case esportscloseformtemplate.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportscloseformtemplate.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCloseFormTemplateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscloseformtemplate.FieldCode:
+		return m.OldCode(ctx)
+	case esportscloseformtemplate.FieldName:
+		return m.OldName(ctx)
+	case esportscloseformtemplate.FieldScope:
+		return m.OldScope(ctx)
+	case esportscloseformtemplate.FieldScopeKey:
+		return m.OldScopeKey(ctx)
+	case esportscloseformtemplate.FieldMinCents:
+		return m.OldMinCents(ctx)
+	case esportscloseformtemplate.FieldMaxCents:
+		return m.OldMaxCents(ctx)
+	case esportscloseformtemplate.FieldFields:
+		return m.OldFields(ctx)
+	case esportscloseformtemplate.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportscloseformtemplate.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportscloseformtemplate.FieldCreatedByAdminID:
+		return m.OldCreatedByAdminID(ctx)
+	case esportscloseformtemplate.FieldNote:
+		return m.OldNote(ctx)
+	case esportscloseformtemplate.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportscloseformtemplate.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCloseFormTemplate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseFormTemplateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseformtemplate.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
+	case esportscloseformtemplate.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case esportscloseformtemplate.FieldScope:
+		v, ok := value.(esportscloseformtemplate.Scope)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScope(v)
+		return nil
+	case esportscloseformtemplate.FieldScopeKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeKey(v)
+		return nil
+	case esportscloseformtemplate.FieldMinCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinCents(v)
+		return nil
+	case esportscloseformtemplate.FieldMaxCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxCents(v)
+		return nil
+	case esportscloseformtemplate.FieldFields:
+		v, ok := value.([]schematier.CloseFormFieldBinding)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFields(v)
+		return nil
+	case esportscloseformtemplate.FieldStatus:
+		v, ok := value.(esportscloseformtemplate.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportscloseformtemplate.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportscloseformtemplate.FieldCreatedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedByAdminID(v)
+		return nil
+	case esportscloseformtemplate.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case esportscloseformtemplate.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportscloseformtemplate.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormTemplate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCloseFormTemplateMutation) AddedFields() []string {
+	var fields []string
+	if m.addmin_cents != nil {
+		fields = append(fields, esportscloseformtemplate.FieldMinCents)
+	}
+	if m.addmax_cents != nil {
+		fields = append(fields, esportscloseformtemplate.FieldMaxCents)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportscloseformtemplate.FieldVersion)
+	}
+	if m.addcreated_by_admin_id != nil {
+		fields = append(fields, esportscloseformtemplate.FieldCreatedByAdminID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCloseFormTemplateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscloseformtemplate.FieldMinCents:
+		return m.AddedMinCents()
+	case esportscloseformtemplate.FieldMaxCents:
+		return m.AddedMaxCents()
+	case esportscloseformtemplate.FieldVersion:
+		return m.AddedVersion()
+	case esportscloseformtemplate.FieldCreatedByAdminID:
+		return m.AddedCreatedByAdminID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCloseFormTemplateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscloseformtemplate.FieldMinCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMinCents(v)
+		return nil
+	case esportscloseformtemplate.FieldMaxCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxCents(v)
+		return nil
+	case esportscloseformtemplate.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	case esportscloseformtemplate.FieldCreatedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreatedByAdminID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormTemplate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCloseFormTemplateMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportscloseformtemplate.FieldFields) {
+		fields = append(fields, esportscloseformtemplate.FieldFields)
+	}
+	if m.FieldCleared(esportscloseformtemplate.FieldCreatedByAdminID) {
+		fields = append(fields, esportscloseformtemplate.FieldCreatedByAdminID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCloseFormTemplateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCloseFormTemplateMutation) ClearField(name string) error {
+	switch name {
+	case esportscloseformtemplate.FieldFields:
+		m.ClearFields()
+		return nil
+	case esportscloseformtemplate.FieldCreatedByAdminID:
+		m.ClearCreatedByAdminID()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormTemplate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCloseFormTemplateMutation) ResetField(name string) error {
+	switch name {
+	case esportscloseformtemplate.FieldCode:
+		m.ResetCode()
+		return nil
+	case esportscloseformtemplate.FieldName:
+		m.ResetName()
+		return nil
+	case esportscloseformtemplate.FieldScope:
+		m.ResetScope()
+		return nil
+	case esportscloseformtemplate.FieldScopeKey:
+		m.ResetScopeKey()
+		return nil
+	case esportscloseformtemplate.FieldMinCents:
+		m.ResetMinCents()
+		return nil
+	case esportscloseformtemplate.FieldMaxCents:
+		m.ResetMaxCents()
+		return nil
+	case esportscloseformtemplate.FieldFields:
+		m.ResetFields()
+		return nil
+	case esportscloseformtemplate.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportscloseformtemplate.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportscloseformtemplate.FieldCreatedByAdminID:
+		m.ResetCreatedByAdminID()
+		return nil
+	case esportscloseformtemplate.FieldNote:
+		m.ResetNote()
+		return nil
+	case esportscloseformtemplate.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportscloseformtemplate.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCloseFormTemplate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCloseFormTemplateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCloseFormTemplateMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCloseFormTemplateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCloseFormTemplateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCloseFormTemplateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCloseFormTemplateMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCloseFormTemplateMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseFormTemplate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCloseFormTemplateMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCloseFormTemplate edge %s", name)
 }
 
 // EsportsCloseRuleMutation represents an operation that mutates the EsportsCloseRule nodes in the graph.

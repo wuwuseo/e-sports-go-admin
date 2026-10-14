@@ -654,6 +654,95 @@ var (
 			},
 		},
 	}
+	// EsportsCloseFormFieldsColumns holds the columns for the "esports_close_form_fields" table.
+	EsportsCloseFormFieldsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "key", Type: field.TypeString, Size: 48},
+		{Name: "label", Type: field.TypeString, Size: 64},
+		{Name: "field_type", Type: field.TypeEnum, Enums: []string{"text", "number", "money", "select", "multiselect", "datetime", "image", "switch", "reference"}, Default: "text"},
+		{Name: "required", Type: field.TypeBool, Default: false},
+		{Name: "options", Type: field.TypeJSON, Nullable: true},
+		{Name: "max_length", Type: field.TypeInt, Default: 0},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsCloseFormFieldsTable holds the schema information for the "esports_close_form_fields" table.
+	EsportsCloseFormFieldsTable = &schema.Table{
+		Name:       TablePrefix + "esports_close_form_fields",
+		Columns:    EsportsCloseFormFieldsColumns,
+		PrimaryKey: []*schema.Column{EsportsCloseFormFieldsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportscloseformfield_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCloseFormFieldsColumns[1]},
+			},
+		},
+	}
+	// EsportsCloseFormSnapshotsColumns holds the columns for the "esports_close_form_snapshots" table.
+	EsportsCloseFormSnapshotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "order_id", Type: field.TypeInt},
+		{Name: "template_id", Type: field.TypeInt, Default: 0},
+		{Name: "template_code", Type: field.TypeString, Size: 48, Default: ""},
+		{Name: "template_version", Type: field.TypeInt, Default: 0},
+		{Name: "values", Type: field.TypeJSON, Nullable: true},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "submitted_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// EsportsCloseFormSnapshotsTable holds the schema information for the "esports_close_form_snapshots" table.
+	EsportsCloseFormSnapshotsTable = &schema.Table{
+		Name:       TablePrefix + "esports_close_form_snapshots",
+		Columns:    EsportsCloseFormSnapshotsColumns,
+		PrimaryKey: []*schema.Column{EsportsCloseFormSnapshotsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportscloseformsnapshot_order_id",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCloseFormSnapshotsColumns[1]},
+			},
+		},
+	}
+	// EsportsCloseFormTemplatesColumns holds the columns for the "esports_close_form_templates" table.
+	EsportsCloseFormTemplatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "code", Type: field.TypeString, Size: 48},
+		{Name: "name", Type: field.TypeString, Size: 64},
+		{Name: "scope", Type: field.TypeEnum, Enums: []string{"global", "game", "sku"}, Default: "global"},
+		{Name: "scope_key", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "min_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "max_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "fields", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "history"}, Default: "draft"},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsCloseFormTemplatesTable holds the schema information for the "esports_close_form_templates" table.
+	EsportsCloseFormTemplatesTable = &schema.Table{
+		Name:       TablePrefix + "esports_close_form_templates",
+		Columns:    EsportsCloseFormTemplatesColumns,
+		PrimaryKey: []*schema.Column{EsportsCloseFormTemplatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportscloseformtemplate_code_version",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCloseFormTemplatesColumns[1], EsportsCloseFormTemplatesColumns[9]},
+			},
+			{
+				Name:    "esportscloseformtemplate_status_scope",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCloseFormTemplatesColumns[8], EsportsCloseFormTemplatesColumns[3]},
+			},
+		},
+	}
 	// EsportsCloseRulesColumns holds the columns for the "esports_close_rules" table.
 	EsportsCloseRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -2919,6 +3008,9 @@ var (
 		EsportsAssessmentAppealsTable,
 		EsportsAssessmentRulesTable,
 		EsportsAssessmentScoresTable,
+		EsportsCloseFormFieldsTable,
+		EsportsCloseFormSnapshotsTable,
+		EsportsCloseFormTemplatesTable,
 		EsportsCloseRulesTable,
 		EsportsCommissionEntriesTable,
 		EsportsCommissionRulesTable,

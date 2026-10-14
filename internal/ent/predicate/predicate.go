@@ -60,6 +60,15 @@ type EsportsAssessmentRule func(*sql.Selector)
 // EsportsAssessmentScore is the predicate function for esportsassessmentscore builders.
 type EsportsAssessmentScore func(*sql.Selector)
 
+// EsportsCloseFormField is the predicate function for esportscloseformfield builders.
+type EsportsCloseFormField func(*sql.Selector)
+
+// EsportsCloseFormSnapshot is the predicate function for esportscloseformsnapshot builders.
+type EsportsCloseFormSnapshot func(*sql.Selector)
+
+// EsportsCloseFormTemplate is the predicate function for esportscloseformtemplate builders.
+type EsportsCloseFormTemplate func(*sql.Selector)
+
 // EsportsCloseRule is the predicate function for esportscloserule builders.
 type EsportsCloseRule func(*sql.Selector)
 

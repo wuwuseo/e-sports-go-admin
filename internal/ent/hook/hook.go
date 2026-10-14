@@ -224,6 +224,42 @@ func (f EsportsAssessmentScoreFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsAssessmentScoreMutation", m)
 }
 
+// The EsportsCloseFormFieldFunc type is an adapter to allow the use of ordinary
+// function as EsportsCloseFormField mutator.
+type EsportsCloseFormFieldFunc func(context.Context, *ent.EsportsCloseFormFieldMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCloseFormFieldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCloseFormFieldMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCloseFormFieldMutation", m)
+}
+
+// The EsportsCloseFormSnapshotFunc type is an adapter to allow the use of ordinary
+// function as EsportsCloseFormSnapshot mutator.
+type EsportsCloseFormSnapshotFunc func(context.Context, *ent.EsportsCloseFormSnapshotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCloseFormSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCloseFormSnapshotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCloseFormSnapshotMutation", m)
+}
+
+// The EsportsCloseFormTemplateFunc type is an adapter to allow the use of ordinary
+// function as EsportsCloseFormTemplate mutator.
+type EsportsCloseFormTemplateFunc func(context.Context, *ent.EsportsCloseFormTemplateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCloseFormTemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCloseFormTemplateMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCloseFormTemplateMutation", m)
+}
+
 // The EsportsCloseRuleFunc type is an adapter to allow the use of ordinary
 // function as EsportsCloseRule mutator.
 type EsportsCloseRuleFunc func(context.Context, *ent.EsportsCloseRuleMutation) (ent.Value, error)

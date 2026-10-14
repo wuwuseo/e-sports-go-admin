@@ -20,6 +20,9 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseformfield"
+	"go-admin/internal/ent/esportscloseformsnapshot"
+	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscloserule"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
@@ -190,6 +193,21 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsassessmentscore.TablePrefix
 		esportsassessmentscore.TablePrefix = prefix
 		esportsassessmentscore.Table = prefix + strings.TrimPrefix(esportsassessmentscore.Table, old)
+	}
+	{
+		old := esportscloseformfield.TablePrefix
+		esportscloseformfield.TablePrefix = prefix
+		esportscloseformfield.Table = prefix + strings.TrimPrefix(esportscloseformfield.Table, old)
+	}
+	{
+		old := esportscloseformsnapshot.TablePrefix
+		esportscloseformsnapshot.TablePrefix = prefix
+		esportscloseformsnapshot.Table = prefix + strings.TrimPrefix(esportscloseformsnapshot.Table, old)
+	}
+	{
+		old := esportscloseformtemplate.TablePrefix
+		esportscloseformtemplate.TablePrefix = prefix
+		esportscloseformtemplate.Table = prefix + strings.TrimPrefix(esportscloseformtemplate.Table, old)
 	}
 	{
 		old := esportscloserule.TablePrefix

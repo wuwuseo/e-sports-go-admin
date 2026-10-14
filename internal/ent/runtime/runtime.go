@@ -21,6 +21,9 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscloseformfield"
+	"go-admin/internal/ent/esportscloseformsnapshot"
+	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscloserule"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
@@ -1050,6 +1053,178 @@ func init() {
 	esportsassessmentscoreDescCreatedAt := esportsassessmentscoreFields[5].Descriptor()
 	// esportsassessmentscore.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsassessmentscore.DefaultCreatedAt = esportsassessmentscoreDescCreatedAt.Default.(func() time.Time)
+	esportscloseformfieldFields := schema.EsportsCloseFormField{}.Fields()
+	_ = esportscloseformfieldFields
+	// esportscloseformfieldDescKey is the schema descriptor for key field.
+	esportscloseformfieldDescKey := esportscloseformfieldFields[0].Descriptor()
+	// esportscloseformfield.KeyValidator is a validator for the "key" field. It is called by the builders before save.
+	esportscloseformfield.KeyValidator = func() func(string) error {
+		validators := esportscloseformfieldDescKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(key string) error {
+			for _, fn := range fns {
+				if err := fn(key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscloseformfieldDescLabel is the schema descriptor for label field.
+	esportscloseformfieldDescLabel := esportscloseformfieldFields[1].Descriptor()
+	// esportscloseformfield.LabelValidator is a validator for the "label" field. It is called by the builders before save.
+	esportscloseformfield.LabelValidator = func() func(string) error {
+		validators := esportscloseformfieldDescLabel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(label string) error {
+			for _, fn := range fns {
+				if err := fn(label); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscloseformfieldDescRequired is the schema descriptor for required field.
+	esportscloseformfieldDescRequired := esportscloseformfieldFields[3].Descriptor()
+	// esportscloseformfield.DefaultRequired holds the default value on creation for the required field.
+	esportscloseformfield.DefaultRequired = esportscloseformfieldDescRequired.Default.(bool)
+	// esportscloseformfieldDescMaxLength is the schema descriptor for max_length field.
+	esportscloseformfieldDescMaxLength := esportscloseformfieldFields[5].Descriptor()
+	// esportscloseformfield.DefaultMaxLength holds the default value on creation for the max_length field.
+	esportscloseformfield.DefaultMaxLength = esportscloseformfieldDescMaxLength.Default.(int)
+	// esportscloseformfieldDescEnabled is the schema descriptor for enabled field.
+	esportscloseformfieldDescEnabled := esportscloseformfieldFields[6].Descriptor()
+	// esportscloseformfield.DefaultEnabled holds the default value on creation for the enabled field.
+	esportscloseformfield.DefaultEnabled = esportscloseformfieldDescEnabled.Default.(bool)
+	// esportscloseformfieldDescSortOrder is the schema descriptor for sort_order field.
+	esportscloseformfieldDescSortOrder := esportscloseformfieldFields[7].Descriptor()
+	// esportscloseformfield.DefaultSortOrder holds the default value on creation for the sort_order field.
+	esportscloseformfield.DefaultSortOrder = esportscloseformfieldDescSortOrder.Default.(int)
+	// esportscloseformfieldDescNote is the schema descriptor for note field.
+	esportscloseformfieldDescNote := esportscloseformfieldFields[8].Descriptor()
+	// esportscloseformfield.DefaultNote holds the default value on creation for the note field.
+	esportscloseformfield.DefaultNote = esportscloseformfieldDescNote.Default.(string)
+	// esportscloseformfield.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	esportscloseformfield.NoteValidator = esportscloseformfieldDescNote.Validators[0].(func(string) error)
+	// esportscloseformfieldDescVersion is the schema descriptor for version field.
+	esportscloseformfieldDescVersion := esportscloseformfieldFields[9].Descriptor()
+	// esportscloseformfield.DefaultVersion holds the default value on creation for the version field.
+	esportscloseformfield.DefaultVersion = esportscloseformfieldDescVersion.Default.(int)
+	// esportscloseformfieldDescCreatedAt is the schema descriptor for created_at field.
+	esportscloseformfieldDescCreatedAt := esportscloseformfieldFields[10].Descriptor()
+	// esportscloseformfield.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscloseformfield.DefaultCreatedAt = esportscloseformfieldDescCreatedAt.Default.(func() time.Time)
+	// esportscloseformfieldDescUpdatedAt is the schema descriptor for updated_at field.
+	esportscloseformfieldDescUpdatedAt := esportscloseformfieldFields[11].Descriptor()
+	// esportscloseformfield.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportscloseformfield.DefaultUpdatedAt = esportscloseformfieldDescUpdatedAt.Default.(func() time.Time)
+	// esportscloseformfield.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportscloseformfield.UpdateDefaultUpdatedAt = esportscloseformfieldDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportscloseformsnapshotFields := schema.EsportsCloseFormSnapshot{}.Fields()
+	_ = esportscloseformsnapshotFields
+	// esportscloseformsnapshotDescTemplateID is the schema descriptor for template_id field.
+	esportscloseformsnapshotDescTemplateID := esportscloseformsnapshotFields[1].Descriptor()
+	// esportscloseformsnapshot.DefaultTemplateID holds the default value on creation for the template_id field.
+	esportscloseformsnapshot.DefaultTemplateID = esportscloseformsnapshotDescTemplateID.Default.(int)
+	// esportscloseformsnapshotDescTemplateCode is the schema descriptor for template_code field.
+	esportscloseformsnapshotDescTemplateCode := esportscloseformsnapshotFields[2].Descriptor()
+	// esportscloseformsnapshot.DefaultTemplateCode holds the default value on creation for the template_code field.
+	esportscloseformsnapshot.DefaultTemplateCode = esportscloseformsnapshotDescTemplateCode.Default.(string)
+	// esportscloseformsnapshot.TemplateCodeValidator is a validator for the "template_code" field. It is called by the builders before save.
+	esportscloseformsnapshot.TemplateCodeValidator = esportscloseformsnapshotDescTemplateCode.Validators[0].(func(string) error)
+	// esportscloseformsnapshotDescTemplateVersion is the schema descriptor for template_version field.
+	esportscloseformsnapshotDescTemplateVersion := esportscloseformsnapshotFields[3].Descriptor()
+	// esportscloseformsnapshot.DefaultTemplateVersion holds the default value on creation for the template_version field.
+	esportscloseformsnapshot.DefaultTemplateVersion = esportscloseformsnapshotDescTemplateVersion.Default.(int)
+	// esportscloseformsnapshotDescNote is the schema descriptor for note field.
+	esportscloseformsnapshotDescNote := esportscloseformsnapshotFields[5].Descriptor()
+	// esportscloseformsnapshot.DefaultNote holds the default value on creation for the note field.
+	esportscloseformsnapshot.DefaultNote = esportscloseformsnapshotDescNote.Default.(string)
+	// esportscloseformsnapshot.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	esportscloseformsnapshot.NoteValidator = esportscloseformsnapshotDescNote.Validators[0].(func(string) error)
+	// esportscloseformsnapshotDescCreatedAt is the schema descriptor for created_at field.
+	esportscloseformsnapshotDescCreatedAt := esportscloseformsnapshotFields[7].Descriptor()
+	// esportscloseformsnapshot.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscloseformsnapshot.DefaultCreatedAt = esportscloseformsnapshotDescCreatedAt.Default.(func() time.Time)
+	esportscloseformtemplateFields := schema.EsportsCloseFormTemplate{}.Fields()
+	_ = esportscloseformtemplateFields
+	// esportscloseformtemplateDescCode is the schema descriptor for code field.
+	esportscloseformtemplateDescCode := esportscloseformtemplateFields[0].Descriptor()
+	// esportscloseformtemplate.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	esportscloseformtemplate.CodeValidator = func() func(string) error {
+		validators := esportscloseformtemplateDescCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(code string) error {
+			for _, fn := range fns {
+				if err := fn(code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscloseformtemplateDescName is the schema descriptor for name field.
+	esportscloseformtemplateDescName := esportscloseformtemplateFields[1].Descriptor()
+	// esportscloseformtemplate.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	esportscloseformtemplate.NameValidator = func() func(string) error {
+		validators := esportscloseformtemplateDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscloseformtemplateDescScopeKey is the schema descriptor for scope_key field.
+	esportscloseformtemplateDescScopeKey := esportscloseformtemplateFields[3].Descriptor()
+	// esportscloseformtemplate.DefaultScopeKey holds the default value on creation for the scope_key field.
+	esportscloseformtemplate.DefaultScopeKey = esportscloseformtemplateDescScopeKey.Default.(string)
+	// esportscloseformtemplate.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	esportscloseformtemplate.ScopeKeyValidator = esportscloseformtemplateDescScopeKey.Validators[0].(func(string) error)
+	// esportscloseformtemplateDescMinCents is the schema descriptor for min_cents field.
+	esportscloseformtemplateDescMinCents := esportscloseformtemplateFields[4].Descriptor()
+	// esportscloseformtemplate.DefaultMinCents holds the default value on creation for the min_cents field.
+	esportscloseformtemplate.DefaultMinCents = esportscloseformtemplateDescMinCents.Default.(int64)
+	// esportscloseformtemplateDescMaxCents is the schema descriptor for max_cents field.
+	esportscloseformtemplateDescMaxCents := esportscloseformtemplateFields[5].Descriptor()
+	// esportscloseformtemplate.DefaultMaxCents holds the default value on creation for the max_cents field.
+	esportscloseformtemplate.DefaultMaxCents = esportscloseformtemplateDescMaxCents.Default.(int64)
+	// esportscloseformtemplateDescVersion is the schema descriptor for version field.
+	esportscloseformtemplateDescVersion := esportscloseformtemplateFields[8].Descriptor()
+	// esportscloseformtemplate.DefaultVersion holds the default value on creation for the version field.
+	esportscloseformtemplate.DefaultVersion = esportscloseformtemplateDescVersion.Default.(int)
+	// esportscloseformtemplateDescNote is the schema descriptor for note field.
+	esportscloseformtemplateDescNote := esportscloseformtemplateFields[10].Descriptor()
+	// esportscloseformtemplate.DefaultNote holds the default value on creation for the note field.
+	esportscloseformtemplate.DefaultNote = esportscloseformtemplateDescNote.Default.(string)
+	// esportscloseformtemplate.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	esportscloseformtemplate.NoteValidator = esportscloseformtemplateDescNote.Validators[0].(func(string) error)
+	// esportscloseformtemplateDescCreatedAt is the schema descriptor for created_at field.
+	esportscloseformtemplateDescCreatedAt := esportscloseformtemplateFields[11].Descriptor()
+	// esportscloseformtemplate.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscloseformtemplate.DefaultCreatedAt = esportscloseformtemplateDescCreatedAt.Default.(func() time.Time)
+	// esportscloseformtemplateDescUpdatedAt is the schema descriptor for updated_at field.
+	esportscloseformtemplateDescUpdatedAt := esportscloseformtemplateFields[12].Descriptor()
+	// esportscloseformtemplate.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportscloseformtemplate.DefaultUpdatedAt = esportscloseformtemplateDescUpdatedAt.Default.(func() time.Time)
+	// esportscloseformtemplate.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportscloseformtemplate.UpdateDefaultUpdatedAt = esportscloseformtemplateDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportscloseruleFields := schema.EsportsCloseRule{}.Fields()
 	_ = esportscloseruleFields
 	// esportscloseruleDescCode is the schema descriptor for code field.
