@@ -129,6 +129,15 @@ func checkCloseApprovalTimeoutTask(ctx context.Context, logger io.Writer) error 
 	return err
 }
 
+// flagHighRiskCustomersTask 按风控阈值把高频退款客户标记为「疑似滥用复核」（§13.7，不自动处罚）。
+func flagHighRiskCustomersTask(ctx context.Context, logger io.Writer) error {
+	count, err := flagHighRiskCustomers(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "处理高频退款客户风控标记：%d\n", count)
+	}
+	return err
+}
+
 // applyMemberDowngradeTask 执行等级保护期已到期的客户降级（§10.3）。
 func applyMemberDowngradeTask(ctx context.Context, logger io.Writer) error {
 	count, err := applyMemberDowngrades(ctx, global.ORM, time.Now(), 200)
@@ -153,6 +162,7 @@ func init() {
 		tasks.Register("esports_generate_cs_settlements", generateCsSettlementsTask)
 		tasks.Register("esports_check_aftersale_sla", checkAfterSaleSLATask)
 		tasks.Register("esports_check_close_approval_timeout", checkCloseApprovalTimeoutTask)
+		tasks.Register("esports_flag_high_risk_customers", flagHighRiskCustomersTask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
@@ -302,6 +312,9 @@ func init() {
 			{Method: "POST", Path: "/admin/player-recoveries/:id/approve", Auth: cmfapp.AuthAdmin, Handler: approvePlayerRecoveryHandler},
 			{Method: "POST", Path: "/admin/player-recoveries/:id/reject", Auth: cmfapp.AuthAdmin, Handler: rejectPlayerRecoveryHandler},
 			{Method: "POST", Path: "/admin/player-recoveries/:id/execute", Auth: cmfapp.AuthAdmin, Handler: executePlayerRecoveryHandler},
+			// 客户风控（§13.7）：风险名单与人工标记 / 解除。
+			{Method: "GET", Path: "/admin/risk-customers", Auth: cmfapp.AuthAdmin, Handler: listRiskCustomersHandler},
+			{Method: "POST", Path: "/admin/customers/:id/risk", Auth: cmfapp.AuthAdmin, Handler: markCustomerRiskHandler},
 			{Method: "GET", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: adminSettlements},
 			{Method: "POST", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: createSettlementHandler},
 			{Method: "POST", Path: "/admin/settlements/:id/lock", Auth: cmfapp.AuthAdmin, Handler: lockSettlementHandler},
@@ -371,6 +384,8 @@ func init() {
 			{Method: "POST", Path: "/user/player/assessments/:id/appeal", Auth: cmfapp.AuthUser, Handler: playerAppealHandler},
 			// 客户自助：已完成订单的服务评价（§7.5）。
 			{Method: "POST", Path: "/user/orders/:id/reviews", Auth: cmfapp.AuthUser, Handler: userSubmitReviewHandler},
+			// 客户自助下单（§13.2）：须已绑定登录身份、成年且未被限制自助下单（§13.7）。
+			{Method: "POST", Path: "/user/orders", Auth: cmfapp.AuthUser, Handler: userPlaceOrderHandler},
 			// 陪玩端自助：我的追偿明细（§13.4）。
 			{Method: "GET", Path: "/user/player/recoveries", Auth: cmfapp.AuthUser, Handler: playerRecoveriesHandler},
 			// 客户自助：售后方（§13.3）确认 / 拒绝待确认方案。
@@ -653,6 +668,11 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "新增话术", Code: "esports:scripts:create", Path: "/api/v1/esports/admin/scripts", Method: "POST", Parent: "esports:cs:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑话术", Code: "esports:scripts:update", Path: "/api/v1/esports/admin/scripts/{id}", Method: "PUT", Parent: "esports:cs:menu"},
 			{Type: cmfapp.PermAPI, Name: "启停话术", Code: "esports:scripts:status", Path: "/api/v1/esports/admin/scripts/{id}/status", Method: "POST", Parent: "esports:cs:menu"},
+			// 风险客户（§13.7）：风险名单与人工标记 / 解除。
+			{Type: cmfapp.PermMenu, Name: "风险客户", Code: "esports:risk:menu", MenuPath: "/esports/risk-customers", Component: "esports/risk-customers/index", Icon: "icon-exclamation-circle", SortOrder: 49},
+			{Type: cmfapp.PermAPI, Name: "查看风险客户", Code: "esports:cs:risk_customers", Path: "/api/v1/esports/admin/risk-customers", Method: "GET", Parent: "esports:risk:menu"},
+			{Type: cmfapp.PermAPI, Name: "标记客户风险", Code: "esports:cs:risk_mark", Path: "/api/v1/esports/admin/customers/{id}/risk", Method: "POST", Parent: "esports:risk:menu"},
+			{Type: cmfapp.PermButton, Name: "风险客户操作按钮", Code: "esports:risk:manage", Parent: "esports:risk:menu"},
 			{Type: cmfapp.PermButton, Name: "客服工作台操作按钮", Code: "esports:cs:manage", Parent: "esports:cs:menu"},
 
 			// 储值卡模块（§4.4）：预付账户开卡、余额与流水、退卡审核。

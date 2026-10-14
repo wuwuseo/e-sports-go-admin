@@ -298,9 +298,15 @@ func existingOrder(ctx context.Context, db *ent.Client, principal, key, hash str
 // placeOrder is an instant-order slice. Appointment and external payment entry
 // points remain disabled until their separate source-feature workflows are built.
 func placeOrder(ctx context.Context, db *ent.Client, adminID int, in orderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
-	order, err := placeOrderOnce(ctx, db, adminID, in, key, now)
+	return placeOrderWithPrincipal(ctx, db, fmt.Sprintf("admin:%d", adminID), adminID, in, key, now)
+}
+
+// placeOrderWithPrincipal 按调用方身份（客服下单 / 客户自助下单）落单，幂等键按身份隔离。
+func placeOrderWithPrincipal(ctx context.Context, db *ent.Client, principal string, adminID int,
+	in orderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
+	order, err := placeOrderOnce(ctx, db, principal, adminID, in, key, now)
 	if errors.Is(err, errConflict) {
-		prior, lookupErr := existingOrder(ctx, db, fmt.Sprintf("admin:%d", adminID), key, orderRequestHash(in))
+		prior, lookupErr := existingOrder(ctx, db, principal, key, orderRequestHash(in))
 		if lookupErr == nil && prior != nil {
 			return prior, nil
 		}
@@ -308,11 +314,11 @@ func placeOrder(ctx context.Context, db *ent.Client, adminID int, in orderInput,
 	return order, err
 }
 
-func placeOrderOnce(ctx context.Context, db *ent.Client, adminID int, in orderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
+func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, adminID int,
+	in orderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
 	if in.CustomerID < 1 || in.SkuID < 1 || in.Quantity < 1 || in.Quantity > 1000 || len(key) < 8 || len(key) > 128 {
 		return nil, errInvalidInput
 	}
-	principal := fmt.Sprintf("admin:%d", adminID)
 	hash := orderRequestHash(in)
 	if previous, err := existingOrder(ctx, db, principal, key, hash); err != nil || previous != nil {
 		return previous, err

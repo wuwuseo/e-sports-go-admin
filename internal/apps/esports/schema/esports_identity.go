@@ -26,6 +26,11 @@ func (EsportsCustomer) Fields() []ent.Field {
 		field.JSON("tags", []string{}).Optional().StructTag(`json:"tags"`),
 		field.Enum("source").Values("manual", "wecom", "self", "import").Default("manual").StructTag(`json:"source"`),
 		field.Enum("follow_status").Values("new", "following", "pending", "dormant", "closed").Default("new").StructTag(`json:"follow_status"`),
+		// 风险标记（§13.7）：normal 正常 / watch 疑似滥用复核（可自动标记，**不自动处罚**）/
+		// restricted 限制自助下单（仅人工设置）。自助下单入口按该字段拦截。
+		field.Enum("risk_status").Values("normal", "watch", "restricted").Default("normal").StructTag(`json:"risk_status"`),
+		field.String("risk_reason").MaxLen(255).Default("").StructTag(`json:"risk_reason"`),
+		field.Time("risk_marked_at").Optional().Nillable().StructTag(`json:"risk_marked_at"`),
 		field.Time("last_contact_at").Optional().Nillable().StructTag(`json:"last_contact_at"`),
 		// 企微侧边栏自动建档（§8.4）：以「企业主体 + 外部联系人标识」组合幂等。
 		// 非企微来源两字段为空（SQL NULL），NULL 在唯一索引中互不冲突，故手建客户不受影响。
