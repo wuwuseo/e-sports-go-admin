@@ -384,8 +384,14 @@ func init() {
 			{Method: "POST", Path: "/user/player/assessments/:id/appeal", Auth: cmfapp.AuthUser, Handler: playerAppealHandler},
 			// 客户自助：已完成订单的服务评价（§7.5）。
 			{Method: "POST", Path: "/user/orders/:id/reviews", Auth: cmfapp.AuthUser, Handler: userSubmitReviewHandler},
-			// 客户自助下单（§13.2）：须已绑定登录身份、成年且未被限制自助下单（§13.7）。
+			// 客户自助（§13.2 / §10）：下单、我的订单 / 售后、余额与资料，均按绑定客户做数据隔离。
 			{Method: "POST", Path: "/user/orders", Auth: cmfapp.AuthUser, Handler: userPlaceOrderHandler},
+			{Method: "GET", Path: "/user/orders", Auth: cmfapp.AuthUser, Handler: userOrdersHandler},
+			{Method: "GET", Path: "/user/orders/:id", Auth: cmfapp.AuthUser, Handler: userOrderDetailHandler},
+			{Method: "GET", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userAfterSalesHandler},
+			{Method: "POST", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userCreateAfterSaleHandler},
+			{Method: "GET", Path: "/user/wallets", Auth: cmfapp.AuthUser, Handler: userWalletHandler},
+			{Method: "GET", Path: "/user/profile", Auth: cmfapp.AuthUser, Handler: userProfileHandler},
 			// 陪玩端自助：我的追偿明细（§13.4）。
 			{Method: "GET", Path: "/user/player/recoveries", Auth: cmfapp.AuthUser, Handler: playerRecoveriesHandler},
 			// 客户自助：售后方（§13.3）确认 / 拒绝待确认方案。
