@@ -14,3 +14,10 @@ type CsCommissionTier struct {
 	ThresholdBaseCents int64 `json:"threshold_base_cents"`
 	ValueBp            int   `json:"value_bp"`
 }
+
+// CloseFormFieldBinding 是结单表单模板引用的一条字段：字段库 FieldKey + 该模板下的必填覆盖与排序。
+type CloseFormFieldBinding struct {
+	FieldKey string `json:"field_key"`
+	Required bool   `json:"required"`
+	Sort     int    `json:"sort"`
+}

@@ -12,9 +12,11 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// closeOrderInput 结单表单（首版固定为「备注 + 结单条件校验」）。
+// closeOrderInput 结单表单（备注 + 结单条件校验 + 模板驱动的字段值）。
 type closeOrderInput struct {
 	Note string `json:"note"`
+	// FormValues 是结单表单模板驱动的字段值（key = 字段库 key）；订单无适用模板时忽略。
+	FormValues map[string]any `json:"form_values"`
 }
 
 // closeOrder 客服手动结单：事务内校验结单条件，把 pending_close 订单条件更新为 completed 并留痕。
@@ -22,8 +24,8 @@ type closeOrderInput struct {
 //  1. 至少一条服务段的 evidence_ref 非空（服务凭证不少于 1 张）；
 //  2. 所有服务段 system_seconds 之和 > 0 或 reported_units 之和 > 0（服务时长不为零）。
 //
-// ponytail: 结单表单模板设计器、结单条件自定义、审批流配置、自动结单 / 客户确认结单均未实现；
-// 首版结单条件写死在代码里，后续如需可配置应改为读系统配置或结单策略表。
+// ponytail: 结单条件已可由结单规则（close_rule.go）配置、结单表单可由表单模板（close_form.go）驱动；
+// 审批流节点编排（当前仅「待复核 → 管理员通过 / 驳回」两级）与自动结单 / 客户确认结单未实现。
 func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in closeOrderInput, now time.Time) (*ent.EsportsOrder, error) {
 	in.Note = strings.TrimSpace(in.Note)
 	if orderID < 1 || len([]rune(in.Note)) > 255 {
@@ -88,6 +90,10 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 	}
 	// §4.6：储值卡标记 / 关联储值卡 / 核销流水不一致时禁止结单（硬性，不随规则变化）。
 	if err = storedValueOrderConsistent(ctx, tx.Client(), order); err != nil {
+		return nil, err
+	}
+	// §3.4 结单表单：按订单解析生效模板，校验必填字段并写快照（无适用模板时跳过）。
+	if err = applyCloseForm(ctx, tx, order, adminID, in.FormValues, in.Note, now); err != nil {
 		return nil, err
 	}
 	// §3.4 结单复核：金额达复核阈值时订单进入「待复核」，由非负责客服的管理员复核通过 / 驳回。

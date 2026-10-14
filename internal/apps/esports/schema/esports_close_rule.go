@@ -13,8 +13,8 @@ import (
 // 规则不可原地修改：改规则＝新增一条递增 version 的新行，旧行转 history（§12.4 同款版本管理）。
 //
 // 首版为「结构化条件项 + 金额复核阈值」，覆盖 §3.4 结单条件默认项与「高额单管理员复核」的最小闭环。
-// ponytail: 结单表单设计器（自定义字段库、按订单类型 / 游戏 / 金额区间绑定模板）、
-// 字段 + 运算符 + 值的任意 AND/OR 嵌套、结单审批流节点编排均未实现。
+// 结单表单（自定义字段库、按游戏分区 / SKU + 金额区间绑定模板、结单时校验并留痕）见 close_form.go。
+// ponytail: 字段 + 运算符 + 值的任意 AND/OR 嵌套、结单审批流节点编排均未实现。
 type EsportsCloseRule struct{ ent.Schema }
 
 func (EsportsCloseRule) Fields() []ent.Field {
