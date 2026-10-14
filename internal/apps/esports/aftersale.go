@@ -218,7 +218,7 @@ func acceptAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now t
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingAccept),
 	).SetStatus(esportsaftersale.StatusProcessing).SetHandlerAdminID(adminID).
-		AddVersion(1).Save(ctx)
+		SetAcceptedAt(now.UTC()).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -272,8 +272,10 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		SetMakeupUnits(in.MakeupUnits).
 		SetMakeupCompanyPayCents(in.MakeupCompanyPayCents).
 		SetResolution(in.Resolution).
+		SetPlannedAt(now.UTC()).
 		SetStatus(esportsaftersale.StatusPendingCustomerConfirm).AddVersion(1).
 		ClearCustomerConfirmedAt().ClearCustomerConfirmedByAdminID().ClearCustomerDeclinedAt().
+		ClearApprovedAt().
 		SetCustomerConfirmChannel(esportsaftersale.CustomerConfirmChannelNone).
 		SetCustomerDeclineReason("")
 	if makeupPlayerID != nil && makeupSeatIndex != nil {
@@ -416,7 +418,7 @@ func approveAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingApproval),
 	).SetStatus(esportsaftersale.StatusPendingExecution).SetApproverAdminID(adminID).
-		AddVersion(1).Save(ctx)
+		SetApprovedAt(now.UTC()).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}

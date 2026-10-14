@@ -111,6 +111,15 @@ func generateCsSettlementsTask(ctx context.Context, logger io.Writer) error {
 	return err
 }
 
+// checkAfterSaleSLATask 对超出当前阶段时限的售后单写升级提醒（§13.5）。
+func checkAfterSaleSLATask(ctx context.Context, logger io.Writer) error {
+	count, err := checkAfterSaleSLABreaches(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "处理售后超时升级：%d\n", count)
+	}
+	return err
+}
+
 // applyMemberDowngradeTask 执行等级保护期已到期的客户降级（§10.3）。
 func applyMemberDowngradeTask(ctx context.Context, logger io.Writer) error {
 	count, err := applyMemberDowngrades(ctx, global.ORM, time.Now(), 200)
@@ -133,6 +142,7 @@ func init() {
 		tasks.Register("esports_remind_dispatch_ladder", remindDispatchLadderTask)
 		tasks.Register("esports_check_service_overtime", checkServiceOvertimeTask)
 		tasks.Register("esports_generate_cs_settlements", generateCsSettlementsTask)
+		tasks.Register("esports_check_aftersale_sla", checkAfterSaleSLATask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,

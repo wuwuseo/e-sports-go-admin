@@ -15,8 +15,9 @@ import (
 // 客户拒绝则退回 processing，客服可改方案后重新提交；
 // pending_approval --reject--> rejected；非终态 --withdraw--> withdrawn。
 // "同来源单据同问题同一时刻仅保留一张进行中售后" 由 service 层在事务内查重保证。
+// 限时与超时升级（§13.5）由 `esports_check_aftersale_sla` 任务按各阶段可配时限判定并写 `aftersale.sla_breach` 外盒。
 // ponytail: 未用部分唯一索引表达该规则（MySQL 不支持带条件的部分唯一索引），并发下依赖事务内查询 + 串行化更新兜底；
-// 客户确认超时升级（§13.5）未实现，超时不影响流转。
+// 超时只升级提醒、不自动流转或升级角色，超时也不影响流转。
 type EsportsAfterSale struct{ ent.Schema }
 
 func (EsportsAfterSale) Fields() []ent.Field {
@@ -55,6 +56,10 @@ func (EsportsAfterSale) Fields() []ent.Field {
 		field.Int("customer_confirmed_by_admin_id").Optional().Nillable().StructTag(`json:"customer_confirmed_by_admin_id"`),
 		field.Time("customer_declined_at").Optional().Nillable().StructTag(`json:"customer_declined_at"`),
 		field.String("customer_decline_reason").MaxLen(255).Default("").StructTag(`json:"customer_decline_reason"`),
+		// 阶段时间戳（§13.5 限时）：受理 / 提交方案 / 审批各自锚定，用于计算当前阶段的超时。
+		field.Time("accepted_at").Optional().Nillable().StructTag(`json:"accepted_at"`),
+		field.Time("planned_at").Optional().Nillable().StructTag(`json:"planned_at"`),
+		field.Time("approved_at").Optional().Nillable().StructTag(`json:"approved_at"`),
 		field.Int("handler_admin_id").Optional().Nillable().StructTag(`json:"handler_admin_id"`),
 		field.Int("approver_admin_id").Optional().Nillable().StructTag(`json:"approver_admin_id"`),
 		field.Int("executor_admin_id").Optional().Nillable().StructTag(`json:"executor_admin_id"`),

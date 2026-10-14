@@ -83,7 +83,8 @@ func adminAfterSales(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	// §13.5：附带当前阶段时限与是否超时，前端据此高亮。
+	return reply(c, afterSaleViewsOf(c.Context(), global.ORM, items, time.Now()))
 }
 
 func adminAfterSaleDetail(c fiber.Ctx) error {
@@ -98,7 +99,8 @@ func adminAfterSaleDetail(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, item)
+	policy := afterSaleSLAPolicyOf(c.Context(), global.ORM)
+	return reply(c, afterSaleViewOf(item, policy, time.Now()))
 }
 
 func createAfterSaleHandler(c fiber.Ctx) error {
