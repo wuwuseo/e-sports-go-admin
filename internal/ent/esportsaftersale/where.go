@@ -119,6 +119,26 @@ func PlayerID(v int) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldPlayerID, v))
 }
 
+// CustomerConfirmedAt applies equality check predicate on the "customer_confirmed_at" field. It's identical to CustomerConfirmedAtEQ.
+func CustomerConfirmedAt(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerConfirmedAt, v))
+}
+
+// CustomerConfirmedByAdminID applies equality check predicate on the "customer_confirmed_by_admin_id" field. It's identical to CustomerConfirmedByAdminIDEQ.
+func CustomerConfirmedByAdminID(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerConfirmedByAdminID, v))
+}
+
+// CustomerDeclinedAt applies equality check predicate on the "customer_declined_at" field. It's identical to CustomerDeclinedAtEQ.
+func CustomerDeclinedAt(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerDeclinedAt, v))
+}
+
+// CustomerDeclineReason applies equality check predicate on the "customer_decline_reason" field. It's identical to CustomerDeclineReasonEQ.
+func CustomerDeclineReason(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerDeclineReason, v))
+}
+
 // HandlerAdminID applies equality check predicate on the "handler_admin_id" field. It's identical to HandlerAdminIDEQ.
 func HandlerAdminID(v int) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldHandlerAdminID, v))
@@ -982,6 +1002,241 @@ func PlayerIDIsNil() predicate.EsportsAfterSale {
 // PlayerIDNotNil applies the NotNil predicate on the "player_id" field.
 func PlayerIDNotNil() predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldPlayerID))
+}
+
+// CustomerConfirmedAtEQ applies the EQ predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerConfirmedAt, v))
+}
+
+// CustomerConfirmedAtNEQ applies the NEQ predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtNEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldCustomerConfirmedAt, v))
+}
+
+// CustomerConfirmedAtIn applies the In predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldCustomerConfirmedAt, vs...))
+}
+
+// CustomerConfirmedAtNotIn applies the NotIn predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtNotIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldCustomerConfirmedAt, vs...))
+}
+
+// CustomerConfirmedAtGT applies the GT predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtGT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldCustomerConfirmedAt, v))
+}
+
+// CustomerConfirmedAtGTE applies the GTE predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtGTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldCustomerConfirmedAt, v))
+}
+
+// CustomerConfirmedAtLT applies the LT predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtLT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldCustomerConfirmedAt, v))
+}
+
+// CustomerConfirmedAtLTE applies the LTE predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtLTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldCustomerConfirmedAt, v))
+}
+
+// CustomerConfirmedAtIsNil applies the IsNil predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldCustomerConfirmedAt))
+}
+
+// CustomerConfirmedAtNotNil applies the NotNil predicate on the "customer_confirmed_at" field.
+func CustomerConfirmedAtNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldCustomerConfirmedAt))
+}
+
+// CustomerConfirmChannelEQ applies the EQ predicate on the "customer_confirm_channel" field.
+func CustomerConfirmChannelEQ(v CustomerConfirmChannel) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerConfirmChannel, v))
+}
+
+// CustomerConfirmChannelNEQ applies the NEQ predicate on the "customer_confirm_channel" field.
+func CustomerConfirmChannelNEQ(v CustomerConfirmChannel) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldCustomerConfirmChannel, v))
+}
+
+// CustomerConfirmChannelIn applies the In predicate on the "customer_confirm_channel" field.
+func CustomerConfirmChannelIn(vs ...CustomerConfirmChannel) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldCustomerConfirmChannel, vs...))
+}
+
+// CustomerConfirmChannelNotIn applies the NotIn predicate on the "customer_confirm_channel" field.
+func CustomerConfirmChannelNotIn(vs ...CustomerConfirmChannel) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldCustomerConfirmChannel, vs...))
+}
+
+// CustomerConfirmedByAdminIDEQ applies the EQ predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDEQ(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerConfirmedByAdminID, v))
+}
+
+// CustomerConfirmedByAdminIDNEQ applies the NEQ predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDNEQ(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldCustomerConfirmedByAdminID, v))
+}
+
+// CustomerConfirmedByAdminIDIn applies the In predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDIn(vs ...int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldCustomerConfirmedByAdminID, vs...))
+}
+
+// CustomerConfirmedByAdminIDNotIn applies the NotIn predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDNotIn(vs ...int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldCustomerConfirmedByAdminID, vs...))
+}
+
+// CustomerConfirmedByAdminIDGT applies the GT predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDGT(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldCustomerConfirmedByAdminID, v))
+}
+
+// CustomerConfirmedByAdminIDGTE applies the GTE predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDGTE(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldCustomerConfirmedByAdminID, v))
+}
+
+// CustomerConfirmedByAdminIDLT applies the LT predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDLT(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldCustomerConfirmedByAdminID, v))
+}
+
+// CustomerConfirmedByAdminIDLTE applies the LTE predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDLTE(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldCustomerConfirmedByAdminID, v))
+}
+
+// CustomerConfirmedByAdminIDIsNil applies the IsNil predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldCustomerConfirmedByAdminID))
+}
+
+// CustomerConfirmedByAdminIDNotNil applies the NotNil predicate on the "customer_confirmed_by_admin_id" field.
+func CustomerConfirmedByAdminIDNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldCustomerConfirmedByAdminID))
+}
+
+// CustomerDeclinedAtEQ applies the EQ predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerDeclinedAt, v))
+}
+
+// CustomerDeclinedAtNEQ applies the NEQ predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtNEQ(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldCustomerDeclinedAt, v))
+}
+
+// CustomerDeclinedAtIn applies the In predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldCustomerDeclinedAt, vs...))
+}
+
+// CustomerDeclinedAtNotIn applies the NotIn predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtNotIn(vs ...time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldCustomerDeclinedAt, vs...))
+}
+
+// CustomerDeclinedAtGT applies the GT predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtGT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldCustomerDeclinedAt, v))
+}
+
+// CustomerDeclinedAtGTE applies the GTE predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtGTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldCustomerDeclinedAt, v))
+}
+
+// CustomerDeclinedAtLT applies the LT predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtLT(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldCustomerDeclinedAt, v))
+}
+
+// CustomerDeclinedAtLTE applies the LTE predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtLTE(v time.Time) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldCustomerDeclinedAt, v))
+}
+
+// CustomerDeclinedAtIsNil applies the IsNil predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldCustomerDeclinedAt))
+}
+
+// CustomerDeclinedAtNotNil applies the NotNil predicate on the "customer_declined_at" field.
+func CustomerDeclinedAtNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldCustomerDeclinedAt))
+}
+
+// CustomerDeclineReasonEQ applies the EQ predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonEQ(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonNEQ applies the NEQ predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonNEQ(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonIn applies the In predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonIn(vs ...string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldCustomerDeclineReason, vs...))
+}
+
+// CustomerDeclineReasonNotIn applies the NotIn predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonNotIn(vs ...string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldCustomerDeclineReason, vs...))
+}
+
+// CustomerDeclineReasonGT applies the GT predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonGT(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonGTE applies the GTE predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonGTE(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonLT applies the LT predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonLT(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonLTE applies the LTE predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonLTE(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonContains applies the Contains predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonContains(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldContains(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonHasPrefix applies the HasPrefix predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonHasPrefix(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldHasPrefix(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonHasSuffix applies the HasSuffix predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonHasSuffix(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldHasSuffix(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonEqualFold applies the EqualFold predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonEqualFold(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEqualFold(FieldCustomerDeclineReason, v))
+}
+
+// CustomerDeclineReasonContainsFold applies the ContainsFold predicate on the "customer_decline_reason" field.
+func CustomerDeclineReasonContainsFold(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldContainsFold(FieldCustomerDeclineReason, v))
 }
 
 // HandlerAdminIDEQ applies the EQ predicate on the "handler_admin_id" field.

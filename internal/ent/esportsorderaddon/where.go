@@ -99,6 +99,26 @@ func CommissionCents(v int64) predicate.EsportsOrderAddon {
 	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldCommissionCents, v))
 }
 
+// PaidCents applies equality check predicate on the "paid_cents" field. It's identical to PaidCentsEQ.
+func PaidCents(v int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaidCents, v))
+}
+
+// PaidAt applies equality check predicate on the "paid_at" field. It's identical to PaidAtEQ.
+func PaidAt(v time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaidAt, v))
+}
+
+// PaidByAdminID applies equality check predicate on the "paid_by_admin_id" field. It's identical to PaidByAdminIDEQ.
+func PaidByAdminID(v int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaidByAdminID, v))
+}
+
+// PaymentRef applies equality check predicate on the "payment_ref" field. It's identical to PaymentRefEQ.
+func PaymentRef(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaymentRef, v))
+}
+
 // ConfirmedPlayerID applies equality check predicate on the "confirmed_player_id" field. It's identical to ConfirmedPlayerIDEQ.
 func ConfirmedPlayerID(v int) predicate.EsportsOrderAddon {
 	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldConfirmedPlayerID, v))
@@ -582,6 +602,231 @@ func CommissionCentsLT(v int64) predicate.EsportsOrderAddon {
 // CommissionCentsLTE applies the LTE predicate on the "commission_cents" field.
 func CommissionCentsLTE(v int64) predicate.EsportsOrderAddon {
 	return predicate.EsportsOrderAddon(sql.FieldLTE(FieldCommissionCents, v))
+}
+
+// PaymentStatusEQ applies the EQ predicate on the "payment_status" field.
+func PaymentStatusEQ(v PaymentStatus) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaymentStatus, v))
+}
+
+// PaymentStatusNEQ applies the NEQ predicate on the "payment_status" field.
+func PaymentStatusNEQ(v PaymentStatus) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNEQ(FieldPaymentStatus, v))
+}
+
+// PaymentStatusIn applies the In predicate on the "payment_status" field.
+func PaymentStatusIn(vs ...PaymentStatus) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldIn(FieldPaymentStatus, vs...))
+}
+
+// PaymentStatusNotIn applies the NotIn predicate on the "payment_status" field.
+func PaymentStatusNotIn(vs ...PaymentStatus) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNotIn(FieldPaymentStatus, vs...))
+}
+
+// PaidCentsEQ applies the EQ predicate on the "paid_cents" field.
+func PaidCentsEQ(v int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaidCents, v))
+}
+
+// PaidCentsNEQ applies the NEQ predicate on the "paid_cents" field.
+func PaidCentsNEQ(v int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNEQ(FieldPaidCents, v))
+}
+
+// PaidCentsIn applies the In predicate on the "paid_cents" field.
+func PaidCentsIn(vs ...int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldIn(FieldPaidCents, vs...))
+}
+
+// PaidCentsNotIn applies the NotIn predicate on the "paid_cents" field.
+func PaidCentsNotIn(vs ...int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNotIn(FieldPaidCents, vs...))
+}
+
+// PaidCentsGT applies the GT predicate on the "paid_cents" field.
+func PaidCentsGT(v int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGT(FieldPaidCents, v))
+}
+
+// PaidCentsGTE applies the GTE predicate on the "paid_cents" field.
+func PaidCentsGTE(v int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGTE(FieldPaidCents, v))
+}
+
+// PaidCentsLT applies the LT predicate on the "paid_cents" field.
+func PaidCentsLT(v int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLT(FieldPaidCents, v))
+}
+
+// PaidCentsLTE applies the LTE predicate on the "paid_cents" field.
+func PaidCentsLTE(v int64) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLTE(FieldPaidCents, v))
+}
+
+// PaidAtEQ applies the EQ predicate on the "paid_at" field.
+func PaidAtEQ(v time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaidAt, v))
+}
+
+// PaidAtNEQ applies the NEQ predicate on the "paid_at" field.
+func PaidAtNEQ(v time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNEQ(FieldPaidAt, v))
+}
+
+// PaidAtIn applies the In predicate on the "paid_at" field.
+func PaidAtIn(vs ...time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldIn(FieldPaidAt, vs...))
+}
+
+// PaidAtNotIn applies the NotIn predicate on the "paid_at" field.
+func PaidAtNotIn(vs ...time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNotIn(FieldPaidAt, vs...))
+}
+
+// PaidAtGT applies the GT predicate on the "paid_at" field.
+func PaidAtGT(v time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGT(FieldPaidAt, v))
+}
+
+// PaidAtGTE applies the GTE predicate on the "paid_at" field.
+func PaidAtGTE(v time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGTE(FieldPaidAt, v))
+}
+
+// PaidAtLT applies the LT predicate on the "paid_at" field.
+func PaidAtLT(v time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLT(FieldPaidAt, v))
+}
+
+// PaidAtLTE applies the LTE predicate on the "paid_at" field.
+func PaidAtLTE(v time.Time) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLTE(FieldPaidAt, v))
+}
+
+// PaidAtIsNil applies the IsNil predicate on the "paid_at" field.
+func PaidAtIsNil() predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldIsNull(FieldPaidAt))
+}
+
+// PaidAtNotNil applies the NotNil predicate on the "paid_at" field.
+func PaidAtNotNil() predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNotNull(FieldPaidAt))
+}
+
+// PaidByAdminIDEQ applies the EQ predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDEQ(v int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaidByAdminID, v))
+}
+
+// PaidByAdminIDNEQ applies the NEQ predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDNEQ(v int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNEQ(FieldPaidByAdminID, v))
+}
+
+// PaidByAdminIDIn applies the In predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDIn(vs ...int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldIn(FieldPaidByAdminID, vs...))
+}
+
+// PaidByAdminIDNotIn applies the NotIn predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDNotIn(vs ...int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNotIn(FieldPaidByAdminID, vs...))
+}
+
+// PaidByAdminIDGT applies the GT predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDGT(v int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGT(FieldPaidByAdminID, v))
+}
+
+// PaidByAdminIDGTE applies the GTE predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDGTE(v int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGTE(FieldPaidByAdminID, v))
+}
+
+// PaidByAdminIDLT applies the LT predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDLT(v int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLT(FieldPaidByAdminID, v))
+}
+
+// PaidByAdminIDLTE applies the LTE predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDLTE(v int) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLTE(FieldPaidByAdminID, v))
+}
+
+// PaidByAdminIDIsNil applies the IsNil predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDIsNil() predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldIsNull(FieldPaidByAdminID))
+}
+
+// PaidByAdminIDNotNil applies the NotNil predicate on the "paid_by_admin_id" field.
+func PaidByAdminIDNotNil() predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNotNull(FieldPaidByAdminID))
+}
+
+// PaymentRefEQ applies the EQ predicate on the "payment_ref" field.
+func PaymentRefEQ(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEQ(FieldPaymentRef, v))
+}
+
+// PaymentRefNEQ applies the NEQ predicate on the "payment_ref" field.
+func PaymentRefNEQ(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNEQ(FieldPaymentRef, v))
+}
+
+// PaymentRefIn applies the In predicate on the "payment_ref" field.
+func PaymentRefIn(vs ...string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldIn(FieldPaymentRef, vs...))
+}
+
+// PaymentRefNotIn applies the NotIn predicate on the "payment_ref" field.
+func PaymentRefNotIn(vs ...string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldNotIn(FieldPaymentRef, vs...))
+}
+
+// PaymentRefGT applies the GT predicate on the "payment_ref" field.
+func PaymentRefGT(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGT(FieldPaymentRef, v))
+}
+
+// PaymentRefGTE applies the GTE predicate on the "payment_ref" field.
+func PaymentRefGTE(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldGTE(FieldPaymentRef, v))
+}
+
+// PaymentRefLT applies the LT predicate on the "payment_ref" field.
+func PaymentRefLT(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLT(FieldPaymentRef, v))
+}
+
+// PaymentRefLTE applies the LTE predicate on the "payment_ref" field.
+func PaymentRefLTE(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldLTE(FieldPaymentRef, v))
+}
+
+// PaymentRefContains applies the Contains predicate on the "payment_ref" field.
+func PaymentRefContains(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldContains(FieldPaymentRef, v))
+}
+
+// PaymentRefHasPrefix applies the HasPrefix predicate on the "payment_ref" field.
+func PaymentRefHasPrefix(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldHasPrefix(FieldPaymentRef, v))
+}
+
+// PaymentRefHasSuffix applies the HasSuffix predicate on the "payment_ref" field.
+func PaymentRefHasSuffix(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldHasSuffix(FieldPaymentRef, v))
+}
+
+// PaymentRefEqualFold applies the EqualFold predicate on the "payment_ref" field.
+func PaymentRefEqualFold(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldEqualFold(FieldPaymentRef, v))
+}
+
+// PaymentRefContainsFold applies the ContainsFold predicate on the "payment_ref" field.
+func PaymentRefContainsFold(v string) predicate.EsportsOrderAddon {
+	return predicate.EsportsOrderAddon(sql.FieldContainsFold(FieldPaymentRef, v))
 }
 
 // ConfirmedPlayerIDEQ applies the EQ predicate on the "confirmed_player_id" field.

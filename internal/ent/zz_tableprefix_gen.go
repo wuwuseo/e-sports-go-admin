@@ -24,6 +24,7 @@ import (
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscloserule"
+	"go-admin/internal/ent/esportsclosesubmitrule"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
 	"go-admin/internal/ent/esportsconfirmation"
@@ -213,6 +214,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportscloserule.TablePrefix
 		esportscloserule.TablePrefix = prefix
 		esportscloserule.Table = prefix + strings.TrimPrefix(esportscloserule.Table, old)
+	}
+	{
+		old := esportsclosesubmitrule.TablePrefix
+		esportsclosesubmitrule.TablePrefix = prefix
+		esportsclosesubmitrule.Table = prefix + strings.TrimPrefix(esportsclosesubmitrule.Table, old)
 	}
 	{
 		old := esportscommissionentry.TablePrefix

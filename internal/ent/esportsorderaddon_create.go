@@ -144,6 +144,76 @@ func (_c *EsportsOrderAddonCreate) SetNillableCommissionCents(v *int64) *Esports
 	return _c
 }
 
+// SetPaymentStatus sets the "payment_status" field.
+func (_c *EsportsOrderAddonCreate) SetPaymentStatus(v esportsorderaddon.PaymentStatus) *EsportsOrderAddonCreate {
+	_c.mutation.SetPaymentStatus(v)
+	return _c
+}
+
+// SetNillablePaymentStatus sets the "payment_status" field if the given value is not nil.
+func (_c *EsportsOrderAddonCreate) SetNillablePaymentStatus(v *esportsorderaddon.PaymentStatus) *EsportsOrderAddonCreate {
+	if v != nil {
+		_c.SetPaymentStatus(*v)
+	}
+	return _c
+}
+
+// SetPaidCents sets the "paid_cents" field.
+func (_c *EsportsOrderAddonCreate) SetPaidCents(v int64) *EsportsOrderAddonCreate {
+	_c.mutation.SetPaidCents(v)
+	return _c
+}
+
+// SetNillablePaidCents sets the "paid_cents" field if the given value is not nil.
+func (_c *EsportsOrderAddonCreate) SetNillablePaidCents(v *int64) *EsportsOrderAddonCreate {
+	if v != nil {
+		_c.SetPaidCents(*v)
+	}
+	return _c
+}
+
+// SetPaidAt sets the "paid_at" field.
+func (_c *EsportsOrderAddonCreate) SetPaidAt(v time.Time) *EsportsOrderAddonCreate {
+	_c.mutation.SetPaidAt(v)
+	return _c
+}
+
+// SetNillablePaidAt sets the "paid_at" field if the given value is not nil.
+func (_c *EsportsOrderAddonCreate) SetNillablePaidAt(v *time.Time) *EsportsOrderAddonCreate {
+	if v != nil {
+		_c.SetPaidAt(*v)
+	}
+	return _c
+}
+
+// SetPaidByAdminID sets the "paid_by_admin_id" field.
+func (_c *EsportsOrderAddonCreate) SetPaidByAdminID(v int) *EsportsOrderAddonCreate {
+	_c.mutation.SetPaidByAdminID(v)
+	return _c
+}
+
+// SetNillablePaidByAdminID sets the "paid_by_admin_id" field if the given value is not nil.
+func (_c *EsportsOrderAddonCreate) SetNillablePaidByAdminID(v *int) *EsportsOrderAddonCreate {
+	if v != nil {
+		_c.SetPaidByAdminID(*v)
+	}
+	return _c
+}
+
+// SetPaymentRef sets the "payment_ref" field.
+func (_c *EsportsOrderAddonCreate) SetPaymentRef(v string) *EsportsOrderAddonCreate {
+	_c.mutation.SetPaymentRef(v)
+	return _c
+}
+
+// SetNillablePaymentRef sets the "payment_ref" field if the given value is not nil.
+func (_c *EsportsOrderAddonCreate) SetNillablePaymentRef(v *string) *EsportsOrderAddonCreate {
+	if v != nil {
+		_c.SetPaymentRef(*v)
+	}
+	return _c
+}
+
 // SetConfirmedPlayerID sets the "confirmed_player_id" field.
 func (_c *EsportsOrderAddonCreate) SetConfirmedPlayerID(v int) *EsportsOrderAddonCreate {
 	_c.mutation.SetConfirmedPlayerID(v)
@@ -301,6 +371,18 @@ func (_c *EsportsOrderAddonCreate) defaults() {
 		v := esportsorderaddon.DefaultCommissionCents
 		_c.mutation.SetCommissionCents(v)
 	}
+	if _, ok := _c.mutation.PaymentStatus(); !ok {
+		v := esportsorderaddon.DefaultPaymentStatus
+		_c.mutation.SetPaymentStatus(v)
+	}
+	if _, ok := _c.mutation.PaidCents(); !ok {
+		v := esportsorderaddon.DefaultPaidCents
+		_c.mutation.SetPaidCents(v)
+	}
+	if _, ok := _c.mutation.PaymentRef(); !ok {
+		v := esportsorderaddon.DefaultPaymentRef
+		_c.mutation.SetPaymentRef(v)
+	}
 	if _, ok := _c.mutation.RejectReason(); !ok {
 		v := esportsorderaddon.DefaultRejectReason
 		_c.mutation.SetRejectReason(v)
@@ -368,6 +450,25 @@ func (_c *EsportsOrderAddonCreate) check() error {
 	}
 	if _, ok := _c.mutation.CommissionCents(); !ok {
 		return &ValidationError{Name: "commission_cents", err: errors.New(`ent: missing required field "EsportsOrderAddon.commission_cents"`)}
+	}
+	if _, ok := _c.mutation.PaymentStatus(); !ok {
+		return &ValidationError{Name: "payment_status", err: errors.New(`ent: missing required field "EsportsOrderAddon.payment_status"`)}
+	}
+	if v, ok := _c.mutation.PaymentStatus(); ok {
+		if err := esportsorderaddon.PaymentStatusValidator(v); err != nil {
+			return &ValidationError{Name: "payment_status", err: fmt.Errorf(`ent: validator failed for field "EsportsOrderAddon.payment_status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PaidCents(); !ok {
+		return &ValidationError{Name: "paid_cents", err: errors.New(`ent: missing required field "EsportsOrderAddon.paid_cents"`)}
+	}
+	if _, ok := _c.mutation.PaymentRef(); !ok {
+		return &ValidationError{Name: "payment_ref", err: errors.New(`ent: missing required field "EsportsOrderAddon.payment_ref"`)}
+	}
+	if v, ok := _c.mutation.PaymentRef(); ok {
+		if err := esportsorderaddon.PaymentRefValidator(v); err != nil {
+			return &ValidationError{Name: "payment_ref", err: fmt.Errorf(`ent: validator failed for field "EsportsOrderAddon.payment_ref": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.RejectReason(); !ok {
 		return &ValidationError{Name: "reject_reason", err: errors.New(`ent: missing required field "EsportsOrderAddon.reject_reason"`)}
@@ -459,6 +560,26 @@ func (_c *EsportsOrderAddonCreate) createSpec() (*EsportsOrderAddon, *sqlgraph.C
 	if value, ok := _c.mutation.CommissionCents(); ok {
 		_spec.SetField(esportsorderaddon.FieldCommissionCents, field.TypeInt64, value)
 		_node.CommissionCents = value
+	}
+	if value, ok := _c.mutation.PaymentStatus(); ok {
+		_spec.SetField(esportsorderaddon.FieldPaymentStatus, field.TypeEnum, value)
+		_node.PaymentStatus = value
+	}
+	if value, ok := _c.mutation.PaidCents(); ok {
+		_spec.SetField(esportsorderaddon.FieldPaidCents, field.TypeInt64, value)
+		_node.PaidCents = value
+	}
+	if value, ok := _c.mutation.PaidAt(); ok {
+		_spec.SetField(esportsorderaddon.FieldPaidAt, field.TypeTime, value)
+		_node.PaidAt = &value
+	}
+	if value, ok := _c.mutation.PaidByAdminID(); ok {
+		_spec.SetField(esportsorderaddon.FieldPaidByAdminID, field.TypeInt, value)
+		_node.PaidByAdminID = &value
+	}
+	if value, ok := _c.mutation.PaymentRef(); ok {
+		_spec.SetField(esportsorderaddon.FieldPaymentRef, field.TypeString, value)
+		_node.PaymentRef = value
 	}
 	if value, ok := _c.mutation.ConfirmedPlayerID(); ok {
 		_spec.SetField(esportsorderaddon.FieldConfirmedPlayerID, field.TypeInt, value)

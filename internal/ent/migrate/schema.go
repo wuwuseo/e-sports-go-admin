@@ -468,6 +468,11 @@ var (
 		{Name: "makeup_company_pay_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "customer_id", Type: field.TypeInt, Nullable: true},
 		{Name: "player_id", Type: field.TypeInt, Nullable: true},
+		{Name: "customer_confirmed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "customer_confirm_channel", Type: field.TypeEnum, Enums: []string{"none", "self_service", "admin_proxy"}, Default: "none"},
+		{Name: "customer_confirmed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "customer_declined_at", Type: field.TypeTime, Nullable: true},
+		{Name: "customer_decline_reason", Type: field.TypeString, Size: 255, Default: ""},
 		{Name: "handler_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "approver_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "executor_admin_id", Type: field.TypeInt, Nullable: true},
@@ -496,7 +501,7 @@ var (
 			{
 				Name:    "esportsaftersale_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsAfterSalesColumns[10], EsportsAfterSalesColumns[27]},
+				Columns: []*schema.Column{EsportsAfterSalesColumns[10], EsportsAfterSalesColumns[32]},
 			},
 		},
 	}
@@ -777,6 +782,42 @@ var (
 				Name:    "esportscloserule_status_scope",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsCloseRulesColumns[10], EsportsCloseRulesColumns[3]},
+			},
+		},
+	}
+	// EsportsCloseSubmitRulesColumns holds the columns for the "esports_close_submit_rules" table.
+	EsportsCloseSubmitRulesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "code", Type: field.TypeString, Size: 48},
+		{Name: "name", Type: field.TypeString, Size: 64},
+		{Name: "scope", Type: field.TypeEnum, Enums: []string{"global", "game", "sku"}, Default: "global"},
+		{Name: "scope_key", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "mode", Type: field.TypeEnum, Enums: []string{"single", "multi", "custom"}, Default: "multi"},
+		{Name: "min_submit_ratio_bp", Type: field.TypeInt, Default: 0},
+		{Name: "allow_substitute", Type: field.TypeBool, Default: false},
+		{Name: "on_missing", Type: field.TypeEnum, Enums: []string{"block", "remind", "auto_accept"}, Default: "block"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "history"}, Default: "draft"},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsCloseSubmitRulesTable holds the schema information for the "esports_close_submit_rules" table.
+	EsportsCloseSubmitRulesTable = &schema.Table{
+		Name:       TablePrefix + "esports_close_submit_rules",
+		Columns:    EsportsCloseSubmitRulesColumns,
+		PrimaryKey: []*schema.Column{EsportsCloseSubmitRulesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsclosesubmitrule_code_version",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCloseSubmitRulesColumns[1], EsportsCloseSubmitRulesColumns[10]},
+			},
+			{
+				Name:    "esportsclosesubmitrule_status_scope",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCloseSubmitRulesColumns[9], EsportsCloseSubmitRulesColumns[3]},
 			},
 		},
 	}
@@ -1604,6 +1645,11 @@ var (
 		{Name: "rule_no", Type: field.TypeString, Size: 48, Default: ""},
 		{Name: "rule_version", Type: field.TypeInt, Default: 0},
 		{Name: "commission_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "payment_status", Type: field.TypeEnum, Enums: []string{"unpaid", "paid"}, Default: "unpaid"},
+		{Name: "paid_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "paid_at", Type: field.TypeTime, Nullable: true},
+		{Name: "paid_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "payment_ref", Type: field.TypeString, Size: 128, Default: ""},
 		{Name: "confirmed_player_id", Type: field.TypeInt, Nullable: true},
 		{Name: "confirmed_at", Type: field.TypeTime, Nullable: true},
 		{Name: "reject_reason", Type: field.TypeString, Size: 255, Default: ""},
@@ -1631,7 +1677,7 @@ var (
 			{
 				Name:    "esportsorderaddon_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrderAddonsColumns[5], EsportsOrderAddonsColumns[16]},
+				Columns: []*schema.Column{EsportsOrderAddonsColumns[5], EsportsOrderAddonsColumns[21]},
 			},
 		},
 	}
@@ -3012,6 +3058,7 @@ var (
 		EsportsCloseFormSnapshotsTable,
 		EsportsCloseFormTemplatesTable,
 		EsportsCloseRulesTable,
+		EsportsCloseSubmitRulesTable,
 		EsportsCommissionEntriesTable,
 		EsportsCommissionRulesTable,
 		EsportsConfirmationsTable,

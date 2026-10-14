@@ -28,6 +28,7 @@ import (
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscloserule"
+	"go-admin/internal/ent/esportsclosesubmitrule"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
 	"go-admin/internal/ent/esportsconfirmation"
@@ -175,6 +176,7 @@ func checkColumn(t, c string) error {
 			esportscloseformsnapshot.Table:      esportscloseformsnapshot.ValidColumn,
 			esportscloseformtemplate.Table:      esportscloseformtemplate.ValidColumn,
 			esportscloserule.Table:              esportscloserule.ValidColumn,
+			esportsclosesubmitrule.Table:        esportsclosesubmitrule.ValidColumn,
 			esportscommissionentry.Table:        esportscommissionentry.ValidColumn,
 			esportscommissionrule.Table:         esportscommissionrule.ValidColumn,
 			esportsconfirmation.Table:           esportsconfirmation.ValidColumn,

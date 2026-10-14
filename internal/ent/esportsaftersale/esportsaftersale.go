@@ -56,6 +56,16 @@ const (
 	FieldCustomerID = "customer_id"
 	// FieldPlayerID holds the string denoting the player_id field in the database.
 	FieldPlayerID = "player_id"
+	// FieldCustomerConfirmedAt holds the string denoting the customer_confirmed_at field in the database.
+	FieldCustomerConfirmedAt = "customer_confirmed_at"
+	// FieldCustomerConfirmChannel holds the string denoting the customer_confirm_channel field in the database.
+	FieldCustomerConfirmChannel = "customer_confirm_channel"
+	// FieldCustomerConfirmedByAdminID holds the string denoting the customer_confirmed_by_admin_id field in the database.
+	FieldCustomerConfirmedByAdminID = "customer_confirmed_by_admin_id"
+	// FieldCustomerDeclinedAt holds the string denoting the customer_declined_at field in the database.
+	FieldCustomerDeclinedAt = "customer_declined_at"
+	// FieldCustomerDeclineReason holds the string denoting the customer_decline_reason field in the database.
+	FieldCustomerDeclineReason = "customer_decline_reason"
 	// FieldHandlerAdminID holds the string denoting the handler_admin_id field in the database.
 	FieldHandlerAdminID = "handler_admin_id"
 	// FieldApproverAdminID holds the string denoting the approver_admin_id field in the database.
@@ -102,6 +112,11 @@ var Columns = []string{
 	FieldMakeupCompanyPayCents,
 	FieldCustomerID,
 	FieldPlayerID,
+	FieldCustomerConfirmedAt,
+	FieldCustomerConfirmChannel,
+	FieldCustomerConfirmedByAdminID,
+	FieldCustomerDeclinedAt,
+	FieldCustomerDeclineReason,
 	FieldHandlerAdminID,
 	FieldApproverAdminID,
 	FieldExecutorAdminID,
@@ -147,6 +162,10 @@ var (
 	DefaultMakeupUnits int64
 	// DefaultMakeupCompanyPayCents holds the default value on creation for the "makeup_company_pay_cents" field.
 	DefaultMakeupCompanyPayCents int64
+	// DefaultCustomerDeclineReason holds the default value on creation for the "customer_decline_reason" field.
+	DefaultCustomerDeclineReason string
+	// CustomerDeclineReasonValidator is a validator for the "customer_decline_reason" field. It is called by the builders before save.
+	CustomerDeclineReasonValidator func(string) error
 	// DefaultResolution holds the default value on creation for the "resolution" field.
 	DefaultResolution string
 	// ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
@@ -358,6 +377,33 @@ func MakeupKindValidator(mk MakeupKind) error {
 	}
 }
 
+// CustomerConfirmChannel defines the type for the "customer_confirm_channel" enum field.
+type CustomerConfirmChannel string
+
+// CustomerConfirmChannelNone is the default value of the CustomerConfirmChannel enum.
+const DefaultCustomerConfirmChannel = CustomerConfirmChannelNone
+
+// CustomerConfirmChannel values.
+const (
+	CustomerConfirmChannelNone        CustomerConfirmChannel = "none"
+	CustomerConfirmChannelSelfService CustomerConfirmChannel = "self_service"
+	CustomerConfirmChannelAdminProxy  CustomerConfirmChannel = "admin_proxy"
+)
+
+func (ccc CustomerConfirmChannel) String() string {
+	return string(ccc)
+}
+
+// CustomerConfirmChannelValidator is a validator for the "customer_confirm_channel" field enum values. It is called by the builders before save.
+func CustomerConfirmChannelValidator(ccc CustomerConfirmChannel) error {
+	switch ccc {
+	case CustomerConfirmChannelNone, CustomerConfirmChannelSelfService, CustomerConfirmChannelAdminProxy:
+		return nil
+	default:
+		return fmt.Errorf("esportsaftersale: invalid enum value for customer_confirm_channel field: %q", ccc)
+	}
+}
+
 // OrderOption defines the ordering options for the EsportsAfterSale queries.
 type OrderOption func(*sql.Selector)
 
@@ -464,6 +510,31 @@ func ByCustomerID(opts ...sql.OrderTermOption) OrderOption {
 // ByPlayerID orders the results by the player_id field.
 func ByPlayerID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlayerID, opts...).ToFunc()
+}
+
+// ByCustomerConfirmedAt orders the results by the customer_confirmed_at field.
+func ByCustomerConfirmedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerConfirmedAt, opts...).ToFunc()
+}
+
+// ByCustomerConfirmChannel orders the results by the customer_confirm_channel field.
+func ByCustomerConfirmChannel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerConfirmChannel, opts...).ToFunc()
+}
+
+// ByCustomerConfirmedByAdminID orders the results by the customer_confirmed_by_admin_id field.
+func ByCustomerConfirmedByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerConfirmedByAdminID, opts...).ToFunc()
+}
+
+// ByCustomerDeclinedAt orders the results by the customer_declined_at field.
+func ByCustomerDeclinedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerDeclinedAt, opts...).ToFunc()
+}
+
+// ByCustomerDeclineReason orders the results by the customer_decline_reason field.
+func ByCustomerDeclineReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerDeclineReason, opts...).ToFunc()
 }
 
 // ByHandlerAdminID orders the results by the handler_admin_id field.

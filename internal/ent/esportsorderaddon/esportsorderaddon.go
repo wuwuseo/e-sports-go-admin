@@ -36,6 +36,16 @@ const (
 	FieldRuleVersion = "rule_version"
 	// FieldCommissionCents holds the string denoting the commission_cents field in the database.
 	FieldCommissionCents = "commission_cents"
+	// FieldPaymentStatus holds the string denoting the payment_status field in the database.
+	FieldPaymentStatus = "payment_status"
+	// FieldPaidCents holds the string denoting the paid_cents field in the database.
+	FieldPaidCents = "paid_cents"
+	// FieldPaidAt holds the string denoting the paid_at field in the database.
+	FieldPaidAt = "paid_at"
+	// FieldPaidByAdminID holds the string denoting the paid_by_admin_id field in the database.
+	FieldPaidByAdminID = "paid_by_admin_id"
+	// FieldPaymentRef holds the string denoting the payment_ref field in the database.
+	FieldPaymentRef = "payment_ref"
 	// FieldConfirmedPlayerID holds the string denoting the confirmed_player_id field in the database.
 	FieldConfirmedPlayerID = "confirmed_player_id"
 	// FieldConfirmedAt holds the string denoting the confirmed_at field in the database.
@@ -70,6 +80,11 @@ var Columns = []string{
 	FieldRuleNo,
 	FieldRuleVersion,
 	FieldCommissionCents,
+	FieldPaymentStatus,
+	FieldPaidCents,
+	FieldPaidAt,
+	FieldPaidByAdminID,
+	FieldPaymentRef,
 	FieldConfirmedPlayerID,
 	FieldConfirmedAt,
 	FieldRejectReason,
@@ -106,6 +121,12 @@ var (
 	DefaultRuleVersion int
 	// DefaultCommissionCents holds the default value on creation for the "commission_cents" field.
 	DefaultCommissionCents int64
+	// DefaultPaidCents holds the default value on creation for the "paid_cents" field.
+	DefaultPaidCents int64
+	// DefaultPaymentRef holds the default value on creation for the "payment_ref" field.
+	DefaultPaymentRef string
+	// PaymentRefValidator is a validator for the "payment_ref" field. It is called by the builders before save.
+	PaymentRefValidator func(string) error
 	// DefaultRejectReason holds the default value on creation for the "reject_reason" field.
 	DefaultRejectReason string
 	// RejectReasonValidator is a validator for the "reject_reason" field. It is called by the builders before save.
@@ -149,6 +170,32 @@ func StatusValidator(s Status) error {
 		return nil
 	default:
 		return fmt.Errorf("esportsorderaddon: invalid enum value for status field: %q", s)
+	}
+}
+
+// PaymentStatus defines the type for the "payment_status" enum field.
+type PaymentStatus string
+
+// PaymentStatusUnpaid is the default value of the PaymentStatus enum.
+const DefaultPaymentStatus = PaymentStatusUnpaid
+
+// PaymentStatus values.
+const (
+	PaymentStatusUnpaid PaymentStatus = "unpaid"
+	PaymentStatusPaid   PaymentStatus = "paid"
+)
+
+func (ps PaymentStatus) String() string {
+	return string(ps)
+}
+
+// PaymentStatusValidator is a validator for the "payment_status" field enum values. It is called by the builders before save.
+func PaymentStatusValidator(ps PaymentStatus) error {
+	switch ps {
+	case PaymentStatusUnpaid, PaymentStatusPaid:
+		return nil
+	default:
+		return fmt.Errorf("esportsorderaddon: invalid enum value for payment_status field: %q", ps)
 	}
 }
 
@@ -208,6 +255,31 @@ func ByRuleVersion(opts ...sql.OrderTermOption) OrderOption {
 // ByCommissionCents orders the results by the commission_cents field.
 func ByCommissionCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCommissionCents, opts...).ToFunc()
+}
+
+// ByPaymentStatus orders the results by the payment_status field.
+func ByPaymentStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentStatus, opts...).ToFunc()
+}
+
+// ByPaidCents orders the results by the paid_cents field.
+func ByPaidCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaidCents, opts...).ToFunc()
+}
+
+// ByPaidAt orders the results by the paid_at field.
+func ByPaidAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaidAt, opts...).ToFunc()
+}
+
+// ByPaidByAdminID orders the results by the paid_by_admin_id field.
+func ByPaidByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaidByAdminID, opts...).ToFunc()
+}
+
+// ByPaymentRef orders the results by the payment_ref field.
+func ByPaymentRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentRef, opts...).ToFunc()
 }
 
 // ByConfirmedPlayerID orders the results by the confirmed_player_id field.

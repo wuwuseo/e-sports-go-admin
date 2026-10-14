@@ -37,6 +37,16 @@ type EsportsOrderAddon struct {
 	RuleVersion int `json:"rule_version"`
 	// CommissionCents holds the value of the "commission_cents" field.
 	CommissionCents int64 `json:"commission_cents"`
+	// PaymentStatus holds the value of the "payment_status" field.
+	PaymentStatus esportsorderaddon.PaymentStatus `json:"payment_status"`
+	// PaidCents holds the value of the "paid_cents" field.
+	PaidCents int64 `json:"paid_cents"`
+	// PaidAt holds the value of the "paid_at" field.
+	PaidAt *time.Time `json:"paid_at"`
+	// PaidByAdminID holds the value of the "paid_by_admin_id" field.
+	PaidByAdminID *int `json:"paid_by_admin_id"`
+	// PaymentRef holds the value of the "payment_ref" field.
+	PaymentRef string `json:"payment_ref"`
 	// ConfirmedPlayerID holds the value of the "confirmed_player_id" field.
 	ConfirmedPlayerID *int `json:"confirmed_player_id"`
 	// ConfirmedAt holds the value of the "confirmed_at" field.
@@ -59,11 +69,11 @@ func (*EsportsOrderAddon) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsorderaddon.FieldID, esportsorderaddon.FieldOrderID, esportsorderaddon.FieldAddedCents, esportsorderaddon.FieldAddedUnits, esportsorderaddon.FieldRequestedByAdminID, esportsorderaddon.FieldRuleID, esportsorderaddon.FieldRuleVersion, esportsorderaddon.FieldCommissionCents, esportsorderaddon.FieldConfirmedPlayerID, esportsorderaddon.FieldVersion:
+		case esportsorderaddon.FieldID, esportsorderaddon.FieldOrderID, esportsorderaddon.FieldAddedCents, esportsorderaddon.FieldAddedUnits, esportsorderaddon.FieldRequestedByAdminID, esportsorderaddon.FieldRuleID, esportsorderaddon.FieldRuleVersion, esportsorderaddon.FieldCommissionCents, esportsorderaddon.FieldPaidCents, esportsorderaddon.FieldPaidByAdminID, esportsorderaddon.FieldConfirmedPlayerID, esportsorderaddon.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsorderaddon.FieldAddonNo, esportsorderaddon.FieldStatus, esportsorderaddon.FieldRuleNo, esportsorderaddon.FieldRejectReason, esportsorderaddon.FieldNote:
+		case esportsorderaddon.FieldAddonNo, esportsorderaddon.FieldStatus, esportsorderaddon.FieldRuleNo, esportsorderaddon.FieldPaymentStatus, esportsorderaddon.FieldPaymentRef, esportsorderaddon.FieldRejectReason, esportsorderaddon.FieldNote:
 			values[i] = new(sql.NullString)
-		case esportsorderaddon.FieldConfirmedAt, esportsorderaddon.FieldCreatedAt, esportsorderaddon.FieldUpdatedAt:
+		case esportsorderaddon.FieldPaidAt, esportsorderaddon.FieldConfirmedAt, esportsorderaddon.FieldCreatedAt, esportsorderaddon.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -147,6 +157,38 @@ func (_m *EsportsOrderAddon) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field commission_cents", values[i])
 			} else if value.Valid {
 				_m.CommissionCents = value.Int64
+			}
+		case esportsorderaddon.FieldPaymentStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_status", values[i])
+			} else if value.Valid {
+				_m.PaymentStatus = esportsorderaddon.PaymentStatus(value.String)
+			}
+		case esportsorderaddon.FieldPaidCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field paid_cents", values[i])
+			} else if value.Valid {
+				_m.PaidCents = value.Int64
+			}
+		case esportsorderaddon.FieldPaidAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field paid_at", values[i])
+			} else if value.Valid {
+				_m.PaidAt = new(time.Time)
+				*_m.PaidAt = value.Time
+			}
+		case esportsorderaddon.FieldPaidByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field paid_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.PaidByAdminID = new(int)
+				*_m.PaidByAdminID = int(value.Int64)
+			}
+		case esportsorderaddon.FieldPaymentRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_ref", values[i])
+			} else if value.Valid {
+				_m.PaymentRef = value.String
 			}
 		case esportsorderaddon.FieldConfirmedPlayerID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -261,6 +303,25 @@ func (_m *EsportsOrderAddon) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("commission_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CommissionCents))
+	builder.WriteString(", ")
+	builder.WriteString("payment_status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PaymentStatus))
+	builder.WriteString(", ")
+	builder.WriteString("paid_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PaidCents))
+	builder.WriteString(", ")
+	if v := _m.PaidAt; v != nil {
+		builder.WriteString("paid_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.PaidByAdminID; v != nil {
+		builder.WriteString("paid_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("payment_ref=")
+	builder.WriteString(_m.PaymentRef)
 	builder.WriteString(", ")
 	if v := _m.ConfirmedPlayerID; v != nil {
 		builder.WriteString("confirmed_player_id=")

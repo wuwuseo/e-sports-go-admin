@@ -374,6 +374,101 @@ func (_u *EsportsAfterSaleUpdate) ClearPlayerID() *EsportsAfterSaleUpdate {
 	return _u
 }
 
+// SetCustomerConfirmedAt sets the "customer_confirmed_at" field.
+func (_u *EsportsAfterSaleUpdate) SetCustomerConfirmedAt(v time.Time) *EsportsAfterSaleUpdate {
+	_u.mutation.SetCustomerConfirmedAt(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmedAt sets the "customer_confirmed_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableCustomerConfirmedAt(v *time.Time) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetCustomerConfirmedAt(*v)
+	}
+	return _u
+}
+
+// ClearCustomerConfirmedAt clears the value of the "customer_confirmed_at" field.
+func (_u *EsportsAfterSaleUpdate) ClearCustomerConfirmedAt() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearCustomerConfirmedAt()
+	return _u
+}
+
+// SetCustomerConfirmChannel sets the "customer_confirm_channel" field.
+func (_u *EsportsAfterSaleUpdate) SetCustomerConfirmChannel(v esportsaftersale.CustomerConfirmChannel) *EsportsAfterSaleUpdate {
+	_u.mutation.SetCustomerConfirmChannel(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmChannel sets the "customer_confirm_channel" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableCustomerConfirmChannel(v *esportsaftersale.CustomerConfirmChannel) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetCustomerConfirmChannel(*v)
+	}
+	return _u
+}
+
+// SetCustomerConfirmedByAdminID sets the "customer_confirmed_by_admin_id" field.
+func (_u *EsportsAfterSaleUpdate) SetCustomerConfirmedByAdminID(v int) *EsportsAfterSaleUpdate {
+	_u.mutation.ResetCustomerConfirmedByAdminID()
+	_u.mutation.SetCustomerConfirmedByAdminID(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmedByAdminID sets the "customer_confirmed_by_admin_id" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableCustomerConfirmedByAdminID(v *int) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetCustomerConfirmedByAdminID(*v)
+	}
+	return _u
+}
+
+// AddCustomerConfirmedByAdminID adds value to the "customer_confirmed_by_admin_id" field.
+func (_u *EsportsAfterSaleUpdate) AddCustomerConfirmedByAdminID(v int) *EsportsAfterSaleUpdate {
+	_u.mutation.AddCustomerConfirmedByAdminID(v)
+	return _u
+}
+
+// ClearCustomerConfirmedByAdminID clears the value of the "customer_confirmed_by_admin_id" field.
+func (_u *EsportsAfterSaleUpdate) ClearCustomerConfirmedByAdminID() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearCustomerConfirmedByAdminID()
+	return _u
+}
+
+// SetCustomerDeclinedAt sets the "customer_declined_at" field.
+func (_u *EsportsAfterSaleUpdate) SetCustomerDeclinedAt(v time.Time) *EsportsAfterSaleUpdate {
+	_u.mutation.SetCustomerDeclinedAt(v)
+	return _u
+}
+
+// SetNillableCustomerDeclinedAt sets the "customer_declined_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableCustomerDeclinedAt(v *time.Time) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetCustomerDeclinedAt(*v)
+	}
+	return _u
+}
+
+// ClearCustomerDeclinedAt clears the value of the "customer_declined_at" field.
+func (_u *EsportsAfterSaleUpdate) ClearCustomerDeclinedAt() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearCustomerDeclinedAt()
+	return _u
+}
+
+// SetCustomerDeclineReason sets the "customer_decline_reason" field.
+func (_u *EsportsAfterSaleUpdate) SetCustomerDeclineReason(v string) *EsportsAfterSaleUpdate {
+	_u.mutation.SetCustomerDeclineReason(v)
+	return _u
+}
+
+// SetNillableCustomerDeclineReason sets the "customer_decline_reason" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableCustomerDeclineReason(v *string) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetCustomerDeclineReason(*v)
+	}
+	return _u
+}
+
 // SetHandlerAdminID sets the "handler_admin_id" field.
 func (_u *EsportsAfterSaleUpdate) SetHandlerAdminID(v int) *EsportsAfterSaleUpdate {
 	_u.mutation.ResetHandlerAdminID()
@@ -619,6 +714,16 @@ func (_u *EsportsAfterSaleUpdate) check() error {
 			return &ValidationError{Name: "makeup_kind", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.makeup_kind": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CustomerConfirmChannel(); ok {
+		if err := esportsaftersale.CustomerConfirmChannelValidator(v); err != nil {
+			return &ValidationError{Name: "customer_confirm_channel", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.customer_confirm_channel": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CustomerDeclineReason(); ok {
+		if err := esportsaftersale.CustomerDeclineReasonValidator(v); err != nil {
+			return &ValidationError{Name: "customer_decline_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.customer_decline_reason": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Resolution(); ok {
 		if err := esportsaftersale.ResolutionValidator(v); err != nil {
 			return &ValidationError{Name: "resolution", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.resolution": %w`, err)}
@@ -731,6 +836,33 @@ func (_u *EsportsAfterSaleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.PlayerIDCleared() {
 		_spec.ClearField(esportsaftersale.FieldPlayerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerConfirmedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerConfirmedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CustomerConfirmedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldCustomerConfirmedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CustomerConfirmChannel(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerConfirmChannel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.CustomerConfirmedByAdminID(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerConfirmedByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerConfirmedByAdminID(); ok {
+		_spec.AddField(esportsaftersale.FieldCustomerConfirmedByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerConfirmedByAdminIDCleared() {
+		_spec.ClearField(esportsaftersale.FieldCustomerConfirmedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerDeclinedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerDeclinedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CustomerDeclinedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldCustomerDeclinedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CustomerDeclineReason(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.HandlerAdminID(); ok {
 		_spec.SetField(esportsaftersale.FieldHandlerAdminID, field.TypeInt, value)
@@ -1143,6 +1275,101 @@ func (_u *EsportsAfterSaleUpdateOne) ClearPlayerID() *EsportsAfterSaleUpdateOne 
 	return _u
 }
 
+// SetCustomerConfirmedAt sets the "customer_confirmed_at" field.
+func (_u *EsportsAfterSaleUpdateOne) SetCustomerConfirmedAt(v time.Time) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetCustomerConfirmedAt(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmedAt sets the "customer_confirmed_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableCustomerConfirmedAt(v *time.Time) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetCustomerConfirmedAt(*v)
+	}
+	return _u
+}
+
+// ClearCustomerConfirmedAt clears the value of the "customer_confirmed_at" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearCustomerConfirmedAt() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearCustomerConfirmedAt()
+	return _u
+}
+
+// SetCustomerConfirmChannel sets the "customer_confirm_channel" field.
+func (_u *EsportsAfterSaleUpdateOne) SetCustomerConfirmChannel(v esportsaftersale.CustomerConfirmChannel) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetCustomerConfirmChannel(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmChannel sets the "customer_confirm_channel" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableCustomerConfirmChannel(v *esportsaftersale.CustomerConfirmChannel) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetCustomerConfirmChannel(*v)
+	}
+	return _u
+}
+
+// SetCustomerConfirmedByAdminID sets the "customer_confirmed_by_admin_id" field.
+func (_u *EsportsAfterSaleUpdateOne) SetCustomerConfirmedByAdminID(v int) *EsportsAfterSaleUpdateOne {
+	_u.mutation.ResetCustomerConfirmedByAdminID()
+	_u.mutation.SetCustomerConfirmedByAdminID(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmedByAdminID sets the "customer_confirmed_by_admin_id" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableCustomerConfirmedByAdminID(v *int) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetCustomerConfirmedByAdminID(*v)
+	}
+	return _u
+}
+
+// AddCustomerConfirmedByAdminID adds value to the "customer_confirmed_by_admin_id" field.
+func (_u *EsportsAfterSaleUpdateOne) AddCustomerConfirmedByAdminID(v int) *EsportsAfterSaleUpdateOne {
+	_u.mutation.AddCustomerConfirmedByAdminID(v)
+	return _u
+}
+
+// ClearCustomerConfirmedByAdminID clears the value of the "customer_confirmed_by_admin_id" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearCustomerConfirmedByAdminID() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearCustomerConfirmedByAdminID()
+	return _u
+}
+
+// SetCustomerDeclinedAt sets the "customer_declined_at" field.
+func (_u *EsportsAfterSaleUpdateOne) SetCustomerDeclinedAt(v time.Time) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetCustomerDeclinedAt(v)
+	return _u
+}
+
+// SetNillableCustomerDeclinedAt sets the "customer_declined_at" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableCustomerDeclinedAt(v *time.Time) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetCustomerDeclinedAt(*v)
+	}
+	return _u
+}
+
+// ClearCustomerDeclinedAt clears the value of the "customer_declined_at" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearCustomerDeclinedAt() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearCustomerDeclinedAt()
+	return _u
+}
+
+// SetCustomerDeclineReason sets the "customer_decline_reason" field.
+func (_u *EsportsAfterSaleUpdateOne) SetCustomerDeclineReason(v string) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetCustomerDeclineReason(v)
+	return _u
+}
+
+// SetNillableCustomerDeclineReason sets the "customer_decline_reason" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableCustomerDeclineReason(v *string) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetCustomerDeclineReason(*v)
+	}
+	return _u
+}
+
 // SetHandlerAdminID sets the "handler_admin_id" field.
 func (_u *EsportsAfterSaleUpdateOne) SetHandlerAdminID(v int) *EsportsAfterSaleUpdateOne {
 	_u.mutation.ResetHandlerAdminID()
@@ -1401,6 +1628,16 @@ func (_u *EsportsAfterSaleUpdateOne) check() error {
 			return &ValidationError{Name: "makeup_kind", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.makeup_kind": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CustomerConfirmChannel(); ok {
+		if err := esportsaftersale.CustomerConfirmChannelValidator(v); err != nil {
+			return &ValidationError{Name: "customer_confirm_channel", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.customer_confirm_channel": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CustomerDeclineReason(); ok {
+		if err := esportsaftersale.CustomerDeclineReasonValidator(v); err != nil {
+			return &ValidationError{Name: "customer_decline_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.customer_decline_reason": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Resolution(); ok {
 		if err := esportsaftersale.ResolutionValidator(v); err != nil {
 			return &ValidationError{Name: "resolution", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.resolution": %w`, err)}
@@ -1530,6 +1767,33 @@ func (_u *EsportsAfterSaleUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if _u.mutation.PlayerIDCleared() {
 		_spec.ClearField(esportsaftersale.FieldPlayerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerConfirmedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerConfirmedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CustomerConfirmedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldCustomerConfirmedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CustomerConfirmChannel(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerConfirmChannel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.CustomerConfirmedByAdminID(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerConfirmedByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCustomerConfirmedByAdminID(); ok {
+		_spec.AddField(esportsaftersale.FieldCustomerConfirmedByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.CustomerConfirmedByAdminIDCleared() {
+		_spec.ClearField(esportsaftersale.FieldCustomerConfirmedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CustomerDeclinedAt(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerDeclinedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CustomerDeclinedAtCleared() {
+		_spec.ClearField(esportsaftersale.FieldCustomerDeclinedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CustomerDeclineReason(); ok {
+		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.HandlerAdminID(); ok {
 		_spec.SetField(esportsaftersale.FieldHandlerAdminID, field.TypeInt, value)

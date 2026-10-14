@@ -57,6 +57,16 @@ type EsportsAfterSale struct {
 	CustomerID *int `json:"customer_id"`
 	// PlayerID holds the value of the "player_id" field.
 	PlayerID *int `json:"player_id"`
+	// CustomerConfirmedAt holds the value of the "customer_confirmed_at" field.
+	CustomerConfirmedAt *time.Time `json:"customer_confirmed_at"`
+	// CustomerConfirmChannel holds the value of the "customer_confirm_channel" field.
+	CustomerConfirmChannel esportsaftersale.CustomerConfirmChannel `json:"customer_confirm_channel"`
+	// CustomerConfirmedByAdminID holds the value of the "customer_confirmed_by_admin_id" field.
+	CustomerConfirmedByAdminID *int `json:"customer_confirmed_by_admin_id"`
+	// CustomerDeclinedAt holds the value of the "customer_declined_at" field.
+	CustomerDeclinedAt *time.Time `json:"customer_declined_at"`
+	// CustomerDeclineReason holds the value of the "customer_decline_reason" field.
+	CustomerDeclineReason string `json:"customer_decline_reason"`
 	// HandlerAdminID holds the value of the "handler_admin_id" field.
 	HandlerAdminID *int `json:"handler_admin_id"`
 	// ApproverAdminID holds the value of the "approver_admin_id" field.
@@ -81,11 +91,11 @@ func (*EsportsAfterSale) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsaftersale.FieldID, esportsaftersale.FieldSourceID, esportsaftersale.FieldRefundCents, esportsaftersale.FieldMakeupPlayerID, esportsaftersale.FieldMakeupSeatIndex, esportsaftersale.FieldMakeupUnits, esportsaftersale.FieldMakeupCompanyPayCents, esportsaftersale.FieldCustomerID, esportsaftersale.FieldPlayerID, esportsaftersale.FieldHandlerAdminID, esportsaftersale.FieldApproverAdminID, esportsaftersale.FieldExecutorAdminID, esportsaftersale.FieldVersion:
+		case esportsaftersale.FieldID, esportsaftersale.FieldSourceID, esportsaftersale.FieldRefundCents, esportsaftersale.FieldMakeupPlayerID, esportsaftersale.FieldMakeupSeatIndex, esportsaftersale.FieldMakeupUnits, esportsaftersale.FieldMakeupCompanyPayCents, esportsaftersale.FieldCustomerID, esportsaftersale.FieldPlayerID, esportsaftersale.FieldCustomerConfirmedByAdminID, esportsaftersale.FieldHandlerAdminID, esportsaftersale.FieldApproverAdminID, esportsaftersale.FieldExecutorAdminID, esportsaftersale.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsaftersale.FieldAfterSaleNo, esportsaftersale.FieldSourceType, esportsaftersale.FieldKind, esportsaftersale.FieldChannel, esportsaftersale.FieldDemand, esportsaftersale.FieldExpectedPlan, esportsaftersale.FieldEvidenceRef, esportsaftersale.FieldContact, esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty, esportsaftersale.FieldPlanAction, esportsaftersale.FieldMakeupKind, esportsaftersale.FieldResolution:
+		case esportsaftersale.FieldAfterSaleNo, esportsaftersale.FieldSourceType, esportsaftersale.FieldKind, esportsaftersale.FieldChannel, esportsaftersale.FieldDemand, esportsaftersale.FieldExpectedPlan, esportsaftersale.FieldEvidenceRef, esportsaftersale.FieldContact, esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty, esportsaftersale.FieldPlanAction, esportsaftersale.FieldMakeupKind, esportsaftersale.FieldCustomerConfirmChannel, esportsaftersale.FieldCustomerDeclineReason, esportsaftersale.FieldResolution:
 			values[i] = new(sql.NullString)
-		case esportsaftersale.FieldResolvedAt, esportsaftersale.FieldCreatedAt, esportsaftersale.FieldUpdatedAt:
+		case esportsaftersale.FieldCustomerConfirmedAt, esportsaftersale.FieldCustomerDeclinedAt, esportsaftersale.FieldResolvedAt, esportsaftersale.FieldCreatedAt, esportsaftersale.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -231,6 +241,39 @@ func (_m *EsportsAfterSale) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PlayerID = new(int)
 				*_m.PlayerID = int(value.Int64)
+			}
+		case esportsaftersale.FieldCustomerConfirmedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_confirmed_at", values[i])
+			} else if value.Valid {
+				_m.CustomerConfirmedAt = new(time.Time)
+				*_m.CustomerConfirmedAt = value.Time
+			}
+		case esportsaftersale.FieldCustomerConfirmChannel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_confirm_channel", values[i])
+			} else if value.Valid {
+				_m.CustomerConfirmChannel = esportsaftersale.CustomerConfirmChannel(value.String)
+			}
+		case esportsaftersale.FieldCustomerConfirmedByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_confirmed_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.CustomerConfirmedByAdminID = new(int)
+				*_m.CustomerConfirmedByAdminID = int(value.Int64)
+			}
+		case esportsaftersale.FieldCustomerDeclinedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_declined_at", values[i])
+			} else if value.Valid {
+				_m.CustomerDeclinedAt = new(time.Time)
+				*_m.CustomerDeclinedAt = value.Time
+			}
+		case esportsaftersale.FieldCustomerDeclineReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_decline_reason", values[i])
+			} else if value.Valid {
+				_m.CustomerDeclineReason = value.String
 			}
 		case esportsaftersale.FieldHandlerAdminID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -387,6 +430,27 @@ func (_m *EsportsAfterSale) String() string {
 		builder.WriteString("player_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	if v := _m.CustomerConfirmedAt; v != nil {
+		builder.WriteString("customer_confirmed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("customer_confirm_channel=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CustomerConfirmChannel))
+	builder.WriteString(", ")
+	if v := _m.CustomerConfirmedByAdminID; v != nil {
+		builder.WriteString("customer_confirmed_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CustomerDeclinedAt; v != nil {
+		builder.WriteString("customer_declined_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("customer_decline_reason=")
+	builder.WriteString(_m.CustomerDeclineReason)
 	builder.WriteString(", ")
 	if v := _m.HandlerAdminID; v != nil {
 		builder.WriteString("handler_admin_id=")

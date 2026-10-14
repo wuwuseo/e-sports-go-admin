@@ -33,6 +33,7 @@ import (
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscloserule"
+	"go-admin/internal/ent/esportsclosesubmitrule"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
 	"go-admin/internal/ent/esportsconfirmation"
@@ -148,6 +149,8 @@ type Client struct {
 	EsportsCloseFormTemplate *EsportsCloseFormTemplateClient
 	// EsportsCloseRule is the client for interacting with the EsportsCloseRule builders.
 	EsportsCloseRule *EsportsCloseRuleClient
+	// EsportsCloseSubmitRule is the client for interacting with the EsportsCloseSubmitRule builders.
+	EsportsCloseSubmitRule *EsportsCloseSubmitRuleClient
 	// EsportsCommissionEntry is the client for interacting with the EsportsCommissionEntry builders.
 	EsportsCommissionEntry *EsportsCommissionEntryClient
 	// EsportsCommissionRule is the client for interacting with the EsportsCommissionRule builders.
@@ -299,6 +302,7 @@ func (c *Client) init() {
 	c.EsportsCloseFormSnapshot = NewEsportsCloseFormSnapshotClient(c.config)
 	c.EsportsCloseFormTemplate = NewEsportsCloseFormTemplateClient(c.config)
 	c.EsportsCloseRule = NewEsportsCloseRuleClient(c.config)
+	c.EsportsCloseSubmitRule = NewEsportsCloseSubmitRuleClient(c.config)
 	c.EsportsCommissionEntry = NewEsportsCommissionEntryClient(c.config)
 	c.EsportsCommissionRule = NewEsportsCommissionRuleClient(c.config)
 	c.EsportsConfirmation = NewEsportsConfirmationClient(c.config)
@@ -472,6 +476,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsCloseFormSnapshot:      NewEsportsCloseFormSnapshotClient(cfg),
 		EsportsCloseFormTemplate:      NewEsportsCloseFormTemplateClient(cfg),
 		EsportsCloseRule:              NewEsportsCloseRuleClient(cfg),
+		EsportsCloseSubmitRule:        NewEsportsCloseSubmitRuleClient(cfg),
 		EsportsCommissionEntry:        NewEsportsCommissionEntryClient(cfg),
 		EsportsCommissionRule:         NewEsportsCommissionRuleClient(cfg),
 		EsportsConfirmation:           NewEsportsConfirmationClient(cfg),
@@ -572,6 +577,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsCloseFormSnapshot:      NewEsportsCloseFormSnapshotClient(cfg),
 		EsportsCloseFormTemplate:      NewEsportsCloseFormTemplateClient(cfg),
 		EsportsCloseRule:              NewEsportsCloseRuleClient(cfg),
+		EsportsCloseSubmitRule:        NewEsportsCloseSubmitRuleClient(cfg),
 		EsportsCommissionEntry:        NewEsportsCommissionEntryClient(cfg),
 		EsportsCommissionRule:         NewEsportsCommissionRuleClient(cfg),
 		EsportsConfirmation:           NewEsportsConfirmationClient(cfg),
@@ -665,15 +671,16 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
 		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
 		c.EsportsAssessmentScore, c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
-		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCommissionEntry,
-		c.EsportsCommissionRule, c.EsportsConfirmation, c.EsportsCsCommissionEntry,
-		c.EsportsCsCommissionRule, c.EsportsCustomer, c.EsportsCustomerFollowUp,
-		c.EsportsDispatchPriorityGrant, c.EsportsDispatchPriorityNotice,
-		c.EsportsDispatchSeat, c.EsportsFulfillmentMakeup, c.EsportsGift,
-		c.EsportsGiftOrder, c.EsportsGrowthLedger, c.EsportsIdempotency,
-		c.EsportsIdentityBinding, c.EsportsLedgerAllocation, c.EsportsLedgerEntry,
-		c.EsportsMemberLevelOverride, c.EsportsMemberLevelRule, c.EsportsOrder,
-		c.EsportsOrderAddon, c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
+		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCloseSubmitRule,
+		c.EsportsCommissionEntry, c.EsportsCommissionRule, c.EsportsConfirmation,
+		c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule, c.EsportsCustomer,
+		c.EsportsCustomerFollowUp, c.EsportsDispatchPriorityGrant,
+		c.EsportsDispatchPriorityNotice, c.EsportsDispatchSeat,
+		c.EsportsFulfillmentMakeup, c.EsportsGift, c.EsportsGiftOrder,
+		c.EsportsGrowthLedger, c.EsportsIdempotency, c.EsportsIdentityBinding,
+		c.EsportsLedgerAllocation, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
+		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
+		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
 		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
 		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewRevision, c.EsportsProductCategory, c.EsportsQuotaHold,
@@ -698,15 +705,16 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
 		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
 		c.EsportsAssessmentScore, c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
-		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCommissionEntry,
-		c.EsportsCommissionRule, c.EsportsConfirmation, c.EsportsCsCommissionEntry,
-		c.EsportsCsCommissionRule, c.EsportsCustomer, c.EsportsCustomerFollowUp,
-		c.EsportsDispatchPriorityGrant, c.EsportsDispatchPriorityNotice,
-		c.EsportsDispatchSeat, c.EsportsFulfillmentMakeup, c.EsportsGift,
-		c.EsportsGiftOrder, c.EsportsGrowthLedger, c.EsportsIdempotency,
-		c.EsportsIdentityBinding, c.EsportsLedgerAllocation, c.EsportsLedgerEntry,
-		c.EsportsMemberLevelOverride, c.EsportsMemberLevelRule, c.EsportsOrder,
-		c.EsportsOrderAddon, c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
+		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCloseSubmitRule,
+		c.EsportsCommissionEntry, c.EsportsCommissionRule, c.EsportsConfirmation,
+		c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule, c.EsportsCustomer,
+		c.EsportsCustomerFollowUp, c.EsportsDispatchPriorityGrant,
+		c.EsportsDispatchPriorityNotice, c.EsportsDispatchSeat,
+		c.EsportsFulfillmentMakeup, c.EsportsGift, c.EsportsGiftOrder,
+		c.EsportsGrowthLedger, c.EsportsIdempotency, c.EsportsIdentityBinding,
+		c.EsportsLedgerAllocation, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
+		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
+		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
 		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
 		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewRevision, c.EsportsProductCategory, c.EsportsQuotaHold,
@@ -769,6 +777,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsCloseFormTemplate.mutate(ctx, m)
 	case *EsportsCloseRuleMutation:
 		return c.EsportsCloseRule.mutate(ctx, m)
+	case *EsportsCloseSubmitRuleMutation:
+		return c.EsportsCloseSubmitRule.mutate(ctx, m)
 	case *EsportsCommissionEntryMutation:
 		return c.EsportsCommissionEntry.mutate(ctx, m)
 	case *EsportsCommissionRuleMutation:
@@ -3943,6 +3953,139 @@ func (c *EsportsCloseRuleClient) mutate(ctx context.Context, m *EsportsCloseRule
 		return (&EsportsCloseRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsCloseRule mutation op: %q", m.Op())
+	}
+}
+
+// EsportsCloseSubmitRuleClient is a client for the EsportsCloseSubmitRule schema.
+type EsportsCloseSubmitRuleClient struct {
+	config
+}
+
+// NewEsportsCloseSubmitRuleClient returns a client for the EsportsCloseSubmitRule from the given config.
+func NewEsportsCloseSubmitRuleClient(c config) *EsportsCloseSubmitRuleClient {
+	return &EsportsCloseSubmitRuleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsclosesubmitrule.Hooks(f(g(h())))`.
+func (c *EsportsCloseSubmitRuleClient) Use(hooks ...Hook) {
+	c.hooks.EsportsCloseSubmitRule = append(c.hooks.EsportsCloseSubmitRule, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsclosesubmitrule.Intercept(f(g(h())))`.
+func (c *EsportsCloseSubmitRuleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsCloseSubmitRule = append(c.inters.EsportsCloseSubmitRule, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsCloseSubmitRule entity.
+func (c *EsportsCloseSubmitRuleClient) Create() *EsportsCloseSubmitRuleCreate {
+	mutation := newEsportsCloseSubmitRuleMutation(c.config, OpCreate)
+	return &EsportsCloseSubmitRuleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsCloseSubmitRule entities.
+func (c *EsportsCloseSubmitRuleClient) CreateBulk(builders ...*EsportsCloseSubmitRuleCreate) *EsportsCloseSubmitRuleCreateBulk {
+	return &EsportsCloseSubmitRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsCloseSubmitRuleClient) MapCreateBulk(slice any, setFunc func(*EsportsCloseSubmitRuleCreate, int)) *EsportsCloseSubmitRuleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsCloseSubmitRuleCreateBulk{err: fmt.Errorf("calling to EsportsCloseSubmitRuleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsCloseSubmitRuleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsCloseSubmitRuleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsCloseSubmitRule.
+func (c *EsportsCloseSubmitRuleClient) Update() *EsportsCloseSubmitRuleUpdate {
+	mutation := newEsportsCloseSubmitRuleMutation(c.config, OpUpdate)
+	return &EsportsCloseSubmitRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsCloseSubmitRuleClient) UpdateOne(_m *EsportsCloseSubmitRule) *EsportsCloseSubmitRuleUpdateOne {
+	mutation := newEsportsCloseSubmitRuleMutation(c.config, OpUpdateOne, withEsportsCloseSubmitRule(_m))
+	return &EsportsCloseSubmitRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsCloseSubmitRuleClient) UpdateOneID(id int) *EsportsCloseSubmitRuleUpdateOne {
+	mutation := newEsportsCloseSubmitRuleMutation(c.config, OpUpdateOne, withEsportsCloseSubmitRuleID(id))
+	return &EsportsCloseSubmitRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsCloseSubmitRule.
+func (c *EsportsCloseSubmitRuleClient) Delete() *EsportsCloseSubmitRuleDelete {
+	mutation := newEsportsCloseSubmitRuleMutation(c.config, OpDelete)
+	return &EsportsCloseSubmitRuleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsCloseSubmitRuleClient) DeleteOne(_m *EsportsCloseSubmitRule) *EsportsCloseSubmitRuleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsCloseSubmitRuleClient) DeleteOneID(id int) *EsportsCloseSubmitRuleDeleteOne {
+	builder := c.Delete().Where(esportsclosesubmitrule.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsCloseSubmitRuleDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsCloseSubmitRule.
+func (c *EsportsCloseSubmitRuleClient) Query() *EsportsCloseSubmitRuleQuery {
+	return &EsportsCloseSubmitRuleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsCloseSubmitRule},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsCloseSubmitRule entity by its id.
+func (c *EsportsCloseSubmitRuleClient) Get(ctx context.Context, id int) (*EsportsCloseSubmitRule, error) {
+	return c.Query().Where(esportsclosesubmitrule.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsCloseSubmitRuleClient) GetX(ctx context.Context, id int) *EsportsCloseSubmitRule {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsCloseSubmitRuleClient) Hooks() []Hook {
+	return c.hooks.EsportsCloseSubmitRule
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsCloseSubmitRuleClient) Interceptors() []Interceptor {
+	return c.inters.EsportsCloseSubmitRule
+}
+
+func (c *EsportsCloseSubmitRuleClient) mutate(ctx context.Context, m *EsportsCloseSubmitRuleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsCloseSubmitRuleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsCloseSubmitRuleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsCloseSubmitRuleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsCloseSubmitRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsCloseSubmitRule mutation op: %q", m.Op())
 	}
 }
 
@@ -11857,9 +12000,9 @@ type (
 		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
 		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseFormField,
 		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
-		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
-		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
-		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
+		EsportsCloseSubmitRule, EsportsCommissionEntry, EsportsCommissionRule,
+		EsportsConfirmation, EsportsCsCommissionEntry, EsportsCsCommissionRule,
+		EsportsCustomer, EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
 		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
 		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
@@ -11881,9 +12024,9 @@ type (
 		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
 		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseFormField,
 		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
-		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
-		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
-		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
+		EsportsCloseSubmitRule, EsportsCommissionEntry, EsportsCommissionRule,
+		EsportsConfirmation, EsportsCsCommissionEntry, EsportsCsCommissionRule,
+		EsportsCustomer, EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
 		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
 		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,

@@ -56,6 +56,8 @@ type Tx struct {
 	EsportsCloseFormTemplate *EsportsCloseFormTemplateClient
 	// EsportsCloseRule is the client for interacting with the EsportsCloseRule builders.
 	EsportsCloseRule *EsportsCloseRuleClient
+	// EsportsCloseSubmitRule is the client for interacting with the EsportsCloseSubmitRule builders.
+	EsportsCloseSubmitRule *EsportsCloseSubmitRuleClient
 	// EsportsCommissionEntry is the client for interacting with the EsportsCommissionEntry builders.
 	EsportsCommissionEntry *EsportsCommissionEntryClient
 	// EsportsCommissionRule is the client for interacting with the EsportsCommissionRule builders.
@@ -327,6 +329,7 @@ func (tx *Tx) init() {
 	tx.EsportsCloseFormSnapshot = NewEsportsCloseFormSnapshotClient(tx.config)
 	tx.EsportsCloseFormTemplate = NewEsportsCloseFormTemplateClient(tx.config)
 	tx.EsportsCloseRule = NewEsportsCloseRuleClient(tx.config)
+	tx.EsportsCloseSubmitRule = NewEsportsCloseSubmitRuleClient(tx.config)
 	tx.EsportsCommissionEntry = NewEsportsCommissionEntryClient(tx.config)
 	tx.EsportsCommissionRule = NewEsportsCommissionRuleClient(tx.config)
 	tx.EsportsConfirmation = NewEsportsConfirmationClient(tx.config)

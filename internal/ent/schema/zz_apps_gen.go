@@ -50,6 +50,10 @@ type EsportsCloseRule struct {
 	appschemaesports.EsportsCloseRule
 }
 
+type EsportsCloseSubmitRule struct {
+	appschemaesports.EsportsCloseSubmitRule
+}
+
 type EsportsCommissionEntry struct {
 	appschemaesports.EsportsCommissionEntry
 }

@@ -72,6 +72,9 @@ type EsportsCloseFormTemplate func(*sql.Selector)
 // EsportsCloseRule is the predicate function for esportscloserule builders.
 type EsportsCloseRule func(*sql.Selector)
 
+// EsportsCloseSubmitRule is the predicate function for esportsclosesubmitrule builders.
+type EsportsCloseSubmitRule func(*sql.Selector)
+
 // EsportsCommissionEntry is the predicate function for esportscommissionentry builders.
 type EsportsCommissionEntry func(*sql.Selector)
 

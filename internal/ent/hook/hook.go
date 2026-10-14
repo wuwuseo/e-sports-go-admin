@@ -272,6 +272,18 @@ func (f EsportsCloseRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCloseRuleMutation", m)
 }
 
+// The EsportsCloseSubmitRuleFunc type is an adapter to allow the use of ordinary
+// function as EsportsCloseSubmitRule mutator.
+type EsportsCloseSubmitRuleFunc func(context.Context, *ent.EsportsCloseSubmitRuleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCloseSubmitRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCloseSubmitRuleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCloseSubmitRuleMutation", m)
+}
+
 // The EsportsCommissionEntryFunc type is an adapter to allow the use of ordinary
 // function as EsportsCommissionEntry mutator.
 type EsportsCommissionEntryFunc func(context.Context, *ent.EsportsCommissionEntryMutation) (ent.Value, error)
