@@ -171,6 +171,9 @@ type EsportsPaymentReceipt func(*sql.Selector)
 // EsportsPlayer is the predicate function for esportsplayer builders.
 type EsportsPlayer func(*sql.Selector)
 
+// EsportsPlayerRecovery is the predicate function for esportsplayerrecovery builders.
+type EsportsPlayerRecovery func(*sql.Selector)
+
 // EsportsPlayerReview is the predicate function for esportsplayerreview builders.
 type EsportsPlayerReview func(*sql.Selector)
 

@@ -66,6 +66,7 @@ import (
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportsproductcategory"
@@ -217,6 +218,8 @@ type Client struct {
 	EsportsPaymentReceipt *EsportsPaymentReceiptClient
 	// EsportsPlayer is the client for interacting with the EsportsPlayer builders.
 	EsportsPlayer *EsportsPlayerClient
+	// EsportsPlayerRecovery is the client for interacting with the EsportsPlayerRecovery builders.
+	EsportsPlayerRecovery *EsportsPlayerRecoveryClient
 	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
 	EsportsPlayerReview *EsportsPlayerReviewClient
 	// EsportsPlayerReviewRevision is the client for interacting with the EsportsPlayerReviewRevision builders.
@@ -341,6 +344,7 @@ func (c *Client) init() {
 	c.EsportsPaymentIntent = NewEsportsPaymentIntentClient(c.config)
 	c.EsportsPaymentReceipt = NewEsportsPaymentReceiptClient(c.config)
 	c.EsportsPlayer = NewEsportsPlayerClient(c.config)
+	c.EsportsPlayerRecovery = NewEsportsPlayerRecoveryClient(c.config)
 	c.EsportsPlayerReview = NewEsportsPlayerReviewClient(c.config)
 	c.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(c.config)
 	c.EsportsProductCategory = NewEsportsProductCategoryClient(c.config)
@@ -517,6 +521,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsPaymentIntent:          NewEsportsPaymentIntentClient(cfg),
 		EsportsPaymentReceipt:         NewEsportsPaymentReceiptClient(cfg),
 		EsportsPlayer:                 NewEsportsPlayerClient(cfg),
+		EsportsPlayerRecovery:         NewEsportsPlayerRecoveryClient(cfg),
 		EsportsPlayerReview:           NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewRevision:   NewEsportsPlayerReviewRevisionClient(cfg),
 		EsportsProductCategory:        NewEsportsProductCategoryClient(cfg),
@@ -620,6 +625,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsPaymentIntent:          NewEsportsPaymentIntentClient(cfg),
 		EsportsPaymentReceipt:         NewEsportsPaymentReceiptClient(cfg),
 		EsportsPlayer:                 NewEsportsPlayerClient(cfg),
+		EsportsPlayerRecovery:         NewEsportsPlayerRecoveryClient(cfg),
 		EsportsPlayerReview:           NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewRevision:   NewEsportsPlayerReviewRevisionClient(cfg),
 		EsportsProductCategory:        NewEsportsProductCategoryClient(cfg),
@@ -695,14 +701,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
 		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
 		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
-		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerReview,
-		c.EsportsPlayerReviewRevision, c.EsportsProductCategory, c.EsportsQuotaHold,
-		c.EsportsRechargeCampaign, c.EsportsScript, c.EsportsSeatTransferRequest,
-		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSku,
-		c.EsportsStoredValueCard, c.EsportsStoredValuePackage, c.EsportsWalletAccount,
-		c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerRecovery,
+		c.EsportsPlayerReview, c.EsportsPlayerReviewRevision, c.EsportsProductCategory,
+		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsScript,
+		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
+		c.EsportsSku, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
+		c.EsportsWalletAccount, c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
@@ -730,14 +736,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
 		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
 		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
-		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerReview,
-		c.EsportsPlayerReviewRevision, c.EsportsProductCategory, c.EsportsQuotaHold,
-		c.EsportsRechargeCampaign, c.EsportsScript, c.EsportsSeatTransferRequest,
-		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSku,
-		c.EsportsStoredValueCard, c.EsportsStoredValuePackage, c.EsportsWalletAccount,
-		c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerRecovery,
+		c.EsportsPlayerReview, c.EsportsPlayerReviewRevision, c.EsportsProductCategory,
+		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsScript,
+		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
+		c.EsportsSku, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
+		c.EsportsWalletAccount, c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
@@ -857,6 +863,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsPaymentReceipt.mutate(ctx, m)
 	case *EsportsPlayerMutation:
 		return c.EsportsPlayer.mutate(ctx, m)
+	case *EsportsPlayerRecoveryMutation:
+		return c.EsportsPlayerRecovery.mutate(ctx, m)
 	case *EsportsPlayerReviewMutation:
 		return c.EsportsPlayerReview.mutate(ctx, m)
 	case *EsportsPlayerReviewRevisionMutation:
@@ -8369,6 +8377,139 @@ func (c *EsportsPlayerClient) mutate(ctx context.Context, m *EsportsPlayerMutati
 	}
 }
 
+// EsportsPlayerRecoveryClient is a client for the EsportsPlayerRecovery schema.
+type EsportsPlayerRecoveryClient struct {
+	config
+}
+
+// NewEsportsPlayerRecoveryClient returns a client for the EsportsPlayerRecovery from the given config.
+func NewEsportsPlayerRecoveryClient(c config) *EsportsPlayerRecoveryClient {
+	return &EsportsPlayerRecoveryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsplayerrecovery.Hooks(f(g(h())))`.
+func (c *EsportsPlayerRecoveryClient) Use(hooks ...Hook) {
+	c.hooks.EsportsPlayerRecovery = append(c.hooks.EsportsPlayerRecovery, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsplayerrecovery.Intercept(f(g(h())))`.
+func (c *EsportsPlayerRecoveryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsPlayerRecovery = append(c.inters.EsportsPlayerRecovery, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsPlayerRecovery entity.
+func (c *EsportsPlayerRecoveryClient) Create() *EsportsPlayerRecoveryCreate {
+	mutation := newEsportsPlayerRecoveryMutation(c.config, OpCreate)
+	return &EsportsPlayerRecoveryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsPlayerRecovery entities.
+func (c *EsportsPlayerRecoveryClient) CreateBulk(builders ...*EsportsPlayerRecoveryCreate) *EsportsPlayerRecoveryCreateBulk {
+	return &EsportsPlayerRecoveryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsPlayerRecoveryClient) MapCreateBulk(slice any, setFunc func(*EsportsPlayerRecoveryCreate, int)) *EsportsPlayerRecoveryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsPlayerRecoveryCreateBulk{err: fmt.Errorf("calling to EsportsPlayerRecoveryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsPlayerRecoveryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsPlayerRecoveryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsPlayerRecovery.
+func (c *EsportsPlayerRecoveryClient) Update() *EsportsPlayerRecoveryUpdate {
+	mutation := newEsportsPlayerRecoveryMutation(c.config, OpUpdate)
+	return &EsportsPlayerRecoveryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsPlayerRecoveryClient) UpdateOne(_m *EsportsPlayerRecovery) *EsportsPlayerRecoveryUpdateOne {
+	mutation := newEsportsPlayerRecoveryMutation(c.config, OpUpdateOne, withEsportsPlayerRecovery(_m))
+	return &EsportsPlayerRecoveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsPlayerRecoveryClient) UpdateOneID(id int) *EsportsPlayerRecoveryUpdateOne {
+	mutation := newEsportsPlayerRecoveryMutation(c.config, OpUpdateOne, withEsportsPlayerRecoveryID(id))
+	return &EsportsPlayerRecoveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsPlayerRecovery.
+func (c *EsportsPlayerRecoveryClient) Delete() *EsportsPlayerRecoveryDelete {
+	mutation := newEsportsPlayerRecoveryMutation(c.config, OpDelete)
+	return &EsportsPlayerRecoveryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsPlayerRecoveryClient) DeleteOne(_m *EsportsPlayerRecovery) *EsportsPlayerRecoveryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsPlayerRecoveryClient) DeleteOneID(id int) *EsportsPlayerRecoveryDeleteOne {
+	builder := c.Delete().Where(esportsplayerrecovery.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsPlayerRecoveryDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsPlayerRecovery.
+func (c *EsportsPlayerRecoveryClient) Query() *EsportsPlayerRecoveryQuery {
+	return &EsportsPlayerRecoveryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsPlayerRecovery},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsPlayerRecovery entity by its id.
+func (c *EsportsPlayerRecoveryClient) Get(ctx context.Context, id int) (*EsportsPlayerRecovery, error) {
+	return c.Query().Where(esportsplayerrecovery.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsPlayerRecoveryClient) GetX(ctx context.Context, id int) *EsportsPlayerRecovery {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsPlayerRecoveryClient) Hooks() []Hook {
+	return c.hooks.EsportsPlayerRecovery
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsPlayerRecoveryClient) Interceptors() []Interceptor {
+	return c.inters.EsportsPlayerRecovery
+}
+
+func (c *EsportsPlayerRecoveryClient) mutate(ctx context.Context, m *EsportsPlayerRecoveryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsPlayerRecoveryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsPlayerRecoveryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsPlayerRecoveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsPlayerRecoveryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsPlayerRecovery mutation op: %q", m.Op())
+	}
+}
+
 // EsportsPlayerReviewClient is a client for the EsportsPlayerReview schema.
 type EsportsPlayerReviewClient struct {
 	config
@@ -12294,14 +12435,15 @@ type (
 		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOrder,
 		EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox, EsportsPageAsset,
 		EsportsPageDocument, EsportsPageVersion, EsportsPaymentIntent,
-		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerReview,
-		EsportsPlayerReviewRevision, EsportsProductCategory, EsportsQuotaHold,
-		EsportsRechargeCampaign, EsportsScript, EsportsSeatTransferRequest,
-		EsportsServiceSegment, EsportsSettlement, EsportsSku, EsportsStoredValueCard,
-		EsportsStoredValuePackage, EsportsWalletAccount, EsportsWalletTx,
-		EsportsWithdrawal, LoginLog, Message, MessagePreference, OAuthProviderConfig,
-		OAuthSession, OperationLog, Plugin, Role, Slide, SystemConfig,
-		SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
+		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerRecovery,
+		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
+		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
+		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
+		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage,
+		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
+		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
+		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
@@ -12319,13 +12461,14 @@ type (
 		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOrder,
 		EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox, EsportsPageAsset,
 		EsportsPageDocument, EsportsPageVersion, EsportsPaymentIntent,
-		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerReview,
-		EsportsPlayerReviewRevision, EsportsProductCategory, EsportsQuotaHold,
-		EsportsRechargeCampaign, EsportsScript, EsportsSeatTransferRequest,
-		EsportsServiceSegment, EsportsSettlement, EsportsSku, EsportsStoredValueCard,
-		EsportsStoredValuePackage, EsportsWalletAccount, EsportsWalletTx,
-		EsportsWithdrawal, LoginLog, Message, MessagePreference, OAuthProviderConfig,
-		OAuthSession, OperationLog, Plugin, Role, Slide, SystemConfig,
-		SystemPermission, ThirdPartyUser, User, UserRole []ent.Interceptor
+		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerRecovery,
+		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
+		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
+		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
+		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage,
+		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
+		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
+		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Interceptor
 	}
 )

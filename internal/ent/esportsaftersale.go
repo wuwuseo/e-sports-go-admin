@@ -67,6 +67,10 @@ type EsportsAfterSale struct {
 	CustomerDeclinedAt *time.Time `json:"customer_declined_at"`
 	// CustomerDeclineReason holds the value of the "customer_decline_reason" field.
 	CustomerDeclineReason string `json:"customer_decline_reason"`
+	// RecoveryPlayerID holds the value of the "recovery_player_id" field.
+	RecoveryPlayerID *int `json:"recovery_player_id"`
+	// RecoveryCents holds the value of the "recovery_cents" field.
+	RecoveryCents int64 `json:"recovery_cents"`
 	// AcceptedAt holds the value of the "accepted_at" field.
 	AcceptedAt *time.Time `json:"accepted_at"`
 	// PlannedAt holds the value of the "planned_at" field.
@@ -97,7 +101,7 @@ func (*EsportsAfterSale) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsaftersale.FieldID, esportsaftersale.FieldSourceID, esportsaftersale.FieldRefundCents, esportsaftersale.FieldMakeupPlayerID, esportsaftersale.FieldMakeupSeatIndex, esportsaftersale.FieldMakeupUnits, esportsaftersale.FieldMakeupCompanyPayCents, esportsaftersale.FieldCustomerID, esportsaftersale.FieldPlayerID, esportsaftersale.FieldCustomerConfirmedByAdminID, esportsaftersale.FieldHandlerAdminID, esportsaftersale.FieldApproverAdminID, esportsaftersale.FieldExecutorAdminID, esportsaftersale.FieldVersion:
+		case esportsaftersale.FieldID, esportsaftersale.FieldSourceID, esportsaftersale.FieldRefundCents, esportsaftersale.FieldMakeupPlayerID, esportsaftersale.FieldMakeupSeatIndex, esportsaftersale.FieldMakeupUnits, esportsaftersale.FieldMakeupCompanyPayCents, esportsaftersale.FieldCustomerID, esportsaftersale.FieldPlayerID, esportsaftersale.FieldCustomerConfirmedByAdminID, esportsaftersale.FieldRecoveryPlayerID, esportsaftersale.FieldRecoveryCents, esportsaftersale.FieldHandlerAdminID, esportsaftersale.FieldApproverAdminID, esportsaftersale.FieldExecutorAdminID, esportsaftersale.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportsaftersale.FieldAfterSaleNo, esportsaftersale.FieldSourceType, esportsaftersale.FieldKind, esportsaftersale.FieldChannel, esportsaftersale.FieldDemand, esportsaftersale.FieldExpectedPlan, esportsaftersale.FieldEvidenceRef, esportsaftersale.FieldContact, esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty, esportsaftersale.FieldPlanAction, esportsaftersale.FieldMakeupKind, esportsaftersale.FieldCustomerConfirmChannel, esportsaftersale.FieldCustomerDeclineReason, esportsaftersale.FieldResolution:
 			values[i] = new(sql.NullString)
@@ -280,6 +284,19 @@ func (_m *EsportsAfterSale) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field customer_decline_reason", values[i])
 			} else if value.Valid {
 				_m.CustomerDeclineReason = value.String
+			}
+		case esportsaftersale.FieldRecoveryPlayerID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field recovery_player_id", values[i])
+			} else if value.Valid {
+				_m.RecoveryPlayerID = new(int)
+				*_m.RecoveryPlayerID = int(value.Int64)
+			}
+		case esportsaftersale.FieldRecoveryCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field recovery_cents", values[i])
+			} else if value.Valid {
+				_m.RecoveryCents = value.Int64
 			}
 		case esportsaftersale.FieldAcceptedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -478,6 +495,14 @@ func (_m *EsportsAfterSale) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("customer_decline_reason=")
 	builder.WriteString(_m.CustomerDeclineReason)
+	builder.WriteString(", ")
+	if v := _m.RecoveryPlayerID; v != nil {
+		builder.WriteString("recovery_player_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("recovery_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RecoveryCents))
 	builder.WriteString(", ")
 	if v := _m.AcceptedAt; v != nil {
 		builder.WriteString("accepted_at=")

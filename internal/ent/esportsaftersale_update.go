@@ -469,6 +469,54 @@ func (_u *EsportsAfterSaleUpdate) SetNillableCustomerDeclineReason(v *string) *E
 	return _u
 }
 
+// SetRecoveryPlayerID sets the "recovery_player_id" field.
+func (_u *EsportsAfterSaleUpdate) SetRecoveryPlayerID(v int) *EsportsAfterSaleUpdate {
+	_u.mutation.ResetRecoveryPlayerID()
+	_u.mutation.SetRecoveryPlayerID(v)
+	return _u
+}
+
+// SetNillableRecoveryPlayerID sets the "recovery_player_id" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableRecoveryPlayerID(v *int) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetRecoveryPlayerID(*v)
+	}
+	return _u
+}
+
+// AddRecoveryPlayerID adds value to the "recovery_player_id" field.
+func (_u *EsportsAfterSaleUpdate) AddRecoveryPlayerID(v int) *EsportsAfterSaleUpdate {
+	_u.mutation.AddRecoveryPlayerID(v)
+	return _u
+}
+
+// ClearRecoveryPlayerID clears the value of the "recovery_player_id" field.
+func (_u *EsportsAfterSaleUpdate) ClearRecoveryPlayerID() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearRecoveryPlayerID()
+	return _u
+}
+
+// SetRecoveryCents sets the "recovery_cents" field.
+func (_u *EsportsAfterSaleUpdate) SetRecoveryCents(v int64) *EsportsAfterSaleUpdate {
+	_u.mutation.ResetRecoveryCents()
+	_u.mutation.SetRecoveryCents(v)
+	return _u
+}
+
+// SetNillableRecoveryCents sets the "recovery_cents" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableRecoveryCents(v *int64) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetRecoveryCents(*v)
+	}
+	return _u
+}
+
+// AddRecoveryCents adds value to the "recovery_cents" field.
+func (_u *EsportsAfterSaleUpdate) AddRecoveryCents(v int64) *EsportsAfterSaleUpdate {
+	_u.mutation.AddRecoveryCents(v)
+	return _u
+}
+
 // SetAcceptedAt sets the "accepted_at" field.
 func (_u *EsportsAfterSaleUpdate) SetAcceptedAt(v time.Time) *EsportsAfterSaleUpdate {
 	_u.mutation.SetAcceptedAt(v)
@@ -923,6 +971,21 @@ func (_u *EsportsAfterSaleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.CustomerDeclineReason(); ok {
 		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RecoveryPlayerID(); ok {
+		_spec.SetField(esportsaftersale.FieldRecoveryPlayerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRecoveryPlayerID(); ok {
+		_spec.AddField(esportsaftersale.FieldRecoveryPlayerID, field.TypeInt, value)
+	}
+	if _u.mutation.RecoveryPlayerIDCleared() {
+		_spec.ClearField(esportsaftersale.FieldRecoveryPlayerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RecoveryCents(); ok {
+		_spec.SetField(esportsaftersale.FieldRecoveryCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedRecoveryCents(); ok {
+		_spec.AddField(esportsaftersale.FieldRecoveryCents, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AcceptedAt(); ok {
 		_spec.SetField(esportsaftersale.FieldAcceptedAt, field.TypeTime, value)
@@ -1448,6 +1511,54 @@ func (_u *EsportsAfterSaleUpdateOne) SetNillableCustomerDeclineReason(v *string)
 	return _u
 }
 
+// SetRecoveryPlayerID sets the "recovery_player_id" field.
+func (_u *EsportsAfterSaleUpdateOne) SetRecoveryPlayerID(v int) *EsportsAfterSaleUpdateOne {
+	_u.mutation.ResetRecoveryPlayerID()
+	_u.mutation.SetRecoveryPlayerID(v)
+	return _u
+}
+
+// SetNillableRecoveryPlayerID sets the "recovery_player_id" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableRecoveryPlayerID(v *int) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetRecoveryPlayerID(*v)
+	}
+	return _u
+}
+
+// AddRecoveryPlayerID adds value to the "recovery_player_id" field.
+func (_u *EsportsAfterSaleUpdateOne) AddRecoveryPlayerID(v int) *EsportsAfterSaleUpdateOne {
+	_u.mutation.AddRecoveryPlayerID(v)
+	return _u
+}
+
+// ClearRecoveryPlayerID clears the value of the "recovery_player_id" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearRecoveryPlayerID() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearRecoveryPlayerID()
+	return _u
+}
+
+// SetRecoveryCents sets the "recovery_cents" field.
+func (_u *EsportsAfterSaleUpdateOne) SetRecoveryCents(v int64) *EsportsAfterSaleUpdateOne {
+	_u.mutation.ResetRecoveryCents()
+	_u.mutation.SetRecoveryCents(v)
+	return _u
+}
+
+// SetNillableRecoveryCents sets the "recovery_cents" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableRecoveryCents(v *int64) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetRecoveryCents(*v)
+	}
+	return _u
+}
+
+// AddRecoveryCents adds value to the "recovery_cents" field.
+func (_u *EsportsAfterSaleUpdateOne) AddRecoveryCents(v int64) *EsportsAfterSaleUpdateOne {
+	_u.mutation.AddRecoveryCents(v)
+	return _u
+}
+
 // SetAcceptedAt sets the "accepted_at" field.
 func (_u *EsportsAfterSaleUpdateOne) SetAcceptedAt(v time.Time) *EsportsAfterSaleUpdateOne {
 	_u.mutation.SetAcceptedAt(v)
@@ -1932,6 +2043,21 @@ func (_u *EsportsAfterSaleUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if value, ok := _u.mutation.CustomerDeclineReason(); ok {
 		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RecoveryPlayerID(); ok {
+		_spec.SetField(esportsaftersale.FieldRecoveryPlayerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRecoveryPlayerID(); ok {
+		_spec.AddField(esportsaftersale.FieldRecoveryPlayerID, field.TypeInt, value)
+	}
+	if _u.mutation.RecoveryPlayerIDCleared() {
+		_spec.ClearField(esportsaftersale.FieldRecoveryPlayerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.RecoveryCents(); ok {
+		_spec.SetField(esportsaftersale.FieldRecoveryCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedRecoveryCents(); ok {
+		_spec.AddField(esportsaftersale.FieldRecoveryCents, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AcceptedAt(); ok {
 		_spec.SetField(esportsaftersale.FieldAcceptedAt, field.TypeTime, value)

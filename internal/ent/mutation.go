@@ -62,6 +62,7 @@ import (
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportsproductcategory"
@@ -163,6 +164,7 @@ const (
 	TypeEsportsPaymentIntent          = "EsportsPaymentIntent"
 	TypeEsportsPaymentReceipt         = "EsportsPaymentReceipt"
 	TypeEsportsPlayer                 = "EsportsPlayer"
+	TypeEsportsPlayerRecovery         = "EsportsPlayerRecovery"
 	TypeEsportsPlayerReview           = "EsportsPlayerReview"
 	TypeEsportsPlayerReviewRevision   = "EsportsPlayerReviewRevision"
 	TypeEsportsProductCategory        = "EsportsProductCategory"
@@ -10858,6 +10860,10 @@ type EsportsAfterSaleMutation struct {
 	addcustomer_confirmed_by_admin_id *int
 	customer_declined_at              *time.Time
 	customer_decline_reason           *string
+	recovery_player_id                *int
+	addrecovery_player_id             *int
+	recovery_cents                    *int64
+	addrecovery_cents                 *int64
 	accepted_at                       *time.Time
 	planned_at                        *time.Time
 	approved_at                       *time.Time
@@ -12153,6 +12159,132 @@ func (m *EsportsAfterSaleMutation) ResetCustomerDeclineReason() {
 	m.customer_decline_reason = nil
 }
 
+// SetRecoveryPlayerID sets the "recovery_player_id" field.
+func (m *EsportsAfterSaleMutation) SetRecoveryPlayerID(i int) {
+	m.recovery_player_id = &i
+	m.addrecovery_player_id = nil
+}
+
+// RecoveryPlayerID returns the value of the "recovery_player_id" field in the mutation.
+func (m *EsportsAfterSaleMutation) RecoveryPlayerID() (r int, exists bool) {
+	v := m.recovery_player_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecoveryPlayerID returns the old "recovery_player_id" field's value of the EsportsAfterSale entity.
+// If the EsportsAfterSale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMutation) OldRecoveryPlayerID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecoveryPlayerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecoveryPlayerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecoveryPlayerID: %w", err)
+	}
+	return oldValue.RecoveryPlayerID, nil
+}
+
+// AddRecoveryPlayerID adds i to the "recovery_player_id" field.
+func (m *EsportsAfterSaleMutation) AddRecoveryPlayerID(i int) {
+	if m.addrecovery_player_id != nil {
+		*m.addrecovery_player_id += i
+	} else {
+		m.addrecovery_player_id = &i
+	}
+}
+
+// AddedRecoveryPlayerID returns the value that was added to the "recovery_player_id" field in this mutation.
+func (m *EsportsAfterSaleMutation) AddedRecoveryPlayerID() (r int, exists bool) {
+	v := m.addrecovery_player_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRecoveryPlayerID clears the value of the "recovery_player_id" field.
+func (m *EsportsAfterSaleMutation) ClearRecoveryPlayerID() {
+	m.recovery_player_id = nil
+	m.addrecovery_player_id = nil
+	m.clearedFields[esportsaftersale.FieldRecoveryPlayerID] = struct{}{}
+}
+
+// RecoveryPlayerIDCleared returns if the "recovery_player_id" field was cleared in this mutation.
+func (m *EsportsAfterSaleMutation) RecoveryPlayerIDCleared() bool {
+	_, ok := m.clearedFields[esportsaftersale.FieldRecoveryPlayerID]
+	return ok
+}
+
+// ResetRecoveryPlayerID resets all changes to the "recovery_player_id" field.
+func (m *EsportsAfterSaleMutation) ResetRecoveryPlayerID() {
+	m.recovery_player_id = nil
+	m.addrecovery_player_id = nil
+	delete(m.clearedFields, esportsaftersale.FieldRecoveryPlayerID)
+}
+
+// SetRecoveryCents sets the "recovery_cents" field.
+func (m *EsportsAfterSaleMutation) SetRecoveryCents(i int64) {
+	m.recovery_cents = &i
+	m.addrecovery_cents = nil
+}
+
+// RecoveryCents returns the value of the "recovery_cents" field in the mutation.
+func (m *EsportsAfterSaleMutation) RecoveryCents() (r int64, exists bool) {
+	v := m.recovery_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecoveryCents returns the old "recovery_cents" field's value of the EsportsAfterSale entity.
+// If the EsportsAfterSale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMutation) OldRecoveryCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecoveryCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecoveryCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecoveryCents: %w", err)
+	}
+	return oldValue.RecoveryCents, nil
+}
+
+// AddRecoveryCents adds i to the "recovery_cents" field.
+func (m *EsportsAfterSaleMutation) AddRecoveryCents(i int64) {
+	if m.addrecovery_cents != nil {
+		*m.addrecovery_cents += i
+	} else {
+		m.addrecovery_cents = &i
+	}
+}
+
+// AddedRecoveryCents returns the value that was added to the "recovery_cents" field in this mutation.
+func (m *EsportsAfterSaleMutation) AddedRecoveryCents() (r int64, exists bool) {
+	v := m.addrecovery_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRecoveryCents resets all changes to the "recovery_cents" field.
+func (m *EsportsAfterSaleMutation) ResetRecoveryCents() {
+	m.recovery_cents = nil
+	m.addrecovery_cents = nil
+}
+
 // SetAcceptedAt sets the "accepted_at" field.
 func (m *EsportsAfterSaleMutation) SetAcceptedAt(t time.Time) {
 	m.accepted_at = &t
@@ -12757,7 +12889,7 @@ func (m *EsportsAfterSaleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsAfterSaleMutation) Fields() []string {
-	fields := make([]string, 0, 36)
+	fields := make([]string, 0, 38)
 	if m.after_sale_no != nil {
 		fields = append(fields, esportsaftersale.FieldAfterSaleNo)
 	}
@@ -12832,6 +12964,12 @@ func (m *EsportsAfterSaleMutation) Fields() []string {
 	}
 	if m.customer_decline_reason != nil {
 		fields = append(fields, esportsaftersale.FieldCustomerDeclineReason)
+	}
+	if m.recovery_player_id != nil {
+		fields = append(fields, esportsaftersale.FieldRecoveryPlayerID)
+	}
+	if m.recovery_cents != nil {
+		fields = append(fields, esportsaftersale.FieldRecoveryCents)
 	}
 	if m.accepted_at != nil {
 		fields = append(fields, esportsaftersale.FieldAcceptedAt)
@@ -12924,6 +13062,10 @@ func (m *EsportsAfterSaleMutation) Field(name string) (ent.Value, bool) {
 		return m.CustomerDeclinedAt()
 	case esportsaftersale.FieldCustomerDeclineReason:
 		return m.CustomerDeclineReason()
+	case esportsaftersale.FieldRecoveryPlayerID:
+		return m.RecoveryPlayerID()
+	case esportsaftersale.FieldRecoveryCents:
+		return m.RecoveryCents()
 	case esportsaftersale.FieldAcceptedAt:
 		return m.AcceptedAt()
 	case esportsaftersale.FieldPlannedAt:
@@ -13005,6 +13147,10 @@ func (m *EsportsAfterSaleMutation) OldField(ctx context.Context, name string) (e
 		return m.OldCustomerDeclinedAt(ctx)
 	case esportsaftersale.FieldCustomerDeclineReason:
 		return m.OldCustomerDeclineReason(ctx)
+	case esportsaftersale.FieldRecoveryPlayerID:
+		return m.OldRecoveryPlayerID(ctx)
+	case esportsaftersale.FieldRecoveryCents:
+		return m.OldRecoveryCents(ctx)
 	case esportsaftersale.FieldAcceptedAt:
 		return m.OldAcceptedAt(ctx)
 	case esportsaftersale.FieldPlannedAt:
@@ -13211,6 +13357,20 @@ func (m *EsportsAfterSaleMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetCustomerDeclineReason(v)
 		return nil
+	case esportsaftersale.FieldRecoveryPlayerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecoveryPlayerID(v)
+		return nil
+	case esportsaftersale.FieldRecoveryCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecoveryCents(v)
+		return nil
 	case esportsaftersale.FieldAcceptedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -13323,6 +13483,12 @@ func (m *EsportsAfterSaleMutation) AddedFields() []string {
 	if m.addcustomer_confirmed_by_admin_id != nil {
 		fields = append(fields, esportsaftersale.FieldCustomerConfirmedByAdminID)
 	}
+	if m.addrecovery_player_id != nil {
+		fields = append(fields, esportsaftersale.FieldRecoveryPlayerID)
+	}
+	if m.addrecovery_cents != nil {
+		fields = append(fields, esportsaftersale.FieldRecoveryCents)
+	}
 	if m.addhandler_admin_id != nil {
 		fields = append(fields, esportsaftersale.FieldHandlerAdminID)
 	}
@@ -13361,6 +13527,10 @@ func (m *EsportsAfterSaleMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedPlayerID()
 	case esportsaftersale.FieldCustomerConfirmedByAdminID:
 		return m.AddedCustomerConfirmedByAdminID()
+	case esportsaftersale.FieldRecoveryPlayerID:
+		return m.AddedRecoveryPlayerID()
+	case esportsaftersale.FieldRecoveryCents:
+		return m.AddedRecoveryCents()
 	case esportsaftersale.FieldHandlerAdminID:
 		return m.AddedHandlerAdminID()
 	case esportsaftersale.FieldApproverAdminID:
@@ -13441,6 +13611,20 @@ func (m *EsportsAfterSaleMutation) AddField(name string, value ent.Value) error 
 		}
 		m.AddCustomerConfirmedByAdminID(v)
 		return nil
+	case esportsaftersale.FieldRecoveryPlayerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRecoveryPlayerID(v)
+		return nil
+	case esportsaftersale.FieldRecoveryCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRecoveryCents(v)
+		return nil
 	case esportsaftersale.FieldHandlerAdminID:
 		v, ok := value.(int)
 		if !ok {
@@ -13498,6 +13682,9 @@ func (m *EsportsAfterSaleMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsaftersale.FieldCustomerDeclinedAt) {
 		fields = append(fields, esportsaftersale.FieldCustomerDeclinedAt)
 	}
+	if m.FieldCleared(esportsaftersale.FieldRecoveryPlayerID) {
+		fields = append(fields, esportsaftersale.FieldRecoveryPlayerID)
+	}
 	if m.FieldCleared(esportsaftersale.FieldAcceptedAt) {
 		fields = append(fields, esportsaftersale.FieldAcceptedAt)
 	}
@@ -13553,6 +13740,9 @@ func (m *EsportsAfterSaleMutation) ClearField(name string) error {
 		return nil
 	case esportsaftersale.FieldCustomerDeclinedAt:
 		m.ClearCustomerDeclinedAt()
+		return nil
+	case esportsaftersale.FieldRecoveryPlayerID:
+		m.ClearRecoveryPlayerID()
 		return nil
 	case esportsaftersale.FieldAcceptedAt:
 		m.ClearAcceptedAt()
@@ -13657,6 +13847,12 @@ func (m *EsportsAfterSaleMutation) ResetField(name string) error {
 		return nil
 	case esportsaftersale.FieldCustomerDeclineReason:
 		m.ResetCustomerDeclineReason()
+		return nil
+	case esportsaftersale.FieldRecoveryPlayerID:
+		m.ResetRecoveryPlayerID()
+		return nil
+	case esportsaftersale.FieldRecoveryCents:
+		m.ResetRecoveryCents()
 		return nil
 	case esportsaftersale.FieldAcceptedAt:
 		m.ResetAcceptedAt()
@@ -62353,6 +62549,1564 @@ func (m *EsportsPlayerMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsPlayerMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsPlayer edge %s", name)
+}
+
+// EsportsPlayerRecoveryMutation represents an operation that mutates the EsportsPlayerRecovery nodes in the graph.
+type EsportsPlayerRecoveryMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int
+	recovery_no              *string
+	player_id                *int
+	addplayer_id             *int
+	after_sale_id            *int
+	addafter_sale_id         *int
+	order_id                 *int
+	addorder_id              *int
+	amount_cents             *int64
+	addamount_cents          *int64
+	reason                   *string
+	status                   *esportsplayerrecovery.Status
+	requested_by_admin_id    *int
+	addrequested_by_admin_id *int
+	approved_by_admin_id     *int
+	addapproved_by_admin_id  *int
+	approved_at              *time.Time
+	recovered_at             *time.Time
+	wallet_tx_id             *int
+	addwallet_tx_id          *int
+	reject_reason            *string
+	note                     *string
+	version                  *int
+	addversion               *int
+	created_at               *time.Time
+	updated_at               *time.Time
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*EsportsPlayerRecovery, error)
+	predicates               []predicate.EsportsPlayerRecovery
+}
+
+var _ ent.Mutation = (*EsportsPlayerRecoveryMutation)(nil)
+
+// esportsplayerrecoveryOption allows management of the mutation configuration using functional options.
+type esportsplayerrecoveryOption func(*EsportsPlayerRecoveryMutation)
+
+// newEsportsPlayerRecoveryMutation creates new mutation for the EsportsPlayerRecovery entity.
+func newEsportsPlayerRecoveryMutation(c config, op Op, opts ...esportsplayerrecoveryOption) *EsportsPlayerRecoveryMutation {
+	m := &EsportsPlayerRecoveryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsPlayerRecovery,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsPlayerRecoveryID sets the ID field of the mutation.
+func withEsportsPlayerRecoveryID(id int) esportsplayerrecoveryOption {
+	return func(m *EsportsPlayerRecoveryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsPlayerRecovery
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsPlayerRecovery, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsPlayerRecovery.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsPlayerRecovery sets the old EsportsPlayerRecovery of the mutation.
+func withEsportsPlayerRecovery(node *EsportsPlayerRecovery) esportsplayerrecoveryOption {
+	return func(m *EsportsPlayerRecoveryMutation) {
+		m.oldValue = func(context.Context) (*EsportsPlayerRecovery, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsPlayerRecoveryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsPlayerRecoveryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsPlayerRecoveryMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsPlayerRecoveryMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsPlayerRecovery.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRecoveryNo sets the "recovery_no" field.
+func (m *EsportsPlayerRecoveryMutation) SetRecoveryNo(s string) {
+	m.recovery_no = &s
+}
+
+// RecoveryNo returns the value of the "recovery_no" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) RecoveryNo() (r string, exists bool) {
+	v := m.recovery_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecoveryNo returns the old "recovery_no" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldRecoveryNo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecoveryNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecoveryNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecoveryNo: %w", err)
+	}
+	return oldValue.RecoveryNo, nil
+}
+
+// ResetRecoveryNo resets all changes to the "recovery_no" field.
+func (m *EsportsPlayerRecoveryMutation) ResetRecoveryNo() {
+	m.recovery_no = nil
+}
+
+// SetPlayerID sets the "player_id" field.
+func (m *EsportsPlayerRecoveryMutation) SetPlayerID(i int) {
+	m.player_id = &i
+	m.addplayer_id = nil
+}
+
+// PlayerID returns the value of the "player_id" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) PlayerID() (r int, exists bool) {
+	v := m.player_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlayerID returns the old "player_id" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldPlayerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlayerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlayerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlayerID: %w", err)
+	}
+	return oldValue.PlayerID, nil
+}
+
+// AddPlayerID adds i to the "player_id" field.
+func (m *EsportsPlayerRecoveryMutation) AddPlayerID(i int) {
+	if m.addplayer_id != nil {
+		*m.addplayer_id += i
+	} else {
+		m.addplayer_id = &i
+	}
+}
+
+// AddedPlayerID returns the value that was added to the "player_id" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedPlayerID() (r int, exists bool) {
+	v := m.addplayer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPlayerID resets all changes to the "player_id" field.
+func (m *EsportsPlayerRecoveryMutation) ResetPlayerID() {
+	m.player_id = nil
+	m.addplayer_id = nil
+}
+
+// SetAfterSaleID sets the "after_sale_id" field.
+func (m *EsportsPlayerRecoveryMutation) SetAfterSaleID(i int) {
+	m.after_sale_id = &i
+	m.addafter_sale_id = nil
+}
+
+// AfterSaleID returns the value of the "after_sale_id" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) AfterSaleID() (r int, exists bool) {
+	v := m.after_sale_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAfterSaleID returns the old "after_sale_id" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldAfterSaleID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAfterSaleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAfterSaleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAfterSaleID: %w", err)
+	}
+	return oldValue.AfterSaleID, nil
+}
+
+// AddAfterSaleID adds i to the "after_sale_id" field.
+func (m *EsportsPlayerRecoveryMutation) AddAfterSaleID(i int) {
+	if m.addafter_sale_id != nil {
+		*m.addafter_sale_id += i
+	} else {
+		m.addafter_sale_id = &i
+	}
+}
+
+// AddedAfterSaleID returns the value that was added to the "after_sale_id" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedAfterSaleID() (r int, exists bool) {
+	v := m.addafter_sale_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAfterSaleID resets all changes to the "after_sale_id" field.
+func (m *EsportsPlayerRecoveryMutation) ResetAfterSaleID() {
+	m.after_sale_id = nil
+	m.addafter_sale_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *EsportsPlayerRecoveryMutation) SetOrderID(i int) {
+	m.order_id = &i
+	m.addorder_id = nil
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) OrderID() (r int, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldOrderID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// AddOrderID adds i to the "order_id" field.
+func (m *EsportsPlayerRecoveryMutation) AddOrderID(i int) {
+	if m.addorder_id != nil {
+		*m.addorder_id += i
+	} else {
+		m.addorder_id = &i
+	}
+}
+
+// AddedOrderID returns the value that was added to the "order_id" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedOrderID() (r int, exists bool) {
+	v := m.addorder_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *EsportsPlayerRecoveryMutation) ResetOrderID() {
+	m.order_id = nil
+	m.addorder_id = nil
+}
+
+// SetAmountCents sets the "amount_cents" field.
+func (m *EsportsPlayerRecoveryMutation) SetAmountCents(i int64) {
+	m.amount_cents = &i
+	m.addamount_cents = nil
+}
+
+// AmountCents returns the value of the "amount_cents" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) AmountCents() (r int64, exists bool) {
+	v := m.amount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountCents returns the old "amount_cents" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldAmountCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountCents: %w", err)
+	}
+	return oldValue.AmountCents, nil
+}
+
+// AddAmountCents adds i to the "amount_cents" field.
+func (m *EsportsPlayerRecoveryMutation) AddAmountCents(i int64) {
+	if m.addamount_cents != nil {
+		*m.addamount_cents += i
+	} else {
+		m.addamount_cents = &i
+	}
+}
+
+// AddedAmountCents returns the value that was added to the "amount_cents" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedAmountCents() (r int64, exists bool) {
+	v := m.addamount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmountCents resets all changes to the "amount_cents" field.
+func (m *EsportsPlayerRecoveryMutation) ResetAmountCents() {
+	m.amount_cents = nil
+	m.addamount_cents = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *EsportsPlayerRecoveryMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *EsportsPlayerRecoveryMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsPlayerRecoveryMutation) SetStatus(e esportsplayerrecovery.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) Status() (r esportsplayerrecovery.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldStatus(ctx context.Context) (v esportsplayerrecovery.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsPlayerRecoveryMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetRequestedByAdminID sets the "requested_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) SetRequestedByAdminID(i int) {
+	m.requested_by_admin_id = &i
+	m.addrequested_by_admin_id = nil
+}
+
+// RequestedByAdminID returns the value of the "requested_by_admin_id" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) RequestedByAdminID() (r int, exists bool) {
+	v := m.requested_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedByAdminID returns the old "requested_by_admin_id" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldRequestedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedByAdminID: %w", err)
+	}
+	return oldValue.RequestedByAdminID, nil
+}
+
+// AddRequestedByAdminID adds i to the "requested_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) AddRequestedByAdminID(i int) {
+	if m.addrequested_by_admin_id != nil {
+		*m.addrequested_by_admin_id += i
+	} else {
+		m.addrequested_by_admin_id = &i
+	}
+}
+
+// AddedRequestedByAdminID returns the value that was added to the "requested_by_admin_id" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedRequestedByAdminID() (r int, exists bool) {
+	v := m.addrequested_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRequestedByAdminID clears the value of the "requested_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) ClearRequestedByAdminID() {
+	m.requested_by_admin_id = nil
+	m.addrequested_by_admin_id = nil
+	m.clearedFields[esportsplayerrecovery.FieldRequestedByAdminID] = struct{}{}
+}
+
+// RequestedByAdminIDCleared returns if the "requested_by_admin_id" field was cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) RequestedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsplayerrecovery.FieldRequestedByAdminID]
+	return ok
+}
+
+// ResetRequestedByAdminID resets all changes to the "requested_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) ResetRequestedByAdminID() {
+	m.requested_by_admin_id = nil
+	m.addrequested_by_admin_id = nil
+	delete(m.clearedFields, esportsplayerrecovery.FieldRequestedByAdminID)
+}
+
+// SetApprovedByAdminID sets the "approved_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) SetApprovedByAdminID(i int) {
+	m.approved_by_admin_id = &i
+	m.addapproved_by_admin_id = nil
+}
+
+// ApprovedByAdminID returns the value of the "approved_by_admin_id" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) ApprovedByAdminID() (r int, exists bool) {
+	v := m.approved_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedByAdminID returns the old "approved_by_admin_id" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldApprovedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedByAdminID: %w", err)
+	}
+	return oldValue.ApprovedByAdminID, nil
+}
+
+// AddApprovedByAdminID adds i to the "approved_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) AddApprovedByAdminID(i int) {
+	if m.addapproved_by_admin_id != nil {
+		*m.addapproved_by_admin_id += i
+	} else {
+		m.addapproved_by_admin_id = &i
+	}
+}
+
+// AddedApprovedByAdminID returns the value that was added to the "approved_by_admin_id" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedApprovedByAdminID() (r int, exists bool) {
+	v := m.addapproved_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearApprovedByAdminID clears the value of the "approved_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) ClearApprovedByAdminID() {
+	m.approved_by_admin_id = nil
+	m.addapproved_by_admin_id = nil
+	m.clearedFields[esportsplayerrecovery.FieldApprovedByAdminID] = struct{}{}
+}
+
+// ApprovedByAdminIDCleared returns if the "approved_by_admin_id" field was cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) ApprovedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsplayerrecovery.FieldApprovedByAdminID]
+	return ok
+}
+
+// ResetApprovedByAdminID resets all changes to the "approved_by_admin_id" field.
+func (m *EsportsPlayerRecoveryMutation) ResetApprovedByAdminID() {
+	m.approved_by_admin_id = nil
+	m.addapproved_by_admin_id = nil
+	delete(m.clearedFields, esportsplayerrecovery.FieldApprovedByAdminID)
+}
+
+// SetApprovedAt sets the "approved_at" field.
+func (m *EsportsPlayerRecoveryMutation) SetApprovedAt(t time.Time) {
+	m.approved_at = &t
+}
+
+// ApprovedAt returns the value of the "approved_at" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) ApprovedAt() (r time.Time, exists bool) {
+	v := m.approved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovedAt returns the old "approved_at" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldApprovedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovedAt: %w", err)
+	}
+	return oldValue.ApprovedAt, nil
+}
+
+// ClearApprovedAt clears the value of the "approved_at" field.
+func (m *EsportsPlayerRecoveryMutation) ClearApprovedAt() {
+	m.approved_at = nil
+	m.clearedFields[esportsplayerrecovery.FieldApprovedAt] = struct{}{}
+}
+
+// ApprovedAtCleared returns if the "approved_at" field was cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) ApprovedAtCleared() bool {
+	_, ok := m.clearedFields[esportsplayerrecovery.FieldApprovedAt]
+	return ok
+}
+
+// ResetApprovedAt resets all changes to the "approved_at" field.
+func (m *EsportsPlayerRecoveryMutation) ResetApprovedAt() {
+	m.approved_at = nil
+	delete(m.clearedFields, esportsplayerrecovery.FieldApprovedAt)
+}
+
+// SetRecoveredAt sets the "recovered_at" field.
+func (m *EsportsPlayerRecoveryMutation) SetRecoveredAt(t time.Time) {
+	m.recovered_at = &t
+}
+
+// RecoveredAt returns the value of the "recovered_at" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) RecoveredAt() (r time.Time, exists bool) {
+	v := m.recovered_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRecoveredAt returns the old "recovered_at" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldRecoveredAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRecoveredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRecoveredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRecoveredAt: %w", err)
+	}
+	return oldValue.RecoveredAt, nil
+}
+
+// ClearRecoveredAt clears the value of the "recovered_at" field.
+func (m *EsportsPlayerRecoveryMutation) ClearRecoveredAt() {
+	m.recovered_at = nil
+	m.clearedFields[esportsplayerrecovery.FieldRecoveredAt] = struct{}{}
+}
+
+// RecoveredAtCleared returns if the "recovered_at" field was cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) RecoveredAtCleared() bool {
+	_, ok := m.clearedFields[esportsplayerrecovery.FieldRecoveredAt]
+	return ok
+}
+
+// ResetRecoveredAt resets all changes to the "recovered_at" field.
+func (m *EsportsPlayerRecoveryMutation) ResetRecoveredAt() {
+	m.recovered_at = nil
+	delete(m.clearedFields, esportsplayerrecovery.FieldRecoveredAt)
+}
+
+// SetWalletTxID sets the "wallet_tx_id" field.
+func (m *EsportsPlayerRecoveryMutation) SetWalletTxID(i int) {
+	m.wallet_tx_id = &i
+	m.addwallet_tx_id = nil
+}
+
+// WalletTxID returns the value of the "wallet_tx_id" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) WalletTxID() (r int, exists bool) {
+	v := m.wallet_tx_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWalletTxID returns the old "wallet_tx_id" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldWalletTxID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWalletTxID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWalletTxID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWalletTxID: %w", err)
+	}
+	return oldValue.WalletTxID, nil
+}
+
+// AddWalletTxID adds i to the "wallet_tx_id" field.
+func (m *EsportsPlayerRecoveryMutation) AddWalletTxID(i int) {
+	if m.addwallet_tx_id != nil {
+		*m.addwallet_tx_id += i
+	} else {
+		m.addwallet_tx_id = &i
+	}
+}
+
+// AddedWalletTxID returns the value that was added to the "wallet_tx_id" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedWalletTxID() (r int, exists bool) {
+	v := m.addwallet_tx_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearWalletTxID clears the value of the "wallet_tx_id" field.
+func (m *EsportsPlayerRecoveryMutation) ClearWalletTxID() {
+	m.wallet_tx_id = nil
+	m.addwallet_tx_id = nil
+	m.clearedFields[esportsplayerrecovery.FieldWalletTxID] = struct{}{}
+}
+
+// WalletTxIDCleared returns if the "wallet_tx_id" field was cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) WalletTxIDCleared() bool {
+	_, ok := m.clearedFields[esportsplayerrecovery.FieldWalletTxID]
+	return ok
+}
+
+// ResetWalletTxID resets all changes to the "wallet_tx_id" field.
+func (m *EsportsPlayerRecoveryMutation) ResetWalletTxID() {
+	m.wallet_tx_id = nil
+	m.addwallet_tx_id = nil
+	delete(m.clearedFields, esportsplayerrecovery.FieldWalletTxID)
+}
+
+// SetRejectReason sets the "reject_reason" field.
+func (m *EsportsPlayerRecoveryMutation) SetRejectReason(s string) {
+	m.reject_reason = &s
+}
+
+// RejectReason returns the value of the "reject_reason" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) RejectReason() (r string, exists bool) {
+	v := m.reject_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRejectReason returns the old "reject_reason" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldRejectReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRejectReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRejectReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRejectReason: %w", err)
+	}
+	return oldValue.RejectReason, nil
+}
+
+// ResetRejectReason resets all changes to the "reject_reason" field.
+func (m *EsportsPlayerRecoveryMutation) ResetRejectReason() {
+	m.reject_reason = nil
+}
+
+// SetNote sets the "note" field.
+func (m *EsportsPlayerRecoveryMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *EsportsPlayerRecoveryMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsPlayerRecoveryMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsPlayerRecoveryMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsPlayerRecoveryMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsPlayerRecoveryMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsPlayerRecoveryMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsPlayerRecoveryMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsPlayerRecoveryMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsPlayerRecovery entity.
+// If the EsportsPlayerRecovery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerRecoveryMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsPlayerRecoveryMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsPlayerRecoveryMutation builder.
+func (m *EsportsPlayerRecoveryMutation) Where(ps ...predicate.EsportsPlayerRecovery) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsPlayerRecoveryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsPlayerRecoveryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsPlayerRecovery, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsPlayerRecoveryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsPlayerRecoveryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsPlayerRecovery).
+func (m *EsportsPlayerRecoveryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsPlayerRecoveryMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.recovery_no != nil {
+		fields = append(fields, esportsplayerrecovery.FieldRecoveryNo)
+	}
+	if m.player_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldPlayerID)
+	}
+	if m.after_sale_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldAfterSaleID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldOrderID)
+	}
+	if m.amount_cents != nil {
+		fields = append(fields, esportsplayerrecovery.FieldAmountCents)
+	}
+	if m.reason != nil {
+		fields = append(fields, esportsplayerrecovery.FieldReason)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsplayerrecovery.FieldStatus)
+	}
+	if m.requested_by_admin_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldRequestedByAdminID)
+	}
+	if m.approved_by_admin_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldApprovedByAdminID)
+	}
+	if m.approved_at != nil {
+		fields = append(fields, esportsplayerrecovery.FieldApprovedAt)
+	}
+	if m.recovered_at != nil {
+		fields = append(fields, esportsplayerrecovery.FieldRecoveredAt)
+	}
+	if m.wallet_tx_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldWalletTxID)
+	}
+	if m.reject_reason != nil {
+		fields = append(fields, esportsplayerrecovery.FieldRejectReason)
+	}
+	if m.note != nil {
+		fields = append(fields, esportsplayerrecovery.FieldNote)
+	}
+	if m.version != nil {
+		fields = append(fields, esportsplayerrecovery.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsplayerrecovery.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportsplayerrecovery.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsPlayerRecoveryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsplayerrecovery.FieldRecoveryNo:
+		return m.RecoveryNo()
+	case esportsplayerrecovery.FieldPlayerID:
+		return m.PlayerID()
+	case esportsplayerrecovery.FieldAfterSaleID:
+		return m.AfterSaleID()
+	case esportsplayerrecovery.FieldOrderID:
+		return m.OrderID()
+	case esportsplayerrecovery.FieldAmountCents:
+		return m.AmountCents()
+	case esportsplayerrecovery.FieldReason:
+		return m.Reason()
+	case esportsplayerrecovery.FieldStatus:
+		return m.Status()
+	case esportsplayerrecovery.FieldRequestedByAdminID:
+		return m.RequestedByAdminID()
+	case esportsplayerrecovery.FieldApprovedByAdminID:
+		return m.ApprovedByAdminID()
+	case esportsplayerrecovery.FieldApprovedAt:
+		return m.ApprovedAt()
+	case esportsplayerrecovery.FieldRecoveredAt:
+		return m.RecoveredAt()
+	case esportsplayerrecovery.FieldWalletTxID:
+		return m.WalletTxID()
+	case esportsplayerrecovery.FieldRejectReason:
+		return m.RejectReason()
+	case esportsplayerrecovery.FieldNote:
+		return m.Note()
+	case esportsplayerrecovery.FieldVersion:
+		return m.Version()
+	case esportsplayerrecovery.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportsplayerrecovery.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsPlayerRecoveryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsplayerrecovery.FieldRecoveryNo:
+		return m.OldRecoveryNo(ctx)
+	case esportsplayerrecovery.FieldPlayerID:
+		return m.OldPlayerID(ctx)
+	case esportsplayerrecovery.FieldAfterSaleID:
+		return m.OldAfterSaleID(ctx)
+	case esportsplayerrecovery.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case esportsplayerrecovery.FieldAmountCents:
+		return m.OldAmountCents(ctx)
+	case esportsplayerrecovery.FieldReason:
+		return m.OldReason(ctx)
+	case esportsplayerrecovery.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsplayerrecovery.FieldRequestedByAdminID:
+		return m.OldRequestedByAdminID(ctx)
+	case esportsplayerrecovery.FieldApprovedByAdminID:
+		return m.OldApprovedByAdminID(ctx)
+	case esportsplayerrecovery.FieldApprovedAt:
+		return m.OldApprovedAt(ctx)
+	case esportsplayerrecovery.FieldRecoveredAt:
+		return m.OldRecoveredAt(ctx)
+	case esportsplayerrecovery.FieldWalletTxID:
+		return m.OldWalletTxID(ctx)
+	case esportsplayerrecovery.FieldRejectReason:
+		return m.OldRejectReason(ctx)
+	case esportsplayerrecovery.FieldNote:
+		return m.OldNote(ctx)
+	case esportsplayerrecovery.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportsplayerrecovery.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportsplayerrecovery.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsPlayerRecovery field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsPlayerRecoveryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsplayerrecovery.FieldRecoveryNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecoveryNo(v)
+		return nil
+	case esportsplayerrecovery.FieldPlayerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlayerID(v)
+		return nil
+	case esportsplayerrecovery.FieldAfterSaleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAfterSaleID(v)
+		return nil
+	case esportsplayerrecovery.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case esportsplayerrecovery.FieldAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountCents(v)
+		return nil
+	case esportsplayerrecovery.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case esportsplayerrecovery.FieldStatus:
+		v, ok := value.(esportsplayerrecovery.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsplayerrecovery.FieldRequestedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedByAdminID(v)
+		return nil
+	case esportsplayerrecovery.FieldApprovedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedByAdminID(v)
+		return nil
+	case esportsplayerrecovery.FieldApprovedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovedAt(v)
+		return nil
+	case esportsplayerrecovery.FieldRecoveredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRecoveredAt(v)
+		return nil
+	case esportsplayerrecovery.FieldWalletTxID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWalletTxID(v)
+		return nil
+	case esportsplayerrecovery.FieldRejectReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRejectReason(v)
+		return nil
+	case esportsplayerrecovery.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case esportsplayerrecovery.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportsplayerrecovery.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportsplayerrecovery.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerRecovery field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedFields() []string {
+	var fields []string
+	if m.addplayer_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldPlayerID)
+	}
+	if m.addafter_sale_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldAfterSaleID)
+	}
+	if m.addorder_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldOrderID)
+	}
+	if m.addamount_cents != nil {
+		fields = append(fields, esportsplayerrecovery.FieldAmountCents)
+	}
+	if m.addrequested_by_admin_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldRequestedByAdminID)
+	}
+	if m.addapproved_by_admin_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldApprovedByAdminID)
+	}
+	if m.addwallet_tx_id != nil {
+		fields = append(fields, esportsplayerrecovery.FieldWalletTxID)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportsplayerrecovery.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsPlayerRecoveryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsplayerrecovery.FieldPlayerID:
+		return m.AddedPlayerID()
+	case esportsplayerrecovery.FieldAfterSaleID:
+		return m.AddedAfterSaleID()
+	case esportsplayerrecovery.FieldOrderID:
+		return m.AddedOrderID()
+	case esportsplayerrecovery.FieldAmountCents:
+		return m.AddedAmountCents()
+	case esportsplayerrecovery.FieldRequestedByAdminID:
+		return m.AddedRequestedByAdminID()
+	case esportsplayerrecovery.FieldApprovedByAdminID:
+		return m.AddedApprovedByAdminID()
+	case esportsplayerrecovery.FieldWalletTxID:
+		return m.AddedWalletTxID()
+	case esportsplayerrecovery.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsPlayerRecoveryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsplayerrecovery.FieldPlayerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPlayerID(v)
+		return nil
+	case esportsplayerrecovery.FieldAfterSaleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAfterSaleID(v)
+		return nil
+	case esportsplayerrecovery.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderID(v)
+		return nil
+	case esportsplayerrecovery.FieldAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmountCents(v)
+		return nil
+	case esportsplayerrecovery.FieldRequestedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequestedByAdminID(v)
+		return nil
+	case esportsplayerrecovery.FieldApprovedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddApprovedByAdminID(v)
+		return nil
+	case esportsplayerrecovery.FieldWalletTxID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWalletTxID(v)
+		return nil
+	case esportsplayerrecovery.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerRecovery numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsPlayerRecoveryMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsplayerrecovery.FieldRequestedByAdminID) {
+		fields = append(fields, esportsplayerrecovery.FieldRequestedByAdminID)
+	}
+	if m.FieldCleared(esportsplayerrecovery.FieldApprovedByAdminID) {
+		fields = append(fields, esportsplayerrecovery.FieldApprovedByAdminID)
+	}
+	if m.FieldCleared(esportsplayerrecovery.FieldApprovedAt) {
+		fields = append(fields, esportsplayerrecovery.FieldApprovedAt)
+	}
+	if m.FieldCleared(esportsplayerrecovery.FieldRecoveredAt) {
+		fields = append(fields, esportsplayerrecovery.FieldRecoveredAt)
+	}
+	if m.FieldCleared(esportsplayerrecovery.FieldWalletTxID) {
+		fields = append(fields, esportsplayerrecovery.FieldWalletTxID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsPlayerRecoveryMutation) ClearField(name string) error {
+	switch name {
+	case esportsplayerrecovery.FieldRequestedByAdminID:
+		m.ClearRequestedByAdminID()
+		return nil
+	case esportsplayerrecovery.FieldApprovedByAdminID:
+		m.ClearApprovedByAdminID()
+		return nil
+	case esportsplayerrecovery.FieldApprovedAt:
+		m.ClearApprovedAt()
+		return nil
+	case esportsplayerrecovery.FieldRecoveredAt:
+		m.ClearRecoveredAt()
+		return nil
+	case esportsplayerrecovery.FieldWalletTxID:
+		m.ClearWalletTxID()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerRecovery nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsPlayerRecoveryMutation) ResetField(name string) error {
+	switch name {
+	case esportsplayerrecovery.FieldRecoveryNo:
+		m.ResetRecoveryNo()
+		return nil
+	case esportsplayerrecovery.FieldPlayerID:
+		m.ResetPlayerID()
+		return nil
+	case esportsplayerrecovery.FieldAfterSaleID:
+		m.ResetAfterSaleID()
+		return nil
+	case esportsplayerrecovery.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case esportsplayerrecovery.FieldAmountCents:
+		m.ResetAmountCents()
+		return nil
+	case esportsplayerrecovery.FieldReason:
+		m.ResetReason()
+		return nil
+	case esportsplayerrecovery.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsplayerrecovery.FieldRequestedByAdminID:
+		m.ResetRequestedByAdminID()
+		return nil
+	case esportsplayerrecovery.FieldApprovedByAdminID:
+		m.ResetApprovedByAdminID()
+		return nil
+	case esportsplayerrecovery.FieldApprovedAt:
+		m.ResetApprovedAt()
+		return nil
+	case esportsplayerrecovery.FieldRecoveredAt:
+		m.ResetRecoveredAt()
+		return nil
+	case esportsplayerrecovery.FieldWalletTxID:
+		m.ResetWalletTxID()
+		return nil
+	case esportsplayerrecovery.FieldRejectReason:
+		m.ResetRejectReason()
+		return nil
+	case esportsplayerrecovery.FieldNote:
+		m.ResetNote()
+		return nil
+	case esportsplayerrecovery.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportsplayerrecovery.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportsplayerrecovery.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerRecovery field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsPlayerRecoveryMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsPlayerRecoveryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsPlayerRecoveryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsPlayerRecoveryMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsPlayerRecoveryMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsPlayerRecovery unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsPlayerRecoveryMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsPlayerRecovery edge %s", name)
 }
 
 // EsportsPlayerReviewMutation represents an operation that mutates the EsportsPlayerReview nodes in the graph.

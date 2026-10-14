@@ -473,6 +473,8 @@ var (
 		{Name: "customer_confirmed_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "customer_declined_at", Type: field.TypeTime, Nullable: true},
 		{Name: "customer_decline_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "recovery_player_id", Type: field.TypeInt, Nullable: true},
+		{Name: "recovery_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "accepted_at", Type: field.TypeTime, Nullable: true},
 		{Name: "planned_at", Type: field.TypeTime, Nullable: true},
 		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
@@ -504,7 +506,7 @@ var (
 			{
 				Name:    "esportsaftersale_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsAfterSalesColumns[10], EsportsAfterSalesColumns[35]},
+				Columns: []*schema.Column{EsportsAfterSalesColumns[10], EsportsAfterSalesColumns[37]},
 			},
 		},
 	}
@@ -1981,6 +1983,50 @@ var (
 			},
 		},
 	}
+	// EsportsPlayerRecoveriesColumns holds the columns for the "esports_player_recoveries" table.
+	EsportsPlayerRecoveriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "recovery_no", Type: field.TypeString, Size: 64},
+		{Name: "player_id", Type: field.TypeInt},
+		{Name: "after_sale_id", Type: field.TypeInt, Default: 0},
+		{Name: "order_id", Type: field.TypeInt, Default: 0},
+		{Name: "amount_cents", Type: field.TypeInt64},
+		{Name: "reason", Type: field.TypeString, Size: 255},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "recovered", "rejected"}, Default: "pending"},
+		{Name: "requested_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "approved_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "approved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "recovered_at", Type: field.TypeTime, Nullable: true},
+		{Name: "wallet_tx_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reject_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPlayerRecoveriesTable holds the schema information for the "esports_player_recoveries" table.
+	EsportsPlayerRecoveriesTable = &schema.Table{
+		Name:       TablePrefix + "esports_player_recoveries",
+		Columns:    EsportsPlayerRecoveriesColumns,
+		PrimaryKey: []*schema.Column{EsportsPlayerRecoveriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsplayerrecovery_recovery_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPlayerRecoveriesColumns[1]},
+			},
+			{
+				Name:    "esportsplayerrecovery_player_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPlayerRecoveriesColumns[2], EsportsPlayerRecoveriesColumns[7]},
+			},
+			{
+				Name:    "esportsplayerrecovery_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPlayerRecoveriesColumns[7], EsportsPlayerRecoveriesColumns[16]},
+			},
+		},
+	}
 	// EsportsPlayerReviewsColumns holds the columns for the "esports_player_reviews" table.
 	EsportsPlayerReviewsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -3160,6 +3206,7 @@ var (
 		EsportsPaymentIntentsTable,
 		EsportsPaymentReceiptsTable,
 		EsportsPlayersTable,
+		EsportsPlayerRecoveriesTable,
 		EsportsPlayerReviewsTable,
 		EsportsPlayerReviewRevisionsTable,
 		EsportsProductCategoriesTable,

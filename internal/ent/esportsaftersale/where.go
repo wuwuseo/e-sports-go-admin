@@ -139,6 +139,16 @@ func CustomerDeclineReason(v string) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldCustomerDeclineReason, v))
 }
 
+// RecoveryPlayerID applies equality check predicate on the "recovery_player_id" field. It's identical to RecoveryPlayerIDEQ.
+func RecoveryPlayerID(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldRecoveryPlayerID, v))
+}
+
+// RecoveryCents applies equality check predicate on the "recovery_cents" field. It's identical to RecoveryCentsEQ.
+func RecoveryCents(v int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldRecoveryCents, v))
+}
+
 // AcceptedAt applies equality check predicate on the "accepted_at" field. It's identical to AcceptedAtEQ.
 func AcceptedAt(v time.Time) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldAcceptedAt, v))
@@ -1252,6 +1262,96 @@ func CustomerDeclineReasonEqualFold(v string) predicate.EsportsAfterSale {
 // CustomerDeclineReasonContainsFold applies the ContainsFold predicate on the "customer_decline_reason" field.
 func CustomerDeclineReasonContainsFold(v string) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldContainsFold(FieldCustomerDeclineReason, v))
+}
+
+// RecoveryPlayerIDEQ applies the EQ predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDEQ(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldRecoveryPlayerID, v))
+}
+
+// RecoveryPlayerIDNEQ applies the NEQ predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDNEQ(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldRecoveryPlayerID, v))
+}
+
+// RecoveryPlayerIDIn applies the In predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDIn(vs ...int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldRecoveryPlayerID, vs...))
+}
+
+// RecoveryPlayerIDNotIn applies the NotIn predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDNotIn(vs ...int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldRecoveryPlayerID, vs...))
+}
+
+// RecoveryPlayerIDGT applies the GT predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDGT(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldRecoveryPlayerID, v))
+}
+
+// RecoveryPlayerIDGTE applies the GTE predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDGTE(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldRecoveryPlayerID, v))
+}
+
+// RecoveryPlayerIDLT applies the LT predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDLT(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldRecoveryPlayerID, v))
+}
+
+// RecoveryPlayerIDLTE applies the LTE predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDLTE(v int) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldRecoveryPlayerID, v))
+}
+
+// RecoveryPlayerIDIsNil applies the IsNil predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldRecoveryPlayerID))
+}
+
+// RecoveryPlayerIDNotNil applies the NotNil predicate on the "recovery_player_id" field.
+func RecoveryPlayerIDNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldRecoveryPlayerID))
+}
+
+// RecoveryCentsEQ applies the EQ predicate on the "recovery_cents" field.
+func RecoveryCentsEQ(v int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldRecoveryCents, v))
+}
+
+// RecoveryCentsNEQ applies the NEQ predicate on the "recovery_cents" field.
+func RecoveryCentsNEQ(v int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldRecoveryCents, v))
+}
+
+// RecoveryCentsIn applies the In predicate on the "recovery_cents" field.
+func RecoveryCentsIn(vs ...int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldRecoveryCents, vs...))
+}
+
+// RecoveryCentsNotIn applies the NotIn predicate on the "recovery_cents" field.
+func RecoveryCentsNotIn(vs ...int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldRecoveryCents, vs...))
+}
+
+// RecoveryCentsGT applies the GT predicate on the "recovery_cents" field.
+func RecoveryCentsGT(v int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldRecoveryCents, v))
+}
+
+// RecoveryCentsGTE applies the GTE predicate on the "recovery_cents" field.
+func RecoveryCentsGTE(v int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldRecoveryCents, v))
+}
+
+// RecoveryCentsLT applies the LT predicate on the "recovery_cents" field.
+func RecoveryCentsLT(v int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldRecoveryCents, v))
+}
+
+// RecoveryCentsLTE applies the LTE predicate on the "recovery_cents" field.
+func RecoveryCentsLTE(v int64) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldRecoveryCents, v))
 }
 
 // AcceptedAtEQ applies the EQ predicate on the "accepted_at" field.

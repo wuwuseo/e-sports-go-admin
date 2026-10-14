@@ -330,6 +330,34 @@ func (_c *EsportsAfterSaleCreate) SetNillableCustomerDeclineReason(v *string) *E
 	return _c
 }
 
+// SetRecoveryPlayerID sets the "recovery_player_id" field.
+func (_c *EsportsAfterSaleCreate) SetRecoveryPlayerID(v int) *EsportsAfterSaleCreate {
+	_c.mutation.SetRecoveryPlayerID(v)
+	return _c
+}
+
+// SetNillableRecoveryPlayerID sets the "recovery_player_id" field if the given value is not nil.
+func (_c *EsportsAfterSaleCreate) SetNillableRecoveryPlayerID(v *int) *EsportsAfterSaleCreate {
+	if v != nil {
+		_c.SetRecoveryPlayerID(*v)
+	}
+	return _c
+}
+
+// SetRecoveryCents sets the "recovery_cents" field.
+func (_c *EsportsAfterSaleCreate) SetRecoveryCents(v int64) *EsportsAfterSaleCreate {
+	_c.mutation.SetRecoveryCents(v)
+	return _c
+}
+
+// SetNillableRecoveryCents sets the "recovery_cents" field if the given value is not nil.
+func (_c *EsportsAfterSaleCreate) SetNillableRecoveryCents(v *int64) *EsportsAfterSaleCreate {
+	if v != nil {
+		_c.SetRecoveryCents(*v)
+	}
+	return _c
+}
+
 // SetAcceptedAt sets the "accepted_at" field.
 func (_c *EsportsAfterSaleCreate) SetAcceptedAt(v time.Time) *EsportsAfterSaleCreate {
 	_c.mutation.SetAcceptedAt(v)
@@ -571,6 +599,10 @@ func (_c *EsportsAfterSaleCreate) defaults() {
 		v := esportsaftersale.DefaultCustomerDeclineReason
 		_c.mutation.SetCustomerDeclineReason(v)
 	}
+	if _, ok := _c.mutation.RecoveryCents(); !ok {
+		v := esportsaftersale.DefaultRecoveryCents
+		_c.mutation.SetRecoveryCents(v)
+	}
 	if _, ok := _c.mutation.Resolution(); !ok {
 		v := esportsaftersale.DefaultResolution
 		_c.mutation.SetResolution(v)
@@ -720,6 +752,9 @@ func (_c *EsportsAfterSaleCreate) check() error {
 			return &ValidationError{Name: "customer_decline_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.customer_decline_reason": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.RecoveryCents(); !ok {
+		return &ValidationError{Name: "recovery_cents", err: errors.New(`ent: missing required field "EsportsAfterSale.recovery_cents"`)}
+	}
 	if _, ok := _c.mutation.Resolution(); !ok {
 		return &ValidationError{Name: "resolution", err: errors.New(`ent: missing required field "EsportsAfterSale.resolution"`)}
 	}
@@ -862,6 +897,14 @@ func (_c *EsportsAfterSaleCreate) createSpec() (*EsportsAfterSale, *sqlgraph.Cre
 	if value, ok := _c.mutation.CustomerDeclineReason(); ok {
 		_spec.SetField(esportsaftersale.FieldCustomerDeclineReason, field.TypeString, value)
 		_node.CustomerDeclineReason = value
+	}
+	if value, ok := _c.mutation.RecoveryPlayerID(); ok {
+		_spec.SetField(esportsaftersale.FieldRecoveryPlayerID, field.TypeInt, value)
+		_node.RecoveryPlayerID = &value
+	}
+	if value, ok := _c.mutation.RecoveryCents(); ok {
+		_spec.SetField(esportsaftersale.FieldRecoveryCents, field.TypeInt64, value)
+		_node.RecoveryCents = value
 	}
 	if value, ok := _c.mutation.AcceptedAt(); ok {
 		_spec.SetField(esportsaftersale.FieldAcceptedAt, field.TypeTime, value)

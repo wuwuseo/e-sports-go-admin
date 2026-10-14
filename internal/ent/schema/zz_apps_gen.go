@@ -174,6 +174,10 @@ type EsportsPaymentReceipt struct {
 
 type EsportsPlayer struct{ appschemaesports.EsportsPlayer }
 
+type EsportsPlayerRecovery struct {
+	appschemaesports.EsportsPlayerRecovery
+}
+
 type EsportsPlayerReview struct {
 	appschemaesports.EsportsPlayerReview
 }

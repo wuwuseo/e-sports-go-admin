@@ -66,6 +66,10 @@ const (
 	FieldCustomerDeclinedAt = "customer_declined_at"
 	// FieldCustomerDeclineReason holds the string denoting the customer_decline_reason field in the database.
 	FieldCustomerDeclineReason = "customer_decline_reason"
+	// FieldRecoveryPlayerID holds the string denoting the recovery_player_id field in the database.
+	FieldRecoveryPlayerID = "recovery_player_id"
+	// FieldRecoveryCents holds the string denoting the recovery_cents field in the database.
+	FieldRecoveryCents = "recovery_cents"
 	// FieldAcceptedAt holds the string denoting the accepted_at field in the database.
 	FieldAcceptedAt = "accepted_at"
 	// FieldPlannedAt holds the string denoting the planned_at field in the database.
@@ -123,6 +127,8 @@ var Columns = []string{
 	FieldCustomerConfirmedByAdminID,
 	FieldCustomerDeclinedAt,
 	FieldCustomerDeclineReason,
+	FieldRecoveryPlayerID,
+	FieldRecoveryCents,
 	FieldAcceptedAt,
 	FieldPlannedAt,
 	FieldApprovedAt,
@@ -175,6 +181,8 @@ var (
 	DefaultCustomerDeclineReason string
 	// CustomerDeclineReasonValidator is a validator for the "customer_decline_reason" field. It is called by the builders before save.
 	CustomerDeclineReasonValidator func(string) error
+	// DefaultRecoveryCents holds the default value on creation for the "recovery_cents" field.
+	DefaultRecoveryCents int64
 	// DefaultResolution holds the default value on creation for the "resolution" field.
 	DefaultResolution string
 	// ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
@@ -544,6 +552,16 @@ func ByCustomerDeclinedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByCustomerDeclineReason orders the results by the customer_decline_reason field.
 func ByCustomerDeclineReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCustomerDeclineReason, opts...).ToFunc()
+}
+
+// ByRecoveryPlayerID orders the results by the recovery_player_id field.
+func ByRecoveryPlayerID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRecoveryPlayerID, opts...).ToFunc()
+}
+
+// ByRecoveryCents orders the results by the recovery_cents field.
+func ByRecoveryCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRecoveryCents, opts...).ToFunc()
 }
 
 // ByAcceptedAt orders the results by the accepted_at field.

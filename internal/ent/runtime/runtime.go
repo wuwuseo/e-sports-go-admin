@@ -58,6 +58,7 @@ import (
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportsproductcategory"
@@ -880,22 +881,26 @@ func init() {
 	esportsaftersale.DefaultCustomerDeclineReason = esportsaftersaleDescCustomerDeclineReason.Default.(string)
 	// esportsaftersale.CustomerDeclineReasonValidator is a validator for the "customer_decline_reason" field. It is called by the builders before save.
 	esportsaftersale.CustomerDeclineReasonValidator = esportsaftersaleDescCustomerDeclineReason.Validators[0].(func(string) error)
+	// esportsaftersaleDescRecoveryCents is the schema descriptor for recovery_cents field.
+	esportsaftersaleDescRecoveryCents := esportsaftersaleFields[26].Descriptor()
+	// esportsaftersale.DefaultRecoveryCents holds the default value on creation for the recovery_cents field.
+	esportsaftersale.DefaultRecoveryCents = esportsaftersaleDescRecoveryCents.Default.(int64)
 	// esportsaftersaleDescResolution is the schema descriptor for resolution field.
-	esportsaftersaleDescResolution := esportsaftersaleFields[31].Descriptor()
+	esportsaftersaleDescResolution := esportsaftersaleFields[33].Descriptor()
 	// esportsaftersale.DefaultResolution holds the default value on creation for the resolution field.
 	esportsaftersale.DefaultResolution = esportsaftersaleDescResolution.Default.(string)
 	// esportsaftersale.ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
 	esportsaftersale.ResolutionValidator = esportsaftersaleDescResolution.Validators[0].(func(string) error)
 	// esportsaftersaleDescVersion is the schema descriptor for version field.
-	esportsaftersaleDescVersion := esportsaftersaleFields[32].Descriptor()
+	esportsaftersaleDescVersion := esportsaftersaleFields[34].Descriptor()
 	// esportsaftersale.DefaultVersion holds the default value on creation for the version field.
 	esportsaftersale.DefaultVersion = esportsaftersaleDescVersion.Default.(int)
 	// esportsaftersaleDescCreatedAt is the schema descriptor for created_at field.
-	esportsaftersaleDescCreatedAt := esportsaftersaleFields[34].Descriptor()
+	esportsaftersaleDescCreatedAt := esportsaftersaleFields[36].Descriptor()
 	// esportsaftersale.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsaftersale.DefaultCreatedAt = esportsaftersaleDescCreatedAt.Default.(func() time.Time)
 	// esportsaftersaleDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsaftersaleDescUpdatedAt := esportsaftersaleFields[35].Descriptor()
+	esportsaftersaleDescUpdatedAt := esportsaftersaleFields[37].Descriptor()
 	// esportsaftersale.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsaftersale.DefaultUpdatedAt = esportsaftersaleDescUpdatedAt.Default.(func() time.Time)
 	// esportsaftersale.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -3394,6 +3399,86 @@ func init() {
 	esportsplayer.DefaultUpdatedAt = esportsplayerDescUpdatedAt.Default.(func() time.Time)
 	// esportsplayer.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsplayer.UpdateDefaultUpdatedAt = esportsplayerDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsplayerrecoveryFields := schema.EsportsPlayerRecovery{}.Fields()
+	_ = esportsplayerrecoveryFields
+	// esportsplayerrecoveryDescRecoveryNo is the schema descriptor for recovery_no field.
+	esportsplayerrecoveryDescRecoveryNo := esportsplayerrecoveryFields[0].Descriptor()
+	// esportsplayerrecovery.RecoveryNoValidator is a validator for the "recovery_no" field. It is called by the builders before save.
+	esportsplayerrecovery.RecoveryNoValidator = func() func(string) error {
+		validators := esportsplayerrecoveryDescRecoveryNo.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(recovery_no string) error {
+			for _, fn := range fns {
+				if err := fn(recovery_no); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsplayerrecoveryDescPlayerID is the schema descriptor for player_id field.
+	esportsplayerrecoveryDescPlayerID := esportsplayerrecoveryFields[1].Descriptor()
+	// esportsplayerrecovery.PlayerIDValidator is a validator for the "player_id" field. It is called by the builders before save.
+	esportsplayerrecovery.PlayerIDValidator = esportsplayerrecoveryDescPlayerID.Validators[0].(func(int) error)
+	// esportsplayerrecoveryDescAfterSaleID is the schema descriptor for after_sale_id field.
+	esportsplayerrecoveryDescAfterSaleID := esportsplayerrecoveryFields[2].Descriptor()
+	// esportsplayerrecovery.DefaultAfterSaleID holds the default value on creation for the after_sale_id field.
+	esportsplayerrecovery.DefaultAfterSaleID = esportsplayerrecoveryDescAfterSaleID.Default.(int)
+	// esportsplayerrecoveryDescOrderID is the schema descriptor for order_id field.
+	esportsplayerrecoveryDescOrderID := esportsplayerrecoveryFields[3].Descriptor()
+	// esportsplayerrecovery.DefaultOrderID holds the default value on creation for the order_id field.
+	esportsplayerrecovery.DefaultOrderID = esportsplayerrecoveryDescOrderID.Default.(int)
+	// esportsplayerrecoveryDescAmountCents is the schema descriptor for amount_cents field.
+	esportsplayerrecoveryDescAmountCents := esportsplayerrecoveryFields[4].Descriptor()
+	// esportsplayerrecovery.AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
+	esportsplayerrecovery.AmountCentsValidator = esportsplayerrecoveryDescAmountCents.Validators[0].(func(int64) error)
+	// esportsplayerrecoveryDescReason is the schema descriptor for reason field.
+	esportsplayerrecoveryDescReason := esportsplayerrecoveryFields[5].Descriptor()
+	// esportsplayerrecovery.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	esportsplayerrecovery.ReasonValidator = func() func(string) error {
+		validators := esportsplayerrecoveryDescReason.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(reason string) error {
+			for _, fn := range fns {
+				if err := fn(reason); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsplayerrecoveryDescRejectReason is the schema descriptor for reject_reason field.
+	esportsplayerrecoveryDescRejectReason := esportsplayerrecoveryFields[12].Descriptor()
+	// esportsplayerrecovery.DefaultRejectReason holds the default value on creation for the reject_reason field.
+	esportsplayerrecovery.DefaultRejectReason = esportsplayerrecoveryDescRejectReason.Default.(string)
+	// esportsplayerrecovery.RejectReasonValidator is a validator for the "reject_reason" field. It is called by the builders before save.
+	esportsplayerrecovery.RejectReasonValidator = esportsplayerrecoveryDescRejectReason.Validators[0].(func(string) error)
+	// esportsplayerrecoveryDescNote is the schema descriptor for note field.
+	esportsplayerrecoveryDescNote := esportsplayerrecoveryFields[13].Descriptor()
+	// esportsplayerrecovery.DefaultNote holds the default value on creation for the note field.
+	esportsplayerrecovery.DefaultNote = esportsplayerrecoveryDescNote.Default.(string)
+	// esportsplayerrecovery.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	esportsplayerrecovery.NoteValidator = esportsplayerrecoveryDescNote.Validators[0].(func(string) error)
+	// esportsplayerrecoveryDescVersion is the schema descriptor for version field.
+	esportsplayerrecoveryDescVersion := esportsplayerrecoveryFields[14].Descriptor()
+	// esportsplayerrecovery.DefaultVersion holds the default value on creation for the version field.
+	esportsplayerrecovery.DefaultVersion = esportsplayerrecoveryDescVersion.Default.(int)
+	// esportsplayerrecoveryDescCreatedAt is the schema descriptor for created_at field.
+	esportsplayerrecoveryDescCreatedAt := esportsplayerrecoveryFields[15].Descriptor()
+	// esportsplayerrecovery.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsplayerrecovery.DefaultCreatedAt = esportsplayerrecoveryDescCreatedAt.Default.(func() time.Time)
+	// esportsplayerrecoveryDescUpdatedAt is the schema descriptor for updated_at field.
+	esportsplayerrecoveryDescUpdatedAt := esportsplayerrecoveryFields[16].Descriptor()
+	// esportsplayerrecovery.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportsplayerrecovery.DefaultUpdatedAt = esportsplayerrecoveryDescUpdatedAt.Default.(func() time.Time)
+	// esportsplayerrecovery.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportsplayerrecovery.UpdateDefaultUpdatedAt = esportsplayerrecoveryDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportsplayerreviewFields := schema.EsportsPlayerReview{}.Fields()
 	_ = esportsplayerreviewFields
 	// esportsplayerreviewDescOrderID is the schema descriptor for order_id field.
