@@ -213,6 +213,54 @@ func (_u *EsportsCustomerUpdate) SetNillableFollowStatus(v *esportscustomer.Foll
 	return _u
 }
 
+// SetRiskStatus sets the "risk_status" field.
+func (_u *EsportsCustomerUpdate) SetRiskStatus(v esportscustomer.RiskStatus) *EsportsCustomerUpdate {
+	_u.mutation.SetRiskStatus(v)
+	return _u
+}
+
+// SetNillableRiskStatus sets the "risk_status" field if the given value is not nil.
+func (_u *EsportsCustomerUpdate) SetNillableRiskStatus(v *esportscustomer.RiskStatus) *EsportsCustomerUpdate {
+	if v != nil {
+		_u.SetRiskStatus(*v)
+	}
+	return _u
+}
+
+// SetRiskReason sets the "risk_reason" field.
+func (_u *EsportsCustomerUpdate) SetRiskReason(v string) *EsportsCustomerUpdate {
+	_u.mutation.SetRiskReason(v)
+	return _u
+}
+
+// SetNillableRiskReason sets the "risk_reason" field if the given value is not nil.
+func (_u *EsportsCustomerUpdate) SetNillableRiskReason(v *string) *EsportsCustomerUpdate {
+	if v != nil {
+		_u.SetRiskReason(*v)
+	}
+	return _u
+}
+
+// SetRiskMarkedAt sets the "risk_marked_at" field.
+func (_u *EsportsCustomerUpdate) SetRiskMarkedAt(v time.Time) *EsportsCustomerUpdate {
+	_u.mutation.SetRiskMarkedAt(v)
+	return _u
+}
+
+// SetNillableRiskMarkedAt sets the "risk_marked_at" field if the given value is not nil.
+func (_u *EsportsCustomerUpdate) SetNillableRiskMarkedAt(v *time.Time) *EsportsCustomerUpdate {
+	if v != nil {
+		_u.SetRiskMarkedAt(*v)
+	}
+	return _u
+}
+
+// ClearRiskMarkedAt clears the value of the "risk_marked_at" field.
+func (_u *EsportsCustomerUpdate) ClearRiskMarkedAt() *EsportsCustomerUpdate {
+	_u.mutation.ClearRiskMarkedAt()
+	return _u
+}
+
 // SetLastContactAt sets the "last_contact_at" field.
 func (_u *EsportsCustomerUpdate) SetLastContactAt(v time.Time) *EsportsCustomerUpdate {
 	_u.mutation.SetLastContactAt(v)
@@ -446,6 +494,16 @@ func (_u *EsportsCustomerUpdate) check() error {
 			return &ValidationError{Name: "follow_status", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.follow_status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RiskStatus(); ok {
+		if err := esportscustomer.RiskStatusValidator(v); err != nil {
+			return &ValidationError{Name: "risk_status", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.risk_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RiskReason(); ok {
+		if err := esportscustomer.RiskReasonValidator(v); err != nil {
+			return &ValidationError{Name: "risk_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.risk_reason": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.WecomCorpID(); ok {
 		if err := esportscustomer.WecomCorpIDValidator(v); err != nil {
 			return &ValidationError{Name: "wecom_corp_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.wecom_corp_id": %w`, err)}
@@ -533,6 +591,18 @@ func (_u *EsportsCustomerUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.FollowStatus(); ok {
 		_spec.SetField(esportscustomer.FieldFollowStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RiskStatus(); ok {
+		_spec.SetField(esportscustomer.FieldRiskStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RiskReason(); ok {
+		_spec.SetField(esportscustomer.FieldRiskReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskMarkedAt(); ok {
+		_spec.SetField(esportscustomer.FieldRiskMarkedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RiskMarkedAtCleared() {
+		_spec.ClearField(esportscustomer.FieldRiskMarkedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.LastContactAt(); ok {
 		_spec.SetField(esportscustomer.FieldLastContactAt, field.TypeTime, value)
@@ -783,6 +853,54 @@ func (_u *EsportsCustomerUpdateOne) SetNillableFollowStatus(v *esportscustomer.F
 	return _u
 }
 
+// SetRiskStatus sets the "risk_status" field.
+func (_u *EsportsCustomerUpdateOne) SetRiskStatus(v esportscustomer.RiskStatus) *EsportsCustomerUpdateOne {
+	_u.mutation.SetRiskStatus(v)
+	return _u
+}
+
+// SetNillableRiskStatus sets the "risk_status" field if the given value is not nil.
+func (_u *EsportsCustomerUpdateOne) SetNillableRiskStatus(v *esportscustomer.RiskStatus) *EsportsCustomerUpdateOne {
+	if v != nil {
+		_u.SetRiskStatus(*v)
+	}
+	return _u
+}
+
+// SetRiskReason sets the "risk_reason" field.
+func (_u *EsportsCustomerUpdateOne) SetRiskReason(v string) *EsportsCustomerUpdateOne {
+	_u.mutation.SetRiskReason(v)
+	return _u
+}
+
+// SetNillableRiskReason sets the "risk_reason" field if the given value is not nil.
+func (_u *EsportsCustomerUpdateOne) SetNillableRiskReason(v *string) *EsportsCustomerUpdateOne {
+	if v != nil {
+		_u.SetRiskReason(*v)
+	}
+	return _u
+}
+
+// SetRiskMarkedAt sets the "risk_marked_at" field.
+func (_u *EsportsCustomerUpdateOne) SetRiskMarkedAt(v time.Time) *EsportsCustomerUpdateOne {
+	_u.mutation.SetRiskMarkedAt(v)
+	return _u
+}
+
+// SetNillableRiskMarkedAt sets the "risk_marked_at" field if the given value is not nil.
+func (_u *EsportsCustomerUpdateOne) SetNillableRiskMarkedAt(v *time.Time) *EsportsCustomerUpdateOne {
+	if v != nil {
+		_u.SetRiskMarkedAt(*v)
+	}
+	return _u
+}
+
+// ClearRiskMarkedAt clears the value of the "risk_marked_at" field.
+func (_u *EsportsCustomerUpdateOne) ClearRiskMarkedAt() *EsportsCustomerUpdateOne {
+	_u.mutation.ClearRiskMarkedAt()
+	return _u
+}
+
 // SetLastContactAt sets the "last_contact_at" field.
 func (_u *EsportsCustomerUpdateOne) SetLastContactAt(v time.Time) *EsportsCustomerUpdateOne {
 	_u.mutation.SetLastContactAt(v)
@@ -1029,6 +1147,16 @@ func (_u *EsportsCustomerUpdateOne) check() error {
 			return &ValidationError{Name: "follow_status", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.follow_status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RiskStatus(); ok {
+		if err := esportscustomer.RiskStatusValidator(v); err != nil {
+			return &ValidationError{Name: "risk_status", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.risk_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RiskReason(); ok {
+		if err := esportscustomer.RiskReasonValidator(v); err != nil {
+			return &ValidationError{Name: "risk_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.risk_reason": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.WecomCorpID(); ok {
 		if err := esportscustomer.WecomCorpIDValidator(v); err != nil {
 			return &ValidationError{Name: "wecom_corp_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.wecom_corp_id": %w`, err)}
@@ -1133,6 +1261,18 @@ func (_u *EsportsCustomerUpdateOne) sqlSave(ctx context.Context) (_node *Esports
 	}
 	if value, ok := _u.mutation.FollowStatus(); ok {
 		_spec.SetField(esportscustomer.FieldFollowStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RiskStatus(); ok {
+		_spec.SetField(esportscustomer.FieldRiskStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.RiskReason(); ok {
+		_spec.SetField(esportscustomer.FieldRiskReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RiskMarkedAt(); ok {
+		_spec.SetField(esportscustomer.FieldRiskMarkedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RiskMarkedAtCleared() {
+		_spec.ClearField(esportscustomer.FieldRiskMarkedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.LastContactAt(); ok {
 		_spec.SetField(esportscustomer.FieldLastContactAt, field.TypeTime, value)

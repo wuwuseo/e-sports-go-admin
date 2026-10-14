@@ -89,6 +89,16 @@ func ConsumptionPreference(v string) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldEQ(FieldConsumptionPreference, v))
 }
 
+// RiskReason applies equality check predicate on the "risk_reason" field. It's identical to RiskReasonEQ.
+func RiskReason(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldRiskReason, v))
+}
+
+// RiskMarkedAt applies equality check predicate on the "risk_marked_at" field. It's identical to RiskMarkedAtEQ.
+func RiskMarkedAt(v time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldRiskMarkedAt, v))
+}
+
 // LastContactAt applies equality check predicate on the "last_contact_at" field. It's identical to LastContactAtEQ.
 func LastContactAt(v time.Time) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldEQ(FieldLastContactAt, v))
@@ -577,6 +587,141 @@ func FollowStatusIn(vs ...FollowStatus) predicate.EsportsCustomer {
 // FollowStatusNotIn applies the NotIn predicate on the "follow_status" field.
 func FollowStatusNotIn(vs ...FollowStatus) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldNotIn(FieldFollowStatus, vs...))
+}
+
+// RiskStatusEQ applies the EQ predicate on the "risk_status" field.
+func RiskStatusEQ(v RiskStatus) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldRiskStatus, v))
+}
+
+// RiskStatusNEQ applies the NEQ predicate on the "risk_status" field.
+func RiskStatusNEQ(v RiskStatus) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNEQ(FieldRiskStatus, v))
+}
+
+// RiskStatusIn applies the In predicate on the "risk_status" field.
+func RiskStatusIn(vs ...RiskStatus) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIn(FieldRiskStatus, vs...))
+}
+
+// RiskStatusNotIn applies the NotIn predicate on the "risk_status" field.
+func RiskStatusNotIn(vs ...RiskStatus) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotIn(FieldRiskStatus, vs...))
+}
+
+// RiskReasonEQ applies the EQ predicate on the "risk_reason" field.
+func RiskReasonEQ(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldRiskReason, v))
+}
+
+// RiskReasonNEQ applies the NEQ predicate on the "risk_reason" field.
+func RiskReasonNEQ(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNEQ(FieldRiskReason, v))
+}
+
+// RiskReasonIn applies the In predicate on the "risk_reason" field.
+func RiskReasonIn(vs ...string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIn(FieldRiskReason, vs...))
+}
+
+// RiskReasonNotIn applies the NotIn predicate on the "risk_reason" field.
+func RiskReasonNotIn(vs ...string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotIn(FieldRiskReason, vs...))
+}
+
+// RiskReasonGT applies the GT predicate on the "risk_reason" field.
+func RiskReasonGT(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGT(FieldRiskReason, v))
+}
+
+// RiskReasonGTE applies the GTE predicate on the "risk_reason" field.
+func RiskReasonGTE(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGTE(FieldRiskReason, v))
+}
+
+// RiskReasonLT applies the LT predicate on the "risk_reason" field.
+func RiskReasonLT(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLT(FieldRiskReason, v))
+}
+
+// RiskReasonLTE applies the LTE predicate on the "risk_reason" field.
+func RiskReasonLTE(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLTE(FieldRiskReason, v))
+}
+
+// RiskReasonContains applies the Contains predicate on the "risk_reason" field.
+func RiskReasonContains(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldContains(FieldRiskReason, v))
+}
+
+// RiskReasonHasPrefix applies the HasPrefix predicate on the "risk_reason" field.
+func RiskReasonHasPrefix(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldHasPrefix(FieldRiskReason, v))
+}
+
+// RiskReasonHasSuffix applies the HasSuffix predicate on the "risk_reason" field.
+func RiskReasonHasSuffix(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldHasSuffix(FieldRiskReason, v))
+}
+
+// RiskReasonEqualFold applies the EqualFold predicate on the "risk_reason" field.
+func RiskReasonEqualFold(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEqualFold(FieldRiskReason, v))
+}
+
+// RiskReasonContainsFold applies the ContainsFold predicate on the "risk_reason" field.
+func RiskReasonContainsFold(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldContainsFold(FieldRiskReason, v))
+}
+
+// RiskMarkedAtEQ applies the EQ predicate on the "risk_marked_at" field.
+func RiskMarkedAtEQ(v time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldRiskMarkedAt, v))
+}
+
+// RiskMarkedAtNEQ applies the NEQ predicate on the "risk_marked_at" field.
+func RiskMarkedAtNEQ(v time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNEQ(FieldRiskMarkedAt, v))
+}
+
+// RiskMarkedAtIn applies the In predicate on the "risk_marked_at" field.
+func RiskMarkedAtIn(vs ...time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIn(FieldRiskMarkedAt, vs...))
+}
+
+// RiskMarkedAtNotIn applies the NotIn predicate on the "risk_marked_at" field.
+func RiskMarkedAtNotIn(vs ...time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotIn(FieldRiskMarkedAt, vs...))
+}
+
+// RiskMarkedAtGT applies the GT predicate on the "risk_marked_at" field.
+func RiskMarkedAtGT(v time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGT(FieldRiskMarkedAt, v))
+}
+
+// RiskMarkedAtGTE applies the GTE predicate on the "risk_marked_at" field.
+func RiskMarkedAtGTE(v time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGTE(FieldRiskMarkedAt, v))
+}
+
+// RiskMarkedAtLT applies the LT predicate on the "risk_marked_at" field.
+func RiskMarkedAtLT(v time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLT(FieldRiskMarkedAt, v))
+}
+
+// RiskMarkedAtLTE applies the LTE predicate on the "risk_marked_at" field.
+func RiskMarkedAtLTE(v time.Time) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLTE(FieldRiskMarkedAt, v))
+}
+
+// RiskMarkedAtIsNil applies the IsNil predicate on the "risk_marked_at" field.
+func RiskMarkedAtIsNil() predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIsNull(FieldRiskMarkedAt))
+}
+
+// RiskMarkedAtNotNil applies the NotNil predicate on the "risk_marked_at" field.
+func RiskMarkedAtNotNil() predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotNull(FieldRiskMarkedAt))
 }
 
 // LastContactAtEQ applies the EQ predicate on the "last_contact_at" field.

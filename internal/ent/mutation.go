@@ -33666,6 +33666,9 @@ type EsportsCustomerMutation struct {
 	appendtags                []string
 	source                    *esportscustomer.Source
 	follow_status             *esportscustomer.FollowStatus
+	risk_status               *esportscustomer.RiskStatus
+	risk_reason               *string
+	risk_marked_at            *time.Time
 	last_contact_at           *time.Time
 	wecom_corp_id             *string
 	wecom_external_id         *string
@@ -34274,6 +34277,127 @@ func (m *EsportsCustomerMutation) ResetFollowStatus() {
 	m.follow_status = nil
 }
 
+// SetRiskStatus sets the "risk_status" field.
+func (m *EsportsCustomerMutation) SetRiskStatus(es esportscustomer.RiskStatus) {
+	m.risk_status = &es
+}
+
+// RiskStatus returns the value of the "risk_status" field in the mutation.
+func (m *EsportsCustomerMutation) RiskStatus() (r esportscustomer.RiskStatus, exists bool) {
+	v := m.risk_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRiskStatus returns the old "risk_status" field's value of the EsportsCustomer entity.
+// If the EsportsCustomer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCustomerMutation) OldRiskStatus(ctx context.Context) (v esportscustomer.RiskStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRiskStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRiskStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRiskStatus: %w", err)
+	}
+	return oldValue.RiskStatus, nil
+}
+
+// ResetRiskStatus resets all changes to the "risk_status" field.
+func (m *EsportsCustomerMutation) ResetRiskStatus() {
+	m.risk_status = nil
+}
+
+// SetRiskReason sets the "risk_reason" field.
+func (m *EsportsCustomerMutation) SetRiskReason(s string) {
+	m.risk_reason = &s
+}
+
+// RiskReason returns the value of the "risk_reason" field in the mutation.
+func (m *EsportsCustomerMutation) RiskReason() (r string, exists bool) {
+	v := m.risk_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRiskReason returns the old "risk_reason" field's value of the EsportsCustomer entity.
+// If the EsportsCustomer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCustomerMutation) OldRiskReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRiskReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRiskReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRiskReason: %w", err)
+	}
+	return oldValue.RiskReason, nil
+}
+
+// ResetRiskReason resets all changes to the "risk_reason" field.
+func (m *EsportsCustomerMutation) ResetRiskReason() {
+	m.risk_reason = nil
+}
+
+// SetRiskMarkedAt sets the "risk_marked_at" field.
+func (m *EsportsCustomerMutation) SetRiskMarkedAt(t time.Time) {
+	m.risk_marked_at = &t
+}
+
+// RiskMarkedAt returns the value of the "risk_marked_at" field in the mutation.
+func (m *EsportsCustomerMutation) RiskMarkedAt() (r time.Time, exists bool) {
+	v := m.risk_marked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRiskMarkedAt returns the old "risk_marked_at" field's value of the EsportsCustomer entity.
+// If the EsportsCustomer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCustomerMutation) OldRiskMarkedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRiskMarkedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRiskMarkedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRiskMarkedAt: %w", err)
+	}
+	return oldValue.RiskMarkedAt, nil
+}
+
+// ClearRiskMarkedAt clears the value of the "risk_marked_at" field.
+func (m *EsportsCustomerMutation) ClearRiskMarkedAt() {
+	m.risk_marked_at = nil
+	m.clearedFields[esportscustomer.FieldRiskMarkedAt] = struct{}{}
+}
+
+// RiskMarkedAtCleared returns if the "risk_marked_at" field was cleared in this mutation.
+func (m *EsportsCustomerMutation) RiskMarkedAtCleared() bool {
+	_, ok := m.clearedFields[esportscustomer.FieldRiskMarkedAt]
+	return ok
+}
+
+// ResetRiskMarkedAt resets all changes to the "risk_marked_at" field.
+func (m *EsportsCustomerMutation) ResetRiskMarkedAt() {
+	m.risk_marked_at = nil
+	delete(m.clearedFields, esportscustomer.FieldRiskMarkedAt)
+}
+
 // SetLastContactAt sets the "last_contact_at" field.
 func (m *EsportsCustomerMutation) SetLastContactAt(t time.Time) {
 	m.last_contact_at = &t
@@ -34753,7 +34877,7 @@ func (m *EsportsCustomerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsCustomerMutation) Fields() []string {
-	fields := make([]string, 0, 21)
+	fields := make([]string, 0, 24)
 	if m.user_id != nil {
 		fields = append(fields, esportscustomer.FieldUserID)
 	}
@@ -34786,6 +34910,15 @@ func (m *EsportsCustomerMutation) Fields() []string {
 	}
 	if m.follow_status != nil {
 		fields = append(fields, esportscustomer.FieldFollowStatus)
+	}
+	if m.risk_status != nil {
+		fields = append(fields, esportscustomer.FieldRiskStatus)
+	}
+	if m.risk_reason != nil {
+		fields = append(fields, esportscustomer.FieldRiskReason)
+	}
+	if m.risk_marked_at != nil {
+		fields = append(fields, esportscustomer.FieldRiskMarkedAt)
 	}
 	if m.last_contact_at != nil {
 		fields = append(fields, esportscustomer.FieldLastContactAt)
@@ -34847,6 +34980,12 @@ func (m *EsportsCustomerMutation) Field(name string) (ent.Value, bool) {
 		return m.Source()
 	case esportscustomer.FieldFollowStatus:
 		return m.FollowStatus()
+	case esportscustomer.FieldRiskStatus:
+		return m.RiskStatus()
+	case esportscustomer.FieldRiskReason:
+		return m.RiskReason()
+	case esportscustomer.FieldRiskMarkedAt:
+		return m.RiskMarkedAt()
 	case esportscustomer.FieldLastContactAt:
 		return m.LastContactAt()
 	case esportscustomer.FieldWecomCorpID:
@@ -34898,6 +35037,12 @@ func (m *EsportsCustomerMutation) OldField(ctx context.Context, name string) (en
 		return m.OldSource(ctx)
 	case esportscustomer.FieldFollowStatus:
 		return m.OldFollowStatus(ctx)
+	case esportscustomer.FieldRiskStatus:
+		return m.OldRiskStatus(ctx)
+	case esportscustomer.FieldRiskReason:
+		return m.OldRiskReason(ctx)
+	case esportscustomer.FieldRiskMarkedAt:
+		return m.OldRiskMarkedAt(ctx)
 	case esportscustomer.FieldLastContactAt:
 		return m.OldLastContactAt(ctx)
 	case esportscustomer.FieldWecomCorpID:
@@ -35003,6 +35148,27 @@ func (m *EsportsCustomerMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFollowStatus(v)
+		return nil
+	case esportscustomer.FieldRiskStatus:
+		v, ok := value.(esportscustomer.RiskStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRiskStatus(v)
+		return nil
+	case esportscustomer.FieldRiskReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRiskReason(v)
+		return nil
+	case esportscustomer.FieldRiskMarkedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRiskMarkedAt(v)
 		return nil
 	case esportscustomer.FieldLastContactAt:
 		v, ok := value.(time.Time)
@@ -35152,6 +35318,9 @@ func (m *EsportsCustomerMutation) ClearedFields() []string {
 	if m.FieldCleared(esportscustomer.FieldTags) {
 		fields = append(fields, esportscustomer.FieldTags)
 	}
+	if m.FieldCleared(esportscustomer.FieldRiskMarkedAt) {
+		fields = append(fields, esportscustomer.FieldRiskMarkedAt)
+	}
 	if m.FieldCleared(esportscustomer.FieldLastContactAt) {
 		fields = append(fields, esportscustomer.FieldLastContactAt)
 	}
@@ -35189,6 +35358,9 @@ func (m *EsportsCustomerMutation) ClearField(name string) error {
 		return nil
 	case esportscustomer.FieldTags:
 		m.ClearTags()
+		return nil
+	case esportscustomer.FieldRiskMarkedAt:
+		m.ClearRiskMarkedAt()
 		return nil
 	case esportscustomer.FieldLastContactAt:
 		m.ClearLastContactAt()
@@ -35245,6 +35417,15 @@ func (m *EsportsCustomerMutation) ResetField(name string) error {
 		return nil
 	case esportscustomer.FieldFollowStatus:
 		m.ResetFollowStatus()
+		return nil
+	case esportscustomer.FieldRiskStatus:
+		m.ResetRiskStatus()
+		return nil
+	case esportscustomer.FieldRiskReason:
+		m.ResetRiskReason()
+		return nil
+	case esportscustomer.FieldRiskMarkedAt:
+		m.ResetRiskMarkedAt()
 		return nil
 	case esportscustomer.FieldLastContactAt:
 		m.ResetLastContactAt()

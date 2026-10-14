@@ -158,6 +158,48 @@ func (_c *EsportsCustomerCreate) SetNillableFollowStatus(v *esportscustomer.Foll
 	return _c
 }
 
+// SetRiskStatus sets the "risk_status" field.
+func (_c *EsportsCustomerCreate) SetRiskStatus(v esportscustomer.RiskStatus) *EsportsCustomerCreate {
+	_c.mutation.SetRiskStatus(v)
+	return _c
+}
+
+// SetNillableRiskStatus sets the "risk_status" field if the given value is not nil.
+func (_c *EsportsCustomerCreate) SetNillableRiskStatus(v *esportscustomer.RiskStatus) *EsportsCustomerCreate {
+	if v != nil {
+		_c.SetRiskStatus(*v)
+	}
+	return _c
+}
+
+// SetRiskReason sets the "risk_reason" field.
+func (_c *EsportsCustomerCreate) SetRiskReason(v string) *EsportsCustomerCreate {
+	_c.mutation.SetRiskReason(v)
+	return _c
+}
+
+// SetNillableRiskReason sets the "risk_reason" field if the given value is not nil.
+func (_c *EsportsCustomerCreate) SetNillableRiskReason(v *string) *EsportsCustomerCreate {
+	if v != nil {
+		_c.SetRiskReason(*v)
+	}
+	return _c
+}
+
+// SetRiskMarkedAt sets the "risk_marked_at" field.
+func (_c *EsportsCustomerCreate) SetRiskMarkedAt(v time.Time) *EsportsCustomerCreate {
+	_c.mutation.SetRiskMarkedAt(v)
+	return _c
+}
+
+// SetNillableRiskMarkedAt sets the "risk_marked_at" field if the given value is not nil.
+func (_c *EsportsCustomerCreate) SetNillableRiskMarkedAt(v *time.Time) *EsportsCustomerCreate {
+	if v != nil {
+		_c.SetRiskMarkedAt(*v)
+	}
+	return _c
+}
+
 // SetLastContactAt sets the "last_contact_at" field.
 func (_c *EsportsCustomerCreate) SetLastContactAt(v time.Time) *EsportsCustomerCreate {
 	_c.mutation.SetLastContactAt(v)
@@ -361,6 +403,14 @@ func (_c *EsportsCustomerCreate) defaults() {
 		v := esportscustomer.DefaultFollowStatus
 		_c.mutation.SetFollowStatus(v)
 	}
+	if _, ok := _c.mutation.RiskStatus(); !ok {
+		v := esportscustomer.DefaultRiskStatus
+		_c.mutation.SetRiskStatus(v)
+	}
+	if _, ok := _c.mutation.RiskReason(); !ok {
+		v := esportscustomer.DefaultRiskReason
+		_c.mutation.SetRiskReason(v)
+	}
 	if _, ok := _c.mutation.MemberLevelCode(); !ok {
 		v := esportscustomer.DefaultMemberLevelCode
 		_c.mutation.SetMemberLevelCode(v)
@@ -442,6 +492,22 @@ func (_c *EsportsCustomerCreate) check() error {
 	if v, ok := _c.mutation.FollowStatus(); ok {
 		if err := esportscustomer.FollowStatusValidator(v); err != nil {
 			return &ValidationError{Name: "follow_status", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.follow_status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RiskStatus(); !ok {
+		return &ValidationError{Name: "risk_status", err: errors.New(`ent: missing required field "EsportsCustomer.risk_status"`)}
+	}
+	if v, ok := _c.mutation.RiskStatus(); ok {
+		if err := esportscustomer.RiskStatusValidator(v); err != nil {
+			return &ValidationError{Name: "risk_status", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.risk_status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RiskReason(); !ok {
+		return &ValidationError{Name: "risk_reason", err: errors.New(`ent: missing required field "EsportsCustomer.risk_reason"`)}
+	}
+	if v, ok := _c.mutation.RiskReason(); ok {
+		if err := esportscustomer.RiskReasonValidator(v); err != nil {
+			return &ValidationError{Name: "risk_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.risk_reason": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.WecomCorpID(); ok {
@@ -548,6 +614,18 @@ func (_c *EsportsCustomerCreate) createSpec() (*EsportsCustomer, *sqlgraph.Creat
 	if value, ok := _c.mutation.FollowStatus(); ok {
 		_spec.SetField(esportscustomer.FieldFollowStatus, field.TypeEnum, value)
 		_node.FollowStatus = value
+	}
+	if value, ok := _c.mutation.RiskStatus(); ok {
+		_spec.SetField(esportscustomer.FieldRiskStatus, field.TypeEnum, value)
+		_node.RiskStatus = value
+	}
+	if value, ok := _c.mutation.RiskReason(); ok {
+		_spec.SetField(esportscustomer.FieldRiskReason, field.TypeString, value)
+		_node.RiskReason = value
+	}
+	if value, ok := _c.mutation.RiskMarkedAt(); ok {
+		_spec.SetField(esportscustomer.FieldRiskMarkedAt, field.TypeTime, value)
+		_node.RiskMarkedAt = &value
 	}
 	if value, ok := _c.mutation.LastContactAt(); ok {
 		_spec.SetField(esportscustomer.FieldLastContactAt, field.TypeTime, value)

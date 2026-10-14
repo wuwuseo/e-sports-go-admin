@@ -40,6 +40,12 @@ type EsportsCustomer struct {
 	Source esportscustomer.Source `json:"source"`
 	// FollowStatus holds the value of the "follow_status" field.
 	FollowStatus esportscustomer.FollowStatus `json:"follow_status"`
+	// RiskStatus holds the value of the "risk_status" field.
+	RiskStatus esportscustomer.RiskStatus `json:"risk_status"`
+	// RiskReason holds the value of the "risk_reason" field.
+	RiskReason string `json:"risk_reason"`
+	// RiskMarkedAt holds the value of the "risk_marked_at" field.
+	RiskMarkedAt *time.Time `json:"risk_marked_at"`
 	// LastContactAt holds the value of the "last_contact_at" field.
 	LastContactAt *time.Time `json:"last_contact_at"`
 	// WecomCorpID holds the value of the "wecom_corp_id" field.
@@ -74,9 +80,9 @@ func (*EsportsCustomer) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case esportscustomer.FieldID, esportscustomer.FieldUserID, esportscustomer.FieldOwnerAdminID, esportscustomer.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportscustomer.FieldDisplayName, esportscustomer.FieldAgeStatus, esportscustomer.FieldPhone, esportscustomer.FieldBirthday, esportscustomer.FieldConsumptionPreference, esportscustomer.FieldSource, esportscustomer.FieldFollowStatus, esportscustomer.FieldWecomCorpID, esportscustomer.FieldWecomExternalID, esportscustomer.FieldMemberLevelCode, esportscustomer.FieldMemberPendingLevelCode:
+		case esportscustomer.FieldDisplayName, esportscustomer.FieldAgeStatus, esportscustomer.FieldPhone, esportscustomer.FieldBirthday, esportscustomer.FieldConsumptionPreference, esportscustomer.FieldSource, esportscustomer.FieldFollowStatus, esportscustomer.FieldRiskStatus, esportscustomer.FieldRiskReason, esportscustomer.FieldWecomCorpID, esportscustomer.FieldWecomExternalID, esportscustomer.FieldMemberLevelCode, esportscustomer.FieldMemberPendingLevelCode:
 			values[i] = new(sql.NullString)
-		case esportscustomer.FieldLastContactAt, esportscustomer.FieldMemberDowngradeAfter, esportscustomer.FieldMemberLevelChangedAt, esportscustomer.FieldCreatedAt, esportscustomer.FieldUpdatedAt:
+		case esportscustomer.FieldRiskMarkedAt, esportscustomer.FieldLastContactAt, esportscustomer.FieldMemberDowngradeAfter, esportscustomer.FieldMemberLevelChangedAt, esportscustomer.FieldCreatedAt, esportscustomer.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -168,6 +174,25 @@ func (_m *EsportsCustomer) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field follow_status", values[i])
 			} else if value.Valid {
 				_m.FollowStatus = esportscustomer.FollowStatus(value.String)
+			}
+		case esportscustomer.FieldRiskStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field risk_status", values[i])
+			} else if value.Valid {
+				_m.RiskStatus = esportscustomer.RiskStatus(value.String)
+			}
+		case esportscustomer.FieldRiskReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field risk_reason", values[i])
+			} else if value.Valid {
+				_m.RiskReason = value.String
+			}
+		case esportscustomer.FieldRiskMarkedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field risk_marked_at", values[i])
+			} else if value.Valid {
+				_m.RiskMarkedAt = new(time.Time)
+				*_m.RiskMarkedAt = value.Time
 			}
 		case esportscustomer.FieldLastContactAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -306,6 +331,17 @@ func (_m *EsportsCustomer) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("follow_status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FollowStatus))
+	builder.WriteString(", ")
+	builder.WriteString("risk_status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RiskStatus))
+	builder.WriteString(", ")
+	builder.WriteString("risk_reason=")
+	builder.WriteString(_m.RiskReason)
+	builder.WriteString(", ")
+	if v := _m.RiskMarkedAt; v != nil {
+		builder.WriteString("risk_marked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	if v := _m.LastContactAt; v != nil {
 		builder.WriteString("last_contact_at=")

@@ -1118,6 +1118,9 @@ var (
 		{Name: "tags", Type: field.TypeJSON, Nullable: true},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"manual", "wecom", "self", "import"}, Default: "manual"},
 		{Name: "follow_status", Type: field.TypeEnum, Enums: []string{"new", "following", "pending", "dormant", "closed"}, Default: "new"},
+		{Name: "risk_status", Type: field.TypeEnum, Enums: []string{"normal", "watch", "restricted"}, Default: "normal"},
+		{Name: "risk_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "risk_marked_at", Type: field.TypeTime, Nullable: true},
 		{Name: "last_contact_at", Type: field.TypeTime, Nullable: true},
 		{Name: "wecom_corp_id", Type: field.TypeString, Nullable: true, Size: 120},
 		{Name: "wecom_external_id", Type: field.TypeString, Nullable: true, Size: 255},
@@ -1148,7 +1151,7 @@ var (
 			{
 				Name:    "esportscustomer_wecom_corp_id_wecom_external_id",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsCustomersColumns[13], EsportsCustomersColumns[14]},
+				Columns: []*schema.Column{EsportsCustomersColumns[16], EsportsCustomersColumns[17]},
 			},
 		},
 	}

@@ -38,6 +38,12 @@ const (
 	FieldSource = "source"
 	// FieldFollowStatus holds the string denoting the follow_status field in the database.
 	FieldFollowStatus = "follow_status"
+	// FieldRiskStatus holds the string denoting the risk_status field in the database.
+	FieldRiskStatus = "risk_status"
+	// FieldRiskReason holds the string denoting the risk_reason field in the database.
+	FieldRiskReason = "risk_reason"
+	// FieldRiskMarkedAt holds the string denoting the risk_marked_at field in the database.
+	FieldRiskMarkedAt = "risk_marked_at"
 	// FieldLastContactAt holds the string denoting the last_contact_at field in the database.
 	FieldLastContactAt = "last_contact_at"
 	// FieldWecomCorpID holds the string denoting the wecom_corp_id field in the database.
@@ -79,6 +85,9 @@ var Columns = []string{
 	FieldTags,
 	FieldSource,
 	FieldFollowStatus,
+	FieldRiskStatus,
+	FieldRiskReason,
+	FieldRiskMarkedAt,
 	FieldLastContactAt,
 	FieldWecomCorpID,
 	FieldWecomExternalID,
@@ -118,6 +127,10 @@ var (
 	DefaultConsumptionPreference string
 	// ConsumptionPreferenceValidator is a validator for the "consumption_preference" field. It is called by the builders before save.
 	ConsumptionPreferenceValidator func(string) error
+	// DefaultRiskReason holds the default value on creation for the "risk_reason" field.
+	DefaultRiskReason string
+	// RiskReasonValidator is a validator for the "risk_reason" field. It is called by the builders before save.
+	RiskReasonValidator func(string) error
 	// WecomCorpIDValidator is a validator for the "wecom_corp_id" field. It is called by the builders before save.
 	WecomCorpIDValidator func(string) error
 	// WecomExternalIDValidator is a validator for the "wecom_external_id" field. It is called by the builders before save.
@@ -224,6 +237,33 @@ func FollowStatusValidator(fs FollowStatus) error {
 	}
 }
 
+// RiskStatus defines the type for the "risk_status" enum field.
+type RiskStatus string
+
+// RiskStatusNormal is the default value of the RiskStatus enum.
+const DefaultRiskStatus = RiskStatusNormal
+
+// RiskStatus values.
+const (
+	RiskStatusNormal     RiskStatus = "normal"
+	RiskStatusWatch      RiskStatus = "watch"
+	RiskStatusRestricted RiskStatus = "restricted"
+)
+
+func (rs RiskStatus) String() string {
+	return string(rs)
+}
+
+// RiskStatusValidator is a validator for the "risk_status" field enum values. It is called by the builders before save.
+func RiskStatusValidator(rs RiskStatus) error {
+	switch rs {
+	case RiskStatusNormal, RiskStatusWatch, RiskStatusRestricted:
+		return nil
+	default:
+		return fmt.Errorf("esportscustomer: invalid enum value for risk_status field: %q", rs)
+	}
+}
+
 // OrderOption defines the ordering options for the EsportsCustomer queries.
 type OrderOption func(*sql.Selector)
 
@@ -280,6 +320,21 @@ func BySource(opts ...sql.OrderTermOption) OrderOption {
 // ByFollowStatus orders the results by the follow_status field.
 func ByFollowStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFollowStatus, opts...).ToFunc()
+}
+
+// ByRiskStatus orders the results by the risk_status field.
+func ByRiskStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRiskStatus, opts...).ToFunc()
+}
+
+// ByRiskReason orders the results by the risk_reason field.
+func ByRiskReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRiskReason, opts...).ToFunc()
+}
+
+// ByRiskMarkedAt orders the results by the risk_marked_at field.
+func ByRiskMarkedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRiskMarkedAt, opts...).ToFunc()
 }
 
 // ByLastContactAt orders the results by the last_contact_at field.
