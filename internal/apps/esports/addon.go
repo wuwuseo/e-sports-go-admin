@@ -15,6 +15,7 @@ import (
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportswallettx"
 )
 
 // 加钟（§3.3 订单操作 / §6.2 陪玩端加钟确认 / §12.5 特殊场景）：
@@ -387,4 +388,100 @@ func hasPendingAddon(ctx context.Context, db *ent.Client, orderID int) (bool, er
 		esportsorderaddon.OrderIDEQ(orderID),
 		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
 	).Exist(ctx)
+}
+
+// payOrderAddonByBalance 客服对**已确认**的加钟单用客户余额收单（§3.3 / §6.2 加钟收款）。
+// 约束：加钟单须 confirmed 且未收款、追加金额 > 0、客户余额足额；扣减顺序按
+// `app.esports.prepay_deduction_order`。同事务写余额消费流水、预付款落账与批次分摊，
+// 并留 `order.addon_paid` 事件（幂等靠加钟单条件更新兜底：已收款再次调用返回冲突）。
+// ponytail: 仅支持客户余额足额核销，储值卡核销、部分收款与加钟支付意图未接入。
+func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonID int,
+	now time.Time) (*ent.EsportsOrderAddon, error) {
+	if adminID < 1 || addonID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	addon, err := tx.EsportsOrderAddon.Get(ctx, addonID)
+	if err != nil {
+		return nil, err
+	}
+	if addon.Status != esportsorderaddon.StatusConfirmed ||
+		addon.PaymentStatus != esportsorderaddon.PaymentStatusUnpaid || addon.AddedCents <= 0 {
+		return nil, fmt.Errorf("%w：仅「已确认且未收款」的加钟单可收款", errConflict)
+	}
+	order, err := tx.EsportsOrder.Get(ctx, addon.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)
+	if err != nil {
+		return nil, err
+	}
+	balance, err := walletBalanceTx(ctx, tx, walletCustomerBalance, customer.ID)
+	if err != nil {
+		return nil, err
+	}
+	if balance.total() < addon.AddedCents {
+		return nil, fmt.Errorf("%w：客户余额不足，加钟应收 %d 分", errInsufficientBalance, addon.AddedCents)
+	}
+	principalDeduct, bonusDeduct := splitPrepayDeduction(
+		prepayDeductionOrder(ctx, tx.Client()), balance.PrincipalCents, balance.BonusCents, addon.AddedCents)
+	walletTx, err := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+		SetAccountType(esportswallettx.AccountTypeCustomerBalance).SetOwnerID(customer.ID).
+		SetEntryType(esportswallettx.EntryTypeConsume).
+		SetPrincipalDeltaCents(-principalDeduct).SetBonusDeltaCents(-bonusDeduct).
+		SetSourceType("order_addon").SetSourceID(addon.AddonNo).
+		SetOperatorID(adminID).SetNote("加钟余额收款").Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	if _, err = tx.EsportsLedgerEntry.Create().SetAccountType("customer_order_prepayment").
+		SetAccountID(strconv.Itoa(customer.ID)).SetSourceType("wallet_tx").
+		SetSourceID(strconv.Itoa(walletTx.ID)).SetEntryRole("applied_order_prepayment").
+		SetDeltaCents(addon.AddedCents).Save(ctx); err != nil {
+		return nil, err
+	}
+	// 批次级逐笔扣减（§4.3 / §4.5）：记录本次加钟收款动用了哪些充值批次。
+	if err = allocateLedgerConsumption(ctx, tx, walletCustomerBalance, strconv.Itoa(customer.ID),
+		"order_addon", addon.AddonNo, addon.AddedCents); err != nil {
+		return nil, err
+	}
+	changed, err := tx.EsportsOrderAddon.Update().Where(
+		esportsorderaddon.IDEQ(addon.ID),
+		esportsorderaddon.VersionEQ(addon.Version),
+		esportsorderaddon.StatusEQ(esportsorderaddon.StatusConfirmed),
+		esportsorderaddon.PaymentStatusEQ(esportsorderaddon.PaymentStatusUnpaid),
+	).SetPaymentStatus(esportsorderaddon.PaymentStatusPaid).
+		SetPaidCents(addon.AddedCents).SetPaidAt(now.UTC()).SetPaidByAdminID(adminID).
+		SetPaymentRef(walletTx.TxNo).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(newVersion).SetEventType("order.addon_paid").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"addon_no": addon.AddonNo, "paid_cents": addon.AddedCents,
+			"principal_deducted": principalDeduct, "bonus_deducted": bonusDeduct,
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrderAddon.Get(ctx, addonID)
 }

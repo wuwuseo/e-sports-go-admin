@@ -228,11 +228,10 @@ func acceptAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now t
 	return db.EsportsAfterSale.Get(ctx, id)
 }
 
-// submitAfterSalePlan 提交处理方案：processing → pending_approval。
+// submitAfterSalePlan 提交处理方案：processing → pending_customer_confirm（§13.3 方案提交 → 客户确认 → 审批 → 执行）。
 // 方案动作项首版为 退原核销款 / 发放补偿权益 / 补钟或换人履约（§13.6）。
 // 补履约方案在提交时校验承接陪玩、席位与补足量；其余动作清空补履约参数，避免脏数据。
-// ponytail:「待客户确认」节点与客户自助端确认入口未实现（客户端未建），方案提交后直接进入待审批；
-// pending_customer_confirm 状态保留但不流转。
+// 每次提交都会清空上一轮的客户确认 / 拒绝留痕，确保「待客户确认」节点重新走一遍。
 func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, in afterSalePlanInput, now time.Time) (*ent.EsportsAfterSale, error) {
 	in.Resolution = strings.TrimSpace(in.Resolution)
 	if id < 1 || !validFaultParty(in.FaultParty) || !validPlanAction(in.PlanAction) ||
@@ -273,13 +272,101 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		SetMakeupUnits(in.MakeupUnits).
 		SetMakeupCompanyPayCents(in.MakeupCompanyPayCents).
 		SetResolution(in.Resolution).
-		SetStatus(esportsaftersale.StatusPendingApproval).AddVersion(1)
+		SetStatus(esportsaftersale.StatusPendingCustomerConfirm).AddVersion(1).
+		ClearCustomerConfirmedAt().ClearCustomerConfirmedByAdminID().ClearCustomerDeclinedAt().
+		SetCustomerConfirmChannel(esportsaftersale.CustomerConfirmChannelNone).
+		SetCustomerDeclineReason("")
 	if makeupPlayerID != nil && makeupSeatIndex != nil {
 		update = update.SetMakeupPlayerID(*makeupPlayerID).SetMakeupSeatIndex(*makeupSeatIndex)
 	} else {
 		update = update.ClearMakeupPlayerID().ClearMakeupSeatIndex()
 	}
 	changed, err := update.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	return db.EsportsAfterSale.Get(ctx, id)
+}
+
+// confirmAfterSalePlanIn 客户确认方案：pending_customer_confirm → pending_approval（§13.3）。
+// channel 为 self_service（客户自助）或 admin_proxy（客服代确认，客户线下已同意）。
+func confirmAfterSalePlanIn(ctx context.Context, db *ent.Client, id, adminID int,
+	channel string, now time.Time) (*ent.EsportsAfterSale, error) {
+	if id < 1 {
+		return nil, errInvalidInput
+	}
+	update := db.EsportsAfterSale.Update().Where(
+		esportsaftersale.IDEQ(id),
+		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingCustomerConfirm),
+	).SetStatus(esportsaftersale.StatusPendingApproval).
+		SetCustomerConfirmedAt(now.UTC()).
+		SetCustomerConfirmChannel(esportsaftersale.CustomerConfirmChannel(channel)).
+		SetCustomerDeclineReason("").AddVersion(1)
+	if channel == "admin_proxy" {
+		if adminID < 1 {
+			return nil, errInvalidInput
+		}
+		update = update.SetCustomerConfirmedByAdminID(adminID)
+	} else {
+		update = update.ClearCustomerConfirmedByAdminID()
+	}
+	changed, err := update.Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	return db.EsportsAfterSale.Get(ctx, id)
+}
+
+// confirmAfterSaleByCustomer 客户自助确认方案（§13.3）：须为售后单归属客户本人。
+func confirmAfterSaleByCustomer(ctx context.Context, db *ent.Client, id, customerID int,
+	now time.Time) (*ent.EsportsAfterSale, error) {
+	if id < 1 || customerID < 1 {
+		return nil, errInvalidInput
+	}
+	item, err := db.EsportsAfterSale.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if item.CustomerID == nil || *item.CustomerID != customerID {
+		return nil, errForbidden
+	}
+	return confirmAfterSalePlanIn(ctx, db, id, 0, "self_service", now)
+}
+
+// confirmAfterSaleByAdmin 客服代客户确认方案（客户线下已同意）：同样进入待审批，并记录代确认人。
+func confirmAfterSaleByAdmin(ctx context.Context, db *ent.Client, id, adminID int,
+	now time.Time) (*ent.EsportsAfterSale, error) {
+	return confirmAfterSalePlanIn(ctx, db, id, adminID, "admin_proxy", now)
+}
+
+// declineAfterSaleByCustomer 客户拒绝方案（§13.3）：pending_customer_confirm → processing，
+// 客服可修改方案后重新提交（重新提交会再次进入待客户确认）。须填原因且为归属客户本人。
+func declineAfterSaleByCustomer(ctx context.Context, db *ent.Client, id, customerID int,
+	reason string, now time.Time) (*ent.EsportsAfterSale, error) {
+	reason = strings.TrimSpace(reason)
+	if id < 1 || customerID < 1 || reason == "" || len([]rune(reason)) > 255 {
+		return nil, errInvalidInput
+	}
+	item, err := db.EsportsAfterSale.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if item.CustomerID == nil || *item.CustomerID != customerID {
+		return nil, errForbidden
+	}
+	changed, err := db.EsportsAfterSale.Update().Where(
+		esportsaftersale.IDEQ(id),
+		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingCustomerConfirm),
+	).SetStatus(esportsaftersale.StatusProcessing).
+		SetCustomerDeclinedAt(now.UTC()).SetCustomerDeclineReason(reason).
+		SetCustomerConfirmChannel(esportsaftersale.CustomerConfirmChannelNone).
+		AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}

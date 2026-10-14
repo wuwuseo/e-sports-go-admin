@@ -15,8 +15,8 @@ import (
 // 追加服务量累加到订单的 `addon_cents` / `addon_units`（只增不改）。
 //
 // 追加金额不改写原订单报价快照（`payable_cents` 保持原报价事实），加钟金额作为订单上的独立
-// 应收追加，由后续收款流程处理。
-// ponytail: 加钟收款（收单 / 支付意图）与加钟退款分摊未实现；同一订单同时只允许一条待确认加钟，
+// 应收追加，由客服在确认后收单（首版仅客户余额核销，见 `payOrderAddonByBalance`）。
+// ponytail: 加钟的支付意图 / 真实收款通道与储值卡核销未接入；同一订单同时只允许一条待确认加钟，
 // 由 service 层在事务内查重保证（MySQL 不支持带条件的部分唯一索引）。
 type EsportsOrderAddon struct{ ent.Schema }
 
@@ -36,6 +36,12 @@ func (EsportsOrderAddon) Fields() []ent.Field {
 		field.String("rule_no").MaxLen(48).Default("").StructTag(`json:"rule_no"`),
 		field.Int("rule_version").Default(0).StructTag(`json:"rule_version"`),
 		field.Int64("commission_cents").Default(0).StructTag(`json:"commission_cents"`),
+		// 加钟收款（§3.3 收单）：确认后的追加金额由客服收单，首版仅客户余额核销。
+		field.Enum("payment_status").Values("unpaid", "paid").Default("unpaid").StructTag(`json:"payment_status"`),
+		field.Int64("paid_cents").Default(0).StructTag(`json:"paid_cents"`),
+		field.Time("paid_at").Optional().Nillable().StructTag(`json:"paid_at"`),
+		field.Int("paid_by_admin_id").Optional().Nillable().StructTag(`json:"paid_by_admin_id"`),
+		field.String("payment_ref").MaxLen(128).Default("").StructTag(`json:"payment_ref"`),
 		// 确认的陪玩与时间；拒绝原因。
 		field.Int("confirmed_player_id").Optional().Nillable().StructTag(`json:"confirmed_player_id"`),
 		field.Time("confirmed_at").Optional().Nillable().StructTag(`json:"confirmed_at"`),

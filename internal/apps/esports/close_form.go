@@ -11,6 +11,7 @@ import (
 	"go-admin/internal/ent/esportscloseformfield"
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
+	"go-admin/internal/ent/esportsservicesegment"
 )
 
 // 结单表单设计器（§3.4 首版）：字段库 + 模板（按 全局 / 游戏分区 / SKU + 金额区间绑定）
@@ -614,11 +615,13 @@ func applyCloseForm(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, ad
 	return nil
 }
 
-// orderCloseFormView 是订单结单表单视图：适用模板、模板字段定义与最近一次快照。
+// orderCloseFormView 是订单结单配置视图：适用表单模板与字段、最近一次快照、提交规则摘要与未上报成员。
 type orderCloseFormView struct {
 	Template       *ent.EsportsCloseFormTemplate `json:"template"`
 	Fields         []*ent.EsportsCloseFormField  `json:"fields"`
 	LatestSnapshot *ent.EsportsCloseFormSnapshot `json:"latest_snapshot"`
+	SubmitRule     map[string]interface{}        `json:"submit_rule"`
+	Unsubmitted    []unsubmittedMember           `json:"unsubmitted"`
 }
 
 // orderCloseForm 返回订单结单表单所需的模板与字段定义（供管理端结单弹窗渲染）。
@@ -633,6 +636,20 @@ func orderCloseForm(ctx context.Context, db *ent.Client, orderID int) (*orderClo
 	view := &orderCloseFormView{Fields: []*ent.EsportsCloseFormField{}}
 	template, err := resolveCloseFormTemplate(ctx, db, order)
 	if err != nil {
+		return nil, err
+	}
+	total, err := db.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID),
+	).Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	submitRule, err := resolveCloseSubmitRule(ctx, db, order)
+	if err != nil {
+		return nil, err
+	}
+	view.SubmitRule = closeSubmitRuleSummary(submitRule, total)
+	if view.Unsubmitted, err = unsubmittedMembers(ctx, db, orderID); err != nil {
 		return nil, err
 	}
 	if template != nil {

@@ -69,9 +69,13 @@ func newRefundAfterSale(t *testing.T, db *ent.Client, orderID int, kind string, 
 	if _, err := acceptAfterSale(ctx, db, created.ID, handler, now); err != nil {
 		t.Fatal(err)
 	}
-	planned, err := submitAfterSalePlan(ctx, db, created.ID, handler, afterSalePlanInput{
+	if _, err := submitAfterSalePlan(ctx, db, created.ID, handler, afterSalePlanInput{
 		FaultParty: "player", PlanAction: "refund_original", RefundCents: refundCents, Resolution: "陪玩迟到，按差额退款",
-	}, now)
+	}, now); err != nil {
+		t.Fatal(err)
+	}
+	// §13.3：方案提交后须经「待客户确认」节点；用例中由客服代客户确认进入待审批。
+	planned, err := confirmAfterSaleByAdmin(ctx, db, created.ID, handler, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,8 +117,17 @@ func TestAfterSaleRefundOriginalLifecycle(t *testing.T) {
 	planned, err := submitAfterSalePlan(ctx, db, created.ID, 11, afterSalePlanInput{
 		FaultParty: "player", PlanAction: "refund_original", RefundCents: 1500, Resolution: "陪玩迟到，按差额退款",
 	}, now)
-	if err != nil || planned.Status != esportsaftersale.StatusPendingApproval {
-		t.Fatalf("提交方案失败：%v %+v", err, planned)
+	if err != nil || planned.Status != esportsaftersale.StatusPendingCustomerConfirm {
+		t.Fatalf("提交方案应进入待客户确认：%v %+v", err, planned)
+	}
+	// §13.3：客户未确认时不得审批。
+	if _, err := approveAfterSale(ctx, db, created.ID, 12, now); !errors.Is(err, errConflict) {
+		t.Fatalf("未确认方案不应可审批：%v", err)
+	}
+	confirmed, err := confirmAfterSaleByAdmin(ctx, db, created.ID, 11, now)
+	if err != nil || confirmed.Status != esportsaftersale.StatusPendingApproval ||
+		confirmed.CustomerConfirmChannel != esportsaftersale.CustomerConfirmChannelAdminProxy {
+		t.Fatalf("代客户确认失败：%v %+v", err, confirmed)
 	}
 	// 自审被禁止（审批人 == 处理人）。
 	if _, err := approveAfterSale(ctx, db, created.ID, 11, now); !errors.Is(err, errForbidden) {
@@ -282,11 +295,15 @@ func TestAfterSaleMakeupServiceFlow(t *testing.T) {
 		MakeupPlayerID: player.ID, MakeupSeatIndex: 1, MakeupUnits: 2,
 		MakeupCompanyPayCents: 800, Resolution: "陪玩时长不足，公司出钱补钟 2 局",
 	}, now)
-	if err != nil || planned.Status != esportsaftersale.StatusPendingApproval ||
+	if err != nil || planned.Status != esportsaftersale.StatusPendingCustomerConfirm ||
 		planned.MakeupKind != esportsaftersale.MakeupKindMakeupTime ||
 		planned.MakeupPlayerID == nil || *planned.MakeupPlayerID != player.ID ||
 		planned.RefundCents != 0 {
 		t.Fatalf("补履约方案提交失败：%v %+v", err, planned)
+	}
+	// §13.3：补履约方案同样经「待客户确认」后才进入待审批。
+	if _, err = confirmAfterSaleByAdmin(ctx, db, created.ID, 11, now); err != nil {
+		t.Fatal(err)
 	}
 	if _, err = approveAfterSale(ctx, db, created.ID, 12, now); err != nil {
 		t.Fatal(err)

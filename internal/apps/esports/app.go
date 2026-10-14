@@ -102,6 +102,15 @@ func expireStoredValueCardsTask(ctx context.Context, logger io.Writer) error {
 	return err
 }
 
+// generateCsSettlementsTask 为各客服按上一完整周期自动生成提成结算单（§12.2）。
+func generateCsSettlementsTask(ctx context.Context, logger io.Writer) error {
+	count, err := generateDueCsSettlements(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "自动生成客服提成结算单：%d\n", count)
+	}
+	return err
+}
+
 // applyMemberDowngradeTask 执行等级保护期已到期的客户降级（§10.3）。
 func applyMemberDowngradeTask(ctx context.Context, logger io.Writer) error {
 	count, err := applyMemberDowngrades(ctx, global.ORM, time.Now(), 200)
@@ -123,6 +132,7 @@ func init() {
 		tasks.Register("esports_expire_dispatch_priority_notice", expireDispatchPriorityNoticeTask)
 		tasks.Register("esports_remind_dispatch_ladder", remindDispatchLadderTask)
 		tasks.Register("esports_check_service_overtime", checkServiceOvertimeTask)
+		tasks.Register("esports_generate_cs_settlements", generateCsSettlementsTask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
@@ -207,6 +217,8 @@ func init() {
 			{Method: "GET", Path: "/admin/orders/:id/addons", Auth: cmfapp.AuthAdmin, Handler: listOrderAddonsHandler},
 			{Method: "POST", Path: "/admin/orders/:id/addons", Auth: cmfapp.AuthAdmin, Handler: createOrderAddonHandler},
 			{Method: "POST", Path: "/admin/order-addons/:id/cancel", Auth: cmfapp.AuthAdmin, Handler: cancelOrderAddonHandler},
+			// 加钟收款（§3.3）：对已确认的加钟单用客户余额核销追加金额。
+			{Method: "POST", Path: "/admin/order-addons/:id/pay-by-balance", Auth: cmfapp.AuthAdmin, Handler: payOrderAddonByBalanceHandler},
 			// 结单（客服手动结单）与售后 / 退款模块。
 			{Method: "POST", Path: "/admin/orders/:id/close", Auth: cmfapp.AuthAdmin, Handler: closeOrderHandler},
 			// 结单复核（§3.4）：金额达复核阈值的订单进入待复核，由非负责客服的管理员通过 / 驳回。
@@ -219,6 +231,8 @@ func init() {
 			{Method: "POST", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: createAfterSaleHandler},
 			{Method: "POST", Path: "/admin/after-sales/:id/accept", Auth: cmfapp.AuthAdmin, Handler: acceptAfterSaleHandler},
 			{Method: "POST", Path: "/admin/after-sales/:id/plan", Auth: cmfapp.AuthAdmin, Handler: planAfterSaleHandler},
+			// 待客户确认（§13.3）：客服可代客户确认方案（客户线下已同意），随后进入待审批。
+			{Method: "POST", Path: "/admin/after-sales/:id/confirm", Auth: cmfapp.AuthAdmin, Handler: confirmAfterSalePlanHandler},
 			{Method: "POST", Path: "/admin/after-sales/:id/approve", Auth: cmfapp.AuthAdmin, Handler: approveAfterSaleHandler},
 			{Method: "POST", Path: "/admin/after-sales/:id/reject", Auth: cmfapp.AuthAdmin, Handler: rejectAfterSaleHandler},
 			{Method: "POST", Path: "/admin/after-sales/:id/execute", Auth: cmfapp.AuthAdmin, Handler: executeAfterSaleHandler},
@@ -249,6 +263,12 @@ func init() {
 			{Method: "PUT", Path: "/admin/close-form-templates/:id", Auth: cmfapp.AuthAdmin, Handler: updateCloseFormTemplateHandler},
 			{Method: "POST", Path: "/admin/close-form-templates/:id/activate", Auth: cmfapp.AuthAdmin, Handler: activateCloseFormTemplateHandler},
 			{Method: "POST", Path: "/admin/close-form-templates/:id/rollback", Auth: cmfapp.AuthAdmin, Handler: rollbackCloseFormTemplateHandler},
+			// 结单提交规则（§3.4）：单人 / 多人 / 自定义（代提交、提交比例、未提交处理）。
+			{Method: "GET", Path: "/admin/close-submit-rules", Auth: cmfapp.AuthAdmin, Handler: listCloseSubmitRulesHandler},
+			{Method: "POST", Path: "/admin/close-submit-rules", Auth: cmfapp.AuthAdmin, Handler: createCloseSubmitRuleHandler},
+			{Method: "PUT", Path: "/admin/close-submit-rules/:id", Auth: cmfapp.AuthAdmin, Handler: updateCloseSubmitRuleHandler},
+			{Method: "POST", Path: "/admin/close-submit-rules/:id/activate", Auth: cmfapp.AuthAdmin, Handler: activateCloseSubmitRuleHandler},
+			{Method: "POST", Path: "/admin/close-submit-rules/:id/rollback", Auth: cmfapp.AuthAdmin, Handler: rollbackCloseSubmitRuleHandler},
 			{Method: "GET", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: adminSettlements},
 			{Method: "POST", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: createSettlementHandler},
 			{Method: "POST", Path: "/admin/settlements/:id/lock", Auth: cmfapp.AuthAdmin, Handler: lockSettlementHandler},
@@ -318,6 +338,9 @@ func init() {
 			{Method: "POST", Path: "/user/player/assessments/:id/appeal", Auth: cmfapp.AuthUser, Handler: playerAppealHandler},
 			// 客户自助：已完成订单的服务评价（§7.5）。
 			{Method: "POST", Path: "/user/orders/:id/reviews", Auth: cmfapp.AuthUser, Handler: userSubmitReviewHandler},
+			// 客户自助：售后方（§13.3）确认 / 拒绝待确认方案。
+			{Method: "POST", Path: "/user/after-sales/:id/confirm", Auth: cmfapp.AuthUser, Handler: userConfirmAfterSaleHandler},
+			{Method: "POST", Path: "/user/after-sales/:id/decline", Auth: cmfapp.AuthUser, Handler: userDeclineAfterSaleHandler},
 			// 经营统计报表（§17）：五类只读聚合报表，按 :type 分派，支持多维筛选与下钻明细。
 			{Method: "GET", Path: "/admin/reports/:type", Auth: cmfapp.AuthAdmin, Handler: adminReports},
 			// 页面装修（§16）：客户自助端首页装修草稿、发布版本、回滚与素材库；/page 供客户端读已发布配置。
@@ -386,6 +409,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "订单存单", Code: "esports:orders:deposit", Path: "/api/v1/esports/admin/orders/{id}/deposit", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "恢复存单", Code: "esports:orders:restore", Path: "/api/v1/esports/admin/orders/{id}/restore", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看订单加钟", Code: "esports:orders:addons", Path: "/api/v1/esports/admin/orders/{id}/addons", Method: "GET", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "加钟余额收款", Code: "esports:orders:addon_pay", Path: "/api/v1/esports/admin/order-addons/{id}/pay-by-balance", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "发起加钟", Code: "esports:orders:addon_request", Path: "/api/v1/esports/admin/orders/{id}/addons", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "取消加钟", Code: "esports:orders:addon_cancel", Path: "/api/v1/esports/admin/order-addons/{id}/cancel", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermButton, Name: "订单操作按钮", Code: "esports:orders:operate", Parent: "esports:order:menu"},
@@ -448,6 +472,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "创建售后单", Code: "esports:aftersales:create", Path: "/api/v1/esports/admin/after-sales", Method: "POST", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "受理售后", Code: "esports:aftersales:accept", Path: "/api/v1/esports/admin/after-sales/{id}/accept", Method: "POST", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "提交售后方案", Code: "esports:aftersales:plan", Path: "/api/v1/esports/admin/after-sales/{id}/plan", Method: "POST", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "代客户确认售后方案", Code: "esports:aftersales:confirm", Path: "/api/v1/esports/admin/after-sales/{id}/confirm", Method: "POST", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "审批售后", Code: "esports:aftersales:approve", Path: "/api/v1/esports/admin/after-sales/{id}/approve", Method: "POST", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "驳回售后", Code: "esports:aftersales:reject", Path: "/api/v1/esports/admin/after-sales/{id}/reject", Method: "POST", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "执行售后", Code: "esports:aftersales:execute", Path: "/api/v1/esports/admin/after-sales/{id}/execute", Method: "POST", Parent: "esports:aftersale:menu"},
@@ -475,6 +500,11 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "编辑结单表单模板", Code: "esports:close_forms:template_update", Path: "/api/v1/esports/admin/close-form-templates/{id}", Method: "PUT", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "生效结单表单模板", Code: "esports:close_forms:template_activate", Path: "/api/v1/esports/admin/close-form-templates/{id}/activate", Method: "POST", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "回滚结单表单模板", Code: "esports:close_forms:template_rollback", Path: "/api/v1/esports/admin/close-form-templates/{id}/rollback", Method: "POST", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看结单提交规则", Code: "esports:close_forms:submit_rules", Path: "/api/v1/esports/admin/close-submit-rules", Method: "GET", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "创建结单提交规则", Code: "esports:close_forms:submit_rule_create", Path: "/api/v1/esports/admin/close-submit-rules", Method: "POST", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "编辑结单提交规则", Code: "esports:close_forms:submit_rule_update", Path: "/api/v1/esports/admin/close-submit-rules/{id}", Method: "PUT", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "生效结单提交规则", Code: "esports:close_forms:submit_rule_activate", Path: "/api/v1/esports/admin/close-submit-rules/{id}/activate", Method: "POST", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "回滚结单提交规则", Code: "esports:close_forms:submit_rule_rollback", Path: "/api/v1/esports/admin/close-submit-rules/{id}/rollback", Method: "POST", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermButton, Name: "结单表单操作按钮", Code: "esports:close_forms:manage", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看分成规则", Code: "esports:settlements:rules", Path: "/api/v1/esports/admin/commission-rules", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建分成规则", Code: "esports:settlements:rule_create", Path: "/api/v1/esports/admin/commission-rules", Method: "POST", Parent: "esports:settlement:menu"},

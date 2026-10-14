@@ -10,10 +10,13 @@ import (
 
 // EsportsAfterSale 是售后 / 退款单。首版只支持来源为订单（source_type=order），
 // 保留 gift/deposit 供后续扩展。状态机：
-// pending_accept → processing → pending_approval → pending_execution → completed | execution_failed；
+// pending_accept → processing → pending_customer_confirm → pending_approval → pending_execution → completed | execution_failed；
+// 方案提交后须经「待客户确认」（客户自助确认或客服代确认，§13.3）才进入待审批；
+// 客户拒绝则退回 processing，客服可改方案后重新提交；
 // pending_approval --reject--> rejected；非终态 --withdraw--> withdrawn。
 // "同来源单据同问题同一时刻仅保留一张进行中售后" 由 service 层在事务内查重保证。
-// ponytail: 未用部分唯一索引表达该规则（MySQL 不支持带条件的部分唯一索引），并发下依赖事务内查询 + 串行化更新兜底。
+// ponytail: 未用部分唯一索引表达该规则（MySQL 不支持带条件的部分唯一索引），并发下依赖事务内查询 + 串行化更新兜底；
+// 客户确认超时升级（§13.5）未实现，超时不影响流转。
 type EsportsAfterSale struct{ ent.Schema }
 
 func (EsportsAfterSale) Fields() []ent.Field {
@@ -45,6 +48,13 @@ func (EsportsAfterSale) Fields() []ent.Field {
 		field.Int64("makeup_company_pay_cents").Default(0).StructTag(`json:"makeup_company_pay_cents"`),
 		field.Int("customer_id").Optional().Nillable().StructTag(`json:"customer_id"`),
 		field.Int("player_id").Optional().Nillable().StructTag(`json:"player_id"`),
+		// 待客户确认（§13.3）：方案提交后由客户确认；确认渠道区分自助与客服代确认。
+		field.Time("customer_confirmed_at").Optional().Nillable().StructTag(`json:"customer_confirmed_at"`),
+		field.Enum("customer_confirm_channel").Values("none", "self_service", "admin_proxy").
+			Default("none").StructTag(`json:"customer_confirm_channel"`),
+		field.Int("customer_confirmed_by_admin_id").Optional().Nillable().StructTag(`json:"customer_confirmed_by_admin_id"`),
+		field.Time("customer_declined_at").Optional().Nillable().StructTag(`json:"customer_declined_at"`),
+		field.String("customer_decline_reason").MaxLen(255).Default("").StructTag(`json:"customer_decline_reason"`),
 		field.Int("handler_admin_id").Optional().Nillable().StructTag(`json:"handler_admin_id"`),
 		field.Int("approver_admin_id").Optional().Nillable().StructTag(`json:"approver_admin_id"`),
 		field.Int("executor_admin_id").Optional().Nillable().StructTag(`json:"executor_admin_id"`),

@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -110,6 +111,65 @@ func createAfterSaleHandler(c fiber.Ctx) error {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
 	item, err := createAfterSale(c.Context(), global.ORM, in, adminID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// confirmAfterSalePlanHandler 客服代客户确认方案（§13.3）：待客户确认 → 待审批。
+func confirmAfterSalePlanHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "售后单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	item, err := confirmAfterSaleByAdmin(c.Context(), global.ORM, id, adminID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// userConfirmAfterSaleHandler 客户自助确认方案（§13.3）。
+func userConfirmAfterSaleHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil || id < 1 {
+		return fail(c, fiber.StatusBadRequest, "售后单 ID 无效")
+	}
+	item, err := confirmAfterSaleByCustomer(c.Context(), global.ORM, id, customer.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// userDeclineAfterSaleHandler 客户自助拒绝方案（§13.3）：须填原因，退回处理中。
+func userDeclineAfterSaleHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil || id < 1 {
+		return fail(c, fiber.StatusBadRequest, "售后单 ID 无效")
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := declineAfterSaleByCustomer(c.Context(), global.ORM, id, customer.ID, in.Reason, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

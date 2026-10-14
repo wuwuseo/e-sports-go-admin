@@ -444,7 +444,9 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 	}
 	entries, err := tx.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.OrderIDEQ(order.ID),
-		esportscommissionentry.KindEQ(esportscommissionentry.KindService),
+		// §12.5：退款同时冲回原单服务分成与加钟分成（加钟退款分摊）。
+		esportscommissionentry.KindIn(
+			esportscommissionentry.KindService, esportscommissionentry.KindAddon),
 	).All(ctx)
 	if err != nil {
 		return err
@@ -454,14 +456,22 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 		if reversal == 0 {
 			continue
 		}
+		// 加钟明细可能同一陪玩多条，幂等键改用明细 ID 以免互相覆盖。
+		idem := "commission:reversal:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.PlayerID)
+		if entry.Kind == esportscommissionentry.KindAddon {
+			idem = "commission:reversal:addon:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.ID)
+		}
 		create := tx.EsportsCommissionEntry.Create().
-			SetIdemKey("commission:reversal:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.PlayerID)).
+			SetIdemKey(idem).
 			SetOrderID(order.ID).SetPlayerID(entry.PlayerID).
 			SetKind(esportscommissionentry.KindReversal).SetSeatIndex(entry.SeatIndex).
 			SetAfterSaleID(item.ID).SetBaseCents(order.PayableCents).SetAmountCents(reversal).
 			SetRuleNo(entry.RuleNo).SetRuleVersion(entry.RuleVersion).
 			SetCalcMode(esportscommissionentry.CalcMode(entry.CalcMode.String())).
 			SetStatus(esportscommissionentry.StatusPendingSettlement)
+		if entry.Kind == esportscommissionentry.KindAddon {
+			create.SetNote("加钟退款分摊")
+		}
 		if entry.RuleID != nil {
 			create.SetRuleID(*entry.RuleID)
 		}

@@ -12,11 +12,13 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// closeOrderInput 结单表单（备注 + 结单条件校验 + 模板驱动的字段值）。
+// closeOrderInput 结单表单（备注 + 结单条件校验 + 模板驱动的字段值 + 客服代提交）。
 type closeOrderInput struct {
 	Note string `json:"note"`
 	// FormValues 是结单表单模板驱动的字段值（key = 字段库 key）；订单无适用模板时忽略。
 	FormValues map[string]any `json:"form_values"`
+	// SubstituteReports 是客服代未上报成员补填的服务段上报；仅生效提交规则允许代提交时接受。
+	SubstituteReports []closeSubstituteReport `json:"substitute_reports"`
 }
 
 // closeOrder 客服手动结单：事务内校验结单条件，把 pending_close 订单条件更新为 completed 并留痕。
@@ -94,6 +96,10 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 	}
 	// §3.4 结单表单：按订单解析生效模板，校验必填字段并写快照（无适用模板时跳过）。
 	if err = applyCloseForm(ctx, tx, order, adminID, in.FormValues, in.Note, now); err != nil {
+		return nil, err
+	}
+	// §3.4 提交规则：校验陪玩个人服务段上报达标情况，允许代提交时可先补填（无适用规则时跳过）。
+	if err = applyCloseSubmitRule(ctx, tx, order, adminID, in.SubstituteReports); err != nil {
 		return nil, err
 	}
 	// §3.4 结单复核：金额达复核阈值时订单进入「待复核」，由非负责客服的管理员复核通过 / 驳回。
