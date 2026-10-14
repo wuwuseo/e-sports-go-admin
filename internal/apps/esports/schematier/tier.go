@@ -3,6 +3,8 @@
 // 若两者同名会产生「schema redeclared」的导入冲突。
 package schematier
 
+import "time"
+
 // CampaignTier 是阶梯赠送的一档：实充金额达到 ThresholdCents 时赠送 BonusCents。
 type CampaignTier struct {
 	ThresholdCents int64 `json:"threshold_cents"`
@@ -20,4 +22,27 @@ type CloseFormFieldBinding struct {
 	FieldKey string `json:"field_key"`
 	Required bool   `json:"required"`
 	Sort     int    `json:"sort"`
+}
+
+// CloseApprovalNode 是结单审批流的一个串行节点（§3.4）：配审批角色与超时策略。
+// InvolvesFunds 为 true 表示涉及资金 / 争议的节点，禁止自动通过。
+type CloseApprovalNode struct {
+	Seq               int    `json:"seq"`
+	Name              string `json:"name"`
+	Role              string `json:"role"`
+	TimeoutHours      int    `json:"timeout_hours"`
+	AutoPassOnTimeout bool   `json:"auto_pass_on_timeout"`
+	InvolvesFunds     bool   `json:"involves_funds"`
+}
+
+// CloseApprovalStep 是某订单审批进度中的一步：由节点派生，并记录处理结果。
+type CloseApprovalStep struct {
+	Seq        int        `json:"seq"`
+	Name       string     `json:"name"`
+	Role       string     `json:"role"`
+	Status     string     `json:"status"`
+	AdminID    int        `json:"admin_id"`
+	At         *time.Time `json:"at"`
+	Reason     string     `json:"reason"`
+	AutoPassed bool       `json:"auto_passed"`
 }

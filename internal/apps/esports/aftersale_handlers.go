@@ -45,7 +45,8 @@ func approveCloseReviewHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := approveCloseReview(c.Context(), global.ORM, id, adminID, in.Note, time.Now())
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	order, err := approveCloseReview(c.Context(), global.ORM, id, adminID, isSuper, in.Note, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -68,7 +69,8 @@ func rejectCloseReviewHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := rejectCloseReview(c.Context(), global.ORM, id, adminID, in.Reason, time.Now())
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	order, err := rejectCloseReview(c.Context(), global.ORM, id, adminID, isSuper, in.Reason, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

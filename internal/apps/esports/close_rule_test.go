@@ -128,10 +128,10 @@ func TestCloseOrderReviewThreshold(t *testing.T) {
 		t.Fatal("缺少 order.close_review_requested 事件")
 	}
 	// 负责客服本人复核被拒（不得自审）。
-	if _, err := approveCloseReview(ctx, db, order.ID, 11, "", now); !errors.Is(err, errForbidden) {
+	if _, err := approveCloseReview(ctx, db, order.ID, 11, true, "", now); !errors.Is(err, errForbidden) {
 		t.Fatalf("负责客服自审未拦截：%v", err)
 	}
-	done, err := approveCloseReview(ctx, db, order.ID, 12, "复核通过", now)
+	done, err := approveCloseReview(ctx, db, order.ID, 12, true, "复核通过", now)
 	if err != nil || done.FulfillmentStatus != esportsorder.FulfillmentStatusCompleted {
 		t.Fatalf("复核通过失败：%v %+v", err, done)
 	}
@@ -158,10 +158,10 @@ func TestCloseReviewRejectRollsBack(t *testing.T) {
 	if _, err = closeOrder(ctx, db, order.ID, 11, closeOrderInput{Note: "结单"}, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = rejectCloseReview(ctx, db, order.ID, 12, "  ", now); !errors.Is(err, errInvalidInput) {
+	if _, err = rejectCloseReview(ctx, db, order.ID, 12, true, "  ", now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("未填驳回原因未拦截：%v", err)
 	}
-	rejected, err := rejectCloseReview(ctx, db, order.ID, 12, "凭证存疑", now)
+	rejected, err := rejectCloseReview(ctx, db, order.ID, 12, true, "凭证存疑", now)
 	if err != nil || rejected.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose {
 		t.Fatalf("驳回失败：%v %+v", err, rejected)
 	}

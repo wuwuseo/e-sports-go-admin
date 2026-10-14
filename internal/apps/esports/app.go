@@ -120,6 +120,15 @@ func checkAfterSaleSLATask(ctx context.Context, logger io.Writer) error {
 	return err
 }
 
+// checkCloseApprovalTimeoutTask 处理结单审批节点超时（§3.4）：允许自动通过的节点自动推进，其余升级提醒。
+func checkCloseApprovalTimeoutTask(ctx context.Context, logger io.Writer) error {
+	count, err := checkCloseApprovalTimeouts(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "处理结单审批超时：%d\n", count)
+	}
+	return err
+}
+
 // applyMemberDowngradeTask 执行等级保护期已到期的客户降级（§10.3）。
 func applyMemberDowngradeTask(ctx context.Context, logger io.Writer) error {
 	count, err := applyMemberDowngrades(ctx, global.ORM, time.Now(), 200)
@@ -143,6 +152,7 @@ func init() {
 		tasks.Register("esports_check_service_overtime", checkServiceOvertimeTask)
 		tasks.Register("esports_generate_cs_settlements", generateCsSettlementsTask)
 		tasks.Register("esports_check_aftersale_sla", checkAfterSaleSLATask)
+		tasks.Register("esports_check_close_approval_timeout", checkCloseApprovalTimeoutTask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
@@ -236,6 +246,8 @@ func init() {
 			{Method: "POST", Path: "/admin/orders/:id/close-reject", Auth: cmfapp.AuthAdmin, Handler: rejectCloseReviewHandler},
 			// 结单表单（§3.4）：返回订单适用的表单模板与字段定义，供结单弹窗渲染。
 			{Method: "GET", Path: "/admin/orders/:id/close-form", Auth: cmfapp.AuthAdmin, Handler: orderCloseFormHandler},
+			// 结单审批进度（§3.4）：当前待审批节点，供复核弹窗展示。
+			{Method: "GET", Path: "/admin/orders/:id/close-approval", Auth: cmfapp.AuthAdmin, Handler: orderCloseApprovalHandler},
 			{Method: "GET", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: adminAfterSales},
 			{Method: "GET", Path: "/admin/after-sales/:id", Auth: cmfapp.AuthAdmin, Handler: adminAfterSaleDetail},
 			{Method: "POST", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: createAfterSaleHandler},
@@ -279,6 +291,12 @@ func init() {
 			{Method: "PUT", Path: "/admin/close-submit-rules/:id", Auth: cmfapp.AuthAdmin, Handler: updateCloseSubmitRuleHandler},
 			{Method: "POST", Path: "/admin/close-submit-rules/:id/activate", Auth: cmfapp.AuthAdmin, Handler: activateCloseSubmitRuleHandler},
 			{Method: "POST", Path: "/admin/close-submit-rules/:id/rollback", Auth: cmfapp.AuthAdmin, Handler: rollbackCloseSubmitRuleHandler},
+			// 结单审批流（§3.4）：节点串行编排、审批角色与超时策略。
+			{Method: "GET", Path: "/admin/close-approval-flows", Auth: cmfapp.AuthAdmin, Handler: listCloseApprovalFlowsHandler},
+			{Method: "POST", Path: "/admin/close-approval-flows", Auth: cmfapp.AuthAdmin, Handler: createCloseApprovalFlowHandler},
+			{Method: "PUT", Path: "/admin/close-approval-flows/:id", Auth: cmfapp.AuthAdmin, Handler: updateCloseApprovalFlowHandler},
+			{Method: "POST", Path: "/admin/close-approval-flows/:id/activate", Auth: cmfapp.AuthAdmin, Handler: activateCloseApprovalFlowHandler},
+			{Method: "POST", Path: "/admin/close-approval-flows/:id/rollback", Auth: cmfapp.AuthAdmin, Handler: rollbackCloseApprovalFlowHandler},
 			{Method: "GET", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: adminSettlements},
 			{Method: "POST", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: createSettlementHandler},
 			{Method: "POST", Path: "/admin/settlements/:id/lock", Auth: cmfapp.AuthAdmin, Handler: lockSettlementHandler},
@@ -515,6 +533,11 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "编辑结单提交规则", Code: "esports:close_forms:submit_rule_update", Path: "/api/v1/esports/admin/close-submit-rules/{id}", Method: "PUT", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "生效结单提交规则", Code: "esports:close_forms:submit_rule_activate", Path: "/api/v1/esports/admin/close-submit-rules/{id}/activate", Method: "POST", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "回滚结单提交规则", Code: "esports:close_forms:submit_rule_rollback", Path: "/api/v1/esports/admin/close-submit-rules/{id}/rollback", Method: "POST", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看结单审批流", Code: "esports:close_forms:approval_flows", Path: "/api/v1/esports/admin/close-approval-flows", Method: "GET", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "创建结单审批流", Code: "esports:close_forms:approval_flow_create", Path: "/api/v1/esports/admin/close-approval-flows", Method: "POST", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "编辑结单审批流", Code: "esports:close_forms:approval_flow_update", Path: "/api/v1/esports/admin/close-approval-flows/{id}", Method: "PUT", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "生效结单审批流", Code: "esports:close_forms:approval_flow_activate", Path: "/api/v1/esports/admin/close-approval-flows/{id}/activate", Method: "POST", Parent: "esports:close_form:menu"},
+			{Type: cmfapp.PermAPI, Name: "回滚结单审批流", Code: "esports:close_forms:approval_flow_rollback", Path: "/api/v1/esports/admin/close-approval-flows/{id}/rollback", Method: "POST", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermButton, Name: "结单表单操作按钮", Code: "esports:close_forms:manage", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看分成规则", Code: "esports:settlements:rules", Path: "/api/v1/esports/admin/commission-rules", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建分成规则", Code: "esports:settlements:rule_create", Path: "/api/v1/esports/admin/commission-rules", Method: "POST", Parent: "esports:settlement:menu"},

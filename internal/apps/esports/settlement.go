@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscloseapproval"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
 )
@@ -102,8 +103,13 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 	if err = applyCloseSubmitRule(ctx, tx, order, adminID, in.SubstituteReports); err != nil {
 		return nil, err
 	}
-	// §3.4 结单复核：金额达复核阈值时订单进入「待复核」，由非负责客服的管理员复核通过 / 驳回。
-	if conds.ReviewThresholdCents > 0 && order.PayableCents >= conds.ReviewThresholdCents {
+	// §3.4 结单审批：命中生效审批流（按金额阈值）或结单规则的复核阈值时，订单进入「待复核」
+	// 并建立审批进度（逐节点串行审批，末节点通过才真正结单）。
+	approval, err := startCloseApprovalIfNeeded(ctx, tx, order, conds.ReviewThresholdCents)
+	if err != nil {
+		return nil, err
+	}
+	if approval != nil {
 		changed, err := tx.EsportsOrder.Update().Where(
 			esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
 			esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingClose),
@@ -119,6 +125,9 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 			SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
 			SetDetails(map[string]interface{}{
 				"threshold_cents": conds.ReviewThresholdCents, "payable_cents": order.PayableCents,
+				"flow_id": approval.FlowID, "flow_code": approval.FlowCode,
+				"flow_version": approval.FlowVersion, "node_count": len(approval.Steps),
+				"current_seq": approval.CurrentSeq,
 			}).Save(ctx); err != nil {
 			return nil, err
 		}
@@ -127,7 +136,7 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 		}
 		return db.EsportsOrder.Get(ctx, orderID)
 	}
-	if err = finalizeCloseOrderIn(ctx, tx, order, adminID, in.Note, now); err != nil {
+	if err = finalizeCloseOrderIn(ctx, tx, order, adminID, "admin", in.Note, now); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -138,7 +147,7 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 
 // finalizeCloseOrderIn 事务内把订单转为 completed：写 closed_at、事件与事务外盒，并同事务计提
 // 陪玩分成、客服提成与客户成长值。供「直接结单」与「复核通过」两条路径共用（不负责 commit）。
-func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int, note string, now time.Time) error {
+func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int, actorType, note string, now time.Time) error {
 	segments, err := tx.EsportsServiceSegment.Query().Where(
 		esportsservicesegment.OrderIDEQ(order.ID),
 	).All(ctx)
@@ -166,9 +175,13 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 		return errConflict
 	}
 	newVersion := order.Version + 1
+	actorID := strconv.Itoa(adminID)
+	if actorType == "system" {
+		actorID = "system"
+	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
 		SetOrderVersion(newVersion).SetEventType("order.closed").
-		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetActorType(actorType).SetActorID(actorID).
 		SetDetails(map[string]interface{}{
 			"note": note, "evidence_count": evidenceCount,
 			"system_seconds": totalSeconds, "reported_units": totalUnits,
@@ -196,9 +209,24 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	return nil
 }
 
-// approveCloseReview 复核通过：pending_close_review → completed，并走完整结单计提。
-// 复核人不得为该订单负责客服（不得自审，§3.4 高额单管理员复核）。
-func approveCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int, note string, now time.Time) (*ent.EsportsOrder, error) {
+// closeReviewApproval 取出订单的审批进度；无进度（历史数据 / 未建）返回 nil，调用方按内置单节点处理。
+func closeReviewApproval(ctx context.Context, tx *ent.Tx, orderID int) (*ent.EsportsCloseApproval, error) {
+	approval, err := tx.EsportsCloseApproval.Query().Where(
+		esportscloseapproval.OrderIDEQ(orderID),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return approval, nil
+}
+
+// approveCloseReview 复核通过：推进当前审批节点；末节点通过后订单转 completed 并走完整结单计提。
+// 审批人不得为该订单负责客服（不得自审，§3.4）；节点角色为 super_admin 时须超级管理员。
+func approveCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int, isSuper bool,
+	note string, now time.Time) (*ent.EsportsOrder, error) {
 	note = strings.TrimSpace(note)
 	if orderID < 1 || adminID < 1 || len([]rune(note)) > 255 {
 		return nil, errInvalidInput
@@ -218,7 +246,16 @@ func approveCloseReview(ctx context.Context, db *ent.Client, orderID, adminID in
 	if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID == adminID {
 		return nil, errForbidden
 	}
-	if err = finalizeCloseOrderIn(ctx, tx, order, adminID, note, now); err != nil {
+	approval, err := closeReviewApproval(ctx, tx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if approval == nil {
+		// 无审批进度：等价于内置单节点复核，直接完成。
+		if err = finalizeCloseOrderIn(ctx, tx, order, adminID, "admin", note, now); err != nil {
+			return nil, err
+		}
+	} else if err = approveCloseApprovalIn(ctx, tx, order, approval, adminID, isSuper, false, note, now); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -227,8 +264,9 @@ func approveCloseReview(ctx context.Context, db *ent.Client, orderID, adminID in
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// rejectCloseReview 复核驳回：pending_close_review → pending_close（回退，不 completed、不计提）。
-func rejectCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int, reason string, now time.Time) (*ent.EsportsOrder, error) {
+// rejectCloseReview 复核驳回：把当前节点标记驳回并回退到待结单（不 completed、不计提）。
+func rejectCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int, isSuper bool,
+	reason string, now time.Time) (*ent.EsportsOrder, error) {
 	reason = strings.TrimSpace(reason)
 	if orderID < 1 || adminID < 1 || reason == "" || len([]rune(reason)) > 255 {
 		return nil, errInvalidInput
@@ -248,21 +286,32 @@ func rejectCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int
 	if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID == adminID {
 		return nil, errForbidden
 	}
-	changed, err := tx.EsportsOrder.Update().Where(
-		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
-		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingCloseReview),
-	).SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingClose).AddVersion(1).Save(ctx)
+	approval, err := closeReviewApproval(ctx, tx, orderID)
 	if err != nil {
 		return nil, err
 	}
-	if changed != 1 {
-		return nil, errConflict
-	}
-	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
-		SetOrderVersion(order.Version + 1).SetEventType("order.close_review_rejected").
-		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
-		SetDetails(map[string]interface{}{"reason": reason}).Save(ctx); err != nil {
-		return nil, err
+	if approval != nil {
+		if err = rejectCloseApprovalIn(ctx, tx, order, approval, adminID, isSuper, reason, now); err != nil {
+			return nil, err
+		}
+	} else {
+		// 无审批进度：等价于内置单节点驳回。
+		changed, err := tx.EsportsOrder.Update().Where(
+			esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+			esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingCloseReview),
+		).SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingClose).AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+			SetOrderVersion(order.Version + 1).SetEventType("order.close_review_rejected").
+			SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+			SetDetails(map[string]interface{}{"reason": reason}).Save(ctx); err != nil {
+			return nil, err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
