@@ -56,6 +56,9 @@ func (EsportsAfterSale) Fields() []ent.Field {
 		field.Int("customer_confirmed_by_admin_id").Optional().Nillable().StructTag(`json:"customer_confirmed_by_admin_id"`),
 		field.Time("customer_declined_at").Optional().Nillable().StructTag(`json:"customer_declined_at"`),
 		field.String("customer_decline_reason").MaxLen(255).Default("").StructTag(`json:"customer_decline_reason"`),
+		// 追偿（§13.4）：赔付由陪玩承担时，执行售后按此生成陪玩追偿明细（待审批）。
+		field.Int("recovery_player_id").Optional().Nillable().StructTag(`json:"recovery_player_id"`),
+		field.Int64("recovery_cents").Default(0).StructTag(`json:"recovery_cents"`),
 		// 阶段时间戳（§13.5 限时）：受理 / 提交方案 / 审批各自锚定，用于计算当前阶段的超时。
 		field.Time("accepted_at").Optional().Nillable().StructTag(`json:"accepted_at"`),
 		field.Time("planned_at").Optional().Nillable().StructTag(`json:"planned_at"`),

@@ -297,6 +297,11 @@ func init() {
 			{Method: "PUT", Path: "/admin/close-approval-flows/:id", Auth: cmfapp.AuthAdmin, Handler: updateCloseApprovalFlowHandler},
 			{Method: "POST", Path: "/admin/close-approval-flows/:id/activate", Auth: cmfapp.AuthAdmin, Handler: activateCloseApprovalFlowHandler},
 			{Method: "POST", Path: "/admin/close-approval-flows/:id/rollback", Auth: cmfapp.AuthAdmin, Handler: rollbackCloseApprovalFlowHandler},
+			// 陪玩追偿明细（§13.4）：售后赔付由陪玩承担时另建的扣回单，须独立审批后执行扣回。
+			{Method: "GET", Path: "/admin/player-recoveries", Auth: cmfapp.AuthAdmin, Handler: listPlayerRecoveriesHandler},
+			{Method: "POST", Path: "/admin/player-recoveries/:id/approve", Auth: cmfapp.AuthAdmin, Handler: approvePlayerRecoveryHandler},
+			{Method: "POST", Path: "/admin/player-recoveries/:id/reject", Auth: cmfapp.AuthAdmin, Handler: rejectPlayerRecoveryHandler},
+			{Method: "POST", Path: "/admin/player-recoveries/:id/execute", Auth: cmfapp.AuthAdmin, Handler: executePlayerRecoveryHandler},
 			{Method: "GET", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: adminSettlements},
 			{Method: "POST", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: createSettlementHandler},
 			{Method: "POST", Path: "/admin/settlements/:id/lock", Auth: cmfapp.AuthAdmin, Handler: lockSettlementHandler},
@@ -366,6 +371,8 @@ func init() {
 			{Method: "POST", Path: "/user/player/assessments/:id/appeal", Auth: cmfapp.AuthUser, Handler: playerAppealHandler},
 			// 客户自助：已完成订单的服务评价（§7.5）。
 			{Method: "POST", Path: "/user/orders/:id/reviews", Auth: cmfapp.AuthUser, Handler: userSubmitReviewHandler},
+			// 陪玩端自助：我的追偿明细（§13.4）。
+			{Method: "GET", Path: "/user/player/recoveries", Auth: cmfapp.AuthUser, Handler: playerRecoveriesHandler},
 			// 客户自助：售后方（§13.3）确认 / 拒绝待确认方案。
 			{Method: "POST", Path: "/user/after-sales/:id/confirm", Auth: cmfapp.AuthUser, Handler: userConfirmAfterSaleHandler},
 			{Method: "POST", Path: "/user/after-sales/:id/decline", Auth: cmfapp.AuthUser, Handler: userDeclineAfterSaleHandler},
@@ -548,6 +555,10 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "生成结算单", Code: "esports:settlements:create", Path: "/api/v1/esports/admin/settlements", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "锁定结算单", Code: "esports:settlements:lock", Path: "/api/v1/esports/admin/settlements/{id}/lock", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看结算单详情", Code: "esports:settlements:detail", Path: "/api/v1/esports/admin/settlements/{id}", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看陪玩追偿", Code: "esports:settlements:recoveries", Path: "/api/v1/esports/admin/player-recoveries", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "审批陪玩追偿", Code: "esports:settlements:recovery_approve", Path: "/api/v1/esports/admin/player-recoveries/{id}/approve", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "驳回陪玩追偿", Code: "esports:settlements:recovery_reject", Path: "/api/v1/esports/admin/player-recoveries/{id}/reject", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "执行陪玩追偿", Code: "esports:settlements:recovery_execute", Path: "/api/v1/esports/admin/player-recoveries/{id}/execute", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermButton, Name: "结算操作按钮", Code: "esports:settlements:manage", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看客服提成规则", Code: "esports:settlements:cs_rules", Path: "/api/v1/esports/admin/cs-commission-rules", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建客服提成规则", Code: "esports:settlements:cs_rule_create", Path: "/api/v1/esports/admin/cs-commission-rules", Method: "POST", Parent: "esports:settlement:menu"},

@@ -49,6 +49,9 @@ type afterSalePlanInput struct {
 	MakeupSeatIndex       int    `json:"makeup_seat_index"`
 	MakeupUnits           int64  `json:"makeup_units"`
 	MakeupCompanyPayCents int64  `json:"makeup_company_pay_cents"`
+	// 追偿（§13.4）：赔付由陪玩承担时填承接陪玩与追偿金额，执行售后时另建待审批的追偿明细。
+	RecoveryPlayerID int   `json:"recovery_player_id"`
+	RecoveryCents    int64 `json:"recovery_cents"`
 }
 
 type afterSaleDecisionInput struct {
@@ -235,8 +238,11 @@ func acceptAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now t
 func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, in afterSalePlanInput, now time.Time) (*ent.EsportsAfterSale, error) {
 	in.Resolution = strings.TrimSpace(in.Resolution)
 	if id < 1 || !validFaultParty(in.FaultParty) || !validPlanAction(in.PlanAction) ||
-		in.RefundCents < 0 || len([]rune(in.Resolution)) > 255 {
+		in.RefundCents < 0 || in.RecoveryCents < 0 || len([]rune(in.Resolution)) > 255 {
 		return nil, errInvalidInput
+	}
+	if in.RecoveryCents > 0 && (in.FaultParty != "player" || in.RecoveryPlayerID < 1) {
+		return nil, fmt.Errorf("%w：向陪玩追偿时须把责任方判为陪玩并指定承接陪玩", errInvalidInput)
 	}
 	makeupKind := esportsaftersale.MakeupKindNone
 	refundCents := in.RefundCents
@@ -262,12 +268,17 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		// 补履约不产生退款金额。
 		refundCents = 0
 	}
+	// §13.4：追偿金额不得超过本次赔付金额；不产生赔付的方案不允许追偿。
+	if in.RecoveryCents > refundCents {
+		return nil, fmt.Errorf("%w：追偿金额不得超过本次赔付金额", errInvalidInput)
+	}
 	update := db.EsportsAfterSale.Update().Where(
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(esportsaftersale.StatusProcessing),
 	).SetFaultParty(esportsaftersale.FaultParty(in.FaultParty)).
 		SetPlanAction(esportsaftersale.PlanAction(in.PlanAction)).
 		SetRefundCents(refundCents).
+		SetRecoveryCents(in.RecoveryCents).
 		SetMakeupKind(makeupKind).
 		SetMakeupUnits(in.MakeupUnits).
 		SetMakeupCompanyPayCents(in.MakeupCompanyPayCents).
@@ -282,6 +293,11 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		update = update.SetMakeupPlayerID(*makeupPlayerID).SetMakeupSeatIndex(*makeupSeatIndex)
 	} else {
 		update = update.ClearMakeupPlayerID().ClearMakeupSeatIndex()
+	}
+	if in.RecoveryCents > 0 {
+		update = update.SetRecoveryPlayerID(in.RecoveryPlayerID)
+	} else {
+		update = update.ClearRecoveryPlayerID()
 	}
 	changed, err := update.Save(ctx)
 	if err != nil {
@@ -607,6 +623,10 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	if err = reverseOrderGrowth(ctx, tx, order, item, adminID, now); err != nil {
 		return nil, err
 	}
+	// §13.4：赔付由陪玩承担时，同事务另建待审批的陪玩追偿明细。
+	if err = createRecoveryFromAfterSale(ctx, tx, item, adminID); err != nil {
+		return nil, err
+	}
 	newVersion := order.Version + 1
 	if err = completeAfterSaleExecution(ctx, tx, id, order.ID, adminID, newVersion, "order.refund_executed",
 		map[string]interface{}{
@@ -715,5 +735,6 @@ func executeCompensate(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSa
 		}
 		return fmt.Errorf("%w：补偿流水写入失败：%v", errExecutionFailed, err)
 	}
-	return nil
+	// §13.4：补偿由陪玩承担时同样另建待审批的追偿明细。
+	return createRecoveryFromAfterSale(ctx, tx, item, adminID)
 }
