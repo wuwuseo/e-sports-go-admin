@@ -278,6 +278,48 @@ func (_u *EsportsCsCommissionEntryUpdate) AddAmountCents(v int64) *EsportsCsComm
 	return _u
 }
 
+// SetChannelCostCents sets the "channel_cost_cents" field.
+func (_u *EsportsCsCommissionEntryUpdate) SetChannelCostCents(v int64) *EsportsCsCommissionEntryUpdate {
+	_u.mutation.ResetChannelCostCents()
+	_u.mutation.SetChannelCostCents(v)
+	return _u
+}
+
+// SetNillableChannelCostCents sets the "channel_cost_cents" field if the given value is not nil.
+func (_u *EsportsCsCommissionEntryUpdate) SetNillableChannelCostCents(v *int64) *EsportsCsCommissionEntryUpdate {
+	if v != nil {
+		_u.SetChannelCostCents(*v)
+	}
+	return _u
+}
+
+// AddChannelCostCents adds value to the "channel_cost_cents" field.
+func (_u *EsportsCsCommissionEntryUpdate) AddChannelCostCents(v int64) *EsportsCsCommissionEntryUpdate {
+	_u.mutation.AddChannelCostCents(v)
+	return _u
+}
+
+// SetStudioRemainderCents sets the "studio_remainder_cents" field.
+func (_u *EsportsCsCommissionEntryUpdate) SetStudioRemainderCents(v int64) *EsportsCsCommissionEntryUpdate {
+	_u.mutation.ResetStudioRemainderCents()
+	_u.mutation.SetStudioRemainderCents(v)
+	return _u
+}
+
+// SetNillableStudioRemainderCents sets the "studio_remainder_cents" field if the given value is not nil.
+func (_u *EsportsCsCommissionEntryUpdate) SetNillableStudioRemainderCents(v *int64) *EsportsCsCommissionEntryUpdate {
+	if v != nil {
+		_u.SetStudioRemainderCents(*v)
+	}
+	return _u
+}
+
+// AddStudioRemainderCents adds value to the "studio_remainder_cents" field.
+func (_u *EsportsCsCommissionEntryUpdate) AddStudioRemainderCents(v int64) *EsportsCsCommissionEntryUpdate {
+	_u.mutation.AddStudioRemainderCents(v)
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsCsCommissionEntryUpdate) SetStatus(v esportscscommissionentry.Status) *EsportsCsCommissionEntryUpdate {
 	_u.mutation.SetStatus(v)
@@ -531,6 +573,18 @@ func (_u *EsportsCsCommissionEntryUpdate) sqlSave(ctx context.Context) (_node in
 	}
 	if value, ok := _u.mutation.AddedAmountCents(); ok {
 		_spec.AddField(esportscscommissionentry.FieldAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ChannelCostCents(); ok {
+		_spec.SetField(esportscscommissionentry.FieldChannelCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedChannelCostCents(); ok {
+		_spec.AddField(esportscscommissionentry.FieldChannelCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.StudioRemainderCents(); ok {
+		_spec.SetField(esportscscommissionentry.FieldStudioRemainderCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedStudioRemainderCents(); ok {
+		_spec.AddField(esportscscommissionentry.FieldStudioRemainderCents, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportscscommissionentry.FieldStatus, field.TypeEnum, value)
@@ -826,6 +880,48 @@ func (_u *EsportsCsCommissionEntryUpdateOne) AddAmountCents(v int64) *EsportsCsC
 	return _u
 }
 
+// SetChannelCostCents sets the "channel_cost_cents" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) SetChannelCostCents(v int64) *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.ResetChannelCostCents()
+	_u.mutation.SetChannelCostCents(v)
+	return _u
+}
+
+// SetNillableChannelCostCents sets the "channel_cost_cents" field if the given value is not nil.
+func (_u *EsportsCsCommissionEntryUpdateOne) SetNillableChannelCostCents(v *int64) *EsportsCsCommissionEntryUpdateOne {
+	if v != nil {
+		_u.SetChannelCostCents(*v)
+	}
+	return _u
+}
+
+// AddChannelCostCents adds value to the "channel_cost_cents" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) AddChannelCostCents(v int64) *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.AddChannelCostCents(v)
+	return _u
+}
+
+// SetStudioRemainderCents sets the "studio_remainder_cents" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) SetStudioRemainderCents(v int64) *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.ResetStudioRemainderCents()
+	_u.mutation.SetStudioRemainderCents(v)
+	return _u
+}
+
+// SetNillableStudioRemainderCents sets the "studio_remainder_cents" field if the given value is not nil.
+func (_u *EsportsCsCommissionEntryUpdateOne) SetNillableStudioRemainderCents(v *int64) *EsportsCsCommissionEntryUpdateOne {
+	if v != nil {
+		_u.SetStudioRemainderCents(*v)
+	}
+	return _u
+}
+
+// AddStudioRemainderCents adds value to the "studio_remainder_cents" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) AddStudioRemainderCents(v int64) *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.AddStudioRemainderCents(v)
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsCsCommissionEntryUpdateOne) SetStatus(v esportscscommissionentry.Status) *EsportsCsCommissionEntryUpdateOne {
 	_u.mutation.SetStatus(v)
@@ -1109,6 +1205,18 @@ func (_u *EsportsCsCommissionEntryUpdateOne) sqlSave(ctx context.Context) (_node
 	}
 	if value, ok := _u.mutation.AddedAmountCents(); ok {
 		_spec.AddField(esportscscommissionentry.FieldAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ChannelCostCents(); ok {
+		_spec.SetField(esportscscommissionentry.FieldChannelCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedChannelCostCents(); ok {
+		_spec.AddField(esportscscommissionentry.FieldChannelCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.StudioRemainderCents(); ok {
+		_spec.SetField(esportscscommissionentry.FieldStudioRemainderCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedStudioRemainderCents(); ok {
+		_spec.AddField(esportscscommissionentry.FieldStudioRemainderCents, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportscscommissionentry.FieldStatus, field.TypeEnum, value)

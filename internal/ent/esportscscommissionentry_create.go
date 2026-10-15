@@ -178,6 +178,34 @@ func (_c *EsportsCsCommissionEntryCreate) SetNillableAmountCents(v *int64) *Espo
 	return _c
 }
 
+// SetChannelCostCents sets the "channel_cost_cents" field.
+func (_c *EsportsCsCommissionEntryCreate) SetChannelCostCents(v int64) *EsportsCsCommissionEntryCreate {
+	_c.mutation.SetChannelCostCents(v)
+	return _c
+}
+
+// SetNillableChannelCostCents sets the "channel_cost_cents" field if the given value is not nil.
+func (_c *EsportsCsCommissionEntryCreate) SetNillableChannelCostCents(v *int64) *EsportsCsCommissionEntryCreate {
+	if v != nil {
+		_c.SetChannelCostCents(*v)
+	}
+	return _c
+}
+
+// SetStudioRemainderCents sets the "studio_remainder_cents" field.
+func (_c *EsportsCsCommissionEntryCreate) SetStudioRemainderCents(v int64) *EsportsCsCommissionEntryCreate {
+	_c.mutation.SetStudioRemainderCents(v)
+	return _c
+}
+
+// SetNillableStudioRemainderCents sets the "studio_remainder_cents" field if the given value is not nil.
+func (_c *EsportsCsCommissionEntryCreate) SetNillableStudioRemainderCents(v *int64) *EsportsCsCommissionEntryCreate {
+	if v != nil {
+		_c.SetStudioRemainderCents(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *EsportsCsCommissionEntryCreate) SetStatus(v esportscscommissionentry.Status) *EsportsCsCommissionEntryCreate {
 	_c.mutation.SetStatus(v)
@@ -329,6 +357,14 @@ func (_c *EsportsCsCommissionEntryCreate) defaults() {
 		v := esportscscommissionentry.DefaultAmountCents
 		_c.mutation.SetAmountCents(v)
 	}
+	if _, ok := _c.mutation.ChannelCostCents(); !ok {
+		v := esportscscommissionentry.DefaultChannelCostCents
+		_c.mutation.SetChannelCostCents(v)
+	}
+	if _, ok := _c.mutation.StudioRemainderCents(); !ok {
+		v := esportscscommissionentry.DefaultStudioRemainderCents
+		_c.mutation.SetStudioRemainderCents(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := esportscscommissionentry.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -420,6 +456,12 @@ func (_c *EsportsCsCommissionEntryCreate) check() error {
 	}
 	if _, ok := _c.mutation.AmountCents(); !ok {
 		return &ValidationError{Name: "amount_cents", err: errors.New(`ent: missing required field "EsportsCsCommissionEntry.amount_cents"`)}
+	}
+	if _, ok := _c.mutation.ChannelCostCents(); !ok {
+		return &ValidationError{Name: "channel_cost_cents", err: errors.New(`ent: missing required field "EsportsCsCommissionEntry.channel_cost_cents"`)}
+	}
+	if _, ok := _c.mutation.StudioRemainderCents(); !ok {
+		return &ValidationError{Name: "studio_remainder_cents", err: errors.New(`ent: missing required field "EsportsCsCommissionEntry.studio_remainder_cents"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "EsportsCsCommissionEntry.status"`)}
@@ -523,6 +565,14 @@ func (_c *EsportsCsCommissionEntryCreate) createSpec() (*EsportsCsCommissionEntr
 	if value, ok := _c.mutation.AmountCents(); ok {
 		_spec.SetField(esportscscommissionentry.FieldAmountCents, field.TypeInt64, value)
 		_node.AmountCents = value
+	}
+	if value, ok := _c.mutation.ChannelCostCents(); ok {
+		_spec.SetField(esportscscommissionentry.FieldChannelCostCents, field.TypeInt64, value)
+		_node.ChannelCostCents = value
+	}
+	if value, ok := _c.mutation.StudioRemainderCents(); ok {
+		_spec.SetField(esportscscommissionentry.FieldStudioRemainderCents, field.TypeInt64, value)
+		_node.StudioRemainderCents = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(esportscscommissionentry.FieldStatus, field.TypeEnum, value)

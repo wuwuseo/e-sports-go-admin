@@ -74,6 +74,7 @@ import (
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
+	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/esportswithdrawal"
@@ -225,6 +226,7 @@ func checkColumn(t, c string) error {
 			esportssku.Table:                    esportssku.ValidColumn,
 			esportsstoredvaluecard.Table:        esportsstoredvaluecard.ValidColumn,
 			esportsstoredvaluepackage.Table:     esportsstoredvaluepackage.ValidColumn,
+			esportsteammate.Table:               esportsteammate.ValidColumn,
 			esportswalletaccount.Table:          esportswalletaccount.ValidColumn,
 			esportswallettx.Table:               esportswallettx.ValidColumn,
 			esportswithdrawal.Table:             esportswithdrawal.ValidColumn,

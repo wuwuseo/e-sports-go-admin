@@ -148,6 +148,8 @@ type Tx struct {
 	EsportsStoredValueCard *EsportsStoredValueCardClient
 	// EsportsStoredValuePackage is the client for interacting with the EsportsStoredValuePackage builders.
 	EsportsStoredValuePackage *EsportsStoredValuePackageClient
+	// EsportsTeammate is the client for interacting with the EsportsTeammate builders.
+	EsportsTeammate *EsportsTeammateClient
 	// EsportsWalletAccount is the client for interacting with the EsportsWalletAccount builders.
 	EsportsWalletAccount *EsportsWalletAccountClient
 	// EsportsWalletTx is the client for interacting with the EsportsWalletTx builders.
@@ -381,6 +383,7 @@ func (tx *Tx) init() {
 	tx.EsportsSku = NewEsportsSkuClient(tx.config)
 	tx.EsportsStoredValueCard = NewEsportsStoredValueCardClient(tx.config)
 	tx.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(tx.config)
+	tx.EsportsTeammate = NewEsportsTeammateClient(tx.config)
 	tx.EsportsWalletAccount = NewEsportsWalletAccountClient(tx.config)
 	tx.EsportsWalletTx = NewEsportsWalletTxClient(tx.config)
 	tx.EsportsWithdrawal = NewEsportsWithdrawalClient(tx.config)

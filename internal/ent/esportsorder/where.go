@@ -194,6 +194,11 @@ func RefundReservedCents(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldRefundReservedCents, v))
 }
 
+// ChannelCostCents applies equality check predicate on the "channel_cost_cents" field. It's identical to ChannelCostCentsEQ.
+func ChannelCostCents(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldChannelCostCents, v))
+}
+
 // RequestedStartAt applies equality check predicate on the "requested_start_at" field. It's identical to RequestedStartAtEQ.
 func RequestedStartAt(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldRequestedStartAt, v))
@@ -1652,6 +1657,46 @@ func RefundReservedCentsLT(v int64) predicate.EsportsOrder {
 // RefundReservedCentsLTE applies the LTE predicate on the "refund_reserved_cents" field.
 func RefundReservedCentsLTE(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldLTE(FieldRefundReservedCents, v))
+}
+
+// ChannelCostCentsEQ applies the EQ predicate on the "channel_cost_cents" field.
+func ChannelCostCentsEQ(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsNEQ applies the NEQ predicate on the "channel_cost_cents" field.
+func ChannelCostCentsNEQ(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsIn applies the In predicate on the "channel_cost_cents" field.
+func ChannelCostCentsIn(vs ...int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldChannelCostCents, vs...))
+}
+
+// ChannelCostCentsNotIn applies the NotIn predicate on the "channel_cost_cents" field.
+func ChannelCostCentsNotIn(vs ...int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldChannelCostCents, vs...))
+}
+
+// ChannelCostCentsGT applies the GT predicate on the "channel_cost_cents" field.
+func ChannelCostCentsGT(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsGTE applies the GTE predicate on the "channel_cost_cents" field.
+func ChannelCostCentsGTE(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsLT applies the LT predicate on the "channel_cost_cents" field.
+func ChannelCostCentsLT(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsLTE applies the LTE predicate on the "channel_cost_cents" field.
+func ChannelCostCentsLTE(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldChannelCostCents, v))
 }
 
 // AppointmentStatusEQ applies the EQ predicate on the "appointment_status" field.

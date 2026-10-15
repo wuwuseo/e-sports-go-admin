@@ -79,6 +79,7 @@ import (
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
+	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/esportswithdrawal"
@@ -244,6 +245,8 @@ type Client struct {
 	EsportsStoredValueCard *EsportsStoredValueCardClient
 	// EsportsStoredValuePackage is the client for interacting with the EsportsStoredValuePackage builders.
 	EsportsStoredValuePackage *EsportsStoredValuePackageClient
+	// EsportsTeammate is the client for interacting with the EsportsTeammate builders.
+	EsportsTeammate *EsportsTeammateClient
 	// EsportsWalletAccount is the client for interacting with the EsportsWalletAccount builders.
 	EsportsWalletAccount *EsportsWalletAccountClient
 	// EsportsWalletTx is the client for interacting with the EsportsWalletTx builders.
@@ -357,6 +360,7 @@ func (c *Client) init() {
 	c.EsportsSku = NewEsportsSkuClient(c.config)
 	c.EsportsStoredValueCard = NewEsportsStoredValueCardClient(c.config)
 	c.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(c.config)
+	c.EsportsTeammate = NewEsportsTeammateClient(c.config)
 	c.EsportsWalletAccount = NewEsportsWalletAccountClient(c.config)
 	c.EsportsWalletTx = NewEsportsWalletTxClient(c.config)
 	c.EsportsWithdrawal = NewEsportsWithdrawalClient(c.config)
@@ -534,6 +538,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsSku:                    NewEsportsSkuClient(cfg),
 		EsportsStoredValueCard:        NewEsportsStoredValueCardClient(cfg),
 		EsportsStoredValuePackage:     NewEsportsStoredValuePackageClient(cfg),
+		EsportsTeammate:               NewEsportsTeammateClient(cfg),
 		EsportsWalletAccount:          NewEsportsWalletAccountClient(cfg),
 		EsportsWalletTx:               NewEsportsWalletTxClient(cfg),
 		EsportsWithdrawal:             NewEsportsWithdrawalClient(cfg),
@@ -638,6 +643,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsSku:                    NewEsportsSkuClient(cfg),
 		EsportsStoredValueCard:        NewEsportsStoredValueCardClient(cfg),
 		EsportsStoredValuePackage:     NewEsportsStoredValuePackageClient(cfg),
+		EsportsTeammate:               NewEsportsTeammateClient(cfg),
 		EsportsWalletAccount:          NewEsportsWalletAccountClient(cfg),
 		EsportsWalletTx:               NewEsportsWalletTxClient(cfg),
 		EsportsWithdrawal:             NewEsportsWithdrawalClient(cfg),
@@ -706,10 +712,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsScript,
 		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
 		c.EsportsSku, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
-		c.EsportsWalletAccount, c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog,
-		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
-		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
-		c.ThirdPartyUser, c.User, c.UserRole,
+		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
+		c.EsportsWithdrawal, c.LoginLog, c.Message, c.MessagePreference,
+		c.OAuthProviderConfig, c.OAuthSession, c.OperationLog, c.Plugin, c.Role,
+		c.Slide, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
+		c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -741,10 +748,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsScript,
 		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
 		c.EsportsSku, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
-		c.EsportsWalletAccount, c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog,
-		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
-		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
-		c.ThirdPartyUser, c.User, c.UserRole,
+		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
+		c.EsportsWithdrawal, c.LoginLog, c.Message, c.MessagePreference,
+		c.OAuthProviderConfig, c.OAuthSession, c.OperationLog, c.Plugin, c.Role,
+		c.Slide, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
+		c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -889,6 +897,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsStoredValueCard.mutate(ctx, m)
 	case *EsportsStoredValuePackageMutation:
 		return c.EsportsStoredValuePackage.mutate(ctx, m)
+	case *EsportsTeammateMutation:
+		return c.EsportsTeammate.mutate(ctx, m)
 	case *EsportsWalletAccountMutation:
 		return c.EsportsWalletAccount.mutate(ctx, m)
 	case *EsportsWalletTxMutation:
@@ -10107,6 +10117,139 @@ func (c *EsportsStoredValuePackageClient) mutate(ctx context.Context, m *Esports
 	}
 }
 
+// EsportsTeammateClient is a client for the EsportsTeammate schema.
+type EsportsTeammateClient struct {
+	config
+}
+
+// NewEsportsTeammateClient returns a client for the EsportsTeammate from the given config.
+func NewEsportsTeammateClient(c config) *EsportsTeammateClient {
+	return &EsportsTeammateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsteammate.Hooks(f(g(h())))`.
+func (c *EsportsTeammateClient) Use(hooks ...Hook) {
+	c.hooks.EsportsTeammate = append(c.hooks.EsportsTeammate, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsteammate.Intercept(f(g(h())))`.
+func (c *EsportsTeammateClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsTeammate = append(c.inters.EsportsTeammate, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsTeammate entity.
+func (c *EsportsTeammateClient) Create() *EsportsTeammateCreate {
+	mutation := newEsportsTeammateMutation(c.config, OpCreate)
+	return &EsportsTeammateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsTeammate entities.
+func (c *EsportsTeammateClient) CreateBulk(builders ...*EsportsTeammateCreate) *EsportsTeammateCreateBulk {
+	return &EsportsTeammateCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsTeammateClient) MapCreateBulk(slice any, setFunc func(*EsportsTeammateCreate, int)) *EsportsTeammateCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsTeammateCreateBulk{err: fmt.Errorf("calling to EsportsTeammateClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsTeammateCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsTeammateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsTeammate.
+func (c *EsportsTeammateClient) Update() *EsportsTeammateUpdate {
+	mutation := newEsportsTeammateMutation(c.config, OpUpdate)
+	return &EsportsTeammateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsTeammateClient) UpdateOne(_m *EsportsTeammate) *EsportsTeammateUpdateOne {
+	mutation := newEsportsTeammateMutation(c.config, OpUpdateOne, withEsportsTeammate(_m))
+	return &EsportsTeammateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsTeammateClient) UpdateOneID(id int) *EsportsTeammateUpdateOne {
+	mutation := newEsportsTeammateMutation(c.config, OpUpdateOne, withEsportsTeammateID(id))
+	return &EsportsTeammateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsTeammate.
+func (c *EsportsTeammateClient) Delete() *EsportsTeammateDelete {
+	mutation := newEsportsTeammateMutation(c.config, OpDelete)
+	return &EsportsTeammateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsTeammateClient) DeleteOne(_m *EsportsTeammate) *EsportsTeammateDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsTeammateClient) DeleteOneID(id int) *EsportsTeammateDeleteOne {
+	builder := c.Delete().Where(esportsteammate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsTeammateDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsTeammate.
+func (c *EsportsTeammateClient) Query() *EsportsTeammateQuery {
+	return &EsportsTeammateQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsTeammate},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsTeammate entity by its id.
+func (c *EsportsTeammateClient) Get(ctx context.Context, id int) (*EsportsTeammate, error) {
+	return c.Query().Where(esportsteammate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsTeammateClient) GetX(ctx context.Context, id int) *EsportsTeammate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsTeammateClient) Hooks() []Hook {
+	return c.hooks.EsportsTeammate
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsTeammateClient) Interceptors() []Interceptor {
+	return c.inters.EsportsTeammate
+}
+
+func (c *EsportsTeammateClient) mutate(ctx context.Context, m *EsportsTeammateMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsTeammateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsTeammateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsTeammateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsTeammateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsTeammate mutation op: %q", m.Op())
+	}
+}
+
 // EsportsWalletAccountClient is a client for the EsportsWalletAccount schema.
 type EsportsWalletAccountClient struct {
 	config
@@ -12439,7 +12582,7 @@ type (
 		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
 		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
-		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage,
+		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage, EsportsTeammate,
 		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
 		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
 		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
@@ -12465,7 +12608,7 @@ type (
 		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
 		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
-		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage,
+		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage, EsportsTeammate,
 		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
 		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
 		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,

@@ -85,6 +85,8 @@ type EsportsOrder struct {
 	RefundedCents int64 `json:"refunded_cents"`
 	// RefundReservedCents holds the value of the "refund_reserved_cents" field.
 	RefundReservedCents int64 `json:"refund_reserved_cents"`
+	// ChannelCostCents holds the value of the "channel_cost_cents" field.
+	ChannelCostCents int64 `json:"channel_cost_cents"`
 	// AppointmentStatus holds the value of the "appointment_status" field.
 	AppointmentStatus esportsorder.AppointmentStatus `json:"appointment_status"`
 	// RequestedStartAt holds the value of the "requested_start_at" field.
@@ -115,7 +117,7 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldDepositedByAdminID:
+		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID:
 			values[i] = new(sql.NullInt64)
 		case esportsorder.FieldOrderNo, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus:
 			values[i] = new(sql.NullString)
@@ -356,6 +358,12 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RefundReservedCents = value.Int64
 			}
+		case esportsorder.FieldChannelCostCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field channel_cost_cents", values[i])
+			} else if value.Valid {
+				_m.ChannelCostCents = value.Int64
+			}
 		case esportsorder.FieldAppointmentStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field appointment_status", values[i])
@@ -585,6 +593,9 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("refund_reserved_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RefundReservedCents))
+	builder.WriteString(", ")
+	builder.WriteString("channel_cost_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChannelCostCents))
 	builder.WriteString(", ")
 	builder.WriteString("appointment_status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AppointmentStatus))

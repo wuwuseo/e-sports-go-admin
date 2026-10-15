@@ -42,6 +42,10 @@ const (
 	FieldMatchedTierBp = "matched_tier_bp"
 	// FieldAmountCents holds the string denoting the amount_cents field in the database.
 	FieldAmountCents = "amount_cents"
+	// FieldChannelCostCents holds the string denoting the channel_cost_cents field in the database.
+	FieldChannelCostCents = "channel_cost_cents"
+	// FieldStudioRemainderCents holds the string denoting the studio_remainder_cents field in the database.
+	FieldStudioRemainderCents = "studio_remainder_cents"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldSettlementID holds the string denoting the settlement_id field in the database.
@@ -77,6 +81,8 @@ var Columns = []string{
 	FieldBaseCents,
 	FieldMatchedTierBp,
 	FieldAmountCents,
+	FieldChannelCostCents,
+	FieldStudioRemainderCents,
 	FieldStatus,
 	FieldSettlementID,
 	FieldNote,
@@ -114,6 +120,10 @@ var (
 	DefaultMatchedTierBp int
 	// DefaultAmountCents holds the default value on creation for the "amount_cents" field.
 	DefaultAmountCents int64
+	// DefaultChannelCostCents holds the default value on creation for the "channel_cost_cents" field.
+	DefaultChannelCostCents int64
+	// DefaultStudioRemainderCents holds the default value on creation for the "studio_remainder_cents" field.
+	DefaultStudioRemainderCents int64
 	// DefaultNote holds the default value on creation for the "note" field.
 	DefaultNote string
 	// NoteValidator is a validator for the "note" field. It is called by the builders before save.
@@ -305,6 +315,16 @@ func ByMatchedTierBp(opts ...sql.OrderTermOption) OrderOption {
 // ByAmountCents orders the results by the amount_cents field.
 func ByAmountCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAmountCents, opts...).ToFunc()
+}
+
+// ByChannelCostCents orders the results by the channel_cost_cents field.
+func ByChannelCostCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannelCostCents, opts...).ToFunc()
+}
+
+// ByStudioRemainderCents orders the results by the studio_remainder_cents field.
+func ByStudioRemainderCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStudioRemainderCents, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

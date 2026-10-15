@@ -84,6 +84,8 @@ const (
 	FieldRefundedCents = "refunded_cents"
 	// FieldRefundReservedCents holds the string denoting the refund_reserved_cents field in the database.
 	FieldRefundReservedCents = "refund_reserved_cents"
+	// FieldChannelCostCents holds the string denoting the channel_cost_cents field in the database.
+	FieldChannelCostCents = "channel_cost_cents"
 	// FieldAppointmentStatus holds the string denoting the appointment_status field in the database.
 	FieldAppointmentStatus = "appointment_status"
 	// FieldRequestedStartAt holds the string denoting the requested_start_at field in the database.
@@ -150,6 +152,7 @@ var Columns = []string{
 	FieldRefundStatus,
 	FieldRefundedCents,
 	FieldRefundReservedCents,
+	FieldChannelCostCents,
 	FieldAppointmentStatus,
 	FieldRequestedStartAt,
 	FieldAppointmentConfirmationDeadline,
@@ -214,6 +217,8 @@ var (
 	DefaultRefundedCents int64
 	// DefaultRefundReservedCents holds the default value on creation for the "refund_reserved_cents" field.
 	DefaultRefundReservedCents int64
+	// DefaultChannelCostCents holds the default value on creation for the "channel_cost_cents" field.
+	DefaultChannelCostCents int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -629,6 +634,11 @@ func ByRefundedCents(opts ...sql.OrderTermOption) OrderOption {
 // ByRefundReservedCents orders the results by the refund_reserved_cents field.
 func ByRefundReservedCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRefundReservedCents, opts...).ToFunc()
+}
+
+// ByChannelCostCents orders the results by the channel_cost_cents field.
+func ByChannelCostCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannelCostCents, opts...).ToFunc()
 }
 
 // ByAppointmentStatus orders the results by the appointment_status field.

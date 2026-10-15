@@ -70,6 +70,7 @@ import (
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
+	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/esportswithdrawal"
@@ -447,6 +448,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsstoredvaluepackage.TablePrefix
 		esportsstoredvaluepackage.TablePrefix = prefix
 		esportsstoredvaluepackage.Table = prefix + strings.TrimPrefix(esportsstoredvaluepackage.Table, old)
+	}
+	{
+		old := esportsteammate.TablePrefix
+		esportsteammate.TablePrefix = prefix
+		esportsteammate.Table = prefix + strings.TrimPrefix(esportsteammate.Table, old)
 	}
 	{
 		old := esportswalletaccount.TablePrefix

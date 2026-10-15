@@ -104,6 +104,16 @@ func AmountCents(v int64) predicate.EsportsCsCommissionEntry {
 	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldAmountCents, v))
 }
 
+// ChannelCostCents applies equality check predicate on the "channel_cost_cents" field. It's identical to ChannelCostCentsEQ.
+func ChannelCostCents(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldChannelCostCents, v))
+}
+
+// StudioRemainderCents applies equality check predicate on the "studio_remainder_cents" field. It's identical to StudioRemainderCentsEQ.
+func StudioRemainderCents(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldStudioRemainderCents, v))
+}
+
 // SettlementID applies equality check predicate on the "settlement_id" field. It's identical to SettlementIDEQ.
 func SettlementID(v int) predicate.EsportsCsCommissionEntry {
 	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldSettlementID, v))
@@ -657,6 +667,86 @@ func AmountCentsLT(v int64) predicate.EsportsCsCommissionEntry {
 // AmountCentsLTE applies the LTE predicate on the "amount_cents" field.
 func AmountCentsLTE(v int64) predicate.EsportsCsCommissionEntry {
 	return predicate.EsportsCsCommissionEntry(sql.FieldLTE(FieldAmountCents, v))
+}
+
+// ChannelCostCentsEQ applies the EQ predicate on the "channel_cost_cents" field.
+func ChannelCostCentsEQ(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsNEQ applies the NEQ predicate on the "channel_cost_cents" field.
+func ChannelCostCentsNEQ(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNEQ(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsIn applies the In predicate on the "channel_cost_cents" field.
+func ChannelCostCentsIn(vs ...int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldIn(FieldChannelCostCents, vs...))
+}
+
+// ChannelCostCentsNotIn applies the NotIn predicate on the "channel_cost_cents" field.
+func ChannelCostCentsNotIn(vs ...int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNotIn(FieldChannelCostCents, vs...))
+}
+
+// ChannelCostCentsGT applies the GT predicate on the "channel_cost_cents" field.
+func ChannelCostCentsGT(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldGT(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsGTE applies the GTE predicate on the "channel_cost_cents" field.
+func ChannelCostCentsGTE(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldGTE(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsLT applies the LT predicate on the "channel_cost_cents" field.
+func ChannelCostCentsLT(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldLT(FieldChannelCostCents, v))
+}
+
+// ChannelCostCentsLTE applies the LTE predicate on the "channel_cost_cents" field.
+func ChannelCostCentsLTE(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldLTE(FieldChannelCostCents, v))
+}
+
+// StudioRemainderCentsEQ applies the EQ predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsEQ(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldStudioRemainderCents, v))
+}
+
+// StudioRemainderCentsNEQ applies the NEQ predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsNEQ(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNEQ(FieldStudioRemainderCents, v))
+}
+
+// StudioRemainderCentsIn applies the In predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsIn(vs ...int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldIn(FieldStudioRemainderCents, vs...))
+}
+
+// StudioRemainderCentsNotIn applies the NotIn predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsNotIn(vs ...int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNotIn(FieldStudioRemainderCents, vs...))
+}
+
+// StudioRemainderCentsGT applies the GT predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsGT(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldGT(FieldStudioRemainderCents, v))
+}
+
+// StudioRemainderCentsGTE applies the GTE predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsGTE(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldGTE(FieldStudioRemainderCents, v))
+}
+
+// StudioRemainderCentsLT applies the LT predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsLT(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldLT(FieldStudioRemainderCents, v))
+}
+
+// StudioRemainderCentsLTE applies the LTE predicate on the "studio_remainder_cents" field.
+func StudioRemainderCentsLTE(v int64) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldLTE(FieldStudioRemainderCents, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

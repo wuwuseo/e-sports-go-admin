@@ -432,6 +432,20 @@ func (_c *EsportsOrderCreate) SetNillableRefundReservedCents(v *int64) *EsportsO
 	return _c
 }
 
+// SetChannelCostCents sets the "channel_cost_cents" field.
+func (_c *EsportsOrderCreate) SetChannelCostCents(v int64) *EsportsOrderCreate {
+	_c.mutation.SetChannelCostCents(v)
+	return _c
+}
+
+// SetNillableChannelCostCents sets the "channel_cost_cents" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableChannelCostCents(v *int64) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetChannelCostCents(*v)
+	}
+	return _c
+}
+
 // SetAppointmentStatus sets the "appointment_status" field.
 func (_c *EsportsOrderCreate) SetAppointmentStatus(v esportsorder.AppointmentStatus) *EsportsOrderCreate {
 	_c.mutation.SetAppointmentStatus(v)
@@ -677,6 +691,10 @@ func (_c *EsportsOrderCreate) defaults() {
 		v := esportsorder.DefaultRefundReservedCents
 		_c.mutation.SetRefundReservedCents(v)
 	}
+	if _, ok := _c.mutation.ChannelCostCents(); !ok {
+		v := esportsorder.DefaultChannelCostCents
+		_c.mutation.SetChannelCostCents(v)
+	}
 	if _, ok := _c.mutation.AppointmentStatus(); !ok {
 		v := esportsorder.DefaultAppointmentStatus
 		_c.mutation.SetAppointmentStatus(v)
@@ -848,6 +866,9 @@ func (_c *EsportsOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.RefundReservedCents(); !ok {
 		return &ValidationError{Name: "refund_reserved_cents", err: errors.New(`ent: missing required field "EsportsOrder.refund_reserved_cents"`)}
+	}
+	if _, ok := _c.mutation.ChannelCostCents(); !ok {
+		return &ValidationError{Name: "channel_cost_cents", err: errors.New(`ent: missing required field "EsportsOrder.channel_cost_cents"`)}
 	}
 	if _, ok := _c.mutation.AppointmentStatus(); !ok {
 		return &ValidationError{Name: "appointment_status", err: errors.New(`ent: missing required field "EsportsOrder.appointment_status"`)}
@@ -1035,6 +1056,10 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.RefundReservedCents(); ok {
 		_spec.SetField(esportsorder.FieldRefundReservedCents, field.TypeInt64, value)
 		_node.RefundReservedCents = value
+	}
+	if value, ok := _c.mutation.ChannelCostCents(); ok {
+		_spec.SetField(esportsorder.FieldChannelCostCents, field.TypeInt64, value)
+		_node.ChannelCostCents = value
 	}
 	if value, ok := _c.mutation.AppointmentStatus(); ok {
 		_spec.SetField(esportsorder.FieldAppointmentStatus, field.TypeEnum, value)

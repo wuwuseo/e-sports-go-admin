@@ -222,6 +222,10 @@ type EsportsStoredValuePackage struct {
 	appschemaesports.EsportsStoredValuePackage
 }
 
+type EsportsTeammate struct {
+	appschemaesports.EsportsTeammate
+}
+
 type EsportsWalletAccount struct {
 	appschemaesports.EsportsWalletAccount
 }

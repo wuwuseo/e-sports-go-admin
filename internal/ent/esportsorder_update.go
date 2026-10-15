@@ -683,6 +683,27 @@ func (_u *EsportsOrderUpdate) AddRefundReservedCents(v int64) *EsportsOrderUpdat
 	return _u
 }
 
+// SetChannelCostCents sets the "channel_cost_cents" field.
+func (_u *EsportsOrderUpdate) SetChannelCostCents(v int64) *EsportsOrderUpdate {
+	_u.mutation.ResetChannelCostCents()
+	_u.mutation.SetChannelCostCents(v)
+	return _u
+}
+
+// SetNillableChannelCostCents sets the "channel_cost_cents" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableChannelCostCents(v *int64) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetChannelCostCents(*v)
+	}
+	return _u
+}
+
+// AddChannelCostCents adds value to the "channel_cost_cents" field.
+func (_u *EsportsOrderUpdate) AddChannelCostCents(v int64) *EsportsOrderUpdate {
+	_u.mutation.AddChannelCostCents(v)
+	return _u
+}
+
 // SetAppointmentStatus sets the "appointment_status" field.
 func (_u *EsportsOrderUpdate) SetAppointmentStatus(v esportsorder.AppointmentStatus) *EsportsOrderUpdate {
 	_u.mutation.SetAppointmentStatus(v)
@@ -1186,6 +1207,12 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedRefundReservedCents(); ok {
 		_spec.AddField(esportsorder.FieldRefundReservedCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ChannelCostCents(); ok {
+		_spec.SetField(esportsorder.FieldChannelCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedChannelCostCents(); ok {
+		_spec.AddField(esportsorder.FieldChannelCostCents, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AppointmentStatus(); ok {
 		_spec.SetField(esportsorder.FieldAppointmentStatus, field.TypeEnum, value)
@@ -1913,6 +1940,27 @@ func (_u *EsportsOrderUpdateOne) AddRefundReservedCents(v int64) *EsportsOrderUp
 	return _u
 }
 
+// SetChannelCostCents sets the "channel_cost_cents" field.
+func (_u *EsportsOrderUpdateOne) SetChannelCostCents(v int64) *EsportsOrderUpdateOne {
+	_u.mutation.ResetChannelCostCents()
+	_u.mutation.SetChannelCostCents(v)
+	return _u
+}
+
+// SetNillableChannelCostCents sets the "channel_cost_cents" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableChannelCostCents(v *int64) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetChannelCostCents(*v)
+	}
+	return _u
+}
+
+// AddChannelCostCents adds value to the "channel_cost_cents" field.
+func (_u *EsportsOrderUpdateOne) AddChannelCostCents(v int64) *EsportsOrderUpdateOne {
+	_u.mutation.AddChannelCostCents(v)
+	return _u
+}
+
 // SetAppointmentStatus sets the "appointment_status" field.
 func (_u *EsportsOrderUpdateOne) SetAppointmentStatus(v esportsorder.AppointmentStatus) *EsportsOrderUpdateOne {
 	_u.mutation.SetAppointmentStatus(v)
@@ -2446,6 +2494,12 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if value, ok := _u.mutation.AddedRefundReservedCents(); ok {
 		_spec.AddField(esportsorder.FieldRefundReservedCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ChannelCostCents(); ok {
+		_spec.SetField(esportsorder.FieldChannelCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedChannelCostCents(); ok {
+		_spec.AddField(esportsorder.FieldChannelCostCents, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AppointmentStatus(); ok {
 		_spec.SetField(esportsorder.FieldAppointmentStatus, field.TypeEnum, value)

@@ -43,6 +43,10 @@ type EsportsCsCommissionEntry struct {
 	MatchedTierBp int `json:"matched_tier_bp"`
 	// AmountCents holds the value of the "amount_cents" field.
 	AmountCents int64 `json:"amount_cents"`
+	// ChannelCostCents holds the value of the "channel_cost_cents" field.
+	ChannelCostCents int64 `json:"channel_cost_cents"`
+	// StudioRemainderCents holds the value of the "studio_remainder_cents" field.
+	StudioRemainderCents int64 `json:"studio_remainder_cents"`
 	// Status holds the value of the "status" field.
 	Status esportscscommissionentry.Status `json:"status"`
 	// SettlementID holds the value of the "settlement_id" field.
@@ -63,7 +67,7 @@ func (*EsportsCsCommissionEntry) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportscscommissionentry.FieldID, esportscscommissionentry.FieldOrderID, esportscscommissionentry.FieldAdminID, esportscscommissionentry.FieldAfterSaleID, esportscscommissionentry.FieldRuleID, esportscscommissionentry.FieldRuleVersion, esportscscommissionentry.FieldBaseCents, esportscscommissionentry.FieldMatchedTierBp, esportscscommissionentry.FieldAmountCents, esportscscommissionentry.FieldSettlementID, esportscscommissionentry.FieldVersion:
+		case esportscscommissionentry.FieldID, esportscscommissionentry.FieldOrderID, esportscscommissionentry.FieldAdminID, esportscscommissionentry.FieldAfterSaleID, esportscscommissionentry.FieldRuleID, esportscscommissionentry.FieldRuleVersion, esportscscommissionentry.FieldBaseCents, esportscscommissionentry.FieldMatchedTierBp, esportscscommissionentry.FieldAmountCents, esportscscommissionentry.FieldChannelCostCents, esportscscommissionentry.FieldStudioRemainderCents, esportscscommissionentry.FieldSettlementID, esportscscommissionentry.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportscscommissionentry.FieldIdemKey, esportscscommissionentry.FieldKind, esportscscommissionentry.FieldRuleNo, esportscscommissionentry.FieldCalcMode, esportscscommissionentry.FieldBaseMode, esportscscommissionentry.FieldStatus, esportscscommissionentry.FieldNote:
 			values[i] = new(sql.NullString)
@@ -169,6 +173,18 @@ func (_m *EsportsCsCommissionEntry) assignValues(columns []string, values []any)
 				return fmt.Errorf("unexpected type %T for field amount_cents", values[i])
 			} else if value.Valid {
 				_m.AmountCents = value.Int64
+			}
+		case esportscscommissionentry.FieldChannelCostCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field channel_cost_cents", values[i])
+			} else if value.Valid {
+				_m.ChannelCostCents = value.Int64
+			}
+		case esportscscommissionentry.FieldStudioRemainderCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field studio_remainder_cents", values[i])
+			} else if value.Valid {
+				_m.StudioRemainderCents = value.Int64
 			}
 		case esportscscommissionentry.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -285,6 +301,12 @@ func (_m *EsportsCsCommissionEntry) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("amount_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AmountCents))
+	builder.WriteString(", ")
+	builder.WriteString("channel_cost_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChannelCostCents))
+	builder.WriteString(", ")
+	builder.WriteString("studio_remainder_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StudioRemainderCents))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

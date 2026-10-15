@@ -1031,6 +1031,8 @@ var (
 		{Name: "base_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "matched_tier_bp", Type: field.TypeInt, Default: 0},
 		{Name: "amount_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "channel_cost_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "studio_remainder_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_settlement", "settled", "void"}, Default: "pending_settlement"},
 		{Name: "settlement_id", Type: field.TypeInt, Nullable: true},
 		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
@@ -1057,12 +1059,12 @@ var (
 			{
 				Name:    "esportscscommissionentry_admin_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[3], EsportsCsCommissionEntriesColumns[14]},
+				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[3], EsportsCsCommissionEntriesColumns[16]},
 			},
 			{
 				Name:    "esportscscommissionentry_settlement_id",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[15]},
+				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[17]},
 			},
 		},
 	}
@@ -1671,6 +1673,7 @@ var (
 		{Name: "refund_status", Type: field.TypeEnum, Enums: []string{"none", "pending_approval", "executing", "partial", "full", "failed"}, Default: "none"},
 		{Name: "refunded_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "refund_reserved_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "channel_cost_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "appointment_status", Type: field.TypeEnum, Enums: []string{"instant", "request", "confirmed"}, Default: "instant"},
 		{Name: "requested_start_at", Type: field.TypeTime, Nullable: true},
 		{Name: "appointment_confirmation_deadline", Type: field.TypeTime, Nullable: true},
@@ -1697,7 +1700,7 @@ var (
 			{
 				Name:    "esportsorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[44]},
+				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[45]},
 			},
 			{
 				Name:    "esportsorder_responsible_admin_id_fulfillment_status",
@@ -2447,6 +2450,50 @@ var (
 				Name:    "esportsstoredvaluepackage_status_sort_order",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsStoredValuePackagesColumns[5], EsportsStoredValuePackagesColumns[6]},
+			},
+		},
+	}
+	// EsportsTeammatesColumns holds the columns for the "esports_teammates" table.
+	EsportsTeammatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "player_id", Type: field.TypeInt},
+		{Name: "teammate_player_id", Type: field.TypeInt},
+		{Name: "initiator_player_id", Type: field.TypeInt},
+		{Name: "game", Type: field.TypeString, Size: 64},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "confirmed", "dissolved"}, Default: "pending"},
+		{Name: "idem_key", Type: field.TypeString, Size: 120},
+		{Name: "confirmed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "dissolved_by_player_id", Type: field.TypeInt, Nullable: true},
+		{Name: "dissolved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsTeammatesTable holds the schema information for the "esports_teammates" table.
+	EsportsTeammatesTable = &schema.Table{
+		Name:       TablePrefix + "esports_teammates",
+		Columns:    EsportsTeammatesColumns,
+		PrimaryKey: []*schema.Column{EsportsTeammatesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsteammate_idem_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsTeammatesColumns[6]},
+			},
+			{
+				Name:    "esportsteammate_player_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsTeammatesColumns[1], EsportsTeammatesColumns[5]},
+			},
+			{
+				Name:    "esportsteammate_teammate_player_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsTeammatesColumns[2], EsportsTeammatesColumns[5]},
+			},
+			{
+				Name:    "esportsteammate_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsTeammatesColumns[5], EsportsTeammatesColumns[11]},
 			},
 		},
 	}
@@ -3222,6 +3269,7 @@ var (
 		EsportsSkusTable,
 		EsportsStoredValueCardsTable,
 		EsportsStoredValuePackagesTable,
+		EsportsTeammatesTable,
 		EsportsWalletAccountsTable,
 		EsportsWalletTxesTable,
 		EsportsWithdrawalsTable,
