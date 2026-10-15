@@ -90,6 +90,16 @@ func playerPresenceHandler(c fiber.Ctx) error {
 	return reply(c, updated)
 }
 
+// playerProfileHandler 陪玩端「我的资料 / 我的等级」（§6.1 / §6.4）：
+// 返回本人档案（昵称、等级、资格、上下线、接单游戏与接单上限），供陪玩端展示。
+func playerProfileHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, player)
+}
+
 func playerInvitesHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {

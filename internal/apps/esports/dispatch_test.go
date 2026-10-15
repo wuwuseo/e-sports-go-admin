@@ -292,3 +292,52 @@ func TestDispatchBoardPrioritizesMemberOrders(t *testing.T) {
 		t.Fatalf("未开启派单优先的等级不应置顶：%+v", plain.PendingDispatch)
 	}
 }
+
+// 公共池脱敏（§5.1 / §8.2）：非超管看公共池只得到客户/金额掩码的摘要，超管看完整数据。
+func TestDispatchBoardPublicPoolMasking(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_dispatch_pool_mask?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+
+	order := seedPaidOrder(t, db, "dispatch-pool-mask-1", 1)
+
+	// 非超管：公共池订单被掩码，并列入 masked_public_pool_ids。
+	board, err := loadDispatchBoard(ctx, db, 11, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(board.PublicPool) != 1 {
+		t.Fatalf("公共池应有 1 条，got=%d", len(board.PublicPool))
+	}
+	masked := board.PublicPool[0]
+	if masked.CustomerID != 0 || masked.PayableCents != 0 || masked.UnitPriceCents != 0 {
+		t.Fatalf("非超管公共池未掩码：%+v", masked)
+	}
+	found := false
+	for _, id := range board.MaskedPublicPoolIDs {
+		if id == order.ID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("缺少掩码标记：%v", board.MaskedPublicPoolIDs)
+	}
+
+	// 超管：看完整数据，无掩码标记。
+	super, err := loadDispatchBoard(ctx, db, 11, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(super.PublicPool) != 1 {
+		t.Fatalf("超管公共池应有 1 条，got=%d", len(super.PublicPool))
+	}
+	full := super.PublicPool[0]
+	if full.CustomerID != 1 || full.PayableCents != 1000 || full.UnitPriceCents != 1000 {
+		t.Fatalf("超管应看完整数据：%+v", full)
+	}
+	if len(super.MaskedPublicPoolIDs) != 0 {
+		t.Fatalf("超管不应有掩码标记：%v", super.MaskedPublicPoolIDs)
+	}
+}

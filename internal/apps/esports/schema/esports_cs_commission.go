@@ -82,6 +82,11 @@ func (EsportsCsCommissionEntry) Fields() []ent.Field {
 		field.Int("matched_tier_bp").Default(0).StructTag(`json:"matched_tier_bp"`),
 		// 提成金额（分）；reversal 为负数。
 		field.Int64("amount_cents").Default(0).StructTag(`json:"amount_cents"`),
+		// 该笔计提时点的已知渠道成本快照（分，§12.1）；reversal 为 0。
+		field.Int64("channel_cost_cents").Default(0).StructTag(`json:"channel_cost_cents"`),
+		// 工作室剩余快照（分，§12.1 反算）：服务应付 − 结单前退款 − 陪玩分成 − 渠道成本 − 本笔客服提成。
+		// 仅在 kind=service 时非零，reversal 为 0。
+		field.Int64("studio_remainder_cents").Default(0).StructTag(`json:"studio_remainder_cents"`),
 		field.Enum("status").Values("pending_settlement", "settled", "void").Default("pending_settlement").StructTag(`json:"status"`),
 		field.Int("settlement_id").Optional().Nillable().StructTag(`json:"settlement_id"`),
 		field.String("note").MaxLen(255).Default("").StructTag(`json:"note"`),

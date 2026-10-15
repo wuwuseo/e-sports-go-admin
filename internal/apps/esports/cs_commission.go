@@ -347,7 +347,7 @@ func orderCsCommissionPeriodBase(ctx context.Context, tx *ent.Tx, adminID int, s
 
 // accrueOrderCsCommission 结单时计提客服提成（§12.2），必须在 closeOrder 同一事务内、陪玩分成之后调用。
 // 提成只在订单完成后生成，未开工取消单不会走到结单；结单前已发生的退款从最终计提基数扣除。
-// 上限：陪玩分成 + 客服提成不得超过可分基数（§12.1），本切片仅扣除陪玩分成（渠道成本未实现）。
+// 上限：陪玩分成 + 渠道成本 + 客服提成不得超过可分基数（§12.1）；并反算工作室剩余快照。
 // 幂等：该订单已有 service 提成明细则直接返回。
 func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, now time.Time) error {
 	exists, err := tx.EsportsCsCommissionEntry.Query().Where(
@@ -387,8 +387,9 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	for _, entry := range playerEntries {
 		playerTotal += entry.AmountCents
 	}
-	// 可分余额 = 扣除结单前退款与陪玩分成后的金额，提成不得超过它（§12.1）。
-	remaining := netPayable - playerTotal
+	// 可分余额 = 扣除结单前退款、陪玩分成与渠道成本后的金额，提成不得超过它（§12.1）。
+	channelCost := order.ChannelCostCents
+	remaining := netPayable - playerTotal - channelCost
 	if remaining < 0 {
 		remaining = 0
 	}
@@ -425,6 +426,11 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	if amount <= 0 {
 		return nil
 	}
+	// 工作室剩余 = 可分余额 − 客服提成（§12.1 反算）。百分比提成的舍入尾差落入工作室剩余，等价于尾差单列。
+	studioRemainder := remaining - amount
+	if studioRemainder < 0 {
+		studioRemainder = 0
+	}
 	if _, err = tx.EsportsCsCommissionEntry.Create().
 		SetIdemKey("cs_commission:service:" + order.OrderNo + ":" + strconv.Itoa(adminID)).
 		SetOrderID(order.ID).SetAdminID(adminID).
@@ -433,6 +439,7 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 		SetCalcMode(esportscscommissionentry.CalcMode(rule.CalcMode.String())).
 		SetBaseMode(esportscscommissionentry.BaseMode(rule.BaseMode.String())).
 		SetBaseCents(base).SetMatchedTierBp(matchedTierBp).SetAmountCents(amount).
+		SetChannelCostCents(channelCost).SetStudioRemainderCents(studioRemainder).
 		SetStatus(esportscscommissionentry.StatusPendingSettlement).SetNote(note).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return errConflict
@@ -444,7 +451,7 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 
 // reverseOrderCsCommission 退款冲回客服提成（§12.2）：结单后部分退款按比例冲回，全额退款冲至零。
 // 必须在 executeAfterSaleOnce 的同一事务内、退款额度落账之后调用；幂等靠 idem_key 唯一索引兜底。
-// ponytail: 舍入尾差未单列（§12.1 要求尾差单列）。
+// 客服提成每订单只有一条 service 明细，无跨明细尾差；其舍入尾差已在计提时落入工作室剩余（§12.1）。
 func reverseOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
 	if item.RefundCents <= 0 || order.PayableCents <= 0 {
 		return nil

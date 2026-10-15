@@ -267,3 +267,48 @@ func rescheduleOrder(ctx context.Context, db *ent.Client, orderID int, in resche
 	}
 	return order, nil
 }
+
+// setOrderChannelCost 登记订单已知渠道成本（§12.1）。结单计提客服提成时从可分基数扣除，
+// 并参与「工作室剩余 = 服务应付 − 陪玩分成 − 客服提成 − 渠道成本」反算。
+// 渠道成本须为非负且不超过订单应付；结单后不可再改（避免与已计提快照不一致）。
+func setOrderChannelCost(ctx context.Context, db *ent.Client, orderID int, channelCostCents int64, adminID int, now time.Time) (*ent.EsportsOrder, error) {
+	if orderID < 1 || channelCostCents < 0 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	// 结单后（completed / cancelled）不可再改，避免与已计提的快照不一致；待结单及更早均可改。
+	if order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
+		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
+		return nil, errConflict
+	}
+	if channelCostCents > order.PayableCents {
+		return nil, errInvalidInput
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+	).SetChannelCostCents(channelCostCents).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.channel_cost_updated").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{"channel_cost_cents": channelCostCents}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrder.Get(ctx, orderID)
+}

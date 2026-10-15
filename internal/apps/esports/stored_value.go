@@ -570,9 +570,9 @@ func countStoredValueCardsDue(ctx context.Context, db *ent.Client, adminID int, 
 	return q.Count(ctx)
 }
 
-// expireStoredValueCards 把已过有效期的可用卡标记为 expired。只改状态、不动金额：未消费本金
-// 仍按合同走退卡流程，避免到期直接没收预付款引发争议。
-// ponytail: 到期是否自动作废赠送权益、是否自动发起退卡待审未实现。
+// expireStoredValueCards 把已过有效期的可用卡标记为 expired，并作废未消费赠送权益（§4.4 到期）。
+// 未消费本金仍按合同走退卡流程、不作废，避免到期直接没收预付款引发争议；赠送权益到期即作废
+// （只增不改写 entry_type=expire 的负数流水）。
 func expireStoredValueCards(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if limit < 1 {
 		limit = 200
@@ -589,17 +589,63 @@ func expireStoredValueCards(ctx context.Context, db *ent.Client, now time.Time, 
 	}
 	total := 0
 	for _, id := range ids {
-		changed, err := db.EsportsStoredValueCard.Update().Where(
-			esportsstoredvaluecard.IDEQ(id),
-			esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
-			esportsstoredvaluecard.ValidUntilLTE(now.UTC()),
-		).SetStatus(esportsstoredvaluecard.StatusExpired).AddVersion(1).Save(ctx)
+		changed, err := expireStoredValueCard(ctx, db, id, now)
 		if err != nil {
 			return total, err
 		}
 		total += changed
 	}
 	return total, nil
+}
+
+// expireStoredValueCard 单卡到期处理（同一事务）：状态置 expired 并作废未消费赠送权益。
+// 状态更新以 status=active 为条件，保证赠送作废只随「首次到期」执行一次；作废流水幂等另靠
+// (source_type, source_id, entry_type) 唯一索引兜底。
+func expireStoredValueCard(ctx context.Context, db *ent.Client, cardID int, now time.Time) (int, error) {
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	card, err := tx.EsportsStoredValueCard.Get(ctx, cardID)
+	if err != nil {
+		return 0, err
+	}
+	if card.Status != esportsstoredvaluecard.StatusActive || card.ValidUntil.After(now.UTC()) {
+		return 0, nil
+	}
+	balance, err := storedValueCardBalanceTx(ctx, tx, cardID)
+	if err != nil {
+		return 0, err
+	}
+	changed, err := tx.EsportsStoredValueCard.Update().Where(
+		esportsstoredvaluecard.IDEQ(cardID),
+		esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
+		esportsstoredvaluecard.ValidUntilLTE(now.UTC()),
+	).SetStatus(esportsstoredvaluecard.StatusExpired).AddVersion(1).Save(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if changed != 1 {
+		return 0, nil
+	}
+	// 作废未消费赠送权益（本金保留待退卡）。
+	if balance.BonusCents > 0 {
+		if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+			SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(cardID).
+			SetEntryType(esportswallettx.EntryTypeExpire).
+			SetPrincipalDeltaCents(0).SetBonusDeltaCents(-balance.BonusCents).
+			SetSourceType("stored_value_expire").SetSourceID(card.CardNo).
+			SetNote("储值卡到期赠送权益作废").Save(ctx); err != nil {
+			if !ent.IsConstraintError(err) {
+				return 0, err
+			}
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+	return 1, nil
 }
 
 // storedValueRefundQuote 退卡试算（§4.4）：可退 = 未消费本金；未消费赠送按合同作废、不折现。

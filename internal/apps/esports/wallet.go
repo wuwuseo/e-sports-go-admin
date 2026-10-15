@@ -29,7 +29,7 @@ const (
 var errInsufficientBalance = errors.New("钱包余额不足")
 
 // prepayDeductionOrderKey 预付款扣减顺序配置键（§4.5）：bonus_first 先赠送后本金 /
-// principal_first 先本金后赠送。
+// principal_first 先本金后赠送 / proportional 本金与赠送按剩余比例分摊。
 const prepayDeductionOrderKey = "app.esports.prepay_deduction_order"
 
 // prepayDeductionOrder 读取扣减顺序配置；缺失或非法回落 bonus_first（§4.5 默认「先赠送后本金」）。
@@ -38,23 +38,33 @@ func prepayDeductionOrder(ctx context.Context, db *ent.Client) string {
 	if err != nil {
 		return "bonus_first"
 	}
-	if strings.TrimSpace(item.Value) == "principal_first" {
-		return "principal_first"
+	switch value := strings.TrimSpace(item.Value); value {
+	case "principal_first", "proportional":
+		return value
+	default:
+		return "bonus_first"
 	}
-	return "bonus_first"
 }
 
 // splitPrepayDeduction 按扣减顺序把应付额拆成本金 / 赠送两部分（§4.5）。
-// principal_first 先扣本金（余额 / 储值卡的本金批次优先），否则先扣赠送权益。
+// principal_first 先扣本金（余额 / 储值卡的本金批次优先）；proportional 按本金 / 赠送剩余额比例分摊
+// （本金向下取整，尾差归赠送），先扣赠送则为默认。拆分之和恒等于应付额，故调用前须保证余额充足。
 func splitPrepayDeduction(order string, principalCents, bonusCents, amountCents int64) (principalDeduct, bonusDeduct int64) {
-	if order == "principal_first" {
+	switch order {
+	case "principal_first":
 		principalDeduct = min(principalCents, amountCents)
-		bonusDeduct = amountCents - principalDeduct
-		return principalDeduct, bonusDeduct
+		return principalDeduct, amountCents - principalDeduct
+	case "proportional":
+		total := principalCents + bonusCents
+		if total <= 0 {
+			return 0, 0
+		}
+		principalDeduct = amountCents * principalCents / total
+		return principalDeduct, amountCents - principalDeduct
+	default:
+		bonusDeduct = min(bonusCents, amountCents)
+		return amountCents - bonusDeduct, bonusDeduct
 	}
-	bonusDeduct = min(bonusCents, amountCents)
-	principalDeduct = amountCents - bonusDeduct
-	return principalDeduct, bonusDeduct
 }
 
 type walletInput struct {

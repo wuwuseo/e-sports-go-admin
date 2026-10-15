@@ -584,11 +584,14 @@ type dispatchBoard struct {
 	OnlinePlayers     int                 `json:"online_players"`
 	// 会员订单优先（§10.4）：待派单池 / 公共池中属于「会员优先等级」客户的订单 ID，已置顶，供前端标记。
 	MemberPriorityOrderIDs []int `json:"member_priority_order_ids"`
+	// 公共池脱敏（§5.1 / §8.2）：非超管在公共池只看到脱敏摘要，客户身份与金额字段被掩码；
+	// 此字段列出被掩码的订单 ID，供前端以「***」展示。超管为空（看完整数据）。
+	MaskedPublicPoolIDs []int `json:"masked_public_pool_ids"`
 }
 
 // loadDispatchBoard 组装看板。每桶按 ID 倒序取前 100 条；非超管只看自己负责的订单，
-// 但公共池始终返回作为脱敏摘要。
-// ponytail: 公共池脱敏摘要未做字段裁剪（仍返回完整订单），待补客户/金额掩码；异常桶暂按支付异常汇总。
+// 但公共池始终返回作为脱敏摘要（非超管掩码客户身份与金额字段）。
+// ponytail: 异常桶暂按支付异常汇总。
 func loadDispatchBoard(ctx context.Context, db *ent.Client, adminID int, isSuper bool) (*dispatchBoard, error) {
 	bucket := func(status esportsorder.FulfillmentStatus) ([]*ent.EsportsOrder, error) {
 		q := db.EsportsOrder.Query().Where(esportsorder.FulfillmentStatusEQ(status))
@@ -637,6 +640,13 @@ func loadDispatchBoard(ctx context.Context, db *ent.Client, adminID int, isSuper
 	board.PublicPool = sortedPool
 	// 公共池是待派单池的子集，标记按订单去重（§10.4）。
 	board.MemberPriorityOrderIDs = appendUniqueIDs(board.MemberPriorityOrderIDs, pubMemberIDs)
+	// 公共池脱敏（§5.1 / §8.2）：非超管只看到脱敏摘要，掩码客户身份与金额字段。
+	if !isSuper {
+		for _, o := range board.PublicPool {
+			maskPublicPoolOrder(o)
+			board.MaskedPublicPoolIDs = append(board.MaskedPublicPoolIDs, o.ID)
+		}
+	}
 	abnormal := db.EsportsOrder.Query().Where(
 		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusException),
 		esportsorder.FulfillmentStatusNotIn(
@@ -657,6 +667,20 @@ func loadDispatchBoard(ctx context.Context, db *ent.Client, adminID int, isSuper
 	}
 	board.OnlinePlayers = online
 	return board, nil
+}
+
+// maskPublicPoolOrder 对公共池订单做脱敏（§5.1 / §8.2）：清零客户身份与金额字段，
+// 保留订单号、商品、席位、状态与时间等可供认领判断的非敏感字段。
+// 仅用于看板响应的内存对象，不回写数据库；调用方须在会员优先排序（依赖 customer_id）之后执行。
+func maskPublicPoolOrder(o *ent.EsportsOrder) {
+	o.CustomerID = 0
+	o.UnitPriceCents = 0
+	o.DiscountCents = 0
+	o.ManualAdjustCents = 0
+	o.PayableCents = 0
+	o.AddonCents = 0
+	o.RefundedCents = 0
+	o.RefundReservedCents = 0
 }
 
 // prioritizeMemberOrders 标记「会员优先等级」客户的订单并把它们稳定置顶（§10.4）。

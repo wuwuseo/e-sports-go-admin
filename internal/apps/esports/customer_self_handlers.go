@@ -40,6 +40,24 @@ func userOrdersHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
+// userOrderMembersHandler 订单服务成员（§7.5 服务评价前置数据）：仅限本人订单。
+func userOrderMembersHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := strconv.Atoi(c.Params("id"))
+	if err != nil || orderID < 1 {
+		return fail(c, fiber.StatusBadRequest, "订单 ID 无效")
+	}
+	members, err := listCustomerOrderMembers(c.Context(), global.ORM, customer.ID, orderID)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, members)
+}
+
 // userOrderDetailHandler 我的订单详情。
 func userOrderDetailHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)

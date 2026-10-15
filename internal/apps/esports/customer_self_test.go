@@ -127,6 +127,40 @@ func TestCustomerSelfProfileAndWallet(t *testing.T) {
 	}
 }
 
+// 订单服务成员视图（§7.5 服务评价前置）：本人订单返回成员与是否已评价，他人订单 403。
+func TestCustomerOrderMembers(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_customer_order_members")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+
+	customer := saveCustomerOrFail(t, db, 11)
+	other := db.EsportsCustomer.Create().SetDisplayName("他人客户").SaveX(ctx)
+	order := seedCustomerOrder(t, db, "self-member", customer.ID,
+		esportsorder.FulfillmentStatusCompleted)
+	player := db.EsportsPlayer.Create().SetUserID(9001).SetDisplayName("陪玩甲").SaveX(ctx)
+	db.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(player.ID).
+		SetSeatIndex(1).SetStartedAt(now).SetSystemSeconds(3600).SaveX(ctx)
+
+	views, err := listCustomerOrderMembers(ctx, db, customer.ID, order.ID)
+	if err != nil || len(views) != 1 {
+		t.Fatalf("成员视图应有 1 名：%v %+v", err, views)
+	}
+	if views[0].PlayerID != player.ID || views[0].DisplayName != "陪玩甲" || views[0].Reviewed {
+		t.Fatalf("成员视图不正确：%+v", views[0])
+	}
+	if _, err = listCustomerOrderMembers(ctx, db, other.ID, order.ID); !errors.Is(err, errForbidden) {
+		t.Fatalf("他人订单成员应 403：%v", err)
+	}
+	if _, err = submitCustomerReview(ctx, db, customer.ID, order.ID, player.ID, 5, "服务很好"); err != nil {
+		t.Fatalf("提交评价失败：%v", err)
+	}
+	views, err = listCustomerOrderMembers(ctx, db, customer.ID, order.ID)
+	if err != nil || len(views) != 1 || !views[0].Reviewed {
+		t.Fatalf("评价后应标记 reviewed：%v %+v", err, views)
+	}
+}
+
 // 客户自助发起售后（§13.2）：仅本人订单可发起，渠道固定为 customer 且绑定客户。
 func TestCreateCustomerAfterSaleSelfService(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_customer_self_aftersale")

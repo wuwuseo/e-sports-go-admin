@@ -85,6 +85,29 @@ func rescheduleOrderHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
+// setOrderChannelCostHandler 登记订单渠道成本（§12.1）。
+func setOrderChannelCostHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		ChannelCostCents int64 `json:"channel_cost_cents"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	order, err := setOrderChannelCost(c.Context(), global.ORM, id, in.ChannelCostCents, adminID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
 // depositOrderHandler 存单：把已付款订单标记为冻结。
 func depositOrderHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)

@@ -65,6 +65,9 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int64("refunded_cents").Default(0).StructTag(`json:"refunded_cents"`),
 		// 已预占但尚未执行的退款额度（分），售后审批通过时预占、执行时扣减。
 		field.Int64("refund_reserved_cents").Default(0).StructTag(`json:"refund_reserved_cents"`),
+		// 已知渠道成本（分，§12.1）：由客服在订单上登记的渠道费用，结单计提客服提成时从可分基数扣除，
+		// 参与「工作室剩余 = 服务应付 − 陪玩分成 − 客服提成 − 渠道成本」的反算。默认 0。
+		field.Int64("channel_cost_cents").Default(0).StructTag(`json:"channel_cost_cents"`),
 		field.Enum("appointment_status").Values("instant", "request", "confirmed").Default("instant").StructTag(`json:"appointment_status"`),
 		field.Time("requested_start_at").Optional().Nillable().StructTag(`json:"requested_start_at"`),
 		field.Time("appointment_confirmation_deadline").Optional().Nillable().StructTag(`json:"appointment_confirmation_deadline"`),

@@ -436,8 +436,9 @@ func accrueOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOr
 // reverseOrderCommission 退款按比例冲回分成，必须在 executeAfterSaleOnce 的同一事务内、
 // 退款额度落账之后调用。新增 kind=reversal 的负数明细，使退款金额落在退款当期（§12.6）；
 // 幂等靠 idem_key 唯一索引兜底，重复执行不重复冲回。
-// ponytail: 舍入尾差未单列（§12.1 要求尾差单列）；「优先按对应服务明细和成员冲回」未做，
-// 统一按订单整体退款比例冲回。
+// 逐条按比例截断后，舍入尾差归最后一条冲回明细（§12.1 尾差单列），保证冲回合计与
+// 「全部原明细金额 × 退款比例」的精确值一致。
+// ponytail: 「优先按对应服务明细和成员冲回」未做，统一按订单整体退款比例冲回。
 func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
 	if item.RefundCents <= 0 || order.PayableCents <= 0 {
 		return nil
@@ -451,29 +452,50 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 	if err != nil {
 		return err
 	}
+	type pendingRev struct {
+		entry   *ent.EsportsCommissionEntry
+		amount  int64
+		idemKey string
+		note    string
+	}
+	var revs []pendingRev
+	var totalAmount, allocated int64
 	for _, entry := range entries {
+		totalAmount += entry.AmountCents
 		reversal := -(entry.AmountCents * item.RefundCents / order.PayableCents)
 		if reversal == 0 {
 			continue
 		}
+		allocated += reversal
 		// 加钟明细可能同一陪玩多条，幂等键改用明细 ID 以免互相覆盖。
 		idem := "commission:reversal:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.PlayerID)
+		note := ""
 		if entry.Kind == esportscommissionentry.KindAddon {
 			idem = "commission:reversal:addon:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.ID)
+			note = "加钟退款分摊"
 		}
+		revs = append(revs, pendingRev{entry: entry, amount: reversal, idemKey: idem, note: note})
+	}
+	if len(revs) == 0 {
+		return nil
+	}
+	// 尾差 = 精确总冲回 − 各条截断之和（≤0），归最后一条冲回明细（§12.1）。
+	exact := -(totalAmount * item.RefundCents / order.PayableCents)
+	revs[len(revs)-1].amount += exact - allocated
+	for _, rev := range revs {
 		create := tx.EsportsCommissionEntry.Create().
-			SetIdemKey(idem).
-			SetOrderID(order.ID).SetPlayerID(entry.PlayerID).
-			SetKind(esportscommissionentry.KindReversal).SetSeatIndex(entry.SeatIndex).
-			SetAfterSaleID(item.ID).SetBaseCents(order.PayableCents).SetAmountCents(reversal).
-			SetRuleNo(entry.RuleNo).SetRuleVersion(entry.RuleVersion).
-			SetCalcMode(esportscommissionentry.CalcMode(entry.CalcMode.String())).
+			SetIdemKey(rev.idemKey).
+			SetOrderID(order.ID).SetPlayerID(rev.entry.PlayerID).
+			SetKind(esportscommissionentry.KindReversal).SetSeatIndex(rev.entry.SeatIndex).
+			SetAfterSaleID(item.ID).SetBaseCents(order.PayableCents).SetAmountCents(rev.amount).
+			SetRuleNo(rev.entry.RuleNo).SetRuleVersion(rev.entry.RuleVersion).
+			SetCalcMode(esportscommissionentry.CalcMode(rev.entry.CalcMode.String())).
 			SetStatus(esportscommissionentry.StatusPendingSettlement)
-		if entry.Kind == esportscommissionentry.KindAddon {
-			create.SetNote("加钟退款分摊")
+		if rev.note != "" {
+			create.SetNote(rev.note)
 		}
-		if entry.RuleID != nil {
-			create.SetRuleID(*entry.RuleID)
+		if rev.entry.RuleID != nil {
+			create.SetRuleID(*rev.entry.RuleID)
 		}
 		if _, err := create.Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {

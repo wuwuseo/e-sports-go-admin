@@ -191,6 +191,7 @@ func init() {
 			{Method: "PUT", Path: "/admin/orders/:id/quote", Auth: cmfapp.AuthAdmin, Handler: repriceOrderHandler},
 			{Method: "POST", Path: "/admin/orders/:id/cancel", Auth: cmfapp.AuthAdmin, Handler: cancelOrderHandler},
 			{Method: "PUT", Path: "/admin/orders/:id/appointment", Auth: cmfapp.AuthAdmin, Handler: rescheduleOrderHandler},
+			{Method: "PUT", Path: "/admin/orders/:id/channel-cost", Auth: cmfapp.AuthAdmin, Handler: setOrderChannelCostHandler},
 			// 存单：把已付款订单标记为冻结，「恢复」清除标记（原地保留、不动履约状态与名额）。
 			{Method: "POST", Path: "/admin/orders/:id/deposit", Auth: cmfapp.AuthAdmin, Handler: depositOrderHandler},
 			{Method: "POST", Path: "/admin/orders/:id/restore", Auth: cmfapp.AuthAdmin, Handler: restoreOrderHandler},
@@ -240,6 +241,9 @@ func init() {
 			{Method: "GET", Path: "/admin/orders/:id/seats", Auth: cmfapp.AuthAdmin, Handler: orderSeatsHandler},
 			{Method: "POST", Path: "/admin/orders/:id/seats/:seatIndex/assign", Auth: cmfapp.AuthAdmin, Handler: assignSeatHandler},
 			{Method: "POST", Path: "/admin/orders/:id/seats/:seatIndex/revoke", Auth: cmfapp.AuthAdmin, Handler: revokeSeatHandler},
+			// 固排成队（§5.3）：主陪玩 + 固排一次成队。
+			{Method: "GET", Path: "/admin/orders/:id/teammate-candidates", Auth: cmfapp.AuthAdmin, Handler: adminTeammateCandidates},
+			{Method: "POST", Path: "/admin/orders/:id/team-dispatch", Auth: cmfapp.AuthAdmin, Handler: teamDispatchHandler},
 			{Method: "POST", Path: "/admin/orders/:id/claim", Auth: cmfapp.AuthAdmin, Handler: claimOrderHandler},
 			{Method: "POST", Path: "/admin/orders/:id/transfer", Auth: cmfapp.AuthAdmin, Handler: transferOrderHandler},
 			{Method: "POST", Path: "/admin/orders/:id/remind", Auth: cmfapp.AuthAdmin, Handler: remindOrderHandler},
@@ -339,6 +343,7 @@ func init() {
 			{Method: "PUT", Path: "/admin/players/:id", Auth: cmfapp.AuthAdmin, Handler: updatePlayerHandler},
 			// 陪玩端自助：供 uni-app 客户端调用，不挂管理端菜单。
 			{Method: "GET", Path: "/user/player/dashboard", Auth: cmfapp.AuthUser, Handler: playerDashboardHandler},
+			{Method: "GET", Path: "/user/player/profile", Auth: cmfapp.AuthUser, Handler: playerProfileHandler},
 			{Method: "POST", Path: "/user/player/presence", Auth: cmfapp.AuthUser, Handler: playerPresenceHandler},
 			{Method: "GET", Path: "/user/player/invites", Auth: cmfapp.AuthUser, Handler: playerInvitesHandler},
 			{Method: "POST", Path: "/user/player/invites/:id/accept", Auth: cmfapp.AuthUser, Handler: playerAcceptInviteHandler},
@@ -366,6 +371,14 @@ func init() {
 			{Method: "POST", Path: "/user/player/orders/:id/transfer", Auth: cmfapp.AuthUser, Handler: playerRequestTransfer},
 			{Method: "GET", Path: "/user/player/transfer-requests", Auth: cmfapp.AuthUser, Handler: playerTransferRequests},
 			{Method: "POST", Path: "/user/player/transfer-requests/:id/cancel", Auth: cmfapp.AuthUser, Handler: playerCancelTransfer},
+			// 陪玩端自助：固排（§5.3 / §6.1）——列表、发起、确认 / 拒绝、解除、选人搜索。
+			{Method: "GET", Path: "/user/player/teammates", Auth: cmfapp.AuthUser, Handler: playerTeammatesHandler},
+			{Method: "POST", Path: "/user/player/teammates", Auth: cmfapp.AuthUser, Handler: playerRequestTeammateHandler},
+			{Method: "POST", Path: "/user/player/teammates/:id/dissolve", Auth: cmfapp.AuthUser, Handler: playerDissolveTeammateHandler},
+			{Method: "GET", Path: "/user/player/teammate-requests", Auth: cmfapp.AuthUser, Handler: playerTeammateRequestsHandler},
+			{Method: "POST", Path: "/user/player/teammate-requests/:id/accept", Auth: cmfapp.AuthUser, Handler: playerAcceptTeammateHandler},
+			{Method: "POST", Path: "/user/player/teammate-requests/:id/decline", Auth: cmfapp.AuthUser, Handler: playerDeclineTeammateHandler},
+			{Method: "GET", Path: "/user/player/players", Auth: cmfapp.AuthUser, Handler: playerSearchPlayersHandler},
 			// 考官端（§7）：权重配置、考核任务、打分定级、申诉复核、评价与综合评分。
 			{Method: "GET", Path: "/admin/assessment-rules", Auth: cmfapp.AuthAdmin, Handler: adminAssessmentRules},
 			{Method: "POST", Path: "/admin/assessment-rules", Auth: cmfapp.AuthAdmin, Handler: setAssessmentRulesHandler},
@@ -388,6 +401,7 @@ func init() {
 			{Method: "POST", Path: "/user/orders", Auth: cmfapp.AuthUser, Handler: userPlaceOrderHandler},
 			{Method: "GET", Path: "/user/orders", Auth: cmfapp.AuthUser, Handler: userOrdersHandler},
 			{Method: "GET", Path: "/user/orders/:id", Auth: cmfapp.AuthUser, Handler: userOrderDetailHandler},
+			{Method: "GET", Path: "/user/orders/:id/members", Auth: cmfapp.AuthUser, Handler: userOrderMembersHandler},
 			{Method: "GET", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userAfterSalesHandler},
 			{Method: "POST", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userCreateAfterSaleHandler},
 			{Method: "GET", Path: "/user/wallets", Auth: cmfapp.AuthUser, Handler: userWalletHandler},
@@ -457,6 +471,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "订单改价", Code: "esports:orders:reprice", Path: "/api/v1/esports/admin/orders/{id}/quote", Method: "PUT", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "订单取消", Code: "esports:orders:cancel", Path: "/api/v1/esports/admin/orders/{id}/cancel", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "订单改期", Code: "esports:orders:reschedule", Path: "/api/v1/esports/admin/orders/{id}/appointment", Method: "PUT", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "登记渠道成本", Code: "esports:orders:channel-cost", Path: "/api/v1/esports/admin/orders/{id}/channel-cost", Method: "PUT", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "余额核销订单", Code: "esports:orders:pay_balance", Path: "/api/v1/esports/admin/orders/{id}/pay-by-balance", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "结单", Code: "esports:orders:close", Path: "/api/v1/esports/admin/orders/{id}/close", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "复核通过结单", Code: "esports:orders:close_approve", Path: "/api/v1/esports/admin/orders/{id}/close-approve", Method: "POST", Parent: "esports:order:menu"},
