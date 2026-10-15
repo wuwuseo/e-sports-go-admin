@@ -17,7 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/swaggo/swag v1.16.4
-	github.com/wuwuseo/cmf v0.0.0
+	github.com/wuwuseo/cmf v1.1.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/net v0.58.0
 	golang.org/x/oauth2 v0.36.0
@@ -139,7 +139,7 @@ require (
 	github.com/twmb/franz-go/pkg/kmsg v1.13.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.70.0 // indirect
-	github.com/wuwuseo/ent v0.0.0-00010101000000-000000000000 // indirect
+	github.com/wuwuseo/ent v0.1.0 // indirect
 	github.com/zclconf/go-cty v1.16.2 // indirect
 	github.com/zclconf/go-cty-yaml v1.1.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
@@ -159,9 +159,4 @@ require (
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-)
-
-replace (
-	github.com/wuwuseo/cmf => ../cmf
-	github.com/wuwuseo/ent => ../ent
 )
