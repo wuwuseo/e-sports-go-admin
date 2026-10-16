@@ -20,10 +20,16 @@ const (
 	FieldGiftNo = "gift_no"
 	// FieldGiftID holds the string denoting the gift_id field in the database.
 	FieldGiftID = "gift_id"
+	// FieldGiftIntentID holds the string denoting the gift_intent_id field in the database.
+	FieldGiftIntentID = "gift_intent_id"
 	// FieldCustomerID holds the string denoting the customer_id field in the database.
 	FieldCustomerID = "customer_id"
 	// FieldPlayerID holds the string denoting the player_id field in the database.
 	FieldPlayerID = "player_id"
+	// FieldResponsibleAdminID holds the string denoting the responsible_admin_id field in the database.
+	FieldResponsibleAdminID = "responsible_admin_id"
+	// FieldCsCommissionRuleID holds the string denoting the cs_commission_rule_id field in the database.
+	FieldCsCommissionRuleID = "cs_commission_rule_id"
 	// FieldPlayerName holds the string denoting the player_name field in the database.
 	FieldPlayerName = "player_name"
 	// FieldOrderID holds the string denoting the order_id field in the database.
@@ -38,6 +44,10 @@ const (
 	FieldPrincipalCents = "principal_cents"
 	// FieldBonusCents holds the string denoting the bonus_cents field in the database.
 	FieldBonusCents = "bonus_cents"
+	// FieldPaymentSource holds the string denoting the payment_source field in the database.
+	FieldPaymentSource = "payment_source"
+	// FieldStoredValueCardID holds the string denoting the stored_value_card_id field in the database.
+	FieldStoredValueCardID = "stored_value_card_id"
 	// FieldCommissionMode holds the string denoting the commission_mode field in the database.
 	FieldCommissionMode = "commission_mode"
 	// FieldCommissionBp holds the string denoting the commission_bp field in the database.
@@ -72,8 +82,11 @@ var Columns = []string{
 	FieldID,
 	FieldGiftNo,
 	FieldGiftID,
+	FieldGiftIntentID,
 	FieldCustomerID,
 	FieldPlayerID,
+	FieldResponsibleAdminID,
+	FieldCsCommissionRuleID,
 	FieldPlayerName,
 	FieldOrderID,
 	FieldQuantity,
@@ -81,6 +94,8 @@ var Columns = []string{
 	FieldAmountCents,
 	FieldPrincipalCents,
 	FieldBonusCents,
+	FieldPaymentSource,
+	FieldStoredValueCardID,
 	FieldCommissionMode,
 	FieldCommissionBp,
 	FieldCommissionCents,
@@ -109,10 +124,16 @@ var (
 	GiftNoValidator func(string) error
 	// GiftIDValidator is a validator for the "gift_id" field. It is called by the builders before save.
 	GiftIDValidator func(int) error
+	// GiftIntentIDValidator is a validator for the "gift_intent_id" field. It is called by the builders before save.
+	GiftIntentIDValidator func(int) error
 	// CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
 	CustomerIDValidator func(int) error
 	// PlayerIDValidator is a validator for the "player_id" field. It is called by the builders before save.
 	PlayerIDValidator func(int) error
+	// ResponsibleAdminIDValidator is a validator for the "responsible_admin_id" field. It is called by the builders before save.
+	ResponsibleAdminIDValidator func(int) error
+	// CsCommissionRuleIDValidator is a validator for the "cs_commission_rule_id" field. It is called by the builders before save.
+	CsCommissionRuleIDValidator func(int) error
 	// DefaultPlayerName holds the default value on creation for the "player_name" field.
 	DefaultPlayerName string
 	// PlayerNameValidator is a validator for the "player_name" field. It is called by the builders before save.
@@ -129,6 +150,10 @@ var (
 	DefaultPrincipalCents int64
 	// DefaultBonusCents holds the default value on creation for the "bonus_cents" field.
 	DefaultBonusCents int64
+	// DefaultPaymentSource holds the default value on creation for the "payment_source" field.
+	DefaultPaymentSource string
+	// StoredValueCardIDValidator is a validator for the "stored_value_card_id" field. It is called by the builders before save.
+	StoredValueCardIDValidator func(int) error
 	// DefaultCommissionBp holds the default value on creation for the "commission_bp" field.
 	DefaultCommissionBp int
 	// DefaultCommissionCents holds the default value on creation for the "commission_cents" field.
@@ -272,6 +297,11 @@ func ByGiftID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGiftID, opts...).ToFunc()
 }
 
+// ByGiftIntentID orders the results by the gift_intent_id field.
+func ByGiftIntentID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGiftIntentID, opts...).ToFunc()
+}
+
 // ByCustomerID orders the results by the customer_id field.
 func ByCustomerID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCustomerID, opts...).ToFunc()
@@ -280,6 +310,16 @@ func ByCustomerID(opts ...sql.OrderTermOption) OrderOption {
 // ByPlayerID orders the results by the player_id field.
 func ByPlayerID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPlayerID, opts...).ToFunc()
+}
+
+// ByResponsibleAdminID orders the results by the responsible_admin_id field.
+func ByResponsibleAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldResponsibleAdminID, opts...).ToFunc()
+}
+
+// ByCsCommissionRuleID orders the results by the cs_commission_rule_id field.
+func ByCsCommissionRuleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCsCommissionRuleID, opts...).ToFunc()
 }
 
 // ByPlayerName orders the results by the player_name field.
@@ -315,6 +355,16 @@ func ByPrincipalCents(opts ...sql.OrderTermOption) OrderOption {
 // ByBonusCents orders the results by the bonus_cents field.
 func ByBonusCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBonusCents, opts...).ToFunc()
+}
+
+// ByPaymentSource orders the results by the payment_source field.
+func ByPaymentSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentSource, opts...).ToFunc()
+}
+
+// ByStoredValueCardID orders the results by the stored_value_card_id field.
+func ByStoredValueCardID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStoredValueCardID, opts...).ToFunc()
 }
 
 // ByCommissionMode orders the results by the commission_mode field.

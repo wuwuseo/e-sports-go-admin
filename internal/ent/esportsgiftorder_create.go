@@ -32,6 +32,20 @@ func (_c *EsportsGiftOrderCreate) SetGiftID(v int) *EsportsGiftOrderCreate {
 	return _c
 }
 
+// SetGiftIntentID sets the "gift_intent_id" field.
+func (_c *EsportsGiftOrderCreate) SetGiftIntentID(v int) *EsportsGiftOrderCreate {
+	_c.mutation.SetGiftIntentID(v)
+	return _c
+}
+
+// SetNillableGiftIntentID sets the "gift_intent_id" field if the given value is not nil.
+func (_c *EsportsGiftOrderCreate) SetNillableGiftIntentID(v *int) *EsportsGiftOrderCreate {
+	if v != nil {
+		_c.SetGiftIntentID(*v)
+	}
+	return _c
+}
+
 // SetCustomerID sets the "customer_id" field.
 func (_c *EsportsGiftOrderCreate) SetCustomerID(v int) *EsportsGiftOrderCreate {
 	_c.mutation.SetCustomerID(v)
@@ -41,6 +55,34 @@ func (_c *EsportsGiftOrderCreate) SetCustomerID(v int) *EsportsGiftOrderCreate {
 // SetPlayerID sets the "player_id" field.
 func (_c *EsportsGiftOrderCreate) SetPlayerID(v int) *EsportsGiftOrderCreate {
 	_c.mutation.SetPlayerID(v)
+	return _c
+}
+
+// SetResponsibleAdminID sets the "responsible_admin_id" field.
+func (_c *EsportsGiftOrderCreate) SetResponsibleAdminID(v int) *EsportsGiftOrderCreate {
+	_c.mutation.SetResponsibleAdminID(v)
+	return _c
+}
+
+// SetNillableResponsibleAdminID sets the "responsible_admin_id" field if the given value is not nil.
+func (_c *EsportsGiftOrderCreate) SetNillableResponsibleAdminID(v *int) *EsportsGiftOrderCreate {
+	if v != nil {
+		_c.SetResponsibleAdminID(*v)
+	}
+	return _c
+}
+
+// SetCsCommissionRuleID sets the "cs_commission_rule_id" field.
+func (_c *EsportsGiftOrderCreate) SetCsCommissionRuleID(v int) *EsportsGiftOrderCreate {
+	_c.mutation.SetCsCommissionRuleID(v)
+	return _c
+}
+
+// SetNillableCsCommissionRuleID sets the "cs_commission_rule_id" field if the given value is not nil.
+func (_c *EsportsGiftOrderCreate) SetNillableCsCommissionRuleID(v *int) *EsportsGiftOrderCreate {
+	if v != nil {
+		_c.SetCsCommissionRuleID(*v)
+	}
 	return _c
 }
 
@@ -122,6 +164,34 @@ func (_c *EsportsGiftOrderCreate) SetBonusCents(v int64) *EsportsGiftOrderCreate
 func (_c *EsportsGiftOrderCreate) SetNillableBonusCents(v *int64) *EsportsGiftOrderCreate {
 	if v != nil {
 		_c.SetBonusCents(*v)
+	}
+	return _c
+}
+
+// SetPaymentSource sets the "payment_source" field.
+func (_c *EsportsGiftOrderCreate) SetPaymentSource(v string) *EsportsGiftOrderCreate {
+	_c.mutation.SetPaymentSource(v)
+	return _c
+}
+
+// SetNillablePaymentSource sets the "payment_source" field if the given value is not nil.
+func (_c *EsportsGiftOrderCreate) SetNillablePaymentSource(v *string) *EsportsGiftOrderCreate {
+	if v != nil {
+		_c.SetPaymentSource(*v)
+	}
+	return _c
+}
+
+// SetStoredValueCardID sets the "stored_value_card_id" field.
+func (_c *EsportsGiftOrderCreate) SetStoredValueCardID(v int) *EsportsGiftOrderCreate {
+	_c.mutation.SetStoredValueCardID(v)
+	return _c
+}
+
+// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
+func (_c *EsportsGiftOrderCreate) SetNillableStoredValueCardID(v *int) *EsportsGiftOrderCreate {
+	if v != nil {
+		_c.SetStoredValueCardID(*v)
 	}
 	return _c
 }
@@ -331,6 +401,10 @@ func (_c *EsportsGiftOrderCreate) defaults() {
 		v := esportsgiftorder.DefaultBonusCents
 		_c.mutation.SetBonusCents(v)
 	}
+	if _, ok := _c.mutation.PaymentSource(); !ok {
+		v := esportsgiftorder.DefaultPaymentSource
+		_c.mutation.SetPaymentSource(v)
+	}
 	if _, ok := _c.mutation.CommissionMode(); !ok {
 		v := esportsgiftorder.DefaultCommissionMode
 		_c.mutation.SetCommissionMode(v)
@@ -395,6 +469,11 @@ func (_c *EsportsGiftOrderCreate) check() error {
 			return &ValidationError{Name: "gift_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_id": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.GiftIntentID(); ok {
+		if err := esportsgiftorder.GiftIntentIDValidator(v); err != nil {
+			return &ValidationError{Name: "gift_intent_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_intent_id": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CustomerID(); !ok {
 		return &ValidationError{Name: "customer_id", err: errors.New(`ent: missing required field "EsportsGiftOrder.customer_id"`)}
 	}
@@ -409,6 +488,16 @@ func (_c *EsportsGiftOrderCreate) check() error {
 	if v, ok := _c.mutation.PlayerID(); ok {
 		if err := esportsgiftorder.PlayerIDValidator(v); err != nil {
 			return &ValidationError{Name: "player_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.player_id": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ResponsibleAdminID(); ok {
+		if err := esportsgiftorder.ResponsibleAdminIDValidator(v); err != nil {
+			return &ValidationError{Name: "responsible_admin_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.responsible_admin_id": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.CsCommissionRuleID(); ok {
+		if err := esportsgiftorder.CsCommissionRuleIDValidator(v); err != nil {
+			return &ValidationError{Name: "cs_commission_rule_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.cs_commission_rule_id": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.PlayerName(); !ok {
@@ -448,6 +537,14 @@ func (_c *EsportsGiftOrderCreate) check() error {
 	}
 	if _, ok := _c.mutation.BonusCents(); !ok {
 		return &ValidationError{Name: "bonus_cents", err: errors.New(`ent: missing required field "EsportsGiftOrder.bonus_cents"`)}
+	}
+	if _, ok := _c.mutation.PaymentSource(); !ok {
+		return &ValidationError{Name: "payment_source", err: errors.New(`ent: missing required field "EsportsGiftOrder.payment_source"`)}
+	}
+	if v, ok := _c.mutation.StoredValueCardID(); ok {
+		if err := esportsgiftorder.StoredValueCardIDValidator(v); err != nil {
+			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.stored_value_card_id": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.CommissionMode(); !ok {
 		return &ValidationError{Name: "commission_mode", err: errors.New(`ent: missing required field "EsportsGiftOrder.commission_mode"`)}
@@ -536,6 +633,10 @@ func (_c *EsportsGiftOrderCreate) createSpec() (*EsportsGiftOrder, *sqlgraph.Cre
 		_spec.SetField(esportsgiftorder.FieldGiftID, field.TypeInt, value)
 		_node.GiftID = value
 	}
+	if value, ok := _c.mutation.GiftIntentID(); ok {
+		_spec.SetField(esportsgiftorder.FieldGiftIntentID, field.TypeInt, value)
+		_node.GiftIntentID = &value
+	}
 	if value, ok := _c.mutation.CustomerID(); ok {
 		_spec.SetField(esportsgiftorder.FieldCustomerID, field.TypeInt, value)
 		_node.CustomerID = value
@@ -543,6 +644,14 @@ func (_c *EsportsGiftOrderCreate) createSpec() (*EsportsGiftOrder, *sqlgraph.Cre
 	if value, ok := _c.mutation.PlayerID(); ok {
 		_spec.SetField(esportsgiftorder.FieldPlayerID, field.TypeInt, value)
 		_node.PlayerID = value
+	}
+	if value, ok := _c.mutation.ResponsibleAdminID(); ok {
+		_spec.SetField(esportsgiftorder.FieldResponsibleAdminID, field.TypeInt, value)
+		_node.ResponsibleAdminID = &value
+	}
+	if value, ok := _c.mutation.CsCommissionRuleID(); ok {
+		_spec.SetField(esportsgiftorder.FieldCsCommissionRuleID, field.TypeInt, value)
+		_node.CsCommissionRuleID = &value
 	}
 	if value, ok := _c.mutation.PlayerName(); ok {
 		_spec.SetField(esportsgiftorder.FieldPlayerName, field.TypeString, value)
@@ -571,6 +680,14 @@ func (_c *EsportsGiftOrderCreate) createSpec() (*EsportsGiftOrder, *sqlgraph.Cre
 	if value, ok := _c.mutation.BonusCents(); ok {
 		_spec.SetField(esportsgiftorder.FieldBonusCents, field.TypeInt64, value)
 		_node.BonusCents = value
+	}
+	if value, ok := _c.mutation.PaymentSource(); ok {
+		_spec.SetField(esportsgiftorder.FieldPaymentSource, field.TypeString, value)
+		_node.PaymentSource = value
+	}
+	if value, ok := _c.mutation.StoredValueCardID(); ok {
+		_spec.SetField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt, value)
+		_node.StoredValueCardID = &value
 	}
 	if value, ok := _c.mutation.CommissionMode(); ok {
 		_spec.SetField(esportsgiftorder.FieldCommissionMode, field.TypeEnum, value)

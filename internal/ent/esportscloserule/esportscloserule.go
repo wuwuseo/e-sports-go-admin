@@ -32,6 +32,8 @@ const (
 	FieldRequireNoPendingAddon = "require_no_pending_addon"
 	// FieldRequireNoOpenAftersale holds the string denoting the require_no_open_aftersale field in the database.
 	FieldRequireNoOpenAftersale = "require_no_open_aftersale"
+	// FieldConditionTree holds the string denoting the condition_tree field in the database.
+	FieldConditionTree = "condition_tree"
 	// FieldReviewThresholdCents holds the string denoting the review_threshold_cents field in the database.
 	FieldReviewThresholdCents = "review_threshold_cents"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -64,6 +66,7 @@ var Columns = []string{
 	FieldRequireDuration,
 	FieldRequireNoPendingAddon,
 	FieldRequireNoOpenAftersale,
+	FieldConditionTree,
 	FieldReviewThresholdCents,
 	FieldStatus,
 	FieldVersion,

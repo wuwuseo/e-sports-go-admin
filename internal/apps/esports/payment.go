@@ -128,13 +128,17 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 		order.PaymentStatus == esportsorder.PaymentStatusUnpaid && p.AmountCents >= payable
 	result := &paymentOutcome{ExceptionCents: p.AmountCents}
 	if canApply {
-		changed, err := tx.EsportsOrder.Update().Where(
+		update := tx.EsportsOrder.Update().Where(
 			esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
 			esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
 			esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
 		).SetPaymentStatus(esportsorder.PaymentStatusPaid).
 			SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).
-			SetPaidAt(p.ConfirmedAt.UTC()).AddVersion(1).Save(ctx)
+			SetPaidAt(p.ConfirmedAt.UTC()).AddVersion(1)
+		if err := lockCsCommissionOnPayment(ctx, tx, order, update, p.ConfirmedAt); err != nil {
+			return nil, err
+		}
+		changed, err := update.Save(ctx)
 		if err != nil {
 			return nil, err
 		}

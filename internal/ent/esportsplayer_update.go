@@ -186,6 +186,26 @@ func (_u *EsportsPlayerUpdate) ClearGames() *EsportsPlayerUpdate {
 	return _u
 }
 
+// SetLastHeartbeatAt sets the "last_heartbeat_at" field.
+func (_u *EsportsPlayerUpdate) SetLastHeartbeatAt(v time.Time) *EsportsPlayerUpdate {
+	_u.mutation.SetLastHeartbeatAt(v)
+	return _u
+}
+
+// SetNillableLastHeartbeatAt sets the "last_heartbeat_at" field if the given value is not nil.
+func (_u *EsportsPlayerUpdate) SetNillableLastHeartbeatAt(v *time.Time) *EsportsPlayerUpdate {
+	if v != nil {
+		_u.SetLastHeartbeatAt(*v)
+	}
+	return _u
+}
+
+// ClearLastHeartbeatAt clears the value of the "last_heartbeat_at" field.
+func (_u *EsportsPlayerUpdate) ClearLastHeartbeatAt() *EsportsPlayerUpdate {
+	_u.mutation.ClearLastHeartbeatAt()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsPlayerUpdate) SetVersion(v int) *EsportsPlayerUpdate {
 	_u.mutation.ResetVersion()
@@ -342,6 +362,12 @@ func (_u *EsportsPlayerUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	}
 	if _u.mutation.GamesCleared() {
 		_spec.ClearField(esportsplayer.FieldGames, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.LastHeartbeatAt(); ok {
+		_spec.SetField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastHeartbeatAtCleared() {
+		_spec.ClearField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsplayer.FieldVersion, field.TypeInt, value)
@@ -526,6 +552,26 @@ func (_u *EsportsPlayerUpdateOne) AppendGames(v []string) *EsportsPlayerUpdateOn
 // ClearGames clears the value of the "games" field.
 func (_u *EsportsPlayerUpdateOne) ClearGames() *EsportsPlayerUpdateOne {
 	_u.mutation.ClearGames()
+	return _u
+}
+
+// SetLastHeartbeatAt sets the "last_heartbeat_at" field.
+func (_u *EsportsPlayerUpdateOne) SetLastHeartbeatAt(v time.Time) *EsportsPlayerUpdateOne {
+	_u.mutation.SetLastHeartbeatAt(v)
+	return _u
+}
+
+// SetNillableLastHeartbeatAt sets the "last_heartbeat_at" field if the given value is not nil.
+func (_u *EsportsPlayerUpdateOne) SetNillableLastHeartbeatAt(v *time.Time) *EsportsPlayerUpdateOne {
+	if v != nil {
+		_u.SetLastHeartbeatAt(*v)
+	}
+	return _u
+}
+
+// ClearLastHeartbeatAt clears the value of the "last_heartbeat_at" field.
+func (_u *EsportsPlayerUpdateOne) ClearLastHeartbeatAt() *EsportsPlayerUpdateOne {
+	_u.mutation.ClearLastHeartbeatAt()
 	return _u
 }
 
@@ -715,6 +761,12 @@ func (_u *EsportsPlayerUpdateOne) sqlSave(ctx context.Context) (_node *EsportsPl
 	}
 	if _u.mutation.GamesCleared() {
 		_spec.ClearField(esportsplayer.FieldGames, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.LastHeartbeatAt(); ok {
+		_spec.SetField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastHeartbeatAtCleared() {
+		_spec.ClearField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsplayer.FieldVersion, field.TypeInt, value)

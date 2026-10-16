@@ -189,9 +189,11 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 	}
 	// 每日提现次数上限（§6.3）：按业务时区（UTC+8）自然日统计当日申请数（含已驳回）。
 	if policy.DailyLimit > 0 {
+		dayStart := businessDayStart(now)
 		count, err := db.EsportsWithdrawal.Query().Where(
 			esportswithdrawal.PlayerIDEQ(playerID),
-			esportswithdrawal.CreatedAtGTE(businessDayStart(now)),
+			esportswithdrawal.CreatedAtGTE(dayStart),
+			esportswithdrawal.CreatedAtLT(dayStart.Add(24*time.Hour)),
 		).Count(ctx)
 		if err != nil {
 			return nil, err
@@ -224,6 +226,7 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 	}
 	withdrawal, err := tx.EsportsWithdrawal.Create().SetWithdrawalNo("WD" + uuid.NewString()).
 		SetPlayerID(playerID).SetIdemKey(key).
+		SetCreatedAt(now.UTC()).
 		SetAmountCents(in.AmountCents).SetFeeCents(fee).SetTaxCents(tax).SetNetCents(net).
 		SetChannel(esportswithdrawal.Channel(in.Channel)).SetAccountRef(in.AccountRef).
 		SetStatus(esportswithdrawal.StatusPendingReview).SetNote(in.Note).Save(ctx)

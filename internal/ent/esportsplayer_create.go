@@ -122,6 +122,20 @@ func (_c *EsportsPlayerCreate) SetGames(v []string) *EsportsPlayerCreate {
 	return _c
 }
 
+// SetLastHeartbeatAt sets the "last_heartbeat_at" field.
+func (_c *EsportsPlayerCreate) SetLastHeartbeatAt(v time.Time) *EsportsPlayerCreate {
+	_c.mutation.SetLastHeartbeatAt(v)
+	return _c
+}
+
+// SetNillableLastHeartbeatAt sets the "last_heartbeat_at" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableLastHeartbeatAt(v *time.Time) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetLastHeartbeatAt(*v)
+	}
+	return _c
+}
+
 // SetVersion sets the "version" field.
 func (_c *EsportsPlayerCreate) SetVersion(v int) *EsportsPlayerCreate {
 	_c.mutation.SetVersion(v)
@@ -351,6 +365,10 @@ func (_c *EsportsPlayerCreate) createSpec() (*EsportsPlayer, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.Games(); ok {
 		_spec.SetField(esportsplayer.FieldGames, field.TypeJSON, value)
 		_node.Games = value
+	}
+	if value, ok := _c.mutation.LastHeartbeatAt(); ok {
+		_spec.SetField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime, value)
+		_node.LastHeartbeatAt = &value
 	}
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsplayer.FieldVersion, field.TypeInt, value)

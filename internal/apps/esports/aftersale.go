@@ -13,7 +13,9 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportswallettx"
 )
 
@@ -52,6 +54,10 @@ type afterSalePlanInput struct {
 	// 追偿（§13.4）：赔付由陪玩承担时填承接陪玩与追偿金额，执行售后时另建待审批的追偿明细。
 	RecoveryPlayerID int   `json:"recovery_player_id"`
 	RecoveryCents    int64 `json:"recovery_cents"`
+	// 争议涉及陪玩（§13.3 部分退款成员明细冲回）：退款类方案可指定该单实际服务成员，
+	// 执行退款时优先冲回该成员的服务与加钟分成，剩余额度再按比例分摊其他成员；
+	// 留空则维持按订单整体比例冲回。
+	DisputePlayerID int `json:"dispute_player_id"`
 }
 
 type afterSaleDecisionInput struct {
@@ -115,9 +121,22 @@ func activeAfterSaleStatuses() []esportsaftersale.Status {
 	}
 }
 
-// createAfterSale 受理售后申请：校验来源与枚举、订单存在性、同来源同问题查重，
+// afterSaleCreateOptions 控制事务内创建售后单时的留痕身份：
+// 客服入口记为 admin，客户自助记为 customer，陪玩申诉记为 player，系统自动建单记为 system。
+type afterSaleCreateOptions struct {
+	ActorType string
+	ActorID   string
+	EventType string
+	// PlayerID 仅陪玩申诉 / 系统按成员自动建单时写入，用于把来源陪玩落到售后单上。
+	PlayerID *int
+	// Details 额外并入 order.after_sale_created 事件明细（如取消政策快照）。
+	Details map[string]interface{}
+}
+
+// createAfterSaleTx 在调用方事务内受理售后：校验来源与枚举、订单存在性、同来源同问题查重，
 // 创建后占用一个订单版本写 order.after_sale_created 事件留痕。
-func createAfterSale(ctx context.Context, db *ent.Client, in afterSaleInput, operatorID int, now time.Time) (*ent.EsportsAfterSale, error) {
+// 抽成事务内版本是为了让「取消已付款订单」「服务时长差异自动建单」等入口与各自的资金动作同事务。
+func createAfterSaleTx(ctx context.Context, tx *ent.Tx, in afterSaleInput, opts afterSaleCreateOptions) (*ent.EsportsAfterSale, error) {
 	in.SourceType = strings.TrimSpace(in.SourceType)
 	in.Demand = strings.TrimSpace(in.Demand)
 	in.ExpectedPlan = strings.TrimSpace(in.ExpectedPlan)
@@ -133,14 +152,18 @@ func createAfterSale(ctx context.Context, db *ent.Client, in afterSaleInput, ope
 		len([]rune(in.Contact)) > 120 {
 		return nil, errInvalidInput
 	}
-	tx, err := db.Tx(ctx)
-	if err != nil {
-		return nil, err
+	if opts.ActorType == "" {
+		opts.ActorType = "admin"
 	}
-	defer tx.Rollback()
+	if opts.EventType == "" {
+		opts.EventType = "order.after_sale_created"
+	}
 	order, err := tx.EsportsOrder.Get(ctx, in.SourceID)
 	if err != nil {
 		return nil, err
+	}
+	if in.CustomerID != nil && *in.CustomerID != order.CustomerID {
+		return nil, errInvalidInput
 	}
 	duplicated, err := tx.EsportsAfterSale.Query().Where(
 		esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeOrder),
@@ -156,11 +179,12 @@ func createAfterSale(ctx context.Context, db *ent.Client, in afterSaleInput, ope
 	}
 	create := tx.EsportsAfterSale.Create().SetAfterSaleNo(afterSaleNo()).
 		SetSourceType(esportsaftersale.SourceTypeOrder).SetSourceID(in.SourceID).
+		SetCustomerID(order.CustomerID).
 		SetKind(esportsaftersale.Kind(in.Kind)).SetChannel(esportsaftersale.Channel(in.Channel)).
 		SetDemand(in.Demand).SetExpectedPlan(in.ExpectedPlan).SetEvidenceRef(in.EvidenceRef).
 		SetContact(in.Contact).SetStatus(esportsaftersale.StatusPendingAccept)
-	if in.CustomerID != nil {
-		create.SetCustomerID(*in.CustomerID)
+	if opts.PlayerID != nil {
+		create.SetPlayerID(*opts.PlayerID)
 	}
 	item, err := create.Save(ctx)
 	if err != nil {
@@ -174,12 +198,32 @@ func createAfterSale(ctx context.Context, db *ent.Client, in afterSaleInput, ope
 	if err != nil {
 		return nil, err
 	}
+	details := map[string]interface{}{
+		"after_sale_no": item.AfterSaleNo, "kind": item.Kind.String(),
+	}
+	for key, value := range opts.Details {
+		details[key] = value
+	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
-		SetOrderVersion(newVersion).SetEventType("order.after_sale_created").
-		SetActorType("admin").SetActorID(strconv.Itoa(operatorID)).
-		SetDetails(map[string]interface{}{
-			"after_sale_no": item.AfterSaleNo, "kind": item.Kind.String(),
-		}).Save(ctx); err != nil {
+		SetOrderVersion(newVersion).SetEventType(opts.EventType).
+		SetActorType(opts.ActorType).SetActorID(opts.ActorID).
+		SetDetails(details).Save(ctx); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+// createAfterSale 受理售后申请（客服入口）：独立事务包装 createAfterSaleTx。
+func createAfterSale(ctx context.Context, db *ent.Client, in afterSaleInput, operatorID int, now time.Time) (*ent.EsportsAfterSale, error) {
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	item, err := createAfterSaleTx(ctx, tx, in, afterSaleCreateOptions{
+		ActorType: "admin", ActorID: strconv.Itoa(operatorID),
+	})
+	if err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -189,12 +233,25 @@ func createAfterSale(ctx context.Context, db *ent.Client, in afterSaleInput, ope
 }
 
 // listAfterSales 列出售后单，status 为空则返回全部，按 ID 倒序。
-func listAfterSales(ctx context.Context, db *ent.Client, status string, limit int) ([]*ent.EsportsAfterSale, error) {
+func listAfterSales(ctx context.Context, db *ent.Client, adminID int, isSuper bool, status string, limit int) ([]*ent.EsportsAfterSale, error) {
+	if adminID < 1 {
+		return nil, errForbidden
+	}
 	status = strings.TrimSpace(status)
 	if limit < 1 || limit > 200 {
 		limit = 100
 	}
 	q := db.EsportsAfterSale.Query()
+	if !isSuper {
+		ids, err := db.EsportsOrder.Query().Where(esportsorder.ResponsibleAdminIDEQ(adminID)).IDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			return []*ent.EsportsAfterSale{}, nil
+		}
+		q.Where(esportsaftersale.SourceIDIn(ids...))
+	}
 	if status != "" {
 		if !validAfterSaleStatus(status) {
 			return nil, errInvalidInput
@@ -213,6 +270,7 @@ func getAfterSale(ctx context.Context, db *ent.Client, id int) (*ent.EsportsAfte
 }
 
 // acceptAfterSale 受理：pending_accept → processing，记录处理客服。
+// 受理即冻结该订单待结算的分成明细（§12.6 争议冻结），争议终结时解冻。
 func acceptAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 || adminID < 1 {
 		return nil, errInvalidInput
@@ -228,7 +286,35 @@ func acceptAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now t
 	if changed != 1 {
 		return nil, errConflict
 	}
-	return db.EsportsAfterSale.Get(ctx, id)
+	item, err := db.EsportsAfterSale.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err = freezeAfterSaleCommission(ctx, db, item, adminID, now); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+// freezeAfterSaleCommission 冻结售后来源订单的待结算分成明细；非订单来源当前不冻结。
+func freezeAfterSaleCommission(ctx context.Context, db *ent.Client, item *ent.EsportsAfterSale, adminID int, now time.Time) error {
+	if item.SourceType != esportsaftersale.SourceTypeOrder {
+		return nil
+	}
+	if _, err := freezeOrderCommissionForDispute(ctx, db, item.SourceID, nil,
+		"售后争议："+item.AfterSaleNo, adminID, now); err != nil {
+		return err
+	}
+	return nil
+}
+
+// unfreezeAfterSaleCommission 争议终结（完成 / 驳回 / 撤回）后解冻对应分成明细。
+func unfreezeAfterSaleCommission(ctx context.Context, db *ent.Client, item *ent.EsportsAfterSale) error {
+	if item.SourceType != esportsaftersale.SourceTypeOrder {
+		return nil
+	}
+	_, err := unfreezeOrderCommission(ctx, db, item.SourceID)
+	return err
 }
 
 // submitAfterSalePlan 提交处理方案：processing → pending_customer_confirm（§13.3 方案提交 → 客户确认 → 审批 → 执行）。
@@ -272,6 +358,29 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 	if in.RecoveryCents > refundCents {
 		return nil, fmt.Errorf("%w：追偿金额不得超过本次赔付金额", errInvalidInput)
 	}
+	if in.DisputePlayerID < 0 {
+		return nil, errInvalidInput
+	}
+	if in.DisputePlayerID > 0 {
+		item, err := db.EsportsAfterSale.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if item.SourceType != esportsaftersale.SourceTypeOrder {
+			return nil, fmt.Errorf("%w：仅订单来源售后可指定争议陪玩", errInvalidInput)
+		}
+		order, err := db.EsportsOrder.Get(ctx, item.SourceID)
+		if err != nil {
+			return nil, err
+		}
+		served, err := playerServedOrder(ctx, db, order.ID, in.DisputePlayerID)
+		if err != nil {
+			return nil, err
+		}
+		if !served {
+			return nil, fmt.Errorf("%w：争议陪玩须为该订单实际服务成员", errInvalidInput)
+		}
+	}
 	update := db.EsportsAfterSale.Update().Where(
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(esportsaftersale.StatusProcessing),
@@ -299,6 +408,11 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 	} else {
 		update = update.ClearRecoveryPlayerID()
 	}
+	if in.DisputePlayerID > 0 {
+		update = update.SetPlayerID(in.DisputePlayerID)
+	} else {
+		update = update.ClearPlayerID()
+	}
 	changed, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
@@ -307,6 +421,26 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		return nil, errConflict
 	}
 	return db.EsportsAfterSale.Get(ctx, id)
+}
+
+// playerServedOrder 判断陪玩是否为订单实际服务成员（有服务段，或已接受的席位）。
+func playerServedOrder(ctx context.Context, db *ent.Client, orderID, playerID int) (bool, error) {
+	count, err := db.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID),
+		esportsservicesegment.PlayerIDEQ(playerID),
+	).Count(ctx)
+	if err != nil {
+		return false, err
+	}
+	if count > 0 {
+		return true, nil
+	}
+	count, err = db.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(orderID),
+		esportsdispatchseat.PlayerIDEQ(playerID),
+		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
+	).Count(ctx)
+	return count > 0, err
 }
 
 // confirmAfterSalePlanIn 客户确认方案：pending_customer_confirm → pending_approval（§13.3）。
@@ -453,9 +587,17 @@ func rejectAfterSale(ctx context.Context, db *ent.Client, id, adminID int, in af
 	if id < 1 || adminID < 1 || in.Reason == "" || len([]rune(in.Reason)) > 255 {
 		return nil, errInvalidInput
 	}
+	item, err := db.EsportsAfterSale.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if item.HandlerAdminID != nil && *item.HandlerAdminID == adminID {
+		return nil, errForbidden
+	}
 	changed, err := db.EsportsAfterSale.Update().Where(
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingApproval),
+		esportsaftersale.VersionEQ(item.Version),
 	).SetStatus(esportsaftersale.StatusRejected).SetApproverAdminID(adminID).
 		SetResolution(in.Reason).SetResolvedAt(now.UTC()).AddVersion(1).Save(ctx)
 	if err != nil {
@@ -463,6 +605,10 @@ func rejectAfterSale(ctx context.Context, db *ent.Client, id, adminID int, in af
 	}
 	if changed != 1 {
 		return nil, errConflict
+	}
+	// §12.6：驳回后争议终结，解冻该订单待结算分成明细。
+	if err = unfreezeAfterSaleCommission(ctx, db, item); err != nil {
+		return nil, err
 	}
 	return db.EsportsAfterSale.Get(ctx, id)
 }
@@ -509,6 +655,12 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 	}
 	if changed != 1 {
 		return nil, errConflict
+	}
+	// §12.6：撤回后争议终结，解冻该订单待结算分成明细。
+	if item.SourceType == esportsaftersale.SourceTypeOrder {
+		if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
+			return nil, err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -588,6 +740,12 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 			}, now); err != nil {
 			return nil, err
 		}
+		// §12.6：补履约方案不产生退款，执行完成即争议终结并解冻分成明细。
+		if item.SourceType == esportsaftersale.SourceTypeOrder {
+			if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
+				return nil, err
+			}
+		}
 		if err = tx.Commit(); err != nil {
 			return nil, err
 		}
@@ -611,12 +769,16 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	if changed != 1 {
 		return nil, errConflict
 	}
+	refundedOrder, err := tx.EsportsOrder.Get(ctx, order.ID)
+	if err != nil {
+		return nil, err
+	}
 	// 退款额度落账后、同事务按比例冲回陪玩分成（新增 reversal 负数明细，幂等靠 idem_key 唯一索引）。
-	if err = reverseOrderCommission(ctx, tx, order, item, now); err != nil {
+	if err = reverseOrderCommission(ctx, tx, refundedOrder, item, now); err != nil {
 		return nil, err
 	}
 	// 同事务冲回客服提成（§12.2）：结单后部分退款按比例冲回，全额退款冲至零。
-	if err = reverseOrderCsCommission(ctx, tx, order, item, now); err != nil {
+	if err = reverseOrderCsCommission(ctx, tx, refundedOrder, item, now); err != nil {
 		return nil, err
 	}
 	// 退款额度落账后、同事务按退款金额冲回客户成长值并重算等级（§10.2/§10.5）。
@@ -626,6 +788,12 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	// §13.4：赔付由陪玩承担时，同事务另建待审批的陪玩追偿明细。
 	if err = createRecoveryFromAfterSale(ctx, tx, item, adminID); err != nil {
 		return nil, err
+	}
+	// §12.6：执行完成即争议终结，解冻该订单待结算分成明细（退款冲回已单列在退款当期）。
+	if item.SourceType == esportsaftersale.SourceTypeOrder {
+		if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
+			return nil, err
+		}
 	}
 	newVersion := order.Version + 1
 	if err = completeAfterSaleExecution(ctx, tx, id, order.ID, adminID, newVersion, "order.refund_executed",
@@ -662,7 +830,8 @@ func completeAfterSaleExecution(ctx context.Context, tx *ent.Tx, id, orderID, ad
 		SetDetails(details).Save(ctx); err != nil {
 		return err
 	}
-	return nil
+	// §13.5：责任方判定为陪玩的售后执行完成后自动记载陪玩信用（幂等，不自动处罚）。
+	return recordPlayerFaultCredit(ctx, tx, id)
 }
 
 // refundStatusFor 按累计已退额与应付额推导退款状态：退满为 full，否则 partial。

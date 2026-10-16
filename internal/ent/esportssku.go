@@ -29,6 +29,10 @@ type EsportsSku struct {
 	Description string `json:"description"`
 	// UnitPriceCents holds the value of the "unit_price_cents" field.
 	UnitPriceCents int64 `json:"unit_price_cents"`
+	// MinUnitPriceCents holds the value of the "min_unit_price_cents" field.
+	MinUnitPriceCents int64 `json:"min_unit_price_cents"`
+	// AdjustmentApprovalBp holds the value of the "adjustment_approval_bp" field.
+	AdjustmentApprovalBp int `json:"adjustment_approval_bp"`
 	// ServiceUnits holds the value of the "service_units" field.
 	ServiceUnits int64 `json:"service_units"`
 	// ServiceUnitName holds the value of the "service_unit_name" field.
@@ -37,6 +41,8 @@ type EsportsSku struct {
 	RequiredSeats int `json:"required_seats"`
 	// RequiredLevel holds the value of the "required_level" field.
 	RequiredLevel esportssku.RequiredLevel `json:"required_level"`
+	// CloseRuleCode holds the value of the "close_rule_code" field.
+	CloseRuleCode string `json:"close_rule_code"`
 	// QuotaTotal holds the value of the "quota_total" field.
 	QuotaTotal int64 `json:"quota_total"`
 	// QuotaReserved holds the value of the "quota_reserved" field.
@@ -61,9 +67,9 @@ func (*EsportsSku) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldUnitPriceCents, esportssku.FieldServiceUnits, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
+		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldRequiredLevel, esportssku.FieldStatus:
+		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldRequiredLevel, esportssku.FieldCloseRuleCode, esportssku.FieldStatus:
 			values[i] = new(sql.NullString)
 		case esportssku.FieldCreatedAt, esportssku.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -125,6 +131,18 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UnitPriceCents = value.Int64
 			}
+		case esportssku.FieldMinUnitPriceCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field min_unit_price_cents", values[i])
+			} else if value.Valid {
+				_m.MinUnitPriceCents = value.Int64
+			}
+		case esportssku.FieldAdjustmentApprovalBp:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field adjustment_approval_bp", values[i])
+			} else if value.Valid {
+				_m.AdjustmentApprovalBp = int(value.Int64)
+			}
 		case esportssku.FieldServiceUnits:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field service_units", values[i])
@@ -148,6 +166,12 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field required_level", values[i])
 			} else if value.Valid {
 				_m.RequiredLevel = esportssku.RequiredLevel(value.String)
+			}
+		case esportssku.FieldCloseRuleCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field close_rule_code", values[i])
+			} else if value.Valid {
+				_m.CloseRuleCode = value.String
 			}
 		case esportssku.FieldQuotaTotal:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -253,6 +277,12 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString("unit_price_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UnitPriceCents))
 	builder.WriteString(", ")
+	builder.WriteString("min_unit_price_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MinUnitPriceCents))
+	builder.WriteString(", ")
+	builder.WriteString("adjustment_approval_bp=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AdjustmentApprovalBp))
+	builder.WriteString(", ")
 	builder.WriteString("service_units=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ServiceUnits))
 	builder.WriteString(", ")
@@ -264,6 +294,9 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("required_level=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredLevel))
+	builder.WriteString(", ")
+	builder.WriteString("close_rule_code=")
+	builder.WriteString(_m.CloseRuleCode)
 	builder.WriteString(", ")
 	builder.WriteString("quota_total=")
 	builder.WriteString(fmt.Sprintf("%v", _m.QuotaTotal))

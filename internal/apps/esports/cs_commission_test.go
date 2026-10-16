@@ -12,6 +12,8 @@ import (
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscscommissionrule"
+	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/migrate"
 )
@@ -192,6 +194,79 @@ func TestCsCommissionAccrualOnClose(t *testing.T) {
 	if got := db.EsportsCsCommissionEntry.Query().Where(
 		esportscscommissionentry.OrderIDEQ(third.ID)).CountX(ctx); got != 0 {
 		t.Fatalf("无业绩归属客服不应计提，got=%d", got)
+	}
+}
+
+func TestCsCommissionRuleAndOwnerLockedAtPayment(t *testing.T) {
+	db := openCsCommissionDB(t, "esports_cs_payment_snapshot")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	owner := seedAdmin(t, db, "cs-payment-owner")
+	other := seedAdmin(t, db, "cs-payment-other")
+	customer := saveCustomerOrFail(t, db, owner.ID)
+	sku, err := saveSku(ctx, db, skuInput{
+		Code: "CS-LOCK-SKU", Title: "客服提成锁定商品", ServiceType: "play",
+		UnitPriceCents: 1000, ServiceUnits: 1, ServiceUnitName: "局",
+		RequiredSeats: 1, QuotaTotal: 2, Status: "on_sale",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v1, err := createCsCommissionRule(ctx, db, csCommissionRuleInput{
+		RuleNo: "CS-LOCK", Scope: "global", BaseMode: "order_amount",
+		CalcMode: "percent", ValueBp: 1000, Period: "monthly",
+	}, owner.ID, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := activateCsCommissionRule(ctx, db, v1.ID, owner.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	db.SystemConfig.Create().SetKey("app.esports.payment_deadline_minutes").SetName("订单支付时限").
+		SetValue("15").SetType("number").SetGroup("esports").SetStatus(1).SaveX(ctx)
+	order, err := placeOrder(ctx, db, owner.ID,
+		orderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1}, "cs-rule-lock-order", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := walletRecharge(ctx, db, owner.ID, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 1000, Note: "测试充值"}, "cs-rule-lock-wallet"); err != nil {
+		t.Fatal(err)
+	}
+	paid, err := payOrderWithBalance(ctx, db, owner.ID, order.ID, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if paid.CsCommissionRuleLockedAt == nil || paid.CsCommissionRuleID == nil ||
+		*paid.CsCommissionRuleID != v1.ID || paid.CsCommissionAdminID == nil ||
+		*paid.CsCommissionAdminID != owner.ID {
+		t.Fatalf("支付时未锁定客服与规则：%+v", paid)
+	}
+	v2, err := createCsCommissionRule(ctx, db, csCommissionRuleInput{
+		RuleNo: "CS-LOCK", Scope: "global", BaseMode: "order_amount",
+		CalcMode: "percent", ValueBp: 2000, Period: "monthly",
+	}, owner.ID, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := activateCsCommissionRule(ctx, db, v2.ID, owner.ID, now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	db.EsportsOrder.UpdateOneID(order.ID).
+		SetResponsibleAdminID(other.ID).
+		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingClose).SaveX(ctx)
+	db.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(1).SetSeatIndex(1).
+		SetStatus(esportsservicesegment.StatusFinished).SetStartedAt(now).
+		SetEndedAt(now.Add(time.Minute)).SetSystemSeconds(60).SetEvidenceRef("proof.png").SaveX(ctx)
+	if _, err := closeOrder(ctx, db, order.ID, other.ID,
+		closeOrderInput{Note: "结单"}, now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	entry := db.EsportsCsCommissionEntry.Query().OnlyX(ctx)
+	if entry.AdminID != owner.ID || entry.RuleID == nil || *entry.RuleID != v1.ID ||
+		entry.RuleVersion != v1.Version || entry.AmountCents != 100 {
+		t.Fatalf("结单使用了事后客服或新版规则：%+v", entry)
 	}
 }
 

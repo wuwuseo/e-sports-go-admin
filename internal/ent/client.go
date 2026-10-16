@@ -24,6 +24,7 @@ import (
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsaftersalereview"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsassessmentappeal"
@@ -48,6 +49,8 @@ import (
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsfulfillmentmakeup"
 	"go-admin/internal/ent/esportsgift"
+	"go-admin/internal/ent/esportsgiftdispute"
+	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
@@ -56,6 +59,7 @@ import (
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
+	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
 	"go-admin/internal/ent/esportsorderevent"
@@ -63,12 +67,15 @@ import (
 	"go-admin/internal/ent/esportspageasset"
 	"go-admin/internal/ent/esportspagedocument"
 	"go-admin/internal/ent/esportspageversion"
+	"go-admin/internal/ent/esportspaymentaccount"
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayercreditevent"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
+	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
@@ -76,6 +83,7 @@ import (
 	"go-admin/internal/ent/esportsseattransferrequest"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
+	"go-admin/internal/ent/esportssettlementcycle"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
@@ -135,6 +143,8 @@ type Client struct {
 	DictData *DictDataClient
 	// EsportsAfterSale is the client for interacting with the EsportsAfterSale builders.
 	EsportsAfterSale *EsportsAfterSaleClient
+	// EsportsAfterSaleReview is the client for interacting with the EsportsAfterSaleReview builders.
+	EsportsAfterSaleReview *EsportsAfterSaleReviewClient
 	// EsportsAgeCheck is the client for interacting with the EsportsAgeCheck builders.
 	EsportsAgeCheck *EsportsAgeCheckClient
 	// EsportsAssessment is the client for interacting with the EsportsAssessment builders.
@@ -183,6 +193,10 @@ type Client struct {
 	EsportsFulfillmentMakeup *EsportsFulfillmentMakeupClient
 	// EsportsGift is the client for interacting with the EsportsGift builders.
 	EsportsGift *EsportsGiftClient
+	// EsportsGiftDispute is the client for interacting with the EsportsGiftDispute builders.
+	EsportsGiftDispute *EsportsGiftDisputeClient
+	// EsportsGiftIntent is the client for interacting with the EsportsGiftIntent builders.
+	EsportsGiftIntent *EsportsGiftIntentClient
 	// EsportsGiftOrder is the client for interacting with the EsportsGiftOrder builders.
 	EsportsGiftOrder *EsportsGiftOrderClient
 	// EsportsGrowthLedger is the client for interacting with the EsportsGrowthLedger builders.
@@ -199,6 +213,8 @@ type Client struct {
 	EsportsMemberLevelOverride *EsportsMemberLevelOverrideClient
 	// EsportsMemberLevelRule is the client for interacting with the EsportsMemberLevelRule builders.
 	EsportsMemberLevelRule *EsportsMemberLevelRuleClient
+	// EsportsOfflinePaymentProof is the client for interacting with the EsportsOfflinePaymentProof builders.
+	EsportsOfflinePaymentProof *EsportsOfflinePaymentProofClient
 	// EsportsOrder is the client for interacting with the EsportsOrder builders.
 	EsportsOrder *EsportsOrderClient
 	// EsportsOrderAddon is the client for interacting with the EsportsOrderAddon builders.
@@ -213,18 +229,24 @@ type Client struct {
 	EsportsPageDocument *EsportsPageDocumentClient
 	// EsportsPageVersion is the client for interacting with the EsportsPageVersion builders.
 	EsportsPageVersion *EsportsPageVersionClient
+	// EsportsPaymentAccount is the client for interacting with the EsportsPaymentAccount builders.
+	EsportsPaymentAccount *EsportsPaymentAccountClient
 	// EsportsPaymentIntent is the client for interacting with the EsportsPaymentIntent builders.
 	EsportsPaymentIntent *EsportsPaymentIntentClient
 	// EsportsPaymentReceipt is the client for interacting with the EsportsPaymentReceipt builders.
 	EsportsPaymentReceipt *EsportsPaymentReceiptClient
 	// EsportsPlayer is the client for interacting with the EsportsPlayer builders.
 	EsportsPlayer *EsportsPlayerClient
+	// EsportsPlayerCreditEvent is the client for interacting with the EsportsPlayerCreditEvent builders.
+	EsportsPlayerCreditEvent *EsportsPlayerCreditEventClient
 	// EsportsPlayerRecovery is the client for interacting with the EsportsPlayerRecovery builders.
 	EsportsPlayerRecovery *EsportsPlayerRecoveryClient
 	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
 	EsportsPlayerReview *EsportsPlayerReviewClient
 	// EsportsPlayerReviewRevision is the client for interacting with the EsportsPlayerReviewRevision builders.
 	EsportsPlayerReviewRevision *EsportsPlayerReviewRevisionClient
+	// EsportsPriceAdjustment is the client for interacting with the EsportsPriceAdjustment builders.
+	EsportsPriceAdjustment *EsportsPriceAdjustmentClient
 	// EsportsProductCategory is the client for interacting with the EsportsProductCategory builders.
 	EsportsProductCategory *EsportsProductCategoryClient
 	// EsportsQuotaHold is the client for interacting with the EsportsQuotaHold builders.
@@ -239,6 +261,8 @@ type Client struct {
 	EsportsServiceSegment *EsportsServiceSegmentClient
 	// EsportsSettlement is the client for interacting with the EsportsSettlement builders.
 	EsportsSettlement *EsportsSettlementClient
+	// EsportsSettlementCycle is the client for interacting with the EsportsSettlementCycle builders.
+	EsportsSettlementCycle *EsportsSettlementCycleClient
 	// EsportsSku is the client for interacting with the EsportsSku builders.
 	EsportsSku *EsportsSkuClient
 	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
@@ -305,6 +329,7 @@ func (c *Client) init() {
 	c.Department = NewDepartmentClient(c.config)
 	c.DictData = NewDictDataClient(c.config)
 	c.EsportsAfterSale = NewEsportsAfterSaleClient(c.config)
+	c.EsportsAfterSaleReview = NewEsportsAfterSaleReviewClient(c.config)
 	c.EsportsAgeCheck = NewEsportsAgeCheckClient(c.config)
 	c.EsportsAssessment = NewEsportsAssessmentClient(c.config)
 	c.EsportsAssessmentAppeal = NewEsportsAssessmentAppealClient(c.config)
@@ -329,6 +354,8 @@ func (c *Client) init() {
 	c.EsportsDispatchSeat = NewEsportsDispatchSeatClient(c.config)
 	c.EsportsFulfillmentMakeup = NewEsportsFulfillmentMakeupClient(c.config)
 	c.EsportsGift = NewEsportsGiftClient(c.config)
+	c.EsportsGiftDispute = NewEsportsGiftDisputeClient(c.config)
+	c.EsportsGiftIntent = NewEsportsGiftIntentClient(c.config)
 	c.EsportsGiftOrder = NewEsportsGiftOrderClient(c.config)
 	c.EsportsGrowthLedger = NewEsportsGrowthLedgerClient(c.config)
 	c.EsportsIdempotency = NewEsportsIdempotencyClient(c.config)
@@ -337,6 +364,7 @@ func (c *Client) init() {
 	c.EsportsLedgerEntry = NewEsportsLedgerEntryClient(c.config)
 	c.EsportsMemberLevelOverride = NewEsportsMemberLevelOverrideClient(c.config)
 	c.EsportsMemberLevelRule = NewEsportsMemberLevelRuleClient(c.config)
+	c.EsportsOfflinePaymentProof = NewEsportsOfflinePaymentProofClient(c.config)
 	c.EsportsOrder = NewEsportsOrderClient(c.config)
 	c.EsportsOrderAddon = NewEsportsOrderAddonClient(c.config)
 	c.EsportsOrderEvent = NewEsportsOrderEventClient(c.config)
@@ -344,12 +372,15 @@ func (c *Client) init() {
 	c.EsportsPageAsset = NewEsportsPageAssetClient(c.config)
 	c.EsportsPageDocument = NewEsportsPageDocumentClient(c.config)
 	c.EsportsPageVersion = NewEsportsPageVersionClient(c.config)
+	c.EsportsPaymentAccount = NewEsportsPaymentAccountClient(c.config)
 	c.EsportsPaymentIntent = NewEsportsPaymentIntentClient(c.config)
 	c.EsportsPaymentReceipt = NewEsportsPaymentReceiptClient(c.config)
 	c.EsportsPlayer = NewEsportsPlayerClient(c.config)
+	c.EsportsPlayerCreditEvent = NewEsportsPlayerCreditEventClient(c.config)
 	c.EsportsPlayerRecovery = NewEsportsPlayerRecoveryClient(c.config)
 	c.EsportsPlayerReview = NewEsportsPlayerReviewClient(c.config)
 	c.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(c.config)
+	c.EsportsPriceAdjustment = NewEsportsPriceAdjustmentClient(c.config)
 	c.EsportsProductCategory = NewEsportsProductCategoryClient(c.config)
 	c.EsportsQuotaHold = NewEsportsQuotaHoldClient(c.config)
 	c.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(c.config)
@@ -357,6 +388,7 @@ func (c *Client) init() {
 	c.EsportsSeatTransferRequest = NewEsportsSeatTransferRequestClient(c.config)
 	c.EsportsServiceSegment = NewEsportsServiceSegmentClient(c.config)
 	c.EsportsSettlement = NewEsportsSettlementClient(c.config)
+	c.EsportsSettlementCycle = NewEsportsSettlementCycleClient(c.config)
 	c.EsportsSku = NewEsportsSkuClient(c.config)
 	c.EsportsStoredValueCard = NewEsportsStoredValueCardClient(c.config)
 	c.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(c.config)
@@ -483,6 +515,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Department:                    NewDepartmentClient(cfg),
 		DictData:                      NewDictDataClient(cfg),
 		EsportsAfterSale:              NewEsportsAfterSaleClient(cfg),
+		EsportsAfterSaleReview:        NewEsportsAfterSaleReviewClient(cfg),
 		EsportsAgeCheck:               NewEsportsAgeCheckClient(cfg),
 		EsportsAssessment:             NewEsportsAssessmentClient(cfg),
 		EsportsAssessmentAppeal:       NewEsportsAssessmentAppealClient(cfg),
@@ -507,6 +540,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsDispatchSeat:           NewEsportsDispatchSeatClient(cfg),
 		EsportsFulfillmentMakeup:      NewEsportsFulfillmentMakeupClient(cfg),
 		EsportsGift:                   NewEsportsGiftClient(cfg),
+		EsportsGiftDispute:            NewEsportsGiftDisputeClient(cfg),
+		EsportsGiftIntent:             NewEsportsGiftIntentClient(cfg),
 		EsportsGiftOrder:              NewEsportsGiftOrderClient(cfg),
 		EsportsGrowthLedger:           NewEsportsGrowthLedgerClient(cfg),
 		EsportsIdempotency:            NewEsportsIdempotencyClient(cfg),
@@ -515,6 +550,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsLedgerEntry:            NewEsportsLedgerEntryClient(cfg),
 		EsportsMemberLevelOverride:    NewEsportsMemberLevelOverrideClient(cfg),
 		EsportsMemberLevelRule:        NewEsportsMemberLevelRuleClient(cfg),
+		EsportsOfflinePaymentProof:    NewEsportsOfflinePaymentProofClient(cfg),
 		EsportsOrder:                  NewEsportsOrderClient(cfg),
 		EsportsOrderAddon:             NewEsportsOrderAddonClient(cfg),
 		EsportsOrderEvent:             NewEsportsOrderEventClient(cfg),
@@ -522,12 +558,15 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsPageAsset:              NewEsportsPageAssetClient(cfg),
 		EsportsPageDocument:           NewEsportsPageDocumentClient(cfg),
 		EsportsPageVersion:            NewEsportsPageVersionClient(cfg),
+		EsportsPaymentAccount:         NewEsportsPaymentAccountClient(cfg),
 		EsportsPaymentIntent:          NewEsportsPaymentIntentClient(cfg),
 		EsportsPaymentReceipt:         NewEsportsPaymentReceiptClient(cfg),
 		EsportsPlayer:                 NewEsportsPlayerClient(cfg),
+		EsportsPlayerCreditEvent:      NewEsportsPlayerCreditEventClient(cfg),
 		EsportsPlayerRecovery:         NewEsportsPlayerRecoveryClient(cfg),
 		EsportsPlayerReview:           NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewRevision:   NewEsportsPlayerReviewRevisionClient(cfg),
+		EsportsPriceAdjustment:        NewEsportsPriceAdjustmentClient(cfg),
 		EsportsProductCategory:        NewEsportsProductCategoryClient(cfg),
 		EsportsQuotaHold:              NewEsportsQuotaHoldClient(cfg),
 		EsportsRechargeCampaign:       NewEsportsRechargeCampaignClient(cfg),
@@ -535,6 +574,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsSeatTransferRequest:    NewEsportsSeatTransferRequestClient(cfg),
 		EsportsServiceSegment:         NewEsportsServiceSegmentClient(cfg),
 		EsportsSettlement:             NewEsportsSettlementClient(cfg),
+		EsportsSettlementCycle:        NewEsportsSettlementCycleClient(cfg),
 		EsportsSku:                    NewEsportsSkuClient(cfg),
 		EsportsStoredValueCard:        NewEsportsStoredValueCardClient(cfg),
 		EsportsStoredValuePackage:     NewEsportsStoredValuePackageClient(cfg),
@@ -588,6 +628,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Department:                    NewDepartmentClient(cfg),
 		DictData:                      NewDictDataClient(cfg),
 		EsportsAfterSale:              NewEsportsAfterSaleClient(cfg),
+		EsportsAfterSaleReview:        NewEsportsAfterSaleReviewClient(cfg),
 		EsportsAgeCheck:               NewEsportsAgeCheckClient(cfg),
 		EsportsAssessment:             NewEsportsAssessmentClient(cfg),
 		EsportsAssessmentAppeal:       NewEsportsAssessmentAppealClient(cfg),
@@ -612,6 +653,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsDispatchSeat:           NewEsportsDispatchSeatClient(cfg),
 		EsportsFulfillmentMakeup:      NewEsportsFulfillmentMakeupClient(cfg),
 		EsportsGift:                   NewEsportsGiftClient(cfg),
+		EsportsGiftDispute:            NewEsportsGiftDisputeClient(cfg),
+		EsportsGiftIntent:             NewEsportsGiftIntentClient(cfg),
 		EsportsGiftOrder:              NewEsportsGiftOrderClient(cfg),
 		EsportsGrowthLedger:           NewEsportsGrowthLedgerClient(cfg),
 		EsportsIdempotency:            NewEsportsIdempotencyClient(cfg),
@@ -620,6 +663,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsLedgerEntry:            NewEsportsLedgerEntryClient(cfg),
 		EsportsMemberLevelOverride:    NewEsportsMemberLevelOverrideClient(cfg),
 		EsportsMemberLevelRule:        NewEsportsMemberLevelRuleClient(cfg),
+		EsportsOfflinePaymentProof:    NewEsportsOfflinePaymentProofClient(cfg),
 		EsportsOrder:                  NewEsportsOrderClient(cfg),
 		EsportsOrderAddon:             NewEsportsOrderAddonClient(cfg),
 		EsportsOrderEvent:             NewEsportsOrderEventClient(cfg),
@@ -627,12 +671,15 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsPageAsset:              NewEsportsPageAssetClient(cfg),
 		EsportsPageDocument:           NewEsportsPageDocumentClient(cfg),
 		EsportsPageVersion:            NewEsportsPageVersionClient(cfg),
+		EsportsPaymentAccount:         NewEsportsPaymentAccountClient(cfg),
 		EsportsPaymentIntent:          NewEsportsPaymentIntentClient(cfg),
 		EsportsPaymentReceipt:         NewEsportsPaymentReceiptClient(cfg),
 		EsportsPlayer:                 NewEsportsPlayerClient(cfg),
+		EsportsPlayerCreditEvent:      NewEsportsPlayerCreditEventClient(cfg),
 		EsportsPlayerRecovery:         NewEsportsPlayerRecoveryClient(cfg),
 		EsportsPlayerReview:           NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewRevision:   NewEsportsPlayerReviewRevisionClient(cfg),
+		EsportsPriceAdjustment:        NewEsportsPriceAdjustmentClient(cfg),
 		EsportsProductCategory:        NewEsportsProductCategoryClient(cfg),
 		EsportsQuotaHold:              NewEsportsQuotaHoldClient(cfg),
 		EsportsRechargeCampaign:       NewEsportsRechargeCampaignClient(cfg),
@@ -640,6 +687,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsSeatTransferRequest:    NewEsportsSeatTransferRequestClient(cfg),
 		EsportsServiceSegment:         NewEsportsServiceSegmentClient(cfg),
 		EsportsSettlement:             NewEsportsSettlementClient(cfg),
+		EsportsSettlementCycle:        NewEsportsSettlementCycleClient(cfg),
 		EsportsSku:                    NewEsportsSkuClient(cfg),
 		EsportsStoredValueCard:        NewEsportsStoredValueCardClient(cfg),
 		EsportsStoredValuePackage:     NewEsportsStoredValuePackageClient(cfg),
@@ -692,31 +740,33 @@ func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
 		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
-		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
-		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
-		c.EsportsAssessmentScore, c.EsportsCloseApproval, c.EsportsCloseApprovalFlow,
-		c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
-		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCloseSubmitRule,
-		c.EsportsCommissionEntry, c.EsportsCommissionRule, c.EsportsConfirmation,
-		c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule, c.EsportsCustomer,
-		c.EsportsCustomerFollowUp, c.EsportsDispatchPriorityGrant,
+		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAfterSaleReview,
+		c.EsportsAgeCheck, c.EsportsAssessment, c.EsportsAssessmentAppeal,
+		c.EsportsAssessmentRule, c.EsportsAssessmentScore, c.EsportsCloseApproval,
+		c.EsportsCloseApprovalFlow, c.EsportsCloseFormField,
+		c.EsportsCloseFormSnapshot, c.EsportsCloseFormTemplate, c.EsportsCloseRule,
+		c.EsportsCloseSubmitRule, c.EsportsCommissionEntry, c.EsportsCommissionRule,
+		c.EsportsConfirmation, c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule,
+		c.EsportsCustomer, c.EsportsCustomerFollowUp, c.EsportsDispatchPriorityGrant,
 		c.EsportsDispatchPriorityNotice, c.EsportsDispatchSeat,
-		c.EsportsFulfillmentMakeup, c.EsportsGift, c.EsportsGiftOrder,
-		c.EsportsGrowthLedger, c.EsportsIdempotency, c.EsportsIdentityBinding,
-		c.EsportsLedgerAllocation, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
-		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
+		c.EsportsFulfillmentMakeup, c.EsportsGift, c.EsportsGiftDispute,
+		c.EsportsGiftIntent, c.EsportsGiftOrder, c.EsportsGrowthLedger,
+		c.EsportsIdempotency, c.EsportsIdentityBinding, c.EsportsLedgerAllocation,
+		c.EsportsLedgerEntry, c.EsportsMemberLevelOverride, c.EsportsMemberLevelRule,
+		c.EsportsOfflinePaymentProof, c.EsportsOrder, c.EsportsOrderAddon,
 		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
-		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
-		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerRecovery,
-		c.EsportsPlayerReview, c.EsportsPlayerReviewRevision, c.EsportsProductCategory,
-		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsScript,
-		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
-		c.EsportsSku, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
-		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
-		c.EsportsWithdrawal, c.LoginLog, c.Message, c.MessagePreference,
-		c.OAuthProviderConfig, c.OAuthSession, c.OperationLog, c.Plugin, c.Role,
-		c.Slide, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
-		c.UserRole,
+		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentAccount,
+		c.EsportsPaymentIntent, c.EsportsPaymentReceipt, c.EsportsPlayer,
+		c.EsportsPlayerCreditEvent, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
+		c.EsportsPlayerReviewRevision, c.EsportsPriceAdjustment,
+		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
+		c.EsportsScript, c.EsportsSeatTransferRequest, c.EsportsServiceSegment,
+		c.EsportsSettlement, c.EsportsSettlementCycle, c.EsportsSku,
+		c.EsportsStoredValueCard, c.EsportsStoredValuePackage, c.EsportsTeammate,
+		c.EsportsWalletAccount, c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
 	}
@@ -728,31 +778,33 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.Admin, c.AdminRole, c.AdminThirdPartyUser, c.Attachment, c.AttachmentGroup,
 		c.Blacklist, c.CasbinRule, c.CmsCategory, c.CmsContent, c.CronJob,
-		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAgeCheck,
-		c.EsportsAssessment, c.EsportsAssessmentAppeal, c.EsportsAssessmentRule,
-		c.EsportsAssessmentScore, c.EsportsCloseApproval, c.EsportsCloseApprovalFlow,
-		c.EsportsCloseFormField, c.EsportsCloseFormSnapshot,
-		c.EsportsCloseFormTemplate, c.EsportsCloseRule, c.EsportsCloseSubmitRule,
-		c.EsportsCommissionEntry, c.EsportsCommissionRule, c.EsportsConfirmation,
-		c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule, c.EsportsCustomer,
-		c.EsportsCustomerFollowUp, c.EsportsDispatchPriorityGrant,
+		c.Department, c.DictData, c.EsportsAfterSale, c.EsportsAfterSaleReview,
+		c.EsportsAgeCheck, c.EsportsAssessment, c.EsportsAssessmentAppeal,
+		c.EsportsAssessmentRule, c.EsportsAssessmentScore, c.EsportsCloseApproval,
+		c.EsportsCloseApprovalFlow, c.EsportsCloseFormField,
+		c.EsportsCloseFormSnapshot, c.EsportsCloseFormTemplate, c.EsportsCloseRule,
+		c.EsportsCloseSubmitRule, c.EsportsCommissionEntry, c.EsportsCommissionRule,
+		c.EsportsConfirmation, c.EsportsCsCommissionEntry, c.EsportsCsCommissionRule,
+		c.EsportsCustomer, c.EsportsCustomerFollowUp, c.EsportsDispatchPriorityGrant,
 		c.EsportsDispatchPriorityNotice, c.EsportsDispatchSeat,
-		c.EsportsFulfillmentMakeup, c.EsportsGift, c.EsportsGiftOrder,
-		c.EsportsGrowthLedger, c.EsportsIdempotency, c.EsportsIdentityBinding,
-		c.EsportsLedgerAllocation, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
-		c.EsportsMemberLevelRule, c.EsportsOrder, c.EsportsOrderAddon,
+		c.EsportsFulfillmentMakeup, c.EsportsGift, c.EsportsGiftDispute,
+		c.EsportsGiftIntent, c.EsportsGiftOrder, c.EsportsGrowthLedger,
+		c.EsportsIdempotency, c.EsportsIdentityBinding, c.EsportsLedgerAllocation,
+		c.EsportsLedgerEntry, c.EsportsMemberLevelOverride, c.EsportsMemberLevelRule,
+		c.EsportsOfflinePaymentProof, c.EsportsOrder, c.EsportsOrderAddon,
 		c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
-		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentIntent,
-		c.EsportsPaymentReceipt, c.EsportsPlayer, c.EsportsPlayerRecovery,
-		c.EsportsPlayerReview, c.EsportsPlayerReviewRevision, c.EsportsProductCategory,
-		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsScript,
-		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
-		c.EsportsSku, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
-		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
-		c.EsportsWithdrawal, c.LoginLog, c.Message, c.MessagePreference,
-		c.OAuthProviderConfig, c.OAuthSession, c.OperationLog, c.Plugin, c.Role,
-		c.Slide, c.SystemConfig, c.SystemPermission, c.ThirdPartyUser, c.User,
-		c.UserRole,
+		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentAccount,
+		c.EsportsPaymentIntent, c.EsportsPaymentReceipt, c.EsportsPlayer,
+		c.EsportsPlayerCreditEvent, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
+		c.EsportsPlayerReviewRevision, c.EsportsPriceAdjustment,
+		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
+		c.EsportsScript, c.EsportsSeatTransferRequest, c.EsportsServiceSegment,
+		c.EsportsSettlement, c.EsportsSettlementCycle, c.EsportsSku,
+		c.EsportsStoredValueCard, c.EsportsStoredValuePackage, c.EsportsTeammate,
+		c.EsportsWalletAccount, c.EsportsWalletTx, c.EsportsWithdrawal, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -787,6 +839,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.DictData.mutate(ctx, m)
 	case *EsportsAfterSaleMutation:
 		return c.EsportsAfterSale.mutate(ctx, m)
+	case *EsportsAfterSaleReviewMutation:
+		return c.EsportsAfterSaleReview.mutate(ctx, m)
 	case *EsportsAgeCheckMutation:
 		return c.EsportsAgeCheck.mutate(ctx, m)
 	case *EsportsAssessmentMutation:
@@ -835,6 +889,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsFulfillmentMakeup.mutate(ctx, m)
 	case *EsportsGiftMutation:
 		return c.EsportsGift.mutate(ctx, m)
+	case *EsportsGiftDisputeMutation:
+		return c.EsportsGiftDispute.mutate(ctx, m)
+	case *EsportsGiftIntentMutation:
+		return c.EsportsGiftIntent.mutate(ctx, m)
 	case *EsportsGiftOrderMutation:
 		return c.EsportsGiftOrder.mutate(ctx, m)
 	case *EsportsGrowthLedgerMutation:
@@ -851,6 +909,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsMemberLevelOverride.mutate(ctx, m)
 	case *EsportsMemberLevelRuleMutation:
 		return c.EsportsMemberLevelRule.mutate(ctx, m)
+	case *EsportsOfflinePaymentProofMutation:
+		return c.EsportsOfflinePaymentProof.mutate(ctx, m)
 	case *EsportsOrderMutation:
 		return c.EsportsOrder.mutate(ctx, m)
 	case *EsportsOrderAddonMutation:
@@ -865,18 +925,24 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsPageDocument.mutate(ctx, m)
 	case *EsportsPageVersionMutation:
 		return c.EsportsPageVersion.mutate(ctx, m)
+	case *EsportsPaymentAccountMutation:
+		return c.EsportsPaymentAccount.mutate(ctx, m)
 	case *EsportsPaymentIntentMutation:
 		return c.EsportsPaymentIntent.mutate(ctx, m)
 	case *EsportsPaymentReceiptMutation:
 		return c.EsportsPaymentReceipt.mutate(ctx, m)
 	case *EsportsPlayerMutation:
 		return c.EsportsPlayer.mutate(ctx, m)
+	case *EsportsPlayerCreditEventMutation:
+		return c.EsportsPlayerCreditEvent.mutate(ctx, m)
 	case *EsportsPlayerRecoveryMutation:
 		return c.EsportsPlayerRecovery.mutate(ctx, m)
 	case *EsportsPlayerReviewMutation:
 		return c.EsportsPlayerReview.mutate(ctx, m)
 	case *EsportsPlayerReviewRevisionMutation:
 		return c.EsportsPlayerReviewRevision.mutate(ctx, m)
+	case *EsportsPriceAdjustmentMutation:
+		return c.EsportsPriceAdjustment.mutate(ctx, m)
 	case *EsportsProductCategoryMutation:
 		return c.EsportsProductCategory.mutate(ctx, m)
 	case *EsportsQuotaHoldMutation:
@@ -891,6 +957,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsServiceSegment.mutate(ctx, m)
 	case *EsportsSettlementMutation:
 		return c.EsportsSettlement.mutate(ctx, m)
+	case *EsportsSettlementCycleMutation:
+		return c.EsportsSettlementCycle.mutate(ctx, m)
 	case *EsportsSkuMutation:
 		return c.EsportsSku.mutate(ctx, m)
 	case *EsportsStoredValueCardMutation:
@@ -2792,6 +2860,139 @@ func (c *EsportsAfterSaleClient) mutate(ctx context.Context, m *EsportsAfterSale
 		return (&EsportsAfterSaleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsAfterSale mutation op: %q", m.Op())
+	}
+}
+
+// EsportsAfterSaleReviewClient is a client for the EsportsAfterSaleReview schema.
+type EsportsAfterSaleReviewClient struct {
+	config
+}
+
+// NewEsportsAfterSaleReviewClient returns a client for the EsportsAfterSaleReview from the given config.
+func NewEsportsAfterSaleReviewClient(c config) *EsportsAfterSaleReviewClient {
+	return &EsportsAfterSaleReviewClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsaftersalereview.Hooks(f(g(h())))`.
+func (c *EsportsAfterSaleReviewClient) Use(hooks ...Hook) {
+	c.hooks.EsportsAfterSaleReview = append(c.hooks.EsportsAfterSaleReview, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsaftersalereview.Intercept(f(g(h())))`.
+func (c *EsportsAfterSaleReviewClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsAfterSaleReview = append(c.inters.EsportsAfterSaleReview, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsAfterSaleReview entity.
+func (c *EsportsAfterSaleReviewClient) Create() *EsportsAfterSaleReviewCreate {
+	mutation := newEsportsAfterSaleReviewMutation(c.config, OpCreate)
+	return &EsportsAfterSaleReviewCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsAfterSaleReview entities.
+func (c *EsportsAfterSaleReviewClient) CreateBulk(builders ...*EsportsAfterSaleReviewCreate) *EsportsAfterSaleReviewCreateBulk {
+	return &EsportsAfterSaleReviewCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsAfterSaleReviewClient) MapCreateBulk(slice any, setFunc func(*EsportsAfterSaleReviewCreate, int)) *EsportsAfterSaleReviewCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsAfterSaleReviewCreateBulk{err: fmt.Errorf("calling to EsportsAfterSaleReviewClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsAfterSaleReviewCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsAfterSaleReviewCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsAfterSaleReview.
+func (c *EsportsAfterSaleReviewClient) Update() *EsportsAfterSaleReviewUpdate {
+	mutation := newEsportsAfterSaleReviewMutation(c.config, OpUpdate)
+	return &EsportsAfterSaleReviewUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsAfterSaleReviewClient) UpdateOne(_m *EsportsAfterSaleReview) *EsportsAfterSaleReviewUpdateOne {
+	mutation := newEsportsAfterSaleReviewMutation(c.config, OpUpdateOne, withEsportsAfterSaleReview(_m))
+	return &EsportsAfterSaleReviewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsAfterSaleReviewClient) UpdateOneID(id int) *EsportsAfterSaleReviewUpdateOne {
+	mutation := newEsportsAfterSaleReviewMutation(c.config, OpUpdateOne, withEsportsAfterSaleReviewID(id))
+	return &EsportsAfterSaleReviewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsAfterSaleReview.
+func (c *EsportsAfterSaleReviewClient) Delete() *EsportsAfterSaleReviewDelete {
+	mutation := newEsportsAfterSaleReviewMutation(c.config, OpDelete)
+	return &EsportsAfterSaleReviewDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsAfterSaleReviewClient) DeleteOne(_m *EsportsAfterSaleReview) *EsportsAfterSaleReviewDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsAfterSaleReviewClient) DeleteOneID(id int) *EsportsAfterSaleReviewDeleteOne {
+	builder := c.Delete().Where(esportsaftersalereview.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsAfterSaleReviewDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsAfterSaleReview.
+func (c *EsportsAfterSaleReviewClient) Query() *EsportsAfterSaleReviewQuery {
+	return &EsportsAfterSaleReviewQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsAfterSaleReview},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsAfterSaleReview entity by its id.
+func (c *EsportsAfterSaleReviewClient) Get(ctx context.Context, id int) (*EsportsAfterSaleReview, error) {
+	return c.Query().Where(esportsaftersalereview.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsAfterSaleReviewClient) GetX(ctx context.Context, id int) *EsportsAfterSaleReview {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsAfterSaleReviewClient) Hooks() []Hook {
+	return c.hooks.EsportsAfterSaleReview
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsAfterSaleReviewClient) Interceptors() []Interceptor {
+	return c.inters.EsportsAfterSaleReview
+}
+
+func (c *EsportsAfterSaleReviewClient) mutate(ctx context.Context, m *EsportsAfterSaleReviewMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsAfterSaleReviewCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsAfterSaleReviewUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsAfterSaleReviewUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsAfterSaleReviewDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsAfterSaleReview mutation op: %q", m.Op())
 	}
 }
 
@@ -5988,6 +6189,272 @@ func (c *EsportsGiftClient) mutate(ctx context.Context, m *EsportsGiftMutation) 
 	}
 }
 
+// EsportsGiftDisputeClient is a client for the EsportsGiftDispute schema.
+type EsportsGiftDisputeClient struct {
+	config
+}
+
+// NewEsportsGiftDisputeClient returns a client for the EsportsGiftDispute from the given config.
+func NewEsportsGiftDisputeClient(c config) *EsportsGiftDisputeClient {
+	return &EsportsGiftDisputeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsgiftdispute.Hooks(f(g(h())))`.
+func (c *EsportsGiftDisputeClient) Use(hooks ...Hook) {
+	c.hooks.EsportsGiftDispute = append(c.hooks.EsportsGiftDispute, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsgiftdispute.Intercept(f(g(h())))`.
+func (c *EsportsGiftDisputeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsGiftDispute = append(c.inters.EsportsGiftDispute, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsGiftDispute entity.
+func (c *EsportsGiftDisputeClient) Create() *EsportsGiftDisputeCreate {
+	mutation := newEsportsGiftDisputeMutation(c.config, OpCreate)
+	return &EsportsGiftDisputeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsGiftDispute entities.
+func (c *EsportsGiftDisputeClient) CreateBulk(builders ...*EsportsGiftDisputeCreate) *EsportsGiftDisputeCreateBulk {
+	return &EsportsGiftDisputeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsGiftDisputeClient) MapCreateBulk(slice any, setFunc func(*EsportsGiftDisputeCreate, int)) *EsportsGiftDisputeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsGiftDisputeCreateBulk{err: fmt.Errorf("calling to EsportsGiftDisputeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsGiftDisputeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsGiftDisputeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsGiftDispute.
+func (c *EsportsGiftDisputeClient) Update() *EsportsGiftDisputeUpdate {
+	mutation := newEsportsGiftDisputeMutation(c.config, OpUpdate)
+	return &EsportsGiftDisputeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsGiftDisputeClient) UpdateOne(_m *EsportsGiftDispute) *EsportsGiftDisputeUpdateOne {
+	mutation := newEsportsGiftDisputeMutation(c.config, OpUpdateOne, withEsportsGiftDispute(_m))
+	return &EsportsGiftDisputeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsGiftDisputeClient) UpdateOneID(id int) *EsportsGiftDisputeUpdateOne {
+	mutation := newEsportsGiftDisputeMutation(c.config, OpUpdateOne, withEsportsGiftDisputeID(id))
+	return &EsportsGiftDisputeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsGiftDispute.
+func (c *EsportsGiftDisputeClient) Delete() *EsportsGiftDisputeDelete {
+	mutation := newEsportsGiftDisputeMutation(c.config, OpDelete)
+	return &EsportsGiftDisputeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsGiftDisputeClient) DeleteOne(_m *EsportsGiftDispute) *EsportsGiftDisputeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsGiftDisputeClient) DeleteOneID(id int) *EsportsGiftDisputeDeleteOne {
+	builder := c.Delete().Where(esportsgiftdispute.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsGiftDisputeDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsGiftDispute.
+func (c *EsportsGiftDisputeClient) Query() *EsportsGiftDisputeQuery {
+	return &EsportsGiftDisputeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsGiftDispute},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsGiftDispute entity by its id.
+func (c *EsportsGiftDisputeClient) Get(ctx context.Context, id int) (*EsportsGiftDispute, error) {
+	return c.Query().Where(esportsgiftdispute.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsGiftDisputeClient) GetX(ctx context.Context, id int) *EsportsGiftDispute {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsGiftDisputeClient) Hooks() []Hook {
+	return c.hooks.EsportsGiftDispute
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsGiftDisputeClient) Interceptors() []Interceptor {
+	return c.inters.EsportsGiftDispute
+}
+
+func (c *EsportsGiftDisputeClient) mutate(ctx context.Context, m *EsportsGiftDisputeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsGiftDisputeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsGiftDisputeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsGiftDisputeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsGiftDisputeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsGiftDispute mutation op: %q", m.Op())
+	}
+}
+
+// EsportsGiftIntentClient is a client for the EsportsGiftIntent schema.
+type EsportsGiftIntentClient struct {
+	config
+}
+
+// NewEsportsGiftIntentClient returns a client for the EsportsGiftIntent from the given config.
+func NewEsportsGiftIntentClient(c config) *EsportsGiftIntentClient {
+	return &EsportsGiftIntentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsgiftintent.Hooks(f(g(h())))`.
+func (c *EsportsGiftIntentClient) Use(hooks ...Hook) {
+	c.hooks.EsportsGiftIntent = append(c.hooks.EsportsGiftIntent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsgiftintent.Intercept(f(g(h())))`.
+func (c *EsportsGiftIntentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsGiftIntent = append(c.inters.EsportsGiftIntent, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsGiftIntent entity.
+func (c *EsportsGiftIntentClient) Create() *EsportsGiftIntentCreate {
+	mutation := newEsportsGiftIntentMutation(c.config, OpCreate)
+	return &EsportsGiftIntentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsGiftIntent entities.
+func (c *EsportsGiftIntentClient) CreateBulk(builders ...*EsportsGiftIntentCreate) *EsportsGiftIntentCreateBulk {
+	return &EsportsGiftIntentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsGiftIntentClient) MapCreateBulk(slice any, setFunc func(*EsportsGiftIntentCreate, int)) *EsportsGiftIntentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsGiftIntentCreateBulk{err: fmt.Errorf("calling to EsportsGiftIntentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsGiftIntentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsGiftIntentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsGiftIntent.
+func (c *EsportsGiftIntentClient) Update() *EsportsGiftIntentUpdate {
+	mutation := newEsportsGiftIntentMutation(c.config, OpUpdate)
+	return &EsportsGiftIntentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsGiftIntentClient) UpdateOne(_m *EsportsGiftIntent) *EsportsGiftIntentUpdateOne {
+	mutation := newEsportsGiftIntentMutation(c.config, OpUpdateOne, withEsportsGiftIntent(_m))
+	return &EsportsGiftIntentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsGiftIntentClient) UpdateOneID(id int) *EsportsGiftIntentUpdateOne {
+	mutation := newEsportsGiftIntentMutation(c.config, OpUpdateOne, withEsportsGiftIntentID(id))
+	return &EsportsGiftIntentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsGiftIntent.
+func (c *EsportsGiftIntentClient) Delete() *EsportsGiftIntentDelete {
+	mutation := newEsportsGiftIntentMutation(c.config, OpDelete)
+	return &EsportsGiftIntentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsGiftIntentClient) DeleteOne(_m *EsportsGiftIntent) *EsportsGiftIntentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsGiftIntentClient) DeleteOneID(id int) *EsportsGiftIntentDeleteOne {
+	builder := c.Delete().Where(esportsgiftintent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsGiftIntentDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsGiftIntent.
+func (c *EsportsGiftIntentClient) Query() *EsportsGiftIntentQuery {
+	return &EsportsGiftIntentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsGiftIntent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsGiftIntent entity by its id.
+func (c *EsportsGiftIntentClient) Get(ctx context.Context, id int) (*EsportsGiftIntent, error) {
+	return c.Query().Where(esportsgiftintent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsGiftIntentClient) GetX(ctx context.Context, id int) *EsportsGiftIntent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsGiftIntentClient) Hooks() []Hook {
+	return c.hooks.EsportsGiftIntent
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsGiftIntentClient) Interceptors() []Interceptor {
+	return c.inters.EsportsGiftIntent
+}
+
+func (c *EsportsGiftIntentClient) mutate(ctx context.Context, m *EsportsGiftIntentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsGiftIntentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsGiftIntentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsGiftIntentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsGiftIntentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsGiftIntent mutation op: %q", m.Op())
+	}
+}
+
 // EsportsGiftOrderClient is a client for the EsportsGiftOrder schema.
 type EsportsGiftOrderClient struct {
 	config
@@ -7057,6 +7524,139 @@ func (c *EsportsMemberLevelRuleClient) mutate(ctx context.Context, m *EsportsMem
 	}
 }
 
+// EsportsOfflinePaymentProofClient is a client for the EsportsOfflinePaymentProof schema.
+type EsportsOfflinePaymentProofClient struct {
+	config
+}
+
+// NewEsportsOfflinePaymentProofClient returns a client for the EsportsOfflinePaymentProof from the given config.
+func NewEsportsOfflinePaymentProofClient(c config) *EsportsOfflinePaymentProofClient {
+	return &EsportsOfflinePaymentProofClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsofflinepaymentproof.Hooks(f(g(h())))`.
+func (c *EsportsOfflinePaymentProofClient) Use(hooks ...Hook) {
+	c.hooks.EsportsOfflinePaymentProof = append(c.hooks.EsportsOfflinePaymentProof, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsofflinepaymentproof.Intercept(f(g(h())))`.
+func (c *EsportsOfflinePaymentProofClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsOfflinePaymentProof = append(c.inters.EsportsOfflinePaymentProof, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsOfflinePaymentProof entity.
+func (c *EsportsOfflinePaymentProofClient) Create() *EsportsOfflinePaymentProofCreate {
+	mutation := newEsportsOfflinePaymentProofMutation(c.config, OpCreate)
+	return &EsportsOfflinePaymentProofCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsOfflinePaymentProof entities.
+func (c *EsportsOfflinePaymentProofClient) CreateBulk(builders ...*EsportsOfflinePaymentProofCreate) *EsportsOfflinePaymentProofCreateBulk {
+	return &EsportsOfflinePaymentProofCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsOfflinePaymentProofClient) MapCreateBulk(slice any, setFunc func(*EsportsOfflinePaymentProofCreate, int)) *EsportsOfflinePaymentProofCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsOfflinePaymentProofCreateBulk{err: fmt.Errorf("calling to EsportsOfflinePaymentProofClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsOfflinePaymentProofCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsOfflinePaymentProofCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsOfflinePaymentProof.
+func (c *EsportsOfflinePaymentProofClient) Update() *EsportsOfflinePaymentProofUpdate {
+	mutation := newEsportsOfflinePaymentProofMutation(c.config, OpUpdate)
+	return &EsportsOfflinePaymentProofUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsOfflinePaymentProofClient) UpdateOne(_m *EsportsOfflinePaymentProof) *EsportsOfflinePaymentProofUpdateOne {
+	mutation := newEsportsOfflinePaymentProofMutation(c.config, OpUpdateOne, withEsportsOfflinePaymentProof(_m))
+	return &EsportsOfflinePaymentProofUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsOfflinePaymentProofClient) UpdateOneID(id int) *EsportsOfflinePaymentProofUpdateOne {
+	mutation := newEsportsOfflinePaymentProofMutation(c.config, OpUpdateOne, withEsportsOfflinePaymentProofID(id))
+	return &EsportsOfflinePaymentProofUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsOfflinePaymentProof.
+func (c *EsportsOfflinePaymentProofClient) Delete() *EsportsOfflinePaymentProofDelete {
+	mutation := newEsportsOfflinePaymentProofMutation(c.config, OpDelete)
+	return &EsportsOfflinePaymentProofDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsOfflinePaymentProofClient) DeleteOne(_m *EsportsOfflinePaymentProof) *EsportsOfflinePaymentProofDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsOfflinePaymentProofClient) DeleteOneID(id int) *EsportsOfflinePaymentProofDeleteOne {
+	builder := c.Delete().Where(esportsofflinepaymentproof.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsOfflinePaymentProofDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsOfflinePaymentProof.
+func (c *EsportsOfflinePaymentProofClient) Query() *EsportsOfflinePaymentProofQuery {
+	return &EsportsOfflinePaymentProofQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsOfflinePaymentProof},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsOfflinePaymentProof entity by its id.
+func (c *EsportsOfflinePaymentProofClient) Get(ctx context.Context, id int) (*EsportsOfflinePaymentProof, error) {
+	return c.Query().Where(esportsofflinepaymentproof.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsOfflinePaymentProofClient) GetX(ctx context.Context, id int) *EsportsOfflinePaymentProof {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsOfflinePaymentProofClient) Hooks() []Hook {
+	return c.hooks.EsportsOfflinePaymentProof
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsOfflinePaymentProofClient) Interceptors() []Interceptor {
+	return c.inters.EsportsOfflinePaymentProof
+}
+
+func (c *EsportsOfflinePaymentProofClient) mutate(ctx context.Context, m *EsportsOfflinePaymentProofMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsOfflinePaymentProofCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsOfflinePaymentProofUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsOfflinePaymentProofUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsOfflinePaymentProofDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsOfflinePaymentProof mutation op: %q", m.Op())
+	}
+}
+
 // EsportsOrderClient is a client for the EsportsOrder schema.
 type EsportsOrderClient struct {
 	config
@@ -7988,6 +8588,139 @@ func (c *EsportsPageVersionClient) mutate(ctx context.Context, m *EsportsPageVer
 	}
 }
 
+// EsportsPaymentAccountClient is a client for the EsportsPaymentAccount schema.
+type EsportsPaymentAccountClient struct {
+	config
+}
+
+// NewEsportsPaymentAccountClient returns a client for the EsportsPaymentAccount from the given config.
+func NewEsportsPaymentAccountClient(c config) *EsportsPaymentAccountClient {
+	return &EsportsPaymentAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportspaymentaccount.Hooks(f(g(h())))`.
+func (c *EsportsPaymentAccountClient) Use(hooks ...Hook) {
+	c.hooks.EsportsPaymentAccount = append(c.hooks.EsportsPaymentAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportspaymentaccount.Intercept(f(g(h())))`.
+func (c *EsportsPaymentAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsPaymentAccount = append(c.inters.EsportsPaymentAccount, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsPaymentAccount entity.
+func (c *EsportsPaymentAccountClient) Create() *EsportsPaymentAccountCreate {
+	mutation := newEsportsPaymentAccountMutation(c.config, OpCreate)
+	return &EsportsPaymentAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsPaymentAccount entities.
+func (c *EsportsPaymentAccountClient) CreateBulk(builders ...*EsportsPaymentAccountCreate) *EsportsPaymentAccountCreateBulk {
+	return &EsportsPaymentAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsPaymentAccountClient) MapCreateBulk(slice any, setFunc func(*EsportsPaymentAccountCreate, int)) *EsportsPaymentAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsPaymentAccountCreateBulk{err: fmt.Errorf("calling to EsportsPaymentAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsPaymentAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsPaymentAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsPaymentAccount.
+func (c *EsportsPaymentAccountClient) Update() *EsportsPaymentAccountUpdate {
+	mutation := newEsportsPaymentAccountMutation(c.config, OpUpdate)
+	return &EsportsPaymentAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsPaymentAccountClient) UpdateOne(_m *EsportsPaymentAccount) *EsportsPaymentAccountUpdateOne {
+	mutation := newEsportsPaymentAccountMutation(c.config, OpUpdateOne, withEsportsPaymentAccount(_m))
+	return &EsportsPaymentAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsPaymentAccountClient) UpdateOneID(id int) *EsportsPaymentAccountUpdateOne {
+	mutation := newEsportsPaymentAccountMutation(c.config, OpUpdateOne, withEsportsPaymentAccountID(id))
+	return &EsportsPaymentAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsPaymentAccount.
+func (c *EsportsPaymentAccountClient) Delete() *EsportsPaymentAccountDelete {
+	mutation := newEsportsPaymentAccountMutation(c.config, OpDelete)
+	return &EsportsPaymentAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsPaymentAccountClient) DeleteOne(_m *EsportsPaymentAccount) *EsportsPaymentAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsPaymentAccountClient) DeleteOneID(id int) *EsportsPaymentAccountDeleteOne {
+	builder := c.Delete().Where(esportspaymentaccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsPaymentAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsPaymentAccount.
+func (c *EsportsPaymentAccountClient) Query() *EsportsPaymentAccountQuery {
+	return &EsportsPaymentAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsPaymentAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsPaymentAccount entity by its id.
+func (c *EsportsPaymentAccountClient) Get(ctx context.Context, id int) (*EsportsPaymentAccount, error) {
+	return c.Query().Where(esportspaymentaccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsPaymentAccountClient) GetX(ctx context.Context, id int) *EsportsPaymentAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsPaymentAccountClient) Hooks() []Hook {
+	return c.hooks.EsportsPaymentAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsPaymentAccountClient) Interceptors() []Interceptor {
+	return c.inters.EsportsPaymentAccount
+}
+
+func (c *EsportsPaymentAccountClient) mutate(ctx context.Context, m *EsportsPaymentAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsPaymentAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsPaymentAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsPaymentAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsPaymentAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsPaymentAccount mutation op: %q", m.Op())
+	}
+}
+
 // EsportsPaymentIntentClient is a client for the EsportsPaymentIntent schema.
 type EsportsPaymentIntentClient struct {
 	config
@@ -8384,6 +9117,139 @@ func (c *EsportsPlayerClient) mutate(ctx context.Context, m *EsportsPlayerMutati
 		return (&EsportsPlayerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsPlayer mutation op: %q", m.Op())
+	}
+}
+
+// EsportsPlayerCreditEventClient is a client for the EsportsPlayerCreditEvent schema.
+type EsportsPlayerCreditEventClient struct {
+	config
+}
+
+// NewEsportsPlayerCreditEventClient returns a client for the EsportsPlayerCreditEvent from the given config.
+func NewEsportsPlayerCreditEventClient(c config) *EsportsPlayerCreditEventClient {
+	return &EsportsPlayerCreditEventClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsplayercreditevent.Hooks(f(g(h())))`.
+func (c *EsportsPlayerCreditEventClient) Use(hooks ...Hook) {
+	c.hooks.EsportsPlayerCreditEvent = append(c.hooks.EsportsPlayerCreditEvent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsplayercreditevent.Intercept(f(g(h())))`.
+func (c *EsportsPlayerCreditEventClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsPlayerCreditEvent = append(c.inters.EsportsPlayerCreditEvent, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsPlayerCreditEvent entity.
+func (c *EsportsPlayerCreditEventClient) Create() *EsportsPlayerCreditEventCreate {
+	mutation := newEsportsPlayerCreditEventMutation(c.config, OpCreate)
+	return &EsportsPlayerCreditEventCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsPlayerCreditEvent entities.
+func (c *EsportsPlayerCreditEventClient) CreateBulk(builders ...*EsportsPlayerCreditEventCreate) *EsportsPlayerCreditEventCreateBulk {
+	return &EsportsPlayerCreditEventCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsPlayerCreditEventClient) MapCreateBulk(slice any, setFunc func(*EsportsPlayerCreditEventCreate, int)) *EsportsPlayerCreditEventCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsPlayerCreditEventCreateBulk{err: fmt.Errorf("calling to EsportsPlayerCreditEventClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsPlayerCreditEventCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsPlayerCreditEventCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsPlayerCreditEvent.
+func (c *EsportsPlayerCreditEventClient) Update() *EsportsPlayerCreditEventUpdate {
+	mutation := newEsportsPlayerCreditEventMutation(c.config, OpUpdate)
+	return &EsportsPlayerCreditEventUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsPlayerCreditEventClient) UpdateOne(_m *EsportsPlayerCreditEvent) *EsportsPlayerCreditEventUpdateOne {
+	mutation := newEsportsPlayerCreditEventMutation(c.config, OpUpdateOne, withEsportsPlayerCreditEvent(_m))
+	return &EsportsPlayerCreditEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsPlayerCreditEventClient) UpdateOneID(id int) *EsportsPlayerCreditEventUpdateOne {
+	mutation := newEsportsPlayerCreditEventMutation(c.config, OpUpdateOne, withEsportsPlayerCreditEventID(id))
+	return &EsportsPlayerCreditEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsPlayerCreditEvent.
+func (c *EsportsPlayerCreditEventClient) Delete() *EsportsPlayerCreditEventDelete {
+	mutation := newEsportsPlayerCreditEventMutation(c.config, OpDelete)
+	return &EsportsPlayerCreditEventDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsPlayerCreditEventClient) DeleteOne(_m *EsportsPlayerCreditEvent) *EsportsPlayerCreditEventDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsPlayerCreditEventClient) DeleteOneID(id int) *EsportsPlayerCreditEventDeleteOne {
+	builder := c.Delete().Where(esportsplayercreditevent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsPlayerCreditEventDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsPlayerCreditEvent.
+func (c *EsportsPlayerCreditEventClient) Query() *EsportsPlayerCreditEventQuery {
+	return &EsportsPlayerCreditEventQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsPlayerCreditEvent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsPlayerCreditEvent entity by its id.
+func (c *EsportsPlayerCreditEventClient) Get(ctx context.Context, id int) (*EsportsPlayerCreditEvent, error) {
+	return c.Query().Where(esportsplayercreditevent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsPlayerCreditEventClient) GetX(ctx context.Context, id int) *EsportsPlayerCreditEvent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsPlayerCreditEventClient) Hooks() []Hook {
+	return c.hooks.EsportsPlayerCreditEvent
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsPlayerCreditEventClient) Interceptors() []Interceptor {
+	return c.inters.EsportsPlayerCreditEvent
+}
+
+func (c *EsportsPlayerCreditEventClient) mutate(ctx context.Context, m *EsportsPlayerCreditEventMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsPlayerCreditEventCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsPlayerCreditEventUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsPlayerCreditEventUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsPlayerCreditEventDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsPlayerCreditEvent mutation op: %q", m.Op())
 	}
 }
 
@@ -8784,6 +9650,139 @@ func (c *EsportsPlayerReviewRevisionClient) mutate(ctx context.Context, m *Espor
 		return (&EsportsPlayerReviewRevisionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsPlayerReviewRevision mutation op: %q", m.Op())
+	}
+}
+
+// EsportsPriceAdjustmentClient is a client for the EsportsPriceAdjustment schema.
+type EsportsPriceAdjustmentClient struct {
+	config
+}
+
+// NewEsportsPriceAdjustmentClient returns a client for the EsportsPriceAdjustment from the given config.
+func NewEsportsPriceAdjustmentClient(c config) *EsportsPriceAdjustmentClient {
+	return &EsportsPriceAdjustmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportspriceadjustment.Hooks(f(g(h())))`.
+func (c *EsportsPriceAdjustmentClient) Use(hooks ...Hook) {
+	c.hooks.EsportsPriceAdjustment = append(c.hooks.EsportsPriceAdjustment, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportspriceadjustment.Intercept(f(g(h())))`.
+func (c *EsportsPriceAdjustmentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsPriceAdjustment = append(c.inters.EsportsPriceAdjustment, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsPriceAdjustment entity.
+func (c *EsportsPriceAdjustmentClient) Create() *EsportsPriceAdjustmentCreate {
+	mutation := newEsportsPriceAdjustmentMutation(c.config, OpCreate)
+	return &EsportsPriceAdjustmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsPriceAdjustment entities.
+func (c *EsportsPriceAdjustmentClient) CreateBulk(builders ...*EsportsPriceAdjustmentCreate) *EsportsPriceAdjustmentCreateBulk {
+	return &EsportsPriceAdjustmentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsPriceAdjustmentClient) MapCreateBulk(slice any, setFunc func(*EsportsPriceAdjustmentCreate, int)) *EsportsPriceAdjustmentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsPriceAdjustmentCreateBulk{err: fmt.Errorf("calling to EsportsPriceAdjustmentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsPriceAdjustmentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsPriceAdjustmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsPriceAdjustment.
+func (c *EsportsPriceAdjustmentClient) Update() *EsportsPriceAdjustmentUpdate {
+	mutation := newEsportsPriceAdjustmentMutation(c.config, OpUpdate)
+	return &EsportsPriceAdjustmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsPriceAdjustmentClient) UpdateOne(_m *EsportsPriceAdjustment) *EsportsPriceAdjustmentUpdateOne {
+	mutation := newEsportsPriceAdjustmentMutation(c.config, OpUpdateOne, withEsportsPriceAdjustment(_m))
+	return &EsportsPriceAdjustmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsPriceAdjustmentClient) UpdateOneID(id int) *EsportsPriceAdjustmentUpdateOne {
+	mutation := newEsportsPriceAdjustmentMutation(c.config, OpUpdateOne, withEsportsPriceAdjustmentID(id))
+	return &EsportsPriceAdjustmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsPriceAdjustment.
+func (c *EsportsPriceAdjustmentClient) Delete() *EsportsPriceAdjustmentDelete {
+	mutation := newEsportsPriceAdjustmentMutation(c.config, OpDelete)
+	return &EsportsPriceAdjustmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsPriceAdjustmentClient) DeleteOne(_m *EsportsPriceAdjustment) *EsportsPriceAdjustmentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsPriceAdjustmentClient) DeleteOneID(id int) *EsportsPriceAdjustmentDeleteOne {
+	builder := c.Delete().Where(esportspriceadjustment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsPriceAdjustmentDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsPriceAdjustment.
+func (c *EsportsPriceAdjustmentClient) Query() *EsportsPriceAdjustmentQuery {
+	return &EsportsPriceAdjustmentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsPriceAdjustment},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsPriceAdjustment entity by its id.
+func (c *EsportsPriceAdjustmentClient) Get(ctx context.Context, id int) (*EsportsPriceAdjustment, error) {
+	return c.Query().Where(esportspriceadjustment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsPriceAdjustmentClient) GetX(ctx context.Context, id int) *EsportsPriceAdjustment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsPriceAdjustmentClient) Hooks() []Hook {
+	return c.hooks.EsportsPriceAdjustment
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsPriceAdjustmentClient) Interceptors() []Interceptor {
+	return c.inters.EsportsPriceAdjustment
+}
+
+func (c *EsportsPriceAdjustmentClient) mutate(ctx context.Context, m *EsportsPriceAdjustmentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsPriceAdjustmentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsPriceAdjustmentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsPriceAdjustmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsPriceAdjustmentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsPriceAdjustment mutation op: %q", m.Op())
 	}
 }
 
@@ -9715,6 +10714,139 @@ func (c *EsportsSettlementClient) mutate(ctx context.Context, m *EsportsSettleme
 		return (&EsportsSettlementDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsSettlement mutation op: %q", m.Op())
+	}
+}
+
+// EsportsSettlementCycleClient is a client for the EsportsSettlementCycle schema.
+type EsportsSettlementCycleClient struct {
+	config
+}
+
+// NewEsportsSettlementCycleClient returns a client for the EsportsSettlementCycle from the given config.
+func NewEsportsSettlementCycleClient(c config) *EsportsSettlementCycleClient {
+	return &EsportsSettlementCycleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportssettlementcycle.Hooks(f(g(h())))`.
+func (c *EsportsSettlementCycleClient) Use(hooks ...Hook) {
+	c.hooks.EsportsSettlementCycle = append(c.hooks.EsportsSettlementCycle, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportssettlementcycle.Intercept(f(g(h())))`.
+func (c *EsportsSettlementCycleClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsSettlementCycle = append(c.inters.EsportsSettlementCycle, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsSettlementCycle entity.
+func (c *EsportsSettlementCycleClient) Create() *EsportsSettlementCycleCreate {
+	mutation := newEsportsSettlementCycleMutation(c.config, OpCreate)
+	return &EsportsSettlementCycleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsSettlementCycle entities.
+func (c *EsportsSettlementCycleClient) CreateBulk(builders ...*EsportsSettlementCycleCreate) *EsportsSettlementCycleCreateBulk {
+	return &EsportsSettlementCycleCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsSettlementCycleClient) MapCreateBulk(slice any, setFunc func(*EsportsSettlementCycleCreate, int)) *EsportsSettlementCycleCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsSettlementCycleCreateBulk{err: fmt.Errorf("calling to EsportsSettlementCycleClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsSettlementCycleCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsSettlementCycleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsSettlementCycle.
+func (c *EsportsSettlementCycleClient) Update() *EsportsSettlementCycleUpdate {
+	mutation := newEsportsSettlementCycleMutation(c.config, OpUpdate)
+	return &EsportsSettlementCycleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsSettlementCycleClient) UpdateOne(_m *EsportsSettlementCycle) *EsportsSettlementCycleUpdateOne {
+	mutation := newEsportsSettlementCycleMutation(c.config, OpUpdateOne, withEsportsSettlementCycle(_m))
+	return &EsportsSettlementCycleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsSettlementCycleClient) UpdateOneID(id int) *EsportsSettlementCycleUpdateOne {
+	mutation := newEsportsSettlementCycleMutation(c.config, OpUpdateOne, withEsportsSettlementCycleID(id))
+	return &EsportsSettlementCycleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsSettlementCycle.
+func (c *EsportsSettlementCycleClient) Delete() *EsportsSettlementCycleDelete {
+	mutation := newEsportsSettlementCycleMutation(c.config, OpDelete)
+	return &EsportsSettlementCycleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsSettlementCycleClient) DeleteOne(_m *EsportsSettlementCycle) *EsportsSettlementCycleDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsSettlementCycleClient) DeleteOneID(id int) *EsportsSettlementCycleDeleteOne {
+	builder := c.Delete().Where(esportssettlementcycle.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsSettlementCycleDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsSettlementCycle.
+func (c *EsportsSettlementCycleClient) Query() *EsportsSettlementCycleQuery {
+	return &EsportsSettlementCycleQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsSettlementCycle},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsSettlementCycle entity by its id.
+func (c *EsportsSettlementCycleClient) Get(ctx context.Context, id int) (*EsportsSettlementCycle, error) {
+	return c.Query().Where(esportssettlementcycle.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsSettlementCycleClient) GetX(ctx context.Context, id int) *EsportsSettlementCycle {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsSettlementCycleClient) Hooks() []Hook {
+	return c.hooks.EsportsSettlementCycle
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsSettlementCycleClient) Interceptors() []Interceptor {
+	return c.inters.EsportsSettlementCycle
+}
+
+func (c *EsportsSettlementCycleClient) mutate(ctx context.Context, m *EsportsSettlementCycleMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsSettlementCycleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsSettlementCycleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsSettlementCycleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsSettlementCycleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsSettlementCycle mutation op: %q", m.Op())
 	}
 }
 
@@ -12565,53 +13697,58 @@ type (
 	hooks struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData,
-		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
-		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseApproval,
-		EsportsCloseApprovalFlow, EsportsCloseFormField, EsportsCloseFormSnapshot,
-		EsportsCloseFormTemplate, EsportsCloseRule, EsportsCloseSubmitRule,
-		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
-		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
-		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
+		EsportsAfterSale, EsportsAfterSaleReview, EsportsAgeCheck, EsportsAssessment,
+		EsportsAssessmentAppeal, EsportsAssessmentRule, EsportsAssessmentScore,
+		EsportsCloseApproval, EsportsCloseApprovalFlow, EsportsCloseFormField,
+		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
+		EsportsCloseSubmitRule, EsportsCommissionEntry, EsportsCommissionRule,
+		EsportsConfirmation, EsportsCsCommissionEntry, EsportsCsCommissionRule,
+		EsportsCustomer, EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
-		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
-		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
-		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOrder,
+		EsportsGift, EsportsGiftDispute, EsportsGiftIntent, EsportsGiftOrder,
+		EsportsGrowthLedger, EsportsIdempotency, EsportsIdentityBinding,
+		EsportsLedgerAllocation, EsportsLedgerEntry, EsportsMemberLevelOverride,
+		EsportsMemberLevelRule, EsportsOfflinePaymentProof, EsportsOrder,
 		EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox, EsportsPageAsset,
-		EsportsPageDocument, EsportsPageVersion, EsportsPaymentIntent,
-		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerRecovery,
-		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
+		EsportsPageDocument, EsportsPageVersion, EsportsPaymentAccount,
+		EsportsPaymentIntent, EsportsPaymentReceipt, EsportsPlayer,
+		EsportsPlayerCreditEvent, EsportsPlayerRecovery, EsportsPlayerReview,
+		EsportsPlayerReviewRevision, EsportsPriceAdjustment, EsportsProductCategory,
 		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
-		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage, EsportsTeammate,
-		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
-		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
-		UserRole []ent.Hook
+		EsportsSettlementCycle, EsportsSku, EsportsStoredValueCard,
+		EsportsStoredValuePackage, EsportsTeammate, EsportsWalletAccount,
+		EsportsWalletTx, EsportsWithdrawal, LoginLog, Message, MessagePreference,
+		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,
+		SystemConfig, SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
 		CasbinRule, CmsCategory, CmsContent, CronJob, Department, DictData,
-		EsportsAfterSale, EsportsAgeCheck, EsportsAssessment, EsportsAssessmentAppeal,
-		EsportsAssessmentRule, EsportsAssessmentScore, EsportsCloseApproval,
-		EsportsCloseApprovalFlow, EsportsCloseFormField, EsportsCloseFormSnapshot,
-		EsportsCloseFormTemplate, EsportsCloseRule, EsportsCloseSubmitRule,
-		EsportsCommissionEntry, EsportsCommissionRule, EsportsConfirmation,
-		EsportsCsCommissionEntry, EsportsCsCommissionRule, EsportsCustomer,
-		EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
+		EsportsAfterSale, EsportsAfterSaleReview, EsportsAgeCheck, EsportsAssessment,
+		EsportsAssessmentAppeal, EsportsAssessmentRule, EsportsAssessmentScore,
+		EsportsCloseApproval, EsportsCloseApprovalFlow, EsportsCloseFormField,
+		EsportsCloseFormSnapshot, EsportsCloseFormTemplate, EsportsCloseRule,
+		EsportsCloseSubmitRule, EsportsCommissionEntry, EsportsCommissionRule,
+		EsportsConfirmation, EsportsCsCommissionEntry, EsportsCsCommissionRule,
+		EsportsCustomer, EsportsCustomerFollowUp, EsportsDispatchPriorityGrant,
 		EsportsDispatchPriorityNotice, EsportsDispatchSeat, EsportsFulfillmentMakeup,
-		EsportsGift, EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
-		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
-		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOrder,
+		EsportsGift, EsportsGiftDispute, EsportsGiftIntent, EsportsGiftOrder,
+		EsportsGrowthLedger, EsportsIdempotency, EsportsIdentityBinding,
+		EsportsLedgerAllocation, EsportsLedgerEntry, EsportsMemberLevelOverride,
+		EsportsMemberLevelRule, EsportsOfflinePaymentProof, EsportsOrder,
 		EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox, EsportsPageAsset,
-		EsportsPageDocument, EsportsPageVersion, EsportsPaymentIntent,
-		EsportsPaymentReceipt, EsportsPlayer, EsportsPlayerRecovery,
-		EsportsPlayerReview, EsportsPlayerReviewRevision, EsportsProductCategory,
+		EsportsPageDocument, EsportsPageVersion, EsportsPaymentAccount,
+		EsportsPaymentIntent, EsportsPaymentReceipt, EsportsPlayer,
+		EsportsPlayerCreditEvent, EsportsPlayerRecovery, EsportsPlayerReview,
+		EsportsPlayerReviewRevision, EsportsPriceAdjustment, EsportsProductCategory,
 		EsportsQuotaHold, EsportsRechargeCampaign, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
-		EsportsSku, EsportsStoredValueCard, EsportsStoredValuePackage, EsportsTeammate,
-		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal, LoginLog, Message,
-		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		EsportsSettlementCycle, EsportsSku, EsportsStoredValueCard,
+		EsportsStoredValuePackage, EsportsTeammate, EsportsWalletAccount,
+		EsportsWalletTx, EsportsWithdrawal, LoginLog, Message, MessagePreference,
+		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,
+		SystemConfig, SystemPermission, ThirdPartyUser, User,
 		UserRole []ent.Interceptor
 	}
 )

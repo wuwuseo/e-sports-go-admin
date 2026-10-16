@@ -39,11 +39,18 @@ func (EsportsSku) Fields() []ent.Field {
 		field.Int("category_id").Optional().Nillable().StructTag(`json:"category_id"`),
 		field.String("description").MaxLen(500).Default("").StructTag(`json:"description"`),
 		field.Int64("unit_price_cents").Positive().StructTag(`json:"unit_price_cents"`),
+		// 人工议价的每份最低价；会员权益折扣另行计算。旧客户端省略时服务层回落到展示价。
+		field.Int64("min_unit_price_cents").Default(0).StructTag(`json:"min_unit_price_cents"`),
+		// 单笔人工调整绝对值超过展示价小计的该比例时，须异人审批。
+		field.Int("adjustment_approval_bp").Default(2000).StructTag(`json:"adjustment_approval_bp"`),
 		field.Int64("service_units").Positive().StructTag(`json:"service_units"`),
 		field.String("service_unit_name").NotEmpty().MaxLen(32).StructTag(`json:"service_unit_name"`),
 		field.Int("required_seats").Positive().Default(1).StructTag(`json:"required_seats"`),
 		// 所需技能等级（§5.5）：陪玩等级不得低于该值（novice 最低 = 无门槛）。
 		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
+		// 结单要求（§15.3）：引用生效结单规则的 code；下单时随 SKU 快照，结单按该规则的条件与审批流执行。
+		// 为空表示按 游戏分区 / 全局 规则逐级回落。
+		field.String("close_rule_code").MaxLen(48).Default("").StructTag(`json:"close_rule_code"`),
 		field.Int64("quota_total").Default(-1).StructTag(`json:"quota_total"`), // -1 means unlimited; quota counts purchased SKU units.
 		field.Int64("quota_reserved").Default(0).StructTag(`json:"quota_reserved"`),
 		field.Int64("quota_sold").Default(0).StructTag(`json:"quota_sold"`),

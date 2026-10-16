@@ -122,29 +122,93 @@ func setGiftStatusHandler(c fiber.Ctx) error {
 }
 
 func adminGiftOrders(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	customerID := queryInt(c, "customer_id")
 	playerID := queryInt(c, "player_id")
-	items, err := listGiftOrders(c.Context(), global.ORM, customerID, playerID, c.Query("review_status"), queryLimit(c, 200))
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	items, err := listGiftOrders(c.Context(), global.ORM, adminID, isSuper, customerID, playerID, c.Query("review_status"), queryLimit(c, 200))
 	if err != nil {
 		return businessError(c, err)
 	}
 	return reply(c, items)
 }
 
-// sendGiftHandler 客服代客送礼（§9.2）：原子扣减余额本金、生成礼物收入与成长值。
+func adminGiftIntents(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	items, err := listAdminGiftIntents(c.Context(), global.ORM, adminID, isSuper)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+func createGiftIntentHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in giftIntentInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	item, err := createGiftIntent(c.Context(), global.ORM, adminID, isSuper, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+func userGiftIntents(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	items, err := listCustomerGiftIntents(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+func userConfirmGiftIntent(c fiber.Ctx) error {
+	id, err := parsePathID(c, "礼物确认单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		ExpectedVersion int  `json:"expected_version"`
+		Accepted        bool `json:"accepted"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	uid, _ := c.Locals("uid").(string)
+	item, err := confirmGiftIntent(c.Context(), global.ORM, uid, id, in.ExpectedVersion, in.Accepted, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// sendGiftHandler 只能执行客户已明确确认的礼物单。
 func sendGiftHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
 		return businessError(c, err)
 	}
-	var in giftSendInput
+	var in struct {
+		IntentID int `json:"intent_id"`
+	}
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := sendGift(c.Context(), global.ORM, adminID, in, time.Now())
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	order, err := executeGiftIntent(c.Context(), global.ORM, adminID, isSuper, in.IntentID, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -161,13 +225,17 @@ func refundGiftHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err = loadOwnedGiftOrder(c.Context(), global.ORM, adminID, isSuper, id); err != nil {
+		return businessError(c, err)
+	}
 	var in struct {
 		Reason string `json:"reason"`
 	}
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := refundGift(c.Context(), global.ORM, adminID, id, in.Reason, time.Now())
+	order, err := refundGift(c.Context(), global.ORM, adminID, isSuper, id, in.Reason, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

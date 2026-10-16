@@ -21,10 +21,16 @@ type EsportsGiftOrder struct {
 	GiftNo string `json:"gift_no"`
 	// GiftID holds the value of the "gift_id" field.
 	GiftID int `json:"gift_id"`
+	// GiftIntentID holds the value of the "gift_intent_id" field.
+	GiftIntentID *int `json:"gift_intent_id"`
 	// CustomerID holds the value of the "customer_id" field.
 	CustomerID int `json:"customer_id"`
 	// PlayerID holds the value of the "player_id" field.
 	PlayerID int `json:"player_id"`
+	// ResponsibleAdminID holds the value of the "responsible_admin_id" field.
+	ResponsibleAdminID *int `json:"responsible_admin_id"`
+	// CsCommissionRuleID holds the value of the "cs_commission_rule_id" field.
+	CsCommissionRuleID *int `json:"cs_commission_rule_id"`
 	// PlayerName holds the value of the "player_name" field.
 	PlayerName string `json:"player_name"`
 	// OrderID holds the value of the "order_id" field.
@@ -39,6 +45,10 @@ type EsportsGiftOrder struct {
 	PrincipalCents int64 `json:"principal_cents"`
 	// BonusCents holds the value of the "bonus_cents" field.
 	BonusCents int64 `json:"bonus_cents"`
+	// PaymentSource holds the value of the "payment_source" field.
+	PaymentSource string `json:"payment_source"`
+	// StoredValueCardID holds the value of the "stored_value_card_id" field.
+	StoredValueCardID *int `json:"stored_value_card_id"`
 	// CommissionMode holds the value of the "commission_mode" field.
 	CommissionMode esportsgiftorder.CommissionMode `json:"commission_mode"`
 	// CommissionBp holds the value of the "commission_bp" field.
@@ -69,9 +79,9 @@ func (*EsportsGiftOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsgiftorder.FieldID, esportsgiftorder.FieldGiftID, esportsgiftorder.FieldCustomerID, esportsgiftorder.FieldPlayerID, esportsgiftorder.FieldOrderID, esportsgiftorder.FieldQuantity, esportsgiftorder.FieldUnitPriceCents, esportsgiftorder.FieldAmountCents, esportsgiftorder.FieldPrincipalCents, esportsgiftorder.FieldBonusCents, esportsgiftorder.FieldCommissionBp, esportsgiftorder.FieldCommissionCents, esportsgiftorder.FieldIncomeCents, esportsgiftorder.FieldRefundCents, esportsgiftorder.FieldVersion:
+		case esportsgiftorder.FieldID, esportsgiftorder.FieldGiftID, esportsgiftorder.FieldGiftIntentID, esportsgiftorder.FieldCustomerID, esportsgiftorder.FieldPlayerID, esportsgiftorder.FieldResponsibleAdminID, esportsgiftorder.FieldCsCommissionRuleID, esportsgiftorder.FieldOrderID, esportsgiftorder.FieldQuantity, esportsgiftorder.FieldUnitPriceCents, esportsgiftorder.FieldAmountCents, esportsgiftorder.FieldPrincipalCents, esportsgiftorder.FieldBonusCents, esportsgiftorder.FieldStoredValueCardID, esportsgiftorder.FieldCommissionBp, esportsgiftorder.FieldCommissionCents, esportsgiftorder.FieldIncomeCents, esportsgiftorder.FieldRefundCents, esportsgiftorder.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsgiftorder.FieldGiftNo, esportsgiftorder.FieldPlayerName, esportsgiftorder.FieldCommissionMode, esportsgiftorder.FieldRefundStatus, esportsgiftorder.FieldReviewStatus, esportsgiftorder.FieldStatus:
+		case esportsgiftorder.FieldGiftNo, esportsgiftorder.FieldPlayerName, esportsgiftorder.FieldPaymentSource, esportsgiftorder.FieldCommissionMode, esportsgiftorder.FieldRefundStatus, esportsgiftorder.FieldReviewStatus, esportsgiftorder.FieldStatus:
 			values[i] = new(sql.NullString)
 		case esportsgiftorder.FieldCreatedAt, esportsgiftorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -108,6 +118,13 @@ func (_m *EsportsGiftOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.GiftID = int(value.Int64)
 			}
+		case esportsgiftorder.FieldGiftIntentID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field gift_intent_id", values[i])
+			} else if value.Valid {
+				_m.GiftIntentID = new(int)
+				*_m.GiftIntentID = int(value.Int64)
+			}
 		case esportsgiftorder.FieldCustomerID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field customer_id", values[i])
@@ -119,6 +136,20 @@ func (_m *EsportsGiftOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field player_id", values[i])
 			} else if value.Valid {
 				_m.PlayerID = int(value.Int64)
+			}
+		case esportsgiftorder.FieldResponsibleAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field responsible_admin_id", values[i])
+			} else if value.Valid {
+				_m.ResponsibleAdminID = new(int)
+				*_m.ResponsibleAdminID = int(value.Int64)
+			}
+		case esportsgiftorder.FieldCsCommissionRuleID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field cs_commission_rule_id", values[i])
+			} else if value.Valid {
+				_m.CsCommissionRuleID = new(int)
+				*_m.CsCommissionRuleID = int(value.Int64)
 			}
 		case esportsgiftorder.FieldPlayerName:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -162,6 +193,19 @@ func (_m *EsportsGiftOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field bonus_cents", values[i])
 			} else if value.Valid {
 				_m.BonusCents = value.Int64
+			}
+		case esportsgiftorder.FieldPaymentSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_source", values[i])
+			} else if value.Valid {
+				_m.PaymentSource = value.String
+			}
+		case esportsgiftorder.FieldStoredValueCardID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field stored_value_card_id", values[i])
+			} else if value.Valid {
+				_m.StoredValueCardID = new(int)
+				*_m.StoredValueCardID = int(value.Int64)
 			}
 		case esportsgiftorder.FieldCommissionMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -271,11 +315,26 @@ func (_m *EsportsGiftOrder) String() string {
 	builder.WriteString("gift_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GiftID))
 	builder.WriteString(", ")
+	if v := _m.GiftIntentID; v != nil {
+		builder.WriteString("gift_intent_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
 	builder.WriteString("customer_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CustomerID))
 	builder.WriteString(", ")
 	builder.WriteString("player_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PlayerID))
+	builder.WriteString(", ")
+	if v := _m.ResponsibleAdminID; v != nil {
+		builder.WriteString("responsible_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CsCommissionRuleID; v != nil {
+		builder.WriteString("cs_commission_rule_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("player_name=")
 	builder.WriteString(_m.PlayerName)
@@ -299,6 +358,14 @@ func (_m *EsportsGiftOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("bonus_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.BonusCents))
+	builder.WriteString(", ")
+	builder.WriteString("payment_source=")
+	builder.WriteString(_m.PaymentSource)
+	builder.WriteString(", ")
+	if v := _m.StoredValueCardID; v != nil {
+		builder.WriteString("stored_value_card_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("commission_mode=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CommissionMode))

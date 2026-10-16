@@ -19,6 +19,7 @@ import (
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsaftersalereview"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsassessmentappeal"
@@ -43,6 +44,8 @@ import (
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsfulfillmentmakeup"
 	"go-admin/internal/ent/esportsgift"
+	"go-admin/internal/ent/esportsgiftdispute"
+	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
@@ -51,6 +54,7 @@ import (
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
+	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
 	"go-admin/internal/ent/esportsorderevent"
@@ -58,12 +62,15 @@ import (
 	"go-admin/internal/ent/esportspageasset"
 	"go-admin/internal/ent/esportspagedocument"
 	"go-admin/internal/ent/esportspageversion"
+	"go-admin/internal/ent/esportspaymentaccount"
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayercreditevent"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
+	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
@@ -71,6 +78,7 @@ import (
 	"go-admin/internal/ent/esportsseattransferrequest"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
+	"go-admin/internal/ent/esportssettlementcycle"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
@@ -171,6 +179,7 @@ func checkColumn(t, c string) error {
 			department.Table:                    department.ValidColumn,
 			dictdata.Table:                      dictdata.ValidColumn,
 			esportsaftersale.Table:              esportsaftersale.ValidColumn,
+			esportsaftersalereview.Table:        esportsaftersalereview.ValidColumn,
 			esportsagecheck.Table:               esportsagecheck.ValidColumn,
 			esportsassessment.Table:             esportsassessment.ValidColumn,
 			esportsassessmentappeal.Table:       esportsassessmentappeal.ValidColumn,
@@ -195,6 +204,8 @@ func checkColumn(t, c string) error {
 			esportsdispatchseat.Table:           esportsdispatchseat.ValidColumn,
 			esportsfulfillmentmakeup.Table:      esportsfulfillmentmakeup.ValidColumn,
 			esportsgift.Table:                   esportsgift.ValidColumn,
+			esportsgiftdispute.Table:            esportsgiftdispute.ValidColumn,
+			esportsgiftintent.Table:             esportsgiftintent.ValidColumn,
 			esportsgiftorder.Table:              esportsgiftorder.ValidColumn,
 			esportsgrowthledger.Table:           esportsgrowthledger.ValidColumn,
 			esportsidempotency.Table:            esportsidempotency.ValidColumn,
@@ -203,6 +214,7 @@ func checkColumn(t, c string) error {
 			esportsledgerentry.Table:            esportsledgerentry.ValidColumn,
 			esportsmemberleveloverride.Table:    esportsmemberleveloverride.ValidColumn,
 			esportsmemberlevelrule.Table:        esportsmemberlevelrule.ValidColumn,
+			esportsofflinepaymentproof.Table:    esportsofflinepaymentproof.ValidColumn,
 			esportsorder.Table:                  esportsorder.ValidColumn,
 			esportsorderaddon.Table:             esportsorderaddon.ValidColumn,
 			esportsorderevent.Table:             esportsorderevent.ValidColumn,
@@ -210,12 +222,15 @@ func checkColumn(t, c string) error {
 			esportspageasset.Table:              esportspageasset.ValidColumn,
 			esportspagedocument.Table:           esportspagedocument.ValidColumn,
 			esportspageversion.Table:            esportspageversion.ValidColumn,
+			esportspaymentaccount.Table:         esportspaymentaccount.ValidColumn,
 			esportspaymentintent.Table:          esportspaymentintent.ValidColumn,
 			esportspaymentreceipt.Table:         esportspaymentreceipt.ValidColumn,
 			esportsplayer.Table:                 esportsplayer.ValidColumn,
+			esportsplayercreditevent.Table:      esportsplayercreditevent.ValidColumn,
 			esportsplayerrecovery.Table:         esportsplayerrecovery.ValidColumn,
 			esportsplayerreview.Table:           esportsplayerreview.ValidColumn,
 			esportsplayerreviewrevision.Table:   esportsplayerreviewrevision.ValidColumn,
+			esportspriceadjustment.Table:        esportspriceadjustment.ValidColumn,
 			esportsproductcategory.Table:        esportsproductcategory.ValidColumn,
 			esportsquotahold.Table:              esportsquotahold.ValidColumn,
 			esportsrechargecampaign.Table:       esportsrechargecampaign.ValidColumn,
@@ -223,6 +238,7 @@ func checkColumn(t, c string) error {
 			esportsseattransferrequest.Table:    esportsseattransferrequest.ValidColumn,
 			esportsservicesegment.Table:         esportsservicesegment.ValidColumn,
 			esportssettlement.Table:             esportssettlement.ValidColumn,
+			esportssettlementcycle.Table:        esportssettlementcycle.ValidColumn,
 			esportssku.Table:                    esportssku.ValidColumn,
 			esportsstoredvaluecard.Table:        esportsstoredvaluecard.ValidColumn,
 			esportsstoredvaluepackage.Table:     esportsstoredvaluepackage.ValidColumn,

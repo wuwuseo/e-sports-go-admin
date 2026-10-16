@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportspaymentreceipt"
@@ -30,6 +32,73 @@ func seedReportOrder(t *testing.T, db *ent.Client, orderNo string, createdAt tim
 		SetPaymentDeadline(createdAt.Add(time.Hour)).
 		SetPaymentStatus(payment).SetFulfillmentStatus(fulfillment).
 		SetCreatedAt(createdAt).SaveX(t.Context())
+}
+
+func TestScopeReportFilterIgnoresOtherAdminID(t *testing.T) {
+	requested := reportFilter{ResponsibleAdmin: 22}
+	if got := scopeReportFilter(requested, 11, false); got.ResponsibleAdmin != 11 {
+		t.Fatalf("客服可通过筛选参数读取其他人的报表：%+v", got)
+	}
+	if got := scopeReportFilter(requested, 11, true); got.ResponsibleAdmin != 22 {
+		t.Fatalf("超级管理员的筛选条件不应被覆盖：%+v", got)
+	}
+}
+
+func TestReportFiltersChannelSourceAndEntryPoint(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_source?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	manual := seedReportOrder(t, db, "source-manual", day.Add(time.Hour), 11, 1000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	wecom := seedReportOrder(t, db, "source-wecom", day.Add(2*time.Hour), 11, 2000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	db.EsportsOrder.UpdateOneID(wecom.ID).SetChannelSource(esportsorder.ChannelSourceWecom).
+		SetEntryPoint(esportsorder.EntryPointWecomSidebar).SaveX(ctx)
+	for _, order := range []*ent.EsportsOrder{manual, wecom} {
+		db.EsportsAfterSale.Create().SetAfterSaleNo("source-as-" + order.OrderNo).
+			SetSourceID(order.ID).SetKind(esportsaftersale.KindRefundRequest).
+			SetChannel(esportsaftersale.ChannelCustomer).SetDemand("测试").
+			SetCreatedAt(day.Add(3 * time.Hour)).SaveX(ctx)
+	}
+	f := reportFilter{Start: day, End: day.AddDate(0, 0, 1), ChannelSource: "wecom", EntryPoint: "wecom_sidebar"}
+	overview, err := ownerOverviewReport(ctx, db, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if overview["summary"].(map[string]any)["order_count"].(int) != 1 ||
+		overview["summary"].(map[string]any)["revenue_cents"].(int64) != 2000 {
+		t.Fatalf("渠道与入口筛选未作用到订单聚合：%+v", overview)
+	}
+	after, err := aftersaleQualityReport(ctx, db, f, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after["summary"].(map[string]any)["total"].(int) != 1 {
+		t.Fatalf("渠道与入口筛选未作用到关联售后：%+v", after)
+	}
+}
+
+func TestCsPerformanceScopesCommissionEntriesToResponsibleAdmin(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_cs_entry_scope?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	for _, id := range []int{11, 22} {
+		db.EsportsCsCommissionEntry.Create().SetIdemKey("report-cs-" + strconv.Itoa(id)).
+			SetAdminID(id).SetKind(esportscscommissionentry.KindGift).
+			SetGiftOrderID(id).SetAmountCents(500).SetCreatedAt(day.Add(time.Hour)).SaveX(ctx)
+	}
+	result, err := csPerformanceReport(ctx, db, reportFilter{
+		Start: day, End: day.AddDate(0, 0, 1), ResponsibleAdmin: 11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := result["rows"].([]csPerformanceRow)
+	if len(rows) != 1 || rows[0].AdminID != 11 || rows[0].CommissionCents != 500 {
+		t.Fatalf("客服报表不得包含他人提成：%+v", rows)
+	}
 }
 
 // reportRange 按日 / 周 / 月推导的自然周期区间必须首尾对齐且长度正确。

@@ -2,6 +2,7 @@ package esports
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportscommissionentry"
+	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/migrate"
@@ -19,6 +21,78 @@ func openGiftDB(t *testing.T, name string) *ent.Client {
 	t.Helper()
 	return enttest.Open(t, "sqlite3", "file:"+name+"?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+}
+
+func TestGiftOrderScopeFollowsCurrentCustomerOwner(t *testing.T) {
+	db := openGiftDB(t, "esports_gift_owner_scope")
+	defer db.Close()
+	ctx := t.Context()
+	customer := seedGiftCustomer(t, db, 101)
+	player := seedPlayer(t, db, 202, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "OWNER-GIFT", Name: "礼物", PriceCents: 1000, CommissionMode: "percent", CommissionBp: 5000})
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID, walletInput{PrincipalCents: 2000, Note: "测试"}, "gift-owner-recharge"); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)
+	order, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customer.ID, GiftID: gift.ID, PlayerID: player.ID, Quantity: 1, ClientKey: "gift-owner-order-1"}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, err := listGiftOrders(ctx, db, 22, false, 0, 0, "", 10); err != nil || len(rows) != 0 {
+		t.Fatalf("其他客服看到了礼物单：%d %v", len(rows), err)
+	}
+	if _, err := refundGift(ctx, db, 22, false, order.ID, "越权退款", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("其他客服退款成功：%v", err)
+	}
+	db.EsportsCustomer.UpdateOneID(customer.ID).SetOwnerAdminID(22).ExecX(ctx)
+	if rows, err := listGiftOrders(ctx, db, 11, false, 0, 0, "", 10); err != nil || len(rows) != 0 {
+		t.Fatalf("转移后原客服仍看到礼物单：%d %v", len(rows), err)
+	}
+	if rows, err := listGiftOrders(ctx, db, 22, false, 0, 0, "", 10); err != nil || len(rows) != 1 || rows[0].ID != order.ID {
+		t.Fatalf("新客服看不到礼物单：%+v %v", rows, err)
+	}
+	if _, err := loadOwnedGiftOrder(ctx, db, 11, false, order.ID); !errors.Is(err, errForbidden) {
+		t.Fatalf("原客服读取已转移客户礼物单：%v", err)
+	}
+	if _, err := refundGift(ctx, db, 22, false, order.ID, "客户申请退款", now); err != nil {
+		t.Fatalf("新客服退款失败：%v", err)
+	}
+}
+
+func TestRefundedFlaggedGiftCannotReleaseCommission(t *testing.T) {
+	db := openGiftDB(t, "esports_refunded_flagged_gift")
+	defer db.Close()
+	ctx := t.Context()
+	customer := seedGiftCustomer(t, db, 101)
+	player := seedPlayer(t, db, 202, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "FLAGGED-REFUND", Name: "礼物", PriceCents: 1000, CommissionMode: "percent", CommissionBp: 5000})
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 10000, Note: "测试"}, "flagged-refund-recharge"); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)
+	var flagged *ent.EsportsGiftOrder
+	for i := 0; i <= giftFlagPairLimit; i++ {
+		order, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customer.ID, GiftID: gift.ID,
+			PlayerID: player.ID, Quantity: 1, ClientKey: "flagged-refund-" + strconv.Itoa(i)}, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		flagged = order
+	}
+	if flagged.ReviewStatus != "flagged" {
+		t.Fatalf("未触发复核：%+v", flagged)
+	}
+	if _, err := refundGift(ctx, db, 11, false, flagged.ID, "客户撤销礼物", now); err != nil {
+		t.Fatal(err)
+	}
+	before := db.EsportsCommissionEntry.Query().CountX(ctx)
+	if _, err := reviewGiftOrder(ctx, db, 22, flagged.ID, "approve", now); !errors.Is(err, errConflict) {
+		t.Fatalf("已退款礼物仍释放分成：%v", err)
+	}
+	if after := db.EsportsCommissionEntry.Query().CountX(ctx); after != before {
+		t.Fatalf("已退款礼物产生分成：%d → %d", before, after)
+	}
 }
 
 // seedGiftCustomer 建一个绑定已验证身份（user_id）的成年客户。
@@ -113,6 +187,81 @@ func TestSendGiftDeductsAndAccrues(t *testing.T) {
 	}
 }
 
+func TestGiftCsCommissionSwitchAndRefund(t *testing.T) {
+	db := openGiftDB(t, "esports_gift_cs_commission")
+	ctx := t.Context()
+	now := time.Now().UTC()
+	customer := seedGiftCustomer(t, db, 101)
+	player := seedPlayer(t, db, 202, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "GIFT-CS", Name: "客服提成礼物", PriceCents: 10000,
+		CommissionMode: "percent", CommissionBp: 6000})
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 30000, Note: "礼物提成测试"}, "gift-cs-recharge"); err != nil {
+		t.Fatal(err)
+	}
+	off, err := createCsCommissionRule(ctx, db, csCommissionRuleInput{
+		RuleNo: "GIFT-CS-RULE", Scope: "global", BaseMode: "order_amount", CalcMode: "percent",
+		ValueBp: 500, Period: "monthly", IncludeGifts: false,
+	}, 11, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = activateCsCommissionRule(ctx, db, off.ID, 11, now); err != nil {
+		t.Fatal(err)
+	}
+	first, err := sendGift(ctx, db, 11, giftSendInput{
+		CustomerID: customer.ID, GiftID: gift.ID, PlayerID: player.ID,
+		Quantity: 1, ClientKey: "gift-cs-off-001",
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.CsCommissionRuleID != nil || db.EsportsCsCommissionEntry.Query().CountX(ctx) != 0 {
+		t.Fatal("关闭礼物提成时不得计提客服提成")
+	}
+	on, err := createCsCommissionRule(ctx, db, csCommissionRuleInput{
+		RuleNo: "GIFT-CS-RULE", Scope: "global", BaseMode: "order_amount", CalcMode: "percent",
+		ValueBp: 500, Period: "monthly", IncludeGifts: true,
+	}, 11, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = activateCsCommissionRule(ctx, db, on.ID, 11, now); err != nil {
+		t.Fatal(err)
+	}
+	second, err := sendGift(ctx, db, 11, giftSendInput{
+		CustomerID: customer.ID, GiftID: gift.ID, PlayerID: player.ID,
+		Quantity: 1, ClientKey: "gift-cs-on-0002",
+	}, now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.CsCommissionRuleID == nil || *second.CsCommissionRuleID != on.ID ||
+		second.ResponsibleAdminID == nil || *second.ResponsibleAdminID != 11 {
+		t.Fatalf("礼物未快照开关规则及业绩归属：%+v", second)
+	}
+	entry := db.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.GiftOrderIDEQ(second.ID),
+		esportscscommissionentry.KindEQ(esportscscommissionentry.KindGift),
+	).OnlyX(ctx)
+	if entry.AmountCents != 500 || entry.BaseCents != 10000 || entry.StudioRemainderCents != 3500 || entry.OrderID != nil {
+		t.Fatalf("礼物客服提成应为 500 分且有独立来源：%+v", entry)
+	}
+	if _, err = refundGift(ctx, db, 22, true, second.ID, "客户申请礼物退款", now.Add(2*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	reversal := db.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.GiftOrderIDEQ(second.ID),
+		esportscscommissionentry.KindEQ(esportscscommissionentry.KindGiftReversal),
+	).OnlyX(ctx)
+	if reversal.AmountCents != -500 || reversal.BaseCents != -10000 {
+		t.Fatalf("礼物退款须冲回已计客服提成：%+v", reversal)
+	}
+	if got := db.EsportsCsCommissionEntry.Query().Where(esportscscommissionentry.GiftOrderIDEQ(first.ID)).CountX(ctx); got != 0 {
+		t.Fatalf("事后开启不得追溯计提旧礼物，got=%d", got)
+	}
+}
+
 // 送礼的各项边界：本人送礼、未二次确认的大额、未成年、停售礼物、未验证身份与赠送权益支付均被拦截。
 func TestSendGiftGuards(t *testing.T) {
 	db := openGiftDB(t, "esports_gift_guards")
@@ -147,7 +296,7 @@ func TestSendGiftGuards(t *testing.T) {
 		t.Fatalf("二次确认后的高额礼物被误拦：%v", err)
 	}
 	// 未绑定身份的客户不可送礼。
-	raw := saveCustomerOrFail(t, db, 12)
+	raw := saveCustomerOrFail(t, db, 11)
 	noID := base
 	noID.CustomerID = raw.ID
 	noID.ClientKey = "guard-key-003"
@@ -188,6 +337,61 @@ func TestSendGiftGuards(t *testing.T) {
 	}
 }
 
+func TestSendGiftRejectsUnownedCustomer(t *testing.T) {
+	db := openGiftDB(t, "esports_gift_owner")
+	defer db.Close()
+	ctx := t.Context()
+	customer := seedGiftCustomer(t, db, 101)
+	db.EsportsCustomer.UpdateOneID(customer.ID).SetOwnerAdminID(22).SaveX(ctx)
+	player := seedPlayer(t, db, 202, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "GIFT-OWNER", Name: "归属测试", PriceCents: 10000,
+		CommissionMode: "percent", CommissionBp: 6000})
+	if _, err := walletRecharge(ctx, db, 22, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 10000, Note: "归属测试"}, "owner-recharge-key"); err != nil {
+		t.Fatal(err)
+	}
+	in := giftSendInput{CustomerID: customer.ID, GiftID: gift.ID, PlayerID: player.ID,
+		Quantity: 1, ClientKey: "gift-owner-key"}
+	if _, err := sendGift(ctx, db, 11, in, time.Now()); !errors.Is(err, errForbidden) {
+		t.Fatalf("其他客服代客扣款应被拒绝：%v", err)
+	}
+	if db.EsportsGiftOrder.Query().CountX(ctx) != 0 {
+		t.Fatal("越权送礼已生成单据")
+	}
+}
+
+func TestReciprocalGiftRequiresReviewBeforeCommission(t *testing.T) {
+	db := openGiftDB(t, "esports_gift_reciprocal")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	customerA := seedGiftCustomer(t, db, 101)
+	customerB := seedGiftCustomer(t, db, 202)
+	playerA := seedPlayer(t, db, 101, "qualified", "online")
+	playerB := seedPlayer(t, db, 202, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "GIFT-RECIPROCAL", Name: "往返测试", PriceCents: 1000,
+		CommissionMode: "percent", CommissionBp: 6000})
+	for _, customer := range []*ent.EsportsCustomer{customerA, customerB} {
+		if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+			walletInput{PrincipalCents: 10000, Note: "往返测试"}, "gift-reciprocal-recharge-"+strconv.Itoa(customer.ID)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customerB.ID, GiftID: gift.ID,
+		PlayerID: playerA.ID, Quantity: 1, ClientKey: "gift-reciprocal-first"}, now)
+	if err != nil || first.ReviewStatus != "normal" {
+		t.Fatalf("第一笔正常送礼失败：%+v, %v", first, err)
+	}
+	second, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customerA.ID, GiftID: gift.ID,
+		PlayerID: playerB.ID, Quantity: 1, ClientKey: "gift-reciprocal-second"}, now.Add(time.Minute))
+	if err != nil || second.ReviewStatus != "flagged" {
+		t.Fatalf("往返送礼未标记待复核：%+v, %v", second, err)
+	}
+	if count := db.EsportsCommissionEntry.Query().Where(esportscommissionentry.KindEQ(esportscommissionentry.KindGift)).CountX(ctx); count != 1 {
+		t.Fatalf("待复核往返礼物不应释放分成，明细数=%d", count)
+	}
+}
+
 // 防刷榜标记、复核释放分成、礼物退款冲回分成与成长值。
 func TestGiftFlagReviewRefundAndLeaderboard(t *testing.T) {
 	db := openGiftDB(t, "esports_gift_flow")
@@ -201,6 +405,16 @@ func TestGiftFlagReviewRefundAndLeaderboard(t *testing.T) {
 	player := seedPlayer(t, db, 202, "qualified", "online")
 	gift := seedGift(t, db, giftInput{Code: "GIFT-D", Name: "礼物D", PriceCents: 10000, CommissionMode: "percent", CommissionBp: 6000})
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	csRule, err := createCsCommissionRule(ctx, db, csCommissionRuleInput{
+		RuleNo: "GIFT-FLAG-CS", Scope: "global", BaseMode: "order_amount", CalcMode: "percent",
+		ValueBp: 500, Period: "monthly", IncludeGifts: true,
+	}, 11, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = activateCsCommissionRule(ctx, db, csRule.ID, 11, now); err != nil {
+		t.Fatal(err)
+	}
 
 	var orders []*ent.EsportsGiftOrder
 	for i := 0; i < giftFlagPairLimit+1; i++ {
@@ -220,26 +434,38 @@ func TestGiftFlagReviewRefundAndLeaderboard(t *testing.T) {
 	if got := db.EsportsCommissionEntry.Query().Where(esportscommissionentry.KindEQ(esportscommissionentry.KindGift)).CountX(ctx); got != giftFlagPairLimit {
 		t.Fatalf("待复核礼物不应生成分成，已有 %d 条", got)
 	}
+	if got := db.EsportsCsCommissionEntry.Query().Where(esportscscommissionentry.KindEQ(esportscscommissionentry.KindGift)).CountX(ctx); got != giftFlagPairLimit {
+		t.Fatalf("待复核礼物不应生成客服提成，已有 %d 条", got)
+	}
 	// 复核通过后释放分成。
-	reviewed, err := reviewGiftOrder(ctx, db, 11, flagged.ID, "approve", now)
+	if _, err := reviewGiftOrder(ctx, db, 11, flagged.ID, "approve", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("负责客服不可复核自己名下的疑似礼物：%v", err)
+	}
+	reviewed, err := reviewGiftOrder(ctx, db, 22, flagged.ID, "approve", now)
 	if err != nil || reviewed.ReviewStatus != "approved" {
 		t.Fatalf("复核释放失败：%+v, %v", reviewed, err)
 	}
 	if got := db.EsportsCommissionEntry.Query().Where(esportscommissionentry.KindEQ(esportscommissionentry.KindGift)).CountX(ctx); got != giftFlagPairLimit+1 {
 		t.Fatalf("复核通过未释放分成，当前 %d 条", got)
 	}
-	if _, err := reviewGiftOrder(ctx, db, 11, flagged.ID, "approve", now); !errors.Is(err, errConflict) {
+	if got := db.EsportsCsCommissionEntry.Query().Where(esportscscommissionentry.KindEQ(esportscscommissionentry.KindGift)).CountX(ctx); got != giftFlagPairLimit+1 {
+		t.Fatalf("复核通过未释放客服提成，当前 %d 条", got)
+	}
+	if _, err := reviewGiftOrder(ctx, db, 22, flagged.ID, "approve", now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复复核未被拦截：%v", err)
 	}
 
 	// 退款：退还本金、冲回分成与成长值。
 	target := orders[0]
-	refunded, err := refundGift(ctx, db, 11, target.ID, "客户申请退款", now)
+	refunded, err := refundGift(ctx, db, 11, false, target.ID, "客户申请退款", now)
 	if err != nil || refunded.Status != "refunded" || refunded.RefundCents != 10000 {
 		t.Fatalf("礼物退款失败：%+v, %v", refunded, err)
 	}
 	if got := db.EsportsCommissionEntry.Query().Where(esportscommissionentry.KindEQ(esportscommissionentry.KindGiftReversal)).CountX(ctx); got != 1 {
 		t.Fatalf("退款未冲回礼物分成：%d", got)
+	}
+	if got := db.EsportsCsCommissionEntry.Query().Where(esportscscommissionentry.KindEQ(esportscscommissionentry.KindGiftReversal)).CountX(ctx); got != 1 {
+		t.Fatalf("退款未冲回礼物客服提成：%d", got)
 	}
 	reversal := db.EsportsCommissionEntry.Query().Where(esportscommissionentry.KindEQ(esportscommissionentry.KindGiftReversal)).OnlyX(ctx)
 	if reversal.AmountCents != -6000 {
@@ -249,7 +475,7 @@ func TestGiftFlagReviewRefundAndLeaderboard(t *testing.T) {
 	if growth, err := customerGrowthTotal(ctx, db, customer.ID); err != nil || growth != growthTotal-10000 {
 		t.Fatalf("成长值未按退款冲回：%d, %v", growth, err)
 	}
-	if _, err := refundGift(ctx, db, 11, target.ID, "重复退款", now); !errors.Is(err, errConflict) {
+	if _, err := refundGift(ctx, db, 11, false, target.ID, "重复退款", now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复退款未被拦截：%v", err)
 	}
 

@@ -6,6 +6,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+
+	"go-admin/internal/apps/esports/schematier"
 )
 
 // EsportsCloseRule 是结单规则（§3.4 首版）：把「服务凭证不少于 N 张、服务时长不为零、
@@ -30,6 +32,11 @@ func (EsportsCloseRule) Fields() []ent.Field {
 		field.Bool("require_duration").Default(true).StructTag(`json:"require_duration"`),
 		field.Bool("require_no_pending_addon").Default(true).StructTag(`json:"require_no_pending_addon"`),
 		field.Bool("require_no_open_aftersale").Default(true).StructTag(`json:"require_no_open_aftersale"`),
+		// condition_tree 是通用 AND/OR 结单条件树（§3.4：字段 + 运算符 + 值，支持嵌套）。
+		// 配置后优先于上面的结构化条件项；未配置时回落结构化条件项（二者语义等价）。
+		// 零值（空 op 与空 field）表示未配置，回落结构化条件项。
+		field.JSON("condition_tree", schematier.CloseConditionNode{}).Optional().
+			StructTag(`json:"condition_tree"`),
 		// 金额复核阈值（分）：>0 且订单应付达到该阈值时，结单须由非负责客服的管理员执行（§3.4 高额单管理员复核）。
 		field.Int64("review_threshold_cents").Default(0).StructTag(`json:"review_threshold_cents"`),
 		field.Enum("status").Values("draft", "active", "history").Default("draft").StructTag(`json:"status"`),

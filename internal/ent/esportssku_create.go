@@ -72,6 +72,34 @@ func (_c *EsportsSkuCreate) SetUnitPriceCents(v int64) *EsportsSkuCreate {
 	return _c
 }
 
+// SetMinUnitPriceCents sets the "min_unit_price_cents" field.
+func (_c *EsportsSkuCreate) SetMinUnitPriceCents(v int64) *EsportsSkuCreate {
+	_c.mutation.SetMinUnitPriceCents(v)
+	return _c
+}
+
+// SetNillableMinUnitPriceCents sets the "min_unit_price_cents" field if the given value is not nil.
+func (_c *EsportsSkuCreate) SetNillableMinUnitPriceCents(v *int64) *EsportsSkuCreate {
+	if v != nil {
+		_c.SetMinUnitPriceCents(*v)
+	}
+	return _c
+}
+
+// SetAdjustmentApprovalBp sets the "adjustment_approval_bp" field.
+func (_c *EsportsSkuCreate) SetAdjustmentApprovalBp(v int) *EsportsSkuCreate {
+	_c.mutation.SetAdjustmentApprovalBp(v)
+	return _c
+}
+
+// SetNillableAdjustmentApprovalBp sets the "adjustment_approval_bp" field if the given value is not nil.
+func (_c *EsportsSkuCreate) SetNillableAdjustmentApprovalBp(v *int) *EsportsSkuCreate {
+	if v != nil {
+		_c.SetAdjustmentApprovalBp(*v)
+	}
+	return _c
+}
+
 // SetServiceUnits sets the "service_units" field.
 func (_c *EsportsSkuCreate) SetServiceUnits(v int64) *EsportsSkuCreate {
 	_c.mutation.SetServiceUnits(v)
@@ -108,6 +136,20 @@ func (_c *EsportsSkuCreate) SetRequiredLevel(v esportssku.RequiredLevel) *Esport
 func (_c *EsportsSkuCreate) SetNillableRequiredLevel(v *esportssku.RequiredLevel) *EsportsSkuCreate {
 	if v != nil {
 		_c.SetRequiredLevel(*v)
+	}
+	return _c
+}
+
+// SetCloseRuleCode sets the "close_rule_code" field.
+func (_c *EsportsSkuCreate) SetCloseRuleCode(v string) *EsportsSkuCreate {
+	_c.mutation.SetCloseRuleCode(v)
+	return _c
+}
+
+// SetNillableCloseRuleCode sets the "close_rule_code" field if the given value is not nil.
+func (_c *EsportsSkuCreate) SetNillableCloseRuleCode(v *string) *EsportsSkuCreate {
+	if v != nil {
+		_c.SetCloseRuleCode(*v)
 	}
 	return _c
 }
@@ -263,6 +305,14 @@ func (_c *EsportsSkuCreate) defaults() {
 		v := esportssku.DefaultDescription
 		_c.mutation.SetDescription(v)
 	}
+	if _, ok := _c.mutation.MinUnitPriceCents(); !ok {
+		v := esportssku.DefaultMinUnitPriceCents
+		_c.mutation.SetMinUnitPriceCents(v)
+	}
+	if _, ok := _c.mutation.AdjustmentApprovalBp(); !ok {
+		v := esportssku.DefaultAdjustmentApprovalBp
+		_c.mutation.SetAdjustmentApprovalBp(v)
+	}
 	if _, ok := _c.mutation.RequiredSeats(); !ok {
 		v := esportssku.DefaultRequiredSeats
 		_c.mutation.SetRequiredSeats(v)
@@ -270,6 +320,10 @@ func (_c *EsportsSkuCreate) defaults() {
 	if _, ok := _c.mutation.RequiredLevel(); !ok {
 		v := esportssku.DefaultRequiredLevel
 		_c.mutation.SetRequiredLevel(v)
+	}
+	if _, ok := _c.mutation.CloseRuleCode(); !ok {
+		v := esportssku.DefaultCloseRuleCode
+		_c.mutation.SetCloseRuleCode(v)
 	}
 	if _, ok := _c.mutation.QuotaTotal(); !ok {
 		v := esportssku.DefaultQuotaTotal
@@ -347,6 +401,12 @@ func (_c *EsportsSkuCreate) check() error {
 			return &ValidationError{Name: "unit_price_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.unit_price_cents": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.MinUnitPriceCents(); !ok {
+		return &ValidationError{Name: "min_unit_price_cents", err: errors.New(`ent: missing required field "EsportsSku.min_unit_price_cents"`)}
+	}
+	if _, ok := _c.mutation.AdjustmentApprovalBp(); !ok {
+		return &ValidationError{Name: "adjustment_approval_bp", err: errors.New(`ent: missing required field "EsportsSku.adjustment_approval_bp"`)}
+	}
 	if _, ok := _c.mutation.ServiceUnits(); !ok {
 		return &ValidationError{Name: "service_units", err: errors.New(`ent: missing required field "EsportsSku.service_units"`)}
 	}
@@ -377,6 +437,14 @@ func (_c *EsportsSkuCreate) check() error {
 	if v, ok := _c.mutation.RequiredLevel(); ok {
 		if err := esportssku.RequiredLevelValidator(v); err != nil {
 			return &ValidationError{Name: "required_level", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.required_level": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.CloseRuleCode(); !ok {
+		return &ValidationError{Name: "close_rule_code", err: errors.New(`ent: missing required field "EsportsSku.close_rule_code"`)}
+	}
+	if v, ok := _c.mutation.CloseRuleCode(); ok {
+		if err := esportssku.CloseRuleCodeValidator(v); err != nil {
+			return &ValidationError{Name: "close_rule_code", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.close_rule_code": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.QuotaTotal(); !ok {
@@ -458,6 +526,14 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 		_spec.SetField(esportssku.FieldUnitPriceCents, field.TypeInt64, value)
 		_node.UnitPriceCents = value
 	}
+	if value, ok := _c.mutation.MinUnitPriceCents(); ok {
+		_spec.SetField(esportssku.FieldMinUnitPriceCents, field.TypeInt64, value)
+		_node.MinUnitPriceCents = value
+	}
+	if value, ok := _c.mutation.AdjustmentApprovalBp(); ok {
+		_spec.SetField(esportssku.FieldAdjustmentApprovalBp, field.TypeInt, value)
+		_node.AdjustmentApprovalBp = value
+	}
 	if value, ok := _c.mutation.ServiceUnits(); ok {
 		_spec.SetField(esportssku.FieldServiceUnits, field.TypeInt64, value)
 		_node.ServiceUnits = value
@@ -473,6 +549,10 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RequiredLevel(); ok {
 		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeEnum, value)
 		_node.RequiredLevel = value
+	}
+	if value, ok := _c.mutation.CloseRuleCode(); ok {
+		_spec.SetField(esportssku.FieldCloseRuleCode, field.TypeString, value)
+		_node.CloseRuleCode = value
 	}
 	if value, ok := _c.mutation.QuotaTotal(); ok {
 		_spec.SetField(esportssku.FieldQuotaTotal, field.TypeInt64, value)

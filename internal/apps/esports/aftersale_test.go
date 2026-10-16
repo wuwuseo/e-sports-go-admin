@@ -23,6 +23,49 @@ func openAfterSaleDB(t *testing.T, name string) *ent.Client {
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 }
 
+func TestAfterSaleScopeFollowsResponsibleAdmin(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_aftersale_scope")
+	defer db.Close()
+	ctx := t.Context()
+	order := seedBalancePaidOrder(t, db, "SCOPE")
+	item, err := createAfterSale(ctx, db, afterSaleInput{SourceType: "order", SourceID: order.ID,
+		Kind: "refund_request", Channel: "admin", Demand: "客户申请退款"}, 11, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.CustomerID == nil || *item.CustomerID != order.CustomerID {
+		t.Fatalf("客服创建售后时未绑定订单客户：%+v", item)
+	}
+	if rows, err := listAfterSales(ctx, db, 22, false, "", 10); err != nil || len(rows) != 0 {
+		t.Fatalf("其他客服看到售后单：%+v %v", rows, err)
+	}
+	if _, err := loadOwnedAfterSale(ctx, db, 22, false, item.ID); !errors.Is(err, errForbidden) {
+		t.Fatalf("其他客服读取售后详情：%v", err)
+	}
+	db.EsportsOrder.UpdateOneID(order.ID).SetResponsibleAdminID(22).ExecX(ctx)
+	if rows, err := listAfterSales(ctx, db, 11, false, "", 10); err != nil || len(rows) != 0 {
+		t.Fatalf("转移后旧客服仍看到售后单：%+v %v", rows, err)
+	}
+	if rows, err := listAfterSales(ctx, db, 22, false, "", 10); err != nil || len(rows) != 1 || rows[0].ID != item.ID {
+		t.Fatalf("转移后新客服无法看到售后单：%+v %v", rows, err)
+	}
+}
+
+func TestAfterSaleRejectCannotSelfReview(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_aftersale_reject_self")
+	defer db.Close()
+	ctx := t.Context()
+	order := seedBalancePaidOrder(t, db, "REJECT-SELF")
+	now := time.Now()
+	item := newRefundAfterSale(t, db, order.ID, "refund_request", 500, 11, 22, now)
+	if _, err := rejectAfterSale(ctx, db, item.ID, 11, afterSaleDecisionInput{Reason: "不同意"}, now); !errors.Is(err, errForbidden) {
+		t.Fatalf("处理客服自行驳回售后：%v", err)
+	}
+	if _, err := rejectAfterSale(ctx, db, item.ID, 22, afterSaleDecisionInput{Reason: "证据不足"}, now); err != nil {
+		t.Fatalf("独立审批驳回失败：%v", err)
+	}
+}
+
 // seedBalancePaidOrder 构造一张以客户余额核销的已付款订单（应付 2000，核销流水：本金 -1000 / 赠送 -1000）。
 func seedBalancePaidOrder(t *testing.T, db *ent.Client, suffix string) *ent.EsportsOrder {
 	t.Helper()

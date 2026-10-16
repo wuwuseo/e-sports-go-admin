@@ -79,6 +79,11 @@ func BonusCents(v int64) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldBonusCents, v))
 }
 
+// AllowGifts applies equality check predicate on the "allow_gifts" field. It's identical to AllowGiftsEQ.
+func AllowGifts(v bool) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldAllowGifts, v))
+}
+
 // ContractConfirmed applies equality check predicate on the "contract_confirmed" field. It's identical to ContractConfirmedEQ.
 func ContractConfirmed(v bool) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldContractConfirmed, v))
@@ -92,6 +97,41 @@ func ValidFrom(v time.Time) predicate.EsportsStoredValueCard {
 // ValidUntil applies equality check predicate on the "valid_until" field. It's identical to ValidUntilEQ.
 func ValidUntil(v time.Time) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldValidUntil, v))
+}
+
+// RequestedValidityDays applies equality check predicate on the "requested_validity_days" field. It's identical to RequestedValidityDaysEQ.
+func RequestedValidityDays(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldRequestedValidityDays, v))
+}
+
+// OpenRequestKey applies equality check predicate on the "open_request_key" field. It's identical to OpenRequestKeyEQ.
+func OpenRequestKey(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldOpenRequestKey, v))
+}
+
+// VerifiedPaymentKey applies equality check predicate on the "verified_payment_key" field. It's identical to VerifiedPaymentKeyEQ.
+func VerifiedPaymentKey(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldVerifiedPaymentKey, v))
+}
+
+// PaymentVerifiedByAdminID applies equality check predicate on the "payment_verified_by_admin_id" field. It's identical to PaymentVerifiedByAdminIDEQ.
+func PaymentVerifiedByAdminID(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedAt applies equality check predicate on the "payment_verified_at" field. It's identical to PaymentVerifiedAtEQ.
+func PaymentVerifiedAt(v time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAmountCents applies equality check predicate on the "payment_verified_amount_cents" field. It's identical to PaymentVerifiedAmountCentsEQ.
+func PaymentVerifiedAmountCents(v int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerifiedAmountCents, v))
+}
+
+// PaymentVerificationNote applies equality check predicate on the "payment_verification_note" field. It's identical to PaymentVerificationNoteEQ.
+func PaymentVerificationNote(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerificationNote, v))
 }
 
 // PackageID applies equality check predicate on the "package_id" field. It's identical to PackageIDEQ.
@@ -444,6 +484,16 @@ func ApplicableScopeNotNil() predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldNotNull(FieldApplicableScope))
 }
 
+// AllowGiftsEQ applies the EQ predicate on the "allow_gifts" field.
+func AllowGiftsEQ(v bool) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldAllowGifts, v))
+}
+
+// AllowGiftsNEQ applies the NEQ predicate on the "allow_gifts" field.
+func AllowGiftsNEQ(v bool) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldAllowGifts, v))
+}
+
 // ContractConfirmedEQ applies the EQ predicate on the "contract_confirmed" field.
 func ContractConfirmedEQ(v bool) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldContractConfirmed, v))
@@ -534,6 +584,46 @@ func ValidUntilLTE(v time.Time) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldValidUntil, v))
 }
 
+// RequestedValidityDaysEQ applies the EQ predicate on the "requested_validity_days" field.
+func RequestedValidityDaysEQ(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldRequestedValidityDays, v))
+}
+
+// RequestedValidityDaysNEQ applies the NEQ predicate on the "requested_validity_days" field.
+func RequestedValidityDaysNEQ(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldRequestedValidityDays, v))
+}
+
+// RequestedValidityDaysIn applies the In predicate on the "requested_validity_days" field.
+func RequestedValidityDaysIn(vs ...int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldRequestedValidityDays, vs...))
+}
+
+// RequestedValidityDaysNotIn applies the NotIn predicate on the "requested_validity_days" field.
+func RequestedValidityDaysNotIn(vs ...int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldRequestedValidityDays, vs...))
+}
+
+// RequestedValidityDaysGT applies the GT predicate on the "requested_validity_days" field.
+func RequestedValidityDaysGT(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldRequestedValidityDays, v))
+}
+
+// RequestedValidityDaysGTE applies the GTE predicate on the "requested_validity_days" field.
+func RequestedValidityDaysGTE(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldRequestedValidityDays, v))
+}
+
+// RequestedValidityDaysLT applies the LT predicate on the "requested_validity_days" field.
+func RequestedValidityDaysLT(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldRequestedValidityDays, v))
+}
+
+// RequestedValidityDaysLTE applies the LTE predicate on the "requested_validity_days" field.
+func RequestedValidityDaysLTE(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldRequestedValidityDays, v))
+}
+
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v Status) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldStatus, v))
@@ -552,6 +642,361 @@ func StatusIn(vs ...Status) predicate.EsportsStoredValueCard {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// OpenRequestKeyEQ applies the EQ predicate on the "open_request_key" field.
+func OpenRequestKeyEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyNEQ applies the NEQ predicate on the "open_request_key" field.
+func OpenRequestKeyNEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyIn applies the In predicate on the "open_request_key" field.
+func OpenRequestKeyIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldOpenRequestKey, vs...))
+}
+
+// OpenRequestKeyNotIn applies the NotIn predicate on the "open_request_key" field.
+func OpenRequestKeyNotIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldOpenRequestKey, vs...))
+}
+
+// OpenRequestKeyGT applies the GT predicate on the "open_request_key" field.
+func OpenRequestKeyGT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyGTE applies the GTE predicate on the "open_request_key" field.
+func OpenRequestKeyGTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyLT applies the LT predicate on the "open_request_key" field.
+func OpenRequestKeyLT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyLTE applies the LTE predicate on the "open_request_key" field.
+func OpenRequestKeyLTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyContains applies the Contains predicate on the "open_request_key" field.
+func OpenRequestKeyContains(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContains(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyHasPrefix applies the HasPrefix predicate on the "open_request_key" field.
+func OpenRequestKeyHasPrefix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasPrefix(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyHasSuffix applies the HasSuffix predicate on the "open_request_key" field.
+func OpenRequestKeyHasSuffix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasSuffix(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyIsNil applies the IsNil predicate on the "open_request_key" field.
+func OpenRequestKeyIsNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIsNull(FieldOpenRequestKey))
+}
+
+// OpenRequestKeyNotNil applies the NotNil predicate on the "open_request_key" field.
+func OpenRequestKeyNotNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotNull(FieldOpenRequestKey))
+}
+
+// OpenRequestKeyEqualFold applies the EqualFold predicate on the "open_request_key" field.
+func OpenRequestKeyEqualFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEqualFold(FieldOpenRequestKey, v))
+}
+
+// OpenRequestKeyContainsFold applies the ContainsFold predicate on the "open_request_key" field.
+func OpenRequestKeyContainsFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContainsFold(FieldOpenRequestKey, v))
+}
+
+// VerifiedPaymentKeyEQ applies the EQ predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyNEQ applies the NEQ predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyNEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyIn applies the In predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldVerifiedPaymentKey, vs...))
+}
+
+// VerifiedPaymentKeyNotIn applies the NotIn predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyNotIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldVerifiedPaymentKey, vs...))
+}
+
+// VerifiedPaymentKeyGT applies the GT predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyGT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyGTE applies the GTE predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyGTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyLT applies the LT predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyLT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyLTE applies the LTE predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyLTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyContains applies the Contains predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyContains(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContains(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyHasPrefix applies the HasPrefix predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyHasPrefix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasPrefix(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyHasSuffix applies the HasSuffix predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyHasSuffix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasSuffix(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyIsNil applies the IsNil predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyIsNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIsNull(FieldVerifiedPaymentKey))
+}
+
+// VerifiedPaymentKeyNotNil applies the NotNil predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyNotNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotNull(FieldVerifiedPaymentKey))
+}
+
+// VerifiedPaymentKeyEqualFold applies the EqualFold predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyEqualFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEqualFold(FieldVerifiedPaymentKey, v))
+}
+
+// VerifiedPaymentKeyContainsFold applies the ContainsFold predicate on the "verified_payment_key" field.
+func VerifiedPaymentKeyContainsFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContainsFold(FieldVerifiedPaymentKey, v))
+}
+
+// PaymentVerifiedByAdminIDEQ applies the EQ predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDEQ(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDNEQ applies the NEQ predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDNEQ(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDIn applies the In predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDIn(vs ...int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldPaymentVerifiedByAdminID, vs...))
+}
+
+// PaymentVerifiedByAdminIDNotIn applies the NotIn predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDNotIn(vs ...int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldPaymentVerifiedByAdminID, vs...))
+}
+
+// PaymentVerifiedByAdminIDGT applies the GT predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDGT(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDGTE applies the GTE predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDGTE(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDLT applies the LT predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDLT(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDLTE applies the LTE predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDLTE(v int) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDIsNil applies the IsNil predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDIsNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIsNull(FieldPaymentVerifiedByAdminID))
+}
+
+// PaymentVerifiedByAdminIDNotNil applies the NotNil predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDNotNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotNull(FieldPaymentVerifiedByAdminID))
+}
+
+// PaymentVerifiedAtEQ applies the EQ predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtEQ(v time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtNEQ applies the NEQ predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtNEQ(v time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtIn applies the In predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtIn(vs ...time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldPaymentVerifiedAt, vs...))
+}
+
+// PaymentVerifiedAtNotIn applies the NotIn predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtNotIn(vs ...time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldPaymentVerifiedAt, vs...))
+}
+
+// PaymentVerifiedAtGT applies the GT predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtGT(v time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtGTE applies the GTE predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtGTE(v time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtLT applies the LT predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtLT(v time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtLTE applies the LTE predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtLTE(v time.Time) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtIsNil applies the IsNil predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtIsNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIsNull(FieldPaymentVerifiedAt))
+}
+
+// PaymentVerifiedAtNotNil applies the NotNil predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtNotNil() predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotNull(FieldPaymentVerifiedAt))
+}
+
+// PaymentVerifiedAmountCentsEQ applies the EQ predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsEQ(v int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerifiedAmountCents, v))
+}
+
+// PaymentVerifiedAmountCentsNEQ applies the NEQ predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsNEQ(v int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldPaymentVerifiedAmountCents, v))
+}
+
+// PaymentVerifiedAmountCentsIn applies the In predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsIn(vs ...int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldPaymentVerifiedAmountCents, vs...))
+}
+
+// PaymentVerifiedAmountCentsNotIn applies the NotIn predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsNotIn(vs ...int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldPaymentVerifiedAmountCents, vs...))
+}
+
+// PaymentVerifiedAmountCentsGT applies the GT predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsGT(v int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldPaymentVerifiedAmountCents, v))
+}
+
+// PaymentVerifiedAmountCentsGTE applies the GTE predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsGTE(v int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldPaymentVerifiedAmountCents, v))
+}
+
+// PaymentVerifiedAmountCentsLT applies the LT predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsLT(v int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldPaymentVerifiedAmountCents, v))
+}
+
+// PaymentVerifiedAmountCentsLTE applies the LTE predicate on the "payment_verified_amount_cents" field.
+func PaymentVerifiedAmountCentsLTE(v int64) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldPaymentVerifiedAmountCents, v))
+}
+
+// PaymentVerificationNoteEQ applies the EQ predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteNEQ applies the NEQ predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteNEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteIn applies the In predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldPaymentVerificationNote, vs...))
+}
+
+// PaymentVerificationNoteNotIn applies the NotIn predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteNotIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldPaymentVerificationNote, vs...))
+}
+
+// PaymentVerificationNoteGT applies the GT predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteGT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteGTE applies the GTE predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteGTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteLT applies the LT predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteLT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteLTE applies the LTE predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteLTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteContains applies the Contains predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteContains(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContains(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteHasPrefix applies the HasPrefix predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteHasPrefix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasPrefix(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteHasSuffix applies the HasSuffix predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteHasSuffix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasSuffix(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteEqualFold applies the EqualFold predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteEqualFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEqualFold(FieldPaymentVerificationNote, v))
+}
+
+// PaymentVerificationNoteContainsFold applies the ContainsFold predicate on the "payment_verification_note" field.
+func PaymentVerificationNoteContainsFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContainsFold(FieldPaymentVerificationNote, v))
 }
 
 // PackageIDEQ applies the EQ predicate on the "package_id" field.

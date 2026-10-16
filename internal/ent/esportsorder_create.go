@@ -66,6 +66,104 @@ func (_c *EsportsOrderCreate) SetNillableResponsibleAdminID(v *int) *EsportsOrde
 	return _c
 }
 
+// SetCsCommissionAdminID sets the "cs_commission_admin_id" field.
+func (_c *EsportsOrderCreate) SetCsCommissionAdminID(v int) *EsportsOrderCreate {
+	_c.mutation.SetCsCommissionAdminID(v)
+	return _c
+}
+
+// SetNillableCsCommissionAdminID sets the "cs_commission_admin_id" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableCsCommissionAdminID(v *int) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetCsCommissionAdminID(*v)
+	}
+	return _c
+}
+
+// SetCsCommissionRuleID sets the "cs_commission_rule_id" field.
+func (_c *EsportsOrderCreate) SetCsCommissionRuleID(v int) *EsportsOrderCreate {
+	_c.mutation.SetCsCommissionRuleID(v)
+	return _c
+}
+
+// SetNillableCsCommissionRuleID sets the "cs_commission_rule_id" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableCsCommissionRuleID(v *int) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetCsCommissionRuleID(*v)
+	}
+	return _c
+}
+
+// SetCsCommissionRuleLockedAt sets the "cs_commission_rule_locked_at" field.
+func (_c *EsportsOrderCreate) SetCsCommissionRuleLockedAt(v time.Time) *EsportsOrderCreate {
+	_c.mutation.SetCsCommissionRuleLockedAt(v)
+	return _c
+}
+
+// SetNillableCsCommissionRuleLockedAt sets the "cs_commission_rule_locked_at" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableCsCommissionRuleLockedAt(v *time.Time) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetCsCommissionRuleLockedAt(*v)
+	}
+	return _c
+}
+
+// SetCloseFormTemplateID sets the "close_form_template_id" field.
+func (_c *EsportsOrderCreate) SetCloseFormTemplateID(v int) *EsportsOrderCreate {
+	_c.mutation.SetCloseFormTemplateID(v)
+	return _c
+}
+
+// SetNillableCloseFormTemplateID sets the "close_form_template_id" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableCloseFormTemplateID(v *int) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetCloseFormTemplateID(*v)
+	}
+	return _c
+}
+
+// SetCloseFormTemplateLockedAt sets the "close_form_template_locked_at" field.
+func (_c *EsportsOrderCreate) SetCloseFormTemplateLockedAt(v time.Time) *EsportsOrderCreate {
+	_c.mutation.SetCloseFormTemplateLockedAt(v)
+	return _c
+}
+
+// SetNillableCloseFormTemplateLockedAt sets the "close_form_template_locked_at" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableCloseFormTemplateLockedAt(v *time.Time) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetCloseFormTemplateLockedAt(*v)
+	}
+	return _c
+}
+
+// SetChannelSource sets the "channel_source" field.
+func (_c *EsportsOrderCreate) SetChannelSource(v esportsorder.ChannelSource) *EsportsOrderCreate {
+	_c.mutation.SetChannelSource(v)
+	return _c
+}
+
+// SetNillableChannelSource sets the "channel_source" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableChannelSource(v *esportsorder.ChannelSource) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetChannelSource(*v)
+	}
+	return _c
+}
+
+// SetEntryPoint sets the "entry_point" field.
+func (_c *EsportsOrderCreate) SetEntryPoint(v esportsorder.EntryPoint) *EsportsOrderCreate {
+	_c.mutation.SetEntryPoint(v)
+	return _c
+}
+
+// SetNillableEntryPoint sets the "entry_point" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableEntryPoint(v *esportsorder.EntryPoint) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetEntryPoint(*v)
+	}
+	return _c
+}
+
 // SetQuantity sets the "quantity" field.
 func (_c *EsportsOrderCreate) SetQuantity(v int64) *EsportsOrderCreate {
 	_c.mutation.SetQuantity(v)
@@ -75,6 +173,34 @@ func (_c *EsportsOrderCreate) SetQuantity(v int64) *EsportsOrderCreate {
 // SetUnitPriceCents sets the "unit_price_cents" field.
 func (_c *EsportsOrderCreate) SetUnitPriceCents(v int64) *EsportsOrderCreate {
 	_c.mutation.SetUnitPriceCents(v)
+	return _c
+}
+
+// SetMinUnitPriceCents sets the "min_unit_price_cents" field.
+func (_c *EsportsOrderCreate) SetMinUnitPriceCents(v int64) *EsportsOrderCreate {
+	_c.mutation.SetMinUnitPriceCents(v)
+	return _c
+}
+
+// SetNillableMinUnitPriceCents sets the "min_unit_price_cents" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableMinUnitPriceCents(v *int64) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetMinUnitPriceCents(*v)
+	}
+	return _c
+}
+
+// SetAdjustmentApprovalBp sets the "adjustment_approval_bp" field.
+func (_c *EsportsOrderCreate) SetAdjustmentApprovalBp(v int) *EsportsOrderCreate {
+	_c.mutation.SetAdjustmentApprovalBp(v)
+	return _c
+}
+
+// SetNillableAdjustmentApprovalBp sets the "adjustment_approval_bp" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableAdjustmentApprovalBp(v *int) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetAdjustmentApprovalBp(*v)
+	}
 	return _c
 }
 
@@ -418,6 +544,20 @@ func (_c *EsportsOrderCreate) SetNillableRefundedCents(v *int64) *EsportsOrderCr
 	return _c
 }
 
+// SetCloseNetServiceCents sets the "close_net_service_cents" field.
+func (_c *EsportsOrderCreate) SetCloseNetServiceCents(v int64) *EsportsOrderCreate {
+	_c.mutation.SetCloseNetServiceCents(v)
+	return _c
+}
+
+// SetNillableCloseNetServiceCents sets the "close_net_service_cents" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableCloseNetServiceCents(v *int64) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetCloseNetServiceCents(*v)
+	}
+	return _c
+}
+
 // SetRefundReservedCents sets the "refund_reserved_cents" field.
 func (_c *EsportsOrderCreate) SetRefundReservedCents(v int64) *EsportsOrderCreate {
 	_c.mutation.SetRefundReservedCents(v)
@@ -627,6 +767,22 @@ func (_c *EsportsOrderCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *EsportsOrderCreate) defaults() {
+	if _, ok := _c.mutation.ChannelSource(); !ok {
+		v := esportsorder.DefaultChannelSource
+		_c.mutation.SetChannelSource(v)
+	}
+	if _, ok := _c.mutation.EntryPoint(); !ok {
+		v := esportsorder.DefaultEntryPoint
+		_c.mutation.SetEntryPoint(v)
+	}
+	if _, ok := _c.mutation.MinUnitPriceCents(); !ok {
+		v := esportsorder.DefaultMinUnitPriceCents
+		_c.mutation.SetMinUnitPriceCents(v)
+	}
+	if _, ok := _c.mutation.AdjustmentApprovalBp(); !ok {
+		v := esportsorder.DefaultAdjustmentApprovalBp
+		_c.mutation.SetAdjustmentApprovalBp(v)
+	}
 	if _, ok := _c.mutation.DiscountCents(); !ok {
 		v := esportsorder.DefaultDiscountCents
 		_c.mutation.SetDiscountCents(v)
@@ -739,6 +895,22 @@ func (_c *EsportsOrderCreate) check() error {
 			return &ValidationError{Name: "sku_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_id": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.ChannelSource(); !ok {
+		return &ValidationError{Name: "channel_source", err: errors.New(`ent: missing required field "EsportsOrder.channel_source"`)}
+	}
+	if v, ok := _c.mutation.ChannelSource(); ok {
+		if err := esportsorder.ChannelSourceValidator(v); err != nil {
+			return &ValidationError{Name: "channel_source", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.channel_source": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.EntryPoint(); !ok {
+		return &ValidationError{Name: "entry_point", err: errors.New(`ent: missing required field "EsportsOrder.entry_point"`)}
+	}
+	if v, ok := _c.mutation.EntryPoint(); ok {
+		if err := esportsorder.EntryPointValidator(v); err != nil {
+			return &ValidationError{Name: "entry_point", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.entry_point": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Quantity(); !ok {
 		return &ValidationError{Name: "quantity", err: errors.New(`ent: missing required field "EsportsOrder.quantity"`)}
 	}
@@ -754,6 +926,12 @@ func (_c *EsportsOrderCreate) check() error {
 		if err := esportsorder.UnitPriceCentsValidator(v); err != nil {
 			return &ValidationError{Name: "unit_price_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.unit_price_cents": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.MinUnitPriceCents(); !ok {
+		return &ValidationError{Name: "min_unit_price_cents", err: errors.New(`ent: missing required field "EsportsOrder.min_unit_price_cents"`)}
+	}
+	if _, ok := _c.mutation.AdjustmentApprovalBp(); !ok {
+		return &ValidationError{Name: "adjustment_approval_bp", err: errors.New(`ent: missing required field "EsportsOrder.adjustment_approval_bp"`)}
 	}
 	if _, ok := _c.mutation.DiscountCents(); !ok {
 		return &ValidationError{Name: "discount_cents", err: errors.New(`ent: missing required field "EsportsOrder.discount_cents"`)}
@@ -941,6 +1119,34 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 		_spec.SetField(esportsorder.FieldResponsibleAdminID, field.TypeInt, value)
 		_node.ResponsibleAdminID = &value
 	}
+	if value, ok := _c.mutation.CsCommissionAdminID(); ok {
+		_spec.SetField(esportsorder.FieldCsCommissionAdminID, field.TypeInt, value)
+		_node.CsCommissionAdminID = &value
+	}
+	if value, ok := _c.mutation.CsCommissionRuleID(); ok {
+		_spec.SetField(esportsorder.FieldCsCommissionRuleID, field.TypeInt, value)
+		_node.CsCommissionRuleID = &value
+	}
+	if value, ok := _c.mutation.CsCommissionRuleLockedAt(); ok {
+		_spec.SetField(esportsorder.FieldCsCommissionRuleLockedAt, field.TypeTime, value)
+		_node.CsCommissionRuleLockedAt = &value
+	}
+	if value, ok := _c.mutation.CloseFormTemplateID(); ok {
+		_spec.SetField(esportsorder.FieldCloseFormTemplateID, field.TypeInt, value)
+		_node.CloseFormTemplateID = &value
+	}
+	if value, ok := _c.mutation.CloseFormTemplateLockedAt(); ok {
+		_spec.SetField(esportsorder.FieldCloseFormTemplateLockedAt, field.TypeTime, value)
+		_node.CloseFormTemplateLockedAt = &value
+	}
+	if value, ok := _c.mutation.ChannelSource(); ok {
+		_spec.SetField(esportsorder.FieldChannelSource, field.TypeEnum, value)
+		_node.ChannelSource = value
+	}
+	if value, ok := _c.mutation.EntryPoint(); ok {
+		_spec.SetField(esportsorder.FieldEntryPoint, field.TypeEnum, value)
+		_node.EntryPoint = value
+	}
 	if value, ok := _c.mutation.Quantity(); ok {
 		_spec.SetField(esportsorder.FieldQuantity, field.TypeInt64, value)
 		_node.Quantity = value
@@ -948,6 +1154,14 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.UnitPriceCents(); ok {
 		_spec.SetField(esportsorder.FieldUnitPriceCents, field.TypeInt64, value)
 		_node.UnitPriceCents = value
+	}
+	if value, ok := _c.mutation.MinUnitPriceCents(); ok {
+		_spec.SetField(esportsorder.FieldMinUnitPriceCents, field.TypeInt64, value)
+		_node.MinUnitPriceCents = value
+	}
+	if value, ok := _c.mutation.AdjustmentApprovalBp(); ok {
+		_spec.SetField(esportsorder.FieldAdjustmentApprovalBp, field.TypeInt, value)
+		_node.AdjustmentApprovalBp = value
 	}
 	if value, ok := _c.mutation.DiscountCents(); ok {
 		_spec.SetField(esportsorder.FieldDiscountCents, field.TypeInt64, value)
@@ -1052,6 +1266,10 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.RefundedCents(); ok {
 		_spec.SetField(esportsorder.FieldRefundedCents, field.TypeInt64, value)
 		_node.RefundedCents = value
+	}
+	if value, ok := _c.mutation.CloseNetServiceCents(); ok {
+		_spec.SetField(esportsorder.FieldCloseNetServiceCents, field.TypeInt64, value)
+		_node.CloseNetServiceCents = &value
 	}
 	if value, ok := _c.mutation.RefundReservedCents(); ok {
 		_spec.SetField(esportsorder.FieldRefundReservedCents, field.TypeInt64, value)

@@ -76,6 +76,29 @@ func userOrderDetailHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
+func userCancelUnpaidOrderHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	order, err := cancelCustomerUnpaidOrder(c.Context(), global.ORM, customer.ID, orderID, in.Reason)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
 // userWalletHandler 我的余额与权益。
 func userWalletHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)

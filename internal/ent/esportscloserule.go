@@ -3,7 +3,9 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
+	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportscloserule"
 	"strings"
 	"time"
@@ -33,6 +35,8 @@ type EsportsCloseRule struct {
 	RequireNoPendingAddon bool `json:"require_no_pending_addon"`
 	// RequireNoOpenAftersale holds the value of the "require_no_open_aftersale" field.
 	RequireNoOpenAftersale bool `json:"require_no_open_aftersale"`
+	// ConditionTree holds the value of the "condition_tree" field.
+	ConditionTree schematier.CloseConditionNode `json:"condition_tree"`
 	// ReviewThresholdCents holds the value of the "review_threshold_cents" field.
 	ReviewThresholdCents int64 `json:"review_threshold_cents"`
 	// Status holds the value of the "status" field.
@@ -55,6 +59,8 @@ func (*EsportsCloseRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case esportscloserule.FieldConditionTree:
+			values[i] = new([]byte)
 		case esportscloserule.FieldRequireDuration, esportscloserule.FieldRequireNoPendingAddon, esportscloserule.FieldRequireNoOpenAftersale:
 			values[i] = new(sql.NullBool)
 		case esportscloserule.FieldID, esportscloserule.FieldMinEvidence, esportscloserule.FieldReviewThresholdCents, esportscloserule.FieldVersion, esportscloserule.FieldCreatedByAdminID:
@@ -131,6 +137,14 @@ func (_m *EsportsCloseRule) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field require_no_open_aftersale", values[i])
 			} else if value.Valid {
 				_m.RequireNoOpenAftersale = value.Bool
+			}
+		case esportscloserule.FieldConditionTree:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field condition_tree", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ConditionTree); err != nil {
+					return fmt.Errorf("unmarshal field condition_tree: %w", err)
+				}
 			}
 		case esportscloserule.FieldReviewThresholdCents:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -234,6 +248,9 @@ func (_m *EsportsCloseRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("require_no_open_aftersale=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequireNoOpenAftersale))
+	builder.WriteString(", ")
+	builder.WriteString("condition_tree=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ConditionTree))
 	builder.WriteString(", ")
 	builder.WriteString("review_threshold_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReviewThresholdCents))

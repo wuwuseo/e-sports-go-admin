@@ -2,6 +2,8 @@ package esports
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -74,12 +76,17 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 		!validQualification || !validPresence || in.DailyLimit < 0 || in.ConcurrentLimit < 0 {
 		return nil, errInvalidInput
 	}
-	changed, err := db.EsportsPlayer.Update().Where(esportsplayer.IDEQ(id)).
+	update := db.EsportsPlayer.Update().Where(esportsplayer.IDEQ(id)).
 		SetDisplayName(in.DisplayName).
 		SetQualification(esportsplayer.Qualification(in.Qualification)).
 		SetPresence(esportsplayer.Presence(in.Presence)).
 		SetDailyLimit(in.DailyLimit).SetConcurrentLimit(in.ConcurrentLimit).
-		SetGames(in.Games).AddVersion(1).Save(ctx)
+		SetGames(in.Games)
+	// §6.4：管理端把陪玩置为在线时同样写入心跳基线，超时任务才能据此判断失联。
+	if in.Presence == "online" {
+		update.SetLastHeartbeatAt(time.Now().UTC())
+	}
+	changed, err := update.AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -110,8 +117,12 @@ func setPlayerPresence(ctx context.Context, db *ent.Client, playerID int, online
 	if online {
 		presence = esportsplayer.PresenceOnline
 	}
-	changed, err := db.EsportsPlayer.Update().Where(esportsplayer.IDEQ(playerID)).
-		SetPresence(presence).AddVersion(1).Save(ctx)
+	update := db.EsportsPlayer.Update().Where(esportsplayer.IDEQ(playerID)).SetPresence(presence)
+	// §6.4：上线即写入心跳基线，客户端失联后由超时任务接管自动离线。
+	if online {
+		update.SetLastHeartbeatAt(time.Now().UTC())
+	}
+	changed, err := update.AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -246,6 +257,10 @@ func listPlayerInvites(ctx context.Context, db *ent.Client, playerID int, now ti
 		if err != nil {
 			return nil, err
 		}
+		if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
+			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance {
+			continue
+		}
 		view := &playerInviteView{
 			ID: seat.ID, SeatIndex: seat.SeatIndex, OrderID: order.ID, OrderNo: order.OrderNo,
 			CustomerID: order.CustomerID, SkuID: order.SkuID, PayableCents: order.PayableCents,
@@ -289,10 +304,6 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 		if err != nil {
 			return err
 		}
-		// 接受瞬间再次原子校验接单上限（§5.9），此时席位仍为 invited、不计入并发。
-		if err = checkPlayerDispatchLimit(ctx, tx, player, now); err != nil {
-			return err
-		}
 	}
 	// 提前查订单：接受时校验分区 / 等级（§5.5），拒绝时用于回退判断。
 	order, err := tx.EsportsOrder.Get(ctx, seat.OrderID)
@@ -300,6 +311,14 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 		return err
 	}
 	if accept {
+		if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
+			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance {
+			return errConflict
+		}
+		// 本席位在邀请时已预占容量；接受时排除自身，并串行检查其他订单的占位。
+		if err = reservePlayerDispatchCapacity(ctx, tx, player, now, seat.ID); err != nil {
+			return err
+		}
 		game, gErr := orderGameIn(ctx, tx, order.SkuID)
 		if gErr != nil {
 			return gErr
@@ -308,10 +327,24 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 			return err
 		}
 	}
-	changed, err := tx.EsportsDispatchSeat.Update().Where(
+	update := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.IDEQ(seatID),
 		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusInvited),
-	).SetStatus(target).SetRespondedAt(now.UTC()).AddVersion(1).Save(ctx)
+	).SetStatus(target).SetRespondedAt(now.UTC()).AddVersion(1)
+	if accept {
+		rule, ruleErr := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
+			tx.EsportsSku, tx.EsportsProductCategory, order, playerID, now)
+		if ruleErr != nil {
+			return ruleErr
+		}
+		update.SetCommissionRuleLockedAt(now.UTC())
+		if rule != nil {
+			update.SetCommissionRuleID(rule.ID)
+		} else {
+			update.ClearCommissionRuleID()
+		}
+	}
+	changed, err := update.Save(ctx)
 	if err != nil {
 		return err
 	}
@@ -377,7 +410,6 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 // listGrabHall 抢单大厅：可抢的 grabbing 单席位订单，外加「优先通知中且本人被通知」的待派单单席位订单。
 // 优先通知窗口内的订单对未被通知的陪玩**不可见**（名单内独占）；窗口超时、名单内全部拒绝或客服提前
 // 释放后订单转 grabbing，才对所有人开放（§5.4 业务口径）。
-// ponytail: 未按游戏分区权限过滤，且未排除已接满/容量不足。
 func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Time) ([]*ent.EsportsOrder, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
@@ -393,25 +425,80 @@ func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Ti
 	if err != nil {
 		return nil, err
 	}
-	if len(noticedIDs) == 0 {
-		return public, nil
-	}
-	noticed, err := db.EsportsOrder.Query().Where(
-		esportsorder.IDIn(noticedIDs...),
-		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingDispatch),
-		esportsorder.RequiredSeatsEQ(1),
-	).Order(ent.Desc(esportsorder.FieldID)).Limit(100).All(ctx)
-	if err != nil {
-		return nil, err
+	var noticed []*ent.EsportsOrder
+	if len(noticedIDs) > 0 {
+		noticed, err = db.EsportsOrder.Query().Where(
+			esportsorder.IDIn(noticedIDs...),
+			esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingDispatch),
+			esportsorder.RequiredSeatsEQ(1),
+		).Order(ent.Desc(esportsorder.FieldID)).Limit(100).All(ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 	// 优先通知单排在前面：它们对本人有时限，先到先得。
-	if len(noticed) == 0 {
-		return public, nil
-	}
 	merged := make([]*ent.EsportsOrder, 0, len(noticed)+len(public))
 	merged = append(merged, noticed...)
 	merged = append(merged, public...)
-	return merged, nil
+	if len(merged) == 0 {
+		return merged, nil
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	player, err := tx.EsportsPlayer.Get(ctx, playerID)
+	if err != nil {
+		return nil, err
+	}
+	if player.Qualification != esportsplayer.QualificationQualified {
+		return []*ent.EsportsOrder{}, nil
+	}
+	if err = checkPlayerDispatchLimit(ctx, tx, player, now, 0); err != nil {
+		if errors.Is(err, errInvalidInput) {
+			return []*ent.EsportsOrder{}, nil
+		}
+		return nil, err
+	}
+	ids := make([]int, 0, len(merged))
+	for _, order := range merged {
+		ids = append(ids, order.ID)
+	}
+	occupied, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDIn(ids...),
+		esportsdispatchseat.StatusIn(esportsdispatchseat.StatusInvited, esportsdispatchseat.StatusAccepted),
+	).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	occupiedOrders := make(map[int]bool, len(occupied))
+	for _, seat := range occupied {
+		occupiedOrders[seat.OrderID] = true
+	}
+	gameCache := map[int]string{}
+	visible := make([]*ent.EsportsOrder, 0, len(merged))
+	for _, order := range merged {
+		if order.PaymentStatus != esportsorder.PaymentStatusPaid || occupiedOrders[order.ID] {
+			continue
+		}
+		game, ok := gameCache[order.SkuID]
+		if !ok {
+			game, err = orderGameIn(ctx, tx, order.SkuID)
+			if err != nil {
+				return nil, err
+			}
+			gameCache[order.SkuID] = game
+		}
+		if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+			if errors.Is(err, errForbidden) {
+				continue
+			}
+			return nil, err
+		}
+		visible = append(visible, order)
+	}
+	return visible, nil
 }
 
 // grabPlayerOrder 抢单：合格陪玩抢下 grabbing 单席位订单的唯一 open 席位。
@@ -432,7 +519,7 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 	if player.Qualification != esportsplayer.QualificationQualified {
 		return nil, errForbidden
 	}
-	if err = checkPlayerDispatchLimit(ctx, tx, player, now); err != nil {
+	if err = reservePlayerDispatchCapacity(ctx, tx, player, now, 0); err != nil {
 		return nil, err
 	}
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
@@ -447,6 +534,11 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 		return nil, err
 	}
 	if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+		return nil, err
+	}
+	rule, err := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
+		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, now)
+	if err != nil {
 		return nil, err
 	}
 	// 两种可抢状态：① 已释放到大厅的 grabbing；② 优先通知窗口内的待派单（仅限被通知的本人）。
@@ -468,11 +560,18 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 	if err = ensureDispatchSeats(ctx, tx, order); err != nil {
 		return nil, err
 	}
-	changed, err := tx.EsportsDispatchSeat.Update().Where(
+	update := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.OrderIDEQ(orderID),
 		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusOpen),
 	).SetPlayerID(playerID).SetStatus(esportsdispatchseat.StatusAccepted).
-		SetSource(esportsdispatchseat.SourceGrab).SetRespondedAt(now.UTC()).AddVersion(1).Save(ctx)
+		SetSource(esportsdispatchseat.SourceGrab).SetRespondedAt(now.UTC()).
+		SetCommissionRuleLockedAt(now.UTC()).AddVersion(1)
+	if rule != nil {
+		update.SetCommissionRuleID(rule.ID)
+	} else {
+		update.ClearCommissionRuleID()
+	}
+	changed, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -585,9 +684,16 @@ func startPlayerService(ctx context.Context, db *ent.Client, playerID, orderID i
 	if err != nil {
 		return nil, err
 	}
-	if _, err = tx.EsportsServiceSegment.Create().SetOrderID(orderID).SetPlayerID(playerID).
+	createSegment := tx.EsportsServiceSegment.Create().SetOrderID(orderID).SetPlayerID(playerID).
 		SetSeatIndex(seat.SeatIndex).SetStatus(esportsservicesegment.StatusInService).
-		SetStartedAt(now.UTC()).Save(ctx); err != nil {
+		SetStartedAt(now.UTC())
+	if seat.CommissionRuleLockedAt != nil {
+		createSegment.SetCommissionRuleLockedAt(*seat.CommissionRuleLockedAt)
+		if seat.CommissionRuleID != nil {
+			createSegment.SetCommissionRuleID(*seat.CommissionRuleID)
+		}
+	}
+	if _, err = createSegment.Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
 		}
@@ -618,11 +724,12 @@ func startPlayerService(ctx context.Context, db *ent.Client, playerID, orderID i
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// finishPlayerService 结束服务：记下上报服务量与系统秒数，若该订单全部席位服务段均已结束则推进到 pending_close。
-// ponytail: 整单待结单后的人工结单属 §3.4 未实现；服务量单位换算与差异核对未做。
-func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID int, reportedUnits int64, evidenceRef string, now time.Time) (*ent.EsportsOrder, error) {
+// finishPlayerService 结束服务：分别保存计费服务量、陪玩报告的服务秒数与系统有效秒数。
+// 差异过大时写客服核实事件，全部席位结束后订单进入 pending_close。
+func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID int, reportedUnits, reportedSeconds int64, evidenceRef string, now time.Time) (*ent.EsportsOrder, error) {
 	evidenceRef = strings.TrimSpace(evidenceRef)
-	if playerID < 1 || orderID < 1 || reportedUnits < 0 || len([]rune(evidenceRef)) > 255 {
+	if playerID < 1 || orderID < 1 || reportedUnits < 0 || reportedSeconds <= 0 ||
+		len([]rune(evidenceRef)) > 255 {
 		return nil, errInvalidInput
 	}
 	tx, err := db.Tx(ctx)
@@ -641,7 +748,7 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 	if err != nil {
 		return nil, err
 	}
-	systemSeconds := int64(now.UTC().Sub(segment.StartedAt).Seconds())
+	systemSeconds := int64(now.UTC().Sub(segment.StartedAt).Seconds()) - segment.PausedSeconds
 	if systemSeconds < 0 {
 		systemSeconds = 0
 	}
@@ -649,7 +756,7 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 		esportsservicesegment.IDEQ(segment.ID),
 		esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
 	).SetStatus(esportsservicesegment.StatusFinished).SetEndedAt(now.UTC()).
-		SetSystemSeconds(systemSeconds).SetReportedUnits(reportedUnits).
+		SetSystemSeconds(systemSeconds).SetReportedUnits(reportedUnits).SetReportedSeconds(reportedSeconds).
 		SetEvidenceRef(evidenceRef).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
@@ -682,13 +789,54 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 	if err != nil {
 		return nil, err
 	}
+	durationMismatch := serviceDurationMismatch(systemSeconds, reportedSeconds,
+		serviceMismatchMinimumSeconds(ctx, tx.Client()))
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
 		SetOrderVersion(newVersion).SetEventType("order.service_finished").
 		SetActorType("player").SetActorID(strconv.Itoa(playerID)).
 		SetDetails(map[string]interface{}{
-			"seat_index": segment.SeatIndex, "reported_units": reportedUnits, "system_seconds": systemSeconds,
+			"seat_index": segment.SeatIndex, "reported_units": reportedUnits,
+			"reported_seconds": reportedSeconds, "system_seconds": systemSeconds,
+			"duration_mismatch": durationMismatch,
 		}).Save(ctx); err != nil {
 		return nil, err
+	}
+	if durationMismatch {
+		payload := map[string]interface{}{
+			"order_no": order.OrderNo, "order_id": orderID, "player_id": playerID,
+			"seat_index": segment.SeatIndex, "reported_seconds": reportedSeconds,
+			"system_seconds": systemSeconds,
+		}
+		if order.ResponsibleAdminID != nil {
+			payload["admin_id"] = *order.ResponsibleAdminID
+		}
+		if _, err = tx.EsportsOutbox.Create().
+			SetEventKey("service.duration_mismatch:" + strconv.Itoa(segment.ID)).
+			SetEventType("service.duration_mismatch").SetAggregateRef(order.OrderNo).
+			SetPayload(payload).Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	// §13.2：差异超过严重阈值时自动建立售后单（channel=system，来源陪玩为该成员），
+	// 让客服在统一售后状态机内核实与处置；同订单同问题已有进行中售后单时跳过（幂等）。
+	if durationMismatch && serviceDurationMismatch(systemSeconds, reportedSeconds,
+		serviceSevereSeconds(ctx, tx.Client())) {
+		actor := playerID
+		_, err = createAfterSaleTx(ctx, tx, afterSaleInput{
+			SourceType: "order", SourceID: orderID, Kind: "duration_short", Channel: "system",
+			Demand: fmt.Sprintf("系统检测到严重服务时长差异：陪玩上报 %d 秒，系统计时 %d 秒，请核实并处置",
+				reportedSeconds, systemSeconds),
+			ExpectedPlan: "核实后按差额退款或补钟",
+		}, afterSaleCreateOptions{
+			ActorType: "system", ActorID: "service_duration", PlayerID: &actor,
+			Details: map[string]interface{}{
+				"auto_created": true, "seat_index": segment.SeatIndex,
+				"reported_seconds": reportedSeconds, "system_seconds": systemSeconds,
+			},
+		})
+		if err != nil && !errors.Is(err, errConflict) {
+			return nil, err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err

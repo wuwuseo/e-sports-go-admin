@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -342,8 +343,7 @@ type dispatchCandidate struct {
 //
 //	→ 在途席位数少者优先（轮转均衡）→ 档案 ID 稳定兜底。
 //
-// ponytail: 游戏分区权限、技能等级不低于订单要求、历史合作与客户偏好、
-// 距离或时区等加分项未实现（缺少相应数据源）；接单上限已在接单动作硬校验（§5.5），候选池未按上限过滤；
+// ponytail: 历史合作与客户偏好、距离或时区等加分项未实现（缺少相应数据源）；
 // 评分按每位候选单独计算，候选量级大时应改为一次聚合。
 func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
 	preferredPlayerID, limit int, now time.Time) ([]*dispatchCandidate, error) {
@@ -423,6 +423,11 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		return nil, err
 	}
 	requiredLevel := order.RequiredLevel.String()
+	capacityTx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer capacityTx.Rollback()
 	candidates := make([]*dispatchCandidate, 0, len(players))
 	for _, player := range players {
 		if occupied[player.ID] {
@@ -431,6 +436,12 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		// 游戏分区权限 + 技能等级（§5.5）：不满足硬性条件的陪玩不出现在候选池。
 		if err := checkPlayerGameLevel(player, game, requiredLevel); err != nil {
 			continue
+		}
+		if err := checkPlayerDispatchLimit(ctx, capacityTx, player, now, 0); err != nil {
+			if errors.Is(err, errInvalidInput) {
+				continue
+			}
+			return nil, err
 		}
 		rating, err := playerRatingSummary(ctx, db, player.ID)
 		if err != nil {

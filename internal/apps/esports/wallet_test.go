@@ -2,6 +2,7 @@ package esports
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -11,6 +12,29 @@ import (
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 )
+
+func TestCustomerWalletListScopedToOwner(t *testing.T) {
+	db := openGiftDB(t, "esports_wallet_owner_scope")
+	defer db.Close()
+	ctx := t.Context()
+	first := saveCustomerOrFail(t, db, 11)
+	second := saveCustomerOrFail(t, db, 22)
+	for _, customer := range []*ent.EsportsCustomer{first, second} {
+		if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+			walletInput{PrincipalCents: 1000, Note: "测试"}, "scope-wallet-"+strconv.Itoa(customer.ID)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := listWalletAccounts(ctx, db, 11, false, walletCustomerBalance, "", 10)
+	if err != nil || len(rows) != 1 || rows[0].OwnerID != first.ID {
+		t.Fatalf("客服看到了其他客户钱包：%+v %v", rows, err)
+	}
+	db.EsportsCustomer.UpdateOneID(first.ID).SetOwnerAdminID(22).ExecX(ctx)
+	rows, err = listWalletAccounts(ctx, db, 11, false, walletCustomerBalance, "", 10)
+	if err != nil || len(rows) != 0 {
+		t.Fatalf("转移后旧客服仍看到钱包：%+v %v", rows, err)
+	}
+}
 
 // 余额由流水派生；核销按"先赠送后本金"扣减，余额不足与重复核销都必须被拦住。
 func TestWalletBalanceDerivesFromLedgerAndPaysOrder(t *testing.T) {
@@ -54,6 +78,10 @@ func TestWalletBalanceDerivesFromLedgerAndPaysOrder(t *testing.T) {
 	}
 	if paid.PaymentStatus != "paid" || paid.FulfillmentStatus != "pending_dispatch" {
 		t.Fatalf("余额核销未转待派单：%+v", paid)
+	}
+	if paid.CsCommissionRuleLockedAt == nil || paid.CsCommissionAdminID == nil ||
+		*paid.CsCommissionAdminID != 11 || paid.CsCommissionRuleID != nil {
+		t.Fatalf("余额核销未锁定当时客服提成口径：%+v", paid)
 	}
 	balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, customer.ID)
 	if err != nil {

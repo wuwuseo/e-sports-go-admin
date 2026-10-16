@@ -111,6 +111,20 @@ func (_c *EsportsCsCommissionRuleCreate) SetNillableCalcMode(v *esportscscommiss
 	return _c
 }
 
+// SetIncludeGifts sets the "include_gifts" field.
+func (_c *EsportsCsCommissionRuleCreate) SetIncludeGifts(v bool) *EsportsCsCommissionRuleCreate {
+	_c.mutation.SetIncludeGifts(v)
+	return _c
+}
+
+// SetNillableIncludeGifts sets the "include_gifts" field if the given value is not nil.
+func (_c *EsportsCsCommissionRuleCreate) SetNillableIncludeGifts(v *bool) *EsportsCsCommissionRuleCreate {
+	if v != nil {
+		_c.SetIncludeGifts(*v)
+	}
+	return _c
+}
+
 // SetValueBp sets the "value_bp" field.
 func (_c *EsportsCsCommissionRuleCreate) SetValueBp(v int) *EsportsCsCommissionRuleCreate {
 	_c.mutation.SetValueBp(v)
@@ -288,6 +302,10 @@ func (_c *EsportsCsCommissionRuleCreate) defaults() {
 		v := esportscscommissionrule.DefaultCalcMode
 		_c.mutation.SetCalcMode(v)
 	}
+	if _, ok := _c.mutation.IncludeGifts(); !ok {
+		v := esportscscommissionrule.DefaultIncludeGifts
+		_c.mutation.SetIncludeGifts(v)
+	}
 	if _, ok := _c.mutation.ValueBp(); !ok {
 		v := esportscscommissionrule.DefaultValueBp
 		_c.mutation.SetValueBp(v)
@@ -366,6 +384,9 @@ func (_c *EsportsCsCommissionRuleCreate) check() error {
 		if err := esportscscommissionrule.CalcModeValidator(v); err != nil {
 			return &ValidationError{Name: "calc_mode", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionRule.calc_mode": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.IncludeGifts(); !ok {
+		return &ValidationError{Name: "include_gifts", err: errors.New(`ent: missing required field "EsportsCsCommissionRule.include_gifts"`)}
 	}
 	if _, ok := _c.mutation.ValueBp(); !ok {
 		return &ValidationError{Name: "value_bp", err: errors.New(`ent: missing required field "EsportsCsCommissionRule.value_bp"`)}
@@ -448,6 +469,10 @@ func (_c *EsportsCsCommissionRuleCreate) createSpec() (*EsportsCsCommissionRule,
 	if value, ok := _c.mutation.CalcMode(); ok {
 		_spec.SetField(esportscscommissionrule.FieldCalcMode, field.TypeEnum, value)
 		_node.CalcMode = value
+	}
+	if value, ok := _c.mutation.IncludeGifts(); ok {
+		_spec.SetField(esportscscommissionrule.FieldIncludeGifts, field.TypeBool, value)
+		_node.IncludeGifts = value
 	}
 	if value, ok := _c.mutation.ValueBp(); ok {
 		_spec.SetField(esportscscommissionrule.FieldValueBp, field.TypeInt, value)

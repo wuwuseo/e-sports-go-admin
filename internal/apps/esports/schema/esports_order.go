@@ -17,15 +17,28 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int("sku_id").Positive().StructTag(`json:"sku_id"`),
 		field.Int("created_by_admin_id").Optional().Nillable().StructTag(`json:"created_by_admin_id"`),
 		field.Int("responsible_admin_id").Optional().Nillable().StructTag(`json:"responsible_admin_id"`),
+		// 客服提成在足额核销时锁定业绩归属与规则；locked_at 非空、rule_id 空表示当时无规则。
+		field.Int("cs_commission_admin_id").Optional().Nillable().StructTag(`json:"cs_commission_admin_id"`),
+		field.Int("cs_commission_rule_id").Optional().Nillable().StructTag(`json:"cs_commission_rule_id"`),
+		field.Time("cs_commission_rule_locked_at").Optional().Nillable().StructTag(`json:"cs_commission_rule_locked_at"`),
+		// 下单时锁定结单表单版本；locked_at 非空、template_id 空表示下单当时无适用模板。
+		field.Int("close_form_template_id").Optional().Nillable().StructTag(`json:"close_form_template_id"`),
+		field.Time("close_form_template_locked_at").Optional().Nillable().StructTag(`json:"close_form_template_locked_at"`),
+		// 下单时的客户来源快照，用于经营报表按渠道来源筛选；客户后来改档不影响历史订单。
+		field.Enum("channel_source").Values("manual", "wecom", "self", "import").Default("manual").StructTag(`json:"channel_source"`),
+		// 报单入口快照：PC 客服或客户自助；移动客服和企微侧边栏启用后可扩展入口。
+		field.Enum("entry_point").Values("cs_pc", "cs_mobile", "wecom_sidebar", "customer_self", "admin_backfill").Default("cs_pc").StructTag(`json:"entry_point"`),
 		field.Int64("quantity").Positive().StructTag(`json:"quantity"`),
 		field.Int64("unit_price_cents").Positive().StructTag(`json:"unit_price_cents"`),
+		field.Int64("min_unit_price_cents").Default(0).StructTag(`json:"min_unit_price_cents"`),
+		field.Int("adjustment_approval_bp").Default(2000).StructTag(`json:"adjustment_approval_bp"`),
 		field.Int64("discount_cents").Default(0).StructTag(`json:"discount_cents"`),
 		field.Int64("manual_adjust_cents").Default(0).StructTag(`json:"manual_adjust_cents"`),
 		field.Int64("payable_cents").Positive().StructTag(`json:"payable_cents"`),
 		field.Int64("promised_service_units").Positive().StructTag(`json:"promised_service_units"`),
-	// 加钟累计（§3.3 / §12.5）：由「已确认」的加钟单累加，只增不改；payable_cents 保持原报价快照。
-	field.Int64("addon_cents").Default(0).StructTag(`json:"addon_cents"`),
-	field.Int64("addon_units").Default(0).StructTag(`json:"addon_units"`),
+		// 加钟累计（§3.3 / §12.5）：由「已确认」的加钟单累加，只增不改；payable_cents 保持原报价快照。
+		field.Int64("addon_cents").Default(0).StructTag(`json:"addon_cents"`),
+		field.Int64("addon_units").Default(0).StructTag(`json:"addon_units"`),
 		field.Int("required_seats").Positive().StructTag(`json:"required_seats"`),
 		// 所需技能等级快照（§5.5）：报单时从 SKU 快照，用于接单硬性校验。
 		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
@@ -63,6 +76,9 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Enum("refund_status").Values("none", "pending_approval", "executing", "partial", "full", "failed").Default("none").StructTag(`json:"refund_status"`),
 		// 累计已退金额（分），退款执行成功后累加。
 		field.Int64("refunded_cents").Default(0).StructTag(`json:"refunded_cents"`),
+		// 结单时尚未退款的服务应付额。结单后退款按此基数冲回当时实际计提的服务分成/客服提成；
+		// nil 表示历史订单未留快照，退款冲回沿用原应付额。
+		field.Int64("close_net_service_cents").Optional().Nillable().StructTag(`json:"close_net_service_cents"`),
 		// 已预占但尚未执行的退款额度（分），售后审批通过时预占、执行时扣减。
 		field.Int64("refund_reserved_cents").Default(0).StructTag(`json:"refund_reserved_cents"`),
 		// 已知渠道成本（分，§12.1）：由客服在订单上登记的渠道费用，结单计提客服提成时从可分基数扣除，
@@ -90,6 +106,7 @@ func (EsportsOrder) Indexes() []ent.Index {
 		index.Fields("order_no").Unique(),
 		index.Fields("customer_id", "created_at"),
 		index.Fields("responsible_admin_id", "fulfillment_status"),
+		index.Fields("channel_source", "entry_point", "created_at"),
 	}
 }
 

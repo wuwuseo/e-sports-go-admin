@@ -90,6 +90,19 @@ func playerPresenceHandler(c fiber.Ctx) error {
 	return reply(c, updated)
 }
 
+// playerHeartbeatHandler 陪玩端保活（§6.4）：只刷新心跳时戳，不改变在线状态。
+func playerHeartbeatHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	updated, err := recordPlayerHeartbeat(c.Context(), global.ORM, player.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, updated)
+}
+
 // playerProfileHandler 陪玩端「我的资料 / 我的等级」（§6.1 / §6.4）：
 // 返回本人档案（昵称、等级、资格、上下线、接单游戏与接单上限），供陪玩端展示。
 func playerProfileHandler(c fiber.Ctx) error {
@@ -192,6 +205,48 @@ func playerStartServiceHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
+func playerServiceTimingsHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listPlayerServiceTimings(c.Context(), global.ORM, player.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+func playerPauseServiceHandler(c fiber.Ctx) error {
+	return playerServicePauseHandler(c, true)
+}
+
+func playerResumeServiceHandler(c fiber.Ctx) error {
+	return playerServicePauseHandler(c, false)
+}
+
+func playerServicePauseHandler(c fiber.Ctx, pause bool) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := setPlayerServicePause(c.Context(), global.ORM, player.ID, orderID, pause, in.Reason, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
 func playerFinishServiceHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
@@ -202,15 +257,88 @@ func playerFinishServiceHandler(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	var in struct {
-		ReportedUnits int64  `json:"reported_units"`
-		EvidenceRef   string `json:"evidence_ref"`
+		ReportedUnits   int64  `json:"reported_units"`
+		ReportedSeconds int64  `json:"reported_seconds"`
+		EvidenceRef     string `json:"evidence_ref"`
 	}
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := finishPlayerService(c.Context(), global.ORM, player.ID, orderID, in.ReportedUnits, in.EvidenceRef, time.Now())
+	order, err := finishPlayerService(c.Context(), global.ORM, player.ID, orderID,
+		in.ReportedUnits, in.ReportedSeconds, in.EvidenceRef, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
 	return reply(c, order)
+}
+
+// playerCreateOrderAfterSaleHandler 陪玩就本人服务的订单发起售后申诉（§13.2）。
+func playerCreateOrderAfterSaleHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in playerAfterSaleInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := createPlayerOrderAfterSale(c.Context(), global.ORM, player.ID, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// playerOrderAfterSalesHandler 陪玩端查询本人相关售后（§13.2）。
+func playerOrderAfterSalesHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listPlayerOrderAfterSales(c.Context(), global.ORM, player.ID, queryLimit(c, 50))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+// playerInviteTeammatesHandler 主陪玩在陪玩端就本人已接单的订单邀请固排占剩余席位（§5.3）。
+func playerInviteTeammatesHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		TeammatePlayerIDs []int `json:"teammate_player_ids"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	seats, err := playerInviteTeammates(c.Context(), global.ORM, player.ID, orderID,
+		in.TeammatePlayerIDs, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, seats)
+}
+
+// playerTeammateCandidatesHandler 陪玩端查看本人可邀请的固排候选（§5.3）。
+func playerTeammateCandidatesHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	candidates, err := playerTeammateCandidates(c.Context(), global.ORM, player.ID, orderID)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, candidates)
 }

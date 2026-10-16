@@ -16,14 +16,14 @@ type CsCommissionTier = schematier.CsCommissionTier
 
 // EsportsCsCommissionRule 是客服提成规则（§12.2）。与陪玩分成规则一样不可原地修改：改规则＝
 // 新增一条递增 version 的新行，旧行转 history（§12.4）。version 在支付核销/结单时随明细快照。
-// ponytail: 「单笔手动指定」优先级未实现；effective_at 调度生效未做，仅以 status=active 判定。
+// ponytail: 「单笔手动指定」优先级未实现；预设生效时间由 scheduled 状态与定时任务处理。
 type EsportsCsCommissionRule struct{ ent.Schema }
 
 func (EsportsCsCommissionRule) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("rule_no").NotEmpty().MaxLen(48).StructTag(`json:"rule_no"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
-		field.Enum("status").Values("draft", "active", "history").Default("draft").StructTag(`json:"status"`),
+		field.Enum("status").Values("draft", "scheduled", "active", "history").Default("draft").StructTag(`json:"status"`),
 		// scope 决定规则适用范围：全局 / 指定客服（业绩归属客服）。
 		field.Enum("scope").Values("global", "admin").Default("global").StructTag(`json:"scope"`),
 		// scope=admin 时为目标客服的管理员 ID 字符串。
@@ -32,6 +32,8 @@ func (EsportsCsCommissionRule) Fields() []ent.Field {
 		field.Enum("base_mode").Values("order_amount", "order_contribution", "order_count").
 			Default("order_amount").StructTag(`json:"base_mode"`),
 		field.Enum("calc_mode").Values("percent", "fixed_per_order").Default("percent").StructTag(`json:"calc_mode"`),
+		// 开启后礼物收入也按本规则计提；关闭时只计服务订单。
+		field.Bool("include_gifts").Default(false).StructTag(`json:"include_gifts"`),
 		// percent 使用，万分比：100bp = 1%。有阶梯时作为兜底值（无命中阶梯时使用）。
 		field.Int("value_bp").Default(0).StructTag(`json:"value_bp"`),
 		// fixed_per_order 使用，单位分。
@@ -64,10 +66,11 @@ func (EsportsCsCommissionEntry) Fields() []ent.Field {
 		// 幂等键：service 为 cs_commission:service:<order_no>:<admin_id>，
 		// reversal 为 cs_commission:reversal:<after_sale_no>:<admin_id>。
 		field.String("idem_key").NotEmpty().MaxLen(120).StructTag(`json:"idem_key"`),
-		field.Int("order_id").Positive().StructTag(`json:"order_id"`),
+		field.Int("order_id").Positive().Optional().Nillable().StructTag(`json:"order_id"`),
+		field.Int("gift_order_id").Positive().Optional().Nillable().StructTag(`json:"gift_order_id"`),
 		// 业绩归属客服：客服代报单取经授权的业绩归属客服（本切片取订单负责客服）。
 		field.Int("admin_id").Positive().StructTag(`json:"admin_id"`),
-		field.Enum("kind").Values("service", "reversal").Default("service").StructTag(`json:"kind"`),
+		field.Enum("kind").Values("service", "reversal", "gift", "gift_reversal").Default("service").StructTag(`json:"kind"`),
 		// reversal 的来源售后单。
 		field.Int("after_sale_id").Optional().Nillable().StructTag(`json:"after_sale_id"`),
 		field.Int("rule_id").Optional().Nillable().StructTag(`json:"rule_id"`),
@@ -100,6 +103,7 @@ func (EsportsCsCommissionEntry) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("idem_key").Unique(),
 		index.Fields("order_id", "admin_id"),
+		index.Fields("gift_order_id", "admin_id"),
 		index.Fields("admin_id", "status"),
 		index.Fields("settlement_id"),
 	}

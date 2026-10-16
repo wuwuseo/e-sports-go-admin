@@ -1,0 +1,93 @@
+# 陪玩报单 P0 修复核对表
+
+来源：`陪玩报单系统-功能列表.md` 与本任务两轮代码审查。状态以代码和测试为准；此表用于避免多轮修复遗漏，不作为上线验收结果。
+
+## 资金、权限与数据正确性
+
+| 条目 | 当前状态 | 验证依据或下一步 |
+| --- | --- | --- |
+| 草稿结算不得提现 | 已改，后端全量测试通过 | 草稿只预留分成明细；锁定时入猫粮。`TestSettlePlayerCommission` |
+| 订单行级权限 | 部分已改 | `/admin/orders/:id` 常规客服路由已加归属守卫；礼物单据/确认单、售后、储值卡、客户余额钱包及加钟独立入口已补归属过滤，疑似礼物禁止负责客服自审。仍须审查其余关联资源入口与审批角色；部分操作目前只在 HTTP 入口检查归属，并发转移时还需把检查并入资金事务 |
+| 代客送礼归属和客户明确确认 | 已改，待端到端验收 | 客服创建 30 分钟有效的礼物确认单；已绑定身份的成年客户在移动端核对礼物、收礼人、数量、金额和余额本金来源后确认；客服只能凭确认单执行，扣款与确认单消费同事务，价格或礼物版本变化时拒绝执行。`TestGiftIntentRequiresCustomerConfirmationAndConsumesOnce`、`TestGiftIntentRejectsExpiredOrChangedGift` |
+| 售后方案可由客服跳过客户确认 / 自审驳回 | 已封闭后台绕过入口，待端到端验收 | 后台代确认 API/按钮已移除；客服建售后自动绑定来源订单客户，客户端本人确认方案后才进入审批；处理客服不得自行驳回。历史 `admin_proxy` 数据仍需迁移或审计。`TestAfterSaleScopeFollowsResponsibleAdmin`、`TestAfterSaleRejectCannotSelfReview` |
+| 改价会员折扣与 SKU 快照 | 已改，后端与管理端检查通过 | 新份数重算折扣且沿用订单单价和承诺服务量快照；管理端改用服务端报价预览 |
+| 人工调价底价与超限审批 | 已改，待端到端验收 | SKU 可配置每份议价底价和人工调整免审基点；下单快照，按订单版本生成精确报价审批单；超限报价须另一名超级管理员审批，再由申请人应用；低于底价、下架 SKU 新报价、旧版或被篡改报价均拦截。管理端有预览、申请、审批、应用入口；`TestPriceAdjustmentFloorAndIndependentApproval`，后端全量测试与管理端类型检查通过。会员折扣按独立权益计算，底价约束的是人工议价后的标价小计。 |
+| 订单事件操作人 | 已改，后端全量测试通过 | 改价、取消、退款申请、改期记录真实管理员 ID |
+| 外部付款开储值卡直接入账 | 已修复越权发放；渠道核验待接入 | 外部开卡先 `pending_verification` 且余额为零；另一管理员填写实收金额与流水号后才入账，唯一键防同流水重复激活；目前仍是人工核验，尚无银行/商户渠道对账证据自动校验 |
+| 提现每日次数跨天口径 | 已改，后端全量测试通过 | 写入业务时间，查询使用业务时区自然日的起止区间；`TestWithdrawalDailyLimit` |
+| 结算周期覆盖与争议冻结 | 已改，后端全量测试与管理端类型检查通过 | 新增结算周期配置实体：日/周/月/自定义间隔（按 UTC 自然日从 epoch 对齐切分），维度按「单个陪玩 → 按等级 → 按游戏 → 全局默认」逐级覆盖，全部缺失回落系统配置 `app.esports.settlement_period`；`esports_generate_player_settlements` 任务按各陪玩生效周期自动生成上一完整周期结算单（同周期幂等）；陪玩端「待结算 / 下次结算时间」按解析结果展示。争议冻结：受理售后即冻结该订单待结算分成明细（已进结算单的不再冻结），结算跳过冻结明细，驳回 / 撤回 / 执行完成自动解冻，另提供人工冻结 / 解冻入口与明细冻结展示。`TestSettlementCycleValidation`、`TestSettlementCycleResolutionPrefersMostSpecific`、`TestSettlementCycleCustomWindow`、`TestGenerateDuePlayerSettlementsUsesPlayerCycle`、`TestCommissionFreezeExcludesEntryFromSettlement`、`TestAfterSaleFreezesAndUnfreezesCommission` |
+| 部分退款成员明细冲回 | 已改，后端全量测试通过 | 售后方案可指定争议陪玩（须为该单实际服务成员，落 `player_id`）；执行退款时服务与加钟两类明细分别计算冲回目标，先冲满争议成员本人剩余分成（多次退款累计不超过其原分成），剩余目标按比例分摊其他成员；未指定争议陪玩时维持整体比例冲回；尾差归各类最后一条冲回明细。`TestPartialRefundPrefersDisputedMemberReversal`、`TestRefundWithoutDisputePlayerStaysProportional`。客服提成归属单一客服、无成员维度，仍按比例冲回 |
+| 结单前后连续退款的提成冲回基数 | 已修复，后端全量测试通过 | 结单时保存净服务额；结单后的服务分成与客服提成按该快照冲回，加钟分成沿用原订单口径；执行退款时读取事务内最新累计退款额，全额退款可冲净。`TestRefundAfterPreCloseRefundUsesCloseNetBase`。历史已结单订单缺快照时仍沿用原应付额，需迁移或审计。 |
+| 礼物争议和退款审批 | 已改，后端全量测试与管理端 / 移动端类型检查通过 | 新增礼物争议单实体与状态机（pending_review → approved → completed，可 rejected / withdrawn）：客户可在移动端对本人礼物订单发起争议并撤回，客服可代客户建单；审核须给出不超过申请额与可退余额的确认额，申请人不得自审、非归属客服不得审核、执行人不得为审核人；同一礼物订单同一时刻只允许一张进行中争议单。礼物退款改造为支持部分金额（`refundGiftIn`）：原路退回余额 / 储值卡本金并写卡批次账本，按退款比例冲回礼物分成与客服提成（累计封顶在已计提金额内，多次退款幂等键按累计退款额区分），成长值按退款额反冲，退满后转 `refunded` / `full`。`TestGiftDisputePartialRefundLifecycle`、`TestGiftDisputeGuards`，既有礼物测试保持通过 |
+| 叠加充值赠送有效期 | 已改，后端全量测试通过 | 按活动规则快照拆分虚拟赠送批次、分别到期作废；`TestRechargeCampaignPermanentBonusNeverExpires` |
+| 服务量上报与计时差异提醒 | 已改，后端与移动端检查通过 | 独立上报实际秒数，系统扣除暂停秒数；按可配置阈值写负责客服待办；`TestPlayerServiceDurationMismatchCreatesReviewTask` |
+| 抢单大厅资格与容量过滤 | 已改，后端全量测试通过 | 游戏、等级、接单容量、已占席位过滤；`TestGrabHallFiltersGameLevelAndCapacity` |
+| 报表跨客服数据隔离 | 已改，后端全量测试通过 | 非超级管理员的 `responsible_admin` 筛选始终覆盖为本人，客服提成明细也按本人过滤；`TestScopeReportFilterIgnoresOtherAdminID`、`TestCsPerformanceScopesCommissionEntriesToResponsibleAdmin` |
+| 礼物往返送礼识别 | 已改，后端全量测试通过 | 按客户与陪玩的已验证用户身份检查反向交易，疑似交易暂不释放分成 |
+| 已退款疑似礼物仍可复核释放分成 | 已改，定向测试通过 | 复核仅允许已支付且未退款的疑似礼物；`TestRefundedFlaggedGiftCannotReleaseCommission` |
+
+## 功能列表原有 P0 缺口
+
+| 条目 | 当前状态 |
+| --- | --- |
+| 企业微信收款、商户码、对公转账真实核销与账户审核 | 已改，后端全量测试与管理端类型检查通过：新增收款账户实体（工作室主体资料 → 财务审核启用 / 驳回 / 停用，提交人不得自审，客服不能启用）与收款方式启停配置；新增外部到账凭证实体承接「客服提交凭证 → 生成待核验收款 → 财务核验 → 核销」闭环，核销复用手续收款落库边界（金额、报价版本、过期时间、配额、账本、事件一次完成），核销前订单保持待付款不派单，唯一键 `(channel, transaction_no)` 防重复核销，凭证引用须 8–255 字符。`TestPaymentAccountReviewAndChannelSwitch`、`TestOfflinePaymentProofVerificationAppliesOrder`、`TestOfflinePaymentProofRejection`；管理端新增「收款管理」页。真实渠道验签回调需商户密钥与回调地址，尚未接入，当前按 §4.3「否则走财务核验」分支闭环 |
+| 结单条件通用 AND/OR 设计器 | 已改，待端到端验收：后端条件树求值（`close_condition.go`：写入归一化 + 结单拦截与按钮置灰共用同一求值）早已就绪；本轮补齐管理端配置入口——「结算 → 结单规则」新增草稿编辑与可视化条件树设计器（AND / OR / NOT 嵌套、字段 + 运算符 + 值、5 层 / 50 节点上限与叶子完整性实时校验、可按结构化条件项一键生成起点模板），规则列表展示条件树摘要，创建 / 编辑均随 `condition_tree` 提交。设计器逻辑 `logic.test.ts` 16 项通过，管理端 `vue-tsc` 类型检查通过，`TestCloseConditionTreeValidation`、`TestCloseConditionTreeAndOrEvaluation`、`TestCloseConditionTreeNotOperator`、`TestCloseRuleLifecycle` 回归通过；设计器浏览器端交互与生效规则对真实订单的拦截仍待验收 |
+| 分成五级优先级与按等级自动换算 | 未完成 |
+| 礼物客服提成开关 | 已改，待跨端验收；客服提成规则新增 `include_gifts`，礼物支付时快照规则和归属，疑似礼物复核通过后计提，退款生成冲回；定向与 esports 模块回归通过 |
+| uni-app 移动客服端 | 未完成 |
+| 企业微信侧边栏 H5 与宿主能力 | 未完成 |
+| 企微应用消息、电话/语音通知 | 未完成 |
+| 客户首页装修拖拽、导航文案/图标配置与发布校验 | 未完成 |
+| 渠道来源报表筛选与导出 | 部分已改：订单保存客户建档来源与报单入口快照；经营、客服、派单、售后支持这两维筛选，跨客服绕过已修复；财务总表含独立钱包资金，暂拒绝套用订单渠道筛选；导出及审计仍未完成 |
+| 提现渠道打款执行与外部退款 | 未完成 |
+| 礼物使用适用储值卡本金支付 | 已改，待端到端验收：开卡合同 `allow_gifts` 明确授权（历史卡默认禁用）；礼物确认单锁定卡号和付款来源，执行时复核客户、状态、有效期、本金余额并原子扣减卡流水与批次账本；退款原路返卡。`TestGiftStoredValuePrincipalAndOriginalRefund`。礼物独立争议审批及部分退款仍在另一条待办。 |
+| 储值卡套餐折扣 | 功能列表 §4.4 只要求开卡、赠送权益、消费、退卡与可查询余额，没有套餐折扣条目；不列为 P0 缺口 |
+| 派单排序历史合作/偏好/距离时区、优先权自动计算 | 未完成 |
+| 客户风控口径 | 已实现核心要求，待端到端验收：可配置时间窗内退款次数/金额自动标记 `watch`，只提示人工复核；管理员可限制自助下单，售后与申诉入口保留。`TestFlagHighRiskCustomers` |
+| 预付款按比例扣减 | 已实现功能列表要求的本金/赠送余额比例拆分并逐笔记录扣减；批次内 FIFO 是实现细节，功能列表未要求各批次按比例分摊，不列为 P0 缺口 |
+| 提现按陪玩/渠道差异化税率 | 功能列表仅要求分别展示申请额、手续费、税费、到账额及凭证，并未规定按陪玩或渠道差异化；当前单一基点与金额阶梯已覆盖明确口径，不列为 P0 缺口 |
+
+## 本轮逐条对照新增的 P0 缺口
+
+| 功能列表 | 代码核对结果 |
+| --- | --- |
+| §3.3 限时改期提案、客户及已接成员确认、目标档期原子占位 | 未完成：`rescheduleOrder` 仅允许未付款订单，由客服直接改 `requested_start_at`；无提案、确认、席位或预约资源切换 |
+| §3.3 服务段暂停/恢复、断线超阈值自动暂停、停工量与责任留痕 | 部分已改：本人暂停/恢复接口、服务段 `paused_at`、有效/暂停秒数展示及事件留痕已实现，`TestPlayerServicePauseResumeExcludesPausedTime` 通过。客服代操作、争议更正、停工量和责任、断线自动暂停仍缺 |
+| §3.3 已付款取消政策与退款申请闭环 | 已改，待端到端验收：已付款取消按公示取消政策（`app.esports.cancel_free_hours` / `app.esports.cancel_fee_bp`，缺省 0 小时 / 0 基点即不收费）计算应退金额，同事务退回 SKU 名额（占用记录 `sold → returned`）、作废派单席位与待支付意图，并生成 `kind=refund_request` 的售后单承接审批与执行；存在服务段的订单拒绝直接取消并提示走售后；新增 `GET /admin/orders/{id}/cancel-preview` 公示试算（含免费窗口、手续费、应退额与不可取消原因）。`TestPaidOrderCancelChargesPublishedFeeAndCreatesRefundTicket`、`TestPaidOrderCancelWithinFreeWindowRefundsInFull`、`TestPaidOrderCancelBlockedAfterServiceStarted`、`TestCancelPolicyRejectsInvalidConfig` |
+| §3.3 客户自行取消未付款订单 | 已补：本人路由和移动端详情页按钮，事务内取消、释放 SKU 名额、作废待支付意图，事件记客户身份；`TestCustomerCancelUnpaidOrderReleasesQuotaAndIntent` |
+| §3.3 / §4.1 管理员历史订单补录 | 未完成：仅订单 `entry_point` 枚举预留 `admin_backfill`，无补录入口、隔离规则及默认不计提逻辑 |
+| §4.4 客户自助购买储值卡 | 未完成：当前仅管理员开卡路由；`source=self` 是管理员传参，客户自助端没有开卡/合同确认/支付意图流程 |
+| §4.6 重复报单提醒、客户欠款拦截、预约冲突与资源复核 | 未完成：搜索现有下单逻辑没有相似订单提醒、欠款策略或预约资源占位；金额超限已由独立改价审批覆盖，不能代替这些校验 |
+| §6.4 后台/断网/心跳超时自动离线及在途订单保护 | 已改，待端到端验收：陪玩档案新增 `last_heartbeat_at`；陪玩端 `POST /user/player/heartbeat` 保活只刷新时戳、不改变上下线，上线动作同时写入心跳基线；`esports_auto_offline_players` 任务按 `app.esports.player_heartbeat_timeout_minutes`（默认 10 分钟）把超时在线陪玩自动离线，存在在途订单（待接单 / 已接单 / 服务中订单上的已接单席位）时转 `protected_abnormal` 并写 `player.heartbeat_timeout` 外盒提醒客服，无心跳基线的存量档案不处理。`TestPlayerHeartbeatAutoOfflineProtectsInflightOrders`、`TestPlayerHeartbeatKeepsPresenceSemantics` |
+| §15.7 停服申请、异人审批和受影响订单逐单处置 | 未完成：SKU 可上下架，但无停服审批及订单暂停/通知/改期或退款联动 |
+| §17 大样本报表准确性 | 已阻断静默错账：各聚合读取第 5001 条时明确报错，要求缩小时间范围或筛选；仍需分页/数据库聚合以支持大样本，导出及审计也未实现 |
+| §3.4 下单时固定结单模板版本 | 已改新单，待跨端验收：新单创建时保存命中模板 ID 和锁定时刻（包括无模板），模板生效时保存字段类型、选项及必填定义；结单及表单视图使用历史快照，后续模板发布或字段库编辑不改变旧单。`TestOrderKeepsCloseFormTemplateFromPlacement`、`TestOrderWithoutCloseFormDoesNotGainLaterTemplate`。历史未锁模板或旧模板无字段快照的订单仍需迁移或审计。 |
+| §6.1 / §6.2 陪玩上传服务截图并提交本人服务段 | 部分实现：服务段可存 `evidence_ref` 文本，移动端 `finishService` 默认传空字符串，`orders.vue` 无上传截图入口；图片私有附件与本人提交凭证仍缺 |
+| §5.9 待确认邀请临时占用陪玩容量 | 已改并通过模块回归：未过期的 `invited` 与未结束服务的 `accepted` 席位共同占容量；接受时排除自己的预占席位并再次校验。拒绝、过期、完成服务、取消订单后释放占位；已完成服务的历史 `accepted` 不再永久阻塞。不同订单通过陪玩版本条件更新串行竞争，旧版本拒绝；派单候选池也过滤已满员陪玩。`TestPendingInviteReservesAndReleasesCapacity`、`TestPendingInviteReservesDailyCapacity`、`TestExpiredInviteAndFinishedServiceReleaseConcurrentCapacity`、`TestCancelledOrderInviteCannotBeAcceptedOrHoldCapacity`、`TestDispatchCapacityReservationRejectsStalePlayerVersion`、`TestDispatchCandidatesExcludeFullPlayer`。时段级重叠和服务开始自然日仍在下一条。 |
+| §5.5 按服务时段并发及服务开始自然日计算上限 | 未完成：当前并发按有效邀请和未结束服务保守占位，尚无预约时段重叠判定；每日上限仍取 UTC 接单日，并非服务开始自然日。不同日期的预约可能被误挡，需服务时长及档期确认快照后调整。 |
+| §3.2 / §5.5 预约档期确认与资源占位 | 未完成：订单有 `appointment_status` / `requested_start_at` / `appointment_confirmation_deadline` 字段，但业务操作仅设置 `request`，没有转 `confirmed` 的资源核验与原子占位；付费预约不能据此声称档期已确认。服务时长快照与冲突判定需要一并设计。 |
+| §5.8 排单看板及时刷新 | 部分已改：管理端看板可见时每 15 秒自动刷新订单分区与在线陪玩数量；仍无事件推送，最坏约 15 秒延迟，席位弹窗与转单列表仍需手动刷新 |
+| §3.2 已核销付款的渠道撤销/拒付事件 | 未完成：`payment.go` 处理到账和异常收款，但没有已核销交易后续撤销/拒付的独立风险事件与资金异常处理入口 |
+| §12.4 计费规则在业务关键时点锁定 | 已改新单，待端到端验收：接受邀请/抢单时逐成员锁定规则，服务段保留快照；余额、储值卡及已验签外部付款核销时锁定客服业绩归属与提成规则。无规则也锁定空值，后续新规则不追溯旧单。历史无快照数据仍按旧逻辑在结单时回退解析，需迁移或审计。`TestCommissionRuleLockedWhenEachPlayerAccepts`、`TestNoPlayerRuleAtGrabDoesNotGainLaterRule`、`TestCsCommissionRuleAndOwnerLockedAtPayment` |
+| §12.1 / §12.3 多成员逐人分成规则 | 已改，待端到端验收：每名成员按服务秒数分摊净服务应付，再使用本人锁定的规则计提；不同个体约定不再全单套用第一人规则，合计受净应付扣渠道成本上限约束。`TestCommissionUsesEachMembersOwnRule`；按争议成员定向退款冲回已另行完成（见上表「部分退款成员明细冲回」） |
+| §3.4 结单审批流节点配置与超时策略 | 已实现并核对：后台可增删串行节点、选审批角色及超时策略；服务端按节点逐一审批，超时任务仅对允许的节点自动通过，资金/争议节点配置自动通过会被拒。`TestCloseApprovalFlowValidation`、`TestCloseApprovalFlowMultiNode`、`TestCloseApprovalTimeout`；旧注释已更正。 |
+| §4.5 充值独立支付意图与活动快照 | 未完成：`rechargeWithCampaigns` 在管理员充值操作时即时匹配活动并入账，尚无充值发起时独立支付意图、活动资格及金额快照，也未接真实收款核验 |
+| §4.5 退款/退卡按充值批次还原试算 | 未完成：余额流水可追溯本金和赠送批次，但没有以充值批次为粒度的可审计退款/退卡试算及关联外部退款执行 |
+| §12.4 提前设定规则生效时间 | 已改，后端全量测试通过 | 规则可带未来 `effective_at` 激活为 `scheduled`，旧版保持 active；解析器到点前仍用旧版、到点后即使任务未跑也直接命中新版本；`esports_activate_scheduled_commission_rules` 定时任务把到点版本转 active 并归档同编号旧版；时间过滤只约束 scheduled 版本，立即激活写入的 `effective_at` 不作为解析门槛，缺生效时间的 scheduled 版本不参与解析也不会被激活。`TestCommissionRuleScheduledEffectiveAt`、`TestCsCommissionRuleScheduledEffectiveAt`、`TestCommissionRuleScheduledWithoutEffectiveAtIsIgnored` |
+| §11.4 钱包展示名称、图标、说明与固定倍率换算 | 已改接口，待前端接入：`app.esports.wallet_display`（JSON）可配每类账户的 `display_name` / `icon` / `description` / `unit_name` / `unit_cents`（每单位对应分，即固定换算倍率）。钱包账户视图新增 `display` 字段（含按倍率整数运算换算出的两位小数 `display_amount`）；配置缺失、JSON 非法、单字段缺失或倍率 ≤ 0 均按字段回落内置默认（余额 / 猫粮，100 分每单位），不会因配置错误改坏金额展示。列表接口一次性读取配置后逐行套用，避免逐行查库。`TestWalletDisplayUsesStudioConfigAndFixedRate`、`TestWalletDisplayAmountRounding`。管理端页面仍用固定文案渲染，需按 `display` 字段改造 |
+| §11.6 账本定时全量核验 | 已改，待端到端验收：新增只读对账逻辑 `ledger_reconcile.go` 与定时任务 `esports_reconcile_ledgers`。逐账户（客户余额 / 陪玩猫粮登记账户 + 每张储值卡）核对流水求和不为负；逐批次核对「已分摊额 ≤ 批次金额」且分摊引用的批次条目存在且为正向。异常按 `account_negative_balance` / `allocation_batch_missing` / `batch_over_allocated` 分类，写一条 `ledger.reconcile_anomaly` 外盒事件（含异常清单与扫描计数）并输出任务日志，无异常不落事件；单轮扫描上限与异常条数上限均显式标记截断，不静默漏检。刻意不核验「钱包流水求和 == 批次账本求和」与「分摊引用的消费条目存在」：两张表平行记账（余额核销写的是 `customer_order_prepayment` 正向条目），且 `consume_source_*` 记录的是消费业务来源而非 ledger entry，按现状推不出该约束，纳入只会持续误报。`TestLedgerReconcileDetectsAnomalies`、`TestLedgerReconcileDetectsMissingBatch`、`TestLedgerReconcileDetectsNegativeBalance`、`TestLedgerReconcileMarksScanTruncated`；esports 包全量回归通过 |
+| §13.2 陪玩发起服务售后申诉、严重时长差异自动建单 | 已改，待端到端验收：新增陪玩端 `POST /user/player/order-after-sales`（仅该单服务成员可发起，落 `channel=player` 与来源陪玩 `player_id`，退款类问题不对陪玩开放）与 `GET /user/player/order-after-sales`；服务结束时差异超过 `app.esports.service_duration_severe_minutes`（默认 30 分钟）自动创建 `channel=system`、`kind=duration_short` 的售后单并绑定来源陪玩，同订单同问题已有进行中售后时跳过（幂等）。`TestPlayerOrderAfterSaleRequiresServiceMembership`、`TestSevereServiceDurationMismatchAutoCreatesAfterSale`。推送渠道与陪玩端页面入口仍缺 |
+| §13.1 / §13.3 礼物、储值卡、充值来源售后 | 未完成：`EsportsAfterSale.source_type` 目前只允许 `order`；礼物、储值卡及充值的争议无法进入统一售后状态机 |
+| §13.3 考核/处罚记录来源售后 | 未完成：同一 `source_type` 枚举也没有考核/处罚记录，陪玩考核结果申诉是独立流程，未关联统一售后单 |
+| §13.3 / §13.6 多动作售后方案及逐项执行 | 未完成：售后单只有一个 `plan_action`、一组金额/补履约字段和一个总状态，无法表达“退款加补钟”等多动作及部分成功后的逐项进度；实际执行幂等键也尚未按「售后单 + 动作项 + 原核销明细」拆分 |
+| §13.2 客户售后多入口 | 部分实现：服务订单详情可申请、售后列表可查看；礼物/储值卡详情、客服会话、帮助中心入口和对应来源单据尚未接入。客户侧 `pending_execution` 文案已明确表示待执行而非已到账。 |
+| §13.2 客户售后凭证上传 | 未完成：移动端售后表单仅有凭证引用/联系方式文本框，无图片上传与附件所有权校验 |
+| §13.2 客户自助售后申请时限 | 已改订单来源，待跨端验收：已完成/已取消订单按结单/付款/创建时间起算，`app.esports.customer_aftersale_window_days` 可配置 0–365 天，缺省 30 天，0 表示不限；在途订单仍可即时申诉，客服代建不受自助窗口限制。`TestCustomerAfterSaleApplicationWindow`。礼物/储值卡来源在统一售后接入后仍需补同类时限。 |
+| §13.6 终态售后新证据复核 | 已改，待端到端验收：新增实体 `EsportsAfterSaleReview`（`pending → upheld / reopened / withdrawn`）与四个接口 `GET/POST /admin/after-sales/{id}/reviews`、`POST /admin/after-sale-reviews/{id}/decision`、`POST /admin/after-sale-reviews/{id}/withdraw`。仅 `rejected` / `completed` 终态可申请，同一售后单同一时刻只允许一张进行中复核；审查要求异人（不得为申请人，也不得为原审批人）；`reopen` 会重新冻结该订单待结算分成并把售后单由终态回到 `processing` 允许重新提交方案，分成已结算或已入结算单的订单直接拒绝改判（转人工财务处理）；全程写 `order.after_sale_review_requested` / `order.after_sale_review_decided` 事件与外盒。`TestAfterSaleReviewReopensRejectedTicket`、`TestAfterSaleReviewUpholdAndWithdraw`、`TestAfterSaleReviewReopenBlockedWhenCommissionSettled` |
+| §13.5 陪玩责任信用联动 | 已改，待端到端验收：新增实体 `EsportsPlayerCreditEvent`（`recorded → penalty_applied / cleared`）。责任方判定为陪玩的售后执行完成时，在同一事务内自动只增记载（取追偿金额与来源陪玩，同售后单幂等，写 `player.credit_recorded` 外盒）；记载本身不改接单资格，避免自动处罚误伤。复核入口 `POST /admin/player-credit-events/{id}/review`：`penalty` 确认责任并把接单资格置 `suspended`（必须填复核说明），`clear` 判定不构成责任；恢复接单资格走既有陪玩档案编辑入口，不自动恢复。列表 `GET /admin/player-credit-events`（按陪玩 / 状态过滤）与陪玩端 `GET /user/player/credit-events`。`TestAfterSalePlayerFaultRecordsPlayerCredit` |
+| §15.1 / §15.5 商品与多个规格的层级及逐席角色快照 | 未完成：商品层目前只有分类与独立 SKU，没有商品父实体、规格组、每席角色/可替换条件；多人规格报价不能展示并快照这些约束 |
+| §5.3 主陪玩在陪玩端主动邀请固排队友 | 已改，待端到端验收：新增陪玩端 `POST /user/player/orders/{id}/team-invites`（主陪玩就本人已接单的订单邀请固排占剩余空席位）与 `GET /user/player/orders/{id}/teammate-candidates`。校验与后台一次成队同口径：须持该单已接单席位、固排关系已建立、资质合格且在线、分区等级达标、容量可用、空席位充足；陪玩发起的邀请不写 `invited_by_admin_id`，来源记 `fixed_team`，操作人由 `order.team_invited_by_player` 事件承载（actor=player）。`TestPlayerInviteTeammatesOnOwnOrder` |
+
+## 上线门槛
+
+`app.go` 当前仍仅在 development 且显式开启实验开关时注册业务功能。上述 P0 全部完成、通过相应回归和端到端验证后，才能重新评估正式开放。

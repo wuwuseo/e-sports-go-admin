@@ -27,14 +27,22 @@ type EsportsServiceSegment struct {
 	Status esportsservicesegment.Status `json:"status"`
 	// StartedAt holds the value of the "started_at" field.
 	StartedAt time.Time `json:"started_at"`
+	// PausedAt holds the value of the "paused_at" field.
+	PausedAt *time.Time `json:"paused_at"`
 	// EndedAt holds the value of the "ended_at" field.
 	EndedAt *time.Time `json:"ended_at"`
 	// PausedSeconds holds the value of the "paused_seconds" field.
 	PausedSeconds int64 `json:"paused_seconds"`
 	// ReportedUnits holds the value of the "reported_units" field.
 	ReportedUnits int64 `json:"reported_units"`
+	// ReportedSeconds holds the value of the "reported_seconds" field.
+	ReportedSeconds int64 `json:"reported_seconds"`
 	// SystemSeconds holds the value of the "system_seconds" field.
 	SystemSeconds int64 `json:"system_seconds"`
+	// CommissionRuleID holds the value of the "commission_rule_id" field.
+	CommissionRuleID *int `json:"commission_rule_id"`
+	// CommissionRuleLockedAt holds the value of the "commission_rule_locked_at" field.
+	CommissionRuleLockedAt *time.Time `json:"commission_rule_locked_at"`
 	// EvidenceRef holds the value of the "evidence_ref" field.
 	EvidenceRef string `json:"evidence_ref"`
 	// Version holds the value of the "version" field.
@@ -51,11 +59,11 @@ func (*EsportsServiceSegment) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsservicesegment.FieldID, esportsservicesegment.FieldOrderID, esportsservicesegment.FieldPlayerID, esportsservicesegment.FieldSeatIndex, esportsservicesegment.FieldPausedSeconds, esportsservicesegment.FieldReportedUnits, esportsservicesegment.FieldSystemSeconds, esportsservicesegment.FieldVersion:
+		case esportsservicesegment.FieldID, esportsservicesegment.FieldOrderID, esportsservicesegment.FieldPlayerID, esportsservicesegment.FieldSeatIndex, esportsservicesegment.FieldPausedSeconds, esportsservicesegment.FieldReportedUnits, esportsservicesegment.FieldReportedSeconds, esportsservicesegment.FieldSystemSeconds, esportsservicesegment.FieldCommissionRuleID, esportsservicesegment.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportsservicesegment.FieldStatus, esportsservicesegment.FieldEvidenceRef:
 			values[i] = new(sql.NullString)
-		case esportsservicesegment.FieldStartedAt, esportsservicesegment.FieldEndedAt, esportsservicesegment.FieldCreatedAt, esportsservicesegment.FieldUpdatedAt:
+		case esportsservicesegment.FieldStartedAt, esportsservicesegment.FieldPausedAt, esportsservicesegment.FieldEndedAt, esportsservicesegment.FieldCommissionRuleLockedAt, esportsservicesegment.FieldCreatedAt, esportsservicesegment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -108,6 +116,13 @@ func (_m *EsportsServiceSegment) assignValues(columns []string, values []any) er
 			} else if value.Valid {
 				_m.StartedAt = value.Time
 			}
+		case esportsservicesegment.FieldPausedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field paused_at", values[i])
+			} else if value.Valid {
+				_m.PausedAt = new(time.Time)
+				*_m.PausedAt = value.Time
+			}
 		case esportsservicesegment.FieldEndedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field ended_at", values[i])
@@ -127,11 +142,31 @@ func (_m *EsportsServiceSegment) assignValues(columns []string, values []any) er
 			} else if value.Valid {
 				_m.ReportedUnits = value.Int64
 			}
+		case esportsservicesegment.FieldReportedSeconds:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reported_seconds", values[i])
+			} else if value.Valid {
+				_m.ReportedSeconds = value.Int64
+			}
 		case esportsservicesegment.FieldSystemSeconds:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field system_seconds", values[i])
 			} else if value.Valid {
 				_m.SystemSeconds = value.Int64
+			}
+		case esportsservicesegment.FieldCommissionRuleID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field commission_rule_id", values[i])
+			} else if value.Valid {
+				_m.CommissionRuleID = new(int)
+				*_m.CommissionRuleID = int(value.Int64)
+			}
+		case esportsservicesegment.FieldCommissionRuleLockedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field commission_rule_locked_at", values[i])
+			} else if value.Valid {
+				_m.CommissionRuleLockedAt = new(time.Time)
+				*_m.CommissionRuleLockedAt = value.Time
 			}
 		case esportsservicesegment.FieldEvidenceRef:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -208,6 +243,11 @@ func (_m *EsportsServiceSegment) String() string {
 	builder.WriteString("started_at=")
 	builder.WriteString(_m.StartedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
+	if v := _m.PausedAt; v != nil {
+		builder.WriteString("paused_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
 	if v := _m.EndedAt; v != nil {
 		builder.WriteString("ended_at=")
 		builder.WriteString(v.Format(time.ANSIC))
@@ -219,8 +259,21 @@ func (_m *EsportsServiceSegment) String() string {
 	builder.WriteString("reported_units=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReportedUnits))
 	builder.WriteString(", ")
+	builder.WriteString("reported_seconds=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReportedSeconds))
+	builder.WriteString(", ")
 	builder.WriteString("system_seconds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SystemSeconds))
+	builder.WriteString(", ")
+	if v := _m.CommissionRuleID; v != nil {
+		builder.WriteString("commission_rule_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CommissionRuleLockedAt; v != nil {
+		builder.WriteString("commission_rule_locked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("evidence_ref=")
 	builder.WriteString(_m.EvidenceRef)

@@ -116,6 +116,34 @@ func (_c *EsportsDispatchSeatCreate) SetNillableRespondedAt(v *time.Time) *Espor
 	return _c
 }
 
+// SetCommissionRuleID sets the "commission_rule_id" field.
+func (_c *EsportsDispatchSeatCreate) SetCommissionRuleID(v int) *EsportsDispatchSeatCreate {
+	_c.mutation.SetCommissionRuleID(v)
+	return _c
+}
+
+// SetNillableCommissionRuleID sets the "commission_rule_id" field if the given value is not nil.
+func (_c *EsportsDispatchSeatCreate) SetNillableCommissionRuleID(v *int) *EsportsDispatchSeatCreate {
+	if v != nil {
+		_c.SetCommissionRuleID(*v)
+	}
+	return _c
+}
+
+// SetCommissionRuleLockedAt sets the "commission_rule_locked_at" field.
+func (_c *EsportsDispatchSeatCreate) SetCommissionRuleLockedAt(v time.Time) *EsportsDispatchSeatCreate {
+	_c.mutation.SetCommissionRuleLockedAt(v)
+	return _c
+}
+
+// SetNillableCommissionRuleLockedAt sets the "commission_rule_locked_at" field if the given value is not nil.
+func (_c *EsportsDispatchSeatCreate) SetNillableCommissionRuleLockedAt(v *time.Time) *EsportsDispatchSeatCreate {
+	if v != nil {
+		_c.SetCommissionRuleLockedAt(*v)
+	}
+	return _c
+}
+
 // SetVersion sets the "version" field.
 func (_c *EsportsDispatchSeatCreate) SetVersion(v int) *EsportsDispatchSeatCreate {
 	_c.mutation.SetVersion(v)
@@ -315,6 +343,14 @@ func (_c *EsportsDispatchSeatCreate) createSpec() (*EsportsDispatchSeat, *sqlgra
 	if value, ok := _c.mutation.RespondedAt(); ok {
 		_spec.SetField(esportsdispatchseat.FieldRespondedAt, field.TypeTime, value)
 		_node.RespondedAt = &value
+	}
+	if value, ok := _c.mutation.CommissionRuleID(); ok {
+		_spec.SetField(esportsdispatchseat.FieldCommissionRuleID, field.TypeInt, value)
+		_node.CommissionRuleID = &value
+	}
+	if value, ok := _c.mutation.CommissionRuleLockedAt(); ok {
+		_spec.SetField(esportsdispatchseat.FieldCommissionRuleLockedAt, field.TypeTime, value)
+		_node.CommissionRuleLockedAt = &value
 	}
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsdispatchseat.FieldVersion, field.TypeInt, value)

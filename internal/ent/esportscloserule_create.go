@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportscloserule"
 	"time"
 
@@ -112,6 +113,20 @@ func (_c *EsportsCloseRuleCreate) SetRequireNoOpenAftersale(v bool) *EsportsClos
 func (_c *EsportsCloseRuleCreate) SetNillableRequireNoOpenAftersale(v *bool) *EsportsCloseRuleCreate {
 	if v != nil {
 		_c.SetRequireNoOpenAftersale(*v)
+	}
+	return _c
+}
+
+// SetConditionTree sets the "condition_tree" field.
+func (_c *EsportsCloseRuleCreate) SetConditionTree(v schematier.CloseConditionNode) *EsportsCloseRuleCreate {
+	_c.mutation.SetConditionTree(v)
+	return _c
+}
+
+// SetNillableConditionTree sets the "condition_tree" field if the given value is not nil.
+func (_c *EsportsCloseRuleCreate) SetNillableConditionTree(v *schematier.CloseConditionNode) *EsportsCloseRuleCreate {
+	if v != nil {
+		_c.SetConditionTree(*v)
 	}
 	return _c
 }
@@ -430,6 +445,10 @@ func (_c *EsportsCloseRuleCreate) createSpec() (*EsportsCloseRule, *sqlgraph.Cre
 	if value, ok := _c.mutation.RequireNoOpenAftersale(); ok {
 		_spec.SetField(esportscloserule.FieldRequireNoOpenAftersale, field.TypeBool, value)
 		_node.RequireNoOpenAftersale = value
+	}
+	if value, ok := _c.mutation.ConditionTree(); ok {
+		_spec.SetField(esportscloserule.FieldConditionTree, field.TypeJSON, value)
+		_node.ConditionTree = value
 	}
 	if value, ok := _c.mutation.ReviewThresholdCents(); ok {
 		_spec.SetField(esportscloserule.FieldReviewThresholdCents, field.TypeInt64, value)

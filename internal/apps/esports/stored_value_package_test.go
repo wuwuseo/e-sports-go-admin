@@ -85,7 +85,7 @@ func TestStoredValueOpenWithPackage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	view, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	view, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-2026-0002", PackageID: pkg.ID,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-pkg-key-1",
@@ -104,7 +104,7 @@ func TestStoredValueOpenWithPackage(t *testing.T) {
 	if _, err := setStoredValuePackageStatus(ctx, db, pkg.ID, "off_sale"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	if _, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-2026-0003", PackageID: pkg.ID,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-pkg-key-2",

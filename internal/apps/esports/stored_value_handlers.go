@@ -10,10 +10,12 @@ import (
 
 // adminStoredValueCards 储值卡列表（§4.4 余额查询 / 到期提醒）：可按客户、状态与「临近到期」过滤。
 func adminStoredValueCards(c fiber.Ctx) error {
-	if _, err := requestAdmin(c); err != nil {
+	operator, err := requestAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
-	views, err := listStoredValueCards(c.Context(), global.ORM,
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	views, err := listStoredValueCards(c.Context(), global.ORM, operator.ID, isSuper,
 		queryInt(c, "customer_id"), c.Query("status"), queryInt(c, "remind_days"),
 		queryInt(c, "limit"), time.Now())
 	if err != nil {
@@ -24,7 +26,8 @@ func adminStoredValueCards(c fiber.Ctx) error {
 
 // adminStoredValueCardDetail 储值卡详情：卡信息 + 派生余额 + 流水。
 func adminStoredValueCardDetail(c fiber.Ctx) error {
-	if _, err := requestAdmin(c); err != nil {
+	operator, err := requestAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	cardID, err := parsePathID(c, "储值卡")
@@ -33,6 +36,10 @@ func adminStoredValueCardDetail(c fiber.Ctx) error {
 	}
 	card, err := global.ORM.EsportsStoredValueCard.Get(c.Context(), cardID)
 	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedCustomer(c.Context(), global.ORM, operator.ID, isSuper, card.CustomerID); err != nil {
 		return businessError(c, err)
 	}
 	view, err := storedValueCardViewOf(c.Context(), global.ORM, card)
@@ -56,7 +63,38 @@ func createStoredValueCardHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedCustomer(c.Context(), global.ORM, operator.ID, isSuper, in.CustomerID); err != nil {
+		return businessError(c, err)
+	}
 	view, err := openStoredValueCard(c.Context(), global.ORM, operator.ID, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
+}
+
+// verifyStoredValueCardPaymentHandler 独立财务核验实际到账后激活卡或驳回申请。
+func verifyStoredValueCardPaymentHandler(c fiber.Ctx) error {
+	operator, err := requestAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	cardID, err := parsePathID(c, "储值卡")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Approve       *bool  `json:"approve"`
+		ReceiptRef    string `json:"receipt_ref"`
+		ReceivedCents int64  `json:"received_cents"`
+		EvidenceNote  string `json:"evidence_note"`
+	}
+	if err := c.Bind().Body(&in); err != nil || in.Approve == nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	view, err := verifyStoredValueCardPayment(c.Context(), global.ORM, operator.ID, cardID,
+		*in.Approve, in.ReceiptRef, in.ReceivedCents, in.EvidenceNote, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -65,7 +103,8 @@ func createStoredValueCardHandler(c fiber.Ctx) error {
 
 // storedValueCardRefundQuoteHandler 退卡试算（§4.4）：展示可退金额与计算明细，不落库。
 func storedValueCardRefundQuoteHandler(c fiber.Ctx) error {
-	if _, err := requestAdmin(c); err != nil {
+	operator, err := requestAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	cardID, err := parsePathID(c, "储值卡")
@@ -74,6 +113,10 @@ func storedValueCardRefundQuoteHandler(c fiber.Ctx) error {
 	}
 	card, err := global.ORM.EsportsStoredValueCard.Get(c.Context(), cardID)
 	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedCustomer(c.Context(), global.ORM, operator.ID, isSuper, card.CustomerID); err != nil {
 		return businessError(c, err)
 	}
 	quote, refundable, err := storedValueRefundQuoteFor(c.Context(), global.ORM, card, time.Now())
@@ -91,6 +134,14 @@ func requestStoredValueRefundHandler(c fiber.Ctx) error {
 	}
 	cardID, err := parsePathID(c, "储值卡")
 	if err != nil {
+		return businessError(c, err)
+	}
+	card, err := global.ORM.EsportsStoredValueCard.Get(c.Context(), cardID)
+	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedCustomer(c.Context(), global.ORM, operator.ID, isSuper, card.CustomerID); err != nil {
 		return businessError(c, err)
 	}
 	view, err := requestStoredValueRefund(c.Context(), global.ORM, operator.ID, cardID, time.Now())

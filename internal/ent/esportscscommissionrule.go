@@ -33,6 +33,8 @@ type EsportsCsCommissionRule struct {
 	BaseMode esportscscommissionrule.BaseMode `json:"base_mode"`
 	// CalcMode holds the value of the "calc_mode" field.
 	CalcMode esportscscommissionrule.CalcMode `json:"calc_mode"`
+	// IncludeGifts holds the value of the "include_gifts" field.
+	IncludeGifts bool `json:"include_gifts"`
 	// ValueBp holds the value of the "value_bp" field.
 	ValueBp int `json:"value_bp"`
 	// ValueCents holds the value of the "value_cents" field.
@@ -61,6 +63,8 @@ func (*EsportsCsCommissionRule) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportscscommissionrule.FieldTiers:
 			values[i] = new([]byte)
+		case esportscscommissionrule.FieldIncludeGifts:
+			values[i] = new(sql.NullBool)
 		case esportscscommissionrule.FieldID, esportscscommissionrule.FieldVersion, esportscscommissionrule.FieldValueBp, esportscscommissionrule.FieldValueCents, esportscscommissionrule.FieldCreatedByAdminID:
 			values[i] = new(sql.NullInt64)
 		case esportscscommissionrule.FieldRuleNo, esportscscommissionrule.FieldStatus, esportscscommissionrule.FieldScope, esportscscommissionrule.FieldScopeKey, esportscscommissionrule.FieldBaseMode, esportscscommissionrule.FieldCalcMode, esportscscommissionrule.FieldPeriod, esportscscommissionrule.FieldNote:
@@ -129,6 +133,12 @@ func (_m *EsportsCsCommissionRule) assignValues(columns []string, values []any) 
 				return fmt.Errorf("unexpected type %T for field calc_mode", values[i])
 			} else if value.Valid {
 				_m.CalcMode = esportscscommissionrule.CalcMode(value.String)
+			}
+		case esportscscommissionrule.FieldIncludeGifts:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field include_gifts", values[i])
+			} else if value.Valid {
+				_m.IncludeGifts = value.Bool
 			}
 		case esportscscommissionrule.FieldValueBp:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -244,6 +254,9 @@ func (_m *EsportsCsCommissionRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("calc_mode=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CalcMode))
+	builder.WriteString(", ")
+	builder.WriteString("include_gifts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.IncludeGifts))
 	builder.WriteString(", ")
 	builder.WriteString("value_bp=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ValueBp))

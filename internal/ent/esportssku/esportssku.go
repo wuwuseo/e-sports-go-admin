@@ -28,6 +28,10 @@ const (
 	FieldDescription = "description"
 	// FieldUnitPriceCents holds the string denoting the unit_price_cents field in the database.
 	FieldUnitPriceCents = "unit_price_cents"
+	// FieldMinUnitPriceCents holds the string denoting the min_unit_price_cents field in the database.
+	FieldMinUnitPriceCents = "min_unit_price_cents"
+	// FieldAdjustmentApprovalBp holds the string denoting the adjustment_approval_bp field in the database.
+	FieldAdjustmentApprovalBp = "adjustment_approval_bp"
 	// FieldServiceUnits holds the string denoting the service_units field in the database.
 	FieldServiceUnits = "service_units"
 	// FieldServiceUnitName holds the string denoting the service_unit_name field in the database.
@@ -36,6 +40,8 @@ const (
 	FieldRequiredSeats = "required_seats"
 	// FieldRequiredLevel holds the string denoting the required_level field in the database.
 	FieldRequiredLevel = "required_level"
+	// FieldCloseRuleCode holds the string denoting the close_rule_code field in the database.
+	FieldCloseRuleCode = "close_rule_code"
 	// FieldQuotaTotal holds the string denoting the quota_total field in the database.
 	FieldQuotaTotal = "quota_total"
 	// FieldQuotaReserved holds the string denoting the quota_reserved field in the database.
@@ -68,10 +74,13 @@ var Columns = []string{
 	FieldCategoryID,
 	FieldDescription,
 	FieldUnitPriceCents,
+	FieldMinUnitPriceCents,
+	FieldAdjustmentApprovalBp,
 	FieldServiceUnits,
 	FieldServiceUnitName,
 	FieldRequiredSeats,
 	FieldRequiredLevel,
+	FieldCloseRuleCode,
 	FieldQuotaTotal,
 	FieldQuotaReserved,
 	FieldQuotaSold,
@@ -103,6 +112,10 @@ var (
 	DescriptionValidator func(string) error
 	// UnitPriceCentsValidator is a validator for the "unit_price_cents" field. It is called by the builders before save.
 	UnitPriceCentsValidator func(int64) error
+	// DefaultMinUnitPriceCents holds the default value on creation for the "min_unit_price_cents" field.
+	DefaultMinUnitPriceCents int64
+	// DefaultAdjustmentApprovalBp holds the default value on creation for the "adjustment_approval_bp" field.
+	DefaultAdjustmentApprovalBp int
 	// ServiceUnitsValidator is a validator for the "service_units" field. It is called by the builders before save.
 	ServiceUnitsValidator func(int64) error
 	// ServiceUnitNameValidator is a validator for the "service_unit_name" field. It is called by the builders before save.
@@ -111,6 +124,10 @@ var (
 	DefaultRequiredSeats int
 	// RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
 	RequiredSeatsValidator func(int) error
+	// DefaultCloseRuleCode holds the default value on creation for the "close_rule_code" field.
+	DefaultCloseRuleCode string
+	// CloseRuleCodeValidator is a validator for the "close_rule_code" field. It is called by the builders before save.
+	CloseRuleCodeValidator func(string) error
 	// DefaultQuotaTotal holds the default value on creation for the "quota_total" field.
 	DefaultQuotaTotal int64
 	// DefaultQuotaReserved holds the default value on creation for the "quota_reserved" field.
@@ -246,6 +263,16 @@ func ByUnitPriceCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUnitPriceCents, opts...).ToFunc()
 }
 
+// ByMinUnitPriceCents orders the results by the min_unit_price_cents field.
+func ByMinUnitPriceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMinUnitPriceCents, opts...).ToFunc()
+}
+
+// ByAdjustmentApprovalBp orders the results by the adjustment_approval_bp field.
+func ByAdjustmentApprovalBp(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAdjustmentApprovalBp, opts...).ToFunc()
+}
+
 // ByServiceUnits orders the results by the service_units field.
 func ByServiceUnits(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldServiceUnits, opts...).ToFunc()
@@ -264,6 +291,11 @@ func ByRequiredSeats(opts ...sql.OrderTermOption) OrderOption {
 // ByRequiredLevel orders the results by the required_level field.
 func ByRequiredLevel(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequiredLevel, opts...).ToFunc()
+}
+
+// ByCloseRuleCode orders the results by the close_rule_code field.
+func ByCloseRuleCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCloseRuleCode, opts...).ToFunc()
 }
 
 // ByQuotaTotal orders the results by the quota_total field.

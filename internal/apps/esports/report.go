@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -23,6 +24,13 @@ import (
 // ponytail: 应用层内存聚合，订单量级到十万级时改为 SQL 分组聚合（GROUP BY + SUM）。
 const reportScanLimit = 5000
 
+func reportLimitError(count int) error {
+	if count > reportScanLimit {
+		return fmt.Errorf("%w：报表明细超过 %d 条，请缩小时间范围或增加筛选条件", errInvalidInput, reportScanLimit)
+	}
+	return nil
+}
+
 // reportFilter 是报表筛选条件。零值表示该维度不过滤。
 type reportFilter struct {
 	Start time.Time
@@ -33,6 +41,8 @@ type reportFilter struct {
 	CreatedByAdmin   int
 	SkuID            int
 	Game             string
+	ChannelSource    string
+	EntryPoint       string
 	AppointmentType  string
 	SeatType         string
 	PaymentChannel   string
@@ -79,8 +89,6 @@ type financeChannelRow struct {
 }
 
 // reportOrderPredicates 把报表筛选条件翻译成订单查询谓词。
-// ponytail: 「支付方式」筛选只在财务资金报表（按支付回执聚合）支持；订单无渠道字段，
-// 「渠道来源」同样只在售后（aftersale.channel）与支付回执上体现，未在订单谓词里过滤。
 func reportOrderPredicates(ctx context.Context, db *ent.Client, f reportFilter) ([]predicate.EsportsOrder, error) {
 	ps := []predicate.EsportsOrder{
 		esportsorder.CreatedAtGTE(f.Start),
@@ -91,6 +99,15 @@ func reportOrderPredicates(ctx context.Context, db *ent.Client, f reportFilter) 
 	}
 	if f.CreatedByAdmin > 0 {
 		ps = append(ps, esportsorder.CreatedByAdminIDEQ(f.CreatedByAdmin))
+	}
+	if f.ChannelSource != "" {
+		ps = append(ps, esportsorder.ChannelSourceEQ(esportsorder.ChannelSource(f.ChannelSource)))
+	}
+	if f.EntryPoint != "" {
+		ps = append(ps, esportsorder.EntryPointEQ(esportsorder.EntryPoint(f.EntryPoint)))
+	}
+	if f.PaymentChannel != "" {
+		ps = append(ps, esportsorder.PaymentChannelEQ(esportsorder.PaymentChannel(f.PaymentChannel)))
 	}
 	if f.SkuID > 0 {
 		ps = append(ps, esportsorder.SkuIDIn(f.SkuID))
@@ -208,13 +225,16 @@ func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 	if err != nil {
 		return nil, err
 	}
-	orders, err := db.EsportsOrder.Query().Where(predicates...).Limit(reportScanLimit).
+	orders, err := db.EsportsOrder.Query().Where(predicates...).Limit(reportScanLimit+1).
 		Select(esportsorder.FieldID, esportsorder.FieldOrderNo, esportsorder.FieldCustomerID,
 			esportsorder.FieldPayableCents, esportsorder.FieldRefundedCents,
 			esportsorder.FieldPaymentStatus, esportsorder.FieldFulfillmentStatus,
 			esportsorder.FieldCreatedAt).
 		Order(ent.Asc(esportsorder.FieldCreatedAt)).All(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err = reportLimitError(len(orders)); err != nil {
 		return nil, err
 	}
 	var orderCount, paidCount, completedCount, cancelledCount int
@@ -271,15 +291,20 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 	if err != nil {
 		return nil, err
 	}
-	orders, err := db.EsportsOrder.Query().Where(predicates...).Limit(reportScanLimit).
-		Select(esportsorder.FieldResponsibleAdminID, esportsorder.FieldPayableCents,
+	orders, err := db.EsportsOrder.Query().Where(predicates...).Limit(reportScanLimit+1).
+		Select(esportsorder.FieldID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldPayableCents,
 			esportsorder.FieldRefundedCents, esportsorder.FieldPaymentStatus).All(ctx)
 	if err != nil {
 		return nil, err
 	}
+	if err = reportLimitError(len(orders)); err != nil {
+		return nil, err
+	}
 	index := map[int]int{}
+	matchedOrderIDs := make(map[int]bool, len(orders))
 	rows := make([]csPerformanceRow, 0)
 	for _, order := range orders {
+		matchedOrderIDs[order.ID] = true
 		if order.ResponsibleAdminID == nil {
 			continue
 		}
@@ -297,15 +322,28 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		}
 	}
 	// 提成（§12.2）：按业绩归属客服聚合区间内提成明细净额，含负数冲回；只有提成没有订单的客服也要成行。
-	commissions, err := db.EsportsCsCommissionEntry.Query().Where(
+	commissionQuery := db.EsportsCsCommissionEntry.Query().Where(
 		esportscscommissionentry.CreatedAtGTE(f.Start),
 		esportscscommissionentry.CreatedAtLT(f.End),
-	).Limit(reportScanLimit).
-		Select(esportscscommissionentry.FieldAdminID, esportscscommissionentry.FieldAmountCents).All(ctx)
+	)
+	if f.ResponsibleAdmin > 0 {
+		commissionQuery.Where(esportscscommissionentry.AdminIDEQ(f.ResponsibleAdmin))
+	}
+	commissions, err := commissionQuery.Limit(reportScanLimit+1).
+		Select(esportscscommissionentry.FieldAdminID, esportscscommissionentry.FieldOrderID,
+			esportscscommissionentry.FieldAmountCents).All(ctx)
 	if err != nil {
 		return nil, err
 	}
+	if err = reportLimitError(len(commissions)); err != nil {
+		return nil, err
+	}
+	orderDimensions := f.ChannelSource != "" || f.EntryPoint != "" || f.PaymentChannel != "" ||
+		f.CreatedByAdmin > 0 || f.SkuID > 0 || f.Game != "" || f.AppointmentType != "" || f.SeatType != ""
 	for _, entry := range commissions {
+		if orderDimensions && (entry.OrderID == nil || !matchedOrderIDs[*entry.OrderID]) {
+			continue
+		}
 		at, ok := index[entry.AdminID]
 		if !ok {
 			index[entry.AdminID] = len(rows)
@@ -338,8 +376,11 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 	if err != nil {
 		return nil, err
 	}
-	orderIDs, err := db.EsportsOrder.Query().Where(predicates...).Limit(reportScanLimit).IDs(ctx)
+	orderIDs, err := db.EsportsOrder.Query().Where(predicates...).Limit(reportScanLimit + 1).IDs(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err = reportLimitError(len(orderIDs)); err != nil {
 		return nil, err
 	}
 	result := map[string]any{
@@ -473,17 +514,38 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 	if handlerAdmin > 0 {
 		query.Where(esportsaftersale.HandlerAdminIDEQ(handlerAdmin))
 	}
+	if f.ChannelSource != "" || f.EntryPoint != "" {
+		orders := db.EsportsOrder.Query()
+		if f.ChannelSource != "" {
+			orders.Where(esportsorder.ChannelSourceEQ(esportsorder.ChannelSource(f.ChannelSource)))
+		}
+		if f.EntryPoint != "" {
+			orders.Where(esportsorder.EntryPointEQ(esportsorder.EntryPoint(f.EntryPoint)))
+		}
+		ids, err := orders.IDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			query.Where(esportsaftersale.IDLTE(0))
+		} else {
+			query.Where(esportsaftersale.SourceIDIn(ids...))
+		}
+	}
 	if f.AftersaleKind != "" {
 		query.Where(esportsaftersale.KindEQ(esportsaftersale.Kind(f.AftersaleKind)))
 	}
 	if f.FaultParty != "" {
 		query.Where(esportsaftersale.FaultPartyEQ(esportsaftersale.FaultParty(f.FaultParty)))
 	}
-	rows, err := query.Limit(reportScanLimit).
+	rows, err := query.Limit(reportScanLimit+1).
 		Select(esportsaftersale.FieldID, esportsaftersale.FieldKind,
 			esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty,
 			esportsaftersale.FieldRefundCents, esportsaftersale.FieldCreatedAt).All(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err = reportLimitError(len(rows)); err != nil {
 		return nil, err
 	}
 	var total, completed, rejected, withdrawn, inProgress int
@@ -529,10 +591,13 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	transactions, err := db.EsportsWalletTx.Query().Where(
 		esportswallettx.CreatedAtGTE(f.Start),
 		esportswallettx.CreatedAtLT(f.End),
-	).Limit(reportScanLimit).
+	).Limit(reportScanLimit+1).
 		Select(esportswallettx.FieldAccountType, esportswallettx.FieldEntryType,
 			esportswallettx.FieldPrincipalDeltaCents).All(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err = reportLimitError(len(transactions)); err != nil {
 		return nil, err
 	}
 	customerPrincipal := map[string]int64{}
@@ -552,10 +617,13 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	settlements, err := db.EsportsSettlement.Query().Where(
 		esportssettlement.CreatedAtGTE(f.Start),
 		esportssettlement.CreatedAtLT(f.End),
-	).Limit(reportScanLimit).
+	).Limit(reportScanLimit+1).
 		Select(esportssettlement.FieldGrossCents, esportssettlement.FieldNetCents,
 			esportssettlement.FieldStatus).All(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err = reportLimitError(len(settlements)); err != nil {
 		return nil, err
 	}
 	var settlementCount int
@@ -574,9 +642,12 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	if f.PaymentChannel != "" {
 		receiptQuery.Where(esportspaymentreceipt.ChannelEQ(f.PaymentChannel))
 	}
-	receipts, err := receiptQuery.Limit(reportScanLimit).
+	receipts, err := receiptQuery.Limit(reportScanLimit+1).
 		Select(esportspaymentreceipt.FieldChannel, esportspaymentreceipt.FieldActualCents).All(ctx)
 	if err != nil {
+		return nil, err
+	}
+	if err = reportLimitError(len(receipts)); err != nil {
 		return nil, err
 	}
 	channelIndex := map[string]int{}

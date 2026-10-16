@@ -113,9 +113,10 @@ const DefaultStatus = StatusDraft
 
 // Status values.
 const (
-	StatusDraft   Status = "draft"
-	StatusActive  Status = "active"
-	StatusHistory Status = "history"
+	StatusDraft     Status = "draft"
+	StatusScheduled Status = "scheduled"
+	StatusActive    Status = "active"
+	StatusHistory   Status = "history"
 )
 
 func (s Status) String() string {
@@ -125,7 +126,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusDraft, StatusActive, StatusHistory:
+	case StatusDraft, StatusScheduled, StatusActive, StatusHistory:
 		return nil
 	default:
 		return fmt.Errorf("esportscommissionrule: invalid enum value for status field: %q", s)

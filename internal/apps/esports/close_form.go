@@ -15,9 +15,9 @@ import (
 )
 
 // 结单表单设计器（§3.4 首版）：字段库 + 模板（按 全局 / 游戏分区 / SKU + 金额区间绑定）
-// + 结单时按模板校验必填字段并留痕快照。
+// + 下单时锁定模板版本，结单时按该模板校验必填字段并留痕快照。
 // ponytail: 拖拽画布与任意坐标、字段级联与条件显示、字段库版本历史、
-// 按订单类型（即时 / 预约）绑定、模板在「下单时」快照（当前在结单时解析生效模板并记版本号）均未实现。
+// 按订单类型（即时 / 预约）绑定尚未实现。旧模板未存字段定义快照时仍回退实时字段库。
 
 // closeFormFieldTypes 是工程实现的字段类型全集（§3.4 自定义字段类型）。
 var closeFormFieldTypes = map[string]bool{
@@ -169,14 +169,14 @@ func listCloseFormFields(ctx context.Context, db *ent.Client, limit int) ([]*ent
 // ── 模板（版本化：新增 / 生效 / 回滚） ──
 
 type closeFormTemplateInput struct {
-	Code     string                        `json:"code"`
-	Name     string                        `json:"name"`
-	Scope    string                        `json:"scope"`
-	ScopeKey string                        `json:"scope_key"`
-	MinCents int64                         `json:"min_cents"`
-	MaxCents int64                         `json:"max_cents"`
+	Code     string                         `json:"code"`
+	Name     string                         `json:"name"`
+	Scope    string                         `json:"scope"`
+	ScopeKey string                         `json:"scope_key"`
+	MinCents int64                          `json:"min_cents"`
+	MaxCents int64                          `json:"max_cents"`
 	Fields   []schema.CloseFormFieldBinding `json:"fields"`
-	Note     string                        `json:"note"`
+	Note     string                         `json:"note"`
 }
 
 // normalizeCloseFormTemplateInput 校验模板定义，并确认引用字段存在且已启用。
@@ -301,6 +301,10 @@ func activateCloseFormTemplate(ctx context.Context, db *ent.Client, id int) (*en
 	if target.Status != esportscloseformtemplate.StatusDraft {
 		return nil, errConflict
 	}
+	definitions, err := snapshotCloseFormFields(ctx, tx.Client(), target.Fields)
+	if err != nil {
+		return nil, err
+	}
 	if _, err = tx.EsportsCloseFormTemplate.Update().Where(
 		esportscloseformtemplate.CodeEQ(target.Code),
 		esportscloseformtemplate.StatusEQ(esportscloseformtemplate.StatusActive),
@@ -310,7 +314,8 @@ func activateCloseFormTemplate(ctx context.Context, db *ent.Client, id int) (*en
 	changed, err := tx.EsportsCloseFormTemplate.Update().Where(
 		esportscloseformtemplate.IDEQ(id),
 		esportscloseformtemplate.StatusEQ(esportscloseformtemplate.StatusDraft),
-	).SetStatus(esportscloseformtemplate.StatusActive).Save(ctx)
+	).SetStatus(esportscloseformtemplate.StatusActive).
+		SetFieldDefinitions(definitions).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -347,6 +352,7 @@ func rollbackCloseFormTemplate(ctx context.Context, db *ent.Client, id, adminID 
 	created, err := tx.EsportsCloseFormTemplate.Create().SetCode(source.Code).SetName(source.Name).
 		SetScope(source.Scope).SetScopeKey(source.ScopeKey).
 		SetMinCents(source.MinCents).SetMaxCents(source.MaxCents).SetFields(source.Fields).
+		SetFieldDefinitions(source.FieldDefinitions).
 		SetVersion(latest.Version + 1).SetStatus(esportscloseformtemplate.StatusActive).
 		SetCreatedByAdminID(adminID).SetNote(source.Note).Save(ctx)
 	if err != nil {
@@ -388,6 +394,12 @@ func closeFormTemplateMatchesAmount(t *ent.EsportsCloseFormTemplate, payableCent
 // resolveCloseFormTemplate 解析订单适用的生效模板：sku > game > global，同层取命中金额区间且 version 最大；
 // 无命中返回 nil, nil（结单表单非必填）。
 func resolveCloseFormTemplate(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) (*ent.EsportsCloseFormTemplate, error) {
+	if order.CloseFormTemplateLockedAt != nil {
+		if order.CloseFormTemplateID == nil {
+			return nil, nil
+		}
+		return db.EsportsCloseFormTemplate.Get(ctx, *order.CloseFormTemplateID)
+	}
 	active, err := db.EsportsCloseFormTemplate.Query().Where(
 		esportscloseformtemplate.StatusEQ(esportscloseformtemplate.StatusActive),
 	).All(ctx)
@@ -430,8 +442,53 @@ func resolveCloseFormTemplate(ctx context.Context, db *ent.Client, order *ent.Es
 
 // ── 字段值校验与快照 ──
 
-// closeFormFieldValues 是模板字段的有序定义（含字段库类型信息）。
-func closeFormFieldValues(ctx context.Context, db *ent.Client, bindings []schema.CloseFormFieldBinding) ([]*ent.EsportsCloseFormField, map[string]*ent.EsportsCloseFormField, error) {
+// snapshotCloseFormFields 在模板生效时固定字段类型、选项与必填设置。
+func snapshotCloseFormFields(ctx context.Context, db *ent.Client, bindings []schema.CloseFormFieldBinding) ([]schema.CloseFormFieldDefinition, error) {
+	ordered, _, err := liveCloseFormFieldValues(ctx, db, bindings)
+	if err != nil {
+		return nil, err
+	}
+	if len(ordered) != len(bindings) {
+		return nil, fmt.Errorf("%w：模板引用字段不存在", errInvalidInput)
+	}
+	snapshot := make([]schema.CloseFormFieldDefinition, 0, len(ordered))
+	for _, def := range ordered {
+		if !def.Enabled {
+			return nil, fmt.Errorf("%w：模板引用字段已停用", errInvalidInput)
+		}
+		snapshot = append(snapshot, schema.CloseFormFieldDefinition{
+			ID: def.ID, Key: def.Key, Label: def.Label, FieldType: def.FieldType.String(),
+			Required: def.Required, Options: append([]string(nil), def.Options...),
+			MaxLength: def.MaxLength, SortOrder: def.SortOrder, Version: def.Version,
+		})
+	}
+	return snapshot, nil
+}
+
+// closeFormFieldValues 优先读取模板生效时的字段定义；旧模板无快照时兼容实时字段库。
+func closeFormFieldValues(ctx context.Context, db *ent.Client, template *ent.EsportsCloseFormTemplate) ([]*ent.EsportsCloseFormField, map[string]*ent.EsportsCloseFormField, error) {
+	if len(template.FieldDefinitions) == 0 {
+		return liveCloseFormFieldValues(ctx, db, template.Fields)
+	}
+	byKey := make(map[string]*ent.EsportsCloseFormField, len(template.FieldDefinitions))
+	for _, snap := range template.FieldDefinitions {
+		byKey[snap.Key] = &ent.EsportsCloseFormField{
+			ID: snap.ID, Key: snap.Key, Label: snap.Label,
+			FieldType: esportscloseformfield.FieldType(snap.FieldType), Required: snap.Required,
+			Options: append([]string(nil), snap.Options...), MaxLength: snap.MaxLength,
+			SortOrder: snap.SortOrder, Version: snap.Version, Enabled: true,
+		}
+	}
+	ordered := make([]*ent.EsportsCloseFormField, 0, len(template.Fields))
+	for _, binding := range template.Fields {
+		if def := byKey[binding.FieldKey]; def != nil {
+			ordered = append(ordered, def)
+		}
+	}
+	return ordered, byKey, nil
+}
+
+func liveCloseFormFieldValues(ctx context.Context, db *ent.Client, bindings []schema.CloseFormFieldBinding) ([]*ent.EsportsCloseFormField, map[string]*ent.EsportsCloseFormField, error) {
 	keys := make([]string, 0, len(bindings))
 	for _, binding := range bindings {
 		keys = append(keys, binding.FieldKey)
@@ -577,7 +634,7 @@ func applyCloseForm(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, ad
 	if template == nil || len(template.Fields) == 0 {
 		return nil
 	}
-	_, byKey, err := closeFormFieldValues(ctx, tx.Client(), template.Fields)
+	_, byKey, err := closeFormFieldValues(ctx, tx.Client(), template)
 	if err != nil {
 		return err
 	}
@@ -654,7 +711,7 @@ func orderCloseForm(ctx context.Context, db *ent.Client, orderID int) (*orderClo
 	}
 	if template != nil {
 		view.Template = template
-		ordered, _, err := closeFormFieldValues(ctx, db, template.Fields)
+		ordered, _, err := closeFormFieldValues(ctx, db, template)
 		if err != nil {
 			return nil, err
 		}

@@ -137,6 +137,10 @@ func rechargeWalletByCampaignHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, ownerID); err != nil {
+		return businessError(c, err)
+	}
 	key := strings.TrimSpace(c.Get("Idempotency-Key"))
 	var in struct {
 		PrincipalCents int64  `json:"principal_cents"`

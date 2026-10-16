@@ -192,6 +192,53 @@ func (_u *EsportsDispatchSeatUpdate) ClearRespondedAt() *EsportsDispatchSeatUpda
 	return _u
 }
 
+// SetCommissionRuleID sets the "commission_rule_id" field.
+func (_u *EsportsDispatchSeatUpdate) SetCommissionRuleID(v int) *EsportsDispatchSeatUpdate {
+	_u.mutation.ResetCommissionRuleID()
+	_u.mutation.SetCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableCommissionRuleID sets the "commission_rule_id" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdate) SetNillableCommissionRuleID(v *int) *EsportsDispatchSeatUpdate {
+	if v != nil {
+		_u.SetCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddCommissionRuleID adds value to the "commission_rule_id" field.
+func (_u *EsportsDispatchSeatUpdate) AddCommissionRuleID(v int) *EsportsDispatchSeatUpdate {
+	_u.mutation.AddCommissionRuleID(v)
+	return _u
+}
+
+// ClearCommissionRuleID clears the value of the "commission_rule_id" field.
+func (_u *EsportsDispatchSeatUpdate) ClearCommissionRuleID() *EsportsDispatchSeatUpdate {
+	_u.mutation.ClearCommissionRuleID()
+	return _u
+}
+
+// SetCommissionRuleLockedAt sets the "commission_rule_locked_at" field.
+func (_u *EsportsDispatchSeatUpdate) SetCommissionRuleLockedAt(v time.Time) *EsportsDispatchSeatUpdate {
+	_u.mutation.SetCommissionRuleLockedAt(v)
+	return _u
+}
+
+// SetNillableCommissionRuleLockedAt sets the "commission_rule_locked_at" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdate) SetNillableCommissionRuleLockedAt(v *time.Time) *EsportsDispatchSeatUpdate {
+	if v != nil {
+		_u.SetCommissionRuleLockedAt(*v)
+	}
+	return _u
+}
+
+// ClearCommissionRuleLockedAt clears the value of the "commission_rule_locked_at" field.
+func (_u *EsportsDispatchSeatUpdate) ClearCommissionRuleLockedAt() *EsportsDispatchSeatUpdate {
+	_u.mutation.ClearCommissionRuleLockedAt()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsDispatchSeatUpdate) SetVersion(v int) *EsportsDispatchSeatUpdate {
 	_u.mutation.ResetVersion()
@@ -344,6 +391,21 @@ func (_u *EsportsDispatchSeatUpdate) sqlSave(ctx context.Context) (_node int, er
 	}
 	if _u.mutation.RespondedAtCleared() {
 		_spec.ClearField(esportsdispatchseat.FieldRespondedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CommissionRuleID(); ok {
+		_spec.SetField(esportsdispatchseat.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCommissionRuleID(); ok {
+		_spec.AddField(esportsdispatchseat.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.CommissionRuleIDCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldCommissionRuleID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CommissionRuleLockedAt(); ok {
+		_spec.SetField(esportsdispatchseat.FieldCommissionRuleLockedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CommissionRuleLockedAtCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldCommissionRuleLockedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsdispatchseat.FieldVersion, field.TypeInt, value)
@@ -538,6 +600,53 @@ func (_u *EsportsDispatchSeatUpdateOne) ClearRespondedAt() *EsportsDispatchSeatU
 	return _u
 }
 
+// SetCommissionRuleID sets the "commission_rule_id" field.
+func (_u *EsportsDispatchSeatUpdateOne) SetCommissionRuleID(v int) *EsportsDispatchSeatUpdateOne {
+	_u.mutation.ResetCommissionRuleID()
+	_u.mutation.SetCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableCommissionRuleID sets the "commission_rule_id" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdateOne) SetNillableCommissionRuleID(v *int) *EsportsDispatchSeatUpdateOne {
+	if v != nil {
+		_u.SetCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddCommissionRuleID adds value to the "commission_rule_id" field.
+func (_u *EsportsDispatchSeatUpdateOne) AddCommissionRuleID(v int) *EsportsDispatchSeatUpdateOne {
+	_u.mutation.AddCommissionRuleID(v)
+	return _u
+}
+
+// ClearCommissionRuleID clears the value of the "commission_rule_id" field.
+func (_u *EsportsDispatchSeatUpdateOne) ClearCommissionRuleID() *EsportsDispatchSeatUpdateOne {
+	_u.mutation.ClearCommissionRuleID()
+	return _u
+}
+
+// SetCommissionRuleLockedAt sets the "commission_rule_locked_at" field.
+func (_u *EsportsDispatchSeatUpdateOne) SetCommissionRuleLockedAt(v time.Time) *EsportsDispatchSeatUpdateOne {
+	_u.mutation.SetCommissionRuleLockedAt(v)
+	return _u
+}
+
+// SetNillableCommissionRuleLockedAt sets the "commission_rule_locked_at" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdateOne) SetNillableCommissionRuleLockedAt(v *time.Time) *EsportsDispatchSeatUpdateOne {
+	if v != nil {
+		_u.SetCommissionRuleLockedAt(*v)
+	}
+	return _u
+}
+
+// ClearCommissionRuleLockedAt clears the value of the "commission_rule_locked_at" field.
+func (_u *EsportsDispatchSeatUpdateOne) ClearCommissionRuleLockedAt() *EsportsDispatchSeatUpdateOne {
+	_u.mutation.ClearCommissionRuleLockedAt()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsDispatchSeatUpdateOne) SetVersion(v int) *EsportsDispatchSeatUpdateOne {
 	_u.mutation.ResetVersion()
@@ -720,6 +829,21 @@ func (_u *EsportsDispatchSeatUpdateOne) sqlSave(ctx context.Context) (_node *Esp
 	}
 	if _u.mutation.RespondedAtCleared() {
 		_spec.ClearField(esportsdispatchseat.FieldRespondedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CommissionRuleID(); ok {
+		_spec.SetField(esportsdispatchseat.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCommissionRuleID(); ok {
+		_spec.AddField(esportsdispatchseat.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.CommissionRuleIDCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldCommissionRuleID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CommissionRuleLockedAt(); ok {
+		_spec.SetField(esportsdispatchseat.FieldCommissionRuleLockedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CommissionRuleLockedAtCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldCommissionRuleLockedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsdispatchseat.FieldVersion, field.TypeInt, value)

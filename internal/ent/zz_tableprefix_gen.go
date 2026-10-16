@@ -15,6 +15,7 @@ import (
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsaftersalereview"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsassessmentappeal"
@@ -39,6 +40,8 @@ import (
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsfulfillmentmakeup"
 	"go-admin/internal/ent/esportsgift"
+	"go-admin/internal/ent/esportsgiftdispute"
+	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
@@ -47,6 +50,7 @@ import (
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
+	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
 	"go-admin/internal/ent/esportsorderevent"
@@ -54,12 +58,15 @@ import (
 	"go-admin/internal/ent/esportspageasset"
 	"go-admin/internal/ent/esportspagedocument"
 	"go-admin/internal/ent/esportspageversion"
+	"go-admin/internal/ent/esportspaymentaccount"
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsplayercreditevent"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
+	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
@@ -67,6 +74,7 @@ import (
 	"go-admin/internal/ent/esportsseattransferrequest"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
+	"go-admin/internal/ent/esportssettlementcycle"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
@@ -173,6 +181,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsaftersale.TablePrefix
 		esportsaftersale.TablePrefix = prefix
 		esportsaftersale.Table = prefix + strings.TrimPrefix(esportsaftersale.Table, old)
+	}
+	{
+		old := esportsaftersalereview.TablePrefix
+		esportsaftersalereview.TablePrefix = prefix
+		esportsaftersalereview.Table = prefix + strings.TrimPrefix(esportsaftersalereview.Table, old)
 	}
 	{
 		old := esportsagecheck.TablePrefix
@@ -295,6 +308,16 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportsgift.Table = prefix + strings.TrimPrefix(esportsgift.Table, old)
 	}
 	{
+		old := esportsgiftdispute.TablePrefix
+		esportsgiftdispute.TablePrefix = prefix
+		esportsgiftdispute.Table = prefix + strings.TrimPrefix(esportsgiftdispute.Table, old)
+	}
+	{
+		old := esportsgiftintent.TablePrefix
+		esportsgiftintent.TablePrefix = prefix
+		esportsgiftintent.Table = prefix + strings.TrimPrefix(esportsgiftintent.Table, old)
+	}
+	{
 		old := esportsgiftorder.TablePrefix
 		esportsgiftorder.TablePrefix = prefix
 		esportsgiftorder.Table = prefix + strings.TrimPrefix(esportsgiftorder.Table, old)
@@ -335,6 +358,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportsmemberlevelrule.Table = prefix + strings.TrimPrefix(esportsmemberlevelrule.Table, old)
 	}
 	{
+		old := esportsofflinepaymentproof.TablePrefix
+		esportsofflinepaymentproof.TablePrefix = prefix
+		esportsofflinepaymentproof.Table = prefix + strings.TrimPrefix(esportsofflinepaymentproof.Table, old)
+	}
+	{
 		old := esportsorder.TablePrefix
 		esportsorder.TablePrefix = prefix
 		esportsorder.Table = prefix + strings.TrimPrefix(esportsorder.Table, old)
@@ -370,6 +398,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportspageversion.Table = prefix + strings.TrimPrefix(esportspageversion.Table, old)
 	}
 	{
+		old := esportspaymentaccount.TablePrefix
+		esportspaymentaccount.TablePrefix = prefix
+		esportspaymentaccount.Table = prefix + strings.TrimPrefix(esportspaymentaccount.Table, old)
+	}
+	{
 		old := esportspaymentintent.TablePrefix
 		esportspaymentintent.TablePrefix = prefix
 		esportspaymentintent.Table = prefix + strings.TrimPrefix(esportspaymentintent.Table, old)
@@ -385,6 +418,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportsplayer.Table = prefix + strings.TrimPrefix(esportsplayer.Table, old)
 	}
 	{
+		old := esportsplayercreditevent.TablePrefix
+		esportsplayercreditevent.TablePrefix = prefix
+		esportsplayercreditevent.Table = prefix + strings.TrimPrefix(esportsplayercreditevent.Table, old)
+	}
+	{
 		old := esportsplayerrecovery.TablePrefix
 		esportsplayerrecovery.TablePrefix = prefix
 		esportsplayerrecovery.Table = prefix + strings.TrimPrefix(esportsplayerrecovery.Table, old)
@@ -398,6 +436,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsplayerreviewrevision.TablePrefix
 		esportsplayerreviewrevision.TablePrefix = prefix
 		esportsplayerreviewrevision.Table = prefix + strings.TrimPrefix(esportsplayerreviewrevision.Table, old)
+	}
+	{
+		old := esportspriceadjustment.TablePrefix
+		esportspriceadjustment.TablePrefix = prefix
+		esportspriceadjustment.Table = prefix + strings.TrimPrefix(esportspriceadjustment.Table, old)
 	}
 	{
 		old := esportsproductcategory.TablePrefix
@@ -433,6 +476,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportssettlement.TablePrefix
 		esportssettlement.TablePrefix = prefix
 		esportssettlement.Table = prefix + strings.TrimPrefix(esportssettlement.Table, old)
+	}
+	{
+		old := esportssettlementcycle.TablePrefix
+		esportssettlementcycle.TablePrefix = prefix
+		esportssettlementcycle.Table = prefix + strings.TrimPrefix(esportssettlementcycle.Table, old)
 	}
 	{
 		old := esportssku.TablePrefix

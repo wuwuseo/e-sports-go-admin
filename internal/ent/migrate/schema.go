@@ -510,6 +510,46 @@ var (
 			},
 		},
 	}
+	// EsportsAfterSaleReviewsColumns holds the columns for the "esports_after_sale_reviews" table.
+	EsportsAfterSaleReviewsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "review_no", Type: field.TypeString, Size: 64},
+		{Name: "after_sale_id", Type: field.TypeInt},
+		{Name: "order_id", Type: field.TypeInt, Default: 0},
+		{Name: "applicant_admin_id", Type: field.TypeInt},
+		{Name: "reason", Type: field.TypeString, Size: 500},
+		{Name: "evidence_ref", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "upheld", "reopened", "withdrawn"}, Default: "pending"},
+		{Name: "reviewer_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "decision_note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsAfterSaleReviewsTable holds the schema information for the "esports_after_sale_reviews" table.
+	EsportsAfterSaleReviewsTable = &schema.Table{
+		Name:       TablePrefix + "esports_after_sale_reviews",
+		Columns:    EsportsAfterSaleReviewsColumns,
+		PrimaryKey: []*schema.Column{EsportsAfterSaleReviewsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsaftersalereview_review_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsAfterSaleReviewsColumns[1]},
+			},
+			{
+				Name:    "esportsaftersalereview_after_sale_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsAfterSaleReviewsColumns[2], EsportsAfterSaleReviewsColumns[7]},
+			},
+			{
+				Name:    "esportsaftersalereview_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsAfterSaleReviewsColumns[7], EsportsAfterSaleReviewsColumns[12]},
+			},
+		},
+	}
 	// EsportsAgeChecksColumns holds the columns for the "esports_age_checks" table.
 	EsportsAgeChecksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -794,6 +834,7 @@ var (
 		{Name: "min_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "max_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "fields", Type: field.TypeJSON, Nullable: true},
+		{Name: "field_definitions", Type: field.TypeJSON, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "history"}, Default: "draft"},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
@@ -810,12 +851,12 @@ var (
 			{
 				Name:    "esportscloseformtemplate_code_version",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsCloseFormTemplatesColumns[1], EsportsCloseFormTemplatesColumns[9]},
+				Columns: []*schema.Column{EsportsCloseFormTemplatesColumns[1], EsportsCloseFormTemplatesColumns[10]},
 			},
 			{
 				Name:    "esportscloseformtemplate_status_scope",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsCloseFormTemplatesColumns[8], EsportsCloseFormTemplatesColumns[3]},
+				Columns: []*schema.Column{EsportsCloseFormTemplatesColumns[9], EsportsCloseFormTemplatesColumns[3]},
 			},
 		},
 	}
@@ -830,6 +871,7 @@ var (
 		{Name: "require_duration", Type: field.TypeBool, Default: true},
 		{Name: "require_no_pending_addon", Type: field.TypeBool, Default: true},
 		{Name: "require_no_open_aftersale", Type: field.TypeBool, Default: true},
+		{Name: "condition_tree", Type: field.TypeJSON, Nullable: true},
 		{Name: "review_threshold_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "history"}, Default: "draft"},
 		{Name: "version", Type: field.TypeInt, Default: 1},
@@ -847,12 +889,12 @@ var (
 			{
 				Name:    "esportscloserule_code_version",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsCloseRulesColumns[1], EsportsCloseRulesColumns[11]},
+				Columns: []*schema.Column{EsportsCloseRulesColumns[1], EsportsCloseRulesColumns[12]},
 			},
 			{
 				Name:    "esportscloserule_status_scope",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsCloseRulesColumns[10], EsportsCloseRulesColumns[3]},
+				Columns: []*schema.Column{EsportsCloseRulesColumns[11], EsportsCloseRulesColumns[3]},
 			},
 		},
 	}
@@ -909,6 +951,9 @@ var (
 		{Name: "amount_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_settlement", "settled", "void"}, Default: "pending_settlement"},
 		{Name: "settlement_id", Type: field.TypeInt, Nullable: true},
+		{Name: "frozen_at", Type: field.TypeTime, Nullable: true},
+		{Name: "frozen_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "frozen_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
@@ -947,7 +992,7 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "rule_no", Type: field.TypeString, Size: 48},
 		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "history"}, Default: "draft"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "scheduled", "active", "history"}, Default: "draft"},
 		{Name: "scope", Type: field.TypeEnum, Enums: []string{"global", "game", "player"}, Default: "global"},
 		{Name: "scope_key", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "calc_mode", Type: field.TypeEnum, Enums: []string{"percent", "fixed_per_order", "fixed_per_unit"}, Default: "percent"},
@@ -1019,9 +1064,10 @@ var (
 	EsportsCsCommissionEntriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "idem_key", Type: field.TypeString, Size: 120},
-		{Name: "order_id", Type: field.TypeInt},
+		{Name: "order_id", Type: field.TypeInt, Nullable: true},
+		{Name: "gift_order_id", Type: field.TypeInt, Nullable: true},
 		{Name: "admin_id", Type: field.TypeInt},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"service", "reversal"}, Default: "service"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"service", "reversal", "gift", "gift_reversal"}, Default: "service"},
 		{Name: "after_sale_id", Type: field.TypeInt, Nullable: true},
 		{Name: "rule_id", Type: field.TypeInt, Nullable: true},
 		{Name: "rule_no", Type: field.TypeString, Size: 48, Default: ""},
@@ -1054,17 +1100,22 @@ var (
 			{
 				Name:    "esportscscommissionentry_order_id_admin_id",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[2], EsportsCsCommissionEntriesColumns[3]},
+				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[2], EsportsCsCommissionEntriesColumns[4]},
+			},
+			{
+				Name:    "esportscscommissionentry_gift_order_id_admin_id",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[3], EsportsCsCommissionEntriesColumns[4]},
 			},
 			{
 				Name:    "esportscscommissionentry_admin_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[3], EsportsCsCommissionEntriesColumns[16]},
+				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[4], EsportsCsCommissionEntriesColumns[17]},
 			},
 			{
 				Name:    "esportscscommissionentry_settlement_id",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[17]},
+				Columns: []*schema.Column{EsportsCsCommissionEntriesColumns[18]},
 			},
 		},
 	}
@@ -1073,11 +1124,12 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "rule_no", Type: field.TypeString, Size: 48},
 		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "active", "history"}, Default: "draft"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "scheduled", "active", "history"}, Default: "draft"},
 		{Name: "scope", Type: field.TypeEnum, Enums: []string{"global", "admin"}, Default: "global"},
 		{Name: "scope_key", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "base_mode", Type: field.TypeEnum, Enums: []string{"order_amount", "order_contribution", "order_count"}, Default: "order_amount"},
 		{Name: "calc_mode", Type: field.TypeEnum, Enums: []string{"percent", "fixed_per_order"}, Default: "percent"},
+		{Name: "include_gifts", Type: field.TypeBool, Default: false},
 		{Name: "value_bp", Type: field.TypeInt, Default: 0},
 		{Name: "value_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "tiers", Type: field.TypeJSON, Nullable: true},
@@ -1274,6 +1326,8 @@ var (
 		{Name: "invited_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
 		{Name: "responded_at", Type: field.TypeTime, Nullable: true},
+		{Name: "commission_rule_id", Type: field.TypeInt, Nullable: true},
+		{Name: "commission_rule_locked_at", Type: field.TypeTime, Nullable: true},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -1389,13 +1443,114 @@ var (
 			},
 		},
 	}
+	// EsportsGiftDisputesColumns holds the columns for the "esports_gift_disputes" table.
+	EsportsGiftDisputesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "dispute_no", Type: field.TypeString, Size: 64},
+		{Name: "gift_order_id", Type: field.TypeInt},
+		{Name: "gift_no", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "owner_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"not_received", "wrong_gift", "quality", "unauthorized", "other"}},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"customer", "admin"}, Default: "customer"},
+		{Name: "demand", Type: field.TypeString, Size: 500},
+		{Name: "evidence_ref", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "requested_refund_cents", Type: field.TypeInt64},
+		{Name: "approved_refund_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_review", "approved", "rejected", "completed", "withdrawn"}, Default: "pending_review"},
+		{Name: "resolution", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "reviewed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "executed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "executed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsGiftDisputesTable holds the schema information for the "esports_gift_disputes" table.
+	EsportsGiftDisputesTable = &schema.Table{
+		Name:       TablePrefix + "esports_gift_disputes",
+		Columns:    EsportsGiftDisputesColumns,
+		PrimaryKey: []*schema.Column{EsportsGiftDisputesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsgiftdispute_dispute_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsGiftDisputesColumns[1]},
+			},
+			{
+				Name:    "esportsgiftdispute_gift_order_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsGiftDisputesColumns[2], EsportsGiftDisputesColumns[13]},
+			},
+			{
+				Name:    "esportsgiftdispute_customer_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsGiftDisputesColumns[4], EsportsGiftDisputesColumns[13]},
+			},
+		},
+	}
+	// EsportsGiftIntentsColumns holds the columns for the "esports_gift_intents" table.
+	EsportsGiftIntentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "gift_id", Type: field.TypeInt},
+		{Name: "gift_name", Type: field.TypeString, Size: 120},
+		{Name: "gift_version", Type: field.TypeInt},
+		{Name: "player_id", Type: field.TypeInt},
+		{Name: "player_name", Type: field.TypeString, Size: 120},
+		{Name: "order_id", Type: field.TypeInt, Nullable: true},
+		{Name: "quantity", Type: field.TypeInt},
+		{Name: "unit_price_cents", Type: field.TypeInt64},
+		{Name: "amount_cents", Type: field.TypeInt64},
+		{Name: "payment_source", Type: field.TypeString, Default: "customer_balance_principal"},
+		{Name: "stored_value_card_id", Type: field.TypeInt, Nullable: true},
+		{Name: "stored_value_card_no", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "created_by_admin_id", Type: field.TypeInt},
+		{Name: "client_key", Type: field.TypeString, Size: 128},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "confirmed", "consumed", "cancelled"}, Default: "pending"},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "confirmation_ref", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "gift_order_id", Type: field.TypeInt, Nullable: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "confirmed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsGiftIntentsTable holds the schema information for the "esports_gift_intents" table.
+	EsportsGiftIntentsTable = &schema.Table{
+		Name:       TablePrefix + "esports_gift_intents",
+		Columns:    EsportsGiftIntentsColumns,
+		PrimaryKey: []*schema.Column{EsportsGiftIntentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsgiftintent_created_by_admin_id_client_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsGiftIntentsColumns[14], EsportsGiftIntentsColumns[15]},
+			},
+			{
+				Name:    "esportsgiftintent_customer_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsGiftIntentsColumns[1], EsportsGiftIntentsColumns[22]},
+			},
+			{
+				Name:    "esportsgiftintent_status_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsGiftIntentsColumns[16], EsportsGiftIntentsColumns[20]},
+			},
+		},
+	}
 	// EsportsGiftOrdersColumns holds the columns for the "esports_gift_orders" table.
 	EsportsGiftOrdersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "gift_no", Type: field.TypeString, Size: 64},
 		{Name: "gift_id", Type: field.TypeInt},
+		{Name: "gift_intent_id", Type: field.TypeInt, Nullable: true},
 		{Name: "customer_id", Type: field.TypeInt},
 		{Name: "player_id", Type: field.TypeInt},
+		{Name: "responsible_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "cs_commission_rule_id", Type: field.TypeInt, Nullable: true},
 		{Name: "player_name", Type: field.TypeString, Size: 120, Default: ""},
 		{Name: "order_id", Type: field.TypeInt, Nullable: true},
 		{Name: "quantity", Type: field.TypeInt, Default: 1},
@@ -1403,6 +1558,8 @@ var (
 		{Name: "amount_cents", Type: field.TypeInt64},
 		{Name: "principal_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "bonus_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "payment_source", Type: field.TypeString, Default: "customer_balance_principal"},
+		{Name: "stored_value_card_id", Type: field.TypeInt, Nullable: true},
 		{Name: "commission_mode", Type: field.TypeEnum, Enums: []string{"percent", "fixed"}, Default: "percent"},
 		{Name: "commission_bp", Type: field.TypeInt, Default: 0},
 		{Name: "commission_cents", Type: field.TypeInt64, Default: 0},
@@ -1427,14 +1584,19 @@ var (
 				Columns: []*schema.Column{EsportsGiftOrdersColumns[1]},
 			},
 			{
+				Name:    "esportsgiftorder_gift_intent_id",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsGiftOrdersColumns[3]},
+			},
+			{
 				Name:    "esportsgiftorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsGiftOrdersColumns[3], EsportsGiftOrdersColumns[21]},
+				Columns: []*schema.Column{EsportsGiftOrdersColumns[4], EsportsGiftOrdersColumns[26]},
 			},
 			{
 				Name:    "esportsgiftorder_player_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsGiftOrdersColumns[4], EsportsGiftOrdersColumns[21]},
+				Columns: []*schema.Column{EsportsGiftOrdersColumns[5], EsportsGiftOrdersColumns[26]},
 			},
 		},
 	}
@@ -1636,6 +1798,56 @@ var (
 			},
 		},
 	}
+	// EsportsOfflinePaymentProofsColumns holds the columns for the "esports_offline_payment_proofs" table.
+	EsportsOfflinePaymentProofsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "proof_no", Type: field.TypeString, Size: 64},
+		{Name: "order_id", Type: field.TypeInt},
+		{Name: "intent_id", Type: field.TypeInt},
+		{Name: "account_id", Type: field.TypeInt},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"wechat_work", "merchant_qr", "corporate_transfer"}},
+		{Name: "transaction_no", Type: field.TypeString, Size: 128},
+		{Name: "amount_cents", Type: field.TypeInt64},
+		{Name: "proof_ref", Type: field.TypeString, Size: 255},
+		{Name: "note", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_verification", "verified", "rejected"}, Default: "pending_verification"},
+		{Name: "submitted_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "verified_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "verified_at", Type: field.TypeTime, Nullable: true},
+		{Name: "resolution", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "receipt_id", Type: field.TypeInt, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsOfflinePaymentProofsTable holds the schema information for the "esports_offline_payment_proofs" table.
+	EsportsOfflinePaymentProofsTable = &schema.Table{
+		Name:       TablePrefix + "esports_offline_payment_proofs",
+		Columns:    EsportsOfflinePaymentProofsColumns,
+		PrimaryKey: []*schema.Column{EsportsOfflinePaymentProofsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsofflinepaymentproof_proof_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsOfflinePaymentProofsColumns[1]},
+			},
+			{
+				Name:    "esportsofflinepaymentproof_channel_transaction_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsOfflinePaymentProofsColumns[5], EsportsOfflinePaymentProofsColumns[6]},
+			},
+			{
+				Name:    "esportsofflinepaymentproof_order_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsOfflinePaymentProofsColumns[2], EsportsOfflinePaymentProofsColumns[10]},
+			},
+			{
+				Name:    "esportsofflinepaymentproof_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsOfflinePaymentProofsColumns[10], EsportsOfflinePaymentProofsColumns[17]},
+			},
+		},
+	}
 	// EsportsOrdersColumns holds the columns for the "esports_orders" table.
 	EsportsOrdersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1644,8 +1856,17 @@ var (
 		{Name: "sku_id", Type: field.TypeInt},
 		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "responsible_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "cs_commission_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "cs_commission_rule_id", Type: field.TypeInt, Nullable: true},
+		{Name: "cs_commission_rule_locked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "close_form_template_id", Type: field.TypeInt, Nullable: true},
+		{Name: "close_form_template_locked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "channel_source", Type: field.TypeEnum, Enums: []string{"manual", "wecom", "self", "import"}, Default: "manual"},
+		{Name: "entry_point", Type: field.TypeEnum, Enums: []string{"cs_pc", "cs_mobile", "wecom_sidebar", "customer_self", "admin_backfill"}, Default: "cs_pc"},
 		{Name: "quantity", Type: field.TypeInt64},
 		{Name: "unit_price_cents", Type: field.TypeInt64},
+		{Name: "min_unit_price_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "adjustment_approval_bp", Type: field.TypeInt, Default: 2000},
 		{Name: "discount_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "manual_adjust_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "payable_cents", Type: field.TypeInt64},
@@ -1672,6 +1893,7 @@ var (
 		{Name: "preferred_player_id", Type: field.TypeInt, Nullable: true},
 		{Name: "refund_status", Type: field.TypeEnum, Enums: []string{"none", "pending_approval", "executing", "partial", "full", "failed"}, Default: "none"},
 		{Name: "refunded_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "close_net_service_cents", Type: field.TypeInt64, Nullable: true},
 		{Name: "refund_reserved_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "channel_cost_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "appointment_status", Type: field.TypeEnum, Enums: []string{"instant", "request", "confirmed"}, Default: "instant"},
@@ -1700,12 +1922,17 @@ var (
 			{
 				Name:    "esportsorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[45]},
+				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[55]},
 			},
 			{
 				Name:    "esportsorder_responsible_admin_id_fulfillment_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[5], EsportsOrdersColumns[18]},
+				Columns: []*schema.Column{EsportsOrdersColumns[5], EsportsOrdersColumns[27]},
+			},
+			{
+				Name:    "esportsorder_channel_source_entry_point_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsOrdersColumns[11], EsportsOrdersColumns[12], EsportsOrdersColumns[55]},
 			},
 		},
 	}
@@ -1892,6 +2119,43 @@ var (
 			},
 		},
 	}
+	// EsportsPaymentAccountsColumns holds the columns for the "esports_payment_accounts" table.
+	EsportsPaymentAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"wechat_work", "merchant_qr", "corporate_transfer"}},
+		{Name: "subject_name", Type: field.TypeString, Size: 120},
+		{Name: "account_no", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "qr_url", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "bank_name", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_review", "active", "rejected", "disabled"}, Default: "pending_review"},
+		{Name: "submit_note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "submitted_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reviewed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "review_resolution", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "disabled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPaymentAccountsTable holds the schema information for the "esports_payment_accounts" table.
+	EsportsPaymentAccountsTable = &schema.Table{
+		Name:       TablePrefix + "esports_payment_accounts",
+		Columns:    EsportsPaymentAccountsColumns,
+		PrimaryKey: []*schema.Column{EsportsPaymentAccountsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportspaymentaccount_channel_subject_name_account_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPaymentAccountsColumns[1], EsportsPaymentAccountsColumns[2], EsportsPaymentAccountsColumns[3]},
+			},
+			{
+				Name:    "esportspaymentaccount_channel_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPaymentAccountsColumns[1], EsportsPaymentAccountsColumns[6]},
+			},
+		},
+	}
 	// EsportsPaymentIntentsColumns holds the columns for the "esports_payment_intents" table.
 	EsportsPaymentIntentsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1967,6 +2231,7 @@ var (
 		{Name: "daily_limit", Type: field.TypeInt, Default: 0},
 		{Name: "concurrent_limit", Type: field.TypeInt, Default: 0},
 		{Name: "games", Type: field.TypeJSON, Nullable: true},
+		{Name: "last_heartbeat_at", Type: field.TypeTime, Nullable: true},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
@@ -1986,6 +2251,54 @@ var (
 				Name:    "esportsplayer_qualification_presence",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsPlayersColumns[3], EsportsPlayersColumns[4]},
+			},
+		},
+	}
+	// EsportsPlayerCreditEventsColumns holds the columns for the "esports_player_credit_events" table.
+	EsportsPlayerCreditEventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "event_no", Type: field.TypeString, Size: 64},
+		{Name: "player_id", Type: field.TypeInt},
+		{Name: "order_id", Type: field.TypeInt, Default: 0},
+		{Name: "after_sale_id", Type: field.TypeInt, Default: 0},
+		{Name: "recovery_id", Type: field.TypeInt, Default: 0},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"fault_admitted", "recovery_executed", "manual"}, Default: "fault_admitted"},
+		{Name: "amount_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"recorded", "penalty_applied", "cleared"}, Default: "recorded"},
+		{Name: "recorded_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reviewed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "review_note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPlayerCreditEventsTable holds the schema information for the "esports_player_credit_events" table.
+	EsportsPlayerCreditEventsTable = &schema.Table{
+		Name:       TablePrefix + "esports_player_credit_events",
+		Columns:    EsportsPlayerCreditEventsColumns,
+		PrimaryKey: []*schema.Column{EsportsPlayerCreditEventsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsplayercreditevent_event_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPlayerCreditEventsColumns[1]},
+			},
+			{
+				Name:    "esportsplayercreditevent_after_sale_id",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPlayerCreditEventsColumns[4]},
+			},
+			{
+				Name:    "esportsplayercreditevent_player_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPlayerCreditEventsColumns[2], EsportsPlayerCreditEventsColumns[9]},
+			},
+			{
+				Name:    "esportsplayercreditevent_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPlayerCreditEventsColumns[9], EsportsPlayerCreditEventsColumns[15]},
 			},
 		},
 	}
@@ -2084,6 +2397,48 @@ var (
 				Name:    "esportsplayerreviewrevision_review_id_version",
 				Unique:  true,
 				Columns: []*schema.Column{EsportsPlayerReviewRevisionsColumns[1], EsportsPlayerReviewRevisionsColumns[2]},
+			},
+		},
+	}
+	// EsportsPriceAdjustmentsColumns holds the columns for the "esports_price_adjustments" table.
+	EsportsPriceAdjustmentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "order_id", Type: field.TypeInt},
+		{Name: "order_version", Type: field.TypeInt},
+		{Name: "quantity", Type: field.TypeInt64},
+		{Name: "manual_adjust_cents", Type: field.TypeInt64},
+		{Name: "payable_cents", Type: field.TypeInt64},
+		{Name: "requested_by_admin_id", Type: field.TypeInt},
+		{Name: "request_key", Type: field.TypeString, Size: 128},
+		{Name: "reason", Type: field.TypeString, Size: 255},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "consumed"}, Default: "pending"},
+		{Name: "reviewed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "review_note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "consumed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPriceAdjustmentsTable holds the schema information for the "esports_price_adjustments" table.
+	EsportsPriceAdjustmentsTable = &schema.Table{
+		Name:       TablePrefix + "esports_price_adjustments",
+		Columns:    EsportsPriceAdjustmentsColumns,
+		PrimaryKey: []*schema.Column{EsportsPriceAdjustmentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportspriceadjustment_requested_by_admin_id_request_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPriceAdjustmentsColumns[6], EsportsPriceAdjustmentsColumns[7]},
+			},
+			{
+				Name:    "esportspriceadjustment_order_id_order_version",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPriceAdjustmentsColumns[1], EsportsPriceAdjustmentsColumns[2]},
+			},
+			{
+				Name:    "esportspriceadjustment_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPriceAdjustmentsColumns[9], EsportsPriceAdjustmentsColumns[14]},
 			},
 		},
 	}
@@ -2261,10 +2616,14 @@ var (
 		{Name: "seat_index", Type: field.TypeInt},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"in_service", "paused", "finished"}, Default: "in_service"},
 		{Name: "started_at", Type: field.TypeTime},
+		{Name: "paused_at", Type: field.TypeTime, Nullable: true},
 		{Name: "ended_at", Type: field.TypeTime, Nullable: true},
 		{Name: "paused_seconds", Type: field.TypeInt64, Default: 0},
 		{Name: "reported_units", Type: field.TypeInt64, Default: 0},
+		{Name: "reported_seconds", Type: field.TypeInt64, Default: 0},
 		{Name: "system_seconds", Type: field.TypeInt64, Default: 0},
+		{Name: "commission_rule_id", Type: field.TypeInt, Nullable: true},
+		{Name: "commission_rule_locked_at", Type: field.TypeTime, Nullable: true},
 		{Name: "evidence_ref", Type: field.TypeString, Size: 255, Default: ""},
 		{Name: "version", Type: field.TypeInt, Default: 1},
 		{Name: "created_at", Type: field.TypeTime},
@@ -2327,6 +2686,33 @@ var (
 			},
 		},
 	}
+	// EsportsSettlementCyclesColumns holds the columns for the "esports_settlement_cycles" table.
+	EsportsSettlementCyclesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "scope", Type: field.TypeEnum, Enums: []string{"global", "game", "level", "player"}, Default: "global"},
+		{Name: "scope_key", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "period", Type: field.TypeEnum, Enums: []string{"daily", "weekly", "monthly", "custom"}, Default: "weekly"},
+		{Name: "interval_days", Type: field.TypeInt, Default: 0},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "note", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsSettlementCyclesTable holds the schema information for the "esports_settlement_cycles" table.
+	EsportsSettlementCyclesTable = &schema.Table{
+		Name:       TablePrefix + "esports_settlement_cycles",
+		Columns:    EsportsSettlementCyclesColumns,
+		PrimaryKey: []*schema.Column{EsportsSettlementCyclesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportssettlementcycle_scope_scope_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsSettlementCyclesColumns[1], EsportsSettlementCyclesColumns[2]},
+			},
+		},
+	}
 	// EsportsSkusColumns holds the columns for the "esports_skus" table.
 	EsportsSkusColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -2336,10 +2722,13 @@ var (
 		{Name: "category_id", Type: field.TypeInt, Nullable: true},
 		{Name: "description", Type: field.TypeString, Size: 500, Default: ""},
 		{Name: "unit_price_cents", Type: field.TypeInt64},
+		{Name: "min_unit_price_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "adjustment_approval_bp", Type: field.TypeInt, Default: 2000},
 		{Name: "service_units", Type: field.TypeInt64},
 		{Name: "service_unit_name", Type: field.TypeString, Size: 32},
 		{Name: "required_seats", Type: field.TypeInt, Default: 1},
 		{Name: "required_level", Type: field.TypeEnum, Enums: []string{"novice", "skilled", "senior", "mentor"}, Default: "novice"},
+		{Name: "close_rule_code", Type: field.TypeString, Size: 48, Default: ""},
 		{Name: "quota_total", Type: field.TypeInt64, Default: -1},
 		{Name: "quota_reserved", Type: field.TypeInt64, Default: 0},
 		{Name: "quota_sold", Type: field.TypeInt64, Default: 0},
@@ -2363,12 +2752,12 @@ var (
 			{
 				Name:    "esportssku_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkusColumns[15]},
+				Columns: []*schema.Column{EsportsSkusColumns[18]},
 			},
 			{
 				Name:    "esportssku_category_id_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkusColumns[4], EsportsSkusColumns[14]},
+				Columns: []*schema.Column{EsportsSkusColumns[4], EsportsSkusColumns[17]},
 			},
 		},
 	}
@@ -2383,10 +2772,18 @@ var (
 		{Name: "principal_cents", Type: field.TypeInt64},
 		{Name: "bonus_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "applicable_scope", Type: field.TypeJSON, Nullable: true},
+		{Name: "allow_gifts", Type: field.TypeBool, Default: false},
 		{Name: "contract_confirmed", Type: field.TypeBool, Default: false},
 		{Name: "valid_from", Type: field.TypeTime},
 		{Name: "valid_until", Type: field.TypeTime},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"active", "exhausted", "refund_pending", "refunded", "expired", "frozen"}, Default: "active"},
+		{Name: "requested_validity_days", Type: field.TypeInt, Default: 0},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_verification", "rejected", "active", "exhausted", "refund_pending", "refunded", "expired", "frozen"}, Default: "active"},
+		{Name: "open_request_key", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "verified_payment_key", Type: field.TypeString, Nullable: true, Size: 160},
+		{Name: "payment_verified_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "payment_verified_at", Type: field.TypeTime, Nullable: true},
+		{Name: "payment_verified_amount_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "payment_verification_note", Type: field.TypeString, Size: 255, Default: ""},
 		{Name: "package_id", Type: field.TypeInt, Nullable: true},
 		{Name: "opened_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "refund_quote", Type: field.TypeJSON, Nullable: true},
@@ -2411,14 +2808,24 @@ var (
 				Columns: []*schema.Column{EsportsStoredValueCardsColumns[1]},
 			},
 			{
+				Name:    "esportsstoredvaluecard_open_request_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsStoredValueCardsColumns[15]},
+			},
+			{
+				Name:    "esportsstoredvaluecard_verified_payment_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsStoredValueCardsColumns[16]},
+			},
+			{
 				Name:    "esportsstoredvaluecard_customer_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValueCardsColumns[2], EsportsStoredValueCardsColumns[12]},
+				Columns: []*schema.Column{EsportsStoredValueCardsColumns[2], EsportsStoredValueCardsColumns[14]},
 			},
 			{
 				Name:    "esportsstoredvaluecard_status_valid_until",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValueCardsColumns[12], EsportsStoredValueCardsColumns[11]},
+				Columns: []*schema.Column{EsportsStoredValueCardsColumns[14], EsportsStoredValueCardsColumns[12]},
 			},
 		},
 	}
@@ -3214,6 +3621,7 @@ var (
 		DepartmentsTable,
 		DictDataTable,
 		EsportsAfterSalesTable,
+		EsportsAfterSaleReviewsTable,
 		EsportsAgeChecksTable,
 		EsportsAssessmentsTable,
 		EsportsAssessmentAppealsTable,
@@ -3238,6 +3646,8 @@ var (
 		EsportsDispatchSeatsTable,
 		EsportsFulfillmentMakeupsTable,
 		EsportsGiftsTable,
+		EsportsGiftDisputesTable,
+		EsportsGiftIntentsTable,
 		EsportsGiftOrdersTable,
 		EsportsGrowthLedgersTable,
 		EsportsIdempotenciesTable,
@@ -3246,6 +3656,7 @@ var (
 		EsportsLedgerEntriesTable,
 		EsportsMemberLevelOverridesTable,
 		EsportsMemberLevelRulesTable,
+		EsportsOfflinePaymentProofsTable,
 		EsportsOrdersTable,
 		EsportsOrderAddonsTable,
 		EsportsOrderEventsTable,
@@ -3253,12 +3664,15 @@ var (
 		EsportsPageAssetsTable,
 		EsportsPageDocumentsTable,
 		EsportsPageVersionsTable,
+		EsportsPaymentAccountsTable,
 		EsportsPaymentIntentsTable,
 		EsportsPaymentReceiptsTable,
 		EsportsPlayersTable,
+		EsportsPlayerCreditEventsTable,
 		EsportsPlayerRecoveriesTable,
 		EsportsPlayerReviewsTable,
 		EsportsPlayerReviewRevisionsTable,
+		EsportsPriceAdjustmentsTable,
 		EsportsProductCategoriesTable,
 		EsportsQuotaHoldsTable,
 		EsportsRechargeCampaignsTable,
@@ -3266,6 +3680,7 @@ var (
 		EsportsSeatTransferRequestsTable,
 		EsportsServiceSegmentsTable,
 		EsportsSettlementsTable,
+		EsportsSettlementCyclesTable,
 		EsportsSkusTable,
 		EsportsStoredValueCardsTable,
 		EsportsStoredValuePackagesTable,

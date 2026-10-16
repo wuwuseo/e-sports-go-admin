@@ -20,7 +20,9 @@ type EsportsCsCommissionEntry struct {
 	// IdemKey holds the value of the "idem_key" field.
 	IdemKey string `json:"idem_key"`
 	// OrderID holds the value of the "order_id" field.
-	OrderID int `json:"order_id"`
+	OrderID *int `json:"order_id"`
+	// GiftOrderID holds the value of the "gift_order_id" field.
+	GiftOrderID *int `json:"gift_order_id"`
 	// AdminID holds the value of the "admin_id" field.
 	AdminID int `json:"admin_id"`
 	// Kind holds the value of the "kind" field.
@@ -67,7 +69,7 @@ func (*EsportsCsCommissionEntry) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportscscommissionentry.FieldID, esportscscommissionentry.FieldOrderID, esportscscommissionentry.FieldAdminID, esportscscommissionentry.FieldAfterSaleID, esportscscommissionentry.FieldRuleID, esportscscommissionentry.FieldRuleVersion, esportscscommissionentry.FieldBaseCents, esportscscommissionentry.FieldMatchedTierBp, esportscscommissionentry.FieldAmountCents, esportscscommissionentry.FieldChannelCostCents, esportscscommissionentry.FieldStudioRemainderCents, esportscscommissionentry.FieldSettlementID, esportscscommissionentry.FieldVersion:
+		case esportscscommissionentry.FieldID, esportscscommissionentry.FieldOrderID, esportscscommissionentry.FieldGiftOrderID, esportscscommissionentry.FieldAdminID, esportscscommissionentry.FieldAfterSaleID, esportscscommissionentry.FieldRuleID, esportscscommissionentry.FieldRuleVersion, esportscscommissionentry.FieldBaseCents, esportscscommissionentry.FieldMatchedTierBp, esportscscommissionentry.FieldAmountCents, esportscscommissionentry.FieldChannelCostCents, esportscscommissionentry.FieldStudioRemainderCents, esportscscommissionentry.FieldSettlementID, esportscscommissionentry.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportscscommissionentry.FieldIdemKey, esportscscommissionentry.FieldKind, esportscscommissionentry.FieldRuleNo, esportscscommissionentry.FieldCalcMode, esportscscommissionentry.FieldBaseMode, esportscscommissionentry.FieldStatus, esportscscommissionentry.FieldNote:
 			values[i] = new(sql.NullString)
@@ -104,7 +106,15 @@ func (_m *EsportsCsCommissionEntry) assignValues(columns []string, values []any)
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field order_id", values[i])
 			} else if value.Valid {
-				_m.OrderID = int(value.Int64)
+				_m.OrderID = new(int)
+				*_m.OrderID = int(value.Int64)
+			}
+		case esportscscommissionentry.FieldGiftOrderID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field gift_order_id", values[i])
+			} else if value.Valid {
+				_m.GiftOrderID = new(int)
+				*_m.GiftOrderID = int(value.Int64)
 			}
 		case esportscscommissionentry.FieldAdminID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -262,8 +272,15 @@ func (_m *EsportsCsCommissionEntry) String() string {
 	builder.WriteString("idem_key=")
 	builder.WriteString(_m.IdemKey)
 	builder.WriteString(", ")
-	builder.WriteString("order_id=")
-	builder.WriteString(fmt.Sprintf("%v", _m.OrderID))
+	if v := _m.OrderID; v != nil {
+		builder.WriteString("order_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.GiftOrderID; v != nil {
+		builder.WriteString("gift_order_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("admin_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AdminID))

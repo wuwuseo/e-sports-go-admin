@@ -152,6 +152,20 @@ func (_u *EsportsStoredValueCardUpdate) ClearApplicableScope() *EsportsStoredVal
 	return _u
 }
 
+// SetAllowGifts sets the "allow_gifts" field.
+func (_u *EsportsStoredValueCardUpdate) SetAllowGifts(v bool) *EsportsStoredValueCardUpdate {
+	_u.mutation.SetAllowGifts(v)
+	return _u
+}
+
+// SetNillableAllowGifts sets the "allow_gifts" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillableAllowGifts(v *bool) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetAllowGifts(*v)
+	}
+	return _u
+}
+
 // SetContractConfirmed sets the "contract_confirmed" field.
 func (_u *EsportsStoredValueCardUpdate) SetContractConfirmed(v bool) *EsportsStoredValueCardUpdate {
 	_u.mutation.SetContractConfirmed(v)
@@ -194,6 +208,27 @@ func (_u *EsportsStoredValueCardUpdate) SetNillableValidUntil(v *time.Time) *Esp
 	return _u
 }
 
+// SetRequestedValidityDays sets the "requested_validity_days" field.
+func (_u *EsportsStoredValueCardUpdate) SetRequestedValidityDays(v int) *EsportsStoredValueCardUpdate {
+	_u.mutation.ResetRequestedValidityDays()
+	_u.mutation.SetRequestedValidityDays(v)
+	return _u
+}
+
+// SetNillableRequestedValidityDays sets the "requested_validity_days" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillableRequestedValidityDays(v *int) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetRequestedValidityDays(*v)
+	}
+	return _u
+}
+
+// AddRequestedValidityDays adds value to the "requested_validity_days" field.
+func (_u *EsportsStoredValueCardUpdate) AddRequestedValidityDays(v int) *EsportsStoredValueCardUpdate {
+	_u.mutation.AddRequestedValidityDays(v)
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsStoredValueCardUpdate) SetStatus(v esportsstoredvaluecard.Status) *EsportsStoredValueCardUpdate {
 	_u.mutation.SetStatus(v)
@@ -204,6 +239,108 @@ func (_u *EsportsStoredValueCardUpdate) SetStatus(v esportsstoredvaluecard.Statu
 func (_u *EsportsStoredValueCardUpdate) SetNillableStatus(v *esportsstoredvaluecard.Status) *EsportsStoredValueCardUpdate {
 	if v != nil {
 		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetVerifiedPaymentKey sets the "verified_payment_key" field.
+func (_u *EsportsStoredValueCardUpdate) SetVerifiedPaymentKey(v string) *EsportsStoredValueCardUpdate {
+	_u.mutation.SetVerifiedPaymentKey(v)
+	return _u
+}
+
+// SetNillableVerifiedPaymentKey sets the "verified_payment_key" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillableVerifiedPaymentKey(v *string) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetVerifiedPaymentKey(*v)
+	}
+	return _u
+}
+
+// ClearVerifiedPaymentKey clears the value of the "verified_payment_key" field.
+func (_u *EsportsStoredValueCardUpdate) ClearVerifiedPaymentKey() *EsportsStoredValueCardUpdate {
+	_u.mutation.ClearVerifiedPaymentKey()
+	return _u
+}
+
+// SetPaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field.
+func (_u *EsportsStoredValueCardUpdate) SetPaymentVerifiedByAdminID(v int) *EsportsStoredValueCardUpdate {
+	_u.mutation.ResetPaymentVerifiedByAdminID()
+	_u.mutation.SetPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillablePaymentVerifiedByAdminID(v *int) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetPaymentVerifiedByAdminID(*v)
+	}
+	return _u
+}
+
+// AddPaymentVerifiedByAdminID adds value to the "payment_verified_by_admin_id" field.
+func (_u *EsportsStoredValueCardUpdate) AddPaymentVerifiedByAdminID(v int) *EsportsStoredValueCardUpdate {
+	_u.mutation.AddPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// ClearPaymentVerifiedByAdminID clears the value of the "payment_verified_by_admin_id" field.
+func (_u *EsportsStoredValueCardUpdate) ClearPaymentVerifiedByAdminID() *EsportsStoredValueCardUpdate {
+	_u.mutation.ClearPaymentVerifiedByAdminID()
+	return _u
+}
+
+// SetPaymentVerifiedAt sets the "payment_verified_at" field.
+func (_u *EsportsStoredValueCardUpdate) SetPaymentVerifiedAt(v time.Time) *EsportsStoredValueCardUpdate {
+	_u.mutation.SetPaymentVerifiedAt(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedAt sets the "payment_verified_at" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillablePaymentVerifiedAt(v *time.Time) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetPaymentVerifiedAt(*v)
+	}
+	return _u
+}
+
+// ClearPaymentVerifiedAt clears the value of the "payment_verified_at" field.
+func (_u *EsportsStoredValueCardUpdate) ClearPaymentVerifiedAt() *EsportsStoredValueCardUpdate {
+	_u.mutation.ClearPaymentVerifiedAt()
+	return _u
+}
+
+// SetPaymentVerifiedAmountCents sets the "payment_verified_amount_cents" field.
+func (_u *EsportsStoredValueCardUpdate) SetPaymentVerifiedAmountCents(v int64) *EsportsStoredValueCardUpdate {
+	_u.mutation.ResetPaymentVerifiedAmountCents()
+	_u.mutation.SetPaymentVerifiedAmountCents(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedAmountCents sets the "payment_verified_amount_cents" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillablePaymentVerifiedAmountCents(v *int64) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetPaymentVerifiedAmountCents(*v)
+	}
+	return _u
+}
+
+// AddPaymentVerifiedAmountCents adds value to the "payment_verified_amount_cents" field.
+func (_u *EsportsStoredValueCardUpdate) AddPaymentVerifiedAmountCents(v int64) *EsportsStoredValueCardUpdate {
+	_u.mutation.AddPaymentVerifiedAmountCents(v)
+	return _u
+}
+
+// SetPaymentVerificationNote sets the "payment_verification_note" field.
+func (_u *EsportsStoredValueCardUpdate) SetPaymentVerificationNote(v string) *EsportsStoredValueCardUpdate {
+	_u.mutation.SetPaymentVerificationNote(v)
+	return _u
+}
+
+// SetNillablePaymentVerificationNote sets the "payment_verification_note" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillablePaymentVerificationNote(v *string) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetPaymentVerificationNote(*v)
 	}
 	return _u
 }
@@ -489,6 +626,16 @@ func (_u *EsportsStoredValueCardUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.VerifiedPaymentKey(); ok {
+		if err := esportsstoredvaluecard.VerifiedPaymentKeyValidator(v); err != nil {
+			return &ValidationError{Name: "verified_payment_key", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.verified_payment_key": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentVerificationNote(); ok {
+		if err := esportsstoredvaluecard.PaymentVerificationNoteValidator(v); err != nil {
+			return &ValidationError{Name: "payment_verification_note", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.payment_verification_note": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -542,6 +689,9 @@ func (_u *EsportsStoredValueCardUpdate) sqlSave(ctx context.Context) (_node int,
 	if _u.mutation.ApplicableScopeCleared() {
 		_spec.ClearField(esportsstoredvaluecard.FieldApplicableScope, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.AllowGifts(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldAllowGifts, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.ContractConfirmed(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldContractConfirmed, field.TypeBool, value)
 	}
@@ -551,8 +701,47 @@ func (_u *EsportsStoredValueCardUpdate) sqlSave(ctx context.Context) (_node int,
 	if value, ok := _u.mutation.ValidUntil(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldValidUntil, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.RequestedValidityDays(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldRequestedValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequestedValidityDays(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldRequestedValidityDays, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.OpenRequestKeyCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldOpenRequestKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.VerifiedPaymentKey(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldVerifiedPaymentKey, field.TypeString, value)
+	}
+	if _u.mutation.VerifiedPaymentKeyCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldVerifiedPaymentKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedByAdminID(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPaymentVerifiedByAdminID(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.PaymentVerifiedByAdminIDCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedAt(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerifiedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PaymentVerifiedAtCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldPaymentVerifiedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedAmountCents(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerifiedAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPaymentVerifiedAmountCents(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldPaymentVerifiedAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PaymentVerificationNote(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerificationNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PackageID(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldPackageID, field.TypeInt, value)
@@ -766,6 +955,20 @@ func (_u *EsportsStoredValueCardUpdateOne) ClearApplicableScope() *EsportsStored
 	return _u
 }
 
+// SetAllowGifts sets the "allow_gifts" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetAllowGifts(v bool) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.SetAllowGifts(v)
+	return _u
+}
+
+// SetNillableAllowGifts sets the "allow_gifts" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillableAllowGifts(v *bool) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetAllowGifts(*v)
+	}
+	return _u
+}
+
 // SetContractConfirmed sets the "contract_confirmed" field.
 func (_u *EsportsStoredValueCardUpdateOne) SetContractConfirmed(v bool) *EsportsStoredValueCardUpdateOne {
 	_u.mutation.SetContractConfirmed(v)
@@ -808,6 +1011,27 @@ func (_u *EsportsStoredValueCardUpdateOne) SetNillableValidUntil(v *time.Time) *
 	return _u
 }
 
+// SetRequestedValidityDays sets the "requested_validity_days" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetRequestedValidityDays(v int) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ResetRequestedValidityDays()
+	_u.mutation.SetRequestedValidityDays(v)
+	return _u
+}
+
+// SetNillableRequestedValidityDays sets the "requested_validity_days" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillableRequestedValidityDays(v *int) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetRequestedValidityDays(*v)
+	}
+	return _u
+}
+
+// AddRequestedValidityDays adds value to the "requested_validity_days" field.
+func (_u *EsportsStoredValueCardUpdateOne) AddRequestedValidityDays(v int) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.AddRequestedValidityDays(v)
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsStoredValueCardUpdateOne) SetStatus(v esportsstoredvaluecard.Status) *EsportsStoredValueCardUpdateOne {
 	_u.mutation.SetStatus(v)
@@ -818,6 +1042,108 @@ func (_u *EsportsStoredValueCardUpdateOne) SetStatus(v esportsstoredvaluecard.St
 func (_u *EsportsStoredValueCardUpdateOne) SetNillableStatus(v *esportsstoredvaluecard.Status) *EsportsStoredValueCardUpdateOne {
 	if v != nil {
 		_u.SetStatus(*v)
+	}
+	return _u
+}
+
+// SetVerifiedPaymentKey sets the "verified_payment_key" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetVerifiedPaymentKey(v string) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.SetVerifiedPaymentKey(v)
+	return _u
+}
+
+// SetNillableVerifiedPaymentKey sets the "verified_payment_key" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillableVerifiedPaymentKey(v *string) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetVerifiedPaymentKey(*v)
+	}
+	return _u
+}
+
+// ClearVerifiedPaymentKey clears the value of the "verified_payment_key" field.
+func (_u *EsportsStoredValueCardUpdateOne) ClearVerifiedPaymentKey() *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ClearVerifiedPaymentKey()
+	return _u
+}
+
+// SetPaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetPaymentVerifiedByAdminID(v int) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ResetPaymentVerifiedByAdminID()
+	_u.mutation.SetPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillablePaymentVerifiedByAdminID(v *int) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetPaymentVerifiedByAdminID(*v)
+	}
+	return _u
+}
+
+// AddPaymentVerifiedByAdminID adds value to the "payment_verified_by_admin_id" field.
+func (_u *EsportsStoredValueCardUpdateOne) AddPaymentVerifiedByAdminID(v int) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.AddPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// ClearPaymentVerifiedByAdminID clears the value of the "payment_verified_by_admin_id" field.
+func (_u *EsportsStoredValueCardUpdateOne) ClearPaymentVerifiedByAdminID() *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ClearPaymentVerifiedByAdminID()
+	return _u
+}
+
+// SetPaymentVerifiedAt sets the "payment_verified_at" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetPaymentVerifiedAt(v time.Time) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.SetPaymentVerifiedAt(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedAt sets the "payment_verified_at" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillablePaymentVerifiedAt(v *time.Time) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetPaymentVerifiedAt(*v)
+	}
+	return _u
+}
+
+// ClearPaymentVerifiedAt clears the value of the "payment_verified_at" field.
+func (_u *EsportsStoredValueCardUpdateOne) ClearPaymentVerifiedAt() *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ClearPaymentVerifiedAt()
+	return _u
+}
+
+// SetPaymentVerifiedAmountCents sets the "payment_verified_amount_cents" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetPaymentVerifiedAmountCents(v int64) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.ResetPaymentVerifiedAmountCents()
+	_u.mutation.SetPaymentVerifiedAmountCents(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedAmountCents sets the "payment_verified_amount_cents" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillablePaymentVerifiedAmountCents(v *int64) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetPaymentVerifiedAmountCents(*v)
+	}
+	return _u
+}
+
+// AddPaymentVerifiedAmountCents adds value to the "payment_verified_amount_cents" field.
+func (_u *EsportsStoredValueCardUpdateOne) AddPaymentVerifiedAmountCents(v int64) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.AddPaymentVerifiedAmountCents(v)
+	return _u
+}
+
+// SetPaymentVerificationNote sets the "payment_verification_note" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetPaymentVerificationNote(v string) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.SetPaymentVerificationNote(v)
+	return _u
+}
+
+// SetNillablePaymentVerificationNote sets the "payment_verification_note" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillablePaymentVerificationNote(v *string) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetPaymentVerificationNote(*v)
 	}
 	return _u
 }
@@ -1116,6 +1442,16 @@ func (_u *EsportsStoredValueCardUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.VerifiedPaymentKey(); ok {
+		if err := esportsstoredvaluecard.VerifiedPaymentKeyValidator(v); err != nil {
+			return &ValidationError{Name: "verified_payment_key", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.verified_payment_key": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentVerificationNote(); ok {
+		if err := esportsstoredvaluecard.PaymentVerificationNoteValidator(v); err != nil {
+			return &ValidationError{Name: "payment_verification_note", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.payment_verification_note": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -1186,6 +1522,9 @@ func (_u *EsportsStoredValueCardUpdateOne) sqlSave(ctx context.Context) (_node *
 	if _u.mutation.ApplicableScopeCleared() {
 		_spec.ClearField(esportsstoredvaluecard.FieldApplicableScope, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.AllowGifts(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldAllowGifts, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.ContractConfirmed(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldContractConfirmed, field.TypeBool, value)
 	}
@@ -1195,8 +1534,47 @@ func (_u *EsportsStoredValueCardUpdateOne) sqlSave(ctx context.Context) (_node *
 	if value, ok := _u.mutation.ValidUntil(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldValidUntil, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.RequestedValidityDays(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldRequestedValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRequestedValidityDays(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldRequestedValidityDays, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldStatus, field.TypeEnum, value)
+	}
+	if _u.mutation.OpenRequestKeyCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldOpenRequestKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.VerifiedPaymentKey(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldVerifiedPaymentKey, field.TypeString, value)
+	}
+	if _u.mutation.VerifiedPaymentKeyCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldVerifiedPaymentKey, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedByAdminID(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPaymentVerifiedByAdminID(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.PaymentVerifiedByAdminIDCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedAt(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerifiedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PaymentVerifiedAtCleared() {
+		_spec.ClearField(esportsstoredvaluecard.FieldPaymentVerifiedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedAmountCents(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerifiedAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPaymentVerifiedAmountCents(); ok {
+		_spec.AddField(esportsstoredvaluecard.FieldPaymentVerifiedAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PaymentVerificationNote(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldPaymentVerificationNote, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PackageID(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldPackageID, field.TypeInt, value)

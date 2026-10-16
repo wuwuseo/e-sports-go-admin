@@ -36,6 +36,8 @@ type EsportsPlayer struct {
 	ConcurrentLimit int `json:"concurrent_limit"`
 	// Games holds the value of the "games" field.
 	Games []string `json:"games"`
+	// LastHeartbeatAt holds the value of the "last_heartbeat_at" field.
+	LastHeartbeatAt *time.Time `json:"last_heartbeat_at"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -56,7 +58,7 @@ func (*EsportsPlayer) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case esportsplayer.FieldDisplayName, esportsplayer.FieldQualification, esportsplayer.FieldPresence, esportsplayer.FieldLevel:
 			values[i] = new(sql.NullString)
-		case esportsplayer.FieldLevelAppraisedAt, esportsplayer.FieldCreatedAt, esportsplayer.FieldUpdatedAt:
+		case esportsplayer.FieldLevelAppraisedAt, esportsplayer.FieldLastHeartbeatAt, esportsplayer.FieldCreatedAt, esportsplayer.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -135,6 +137,13 @@ func (_m *EsportsPlayer) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Games); err != nil {
 					return fmt.Errorf("unmarshal field games: %w", err)
 				}
+			}
+		case esportsplayer.FieldLastHeartbeatAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_heartbeat_at", values[i])
+			} else if value.Valid {
+				_m.LastHeartbeatAt = new(time.Time)
+				*_m.LastHeartbeatAt = value.Time
 			}
 		case esportsplayer.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -218,6 +227,11 @@ func (_m *EsportsPlayer) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("games=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Games))
+	builder.WriteString(", ")
+	if v := _m.LastHeartbeatAt; v != nil {
+		builder.WriteString("last_heartbeat_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Version))

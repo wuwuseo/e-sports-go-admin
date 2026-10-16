@@ -36,18 +36,22 @@ var (
 )
 
 type skuInput struct {
-	Code            string `json:"code"`
-	Title           string `json:"title"`
-	ServiceType     string `json:"service_type"`
-	CategoryID      *int   `json:"category_id"`
-	Description     string `json:"description"`
-	UnitPriceCents  int64  `json:"unit_price_cents"`
-	ServiceUnits    int64  `json:"service_units"`
-	ServiceUnitName string `json:"service_unit_name"`
-	RequiredSeats   int    `json:"required_seats"`
-	QuotaTotal      int64  `json:"quota_total"`
-	SortOrder       int    `json:"sort_order"`
-	Status          string `json:"status"`
+	Code                 string `json:"code"`
+	Title                string `json:"title"`
+	ServiceType          string `json:"service_type"`
+	CategoryID           *int   `json:"category_id"`
+	Description          string `json:"description"`
+	UnitPriceCents       int64  `json:"unit_price_cents"`
+	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
+	AdjustmentApprovalBp int    `json:"adjustment_approval_bp"`
+	ServiceUnits         int64  `json:"service_units"`
+	ServiceUnitName      string `json:"service_unit_name"`
+	RequiredSeats        int    `json:"required_seats"`
+	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
+	CloseRuleCode string `json:"close_rule_code"`
+	QuotaTotal    int64  `json:"quota_total"`
+	SortOrder     int    `json:"sort_order"`
+	Status        string `json:"status"`
 }
 
 type categoryInput struct {
@@ -59,17 +63,21 @@ type categoryInput struct {
 }
 
 type skuUpdateInput struct {
-	Title           string `json:"title"`
-	ServiceType     string `json:"service_type"`
-	CategoryID      *int   `json:"category_id"`
-	Description     string `json:"description"`
-	UnitPriceCents  int64  `json:"unit_price_cents"`
-	ServiceUnits    int64  `json:"service_units"`
-	ServiceUnitName string `json:"service_unit_name"`
-	RequiredSeats   int    `json:"required_seats"`
-	QuotaTotal      int64  `json:"quota_total"`
-	SortOrder       int    `json:"sort_order"`
-	Status          string `json:"status"`
+	Title                string `json:"title"`
+	ServiceType          string `json:"service_type"`
+	CategoryID           *int   `json:"category_id"`
+	Description          string `json:"description"`
+	UnitPriceCents       int64  `json:"unit_price_cents"`
+	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
+	AdjustmentApprovalBp int    `json:"adjustment_approval_bp"`
+	ServiceUnits         int64  `json:"service_units"`
+	ServiceUnitName      string `json:"service_unit_name"`
+	RequiredSeats        int    `json:"required_seats"`
+	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
+	CloseRuleCode string `json:"close_rule_code"`
+	QuotaTotal    int64  `json:"quota_total"`
+	SortOrder     int    `json:"sort_order"`
+	Status        string `json:"status"`
 }
 
 type customerInput struct {
@@ -96,9 +104,16 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	in.Title = strings.TrimSpace(in.Title)
 	in.ServiceUnitName = strings.TrimSpace(in.ServiceUnitName)
 	in.Description = strings.TrimSpace(in.Description)
+	if in.MinUnitPriceCents == 0 {
+		in.MinUnitPriceCents = in.UnitPriceCents
+	}
+	if in.AdjustmentApprovalBp == 0 {
+		in.AdjustmentApprovalBp = 2000
+	}
 	if in.Code == "" || len(in.Code) > 80 || in.Title == "" || len([]rune(in.Title)) > 160 ||
 		in.ServiceUnitName == "" || len([]rune(in.Description)) > 500 ||
-		in.UnitPriceCents <= 0 || in.ServiceUnits <= 0 ||
+		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
+		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 ||
 		in.RequiredSeats < 1 || in.QuotaTotal < -1 || (in.QuotaTotal != -1 && in.QuotaTotal < int64(in.RequiredSeats)) ||
 		(in.ServiceType != "play" && in.ServiceType != "teaching" && in.ServiceType != "entertainment") ||
 		(in.Status != "draft" && in.Status != "on_sale") {
@@ -116,11 +131,16 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 			return nil, errInvalidInput
 		}
 	}
+	if err := validateSkuCloseRuleCode(ctx, db, in.CloseRuleCode); err != nil {
+		return nil, err
+	}
 	create := db.EsportsSku.Create().SetCode(in.Code).SetTitle(in.Title).
 		SetServiceType(esportssku.ServiceType(in.ServiceType)).SetDescription(in.Description).
 		SetUnitPriceCents(in.UnitPriceCents).
+		SetMinUnitPriceCents(in.MinUnitPriceCents).SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).
 		SetServiceUnits(in.ServiceUnits).SetServiceUnitName(in.ServiceUnitName).
 		SetRequiredSeats(in.RequiredSeats).SetQuotaTotal(in.QuotaTotal).
+		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status))
 	if in.CategoryID != nil {
 		create.SetCategoryID(*in.CategoryID)
@@ -200,9 +220,16 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 	in.Title = strings.TrimSpace(in.Title)
 	in.ServiceUnitName = strings.TrimSpace(in.ServiceUnitName)
 	in.Description = strings.TrimSpace(in.Description)
+	if in.MinUnitPriceCents == 0 {
+		in.MinUnitPriceCents = in.UnitPriceCents
+	}
+	if in.AdjustmentApprovalBp == 0 {
+		in.AdjustmentApprovalBp = 2000
+	}
 	if in.Title == "" || len([]rune(in.Title)) > 160 || in.ServiceUnitName == "" ||
 		len([]rune(in.ServiceUnitName)) > 32 || len([]rune(in.Description)) > 500 ||
-		in.UnitPriceCents <= 0 || in.ServiceUnits <= 0 || in.RequiredSeats < 1 ||
+		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
+		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 || in.RequiredSeats < 1 ||
 		in.QuotaTotal < -1 ||
 		(in.ServiceType != "play" && in.ServiceType != "teaching" && in.ServiceType != "entertainment") ||
 		(in.Status != "draft" && in.Status != "on_sale" && in.Status != "off_sale") {
@@ -236,10 +263,15 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 			return nil, errInvalidInput
 		}
 	}
+	if err := validateSkuCloseRuleCode(ctx, tx.Client(), in.CloseRuleCode); err != nil {
+		return nil, err
+	}
 	update := tx.EsportsSku.UpdateOne(current).SetTitle(in.Title).
 		SetServiceType(esportssku.ServiceType(in.ServiceType)).SetDescription(in.Description).
-		SetUnitPriceCents(in.UnitPriceCents).SetServiceUnits(in.ServiceUnits).
+		SetUnitPriceCents(in.UnitPriceCents).SetMinUnitPriceCents(in.MinUnitPriceCents).
+		SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).SetServiceUnits(in.ServiceUnits).
 		SetServiceUnitName(in.ServiceUnitName).SetRequiredSeats(in.RequiredSeats).
+		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetQuotaTotal(in.QuotaTotal).SetSortOrder(in.SortOrder).
 		SetStatus(esportssku.Status(in.Status)).AddVersion(1)
 	if in.CategoryID == nil {
@@ -390,13 +422,29 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		}
 	}
 	orderNo := uuid.NewString()
+	entryPoint := esportsorder.EntryPointCsPc
+	if strings.HasPrefix(principal, "customer:") {
+		entryPoint = esportsorder.EntryPointCustomerSelf
+	}
+	// 下单时固定适用结单表单（包括无模板）；后续发布新版本不改变旧单结单要求。
+	closeTemplate, err := resolveCloseFormTemplate(ctx, tx.Client(), &ent.EsportsOrder{
+		SkuID: sku.ID, PayableCents: payable,
+	})
+	if err != nil {
+		return nil, err
+	}
 	creator := tx.EsportsOrder.Create().SetOrderNo(orderNo).SetCustomerID(customer.ID).
 		SetSkuID(sku.ID).SetCreatedByAdminID(adminID).SetResponsibleAdminID(adminID).
+		SetChannelSource(esportsorder.ChannelSource(customer.Source.String())).SetEntryPoint(entryPoint).
 		SetQuantity(in.Quantity).SetUnitPriceCents(sku.UnitPriceCents).
+		SetMinUnitPriceCents(sku.MinUnitPriceCents).SetAdjustmentApprovalBp(sku.AdjustmentApprovalBp).
 		SetDiscountCents(discount).SetPayableCents(payable).
 		SetPromisedServiceUnits(sku.ServiceUnits * in.Quantity).
 		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(esportsorder.RequiredLevel(sku.RequiredLevel)).
-		SetPaymentDeadline(deadline)
+		SetPaymentDeadline(deadline).SetCloseFormTemplateLockedAt(now.UTC())
+	if closeTemplate != nil {
+		creator = creator.SetCloseFormTemplateID(closeTemplate.ID)
+	}
 	if in.PreferredPlayerID > 0 {
 		creator = creator.SetPreferredPlayerID(in.PreferredPlayerID)
 	}

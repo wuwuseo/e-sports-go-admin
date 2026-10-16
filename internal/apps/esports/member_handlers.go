@@ -111,11 +111,16 @@ func setMemberLevelStatusHandler(c fiber.Ctx) error {
 
 // adminCustomerMember 客户会员详情：当前等级、折扣、累计成长值、待降级信息与流水/覆盖记录。
 func adminCustomerMember(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	customerID, err := parsePathID(c, "客户")
 	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, customerID); err != nil {
 		return businessError(c, err)
 	}
 	view, err := buildMemberView(c.Context(), global.ORM, customerID, queryLimit(c, 50))
@@ -133,6 +138,10 @@ func setCustomerMemberLevelHandler(c fiber.Ctx) error {
 	}
 	customerID, err := parsePathID(c, "客户")
 	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, customerID); err != nil {
 		return businessError(c, err)
 	}
 	var in struct {

@@ -78,10 +78,12 @@ func rejectCloseReviewHandler(c fiber.Ctx) error {
 }
 
 func adminAfterSales(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
-	items, err := listAfterSales(c.Context(), global.ORM, c.Query("status"), queryLimit(c, 100))
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	items, err := listAfterSales(c.Context(), global.ORM, adminID, isSuper, c.Query("status"), queryLimit(c, 100))
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -114,24 +116,11 @@ func createAfterSaleHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err := loadOwnedOrder(c.Context(), global.ORM, adminID, isSuper, in.SourceID); err != nil {
+		return businessError(c, err)
+	}
 	item, err := createAfterSale(c.Context(), global.ORM, in, adminID, time.Now())
-	if err != nil {
-		return businessError(c, err)
-	}
-	return reply(c, item)
-}
-
-// confirmAfterSalePlanHandler 客服代客户确认方案（§13.3）：待客户确认 → 待审批。
-func confirmAfterSalePlanHandler(c fiber.Ctx) error {
-	adminID, err := requireAdmin(c)
-	if err != nil {
-		return businessError(c, err)
-	}
-	id, err := parsePathID(c, "售后单")
-	if err != nil {
-		return businessError(c, err)
-	}
-	item, err := confirmAfterSaleByAdmin(c.Context(), global.ORM, id, adminID, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

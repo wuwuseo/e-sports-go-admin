@@ -47,7 +47,7 @@ func generateDueCsSettlements(ctx context.Context, db *ent.Client, now time.Time
 		if created >= limit {
 			break
 		}
-		rule, err := resolveCsCommissionRuleIn(ctx, db.EsportsCsCommissionRule, adminID)
+		rule, err := resolveCsCommissionRuleIn(ctx, db.EsportsCsCommissionRule, adminID, now)
 		if err != nil {
 			return created, err
 		}

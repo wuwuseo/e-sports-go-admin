@@ -39,6 +39,8 @@ type commissionMember struct {
 	PlayerID      int
 	SeatIndex     int
 	SystemSeconds int64
+	LockedRuleID  *int
+	RuleLocked    bool
 }
 
 func validCommissionScope(scope string) bool {
@@ -68,7 +70,8 @@ func loadOrderMembers(ctx context.Context,
 	seats *ent.EsportsDispatchSeatClient,
 	orderID int,
 ) ([]commissionMember, error) {
-	segs, err := segments.Query().Where(esportsservicesegment.OrderIDEQ(orderID)).All(ctx)
+	segs, err := segments.Query().Where(esportsservicesegment.OrderIDEQ(orderID)).
+		Order(ent.Asc(esportsservicesegment.FieldSeatIndex), ent.Asc(esportsservicesegment.FieldPlayerID)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +85,7 @@ func loadOrderMembers(ctx context.Context,
 		index[seg.PlayerID] = len(members)
 		members = append(members, commissionMember{
 			PlayerID: seg.PlayerID, SeatIndex: seg.SeatIndex, SystemSeconds: seg.SystemSeconds,
+			LockedRuleID: seg.CommissionRuleID, RuleLocked: seg.CommissionRuleLockedAt != nil,
 		})
 	}
 	if len(members) > 0 {
@@ -99,29 +103,25 @@ func loadOrderMembers(ctx context.Context,
 		if seat.PlayerID == nil {
 			continue
 		}
-		members = append(members, commissionMember{PlayerID: *seat.PlayerID, SeatIndex: seat.SeatIndex})
+		members = append(members, commissionMember{
+			PlayerID: *seat.PlayerID, SeatIndex: seat.SeatIndex,
+			LockedRuleID: seat.CommissionRuleID, RuleLocked: seat.CommissionRuleLockedAt != nil,
+		})
 	}
 	return members, nil
 }
 
-// resolveCommissionRule 解析订单适用的生效分成规则，按具体度 player > game > global 择一，
-// 同层多条取 version 最大。找不到返回 nil, nil（表示无规则，明细不生成）。
-func resolveCommissionRule(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) (*ent.EsportsCommissionRule, error) {
-	return resolveCommissionRuleIn(ctx, db.EsportsCommissionRule, db.EsportsServiceSegment,
-		db.EsportsDispatchSeat, db.EsportsSku, db.EsportsProductCategory, order)
-}
-
-// resolveCommissionRuleIn 与 resolveCommissionRule 同逻辑，供事务内（tx）复用。
-func resolveCommissionRuleIn(ctx context.Context,
+// resolveCommissionRuleForPlayerIn 按单个陪玩解析当前规则，避免全单取首位成员的个体约定。
+// 无规则返回 nil；接单时把结果（包括无规则）锁定到席位，后续规则变更不影响该成员。
+// scheduled 版本到达预设时间即适用，不依赖定时任务是否已补写状态。
+func resolveCommissionRuleForPlayerIn(ctx context.Context,
 	rules *ent.EsportsCommissionRuleClient,
-	segments *ent.EsportsServiceSegmentClient,
-	seats *ent.EsportsDispatchSeatClient,
 	skus *ent.EsportsSkuClient,
 	categories *ent.EsportsProductCategoryClient,
-	order *ent.EsportsOrder,
+	order *ent.EsportsOrder, playerID int, at time.Time,
 ) (*ent.EsportsCommissionRule, error) {
 	active, err := rules.Query().Where(
-		esportscommissionrule.StatusEQ(esportscommissionrule.StatusActive),
+		esportscommissionrule.StatusIn(esportscommissionrule.StatusActive, esportscommissionrule.StatusScheduled),
 	).All(ctx)
 	if err != nil {
 		return nil, err
@@ -135,20 +135,20 @@ func resolveCommissionRuleIn(ctx context.Context,
 			if rule.Scope != scope || rule.ScopeKey != key {
 				continue
 			}
+			// 时间过滤只约束 scheduled 版本：active 表示已生效，立即激活写入的
+			// effective_at（激活时刻）不作为解析门槛。
+			if rule.Status == esportscommissionrule.StatusScheduled &&
+				(rule.EffectiveAt == nil || rule.EffectiveAt.After(at.UTC())) {
+				continue
+			}
 			if best == nil || rule.Version > best.Version {
 				best = rule
 			}
 		}
 		return best
 	}
-	members, err := loadOrderMembers(ctx, segments, seats, order.ID)
-	if err != nil {
-		return nil, err
-	}
-	for _, member := range members {
-		if rule := pick(esportscommissionrule.ScopePlayer, strconv.Itoa(member.PlayerID)); rule != nil {
-			return rule, nil
-		}
+	if rule := pick(esportscommissionrule.ScopePlayer, strconv.Itoa(playerID)); rule != nil {
+		return rule, nil
 	}
 	// 取 SKU 所属分类的 game 作为 game 层键；分类为空则跳过该层。
 	if sku, err := skus.Get(ctx, order.SkuID); err == nil && sku.CategoryID != nil {
@@ -161,6 +161,18 @@ func resolveCommissionRuleIn(ctx context.Context,
 		}
 	}
 	return pick(esportscommissionrule.ScopeGlobal, ""), nil
+}
+
+func commissionRuleForMember(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, member commissionMember, now time.Time) (*ent.EsportsCommissionRule, error) {
+	if member.RuleLocked {
+		if member.LockedRuleID == nil {
+			return nil, nil
+		}
+		return tx.EsportsCommissionRule.Get(ctx, *member.LockedRuleID)
+	}
+	// 旧数据没有接单快照时保留兼容回退；新订单必须走锁定分支。
+	return resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
+		tx.EsportsSku, tx.EsportsProductCategory, order, member.PlayerID, now)
 }
 
 // createCommissionRule 新建分成规则（一律 draft）。同一 rule_no 已存在则版本 = 现有最大 version + 1，
@@ -232,7 +244,7 @@ func createCommissionRule(ctx context.Context, db *ent.Client, in ruleInput, adm
 	return db.EsportsCommissionRule.Get(ctx, rule.ID)
 }
 
-// activateCommissionRule 生效指定规则：同 rule_no 现有 active 转 history，本行（须 draft）转 active。
+// activateCommissionRule 生效指定规则：未来时间进入 scheduled，到点后可解析并由任务转 active。
 func activateCommissionRule(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsCommissionRule, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -249,9 +261,30 @@ func activateCommissionRule(ctx context.Context, db *ent.Client, id, adminID int
 	if target.Status != esportscommissionrule.StatusDraft {
 		return nil, errConflict
 	}
+	if target.EffectiveAt != nil && target.EffectiveAt.After(now.UTC()) {
+		if _, err = tx.EsportsCommissionRule.Update().Where(
+			esportscommissionrule.RuleNoEQ(target.RuleNo),
+			esportscommissionrule.StatusEQ(esportscommissionrule.StatusScheduled),
+		).SetStatus(esportscommissionrule.StatusHistory).Save(ctx); err != nil {
+			return nil, err
+		}
+		changed, err := tx.EsportsCommissionRule.Update().Where(
+			esportscommissionrule.IDEQ(id), esportscommissionrule.StatusEQ(esportscommissionrule.StatusDraft),
+		).SetStatus(esportscommissionrule.StatusScheduled).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+		return db.EsportsCommissionRule.Get(ctx, id)
+	}
 	if _, err = tx.EsportsCommissionRule.Update().Where(
 		esportscommissionrule.RuleNoEQ(target.RuleNo),
-		esportscommissionrule.StatusEQ(esportscommissionrule.StatusActive),
+		esportscommissionrule.StatusIn(esportscommissionrule.StatusActive, esportscommissionrule.StatusScheduled),
 	).SetStatus(esportscommissionrule.StatusHistory).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -305,7 +338,7 @@ func rollbackCommissionRule(ctx context.Context, db *ent.Client, id, adminID int
 	}
 	if _, err = tx.EsportsCommissionRule.Update().Where(
 		esportscommissionrule.RuleNoEQ(source.RuleNo),
-		esportscommissionrule.StatusEQ(esportscommissionrule.StatusActive),
+		esportscommissionrule.StatusIn(esportscommissionrule.StatusActive, esportscommissionrule.StatusScheduled),
 		esportscommissionrule.IDNEQ(created.ID),
 	).SetStatus(esportscommissionrule.StatusHistory).Save(ctx); err != nil {
 		return nil, err
@@ -374,10 +407,9 @@ func splitPool(pool int64, members []commissionMember) []int64 {
 	return amounts
 }
 
-// accrueOrderCommission 结单时分成分成，必须在 closeOrder 的同一事务内调用。
-// 幂等：该订单已有 service 明细则直接返回，不重复生成。
-// ponytail: 客服提成（§12.2）、渠道成本、工作室剩余反算、礼物收入分成、加钟单独明细均未实现；
-// 分成主体只有陪玩，且规则在结单时统一快照（§12.4 的「成员接受/抢单时逐成员锁定」未做）。
+// accrueOrderCommission 结单时按成员各自接单快照计提；服务明细与订单状态同事务提交。
+// 订单净服务应付按服务秒数分给各成员，各成员规则作用于其份额，尾差归该规则组最后一人。
+// 无接单快照的历史服务段回退到当前规则；新单不会因结单前改规则而改变约定。
 func accrueOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, now time.Time) error {
 	exists, err := tx.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.OrderIDEQ(order.ID),
@@ -396,33 +428,74 @@ func accrueOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOr
 	if len(members) == 0 {
 		return nil
 	}
-	rule, err := resolveCommissionRuleIn(ctx, tx.EsportsCommissionRule, tx.EsportsServiceSegment,
-		tx.EsportsDispatchSeat, tx.EsportsSku, tx.EsportsProductCategory, order)
-	if err != nil {
-		return err
-	}
-	if rule == nil {
+	if order.PayableCents <= 0 {
 		return nil
 	}
-	pool := commissionPool(order, rule)
-	note := ""
-	// 上限：分成池不得超过可分基数（订单应付），超出则截断并注明。
-	if pool > order.PayableCents {
-		pool = order.PayableCents
-		note = "已按可分基数上限截断"
-	}
-	if pool <= 0 {
+	netPayable := order.PayableCents - order.RefundedCents
+	available := netPayable - order.ChannelCostCents
+	if netPayable <= 0 || available <= 0 {
 		return nil
 	}
-	amounts := splitPool(pool, members)
+	bases := splitPool(netPayable, members)
+	rules := make([]*ent.EsportsCommissionRule, len(members))
+	amounts := make([]int64, len(members))
+	groups := map[int][]int{}
 	for i, member := range members {
+		rule, err := commissionRuleForMember(ctx, tx, order, member, now)
+		if err != nil {
+			return err
+		}
+		if rule == nil {
+			continue
+		}
+		rules[i] = rule
+		groups[rule.ID] = append(groups[rule.ID], i)
+	}
+	for _, indexes := range groups {
+		rule := rules[indexes[0]]
+		pool := commissionPool(order, rule)
+		var groupBase, allocated int64
+		for _, i := range indexes {
+			groupBase += bases[i]
+			amounts[i] = pool * bases[i] / order.PayableCents
+			allocated += amounts[i]
+		}
+		groupTarget := pool * groupBase / order.PayableCents
+		amounts[indexes[len(indexes)-1]] += groupTarget - allocated
+	}
+	var total int64
+	for _, amount := range amounts {
+		total += amount
+	}
+	note := ""
+	if total > available {
+		note = "已按可分基数上限截断"
+		var allocated int64
+		last := -1
+		for i, amount := range amounts {
+			if amount <= 0 {
+				continue
+			}
+			last = i
+			amounts[i] = available * amount / total
+			allocated += amounts[i]
+		}
+		if last >= 0 {
+			amounts[last] += available - allocated
+		}
+	}
+	for i, member := range members {
+		rule := rules[i]
+		if rule == nil || amounts[i] <= 0 {
+			continue
+		}
 		if _, err = tx.EsportsCommissionEntry.Create().
 			SetIdemKey("commission:service:" + order.OrderNo + ":" + strconv.Itoa(member.PlayerID)).
 			SetOrderID(order.ID).SetPlayerID(member.PlayerID).
 			SetKind(esportscommissionentry.KindService).SetSeatIndex(member.SeatIndex).
 			SetRuleID(rule.ID).SetRuleNo(rule.RuleNo).SetRuleVersion(rule.Version).
 			SetCalcMode(esportscommissionentry.CalcMode(rule.CalcMode.String())).
-			SetBaseCents(order.PayableCents).SetAmountCents(amounts[i]).
+			SetBaseCents(bases[i]).SetAmountCents(amounts[i]).
 			SetStatus(esportscommissionentry.StatusPendingSettlement).SetNote(note).Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				return errConflict
@@ -433,12 +506,16 @@ func accrueOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOr
 	return nil
 }
 
+// addonReversalNote 加钟冲回明细的备注标记，用于区分服务/加钟口径的既有冲回累计。
+const addonReversalNote = "加钟退款分摊"
+
 // reverseOrderCommission 退款按比例冲回分成，必须在 executeAfterSaleOnce 的同一事务内、
 // 退款额度落账之后调用。新增 kind=reversal 的负数明细，使退款金额落在退款当期（§12.6）；
 // 幂等靠 idem_key 唯一索引兜底，重复执行不重复冲回。
-// 逐条按比例截断后，舍入尾差归最后一条冲回明细（§12.1 尾差单列），保证冲回合计与
-// 「全部原明细金额 × 退款比例」的精确值一致。
-// ponytail: 「优先按对应服务明细和成员冲回」未做，统一按订单整体退款比例冲回。
+// 服务与加钟两类明细分别按各自基数计算冲回目标，舍入尾差归各自最后一条冲回明细（§12.1 尾差单列）。
+// 服务分成按结单净服务额冲回，加钟分成沿用原单应付额分摊口径。
+// 售后单指定争议陪玩时优先冲回该成员的明细：先冲满其本人分成（不超过该类冲回目标），
+// 剩余目标再按比例分摊其他成员；未指定或该成员无明细时维持整体比例冲回。
 func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
 	if item.RefundCents <= 0 || order.PayableCents <= 0 {
 		return nil
@@ -452,50 +529,138 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 	if err != nil {
 		return err
 	}
-	type pendingRev struct {
-		entry   *ent.EsportsCommissionEntry
-		amount  int64
-		idemKey string
-		note    string
+	serviceBase := commissionCloseBase(order)
+	// 先读该订单全部既有冲回明细，按成员区分服务/加钟口径累计，用于限制争议成员
+	// 在多次部分退款下的累计冲回不超过其本人原分成。
+	priorRevs, err := tx.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.OrderIDEQ(order.ID),
+		esportscommissionentry.KindEQ(esportscommissionentry.KindReversal),
+	).All(ctx)
+	if err != nil {
+		return err
 	}
-	var revs []pendingRev
-	var totalAmount, allocated int64
-	for _, entry := range entries {
-		totalAmount += entry.AmountCents
-		reversal := -(entry.AmountCents * item.RefundCents / order.PayableCents)
-		if reversal == 0 {
+	priorService, priorAddon := map[int]int64{}, map[int]int64{}
+	for _, rev := range priorRevs {
+		if rev.Note == addonReversalNote {
+			priorAddon[rev.PlayerID] += rev.AmountCents
+		} else {
+			priorService[rev.PlayerID] += rev.AmountCents
+		}
+	}
+	// allocate 计算一组明细各自应冲回的正数金额（分），并归置舍入尾差。
+	allocate := func(idxs []int, target int64, prior map[int]int64) []int64 {
+		amounts := make([]int64, len(entries))
+		if len(idxs) == 0 || target <= 0 {
+			return amounts
+		}
+		spread := func(sub []int, amount int64) {
+			if len(sub) == 0 || amount <= 0 {
+				return
+			}
+			var subTotal int64
+			for _, i := range sub {
+				subTotal += entries[i].AmountCents
+			}
+			if subTotal <= 0 {
+				return
+			}
+			var allocated int64
+			for _, i := range sub {
+				amounts[i] = amount * entries[i].AmountCents / subTotal
+				allocated += amounts[i]
+			}
+			amounts[sub[len(sub)-1]] += amount - allocated
+		}
+		var preferred, others []int
+		if item.PlayerID != nil {
+			for _, i := range idxs {
+				if entries[i].PlayerID == *item.PlayerID {
+					preferred = append(preferred, i)
+				} else {
+					others = append(others, i)
+				}
+			}
+		}
+		if len(preferred) == 0 {
+			spread(idxs, target)
+			return amounts
+		}
+		var preferredTotal int64
+		for _, i := range preferred {
+			preferredTotal += entries[i].AmountCents
+		}
+		if item.PlayerID != nil {
+			// 扣除该成员本类口径已被冲回的部分，剩余可冲回额度为负时按 0 处理。
+			remaining := preferredTotal + prior[*item.PlayerID]
+			if remaining < 0 {
+				remaining = 0
+			}
+			preferredTotal = remaining
+		}
+		// 争议成员先冲满本人剩余分成（不超过该类冲回目标），剩余目标再分摊其他成员。
+		cap := min(target, preferredTotal)
+		spread(preferred, cap)
+		spread(others, target-cap)
+		return amounts
+	}
+	serviceIdx, addonIdx := []int{}, []int{}
+	var totalService, totalAddon int64
+	for i, entry := range entries {
+		if entry.Kind == esportscommissionentry.KindService {
+			serviceIdx = append(serviceIdx, i)
+			totalService += entry.AmountCents
+		} else {
+			addonIdx = append(addonIdx, i)
+			totalAddon += entry.AmountCents
+		}
+	}
+	var amounts []int64
+	if serviceBase > 0 && totalService > 0 {
+		amounts = allocate(serviceIdx, totalService*item.RefundCents/serviceBase, priorService)
+	}
+	if order.PayableCents > 0 && totalAddon > 0 {
+		addonAmounts := allocate(addonIdx, totalAddon*item.RefundCents/order.PayableCents, priorAddon)
+		if amounts == nil {
+			amounts = addonAmounts
+		} else {
+			for i, amount := range addonAmounts {
+				if amount != 0 {
+					amounts[i] = amount
+				}
+			}
+		}
+	}
+	if amounts == nil {
+		return nil
+	}
+	for i, entry := range entries {
+		if amounts[i] <= 0 {
 			continue
 		}
-		allocated += reversal
+		base := order.PayableCents
+		if entry.Kind == esportscommissionentry.KindService {
+			base = serviceBase
+		}
 		// 加钟明细可能同一陪玩多条，幂等键改用明细 ID 以免互相覆盖。
 		idem := "commission:reversal:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.PlayerID)
 		note := ""
 		if entry.Kind == esportscommissionentry.KindAddon {
 			idem = "commission:reversal:addon:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.ID)
-			note = "加钟退款分摊"
+			note = addonReversalNote
 		}
-		revs = append(revs, pendingRev{entry: entry, amount: reversal, idemKey: idem, note: note})
-	}
-	if len(revs) == 0 {
-		return nil
-	}
-	// 尾差 = 精确总冲回 − 各条截断之和（≤0），归最后一条冲回明细（§12.1）。
-	exact := -(totalAmount * item.RefundCents / order.PayableCents)
-	revs[len(revs)-1].amount += exact - allocated
-	for _, rev := range revs {
 		create := tx.EsportsCommissionEntry.Create().
-			SetIdemKey(rev.idemKey).
-			SetOrderID(order.ID).SetPlayerID(rev.entry.PlayerID).
-			SetKind(esportscommissionentry.KindReversal).SetSeatIndex(rev.entry.SeatIndex).
-			SetAfterSaleID(item.ID).SetBaseCents(order.PayableCents).SetAmountCents(rev.amount).
-			SetRuleNo(rev.entry.RuleNo).SetRuleVersion(rev.entry.RuleVersion).
-			SetCalcMode(esportscommissionentry.CalcMode(rev.entry.CalcMode.String())).
+			SetIdemKey(idem).
+			SetOrderID(order.ID).SetPlayerID(entry.PlayerID).
+			SetKind(esportscommissionentry.KindReversal).SetSeatIndex(entry.SeatIndex).
+			SetAfterSaleID(item.ID).SetBaseCents(base).SetAmountCents(-amounts[i]).
+			SetRuleNo(entry.RuleNo).SetRuleVersion(entry.RuleVersion).
+			SetCalcMode(esportscommissionentry.CalcMode(entry.CalcMode.String())).
 			SetStatus(esportscommissionentry.StatusPendingSettlement)
-		if rev.note != "" {
-			create.SetNote(rev.note)
+		if note != "" {
+			create.SetNote(note)
 		}
-		if rev.entry.RuleID != nil {
-			create.SetRuleID(*rev.entry.RuleID)
+		if entry.RuleID != nil {
+			create.SetRuleID(*entry.RuleID)
 		}
 		if _, err := create.Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
@@ -505,6 +670,13 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 		}
 	}
 	return nil
+}
+
+func commissionCloseBase(order *ent.EsportsOrder) int64 {
+	if order.CloseNetServiceCents != nil {
+		return *order.CloseNetServiceCents
+	}
+	return order.PayableCents
 }
 
 // settlePlayerCommission 结算某陪玩一个周期内全部待结算明细，汇总正向/负向并写入猫粮流水。
@@ -525,6 +697,9 @@ func settlePlayerCommission(ctx context.Context, db *ent.Client, playerID int,
 	pending, err := tx.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.PlayerIDEQ(playerID),
 		esportscommissionentry.StatusEQ(esportscommissionentry.StatusPendingSettlement),
+		esportscommissionentry.SettlementIDIsNil(),
+		// §12.6：被争议冻结的明细不参与当期结算，解冻后才可结算。
+		esportscommissionentry.FrozenAtIsNil(),
 	).All(ctx)
 	if err != nil {
 		return nil, err
@@ -561,23 +736,11 @@ func settlePlayerCommission(ctx context.Context, db *ent.Client, playerID int,
 	if err != nil {
 		return nil, err
 	}
-	if net != 0 {
-		if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
-			SetAccountType(esportswallettx.AccountTypePlayerCatfood).SetOwnerID(playerID).
-			SetEntryType(esportswallettx.EntryTypeRecharge).
-			SetPrincipalDeltaCents(net).SetSourceType("settlement").
-			SetSourceID(settlement.SettlementNo).SetOperatorID(adminID).
-			SetNote("分成结算").Save(ctx); err != nil {
-			if ent.IsConstraintError(err) {
-				return nil, errConflict
-			}
-			return nil, err
-		}
-	}
 	changed, err := tx.EsportsCommissionEntry.Update().Where(
 		esportscommissionentry.IDIn(ids...),
 		esportscommissionentry.StatusEQ(esportscommissionentry.StatusPendingSettlement),
-	).SetStatus(esportscommissionentry.StatusSettled).SetSettlementID(settlement.ID).
+		esportscommissionentry.SettlementIDIsNil(),
+	).SetSettlementID(settlement.ID).
 		AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
@@ -596,7 +759,69 @@ func lockSettlement(ctx context.Context, db *ent.Client, id, adminID int, now ti
 	if id < 1 {
 		return nil, errInvalidInput
 	}
-	changed, err := db.EsportsSettlement.Update().Where(
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	settlement, err := tx.EsportsSettlement.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if settlement.Status != esportssettlement.StatusDraft {
+		return nil, errConflict
+	}
+	// 旧版在创建草稿时已入账。识别旧草稿并只锁定状态，避免升级后再次入账。
+	var pendingPlayerEntries bool
+	if settlement.OwnerType == esportssettlement.OwnerTypePlayer {
+		entries, err := tx.EsportsCommissionEntry.Query().Where(
+			esportscommissionentry.SettlementIDEQ(id),
+		).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(entries) != settlement.EntryCount || len(entries) == 0 {
+			return nil, errConflict
+		}
+		var pendingCount, settledCount int
+		var total int64
+		for _, entry := range entries {
+			if entry.PlayerID != settlement.OwnerID {
+				return nil, errConflict
+			}
+			total += entry.AmountCents
+			switch entry.Status {
+			case esportscommissionentry.StatusPendingSettlement:
+				pendingCount++
+			case esportscommissionentry.StatusSettled:
+				settledCount++
+			default:
+				return nil, errConflict
+			}
+		}
+		if total != settlement.NetCents || (pendingCount > 0 && settledCount > 0) {
+			return nil, errConflict
+		}
+		credited, err := tx.EsportsWalletTx.Query().Where(
+			esportswallettx.AccountTypeEQ(esportswallettx.AccountTypePlayerCatfood),
+			esportswallettx.OwnerIDEQ(settlement.OwnerID),
+			esportswallettx.SourceTypeEQ("settlement"),
+			esportswallettx.SourceIDEQ(settlement.SettlementNo),
+		).Count(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pendingPlayerEntries = pendingCount == len(entries)
+		expectedLegacyCredits := 0
+		if settlement.NetCents != 0 {
+			expectedLegacyCredits = 1
+		}
+		if (pendingPlayerEntries && credited != 0) ||
+			(!pendingPlayerEntries && credited != expectedLegacyCredits) {
+			return nil, errConflict
+		}
+	}
+	changed, err := tx.EsportsSettlement.Update().Where(
 		esportssettlement.IDEQ(id),
 		esportssettlement.StatusEQ(esportssettlement.StatusDraft),
 	).SetStatus(esportssettlement.StatusLocked).SetLockedByAdminID(adminID).
@@ -606,6 +831,34 @@ func lockSettlement(ctx context.Context, db *ent.Client, id, adminID int, now ti
 	}
 	if changed != 1 {
 		return nil, errConflict
+	}
+	if pendingPlayerEntries {
+		changed, err = tx.EsportsCommissionEntry.Update().Where(
+			esportscommissionentry.SettlementIDEQ(id),
+			esportscommissionentry.StatusEQ(esportscommissionentry.StatusPendingSettlement),
+		).SetStatus(esportscommissionentry.StatusSettled).AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != settlement.EntryCount {
+			return nil, errConflict
+		}
+		if settlement.NetCents != 0 {
+			if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+				SetAccountType(esportswallettx.AccountTypePlayerCatfood).SetOwnerID(settlement.OwnerID).
+				SetEntryType(esportswallettx.EntryTypeRecharge).
+				SetPrincipalDeltaCents(settlement.NetCents).SetSourceType("settlement").
+				SetSourceID(settlement.SettlementNo).SetOperatorID(adminID).
+				SetNote("分成结算").Save(ctx); err != nil {
+				if ent.IsConstraintError(err) {
+					return nil, errConflict
+				}
+				return nil, err
+			}
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
 	}
 	return db.EsportsSettlement.Get(ctx, id)
 }
@@ -654,8 +907,13 @@ func listCommissionEntries(ctx context.Context, db *ent.Client, playerID, orderI
 
 type playerCommissionView struct {
 	PendingSettlementCents int64     `json:"pending_settlement_cents"`
-	SettledCents           int64     `json:"settled_cents"`
-	NextSettlementAt       time.Time `json:"next_settlement_at"`
+	// FrozenCents 被争议冻结的待结算金额（§12.6）：仍属待结算但不参与当期结算。
+	FrozenCents      int64     `json:"frozen_cents"`
+	SettledCents     int64     `json:"settled_cents"`
+	NextSettlementAt time.Time `json:"next_settlement_at"`
+	// 生效周期与命中层级，便于陪玩端解释「下次结算时间」的来源。
+	SettlementPeriod string `json:"settlement_period"`
+	SettlementScope  string `json:"settlement_scope"`
 }
 
 // settlementPeriod 读系统配置得到结算周期；缺失或非法回落 weekly。
@@ -687,36 +945,105 @@ func nextSettlementAt(period string, now time.Time) time.Time {
 	}
 }
 
-// playerCommissionSummary 陪玩端分成概览：待结算净额、已结算合计、下次结算时间。
-// ponytail: 结算周期仅支持 daily/weekly/monthly 三种预设，§12.6 的「按游戏/等级/单个陪玩逐级覆盖」
-// 与「自定义间隔」未实现；争议冻结未实现。
+// playerCommissionSummary 陪玩端分成概览：待结算净额、争议冻结额、已结算合计、下次结算时间。
+// 结算周期按 §12.6 逐级覆盖解析（陪玩 → 等级 → 游戏 → 全局 → 系统配置）。
 func playerCommissionSummary(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*playerCommissionView, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
 	}
-	if _, err := db.EsportsPlayer.Get(ctx, playerID); err != nil {
+	player, err := db.EsportsPlayer.Get(ctx, playerID)
+	if err != nil {
 		return nil, err
 	}
 	rows, err := db.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.PlayerIDEQ(playerID),
 		esportscommissionentry.StatusIn(
 			esportscommissionentry.StatusPendingSettlement, esportscommissionentry.StatusSettled),
-	).Select(esportscommissionentry.FieldAmountCents, esportscommissionentry.FieldStatus).All(ctx)
+	).Select(esportscommissionentry.FieldAmountCents, esportscommissionentry.FieldStatus,
+		esportscommissionentry.FieldFrozenAt).All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var pending, settled int64
+	var pending, frozen, settled int64
 	for _, row := range rows {
 		switch row.Status {
 		case esportscommissionentry.StatusPendingSettlement:
+			if row.FrozenAt != nil {
+				frozen += row.AmountCents
+				continue
+			}
 			pending += row.AmountCents
 		case esportscommissionentry.StatusSettled:
 			settled += row.AmountCents
 		}
 	}
+	cycle, err := resolveSettlementCycle(ctx, db, player)
+	if err != nil {
+		return nil, err
+	}
+	_, _, next := settlementCycleWindow(cycle, now)
 	return &playerCommissionView{
 		PendingSettlementCents: pending,
+		FrozenCents:            frozen,
 		SettledCents:           settled,
-		NextSettlementAt:       nextSettlementAt(settlementPeriod(ctx, db), now),
+		NextSettlementAt:       next,
+		SettlementPeriod:       cycle.Period,
+		SettlementScope:        cycle.Scope,
 	}, nil
+}
+
+// freezeOrderCommissionForDispute 冻结订单的待结算分成明细（§12.6 争议冻结）。
+// playerID 非空时只冻结该成员；已结算 / 已冻结的明细不受影响，返回本次冻结条数。
+func freezeOrderCommissionForDispute(ctx context.Context, db *ent.Client, orderID int,
+	playerID *int, reason string, adminID int, now time.Time) (int, error) {
+	return freezeCommissionForOrder(ctx, db.EsportsCommissionEntry, orderID, playerID, reason, adminID, now)
+}
+
+// unfreezeOrderCommission 解冻订单的待结算分成明细（争议终结后恢复可结算）。
+func unfreezeOrderCommission(ctx context.Context, db *ent.Client, orderID int) (int, error) {
+	return unfreezeCommissionForOrder(ctx, db.EsportsCommissionEntry, orderID)
+}
+
+// freezeCommissionForOrder 事务内外通用的冻结实现（tx 与 client 共用同一 client 类型）。
+func freezeCommissionForOrder(ctx context.Context, entries *ent.EsportsCommissionEntryClient,
+	orderID int, playerID *int, reason string, adminID int, now time.Time) (int, error) {
+	if orderID < 1 {
+		return 0, errInvalidInput
+	}
+	if len([]rune(reason)) > 255 {
+		return 0, errInvalidInput
+	}
+	q := entries.Update().Where(
+		esportscommissionentry.OrderIDEQ(orderID),
+		esportscommissionentry.StatusEQ(esportscommissionentry.StatusPendingSettlement),
+		esportscommissionentry.FrozenAtIsNil(),
+		// 已纳入结算单（草稿或已锁）的明细不再冻结，避免冻结与结算单口径冲突。
+		esportscommissionentry.SettlementIDIsNil(),
+	)
+	if playerID != nil && *playerID > 0 {
+		q = q.Where(esportscommissionentry.PlayerIDEQ(*playerID))
+	}
+	changed, err := q.SetFrozenAt(now.UTC()).SetFrozenReason(reason).
+		SetFrozenByAdminID(adminID).AddVersion(1).Save(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return changed, nil
+}
+
+// unfreezeCommissionForOrder 事务内外通用的解冻实现。
+func unfreezeCommissionForOrder(ctx context.Context, entries *ent.EsportsCommissionEntryClient,
+	orderID int) (int, error) {
+	if orderID < 1 {
+		return 0, errInvalidInput
+	}
+	changed, err := entries.Update().Where(
+		esportscommissionentry.OrderIDEQ(orderID),
+		esportscommissionentry.StatusEQ(esportscommissionentry.StatusPendingSettlement),
+		esportscommissionentry.FrozenAtNotNil(),
+	).ClearFrozenAt().SetFrozenReason("").ClearFrozenByAdminID().AddVersion(1).Save(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return changed, nil
 }

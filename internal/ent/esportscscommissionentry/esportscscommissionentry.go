@@ -20,6 +20,8 @@ const (
 	FieldIdemKey = "idem_key"
 	// FieldOrderID holds the string denoting the order_id field in the database.
 	FieldOrderID = "order_id"
+	// FieldGiftOrderID holds the string denoting the gift_order_id field in the database.
+	FieldGiftOrderID = "gift_order_id"
 	// FieldAdminID holds the string denoting the admin_id field in the database.
 	FieldAdminID = "admin_id"
 	// FieldKind holds the string denoting the kind field in the database.
@@ -70,6 +72,7 @@ var Columns = []string{
 	FieldID,
 	FieldIdemKey,
 	FieldOrderID,
+	FieldGiftOrderID,
 	FieldAdminID,
 	FieldKind,
 	FieldAfterSaleID,
@@ -106,6 +109,8 @@ var (
 	IdemKeyValidator func(string) error
 	// OrderIDValidator is a validator for the "order_id" field. It is called by the builders before save.
 	OrderIDValidator func(int) error
+	// GiftOrderIDValidator is a validator for the "gift_order_id" field. It is called by the builders before save.
+	GiftOrderIDValidator func(int) error
 	// AdminIDValidator is a validator for the "admin_id" field. It is called by the builders before save.
 	AdminIDValidator func(int) error
 	// DefaultRuleNo holds the default value on creation for the "rule_no" field.
@@ -146,8 +151,10 @@ const DefaultKind = KindService
 
 // Kind values.
 const (
-	KindService  Kind = "service"
-	KindReversal Kind = "reversal"
+	KindService      Kind = "service"
+	KindReversal     Kind = "reversal"
+	KindGift         Kind = "gift"
+	KindGiftReversal Kind = "gift_reversal"
 )
 
 func (k Kind) String() string {
@@ -157,7 +164,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindService, KindReversal:
+	case KindService, KindReversal, KindGift, KindGiftReversal:
 		return nil
 	default:
 		return fmt.Errorf("esportscscommissionentry: invalid enum value for kind field: %q", k)
@@ -260,6 +267,11 @@ func ByIdemKey(opts ...sql.OrderTermOption) OrderOption {
 // ByOrderID orders the results by the order_id field.
 func ByOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldOrderID, opts...).ToFunc()
+}
+
+// ByGiftOrderID orders the results by the gift_order_id field.
+func ByGiftOrderID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGiftOrderID, opts...).ToFunc()
 }
 
 // ByAdminID orders the results by the admin_id field.

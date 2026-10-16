@@ -33,6 +33,8 @@ type EsportsCloseFormTemplate struct {
 	MaxCents int64 `json:"max_cents"`
 	// Fields holds the value of the "fields" field.
 	Fields []schematier.CloseFormFieldBinding `json:"fields"`
+	// FieldDefinitions holds the value of the "field_definitions" field.
+	FieldDefinitions []schematier.CloseFormFieldDefinition `json:"field_definitions"`
 	// Status holds the value of the "status" field.
 	Status esportscloseformtemplate.Status `json:"status"`
 	// Version holds the value of the "version" field.
@@ -53,7 +55,7 @@ func (*EsportsCloseFormTemplate) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportscloseformtemplate.FieldFields:
+		case esportscloseformtemplate.FieldFields, esportscloseformtemplate.FieldFieldDefinitions:
 			values[i] = new([]byte)
 		case esportscloseformtemplate.FieldID, esportscloseformtemplate.FieldMinCents, esportscloseformtemplate.FieldMaxCents, esportscloseformtemplate.FieldVersion, esportscloseformtemplate.FieldCreatedByAdminID:
 			values[i] = new(sql.NullInt64)
@@ -124,6 +126,14 @@ func (_m *EsportsCloseFormTemplate) assignValues(columns []string, values []any)
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.Fields); err != nil {
 					return fmt.Errorf("unmarshal field fields: %w", err)
+				}
+			}
+		case esportscloseformtemplate.FieldFieldDefinitions:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field field_definitions", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.FieldDefinitions); err != nil {
+					return fmt.Errorf("unmarshal field field_definitions: %w", err)
 				}
 			}
 		case esportscloseformtemplate.FieldStatus:
@@ -219,6 +229,9 @@ func (_m *EsportsCloseFormTemplate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("fields=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Fields))
+	builder.WriteString(", ")
+	builder.WriteString("field_definitions=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FieldDefinitions))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

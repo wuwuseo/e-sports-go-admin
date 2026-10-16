@@ -63,6 +63,39 @@ func (_u *EsportsCsCommissionEntryUpdate) AddOrderID(v int) *EsportsCsCommission
 	return _u
 }
 
+// ClearOrderID clears the value of the "order_id" field.
+func (_u *EsportsCsCommissionEntryUpdate) ClearOrderID() *EsportsCsCommissionEntryUpdate {
+	_u.mutation.ClearOrderID()
+	return _u
+}
+
+// SetGiftOrderID sets the "gift_order_id" field.
+func (_u *EsportsCsCommissionEntryUpdate) SetGiftOrderID(v int) *EsportsCsCommissionEntryUpdate {
+	_u.mutation.ResetGiftOrderID()
+	_u.mutation.SetGiftOrderID(v)
+	return _u
+}
+
+// SetNillableGiftOrderID sets the "gift_order_id" field if the given value is not nil.
+func (_u *EsportsCsCommissionEntryUpdate) SetNillableGiftOrderID(v *int) *EsportsCsCommissionEntryUpdate {
+	if v != nil {
+		_u.SetGiftOrderID(*v)
+	}
+	return _u
+}
+
+// AddGiftOrderID adds value to the "gift_order_id" field.
+func (_u *EsportsCsCommissionEntryUpdate) AddGiftOrderID(v int) *EsportsCsCommissionEntryUpdate {
+	_u.mutation.AddGiftOrderID(v)
+	return _u
+}
+
+// ClearGiftOrderID clears the value of the "gift_order_id" field.
+func (_u *EsportsCsCommissionEntryUpdate) ClearGiftOrderID() *EsportsCsCommissionEntryUpdate {
+	_u.mutation.ClearGiftOrderID()
+	return _u
+}
+
 // SetAdminID sets the "admin_id" field.
 func (_u *EsportsCsCommissionEntryUpdate) SetAdminID(v int) *EsportsCsCommissionEntryUpdate {
 	_u.mutation.ResetAdminID()
@@ -455,6 +488,11 @@ func (_u *EsportsCsCommissionEntryUpdate) check() error {
 			return &ValidationError{Name: "order_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.order_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftOrderID(); ok {
+		if err := esportscscommissionentry.GiftOrderIDValidator(v); err != nil {
+			return &ValidationError{Name: "gift_order_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.gift_order_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.AdminID(); ok {
 		if err := esportscscommissionentry.AdminIDValidator(v); err != nil {
 			return &ValidationError{Name: "admin_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.admin_id": %w`, err)}
@@ -513,6 +551,18 @@ func (_u *EsportsCsCommissionEntryUpdate) sqlSave(ctx context.Context) (_node in
 	}
 	if value, ok := _u.mutation.AddedOrderID(); ok {
 		_spec.AddField(esportscscommissionentry.FieldOrderID, field.TypeInt, value)
+	}
+	if _u.mutation.OrderIDCleared() {
+		_spec.ClearField(esportscscommissionentry.FieldOrderID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.GiftOrderID(); ok {
+		_spec.SetField(esportscscommissionentry.FieldGiftOrderID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftOrderID(); ok {
+		_spec.AddField(esportscscommissionentry.FieldGiftOrderID, field.TypeInt, value)
+	}
+	if _u.mutation.GiftOrderIDCleared() {
+		_spec.ClearField(esportscscommissionentry.FieldGiftOrderID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.AdminID(); ok {
 		_spec.SetField(esportscscommissionentry.FieldAdminID, field.TypeInt, value)
@@ -662,6 +712,39 @@ func (_u *EsportsCsCommissionEntryUpdateOne) SetNillableOrderID(v *int) *Esports
 // AddOrderID adds value to the "order_id" field.
 func (_u *EsportsCsCommissionEntryUpdateOne) AddOrderID(v int) *EsportsCsCommissionEntryUpdateOne {
 	_u.mutation.AddOrderID(v)
+	return _u
+}
+
+// ClearOrderID clears the value of the "order_id" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) ClearOrderID() *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.ClearOrderID()
+	return _u
+}
+
+// SetGiftOrderID sets the "gift_order_id" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) SetGiftOrderID(v int) *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.ResetGiftOrderID()
+	_u.mutation.SetGiftOrderID(v)
+	return _u
+}
+
+// SetNillableGiftOrderID sets the "gift_order_id" field if the given value is not nil.
+func (_u *EsportsCsCommissionEntryUpdateOne) SetNillableGiftOrderID(v *int) *EsportsCsCommissionEntryUpdateOne {
+	if v != nil {
+		_u.SetGiftOrderID(*v)
+	}
+	return _u
+}
+
+// AddGiftOrderID adds value to the "gift_order_id" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) AddGiftOrderID(v int) *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.AddGiftOrderID(v)
+	return _u
+}
+
+// ClearGiftOrderID clears the value of the "gift_order_id" field.
+func (_u *EsportsCsCommissionEntryUpdateOne) ClearGiftOrderID() *EsportsCsCommissionEntryUpdateOne {
+	_u.mutation.ClearGiftOrderID()
 	return _u
 }
 
@@ -1070,6 +1153,11 @@ func (_u *EsportsCsCommissionEntryUpdateOne) check() error {
 			return &ValidationError{Name: "order_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.order_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftOrderID(); ok {
+		if err := esportscscommissionentry.GiftOrderIDValidator(v); err != nil {
+			return &ValidationError{Name: "gift_order_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.gift_order_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.AdminID(); ok {
 		if err := esportscscommissionentry.AdminIDValidator(v); err != nil {
 			return &ValidationError{Name: "admin_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.admin_id": %w`, err)}
@@ -1145,6 +1233,18 @@ func (_u *EsportsCsCommissionEntryUpdateOne) sqlSave(ctx context.Context) (_node
 	}
 	if value, ok := _u.mutation.AddedOrderID(); ok {
 		_spec.AddField(esportscscommissionentry.FieldOrderID, field.TypeInt, value)
+	}
+	if _u.mutation.OrderIDCleared() {
+		_spec.ClearField(esportscscommissionentry.FieldOrderID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.GiftOrderID(); ok {
+		_spec.SetField(esportscscommissionentry.FieldGiftOrderID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftOrderID(); ok {
+		_spec.AddField(esportscscommissionentry.FieldGiftOrderID, field.TypeInt, value)
+	}
+	if _u.mutation.GiftOrderIDCleared() {
+		_spec.ClearField(esportscscommissionentry.FieldGiftOrderID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.AdminID(); ok {
 		_spec.SetField(esportscscommissionentry.FieldAdminID, field.TypeInt, value)

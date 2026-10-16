@@ -34,14 +34,30 @@ type EsportsStoredValueCard struct {
 	BonusCents int64 `json:"bonus_cents"`
 	// ApplicableScope holds the value of the "applicable_scope" field.
 	ApplicableScope []int `json:"applicable_scope"`
+	// AllowGifts holds the value of the "allow_gifts" field.
+	AllowGifts bool `json:"allow_gifts"`
 	// ContractConfirmed holds the value of the "contract_confirmed" field.
 	ContractConfirmed bool `json:"contract_confirmed"`
 	// ValidFrom holds the value of the "valid_from" field.
 	ValidFrom time.Time `json:"valid_from"`
 	// ValidUntil holds the value of the "valid_until" field.
 	ValidUntil time.Time `json:"valid_until"`
+	// RequestedValidityDays holds the value of the "requested_validity_days" field.
+	RequestedValidityDays int `json:"requested_validity_days"`
 	// Status holds the value of the "status" field.
 	Status esportsstoredvaluecard.Status `json:"status"`
+	// OpenRequestKey holds the value of the "open_request_key" field.
+	OpenRequestKey *string `json:"open_request_key"`
+	// VerifiedPaymentKey holds the value of the "verified_payment_key" field.
+	VerifiedPaymentKey *string `json:"verified_payment_key"`
+	// PaymentVerifiedByAdminID holds the value of the "payment_verified_by_admin_id" field.
+	PaymentVerifiedByAdminID *int `json:"payment_verified_by_admin_id"`
+	// PaymentVerifiedAt holds the value of the "payment_verified_at" field.
+	PaymentVerifiedAt *time.Time `json:"payment_verified_at"`
+	// PaymentVerifiedAmountCents holds the value of the "payment_verified_amount_cents" field.
+	PaymentVerifiedAmountCents int64 `json:"payment_verified_amount_cents"`
+	// PaymentVerificationNote holds the value of the "payment_verification_note" field.
+	PaymentVerificationNote string `json:"payment_verification_note"`
 	// PackageID holds the value of the "package_id" field.
 	PackageID *int `json:"package_id"`
 	// OpenedByAdminID holds the value of the "opened_by_admin_id" field.
@@ -74,13 +90,13 @@ func (*EsportsStoredValueCard) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsstoredvaluecard.FieldApplicableScope, esportsstoredvaluecard.FieldRefundQuote:
 			values[i] = new([]byte)
-		case esportsstoredvaluecard.FieldContractConfirmed:
+		case esportsstoredvaluecard.FieldAllowGifts, esportsstoredvaluecard.FieldContractConfirmed:
 			values[i] = new(sql.NullBool)
-		case esportsstoredvaluecard.FieldID, esportsstoredvaluecard.FieldCustomerID, esportsstoredvaluecard.FieldPrincipalCents, esportsstoredvaluecard.FieldBonusCents, esportsstoredvaluecard.FieldPackageID, esportsstoredvaluecard.FieldOpenedByAdminID, esportsstoredvaluecard.FieldRefundRequestedByAdminID, esportsstoredvaluecard.FieldRefundDecidedByAdminID, esportsstoredvaluecard.FieldRefundedCents, esportsstoredvaluecard.FieldVersion:
+		case esportsstoredvaluecard.FieldID, esportsstoredvaluecard.FieldCustomerID, esportsstoredvaluecard.FieldPrincipalCents, esportsstoredvaluecard.FieldBonusCents, esportsstoredvaluecard.FieldRequestedValidityDays, esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, esportsstoredvaluecard.FieldPaymentVerifiedAmountCents, esportsstoredvaluecard.FieldPackageID, esportsstoredvaluecard.FieldOpenedByAdminID, esportsstoredvaluecard.FieldRefundRequestedByAdminID, esportsstoredvaluecard.FieldRefundDecidedByAdminID, esportsstoredvaluecard.FieldRefundedCents, esportsstoredvaluecard.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsstoredvaluecard.FieldCardNo, esportsstoredvaluecard.FieldSource, esportsstoredvaluecard.FieldPaymentChannel, esportsstoredvaluecard.FieldPaymentRef, esportsstoredvaluecard.FieldStatus:
+		case esportsstoredvaluecard.FieldCardNo, esportsstoredvaluecard.FieldSource, esportsstoredvaluecard.FieldPaymentChannel, esportsstoredvaluecard.FieldPaymentRef, esportsstoredvaluecard.FieldStatus, esportsstoredvaluecard.FieldOpenRequestKey, esportsstoredvaluecard.FieldVerifiedPaymentKey, esportsstoredvaluecard.FieldPaymentVerificationNote:
 			values[i] = new(sql.NullString)
-		case esportsstoredvaluecard.FieldValidFrom, esportsstoredvaluecard.FieldValidUntil, esportsstoredvaluecard.FieldRefundRequestedAt, esportsstoredvaluecard.FieldRefundedAt, esportsstoredvaluecard.FieldCreatedAt, esportsstoredvaluecard.FieldUpdatedAt:
+		case esportsstoredvaluecard.FieldValidFrom, esportsstoredvaluecard.FieldValidUntil, esportsstoredvaluecard.FieldPaymentVerifiedAt, esportsstoredvaluecard.FieldRefundRequestedAt, esportsstoredvaluecard.FieldRefundedAt, esportsstoredvaluecard.FieldCreatedAt, esportsstoredvaluecard.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -153,6 +169,12 @@ func (_m *EsportsStoredValueCard) assignValues(columns []string, values []any) e
 					return fmt.Errorf("unmarshal field applicable_scope: %w", err)
 				}
 			}
+		case esportsstoredvaluecard.FieldAllowGifts:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allow_gifts", values[i])
+			} else if value.Valid {
+				_m.AllowGifts = value.Bool
+			}
 		case esportsstoredvaluecard.FieldContractConfirmed:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field contract_confirmed", values[i])
@@ -171,11 +193,57 @@ func (_m *EsportsStoredValueCard) assignValues(columns []string, values []any) e
 			} else if value.Valid {
 				_m.ValidUntil = value.Time
 			}
+		case esportsstoredvaluecard.FieldRequestedValidityDays:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field requested_validity_days", values[i])
+			} else if value.Valid {
+				_m.RequestedValidityDays = int(value.Int64)
+			}
 		case esportsstoredvaluecard.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = esportsstoredvaluecard.Status(value.String)
+			}
+		case esportsstoredvaluecard.FieldOpenRequestKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field open_request_key", values[i])
+			} else if value.Valid {
+				_m.OpenRequestKey = new(string)
+				*_m.OpenRequestKey = value.String
+			}
+		case esportsstoredvaluecard.FieldVerifiedPaymentKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field verified_payment_key", values[i])
+			} else if value.Valid {
+				_m.VerifiedPaymentKey = new(string)
+				*_m.VerifiedPaymentKey = value.String
+			}
+		case esportsstoredvaluecard.FieldPaymentVerifiedByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_verified_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.PaymentVerifiedByAdminID = new(int)
+				*_m.PaymentVerifiedByAdminID = int(value.Int64)
+			}
+		case esportsstoredvaluecard.FieldPaymentVerifiedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_verified_at", values[i])
+			} else if value.Valid {
+				_m.PaymentVerifiedAt = new(time.Time)
+				*_m.PaymentVerifiedAt = value.Time
+			}
+		case esportsstoredvaluecard.FieldPaymentVerifiedAmountCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_verified_amount_cents", values[i])
+			} else if value.Valid {
+				_m.PaymentVerifiedAmountCents = value.Int64
+			}
+		case esportsstoredvaluecard.FieldPaymentVerificationNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_verification_note", values[i])
+			} else if value.Valid {
+				_m.PaymentVerificationNote = value.String
 			}
 		case esportsstoredvaluecard.FieldPackageID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -311,6 +379,9 @@ func (_m *EsportsStoredValueCard) String() string {
 	builder.WriteString("applicable_scope=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ApplicableScope))
 	builder.WriteString(", ")
+	builder.WriteString("allow_gifts=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowGifts))
+	builder.WriteString(", ")
 	builder.WriteString("contract_confirmed=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ContractConfirmed))
 	builder.WriteString(", ")
@@ -320,8 +391,37 @@ func (_m *EsportsStoredValueCard) String() string {
 	builder.WriteString("valid_until=")
 	builder.WriteString(_m.ValidUntil.Format(time.ANSIC))
 	builder.WriteString(", ")
+	builder.WriteString("requested_validity_days=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequestedValidityDays))
+	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	if v := _m.OpenRequestKey; v != nil {
+		builder.WriteString("open_request_key=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.VerifiedPaymentKey; v != nil {
+		builder.WriteString("verified_payment_key=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.PaymentVerifiedByAdminID; v != nil {
+		builder.WriteString("payment_verified_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.PaymentVerifiedAt; v != nil {
+		builder.WriteString("payment_verified_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("payment_verified_amount_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PaymentVerifiedAmountCents))
+	builder.WriteString(", ")
+	builder.WriteString("payment_verification_note=")
+	builder.WriteString(_m.PaymentVerificationNote)
 	builder.WriteString(", ")
 	if v := _m.PackageID; v != nil {
 		builder.WriteString("package_id=")

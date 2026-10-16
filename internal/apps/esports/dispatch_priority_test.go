@@ -307,7 +307,8 @@ func TestOnOrderEnteredPendingDispatchOpensWindow(t *testing.T) {
 	}
 	tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
-	).SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).AddVersion(1).SaveX(ctx)
+	).SetPaymentStatus(esportsorder.PaymentStatusPaid).
+		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).AddVersion(1).SaveX(ctx)
 	if err = onOrderEnteredPendingDispatch(ctx, tx, order.ID, now); err != nil {
 		_ = tx.Rollback()
 		t.Fatalf("开窗应成功，err=%v", err)

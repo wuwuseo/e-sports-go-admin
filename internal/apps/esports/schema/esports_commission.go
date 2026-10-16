@@ -11,14 +11,14 @@ import (
 // EsportsCommissionRule 是陪玩分成规则。规则不可原地修改：改规则＝新增一条递增 version 的新行，
 // 旧行转 history 且不再变更（§12.4）。同一 rule_no 的不同版本共享编号，version 逐版递增。
 // ponytail: 「陪玩等级」「单笔手动指定」两个优先级未实现（等级字段属 §7 考官端，尚无字段）；
-// 规则按 effective_at 调度生效未做，仅以 status=active 判定当前生效版本。
+// 生效时间在未来的版本进入 scheduled，达到时间后解析器可立即使用，定时任务补齐状态转换。
 type EsportsCommissionRule struct{ ent.Schema }
 
 func (EsportsCommissionRule) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("rule_no").NotEmpty().MaxLen(48).StructTag(`json:"rule_no"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
-		field.Enum("status").Values("draft", "active", "history").Default("draft").StructTag(`json:"status"`),
+		field.Enum("status").Values("draft", "scheduled", "active", "history").Default("draft").StructTag(`json:"status"`),
 		// scope 决定规则适用范围：全局 / 按游戏 / 按单个陪玩档案。
 		field.Enum("scope").Values("global", "game", "player").Default("global").StructTag(`json:"scope"`),
 		// scope=game 时为游戏名；scope=player 时为陪玩档案 ID 字符串。
@@ -71,6 +71,11 @@ func (EsportsCommissionEntry) Fields() []ent.Field {
 		field.Int64("amount_cents").Default(0).StructTag(`json:"amount_cents"`),
 		field.Enum("status").Values("pending_settlement", "settled", "void").Default("pending_settlement").StructTag(`json:"status"`),
 		field.Int("settlement_id").Optional().Nillable().StructTag(`json:"settlement_id"`),
+		// 争议冻结（§12.6）：被争议的明细冻结待结算金额，不参与当期结算；
+		// 冻结与状态正交（仍为 pending_settlement），解冻后恢复可结算。
+		field.Time("frozen_at").Optional().Nillable().StructTag(`json:"frozen_at"`),
+		field.String("frozen_reason").MaxLen(255).Default("").StructTag(`json:"frozen_reason"`),
+		field.Int("frozen_by_admin_id").Optional().Nillable().StructTag(`json:"frozen_by_admin_id"`),
 		field.String("note").MaxLen(255).Default("").StructTag(`json:"note"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),

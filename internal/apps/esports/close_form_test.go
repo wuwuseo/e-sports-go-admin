@@ -12,6 +12,8 @@ import (
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportscloseformfield"
 	"go-admin/internal/ent/esportscloseformtemplate"
+	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/migrate"
 )
 
@@ -167,6 +169,117 @@ func TestCloseOrderFormRequiredAndSnapshot(t *testing.T) {
 	}
 	if amount, ok := snap.Values["amount"].(float64); !ok || amount != 2000 {
 		t.Fatalf("金额只读字段应由系统写入订单应付：%+v", snap.Values["amount"])
+	}
+}
+
+func TestOrderKeepsCloseFormTemplateFromPlacement(t *testing.T) {
+	db := openCloseFormDB(t, "esports_close_form_locked_at_order")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	for _, field := range []closeFormFieldInput{
+		{Key: "old_result", Label: "旧版结果", FieldType: "text", Required: true},
+		{Key: "new_result", Label: "新版结果", FieldType: "text", Required: true},
+	} {
+		if _, err := createCloseFormField(ctx, db, field); err != nil {
+			t.Fatal(err)
+		}
+	}
+	createAndActivate := func(fieldKey string) *ent.EsportsCloseFormTemplate {
+		t.Helper()
+		template, err := createCloseFormTemplate(ctx, db, closeFormTemplateInput{
+			Code: "PLACEMENT-FORM", Name: "结单表单", Scope: "global",
+			Fields: []schema.CloseFormFieldBinding{{FieldKey: fieldKey, Required: true}},
+		}, 11)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := activateCloseFormTemplate(ctx, db, template.ID); err != nil {
+			t.Fatal(err)
+		}
+		return template
+	}
+	first := createAndActivate("old_result")
+	order := seedBalancePaidOrder(t, db, "close-form-locked")
+	if order.CloseFormTemplateLockedAt == nil || order.CloseFormTemplateID == nil ||
+		*order.CloseFormTemplateID != first.ID {
+		t.Fatalf("下单时未锁定结单模板：%+v", order)
+	}
+	second := createAndActivate("new_result")
+	if first.ID == second.ID {
+		t.Fatal("新版模板应独立存储")
+	}
+	field := db.EsportsCloseFormField.Query().Where(esportscloseformfield.KeyEQ("old_result")).OnlyX(ctx)
+	if _, err := updateCloseFormField(ctx, db, field.ID, field.Version, closeFormFieldInput{
+		Key: "old_result", Label: "已改成数字", FieldType: "number", Required: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view, err := orderCloseForm(ctx, db, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view.Template == nil || view.Template.ID != first.ID {
+		t.Fatalf("旧单不应切换到新模板：%+v", view.Template)
+	}
+	if len(view.Fields) != 1 || view.Fields[0].FieldType != esportscloseformfield.FieldTypeText {
+		t.Fatalf("旧单字段类型不应受字段库修改影响：%+v", view.Fields)
+	}
+	db.EsportsOrder.UpdateOneID(order.ID).
+		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingClose).SaveX(ctx)
+	db.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(1).SetSeatIndex(1).
+		SetStatus(esportsservicesegment.StatusFinished).
+		SetStartedAt(now.Add(-10 * time.Minute)).SetEndedAt(now).
+		SetSystemSeconds(600).SetEvidenceRef("ev.png").SaveX(ctx)
+	if _, err := closeOrder(ctx, db, order.ID, 11,
+		closeOrderInput{Note: "结单", FormValues: map[string]any{"new_result": "新版"}}, now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("旧单只填新版字段应拒绝：%v", err)
+	}
+	if _, err := closeOrder(ctx, db, order.ID, 11,
+		closeOrderInput{Note: "结单", FormValues: map[string]any{"old_result": "旧版"}}, now); err != nil {
+		t.Fatalf("旧单填原版字段应结单：%v", err)
+	}
+	snapshot := db.EsportsCloseFormSnapshot.Query().OnlyX(ctx)
+	if snapshot.TemplateID != first.ID || snapshot.TemplateVersion != first.Version {
+		t.Fatalf("结单记录应引用下单模板版本：%+v", snapshot)
+	}
+}
+
+func TestOrderWithoutCloseFormDoesNotGainLaterTemplate(t *testing.T) {
+	db := openCloseFormDB(t, "esports_close_form_absent_at_order")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	order := seedBalancePaidOrder(t, db, "close-form-absent")
+	if order.CloseFormTemplateLockedAt == nil || order.CloseFormTemplateID != nil {
+		t.Fatalf("无模板也应锁定为空：%+v", order)
+	}
+	if _, err := createCloseFormField(ctx, db, closeFormFieldInput{
+		Key: "later_result", Label: "后来新增", FieldType: "text", Required: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	template, err := createCloseFormTemplate(ctx, db, closeFormTemplateInput{
+		Code: "LATER-FORM", Name: "后发模板", Scope: "global",
+		Fields: []schema.CloseFormFieldBinding{{FieldKey: "later_result", Required: true}},
+	}, 11)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := activateCloseFormTemplate(ctx, db, template.ID); err != nil {
+		t.Fatal(err)
+	}
+	db.EsportsOrder.UpdateOneID(order.ID).
+		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingClose).SaveX(ctx)
+	db.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(1).SetSeatIndex(1).
+		SetStatus(esportsservicesegment.StatusFinished).
+		SetStartedAt(now.Add(-10 * time.Minute)).SetEndedAt(now).
+		SetSystemSeconds(600).SetEvidenceRef("ev.png").SaveX(ctx)
+	if _, err := closeOrder(ctx, db, order.ID, 11, closeOrderInput{Note: "结单"}, now); err != nil {
+		t.Fatalf("下单时无模板的订单不应被后来模板阻止：%v", err)
+	}
+	if got := db.EsportsCloseFormSnapshot.Query().CountX(ctx); got != 0 {
+		t.Fatalf("无模板订单不应产生结单表单快照：%d", got)
 	}
 }
 

@@ -8,7 +8,17 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportscloserule"
+
+	"go-admin/internal/apps/esports/schematier"
 )
+
+// derefCloseConditionNode 把可选条件树指针转为值（nil 表示未配置，回落结构化条件项）。
+func derefCloseConditionNode(node *schematier.CloseConditionNode) schematier.CloseConditionNode {
+	if node == nil {
+		return schematier.CloseConditionNode{}
+	}
+	return *node
+}
 
 // 结单规则（§3.4 首版）：把「服务凭证不少于 N 张、服务时长不为零、无未处理加钟 / 售后」等
 // 结单条件做成可配置规则，并按 全局 / 游戏分区 / SKU 绑定到订单；金额达阈值时须由非负责客服的
@@ -26,7 +36,9 @@ type closeRuleInput struct {
 	RequireNoPendingAddon  bool   `json:"require_no_pending_addon"`
 	RequireNoOpenAftersale bool   `json:"require_no_open_aftersale"`
 	ReviewThresholdCents   int64  `json:"review_threshold_cents"`
-	Note                   string `json:"note"`
+	// ConditionTree 是通用 AND/OR 结单条件树（§3.4 结单条件自定义）；留空表示使用结构化条件项。
+	ConditionTree *schematier.CloseConditionNode `json:"condition_tree"`
+	Note          string                         `json:"note"`
 }
 
 func validCloseRuleScope(scope string) bool {
@@ -70,13 +82,21 @@ func createCloseRule(ctx context.Context, db *ent.Client, in closeRuleInput, adm
 	if latest != nil {
 		version = latest.Version + 1
 	}
-	item, err := tx.EsportsCloseRule.Create().SetCode(in.Code).SetName(in.Name).
+	tree, err := normalizeCloseConditionTree(derefCloseConditionNode(in.ConditionTree))
+	if err != nil {
+		return nil, err
+	}
+	create := tx.EsportsCloseRule.Create().SetCode(in.Code).SetName(in.Name).
 		SetScope(esportscloserule.Scope(in.Scope)).SetScopeKey(in.ScopeKey).
 		SetMinEvidence(in.MinEvidence).SetRequireDuration(in.RequireDuration).
 		SetRequireNoPendingAddon(in.RequireNoPendingAddon).
 		SetRequireNoOpenAftersale(in.RequireNoOpenAftersale).
 		SetReviewThresholdCents(in.ReviewThresholdCents).
-		SetVersion(version).SetCreatedByAdminID(adminID).SetNote(in.Note).Save(ctx)
+		SetVersion(version).SetCreatedByAdminID(adminID).SetNote(in.Note)
+	if tree != nil {
+		create.SetConditionTree(*tree)
+	}
+	item, err := create.Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
@@ -97,7 +117,11 @@ func updateCloseRule(ctx context.Context, db *ent.Client, id, expectedVersion in
 	if err := validateCloseRuleInput(in); err != nil {
 		return nil, err
 	}
-	changed, err := db.EsportsCloseRule.Update().Where(
+	tree, err := normalizeCloseConditionTree(derefCloseConditionNode(in.ConditionTree))
+	if err != nil {
+		return nil, err
+	}
+	update := db.EsportsCloseRule.Update().Where(
 		esportscloserule.IDEQ(id),
 		esportscloserule.VersionEQ(expectedVersion),
 		esportscloserule.StatusEQ(esportscloserule.StatusDraft),
@@ -105,7 +129,14 @@ func updateCloseRule(ctx context.Context, db *ent.Client, id, expectedVersion in
 		SetMinEvidence(in.MinEvidence).SetRequireDuration(in.RequireDuration).
 		SetRequireNoPendingAddon(in.RequireNoPendingAddon).
 		SetRequireNoOpenAftersale(in.RequireNoOpenAftersale).
-		SetReviewThresholdCents(in.ReviewThresholdCents).SetNote(in.Note).AddVersion(1).Save(ctx)
+		SetReviewThresholdCents(in.ReviewThresholdCents).SetNote(in.Note)
+	// 条件树置空即回落结构化条件项。
+	if tree == nil {
+		update.SetConditionTree(schematier.CloseConditionNode{})
+	} else {
+		update.SetConditionTree(*tree)
+	}
+	changed, err := update.AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -202,6 +233,29 @@ func rollbackCloseRule(ctx context.Context, db *ent.Client, id, adminID int) (*e
 	return db.EsportsCloseRule.Get(ctx, created.ID)
 }
 
+// validateSkuCloseRuleCode 校验 SKU 的「结单要求」引用（§15.3）：
+// 留空表示按游戏 / 全局规则回落；非空时必须存在生效中的同 code 结单规则。
+func validateSkuCloseRuleCode(ctx context.Context, db *ent.Client, code string) error {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil
+	}
+	if len(code) > 48 {
+		return errInvalidInput
+	}
+	exists, err := db.EsportsCloseRule.Query().Where(
+		esportscloserule.CodeEQ(code),
+		esportscloserule.StatusEQ(esportscloserule.StatusActive),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errInvalidInput
+	}
+	return nil
+}
+
 // listCloseRules 列出结单规则（按 ID 倒序，最多 limit 条）。
 func listCloseRules(ctx context.Context, db *ent.Client, limit int) ([]*ent.EsportsCloseRule, error) {
 	if limit < 1 || limit > 200 {
@@ -236,6 +290,21 @@ func resolveCloseRule(ctx context.Context, db *ent.Client, order *ent.EsportsOrd
 	}
 	sku, err := db.EsportsSku.Get(ctx, order.SkuID)
 	if err == nil {
+		// §15.3：SKU「结单要求」直接引用结单规则 code，优先级高于按 scope 匹配。
+		if code := strings.TrimSpace(sku.CloseRuleCode); code != "" {
+			var best *ent.EsportsCloseRule
+			for _, rule := range active {
+				if rule.Code != code {
+					continue
+				}
+				if best == nil || rule.Version > best.Version {
+					best = rule
+				}
+			}
+			if best != nil {
+				return best, nil
+			}
+		}
 		if rule := pick(esportscloserule.ScopeSku, sku.Code); rule != nil {
 			return rule, nil
 		}

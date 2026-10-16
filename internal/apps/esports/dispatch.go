@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/esportsmemberlevelrule"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -78,44 +79,95 @@ func bumpOrder(ctx context.Context, tx *ent.Tx, orderID, expectedVersion int, ta
 	return expectedVersion + 1, nil
 }
 
-// checkPlayerDispatchLimit 事务内校验陪玩接单上限（§5.5 / §6.4 硬性条件）。
-// 并发：当前处于 accepted 的席位（服务未结束）；每日：responded_at 在当天（接单自然日）的 accepted 席位。
-// limit <= 0 表示不限；超限返回参数错误并说明上限。
-// ponytail: 「待确认邀请临时占用容量」未实现，首版只在席位转 accepted 的接单瞬间校验；
-// 每日口径取「接单自然日」（UTC），§5.5 的「服务开始自然日」待预约时间数据源补齐。
-func checkPlayerDispatchLimit(ctx context.Context, tx *ent.Tx, player *ent.EsportsPlayer, now time.Time) error {
-	if player.ConcurrentLimit > 0 {
-		concurrent, err := tx.EsportsDispatchSeat.Query().Where(
-			esportsdispatchseat.PlayerIDEQ(player.ID),
-			esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
-		).Count(ctx)
-		if err != nil {
-			return err
+// checkPlayerDispatchLimit 统计当前有效邀请及未完成服务占位。接受邀请时排除本次已预占席位。
+// 已完成订单或本人已结束的服务段不占并发容量；历史已接单席位仍计入接单当日上限。
+// ponytail: 每日口径仍取 UTC 接单自然日；预约服务开始自然日与细分时段重叠判定尚待实现。
+func checkPlayerDispatchLimit(ctx context.Context, tx *ent.Tx, player *ent.EsportsPlayer, now time.Time, exceptSeatID int) error {
+	if player.ConcurrentLimit <= 0 && player.DailyLimit <= 0 {
+		return nil
+	}
+	seats, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.PlayerIDEQ(player.ID),
+		esportsdispatchseat.StatusIn(esportsdispatchseat.StatusInvited, esportsdispatchseat.StatusAccepted),
+	).All(ctx)
+	if err != nil {
+		return err
+	}
+	finished, err := tx.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.PlayerIDEQ(player.ID),
+		esportsservicesegment.StatusEQ(esportsservicesegment.StatusFinished),
+	).Select(esportsservicesegment.FieldOrderID).All(ctx)
+	if err != nil {
+		return err
+	}
+	finishedOrders := make(map[int]bool, len(finished))
+	for _, segment := range finished {
+		finishedOrders[segment.OrderID] = true
+	}
+	dayStart := now.UTC().Truncate(24 * time.Hour)
+	dayEnd := dayStart.Add(24 * time.Hour)
+	orders := map[int]*ent.EsportsOrder{}
+	concurrent, daily := 0, 0
+	for _, seat := range seats {
+		if seat.ID == exceptSeatID {
+			continue
 		}
-		if int(concurrent) >= player.ConcurrentLimit {
-			return fmt.Errorf("%w：该陪玩并发接单已达上限（%d），无法再接单", errInvalidInput, player.ConcurrentLimit)
+		invited := seat.Status == esportsdispatchseat.StatusInvited
+		if invited && (seat.ExpiresAt == nil || !seat.ExpiresAt.After(now.UTC())) {
+			continue
+		}
+		order := orders[seat.OrderID]
+		if order == nil {
+			order, err = tx.EsportsOrder.Get(ctx, seat.OrderID)
+			if err != nil {
+				return err
+			}
+			orders[seat.OrderID] = order
+		}
+		active := order.FulfillmentStatus != esportsorder.FulfillmentStatusCompleted &&
+			order.FulfillmentStatus != esportsorder.FulfillmentStatusCancelled &&
+			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose &&
+			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCloseReview
+		if invited {
+			if active {
+				concurrent++
+				daily++
+			}
+			continue
+		}
+		if active && !finishedOrders[seat.OrderID] {
+			concurrent++
+		}
+		if seat.RespondedAt != nil && !seat.RespondedAt.Before(dayStart) && seat.RespondedAt.Before(dayEnd) {
+			daily++
 		}
 	}
-	if player.DailyLimit > 0 {
-		dayStart := now.UTC().Truncate(24 * time.Hour)
-		daily, err := tx.EsportsDispatchSeat.Query().Where(
-			esportsdispatchseat.PlayerIDEQ(player.ID),
-			esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
-			esportsdispatchseat.RespondedAtGTE(dayStart),
-		).Count(ctx)
-		if err != nil {
-			return err
-		}
-		if int(daily) >= player.DailyLimit {
-			return fmt.Errorf("%w：该陪玩今日接单已达上限（%d），无法再接单", errInvalidInput, player.DailyLimit)
-		}
+	if player.ConcurrentLimit > 0 && concurrent >= player.ConcurrentLimit {
+		return fmt.Errorf("%w：该陪玩并发接单已达上限（%d），无法再接单", errInvalidInput, player.ConcurrentLimit)
+	}
+	if player.DailyLimit > 0 && daily >= player.DailyLimit {
+		return fmt.Errorf("%w：该陪玩今日接单已达上限（%d），无法再接单", errInvalidInput, player.DailyLimit)
 	}
 	return nil
 }
 
-// assignDispatchSeat 指派陪玩到某一席位：条件更新抢下 open 席位并邀请，订单转入待接单。
-// 全部变更同事务、写订单事件；并发只靠条件 UPDATE 与 VersionEQ 决定胜负。
-// ponytail: 游戏分区、技能等级、接单容量（并发/每日）等硬性条件待 §12 与陪玩端补齐。
+// reservePlayerDispatchCapacity 用陪玩版本条件更新串行化不同订单的占位竞争。
+// 后续校验或派单失败会回滚本次版本更新；并发双方不能都基于同一旧版本通过校验。
+func reservePlayerDispatchCapacity(ctx context.Context, tx *ent.Tx, player *ent.EsportsPlayer, now time.Time, exceptSeatID int) error {
+	changed, err := tx.EsportsPlayer.Update().Where(
+		esportsplayer.IDEQ(player.ID), esportsplayer.VersionEQ(player.Version),
+	).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return errConflict
+	}
+	return checkPlayerDispatchLimit(ctx, tx, player, now, exceptSeatID)
+}
+
+// assignDispatchSeat 指派陪玩到某一席位：校验资质、分区、等级及容量，条件更新抢下 open 席位并邀请。
+// 订单、席位、陪玩版本和事件同事务写入；服务时段重叠校验仍待预约时长快照。
 func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex, playerID, adminID int, now time.Time) (*ent.EsportsDispatchSeat, error) {
 	if seatIndex < 1 || playerID < 1 {
 		return nil, errInvalidInput
@@ -143,7 +195,7 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 		player.Presence != esportsplayer.PresenceOnline {
 		return nil, errForbidden
 	}
-	if err = checkPlayerDispatchLimit(ctx, tx, player, now); err != nil {
+	if err = reservePlayerDispatchCapacity(ctx, tx, player, now, 0); err != nil {
 		return nil, err
 	}
 	game, err := orderGameIn(ctx, tx, order.SkuID)

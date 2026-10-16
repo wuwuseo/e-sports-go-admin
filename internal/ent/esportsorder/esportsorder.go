@@ -26,10 +26,28 @@ const (
 	FieldCreatedByAdminID = "created_by_admin_id"
 	// FieldResponsibleAdminID holds the string denoting the responsible_admin_id field in the database.
 	FieldResponsibleAdminID = "responsible_admin_id"
+	// FieldCsCommissionAdminID holds the string denoting the cs_commission_admin_id field in the database.
+	FieldCsCommissionAdminID = "cs_commission_admin_id"
+	// FieldCsCommissionRuleID holds the string denoting the cs_commission_rule_id field in the database.
+	FieldCsCommissionRuleID = "cs_commission_rule_id"
+	// FieldCsCommissionRuleLockedAt holds the string denoting the cs_commission_rule_locked_at field in the database.
+	FieldCsCommissionRuleLockedAt = "cs_commission_rule_locked_at"
+	// FieldCloseFormTemplateID holds the string denoting the close_form_template_id field in the database.
+	FieldCloseFormTemplateID = "close_form_template_id"
+	// FieldCloseFormTemplateLockedAt holds the string denoting the close_form_template_locked_at field in the database.
+	FieldCloseFormTemplateLockedAt = "close_form_template_locked_at"
+	// FieldChannelSource holds the string denoting the channel_source field in the database.
+	FieldChannelSource = "channel_source"
+	// FieldEntryPoint holds the string denoting the entry_point field in the database.
+	FieldEntryPoint = "entry_point"
 	// FieldQuantity holds the string denoting the quantity field in the database.
 	FieldQuantity = "quantity"
 	// FieldUnitPriceCents holds the string denoting the unit_price_cents field in the database.
 	FieldUnitPriceCents = "unit_price_cents"
+	// FieldMinUnitPriceCents holds the string denoting the min_unit_price_cents field in the database.
+	FieldMinUnitPriceCents = "min_unit_price_cents"
+	// FieldAdjustmentApprovalBp holds the string denoting the adjustment_approval_bp field in the database.
+	FieldAdjustmentApprovalBp = "adjustment_approval_bp"
 	// FieldDiscountCents holds the string denoting the discount_cents field in the database.
 	FieldDiscountCents = "discount_cents"
 	// FieldManualAdjustCents holds the string denoting the manual_adjust_cents field in the database.
@@ -82,6 +100,8 @@ const (
 	FieldRefundStatus = "refund_status"
 	// FieldRefundedCents holds the string denoting the refunded_cents field in the database.
 	FieldRefundedCents = "refunded_cents"
+	// FieldCloseNetServiceCents holds the string denoting the close_net_service_cents field in the database.
+	FieldCloseNetServiceCents = "close_net_service_cents"
 	// FieldRefundReservedCents holds the string denoting the refund_reserved_cents field in the database.
 	FieldRefundReservedCents = "refund_reserved_cents"
 	// FieldChannelCostCents holds the string denoting the channel_cost_cents field in the database.
@@ -123,8 +143,17 @@ var Columns = []string{
 	FieldSkuID,
 	FieldCreatedByAdminID,
 	FieldResponsibleAdminID,
+	FieldCsCommissionAdminID,
+	FieldCsCommissionRuleID,
+	FieldCsCommissionRuleLockedAt,
+	FieldCloseFormTemplateID,
+	FieldCloseFormTemplateLockedAt,
+	FieldChannelSource,
+	FieldEntryPoint,
 	FieldQuantity,
 	FieldUnitPriceCents,
+	FieldMinUnitPriceCents,
+	FieldAdjustmentApprovalBp,
 	FieldDiscountCents,
 	FieldManualAdjustCents,
 	FieldPayableCents,
@@ -151,6 +180,7 @@ var Columns = []string{
 	FieldPreferredPlayerID,
 	FieldRefundStatus,
 	FieldRefundedCents,
+	FieldCloseNetServiceCents,
 	FieldRefundReservedCents,
 	FieldChannelCostCents,
 	FieldAppointmentStatus,
@@ -187,6 +217,10 @@ var (
 	QuantityValidator func(int64) error
 	// UnitPriceCentsValidator is a validator for the "unit_price_cents" field. It is called by the builders before save.
 	UnitPriceCentsValidator func(int64) error
+	// DefaultMinUnitPriceCents holds the default value on creation for the "min_unit_price_cents" field.
+	DefaultMinUnitPriceCents int64
+	// DefaultAdjustmentApprovalBp holds the default value on creation for the "adjustment_approval_bp" field.
+	DefaultAdjustmentApprovalBp int
 	// DefaultDiscountCents holds the default value on creation for the "discount_cents" field.
 	DefaultDiscountCents int64
 	// DefaultManualAdjustCents holds the default value on creation for the "manual_adjust_cents" field.
@@ -226,6 +260,63 @@ var (
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
 )
+
+// ChannelSource defines the type for the "channel_source" enum field.
+type ChannelSource string
+
+// ChannelSourceManual is the default value of the ChannelSource enum.
+const DefaultChannelSource = ChannelSourceManual
+
+// ChannelSource values.
+const (
+	ChannelSourceManual ChannelSource = "manual"
+	ChannelSourceWecom  ChannelSource = "wecom"
+	ChannelSourceSelf   ChannelSource = "self"
+	ChannelSourceImport ChannelSource = "import"
+)
+
+func (cs ChannelSource) String() string {
+	return string(cs)
+}
+
+// ChannelSourceValidator is a validator for the "channel_source" field enum values. It is called by the builders before save.
+func ChannelSourceValidator(cs ChannelSource) error {
+	switch cs {
+	case ChannelSourceManual, ChannelSourceWecom, ChannelSourceSelf, ChannelSourceImport:
+		return nil
+	default:
+		return fmt.Errorf("esportsorder: invalid enum value for channel_source field: %q", cs)
+	}
+}
+
+// EntryPoint defines the type for the "entry_point" enum field.
+type EntryPoint string
+
+// EntryPointCsPc is the default value of the EntryPoint enum.
+const DefaultEntryPoint = EntryPointCsPc
+
+// EntryPoint values.
+const (
+	EntryPointCsPc          EntryPoint = "cs_pc"
+	EntryPointCsMobile      EntryPoint = "cs_mobile"
+	EntryPointWecomSidebar  EntryPoint = "wecom_sidebar"
+	EntryPointCustomerSelf  EntryPoint = "customer_self"
+	EntryPointAdminBackfill EntryPoint = "admin_backfill"
+)
+
+func (ep EntryPoint) String() string {
+	return string(ep)
+}
+
+// EntryPointValidator is a validator for the "entry_point" field enum values. It is called by the builders before save.
+func EntryPointValidator(ep EntryPoint) error {
+	switch ep {
+	case EntryPointCsPc, EntryPointCsMobile, EntryPointWecomSidebar, EntryPointCustomerSelf, EntryPointAdminBackfill:
+		return nil
+	default:
+		return fmt.Errorf("esportsorder: invalid enum value for entry_point field: %q", ep)
+	}
+}
 
 // RequiredLevel defines the type for the "required_level" enum field.
 type RequiredLevel string
@@ -491,6 +582,41 @@ func ByResponsibleAdminID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResponsibleAdminID, opts...).ToFunc()
 }
 
+// ByCsCommissionAdminID orders the results by the cs_commission_admin_id field.
+func ByCsCommissionAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCsCommissionAdminID, opts...).ToFunc()
+}
+
+// ByCsCommissionRuleID orders the results by the cs_commission_rule_id field.
+func ByCsCommissionRuleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCsCommissionRuleID, opts...).ToFunc()
+}
+
+// ByCsCommissionRuleLockedAt orders the results by the cs_commission_rule_locked_at field.
+func ByCsCommissionRuleLockedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCsCommissionRuleLockedAt, opts...).ToFunc()
+}
+
+// ByCloseFormTemplateID orders the results by the close_form_template_id field.
+func ByCloseFormTemplateID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCloseFormTemplateID, opts...).ToFunc()
+}
+
+// ByCloseFormTemplateLockedAt orders the results by the close_form_template_locked_at field.
+func ByCloseFormTemplateLockedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCloseFormTemplateLockedAt, opts...).ToFunc()
+}
+
+// ByChannelSource orders the results by the channel_source field.
+func ByChannelSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChannelSource, opts...).ToFunc()
+}
+
+// ByEntryPoint orders the results by the entry_point field.
+func ByEntryPoint(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldEntryPoint, opts...).ToFunc()
+}
+
 // ByQuantity orders the results by the quantity field.
 func ByQuantity(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldQuantity, opts...).ToFunc()
@@ -499,6 +625,16 @@ func ByQuantity(opts ...sql.OrderTermOption) OrderOption {
 // ByUnitPriceCents orders the results by the unit_price_cents field.
 func ByUnitPriceCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUnitPriceCents, opts...).ToFunc()
+}
+
+// ByMinUnitPriceCents orders the results by the min_unit_price_cents field.
+func ByMinUnitPriceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMinUnitPriceCents, opts...).ToFunc()
+}
+
+// ByAdjustmentApprovalBp orders the results by the adjustment_approval_bp field.
+func ByAdjustmentApprovalBp(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAdjustmentApprovalBp, opts...).ToFunc()
 }
 
 // ByDiscountCents orders the results by the discount_cents field.
@@ -629,6 +765,11 @@ func ByRefundStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByRefundedCents orders the results by the refunded_cents field.
 func ByRefundedCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRefundedCents, opts...).ToFunc()
+}
+
+// ByCloseNetServiceCents orders the results by the close_net_service_cents field.
+func ByCloseNetServiceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCloseNetServiceCents, opts...).ToFunc()
 }
 
 // ByRefundReservedCents orders the results by the refund_reserved_cents field.

@@ -3,6 +3,8 @@ package esports
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"go-admin/internal/ent"
@@ -12,6 +14,7 @@ import (
 	"go-admin/internal/ent/esportsmemberlevelrule"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/systemconfig"
 )
 
 // 客户自助端（§13.2 / §10）只读与发起接口：一律按「登录用户绑定的客户」做数据隔离，
@@ -97,7 +100,24 @@ func listCustomerAfterSales(ctx context.Context, db *ent.Client, customerID, lim
 	).Order(ent.Desc(esportsaftersale.FieldID)).Limit(limit).All(ctx)
 }
 
-// createCustomerAfterSale 客户自助发起售后（§13.2）：仅可对本人订单发起，归属客服记为发起人。
+const customerAfterSaleWindowDaysKey = "app.esports.customer_aftersale_window_days"
+
+func customerAfterSaleWindowDays(ctx context.Context, db *ent.Client) (int, error) {
+	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(customerAfterSaleWindowDaysKey)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return 30, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	days, err := strconv.Atoi(strings.TrimSpace(item.Value))
+	if err != nil || days < 0 || days > 365 {
+		return 0, fmt.Errorf("%w：客户自助售后申请时限配置无效", errInvalidInput)
+	}
+	return days, nil // 0 = 不限时
+}
+
+// createCustomerAfterSale 客户自助发起售后（§13.2）：本人订单在配置时限内可发起，归属客服记为发起人。
 func createCustomerAfterSale(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
 	in afterSaleInput, now time.Time) (*ent.EsportsAfterSale, error) {
 	if customer == nil || customer.ID < 1 || in.SourceID < 1 {
@@ -109,6 +129,23 @@ func createCustomerAfterSale(ctx context.Context, db *ent.Client, customer *ent.
 	}
 	if order.CustomerID != customer.ID {
 		return nil, errForbidden
+	}
+	if order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
+		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
+		days, err := customerAfterSaleWindowDays(ctx, db)
+		if err != nil {
+			return nil, err
+		}
+		anchor := order.CreatedAt
+		if order.PaidAt != nil {
+			anchor = *order.PaidAt
+		}
+		if order.ClosedAt != nil {
+			anchor = *order.ClosedAt
+		}
+		if days > 0 && now.UTC().After(anchor.UTC().AddDate(0, 0, days)) {
+			return nil, fmt.Errorf("%w：超过客户自助售后申请时限，请联系客服", errInvalidInput)
+		}
 	}
 	operator := 0
 	if order.ResponsibleAdminID != nil {

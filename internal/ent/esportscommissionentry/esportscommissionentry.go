@@ -44,6 +44,12 @@ const (
 	FieldStatus = "status"
 	// FieldSettlementID holds the string denoting the settlement_id field in the database.
 	FieldSettlementID = "settlement_id"
+	// FieldFrozenAt holds the string denoting the frozen_at field in the database.
+	FieldFrozenAt = "frozen_at"
+	// FieldFrozenReason holds the string denoting the frozen_reason field in the database.
+	FieldFrozenReason = "frozen_reason"
+	// FieldFrozenByAdminID holds the string denoting the frozen_by_admin_id field in the database.
+	FieldFrozenByAdminID = "frozen_by_admin_id"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -76,6 +82,9 @@ var Columns = []string{
 	FieldAmountCents,
 	FieldStatus,
 	FieldSettlementID,
+	FieldFrozenAt,
+	FieldFrozenReason,
+	FieldFrozenByAdminID,
 	FieldNote,
 	FieldVersion,
 	FieldCreatedAt,
@@ -109,6 +118,10 @@ var (
 	DefaultBaseCents int64
 	// DefaultAmountCents holds the default value on creation for the "amount_cents" field.
 	DefaultAmountCents int64
+	// DefaultFrozenReason holds the default value on creation for the "frozen_reason" field.
+	DefaultFrozenReason string
+	// FrozenReasonValidator is a validator for the "frozen_reason" field. It is called by the builders before save.
+	FrozenReasonValidator func(string) error
 	// DefaultNote holds the default value on creation for the "note" field.
 	DefaultNote string
 	// NoteValidator is a validator for the "note" field. It is called by the builders before save.
@@ -282,6 +295,21 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // BySettlementID orders the results by the settlement_id field.
 func BySettlementID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSettlementID, opts...).ToFunc()
+}
+
+// ByFrozenAt orders the results by the frozen_at field.
+func ByFrozenAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFrozenAt, opts...).ToFunc()
+}
+
+// ByFrozenReason orders the results by the frozen_reason field.
+func ByFrozenReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFrozenReason, opts...).ToFunc()
+}
+
+// ByFrozenByAdminID orders the results by the frozen_by_admin_id field.
+func ByFrozenByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFrozenByAdminID, opts...).ToFunc()
 }
 
 // ByNote orders the results by the note field.

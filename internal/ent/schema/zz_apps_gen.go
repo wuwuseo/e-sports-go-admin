@@ -14,6 +14,10 @@ type EsportsAfterSale struct {
 	appschemaesports.EsportsAfterSale
 }
 
+type EsportsAfterSaleReview struct {
+	appschemaesports.EsportsAfterSaleReview
+}
+
 type EsportsAgeCheck struct {
 	appschemaesports.EsportsAgeCheck
 }
@@ -108,6 +112,14 @@ type EsportsFulfillmentMakeup struct {
 
 type EsportsGift struct{ appschemaesports.EsportsGift }
 
+type EsportsGiftDispute struct {
+	appschemaesports.EsportsGiftDispute
+}
+
+type EsportsGiftIntent struct {
+	appschemaesports.EsportsGiftIntent
+}
+
 type EsportsGiftOrder struct {
 	appschemaesports.EsportsGiftOrder
 }
@@ -140,6 +152,10 @@ type EsportsMemberLevelRule struct {
 	appschemaesports.EsportsMemberLevelRule
 }
 
+type EsportsOfflinePaymentProof struct {
+	appschemaesports.EsportsOfflinePaymentProof
+}
+
 type EsportsOrder struct{ appschemaesports.EsportsOrder }
 
 type EsportsOrderAddon struct {
@@ -164,6 +180,10 @@ type EsportsPageVersion struct {
 	appschemaesports.EsportsPageVersion
 }
 
+type EsportsPaymentAccount struct {
+	appschemaesports.EsportsPaymentAccount
+}
+
 type EsportsPaymentIntent struct {
 	appschemaesports.EsportsPaymentIntent
 }
@@ -173,6 +193,10 @@ type EsportsPaymentReceipt struct {
 }
 
 type EsportsPlayer struct{ appschemaesports.EsportsPlayer }
+
+type EsportsPlayerCreditEvent struct {
+	appschemaesports.EsportsPlayerCreditEvent
+}
 
 type EsportsPlayerRecovery struct {
 	appschemaesports.EsportsPlayerRecovery
@@ -184,6 +208,10 @@ type EsportsPlayerReview struct {
 
 type EsportsPlayerReviewRevision struct {
 	appschemaesports.EsportsPlayerReviewRevision
+}
+
+type EsportsPriceAdjustment struct {
+	appschemaesports.EsportsPriceAdjustment
 }
 
 type EsportsProductCategory struct {
@@ -210,6 +238,10 @@ type EsportsServiceSegment struct {
 
 type EsportsSettlement struct {
 	appschemaesports.EsportsSettlement
+}
+
+type EsportsSettlementCycle struct {
+	appschemaesports.EsportsSettlementCycle
 }
 
 type EsportsSku struct{ appschemaesports.EsportsSku }

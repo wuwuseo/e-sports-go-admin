@@ -27,8 +27,8 @@ type closeOrderInput struct {
 //  1. 至少一条服务段的 evidence_ref 非空（服务凭证不少于 1 张）；
 //  2. 所有服务段 system_seconds 之和 > 0 或 reported_units 之和 > 0（服务时长不为零）。
 //
-// ponytail: 结单条件已可由结单规则（close_rule.go）配置、结单表单可由表单模板（close_form.go）驱动；
-// 审批流节点编排（当前仅「待复核 → 管理员通过 / 驳回」两级）与自动结单 / 客户确认结单未实现。
+// 结单条件由结单规则（close_rule.go）配置，结单表单按下单时模板版本校验，
+// 审批流可配置串行节点、角色与超时策略。自动结单 / 客户确认结单属于后续版本。
 func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in closeOrderInput, now time.Time) (*ent.EsportsOrder, error) {
 	in.Note = strings.TrimSpace(in.Note)
 	if orderID < 1 || len([]rune(in.Note)) > 255 {
@@ -46,50 +46,20 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose {
 		return nil, errConflict
 	}
-	segments, err := tx.EsportsServiceSegment.Query().Where(
-		esportsservicesegment.OrderIDEQ(orderID),
-	).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var evidenceCount, totalSeconds, totalUnits int64
-	for _, segment := range segments {
-		if strings.TrimSpace(segment.EvidenceRef) != "" {
-			evidenceCount++
-		}
-		totalSeconds += segment.SystemSeconds
-		totalUnits += segment.ReportedUnits
-	}
-	// §3.4：解析生效结单规则（sku > game > global），按条件逐项判定；无规则回落内置默认。
+	// §3.4：解析生效结单规则（SKU 结单要求 > sku 规则 > game > global），
+	// 通用 AND/OR 条件树优先，未配置时折叠结构化默认项（凭证 ≥N、时长不为零、无未处理加钟 / 售后）。
 	rule, err := resolveCloseRule(ctx, tx.Client(), order)
 	if err != nil {
 		return nil, err
 	}
 	conds := effectiveCloseConditions(rule)
-	if int64(conds.MinEvidence) > evidenceCount {
-		return nil, fmt.Errorf("%w：服务凭证不足（需至少 %d 张，当前 %d 张），无法结单",
-			errInvalidInput, conds.MinEvidence, evidenceCount)
+	status, err := checkCloseConditions(ctx, tx.Client(), order, rule)
+	if err != nil {
+		return nil, err
 	}
-	if conds.RequireDuration && totalSeconds <= 0 && totalUnits <= 0 {
-		return nil, fmt.Errorf("%w：该订单服务时长为零，无法结单", errInvalidInput)
-	}
-	if conds.RequireNoPendingAddon {
-		pendingAddon, err := hasPendingAddon(ctx, tx.Client(), orderID)
-		if err != nil {
-			return nil, err
-		}
-		if pendingAddon {
-			return nil, fmt.Errorf("%w：该订单还有待陪玩确认的加钟，无法结单", errInvalidInput)
-		}
-	}
-	if conds.RequireNoOpenAftersale {
-		openAfterSale, err := hasOpenAfterSale(ctx, tx.Client(), orderID)
-		if err != nil {
-			return nil, err
-		}
-		if openAfterSale {
-			return nil, fmt.Errorf("%w：该订单还有进行中的售后，无法结单", errInvalidInput)
-		}
+	if !status.Satisfied {
+		return nil, fmt.Errorf("%w：结单条件未满足：%s", errInvalidInput,
+			strings.Join(status.Reasons, "；"))
 	}
 	// §4.6：储值卡标记 / 关联储值卡 / 核销流水不一致时禁止结单（硬性，不随规则变化）。
 	if err = storedValueOrderConsistent(ctx, tx.Client(), order); err != nil {
@@ -167,6 +137,7 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 		esportsorder.FulfillmentStatusIn(
 			esportsorder.FulfillmentStatusPendingClose, esportsorder.FulfillmentStatusPendingCloseReview),
 	).SetFulfillmentStatus(esportsorder.FulfillmentStatusCompleted).
+		SetCloseNetServiceCents(max(0, order.PayableCents-order.RefundedCents)).
 		SetClosedAt(now.UTC()).AddVersion(1).Save(ctx)
 	if err != nil {
 		return err

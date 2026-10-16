@@ -29,14 +29,25 @@ func (EsportsStoredValueCard) Fields() []ent.Field {
 		field.Int64("bonus_cents").Default(0).StructTag(`json:"bonus_cents"`),
 		// 适用商品（SKU ID 列表）；空表示全场通用。
 		field.JSON("applicable_scope", []int{}).Optional().StructTag(`json:"applicable_scope"`),
+		// 合同是否允许本金购买礼物；历史卡默认不可用，赠送权益始终不可买礼物。
+		field.Bool("allow_gifts").Default(false).StructTag(`json:"allow_gifts"`),
 		// 合同确认：开卡必须确认合同，未确认不得写卡。
 		field.Bool("contract_confirmed").Default(false).StructTag(`json:"contract_confirmed"`),
 		field.Time("valid_from").StructTag(`json:"valid_from"`),
 		field.Time("valid_until").StructTag(`json:"valid_until"`),
-		// 卡状态：active 可用 / exhausted 本金赠送均用尽 / refund_pending 退卡待审 /
-		// refunded 已退卡 / expired 已过期（不再可消费，仍可走退卡）/ frozen 冻结。
-		field.Enum("status").Values("active", "exhausted", "refund_pending", "refunded", "expired", "frozen").
+		// 用有效天数开卡时从实际激活日计算；显式指定到期日时为 0，不顺延。
+		field.Int("requested_validity_days").Default(0).StructTag(`json:"requested_validity_days"`),
+		// 外部付款先待核验，独立财务确认后才激活并发放卡内余额。
+		field.Enum("status").Values("pending_verification", "rejected", "active", "exhausted", "refund_pending", "refunded", "expired", "frozen").
 			Default("active").StructTag(`json:"status"`),
+		// 可空字段兼容存量卡；新开卡必须写入，唯一约束防止相同请求重复创建。
+		field.String("open_request_key").MaxLen(128).Optional().Nillable().Immutable().StructTag(`json:"open_request_key"`),
+		// 由财务核实的到账流水，channel:ref 唯一，不能一笔收款激活多张卡。
+		field.String("verified_payment_key").MaxLen(160).Optional().Nillable().StructTag(`json:"verified_payment_key"`),
+		field.Int("payment_verified_by_admin_id").Optional().Nillable().StructTag(`json:"payment_verified_by_admin_id"`),
+		field.Time("payment_verified_at").Optional().Nillable().StructTag(`json:"payment_verified_at"`),
+		field.Int64("payment_verified_amount_cents").Default(0).StructTag(`json:"payment_verified_amount_cents"`),
+		field.String("payment_verification_note").MaxLen(255).Default("").StructTag(`json:"payment_verification_note"`),
 		// 开卡所选套餐（§4.4）：可选，用于追溯赠送到账依据；手动开卡为空。
 		field.Int("package_id").Optional().Nillable().StructTag(`json:"package_id"`),
 		field.Int("opened_by_admin_id").Optional().Nillable().StructTag(`json:"opened_by_admin_id"`),
@@ -57,6 +68,8 @@ func (EsportsStoredValueCard) Fields() []ent.Field {
 func (EsportsStoredValueCard) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("card_no").Unique(),
+		index.Fields("open_request_key").Unique(),
+		index.Fields("verified_payment_key").Unique(),
 		index.Fields("customer_id", "status"),
 		// 到期提醒按「有效期」扫描。
 		index.Fields("status", "valid_until"),

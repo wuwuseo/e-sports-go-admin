@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportspaymentintent"
+	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportssku"
 )
@@ -21,6 +23,97 @@ type repriceInput struct {
 	Quantity          int64  `json:"quantity"`
 	ManualAdjustCents int64  `json:"manual_adjust_cents"`
 	Reason            string `json:"reason"`
+	ApprovalID        int    `json:"approval_id"`
+}
+
+type repriceQuote struct {
+	OrderID              int   `json:"order_id"`
+	QuoteVersion         int   `json:"quote_version"`
+	Quantity             int64 `json:"quantity"`
+	UnitPriceCents       int64 `json:"unit_price_cents"`
+	DiscountCents        int64 `json:"discount_cents"`
+	ManualAdjustCents    int64 `json:"manual_adjust_cents"`
+	PayableCents         int64 `json:"payable_cents"`
+	PromisedServiceUnits int64 `json:"promised_service_units"`
+	MinUnitPriceCents    int64 `json:"min_unit_price_cents"`
+	ApprovalThresholdBp  int   `json:"approval_threshold_bp"`
+	RequiresApproval     bool  `json:"requires_approval"`
+}
+
+func calculateRepriceQuote(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
+	quantity, manualAdjustCents int64) (repriceQuote, error) {
+	if quantity < 1 || quantity > 1000 || order.UnitPriceCents <= 0 ||
+		order.UnitPriceCents > math.MaxInt64/quantity || order.Quantity <= 0 ||
+		order.PromisedServiceUnits <= 0 || order.PromisedServiceUnits%order.Quantity != 0 {
+		return repriceQuote{}, errInvalidInput
+	}
+	serviceUnitsPerQuantity := order.PromisedServiceUnits / order.Quantity
+	if serviceUnitsPerQuantity > math.MaxInt64/quantity {
+		return repriceQuote{}, errInvalidInput
+	}
+	sku, err := db.EsportsSku.Get(ctx, order.SkuID)
+	if err != nil {
+		return repriceQuote{}, err
+	}
+	if sku.Status != esportssku.StatusOnSale {
+		return repriceQuote{}, errConflict
+	}
+	customer, err := db.EsportsCustomer.Get(ctx, order.CustomerID)
+	if err != nil {
+		return repriceQuote{}, err
+	}
+	discountBps, err := memberDiscountBps(ctx, db, customer.MemberLevelCode)
+	if err != nil {
+		return repriceQuote{}, err
+	}
+	subtotal := order.UnitPriceCents * quantity
+	discount := memberDiscountCents(subtotal, discountBps)
+	base := subtotal - discount
+	if manualAdjustCents <= -base || manualAdjustCents > math.MaxInt64-base ||
+		manualAdjustCents > math.MaxInt64-subtotal {
+		return repriceQuote{}, errInvalidInput
+	}
+	floor := order.MinUnitPriceCents
+	if floor <= 0 {
+		floor = order.UnitPriceCents
+	}
+	if floor > order.UnitPriceCents || subtotal+manualAdjustCents < floor*quantity {
+		return repriceQuote{}, fmt.Errorf("%w：人工议价低于 SKU 最低允许价", errInvalidInput)
+	}
+	approvalBp := order.AdjustmentApprovalBp
+	if approvalBp <= 0 || approvalBp > 10000 {
+		approvalBp = 2000
+	}
+	threshold := subtotal/10000*int64(approvalBp) + subtotal%10000*int64(approvalBp)/10000
+	absAdjust := manualAdjustCents
+	if absAdjust < 0 {
+		absAdjust = -absAdjust
+	}
+	return repriceQuote{
+		OrderID: order.ID, QuoteVersion: order.QuoteVersion + 1,
+		Quantity: quantity, UnitPriceCents: order.UnitPriceCents,
+		DiscountCents: discount, ManualAdjustCents: manualAdjustCents,
+		PayableCents:         base + manualAdjustCents,
+		PromisedServiceUnits: serviceUnitsPerQuantity * quantity,
+		MinUnitPriceCents:    floor, ApprovalThresholdBp: approvalBp,
+		RequiresApproval: absAdjust > threshold,
+	}, nil
+}
+
+func previewReprice(ctx context.Context, db *ent.Client, orderID int, in repriceInput) (repriceQuote, error) {
+	if orderID < 1 || in.ExpectedVersion < 1 {
+		return repriceQuote{}, errInvalidInput
+	}
+	order, err := db.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return repriceQuote{}, err
+	}
+	if order.Version != in.ExpectedVersion ||
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
+		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
+		return repriceQuote{}, errConflict
+	}
+	return calculateRepriceQuote(ctx, db, order, in.Quantity, in.ManualAdjustCents)
 }
 
 type rescheduleInput struct {
@@ -61,7 +154,7 @@ func releaseReservedQuota(ctx context.Context, tx *ent.Tx, orderID int) error {
 
 // repriceOrder 改价 / 改份数。仅待付款未支付订单可用；先使旧支付意图失效，再按新报价
 // 抬升报价版本，旧版本的客户确认随之作废。历史价格不入库，所有变更写订单事件。
-func repriceOrder(ctx context.Context, db *ent.Client, orderID int, in repriceInput) (*ent.EsportsOrder, error) {
+func repriceOrder(ctx context.Context, db *ent.Client, orderID, adminID int, isSuper bool, in repriceInput) (*ent.EsportsOrder, error) {
 	in.Reason = strings.TrimSpace(in.Reason)
 	if in.ExpectedVersion < 1 || in.Quantity < 1 || in.Quantity > 1000 ||
 		in.Reason == "" || len([]rune(in.Reason)) > 255 {
@@ -76,6 +169,9 @@ func repriceOrder(ctx context.Context, db *ent.Client, orderID int, in repriceIn
 	if err != nil {
 		return nil, err
 	}
+	if !isSuper && (order.ResponsibleAdminID == nil || *order.ResponsibleAdminID != adminID) {
+		return nil, errForbidden
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || order.Version != in.ExpectedVersion {
 		return nil, errConflict
@@ -84,8 +180,27 @@ func repriceOrder(ctx context.Context, db *ent.Client, orderID int, in repriceIn
 	if err != nil {
 		return nil, err
 	}
-	payable := sku.UnitPriceCents*in.Quantity - order.DiscountCents + in.ManualAdjustCents
-	if payable <= 0 || sku.ServiceUnits > math.MaxInt64/in.Quantity {
+	quote, err := calculateRepriceQuote(ctx, tx.Client(), order, in.Quantity, in.ManualAdjustCents)
+	if err != nil {
+		return nil, err
+	}
+	var approval *ent.EsportsPriceAdjustment
+	if quote.RequiresApproval {
+		if in.ApprovalID < 1 {
+			return nil, fmt.Errorf("%w：人工调整超过免审阈值，请先发起审批", errInvalidInput)
+		}
+		approval, err = tx.EsportsPriceAdjustment.Get(ctx, in.ApprovalID)
+		if err != nil {
+			return nil, err
+		}
+		if approval.Status != esportspriceadjustment.StatusApproved || approval.OrderID != order.ID ||
+			approval.OrderVersion != order.Version || approval.Quantity != in.Quantity ||
+			approval.ManualAdjustCents != in.ManualAdjustCents || approval.PayableCents != quote.PayableCents ||
+			approval.RequestedByAdminID != adminID || approval.Reason != in.Reason ||
+			approval.ReviewedByAdminID == nil || *approval.ReviewedByAdminID == adminID {
+			return nil, errConflict
+		}
+	} else if in.ApprovalID > 0 {
 		return nil, errInvalidInput
 	}
 	delta := in.Quantity - order.Quantity
@@ -134,19 +249,31 @@ func repriceOrder(ctx context.Context, db *ent.Client, orderID int, in repriceIn
 		return nil, err
 	}
 	if _, err = tx.EsportsOrder.UpdateOne(order).
-		SetQuantity(in.Quantity).SetManualAdjustCents(in.ManualAdjustCents).
-		SetPayableCents(payable).SetPromisedServiceUnits(sku.ServiceUnits * in.Quantity).
+		SetQuantity(in.Quantity).SetDiscountCents(quote.DiscountCents).SetManualAdjustCents(in.ManualAdjustCents).
+		SetPayableCents(quote.PayableCents).SetPromisedServiceUnits(quote.PromisedServiceUnits).
 		AddQuoteVersion(1).AddVersion(1).Save(ctx); err != nil {
 		return nil, err
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
 		SetOrderVersion(order.Version + 1).SetEventType("order.repriced").
-		SetActorType("admin").SetActorID(strconv.Itoa(order.ID)).
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
 		SetDetails(map[string]interface{}{
 			"reason": in.Reason, "quantity": in.Quantity,
-			"manual_adjust_cents": in.ManualAdjustCents, "payable_cents": payable,
+			"discount_cents": quote.DiscountCents, "manual_adjust_cents": in.ManualAdjustCents,
+			"payable_cents": quote.PayableCents,
 		}).Save(ctx); err != nil {
 		return nil, err
+	}
+	if approval != nil {
+		changed, err := tx.EsportsPriceAdjustment.Update().Where(
+			esportspriceadjustment.IDEQ(approval.ID), esportspriceadjustment.StatusEQ(esportspriceadjustment.StatusApproved),
+		).SetStatus(esportspriceadjustment.StatusConsumed).SetConsumedAt(time.Now().UTC()).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -154,10 +281,10 @@ func repriceOrder(ctx context.Context, db *ent.Client, orderID int, in repriceIn
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// cancelOrder 取消订单。待付款未支付直接取消并释放名额；已付款只登记退款申请，
-// 财务审批与渠道执行属于退款流程。
-// ponytail: 已付款分支只置 refund_status=pending_approval，退款审批与执行未实现。
-func cancelOrder(ctx context.Context, db *ent.Client, orderID int, reason string) (*ent.EsportsOrder, error) {
+// cancelOrder 取消订单。待付款未支付直接取消并释放名额；已付款订单按公示取消政策（§3.3）
+// 计算应退金额，同事务退回名额、作废席位与支付意图，并生成一张可审批的售后退款单
+// （kind=refund_request）承接后续审批与执行；已开工订单不允许直接取消，须走售后。
+func cancelOrder(ctx context.Context, db *ent.Client, orderID, adminID int, reason string, now time.Time) (*ent.EsportsOrder, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" || len([]rune(reason)) > 255 {
 		return nil, errInvalidInput
@@ -201,7 +328,7 @@ func cancelOrder(ctx context.Context, db *ent.Client, orderID int, reason string
 		eventType := "order.cancelled"
 		if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
 			SetOrderVersion(order.Version + 1).SetEventType(eventType).
-			SetActorType("admin").SetActorID(strconv.Itoa(order.ID)).
+			SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
 			SetDetails(map[string]interface{}{"reason": reason}).Save(ctx); err != nil {
 			return nil, err
 		}
@@ -214,14 +341,92 @@ func cancelOrder(ctx context.Context, db *ent.Client, orderID int, reason string
 		if order.RefundStatus != esportsorder.RefundStatusNone {
 			return nil, errConflict
 		}
-		if _, err = tx.EsportsOrder.UpdateOne(order).
-			SetRefundStatus(esportsorder.RefundStatusPendingApproval).AddVersion(1).Save(ctx); err != nil {
+		started, err := orderServiceStarted(ctx, tx.Client(), order.ID)
+		if err != nil {
+			return nil, err
+		}
+		if started {
+			return nil, errCancelServiceStarted
+		}
+		policy, err := cancelPolicyFromConfig(ctx, tx.Client())
+		if err != nil {
+			return nil, err
+		}
+		quote := quoteCancelOrder(policy, order, now)
+		refundStatus := esportsorder.RefundStatusNone
+		if quote.RefundCents > 0 {
+			refundStatus = esportsorder.RefundStatusPendingApproval
+		}
+		changed, err := tx.EsportsOrder.Update().Where(
+			esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
+			esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusPaid),
+			esportsorder.RefundStatusEQ(esportsorder.RefundStatusNone),
+		).SetFulfillmentStatus(esportsorder.FulfillmentStatusCancelled).
+			SetRefundStatus(refundStatus).AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		// 名额退回（占用记录 sold → returned）与席位作废：取消后商品容量可再售，陪玩容量不再被占。
+		if err = returnSoldQuota(ctx, tx, order.ID); err != nil {
+			return nil, err
+		}
+		if err = releaseSeatsOnOrderCancel(ctx, tx, order.ID); err != nil {
+			return nil, err
+		}
+		if _, err = tx.EsportsPaymentIntent.Update().Where(
+			esportspaymentintent.OrderIDEQ(order.ID),
+			esportspaymentintent.StatusEQ(esportspaymentintent.StatusPending),
+		).SetStatus(esportspaymentintent.StatusInvalidated).Save(ctx); err != nil {
+			return nil, err
+		}
+		// 有可退金额时生成售后单，退款从此走统一的售后审批与执行流程；
+		// 政策为「全额收取手续费」时不建单，也不置退款状态。
+		var afterSaleNo string
+		if quote.RefundCents > 0 {
+			ticket, err := createAfterSaleTx(ctx, tx, afterSaleInput{
+				SourceType: "order", SourceID: order.ID, Kind: "refund_request", Channel: "admin",
+				Demand: fmt.Sprintf("客服取消已付款订单（%s）；按公示取消政策应退 %d 分，手续费 %d 分",
+					reason, quote.RefundCents, quote.FeeCents),
+				ExpectedPlan: "按公示取消政策退款",
+			}, afterSaleCreateOptions{
+				ActorType: "admin", ActorID: strconv.Itoa(adminID), EventType: "order.after_sale_created",
+				Details: map[string]interface{}{
+					"refund_cents": quote.RefundCents, "fee_cents": quote.FeeCents,
+					"cancel_policy": quote.Policy, "free_cancel": quote.FreeCancel,
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+			afterSaleNo = ticket.AfterSaleNo
+		}
+		current, err := tx.EsportsOrder.Get(ctx, order.ID)
+		if err != nil {
+			return nil, err
+		}
+		newVersion, err := bumpOrder(ctx, tx, order.ID, current.Version, "")
+		if err != nil {
 			return nil, err
 		}
 		if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
-			SetOrderVersion(order.Version + 1).SetEventType("order.refund_requested").
-			SetActorType("admin").SetActorID(strconv.Itoa(order.ID)).
-			SetDetails(map[string]interface{}{"reason": reason}).Save(ctx); err != nil {
+			SetOrderVersion(newVersion).SetEventType("order.cancelled").
+			SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+			SetDetails(map[string]interface{}{
+				"reason": reason, "refund_status": refundStatus.String(),
+				"after_sale_no": afterSaleNo, "free_cancel": quote.FreeCancel,
+				"fee_cents": quote.FeeCents, "refund_cents": quote.RefundCents,
+				"cancel_policy": quote.Policy,
+			}).Save(ctx); err != nil {
+			return nil, err
+		}
+		if _, err = tx.EsportsOutbox.Create().SetEventKey("order.cancelled:" + order.OrderNo).
+			SetEventType("order.cancelled").SetAggregateRef(order.OrderNo).
+			SetPayload(map[string]interface{}{
+				"order_no": order.OrderNo, "after_sale_no": afterSaleNo,
+			}).Save(ctx); err != nil {
 			return nil, err
 		}
 	default:
@@ -235,13 +440,18 @@ func cancelOrder(ctx context.Context, db *ent.Client, orderID int, reason string
 
 // rescheduleOrder 改期。仅待付款未支付订单可用，改期不改变价格与名额占用。
 // ponytail: 未实现限时改期提案与成员逐一确认，直接生效并留痕；接入多席位后须改为提案+原子切换。
-func rescheduleOrder(ctx context.Context, db *ent.Client, orderID int, in rescheduleInput, now time.Time) (*ent.EsportsOrder, error) {
+func rescheduleOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in rescheduleInput, now time.Time) (*ent.EsportsOrder, error) {
 	in.Reason = strings.TrimSpace(in.Reason)
 	if in.ExpectedVersion < 1 || in.Reason == "" || len([]rune(in.Reason)) > 255 ||
 		in.StartAt.IsZero() || !in.StartAt.After(now.UTC()) {
 		return nil, errInvalidInput
 	}
-	changed, err := db.EsportsOrder.Update().Where(
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(in.ExpectedVersion),
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
 		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
@@ -253,19 +463,22 @@ func rescheduleOrder(ctx context.Context, db *ent.Client, orderID int, in resche
 	if changed != 1 {
 		return nil, errConflict
 	}
-	order, err := db.EsportsOrder.Get(ctx, orderID)
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = db.EsportsOrderEvent.Create().SetOrderID(order.ID).
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
 		SetOrderVersion(order.Version).SetEventType("order.rescheduled").
-		SetActorType("admin").SetActorID(strconv.Itoa(order.ID)).
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
 		SetDetails(map[string]interface{}{
 			"reason": in.Reason, "requested_start_at": in.StartAt.UTC().Format(time.RFC3339),
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
-	return order, nil
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrder.Get(ctx, orderID)
 }
 
 // setOrderChannelCost 登记订单已知渠道成本（§12.1）。结单计提客服提成时从可分基数扣除，

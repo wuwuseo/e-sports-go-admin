@@ -95,6 +95,12 @@ func (_c *EsportsCloseFormTemplateCreate) SetFields(v []schematier.CloseFormFiel
 	return _c
 }
 
+// SetFieldDefinitions sets the "field_definitions" field.
+func (_c *EsportsCloseFormTemplateCreate) SetFieldDefinitions(v []schematier.CloseFormFieldDefinition) *EsportsCloseFormTemplateCreate {
+	_c.mutation.SetFieldDefinitions(v)
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *EsportsCloseFormTemplateCreate) SetStatus(v esportscloseformtemplate.Status) *EsportsCloseFormTemplateCreate {
 	_c.mutation.SetStatus(v)
@@ -370,6 +376,10 @@ func (_c *EsportsCloseFormTemplateCreate) createSpec() (*EsportsCloseFormTemplat
 	if value, ok := _c.mutation.GetFields(); ok {
 		_spec.SetField(esportscloseformtemplate.FieldFields, field.TypeJSON, value)
 		_node.Fields = value
+	}
+	if value, ok := _c.mutation.FieldDefinitions(); ok {
+		_spec.SetField(esportscloseformtemplate.FieldFieldDefinitions, field.TypeJSON, value)
+		_node.FieldDefinitions = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(esportscloseformtemplate.FieldStatus, field.TypeEnum, value)

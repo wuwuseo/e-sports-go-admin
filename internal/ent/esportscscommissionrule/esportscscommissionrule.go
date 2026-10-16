@@ -30,6 +30,8 @@ const (
 	FieldBaseMode = "base_mode"
 	// FieldCalcMode holds the string denoting the calc_mode field in the database.
 	FieldCalcMode = "calc_mode"
+	// FieldIncludeGifts holds the string denoting the include_gifts field in the database.
+	FieldIncludeGifts = "include_gifts"
 	// FieldValueBp holds the string denoting the value_bp field in the database.
 	FieldValueBp = "value_bp"
 	// FieldValueCents holds the string denoting the value_cents field in the database.
@@ -65,6 +67,7 @@ var Columns = []string{
 	FieldScopeKey,
 	FieldBaseMode,
 	FieldCalcMode,
+	FieldIncludeGifts,
 	FieldValueBp,
 	FieldValueCents,
 	FieldTiers,
@@ -95,6 +98,8 @@ var (
 	DefaultScopeKey string
 	// ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
 	ScopeKeyValidator func(string) error
+	// DefaultIncludeGifts holds the default value on creation for the "include_gifts" field.
+	DefaultIncludeGifts bool
 	// DefaultValueBp holds the default value on creation for the "value_bp" field.
 	DefaultValueBp int
 	// DefaultValueCents holds the default value on creation for the "value_cents" field.
@@ -119,9 +124,10 @@ const DefaultStatus = StatusDraft
 
 // Status values.
 const (
-	StatusDraft   Status = "draft"
-	StatusActive  Status = "active"
-	StatusHistory Status = "history"
+	StatusDraft     Status = "draft"
+	StatusScheduled Status = "scheduled"
+	StatusActive    Status = "active"
+	StatusHistory   Status = "history"
 )
 
 func (s Status) String() string {
@@ -131,7 +137,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusDraft, StatusActive, StatusHistory:
+	case StatusDraft, StatusScheduled, StatusActive, StatusHistory:
 		return nil
 	default:
 		return fmt.Errorf("esportscscommissionrule: invalid enum value for status field: %q", s)
@@ -285,6 +291,11 @@ func ByBaseMode(opts ...sql.OrderTermOption) OrderOption {
 // ByCalcMode orders the results by the calc_mode field.
 func ByCalcMode(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCalcMode, opts...).ToFunc()
+}
+
+// ByIncludeGifts orders the results by the include_gifts field.
+func ByIncludeGifts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIncludeGifts, opts...).ToFunc()
 }
 
 // ByValueBp orders the results by the value_bp field.

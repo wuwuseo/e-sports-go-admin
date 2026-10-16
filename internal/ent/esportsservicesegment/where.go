@@ -74,6 +74,11 @@ func StartedAt(v time.Time) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldStartedAt, v))
 }
 
+// PausedAt applies equality check predicate on the "paused_at" field. It's identical to PausedAtEQ.
+func PausedAt(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldPausedAt, v))
+}
+
 // EndedAt applies equality check predicate on the "ended_at" field. It's identical to EndedAtEQ.
 func EndedAt(v time.Time) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldEndedAt, v))
@@ -89,9 +94,24 @@ func ReportedUnits(v int64) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldReportedUnits, v))
 }
 
+// ReportedSeconds applies equality check predicate on the "reported_seconds" field. It's identical to ReportedSecondsEQ.
+func ReportedSeconds(v int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldReportedSeconds, v))
+}
+
 // SystemSeconds applies equality check predicate on the "system_seconds" field. It's identical to SystemSecondsEQ.
 func SystemSeconds(v int64) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldSystemSeconds, v))
+}
+
+// CommissionRuleID applies equality check predicate on the "commission_rule_id" field. It's identical to CommissionRuleIDEQ.
+func CommissionRuleID(v int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleLockedAt applies equality check predicate on the "commission_rule_locked_at" field. It's identical to CommissionRuleLockedAtEQ.
+func CommissionRuleLockedAt(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldCommissionRuleLockedAt, v))
 }
 
 // EvidenceRef applies equality check predicate on the "evidence_ref" field. It's identical to EvidenceRefEQ.
@@ -294,6 +314,56 @@ func StartedAtLTE(v time.Time) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldLTE(FieldStartedAt, v))
 }
 
+// PausedAtEQ applies the EQ predicate on the "paused_at" field.
+func PausedAtEQ(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldPausedAt, v))
+}
+
+// PausedAtNEQ applies the NEQ predicate on the "paused_at" field.
+func PausedAtNEQ(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNEQ(FieldPausedAt, v))
+}
+
+// PausedAtIn applies the In predicate on the "paused_at" field.
+func PausedAtIn(vs ...time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldIn(FieldPausedAt, vs...))
+}
+
+// PausedAtNotIn applies the NotIn predicate on the "paused_at" field.
+func PausedAtNotIn(vs ...time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNotIn(FieldPausedAt, vs...))
+}
+
+// PausedAtGT applies the GT predicate on the "paused_at" field.
+func PausedAtGT(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGT(FieldPausedAt, v))
+}
+
+// PausedAtGTE applies the GTE predicate on the "paused_at" field.
+func PausedAtGTE(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGTE(FieldPausedAt, v))
+}
+
+// PausedAtLT applies the LT predicate on the "paused_at" field.
+func PausedAtLT(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLT(FieldPausedAt, v))
+}
+
+// PausedAtLTE applies the LTE predicate on the "paused_at" field.
+func PausedAtLTE(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLTE(FieldPausedAt, v))
+}
+
+// PausedAtIsNil applies the IsNil predicate on the "paused_at" field.
+func PausedAtIsNil() predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldIsNull(FieldPausedAt))
+}
+
+// PausedAtNotNil applies the NotNil predicate on the "paused_at" field.
+func PausedAtNotNil() predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNotNull(FieldPausedAt))
+}
+
 // EndedAtEQ applies the EQ predicate on the "ended_at" field.
 func EndedAtEQ(v time.Time) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldEndedAt, v))
@@ -424,6 +494,46 @@ func ReportedUnitsLTE(v int64) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldLTE(FieldReportedUnits, v))
 }
 
+// ReportedSecondsEQ applies the EQ predicate on the "reported_seconds" field.
+func ReportedSecondsEQ(v int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldReportedSeconds, v))
+}
+
+// ReportedSecondsNEQ applies the NEQ predicate on the "reported_seconds" field.
+func ReportedSecondsNEQ(v int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNEQ(FieldReportedSeconds, v))
+}
+
+// ReportedSecondsIn applies the In predicate on the "reported_seconds" field.
+func ReportedSecondsIn(vs ...int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldIn(FieldReportedSeconds, vs...))
+}
+
+// ReportedSecondsNotIn applies the NotIn predicate on the "reported_seconds" field.
+func ReportedSecondsNotIn(vs ...int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNotIn(FieldReportedSeconds, vs...))
+}
+
+// ReportedSecondsGT applies the GT predicate on the "reported_seconds" field.
+func ReportedSecondsGT(v int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGT(FieldReportedSeconds, v))
+}
+
+// ReportedSecondsGTE applies the GTE predicate on the "reported_seconds" field.
+func ReportedSecondsGTE(v int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGTE(FieldReportedSeconds, v))
+}
+
+// ReportedSecondsLT applies the LT predicate on the "reported_seconds" field.
+func ReportedSecondsLT(v int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLT(FieldReportedSeconds, v))
+}
+
+// ReportedSecondsLTE applies the LTE predicate on the "reported_seconds" field.
+func ReportedSecondsLTE(v int64) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLTE(FieldReportedSeconds, v))
+}
+
 // SystemSecondsEQ applies the EQ predicate on the "system_seconds" field.
 func SystemSecondsEQ(v int64) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldSystemSeconds, v))
@@ -462,6 +572,106 @@ func SystemSecondsLT(v int64) predicate.EsportsServiceSegment {
 // SystemSecondsLTE applies the LTE predicate on the "system_seconds" field.
 func SystemSecondsLTE(v int64) predicate.EsportsServiceSegment {
 	return predicate.EsportsServiceSegment(sql.FieldLTE(FieldSystemSeconds, v))
+}
+
+// CommissionRuleIDEQ applies the EQ predicate on the "commission_rule_id" field.
+func CommissionRuleIDEQ(v int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDNEQ applies the NEQ predicate on the "commission_rule_id" field.
+func CommissionRuleIDNEQ(v int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNEQ(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDIn applies the In predicate on the "commission_rule_id" field.
+func CommissionRuleIDIn(vs ...int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldIn(FieldCommissionRuleID, vs...))
+}
+
+// CommissionRuleIDNotIn applies the NotIn predicate on the "commission_rule_id" field.
+func CommissionRuleIDNotIn(vs ...int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNotIn(FieldCommissionRuleID, vs...))
+}
+
+// CommissionRuleIDGT applies the GT predicate on the "commission_rule_id" field.
+func CommissionRuleIDGT(v int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGT(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDGTE applies the GTE predicate on the "commission_rule_id" field.
+func CommissionRuleIDGTE(v int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGTE(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDLT applies the LT predicate on the "commission_rule_id" field.
+func CommissionRuleIDLT(v int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLT(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDLTE applies the LTE predicate on the "commission_rule_id" field.
+func CommissionRuleIDLTE(v int) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLTE(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDIsNil applies the IsNil predicate on the "commission_rule_id" field.
+func CommissionRuleIDIsNil() predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldIsNull(FieldCommissionRuleID))
+}
+
+// CommissionRuleIDNotNil applies the NotNil predicate on the "commission_rule_id" field.
+func CommissionRuleIDNotNil() predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNotNull(FieldCommissionRuleID))
+}
+
+// CommissionRuleLockedAtEQ applies the EQ predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtEQ(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldEQ(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtNEQ applies the NEQ predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtNEQ(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNEQ(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtIn applies the In predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtIn(vs ...time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldIn(FieldCommissionRuleLockedAt, vs...))
+}
+
+// CommissionRuleLockedAtNotIn applies the NotIn predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtNotIn(vs ...time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNotIn(FieldCommissionRuleLockedAt, vs...))
+}
+
+// CommissionRuleLockedAtGT applies the GT predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtGT(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGT(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtGTE applies the GTE predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtGTE(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldGTE(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtLT applies the LT predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtLT(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLT(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtLTE applies the LTE predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtLTE(v time.Time) predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldLTE(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtIsNil applies the IsNil predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtIsNil() predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldIsNull(FieldCommissionRuleLockedAt))
+}
+
+// CommissionRuleLockedAtNotNil applies the NotNil predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtNotNil() predicate.EsportsServiceSegment {
+	return predicate.EsportsServiceSegment(sql.FieldNotNull(FieldCommissionRuleLockedAt))
 }
 
 // EvidenceRefEQ applies the EQ predicate on the "evidence_ref" field.

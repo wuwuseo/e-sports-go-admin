@@ -27,7 +27,7 @@ func TestStoredValueCardExpireVoidsBonus(t *testing.T) {
 	now := time.Now()
 	customer := saveCustomerOrFail(t, db, 11)
 
-	card, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-BONUS", PrincipalCents: 2000, BonusCents: 500,
 		ContractConfirmed: true, ValidityDays: 10, IdempotencyKey: "sv-bonus-key",

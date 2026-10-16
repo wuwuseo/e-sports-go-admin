@@ -2,7 +2,10 @@ package esports
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -277,11 +280,8 @@ func resolveRechargeBonus(ctx context.Context, db *ent.Client, customerID int, p
 		selected = []campaignHit{*exclusive}
 	}
 	var totalBonus int64
-	// 赠送到期时间：只要命中活动中有 1 个是永久赠送（bonus_valid_days = 0），整笔赠送即视为永久；
-	// 否则取各限时活动里最晚的到期时间。
-	// 取"最晚/永久"而非"最早"，是因为赠送已有承诺，提前作废会损害客户并引发争议。
-	// ponytail: 叠加命中「永久 + 限时」时，限时那部分也变成永久，工作室会多让利；
-	// 若要严格按活动各自到期，需把赠送按活动拆成多条流水批次（每批次独立到期与作废）。
+	// 兼容旧流水的顶层到期日使用最晚/永久口径；各活动自身的到期日保存在 campaigns 快照中，
+	// 实际消费及作废由 rechargeBonusBatches 拆为独立虚拟批次处理。
 	var expiresAt *time.Time
 	permanent := false
 	campaigns := make([]map[string]any, 0, len(selected))
@@ -306,9 +306,15 @@ func resolveRechargeBonus(ctx context.Context, db *ent.Client, customerID int, p
 			"bonus_cents":             hit.bonus,
 			"audience":                hit.campaign.Audience.String(),
 			"bonus_valid_days":        hit.campaign.BonusValidDays,
+			"bonus_expires_at": func() string {
+				if hit.campaign.BonusValidDays <= 0 {
+					return ""
+				}
+				return utc.AddDate(0, 0, hit.campaign.BonusValidDays).Format(time.RFC3339Nano)
+			}(),
 		})
 	}
-	// 有任一个永久赠送活动命中，整笔赠送即永久，作废任务永不处理。
+	// 顶层到期日为空时，作废任务仍会读取各活动快照里的独立到期日。
 	if permanent {
 		expiresAt = nil
 	}
@@ -383,9 +389,73 @@ func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, 
 
 // bonusBatch 是赠送到期重放中的一档批次（一次充值赠送）。
 type bonusBatch struct {
-	txNo      string
+	sourceID  string
 	expiresAt *time.Time
 	remaining int64
+}
+
+// rechargeBonusBatches reconstructs each campaign's promised expiry from the
+// immutable recharge snapshot. Older single-campaign rows retain their original
+// source ID so already-written expiry entries remain idempotent after upgrade.
+func rechargeBonusBatches(row *ent.EsportsWalletTx) []*bonusBatch {
+	fallback := []*bonusBatch{{sourceID: row.TxNo, expiresAt: row.BonusExpiresAt, remaining: row.BonusDeltaCents}}
+	if row.BonusDeltaCents <= 0 {
+		return nil
+	}
+	raw, ok := row.RuleSnapshot["campaigns"]
+	if !ok {
+		return fallback
+	}
+	var grants []struct {
+		BonusCents     int64  `json:"bonus_cents"`
+		BonusValidDays int    `json:"bonus_valid_days"`
+		BonusExpiresAt string `json:"bonus_expires_at"`
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil || json.Unmarshal(encoded, &grants) != nil || len(grants) == 0 {
+		return fallback
+	}
+	var sum int64
+	batches := make([]*bonusBatch, 0, len(grants))
+	for i, grant := range grants {
+		if grant.BonusCents <= 0 || sum > row.BonusDeltaCents-grant.BonusCents {
+			return fallback
+		}
+		sum += grant.BonusCents
+		var expiry *time.Time
+		if grant.BonusValidDays > 0 {
+			at := row.CreatedAt.UTC().AddDate(0, 0, grant.BonusValidDays)
+			if grant.BonusExpiresAt != "" {
+				parsed, parseErr := time.Parse(time.RFC3339Nano, grant.BonusExpiresAt)
+				if parseErr != nil {
+					return fallback
+				}
+				at = parsed.UTC()
+			}
+			expiry = &at
+		}
+		sourceID := row.TxNo
+		if len(grants) > 1 {
+			sourceID += ":" + strconv.Itoa(i)
+		}
+		batches = append(batches, &bonusBatch{sourceID: sourceID, expiresAt: expiry, remaining: grant.BonusCents})
+	}
+	if sum != row.BonusDeltaCents {
+		return fallback
+	}
+	// When one recharge stacks several grants, consume the earliest-expiring
+	// entitlement first; permanent grants remain last.
+	sort.SliceStable(batches, func(i, j int) bool {
+		a, b := batches[i].expiresAt, batches[j].expiresAt
+		if a == nil {
+			return false
+		}
+		if b == nil {
+			return true
+		}
+		return a.Before(*b)
+	})
+	return batches
 }
 
 // expireWalletBonus 把已到期的赠送权益写作废流水（只增不改）。对每个客户余额账户做
@@ -401,25 +471,29 @@ func expireWalletBonus(ctx context.Context, db *ent.Client, now time.Time, limit
 		limit = 1000
 	}
 	utc := now.UTC()
-	// 先筛出存在「已到期赠送」流水的账户，避免对无关账户做全量重放。
+	// 混合活动的聚合流水可能没有 bonus_expires_at；到期时间在规则快照的各活动批次中。
 	candidates, err := db.EsportsWalletTx.Query().Where(
 		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeCustomerBalance),
-		esportswallettx.BonusExpiresAtNotNil(),
-		esportswallettx.BonusExpiresAtLTE(utc),
-	).Select(esportswallettx.FieldOwnerID).All(ctx)
+		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeRecharge),
+		esportswallettx.BonusDeltaCentsGT(0),
+	).Order(ent.Asc(esportswallettx.FieldID)).All(ctx)
 	if err != nil {
 		return 0, err
 	}
 	owners := make([]int, 0, len(candidates))
 	seen := map[int]bool{}
 	for _, row := range candidates {
-		if !seen[row.OwnerID] {
+		due := false
+		for _, batch := range rechargeBonusBatches(row) {
+			if batch.expiresAt != nil && !batch.expiresAt.After(utc) {
+				due = true
+				break
+			}
+		}
+		if due && !seen[row.OwnerID] {
 			seen[row.OwnerID] = true
 			owners = append(owners, row.OwnerID)
 		}
-	}
-	if len(owners) > limit {
-		owners = owners[:limit]
 	}
 	total := 0
 	for _, ownerID := range owners {
@@ -428,6 +502,9 @@ func expireWalletBonus(ctx context.Context, db *ent.Client, now time.Time, limit
 			return total, err
 		}
 		total += count
+		if total >= limit {
+			break
+		}
 	}
 	return total, nil
 }
@@ -450,12 +527,7 @@ func expireOwnerBonus(ctx context.Context, db *ent.Client, ownerID int, now time
 	for _, row := range rows {
 		switch {
 		case row.EntryType == esportswallettx.EntryTypeRecharge && row.BonusDeltaCents > 0:
-			var expiresAt *time.Time
-			if row.BonusExpiresAt != nil {
-				value := row.BonusExpiresAt.UTC()
-				expiresAt = &value
-			}
-			queue = append(queue, &bonusBatch{txNo: row.TxNo, expiresAt: expiresAt, remaining: row.BonusDeltaCents})
+			queue = append(queue, rechargeBonusBatches(row)...)
 		case row.BonusDeltaCents < 0:
 			// 先到期的先被消耗：按队列从前到后扣减批次剩余。
 			consume := -row.BonusDeltaCents
@@ -485,7 +557,7 @@ func expireOwnerBonus(ctx context.Context, db *ent.Client, ownerID int, now time
 			SetAccountType(esportswallettx.AccountTypeCustomerBalance).SetOwnerID(ownerID).
 			SetEntryType(esportswallettx.EntryTypeExpire).
 			SetPrincipalDeltaCents(0).SetBonusDeltaCents(-batch.remaining).
-			SetSourceType(campaignSourceType).SetSourceID(batch.txNo).
+			SetSourceType(campaignSourceType).SetSourceID(batch.sourceID).
 			SetNote("赠送权益到期作废").Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				// 该批次此前已作废，跳过即可。

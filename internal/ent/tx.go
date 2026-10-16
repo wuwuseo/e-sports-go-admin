@@ -38,6 +38,8 @@ type Tx struct {
 	DictData *DictDataClient
 	// EsportsAfterSale is the client for interacting with the EsportsAfterSale builders.
 	EsportsAfterSale *EsportsAfterSaleClient
+	// EsportsAfterSaleReview is the client for interacting with the EsportsAfterSaleReview builders.
+	EsportsAfterSaleReview *EsportsAfterSaleReviewClient
 	// EsportsAgeCheck is the client for interacting with the EsportsAgeCheck builders.
 	EsportsAgeCheck *EsportsAgeCheckClient
 	// EsportsAssessment is the client for interacting with the EsportsAssessment builders.
@@ -86,6 +88,10 @@ type Tx struct {
 	EsportsFulfillmentMakeup *EsportsFulfillmentMakeupClient
 	// EsportsGift is the client for interacting with the EsportsGift builders.
 	EsportsGift *EsportsGiftClient
+	// EsportsGiftDispute is the client for interacting with the EsportsGiftDispute builders.
+	EsportsGiftDispute *EsportsGiftDisputeClient
+	// EsportsGiftIntent is the client for interacting with the EsportsGiftIntent builders.
+	EsportsGiftIntent *EsportsGiftIntentClient
 	// EsportsGiftOrder is the client for interacting with the EsportsGiftOrder builders.
 	EsportsGiftOrder *EsportsGiftOrderClient
 	// EsportsGrowthLedger is the client for interacting with the EsportsGrowthLedger builders.
@@ -102,6 +108,8 @@ type Tx struct {
 	EsportsMemberLevelOverride *EsportsMemberLevelOverrideClient
 	// EsportsMemberLevelRule is the client for interacting with the EsportsMemberLevelRule builders.
 	EsportsMemberLevelRule *EsportsMemberLevelRuleClient
+	// EsportsOfflinePaymentProof is the client for interacting with the EsportsOfflinePaymentProof builders.
+	EsportsOfflinePaymentProof *EsportsOfflinePaymentProofClient
 	// EsportsOrder is the client for interacting with the EsportsOrder builders.
 	EsportsOrder *EsportsOrderClient
 	// EsportsOrderAddon is the client for interacting with the EsportsOrderAddon builders.
@@ -116,18 +124,24 @@ type Tx struct {
 	EsportsPageDocument *EsportsPageDocumentClient
 	// EsportsPageVersion is the client for interacting with the EsportsPageVersion builders.
 	EsportsPageVersion *EsportsPageVersionClient
+	// EsportsPaymentAccount is the client for interacting with the EsportsPaymentAccount builders.
+	EsportsPaymentAccount *EsportsPaymentAccountClient
 	// EsportsPaymentIntent is the client for interacting with the EsportsPaymentIntent builders.
 	EsportsPaymentIntent *EsportsPaymentIntentClient
 	// EsportsPaymentReceipt is the client for interacting with the EsportsPaymentReceipt builders.
 	EsportsPaymentReceipt *EsportsPaymentReceiptClient
 	// EsportsPlayer is the client for interacting with the EsportsPlayer builders.
 	EsportsPlayer *EsportsPlayerClient
+	// EsportsPlayerCreditEvent is the client for interacting with the EsportsPlayerCreditEvent builders.
+	EsportsPlayerCreditEvent *EsportsPlayerCreditEventClient
 	// EsportsPlayerRecovery is the client for interacting with the EsportsPlayerRecovery builders.
 	EsportsPlayerRecovery *EsportsPlayerRecoveryClient
 	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
 	EsportsPlayerReview *EsportsPlayerReviewClient
 	// EsportsPlayerReviewRevision is the client for interacting with the EsportsPlayerReviewRevision builders.
 	EsportsPlayerReviewRevision *EsportsPlayerReviewRevisionClient
+	// EsportsPriceAdjustment is the client for interacting with the EsportsPriceAdjustment builders.
+	EsportsPriceAdjustment *EsportsPriceAdjustmentClient
 	// EsportsProductCategory is the client for interacting with the EsportsProductCategory builders.
 	EsportsProductCategory *EsportsProductCategoryClient
 	// EsportsQuotaHold is the client for interacting with the EsportsQuotaHold builders.
@@ -142,6 +156,8 @@ type Tx struct {
 	EsportsServiceSegment *EsportsServiceSegmentClient
 	// EsportsSettlement is the client for interacting with the EsportsSettlement builders.
 	EsportsSettlement *EsportsSettlementClient
+	// EsportsSettlementCycle is the client for interacting with the EsportsSettlementCycle builders.
+	EsportsSettlementCycle *EsportsSettlementCycleClient
 	// EsportsSku is the client for interacting with the EsportsSku builders.
 	EsportsSku *EsportsSkuClient
 	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
@@ -328,6 +344,7 @@ func (tx *Tx) init() {
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DictData = NewDictDataClient(tx.config)
 	tx.EsportsAfterSale = NewEsportsAfterSaleClient(tx.config)
+	tx.EsportsAfterSaleReview = NewEsportsAfterSaleReviewClient(tx.config)
 	tx.EsportsAgeCheck = NewEsportsAgeCheckClient(tx.config)
 	tx.EsportsAssessment = NewEsportsAssessmentClient(tx.config)
 	tx.EsportsAssessmentAppeal = NewEsportsAssessmentAppealClient(tx.config)
@@ -352,6 +369,8 @@ func (tx *Tx) init() {
 	tx.EsportsDispatchSeat = NewEsportsDispatchSeatClient(tx.config)
 	tx.EsportsFulfillmentMakeup = NewEsportsFulfillmentMakeupClient(tx.config)
 	tx.EsportsGift = NewEsportsGiftClient(tx.config)
+	tx.EsportsGiftDispute = NewEsportsGiftDisputeClient(tx.config)
+	tx.EsportsGiftIntent = NewEsportsGiftIntentClient(tx.config)
 	tx.EsportsGiftOrder = NewEsportsGiftOrderClient(tx.config)
 	tx.EsportsGrowthLedger = NewEsportsGrowthLedgerClient(tx.config)
 	tx.EsportsIdempotency = NewEsportsIdempotencyClient(tx.config)
@@ -360,6 +379,7 @@ func (tx *Tx) init() {
 	tx.EsportsLedgerEntry = NewEsportsLedgerEntryClient(tx.config)
 	tx.EsportsMemberLevelOverride = NewEsportsMemberLevelOverrideClient(tx.config)
 	tx.EsportsMemberLevelRule = NewEsportsMemberLevelRuleClient(tx.config)
+	tx.EsportsOfflinePaymentProof = NewEsportsOfflinePaymentProofClient(tx.config)
 	tx.EsportsOrder = NewEsportsOrderClient(tx.config)
 	tx.EsportsOrderAddon = NewEsportsOrderAddonClient(tx.config)
 	tx.EsportsOrderEvent = NewEsportsOrderEventClient(tx.config)
@@ -367,12 +387,15 @@ func (tx *Tx) init() {
 	tx.EsportsPageAsset = NewEsportsPageAssetClient(tx.config)
 	tx.EsportsPageDocument = NewEsportsPageDocumentClient(tx.config)
 	tx.EsportsPageVersion = NewEsportsPageVersionClient(tx.config)
+	tx.EsportsPaymentAccount = NewEsportsPaymentAccountClient(tx.config)
 	tx.EsportsPaymentIntent = NewEsportsPaymentIntentClient(tx.config)
 	tx.EsportsPaymentReceipt = NewEsportsPaymentReceiptClient(tx.config)
 	tx.EsportsPlayer = NewEsportsPlayerClient(tx.config)
+	tx.EsportsPlayerCreditEvent = NewEsportsPlayerCreditEventClient(tx.config)
 	tx.EsportsPlayerRecovery = NewEsportsPlayerRecoveryClient(tx.config)
 	tx.EsportsPlayerReview = NewEsportsPlayerReviewClient(tx.config)
 	tx.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(tx.config)
+	tx.EsportsPriceAdjustment = NewEsportsPriceAdjustmentClient(tx.config)
 	tx.EsportsProductCategory = NewEsportsProductCategoryClient(tx.config)
 	tx.EsportsQuotaHold = NewEsportsQuotaHoldClient(tx.config)
 	tx.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(tx.config)
@@ -380,6 +403,7 @@ func (tx *Tx) init() {
 	tx.EsportsSeatTransferRequest = NewEsportsSeatTransferRequestClient(tx.config)
 	tx.EsportsServiceSegment = NewEsportsServiceSegmentClient(tx.config)
 	tx.EsportsSettlement = NewEsportsSettlementClient(tx.config)
+	tx.EsportsSettlementCycle = NewEsportsSettlementCycleClient(tx.config)
 	tx.EsportsSku = NewEsportsSkuClient(tx.config)
 	tx.EsportsStoredValueCard = NewEsportsStoredValueCardClient(tx.config)
 	tx.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(tx.config)

@@ -261,6 +261,51 @@ func TestPlaceOrderAppliesMemberDiscount(t *testing.T) {
 	}
 }
 
+func TestRepriceRecalculatesDiscountWithoutChangingSnapshotUnitPrice(t *testing.T) {
+	db := openMemberDB(t, "esports_member_reprice")
+	defer func() { _ = db.Close() }()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	db.SystemConfig.Create().SetKey("app.esports.payment_deadline_minutes").SetName("订单支付时限").
+		SetValue("15").SetType("number").SetGroup("esports").SetStatus(1).SaveX(ctx)
+	seedMemberLevel(t, db, memberLevelInput{Code: "silver-reprice", Name: "银卡", GrowthThreshold: 0, DiscountBps: 9000})
+	customer := saveCustomerOrFail(t, db, 11)
+	db.EsportsCustomer.UpdateOneID(customer.ID).SetMemberLevelCode("silver-reprice").SaveX(ctx)
+	sku, err := saveSku(ctx, db, skuInput{
+		Code: "GAME-REPRICE-MEMBER", Title: "改份数折扣测试", ServiceType: "play", UnitPriceCents: 10000,
+		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	order, err := placeOrder(ctx, db, 11, orderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1},
+		"member-reprice-key-1", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.EsportsSku.UpdateOneID(sku.ID).SetUnitPriceCents(12000).SetServiceUnits(2).SaveX(ctx)
+	preview, err := previewReprice(ctx, db, order.ID, repriceInput{
+		ExpectedVersion: order.Version, Quantity: 3,
+	})
+	if err != nil || preview.UnitPriceCents != 10000 || preview.DiscountCents != 3000 ||
+		preview.PayableCents != 27000 || preview.PromisedServiceUnits != 3 {
+		t.Fatalf("服务端改价预览不正确：%+v err=%v", preview, err)
+	}
+	updated, err := repriceOrder(ctx, db, order.ID, 11, false, repriceInput{
+		ExpectedVersion: order.Version, Quantity: 3, Reason: "客户加量",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.UnitPriceCents != 10000 || updated.DiscountCents != 3000 ||
+		updated.PayableCents != 27000 || updated.PromisedServiceUnits != 3 {
+		t.Fatalf("改份数未按订单单价快照与新份数重算折扣：%+v", updated)
+	}
+	if updated.PayableCents != preview.PayableCents {
+		t.Fatal("改价提交与预览不一致")
+	}
+}
+
 func customerGrowthTotalX(t *testing.T, db *ent.Client, customerID int) int64 {
 	t.Helper()
 	total, err := customerGrowthTotal(t.Context(), db, customerID)

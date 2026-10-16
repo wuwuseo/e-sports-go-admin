@@ -34,6 +34,8 @@ const (
 	FieldConcurrentLimit = "concurrent_limit"
 	// FieldGames holds the string denoting the games field in the database.
 	FieldGames = "games"
+	// FieldLastHeartbeatAt holds the string denoting the last_heartbeat_at field in the database.
+	FieldLastHeartbeatAt = "last_heartbeat_at"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -59,6 +61,7 @@ var Columns = []string{
 	FieldDailyLimit,
 	FieldConcurrentLimit,
 	FieldGames,
+	FieldLastHeartbeatAt,
 	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -221,6 +224,11 @@ func ByDailyLimit(opts ...sql.OrderTermOption) OrderOption {
 // ByConcurrentLimit orders the results by the concurrent_limit field.
 func ByConcurrentLimit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldConcurrentLimit, opts...).ToFunc()
+}
+
+// ByLastHeartbeatAt orders the results by the last_heartbeat_at field.
+func ByLastHeartbeatAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastHeartbeatAt, opts...).ToFunc()
 }
 
 // ByVersion orders the results by the version field.

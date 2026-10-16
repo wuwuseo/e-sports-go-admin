@@ -24,6 +24,19 @@ type CloseFormFieldBinding struct {
 	Sort     int    `json:"sort"`
 }
 
+// CloseFormFieldDefinition 固定模板生效时的字段定义，避免字段库后续编辑改变已下单要求。
+type CloseFormFieldDefinition struct {
+	ID        int      `json:"id"`
+	Key       string   `json:"key"`
+	Label     string   `json:"label"`
+	FieldType string   `json:"field_type"`
+	Required  bool     `json:"required"`
+	Options   []string `json:"options"`
+	MaxLength int      `json:"max_length"`
+	SortOrder int      `json:"sort_order"`
+	Version   int      `json:"version"`
+}
+
 // CloseApprovalNode 是结单审批流的一个串行节点（§3.4）：配审批角色与超时策略。
 // InvolvesFunds 为 true 表示涉及资金 / 争议的节点，禁止自动通过。
 type CloseApprovalNode struct {
@@ -33,6 +46,17 @@ type CloseApprovalNode struct {
 	TimeoutHours      int    `json:"timeout_hours"`
 	AutoPassOnTimeout bool   `json:"auto_pass_on_timeout"`
 	InvolvesFunds     bool   `json:"involves_funds"`
+}
+
+// CloseConditionNode 是结单条件树的一个节点（§3.4 结单条件自定义：字段 + 运算符 + 值，支持 AND/OR 嵌套）。
+// 组合节点填 Op（and / or / not）与 Children；叶子节点填 Field + Operator + Value。
+// 结构化字段项（min_evidence 等）在解析时会被折叠为等价叶子节点，二者共用同一套求值。
+type CloseConditionNode struct {
+	Op       string               `json:"op,omitempty"`
+	Children []CloseConditionNode `json:"children,omitempty"`
+	Field    string               `json:"field,omitempty"`
+	Operator string               `json:"operator,omitempty"`
+	Value    *float64             `json:"value,omitempty"`
 }
 
 // CloseApprovalStep 是某订单审批进度中的一步：由节点派生，并记录处理结果。

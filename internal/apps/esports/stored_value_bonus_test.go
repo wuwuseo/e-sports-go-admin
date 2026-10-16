@@ -25,7 +25,7 @@ func TestStoredValueOpenMemberBonusRatio(t *testing.T) {
 	db.EsportsCustomer.UpdateOneID(customer.ID).SetMemberLevelCode(level.Code).SaveX(ctx)
 
 	// 未选套餐、未手填赠送：本金 10000 → 赠送 1000。
-	view, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	view, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-B-1", PrincipalCents: 10000,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-bonus-1",
@@ -38,7 +38,7 @@ func TestStoredValueOpenMemberBonusRatio(t *testing.T) {
 	}
 
 	// 手填赠送时不被覆盖。
-	manual, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	manual, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-B-2", PrincipalCents: 10000, BonusCents: 500,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-bonus-2",
@@ -52,7 +52,7 @@ func TestStoredValueOpenMemberBonusRatio(t *testing.T) {
 
 	// 未定级客户：无赠送。
 	plain := saveCustomerOrFail(t, db, 12)
-	noLevel, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	noLevel, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: plain.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-B-3", PrincipalCents: 10000,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-bonus-3",
@@ -82,7 +82,7 @@ func TestStoredValueBonusRatioFloorAndPackagePriority(t *testing.T) {
 	}
 	db.EsportsCustomer.UpdateOneID(customer.ID).SetMemberLevelCode(level.Code).SaveX(ctx)
 
-	view, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	view, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-F-1", PrincipalCents: 1000,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-floor-1",
@@ -101,7 +101,7 @@ func TestStoredValueBonusRatioFloorAndPackagePriority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	byPkg, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	byPkg, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-F-2", PackageID: pkg.ID,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-floor-2",

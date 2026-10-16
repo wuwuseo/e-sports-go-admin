@@ -58,6 +58,20 @@ func (_c *EsportsServiceSegmentCreate) SetStartedAt(v time.Time) *EsportsService
 	return _c
 }
 
+// SetPausedAt sets the "paused_at" field.
+func (_c *EsportsServiceSegmentCreate) SetPausedAt(v time.Time) *EsportsServiceSegmentCreate {
+	_c.mutation.SetPausedAt(v)
+	return _c
+}
+
+// SetNillablePausedAt sets the "paused_at" field if the given value is not nil.
+func (_c *EsportsServiceSegmentCreate) SetNillablePausedAt(v *time.Time) *EsportsServiceSegmentCreate {
+	if v != nil {
+		_c.SetPausedAt(*v)
+	}
+	return _c
+}
+
 // SetEndedAt sets the "ended_at" field.
 func (_c *EsportsServiceSegmentCreate) SetEndedAt(v time.Time) *EsportsServiceSegmentCreate {
 	_c.mutation.SetEndedAt(v)
@@ -100,6 +114,20 @@ func (_c *EsportsServiceSegmentCreate) SetNillableReportedUnits(v *int64) *Espor
 	return _c
 }
 
+// SetReportedSeconds sets the "reported_seconds" field.
+func (_c *EsportsServiceSegmentCreate) SetReportedSeconds(v int64) *EsportsServiceSegmentCreate {
+	_c.mutation.SetReportedSeconds(v)
+	return _c
+}
+
+// SetNillableReportedSeconds sets the "reported_seconds" field if the given value is not nil.
+func (_c *EsportsServiceSegmentCreate) SetNillableReportedSeconds(v *int64) *EsportsServiceSegmentCreate {
+	if v != nil {
+		_c.SetReportedSeconds(*v)
+	}
+	return _c
+}
+
 // SetSystemSeconds sets the "system_seconds" field.
 func (_c *EsportsServiceSegmentCreate) SetSystemSeconds(v int64) *EsportsServiceSegmentCreate {
 	_c.mutation.SetSystemSeconds(v)
@@ -110,6 +138,34 @@ func (_c *EsportsServiceSegmentCreate) SetSystemSeconds(v int64) *EsportsService
 func (_c *EsportsServiceSegmentCreate) SetNillableSystemSeconds(v *int64) *EsportsServiceSegmentCreate {
 	if v != nil {
 		_c.SetSystemSeconds(*v)
+	}
+	return _c
+}
+
+// SetCommissionRuleID sets the "commission_rule_id" field.
+func (_c *EsportsServiceSegmentCreate) SetCommissionRuleID(v int) *EsportsServiceSegmentCreate {
+	_c.mutation.SetCommissionRuleID(v)
+	return _c
+}
+
+// SetNillableCommissionRuleID sets the "commission_rule_id" field if the given value is not nil.
+func (_c *EsportsServiceSegmentCreate) SetNillableCommissionRuleID(v *int) *EsportsServiceSegmentCreate {
+	if v != nil {
+		_c.SetCommissionRuleID(*v)
+	}
+	return _c
+}
+
+// SetCommissionRuleLockedAt sets the "commission_rule_locked_at" field.
+func (_c *EsportsServiceSegmentCreate) SetCommissionRuleLockedAt(v time.Time) *EsportsServiceSegmentCreate {
+	_c.mutation.SetCommissionRuleLockedAt(v)
+	return _c
+}
+
+// SetNillableCommissionRuleLockedAt sets the "commission_rule_locked_at" field if the given value is not nil.
+func (_c *EsportsServiceSegmentCreate) SetNillableCommissionRuleLockedAt(v *time.Time) *EsportsServiceSegmentCreate {
+	if v != nil {
+		_c.SetCommissionRuleLockedAt(*v)
 	}
 	return _c
 }
@@ -217,6 +273,10 @@ func (_c *EsportsServiceSegmentCreate) defaults() {
 		v := esportsservicesegment.DefaultReportedUnits
 		_c.mutation.SetReportedUnits(v)
 	}
+	if _, ok := _c.mutation.ReportedSeconds(); !ok {
+		v := esportsservicesegment.DefaultReportedSeconds
+		_c.mutation.SetReportedSeconds(v)
+	}
 	if _, ok := _c.mutation.SystemSeconds(); !ok {
 		v := esportsservicesegment.DefaultSystemSeconds
 		_c.mutation.SetSystemSeconds(v)
@@ -281,6 +341,9 @@ func (_c *EsportsServiceSegmentCreate) check() error {
 	}
 	if _, ok := _c.mutation.ReportedUnits(); !ok {
 		return &ValidationError{Name: "reported_units", err: errors.New(`ent: missing required field "EsportsServiceSegment.reported_units"`)}
+	}
+	if _, ok := _c.mutation.ReportedSeconds(); !ok {
+		return &ValidationError{Name: "reported_seconds", err: errors.New(`ent: missing required field "EsportsServiceSegment.reported_seconds"`)}
 	}
 	if _, ok := _c.mutation.SystemSeconds(); !ok {
 		return &ValidationError{Name: "system_seconds", err: errors.New(`ent: missing required field "EsportsServiceSegment.system_seconds"`)}
@@ -348,6 +411,10 @@ func (_c *EsportsServiceSegmentCreate) createSpec() (*EsportsServiceSegment, *sq
 		_spec.SetField(esportsservicesegment.FieldStartedAt, field.TypeTime, value)
 		_node.StartedAt = value
 	}
+	if value, ok := _c.mutation.PausedAt(); ok {
+		_spec.SetField(esportsservicesegment.FieldPausedAt, field.TypeTime, value)
+		_node.PausedAt = &value
+	}
 	if value, ok := _c.mutation.EndedAt(); ok {
 		_spec.SetField(esportsservicesegment.FieldEndedAt, field.TypeTime, value)
 		_node.EndedAt = &value
@@ -360,9 +427,21 @@ func (_c *EsportsServiceSegmentCreate) createSpec() (*EsportsServiceSegment, *sq
 		_spec.SetField(esportsservicesegment.FieldReportedUnits, field.TypeInt64, value)
 		_node.ReportedUnits = value
 	}
+	if value, ok := _c.mutation.ReportedSeconds(); ok {
+		_spec.SetField(esportsservicesegment.FieldReportedSeconds, field.TypeInt64, value)
+		_node.ReportedSeconds = value
+	}
 	if value, ok := _c.mutation.SystemSeconds(); ok {
 		_spec.SetField(esportsservicesegment.FieldSystemSeconds, field.TypeInt64, value)
 		_node.SystemSeconds = value
+	}
+	if value, ok := _c.mutation.CommissionRuleID(); ok {
+		_spec.SetField(esportsservicesegment.FieldCommissionRuleID, field.TypeInt, value)
+		_node.CommissionRuleID = &value
+	}
+	if value, ok := _c.mutation.CommissionRuleLockedAt(); ok {
+		_spec.SetField(esportsservicesegment.FieldCommissionRuleLockedAt, field.TypeTime, value)
+		_node.CommissionRuleLockedAt = &value
 	}
 	if value, ok := _c.mutation.EvidenceRef(); ok {
 		_spec.SetField(esportsservicesegment.FieldEvidenceRef, field.TypeString, value)

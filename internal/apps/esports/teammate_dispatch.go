@@ -120,7 +120,7 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 		main.Presence != esportsplayer.PresenceOnline {
 		return nil, errForbidden
 	}
-	if err = checkPlayerDispatchLimit(ctx, tx, main, now); err != nil {
+	if err = reservePlayerDispatchCapacity(ctx, tx, main, now, 0); err != nil {
 		return nil, err
 	}
 	if err = checkPlayerGameLevel(main, game, requiredLevel); err != nil {
@@ -154,7 +154,7 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 			p.Presence != esportsplayer.PresenceOnline {
 			return nil, fmt.Errorf("%w：固排 %s 未通过考核或未在线", errForbidden, p.DisplayName)
 		}
-		if err = checkPlayerDispatchLimit(ctx, tx, p, now); err != nil {
+		if err = reservePlayerDispatchCapacity(ctx, tx, p, now, 0); err != nil {
 			return nil, err
 		}
 		if err = checkPlayerGameLevel(p, game, requiredLevel); err != nil {

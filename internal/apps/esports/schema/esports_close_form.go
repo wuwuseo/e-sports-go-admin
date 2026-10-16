@@ -50,6 +50,9 @@ func (EsportsCloseFormField) Indexes() []ent.Index {
 // 模板不可原地修改：改模板＝新增一条递增 version 的新行，旧行转 history（§12.4 同款版本管理）。
 type EsportsCloseFormTemplate struct{ ent.Schema }
 
+// CloseFormFieldDefinition 存放在独立包，避免 ent 生成代码的 schema 包名冲突。
+type CloseFormFieldDefinition = schematier.CloseFormFieldDefinition
+
 func (EsportsCloseFormTemplate) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("code").NotEmpty().MaxLen(48).Immutable().StructTag(`json:"code"`),
@@ -63,6 +66,7 @@ func (EsportsCloseFormTemplate) Fields() []ent.Field {
 		field.Int64("max_cents").Default(0).StructTag(`json:"max_cents"`),
 		// fields 是模板字段绑定列表（字段库 key + 必填覆盖 + 排序）。
 		field.JSON("fields", []CloseFormFieldBinding{}).Optional().StructTag(`json:"fields"`),
+		field.JSON("field_definitions", []CloseFormFieldDefinition{}).Optional().StructTag(`json:"field_definitions"`),
 		field.Enum("status").Values("draft", "active", "history").Default("draft").StructTag(`json:"status"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Int("created_by_admin_id").Optional().Nillable().StructTag(`json:"created_by_admin_id"`),

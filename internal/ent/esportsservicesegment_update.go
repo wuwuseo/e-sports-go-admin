@@ -119,6 +119,26 @@ func (_u *EsportsServiceSegmentUpdate) SetNillableStartedAt(v *time.Time) *Espor
 	return _u
 }
 
+// SetPausedAt sets the "paused_at" field.
+func (_u *EsportsServiceSegmentUpdate) SetPausedAt(v time.Time) *EsportsServiceSegmentUpdate {
+	_u.mutation.SetPausedAt(v)
+	return _u
+}
+
+// SetNillablePausedAt sets the "paused_at" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdate) SetNillablePausedAt(v *time.Time) *EsportsServiceSegmentUpdate {
+	if v != nil {
+		_u.SetPausedAt(*v)
+	}
+	return _u
+}
+
+// ClearPausedAt clears the value of the "paused_at" field.
+func (_u *EsportsServiceSegmentUpdate) ClearPausedAt() *EsportsServiceSegmentUpdate {
+	_u.mutation.ClearPausedAt()
+	return _u
+}
+
 // SetEndedAt sets the "ended_at" field.
 func (_u *EsportsServiceSegmentUpdate) SetEndedAt(v time.Time) *EsportsServiceSegmentUpdate {
 	_u.mutation.SetEndedAt(v)
@@ -181,6 +201,27 @@ func (_u *EsportsServiceSegmentUpdate) AddReportedUnits(v int64) *EsportsService
 	return _u
 }
 
+// SetReportedSeconds sets the "reported_seconds" field.
+func (_u *EsportsServiceSegmentUpdate) SetReportedSeconds(v int64) *EsportsServiceSegmentUpdate {
+	_u.mutation.ResetReportedSeconds()
+	_u.mutation.SetReportedSeconds(v)
+	return _u
+}
+
+// SetNillableReportedSeconds sets the "reported_seconds" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdate) SetNillableReportedSeconds(v *int64) *EsportsServiceSegmentUpdate {
+	if v != nil {
+		_u.SetReportedSeconds(*v)
+	}
+	return _u
+}
+
+// AddReportedSeconds adds value to the "reported_seconds" field.
+func (_u *EsportsServiceSegmentUpdate) AddReportedSeconds(v int64) *EsportsServiceSegmentUpdate {
+	_u.mutation.AddReportedSeconds(v)
+	return _u
+}
+
 // SetSystemSeconds sets the "system_seconds" field.
 func (_u *EsportsServiceSegmentUpdate) SetSystemSeconds(v int64) *EsportsServiceSegmentUpdate {
 	_u.mutation.ResetSystemSeconds()
@@ -199,6 +240,53 @@ func (_u *EsportsServiceSegmentUpdate) SetNillableSystemSeconds(v *int64) *Espor
 // AddSystemSeconds adds value to the "system_seconds" field.
 func (_u *EsportsServiceSegmentUpdate) AddSystemSeconds(v int64) *EsportsServiceSegmentUpdate {
 	_u.mutation.AddSystemSeconds(v)
+	return _u
+}
+
+// SetCommissionRuleID sets the "commission_rule_id" field.
+func (_u *EsportsServiceSegmentUpdate) SetCommissionRuleID(v int) *EsportsServiceSegmentUpdate {
+	_u.mutation.ResetCommissionRuleID()
+	_u.mutation.SetCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableCommissionRuleID sets the "commission_rule_id" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdate) SetNillableCommissionRuleID(v *int) *EsportsServiceSegmentUpdate {
+	if v != nil {
+		_u.SetCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddCommissionRuleID adds value to the "commission_rule_id" field.
+func (_u *EsportsServiceSegmentUpdate) AddCommissionRuleID(v int) *EsportsServiceSegmentUpdate {
+	_u.mutation.AddCommissionRuleID(v)
+	return _u
+}
+
+// ClearCommissionRuleID clears the value of the "commission_rule_id" field.
+func (_u *EsportsServiceSegmentUpdate) ClearCommissionRuleID() *EsportsServiceSegmentUpdate {
+	_u.mutation.ClearCommissionRuleID()
+	return _u
+}
+
+// SetCommissionRuleLockedAt sets the "commission_rule_locked_at" field.
+func (_u *EsportsServiceSegmentUpdate) SetCommissionRuleLockedAt(v time.Time) *EsportsServiceSegmentUpdate {
+	_u.mutation.SetCommissionRuleLockedAt(v)
+	return _u
+}
+
+// SetNillableCommissionRuleLockedAt sets the "commission_rule_locked_at" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdate) SetNillableCommissionRuleLockedAt(v *time.Time) *EsportsServiceSegmentUpdate {
+	if v != nil {
+		_u.SetCommissionRuleLockedAt(*v)
+	}
+	return _u
+}
+
+// ClearCommissionRuleLockedAt clears the value of the "commission_rule_locked_at" field.
+func (_u *EsportsServiceSegmentUpdate) ClearCommissionRuleLockedAt() *EsportsServiceSegmentUpdate {
+	_u.mutation.ClearCommissionRuleLockedAt()
 	return _u
 }
 
@@ -350,6 +438,12 @@ func (_u *EsportsServiceSegmentUpdate) sqlSave(ctx context.Context) (_node int, 
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(esportsservicesegment.FieldStartedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.PausedAt(); ok {
+		_spec.SetField(esportsservicesegment.FieldPausedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PausedAtCleared() {
+		_spec.ClearField(esportsservicesegment.FieldPausedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.EndedAt(); ok {
 		_spec.SetField(esportsservicesegment.FieldEndedAt, field.TypeTime, value)
 	}
@@ -368,11 +462,32 @@ func (_u *EsportsServiceSegmentUpdate) sqlSave(ctx context.Context) (_node int, 
 	if value, ok := _u.mutation.AddedReportedUnits(); ok {
 		_spec.AddField(esportsservicesegment.FieldReportedUnits, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.ReportedSeconds(); ok {
+		_spec.SetField(esportsservicesegment.FieldReportedSeconds, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedReportedSeconds(); ok {
+		_spec.AddField(esportsservicesegment.FieldReportedSeconds, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.SystemSeconds(); ok {
 		_spec.SetField(esportsservicesegment.FieldSystemSeconds, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AddedSystemSeconds(); ok {
 		_spec.AddField(esportsservicesegment.FieldSystemSeconds, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CommissionRuleID(); ok {
+		_spec.SetField(esportsservicesegment.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCommissionRuleID(); ok {
+		_spec.AddField(esportsservicesegment.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.CommissionRuleIDCleared() {
+		_spec.ClearField(esportsservicesegment.FieldCommissionRuleID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CommissionRuleLockedAt(); ok {
+		_spec.SetField(esportsservicesegment.FieldCommissionRuleLockedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CommissionRuleLockedAtCleared() {
+		_spec.ClearField(esportsservicesegment.FieldCommissionRuleLockedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.EvidenceRef(); ok {
 		_spec.SetField(esportsservicesegment.FieldEvidenceRef, field.TypeString, value)
@@ -497,6 +612,26 @@ func (_u *EsportsServiceSegmentUpdateOne) SetNillableStartedAt(v *time.Time) *Es
 	return _u
 }
 
+// SetPausedAt sets the "paused_at" field.
+func (_u *EsportsServiceSegmentUpdateOne) SetPausedAt(v time.Time) *EsportsServiceSegmentUpdateOne {
+	_u.mutation.SetPausedAt(v)
+	return _u
+}
+
+// SetNillablePausedAt sets the "paused_at" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdateOne) SetNillablePausedAt(v *time.Time) *EsportsServiceSegmentUpdateOne {
+	if v != nil {
+		_u.SetPausedAt(*v)
+	}
+	return _u
+}
+
+// ClearPausedAt clears the value of the "paused_at" field.
+func (_u *EsportsServiceSegmentUpdateOne) ClearPausedAt() *EsportsServiceSegmentUpdateOne {
+	_u.mutation.ClearPausedAt()
+	return _u
+}
+
 // SetEndedAt sets the "ended_at" field.
 func (_u *EsportsServiceSegmentUpdateOne) SetEndedAt(v time.Time) *EsportsServiceSegmentUpdateOne {
 	_u.mutation.SetEndedAt(v)
@@ -559,6 +694,27 @@ func (_u *EsportsServiceSegmentUpdateOne) AddReportedUnits(v int64) *EsportsServ
 	return _u
 }
 
+// SetReportedSeconds sets the "reported_seconds" field.
+func (_u *EsportsServiceSegmentUpdateOne) SetReportedSeconds(v int64) *EsportsServiceSegmentUpdateOne {
+	_u.mutation.ResetReportedSeconds()
+	_u.mutation.SetReportedSeconds(v)
+	return _u
+}
+
+// SetNillableReportedSeconds sets the "reported_seconds" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdateOne) SetNillableReportedSeconds(v *int64) *EsportsServiceSegmentUpdateOne {
+	if v != nil {
+		_u.SetReportedSeconds(*v)
+	}
+	return _u
+}
+
+// AddReportedSeconds adds value to the "reported_seconds" field.
+func (_u *EsportsServiceSegmentUpdateOne) AddReportedSeconds(v int64) *EsportsServiceSegmentUpdateOne {
+	_u.mutation.AddReportedSeconds(v)
+	return _u
+}
+
 // SetSystemSeconds sets the "system_seconds" field.
 func (_u *EsportsServiceSegmentUpdateOne) SetSystemSeconds(v int64) *EsportsServiceSegmentUpdateOne {
 	_u.mutation.ResetSystemSeconds()
@@ -577,6 +733,53 @@ func (_u *EsportsServiceSegmentUpdateOne) SetNillableSystemSeconds(v *int64) *Es
 // AddSystemSeconds adds value to the "system_seconds" field.
 func (_u *EsportsServiceSegmentUpdateOne) AddSystemSeconds(v int64) *EsportsServiceSegmentUpdateOne {
 	_u.mutation.AddSystemSeconds(v)
+	return _u
+}
+
+// SetCommissionRuleID sets the "commission_rule_id" field.
+func (_u *EsportsServiceSegmentUpdateOne) SetCommissionRuleID(v int) *EsportsServiceSegmentUpdateOne {
+	_u.mutation.ResetCommissionRuleID()
+	_u.mutation.SetCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableCommissionRuleID sets the "commission_rule_id" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdateOne) SetNillableCommissionRuleID(v *int) *EsportsServiceSegmentUpdateOne {
+	if v != nil {
+		_u.SetCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddCommissionRuleID adds value to the "commission_rule_id" field.
+func (_u *EsportsServiceSegmentUpdateOne) AddCommissionRuleID(v int) *EsportsServiceSegmentUpdateOne {
+	_u.mutation.AddCommissionRuleID(v)
+	return _u
+}
+
+// ClearCommissionRuleID clears the value of the "commission_rule_id" field.
+func (_u *EsportsServiceSegmentUpdateOne) ClearCommissionRuleID() *EsportsServiceSegmentUpdateOne {
+	_u.mutation.ClearCommissionRuleID()
+	return _u
+}
+
+// SetCommissionRuleLockedAt sets the "commission_rule_locked_at" field.
+func (_u *EsportsServiceSegmentUpdateOne) SetCommissionRuleLockedAt(v time.Time) *EsportsServiceSegmentUpdateOne {
+	_u.mutation.SetCommissionRuleLockedAt(v)
+	return _u
+}
+
+// SetNillableCommissionRuleLockedAt sets the "commission_rule_locked_at" field if the given value is not nil.
+func (_u *EsportsServiceSegmentUpdateOne) SetNillableCommissionRuleLockedAt(v *time.Time) *EsportsServiceSegmentUpdateOne {
+	if v != nil {
+		_u.SetCommissionRuleLockedAt(*v)
+	}
+	return _u
+}
+
+// ClearCommissionRuleLockedAt clears the value of the "commission_rule_locked_at" field.
+func (_u *EsportsServiceSegmentUpdateOne) ClearCommissionRuleLockedAt() *EsportsServiceSegmentUpdateOne {
+	_u.mutation.ClearCommissionRuleLockedAt()
 	return _u
 }
 
@@ -758,6 +961,12 @@ func (_u *EsportsServiceSegmentUpdateOne) sqlSave(ctx context.Context) (_node *E
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(esportsservicesegment.FieldStartedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.PausedAt(); ok {
+		_spec.SetField(esportsservicesegment.FieldPausedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PausedAtCleared() {
+		_spec.ClearField(esportsservicesegment.FieldPausedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.EndedAt(); ok {
 		_spec.SetField(esportsservicesegment.FieldEndedAt, field.TypeTime, value)
 	}
@@ -776,11 +985,32 @@ func (_u *EsportsServiceSegmentUpdateOne) sqlSave(ctx context.Context) (_node *E
 	if value, ok := _u.mutation.AddedReportedUnits(); ok {
 		_spec.AddField(esportsservicesegment.FieldReportedUnits, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.ReportedSeconds(); ok {
+		_spec.SetField(esportsservicesegment.FieldReportedSeconds, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedReportedSeconds(); ok {
+		_spec.AddField(esportsservicesegment.FieldReportedSeconds, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.SystemSeconds(); ok {
 		_spec.SetField(esportsservicesegment.FieldSystemSeconds, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.AddedSystemSeconds(); ok {
 		_spec.AddField(esportsservicesegment.FieldSystemSeconds, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CommissionRuleID(); ok {
+		_spec.SetField(esportsservicesegment.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCommissionRuleID(); ok {
+		_spec.AddField(esportsservicesegment.FieldCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.CommissionRuleIDCleared() {
+		_spec.ClearField(esportsservicesegment.FieldCommissionRuleID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CommissionRuleLockedAt(); ok {
+		_spec.SetField(esportsservicesegment.FieldCommissionRuleLockedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CommissionRuleLockedAtCleared() {
+		_spec.ClearField(esportsservicesegment.FieldCommissionRuleLockedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.EvidenceRef(); ok {
 		_spec.SetField(esportsservicesegment.FieldEvidenceRef, field.TypeString, value)

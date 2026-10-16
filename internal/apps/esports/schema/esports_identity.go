@@ -76,6 +76,9 @@ func (EsportsPlayer) Fields() []ent.Field {
 		field.Int("concurrent_limit").Default(0).StructTag(`json:"concurrent_limit"`),
 		// 接单游戏分区（§5.5 / §6.4）：空表示不限；否则只接这些游戏分区的订单。
 		field.JSON("games", []string{}).Optional().StructTag(`json:"games"`),
+		// 心跳时戳（§6.4）：陪玩端保活打点；上线时也会写入基线，
+		// 超时任务据此把长时间无心跳的在线陪玩自动离线，在途订单则转 protected_abnormal 并提醒客服。
+		field.Time("last_heartbeat_at").Optional().Nillable().StructTag(`json:"last_heartbeat_at"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),

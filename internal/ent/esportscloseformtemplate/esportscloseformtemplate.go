@@ -30,6 +30,8 @@ const (
 	FieldMaxCents = "max_cents"
 	// FieldFields holds the string denoting the fields field in the database.
 	FieldFields = "fields"
+	// FieldFieldDefinitions holds the string denoting the field_definitions field in the database.
+	FieldFieldDefinitions = "field_definitions"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -59,6 +61,7 @@ var Columns = []string{
 	FieldMinCents,
 	FieldMaxCents,
 	FieldFields,
+	FieldFieldDefinitions,
 	FieldStatus,
 	FieldVersion,
 	FieldCreatedByAdminID,

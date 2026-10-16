@@ -135,6 +135,20 @@ func (_u *EsportsCsCommissionRuleUpdate) SetNillableCalcMode(v *esportscscommiss
 	return _u
 }
 
+// SetIncludeGifts sets the "include_gifts" field.
+func (_u *EsportsCsCommissionRuleUpdate) SetIncludeGifts(v bool) *EsportsCsCommissionRuleUpdate {
+	_u.mutation.SetIncludeGifts(v)
+	return _u
+}
+
+// SetNillableIncludeGifts sets the "include_gifts" field if the given value is not nil.
+func (_u *EsportsCsCommissionRuleUpdate) SetNillableIncludeGifts(v *bool) *EsportsCsCommissionRuleUpdate {
+	if v != nil {
+		_u.SetIncludeGifts(*v)
+	}
+	return _u
+}
+
 // SetValueBp sets the "value_bp" field.
 func (_u *EsportsCsCommissionRuleUpdate) SetValueBp(v int) *EsportsCsCommissionRuleUpdate {
 	_u.mutation.ResetValueBp()
@@ -398,6 +412,9 @@ func (_u *EsportsCsCommissionRuleUpdate) sqlSave(ctx context.Context) (_node int
 	if value, ok := _u.mutation.CalcMode(); ok {
 		_spec.SetField(esportscscommissionrule.FieldCalcMode, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.IncludeGifts(); ok {
+		_spec.SetField(esportscscommissionrule.FieldIncludeGifts, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.ValueBp(); ok {
 		_spec.SetField(esportscscommissionrule.FieldValueBp, field.TypeInt, value)
 	}
@@ -566,6 +583,20 @@ func (_u *EsportsCsCommissionRuleUpdateOne) SetCalcMode(v esportscscommissionrul
 func (_u *EsportsCsCommissionRuleUpdateOne) SetNillableCalcMode(v *esportscscommissionrule.CalcMode) *EsportsCsCommissionRuleUpdateOne {
 	if v != nil {
 		_u.SetCalcMode(*v)
+	}
+	return _u
+}
+
+// SetIncludeGifts sets the "include_gifts" field.
+func (_u *EsportsCsCommissionRuleUpdateOne) SetIncludeGifts(v bool) *EsportsCsCommissionRuleUpdateOne {
+	_u.mutation.SetIncludeGifts(v)
+	return _u
+}
+
+// SetNillableIncludeGifts sets the "include_gifts" field if the given value is not nil.
+func (_u *EsportsCsCommissionRuleUpdateOne) SetNillableIncludeGifts(v *bool) *EsportsCsCommissionRuleUpdateOne {
+	if v != nil {
+		_u.SetIncludeGifts(*v)
 	}
 	return _u
 }
@@ -862,6 +893,9 @@ func (_u *EsportsCsCommissionRuleUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := _u.mutation.CalcMode(); ok {
 		_spec.SetField(esportscscommissionrule.FieldCalcMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.IncludeGifts(); ok {
+		_spec.SetField(esportscscommissionrule.FieldIncludeGifts, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.ValueBp(); ok {
 		_spec.SetField(esportscscommissionrule.FieldValueBp, field.TypeInt, value)

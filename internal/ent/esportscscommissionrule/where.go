@@ -69,6 +69,11 @@ func ScopeKey(v string) predicate.EsportsCsCommissionRule {
 	return predicate.EsportsCsCommissionRule(sql.FieldEQ(FieldScopeKey, v))
 }
 
+// IncludeGifts applies equality check predicate on the "include_gifts" field. It's identical to IncludeGiftsEQ.
+func IncludeGifts(v bool) predicate.EsportsCsCommissionRule {
+	return predicate.EsportsCsCommissionRule(sql.FieldEQ(FieldIncludeGifts, v))
+}
+
 // ValueBp applies equality check predicate on the "value_bp" field. It's identical to ValueBpEQ.
 func ValueBp(v int) predicate.EsportsCsCommissionRule {
 	return predicate.EsportsCsCommissionRule(sql.FieldEQ(FieldValueBp, v))
@@ -352,6 +357,16 @@ func CalcModeIn(vs ...CalcMode) predicate.EsportsCsCommissionRule {
 // CalcModeNotIn applies the NotIn predicate on the "calc_mode" field.
 func CalcModeNotIn(vs ...CalcMode) predicate.EsportsCsCommissionRule {
 	return predicate.EsportsCsCommissionRule(sql.FieldNotIn(FieldCalcMode, vs...))
+}
+
+// IncludeGiftsEQ applies the EQ predicate on the "include_gifts" field.
+func IncludeGiftsEQ(v bool) predicate.EsportsCsCommissionRule {
+	return predicate.EsportsCsCommissionRule(sql.FieldEQ(FieldIncludeGifts, v))
+}
+
+// IncludeGiftsNEQ applies the NEQ predicate on the "include_gifts" field.
+func IncludeGiftsNEQ(v bool) predicate.EsportsCsCommissionRule {
+	return predicate.EsportsCsCommissionRule(sql.FieldNEQ(FieldIncludeGifts, v))
 }
 
 // ValueBpEQ applies the EQ predicate on the "value_bp" field.

@@ -404,6 +404,16 @@ func RequireNoOpenAftersaleNEQ(v bool) predicate.EsportsCloseRule {
 	return predicate.EsportsCloseRule(sql.FieldNEQ(FieldRequireNoOpenAftersale, v))
 }
 
+// ConditionTreeIsNil applies the IsNil predicate on the "condition_tree" field.
+func ConditionTreeIsNil() predicate.EsportsCloseRule {
+	return predicate.EsportsCloseRule(sql.FieldIsNull(FieldConditionTree))
+}
+
+// ConditionTreeNotNil applies the NotNil predicate on the "condition_tree" field.
+func ConditionTreeNotNil() predicate.EsportsCloseRule {
+	return predicate.EsportsCloseRule(sql.FieldNotNull(FieldConditionTree))
+}
+
 // ReviewThresholdCentsEQ applies the EQ predicate on the "review_threshold_cents" field.
 func ReviewThresholdCentsEQ(v int64) predicate.EsportsCloseRule {
 	return predicate.EsportsCloseRule(sql.FieldEQ(FieldReviewThresholdCents, v))

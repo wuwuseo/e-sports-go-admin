@@ -52,15 +52,16 @@ type storedValueCardView struct {
 
 // storedValueOpenInput 是开卡入参（§4.4）：客服代办或客户自助购买。
 type storedValueOpenInput struct {
-	CustomerID        int    `json:"customer_id"`
-	Source            string `json:"source"`
-	PaymentChannel    string `json:"payment_channel"`
-	PaymentRef        string `json:"payment_ref"`
+	CustomerID     int    `json:"customer_id"`
+	Source         string `json:"source"`
+	PaymentChannel string `json:"payment_channel"`
+	PaymentRef     string `json:"payment_ref"`
 	// 可选：选定套餐后本金 / 赠送由套餐决定，忽略入参的 principal_cents / bonus_cents（§4.4）。
 	PackageID         int    `json:"package_id"`
 	PrincipalCents    int64  `json:"principal_cents"`
 	BonusCents        int64  `json:"bonus_cents"`
 	ApplicableScope   []int  `json:"applicable_scope"`
+	AllowGifts        bool   `json:"allow_gifts"`
 	ContractConfirmed bool   `json:"contract_confirmed"`
 	ValidUntil        string `json:"valid_until"`
 	ValidityDays      int    `json:"validity_days"`
@@ -149,16 +150,20 @@ func storedValueCardViewOf(ctx context.Context, db *ent.Client, card *ent.Esport
 	if err != nil {
 		return nil, err
 	}
+	consumed := card.PrincipalCents + card.BonusCents - balance.total()
+	if card.Status == esportsstoredvaluecard.StatusPendingVerification || card.Status == esportsstoredvaluecard.StatusRejected {
+		consumed = 0
+	}
 	return &storedValueCardView{
 		EsportsStoredValueCard:  card,
 		PrincipalRemainingCents: balance.PrincipalCents,
 		BonusRemainingCents:     balance.BonusCents,
 		BalanceCents:            balance.total(),
-		ConsumedCents:           card.PrincipalCents + card.BonusCents - balance.total(),
+		ConsumedCents:           consumed,
 	}, nil
 }
 
-// openStoredValueCard 开卡（§4.4）：外部收款开卡直接入账并留凭证；用客户余额购卡属账户间划转，
+// openStoredValueCard 开卡（§4.4）：外部收款先待核验，不得提前发放余额；用客户余额购卡属账户间划转，
 // 同一事务内减少余额本金、增加储值卡本金并产生配对流水。重复幂等键由唯一索引兜底返回冲突。
 func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in storedValueOpenInput, now time.Time) (*storedValueCardView, error) {
 	key := strings.TrimSpace(in.IdempotencyKey)
@@ -231,15 +236,23 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		}
 	}
 	// 卡号冲突（理论概率极低）交由唯一索引拒绝，调用方重试即可。
+	status := esportsstoredvaluecard.StatusActive
+	if in.PaymentChannel != "customer_balance" {
+		status = esportsstoredvaluecard.StatusPendingVerification
+	}
 	creator := tx.EsportsStoredValueCard.Create().SetCardNo(newStoredValueCardNo()).
 		SetCustomerID(in.CustomerID).
+		SetOpenRequestKey(key).
 		SetSource(esportsstoredvaluecard.Source(in.Source)).
 		SetPaymentChannel(esportsstoredvaluecard.PaymentChannel(in.PaymentChannel)).
 		SetPaymentRef(ref).SetPrincipalCents(in.PrincipalCents).SetBonusCents(in.BonusCents).
-		SetApplicableScope(scope).SetContractConfirmed(true).
+		SetApplicableScope(scope).SetAllowGifts(in.AllowGifts).SetContractConfirmed(true).
 		SetValidFrom(utc).SetValidUntil(validUntil).
-		SetStatus(esportsstoredvaluecard.StatusActive).
+		SetStatus(status).
 		SetOpenedByAdminID(adminID)
+	if strings.TrimSpace(in.ValidUntil) == "" && in.ValidityDays > 0 {
+		creator.SetRequestedValidityDays(in.ValidityDays)
+	}
 	if packageID != nil {
 		creator = creator.SetPackageID(*packageID)
 	}
@@ -249,6 +262,12 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 			return nil, errConflict
 		}
 		return nil, err
+	}
+	if status == esportsstoredvaluecard.StatusPendingVerification {
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+		return storedValueCardViewOf(ctx, db, card)
 	}
 	create := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
@@ -290,6 +309,117 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 	return storedValueCardViewOf(ctx, db, card)
 }
 
+// verifyStoredValueCardPayment 由另一名具有核验权限的管理员对照实际到账流水确认。
+// 申请凭证只用于定位，不能单凭申请时填写的号码发放卡内余额。
+func verifyStoredValueCardPayment(ctx context.Context, db *ent.Client, adminID, cardID int, approve bool, receiptRef string, receivedCents int64, evidenceNote string, now time.Time) (*storedValueCardView, error) {
+	receiptRef = strings.TrimSpace(receiptRef)
+	evidenceNote = strings.TrimSpace(evidenceNote)
+	if adminID < 1 || cardID < 1 || len([]rune(evidenceNote)) < 8 || len([]rune(evidenceNote)) > 255 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	card, err := tx.EsportsStoredValueCard.Get(ctx, cardID)
+	if err != nil {
+		return nil, err
+	}
+	if card.Status != esportsstoredvaluecard.StatusPendingVerification {
+		return nil, errConflict
+	}
+	if card.OpenedByAdminID != nil && *card.OpenedByAdminID == adminID {
+		return nil, fmt.Errorf("%w：开卡申请人不得核验本人提交的收款", errForbidden)
+	}
+	if approve {
+		if receiptRef == "" || len(receiptRef) > 128 || receiptRef != card.PaymentRef || receivedCents != card.PrincipalCents {
+			return nil, fmt.Errorf("%w：到账流水号或实收金额与开卡申请不一致", errInvalidInput)
+		}
+		validUntil := card.ValidUntil
+		if card.RequestedValidityDays > 0 {
+			validUntil = now.UTC().AddDate(0, 0, card.RequestedValidityDays)
+		}
+		if !now.UTC().Before(validUntil) {
+			return nil, fmt.Errorf("%w：储值卡有效期已过，请驳回并重新申请", errInvalidInput)
+		}
+		key := string(card.PaymentChannel) + ":" + receiptRef
+		changed, err := tx.EsportsStoredValueCard.Update().Where(
+			esportsstoredvaluecard.IDEQ(card.ID),
+			esportsstoredvaluecard.VersionEQ(card.Version),
+			esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusPendingVerification),
+		).SetStatus(esportsstoredvaluecard.StatusActive).
+			SetVerifiedPaymentKey(key).SetPaymentVerifiedByAdminID(adminID).
+			SetPaymentVerifiedAt(now.UTC()).SetPaymentVerifiedAmountCents(receivedCents).
+			SetPaymentVerificationNote(evidenceNote).SetValidFrom(now.UTC()).SetValidUntil(validUntil).AddVersion(1).Save(ctx)
+		if err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		sourceID := card.CardNo
+		if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+			SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
+			SetEntryType(esportswallettx.EntryTypeRecharge).
+			SetPrincipalDeltaCents(card.PrincipalCents).SetBonusDeltaCents(card.BonusCents).
+			SetSourceType(storedValueSourceOpen).SetSourceID(sourceID).
+			SetOperatorID(adminID).SetNote("财务核验外部收款后开卡：" + evidenceNote).
+			SetRuleSnapshot(map[string]any{
+				"card_no": card.CardNo, "payment_channel": string(card.PaymentChannel),
+				"payment_ref": receiptRef, "verified_received_cents": receivedCents,
+				"verified_by_admin_id": adminID, "verified_at": now.UTC(),
+				"applicable_scope": card.ApplicableScope, "valid_until": validUntil,
+			}).
+			SetNillableBonusExpiresAt(func() *time.Time {
+				if card.BonusCents > 0 {
+					return &validUntil
+				}
+				return nil
+			}()).Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
+		if _, err = tx.EsportsLedgerEntry.Create().
+			SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
+			SetSourceType(storedValueSourceOpen).SetSourceID(sourceID).
+			SetEntryRole("card_open").SetDeltaCents(card.PrincipalCents + card.BonusCents).
+			SetFundBatch(key).Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return nil, errConflict
+			}
+			return nil, err
+		}
+	} else {
+		changed, err := tx.EsportsStoredValueCard.Update().Where(
+			esportsstoredvaluecard.IDEQ(card.ID),
+			esportsstoredvaluecard.VersionEQ(card.Version),
+			esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusPendingVerification),
+		).SetStatus(esportsstoredvaluecard.StatusRejected).
+			SetPaymentVerifiedByAdminID(adminID).SetPaymentVerifiedAt(now.UTC()).
+			SetPaymentVerificationNote(evidenceNote).AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	updated, err := db.EsportsStoredValueCard.Get(ctx, card.ID)
+	if err != nil {
+		return nil, err
+	}
+	return storedValueCardViewOf(ctx, db, updated)
+}
+
 // storedValueCardUsable 校验卡可用于该订单：归属客户一致、状态可用、在有效期内、适用商品命中。
 func storedValueCardUsable(card *ent.EsportsStoredValueCard, customerID, skuID int, now time.Time) error {
 	if card.CustomerID != customerID {
@@ -316,6 +446,18 @@ func storedValueCardUsable(card *ent.EsportsStoredValueCard, customerID, skuID i
 		if !matched {
 			return fmt.Errorf("%w：该订单商品不在储值卡适用范围内", errInvalidInput)
 		}
+	}
+	return nil
+}
+
+// 礼物只可使用合同明确允许的卡内本金；SKU 适用范围不代表礼物授权。
+func storedValueCardUsableForGift(card *ent.EsportsStoredValueCard, customerID int, now time.Time) error {
+	if card.CustomerID != customerID {
+		return errForbidden
+	}
+	if !card.AllowGifts || card.Status != esportsstoredvaluecard.StatusActive ||
+		now.UTC().Before(card.ValidFrom) || !now.UTC().Before(card.ValidUntil) {
+		return errStoredValueUnusable
 	}
 	return nil
 }
@@ -382,7 +524,7 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 		}
 		return nil, err
 	}
-	changed, err := tx.EsportsOrder.Update().Where(
+	update := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
 		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
@@ -390,7 +532,11 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 		SetPaymentChannel(esportsorder.PaymentChannelStoredValueCard).
 		SetStoredValueCardID(card.ID).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).
-		SetPaidAt(now.UTC()).AddVersion(1).Save(ctx)
+		SetPaidAt(now.UTC()).AddVersion(1)
+	if err := lockCsCommissionOnPayment(ctx, tx, order, update, now); err != nil {
+		return nil, err
+	}
+	changed, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -494,17 +640,30 @@ func storedValueOrderConsistent(ctx context.Context, db *ent.Client, order *ent.
 }
 
 // listStoredValueCards 列出储值卡：customer_id / status 可选过滤，remind_days 命中「临近有效期」。
-func listStoredValueCards(ctx context.Context, db *ent.Client, customerID int, status string, remindDays, limit int, now time.Time) ([]*storedValueCardView, error) {
+func listStoredValueCards(ctx context.Context, db *ent.Client, adminID int, isSuper bool, customerID int, status string, remindDays, limit int, now time.Time) ([]*storedValueCardView, error) {
+	if adminID < 1 {
+		return nil, errForbidden
+	}
 	if limit < 1 || limit > 200 {
 		limit = 100
 	}
 	q := db.EsportsStoredValueCard.Query()
+	if !isSuper {
+		ids, err := db.EsportsCustomer.Query().Where(esportscustomer.OwnerAdminIDEQ(adminID)).IDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			return []*storedValueCardView{}, nil
+		}
+		q.Where(esportsstoredvaluecard.CustomerIDIn(ids...))
+	}
 	if customerID > 0 {
 		q.Where(esportsstoredvaluecard.CustomerIDEQ(customerID))
 	}
 	if status = strings.TrimSpace(status); status != "" {
 		switch status {
-		case "active", "exhausted", "refund_pending", "refunded", "expired", "frozen":
+		case "pending_verification", "rejected", "active", "exhausted", "refund_pending", "refunded", "expired", "frozen":
 			q.Where(esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.Status(status)))
 		default:
 			return nil, errInvalidInput

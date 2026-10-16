@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -24,6 +25,108 @@ func openStoredValueDB(t *testing.T, name string) *ent.Client {
 	return db
 }
 
+func TestStoredValueCardListScopedToCurrentCustomerOwner(t *testing.T) {
+	db := openStoredValueDB(t, "esports_stored_value_scope")
+	defer db.Close()
+	ctx := t.Context()
+	customer := saveCustomerOrFail(t, db, 11)
+	now := time.Now()
+	card, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr", PaymentRef: "SCOPE-RECEIPT",
+		PrincipalCents: 1000, ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "scope-card-open-1",
+	}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows, err := listStoredValueCards(ctx, db, 22, false, 0, "", 0, 10, now); err != nil || len(rows) != 0 {
+		t.Fatalf("其他客服看到储值卡：%+v %v", rows, err)
+	}
+	if rows, err := listStoredValueCards(ctx, db, 11, false, 0, "", 0, 10, now); err != nil || len(rows) != 1 || rows[0].ID != card.ID {
+		t.Fatalf("负责客服看不到储值卡：%+v %v", rows, err)
+	}
+	db.EsportsCustomer.UpdateOneID(customer.ID).SetOwnerAdminID(22).ExecX(ctx)
+	if rows, err := listStoredValueCards(ctx, db, 11, false, 0, "", 0, 10, now); err != nil || len(rows) != 0 {
+		t.Fatalf("转移后旧客服仍能看到储值卡：%+v %v", rows, err)
+	}
+}
+
+func openVerifiedStoredValueCard(t *testing.T, ctx context.Context, db *ent.Client, adminID int, in storedValueOpenInput, now time.Time) (*storedValueCardView, error) {
+	t.Helper()
+	view, err := openStoredValueCard(ctx, db, adminID, in, now)
+	if err != nil || in.PaymentChannel == "customer_balance" {
+		return view, err
+	}
+	if view.Status != esportsstoredvaluecard.StatusPendingVerification || view.BalanceCents != 0 {
+		t.Fatalf("外部收款申请应待核验且余额为零：%+v", view)
+	}
+	verified, err := verifyStoredValueCardPayment(ctx, db, adminID+1, view.ID, true, in.PaymentRef,
+		view.PrincipalCents, "对照实际到账流水和收款账户核验", now)
+	if err != nil {
+		t.Fatalf("测试核验开卡失败：%v", err)
+	}
+	return verified, nil
+}
+
+func TestStoredValueExternalPaymentRequiresIndependentVerification(t *testing.T) {
+	db := openStoredValueDB(t, "esports_stored_value_payment_verification")
+	ctx := t.Context()
+	customer := saveCustomerOrFail(t, db, 11)
+	now := time.Now()
+	in := storedValueOpenInput{
+		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
+		PaymentRef: "REAL-RECEIPT-1", PrincipalCents: 10000, BonusCents: 2000,
+		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-verification-1",
+	}
+	pending, err := openStoredValueCard(ctx, db, 11, in, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pending.Status != esportsstoredvaluecard.StatusPendingVerification || pending.BalanceCents != 0 || pending.ConsumedCents != 0 {
+		t.Fatalf("申请阶段不得发放卡内余额：%+v", pending)
+	}
+	if got := db.EsportsWalletTx.Query().CountX(ctx); got != 0 {
+		t.Fatalf("申请阶段不得产生钱包流水，got=%d", got)
+	}
+	if got := db.EsportsLedgerEntry.Query().CountX(ctx); got != 0 {
+		t.Fatalf("申请阶段不得产生预付款账本，got=%d", got)
+	}
+	if _, err = verifyStoredValueCardPayment(ctx, db, 11, pending.ID, true, in.PaymentRef, 10000, "核对收款账户和到账时间", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("申请人自审应被拒，err=%v", err)
+	}
+	if _, err = verifyStoredValueCardPayment(ctx, db, 22, pending.ID, true, in.PaymentRef, 9999, "核对收款账户和到账时间", now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("实收金额不符不得激活，err=%v", err)
+	}
+	verifiedAt := now.Add(48 * time.Hour)
+	active, err := verifyStoredValueCardPayment(ctx, db, 22, pending.ID, true, in.PaymentRef, 10000, "核对收款账户和到账时间", verifiedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active.Status != esportsstoredvaluecard.StatusActive || active.BalanceCents != 12000 || active.PaymentVerifiedByAdminID == nil || *active.PaymentVerifiedByAdminID != 22 {
+		t.Fatalf("核验后才应激活并入账：%+v", active)
+	}
+	if !active.ValidFrom.Equal(verifiedAt.UTC()) || !active.ValidUntil.Equal(verifiedAt.UTC().AddDate(0, 0, 30)) {
+		t.Fatalf("有效天数应从实际激活日开始计算：%v ~ %v", active.ValidFrom, active.ValidUntil)
+	}
+	if _, err = verifyStoredValueCardPayment(ctx, db, 23, pending.ID, true, in.PaymentRef, 10000, "重复核验同一笔到账流水", now); !errors.Is(err, errConflict) {
+		t.Fatalf("重复核验不得重复入账，err=%v", err)
+	}
+	in.IdempotencyKey = "sv-verification-2"
+	second, err := openStoredValueCard(ctx, db, 11, in, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = verifyStoredValueCardPayment(ctx, db, 22, second.ID, true, in.PaymentRef, 10000, "试图复用已核验流水号", now); !errors.Is(err, errConflict) {
+		t.Fatalf("同一到账流水不得激活第二张卡，err=%v", err)
+	}
+	if got := db.EsportsStoredValueCard.GetX(ctx, second.ID).Status; got != esportsstoredvaluecard.StatusPendingVerification {
+		t.Fatalf("冲突后第二张卡须保持待核验，got=%s", got)
+	}
+	rejected, err := verifyStoredValueCardPayment(ctx, db, 22, second.ID, false, "", 0, "收款流水已用于其他开卡申请", now)
+	if err != nil || rejected.Status != esportsstoredvaluecard.StatusRejected || rejected.BalanceCents != 0 {
+		t.Fatalf("驳回应保持无余额，card=%+v err=%v", rejected, err)
+	}
+}
+
 // 外部收款开卡：本金与赠送分列入账、预付款批次落账，凭证与合同必填，幂等键重复被拒。
 func TestStoredValueOpenExternalChannel(t *testing.T) {
 	db := openStoredValueDB(t, "esports_stored_value_open")
@@ -31,7 +134,7 @@ func TestStoredValueOpenExternalChannel(t *testing.T) {
 	customer := saveCustomerOrFail(t, db, 11)
 	now := time.Now()
 
-	view, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	view, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-2026-0001", PrincipalCents: 10000, BonusCents: 2000,
 		ContractConfirmed: true, ValidityDays: 30, Note: "开卡", IdempotencyKey: "sv-open-key-1",
@@ -58,25 +161,25 @@ func TestStoredValueOpenExternalChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(batches) != 1 || batches[0].DeltaCents != 12000 || batches[0].FundBatch != "QR-2026-0001" {
+	if len(batches) != 1 || batches[0].DeltaCents != 12000 || batches[0].FundBatch != "merchant_qr:QR-2026-0001" {
 		t.Fatalf("预付款批次账本不正确：%+v", batches)
 	}
 
 	// 缺凭证、未确认合同都不得写卡。
-	if _, err = openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	if _, err = openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "corporate_transfer",
 		PrincipalCents: 1000, ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-open-key-no-ref",
 	}, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("外部收款缺凭证应被拒，err=%v", err)
 	}
-	if _, err = openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	if _, err = openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-2", PrincipalCents: 1000, ValidityDays: 30, IdempotencyKey: "sv-open-key-no-contract",
 	}, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("未确认合同应被拒，err=%v", err)
 	}
 	// 同一幂等键重复提交只入账一次。
-	if _, err = openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	if _, err = openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-2026-0001", PrincipalCents: 10000, BonusCents: 2000,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-open-key-1",
@@ -96,7 +199,7 @@ func TestStoredValueOpenByBalanceTransfer(t *testing.T) {
 		walletInput{PrincipalCents: 5000, Note: "充值"}, "sv-recharge-key"); err != nil {
 		t.Fatal(err)
 	}
-	view, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	view, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "customer_balance",
 		PrincipalCents: 3000, ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-transfer-key",
 	}, now)
@@ -125,14 +228,14 @@ func TestStoredValueOpenByBalanceTransfer(t *testing.T) {
 	}
 
 	// 划转不得产生赠送权益。
-	if _, err = openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	if _, err = openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "customer_balance",
 		PrincipalCents: 100, BonusCents: 100, ContractConfirmed: true,
 		ValidityDays: 30, IdempotencyKey: "sv-transfer-bonus-key",
 	}, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("余额购卡带赠送应被拒，err=%v", err)
 	}
-	if _, err = openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	if _, err = openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "customer_balance",
 		PrincipalCents: 99999, ContractConfirmed: true, ValidityDays: 30,
 		IdempotencyKey: "sv-transfer-poor-key",
@@ -148,7 +251,7 @@ func TestStoredValueRefundFlow(t *testing.T) {
 	customer := saveCustomerOrFail(t, db, 11)
 	now := time.Now()
 
-	card, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "wechat_work",
 		PaymentRef: "WX-1", PrincipalCents: 10000, BonusCents: 2000,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-refund-open-key",
@@ -189,7 +292,7 @@ func TestStoredValueRefundFlow(t *testing.T) {
 	}
 
 	// 驳回路径：状态还原为可用，余额不变。
-	second, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	second, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "wechat_work",
 		PaymentRef: "WX-2", PrincipalCents: 5000, ContractConfirmed: true,
 		ValidityDays: 30, IdempotencyKey: "sv-refund-reject-key",
@@ -222,7 +325,7 @@ func TestStoredValuePayOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	card, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-PAY-1", PrincipalCents: 3000, ContractConfirmed: true,
 		ValidityDays: 30, IdempotencyKey: "sv-pay-open-key",
@@ -245,6 +348,10 @@ func TestStoredValuePayOrder(t *testing.T) {
 		paid.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
 		t.Fatalf("核销后订单标记不正确：%+v", paid)
 	}
+	if paid.CsCommissionRuleLockedAt == nil || paid.CsCommissionAdminID == nil ||
+		*paid.CsCommissionAdminID != 11 || paid.CsCommissionRuleID != nil {
+		t.Fatalf("储值卡核销未锁定当时客服提成口径：%+v", paid)
+	}
 	remaining, err := storedValueCardBalance(ctx, db, card.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -261,7 +368,7 @@ func TestStoredValuePayOrder(t *testing.T) {
 	}
 
 	// 适用范围不命中：卡只限指定 SKU。
-	scoped, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	scoped, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-PAY-2", PrincipalCents: 3000, ApplicableScope: []int{999999},
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-pay-scope-key",
@@ -314,7 +421,7 @@ func TestStoredValueOrderRefundReturnsToCard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	card, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-REFUND", PrincipalCents: 3000, BonusCents: 1000,
 		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "sv-refund-order-open",
@@ -378,7 +485,7 @@ func TestStoredValueExpireAndDueReminder(t *testing.T) {
 	customer := saveCustomerOrFail(t, db, 11)
 	now := time.Now()
 
-	due, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	due, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-DUE", PrincipalCents: 1000, ContractConfirmed: true,
 		ValidityDays: 10, IdempotencyKey: "sv-due-key",
@@ -387,7 +494,7 @@ func TestStoredValueExpireAndDueReminder(t *testing.T) {
 		t.Fatal(err)
 	}
 	// 开卡接口不允许过去有效期，先正常开卡再回填有效期，模拟历史数据。
-	oldCard, err := openStoredValueCard(ctx, db, 11, storedValueOpenInput{
+	oldCard, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
 		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
 		PaymentRef: "QR-OLD", PrincipalCents: 2000, ContractConfirmed: true,
 		ValidityDays: 5, IdempotencyKey: "sv-expired-key",

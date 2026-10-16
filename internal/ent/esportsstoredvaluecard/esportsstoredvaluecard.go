@@ -32,14 +32,30 @@ const (
 	FieldBonusCents = "bonus_cents"
 	// FieldApplicableScope holds the string denoting the applicable_scope field in the database.
 	FieldApplicableScope = "applicable_scope"
+	// FieldAllowGifts holds the string denoting the allow_gifts field in the database.
+	FieldAllowGifts = "allow_gifts"
 	// FieldContractConfirmed holds the string denoting the contract_confirmed field in the database.
 	FieldContractConfirmed = "contract_confirmed"
 	// FieldValidFrom holds the string denoting the valid_from field in the database.
 	FieldValidFrom = "valid_from"
 	// FieldValidUntil holds the string denoting the valid_until field in the database.
 	FieldValidUntil = "valid_until"
+	// FieldRequestedValidityDays holds the string denoting the requested_validity_days field in the database.
+	FieldRequestedValidityDays = "requested_validity_days"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldOpenRequestKey holds the string denoting the open_request_key field in the database.
+	FieldOpenRequestKey = "open_request_key"
+	// FieldVerifiedPaymentKey holds the string denoting the verified_payment_key field in the database.
+	FieldVerifiedPaymentKey = "verified_payment_key"
+	// FieldPaymentVerifiedByAdminID holds the string denoting the payment_verified_by_admin_id field in the database.
+	FieldPaymentVerifiedByAdminID = "payment_verified_by_admin_id"
+	// FieldPaymentVerifiedAt holds the string denoting the payment_verified_at field in the database.
+	FieldPaymentVerifiedAt = "payment_verified_at"
+	// FieldPaymentVerifiedAmountCents holds the string denoting the payment_verified_amount_cents field in the database.
+	FieldPaymentVerifiedAmountCents = "payment_verified_amount_cents"
+	// FieldPaymentVerificationNote holds the string denoting the payment_verification_note field in the database.
+	FieldPaymentVerificationNote = "payment_verification_note"
 	// FieldPackageID holds the string denoting the package_id field in the database.
 	FieldPackageID = "package_id"
 	// FieldOpenedByAdminID holds the string denoting the opened_by_admin_id field in the database.
@@ -80,10 +96,18 @@ var Columns = []string{
 	FieldPrincipalCents,
 	FieldBonusCents,
 	FieldApplicableScope,
+	FieldAllowGifts,
 	FieldContractConfirmed,
 	FieldValidFrom,
 	FieldValidUntil,
+	FieldRequestedValidityDays,
 	FieldStatus,
+	FieldOpenRequestKey,
+	FieldVerifiedPaymentKey,
+	FieldPaymentVerifiedByAdminID,
+	FieldPaymentVerifiedAt,
+	FieldPaymentVerifiedAmountCents,
+	FieldPaymentVerificationNote,
 	FieldPackageID,
 	FieldOpenedByAdminID,
 	FieldRefundQuote,
@@ -120,8 +144,22 @@ var (
 	PrincipalCentsValidator func(int64) error
 	// DefaultBonusCents holds the default value on creation for the "bonus_cents" field.
 	DefaultBonusCents int64
+	// DefaultAllowGifts holds the default value on creation for the "allow_gifts" field.
+	DefaultAllowGifts bool
 	// DefaultContractConfirmed holds the default value on creation for the "contract_confirmed" field.
 	DefaultContractConfirmed bool
+	// DefaultRequestedValidityDays holds the default value on creation for the "requested_validity_days" field.
+	DefaultRequestedValidityDays int
+	// OpenRequestKeyValidator is a validator for the "open_request_key" field. It is called by the builders before save.
+	OpenRequestKeyValidator func(string) error
+	// VerifiedPaymentKeyValidator is a validator for the "verified_payment_key" field. It is called by the builders before save.
+	VerifiedPaymentKeyValidator func(string) error
+	// DefaultPaymentVerifiedAmountCents holds the default value on creation for the "payment_verified_amount_cents" field.
+	DefaultPaymentVerifiedAmountCents int64
+	// DefaultPaymentVerificationNote holds the default value on creation for the "payment_verification_note" field.
+	DefaultPaymentVerificationNote string
+	// PaymentVerificationNoteValidator is a validator for the "payment_verification_note" field. It is called by the builders before save.
+	PaymentVerificationNoteValidator func(string) error
 	// DefaultRefundedCents holds the default value on creation for the "refunded_cents" field.
 	DefaultRefundedCents int64
 	// DefaultVersion holds the default value on creation for the "version" field.
@@ -193,12 +231,14 @@ const DefaultStatus = StatusActive
 
 // Status values.
 const (
-	StatusActive        Status = "active"
-	StatusExhausted     Status = "exhausted"
-	StatusRefundPending Status = "refund_pending"
-	StatusRefunded      Status = "refunded"
-	StatusExpired       Status = "expired"
-	StatusFrozen        Status = "frozen"
+	StatusPendingVerification Status = "pending_verification"
+	StatusRejected            Status = "rejected"
+	StatusActive              Status = "active"
+	StatusExhausted           Status = "exhausted"
+	StatusRefundPending       Status = "refund_pending"
+	StatusRefunded            Status = "refunded"
+	StatusExpired             Status = "expired"
+	StatusFrozen              Status = "frozen"
 )
 
 func (s Status) String() string {
@@ -208,7 +248,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusActive, StatusExhausted, StatusRefundPending, StatusRefunded, StatusExpired, StatusFrozen:
+	case StatusPendingVerification, StatusRejected, StatusActive, StatusExhausted, StatusRefundPending, StatusRefunded, StatusExpired, StatusFrozen:
 		return nil
 	default:
 		return fmt.Errorf("esportsstoredvaluecard: invalid enum value for status field: %q", s)
@@ -258,6 +298,11 @@ func ByBonusCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBonusCents, opts...).ToFunc()
 }
 
+// ByAllowGifts orders the results by the allow_gifts field.
+func ByAllowGifts(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowGifts, opts...).ToFunc()
+}
+
 // ByContractConfirmed orders the results by the contract_confirmed field.
 func ByContractConfirmed(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContractConfirmed, opts...).ToFunc()
@@ -273,9 +318,44 @@ func ByValidUntil(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldValidUntil, opts...).ToFunc()
 }
 
+// ByRequestedValidityDays orders the results by the requested_validity_days field.
+func ByRequestedValidityDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestedValidityDays, opts...).ToFunc()
+}
+
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByOpenRequestKey orders the results by the open_request_key field.
+func ByOpenRequestKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOpenRequestKey, opts...).ToFunc()
+}
+
+// ByVerifiedPaymentKey orders the results by the verified_payment_key field.
+func ByVerifiedPaymentKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVerifiedPaymentKey, opts...).ToFunc()
+}
+
+// ByPaymentVerifiedByAdminID orders the results by the payment_verified_by_admin_id field.
+func ByPaymentVerifiedByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentVerifiedByAdminID, opts...).ToFunc()
+}
+
+// ByPaymentVerifiedAt orders the results by the payment_verified_at field.
+func ByPaymentVerifiedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentVerifiedAt, opts...).ToFunc()
+}
+
+// ByPaymentVerifiedAmountCents orders the results by the payment_verified_amount_cents field.
+func ByPaymentVerifiedAmountCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentVerifiedAmountCents, opts...).ToFunc()
+}
+
+// ByPaymentVerificationNote orders the results by the payment_verification_note field.
+func ByPaymentVerificationNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentVerificationNote, opts...).ToFunc()
 }
 
 // ByPackageID orders the results by the package_id field.

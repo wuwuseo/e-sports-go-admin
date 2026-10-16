@@ -430,7 +430,7 @@ func TestExpireWalletBonusFIFOAndIdempotent(t *testing.T) {
 	}
 }
 
-// 未指定赠送有效期（0）时赠永久，不会被作废。
+// 永久赠送不作废；叠加限时赠送时只作废到期的那一档。
 func TestRechargeCampaignPermanentBonusNeverExpires(t *testing.T) {
 	db := openCampaignDB(t)
 	ctx := t.Context()
@@ -454,7 +454,7 @@ func TestRechargeCampaignPermanentBonusNeverExpires(t *testing.T) {
 		t.Fatalf("永久赠送不应被作废：count=%d err=%v", count, err)
 	}
 
-	// 永久活动与限时活动同时命中（可叠加）时，整笔赠送视为永久，限时部分也不被作废。
+	// 永久活动与限时活动同时命中时，两个赠送批次保留各自期限。
 	limited := baseCampaignInput("LIMITED-7D", now)
 	limited.BonusValidDays = 7
 	createActiveCampaign(t, db, limited)
@@ -468,10 +468,17 @@ func TestRechargeCampaignPermanentBonusNeverExpires(t *testing.T) {
 		t.Fatal(err)
 	}
 	if mixTx.BonusExpiresAt != nil {
-		t.Fatalf("命中永久活动时整笔赠送应永久：%v", mixTx.BonusExpiresAt)
+		t.Fatalf("聚合流水包含永久赠送时不应设置统一到期时间：%v", mixTx.BonusExpiresAt)
+	}
+	if count, err := expireWalletBonus(ctx, db, now.AddDate(0, 0, 8), 200); err != nil || count != 1 {
+		t.Fatalf("应只作废限时赠送批次：count=%d err=%v", count, err)
+	}
+	remaining, err := walletBalanceOf(ctx, db, walletCustomerBalance, other.ID)
+	if err != nil || remaining.BonusCents != 500 {
+		t.Fatalf("永久赠送应保留 500 分：balance=%+v err=%v", remaining, err)
 	}
 	if count, err := expireWalletBonus(ctx, db, now.AddDate(1, 0, 0), 200); err != nil || count != 0 {
-		t.Fatalf("含永久赠送时不应作废：count=%d err=%v", count, err)
+		t.Fatalf("重复运行不应再次作废：count=%d err=%v", count, err)
 	}
 }
 

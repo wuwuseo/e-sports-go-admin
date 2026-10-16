@@ -27,6 +27,27 @@ func parsePathID(c fiber.Ctx, field string) (int, error) {
 }
 
 func repriceOrderHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in repriceInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	order, err := repriceOrder(c.Context(), global.ORM, id, adminID, isSuper, in)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
+func previewRepriceHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
 	}
@@ -38,15 +59,74 @@ func repriceOrderHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := repriceOrder(c.Context(), global.ORM, id, in)
+	quote, err := previewReprice(c.Context(), global.ORM, id, in)
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, order)
+	return reply(c, quote)
+}
+
+func requestPriceAdjustmentHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in priceAdjustmentRequestInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	item, err := requestPriceAdjustment(c.Context(), global.ORM, orderID, adminID, isSuper, in)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+func adminPriceAdjustments(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	items, err := listPriceAdjustments(c.Context(), global.ORM, adminID, isSuper, c.Query("status"))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+func decidePriceAdjustmentHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "改价审批")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Approve *bool  `json:"approve"`
+		Note    string `json:"note"`
+	}
+	if err := c.Bind().Body(&in); err != nil || in.Approve == nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	item, err := decidePriceAdjustment(c.Context(), global.ORM, id, adminID, isSuper, *in.Approve, in.Note, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
 }
 
 func cancelOrderHandler(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	id, err := parsePathID(c, "订单")
@@ -59,15 +139,35 @@ func cancelOrderHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := cancelOrder(c.Context(), global.ORM, id, in.Reason)
+	order, err := cancelOrder(c.Context(), global.ORM, id, adminID, in.Reason, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
 	return reply(c, order)
 }
 
+// previewCancelOrderHandler 已付款订单取消试算（§3.3 公示取消政策）：返回免费窗口、
+// 手续费与应退金额，供客服在取消前向客户公示。
+func previewCancelOrderHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	quote, err := previewCancelOrder(c.Context(), global.ORM, id, adminID, isSuper, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, quote)
+}
+
 func rescheduleOrderHandler(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	id, err := parsePathID(c, "订单")
@@ -78,7 +178,7 @@ func rescheduleOrderHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := rescheduleOrder(c.Context(), global.ORM, id, in, time.Now())
+	order, err := rescheduleOrder(c.Context(), global.ORM, id, adminID, in, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -159,10 +259,12 @@ func payOrderWithBalanceHandler(c fiber.Ctx) error {
 }
 
 func adminWallets(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
-	views, err := listWalletAccounts(c.Context(), global.ORM,
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	views, err := listWalletAccounts(c.Context(), global.ORM, adminID, isSuper,
 		c.Query("account_type"), c.Query("keyword"), queryLimit(c, 100))
 	if err != nil {
 		return businessError(c, err)
@@ -171,12 +273,19 @@ func adminWallets(c fiber.Ctx) error {
 }
 
 func adminWalletTransactions(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	id, err := parsePathID(c, "钱包归属人")
 	if err != nil {
 		return businessError(c, err)
+	}
+	if strings.TrimSpace(c.Query("account_type")) == walletCustomerBalance {
+		isSuper, _ := c.Locals("isSuperAdmin").(bool)
+		if _, err := loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, id); err != nil {
+			return businessError(c, err)
+		}
 	}
 	items, err := listWalletTransactions(c.Context(), global.ORM,
 		c.Query("account_type"), id, queryLimit(c, 200))
@@ -205,6 +314,12 @@ func walletMutationHandler(adjust bool) fiber.Handler {
 		ownerID, err := parsePathID(c, "钱包归属人")
 		if err != nil {
 			return businessError(c, err)
+		}
+		if strings.TrimSpace(accountType) == walletCustomerBalance {
+			isSuper, _ := c.Locals("isSuperAdmin").(bool)
+			if _, err := loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, ownerID); err != nil {
+				return businessError(c, err)
+			}
 		}
 		key := strings.TrimSpace(c.Get("Idempotency-Key"))
 		var in walletInput

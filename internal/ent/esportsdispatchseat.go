@@ -33,6 +33,10 @@ type EsportsDispatchSeat struct {
 	ExpiresAt *time.Time `json:"expires_at"`
 	// RespondedAt holds the value of the "responded_at" field.
 	RespondedAt *time.Time `json:"responded_at"`
+	// CommissionRuleID holds the value of the "commission_rule_id" field.
+	CommissionRuleID *int `json:"commission_rule_id"`
+	// CommissionRuleLockedAt holds the value of the "commission_rule_locked_at" field.
+	CommissionRuleLockedAt *time.Time `json:"commission_rule_locked_at"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -47,11 +51,11 @@ func (*EsportsDispatchSeat) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsdispatchseat.FieldID, esportsdispatchseat.FieldOrderID, esportsdispatchseat.FieldSeatIndex, esportsdispatchseat.FieldPlayerID, esportsdispatchseat.FieldInvitedByAdminID, esportsdispatchseat.FieldVersion:
+		case esportsdispatchseat.FieldID, esportsdispatchseat.FieldOrderID, esportsdispatchseat.FieldSeatIndex, esportsdispatchseat.FieldPlayerID, esportsdispatchseat.FieldInvitedByAdminID, esportsdispatchseat.FieldCommissionRuleID, esportsdispatchseat.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportsdispatchseat.FieldSource, esportsdispatchseat.FieldStatus:
 			values[i] = new(sql.NullString)
-		case esportsdispatchseat.FieldExpiresAt, esportsdispatchseat.FieldRespondedAt, esportsdispatchseat.FieldCreatedAt, esportsdispatchseat.FieldUpdatedAt:
+		case esportsdispatchseat.FieldExpiresAt, esportsdispatchseat.FieldRespondedAt, esportsdispatchseat.FieldCommissionRuleLockedAt, esportsdispatchseat.FieldCreatedAt, esportsdispatchseat.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -125,6 +129,20 @@ func (_m *EsportsDispatchSeat) assignValues(columns []string, values []any) erro
 			} else if value.Valid {
 				_m.RespondedAt = new(time.Time)
 				*_m.RespondedAt = value.Time
+			}
+		case esportsdispatchseat.FieldCommissionRuleID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field commission_rule_id", values[i])
+			} else if value.Valid {
+				_m.CommissionRuleID = new(int)
+				*_m.CommissionRuleID = int(value.Int64)
+			}
+		case esportsdispatchseat.FieldCommissionRuleLockedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field commission_rule_locked_at", values[i])
+			} else if value.Valid {
+				_m.CommissionRuleLockedAt = new(time.Time)
+				*_m.CommissionRuleLockedAt = value.Time
 			}
 		case esportsdispatchseat.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -209,6 +227,16 @@ func (_m *EsportsDispatchSeat) String() string {
 	builder.WriteString(", ")
 	if v := _m.RespondedAt; v != nil {
 		builder.WriteString("responded_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.CommissionRuleID; v != nil {
+		builder.WriteString("commission_rule_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CommissionRuleLockedAt; v != nil {
+		builder.WriteString("commission_rule_locked_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

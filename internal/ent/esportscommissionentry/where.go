@@ -109,6 +109,21 @@ func SettlementID(v int) predicate.EsportsCommissionEntry {
 	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldSettlementID, v))
 }
 
+// FrozenAt applies equality check predicate on the "frozen_at" field. It's identical to FrozenAtEQ.
+func FrozenAt(v time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldFrozenAt, v))
+}
+
+// FrozenReason applies equality check predicate on the "frozen_reason" field. It's identical to FrozenReasonEQ.
+func FrozenReason(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldFrozenReason, v))
+}
+
+// FrozenByAdminID applies equality check predicate on the "frozen_by_admin_id" field. It's identical to FrozenByAdminIDEQ.
+func FrozenByAdminID(v int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldFrozenByAdminID, v))
+}
+
 // Note applies equality check predicate on the "note" field. It's identical to NoteEQ.
 func Note(v string) predicate.EsportsCommissionEntry {
 	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldNote, v))
@@ -717,6 +732,171 @@ func SettlementIDIsNil() predicate.EsportsCommissionEntry {
 // SettlementIDNotNil applies the NotNil predicate on the "settlement_id" field.
 func SettlementIDNotNil() predicate.EsportsCommissionEntry {
 	return predicate.EsportsCommissionEntry(sql.FieldNotNull(FieldSettlementID))
+}
+
+// FrozenAtEQ applies the EQ predicate on the "frozen_at" field.
+func FrozenAtEQ(v time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldFrozenAt, v))
+}
+
+// FrozenAtNEQ applies the NEQ predicate on the "frozen_at" field.
+func FrozenAtNEQ(v time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNEQ(FieldFrozenAt, v))
+}
+
+// FrozenAtIn applies the In predicate on the "frozen_at" field.
+func FrozenAtIn(vs ...time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldIn(FieldFrozenAt, vs...))
+}
+
+// FrozenAtNotIn applies the NotIn predicate on the "frozen_at" field.
+func FrozenAtNotIn(vs ...time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNotIn(FieldFrozenAt, vs...))
+}
+
+// FrozenAtGT applies the GT predicate on the "frozen_at" field.
+func FrozenAtGT(v time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldGT(FieldFrozenAt, v))
+}
+
+// FrozenAtGTE applies the GTE predicate on the "frozen_at" field.
+func FrozenAtGTE(v time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldGTE(FieldFrozenAt, v))
+}
+
+// FrozenAtLT applies the LT predicate on the "frozen_at" field.
+func FrozenAtLT(v time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldLT(FieldFrozenAt, v))
+}
+
+// FrozenAtLTE applies the LTE predicate on the "frozen_at" field.
+func FrozenAtLTE(v time.Time) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldLTE(FieldFrozenAt, v))
+}
+
+// FrozenAtIsNil applies the IsNil predicate on the "frozen_at" field.
+func FrozenAtIsNil() predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldIsNull(FieldFrozenAt))
+}
+
+// FrozenAtNotNil applies the NotNil predicate on the "frozen_at" field.
+func FrozenAtNotNil() predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNotNull(FieldFrozenAt))
+}
+
+// FrozenReasonEQ applies the EQ predicate on the "frozen_reason" field.
+func FrozenReasonEQ(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldFrozenReason, v))
+}
+
+// FrozenReasonNEQ applies the NEQ predicate on the "frozen_reason" field.
+func FrozenReasonNEQ(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNEQ(FieldFrozenReason, v))
+}
+
+// FrozenReasonIn applies the In predicate on the "frozen_reason" field.
+func FrozenReasonIn(vs ...string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldIn(FieldFrozenReason, vs...))
+}
+
+// FrozenReasonNotIn applies the NotIn predicate on the "frozen_reason" field.
+func FrozenReasonNotIn(vs ...string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNotIn(FieldFrozenReason, vs...))
+}
+
+// FrozenReasonGT applies the GT predicate on the "frozen_reason" field.
+func FrozenReasonGT(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldGT(FieldFrozenReason, v))
+}
+
+// FrozenReasonGTE applies the GTE predicate on the "frozen_reason" field.
+func FrozenReasonGTE(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldGTE(FieldFrozenReason, v))
+}
+
+// FrozenReasonLT applies the LT predicate on the "frozen_reason" field.
+func FrozenReasonLT(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldLT(FieldFrozenReason, v))
+}
+
+// FrozenReasonLTE applies the LTE predicate on the "frozen_reason" field.
+func FrozenReasonLTE(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldLTE(FieldFrozenReason, v))
+}
+
+// FrozenReasonContains applies the Contains predicate on the "frozen_reason" field.
+func FrozenReasonContains(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldContains(FieldFrozenReason, v))
+}
+
+// FrozenReasonHasPrefix applies the HasPrefix predicate on the "frozen_reason" field.
+func FrozenReasonHasPrefix(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldHasPrefix(FieldFrozenReason, v))
+}
+
+// FrozenReasonHasSuffix applies the HasSuffix predicate on the "frozen_reason" field.
+func FrozenReasonHasSuffix(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldHasSuffix(FieldFrozenReason, v))
+}
+
+// FrozenReasonEqualFold applies the EqualFold predicate on the "frozen_reason" field.
+func FrozenReasonEqualFold(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldEqualFold(FieldFrozenReason, v))
+}
+
+// FrozenReasonContainsFold applies the ContainsFold predicate on the "frozen_reason" field.
+func FrozenReasonContainsFold(v string) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldContainsFold(FieldFrozenReason, v))
+}
+
+// FrozenByAdminIDEQ applies the EQ predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDEQ(v int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldEQ(FieldFrozenByAdminID, v))
+}
+
+// FrozenByAdminIDNEQ applies the NEQ predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDNEQ(v int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNEQ(FieldFrozenByAdminID, v))
+}
+
+// FrozenByAdminIDIn applies the In predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDIn(vs ...int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldIn(FieldFrozenByAdminID, vs...))
+}
+
+// FrozenByAdminIDNotIn applies the NotIn predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDNotIn(vs ...int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNotIn(FieldFrozenByAdminID, vs...))
+}
+
+// FrozenByAdminIDGT applies the GT predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDGT(v int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldGT(FieldFrozenByAdminID, v))
+}
+
+// FrozenByAdminIDGTE applies the GTE predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDGTE(v int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldGTE(FieldFrozenByAdminID, v))
+}
+
+// FrozenByAdminIDLT applies the LT predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDLT(v int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldLT(FieldFrozenByAdminID, v))
+}
+
+// FrozenByAdminIDLTE applies the LTE predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDLTE(v int) predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldLTE(FieldFrozenByAdminID, v))
+}
+
+// FrozenByAdminIDIsNil applies the IsNil predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDIsNil() predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldIsNull(FieldFrozenByAdminID))
+}
+
+// FrozenByAdminIDNotNil applies the NotNil predicate on the "frozen_by_admin_id" field.
+func FrozenByAdminIDNotNil() predicate.EsportsCommissionEntry {
+	return predicate.EsportsCommissionEntry(sql.FieldNotNull(FieldFrozenByAdminID))
 }
 
 // NoteEQ applies the EQ predicate on the "note" field.

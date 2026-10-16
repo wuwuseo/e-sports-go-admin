@@ -26,14 +26,22 @@ const (
 	FieldStatus = "status"
 	// FieldStartedAt holds the string denoting the started_at field in the database.
 	FieldStartedAt = "started_at"
+	// FieldPausedAt holds the string denoting the paused_at field in the database.
+	FieldPausedAt = "paused_at"
 	// FieldEndedAt holds the string denoting the ended_at field in the database.
 	FieldEndedAt = "ended_at"
 	// FieldPausedSeconds holds the string denoting the paused_seconds field in the database.
 	FieldPausedSeconds = "paused_seconds"
 	// FieldReportedUnits holds the string denoting the reported_units field in the database.
 	FieldReportedUnits = "reported_units"
+	// FieldReportedSeconds holds the string denoting the reported_seconds field in the database.
+	FieldReportedSeconds = "reported_seconds"
 	// FieldSystemSeconds holds the string denoting the system_seconds field in the database.
 	FieldSystemSeconds = "system_seconds"
+	// FieldCommissionRuleID holds the string denoting the commission_rule_id field in the database.
+	FieldCommissionRuleID = "commission_rule_id"
+	// FieldCommissionRuleLockedAt holds the string denoting the commission_rule_locked_at field in the database.
+	FieldCommissionRuleLockedAt = "commission_rule_locked_at"
 	// FieldEvidenceRef holds the string denoting the evidence_ref field in the database.
 	FieldEvidenceRef = "evidence_ref"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -57,10 +65,14 @@ var Columns = []string{
 	FieldSeatIndex,
 	FieldStatus,
 	FieldStartedAt,
+	FieldPausedAt,
 	FieldEndedAt,
 	FieldPausedSeconds,
 	FieldReportedUnits,
+	FieldReportedSeconds,
 	FieldSystemSeconds,
+	FieldCommissionRuleID,
+	FieldCommissionRuleLockedAt,
 	FieldEvidenceRef,
 	FieldVersion,
 	FieldCreatedAt,
@@ -88,6 +100,8 @@ var (
 	DefaultPausedSeconds int64
 	// DefaultReportedUnits holds the default value on creation for the "reported_units" field.
 	DefaultReportedUnits int64
+	// DefaultReportedSeconds holds the default value on creation for the "reported_seconds" field.
+	DefaultReportedSeconds int64
 	// DefaultSystemSeconds holds the default value on creation for the "system_seconds" field.
 	DefaultSystemSeconds int64
 	// DefaultEvidenceRef holds the default value on creation for the "evidence_ref" field.
@@ -164,6 +178,11 @@ func ByStartedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStartedAt, opts...).ToFunc()
 }
 
+// ByPausedAt orders the results by the paused_at field.
+func ByPausedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPausedAt, opts...).ToFunc()
+}
+
 // ByEndedAt orders the results by the ended_at field.
 func ByEndedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEndedAt, opts...).ToFunc()
@@ -179,9 +198,24 @@ func ByReportedUnits(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReportedUnits, opts...).ToFunc()
 }
 
+// ByReportedSeconds orders the results by the reported_seconds field.
+func ByReportedSeconds(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReportedSeconds, opts...).ToFunc()
+}
+
 // BySystemSeconds orders the results by the system_seconds field.
 func BySystemSeconds(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSystemSeconds, opts...).ToFunc()
+}
+
+// ByCommissionRuleID orders the results by the commission_rule_id field.
+func ByCommissionRuleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommissionRuleID, opts...).ToFunc()
+}
+
+// ByCommissionRuleLockedAt orders the results by the commission_rule_locked_at field.
+func ByCommissionRuleLockedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommissionRuleLockedAt, opts...).ToFunc()
 }
 
 // ByEvidenceRef orders the results by the evidence_ref field.

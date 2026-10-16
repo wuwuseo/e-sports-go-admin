@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportscloserule"
 	"go-admin/internal/ent/predicate"
 	"time"
@@ -130,6 +131,26 @@ func (_u *EsportsCloseRuleUpdate) SetNillableRequireNoOpenAftersale(v *bool) *Es
 	if v != nil {
 		_u.SetRequireNoOpenAftersale(*v)
 	}
+	return _u
+}
+
+// SetConditionTree sets the "condition_tree" field.
+func (_u *EsportsCloseRuleUpdate) SetConditionTree(v schematier.CloseConditionNode) *EsportsCloseRuleUpdate {
+	_u.mutation.SetConditionTree(v)
+	return _u
+}
+
+// SetNillableConditionTree sets the "condition_tree" field if the given value is not nil.
+func (_u *EsportsCloseRuleUpdate) SetNillableConditionTree(v *schematier.CloseConditionNode) *EsportsCloseRuleUpdate {
+	if v != nil {
+		_u.SetConditionTree(*v)
+	}
+	return _u
+}
+
+// ClearConditionTree clears the value of the "condition_tree" field.
+func (_u *EsportsCloseRuleUpdate) ClearConditionTree() *EsportsCloseRuleUpdate {
+	_u.mutation.ClearConditionTree()
 	return _u
 }
 
@@ -343,6 +364,12 @@ func (_u *EsportsCloseRuleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.RequireNoOpenAftersale(); ok {
 		_spec.SetField(esportscloserule.FieldRequireNoOpenAftersale, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.ConditionTree(); ok {
+		_spec.SetField(esportscloserule.FieldConditionTree, field.TypeJSON, value)
+	}
+	if _u.mutation.ConditionTreeCleared() {
+		_spec.ClearField(esportscloserule.FieldConditionTree, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ReviewThresholdCents(); ok {
 		_spec.SetField(esportscloserule.FieldReviewThresholdCents, field.TypeInt64, value)
 	}
@@ -495,6 +522,26 @@ func (_u *EsportsCloseRuleUpdateOne) SetNillableRequireNoOpenAftersale(v *bool) 
 	if v != nil {
 		_u.SetRequireNoOpenAftersale(*v)
 	}
+	return _u
+}
+
+// SetConditionTree sets the "condition_tree" field.
+func (_u *EsportsCloseRuleUpdateOne) SetConditionTree(v schematier.CloseConditionNode) *EsportsCloseRuleUpdateOne {
+	_u.mutation.SetConditionTree(v)
+	return _u
+}
+
+// SetNillableConditionTree sets the "condition_tree" field if the given value is not nil.
+func (_u *EsportsCloseRuleUpdateOne) SetNillableConditionTree(v *schematier.CloseConditionNode) *EsportsCloseRuleUpdateOne {
+	if v != nil {
+		_u.SetConditionTree(*v)
+	}
+	return _u
+}
+
+// ClearConditionTree clears the value of the "condition_tree" field.
+func (_u *EsportsCloseRuleUpdateOne) ClearConditionTree() *EsportsCloseRuleUpdateOne {
+	_u.mutation.ClearConditionTree()
 	return _u
 }
 
@@ -737,6 +784,12 @@ func (_u *EsportsCloseRuleUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if value, ok := _u.mutation.RequireNoOpenAftersale(); ok {
 		_spec.SetField(esportscloserule.FieldRequireNoOpenAftersale, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ConditionTree(); ok {
+		_spec.SetField(esportscloserule.FieldConditionTree, field.TypeJSON, value)
+	}
+	if _u.mutation.ConditionTreeCleared() {
+		_spec.ClearField(esportscloserule.FieldConditionTree, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.ReviewThresholdCents(); ok {
 		_spec.SetField(esportscloserule.FieldReviewThresholdCents, field.TypeInt64, value)

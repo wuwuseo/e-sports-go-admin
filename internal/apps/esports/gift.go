@@ -16,11 +16,15 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportscommissionentry"
+	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsgift"
+	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
+	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/systemconfig"
 )
@@ -190,13 +194,16 @@ func existingGift(ctx context.Context, db *ent.Client, principal, key, hash stri
 
 // giftSendInput 是送礼请求。收礼对象在支付前确认（player_id），支付后不得静默改人（§9.2）。
 type giftSendInput struct {
-	CustomerID int    `json:"customer_id"`
-	GiftID     int    `json:"gift_id"`
-	PlayerID   int    `json:"player_id"`
-	Quantity   int    `json:"quantity"`
-	OrderID    *int   `json:"order_id"`
-	Confirmed  bool   `json:"confirmed"`
-	ClientKey  string `json:"client_key"`
+	CustomerID        int    `json:"customer_id"`
+	GiftID            int    `json:"gift_id"`
+	PlayerID          int    `json:"player_id"`
+	Quantity          int    `json:"quantity"`
+	OrderID           *int   `json:"order_id"`
+	PaymentSource     string `json:"payment_source"`
+	StoredValueCardID int    `json:"stored_value_card_id"`
+	Confirmed         bool   `json:"confirmed"`
+	AuthorizationID   int    `json:"authorization_id"`
+	ClientKey         string `json:"client_key"`
 }
 
 // giftIncome 按礼物自身分成配置算陪玩礼物收入（分）。percent 用金额 * bp / 10000（防溢出分解），
@@ -247,8 +254,7 @@ func giftHighValueThresholdCents(ctx context.Context, db *ent.Client) (int64, er
 	return value, nil
 }
 
-// giftPairFlagged 检测同一「客户→陪玩」在防刷窗口内是否已异常集中（§9.4 防刷榜）。
-// ponytail: 只实现「异常集中」启发式；跨身份的「往返送礼」需要客户与陪玩身份映射，未实现。
+// giftPairFlagged 检测同一「客户→陪玩」异常集中及已验证身份之间的往返送礼。
 func giftPairFlagged(ctx context.Context, db *ent.Client, customerID, playerID int, now time.Time) (bool, error) {
 	since := now.UTC().Add(-time.Duration(giftFlagWindowHours) * time.Hour)
 	count, err := db.EsportsGiftOrder.Query().Where(
@@ -259,12 +265,59 @@ func giftPairFlagged(ctx context.Context, db *ent.Client, customerID, playerID i
 	if err != nil {
 		return false, err
 	}
-	return count >= giftFlagPairLimit, nil
+	if count >= giftFlagPairLimit {
+		return true, nil
+	}
+	customer, err := db.EsportsCustomer.Get(ctx, customerID)
+	if err != nil {
+		return false, err
+	}
+	if customer.UserID == nil {
+		return false, nil
+	}
+	player, err := db.EsportsPlayer.Get(ctx, playerID)
+	if err != nil {
+		return false, err
+	}
+	reciprocalCustomer, err := db.EsportsCustomer.Query().Where(
+		esportscustomer.UserIDEQ(player.UserID),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	reciprocalPlayer, err := db.EsportsPlayer.Query().Where(
+		esportsplayer.UserIDEQ(*customer.UserID),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return db.EsportsGiftOrder.Query().Where(
+		esportsgiftorder.CustomerIDEQ(reciprocalCustomer.ID),
+		esportsgiftorder.PlayerIDEQ(reciprocalPlayer.ID),
+		esportsgiftorder.StatusEQ(esportsgiftorder.StatusPaid),
+		esportsgiftorder.CreatedAtGTE(since),
+	).Exist(ctx)
 }
 
 // sendGift 送礼：先查幂等记录，未命中则走 createGiftOnce；幂等冲突时回查已建单据。
 func sendGift(ctx context.Context, db *ent.Client, adminID int, in giftSendInput, now time.Time) (*ent.EsportsGiftOrder, error) {
-	order, err := sendGiftOnce(ctx, db, adminID, in, now)
+	return sendGiftWithRole(ctx, db, adminID, false, in, now)
+}
+
+func sendGiftWithRole(ctx context.Context, db *ent.Client, adminID int, isSuper bool, in giftSendInput, now time.Time) (*ent.EsportsGiftOrder, error) {
+	if in.PaymentSource == "" {
+		in.PaymentSource = "customer_balance_principal"
+	}
+	if _, err := loadOwnedCustomer(ctx, db, adminID, isSuper, in.CustomerID); err != nil {
+		return nil, err
+	}
+	order, err := sendGiftOnce(ctx, db, adminID, isSuper, in, now)
 	if err != nil && errors.Is(err, errConflict) {
 		principal := fmt.Sprintf("admin:%d", adminID)
 		if prior, lookupErr := existingGift(ctx, db, principal, in.ClientKey, giftRequestHash(in)); lookupErr == nil && prior != nil {
@@ -276,10 +329,14 @@ func sendGift(ctx context.Context, db *ent.Client, adminID int, in giftSendInput
 
 // sendGiftOnce 在同一事务内校验付款来源、原子扣减客户余额本金、生成礼物单据与礼物收入、
 // 计提会员成长值，并写通知事件。只有足额核销后才生成收入与成长值（§9.2）。
-func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendInput, now time.Time) (*ent.EsportsGiftOrder, error) {
+func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool, in giftSendInput, now time.Time) (*ent.EsportsGiftOrder, error) {
 	key := strings.TrimSpace(in.ClientKey)
 	if in.CustomerID < 1 || in.GiftID < 1 || in.PlayerID < 1 || in.Quantity < 1 || in.Quantity > 999 ||
 		len(key) < 8 || len(key) > 128 {
+		return nil, errInvalidInput
+	}
+	if (in.PaymentSource != "customer_balance_principal" || in.StoredValueCardID != 0) &&
+		(in.PaymentSource != "stored_value_card_principal" || in.StoredValueCardID < 1) {
 		return nil, errInvalidInput
 	}
 	principal := fmt.Sprintf("admin:%d", adminID)
@@ -292,13 +349,42 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendI
 		return nil, err
 	}
 	defer tx.Rollback()
+	var authorization *ent.EsportsGiftIntent
+	if in.AuthorizationID > 0 {
+		authorization, err = tx.EsportsGiftIntent.Get(ctx, in.AuthorizationID)
+		if err != nil {
+			return nil, err
+		}
+		if authorization.Status != esportsgiftintent.StatusConfirmed || authorization.ConfirmationRef == "" ||
+			!now.UTC().Before(authorization.ExpiresAt) || authorization.CustomerID != in.CustomerID ||
+			authorization.GiftID != in.GiftID || authorization.PlayerID != in.PlayerID ||
+			authorization.Quantity != in.Quantity || !sameOptionalID(authorization.OrderID, in.OrderID) ||
+			authorization.PaymentSource != in.PaymentSource ||
+			!(in.StoredValueCardID == 0 && authorization.StoredValueCardID == nil ||
+				authorization.StoredValueCardID != nil && *authorization.StoredValueCardID == in.StoredValueCardID) {
+			return nil, errConflict
+		}
+	}
 	customer, err := tx.EsportsCustomer.Get(ctx, in.CustomerID)
 	if err != nil {
 		return nil, err
 	}
+	if !isSuper && (customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID) {
+		return nil, errForbidden
+	}
 	// 已验证身份：无登录绑定的客户不可送礼（§9.2 校验收付款来源）。
 	if customer.UserID == nil {
 		return nil, fmt.Errorf("%w：客户未绑定已验证身份，无法送礼", errInvalidInput)
+	}
+	if authorization != nil {
+		account, lookupErr := tx.User.Get(ctx, *customer.UserID)
+		if lookupErr != nil {
+			return nil, errForbidden
+		}
+		verified, lookupErr := customerForVerifiedUser(ctx, tx.Client(), account.UID)
+		if lookupErr != nil || verified.ID != customer.ID {
+			return nil, errForbidden
+		}
 	}
 	player, err := tx.EsportsPlayer.Get(ctx, in.PlayerID)
 	if err != nil {
@@ -319,10 +405,18 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendI
 	if gift.Status != esportsgift.StatusOnSale {
 		return nil, errConflict
 	}
+	if authorization != nil && (authorization.GiftVersion != gift.Version ||
+		authorization.GiftName != gift.Name || authorization.PlayerName != player.DisplayName ||
+		authorization.UnitPriceCents != gift.PriceCents) {
+		return nil, errConflict
+	}
 	if gift.PriceCents > math.MaxInt64/int64(in.Quantity) {
 		return nil, errInvalidInput
 	}
 	amount := gift.PriceCents * int64(in.Quantity)
+	if authorization != nil && authorization.AmountCents != amount {
+		return nil, errConflict
+	}
 	// 大额 / 高额档二次确认（§9.5）。
 	threshold, err := giftHighValueThresholdCents(ctx, tx.Client())
 	if err != nil {
@@ -341,8 +435,24 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendI
 			return nil, fmt.Errorf("%w：关联订单不属于该客户", errInvalidInput)
 		}
 	}
-	// 付款来源：首版仅客户余额本金，拒绝赠送权益与外部直付（§9.5）。
-	balance, err := walletBalanceTx(ctx, tx, walletCustomerBalance, customer.ID)
+	// 客户确认的付款来源不可由客服更换，余额与储值卡均只动本金。
+	paymentAccount := walletCustomerBalance
+	paymentOwnerID := customer.ID
+	var card *ent.EsportsStoredValueCard
+	if in.StoredValueCardID > 0 {
+		card, err = tx.EsportsStoredValueCard.Get(ctx, in.StoredValueCardID)
+		if err != nil {
+			return nil, err
+		}
+		if err = storedValueCardUsableForGift(card, customer.ID, now); err != nil {
+			return nil, err
+		}
+		if authorization != nil && authorization.StoredValueCardNo != card.CardNo {
+			return nil, errConflict
+		}
+		paymentAccount, paymentOwnerID = walletStoredValueCard, card.ID
+	}
+	balance, err := walletBalanceTx(ctx, tx, paymentAccount, paymentOwnerID)
 	if err != nil {
 		return nil, err
 	}
@@ -359,16 +469,39 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendI
 	}
 	giftNo := uuid.NewString()
 	income := giftIncome(amount, gift.CommissionMode.String(), gift.CommissionBp, gift.CommissionCents)
+	var giftCsRuleID int
+	if customer.OwnerAdminID != nil {
+		rule, ruleErr := resolveCsCommissionRuleIn(ctx, tx.EsportsCsCommissionRule, *customer.OwnerAdminID, now)
+		if ruleErr != nil {
+			return nil, ruleErr
+		}
+		if rule != nil && rule.IncludeGifts {
+			giftCsRuleID = rule.ID
+		}
+	}
 	create := tx.EsportsGiftOrder.Create().SetGiftNo(giftNo).SetGiftID(gift.ID).
 		SetCustomerID(customer.ID).SetPlayerID(player.ID).SetPlayerName(player.DisplayName).
 		SetQuantity(in.Quantity).SetUnitPriceCents(gift.PriceCents).SetAmountCents(amount).
 		SetPrincipalCents(amount).SetBonusCents(0).
+		SetPaymentSource(in.PaymentSource).
 		SetCommissionMode(esportsgiftorder.CommissionMode(gift.CommissionMode.String())).
 		SetCommissionBp(gift.CommissionBp).SetCommissionCents(gift.CommissionCents).
 		SetIncomeCents(income).SetReviewStatus(reviewStatus).
 		SetStatus(esportsgiftorder.StatusPaid)
+	if customer.OwnerAdminID != nil {
+		create.SetResponsibleAdminID(*customer.OwnerAdminID)
+	}
+	if giftCsRuleID > 0 {
+		create.SetCsCommissionRuleID(giftCsRuleID)
+	}
 	if in.OrderID != nil {
 		create.SetOrderID(*in.OrderID)
+	}
+	if authorization != nil {
+		create.SetGiftIntentID(authorization.ID)
+	}
+	if card != nil {
+		create.SetStoredValueCardID(card.ID)
 	}
 	order, err := create.Save(ctx)
 	if err != nil {
@@ -376,7 +509,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendI
 	}
 	// 原子扣减：仅扣本金，禁止动用赠送权益。
 	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
-		SetAccountType(esportswallettx.AccountTypeCustomerBalance).SetOwnerID(customer.ID).
+		SetAccountType(esportswallettx.AccountType(paymentAccount)).SetOwnerID(paymentOwnerID).
 		SetEntryType(esportswallettx.EntryTypeConsume).
 		SetPrincipalDeltaCents(-amount).SetBonusDeltaCents(0).
 		SetSourceType("gift").SetSourceID(giftNo).
@@ -386,9 +519,29 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendI
 		}
 		return nil, err
 	}
+	if card != nil {
+		if _, err = tx.EsportsLedgerEntry.Create().SetAccountType(storedValuePrepayAccount).
+			SetAccountID(strconv.Itoa(card.ID)).SetSourceType("gift").SetSourceID(giftNo).
+			SetEntryRole("card_gift_consume").SetDeltaCents(-amount).Save(ctx); err != nil {
+			return nil, err
+		}
+		if err = allocateLedgerConsumption(ctx, tx, storedValuePrepayAccount, strconv.Itoa(card.ID), "gift", giftNo, amount); err != nil {
+			return nil, err
+		}
+		if balance.total() == amount {
+			if _, err = tx.EsportsStoredValueCard.Update().Where(esportsstoredvaluecard.IDEQ(card.ID),
+				esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive)).
+				SetStatus(esportsstoredvaluecard.StatusExhausted).AddVersion(1).Save(ctx); err != nil {
+				return nil, err
+			}
+		}
+	}
 	// 疑似关联交易先标记，复核通过前不生成可提现礼物分成（§9.4）。
 	if !flagged {
 		if err = createGiftCommissionEntry(ctx, tx, order, income); err != nil {
+			return nil, err
+		}
+		if err = accrueGiftCsCommission(ctx, tx, order, now); err != nil {
 			return nil, err
 		}
 	}
@@ -410,6 +563,18 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, in giftSendI
 			return nil, errConflict
 		}
 		return nil, err
+	}
+	if authorization != nil {
+		changed, updateErr := tx.EsportsGiftIntent.Update().Where(
+			esportsgiftintent.IDEQ(authorization.ID), esportsgiftintent.StatusEQ(esportsgiftintent.StatusConfirmed),
+			esportsgiftintent.VersionEQ(authorization.Version)).
+			SetStatus(esportsgiftintent.StatusConsumed).SetGiftOrderID(order.ID).AddVersion(1).Save(ctx)
+		if updateErr != nil {
+			return nil, updateErr
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
 	}
 	// 通知陪玩与客服（§9.2）。
 	if _, err = tx.EsportsOutbox.Create().SetEventKey("gift.paid:" + giftNo).
@@ -472,11 +637,18 @@ func reviewGiftOrder(ctx context.Context, db *ent.Client, adminID, giftOrderID i
 	if err != nil {
 		return nil, err
 	}
-	if order.ReviewStatus != esportsgiftorder.ReviewStatusFlagged {
+	if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID == adminID {
+		return nil, errForbidden
+	}
+	if order.ReviewStatus != esportsgiftorder.ReviewStatusFlagged ||
+		order.Status != esportsgiftorder.StatusPaid || order.RefundCents > 0 {
 		return nil, errConflict
 	}
 	if target == esportsgiftorder.ReviewStatusApproved {
 		if err = createGiftCommissionEntry(ctx, tx, order, order.IncomeCents); err != nil {
+			return nil, err
+		}
+		if err = accrueGiftCsCommission(ctx, tx, order, now); err != nil {
 			return nil, err
 		}
 	}
@@ -496,11 +668,9 @@ func reviewGiftOrder(ctx context.Context, db *ent.Client, adminID, giftOrderID i
 	return db.EsportsGiftOrder.Get(ctx, order.ID)
 }
 
-// refundGift 礼物退款（§9.5）：审核通过后由管理员执行——退还本金、冲回礼物分成与成长值。
-// 仅已支付且未退款的礼物可退；幂等靠已退款状态与钱包流水唯一索引兜底。
-// ponytail: 独立的争议/退款申请与审核流程未接入（复用现有售后的思路，此处直接由管理员执行）；
-// 仅支持全额退款。
-func refundGift(ctx context.Context, db *ent.Client, adminID, giftOrderID int, reason string, now time.Time) (*ent.EsportsGiftOrder, error) {
+// refundGift 礼物全额退款（§9.5）：由管理员直接执行——退还本金、冲回礼物分成、客服提成与成长值。
+// 仅已支付且未退款的礼物可全额退；礼物争议（客户申请 → 审核 → 执行）走 refundGiftIn 的部分退款路径。
+func refundGift(ctx context.Context, db *ent.Client, adminID int, isSuper bool, giftOrderID int, reason string, now time.Time) (*ent.EsportsGiftOrder, error) {
 	reason = strings.TrimSpace(reason)
 	if giftOrderID < 1 || adminID < 1 || reason == "" || len([]rune(reason)) > 255 {
 		return nil, errInvalidInput
@@ -514,69 +684,19 @@ func refundGift(ctx context.Context, db *ent.Client, adminID, giftOrderID int, r
 	if err != nil {
 		return nil, err
 	}
+	if !isSuper {
+		customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)
+		if err != nil {
+			return nil, err
+		}
+		if customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID {
+			return nil, errForbidden
+		}
+	}
 	if order.Status != esportsgiftorder.StatusPaid || order.RefundCents > 0 {
 		return nil, errConflict
 	}
-	refund := order.AmountCents
-	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
-		SetAccountType(esportswallettx.AccountTypeCustomerBalance).SetOwnerID(order.CustomerID).
-		SetEntryType(esportswallettx.EntryTypeRefundReturn).
-		SetPrincipalDeltaCents(refund).SetSourceType("gift").SetSourceID(order.GiftNo + ":refund").
-		SetOperatorID(adminID).SetNote("礼物退款：" + reason).Save(ctx); err != nil {
-		if ent.IsConstraintError(err) {
-			return nil, errConflict
-		}
-		return nil, err
-	}
-	// 只有已生成礼物收入（未因待复核而挂起）才需要冲回分成。
-	incomeExists, err := tx.EsportsCommissionEntry.Query().
-		Where(esportscommissionentry.IdemKeyEQ("commission:gift:" + order.GiftNo)).Exist(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if incomeExists {
-		if _, err = tx.EsportsCommissionEntry.Create().
-			SetIdemKey("commission:gift_reversal:" + order.GiftNo).
-			SetPlayerID(order.PlayerID).SetKind(esportscommissionentry.KindGiftReversal).
-			SetBaseCents(order.AmountCents).SetAmountCents(-order.IncomeCents).
-			SetCalcMode(giftCalcMode(order.CommissionMode.String())).
-			SetStatus(esportscommissionentry.StatusPendingSettlement).
-			SetNote("礼物退款冲回").Save(ctx); err != nil {
-			if ent.IsConstraintError(err) {
-				return nil, errConflict
-			}
-			return nil, err
-		}
-	}
-	if _, err = tx.EsportsGrowthLedger.Create().
-		SetCustomerID(order.CustomerID).SetDelta(-refund).
-		SetSourceType(esportsgrowthledger.SourceTypeGift).
-		SetSourceID(order.GiftNo + ":refund").SetOperatorID(adminID).
-		SetNote("礼物退款冲回成长值").Save(ctx); err != nil {
-		if ent.IsConstraintError(err) {
-			return nil, errConflict
-		}
-		return nil, err
-	}
-	changed, err := tx.EsportsGiftOrder.Update().Where(
-		esportsgiftorder.IDEQ(order.ID), esportsgiftorder.VersionEQ(order.Version),
-		esportsgiftorder.StatusEQ(esportsgiftorder.StatusPaid),
-	).SetRefundCents(refund).SetRefundStatus(esportsgiftorder.RefundStatusFull).
-		SetStatus(esportsgiftorder.StatusRefunded).AddVersion(1).Save(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if changed != 1 {
-		return nil, errConflict
-	}
-	if err = recomputeCustomerLevel(ctx, tx.Client(), order.CustomerID, now); err != nil {
-		return nil, err
-	}
-	if _, err = tx.EsportsOutbox.Create().SetEventKey("gift.refunded:" + order.GiftNo).
-		SetEventType("gift.refunded").SetAggregateRef(order.GiftNo).
-		SetPayload(map[string]interface{}{
-			"gift_no": order.GiftNo, "refund_cents": refund, "reason": reason,
-		}).Save(ctx); err != nil && !ent.IsConstraintError(err) {
+	if err = refundGiftIn(ctx, tx, order, order.AmountCents, order.GiftNo+":refund", reason, adminID, now); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -585,12 +705,185 @@ func refundGift(ctx context.Context, db *ent.Client, adminID, giftOrderID int, r
 	return db.EsportsGiftOrder.Get(ctx, order.ID)
 }
 
-// listGiftOrders 列出礼物单据，按客户 / 陪玩 / 复核状态过滤，按 ID 倒序。
-func listGiftOrders(ctx context.Context, db *ent.Client, customerID, playerID int, reviewStatus string, limit int) ([]*ent.EsportsGiftOrder, error) {
+// refundGiftIn 在同一事务内执行礼物退款，amount 可小于礼物金额（§9.5 部分退款）。
+// sourceID 作为钱包流水 / 卡批次账本 / 成长值的来源标识，保证多次部分退款各自幂等。
+// 礼物分成与客服提成按退款比例冲回并封顶在已计提金额内；成长值按退款额反冲。
+func refundGiftIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, amount int64,
+	sourceID, reason string, adminID int, now time.Time) error {
+	if amount <= 0 || amount > order.AmountCents {
+		return errInvalidInput
+	}
+	if order.RefundCents+amount > order.AmountCents {
+		return errConflict
+	}
+	accountType := esportswallettx.AccountTypeCustomerBalance
+	ownerID := order.CustomerID
+	var card *ent.EsportsStoredValueCard
+	if order.StoredValueCardID != nil {
+		var err error
+		card, err = tx.EsportsStoredValueCard.Get(ctx, *order.StoredValueCardID)
+		if err != nil {
+			return err
+		}
+		if card.CustomerID != order.CustomerID || card.Status == esportsstoredvaluecard.StatusRefundPending ||
+			card.Status == esportsstoredvaluecard.StatusRefunded || card.Status == esportsstoredvaluecard.StatusFrozen {
+			return errConflict
+		}
+		accountType, ownerID = esportswallettx.AccountTypeStoredValueCard, card.ID
+	}
+	if _, err := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+		SetAccountType(accountType).SetOwnerID(ownerID).
+		SetEntryType(esportswallettx.EntryTypeRefundReturn).
+		SetPrincipalDeltaCents(amount).SetSourceType("gift").SetSourceID(sourceID).
+		SetOperatorID(adminID).SetNote("礼物退款：" + reason).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return errConflict
+		}
+		return err
+	}
+	if card != nil {
+		if _, err := tx.EsportsLedgerEntry.Create().SetAccountType(storedValuePrepayAccount).
+			SetAccountID(strconv.Itoa(card.ID)).SetSourceType("gift").SetSourceID(sourceID).
+			SetEntryRole("card_gift_refund_return").SetDeltaCents(amount).Save(ctx); err != nil {
+			return err
+		}
+		if card.Status == esportsstoredvaluecard.StatusExhausted && now.UTC().Before(card.ValidUntil) {
+			if _, err := tx.EsportsStoredValueCard.Update().Where(esportsstoredvaluecard.IDEQ(card.ID),
+				esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusExhausted)).
+				SetStatus(esportsstoredvaluecard.StatusActive).AddVersion(1).Save(ctx); err != nil {
+				return err
+			}
+		}
+	}
+	// 礼物分成按退款比例冲回（累计不超过已计提收入）。
+	if err := reverseGiftCommissionIn(ctx, tx, order, amount); err != nil {
+		return err
+	}
+	csEntry, err := tx.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.GiftOrderIDEQ(order.ID),
+		esportscscommissionentry.KindEQ(esportscscommissionentry.KindGift),
+	).First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return err
+	}
+	if csEntry != nil {
+		if err = reverseGiftCsCommission(ctx, tx, csEntry, order, amount); err != nil {
+			return err
+		}
+	}
+	if _, err = tx.EsportsGrowthLedger.Create().
+		SetCustomerID(order.CustomerID).SetDelta(-amount).
+		SetSourceType(esportsgrowthledger.SourceTypeGift).
+		SetSourceID(sourceID).SetOperatorID(adminID).
+		SetNote("礼物退款冲回成长值").Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return errConflict
+		}
+		return err
+	}
+	refundedAfter := order.RefundCents + amount
+	full := refundedAfter >= order.AmountCents
+	update := tx.EsportsGiftOrder.Update().Where(
+		esportsgiftorder.IDEQ(order.ID), esportsgiftorder.VersionEQ(order.Version),
+		esportsgiftorder.StatusEQ(esportsgiftorder.StatusPaid),
+	).SetRefundCents(refundedAfter).AddVersion(1)
+	if full {
+		update.SetRefundStatus(esportsgiftorder.RefundStatusFull).SetStatus(esportsgiftorder.StatusRefunded)
+	} else {
+		update.SetRefundStatus(esportsgiftorder.RefundStatusPartial)
+	}
+	changed, err := update.Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return errConflict
+	}
+	if err = recomputeCustomerLevel(ctx, tx.Client(), order.CustomerID, now); err != nil {
+		return err
+	}
+	// 首次全额退款沿用历史事件键，多次部分退款按累计退款额区分键值。
+	eventKey := "gift.refunded:" + order.GiftNo
+	if order.RefundCents > 0 {
+		eventKey += ":" + strconv.FormatInt(refundedAfter, 10)
+	}
+	if _, err = tx.EsportsOutbox.Create().SetEventKey(eventKey).
+		SetEventType("gift.refunded").SetAggregateRef(order.GiftNo).
+		SetPayload(map[string]interface{}{
+			"gift_no": order.GiftNo, "refund_cents": amount, "refunded_cents": refundedAfter, "reason": reason,
+		}).Save(ctx); err != nil && !ent.IsConstraintError(err) {
+		return err
+	}
+	return nil
+}
+
+// reverseGiftCommissionIn 按退款比例冲回礼物分成（§9.5）：累计冲回不超过已计提的陪玩礼物收入。
+// 只有已生成礼物收入（未因待复核而挂起）才需要冲回；多次部分退款的幂等键按累计退款额区分。
+func reverseGiftCommissionIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, amount int64) error {
+	incomeExists, err := tx.EsportsCommissionEntry.Query().
+		Where(esportscommissionentry.IdemKeyEQ("commission:gift:" + order.GiftNo)).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !incomeExists || order.IncomeCents <= 0 || order.AmountCents <= 0 {
+		return nil
+	}
+	prior, err := tx.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.IdemKeyHasPrefix("commission:gift_reversal:" + order.GiftNo),
+	).Select(esportscommissionentry.FieldAmountCents).All(ctx)
+	if err != nil {
+		return err
+	}
+	var reversed int64
+	for _, entry := range prior {
+		reversed -= entry.AmountCents
+	}
+	remaining := order.IncomeCents - reversed
+	target := order.IncomeCents * amount / order.AmountCents
+	if target > remaining {
+		target = remaining
+	}
+	if target <= 0 {
+		return nil
+	}
+	idem := "commission:gift_reversal:" + order.GiftNo
+	if order.RefundCents > 0 {
+		idem += ":" + strconv.FormatInt(order.RefundCents+amount, 10)
+	}
+	if _, err = tx.EsportsCommissionEntry.Create().
+		SetIdemKey(idem).
+		SetPlayerID(order.PlayerID).SetKind(esportscommissionentry.KindGiftReversal).
+		SetBaseCents(order.AmountCents).SetAmountCents(-target).
+		SetCalcMode(giftCalcMode(order.CommissionMode.String())).
+		SetStatus(esportscommissionentry.StatusPendingSettlement).
+		SetNote("礼物退款冲回").Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return errConflict
+		}
+		return err
+	}
+	return nil
+}
+
+// listGiftOrders 按管理员归属及客户 / 陪玩 / 复核状态过滤，按 ID 倒序。
+func listGiftOrders(ctx context.Context, db *ent.Client, adminID int, isSuper bool, customerID, playerID int, reviewStatus string, limit int) ([]*ent.EsportsGiftOrder, error) {
+	if adminID < 1 {
+		return nil, errForbidden
+	}
 	if limit < 1 || limit > 500 {
 		limit = 200
 	}
 	q := db.EsportsGiftOrder.Query()
+	if !isSuper {
+		ids, err := db.EsportsCustomer.Query().Where(esportscustomer.OwnerAdminIDEQ(adminID)).IDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			return []*ent.EsportsGiftOrder{}, nil
+		}
+		q.Where(esportsgiftorder.CustomerIDIn(ids...))
+	}
 	if customerID > 0 {
 		q.Where(esportsgiftorder.CustomerIDEQ(customerID))
 	}
@@ -605,6 +898,22 @@ func listGiftOrders(ctx context.Context, db *ent.Client, customerID, playerID in
 		return nil, errInvalidInput
 	}
 	return q.Order(ent.Desc(esportsgiftorder.FieldID)).Limit(limit).All(ctx)
+}
+
+func loadOwnedGiftOrder(ctx context.Context, db *ent.Client, adminID int, isSuper bool, giftOrderID int) (*ent.EsportsGiftOrder, error) {
+	if adminID < 1 || giftOrderID < 1 {
+		return nil, errInvalidInput
+	}
+	order, err := db.EsportsGiftOrder.Get(ctx, giftOrderID)
+	if err != nil {
+		return nil, err
+	}
+	if !isSuper {
+		if _, err := loadOwnedCustomer(ctx, db, adminID, false, order.CustomerID); err != nil {
+			return nil, err
+		}
+	}
+	return order, nil
 }
 
 // giftLeaderboardRow 是榜单一行：归属人、展示名、汇总金额与笔数。

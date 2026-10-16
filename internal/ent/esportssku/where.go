@@ -79,6 +79,16 @@ func UnitPriceCents(v int64) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldUnitPriceCents, v))
 }
 
+// MinUnitPriceCents applies equality check predicate on the "min_unit_price_cents" field. It's identical to MinUnitPriceCentsEQ.
+func MinUnitPriceCents(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldMinUnitPriceCents, v))
+}
+
+// AdjustmentApprovalBp applies equality check predicate on the "adjustment_approval_bp" field. It's identical to AdjustmentApprovalBpEQ.
+func AdjustmentApprovalBp(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldAdjustmentApprovalBp, v))
+}
+
 // ServiceUnits applies equality check predicate on the "service_units" field. It's identical to ServiceUnitsEQ.
 func ServiceUnits(v int64) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldServiceUnits, v))
@@ -92,6 +102,11 @@ func ServiceUnitName(v string) predicate.EsportsSku {
 // RequiredSeats applies equality check predicate on the "required_seats" field. It's identical to RequiredSeatsEQ.
 func RequiredSeats(v int) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldRequiredSeats, v))
+}
+
+// CloseRuleCode applies equality check predicate on the "close_rule_code" field. It's identical to CloseRuleCodeEQ.
+func CloseRuleCode(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldCloseRuleCode, v))
 }
 
 // QuotaTotal applies equality check predicate on the "quota_total" field. It's identical to QuotaTotalEQ.
@@ -434,6 +449,86 @@ func UnitPriceCentsLTE(v int64) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldLTE(FieldUnitPriceCents, v))
 }
 
+// MinUnitPriceCentsEQ applies the EQ predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsEQ(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldMinUnitPriceCents, v))
+}
+
+// MinUnitPriceCentsNEQ applies the NEQ predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsNEQ(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldMinUnitPriceCents, v))
+}
+
+// MinUnitPriceCentsIn applies the In predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsIn(vs ...int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldMinUnitPriceCents, vs...))
+}
+
+// MinUnitPriceCentsNotIn applies the NotIn predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsNotIn(vs ...int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldMinUnitPriceCents, vs...))
+}
+
+// MinUnitPriceCentsGT applies the GT predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsGT(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldMinUnitPriceCents, v))
+}
+
+// MinUnitPriceCentsGTE applies the GTE predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsGTE(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldMinUnitPriceCents, v))
+}
+
+// MinUnitPriceCentsLT applies the LT predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsLT(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldMinUnitPriceCents, v))
+}
+
+// MinUnitPriceCentsLTE applies the LTE predicate on the "min_unit_price_cents" field.
+func MinUnitPriceCentsLTE(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldMinUnitPriceCents, v))
+}
+
+// AdjustmentApprovalBpEQ applies the EQ predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldAdjustmentApprovalBp, v))
+}
+
+// AdjustmentApprovalBpNEQ applies the NEQ predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpNEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldAdjustmentApprovalBp, v))
+}
+
+// AdjustmentApprovalBpIn applies the In predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldAdjustmentApprovalBp, vs...))
+}
+
+// AdjustmentApprovalBpNotIn applies the NotIn predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpNotIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldAdjustmentApprovalBp, vs...))
+}
+
+// AdjustmentApprovalBpGT applies the GT predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpGT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldAdjustmentApprovalBp, v))
+}
+
+// AdjustmentApprovalBpGTE applies the GTE predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpGTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldAdjustmentApprovalBp, v))
+}
+
+// AdjustmentApprovalBpLT applies the LT predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpLT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldAdjustmentApprovalBp, v))
+}
+
+// AdjustmentApprovalBpLTE applies the LTE predicate on the "adjustment_approval_bp" field.
+func AdjustmentApprovalBpLTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldAdjustmentApprovalBp, v))
+}
+
 // ServiceUnitsEQ applies the EQ predicate on the "service_units" field.
 func ServiceUnitsEQ(v int64) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldServiceUnits, v))
@@ -597,6 +692,71 @@ func RequiredLevelIn(vs ...RequiredLevel) predicate.EsportsSku {
 // RequiredLevelNotIn applies the NotIn predicate on the "required_level" field.
 func RequiredLevelNotIn(vs ...RequiredLevel) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldNotIn(FieldRequiredLevel, vs...))
+}
+
+// CloseRuleCodeEQ applies the EQ predicate on the "close_rule_code" field.
+func CloseRuleCodeEQ(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeNEQ applies the NEQ predicate on the "close_rule_code" field.
+func CloseRuleCodeNEQ(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeIn applies the In predicate on the "close_rule_code" field.
+func CloseRuleCodeIn(vs ...string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldCloseRuleCode, vs...))
+}
+
+// CloseRuleCodeNotIn applies the NotIn predicate on the "close_rule_code" field.
+func CloseRuleCodeNotIn(vs ...string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldCloseRuleCode, vs...))
+}
+
+// CloseRuleCodeGT applies the GT predicate on the "close_rule_code" field.
+func CloseRuleCodeGT(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeGTE applies the GTE predicate on the "close_rule_code" field.
+func CloseRuleCodeGTE(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeLT applies the LT predicate on the "close_rule_code" field.
+func CloseRuleCodeLT(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeLTE applies the LTE predicate on the "close_rule_code" field.
+func CloseRuleCodeLTE(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeContains applies the Contains predicate on the "close_rule_code" field.
+func CloseRuleCodeContains(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldContains(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeHasPrefix applies the HasPrefix predicate on the "close_rule_code" field.
+func CloseRuleCodeHasPrefix(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldHasPrefix(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeHasSuffix applies the HasSuffix predicate on the "close_rule_code" field.
+func CloseRuleCodeHasSuffix(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldHasSuffix(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeEqualFold applies the EqualFold predicate on the "close_rule_code" field.
+func CloseRuleCodeEqualFold(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEqualFold(FieldCloseRuleCode, v))
+}
+
+// CloseRuleCodeContainsFold applies the ContainsFold predicate on the "close_rule_code" field.
+func CloseRuleCodeContainsFold(v string) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldContainsFold(FieldCloseRuleCode, v))
 }
 
 // QuotaTotalEQ applies the EQ predicate on the "quota_total" field.

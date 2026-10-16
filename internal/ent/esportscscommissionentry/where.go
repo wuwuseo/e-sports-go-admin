@@ -64,6 +64,11 @@ func OrderID(v int) predicate.EsportsCsCommissionEntry {
 	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldOrderID, v))
 }
 
+// GiftOrderID applies equality check predicate on the "gift_order_id" field. It's identical to GiftOrderIDEQ.
+func GiftOrderID(v int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldGiftOrderID, v))
+}
+
 // AdminID applies equality check predicate on the "admin_id" field. It's identical to AdminIDEQ.
 func AdminID(v int) predicate.EsportsCsCommissionEntry {
 	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldAdminID, v))
@@ -242,6 +247,66 @@ func OrderIDLT(v int) predicate.EsportsCsCommissionEntry {
 // OrderIDLTE applies the LTE predicate on the "order_id" field.
 func OrderIDLTE(v int) predicate.EsportsCsCommissionEntry {
 	return predicate.EsportsCsCommissionEntry(sql.FieldLTE(FieldOrderID, v))
+}
+
+// OrderIDIsNil applies the IsNil predicate on the "order_id" field.
+func OrderIDIsNil() predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldIsNull(FieldOrderID))
+}
+
+// OrderIDNotNil applies the NotNil predicate on the "order_id" field.
+func OrderIDNotNil() predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNotNull(FieldOrderID))
+}
+
+// GiftOrderIDEQ applies the EQ predicate on the "gift_order_id" field.
+func GiftOrderIDEQ(v int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldEQ(FieldGiftOrderID, v))
+}
+
+// GiftOrderIDNEQ applies the NEQ predicate on the "gift_order_id" field.
+func GiftOrderIDNEQ(v int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNEQ(FieldGiftOrderID, v))
+}
+
+// GiftOrderIDIn applies the In predicate on the "gift_order_id" field.
+func GiftOrderIDIn(vs ...int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldIn(FieldGiftOrderID, vs...))
+}
+
+// GiftOrderIDNotIn applies the NotIn predicate on the "gift_order_id" field.
+func GiftOrderIDNotIn(vs ...int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNotIn(FieldGiftOrderID, vs...))
+}
+
+// GiftOrderIDGT applies the GT predicate on the "gift_order_id" field.
+func GiftOrderIDGT(v int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldGT(FieldGiftOrderID, v))
+}
+
+// GiftOrderIDGTE applies the GTE predicate on the "gift_order_id" field.
+func GiftOrderIDGTE(v int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldGTE(FieldGiftOrderID, v))
+}
+
+// GiftOrderIDLT applies the LT predicate on the "gift_order_id" field.
+func GiftOrderIDLT(v int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldLT(FieldGiftOrderID, v))
+}
+
+// GiftOrderIDLTE applies the LTE predicate on the "gift_order_id" field.
+func GiftOrderIDLTE(v int) predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldLTE(FieldGiftOrderID, v))
+}
+
+// GiftOrderIDIsNil applies the IsNil predicate on the "gift_order_id" field.
+func GiftOrderIDIsNil() predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldIsNull(FieldGiftOrderID))
+}
+
+// GiftOrderIDNotNil applies the NotNil predicate on the "gift_order_id" field.
+func GiftOrderIDNotNil() predicate.EsportsCsCommissionEntry {
+	return predicate.EsportsCsCommissionEntry(sql.FieldNotNull(FieldGiftOrderID))
 }
 
 // AdminIDEQ applies the EQ predicate on the "admin_id" field.

@@ -25,10 +25,12 @@ func adminReports(c fiber.Ctx) error {
 	if reportType == "finance" && !isSuper {
 		return businessError(c, errForbidden)
 	}
-	// 非超级管理员强制收敛到本人负责的订单；即便传入他人 ID 也会被覆盖。
-	if !isSuper && filter.ResponsibleAdmin == 0 {
-		filter.ResponsibleAdmin = operator.ID
+	// 资金总表同时包含独立钱包充值、提现与结算，不具备逐订单渠道归属。
+	// 拒绝该筛选，避免把全局资金误标为某一订单来源。
+	if reportType == "finance" && (filter.ChannelSource != "" || filter.EntryPoint != "") {
+		return businessError(c, errInvalidInput)
 	}
+	filter = scopeReportFilter(filter, operator.ID, isSuper)
 	var result map[string]any
 	switch reportType {
 	case "owner_overview":
@@ -57,6 +59,13 @@ func adminReports(c fiber.Ctx) error {
 	return reply(c, result)
 }
 
+func scopeReportFilter(filter reportFilter, adminID int, isSuper bool) reportFilter {
+	if !isSuper {
+		filter.ResponsibleAdmin = adminID
+	}
+	return filter
+}
+
 // parseReportFilter 解析报表筛选参数；时间区间按周期推导或自定义。
 func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 	period := strings.TrimSpace(c.Query("period"))
@@ -67,6 +76,18 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 	if period == "" {
 		period = "daily"
 	}
+	channelSource := strings.TrimSpace(c.Query("channel_source"))
+	switch channelSource {
+	case "", "manual", "wecom", "self", "import":
+	default:
+		return reportFilter{}, errInvalidInput
+	}
+	entryPoint := strings.TrimSpace(c.Query("entry_point"))
+	switch entryPoint {
+	case "", "cs_pc", "cs_mobile", "wecom_sidebar", "customer_self", "admin_backfill":
+	default:
+		return reportFilter{}, errInvalidInput
+	}
 	return reportFilter{
 		Start:            start,
 		End:              end,
@@ -75,6 +96,8 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 		CreatedByAdmin:   queryInt(c, "created_by_admin_id"),
 		SkuID:            queryInt(c, "sku_id"),
 		Game:             strings.TrimSpace(c.Query("game")),
+		ChannelSource:    channelSource,
+		EntryPoint:       entryPoint,
 		AppointmentType:  strings.TrimSpace(c.Query("appointment_type")),
 		SeatType:         strings.TrimSpace(c.Query("seat_type")),
 		PaymentChannel:   strings.TrimSpace(c.Query("payment_channel")),

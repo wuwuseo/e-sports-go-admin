@@ -32,6 +32,28 @@ func (_c *EsportsCsCommissionEntryCreate) SetOrderID(v int) *EsportsCsCommission
 	return _c
 }
 
+// SetNillableOrderID sets the "order_id" field if the given value is not nil.
+func (_c *EsportsCsCommissionEntryCreate) SetNillableOrderID(v *int) *EsportsCsCommissionEntryCreate {
+	if v != nil {
+		_c.SetOrderID(*v)
+	}
+	return _c
+}
+
+// SetGiftOrderID sets the "gift_order_id" field.
+func (_c *EsportsCsCommissionEntryCreate) SetGiftOrderID(v int) *EsportsCsCommissionEntryCreate {
+	_c.mutation.SetGiftOrderID(v)
+	return _c
+}
+
+// SetNillableGiftOrderID sets the "gift_order_id" field if the given value is not nil.
+func (_c *EsportsCsCommissionEntryCreate) SetNillableGiftOrderID(v *int) *EsportsCsCommissionEntryCreate {
+	if v != nil {
+		_c.SetGiftOrderID(*v)
+	}
+	return _c
+}
+
 // SetAdminID sets the "admin_id" field.
 func (_c *EsportsCsCommissionEntryCreate) SetAdminID(v int) *EsportsCsCommissionEntryCreate {
 	_c.mutation.SetAdminID(v)
@@ -397,12 +419,14 @@ func (_c *EsportsCsCommissionEntryCreate) check() error {
 			return &ValidationError{Name: "idem_key", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.idem_key": %w`, err)}
 		}
 	}
-	if _, ok := _c.mutation.OrderID(); !ok {
-		return &ValidationError{Name: "order_id", err: errors.New(`ent: missing required field "EsportsCsCommissionEntry.order_id"`)}
-	}
 	if v, ok := _c.mutation.OrderID(); ok {
 		if err := esportscscommissionentry.OrderIDValidator(v); err != nil {
 			return &ValidationError{Name: "order_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.order_id": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.GiftOrderID(); ok {
+		if err := esportscscommissionentry.GiftOrderIDValidator(v); err != nil {
+			return &ValidationError{Name: "gift_order_id", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.gift_order_id": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.AdminID(); !ok {
@@ -520,7 +544,11 @@ func (_c *EsportsCsCommissionEntryCreate) createSpec() (*EsportsCsCommissionEntr
 	}
 	if value, ok := _c.mutation.OrderID(); ok {
 		_spec.SetField(esportscscommissionentry.FieldOrderID, field.TypeInt, value)
-		_node.OrderID = value
+		_node.OrderID = &value
+	}
+	if value, ok := _c.mutation.GiftOrderID(); ok {
+		_spec.SetField(esportscscommissionentry.FieldGiftOrderID, field.TypeInt, value)
+		_node.GiftOrderID = &value
 	}
 	if value, ok := _c.mutation.AdminID(); ok {
 		_spec.SetField(esportscscommissionentry.FieldAdminID, field.TypeInt, value)

@@ -45,6 +45,12 @@ type EsportsCommissionEntry struct {
 	Status esportscommissionentry.Status `json:"status"`
 	// SettlementID holds the value of the "settlement_id" field.
 	SettlementID *int `json:"settlement_id"`
+	// FrozenAt holds the value of the "frozen_at" field.
+	FrozenAt *time.Time `json:"frozen_at"`
+	// FrozenReason holds the value of the "frozen_reason" field.
+	FrozenReason string `json:"frozen_reason"`
+	// FrozenByAdminID holds the value of the "frozen_by_admin_id" field.
+	FrozenByAdminID *int `json:"frozen_by_admin_id"`
 	// Note holds the value of the "note" field.
 	Note string `json:"note"`
 	// Version holds the value of the "version" field.
@@ -61,11 +67,11 @@ func (*EsportsCommissionEntry) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportscommissionentry.FieldID, esportscommissionentry.FieldOrderID, esportscommissionentry.FieldPlayerID, esportscommissionentry.FieldSeatIndex, esportscommissionentry.FieldAfterSaleID, esportscommissionentry.FieldRuleID, esportscommissionentry.FieldRuleVersion, esportscommissionentry.FieldBaseCents, esportscommissionentry.FieldAmountCents, esportscommissionentry.FieldSettlementID, esportscommissionentry.FieldVersion:
+		case esportscommissionentry.FieldID, esportscommissionentry.FieldOrderID, esportscommissionentry.FieldPlayerID, esportscommissionentry.FieldSeatIndex, esportscommissionentry.FieldAfterSaleID, esportscommissionentry.FieldRuleID, esportscommissionentry.FieldRuleVersion, esportscommissionentry.FieldBaseCents, esportscommissionentry.FieldAmountCents, esportscommissionentry.FieldSettlementID, esportscommissionentry.FieldFrozenByAdminID, esportscommissionentry.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportscommissionentry.FieldIdemKey, esportscommissionentry.FieldKind, esportscommissionentry.FieldRuleNo, esportscommissionentry.FieldCalcMode, esportscommissionentry.FieldStatus, esportscommissionentry.FieldNote:
+		case esportscommissionentry.FieldIdemKey, esportscommissionentry.FieldKind, esportscommissionentry.FieldRuleNo, esportscommissionentry.FieldCalcMode, esportscommissionentry.FieldStatus, esportscommissionentry.FieldFrozenReason, esportscommissionentry.FieldNote:
 			values[i] = new(sql.NullString)
-		case esportscommissionentry.FieldCreatedAt, esportscommissionentry.FieldUpdatedAt:
+		case esportscommissionentry.FieldFrozenAt, esportscommissionentry.FieldCreatedAt, esportscommissionentry.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -176,6 +182,26 @@ func (_m *EsportsCommissionEntry) assignValues(columns []string, values []any) e
 				_m.SettlementID = new(int)
 				*_m.SettlementID = int(value.Int64)
 			}
+		case esportscommissionentry.FieldFrozenAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field frozen_at", values[i])
+			} else if value.Valid {
+				_m.FrozenAt = new(time.Time)
+				*_m.FrozenAt = value.Time
+			}
+		case esportscommissionentry.FieldFrozenReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field frozen_reason", values[i])
+			} else if value.Valid {
+				_m.FrozenReason = value.String
+			}
+		case esportscommissionentry.FieldFrozenByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field frozen_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.FrozenByAdminID = new(int)
+				*_m.FrozenByAdminID = int(value.Int64)
+			}
 		case esportscommissionentry.FieldNote:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field note", values[i])
@@ -283,6 +309,19 @@ func (_m *EsportsCommissionEntry) String() string {
 	builder.WriteString(", ")
 	if v := _m.SettlementID; v != nil {
 		builder.WriteString("settlement_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.FrozenAt; v != nil {
+		builder.WriteString("frozen_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("frozen_reason=")
+	builder.WriteString(_m.FrozenReason)
+	builder.WriteString(", ")
+	if v := _m.FrozenByAdminID; v != nil {
+		builder.WriteString("frozen_by_admin_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

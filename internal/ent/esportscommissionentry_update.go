@@ -311,6 +311,67 @@ func (_u *EsportsCommissionEntryUpdate) ClearSettlementID() *EsportsCommissionEn
 	return _u
 }
 
+// SetFrozenAt sets the "frozen_at" field.
+func (_u *EsportsCommissionEntryUpdate) SetFrozenAt(v time.Time) *EsportsCommissionEntryUpdate {
+	_u.mutation.SetFrozenAt(v)
+	return _u
+}
+
+// SetNillableFrozenAt sets the "frozen_at" field if the given value is not nil.
+func (_u *EsportsCommissionEntryUpdate) SetNillableFrozenAt(v *time.Time) *EsportsCommissionEntryUpdate {
+	if v != nil {
+		_u.SetFrozenAt(*v)
+	}
+	return _u
+}
+
+// ClearFrozenAt clears the value of the "frozen_at" field.
+func (_u *EsportsCommissionEntryUpdate) ClearFrozenAt() *EsportsCommissionEntryUpdate {
+	_u.mutation.ClearFrozenAt()
+	return _u
+}
+
+// SetFrozenReason sets the "frozen_reason" field.
+func (_u *EsportsCommissionEntryUpdate) SetFrozenReason(v string) *EsportsCommissionEntryUpdate {
+	_u.mutation.SetFrozenReason(v)
+	return _u
+}
+
+// SetNillableFrozenReason sets the "frozen_reason" field if the given value is not nil.
+func (_u *EsportsCommissionEntryUpdate) SetNillableFrozenReason(v *string) *EsportsCommissionEntryUpdate {
+	if v != nil {
+		_u.SetFrozenReason(*v)
+	}
+	return _u
+}
+
+// SetFrozenByAdminID sets the "frozen_by_admin_id" field.
+func (_u *EsportsCommissionEntryUpdate) SetFrozenByAdminID(v int) *EsportsCommissionEntryUpdate {
+	_u.mutation.ResetFrozenByAdminID()
+	_u.mutation.SetFrozenByAdminID(v)
+	return _u
+}
+
+// SetNillableFrozenByAdminID sets the "frozen_by_admin_id" field if the given value is not nil.
+func (_u *EsportsCommissionEntryUpdate) SetNillableFrozenByAdminID(v *int) *EsportsCommissionEntryUpdate {
+	if v != nil {
+		_u.SetFrozenByAdminID(*v)
+	}
+	return _u
+}
+
+// AddFrozenByAdminID adds value to the "frozen_by_admin_id" field.
+func (_u *EsportsCommissionEntryUpdate) AddFrozenByAdminID(v int) *EsportsCommissionEntryUpdate {
+	_u.mutation.AddFrozenByAdminID(v)
+	return _u
+}
+
+// ClearFrozenByAdminID clears the value of the "frozen_by_admin_id" field.
+func (_u *EsportsCommissionEntryUpdate) ClearFrozenByAdminID() *EsportsCommissionEntryUpdate {
+	_u.mutation.ClearFrozenByAdminID()
+	return _u
+}
+
 // SetNote sets the "note" field.
 func (_u *EsportsCommissionEntryUpdate) SetNote(v string) *EsportsCommissionEntryUpdate {
 	_u.mutation.SetNote(v)
@@ -425,6 +486,11 @@ func (_u *EsportsCommissionEntryUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsCommissionEntry.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.FrozenReason(); ok {
+		if err := esportscommissionentry.FrozenReasonValidator(v); err != nil {
+			return &ValidationError{Name: "frozen_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsCommissionEntry.frozen_reason": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Note(); ok {
 		if err := esportscommissionentry.NoteValidator(v); err != nil {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsCommissionEntry.note": %w`, err)}
@@ -525,6 +591,24 @@ func (_u *EsportsCommissionEntryUpdate) sqlSave(ctx context.Context) (_node int,
 	}
 	if _u.mutation.SettlementIDCleared() {
 		_spec.ClearField(esportscommissionentry.FieldSettlementID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.FrozenAt(); ok {
+		_spec.SetField(esportscommissionentry.FieldFrozenAt, field.TypeTime, value)
+	}
+	if _u.mutation.FrozenAtCleared() {
+		_spec.ClearField(esportscommissionentry.FieldFrozenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.FrozenReason(); ok {
+		_spec.SetField(esportscommissionentry.FieldFrozenReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FrozenByAdminID(); ok {
+		_spec.SetField(esportscommissionentry.FieldFrozenByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedFrozenByAdminID(); ok {
+		_spec.AddField(esportscommissionentry.FieldFrozenByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.FrozenByAdminIDCleared() {
+		_spec.ClearField(esportscommissionentry.FieldFrozenByAdminID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(esportscommissionentry.FieldNote, field.TypeString, value)
@@ -841,6 +925,67 @@ func (_u *EsportsCommissionEntryUpdateOne) ClearSettlementID() *EsportsCommissio
 	return _u
 }
 
+// SetFrozenAt sets the "frozen_at" field.
+func (_u *EsportsCommissionEntryUpdateOne) SetFrozenAt(v time.Time) *EsportsCommissionEntryUpdateOne {
+	_u.mutation.SetFrozenAt(v)
+	return _u
+}
+
+// SetNillableFrozenAt sets the "frozen_at" field if the given value is not nil.
+func (_u *EsportsCommissionEntryUpdateOne) SetNillableFrozenAt(v *time.Time) *EsportsCommissionEntryUpdateOne {
+	if v != nil {
+		_u.SetFrozenAt(*v)
+	}
+	return _u
+}
+
+// ClearFrozenAt clears the value of the "frozen_at" field.
+func (_u *EsportsCommissionEntryUpdateOne) ClearFrozenAt() *EsportsCommissionEntryUpdateOne {
+	_u.mutation.ClearFrozenAt()
+	return _u
+}
+
+// SetFrozenReason sets the "frozen_reason" field.
+func (_u *EsportsCommissionEntryUpdateOne) SetFrozenReason(v string) *EsportsCommissionEntryUpdateOne {
+	_u.mutation.SetFrozenReason(v)
+	return _u
+}
+
+// SetNillableFrozenReason sets the "frozen_reason" field if the given value is not nil.
+func (_u *EsportsCommissionEntryUpdateOne) SetNillableFrozenReason(v *string) *EsportsCommissionEntryUpdateOne {
+	if v != nil {
+		_u.SetFrozenReason(*v)
+	}
+	return _u
+}
+
+// SetFrozenByAdminID sets the "frozen_by_admin_id" field.
+func (_u *EsportsCommissionEntryUpdateOne) SetFrozenByAdminID(v int) *EsportsCommissionEntryUpdateOne {
+	_u.mutation.ResetFrozenByAdminID()
+	_u.mutation.SetFrozenByAdminID(v)
+	return _u
+}
+
+// SetNillableFrozenByAdminID sets the "frozen_by_admin_id" field if the given value is not nil.
+func (_u *EsportsCommissionEntryUpdateOne) SetNillableFrozenByAdminID(v *int) *EsportsCommissionEntryUpdateOne {
+	if v != nil {
+		_u.SetFrozenByAdminID(*v)
+	}
+	return _u
+}
+
+// AddFrozenByAdminID adds value to the "frozen_by_admin_id" field.
+func (_u *EsportsCommissionEntryUpdateOne) AddFrozenByAdminID(v int) *EsportsCommissionEntryUpdateOne {
+	_u.mutation.AddFrozenByAdminID(v)
+	return _u
+}
+
+// ClearFrozenByAdminID clears the value of the "frozen_by_admin_id" field.
+func (_u *EsportsCommissionEntryUpdateOne) ClearFrozenByAdminID() *EsportsCommissionEntryUpdateOne {
+	_u.mutation.ClearFrozenByAdminID()
+	return _u
+}
+
 // SetNote sets the "note" field.
 func (_u *EsportsCommissionEntryUpdateOne) SetNote(v string) *EsportsCommissionEntryUpdateOne {
 	_u.mutation.SetNote(v)
@@ -968,6 +1113,11 @@ func (_u *EsportsCommissionEntryUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsCommissionEntry.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.FrozenReason(); ok {
+		if err := esportscommissionentry.FrozenReasonValidator(v); err != nil {
+			return &ValidationError{Name: "frozen_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsCommissionEntry.frozen_reason": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Note(); ok {
 		if err := esportscommissionentry.NoteValidator(v); err != nil {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsCommissionEntry.note": %w`, err)}
@@ -1085,6 +1235,24 @@ func (_u *EsportsCommissionEntryUpdateOne) sqlSave(ctx context.Context) (_node *
 	}
 	if _u.mutation.SettlementIDCleared() {
 		_spec.ClearField(esportscommissionentry.FieldSettlementID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.FrozenAt(); ok {
+		_spec.SetField(esportscommissionentry.FieldFrozenAt, field.TypeTime, value)
+	}
+	if _u.mutation.FrozenAtCleared() {
+		_spec.ClearField(esportscommissionentry.FieldFrozenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.FrozenReason(); ok {
+		_spec.SetField(esportscommissionentry.FieldFrozenReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FrozenByAdminID(); ok {
+		_spec.SetField(esportscommissionentry.FieldFrozenByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedFrozenByAdminID(); ok {
+		_spec.AddField(esportscommissionentry.FieldFrozenByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.FrozenByAdminIDCleared() {
+		_spec.ClearField(esportscommissionentry.FieldFrozenByAdminID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Note(); ok {
 		_spec.SetField(esportscommissionentry.FieldNote, field.TypeString, value)

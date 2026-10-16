@@ -132,6 +132,24 @@ func (_u *EsportsCloseFormTemplateUpdate) ClearFields() *EsportsCloseFormTemplat
 	return _u
 }
 
+// SetFieldDefinitions sets the "field_definitions" field.
+func (_u *EsportsCloseFormTemplateUpdate) SetFieldDefinitions(v []schematier.CloseFormFieldDefinition) *EsportsCloseFormTemplateUpdate {
+	_u.mutation.SetFieldDefinitions(v)
+	return _u
+}
+
+// AppendFieldDefinitions appends value to the "field_definitions" field.
+func (_u *EsportsCloseFormTemplateUpdate) AppendFieldDefinitions(v []schematier.CloseFormFieldDefinition) *EsportsCloseFormTemplateUpdate {
+	_u.mutation.AppendFieldDefinitions(v)
+	return _u
+}
+
+// ClearFieldDefinitions clears the value of the "field_definitions" field.
+func (_u *EsportsCloseFormTemplateUpdate) ClearFieldDefinitions() *EsportsCloseFormTemplateUpdate {
+	_u.mutation.ClearFieldDefinitions()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsCloseFormTemplateUpdate) SetStatus(v esportscloseformtemplate.Status) *EsportsCloseFormTemplateUpdate {
 	_u.mutation.SetStatus(v)
@@ -329,6 +347,17 @@ func (_u *EsportsCloseFormTemplateUpdate) sqlSave(ctx context.Context) (_node in
 	if _u.mutation.FieldsCleared() {
 		_spec.ClearField(esportscloseformtemplate.FieldFields, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.FieldDefinitions(); ok {
+		_spec.SetField(esportscloseformtemplate.FieldFieldDefinitions, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedFieldDefinitions(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportscloseformtemplate.FieldFieldDefinitions, value)
+		})
+	}
+	if _u.mutation.FieldDefinitionsCleared() {
+		_spec.ClearField(esportscloseformtemplate.FieldFieldDefinitions, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportscloseformtemplate.FieldStatus, field.TypeEnum, value)
 	}
@@ -472,6 +501,24 @@ func (_u *EsportsCloseFormTemplateUpdateOne) AppendFields(v []schematier.CloseFo
 // ClearFields clears the value of the "fields" field.
 func (_u *EsportsCloseFormTemplateUpdateOne) ClearFields() *EsportsCloseFormTemplateUpdateOne {
 	_u.mutation.ClearFields()
+	return _u
+}
+
+// SetFieldDefinitions sets the "field_definitions" field.
+func (_u *EsportsCloseFormTemplateUpdateOne) SetFieldDefinitions(v []schematier.CloseFormFieldDefinition) *EsportsCloseFormTemplateUpdateOne {
+	_u.mutation.SetFieldDefinitions(v)
+	return _u
+}
+
+// AppendFieldDefinitions appends value to the "field_definitions" field.
+func (_u *EsportsCloseFormTemplateUpdateOne) AppendFieldDefinitions(v []schematier.CloseFormFieldDefinition) *EsportsCloseFormTemplateUpdateOne {
+	_u.mutation.AppendFieldDefinitions(v)
+	return _u
+}
+
+// ClearFieldDefinitions clears the value of the "field_definitions" field.
+func (_u *EsportsCloseFormTemplateUpdateOne) ClearFieldDefinitions() *EsportsCloseFormTemplateUpdateOne {
+	_u.mutation.ClearFieldDefinitions()
 	return _u
 }
 
@@ -701,6 +748,17 @@ func (_u *EsportsCloseFormTemplateUpdateOne) sqlSave(ctx context.Context) (_node
 	}
 	if _u.mutation.FieldsCleared() {
 		_spec.ClearField(esportscloseformtemplate.FieldFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.FieldDefinitions(); ok {
+		_spec.SetField(esportscloseformtemplate.FieldFieldDefinitions, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedFieldDefinitions(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportscloseformtemplate.FieldFieldDefinitions, value)
+		})
+	}
+	if _u.mutation.FieldDefinitionsCleared() {
+		_spec.ClearField(esportscloseformtemplate.FieldFieldDefinitions, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportscloseformtemplate.FieldStatus, field.TypeEnum, value)

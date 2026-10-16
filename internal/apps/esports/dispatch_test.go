@@ -234,7 +234,7 @@ func TestPublishOrderToGrabHallReopensSeats(t *testing.T) {
 	if seat.Status != esportsdispatchseat.StatusOpen || seat.PlayerID != nil || seat.ExpiresAt != nil {
 		t.Fatalf("席位未重置为可抢：%+v", seat)
 	}
-	hall, err := listGrabHall(ctx, db, 999, now)
+	hall, err := listGrabHall(ctx, db, online.ID, now)
 	if err != nil {
 		t.Fatal(err)
 	}

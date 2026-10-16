@@ -11,6 +11,7 @@ import (
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/migrate"
@@ -201,7 +202,7 @@ func TestPlayerServiceFlow(t *testing.T) {
 		t.Fatalf("重复开始未拦截：%v", err)
 	}
 
-	finished, err := finishPlayerService(ctx, db, player.ID, order.ID, 3, "ref-1", now.Add(30*time.Second))
+	finished, err := finishPlayerService(ctx, db, player.ID, order.ID, 3, 30, "ref-1", now.Add(30*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,14 +211,104 @@ func TestPlayerServiceFlow(t *testing.T) {
 	}
 	segment = db.EsportsServiceSegment.GetX(ctx, segment.ID)
 	if segment.Status != esportsservicesegment.StatusFinished || segment.EndedAt == nil ||
-		segment.ReportedUnits != 3 || segment.SystemSeconds != 30 {
+		segment.ReportedUnits != 3 || segment.ReportedSeconds != 30 || segment.SystemSeconds != 30 {
 		t.Fatalf("服务段结束记录不正确：%+v", segment)
 	}
 	if countEventsByType(t, db)["order.service_finished"] != 1 {
 		t.Fatal("缺少 order.service_finished 事件")
 	}
-	if _, err := finishPlayerService(ctx, db, player.ID, order.ID, 1, "", now); !errors.Is(err, errConflict) {
+	if _, err := finishPlayerService(ctx, db, player.ID, order.ID, 1, 30, "", now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复结束未拦截：%v", err)
+	}
+}
+
+func TestPlayerServicePauseResumeExcludesPausedTime(t *testing.T) {
+	db := openPlayerTestDB(t, "esports_player_service_pause")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	player := seedPlayer(t, db, 608, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	other := seedPlayer(t, db, 609, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	order := seedGrabbingOrder(t, db, "player-service-pause")
+	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := setPlayerServicePause(ctx, db, other.ID, order.ID, true, "越权", now.Add(10*time.Second)); !errors.Is(err, errForbidden) {
+		t.Fatalf("非本人暂停应拒绝：%v", err)
+	}
+	paused, err := setPlayerServicePause(ctx, db, player.ID, order.ID, true, "客户暂离", now.Add(10*time.Second))
+	if err != nil || paused.Status != "paused" || paused.EffectiveSeconds != 10 {
+		t.Fatalf("暂停服务段失败：%+v, %v", paused, err)
+	}
+	if _, err := setPlayerServicePause(ctx, db, player.ID, order.ID, true, "重复", now.Add(11*time.Second)); !errors.Is(err, errConflict) {
+		t.Fatalf("重复暂停应冲突：%v", err)
+	}
+	if _, err := finishPlayerService(ctx, db, player.ID, order.ID, 1, 40, "proof", now.Add(20*time.Second)); !errors.Is(err, errConflict) {
+		t.Fatalf("暂停期间结束应冲突：%v", err)
+	}
+	timings, err := listPlayerServiceTimings(ctx, db, player.ID, now.Add(30*time.Second))
+	if err != nil || len(timings) != 1 || timings[0].EffectiveSeconds != 10 || timings[0].PausedSeconds != 20 {
+		t.Fatalf("服务端暂停计时不正确：%+v, %v", timings, err)
+	}
+	resumed, err := setPlayerServicePause(ctx, db, player.ID, order.ID, false, "", now.Add(40*time.Second))
+	if err != nil || resumed.Status != "in_service" || resumed.PausedSeconds != 30 {
+		t.Fatalf("恢复服务段失败：%+v, %v", resumed, err)
+	}
+	if _, err := setPlayerServicePause(ctx, db, player.ID, order.ID, false, "", now.Add(41*time.Second)); !errors.Is(err, errConflict) {
+		t.Fatalf("重复恢复应冲突：%v", err)
+	}
+	if _, err := finishPlayerService(ctx, db, player.ID, order.ID, 1, 40, "proof", now.Add(70*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	segment := db.EsportsServiceSegment.Query().OnlyX(ctx)
+	if segment.PausedAt != nil || segment.PausedSeconds != 30 || segment.SystemSeconds != 40 {
+		t.Fatalf("结束时有效时长未扣除暂停：%+v", segment)
+	}
+	events := countEventsByType(t, db)
+	if events["order.service_paused"] != 1 || events["order.service_resumed"] != 1 {
+		t.Fatalf("暂停/恢复事件缺失：%+v", events)
+	}
+}
+
+func TestPlayerServiceDurationMismatchCreatesReviewTask(t *testing.T) {
+	db := openPlayerTestDB(t, "esports_player_duration_mismatch")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	player := seedPlayer(t, db, 607, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	order := seedGrabbingOrder(t, db, "player-duration-mismatch")
+	db.EsportsOrder.UpdateOneID(order.ID).SetResponsibleAdminID(11).SaveX(ctx)
+	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := finishPlayerService(ctx, db, player.ID, order.ID, 1, 3600, "ev.png", now.Add(30*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	segment := db.EsportsServiceSegment.Query().OnlyX(ctx)
+	if segment.SystemSeconds != 30 || segment.ReportedSeconds != 3600 {
+		t.Fatalf("双来源服务时长未保存：%+v", segment)
+	}
+	event := db.EsportsOrderEvent.Query().Where(esportsorderevent.EventTypeEQ("order.service_finished")).OnlyX(ctx)
+	if event.Details["duration_mismatch"] != true {
+		t.Fatalf("服务结束事件未标记时长差异：%+v", event.Details)
+	}
+	found := false
+	for _, item := range db.EsportsOutbox.Query().AllX(ctx) {
+		if item.EventType == "service.duration_mismatch" {
+			found = true
+			if item.Payload["admin_id"] != float64(11) && item.Payload["admin_id"] != 11 {
+				t.Fatalf("差异待办未指向负责客服：%+v", item.Payload)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("时长差异未进入通知外盒")
 	}
 }
 
@@ -258,13 +349,13 @@ func TestPlayerMultiSeatServiceFlow(t *testing.T) {
 	if n := db.EsportsServiceSegment.Query().CountX(ctx); n != 2 {
 		t.Fatalf("服务段数量应为 2，实际 %d", n)
 	}
-	if _, err := finishPlayerService(ctx, db, a.ID, order.ID, 1, "", now); err != nil {
+	if _, err := finishPlayerService(ctx, db, a.ID, order.ID, 1, 60, "", now); err != nil {
 		t.Fatal(err)
 	}
 	if got := db.EsportsOrder.GetX(ctx, order.ID); got.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		t.Fatalf("尚有成员未结束就转待结单：%+v", got)
 	}
-	if _, err := finishPlayerService(ctx, db, b.ID, order.ID, 1, "", now); err != nil {
+	if _, err := finishPlayerService(ctx, db, b.ID, order.ID, 1, 60, "", now); err != nil {
 		t.Fatal(err)
 	}
 	if got := db.EsportsOrder.GetX(ctx, order.ID); got.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose {

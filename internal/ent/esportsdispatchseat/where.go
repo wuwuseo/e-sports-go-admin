@@ -84,6 +84,16 @@ func RespondedAt(v time.Time) predicate.EsportsDispatchSeat {
 	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldRespondedAt, v))
 }
 
+// CommissionRuleID applies equality check predicate on the "commission_rule_id" field. It's identical to CommissionRuleIDEQ.
+func CommissionRuleID(v int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleLockedAt applies equality check predicate on the "commission_rule_locked_at" field. It's identical to CommissionRuleLockedAtEQ.
+func CommissionRuleLockedAt(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldCommissionRuleLockedAt, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int) predicate.EsportsDispatchSeat {
 	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldVersion, v))
@@ -417,6 +427,106 @@ func RespondedAtIsNil() predicate.EsportsDispatchSeat {
 // RespondedAtNotNil applies the NotNil predicate on the "responded_at" field.
 func RespondedAtNotNil() predicate.EsportsDispatchSeat {
 	return predicate.EsportsDispatchSeat(sql.FieldNotNull(FieldRespondedAt))
+}
+
+// CommissionRuleIDEQ applies the EQ predicate on the "commission_rule_id" field.
+func CommissionRuleIDEQ(v int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDNEQ applies the NEQ predicate on the "commission_rule_id" field.
+func CommissionRuleIDNEQ(v int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNEQ(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDIn applies the In predicate on the "commission_rule_id" field.
+func CommissionRuleIDIn(vs ...int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIn(FieldCommissionRuleID, vs...))
+}
+
+// CommissionRuleIDNotIn applies the NotIn predicate on the "commission_rule_id" field.
+func CommissionRuleIDNotIn(vs ...int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotIn(FieldCommissionRuleID, vs...))
+}
+
+// CommissionRuleIDGT applies the GT predicate on the "commission_rule_id" field.
+func CommissionRuleIDGT(v int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGT(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDGTE applies the GTE predicate on the "commission_rule_id" field.
+func CommissionRuleIDGTE(v int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGTE(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDLT applies the LT predicate on the "commission_rule_id" field.
+func CommissionRuleIDLT(v int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLT(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDLTE applies the LTE predicate on the "commission_rule_id" field.
+func CommissionRuleIDLTE(v int) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLTE(FieldCommissionRuleID, v))
+}
+
+// CommissionRuleIDIsNil applies the IsNil predicate on the "commission_rule_id" field.
+func CommissionRuleIDIsNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIsNull(FieldCommissionRuleID))
+}
+
+// CommissionRuleIDNotNil applies the NotNil predicate on the "commission_rule_id" field.
+func CommissionRuleIDNotNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotNull(FieldCommissionRuleID))
+}
+
+// CommissionRuleLockedAtEQ applies the EQ predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtNEQ applies the NEQ predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtNEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNEQ(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtIn applies the In predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIn(FieldCommissionRuleLockedAt, vs...))
+}
+
+// CommissionRuleLockedAtNotIn applies the NotIn predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtNotIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotIn(FieldCommissionRuleLockedAt, vs...))
+}
+
+// CommissionRuleLockedAtGT applies the GT predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtGT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGT(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtGTE applies the GTE predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtGTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGTE(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtLT applies the LT predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtLT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLT(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtLTE applies the LTE predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtLTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLTE(FieldCommissionRuleLockedAt, v))
+}
+
+// CommissionRuleLockedAtIsNil applies the IsNil predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtIsNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIsNull(FieldCommissionRuleLockedAt))
+}
+
+// CommissionRuleLockedAtNotNil applies the NotNil predicate on the "commission_rule_locked_at" field.
+func CommissionRuleLockedAtNotNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotNull(FieldCommissionRuleLockedAt))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.

@@ -409,6 +409,16 @@ func FieldsNotNil() predicate.EsportsCloseFormTemplate {
 	return predicate.EsportsCloseFormTemplate(sql.FieldNotNull(FieldFields))
 }
 
+// FieldDefinitionsIsNil applies the IsNil predicate on the "field_definitions" field.
+func FieldDefinitionsIsNil() predicate.EsportsCloseFormTemplate {
+	return predicate.EsportsCloseFormTemplate(sql.FieldIsNull(FieldFieldDefinitions))
+}
+
+// FieldDefinitionsNotNil applies the NotNil predicate on the "field_definitions" field.
+func FieldDefinitionsNotNil() predicate.EsportsCloseFormTemplate {
+	return predicate.EsportsCloseFormTemplate(sql.FieldNotNull(FieldFieldDefinitions))
+}
+
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v Status) predicate.EsportsCloseFormTemplate {
 	return predicate.EsportsCloseFormTemplate(sql.FieldEQ(FieldStatus, v))

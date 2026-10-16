@@ -32,6 +32,10 @@ const (
 	FieldExpiresAt = "expires_at"
 	// FieldRespondedAt holds the string denoting the responded_at field in the database.
 	FieldRespondedAt = "responded_at"
+	// FieldCommissionRuleID holds the string denoting the commission_rule_id field in the database.
+	FieldCommissionRuleID = "commission_rule_id"
+	// FieldCommissionRuleLockedAt holds the string denoting the commission_rule_locked_at field in the database.
+	FieldCommissionRuleLockedAt = "commission_rule_locked_at"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -56,6 +60,8 @@ var Columns = []string{
 	FieldInvitedByAdminID,
 	FieldExpiresAt,
 	FieldRespondedAt,
+	FieldCommissionRuleID,
+	FieldCommissionRuleLockedAt,
 	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -191,6 +197,16 @@ func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
 // ByRespondedAt orders the results by the responded_at field.
 func ByRespondedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRespondedAt, opts...).ToFunc()
+}
+
+// ByCommissionRuleID orders the results by the commission_rule_id field.
+func ByCommissionRuleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommissionRuleID, opts...).ToFunc()
+}
+
+// ByCommissionRuleLockedAt orders the results by the commission_rule_locked_at field.
+func ByCommissionRuleLockedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommissionRuleLockedAt, opts...).ToFunc()
 }
 
 // ByVersion orders the results by the version field.

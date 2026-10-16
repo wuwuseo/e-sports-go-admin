@@ -200,8 +200,8 @@ func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID in
 		return nil, errConflict
 	}
 	// 确认时点锁定分成规则并计算本次加钟分成（§12.5）。
-	rule, err := resolveCommissionRuleIn(ctx, tx.EsportsCommissionRule, tx.EsportsServiceSegment,
-		tx.EsportsDispatchSeat, tx.EsportsSku, tx.EsportsProductCategory, order)
+	rule, err := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
+		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, now)
 	if err != nil {
 		return nil, err
 	}

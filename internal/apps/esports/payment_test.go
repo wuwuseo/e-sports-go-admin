@@ -61,6 +61,10 @@ func TestVerifiedReceiptAppliesOnceAndSeparatesOverpayment(t *testing.T) {
 		t.Fatalf("same transaction with different amount: %v", err)
 	}
 	paid := db.EsportsOrder.GetX(ctx, first.ID)
+	if paid.CsCommissionRuleLockedAt == nil || paid.CsCommissionAdminID == nil ||
+		*paid.CsCommissionAdminID != 11 || paid.CsCommissionRuleID != nil {
+		t.Fatalf("外部付款未锁定当时客服提成口径：%+v", paid)
+	}
 	stock := db.EsportsSku.GetX(ctx, sku.ID)
 	if paid.PaymentStatus != "paid" || paid.FulfillmentStatus != "pending_dispatch" ||
 		stock.QuotaReserved != 0 || stock.QuotaSold != 1 || db.EsportsLedgerEntry.Query().CountX(ctx) != 3 {

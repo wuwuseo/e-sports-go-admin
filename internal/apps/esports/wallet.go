@@ -81,6 +81,8 @@ type walletAccountView struct {
 	PrincipalCents int64  `json:"principal_cents"`
 	BonusCents     int64  `json:"bonus_cents"`
 	BalanceCents   int64  `json:"balance_cents"`
+	// 展示口径（§11.4）：工作室可配的账户展示名称、图标、说明与固定倍率换算金额。
+	Display walletDisplay `json:"display"`
 }
 
 type walletBalance struct {
@@ -166,6 +168,12 @@ func walletOwnerName(ctx context.Context, tx *ent.Tx, accountType string, ownerI
 }
 
 func walletView(ctx context.Context, db *ent.Client, account *ent.EsportsWalletAccount) (*walletAccountView, error) {
+	return walletViewWith(ctx, db, account, walletDisplayConfig(ctx, db))
+}
+
+// walletViewWith 组装钱包视图，展示配置由调用方统一读取一次，避免列表接口逐行读配置。
+func walletViewWith(ctx context.Context, db *ent.Client, account *ent.EsportsWalletAccount,
+	displays map[string]walletDisplay) (*walletAccountView, error) {
 	balance, err := walletBalanceOf(ctx, db, account.AccountType.String(), account.OwnerID)
 	if err != nil {
 		return nil, err
@@ -175,11 +183,12 @@ func walletView(ctx context.Context, db *ent.Client, account *ent.EsportsWalletA
 		DisplayName: account.DisplayName, Status: account.Status.String(),
 		PrincipalCents: balance.PrincipalCents, BonusCents: balance.BonusCents,
 		BalanceCents: balance.total(),
+		Display: walletDisplayFor(displays, account.AccountType.String(), balance.total()),
 	}, nil
 }
 
 // listWalletAccounts 列出某类钱包账户及其派生余额，keyword 匹配展示名。
-func listWalletAccounts(ctx context.Context, db *ent.Client, accountType, keyword string, limit int) ([]*walletAccountView, error) {
+func listWalletAccounts(ctx context.Context, db *ent.Client, adminID int, isSuper bool, accountType, keyword string, limit int) ([]*walletAccountView, error) {
 	normalized, err := normalizeWalletType(accountType)
 	if err != nil {
 		return nil, err
@@ -190,6 +199,16 @@ func listWalletAccounts(ctx context.Context, db *ent.Client, accountType, keywor
 	q := db.EsportsWalletAccount.Query().Where(
 		esportswalletaccount.AccountTypeEQ(esportswalletaccount.AccountType(normalized)),
 	)
+	if normalized == walletCustomerBalance && !isSuper {
+		ids, err := db.EsportsCustomer.Query().Where(esportscustomer.OwnerAdminIDEQ(adminID)).IDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(ids) == 0 {
+			return []*walletAccountView{}, nil
+		}
+		q.Where(esportswalletaccount.OwnerIDIn(ids...))
+	}
 	if keyword = strings.TrimSpace(keyword); keyword != "" {
 		q.Where(esportswalletaccount.DisplayNameContains(keyword))
 	}
@@ -198,8 +217,9 @@ func listWalletAccounts(ctx context.Context, db *ent.Client, accountType, keywor
 		return nil, err
 	}
 	views := make([]*walletAccountView, 0, len(accounts))
+	displays := walletDisplayConfig(ctx, db)
 	for _, account := range accounts {
-		view, err := walletView(ctx, db, account)
+		view, err := walletViewWith(ctx, db, account, displays)
 		if err != nil {
 			return nil, err
 		}
@@ -380,14 +400,18 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 		}
 		return nil, err
 	}
-	changed, err := tx.EsportsOrder.Update().Where(
+	update := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
 		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
 	).SetPaymentStatus(esportsorder.PaymentStatusPaid).
 		SetPaymentChannel(esportsorder.PaymentChannelCustomerBalance).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).
-		SetPaidAt(now.UTC()).AddVersion(1).Save(ctx)
+		SetPaidAt(now.UTC()).AddVersion(1)
+	if err := lockCsCommissionOnPayment(ctx, tx, order, update, now); err != nil {
+		return nil, err
+	}
+	changed, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
 	}

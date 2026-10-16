@@ -24,6 +24,9 @@ func (EsportsDispatchSeat) Fields() []ent.Field {
 		field.Int("invited_by_admin_id").Optional().Nillable().StructTag(`json:"invited_by_admin_id"`),
 		field.Time("expires_at").Optional().Nillable().StructTag(`json:"expires_at"`),
 		field.Time("responded_at").Optional().Nillable().StructTag(`json:"responded_at"`),
+		// 接受或抢单时锁定该陪玩的分成规则；locked_at 非空且 rule_id 为空表示当时无规则。
+		field.Int("commission_rule_id").Optional().Nillable().StructTag(`json:"commission_rule_id"`),
+		field.Time("commission_rule_locked_at").Optional().Nillable().StructTag(`json:"commission_rule_locked_at"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),

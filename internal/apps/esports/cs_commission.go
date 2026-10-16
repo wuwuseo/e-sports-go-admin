@@ -19,17 +19,18 @@ import (
 
 // csCommissionRuleInput 客服提成规则可编辑字段（§12.2）。rule_no 创建后不可变。
 type csCommissionRuleInput struct {
-	RuleNo      string                    `json:"rule_no"`
-	Scope       string                    `json:"scope"`
-	ScopeKey    string                    `json:"scope_key"`
-	BaseMode    string                    `json:"base_mode"`
-	CalcMode    string                    `json:"calc_mode"`
-	ValueBp     int                       `json:"value_bp"`
-	ValueCents  int64                     `json:"value_cents"`
-	Tiers       []schema.CsCommissionTier `json:"tiers"`
-	Period      string                    `json:"period"`
-	Note        string                    `json:"note"`
-	EffectiveAt *time.Time                `json:"effective_at"`
+	RuleNo       string                    `json:"rule_no"`
+	Scope        string                    `json:"scope"`
+	ScopeKey     string                    `json:"scope_key"`
+	BaseMode     string                    `json:"base_mode"`
+	CalcMode     string                    `json:"calc_mode"`
+	IncludeGifts bool                      `json:"include_gifts"`
+	ValueBp      int                       `json:"value_bp"`
+	ValueCents   int64                     `json:"value_cents"`
+	Tiers        []schema.CsCommissionTier `json:"tiers"`
+	Period       string                    `json:"period"`
+	Note         string                    `json:"note"`
+	EffectiveAt  *time.Time                `json:"effective_at"`
 }
 
 // validateCsCommissionRule 校验客服提成规则配置。任一不满足返回 errInvalidInput。
@@ -128,6 +129,7 @@ func createCsCommissionRule(ctx context.Context, db *ent.Client, in csCommission
 		SetScope(esportscscommissionrule.Scope(in.Scope)).SetScopeKey(in.ScopeKey).
 		SetBaseMode(esportscscommissionrule.BaseMode(in.BaseMode)).
 		SetCalcMode(esportscscommissionrule.CalcMode(in.CalcMode)).
+		SetIncludeGifts(in.IncludeGifts).
 		SetValueBp(in.ValueBp).SetValueCents(in.ValueCents).SetTiers(tiers).
 		SetPeriod(esportscscommissionrule.Period(in.Period)).
 		SetNote(in.Note).SetCreatedByAdminID(adminID)
@@ -147,7 +149,7 @@ func createCsCommissionRule(ctx context.Context, db *ent.Client, in csCommission
 	return db.EsportsCsCommissionRule.Get(ctx, rule.ID)
 }
 
-// activateCsCommissionRule 生效指定规则：同 rule_no 现有 active 转 history，本行（须 draft）转 active。
+// activateCsCommissionRule 生效指定规则：未来时间进入 scheduled，到点后可解析并由任务转 active。
 func activateCsCommissionRule(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsCsCommissionRule, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -164,9 +166,30 @@ func activateCsCommissionRule(ctx context.Context, db *ent.Client, id, adminID i
 	if target.Status != esportscscommissionrule.StatusDraft {
 		return nil, errConflict
 	}
+	if target.EffectiveAt != nil && target.EffectiveAt.After(now.UTC()) {
+		if _, err = tx.EsportsCsCommissionRule.Update().Where(
+			esportscscommissionrule.RuleNoEQ(target.RuleNo),
+			esportscscommissionrule.StatusEQ(esportscscommissionrule.StatusScheduled),
+		).SetStatus(esportscscommissionrule.StatusHistory).Save(ctx); err != nil {
+			return nil, err
+		}
+		changed, err := tx.EsportsCsCommissionRule.Update().Where(
+			esportscscommissionrule.IDEQ(id), esportscscommissionrule.StatusEQ(esportscscommissionrule.StatusDraft),
+		).SetStatus(esportscscommissionrule.StatusScheduled).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		if err = tx.Commit(); err != nil {
+			return nil, err
+		}
+		return db.EsportsCsCommissionRule.Get(ctx, id)
+	}
 	if _, err = tx.EsportsCsCommissionRule.Update().Where(
 		esportscscommissionrule.RuleNoEQ(target.RuleNo),
-		esportscscommissionrule.StatusEQ(esportscscommissionrule.StatusActive),
+		esportscscommissionrule.StatusIn(esportscscommissionrule.StatusActive, esportscscommissionrule.StatusScheduled),
 	).SetStatus(esportscscommissionrule.StatusHistory).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -215,6 +238,7 @@ func rollbackCsCommissionRule(ctx context.Context, db *ent.Client, id, adminID i
 		SetStatus(esportscscommissionrule.StatusActive).
 		SetScope(source.Scope).SetScopeKey(source.ScopeKey).
 		SetBaseMode(source.BaseMode).SetCalcMode(source.CalcMode).
+		SetIncludeGifts(source.IncludeGifts).
 		SetValueBp(source.ValueBp).SetValueCents(source.ValueCents).
 		SetTiers(source.Tiers).SetPeriod(source.Period).
 		SetNote(source.Note).SetEffectiveAt(now.UTC()).
@@ -228,7 +252,7 @@ func rollbackCsCommissionRule(ctx context.Context, db *ent.Client, id, adminID i
 	// 同编号当前生效版本转 history（回滚源可能本身不是 active）。
 	if _, err = tx.EsportsCsCommissionRule.Update().Where(
 		esportscscommissionrule.RuleNoEQ(source.RuleNo),
-		esportscscommissionrule.StatusEQ(esportscscommissionrule.StatusActive),
+		esportscscommissionrule.StatusIn(esportscscommissionrule.StatusActive, esportscscommissionrule.StatusScheduled),
 		esportscscommissionrule.IDNEQ(rule.ID),
 	).SetStatus(esportscscommissionrule.StatusHistory).Save(ctx); err != nil {
 		return nil, err
@@ -253,9 +277,9 @@ func listCsCommissionRules(ctx context.Context, db *ent.Client, ruleNo string, l
 
 // resolveCsCommissionRuleIn 解析某客服适用的生效提成规则：admin 层优先于 global，同层取 version 最大。
 // 无规则返回 nil, nil。
-func resolveCsCommissionRuleIn(ctx context.Context, rules *ent.EsportsCsCommissionRuleClient, adminID int) (*ent.EsportsCsCommissionRule, error) {
+func resolveCsCommissionRuleIn(ctx context.Context, rules *ent.EsportsCsCommissionRuleClient, adminID int, at time.Time) (*ent.EsportsCsCommissionRule, error) {
 	active, err := rules.Query().Where(
-		esportscscommissionrule.StatusEQ(esportscscommissionrule.StatusActive),
+		esportscscommissionrule.StatusIn(esportscscommissionrule.StatusActive, esportscscommissionrule.StatusScheduled),
 	).All(ctx)
 	if err != nil {
 		return nil, err
@@ -269,6 +293,12 @@ func resolveCsCommissionRuleIn(ctx context.Context, rules *ent.EsportsCsCommissi
 			if rule.Scope != scope || rule.ScopeKey != key {
 				continue
 			}
+			// 时间过滤只约束 scheduled 版本：active 表示已生效，立即激活写入的
+			// effective_at（激活时刻）不作为解析门槛。
+			if rule.Status == esportscscommissionrule.StatusScheduled &&
+				(rule.EffectiveAt == nil || rule.EffectiveAt.After(at.UTC())) {
+				continue
+			}
 			if best == nil || rule.Version > best.Version {
 				best = rule
 			}
@@ -279,6 +309,25 @@ func resolveCsCommissionRuleIn(ctx context.Context, rules *ent.EsportsCsCommissi
 		return rule, nil
 	}
 	return pick(esportscscommissionrule.ScopeGlobal, ""), nil
+}
+
+// lockCsCommissionOnPayment 把付款时点的业绩客服及提成规则写到同一笔订单状态更新。
+func lockCsCommissionOnPayment(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	update *ent.EsportsOrderUpdate, now time.Time) error {
+	update.SetCsCommissionRuleLockedAt(now.UTC())
+	if order.ResponsibleAdminID == nil {
+		return nil
+	}
+	adminID := *order.ResponsibleAdminID
+	rule, err := resolveCsCommissionRuleIn(ctx, tx.EsportsCsCommissionRule, adminID, now)
+	if err != nil {
+		return err
+	}
+	update.SetCsCommissionAdminID(adminID)
+	if rule != nil {
+		update.SetCsCommissionRuleID(rule.ID)
+	}
+	return nil
 }
 
 // csCommissionBase 计算提成基数（分）。order_amount=扣除结单前退款后的报单金额；
@@ -360,14 +409,29 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	if exists {
 		return nil
 	}
-	if order.ResponsibleAdminID == nil {
-		return nil
-	}
-	// 业绩归属客服：客服代报单取订单负责客服（客户自助单同样落负责客服，§12.2）。
-	adminID := *order.ResponsibleAdminID
-	rule, err := resolveCsCommissionRuleIn(ctx, tx.EsportsCsCommissionRule, adminID)
-	if err != nil {
-		return err
+	var adminID int
+	var rule *ent.EsportsCsCommissionRule
+	if order.CsCommissionRuleLockedAt != nil {
+		if order.CsCommissionAdminID == nil || order.CsCommissionRuleID == nil {
+			return nil
+		}
+		adminID = *order.CsCommissionAdminID
+		var err error
+		rule, err = tx.EsportsCsCommissionRule.Get(ctx, *order.CsCommissionRuleID)
+		if err != nil {
+			return err
+		}
+	} else {
+		// 历史订单没有支付时点快照时，按现有归属与规则兼容计提。
+		if order.ResponsibleAdminID == nil {
+			return nil
+		}
+		adminID = *order.ResponsibleAdminID
+		var err error
+		rule, err = resolveCsCommissionRuleIn(ctx, tx.EsportsCsCommissionRule, adminID, now)
+		if err != nil {
+			return err
+		}
 	}
 	if rule == nil {
 		return nil
@@ -449,6 +513,127 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	return nil
 }
 
+// accrueGiftCsCommission 只使用送礼支付时快照的启用规则；疑似交易在复核通过前不计提。
+func accrueGiftCsCommission(ctx context.Context, tx *ent.Tx, gift *ent.EsportsGiftOrder, now time.Time) error {
+	if gift.CsCommissionRuleID == nil || gift.ResponsibleAdminID == nil {
+		return nil
+	}
+	exists, err := tx.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.GiftOrderIDEQ(gift.ID),
+		esportscscommissionentry.KindEQ(esportscscommissionentry.KindGift),
+	).Exist(ctx)
+	if err != nil || exists {
+		return err
+	}
+	rule, err := tx.EsportsCsCommissionRule.Get(ctx, *gift.CsCommissionRuleID)
+	if err != nil {
+		return err
+	}
+	if !rule.IncludeGifts {
+		return nil
+	}
+	remaining := gift.AmountCents - gift.IncomeCents
+	if remaining <= 0 {
+		return nil
+	}
+	base := csCommissionBase(gift.AmountCents, remaining, rule.BaseMode.String())
+	var amount int64
+	matchedTierBp := 0
+	if rule.CalcMode == esportscscommissionrule.CalcModeFixedPerOrder {
+		amount = rule.ValueCents
+	} else {
+		start, end := csCommissionPeriodWindow(rule.Period.String(), now)
+		priorBase, err := orderCsCommissionPeriodBase(ctx, tx, *gift.ResponsibleAdminID, start, end)
+		if err != nil {
+			return err
+		}
+		bp := rule.ValueBp
+		if len(rule.Tiers) > 0 {
+			if tierBp, ok := matchCsCommissionTier(rule.Tiers, priorBase+base); ok {
+				bp = tierBp
+				matchedTierBp = tierBp
+			}
+		}
+		amount = base * int64(bp) / 10000
+	}
+	note := "礼物收入计提"
+	if amount > remaining {
+		amount = remaining
+		note = "礼物收入计提；已按可分余额上限截断"
+	}
+	if amount <= 0 {
+		return nil
+	}
+	_, err = tx.EsportsCsCommissionEntry.Create().
+		SetIdemKey("cs_commission:gift:" + gift.GiftNo + ":" + strconv.Itoa(*gift.ResponsibleAdminID)).
+		SetGiftOrderID(gift.ID).SetAdminID(*gift.ResponsibleAdminID).
+		SetKind(esportscscommissionentry.KindGift).
+		SetRuleID(rule.ID).SetRuleNo(rule.RuleNo).SetRuleVersion(rule.Version).
+		SetCalcMode(esportscscommissionentry.CalcMode(rule.CalcMode.String())).
+		SetBaseMode(esportscscommissionentry.BaseMode(rule.BaseMode.String())).
+		SetBaseCents(base).SetMatchedTierBp(matchedTierBp).SetAmountCents(amount).
+		SetStudioRemainderCents(remaining - amount).
+		SetStatus(esportscscommissionentry.StatusPendingSettlement).SetNote(note).Save(ctx)
+	if ent.IsConstraintError(err) {
+		return errConflict
+	}
+	return err
+}
+
+// reverseGiftCsCommission 按退款比例冲回礼物客服提成（§9.5 / §12.2）：amount 为本次退款额，
+// 累计冲回不超过已计提提成；多次部分退款的幂等键按累计退款额区分，首次全额退款沿用历史键。
+func reverseGiftCsCommission(ctx context.Context, tx *ent.Tx, accrued *ent.EsportsCsCommissionEntry,
+	gift *ent.EsportsGiftOrder, amount int64) error {
+	if amount <= 0 || gift.AmountCents <= 0 || accrued.AmountCents <= 0 {
+		return nil
+	}
+	prior, err := tx.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.IdemKeyHasPrefix("cs_commission:gift_reversal:" + gift.GiftNo + ":" +
+			strconv.Itoa(accrued.AdminID)),
+	).Select(esportscscommissionentry.FieldAmountCents).All(ctx)
+	if err != nil {
+		return err
+	}
+	var reversed int64
+	for _, entry := range prior {
+		reversed -= entry.AmountCents
+	}
+	remaining := accrued.AmountCents - reversed
+	target := accrued.AmountCents * amount / gift.AmountCents
+	if target > remaining {
+		target = remaining
+	}
+	if target <= 0 {
+		return nil
+	}
+	idem := "cs_commission:gift_reversal:" + gift.GiftNo + ":" + strconv.Itoa(accrued.AdminID)
+	if gift.RefundCents > 0 {
+		idem += ":" + strconv.FormatInt(gift.RefundCents+amount, 10)
+	}
+	baseReversal := -(accrued.BaseCents * amount / gift.AmountCents)
+	if baseReversal > 0 {
+		baseReversal = 0
+	}
+	create := tx.EsportsCsCommissionEntry.Create().
+		SetIdemKey(idem).
+		SetGiftOrderID(gift.ID).SetAdminID(accrued.AdminID).
+		SetKind(esportscscommissionentry.KindGiftReversal).
+		SetRuleNo(accrued.RuleNo).SetRuleVersion(accrued.RuleVersion).
+		SetCalcMode(accrued.CalcMode).SetBaseMode(accrued.BaseMode).
+		SetBaseCents(baseReversal).SetMatchedTierBp(accrued.MatchedTierBp).
+		SetAmountCents(-target).
+		SetStatus(esportscscommissionentry.StatusPendingSettlement).
+		SetNote("礼物退款冲回客服提成")
+	if accrued.RuleID != nil {
+		create.SetRuleID(*accrued.RuleID)
+	}
+	_, err = create.Save(ctx)
+	if ent.IsConstraintError(err) {
+		return errConflict
+	}
+	return err
+}
+
 // reverseOrderCsCommission 退款冲回客服提成（§12.2）：结单后部分退款按比例冲回，全额退款冲至零。
 // 必须在 executeAfterSaleOnce 的同一事务内、退款额度落账之后调用；幂等靠 idem_key 唯一索引兜底。
 // 客服提成每订单只有一条 service 明细，无跨明细尾差；其舍入尾差已在计提时落入工作室剩余（§12.1）。
@@ -482,11 +667,15 @@ func reverseOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esport
 		return nil
 	}
 	var reversal int64
+	closeBase := commissionCloseBase(order)
+	if closeBase <= 0 {
+		return errConflict // 已计提明细不应对应零元结单基数。
+	}
 	if order.RefundedCents >= order.PayableCents {
 		// 全额退款冲至零。
 		reversal = -remaining
 	} else {
-		reversal = -(service.AmountCents * item.RefundCents / order.PayableCents)
+		reversal = -(service.AmountCents * item.RefundCents / closeBase)
 		if -reversal > remaining {
 			reversal = -remaining
 		}
@@ -494,7 +683,7 @@ func reverseOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esport
 	if reversal == 0 {
 		return nil
 	}
-	baseReversal := -(service.BaseCents * item.RefundCents / order.PayableCents)
+	baseReversal := -(service.BaseCents * item.RefundCents / closeBase)
 	if baseReversal > 0 {
 		baseReversal = 0
 	}

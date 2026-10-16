@@ -2,6 +2,7 @@ package esports
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
+	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsservicesegment"
@@ -185,6 +187,146 @@ func TestCommissionSplitAndCap(t *testing.T) {
 	}
 }
 
+func TestCommissionUsesEachMembersOwnRule(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_commission_member_rules")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	p1 := seedPlayer(t, db, 911, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	p2 := seedPlayer(t, db, 912, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	r1 := seedActiveRule(t, db, ruleInput{
+		RuleNo: "P1", Scope: "player", ScopeKey: strconv.Itoa(p1.ID),
+		CalcMode: "percent", ValueBp: 2000, UnitBasis: "sku_quantity",
+	})
+	r2 := seedActiveRule(t, db, ruleInput{
+		RuleNo: "P2", Scope: "player", ScopeKey: strconv.Itoa(p2.ID),
+		CalcMode: "percent", ValueBp: 3000, UnitBasis: "sku_quantity",
+	})
+	order := seedCloseableOrder(t, db, "member-rules", 2000,
+		[]segSeed{{p1.ID, 1, 60}, {p2.ID, 2, 60}})
+	if _, err := closeOrder(ctx, db, order.ID, 11, closeOrderInput{Note: "结单"}, now); err != nil {
+		t.Fatal(err)
+	}
+	entries := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.OrderIDEQ(order.ID),
+		esportscommissionentry.KindEQ(esportscommissionentry.KindService),
+	).AllX(ctx)
+	if len(entries) != 2 {
+		t.Fatalf("应有两条成员分成：%d", len(entries))
+	}
+	byPlayer := map[int]*ent.EsportsCommissionEntry{}
+	for _, entry := range entries {
+		byPlayer[entry.PlayerID] = entry
+	}
+	if byPlayer[p1.ID].AmountCents != 200 || byPlayer[p2.ID].AmountCents != 300 ||
+		byPlayer[p1.ID].BaseCents != 1000 || byPlayer[p2.ID].BaseCents != 1000 ||
+		*byPlayer[p1.ID].RuleID != r1.ID || *byPlayer[p2.ID].RuleID != r2.ID {
+		t.Fatalf("成员个体规则未分别生效：%+v", entries)
+	}
+}
+
+func TestCommissionRuleLockedWhenEachPlayerAccepts(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_commission_accept_snapshot")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	p1 := seedPlayer(t, db, 913, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	p2 := seedPlayer(t, db, 914, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	v1 := seedActiveRule(t, db, ruleInput{
+		RuleNo: "LOCK", Scope: "global", CalcMode: "percent", ValueBp: 1000,
+		UnitBasis: "sku_quantity",
+	})
+	order := seedPaidOrder(t, db, "member-snapshot", 2)
+	seat1, err := assignDispatchSeat(ctx, db, order.ID, 1, p1.ID, 11, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seat2, err := assignDispatchSeat(ctx, db, order.ID, 2, p2.ID, 11, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := respondPlayerInvite(ctx, db, p1.ID, seat1.ID, true, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := respondPlayerInvite(ctx, db, p2.ID, seat2.ID, true, now); err != nil {
+		t.Fatal(err)
+	}
+	for _, seatID := range []int{seat1.ID, seat2.ID} {
+		seat := db.EsportsDispatchSeat.GetX(ctx, seatID)
+		if seat.CommissionRuleLockedAt == nil || seat.CommissionRuleID == nil || *seat.CommissionRuleID != v1.ID {
+			t.Fatalf("接单未锁定分成规则：%+v", seat)
+		}
+	}
+	v2, err := createCommissionRule(ctx, db, ruleInput{
+		RuleNo: "LOCK", Scope: "global", CalcMode: "percent", ValueBp: 4000,
+		UnitBasis: "sku_quantity",
+	}, 11, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := activateCommissionRule(ctx, db, v2.ID, 11, now); err != nil {
+		t.Fatal(err)
+	}
+	for _, playerID := range []int{p1.ID, p2.ID} {
+		if _, err := startPlayerService(ctx, db, playerID, order.ID, now); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := finishPlayerService(ctx, db, playerID, order.ID, 1, 60, "ev.png", now.Add(time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := closeOrder(ctx, db, order.ID, 11, closeOrderInput{Note: "结单"}, now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	entries := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.OrderIDEQ(order.ID),
+		esportscommissionentry.KindEQ(esportscommissionentry.KindService),
+	).AllX(ctx)
+	if len(entries) != 2 {
+		t.Fatalf("应有两条分成明细：%d", len(entries))
+	}
+	for _, entry := range entries {
+		if entry.RuleID == nil || *entry.RuleID != v1.ID || entry.RuleVersion != v1.Version || entry.AmountCents != 50 {
+			t.Fatalf("结单错误地使用了改版后的规则：%+v", entry)
+		}
+	}
+}
+
+func TestNoPlayerRuleAtGrabDoesNotGainLaterRule(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_commission_grab_no_rule")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+	player := seedPlayer(t, db, 915, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	order := seedGrabbingOrder(t, db, "grab-no-rule")
+	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	seat := db.EsportsDispatchSeat.Query().OnlyX(ctx)
+	if seat.CommissionRuleLockedAt == nil || seat.CommissionRuleID != nil {
+		t.Fatalf("无规则接单未锁定空规则：%+v", seat)
+	}
+	seedActiveRule(t, db, ruleInput{
+		RuleNo: "LATER", Scope: "global", CalcMode: "percent", ValueBp: 2000,
+		UnitBasis: "sku_quantity",
+	})
+	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := finishPlayerService(ctx, db, player.ID, order.ID, 1, 60, "ev.png", now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := closeOrder(ctx, db, order.ID, 11, closeOrderInput{Note: "结单"}, now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if count := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.OrderIDEQ(order.ID),
+		esportscommissionentry.KindEQ(esportscommissionentry.KindService),
+	).CountX(ctx); count != 0 {
+		t.Fatalf("无规则接单被后续激活规则追溯计提：%d", count)
+	}
+}
+
 // 退款按比例冲回：结单生成 service 200，退 1000/2000 → reversal -100；重复执行不重复冲回。
 func TestRefundReversesCommission(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_commission_reversal")
@@ -235,7 +377,87 @@ func TestRefundReversesCommission(t *testing.T) {
 	}
 }
 
-// 结算：正负明细汇总为 gross/adjustment/net，写入猫粮流水，明细转 settled；锁定后状态变 locked；
+func TestRefundAfterPreCloseRefundUsesCloseNetBase(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_commission_preclose_refund")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	seedActiveRule(t, db, ruleInput{
+		RuleNo: "PRE-CLOSE-REFUND", Scope: "global", CalcMode: "percent",
+		ValueBp: 1000, UnitBasis: "sku_quantity",
+	})
+	admin := seedAdmin(t, db, "preclose-refund-cs")
+	csRule, err := createCsCommissionRule(ctx, db, csCommissionRuleInput{
+		RuleNo: "PRE-CLOSE-REFUND-CS", Scope: "global", BaseMode: "order_amount",
+		CalcMode: "percent", ValueBp: 1000, Period: "monthly",
+	}, admin.ID, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = activateCsCommissionRule(ctx, db, csRule.ID, admin.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	order := seedBalancePaidOrder(t, db, "preclose-refund")
+	// 付款时的客服规则快照；独立于本例的退款比例计算，支付路径另有覆盖。
+	db.EsportsOrder.UpdateOneID(order.ID).SetCsCommissionAdminID(admin.ID).
+		SetCsCommissionRuleID(csRule.ID).SetCsCommissionRuleLockedAt(now).SaveX(ctx)
+	refund := func(cents int64) {
+		t.Helper()
+		item := newRefundAfterSale(t, db, order.ID, "refund_request", cents, 11, 12, now)
+		if _, err := approveAfterSale(ctx, db, item.ID, 12, now); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := executeAfterSale(ctx, db, item.ID, 12, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	refund(1000)
+	db.EsportsOrder.UpdateOneID(order.ID).
+		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingClose).SaveX(ctx)
+	db.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(1).SetSeatIndex(1).
+		SetStatus(esportsservicesegment.StatusFinished).
+		SetStartedAt(now.Add(-10 * time.Minute)).SetEndedAt(now).
+		SetSystemSeconds(600).SetEvidenceRef("ev.png").SaveX(ctx)
+	if _, err := closeOrder(ctx, db, order.ID, 11, closeOrderInput{Note: "结单"}, now); err != nil {
+		t.Fatal(err)
+	}
+	closed := db.EsportsOrder.GetX(ctx, order.ID)
+	if closed.CloseNetServiceCents == nil || *closed.CloseNetServiceCents != 1000 {
+		t.Fatalf("结单净服务额快照错误：%+v", closed.CloseNetServiceCents)
+	}
+	playerService := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.OrderIDEQ(order.ID),
+		esportscommissionentry.KindEQ(esportscommissionentry.KindService)).OnlyX(ctx)
+	csService := db.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.OrderIDEQ(order.ID),
+		esportscscommissionentry.KindEQ(esportscscommissionentry.KindService)).OnlyX(ctx)
+	if playerService.AmountCents != 100 || csService.AmountCents != 100 {
+		t.Fatalf("结单应仅按未退的 1000 分计提：陪玩=%d 客服=%d", playerService.AmountCents, csService.AmountCents)
+	}
+	refund(500)
+	checkReversal := func(want int64) {
+		t.Helper()
+		var playerTotal, csTotal int64
+		for _, entry := range db.EsportsCommissionEntry.Query().Where(
+			esportscommissionentry.OrderIDEQ(order.ID),
+			esportscommissionentry.KindEQ(esportscommissionentry.KindReversal)).AllX(ctx) {
+			playerTotal += entry.AmountCents
+		}
+		for _, entry := range db.EsportsCsCommissionEntry.Query().Where(
+			esportscscommissionentry.OrderIDEQ(order.ID),
+			esportscscommissionentry.KindEQ(esportscscommissionentry.KindReversal)).AllX(ctx) {
+			csTotal += entry.AmountCents
+		}
+		if playerTotal != want || csTotal != want {
+			t.Fatalf("冲回合计应为 %d：陪玩=%d 客服=%d", want, playerTotal, csTotal)
+		}
+	}
+	checkReversal(-50)
+	refund(500)
+	checkReversal(-100)
+}
+
+// 结算：草稿只预留明细；锁定时写入猫粮流水并把明细转 settled；
 // 重复结算同周期因无待结算明细被拦截。
 func TestSettlePlayerCommission(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_commission_settle")
@@ -276,6 +498,27 @@ func TestSettlePlayerCommission(t *testing.T) {
 		settlement.Status != esportssettlement.StatusDraft {
 		t.Fatalf("结算单汇总不正确：%+v", settlement)
 	}
+	walletQuery := db.EsportsWalletTx.Query().Where(
+		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypePlayerCatfood),
+		esportswallettx.OwnerIDEQ(player.ID),
+		esportswallettx.SourceTypeEQ("settlement"),
+	)
+	if n := walletQuery.CountX(ctx); n != 0 {
+		t.Fatalf("草稿结算单提前入猫粮钱包：%d", n)
+	}
+	if _, err := applyWithdrawal(ctx, db, player.ID, validApply("settle-draft-withdraw", 100), now); !errors.Is(err, errInsufficientBalance) {
+		t.Fatalf("草稿结算金额不可申请提现，got %v", err)
+	}
+	for _, entry := range db.EsportsCommissionEntry.Query().AllX(ctx) {
+		if entry.Status != esportscommissionentry.StatusPendingSettlement ||
+			entry.SettlementID == nil || *entry.SettlementID != settlement.ID {
+			t.Fatalf("草稿明细预留状态不正确：%+v", entry)
+		}
+	}
+	locked, err := lockSettlement(ctx, db, settlement.ID, 11, now)
+	if err != nil || locked.Status != esportssettlement.StatusLocked || locked.LockedAt == nil {
+		t.Fatalf("锁定失败：%v %+v", err, locked)
+	}
 	walletTx := db.EsportsWalletTx.Query().Where(
 		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypePlayerCatfood),
 		esportswallettx.OwnerIDEQ(player.ID),
@@ -291,9 +534,8 @@ func TestSettlePlayerCommission(t *testing.T) {
 			t.Fatalf("明细未转结算：%+v", entry)
 		}
 	}
-	locked, err := lockSettlement(ctx, db, settlement.ID, 11, now)
-	if err != nil || locked.Status != esportssettlement.StatusLocked || locked.LockedAt == nil {
-		t.Fatalf("锁定失败：%v %+v", err, locked)
+	if _, err := applyWithdrawal(ctx, db, player.ID, validApply("settle-locked-withdraw", 100), now); err != nil {
+		t.Fatalf("锁定后应可申请提现：%v", err)
 	}
 	if _, err := settlePlayerCommission(ctx, db, player.ID,
 		now.Add(-time.Hour), now.Add(time.Hour), 11, now); !errors.Is(err, errInvalidInput) {

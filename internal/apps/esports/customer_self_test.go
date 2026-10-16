@@ -13,6 +13,7 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/systemconfig"
 )
 
 // 订单分组桶映射：非法桶报参数错误，空桶不过滤。
@@ -195,5 +196,28 @@ func TestCreateCustomerAfterSaleSelfService(t *testing.T) {
 	items, err := listCustomerAfterSales(ctx, db, customer.ID, 100)
 	if err != nil || len(items) != 1 || items[0].ID != item.ID {
 		t.Fatalf("我的售后列表不正确：%v %+v", err, items)
+	}
+}
+
+func TestCustomerAfterSaleApplicationWindow(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_customer_aftersale_window")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	customer := saveCustomerOrFail(t, db, 11)
+	order := seedCustomerOrder(t, db, "self-as-window", customer.ID,
+		esportsorder.FulfillmentStatusCompleted)
+	db.EsportsOrder.UpdateOneID(order.ID).SetClosedAt(now.AddDate(0, 0, -8)).SaveX(ctx)
+	db.SystemConfig.Create().SetKey(customerAfterSaleWindowDaysKey).
+		SetName("客户自助售后申请时限").SetValue("7").SetType("number").
+		SetGroup("esports").SetStatus(1).SaveX(ctx)
+	in := afterSaleInput{SourceID: order.ID, Kind: "duration_short", Demand: "服务时长不足"}
+	if _, err := createCustomerAfterSale(ctx, db, customer, in, now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("超过配置时限的自助售后应拒绝：%v", err)
+	}
+	// 关闭自助时限后，旧订单仍可申诉；管理员代客户建单本来就不受此自助窗口限制。
+	db.SystemConfig.Update().Where(systemconfig.KeyEQ(customerAfterSaleWindowDaysKey)).SetValue("0").ExecX(ctx)
+	if _, err := createCustomerAfterSale(ctx, db, customer, in, now); err != nil {
+		t.Fatalf("配置为不限时后应允许发起：%v", err)
 	}
 }

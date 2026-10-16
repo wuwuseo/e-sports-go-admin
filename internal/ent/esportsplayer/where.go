@@ -79,6 +79,11 @@ func ConcurrentLimit(v int) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldConcurrentLimit, v))
 }
 
+// LastHeartbeatAt applies equality check predicate on the "last_heartbeat_at" field. It's identical to LastHeartbeatAtEQ.
+func LastHeartbeatAt(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldLastHeartbeatAt, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldVersion, v))
@@ -397,6 +402,56 @@ func GamesIsNil() predicate.EsportsPlayer {
 // GamesNotNil applies the NotNil predicate on the "games" field.
 func GamesNotNil() predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldNotNull(FieldGames))
+}
+
+// LastHeartbeatAtEQ applies the EQ predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtEQ(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtNEQ applies the NEQ predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtNEQ(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtIn applies the In predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtIn(vs ...time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldLastHeartbeatAt, vs...))
+}
+
+// LastHeartbeatAtNotIn applies the NotIn predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtNotIn(vs ...time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldLastHeartbeatAt, vs...))
+}
+
+// LastHeartbeatAtGT applies the GT predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtGT(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtGTE applies the GTE predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtGTE(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtLT applies the LT predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtLT(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtLTE applies the LTE predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtLTE(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldLastHeartbeatAt, v))
+}
+
+// LastHeartbeatAtIsNil applies the IsNil predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtIsNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIsNull(FieldLastHeartbeatAt))
+}
+
+// LastHeartbeatAtNotNil applies the NotNil predicate on the "last_heartbeat_at" field.
+func LastHeartbeatAtNotNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotNull(FieldLastHeartbeatAt))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.

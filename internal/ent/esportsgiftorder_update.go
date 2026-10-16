@@ -49,6 +49,33 @@ func (_u *EsportsGiftOrderUpdate) AddGiftID(v int) *EsportsGiftOrderUpdate {
 	return _u
 }
 
+// SetGiftIntentID sets the "gift_intent_id" field.
+func (_u *EsportsGiftOrderUpdate) SetGiftIntentID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.ResetGiftIntentID()
+	_u.mutation.SetGiftIntentID(v)
+	return _u
+}
+
+// SetNillableGiftIntentID sets the "gift_intent_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillableGiftIntentID(v *int) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetGiftIntentID(*v)
+	}
+	return _u
+}
+
+// AddGiftIntentID adds value to the "gift_intent_id" field.
+func (_u *EsportsGiftOrderUpdate) AddGiftIntentID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.AddGiftIntentID(v)
+	return _u
+}
+
+// ClearGiftIntentID clears the value of the "gift_intent_id" field.
+func (_u *EsportsGiftOrderUpdate) ClearGiftIntentID() *EsportsGiftOrderUpdate {
+	_u.mutation.ClearGiftIntentID()
+	return _u
+}
+
 // SetCustomerID sets the "customer_id" field.
 func (_u *EsportsGiftOrderUpdate) SetCustomerID(v int) *EsportsGiftOrderUpdate {
 	_u.mutation.ResetCustomerID()
@@ -88,6 +115,60 @@ func (_u *EsportsGiftOrderUpdate) SetNillablePlayerID(v *int) *EsportsGiftOrderU
 // AddPlayerID adds value to the "player_id" field.
 func (_u *EsportsGiftOrderUpdate) AddPlayerID(v int) *EsportsGiftOrderUpdate {
 	_u.mutation.AddPlayerID(v)
+	return _u
+}
+
+// SetResponsibleAdminID sets the "responsible_admin_id" field.
+func (_u *EsportsGiftOrderUpdate) SetResponsibleAdminID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.ResetResponsibleAdminID()
+	_u.mutation.SetResponsibleAdminID(v)
+	return _u
+}
+
+// SetNillableResponsibleAdminID sets the "responsible_admin_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillableResponsibleAdminID(v *int) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetResponsibleAdminID(*v)
+	}
+	return _u
+}
+
+// AddResponsibleAdminID adds value to the "responsible_admin_id" field.
+func (_u *EsportsGiftOrderUpdate) AddResponsibleAdminID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.AddResponsibleAdminID(v)
+	return _u
+}
+
+// ClearResponsibleAdminID clears the value of the "responsible_admin_id" field.
+func (_u *EsportsGiftOrderUpdate) ClearResponsibleAdminID() *EsportsGiftOrderUpdate {
+	_u.mutation.ClearResponsibleAdminID()
+	return _u
+}
+
+// SetCsCommissionRuleID sets the "cs_commission_rule_id" field.
+func (_u *EsportsGiftOrderUpdate) SetCsCommissionRuleID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.ResetCsCommissionRuleID()
+	_u.mutation.SetCsCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableCsCommissionRuleID sets the "cs_commission_rule_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillableCsCommissionRuleID(v *int) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetCsCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddCsCommissionRuleID adds value to the "cs_commission_rule_id" field.
+func (_u *EsportsGiftOrderUpdate) AddCsCommissionRuleID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.AddCsCommissionRuleID(v)
+	return _u
+}
+
+// ClearCsCommissionRuleID clears the value of the "cs_commission_rule_id" field.
+func (_u *EsportsGiftOrderUpdate) ClearCsCommissionRuleID() *EsportsGiftOrderUpdate {
+	_u.mutation.ClearCsCommissionRuleID()
 	return _u
 }
 
@@ -234,6 +315,47 @@ func (_u *EsportsGiftOrderUpdate) SetNillableBonusCents(v *int64) *EsportsGiftOr
 // AddBonusCents adds value to the "bonus_cents" field.
 func (_u *EsportsGiftOrderUpdate) AddBonusCents(v int64) *EsportsGiftOrderUpdate {
 	_u.mutation.AddBonusCents(v)
+	return _u
+}
+
+// SetPaymentSource sets the "payment_source" field.
+func (_u *EsportsGiftOrderUpdate) SetPaymentSource(v string) *EsportsGiftOrderUpdate {
+	_u.mutation.SetPaymentSource(v)
+	return _u
+}
+
+// SetNillablePaymentSource sets the "payment_source" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillablePaymentSource(v *string) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetPaymentSource(*v)
+	}
+	return _u
+}
+
+// SetStoredValueCardID sets the "stored_value_card_id" field.
+func (_u *EsportsGiftOrderUpdate) SetStoredValueCardID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.ResetStoredValueCardID()
+	_u.mutation.SetStoredValueCardID(v)
+	return _u
+}
+
+// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillableStoredValueCardID(v *int) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetStoredValueCardID(*v)
+	}
+	return _u
+}
+
+// AddStoredValueCardID adds value to the "stored_value_card_id" field.
+func (_u *EsportsGiftOrderUpdate) AddStoredValueCardID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.AddStoredValueCardID(v)
+	return _u
+}
+
+// ClearStoredValueCardID clears the value of the "stored_value_card_id" field.
+func (_u *EsportsGiftOrderUpdate) ClearStoredValueCardID() *EsportsGiftOrderUpdate {
+	_u.mutation.ClearStoredValueCardID()
 	return _u
 }
 
@@ -452,6 +574,11 @@ func (_u *EsportsGiftOrderUpdate) check() error {
 			return &ValidationError{Name: "gift_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftIntentID(); ok {
+		if err := esportsgiftorder.GiftIntentIDValidator(v); err != nil {
+			return &ValidationError{Name: "gift_intent_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_intent_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CustomerID(); ok {
 		if err := esportsgiftorder.CustomerIDValidator(v); err != nil {
 			return &ValidationError{Name: "customer_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.customer_id": %w`, err)}
@@ -460,6 +587,16 @@ func (_u *EsportsGiftOrderUpdate) check() error {
 	if v, ok := _u.mutation.PlayerID(); ok {
 		if err := esportsgiftorder.PlayerIDValidator(v); err != nil {
 			return &ValidationError{Name: "player_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.player_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ResponsibleAdminID(); ok {
+		if err := esportsgiftorder.ResponsibleAdminIDValidator(v); err != nil {
+			return &ValidationError{Name: "responsible_admin_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.responsible_admin_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CsCommissionRuleID(); ok {
+		if err := esportsgiftorder.CsCommissionRuleIDValidator(v); err != nil {
+			return &ValidationError{Name: "cs_commission_rule_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.cs_commission_rule_id": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.PlayerName(); ok {
@@ -480,6 +617,11 @@ func (_u *EsportsGiftOrderUpdate) check() error {
 	if v, ok := _u.mutation.AmountCents(); ok {
 		if err := esportsgiftorder.AmountCentsValidator(v); err != nil {
 			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.amount_cents": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StoredValueCardID(); ok {
+		if err := esportsgiftorder.StoredValueCardIDValidator(v); err != nil {
+			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.stored_value_card_id": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.CommissionMode(); ok {
@@ -523,6 +665,15 @@ func (_u *EsportsGiftOrderUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.AddedGiftID(); ok {
 		_spec.AddField(esportsgiftorder.FieldGiftID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.GiftIntentID(); ok {
+		_spec.SetField(esportsgiftorder.FieldGiftIntentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftIntentID(); ok {
+		_spec.AddField(esportsgiftorder.FieldGiftIntentID, field.TypeInt, value)
+	}
+	if _u.mutation.GiftIntentIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldGiftIntentID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.CustomerID(); ok {
 		_spec.SetField(esportsgiftorder.FieldCustomerID, field.TypeInt, value)
 	}
@@ -534,6 +685,24 @@ func (_u *EsportsGiftOrderUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedPlayerID(); ok {
 		_spec.AddField(esportsgiftorder.FieldPlayerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResponsibleAdminID(); ok {
+		_spec.SetField(esportsgiftorder.FieldResponsibleAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResponsibleAdminID(); ok {
+		_spec.AddField(esportsgiftorder.FieldResponsibleAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.ResponsibleAdminIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldResponsibleAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CsCommissionRuleID(); ok {
+		_spec.SetField(esportsgiftorder.FieldCsCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCsCommissionRuleID(); ok {
+		_spec.AddField(esportsgiftorder.FieldCsCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.CsCommissionRuleIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldCsCommissionRuleID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlayerName(); ok {
 		_spec.SetField(esportsgiftorder.FieldPlayerName, field.TypeString, value)
@@ -576,6 +745,18 @@ func (_u *EsportsGiftOrderUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedBonusCents(); ok {
 		_spec.AddField(esportsgiftorder.FieldBonusCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PaymentSource(); ok {
+		_spec.SetField(esportsgiftorder.FieldPaymentSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StoredValueCardID(); ok {
+		_spec.SetField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStoredValueCardID(); ok {
+		_spec.AddField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt, value)
+	}
+	if _u.mutation.StoredValueCardIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CommissionMode(); ok {
 		_spec.SetField(esportsgiftorder.FieldCommissionMode, field.TypeEnum, value)
@@ -663,6 +844,33 @@ func (_u *EsportsGiftOrderUpdateOne) AddGiftID(v int) *EsportsGiftOrderUpdateOne
 	return _u
 }
 
+// SetGiftIntentID sets the "gift_intent_id" field.
+func (_u *EsportsGiftOrderUpdateOne) SetGiftIntentID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.ResetGiftIntentID()
+	_u.mutation.SetGiftIntentID(v)
+	return _u
+}
+
+// SetNillableGiftIntentID sets the "gift_intent_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillableGiftIntentID(v *int) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetGiftIntentID(*v)
+	}
+	return _u
+}
+
+// AddGiftIntentID adds value to the "gift_intent_id" field.
+func (_u *EsportsGiftOrderUpdateOne) AddGiftIntentID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.AddGiftIntentID(v)
+	return _u
+}
+
+// ClearGiftIntentID clears the value of the "gift_intent_id" field.
+func (_u *EsportsGiftOrderUpdateOne) ClearGiftIntentID() *EsportsGiftOrderUpdateOne {
+	_u.mutation.ClearGiftIntentID()
+	return _u
+}
+
 // SetCustomerID sets the "customer_id" field.
 func (_u *EsportsGiftOrderUpdateOne) SetCustomerID(v int) *EsportsGiftOrderUpdateOne {
 	_u.mutation.ResetCustomerID()
@@ -702,6 +910,60 @@ func (_u *EsportsGiftOrderUpdateOne) SetNillablePlayerID(v *int) *EsportsGiftOrd
 // AddPlayerID adds value to the "player_id" field.
 func (_u *EsportsGiftOrderUpdateOne) AddPlayerID(v int) *EsportsGiftOrderUpdateOne {
 	_u.mutation.AddPlayerID(v)
+	return _u
+}
+
+// SetResponsibleAdminID sets the "responsible_admin_id" field.
+func (_u *EsportsGiftOrderUpdateOne) SetResponsibleAdminID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.ResetResponsibleAdminID()
+	_u.mutation.SetResponsibleAdminID(v)
+	return _u
+}
+
+// SetNillableResponsibleAdminID sets the "responsible_admin_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillableResponsibleAdminID(v *int) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetResponsibleAdminID(*v)
+	}
+	return _u
+}
+
+// AddResponsibleAdminID adds value to the "responsible_admin_id" field.
+func (_u *EsportsGiftOrderUpdateOne) AddResponsibleAdminID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.AddResponsibleAdminID(v)
+	return _u
+}
+
+// ClearResponsibleAdminID clears the value of the "responsible_admin_id" field.
+func (_u *EsportsGiftOrderUpdateOne) ClearResponsibleAdminID() *EsportsGiftOrderUpdateOne {
+	_u.mutation.ClearResponsibleAdminID()
+	return _u
+}
+
+// SetCsCommissionRuleID sets the "cs_commission_rule_id" field.
+func (_u *EsportsGiftOrderUpdateOne) SetCsCommissionRuleID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.ResetCsCommissionRuleID()
+	_u.mutation.SetCsCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableCsCommissionRuleID sets the "cs_commission_rule_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillableCsCommissionRuleID(v *int) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetCsCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddCsCommissionRuleID adds value to the "cs_commission_rule_id" field.
+func (_u *EsportsGiftOrderUpdateOne) AddCsCommissionRuleID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.AddCsCommissionRuleID(v)
+	return _u
+}
+
+// ClearCsCommissionRuleID clears the value of the "cs_commission_rule_id" field.
+func (_u *EsportsGiftOrderUpdateOne) ClearCsCommissionRuleID() *EsportsGiftOrderUpdateOne {
+	_u.mutation.ClearCsCommissionRuleID()
 	return _u
 }
 
@@ -848,6 +1110,47 @@ func (_u *EsportsGiftOrderUpdateOne) SetNillableBonusCents(v *int64) *EsportsGif
 // AddBonusCents adds value to the "bonus_cents" field.
 func (_u *EsportsGiftOrderUpdateOne) AddBonusCents(v int64) *EsportsGiftOrderUpdateOne {
 	_u.mutation.AddBonusCents(v)
+	return _u
+}
+
+// SetPaymentSource sets the "payment_source" field.
+func (_u *EsportsGiftOrderUpdateOne) SetPaymentSource(v string) *EsportsGiftOrderUpdateOne {
+	_u.mutation.SetPaymentSource(v)
+	return _u
+}
+
+// SetNillablePaymentSource sets the "payment_source" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillablePaymentSource(v *string) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetPaymentSource(*v)
+	}
+	return _u
+}
+
+// SetStoredValueCardID sets the "stored_value_card_id" field.
+func (_u *EsportsGiftOrderUpdateOne) SetStoredValueCardID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.ResetStoredValueCardID()
+	_u.mutation.SetStoredValueCardID(v)
+	return _u
+}
+
+// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillableStoredValueCardID(v *int) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetStoredValueCardID(*v)
+	}
+	return _u
+}
+
+// AddStoredValueCardID adds value to the "stored_value_card_id" field.
+func (_u *EsportsGiftOrderUpdateOne) AddStoredValueCardID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.AddStoredValueCardID(v)
+	return _u
+}
+
+// ClearStoredValueCardID clears the value of the "stored_value_card_id" field.
+func (_u *EsportsGiftOrderUpdateOne) ClearStoredValueCardID() *EsportsGiftOrderUpdateOne {
+	_u.mutation.ClearStoredValueCardID()
 	return _u
 }
 
@@ -1079,6 +1382,11 @@ func (_u *EsportsGiftOrderUpdateOne) check() error {
 			return &ValidationError{Name: "gift_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftIntentID(); ok {
+		if err := esportsgiftorder.GiftIntentIDValidator(v); err != nil {
+			return &ValidationError{Name: "gift_intent_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_intent_id": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CustomerID(); ok {
 		if err := esportsgiftorder.CustomerIDValidator(v); err != nil {
 			return &ValidationError{Name: "customer_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.customer_id": %w`, err)}
@@ -1087,6 +1395,16 @@ func (_u *EsportsGiftOrderUpdateOne) check() error {
 	if v, ok := _u.mutation.PlayerID(); ok {
 		if err := esportsgiftorder.PlayerIDValidator(v); err != nil {
 			return &ValidationError{Name: "player_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.player_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ResponsibleAdminID(); ok {
+		if err := esportsgiftorder.ResponsibleAdminIDValidator(v); err != nil {
+			return &ValidationError{Name: "responsible_admin_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.responsible_admin_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CsCommissionRuleID(); ok {
+		if err := esportsgiftorder.CsCommissionRuleIDValidator(v); err != nil {
+			return &ValidationError{Name: "cs_commission_rule_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.cs_commission_rule_id": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.PlayerName(); ok {
@@ -1107,6 +1425,11 @@ func (_u *EsportsGiftOrderUpdateOne) check() error {
 	if v, ok := _u.mutation.AmountCents(); ok {
 		if err := esportsgiftorder.AmountCentsValidator(v); err != nil {
 			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.amount_cents": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StoredValueCardID(); ok {
+		if err := esportsgiftorder.StoredValueCardIDValidator(v); err != nil {
+			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.stored_value_card_id": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.CommissionMode(); ok {
@@ -1167,6 +1490,15 @@ func (_u *EsportsGiftOrderUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	if value, ok := _u.mutation.AddedGiftID(); ok {
 		_spec.AddField(esportsgiftorder.FieldGiftID, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.GiftIntentID(); ok {
+		_spec.SetField(esportsgiftorder.FieldGiftIntentID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftIntentID(); ok {
+		_spec.AddField(esportsgiftorder.FieldGiftIntentID, field.TypeInt, value)
+	}
+	if _u.mutation.GiftIntentIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldGiftIntentID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.CustomerID(); ok {
 		_spec.SetField(esportsgiftorder.FieldCustomerID, field.TypeInt, value)
 	}
@@ -1178,6 +1510,24 @@ func (_u *EsportsGiftOrderUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if value, ok := _u.mutation.AddedPlayerID(); ok {
 		_spec.AddField(esportsgiftorder.FieldPlayerID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ResponsibleAdminID(); ok {
+		_spec.SetField(esportsgiftorder.FieldResponsibleAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedResponsibleAdminID(); ok {
+		_spec.AddField(esportsgiftorder.FieldResponsibleAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.ResponsibleAdminIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldResponsibleAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.CsCommissionRuleID(); ok {
+		_spec.SetField(esportsgiftorder.FieldCsCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCsCommissionRuleID(); ok {
+		_spec.AddField(esportsgiftorder.FieldCsCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.CsCommissionRuleIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldCsCommissionRuleID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PlayerName(); ok {
 		_spec.SetField(esportsgiftorder.FieldPlayerName, field.TypeString, value)
@@ -1220,6 +1570,18 @@ func (_u *EsportsGiftOrderUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if value, ok := _u.mutation.AddedBonusCents(); ok {
 		_spec.AddField(esportsgiftorder.FieldBonusCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PaymentSource(); ok {
+		_spec.SetField(esportsgiftorder.FieldPaymentSource, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StoredValueCardID(); ok {
+		_spec.SetField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedStoredValueCardID(); ok {
+		_spec.AddField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt, value)
+	}
+	if _u.mutation.StoredValueCardIDCleared() {
+		_spec.ClearField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CommissionMode(); ok {
 		_spec.SetField(esportsgiftorder.FieldCommissionMode, field.TypeEnum, value)

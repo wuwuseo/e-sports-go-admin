@@ -49,8 +49,13 @@ func (EsportsGiftOrder) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("gift_no").NotEmpty().MaxLen(64).Immutable().StructTag(`json:"gift_no"`),
 		field.Int("gift_id").Positive().StructTag(`json:"gift_id"`),
+		field.Int("gift_intent_id").Positive().Optional().Nillable().StructTag(`json:"gift_intent_id"`),
 		field.Int("customer_id").Positive().StructTag(`json:"customer_id"`),
 		field.Int("player_id").Positive().StructTag(`json:"player_id"`),
+		// 送礼时的业绩归属客服快照，后续客户转移不改变已计提的客服提成。
+		field.Int("responsible_admin_id").Positive().Optional().Nillable().StructTag(`json:"responsible_admin_id"`),
+		// 支付时命中的客服提成规则快照；关闭礼物提成或无规则时为空。
+		field.Int("cs_commission_rule_id").Positive().Optional().Nillable().StructTag(`json:"cs_commission_rule_id"`),
 		// 收礼对象快照：支付前确认后写入，支付后不改。
 		field.String("player_name").MaxLen(120).Default("").StructTag(`json:"player_name"`),
 		// 关联服务订单，仅追溯用。
@@ -61,6 +66,8 @@ func (EsportsGiftOrder) Fields() []ent.Field {
 		// 支付构成：首版仅本金，拒绝赠送权益支付礼物（§9.5）。
 		field.Int64("principal_cents").Default(0).StructTag(`json:"principal_cents"`),
 		field.Int64("bonus_cents").Default(0).StructTag(`json:"bonus_cents"`),
+		field.String("payment_source").Default("customer_balance_principal").StructTag(`json:"payment_source"`),
+		field.Int("stored_value_card_id").Positive().Optional().Nillable().StructTag(`json:"stored_value_card_id"`),
 		// 礼物分成快照（与服务订单分开配置）。
 		field.Enum("commission_mode").Values("percent", "fixed").Default("percent").StructTag(`json:"commission_mode"`),
 		field.Int("commission_bp").Default(0).StructTag(`json:"commission_bp"`),
@@ -81,6 +88,7 @@ func (EsportsGiftOrder) Fields() []ent.Field {
 func (EsportsGiftOrder) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("gift_no").Unique(),
+		index.Fields("gift_intent_id").Unique(),
 		index.Fields("customer_id", "created_at"),
 		index.Fields("player_id", "created_at"),
 	}
