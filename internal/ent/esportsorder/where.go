@@ -274,6 +274,26 @@ func DepositedByAdminID(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldDepositedByAdminID, v))
 }
 
+// BackfillReason applies equality check predicate on the "backfill_reason" field. It's identical to BackfillReasonEQ.
+func BackfillReason(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfillReason, v))
+}
+
+// BackfillCountCommission applies equality check predicate on the "backfill_count_commission" field. It's identical to BackfillCountCommissionEQ.
+func BackfillCountCommission(v bool) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfillCountCommission, v))
+}
+
+// BackfilledByAdminID applies equality check predicate on the "backfilled_by_admin_id" field. It's identical to BackfilledByAdminIDEQ.
+func BackfilledByAdminID(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfilledByAdminID, v))
+}
+
+// BackfilledAt applies equality check predicate on the "backfilled_at" field. It's identical to BackfilledAtEQ.
+func BackfilledAt(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfilledAt, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldCreatedAt, v))
@@ -2537,6 +2557,181 @@ func DepositedByAdminIDIsNil() predicate.EsportsOrder {
 // DepositedByAdminIDNotNil applies the NotNil predicate on the "deposited_by_admin_id" field.
 func DepositedByAdminIDNotNil() predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotNull(FieldDepositedByAdminID))
+}
+
+// BackfillReasonEQ applies the EQ predicate on the "backfill_reason" field.
+func BackfillReasonEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfillReason, v))
+}
+
+// BackfillReasonNEQ applies the NEQ predicate on the "backfill_reason" field.
+func BackfillReasonNEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldBackfillReason, v))
+}
+
+// BackfillReasonIn applies the In predicate on the "backfill_reason" field.
+func BackfillReasonIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldBackfillReason, vs...))
+}
+
+// BackfillReasonNotIn applies the NotIn predicate on the "backfill_reason" field.
+func BackfillReasonNotIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldBackfillReason, vs...))
+}
+
+// BackfillReasonGT applies the GT predicate on the "backfill_reason" field.
+func BackfillReasonGT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldBackfillReason, v))
+}
+
+// BackfillReasonGTE applies the GTE predicate on the "backfill_reason" field.
+func BackfillReasonGTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldBackfillReason, v))
+}
+
+// BackfillReasonLT applies the LT predicate on the "backfill_reason" field.
+func BackfillReasonLT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldBackfillReason, v))
+}
+
+// BackfillReasonLTE applies the LTE predicate on the "backfill_reason" field.
+func BackfillReasonLTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldBackfillReason, v))
+}
+
+// BackfillReasonContains applies the Contains predicate on the "backfill_reason" field.
+func BackfillReasonContains(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContains(FieldBackfillReason, v))
+}
+
+// BackfillReasonHasPrefix applies the HasPrefix predicate on the "backfill_reason" field.
+func BackfillReasonHasPrefix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasPrefix(FieldBackfillReason, v))
+}
+
+// BackfillReasonHasSuffix applies the HasSuffix predicate on the "backfill_reason" field.
+func BackfillReasonHasSuffix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasSuffix(FieldBackfillReason, v))
+}
+
+// BackfillReasonEqualFold applies the EqualFold predicate on the "backfill_reason" field.
+func BackfillReasonEqualFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEqualFold(FieldBackfillReason, v))
+}
+
+// BackfillReasonContainsFold applies the ContainsFold predicate on the "backfill_reason" field.
+func BackfillReasonContainsFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContainsFold(FieldBackfillReason, v))
+}
+
+// BackfillCountCommissionEQ applies the EQ predicate on the "backfill_count_commission" field.
+func BackfillCountCommissionEQ(v bool) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfillCountCommission, v))
+}
+
+// BackfillCountCommissionNEQ applies the NEQ predicate on the "backfill_count_commission" field.
+func BackfillCountCommissionNEQ(v bool) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldBackfillCountCommission, v))
+}
+
+// BackfilledByAdminIDEQ applies the EQ predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfilledByAdminID, v))
+}
+
+// BackfilledByAdminIDNEQ applies the NEQ predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDNEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldBackfilledByAdminID, v))
+}
+
+// BackfilledByAdminIDIn applies the In predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldBackfilledByAdminID, vs...))
+}
+
+// BackfilledByAdminIDNotIn applies the NotIn predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDNotIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldBackfilledByAdminID, vs...))
+}
+
+// BackfilledByAdminIDGT applies the GT predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDGT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldBackfilledByAdminID, v))
+}
+
+// BackfilledByAdminIDGTE applies the GTE predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDGTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldBackfilledByAdminID, v))
+}
+
+// BackfilledByAdminIDLT applies the LT predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDLT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldBackfilledByAdminID, v))
+}
+
+// BackfilledByAdminIDLTE applies the LTE predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDLTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldBackfilledByAdminID, v))
+}
+
+// BackfilledByAdminIDIsNil applies the IsNil predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldBackfilledByAdminID))
+}
+
+// BackfilledByAdminIDNotNil applies the NotNil predicate on the "backfilled_by_admin_id" field.
+func BackfilledByAdminIDNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldBackfilledByAdminID))
+}
+
+// BackfilledAtEQ applies the EQ predicate on the "backfilled_at" field.
+func BackfilledAtEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldBackfilledAt, v))
+}
+
+// BackfilledAtNEQ applies the NEQ predicate on the "backfilled_at" field.
+func BackfilledAtNEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldBackfilledAt, v))
+}
+
+// BackfilledAtIn applies the In predicate on the "backfilled_at" field.
+func BackfilledAtIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldBackfilledAt, vs...))
+}
+
+// BackfilledAtNotIn applies the NotIn predicate on the "backfilled_at" field.
+func BackfilledAtNotIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldBackfilledAt, vs...))
+}
+
+// BackfilledAtGT applies the GT predicate on the "backfilled_at" field.
+func BackfilledAtGT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldBackfilledAt, v))
+}
+
+// BackfilledAtGTE applies the GTE predicate on the "backfilled_at" field.
+func BackfilledAtGTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldBackfilledAt, v))
+}
+
+// BackfilledAtLT applies the LT predicate on the "backfilled_at" field.
+func BackfilledAtLT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldBackfilledAt, v))
+}
+
+// BackfilledAtLTE applies the LTE predicate on the "backfilled_at" field.
+func BackfilledAtLTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldBackfilledAt, v))
+}
+
+// BackfilledAtIsNil applies the IsNil predicate on the "backfilled_at" field.
+func BackfilledAtIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldBackfilledAt))
+}
+
+// BackfilledAtNotNil applies the NotNil predicate on the "backfilled_at" field.
+func BackfilledAtNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldBackfilledAt))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

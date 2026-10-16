@@ -61,6 +61,7 @@ import (
 	"go-admin/internal/ent/esportspaymentaccount"
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
+	"go-admin/internal/ent/esportspaymentreversal"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayercreditevent"
 	"go-admin/internal/ent/esportsplayerrecovery"
@@ -411,6 +412,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportspaymentreceipt.TablePrefix
 		esportspaymentreceipt.TablePrefix = prefix
 		esportspaymentreceipt.Table = prefix + strings.TrimPrefix(esportspaymentreceipt.Table, old)
+	}
+	{
+		old := esportspaymentreversal.TablePrefix
+		esportspaymentreversal.TablePrefix = prefix
+		esportspaymentreversal.Table = prefix + strings.TrimPrefix(esportspaymentreversal.Table, old)
 	}
 	{
 		old := esportsplayer.TablePrefix

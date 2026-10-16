@@ -183,6 +183,9 @@ type EsportsPaymentIntent func(*sql.Selector)
 // EsportsPaymentReceipt is the predicate function for esportspaymentreceipt builders.
 type EsportsPaymentReceipt func(*sql.Selector)
 
+// EsportsPaymentReversal is the predicate function for esportspaymentreversal builders.
+type EsportsPaymentReversal func(*sql.Selector)
+
 // EsportsPlayer is the predicate function for esportsplayer builders.
 type EsportsPlayer func(*sql.Selector)
 

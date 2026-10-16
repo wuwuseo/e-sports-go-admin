@@ -124,6 +124,14 @@ const (
 	FieldDepositedAt = "deposited_at"
 	// FieldDepositedByAdminID holds the string denoting the deposited_by_admin_id field in the database.
 	FieldDepositedByAdminID = "deposited_by_admin_id"
+	// FieldBackfillReason holds the string denoting the backfill_reason field in the database.
+	FieldBackfillReason = "backfill_reason"
+	// FieldBackfillCountCommission holds the string denoting the backfill_count_commission field in the database.
+	FieldBackfillCountCommission = "backfill_count_commission"
+	// FieldBackfilledByAdminID holds the string denoting the backfilled_by_admin_id field in the database.
+	FieldBackfilledByAdminID = "backfilled_by_admin_id"
+	// FieldBackfilledAt holds the string denoting the backfilled_at field in the database.
+	FieldBackfilledAt = "backfilled_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -192,6 +200,10 @@ var Columns = []string{
 	FieldDepositStatus,
 	FieldDepositedAt,
 	FieldDepositedByAdminID,
+	FieldBackfillReason,
+	FieldBackfillCountCommission,
+	FieldBackfilledByAdminID,
+	FieldBackfilledAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -253,6 +265,12 @@ var (
 	DefaultRefundReservedCents int64
 	// DefaultChannelCostCents holds the default value on creation for the "channel_cost_cents" field.
 	DefaultChannelCostCents int64
+	// DefaultBackfillReason holds the default value on creation for the "backfill_reason" field.
+	DefaultBackfillReason string
+	// BackfillReasonValidator is a validator for the "backfill_reason" field. It is called by the builders before save.
+	BackfillReasonValidator func(string) error
+	// DefaultBackfillCountCommission holds the default value on creation for the "backfill_count_commission" field.
+	DefaultBackfillCountCommission bool
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -825,6 +843,26 @@ func ByDepositedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDepositedByAdminID orders the results by the deposited_by_admin_id field.
 func ByDepositedByAdminID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDepositedByAdminID, opts...).ToFunc()
+}
+
+// ByBackfillReason orders the results by the backfill_reason field.
+func ByBackfillReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBackfillReason, opts...).ToFunc()
+}
+
+// ByBackfillCountCommission orders the results by the backfill_count_commission field.
+func ByBackfillCountCommission(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBackfillCountCommission, opts...).ToFunc()
+}
+
+// ByBackfilledByAdminID orders the results by the backfilled_by_admin_id field.
+func ByBackfilledByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBackfilledByAdminID, opts...).ToFunc()
+}
+
+// ByBackfilledAt orders the results by the backfilled_at field.
+func ByBackfilledAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBackfilledAt, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

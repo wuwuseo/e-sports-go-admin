@@ -1905,6 +1905,10 @@ var (
 		{Name: "deposit_status", Type: field.TypeEnum, Enums: []string{"none", "frozen"}, Default: "none"},
 		{Name: "deposited_at", Type: field.TypeTime, Nullable: true},
 		{Name: "deposited_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "backfill_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "backfill_count_commission", Type: field.TypeBool, Default: false},
+		{Name: "backfilled_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "backfilled_at", Type: field.TypeTime, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
@@ -1922,7 +1926,7 @@ var (
 			{
 				Name:    "esportsorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[55]},
+				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[59]},
 			},
 			{
 				Name:    "esportsorder_responsible_admin_id_fulfillment_status",
@@ -1932,7 +1936,7 @@ var (
 			{
 				Name:    "esportsorder_channel_source_entry_point_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[11], EsportsOrdersColumns[12], EsportsOrdersColumns[55]},
+				Columns: []*schema.Column{EsportsOrdersColumns[11], EsportsOrdersColumns[12], EsportsOrdersColumns[59]},
 			},
 		},
 	}
@@ -2216,6 +2220,56 @@ var (
 				Name:    "esportspaymentreceipt_intent_id",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsPaymentReceiptsColumns[1]},
+			},
+		},
+	}
+	// EsportsPaymentReversalsColumns holds the columns for the "esports_payment_reversals" table.
+	EsportsPaymentReversalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "reversal_no", Type: field.TypeString, Size: 64},
+		{Name: "receipt_id", Type: field.TypeInt},
+		{Name: "order_id", Type: field.TypeInt},
+		{Name: "channel", Type: field.TypeString, Size: 48},
+		{Name: "transaction_no", Type: field.TypeString, Size: 128},
+		{Name: "amount_cents", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"revoked", "chargeback"}, Default: "revoked"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "handled", "rejected"}, Default: "pending"},
+		{Name: "reason", Type: field.TypeString, Size: 255},
+		{Name: "evidence_ref", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "submitted_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "handled_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "handled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "resolution", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "action", Type: field.TypeEnum, Enums: []string{"none", "mark_exception", "suspend_customer", "ignore"}, Default: "none"},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPaymentReversalsTable holds the schema information for the "esports_payment_reversals" table.
+	EsportsPaymentReversalsTable = &schema.Table{
+		Name:       TablePrefix + "esports_payment_reversals",
+		Columns:    EsportsPaymentReversalsColumns,
+		PrimaryKey: []*schema.Column{EsportsPaymentReversalsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportspaymentreversal_reversal_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPaymentReversalsColumns[1]},
+			},
+			{
+				Name:    "esportspaymentreversal_receipt_id",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPaymentReversalsColumns[2]},
+			},
+			{
+				Name:    "esportspaymentreversal_order_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPaymentReversalsColumns[3], EsportsPaymentReversalsColumns[8]},
+			},
+			{
+				Name:    "esportspaymentreversal_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPaymentReversalsColumns[8], EsportsPaymentReversalsColumns[17]},
 			},
 		},
 	}
@@ -3667,6 +3721,7 @@ var (
 		EsportsPaymentAccountsTable,
 		EsportsPaymentIntentsTable,
 		EsportsPaymentReceiptsTable,
+		EsportsPaymentReversalsTable,
 		EsportsPlayersTable,
 		EsportsPlayerCreditEventsTable,
 		EsportsPlayerRecoveriesTable,

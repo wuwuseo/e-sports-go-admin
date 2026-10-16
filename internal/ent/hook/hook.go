@@ -716,6 +716,18 @@ func (f EsportsPaymentReceiptFunc) Mutate(ctx context.Context, m ent.Mutation) (
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsPaymentReceiptMutation", m)
 }
 
+// The EsportsPaymentReversalFunc type is an adapter to allow the use of ordinary
+// function as EsportsPaymentReversal mutator.
+type EsportsPaymentReversalFunc func(context.Context, *ent.EsportsPaymentReversalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsPaymentReversalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsPaymentReversalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsPaymentReversalMutation", m)
+}
+
 // The EsportsPlayerFunc type is an adapter to allow the use of ordinary
 // function as EsportsPlayer mutator.
 type EsportsPlayerFunc func(context.Context, *ent.EsportsPlayerMutation) (ent.Value, error)

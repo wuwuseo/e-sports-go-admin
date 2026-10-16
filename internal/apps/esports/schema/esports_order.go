@@ -96,6 +96,12 @@ func (EsportsOrder) Fields() []ent.Field {
 		// 存单时间与操作管理员，仅 deposit_status=frozen 时非空。
 		field.Time("deposited_at").Optional().Nillable().StructTag(`json:"deposited_at"`),
 		field.Int("deposited_by_admin_id").Optional().Nillable().StructTag(`json:"deposited_by_admin_id"`),
+		// 管理员历史订单补录（§3.3 / §4.1）：补录单固定 entry_point=admin_backfill，
+		// 必须记录补录原因、补录人与补录时刻；默认不计提陪玩分成 / 客服提成 / 成长值，避免历史流水算进当期业绩。
+		field.String("backfill_reason").MaxLen(255).Default("").StructTag(`json:"backfill_reason"`),
+		field.Bool("backfill_count_commission").Default(false).StructTag(`json:"backfill_count_commission"`),
+		field.Int("backfilled_by_admin_id").Optional().Nillable().StructTag(`json:"backfilled_by_admin_id"`),
+		field.Time("backfilled_at").Optional().Nillable().StructTag(`json:"backfilled_at"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),
 	}

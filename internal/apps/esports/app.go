@@ -253,6 +253,12 @@ func init() {
 			{Method: "GET", Path: "/admin/orders", Auth: cmfapp.AuthAdmin, Handler: adminOrders},
 			{Method: "GET", Path: "/admin/orders/:id", Auth: cmfapp.AuthAdmin, Handler: adminOrder},
 			{Method: "POST", Path: "/admin/orders", Auth: cmfapp.AuthAdmin, Handler: createOrder},
+			// 历史订单补录（§3.3 / §4.1）：入口固定 admin_backfill，默认不计提业绩，须带 Idempotency-Key。
+			{Method: "POST", Path: "/admin/orders/backfill", Auth: cmfapp.AuthAdmin, Handler: backfillOrderHandler},
+			// 已核销收款的渠道撤销 / 拒付风险事件（§3.2）：登记后由非登记人处置资金异常。
+			{Method: "GET", Path: "/admin/payment-reversals", Auth: cmfapp.AuthAdmin, Handler: listPaymentReversalsHandler},
+			{Method: "POST", Path: "/admin/payment-reversals", Auth: cmfapp.AuthAdmin, Handler: registerPaymentReversalHandler},
+			{Method: "POST", Path: "/admin/payment-reversals/:id/decision", Auth: cmfapp.AuthAdmin, Handler: decidePaymentReversalHandler},
 			{Method: "POST", Path: "/admin/orders/:id/quote-preview", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(previewRepriceHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/price-adjustments", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(requestPriceAdjustmentHandler)},
 			{Method: "PUT", Path: "/admin/orders/:id/quote", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(repriceOrderHandler)},
@@ -603,6 +609,12 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "复核超限改价", Code: "esports:orders:price_decision", Path: "/api/v1/esports/admin/price-adjustments/{id}/decision", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermButton, Name: "复核超限改价按钮", Code: "esports:orders:price_approve", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "订单取消", Code: "esports:orders:cancel", Path: "/api/v1/esports/admin/orders/{id}/cancel", Method: "POST", Parent: "esports:order:menu"},
+			// 历史订单补录（§3.3 / §4.1）：默认不计提业绩，须单独授权。
+			{Type: cmfapp.PermAPI, Name: "历史订单补录", Code: "esports:orders:backfill", Path: "/api/v1/esports/admin/orders/backfill", Method: "POST", Parent: "esports:order:menu"},
+			// 已核销收款的渠道撤销 / 拒付（§3.2）。
+			{Type: cmfapp.PermAPI, Name: "查看渠道撤销拒付", Code: "esports:payments:reversal_list", Path: "/api/v1/esports/admin/payment-reversals", Method: "GET", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "登记渠道撤销拒付", Code: "esports:payments:reversal_register", Path: "/api/v1/esports/admin/payment-reversals", Method: "POST", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "处置渠道撤销拒付", Code: "esports:payments:reversal_decide", Path: "/api/v1/esports/admin/payment-reversals/{id}/decision", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "取消试算", Code: "esports:orders:cancel_preview", Path: "/api/v1/esports/admin/orders/{id}/cancel-preview", Method: "GET", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "订单改期", Code: "esports:orders:reschedule", Path: "/api/v1/esports/admin/orders/{id}/appointment", Method: "PUT", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "登记渠道成本", Code: "esports:orders:channel-cost", Path: "/api/v1/esports/admin/orders/{id}/channel-cost", Method: "PUT", Parent: "esports:order:menu"},

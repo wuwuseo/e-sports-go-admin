@@ -168,6 +168,16 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	if err != nil {
 		return err
 	}
+	// §3.3 / §4.1 补录隔离：历史补录单默认不计提分成 / 提成 / 成长值，
+	// 写一条排除外盒留痕，避免后台把补录单推进到结单流程后误把历史流水算进当期业绩。
+	if !orderCountsCommission(updatedOrder) {
+		_, err = tx.EsportsOutbox.Create().SetEventKey("order.commission_excluded:" + updatedOrder.OrderNo).
+			SetEventType("order.commission_excluded").SetAggregateRef(updatedOrder.OrderNo).
+			SetPayload(map[string]interface{}{
+				"order_no": updatedOrder.OrderNo, "reason": "admin_backfill",
+			}).Save(ctx)
+		return err
+	}
 	if err = accrueOrderCommission(ctx, tx, updatedOrder, now); err != nil {
 		return err
 	}

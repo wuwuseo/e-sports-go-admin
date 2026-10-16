@@ -192,6 +192,10 @@ type EsportsPaymentReceipt struct {
 	appschemaesports.EsportsPaymentReceipt
 }
 
+type EsportsPaymentReversal struct {
+	appschemaesports.EsportsPaymentReversal
+}
+
 type EsportsPlayer struct{ appschemaesports.EsportsPlayer }
 
 type EsportsPlayerCreditEvent struct {

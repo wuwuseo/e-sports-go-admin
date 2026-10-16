@@ -125,6 +125,14 @@ type EsportsOrder struct {
 	DepositedAt *time.Time `json:"deposited_at"`
 	// DepositedByAdminID holds the value of the "deposited_by_admin_id" field.
 	DepositedByAdminID *int `json:"deposited_by_admin_id"`
+	// BackfillReason holds the value of the "backfill_reason" field.
+	BackfillReason string `json:"backfill_reason"`
+	// BackfillCountCommission holds the value of the "backfill_count_commission" field.
+	BackfillCountCommission bool `json:"backfill_count_commission"`
+	// BackfilledByAdminID holds the value of the "backfilled_by_admin_id" field.
+	BackfilledByAdminID *int `json:"backfilled_by_admin_id"`
+	// BackfilledAt holds the value of the "backfilled_at" field.
+	BackfilledAt *time.Time `json:"backfilled_at"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -137,11 +145,13 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID:
+		case esportsorder.FieldBackfillCountCommission:
+			values[i] = new(sql.NullBool)
+		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
 			values[i] = new(sql.NullInt64)
-		case esportsorder.FieldOrderNo, esportsorder.FieldChannelSource, esportsorder.FieldEntryPoint, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus:
+		case esportsorder.FieldOrderNo, esportsorder.FieldChannelSource, esportsorder.FieldEntryPoint, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus, esportsorder.FieldBackfillReason:
 			values[i] = new(sql.NullString)
-		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
+		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldBackfilledAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -510,6 +520,32 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				_m.DepositedByAdminID = new(int)
 				*_m.DepositedByAdminID = int(value.Int64)
 			}
+		case esportsorder.FieldBackfillReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field backfill_reason", values[i])
+			} else if value.Valid {
+				_m.BackfillReason = value.String
+			}
+		case esportsorder.FieldBackfillCountCommission:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field backfill_count_commission", values[i])
+			} else if value.Valid {
+				_m.BackfillCountCommission = value.Bool
+			}
+		case esportsorder.FieldBackfilledByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field backfilled_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.BackfilledByAdminID = new(int)
+				*_m.BackfilledByAdminID = int(value.Int64)
+			}
+		case esportsorder.FieldBackfilledAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field backfilled_at", values[i])
+			} else if value.Valid {
+				_m.BackfilledAt = new(time.Time)
+				*_m.BackfilledAt = value.Time
+			}
 		case esportsorder.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -762,6 +798,22 @@ func (_m *EsportsOrder) String() string {
 	if v := _m.DepositedByAdminID; v != nil {
 		builder.WriteString("deposited_by_admin_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("backfill_reason=")
+	builder.WriteString(_m.BackfillReason)
+	builder.WriteString(", ")
+	builder.WriteString("backfill_count_commission=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BackfillCountCommission))
+	builder.WriteString(", ")
+	if v := _m.BackfilledByAdminID; v != nil {
+		builder.WriteString("backfilled_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.BackfilledAt; v != nil {
+		builder.WriteString("backfilled_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")

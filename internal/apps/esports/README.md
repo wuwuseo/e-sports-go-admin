@@ -342,3 +342,23 @@ go test ./...
 钱包账户视图新增 `display` 字段：除了名称 / 图标 / 说明 / 单位名外，还按 `unit_cents`（每单位对应多少分，即固定倍率）给出两位小数的 `display_amount`，换算用整数运算（`分 / unit_cents`，余数按百分位向下取整），不引入浮点误差。配置缺失、JSON 非法、单字段缺失或 `unit_cents ≤ 0` 均按**字段级**回落内置默认（余额 / 猫粮，100 分每单位），配置写坏不会改坏金额展示；列表接口一次性读取配置后逐行套用，避免逐行查库。
 
 人工检查：默认状态下钱包接口的前端展示口径应为「余额 / 猫粮」且 2050 分显示 `20.50`；把 `unit_cents` 改为 50 后同一余额应显示 `41.00`；把配置值写成非法 JSON 后应回落默认而不是报错或显示异常金额。管理端页面目前仍用固定文案渲染，需按 `display` 字段改造后本项才算完整。
+
+## 历史订单补录与业绩隔离（2026-10）
+
+`POST /admin/orders/backfill` 补录漏报的历史订单，须带 `Idempotency-Key`（8–128 字符，幂等键与请求体哈希按常规报单同口径，重复提交返回同一张单、同键不同体判冲突）。入参：`customer_id`、`sku_id`、`quantity`、`unit_price_cents`（留 0 回落 SKU 规格价）、`settled_at`（RFC3339 实际成交时间，必填且不得晚于当前、不得早于 5 年前）、`fulfillment_status`（`completed` 默认 / `cancelled`）、`payment_status`（默认 `paid`，历史补录单必须已收款）、`reason`（4–255 字，必填）、`count_commission`（是否计入当期业绩，默认 `false`）。返回体除订单外还给 `counted_commission` 结论。
+
+隔离规则（与常规报单的关键差别）：入口固定 `entry_point=admin_backfill`（调用方不能指定）；只允许 `completed` / `cancelled` 两个终态，**不占 SKU 名额、不建支付意图与支付回执、不建派单席位**，避免历史单消耗当期容量；订单 `created_at` 与 `paid_at` 写实际成交时间，报表按业务发生期归集；`completed` 单同时写 `closed_at` 与 `close_net_service_cents` 快照，保证后续退款冲回口径正确。**默认不计提**陪玩分成 / 客服提成 / 成长值，并写一条 `order.commission_excluded` 外盒留痕；只有显式 `count_commission=true` 才在同一事务内按结单口径计提。补录必须记录补录原因、补录人与补录时刻，写 `order.backfilled` 订单事件与外盒；客服只能为本人负责的客户补录。
+
+结单路径也加了同一守卫（`orderCountsCommission`）：即使有人把补录单推进到结单流程，补录单仍默认不计提，只写排除外盒，不会把历史流水算进当期业绩。
+
+人工检查：用客服身份对本人客户补录一张 30 天前的已完成单，应看到 `entry_point=admin_backfill`、`created_at` 为 30 天前、`closed_at` 已写入、SKU 的已售与预占名额均未变化、`order.commission_excluded` 外盒存在且分成 / 提成明细为空；同一 `Idempotency-Key` 重复提交返回同一张单，改数量后同键提交应报冲突；把 `count_commission` 置 `true` 再补录不应出现排除外盒。管理端补录表单尚未接入。
+
+## 已核销收款的渠道撤销 / 拒付（2026-10）
+
+核销后的钱可能被渠道或客户事后撤回（商户撤销、客户拒付），此前系统只记录「到账」、核销后没有任何独立风险事件，账面上订单仍是已收款。现在：`POST /admin/payment-reversals` 由财务登记撤销 / 拒付（`receipt_id` 指向一笔已核销支付回执，`kind` 取 `revoked` 渠道撤销 / `chargeback` 客户拒付，`amount_cents` 不得超过该回执实际到账额，`reason` 4–255 字，`evidence_ref` 存渠道通知或银行回单引用），`GET /admin/payment-reversals` 按订单与状态查询，`POST /admin/payment-reversals/{id}/decision` 处置。
+
+一笔回执只允许登记一次（`receipt_id` 唯一索引兜底）。**登记只记账与告警，不改订单资金状态**——订单怎么处置由人工在 decision 里明确，避免系统替人做资金判断。登记写 `order.payment_reversal_registered` 订单事件与 `payment.reversal_registered` 外盒。
+
+处置动作（`pending → handled`，`ignore` 记为 `rejected`），处置人不得是登记人：`mark_exception` 把订单 `paid/partial` 改判为 `exception`（资金异常转人工，必须填处置说明）；`suspend_customer` 在其上再把客户置 `restricted` 并写风控原因（阻断客户自助下单，必须同时填处置说明与风控原因）；`ignore` 认定为误报，只留结论不动订单。处置写 `order.payment_reversal_handled` 订单事件。
+
+人工检查：走完「提交到账凭证 → 财务核销」拿到回执后，用财务身份登记一笔超额撤销应报参数错误，正常登记后订单 `payment_status` 仍为 `paid` 且出现 `payment.reversal_registered` 外盒；重复登记同一回执应报冲突；换另一个管理员选 `suspend_customer` 并填风控原因后，订单应转 `exception`、客户 `risk_status` 变 `restricted`，客户自助下单被拒；用 `ignore` 处置另一笔时应只留结论、订单与客户都不变。真实渠道回调自动登记仍需商户密钥与回调地址，当前为财务人工登记闭环。

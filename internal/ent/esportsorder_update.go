@@ -1091,6 +1091,81 @@ func (_u *EsportsOrderUpdate) ClearDepositedByAdminID() *EsportsOrderUpdate {
 	return _u
 }
 
+// SetBackfillReason sets the "backfill_reason" field.
+func (_u *EsportsOrderUpdate) SetBackfillReason(v string) *EsportsOrderUpdate {
+	_u.mutation.SetBackfillReason(v)
+	return _u
+}
+
+// SetNillableBackfillReason sets the "backfill_reason" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableBackfillReason(v *string) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetBackfillReason(*v)
+	}
+	return _u
+}
+
+// SetBackfillCountCommission sets the "backfill_count_commission" field.
+func (_u *EsportsOrderUpdate) SetBackfillCountCommission(v bool) *EsportsOrderUpdate {
+	_u.mutation.SetBackfillCountCommission(v)
+	return _u
+}
+
+// SetNillableBackfillCountCommission sets the "backfill_count_commission" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableBackfillCountCommission(v *bool) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetBackfillCountCommission(*v)
+	}
+	return _u
+}
+
+// SetBackfilledByAdminID sets the "backfilled_by_admin_id" field.
+func (_u *EsportsOrderUpdate) SetBackfilledByAdminID(v int) *EsportsOrderUpdate {
+	_u.mutation.ResetBackfilledByAdminID()
+	_u.mutation.SetBackfilledByAdminID(v)
+	return _u
+}
+
+// SetNillableBackfilledByAdminID sets the "backfilled_by_admin_id" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableBackfilledByAdminID(v *int) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetBackfilledByAdminID(*v)
+	}
+	return _u
+}
+
+// AddBackfilledByAdminID adds value to the "backfilled_by_admin_id" field.
+func (_u *EsportsOrderUpdate) AddBackfilledByAdminID(v int) *EsportsOrderUpdate {
+	_u.mutation.AddBackfilledByAdminID(v)
+	return _u
+}
+
+// ClearBackfilledByAdminID clears the value of the "backfilled_by_admin_id" field.
+func (_u *EsportsOrderUpdate) ClearBackfilledByAdminID() *EsportsOrderUpdate {
+	_u.mutation.ClearBackfilledByAdminID()
+	return _u
+}
+
+// SetBackfilledAt sets the "backfilled_at" field.
+func (_u *EsportsOrderUpdate) SetBackfilledAt(v time.Time) *EsportsOrderUpdate {
+	_u.mutation.SetBackfilledAt(v)
+	return _u
+}
+
+// SetNillableBackfilledAt sets the "backfilled_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableBackfilledAt(v *time.Time) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetBackfilledAt(*v)
+	}
+	return _u
+}
+
+// ClearBackfilledAt clears the value of the "backfilled_at" field.
+func (_u *EsportsOrderUpdate) ClearBackfilledAt() *EsportsOrderUpdate {
+	_u.mutation.ClearBackfilledAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *EsportsOrderUpdate) SetUpdatedAt(v time.Time) *EsportsOrderUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -1233,6 +1308,11 @@ func (_u *EsportsOrderUpdate) check() error {
 	if v, ok := _u.mutation.DepositStatus(); ok {
 		if err := esportsorder.DepositStatusValidator(v); err != nil {
 			return &ValidationError{Name: "deposit_status", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.deposit_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BackfillReason(); ok {
+		if err := esportsorder.BackfillReasonValidator(v); err != nil {
+			return &ValidationError{Name: "backfill_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.backfill_reason": %w`, err)}
 		}
 	}
 	return nil
@@ -1555,6 +1635,27 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.DepositedByAdminIDCleared() {
 		_spec.ClearField(esportsorder.FieldDepositedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BackfillReason(); ok {
+		_spec.SetField(esportsorder.FieldBackfillReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BackfillCountCommission(); ok {
+		_spec.SetField(esportsorder.FieldBackfillCountCommission, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BackfilledByAdminID(); ok {
+		_spec.SetField(esportsorder.FieldBackfilledByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBackfilledByAdminID(); ok {
+		_spec.AddField(esportsorder.FieldBackfilledByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.BackfilledByAdminIDCleared() {
+		_spec.ClearField(esportsorder.FieldBackfilledByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BackfilledAt(); ok {
+		_spec.SetField(esportsorder.FieldBackfilledAt, field.TypeTime, value)
+	}
+	if _u.mutation.BackfilledAtCleared() {
+		_spec.ClearField(esportsorder.FieldBackfilledAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(esportsorder.FieldUpdatedAt, field.TypeTime, value)
@@ -2642,6 +2743,81 @@ func (_u *EsportsOrderUpdateOne) ClearDepositedByAdminID() *EsportsOrderUpdateOn
 	return _u
 }
 
+// SetBackfillReason sets the "backfill_reason" field.
+func (_u *EsportsOrderUpdateOne) SetBackfillReason(v string) *EsportsOrderUpdateOne {
+	_u.mutation.SetBackfillReason(v)
+	return _u
+}
+
+// SetNillableBackfillReason sets the "backfill_reason" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableBackfillReason(v *string) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetBackfillReason(*v)
+	}
+	return _u
+}
+
+// SetBackfillCountCommission sets the "backfill_count_commission" field.
+func (_u *EsportsOrderUpdateOne) SetBackfillCountCommission(v bool) *EsportsOrderUpdateOne {
+	_u.mutation.SetBackfillCountCommission(v)
+	return _u
+}
+
+// SetNillableBackfillCountCommission sets the "backfill_count_commission" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableBackfillCountCommission(v *bool) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetBackfillCountCommission(*v)
+	}
+	return _u
+}
+
+// SetBackfilledByAdminID sets the "backfilled_by_admin_id" field.
+func (_u *EsportsOrderUpdateOne) SetBackfilledByAdminID(v int) *EsportsOrderUpdateOne {
+	_u.mutation.ResetBackfilledByAdminID()
+	_u.mutation.SetBackfilledByAdminID(v)
+	return _u
+}
+
+// SetNillableBackfilledByAdminID sets the "backfilled_by_admin_id" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableBackfilledByAdminID(v *int) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetBackfilledByAdminID(*v)
+	}
+	return _u
+}
+
+// AddBackfilledByAdminID adds value to the "backfilled_by_admin_id" field.
+func (_u *EsportsOrderUpdateOne) AddBackfilledByAdminID(v int) *EsportsOrderUpdateOne {
+	_u.mutation.AddBackfilledByAdminID(v)
+	return _u
+}
+
+// ClearBackfilledByAdminID clears the value of the "backfilled_by_admin_id" field.
+func (_u *EsportsOrderUpdateOne) ClearBackfilledByAdminID() *EsportsOrderUpdateOne {
+	_u.mutation.ClearBackfilledByAdminID()
+	return _u
+}
+
+// SetBackfilledAt sets the "backfilled_at" field.
+func (_u *EsportsOrderUpdateOne) SetBackfilledAt(v time.Time) *EsportsOrderUpdateOne {
+	_u.mutation.SetBackfilledAt(v)
+	return _u
+}
+
+// SetNillableBackfilledAt sets the "backfilled_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableBackfilledAt(v *time.Time) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetBackfilledAt(*v)
+	}
+	return _u
+}
+
+// ClearBackfilledAt clears the value of the "backfilled_at" field.
+func (_u *EsportsOrderUpdateOne) ClearBackfilledAt() *EsportsOrderUpdateOne {
+	_u.mutation.ClearBackfilledAt()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *EsportsOrderUpdateOne) SetUpdatedAt(v time.Time) *EsportsOrderUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -2797,6 +2973,11 @@ func (_u *EsportsOrderUpdateOne) check() error {
 	if v, ok := _u.mutation.DepositStatus(); ok {
 		if err := esportsorder.DepositStatusValidator(v); err != nil {
 			return &ValidationError{Name: "deposit_status", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.deposit_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BackfillReason(); ok {
+		if err := esportsorder.BackfillReasonValidator(v); err != nil {
+			return &ValidationError{Name: "backfill_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.backfill_reason": %w`, err)}
 		}
 	}
 	return nil
@@ -3136,6 +3317,27 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if _u.mutation.DepositedByAdminIDCleared() {
 		_spec.ClearField(esportsorder.FieldDepositedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BackfillReason(); ok {
+		_spec.SetField(esportsorder.FieldBackfillReason, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BackfillCountCommission(); ok {
+		_spec.SetField(esportsorder.FieldBackfillCountCommission, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BackfilledByAdminID(); ok {
+		_spec.SetField(esportsorder.FieldBackfilledByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBackfilledByAdminID(); ok {
+		_spec.AddField(esportsorder.FieldBackfilledByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.BackfilledByAdminIDCleared() {
+		_spec.ClearField(esportsorder.FieldBackfilledByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.BackfilledAt(); ok {
+		_spec.SetField(esportsorder.FieldBackfilledAt, field.TypeTime, value)
+	}
+	if _u.mutation.BackfilledAtCleared() {
+		_spec.ClearField(esportsorder.FieldBackfilledAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(esportsorder.FieldUpdatedAt, field.TypeTime, value)
