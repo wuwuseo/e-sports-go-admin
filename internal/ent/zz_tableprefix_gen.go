@@ -39,6 +39,7 @@ import (
 	"go-admin/internal/ent/esportsdispatchprioritygrant"
 	"go-admin/internal/ent/esportsdispatchprioritynotice"
 	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsexternalrefund"
 	"go-admin/internal/ent/esportsfulfillmentmakeup"
 	"go-admin/internal/ent/esportsgift"
 	"go-admin/internal/ent/esportsgiftdispute"
@@ -69,10 +70,13 @@ import (
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
+	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportsrechargeintent"
+	"go-admin/internal/ent/esportsrechargerefundexecution"
+	"go-admin/internal/ent/esportsreportexport"
 	"go-admin/internal/ent/esportsrescheduleconfirmation"
 	"go-admin/internal/ent/esportsrescheduleproposal"
 	"go-admin/internal/ent/esportsscript"
@@ -83,12 +87,14 @@ import (
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
+	"go-admin/internal/ent/esportsspecgroup"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/esportswithdrawal"
+	"go-admin/internal/ent/esportswithdrawalpayout"
 	"go-admin/internal/ent/loginlog"
 	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/messagepreference"
@@ -310,6 +316,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportsdispatchseat.Table = prefix + strings.TrimPrefix(esportsdispatchseat.Table, old)
 	}
 	{
+		old := esportsexternalrefund.TablePrefix
+		esportsexternalrefund.TablePrefix = prefix
+		esportsexternalrefund.Table = prefix + strings.TrimPrefix(esportsexternalrefund.Table, old)
+	}
+	{
 		old := esportsfulfillmentmakeup.TablePrefix
 		esportsfulfillmentmakeup.TablePrefix = prefix
 		esportsfulfillmentmakeup.Table = prefix + strings.TrimPrefix(esportsfulfillmentmakeup.Table, old)
@@ -460,6 +471,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportspriceadjustment.Table = prefix + strings.TrimPrefix(esportspriceadjustment.Table, old)
 	}
 	{
+		old := esportsproduct.TablePrefix
+		esportsproduct.TablePrefix = prefix
+		esportsproduct.Table = prefix + strings.TrimPrefix(esportsproduct.Table, old)
+	}
+	{
 		old := esportsproductcategory.TablePrefix
 		esportsproductcategory.TablePrefix = prefix
 		esportsproductcategory.Table = prefix + strings.TrimPrefix(esportsproductcategory.Table, old)
@@ -478,6 +494,16 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsrechargeintent.TablePrefix
 		esportsrechargeintent.TablePrefix = prefix
 		esportsrechargeintent.Table = prefix + strings.TrimPrefix(esportsrechargeintent.Table, old)
+	}
+	{
+		old := esportsrechargerefundexecution.TablePrefix
+		esportsrechargerefundexecution.TablePrefix = prefix
+		esportsrechargerefundexecution.Table = prefix + strings.TrimPrefix(esportsrechargerefundexecution.Table, old)
+	}
+	{
+		old := esportsreportexport.TablePrefix
+		esportsreportexport.TablePrefix = prefix
+		esportsreportexport.Table = prefix + strings.TrimPrefix(esportsreportexport.Table, old)
 	}
 	{
 		old := esportsrescheduleconfirmation.TablePrefix
@@ -530,6 +556,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportsskususpensionitem.Table = prefix + strings.TrimPrefix(esportsskususpensionitem.Table, old)
 	}
 	{
+		old := esportsspecgroup.TablePrefix
+		esportsspecgroup.TablePrefix = prefix
+		esportsspecgroup.Table = prefix + strings.TrimPrefix(esportsspecgroup.Table, old)
+	}
+	{
 		old := esportsstoredvaluecard.TablePrefix
 		esportsstoredvaluecard.TablePrefix = prefix
 		esportsstoredvaluecard.Table = prefix + strings.TrimPrefix(esportsstoredvaluecard.Table, old)
@@ -558,6 +589,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportswithdrawal.TablePrefix
 		esportswithdrawal.TablePrefix = prefix
 		esportswithdrawal.Table = prefix + strings.TrimPrefix(esportswithdrawal.Table, old)
+	}
+	{
+		old := esportswithdrawalpayout.TablePrefix
+		esportswithdrawalpayout.TablePrefix = prefix
+		esportswithdrawalpayout.Table = prefix + strings.TrimPrefix(esportswithdrawalpayout.Table, old)
 	}
 	{
 		old := loginlog.TablePrefix

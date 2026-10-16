@@ -124,3 +124,134 @@ func playerWithdrawalSummaryHandler(c fiber.Ctx) error {
 	}
 	return reply(c, view)
 }
+
+// requestWithdrawalPayoutHandler 财务提交打款执行（§11.2 补全）：仅「已审核通过」的提现单可提交。
+func requestWithdrawalPayoutHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "提现单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in requestWithdrawalPayoutInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := requestWithdrawalPayout(c.Context(), global.ORM, adminID, id, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// markWithdrawalPayoutPaidHandler 标记打款成功（§11.2 补全）：回填完税凭证、到账时间与打款人。
+func markWithdrawalPayoutPaidHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "打款执行单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		TaxRef string `json:"tax_ref"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := markWithdrawalPayoutPaid(c.Context(), global.ORM, adminID, id, in.TaxRef, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// markWithdrawalPayoutFailedHandler 标记打款失败（§11.2 补全）：提现单保持已审核通过，可重新提交打款。
+func markWithdrawalPayoutFailedHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "打款执行单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in failWithdrawalPayoutInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := markWithdrawalPayoutFailed(c.Context(), global.ORM, adminID, id, in)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// listWithdrawalPayoutsHandler 查看某提现单的打款执行记录。
+func listWithdrawalPayoutsHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "提现单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listWithdrawalPayouts(c.Context(), global.ORM, id, queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+// registerExternalRefundHandler 财务登记外部渠道退款凭证（§13 补全）。
+func registerExternalRefundHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in registerExternalRefundInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := registerExternalRefund(c.Context(), global.ORM, adminID, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// executeExternalRefundHandler 财务核验并执行外部退款（§13 补全）：对齐订单退款状态。
+func executeExternalRefundHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "外部退款登记")
+	if err != nil {
+		return businessError(c, err)
+	}
+	item, err := executeExternalRefund(c.Context(), global.ORM, adminID, id, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// listExternalRefundsHandler 查询外部退款登记，可按订单与状态过滤。
+func listExternalRefundsHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := queryIntDefault(c, "order_id", 0)
+	if err != nil {
+		return businessError(c, errInvalidInput)
+	}
+	items, err := listExternalRefunds(c.Context(), global.ORM, orderID, c.Query("status"), queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}

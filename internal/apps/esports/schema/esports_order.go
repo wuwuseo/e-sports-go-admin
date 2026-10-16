@@ -6,6 +6,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+
+	"go-admin/internal/apps/esports/schematier"
 )
 
 type EsportsOrder struct{ ent.Schema }
@@ -49,6 +51,9 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int("required_seats").Positive().StructTag(`json:"required_seats"`),
 		// 所需技能等级快照（§5.5）：报单时从 SKU 快照，用于接单硬性校验。
 		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
+		// 逐席角色快照（§15.5）：报单时从 SKU 关联规格组快照每席角色/可替换条件，多人规格报价据此展示席位约束；
+		// 历史单缺该字段为空（不追溯）。
+		field.JSON("seat_roles", []schematier.SeatSpec{}).Optional().StructTag(`json:"seat_roles"`),
 		field.Int("quote_version").Default(1).StructTag(`json:"quote_version"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Enum("fulfillment_status").Values("pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled").Default("pending_payment").StructTag(`json:"fulfillment_status"`),

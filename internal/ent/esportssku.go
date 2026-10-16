@@ -25,6 +25,10 @@ type EsportsSku struct {
 	ServiceType esportssku.ServiceType `json:"service_type"`
 	// CategoryID holds the value of the "category_id" field.
 	CategoryID *int `json:"category_id"`
+	// ProductID holds the value of the "product_id" field.
+	ProductID *int `json:"product_id"`
+	// SpecGroupID holds the value of the "spec_group_id" field.
+	SpecGroupID *int `json:"spec_group_id"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description"`
 	// UnitPriceCents holds the value of the "unit_price_cents" field.
@@ -69,7 +73,7 @@ func (*EsportsSku) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldServiceDurationMinutes, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
+		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldProductID, esportssku.FieldSpecGroupID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldServiceDurationMinutes, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldRequiredLevel, esportssku.FieldCloseRuleCode, esportssku.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -120,6 +124,20 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CategoryID = new(int)
 				*_m.CategoryID = int(value.Int64)
+			}
+		case esportssku.FieldProductID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field product_id", values[i])
+			} else if value.Valid {
+				_m.ProductID = new(int)
+				*_m.ProductID = int(value.Int64)
+			}
+		case esportssku.FieldSpecGroupID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field spec_group_id", values[i])
+			} else if value.Valid {
+				_m.SpecGroupID = new(int)
+				*_m.SpecGroupID = int(value.Int64)
 			}
 		case esportssku.FieldDescription:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -276,6 +294,16 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString(", ")
 	if v := _m.CategoryID; v != nil {
 		builder.WriteString("category_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ProductID; v != nil {
+		builder.WriteString("product_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SpecGroupID; v != nil {
+		builder.WriteString("spec_group_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

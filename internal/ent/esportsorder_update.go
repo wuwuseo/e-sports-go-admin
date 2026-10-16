@@ -6,12 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -610,6 +612,24 @@ func (_u *EsportsOrderUpdate) SetNillableRequiredLevel(v *esportsorder.RequiredL
 	if v != nil {
 		_u.SetRequiredLevel(*v)
 	}
+	return _u
+}
+
+// SetSeatRoles sets the "seat_roles" field.
+func (_u *EsportsOrderUpdate) SetSeatRoles(v []schematier.SeatSpec) *EsportsOrderUpdate {
+	_u.mutation.SetSeatRoles(v)
+	return _u
+}
+
+// AppendSeatRoles appends value to the "seat_roles" field.
+func (_u *EsportsOrderUpdate) AppendSeatRoles(v []schematier.SeatSpec) *EsportsOrderUpdate {
+	_u.mutation.AppendSeatRoles(v)
+	return _u
+}
+
+// ClearSeatRoles clears the value of the "seat_roles" field.
+func (_u *EsportsOrderUpdate) ClearSeatRoles() *EsportsOrderUpdate {
+	_u.mutation.ClearSeatRoles()
 	return _u
 }
 
@@ -1599,6 +1619,17 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.RequiredLevel(); ok {
 		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeEnum, value)
 	}
+	if value, ok := _u.mutation.SeatRoles(); ok {
+		_spec.SetField(esportsorder.FieldSeatRoles, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSeatRoles(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsorder.FieldSeatRoles, value)
+		})
+	}
+	if _u.mutation.SeatRolesCleared() {
+		_spec.ClearField(esportsorder.FieldSeatRoles, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.QuoteVersion(); ok {
 		_spec.SetField(esportsorder.FieldQuoteVersion, field.TypeInt, value)
 	}
@@ -2387,6 +2418,24 @@ func (_u *EsportsOrderUpdateOne) SetNillableRequiredLevel(v *esportsorder.Requir
 	if v != nil {
 		_u.SetRequiredLevel(*v)
 	}
+	return _u
+}
+
+// SetSeatRoles sets the "seat_roles" field.
+func (_u *EsportsOrderUpdateOne) SetSeatRoles(v []schematier.SeatSpec) *EsportsOrderUpdateOne {
+	_u.mutation.SetSeatRoles(v)
+	return _u
+}
+
+// AppendSeatRoles appends value to the "seat_roles" field.
+func (_u *EsportsOrderUpdateOne) AppendSeatRoles(v []schematier.SeatSpec) *EsportsOrderUpdateOne {
+	_u.mutation.AppendSeatRoles(v)
+	return _u
+}
+
+// ClearSeatRoles clears the value of the "seat_roles" field.
+func (_u *EsportsOrderUpdateOne) ClearSeatRoles() *EsportsOrderUpdateOne {
+	_u.mutation.ClearSeatRoles()
 	return _u
 }
 
@@ -3405,6 +3454,17 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if value, ok := _u.mutation.RequiredLevel(); ok {
 		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.SeatRoles(); ok {
+		_spec.SetField(esportsorder.FieldSeatRoles, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSeatRoles(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsorder.FieldSeatRoles, value)
+		})
+	}
+	if _u.mutation.SeatRolesCleared() {
+		_spec.ClearField(esportsorder.FieldSeatRoles, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.QuoteVersion(); ok {
 		_spec.SetField(esportsorder.FieldQuoteVersion, field.TypeInt, value)

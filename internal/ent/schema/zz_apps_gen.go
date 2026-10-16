@@ -110,6 +110,10 @@ type EsportsDispatchSeat struct {
 	appschemaesports.EsportsDispatchSeat
 }
 
+type EsportsExternalRefund struct {
+	appschemaesports.EsportsExternalRefund
+}
+
 type EsportsFulfillmentMakeup struct {
 	appschemaesports.EsportsFulfillmentMakeup
 }
@@ -222,6 +226,10 @@ type EsportsPriceAdjustment struct {
 	appschemaesports.EsportsPriceAdjustment
 }
 
+type EsportsProduct struct {
+	appschemaesports.EsportsProduct
+}
+
 type EsportsProductCategory struct {
 	appschemaesports.EsportsProductCategory
 }
@@ -236,6 +244,14 @@ type EsportsRechargeCampaign struct {
 
 type EsportsRechargeIntent struct {
 	appschemaesports.EsportsRechargeIntent
+}
+
+type EsportsRechargeRefundExecution struct {
+	appschemaesports.EsportsRechargeRefundExecution
+}
+
+type EsportsReportExport struct {
+	appschemaesports.EsportsReportExport
 }
 
 type EsportsRescheduleConfirmation struct {
@@ -274,6 +290,10 @@ type EsportsSkuSuspensionItem struct {
 	appschemaesports.EsportsSkuSuspensionItem
 }
 
+type EsportsSpecGroup struct {
+	appschemaesports.EsportsSpecGroup
+}
+
 type EsportsStoredValueCard struct {
 	appschemaesports.EsportsStoredValueCard
 }
@@ -296,4 +316,8 @@ type EsportsWalletTx struct {
 
 type EsportsWithdrawal struct {
 	appschemaesports.EsportsWithdrawal
+}
+
+type EsportsWithdrawalPayout struct {
+	appschemaesports.EsportsWithdrawalPayout
 }

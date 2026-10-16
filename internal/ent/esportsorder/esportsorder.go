@@ -72,6 +72,8 @@ const (
 	FieldRequiredSeats = "required_seats"
 	// FieldRequiredLevel holds the string denoting the required_level field in the database.
 	FieldRequiredLevel = "required_level"
+	// FieldSeatRoles holds the string denoting the seat_roles field in the database.
+	FieldSeatRoles = "seat_roles"
 	// FieldQuoteVersion holds the string denoting the quote_version field in the database.
 	FieldQuoteVersion = "quote_version"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -182,6 +184,7 @@ var Columns = []string{
 	FieldAddonUnits,
 	FieldRequiredSeats,
 	FieldRequiredLevel,
+	FieldSeatRoles,
 	FieldQuoteVersion,
 	FieldVersion,
 	FieldFulfillmentStatus,

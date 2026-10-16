@@ -452,6 +452,18 @@ func (f EsportsDispatchSeatFunc) Mutate(ctx context.Context, m ent.Mutation) (en
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsDispatchSeatMutation", m)
 }
 
+// The EsportsExternalRefundFunc type is an adapter to allow the use of ordinary
+// function as EsportsExternalRefund mutator.
+type EsportsExternalRefundFunc func(context.Context, *ent.EsportsExternalRefundMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsExternalRefundFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsExternalRefundMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsExternalRefundMutation", m)
+}
+
 // The EsportsFulfillmentMakeupFunc type is an adapter to allow the use of ordinary
 // function as EsportsFulfillmentMakeup mutator.
 type EsportsFulfillmentMakeupFunc func(context.Context, *ent.EsportsFulfillmentMakeupMutation) (ent.Value, error)
@@ -812,6 +824,18 @@ func (f EsportsPriceAdjustmentFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsPriceAdjustmentMutation", m)
 }
 
+// The EsportsProductFunc type is an adapter to allow the use of ordinary
+// function as EsportsProduct mutator.
+type EsportsProductFunc func(context.Context, *ent.EsportsProductMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsProductFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsProductMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsProductMutation", m)
+}
+
 // The EsportsProductCategoryFunc type is an adapter to allow the use of ordinary
 // function as EsportsProductCategory mutator.
 type EsportsProductCategoryFunc func(context.Context, *ent.EsportsProductCategoryMutation) (ent.Value, error)
@@ -858,6 +882,30 @@ func (f EsportsRechargeIntentFunc) Mutate(ctx context.Context, m ent.Mutation) (
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRechargeIntentMutation", m)
+}
+
+// The EsportsRechargeRefundExecutionFunc type is an adapter to allow the use of ordinary
+// function as EsportsRechargeRefundExecution mutator.
+type EsportsRechargeRefundExecutionFunc func(context.Context, *ent.EsportsRechargeRefundExecutionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsRechargeRefundExecutionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsRechargeRefundExecutionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRechargeRefundExecutionMutation", m)
+}
+
+// The EsportsReportExportFunc type is an adapter to allow the use of ordinary
+// function as EsportsReportExport mutator.
+type EsportsReportExportFunc func(context.Context, *ent.EsportsReportExportMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsReportExportFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsReportExportMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsReportExportMutation", m)
 }
 
 // The EsportsRescheduleConfirmationFunc type is an adapter to allow the use of ordinary
@@ -980,6 +1028,18 @@ func (f EsportsSkuSuspensionItemFunc) Mutate(ctx context.Context, m ent.Mutation
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSkuSuspensionItemMutation", m)
 }
 
+// The EsportsSpecGroupFunc type is an adapter to allow the use of ordinary
+// function as EsportsSpecGroup mutator.
+type EsportsSpecGroupFunc func(context.Context, *ent.EsportsSpecGroupMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsSpecGroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsSpecGroupMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSpecGroupMutation", m)
+}
+
 // The EsportsStoredValueCardFunc type is an adapter to allow the use of ordinary
 // function as EsportsStoredValueCard mutator.
 type EsportsStoredValueCardFunc func(context.Context, *ent.EsportsStoredValueCardMutation) (ent.Value, error)
@@ -1050,6 +1110,18 @@ func (f EsportsWithdrawalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsWithdrawalMutation", m)
+}
+
+// The EsportsWithdrawalPayoutFunc type is an adapter to allow the use of ordinary
+// function as EsportsWithdrawalPayout mutator.
+type EsportsWithdrawalPayoutFunc func(context.Context, *ent.EsportsWithdrawalPayoutMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsWithdrawalPayoutFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsWithdrawalPayoutMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsWithdrawalPayoutMutation", m)
 }
 
 // The LoginLogFunc type is an adapter to allow the use of ordinary

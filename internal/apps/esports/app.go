@@ -308,6 +308,15 @@ func init() {
 			{Method: "POST", Path: "/admin/categories", Auth: cmfapp.AuthAdmin, Handler: createCategory},
 			{Method: "PUT", Path: "/admin/categories/:id", Auth: cmfapp.AuthAdmin, Handler: updateCategoryHandler},
 			{Method: "DELETE", Path: "/admin/categories/:id", Auth: cmfapp.AuthAdmin, Handler: deleteCategoryHandler},
+			// 商品父实体 / 规格组 / 逐席角色（§15.1 / §15.5）：商品挂多 SKU，规格组约束多人规格与每席角色。
+			{Method: "GET", Path: "/admin/products", Auth: cmfapp.AuthAdmin, Handler: adminProducts},
+			{Method: "GET", Path: "/admin/products/:id", Auth: cmfapp.AuthAdmin, Handler: adminProduct},
+			{Method: "POST", Path: "/admin/products", Auth: cmfapp.AuthAdmin, Handler: createProductHandler},
+			{Method: "PUT", Path: "/admin/products/:id", Auth: cmfapp.AuthAdmin, Handler: updateProductHandler},
+			{Method: "GET", Path: "/admin/spec-groups", Auth: cmfapp.AuthAdmin, Handler: adminSpecGroups},
+			{Method: "POST", Path: "/admin/spec-groups", Auth: cmfapp.AuthAdmin, Handler: createSpecGroupHandler},
+			{Method: "PUT", Path: "/admin/spec-groups/:id", Auth: cmfapp.AuthAdmin, Handler: updateSpecGroupHandler},
+			{Method: "GET", Path: "/admin/orders/:id/seat-roles", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(orderSeatRolesHandler)},
 			{Method: "GET", Path: "/admin/customers", Auth: cmfapp.AuthAdmin, Handler: adminCustomers},
 			{Method: "POST", Path: "/admin/customers", Auth: cmfapp.AuthAdmin, Handler: createCustomer},
 			{Method: "POST", Path: "/admin/customers/:id/age-checks", Auth: cmfapp.AuthAdmin, Handler: createAgeCheck},
@@ -457,6 +466,10 @@ func init() {
 			// 多动作售后方案（§13.3 / §13.6）：动作项列表与逐项执行 / 失败重试。
 			{Method: "GET", Path: "/admin/after-sales/:id/actions", Auth: cmfapp.AuthAdmin, Handler: ownedAfterSaleHandler(listAfterSaleActionsHandler)},
 			{Method: "POST", Path: "/admin/after-sales/:id/actions/:seq/execute", Auth: cmfapp.AuthAdmin, Handler: ownedAfterSaleHandler(executeAfterSaleActionHandler)},
+			// 按充值批次生成外部退款执行明细（§4.5）。
+			{Method: "POST", Path: "/admin/after-sales/:id/refund-execute", Auth: cmfapp.AuthAdmin, Handler: ownedAfterSaleHandler(adminRechargeRefundExecuteHandler)},
+			// 财务登记外部打款后置执行明细为 executed（§4.5）。
+			{Method: "POST", Path: "/admin/recharge-refund-executions/:id/execute", Auth: cmfapp.AuthAdmin, Handler: markRechargeRefundExecutionExecutedHandler},
 			// 补履约任务（§13.6）：售后方案「补钟 / 换人」执行后产生，由客服开始服务并验收。
 			{Method: "GET", Path: "/admin/fulfillment-makeups", Auth: cmfapp.AuthAdmin, Handler: listFulfillmentMakeupsHandler},
 			{Method: "POST", Path: "/admin/fulfillment-makeups/:id/start", Auth: cmfapp.AuthAdmin, Handler: startFulfillmentMakeupHandler},
@@ -537,6 +550,14 @@ func init() {
 			{Method: "GET", Path: "/admin/withdrawals/:id", Auth: cmfapp.AuthAdmin, Handler: adminWithdrawalDetail},
 			{Method: "POST", Path: "/admin/withdrawals/:id/review", Auth: cmfapp.AuthAdmin, Handler: reviewWithdrawalHandler},
 			{Method: "POST", Path: "/admin/withdrawals/:id/pay", Auth: cmfapp.AuthAdmin, Handler: payWithdrawalHandler},
+			// 提现打款执行状态机与外部渠道退款（§6.3 / §12.6 人工核验分支）。
+			{Method: "POST", Path: "/admin/withdrawals/:id/payout-request", Auth: cmfapp.AuthAdmin, Handler: requestWithdrawalPayoutHandler},
+			{Method: "GET", Path: "/admin/withdrawals/:id/payouts", Auth: cmfapp.AuthAdmin, Handler: listWithdrawalPayoutsHandler},
+			{Method: "POST", Path: "/admin/withdrawal-payouts/:id/paid", Auth: cmfapp.AuthAdmin, Handler: markWithdrawalPayoutPaidHandler},
+			{Method: "POST", Path: "/admin/withdrawal-payouts/:id/failed", Auth: cmfapp.AuthAdmin, Handler: markWithdrawalPayoutFailedHandler},
+			{Method: "POST", Path: "/admin/external-refunds", Auth: cmfapp.AuthAdmin, Handler: registerExternalRefundHandler},
+			{Method: "GET", Path: "/admin/external-refunds", Auth: cmfapp.AuthAdmin, Handler: listExternalRefundsHandler},
+			{Method: "POST", Path: "/admin/external-refunds/:id/execute", Auth: cmfapp.AuthAdmin, Handler: executeExternalRefundHandler},
 			// 陪玩模块管理端：档案 CRUD 与上下线。
 			{Method: "GET", Path: "/admin/players", Auth: cmfapp.AuthAdmin, Handler: adminPlayers},
 			{Method: "POST", Path: "/admin/players", Auth: cmfapp.AuthAdmin, Handler: createPlayer},
@@ -642,6 +663,10 @@ func init() {
 			{Method: "GET", Path: "/user/after-sales/:id/evidence", Auth: cmfapp.AuthUser, Handler: userAfterSaleEvidenceHandler},
 			// 经营统计报表（§17）：五类只读聚合报表，按 :type 分派，支持多维筛选与下钻明细。
 			{Method: "GET", Path: "/admin/reports/:type", Auth: cmfapp.AuthAdmin, Handler: adminReports},
+			// 报表导出与审计（§17）：CSV 导出 + 只增审计记录。
+			{Method: "GET", Path: "/admin/reports/:type/export", Auth: cmfapp.AuthAdmin, Handler: adminReportExport},
+			{Method: "GET", Path: "/admin/reports/:type/exports", Auth: cmfapp.AuthAdmin, Handler: adminReportTypeExports},
+			{Method: "GET", Path: "/admin/report-exports", Auth: cmfapp.AuthAdmin, Handler: adminReportExports},
 			// 页面装修（§16）：客户自助端首页装修草稿、发布版本、回滚与素材库；/page 供客户端读已发布配置。
 			{Method: "GET", Path: "/admin/pages", Auth: cmfapp.AuthAdmin, Handler: adminPageDocuments},
 			{Method: "GET", Path: "/admin/pages/:channel", Auth: cmfapp.AuthAdmin, Handler: adminPageDocument},
@@ -701,6 +726,14 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "审批停服申请", Code: "esports:skus:suspension_decision", Path: "/api/v1/esports/admin/sku-suspensions/{id}/decision", Method: "POST", Parent: "esports:product:menu"},
 			{Type: cmfapp.PermAPI, Name: "撤回停服申请", Code: "esports:skus:suspension_cancel", Path: "/api/v1/esports/admin/sku-suspensions/{id}/cancel", Method: "POST", Parent: "esports:product:menu"},
 			{Type: cmfapp.PermAPI, Name: "停服逐单处置", Code: "esports:skus:suspension_disposal", Path: "/api/v1/esports/admin/sku-suspensions/{id}/orders/{orderId}/disposal", Method: "POST", Parent: "esports:product:menu"},
+			// 商品父实体 / 规格组（§15.1 / §15.5）。
+			{Type: cmfapp.PermAPI, Name: "查看商品", Code: "esports:products:list", Path: "/api/v1/esports/admin/products", Method: "GET", Parent: "esports:product:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看商品详情", Code: "esports:products:detail", Path: "/api/v1/esports/admin/products/{id}", Method: "GET", Parent: "esports:product:menu"},
+			{Type: cmfapp.PermAPI, Name: "创建商品", Code: "esports:products:create", Path: "/api/v1/esports/admin/products", Method: "POST", Parent: "esports:product:menu"},
+			{Type: cmfapp.PermAPI, Name: "编辑商品", Code: "esports:products:update", Path: "/api/v1/esports/admin/products/{id}", Method: "PUT", Parent: "esports:product:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看规格组", Code: "esports:spec_groups:list", Path: "/api/v1/esports/admin/spec-groups", Method: "GET", Parent: "esports:product:menu"},
+			{Type: cmfapp.PermAPI, Name: "创建规格组", Code: "esports:spec_groups:create", Path: "/api/v1/esports/admin/spec-groups", Method: "POST", Parent: "esports:product:menu"},
+			{Type: cmfapp.PermAPI, Name: "编辑规格组", Code: "esports:spec_groups:update", Path: "/api/v1/esports/admin/spec-groups/{id}", Method: "PUT", Parent: "esports:product:menu"},
 			{Type: cmfapp.PermButton, Name: "新增商品按钮", Code: "esports:skus:add", Parent: "esports:product:menu"},
 			{Type: cmfapp.PermButton, Name: "编辑商品按钮", Code: "esports:skus:edit", Parent: "esports:product:menu"},
 			{Type: cmfapp.PermButton, Name: "管理产品分类按钮", Code: "esports:categories:manage", Parent: "esports:product:menu"},
@@ -744,6 +777,8 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "发起改期提案", Code: "esports:orders:reschedule_propose", Path: "/api/v1/esports/admin/orders/{id}/reschedule-proposals", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看改期提案", Code: "esports:orders:reschedule_list", Path: "/api/v1/esports/admin/orders/{id}/reschedule-proposals", Method: "GET", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "撤回改期提案", Code: "esports:orders:reschedule_withdraw", Path: "/api/v1/esports/admin/reschedule-proposals/{id}/withdraw", Method: "POST", Parent: "esports:order:menu"},
+			// 订单逐席角色快照（§15.1 / §15.5）。
+			{Type: cmfapp.PermAPI, Name: "查看订单席位角色", Code: "esports:orders:seat_roles", Path: "/api/v1/esports/admin/orders/{id}/seat-roles", Method: "GET", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermButton, Name: "订单操作按钮", Code: "esports:orders:operate", Parent: "esports:order:menu"},
 
 			// 钱包模块：客户余额与陪玩猫粮账户、只增流水。
@@ -813,6 +848,9 @@ func init() {
 			// 多动作售后方案（§13.3 / §13.6）：动作项列表与逐项执行。
 			{Type: cmfapp.PermAPI, Name: "查看售后动作项", Code: "esports:aftersales:actions_list", Path: "/api/v1/esports/admin/after-sales/{id}/actions", Method: "GET", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "执行售后动作项", Code: "esports:aftersales:action_execute", Path: "/api/v1/esports/admin/after-sales/{id}/actions/{seq}/execute", Method: "POST", Parent: "esports:aftersale:menu"},
+			// 按充值批次退款执行（§4.5）。
+			{Type: cmfapp.PermAPI, Name: "批次退款执行", Code: "esports:aftersales:refund_execute", Path: "/api/v1/esports/admin/after-sales/{id}/refund-execute", Method: "POST", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "批次退款打款确认", Code: "esports:settlements:recharge_refund_execute", Path: "/api/v1/esports/admin/recharge-refund-executions/{id}/execute", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看补履约任务", Code: "esports:aftersales:makeups", Path: "/api/v1/esports/admin/fulfillment-makeups", Method: "GET", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "开始补履约服务", Code: "esports:aftersales:makeup_start", Path: "/api/v1/esports/admin/fulfillment-makeups/{id}/start", Method: "POST", Parent: "esports:aftersale:menu"},
 			{Type: cmfapp.PermAPI, Name: "验收补履约", Code: "esports:aftersales:makeup_complete", Path: "/api/v1/esports/admin/fulfillment-makeups/{id}/complete", Method: "POST", Parent: "esports:aftersale:menu"},
@@ -888,6 +926,14 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看提现单详情", Code: "esports:settlements:withdrawal_detail", Path: "/api/v1/esports/admin/withdrawals/{id}", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "审核提现", Code: "esports:settlements:withdrawal_review", Path: "/api/v1/esports/admin/withdrawals/{id}/review", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "登记提现打款", Code: "esports:settlements:withdrawal_pay", Path: "/api/v1/esports/admin/withdrawals/{id}/pay", Method: "POST", Parent: "esports:settlement:menu"},
+			// 提现打款执行状态机与外部渠道退款（§6.3 / §12.6 人工核验分支）。
+			{Type: cmfapp.PermAPI, Name: "提交提现打款", Code: "esports:settlements:payout_request", Path: "/api/v1/esports/admin/withdrawals/{id}/payout-request", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看提现打款记录", Code: "esports:settlements:payout_list", Path: "/api/v1/esports/admin/withdrawals/{id}/payouts", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "标记打款成功", Code: "esports:settlements:payout_paid", Path: "/api/v1/esports/admin/withdrawal-payouts/{id}/paid", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "标记打款失败", Code: "esports:settlements:payout_failed", Path: "/api/v1/esports/admin/withdrawal-payouts/{id}/failed", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "登记外部退款", Code: "esports:settlements:external_refund_register", Path: "/api/v1/esports/admin/external-refunds", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看外部退款", Code: "esports:settlements:external_refund_list", Path: "/api/v1/esports/admin/external-refunds", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "执行外部退款", Code: "esports:settlements:external_refund_execute", Path: "/api/v1/esports/admin/external-refunds/{id}/execute", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermButton, Name: "提现审核按钮", Code: "esports:settlements:withdraw_manage", Parent: "esports:settlement:menu"},
 
 			// 充值活动模块：活动配置与按活动自动匹配赠送的充值（§4.5）。
@@ -963,6 +1009,10 @@ func init() {
 			// 经营统计报表模块（§17）：老板经营总览、客服业绩、派单效率、售后质量、财务资金与结算。
 			{Type: cmfapp.PermMenu, Name: "报表", Code: "esports:stats:menu", MenuPath: "/esports/stats", Component: "esports/stats/index", Icon: "icon-bar-chart", SortOrder: 52},
 			{Type: cmfapp.PermAPI, Name: "查看经营报表", Code: "esports:stats:view", Path: "/api/v1/esports/admin/reports/{type}", Method: "GET", Parent: "esports:stats:menu"},
+			// 报表导出与审计（§17）。
+			{Type: cmfapp.PermAPI, Name: "导出报表", Code: "esports:stats:export", Path: "/api/v1/esports/admin/reports/{type}/export", Method: "GET", Parent: "esports:stats:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看报表导出历史", Code: "esports:stats:export_history", Path: "/api/v1/esports/admin/report-exports", Method: "GET", Parent: "esports:stats:menu"},
+			{Type: cmfapp.PermAPI, Name: "按类型查看导出历史", Code: "esports:stats:export_type_history", Path: "/api/v1/esports/admin/reports/{type}/exports", Method: "GET", Parent: "esports:stats:menu"},
 			{Type: cmfapp.PermButton, Name: "查看财务资金报表", Code: "esports:stats:finance", Parent: "esports:stats:menu"},
 			{Type: cmfapp.PermButton, Name: "报表操作按钮", Code: "esports:stats:manage", Parent: "esports:stats:menu"},
 

@@ -108,19 +108,20 @@ func adminAfterSaleDetail(c fiber.Ctx) error {
 }
 
 func createAfterSaleHandler(c fiber.Ctx) error {
-	adminID, err := requireAdmin(c)
+	admin, err := requestAdmin(c)
 	if err != nil {
 		return businessError(c, err)
 	}
-	var in afterSaleInput
+	var in adminCreateAfterSaleInput
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	if _, err := loadOwnedOrder(c.Context(), global.ORM, adminID, isSuper, in.SourceID); err != nil {
+	if _, err := loadOwnedOrder(c.Context(), global.ORM, admin.ID, isSuper, in.SourceID); err != nil {
 		return businessError(c, err)
 	}
-	item, err := createAfterSale(c.Context(), global.ORM, in, adminID, time.Now())
+	// §13.2：客服代建售后支持引用本人上传的凭证附件（evidence_attachment_ids）。
+	item, err := createAfterSaleWithEvidence(c.Context(), global.ORM, in.afterSaleInput, in.EvidenceAttachmentIDs, admin.ID, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

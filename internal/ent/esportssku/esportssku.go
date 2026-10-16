@@ -24,6 +24,10 @@ const (
 	FieldServiceType = "service_type"
 	// FieldCategoryID holds the string denoting the category_id field in the database.
 	FieldCategoryID = "category_id"
+	// FieldProductID holds the string denoting the product_id field in the database.
+	FieldProductID = "product_id"
+	// FieldSpecGroupID holds the string denoting the spec_group_id field in the database.
+	FieldSpecGroupID = "spec_group_id"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
 	// FieldUnitPriceCents holds the string denoting the unit_price_cents field in the database.
@@ -74,6 +78,8 @@ var Columns = []string{
 	FieldTitle,
 	FieldServiceType,
 	FieldCategoryID,
+	FieldProductID,
+	FieldSpecGroupID,
 	FieldDescription,
 	FieldUnitPriceCents,
 	FieldMinUnitPriceCents,
@@ -256,6 +262,16 @@ func ByServiceType(opts ...sql.OrderTermOption) OrderOption {
 // ByCategoryID orders the results by the category_id field.
 func ByCategoryID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCategoryID, opts...).ToFunc()
+}
+
+// ByProductID orders the results by the product_id field.
+func ByProductID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProductID, opts...).ToFunc()
+}
+
+// BySpecGroupID orders the results by the spec_group_id field.
+func BySpecGroupID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSpecGroupID, opts...).ToFunc()
 }
 
 // ByDescription orders the results by the description field.

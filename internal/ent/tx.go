@@ -86,6 +86,8 @@ type Tx struct {
 	EsportsDispatchPriorityNotice *EsportsDispatchPriorityNoticeClient
 	// EsportsDispatchSeat is the client for interacting with the EsportsDispatchSeat builders.
 	EsportsDispatchSeat *EsportsDispatchSeatClient
+	// EsportsExternalRefund is the client for interacting with the EsportsExternalRefund builders.
+	EsportsExternalRefund *EsportsExternalRefundClient
 	// EsportsFulfillmentMakeup is the client for interacting with the EsportsFulfillmentMakeup builders.
 	EsportsFulfillmentMakeup *EsportsFulfillmentMakeupClient
 	// EsportsGift is the client for interacting with the EsportsGift builders.
@@ -146,6 +148,8 @@ type Tx struct {
 	EsportsPlayerReviewRevision *EsportsPlayerReviewRevisionClient
 	// EsportsPriceAdjustment is the client for interacting with the EsportsPriceAdjustment builders.
 	EsportsPriceAdjustment *EsportsPriceAdjustmentClient
+	// EsportsProduct is the client for interacting with the EsportsProduct builders.
+	EsportsProduct *EsportsProductClient
 	// EsportsProductCategory is the client for interacting with the EsportsProductCategory builders.
 	EsportsProductCategory *EsportsProductCategoryClient
 	// EsportsQuotaHold is the client for interacting with the EsportsQuotaHold builders.
@@ -154,6 +158,10 @@ type Tx struct {
 	EsportsRechargeCampaign *EsportsRechargeCampaignClient
 	// EsportsRechargeIntent is the client for interacting with the EsportsRechargeIntent builders.
 	EsportsRechargeIntent *EsportsRechargeIntentClient
+	// EsportsRechargeRefundExecution is the client for interacting with the EsportsRechargeRefundExecution builders.
+	EsportsRechargeRefundExecution *EsportsRechargeRefundExecutionClient
+	// EsportsReportExport is the client for interacting with the EsportsReportExport builders.
+	EsportsReportExport *EsportsReportExportClient
 	// EsportsRescheduleConfirmation is the client for interacting with the EsportsRescheduleConfirmation builders.
 	EsportsRescheduleConfirmation *EsportsRescheduleConfirmationClient
 	// EsportsRescheduleProposal is the client for interacting with the EsportsRescheduleProposal builders.
@@ -174,6 +182,8 @@ type Tx struct {
 	EsportsSkuSuspension *EsportsSkuSuspensionClient
 	// EsportsSkuSuspensionItem is the client for interacting with the EsportsSkuSuspensionItem builders.
 	EsportsSkuSuspensionItem *EsportsSkuSuspensionItemClient
+	// EsportsSpecGroup is the client for interacting with the EsportsSpecGroup builders.
+	EsportsSpecGroup *EsportsSpecGroupClient
 	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
 	EsportsStoredValueCard *EsportsStoredValueCardClient
 	// EsportsStoredValuePackage is the client for interacting with the EsportsStoredValuePackage builders.
@@ -186,6 +196,8 @@ type Tx struct {
 	EsportsWalletTx *EsportsWalletTxClient
 	// EsportsWithdrawal is the client for interacting with the EsportsWithdrawal builders.
 	EsportsWithdrawal *EsportsWithdrawalClient
+	// EsportsWithdrawalPayout is the client for interacting with the EsportsWithdrawalPayout builders.
+	EsportsWithdrawalPayout *EsportsWithdrawalPayoutClient
 	// LoginLog is the client for interacting with the LoginLog builders.
 	LoginLog *LoginLogClient
 	// Message is the client for interacting with the Message builders.
@@ -382,6 +394,7 @@ func (tx *Tx) init() {
 	tx.EsportsDispatchPriorityGrant = NewEsportsDispatchPriorityGrantClient(tx.config)
 	tx.EsportsDispatchPriorityNotice = NewEsportsDispatchPriorityNoticeClient(tx.config)
 	tx.EsportsDispatchSeat = NewEsportsDispatchSeatClient(tx.config)
+	tx.EsportsExternalRefund = NewEsportsExternalRefundClient(tx.config)
 	tx.EsportsFulfillmentMakeup = NewEsportsFulfillmentMakeupClient(tx.config)
 	tx.EsportsGift = NewEsportsGiftClient(tx.config)
 	tx.EsportsGiftDispute = NewEsportsGiftDisputeClient(tx.config)
@@ -412,10 +425,13 @@ func (tx *Tx) init() {
 	tx.EsportsPlayerReview = NewEsportsPlayerReviewClient(tx.config)
 	tx.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(tx.config)
 	tx.EsportsPriceAdjustment = NewEsportsPriceAdjustmentClient(tx.config)
+	tx.EsportsProduct = NewEsportsProductClient(tx.config)
 	tx.EsportsProductCategory = NewEsportsProductCategoryClient(tx.config)
 	tx.EsportsQuotaHold = NewEsportsQuotaHoldClient(tx.config)
 	tx.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(tx.config)
 	tx.EsportsRechargeIntent = NewEsportsRechargeIntentClient(tx.config)
+	tx.EsportsRechargeRefundExecution = NewEsportsRechargeRefundExecutionClient(tx.config)
+	tx.EsportsReportExport = NewEsportsReportExportClient(tx.config)
 	tx.EsportsRescheduleConfirmation = NewEsportsRescheduleConfirmationClient(tx.config)
 	tx.EsportsRescheduleProposal = NewEsportsRescheduleProposalClient(tx.config)
 	tx.EsportsScript = NewEsportsScriptClient(tx.config)
@@ -426,12 +442,14 @@ func (tx *Tx) init() {
 	tx.EsportsSku = NewEsportsSkuClient(tx.config)
 	tx.EsportsSkuSuspension = NewEsportsSkuSuspensionClient(tx.config)
 	tx.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(tx.config)
+	tx.EsportsSpecGroup = NewEsportsSpecGroupClient(tx.config)
 	tx.EsportsStoredValueCard = NewEsportsStoredValueCardClient(tx.config)
 	tx.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(tx.config)
 	tx.EsportsTeammate = NewEsportsTeammateClient(tx.config)
 	tx.EsportsWalletAccount = NewEsportsWalletAccountClient(tx.config)
 	tx.EsportsWalletTx = NewEsportsWalletTxClient(tx.config)
 	tx.EsportsWithdrawal = NewEsportsWithdrawalClient(tx.config)
+	tx.EsportsWithdrawalPayout = NewEsportsWithdrawalPayoutClient(tx.config)
 	tx.LoginLog = NewLoginLogClient(tx.config)
 	tx.Message = NewMessageClient(tx.config)
 	tx.MessagePreference = NewMessagePreferenceClient(tx.config)

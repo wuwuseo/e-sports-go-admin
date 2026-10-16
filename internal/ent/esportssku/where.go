@@ -69,6 +69,16 @@ func CategoryID(v int) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldCategoryID, v))
 }
 
+// ProductID applies equality check predicate on the "product_id" field. It's identical to ProductIDEQ.
+func ProductID(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldProductID, v))
+}
+
+// SpecGroupID applies equality check predicate on the "spec_group_id" field. It's identical to SpecGroupIDEQ.
+func SpecGroupID(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldSpecGroupID, v))
+}
+
 // Description applies equality check predicate on the "description" field. It's identical to DescriptionEQ.
 func Description(v string) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldDescription, v))
@@ -347,6 +357,106 @@ func CategoryIDIsNil() predicate.EsportsSku {
 // CategoryIDNotNil applies the NotNil predicate on the "category_id" field.
 func CategoryIDNotNil() predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldNotNull(FieldCategoryID))
+}
+
+// ProductIDEQ applies the EQ predicate on the "product_id" field.
+func ProductIDEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldProductID, v))
+}
+
+// ProductIDNEQ applies the NEQ predicate on the "product_id" field.
+func ProductIDNEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldProductID, v))
+}
+
+// ProductIDIn applies the In predicate on the "product_id" field.
+func ProductIDIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldProductID, vs...))
+}
+
+// ProductIDNotIn applies the NotIn predicate on the "product_id" field.
+func ProductIDNotIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldProductID, vs...))
+}
+
+// ProductIDGT applies the GT predicate on the "product_id" field.
+func ProductIDGT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldProductID, v))
+}
+
+// ProductIDGTE applies the GTE predicate on the "product_id" field.
+func ProductIDGTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldProductID, v))
+}
+
+// ProductIDLT applies the LT predicate on the "product_id" field.
+func ProductIDLT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldProductID, v))
+}
+
+// ProductIDLTE applies the LTE predicate on the "product_id" field.
+func ProductIDLTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldProductID, v))
+}
+
+// ProductIDIsNil applies the IsNil predicate on the "product_id" field.
+func ProductIDIsNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIsNull(FieldProductID))
+}
+
+// ProductIDNotNil applies the NotNil predicate on the "product_id" field.
+func ProductIDNotNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotNull(FieldProductID))
+}
+
+// SpecGroupIDEQ applies the EQ predicate on the "spec_group_id" field.
+func SpecGroupIDEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldSpecGroupID, v))
+}
+
+// SpecGroupIDNEQ applies the NEQ predicate on the "spec_group_id" field.
+func SpecGroupIDNEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldSpecGroupID, v))
+}
+
+// SpecGroupIDIn applies the In predicate on the "spec_group_id" field.
+func SpecGroupIDIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldSpecGroupID, vs...))
+}
+
+// SpecGroupIDNotIn applies the NotIn predicate on the "spec_group_id" field.
+func SpecGroupIDNotIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldSpecGroupID, vs...))
+}
+
+// SpecGroupIDGT applies the GT predicate on the "spec_group_id" field.
+func SpecGroupIDGT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldSpecGroupID, v))
+}
+
+// SpecGroupIDGTE applies the GTE predicate on the "spec_group_id" field.
+func SpecGroupIDGTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldSpecGroupID, v))
+}
+
+// SpecGroupIDLT applies the LT predicate on the "spec_group_id" field.
+func SpecGroupIDLT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldSpecGroupID, v))
+}
+
+// SpecGroupIDLTE applies the LTE predicate on the "spec_group_id" field.
+func SpecGroupIDLTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldSpecGroupID, v))
+}
+
+// SpecGroupIDIsNil applies the IsNil predicate on the "spec_group_id" field.
+func SpecGroupIDIsNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIsNull(FieldSpecGroupID))
+}
+
+// SpecGroupIDNotNil applies the NotNil predicate on the "spec_group_id" field.
+func SpecGroupIDNotNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotNull(FieldSpecGroupID))
 }
 
 // DescriptionEQ applies the EQ predicate on the "description" field.

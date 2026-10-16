@@ -3,7 +3,9 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
+	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportsorder"
 	"strings"
 	"time"
@@ -73,6 +75,8 @@ type EsportsOrder struct {
 	RequiredSeats int `json:"required_seats"`
 	// RequiredLevel holds the value of the "required_level" field.
 	RequiredLevel esportsorder.RequiredLevel `json:"required_level"`
+	// SeatRoles holds the value of the "seat_roles" field.
+	SeatRoles []schematier.SeatSpec `json:"seat_roles"`
 	// QuoteVersion holds the value of the "quote_version" field.
 	QuoteVersion int `json:"quote_version"`
 	// Version holds the value of the "version" field.
@@ -153,6 +157,8 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case esportsorder.FieldSeatRoles:
+			values[i] = new([]byte)
 		case esportsorder.FieldBackfillCountCommission:
 			values[i] = new(sql.NullBool)
 		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldManualCommissionRuleID, esportsorder.FieldManualCommissionRuleSetByAdminID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldServiceDurationMinutes, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
@@ -359,6 +365,14 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field required_level", values[i])
 			} else if value.Valid {
 				_m.RequiredLevel = esportsorder.RequiredLevel(value.String)
+			}
+		case esportsorder.FieldSeatRoles:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field seat_roles", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.SeatRoles); err != nil {
+					return fmt.Errorf("unmarshal field seat_roles: %w", err)
+				}
 			}
 		case esportsorder.FieldQuoteVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -732,6 +746,9 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("required_level=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredLevel))
+	builder.WriteString(", ")
+	builder.WriteString("seat_roles=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SeatRoles))
 	builder.WriteString(", ")
 	builder.WriteString("quote_version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.QuoteVersion))

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportsorder"
 	"time"
 
@@ -345,6 +346,12 @@ func (_c *EsportsOrderCreate) SetNillableRequiredLevel(v *esportsorder.RequiredL
 	if v != nil {
 		_c.SetRequiredLevel(*v)
 	}
+	return _c
+}
+
+// SetSeatRoles sets the "seat_roles" field.
+func (_c *EsportsOrderCreate) SetSeatRoles(v []schematier.SeatSpec) *EsportsOrderCreate {
+	_c.mutation.SetSeatRoles(v)
 	return _c
 }
 
@@ -1348,6 +1355,10 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.RequiredLevel(); ok {
 		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeEnum, value)
 		_node.RequiredLevel = value
+	}
+	if value, ok := _c.mutation.SeatRoles(); ok {
+		_spec.SetField(esportsorder.FieldSeatRoles, field.TypeJSON, value)
+		_node.SeatRoles = value
 	}
 	if value, ok := _c.mutation.QuoteVersion(); ok {
 		_spec.SetField(esportsorder.FieldQuoteVersion, field.TypeInt, value)

@@ -37,6 +37,10 @@ func (EsportsSku) Fields() []ent.Field {
 		field.String("title").NotEmpty().MaxLen(160).StructTag(`json:"title"`),
 		field.Enum("service_type").Values("play", "teaching", "entertainment").StructTag(`json:"service_type"`),
 		field.Int("category_id").Optional().Nillable().StructTag(`json:"category_id"`),
+		// 商品父实体（§15.1）：可空，兼容既有独立 SKU；有值时该 SKU 挂在父商品下统一维护。
+		field.Int("product_id").Optional().Nillable().StructTag(`json:"product_id"`),
+		// 规格组（§15.5）：多人规格 SKU 引用规格组；报单时快照每席角色/可替换条件进订单，空表示无逐席约束。
+		field.Int("spec_group_id").Optional().Nillable().StructTag(`json:"spec_group_id"`),
 		field.String("description").MaxLen(500).Default("").StructTag(`json:"description"`),
 		field.Int64("unit_price_cents").Positive().StructTag(`json:"unit_price_cents"`),
 		// 人工议价的每份最低价；会员权益折扣另行计算。旧客户端省略时服务层回落到展示价。
@@ -70,6 +74,7 @@ func (EsportsSku) Indexes() []ent.Index {
 		index.Fields("code").Unique(),
 		index.Fields("status"),
 		index.Fields("category_id", "sort_order"),
+		index.Fields("product_id", "sort_order"),
 	}
 }
 

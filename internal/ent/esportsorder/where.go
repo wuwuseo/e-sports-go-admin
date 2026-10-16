@@ -1509,6 +1509,16 @@ func RequiredLevelNotIn(vs ...RequiredLevel) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotIn(FieldRequiredLevel, vs...))
 }
 
+// SeatRolesIsNil applies the IsNil predicate on the "seat_roles" field.
+func SeatRolesIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldSeatRoles))
+}
+
+// SeatRolesNotNil applies the NotNil predicate on the "seat_roles" field.
+func SeatRolesNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldSeatRoles))
+}
+
 // QuoteVersionEQ applies the EQ predicate on the "quote_version" field.
 func QuoteVersionEQ(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldQuoteVersion, v))
