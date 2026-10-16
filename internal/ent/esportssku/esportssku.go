@@ -36,6 +36,8 @@ const (
 	FieldServiceUnits = "service_units"
 	// FieldServiceUnitName holds the string denoting the service_unit_name field in the database.
 	FieldServiceUnitName = "service_unit_name"
+	// FieldServiceDurationMinutes holds the string denoting the service_duration_minutes field in the database.
+	FieldServiceDurationMinutes = "service_duration_minutes"
 	// FieldRequiredSeats holds the string denoting the required_seats field in the database.
 	FieldRequiredSeats = "required_seats"
 	// FieldRequiredLevel holds the string denoting the required_level field in the database.
@@ -78,6 +80,7 @@ var Columns = []string{
 	FieldAdjustmentApprovalBp,
 	FieldServiceUnits,
 	FieldServiceUnitName,
+	FieldServiceDurationMinutes,
 	FieldRequiredSeats,
 	FieldRequiredLevel,
 	FieldCloseRuleCode,
@@ -120,6 +123,8 @@ var (
 	ServiceUnitsValidator func(int64) error
 	// ServiceUnitNameValidator is a validator for the "service_unit_name" field. It is called by the builders before save.
 	ServiceUnitNameValidator func(string) error
+	// DefaultServiceDurationMinutes holds the default value on creation for the "service_duration_minutes" field.
+	DefaultServiceDurationMinutes int
 	// DefaultRequiredSeats holds the default value on creation for the "required_seats" field.
 	DefaultRequiredSeats int
 	// RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
@@ -281,6 +286,11 @@ func ByServiceUnits(opts ...sql.OrderTermOption) OrderOption {
 // ByServiceUnitName orders the results by the service_unit_name field.
 func ByServiceUnitName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldServiceUnitName, opts...).ToFunc()
+}
+
+// ByServiceDurationMinutes orders the results by the service_duration_minutes field.
+func ByServiceDurationMinutes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceDurationMinutes, opts...).ToFunc()
 }
 
 // ByRequiredSeats orders the results by the required_seats field.

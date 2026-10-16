@@ -255,3 +255,292 @@ func TestReportAggregations(t *testing.T) {
 		t.Fatalf("支付方式聚合不正确：%+v", channels)
 	}
 }
+
+// bulkReportOrder 是大样本报表用例的订单构造参数。
+type bulkReportOrder struct {
+	OrderNo       string
+	CreatedAt     time.Time
+	AdminID       int
+	PayableCents  int64
+	RefundedCents int64
+	Payment       esportsorder.PaymentStatus
+	Fulfillment   esportsorder.FulfillmentStatus
+}
+
+// seedOrdersBulk 分批批量写入订单：单条 INSERT 的参数个数受 SQLite / MySQL 上限约束，
+// 因此按批聚合而不是逐条创建。
+func seedOrdersBulk(t *testing.T, db *ent.Client, specs []bulkReportOrder) {
+	t.Helper()
+	const batchSize = 250
+	ctx := t.Context()
+	for start := 0; start < len(specs); start += batchSize {
+		end := start + batchSize
+		if end > len(specs) {
+			end = len(specs)
+		}
+		batch := make([]*ent.EsportsOrderCreate, 0, end-start)
+		for _, spec := range specs[start:end] {
+			batch = append(batch, db.EsportsOrder.Create().
+				SetOrderNo(spec.OrderNo).SetCustomerID(1).SetSkuID(1).
+				SetQuantity(1).SetUnitPriceCents(spec.PayableCents).SetPayableCents(spec.PayableCents).
+				SetRefundedCents(spec.RefundedCents).SetPromisedServiceUnits(1).SetRequiredSeats(1).
+				SetResponsibleAdminID(spec.AdminID).SetCreatedByAdminID(spec.AdminID).
+				SetPaymentDeadline(spec.CreatedAt.Add(time.Hour)).
+				SetPaymentStatus(spec.Payment).SetFulfillmentStatus(spec.Fulfillment).
+				SetCreatedAt(spec.CreatedAt))
+		}
+		if _, err := db.EsportsOrder.CreateBulk(batch...).Save(ctx); err != nil {
+			t.Fatalf("批量写入订单失败（%d~%d）：%v", start, end, err)
+		}
+	}
+}
+
+// §17 大样本：汇总与分组统计走数据库端聚合，订单量超过明细上限时也不得整体报错，
+// 且总量 / 营收 / 净额与时间轴分段之和都必须与样本一致。
+func TestReportLargeSampleOwnerOverview(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_large_sample?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+
+	// 样本量刻意超过下钻明细上限，覆盖「聚合不再受行数限制」这一诉求。
+	const sample = reportDetailLimit + 137
+	specs := make([]bulkReportOrder, 0, sample)
+	var wantOrders, wantPaid, wantCompleted, wantCancelled int
+	var wantRevenue, wantRefund int64
+	for i := 0; i < sample; i++ {
+		paid := i%3 != 0
+		payable := int64(1000 + i%97)
+		refunded := int64(0)
+		if i%5 == 0 {
+			refunded = 10 + int64(i%7)
+		}
+		payment := esportsorder.PaymentStatusUnpaid
+		if paid {
+			payment = esportsorder.PaymentStatusPaid
+		}
+		fulfillment := esportsorder.FulfillmentStatusPendingDispatch
+		switch i % 4 {
+		case 0:
+			fulfillment = esportsorder.FulfillmentStatusCompleted
+		case 1:
+			fulfillment = esportsorder.FulfillmentStatusCancelled
+		}
+		specs = append(specs, bulkReportOrder{
+			OrderNo: "large-" + strconv.Itoa(i),
+			// 均匀落在连续三天内，用于校验时间轴分段之和等于总量。
+			CreatedAt:    day.Add(time.Duration(i%3)*24*time.Hour + time.Duration(i%3600)*time.Second),
+			AdminID:      11,
+			PayableCents: payable, RefundedCents: refunded,
+			Payment: payment, Fulfillment: fulfillment,
+		})
+		wantOrders++
+		wantRefund += refunded
+		if paid {
+			wantPaid++
+			wantRevenue += payable
+		}
+		switch fulfillment {
+		case esportsorder.FulfillmentStatusCompleted:
+			wantCompleted++
+		case esportsorder.FulfillmentStatusCancelled:
+			wantCancelled++
+		}
+	}
+	seedOrdersBulk(t, db, specs)
+
+	report, err := ownerOverviewReport(ctx, db, reportFilter{Start: day, End: day.AddDate(0, 0, 3), Period: "daily"})
+	if err != nil {
+		t.Fatalf("大样本经营总览不得整体报错：%v", err)
+	}
+	summary := report["summary"].(map[string]any)
+	if summary["order_count"].(int) != wantOrders ||
+		summary["paid_count"].(int) != wantPaid ||
+		summary["revenue_cents"].(int64) != wantRevenue ||
+		summary["refund_cents"].(int64) != wantRefund ||
+		summary["net_cents"].(int64) != wantRevenue-wantRefund ||
+		summary["completed_count"].(int) != wantCompleted ||
+		summary["cancelled_count"].(int) != wantCancelled {
+		t.Fatalf("大样本汇总不正确：%+v", summary)
+	}
+
+	// 下钻明细受上限约束，必须显式标记截断，避免静默漏数。
+	if report["detail_truncated"].(bool) != true {
+		t.Fatalf("明细超过上限时未标记截断：%+v", report["detail_truncated"])
+	}
+	if got := len(report["details"].([]map[string]any)); got != reportDetailLimit {
+		t.Fatalf("下钻明细条数不正确：%d", got)
+	}
+
+	// 时间轴分段之和必须等于汇总口径。
+	if got := report["bucket_period"].(string); got != "daily" {
+		t.Fatalf("时间轴粒度不正确：%s", got)
+	}
+	buckets := report["buckets"].([]reportBucket)
+	if len(buckets) != 3 {
+		t.Fatalf("时间轴分段数不正确：%d", len(buckets))
+	}
+	var bucketOrders int
+	var bucketRevenue, bucketRefund int64
+	for _, bucket := range buckets {
+		bucketOrders += bucket.OrderCount
+		bucketRevenue += bucket.RevenueCents
+		bucketRefund += bucket.RefundCents
+	}
+	if bucketOrders != wantOrders || bucketRevenue != wantRevenue || bucketRefund != wantRefund {
+		t.Fatalf("时间轴分段之和与汇总不一致：orders=%d/%d revenue=%d/%d refund=%d/%d",
+			bucketOrders, wantOrders, bucketRevenue, wantRevenue, bucketRefund, wantRefund)
+	}
+}
+
+// 下钻明细上限按入参收敛：超过上限截断并标记，未超过时不标记。
+func TestReportOwnerOverviewDetailTruncated(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_detail_limit?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 3; i++ {
+		seedReportOrder(t, db, "detail-"+strconv.Itoa(i), day.Add(time.Duration(i+1)*time.Hour), 11, 1000, 0,
+			esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	}
+	truncated, err := ownerOverviewReport(ctx, db, reportFilter{
+		Start: day, End: day.AddDate(0, 0, 1), Period: "daily", Limit: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if truncated["detail_truncated"].(bool) != true || len(truncated["details"].([]map[string]any)) != 2 {
+		t.Fatalf("明细上限未生效：%+v", truncated["details"])
+	}
+	if truncated["summary"].(map[string]any)["order_count"].(int) != 3 {
+		t.Fatalf("明细截断不得影响汇总：%+v", truncated["summary"])
+	}
+	full, err := ownerOverviewReport(ctx, db, reportFilter{
+		Start: day, End: day.AddDate(0, 0, 1), Period: "daily", Limit: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if full["detail_truncated"].(bool) != false || len(full["details"].([]map[string]any)) != 3 {
+		t.Fatalf("明细未超限时不应标记截断：%+v", full["details"])
+	}
+}
+
+// 售后下钻明细同样受上限约束并显式标记，汇总仍为全量聚合。
+func TestReportAftersaleQualityDetailTruncated(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_aftersale_detail?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	for i := 0; i < 3; i++ {
+		db.EsportsAfterSale.Create().SetAfterSaleNo("aftersale-detail-" + strconv.Itoa(i)).
+			SetSourceID(i + 1).SetKind(esportsaftersale.KindRefundRequest).
+			SetChannel(esportsaftersale.ChannelCustomer).SetDemand("测试").
+			SetRefundCents(100).SetCreatedAt(day.Add(time.Duration(i+1) * time.Hour)).SaveX(ctx)
+	}
+	result, err := aftersaleQualityReport(ctx, db, reportFilter{
+		Start: day, End: day.AddDate(0, 0, 1), Limit: 2,
+	}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result["summary"].(map[string]any)["total"].(int) != 3 ||
+		result["summary"].(map[string]any)["refund_cents"].(int64) != 300 {
+		t.Fatalf("售后汇总不正确：%+v", result["summary"])
+	}
+	if result["detail_truncated"].(bool) != true || len(result["details"].([]map[string]any)) != 2 {
+		t.Fatalf("售后明细未按上限截断：%+v", result["details"])
+	}
+}
+
+// §5.9 时间线埋点的四类平均等待时长必须由 SQL 聚合得出，且只统计时间点齐全的订单。
+func TestReportDispatchEfficiencyTimelineAverages(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_timeline?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	pooled := day.Add(time.Hour)
+	full := seedReportOrder(t, db, "timeline-full", pooled.Add(-time.Minute), 11, 5000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	db.EsportsOrder.UpdateOneID(full.ID).
+		SetFirstPooledAt(pooled).
+		SetFirstInvitedAt(pooled.Add(120 * time.Second)).
+		SetFirstAcceptedAt(pooled.Add(180 * time.Second)).
+		SetServiceStartedAt(pooled.Add(480 * time.Second)).SaveX(ctx)
+	// 第二单只埋了「入池 → 派出」：只影响该段的样本数与均值。
+	partial := seedReportOrder(t, db, "timeline-partial", pooled.Add(2*time.Hour), 11, 5000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	db.EsportsOrder.UpdateOneID(partial.ID).
+		SetFirstPooledAt(pooled.Add(time.Hour)).
+		SetFirstInvitedAt(pooled.Add(time.Hour + 60*time.Second)).SaveX(ctx)
+
+	result, err := dispatchEfficiencyReport(ctx, db, reportFilter{Start: day, End: day.AddDate(0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary := result["summary"].(map[string]any)
+	if summary["avg_pool_to_invite_seconds"].(int64) != 90 ||
+		summary["avg_invite_to_accept_seconds"].(int64) != 60 ||
+		summary["avg_accept_to_start_seconds"].(int64) != 300 ||
+		summary["avg_pool_to_start_seconds"].(int64) != 480 {
+		t.Fatalf("时间线平均等待时长不正确：%+v", summary)
+	}
+}
+
+// 订单维度筛选生效时，客服提成只计入关联订单命中筛选的明细（分片归集路径）。
+func TestReportCsPerformanceCommissionOrderScope(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_cs_commission?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	wecom := seedReportOrder(t, db, "cs-commission-wecom", day.Add(time.Hour), 11, 8000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	manual := seedReportOrder(t, db, "cs-commission-manual", day.Add(2*time.Hour), 11, 6000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	db.EsportsOrder.UpdateOneID(wecom.ID).SetChannelSource(esportsorder.ChannelSourceWecom).SaveX(ctx)
+	db.EsportsOrder.UpdateOneID(manual.ID).SetChannelSource(esportsorder.ChannelSourceManual).SaveX(ctx)
+	for i, order := range []*ent.EsportsOrder{wecom, manual} {
+		db.EsportsCsCommissionEntry.Create().SetIdemKey("cs-commission-" + strconv.Itoa(i)).
+			SetAdminID(11).SetOrderID(order.ID).SetGiftOrderID(order.ID).
+			SetKind(esportscscommissionentry.KindGift).
+			SetAmountCents(int64(300 + 400*i)).
+			SetCreatedAt(day.Add(time.Duration(i+1) * time.Hour)).SaveX(ctx)
+	}
+	result, err := csPerformanceReport(ctx, db, reportFilter{
+		Start: day, End: day.AddDate(0, 0, 1), ChannelSource: "wecom",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := result["rows"].([]csPerformanceRow)
+	if len(rows) != 1 || rows[0].OrderCount != 1 || rows[0].RevenueCents != 8000 {
+		t.Fatalf("渠道筛选未作用到客服分组：%+v", rows)
+	}
+	if rows[0].CommissionCents != 300 {
+		t.Fatalf("提成未按订单维度筛选归集：%+v", rows)
+	}
+}
+
+// 时间轴分段在数据跨度过大时自动放粗粒度，保证分段查询次数有界且区间首尾相接。
+func TestReportBucketPlanWidensPeriod(t *testing.T) {
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+
+	period, ranges := reportBucketPlan(day, day.AddDate(0, 0, 2).Add(23*time.Hour), "daily")
+	if period != "daily" || len(ranges) != 3 {
+		t.Fatalf("短区间不应放粗粒度：period=%s ranges=%d", period, len(ranges))
+	}
+	period, ranges = reportBucketPlan(day, day.AddDate(5, 0, 0), "daily")
+	if period == "daily" || len(ranges) > reportBucketLimit {
+		t.Fatalf("长区间未按上限放粗粒度：period=%s ranges=%d", period, len(ranges))
+	}
+	for i := 1; i < len(ranges); i++ {
+		if !ranges[i].Start.Equal(ranges[i-1].End) {
+			t.Fatalf("分段区间未首尾相接：%v 与 %v", ranges[i-1], ranges[i])
+		}
+	}
+}

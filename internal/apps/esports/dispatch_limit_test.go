@@ -176,7 +176,7 @@ func TestDispatchCapacityReservationRejectsStalePlayerVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := reservePlayerDispatchCapacity(ctx, tx, player, now, 0); err != nil {
+	if err := reservePlayerDispatchCapacity(ctx, tx, player, nil, now, 0); err != nil {
 		_ = tx.Rollback()
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestDispatchCapacityReservationRejectsStalePlayerVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stale.Rollback()
-	if err := reservePlayerDispatchCapacity(ctx, stale, player, now, 0); !errors.Is(err, errConflict) {
+	if err := reservePlayerDispatchCapacity(ctx, stale, player, nil, now, 0); !errors.Is(err, errConflict) {
 		t.Fatalf("旧陪玩版本不得再次抢占容量：%v", err)
 	}
 }

@@ -99,6 +99,11 @@ func ServiceUnitName(v string) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldServiceUnitName, v))
 }
 
+// ServiceDurationMinutes applies equality check predicate on the "service_duration_minutes" field. It's identical to ServiceDurationMinutesEQ.
+func ServiceDurationMinutes(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldServiceDurationMinutes, v))
+}
+
 // RequiredSeats applies equality check predicate on the "required_seats" field. It's identical to RequiredSeatsEQ.
 func RequiredSeats(v int) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldRequiredSeats, v))
@@ -632,6 +637,46 @@ func ServiceUnitNameEqualFold(v string) predicate.EsportsSku {
 // ServiceUnitNameContainsFold applies the ContainsFold predicate on the "service_unit_name" field.
 func ServiceUnitNameContainsFold(v string) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldContainsFold(FieldServiceUnitName, v))
+}
+
+// ServiceDurationMinutesEQ applies the EQ predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesNEQ applies the NEQ predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesNEQ(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesIn applies the In predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldServiceDurationMinutes, vs...))
+}
+
+// ServiceDurationMinutesNotIn applies the NotIn predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesNotIn(vs ...int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldServiceDurationMinutes, vs...))
+}
+
+// ServiceDurationMinutesGT applies the GT predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesGT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesGTE applies the GTE predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesGTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesLT applies the LT predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesLT(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesLTE applies the LTE predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesLTE(v int) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldServiceDurationMinutes, v))
 }
 
 // RequiredSeatsEQ applies the EQ predicate on the "required_seats" field.

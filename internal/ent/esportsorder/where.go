@@ -94,6 +94,21 @@ func CsCommissionRuleLockedAt(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldCsCommissionRuleLockedAt, v))
 }
 
+// ManualCommissionRuleID applies equality check predicate on the "manual_commission_rule_id" field. It's identical to ManualCommissionRuleIDEQ.
+func ManualCommissionRuleID(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldManualCommissionRuleID, v))
+}
+
+// ManualCommissionRuleSetByAdminID applies equality check predicate on the "manual_commission_rule_set_by_admin_id" field. It's identical to ManualCommissionRuleSetByAdminIDEQ.
+func ManualCommissionRuleSetByAdminID(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldManualCommissionRuleSetByAdminID, v))
+}
+
+// ManualCommissionRuleSetAt applies equality check predicate on the "manual_commission_rule_set_at" field. It's identical to ManualCommissionRuleSetAtEQ.
+func ManualCommissionRuleSetAt(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldManualCommissionRuleSetAt, v))
+}
+
 // CloseFormTemplateID applies equality check predicate on the "close_form_template_id" field. It's identical to CloseFormTemplateIDEQ.
 func CloseFormTemplateID(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldCloseFormTemplateID, v))
@@ -142,6 +157,11 @@ func PayableCents(v int64) predicate.EsportsOrder {
 // PromisedServiceUnits applies equality check predicate on the "promised_service_units" field. It's identical to PromisedServiceUnitsEQ.
 func PromisedServiceUnits(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldPromisedServiceUnits, v))
+}
+
+// ServiceDurationMinutes applies equality check predicate on the "service_duration_minutes" field. It's identical to ServiceDurationMinutesEQ.
+func ServiceDurationMinutes(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldServiceDurationMinutes, v))
 }
 
 // AddonCents applies equality check predicate on the "addon_cents" field. It's identical to AddonCentsEQ.
@@ -699,6 +719,156 @@ func CsCommissionRuleLockedAtNotNil() predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotNull(FieldCsCommissionRuleLockedAt))
 }
 
+// ManualCommissionRuleIDEQ applies the EQ predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldManualCommissionRuleID, v))
+}
+
+// ManualCommissionRuleIDNEQ applies the NEQ predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDNEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldManualCommissionRuleID, v))
+}
+
+// ManualCommissionRuleIDIn applies the In predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldManualCommissionRuleID, vs...))
+}
+
+// ManualCommissionRuleIDNotIn applies the NotIn predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDNotIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldManualCommissionRuleID, vs...))
+}
+
+// ManualCommissionRuleIDGT applies the GT predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDGT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldManualCommissionRuleID, v))
+}
+
+// ManualCommissionRuleIDGTE applies the GTE predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDGTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldManualCommissionRuleID, v))
+}
+
+// ManualCommissionRuleIDLT applies the LT predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDLT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldManualCommissionRuleID, v))
+}
+
+// ManualCommissionRuleIDLTE applies the LTE predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDLTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldManualCommissionRuleID, v))
+}
+
+// ManualCommissionRuleIDIsNil applies the IsNil predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldManualCommissionRuleID))
+}
+
+// ManualCommissionRuleIDNotNil applies the NotNil predicate on the "manual_commission_rule_id" field.
+func ManualCommissionRuleIDNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldManualCommissionRuleID))
+}
+
+// ManualCommissionRuleSetByAdminIDEQ applies the EQ predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldManualCommissionRuleSetByAdminID, v))
+}
+
+// ManualCommissionRuleSetByAdminIDNEQ applies the NEQ predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDNEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldManualCommissionRuleSetByAdminID, v))
+}
+
+// ManualCommissionRuleSetByAdminIDIn applies the In predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldManualCommissionRuleSetByAdminID, vs...))
+}
+
+// ManualCommissionRuleSetByAdminIDNotIn applies the NotIn predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDNotIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldManualCommissionRuleSetByAdminID, vs...))
+}
+
+// ManualCommissionRuleSetByAdminIDGT applies the GT predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDGT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldManualCommissionRuleSetByAdminID, v))
+}
+
+// ManualCommissionRuleSetByAdminIDGTE applies the GTE predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDGTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldManualCommissionRuleSetByAdminID, v))
+}
+
+// ManualCommissionRuleSetByAdminIDLT applies the LT predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDLT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldManualCommissionRuleSetByAdminID, v))
+}
+
+// ManualCommissionRuleSetByAdminIDLTE applies the LTE predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDLTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldManualCommissionRuleSetByAdminID, v))
+}
+
+// ManualCommissionRuleSetByAdminIDIsNil applies the IsNil predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldManualCommissionRuleSetByAdminID))
+}
+
+// ManualCommissionRuleSetByAdminIDNotNil applies the NotNil predicate on the "manual_commission_rule_set_by_admin_id" field.
+func ManualCommissionRuleSetByAdminIDNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldManualCommissionRuleSetByAdminID))
+}
+
+// ManualCommissionRuleSetAtEQ applies the EQ predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldManualCommissionRuleSetAt, v))
+}
+
+// ManualCommissionRuleSetAtNEQ applies the NEQ predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtNEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldManualCommissionRuleSetAt, v))
+}
+
+// ManualCommissionRuleSetAtIn applies the In predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldManualCommissionRuleSetAt, vs...))
+}
+
+// ManualCommissionRuleSetAtNotIn applies the NotIn predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtNotIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldManualCommissionRuleSetAt, vs...))
+}
+
+// ManualCommissionRuleSetAtGT applies the GT predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtGT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldManualCommissionRuleSetAt, v))
+}
+
+// ManualCommissionRuleSetAtGTE applies the GTE predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtGTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldManualCommissionRuleSetAt, v))
+}
+
+// ManualCommissionRuleSetAtLT applies the LT predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtLT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldManualCommissionRuleSetAt, v))
+}
+
+// ManualCommissionRuleSetAtLTE applies the LTE predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtLTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldManualCommissionRuleSetAt, v))
+}
+
+// ManualCommissionRuleSetAtIsNil applies the IsNil predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldManualCommissionRuleSetAt))
+}
+
+// ManualCommissionRuleSetAtNotNil applies the NotNil predicate on the "manual_commission_rule_set_at" field.
+func ManualCommissionRuleSetAtNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldManualCommissionRuleSetAt))
+}
+
 // CloseFormTemplateIDEQ applies the EQ predicate on the "close_form_template_id" field.
 func CloseFormTemplateIDEQ(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldCloseFormTemplateID, v))
@@ -1157,6 +1327,46 @@ func PromisedServiceUnitsLT(v int64) predicate.EsportsOrder {
 // PromisedServiceUnitsLTE applies the LTE predicate on the "promised_service_units" field.
 func PromisedServiceUnitsLTE(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldLTE(FieldPromisedServiceUnits, v))
+}
+
+// ServiceDurationMinutesEQ applies the EQ predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesNEQ applies the NEQ predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesNEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesIn applies the In predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldServiceDurationMinutes, vs...))
+}
+
+// ServiceDurationMinutesNotIn applies the NotIn predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesNotIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldServiceDurationMinutes, vs...))
+}
+
+// ServiceDurationMinutesGT applies the GT predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesGT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesGTE applies the GTE predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesGTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesLT applies the LT predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesLT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldServiceDurationMinutes, v))
+}
+
+// ServiceDurationMinutesLTE applies the LTE predicate on the "service_duration_minutes" field.
+func ServiceDurationMinutesLTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldServiceDurationMinutes, v))
 }
 
 // AddonCentsEQ applies the EQ predicate on the "addon_cents" field.

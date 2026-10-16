@@ -13,6 +13,7 @@ import (
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
 	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportswallettx"
@@ -45,7 +46,7 @@ type commissionMember struct {
 
 func validCommissionScope(scope string) bool {
 	switch scope {
-	case "global", "game", "player":
+	case "global", "game", "level", "player":
 		return true
 	}
 	return false
@@ -112,19 +113,37 @@ func loadOrderMembers(ctx context.Context,
 }
 
 // resolveCommissionRuleForPlayerIn 按单个陪玩解析当前规则，避免全单取首位成员的个体约定。
+// §12.3 五级优先级：单笔手动指定 > 陪玩个体约定(player) > 陪玩等级(level) > 游戏或服务类型(game) > 全局默认。
 // 无规则返回 nil；接单时把结果（包括无规则）锁定到席位，后续规则变更不影响该成员。
 // scheduled 版本到达预设时间即适用，不依赖定时任务是否已补写状态。
 func resolveCommissionRuleForPlayerIn(ctx context.Context,
 	rules *ent.EsportsCommissionRuleClient,
 	skus *ent.EsportsSkuClient,
 	categories *ent.EsportsProductCategoryClient,
-	order *ent.EsportsOrder, playerID int, at time.Time,
+	order *ent.EsportsOrder, playerID int, playerLevel string, at time.Time,
 ) (*ent.EsportsCommissionRule, error) {
+	// 时间过滤只约束 scheduled 版本：active 表示已生效，立即激活写入的
+	// effective_at（激活时刻）不作为解析门槛。
+	usable := func(rule *ent.EsportsCommissionRule) bool {
+		if rule.Status != esportscommissionrule.StatusScheduled {
+			return true
+		}
+		return rule.EffectiveAt != nil && !rule.EffectiveAt.After(at.UTC())
+	}
 	active, err := rules.Query().Where(
 		esportscommissionrule.StatusIn(esportscommissionrule.StatusActive, esportscommissionrule.StatusScheduled),
 	).All(ctx)
 	if err != nil {
 		return nil, err
+	}
+	// 最高一级「单笔手动指定」：只认当前仍处于 active/scheduled 的版本，
+	// 被新版转 history 后自然回落下一级，避免引用已废弃版本。
+	if order != nil && order.ManualCommissionRuleID != nil {
+		for _, rule := range active {
+			if rule.ID == *order.ManualCommissionRuleID && usable(rule) {
+				return rule, nil
+			}
+		}
 	}
 	if len(active) == 0 {
 		return nil, nil
@@ -132,13 +151,7 @@ func resolveCommissionRuleForPlayerIn(ctx context.Context,
 	pick := func(scope esportscommissionrule.Scope, key string) *ent.EsportsCommissionRule {
 		var best *ent.EsportsCommissionRule
 		for _, rule := range active {
-			if rule.Scope != scope || rule.ScopeKey != key {
-				continue
-			}
-			// 时间过滤只约束 scheduled 版本：active 表示已生效，立即激活写入的
-			// effective_at（激活时刻）不作为解析门槛。
-			if rule.Status == esportscommissionrule.StatusScheduled &&
-				(rule.EffectiveAt == nil || rule.EffectiveAt.After(at.UTC())) {
+			if rule.Scope != scope || rule.ScopeKey != key || !usable(rule) {
 				continue
 			}
 			if best == nil || rule.Version > best.Version {
@@ -150,12 +163,20 @@ func resolveCommissionRuleForPlayerIn(ctx context.Context,
 	if rule := pick(esportscommissionrule.ScopePlayer, strconv.Itoa(playerID)); rule != nil {
 		return rule, nil
 	}
+	// 「陪玩等级」这一级让 §7.3 的等级与分成联动自动生效，无需为每人单独配规则。
+	if level := strings.TrimSpace(playerLevel); level != "" {
+		if rule := pick(esportscommissionrule.ScopeLevel, level); rule != nil {
+			return rule, nil
+		}
+	}
 	// 取 SKU 所属分类的 game 作为 game 层键；分类为空则跳过该层。
-	if sku, err := skus.Get(ctx, order.SkuID); err == nil && sku.CategoryID != nil {
-		if category, err := categories.Get(ctx, *sku.CategoryID); err == nil {
-			if game := strings.TrimSpace(category.Game); game != "" {
-				if rule := pick(esportscommissionrule.ScopeGame, game); rule != nil {
-					return rule, nil
+	if order != nil {
+		if sku, err := skus.Get(ctx, order.SkuID); err == nil && sku.CategoryID != nil {
+			if category, err := categories.Get(ctx, *sku.CategoryID); err == nil {
+				if game := strings.TrimSpace(category.Game); game != "" {
+					if rule := pick(esportscommissionrule.ScopeGame, game); rule != nil {
+						return rule, nil
+					}
 				}
 			}
 		}
@@ -171,8 +192,13 @@ func commissionRuleForMember(ctx context.Context, tx *ent.Tx, order *ent.Esports
 		return tx.EsportsCommissionRule.Get(ctx, *member.LockedRuleID)
 	}
 	// 旧数据没有接单快照时保留兼容回退；新订单必须走锁定分支。
+	// 回退解析要读当时的陪玩等级；档案缺失按无等级处理（跳过 level 级）。
+	playerLevel := ""
+	if player, pErr := tx.EsportsPlayer.Get(ctx, member.PlayerID); pErr == nil {
+		playerLevel = player.Level.String()
+	}
 	return resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-		tx.EsportsSku, tx.EsportsProductCategory, order, member.PlayerID, now)
+		tx.EsportsSku, tx.EsportsProductCategory, order, member.PlayerID, playerLevel, now)
 }
 
 // createCommissionRule 新建分成规则（一律 draft）。同一 rule_no 已存在则版本 = 现有最大 version + 1，
@@ -190,6 +216,10 @@ func createCommissionRule(ctx context.Context, db *ent.Client, in ruleInput, adm
 		return nil, errInvalidInput
 	}
 	if in.Scope != "global" && in.ScopeKey == "" {
+		return nil, errInvalidInput
+	}
+	// scope=level 的 scope_key 必须是陪玩等级枚举值，否则这条规则永远解析不到（§12.3）。
+	if in.Scope == "level" && !validPlayerLevel(in.ScopeKey) {
 		return nil, errInvalidInput
 	}
 	switch in.CalcMode {
@@ -1046,4 +1076,81 @@ func unfreezeCommissionForOrder(ctx context.Context, entries *ent.EsportsCommiss
 		return 0, err
 	}
 	return changed, nil
+}
+
+// setOrderManualCommissionRule 设置或清除订单的「单笔手动指定」分成规则（§12.3 五级优先级最高一级）。
+// 只对尚未锁定规则的席位生效：成员在接单 / 抢单时点已把规则快照写入席位（§12.4），
+// 事后改写会破坏「关键时点锁定」语义，因此订单已存在锁定席位时直接拒绝，由派单流程重新指派。
+// ruleID=0 表示清除，恢复按个体 / 等级 / 游戏 / 全局逐级回落。
+func setOrderManualCommissionRule(ctx context.Context, db *ent.Client, orderID, ruleID, adminID int, now time.Time) (*ent.EsportsOrder, error) {
+	if orderID < 1 || ruleID < 0 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
+		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
+		return nil, errConflict
+	}
+	locked, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(orderID),
+		esportsdispatchseat.CommissionRuleLockedAtNotNil(),
+	).Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if locked {
+		return nil, errConflict
+	}
+	update := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+	).AddVersion(1)
+	eventType := "order.commission_rule_manual_cleared"
+	if ruleID == 0 {
+		update.ClearManualCommissionRuleID().ClearManualCommissionRuleSetByAdminID().ClearManualCommissionRuleSetAt()
+	} else {
+		rule, rErr := tx.EsportsCommissionRule.Get(ctx, ruleID)
+		if rErr != nil {
+			if ent.IsNotFound(rErr) {
+				return nil, errInvalidInput
+			}
+			return nil, rErr
+		}
+		// 只能指定到当前仍生效的版本；草稿 / 历史版本写进订单会变成永不命中的死配置。
+		if rule.Status != esportscommissionrule.StatusActive && rule.Status != esportscommissionrule.StatusScheduled {
+			return nil, errInvalidInput
+		}
+		update.SetManualCommissionRuleID(rule.ID).SetManualCommissionRuleSetByAdminID(adminID).
+			SetManualCommissionRuleSetAt(now.UTC())
+		eventType = "order.commission_rule_manual_set"
+	}
+	changed, err := update.Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+		SetOrderVersion(order.Version + 1).SetEventType(eventType).
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"manual_commission_rule_id": ruleID,
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrder.Get(ctx, orderID)
 }

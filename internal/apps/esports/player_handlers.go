@@ -257,15 +257,15 @@ func playerFinishServiceHandler(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	var in struct {
-		ReportedUnits   int64  `json:"reported_units"`
-		ReportedSeconds int64  `json:"reported_seconds"`
-		EvidenceRef     string `json:"evidence_ref"`
+		ReportedUnits         int64 `json:"reported_units"`
+		ReportedSeconds       int64 `json:"reported_seconds"`
+		EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 	}
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := finishPlayerService(c.Context(), global.ORM, player.ID, orderID,
-		in.ReportedUnits, in.ReportedSeconds, in.EvidenceRef, time.Now())
+	order, err := finishPlayerServiceWithEvidence(c.Context(), global.ORM, player.ID, orderID,
+		in.ReportedUnits, in.ReportedSeconds, in.EvidenceAttachmentIDs, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

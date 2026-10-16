@@ -143,6 +143,7 @@ const DefaultScope = ScopeGlobal
 const (
 	ScopeGlobal Scope = "global"
 	ScopeGame   Scope = "game"
+	ScopeLevel  Scope = "level"
 	ScopePlayer Scope = "player"
 )
 
@@ -153,7 +154,7 @@ func (s Scope) String() string {
 // ScopeValidator is a validator for the "scope" field enum values. It is called by the builders before save.
 func ScopeValidator(s Scope) error {
 	switch s {
-	case ScopeGlobal, ScopeGame, ScopePlayer:
+	case ScopeGlobal, ScopeGame, ScopeLevel, ScopePlayer:
 		return nil
 	default:
 		return fmt.Errorf("esportscommissionrule: invalid enum value for scope field: %q", s)

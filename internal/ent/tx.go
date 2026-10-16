@@ -38,6 +38,8 @@ type Tx struct {
 	DictData *DictDataClient
 	// EsportsAfterSale is the client for interacting with the EsportsAfterSale builders.
 	EsportsAfterSale *EsportsAfterSaleClient
+	// EsportsAfterSaleAction is the client for interacting with the EsportsAfterSaleAction builders.
+	EsportsAfterSaleAction *EsportsAfterSaleActionClient
 	// EsportsAfterSaleReview is the client for interacting with the EsportsAfterSaleReview builders.
 	EsportsAfterSaleReview *EsportsAfterSaleReviewClient
 	// EsportsAgeCheck is the client for interacting with the EsportsAgeCheck builders.
@@ -150,6 +152,12 @@ type Tx struct {
 	EsportsQuotaHold *EsportsQuotaHoldClient
 	// EsportsRechargeCampaign is the client for interacting with the EsportsRechargeCampaign builders.
 	EsportsRechargeCampaign *EsportsRechargeCampaignClient
+	// EsportsRechargeIntent is the client for interacting with the EsportsRechargeIntent builders.
+	EsportsRechargeIntent *EsportsRechargeIntentClient
+	// EsportsRescheduleConfirmation is the client for interacting with the EsportsRescheduleConfirmation builders.
+	EsportsRescheduleConfirmation *EsportsRescheduleConfirmationClient
+	// EsportsRescheduleProposal is the client for interacting with the EsportsRescheduleProposal builders.
+	EsportsRescheduleProposal *EsportsRescheduleProposalClient
 	// EsportsScript is the client for interacting with the EsportsScript builders.
 	EsportsScript *EsportsScriptClient
 	// EsportsSeatTransferRequest is the client for interacting with the EsportsSeatTransferRequest builders.
@@ -162,6 +170,10 @@ type Tx struct {
 	EsportsSettlementCycle *EsportsSettlementCycleClient
 	// EsportsSku is the client for interacting with the EsportsSku builders.
 	EsportsSku *EsportsSkuClient
+	// EsportsSkuSuspension is the client for interacting with the EsportsSkuSuspension builders.
+	EsportsSkuSuspension *EsportsSkuSuspensionClient
+	// EsportsSkuSuspensionItem is the client for interacting with the EsportsSkuSuspensionItem builders.
+	EsportsSkuSuspensionItem *EsportsSkuSuspensionItemClient
 	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
 	EsportsStoredValueCard *EsportsStoredValueCardClient
 	// EsportsStoredValuePackage is the client for interacting with the EsportsStoredValuePackage builders.
@@ -346,6 +358,7 @@ func (tx *Tx) init() {
 	tx.Department = NewDepartmentClient(tx.config)
 	tx.DictData = NewDictDataClient(tx.config)
 	tx.EsportsAfterSale = NewEsportsAfterSaleClient(tx.config)
+	tx.EsportsAfterSaleAction = NewEsportsAfterSaleActionClient(tx.config)
 	tx.EsportsAfterSaleReview = NewEsportsAfterSaleReviewClient(tx.config)
 	tx.EsportsAgeCheck = NewEsportsAgeCheckClient(tx.config)
 	tx.EsportsAssessment = NewEsportsAssessmentClient(tx.config)
@@ -402,12 +415,17 @@ func (tx *Tx) init() {
 	tx.EsportsProductCategory = NewEsportsProductCategoryClient(tx.config)
 	tx.EsportsQuotaHold = NewEsportsQuotaHoldClient(tx.config)
 	tx.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(tx.config)
+	tx.EsportsRechargeIntent = NewEsportsRechargeIntentClient(tx.config)
+	tx.EsportsRescheduleConfirmation = NewEsportsRescheduleConfirmationClient(tx.config)
+	tx.EsportsRescheduleProposal = NewEsportsRescheduleProposalClient(tx.config)
 	tx.EsportsScript = NewEsportsScriptClient(tx.config)
 	tx.EsportsSeatTransferRequest = NewEsportsSeatTransferRequestClient(tx.config)
 	tx.EsportsServiceSegment = NewEsportsServiceSegmentClient(tx.config)
 	tx.EsportsSettlement = NewEsportsSettlementClient(tx.config)
 	tx.EsportsSettlementCycle = NewEsportsSettlementCycleClient(tx.config)
 	tx.EsportsSku = NewEsportsSkuClient(tx.config)
+	tx.EsportsSkuSuspension = NewEsportsSkuSuspensionClient(tx.config)
+	tx.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(tx.config)
 	tx.EsportsStoredValueCard = NewEsportsStoredValueCardClient(tx.config)
 	tx.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(tx.config)
 	tx.EsportsTeammate = NewEsportsTeammateClient(tx.config)

@@ -14,6 +14,10 @@ type EsportsAfterSale struct {
 	appschemaesports.EsportsAfterSale
 }
 
+type EsportsAfterSaleAction struct {
+	appschemaesports.EsportsAfterSaleAction
+}
+
 type EsportsAfterSaleReview struct {
 	appschemaesports.EsportsAfterSaleReview
 }
@@ -230,6 +234,18 @@ type EsportsRechargeCampaign struct {
 	appschemaesports.EsportsRechargeCampaign
 }
 
+type EsportsRechargeIntent struct {
+	appschemaesports.EsportsRechargeIntent
+}
+
+type EsportsRescheduleConfirmation struct {
+	appschemaesports.EsportsRescheduleConfirmation
+}
+
+type EsportsRescheduleProposal struct {
+	appschemaesports.EsportsRescheduleProposal
+}
+
 type EsportsScript struct{ appschemaesports.EsportsScript }
 
 type EsportsSeatTransferRequest struct {
@@ -249,6 +265,14 @@ type EsportsSettlementCycle struct {
 }
 
 type EsportsSku struct{ appschemaesports.EsportsSku }
+
+type EsportsSkuSuspension struct {
+	appschemaesports.EsportsSkuSuspension
+}
+
+type EsportsSkuSuspensionItem struct {
+	appschemaesports.EsportsSkuSuspensionItem
+}
 
 type EsportsStoredValueCard struct {
 	appschemaesports.EsportsStoredValueCard

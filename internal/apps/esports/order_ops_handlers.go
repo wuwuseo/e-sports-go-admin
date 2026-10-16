@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,24 @@ func parsePathID(c fiber.Ctx, field string) (int, error) {
 		return 0, errInvalidInput
 	}
 	return id, nil
+}
+
+// confirmOrderAppointmentHandler 确认预约档期（§3.2 / §5.5）：档期提案 request → confirmed，
+// 同一事务内做资源核验；未确认档期的预约单不允许派单。
+func confirmOrderAppointmentHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	order, err := confirmOrderAppointment(c.Context(), global.ORM, id, adminID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
 }
 
 func repriceOrderHandler(c fiber.Ctx) error {
@@ -165,6 +184,9 @@ func previewCancelOrderHandler(c fiber.Ctx) error {
 	return reply(c, quote)
 }
 
+// rescheduleOrderHandler 未付款订单的直接改期（PUT /admin/orders/:id/appointment，§3.2）。
+// 已付款订单在此被拦截并指向限时改期提案入口（§3.3）：付费档期已被派单席位占用，
+// 须经客户与已接单成员逐人确认后由提案生效时原子切换。
 func rescheduleOrderHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -179,6 +201,11 @@ func rescheduleOrderHandler(c fiber.Ctx) error {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
 	order, err := rescheduleOrder(c.Context(), global.ORM, id, adminID, in, time.Now())
+	if errors.Is(err, errRescheduleProposalRequired) {
+		return fail(c, fiber.StatusConflict, err.Error()+
+			"：请改用 POST /api/v1/esports/admin/orders/{id}/reschedule-proposals 发起提案，"+
+			"经客户与已接单成员确认后生效")
+	}
 	if err != nil {
 		return businessError(c, err)
 	}

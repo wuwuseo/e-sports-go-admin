@@ -16,6 +16,7 @@ import (
 	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportssku"
+	"go-admin/internal/ent/systemconfig"
 )
 
 type repriceInput struct {
@@ -438,8 +439,10 @@ func cancelOrder(ctx context.Context, db *ent.Client, orderID, adminID int, reas
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// rescheduleOrder 改期。仅待付款未支付订单可用，改期不改变价格与名额占用。
-// ponytail: 未实现限时改期提案与成员逐一确认，直接生效并留痕；接入多席位后须改为提案+原子切换。
+// rescheduleOrder 直接改期。仅待付款未支付订单可用，改期不改变价格与名额占用。
+// §3.3：已付款订单的档期已被派单席位占用，改期须走限时改期提案（proposeReschedule：
+// 客户与订单上已接单成员逐人确认后，在同一事务内原子切换档期并复核占用目标档期资源），
+// 本函数只保留未付款订单的直接改期口径。
 func rescheduleOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in rescheduleInput, now time.Time) (*ent.EsportsOrder, error) {
 	in.Reason = strings.TrimSpace(in.Reason)
 	if in.ExpectedVersion < 1 || in.Reason == "" || len([]rune(in.Reason)) > 255 ||
@@ -451,11 +454,30 @@ func rescheduleOrder(ctx context.Context, db *ent.Client, orderID, adminID int, 
 		return nil, err
 	}
 	defer tx.Rollback()
+	// §3.3 分流：已付款订单的档期是已占用资源，改期必须走限时改期提案；直接改期只给未付款订单，
+	// 避免付费后由客服单方面挪动档期而绕过客户与已接单成员的确认。
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
+		return nil, errRescheduleProposalRequired
+	}
+	if order.Version != in.ExpectedVersion ||
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment {
+		return nil, errConflict
+	}
+	// 改期建立限时档期提案（§3.2 / §5.5）：写确认时限，缺省 24 小时内确认，且不晚于预约开始时间。
+	deadline := now.UTC().Add(time.Duration(appointmentConfirmHours(ctx, db)) * time.Hour)
+	if deadline.After(in.StartAt.UTC()) {
+		deadline = in.StartAt.UTC()
+	}
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(in.ExpectedVersion),
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
 		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
 	).SetRequestedStartAt(in.StartAt.UTC()).
+		SetAppointmentConfirmationDeadline(deadline).
 		SetAppointmentStatus(esportsorder.AppointmentStatusRequest).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
@@ -463,7 +485,7 @@ func rescheduleOrder(ctx context.Context, db *ent.Client, orderID, adminID int, 
 	if changed != 1 {
 		return nil, errConflict
 	}
-	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	order, err = tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +493,97 @@ func rescheduleOrder(ctx context.Context, db *ent.Client, orderID, adminID int, 
 		SetOrderVersion(order.Version).SetEventType("order.rescheduled").
 		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
 		SetDetails(map[string]interface{}{
-			"reason": in.Reason, "requested_start_at": in.StartAt.UTC().Format(time.RFC3339),
+			"reason":                            in.Reason,
+			"requested_start_at":                in.StartAt.UTC().Format(time.RFC3339),
+			"appointment_confirmation_deadline": deadline.Format(time.RFC3339),
+		}).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsOrder.Get(ctx, orderID)
+}
+
+// appointmentConfirmHours 返回档期确认时限（小时，§3.2），缺省 24。配置缺失或非法时回落缺省值，
+// 不因配置问题阻断改期。
+func appointmentConfirmHours(ctx context.Context, db *ent.Client) int {
+	const fallback = 24
+	item, err := db.SystemConfig.Query().Where(
+		systemconfig.KeyEQ("app.esports.appointment_confirm_hours")).Only(ctx)
+	if err != nil {
+		return fallback
+	}
+	hours, err := strconv.Atoi(strings.TrimSpace(item.Value))
+	if err != nil || hours < 1 || hours > 24*30 {
+		return fallback
+	}
+	return hours
+}
+
+// ensureAppointmentConfirmed 拦截「付费预约但档期未确认」的派单（§3.2 / §5.5）。
+// 有预约开始时间却仍处于 request 的订单不得派单，避免虚构档期占位。
+func ensureAppointmentConfirmed(order *ent.EsportsOrder) error {
+	if order == nil || order.RequestedStartAt == nil {
+		return nil
+	}
+	if order.AppointmentStatus == esportsorder.AppointmentStatusConfirmed {
+		return nil
+	}
+	return fmt.Errorf("%w：预约订单须先确认档期后才能派单", errConflict)
+}
+
+// confirmOrderAppointment 确认预约档期（§3.2 / §5.5）：把 appointment_status 由 request 原子推进到
+// confirmed，并在同一事务内做资源核验——客户指定陪玩时校验该时段并发与每日容量是否仍可占用。
+// 未确认档期的预约单不允许派单。
+func confirmOrderAppointment(ctx context.Context, db *ent.Client, orderID, adminID int, now time.Time) (*ent.EsportsOrder, error) {
+	if orderID < 1 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.AppointmentStatus != esportsorder.AppointmentStatusRequest || order.RequestedStartAt == nil {
+		return nil, errConflict
+	}
+	start := order.RequestedStartAt.UTC()
+	if !start.After(now.UTC()) {
+		return nil, errConflict
+	}
+	if order.AppointmentConfirmationDeadline != nil && !order.AppointmentConfirmationDeadline.After(now.UTC()) {
+		return nil, errConflict
+	}
+	if order.PreferredPlayerID != nil {
+		player, pErr := tx.EsportsPlayer.Get(ctx, *order.PreferredPlayerID)
+		if pErr != nil {
+			return nil, errConflict
+		}
+		if err := checkPlayerDispatchLimit(ctx, tx, player, order, now, 0); err != nil {
+			return nil, err
+		}
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+		esportsorder.AppointmentStatusEQ(esportsorder.AppointmentStatusRequest),
+	).SetAppointmentStatus(esportsorder.AppointmentStatusConfirmed).AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.appointment_confirmed").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"requested_start_at":       start.Format(time.RFC3339),
+			"service_duration_minutes": order.ServiceDurationMinutes,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}

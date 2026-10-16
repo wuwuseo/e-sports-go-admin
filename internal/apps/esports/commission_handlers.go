@@ -77,6 +77,30 @@ func rollbackCommissionRuleHandler(c fiber.Ctx) error {
 	return reply(c, rule)
 }
 
+// setOrderManualCommissionRuleHandler 设置 / 清除订单的「单笔手动指定」分成规则（§12.3）。
+// rule_id=0 表示清除；订单已锁定成员规则时返回冲突。
+func setOrderManualCommissionRuleHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		RuleID int `json:"rule_id"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	order, err := setOrderManualCommissionRule(c.Context(), global.ORM, id, in.RuleID, adminID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
 func adminCommissionEntries(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)

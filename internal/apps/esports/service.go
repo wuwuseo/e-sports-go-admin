@@ -47,6 +47,8 @@ type skuInput struct {
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
 	RequiredSeats        int    `json:"required_seats"`
+	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
+	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
 	CloseRuleCode string `json:"close_rule_code"`
 	QuotaTotal    int64  `json:"quota_total"`
@@ -73,6 +75,8 @@ type skuUpdateInput struct {
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
 	RequiredSeats        int    `json:"required_seats"`
+	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
+	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
 	CloseRuleCode string `json:"close_rule_code"`
 	QuotaTotal    int64  `json:"quota_total"`
@@ -90,6 +94,12 @@ type orderInput struct {
 	Quantity   int64 `json:"quantity"`
 	// 客户指定陪玩（§5.4）：可选。omitempty 让不传该字段时的幂等哈希与既有口径保持一致。
 	PreferredPlayerID int `json:"preferred_player_id,omitempty"`
+	// 预约开始时间（§3.2 / §5.5）：可选。带值时订单落为预约单（appointment_status=request，
+	// 须确认档期后才能派单），并在下单时按派单同一套并发 / 每日容量口径复核指定陪玩（§4.6）。
+	RequestedStartAt *time.Time `json:"requested_start_at,omitempty"`
+	// 重复报单确认（§4.6）：时间窗内已有相同报单时须显式置 true 才放行。omitempty 让不传该字段时
+	// 的幂等哈希与既有口径保持一致。
+	ConfirmDuplicate bool `json:"confirm_duplicate,omitempty"`
 }
 
 func currentAdmin(ctx context.Context, db *ent.Client, uid string) (*ent.Admin, error) {
@@ -115,6 +125,7 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
 		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 ||
 		in.RequiredSeats < 1 || in.QuotaTotal < -1 || (in.QuotaTotal != -1 && in.QuotaTotal < int64(in.RequiredSeats)) ||
+		in.ServiceDurationMinutes < 0 || in.ServiceDurationMinutes > 24*60 ||
 		(in.ServiceType != "play" && in.ServiceType != "teaching" && in.ServiceType != "entertainment") ||
 		(in.Status != "draft" && in.Status != "on_sale") {
 		return nil, errInvalidInput
@@ -139,7 +150,8 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 		SetUnitPriceCents(in.UnitPriceCents).
 		SetMinUnitPriceCents(in.MinUnitPriceCents).SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).
 		SetServiceUnits(in.ServiceUnits).SetServiceUnitName(in.ServiceUnitName).
-		SetRequiredSeats(in.RequiredSeats).SetQuotaTotal(in.QuotaTotal).
+		SetRequiredSeats(in.RequiredSeats).SetServiceDurationMinutes(in.ServiceDurationMinutes).
+		SetQuotaTotal(in.QuotaTotal).
 		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status))
 	if in.CategoryID != nil {
@@ -230,6 +242,7 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 		len([]rune(in.ServiceUnitName)) > 32 || len([]rune(in.Description)) > 500 ||
 		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
 		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 || in.RequiredSeats < 1 ||
+		in.ServiceDurationMinutes < 0 || in.ServiceDurationMinutes > 24*60 ||
 		in.QuotaTotal < -1 ||
 		(in.ServiceType != "play" && in.ServiceType != "teaching" && in.ServiceType != "entertainment") ||
 		(in.Status != "draft" && in.Status != "on_sale" && in.Status != "off_sale") {
@@ -271,6 +284,7 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 		SetUnitPriceCents(in.UnitPriceCents).SetMinUnitPriceCents(in.MinUnitPriceCents).
 		SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).SetServiceUnits(in.ServiceUnits).
 		SetServiceUnitName(in.ServiceUnitName).SetRequiredSeats(in.RequiredSeats).
+		SetServiceDurationMinutes(in.ServiceDurationMinutes).
 		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetQuotaTotal(in.QuotaTotal).SetSortOrder(in.SortOrder).
 		SetStatus(esportssku.Status(in.Status)).AddVersion(1)
@@ -383,6 +397,19 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		sku.ServiceUnits > math.MaxInt64/in.Quantity {
 		return nil, errConflict
 	}
+	// §4.6 报单校验补充（顺序：先硬拦截后提醒）：预约开始时间合法性 → 客户欠款拦截 → 重复报单提醒。
+	// 三项都在本事务内完成，未通过即整单回滚（不占名额、不写幂等记录），不影响既有幂等与报价快照语义。
+	if err = validateAppointmentStart(in, now); err != nil {
+		return nil, err
+	}
+	if err = ensureCustomerDebtAllowed(ctx, tx.Client(), customer.ID,
+		customerDebtLimitCents(ctx, tx.Client()), now); err != nil {
+		return nil, err
+	}
+	if err = checkDuplicateOrder(ctx, tx.Client(), in, now,
+		duplicateOrderWindowMinutes(ctx, tx.Client())); err != nil {
+		return nil, err
+	}
 	// A conditional UPDATE, rather than a prior SELECT alone, wins the final unit.
 	updated, err := tx.EsportsSku.Update().Where(
 		esportssku.IDEQ(sku.ID), esportssku.VersionEQ(sku.Version),
@@ -420,6 +447,10 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		if player.Qualification != esportsplayer.QualificationQualified {
 			return nil, fmt.Errorf("%w：指定陪玩未通过考核或已停用，不可指定", errInvalidInput)
 		}
+		// §4.6 预约冲突与资源复核：带预约开始时间时按派单同一套容量口径复核该陪玩能否占位。
+		if err = checkAppointmentCapacity(ctx, tx, player, sku, in.RequestedStartAt, now); err != nil {
+			return nil, err
+		}
 	}
 	orderNo := uuid.NewString()
 	entryPoint := esportsorder.EntryPointCsPc
@@ -441,12 +472,25 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		SetDiscountCents(discount).SetPayableCents(payable).
 		SetPromisedServiceUnits(sku.ServiceUnits * in.Quantity).
 		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(esportsorder.RequiredLevel(sku.RequiredLevel)).
+		SetServiceDurationMinutes(sku.ServiceDurationMinutes).
 		SetPaymentDeadline(deadline).SetCloseFormTemplateLockedAt(now.UTC())
 	if closeTemplate != nil {
 		creator = creator.SetCloseFormTemplateID(closeTemplate.ID)
 	}
 	if in.PreferredPlayerID > 0 {
 		creator = creator.SetPreferredPlayerID(in.PreferredPlayerID)
+	}
+	// 带预约开始时间即落为预约单（§3.2 / §5.5）：写档期提案与确认时限（缺省 24 小时且不晚于开始时间），
+	// 档期确认前不得派单；与 rescheduleOrder 的提案字段口径一致。
+	if in.RequestedStartAt != nil {
+		startAt := in.RequestedStartAt.UTC()
+		confirmDeadline := now.UTC().Add(time.Duration(appointmentConfirmHours(ctx, tx.Client())) * time.Hour)
+		if confirmDeadline.After(startAt) {
+			confirmDeadline = startAt
+		}
+		creator = creator.SetRequestedStartAt(startAt).
+			SetAppointmentStatus(esportsorder.AppointmentStatusRequest).
+			SetAppointmentConfirmationDeadline(confirmDeadline)
 	}
 	order, err := creator.Save(ctx)
 	if err != nil {
@@ -456,9 +500,17 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		SetQuantity(in.Quantity).SetStatus("reserved").SetExpiresAt(deadline).Save(ctx); err != nil {
 		return nil, err
 	}
+	details := map[string]interface{}{"sku_code": sku.Code, "quantity": in.Quantity}
+	// 留痕：重复报单是被客服显式确认后放行的；预约单记下档期提案时间点。
+	if in.ConfirmDuplicate {
+		details["duplicate_confirmed"] = true
+	}
+	if in.RequestedStartAt != nil {
+		details["requested_start_at"] = in.RequestedStartAt.UTC().Format(time.RFC3339)
+	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).SetOrderVersion(1).
 		SetEventType("order.created").SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
-		SetDetails(map[string]interface{}{"sku_code": sku.Code, "quantity": in.Quantity}).Save(ctx); err != nil {
+		SetDetails(details).Save(ctx); err != nil {
 		return nil, err
 	}
 	if _, err = tx.EsportsIdempotency.Create().SetOperation("create_order").SetPrincipal(principal).

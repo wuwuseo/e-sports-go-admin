@@ -44,7 +44,7 @@ func TestCommissionRuleScheduledEffectiveAt(t *testing.T) {
 	resolve := func(at time.Time) int {
 		t.Helper()
 		rule, err := resolveCommissionRuleForPlayerIn(ctx, db.EsportsCommissionRule, db.EsportsSku,
-			db.EsportsProductCategory, order, 1, at)
+			db.EsportsProductCategory, order, 1, "", at)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestCommissionRuleScheduledWithoutEffectiveAtIsIgnored(t *testing.T) {
 
 	order := seedCloseableOrder(t, db, "sched-rule-nil", 2000, []segSeed{{1, 1, 600}})
 	rule, err := resolveCommissionRuleForPlayerIn(ctx, db.EsportsCommissionRule, db.EsportsSku,
-		db.EsportsProductCategory, order, 1, now.Add(time.Hour))
+		db.EsportsProductCategory, order, 1, "", now.Add(time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}

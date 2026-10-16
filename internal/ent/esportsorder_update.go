@@ -198,6 +198,80 @@ func (_u *EsportsOrderUpdate) ClearCsCommissionRuleLockedAt() *EsportsOrderUpdat
 	return _u
 }
 
+// SetManualCommissionRuleID sets the "manual_commission_rule_id" field.
+func (_u *EsportsOrderUpdate) SetManualCommissionRuleID(v int) *EsportsOrderUpdate {
+	_u.mutation.ResetManualCommissionRuleID()
+	_u.mutation.SetManualCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableManualCommissionRuleID sets the "manual_commission_rule_id" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableManualCommissionRuleID(v *int) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetManualCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddManualCommissionRuleID adds value to the "manual_commission_rule_id" field.
+func (_u *EsportsOrderUpdate) AddManualCommissionRuleID(v int) *EsportsOrderUpdate {
+	_u.mutation.AddManualCommissionRuleID(v)
+	return _u
+}
+
+// ClearManualCommissionRuleID clears the value of the "manual_commission_rule_id" field.
+func (_u *EsportsOrderUpdate) ClearManualCommissionRuleID() *EsportsOrderUpdate {
+	_u.mutation.ClearManualCommissionRuleID()
+	return _u
+}
+
+// SetManualCommissionRuleSetByAdminID sets the "manual_commission_rule_set_by_admin_id" field.
+func (_u *EsportsOrderUpdate) SetManualCommissionRuleSetByAdminID(v int) *EsportsOrderUpdate {
+	_u.mutation.ResetManualCommissionRuleSetByAdminID()
+	_u.mutation.SetManualCommissionRuleSetByAdminID(v)
+	return _u
+}
+
+// SetNillableManualCommissionRuleSetByAdminID sets the "manual_commission_rule_set_by_admin_id" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableManualCommissionRuleSetByAdminID(v *int) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetManualCommissionRuleSetByAdminID(*v)
+	}
+	return _u
+}
+
+// AddManualCommissionRuleSetByAdminID adds value to the "manual_commission_rule_set_by_admin_id" field.
+func (_u *EsportsOrderUpdate) AddManualCommissionRuleSetByAdminID(v int) *EsportsOrderUpdate {
+	_u.mutation.AddManualCommissionRuleSetByAdminID(v)
+	return _u
+}
+
+// ClearManualCommissionRuleSetByAdminID clears the value of the "manual_commission_rule_set_by_admin_id" field.
+func (_u *EsportsOrderUpdate) ClearManualCommissionRuleSetByAdminID() *EsportsOrderUpdate {
+	_u.mutation.ClearManualCommissionRuleSetByAdminID()
+	return _u
+}
+
+// SetManualCommissionRuleSetAt sets the "manual_commission_rule_set_at" field.
+func (_u *EsportsOrderUpdate) SetManualCommissionRuleSetAt(v time.Time) *EsportsOrderUpdate {
+	_u.mutation.SetManualCommissionRuleSetAt(v)
+	return _u
+}
+
+// SetNillableManualCommissionRuleSetAt sets the "manual_commission_rule_set_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableManualCommissionRuleSetAt(v *time.Time) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetManualCommissionRuleSetAt(*v)
+	}
+	return _u
+}
+
+// ClearManualCommissionRuleSetAt clears the value of the "manual_commission_rule_set_at" field.
+func (_u *EsportsOrderUpdate) ClearManualCommissionRuleSetAt() *EsportsOrderUpdate {
+	_u.mutation.ClearManualCommissionRuleSetAt()
+	return _u
+}
+
 // SetCloseFormTemplateID sets the "close_form_template_id" field.
 func (_u *EsportsOrderUpdate) SetCloseFormTemplateID(v int) *EsportsOrderUpdate {
 	_u.mutation.ResetCloseFormTemplateID()
@@ -438,6 +512,27 @@ func (_u *EsportsOrderUpdate) SetNillablePromisedServiceUnits(v *int64) *Esports
 // AddPromisedServiceUnits adds value to the "promised_service_units" field.
 func (_u *EsportsOrderUpdate) AddPromisedServiceUnits(v int64) *EsportsOrderUpdate {
 	_u.mutation.AddPromisedServiceUnits(v)
+	return _u
+}
+
+// SetServiceDurationMinutes sets the "service_duration_minutes" field.
+func (_u *EsportsOrderUpdate) SetServiceDurationMinutes(v int) *EsportsOrderUpdate {
+	_u.mutation.ResetServiceDurationMinutes()
+	_u.mutation.SetServiceDurationMinutes(v)
+	return _u
+}
+
+// SetNillableServiceDurationMinutes sets the "service_duration_minutes" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableServiceDurationMinutes(v *int) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetServiceDurationMinutes(*v)
+	}
+	return _u
+}
+
+// AddServiceDurationMinutes adds value to the "service_duration_minutes" field.
+func (_u *EsportsOrderUpdate) AddServiceDurationMinutes(v int) *EsportsOrderUpdate {
+	_u.mutation.AddServiceDurationMinutes(v)
 	return _u
 }
 
@@ -1384,6 +1479,30 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if _u.mutation.CsCommissionRuleLockedAtCleared() {
 		_spec.ClearField(esportsorder.FieldCsCommissionRuleLockedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.ManualCommissionRuleID(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedManualCommissionRuleID(); ok {
+		_spec.AddField(esportsorder.FieldManualCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.ManualCommissionRuleIDCleared() {
+		_spec.ClearField(esportsorder.FieldManualCommissionRuleID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ManualCommissionRuleSetByAdminID(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleSetByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedManualCommissionRuleSetByAdminID(); ok {
+		_spec.AddField(esportsorder.FieldManualCommissionRuleSetByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.ManualCommissionRuleSetByAdminIDCleared() {
+		_spec.ClearField(esportsorder.FieldManualCommissionRuleSetByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ManualCommissionRuleSetAt(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleSetAt, field.TypeTime, value)
+	}
+	if _u.mutation.ManualCommissionRuleSetAtCleared() {
+		_spec.ClearField(esportsorder.FieldManualCommissionRuleSetAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.CloseFormTemplateID(); ok {
 		_spec.SetField(esportsorder.FieldCloseFormTemplateID, field.TypeInt, value)
 	}
@@ -1452,6 +1571,12 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedPromisedServiceUnits(); ok {
 		_spec.AddField(esportsorder.FieldPromisedServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
+		_spec.SetField(esportsorder.FieldServiceDurationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServiceDurationMinutes(); ok {
+		_spec.AddField(esportsorder.FieldServiceDurationMinutes, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddonCents(); ok {
 		_spec.SetField(esportsorder.FieldAddonCents, field.TypeInt64, value)
@@ -1850,6 +1975,80 @@ func (_u *EsportsOrderUpdateOne) ClearCsCommissionRuleLockedAt() *EsportsOrderUp
 	return _u
 }
 
+// SetManualCommissionRuleID sets the "manual_commission_rule_id" field.
+func (_u *EsportsOrderUpdateOne) SetManualCommissionRuleID(v int) *EsportsOrderUpdateOne {
+	_u.mutation.ResetManualCommissionRuleID()
+	_u.mutation.SetManualCommissionRuleID(v)
+	return _u
+}
+
+// SetNillableManualCommissionRuleID sets the "manual_commission_rule_id" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableManualCommissionRuleID(v *int) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetManualCommissionRuleID(*v)
+	}
+	return _u
+}
+
+// AddManualCommissionRuleID adds value to the "manual_commission_rule_id" field.
+func (_u *EsportsOrderUpdateOne) AddManualCommissionRuleID(v int) *EsportsOrderUpdateOne {
+	_u.mutation.AddManualCommissionRuleID(v)
+	return _u
+}
+
+// ClearManualCommissionRuleID clears the value of the "manual_commission_rule_id" field.
+func (_u *EsportsOrderUpdateOne) ClearManualCommissionRuleID() *EsportsOrderUpdateOne {
+	_u.mutation.ClearManualCommissionRuleID()
+	return _u
+}
+
+// SetManualCommissionRuleSetByAdminID sets the "manual_commission_rule_set_by_admin_id" field.
+func (_u *EsportsOrderUpdateOne) SetManualCommissionRuleSetByAdminID(v int) *EsportsOrderUpdateOne {
+	_u.mutation.ResetManualCommissionRuleSetByAdminID()
+	_u.mutation.SetManualCommissionRuleSetByAdminID(v)
+	return _u
+}
+
+// SetNillableManualCommissionRuleSetByAdminID sets the "manual_commission_rule_set_by_admin_id" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableManualCommissionRuleSetByAdminID(v *int) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetManualCommissionRuleSetByAdminID(*v)
+	}
+	return _u
+}
+
+// AddManualCommissionRuleSetByAdminID adds value to the "manual_commission_rule_set_by_admin_id" field.
+func (_u *EsportsOrderUpdateOne) AddManualCommissionRuleSetByAdminID(v int) *EsportsOrderUpdateOne {
+	_u.mutation.AddManualCommissionRuleSetByAdminID(v)
+	return _u
+}
+
+// ClearManualCommissionRuleSetByAdminID clears the value of the "manual_commission_rule_set_by_admin_id" field.
+func (_u *EsportsOrderUpdateOne) ClearManualCommissionRuleSetByAdminID() *EsportsOrderUpdateOne {
+	_u.mutation.ClearManualCommissionRuleSetByAdminID()
+	return _u
+}
+
+// SetManualCommissionRuleSetAt sets the "manual_commission_rule_set_at" field.
+func (_u *EsportsOrderUpdateOne) SetManualCommissionRuleSetAt(v time.Time) *EsportsOrderUpdateOne {
+	_u.mutation.SetManualCommissionRuleSetAt(v)
+	return _u
+}
+
+// SetNillableManualCommissionRuleSetAt sets the "manual_commission_rule_set_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableManualCommissionRuleSetAt(v *time.Time) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetManualCommissionRuleSetAt(*v)
+	}
+	return _u
+}
+
+// ClearManualCommissionRuleSetAt clears the value of the "manual_commission_rule_set_at" field.
+func (_u *EsportsOrderUpdateOne) ClearManualCommissionRuleSetAt() *EsportsOrderUpdateOne {
+	_u.mutation.ClearManualCommissionRuleSetAt()
+	return _u
+}
+
 // SetCloseFormTemplateID sets the "close_form_template_id" field.
 func (_u *EsportsOrderUpdateOne) SetCloseFormTemplateID(v int) *EsportsOrderUpdateOne {
 	_u.mutation.ResetCloseFormTemplateID()
@@ -2090,6 +2289,27 @@ func (_u *EsportsOrderUpdateOne) SetNillablePromisedServiceUnits(v *int64) *Espo
 // AddPromisedServiceUnits adds value to the "promised_service_units" field.
 func (_u *EsportsOrderUpdateOne) AddPromisedServiceUnits(v int64) *EsportsOrderUpdateOne {
 	_u.mutation.AddPromisedServiceUnits(v)
+	return _u
+}
+
+// SetServiceDurationMinutes sets the "service_duration_minutes" field.
+func (_u *EsportsOrderUpdateOne) SetServiceDurationMinutes(v int) *EsportsOrderUpdateOne {
+	_u.mutation.ResetServiceDurationMinutes()
+	_u.mutation.SetServiceDurationMinutes(v)
+	return _u
+}
+
+// SetNillableServiceDurationMinutes sets the "service_duration_minutes" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableServiceDurationMinutes(v *int) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetServiceDurationMinutes(*v)
+	}
+	return _u
+}
+
+// AddServiceDurationMinutes adds value to the "service_duration_minutes" field.
+func (_u *EsportsOrderUpdateOne) AddServiceDurationMinutes(v int) *EsportsOrderUpdateOne {
+	_u.mutation.AddServiceDurationMinutes(v)
 	return _u
 }
 
@@ -3066,6 +3286,30 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	if _u.mutation.CsCommissionRuleLockedAtCleared() {
 		_spec.ClearField(esportsorder.FieldCsCommissionRuleLockedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.ManualCommissionRuleID(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedManualCommissionRuleID(); ok {
+		_spec.AddField(esportsorder.FieldManualCommissionRuleID, field.TypeInt, value)
+	}
+	if _u.mutation.ManualCommissionRuleIDCleared() {
+		_spec.ClearField(esportsorder.FieldManualCommissionRuleID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ManualCommissionRuleSetByAdminID(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleSetByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedManualCommissionRuleSetByAdminID(); ok {
+		_spec.AddField(esportsorder.FieldManualCommissionRuleSetByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.ManualCommissionRuleSetByAdminIDCleared() {
+		_spec.ClearField(esportsorder.FieldManualCommissionRuleSetByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ManualCommissionRuleSetAt(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleSetAt, field.TypeTime, value)
+	}
+	if _u.mutation.ManualCommissionRuleSetAtCleared() {
+		_spec.ClearField(esportsorder.FieldManualCommissionRuleSetAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.CloseFormTemplateID(); ok {
 		_spec.SetField(esportsorder.FieldCloseFormTemplateID, field.TypeInt, value)
 	}
@@ -3134,6 +3378,12 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if value, ok := _u.mutation.AddedPromisedServiceUnits(); ok {
 		_spec.AddField(esportsorder.FieldPromisedServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
+		_spec.SetField(esportsorder.FieldServiceDurationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServiceDurationMinutes(); ok {
+		_spec.AddField(esportsorder.FieldServiceDurationMinutes, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.AddonCents(); ok {
 		_spec.SetField(esportsorder.FieldAddonCents, field.TypeInt64, value)

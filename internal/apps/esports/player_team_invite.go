@@ -42,6 +42,9 @@ func playerInviteTeammates(ctx context.Context, db *ent.Client, playerID, orderI
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance) {
 		return nil, errConflict
 	}
+	if err = ensureAppointmentConfirmed(order); err != nil {
+		return nil, err
+	}
 	// 主陪玩身份：本人须在该订单上持有已接单席位。
 	onDuty, err := tx.EsportsDispatchSeat.Query().Where(
 		esportsdispatchseat.OrderIDEQ(orderID),
@@ -80,7 +83,7 @@ func playerInviteTeammates(ctx context.Context, db *ent.Client, playerID, orderI
 			p.Presence != esportsplayer.PresenceOnline {
 			return nil, fmt.Errorf("%w：固排 %s 未通过考核或未在线", errForbidden, p.DisplayName)
 		}
-		if err = reservePlayerDispatchCapacity(ctx, tx, p, now, 0); err != nil {
+		if err = reservePlayerDispatchCapacity(ctx, tx, p, order, now, 0); err != nil {
 			return nil, err
 		}
 		if err = checkPlayerGameLevel(p, game, requiredLevel); err != nil {

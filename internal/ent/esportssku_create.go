@@ -112,6 +112,20 @@ func (_c *EsportsSkuCreate) SetServiceUnitName(v string) *EsportsSkuCreate {
 	return _c
 }
 
+// SetServiceDurationMinutes sets the "service_duration_minutes" field.
+func (_c *EsportsSkuCreate) SetServiceDurationMinutes(v int) *EsportsSkuCreate {
+	_c.mutation.SetServiceDurationMinutes(v)
+	return _c
+}
+
+// SetNillableServiceDurationMinutes sets the "service_duration_minutes" field if the given value is not nil.
+func (_c *EsportsSkuCreate) SetNillableServiceDurationMinutes(v *int) *EsportsSkuCreate {
+	if v != nil {
+		_c.SetServiceDurationMinutes(*v)
+	}
+	return _c
+}
+
 // SetRequiredSeats sets the "required_seats" field.
 func (_c *EsportsSkuCreate) SetRequiredSeats(v int) *EsportsSkuCreate {
 	_c.mutation.SetRequiredSeats(v)
@@ -313,6 +327,10 @@ func (_c *EsportsSkuCreate) defaults() {
 		v := esportssku.DefaultAdjustmentApprovalBp
 		_c.mutation.SetAdjustmentApprovalBp(v)
 	}
+	if _, ok := _c.mutation.ServiceDurationMinutes(); !ok {
+		v := esportssku.DefaultServiceDurationMinutes
+		_c.mutation.SetServiceDurationMinutes(v)
+	}
 	if _, ok := _c.mutation.RequiredSeats(); !ok {
 		v := esportssku.DefaultRequiredSeats
 		_c.mutation.SetRequiredSeats(v)
@@ -422,6 +440,9 @@ func (_c *EsportsSkuCreate) check() error {
 		if err := esportssku.ServiceUnitNameValidator(v); err != nil {
 			return &ValidationError{Name: "service_unit_name", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.service_unit_name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ServiceDurationMinutes(); !ok {
+		return &ValidationError{Name: "service_duration_minutes", err: errors.New(`ent: missing required field "EsportsSku.service_duration_minutes"`)}
 	}
 	if _, ok := _c.mutation.RequiredSeats(); !ok {
 		return &ValidationError{Name: "required_seats", err: errors.New(`ent: missing required field "EsportsSku.required_seats"`)}
@@ -541,6 +562,10 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ServiceUnitName(); ok {
 		_spec.SetField(esportssku.FieldServiceUnitName, field.TypeString, value)
 		_node.ServiceUnitName = value
+	}
+	if value, ok := _c.mutation.ServiceDurationMinutes(); ok {
+		_spec.SetField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)
+		_node.ServiceDurationMinutes = value
 	}
 	if value, ok := _c.mutation.RequiredSeats(); ok {
 		_spec.SetField(esportssku.FieldRequiredSeats, field.TypeInt, value)

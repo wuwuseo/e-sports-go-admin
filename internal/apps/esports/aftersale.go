@@ -13,6 +13,7 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsaftersaleaction"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
@@ -58,6 +59,9 @@ type afterSalePlanInput struct {
 	// 执行退款时优先冲回该成员的服务与加钟分成，剩余额度再按比例分摊其他成员；
 	// 留空则维持按订单整体比例冲回。
 	DisputePlayerID int `json:"dispute_player_id"`
+	// 多动作方案（§13.3 / §13.6）：非空时改走「多动作方案 + 逐项执行」，忽略上面的单动作字段，
+	// 由动作项推导聚合摘要（refund_cents = 资金类动作金额之和，plan_action 取主导类型）。
+	Actions []afterSaleActionInput `json:"actions"`
 }
 
 type afterSaleDecisionInput struct {
@@ -74,6 +78,126 @@ func validAfterSaleKind(kind string) bool {
 		return true
 	}
 	return false
+}
+
+// validAfterSaleSourceType 统一售后支持的来源类型（§13.1 / §13.3）。
+func validAfterSaleSourceType(sourceType string) bool {
+	switch sourceType {
+	case "order", "gift", "stored_value_card", "recharge", "assessment":
+		return true
+	}
+	return false
+}
+
+// validAfterSaleKindForSource 按来源限制问题类型，避免「储值卡提考核申诉」这类无意义组合。
+func validAfterSaleKindForSource(sourceType, kind string) bool {
+	switch sourceType {
+	case "order":
+		return validAfterSaleKind(kind)
+	case "gift":
+		return kind == "refund_request" || kind == "wrong_item" ||
+			kind == "overcharge" || kind == "other"
+	case "stored_value_card", "recharge":
+		return kind == "refund_request" || kind == "overcharge" || kind == "other"
+	case "assessment":
+		return kind == "player_appeal" || kind == "other"
+	}
+	return false
+}
+
+// afterSaleSource 描述一条来源单据解析出的归属与留痕摘要。
+type afterSaleSource struct {
+	// CustomerID 客户归属；考核处罚等无客户来源为 nil。
+	CustomerID *int
+	// PlayerID 来源关联陪玩（礼物收礼人 / 考核对象）。
+	PlayerID *int
+	// Order 有订单上下文时用于写订单事件；其余来源改走事务外盒留痕。
+	Order *ent.EsportsOrder
+	// Ref 并入事件明细的来源摘要。
+	Ref map[string]interface{}
+}
+
+// resolveAfterSaleSource 解析来源单据并校验存在性，返回归属与留痕摘要（§13.1 / §13.3）。
+// 只做读查询：事务内传入 tx.Client()，事务外直接传 db，避免在外层挂未提交读事务造成写锁等待。
+func resolveAfterSaleSource(ctx context.Context, client *ent.Client, sourceType string, sourceID int) (afterSaleSource, error) {
+	switch sourceType {
+	case "order":
+		order, err := client.EsportsOrder.Get(ctx, sourceID)
+		if err != nil {
+			return afterSaleSource{}, err
+		}
+		return afterSaleSource{
+			CustomerID: &order.CustomerID, Order: order,
+			Ref: map[string]interface{}{"order_no": order.OrderNo},
+		}, nil
+	case "gift":
+		gift, err := client.EsportsGiftOrder.Get(ctx, sourceID)
+		if err != nil {
+			return afterSaleSource{}, err
+		}
+		return afterSaleSource{
+			CustomerID: &gift.CustomerID, PlayerID: &gift.PlayerID,
+			Ref: map[string]interface{}{"gift_no": gift.GiftNo, "amount_cents": gift.AmountCents},
+		}, nil
+	case "stored_value_card":
+		card, err := client.EsportsStoredValueCard.Get(ctx, sourceID)
+		if err != nil {
+			return afterSaleSource{}, err
+		}
+		return afterSaleSource{
+			CustomerID: &card.CustomerID,
+			Ref:        map[string]interface{}{"card_no": card.CardNo},
+		}, nil
+	case "recharge":
+		row, err := client.EsportsWalletTx.Get(ctx, sourceID)
+		if err != nil {
+			return afterSaleSource{}, err
+		}
+		if row.EntryType != esportswallettx.EntryTypeRecharge {
+			return afterSaleSource{}, errInvalidInput
+		}
+		customerID, err := walletTxCustomerID(ctx, client, row)
+		if err != nil {
+			return afterSaleSource{}, err
+		}
+		return afterSaleSource{
+			CustomerID: customerID,
+			Ref: map[string]interface{}{
+				"tx_no": row.TxNo, "account_type": row.AccountType.String(),
+				"principal_delta_cents": row.PrincipalDeltaCents,
+				"bonus_delta_cents":     row.BonusDeltaCents,
+			},
+		}, nil
+	case "assessment":
+		item, err := client.EsportsAssessment.Get(ctx, sourceID)
+		if err != nil {
+			return afterSaleSource{}, err
+		}
+		return afterSaleSource{
+			PlayerID: &item.PlayerID,
+			Ref: map[string]interface{}{
+				"task_no": item.TaskNo, "assessment_type": item.AssessmentType.String(),
+			},
+		}, nil
+	}
+	return afterSaleSource{}, errInvalidInput
+}
+
+// walletTxCustomerID 由充值流水反查客户：余额账户 owner 即客户；储值卡账户 owner 是卡 ID，再取卡上客户。
+func walletTxCustomerID(ctx context.Context, client *ent.Client, row *ent.EsportsWalletTx) (*int, error) {
+	switch row.AccountType {
+	case esportswallettx.AccountTypeCustomerBalance:
+		owner := row.OwnerID
+		return &owner, nil
+	case esportswallettx.AccountTypeStoredValueCard:
+		card, err := client.EsportsStoredValueCard.Get(ctx, row.OwnerID)
+		if err != nil {
+			return nil, err
+		}
+		return &card.CustomerID, nil
+	}
+	// 陪玩猫粮充值不属于客户来源，不进客户售后。
+	return nil, errInvalidInput
 }
 
 func validAfterSaleChannel(channel string) bool {
@@ -145,11 +269,14 @@ func createAfterSaleTx(ctx context.Context, tx *ent.Tx, in afterSaleInput, opts 
 	if in.SourceType == "" {
 		in.SourceType = "order"
 	}
-	if in.SourceType != "order" || in.SourceID < 1 ||
-		!validAfterSaleKind(in.Kind) || !validAfterSaleChannel(in.Channel) ||
+	if !validAfterSaleSourceType(in.SourceType) || in.SourceID < 1 ||
+		!validAfterSaleChannel(in.Channel) ||
 		in.Demand == "" || len([]rune(in.Demand)) > 500 ||
 		len([]rune(in.ExpectedPlan)) > 255 || len([]rune(in.EvidenceRef)) > 255 ||
 		len([]rune(in.Contact)) > 120 {
+		return nil, errInvalidInput
+	}
+	if !validAfterSaleKindForSource(in.SourceType, in.Kind) {
 		return nil, errInvalidInput
 	}
 	if opts.ActorType == "" {
@@ -158,15 +285,15 @@ func createAfterSaleTx(ctx context.Context, tx *ent.Tx, in afterSaleInput, opts 
 	if opts.EventType == "" {
 		opts.EventType = "order.after_sale_created"
 	}
-	order, err := tx.EsportsOrder.Get(ctx, in.SourceID)
+	source, err := resolveAfterSaleSource(ctx, tx.Client(), in.SourceType, in.SourceID)
 	if err != nil {
 		return nil, err
 	}
-	if in.CustomerID != nil && *in.CustomerID != order.CustomerID {
+	if in.CustomerID != nil && (source.CustomerID == nil || *in.CustomerID != *source.CustomerID) {
 		return nil, errInvalidInput
 	}
 	duplicated, err := tx.EsportsAfterSale.Query().Where(
-		esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeOrder),
+		esportsaftersale.SourceTypeEQ(esportsaftersale.SourceType(in.SourceType)),
 		esportsaftersale.SourceIDEQ(in.SourceID),
 		esportsaftersale.KindEQ(esportsaftersale.Kind(in.Kind)),
 		esportsaftersale.StatusIn(activeAfterSaleStatuses()...),
@@ -178,13 +305,17 @@ func createAfterSaleTx(ctx context.Context, tx *ent.Tx, in afterSaleInput, opts 
 		return nil, errConflict
 	}
 	create := tx.EsportsAfterSale.Create().SetAfterSaleNo(afterSaleNo()).
-		SetSourceType(esportsaftersale.SourceTypeOrder).SetSourceID(in.SourceID).
-		SetCustomerID(order.CustomerID).
+		SetSourceType(esportsaftersale.SourceType(in.SourceType)).SetSourceID(in.SourceID).
 		SetKind(esportsaftersale.Kind(in.Kind)).SetChannel(esportsaftersale.Channel(in.Channel)).
 		SetDemand(in.Demand).SetExpectedPlan(in.ExpectedPlan).SetEvidenceRef(in.EvidenceRef).
 		SetContact(in.Contact).SetStatus(esportsaftersale.StatusPendingAccept)
+	if source.CustomerID != nil {
+		create.SetCustomerID(*source.CustomerID)
+	}
 	if opts.PlayerID != nil {
 		create.SetPlayerID(*opts.PlayerID)
+	} else if source.PlayerID != nil {
+		create.SetPlayerID(*source.PlayerID)
 	}
 	item, err := create.Save(ctx)
 	if err != nil {
@@ -193,21 +324,35 @@ func createAfterSaleTx(ctx context.Context, tx *ent.Tx, in afterSaleInput, opts 
 		}
 		return nil, err
 	}
-	// 写订单事件需要占用一个订单版本，用 bumpOrder 抬一版承载事件（不改履约状态）。
-	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
-	if err != nil {
-		return nil, err
-	}
 	details := map[string]interface{}{
 		"after_sale_no": item.AfterSaleNo, "kind": item.Kind.String(),
+		"source_type": in.SourceType, "source_id": in.SourceID,
+	}
+	for key, value := range source.Ref {
+		details[key] = value
 	}
 	for key, value := range opts.Details {
 		details[key] = value
 	}
-	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
-		SetOrderVersion(newVersion).SetEventType(opts.EventType).
-		SetActorType(opts.ActorType).SetActorID(opts.ActorID).
-		SetDetails(details).Save(ctx); err != nil {
+	if source.Order != nil {
+		// 订单来源：占用一个订单版本写订单事件（bumpOrder 不改履约状态）。
+		newVersion, err := bumpOrder(ctx, tx, source.Order.ID, source.Order.Version, "")
+		if err != nil {
+			return nil, err
+		}
+		if _, err = tx.EsportsOrderEvent.Create().SetOrderID(source.Order.ID).
+			SetOrderVersion(newVersion).SetEventType(opts.EventType).
+			SetActorType(opts.ActorType).SetActorID(opts.ActorID).
+			SetDetails(details).Save(ctx); err != nil {
+			return nil, err
+		}
+		return item, nil
+	}
+	// 非订单来源没有订单版本可承载，改写成一条事务外盒留痕。
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("aftersale.source_created:" + item.AfterSaleNo).
+		SetEventType("aftersale.source_created").SetAggregateRef(item.AfterSaleNo).
+		SetPayload(details).Save(ctx); err != nil {
 		return nil, err
 	}
 	return item, nil
@@ -323,6 +468,10 @@ func unfreezeAfterSaleCommission(ctx context.Context, db *ent.Client, item *ent.
 // 每次提交都会清空上一轮的客户确认 / 拒绝留痕，确保「待客户确认」节点重新走一遍。
 func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, in afterSalePlanInput, now time.Time) (*ent.EsportsAfterSale, error) {
 	in.Resolution = strings.TrimSpace(in.Resolution)
+	// §13.3 / §13.6 多动作方案：传了动作项即改走逐项执行口径，与既有单动作路径完全隔离。
+	if len(in.Actions) > 0 {
+		return submitAfterSaleActionsPlan(ctx, db, id, adminID, in, now)
+	}
 	if id < 1 || !validFaultParty(in.FaultParty) || !validPlanAction(in.PlanAction) ||
 		in.RefundCents < 0 || in.RecoveryCents < 0 || len([]rune(in.Resolution)) > 255 {
 		return nil, errInvalidInput
@@ -674,6 +823,14 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 func executeAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 || adminID < 1 {
 		return nil, errInvalidInput
+	}
+	// §13.3 / §13.6：挂了动作项的售后单改走「逐项执行」，总状态由动作项汇总推导（允许部分成功）。
+	if hasActions, qerr := db.EsportsAfterSaleAction.Query().Where(
+		esportsaftersaleaction.AfterSaleIDEQ(id),
+	).Exist(ctx); qerr != nil {
+		return nil, qerr
+	} else if hasActions {
+		return executeAfterSaleActions(ctx, db, id, adminID, now)
 	}
 	item, err := executeAfterSaleOnce(ctx, db, id, adminID, now)
 	if err != nil && errors.Is(err, errExecutionFailed) {

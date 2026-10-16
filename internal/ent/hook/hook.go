@@ -164,6 +164,18 @@ func (f EsportsAfterSaleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsAfterSaleMutation", m)
 }
 
+// The EsportsAfterSaleActionFunc type is an adapter to allow the use of ordinary
+// function as EsportsAfterSaleAction mutator.
+type EsportsAfterSaleActionFunc func(context.Context, *ent.EsportsAfterSaleActionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsAfterSaleActionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsAfterSaleActionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsAfterSaleActionMutation", m)
+}
+
 // The EsportsAfterSaleReviewFunc type is an adapter to allow the use of ordinary
 // function as EsportsAfterSaleReview mutator.
 type EsportsAfterSaleReviewFunc func(context.Context, *ent.EsportsAfterSaleReviewMutation) (ent.Value, error)
@@ -836,6 +848,42 @@ func (f EsportsRechargeCampaignFunc) Mutate(ctx context.Context, m ent.Mutation)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRechargeCampaignMutation", m)
 }
 
+// The EsportsRechargeIntentFunc type is an adapter to allow the use of ordinary
+// function as EsportsRechargeIntent mutator.
+type EsportsRechargeIntentFunc func(context.Context, *ent.EsportsRechargeIntentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsRechargeIntentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsRechargeIntentMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRechargeIntentMutation", m)
+}
+
+// The EsportsRescheduleConfirmationFunc type is an adapter to allow the use of ordinary
+// function as EsportsRescheduleConfirmation mutator.
+type EsportsRescheduleConfirmationFunc func(context.Context, *ent.EsportsRescheduleConfirmationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsRescheduleConfirmationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsRescheduleConfirmationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRescheduleConfirmationMutation", m)
+}
+
+// The EsportsRescheduleProposalFunc type is an adapter to allow the use of ordinary
+// function as EsportsRescheduleProposal mutator.
+type EsportsRescheduleProposalFunc func(context.Context, *ent.EsportsRescheduleProposalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsRescheduleProposalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsRescheduleProposalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRescheduleProposalMutation", m)
+}
+
 // The EsportsScriptFunc type is an adapter to allow the use of ordinary
 // function as EsportsScript mutator.
 type EsportsScriptFunc func(context.Context, *ent.EsportsScriptMutation) (ent.Value, error)
@@ -906,6 +954,30 @@ func (f EsportsSkuFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, 
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSkuMutation", m)
+}
+
+// The EsportsSkuSuspensionFunc type is an adapter to allow the use of ordinary
+// function as EsportsSkuSuspension mutator.
+type EsportsSkuSuspensionFunc func(context.Context, *ent.EsportsSkuSuspensionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsSkuSuspensionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsSkuSuspensionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSkuSuspensionMutation", m)
+}
+
+// The EsportsSkuSuspensionItemFunc type is an adapter to allow the use of ordinary
+// function as EsportsSkuSuspensionItem mutator.
+type EsportsSkuSuspensionItemFunc func(context.Context, *ent.EsportsSkuSuspensionItemMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsSkuSuspensionItemFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsSkuSuspensionItemMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSkuSuspensionItemMutation", m)
 }
 
 // The EsportsStoredValueCardFunc type is an adapter to allow the use of ordinary

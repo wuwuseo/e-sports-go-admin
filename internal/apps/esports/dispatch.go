@@ -79,10 +79,41 @@ func bumpOrder(ctx context.Context, tx *ent.Tx, orderID, expectedVersion int, ta
 	return expectedVersion + 1, nil
 }
 
-// checkPlayerDispatchLimit 统计当前有效邀请及未完成服务占位。接受邀请时排除本次已预占席位。
-// 已完成订单或本人已结束的服务段不占并发容量；历史已接单席位仍计入接单当日上限。
-// ponytail: 每日口径仍取 UTC 接单自然日；预约服务开始自然日与细分时段重叠判定尚待实现。
-func checkPlayerDispatchLimit(ctx context.Context, tx *ent.Tx, player *ent.EsportsPlayer, now time.Time, exceptSeatID int) error {
+// dispatchServiceWindow 返回订单的预约服务时段（§5.5），半开区间 [start, start+duration)。
+// 无预约开始时间或未配置服务时长时返回 false，调用方回落「未结束即占位」的保守口径：
+// 历史单与即时单没有档期与时长快照，无法做重叠判定。
+func dispatchServiceWindow(order *ent.EsportsOrder) (time.Time, time.Time, bool) {
+	if order == nil || order.RequestedStartAt == nil || order.ServiceDurationMinutes <= 0 {
+		return time.Time{}, time.Time{}, false
+	}
+	start := order.RequestedStartAt.UTC()
+	return start, start.Add(time.Duration(order.ServiceDurationMinutes) * time.Minute), true
+}
+
+// dispatchSeatServiceStart 返回席位占位归属的「服务开始时刻」（§5.5）：预约单取预约开始时间，
+// 即时单取回应时刻，仍在等待回应的邀请按当前时刻保守归集。第二个返回值为 false 表示该席位
+// 没有可归集的服务开始时刻（历史已接单但缺回应时间），不计入每日上限。
+func dispatchSeatServiceStart(order *ent.EsportsOrder, seat *ent.EsportsDispatchSeat, now time.Time) (time.Time, bool) {
+	if order != nil && order.RequestedStartAt != nil {
+		return order.RequestedStartAt.UTC(), true
+	}
+	if seat.RespondedAt != nil {
+		return seat.RespondedAt.UTC(), true
+	}
+	if seat.Status == esportsdispatchseat.StatusInvited {
+		return now.UTC(), true
+	}
+	return time.Time{}, false
+}
+
+// checkPlayerDispatchLimit 统计当前有效邀请及未完成服务占位。接受邀请时排除本次已预占席位（§5.5）。
+// 已完成订单或本人已结束的服务段不占并发容量。
+// 并发口径：双方都有明确预约时段（预约开始时间 + 服务时长快照）时按区间重叠判定，
+// 否则回落「未结束即占位」的保守口径；每日口径按「服务开始自然日」（业务时区）归集，
+// 而不是接单 UTC 日，避免不同日期的预约互相误挡。
+// targetOrder 为本次要接入的订单；nil 表示只做「是否还有容量」的粗筛。
+func checkPlayerDispatchLimit(ctx context.Context, tx *ent.Tx, player *ent.EsportsPlayer,
+	targetOrder *ent.EsportsOrder, now time.Time, exceptSeatID int) error {
 	if player.ConcurrentLimit <= 0 && player.DailyLimit <= 0 {
 		return nil
 	}
@@ -104,8 +135,13 @@ func checkPlayerDispatchLimit(ctx context.Context, tx *ent.Tx, player *ent.Espor
 	for _, segment := range finished {
 		finishedOrders[segment.OrderID] = true
 	}
-	dayStart := now.UTC().Truncate(24 * time.Hour)
-	dayEnd := dayStart.Add(24 * time.Hour)
+	targetStart, targetEnd, targetTimed := dispatchServiceWindow(targetOrder)
+	// 目标订单的归集日：有预约开始时间按预约日，否则按当前时刻（即时单）。
+	targetAt := now.UTC()
+	if targetOrder != nil && targetOrder.RequestedStartAt != nil {
+		targetAt = targetOrder.RequestedStartAt.UTC()
+	}
+	targetDay := businessDayStart(targetAt)
 	orders := map[int]*ent.EsportsOrder{}
 	concurrent, daily := 0, 0
 	for _, seat := range seats {
@@ -128,32 +164,45 @@ func checkPlayerDispatchLimit(ctx context.Context, tx *ent.Tx, player *ent.Espor
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusCancelled &&
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose &&
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCloseReview
+		// 时段重叠：只有双方都有明确时段才精确判定，否则按 active 保守占位。
+		overlap := active
+		if targetTimed {
+			if start, end, ok := dispatchServiceWindow(order); ok {
+				overlap = start.Before(targetEnd) && targetStart.Before(end)
+			}
+		}
+		seatStart, hasStart := dispatchSeatServiceStart(order, seat, now)
+		sameDay := hasStart && businessDayStart(seatStart).Equal(targetDay)
 		if invited {
-			if active {
+			if overlap {
 				concurrent++
+			}
+			if sameDay {
 				daily++
 			}
 			continue
 		}
-		if active && !finishedOrders[seat.OrderID] {
+		if overlap && !finishedOrders[seat.OrderID] {
 			concurrent++
 		}
-		if seat.RespondedAt != nil && !seat.RespondedAt.Before(dayStart) && seat.RespondedAt.Before(dayEnd) {
+		if sameDay {
 			daily++
 		}
 	}
 	if player.ConcurrentLimit > 0 && concurrent >= player.ConcurrentLimit {
-		return fmt.Errorf("%w：该陪玩并发接单已达上限（%d），无法再接单", errInvalidInput, player.ConcurrentLimit)
+		return fmt.Errorf("%w：该陪玩在此时段并发接单已达上限（%d），无法再接单", errInvalidInput, player.ConcurrentLimit)
 	}
 	if player.DailyLimit > 0 && daily >= player.DailyLimit {
-		return fmt.Errorf("%w：该陪玩今日接单已达上限（%d），无法再接单", errInvalidInput, player.DailyLimit)
+		return fmt.Errorf("%w：该陪玩当日服务档期已达上限（%d），无法再接单", errInvalidInput, player.DailyLimit)
 	}
 	return nil
 }
 
 // reservePlayerDispatchCapacity 用陪玩版本条件更新串行化不同订单的占位竞争。
 // 后续校验或派单失败会回滚本次版本更新；并发双方不能都基于同一旧版本通过校验。
-func reservePlayerDispatchCapacity(ctx context.Context, tx *ent.Tx, player *ent.EsportsPlayer, now time.Time, exceptSeatID int) error {
+// targetOrder 为本次要接入的订单，用于时段重叠与归集日判定；nil 表示粗筛。
+func reservePlayerDispatchCapacity(ctx context.Context, tx *ent.Tx, player *ent.EsportsPlayer,
+	targetOrder *ent.EsportsOrder, now time.Time, exceptSeatID int) error {
 	changed, err := tx.EsportsPlayer.Update().Where(
 		esportsplayer.IDEQ(player.ID), esportsplayer.VersionEQ(player.Version),
 	).AddVersion(1).Save(ctx)
@@ -163,7 +212,7 @@ func reservePlayerDispatchCapacity(ctx context.Context, tx *ent.Tx, player *ent.
 	if changed != 1 {
 		return errConflict
 	}
-	return checkPlayerDispatchLimit(ctx, tx, player, now, exceptSeatID)
+	return checkPlayerDispatchLimit(ctx, tx, player, targetOrder, now, exceptSeatID)
 }
 
 // assignDispatchSeat 指派陪玩到某一席位：校验资质、分区、等级及容量，条件更新抢下 open 席位并邀请。
@@ -187,6 +236,9 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance) {
 		return nil, errConflict
 	}
+	if err = ensureAppointmentConfirmed(order); err != nil {
+		return nil, err
+	}
 	player, err := tx.EsportsPlayer.Get(ctx, playerID)
 	if err != nil {
 		return nil, err
@@ -195,7 +247,7 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 		player.Presence != esportsplayer.PresenceOnline {
 		return nil, errForbidden
 	}
-	if err = reservePlayerDispatchCapacity(ctx, tx, player, now, 0); err != nil {
+	if err = reservePlayerDispatchCapacity(ctx, tx, player, order, now, 0); err != nil {
 		return nil, err
 	}
 	game, err := orderGameIn(ctx, tx, order.SkuID)
@@ -464,6 +516,9 @@ func publishOrderToGrabHall(ctx context.Context, db *ent.Client, orderID, adminI
 	if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
 		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
 		return nil, errConflict
+	}
+	if err = ensureAppointmentConfirmed(order); err != nil {
+		return nil, err
 	}
 	if order.RequiredSeats != 1 {
 		return nil, fmt.Errorf("%w：首版抢单大厅仅开放单陪玩订单，多人订单请改用指派", errInvalidInput)

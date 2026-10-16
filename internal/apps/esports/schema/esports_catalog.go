@@ -45,6 +45,9 @@ func (EsportsSku) Fields() []ent.Field {
 		field.Int("adjustment_approval_bp").Default(2000).StructTag(`json:"adjustment_approval_bp"`),
 		field.Int64("service_units").Positive().StructTag(`json:"service_units"`),
 		field.String("service_unit_name").NotEmpty().MaxLen(32).StructTag(`json:"service_unit_name"`),
+		// 单次服务的标准时长（分钟，§5.5）：用于预约时段重叠与服务开始自然日的容量判定；0 表示未配置，
+		// 此时容量判定回落到「未结束即占位」的保守口径。
+		field.Int("service_duration_minutes").Default(0).StructTag(`json:"service_duration_minutes"`),
 		field.Int("required_seats").Positive().Default(1).StructTag(`json:"required_seats"`),
 		// 所需技能等级（§5.5）：陪玩等级不得低于该值（novice 最低 = 无门槛）。
 		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),

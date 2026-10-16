@@ -198,9 +198,8 @@ func listDispatchPriority(ctx context.Context, db *ent.Client, game, status stri
 }
 
 // rebuildDispatchPriority 周期重算（§5.4）：过期名单转 expired、到点名单转 active，
-// 并在切换点前为下一期预生成名单（延续本期生效名单，source=rotation）。返回处理的条目数。
-// ponytail: 排名制 / 积分制 / 达标制的**自动计算**未接入（缺少可用的排名、积分与达标数据源），
-// 自动重算只做「上一期名单延续到下一期」；人工指定与人工增减不受影响。
+// 并在切换点前为下一期预生成名单。获得方式为排名制/积分制/达标制的名单按各自口径自动计算
+// （见 autoComputeDispatchPriority），轮换制与人工指定仍延续本期名单。返回处理的条目数。
 func rebuildDispatchPriority(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if limit < 1 {
 		limit = 200
@@ -245,6 +244,12 @@ func rebuildDispatchPriority(ctx context.Context, db *ent.Client, now time.Time,
 		groups[key] = append(groups[key], grant)
 	}
 	quota := dispatchPriorityQuota(ctx, db)
+	sourceNote := map[esportsdispatchprioritygrant.Source]string{
+		esportsdispatchprioritygrant.SourceRanking:   "按排名制自动计算",
+		esportsdispatchprioritygrant.SourcePoints:    "按积分制自动计算",
+		esportsdispatchprioritygrant.SourceThreshold: "按达标制自动计算",
+		esportsdispatchprioritygrant.SourceRotation:  "由上期名单预生成",
+	}
 	for key, grants := range groups {
 		_, nextEnd := dispatchPriorityPeriodWindow(key.period, utc)
 		nextStart, nextPeriodEnd := dispatchPriorityPeriodWindow(key.period, nextEnd)
@@ -259,17 +264,31 @@ func rebuildDispatchPriority(ctx context.Context, db *ent.Client, now time.Time,
 			// 下一期名单已存在（人工录入或此前已预生成），不覆盖。
 			continue
 		}
-		for i, grant := range grants {
-			if i >= quota {
-				break
+		// 获得方式决定下一期口径：排名/积分/达标按各自规则自动计算，轮换与人工指定延续上期。
+		source := dispatchPriorityAutoSource(grants)
+		var nominees []priorityNominee
+		if source == esportsdispatchprioritygrant.SourceRotation {
+			for i, grant := range grants {
+				if i >= quota {
+					break
+				}
+				nominees = append(nominees, priorityNominee{playerID: grant.PlayerID, rank: i + 1})
 			}
+		} else {
+			nominees, err = autoComputeDispatchPriority(ctx, db, source, quota)
+			if err != nil {
+				return total, err
+			}
+		}
+		for _, nominee := range nominees {
 			if _, err = db.EsportsDispatchPriorityGrant.Create().
-				SetGame(grant.Game).SetPlayerID(grant.PlayerID).
-				SetPeriod(grant.Period).SetPeriodStart(nextStart).SetPeriodEnd(nextPeriodEnd).
-				SetRank(i + 1).
-				SetSource(esportsdispatchprioritygrant.SourceRotation).
+				SetGame(key.game).SetPlayerID(nominee.playerID).
+				SetPeriod(esportsdispatchprioritygrant.Period(key.period)).
+				SetPeriodStart(nextStart).SetPeriodEnd(nextPeriodEnd).
+				SetRank(nominee.rank).
+				SetSource(source).
 				SetStatus(esportsdispatchprioritygrant.StatusPending).
-				SetNote("由上期名单预生成").Save(ctx); err != nil {
+				SetNote(sourceNote[source]).Save(ctx); err != nil {
 				if ent.IsConstraintError(err) {
 					continue
 				}
@@ -330,6 +349,12 @@ type dispatchCandidate struct {
 	RatingSamples      int     `json:"rating_samples"`
 	RatingInsuffici    bool    `json:"rating_insufficient"`
 	ActiveSeats        int     `json:"active_seats"`
+	// 历史合作：该陪玩与该客户的历史已完成订单数（§5.5 加分项）。
+	HistoryCompleted int `json:"history_completed"`
+	// 分区等级：当前生效优先派单权名单内的排名，0 表示不在名单或未排名。
+	ZoneRank int `json:"zone_rank"`
+	// 合成排序分（§5.5）：各分量按配置权重加权，越大越靠前；仅作排序诊断。
+	Score int `json:"score"`
 }
 
 // dispatchCandidates 为订单列出**当前可派单对象**（§5.5 首版）。
@@ -339,12 +364,11 @@ type dispatchCandidate struct {
 //   - 窗口已结束（超时 / 全部拒绝 / 客服提前释放）或本就没有名单 → 返回全部合格在线陪玩。
 //
 // 硬性条件：资质 qualified、在线（与人工指派的门槛一致）；已在该订单席位上的陪玩不重复列出。
-// 排序：客服指定陪玩（preferredPlayerID）→ 评分高者优先（样本不足不当作低分、按同等处理）
+// 排序：客服指定陪玩（preferredPlayerID）最前；其余按「评分 / 在途席位均衡 / 历史合作 /
+// 客户偏好 / 分区等级」以可配置权重合成排序分降序（§5.5），同分按档案 ID 稳定兜底。
 //
-//	→ 在途席位数少者优先（轮转均衡）→ 档案 ID 稳定兜底。
-//
-// ponytail: 历史合作与客户偏好、距离或时区等加分项未实现（缺少相应数据源）；
-// 评分按每位候选单独计算，候选量级大时应改为一次聚合。
+// ponytail: 距离/时区以「分区等级（优先派单权名单排名）」近似，未接真实定位；真实推送未接入。
+// 评分与历史合作按候选逐个聚合，候选量级大时可改为一次批量聚合。
 func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
 	preferredPlayerID, limit int, now time.Time) ([]*dispatchCandidate, error) {
 	if order == nil {
@@ -423,6 +447,20 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		return nil, err
 	}
 	requiredLevel := order.RequiredLevel.String()
+	// 批量收集排序加分项所需数据（§5.5）：历史合作与分区等级、可配置权重。
+	playerIDs := make([]int, 0, len(players))
+	for _, player := range players {
+		playerIDs = append(playerIDs, player.ID)
+	}
+	historyCounts, err := playerCustomerCompletedOrders(ctx, db, playerIDs, order.CustomerID)
+	if err != nil {
+		return nil, err
+	}
+	zoneRanks, err := activePriorityRanks(ctx, db, game, now)
+	if err != nil {
+		return nil, err
+	}
+	weights := dispatchRankWeightsFor(ctx, db)
 	capacityTx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -437,7 +475,7 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if err := checkPlayerGameLevel(player, game, requiredLevel); err != nil {
 			continue
 		}
-		if err := checkPlayerDispatchLimit(ctx, capacityTx, player, now, 0); err != nil {
+		if err := checkPlayerDispatchLimit(ctx, capacityTx, player, order, now, 0); err != nil {
 			if errors.Is(err, errInvalidInput) {
 				continue
 			}
@@ -447,6 +485,23 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if err != nil {
 			return nil, err
 		}
+		// 合成排序分（§5.5）：评分 / 在途席位均衡 / 历史合作 / 客户偏好 / 分区等级。
+		ratingScore := 0
+		if !rating.Insufficient {
+			ratingScore = int(rating.Average * 20) // 均分 1~5 → 0~100
+		}
+		preferenceScore := 0
+		if preferredPlayerID > 0 && player.ID == preferredPlayerID {
+			preferenceScore = 100
+		}
+		zoneRank, inList := zoneRanks[player.ID]
+		score := dispatchRankScore(weights, dispatchRankFactors{
+			RatingScore:     ratingScore,
+			HistoryScore:    normalizeCappedScore(historyCounts[player.ID], weights.HistoryCap),
+			PreferenceScore: preferenceScore,
+			ZoneScore:       dispatchZoneScore(zoneRank, inList),
+			BalanceScore:    normalizeCappedScore(load[player.ID], weights.BalanceCap),
+		})
 		candidates = append(candidates, &dispatchCandidate{
 			PlayerID:           player.ID,
 			DisplayName:        player.DisplayName,
@@ -459,28 +514,21 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 			RatingSamples:      rating.SampleCount,
 			RatingInsuffici:    rating.Insufficient,
 			ActiveSeats:        load[player.ID],
+			HistoryCompleted:   historyCounts[player.ID],
+			ZoneRank:           zoneRank,
+			Score:              score,
 		})
 	}
 	sort.SliceStable(candidates, func(i, j int) bool {
 		a, b := candidates[i], candidates[j]
-		// 1) 客服指定陪玩最前。
+		// 客服/客户指定陪玩最前（硬置顶，不参与加权）。
 		if a.Preferred != b.Preferred {
 			return a.Preferred
 		}
-		// 2) 评分：样本充足的按均分降序；样本不足不当作低分，视作同等。
-		aRated := !a.RatingInsuffici
-		bRated := !b.RatingInsuffici
-		if aRated != bRated {
-			return aRated
+		// 合成排序分降序，同分按档案 ID 稳定兜底，避免顺序抖动。
+		if a.Score != b.Score {
+			return a.Score > b.Score
 		}
-		if aRated && bRated && a.RatingAverage != b.RatingAverage {
-			return a.RatingAverage > b.RatingAverage
-		}
-		// 4) 轮转均衡：在途席位少者优先。
-		if a.ActiveSeats != b.ActiveSeats {
-			return a.ActiveSeats < b.ActiveSeats
-		}
-		// 5) 稳定兜底，避免同分候选顺序抖动。
 		return a.PlayerID < b.PlayerID
 	})
 	if len(candidates) > limit {

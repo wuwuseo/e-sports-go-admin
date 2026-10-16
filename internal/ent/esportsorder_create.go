@@ -108,6 +108,48 @@ func (_c *EsportsOrderCreate) SetNillableCsCommissionRuleLockedAt(v *time.Time) 
 	return _c
 }
 
+// SetManualCommissionRuleID sets the "manual_commission_rule_id" field.
+func (_c *EsportsOrderCreate) SetManualCommissionRuleID(v int) *EsportsOrderCreate {
+	_c.mutation.SetManualCommissionRuleID(v)
+	return _c
+}
+
+// SetNillableManualCommissionRuleID sets the "manual_commission_rule_id" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableManualCommissionRuleID(v *int) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetManualCommissionRuleID(*v)
+	}
+	return _c
+}
+
+// SetManualCommissionRuleSetByAdminID sets the "manual_commission_rule_set_by_admin_id" field.
+func (_c *EsportsOrderCreate) SetManualCommissionRuleSetByAdminID(v int) *EsportsOrderCreate {
+	_c.mutation.SetManualCommissionRuleSetByAdminID(v)
+	return _c
+}
+
+// SetNillableManualCommissionRuleSetByAdminID sets the "manual_commission_rule_set_by_admin_id" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableManualCommissionRuleSetByAdminID(v *int) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetManualCommissionRuleSetByAdminID(*v)
+	}
+	return _c
+}
+
+// SetManualCommissionRuleSetAt sets the "manual_commission_rule_set_at" field.
+func (_c *EsportsOrderCreate) SetManualCommissionRuleSetAt(v time.Time) *EsportsOrderCreate {
+	_c.mutation.SetManualCommissionRuleSetAt(v)
+	return _c
+}
+
+// SetNillableManualCommissionRuleSetAt sets the "manual_commission_rule_set_at" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableManualCommissionRuleSetAt(v *time.Time) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetManualCommissionRuleSetAt(*v)
+	}
+	return _c
+}
+
 // SetCloseFormTemplateID sets the "close_form_template_id" field.
 func (_c *EsportsOrderCreate) SetCloseFormTemplateID(v int) *EsportsOrderCreate {
 	_c.mutation.SetCloseFormTemplateID(v)
@@ -241,6 +283,20 @@ func (_c *EsportsOrderCreate) SetPayableCents(v int64) *EsportsOrderCreate {
 // SetPromisedServiceUnits sets the "promised_service_units" field.
 func (_c *EsportsOrderCreate) SetPromisedServiceUnits(v int64) *EsportsOrderCreate {
 	_c.mutation.SetPromisedServiceUnits(v)
+	return _c
+}
+
+// SetServiceDurationMinutes sets the "service_duration_minutes" field.
+func (_c *EsportsOrderCreate) SetServiceDurationMinutes(v int) *EsportsOrderCreate {
+	_c.mutation.SetServiceDurationMinutes(v)
+	return _c
+}
+
+// SetNillableServiceDurationMinutes sets the "service_duration_minutes" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableServiceDurationMinutes(v *int) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetServiceDurationMinutes(*v)
+	}
 	return _c
 }
 
@@ -847,6 +903,10 @@ func (_c *EsportsOrderCreate) defaults() {
 		v := esportsorder.DefaultManualAdjustCents
 		_c.mutation.SetManualAdjustCents(v)
 	}
+	if _, ok := _c.mutation.ServiceDurationMinutes(); !ok {
+		v := esportsorder.DefaultServiceDurationMinutes
+		_c.mutation.SetServiceDurationMinutes(v)
+	}
 	if _, ok := _c.mutation.AddonCents(); !ok {
 		v := esportsorder.DefaultAddonCents
 		_c.mutation.SetAddonCents(v)
@@ -1018,6 +1078,9 @@ func (_c *EsportsOrderCreate) check() error {
 		if err := esportsorder.PromisedServiceUnitsValidator(v); err != nil {
 			return &ValidationError{Name: "promised_service_units", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.promised_service_units": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ServiceDurationMinutes(); !ok {
+		return &ValidationError{Name: "service_duration_minutes", err: errors.New(`ent: missing required field "EsportsOrder.service_duration_minutes"`)}
 	}
 	if _, ok := _c.mutation.AddonCents(); !ok {
 		return &ValidationError{Name: "addon_cents", err: errors.New(`ent: missing required field "EsportsOrder.addon_cents"`)}
@@ -1206,6 +1269,18 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 		_spec.SetField(esportsorder.FieldCsCommissionRuleLockedAt, field.TypeTime, value)
 		_node.CsCommissionRuleLockedAt = &value
 	}
+	if value, ok := _c.mutation.ManualCommissionRuleID(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleID, field.TypeInt, value)
+		_node.ManualCommissionRuleID = &value
+	}
+	if value, ok := _c.mutation.ManualCommissionRuleSetByAdminID(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleSetByAdminID, field.TypeInt, value)
+		_node.ManualCommissionRuleSetByAdminID = &value
+	}
+	if value, ok := _c.mutation.ManualCommissionRuleSetAt(); ok {
+		_spec.SetField(esportsorder.FieldManualCommissionRuleSetAt, field.TypeTime, value)
+		_node.ManualCommissionRuleSetAt = &value
+	}
 	if value, ok := _c.mutation.CloseFormTemplateID(); ok {
 		_spec.SetField(esportsorder.FieldCloseFormTemplateID, field.TypeInt, value)
 		_node.CloseFormTemplateID = &value
@@ -1253,6 +1328,10 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.PromisedServiceUnits(); ok {
 		_spec.SetField(esportsorder.FieldPromisedServiceUnits, field.TypeInt64, value)
 		_node.PromisedServiceUnits = value
+	}
+	if value, ok := _c.mutation.ServiceDurationMinutes(); ok {
+		_spec.SetField(esportsorder.FieldServiceDurationMinutes, field.TypeInt, value)
+		_node.ServiceDurationMinutes = value
 	}
 	if value, ok := _c.mutation.AddonCents(); ok {
 		_spec.SetField(esportsorder.FieldAddonCents, field.TypeInt64, value)

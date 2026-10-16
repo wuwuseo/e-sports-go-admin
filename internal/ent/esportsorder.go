@@ -33,6 +33,12 @@ type EsportsOrder struct {
 	CsCommissionRuleID *int `json:"cs_commission_rule_id"`
 	// CsCommissionRuleLockedAt holds the value of the "cs_commission_rule_locked_at" field.
 	CsCommissionRuleLockedAt *time.Time `json:"cs_commission_rule_locked_at"`
+	// ManualCommissionRuleID holds the value of the "manual_commission_rule_id" field.
+	ManualCommissionRuleID *int `json:"manual_commission_rule_id"`
+	// ManualCommissionRuleSetByAdminID holds the value of the "manual_commission_rule_set_by_admin_id" field.
+	ManualCommissionRuleSetByAdminID *int `json:"manual_commission_rule_set_by_admin_id"`
+	// ManualCommissionRuleSetAt holds the value of the "manual_commission_rule_set_at" field.
+	ManualCommissionRuleSetAt *time.Time `json:"manual_commission_rule_set_at"`
 	// CloseFormTemplateID holds the value of the "close_form_template_id" field.
 	CloseFormTemplateID *int `json:"close_form_template_id"`
 	// CloseFormTemplateLockedAt holds the value of the "close_form_template_locked_at" field.
@@ -57,6 +63,8 @@ type EsportsOrder struct {
 	PayableCents int64 `json:"payable_cents"`
 	// PromisedServiceUnits holds the value of the "promised_service_units" field.
 	PromisedServiceUnits int64 `json:"promised_service_units"`
+	// ServiceDurationMinutes holds the value of the "service_duration_minutes" field.
+	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// AddonCents holds the value of the "addon_cents" field.
 	AddonCents int64 `json:"addon_cents"`
 	// AddonUnits holds the value of the "addon_units" field.
@@ -147,11 +155,11 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsorder.FieldBackfillCountCommission:
 			values[i] = new(sql.NullBool)
-		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
+		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldManualCommissionRuleID, esportsorder.FieldManualCommissionRuleSetByAdminID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldServiceDurationMinutes, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
 			values[i] = new(sql.NullInt64)
 		case esportsorder.FieldOrderNo, esportsorder.FieldChannelSource, esportsorder.FieldEntryPoint, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus, esportsorder.FieldBackfillReason:
 			values[i] = new(sql.NullString)
-		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldBackfilledAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
+		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldManualCommissionRuleSetAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldBackfilledAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -227,6 +235,27 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				_m.CsCommissionRuleLockedAt = new(time.Time)
 				*_m.CsCommissionRuleLockedAt = value.Time
 			}
+		case esportsorder.FieldManualCommissionRuleID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field manual_commission_rule_id", values[i])
+			} else if value.Valid {
+				_m.ManualCommissionRuleID = new(int)
+				*_m.ManualCommissionRuleID = int(value.Int64)
+			}
+		case esportsorder.FieldManualCommissionRuleSetByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field manual_commission_rule_set_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.ManualCommissionRuleSetByAdminID = new(int)
+				*_m.ManualCommissionRuleSetByAdminID = int(value.Int64)
+			}
+		case esportsorder.FieldManualCommissionRuleSetAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field manual_commission_rule_set_at", values[i])
+			} else if value.Valid {
+				_m.ManualCommissionRuleSetAt = new(time.Time)
+				*_m.ManualCommissionRuleSetAt = value.Time
+			}
 		case esportsorder.FieldCloseFormTemplateID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field close_form_template_id", values[i])
@@ -300,6 +329,12 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field promised_service_units", values[i])
 			} else if value.Valid {
 				_m.PromisedServiceUnits = value.Int64
+			}
+		case esportsorder.FieldServiceDurationMinutes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field service_duration_minutes", values[i])
+			} else if value.Valid {
+				_m.ServiceDurationMinutes = int(value.Int64)
 			}
 		case esportsorder.FieldAddonCents:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -628,6 +663,21 @@ func (_m *EsportsOrder) String() string {
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
+	if v := _m.ManualCommissionRuleID; v != nil {
+		builder.WriteString("manual_commission_rule_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ManualCommissionRuleSetByAdminID; v != nil {
+		builder.WriteString("manual_commission_rule_set_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ManualCommissionRuleSetAt; v != nil {
+		builder.WriteString("manual_commission_rule_set_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
 	if v := _m.CloseFormTemplateID; v != nil {
 		builder.WriteString("close_form_template_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -667,6 +717,9 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("promised_service_units=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PromisedServiceUnits))
+	builder.WriteString(", ")
+	builder.WriteString("service_duration_minutes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ServiceDurationMinutes))
 	builder.WriteString(", ")
 	builder.WriteString("addon_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AddonCents))

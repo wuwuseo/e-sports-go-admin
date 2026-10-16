@@ -24,6 +24,9 @@ const (
 type afterSaleReviewInput struct {
 	Reason      string `json:"reason"`
 	EvidenceRef string `json:"evidence_ref"`
+	// EvidenceAttachmentIDs 复核附带凭证附件 ID 列表（§13.2）：须为申请人本人上传的私有附件，
+	// 非空时校验归属并把引用序列化为 evidence_ref 的 JSON 数组。
+	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 }
 
 type afterSaleReviewDecisionInput struct {
@@ -39,8 +42,25 @@ func requestAfterSaleReview(ctx context.Context, db *ent.Client, afterSaleID, ad
 	in afterSaleReviewInput, now time.Time) (*ent.EsportsAfterSaleReview, error) {
 	in.Reason = strings.TrimSpace(in.Reason)
 	in.EvidenceRef = strings.TrimSpace(in.EvidenceRef)
-	if afterSaleID < 1 || adminID < 1 || in.Reason == "" || len([]rune(in.Reason)) > 500 ||
-		len([]rune(in.EvidenceRef)) > 255 {
+	if afterSaleID < 1 || adminID < 1 || in.Reason == "" || len([]rune(in.Reason)) > 500 {
+		return nil, errInvalidInput
+	}
+	// §13.2：复核附带凭证附件时按申请人（客服本人）校验归属，并把引用序列化进 evidence_ref。
+	if len(in.EvidenceAttachmentIDs) > 0 {
+		staff, err := db.Admin.Get(ctx, adminID)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := resolveAfterSaleEvidence(ctx, db, in.EvidenceAttachmentIDs, staff.UID); err != nil {
+			return nil, err
+		}
+		ref, err := afterSaleEvidenceRef(in.EvidenceAttachmentIDs)
+		if err != nil {
+			return nil, err
+		}
+		in.EvidenceRef = ref
+	}
+	if len([]rune(in.EvidenceRef)) > 255 {
 		return nil, errInvalidInput
 	}
 	tx, err := db.Tx(ctx)

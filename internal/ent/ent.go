@@ -19,6 +19,7 @@ import (
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsaftersaleaction"
 	"go-admin/internal/ent/esportsaftersalereview"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
@@ -75,12 +76,17 @@ import (
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
+	"go-admin/internal/ent/esportsrechargeintent"
+	"go-admin/internal/ent/esportsrescheduleconfirmation"
+	"go-admin/internal/ent/esportsrescheduleproposal"
 	"go-admin/internal/ent/esportsscript"
 	"go-admin/internal/ent/esportsseattransferrequest"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportssettlementcycle"
 	"go-admin/internal/ent/esportssku"
+	"go-admin/internal/ent/esportsskususpension"
+	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
@@ -180,6 +186,7 @@ func checkColumn(t, c string) error {
 			department.Table:                    department.ValidColumn,
 			dictdata.Table:                      dictdata.ValidColumn,
 			esportsaftersale.Table:              esportsaftersale.ValidColumn,
+			esportsaftersaleaction.Table:        esportsaftersaleaction.ValidColumn,
 			esportsaftersalereview.Table:        esportsaftersalereview.ValidColumn,
 			esportsagecheck.Table:               esportsagecheck.ValidColumn,
 			esportsassessment.Table:             esportsassessment.ValidColumn,
@@ -236,12 +243,17 @@ func checkColumn(t, c string) error {
 			esportsproductcategory.Table:        esportsproductcategory.ValidColumn,
 			esportsquotahold.Table:              esportsquotahold.ValidColumn,
 			esportsrechargecampaign.Table:       esportsrechargecampaign.ValidColumn,
+			esportsrechargeintent.Table:         esportsrechargeintent.ValidColumn,
+			esportsrescheduleconfirmation.Table: esportsrescheduleconfirmation.ValidColumn,
+			esportsrescheduleproposal.Table:     esportsrescheduleproposal.ValidColumn,
 			esportsscript.Table:                 esportsscript.ValidColumn,
 			esportsseattransferrequest.Table:    esportsseattransferrequest.ValidColumn,
 			esportsservicesegment.Table:         esportsservicesegment.ValidColumn,
 			esportssettlement.Table:             esportssettlement.ValidColumn,
 			esportssettlementcycle.Table:        esportssettlementcycle.ValidColumn,
 			esportssku.Table:                    esportssku.ValidColumn,
+			esportsskususpension.Table:          esportsskususpension.ValidColumn,
+			esportsskususpensionitem.Table:      esportsskususpensionitem.ValidColumn,
 			esportsstoredvaluecard.Table:        esportsstoredvaluecard.ValidColumn,
 			esportsstoredvaluepackage.Table:     esportsstoredvaluepackage.ValidColumn,
 			esportsteammate.Table:               esportsteammate.ValidColumn,

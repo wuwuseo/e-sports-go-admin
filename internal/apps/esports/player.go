@@ -316,7 +316,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 			return errConflict
 		}
 		// 本席位在邀请时已预占容量；接受时排除自身，并串行检查其他订单的占位。
-		if err = reservePlayerDispatchCapacity(ctx, tx, player, now, seat.ID); err != nil {
+		if err = reservePlayerDispatchCapacity(ctx, tx, player, order, now, seat.ID); err != nil {
 			return err
 		}
 		game, gErr := orderGameIn(ctx, tx, order.SkuID)
@@ -333,7 +333,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 	).SetStatus(target).SetRespondedAt(now.UTC()).AddVersion(1)
 	if accept {
 		rule, ruleErr := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-			tx.EsportsSku, tx.EsportsProductCategory, order, playerID, now)
+			tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level.String(), now)
 		if ruleErr != nil {
 			return ruleErr
 		}
@@ -455,7 +455,8 @@ func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Ti
 	if player.Qualification != esportsplayer.QualificationQualified {
 		return []*ent.EsportsOrder{}, nil
 	}
-	if err = checkPlayerDispatchLimit(ctx, tx, player, now, 0); err != nil {
+	// 大厅筛选无特定订单：按「是否还有容量」粗筛，不参与时段重叠判定。
+	if err = checkPlayerDispatchLimit(ctx, tx, player, nil, now, 0); err != nil {
 		if errors.Is(err, errInvalidInput) {
 			return []*ent.EsportsOrder{}, nil
 		}
@@ -519,11 +520,14 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 	if player.Qualification != esportsplayer.QualificationQualified {
 		return nil, errForbidden
 	}
-	if err = reservePlayerDispatchCapacity(ctx, tx, player, now, 0); err != nil {
-		return nil, err
-	}
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureAppointmentConfirmed(order); err != nil {
+		return nil, err
+	}
+	if err = reservePlayerDispatchCapacity(ctx, tx, player, order, now, 0); err != nil {
 		return nil, err
 	}
 	if order.RequiredSeats != 1 {
@@ -537,7 +541,7 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 		return nil, err
 	}
 	rule, err := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, now)
+		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level.String(), now)
 	if err != nil {
 		return nil, err
 	}

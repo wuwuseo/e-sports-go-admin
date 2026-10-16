@@ -363,10 +363,27 @@ func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, 
 	if err != nil {
 		return nil, err
 	}
+	if err = writeCampaignRechargeTx(ctx, tx, operatorID, normalized, ownerID,
+		principalCents, bonus, snapshot, expiresAt, note, key); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return walletView(ctx, db, account)
+}
+
+// writeCampaignRechargeTx 在事务内把一笔「本金 + 已确定的赠送条款」写入钱包流水（本金/赠送分列、
+// 规则快照与赠送有效期），source_type 固定为 recharge_campaign。赠送额与快照由调用方给定：
+// rechargeWithCampaigns 在事务内即时匹配活动，充值独立支付意图则按发起时锁定的活动快照传入，
+// 两处落库口径完全一致，避免赠送随活动变更漂移。
+func writeCampaignRechargeTx(ctx context.Context, tx *ent.Tx, operatorID int, normalized string,
+	ownerID int, principalCents, bonusCents int64, snapshot map[string]any, expiresAt *time.Time,
+	note, key string) error {
 	create := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountType(normalized)).SetOwnerID(ownerID).
 		SetEntryType(esportswallettx.EntryTypeRecharge).
-		SetPrincipalDeltaCents(principalCents).SetBonusDeltaCents(bonus).
+		SetPrincipalDeltaCents(principalCents).SetBonusDeltaCents(bonusCents).
 		SetSourceType(campaignSourceType).SetSourceID(key).
 		SetOperatorID(operatorID).SetNote(note)
 	if snapshot != nil {
@@ -375,16 +392,13 @@ func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, 
 	if expiresAt != nil {
 		create.SetBonusExpiresAt(expiresAt.UTC())
 	}
-	if _, err = create.Save(ctx); err != nil {
+	if _, err := create.Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
-			return nil, errConflict
+			return errConflict
 		}
-		return nil, err
+		return err
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-	return walletView(ctx, db, account)
+	return nil
 }
 
 // bonusBatch 是赠送到期重放中的一档批次（一次充值赠送）。

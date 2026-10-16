@@ -21,6 +21,11 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int("cs_commission_admin_id").Optional().Nillable().StructTag(`json:"cs_commission_admin_id"`),
 		field.Int("cs_commission_rule_id").Optional().Nillable().StructTag(`json:"cs_commission_rule_id"`),
 		field.Time("cs_commission_rule_locked_at").Optional().Nillable().StructTag(`json:"cs_commission_rule_locked_at"`),
+		// §12.3 五级优先级的最高一级「单笔手动指定」：派单/接单前由管理员为这一单指定分成规则。
+		// 只在成员锁定席位规则前生效；已锁定成员的分成快照不因事后指定而追溯（§12.4）。
+		field.Int("manual_commission_rule_id").Optional().Nillable().StructTag(`json:"manual_commission_rule_id"`),
+		field.Int("manual_commission_rule_set_by_admin_id").Optional().Nillable().StructTag(`json:"manual_commission_rule_set_by_admin_id"`),
+		field.Time("manual_commission_rule_set_at").Optional().Nillable().StructTag(`json:"manual_commission_rule_set_at"`),
 		// 下单时锁定结单表单版本；locked_at 非空、template_id 空表示下单当时无适用模板。
 		field.Int("close_form_template_id").Optional().Nillable().StructTag(`json:"close_form_template_id"`),
 		field.Time("close_form_template_locked_at").Optional().Nillable().StructTag(`json:"close_form_template_locked_at"`),
@@ -36,6 +41,8 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int64("manual_adjust_cents").Default(0).StructTag(`json:"manual_adjust_cents"`),
 		field.Int64("payable_cents").Positive().StructTag(`json:"payable_cents"`),
 		field.Int64("promised_service_units").Positive().StructTag(`json:"promised_service_units"`),
+		// 服务时长快照（分钟，§5.5）：下单时从 SKU 快照，用于预约时段重叠与容量判定；0 表示未配置。
+		field.Int("service_duration_minutes").Default(0).StructTag(`json:"service_duration_minutes"`),
 		// 加钟累计（§3.3 / §12.5）：由「已确认」的加钟单累加，只增不改；payable_cents 保持原报价快照。
 		field.Int64("addon_cents").Default(0).StructTag(`json:"addon_cents"`),
 		field.Int64("addon_units").Default(0).StructTag(`json:"addon_units"`),

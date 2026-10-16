@@ -37,6 +37,8 @@ type EsportsSku struct {
 	ServiceUnits int64 `json:"service_units"`
 	// ServiceUnitName holds the value of the "service_unit_name" field.
 	ServiceUnitName string `json:"service_unit_name"`
+	// ServiceDurationMinutes holds the value of the "service_duration_minutes" field.
+	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// RequiredSeats holds the value of the "required_seats" field.
 	RequiredSeats int `json:"required_seats"`
 	// RequiredLevel holds the value of the "required_level" field.
@@ -67,7 +69,7 @@ func (*EsportsSku) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
+		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldServiceDurationMinutes, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldRequiredLevel, esportssku.FieldCloseRuleCode, esportssku.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -154,6 +156,12 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field service_unit_name", values[i])
 			} else if value.Valid {
 				_m.ServiceUnitName = value.String
+			}
+		case esportssku.FieldServiceDurationMinutes:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field service_duration_minutes", values[i])
+			} else if value.Valid {
+				_m.ServiceDurationMinutes = int(value.Int64)
 			}
 		case esportssku.FieldRequiredSeats:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -288,6 +296,9 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("service_unit_name=")
 	builder.WriteString(_m.ServiceUnitName)
+	builder.WriteString(", ")
+	builder.WriteString("service_duration_minutes=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ServiceDurationMinutes))
 	builder.WriteString(", ")
 	builder.WriteString("required_seats=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredSeats))

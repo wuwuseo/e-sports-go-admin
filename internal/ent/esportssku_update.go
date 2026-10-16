@@ -195,6 +195,27 @@ func (_u *EsportsSkuUpdate) SetNillableServiceUnitName(v *string) *EsportsSkuUpd
 	return _u
 }
 
+// SetServiceDurationMinutes sets the "service_duration_minutes" field.
+func (_u *EsportsSkuUpdate) SetServiceDurationMinutes(v int) *EsportsSkuUpdate {
+	_u.mutation.ResetServiceDurationMinutes()
+	_u.mutation.SetServiceDurationMinutes(v)
+	return _u
+}
+
+// SetNillableServiceDurationMinutes sets the "service_duration_minutes" field if the given value is not nil.
+func (_u *EsportsSkuUpdate) SetNillableServiceDurationMinutes(v *int) *EsportsSkuUpdate {
+	if v != nil {
+		_u.SetServiceDurationMinutes(*v)
+	}
+	return _u
+}
+
+// AddServiceDurationMinutes adds value to the "service_duration_minutes" field.
+func (_u *EsportsSkuUpdate) AddServiceDurationMinutes(v int) *EsportsSkuUpdate {
+	_u.mutation.AddServiceDurationMinutes(v)
+	return _u
+}
+
 // SetRequiredSeats sets the "required_seats" field.
 func (_u *EsportsSkuUpdate) SetRequiredSeats(v int) *EsportsSkuUpdate {
 	_u.mutation.ResetRequiredSeats()
@@ -522,6 +543,12 @@ func (_u *EsportsSkuUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.ServiceUnitName(); ok {
 		_spec.SetField(esportssku.FieldServiceUnitName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
+		_spec.SetField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServiceDurationMinutes(); ok {
+		_spec.AddField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.RequiredSeats(); ok {
 		_spec.SetField(esportssku.FieldRequiredSeats, field.TypeInt, value)
 	}
@@ -754,6 +781,27 @@ func (_u *EsportsSkuUpdateOne) SetNillableServiceUnitName(v *string) *EsportsSku
 	if v != nil {
 		_u.SetServiceUnitName(*v)
 	}
+	return _u
+}
+
+// SetServiceDurationMinutes sets the "service_duration_minutes" field.
+func (_u *EsportsSkuUpdateOne) SetServiceDurationMinutes(v int) *EsportsSkuUpdateOne {
+	_u.mutation.ResetServiceDurationMinutes()
+	_u.mutation.SetServiceDurationMinutes(v)
+	return _u
+}
+
+// SetNillableServiceDurationMinutes sets the "service_duration_minutes" field if the given value is not nil.
+func (_u *EsportsSkuUpdateOne) SetNillableServiceDurationMinutes(v *int) *EsportsSkuUpdateOne {
+	if v != nil {
+		_u.SetServiceDurationMinutes(*v)
+	}
+	return _u
+}
+
+// AddServiceDurationMinutes adds value to the "service_duration_minutes" field.
+func (_u *EsportsSkuUpdateOne) AddServiceDurationMinutes(v int) *EsportsSkuUpdateOne {
+	_u.mutation.AddServiceDurationMinutes(v)
 	return _u
 }
 
@@ -1113,6 +1161,12 @@ func (_u *EsportsSkuUpdateOne) sqlSave(ctx context.Context) (_node *EsportsSku, 
 	}
 	if value, ok := _u.mutation.ServiceUnitName(); ok {
 		_spec.SetField(esportssku.FieldServiceUnitName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
+		_spec.SetField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedServiceDurationMinutes(); ok {
+		_spec.AddField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.RequiredSeats(); ok {
 		_spec.SetField(esportssku.FieldRequiredSeats, field.TypeInt, value)

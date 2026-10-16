@@ -15,6 +15,7 @@ import (
 	"go-admin/internal/ent/department"
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportsaftersaleaction"
 	"go-admin/internal/ent/esportsaftersalereview"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
@@ -71,12 +72,17 @@ import (
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
+	"go-admin/internal/ent/esportsrechargeintent"
+	"go-admin/internal/ent/esportsrescheduleconfirmation"
+	"go-admin/internal/ent/esportsrescheduleproposal"
 	"go-admin/internal/ent/esportsscript"
 	"go-admin/internal/ent/esportsseattransferrequest"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportssettlementcycle"
 	"go-admin/internal/ent/esportssku"
+	"go-admin/internal/ent/esportsskususpension"
+	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
@@ -182,6 +188,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsaftersale.TablePrefix
 		esportsaftersale.TablePrefix = prefix
 		esportsaftersale.Table = prefix + strings.TrimPrefix(esportsaftersale.Table, old)
+	}
+	{
+		old := esportsaftersaleaction.TablePrefix
+		esportsaftersaleaction.TablePrefix = prefix
+		esportsaftersaleaction.Table = prefix + strings.TrimPrefix(esportsaftersaleaction.Table, old)
 	}
 	{
 		old := esportsaftersalereview.TablePrefix
@@ -464,6 +475,21 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportsrechargecampaign.Table = prefix + strings.TrimPrefix(esportsrechargecampaign.Table, old)
 	}
 	{
+		old := esportsrechargeintent.TablePrefix
+		esportsrechargeintent.TablePrefix = prefix
+		esportsrechargeintent.Table = prefix + strings.TrimPrefix(esportsrechargeintent.Table, old)
+	}
+	{
+		old := esportsrescheduleconfirmation.TablePrefix
+		esportsrescheduleconfirmation.TablePrefix = prefix
+		esportsrescheduleconfirmation.Table = prefix + strings.TrimPrefix(esportsrescheduleconfirmation.Table, old)
+	}
+	{
+		old := esportsrescheduleproposal.TablePrefix
+		esportsrescheduleproposal.TablePrefix = prefix
+		esportsrescheduleproposal.Table = prefix + strings.TrimPrefix(esportsrescheduleproposal.Table, old)
+	}
+	{
 		old := esportsscript.TablePrefix
 		esportsscript.TablePrefix = prefix
 		esportsscript.Table = prefix + strings.TrimPrefix(esportsscript.Table, old)
@@ -492,6 +518,16 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportssku.TablePrefix
 		esportssku.TablePrefix = prefix
 		esportssku.Table = prefix + strings.TrimPrefix(esportssku.Table, old)
+	}
+	{
+		old := esportsskususpension.TablePrefix
+		esportsskususpension.TablePrefix = prefix
+		esportsskususpension.Table = prefix + strings.TrimPrefix(esportsskususpension.Table, old)
+	}
+	{
+		old := esportsskususpensionitem.TablePrefix
+		esportsskususpensionitem.TablePrefix = prefix
+		esportsskususpensionitem.Table = prefix + strings.TrimPrefix(esportsskususpensionitem.Table, old)
 	}
 	{
 		old := esportsstoredvaluecard.TablePrefix

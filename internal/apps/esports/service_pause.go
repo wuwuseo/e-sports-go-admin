@@ -61,6 +61,49 @@ func listPlayerServiceTimings(ctx context.Context, db *ent.Client, playerID int,
 	return result, nil
 }
 
+// applySegmentPauseChange 在事务内做一次服务段暂停/恢复的状态迁移（§3.3），返回事件类型与本段新增暂停秒数。
+// 仅供 setPlayerServicePause（本人操作）与 setServicePauseByAdmin（客服代操作）复用，保证两种入口的
+// 计时语义完全一致，避免代操作路径出现与本人操作不同的暂停秒数口径。
+func applySegmentPauseChange(ctx context.Context, tx *ent.Tx, segment *ent.EsportsServiceSegment,
+	pause bool, now time.Time) (string, int64, error) {
+	var eventType string
+	var pausedDelta int64
+	if pause {
+		if segment.Status != esportsservicesegment.StatusInService {
+			return "", 0, errConflict
+		}
+		changed, err := tx.EsportsServiceSegment.Update().Where(
+			esportsservicesegment.IDEQ(segment.ID), esportsservicesegment.VersionEQ(segment.Version),
+			esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
+		).SetStatus(esportsservicesegment.StatusPaused).SetPausedAt(now).AddVersion(1).Save(ctx)
+		if err != nil {
+			return "", 0, err
+		}
+		if changed != 1 {
+			return "", 0, errConflict
+		}
+		eventType = "order.service_paused"
+	} else {
+		if segment.Status != esportsservicesegment.StatusPaused || segment.PausedAt == nil || now.Before(segment.PausedAt.UTC()) {
+			return "", 0, errConflict
+		}
+		pausedDelta = int64(now.Sub(segment.PausedAt.UTC()).Seconds())
+		changed, err := tx.EsportsServiceSegment.Update().Where(
+			esportsservicesegment.IDEQ(segment.ID), esportsservicesegment.VersionEQ(segment.Version),
+			esportsservicesegment.StatusEQ(esportsservicesegment.StatusPaused),
+		).SetStatus(esportsservicesegment.StatusInService).ClearPausedAt().
+			AddPausedSeconds(pausedDelta).AddVersion(1).Save(ctx)
+		if err != nil {
+			return "", 0, err
+		}
+		if changed != 1 {
+			return "", 0, errConflict
+		}
+		eventType = "order.service_resumed"
+	}
+	return eventType, pausedDelta, nil
+}
+
 func setPlayerServicePause(ctx context.Context, db *ent.Client, playerID, orderID int, pause bool, reason string, now time.Time) (playerServiceTiming, error) {
 	reason = strings.TrimSpace(reason)
 	if playerID < 1 || orderID < 1 || len([]rune(reason)) > 255 {
@@ -91,40 +134,9 @@ func setPlayerServicePause(ctx context.Context, db *ent.Client, playerID, orderI
 	if now.Before(segment.StartedAt.UTC()) {
 		return playerServiceTiming{}, errInvalidInput
 	}
-	var eventType string
-	var pausedDelta int64
-	if pause {
-		if segment.Status != esportsservicesegment.StatusInService {
-			return playerServiceTiming{}, errConflict
-		}
-		changed, err := tx.EsportsServiceSegment.Update().Where(
-			esportsservicesegment.IDEQ(segment.ID), esportsservicesegment.VersionEQ(segment.Version),
-			esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
-		).SetStatus(esportsservicesegment.StatusPaused).SetPausedAt(now).AddVersion(1).Save(ctx)
-		if err != nil {
-			return playerServiceTiming{}, err
-		}
-		if changed != 1 {
-			return playerServiceTiming{}, errConflict
-		}
-		eventType = "order.service_paused"
-	} else {
-		if segment.Status != esportsservicesegment.StatusPaused || segment.PausedAt == nil || now.Before(segment.PausedAt.UTC()) {
-			return playerServiceTiming{}, errConflict
-		}
-		pausedDelta = int64(now.Sub(segment.PausedAt.UTC()).Seconds())
-		changed, err := tx.EsportsServiceSegment.Update().Where(
-			esportsservicesegment.IDEQ(segment.ID), esportsservicesegment.VersionEQ(segment.Version),
-			esportsservicesegment.StatusEQ(esportsservicesegment.StatusPaused),
-		).SetStatus(esportsservicesegment.StatusInService).ClearPausedAt().
-			AddPausedSeconds(pausedDelta).AddVersion(1).Save(ctx)
-		if err != nil {
-			return playerServiceTiming{}, err
-		}
-		if changed != 1 {
-			return playerServiceTiming{}, errConflict
-		}
-		eventType = "order.service_resumed"
+	eventType, pausedDelta, err := applySegmentPauseChange(ctx, tx, segment, pause, now)
+	if err != nil {
+		return playerServiceTiming{}, err
 	}
 	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, "")
 	if err != nil {

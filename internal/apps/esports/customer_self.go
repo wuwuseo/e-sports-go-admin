@@ -117,21 +117,53 @@ func customerAfterSaleWindowDays(ctx context.Context, db *ent.Client) (int, erro
 	return days, nil // 0 = 不限时
 }
 
-// createCustomerAfterSale 客户自助发起售后（§13.2）：本人订单在配置时限内可发起，归属客服记为发起人。
+// createCustomerAfterSale 客户自助发起售后（§13.2 / §13.3）：本人来源单据可发起，归属客服记为发起人。
+// 不带凭证附件，等价于 createCustomerAfterSaleWithEvidence(ctx, db, customer, in, nil, now)。
 func createCustomerAfterSale(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
 	in afterSaleInput, now time.Time) (*ent.EsportsAfterSale, error) {
+	return createCustomerAfterSaleWithEvidence(ctx, db, customer, in, nil, now)
+}
+
+// createCustomerAfterSaleWithEvidence 客户自助发起售后（§13.2 / §13.3）：本人来源单据可发起，归属客服记为发起人。
+// 订单来源沿用「终态订单 + 配置时限」的窗口；礼物 / 储值卡 / 充值来源带自身单据语义，不做自助时限。
+// 考核处罚来源属陪玩申诉，不由客户自助发起。
+// evidenceAttachmentIDs 非空时校验凭证附件为本人上传（图片/文档私有附件），并把引用序列化为
+// evidence_ref 的 JSON 数组落库；引用他人附件返回 errForbidden，非图片/非私有目录返回 errInvalidInput。
+func createCustomerAfterSaleWithEvidence(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
+	in afterSaleInput, evidenceAttachmentIDs []int, now time.Time) (*ent.EsportsAfterSale, error) {
 	if customer == nil || customer.ID < 1 || in.SourceID < 1 {
 		return nil, errInvalidInput
 	}
-	order, err := db.EsportsOrder.Get(ctx, in.SourceID)
+	if len(evidenceAttachmentIDs) > 0 {
+		subject, err := customerUploadSubject(ctx, db, customer)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := resolveAfterSaleEvidence(ctx, db, evidenceAttachmentIDs, subject); err != nil {
+			return nil, err
+		}
+		ref, err := afterSaleEvidenceRef(evidenceAttachmentIDs)
+		if err != nil {
+			return nil, err
+		}
+		in.EvidenceRef = ref
+	}
+	if in.SourceType == "" {
+		in.SourceType = "order"
+	}
+	if !validAfterSaleSourceType(in.SourceType) || in.SourceType == "assessment" {
+		return nil, errInvalidInput
+	}
+	source, err := resolveAfterSaleSource(ctx, db, in.SourceType, in.SourceID)
 	if err != nil {
 		return nil, err
 	}
-	if order.CustomerID != customer.ID {
+	if source.CustomerID == nil || *source.CustomerID != customer.ID {
 		return nil, errForbidden
 	}
-	if order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
-		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
+	if order := source.Order; order != nil &&
+		(order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
+			order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled) {
 		days, err := customerAfterSaleWindowDays(ctx, db)
 		if err != nil {
 			return nil, err
@@ -148,15 +180,14 @@ func createCustomerAfterSale(ctx context.Context, db *ent.Client, customer *ent.
 		}
 	}
 	operator := 0
-	if order.ResponsibleAdminID != nil {
-		operator = *order.ResponsibleAdminID
+	if source.Order != nil && source.Order.ResponsibleAdminID != nil {
+		operator = *source.Order.ResponsibleAdminID
 	} else if customer.OwnerAdminID != nil {
 		operator = *customer.OwnerAdminID
 	}
 	if operator < 1 {
-		return nil, fmt.Errorf("%w：该订单暂无归属客服，请联系客服发起售后", errForbidden)
+		return nil, fmt.Errorf("%w：该来源暂无归属客服，请联系客服发起售后", errForbidden)
 	}
-	in.SourceType = "order"
 	in.Channel = "customer"
 	customerID := customer.ID
 	in.CustomerID = &customerID

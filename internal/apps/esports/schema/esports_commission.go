@@ -10,7 +10,8 @@ import (
 
 // EsportsCommissionRule 是陪玩分成规则。规则不可原地修改：改规则＝新增一条递增 version 的新行，
 // 旧行转 history 且不再变更（§12.4）。同一 rule_no 的不同版本共享编号，version 逐版递增。
-// ponytail: 「陪玩等级」「单笔手动指定」两个优先级未实现（等级字段属 §7 考官端，尚无字段）；
+// §12.3 五级优先级：单笔手动指定（订单字段 manual_commission_rule_id，不落 scope）
+// > scope=player > scope=level > scope=game > scope=global。
 // 生效时间在未来的版本进入 scheduled，达到时间后解析器可立即使用，定时任务补齐状态转换。
 type EsportsCommissionRule struct{ ent.Schema }
 
@@ -19,9 +20,10 @@ func (EsportsCommissionRule) Fields() []ent.Field {
 		field.String("rule_no").NotEmpty().MaxLen(48).StructTag(`json:"rule_no"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Enum("status").Values("draft", "scheduled", "active", "history").Default("draft").StructTag(`json:"status"`),
-		// scope 决定规则适用范围：全局 / 按游戏 / 按单个陪玩档案。
-		field.Enum("scope").Values("global", "game", "player").Default("global").StructTag(`json:"scope"`),
-		// scope=game 时为游戏名；scope=player 时为陪玩档案 ID 字符串。
+		// scope 决定规则适用范围：全局 / 按游戏 / 按陪玩等级 / 按单个陪玩档案。
+		field.Enum("scope").Values("global", "game", "level", "player").Default("global").StructTag(`json:"scope"`),
+		// scope=game 时为游戏名；scope=level 时为陪玩等级（novice/skilled/senior/mentor）；
+		// scope=player 时为陪玩档案 ID 字符串。
 		field.String("scope_key").MaxLen(64).Default("").StructTag(`json:"scope_key"`),
 		field.Enum("calc_mode").Values("percent", "fixed_per_order", "fixed_per_unit").Default("percent").StructTag(`json:"calc_mode"`),
 		// percent 使用，万分比：100bp = 1%。

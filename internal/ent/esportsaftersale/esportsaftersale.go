@@ -205,7 +205,11 @@ const DefaultSourceType = SourceTypeOrder
 
 // SourceType values.
 const (
-	SourceTypeOrder SourceType = "order"
+	SourceTypeOrder           SourceType = "order"
+	SourceTypeGift            SourceType = "gift"
+	SourceTypeStoredValueCard SourceType = "stored_value_card"
+	SourceTypeRecharge        SourceType = "recharge"
+	SourceTypeAssessment      SourceType = "assessment"
 )
 
 func (st SourceType) String() string {
@@ -215,7 +219,7 @@ func (st SourceType) String() string {
 // SourceTypeValidator is a validator for the "source_type" field enum values. It is called by the builders before save.
 func SourceTypeValidator(st SourceType) error {
 	switch st {
-	case SourceTypeOrder:
+	case SourceTypeOrder, SourceTypeGift, SourceTypeStoredValueCard, SourceTypeRecharge, SourceTypeAssessment:
 		return nil
 	default:
 		return fmt.Errorf("esportsaftersale: invalid enum value for source_type field: %q", st)

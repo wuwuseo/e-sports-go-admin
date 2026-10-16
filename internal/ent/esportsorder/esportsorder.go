@@ -32,6 +32,12 @@ const (
 	FieldCsCommissionRuleID = "cs_commission_rule_id"
 	// FieldCsCommissionRuleLockedAt holds the string denoting the cs_commission_rule_locked_at field in the database.
 	FieldCsCommissionRuleLockedAt = "cs_commission_rule_locked_at"
+	// FieldManualCommissionRuleID holds the string denoting the manual_commission_rule_id field in the database.
+	FieldManualCommissionRuleID = "manual_commission_rule_id"
+	// FieldManualCommissionRuleSetByAdminID holds the string denoting the manual_commission_rule_set_by_admin_id field in the database.
+	FieldManualCommissionRuleSetByAdminID = "manual_commission_rule_set_by_admin_id"
+	// FieldManualCommissionRuleSetAt holds the string denoting the manual_commission_rule_set_at field in the database.
+	FieldManualCommissionRuleSetAt = "manual_commission_rule_set_at"
 	// FieldCloseFormTemplateID holds the string denoting the close_form_template_id field in the database.
 	FieldCloseFormTemplateID = "close_form_template_id"
 	// FieldCloseFormTemplateLockedAt holds the string denoting the close_form_template_locked_at field in the database.
@@ -56,6 +62,8 @@ const (
 	FieldPayableCents = "payable_cents"
 	// FieldPromisedServiceUnits holds the string denoting the promised_service_units field in the database.
 	FieldPromisedServiceUnits = "promised_service_units"
+	// FieldServiceDurationMinutes holds the string denoting the service_duration_minutes field in the database.
+	FieldServiceDurationMinutes = "service_duration_minutes"
 	// FieldAddonCents holds the string denoting the addon_cents field in the database.
 	FieldAddonCents = "addon_cents"
 	// FieldAddonUnits holds the string denoting the addon_units field in the database.
@@ -154,6 +162,9 @@ var Columns = []string{
 	FieldCsCommissionAdminID,
 	FieldCsCommissionRuleID,
 	FieldCsCommissionRuleLockedAt,
+	FieldManualCommissionRuleID,
+	FieldManualCommissionRuleSetByAdminID,
+	FieldManualCommissionRuleSetAt,
 	FieldCloseFormTemplateID,
 	FieldCloseFormTemplateLockedAt,
 	FieldChannelSource,
@@ -166,6 +177,7 @@ var Columns = []string{
 	FieldManualAdjustCents,
 	FieldPayableCents,
 	FieldPromisedServiceUnits,
+	FieldServiceDurationMinutes,
 	FieldAddonCents,
 	FieldAddonUnits,
 	FieldRequiredSeats,
@@ -241,6 +253,8 @@ var (
 	PayableCentsValidator func(int64) error
 	// PromisedServiceUnitsValidator is a validator for the "promised_service_units" field. It is called by the builders before save.
 	PromisedServiceUnitsValidator func(int64) error
+	// DefaultServiceDurationMinutes holds the default value on creation for the "service_duration_minutes" field.
+	DefaultServiceDurationMinutes int
 	// DefaultAddonCents holds the default value on creation for the "addon_cents" field.
 	DefaultAddonCents int64
 	// DefaultAddonUnits holds the default value on creation for the "addon_units" field.
@@ -615,6 +629,21 @@ func ByCsCommissionRuleLockedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCsCommissionRuleLockedAt, opts...).ToFunc()
 }
 
+// ByManualCommissionRuleID orders the results by the manual_commission_rule_id field.
+func ByManualCommissionRuleID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldManualCommissionRuleID, opts...).ToFunc()
+}
+
+// ByManualCommissionRuleSetByAdminID orders the results by the manual_commission_rule_set_by_admin_id field.
+func ByManualCommissionRuleSetByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldManualCommissionRuleSetByAdminID, opts...).ToFunc()
+}
+
+// ByManualCommissionRuleSetAt orders the results by the manual_commission_rule_set_at field.
+func ByManualCommissionRuleSetAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldManualCommissionRuleSetAt, opts...).ToFunc()
+}
+
 // ByCloseFormTemplateID orders the results by the close_form_template_id field.
 func ByCloseFormTemplateID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCloseFormTemplateID, opts...).ToFunc()
@@ -673,6 +702,11 @@ func ByPayableCents(opts ...sql.OrderTermOption) OrderOption {
 // ByPromisedServiceUnits orders the results by the promised_service_units field.
 func ByPromisedServiceUnits(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPromisedServiceUnits, opts...).ToFunc()
+}
+
+// ByServiceDurationMinutes orders the results by the service_duration_minutes field.
+func ByServiceDurationMinutes(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceDurationMinutes, opts...).ToFunc()
 }
 
 // ByAddonCents orders the results by the addon_cents field.

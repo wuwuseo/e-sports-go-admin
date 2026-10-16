@@ -26,6 +26,14 @@ func fail(c fiber.Ctx, status int, message string) error {
 
 func businessError(c fiber.Ctx, err error) error {
 	switch {
+	// §4.6 报单校验：重复报单提醒 / 客户欠款拦截 / 预约时段资源冲突都给前端明确中文提示与 409。
+	// 这三类需排在 errInvalidInput 之前：预约资源冲突错误同时包裹了 errInvalidInput（容量判定口径）。
+	case errors.Is(err, errDuplicateOrder):
+		return fail(c, fiber.StatusConflict, err.Error())
+	case errors.Is(err, errCustomerDebt):
+		return fail(c, fiber.StatusConflict, err.Error())
+	case errors.Is(err, errAppointmentResource):
+		return fail(c, fiber.StatusConflict, err.Error())
 	// 用 err.Error() 返回：裸 errInvalidInput 文案仍为「请求参数无效」，
 	// 携带上下文的中文包装错误（如结单条件缺失）则原样透出，便于前端提示。
 	case errors.Is(err, errInvalidInput):

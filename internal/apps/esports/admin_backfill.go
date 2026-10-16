@@ -145,6 +145,7 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 		SetMinUnitPriceCents(sku.MinUnitPriceCents).SetAdjustmentApprovalBp(sku.AdjustmentApprovalBp).
 		SetPayableCents(payable).SetPromisedServiceUnits(sku.ServiceUnits * in.Quantity).
 		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(esportsorder.RequiredLevel(sku.RequiredLevel)).
+		SetServiceDurationMinutes(sku.ServiceDurationMinutes).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatus(in.FulfillmentStatus)).
 		SetPaymentStatus(esportsorder.PaymentStatusPaid).SetPaidAt(settledAt).
 		// 补录单不参与支付时限：写补录时刻，避免历史单立刻被判超时。

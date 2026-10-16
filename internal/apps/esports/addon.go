@@ -200,8 +200,13 @@ func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID in
 		return nil, errConflict
 	}
 	// 确认时点锁定分成规则并计算本次加钟分成（§12.5）。
+	// 按确认时点的陪玩等级走 §12.3 的 level 级；档案缺失按无等级处理。
+	addonPlayerLevel := ""
+	if addonPlayer, pErr := tx.EsportsPlayer.Get(ctx, playerID); pErr == nil {
+		addonPlayerLevel = addonPlayer.Level.String()
+	}
 	rule, err := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, now)
+		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, addonPlayerLevel, now)
 	if err != nil {
 		return nil, err
 	}

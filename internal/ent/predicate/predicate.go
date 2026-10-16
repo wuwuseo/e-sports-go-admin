@@ -45,6 +45,9 @@ type DictData func(*sql.Selector)
 // EsportsAfterSale is the predicate function for esportsaftersale builders.
 type EsportsAfterSale func(*sql.Selector)
 
+// EsportsAfterSaleAction is the predicate function for esportsaftersaleaction builders.
+type EsportsAfterSaleAction func(*sql.Selector)
+
 // EsportsAfterSaleReview is the predicate function for esportsaftersalereview builders.
 type EsportsAfterSaleReview func(*sql.Selector)
 
@@ -213,6 +216,15 @@ type EsportsQuotaHold func(*sql.Selector)
 // EsportsRechargeCampaign is the predicate function for esportsrechargecampaign builders.
 type EsportsRechargeCampaign func(*sql.Selector)
 
+// EsportsRechargeIntent is the predicate function for esportsrechargeintent builders.
+type EsportsRechargeIntent func(*sql.Selector)
+
+// EsportsRescheduleConfirmation is the predicate function for esportsrescheduleconfirmation builders.
+type EsportsRescheduleConfirmation func(*sql.Selector)
+
+// EsportsRescheduleProposal is the predicate function for esportsrescheduleproposal builders.
+type EsportsRescheduleProposal func(*sql.Selector)
+
 // EsportsScript is the predicate function for esportsscript builders.
 type EsportsScript func(*sql.Selector)
 
@@ -230,6 +242,12 @@ type EsportsSettlementCycle func(*sql.Selector)
 
 // EsportsSku is the predicate function for esportssku builders.
 type EsportsSku func(*sql.Selector)
+
+// EsportsSkuSuspension is the predicate function for esportsskususpension builders.
+type EsportsSkuSuspension func(*sql.Selector)
+
+// EsportsSkuSuspensionItem is the predicate function for esportsskususpensionitem builders.
+type EsportsSkuSuspensionItem func(*sql.Selector)
 
 // EsportsStoredValueCard is the predicate function for esportsstoredvaluecard builders.
 type EsportsStoredValueCard func(*sql.Selector)
