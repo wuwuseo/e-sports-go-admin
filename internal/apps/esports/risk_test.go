@@ -47,25 +47,33 @@ func TestCustomerRiskMarking(t *testing.T) {
 	}
 }
 
-// 自助入口拦截（§13.7）：只有「限制自助下单」拦截；「疑似滥用复核」不拦截、不自动处罚。
+// 自助入口拦截（§13.7）：未开放自助下单（self_order_enabled=false）拦截；
+// 开放后仅「限制自助下单」拦截；「疑似滥用复核」不拦截、不自动处罚。
 func TestEnsureCustomerSelfServiceAllowed(t *testing.T) {
 	cases := []struct {
-		status  esportscustomer.RiskStatus
-		blocked bool
+		name       string
+		status     esportscustomer.RiskStatus
+		selfOrder  bool
+		blocked    bool
+		wantReason string
 	}{
-		{esportscustomer.RiskStatusNormal, false},
-		{esportscustomer.RiskStatusWatch, false},
-		{esportscustomer.RiskStatusRestricted, true},
+		{name: "未开放自助", status: esportscustomer.RiskStatusNormal, selfOrder: false, blocked: true, wantReason: "未开放自助下单"},
+		{name: "正常开放", status: esportscustomer.RiskStatusNormal, selfOrder: true, blocked: false},
+		{name: "疑似滥用开放", status: esportscustomer.RiskStatusWatch, selfOrder: true, blocked: false},
+		{name: "限制自助", status: esportscustomer.RiskStatusRestricted, selfOrder: true, blocked: true, wantReason: "限制自助下单"},
 	}
 	for _, tc := range cases {
-		customer := &ent.EsportsCustomer{RiskStatus: tc.status, RiskReason: "存在退款争议"}
+		customer := &ent.EsportsCustomer{RiskStatus: tc.status, RiskReason: "存在退款争议", SelfOrderEnabled: tc.selfOrder}
 		err := ensureCustomerSelfServiceAllowed(customer)
 		if tc.blocked {
 			if !errors.Is(err, errForbidden) {
-				t.Fatalf("%s 应被拦截：%v", tc.status, err)
+				t.Fatalf("%s 应被拦截：%v", tc.name, err)
+			}
+			if tc.wantReason != "" && !strings.Contains(err.Error(), tc.wantReason) {
+				t.Fatalf("%s 拦截原因应含 %q：%v", tc.name, tc.wantReason, err)
 			}
 		} else if err != nil {
-			t.Fatalf("%s 不应被拦截：%v", tc.status, err)
+			t.Fatalf("%s 不应被拦截：%v", tc.name, err)
 		}
 	}
 }

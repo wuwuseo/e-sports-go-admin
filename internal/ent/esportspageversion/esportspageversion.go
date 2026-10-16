@@ -97,9 +97,10 @@ const DefaultStatus = StatusScheduled
 
 // Status values.
 const (
-	StatusScheduled Status = "scheduled"
-	StatusPublished Status = "published"
-	StatusHistory   Status = "history"
+	StatusScheduled     Status = "scheduled"
+	StatusPendingReview Status = "pending_review"
+	StatusPublished     Status = "published"
+	StatusHistory       Status = "history"
 )
 
 func (s Status) String() string {
@@ -109,7 +110,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusScheduled, StatusPublished, StatusHistory:
+	case StatusScheduled, StatusPendingReview, StatusPublished, StatusHistory:
 		return nil
 	default:
 		return fmt.Errorf("esportspageversion: invalid enum value for status field: %q", s)

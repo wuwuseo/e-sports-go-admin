@@ -210,6 +210,10 @@ type EsportsPlayerCreditEvent struct {
 	appschemaesports.EsportsPlayerCreditEvent
 }
 
+type EsportsPlayerIdentity struct {
+	appschemaesports.EsportsPlayerIdentity
+}
+
 type EsportsPlayerRecovery struct {
 	appschemaesports.EsportsPlayerRecovery
 }

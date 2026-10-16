@@ -64,11 +64,15 @@ func customerRiskPolicyOf(ctx context.Context, db *ent.Client) customerRiskPolic
 	}
 }
 
-// ensureCustomerSelfServiceAllowed 自助入口的风险拦截（§13.7）：
-// 仅「限制自助下单」会拦截，且只要求联系客服或先预付——「疑似滥用复核」不拦截、不自动处罚。
+// ensureCustomerSelfServiceAllowed 自助入口的拦截（§13.7）：
+// ① 客户未开启「自助下单」开关时拦截（SelfOrderEnabled=false，缺省关闭）；
+// ② 「限制自助下单」时拦截，且只要求联系客服或先预付——「疑似滥用复核」不拦截、不自动处罚。
 func ensureCustomerSelfServiceAllowed(customer *ent.EsportsCustomer) error {
 	if customer == nil {
 		return errForbidden
+	}
+	if !customer.SelfOrderEnabled {
+		return fmt.Errorf("%w：该客户未开放自助下单，请联系客服报单", errForbidden)
 	}
 	if customer.RiskStatus == esportscustomer.RiskStatusRestricted {
 		reason := strings.TrimSpace(customer.RiskReason)

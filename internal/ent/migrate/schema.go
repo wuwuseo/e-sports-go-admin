@@ -2194,7 +2194,7 @@ var (
 		{Name: "channel", Type: field.TypeString, Size: 48},
 		{Name: "version_no", Type: field.TypeInt},
 		{Name: "config", Type: field.TypeJSON},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"scheduled", "published", "history"}, Default: "scheduled"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"scheduled", "pending_review", "published", "history"}, Default: "scheduled"},
 		{Name: "publish_mode", Type: field.TypeEnum, Enums: []string{"immediate", "scheduled"}, Default: "immediate"},
 		{Name: "scheduled_at", Type: field.TypeTime, Nullable: true},
 		{Name: "published_at", Type: field.TypeTime, Nullable: true},
@@ -2451,6 +2451,37 @@ var (
 				Name:    "esportsplayercreditevent_status_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsPlayerCreditEventsColumns[9], EsportsPlayerCreditEventsColumns[15]},
+			},
+		},
+	}
+	// EsportsPlayerIdentitiesColumns holds the columns for the "esports_player_identities" table.
+	EsportsPlayerIdentitiesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "player_id", Type: field.TypeInt},
+		{Name: "real_name", Type: field.TypeString, Size: 120},
+		{Name: "id_number_masked", Type: field.TypeString, Size: 32},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_verification", "verified", "rejected"}, Default: "pending_verification"},
+		{Name: "requested_by", Type: field.TypeInt, Default: 0},
+		{Name: "reviewed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "reject_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// EsportsPlayerIdentitiesTable holds the schema information for the "esports_player_identities" table.
+	EsportsPlayerIdentitiesTable = &schema.Table{
+		Name:       TablePrefix + "esports_player_identities",
+		Columns:    EsportsPlayerIdentitiesColumns,
+		PrimaryKey: []*schema.Column{EsportsPlayerIdentitiesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsplayeridentity_player_id_status",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPlayerIdentitiesColumns[1], EsportsPlayerIdentitiesColumns[4]},
+			},
+			{
+				Name:    "esportsplayeridentity_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPlayerIdentitiesColumns[4], EsportsPlayerIdentitiesColumns[9]},
 			},
 		},
 	}
@@ -4202,6 +4233,7 @@ var (
 		EsportsPaymentReversalsTable,
 		EsportsPlayersTable,
 		EsportsPlayerCreditEventsTable,
+		EsportsPlayerIdentitiesTable,
 		EsportsPlayerRecoveriesTable,
 		EsportsPlayerReviewsTable,
 		EsportsPlayerReviewRevisionsTable,

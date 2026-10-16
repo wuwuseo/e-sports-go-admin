@@ -112,3 +112,34 @@ func (EsportsIdentityBinding) Indexes() []ent.Index {
 		index.Fields("customer_id", "status"),
 	}
 }
+
+// EsportsPlayerIdentity 是陪玩实名认证记录（§6.1）：陪玩提交真实姓名与身份证号后进入
+// pending_verification，由管理员审核后置 verified / rejected；实名通过前陪玩 qualification
+// 不得为 qualified（由 player_identity.go 把关）。身份证号只存脱敏值，原始证件号不落库。
+// ponytail: 该实体由主代理统一 go generate 后生效；生成前 player_identity.go 暂用
+// EsportsIdentityBinding 承载认证状态（见该文件注释），生成后应切换到此实体。
+type EsportsPlayerIdentity struct{ ent.Schema }
+
+func (EsportsPlayerIdentity) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int("player_id").Positive().StructTag(`json:"player_id"`),
+		field.String("real_name").NotEmpty().MaxLen(120).StructTag(`json:"real_name"`),
+		// 身份证号脱敏存储（保留前 6 后 4），原始证件号不落库。
+		field.String("id_number_masked").NotEmpty().MaxLen(32).StructTag(`json:"id_number_masked"`),
+		field.Enum("status").Values("pending_verification", "verified", "rejected").
+			Default("pending_verification").StructTag(`json:"status"`),
+		// requested_by 提交人：陪玩本人自助提交为 0，管理端代提为 adminID。
+		field.Int("requested_by").Default(0).StructTag(`json:"requested_by"`),
+		field.Int("reviewed_by_admin_id").Optional().Nillable().StructTag(`json:"reviewed_by_admin_id"`),
+		field.String("reject_reason").MaxLen(255).Default("").StructTag(`json:"reject_reason"`),
+		field.Time("reviewed_at").Optional().Nillable().StructTag(`json:"reviewed_at"`),
+		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
+	}
+}
+
+func (EsportsPlayerIdentity) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("player_id", "status").Unique(),
+		index.Fields("status", "created_at"),
+	}
+}

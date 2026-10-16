@@ -76,6 +76,10 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 		!validQualification || !validPresence || in.DailyLimit < 0 || in.ConcurrentLimit < 0 {
 		return nil, errInvalidInput
 	}
+	// §6.1：实名认证通过前不得将资格置为合格。
+	if err := ensurePlayerQualificationAllowed(ctx, db, id, esportsplayer.Qualification(in.Qualification)); err != nil {
+		return nil, err
+	}
 	update := db.EsportsPlayer.Update().Where(esportsplayer.IDEQ(id)).
 		SetDisplayName(in.DisplayName).
 		SetQualification(esportsplayer.Qualification(in.Qualification)).

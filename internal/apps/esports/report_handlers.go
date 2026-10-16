@@ -22,7 +22,8 @@ func adminReports(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	if reportType == "finance" && !isSuper {
+	// 财务资金报表：超级管理员，或命中 app.esports.finance_report_role_names 配置角色的管理员可看。
+	if reportType == "finance" && !canAccessFinanceReport(c) {
 		return businessError(c, errForbidden)
 	}
 	// 资金总表同时包含独立钱包充值、提现与结算，不具备逐订单渠道归属。

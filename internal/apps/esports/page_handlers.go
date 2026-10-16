@@ -103,6 +103,47 @@ func rollbackPageHandler(c fiber.Ctx) error {
 	return reply(c, version)
 }
 
+// approvePagePublishHandler / rejectPagePublishHandler 审核待发布版本（§16.4）。
+// 需在 app.go 接线（perm 列表见下）：
+//
+//	{Method: "POST", Path: "/admin/pages/:channel/publish-review/:versionId/approve", Auth: cmfapp.AuthAdmin, Handler: approvePagePublishHandler}
+//	{Method: "POST", Path: "/admin/pages/:channel/publish-review/:versionId/reject",  Auth: cmfapp.AuthAdmin, Handler: rejectPagePublishHandler}
+//
+// 权限码（PermAPI）：
+//
+//	{Type: cmfapp.PermAPI, Name: "审核通过发布", Code: "esports:pages:publish_approve",
+//	 Path: "/api/v1/esports/admin/pages/{channel}/publish-review/{versionId}/approve", Method: "POST", Parent: "esports:page:menu"}
+//	{Type: cmfapp.PermAPI, Name: "驳回发布", Code: "esports:pages:publish_reject",
+//	 Path: "/api/v1/esports/admin/pages/{channel}/publish-review/{versionId}/reject", Method: "POST", Parent: "esports:page:menu"}
+func approvePagePublishHandler(c fiber.Ctx) error {
+	return reviewPagePublishHandler(c, true)
+}
+
+func rejectPagePublishHandler(c fiber.Ctx) error {
+	return reviewPagePublishHandler(c, false)
+}
+
+func reviewPagePublishHandler(c fiber.Ctx, approved bool) error {
+	admin, err := requestAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	versionID, err := strconv.Atoi(c.Params("versionId"))
+	if err != nil || versionID < 1 {
+		return fail(c, fiber.StatusBadRequest, "版本 ID 无效")
+	}
+	var in pagePublishReviewInput
+	if err = c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	in.Approved = approved // 以路径为准，忽略请求体中的 approved 字段。
+	version, err := reviewPagePublish(c.Context(), global.ORM, c.Params("channel"), versionID, admin.ID, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, version)
+}
+
 func adminPageVersions(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
 		return businessError(c, err)

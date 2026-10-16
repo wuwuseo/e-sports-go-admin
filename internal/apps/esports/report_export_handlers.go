@@ -11,8 +11,9 @@ import (
 	"go-admin/internal/global"
 )
 
-// validateReportExportAccess 校验导出权限与筛选边界：
+// validateReportExportAccess 校验导出权限与筛选边界（纯函数，便于测试）：
 // finance 报表仅超级管理员可见，且其资金不具备逐订单渠道归属，拒绝渠道/入口筛选。
+// 财务角色授权（app.esports.finance_report_role_names）由调用方 handler 另行判定。
 func validateReportExportAccess(reportType string, f reportFilter, isSuper bool) error {
 	if reportType == "finance" && !isSuper {
 		return errForbidden
@@ -43,7 +44,12 @@ func adminReportExport(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	if err := validateReportExportAccess(reportType, filter, isSuper); err != nil {
+	// 财务角色授权：非超管但命中配置角色的管理员可导出 finance。
+	financeAuthorized := isSuper
+	if reportType == "finance" && !isSuper && canAccessFinanceReport(c) {
+		financeAuthorized = true
+	}
+	if err := validateReportExportAccess(reportType, filter, financeAuthorized); err != nil {
 		return businessError(c, err)
 	}
 	filter = scopeReportFilter(filter, operator.ID, isSuper)

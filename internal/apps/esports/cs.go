@@ -520,6 +520,11 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
+	// 通知发送失败待办（§通知）：outbox status=dead 的事件，供客服人工处理重发。
+	notificationFailCount, err := countFailedNotifications(ctx, db)
+	if err != nil {
+		return nil, err
+	}
 	return []csTodoItem{
 		{Key: "overdue_payment", Label: "待付款已超时订单", Count: overdueCount},
 		{Key: "pending_close", Label: "待结单", Count: closeCount},
@@ -527,5 +532,6 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		{Key: "due_follow_up", Label: "跟进已到期", Count: followCount},
 		{Key: "stored_value_due", Label: "储值卡临近到期", Count: storedValueDueCount},
 		{Key: "customer_birthday", Label: "今日生日客户", Count: birthdayCount},
+		{Key: "notification_failed", Label: "通知发送失败", Count: notificationFailCount},
 	}, nil
 }

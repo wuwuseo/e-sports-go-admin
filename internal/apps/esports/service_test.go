@@ -109,7 +109,10 @@ func saveCustomerOrFail(t *testing.T, db *ent.Client, ownerID int) *ent.EsportsC
 	if err != nil {
 		t.Fatal(err)
 	}
-	customer, err = db.EsportsCustomer.UpdateOneID(customer.ID).SetAgeStatus("adult").Save(t.Context())
+	// 自助服务（下单/购卡/充值）默认开启：self_order_enabled 缺省 false，测试客户需显式开启，
+	// 否则 ensureCustomerSelfServiceAllowed 会拦截（§13.7 自助入口总开关）。
+	customer, err = db.EsportsCustomer.UpdateOneID(customer.ID).
+		SetAgeStatus("adult").SetSelfOrderEnabled(true).Save(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

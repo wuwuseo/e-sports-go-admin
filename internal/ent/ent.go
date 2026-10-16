@@ -70,6 +70,7 @@ import (
 	"go-admin/internal/ent/esportspaymentreversal"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayercreditevent"
+	"go-admin/internal/ent/esportsplayeridentity"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
@@ -243,6 +244,7 @@ func checkColumn(t, c string) error {
 			esportspaymentreversal.Table:         esportspaymentreversal.ValidColumn,
 			esportsplayer.Table:                  esportsplayer.ValidColumn,
 			esportsplayercreditevent.Table:       esportsplayercreditevent.ValidColumn,
+			esportsplayeridentity.Table:          esportsplayeridentity.ValidColumn,
 			esportsplayerrecovery.Table:          esportsplayerrecovery.ValidColumn,
 			esportsplayerreview.Table:            esportsplayerreview.ValidColumn,
 			esportsplayerreviewrevision.Table:    esportsplayerreviewrevision.ValidColumn,

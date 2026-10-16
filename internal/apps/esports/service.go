@@ -100,6 +100,22 @@ type orderInput struct {
 	// 重复报单确认（§4.6）：时间窗内已有相同报单时须显式置 true 才放行。omitempty 让不传该字段时
 	// 的幂等哈希与既有口径保持一致。
 	ConfirmDuplicate bool `json:"confirm_duplicate,omitempty"`
+	// 报单入口（§3.4）：移动客服端传 cs_mobile 以区别于后台 cs_pc；客户自助下单由身份前缀决定。
+	// 仅允许 cs_pc / cs_mobile / wecom_sidebar 三个客服侧入口，非法值回落 cs_pc。
+	EntryPoint string `json:"entry_point,omitempty"`
+}
+
+// normalizeEntryPoint 规范化报单入口：仅客服侧入口可显式指定，客户自助入口由调用方身份前缀决定，
+// 不允许客服伪造 customer_self / admin_backfill。
+func normalizeEntryPoint(raw string, principal string) esportsorder.EntryPoint {
+	raw = strings.TrimSpace(raw)
+	switch raw {
+	case string(esportsorder.EntryPointCsMobile):
+		return esportsorder.EntryPointCsMobile
+	case string(esportsorder.EntryPointWecomSidebar):
+		return esportsorder.EntryPointWecomSidebar
+	}
+	return esportsorder.EntryPointCsPc
 }
 
 func currentAdmin(ctx context.Context, db *ent.Client, uid string) (*ent.Admin, error) {
@@ -456,6 +472,9 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	entryPoint := esportsorder.EntryPointCsPc
 	if strings.HasPrefix(principal, "customer:") {
 		entryPoint = esportsorder.EntryPointCustomerSelf
+	} else {
+		// 客服侧（后台 / 移动客服 / 企微侧边栏）可由报单入口显式区分，非法值回落 cs_pc。
+		entryPoint = normalizeEntryPoint(in.EntryPoint, principal)
 	}
 	// 下单时固定适用结单表单（包括无模板）；后续发布新版本不改变旧单结单要求。
 	closeTemplate, err := resolveCloseFormTemplate(ctx, tx.Client(), &ent.EsportsOrder{

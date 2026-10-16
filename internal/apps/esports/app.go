@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
 	cmfapp "github.com/wuwuseo/cmf/app"
@@ -15,13 +14,14 @@ import (
 	"go-admin/internal/tasks"
 )
 
-// Manual inspection can opt in on a development host only. The incomplete P0
-// workflow remains unavailable by default and in production.
+// Manual inspection can opt in via the ESPORTS_EXPERIMENTAL flag. The incomplete P0
+// workflow remains unavailable by default; production rollout requires the flag plus a
+// non-zero payment deadline (see paymentDeadlineMinutes).
 var featureEnabled = experimentalEnabled(os.Getenv)
 
 func experimentalEnabled(getenv func(string) string) bool {
-	return getenv("ESPORTS_EXPERIMENTAL") == "1" &&
-		strings.EqualFold(getenv("CMF_APP_ENV"), "development")
+	// 上线配置：不再强制 development 环境，生产由 ESPORTS_EXPERIMENTAL=1 显式开启即可。
+	return getenv("ESPORTS_EXPERIMENTAL") == "1"
 }
 
 func expireOrdersTask(ctx context.Context, logger io.Writer) error {
@@ -282,13 +282,17 @@ func init() {
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
 		Config: []cmfapp.ConfigItem{
-			{Key: "payment_deadline_minutes", Name: "订单支付时限（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "业务负责人确认前为 0，禁止创建可支付订单"},
+			{Key: "payment_deadline_minutes", Name: "订单支付时限（分钟）", Value: "30", Type: "number", Group: "esports", Remark: "待付款订单的支付时限，超时由任务过期释放名额；须为 1~1440 的正整数"},
 			{Key: "duplicate_order_window_minutes", Name: "重复报单提醒时间窗（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；窗口内同客户同 SKU 相似订单需显式确认后才可下单"},
 			{Key: "customer_debt_limit_cents", Name: "客户欠款拦截阈值（分）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；客户欠款超过该值时拒绝新报单"},
 			{Key: "service_disconnect_pause_minutes", Name: "断线自动暂停阈值（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；服务中陪玩心跳超时该时长后自动暂停服务段"},
 			{Key: "reschedule_proposal_hours", Name: "改期提案确认时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "已付款订单改期提案的确认时限，且不晚于目标开始时间"},
 			{Key: "stored_value_payment_window_minutes", Name: "自助购卡支付时限（分钟）", Value: "1440", Type: "number", Group: "esports", Remark: "客户自助购卡支付意图的有效时长，超时由任务过期"},
 			{Key: "recharge_payment_window_minutes", Name: "充值支付时限（分钟）", Value: "1440", Type: "number", Group: "esports", Remark: "客户自助充值支付意图的有效时长，超时由任务过期"},
+			{Key: "page_asset_domain_whitelist", Name: "首页素材域名白名单", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔的允许图片/链接域名；为空表示不启用白名单校验"},
+			{Key: "page_publish_require_review", Name: "首页发布需审核", Value: "false", Type: "string", Group: "esports", Remark: "true/1 时立即发布转为待审核，需另一管理员通过后生效"},
+			{Key: "finance_report_role_names", Name: "财务报表授权角色", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔的角色名，命中者可查看财务资金报表；为空仅超管可看"},
+			{Key: "wecom_sidebar_auth_mode", Name: "企微侧边栏接入模式", Value: "account", Type: "string", Group: "esports", Remark: "js_sdk=启用企微 JS-SDK 自动识别当前客户；account=关闭 JS-SDK，客服账号登录后手动识别"},
 		},
 		Routes: []cmfapp.Route{
 			{Method: "GET", Path: "/skus", Auth: cmfapp.AuthPublic, Handler: publicSkus},
@@ -562,9 +566,12 @@ func init() {
 			{Method: "GET", Path: "/admin/players", Auth: cmfapp.AuthAdmin, Handler: adminPlayers},
 			{Method: "POST", Path: "/admin/players", Auth: cmfapp.AuthAdmin, Handler: createPlayer},
 			{Method: "PUT", Path: "/admin/players/:id", Auth: cmfapp.AuthAdmin, Handler: updatePlayerHandler},
+			{Method: "POST", Path: "/admin/players/:id/identity/review", Auth: cmfapp.AuthAdmin, Handler: adminReviewPlayerIdentityHandler},
 			// 陪玩端自助：供 uni-app 客户端调用，不挂管理端菜单。
 			{Method: "GET", Path: "/user/player/dashboard", Auth: cmfapp.AuthUser, Handler: playerDashboardHandler},
 			{Method: "GET", Path: "/user/player/profile", Auth: cmfapp.AuthUser, Handler: playerProfileHandler},
+			{Method: "POST", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerSubmitIdentityHandler},
+			{Method: "GET", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerIdentityStatusHandler},
 			{Method: "POST", Path: "/user/player/presence", Auth: cmfapp.AuthUser, Handler: playerPresenceHandler},
 			// 陪玩端保活（§6.4）：刷新心跳时戳，超时由 esports_auto_offline_players 任务自动离线。
 			{Method: "POST", Path: "/user/player/heartbeat", Auth: cmfapp.AuthUser, Handler: playerHeartbeatHandler},
@@ -673,11 +680,14 @@ func init() {
 			{Method: "PUT", Path: "/admin/pages/:channel/draft", Auth: cmfapp.AuthAdmin, Handler: savePageDraftHandler},
 			{Method: "POST", Path: "/admin/pages/:channel/publish", Auth: cmfapp.AuthAdmin, Handler: publishPageHandler},
 			{Method: "POST", Path: "/admin/pages/:channel/rollback", Auth: cmfapp.AuthAdmin, Handler: rollbackPageHandler},
+			{Method: "POST", Path: "/admin/pages/:channel/publish-review/:versionId/approve", Auth: cmfapp.AuthAdmin, Handler: approvePagePublishHandler},
+			{Method: "POST", Path: "/admin/pages/:channel/publish-review/:versionId/reject", Auth: cmfapp.AuthAdmin, Handler: rejectPagePublishHandler},
 			{Method: "GET", Path: "/admin/pages/:channel/versions", Auth: cmfapp.AuthAdmin, Handler: adminPageVersions},
 			{Method: "GET", Path: "/admin/page-assets", Auth: cmfapp.AuthAdmin, Handler: adminPageAssets},
 			{Method: "POST", Path: "/admin/page-assets", Auth: cmfapp.AuthAdmin, Handler: createPageAssetHandler},
 			{Method: "DELETE", Path: "/admin/page-assets/:id", Auth: cmfapp.AuthAdmin, Handler: deletePageAssetHandler},
 			{Method: "GET", Path: "/page", Auth: cmfapp.AuthPublic, Handler: publicPage},
+			{Method: "GET", Path: "/wecom/sidebar-config", Auth: cmfapp.AuthPublic, Handler: publicWecomSidebarConfig},
 			// 客服端（§8）：客户档案与跟进、企微侧边栏自动建档、话术库与工作台聚合。
 			// PC 工作台 / 移动客服端 / 企微侧边栏三个入口共用同一套接口。
 			{Method: "GET", Path: "/admin/customers/:id/profile", Auth: cmfapp.AuthAdmin, Handler: adminCustomerProfile},
@@ -832,6 +842,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看陪玩", Code: "esports:players:list", Path: "/api/v1/esports/admin/players", Method: "GET", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建陪玩", Code: "esports:players:create", Path: "/api/v1/esports/admin/players", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑陪玩", Code: "esports:players:update", Path: "/api/v1/esports/admin/players/{id}", Method: "PUT", Parent: "esports:player:menu"},
+			{Type: cmfapp.PermAPI, Name: "审核陪玩实名认证", Code: "esports:players:identity_review", Path: "/api/v1/esports/admin/players/{id}/identity/review", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermButton, Name: "陪玩管理按钮", Code: "esports:players:manage", Parent: "esports:player:menu"},
 
 			// 售后模块：售后单受理 / 方案 / 审批 / 执行 / 退款。
@@ -1022,6 +1033,8 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "保存草稿", Code: "esports:pages:draft_save", Path: "/api/v1/esports/admin/pages/{channel}/draft", Method: "PUT", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "发布页面", Code: "esports:pages:publish", Path: "/api/v1/esports/admin/pages/{channel}/publish", Method: "POST", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "回滚页面", Code: "esports:pages:rollback", Path: "/api/v1/esports/admin/pages/{channel}/rollback", Method: "POST", Parent: "esports:page:menu"},
+			{Type: cmfapp.PermAPI, Name: "通过发布审核", Code: "esports:pages:publish_approve", Path: "/api/v1/esports/admin/pages/{channel}/publish-review/{versionId}/approve", Method: "POST", Parent: "esports:page:menu"},
+			{Type: cmfapp.PermAPI, Name: "驳回发布审核", Code: "esports:pages:publish_reject", Path: "/api/v1/esports/admin/pages/{channel}/publish-review/{versionId}/reject", Method: "POST", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看发布记录", Code: "esports:pages:versions", Path: "/api/v1/esports/admin/pages/{channel}/versions", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看素材库", Code: "esports:pages:assets", Path: "/api/v1/esports/admin/page-assets", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "新增素材", Code: "esports:pages:asset_create", Path: "/api/v1/esports/admin/page-assets", Method: "POST", Parent: "esports:page:menu"},

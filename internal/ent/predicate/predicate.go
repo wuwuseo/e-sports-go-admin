@@ -198,6 +198,9 @@ type EsportsPlayer func(*sql.Selector)
 // EsportsPlayerCreditEvent is the predicate function for esportsplayercreditevent builders.
 type EsportsPlayerCreditEvent func(*sql.Selector)
 
+// EsportsPlayerIdentity is the predicate function for esportsplayeridentity builders.
+type EsportsPlayerIdentity func(*sql.Selector)
+
 // EsportsPlayerRecovery is the predicate function for esportsplayerrecovery builders.
 type EsportsPlayerRecovery func(*sql.Selector)
 

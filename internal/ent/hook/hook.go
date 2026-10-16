@@ -776,6 +776,18 @@ func (f EsportsPlayerCreditEventFunc) Mutate(ctx context.Context, m ent.Mutation
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsPlayerCreditEventMutation", m)
 }
 
+// The EsportsPlayerIdentityFunc type is an adapter to allow the use of ordinary
+// function as EsportsPlayerIdentity mutator.
+type EsportsPlayerIdentityFunc func(context.Context, *ent.EsportsPlayerIdentityMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsPlayerIdentityFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsPlayerIdentityMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsPlayerIdentityMutation", m)
+}
+
 // The EsportsPlayerRecoveryFunc type is an adapter to allow the use of ordinary
 // function as EsportsPlayerRecovery mutator.
 type EsportsPlayerRecoveryFunc func(context.Context, *ent.EsportsPlayerRecoveryMutation) (ent.Value, error)

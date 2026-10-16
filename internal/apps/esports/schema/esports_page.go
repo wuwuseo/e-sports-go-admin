@@ -46,8 +46,9 @@ func (EsportsPageVersion) Fields() []ent.Field {
 		field.String("channel").NotEmpty().MaxLen(48).StructTag(`json:"channel"`),
 		field.Int("version_no").StructTag(`json:"version_no"`),
 		field.JSON("config", map[string]interface{}{}).StructTag(`json:"config"`),
-		// scheduled 定时待发布 / published 当前生效 / history 历史。
-		field.Enum("status").Values("scheduled", "published", "history").Default("scheduled").StructTag(`json:"status"`),
+		// scheduled 定时待发布 / pending_review 发布待审核（§16.4，immediate 且开启审核时先落此态）/
+		// published 当前生效 / history 历史或已驳回。
+		field.Enum("status").Values("scheduled", "pending_review", "published", "history").Default("scheduled").StructTag(`json:"status"`),
 		field.Enum("publish_mode").Values("immediate", "scheduled").Default("immediate").StructTag(`json:"publish_mode"`),
 		field.Time("scheduled_at").Optional().Nillable().StructTag(`json:"scheduled_at"`),
 		field.Time("published_at").Optional().Nillable().StructTag(`json:"published_at"`),

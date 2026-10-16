@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -18,6 +19,36 @@ const pageChannelCustomerHome = "uni_customer_home"
 
 // pageMaxComponents 是单页组件数量上限，防止配置被无限膨胀。
 const pageMaxComponents = 20
+
+// 页面组件文本与图片的运行时校验上限（§16.4）。
+const (
+	pageTitleLimit    = 60  // title 文本上限（字符）
+	pageSubtitleLimit = 120 // subtitle 文本上限（字符）
+	pageNameLimit     = 60  // name 文本上限（字符）
+	pageImageMinDim   = 1   // 图片尺寸下限（像素）
+	pageImageMaxDim   = 4096
+)
+
+// 首页装修配置键（§16.4）。
+const (
+	// pageAssetDomainWhitelistKey 是素材 / 图片外部域名白名单，逗号分隔；缺省为空表示不启用。
+	pageAssetDomainWhitelistKey = "page_asset_domain_whitelist"
+	// pagePublishRequireReviewKey 为 true 时 immediate 发布改为进入 pending_review 待审核。
+	pagePublishRequireReviewKey = "page_publish_require_review"
+)
+
+// pageVersionStatusPendingReview 是发布待审核状态。该值需 schema/esports_page.go 的 status
+// 枚举补充 "pending_review" 并由主代理统一 go generate 后，StatusValidator 才会接受入库；
+// 此处以字符串常量定义，保证在旧生成代码下依然可编译。
+const pageVersionStatusPendingReview = esportspageversion.Status("pending_review")
+
+// pageURLFields 是需要做地址合法性校验的字段名集合（图片 / 链接类）。
+var pageURLFields = map[string]bool{
+	"url": true, "image": true, "img": true, "image_url": true,
+	"pic": true, "pic_url": true, "banner": true, "icon": true,
+	"avatar": true, "cover": true, "logo": true, "link": true,
+	"src": true, "href": true, "background": true,
+}
 
 // pageComponentTypes 是首版允许的组件类型集合（§16.3）。
 var pageComponentTypes = map[string]bool{
@@ -83,19 +114,27 @@ func defaultPageConfig() pageConfig {
 }
 
 // validatePageConfig 校验发布 / 保存前的配置完整性（§16.4 发布前自动检查）。
-// ponytail: 仅校验组件类型、数量上限与必需入口；图片可访问性、链接合法性、外部域名白名单、
-// 商品 / 活动有效性、素材尺寸与文本超限等运行时校验未实现。
+// 保持无 ctx / db 的既有签名：不启用域名白名单，供测试与纯静态校验使用。
 func validatePageConfig(cfg pageConfig) error {
+	return validatePageConfigWithWhitelist(cfg, nil)
+}
+
+// validatePageConfigWithWhitelist 校验组件类型、数量上限、必需入口，并递归校验每个组件的
+// Props：图片 / 链接地址合法性（协议 + 域名白名单）、文本超限、图片尺寸范围。
+func validatePageConfigWithWhitelist(cfg pageConfig, whitelist map[string]bool) error {
 	if len(cfg.Components) < 1 || len(cfg.Components) > pageMaxComponents {
 		return fmt.Errorf("%w：首页组件数量须在 1~%d 之间", errInvalidInput, pageMaxComponents)
 	}
 	hasSupport := false
-	for _, comp := range cfg.Components {
+	for i, comp := range cfg.Components {
 		if !pageComponentTypes[comp.Type] {
 			return fmt.Errorf("%w：不支持的组件类型 %q", errInvalidInput, comp.Type)
 		}
 		if comp.Type == "support_entry" {
 			hasSupport = true
+		}
+		if err := validatePageProps(i, comp.Props, whitelist); err != nil {
+			return err
 		}
 	}
 	// 必需入口：客服与订单入口组件同时承载「联系客服」与「我的订单 / 售后」。
@@ -103,6 +142,122 @@ func validatePageConfig(cfg pageConfig) error {
 		return fmt.Errorf("%w：首页必须保留「客服与订单入口」组件", errInvalidInput)
 	}
 	return nil
+}
+
+// validatePageProps 递归校验组件自由属性。compIndex 从 0 起，错误信息里以 1 起呈现给运营。
+func validatePageProps(compIndex int, props map[string]interface{}, whitelist map[string]bool) error {
+	for key, value := range props {
+		if err := validatePageValue(compIndex, key, value, whitelist); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePageValue(compIndex int, key string, value interface{}, whitelist map[string]bool) error {
+	switch v := value.(type) {
+	case string:
+		switch key {
+		case "title":
+			if n := len([]rune(v)); n > pageTitleLimit {
+				return fmt.Errorf("%w：第 %d 个组件字段 %q 文本超长（%d/%d）", errInvalidInput, compIndex+1, key, n, pageTitleLimit)
+			}
+		case "subtitle":
+			if n := len([]rune(v)); n > pageSubtitleLimit {
+				return fmt.Errorf("%w：第 %d 个组件字段 %q 文本超长（%d/%d）", errInvalidInput, compIndex+1, key, n, pageSubtitleLimit)
+			}
+		case "name":
+			if n := len([]rune(v)); n > pageNameLimit {
+				return fmt.Errorf("%w：第 %d 个组件字段 %q 文本超长（%d/%d）", errInvalidInput, compIndex+1, key, n, pageNameLimit)
+			}
+		}
+		if pageURLFields[key] {
+			return validatePageURL(v, whitelist, compIndex, key)
+		}
+	case float64:
+		if key == "width" || key == "height" {
+			return validatePageDimension(float64(v), compIndex, key)
+		}
+	case int:
+		if key == "width" || key == "height" {
+			return validatePageDimension(float64(v), compIndex, key)
+		}
+	case map[string]interface{}:
+		for k, sub := range v {
+			if err := validatePageValue(compIndex, k, sub, whitelist); err != nil {
+				return err
+			}
+		}
+	case []interface{}:
+		for _, item := range v {
+			if err := validatePageValue(compIndex, key, item, whitelist); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validatePageURL 校验图片 / 链接地址：站内相对路径或 http/https 链接；启用白名单时校验外部域名。
+func validatePageURL(raw string, whitelist map[string]bool, compIndex int, field string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil // 空值跳过，避免误伤缺省配置。
+	}
+	if strings.HasPrefix(raw, "/") {
+		return nil // 站内相对路径。
+	}
+	if !strings.HasPrefix(raw, "http://") && !strings.HasPrefix(raw, "https://") {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的地址仅允许 http/https 链接或站内相对路径", errInvalidInput, compIndex+1, field)
+	}
+	if len(whitelist) > 0 {
+		host := pageURLHost(raw)
+		if host == "" || !whitelist[host] {
+			return fmt.Errorf("%w：第 %d 个组件字段 %q 的外部域名 %q 不在白名单内", errInvalidInput, compIndex+1, field, host)
+		}
+	}
+	return nil
+}
+
+// validatePageDimension 校验图片尺寸：0 视为未设置，跳过；其余须在 1~4096 像素之间。
+func validatePageDimension(v float64, compIndex int, field string) error {
+	if v == 0 {
+		return nil
+	}
+	if v < pageImageMinDim || v > pageImageMaxDim {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 图片尺寸须在 %d~%d 之间", errInvalidInput, compIndex+1, field, pageImageMinDim, pageImageMaxDim)
+	}
+	return nil
+}
+
+// pageURLHost 提取外部链接的域名（小写、去端口）。
+func pageURLHost(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(u.Hostname())
+}
+
+// pageAssetDomainWhitelist 读取素材 / 图片外部域名白名单；缺省为空表示不启用白名单校验。
+func pageAssetDomainWhitelist(ctx context.Context, db *ent.Client) map[string]bool {
+	raw := assessmentConfigString(ctx, db, pageAssetDomainWhitelistKey, "")
+	if raw == "" {
+		return nil
+	}
+	out := make(map[string]bool)
+	for _, part := range strings.Split(raw, ",") {
+		if host := strings.ToLower(strings.TrimSpace(part)); host != "" {
+			out[host] = true
+		}
+	}
+	return out
+}
+
+// pagePublishRequireReview 判断 immediate 发布是否需要先进入待审核。
+func pagePublishRequireReview(ctx context.Context, db *ent.Client) bool {
+	v := assessmentConfigString(ctx, db, pagePublishRequireReviewKey, "")
+	return v == "true" || v == "1"
 }
 
 func pageConfigToMap(cfg pageConfig) map[string]interface{} {
@@ -140,7 +295,7 @@ func savePageDraft(ctx context.Context, db *ent.Client, channel string, adminID 
 		return nil, errInvalidInput
 	}
 	cfg := pageConfig{Components: in.Components}
-	if err := validatePageConfig(cfg); err != nil {
+	if err := validatePageConfigWithWhitelist(cfg, pageAssetDomainWhitelist(ctx, db)); err != nil {
 		return nil, err
 	}
 	config := pageConfigToMap(cfg)
@@ -227,28 +382,36 @@ func publishPage(ctx context.Context, db *ent.Client, channel string, adminID in
 	if err != nil {
 		return nil, err
 	}
-	if err = validatePageConfig(cfg); err != nil {
+	if err = validatePageConfigWithWhitelist(cfg, pageAssetDomainWhitelist(ctx, db)); err != nil {
 		return nil, err
 	}
 	maxNo, err := nextPageVersionNo(ctx, tx.Client(), doc.ID)
 	if err != nil {
 		return nil, err
 	}
+	requireReview := mode == "immediate" && pagePublishRequireReview(ctx, db)
 	create := tx.EsportsPageVersion.Create().SetDocumentID(doc.ID).SetChannel(channel).
 		SetVersionNo(maxNo + 1).SetConfig(pageConfigToMap(cfg)).
 		SetPublishedBy(adminID).SetNote(in.Note)
 	if mode == "immediate" {
-		create.SetStatus(esportspageversion.StatusPublished).
-			SetPublishMode(esportspageversion.PublishModeImmediate).SetPublishedAt(now.UTC())
-		if _, err = tx.EsportsPageVersion.Update().Where(
-			esportspageversion.DocumentIDEQ(doc.ID), esportspageversion.StatusEQ(esportspageversion.StatusPublished),
-		).SetStatus(esportspageversion.StatusHistory).Save(ctx); err != nil {
-			return nil, err
-		}
-		if _, err = tx.EsportsPageDocument.UpdateOne(doc).
-			SetPublishedVersionNo(maxNo + 1).SetStatus(esportspagedocument.StatusPublished).
-			SetUpdatedBy(adminID).Save(ctx); err != nil {
-			return nil, err
+		if requireReview {
+			// §16.4 发布审核：需审核时只落一条待审核版本，不切换生效版本、不改文档生效指针，
+			// 待另一管理员审核通过后（reviewPagePublish）再完成一次性版本切换。
+			create.SetStatus(pageVersionStatusPendingReview).
+				SetPublishMode(esportspageversion.PublishModeImmediate)
+		} else {
+			create.SetStatus(esportspageversion.StatusPublished).
+				SetPublishMode(esportspageversion.PublishModeImmediate).SetPublishedAt(now.UTC())
+			if _, err = tx.EsportsPageVersion.Update().Where(
+				esportspageversion.DocumentIDEQ(doc.ID), esportspageversion.StatusEQ(esportspageversion.StatusPublished),
+			).SetStatus(esportspageversion.StatusHistory).Save(ctx); err != nil {
+				return nil, err
+			}
+			if _, err = tx.EsportsPageDocument.UpdateOne(doc).
+				SetPublishedVersionNo(maxNo + 1).SetStatus(esportspagedocument.StatusPublished).
+				SetUpdatedBy(adminID).Save(ctx); err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		create.SetStatus(esportspageversion.StatusScheduled).
@@ -266,6 +429,94 @@ func publishPage(ctx context.Context, db *ent.Client, channel string, adminID in
 		return nil, err
 	}
 	return version, nil
+}
+
+// pagePublishReviewInput 发布审核输入（§16.4）：Approved 由路由路径决定（approve/reject），
+// Reason 为驳回原因（驳回必填）。
+type pagePublishReviewInput struct {
+	Approved bool   `json:"approved"`
+	Reason   string `json:"reason"`
+}
+
+// reviewPagePublish 审核一条待发布版本（§16.4）。审核人不得为发布申请人；
+// 通过后执行一次性版本切换（旧生效版本转历史、更新文档生效指针），驳回则转历史不生效。
+func reviewPagePublish(ctx context.Context, db *ent.Client, channel string, versionID, adminID int, in pagePublishReviewInput, now time.Time) (*ent.EsportsPageVersion, error) {
+	channel = strings.TrimSpace(channel)
+	if channel == "" || versionID < 1 {
+		return nil, errInvalidInput
+	}
+	in.Reason = strings.TrimSpace(in.Reason)
+	if !in.Approved && in.Reason == "" {
+		return nil, fmt.Errorf("%w：驳回须填写原因", errInvalidInput)
+	}
+	if len([]rune(in.Reason)) > 255 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	version, err := tx.EsportsPageVersion.Get(ctx, versionID)
+	if err != nil {
+		return nil, err
+	}
+	if version.Channel != channel || version.Status != pageVersionStatusPendingReview {
+		return nil, errConflict
+	}
+	if version.PublishedBy == adminID {
+		return nil, fmt.Errorf("%w：审核人不得为发布申请人", errForbidden)
+	}
+	if in.Approved {
+		if _, err = tx.EsportsPageVersion.Update().Where(
+			esportspageversion.DocumentIDEQ(version.DocumentID),
+			esportspageversion.StatusEQ(esportspageversion.StatusPublished),
+		).SetStatus(esportspageversion.StatusHistory).Save(ctx); err != nil {
+			return nil, err
+		}
+		changed, err := tx.EsportsPageVersion.Update().Where(
+			esportspageversion.IDEQ(versionID),
+			esportspageversion.StatusEQ(pageVersionStatusPendingReview),
+		).SetStatus(esportspageversion.StatusPublished).SetPublishedAt(now.UTC()).
+			SetNote(pageReviewNote(version.Note, adminID, "已通过")).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		if _, err = tx.EsportsPageDocument.Update().Where(esportspagedocument.IDEQ(version.DocumentID)).
+			SetPublishedVersionNo(version.VersionNo).SetStatus(esportspagedocument.StatusPublished).
+			SetUpdatedBy(adminID).Save(ctx); err != nil {
+			return nil, err
+		}
+	} else {
+		changed, err := tx.EsportsPageVersion.Update().Where(
+			esportspageversion.IDEQ(versionID),
+			esportspageversion.StatusEQ(pageVersionStatusPendingReview),
+		).SetStatus(esportspageversion.StatusHistory).
+			SetNote(pageReviewNote(version.Note, adminID, "已驳回："+in.Reason)).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsPageVersion.Get(ctx, versionID)
+}
+
+// pageReviewNote 在版本备注后追加审核痕迹，保证不超过 note 字段 255 字符上限。
+func pageReviewNote(base string, adminID int, action string) string {
+	suffix := fmt.Sprintf("；审核人 %d：%s", adminID, action)
+	combined := []rune(base + suffix)
+	if len(combined) > 255 {
+		combined = combined[len(combined)-255:]
+	}
+	return string(combined)
 }
 
 // rollbackPage 回滚（§16.4）：以历史快照为模板重新发布为新版本，不原地修改旧记录。
@@ -371,8 +622,8 @@ func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAsse
 		len(in.Mime) > 80 || in.SizeBytes < 0 || in.Width < 0 || in.Height < 0 {
 		return nil, errInvalidInput
 	}
-	// 外部链接仅允许 HTTPS，内部跳转使用站内相对路径。
-	// ponytail: 未做已审核域名白名单强校验，仅限制协议与长度。
+	// 素材是运营上传的图片/资源，外部地址强制 HTTPS，内部跳转使用站内相对路径。
+	// 与首页组件的「链接跳转」口径（http/https 均可）区分：素材落库须可安全访问。
 	if !strings.HasPrefix(in.URL, "https://") && !strings.HasPrefix(in.URL, "/") {
 		return nil, fmt.Errorf("%w：素材地址仅允许 HTTPS 链接或站内相对路径", errInvalidInput)
 	}

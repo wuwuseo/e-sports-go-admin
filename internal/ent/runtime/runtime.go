@@ -67,6 +67,7 @@ import (
 	"go-admin/internal/ent/esportspaymentreversal"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayercreditevent"
+	"go-admin/internal/ent/esportsplayeridentity"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
@@ -4283,6 +4284,62 @@ func init() {
 	esportsplayercreditevent.DefaultUpdatedAt = esportsplayercrediteventDescUpdatedAt.Default.(func() time.Time)
 	// esportsplayercreditevent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsplayercreditevent.UpdateDefaultUpdatedAt = esportsplayercrediteventDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsplayeridentityFields := schema.EsportsPlayerIdentity{}.Fields()
+	_ = esportsplayeridentityFields
+	// esportsplayeridentityDescPlayerID is the schema descriptor for player_id field.
+	esportsplayeridentityDescPlayerID := esportsplayeridentityFields[0].Descriptor()
+	// esportsplayeridentity.PlayerIDValidator is a validator for the "player_id" field. It is called by the builders before save.
+	esportsplayeridentity.PlayerIDValidator = esportsplayeridentityDescPlayerID.Validators[0].(func(int) error)
+	// esportsplayeridentityDescRealName is the schema descriptor for real_name field.
+	esportsplayeridentityDescRealName := esportsplayeridentityFields[1].Descriptor()
+	// esportsplayeridentity.RealNameValidator is a validator for the "real_name" field. It is called by the builders before save.
+	esportsplayeridentity.RealNameValidator = func() func(string) error {
+		validators := esportsplayeridentityDescRealName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(real_name string) error {
+			for _, fn := range fns {
+				if err := fn(real_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsplayeridentityDescIDNumberMasked is the schema descriptor for id_number_masked field.
+	esportsplayeridentityDescIDNumberMasked := esportsplayeridentityFields[2].Descriptor()
+	// esportsplayeridentity.IDNumberMaskedValidator is a validator for the "id_number_masked" field. It is called by the builders before save.
+	esportsplayeridentity.IDNumberMaskedValidator = func() func(string) error {
+		validators := esportsplayeridentityDescIDNumberMasked.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id_number_masked string) error {
+			for _, fn := range fns {
+				if err := fn(id_number_masked); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsplayeridentityDescRequestedBy is the schema descriptor for requested_by field.
+	esportsplayeridentityDescRequestedBy := esportsplayeridentityFields[4].Descriptor()
+	// esportsplayeridentity.DefaultRequestedBy holds the default value on creation for the requested_by field.
+	esportsplayeridentity.DefaultRequestedBy = esportsplayeridentityDescRequestedBy.Default.(int)
+	// esportsplayeridentityDescRejectReason is the schema descriptor for reject_reason field.
+	esportsplayeridentityDescRejectReason := esportsplayeridentityFields[6].Descriptor()
+	// esportsplayeridentity.DefaultRejectReason holds the default value on creation for the reject_reason field.
+	esportsplayeridentity.DefaultRejectReason = esportsplayeridentityDescRejectReason.Default.(string)
+	// esportsplayeridentity.RejectReasonValidator is a validator for the "reject_reason" field. It is called by the builders before save.
+	esportsplayeridentity.RejectReasonValidator = esportsplayeridentityDescRejectReason.Validators[0].(func(string) error)
+	// esportsplayeridentityDescCreatedAt is the schema descriptor for created_at field.
+	esportsplayeridentityDescCreatedAt := esportsplayeridentityFields[8].Descriptor()
+	// esportsplayeridentity.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsplayeridentity.DefaultCreatedAt = esportsplayeridentityDescCreatedAt.Default.(func() time.Time)
 	esportsplayerrecoveryFields := schema.EsportsPlayerRecovery{}.Fields()
 	_ = esportsplayerrecoveryFields
 	// esportsplayerrecoveryDescRecoveryNo is the schema descriptor for recovery_no field.

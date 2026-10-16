@@ -140,6 +140,8 @@ type Tx struct {
 	EsportsPlayer *EsportsPlayerClient
 	// EsportsPlayerCreditEvent is the client for interacting with the EsportsPlayerCreditEvent builders.
 	EsportsPlayerCreditEvent *EsportsPlayerCreditEventClient
+	// EsportsPlayerIdentity is the client for interacting with the EsportsPlayerIdentity builders.
+	EsportsPlayerIdentity *EsportsPlayerIdentityClient
 	// EsportsPlayerRecovery is the client for interacting with the EsportsPlayerRecovery builders.
 	EsportsPlayerRecovery *EsportsPlayerRecoveryClient
 	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
@@ -421,6 +423,7 @@ func (tx *Tx) init() {
 	tx.EsportsPaymentReversal = NewEsportsPaymentReversalClient(tx.config)
 	tx.EsportsPlayer = NewEsportsPlayerClient(tx.config)
 	tx.EsportsPlayerCreditEvent = NewEsportsPlayerCreditEventClient(tx.config)
+	tx.EsportsPlayerIdentity = NewEsportsPlayerIdentityClient(tx.config)
 	tx.EsportsPlayerRecovery = NewEsportsPlayerRecoveryClient(tx.config)
 	tx.EsportsPlayerReview = NewEsportsPlayerReviewClient(tx.config)
 	tx.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(tx.config)
