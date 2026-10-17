@@ -1,514 +1,387 @@
-# Go-Admin
+# 陪玩报单系统 · 后端（go-admin）
 
-一个基于Go语言的现代化管理后台API系统，采用Fiber Web框架、Ent ORM和自定义CMF框架构建。
+基于 Go + Fiber v3 + Ent 的管理后台 API，承载 **陪玩报单系统**（业务代号 `esports`）的完整服务端能力：商品与报价、报单与派单、服务与结单、售后与退款、钱包与储值卡、分成结算与提现、会员与礼物、考核与报表，以及通用后台能力（双身份认证、RBAC、验证码、附件、SSE、插件、任务队列、定时任务、OAuth）。
 
-## 🚀 特性
+## 仓库分工
 
-- **高性能**: 基于Fiber框架，提供出色的性能表现
-- **类型安全**: 使用Ent ORM确保数据库操作的类型安全
-- **现代架构**: 采用分层架构设计，易于维护和扩展
-- **JWT认证**: 内置JWT认证机制，保障API安全
-- **权限控制**: 集成Casbin权限管理框架
-- **缓存支持**: 支持内存缓存和Redis缓存
-- **文件存储**: 支持本地存储和S3兼容的云存储
-- **前端集成**: 内嵌前端SPA应用，支持单页面应用路由
-- **配置管理**: 灵活的YAML配置文件管理
-- **日志系统**: 完善的日志记录和轮转机制
+本仓库是三套代码中的服务端，三者独立管理源码、共同组成一套系统：
 
-## 📋 技术栈
+| 仓库 | 角色 | 技术栈 | 身份 |
+| --- | --- | --- | --- |
+| **go-admin**（本仓库） | 后端 API | Go + Fiber v3 + Ent + Casbin | `admin` 管理端 / `user` 用户端 |
+| **go-admin-web**（同级目录） | 管理端 / 客服端 | Vue 3 + TS + Vite + Arco Design | 客服、超级管理员 |
+| **e-sports-uniapp**（同级目录） | 客户端 / 陪玩端 / 移动客服端 | Vue 3 + TS + uni-app | 客户、陪玩、客服 |
 
-### 后端框架
-- **[Fiber](https://github.com/gofiber/fiber)** v3.2.0 - 高性能HTTP Web框架
-- **[Ent](https://entgo.io/)** v0.14.5 - 类型安全的ORM框架
-- **CMF** v0.0.0 - 自定义基础框架
+> 后端通过 `go:embed` 把管理端构建产物打进二进制；开发时管理端 Vite 将 `/api` 代理到 `127.0.0.1:9501`。
 
-### 数据库和缓存
-- **MySQL** 5.7+ / 8.0+ - 主数据库
-- **Redis** 5.0+ - 缓存和会话存储
+## 功能特性
 
-### 认证和权限
-- **JWT** - JSON Web Token认证 (golang-jwt/jwt v5.3.1)
-- **Casbin** v3.10.0 - 基于RBAC的权限控制
-- **bcrypt** - 密码加密算法
+### 平台能力
 
-### Casbin v3 升级说明
-- Casbin 已从 `github.com/casbin/casbin/v2` 升级到 `github.com/casbin/casbin/v3 v3.10.0`。
-- v3 迁移核心变更为 Go module import path 从 `/v2` 切换到 `/v3`，现有 Enforcer API、Adapter 接口和模型语法保持兼容。
-- `config/config.yml` 中的带域 RBAC 模型无需调整，仍使用 `sub, dom, obj, act`。
-- 本地 CMF 依赖已同步升级到 Casbin v3，并移除仍依赖 Casbin v2 的 `github.com/gofiber/contrib/v3/casbin` 封装。
+- **双身份认证**：管理端与用户端使用独立 JWT 密钥、独立过期时间，支持刷新令牌
+- **权限控制**：Casbin v3 多域 RBAC（`sub, dom, obj, act`）+ 权限码菜单/按钮/API 三级校验
+- **登录安全**：RSA 加密登录、验证码挑战票据、登录限流、黑名单、Nonce 防重放
+- **文件存储**：本地磁盘与 S3 兼容存储、分片上传、附件权限校验
+- **实时消息**：SSE 站内信（ticket 鉴权）+ 短信 / 邮件 / 极光推送可选通道
+- **插件系统**：进程外插件（gRPC / HTTP / stdio）、Ed25519 包签名与信任公钥
+- **任务队列**：默认 asynq（Redis），可切换 RabbitMQ / NATS / NSQ / Kafka / AMQP 1.0
+- **定时任务**：Cron 管理端可视化 + Go 任务注册表，执行日志独立落盘
+- **其他**：OAuth 登录与绑定、Swagger 注解生成、Ent 非破坏性自动迁移、结构化日志轮转
 
-### 开发和测试工具
-- **Go** 1.25.1+ - 编程语言
-- **Go Modules** - 依赖管理
-- **Swag** v1.16.4 - Swagger 文档生成（`swag init`）
-- **golangci-lint** - 代码质量检查
+### 业务模块（`esports` 功能集）
 
-## 🏗️ 项目结构
+| 模块 | 能力 |
+| --- | --- |
+| 商品与定价 | 商品父实体、规格组、SKU、产品分类、游戏分区、技能等级、停服申请与逐单处置 |
+| 报单与订单 | 即时/预约报单、幂等创建、名额占用、报价版本、改价/改期/取消、存单、加钟、历史补录 |
+| 排单与派单 | 席位看板、指派/撤回/认领/转单/催单、抢单大厅、优先派单权（独占优先通知）、固排成队、接单上限 |
+| 陪玩管理 | 档案与资格、在线状态、心跳保活、自助接单/开工/完工、考核定级、责任信用 |
+| 服务与结单 | 服务凭证、结单规则、结单表单设计器、提交规则、串行审批流、待复核 |
+| 售后与退款 | 受理→方案→客户确认→审批→执行状态机、补履约任务、陪玩追偿、SLA 超时升级、终态复核 |
+| 资金与账本 | 客户余额、陪玩猫粮、只增流水、批次分摊、储值卡（开卡/核销/退卡）、充值活动、在线收款与回调 |
+| 结算与提现 | 陪玩分成规则与结算单、客服提成、提现申请与审核打款、退款冲回、渠道成本与工作室剩余 |
+| 会员与礼物 | 会员等级与成长值、生日礼遇、优先预约、礼物目录、代客送礼、防刷榜、贡献榜 |
+| 客服工作台 | 客户档案与跟进、企微自动建档、话术库、订单池与待办聚合、数据隔离 |
+| 风控与报表 | 风险客户标记、五类经营报表（总览/客服业绩/派单效率/售后质量/财务）、下钻明细 |
+| 页面装修 | uni-app 客户首页草稿、版本发布与回滚、定时发布、素材库 |
 
-```
+详细实现状态、接口清单与人工验收步骤见 [internal/apps/esports/README.md](internal/apps/esports/README.md)。
+
+## 技术栈
+
+| 分类 | 组件 |
+| --- | --- |
+| 语言 | Go 1.25.1 |
+| Web 框架 | Fiber v3.2.0 |
+| ORM | Ent v0.14.5（MySQL；测试用 SQLite） |
+| 基础框架 | [github.com/wuwuseo/cmf](https://github.com/wuwuseo/cmf) v1.1.0 |
+| 认证 / 权限 | golang-jwt/jwt v5.3.1、Casbin v3.10.0、bcrypt |
+| 缓存 | gocache v4（memory / Redis） |
+| 任务队列 | hibiken/asynq v0.26.0，支持 rabbitmq / nats / nsq / kafka / amqp10 |
+| 日志 | zap v1.28.0 + lumberjack 轮转 |
+| 依赖注入 | google/wire v0.7.0（`internal/wire_gen.go`） |
+| 文档 | swag v1.16.4（`docs/swagger.json`） |
+| 数据库 | MySQL 5.7+ / 8.0+、Redis 6.2+ |
+
+## 项目结构
+
+```text
 go-admin/
-├── main.go                 # 应用入口
-├── go.mod                  # Go模块定义
-├── .golangci.yml           # 代码质量检查配置
+├── main.go                      # 入口：Wire 初始化 + 静态文件/SPA fallback
+├── go.mod
+├── AGENTS.md                    # 仓库协作规范与常用命令
 ├── config/
-│   └── config.yml          # 配置文件
-├── internal/               # 内部包
-│   ├── init.go             # 初始化逻辑
-│   ├── router.go           # 路由定义
-│   ├── cleanup.go          # 清理逻辑
-│   ├── middleware/         # 中间件（JWT、权限、黑名单等）
-│   ├── handler/            # HTTP处理器
-│   ├── service/            # 业务逻辑层
-│   ├── ent/                # Ent ORM生成代码
-│   │   └── schema/         # 数据模型定义
-│   ├── global/             # 全局变量和常量
-│   ├── captcha/            # 验证码
-│   ├── casbin/             # Casbin权限
-│   ├── cron/               # 定时任务
-│   ├── oauth/              # OAuth登录
-│   ├── plugin/             # 插件系统
-│   ├── sse/                # SSE推送
-│   ├── tasks/              # 后台任务注册
-│   └── utils/              # 工具函数
-├── cmd/                    # 辅助命令（captcha-reencrypt 等）
-├── web/dist/               # 内嵌前端构建产物（go:embed）
-├── data/                   # 运行时数据（日志、文件存储）
-└── docs/                   # 项目文档与API规范
+│   ├── config.yml               # 主配置（含逐项注释）
+│   └── rbac_model.conf          # Casbin 模型
+├── internal/
+│   ├── app.go / provider.go / wire.go / wire_gen.go
+│   ├── init.go                  # 初始化：迁移、种子数据、Casbin、队列、Cron、SSE
+│   ├── router.go                # 路由注册与中间件装配
+│   ├── cleanup.go
+│   ├── apps/                    # 源码功能集
+│   │   ├── apps.go / zz_generated.go
+│   │   ├── cms/                 # 内容管理
+│   │   └── esports/             # 陪玩报单业务（schema/ 与 README.md）
+│   ├── handler/                 # HTTP 处理器
+│   ├── service/                 # 业务逻辑
+│   ├── middleware/              # JWT、权限、黑名单、数据域、审计等
+│   ├── ent/                     # Ent 生成代码与通用 schema
+│   ├── captcha/  casbin/  cron/  oauth/  plugin/  queue/  tasks/  utils/  global/
+├── cmd/                         # captcha-reencrypt / cleanup-e2e / reset-admin-password
+├── pluginapi/                   # 插件 gRPC 协议与运行时
+├── web/dist/                    # 管理端构建产物（go:embed，需自行构建）
+├── data/                        # 运行时：logs / storage / plugins / cron
+├── docs/                        # Swagger 与专题文档
+└── README.md
 ```
 
-## 🚀 快速开始
+## 快速开始
 
 ### 环境要求
 
 - Go 1.25.1 或更高版本
-- MySQL 5.7+ 或 MySQL 8.0+
-- Redis 5.0+ (可选，用于缓存)
+- MySQL 5.7+ / 8.0+
+- Redis 6.2+（默认队列驱动 `asynq` 依赖；仅当显式切换其他 driver 时可不部署）
+- Node.js 16+ 与 pnpm（构建管理端，用于生成 `web/dist`）
 
-### 安装步骤
+### 1. 初始化数据库
 
-1. **克隆项目**
-   ```bash
-   git clone <repository-url> go-admin
-   cd go-admin
-   ```
-
-2. **安装依赖**
-   ```bash
-   go mod download
-   ```
-
-3. **准备数据库**
-   ```sql
-   CREATE DATABASE go_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   ```
-
-4. **配置应用**
-   ```bash
-   # 编辑配置文件
-   vim config/config.yml
-   
-   # 修改数据库连接信息
-   database:
-     connections:
-       default:
-         host: localhost
-         port: 3306
-         user: your_username
-         password: your_password
-         name: go_admin
-   ```
-
-5. **构建并运行**
-   ```bash
-   # 构建应用
-   go build -o go-admin main.go
-   
-   # 运行应用
-   ./go-admin
-   ```
-
-6. **访问应用**
-   - 前端界面: http://localhost:9501
-   - API接口: http://localhost:9501/api/v1
-
-## 📖 API文档
-
-API 规范由 [Swag](https://github.com/swaggo/swag) 注解生成，产物为 `docs/swagger.json`（`docs/swagger.yaml`、`docs/docs.go` 同步生成）。修改接口后执行 `swag init -g main.go -o docs` 重新生成。
-
-Swagger UI 默认关闭（安全基线：无需认证即可查看全部 API）。在隔离的本地开发环境将 `app.swagger` 设为 `true`（或开启 `app.debug`）后，访问 `http://localhost:9501/docs` 查看。
-
-### 公开接口
-
-#### 用户登录
-```http
-POST /api/v1/public/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
+```sql
+CREATE DATABASE go_admin CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-**响应示例**:
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "token_type": "Bearer",
-    "expires_in": 86400,
-    "refresh_token": "..."
-  }
-}
-```
+### 2. 调整配置
 
-为满足等保要求，登录也支持 RSA 加密传输：先请求 `GET /api/v1/public/public-key` 获取公钥，再以 `encrypted_email` / `encrypted_password` 搭配 `timestamp` / `nonce` / `key_id` 提交。刷新令牌使用 `POST /api/v1/public/refresh-token`；管理端登录与刷新分别为 `POST /api/v1/admin/public/login` 和 `POST /api/v1/admin/public/refresh`。
+编辑 `config/config.yml`，至少确认数据库连接与队列 Redis：
 
-### 受保护的接口
-
-所有 `/api/v1/admin/auth/*` 路径下的接口都需要JWT认证。
-
-#### 获取用户信息
-```http
-GET /api/v1/admin/auth/user
-Authorization: Bearer <jwt_token>
-```
-
-#### 更新用户信息
-```http
-PUT /api/v1/admin/auth/user
-Authorization: Bearer <jwt_token>
-Content-Type: application/json
-
-{
-  "nickname": "新昵称",
-  "phone": "13800138000",
-  "avatar": "https://example.com/avatar.jpg"
-}
-```
-
-#### 修改密码
-```http
-PUT /api/v1/admin/auth/password
-Authorization: Bearer <jwt_token>
-Content-Type: application/json
-
-{
-  "old_password": "old_password123",
-  "new_password": "new_password123"
-}
-```
-
-## ⚙️ 配置说明
-
-### 应用配置
 ```yaml
 app:
-  name: admin-api            # 应用名称
-  port: 9501                 # 监听端口
-  debug: false               # 调试模式（开启会同时启用 Swagger UI）
-  swagger: false             # Swagger UI 开关（生产环境必须保持关闭）
-  secret: ""                 # JWT 用户端密钥：留空时启动自动生成随机密钥
-  admin_secret: ""           # JWT 管理端密钥：留空时启动自动生成随机密钥
-  login_expires: 86400       # JWT 用户端过期时间 (秒)
-  admin_login_expires: 7200  # JWT 管理端过期时间 (秒)
-```
+  name: admin-api
+  port: 9501
+  secret: ""              # 留空启动自动生成随机密钥（重启后 token 失效）
+  admin_secret: ""        # 同上，管理端专用
+  admin_refresh_expires: 86400
 
-> 生产环境必须通过环境变量设置强密钥，避免重启后随机轮换导致全员 token 失效：
-> `CMF_APP_SECRET`（用户端）与 `CMF_APP_ADMIN_SECRET`（管理端）。
-
-### 数据库配置
-```yaml
 database:
-  default: default
   connections:
     default:
       driver: mysql
       host: localhost
       port: 3306
       user: root
-      password: root
+      password: "root"
       name: go_admin
       table_prefix: admin_
+
+queue:
+  driver: asynq
+  redis_connection: queue_redis
+
+redis:
+  connections:
+    queue_redis:
+      addr: localhost:6379
+      db: 1
 ```
 
-### 缓存配置
-```yaml
-cache:
-  default: memory         # 默认使用内存缓存
-  stores:
-    memory:
-      driver: memory
-      default_ttl: 3600
-    redis:
-      driver: redis       # 可选择Redis缓存
-      default_ttl: 3600
-```
+生产环境不要在此文件写密钥，改用环境变量（见下文「环境变量」）。
 
-### 验证码配置
+### 3. 构建管理端并放入 `web/dist`
 
-```yaml
-captcha:
-  store: memory              # 多实例或 prefork 必须改为 redis
-  redis_connection: redis
-  key_prefix: captcha
-```
-
-Provider 密钥使用 AES-256-GCM 加密后存入 `system_config`。环境主密钥不进入数据库：
-
-```text
-CMF_CONFIG_SECRET_ACTIVE_VERSION=v1
-CMF_CONFIG_SECRET_KEY_V1=<32字节密钥的Base64>
-```
-
-登录场景初始关闭。前端接入流程为：
-
-1. `POST /api/v1/public/captcha/challenges` 创建挑战。
-2. `POST /api/v1/public/captcha/verifications` 换取一次性票据。
-3. 登录或表单请求通过 `X-Captcha-Token` 携带票据。
-
-轮换环境主密钥后执行：
+`main.go` 通过 `//go:embed web/dist` 内嵌前端，**缺少该目录时无法编译**：
 
 ```bash
-go run ./cmd/captcha-reencrypt --dry-run=true
-go run ./cmd/captcha-reencrypt --dry-run=false
+cd ../go-admin-web
+pnpm install
+pnpm build                 # 产物在 go-admin-web/dist
 ```
 
-更多配置选项请参考 [config/config.yml](config/config.yml)，文件内含逐项注释说明。
+将 `go-admin-web/dist` 的内容复制到 `go-admin/web/dist`（保留 `index.html` 与 `assets/`），再回到本仓库构建。
 
-## 🏛️ 架构设计
+### 4. 构建并运行
 
-### 分层架构
-
-```mermaid
-graph TB
-    A[前端SPA应用] --> B[Fiber Web服务器]
-    B --> C[路由层 Router]
-    C --> D[处理器层 Handler]
-    D --> E[服务层 Service]
-    E --> F[数据访问层 Ent ORM]
-    F --> G[MySQL数据库]
-    
-    H[CMF框架] --> B
-    I[JWT中间件] --> C
-    J[文件系统中间件] --> B
-```
-
-### 核心组件
-
-- **路由层**: 负责HTTP请求路由和中间件管理
-- **处理器层**: 处理HTTP请求和响应
-- **服务层**: 实现业务逻辑
-- **数据访问层**: 使用Ent ORM进行数据库操作
-- **中间件**: JWT认证、文件服务、日志记录等
-
-## 🗄️ 数据库设计
-
-### 用户表 (User)
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | INT | 主键，自增 |
-| email | VARCHAR(255) | 邮箱地址，唯一 |
-| password | VARCHAR(255) | 加密密码 |
-| name | VARCHAR(255) | 用户姓名 |
-| username | VARCHAR(255) | 用户名 |
-| nickname | VARCHAR(255) | 昵称 |
-| uid | VARCHAR(255) | 用户唯一标识 |
-| password_salt | VARCHAR(255) | 密码盐值 |
-| avatar | VARCHAR(1024) | 用户头像 |
-| phone | VARCHAR(20) | 手机号码 |
-| status | ENUM | 用户状态 (active/inactive/suspended) |
-| last_login | TIMESTAMP | 最后登录时间 |
-| last_ip | VARCHAR(50) | 最后登录IP |
-| create_time | TIMESTAMP | 创建时间 |
-| update_time | TIMESTAMP | 更新时间 |
-
-### 权限规则表 (CasbinRule)
-用于存储Casbin权限控制规则，支持RBAC权限模型。
-
-数据模型以 Ent schema 为准，见 `internal/ent/schema/`。
-
-## 🛠️ 开发指南
-
-### 开发环境搭建
-
-1. **安装Go开发工具**
-   ```bash
-   go install golang.org/x/tools/cmd/goimports@latest
-   go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-   go install entgo.io/ent/cmd/ent@latest
-   ```
-
-2. **启动开发服务**
-   ```bash
-   # 开发模式运行
-   go run main.go
-   
-   # 或使用热重载工具
-   go install github.com/cosmtrek/air@latest
-   air
-   ```
-
-### 添加新功能
-
-源码功能集可在 `internal/apps/<code>/` 同时声明配置、路由、权限和 Ent 模型。参见[源码功能集开发说明](docs/source-apps.md)；新增功能集后先运行 `go generate ./internal/apps`，再运行 `go generate ./internal/ent`。
-
-1. **定义数据模型** (如需要)
-   在 `internal/ent/schema/` 下新增或修改 schema，然后重新生成代码：
-   ```bash
-   go generate ./internal/ent
-   ```
-
-2. **实现业务逻辑**
-   - 在 `internal/service/` 中添加服务层代码
-   - 在 `internal/handler/` 中添加处理器代码
-
-3. **注册路由**
-   - 在 `internal/router.go` 中添加新的路由
-
-4. **运行测试**
-   ```bash
-   go test ./...
-   ```
-
-## 🧪 测试
-
-### 运行测试
 ```bash
-# 运行所有测试
-go test ./...
-
-# 运行测试并显示覆盖率
-go test -cover ./...
-
-# 生成覆盖率报告
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out -o coverage.html
+go mod download
+go build -o go-admin main.go
+./go-admin
 ```
 
-### 代码质量检查
+开发期可直接 `go run main.go`。
+
+### 5. 首次登录
+
+首次启动会创建超级管理员与 `admin` 角色：
+
+- 账号：`admin`（或 `admin@example.com`）
+- 密码：由 `ADMIN_INITIAL_PASSWORD` 环境变量指定；未设置时随机生成，**只在控制台输出一次**，请立即保存并登录后修改
+- 管理端登录接口：`POST /api/v1/admin/public/login`
+
+### 6. 启用 esports 业务
+
+`esports` 功能集默认关闭（不播种权限、不挂载路由、不注册超时任务），需显式开启：
+
 ```bash
-# 运行代码质量检查
-golangci-lint run
+# Linux / macOS
+export ESPORTS_EXPERIMENTAL=1
 
-# 自动修复可修复的问题
-golangci-lint run --fix
+# PowerShell
+$env:ESPORTS_EXPERIMENTAL="1"
 ```
 
-### 测试结构
-- **单元测试**: 测试单个函数和方法
-- **集成测试**: 测试API端点和数据库交互
-- **性能测试**: 使用基准测试评估性能
-- **代码质量**: 使用golangci-lint进行静态分析
+启用后还需在系统配置中确认 `app.esports.payment_deadline_minutes` 为非零（默认 30），否则待付款订单无法支付。上线前请逐项完成 [esports README](internal/apps/esports/README.md) 中的验收清单。
 
-## 🚀 部署
+访问地址：
 
-### 生产环境部署
+- 管理端：<http://localhost:9501>
+- API 基址：<http://localhost:9501/api/v1>
+- 上传直链：`/uploads/*`（映射到 `./data/storage/public`）
 
-1. **构建生产版本**
-   ```bash
-   CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s' -o go-admin main.go
-   ```
+## 配置说明
 
-2. **配置systemd服务**
-   ```bash
-   sudo systemctl enable go-admin
-   sudo systemctl start go-admin
-   ```
+配置读取顺序为 `config/config.yml` 叠加环境变量（前缀 `CMF_`，层级用下划线连接，例如 `database.connections.default.password` → `CMF_DATABASE_CONNECTIONS_DEFAULT_PASSWORD`）。
 
-3. **配置反向代理**
-   - 使用Nginx或Apache作为反向代理
-   - 配置SSL证书
-   - 设置负载均衡 (如需要)
+### 主要配置段
 
-## 📊 监控和运维
+| 配置段 | 说明 |
+| --- | --- |
+| `app` | 端口、调试模式、Swagger 开关、JWT 双密钥与过期时间、请求体上限 |
+| `log` | 日志路径、控制台/文件输出、轮转大小与保留天数、操作日志保留天数 |
+| `database` | 默认连接、驱动、表前缀、SSL |
+| `redis` / `cache` | 命名连接（缓存与队列分离）、默认 TTL |
+| `captcha` | 存储位置（`memory` / `redis`）、键前缀；多实例或 `prefork` 必须用 Redis |
+| `queue` | 驱动、命名空间、并发、队列权重与优先级、重试/超时/保留期、载荷上限、监控页 |
+| `filesystem` | `local` / `s3` 磁盘与根目录 |
+| `plugin` | 是否强制签名、可信 Ed25519 公钥列表 |
+| `notify` | 短信 / 邮件 / 推送渠道，未配置即自动禁用 |
+| `casbin` | 默认域与多域模型（内联 `model_text` 或 `model_path`） |
+| `attachment` | 是否启用 `X-Accel-Redirect`（生产建议经 Nginx 下发） |
 
-### 健康检查
-- `GET /` 返回内嵌的前端 SPA 首页，可确认服务与静态资源正常。
-- 项目未提供专门的 JSON 健康检查端点；API 可用性可通过公开接口 `GET /api/v1/public/public-key` 探测。
+### 环境变量
 
-### 日志管理
+| 变量 | 用途 |
+| --- | --- |
+| `CMF_APP_ENV` | 运行环境；`production` 时强制要求插件签名 |
+| `CMF_APP_SECRET` | 用户端 JWT 密钥（生产必填强密钥） |
+| `CMF_APP_ADMIN_SECRET` | 管理端 JWT 密钥（生产必填强密钥） |
+| `ADMIN_INITIAL_PASSWORD` | 初始管理员密码；未设置则随机生成并输出到控制台 |
+| `CMF_DATABASE_CONNECTIONS_DEFAULT_PASSWORD` | 数据库密码 |
+| `CMF_CONFIG_SECRET_ACTIVE_VERSION` / `CMF_CONFIG_SECRET_KEY_V1` | 系统配置密钥版本与 AES-256-GCM 主密钥（Base64） |
+| `CMF_PLUGIN_REQUIRE_SIGNATURE` / `CMF_PLUGIN_TRUSTED_PUBLIC_KEYS` | 插件签名开关与可信公钥 |
+| `ESPORTS_EXPERIMENTAL` | `1` 时启用陪玩报单业务功能集 |
+| `CMF_NOTIFY_SMS_ACCESS_KEY` 等 | 通知渠道密钥，按 `config.yml` 键名推导 |
+
+> 密钥轮换后需重跑 `go run ./cmd/captcha-reencrypt --dry-run=false` 重新加密存量配置。
+
+## API 与认证
+
+所有业务接口位于 `/api/v1` 下，源码功能集统一挂载在 `/api/v1/esports`（如 `/api/v1/esports/admin/*`、`/api/v1/esports/user/*`、公开接口 `/api/v1/esports/skus`、`/api/v1/esports/page`）。
+
+### 登录与令牌
+
+| 场景 | 接口 |
+| --- | --- |
+| 用户登录 / 刷新 | `POST /api/v1/public/login`、`POST /api/v1/public/refresh-token` |
+| 管理端登录 / 刷新 | `POST /api/v1/admin/public/login`、`POST /api/v1/admin/public/refresh` |
+| RSA 公钥 | `GET /api/v1/public/public-key` |
+| 验证码挑战 / 换票 | `POST /api/v1/public/captcha/challenges`、`POST /api/v1/public/captcha/verifications` |
+
+- **加密登录**：先取公钥，再以密文字段搭配 `timestamp` / `nonce` / `key_id` 提交（用户端为 `encrypted_email`，管理端为 `encrypted_username`，密码统一为 `encrypted_password`）。
+- **验证码**：换取的一次性票据通过 `X-Captcha-Token` 头携带；登录场景是否强制由验证码场景配置决定。
+- **受保护接口**：携带 `Authorization: Bearer <token>`；管理端接口同时校验 Casbin 权限码。
+
+```http
+GET /api/v1/admin/auth/user
+Authorization: Bearer <jwt_token>
+```
+
+### 文档
+
 ```bash
-# 查看应用日志
-tail -f ./data/logs/admin-api.log
-
-# 查看系统服务日志
-sudo journalctl -u go-admin -f
+swag init -g main.go -o docs
 ```
 
-### 性能监控
-- CPU使用率监控
-- 内存使用监控
-- 数据库连接池监控
-- API响应时间监控
+Swagger UI 默认关闭（安全基线：`/docs` 无需认证即可查看全部 API）。仅在隔离的本地环境将 `app.swagger: true`（或 `app.debug: true`）后访问 <http://localhost:9501/docs>。
 
-## 🔒 安全特性
+### 实时消息
 
-- **JWT认证**: 保护API端点安全
-- **密码加密**: 使用bcrypt加密用户密码
-- **SQL注入防护**: Ent ORM提供类型安全的查询
-- **CORS支持**: 配置跨域资源共享
-- **权限控制**: 基于Casbin的RBAC权限管理
-- **敏感数据保护**: 敏感字段自动隐藏
+- 申请票据：`POST /api/v1/admin/auth/sse/ticket`
+- 建立连接：`GET /api/v1/admin/sse/connect?ticket=...`
 
-## 🤝 贡献指南
+## 开发指南
 
-我们欢迎所有形式的贡献！
+### 常用命令
 
-### 贡献方式
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 创建 Pull Request
-
-### 代码规范
-- 遵循Go官方代码规范
-- 使用 `gofmt` 格式化代码
-- 添加必要的注释和文档
-- 编写单元测试
-
-### 提交信息规范
-```
-<type>(<scope>): <subject>
-
-feat: 新功能
-fix: 修复bug
-docs: 文档更新
-style: 代码格式调整
-refactor: 代码重构
-test: 测试相关
+```bash
+go run main.go                      # 本地启动
+go build -o go-admin main.go        # 构建
+go test ./...                       # 全量测试（需 web/dist 存在）
+go test -cover ./...                # 覆盖率
+golangci-lint run                   # 静态检查（--fix 可自动修复）
 ```
 
-## 📄 许可证
+### 代码生成
 
-本项目采用 [MIT License](LICENSE) 许可证。
+Ent 与源码功能集代码均为生成产物，**不要手工编辑**：
 
-## 📞 支持和联系
+```bash
+go generate ./internal/apps        # 汇总 apps 的 schema 与注册表
+go generate ./internal/ent         # 生成 Ent 客户端
+```
 
-- **问题反馈**: [GitHub Issues](https://github.com/your-org/go-admin/issues)
-- **功能请求**: [GitHub Discussions](https://github.com/your-org/go-admin/discussions)
-- **邮件联系**: admin@example.com
+新增业务模块时，在 `internal/apps/<code>/` 同时声明配置、路由、权限与 Ent Schema，参见 [docs/source-apps.md](docs/source-apps.md)。
 
-## 🙏 致谢
+### 添加一个通用接口
 
-感谢以下开源项目的支持：
+1. 在 `internal/ent/schema/` 定义模型（如需要）并重新生成
+2. 在 `internal/service/` 实现业务逻辑
+3. 在 `internal/handler/` 编写处理器
+4. 在 `internal/router.go` 注册路由并配置权限
+5. 补充单元测试与必要的 Casbin 权限种子
 
-- [Fiber](https://github.com/gofiber/fiber) - 高性能Web框架
-- [Ent](https://entgo.io/) - 类型安全的ORM
-- [Casbin](https://github.com/casbin/casbin) - 权限管理框架
-- [JWT-Go](https://github.com/golang-jwt/jwt) - JWT实现
-- [Viper](https://github.com/spf13/viper) - 配置管理
+### 测试约定
 
-## 📚 相关文档
+- 使用标准库 `testing`，测试文件与源码同目录（`*_test.go`）
+- 数据库测试使用 Ent + 内存 SQLite，文件测试使用 `t.TempDir()`
+- Bug 修复需补回归测试，覆盖授权、上传、定时任务与插件边界
 
-- [📖 文档导航](docs/README.md) - 完整文档索引
-- [🔐 GitHub OAuth 接入](docs/oauth-github.md) - OAuth 配置与绑定流程
-- [📋 API 规范](docs/swagger.json) - Swag 生成的 OpenAPI 2.0 规范（Swagger UI 见上文「API文档」）
-- [🧭 AGENTS.md](AGENTS.md) - 仓库协作规范与常用命令
+## 部署
 
----
+### 构建生产二进制
 
-**Go-Admin** - 让管理后台开发更简单 🚀
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+  go build -a -installsuffix cgo -ldflags '-w -s' -o go-admin main.go
+```
+
+> 生产代码不使用 C 依赖，`CGO_ENABLED=0` 可静态编译；`mattn/go-sqlite3` 只被测试引用。
+
+### systemd 示例
+
+```ini
+[Unit]
+Description=Esports Partner API
+After=network.target mysql.service redis.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/esports/go-admin
+ExecStart=/opt/esports/go-admin/go-admin
+Restart=always
+RestartSec=5
+Environment=CMF_APP_ENV=production
+Environment=ESPORTS_EXPERIMENTAL=1
+# 密钥通过 EnvironmentFile 注入，不要写进仓库
+EnvironmentFile=/etc/esports/api.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 反向代理要点
+
+- 静态资源与 API 同域转发到 `9501`
+- SSE 路径关闭代理缓冲（`proxy_buffering off`），并放宽读超时
+- `client_max_body_size` 不小于 `app.body_limit`（默认 10 MiB）
+- 启用 `attachment.x_accel_enabled` 时由代理直接下发私有附件
+
+## 运维
+
+| 项目 | 说明 |
+| --- | --- |
+| 应用日志 | `./data/logs/admin-api.log`（按 `log.max_size` / `max_backups` 轮转） |
+| 定时任务日志 | `./data/logs/cron/`，保留 7 天 |
+| 运行时目录 | `./data/logs`、`./data/storage`、`./data/plugins`、`./data/plugin-packages` |
+| 队列监控 | 开启 `queue.enable_monitor` 后访问 `/api/v1/admin/auth/queue-monitor`（只读，需管理端认证） |
+| 上线自检 | `GET /api/v1/esports/admin/readiness`，逐项回报开关、支付时限、收款渠道、通知与企微配置状态，不回显密钥 |
+| 日志清理 | 任务 `cleanup_expired_logs` 按 `log.retention_days` 清理操作/登录日志（负数表示不清理） |
+
+### 注册的后台任务
+
+`esports` 功能集在启用后注册以下任务（由 Cron 管理端或队列调度）：
+
+`esports_expire_orders`、`esports_expire_dispatch_invites`、`esports_expire_wallet_bonus`、`esports_apply_member_downgrade`、`esports_publish_scheduled_pages`、`esports_expire_stored_value_cards`、`esports_rebuild_dispatch_priority`、`esports_expire_dispatch_priority_notice`、`esports_remind_dispatch_ladder`、`esports_check_service_overtime`、`esports_generate_cs_settlements`、`esports_generate_player_settlements`、`esports_activate_scheduled_commission_rules`、`esports_check_aftersale_sla`、`esports_check_close_approval_timeout`、`esports_flag_high_risk_customers`、`esports_reconcile_ledgers`、`esports_auto_offline_players`、`esports_auto_pause_disconnected_players`、`esports_expire_reschedule_proposals`、`esports_apply_due_sku_suspensions`、`esports_expire_customer_stored_value_intents`、`esports_expire_recharge_intents`、`esports_deliver_outbox`、`esports_deliver_notifications`。
+
+## 安全基线
+
+- JWT 密钥为空或为已知弱默认值时启动自动生成随机值；生产必须显式配置强密钥
+- 生产环境（`CMF_APP_ENV=production`）强制插件签名，且必须配置至少一个可信公钥
+- Swagger UI 默认关闭，生产必须保持关闭
+- 管理端接口统一走 Casbin 权限校验；资金类操作强制「申请与审批分离、不得自审」
+- 密码使用 bcrypt + 独立盐值；登录日志与操作日志按保留期自动清理
+- 渠道密钥、商户号等敏感配置使用 AES-256-GCM 加密后入库，主密钥只来自环境变量
+
+## 相关文档
+
+- [文档导航](docs/README.md) — Swagger 与专题文档索引
+- [陪玩报单功能集说明](internal/apps/esports/README.md) — 逐模块实现状态、接口清单与人工验收步骤
+- [源码功能集开发](docs/source-apps.md) — 功能集注册、校验、路由挂载与代码生成
+- [GitHub OAuth 接入](docs/oauth-github.md)
+- [插件协议](docs/plugin-protocols.md)
+- [CMS 接口](docs/cms.md)
+- [任务队列后端](docs/task-queue-backends.md)
+- [API 规范](docs/swagger.json) — Swag 生成的 OpenAPI 2.0
+- [AGENTS.md](AGENTS.md) — 仓库协作规范与常用命令
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)。
