@@ -31,8 +31,8 @@ func TestOutboxRetryAndDeadLetter(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Date(2026, 10, 9, 10, 0, 0, 0, time.UTC)
-	first := db.EsportsOutbox.Create().SetEventKey("event:first").SetEventType("order.created").
-		SetAggregateRef("order-1").SetPayload(map[string]interface{}{"order_no": "order-1"}).
+	first := db.EsportsOutbox.Create().SetEventKey("event:first").SetEventType("gift.paid").
+		SetAggregateRef("gift-1").SetPayload(map[string]interface{}{"gift_no": "gift-1"}).
 		SetNextAttemptAt(now).SaveX(ctx)
 	publisher := &recordingPublisher{fail: true}
 	if _, err := deliverOutboxBatch(ctx, db, nil, now, 10); !errors.Is(err, errOutboxPublisherUnavailable) {
@@ -59,8 +59,8 @@ func TestOutboxRetryAndDeadLetter(t *testing.T) {
 		len(publisher.keys) != 2 || publisher.keys[0] != publisher.keys[1] {
 		t.Fatalf("delivery not idempotently keyed: %+v %+v", stored, publisher)
 	}
-	second := db.EsportsOutbox.Create().SetEventKey("event:dead").SetEventType("payment.exception").
-		SetAggregateRef("order-2").SetPayload(map[string]interface{}{}).
+	second := db.EsportsOutbox.Create().SetEventKey("event:dead").SetEventType("ledger.reconcile_anomaly").
+		SetAggregateRef("ledger").SetPayload(map[string]interface{}{}).
 		SetNextAttemptAt(now).SaveX(ctx)
 	publisher.fail = true
 	when := now
@@ -77,8 +77,8 @@ func TestOutboxRetryAndDeadLetter(t *testing.T) {
 	if count, err := deliverOutboxBatch(ctx, db, publisher, when.Add(time.Hour), 10); err != nil || count != 0 {
 		t.Fatalf("dead event was retried: %d %v", count, err)
 	}
-	stale := db.EsportsOutbox.Create().SetEventKey("event:stale").SetEventType("order.created").
-		SetAggregateRef("order-3").SetPayload(map[string]interface{}{}).
+	stale := db.EsportsOutbox.Create().SetEventKey("event:stale").SetEventType("gift.refunded").
+		SetAggregateRef("gift-3").SetPayload(map[string]interface{}{}).
 		SetStatus("processing").SetAttempts(outboxMaxAttempts).
 		SetLeaseUntil(now.Add(-time.Minute)).SetNextAttemptAt(now).SaveX(ctx)
 	before := len(publisher.keys)

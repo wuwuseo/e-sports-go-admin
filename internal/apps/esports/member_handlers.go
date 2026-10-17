@@ -18,6 +18,8 @@ type memberLevelView struct {
 	DiscountBps      int       `json:"discount_bps"`
 	PriorityDispatch bool      `json:"priority_dispatch"`
 	PrepayBonusBps   int       `json:"prepay_bonus_bps"`
+	DedicatedCs      bool      `json:"dedicated_cs"`
+	PriorityBooking  bool      `json:"priority_booking"`
 	SortOrder        int       `json:"sort_order"`
 	Status           string    `json:"status"`
 	Version          int       `json:"version"`
@@ -30,6 +32,7 @@ func toMemberLevelView(item *ent.EsportsMemberLevelRule) memberLevelView {
 		ID: item.ID, Code: item.Code, Name: item.Name,
 		GrowthThreshold: item.GrowthThreshold, DiscountBps: item.DiscountBps,
 		PriorityDispatch: item.PriorityDispatch, PrepayBonusBps: item.PrepayBonusBps,
+		DedicatedCs: item.DedicatedCs, PriorityBooking: item.PriorityBooking,
 		SortOrder: item.SortOrder, Status: item.Status.String(), Version: item.Version,
 		CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
 	}

@@ -429,6 +429,9 @@ func applyRescheduleProposal(ctx context.Context, db *ent.Client, proposalID int
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.Version != item.OrderVersion ||
 		order.PaymentStatus != esportsorder.PaymentStatusPaid ||
 		order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||

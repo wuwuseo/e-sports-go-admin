@@ -16,7 +16,8 @@ func (EsportsOrder) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("order_no").NotEmpty().MaxLen(64).Immutable().StructTag(`json:"order_no"`),
 		field.Int("customer_id").Positive().StructTag(`json:"customer_id"`),
-		field.Int("sku_id").Positive().StructTag(`json:"sku_id"`),
+		// 常规报单必须绑定已上架 SKU；管理员补录无 SKU 的历史单（§15.6）允许 sku_id=0 不绑定 SKU。
+		field.Int("sku_id").StructTag(`json:"sku_id"`),
 		field.Int("created_by_admin_id").Optional().Nillable().StructTag(`json:"created_by_admin_id"`),
 		field.Int("responsible_admin_id").Optional().Nillable().StructTag(`json:"responsible_admin_id"`),
 		// 客服提成在足额核销时锁定业绩归属与规则；locked_at 非空、rule_id 空表示当时无规则。
@@ -108,8 +109,9 @@ func (EsportsOrder) Fields() []ent.Field {
 		// 存单时间与操作管理员，仅 deposit_status=frozen 时非空。
 		field.Time("deposited_at").Optional().Nillable().StructTag(`json:"deposited_at"`),
 		field.Int("deposited_by_admin_id").Optional().Nillable().StructTag(`json:"deposited_by_admin_id"`),
-		// 管理员历史订单补录（§3.3 / §4.1）：补录单固定 entry_point=admin_backfill，
-		// 必须记录补录原因、补录人与补录时刻；默认不计提陪玩分成 / 客服提成 / 成长值，避免历史流水算进当期业绩。
+		// 管理员历史订单补录（§3.3 / §4.1 / §12.5）：补录单固定 entry_point=admin_backfill，
+		// 必须记录补录原因、补录人与补录时刻。陪玩分成与成长值默认正常计提；
+		// backfill_count_commission 重新定义为「是否计入客服提成」，默认 false（客服提成默认不计入）。
 		field.String("backfill_reason").MaxLen(255).Default("").StructTag(`json:"backfill_reason"`),
 		field.Bool("backfill_count_commission").Default(false).StructTag(`json:"backfill_count_commission"`),
 		field.Int("backfilled_by_admin_id").Optional().Nillable().StructTag(`json:"backfilled_by_admin_id"`),

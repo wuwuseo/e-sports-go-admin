@@ -51,6 +51,9 @@ func businessError(c fiber.Ctx, err error) error {
 		return fail(c, fiber.StatusBadRequest, errInsufficientBalance.Error())
 	case errors.Is(err, errNotConfigured):
 		return fail(c, fiber.StatusServiceUnavailable, err.Error())
+	case errors.Is(err, errOrderFrozen):
+		// 存单冻结拦截：给前端明确中文提示（而非笼统的「业务状态已变化」），状态码 409。
+		return fail(c, fiber.StatusConflict, errOrderFrozen.Error())
 	case errors.Is(err, errConflict), ent.IsConstraintError(err):
 		return fail(c, fiber.StatusConflict, errConflict.Error())
 	case ent.IsNotFound(err):

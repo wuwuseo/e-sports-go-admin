@@ -119,6 +119,9 @@ func setPlayerServicePause(ctx context.Context, db *ent.Client, playerID, orderI
 	if err != nil {
 		return playerServiceTiming{}, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return playerServiceTiming{}, err
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		return playerServiceTiming{}, errConflict
 	}

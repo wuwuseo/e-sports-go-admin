@@ -75,6 +75,7 @@ import (
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
+	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
@@ -249,6 +250,7 @@ func checkColumn(t, c string) error {
 			esportsplayerreview.Table:            esportsplayerreview.ValidColumn,
 			esportsplayerreviewrevision.Table:    esportsplayerreviewrevision.ValidColumn,
 			esportspriceadjustment.Table:         esportspriceadjustment.ValidColumn,
+			esportsprioritybookingintent.Table:   esportsprioritybookingintent.ValidColumn,
 			esportsproduct.Table:                 esportsproduct.ValidColumn,
 			esportsproductcategory.Table:         esportsproductcategory.ValidColumn,
 			esportsquotahold.Table:               esportsquotahold.ValidColumn,

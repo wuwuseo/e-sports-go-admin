@@ -119,6 +119,34 @@ func (_u *EsportsMemberLevelRuleUpdate) AddPrepayBonusBps(v int) *EsportsMemberL
 	return _u
 }
 
+// SetDedicatedCs sets the "dedicated_cs" field.
+func (_u *EsportsMemberLevelRuleUpdate) SetDedicatedCs(v bool) *EsportsMemberLevelRuleUpdate {
+	_u.mutation.SetDedicatedCs(v)
+	return _u
+}
+
+// SetNillableDedicatedCs sets the "dedicated_cs" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdate) SetNillableDedicatedCs(v *bool) *EsportsMemberLevelRuleUpdate {
+	if v != nil {
+		_u.SetDedicatedCs(*v)
+	}
+	return _u
+}
+
+// SetPriorityBooking sets the "priority_booking" field.
+func (_u *EsportsMemberLevelRuleUpdate) SetPriorityBooking(v bool) *EsportsMemberLevelRuleUpdate {
+	_u.mutation.SetPriorityBooking(v)
+	return _u
+}
+
+// SetNillablePriorityBooking sets the "priority_booking" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdate) SetNillablePriorityBooking(v *bool) *EsportsMemberLevelRuleUpdate {
+	if v != nil {
+		_u.SetPriorityBooking(*v)
+	}
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *EsportsMemberLevelRuleUpdate) SetSortOrder(v int) *EsportsMemberLevelRuleUpdate {
 	_u.mutation.ResetSortOrder()
@@ -273,6 +301,12 @@ func (_u *EsportsMemberLevelRuleUpdate) sqlSave(ctx context.Context) (_node int,
 	if value, ok := _u.mutation.AddedPrepayBonusBps(); ok {
 		_spec.AddField(esportsmemberlevelrule.FieldPrepayBonusBps, field.TypeInt, value)
 	}
+	if value, ok := _u.mutation.DedicatedCs(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldDedicatedCs, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PriorityBooking(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldPriorityBooking, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldSortOrder, field.TypeInt, value)
 	}
@@ -399,6 +433,34 @@ func (_u *EsportsMemberLevelRuleUpdateOne) SetNillablePrepayBonusBps(v *int) *Es
 // AddPrepayBonusBps adds value to the "prepay_bonus_bps" field.
 func (_u *EsportsMemberLevelRuleUpdateOne) AddPrepayBonusBps(v int) *EsportsMemberLevelRuleUpdateOne {
 	_u.mutation.AddPrepayBonusBps(v)
+	return _u
+}
+
+// SetDedicatedCs sets the "dedicated_cs" field.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetDedicatedCs(v bool) *EsportsMemberLevelRuleUpdateOne {
+	_u.mutation.SetDedicatedCs(v)
+	return _u
+}
+
+// SetNillableDedicatedCs sets the "dedicated_cs" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetNillableDedicatedCs(v *bool) *EsportsMemberLevelRuleUpdateOne {
+	if v != nil {
+		_u.SetDedicatedCs(*v)
+	}
+	return _u
+}
+
+// SetPriorityBooking sets the "priority_booking" field.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetPriorityBooking(v bool) *EsportsMemberLevelRuleUpdateOne {
+	_u.mutation.SetPriorityBooking(v)
+	return _u
+}
+
+// SetNillablePriorityBooking sets the "priority_booking" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetNillablePriorityBooking(v *bool) *EsportsMemberLevelRuleUpdateOne {
+	if v != nil {
+		_u.SetPriorityBooking(*v)
+	}
 	return _u
 }
 
@@ -585,6 +647,12 @@ func (_u *EsportsMemberLevelRuleUpdateOne) sqlSave(ctx context.Context) (_node *
 	}
 	if value, ok := _u.mutation.AddedPrepayBonusBps(); ok {
 		_spec.AddField(esportsmemberlevelrule.FieldPrepayBonusBps, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.DedicatedCs(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldDedicatedCs, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PriorityBooking(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldPriorityBooking, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldSortOrder, field.TypeInt, value)

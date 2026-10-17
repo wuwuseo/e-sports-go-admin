@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"go-admin/internal/ent"
@@ -12,6 +13,7 @@ import (
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswalletaccount"
+	"go-admin/internal/ent/systemconfig"
 )
 
 // 账本定时全量核验（§11.6 / §4.3 / §11.3）。
@@ -38,6 +40,12 @@ const (
 	ledgerReconcileScanCap = 5000
 	// ledgerReconcileMaxAnomalies 单轮最多输出的异常条数，避免外盒事件 payload 过大。
 	ledgerReconcileMaxAnomalies = 200
+
+	// 各扫描维度的持久游标键：记录「上一轮已扫到的最大 ID」，下一轮从该 ID 继续，
+	// 扫完一整圈后重置为 0 从头开始，保证连续多轮运行覆盖全部数据而不重复扫。
+	ledgerCursorKeyWalletAccount   = "app.esports.ledger_reconcile_cursor_wallet_account"
+	ledgerCursorKeyStoredValueCard = "app.esports.ledger_reconcile_cursor_stored_value_card"
+	ledgerCursorKeyAllocation      = "app.esports.ledger_reconcile_cursor_allocation"
 )
 
 // 异常类型。命名与事件 key 一起构成对外契约，勿随意改动。
@@ -93,65 +101,134 @@ func reconcileLedgers(ctx context.Context, db *ent.Client, scanCap int) (ledgerR
 }
 
 // reconcileWalletBalances 逐账户核验余额不为负：登记型钱包账户（客户余额 / 陪玩猫粮）
-// 与储值卡（每张卡一个独立账户，account_id 为卡 ID）。
+// 与储值卡（每张卡一个独立账户，account_id 为卡 ID）。两类账户各自独立持久游标与单轮上限，
+// 互不挤占配额，连续多轮运行后各自扫完整圈。
 func reconcileWalletBalances(ctx context.Context, db *ent.Client, scanCap int, result *ledgerReconcileResult) error {
-	lastID := 0
-	for {
-		accounts, err := db.EsportsWalletAccount.Query().
-			Where(esportswalletaccount.IDGT(lastID)).
-			Order(ent.Asc(esportswalletaccount.FieldID)).
-			Limit(ledgerReconcileBatchSize).All(ctx)
-		if err != nil {
-			return err
-		}
-		if len(accounts) == 0 {
-			break
-		}
-		for _, account := range accounts {
-			// 上限按条判断，保证 ScannedAccounts 精确等于本轮实际核验的账户数。
-			if result.ScannedAccounts >= scanCap {
-				result.ScanTruncated = true
-				return nil
-			}
-			lastID = account.ID
-			result.ScannedAccounts++
-			balance, err := walletBalanceOf(ctx, db, account.AccountType.String(), account.OwnerID)
+	truncated, err := ledgerCursorScan(ctx, db, ledgerCursorKeyWalletAccount, scanCap,
+		func(lastID, limit int) (int, int, error) {
+			accounts, err := db.EsportsWalletAccount.Query().
+				Where(esportswalletaccount.IDGT(lastID)).
+				Order(ent.Asc(esportswalletaccount.FieldID)).
+				Limit(limit).All(ctx)
 			if err != nil {
-				return err
+				return 0, 0, err
 			}
-			checkWalletBalanceNonNegative(result, account.AccountType.String(), strconv.Itoa(account.OwnerID), balance)
-		}
+			for _, account := range accounts {
+				result.ScannedAccounts++
+				balance, err := walletBalanceOf(ctx, db, account.AccountType.String(), account.OwnerID)
+				if err != nil {
+					return 0, 0, err
+				}
+				checkWalletBalanceNonNegative(result, account.AccountType.String(), strconv.Itoa(account.OwnerID), balance)
+			}
+			if len(accounts) == 0 {
+				return 0, 0, nil
+			}
+			return accounts[len(accounts)-1].ID, len(accounts), nil
+		})
+	if err != nil {
+		return err
+	}
+	if truncated {
+		result.ScanTruncated = true
 	}
 	return reconcileStoredValueCardBalances(ctx, db, scanCap, result)
 }
 
 func reconcileStoredValueCardBalances(ctx context.Context, db *ent.Client, scanCap int, result *ledgerReconcileResult) error {
-	lastID := 0
-	for {
-		cards, err := db.EsportsStoredValueCard.Query().
-			Where(esportsstoredvaluecard.IDGT(lastID)).
-			Order(ent.Asc(esportsstoredvaluecard.FieldID)).
-			Limit(ledgerReconcileBatchSize).All(ctx)
-		if err != nil {
-			return err
-		}
-		if len(cards) == 0 {
-			return nil
-		}
-		for _, card := range cards {
-			if result.ScannedAccounts >= scanCap {
-				result.ScanTruncated = true
-				return nil
-			}
-			lastID = card.ID
-			result.ScannedAccounts++
-			balance, err := walletBalanceOf(ctx, db, storedValuePrepayAccount, card.ID)
+	truncated, err := ledgerCursorScan(ctx, db, ledgerCursorKeyStoredValueCard, scanCap,
+		func(lastID, limit int) (int, int, error) {
+			cards, err := db.EsportsStoredValueCard.Query().
+				Where(esportsstoredvaluecard.IDGT(lastID)).
+				Order(ent.Asc(esportsstoredvaluecard.FieldID)).
+				Limit(limit).All(ctx)
 			if err != nil {
-				return err
+				return 0, 0, err
 			}
-			checkWalletBalanceNonNegative(result, storedValuePrepayAccount, strconv.Itoa(card.ID), balance)
+			for _, card := range cards {
+				result.ScannedAccounts++
+				balance, err := walletBalanceOf(ctx, db, storedValuePrepayAccount, card.ID)
+				if err != nil {
+					return 0, 0, err
+				}
+				checkWalletBalanceNonNegative(result, storedValuePrepayAccount, strconv.Itoa(card.ID), balance)
+			}
+			if len(cards) == 0 {
+				return 0, 0, nil
+			}
+			return cards[len(cards)-1].ID, len(cards), nil
+		})
+	if err != nil {
+		return err
+	}
+	if truncated {
+		result.ScanTruncated = true
+	}
+	return nil
+}
+
+// readLedgerCursor 读取某扫描维度的持久游标（上一轮已扫到的最大 ID）。缺失或非法时从 0 开始。
+func readLedgerCursor(ctx context.Context, db *ent.Client, key string) (int, error) {
+	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	cursor, err := strconv.Atoi(strings.TrimSpace(item.Value))
+	if err != nil || cursor < 0 {
+		return 0, nil
+	}
+	return cursor, nil
+}
+
+// writeLedgerCursor 持久化某扫描维度的游标。cursor 为 0 表示已扫完整圈、下一轮从头开始。
+func writeLedgerCursor(ctx context.Context, db *ent.Client, key string, cursor int) error {
+	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Only(ctx)
+	if ent.IsNotFound(err) {
+		_, err = db.SystemConfig.Create().SetKey(key).SetName("账本核验游标").
+			SetValue(strconv.Itoa(cursor)).SetType("number").SetGroup("esports").SetStatus(1).Save(ctx)
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	_, err = db.SystemConfig.UpdateOneID(item.ID).SetValue(strconv.Itoa(cursor)).Save(ctx)
+	return err
+}
+
+// ledgerCursorScan 以持久游标推进方式扫描某维度：从游标位置起按 ID 升序逐批读取并交给
+// process 处理，单轮最多 scanCap 条。process 返回本批最大 ID 与条数；count 为 0 或小于
+// limit 表示已扫到表尾。整圈扫完时游标重置为 0（返回 truncated=false），否则写回本轮
+// 扫到的最大 ID 并返回 true（被单轮上限截断，下轮继续）。
+func ledgerCursorScan(ctx context.Context, db *ent.Client, cursorKey string, scanCap int,
+	process func(lastID, limit int) (maxID, count int, err error)) (bool, error) {
+	cursor, err := readLedgerCursor(ctx, db, cursorKey)
+	if err != nil {
+		return false, err
+	}
+	lastID := cursor
+	scanned := 0
+	for scanned < scanCap {
+		limit := ledgerReconcileBatchSize
+		if remain := scanCap - scanned; remain < limit {
+			limit = remain
+		}
+		maxID, count, err := process(lastID, limit)
+		if err != nil {
+			return false, err
+		}
+		if count == 0 {
+			return false, writeLedgerCursor(ctx, db, cursorKey, 0)
+		}
+		lastID = maxID
+		scanned += count
+		if count < limit {
+			return false, writeLedgerCursor(ctx, db, cursorKey, 0)
 		}
 	}
+	return true, writeLedgerCursor(ctx, db, cursorKey, lastID)
 }
 
 func checkWalletBalanceNonNegative(result *ledgerReconcileResult, accountType, accountID string, balance walletBalance) {
@@ -175,42 +252,39 @@ type ledgerQuad [4]string
 
 // reconcileLedgerAllocations 逐批次核验分摊：先按「账户 + 批次来源」聚合分摊额，
 // 再对每个批次做一次账本查询，避免逐条重复聚合。批次条目不存在（batchSum 为 0）或
-// 分摊额超过批次金额都会报出。
+// 分摊额超过批次金额都会报出。分摊维度用持久游标推进，连续多轮运行扫完整圈。
 func reconcileLedgerAllocations(ctx context.Context, db *ent.Client, scanCap int, result *ledgerReconcileResult) error {
 	allocatedByBatch := map[string]int64{}
 	batchQuads := map[string]ledgerQuad{}
 
-	lastID := 0
-	for {
-		allocs, err := db.EsportsLedgerAllocation.Query().
-			Where(esportsledgerallocation.IDGT(lastID)).
-			Order(ent.Asc(esportsledgerallocation.FieldID)).
-			Limit(ledgerReconcileBatchSize).All(ctx)
-		if err != nil {
-			return err
-		}
-		if len(allocs) == 0 {
-			break
-		}
-		reachedCap := false
-		for _, item := range allocs {
-			if result.ScannedAllocations >= scanCap {
-				result.ScanTruncated = true
-				reachedCap = true
-				break
+	truncated, err := ledgerCursorScan(ctx, db, ledgerCursorKeyAllocation, scanCap,
+		func(lastID, limit int) (int, int, error) {
+			allocs, err := db.EsportsLedgerAllocation.Query().
+				Where(esportsledgerallocation.IDGT(lastID)).
+				Order(ent.Asc(esportsledgerallocation.FieldID)).
+				Limit(limit).All(ctx)
+			if err != nil {
+				return 0, 0, err
 			}
-			lastID = item.ID
-			result.ScannedAllocations++
-			batchKey := ledgerAccountKey(item.AccountType, item.AccountID) +
-				"\x00" + item.BatchSourceType + "\x00" + item.BatchSourceID
-			allocatedByBatch[batchKey] += item.AmountCents
-			if _, ok := batchQuads[batchKey]; !ok {
-				batchQuads[batchKey] = ledgerQuad{item.AccountType, item.AccountID, item.BatchSourceType, item.BatchSourceID}
+			for _, item := range allocs {
+				result.ScannedAllocations++
+				batchKey := ledgerAccountKey(item.AccountType, item.AccountID) +
+					"\x00" + item.BatchSourceType + "\x00" + item.BatchSourceID
+				allocatedByBatch[batchKey] += item.AmountCents
+				if _, ok := batchQuads[batchKey]; !ok {
+					batchQuads[batchKey] = ledgerQuad{item.AccountType, item.AccountID, item.BatchSourceType, item.BatchSourceID}
+				}
 			}
-		}
-		if reachedCap {
-			break
-		}
+			if len(allocs) == 0 {
+				return 0, 0, nil
+			}
+			return allocs[len(allocs)-1].ID, len(allocs), nil
+		})
+	if err != nil {
+		return err
+	}
+	if truncated {
+		result.ScanTruncated = true
 	}
 
 	// batchSum 为 0 说明引用的批次条目不存在或不是正向条目；分摊额超过批次金额即超扣。

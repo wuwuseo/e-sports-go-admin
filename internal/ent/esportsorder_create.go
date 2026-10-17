@@ -1021,11 +1021,6 @@ func (_c *EsportsOrderCreate) check() error {
 	if _, ok := _c.mutation.SkuID(); !ok {
 		return &ValidationError{Name: "sku_id", err: errors.New(`ent: missing required field "EsportsOrder.sku_id"`)}
 	}
-	if v, ok := _c.mutation.SkuID(); ok {
-		if err := esportsorder.SkuIDValidator(v); err != nil {
-			return &ValidationError{Name: "sku_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_id": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.ChannelSource(); !ok {
 		return &ValidationError{Name: "channel_source", err: errors.New(`ent: missing required field "EsportsOrder.channel_source"`)}
 	}

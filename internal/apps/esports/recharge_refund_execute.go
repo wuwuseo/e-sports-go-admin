@@ -88,6 +88,29 @@ func executeRechargeRefundQuote(ctx context.Context, db *ent.Client, item *ent.E
 	if item == nil || quote == nil {
 		return nil, errInvalidInput
 	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if err = executeRechargeRefundQuoteTx(ctx, tx, item, quote); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsRechargeRefundExecution.Query().Where(
+		esportsrechargerefundexecution.AfterSaleIDEQ(item.ID),
+	).Order(ent.Asc(esportsrechargerefundexecution.FieldID)).All(ctx)
+}
+
+// executeRechargeRefundQuoteTx 在调用方事务内按试算生成外部退款执行明细（幂等）：
+// 供售后执行链（充值 / 储值卡来源）在同一事务内与内部退款一并落账。
+func executeRechargeRefundQuoteTx(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale,
+	quote *rechargeRefundQuote) error {
+	if item == nil || quote == nil {
+		return errInvalidInput
+	}
 	plans := make([]rechargeRefundBatch, 0, len(quote.Batches))
 	for _, batch := range quote.Batches {
 		if batch.RefundableCents <= 0 || batch.OverAllocated || !batch.SplitKnown {
@@ -95,16 +118,11 @@ func executeRechargeRefundQuote(ctx context.Context, db *ent.Client, item *ent.E
 		}
 		plans = append(plans, batch)
 	}
-	tx, err := db.Tx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
 	existing, err := tx.EsportsRechargeRefundExecution.Query().Where(
 		esportsrechargerefundexecution.AfterSaleIDEQ(item.ID),
 	).All(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	seen := make(map[string]struct{}, len(existing))
 	for _, row := range existing {
@@ -124,18 +142,13 @@ func executeRechargeRefundQuote(ctx context.Context, db *ent.Client, item *ent.E
 			SetAmountCents(batch.RefundableCents).
 			SetStatus(esportsrechargerefundexecution.StatusPending).Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
-				// 并发重放：唯一索引兜底，跳过本次插入，事务提交后返回既有明细。
+				// 并发重放：唯一索引兜底，跳过本次插入。
 				continue
 			}
-			return nil, err
+			return err
 		}
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-	return db.EsportsRechargeRefundExecution.Query().Where(
-		esportsrechargerefundexecution.AfterSaleIDEQ(item.ID),
-	).Order(ent.Asc(esportsrechargerefundexecution.FieldID)).All(ctx)
+	return nil
 }
 
 // markRechargeRefundExecutionExecuted 财务登记外部打款后把执行明细置为 executed（§4.5）：

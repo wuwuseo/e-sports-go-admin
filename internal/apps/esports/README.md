@@ -24,7 +24,7 @@
 
 ### 会员等级（§10）
 
-等级配置通过 `GET/POST /admin/member-levels`、`PUT /admin/member-levels/:id` 与 `POST /admin/member-levels/:id/status` 维护，按成长值门槛 `growth_threshold` 分层（单位与订单金额一致，即分；`10000` = 累计消费满 100 元）；折扣以基点 `discount_bps` 表示（`10000` = 原价、`9500` = 9.5 折），另有会员订单优先 `priority_dispatch` 与储值卡赠送比例 `prepay_bonus_bps`（基点）。`code` 创建后不可改，编辑走 `version` 乐观锁，`code` 重复或版本不一致返回冲突；状态为 `enabled / disabled`。
+等级配置通过 `GET/POST /admin/member-levels`、`PUT /admin/member-levels/:id` 与 `POST /admin/member-levels/:id/status` 维护，按成长值门槛 `growth_threshold` 分层（单位与订单金额一致，即分；`10000` = 累计消费满 100 元）；折扣以基点 `discount_bps` 表示（`10000` = 原价、`9500` = 9.5 折），另有会员订单优先 `priority_dispatch`、储值卡赠送比例 `prepay_bonus_bps`（基点）、专属客服 `dedicated_cs`（开关）与优先预约 `priority_booking`（开关）。`code` 创建后不可改，编辑走 `version` 乐观锁，`code` 重复或版本不一致返回冲突；状态为 `enabled / disabled`。
 
 客户会员详情走 `GET /admin/customers/:id/member`，返回当前等级、折扣、累计成长值 `growth_total`、待降级等级 `pending_level_code`（空串表示无）与降级到期 `downgrade_after`，以及成长值流水 `ledger`（`source_type` 为 `order` 结单计提 / `after_sale` 售后退款冲回 / `manual` 手动 / `gift` 礼物打赏）与手动调级覆盖记录 `overrides`。成长值来源为**结单计提**（按订单实付额）、**礼物打赏**（按礼物金额）与**售后退款 / 礼物退款冲回**；升级即时生效，降级走可配置保护期（系统配置键 `app.esports.member_downgrade_guard_days`，默认 30 天），到期由定时任务 `esports_apply_member_downgrade` 执行降级。报单优惠顺序为「规格价 → 会员折扣 → 人工调整」。手动调级走 `POST /admin/customers/:id/member/level`（body `{level_code, reason}`），仅留覆盖记录、不改成长值流水。
 
@@ -34,7 +34,11 @@
 
 已实现**生日礼遇（§10.4）**：客户档案新增 `birthday`（月-日，如 `03-15`，空表示未填），客服工作台待办新增「今日生日客户」——按业务时区（UTC+8）匹配今日生日的归属客户，提醒客服跟进；档案编辑校验 `MM-DD` 格式（月 01-12、日 01-31），非法格式被拒。
 
-未实现的 `ponytail` 项：专属通道等非核心权益（生日自动发券属 P2）。
+已实现**专属客服 / 专属通道（§10.4）**：规则为「会员等级开启 `dedicated_cs` 权益时，客户绑定固定负责客服、不参与轮转」。系统当前已用 `owner_admin_id` 承载归属客服，且轮转尚未实现，因此这条天然满足；`dedicated_cs` 仅作权益开关与展示标识。客户档案 / 工作台 / 企微侧边栏客户卡片（`GET /admin/customers/:id/profile`）新增 `member_level_name`、`dedicated_cs`（是否开启专属客服）与 `owner_admin_name`（负责客服姓名，昵称优先回落用户名），身份标识同时返回 `member_level_code` / `member_level_name` 供前端渲染等级徽标。
+
+已实现**专属陪玩预约 / 优先预约（§10.4）**：会员等级新增 `priority_booking` 权益开关；启用该等级的客户在自助端（`POST /user/priority-bookings`）可对「指定陪玩」提交预约意向（陪玩 + 期望时段 + 备注），自助资料 `GET /user/profile` 返回 `priority_booking_enabled` 供前端显隐预约入口。意向落独立轻量实体 `EsportsPriorityBookingIntent`（不含 SKU 与金额，与订单 / 排单 / 报表解耦，客服确认后再走既有报单链路）；客服工作台待办新增「会员优先预约」（按归属客服隔离统计），待办列表 `GET /admin/priority-bookings` 按会员等级置顶（门槛越高越靠前，未定级 / 停用等级排最后）。无权益等级或未定级客户提交返回 403，期望时段须为未来时间。
+
+调出 P0 → P2（首版不实现，明确不落字段）：生日自动发券、线下活动优先、自动发券等非核心权益。
 
 ### 礼物（§9）
 
@@ -345,13 +349,13 @@ go test ./...
 
 ## 历史订单补录与业绩隔离（2026-10）
 
-`POST /admin/orders/backfill` 补录漏报的历史订单，须带 `Idempotency-Key`（8–128 字符，幂等键与请求体哈希按常规报单同口径，重复提交返回同一张单、同键不同体判冲突）。入参：`customer_id`、`sku_id`、`quantity`、`unit_price_cents`（留 0 回落 SKU 规格价）、`settled_at`（RFC3339 实际成交时间，必填且不得晚于当前、不得早于 5 年前）、`fulfillment_status`（`completed` 默认 / `cancelled`）、`payment_status`（默认 `paid`，历史补录单必须已收款）、`reason`（4–255 字，必填）、`count_commission`（是否计入当期业绩，默认 `false`）。返回体除订单外还给 `counted_commission` 结论。
+`POST /admin/orders/backfill` 补录漏报的历史订单，须带 `Idempotency-Key`（8–128 字符，幂等键与请求体哈希按常规报单同口径，重复提交返回同一张单、同键不同体判冲突）。入参：`customer_id`、`sku_id`（可选，省略或 0 表示无 SKU 的历史补录）、`quantity`、`unit_price_cents`（有 SKU 时留 0 回落 SKU 规格价，无 SKU 时必填且 >0）、`settled_at`（RFC3339 实际成交时间，必填且不得晚于当前、不得早于 5 年前）、`fulfillment_status`（`completed` 默认 / `cancelled`）、`payment_status`（默认 `paid`，历史补录单必须已收款）、`reason`（4–255 字，必填）、`count_cs_commission`（是否计入客服提成，默认 `false`）。返回体除订单外还给 `counted_cs_commission` 结论。
 
-隔离规则（与常规报单的关键差别）：入口固定 `entry_point=admin_backfill`（调用方不能指定）；只允许 `completed` / `cancelled` 两个终态，**不占 SKU 名额、不建支付意图与支付回执、不建派单席位**，避免历史单消耗当期容量；订单 `created_at` 与 `paid_at` 写实际成交时间，报表按业务发生期归集；`completed` 单同时写 `closed_at` 与 `close_net_service_cents` 快照，保证后续退款冲回口径正确。**默认不计提**陪玩分成 / 客服提成 / 成长值，并写一条 `order.commission_excluded` 外盒留痕；只有显式 `count_commission=true` 才在同一事务内按结单口径计提。补录必须记录补录原因、补录人与补录时刻，写 `order.backfilled` 订单事件与外盒；客服只能为本人负责的客户补录。
+隔离规则（与常规报单的关键差别）：入口固定 `entry_point=admin_backfill`（调用方不能指定）；只允许 `completed` / `cancelled` 两个终态，**不占 SKU 名额、不建支付意图与支付回执、不建派单席位**，避免历史单消耗当期容量；订单 `created_at` 与 `paid_at` 写实际成交时间，报表按业务发生期归集；`completed` 单同时写 `closed_at` 与 `close_net_service_cents` 快照，保证后续退款冲回口径正确。有 SKU 时沿用 SKU 快照价格 / 服务量；无 SKU 时不绑定 SKU（`sku_id=0`），用 `unit_price_cents` 兜底定价、服务量按数量 1:1、席位默认 1。**陪玩分成与成长值默认正常计提**（与普通订单一致）；**客服提成默认不计入**，写一条 `order.cs_commission_excluded` 外盒留痕，只有显式 `count_cs_commission=true` 才在同一事务内按结单口径计提。补录必须记录补录原因、补录人与补录时刻，写 `order.backfilled` 订单事件与外盒；客服只能为本人负责的客户补录。
 
-结单路径也加了同一守卫（`orderCountsCommission`）：即使有人把补录单推进到结单流程，补录单仍默认不计提，只写排除外盒，不会把历史流水算进当期业绩。
+结单路径也加了同一守卫（`orderCountsCsCommission`）：即使有人把补录单推进到结单流程，补录单仍默认不计提客服提成，只写客服提成排除外盒，不会把历史流水算进当期业绩。
 
-人工检查：用客服身份对本人客户补录一张 30 天前的已完成单，应看到 `entry_point=admin_backfill`、`created_at` 为 30 天前、`closed_at` 已写入、SKU 的已售与预占名额均未变化、`order.commission_excluded` 外盒存在且分成 / 提成明细为空；同一 `Idempotency-Key` 重复提交返回同一张单，改数量后同键提交应报冲突；把 `count_commission` 置 `true` 再补录不应出现排除外盒。管理端补录表单尚未接入。
+人工检查：用客服身份对本人客户补录一张 30 天前的已完成单，应看到 `entry_point=admin_backfill`、`created_at` 为 30 天前、`closed_at` 已写入、SKU 的已售与预占名额均未变化、`order.cs_commission_excluded` 外盒存在、成长值流水已计提且客服提成明细为空；同一 `Idempotency-Key` 重复提交返回同一张单，改数量后同键提交应报冲突；把 `count_cs_commission` 置 `true` 再补录不应出现排除外盒且按规则产出客服提成明细；省略 `sku_id` 并给 `unit_price_cents` 可补录一张 `sku_id=0` 的历史单。管理端补录表单尚未接入。
 
 ## 已核销收款的渠道撤销 / 拒付（2026-10）
 

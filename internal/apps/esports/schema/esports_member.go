@@ -10,8 +10,8 @@ import (
 
 // EsportsMemberLevelRule 是会员等级配置（§10.1）。等级按成长值门槛分层，门槛与权益均可配置。
 // 成长值单位与订单金额一致（分），避免取整损失；折扣用基点表示（10000=原价，9500=95 折）。
-// ponytail: 生日礼遇、专属通道、优先预约、线下活动优先等非核心权益未落字段；
-// 首版只实现消费折扣、会员订单优先、储值卡赠送比例与身份标识四项可配置项。
+// ponytail: 生日自动发券、线下活动优先等非核心权益未落字段（P2）；专属通道（dedicated_cs）与
+// 优先预约（priority_booking）已作为开关落字段，身份标识由前端按 level_code/level_name 渲染。
 type EsportsMemberLevelRule struct{ ent.Schema }
 
 func (EsportsMemberLevelRule) Fields() []ent.Field {
@@ -26,6 +26,12 @@ func (EsportsMemberLevelRule) Fields() []ent.Field {
 		field.Bool("priority_dispatch").Default(false).StructTag(`json:"priority_dispatch"`),
 		// 储值卡开卡赠送比例基点（§10.4）：开卡（未选套餐且未手填赠送）时按本金 × bps / 10000 赠送。
 		field.Int("prepay_bonus_bps").Default(0).StructTag(`json:"prepay_bonus_bps"`),
+		// 专属客服权益（§10.4）：客户绑定固定负责客服、不参与轮转。首版无轮转（客户已有 owner_admin_id），
+		// 该开关仅用于客服端 / 企微侧边栏客户卡片展示「专属客服」标识。
+		field.Bool("dedicated_cs").Default(false).StructTag(`json:"dedicated_cs"`),
+		// 优先预约权益（§10.4）：启用该等级的客户可在自助端提交预约意向（陪玩 + 期望时段 + 备注），
+		// 客服工作台待办出现「会员优先预约」并按等级置顶处理。
+		field.Bool("priority_booking").Default(false).StructTag(`json:"priority_booking"`),
 		field.Int("sort_order").Default(0).StructTag(`json:"sort_order"`),
 		field.Enum("status").Values("enabled", "disabled").Default("enabled").StructTag(`json:"status"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),

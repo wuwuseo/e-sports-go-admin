@@ -14,10 +14,12 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsaftersaleaction"
+	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/ent/predicate"
 )
 
 // errExecutionFailed 标记"售后方案执行失败"（区别于可重试的并发冲突 / 配置缺失），
@@ -388,14 +390,14 @@ func listAfterSales(ctx context.Context, db *ent.Client, adminID int, isSuper bo
 	}
 	q := db.EsportsAfterSale.Query()
 	if !isSuper {
-		ids, err := db.EsportsOrder.Query().Where(esportsorder.ResponsibleAdminIDEQ(adminID)).IDs(ctx)
+		owned, err := afterSaleOwnedPredicate(ctx, db, adminID)
 		if err != nil {
 			return nil, err
 		}
-		if len(ids) == 0 {
+		if owned == nil {
 			return []*ent.EsportsAfterSale{}, nil
 		}
-		q.Where(esportsaftersale.SourceIDIn(ids...))
+		q.Where(owned)
 	}
 	if status != "" {
 		if !validAfterSaleStatus(status) {
@@ -404,6 +406,38 @@ func listAfterSales(ctx context.Context, db *ent.Client, adminID int, isSuper bo
 		q.Where(esportsaftersale.StatusEQ(esportsaftersale.Status(status)))
 	}
 	return q.Order(ent.Desc(esportsaftersale.FieldID)).Limit(limit).All(ctx)
+}
+
+// afterSaleOwnedPredicate 构造非超级管理员的售后可见范围（§13.1 / §13.3）：
+// order 按负责客服的订单 ID 过滤；gift / stored_value_card / recharge 按归属客服的客户 ID 过滤
+// （售后单上的 customer_id 已由 resolveAfterSaleSource 落为真实归属客户）；assessment 无客户归属，任意管理员可见。
+// 归属集合为空时返回 nil，调用方直接返回空列表。
+func afterSaleOwnedPredicate(ctx context.Context, db *ent.Client, adminID int) (predicate.EsportsAfterSale, error) {
+	orderIDs, err := db.EsportsOrder.Query().Where(esportsorder.ResponsibleAdminIDEQ(adminID)).IDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	customerIDs, err := db.EsportsCustomer.Query().Where(esportscustomer.OwnerAdminIDEQ(adminID)).IDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	preds := []predicate.EsportsAfterSale{
+		esportsaftersale.And(
+			esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeOrder),
+			esportsaftersale.SourceIDIn(orderIDs...),
+		),
+		esportsaftersale.And(
+			esportsaftersale.SourceTypeIn(
+				esportsaftersale.SourceTypeGift,
+				esportsaftersale.SourceTypeStoredValueCard,
+				esportsaftersale.SourceTypeRecharge,
+			),
+			esportsaftersale.CustomerIDIn(customerIDs...),
+		),
+		// 陪玩申诉无客户归属，任意管理员可见。
+		esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeAssessment),
+	}
+	return esportsaftersale.Or(preds...), nil
 }
 
 // getAfterSale 按 ID 读取售后单。
@@ -699,7 +733,9 @@ func approveAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 	if item.HandlerAdminID != nil && *item.HandlerAdminID == adminID {
 		return nil, errForbidden
 	}
-	if item.RefundCents > 0 {
+	// 退款额度预占只对订单来源有效（§13.6）；gift / stored_value_card / recharge 来源按各自
+	// 退款执行路径在审批后直接落账，无需在订单上预占额度。
+	if item.RefundCents > 0 && item.SourceType == esportsaftersale.SourceTypeOrder {
 		changed, err := tx.EsportsOrder.Update().Where(
 			esportsorder.IDEQ(item.SourceID),
 			func(s *sql.Selector) {
@@ -781,7 +817,8 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 		item.Status == esportsaftersale.StatusWithdrawn {
 		return nil, errConflict
 	}
-	if item.Status == esportsaftersale.StatusPendingExecution && item.RefundCents > 0 {
+	if item.Status == esportsaftersale.StatusPendingExecution && item.RefundCents > 0 &&
+		item.SourceType == esportsaftersale.SourceTypeOrder {
 		released, err := tx.EsportsOrder.Update().Where(
 			esportsorder.IDEQ(item.SourceID),
 			func(s *sql.Selector) {
@@ -832,7 +869,24 @@ func executeAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 	} else if hasActions {
 		return executeAfterSaleActions(ctx, db, id, adminID, now)
 	}
-	item, err := executeAfterSaleOnce(ctx, db, id, adminID, now)
+	source, err := db.EsportsAfterSale.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	var item *ent.EsportsAfterSale
+	switch source.SourceType {
+	case esportsaftersale.SourceTypeOrder:
+		item, err = executeAfterSaleOnce(ctx, db, id, adminID, now)
+	case esportsaftersale.SourceTypeGift:
+		item, err = executeGiftAfterSale(ctx, db, id, adminID, now)
+	case esportsaftersale.SourceTypeStoredValueCard:
+		item, err = executeStoredValueCardAfterSale(ctx, db, id, adminID, now)
+	case esportsaftersale.SourceTypeRecharge:
+		item, err = executeRechargeAfterSale(ctx, db, id, adminID, now)
+	default:
+		// assessment（陪玩申诉）不产生退款 / 补履约执行动作。
+		return nil, errNotConfigured
+	}
 	if err != nil && errors.Is(err, errExecutionFailed) {
 		if _, markErr := db.EsportsAfterSale.Update().Where(
 			esportsaftersale.IDEQ(id),

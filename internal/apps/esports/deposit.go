@@ -2,12 +2,27 @@ package esports
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsorder"
 )
+
+// errOrderFrozen 是冻结订单写操作统一拦截错误：存单冻结期间禁止一切变更，
+// 调用方以 errors.Is 识别并返回明确中文提示。
+var errOrderFrozen = errors.New("订单已存单冻结，请先恢复后再操作")
+
+// ensureOrderNotFrozen 统一存单守卫：冻结（deposit_status=frozen）的订单禁止任何写操作，
+// 包括改价/改期/取消/派单/加钟/核销/结单/转单/暂停恢复服务段/启动服务等。
+// 存单（depositOrder）与恢复（restoreOrder）本身不经过此守卫，可正常操作。
+func ensureOrderNotFrozen(order *ent.EsportsOrder) error {
+	if order != nil && order.DepositStatus == esportsorder.DepositStatusFrozen {
+		return errOrderFrozen
+	}
+	return nil
+}
 
 // depositOrder 存单：对一张已有订单点「存单」，把订单冻结存起来。
 // 存单不是货币 / 储值账户 / 开卡套餐，只是订单上的一个冻结标记：

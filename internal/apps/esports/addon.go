@@ -79,6 +79,9 @@ func requestOrderAddon(ctx context.Context, db *ent.Client, orderID, adminID int
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		return nil, fmt.Errorf("%w：仅服务中的订单可发起加钟", errInvalidInput)
 	}
@@ -194,6 +197,9 @@ func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID in
 	}
 	order, err := tx.EsportsOrder.Get(ctx, addon.OrderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
@@ -320,6 +326,9 @@ func rejectOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID int
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
 	if err != nil {
 		return nil, err
@@ -371,6 +380,9 @@ func cancelOrderAddon(ctx context.Context, db *ent.Client, addonID, adminID int,
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
 	if err != nil {
 		return nil, err
@@ -420,6 +432,9 @@ func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonI
 	}
 	order, err := tx.EsportsOrder.Get(ctx, addon.OrderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)

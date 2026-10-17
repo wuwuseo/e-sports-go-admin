@@ -230,6 +230,10 @@ type EsportsPriceAdjustment struct {
 	appschemaesports.EsportsPriceAdjustment
 }
 
+type EsportsPriorityBookingIntent struct {
+	appschemaesports.EsportsPriorityBookingIntent
+}
+
 type EsportsProduct struct {
 	appschemaesports.EsportsProduct
 }

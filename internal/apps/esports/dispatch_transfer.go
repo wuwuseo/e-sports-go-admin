@@ -44,6 +44,9 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance &&
 		order.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted {
 		return nil, fmt.Errorf("%w：仅已接单且未开始服务的订单可发起转单", errInvalidInput)
@@ -207,6 +210,9 @@ func releaseSeatForTransfer(ctx context.Context, tx *ent.Tx, item *ent.EsportsSe
 	adminID int, now time.Time) error {
 	order, err := tx.EsportsOrder.Get(ctx, item.OrderID)
 	if err != nil {
+		return err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return err
 	}
 	seat, err := tx.EsportsDispatchSeat.Get(ctx, item.SeatID)

@@ -108,6 +108,23 @@ func autoOfflineStalePlayers(ctx context.Context, db *ent.Client, now time.Time,
 	return count, nil
 }
 
+// playerCanGrabNewOrder 判定陪玩当前是否具备「抢新单」资格（§6.4）：
+// 连接异常（protected_abnormal）一律禁止；online 视为可抢（失联 online 由超时任务收敛为
+// offline / protected_abnormal）；人工下线（offline）仅在心跳新鲜（连接正常）时仍可抢，
+// 断开后心跳陈旧自然失去抢单资格。
+func playerCanGrabNewOrder(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, now time.Time) bool {
+	if player == nil || player.Presence == esportsplayer.PresenceProtectedAbnormal {
+		return false
+	}
+	if player.Presence == esportsplayer.PresenceOnline {
+		return true
+	}
+	if player.LastHeartbeatAt == nil {
+		return false
+	}
+	return player.LastHeartbeatAt.After(now.UTC().Add(-playerHeartbeatTimeout(ctx, db)))
+}
+
 // playerHasInflightOrder 判断陪玩是否有在途订单：已接单席位落在待接单 / 已接单 / 服务中的订单上。
 func playerHasInflightOrder(ctx context.Context, db *ent.Client, playerID int) (bool, error) {
 	seats, err := db.EsportsDispatchSeat.Query().Where(

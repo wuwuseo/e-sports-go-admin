@@ -71,6 +71,7 @@ import (
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
+	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
@@ -475,6 +476,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportspriceadjustment.TablePrefix
 		esportspriceadjustment.TablePrefix = prefix
 		esportspriceadjustment.Table = prefix + strings.TrimPrefix(esportspriceadjustment.Table, old)
+	}
+	{
+		old := esportsprioritybookingintent.TablePrefix
+		esportsprioritybookingintent.TablePrefix = prefix
+		esportsprioritybookingintent.Table = prefix + strings.TrimPrefix(esportsprioritybookingintent.Table, old)
 	}
 	{
 		old := esportsproduct.TablePrefix

@@ -112,6 +112,58 @@ func listPlayers(ctx context.Context, db *ent.Client, keyword string, limit int)
 	return q.Order(ent.Desc(esportsplayer.FieldID)).Limit(limit).All(ctx)
 }
 
+// publicPlayerView 是客户端陪玩推荐的公开字段：绝不包含 user_id 等敏感信息。
+type publicPlayerView struct {
+	ID            int      `json:"id"`
+	DisplayName   string   `json:"display_name"`
+	Level         string   `json:"level"`
+	Games         []string `json:"games"`
+	Qualification string   `json:"qualification"`
+	Presence      string   `json:"presence"`
+	Online        bool     `json:"online"`
+}
+
+// listPublicPlayers 陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩；game 非空时按游戏分区过滤，
+// games 为空表示不限分区（§6.4 缺省口径）。
+func listPublicPlayers(ctx context.Context, db *ent.Client, game string, limit int) ([]publicPlayerView, error) {
+	if limit < 1 || limit > 200 {
+		limit = 100
+	}
+	items, err := db.EsportsPlayer.Query().Where(
+		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
+		esportsplayer.PresenceEQ(esportsplayer.PresenceOnline),
+	).Order(ent.Desc(esportsplayer.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	game = strings.TrimSpace(game)
+	views := make([]publicPlayerView, 0, len(items))
+	for _, p := range items {
+		if game != "" && len(p.Games) > 0 && !playerGamesContain(p.Games, game) {
+			continue
+		}
+		games := p.Games
+		if games == nil {
+			games = []string{}
+		}
+		views = append(views, publicPlayerView{
+			ID: p.ID, DisplayName: p.DisplayName, Level: p.Level.String(),
+			Games: games, Qualification: p.Qualification.String(),
+			Presence: p.Presence.String(), Online: p.Presence == esportsplayer.PresenceOnline,
+		})
+	}
+	return views, nil
+}
+
+func playerGamesContain(games []string, game string) bool {
+	for _, g := range games {
+		if g == game {
+			return true
+		}
+	}
+	return false
+}
+
 // setPlayerPresence 陪玩自助上下线：条件 UPDATE 设置 presence，冲突时 errConflict。
 func setPlayerPresence(ctx context.Context, db *ent.Client, playerID int, online bool) (*ent.EsportsPlayer, error) {
 	if playerID < 1 {
@@ -506,8 +558,9 @@ func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Ti
 	return visible, nil
 }
 
-// grabPlayerOrder 抢单：合格陪玩抢下 grabbing 单席位订单的唯一 open 席位。
-// 人工下线（presence=offline）仍可抢单，故不校验在线状态。
+// grabPlayerOrder 抢单：合格且「可抢新单」的陪玩抢下 grabbing 单席位订单的唯一 open 席位。
+// 可抢新单 = 非 protected_abnormal 且（online 或 心跳新鲜）：人工下线但连接正常仍可抢，
+// 自动离线（心跳超时）与连接异常（protected_abnormal）禁止抢新单（§6.4）。
 func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int, now time.Time) (*ent.EsportsOrder, error) {
 	if playerID < 1 || orderID < 1 {
 		return nil, errInvalidInput
@@ -524,8 +577,14 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 	if player.Qualification != esportsplayer.QualificationQualified {
 		return nil, errForbidden
 	}
+	if !playerCanGrabNewOrder(ctx, db, player, now) {
+		return nil, errForbidden
+	}
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	if err = ensureAppointmentConfirmed(order); err != nil {
@@ -676,6 +735,9 @@ func startPlayerService(ctx context.Context, db *ent.Client, playerID, orderID i
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	// 允许 accepted 与 in_service：多人单里后续成员也可各自开始服务段。
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted &&
 		order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
@@ -774,6 +836,9 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 	}
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	seatCount, err := tx.EsportsDispatchSeat.Query().Where(

@@ -29,6 +29,99 @@ type giftIntentInput struct {
 	ClientKey         string `json:"client_key"`
 }
 
+// customerGiftIntentInput 是客户自助创建礼物确认单的入参（§9.2）：客户身份由登录态解析。
+type customerGiftIntentInput struct {
+	GiftID            int    `json:"gift_id"`
+	PlayerID          int    `json:"player_id"`
+	Quantity          int    `json:"quantity"`
+	PaymentSource     string `json:"payment_source"`
+	StoredValueCardID int    `json:"stored_value_card_id"`
+	ClientKey         string `json:"client_key"`
+}
+
+// giftIntentView 是礼物确认单的对外返回结构（§9.2）：对齐 EsportsGiftIntent，不暴露归属客服 ID。
+type giftIntentView struct {
+	ID                int        `json:"id"`
+	CustomerID        int        `json:"customer_id"`
+	GiftID            int        `json:"gift_id"`
+	GiftName          string     `json:"gift_name"`
+	GiftVersion       int        `json:"gift_version"`
+	PlayerID          int        `json:"player_id"`
+	PlayerName        string     `json:"player_name"`
+	OrderID           *int       `json:"order_id"`
+	Quantity          int        `json:"quantity"`
+	UnitPriceCents    int64      `json:"unit_price_cents"`
+	AmountCents       int64      `json:"amount_cents"`
+	PaymentSource     string     `json:"payment_source"`
+	StoredValueCardID *int       `json:"stored_value_card_id"`
+	StoredValueCardNo string     `json:"stored_value_card_no"`
+	ClientKey         string     `json:"client_key"`
+	Status            string     `json:"status"`
+	Version           int        `json:"version"`
+	ConfirmationRef   string     `json:"confirmation_ref"`
+	GiftOrderID       *int       `json:"gift_order_id"`
+	ExpiresAt         time.Time  `json:"expires_at"`
+	ConfirmedAt       *time.Time `json:"confirmed_at"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+func toGiftIntentView(item *ent.EsportsGiftIntent) giftIntentView {
+	return giftIntentView{
+		ID: item.ID, CustomerID: item.CustomerID, GiftID: item.GiftID,
+		GiftName: item.GiftName, GiftVersion: item.GiftVersion,
+		PlayerID: item.PlayerID, PlayerName: item.PlayerName, OrderID: item.OrderID,
+		Quantity: item.Quantity, UnitPriceCents: item.UnitPriceCents, AmountCents: item.AmountCents,
+		PaymentSource: item.PaymentSource, StoredValueCardID: item.StoredValueCardID,
+		StoredValueCardNo: item.StoredValueCardNo, ClientKey: item.ClientKey,
+		Status: item.Status.String(), Version: item.Version,
+		ConfirmationRef: item.ConfirmationRef, GiftOrderID: item.GiftOrderID,
+		ExpiresAt: item.ExpiresAt, ConfirmedAt: item.ConfirmedAt,
+		CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
+	}
+}
+
+// createCustomerGiftIntent 客户自助创建礼物确认单（§9.2）：解析登录客户，复用 createGiftIntent
+// 的校验与落库，额外在发起时校验余额账户本金充足（储值卡本金由 createGiftIntent 校验）。
+func createCustomerGiftIntent(ctx context.Context, db *ent.Client, uid string, in customerGiftIntentInput, now time.Time) (*ent.EsportsGiftIntent, error) {
+	customer, err := customerForVerifiedUser(ctx, db, uid)
+	if err != nil {
+		return nil, err
+	}
+	if customer.OwnerAdminID == nil {
+		return nil, fmt.Errorf("%w：该客户暂无归属客服，无法自助送礼", errForbidden)
+	}
+	in.PaymentSource = strings.TrimSpace(in.PaymentSource)
+	if in.PaymentSource == "" {
+		in.PaymentSource = "customer_balance_principal"
+	}
+	// createGiftIntent 只校验储值卡本金；余额账户本金须在发起时即校验（§9.2 付款来源本金充足）。
+	if in.PaymentSource == "customer_balance_principal" && in.GiftID > 0 && in.Quantity > 0 {
+		gift, err := db.EsportsGift.Get(ctx, in.GiftID)
+		if err != nil {
+			return nil, err
+		}
+		if gift.Status == esportsgift.StatusOnSale && gift.PriceCents <= math.MaxInt64/int64(in.Quantity) {
+			balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, customer.ID)
+			if err != nil {
+				return nil, err
+			}
+			if balance.PrincipalCents < gift.PriceCents*int64(in.Quantity) {
+				return nil, fmt.Errorf("%w：本金余额不足，请充值或更换支付方式", errInsufficientBalance)
+			}
+		}
+	}
+	return createGiftIntent(ctx, db, *customer.OwnerAdminID, false, giftIntentInput{
+		CustomerID:        customer.ID,
+		GiftID:            in.GiftID,
+		PlayerID:          in.PlayerID,
+		Quantity:          in.Quantity,
+		PaymentSource:     in.PaymentSource,
+		StoredValueCardID: in.StoredValueCardID,
+		ClientKey:         in.ClientKey,
+	}, now)
+}
+
 func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper bool, in giftIntentInput, now time.Time) (*ent.EsportsGiftIntent, error) {
 	key := strings.TrimSpace(in.ClientKey)
 	in.PaymentSource = strings.TrimSpace(in.PaymentSource)

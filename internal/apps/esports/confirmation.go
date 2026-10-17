@@ -152,6 +152,9 @@ func confirmQuote(ctx context.Context, db *ent.Client, userUID string, orderID, 
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(current); err != nil {
+		return nil, err
+	}
 	if current.CustomerID != customer.ID || current.Version != order.Version || current.QuoteVersion != expectedVersion ||
 		current.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		current.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(current.PaymentDeadline) {

@@ -1335,11 +1335,6 @@ func (_u *EsportsOrderUpdate) check() error {
 			return &ValidationError{Name: "customer_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.customer_id": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.SkuID(); ok {
-		if err := esportsorder.SkuIDValidator(v); err != nil {
-			return &ValidationError{Name: "sku_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_id": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.ChannelSource(); ok {
 		if err := esportsorder.ChannelSourceValidator(v); err != nil {
 			return &ValidationError{Name: "channel_source", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.channel_source": %w`, err)}
@@ -3152,11 +3147,6 @@ func (_u *EsportsOrderUpdateOne) check() error {
 	if v, ok := _u.mutation.CustomerID(); ok {
 		if err := esportsorder.CustomerIDValidator(v); err != nil {
 			return &ValidationError{Name: "customer_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.customer_id": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.SkuID(); ok {
-		if err := esportsorder.SkuIDValidator(v); err != nil {
-			return &ValidationError{Name: "sku_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_id": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.ChannelSource(); ok {

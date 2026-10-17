@@ -346,9 +346,9 @@ func sortedInt64Keys(values map[string]int64) []string {
 	return keys
 }
 
-// reportExportFileName 生成确定性导出文件名（带报表类型与时间范围）。
+// reportExportFileName 生成确定性导出文件名（带报表类型与业务时区时间范围）。
 func reportExportFileName(reportType string, start, end time.Time) string {
-	return "esports_" + reportType + "_" + start.UTC().Format("20060102") + "_" + end.UTC().Format("20060102") + ".csv"
+	return "esports_" + reportType + "_" + start.In(cstZone).Format("20060102") + "_" + end.In(cstZone).Format("20060102") + ".csv"
 }
 
 // reportExportSnapshot 构造审计用的筛选参数快照。

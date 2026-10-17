@@ -478,6 +478,9 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
 		return nil, errConflict

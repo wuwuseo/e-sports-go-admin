@@ -29,6 +29,10 @@ type EsportsMemberLevelRule struct {
 	PriorityDispatch bool `json:"priority_dispatch"`
 	// PrepayBonusBps holds the value of the "prepay_bonus_bps" field.
 	PrepayBonusBps int `json:"prepay_bonus_bps"`
+	// DedicatedCs holds the value of the "dedicated_cs" field.
+	DedicatedCs bool `json:"dedicated_cs"`
+	// PriorityBooking holds the value of the "priority_booking" field.
+	PriorityBooking bool `json:"priority_booking"`
 	// SortOrder holds the value of the "sort_order" field.
 	SortOrder int `json:"sort_order"`
 	// Status holds the value of the "status" field.
@@ -47,7 +51,7 @@ func (*EsportsMemberLevelRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsmemberlevelrule.FieldPriorityDispatch:
+		case esportsmemberlevelrule.FieldPriorityDispatch, esportsmemberlevelrule.FieldDedicatedCs, esportsmemberlevelrule.FieldPriorityBooking:
 			values[i] = new(sql.NullBool)
 		case esportsmemberlevelrule.FieldID, esportsmemberlevelrule.FieldGrowthThreshold, esportsmemberlevelrule.FieldDiscountBps, esportsmemberlevelrule.FieldPrepayBonusBps, esportsmemberlevelrule.FieldSortOrder, esportsmemberlevelrule.FieldVersion:
 			values[i] = new(sql.NullInt64)
@@ -111,6 +115,18 @@ func (_m *EsportsMemberLevelRule) assignValues(columns []string, values []any) e
 				return fmt.Errorf("unexpected type %T for field prepay_bonus_bps", values[i])
 			} else if value.Valid {
 				_m.PrepayBonusBps = int(value.Int64)
+			}
+		case esportsmemberlevelrule.FieldDedicatedCs:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field dedicated_cs", values[i])
+			} else if value.Valid {
+				_m.DedicatedCs = value.Bool
+			}
+		case esportsmemberlevelrule.FieldPriorityBooking:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field priority_booking", values[i])
+			} else if value.Valid {
+				_m.PriorityBooking = value.Bool
 			}
 		case esportsmemberlevelrule.FieldSortOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -195,6 +211,12 @@ func (_m *EsportsMemberLevelRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("prepay_bonus_bps=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PrepayBonusBps))
+	builder.WriteString(", ")
+	builder.WriteString("dedicated_cs=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DedicatedCs))
+	builder.WriteString(", ")
+	builder.WriteString("priority_booking=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PriorityBooking))
 	builder.WriteString(", ")
 	builder.WriteString("sort_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))

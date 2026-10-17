@@ -2,6 +2,7 @@ package esports
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/migrate"
 )
 
@@ -115,6 +117,111 @@ func TestDepositRejectsUnpaidAndCancelledOrders(t *testing.T) {
 	}
 	if _, err := depositOrder(ctx, db, 0, 99, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("非法订单号未被拦截：%v", err)
+	}
+}
+
+// 冻结订单的写操作统一拦截：改价/取消/派单/认领/发布抢单/加钟/余额核销/储值卡核销/抢单/启动服务/结单/转单
+// 均返回 errOrderFrozen（中文错误），且不改变订单状态；恢复后写操作恢复可用。
+func TestFrozenOrderBlocksWriteOperations(t *testing.T) {
+	db := openDepositDB(t, "esports_deposit_frozen_guard")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+
+	order, sku := seedPaidOrderWithQuota(t, db, "DEPOSIT-FROZEN-GUARD")
+	reservedBefore := db.EsportsSku.GetX(ctx, sku.ID).QuotaReserved
+	if _, err := depositOrder(ctx, db, order.ID, 99, now); err != nil {
+		t.Fatal(err)
+	}
+	grabber := seedPlayer(t, db, 9901, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{"改价", func() error {
+			_, err := repriceOrder(ctx, db, order.ID, 99, true, repriceInput{
+				ExpectedVersion: order.Version, Quantity: order.Quantity, Reason: "冻结改价",
+			})
+			return err
+		}},
+		{"取消", func() error {
+			_, err := cancelOrder(ctx, db, order.ID, 99, "冻结取消", now)
+			return err
+		}},
+		{"指派", func() error {
+			_, err := assignDispatchSeat(ctx, db, order.ID, 1, grabber.ID, 99, now)
+			return err
+		}},
+		{"认领", func() error {
+			_, err := claimOrder(ctx, db, order.ID, 99)
+			return err
+		}},
+		{"发布抢单", func() error {
+			_, err := publishOrderToGrabHall(ctx, db, order.ID, 99, "", now)
+			return err
+		}},
+		{"加钟", func() error {
+			_, err := requestOrderAddon(ctx, db, order.ID, 99, addonInput{AddedCents: 1000, Note: "冻结加钟"}, now)
+			return err
+		}},
+		{"余额核销", func() error {
+			_, err := payOrderWithBalance(ctx, db, 99, order.ID, now)
+			return err
+		}},
+		{"储值卡核销", func() error {
+			_, err := payOrderWithStoredValueCard(ctx, db, 99, order.ID, 1, now)
+			return err
+		}},
+		{"抢单", func() error {
+			_, err := grabPlayerOrder(ctx, db, grabber.ID, order.ID, now)
+			return err
+		}},
+		{"启动服务", func() error {
+			_, err := startPlayerService(ctx, db, grabber.ID, order.ID, now)
+			return err
+		}},
+		{"结单", func() error {
+			_, err := closeOrder(ctx, db, order.ID, 99, closeOrderInput{}, now)
+			return err
+		}},
+		{"转单", func() error {
+			_, err := transferOrder(ctx, db, order.ID, 22, 99, "冻结转单")
+			return err
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.call()
+			if !errors.Is(err, errOrderFrozen) {
+				t.Fatalf("%s 未按冻结拦截，err=%v", tc.name, err)
+			}
+			if !strings.Contains(err.Error(), "存单冻结") {
+				t.Fatalf("%s 拦截错误缺少中文提示：%v", tc.name, err)
+			}
+		})
+	}
+
+	// 冻结不改变订单状态与名额占用：所有操作被拦后，订单仍是冻结、待派单，名额不释放。
+	frozen := db.EsportsOrder.GetX(ctx, order.ID)
+	if frozen.DepositStatus != esportsorder.DepositStatusFrozen ||
+		frozen.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
+		t.Fatalf("冻结期间订单状态被改动：%+v", frozen)
+	}
+	if got := db.EsportsSku.GetX(ctx, sku.ID).QuotaReserved; got != reservedBefore {
+		t.Fatalf("冻结拦截路径释放了名额：%d -> %d", reservedBefore, got)
+	}
+
+	// 恢复后写操作恢复可用：以转单为例，恢复后应正常改到目标客服。
+	if _, err := restoreOrder(ctx, db, order.ID, 99, now); err != nil {
+		t.Fatal(err)
+	}
+	transferred, err := transferOrder(ctx, db, order.ID, 22, 99, "恢复后转单")
+	if err != nil {
+		t.Fatalf("恢复后转单仍被拦截：%v", err)
+	}
+	if transferred.ResponsibleAdminID == nil || *transferred.ResponsibleAdminID != 22 {
+		t.Fatalf("恢复后转单未生效：%+v", transferred.ResponsibleAdminID)
 	}
 }
 

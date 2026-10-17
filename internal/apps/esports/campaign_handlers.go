@@ -64,6 +64,19 @@ func adminCampaigns(c fiber.Ctx) error {
 	return reply(c, views)
 }
 
+// publicCampaigns 客户端已生效充值赠送活动（AuthPublic）：仅 status=active 且当前在活动期内。
+func publicCampaigns(c fiber.Ctx) error {
+	items, err := listActiveCampaigns(c.Context(), global.ORM, time.Now(), queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	views := make([]campaignView, 0, len(items))
+	for _, item := range items {
+		views = append(views, toCampaignView(item))
+	}
+	return reply(c, views)
+}
+
 func createCampaignHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)

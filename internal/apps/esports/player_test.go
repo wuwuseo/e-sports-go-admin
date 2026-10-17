@@ -145,8 +145,9 @@ func TestPlayerGrabOrder(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
-	// 人工下线仍可抢单，故 presence 设为 offline。
+	// 人工下线但 app 仍打开（心跳新鲜）仍可抢单，故 presence 设为 offline 并写入新鲜心跳。
 	player := seedPlayer(t, db, 501, esportsplayer.QualificationQualified, esportsplayer.PresenceOffline)
+	db.EsportsPlayer.UpdateOneID(player.ID).SetLastHeartbeatAt(now.Add(-time.Minute)).SaveX(ctx)
 	pending := seedPlayer(t, db, 502, esportsplayer.QualificationPending, esportsplayer.PresenceOnline)
 
 	order := seedGrabbingOrder(t, db, "player-grab-1")

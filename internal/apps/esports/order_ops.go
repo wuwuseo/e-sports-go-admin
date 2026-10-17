@@ -170,6 +170,9 @@ func repriceOrder(ctx context.Context, db *ent.Client, orderID, adminID int, isS
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if !isSuper && (order.ResponsibleAdminID == nil || *order.ResponsibleAdminID != adminID) {
 		return nil, errForbidden
 	}
@@ -297,6 +300,9 @@ func cancelOrder(ctx context.Context, db *ent.Client, orderID, adminID int, reas
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	unpaid := order.FulfillmentStatus == esportsorder.FulfillmentStatusPendingPayment &&
@@ -460,6 +466,9 @@ func rescheduleOrder(ctx context.Context, db *ent.Client, orderID, adminID int, 
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
 		return nil, errRescheduleProposalRequired
 	}
@@ -549,6 +558,9 @@ func confirmOrderAppointment(ctx context.Context, db *ent.Client, orderID, admin
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.AppointmentStatus != esportsorder.AppointmentStatusRequest || order.RequestedStartAt == nil {
 		return nil, errConflict
 	}
@@ -607,6 +619,9 @@ func setOrderChannelCost(ctx context.Context, db *ent.Client, orderID int, chann
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	// 结单后（completed / cancelled）不可再改，避免与已计提的快照不一致；待结单及更早均可改。

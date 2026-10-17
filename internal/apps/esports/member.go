@@ -36,6 +36,8 @@ type memberLevelInput struct {
 	DiscountBps      int    `json:"discount_bps"`
 	PriorityDispatch bool   `json:"priority_dispatch"`
 	PrepayBonusBps   int    `json:"prepay_bonus_bps"`
+	DedicatedCs      bool   `json:"dedicated_cs"`
+	PriorityBooking  bool   `json:"priority_booking"`
 	SortOrder        int    `json:"sort_order"`
 }
 
@@ -61,6 +63,7 @@ func createMemberLevel(ctx context.Context, db *ent.Client, in memberLevelInput)
 		SetCode(strings.TrimSpace(in.Code)).SetName(strings.TrimSpace(in.Name)).
 		SetGrowthThreshold(in.GrowthThreshold).SetDiscountBps(in.DiscountBps).
 		SetPriorityDispatch(in.PriorityDispatch).SetPrepayBonusBps(in.PrepayBonusBps).
+		SetDedicatedCs(in.DedicatedCs).SetPriorityBooking(in.PriorityBooking).
 		SetSortOrder(in.SortOrder).SetStatus(esportsmemberlevelrule.StatusEnabled).Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -86,6 +89,7 @@ func updateMemberLevel(ctx context.Context, db *ent.Client, id, expectedVersion 
 	).SetName(strings.TrimSpace(in.Name)).
 		SetGrowthThreshold(in.GrowthThreshold).SetDiscountBps(in.DiscountBps).
 		SetPriorityDispatch(in.PriorityDispatch).SetPrepayBonusBps(in.PrepayBonusBps).
+		SetDedicatedCs(in.DedicatedCs).SetPriorityBooking(in.PriorityBooking).
 		SetSortOrder(in.SortOrder).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
@@ -142,6 +146,19 @@ func memberRuleByCode(ctx context.Context, db *ent.Client, code string) (*ent.Es
 		return nil, err
 	}
 	return item, nil
+}
+
+// customerMemberRule 返回客户当前等级对应的**启用**规则（§10.4 权益判定口径）；
+// 未定级、规则不存在或已停用时返回 nil，表示不享受该等级任何权益。
+func customerMemberRule(ctx context.Context, db *ent.Client, levelCode string) (*ent.EsportsMemberLevelRule, error) {
+	rule, err := memberRuleByCode(ctx, db, levelCode)
+	if err != nil || rule == nil {
+		return nil, err
+	}
+	if rule.Status != esportsmemberlevelrule.StatusEnabled {
+		return nil, nil
+	}
+	return rule, nil
 }
 
 // memberLevelForGrowth 取成长值达到的最高一档启用等级；无任何等级达标返回 nil。

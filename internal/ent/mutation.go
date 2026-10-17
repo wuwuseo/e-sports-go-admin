@@ -76,6 +76,7 @@ import (
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
+	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
@@ -201,6 +202,7 @@ const (
 	TypeEsportsPlayerReview            = "EsportsPlayerReview"
 	TypeEsportsPlayerReviewRevision    = "EsportsPlayerReviewRevision"
 	TypeEsportsPriceAdjustment         = "EsportsPriceAdjustment"
+	TypeEsportsPriorityBookingIntent   = "EsportsPriorityBookingIntent"
 	TypeEsportsProduct                 = "EsportsProduct"
 	TypeEsportsProductCategory         = "EsportsProductCategory"
 	TypeEsportsQuotaHold               = "EsportsQuotaHold"
@@ -58252,6 +58254,8 @@ type EsportsMemberLevelRuleMutation struct {
 	priority_dispatch   *bool
 	prepay_bonus_bps    *int
 	addprepay_bonus_bps *int
+	dedicated_cs        *bool
+	priority_booking    *bool
 	sort_order          *int
 	addsort_order       *int
 	status              *esportsmemberlevelrule.Status
@@ -58639,6 +58643,78 @@ func (m *EsportsMemberLevelRuleMutation) ResetPrepayBonusBps() {
 	m.addprepay_bonus_bps = nil
 }
 
+// SetDedicatedCs sets the "dedicated_cs" field.
+func (m *EsportsMemberLevelRuleMutation) SetDedicatedCs(b bool) {
+	m.dedicated_cs = &b
+}
+
+// DedicatedCs returns the value of the "dedicated_cs" field in the mutation.
+func (m *EsportsMemberLevelRuleMutation) DedicatedCs() (r bool, exists bool) {
+	v := m.dedicated_cs
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedicatedCs returns the old "dedicated_cs" field's value of the EsportsMemberLevelRule entity.
+// If the EsportsMemberLevelRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsMemberLevelRuleMutation) OldDedicatedCs(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedicatedCs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedicatedCs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedicatedCs: %w", err)
+	}
+	return oldValue.DedicatedCs, nil
+}
+
+// ResetDedicatedCs resets all changes to the "dedicated_cs" field.
+func (m *EsportsMemberLevelRuleMutation) ResetDedicatedCs() {
+	m.dedicated_cs = nil
+}
+
+// SetPriorityBooking sets the "priority_booking" field.
+func (m *EsportsMemberLevelRuleMutation) SetPriorityBooking(b bool) {
+	m.priority_booking = &b
+}
+
+// PriorityBooking returns the value of the "priority_booking" field in the mutation.
+func (m *EsportsMemberLevelRuleMutation) PriorityBooking() (r bool, exists bool) {
+	v := m.priority_booking
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriorityBooking returns the old "priority_booking" field's value of the EsportsMemberLevelRule entity.
+// If the EsportsMemberLevelRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsMemberLevelRuleMutation) OldPriorityBooking(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriorityBooking is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriorityBooking requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriorityBooking: %w", err)
+	}
+	return oldValue.PriorityBooking, nil
+}
+
+// ResetPriorityBooking resets all changes to the "priority_booking" field.
+func (m *EsportsMemberLevelRuleMutation) ResetPriorityBooking() {
+	m.priority_booking = nil
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (m *EsportsMemberLevelRuleMutation) SetSortOrder(i int) {
 	m.sort_order = &i
@@ -58893,7 +58969,7 @@ func (m *EsportsMemberLevelRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsMemberLevelRuleMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.code != nil {
 		fields = append(fields, esportsmemberlevelrule.FieldCode)
 	}
@@ -58911,6 +58987,12 @@ func (m *EsportsMemberLevelRuleMutation) Fields() []string {
 	}
 	if m.prepay_bonus_bps != nil {
 		fields = append(fields, esportsmemberlevelrule.FieldPrepayBonusBps)
+	}
+	if m.dedicated_cs != nil {
+		fields = append(fields, esportsmemberlevelrule.FieldDedicatedCs)
+	}
+	if m.priority_booking != nil {
+		fields = append(fields, esportsmemberlevelrule.FieldPriorityBooking)
 	}
 	if m.sort_order != nil {
 		fields = append(fields, esportsmemberlevelrule.FieldSortOrder)
@@ -58947,6 +59029,10 @@ func (m *EsportsMemberLevelRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.PriorityDispatch()
 	case esportsmemberlevelrule.FieldPrepayBonusBps:
 		return m.PrepayBonusBps()
+	case esportsmemberlevelrule.FieldDedicatedCs:
+		return m.DedicatedCs()
+	case esportsmemberlevelrule.FieldPriorityBooking:
+		return m.PriorityBooking()
 	case esportsmemberlevelrule.FieldSortOrder:
 		return m.SortOrder()
 	case esportsmemberlevelrule.FieldStatus:
@@ -58978,6 +59064,10 @@ func (m *EsportsMemberLevelRuleMutation) OldField(ctx context.Context, name stri
 		return m.OldPriorityDispatch(ctx)
 	case esportsmemberlevelrule.FieldPrepayBonusBps:
 		return m.OldPrepayBonusBps(ctx)
+	case esportsmemberlevelrule.FieldDedicatedCs:
+		return m.OldDedicatedCs(ctx)
+	case esportsmemberlevelrule.FieldPriorityBooking:
+		return m.OldPriorityBooking(ctx)
 	case esportsmemberlevelrule.FieldSortOrder:
 		return m.OldSortOrder(ctx)
 	case esportsmemberlevelrule.FieldStatus:
@@ -59038,6 +59128,20 @@ func (m *EsportsMemberLevelRuleMutation) SetField(name string, value ent.Value) 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPrepayBonusBps(v)
+		return nil
+	case esportsmemberlevelrule.FieldDedicatedCs:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedicatedCs(v)
+		return nil
+	case esportsmemberlevelrule.FieldPriorityBooking:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriorityBooking(v)
 		return nil
 	case esportsmemberlevelrule.FieldSortOrder:
 		v, ok := value.(int)
@@ -59203,6 +59307,12 @@ func (m *EsportsMemberLevelRuleMutation) ResetField(name string) error {
 		return nil
 	case esportsmemberlevelrule.FieldPrepayBonusBps:
 		m.ResetPrepayBonusBps()
+		return nil
+	case esportsmemberlevelrule.FieldDedicatedCs:
+		m.ResetDedicatedCs()
+		return nil
+	case esportsmemberlevelrule.FieldPriorityBooking:
+		m.ResetPriorityBooking()
 		return nil
 	case esportsmemberlevelrule.FieldSortOrder:
 		m.ResetSortOrder()
@@ -85386,6 +85496,981 @@ func (m *EsportsPriceAdjustmentMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsPriceAdjustmentMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsPriceAdjustment edge %s", name)
+}
+
+// EsportsPriorityBookingIntentMutation represents an operation that mutates the EsportsPriorityBookingIntent nodes in the graph.
+type EsportsPriorityBookingIntentMutation struct {
+	config
+	op                       Op
+	typ                      string
+	id                       *int
+	customer_id              *int
+	addcustomer_id           *int
+	player_id                *int
+	addplayer_id             *int
+	player_name              *string
+	requested_start_at       *time.Time
+	note                     *string
+	status                   *esportsprioritybookingintent.Status
+	processed_by_admin_id    *int
+	addprocessed_by_admin_id *int
+	processed_at             *time.Time
+	created_at               *time.Time
+	updated_at               *time.Time
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*EsportsPriorityBookingIntent, error)
+	predicates               []predicate.EsportsPriorityBookingIntent
+}
+
+var _ ent.Mutation = (*EsportsPriorityBookingIntentMutation)(nil)
+
+// esportsprioritybookingintentOption allows management of the mutation configuration using functional options.
+type esportsprioritybookingintentOption func(*EsportsPriorityBookingIntentMutation)
+
+// newEsportsPriorityBookingIntentMutation creates new mutation for the EsportsPriorityBookingIntent entity.
+func newEsportsPriorityBookingIntentMutation(c config, op Op, opts ...esportsprioritybookingintentOption) *EsportsPriorityBookingIntentMutation {
+	m := &EsportsPriorityBookingIntentMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsPriorityBookingIntent,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsPriorityBookingIntentID sets the ID field of the mutation.
+func withEsportsPriorityBookingIntentID(id int) esportsprioritybookingintentOption {
+	return func(m *EsportsPriorityBookingIntentMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsPriorityBookingIntent
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsPriorityBookingIntent, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsPriorityBookingIntent.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsPriorityBookingIntent sets the old EsportsPriorityBookingIntent of the mutation.
+func withEsportsPriorityBookingIntent(node *EsportsPriorityBookingIntent) esportsprioritybookingintentOption {
+	return func(m *EsportsPriorityBookingIntentMutation) {
+		m.oldValue = func(context.Context) (*EsportsPriorityBookingIntent, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsPriorityBookingIntentMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsPriorityBookingIntentMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsPriorityBookingIntentMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsPriorityBookingIntentMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsPriorityBookingIntent.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *EsportsPriorityBookingIntentMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *EsportsPriorityBookingIntentMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+}
+
+// SetPlayerID sets the "player_id" field.
+func (m *EsportsPriorityBookingIntentMutation) SetPlayerID(i int) {
+	m.player_id = &i
+	m.addplayer_id = nil
+}
+
+// PlayerID returns the value of the "player_id" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) PlayerID() (r int, exists bool) {
+	v := m.player_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlayerID returns the old "player_id" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldPlayerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlayerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlayerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlayerID: %w", err)
+	}
+	return oldValue.PlayerID, nil
+}
+
+// AddPlayerID adds i to the "player_id" field.
+func (m *EsportsPriorityBookingIntentMutation) AddPlayerID(i int) {
+	if m.addplayer_id != nil {
+		*m.addplayer_id += i
+	} else {
+		m.addplayer_id = &i
+	}
+}
+
+// AddedPlayerID returns the value that was added to the "player_id" field in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) AddedPlayerID() (r int, exists bool) {
+	v := m.addplayer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPlayerID resets all changes to the "player_id" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetPlayerID() {
+	m.player_id = nil
+	m.addplayer_id = nil
+}
+
+// SetPlayerName sets the "player_name" field.
+func (m *EsportsPriorityBookingIntentMutation) SetPlayerName(s string) {
+	m.player_name = &s
+}
+
+// PlayerName returns the value of the "player_name" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) PlayerName() (r string, exists bool) {
+	v := m.player_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlayerName returns the old "player_name" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldPlayerName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlayerName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlayerName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlayerName: %w", err)
+	}
+	return oldValue.PlayerName, nil
+}
+
+// ResetPlayerName resets all changes to the "player_name" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetPlayerName() {
+	m.player_name = nil
+}
+
+// SetRequestedStartAt sets the "requested_start_at" field.
+func (m *EsportsPriorityBookingIntentMutation) SetRequestedStartAt(t time.Time) {
+	m.requested_start_at = &t
+}
+
+// RequestedStartAt returns the value of the "requested_start_at" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) RequestedStartAt() (r time.Time, exists bool) {
+	v := m.requested_start_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedStartAt returns the old "requested_start_at" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldRequestedStartAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedStartAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedStartAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedStartAt: %w", err)
+	}
+	return oldValue.RequestedStartAt, nil
+}
+
+// ClearRequestedStartAt clears the value of the "requested_start_at" field.
+func (m *EsportsPriorityBookingIntentMutation) ClearRequestedStartAt() {
+	m.requested_start_at = nil
+	m.clearedFields[esportsprioritybookingintent.FieldRequestedStartAt] = struct{}{}
+}
+
+// RequestedStartAtCleared returns if the "requested_start_at" field was cleared in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) RequestedStartAtCleared() bool {
+	_, ok := m.clearedFields[esportsprioritybookingintent.FieldRequestedStartAt]
+	return ok
+}
+
+// ResetRequestedStartAt resets all changes to the "requested_start_at" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetRequestedStartAt() {
+	m.requested_start_at = nil
+	delete(m.clearedFields, esportsprioritybookingintent.FieldRequestedStartAt)
+}
+
+// SetNote sets the "note" field.
+func (m *EsportsPriorityBookingIntentMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsPriorityBookingIntentMutation) SetStatus(e esportsprioritybookingintent.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) Status() (r esportsprioritybookingintent.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldStatus(ctx context.Context) (v esportsprioritybookingintent.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetProcessedByAdminID sets the "processed_by_admin_id" field.
+func (m *EsportsPriorityBookingIntentMutation) SetProcessedByAdminID(i int) {
+	m.processed_by_admin_id = &i
+	m.addprocessed_by_admin_id = nil
+}
+
+// ProcessedByAdminID returns the value of the "processed_by_admin_id" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) ProcessedByAdminID() (r int, exists bool) {
+	v := m.processed_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProcessedByAdminID returns the old "processed_by_admin_id" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldProcessedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProcessedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProcessedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProcessedByAdminID: %w", err)
+	}
+	return oldValue.ProcessedByAdminID, nil
+}
+
+// AddProcessedByAdminID adds i to the "processed_by_admin_id" field.
+func (m *EsportsPriorityBookingIntentMutation) AddProcessedByAdminID(i int) {
+	if m.addprocessed_by_admin_id != nil {
+		*m.addprocessed_by_admin_id += i
+	} else {
+		m.addprocessed_by_admin_id = &i
+	}
+}
+
+// AddedProcessedByAdminID returns the value that was added to the "processed_by_admin_id" field in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) AddedProcessedByAdminID() (r int, exists bool) {
+	v := m.addprocessed_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearProcessedByAdminID clears the value of the "processed_by_admin_id" field.
+func (m *EsportsPriorityBookingIntentMutation) ClearProcessedByAdminID() {
+	m.processed_by_admin_id = nil
+	m.addprocessed_by_admin_id = nil
+	m.clearedFields[esportsprioritybookingintent.FieldProcessedByAdminID] = struct{}{}
+}
+
+// ProcessedByAdminIDCleared returns if the "processed_by_admin_id" field was cleared in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) ProcessedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsprioritybookingintent.FieldProcessedByAdminID]
+	return ok
+}
+
+// ResetProcessedByAdminID resets all changes to the "processed_by_admin_id" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetProcessedByAdminID() {
+	m.processed_by_admin_id = nil
+	m.addprocessed_by_admin_id = nil
+	delete(m.clearedFields, esportsprioritybookingintent.FieldProcessedByAdminID)
+}
+
+// SetProcessedAt sets the "processed_at" field.
+func (m *EsportsPriorityBookingIntentMutation) SetProcessedAt(t time.Time) {
+	m.processed_at = &t
+}
+
+// ProcessedAt returns the value of the "processed_at" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) ProcessedAt() (r time.Time, exists bool) {
+	v := m.processed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProcessedAt returns the old "processed_at" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldProcessedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProcessedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProcessedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProcessedAt: %w", err)
+	}
+	return oldValue.ProcessedAt, nil
+}
+
+// ClearProcessedAt clears the value of the "processed_at" field.
+func (m *EsportsPriorityBookingIntentMutation) ClearProcessedAt() {
+	m.processed_at = nil
+	m.clearedFields[esportsprioritybookingintent.FieldProcessedAt] = struct{}{}
+}
+
+// ProcessedAtCleared returns if the "processed_at" field was cleared in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) ProcessedAtCleared() bool {
+	_, ok := m.clearedFields[esportsprioritybookingintent.FieldProcessedAt]
+	return ok
+}
+
+// ResetProcessedAt resets all changes to the "processed_at" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetProcessedAt() {
+	m.processed_at = nil
+	delete(m.clearedFields, esportsprioritybookingintent.FieldProcessedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsPriorityBookingIntentMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsPriorityBookingIntentMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsPriorityBookingIntentMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsPriorityBookingIntent entity.
+// If the EsportsPriorityBookingIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPriorityBookingIntentMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsPriorityBookingIntentMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsPriorityBookingIntentMutation builder.
+func (m *EsportsPriorityBookingIntentMutation) Where(ps ...predicate.EsportsPriorityBookingIntent) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsPriorityBookingIntentMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsPriorityBookingIntentMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsPriorityBookingIntent, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsPriorityBookingIntentMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsPriorityBookingIntentMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsPriorityBookingIntent).
+func (m *EsportsPriorityBookingIntentMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsPriorityBookingIntentMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.customer_id != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldCustomerID)
+	}
+	if m.player_id != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldPlayerID)
+	}
+	if m.player_name != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldPlayerName)
+	}
+	if m.requested_start_at != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldRequestedStartAt)
+	}
+	if m.note != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldNote)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldStatus)
+	}
+	if m.processed_by_admin_id != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldProcessedByAdminID)
+	}
+	if m.processed_at != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldProcessedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsPriorityBookingIntentMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsprioritybookingintent.FieldCustomerID:
+		return m.CustomerID()
+	case esportsprioritybookingintent.FieldPlayerID:
+		return m.PlayerID()
+	case esportsprioritybookingintent.FieldPlayerName:
+		return m.PlayerName()
+	case esportsprioritybookingintent.FieldRequestedStartAt:
+		return m.RequestedStartAt()
+	case esportsprioritybookingintent.FieldNote:
+		return m.Note()
+	case esportsprioritybookingintent.FieldStatus:
+		return m.Status()
+	case esportsprioritybookingintent.FieldProcessedByAdminID:
+		return m.ProcessedByAdminID()
+	case esportsprioritybookingintent.FieldProcessedAt:
+		return m.ProcessedAt()
+	case esportsprioritybookingintent.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportsprioritybookingintent.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsPriorityBookingIntentMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsprioritybookingintent.FieldCustomerID:
+		return m.OldCustomerID(ctx)
+	case esportsprioritybookingintent.FieldPlayerID:
+		return m.OldPlayerID(ctx)
+	case esportsprioritybookingintent.FieldPlayerName:
+		return m.OldPlayerName(ctx)
+	case esportsprioritybookingintent.FieldRequestedStartAt:
+		return m.OldRequestedStartAt(ctx)
+	case esportsprioritybookingintent.FieldNote:
+		return m.OldNote(ctx)
+	case esportsprioritybookingintent.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsprioritybookingintent.FieldProcessedByAdminID:
+		return m.OldProcessedByAdminID(ctx)
+	case esportsprioritybookingintent.FieldProcessedAt:
+		return m.OldProcessedAt(ctx)
+	case esportsprioritybookingintent.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportsprioritybookingintent.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsPriorityBookingIntent field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsPriorityBookingIntentMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsprioritybookingintent.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
+		return nil
+	case esportsprioritybookingintent.FieldPlayerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlayerID(v)
+		return nil
+	case esportsprioritybookingintent.FieldPlayerName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlayerName(v)
+		return nil
+	case esportsprioritybookingintent.FieldRequestedStartAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedStartAt(v)
+		return nil
+	case esportsprioritybookingintent.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case esportsprioritybookingintent.FieldStatus:
+		v, ok := value.(esportsprioritybookingintent.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsprioritybookingintent.FieldProcessedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProcessedByAdminID(v)
+		return nil
+	case esportsprioritybookingintent.FieldProcessedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProcessedAt(v)
+		return nil
+	case esportsprioritybookingintent.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportsprioritybookingintent.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPriorityBookingIntent field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsPriorityBookingIntentMutation) AddedFields() []string {
+	var fields []string
+	if m.addcustomer_id != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldCustomerID)
+	}
+	if m.addplayer_id != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldPlayerID)
+	}
+	if m.addprocessed_by_admin_id != nil {
+		fields = append(fields, esportsprioritybookingintent.FieldProcessedByAdminID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsPriorityBookingIntentMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsprioritybookingintent.FieldCustomerID:
+		return m.AddedCustomerID()
+	case esportsprioritybookingintent.FieldPlayerID:
+		return m.AddedPlayerID()
+	case esportsprioritybookingintent.FieldProcessedByAdminID:
+		return m.AddedProcessedByAdminID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsPriorityBookingIntentMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsprioritybookingintent.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
+		return nil
+	case esportsprioritybookingintent.FieldPlayerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPlayerID(v)
+		return nil
+	case esportsprioritybookingintent.FieldProcessedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProcessedByAdminID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPriorityBookingIntent numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsPriorityBookingIntentMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsprioritybookingintent.FieldRequestedStartAt) {
+		fields = append(fields, esportsprioritybookingintent.FieldRequestedStartAt)
+	}
+	if m.FieldCleared(esportsprioritybookingintent.FieldProcessedByAdminID) {
+		fields = append(fields, esportsprioritybookingintent.FieldProcessedByAdminID)
+	}
+	if m.FieldCleared(esportsprioritybookingintent.FieldProcessedAt) {
+		fields = append(fields, esportsprioritybookingintent.FieldProcessedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsPriorityBookingIntentMutation) ClearField(name string) error {
+	switch name {
+	case esportsprioritybookingintent.FieldRequestedStartAt:
+		m.ClearRequestedStartAt()
+		return nil
+	case esportsprioritybookingintent.FieldProcessedByAdminID:
+		m.ClearProcessedByAdminID()
+		return nil
+	case esportsprioritybookingintent.FieldProcessedAt:
+		m.ClearProcessedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPriorityBookingIntent nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsPriorityBookingIntentMutation) ResetField(name string) error {
+	switch name {
+	case esportsprioritybookingintent.FieldCustomerID:
+		m.ResetCustomerID()
+		return nil
+	case esportsprioritybookingintent.FieldPlayerID:
+		m.ResetPlayerID()
+		return nil
+	case esportsprioritybookingintent.FieldPlayerName:
+		m.ResetPlayerName()
+		return nil
+	case esportsprioritybookingintent.FieldRequestedStartAt:
+		m.ResetRequestedStartAt()
+		return nil
+	case esportsprioritybookingintent.FieldNote:
+		m.ResetNote()
+		return nil
+	case esportsprioritybookingintent.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsprioritybookingintent.FieldProcessedByAdminID:
+		m.ResetProcessedByAdminID()
+		return nil
+	case esportsprioritybookingintent.FieldProcessedAt:
+		m.ResetProcessedAt()
+		return nil
+	case esportsprioritybookingintent.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportsprioritybookingintent.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPriorityBookingIntent field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsPriorityBookingIntentMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsPriorityBookingIntentMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsPriorityBookingIntent unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsPriorityBookingIntentMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsPriorityBookingIntent edge %s", name)
 }
 
 // EsportsProductMutation represents an operation that mutates the EsportsProduct nodes in the graph.

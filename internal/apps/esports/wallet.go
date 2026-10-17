@@ -183,7 +183,7 @@ func walletViewWith(ctx context.Context, db *ent.Client, account *ent.EsportsWal
 		DisplayName: account.DisplayName, Status: account.Status.String(),
 		PrincipalCents: balance.PrincipalCents, BonusCents: balance.BonusCents,
 		BalanceCents: balance.total(),
-		Display: walletDisplayFor(displays, account.AccountType.String(), balance.total()),
+		Display:      walletDisplayFor(displays, account.AccountType.String(), balance.total()),
 	}, nil
 }
 
@@ -358,6 +358,9 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||

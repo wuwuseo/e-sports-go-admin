@@ -84,6 +84,16 @@ func PrepayBonusBps(v int) predicate.EsportsMemberLevelRule {
 	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldPrepayBonusBps, v))
 }
 
+// DedicatedCs applies equality check predicate on the "dedicated_cs" field. It's identical to DedicatedCsEQ.
+func DedicatedCs(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldDedicatedCs, v))
+}
+
+// PriorityBooking applies equality check predicate on the "priority_booking" field. It's identical to PriorityBookingEQ.
+func PriorityBooking(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldPriorityBooking, v))
+}
+
 // SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
 func SortOrder(v int) predicate.EsportsMemberLevelRule {
 	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldSortOrder, v))
@@ -362,6 +372,26 @@ func PrepayBonusBpsLT(v int) predicate.EsportsMemberLevelRule {
 // PrepayBonusBpsLTE applies the LTE predicate on the "prepay_bonus_bps" field.
 func PrepayBonusBpsLTE(v int) predicate.EsportsMemberLevelRule {
 	return predicate.EsportsMemberLevelRule(sql.FieldLTE(FieldPrepayBonusBps, v))
+}
+
+// DedicatedCsEQ applies the EQ predicate on the "dedicated_cs" field.
+func DedicatedCsEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldDedicatedCs, v))
+}
+
+// DedicatedCsNEQ applies the NEQ predicate on the "dedicated_cs" field.
+func DedicatedCsNEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldNEQ(FieldDedicatedCs, v))
+}
+
+// PriorityBookingEQ applies the EQ predicate on the "priority_booking" field.
+func PriorityBookingEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldPriorityBooking, v))
+}
+
+// PriorityBookingNEQ applies the NEQ predicate on the "priority_booking" field.
+func PriorityBookingNEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldNEQ(FieldPriorityBooking, v))
 }
 
 // SortOrderEQ applies the EQ predicate on the "sort_order" field.

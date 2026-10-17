@@ -117,7 +117,8 @@ func createAfterSaleHandler(c fiber.Ctx) error {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	if _, err := loadOwnedOrder(c.Context(), global.ORM, admin.ID, isSuper, in.SourceID); err != nil {
+	// 代建入口按来源类型解析真实归属：order 校验负责客服，gift/stored_value_card/recharge 校验客户归属客服。
+	if err := loadOwnedAfterSaleSourceByRef(c.Context(), global.ORM, admin.ID, isSuper, in.SourceType, in.SourceID); err != nil {
 		return businessError(c, err)
 	}
 	// §13.2：客服代建售后支持引用本人上传的凭证附件（evidence_attachment_ids）。

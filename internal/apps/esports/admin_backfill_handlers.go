@@ -8,8 +8,8 @@ import (
 	"go-admin/internal/global"
 )
 
-// backfillOrderHandler 管理员补录历史订单（§3.3 / §4.1）：须带 Idempotency-Key，
-// 默认不计提业绩，返回体同时给出「是否计入当期业绩」的结论。
+// backfillOrderHandler 管理员补录历史订单（§3.3 / §4.1 / §12.5）：须带 Idempotency-Key，
+// 陪玩分成与成长值默认正常计提、客服提成默认不计入，返回体同时给出「是否计入客服提成」的结论。
 func backfillOrderHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

@@ -80,6 +80,7 @@ import (
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
+	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
@@ -269,6 +270,8 @@ type Client struct {
 	EsportsPlayerReviewRevision *EsportsPlayerReviewRevisionClient
 	// EsportsPriceAdjustment is the client for interacting with the EsportsPriceAdjustment builders.
 	EsportsPriceAdjustment *EsportsPriceAdjustmentClient
+	// EsportsPriorityBookingIntent is the client for interacting with the EsportsPriorityBookingIntent builders.
+	EsportsPriorityBookingIntent *EsportsPriorityBookingIntentClient
 	// EsportsProduct is the client for interacting with the EsportsProduct builders.
 	EsportsProduct *EsportsProductClient
 	// EsportsProductCategory is the client for interacting with the EsportsProductCategory builders.
@@ -427,6 +430,7 @@ func (c *Client) init() {
 	c.EsportsPlayerReview = NewEsportsPlayerReviewClient(c.config)
 	c.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(c.config)
 	c.EsportsPriceAdjustment = NewEsportsPriceAdjustmentClient(c.config)
+	c.EsportsPriorityBookingIntent = NewEsportsPriorityBookingIntentClient(c.config)
 	c.EsportsProduct = NewEsportsProductClient(c.config)
 	c.EsportsProductCategory = NewEsportsProductCategoryClient(c.config)
 	c.EsportsQuotaHold = NewEsportsQuotaHoldClient(c.config)
@@ -627,6 +631,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsPlayerReview:            NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewRevision:    NewEsportsPlayerReviewRevisionClient(cfg),
 		EsportsPriceAdjustment:         NewEsportsPriceAdjustmentClient(cfg),
+		EsportsPriorityBookingIntent:   NewEsportsPriorityBookingIntentClient(cfg),
 		EsportsProduct:                 NewEsportsProductClient(cfg),
 		EsportsProductCategory:         NewEsportsProductCategoryClient(cfg),
 		EsportsQuotaHold:               NewEsportsQuotaHoldClient(cfg),
@@ -754,6 +759,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsPlayerReview:            NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewRevision:    NewEsportsPlayerReviewRevisionClient(cfg),
 		EsportsPriceAdjustment:         NewEsportsPriceAdjustmentClient(cfg),
+		EsportsPriorityBookingIntent:   NewEsportsPriorityBookingIntentClient(cfg),
 		EsportsProduct:                 NewEsportsProductClient(cfg),
 		EsportsProductCategory:         NewEsportsProductCategoryClient(cfg),
 		EsportsQuotaHold:               NewEsportsQuotaHoldClient(cfg),
@@ -843,17 +849,18 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsPaymentIntent, c.EsportsPaymentReceipt, c.EsportsPaymentReversal,
 		c.EsportsPlayer, c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity,
 		c.EsportsPlayerRecovery, c.EsportsPlayerReview, c.EsportsPlayerReviewRevision,
-		c.EsportsPriceAdjustment, c.EsportsProduct, c.EsportsProductCategory,
-		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsRechargeIntent,
-		c.EsportsRechargeRefundExecution, c.EsportsReportExport,
-		c.EsportsRescheduleConfirmation, c.EsportsRescheduleProposal, c.EsportsScript,
-		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
-		c.EsportsSettlementCycle, c.EsportsSku, c.EsportsSkuSuspension,
-		c.EsportsSkuSuspensionItem, c.EsportsSpecGroup, c.EsportsStoredValueCard,
-		c.EsportsStoredValuePackage, c.EsportsTeammate, c.EsportsWalletAccount,
-		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
-		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
-		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent, c.EsportsProduct,
+		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
+		c.EsportsRechargeIntent, c.EsportsRechargeRefundExecution,
+		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
+		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
+		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
+		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
+		c.EsportsSpecGroup, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
+		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
+		c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog, c.Message,
+		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
+		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
@@ -885,17 +892,18 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsPaymentIntent, c.EsportsPaymentReceipt, c.EsportsPaymentReversal,
 		c.EsportsPlayer, c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity,
 		c.EsportsPlayerRecovery, c.EsportsPlayerReview, c.EsportsPlayerReviewRevision,
-		c.EsportsPriceAdjustment, c.EsportsProduct, c.EsportsProductCategory,
-		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsRechargeIntent,
-		c.EsportsRechargeRefundExecution, c.EsportsReportExport,
-		c.EsportsRescheduleConfirmation, c.EsportsRescheduleProposal, c.EsportsScript,
-		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
-		c.EsportsSettlementCycle, c.EsportsSku, c.EsportsSkuSuspension,
-		c.EsportsSkuSuspensionItem, c.EsportsSpecGroup, c.EsportsStoredValueCard,
-		c.EsportsStoredValuePackage, c.EsportsTeammate, c.EsportsWalletAccount,
-		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
-		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
-		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent, c.EsportsProduct,
+		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
+		c.EsportsRechargeIntent, c.EsportsRechargeRefundExecution,
+		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
+		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
+		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
+		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
+		c.EsportsSpecGroup, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
+		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
+		c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog, c.Message,
+		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
+		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
@@ -1043,6 +1051,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsPlayerReviewRevision.mutate(ctx, m)
 	case *EsportsPriceAdjustmentMutation:
 		return c.EsportsPriceAdjustment.mutate(ctx, m)
+	case *EsportsPriorityBookingIntentMutation:
+		return c.EsportsPriorityBookingIntent.mutate(ctx, m)
 	case *EsportsProductMutation:
 		return c.EsportsProduct.mutate(ctx, m)
 	case *EsportsProductCategoryMutation:
@@ -10438,6 +10448,139 @@ func (c *EsportsPriceAdjustmentClient) mutate(ctx context.Context, m *EsportsPri
 	}
 }
 
+// EsportsPriorityBookingIntentClient is a client for the EsportsPriorityBookingIntent schema.
+type EsportsPriorityBookingIntentClient struct {
+	config
+}
+
+// NewEsportsPriorityBookingIntentClient returns a client for the EsportsPriorityBookingIntent from the given config.
+func NewEsportsPriorityBookingIntentClient(c config) *EsportsPriorityBookingIntentClient {
+	return &EsportsPriorityBookingIntentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsprioritybookingintent.Hooks(f(g(h())))`.
+func (c *EsportsPriorityBookingIntentClient) Use(hooks ...Hook) {
+	c.hooks.EsportsPriorityBookingIntent = append(c.hooks.EsportsPriorityBookingIntent, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsprioritybookingintent.Intercept(f(g(h())))`.
+func (c *EsportsPriorityBookingIntentClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsPriorityBookingIntent = append(c.inters.EsportsPriorityBookingIntent, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsPriorityBookingIntent entity.
+func (c *EsportsPriorityBookingIntentClient) Create() *EsportsPriorityBookingIntentCreate {
+	mutation := newEsportsPriorityBookingIntentMutation(c.config, OpCreate)
+	return &EsportsPriorityBookingIntentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsPriorityBookingIntent entities.
+func (c *EsportsPriorityBookingIntentClient) CreateBulk(builders ...*EsportsPriorityBookingIntentCreate) *EsportsPriorityBookingIntentCreateBulk {
+	return &EsportsPriorityBookingIntentCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsPriorityBookingIntentClient) MapCreateBulk(slice any, setFunc func(*EsportsPriorityBookingIntentCreate, int)) *EsportsPriorityBookingIntentCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsPriorityBookingIntentCreateBulk{err: fmt.Errorf("calling to EsportsPriorityBookingIntentClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsPriorityBookingIntentCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsPriorityBookingIntentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsPriorityBookingIntent.
+func (c *EsportsPriorityBookingIntentClient) Update() *EsportsPriorityBookingIntentUpdate {
+	mutation := newEsportsPriorityBookingIntentMutation(c.config, OpUpdate)
+	return &EsportsPriorityBookingIntentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsPriorityBookingIntentClient) UpdateOne(_m *EsportsPriorityBookingIntent) *EsportsPriorityBookingIntentUpdateOne {
+	mutation := newEsportsPriorityBookingIntentMutation(c.config, OpUpdateOne, withEsportsPriorityBookingIntent(_m))
+	return &EsportsPriorityBookingIntentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsPriorityBookingIntentClient) UpdateOneID(id int) *EsportsPriorityBookingIntentUpdateOne {
+	mutation := newEsportsPriorityBookingIntentMutation(c.config, OpUpdateOne, withEsportsPriorityBookingIntentID(id))
+	return &EsportsPriorityBookingIntentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsPriorityBookingIntent.
+func (c *EsportsPriorityBookingIntentClient) Delete() *EsportsPriorityBookingIntentDelete {
+	mutation := newEsportsPriorityBookingIntentMutation(c.config, OpDelete)
+	return &EsportsPriorityBookingIntentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsPriorityBookingIntentClient) DeleteOne(_m *EsportsPriorityBookingIntent) *EsportsPriorityBookingIntentDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsPriorityBookingIntentClient) DeleteOneID(id int) *EsportsPriorityBookingIntentDeleteOne {
+	builder := c.Delete().Where(esportsprioritybookingintent.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsPriorityBookingIntentDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsPriorityBookingIntent.
+func (c *EsportsPriorityBookingIntentClient) Query() *EsportsPriorityBookingIntentQuery {
+	return &EsportsPriorityBookingIntentQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsPriorityBookingIntent},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsPriorityBookingIntent entity by its id.
+func (c *EsportsPriorityBookingIntentClient) Get(ctx context.Context, id int) (*EsportsPriorityBookingIntent, error) {
+	return c.Query().Where(esportsprioritybookingintent.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsPriorityBookingIntentClient) GetX(ctx context.Context, id int) *EsportsPriorityBookingIntent {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsPriorityBookingIntentClient) Hooks() []Hook {
+	return c.hooks.EsportsPriorityBookingIntent
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsPriorityBookingIntentClient) Interceptors() []Interceptor {
+	return c.inters.EsportsPriorityBookingIntent
+}
+
+func (c *EsportsPriorityBookingIntentClient) mutate(ctx context.Context, m *EsportsPriorityBookingIntentMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsPriorityBookingIntentCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsPriorityBookingIntentUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsPriorityBookingIntentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsPriorityBookingIntentDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsPriorityBookingIntent mutation op: %q", m.Op())
+	}
+}
+
 // EsportsProductClient is a client for the EsportsProduct schema.
 type EsportsProductClient struct {
 	config
@@ -15698,9 +15841,10 @@ type (
 		EsportsPaymentAccount, EsportsPaymentIntent, EsportsPaymentReceipt,
 		EsportsPaymentReversal, EsportsPlayer, EsportsPlayerCreditEvent,
 		EsportsPlayerIdentity, EsportsPlayerRecovery, EsportsPlayerReview,
-		EsportsPlayerReviewRevision, EsportsPriceAdjustment, EsportsProduct,
-		EsportsProductCategory, EsportsQuotaHold, EsportsRechargeCampaign,
-		EsportsRechargeIntent, EsportsRechargeRefundExecution, EsportsReportExport,
+		EsportsPlayerReviewRevision, EsportsPriceAdjustment,
+		EsportsPriorityBookingIntent, EsportsProduct, EsportsProductCategory,
+		EsportsQuotaHold, EsportsRechargeCampaign, EsportsRechargeIntent,
+		EsportsRechargeRefundExecution, EsportsReportExport,
 		EsportsRescheduleConfirmation, EsportsRescheduleProposal, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
 		EsportsSettlementCycle, EsportsSku, EsportsSkuSuspension,
@@ -15732,9 +15876,10 @@ type (
 		EsportsPaymentAccount, EsportsPaymentIntent, EsportsPaymentReceipt,
 		EsportsPaymentReversal, EsportsPlayer, EsportsPlayerCreditEvent,
 		EsportsPlayerIdentity, EsportsPlayerRecovery, EsportsPlayerReview,
-		EsportsPlayerReviewRevision, EsportsPriceAdjustment, EsportsProduct,
-		EsportsProductCategory, EsportsQuotaHold, EsportsRechargeCampaign,
-		EsportsRechargeIntent, EsportsRechargeRefundExecution, EsportsReportExport,
+		EsportsPlayerReviewRevision, EsportsPriceAdjustment,
+		EsportsPriorityBookingIntent, EsportsProduct, EsportsProductCategory,
+		EsportsQuotaHold, EsportsRechargeCampaign, EsportsRechargeIntent,
+		EsportsRechargeRefundExecution, EsportsReportExport,
 		EsportsRescheduleConfirmation, EsportsRescheduleProposal, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
 		EsportsSettlementCycle, EsportsSku, EsportsSkuSuspension,

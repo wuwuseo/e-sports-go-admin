@@ -101,23 +101,28 @@ func TestCsPerformanceScopesCommissionEntriesToResponsibleAdmin(t *testing.T) {
 	}
 }
 
-// reportRange 按日 / 周 / 月推导的自然周期区间必须首尾对齐且长度正确。
+// reportRange 按日 / 周 / 月推导的自然周期区间必须首尾对齐且长度正确，且统一用业务时区（UTC+8）口径。
 func TestReportRange(t *testing.T) {
+	// 2026-10-11 15:30 UTC = 2026-10-11 23:30 业务时区（UTC+8）。
 	now := time.Date(2026, 10, 11, 15, 30, 0, 0, time.UTC)
 
 	begin, end, err := reportRange("", "", "", now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if begin.Hour() != 0 || end.Sub(begin) != 24*time.Hour {
+	// 自然日应为业务时区 10-11 00:00 ~ 10-12 00:00，绝对时刻为 UTC 10-10 16:00。
+	if begin.In(cstZone).Hour() != 0 || end.Sub(begin) != 24*time.Hour {
 		t.Fatalf("日区间不正确：%v ~ %v", begin, end)
+	}
+	if !begin.Equal(time.Date(2026, 10, 10, 16, 0, 0, 0, time.UTC)) {
+		t.Fatalf("日区间未按业务时区推导：%v", begin)
 	}
 
 	begin, end, err = reportRange("weekly", "", "", now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if begin.Weekday() != time.Monday || end.Sub(begin) != 7*24*time.Hour {
+	if begin.In(cstZone).Weekday() != time.Monday || end.Sub(begin) != 7*24*time.Hour {
 		t.Fatalf("周区间不正确：%v ~ %v", begin, end)
 	}
 
@@ -125,13 +130,14 @@ func TestReportRange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if begin.Day() != 1 || end.Month() != begin.Month()+1 || end.Day() != 1 {
+	if bl, el := begin.In(cstZone), end.In(cstZone); bl.Day() != 1 || el.Day() != 1 || el.Month() != bl.Month()+1 {
 		t.Fatalf("月区间不正确：%v ~ %v", begin, end)
 	}
 
+	// 自定义区间：YYYY-MM-DD 按业务时区当日零点解析，再转 UTC 存储。
 	begin, end, err = reportRange("daily", "2026-10-01", "2026-10-03", now)
-	if err != nil || !begin.Equal(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)) ||
-		!end.Equal(time.Date(2026, 10, 3, 0, 0, 0, 0, time.UTC)) {
+	if err != nil || !begin.Equal(time.Date(2026, 9, 30, 16, 0, 0, 0, time.UTC)) ||
+		!end.Equal(time.Date(2026, 10, 2, 16, 0, 0, 0, time.UTC)) {
 		t.Fatalf("自定义区间不正确：%v ~ %v err=%v", begin, end, err)
 	}
 
@@ -526,9 +532,82 @@ func TestReportCsPerformanceCommissionOrderScope(t *testing.T) {
 	}
 }
 
+// 跨日订单必须按业务时区（UTC+8）归集到正确自然日分段，而非服务器 UTC 口径。
+func TestReportBucketBusinessTimezone(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_bucket_tz?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	// 业务自然日 2026-10-11 = UTC [2026-10-10 16:00, 2026-10-11 16:00)。
+	dayStart := time.Date(2026, 10, 10, 16, 0, 0, 0, time.UTC)
+	// 两笔均落在业务 10-11：UTC 10-10 23:00（业务 10-11 07:00）与 UTC 10-11 02:00（业务 10-11 10:00）。
+	// 二者在 UTC 口径下分属 10-10 与 10-11，业务口径下应同属 10-11。
+	seedReportOrder(t, db, "tz-a", dayStart.Add(7*time.Hour), 11, 1000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	seedReportOrder(t, db, "tz-b", dayStart.Add(10*time.Hour), 11, 2000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	// 业务 10-12 的一笔：UTC 10-11 17:00（业务 10-12 01:00）。
+	seedReportOrder(t, db, "tz-c", dayStart.Add(25*time.Hour), 11, 4000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+
+	result, err := ownerOverviewReport(ctx, db, reportFilter{
+		Start: dayStart, End: dayStart.AddDate(0, 0, 2), Period: "daily",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	buckets := result["buckets"].([]reportBucket)
+	if len(buckets) != 2 {
+		t.Fatalf("业务日分段数不正确：%+v", buckets)
+	}
+	if buckets[0].Bucket != "2026-10-11" || buckets[0].OrderCount != 2 || buckets[0].RevenueCents != 3000 {
+		t.Fatalf("业务 10-11 分段归集错误：%+v", buckets[0])
+	}
+	if buckets[1].Bucket != "2026-10-12" || buckets[1].OrderCount != 1 || buckets[1].RevenueCents != 4000 {
+		t.Fatalf("业务 10-12 分段归集错误：%+v", buckets[1])
+	}
+}
+
+// 客服查看报表必须收敛到本人负责订单与本人处理售后，看不到他人数据。
+func TestReportScopesToCsAdmin(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_report_cs_scope?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	order11 := seedReportOrder(t, db, "cs-11", day.Add(time.Hour), 11, 1000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	seedReportOrder(t, db, "cs-12", day.Add(2*time.Hour), 12, 2000, 0,
+		esportsorder.PaymentStatusPaid, esportsorder.FulfillmentStatusCompleted)
+	// 两笔售后分别由客服 11、12 处理。
+	db.EsportsAfterSale.Create().SetAfterSaleNo("as-11").SetSourceID(order11.ID).
+		SetKind(esportsaftersale.KindRefundRequest).SetChannel(esportsaftersale.ChannelCustomer).
+		SetDemand("测试").SetHandlerAdminID(11).SetCreatedAt(day.Add(time.Hour)).SaveX(ctx)
+	db.EsportsAfterSale.Create().SetAfterSaleNo("as-12").SetSourceID(order11.ID).
+		SetKind(esportsaftersale.KindRefundRequest).SetChannel(esportsaftersale.ChannelCustomer).
+		SetDemand("测试").SetHandlerAdminID(12).SetCreatedAt(day.Add(2 * time.Hour)).SaveX(ctx)
+
+	scoped := scopeReportFilter(reportFilter{Start: day, End: day.AddDate(0, 0, 1)}, 11, false)
+	overview, err := ownerOverviewReport(ctx, db, scoped)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := overview["summary"].(map[string]any)["order_count"].(int); got != 1 {
+		t.Fatalf("客服查看订单不得包含他人：order_count=%d", got)
+	}
+	after, err := aftersaleQualityReport(ctx, db, scoped, 11)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := after["summary"].(map[string]any)["total"].(int); got != 1 {
+		t.Fatalf("客服查看售后不得包含他人：total=%d", got)
+	}
+}
+
 // 时间轴分段在数据跨度过大时自动放粗粒度，保证分段查询次数有界且区间首尾相接。
 func TestReportBucketPlanWidensPeriod(t *testing.T) {
-	day := time.Date(2026, 10, 11, 0, 0, 0, 0, time.UTC)
+	// 用业务时区定位的自然日起点，分段粒度与边界口径一致。
+	day := time.Date(2026, 10, 11, 0, 0, 0, 0, cstZone)
 
 	period, ranges := reportBucketPlan(day, day.AddDate(0, 0, 2).Add(23*time.Hour), "daily")
 	if period != "daily" || len(ranges) != 3 {

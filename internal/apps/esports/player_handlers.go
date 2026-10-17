@@ -26,6 +26,15 @@ func adminPlayers(c fiber.Ctx) error {
 	return reply(c, players)
 }
 
+// publicPlayers 客户端陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩公开字段。
+func publicPlayers(c fiber.Ctx) error {
+	views, err := listPublicPlayers(c.Context(), global.ORM, c.Query("game"), queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
+}
+
 func createPlayer(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)

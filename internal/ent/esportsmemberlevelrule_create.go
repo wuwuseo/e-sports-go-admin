@@ -88,6 +88,34 @@ func (_c *EsportsMemberLevelRuleCreate) SetNillablePrepayBonusBps(v *int) *Espor
 	return _c
 }
 
+// SetDedicatedCs sets the "dedicated_cs" field.
+func (_c *EsportsMemberLevelRuleCreate) SetDedicatedCs(v bool) *EsportsMemberLevelRuleCreate {
+	_c.mutation.SetDedicatedCs(v)
+	return _c
+}
+
+// SetNillableDedicatedCs sets the "dedicated_cs" field if the given value is not nil.
+func (_c *EsportsMemberLevelRuleCreate) SetNillableDedicatedCs(v *bool) *EsportsMemberLevelRuleCreate {
+	if v != nil {
+		_c.SetDedicatedCs(*v)
+	}
+	return _c
+}
+
+// SetPriorityBooking sets the "priority_booking" field.
+func (_c *EsportsMemberLevelRuleCreate) SetPriorityBooking(v bool) *EsportsMemberLevelRuleCreate {
+	_c.mutation.SetPriorityBooking(v)
+	return _c
+}
+
+// SetNillablePriorityBooking sets the "priority_booking" field if the given value is not nil.
+func (_c *EsportsMemberLevelRuleCreate) SetNillablePriorityBooking(v *bool) *EsportsMemberLevelRuleCreate {
+	if v != nil {
+		_c.SetPriorityBooking(*v)
+	}
+	return _c
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_c *EsportsMemberLevelRuleCreate) SetSortOrder(v int) *EsportsMemberLevelRuleCreate {
 	_c.mutation.SetSortOrder(v)
@@ -209,6 +237,14 @@ func (_c *EsportsMemberLevelRuleCreate) defaults() {
 		v := esportsmemberlevelrule.DefaultPrepayBonusBps
 		_c.mutation.SetPrepayBonusBps(v)
 	}
+	if _, ok := _c.mutation.DedicatedCs(); !ok {
+		v := esportsmemberlevelrule.DefaultDedicatedCs
+		_c.mutation.SetDedicatedCs(v)
+	}
+	if _, ok := _c.mutation.PriorityBooking(); !ok {
+		v := esportsmemberlevelrule.DefaultPriorityBooking
+		_c.mutation.SetPriorityBooking(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := esportsmemberlevelrule.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -260,6 +296,12 @@ func (_c *EsportsMemberLevelRuleCreate) check() error {
 	}
 	if _, ok := _c.mutation.PrepayBonusBps(); !ok {
 		return &ValidationError{Name: "prepay_bonus_bps", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.prepay_bonus_bps"`)}
+	}
+	if _, ok := _c.mutation.DedicatedCs(); !ok {
+		return &ValidationError{Name: "dedicated_cs", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.dedicated_cs"`)}
+	}
+	if _, ok := _c.mutation.PriorityBooking(); !ok {
+		return &ValidationError{Name: "priority_booking", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.priority_booking"`)}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.sort_order"`)}
@@ -330,6 +372,14 @@ func (_c *EsportsMemberLevelRuleCreate) createSpec() (*EsportsMemberLevelRule, *
 	if value, ok := _c.mutation.PrepayBonusBps(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldPrepayBonusBps, field.TypeInt, value)
 		_node.PrepayBonusBps = value
+	}
+	if value, ok := _c.mutation.DedicatedCs(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldDedicatedCs, field.TypeBool, value)
+		_node.DedicatedCs = value
+	}
+	if value, ok := _c.mutation.PriorityBooking(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldPriorityBooking, field.TypeBool, value)
+		_node.PriorityBooking = value
 	}
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldSortOrder, field.TypeInt, value)

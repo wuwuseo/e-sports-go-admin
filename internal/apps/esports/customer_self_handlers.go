@@ -235,3 +235,63 @@ func userStoredValueCardDetailHandler(c fiber.Ctx) error {
 	}
 	return reply(c, fiber.Map{"card": view, "transactions": transactions})
 }
+
+// userPaymentMethodsHandler 客户自助读取当前启用的收款方式与财务审核通过的收款账户（§4.3）。
+func userPaymentMethodsHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	if _, err := customerForVerifiedUser(c.Context(), global.ORM, uid); err != nil {
+		return businessError(c, err)
+	}
+	methods, err := listCustomerPaymentMethods(c.Context(), global.ORM)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, methods)
+}
+
+// userSubmitPaymentProofHandler 客户为本人订单提交付款凭证（§4.3）：生成「待核验收款」，
+// 落入既有 offline_payment 财务核验链路。
+func userSubmitPaymentProofHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in customerPaymentProofInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := submitCustomerOfflinePaymentProof(c.Context(), global.ORM, customer, orderID, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// userPaymentProofsHandler 客户查询本人订单的收款核验进度（§4.3）。
+func userPaymentProofsHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listCustomerPaymentProofs(c.Context(), global.ORM, customer.ID, orderID)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+// paymentNotifyHandler 在线支付渠道验签回调预留入口（§4.3）：
+// 当前未配置商户密钥，一律返回「未开通」；接入商户密钥后在此验签并核销到账。
+func paymentNotifyHandler(c fiber.Ctx) error {
+	return fail(c, fiber.StatusNotImplemented, "在线支付验签回调尚未开通，请走财务人工核验")
+}

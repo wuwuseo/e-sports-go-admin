@@ -188,6 +188,22 @@ func listCampaigns(ctx context.Context, db *ent.Client, status string, limit int
 	return q.Order(ent.Desc(esportsrechargecampaign.FieldID)).Limit(limit).All(ctx)
 }
 
+// listActiveCampaigns 列出当前生效的充值活动（客户端）：status=active 且 starts_at<=now<=ends_at。
+func listActiveCampaigns(ctx context.Context, db *ent.Client, now time.Time, limit int) ([]*ent.EsportsRechargeCampaign, error) {
+	items, err := listCampaigns(ctx, db, "active", limit)
+	if err != nil {
+		return nil, err
+	}
+	utc := now.UTC()
+	out := make([]*ent.EsportsRechargeCampaign, 0, len(items))
+	for _, item := range items {
+		if !item.StartsAt.After(utc) && !item.EndsAt.Before(utc) {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
 // campaignTierBonus 按实充金额匹配阶梯：取满足 threshold <= principal 的最高档。
 // 无命中返回 (0, 0)。纯函数，便于测试。
 func campaignTierBonus(tiers []schema.CampaignTier, principalCents int64) (matchedThreshold, bonusCents int64) {

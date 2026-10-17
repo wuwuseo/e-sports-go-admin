@@ -28,6 +28,10 @@ const (
 	FieldPriorityDispatch = "priority_dispatch"
 	// FieldPrepayBonusBps holds the string denoting the prepay_bonus_bps field in the database.
 	FieldPrepayBonusBps = "prepay_bonus_bps"
+	// FieldDedicatedCs holds the string denoting the dedicated_cs field in the database.
+	FieldDedicatedCs = "dedicated_cs"
+	// FieldPriorityBooking holds the string denoting the priority_booking field in the database.
+	FieldPriorityBooking = "priority_booking"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
 	FieldSortOrder = "sort_order"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -54,6 +58,8 @@ var Columns = []string{
 	FieldDiscountBps,
 	FieldPriorityDispatch,
 	FieldPrepayBonusBps,
+	FieldDedicatedCs,
+	FieldPriorityBooking,
 	FieldSortOrder,
 	FieldStatus,
 	FieldVersion,
@@ -84,6 +90,10 @@ var (
 	DefaultPriorityDispatch bool
 	// DefaultPrepayBonusBps holds the default value on creation for the "prepay_bonus_bps" field.
 	DefaultPrepayBonusBps int
+	// DefaultDedicatedCs holds the default value on creation for the "dedicated_cs" field.
+	DefaultDedicatedCs bool
+	// DefaultPriorityBooking holds the default value on creation for the "priority_booking" field.
+	DefaultPriorityBooking bool
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
 	DefaultSortOrder int
 	// DefaultVersion holds the default value on creation for the "version" field.
@@ -158,6 +168,16 @@ func ByPriorityDispatch(opts ...sql.OrderTermOption) OrderOption {
 // ByPrepayBonusBps orders the results by the prepay_bonus_bps field.
 func ByPrepayBonusBps(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPrepayBonusBps, opts...).ToFunc()
+}
+
+// ByDedicatedCs orders the results by the dedicated_cs field.
+func ByDedicatedCs(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDedicatedCs, opts...).ToFunc()
+}
+
+// ByPriorityBooking orders the results by the priority_booking field.
+func ByPriorityBooking(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPriorityBooking, opts...).ToFunc()
 }
 
 // BySortOrder orders the results by the sort_order field.

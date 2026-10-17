@@ -77,7 +77,7 @@ type reportBucket struct {
 	RefundCents  int64  `json:"refund_cents"`
 }
 
-// reportBucketRange 是时间轴分段的一段（UTC 半开区间 [Start, End)）。
+// reportBucketRange 是时间轴分段的一段（绝对时刻半开区间 [Start, End)，均以 UTC 存储）。
 type reportBucketRange struct {
 	Start time.Time
 	End   time.Time
@@ -301,24 +301,26 @@ func reportSum(condition func(*sql.Selector) string, expr func(*sql.Selector) st
 	}
 }
 
-// reportBucketStart 把时间按周期粒度归到分段起点（UTC）。
+// reportBucketStart 把时间按周期粒度归到分段起点，分段边界统一用工作室业务时区（cstZone，UTC+8），
+// 避免服务器 UTC 或本地时区导致跨日错位（与生日礼遇、提现每日次数等自然日口径一致）。
+// 返回值保留业务时区定位，供后续 AddDate 做日历运算（周 / 月 / 年加减必须在业务时区日历下进行）。
 func reportBucketStart(t time.Time, period string) time.Time {
-	utc := t.UTC()
-	day := time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC)
+	local := t.In(cstZone)
+	day := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, cstZone)
 	switch period {
 	case "weekly":
 		offset := (int(day.Weekday()) + 6) % 7 // 距本周一的天数
 		return day.AddDate(0, 0, -offset)
 	case "monthly":
-		return time.Date(utc.Year(), utc.Month(), 1, 0, 0, 0, 0, time.UTC)
+		return time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, cstZone)
 	case "yearly":
-		return time.Date(utc.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+		return time.Date(local.Year(), 1, 1, 0, 0, 0, 0, cstZone)
 	default:
 		return day
 	}
 }
 
-// reportBucketKey 按周期粒度把时间归到分段的起始日（UTC）。
+// reportBucketKey 按周期粒度把时间归到分段的起始日（业务时区日期）。
 func reportBucketKey(t time.Time, period string) string {
 	return reportBucketStart(t, period).Format("2006-01-02")
 }
@@ -370,7 +372,8 @@ func reportBucketPlan(first, last time.Time, period string) (string, []reportBuc
 		}
 		ranges := make([]reportBucketRange, 0, len(starts))
 		for _, start := range starts {
-			ranges = append(ranges, reportBucketRange{Start: start, End: nextReportBucket(start, candidate)})
+			// 分段区间转为 UTC 绝对时刻，供 SQL 范围过滤；业务时区日历运算已在 reportBucketStart/nextReportBucket 完成。
+			ranges = append(ranges, reportBucketRange{Start: start.UTC(), End: nextReportBucket(start, candidate).UTC()})
 		}
 		return candidate, ranges
 	}

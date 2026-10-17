@@ -206,8 +206,10 @@ type customerSelfProfile struct {
 	NextLevelGrowth  int64    `json:"next_level_growth"`
 	Tags             []string `json:"tags"`
 	SelfOrderEnabled bool     `json:"self_order_enabled"`
-	RiskRestricted   bool     `json:"risk_restricted"`
-	RiskReason       string   `json:"risk_reason"`
+	// 会员优先预约入口（§10.4）：当前等级启用 priority_booking 时才为 true，前端据此显隐预约入口。
+	PriorityBookingEnabled bool   `json:"priority_booking_enabled"`
+	RiskRestricted         bool   `json:"risk_restricted"`
+	RiskReason             string `json:"risk_reason"`
 }
 
 // customerSelfProfileOf 组装客户自助资料：成长值按只增流水求和，下一档取第一个门槛高于当前成长值的等级。
@@ -245,6 +247,10 @@ func customerSelfProfileOf(ctx context.Context, db *ent.Client,
 	for _, level := range levels {
 		if level.Code == customer.MemberLevelCode {
 			profile.MemberLevelName = level.Name
+			// 预约入口（§10.4）：仅当前等级启用 priority_booking 且等级未停用才开放。
+			if level.Status == esportsmemberlevelrule.StatusEnabled {
+				profile.PriorityBookingEnabled = level.PriorityBooking
+			}
 		}
 		if level.GrowthThreshold > growth {
 			profile.NextLevelCode = level.Code

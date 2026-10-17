@@ -238,8 +238,6 @@ var (
 	OrderNoValidator func(string) error
 	// CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
 	CustomerIDValidator func(int) error
-	// SkuIDValidator is a validator for the "sku_id" field. It is called by the builders before save.
-	SkuIDValidator func(int) error
 	// QuantityValidator is a validator for the "quantity" field. It is called by the builders before save.
 	QuantityValidator func(int64) error
 	// UnitPriceCentsValidator is a validator for the "unit_price_cents" field. It is called by the builders before save.

@@ -56,6 +56,41 @@ func adminGifts(c fiber.Ctx) error {
 	return reply(c, views)
 }
 
+// publicGiftView 是客户端礼物目录的公开字段：不含分成配置等内部信息。
+type publicGiftView struct {
+	ID         int    `json:"id"`
+	Code       string `json:"code"`
+	Name       string `json:"name"`
+	Icon       string `json:"icon"`
+	PriceCents int64  `json:"price_cents"`
+	Category   string `json:"category"`
+	HighValue  bool   `json:"high_value"`
+	RequireAge bool   `json:"require_age"`
+	Status     string `json:"status"`
+}
+
+func toPublicGiftView(item *ent.EsportsGift) publicGiftView {
+	return publicGiftView{
+		ID: item.ID, Code: item.Code, Name: item.Name, Icon: item.Icon,
+		PriceCents: item.PriceCents, Category: item.Category,
+		HighValue: item.HighValue, RequireAge: item.RequireAge,
+		Status: item.Status.String(),
+	}
+}
+
+// publicGifts 客户端礼物目录（AuthPublic）：仅返回在售礼物的公开字段。
+func publicGifts(c fiber.Ctx) error {
+	items, err := listGifts(c.Context(), global.ORM, "on_sale", queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	views := make([]publicGiftView, 0, len(items))
+	for _, item := range items {
+		views = append(views, toPublicGiftView(item))
+	}
+	return reply(c, views)
+}
+
 func createGiftHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -173,6 +208,20 @@ func userGiftIntents(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	return reply(c, items)
+}
+
+// userCreateGiftIntentHandler 客户自助创建礼物确认单（§9.2）：解析登录客户并按本人身份校验。
+func userCreateGiftIntentHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	var in customerGiftIntentInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := createCustomerGiftIntent(c.Context(), global.ORM, uid, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, toGiftIntentView(item))
 }
 
 func userConfirmGiftIntent(c fiber.Ctx) error {

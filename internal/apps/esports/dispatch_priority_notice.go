@@ -243,6 +243,9 @@ func releaseDispatchPriorityNotice(ctx context.Context, db *ent.Client, orderID 
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.PriorityNoticeStatus != esportsorder.PriorityNoticeStatusPending {
 		return nil, errConflict
 	}
@@ -278,6 +281,9 @@ func declineDispatchPriorityNotice(ctx context.Context, db *ent.Client, playerID
 	}
 	order, err := tx.EsportsOrder.Get(ctx, notice.OrderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	// 窗口已结束（超时已释放或已被客服释放）时不再接受拒绝。

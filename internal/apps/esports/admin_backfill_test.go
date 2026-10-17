@@ -8,6 +8,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscscommissionrule"
+	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsoutbox"
 )
@@ -24,7 +26,8 @@ func seedBackfillSku(t *testing.T, db *ent.Client, code string) *ent.EsportsSku 
 	return sku
 }
 
-// 管理员历史订单补录（§3.3 / §4.1）：入口固定、不占名额、默认不计提、留痕审计且幂等。
+// 管理员历史订单补录（§3.3 / §4.1 / §12.5）：入口固定、不占名额、分成与成长值默认计提、
+// 客服提成默认不计、留痕审计且幂等。
 func TestAdminBackfillOrderIsolatesCommissionAndQuota(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_admin_backfill")
 	defer db.Close()
@@ -64,17 +67,24 @@ func TestAdminBackfillOrderIsolatesCommissionAndQuota(t *testing.T) {
 	if got.QuotaReserved != 0 || got.QuotaSold != 0 {
 		t.Fatalf("补录单占用了 SKU 名额：%+v", got)
 	}
-	// 隔离规则：默认不计提分成 / 提成。
+	// 隔离规则：陪玩分成 / 成长值默认正常计提（补录单无席位成员，分成明细保持 0 条但不被排除），
+	// 客服提成默认不计入并写排除留痕。
 	if count := db.EsportsCommissionEntry.Query().CountX(ctx); count != 0 {
-		t.Fatalf("补录单默认计提了陪玩分成：%d", count)
+		t.Fatalf("补录单误计提了陪玩分成：%d", count)
 	}
 	if count := db.EsportsCsCommissionEntry.Query().CountX(ctx); count != 0 {
 		t.Fatalf("补录单默认计提了客服提成：%d", count)
 	}
-	if n := db.EsportsOutbox.Query().Where(
-		esportsoutbox.EventTypeEQ("order.commission_excluded"),
+	if n := db.EsportsGrowthLedger.Query().Where(
+		esportsgrowthledger.SourceTypeEQ(esportsgrowthledger.SourceTypeOrder),
+		esportsgrowthledger.SourceIDEQ(order.OrderNo),
 	).CountX(ctx); n != 1 {
-		t.Fatalf("缺少「排除计提」留痕外盒：%d", n)
+		t.Fatalf("补录单默认未计提成长值：%d", n)
+	}
+	if n := db.EsportsOutbox.Query().Where(
+		esportsoutbox.EventTypeEQ("order.cs_commission_excluded"),
+	).CountX(ctx); n != 1 {
+		t.Fatalf("缺少「客服提成排除」留痕外盒：%d", n)
 	}
 	events := countEventsByType(t, db)
 	if events["order.backfilled"] != 1 {
@@ -129,6 +139,8 @@ func TestAdminBackfillOrderGuards(t *testing.T) {
 			SettledAt: settled, Reason: "线下成交漏报补录", UnitPriceCents: -1}},
 		{"数量超上限", backfillOrderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1001,
 			SettledAt: settled, Reason: "线下成交漏报补录"}},
+		{"无 SKU 未给成交单价", backfillOrderInput{CustomerID: customer.ID, Quantity: 1,
+			SettledAt: settled, Reason: "线下成交漏报补录"}},
 	}
 	for i, tc := range cases {
 		if _, err := backfillOrder(ctx, db, 11, tc.in, "backfill-guard-0001", now); !errors.Is(err, errInvalidInput) {
@@ -167,8 +179,8 @@ func TestAdminBackfillOrderGuards(t *testing.T) {
 	}
 }
 
-// 显式选择计入当期业绩时输出「已计提」结论，且不再写排除留痕。
-func TestAdminBackfillOptInCommission(t *testing.T) {
+// 显式选择计入客服提成时按规则计提提成，且不再写客服提成排除留痕；成长值仍默认计提。
+func TestAdminBackfillOptInCsCommission(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_admin_backfill_optin")
 	defer db.Close()
 	ctx := t.Context()
@@ -176,43 +188,102 @@ func TestAdminBackfillOptInCommission(t *testing.T) {
 	settled := now.AddDate(0, 0, -1).Format(time.RFC3339)
 	customer := saveCustomerOrFail(t, db, 11)
 	sku := seedBackfillSku(t, db, "BACKFILL-3")
+	// 全局 5% 客服提成，供显式开启时实际产出提成明细。
+	db.EsportsCsCommissionRule.Create().
+		SetRuleNo("CC-BACKFILL").SetVersion(1).
+		SetStatus(esportscscommissionrule.StatusActive).
+		SetScope(esportscscommissionrule.ScopeGlobal).SetScopeKey("").
+		SetBaseMode(esportscscommissionrule.BaseModeOrderAmount).
+		SetCalcMode(esportscscommissionrule.CalcModePercent).
+		SetValueBp(500).SetPeriod(esportscscommissionrule.PeriodMonthly).SaveX(ctx)
 
 	order, err := backfillOrder(ctx, db, 11, backfillOrderInput{
 		CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1, SettledAt: settled,
-		Reason: "历史成交补录并计入当期业绩", CountCommission: true,
+		Reason: "历史成交补录并计入客服提成", CountCsCommission: true,
 	}, "backfill-optin-0001", now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !orderCountsCommission(order) {
-		t.Fatalf("显式计入业绩后仍被判为不计提：%+v", order)
+	if !orderCountsCsCommission(order) {
+		t.Fatalf("显式计入客服提成后仍被判为不计提：%+v", order)
 	}
 	view := backfillOrderView(order)
-	if counted, ok := view["counted_commission"].(bool); !ok || !counted {
-		t.Fatalf("补录结果视图未给出计提结论：%+v", view)
+	if counted, ok := view["counted_cs_commission"].(bool); !ok || !counted {
+		t.Fatalf("补录结果视图未给出客服提成计提结论：%+v", view)
+	}
+	if n := db.EsportsCsCommissionEntry.Query().CountX(ctx); n != 1 {
+		t.Fatalf("显式计入客服提成后未计提提成：%d", n)
 	}
 	if n := db.EsportsOutbox.Query().Where(
-		esportsoutbox.EventTypeEQ("order.commission_excluded"),
+		esportsoutbox.EventTypeEQ("order.cs_commission_excluded"),
 	).CountX(ctx); n != 0 {
-		t.Fatalf("计入业绩的单不应写排除留痕：%d", n)
+		t.Fatalf("计入客服提成的单不应写排除留痕：%d", n)
+	}
+	if n := db.EsportsGrowthLedger.Query().Where(
+		esportsgrowthledger.SourceTypeEQ(esportsgrowthledger.SourceTypeOrder),
+		esportsgrowthledger.SourceIDEQ(order.OrderNo),
+	).CountX(ctx); n != 1 {
+		t.Fatalf("显式计入客服提成后成长值未计提：%d", n)
 	}
 }
 
-// 计提口径判断：只有补录单且显式开启才不计入「排除」。
-func TestOrderCountsCommissionOnlyForBackfill(t *testing.T) {
+// 客服提成计提口径判断：常规单始终计提；补录单默认不计，仅显式开启才计入。
+func TestOrderCountsCsCommissionOnlyForBackfill(t *testing.T) {
 	normal := &ent.EsportsOrder{EntryPoint: esportsorder.EntryPointCsPc}
-	if !orderCountsCommission(normal) {
-		t.Fatal("常规订单不应被排除计提")
+	if !orderCountsCsCommission(normal) {
+		t.Fatal("常规订单不应被排除客服提成")
 	}
 	backfill := &ent.EsportsOrder{EntryPoint: esportsorder.EntryPointAdminBackfill}
-	if orderCountsCommission(backfill) {
-		t.Fatal("补录单默认应排除计提")
+	if orderCountsCsCommission(backfill) {
+		t.Fatal("补录单默认应排除客服提成")
 	}
 	optedIn := &ent.EsportsOrder{
 		EntryPoint: esportsorder.EntryPointAdminBackfill, BackfillCountCommission: true,
 	}
-	if !orderCountsCommission(optedIn) {
-		t.Fatal("显式开启后补录单应参与计提")
+	if !orderCountsCsCommission(optedIn) {
+		t.Fatal("显式开启后补录单应计提客服提成")
+	}
+}
+
+// 无 SKU 历史补录（§15.6）：sku_id 可省略，用 unit_price_cents 兜底定价、不绑定 SKU、不占名额，且幂等。
+func TestAdminBackfillWithoutSku(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_admin_backfill_no_sku")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)
+	settled := now.AddDate(0, 0, -7).Format(time.RFC3339)
+	customer := saveCustomerOrFail(t, db, 11)
+
+	in := backfillOrderInput{
+		CustomerID: customer.ID, Quantity: 3, UnitPriceCents: 2500,
+		SettledAt: settled, Reason: "无 SKU 的历史线下成交补录",
+	}
+	order, err := backfillOrder(ctx, db, 11, in, "backfill-nosku-0001", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order.SkuID != 0 || order.UnitPriceCents != 2500 || order.PayableCents != 7500 {
+		t.Fatalf("无 SKU 补录价格不正确：%+v", order)
+	}
+	if order.PromisedServiceUnits != 3 || order.RequiredSeats != 1 {
+		t.Fatalf("无 SKU 补录快照默认不正确：%+v", order)
+	}
+	// 成长值按应付额正常计提（不绑定 SKU 不影响成长值来源）。
+	if n := db.EsportsGrowthLedger.Query().Where(
+		esportsgrowthledger.SourceTypeEQ(esportsgrowthledger.SourceTypeOrder),
+		esportsgrowthledger.SourceIDEQ(order.OrderNo),
+	).CountX(ctx); n != 1 {
+		t.Fatalf("无 SKU 补录未计提成长值：%d", n)
+	}
+	// 幂等：同键同体返回同一张单；同键不同体判冲突。
+	again, err := backfillOrder(ctx, db, 11, in, "backfill-nosku-0001", now)
+	if err != nil || again.ID != order.ID {
+		t.Fatalf("无 SKU 补录幂等失效：%v %+v", err, again)
+	}
+	other := in
+	other.Quantity = 4
+	if _, err := backfillOrder(ctx, db, 11, other, "backfill-nosku-0001", now); !errors.Is(err, errConflict) {
+		t.Fatalf("同键不同体未判冲突：%v", err)
 	}
 }
 

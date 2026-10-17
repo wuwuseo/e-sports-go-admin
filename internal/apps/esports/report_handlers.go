@@ -109,6 +109,7 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 }
 
 // reportRange 推导统计区间：给定 start（可带 end）走自定义区间，否则按 period 取当前自然周期。
+// 自然日 / 周 / 月边界统一用工作室业务时区（cstZone，UTC+8）计算，返回的绝对时刻以 UTC 存储。
 func reportRange(period, startRaw, endRaw string, now time.Time) (time.Time, time.Time, error) {
 	if start := strings.TrimSpace(startRaw); start != "" {
 		begin, err := parseReportTime(start)
@@ -129,24 +130,26 @@ func reportRange(period, startRaw, endRaw string, now time.Time) (time.Time, tim
 	if strings.TrimSpace(endRaw) != "" {
 		return time.Time{}, time.Time{}, errInvalidInput
 	}
-	utc := now.UTC()
-	day := time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC)
+	local := now.In(cstZone)
+	day := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, cstZone)
 	switch period {
 	case "", "daily":
-		return day, day.AddDate(0, 0, 1), nil
+		return day.UTC(), day.AddDate(0, 0, 1).UTC(), nil
 	case "weekly":
 		offset := (int(day.Weekday()) + 6) % 7
 		begin := day.AddDate(0, 0, -offset)
-		return begin, begin.AddDate(0, 0, 7), nil
+		return begin.UTC(), begin.AddDate(0, 0, 7).UTC(), nil
 	case "monthly":
-		begin := time.Date(utc.Year(), utc.Month(), 1, 0, 0, 0, 0, time.UTC)
-		return begin, begin.AddDate(0, 1, 0), nil
+		begin := time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, cstZone)
+		return begin.UTC(), begin.AddDate(0, 1, 0).UTC(), nil
 	default:
 		return time.Time{}, time.Time{}, errInvalidInput
 	}
 }
 
 // parseReportTime 解析 RFC3339 或 YYYY-MM-DD 时间；空串返回零值。
+// RFC3339 是绝对时刻，直接转 UTC；YYYY-MM-DD 按业务时区（cstZone）当日零点解析，再转 UTC 存储，
+// 与 period 自然周期口径一致，避免把业务日期误读为 UTC 零点造成跨日错位。
 func parseReportTime(raw string) (time.Time, error) {
 	if raw == "" {
 		return time.Time{}, nil
@@ -154,7 +157,7 @@ func parseReportTime(raw string) (time.Time, error) {
 	if parsed, err := time.Parse(time.RFC3339, raw); err == nil {
 		return parsed.UTC(), nil
 	}
-	if parsed, err := time.Parse("2006-01-02", raw); err == nil {
+	if parsed, err := time.ParseInLocation("2006-01-02", raw, cstZone); err == nil {
 		return parsed.UTC(), nil
 	}
 	return time.Time{}, errInvalidInput

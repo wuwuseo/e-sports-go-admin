@@ -188,6 +188,19 @@ func customerProfileOverview(ctx context.Context, db *ent.Client, adminID int, i
 	if err != nil {
 		return nil, err
 	}
+	// 身份标识（§10.4）：客户卡片返回等级 code/name 与专属客服标识；专属客服由当前等级 dedicated_cs 决定。
+	memberLevelName, dedicatedCS := "", false
+	if rule, err := customerMemberRule(ctx, db, customer.MemberLevelCode); err != nil {
+		return nil, err
+	} else if rule != nil {
+		memberLevelName = rule.Name
+		dedicatedCS = rule.DedicatedCs
+	}
+	ownerAdminName := ""
+	if customer.OwnerAdminID != nil {
+		names := adminNames(ctx, db, []int{*customer.OwnerAdminID})
+		ownerAdminName = names[*customer.OwnerAdminID]
+	}
 	return map[string]any{
 		"customer":          customer,
 		"principal_cents":   balance.PrincipalCents,
@@ -200,6 +213,9 @@ func customerProfileOverview(ctx context.Context, db *ent.Client, adminID int, i
 		"growth_total":      growth,
 		"order_count":       orderCount,
 		"member_level_code": customer.MemberLevelCode,
+		"member_level_name": memberLevelName,
+		"dedicated_cs":      dedicatedCS,
+		"owner_admin_name":  ownerAdminName,
 		"source":            customer.Source.String(),
 		"follow_status":     customer.FollowStatus.String(),
 	}, nil
@@ -520,6 +536,11 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
+	// 会员优先预约提醒（§10.4）：待处理预约意向，提醒客服按会员等级置顶跟进。
+	priorityBookingCount, err := countPriorityBookingsPending(ctx, db, adminID, isSuper)
+	if err != nil {
+		return nil, err
+	}
 	// 通知发送失败待办（§通知）：outbox status=dead 的事件，供客服人工处理重发。
 	notificationFailCount, err := countFailedNotifications(ctx, db)
 	if err != nil {
@@ -532,6 +553,7 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		{Key: "due_follow_up", Label: "跟进已到期", Count: followCount},
 		{Key: "stored_value_due", Label: "储值卡临近到期", Count: storedValueDueCount},
 		{Key: "customer_birthday", Label: "今日生日客户", Count: birthdayCount},
+		{Key: "member_priority_booking", Label: "会员优先预约", Count: priorityBookingCount},
 		{Key: "notification_failed", Label: "通知发送失败", Count: notificationFailCount},
 	}, nil
 }

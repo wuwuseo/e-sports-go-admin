@@ -1867,6 +1867,8 @@ var (
 		{Name: "discount_bps", Type: field.TypeInt, Default: 10000},
 		{Name: "priority_dispatch", Type: field.TypeBool, Default: false},
 		{Name: "prepay_bonus_bps", Type: field.TypeInt, Default: 0},
+		{Name: "dedicated_cs", Type: field.TypeBool, Default: false},
+		{Name: "priority_booking", Type: field.TypeBool, Default: false},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"enabled", "disabled"}, Default: "enabled"},
 		{Name: "version", Type: field.TypeInt, Default: 1},
@@ -1887,7 +1889,7 @@ var (
 			{
 				Name:    "esportsmemberlevelrule_status_growth_threshold",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsMemberLevelRulesColumns[8], EsportsMemberLevelRulesColumns[3]},
+				Columns: []*schema.Column{EsportsMemberLevelRulesColumns[10], EsportsMemberLevelRulesColumns[3]},
 			},
 		},
 	}
@@ -2622,6 +2624,38 @@ var (
 				Name:    "esportspriceadjustment_status_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsPriceAdjustmentsColumns[9], EsportsPriceAdjustmentsColumns[14]},
+			},
+		},
+	}
+	// EsportsPriorityBookingIntentsColumns holds the columns for the "esports_priority_booking_intents" table.
+	EsportsPriorityBookingIntentsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "player_id", Type: field.TypeInt},
+		{Name: "player_name", Type: field.TypeString, Size: 120, Default: ""},
+		{Name: "requested_start_at", Type: field.TypeTime, Nullable: true},
+		{Name: "note", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "processed", "cancelled"}, Default: "pending"},
+		{Name: "processed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "processed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPriorityBookingIntentsTable holds the schema information for the "esports_priority_booking_intents" table.
+	EsportsPriorityBookingIntentsTable = &schema.Table{
+		Name:       TablePrefix + "esports_priority_booking_intents",
+		Columns:    EsportsPriorityBookingIntentsColumns,
+		PrimaryKey: []*schema.Column{EsportsPriorityBookingIntentsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsprioritybookingintent_customer_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPriorityBookingIntentsColumns[1], EsportsPriorityBookingIntentsColumns[9]},
+			},
+			{
+				Name:    "esportsprioritybookingintent_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPriorityBookingIntentsColumns[6], EsportsPriorityBookingIntentsColumns[9]},
 			},
 		},
 	}
@@ -4238,6 +4272,7 @@ var (
 		EsportsPlayerReviewsTable,
 		EsportsPlayerReviewRevisionsTable,
 		EsportsPriceAdjustmentsTable,
+		EsportsPriorityBookingIntentsTable,
 		EsportsProductsTable,
 		EsportsProductCategoriesTable,
 		EsportsQuotaHoldsTable,

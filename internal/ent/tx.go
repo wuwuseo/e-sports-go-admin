@@ -150,6 +150,8 @@ type Tx struct {
 	EsportsPlayerReviewRevision *EsportsPlayerReviewRevisionClient
 	// EsportsPriceAdjustment is the client for interacting with the EsportsPriceAdjustment builders.
 	EsportsPriceAdjustment *EsportsPriceAdjustmentClient
+	// EsportsPriorityBookingIntent is the client for interacting with the EsportsPriorityBookingIntent builders.
+	EsportsPriorityBookingIntent *EsportsPriorityBookingIntentClient
 	// EsportsProduct is the client for interacting with the EsportsProduct builders.
 	EsportsProduct *EsportsProductClient
 	// EsportsProductCategory is the client for interacting with the EsportsProductCategory builders.
@@ -428,6 +430,7 @@ func (tx *Tx) init() {
 	tx.EsportsPlayerReview = NewEsportsPlayerReviewClient(tx.config)
 	tx.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(tx.config)
 	tx.EsportsPriceAdjustment = NewEsportsPriceAdjustmentClient(tx.config)
+	tx.EsportsPriorityBookingIntent = NewEsportsPriorityBookingIntentClient(tx.config)
 	tx.EsportsProduct = NewEsportsProductClient(tx.config)
 	tx.EsportsProductCategory = NewEsportsProductCategoryClient(tx.config)
 	tx.EsportsQuotaHold = NewEsportsQuotaHoldClient(tx.config)

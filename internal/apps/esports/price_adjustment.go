@@ -51,6 +51,9 @@ func requestPriceAdjustment(ctx context.Context, db *ent.Client, orderID, adminI
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if (!isSuper && (order.ResponsibleAdminID == nil || *order.ResponsibleAdminID != adminID)) ||
 		order.Version != in.ExpectedVersion || order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
@@ -126,6 +129,9 @@ func decidePriceAdjustment(ctx context.Context, db *ent.Client, id, reviewerID i
 	}
 	order, err := tx.EsportsOrder.Get(ctx, item.OrderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	if order.Version != item.OrderVersion || order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||

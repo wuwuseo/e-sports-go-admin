@@ -78,6 +78,9 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 	if err != nil {
 		return playerServiceTiming{}, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return playerServiceTiming{}, err
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		return playerServiceTiming{}, errConflict
 	}
@@ -149,6 +152,9 @@ func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID,
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return serviceTimingCorrection{}, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return serviceTimingCorrection{}, err
 	}
 	segment, err := tx.EsportsServiceSegment.Query().Where(
@@ -312,6 +318,10 @@ func pauseSegmentForDisconnect(ctx context.Context, db *ent.Client, segment *ent
 	order, err := tx.EsportsOrder.Get(ctx, segment.OrderID)
 	if err != nil {
 		return false, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		// 冻结订单禁止服务段状态变更：跳过本次自动暂停，恢复后再由后续周期处理。
+		return false, nil
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		return false, nil

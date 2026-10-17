@@ -231,6 +231,9 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
 		(order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch &&
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance) {
@@ -322,6 +325,9 @@ func revokeDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	seat, err := tx.EsportsDispatchSeat.Query().Where(
 		esportsdispatchseat.OrderIDEQ(orderID), esportsdispatchseat.SeatIndexEQ(seatIndex),
 	).Only(ctx)
@@ -383,6 +389,9 @@ func claimOrder(ctx context.Context, db *ent.Client, orderID, adminID int) (*ent
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch ||
 		order.ResponsibleAdminID != nil {
 		return nil, errConflict
@@ -423,6 +432,9 @@ func transferOrder(ctx context.Context, db *ent.Client, orderID, toAdminID, admi
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	if order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
@@ -513,6 +525,9 @@ func publishOrderToGrabHall(ctx context.Context, db *ent.Client, orderID, adminI
 	if err != nil {
 		return nil, err
 	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
 		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
 		return nil, errConflict
@@ -595,6 +610,14 @@ func expireDispatchInvite(ctx context.Context, db *ent.Client, seatID int, now t
 		seat.ExpiresAt == nil || seat.ExpiresAt.After(now.UTC()) {
 		return false, nil
 	}
+	order, err := tx.EsportsOrder.Get(ctx, seat.OrderID)
+	if err != nil {
+		return false, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		// 冻结订单禁止席位/履约状态变更：跳过本次过期，待恢复后再由下一轮收敛。
+		return false, nil
+	}
 	changed, err := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.IDEQ(seat.ID),
 		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusInvited),
@@ -607,7 +630,7 @@ func expireDispatchInvite(ctx context.Context, db *ent.Client, seatID int, now t
 	if changed != 1 {
 		return false, errConflict
 	}
-	order, err := tx.EsportsOrder.Get(ctx, seat.OrderID)
+	order, err = tx.EsportsOrder.Get(ctx, seat.OrderID)
 	if err != nil {
 		return false, err
 	}

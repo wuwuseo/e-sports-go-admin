@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
+	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportswallettx"
@@ -181,12 +182,123 @@ func TestLedgerReconcileMarksScanTruncated(t *testing.T) {
 	if result.ScannedAccounts != 1 {
 		t.Fatalf("应只扫描一个账户：%d", result.ScannedAccounts)
 	}
-	// 放开上限后应扫完两个账户，且不再标记截断。
+	// 放开上限后，本轮应从持久游标继续，只扫剩余的一个账户（不重复扫已扫部分），
+	// 扫完整圈后不再标记截断。
 	full, err := reconcileLedgers(ctx, db, ledgerReconcileScanCap)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if full.ScanTruncated || full.ScannedAccounts != 2 {
-		t.Fatalf("上限放开后应扫完两个账户：%+v", full)
+	if full.ScanTruncated || full.ScannedAccounts != 1 {
+		t.Fatalf("放开上限后应扫完剩余一个账户且不再截断：%+v", full)
+	}
+}
+
+// 持久游标持续推进：账户数超过单轮上限时，连续多轮运行覆盖全部账户，且发现后半段的负余额异常。
+func TestLedgerReconcileCursorCoversTailAccounts(t *testing.T) {
+	db := openStoredValueDB(t, "esports_ledger_reconcile_cursor_accounts")
+	ctx := t.Context()
+	const accountCount = 25
+	const scanCap = 10
+
+	var tail *ent.EsportsCustomer
+	for i := 0; i < accountCount; i++ {
+		customer := saveCustomerOrFail(t, db, 11)
+		if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+			walletInput{PrincipalCents: 1000, Note: "充值"}, "cursor-account-"+strconv.Itoa(i)); err != nil {
+			t.Fatal(err)
+		}
+		tail = customer
+	}
+	// 后半段异常：给最后一个账户伪造一笔超额消费，使流水求和为负。
+	db.EsportsWalletTx.Create().
+		SetTxNo("forged-negative-tail").
+		SetAccountType(esportswallettx.AccountType(walletCustomerBalance)).
+		SetOwnerID(tail.ID).SetEntryType(esportswallettx.EntryTypeConsume).
+		SetPrincipalDeltaCents(-20000).
+		SetSourceType("order").SetSourceID("FORGED-NEGATIVE-TAIL").SaveX(ctx)
+
+	var rounds []int
+	var total int
+	found := false
+	for round := 0; round < 10; round++ {
+		res, err := reconcileLedgers(ctx, db, scanCap)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rounds = append(rounds, res.ScannedAccounts)
+		total += res.ScannedAccounts
+		if hasLedgerAnomaly(res, ledgerAnomalyNegativeBalance) {
+			found = true
+		}
+		if !res.ScanTruncated {
+			break
+		}
+	}
+	if total != accountCount {
+		t.Fatalf("连续运行应覆盖全部账户：扫了 %d，期望 %d（各轮 %v）", total, accountCount, rounds)
+	}
+	if !found {
+		t.Fatalf("应发现后半段账户的负余额异常：各轮 %v", rounds)
+	}
+	// 单轮不重复扫已扫部分：25 个账户按 cap=10 应为 10 / 10 / 5。
+	if len(rounds) != 3 || rounds[0] != 10 || rounds[1] != 10 || rounds[2] != 5 {
+		t.Fatalf("各轮扫描分布应为 10/10/5：%v", rounds)
+	}
+}
+
+// 持久游标持续推进：分摊数超过单轮上限时，连续多轮运行覆盖全部分摊，且发现后半段的批次缺失异常。
+func TestLedgerReconcileCursorCoversTailAllocations(t *testing.T) {
+	db := openStoredValueDB(t, "esports_ledger_reconcile_cursor_allocations")
+	ctx := t.Context()
+	customer := saveCustomerOrFail(t, db, 11)
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 1000, Note: "充值"}, "cursor-alloc-recharge"); err != nil {
+		t.Fatal(err)
+	}
+	batch := db.EsportsLedgerEntry.Query().Where(
+		esportsledgerentry.EntryRoleEQ("recharge_batch")).OnlyX(ctx)
+
+	// 前 20 条分摊指向真实批次（正常不超），后 5 条指向不存在的批次（后半段异常）。
+	for i := 0; i < 20; i++ {
+		db.EsportsLedgerAllocation.Create().
+			SetAccountType(walletCustomerBalance).SetAccountID(strconv.Itoa(customer.ID)).
+			SetConsumeSourceType("order").SetConsumeSourceID("OK-" + strconv.Itoa(i)).
+			SetBatchSourceType(batch.SourceType).SetBatchSourceID(batch.SourceID).
+			SetAmountCents(1).SaveX(ctx)
+	}
+	for i := 0; i < 5; i++ {
+		db.EsportsLedgerAllocation.Create().
+			SetAccountType(walletCustomerBalance).SetAccountID(strconv.Itoa(customer.ID)).
+			SetConsumeSourceType("order").SetConsumeSourceID("MISS-" + strconv.Itoa(i)).
+			SetBatchSourceType("wallet_tx").SetBatchSourceID("NO-SUCH-BATCH-" + strconv.Itoa(i)).
+			SetAmountCents(1).SaveX(ctx)
+	}
+
+	const scanCap = 10
+	var rounds []int
+	var total int
+	found := false
+	for round := 0; round < 10; round++ {
+		res, err := reconcileLedgers(ctx, db, scanCap)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rounds = append(rounds, res.ScannedAllocations)
+		total += res.ScannedAllocations
+		if hasLedgerAnomaly(res, ledgerAnomalyBatchMissing) {
+			found = true
+		}
+		if !res.ScanTruncated {
+			break
+		}
+	}
+	if total != 25 {
+		t.Fatalf("连续运行应覆盖全部分摊：扫了 %d，期望 25（各轮 %v）", total, rounds)
+	}
+	if !found {
+		t.Fatalf("应发现后半段分摊的批次缺失异常：各轮 %v", rounds)
+	}
+	if len(rounds) != 3 || rounds[0] != 10 || rounds[1] != 10 || rounds[2] != 5 {
+		t.Fatalf("各轮扫描分布应为 10/10/5：%v", rounds)
 	}
 }
