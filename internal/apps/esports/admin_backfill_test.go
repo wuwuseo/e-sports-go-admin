@@ -326,18 +326,31 @@ func TestAdminBackfillOrderAppearsInSourceReports(t *testing.T) {
 	}
 }
 
-// 补录入参 JSON 契约：只认 count_cs_commission。旧名 count_commission 已废弃、不再兼容，
-// 避免「前端字段名写错 → 后端静默按 false 处理」的旧问题复发。
+// 补录入参 JSON 契约：只认 count_cs_commission。旧名 count_commission 已废弃，
+// 且**出现即返回参数错误**（而非静默按 false 处理），避免「前端字段名写错 → 开关点了没用」
+// 再次变成隐性财务错误。
 func TestBackfillOrderInputJSONFieldContract(t *testing.T) {
 	var current backfillOrderInput
 	if err := json.Unmarshal([]byte(`{"count_cs_commission":true}`), &current); err != nil ||
-		!current.CountCsCommission {
+		!current.CountCsCommission || current.LegacyCountCommission != nil {
 		t.Fatalf("count_cs_commission 未正确解析：%v %+v", err, current)
 	}
 	var legacy backfillOrderInput
 	if err := json.Unmarshal([]byte(`{"count_commission":true}`), &legacy); err != nil ||
-		legacy.CountCsCommission {
-		t.Fatalf("旧字段名不应再生效（管理端须提交 count_cs_commission）：%v %+v", err, legacy)
+		legacy.LegacyCountCommission == nil || !*legacy.LegacyCountCommission {
+		t.Fatalf("旧字段名应被识别为废弃字段：%v %+v", err, legacy)
+	}
+	// 旧字段出现必须在入口显式失败（此处用 nil db：校验发生在任何数据库访问之前）。
+	if _, err := backfillOrder(t.Context(), nil, 11, legacy, "backfill-legacy-0001", time.Now()); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("旧字段名应返回参数错误，err=%v", err)
+	}
+	// 新旧字段同时出现同样拒绝，避免「新字段 true + 旧字段 false」这类歧义被静默吞掉。
+	var mixed backfillOrderInput
+	if err := json.Unmarshal([]byte(`{"count_cs_commission":true,"count_commission":false}`), &mixed); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := backfillOrder(t.Context(), nil, 11, mixed, "backfill-legacy-0002", time.Now()); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("新旧字段同时出现应返回参数错误，err=%v", err)
 	}
 }
 

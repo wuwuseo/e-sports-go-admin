@@ -45,9 +45,12 @@ type backfillOrderInput struct {
 	Reason        string `json:"reason"`
 	// CountCsCommission 显式把补录单计入客服提成；默认 false 即不计提客服提成。
 	// 陪玩分成与成长值始终正常计提，不受本开关影响；已取消单不允许开启（见 backfillOrder 校验）。
-	// 字段名与管理端提交的 count_cs_commission 一一对应，不保留旧名 count_commission 的兼容层：
-	// bool 无法区分「未传」与「传 false」，兼容层无法可靠判定冲突，反而会掩盖字段名错配。
+	// 字段名与管理端提交的 count_cs_commission 一一对应。
 	CountCsCommission bool `json:"count_cs_commission"`
+	// LegacyCountCommission 是已废弃的字段名（旧管理端曾提交 count_commission）。
+	// 指针只用于识别「字段是否出现」：一旦出现即返回参数错误，绝不再静默当成 false ——
+	// 否则前后端字段名错配会变成「开关点了没用」的隐性财务错误。
+	LegacyCountCommission *bool `json:"count_commission,omitempty"`
 }
 
 // orderCountsCsCommission 是否计提客服提成：常规单始终计提；补录单默认不计，仅显式开启才计入（§3.3 / §12.5）。
@@ -60,6 +63,8 @@ func orderCountsCsCommission(order *ent.EsportsOrder) bool {
 }
 
 func backfillRequestHash(in backfillOrderInput) string {
+	// 废弃字段不参与哈希：它在入口即被拒绝，不属于「同一逻辑请求」的组成部分。
+	in.LegacyCountCommission = nil
 	data, _ := json.Marshal(in)
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
@@ -89,6 +94,10 @@ func parseBackfillSettledAt(raw string, now time.Time) (time.Time, error) {
 // 4. completed 单写入 closed_at 与 close_net_service_cents 快照，保证后续退款冲回口径正确。
 func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfillOrderInput,
 	key string, now time.Time) (*ent.EsportsOrder, error) {
+	// 旧字段名出现即拒绝：宁可让旧页面提交失败并提示刷新，也不能把它静默当成 false 计提错误。
+	if in.LegacyCountCommission != nil {
+		return nil, fmt.Errorf("%w：字段 count_commission 已更名为 count_cs_commission，请刷新页面后重试", errInvalidInput)
+	}
 	in.Reason = strings.TrimSpace(in.Reason)
 	in.FulfillmentStatus = strings.TrimSpace(in.FulfillmentStatus)
 	in.PaymentStatus = strings.TrimSpace(in.PaymentStatus)

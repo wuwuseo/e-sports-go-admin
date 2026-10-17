@@ -397,6 +397,8 @@ func init() {
 			{Method: "PUT", Path: "/admin/orders/:id/commission-rule", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(setOrderManualCommissionRuleHandler)},
 			// 存单：把已付款订单标记为冻结，「恢复」清除标记（原地保留、不动履约状态与名额）。
 			// 收款账户与收款方式启停（§4.3）：账户须为工作室主体并经财务审核，客服不能直接启用。
+			// 上线自检（§18）：逐项回报功能开关 / 支付时限 / 收款通道 / 推送 / 企微是否就绪，只读且不回显密钥。
+			{Method: "GET", Path: "/admin/readiness", Auth: cmfapp.AuthAdmin, Handler: adminReadinessHandler},
 			{Method: "GET", Path: "/admin/payment-accounts", Auth: cmfapp.AuthAdmin, Handler: adminPaymentAccounts},
 			{Method: "POST", Path: "/admin/payment-accounts", Auth: cmfapp.AuthAdmin, Handler: createPaymentAccountHandler},
 			{Method: "POST", Path: "/admin/payment-accounts/:id/review", Auth: cmfapp.AuthAdmin, Handler: reviewPaymentAccountHandler},
@@ -1044,6 +1046,7 @@ func init() {
 			// 收款管理（§4.3）：收款账户财务审核、收款方式启停、外部到账核销与到账凭证。
 			{Type: cmfapp.PermMenu, Name: "收款管理", Code: "esports:payment:menu", MenuPath: "/esports/payments", Component: "esports/payments/index", Icon: "icon-safe", SortOrder: 52},
 			{Type: cmfapp.PermAPI, Name: "查看收款账户", Code: "esports:payments:accounts", Path: "/api/v1/esports/admin/payment-accounts", Method: "GET", Parent: "esports:payment:menu"},
+			{Type: cmfapp.PermAPI, Name: "上线自检", Code: "esports:payments:readiness", Path: "/api/v1/esports/admin/readiness", Method: "GET", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "提交收款账户", Code: "esports:payments:account_create", Path: "/api/v1/esports/admin/payment-accounts", Method: "POST", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "审核收款账户", Code: "esports:payments:account_review", Path: "/api/v1/esports/admin/payment-accounts/{id}/review", Method: "POST", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "停用收款账户", Code: "esports:payments:account_disable", Path: "/api/v1/esports/admin/payment-accounts/{id}/disable", Method: "POST", Parent: "esports:payment:menu"},
