@@ -59,6 +59,7 @@ import (
 	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportspageasset"
@@ -234,6 +235,7 @@ func checkColumn(t, c string) error {
 			esportsofflinepaymentproof.Table:     esportsofflinepaymentproof.ValidColumn,
 			esportsorder.Table:                   esportsorder.ValidColumn,
 			esportsorderaddon.Table:              esportsorderaddon.ValidColumn,
+			esportsordercollaborator.Table:       esportsordercollaborator.ValidColumn,
 			esportsorderevent.Table:              esportsorderevent.ValidColumn,
 			esportsoutbox.Table:                  esportsoutbox.ValidColumn,
 			esportspageasset.Table:               esportspageasset.ValidColumn,

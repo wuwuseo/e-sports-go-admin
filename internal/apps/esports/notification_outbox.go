@@ -3,12 +3,15 @@ package esports
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsoutbox"
+	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/predicate"
 )
 
@@ -20,8 +23,13 @@ import (
 //   - 收件人按订单/角色解析（notification_recipients.go），站内消息逐人写 user_uid，
 //     绝不再写 user_uid="" 的全员广播，正文也不再拼接完整事件载荷。
 //   - 站内信（ent.Message）是本地可观测的必投通道，不受 notification_channels 开关控制；
-//     开关只决定是否调用 webhook 推送网关。任一通道成功即视为已投递。
-//   - webhook 未配置时视为该通道未启用，不阻断站内信。
+//     开关只决定是否调用 webhook 推送网关。
+//   - 投递判定按「已启用且已配置」的通道计算：站内信成功 + 所有已配置推送通道失败时必须
+//     返回错误，让 outbox 继续退避重试直至 dead，从而进入客服失败待办；通道未配置
+//     （errNotificationWebhookNotConfigured）视为未启用，不阻断站内信。
+//   - 反向容忍：站内信失败但任一推送通道成功，视为已投递（避免把已成功推送的事件无限重试）；
+//     站内信失败会写日志留痕。
+//   - 站内信按「事件定位键」幂等（见 notificationMessageDedupeKey），重试不会产生重复消息。
 
 // 通知通道标识。
 const (
@@ -46,8 +54,9 @@ type NotificationSender interface {
 
 // notificationBatchSender 是一次投递内可处理多个通道的扩展接口。sendNotificationEvent 优先使用；
 // 未实现该接口的旧发送器继续按通道逐个 Send，保持兼容。
+// eventKey 是 outbox 事件唯一键，供站内信幂等去重使用（越界时退化为 eventType + aggregateRef）。
 type notificationBatchSender interface {
-	SendBatch(ctx context.Context, channels []string, eventType, aggregateRef string, payload map[string]interface{}) error
+	SendBatch(ctx context.Context, channels []string, eventKey, eventType, aggregateRef string, payload map[string]interface{}) error
 }
 
 // notifyChannelTargets 定义事件类型前缀 → 通知通道的映射（含顺序），是通知分类的唯一事实来源。
@@ -98,7 +107,7 @@ func enabledNotificationChannels(ctx context.Context, db *ent.Client) map[string
 // sendNotificationEvent 按事件类型选择通道并发送；启用通道中有任一成功即视为已通知。
 // 实现 notificationBatchSender 的发送器（组合投递器）会被调用一次，即使所有通道都关闭，
 // 站内信也必须在这次调用中完成；旧发送器保持“全部失败返回错误”的既有语义。
-func sendNotificationEvent(ctx context.Context, sender NotificationSender, enabled map[string]bool, eventType, aggregateRef string, payload map[string]interface{}) error {
+func sendNotificationEvent(ctx context.Context, sender NotificationSender, enabled map[string]bool, eventKey, eventType, aggregateRef string, payload map[string]interface{}) error {
 	channels := eventNotifyChannels(eventType)
 	if len(channels) == 0 {
 		return nil // 非通知事件，无需处理。
@@ -113,7 +122,7 @@ func sendNotificationEvent(ctx context.Context, sender NotificationSender, enabl
 		}
 	}
 	if batch, ok := sender.(notificationBatchSender); ok {
-		return batch.SendBatch(ctx, active, eventType, aggregateRef, payload)
+		return batch.SendBatch(ctx, active, eventKey, eventType, aggregateRef, payload)
 	}
 	if len(active) == 0 {
 		return errNotificationSenderUnavailable
@@ -143,8 +152,8 @@ type notificationEventPublisher struct {
 	enabled map[string]bool
 }
 
-func (p *notificationEventPublisher) Publish(ctx context.Context, _ string, eventType, aggregateRef string, payload map[string]interface{}) error {
-	return sendNotificationEvent(ctx, p.sender, p.enabled, eventType, aggregateRef, payload)
+func (p *notificationEventPublisher) Publish(ctx context.Context, eventKey, eventType, aggregateRef string, payload map[string]interface{}) error {
+	return sendNotificationEvent(ctx, p.sender, p.enabled, eventKey, eventType, aggregateRef, payload)
 }
 
 // deliverNotificationOutboxBatch 处理待发送的通知类 outbox 事件：认领通知类事件、发送成功置
@@ -164,13 +173,19 @@ func deliverNotificationOutboxBatch(ctx context.Context, db *ent.Client, sender 
 	return deliverOutboxEvents(ctx, db, &notificationEventPublisher{sender: sender, enabled: enabled}, notificationEventPredicate(), now, limit)
 }
 
-// countFailedNotifications 统计通知发送失败（outbox status=dead）事件数，供客服失败待办。
+// countFailedNotifications 统计外盒死信（outbox status=dead）数量，供客服失败待办
+// （csWorkbenchTodos 的 notification_failed 项）。推送通道重试耗尽后同样落 dead，
+// 因此「站内信成功 + 已配置推送全部失败」的故障会经由本统计进入待办，不会被吞掉。
+//
+// 口径说明：dead 是外盒的统一终态，业务事件与通知事件共用；待办按「外盒死信总数」展示，
+// 两者都需要人工处理（通知事件可重发，业务事件需排查消费方）。
 func countFailedNotifications(ctx context.Context, db *ent.Client) (int, error) {
 	return db.EsportsOutbox.Query().Where(esportsoutbox.StatusEQ(esportsoutbox.StatusDead)).Count(ctx)
 }
 
 // compositeNotificationSender 组合投递：先写站内信（失败不阻断推送），再按启用的通道调用
-// webhook 推送网关。站内信成功或任一通道推送成功即视为已投递。
+// webhook 推送网关。投递判定见 deliver：站内信成功不足以掩盖「已配置推送通道全部失败」，
+// 后者必须上抛给 outbox 重试/死信；通道未配置继续容忍。
 type compositeNotificationSender struct {
 	inApp   *messageNotificationSender
 	webhook *webhookNotificationSender
@@ -184,57 +199,68 @@ func newCompositeNotificationSender(db *ent.Client) *compositeNotificationSender
 }
 
 func (s *compositeNotificationSender) Send(ctx context.Context, channel, eventType, aggregateRef string, payload map[string]interface{}) error {
-	recipients, err := resolveNotificationRecipients(ctx, s.inApp.db, eventType, aggregateRef, payload)
-	if err != nil {
-		return err
-	}
-	inAppErr := s.inApp.sendToRecipients(ctx, notifyChannelInApp, eventType, aggregateRef, payload, recipients)
-	webhookErr := s.webhook.send(ctx, channel, eventType, aggregateRef, payload, recipients)
-	webhookDisabled := errors.Is(webhookErr, errNotificationWebhookNotConfigured)
-	if inAppErr == nil || (!webhookDisabled && webhookErr == nil) {
-		return nil
-	}
-	if !webhookDisabled {
-		return webhookErr
-	}
-	return inAppErr
+	return s.deliver(ctx, []string{channel}, "", eventType, aggregateRef, payload)
 }
 
-// SendBatch 是 sendNotificationEvent 的批量入口：channels 为本次启用的推送通道（可为空）。
-func (s *compositeNotificationSender) SendBatch(ctx context.Context, channels []string, eventType, aggregateRef string, payload map[string]interface{}) error {
+// SendBatch 是 sendNotificationEvent 的批量入口：channels 为本次启用的推送通道（可为空），
+// eventKey 为 outbox 事件唯一键（供站内信幂等）。
+func (s *compositeNotificationSender) SendBatch(ctx context.Context, channels []string, eventKey, eventType, aggregateRef string, payload map[string]interface{}) error {
+	return s.deliver(ctx, channels, eventKey, eventType, aggregateRef, payload)
+}
+
+// deliver 执行一次「站内信 + 推送通道」组合投递，并给出投递判定：
+//   - 站内信成功且（无已配置推送通道 或 至少一个推送通道成功）→ 已投递；
+//   - 站内信成功但所有已配置推送通道失败 → 返回错误，交由 outbox 退避重试直至 dead；
+//     这是本次 P0 修复的关键：不能再因为站内信成功而把推送故障吞掉；
+//   - 站内信失败但任一推送成功 → 已投递（站内信失败只记日志，不触发无意义的重复推送）；
+//   - 全部失败 → 返回组合错误。
+//
+// 未配置的通道（errNotificationWebhookNotConfigured）不计入「已配置通道」，保持降级语义。
+func (s *compositeNotificationSender) deliver(ctx context.Context, channels []string, eventKey, eventType, aggregateRef string, payload map[string]interface{}) error {
 	recipients, err := resolveNotificationRecipients(ctx, s.inApp.db, eventType, aggregateRef, payload)
 	if err != nil {
 		return err
 	}
-	inAppErr := s.inApp.sendToRecipients(ctx, notifyChannelInApp, eventType, aggregateRef, payload, recipients)
-	delivered := inAppErr == nil
-	var lastErr error
+	inAppErr := s.inApp.sendToRecipients(ctx, notifyChannelInApp, eventKey, eventType, aggregateRef, payload, recipients)
+	if inAppErr != nil {
+		// 站内信失败但推送可能成功，这里先留痕；最终是否算投递由下方判定决定。
+		log.Printf("[esports][notification] 站内信投递失败 event=%s ref=%s err=%v", eventType, aggregateRef, inAppErr)
+	}
+	configured, pushed := 0, 0
+	var pushErr error
 	for _, channel := range channels {
 		err := s.webhook.send(ctx, channel, eventType, aggregateRef, payload, recipients)
-		if err == nil {
-			delivered = true
-			continue
-		}
 		if errors.Is(err, errNotificationWebhookNotConfigured) {
 			continue // 未配置 = 该通道未启用，不阻断站内信。
 		}
-		lastErr = err
+		configured++
+		if err == nil {
+			pushed++
+			continue
+		}
+		pushErr = fmt.Errorf("通道 %s 推送失败: %w", channel, err)
 	}
-	if delivered {
+	switch {
+	case inAppErr == nil && (configured == 0 || pushed > 0):
 		return nil
-	}
-	if lastErr != nil {
-		return lastErr
-	}
-	if inAppErr != nil {
+	case inAppErr == nil:
+		// 站内信成功、已配置推送通道全部失败：必须上抛，让事件进入重试/死信与失败待办。
+		return pushErr
+	case pushed > 0:
+		return nil
+	case pushErr != nil:
+		return errors.Join(inAppErr, pushErr)
+	default:
 		return inAppErr
 	}
-	return errNotificationSenderUnavailable
 }
 
 // messageNotificationSender 把通知逐收件人写入站内消息（admin_messages / ent.Message）：
 // user_uid 落具体地址（Admin.UID / customer:<id> / player:<id>），正文只含业务标题与摘要，
 // 事件载荷不再广播。完整载荷仍保留在 EsportsOutbox 供审计，消息 extra 只放必要字段。
+//
+// 幂等：同一事件可能因推送失败而被 outbox 反复重试，写站内信前先按「地址 + 事件定位键」
+// 查重，命中即跳过并视为成功，保证同一事件只产生一条站内信。
 type messageNotificationSender struct {
 	db *ent.Client
 }
@@ -244,24 +270,36 @@ func (s *messageNotificationSender) Send(ctx context.Context, channel, eventType
 	if err != nil {
 		return err
 	}
-	return s.sendToRecipients(ctx, channel, eventType, aggregateRef, payload, recipients)
+	return s.sendToRecipients(ctx, channel, "", eventType, aggregateRef, payload, recipients)
 }
 
-func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channel, eventType, aggregateRef string, payload map[string]interface{}, recipients []notificationRecipient) error {
+func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channel, eventKey, eventType, aggregateRef string, payload map[string]interface{}, recipients []notificationRecipient) error {
 	if len(recipients) == 0 {
 		return errNotificationRecipientMissing
 	}
 	title := notificationEventTitle(eventType)
 	summary := notificationEventSummary(eventType, aggregateRef, payload)
+	dedupeKey := notificationMessageDedupeKey(eventKey, eventType, aggregateRef)
 	for _, recipient := range recipients {
 		if strings.TrimSpace(recipient.Address) == "" {
 			return errNotificationRecipientMissing
+		}
+		sent, err := s.messageAlreadySent(ctx, recipient.Address, dedupeKey)
+		if err != nil {
+			return err
+		}
+		if sent {
+			continue // 该事件已给此收件人写过站内信，重试时跳过。
 		}
 		extra := map[string]interface{}{
 			"channel":       channel,
 			"event_type":    eventType,
 			"aggregate_ref": aggregateRef,
 			"roles":         recipient.Roles,
+			"dedupe_key":    dedupeKey,
+		}
+		if eventKey != "" {
+			extra["event_key"] = eventKey
 		}
 		if orderNo := notificationOrderNo(eventType, aggregateRef, payload); orderNo != "" {
 			extra["order_no"] = orderNo
@@ -271,7 +309,7 @@ func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channe
 		}
 		if _, err := s.db.Message.Create().
 			SetUserUID(recipient.Address).
-			SetType("business").
+			SetType(notificationMessageType).
 			SetLevel("info").
 			SetTitle(title).
 			SetContent(summary).
@@ -281,6 +319,50 @@ func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channe
 		}
 	}
 	return nil
+}
+
+// 站内信幂等参数。
+const (
+	notificationMessageType = "business"
+	// notificationMessageDedupeField 是写入 ent.Message.extra 的事件定位键字段名。
+	notificationMessageDedupeField = "dedupe_key"
+	// notificationMessageDedupeWindow 覆盖 outbox 的全部退避重试周期（8 次以内约 2 小时），
+	// 留足余量；查询命中 (user_uid, created_at) 索引且有条数上限。
+	notificationMessageDedupeWindow = 72 * time.Hour
+	// notificationMessageDedupeScan 限定单次查重的扫描行数，避免收件箱很大时全量加载。
+	notificationMessageDedupeScan = 200
+)
+
+// notificationMessageDedupeKey 生成事件定位键：优先 outbox 事件唯一键 eventKey
+// （同一 eventType + aggregateRef 的多次业务事件也能区分），缺失时退化为
+// eventType + aggregateRef，保证至少不会在重试中重复。
+func notificationMessageDedupeKey(eventKey, eventType, aggregateRef string) string {
+	if key := strings.TrimSpace(eventKey); key != "" {
+		return key
+	}
+	return eventType + "@" + aggregateRef
+}
+
+// messageAlreadySent 判断该收件人是否已收到同一事件的站内信。extra 是 JSON 字段，
+// ent 未生成可移植的 JSON 条件，这里按收件人 + 类型 + 时间窗取最近若干条在内存比对。
+func (s *messageNotificationSender) messageAlreadySent(ctx context.Context, address, dedupeKey string) (bool, error) {
+	if dedupeKey == "" {
+		return false, nil
+	}
+	recent, err := s.db.Message.Query().Where(
+		message.UserUIDEQ(address),
+		message.TypeEQ(notificationMessageType),
+		message.CreatedAtGTE(time.Now().UTC().Add(-notificationMessageDedupeWindow)),
+	).Order(ent.Desc(message.FieldID)).Limit(notificationMessageDedupeScan).All(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, row := range recent {
+		if stored, _ := row.Extra[notificationMessageDedupeField].(string); stored == dedupeKey {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // notificationEventText 是事件类型 → 业务可读标题的映射；未命中时按前缀给出通用标题。

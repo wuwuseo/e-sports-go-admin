@@ -165,6 +165,9 @@ type EsportsOrder func(*sql.Selector)
 // EsportsOrderAddon is the predicate function for esportsorderaddon builders.
 type EsportsOrderAddon func(*sql.Selector)
 
+// EsportsOrderCollaborator is the predicate function for esportsordercollaborator builders.
+type EsportsOrderCollaborator func(*sql.Selector)
+
 // EsportsOrderEvent is the predicate function for esportsorderevent builders.
 type EsportsOrderEvent func(*sql.Selector)
 

@@ -101,19 +101,25 @@ func TestScoreAssessmentPassAndQualify(t *testing.T) {
 	if err != nil || assessment.Status != esportsassessment.StatusPending || assessment.TargetLevel != "novice" {
 		t.Fatalf("创建入职考核失败：%+v, %v", assessment, err)
 	}
-	// 缺维度打分被拒。
-	if _, err := scoreAssessment(ctx, db, assessment.ID, 11, allDimensionScores(100)[:5], "缺维度", now); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("缺维度打分未被拦截：%v", err)
+	// 未分配考官时不可评分（即使创建人本人也不行）。
+	if _, err := scoreAssessment(ctx, db, assessment.ID, 11, allDimensionScores(100), "未分配考官", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("未分配考官打分未被拦截：%v", err)
 	}
 	// 分配考官。
 	assigned, err := assignAssessment(ctx, db, assessment.ID, 11, nil, now)
 	if err != nil || assigned.Status != esportsassessment.StatusScheduled || assigned.ExaminerAdminID == nil || *assigned.ExaminerAdminID != 11 {
 		t.Fatalf("分配考官失败：%+v, %v", assigned, err)
 	}
+	// 缺维度打分被拒。
+	if _, err := scoreAssessment(ctx, db, assessment.ID, 11, allDimensionScores(100)[:5], "缺维度", now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("缺维度打分未被拦截：%v", err)
+	}
 	// 非分配考官打分被拒。
 	if _, err := scoreAssessment(ctx, db, assessment.ID, 22, allDimensionScores(100), "越权", now); !errors.Is(err, errForbidden) {
 		t.Fatalf("越权打分未被拦截：%v", err)
 	}
+	// 定级为合格前须实名认证通过（§6.1）。
+	seedVerifiedIdentity(t, db, player.ID)
 	// 全 100 分，加权总分 100 ≥ 60 通过。
 	passed, err := scoreAssessment(ctx, db, assessment.ID, 11, allDimensionScores(100), "表现优秀", now)
 	if err != nil || passed.Status != esportsassessment.StatusPassed || passed.TotalScore != 100 {
@@ -149,6 +155,9 @@ func TestScoreAssessmentSpotCheckDemote(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := assignAssessment(ctx, db, assessment.ID, 11, nil, now); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := scoreAssessment(ctx, db, assessment.ID, 11, allDimensionScores(0), "质量下降", now); err != nil {
 		t.Fatal(err)
 	}
@@ -177,6 +186,9 @@ func TestAssessmentAppeal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := assignAssessment(ctx, db, assessment.ID, 11, nil, now); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := scoreAssessment(ctx, db, assessment.ID, 11, allDimensionScores(0), "未达标", now); err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +206,8 @@ func TestAssessmentAppeal(t *testing.T) {
 	if _, err := createAppeal(ctx, db, player.ID, assessment.ID, "再来一次", now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复申诉未被拦截：%v", err)
 	}
-	// 复核通过：failed → passed，重放定级。
+	// 复核通过：failed → passed，重放定级；改判同样受实名认证门槛约束（§6.1）。
+	seedVerifiedIdentity(t, db, player.ID)
 	reviewed, err := reviewAppeal(ctx, db, assessment.ID, 11, true, "成绩录入有误", now)
 	if err != nil || reviewed.Status != esportsassessment.StatusPassed || reviewed.AppealStatus != esportsassessment.AppealStatusApproved {
 		t.Fatalf("申诉复核失败：%+v, %v", reviewed, err)

@@ -4,8 +4,10 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/predicate"
 	"math"
 
@@ -18,10 +20,11 @@ import (
 // EsportsOrderQuery is the builder for querying EsportsOrder entities.
 type EsportsOrderQuery struct {
 	config
-	ctx        *QueryContext
-	order      []esportsorder.OrderOption
-	inters     []Interceptor
-	predicates []predicate.EsportsOrder
+	ctx               *QueryContext
+	order             []esportsorder.OrderOption
+	inters            []Interceptor
+	predicates        []predicate.EsportsOrder
+	withCollaborators *EsportsOrderCollaboratorQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -56,6 +59,28 @@ func (_q *EsportsOrderQuery) Unique(unique bool) *EsportsOrderQuery {
 func (_q *EsportsOrderQuery) Order(o ...esportsorder.OrderOption) *EsportsOrderQuery {
 	_q.order = append(_q.order, o...)
 	return _q
+}
+
+// QueryCollaborators chains the current query on the "collaborators" edge.
+func (_q *EsportsOrderQuery) QueryCollaborators() *EsportsOrderCollaboratorQuery {
+	query := (&EsportsOrderCollaboratorClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(esportsorder.Table, esportsorder.FieldID, selector),
+			sqlgraph.To(esportsordercollaborator.Table, esportsordercollaborator.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, esportsorder.CollaboratorsTable, esportsorder.CollaboratorsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first EsportsOrder entity from the query.
@@ -245,15 +270,27 @@ func (_q *EsportsOrderQuery) Clone() *EsportsOrderQuery {
 		return nil
 	}
 	return &EsportsOrderQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]esportsorder.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.EsportsOrder{}, _q.predicates...),
+		config:            _q.config,
+		ctx:               _q.ctx.Clone(),
+		order:             append([]esportsorder.OrderOption{}, _q.order...),
+		inters:            append([]Interceptor{}, _q.inters...),
+		predicates:        append([]predicate.EsportsOrder{}, _q.predicates...),
+		withCollaborators: _q.withCollaborators.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
+}
+
+// WithCollaborators tells the query-builder to eager-load the nodes that are connected to
+// the "collaborators" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *EsportsOrderQuery) WithCollaborators(opts ...func(*EsportsOrderCollaboratorQuery)) *EsportsOrderQuery {
+	query := (&EsportsOrderCollaboratorClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withCollaborators = query
+	return _q
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -332,8 +369,11 @@ func (_q *EsportsOrderQuery) prepareQuery(ctx context.Context) error {
 
 func (_q *EsportsOrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*EsportsOrder, error) {
 	var (
-		nodes = []*EsportsOrder{}
-		_spec = _q.querySpec()
+		nodes       = []*EsportsOrder{}
+		_spec       = _q.querySpec()
+		loadedTypes = [1]bool{
+			_q.withCollaborators != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*EsportsOrder).scanValues(nil, columns)
@@ -341,6 +381,7 @@ func (_q *EsportsOrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &EsportsOrder{config: _q.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -352,7 +393,47 @@ func (_q *EsportsOrderQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := _q.withCollaborators; query != nil {
+		if err := _q.loadCollaborators(ctx, query, nodes,
+			func(n *EsportsOrder) { n.Edges.Collaborators = []*EsportsOrderCollaborator{} },
+			func(n *EsportsOrder, e *EsportsOrderCollaborator) {
+				n.Edges.Collaborators = append(n.Edges.Collaborators, e)
+			}); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (_q *EsportsOrderQuery) loadCollaborators(ctx context.Context, query *EsportsOrderCollaboratorQuery, nodes []*EsportsOrder, init func(*EsportsOrder), assign func(*EsportsOrder, *EsportsOrderCollaborator)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*EsportsOrder)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(esportsordercollaborator.FieldOrderID)
+	}
+	query.Where(predicate.EsportsOrderCollaborator(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(esportsorder.CollaboratorsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.OrderID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "order_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (_q *EsportsOrderQuery) sqlCount(ctx context.Context) (int, error) {

@@ -2,6 +2,8 @@ package esports
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -301,7 +303,9 @@ func scoreAssessment(ctx context.Context, db *ent.Client, id, adminID int, score
 	if assessment.Status != esportsassessment.StatusPending && assessment.Status != esportsassessment.StatusScheduled {
 		return nil, errConflict
 	}
-	if assessment.ExaminerAdminID != nil && *assessment.ExaminerAdminID != adminID {
+	// 考官必须先分配、且就是当前操作人。未分配考官（ExaminerAdminID == nil）的任务一律不可评分：
+	// 否则任何持有评分权限的管理员都能越过「分配考官」直接打分并推动定级，考核流程形同虚设。
+	if assessment.ExaminerAdminID == nil || *assessment.ExaminerAdminID != adminID {
 		return nil, errForbidden
 	}
 	weights, err := resolveAssessmentWeights(ctx, tx.Client(), assessment.AssessmentType.String())
@@ -377,6 +381,14 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 		esportsassessment.AssessmentTypeRetry:
 		if !passed {
 			return nil
+		}
+		// 与 updatePlayer 手工改档同一道门槛（§6.1）：考核通过也不能把未通过实名认证的陪玩设为「合格」。
+		// 返回错误即由调用方事务回滚，评分明细与考核状态都不会落地。
+		if err := ensurePlayerQualificationAllowed(ctx, tx.Client(), player.ID, esportsplayer.QualificationQualified); err != nil {
+			if errors.Is(err, errInvalidInput) {
+				return fmt.Errorf("%w：考核通过但陪玩实名认证未通过，不得设为合格", errInvalidInput)
+			}
+			return err
 		}
 		level := assessment.TargetLevel
 		if !validPlayerLevel(level) {

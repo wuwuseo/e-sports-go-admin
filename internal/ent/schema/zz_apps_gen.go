@@ -170,6 +170,10 @@ type EsportsOrderAddon struct {
 	appschemaesports.EsportsOrderAddon
 }
 
+type EsportsOrderCollaborator struct {
+	appschemaesports.EsportsOrderCollaborator
+}
+
 type EsportsOrderEvent struct {
 	appschemaesports.EsportsOrderEvent
 }

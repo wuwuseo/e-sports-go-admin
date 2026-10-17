@@ -21,6 +21,8 @@ import (
 // 口径：
 //   - blocking=true 的项缺失会让交易主链路完全不可用（功能总开关、订单支付时限）；
 //   - 其余项缺失只让某个能力降级（例如在线收款不可用，但人工核验链路仍可跑），不阻断上线；
+//   - ready 只是「配置自检通过」，等于「可以开始按功能列表做业务验收」，不等于 P0 已交付；
+//     真实支付 / 打款退款 / 企微宿主 / 推送网关仍需在业务环境端到端验收（见 Scope / Caveat 字段）；
 //   - 本接口只回报「是否配置」，绝不回显密钥、商户号、回调地址等敏感值。
 
 // 自检状态。
@@ -46,8 +48,14 @@ type readinessCheck struct {
 
 // readinessReport 上线自检报告。
 type readinessReport struct {
-	// Ready 是否满足上线最低条件（无 blocking 缺失项）。
+	// Ready 是否满足上线**配置**最低条件（无 blocking 缺失项）。
+	// 注意：ready 只代表「跑通交易主链路所需的配置已齐备」，不代表 P0 功能清单已验收、
+	// 也不代表真实支付 / 企微宿主 / 推送网关已在业务环境联调通过——后者必须人工端到端验收。
 	Ready bool `json:"ready"`
+	// Scope 说明本报告覆盖范围，避免把配置自检当成验收结论。
+	Scope string `json:"scope"`
+	// Caveat 说明 ready=true 仍不覆盖的内容（P0 功能与真实通道验收）。
+	Caveat string `json:"caveat"`
 	// Blockers / Degraded 阻断项与降级项数量，便于后台直接显示徽标。
 	Blockers    int              `json:"blockers"`
 	Degraded    int              `json:"degraded"`
@@ -55,9 +63,20 @@ type readinessReport struct {
 	Checks      []readinessCheck `json:"checks"`
 }
 
+// readinessScope / readinessCaveat 是本接口对外声明的口径，由 handler 原样返回。
+const (
+	readinessScope  = "配置自检：只判断功能开关、订单支付时限、收款通道参数、推送网关、企微应用等运行配置是否齐备"
+	readinessCaveat = "ready=true 不代表 P0 功能已验收，也不代表真实支付 / 打款退款 / 企微宿主 / 推送通道已在业务环境联调通过；这些须按功能列表逐项做端到端验收"
+)
+
 // systemReadiness 生成上线自检报告。getenv 注入便于测试，生产传 os.Getenv。
 func systemReadiness(ctx context.Context, db *ent.Client, getenv func(string) string) *readinessReport {
-	report := &readinessReport{GeneratedAt: time.Now().UTC(), Checks: []readinessCheck{}}
+	report := &readinessReport{
+		GeneratedAt: time.Now().UTC(),
+		Scope:       readinessScope,
+		Caveat:      readinessCaveat,
+		Checks:      []readinessCheck{},
+	}
 	add := func(check readinessCheck) {
 		if check.Status == readinessMissing && check.Blocking {
 			report.Blockers++

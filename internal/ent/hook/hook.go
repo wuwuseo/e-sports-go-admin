@@ -644,6 +644,18 @@ func (f EsportsOrderAddonFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsOrderAddonMutation", m)
 }
 
+// The EsportsOrderCollaboratorFunc type is an adapter to allow the use of ordinary
+// function as EsportsOrderCollaborator mutator.
+type EsportsOrderCollaboratorFunc func(context.Context, *ent.EsportsOrderCollaboratorMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsOrderCollaboratorFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsOrderCollaboratorMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsOrderCollaboratorMutation", m)
+}
+
 // The EsportsOrderEventFunc type is an adapter to allow the use of ordinary
 // function as EsportsOrderEvent mutator.
 type EsportsOrderEventFunc func(context.Context, *ent.EsportsOrderEventMutation) (ent.Value, error)

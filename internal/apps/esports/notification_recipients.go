@@ -20,11 +20,10 @@ import (
 //   - 管理员：直接写 Admin.UID。后台消息中心（/api/v1/admin/auth/messages）按登录态 uid
 //     （即 Admin.UID）读取，因此只有真实 UID 才能被客服看到；Admin 档案缺失时才退回
 //     `admin:<admin_id>` 兜底地址。
-//   - 客户 / 陪玩：写入 `customer:<customer_id>` / `player:<player_id>`。当前 uniapp 只有
-//     陪玩优先通知（/user/player/dispatch-notices 读 EsportsDispatchPriorityNotice），
-//     客户与陪玩都没有通用站内消息读取接口，因此这两个前缀是稳定的可寻址身份，
-//     由推送网关（webhook）按 address 路由到客户端；后续若新增客户端消息中心，
-//     直接按同一地址读取 ent.Message 即可，无需改投递侧。
+//   - 客户 / 陪玩：写入 `customer:<customer_id>` / `player:<player_id>`。这两个前缀是稳定的
+//     可寻址身份，推送网关（webhook）按 address 路由到客户端；站内消息由客户端消息中心
+//     按同一地址读取：客户 GET /user/messages、陪玩 GET /user/player/messages
+//     （见 client_messages.go），已读回执为对应 POST .../messages/read。
 //
 // 任何事件都必须解析出至少一个非空地址；解析不到时返回 errNotificationRecipientMissing，
 // 由外盒退避重试直至 dead，绝不降级为 user_uid="" 的全员广播。

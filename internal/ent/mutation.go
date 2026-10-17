@@ -60,6 +60,7 @@ import (
 	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportspageasset"
@@ -186,6 +187,7 @@ const (
 	TypeEsportsOfflinePaymentProof     = "EsportsOfflinePaymentProof"
 	TypeEsportsOrder                   = "EsportsOrder"
 	TypeEsportsOrderAddon              = "EsportsOrderAddon"
+	TypeEsportsOrderCollaborator       = "EsportsOrderCollaborator"
 	TypeEsportsOrderEvent              = "EsportsOrderEvent"
 	TypeEsportsOutbox                  = "EsportsOutbox"
 	TypeEsportsPageAsset               = "EsportsPageAsset"
@@ -61078,6 +61080,9 @@ type EsportsOrderMutation struct {
 	created_at                                *time.Time
 	updated_at                                *time.Time
 	clearedFields                             map[string]struct{}
+	collaborators                             map[int]struct{}
+	removedcollaborators                      map[int]struct{}
+	clearedcollaborators                      bool
 	done                                      bool
 	oldValue                                  func(context.Context) (*EsportsOrder, error)
 	predicates                                []predicate.EsportsOrder
@@ -64533,6 +64538,60 @@ func (m *EsportsOrderMutation) ResetUpdatedAt() {
 	m.updated_at = nil
 }
 
+// AddCollaboratorIDs adds the "collaborators" edge to the EsportsOrderCollaborator entity by ids.
+func (m *EsportsOrderMutation) AddCollaboratorIDs(ids ...int) {
+	if m.collaborators == nil {
+		m.collaborators = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.collaborators[ids[i]] = struct{}{}
+	}
+}
+
+// ClearCollaborators clears the "collaborators" edge to the EsportsOrderCollaborator entity.
+func (m *EsportsOrderMutation) ClearCollaborators() {
+	m.clearedcollaborators = true
+}
+
+// CollaboratorsCleared reports if the "collaborators" edge to the EsportsOrderCollaborator entity was cleared.
+func (m *EsportsOrderMutation) CollaboratorsCleared() bool {
+	return m.clearedcollaborators
+}
+
+// RemoveCollaboratorIDs removes the "collaborators" edge to the EsportsOrderCollaborator entity by IDs.
+func (m *EsportsOrderMutation) RemoveCollaboratorIDs(ids ...int) {
+	if m.removedcollaborators == nil {
+		m.removedcollaborators = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.collaborators, ids[i])
+		m.removedcollaborators[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedCollaborators returns the removed IDs of the "collaborators" edge to the EsportsOrderCollaborator entity.
+func (m *EsportsOrderMutation) RemovedCollaboratorsIDs() (ids []int) {
+	for id := range m.removedcollaborators {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// CollaboratorsIDs returns the "collaborators" edge IDs in the mutation.
+func (m *EsportsOrderMutation) CollaboratorsIDs() (ids []int) {
+	for id := range m.collaborators {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetCollaborators resets all changes to the "collaborators" edge.
+func (m *EsportsOrderMutation) ResetCollaborators() {
+	m.collaborators = nil
+	m.clearedcollaborators = false
+	m.removedcollaborators = nil
+}
+
 // Where appends a list predicates to the EsportsOrderMutation builder.
 func (m *EsportsOrderMutation) Where(ps ...predicate.EsportsOrder) {
 	m.predicates = append(m.predicates, ps...)
@@ -66300,49 +66359,85 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *EsportsOrderMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.collaborators != nil {
+		edges = append(edges, esportsorder.EdgeCollaborators)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *EsportsOrderMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case esportsorder.EdgeCollaborators:
+		ids := make([]ent.Value, 0, len(m.collaborators))
+		for id := range m.collaborators {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *EsportsOrderMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedcollaborators != nil {
+		edges = append(edges, esportsorder.EdgeCollaborators)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *EsportsOrderMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case esportsorder.EdgeCollaborators:
+		ids := make([]ent.Value, 0, len(m.removedcollaborators))
+		for id := range m.removedcollaborators {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *EsportsOrderMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedcollaborators {
+		edges = append(edges, esportsorder.EdgeCollaborators)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *EsportsOrderMutation) EdgeCleared(name string) bool {
+	switch name {
+	case esportsorder.EdgeCollaborators:
+		return m.clearedcollaborators
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *EsportsOrderMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown EsportsOrder unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsOrderMutation) ResetEdge(name string) error {
+	switch name {
+	case esportsorder.EdgeCollaborators:
+		m.ResetCollaborators()
+		return nil
+	}
 	return fmt.Errorf("unknown EsportsOrder edge %s", name)
 }
 
@@ -68291,6 +68386,640 @@ func (m *EsportsOrderAddonMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsOrderAddonMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsOrderAddon edge %s", name)
+}
+
+// EsportsOrderCollaboratorMutation represents an operation that mutates the EsportsOrderCollaborator nodes in the graph.
+type EsportsOrderCollaboratorMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *int
+	admin_id               *int
+	addadmin_id            *int
+	granted_by_admin_id    *int
+	addgranted_by_admin_id *int
+	created_at             *time.Time
+	clearedFields          map[string]struct{}
+	_order                 *int
+	cleared_order          bool
+	done                   bool
+	oldValue               func(context.Context) (*EsportsOrderCollaborator, error)
+	predicates             []predicate.EsportsOrderCollaborator
+}
+
+var _ ent.Mutation = (*EsportsOrderCollaboratorMutation)(nil)
+
+// esportsordercollaboratorOption allows management of the mutation configuration using functional options.
+type esportsordercollaboratorOption func(*EsportsOrderCollaboratorMutation)
+
+// newEsportsOrderCollaboratorMutation creates new mutation for the EsportsOrderCollaborator entity.
+func newEsportsOrderCollaboratorMutation(c config, op Op, opts ...esportsordercollaboratorOption) *EsportsOrderCollaboratorMutation {
+	m := &EsportsOrderCollaboratorMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsOrderCollaborator,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsOrderCollaboratorID sets the ID field of the mutation.
+func withEsportsOrderCollaboratorID(id int) esportsordercollaboratorOption {
+	return func(m *EsportsOrderCollaboratorMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsOrderCollaborator
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsOrderCollaborator, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsOrderCollaborator.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsOrderCollaborator sets the old EsportsOrderCollaborator of the mutation.
+func withEsportsOrderCollaborator(node *EsportsOrderCollaborator) esportsordercollaboratorOption {
+	return func(m *EsportsOrderCollaboratorMutation) {
+		m.oldValue = func(context.Context) (*EsportsOrderCollaborator, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsOrderCollaboratorMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsOrderCollaboratorMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsOrderCollaboratorMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsOrderCollaboratorMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsOrderCollaborator.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *EsportsOrderCollaboratorMutation) SetOrderID(i int) {
+	m._order = &i
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *EsportsOrderCollaboratorMutation) OrderID() (r int, exists bool) {
+	v := m._order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the EsportsOrderCollaborator entity.
+// If the EsportsOrderCollaborator object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderCollaboratorMutation) OldOrderID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *EsportsOrderCollaboratorMutation) ResetOrderID() {
+	m._order = nil
+}
+
+// SetAdminID sets the "admin_id" field.
+func (m *EsportsOrderCollaboratorMutation) SetAdminID(i int) {
+	m.admin_id = &i
+	m.addadmin_id = nil
+}
+
+// AdminID returns the value of the "admin_id" field in the mutation.
+func (m *EsportsOrderCollaboratorMutation) AdminID() (r int, exists bool) {
+	v := m.admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdminID returns the old "admin_id" field's value of the EsportsOrderCollaborator entity.
+// If the EsportsOrderCollaborator object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderCollaboratorMutation) OldAdminID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdminID: %w", err)
+	}
+	return oldValue.AdminID, nil
+}
+
+// AddAdminID adds i to the "admin_id" field.
+func (m *EsportsOrderCollaboratorMutation) AddAdminID(i int) {
+	if m.addadmin_id != nil {
+		*m.addadmin_id += i
+	} else {
+		m.addadmin_id = &i
+	}
+}
+
+// AddedAdminID returns the value that was added to the "admin_id" field in this mutation.
+func (m *EsportsOrderCollaboratorMutation) AddedAdminID() (r int, exists bool) {
+	v := m.addadmin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAdminID resets all changes to the "admin_id" field.
+func (m *EsportsOrderCollaboratorMutation) ResetAdminID() {
+	m.admin_id = nil
+	m.addadmin_id = nil
+}
+
+// SetGrantedByAdminID sets the "granted_by_admin_id" field.
+func (m *EsportsOrderCollaboratorMutation) SetGrantedByAdminID(i int) {
+	m.granted_by_admin_id = &i
+	m.addgranted_by_admin_id = nil
+}
+
+// GrantedByAdminID returns the value of the "granted_by_admin_id" field in the mutation.
+func (m *EsportsOrderCollaboratorMutation) GrantedByAdminID() (r int, exists bool) {
+	v := m.granted_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrantedByAdminID returns the old "granted_by_admin_id" field's value of the EsportsOrderCollaborator entity.
+// If the EsportsOrderCollaborator object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderCollaboratorMutation) OldGrantedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrantedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrantedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrantedByAdminID: %w", err)
+	}
+	return oldValue.GrantedByAdminID, nil
+}
+
+// AddGrantedByAdminID adds i to the "granted_by_admin_id" field.
+func (m *EsportsOrderCollaboratorMutation) AddGrantedByAdminID(i int) {
+	if m.addgranted_by_admin_id != nil {
+		*m.addgranted_by_admin_id += i
+	} else {
+		m.addgranted_by_admin_id = &i
+	}
+}
+
+// AddedGrantedByAdminID returns the value that was added to the "granted_by_admin_id" field in this mutation.
+func (m *EsportsOrderCollaboratorMutation) AddedGrantedByAdminID() (r int, exists bool) {
+	v := m.addgranted_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGrantedByAdminID clears the value of the "granted_by_admin_id" field.
+func (m *EsportsOrderCollaboratorMutation) ClearGrantedByAdminID() {
+	m.granted_by_admin_id = nil
+	m.addgranted_by_admin_id = nil
+	m.clearedFields[esportsordercollaborator.FieldGrantedByAdminID] = struct{}{}
+}
+
+// GrantedByAdminIDCleared returns if the "granted_by_admin_id" field was cleared in this mutation.
+func (m *EsportsOrderCollaboratorMutation) GrantedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsordercollaborator.FieldGrantedByAdminID]
+	return ok
+}
+
+// ResetGrantedByAdminID resets all changes to the "granted_by_admin_id" field.
+func (m *EsportsOrderCollaboratorMutation) ResetGrantedByAdminID() {
+	m.granted_by_admin_id = nil
+	m.addgranted_by_admin_id = nil
+	delete(m.clearedFields, esportsordercollaborator.FieldGrantedByAdminID)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsOrderCollaboratorMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsOrderCollaboratorMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsOrderCollaborator entity.
+// If the EsportsOrderCollaborator object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderCollaboratorMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsOrderCollaboratorMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// ClearOrder clears the "order" edge to the EsportsOrder entity.
+func (m *EsportsOrderCollaboratorMutation) ClearOrder() {
+	m.cleared_order = true
+	m.clearedFields[esportsordercollaborator.FieldOrderID] = struct{}{}
+}
+
+// OrderCleared reports if the "order" edge to the EsportsOrder entity was cleared.
+func (m *EsportsOrderCollaboratorMutation) OrderCleared() bool {
+	return m.cleared_order
+}
+
+// OrderIDs returns the "order" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// OrderID instead. It exists only for internal usage by the builders.
+func (m *EsportsOrderCollaboratorMutation) OrderIDs() (ids []int) {
+	if id := m._order; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetOrder resets all changes to the "order" edge.
+func (m *EsportsOrderCollaboratorMutation) ResetOrder() {
+	m._order = nil
+	m.cleared_order = false
+}
+
+// Where appends a list predicates to the EsportsOrderCollaboratorMutation builder.
+func (m *EsportsOrderCollaboratorMutation) Where(ps ...predicate.EsportsOrderCollaborator) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsOrderCollaboratorMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsOrderCollaboratorMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsOrderCollaborator, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsOrderCollaboratorMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsOrderCollaboratorMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsOrderCollaborator).
+func (m *EsportsOrderCollaboratorMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsOrderCollaboratorMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m._order != nil {
+		fields = append(fields, esportsordercollaborator.FieldOrderID)
+	}
+	if m.admin_id != nil {
+		fields = append(fields, esportsordercollaborator.FieldAdminID)
+	}
+	if m.granted_by_admin_id != nil {
+		fields = append(fields, esportsordercollaborator.FieldGrantedByAdminID)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsordercollaborator.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsOrderCollaboratorMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsordercollaborator.FieldOrderID:
+		return m.OrderID()
+	case esportsordercollaborator.FieldAdminID:
+		return m.AdminID()
+	case esportsordercollaborator.FieldGrantedByAdminID:
+		return m.GrantedByAdminID()
+	case esportsordercollaborator.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsOrderCollaboratorMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsordercollaborator.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case esportsordercollaborator.FieldAdminID:
+		return m.OldAdminID(ctx)
+	case esportsordercollaborator.FieldGrantedByAdminID:
+		return m.OldGrantedByAdminID(ctx)
+	case esportsordercollaborator.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsOrderCollaborator field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsOrderCollaboratorMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsordercollaborator.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case esportsordercollaborator.FieldAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdminID(v)
+		return nil
+	case esportsordercollaborator.FieldGrantedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrantedByAdminID(v)
+		return nil
+	case esportsordercollaborator.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsOrderCollaborator field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsOrderCollaboratorMutation) AddedFields() []string {
+	var fields []string
+	if m.addadmin_id != nil {
+		fields = append(fields, esportsordercollaborator.FieldAdminID)
+	}
+	if m.addgranted_by_admin_id != nil {
+		fields = append(fields, esportsordercollaborator.FieldGrantedByAdminID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsOrderCollaboratorMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsordercollaborator.FieldAdminID:
+		return m.AddedAdminID()
+	case esportsordercollaborator.FieldGrantedByAdminID:
+		return m.AddedGrantedByAdminID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsOrderCollaboratorMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsordercollaborator.FieldAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAdminID(v)
+		return nil
+	case esportsordercollaborator.FieldGrantedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGrantedByAdminID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsOrderCollaborator numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsOrderCollaboratorMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsordercollaborator.FieldGrantedByAdminID) {
+		fields = append(fields, esportsordercollaborator.FieldGrantedByAdminID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsOrderCollaboratorMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsOrderCollaboratorMutation) ClearField(name string) error {
+	switch name {
+	case esportsordercollaborator.FieldGrantedByAdminID:
+		m.ClearGrantedByAdminID()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsOrderCollaborator nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsOrderCollaboratorMutation) ResetField(name string) error {
+	switch name {
+	case esportsordercollaborator.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case esportsordercollaborator.FieldAdminID:
+		m.ResetAdminID()
+		return nil
+	case esportsordercollaborator.FieldGrantedByAdminID:
+		m.ResetGrantedByAdminID()
+		return nil
+	case esportsordercollaborator.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsOrderCollaborator field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsOrderCollaboratorMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m._order != nil {
+		edges = append(edges, esportsordercollaborator.EdgeOrder)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsOrderCollaboratorMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case esportsordercollaborator.EdgeOrder:
+		if id := m._order; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsOrderCollaboratorMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsOrderCollaboratorMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsOrderCollaboratorMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.cleared_order {
+		edges = append(edges, esportsordercollaborator.EdgeOrder)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsOrderCollaboratorMutation) EdgeCleared(name string) bool {
+	switch name {
+	case esportsordercollaborator.EdgeOrder:
+		return m.cleared_order
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsOrderCollaboratorMutation) ClearEdge(name string) error {
+	switch name {
+	case esportsordercollaborator.EdgeOrder:
+		m.ClearOrder()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsOrderCollaborator unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsOrderCollaboratorMutation) ResetEdge(name string) error {
+	switch name {
+	case esportsordercollaborator.EdgeOrder:
+		m.ResetOrder()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsOrderCollaborator edge %s", name)
 }
 
 // EsportsOrderEventMutation represents an operation that mutates the EsportsOrderEvent nodes in the graph.

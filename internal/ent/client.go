@@ -64,6 +64,7 @@ import (
 	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportspageasset"
@@ -238,6 +239,8 @@ type Client struct {
 	EsportsOrder *EsportsOrderClient
 	// EsportsOrderAddon is the client for interacting with the EsportsOrderAddon builders.
 	EsportsOrderAddon *EsportsOrderAddonClient
+	// EsportsOrderCollaborator is the client for interacting with the EsportsOrderCollaborator builders.
+	EsportsOrderCollaborator *EsportsOrderCollaboratorClient
 	// EsportsOrderEvent is the client for interacting with the EsportsOrderEvent builders.
 	EsportsOrderEvent *EsportsOrderEventClient
 	// EsportsOutbox is the client for interacting with the EsportsOutbox builders.
@@ -414,6 +417,7 @@ func (c *Client) init() {
 	c.EsportsOfflinePaymentProof = NewEsportsOfflinePaymentProofClient(c.config)
 	c.EsportsOrder = NewEsportsOrderClient(c.config)
 	c.EsportsOrderAddon = NewEsportsOrderAddonClient(c.config)
+	c.EsportsOrderCollaborator = NewEsportsOrderCollaboratorClient(c.config)
 	c.EsportsOrderEvent = NewEsportsOrderEventClient(c.config)
 	c.EsportsOutbox = NewEsportsOutboxClient(c.config)
 	c.EsportsPageAsset = NewEsportsPageAssetClient(c.config)
@@ -615,6 +619,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsOfflinePaymentProof:     NewEsportsOfflinePaymentProofClient(cfg),
 		EsportsOrder:                   NewEsportsOrderClient(cfg),
 		EsportsOrderAddon:              NewEsportsOrderAddonClient(cfg),
+		EsportsOrderCollaborator:       NewEsportsOrderCollaboratorClient(cfg),
 		EsportsOrderEvent:              NewEsportsOrderEventClient(cfg),
 		EsportsOutbox:                  NewEsportsOutboxClient(cfg),
 		EsportsPageAsset:               NewEsportsPageAssetClient(cfg),
@@ -743,6 +748,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsOfflinePaymentProof:     NewEsportsOfflinePaymentProofClient(cfg),
 		EsportsOrder:                   NewEsportsOrderClient(cfg),
 		EsportsOrderAddon:              NewEsportsOrderAddonClient(cfg),
+		EsportsOrderCollaborator:       NewEsportsOrderCollaboratorClient(cfg),
 		EsportsOrderEvent:              NewEsportsOrderEventClient(cfg),
 		EsportsOutbox:                  NewEsportsOutboxClient(cfg),
 		EsportsPageAsset:               NewEsportsPageAssetClient(cfg),
@@ -844,23 +850,23 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsGrowthLedger, c.EsportsIdempotency, c.EsportsIdentityBinding,
 		c.EsportsLedgerAllocation, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
 		c.EsportsMemberLevelRule, c.EsportsOfflinePaymentProof, c.EsportsOrder,
-		c.EsportsOrderAddon, c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
-		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentAccount,
-		c.EsportsPaymentIntent, c.EsportsPaymentReceipt, c.EsportsPaymentReversal,
-		c.EsportsPlayer, c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity,
-		c.EsportsPlayerRecovery, c.EsportsPlayerReview, c.EsportsPlayerReviewRevision,
-		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent, c.EsportsProduct,
-		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
-		c.EsportsRechargeIntent, c.EsportsRechargeRefundExecution,
-		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
-		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
-		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
-		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
-		c.EsportsSpecGroup, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
-		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
-		c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsOrderAddon, c.EsportsOrderCollaborator, c.EsportsOrderEvent,
+		c.EsportsOutbox, c.EsportsPageAsset, c.EsportsPageDocument,
+		c.EsportsPageVersion, c.EsportsPaymentAccount, c.EsportsPaymentIntent,
+		c.EsportsPaymentReceipt, c.EsportsPaymentReversal, c.EsportsPlayer,
+		c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity, c.EsportsPlayerRecovery,
+		c.EsportsPlayerReview, c.EsportsPlayerReviewRevision, c.EsportsPriceAdjustment,
+		c.EsportsPriorityBookingIntent, c.EsportsProduct, c.EsportsProductCategory,
+		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsRechargeIntent,
+		c.EsportsRechargeRefundExecution, c.EsportsReportExport,
+		c.EsportsRescheduleConfirmation, c.EsportsRescheduleProposal, c.EsportsScript,
+		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
+		c.EsportsSettlementCycle, c.EsportsSku, c.EsportsSkuSuspension,
+		c.EsportsSkuSuspensionItem, c.EsportsSpecGroup, c.EsportsStoredValueCard,
+		c.EsportsStoredValuePackage, c.EsportsTeammate, c.EsportsWalletAccount,
+		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
@@ -887,23 +893,23 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsGrowthLedger, c.EsportsIdempotency, c.EsportsIdentityBinding,
 		c.EsportsLedgerAllocation, c.EsportsLedgerEntry, c.EsportsMemberLevelOverride,
 		c.EsportsMemberLevelRule, c.EsportsOfflinePaymentProof, c.EsportsOrder,
-		c.EsportsOrderAddon, c.EsportsOrderEvent, c.EsportsOutbox, c.EsportsPageAsset,
-		c.EsportsPageDocument, c.EsportsPageVersion, c.EsportsPaymentAccount,
-		c.EsportsPaymentIntent, c.EsportsPaymentReceipt, c.EsportsPaymentReversal,
-		c.EsportsPlayer, c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity,
-		c.EsportsPlayerRecovery, c.EsportsPlayerReview, c.EsportsPlayerReviewRevision,
-		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent, c.EsportsProduct,
-		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
-		c.EsportsRechargeIntent, c.EsportsRechargeRefundExecution,
-		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
-		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
-		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
-		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
-		c.EsportsSpecGroup, c.EsportsStoredValueCard, c.EsportsStoredValuePackage,
-		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
-		c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsOrderAddon, c.EsportsOrderCollaborator, c.EsportsOrderEvent,
+		c.EsportsOutbox, c.EsportsPageAsset, c.EsportsPageDocument,
+		c.EsportsPageVersion, c.EsportsPaymentAccount, c.EsportsPaymentIntent,
+		c.EsportsPaymentReceipt, c.EsportsPaymentReversal, c.EsportsPlayer,
+		c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity, c.EsportsPlayerRecovery,
+		c.EsportsPlayerReview, c.EsportsPlayerReviewRevision, c.EsportsPriceAdjustment,
+		c.EsportsPriorityBookingIntent, c.EsportsProduct, c.EsportsProductCategory,
+		c.EsportsQuotaHold, c.EsportsRechargeCampaign, c.EsportsRechargeIntent,
+		c.EsportsRechargeRefundExecution, c.EsportsReportExport,
+		c.EsportsRescheduleConfirmation, c.EsportsRescheduleProposal, c.EsportsScript,
+		c.EsportsSeatTransferRequest, c.EsportsServiceSegment, c.EsportsSettlement,
+		c.EsportsSettlementCycle, c.EsportsSku, c.EsportsSkuSuspension,
+		c.EsportsSkuSuspensionItem, c.EsportsSpecGroup, c.EsportsStoredValueCard,
+		c.EsportsStoredValuePackage, c.EsportsTeammate, c.EsportsWalletAccount,
+		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
@@ -1019,6 +1025,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsOrder.mutate(ctx, m)
 	case *EsportsOrderAddonMutation:
 		return c.EsportsOrderAddon.mutate(ctx, m)
+	case *EsportsOrderCollaboratorMutation:
+		return c.EsportsOrderCollaborator.mutate(ctx, m)
 	case *EsportsOrderEventMutation:
 		return c.EsportsOrderEvent.mutate(ctx, m)
 	case *EsportsOutboxMutation:
@@ -8161,6 +8169,22 @@ func (c *EsportsOrderClient) GetX(ctx context.Context, id int) *EsportsOrder {
 	return obj
 }
 
+// QueryCollaborators queries the collaborators edge of a EsportsOrder.
+func (c *EsportsOrderClient) QueryCollaborators(_m *EsportsOrder) *EsportsOrderCollaboratorQuery {
+	query := (&EsportsOrderCollaboratorClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(esportsorder.Table, esportsorder.FieldID, id),
+			sqlgraph.To(esportsordercollaborator.Table, esportsordercollaborator.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, esportsorder.CollaboratorsTable, esportsorder.CollaboratorsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *EsportsOrderClient) Hooks() []Hook {
 	return c.hooks.EsportsOrder
@@ -8316,6 +8340,155 @@ func (c *EsportsOrderAddonClient) mutate(ctx context.Context, m *EsportsOrderAdd
 		return (&EsportsOrderAddonDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsOrderAddon mutation op: %q", m.Op())
+	}
+}
+
+// EsportsOrderCollaboratorClient is a client for the EsportsOrderCollaborator schema.
+type EsportsOrderCollaboratorClient struct {
+	config
+}
+
+// NewEsportsOrderCollaboratorClient returns a client for the EsportsOrderCollaborator from the given config.
+func NewEsportsOrderCollaboratorClient(c config) *EsportsOrderCollaboratorClient {
+	return &EsportsOrderCollaboratorClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsordercollaborator.Hooks(f(g(h())))`.
+func (c *EsportsOrderCollaboratorClient) Use(hooks ...Hook) {
+	c.hooks.EsportsOrderCollaborator = append(c.hooks.EsportsOrderCollaborator, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsordercollaborator.Intercept(f(g(h())))`.
+func (c *EsportsOrderCollaboratorClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsOrderCollaborator = append(c.inters.EsportsOrderCollaborator, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsOrderCollaborator entity.
+func (c *EsportsOrderCollaboratorClient) Create() *EsportsOrderCollaboratorCreate {
+	mutation := newEsportsOrderCollaboratorMutation(c.config, OpCreate)
+	return &EsportsOrderCollaboratorCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsOrderCollaborator entities.
+func (c *EsportsOrderCollaboratorClient) CreateBulk(builders ...*EsportsOrderCollaboratorCreate) *EsportsOrderCollaboratorCreateBulk {
+	return &EsportsOrderCollaboratorCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsOrderCollaboratorClient) MapCreateBulk(slice any, setFunc func(*EsportsOrderCollaboratorCreate, int)) *EsportsOrderCollaboratorCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsOrderCollaboratorCreateBulk{err: fmt.Errorf("calling to EsportsOrderCollaboratorClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsOrderCollaboratorCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsOrderCollaboratorCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsOrderCollaborator.
+func (c *EsportsOrderCollaboratorClient) Update() *EsportsOrderCollaboratorUpdate {
+	mutation := newEsportsOrderCollaboratorMutation(c.config, OpUpdate)
+	return &EsportsOrderCollaboratorUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsOrderCollaboratorClient) UpdateOne(_m *EsportsOrderCollaborator) *EsportsOrderCollaboratorUpdateOne {
+	mutation := newEsportsOrderCollaboratorMutation(c.config, OpUpdateOne, withEsportsOrderCollaborator(_m))
+	return &EsportsOrderCollaboratorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsOrderCollaboratorClient) UpdateOneID(id int) *EsportsOrderCollaboratorUpdateOne {
+	mutation := newEsportsOrderCollaboratorMutation(c.config, OpUpdateOne, withEsportsOrderCollaboratorID(id))
+	return &EsportsOrderCollaboratorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsOrderCollaborator.
+func (c *EsportsOrderCollaboratorClient) Delete() *EsportsOrderCollaboratorDelete {
+	mutation := newEsportsOrderCollaboratorMutation(c.config, OpDelete)
+	return &EsportsOrderCollaboratorDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsOrderCollaboratorClient) DeleteOne(_m *EsportsOrderCollaborator) *EsportsOrderCollaboratorDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsOrderCollaboratorClient) DeleteOneID(id int) *EsportsOrderCollaboratorDeleteOne {
+	builder := c.Delete().Where(esportsordercollaborator.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsOrderCollaboratorDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsOrderCollaborator.
+func (c *EsportsOrderCollaboratorClient) Query() *EsportsOrderCollaboratorQuery {
+	return &EsportsOrderCollaboratorQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsOrderCollaborator},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsOrderCollaborator entity by its id.
+func (c *EsportsOrderCollaboratorClient) Get(ctx context.Context, id int) (*EsportsOrderCollaborator, error) {
+	return c.Query().Where(esportsordercollaborator.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsOrderCollaboratorClient) GetX(ctx context.Context, id int) *EsportsOrderCollaborator {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOrder queries the order edge of a EsportsOrderCollaborator.
+func (c *EsportsOrderCollaboratorClient) QueryOrder(_m *EsportsOrderCollaborator) *EsportsOrderQuery {
+	query := (&EsportsOrderClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(esportsordercollaborator.Table, esportsordercollaborator.FieldID, id),
+			sqlgraph.To(esportsorder.Table, esportsorder.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, esportsordercollaborator.OrderTable, esportsordercollaborator.OrderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsOrderCollaboratorClient) Hooks() []Hook {
+	return c.hooks.EsportsOrderCollaborator
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsOrderCollaboratorClient) Interceptors() []Interceptor {
+	return c.inters.EsportsOrderCollaborator
+}
+
+func (c *EsportsOrderCollaboratorClient) mutate(ctx context.Context, m *EsportsOrderCollaboratorMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsOrderCollaboratorCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsOrderCollaboratorUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsOrderCollaboratorUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsOrderCollaboratorDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsOrderCollaborator mutation op: %q", m.Op())
 	}
 }
 
@@ -15836,8 +16009,8 @@ type (
 		EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
 		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
 		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOfflinePaymentProof,
-		EsportsOrder, EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox,
-		EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
+		EsportsOrder, EsportsOrderAddon, EsportsOrderCollaborator, EsportsOrderEvent,
+		EsportsOutbox, EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
 		EsportsPaymentAccount, EsportsPaymentIntent, EsportsPaymentReceipt,
 		EsportsPaymentReversal, EsportsPlayer, EsportsPlayerCreditEvent,
 		EsportsPlayerIdentity, EsportsPlayerRecovery, EsportsPlayerReview,
@@ -15871,8 +16044,8 @@ type (
 		EsportsGiftOrder, EsportsGrowthLedger, EsportsIdempotency,
 		EsportsIdentityBinding, EsportsLedgerAllocation, EsportsLedgerEntry,
 		EsportsMemberLevelOverride, EsportsMemberLevelRule, EsportsOfflinePaymentProof,
-		EsportsOrder, EsportsOrderAddon, EsportsOrderEvent, EsportsOutbox,
-		EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
+		EsportsOrder, EsportsOrderAddon, EsportsOrderCollaborator, EsportsOrderEvent,
+		EsportsOutbox, EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
 		EsportsPaymentAccount, EsportsPaymentIntent, EsportsPaymentReceipt,
 		EsportsPaymentReversal, EsportsPlayer, EsportsPlayerCreditEvent,
 		EsportsPlayerIdentity, EsportsPlayerRecovery, EsportsPlayerReview,

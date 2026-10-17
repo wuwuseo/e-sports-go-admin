@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 
 	"github.com/wuwuseo/cmf/orm"
 )
@@ -146,12 +147,22 @@ const (
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
+	// EdgeCollaborators holds the string denoting the collaborators edge name in mutations.
+	EdgeCollaborators = "collaborators"
+	// CollaboratorsColumn is the table column denoting the collaborators relation/edge.
+	CollaboratorsColumn = "order_id"
 )
 
 // Table holds the table name of the esportsorder in the database.
 var TablePrefix = orm.GetTablePrefix()
 
 var Table = TablePrefix + "esports_orders"
+
+// CollaboratorsTable is the prefixed table for the collaborators relation/edge.
+var CollaboratorsTable = TablePrefix + "esports_order_collaborators"
+
+// CollaboratorsInverseTable is the prefixed table of the related entity.
+var CollaboratorsInverseTable = TablePrefix + "esports_order_collaborators"
 
 // Columns holds all SQL columns for esportsorder fields.
 var Columns = []string{
@@ -908,4 +919,25 @@ func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByUpdatedAt orders the results by the updated_at field.
 func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
+}
+
+// ByCollaboratorsCount orders the results by collaborators count.
+func ByCollaboratorsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newCollaboratorsStep(), opts...)
+	}
+}
+
+// ByCollaborators orders the results by collaborators terms.
+func ByCollaborators(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newCollaboratorsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newCollaboratorsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TablePrefix+"esports_order_collaborators", FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TablePrefix+"esports_order_collaborators", CollaboratorsColumn),
+	)
 }

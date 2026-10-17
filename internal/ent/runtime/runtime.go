@@ -56,6 +56,7 @@ import (
 	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportspageasset"
@@ -3627,6 +3628,20 @@ func init() {
 	esportsorderaddon.DefaultUpdatedAt = esportsorderaddonDescUpdatedAt.Default.(func() time.Time)
 	// esportsorderaddon.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsorderaddon.UpdateDefaultUpdatedAt = esportsorderaddonDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsordercollaboratorFields := schema.EsportsOrderCollaborator{}.Fields()
+	_ = esportsordercollaboratorFields
+	// esportsordercollaboratorDescOrderID is the schema descriptor for order_id field.
+	esportsordercollaboratorDescOrderID := esportsordercollaboratorFields[0].Descriptor()
+	// esportsordercollaborator.OrderIDValidator is a validator for the "order_id" field. It is called by the builders before save.
+	esportsordercollaborator.OrderIDValidator = esportsordercollaboratorDescOrderID.Validators[0].(func(int) error)
+	// esportsordercollaboratorDescAdminID is the schema descriptor for admin_id field.
+	esportsordercollaboratorDescAdminID := esportsordercollaboratorFields[1].Descriptor()
+	// esportsordercollaborator.AdminIDValidator is a validator for the "admin_id" field. It is called by the builders before save.
+	esportsordercollaborator.AdminIDValidator = esportsordercollaboratorDescAdminID.Validators[0].(func(int) error)
+	// esportsordercollaboratorDescCreatedAt is the schema descriptor for created_at field.
+	esportsordercollaboratorDescCreatedAt := esportsordercollaboratorFields[3].Descriptor()
+	// esportsordercollaborator.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsordercollaborator.DefaultCreatedAt = esportsordercollaboratorDescCreatedAt.Default.(func() time.Time)
 	esportsordereventFields := schema.EsportsOrderEvent{}.Fields()
 	_ = esportsordereventFields
 	// esportsordereventDescOrderID is the schema descriptor for order_id field.

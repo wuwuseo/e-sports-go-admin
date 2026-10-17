@@ -118,6 +118,8 @@ type Tx struct {
 	EsportsOrder *EsportsOrderClient
 	// EsportsOrderAddon is the client for interacting with the EsportsOrderAddon builders.
 	EsportsOrderAddon *EsportsOrderAddonClient
+	// EsportsOrderCollaborator is the client for interacting with the EsportsOrderCollaborator builders.
+	EsportsOrderCollaborator *EsportsOrderCollaboratorClient
 	// EsportsOrderEvent is the client for interacting with the EsportsOrderEvent builders.
 	EsportsOrderEvent *EsportsOrderEventClient
 	// EsportsOutbox is the client for interacting with the EsportsOutbox builders.
@@ -414,6 +416,7 @@ func (tx *Tx) init() {
 	tx.EsportsOfflinePaymentProof = NewEsportsOfflinePaymentProofClient(tx.config)
 	tx.EsportsOrder = NewEsportsOrderClient(tx.config)
 	tx.EsportsOrderAddon = NewEsportsOrderAddonClient(tx.config)
+	tx.EsportsOrderCollaborator = NewEsportsOrderCollaboratorClient(tx.config)
 	tx.EsportsOrderEvent = NewEsportsOrderEventClient(tx.config)
 	tx.EsportsOutbox = NewEsportsOutboxClient(tx.config)
 	tx.EsportsPageAsset = NewEsportsPageAssetClient(tx.config)

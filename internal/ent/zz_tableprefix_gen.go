@@ -55,6 +55,7 @@ import (
 	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportspageasset"
@@ -390,12 +391,21 @@ func initGeneratedTablePrefixes(prefix string) {
 	{
 		old := esportsorder.TablePrefix
 		esportsorder.TablePrefix = prefix
+		esportsorder.CollaboratorsInverseTable = prefix + strings.TrimPrefix(esportsorder.CollaboratorsInverseTable, old)
+		esportsorder.CollaboratorsTable = prefix + strings.TrimPrefix(esportsorder.CollaboratorsTable, old)
 		esportsorder.Table = prefix + strings.TrimPrefix(esportsorder.Table, old)
 	}
 	{
 		old := esportsorderaddon.TablePrefix
 		esportsorderaddon.TablePrefix = prefix
 		esportsorderaddon.Table = prefix + strings.TrimPrefix(esportsorderaddon.Table, old)
+	}
+	{
+		old := esportsordercollaborator.TablePrefix
+		esportsordercollaborator.TablePrefix = prefix
+		esportsordercollaborator.OrderInverseTable = prefix + strings.TrimPrefix(esportsordercollaborator.OrderInverseTable, old)
+		esportsordercollaborator.OrderTable = prefix + strings.TrimPrefix(esportsordercollaborator.OrderTable, old)
+		esportsordercollaborator.Table = prefix + strings.TrimPrefix(esportsordercollaborator.Table, old)
 	}
 	{
 		old := esportsorderevent.TablePrefix

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/predicate"
 	"time"
 
@@ -1287,9 +1288,45 @@ func (_u *EsportsOrderUpdate) SetUpdatedAt(v time.Time) *EsportsOrderUpdate {
 	return _u
 }
 
+// AddCollaboratorIDs adds the "collaborators" edge to the EsportsOrderCollaborator entity by IDs.
+func (_u *EsportsOrderUpdate) AddCollaboratorIDs(ids ...int) *EsportsOrderUpdate {
+	_u.mutation.AddCollaboratorIDs(ids...)
+	return _u
+}
+
+// AddCollaborators adds the "collaborators" edges to the EsportsOrderCollaborator entity.
+func (_u *EsportsOrderUpdate) AddCollaborators(v ...*EsportsOrderCollaborator) *EsportsOrderUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCollaboratorIDs(ids...)
+}
+
 // Mutation returns the EsportsOrderMutation object of the builder.
 func (_u *EsportsOrderUpdate) Mutation() *EsportsOrderMutation {
 	return _u.mutation
+}
+
+// ClearCollaborators clears all "collaborators" edges to the EsportsOrderCollaborator entity.
+func (_u *EsportsOrderUpdate) ClearCollaborators() *EsportsOrderUpdate {
+	_u.mutation.ClearCollaborators()
+	return _u
+}
+
+// RemoveCollaboratorIDs removes the "collaborators" edge to EsportsOrderCollaborator entities by IDs.
+func (_u *EsportsOrderUpdate) RemoveCollaboratorIDs(ids ...int) *EsportsOrderUpdate {
+	_u.mutation.RemoveCollaboratorIDs(ids...)
+	return _u
+}
+
+// RemoveCollaborators removes "collaborators" edges to EsportsOrderCollaborator entities.
+func (_u *EsportsOrderUpdate) RemoveCollaborators(v ...*EsportsOrderCollaborator) *EsportsOrderUpdate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCollaboratorIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1810,6 +1847,51 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(esportsorder.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CollaboratorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   esportsorder.CollaboratorsTable,
+			Columns: []string{esportsorder.CollaboratorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(esportsordercollaborator.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCollaboratorsIDs(); len(nodes) > 0 && !_u.mutation.CollaboratorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   esportsorder.CollaboratorsTable,
+			Columns: []string{esportsorder.CollaboratorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(esportsordercollaborator.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CollaboratorsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   esportsorder.CollaboratorsTable,
+			Columns: []string{esportsorder.CollaboratorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(esportsordercollaborator.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -3088,9 +3170,45 @@ func (_u *EsportsOrderUpdateOne) SetUpdatedAt(v time.Time) *EsportsOrderUpdateOn
 	return _u
 }
 
+// AddCollaboratorIDs adds the "collaborators" edge to the EsportsOrderCollaborator entity by IDs.
+func (_u *EsportsOrderUpdateOne) AddCollaboratorIDs(ids ...int) *EsportsOrderUpdateOne {
+	_u.mutation.AddCollaboratorIDs(ids...)
+	return _u
+}
+
+// AddCollaborators adds the "collaborators" edges to the EsportsOrderCollaborator entity.
+func (_u *EsportsOrderUpdateOne) AddCollaborators(v ...*EsportsOrderCollaborator) *EsportsOrderUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddCollaboratorIDs(ids...)
+}
+
 // Mutation returns the EsportsOrderMutation object of the builder.
 func (_u *EsportsOrderUpdateOne) Mutation() *EsportsOrderMutation {
 	return _u.mutation
+}
+
+// ClearCollaborators clears all "collaborators" edges to the EsportsOrderCollaborator entity.
+func (_u *EsportsOrderUpdateOne) ClearCollaborators() *EsportsOrderUpdateOne {
+	_u.mutation.ClearCollaborators()
+	return _u
+}
+
+// RemoveCollaboratorIDs removes the "collaborators" edge to EsportsOrderCollaborator entities by IDs.
+func (_u *EsportsOrderUpdateOne) RemoveCollaboratorIDs(ids ...int) *EsportsOrderUpdateOne {
+	_u.mutation.RemoveCollaboratorIDs(ids...)
+	return _u
+}
+
+// RemoveCollaborators removes "collaborators" edges to EsportsOrderCollaborator entities.
+func (_u *EsportsOrderUpdateOne) RemoveCollaborators(v ...*EsportsOrderCollaborator) *EsportsOrderUpdateOne {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveCollaboratorIDs(ids...)
 }
 
 // Where appends a list predicates to the EsportsOrderUpdate builder.
@@ -3641,6 +3759,51 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(esportsorder.FieldUpdatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CollaboratorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   esportsorder.CollaboratorsTable,
+			Columns: []string{esportsorder.CollaboratorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(esportsordercollaborator.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedCollaboratorsIDs(); len(nodes) > 0 && !_u.mutation.CollaboratorsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   esportsorder.CollaboratorsTable,
+			Columns: []string{esportsorder.CollaboratorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(esportsordercollaborator.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.CollaboratorsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   esportsorder.CollaboratorsTable,
+			Columns: []string{esportsorder.CollaboratorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(esportsordercollaborator.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &EsportsOrder{config: _u.config}
 	_spec.Assign = _node.assignValues

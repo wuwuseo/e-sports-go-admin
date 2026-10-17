@@ -2089,6 +2089,40 @@ var (
 			},
 		},
 	}
+	// EsportsOrderCollaboratorsColumns holds the columns for the "esports_order_collaborators" table.
+	EsportsOrderCollaboratorsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "admin_id", Type: field.TypeInt},
+		{Name: "granted_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "order_id", Type: field.TypeInt},
+	}
+	// EsportsOrderCollaboratorsTable holds the schema information for the "esports_order_collaborators" table.
+	EsportsOrderCollaboratorsTable = &schema.Table{
+		Name:       TablePrefix + "esports_order_collaborators",
+		Columns:    EsportsOrderCollaboratorsColumns,
+		PrimaryKey: []*schema.Column{EsportsOrderCollaboratorsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "esports_order_collaborators_esports_orders_collaborators",
+				Columns:    []*schema.Column{EsportsOrderCollaboratorsColumns[4]},
+				RefColumns: []*schema.Column{EsportsOrdersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsordercollaborator_order_id_admin_id",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsOrderCollaboratorsColumns[4], EsportsOrderCollaboratorsColumns[1]},
+			},
+			{
+				Name:    "esportsordercollaborator_admin_id",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsOrderCollaboratorsColumns[1]},
+			},
+		},
+	}
 	// EsportsOrderEventsColumns holds the columns for the "esports_order_events" table.
 	EsportsOrderEventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -4256,6 +4290,7 @@ var (
 		EsportsOfflinePaymentProofsTable,
 		EsportsOrdersTable,
 		EsportsOrderAddonsTable,
+		EsportsOrderCollaboratorsTable,
 		EsportsOrderEventsTable,
 		EsportsOutboxesTable,
 		EsportsPageAssetsTable,
@@ -4322,6 +4357,7 @@ func init() {
 	AdminThirdPartyUsersTable.ForeignKeys[0].RefTable = AdminsTable
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
 	BlacklistsTable.ForeignKeys[0].RefTable = UsersTable
+	EsportsOrderCollaboratorsTable.ForeignKeys[0].RefTable = EsportsOrdersTable
 	ThirdPartyUsersTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[1].RefTable = RolesTable

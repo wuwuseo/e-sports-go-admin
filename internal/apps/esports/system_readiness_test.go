@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -43,6 +44,22 @@ func TestSystemReadinessBlocksWithoutGateAndDeadline(t *testing.T) {
 	}
 	if display, _ := readinessOf(report, "wallet_display"); display.Status != readinessReady {
 		t.Fatalf("钱包展示应始终可用：%+v", display)
+	}
+}
+
+// 自检口径：ready 只代表配置齐备，报告必须显式声明覆盖范围与「不代表已验收」，
+// 避免把配置自检当成 P0 交付依据。
+func TestSystemReadinessDeclaresConfigOnlyScope(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_readiness_scope")
+	defer db.Close()
+	ctx := t.Context()
+
+	report := systemReadiness(ctx, db, func(string) string { return "1" })
+	if report.Scope == "" || report.Caveat == "" {
+		t.Fatalf("自检报告必须声明 scope 与 caveat：%+v", report)
+	}
+	if !strings.Contains(report.Caveat, "不代表") {
+		t.Fatalf("caveat 必须说明 ready 不代表功能验收：%q", report.Caveat)
 	}
 }
 

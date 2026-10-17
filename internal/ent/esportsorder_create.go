@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -851,6 +852,21 @@ func (_c *EsportsOrderCreate) SetNillableUpdatedAt(v *time.Time) *EsportsOrderCr
 	return _c
 }
 
+// AddCollaboratorIDs adds the "collaborators" edge to the EsportsOrderCollaborator entity by IDs.
+func (_c *EsportsOrderCreate) AddCollaboratorIDs(ids ...int) *EsportsOrderCreate {
+	_c.mutation.AddCollaboratorIDs(ids...)
+	return _c
+}
+
+// AddCollaborators adds the "collaborators" edges to the EsportsOrderCollaborator entity.
+func (_c *EsportsOrderCreate) AddCollaborators(v ...*EsportsOrderCollaborator) *EsportsOrderCreate {
+	ids := make([]int, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddCollaboratorIDs(ids...)
+}
+
 // Mutation returns the EsportsOrderMutation object of the builder.
 func (_c *EsportsOrderCreate) Mutation() *EsportsOrderMutation {
 	return _c.mutation
@@ -1498,6 +1514,22 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(esportsorder.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
+	}
+	if nodes := _c.mutation.CollaboratorsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   esportsorder.CollaboratorsTable,
+			Columns: []string{esportsorder.CollaboratorsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(esportsordercollaborator.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

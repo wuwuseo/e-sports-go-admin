@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 
@@ -118,6 +119,13 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Time("backfilled_at").Optional().Nillable().StructTag(`json:"backfilled_at"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),
+	}
+}
+
+// Edges 仅供授权协作查询：order.collaborators 对应协作文档，读写边界仍以 responsible_admin_id 为准。
+func (EsportsOrder) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.To("collaborators", EsportsOrderCollaborator.Type),
 	}
 }
 

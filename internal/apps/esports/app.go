@@ -357,7 +357,7 @@ func init() {
 			{Method: "GET", Path: "/admin/spec-groups", Auth: cmfapp.AuthAdmin, Handler: adminSpecGroups},
 			{Method: "POST", Path: "/admin/spec-groups", Auth: cmfapp.AuthAdmin, Handler: createSpecGroupHandler},
 			{Method: "PUT", Path: "/admin/spec-groups/:id", Auth: cmfapp.AuthAdmin, Handler: updateSpecGroupHandler},
-			{Method: "GET", Path: "/admin/orders/:id/seat-roles", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(orderSeatRolesHandler)},
+			{Method: "GET", Path: "/admin/orders/:id/seat-roles", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderSeatRolesHandler)},
 			{Method: "GET", Path: "/admin/customers", Auth: cmfapp.AuthAdmin, Handler: adminCustomers},
 			{Method: "POST", Path: "/admin/customers", Auth: cmfapp.AuthAdmin, Handler: createCustomer},
 			{Method: "POST", Path: "/admin/customers/:id/age-checks", Auth: cmfapp.AuthAdmin, Handler: createAgeCheck},
@@ -365,6 +365,11 @@ func init() {
 			{Method: "POST", Path: "/admin/age-checks/:id/review", Auth: cmfapp.AuthAdmin, Handler: reviewAgeCheckRequest},
 			{Method: "GET", Path: "/admin/orders", Auth: cmfapp.AuthAdmin, Handler: adminOrders},
 			{Method: "GET", Path: "/admin/orders/:id", Auth: cmfapp.AuthAdmin, Handler: adminOrder},
+			// 授权协作订单（§8 客服看「负责或获授权协作」的订单）：协作只放开只读可见性，
+			// 不转移负责关系；授予 / 撤销仅限超管或该订单负责人。
+			{Method: "GET", Path: "/admin/orders/:id/collaborators", Auth: cmfapp.AuthAdmin, Handler: listOrderCollaboratorsHandler},
+			{Method: "POST", Path: "/admin/orders/:id/collaborators", Auth: cmfapp.AuthAdmin, Handler: addOrderCollaboratorHandler},
+			{Method: "DELETE", Path: "/admin/orders/:id/collaborators/:adminId", Auth: cmfapp.AuthAdmin, Handler: removeOrderCollaboratorHandler},
 			{Method: "POST", Path: "/admin/orders", Auth: cmfapp.AuthAdmin, Handler: createOrder},
 			// 历史订单补录（§3.3 / §4.1）：入口固定 admin_backfill，默认不计提业绩，须带 Idempotency-Key。
 			{Method: "POST", Path: "/admin/orders/backfill", Auth: cmfapp.AuthAdmin, Handler: backfillOrderHandler},
@@ -379,10 +384,10 @@ func init() {
 			{Method: "POST", Path: "/admin/price-adjustments/:id/decision", Auth: cmfapp.AuthAdmin, Handler: decidePriceAdjustmentHandler},
 			{Method: "POST", Path: "/admin/orders/:id/cancel", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(cancelOrderHandler)},
 			// 取消试算（§3.3 公示取消政策）：给出免费窗口、手续费与应退金额。
-			{Method: "GET", Path: "/admin/orders/:id/cancel-preview", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(previewCancelOrderHandler)},
+			{Method: "GET", Path: "/admin/orders/:id/cancel-preview", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(previewCancelOrderHandler)},
 			// 限时改期提案（§3.3）：已付款订单改期走提案，客户与已接单成员逐人确认后原子生效。
 			{Method: "POST", Path: "/admin/orders/:id/reschedule-proposals", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(proposeRescheduleHandler)},
-			{Method: "GET", Path: "/admin/orders/:id/reschedule-proposals", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(listOrderRescheduleProposalsHandler)},
+			{Method: "GET", Path: "/admin/orders/:id/reschedule-proposals", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(listOrderRescheduleProposalsHandler)},
 			{Method: "POST", Path: "/admin/reschedule-proposals/:id/withdraw", Auth: cmfapp.AuthAdmin, Handler: ownedRescheduleProposalHandler(withdrawRescheduleProposalHandler)},
 			{Method: "PUT", Path: "/admin/orders/:id/appointment", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(rescheduleOrderHandler)},
 			// 预约档期确认（§3.2 / §5.5）：request → confirmed，含资源核验；未确认档期不允许派单。
@@ -412,7 +417,7 @@ func init() {
 			{Method: "POST", Path: "/admin/offline-payment-proofs/:id/reject", Auth: cmfapp.AuthAdmin, Handler: rejectOfflinePaymentProofHandler},
 			{Method: "POST", Path: "/admin/orders/:id/deposit", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(depositOrderHandler)},
 			// 结单条件逐项状态（§3.4）：结单按钮据此置灰，与结单拦截口径一致。
-			{Method: "GET", Path: "/admin/orders/:id/close-conditions", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(orderCloseConditions)},
+			{Method: "GET", Path: "/admin/orders/:id/close-conditions", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderCloseConditions)},
 			{Method: "POST", Path: "/admin/orders/:id/restore", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(restoreOrderHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/pay-by-balance", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(payOrderWithBalanceHandler)},
 			{Method: "GET", Path: "/admin/wallets", Auth: cmfapp.AuthAdmin, Handler: adminWallets},
@@ -466,25 +471,25 @@ func init() {
 			{Method: "GET", Path: "/admin/dispatch/priority", Auth: cmfapp.AuthAdmin, Handler: adminDispatchPriority},
 			{Method: "POST", Path: "/admin/dispatch/priority", Auth: cmfapp.AuthAdmin, Handler: grantDispatchPriorityHandler},
 			{Method: "POST", Path: "/admin/dispatch/priority/:id/revoke", Auth: cmfapp.AuthAdmin, Handler: revokeDispatchPriorityHandler},
-			{Method: "GET", Path: "/admin/orders/:id/dispatch-candidates", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(adminDispatchCandidates)},
-			{Method: "GET", Path: "/admin/orders/:id/priority-notices", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(adminOrderPriorityNotices)},
+			{Method: "GET", Path: "/admin/orders/:id/dispatch-candidates", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(adminDispatchCandidates)},
+			{Method: "GET", Path: "/admin/orders/:id/priority-notices", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(adminOrderPriorityNotices)},
 			{Method: "POST", Path: "/admin/orders/:id/release-priority", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(releaseOrderPriorityHandler)},
 			// 普通待派单订单发布到抢单大厅（§5.2 / §5.6）：没有优先名单的游戏分区由此进入大厅。
 			{Method: "POST", Path: "/admin/orders/:id/publish-grab", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(publishOrderToGrabHallHandler)},
 			// 陪玩转单（§5.7）：接单后无法服务由陪玩发起，须客服确认才释放席位。
 			{Method: "GET", Path: "/admin/seat-transfers", Auth: cmfapp.AuthAdmin, Handler: adminSeatTransfers},
 			{Method: "POST", Path: "/admin/seat-transfers/:id/decision", Auth: cmfapp.AuthAdmin, Handler: decideSeatTransferHandler},
-			{Method: "GET", Path: "/admin/orders/:id/seats", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(orderSeatsHandler)},
+			{Method: "GET", Path: "/admin/orders/:id/seats", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderSeatsHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/seats/:seatIndex/assign", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(assignSeatHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/seats/:seatIndex/revoke", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(revokeSeatHandler)},
 			// 固排成队（§5.3）：主陪玩 + 固排一次成队。
-			{Method: "GET", Path: "/admin/orders/:id/teammate-candidates", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(adminTeammateCandidates)},
+			{Method: "GET", Path: "/admin/orders/:id/teammate-candidates", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(adminTeammateCandidates)},
 			{Method: "POST", Path: "/admin/orders/:id/team-dispatch", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(teamDispatchHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/claim", Auth: cmfapp.AuthAdmin, Handler: claimOrderHandler},
 			{Method: "POST", Path: "/admin/orders/:id/transfer", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(transferOrderHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/remind", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(remindOrderHandler)},
 			// 加钟（§3.3 / §6.2 / §12.5）：服务中订单追加金额与工时，由陪玩确认后累加并生成加钟分成。
-			{Method: "GET", Path: "/admin/orders/:id/addons", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(listOrderAddonsHandler)},
+			{Method: "GET", Path: "/admin/orders/:id/addons", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(listOrderAddonsHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/addons", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(createOrderAddonHandler)},
 			{Method: "POST", Path: "/admin/order-addons/:id/cancel", Auth: cmfapp.AuthAdmin, Handler: ownedAddonHandler(cancelOrderAddonHandler)},
 			// 加钟收款（§3.3）：对已确认的加钟单用客户余额核销追加金额。
@@ -495,7 +500,7 @@ func init() {
 			{Method: "POST", Path: "/admin/orders/:id/close-approve", Auth: cmfapp.AuthAdmin, Handler: approveCloseReviewHandler},
 			{Method: "POST", Path: "/admin/orders/:id/close-reject", Auth: cmfapp.AuthAdmin, Handler: rejectCloseReviewHandler},
 			// 结单表单（§3.4）：返回订单适用的表单模板与字段定义，供结单弹窗渲染。
-			{Method: "GET", Path: "/admin/orders/:id/close-form", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(orderCloseFormHandler)},
+			{Method: "GET", Path: "/admin/orders/:id/close-form", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderCloseFormHandler)},
 			// 结单审批进度（§3.4）：当前待审批节点，供复核弹窗展示。
 			{Method: "GET", Path: "/admin/orders/:id/close-approval", Auth: cmfapp.AuthAdmin, Handler: orderCloseApprovalHandler},
 			{Method: "GET", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: adminAfterSales},
@@ -611,6 +616,12 @@ func init() {
 			// 陪玩端自助：供 uni-app 客户端调用，不挂管理端菜单。
 			{Method: "GET", Path: "/user/player/dashboard", Auth: cmfapp.AuthUser, Handler: playerDashboardHandler},
 			{Method: "GET", Path: "/user/player/profile", Auth: cmfapp.AuthUser, Handler: playerProfileHandler},
+			// 陪玩自助维护非资格类资料（§6.1 入驻）：昵称 / 手机号 / 擅长游戏；
+			// 资格、等级、在线状态等字段一律不接受客户端写入。
+			{Method: "PUT", Path: "/user/player/profile", Auth: cmfapp.AuthUser, Handler: playerUpdateProfileHandler},
+			// 陪玩站内消息（通知闭环）：读取 player:<id> 地址下的通用消息并回执已读。
+			{Method: "GET", Path: "/user/player/messages", Auth: cmfapp.AuthUser, Handler: playerMessagesHandler},
+			{Method: "POST", Path: "/user/player/messages/read", Auth: cmfapp.AuthUser, Handler: playerMessagesMarkReadHandler},
 			{Method: "POST", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerSubmitIdentityHandler},
 			{Method: "GET", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerIdentityStatusHandler},
 			{Method: "POST", Path: "/user/player/presence", Auth: cmfapp.AuthUser, Handler: playerPresenceHandler},
@@ -697,6 +708,10 @@ func init() {
 			// 钱包展示口径（§11.4）：两端读取服务端配置的名称 / 单位 / 换算倍率，避免客户端硬编码。
 			{Method: "GET", Path: "/user/wallets/display", Auth: cmfapp.AuthUser, Handler: userWalletDisplayHandler},
 			{Method: "GET", Path: "/user/profile", Auth: cmfapp.AuthUser, Handler: userProfileHandler},
+			// 客户站内消息（通知闭环）：读取 customer:<id> 地址下的通用消息并回执已读，
+			// 与管理员消息中心口径一致，避免站内信只能写不能读。
+			{Method: "GET", Path: "/user/messages", Auth: cmfapp.AuthUser, Handler: userMessagesHandler},
+			{Method: "POST", Path: "/user/messages/read", Auth: cmfapp.AuthUser, Handler: userMessagesMarkReadHandler},
 			// 会员优先预约（§10.4）：客户自助提交预约意向（陪玩 + 期望时段 + 备注）。
 			{Method: "POST", Path: "/user/priority-bookings", Auth: cmfapp.AuthUser, Handler: userCreatePriorityBookingHandler},
 			// 客户自助储值卡（§4.4）：在售套餐、自助购卡（合同确认 + 支付意图）、我的储值卡与购卡申请详情。
@@ -844,6 +859,10 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "撤回改期提案", Code: "esports:orders:reschedule_withdraw", Path: "/api/v1/esports/admin/reschedule-proposals/{id}/withdraw", Method: "POST", Parent: "esports:order:menu"},
 			// 订单逐席角色快照（§15.1 / §15.5）。
 			{Type: cmfapp.PermAPI, Name: "查看订单席位角色", Code: "esports:orders:seat_roles", Path: "/api/v1/esports/admin/orders/{id}/seat-roles", Method: "GET", Parent: "esports:order:menu"},
+			// 授权协作订单（§8）：协作仅放开只读可见，授予 / 撤销由超管或订单负责人执行。
+			{Type: cmfapp.PermAPI, Name: "查看订单协作客服", Code: "esports:orders:collaborators", Path: "/api/v1/esports/admin/orders/{id}/collaborators", Method: "GET", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "授予订单协作", Code: "esports:orders:collaborator_add", Path: "/api/v1/esports/admin/orders/{id}/collaborators", Method: "POST", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "撤销订单协作", Code: "esports:orders:collaborator_remove", Path: "/api/v1/esports/admin/orders/{id}/collaborators/{adminId}", Method: "DELETE", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermButton, Name: "订单操作按钮", Code: "esports:orders:operate", Parent: "esports:order:menu"},
 
 			// 钱包模块：客户余额与陪玩猫粮账户、只增流水。
