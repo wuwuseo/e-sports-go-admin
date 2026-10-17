@@ -42,7 +42,11 @@ const (
 
 // notificationChannelsConfigKey 通知通道开关：逗号分隔启用的通道（如 "wecom_app,push"），
 // 缺省为空表示不启用 webhook 推送；站内信始终投递。
-const notificationChannelsConfigKey = "notification_channels"
+// 供应层会为功能集配置统一加 `app.esports.` 前缀，因此这里必须按落库键读取。
+const notificationChannelsConfigKey = "app.esports.notification_channels"
+
+// legacyNotificationChannelsConfigKey 兼容旧部署手工创建的裸键；仅在落库键为空时回退。
+const legacyNotificationChannelsConfigKey = "notification_channels"
 
 var errNotificationSenderUnavailable = errors.New("通知发送通道尚未配置")
 
@@ -94,6 +98,9 @@ func notificationEventPredicate() predicate.EsportsOutbox {
 // enabledNotificationChannels 读取通知通道开关，返回启用集合；缺省为空 = 不启用 webhook 推送。
 func enabledNotificationChannels(ctx context.Context, db *ent.Client) map[string]bool {
 	raw := assessmentConfigString(ctx, db, notificationChannelsConfigKey, "")
+	if strings.TrimSpace(raw) == "" {
+		raw = assessmentConfigString(ctx, db, legacyNotificationChannelsConfigKey, "")
+	}
 	out := make(map[string]bool)
 	for _, part := range strings.Split(raw, ",") {
 		switch c := strings.TrimSpace(part); c {

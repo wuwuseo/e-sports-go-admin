@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"go-admin/internal/ent"
@@ -104,6 +105,8 @@ type UpdateManagedUserRequest struct {
 // LoginRequest 用户登录请求
 type LoginRequest struct {
 	Email             string `json:"email"`
+	Username          string `json:"username"`
+	Phone             string `json:"phone"`
 	Password          string `json:"password"`
 	EncryptedEmail    string `json:"encrypted_email"`    // 加密的邮箱（用于等保要求）
 	EncryptedPassword string `json:"encrypted_password"` // 加密的密码（用于等保要求）
@@ -357,13 +360,33 @@ func (s *UserService) Logout(ctx context.Context, uid string) error {
 
 // Login 用户登录
 func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenResponse, error) {
-	// 查找用户
+	account := strings.TrimSpace(req.Email)
+	if account == "" {
+		account = strings.TrimSpace(req.Username)
+	}
+	if account == "" {
+		account = strings.TrimSpace(req.Phone)
+	}
+	if account == "" {
+		return nil, ErrUserNotFound
+	}
+	// 查找用户：账号可填邮箱、用户名或手机号；按优先级逐个匹配，避免跨字段撞号。
 	u, err := s.client.User.Query().
-		Where(user.EmailEQ(req.Email)).
+		Where(user.EmailEQ(account)).
 		Only(ctx)
+	if ent.IsNotFound(err) {
+		u, err = s.client.User.Query().
+			Where(user.UsernameEQ(account)).
+			Only(ctx)
+	}
+	if ent.IsNotFound(err) {
+		u, err = s.client.User.Query().
+			Where(user.PhoneEQ(account)).
+			Only(ctx)
+	}
 	if err != nil {
 		if ent.IsNotFound(err) {
-			s.recordLoginAttempt(ctx, req.Email, 0, false, "账号不存在")
+			s.recordLoginAttempt(ctx, account, 0, false, "账号不存在")
 			return nil, ErrUserNotFound
 		}
 		return nil, err
@@ -371,13 +394,13 @@ func (s *UserService) Login(ctx context.Context, req *LoginRequest) (*TokenRespo
 
 	// 检查用户状态
 	if u.Status != user.StatusActive {
-		s.recordLoginAttempt(ctx, req.Email, u.ID, false, "账号已禁用")
+		s.recordLoginAttempt(ctx, account, u.ID, false, "账号已禁用")
 		return nil, ErrInvalidUserStatus
 	}
 
 	// 验证密码
 	if u.Password == "" {
-		s.recordLoginAttempt(ctx, req.Email, u.ID, false, "密码错误")
+		s.recordLoginAttempt(ctx, account, u.ID, false, "密码错误")
 		return nil, ErrInvalidPassword
 	}
 

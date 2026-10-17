@@ -47,6 +47,28 @@ func TestProvisionCMSIdempotent(t *testing.T) {
 	}
 }
 
+// TestEsportsAppDeclarationsValidate 保证 esports 功能集的每条管理端路由
+// 都能在权限声明中找到同方法、同规范化路径的 PermAPI；该检查不依赖
+// ESPORTS_EXPERIMENTAL 环境变量，避免 CI 在开关关闭时漏掉声明回归。
+func TestEsportsAppDeclarationsValidate(t *testing.T) {
+	registered := cmfapp.Registered()
+	enabled := make([]cmfapp.App, 0, len(registered))
+	found := false
+	for _, app := range registered {
+		if app.Code == "esports" {
+			app.Enabled = true
+			found = true
+		}
+		enabled = append(enabled, app)
+	}
+	if !found {
+		t.Fatal("esports feature set is not registered")
+	}
+	if err := cmfapp.ValidateApps(enabled, options()); err != nil {
+		t.Fatalf("esports declarations invalid: %v", err)
+	}
+}
+
 func TestDisabledFeatureSetSkipsRuntimeState(t *testing.T) {
 	cmfapp.Register(cmfapp.App{
 		Code: "offdemo", Enabled: false,

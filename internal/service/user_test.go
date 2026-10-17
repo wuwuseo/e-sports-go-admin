@@ -536,3 +536,45 @@ func TestUserService_RefreshToken_InvalidTokenFormat(t *testing.T) {
 	// 这里我们暂时跳过，专注于不需要复杂依赖的单元测试
 	t.Skip("需要全局 Bootstrap 配置，适合集成测试")
 }
+
+func TestUserService_Login_ByUsernameAndPhone(t *testing.T) {
+	client := setupUserTest(t)
+	ctx := t.Context()
+	svc := NewUserService()
+
+	cfg := &cmfConfig.Config{}
+	cfg.App.Name = "test-user-app"
+	cfg.App.Secret = "user-test-secret"
+	cfg.App.LoginExpires = 3600
+	cfg.App.RefreshExpires = 86400
+	bs := bootstrap.NewBootstrap()
+	bs.RegisterService("config", cfg)
+	prevBootstrap := global.Bootstrap
+	global.Bootstrap = bs
+	t.Cleanup(func() { global.Bootstrap = prevBootstrap })
+
+	u := createTestUserForUserService(t, client, "loginmulti@test.com", "uid-loginmulti", "loginmultiuser", user.StatusActive)
+	hashed, salt, err := crypto.HashPassword("Tt!12345")
+	if err != nil {
+		t.Fatalf("加密密码失败: %v", err)
+	}
+	if _, err := client.User.UpdateOne(u).SetPassword(hashed).SetPasswordSalt(salt).
+		SetPhone("13800000000").Save(ctx); err != nil {
+		t.Fatalf("更新密码/手机号失败: %v", err)
+	}
+
+	for name, req := range map[string]*LoginRequest{
+		"username": {Username: "loginmultiuser", Password: "Tt!12345"},
+		"phone":    {Phone: "13800000000", Password: "Tt!12345"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			resp, err := svc.Login(ctx, req)
+			if err != nil {
+				t.Fatalf("登录失败: %v", err)
+			}
+			if resp.AccessToken == "" {
+				t.Fatal("访问令牌不应为空")
+			}
+		})
+	}
+}
