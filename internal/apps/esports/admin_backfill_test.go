@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -8,10 +9,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscommissionentry"
+	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscscommissionrule"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsoutbox"
+	"go-admin/internal/ent/esportsservicesegment"
 )
 
 func seedBackfillSku(t *testing.T, db *ent.Client, code string) *ent.EsportsSku {
@@ -135,6 +139,9 @@ func TestAdminBackfillOrderGuards(t *testing.T) {
 			SettledAt: settled, Reason: "线下成交漏报补录", FulfillmentStatus: "pending_dispatch"}},
 		{"未收款", backfillOrderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1,
 			SettledAt: settled, Reason: "线下成交漏报补录", PaymentStatus: "unpaid"}},
+		{"已取消单要求计入客服提成", backfillOrderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1,
+			SettledAt: settled, Reason: "线下成交漏报补录", FulfillmentStatus: "cancelled",
+			CountCsCommission: true}},
 		{"单价非法", backfillOrderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1,
 			SettledAt: settled, Reason: "线下成交漏报补录", UnitPriceCents: -1}},
 		{"数量超上限", backfillOrderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1001,
@@ -213,6 +220,13 @@ func TestAdminBackfillOptInCsCommission(t *testing.T) {
 	}
 	if n := db.EsportsCsCommissionEntry.Query().CountX(ctx); n != 1 {
 		t.Fatalf("显式计入客服提成后未计提提成：%d", n)
+	}
+	// 报单金额 1000 × 5% = 50，基数取订单报单金额。
+	entry, err := db.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.OrderIDEQ(order.ID),
+	).Only(ctx)
+	if err != nil || entry.AmountCents != 50 || entry.BaseCents != 1000 || entry.AdminID != 11 {
+		t.Fatalf("客服提成金额不符合规则：%v %+v", err, entry)
 	}
 	if n := db.EsportsOutbox.Query().Where(
 		esportsoutbox.EventTypeEQ("order.cs_commission_excluded"),
@@ -309,5 +323,138 @@ func TestAdminBackfillOrderAppearsInSourceReports(t *testing.T) {
 	).Count(ctx)
 	if err != nil || matched != 1 {
 		t.Fatalf("补录单未按业务发生期进入渠道来源筛选：%d %v", matched, err)
+	}
+}
+
+// 补录入参 JSON 契约：只认 count_cs_commission。旧名 count_commission 已废弃、不再兼容，
+// 避免「前端字段名写错 → 后端静默按 false 处理」的旧问题复发。
+func TestBackfillOrderInputJSONFieldContract(t *testing.T) {
+	var current backfillOrderInput
+	if err := json.Unmarshal([]byte(`{"count_cs_commission":true}`), &current); err != nil ||
+		!current.CountCsCommission {
+		t.Fatalf("count_cs_commission 未正确解析：%v %+v", err, current)
+	}
+	var legacy backfillOrderInput
+	if err := json.Unmarshal([]byte(`{"count_commission":true}`), &legacy); err != nil ||
+		legacy.CountCsCommission {
+		t.Fatalf("旧字段名不应再生效（管理端须提交 count_cs_commission）：%v %+v", err, legacy)
+	}
+}
+
+// count_cs_commission=false：客服提成明细 0 条并写排除留痕，但成长值照常计提；
+// 陪玩分成通道同样不受该开关影响（补录单不建派单席位，故补一条服务段后直接验证计提函数）。
+func TestAdminBackfillCsCommissionOffKeepsPlayerShareAndGrowth(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_admin_backfill_cs_off")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)
+	settledTime := now.AddDate(0, 0, -5)
+	settled := settledTime.Format(time.RFC3339)
+	customer := saveCustomerOrFail(t, db, 11)
+	sku := seedBackfillSku(t, db, "BACKFILL-CS-OFF")
+	// 陪玩分成 30%：若开关误伤分成，应在这里直接暴露为 0 条。
+	seedActiveRule(t, db, ruleInput{
+		RuleNo: "CR-BACKFILL-OFF", Scope: "global", CalcMode: "percent",
+		ValueBp: 3000, UnitBasis: "sku_quantity",
+	})
+
+	order, err := backfillOrder(ctx, db, 11, backfillOrderInput{
+		CustomerID: customer.ID, SkuID: sku.ID, Quantity: 2, SettledAt: settled,
+		Reason: "历史成交补录且不计入客服提成", CountCsCommission: false,
+	}, "backfill-cs-off-0001", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if orderCountsCsCommission(order) || order.BackfillCountCommission {
+		t.Fatalf("关闭时补录单不应计入客服提成：%+v", order)
+	}
+	if n := db.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.OrderIDEQ(order.ID),
+	).CountX(ctx); n != 0 {
+		t.Fatalf("关闭时仍计提了客服提成：%d", n)
+	}
+	if n := db.EsportsGrowthLedger.Query().Where(
+		esportsgrowthledger.SourceTypeEQ(esportsgrowthledger.SourceTypeOrder),
+		esportsgrowthledger.SourceIDEQ(order.OrderNo),
+	).CountX(ctx); n != 1 {
+		t.Fatalf("关闭客服提成不应影响成长值：%d", n)
+	}
+	// 补录单本身没有陪玩席位（历史单不建派单席位 / 服务段），陪玩分成天然为 0 条；
+	// 补一条服务段后走同一计提函数，验证开关只作用于客服提成、不阻断陪玩分成。
+	db.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(7).SetSeatIndex(1).
+		SetStatus(esportsservicesegment.StatusFinished).
+		SetStartedAt(settledTime.Add(-20 * time.Minute)).SetEndedAt(settledTime).
+		SetSystemSeconds(1200).SetEvidenceRef("backfill.png").SaveX(ctx)
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if err = accrueOrderCommission(ctx, tx, order, now); err != nil {
+		t.Fatalf("补录单陪玩分成计提失败：%v", err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	entry, err := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.OrderIDEQ(order.ID),
+	).Only(ctx)
+	if err != nil {
+		t.Fatalf("补录单未计提陪玩分成：%v", err)
+	}
+	// 应付 2000 × 30% = 600，单人独占全部份额。
+	if entry.AmountCents != 600 || entry.PlayerID != 7 {
+		t.Fatalf("陪玩分成金额不正确：%+v", entry)
+	}
+	// 开关关闭时，补席位也不应补出客服提成。
+	if n := db.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.OrderIDEQ(order.ID),
+	).CountX(ctx); n != 0 {
+		t.Fatalf("关闭时仍计提了客服提成：%d", n)
+	}
+	if n := db.EsportsOutbox.Query().Where(
+		esportsoutbox.EventTypeEQ("order.cs_commission_excluded"),
+	).CountX(ctx); n != 1 {
+		t.Fatalf("缺少「客服提成排除」留痕外盒：%d", n)
+	}
+}
+
+// 幂等 hash 覆盖 count_cs_commission：仅该字段不同的同一 Idempotency-Key 必须判冲突，不能复用旧单。
+func TestAdminBackfillIdempotencyHashCoversCsCommission(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_admin_backfill_cs_hash")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)
+	settled := now.AddDate(0, 0, -6).Format(time.RFC3339)
+	customer := saveCustomerOrFail(t, db, 11)
+	sku := seedBackfillSku(t, db, "BACKFILL-CS-HASH")
+
+	in := backfillOrderInput{
+		CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1, SettledAt: settled,
+		Reason: "线下成交漏报补录", CountCsCommission: false,
+	}
+	order, err := backfillOrder(ctx, db, 11, in, "backfill-cs-hash-0001", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 同键同体：命中幂等，返回同一张单。
+	again, err := backfillOrder(ctx, db, 11, in, "backfill-cs-hash-0001", now)
+	if err != nil || again.ID != order.ID {
+		t.Fatalf("补录幂等失效：%v %+v", err, again)
+	}
+	// 仅开关不同：请求 hash 不同，必须冲突而不是复用旧单。
+	optedIn := in
+	optedIn.CountCsCommission = true
+	if _, err := backfillOrder(ctx, db, 11, optedIn, "backfill-cs-hash-0001", now); !errors.Is(err, errConflict) {
+		t.Fatalf("仅 count_cs_commission 不同未判冲突：%v", err)
+	}
+	// 未复用旧单，也未多建单，且旧单仍保持「不计提客服提成」。
+	if n := db.EsportsOrder.Query().Where(
+		esportsorder.EntryPointEQ(esportsorder.EntryPointAdminBackfill),
+	).CountX(ctx); n != 1 {
+		t.Fatalf("冲突请求误建了补录单：%d", n)
+	}
+	if n := db.EsportsCsCommissionEntry.Query().CountX(ctx); n != 0 {
+		t.Fatalf("冲突请求误计提了客服提成：%d", n)
 	}
 }

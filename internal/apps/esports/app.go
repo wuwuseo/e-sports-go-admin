@@ -319,11 +319,16 @@ func init() {
 			{Key: "wecom_secret", Name: "企微自建应用密钥", Value: "", Type: "string", Group: "esports", Remark: "企业微信自建应用 secret，用于换取 access_token / jsapi_ticket；留空表示未配置"},
 			{Key: "wecom_jsapi_ticket", Name: "企微 JS-SDK 票据", Value: "", Type: "string", Group: "esports", Remark: "企微 JS-SDK jsapi_ticket；可手动预置或由后台自动拉取；留空表示未配置"},
 			{Key: "notification_channels", Name: "通知通道开关", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔启用的通知通道（wecom_app/voice/push），如 \"wecom_app,push\"；为空表示不启用任何通道，通知事件将进入失败待办"},
+			{Key: "notification_push_webhook", Name: "通知推送网关", Value: "", Type: "string", Group: "esports", Remark: "JSON：{\"url\":\"https://...\",\"secret\":\"...\",\"timeout_seconds\":5}；配置后按收件人推送并带 X-Esports-Signature 签名；留空表示不推送（站内信仍投递）"},
+			{Key: "payment_gateways", Name: "在线收款渠道配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按渠道编码索引）：{\"wechat_work\":{\"kind\":\"http_hmac\",\"base_url\":\"https://...\",\"app_id\":\"...\",\"app_secret\":\"...\",\"notify_url\":\"...\",\"enabled\":true}}；未配置的渠道发起收款返回 503"},
+			{Key: "wallet_display", Name: "钱包展示配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按账户类型索引）：{\"customer_balance\":{\"display_name\":\"账户余额\",\"unit_name\":\"元\",\"unit_cents\":100},\"player_catfood\":{\"display_name\":\"猫粮\",\"unit_name\":\"猫粮\",\"unit_cents\":100}}；留空用内置默认"},
 		},
 		Routes: []cmfapp.Route{
 		{Method: "GET", Path: "/skus", Auth: cmfapp.AuthPublic, Handler: publicSkus},
-		// 在线支付渠道验签回调预留入口（§4.3）：未配置商户密钥时返回「未开通」。
-		{Method: "POST", Path: "/payment-notify", Auth: cmfapp.AuthPublic, Handler: paymentNotifyHandler},
+		// 在线支付渠道验签回调（§4.3）：原始 body + 签名头验签后核销；
+		// 渠道编码优先取路径参数，兼容仅带 X-Pay-Channel 头的旧回调地址。
+		{Method: "POST", Path: "/payment-notify", Auth: cmfapp.AuthPublic, Handler: paymentGatewayNotifyHandler},
+		{Method: "POST", Path: "/payment-notify/:channel", Auth: cmfapp.AuthPublic, Handler: paymentGatewayNotifyHandler},
 		// 客户端交易入口（§9 / §6 / §4.5）：礼物目录、陪玩推荐、已生效充值赠送活动，均为顶层公开路径。
 		{Method: "GET", Path: "/gifts", Auth: cmfapp.AuthPublic, Handler: publicGifts},
 		{Method: "GET", Path: "/players", Auth: cmfapp.AuthPublic, Handler: publicPlayers},
@@ -682,9 +687,13 @@ func init() {
 			{Method: "GET", Path: "/user/payment-methods", Auth: cmfapp.AuthUser, Handler: userPaymentMethodsHandler},
 			{Method: "POST", Path: "/user/orders/:id/payment-proof", Auth: cmfapp.AuthUser, Handler: userSubmitPaymentProofHandler},
 			{Method: "GET", Path: "/user/orders/:id/payment-proofs", Auth: cmfapp.AuthUser, Handler: userPaymentProofsHandler},
+			// 在线收款（§4.3）：已开通渠道发起收款，返回渠道收银台地址；核销走公开回调 payment-notify。
+			{Method: "POST", Path: "/user/orders/:id/payment/start", Auth: cmfapp.AuthUser, Handler: userStartOrderPaymentHandler},
 			{Method: "GET", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userAfterSalesHandler},
 			{Method: "POST", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userCreateAfterSaleHandler},
 			{Method: "GET", Path: "/user/wallets", Auth: cmfapp.AuthUser, Handler: userWalletHandler},
+			// 钱包展示口径（§11.4）：两端读取服务端配置的名称 / 单位 / 换算倍率，避免客户端硬编码。
+			{Method: "GET", Path: "/user/wallets/display", Auth: cmfapp.AuthUser, Handler: userWalletDisplayHandler},
 			{Method: "GET", Path: "/user/profile", Auth: cmfapp.AuthUser, Handler: userProfileHandler},
 			// 会员优先预约（§10.4）：客户自助提交预约意向（陪玩 + 期望时段 + 备注）。
 			{Method: "POST", Path: "/user/priority-bookings", Auth: cmfapp.AuthUser, Handler: userCreatePriorityBookingHandler},

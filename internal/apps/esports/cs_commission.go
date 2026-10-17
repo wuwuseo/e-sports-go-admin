@@ -638,7 +638,19 @@ func reverseGiftCsCommission(ctx context.Context, tx *ent.Tx, accrued *ent.Espor
 // 必须在 executeAfterSaleOnce 的同一事务内、退款额度落账之后调用；幂等靠 idem_key 唯一索引兜底。
 // 客服提成每订单只有一条 service 明细，无跨明细尾差；其舍入尾差已在计提时落入工作室剩余（§12.1）。
 func reverseOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
-	if item.RefundCents <= 0 || order.PayableCents <= 0 {
+	rev := refundReversalContext{
+		RefundCents: item.RefundCents,
+		RefKey:      item.AfterSaleNo,
+		AfterSaleID: &item.ID,
+		PlayerID:    item.PlayerID,
+	}
+	return reverseOrderCsCommissionFor(ctx, tx, order, rev, now)
+}
+
+// reverseOrderCsCommissionFor 客服提成冲回实现（售后 / 外部退款共用）。
+func reverseOrderCsCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	rev refundReversalContext, now time.Time) error {
+	if rev.RefundCents <= 0 || order.PayableCents <= 0 {
 		return nil
 	}
 	service, err := tx.EsportsCsCommissionEntry.Query().Where(
@@ -675,7 +687,7 @@ func reverseOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esport
 		// 全额退款冲至零。
 		reversal = -remaining
 	} else {
-		reversal = -(service.AmountCents * item.RefundCents / closeBase)
+		reversal = -(service.AmountCents * rev.RefundCents / closeBase)
 		if -reversal > remaining {
 			reversal = -remaining
 		}
@@ -683,20 +695,26 @@ func reverseOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esport
 	if reversal == 0 {
 		return nil
 	}
-	baseReversal := -(service.BaseCents * item.RefundCents / closeBase)
+	baseReversal := -(service.BaseCents * rev.RefundCents / closeBase)
 	if baseReversal > 0 {
 		baseReversal = 0
 	}
+	note := "售后退款冲回"
+	if rev.Note != "" {
+		note = rev.Note + "客服提成"
+	}
 	create := tx.EsportsCsCommissionEntry.Create().
-		SetIdemKey("cs_commission:reversal:" + item.AfterSaleNo + ":" + strconv.Itoa(service.AdminID)).
+		SetIdemKey("cs_commission:reversal:" + rev.RefKey + ":" + strconv.Itoa(service.AdminID)).
 		SetOrderID(order.ID).SetAdminID(service.AdminID).
 		SetKind(esportscscommissionentry.KindReversal).
-		SetAfterSaleID(item.ID).
 		SetRuleNo(service.RuleNo).SetRuleVersion(service.RuleVersion).
 		SetCalcMode(service.CalcMode).SetBaseMode(service.BaseMode).
 		SetBaseCents(baseReversal).SetMatchedTierBp(service.MatchedTierBp).
 		SetAmountCents(reversal).SetStatus(esportscscommissionentry.StatusPendingSettlement).
-		SetNote("售后退款冲回")
+		SetNote(note)
+	if rev.AfterSaleID != nil {
+		create.SetAfterSaleID(*rev.AfterSaleID)
+	}
 	if service.RuleID != nil {
 		create.SetRuleID(*service.RuleID)
 	}

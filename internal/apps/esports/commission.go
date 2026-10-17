@@ -539,15 +539,40 @@ func accrueOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOr
 // addonReversalNote 加钟冲回明细的备注标记，用于区分服务/加钟口径的既有冲回累计。
 const addonReversalNote = "加钟退款分摊"
 
+// refundReversalContext 退款冲回的共用上下文：售后执行与外部退款执行共用同一套冲回逻辑，
+// 差异只在退款金额、幂等键（售后单号 / 退款单号）、关联售后 ID、争议陪玩与操作人。
+// AfterSaleID / PlayerID 为 nil 时不写关联字段（外部退款未指定争议陪玩）。
+type refundReversalContext struct {
+	RefundCents  int64
+	RefKey       string
+	AfterSaleID  *int
+	PlayerID     *int
+	ActorAdminID int
+	// Note 非空时用于标注外部退款冲回，便于在明细里区分售后冲回与外部渠道退款冲回。
+	Note string
+}
+
 // reverseOrderCommission 退款按比例冲回分成，必须在 executeAfterSaleOnce 的同一事务内、
 // 退款额度落账之后调用。新增 kind=reversal 的负数明细，使退款金额落在退款当期（§12.6）；
 // 幂等靠 idem_key 唯一索引兜底，重复执行不重复冲回。
+func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
+	rev := refundReversalContext{
+		RefundCents: item.RefundCents,
+		RefKey:      item.AfterSaleNo,
+		AfterSaleID: &item.ID,
+		PlayerID:    item.PlayerID,
+	}
+	return reverseOrderCommissionFor(ctx, tx, order, rev, now)
+}
+
+// reverseOrderCommissionFor 冲回实现（售后 / 外部退款共用）。
 // 服务与加钟两类明细分别按各自基数计算冲回目标，舍入尾差归各自最后一条冲回明细（§12.1 尾差单列）。
 // 服务分成按结单净服务额冲回，加钟分成沿用原单应付额分摊口径。
 // 售后单指定争议陪玩时优先冲回该成员的明细：先冲满其本人分成（不超过该类冲回目标），
 // 剩余目标再按比例分摊其他成员；未指定或该成员无明细时维持整体比例冲回。
-func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
-	if item.RefundCents <= 0 || order.PayableCents <= 0 {
+func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	rev refundReversalContext, now time.Time) error {
+	if rev.RefundCents <= 0 || order.PayableCents <= 0 {
 		return nil
 	}
 	entries, err := tx.EsportsCommissionEntry.Query().Where(
@@ -562,6 +587,7 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 	serviceBase := commissionCloseBase(order)
 	// 先读该订单全部既有冲回明细，按成员区分服务/加钟口径累计，用于限制争议成员
 	// 在多次部分退款下的累计冲回不超过其本人原分成。
+	// 加钟备注可能带外部退款前缀，用包含匹配保持历史数据兼容。
 	priorRevs, err := tx.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.OrderIDEQ(order.ID),
 		esportscommissionentry.KindEQ(esportscommissionentry.KindReversal),
@@ -570,11 +596,11 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 		return err
 	}
 	priorService, priorAddon := map[int]int64{}, map[int]int64{}
-	for _, rev := range priorRevs {
-		if rev.Note == addonReversalNote {
-			priorAddon[rev.PlayerID] += rev.AmountCents
+	for _, prior := range priorRevs {
+		if strings.Contains(prior.Note, addonReversalNote) {
+			priorAddon[prior.PlayerID] += prior.AmountCents
 		} else {
-			priorService[rev.PlayerID] += rev.AmountCents
+			priorService[prior.PlayerID] += prior.AmountCents
 		}
 	}
 	// allocate 计算一组明细各自应冲回的正数金额（分），并归置舍入尾差。
@@ -602,9 +628,9 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 			amounts[sub[len(sub)-1]] += amount - allocated
 		}
 		var preferred, others []int
-		if item.PlayerID != nil {
+		if rev.PlayerID != nil {
 			for _, i := range idxs {
-				if entries[i].PlayerID == *item.PlayerID {
+				if entries[i].PlayerID == *rev.PlayerID {
 					preferred = append(preferred, i)
 				} else {
 					others = append(others, i)
@@ -619,9 +645,9 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 		for _, i := range preferred {
 			preferredTotal += entries[i].AmountCents
 		}
-		if item.PlayerID != nil {
+		if rev.PlayerID != nil {
 			// 扣除该成员本类口径已被冲回的部分，剩余可冲回额度为负时按 0 处理。
-			remaining := preferredTotal + prior[*item.PlayerID]
+			remaining := preferredTotal + prior[*rev.PlayerID]
 			if remaining < 0 {
 				remaining = 0
 			}
@@ -646,10 +672,10 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 	}
 	var amounts []int64
 	if serviceBase > 0 && totalService > 0 {
-		amounts = allocate(serviceIdx, totalService*item.RefundCents/serviceBase, priorService)
+		amounts = allocate(serviceIdx, totalService*rev.RefundCents/serviceBase, priorService)
 	}
 	if order.PayableCents > 0 && totalAddon > 0 {
-		addonAmounts := allocate(addonIdx, totalAddon*item.RefundCents/order.PayableCents, priorAddon)
+		addonAmounts := allocate(addonIdx, totalAddon*rev.RefundCents/order.PayableCents, priorAddon)
 		if amounts == nil {
 			amounts = addonAmounts
 		} else {
@@ -672,20 +698,26 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 			base = serviceBase
 		}
 		// 加钟明细可能同一陪玩多条，幂等键改用明细 ID 以免互相覆盖。
-		idem := "commission:reversal:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.PlayerID)
-		note := ""
+		idem := "commission:reversal:" + rev.RefKey + ":" + strconv.Itoa(entry.PlayerID)
+		note := rev.Note
 		if entry.Kind == esportscommissionentry.KindAddon {
-			idem = "commission:reversal:addon:" + item.AfterSaleNo + ":" + strconv.Itoa(entry.ID)
+			idem = "commission:reversal:addon:" + rev.RefKey + ":" + strconv.Itoa(entry.ID)
 			note = addonReversalNote
+			if rev.Note != "" {
+				note = addonReversalNote + "·" + rev.Note
+			}
 		}
 		create := tx.EsportsCommissionEntry.Create().
 			SetIdemKey(idem).
 			SetOrderID(order.ID).SetPlayerID(entry.PlayerID).
 			SetKind(esportscommissionentry.KindReversal).SetSeatIndex(entry.SeatIndex).
-			SetAfterSaleID(item.ID).SetBaseCents(base).SetAmountCents(-amounts[i]).
+			SetBaseCents(base).SetAmountCents(-amounts[i]).
 			SetRuleNo(entry.RuleNo).SetRuleVersion(entry.RuleVersion).
 			SetCalcMode(esportscommissionentry.CalcMode(entry.CalcMode.String())).
 			SetStatus(esportscommissionentry.StatusPendingSettlement)
+		if rev.AfterSaleID != nil {
+			create.SetAfterSaleID(*rev.AfterSaleID)
+		}
 		if note != "" {
 			create.SetNote(note)
 		}
@@ -936,7 +968,7 @@ func listCommissionEntries(ctx context.Context, db *ent.Client, playerID, orderI
 }
 
 type playerCommissionView struct {
-	PendingSettlementCents int64     `json:"pending_settlement_cents"`
+	PendingSettlementCents int64 `json:"pending_settlement_cents"`
 	// FrozenCents 被争议冻结的待结算金额（§12.6）：仍属待结算但不参与当期结算。
 	FrozenCents      int64     `json:"frozen_cents"`
 	SettledCents     int64     `json:"settled_cents"`

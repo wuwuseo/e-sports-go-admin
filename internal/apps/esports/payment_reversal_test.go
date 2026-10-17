@@ -43,7 +43,7 @@ func seedReversalFixture(t *testing.T, db *ent.Client, suffix string) (*ent.Espo
 	confirmation := db.EsportsConfirmation.Create().SetCustomerID(customer.ID).
 		SetSubjectType("order_quote").SetSubjectID(order.ID).SetSubjectVersion(order.QuoteVersion).
 		SetSkuID(sku.ID).SetQuantity(order.Quantity).SetAmountCents(order.PayableCents).
-		SetChannel("verified_customer_message").SetEvidenceRef("rev-evidence-"+suffix).
+		SetChannel("verified_customer_message").SetEvidenceRef("rev-evidence-" + suffix).
 		SetStatus("verified").SetVerifiedAt(now).SetExpiresAt(order.PaymentDeadline).SaveX(ctx)
 	intent := db.EsportsPaymentIntent.Create().SetIntentNo("rev-intent-" + suffix).
 		SetOrderID(order.ID).SetConfirmationID(confirmation.ID).
@@ -160,6 +160,52 @@ func TestPaymentReversalRegistersAndMarksOrderException(t *testing.T) {
 	}
 	if _, err := listPaymentReversals(ctx, db, 0, "unknown", 10); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("非法状态过滤未被拦截：%v", err)
+	}
+}
+
+// 同一回执的部分撤销必须受「累计不超过实际到账额」约束。
+//
+// 注意：schema 对 receipt_id 建了唯一索引（一笔回执只允许登记一次撤销），因此当前无法真正落库
+// 多条部分登记；累计校验作为余额口径的防御性校验保留（schema 放宽后即时生效）。
+// 本用例断言：首笔部分撤销成功，第二笔（无论金额）被拒，且单笔超额仍返回参数错误。
+func TestPaymentReversalPartialRegistrationCumulativeLimit(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_payment_reversal_partial?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	receipt, _ := seedReversalFixture(t, db, "201")
+	part := receipt.ActualCents / 3
+
+	first, err := registerPaymentReversal(ctx, db, 11, paymentReversalInput{
+		ReceiptID: receipt.ID, AmountCents: part, Reason: "银行通知部分拒付",
+	}, now)
+	if err != nil {
+		t.Fatalf("首次部分撤销登记失败：%v", err)
+	}
+	if first.AmountCents != part {
+		t.Fatalf("首次部分撤销金额不正确：%+v", first)
+	}
+	// 第二次登记：单笔金额未超到账额，但受回执唯一登记约束（schema 唯一索引）拒绝。
+	if _, err := registerPaymentReversal(ctx, db, 12, paymentReversalInput{
+		ReceiptID: receipt.ID, Kind: "chargeback", AmountCents: part,
+		Reason: "银行再次通知拒付", EvidenceRef: "bank/chargeback-201.pdf",
+	}, now); !errors.Is(err, errConflict) {
+		t.Fatalf("同一回执重复登记未被拦截：%v", err)
+	}
+	// 单笔超过实际到账额仍是参数错误。
+	if _, err := registerPaymentReversal(ctx, db, 12, paymentReversalInput{
+		ReceiptID: receipt.ID, AmountCents: receipt.ActualCents + 1, Reason: "单笔超额撤销",
+	}, now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("单笔超额撤销未被拦截：%v", err)
+	}
+	rows := db.EsportsPaymentReversal.Query().AllX(ctx)
+	var total int64
+	for _, row := range rows {
+		total += row.AmountCents
+	}
+	if len(rows) != 1 || total != part || total > receipt.ActualCents {
+		t.Fatalf("部分撤销累计不正确：rows=%d total=%d actual=%d", len(rows), total, receipt.ActualCents)
 	}
 }
 

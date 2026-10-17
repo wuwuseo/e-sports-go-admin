@@ -187,20 +187,29 @@ func TestExternalRefundRegisterExecuteAndIdempotency(t *testing.T) {
 		t.Fatalf("重复执行应冲突，err=%v", err)
 	}
 
-	// 超退拦截：再登记 800 分退款，执行时累计已退额将超过应付额 1000 分。
+	// 超退拦截：再登记 800 分退款，已退 300 分 + 本次 800 分已超过应付额 1000 分，
+	// 登记阶段即按累计可退额度拦截，避免待执行登记虚占/透支订单额度。
 	if _, err = registerExternalRefund(ctx, db, 8, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "WX-REFUND-2", AmountCents: 800, OrderID: order.ID,
-	}, now); err != nil {
-		t.Fatalf("登记第二笔退款应成功，err=%v", err)
+	}, now); !errors.Is(err, errConflict) {
+		t.Fatalf("登记超退退款应冲突，err=%v", err)
 	}
 	refunds, err := listExternalRefunds(ctx, db, order.ID, "registered", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(refunds) != 1 || refunds[0].TransactionNo != "WX-REFUND-2" {
-		t.Fatalf("待执行列表不正确：%+v", refunds)
+	if len(refunds) != 0 {
+		t.Fatalf("超退登记不应落库：%+v", refunds)
 	}
-	if _, err = executeExternalRefund(ctx, db, 9, refunds[0].ID, now); !errors.Is(err, errConflict) {
+	// 兜底：即使绕过登记校验直接落一条 registered 记录，执行阶段仍须拦截超退。
+	forced, err := db.EsportsExternalRefund.Create().SetRefundNo(externalRefundNo()).
+		SetChannel("wechat_work").SetTransactionNo("WX-REFUND-3").SetAmountCents(800).
+		SetOrderID(order.ID).SetStatus(esportsexternalrefund.StatusRegistered).
+		SetReason("超退兜底").SetRegisteredByAdminID(8).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = executeExternalRefund(ctx, db, 9, forced.ID, now); !errors.Is(err, errConflict) {
 		t.Fatalf("超退执行应冲突，err=%v", err)
 	}
 }

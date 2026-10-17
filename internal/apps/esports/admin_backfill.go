@@ -39,11 +39,14 @@ type backfillOrderInput struct {
 	SettledAt string `json:"settled_at"`
 	// FulfillmentStatus 历史履约结果，completed / cancelled，默认 completed。
 	FulfillmentStatus string `json:"fulfillment_status"`
-	// PaymentStatus 历史收款结果，paid / unpaid，默认 paid；已完结单必须 paid。
+	// PaymentStatus 历史收款结果，默认 paid；补录单一律按已收款登记，
+	// unpaid 会被拒绝（未收款的历史单应补录为 cancelled）。
 	PaymentStatus string `json:"payment_status"`
 	Reason        string `json:"reason"`
 	// CountCsCommission 显式把补录单计入客服提成；默认 false 即不计提客服提成。
-	// 陪玩分成与成长值始终正常计提，不受本开关影响。
+	// 陪玩分成与成长值始终正常计提，不受本开关影响；已取消单不允许开启（见 backfillOrder 校验）。
+	// 字段名与管理端提交的 count_cs_commission 一一对应，不保留旧名 count_commission 的兼容层：
+	// bool 无法区分「未传」与「传 false」，兼容层无法可靠判定冲突，反而会掩盖字段名错配。
 	CountCsCommission bool `json:"count_cs_commission"`
 }
 
@@ -82,6 +85,7 @@ func parseBackfillSettledAt(raw string, now time.Time) (time.Time, error) {
 // 1. 入口固定 admin_backfill，必须留补录原因 / 补录人 / 补录时刻，写 order.backfilled 事件与外盒审计；
 // 2. 不占 SKU 名额、不创建支付意图与支付回执、不建派单席位（历史单不消耗当期容量）；
 // 3. 陪玩分成与成长值默认正常计提；客服提成默认不计，仅 count_cs_commission=true 时按结单口径同事务计提；
+//    已取消单不计提任何提成（不写结单快照、不分成分成），也不接受 count_cs_commission=true；
 // 4. completed 单写入 closed_at 与 close_net_service_cents 快照，保证后续退款冲回口径正确。
 func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfillOrderInput,
 	key string, now time.Time) (*ent.EsportsOrder, error) {
@@ -101,6 +105,11 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 		(in.PaymentStatus != esportsorder.PaymentStatusPaid.String() &&
 			in.PaymentStatus != esportsorder.PaymentStatusUnpaid.String()) {
 		return nil, errInvalidInput
+	}
+	// 已取消的历史单不产生任何提成与结单快照；此时再要求计入客服提成属于口径冲突，
+	// 直接拒绝而不是静默忽略，避免管理员以为开关生效、实际未计提。
+	if in.FulfillmentStatus == backfillStatusCancelled && in.CountCsCommission {
+		return nil, fmt.Errorf("%w：已取消的历史补录单不计提任何提成，不能计入客服提成", errInvalidInput)
 	}
 	settledAt, err := parseBackfillSettledAt(in.SettledAt, now)
 	if err != nil {

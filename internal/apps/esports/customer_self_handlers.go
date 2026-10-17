@@ -290,8 +290,9 @@ func userPaymentProofsHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// paymentNotifyHandler 在线支付渠道验签回调预留入口（§4.3）：
-// 当前未配置商户密钥，一律返回「未开通」；接入商户密钥后在此验签并核销到账。
+// paymentNotifyHandler 在线支付渠道验签回调（§4.3）。
+// 保留函数名以兼容既有引用：实际验签与核销在 paymentGatewayNotifyHandler，
+// 渠道未配置 / 未开通时由该入口返回 503，不再返回「未开通」占位。
 func paymentNotifyHandler(c fiber.Ctx) error {
-	return fail(c, fiber.StatusNotImplemented, "在线支付验签回调尚未开通，请走财务人工核验")
+	return paymentGatewayNotifyHandler(c)
 }

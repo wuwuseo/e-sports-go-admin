@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
 	"go-admin/internal/ent"
@@ -18,6 +19,7 @@ import (
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/global"
 )
 
 const (
@@ -88,6 +90,14 @@ type walletAccountView struct {
 type walletBalance struct {
 	PrincipalCents int64
 	BonusCents     int64
+}
+
+// userWalletDisplayHandler 客户端钱包展示口径（§11.4）：按账户类型下发展示名称、图标、说明、
+// 单位名与固定倍率，客户余额 / 陪玩猫粮共用同一份配置。
+// 只读系统配置、不涉及余额，故不下发 display_amount：金额由客户端拿自己的余额按 unit_cents 换算一次，
+// 避免服务端与客户端各算一遍造成二次换算。
+func userWalletDisplayHandler(c fiber.Ctx) error {
+	return reply(c, walletDisplayConfig(c.Context(), global.ORM))
 }
 
 func (b walletBalance) total() int64 { return b.PrincipalCents + b.BonusCents }

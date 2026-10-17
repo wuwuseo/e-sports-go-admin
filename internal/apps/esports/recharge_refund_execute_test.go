@@ -83,6 +83,86 @@ func TestRechargeRefundExecGeneratesBatchItems(t *testing.T) {
 	}
 }
 
+// 同一批次被多张售后单分次退款：执行明细合计不得超过批次原始本金。
+func TestRechargeRefundExecCumulativeBatchCap(t *testing.T) {
+	db := openStoredValueDB(t, "esports_recharge_refund_exec_cumulative")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now()
+	customer := saveCustomerOrFail(t, db, 11)
+
+	// 两个充值批次：本金 10000 + 5000。
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 10000, Note: "首次充值"}, "rre-cum-1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 5000, Note: "二次充值"}, "rre-cum-2"); err != nil {
+		t.Fatal(err)
+	}
+	tx1 := db.EsportsWalletTx.Query().Where(esportswallettx.SourceIDEQ("rre-cum-1")).OnlyX(ctx)
+	tx2 := db.EsportsWalletTx.Query().Where(esportswallettx.SourceIDEQ("rre-cum-2")).OnlyX(ctx)
+
+	newItem := func(sourceID int, kind string, refundCents int64) int {
+		item, err := createAfterSale(ctx, db, afterSaleInput{
+			SourceType: "recharge", SourceID: sourceID, Kind: kind,
+			Channel: "admin", Demand: "客户要求分批退款",
+		}, 11, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		db.EsportsAfterSale.UpdateOneID(item.ID).SetRefundCents(refundCents).ExecX(ctx)
+		return item.ID
+	}
+
+	// 第一张售后单部分退 8000：落批次一 8000。
+	firstID := newItem(tx1.ID, "refund_request", 8000)
+	if _, err := executeRechargeRefundByBatch(ctx, db, firstID, 11, now); err != nil {
+		t.Fatal(err)
+	}
+	// 第二张售后单（不同充值来源）试算可退 15000、本次退 12000：
+	// 批次一本金仅剩 2000、批次二 5000，合计只能再生成 7000，而不是重复生成 15000。
+	secondID := newItem(tx2.ID, "overcharge", 12000)
+	if _, err := executeRechargeRefundByBatch(ctx, db, secondID, 11, now); err != nil {
+		t.Fatal(err)
+	}
+	// 第三张售后单再退 1000：批次本金已被占满，不得再生成明细。
+	thirdID := newItem(tx1.ID, "other", 1000)
+	thirdRows, err := executeRechargeRefundByBatch(ctx, db, thirdID, 11, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(thirdRows) != 0 {
+		t.Fatalf("批次本金已占满不应再生成明细：%+v", thirdRows)
+	}
+
+	rows := db.EsportsRechargeRefundExecution.Query().AllX(ctx)
+	var total, batchOne int64
+	firstBatchSource := firstSourceID(t, db, customer.ID)
+	for _, row := range rows {
+		total += row.AmountCents
+		if row.BatchSourceID == firstBatchSource {
+			batchOne += row.AmountCents
+		}
+	}
+	if total != 15000 {
+		t.Fatalf("两批次执行明细合计应恰好等于批次本金 15000，got=%d", total)
+	}
+	if batchOne != 10000 {
+		t.Fatalf("批次一执行明细合计不应超过本金 10000：%d", batchOne)
+	}
+}
+
+// firstSourceID 取客户余额账户的第一个批次来源 ID（FIFO 首批）。
+func firstSourceID(t *testing.T, db *ent.Client, customerID int) string {
+	t.Helper()
+	return db.EsportsLedgerEntry.Query().Where(
+		esportsledgerentry.AccountTypeEQ(walletCustomerBalance),
+		esportsledgerentry.AccountIDEQ(strconv.Itoa(customerID)),
+		esportsledgerentry.DeltaCentsGT(0),
+	).Order(ent.Asc(esportsledgerentry.FieldID)).FirstX(t.Context()).SourceID
+}
+
 // 异常批次不落账：分摊额超过批次额的批次退款金额不可信，跳过生成明细，只落健康批次。
 func TestRechargeRefundExecSkipsAnomalousBatch(t *testing.T) {
 	db := openStoredValueDB(t, "esports_recharge_refund_exec_anomaly")

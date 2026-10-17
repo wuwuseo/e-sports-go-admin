@@ -163,6 +163,51 @@ func TestStoredValueCardAfterSaleExecuteRefund(t *testing.T) {
 	}
 }
 
+// 充值售后部分退款：按累计已退计算剩余可返本金，允许退款额 <= 可退本金；
+// 本金按实际退款额冲减、赠送按同比例作废，执行明细同样按退款额封顶。
+func TestRechargeAfterSalePartialRefund(t *testing.T) {
+	db := openStoredValueDB(t, "esports_aftersale_recharge_partial")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now()
+
+	customer := saveCustomerOrFail(t, db, 11)
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 10000, BonusCents: 2000, Note: "测试充值"}, "as-recharge-partial-1"); err != nil {
+		t.Fatal(err)
+	}
+	rechargeTx := db.EsportsWalletTx.Query().Where(
+		esportswallettx.SourceIDEQ("as-recharge-partial-1")).OnlyX(ctx)
+
+	item := newSourceRefundAfterSale(t, db, "recharge", rechargeTx.ID, 4000, 11, now)
+	if _, err := approveAfterSale(ctx, db, item.ID, 12, now); err != nil {
+		t.Fatalf("审批失败：%v", err)
+	}
+	done, err := executeAfterSale(ctx, db, item.ID, 12, now)
+	if err != nil || done.Status != esportsaftersale.StatusCompleted {
+		t.Fatalf("充值部分退款执行失败：%v %+v", err, done)
+	}
+
+	// 本金按实际退款额冲减：10000 - 4000 = 6000；赠送按 40% 比例作废：2000 * 4000/10000 = 800。
+	balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, customer.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if balance.PrincipalCents != 6000 || balance.BonusCents != 1200 {
+		t.Fatalf("部分退款后余额不正确：%+v", balance)
+	}
+	refundTx := db.EsportsWalletTx.Query().Where(
+		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeRefundReturn),
+		esportswallettx.SourceTypeEQ("after_sale")).OnlyX(ctx)
+	if refundTx.PrincipalDeltaCents != -4000 || refundTx.BonusDeltaCents != -800 {
+		t.Fatalf("部分退款流水不正确：%+v", refundTx)
+	}
+	execs := db.EsportsRechargeRefundExecution.Query().AllX(ctx)
+	if len(execs) != 1 || execs[0].AmountCents != 4000 {
+		t.Fatalf("外部退款执行明细应按退款额封顶：%+v", execs)
+	}
+}
+
 // 充值售后执行：按充值批次还原可退本金、生成外部退款执行明细，内部余额归零。
 func TestRechargeAfterSaleExecuteRefund(t *testing.T) {
 	db := openStoredValueDB(t, "esports_aftersale_recharge_exec")

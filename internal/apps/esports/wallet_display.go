@@ -27,7 +27,8 @@ type walletDisplay struct {
 	UnitName    string `json:"unit_name"`
 	UnitCents   int64  `json:"unit_cents"`
 	// DisplayAmount 是按固定倍率换算后的展示金额（两位小数字符串，整数运算避免浮点误差）。
-	DisplayAmount string `json:"display_amount"`
+	// 仅账户视图（含余额）下发；纯展示配置接口没有余额可换算，故省略该字段。
+	DisplayAmount string `json:"display_amount,omitempty"`
 }
 
 func defaultWalletDisplay(accountType string) walletDisplay {

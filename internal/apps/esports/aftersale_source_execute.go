@@ -188,6 +188,10 @@ func executeStoredValueCardAfterSale(ctx context.Context, db *ent.Client, id, ad
 
 // executeRechargeAfterSale 充值售后执行：按充值批次还原可退本金 / 作废赠送 / 已消费金额，
 // 同一事务内写内部退款流水冲减余额、按批次生成外部退款执行明细（§4.5）。
+//
+// 部分退款口径：允许 item.RefundCents <= 试算可退本金（剩余可返本金），本金按实际退款额冲减；
+// 赠送按「退款本金 / 可退本金」同比例作废（全额退款时比例 = 100%，与既有「未消费赠送随退作废」
+// 口径完全一致，不改变全额退款路径）。外部退款执行明细同样按该退款额封顶。
 func executeRechargeAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
 	tx, err := db.Tx(ctx)
 	if err != nil {
@@ -220,18 +224,22 @@ func executeRechargeAfterSale(ctx context.Context, db *ent.Client, id, adminID i
 		return nil, err
 	}
 	refundable := quote.RefundablePrincipalCents
-	forfeited := quote.ForfeitedBonusCents
 	if refundable <= 0 {
 		return nil, fmt.Errorf("%w：该充值已无可退本金", errInvalidInput)
 	}
-	if item.RefundCents != refundable {
-		return nil, fmt.Errorf("%w：退款金额与充值批次可退本金不一致（应退 %d）", errConflict, refundable)
+	if item.RefundCents > refundable {
+		return nil, fmt.Errorf("%w：退款金额不得超过充值批次剩余可退本金（可退 %d）", errConflict, refundable)
+	}
+	// 赠送按退款本金比例作废：全额退款时比例 100%，等价于原「未消费赠送随退作废」规则。
+	forfeited := quote.ForfeitedBonusCents
+	if item.RefundCents < refundable {
+		forfeited = quote.ForfeitedBonusCents * item.RefundCents / refundable
 	}
 	// 内部返还：按原账户原路冲减本金与赠送（先写流水，余额由流水求和派生）。
 	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(row.AccountType).SetOwnerID(row.OwnerID).
 		SetEntryType(esportswallettx.EntryTypeRefundReturn).
-		SetPrincipalDeltaCents(-refundable).SetBonusDeltaCents(-forfeited).
+		SetPrincipalDeltaCents(-item.RefundCents).SetBonusDeltaCents(-forfeited).
 		SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
 		SetOperatorID(adminID).SetNote("充值售后退款").Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
@@ -243,7 +251,7 @@ func executeRechargeAfterSale(ctx context.Context, db *ent.Client, id, adminID i
 	if _, err = tx.EsportsLedgerEntry.Create().
 		SetAccountType(accountType).SetAccountID(accountID).
 		SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
-		SetEntryRole("recharge_refund").SetDeltaCents(-(refundable + forfeited)).
+		SetEntryRole("recharge_refund").SetDeltaCents(-(item.RefundCents + forfeited)).
 		SetFundBatch(item.AfterSaleNo).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
@@ -255,7 +263,7 @@ func executeRechargeAfterSale(ctx context.Context, db *ent.Client, id, adminID i
 		return nil, fmt.Errorf("%w：按批次退款执行明细写入失败：%v", errExecutionFailed, err)
 	}
 	if err = completeSourceAfterSale(ctx, tx, id, adminID, "recharge_refunded", map[string]interface{}{
-		"after_sale_no": item.AfterSaleNo, "refund_cents": refundable, "forfeited_bonus_cents": forfeited,
+		"after_sale_no": item.AfterSaleNo, "refund_cents": item.RefundCents, "forfeited_bonus_cents": forfeited,
 	}, now); err != nil {
 		return nil, err
 	}

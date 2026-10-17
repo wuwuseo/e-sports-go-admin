@@ -106,6 +106,18 @@ func executeRechargeRefundQuote(ctx context.Context, db *ent.Client, item *ent.E
 
 // executeRechargeRefundQuoteTx 在调用方事务内按试算生成外部退款执行明细（幂等）：
 // 供售后执行链（充值 / 储值卡来源）在同一事务内与内部退款一并落账。
+//
+// 累计口径（§4.5 修复）：试算的 RefundableCents 只反映「按账户余额还原的批次剩余被退额」，
+// 执行明细的 pending 状态并不扣减余额（真实打款后才扣），因此同一批次可能被多张售后单
+// 重复按同一可退额生成明细。这里按 (account_type, account_id, batch_source_type, batch_source_id)
+// 聚合既有执行明细，逐批扣减已占用金额：
+//
+//	本次批次可退额 = min(试算 RefundableCents, 批次 PrincipalCents − 该批次既有执行明细合计)
+//
+// 当前售后单自己的明细不计入「既有占用」（它们会在下面按幂等键跳过），并计入本次额度上限，
+// 保证 item.RefundCents > 0（售后方案指定退款额）时本次生成的明细合计不超过该退款额。
+// 可退额被占满的批次不再生成明细（超出部分不落账，交由人工核对）。
+// 这样所有售后单的执行明细合计恒不超过批次原始本金。
 func executeRechargeRefundQuoteTx(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale,
 	quote *rechargeRefundQuote) error {
 	if item == nil || quote == nil {
@@ -119,27 +131,59 @@ func executeRechargeRefundQuoteTx(ctx context.Context, tx *ent.Tx, item *ent.Esp
 		plans = append(plans, batch)
 	}
 	existing, err := tx.EsportsRechargeRefundExecution.Query().Where(
-		esportsrechargerefundexecution.AfterSaleIDEQ(item.ID),
+		esportsrechargerefundexecution.AccountTypeEQ(quote.AccountType),
+		esportsrechargerefundexecution.AccountIDEQ(quote.AccountID),
 	).All(ctx)
 	if err != nil {
 		return err
 	}
-	seen := make(map[string]struct{}, len(existing))
+	// otherConsumedByBatch 其他售后单已占用金额；currentConsumedByBatch 当前售后单已落账金额。
+	otherConsumedByBatch := make(map[string]int64, len(existing))
+	currentConsumedByBatch := make(map[string]int64, len(existing))
+	currentIdem := make(map[string]struct{}, len(existing))
+	var currentAllocated int64
 	for _, row := range existing {
-		seen[row.IdemKey] = struct{}{}
+		key := row.BatchSourceType + "\x00" + row.BatchSourceID
+		if row.AfterSaleID == item.ID {
+			currentConsumedByBatch[key] += row.AmountCents
+			currentIdem[row.IdemKey] = struct{}{}
+			currentAllocated += row.AmountCents
+			continue
+		}
+		otherConsumedByBatch[key] += row.AmountCents
+	}
+	// 本次可生成明细的上限：售后方案指定了退款额时按该额度封顶；未指定（0）时不封顶，
+	// 保持既有「按批次全量落账」路径不变。
+	capRemaining := int64(1<<62 - 1)
+	if item.RefundCents > 0 {
+		capRemaining = item.RefundCents - currentAllocated
+		if capRemaining < 0 {
+			capRemaining = 0
+		}
 	}
 	for _, batch := range plans {
 		idem := rechargeRefundExecutionIdemKey(item.SourceType.String(), item.SourceID,
 			batch.BatchSourceType, batch.BatchSourceID)
-		if _, ok := seen[idem]; ok {
+		if _, ok := currentIdem[idem]; ok {
 			continue
+		}
+		key := batch.BatchSourceType + "\x00" + batch.BatchSourceID
+		// 批次本金扣除其他售后单与当前售后单已落账金额后的余额。
+		remaining := batch.PrincipalCents - otherConsumedByBatch[key] - currentConsumedByBatch[key]
+		if remaining <= 0 {
+			continue
+		}
+		amount := min(batch.RefundableCents, remaining)
+		amount = min(amount, capRemaining)
+		if amount <= 0 {
+			break
 		}
 		if _, err = tx.EsportsRechargeRefundExecution.Create().
 			SetExecutionNo(rechargeRefundExecutionNo()).
 			SetIdemKey(idem).SetAfterSaleID(item.ID).
 			SetAccountType(quote.AccountType).SetAccountID(quote.AccountID).
 			SetBatchSourceType(batch.BatchSourceType).SetBatchSourceID(batch.BatchSourceID).
-			SetAmountCents(batch.RefundableCents).
+			SetAmountCents(amount).
 			SetStatus(esportsrechargerefundexecution.StatusPending).Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				// 并发重放：唯一索引兜底，跳过本次插入。
@@ -147,6 +191,8 @@ func executeRechargeRefundQuoteTx(ctx context.Context, tx *ent.Tx, item *ent.Esp
 			}
 			return err
 		}
+		capRemaining -= amount
+		currentConsumedByBatch[key] += amount
 	}
 	return nil
 }

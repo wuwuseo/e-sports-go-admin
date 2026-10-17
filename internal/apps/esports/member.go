@@ -251,7 +251,24 @@ func accrueOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
 // reverseOrderGrowth 退款执行后按退款金额冲回成长值（§10.2/§10.5）。
 // 订单尚未计提成长值（未结单即退款）时跳过；幂等靠售后单号唯一索引。
 func reverseOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, adminID int, now time.Time) error {
-	if item.RefundCents <= 0 {
+	rev := refundReversalContext{
+		RefundCents:  item.RefundCents,
+		RefKey:       item.AfterSaleNo,
+		AfterSaleID:  &item.ID,
+		PlayerID:     item.PlayerID,
+		ActorAdminID: adminID,
+	}
+	return reverseOrderGrowthFor(ctx, tx, order, rev, now)
+}
+
+// reverseOrderGrowthFor 成长值冲回实现（售后 / 外部退款共用）。
+// 成长值流水 source_type 枚举没有 external_refund 分支，外部退款沿用 after_sale 枚举、
+// SourceID 写退款单号（ER...）；
+// 该流水语义为「退款冲回」，ID 为退款单号（售后冲回则为售后单号）。
+// (source_type, source_id) 唯一索引同时承担幂等职责。
+func reverseOrderGrowthFor(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	rev refundReversalContext, now time.Time) error {
+	if rev.RefundCents <= 0 {
 		return nil
 	}
 	accrued, err := tx.EsportsGrowthLedger.Query().Where(
@@ -264,12 +281,18 @@ func reverseOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder
 	if !accrued {
 		return nil
 	}
-	_, err = tx.EsportsGrowthLedger.Create().
-		SetCustomerID(order.CustomerID).SetDelta(-item.RefundCents).
+	note := "售后退款冲回成长值"
+	if rev.Note != "" {
+		note = rev.Note + "成长值"
+	}
+	create := tx.EsportsGrowthLedger.Create().
+		SetCustomerID(order.CustomerID).SetDelta(-rev.RefundCents).
 		SetSourceType(esportsgrowthledger.SourceTypeAfterSale).
-		SetSourceID(item.AfterSaleNo).SetOperatorID(adminID).
-		SetNote("售后退款冲回成长值").Save(ctx)
-	if err != nil {
+		SetSourceID(rev.RefKey).SetNote(note)
+	if rev.ActorAdminID > 0 {
+		create.SetOperatorID(rev.ActorAdminID)
+	}
+	if _, err = create.Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return errConflict
 		}

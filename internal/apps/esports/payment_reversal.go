@@ -31,16 +31,17 @@ type paymentReversalInput struct {
 }
 
 type paymentReversalDecisionInput struct {
-	Action       string `json:"action"`
-	Resolution   string `json:"resolution"`
-	RiskReason   string `json:"risk_reason"`
+	Action     string `json:"action"`
+	Resolution string `json:"resolution"`
+	RiskReason string `json:"risk_reason"`
 }
 
 func paymentReversalNo() string { return "RV" + uuid.NewString() }
 
 // registerPaymentReversal 财务登记已核销收款的渠道撤销 / 拒付（§3.2）：
-// 必须指向一笔已核销回执，金额不得超过该回执实际到账额，一笔回执只能登记一次。
-// 登记只记账与告警，不改订单资金状态；订单如何处置由非登记人的管理员在 decision 中明确。
+// 必须指向一笔已核销回执，单笔金额不得超过该回执实际到账额；同一回执可多次登记部分撤销，
+// 但累计（未 rejected 的）登记金额不得超过实际到账额。登记只记账与告警，不改订单资金状态；
+// 订单如何处置由非登记人的管理员在 decision 中明确。
 func registerPaymentReversal(ctx context.Context, db *ent.Client, adminID int,
 	in paymentReversalInput, now time.Time) (*ent.EsportsPaymentReversal, error) {
 	in.Kind = strings.TrimSpace(in.Kind)
@@ -67,6 +68,22 @@ func registerPaymentReversal(ctx context.Context, db *ent.Client, adminID int,
 	// 撤销金额以实际到账为上限：多撤部分没有对应的已核销收款，属于账目错误，直接拦截。
 	if in.AmountCents > receipt.ActualCents {
 		return nil, fmt.Errorf("%w：撤销金额不得超过该笔收款实际到账额", errInvalidInput)
+	}
+	// 同一回执允许分多次部分撤销，但累计不得超过实际到账额；误报（rejected）不占用额度。
+	prior, err := tx.EsportsPaymentReversal.Query().Where(
+		esportspaymentreversal.ReceiptIDEQ(receipt.ID),
+		esportspaymentreversal.StatusNEQ(esportspaymentreversal.StatusRejected),
+	).Select(esportspaymentreversal.FieldAmountCents).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var registered int64
+	for _, row := range prior {
+		registered += row.AmountCents
+	}
+	if registered+in.AmountCents > receipt.ActualCents {
+		return nil, fmt.Errorf("%w：该笔收款累计撤销金额不得超过实际到账额（已登记 %d，本次 %d，实际到账 %d）",
+			errConflict, registered, in.AmountCents, receipt.ActualCents)
 	}
 	intent, err := tx.EsportsPaymentIntent.Get(ctx, receipt.IntentID)
 	if err != nil {

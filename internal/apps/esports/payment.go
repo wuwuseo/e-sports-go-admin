@@ -242,7 +242,12 @@ var errPaymentGatewayUnavailable = errors.New("收款通道尚未配置")
 
 // PaymentGateway is implemented only for an approved studio merchant account.
 // Production checkout never falls back to a fake successful gateway.
+//
+// CreatePayment 返回渠道侧收银台地址（pay_url）；该地址由渠道按 intent_no 可重取，
+// 因此本系统不做本地持久化。VerifyNotification 的 signature 入参是回调签名头的原值：
+// 既接受渠道直接发来的 "<t=unix>,<v1=hex>" 复合串，也接受由 fiber handler 从
+// X-Pay-Timestamp / X-Pay-Signature 两个头拼装出的同格式串。
 type PaymentGateway interface {
-	CreatePayment(ctx context.Context, intentNo string, amountCents int64, expiresAt time.Time) (string, error)
+	CreatePayment(ctx context.Context, intentNo string, amountCents int64, expiresAt time.Time, subject string) (string, error)
 	VerifyNotification(ctx context.Context, payload []byte, signature string) (verifiedPayment, error)
 }
