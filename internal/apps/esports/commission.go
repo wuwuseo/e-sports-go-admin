@@ -437,6 +437,23 @@ func splitPool(pool int64, members []commissionMember) []int64 {
 	return amounts
 }
 
+// sumOrderCommissionCents 订单累计非作废分成明细净额（含加钟明细与冲回负数），
+// 供计算剩余可分基数（§12.1-04）。
+func sumOrderCommissionCents(ctx context.Context, tx *ent.Tx, orderID int) (int64, error) {
+	entries, err := tx.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.OrderIDEQ(orderID),
+		esportscommissionentry.StatusNEQ(esportscommissionentry.StatusVoid),
+	).Select(esportscommissionentry.FieldAmountCents).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var total int64
+	for _, entry := range entries {
+		total += entry.AmountCents
+	}
+	return total, nil
+}
+
 // accrueOrderCommission 结单时按成员各自接单快照计提；服务明细与订单状态同事务提交。
 // 订单净服务应付按服务秒数分给各成员，各成员规则作用于其份额，尾差归该规则组最后一人。
 // 无接单快照的历史服务段回退到当前规则；新单不会因结单前改规则而改变约定。
@@ -462,8 +479,17 @@ func accrueOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOr
 		return nil
 	}
 	netPayable := order.PayableCents - order.RefundedCents
-	available := netPayable - order.ChannelCostCents
-	if netPayable <= 0 || available <= 0 {
+	if netPayable <= 0 {
+		return nil
+	}
+	// 可分基数（§12.1-04）：服务应付 + 加钟追加金额 − 已退款。加钟分成先于结单计提，
+	// 须从服务侧上限中一并扣除，保证「陪玩分成 + 客服提成 + 渠道成本 ≤ 可分基数」。
+	accrued, err := sumOrderCommissionCents(ctx, tx, order.ID)
+	if err != nil {
+		return err
+	}
+	available := order.PayableCents + order.AddonCents - order.RefundedCents - order.ChannelCostCents - accrued
+	if available <= 0 {
 		return nil
 	}
 	bases := splitPool(netPayable, members)

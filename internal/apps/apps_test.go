@@ -8,6 +8,8 @@ import (
 	cmfapp "github.com/wuwuseo/cmf/app"
 	"github.com/wuwuseo/cmf/config"
 
+	"go-admin/internal/apps/esports"
+	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/systemconfig"
@@ -66,6 +68,44 @@ func TestEsportsAppDeclarationsValidate(t *testing.T) {
 	}
 	if err := cmfapp.ValidateApps(enabled, options()); err != nil {
 		t.Fatalf("esports declarations invalid: %v", err)
+	}
+}
+
+// 功能集启用时必须为新库播种定时任务：任务函数注册在 Go 侧，但没有 enabled 的 CronJob 行
+// 就不会被调度器加载（订单超时释放、结算生成、保护期降级、账本核验、外盒/通知投递等永不执行）。
+func TestProvisionSeedsEsportsCronJobs(t *testing.T) {
+	enabled := false
+	for _, app := range cmfapp.Registered() {
+		if app.Code == "esports" {
+			enabled = app.Enabled
+		}
+	}
+	if !enabled {
+		t.Skip("功能集未启用（需 ESPORTS_EXPERIMENTAL=1）：此时既不注册任务，也不应播种定时任务")
+	}
+	client := enttest.Open(t, "sqlite3", "file:esports_cron_seed?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	previous := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = previous })
+	cfg := &config.Config{}
+	cfg.Casbin.DomainsDefault = "default"
+	for run := 0; run < 2; run++ { // 两次 Provision 验证幂等（不重复建行）
+		if err := Provision(t.Context(), cfg, client); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seeds := esports.CronSeeds()
+	if got := client.CronJob.Query().Where(cronjob.NameHasPrefix("esports_")).CountX(t.Context()); got != len(seeds) {
+		t.Fatalf("应播种 %d 个定时任务，实际 %d", len(seeds), got)
+	}
+	for _, seed := range seeds {
+		row := client.CronJob.Query().Where(cronjob.NameEQ(seed.Name)).OnlyX(t.Context())
+		if !row.Enabled || row.Type != cronjob.TypeTask || row.Command != seed.Name ||
+			row.Expression != seed.Expression || row.Description != seed.Description {
+			t.Fatalf("定时任务播种不正确：%+v", row)
+		}
 	}
 }
 

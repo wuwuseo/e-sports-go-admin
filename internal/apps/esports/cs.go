@@ -23,6 +23,7 @@ const (
 )
 
 // customerProfileInput 客户档案可编辑字段（§8.3）。跟进状态可选传，空表示不改。
+// Tags 为增量语义（§8.3-02）：字段缺省 / null（nil）表示不改动既有标签，显式传（含空数组）才整体覆盖。
 type customerProfileInput struct {
 	Phone                 string   `json:"phone"`
 	Birthday              string   `json:"birthday"`
@@ -121,7 +122,12 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 	}
 	update := db.EsportsCustomer.UpdateOneID(customerID).
 		SetPhone(in.Phone).SetBirthday(in.Birthday).
-		SetConsumptionPreference(in.ConsumptionPreference).SetTags(tags).AddVersion(1)
+		SetConsumptionPreference(in.ConsumptionPreference).AddVersion(1)
+	// §8.3-02 标签增量语义：请求未提供 tags（JSON 中不存在 / null，解码为 nil）时不改动既有标签，
+	// 只有显式提供（含空数组）才整体覆盖，避免漏传 tags 的调用方清空其它入口维护的标签。
+	if in.Tags != nil {
+		update.SetTags(tags)
+	}
 	if in.SelfOrderEnabled != nil {
 		update.SetSelfOrderEnabled(*in.SelfOrderEnabled)
 	}
@@ -334,9 +340,49 @@ func listCustomerFollowUps(ctx context.Context, db *ent.Client, adminID int, isS
 	).Order(ent.Desc(esportscustomerfollowup.FieldID)).Limit(limit).All(ctx)
 }
 
+// wecomIntakeCard 是企微自动建档接口的返回视图（§8.4）。
+// 命中本人客户时原样透出整条档案；命中他人客户时只回最小卡片：仅保留识别信息
+// （ID / 称呼 / 归属 / 来源），不带手机号、标签、消费偏好等档案字段，并用 owned_by_other
+// 与中文 message 告知调用方客户已被他人负责，避免跨客服数据越界（§3.5-02 / §5.1-04）。
+type wecomIntakeCard struct {
+	*ent.EsportsCustomer
+	OwnedByOther   bool   `json:"owned_by_other"`
+	OwnerAdminName string `json:"owner_admin_name"`
+	Message        string `json:"message,omitempty"`
+}
+
+// wecomIntakeCardFor 按归属决定返回整条档案还是最小卡片：仅归属当前客服本人才回传完整档案。
+// 归属他人或尚未分配时只回最小卡片；本函数不写库。
+func wecomIntakeCardFor(ctx context.Context, db *ent.Client, adminID int, existing *ent.EsportsCustomer) *wecomIntakeCard {
+	if existing.OwnerAdminID != nil && *existing.OwnerAdminID == adminID {
+		return &wecomIntakeCard{EsportsCustomer: existing}
+	}
+	card := &wecomIntakeCard{
+		EsportsCustomer: &ent.EsportsCustomer{
+			ID:           existing.ID,
+			DisplayName:  existing.DisplayName,
+			OwnerAdminID: existing.OwnerAdminID,
+			Source:       existing.Source,
+		},
+		OwnedByOther: true,
+	}
+	if existing.OwnerAdminID == nil {
+		card.Message = "该客户尚未分配给当前客服，如需协作请联系管理员"
+		return card
+	}
+	card.OwnerAdminName = adminNames(ctx, db, []int{*existing.OwnerAdminID})[*existing.OwnerAdminID]
+	if card.OwnerAdminName != "" {
+		card.Message = "该客户由" + card.OwnerAdminName + "客服负责，如需协作请联系管理员"
+	} else {
+		card.Message = "该客户已由其他客服负责，如需协作请联系管理员"
+	}
+	return card
+}
+
 // wecomUpsertCustomer 企微侧边栏自动建档（§8.4）：以「企业主体 + 外部联系人标识」组合幂等。
-// 已存在则返回既有档案（created=false），只补基础字段，不覆盖客服已维护的偏好与标签。
-func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in wecomIntakeInput, now time.Time) (*ent.EsportsCustomer, bool, error) {
+// 已存在且归属当前客服则原样返回既有档案（created=false），只补基础字段，不覆盖客服已维护的偏好与标签；
+// 已存在但归属他人则只返回最小卡片（见 wecomIntakeCard），不泄露他人客户档案。
+func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in wecomIntakeInput, now time.Time) (*wecomIntakeCard, bool, error) {
 	in.CorpID = strings.TrimSpace(in.CorpID)
 	in.ExternalID = strings.TrimSpace(in.ExternalID)
 	in.DisplayName = strings.TrimSpace(in.DisplayName)
@@ -358,7 +404,7 @@ func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in we
 	}
 	existing, err := find()
 	if err == nil {
-		return existing, false, nil
+		return wecomIntakeCardFor(ctx, db, adminID, existing), false, nil
 	}
 	if !ent.IsNotFound(err) {
 		return nil, false, err
@@ -369,17 +415,17 @@ func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in we
 		SetWecomCorpID(in.CorpID).SetWecomExternalID(in.ExternalID).
 		SetLastContactAt(now.UTC()).Save(ctx)
 	if ent.IsConstraintError(err) {
-		// 并发建档由唯一索引兜底，返回先落库的那条。
+		// 并发建档由唯一索引兜底，返回先落库的那条；归属检查与常规命中路径一致。
 		existing, qerr := find()
 		if qerr != nil {
 			return nil, false, qerr
 		}
-		return existing, false, nil
+		return wecomIntakeCardFor(ctx, db, adminID, existing), false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	return customer, true, nil
+	return &wecomIntakeCard{EsportsCustomer: customer}, true, nil
 }
 
 // validateScriptInput 校验话术字段；分类可空，正文与标题必填。

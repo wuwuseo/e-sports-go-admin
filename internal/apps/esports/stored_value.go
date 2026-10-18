@@ -205,6 +205,9 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 	}
 	utc := now.UTC()
 	if in.PaymentChannel == "customer_balance" {
+		// 划转与余额核销共用同一把余额锁，避免并发把余额扣成负数。
+		unlockBalance := lockMoneyAccount("balance:" + strconv.Itoa(in.CustomerID))
+		defer unlockBalance()
 		balance, err := walletBalanceTx(ctx, tx, walletCustomerBalance, in.CustomerID)
 		if err != nil {
 			return nil, err
@@ -778,6 +781,9 @@ func expireStoredValueCard(ctx context.Context, db *ent.Client, cardID int, now 
 	if card.Status != esportsstoredvaluecard.StatusActive || card.ValidUntil.After(now.UTC()) {
 		return 0, nil
 	}
+	// 作废赠送与卡消费/退卡共用卡锁，避免并发重复作废或与消费互相覆盖。
+	unlockCard := lockMoneyAccount("card:" + strconv.Itoa(cardID))
+	defer unlockCard()
 	balance, err := storedValueCardBalanceTx(ctx, tx, cardID)
 	if err != nil {
 		return 0, err
@@ -951,6 +957,9 @@ func decideStoredValueRefund(ctx context.Context, db *ent.Client, adminID, cardI
 		}
 		return storedValueCardViewOf(ctx, db, updated)
 	}
+	// 退卡与卡消费/到期作废共用卡锁，避免并发把同一笔未消费本金退两次。
+	unlockCard := lockMoneyAccount("card:" + strconv.Itoa(card.ID))
+	defer unlockCard()
 	balance, err := storedValueCardBalanceTx(ctx, tx, card.ID)
 	if err != nil {
 		return nil, err

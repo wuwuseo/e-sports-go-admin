@@ -152,6 +152,9 @@ func executePlayerRecovery(ctx context.Context, db *ent.Client, id, adminID int,
 	if item.RequestedByAdminID != nil && *item.RequestedByAdminID == adminID {
 		return nil, fmt.Errorf("%w：追偿不得自办（申请人不能执行本人的追偿单）", errForbidden)
 	}
+	// 追偿扣猫粮与提现/结算共用同一把猫粮锁，避免并发把猫粮扣成负数。
+	unlockCatfood := lockMoneyAccount(fmt.Sprintf("catfood:%d", item.PlayerID))
+	defer unlockCatfood()
 	balance, err := walletBalanceTx(ctx, tx, walletPlayerCatfood, item.PlayerID)
 	if err != nil {
 		return nil, err

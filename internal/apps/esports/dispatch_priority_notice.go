@@ -21,7 +21,8 @@ import (
 // 与功能列表原文（「排序加权、不是独占、抢单大厅不受影响」）不同，业务口径为：
 //   - 订单进入待派单时，若该游戏分区存在生效名单，则**只通知名单内陪玩**（其他人在抢单大厅看不到这张单）；
 //   - 名单内有人接下即成交；名单内**全部拒绝**，或**超过配置的通知时长**，订单才**释放到抢单大厅**给所有人抢；
-//   - 释放后订单转 grabbing，与普通抢单单完全一致，名单不再有特权。
+//   - 释放后的落点按席位数区分（§5.6-03）：单席订单转 grabbing，与普通抢单单完全一致，名单不再有特权；
+//     多席订单首版不进大厅，释放只闭合窗口并保持 pending_dispatch，继续由客服指派。
 const (
 	// 优先通知时长（分钟）：窗口内只有名单内陪玩可见并可接单。
 	dispatchPriorityNoticeKey     = "app.esports.dispatch_priority_notice_minutes"
@@ -219,9 +220,14 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string, now t
 	return ids, nil
 }
 
-// releaseDispatchPriorityNoticeIn 事务内把优先通知窗口释放到抢单大厅：订单转 grabbing、窗口置 released、
-// 未回应的通知置 expired，并留事件与事务外盒通知。幂等：仅 pending/accepted → released 生效一次。
+// releaseDispatchPriorityNoticeIn 事务内把优先通知窗口释放：窗口置 released、未回应的通知置 expired，
+// 并留事件与事务外盒通知。幂等：仅 pending/accepted → released 生效一次。
 // 允许 accepted → released：名单内接单后若因转单/退回待派单需要重新释放，窗口已闭合不应再判冲突。
+//
+// 释放后的履约状态按席位数分流（§5.6-03 首版抢单大厅只开放单陪玩订单）：
+//   - required_seats == 1：转 grabbing，对全部陪玩开放（§5.4-12）；
+//   - required_seats > 1：**保持 pending_dispatch**，只闭合窗口并留释放原因/时间，继续由客服指派。
+//     多席订单转 grabbing 会在只筛单席订单的抢单大厅里对所有人不可见，导致静默卡单。
 func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, reason string, now time.Time) (*ent.EsportsOrder, error) {
 	if order.PriorityNoticeStatus == esportsorder.PriorityNoticeStatusReleased {
 		return order, nil
@@ -235,7 +241,8 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 		return nil, err
 	}
 	previousStatus := order.PriorityNoticeStatus.String()
-	changed, err := tx.EsportsOrder.Update().Where(
+	keepPendingDispatch := order.RequiredSeats > 1
+	update := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID),
 		esportsorder.VersionEQ(order.Version),
 		esportsorder.PriorityNoticeStatusIn(
@@ -243,9 +250,11 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingDispatch),
 	).SetPriorityNoticeStatus(esportsorder.PriorityNoticeStatusReleased).
 		SetPriorityReleaseReason(reason).
-		SetPriorityReleasedAt(now.UTC()).
-		SetFulfillmentStatus(esportsorder.FulfillmentStatusGrabbing).
-		AddVersion(1).Save(ctx)
+		SetPriorityReleasedAt(now.UTC())
+	if !keepPendingDispatch {
+		update = update.SetFulfillmentStatus(esportsorder.FulfillmentStatusGrabbing)
+	}
+	changed, err := update.AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -265,6 +274,7 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 		SetActorType("system").SetActorID("").
 		SetDetails(map[string]interface{}{
 			"reason": reason, "game": order.PriorityGame, "from_priority_status": previousStatus,
+			"required_seats": order.RequiredSeats, "kept_pending_dispatch": keepPendingDispatch,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -279,7 +289,8 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 	return tx.EsportsOrder.Get(ctx, order.ID)
 }
 
-// releaseDispatchPriorityNotice 管理端提前释放：把优先通知窗口释放到抢单大厅（§5.2 客服可随时人工干预）。
+// releaseDispatchPriorityNotice 管理端提前释放：闭合优先通知窗口（单席订单转抢单大厅，
+// 多席订单保持待派单由客服指派；§5.2 客服可随时人工干预）。
 func releaseDispatchPriorityNotice(ctx context.Context, db *ent.Client, orderID int, reason string, now time.Time) (*ent.EsportsOrder, error) {
 	reason = strings.TrimSpace(reason)
 	if orderID < 1 || len([]rune(reason)) > 255 {

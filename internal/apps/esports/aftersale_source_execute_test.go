@@ -259,7 +259,8 @@ func TestRechargeAfterSaleExecuteRefund(t *testing.T) {
 		execs[0].Status != esportsrechargerefundexecution.StatusPending {
 		t.Fatalf("外部退款执行明细不正确：%+v", execs[0])
 	}
-	wantIdem := "refund:recharge:" + strconv.Itoa(rechargeTx.ID) + ":" + execs[0].BatchSourceType + ":" + execs[0].BatchSourceID
+	wantIdem := "refund:" + strconv.Itoa(item.ID) + ":recharge:" + strconv.Itoa(rechargeTx.ID) +
+		":" + execs[0].BatchSourceType + ":" + execs[0].BatchSourceID
 	if execs[0].IdemKey != wantIdem {
 		t.Fatalf("外部退款幂等键不正确：got=%s want=%s", execs[0].IdemKey, wantIdem)
 	}

@@ -14,8 +14,11 @@ import (
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
 
+	"go-admin/internal/apps/esports"
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/global"
 	"go-admin/internal/middleware"
 	"go-admin/internal/service"
 )
@@ -66,6 +69,42 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 		}
 		if err := service.NewSystemPermissionServiceWithClient(client).InitSeedPermissions(ctx, seeds); err != nil {
 			return fmt.Errorf("app %s: provision permissions: %w", a.Code, err)
+		}
+		if err := seedCronJobs(ctx, client, a.Code); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// seedCronJobs 为公司功能集自带的定时任务播种 CronJob 行（幂等，按 name 判重）。
+// 任务函数注册在 Go 侧，但只有存在 enabled 的 CronJob 行才会被调度器加载，
+// 缺少种子会导致订单超时释放、结算生成、保护期降级、账本核验、外盒/通知投递等永不执行。
+// 已存在的行一律不改动（尊重运维在后台的启停与表达式调整）。
+func seedCronJobs(ctx context.Context, client *ent.Client, code string) error {
+	if code != "esports" {
+		return nil
+	}
+	for _, seed := range esports.CronSeeds() {
+		exists, err := client.CronJob.Query().Where(cronjob.NameEQ(seed.Name)).Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("app %s: query cron job %s: %w", code, seed.Name, err)
+		}
+		if exists {
+			continue
+		}
+		row, err := client.CronJob.Create().
+			SetName(seed.Name).SetDescription(seed.Description).
+			SetType(cronjob.TypeTask).SetExpression(seed.Expression).
+			SetCommand(seed.Name).SetEnabled(true).Save(ctx)
+		if err != nil {
+			return fmt.Errorf("app %s: create cron job %s: %w", code, seed.Name, err)
+		}
+		// 调度器在 Provision 之前已启动，新行需注册后才能立即生效（重启前不必等待）。
+		if global.CronManager != nil {
+			if err := global.CronManager.AddJob(row); err != nil {
+				return fmt.Errorf("app %s: register cron job %s: %w", code, seed.Name, err)
+			}
 		}
 	}
 	return nil

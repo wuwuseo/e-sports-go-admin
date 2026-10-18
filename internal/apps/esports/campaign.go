@@ -560,6 +560,9 @@ func expireOwnerBonus(ctx context.Context, db *ent.Client, ownerID int, now time
 		return 0, err
 	}
 	defer tx.Rollback()
+	// 作废赠送与余额消费共用同一把余额锁，避免与下单/送礼并发时把赠送重复作废。
+	unlockBalance := lockMoneyAccount("balance:" + strconv.Itoa(ownerID))
+	defer unlockBalance()
 	rows, err := tx.EsportsWalletTx.Query().Where(
 		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeCustomerBalance),
 		esportswallettx.OwnerIDEQ(ownerID),

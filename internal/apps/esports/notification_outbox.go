@@ -69,6 +69,12 @@ var notifyChannelTargets = []struct {
 	channels []string
 }{
 	{"dispatch.remind_admin", []string{notifyChannelWecomApp}},
+	// 第 1 档催单定向在线陪玩（§5.7）：走陪玩端推送；客服侧的第 2 档起用 remind_admin。
+	{"dispatch.remind_player", []string{notifyChannelPush}},
+	// 服务超时提醒客服确认加钟（§5.7）。
+	{"dispatch.service_overtime", []string{notifyChannelWecomApp}},
+	// 服务时长差异过大提醒客服核实（§6.2-03）。
+	{"service.duration_mismatch", []string{notifyChannelWecomApp}},
 	{"aftersale.", []string{notifyChannelWecomApp}},
 	{"gift.", []string{notifyChannelWecomApp, notifyChannelPush}},
 	{"member.", []string{notifyChannelWecomApp}},
@@ -412,6 +418,9 @@ var notificationEventText = map[string]string{
 	"member.level_downgrade_pending":       "会员等级待降级",
 	"member.level_manual":                  "会员等级已手动调整",
 	"dispatch.remind_admin":                "派单提醒（客服）",
+	"dispatch.remind_player":               "派单提醒（陪玩）",
+	"dispatch.service_overtime":            "服务超时待客服确认加钟",
+	"service.duration_mismatch":            "服务时长差异待客服核实",
 	"customer.age_check_requested":         "客户年龄核验待处理",
 	"customer.age_check_reviewed":          "客户年龄核验已完成",
 	"customer.risk_flagged":                "客户触发风控复核",
@@ -457,17 +466,35 @@ func notificationEventSummary(eventType, aggregateRef string, payload map[string
 	if level := payloadInt(payload, "level"); level > 0 {
 		parts = append(parts, "提醒档位 "+strconv.Itoa(level))
 	}
+	if seatIndex := payloadInt(payload, "seat_index"); seatIndex > 0 &&
+		(eventType == "dispatch.remind_player" || eventType == "dispatch.remind_admin") {
+		parts = append(parts, "席位 "+strconv.Itoa(seatIndex))
+	}
+	if eventType == "dispatch.service_overtime" {
+		if minutes := payloadInt(payload, "overtime_minutes"); minutes > 0 {
+			parts = append(parts, "服务时长已超 "+strconv.Itoa(minutes)+" 分钟阈值")
+		}
+	}
+	if eventType == "service.duration_mismatch" {
+		reported := payloadInt(payload, "reported_seconds")
+		system := payloadInt(payload, "system_seconds")
+		if reported > 0 || system > 0 {
+			parts = append(parts, fmt.Sprintf("陪玩上报 %d 秒，系统计时 %d 秒，请核实", reported, system))
+		}
+	}
 	return strings.Join(parts, "，")
 }
 
-// notificationOrderNo 提取订单号：优先 payload.order_no；order.* / payment.* 与
-// dispatch.remind_admin 的 aggregateRef 即订单号（player.* / customer.* / aftersale.* 不是）。
+// notificationOrderNo 提取订单号：优先 payload.order_no；order.* / payment.* 与三个派单/服务类
+// 通知事件的 aggregateRef 即订单号（player.* / customer.* / aftersale.* 不是）。
 func notificationOrderNo(eventType, aggregateRef string, payload map[string]interface{}) string {
 	if orderNo := payloadString(payload, "order_no"); orderNo != "" {
 		return orderNo
 	}
-	if (strings.HasPrefix(eventType, "order.") || strings.HasPrefix(eventType, "payment.") ||
-		eventType == "dispatch.remind_admin") && trailingID(aggregateRef, "") == 0 {
+	orderRefed := strings.HasPrefix(eventType, "order.") || strings.HasPrefix(eventType, "payment.") ||
+		eventType == "dispatch.remind_admin" || eventType == "dispatch.remind_player" ||
+		eventType == "dispatch.service_overtime" || eventType == "service.duration_mismatch"
+	if orderRefed && trailingID(aggregateRef, "") == 0 {
 		return strings.TrimSpace(aggregateRef)
 	}
 	return ""

@@ -52,9 +52,10 @@ func TestRechargeRefundExecGeneratesBatchItems(t *testing.T) {
 	if rows[0].AmountCents != 10000 || rows[1].AmountCents != 5000 {
 		t.Fatalf("逐批退款金额不正确：%+v", rows)
 	}
-	// 幂等键按「售后单来源 + 批次来源」拆分，两个批次来源不同。
+	// 幂等键按「售后单 + 来源 + 批次」拆分：必须含售后单号，否则同一来源的第二张售后单会撞号。
 	for _, r := range rows {
-		want := "refund:recharge:" + strconv.Itoa(item.SourceID) + ":" + r.BatchSourceType + ":" + r.BatchSourceID
+		want := "refund:" + strconv.Itoa(item.ID) + ":recharge:" + strconv.Itoa(item.SourceID) +
+			":" + r.BatchSourceType + ":" + r.BatchSourceID
 		if r.IdemKey != want {
 			t.Fatalf("幂等键格式不正确：got=%s want=%s", r.IdemKey, want)
 		}

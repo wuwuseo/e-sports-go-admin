@@ -54,6 +54,8 @@ type notificationRecipient struct {
 //   - aftersale.*            → 售后/来源客户 + 责任客服
 //   - payment.*              → 责任客服（退款/拒付/撤销类同时通知客户）
 //   - dispatch.remind_admin  → 责任客服
+//   - dispatch.remind_player → 该订单被提醒的陪玩（订单/席位上取不到则视为收件人缺失）
+//   - dispatch.service_overtime / service.duration_mismatch → 责任客服
 //   - gift.*                 → 送礼客户 + 收礼陪玩 + 礼物单快照的归属客服
 //   - member.*               → 该客户 + 归属客服
 //   - customer.*             → 该客户 + 归属客服
@@ -68,6 +70,14 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 	case strings.HasPrefix(eventType, "aftersale."):
 		return resolveAfterSaleNotificationRecipients(ctx, db, aggregateRef, payload)
 	case eventType == "dispatch.remind_admin":
+		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
+	case eventType == "dispatch.remind_player":
+		return resolveDispatchRemindPlayerRecipients(ctx, db, aggregateRef, payload)
+	case eventType == "dispatch.service_overtime":
+		// §5.7 服务超时提醒客服确认是否加钟。
+		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
+	case eventType == "service.duration_mismatch":
+		// §6.2-03 服务时长差异过大提醒客服核实。
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "payment."):
 		return resolvePaymentNotificationRecipients(ctx, db, eventType, aggregateRef, payload)
@@ -196,6 +206,42 @@ func resolveOrderAdminNotificationRecipients(ctx context.Context, db *ent.Client
 	}
 	if order != nil && order.ResponsibleAdminID != nil {
 		set.addAdmin(ctx, db, *order.ResponsibleAdminID, notificationRoleAdmin)
+	}
+	return set.result()
+}
+
+// resolveDispatchRemindPlayerRecipients 解析第 1 档催单（dispatch.remind_player）的目标陪玩：
+// 优先 payload.player_id（写出点会带上席位陪玩）；缺失时按 aggregateRef/order_no + payload.seat_index
+// 回查该订单席位上的陪玩。订单与席位都取不到陪玩时返回 errNotificationRecipientMissing，
+// 由外盒退避重试直至 dead，绝不降级为 user_uid="" 的全员广播。
+func resolveDispatchRemindPlayerRecipients(ctx context.Context, db *ent.Client, aggregateRef string, payload map[string]interface{}) ([]notificationRecipient, error) {
+	set := newNotificationRecipientSet()
+	if playerID := payloadInt(payload, "player_id"); playerID > 0 {
+		set.addPlayer(playerID, notificationRolePlayer)
+		return set.result()
+	}
+	order, err := findNotificationOrder(ctx, db, aggregateRef, payload)
+	if err != nil {
+		return nil, err
+	}
+	if order != nil {
+		query := db.EsportsDispatchSeat.Query().Where(
+			esportsdispatchseat.OrderIDEQ(order.ID),
+			esportsdispatchseat.PlayerIDNotNil(),
+			esportsdispatchseat.StatusIn(esportsdispatchseat.StatusInvited, esportsdispatchseat.StatusAccepted),
+		)
+		if seatIndex := payloadInt(payload, "seat_index"); seatIndex > 0 {
+			query = query.Where(esportsdispatchseat.SeatIndexEQ(seatIndex))
+		}
+		seats, err := query.Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, seat := range seats {
+			if seat.PlayerID != nil {
+				set.addPlayer(*seat.PlayerID, notificationRolePlayer)
+			}
+		}
 	}
 	return set.result()
 }

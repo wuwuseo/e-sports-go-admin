@@ -16,8 +16,8 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 优先派单权（§5.4）：按游戏分区授予的**派单排序加权**，不是独占权；仅作用于人工指派与派单排序，
-// 抢单大厅先到先得、不受影响。
+// 优先派单权（§5.4）：按游戏分区授予的**独占优先通知**，不是排序加权；仅决定优先通知窗口内
+// 谁能先看到并接单，抢单大厅在窗口结束后对所有陪玩开放。名单名次不参与派单排序（§5.2-04）。
 const (
 	// 每游戏每期名额上限；缺失或非法时回落默认值。
 	dispatchPriorityQuotaKey     = "app.esports.dispatch_priority_quota"
@@ -352,6 +352,7 @@ type dispatchCandidate struct {
 	// 历史合作：该陪玩与该客户的历史已完成订单数（§5.5 加分项）。
 	HistoryCompleted int `json:"history_completed"`
 	// 分区等级：当前生效优先派单权名单内的排名，0 表示不在名单或未排名。
+	// 仅作展示（客服了解名单情况），不参与排序（§5.2-04 / §5.4-03）。
 	ZoneRank int `json:"zone_rank"`
 	// 合成排序分（§5.5）：各分量按配置权重加权，越大越靠前；仅作排序诊断。
 	Score int `json:"score"`
@@ -365,7 +366,8 @@ type dispatchCandidate struct {
 //
 // 硬性条件：资质 qualified、在线（与人工指派的门槛一致）；已在该订单席位上的陪玩不重复列出。
 // 排序：客服指定陪玩（preferredPlayerID）最前；其余按「评分 / 在途席位均衡 / 历史合作 /
-// 客户偏好 / 分区等级」以可配置权重合成排序分降序（§5.5），同分按档案 ID 稳定兜底。
+// 客户偏好」以可配置权重合成排序分降序（§5.5），同分按档案 ID 稳定兜底。
+// 优先派单权名单名次**不参与排序**（§5.2-04 / §5.4-03），只在候选上保留 ZoneRank 展示字段。
 //
 // ponytail: 距离/时区以「分区等级（优先派单权名单排名）」近似，未接真实定位；真实推送未接入。
 // 评分与历史合作按候选逐个聚合，候选量级大时可改为一次批量聚合。
@@ -485,7 +487,8 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if err != nil {
 			return nil, err
 		}
-		// 合成排序分（§5.5）：评分 / 在途席位均衡 / 历史合作 / 客户偏好 / 分区等级。
+		// 合成排序分（§5.5）：评分 / 在途席位均衡 / 历史合作 / 客户偏好。
+		// 优先派单权（名单名次）不参与排序（§5.2-04），只保留 ZoneRank 展示字段。
 		ratingScore := 0
 		if !rating.Insufficient {
 			ratingScore = int(rating.Average * 20) // 均分 1~5 → 0~100
@@ -494,12 +497,11 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if preferredPlayerID > 0 && player.ID == preferredPlayerID {
 			preferenceScore = 100
 		}
-		zoneRank, inList := zoneRanks[player.ID]
+		zoneRank := zoneRanks[player.ID]
 		score := dispatchRankScore(weights, dispatchRankFactors{
 			RatingScore:     ratingScore,
 			HistoryScore:    normalizeCappedScore(historyCounts[player.ID], weights.HistoryCap),
 			PreferenceScore: preferenceScore,
-			ZoneScore:       dispatchZoneScore(zoneRank, inList),
 			BalanceScore:    normalizeCappedScore(load[player.ID], weights.BalanceCap),
 		})
 		candidates = append(candidates, &dispatchCandidate{

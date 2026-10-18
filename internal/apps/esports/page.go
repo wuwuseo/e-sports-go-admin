@@ -60,6 +60,88 @@ var pageComponentTypes = map[string]bool{
 	"activity": true, "member_entry": true, "support_entry": true,
 }
 
+// pageRegisteredRoutes 是 uni-app 已注册页面路径白名单（§16.5，抄录 e-sports-uniapp/src/pages.json）。
+// 站内跳转必须是客户端真实注册的页面，避免运营配置出「看似站内、实际未注册」的死链
+// 或跳转到未预期的页面；比对前去掉 query / hash。
+var pageRegisteredRoutes = map[string]bool{
+	"/pages/index/index":        true,
+	"/pages/order/list":         true,
+	"/pages/mine/index":         true,
+	"/pages/messages/index":     true,
+	"/pages/login/index":        true,
+	"/pages/order/create":       true,
+	"/pages/order/detail":       true,
+	"/pages/aftersale/list":     true,
+	"/pages/wallet/index":       true,
+	"/pages/wallet/recharge":    true,
+	"/pages/wallet/buy-card":    true,
+	"/pages/gift/intents":       true,
+	"/pages/gift/disputes":      true,
+	"/pages/player/home":        true,
+	"/pages/player/hall":        true,
+	"/pages/player/orders":      true,
+	"/pages/player/wallet":      true,
+	"/pages/player/addons":      true,
+	"/pages/player/notices":     true,
+	"/pages/player/profile":     true,
+	"/pages/player/identity":    true,
+	"/pages/player/transfer":    true,
+	"/pages/player/assessments": true,
+	"/pages/player/recoveries":  true,
+	"/pages/player/appeals":     true,
+	"/pages/player/teammates":   true,
+	"/pages/cs/login":           true,
+	"/pages/cs/workbench":       true,
+	"/pages/cs/customers":       true,
+	"/pages/cs/customer-detail": true,
+	"/pages/cs/order-create":    true,
+	"/pages/cs/orders":          true,
+	"/pages/cs/order-detail":    true,
+	"/pages/cs/scripts":         true,
+	"/pages/cs/after-sales":     true,
+	"/pages/cs/stored-value":    true,
+	"/pages/cs/gift":            true,
+	"/pages/wecom/index":        true,
+}
+
+// pagePropsWhitelist 是按组件类型定义的 props 键白名单（§16.5）：只允许客户端真实消费的键
+// （e-sports-uniapp/src/pages/index/index.vue 渲染所用，以及管理端属性面板 / 预览的字段），
+// 其余任意键（html / script / 事件处理器等）一律返回参数错误，防止未渲染内容透传到客户端。
+// carousel 额外保留 items（既有运营配置与回归测试使用，元素为 {image, link}）。
+var pagePropsWhitelist = map[string]map[string]bool{
+	"search":    {"placeholder": true},
+	"carousel":  {"images": true, "interval": true, "items": true},
+	"notice":    {"text": true, "color": true},
+	"quick_nav": {"items": true},
+	"category":  {"title": true, "items": true},
+	"product_list": {
+		"title": true, "limit": true, "empty_text": true,
+		"sku_id": true, "sku_ids": true, "product_id": true, "product_ids": true,
+		"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
+	},
+	"player_recommend": {"title": true, "empty_text": true},
+	"activity": {
+		"title": true, "empty_text": true,
+		"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
+	},
+	"member_entry":  {"title": true},
+	"support_entry": {},
+}
+
+// pageNestedPropKeys 是嵌套属性（items 元素，如导航项 / 轮播项）允许的键（§16.5）：
+// 客户端消费的 name / target / icon 与文本、实体引用键；图片、跳转键复用上面的字段集合。
+var pageNestedPropKeys = map[string]bool{
+	"name": true, "target": true, "icon": true, "title": true, "subtitle": true, "text": true,
+	"limit": true, "interval": true, "color": true, "empty_text": true, "placeholder": true,
+	"sku_id": true, "sku_ids": true, "product_id": true, "product_ids": true,
+	"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
+}
+
+// pageNestedPropKeyAllowed 判断嵌套属性键是否被允许（含图片 / 跳转字段）。
+func pageNestedPropKeyAllowed(key string) bool {
+	return pageNestedPropKeys[key] || pageImageFields[key] || pageLinkFields[key]
+}
+
 // pageComponent 是单个装修组件：类型 + 显隐 + 自由属性。
 type pageComponent struct {
 	Type    string                 `json:"type"`
@@ -139,7 +221,7 @@ func validatePageConfigWithAllowedDomains(cfg pageConfig, allowedDomains map[str
 		if comp.Type == "support_entry" && (comp.Visible == nil || *comp.Visible) {
 			hasVisibleSupport = true
 		}
-		if err := validatePageProps(i, comp.Props, allowedDomains, enforceDomain); err != nil {
+		if err := validatePageProps(i, comp.Type, comp.Props, allowedDomains, enforceDomain); err != nil {
 			return err
 		}
 	}
@@ -150,9 +232,17 @@ func validatePageConfigWithAllowedDomains(cfg pageConfig, allowedDomains map[str
 	return nil
 }
 
-// validatePageProps 递归校验组件自由属性。compIndex 从 0 起，错误信息里以 1 起呈现给运营。
-func validatePageProps(compIndex int, props map[string]interface{}, allowedDomains map[string]bool, enforceDomain bool) error {
+// validatePageProps 校验组件自由属性（§16.5）：先按组件类型做 props 键白名单，
+// 未知键直接返回参数错误，再递归校验取值。compIndex 从 0 起，错误信息里以 1 起呈现给运营。
+func validatePageProps(compIndex int, compType string, props map[string]interface{}, allowedDomains map[string]bool, enforceDomain bool) error {
+	allowed, ok := pagePropsWhitelist[compType]
+	if !ok {
+		return fmt.Errorf("%w：第 %d 个组件类型 %q 不支持属性配置", errInvalidInput, compIndex+1, compType)
+	}
 	for key, value := range props {
+		if !allowed[key] {
+			return fmt.Errorf("%w：第 %d 个组件（%s）不支持的属性键 %q", errInvalidInput, compIndex+1, compType, key)
+		}
 		if err := validatePageValue(compIndex, key, value, allowedDomains, enforceDomain); err != nil {
 			return err
 		}
@@ -192,7 +282,11 @@ func validatePageValue(compIndex int, key string, value interface{}, allowedDoma
 			return validatePageDimension(float64(v), compIndex, key)
 		}
 	case map[string]interface{}:
+		// 嵌套属性（items 元素等）同样做键白名单，避免绕过顶层白名单注入未知键。
 		for k, sub := range v {
+			if !pageNestedPropKeyAllowed(k) {
+				return fmt.Errorf("%w：第 %d 个组件属性子项不支持的键 %q", errInvalidInput, compIndex+1, k)
+			}
 			if err := validatePageValue(compIndex, k, sub, allowedDomains, enforceDomain); err != nil {
 				return err
 			}
@@ -207,12 +301,20 @@ func validatePageValue(compIndex int, key string, value interface{}, allowedDoma
 	return nil
 }
 
-// validatePageLink 校验外部跳转链接（§16.5）：站内相对路径或 https://；
-// enforceDomain 为 true 时还须命中「已审核 HTTPS 域名」白名单，白名单为空不放行任何外部链接。
+// validatePageLink 校验外部跳转链接（§16.5）：站内相对路径须命中已注册页面路径白名单，
+// 外部链接仅允许 https://；enforceDomain 为 true 时还须命中「已审核 HTTPS 域名」白名单，
+// 白名单为空不放行任何外部链接。
 func validatePageLink(raw string, allowedDomains map[string]bool, enforceDomain bool, compIndex int, field string) error {
 	raw = strings.TrimSpace(raw)
-	if raw == "" || strings.HasPrefix(raw, "/") {
-		return nil // 空值跳过；站内相对路径（已注册路由）。
+	if raw == "" {
+		return nil // 空值跳过。
+	}
+	if strings.HasPrefix(raw, "/") {
+		path := pageRoutePath(raw)
+		if !pageRegisteredRoutes[path] {
+			return fmt.Errorf("%w：第 %d 个组件字段 %q 的站内跳转路径 %q 不是已注册页面", errInvalidInput, compIndex+1, field, path)
+		}
+		return nil
 	}
 	if !strings.HasPrefix(raw, "https://") {
 		return fmt.Errorf("%w：第 %d 个组件字段 %q 的外部跳转链接仅允许 https:// 或站内相对路径", errInvalidInput, compIndex+1, field)
@@ -225,6 +327,17 @@ func validatePageLink(raw string, allowedDomains map[string]bool, enforceDomain 
 		return fmt.Errorf("%w：第 %d 个组件字段 %q 的外部跳转域名 %q 未经审核", errInvalidInput, compIndex+1, field, host)
 	}
 	return nil
+}
+
+// pageRoutePath 取站内路径的路径部分（去掉 query / hash 与末尾斜杠），用于已注册路由比对。
+func pageRoutePath(raw string) string {
+	if i := strings.IndexAny(raw, "?#"); i >= 0 {
+		raw = raw[:i]
+	}
+	if len(raw) > 1 {
+		raw = strings.TrimRight(raw, "/")
+	}
+	return raw
 }
 
 // validatePageImageURL 校验素材 / 图片地址（§16.5）：https:// 或站内相对路径，不允许 http。

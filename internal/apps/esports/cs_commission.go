@@ -11,7 +11,6 @@ import (
 
 	"go-admin/internal/apps/esports/schema"
 	"go-admin/internal/ent"
-	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscscommissionrule"
 	"go-admin/internal/ent/esportssettlement"
@@ -436,20 +435,14 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	if rule == nil {
 		return nil
 	}
-	// 结单前履约后退款从最终计提基数扣除。
-	netPayable := order.PayableCents - order.RefundedCents
+	// 结单前履约后退款从最终计提基数扣除；加钟款属追加营收，按业务口径并入可分基数（§12.1-04）。
+	netPayable := order.PayableCents + order.AddonCents - order.RefundedCents
 	if netPayable <= 0 {
 		return nil
 	}
-	playerEntries, err := tx.EsportsCommissionEntry.Query().Where(
-		esportscommissionentry.OrderIDEQ(order.ID),
-	).Select(esportscommissionentry.FieldAmountCents).All(ctx)
+	playerTotal, err := sumOrderCommissionCents(ctx, tx, order.ID)
 	if err != nil {
 		return err
-	}
-	var playerTotal int64
-	for _, entry := range playerEntries {
-		playerTotal += entry.AmountCents
 	}
 	// 可分余额 = 扣除结单前退款、陪玩分成与渠道成本后的金额，提成不得超过它（§12.1）。
 	channelCost := order.ChannelCostCents

@@ -31,6 +31,10 @@ func releaseOrderToPublicPool(ctx context.Context, db *ent.Client, adminID int, 
 	if err != nil {
 		return nil, err
 	}
+	// §3.3-11：存单冻结期间禁止一切写操作，清空归属客服属于写操作。
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.ResponsibleAdminID == nil {
 		return nil, errConflict
 	}

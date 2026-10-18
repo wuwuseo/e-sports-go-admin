@@ -18,14 +18,20 @@ import (
 // ── 派单排序合成（§5.5 加分项） ──
 //
 // 候选排序在窗口可见性与硬性过滤之后，把可计算的加分项按可配置权重合成一个排序分：
-//   评分（综合评分均分） + 在途席位均衡 + 历史合作 + 客户偏好 + 分区等级。
+//   评分（综合评分均分） + 在途席位均衡 + 历史合作 + 客户偏好。
 // 客服/客户指定陪玩（Preferred）仍硬置顶，不参与加权，语义不变。
+//
+// 优先派单权（名单名次）**不参与排序**（§5.2-04 / §5.4-03）：它只体现为独占优先通知，
+// 名单名次仅作为候选的展示字段（ZoneRank）。
 
 // 排序合成权重配置键（JSON，缺失或非法时逐字段回落默认值）。
 const dispatchRankWeightsKey = "app.esports.dispatch_ranking_weights"
 
 // dispatchRankWeights 是排序合成权重。权重为 0 表示该分量不参与排序；
 // HistoryCap / BalanceCap 是历史合作与在途席位的归一化上限（须 >=1）。
+//
+// Zone 为历史配置项（app.esports.dispatch_ranking_weights 的 zone 字段），为保证既有配置
+// 仍可解析而保留；优先派单权不参与排序（§5.2-04），该权重不再影响排序结果。
 type dispatchRankWeights struct {
 	Rating     int `json:"rating"`
 	History    int `json:"history"`
@@ -97,19 +103,18 @@ func dispatchRankWeightsFor(ctx context.Context, db *ent.Client) dispatchRankWei
 	return w
 }
 
-// dispatchRankFactors 是各排序分量归一化后的分值（0~100）。
+// dispatchRankFactors 是各排序分量归一化后的分值（0~100）。优先派单权不是排序分量（§5.4-03）。
 type dispatchRankFactors struct {
 	RatingScore     int
 	HistoryScore    int
 	PreferenceScore int
-	ZoneScore       int
 	BalanceScore    int
 }
 
 // dispatchRankScore 按权重把各分量合成为排序分，越大越靠前。
 func dispatchRankScore(w dispatchRankWeights, f dispatchRankFactors) int {
 	return w.Rating*f.RatingScore + w.History*f.HistoryScore +
-		w.Preference*f.PreferenceScore + w.Zone*f.ZoneScore + w.Balance*f.BalanceScore
+		w.Preference*f.PreferenceScore + w.Balance*f.BalanceScore
 }
 
 // normalizeCappedScore 把非负计数按上限归一化为 0~100（上限为 0 时返回 0，避免除零）。
@@ -121,22 +126,6 @@ func normalizeCappedScore(value, cap int) int {
 		value = cap
 	}
 	return value * 100 / cap
-}
-
-// dispatchZoneScore 分区等级分：不在当前生效名单为 0；在名单未排名（rank<1）给 60；
-// rank=1 给 100，之后每降一名减 10，下限 10（rank 越小越靠前）。
-func dispatchZoneScore(rank int, inList bool) int {
-	if !inList {
-		return 0
-	}
-	if rank < 1 {
-		return 60
-	}
-	score := 100 - (rank-1)*10
-	if score < 10 {
-		score = 10
-	}
-	return score
 }
 
 // activePriorityRanks 返回某游戏分区当前生效名单中「陪玩 → 排名」映射。

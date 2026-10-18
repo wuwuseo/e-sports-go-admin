@@ -116,6 +116,9 @@ func executeStoredValueCardAfterSale(ctx context.Context, db *ent.Client, id, ad
 	default:
 		return nil, errStoredValueUnusable
 	}
+	// 售后退卡与卡消费/到期作废共用卡锁，避免并发把同一笔未消费本金退两次。
+	unlockCard := lockMoneyAccount("card:" + strconv.Itoa(card.ID))
+	defer unlockCard()
 	balance, err := storedValueCardBalanceTx(ctx, tx, card.ID)
 	if err != nil {
 		return nil, err
@@ -219,6 +222,9 @@ func executeRechargeAfterSale(ctx context.Context, db *ent.Client, id, adminID i
 	if err != nil {
 		return nil, err
 	}
+	// 充值售后退款与订单核销/购卡共用同一账户锁，避免并发把余额扣成负数。
+	unlockAccount := lockMoneyAccount(moneyAccountLockKey(row.AccountType.String(), strconv.Itoa(row.OwnerID)))
+	defer unlockAccount()
 	quote, err := rechargeRefundQuoteFor(ctx, tx.Client(), accountType, accountID, now)
 	if err != nil {
 		return nil, err

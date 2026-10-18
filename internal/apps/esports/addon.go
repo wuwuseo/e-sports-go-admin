@@ -530,6 +530,10 @@ func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonI
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
+	// 账户级串行锁（§4.2 / §12.1）：与订单余额核销、售后退款共用同一把余额锁，
+	// 否则「求和 → 写负数流水」窗口内并发收款可把余额扣成负数。
+	unlock := lockMoneyAccount("balance:" + strconv.Itoa(order.CustomerID))
+	defer unlock()
 	customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)
 	if err != nil {
 		return nil, err

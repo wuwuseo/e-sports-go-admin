@@ -32,10 +32,11 @@ import (
 // rechargeRefundExecutionNo 外部退款执行明细编号，前缀 RRE。
 func rechargeRefundExecutionNo() string { return "RRE" + uuid.NewString() }
 
-// rechargeRefundExecutionIdemKey 幂等键：售后单来源 + 批次来源。
-// 格式 refund:<source_type>:<source_id>:<batch_source_type>:<batch_source_id>。
-func rechargeRefundExecutionIdemKey(sourceType string, sourceID int, batchSourceType, batchSourceID string) string {
-	return fmt.Sprintf("refund:%s:%d:%s:%s", sourceType, sourceID, batchSourceType, batchSourceID)
+// rechargeRefundExecutionIdemKey 幂等键：售后单 + 来源 + 批次。必须含售后单号——
+// 同一充值来源可有多张售后单分批退款，只按「来源 + 批次」会撞唯一索引被静默跳过，
+// 而内部余额已按 RefundCents 冲减，造成「钱退了、外部打款明细缺失」。
+func rechargeRefundExecutionIdemKey(afterSaleID int, sourceType string, sourceID int, batchSourceType, batchSourceID string) string {
+	return fmt.Sprintf("refund:%d:%s:%d:%s:%s", afterSaleID, sourceType, sourceID, batchSourceType, batchSourceID)
 }
 
 // refundExecutionAccount 由售后单来源推导退款账户的账本身份。
@@ -162,7 +163,7 @@ func executeRechargeRefundQuoteTx(ctx context.Context, tx *ent.Tx, item *ent.Esp
 		}
 	}
 	for _, batch := range plans {
-		idem := rechargeRefundExecutionIdemKey(item.SourceType.String(), item.SourceID,
+		idem := rechargeRefundExecutionIdemKey(item.ID, item.SourceType.String(), item.SourceID,
 			batch.BatchSourceType, batch.BatchSourceID)
 		if _, ok := currentIdem[idem]; ok {
 			continue
