@@ -42,7 +42,7 @@ var closeConditionFieldSpecs = []closeConditionFieldSpec{
 	{Key: "service_units", Label: "成员上报服务量", Kind: "units"},
 	{Key: "promised_service_units", Label: "承诺服务量", Kind: "units"},
 	{Key: "addon_units", Label: "加钟量", Kind: "units"},
-	{Key: "pending_addon_count", Label: "待处理加钟数", Kind: "count"},
+	{Key: "pending_addon_count", Label: "未处理加钟数（待确认/未收款）", Kind: "count"},
 	{Key: "open_aftersale_count", Label: "进行中售后数", Kind: "count"},
 	{Key: "stored_value_consistent", Label: "储值卡核销一致", Kind: "bool"},
 }
@@ -161,9 +161,18 @@ func closeConditionFactsOf(ctx context.Context, db *ent.Client, order *ent.Espor
 		facts.ServiceSeconds += segment.SystemSeconds
 		facts.ServiceUnits += segment.ReportedUnits
 	}
+	// 未处理加钟：待陪玩确认，或已确认但尚未收款（有应收金额）。已确认未收款的加钟
+	// 不能随结单被当作已结算，须先收款或撤销。
 	pendingAddons, err := db.EsportsOrderAddon.Query().Where(
 		esportsorderaddon.OrderIDEQ(order.ID),
-		esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+		esportsorderaddon.Or(
+			esportsorderaddon.StatusEQ(esportsorderaddon.StatusPending),
+			esportsorderaddon.And(
+				esportsorderaddon.StatusEQ(esportsorderaddon.StatusConfirmed),
+				esportsorderaddon.PaymentStatusEQ(esportsorderaddon.PaymentStatusUnpaid),
+				esportsorderaddon.AddedCentsGT(0),
+			),
+		),
 	).Count(ctx)
 	if err != nil {
 		return facts, err
@@ -330,15 +339,15 @@ func structuredCloseConditionTree(conds closeConditions) *schematier.CloseCondit
 
 // closeConditionStatus 结单条件求值结果：供结单执行拦截与前端结单按钮置灰共用。
 type closeConditionStatus struct {
-	Satisfied            bool                     `json:"satisfied"`
-	TreeConfigured       bool                     `json:"tree_configured"`
-	RuleCode             string                   `json:"rule_code"`
-	RuleVersion          int                      `json:"rule_version"`
-	ReviewThresholdCents int64                    `json:"review_threshold_cents"`
-	Items                []closeConditionItem     `json:"items"`
-	Reasons              []string                 `json:"reasons"`
+	Satisfied            bool                      `json:"satisfied"`
+	TreeConfigured       bool                      `json:"tree_configured"`
+	RuleCode             string                    `json:"rule_code"`
+	RuleVersion          int                       `json:"rule_version"`
+	ReviewThresholdCents int64                     `json:"review_threshold_cents"`
+	Items                []closeConditionItem      `json:"items"`
+	Reasons              []string                  `json:"reasons"`
 	Fields               []closeConditionFieldSpec `json:"fields"`
-	Operators            []string                 `json:"operators"`
+	Operators            []string                  `json:"operators"`
 }
 
 // orderCloseConditionStatus 读取订单当前结单条件状态（供结单按钮可用性与逐项提示）。

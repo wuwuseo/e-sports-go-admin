@@ -580,6 +580,8 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 		// §12.5：退款同时冲回原单服务分成与加钟分成（加钟退款分摊）。
 		esportscommissionentry.KindIn(
 			esportscommissionentry.KindService, esportscommissionentry.KindAddon),
+		// 已撤销（void）的加钟明细不再参与退款冲回，避免二次冲回。
+		esportscommissionentry.StatusNEQ(esportscommissionentry.StatusVoid),
 	).All(ctx)
 	if err != nil {
 		return err
@@ -1125,6 +1127,10 @@ func setOrderManualCommissionRule(ctx context.Context, db *ent.Client, orderID, 
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return nil, err
+	}
+	// 存单冻结期间禁止改写订单分成规则：规则快照由派单时点锁定，冻结单不应再产生资金口径变化。
+	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
 	if order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||

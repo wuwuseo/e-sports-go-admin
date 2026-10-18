@@ -163,7 +163,7 @@ func TestGiftDisputePartialRefundLifecycle(t *testing.T) {
 	}, "customer", customer.ID, 0, now.Add(2*time.Hour)); !errors.Is(err, errConflict) {
 		t.Fatalf("已退满礼物不应再受理争议，err=%v", err)
 	}
-	if _, err = refundGift(ctx, db, 11, false, order.ID, "重复退款", now); !errors.Is(err, errConflict) {
+	if _, err = refundGift(ctx, db, 11, true, order.ID, "重复退款", now); !errors.Is(err, errConflict) {
 		t.Fatalf("已退满礼物不应再全额退款，err=%v", err)
 	}
 }

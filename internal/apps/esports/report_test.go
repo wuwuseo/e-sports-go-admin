@@ -134,10 +134,11 @@ func TestReportRange(t *testing.T) {
 		t.Fatalf("月区间不正确：%v ~ %v", begin, end)
 	}
 
-	// 自定义区间：YYYY-MM-DD 按业务时区当日零点解析，再转 UTC 存储。
+	// 自定义区间：YYYY-MM-DD 按业务时区当日零点解析，再转 UTC 存储；
+	// 结束日为日期时按「次日零点」返回（右开区间），确保结束日整天包含在内。
 	begin, end, err = reportRange("daily", "2026-10-01", "2026-10-03", now)
 	if err != nil || !begin.Equal(time.Date(2026, 9, 30, 16, 0, 0, 0, time.UTC)) ||
-		!end.Equal(time.Date(2026, 10, 2, 16, 0, 0, 0, time.UTC)) {
+		!end.Equal(time.Date(2026, 10, 3, 16, 0, 0, 0, time.UTC)) {
 		t.Fatalf("自定义区间不正确：%v ~ %v err=%v", begin, end, err)
 	}
 

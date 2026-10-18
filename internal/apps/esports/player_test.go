@@ -118,8 +118,10 @@ func TestPlayerInviteRespond(t *testing.T) {
 	if err := respondPlayerInvite(ctx, db, player.ID, rejectSeat.ID, false, now); err != nil {
 		t.Fatal(err)
 	}
-	if got := db.EsportsDispatchSeat.GetX(ctx, rejectSeat.ID); got.Status != esportsdispatchseat.StatusRejected {
-		t.Fatalf("席位未转拒单：%+v", got)
+	// 拒绝：唯一席位被拒后订单退回待派单，席位同步重置为可重新指派。
+	if got := db.EsportsDispatchSeat.GetX(ctx, rejectSeat.ID); got.Status != esportsdispatchseat.StatusOpen ||
+		got.PlayerID != nil {
+		t.Fatalf("被拒席位未重置为可派单：%+v", got)
 	}
 	if got := db.EsportsOrder.GetX(ctx, rejectOrder.ID); got.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
 		t.Fatalf("订单未退回待派单：%+v", got)

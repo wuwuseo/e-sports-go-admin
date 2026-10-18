@@ -2,6 +2,7 @@ package esports
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func seedCatfoodPlayer(t *testing.T, db *ent.Client, userID int, cents int64) *e
 	ctx := t.Context()
 	player := seedPlayer(t, db, userID, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	if _, err := walletRecharge(ctx, db, 1, walletPlayerCatfood, player.ID,
-		walletInput{PrincipalCents: cents, Note: "结算入账"}, "wd-seed-"+time.Now().Format("150405.000000")); err != nil {
+		walletInput{PrincipalCents: cents, Note: "结算入账"}, "wd-seed-"+strconv.Itoa(userID)+"-"+time.Now().Format("150405.000000")); err != nil {
 		t.Fatalf("猫粮入账失败：%v", err)
 	}
 	return player
@@ -192,6 +193,10 @@ func TestWithdrawalReviewAndPayout(t *testing.T) {
 	if _, err = payWithdrawal(ctx, db, 8, item.ID, "  ", "", now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("空打款凭证应被拒，err=%v", err)
 	}
+	// 审核人不得自打款。
+	if _, err = payWithdrawal(ctx, db, 7, item.ID, "BANK-SELF", "", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("审核人自打款应被拒，err=%v", err)
+	}
 	paid, err := payWithdrawal(ctx, db, 8, item.ID, "BANK-TX-2026-01", "TAX-2026-01", now)
 	if err != nil {
 		t.Fatalf("登记打款应成功，err=%v", err)
@@ -274,7 +279,7 @@ func TestWithdrawalSummaryAndDashboard(t *testing.T) {
 	if _, err = reviewWithdrawal(ctx, db, 7, first.ID, withdrawalReviewInput{Approve: true}, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = payWithdrawal(ctx, db, 7, first.ID, "PAY-SUM-1", "", now); err != nil {
+	if _, err = payWithdrawal(ctx, db, 8, first.ID, "PAY-SUM-1", "", now); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = applyWithdrawal(ctx, db, player.ID, validApply("wd-sum-0002", 2000), now); err != nil {
@@ -302,5 +307,31 @@ func TestWithdrawalSummaryAndDashboard(t *testing.T) {
 	}
 	if len(pending) != 1 || pending[0].ID == first.ID {
 		t.Fatalf("待审列表不正确：%+v", pending)
+	}
+}
+
+func TestWithdrawalIdempotencyRejectsChangedBodyOrOtherPlayer(t *testing.T) {
+	db := openWithdrawalDB(t, "esports_withdrawal_idem_scope")
+	ctx := t.Context()
+	p1 := seedCatfoodPlayer(t, db, 9101, 100000)
+	p2 := seedCatfoodPlayer(t, db, 9102, 100000)
+	now := time.Now()
+
+	first, err := applyWithdrawal(ctx, db, p1.ID, validApply("wd-key-shared", 3000), now)
+	if err != nil {
+		t.Fatalf("首次申请失败: %v", err)
+	}
+	again, err := applyWithdrawal(ctx, db, p1.ID, validApply("wd-key-shared", 3000), now)
+	if err != nil {
+		t.Fatalf("同人同请求幂等重放应返回既有单: %v", err)
+	}
+	if again.ID != first.ID {
+		t.Fatalf("幂等重放返回不同单据: %d vs %d", again.ID, first.ID)
+	}
+	if _, err := applyWithdrawal(ctx, db, p1.ID, validApply("wd-key-shared", 4000), now); err == nil {
+		t.Fatal("同人改金额不应被当作幂等成功")
+	}
+	if _, err := applyWithdrawal(ctx, db, p2.ID, validApply("wd-key-shared", 3000), now); err == nil {
+		t.Fatal("不同陪玩复用同一幂等键不应返回他人单据")
 	}
 }

@@ -93,6 +93,10 @@ func registerPaymentReversal(ctx context.Context, db *ent.Client, adminID int,
 	if err != nil {
 		return nil, err
 	}
+	// 存单冻结期间不登记新的渠道撤销 / 拒付：登记会抬升订单版本并留痕，属订单写操作。
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	reversal, err := tx.EsportsPaymentReversal.Create().SetReversalNo(paymentReversalNo()).
 		SetReceiptID(receipt.ID).SetOrderID(order.ID).SetChannel(receipt.Channel).
 		SetTransactionNo(receipt.TransactionNo).SetAmountCents(in.AmountCents).
@@ -174,6 +178,14 @@ func decidePaymentReversal(ctx context.Context, db *ent.Client, id, adminID int,
 	if reversal.SubmittedByAdminID != nil && *reversal.SubmittedByAdminID == adminID {
 		return nil, errForbidden
 	}
+	// 先取订单做冻结守卫，再改撤销单与订单资金状态：冻结期间任何处置都不落账。
+	order, err := tx.EsportsOrder.Get(ctx, reversal.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	status := esportspaymentreversal.StatusHandled
 	if in.Action == reversalActionIgnore {
 		status = esportspaymentreversal.StatusRejected
@@ -190,10 +202,6 @@ func decidePaymentReversal(ctx context.Context, db *ent.Client, id, adminID int,
 	}
 	if changed != 1 {
 		return nil, errConflict
-	}
-	order, err := tx.EsportsOrder.Get(ctx, reversal.OrderID)
-	if err != nil {
-		return nil, err
 	}
 	if in.Action != reversalActionIgnore {
 		// 资金异常：只有仍被当作已收款的订单才需要改判，已异常或未收款的直接跳过。

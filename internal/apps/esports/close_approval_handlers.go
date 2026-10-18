@@ -89,12 +89,18 @@ func rollbackCloseApprovalFlowHandler(c fiber.Ctx) error {
 }
 
 // orderCloseApprovalHandler 返回订单的结单审批进度与当前待审批节点（供复核弹窗说明）。
+// 读取边界在 handler 内再校验一次：仅订单负责客服、被授权协作客服或超管可读，避免绕过路由包装读取他人订单。
 func orderCloseApprovalHandler(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	operator, err := requestAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
 	id, err := parsePathID(c, "订单")
 	if err != nil {
+		return businessError(c, err)
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	if _, err = loadOwnedOrder(c.Context(), global.ORM, operator.ID, isSuper, id); err != nil {
 		return businessError(c, err)
 	}
 	view, err := orderCloseApproval(c.Context(), global.ORM, id)

@@ -37,6 +37,9 @@ func playerInviteTeammates(ctx context.Context, db *ent.Client, playerID, orderI
 	if err != nil {
 		return nil, err
 	}
+	if err := ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
 		(order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch &&
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance) {

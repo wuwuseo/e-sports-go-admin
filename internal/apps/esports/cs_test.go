@@ -66,9 +66,13 @@ func TestCustomerProfileAndFollowUp(t *testing.T) {
 	updated, err := updateCustomerProfile(ctx, db, 1, false, customer.ID, customerProfileInput{
 		Phone: "13800000000", ConsumptionPreference: "王者荣耀",
 		Tags: []string{"vip", " vip ", "", "复购"}, FollowStatus: "following",
+		SelfOrderEnabled: func() *bool { v := true; return &v }(),
 	})
 	if err != nil {
 		t.Fatalf("更新档案失败：%v", err)
+	}
+	if !updated.SelfOrderEnabled {
+		t.Fatal("自助下单开关应被更新为 true")
 	}
 	if len(updated.Tags) != 2 || updated.Tags[0] != "vip" || updated.Tags[1] != "复购" {
 		t.Fatalf("标签应去空去重，got %v", updated.Tags)

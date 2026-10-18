@@ -54,6 +54,10 @@ func requestWithdrawalPayout(ctx context.Context, db *ent.Client, adminID, withd
 	if withdrawal.Status != esportswithdrawal.StatusApproved {
 		return nil, errConflict
 	}
+	// 资金职责分离：审核人与打款提交人不得为同一人。
+	if withdrawal.ReviewedByAdminID != nil && *withdrawal.ReviewedByAdminID == adminID {
+		return nil, fmt.Errorf("%w：审核人不得提交打款", errForbidden)
+	}
 	if in.AmountCents != withdrawal.NetCents {
 		return nil, fmt.Errorf("%w：打款金额须等于实际到账额 %d 分", errInvalidInput, withdrawal.NetCents)
 	}
@@ -104,6 +108,10 @@ func markWithdrawalPayoutPaid(ctx context.Context, db *ent.Client, adminID, payo
 	}
 	if payout.Status != esportswithdrawalpayout.StatusPayRequested {
 		return nil, errConflict
+	}
+	// 提交打款的人不得自行确认到账，须由另一名财务确认。
+	if payout.SubmittedByAdminID != nil && *payout.SubmittedByAdminID == adminID {
+		return nil, fmt.Errorf("%w：打款提交人不得自行确认到账", errForbidden)
 	}
 	changed, err := tx.EsportsWithdrawalPayout.Update().Where(
 		esportswithdrawalpayout.IDEQ(payoutID),

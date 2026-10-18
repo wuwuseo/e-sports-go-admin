@@ -40,7 +40,7 @@ func TestVerifiedReceiptAppliesOnceAndSeparatesOverpayment(t *testing.T) {
 	firstIntent := db.EsportsPaymentIntent.Create().SetIntentNo("intent-001").SetOrderID(first.ID).
 		SetConfirmationID(firstConfirmation.ID).
 		SetQuoteVersion(first.QuoteVersion).SetAmountCents(first.PayableCents).
-		SetChannel("approved_test_channel").SetExpiresAt(first.PaymentDeadline).SaveX(ctx)
+		SetChannel("wechat_work").SetExpiresAt(first.PaymentDeadline).SaveX(ctx)
 	notice := verifiedPayment{
 		IntentNo: firstIntent.IntentNo, Channel: firstIntent.Channel,
 		TransactionNo: "provider-transaction-001", AmountCents: 5200,
@@ -66,6 +66,9 @@ func TestVerifiedReceiptAppliesOnceAndSeparatesOverpayment(t *testing.T) {
 		t.Fatalf("外部付款未锁定当时客服提成口径：%+v", paid)
 	}
 	stock := db.EsportsSku.GetX(ctx, sku.ID)
+	if paid.PaymentChannel != "wechat_work" {
+		t.Fatalf("外部核销应回写订单收款方式，got=%s", paid.PaymentChannel)
+	}
 	if paid.PaymentStatus != "paid" || paid.FulfillmentStatus != "pending_dispatch" ||
 		stock.QuotaReserved != 0 || stock.QuotaSold != 1 || db.EsportsLedgerEntry.Query().CountX(ctx) != 3 {
 		t.Fatalf("payment did not update order, quota and ledgers together: %+v %+v", paid, stock)

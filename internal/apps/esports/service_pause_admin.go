@@ -59,11 +59,24 @@ func serviceDisconnectPauseTimeout(ctx context.Context, db *ent.Client) (time.Du
 	return time.Duration(minutes) * time.Minute, true
 }
 
-// setServicePauseByAdmin 客服代陪玩暂停 / 恢复服务段（§3.3）：校验订单在服务中、目标陪玩为该单服务成员、
-// 理由必填；事件 actor_type=admin、actor_id=管理员 ID，details 用 on_behalf_of_player_id 记录被代操作的陪玩，
-// 以区分「本人操作」与「客服代操作」。暂停 / 恢复的计时口径复用本人操作路径。
+// ensureOrderResponsibleAdmin 校验写操作的订单归属（§3.3）：只有订单负责客服或超级管理员可代操作。
+// 与 order_access.loadStrictOwnedOrder 同一口径，但这里在事务内已加载订单，避免重复查询；
+// 协作客服只有读权限，不能借代暂停 / 时长更正改写他人订单。
+func ensureOrderResponsibleAdmin(order *ent.EsportsOrder, adminID int, isSuper bool) error {
+	if isSuper {
+		return nil
+	}
+	if order == nil || order.ResponsibleAdminID == nil || *order.ResponsibleAdminID != adminID {
+		return errForbidden
+	}
+	return nil
+}
+
+// setServicePauseByAdmin 客服代陪玩暂停 / 恢复服务段（§3.3）：校验订单归属（负责客服或超管）、订单在服务中、
+// 目标陪玩为该单服务成员、理由必填；事件 actor_type=admin、actor_id=管理员 ID，details 用
+// on_behalf_of_player_id 记录被代操作的陪玩，以区分「本人操作」与「客服代操作」。暂停 / 恢复的计时口径复用本人操作路径。
 func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderID, playerID int,
-	pause bool, reason string, now time.Time) (playerServiceTiming, error) {
+	isSuper, pause bool, reason string, now time.Time) (playerServiceTiming, error) {
 	reason = strings.TrimSpace(reason)
 	if adminID < 1 || orderID < 1 || playerID < 1 || reason == "" || len([]rune(reason)) > 255 {
 		return playerServiceTiming{}, errInvalidInput
@@ -76,6 +89,9 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return playerServiceTiming{}, err
+	}
+	if err = ensureOrderResponsibleAdmin(order, adminID, isSuper); err != nil {
 		return playerServiceTiming{}, err
 	}
 	if err = ensureOrderNotFrozen(order); err != nil {
@@ -131,8 +147,9 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 // 原因与操作人，绝不静默改写。原始计时随更正一并变化，历史以事件为准。
 // 仅对 status=finished 的服务段开放：进行中的服务段应通过客服代暂停 / 恢复（setServicePauseByAdmin）调整，
 // 否则结束时按实际点击间隔重算 system_seconds 会覆盖更正结果。
+// 归属口径同代暂停：仅订单负责客服或超级管理员可更正，避免其他客服改写他人订单的计时与停工量。
 func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID, playerID int,
-	effectiveSeconds, pausedSeconds int64, responsibility, reason string, now time.Time) (serviceTimingCorrection, error) {
+	isSuper bool, effectiveSeconds, pausedSeconds int64, responsibility, reason string, now time.Time) (serviceTimingCorrection, error) {
 	responsibility = strings.TrimSpace(responsibility)
 	reason = strings.TrimSpace(reason)
 	if adminID < 1 || orderID < 1 || playerID < 1 || effectiveSeconds < 0 || pausedSeconds < 0 ||
@@ -152,6 +169,9 @@ func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID,
 	defer tx.Rollback()
 	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
+		return serviceTimingCorrection{}, err
+	}
+	if err = ensureOrderResponsibleAdmin(order, adminID, isSuper); err != nil {
 		return serviceTimingCorrection{}, err
 	}
 	if err = ensureOrderNotFrozen(order); err != nil {

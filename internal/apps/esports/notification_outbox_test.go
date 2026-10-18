@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -284,6 +285,61 @@ func TestNotificationOutboxAfterSaleRecipients(t *testing.T) {
 	}
 }
 
+// 礼物 / 会员事件：gift.* 解析送礼客户 + 收礼陪玩 + 归属客服，member.* 解析客户 + 归属客服；
+// 不允许退化为 user_uid="" 广播。
+func TestNotificationOutboxGiftAndMemberRecipients(t *testing.T) {
+	db := openOutboxDB(t, "esports_notify_gift_member")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC)
+
+	admin := seedNotificationAdmin(t, db, "gift-member-admin")
+	customer := seedNotificationCustomer(t, db, "礼物会员客户")
+	player := seedNotificationPlayer(t, db, 9101, "收礼陪玩")
+	db.EsportsCustomer.UpdateOneID(customer.ID).SetOwnerAdminID(admin.ID).ExecX(ctx)
+	giftOrder := db.EsportsGiftOrder.Create().SetGiftNo("GIFT-NOTIFY-1").SetGiftID(1).
+		SetCustomerID(customer.ID).SetPlayerID(player.ID).SetPlayerName(player.DisplayName).
+		SetQuantity(1).SetUnitPriceCents(10000).SetAmountCents(10000).
+		SetIncomeCents(6000).SetResponsibleAdminID(admin.ID).SaveX(ctx)
+	enableNotificationChannel(t, db, notifyChannelWecomApp)
+
+	db.EsportsOutbox.Create().SetEventKey("gift.paid:" + giftOrder.GiftNo).SetEventType("gift.paid").
+		SetAggregateRef(giftOrder.GiftNo).
+		SetPayload(map[string]interface{}{
+			"gift_no": giftOrder.GiftNo, "customer_id": customer.ID, "player_id": player.ID,
+		}).SetNextAttemptAt(now).SaveX(ctx)
+	db.EsportsOutbox.Create().SetEventKey("member.level_upgraded:1").SetEventType("member.level_upgraded").
+		SetAggregateRef(fmt.Sprintf("customer:%d", customer.ID)).
+		SetPayload(map[string]interface{}{"customer_id": customer.ID, "level_code": "silver"}).
+		SetNextAttemptAt(now).SaveX(ctx)
+
+	if count, err := deliverNotificationOutboxBatch(ctx, db, &messageNotificationSender{db: db}, now, 10); err != nil || count != 2 {
+		t.Fatalf("delivery: %d %v", count, err)
+	}
+	messages := notificationMessages(t, db)
+	if len(messages) != 5 {
+		t.Fatalf("expected gift(3)+member(2) messages, got %d: %+v", len(messages), messages)
+	}
+	want := []string{
+		customerNotificationAddress(customer.ID), playerNotificationAddress(player.ID), admin.UID,
+		customerNotificationAddress(customer.ID), admin.UID,
+	}
+	for i, msg := range messages {
+		if msg.UserUID == "" {
+			t.Fatalf("message %d is a broadcast: %+v", i, msg)
+		}
+		if msg.UserUID != want[i] {
+			t.Fatalf("message %d address = %q, want %q", i, msg.UserUID, want[i])
+		}
+	}
+	if channels := eventNotifyChannels("gift.paid"); len(channels) == 0 {
+		t.Fatal("gift.paid 未归类为通知事件")
+	}
+	if channels := eventNotifyChannels("member.level_upgraded"); len(channels) == 0 {
+		t.Fatal("member.level_upgraded 未归类为通知事件")
+	}
+}
+
 // 解析不到收件人：绝不写 user_uid 空记录，事件退避后置 dead。
 func TestNotificationOutboxMissingRecipientsGoesDead(t *testing.T) {
 	db := openOutboxDB(t, "esports_notify_missing")
@@ -553,8 +609,9 @@ func TestOutboxBusinessAndNotificationPartition(t *testing.T) {
 	ctx := t.Context()
 	now := time.Date(2026, 10, 9, 10, 0, 0, 0, time.UTC)
 	enableNotificationChannel(t, db, notifyChannelWecomApp)
-	db.EsportsOutbox.Create().SetEventKey("biz:1").SetEventType("gift.paid").
-		SetAggregateRef("gift-1").SetPayload(map[string]interface{}{}).SetNextAttemptAt(now).SaveX(ctx)
+	// gift./member. 已归入通知事件，这里用结算类非通知事件验证业务消费互斥。
+	db.EsportsOutbox.Create().SetEventKey("biz:1").SetEventType("settlement.generated").
+		SetAggregateRef("settlement-1").SetPayload(map[string]interface{}{}).SetNextAttemptAt(now).SaveX(ctx)
 	db.EsportsOutbox.Create().SetEventKey("ntf:1").SetEventType("order.closed").
 		SetAggregateRef("order-1").SetPayload(map[string]interface{}{}).SetNextAttemptAt(now).SaveX(ctx)
 

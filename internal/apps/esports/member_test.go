@@ -116,6 +116,84 @@ func TestMemberLevelValidationAndStatusFlow(t *testing.T) {
 	}
 }
 
+// 编辑等级时未携带 dedicated_cs / priority_booking 不得把已有权益清零；
+// 显式传 false 才关闭。新建时未传按 false 处理。
+func TestUpdateMemberLevelPreservesOptionalBenefits(t *testing.T) {
+	db := openMemberDB(t, "esports_member_level_optional")
+	defer func() { _ = db.Close() }()
+	ctx := t.Context()
+
+	created := seedMemberLevel(t, db, memberLevelInput{
+		Code: "diamond", Name: "钻石", GrowthThreshold: 100000, DiscountBps: 9000,
+		DedicatedCs: memberBoolPtr(true), PriorityBooking: memberBoolPtr(true),
+	})
+	if !created.DedicatedCs || !created.PriorityBooking {
+		t.Fatalf("新建等级未落专属客服/优先预约：%+v", created)
+	}
+	// 模拟旧前端 / 只改名称的请求：两个开关字段未传（nil）。
+	updated, err := updateMemberLevel(ctx, db, created.ID, created.Version, memberLevelInput{
+		Code: "diamond", Name: "钻石会员", GrowthThreshold: 120000, DiscountBps: 8800,
+	})
+	if err != nil {
+		t.Fatalf("更新等级失败：%v", err)
+	}
+	if !updated.DedicatedCs || !updated.PriorityBooking {
+		t.Fatalf("未传开关时权益被清零：%+v", updated)
+	}
+	// 显式传 false 才关闭。
+	cleared, err := updateMemberLevel(ctx, db, updated.ID, updated.Version, memberLevelInput{
+		Code: "diamond", Name: "钻石会员", GrowthThreshold: 120000, DiscountBps: 8800,
+		DedicatedCs: memberBoolPtr(false), PriorityBooking: memberBoolPtr(false),
+	})
+	if err != nil {
+		t.Fatalf("关闭权益失败：%v", err)
+	}
+	if cleared.DedicatedCs || cleared.PriorityBooking {
+		t.Fatalf("显式 false 未关闭权益：%+v", cleared)
+	}
+}
+
+// 新建等级时不传开关，默认不授予权益。
+func TestCreateMemberLevelOptionalBenefitsDefaultOff(t *testing.T) {
+	db := openMemberDB(t, "esports_member_level_default_off")
+	defer func() { _ = db.Close() }()
+	created := seedMemberLevel(t, db, memberLevelInput{Code: "basic", Name: "普通"})
+	if created.DedicatedCs || created.PriorityBooking {
+		t.Fatalf("未传开关不应授予权益：%+v", created)
+	}
+}
+
+// 结单前已发生退款时，成长值按实付净额计提，避免结单按全额补计。
+func TestCloseOrderAccruesGrowthNetOfPriorRefunds(t *testing.T) {
+	db := openMemberDB(t, "esports_member_net_growth")
+	defer func() { _ = db.Close() }()
+	ctx := t.Context()
+	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
+
+	seedMemberLevel(t, db, memberLevelInput{Code: "silver", Name: "银卡", GrowthThreshold: 10000, DiscountBps: 9500})
+	customer := saveCustomerOrFail(t, db, 11)
+	order := seedCloseableMemberOrder(t, db, customer.ID, "member-close-net-1", 10000)
+	// 结单前退款 3000（尚未计提成长值，退款时不会写冲回流水）。
+	db.EsportsOrder.UpdateOneID(order.ID).SetRefundedCents(3000).
+		SetRefundStatus(esportsorder.RefundStatusPartial).ExecX(ctx)
+
+	closed, err := closeOrder(ctx, db, order.ID, 11, closeOrderInput{Note: "净额结单"}, now)
+	if err != nil {
+		t.Fatalf("结单失败：%v", err)
+	}
+	if closed.RefundedCents != 3000 || closed.PayableCents != 10000 {
+		t.Fatalf("订单金额快照被改动：%+v", closed)
+	}
+	if growth := customerGrowthTotalX(t, db, customer.ID); growth != 7000 {
+		t.Fatalf("成长值未按净额计提：%d", growth)
+	}
+	if got := db.EsportsCustomer.GetX(ctx, customer.ID); got.MemberLevelCode != "" {
+		t.Fatalf("净额未达门槛却升级：%+v", got)
+	}
+}
+
+func memberBoolPtr(value bool) *bool { return &value }
+
 // 结单计提成长值：首次定级 → 跨门槛即时升级。
 func TestCloseOrderAccruesGrowthAndLevelsUp(t *testing.T) {
 	db := openMemberDB(t, "esports_member_accrue")

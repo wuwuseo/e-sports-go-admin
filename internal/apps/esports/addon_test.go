@@ -32,7 +32,7 @@ func seedInServiceOrder(t *testing.T, db *ent.Client, orderNo string, playerID i
 }
 
 // 加钟全流程：仅服务中订单可发起、金额或工时至少一项为正、同一订单只允许一条待确认；
-// 本单陪玩确认后累加订单并不改写报价快照、按确认时点规则生成 addon 分成明细。
+// 本单陪玩确认后累加订单并不改写报价快照、按确认时点规则保存分成快照但不立即计提。
 func TestOrderAddonLifecycle(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_addon?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
@@ -82,11 +82,14 @@ func TestOrderAddonLifecycle(t *testing.T) {
 	if got.AddonCents != 4000 || got.AddonUnits != 2 || got.PayableCents != order.PayableCents {
 		t.Fatalf("加钟未累加到订单或改写了报价快照：%+v", got)
 	}
-	entry := db.EsportsCommissionEntry.Query().Where(
-		esportscommissionentry.KindEQ(esportscommissionentry.KindAddon)).OnlyX(ctx)
-	if entry.AmountCents != 2000 || entry.BaseCents != 4000 || entry.PlayerID != player.ID ||
-		entry.Status != esportscommissionentry.StatusPendingSettlement {
-		t.Fatalf("加钟分成明细不正确：%+v", entry)
+	// 确认只保存快照，不立即计提分成（未收款不产生陪玩应付）。
+	if n := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.KindEQ(esportscommissionentry.KindAddon)).CountX(ctx); n != 0 {
+		t.Fatalf("确认加钟不应立即生成分成明细：%d", n)
+	}
+	// 规则快照已保存到加钟单，供收款后按快照计提。
+	if confirmed.RuleID == nil || confirmed.RuleVersion != 1 || confirmed.CommissionCents != 2000 {
+		t.Fatalf("加钟规则快照不完整：%+v", confirmed)
 	}
 	if _, err := confirmOrderAddon(ctx, db, player.ID, addon.ID, now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复确认加钟未拦截：%v", err)

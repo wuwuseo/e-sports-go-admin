@@ -27,6 +27,12 @@ func TestWithdrawalPayoutStateMachine(t *testing.T) {
 	if _, err = reviewWithdrawal(ctx, db, 7, item.ID, withdrawalReviewInput{Approve: true}, now); err != nil {
 		t.Fatal(err)
 	}
+	// 审核人不得自己提交打款。
+	if _, err = requestWithdrawalPayout(ctx, db, 7, item.ID, requestWithdrawalPayoutInput{
+		Channel: "bank_card", TransactionNo: "BANK-SELF", AmountCents: 4000,
+	}, now); !errors.Is(err, errForbidden) {
+		t.Fatalf("审核人提交打款应被拒，err=%v", err)
+	}
 
 	// 提交打款执行：落 pay_requested，提现单仍 approved。
 	req, err := requestWithdrawalPayout(ctx, db, 8, item.ID, requestWithdrawalPayoutInput{
@@ -45,6 +51,10 @@ func TestWithdrawalPayoutStateMachine(t *testing.T) {
 		t.Fatalf("打款执行阶段提现单应保持 approved，got=%s", got.Status)
 	}
 
+	// 提交人不得自己确认到账。
+	if _, err = markWithdrawalPayoutPaid(ctx, db, 8, req.ID, "TAX-SELF", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("打款提交人自确认应被拒，err=%v", err)
+	}
 	// 标记打款成功：提现单转 paid，留到账时间与打款人。
 	paid, err := markWithdrawalPayoutPaid(ctx, db, 9, req.ID, "TAX-1", now)
 	if err != nil {

@@ -263,12 +263,18 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err = ensureDispatchSeats(ctx, tx, order); err != nil {
 		return nil, err
 	}
+	// 可复用 open 席位，也可接管此前被收回的 rejected / expired / revoked 席位：
+	// 这些席位未开工，派单回退后若不允许重新占用，单席订单会永久卡死。
 	changed, err := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.OrderIDEQ(orderID), esportsdispatchseat.SeatIndexEQ(seatIndex),
-		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusOpen),
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusOpen, esportsdispatchseat.StatusRejected,
+			esportsdispatchseat.StatusExpired, esportsdispatchseat.StatusRevoked,
+		),
 	).SetPlayerID(playerID).SetStatus(esportsdispatchseat.StatusInvited).
 		SetSource(esportsdispatchseat.SourceAssign).SetInvitedByAdminID(adminID).
-		SetExpiresAt(now.UTC().Add(ttl)).AddVersion(1).Save(ctx)
+		SetExpiresAt(now.UTC().Add(ttl)).ClearRespondedAt().
+		ClearCommissionRuleID().ClearCommissionRuleLockedAt().AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -584,14 +590,63 @@ func publishOrderToGrabHall(ctx context.Context, db *ent.Client, orderID, adminI
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// reopenDispatchSeatsForGrab 把订单下已被回收的席位（revoked / expired）重置为 open，
-// 清空陪玩与邀请信息，使订单发布到抢单大厅后一定存在可抢席位。
-func reopenDispatchSeatsForGrab(ctx context.Context, tx *ent.Tx, orderID int) error {
-	_, err := tx.EsportsDispatchSeat.Update().Where(
+// reopenDeadDispatchSeatsForRedispatch 把订单下尚未开工的 rejected / expired / revoked 席位
+// 统一重置为 open，并清空陪玩、邀请、回应时间与分成规则快照，返回被重置的席位序号。
+//
+// 调用时机是订单层面的「回到可派单状态」：回退待派单、释放到抢单大厅、发布到大厅。
+// 这样单席订单被拒/过期/撤回后不会永久无 open 席位；多席订单回退时也能整体补位。
+// 只更新 dead 状态，accepted / invited / open 席位不受影响；历史仍保留在原有的
+// order.seat_rejected / order.seat_expired / order.seat_revoked 订单事件里。
+// 已产生服务段的旧关联不重置，避免把实际开过工的陪玩错误清空。
+func reopenDeadDispatchSeatsForRedispatch(ctx context.Context, tx *ent.Tx, orderID int) ([]int, error) {
+	deadStatuses := []esportsdispatchseat.Status{
+		esportsdispatchseat.StatusRejected,
+		esportsdispatchseat.StatusExpired,
+		esportsdispatchseat.StatusRevoked,
+	}
+	seats, err := tx.EsportsDispatchSeat.Query().Where(
 		esportsdispatchseat.OrderIDEQ(orderID),
-		esportsdispatchseat.StatusIn(esportsdispatchseat.StatusRevoked, esportsdispatchseat.StatusExpired),
-	).ClearPlayerID().ClearExpiresAt().ClearRespondedAt().
-		SetStatus(esportsdispatchseat.StatusOpen).AddVersion(1).Save(ctx)
+		esportsdispatchseat.StatusIn(deadStatuses...),
+	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	reopened := make([]int, 0, len(seats))
+	for _, seat := range seats {
+		if seat.PlayerID != nil {
+			started, err := tx.EsportsServiceSegment.Query().Where(
+				esportsservicesegment.OrderIDEQ(orderID),
+				esportsservicesegment.PlayerIDEQ(*seat.PlayerID),
+				esportsservicesegment.SeatIndexEQ(seat.SeatIndex),
+			).Exist(ctx)
+			if err != nil {
+				return nil, err
+			}
+			if started {
+				continue
+			}
+		}
+		changed, err := tx.EsportsDispatchSeat.Update().Where(
+			esportsdispatchseat.IDEQ(seat.ID),
+			esportsdispatchseat.VersionEQ(seat.Version),
+			esportsdispatchseat.StatusIn(deadStatuses...),
+		).ClearPlayerID().ClearExpiresAt().ClearRespondedAt().
+			ClearCommissionRuleID().ClearCommissionRuleLockedAt().
+			SetStatus(esportsdispatchseat.StatusOpen).AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed == 1 {
+			reopened = append(reopened, seat.SeatIndex)
+		}
+	}
+	return reopened, nil
+}
+
+// reopenDispatchSeatsForGrab 保留旧入口语义：把订单下已被回收的席位重置为 open，
+// 使订单发布到抢单大厅后一定存在可抢席位。
+func reopenDispatchSeatsForGrab(ctx context.Context, tx *ent.Tx, orderID int) error {
+	_, err := reopenDeadDispatchSeatsForRedispatch(ctx, tx, orderID)
 	return err
 }
 

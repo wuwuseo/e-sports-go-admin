@@ -154,8 +154,29 @@ func cancelSeatTransfer(ctx context.Context, db *ent.Client, playerID, id int, n
 	return db.EsportsSeatTransferRequest.Get(ctx, id)
 }
 
+// ensureSeatTransferDecider 校验转单确认人：订单负责人或超级管理员。
+// 订单尚未指派负责人（公共池）时，任一客服都可确认；已指派负责人时其他客服返回 403。
+// 说明：路由只做了管理员鉴权，业务层必须再按订单归属收紧，避免普通客服批准他人订单的转单。
+func ensureSeatTransferDecider(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int) error {
+	if order.ResponsibleAdminID == nil || *order.ResponsibleAdminID == adminID {
+		return nil
+	}
+	account, err := tx.Admin.Get(ctx, adminID)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return errForbidden
+		}
+		return err
+	}
+	if account.IsSuperAdmin {
+		return nil
+	}
+	return errForbidden
+}
+
 // decideSeatTransfer 客服确认转单：通过则释放席位为待补位并把订单退回待接单 / 待派单；
 // 驳回则保持原状。两种结论都要求申请仍为待确认（条件更新保证只生效一次）。
+// 确认人必须是订单负责人或超级管理员（公共池无负责人时任一客服可确认）。
 func decideSeatTransfer(ctx context.Context, db *ent.Client, adminID, id int,
 	approve bool, note string, now time.Time) (*ent.EsportsSeatTransferRequest, error) {
 	note = strings.TrimSpace(note)
@@ -172,6 +193,13 @@ func decideSeatTransfer(ctx context.Context, db *ent.Client, adminID, id int,
 	defer tx.Rollback()
 	item, err := tx.EsportsSeatTransferRequest.Get(ctx, id)
 	if err != nil {
+		return nil, err
+	}
+	order, err := tx.EsportsOrder.Get(ctx, item.OrderID)
+	if err != nil {
+		return nil, err
+	}
+	if err = ensureSeatTransferDecider(ctx, tx, order, adminID); err != nil {
 		return nil, err
 	}
 	if item.Status != esportsseattransferrequest.StatusPending {

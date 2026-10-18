@@ -40,13 +40,14 @@ func adminServicePauseHandler(c fiber.Ctx, pause bool) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
 	var in struct {
 		Reason string `json:"reason"`
 	}
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	item, err := setServicePauseByAdmin(c.Context(), global.ORM, adminID, orderID, playerID, pause, in.Reason, time.Now())
+	item, err := setServicePauseByAdmin(c.Context(), global.ORM, adminID, orderID, playerID, isSuper, pause, in.Reason, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -68,6 +69,7 @@ func adminCorrectServiceTimingHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
 	var in struct {
 		EffectiveSeconds int64  `json:"effective_seconds"`
 		PausedSeconds    int64  `json:"paused_seconds"`
@@ -77,7 +79,7 @@ func adminCorrectServiceTimingHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	result, err := correctServiceTiming(c.Context(), global.ORM, adminID, orderID, playerID,
+	result, err := correctServiceTiming(c.Context(), global.ORM, adminID, orderID, playerID, isSuper,
 		in.EffectiveSeconds, in.PausedSeconds, in.Responsibility, in.Reason, time.Now())
 	if err != nil {
 		return businessError(c, err)

@@ -70,6 +70,8 @@ var notifyChannelTargets = []struct {
 }{
 	{"dispatch.remind_admin", []string{notifyChannelWecomApp}},
 	{"aftersale.", []string{notifyChannelWecomApp}},
+	{"gift.", []string{notifyChannelWecomApp, notifyChannelPush}},
+	{"member.", []string{notifyChannelWecomApp}},
 	{"customer.", []string{notifyChannelWecomApp}},
 	{"payment.", []string{notifyChannelWecomApp}},
 	{"order.", []string{notifyChannelWecomApp, notifyChannelPush}},
@@ -403,6 +405,12 @@ var notificationEventText = map[string]string{
 	"payment.receipt_applied":              "支付已入账",
 	"payment.receipt_exception":            "支付异常待处理",
 	"payment.reversal_registered":          "支付冲正已登记",
+	"gift.paid":                            "礼物已送出",
+	"gift.refunded":                        "礼物已退款",
+	"member.level_assigned":                "会员等级已定级",
+	"member.level_upgraded":                "会员等级已升级",
+	"member.level_downgrade_pending":       "会员等级待降级",
+	"member.level_manual":                  "会员等级已手动调整",
 	"dispatch.remind_admin":                "派单提醒（客服）",
 	"customer.age_check_requested":         "客户年龄核验待处理",
 	"customer.age_check_reviewed":          "客户年龄核验已完成",
@@ -423,6 +431,10 @@ func notificationEventTitle(eventType string) string {
 		return "售后通知"
 	case strings.HasPrefix(eventType, "payment."):
 		return "支付通知"
+	case strings.HasPrefix(eventType, "gift."):
+		return "礼物通知"
+	case strings.HasPrefix(eventType, "member."):
+		return "会员通知"
 	case strings.HasPrefix(eventType, "customer."):
 		return "客户提醒"
 	case strings.HasPrefix(eventType, "player."):

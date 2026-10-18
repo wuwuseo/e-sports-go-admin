@@ -366,6 +366,9 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 	if err != nil {
 		return err
 	}
+	if err := ensureOrderNotFrozen(order); err != nil {
+		return err
+	}
 	if accept {
 		if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance {
@@ -409,10 +412,12 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 	}
 	actorID := strconv.Itoa(playerID)
 	if accept {
-		// 存在任一非 accepted 席位则表示尚未接满。
+		// 只有仍待回应的 invited 与可补位的 open 席位算「未接满」；
+		// rejected/expired/revoked 已是无效席位，不应把多席订单永久卡在待接单。
 		notAllAccepted, err := tx.EsportsDispatchSeat.Query().Where(
 			esportsdispatchseat.OrderIDEQ(seat.OrderID),
-			esportsdispatchseat.StatusNEQ(esportsdispatchseat.StatusAccepted),
+			esportsdispatchseat.StatusIn(
+				esportsdispatchseat.StatusInvited, esportsdispatchseat.StatusOpen),
 		).Exist(ctx)
 		if err != nil {
 			return err
@@ -629,10 +634,15 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 	}
 	update := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.OrderIDEQ(orderID),
-		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusOpen),
+		// 单席订单可能只剩被回收的席位（rejected/expired/revoked），抢单时一并接管，
+		// 避免释放到大厅后仍因没有 open 席位而抢不了。
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusOpen, esportsdispatchseat.StatusRejected,
+			esportsdispatchseat.StatusExpired, esportsdispatchseat.StatusRevoked,
+		),
 	).SetPlayerID(playerID).SetStatus(esportsdispatchseat.StatusAccepted).
 		SetSource(esportsdispatchseat.SourceGrab).SetRespondedAt(now.UTC()).
-		SetCommissionRuleLockedAt(now.UTC()).AddVersion(1)
+		SetCommissionRuleLockedAt(now.UTC()).ClearExpiresAt().AddVersion(1)
 	if rule != nil {
 		update.SetCommissionRuleID(rule.ID)
 	} else {

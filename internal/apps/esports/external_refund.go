@@ -150,6 +150,10 @@ func executeExternalRefund(ctx context.Context, db *ent.Client, adminID, id int,
 	if err != nil {
 		return nil, err
 	}
+	// 存单冻结期间禁止执行外部退款：冻结单的退款额度与资金状态不得变化，先恢复再操作。
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
 	changed, err := tx.EsportsExternalRefund.Update().Where(
 		esportsexternalrefund.IDEQ(id),
 		esportsexternalrefund.StatusEQ(esportsexternalrefund.StatusRegistered),

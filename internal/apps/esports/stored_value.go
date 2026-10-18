@@ -469,6 +469,8 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 	if orderID < 1 || cardID < 1 {
 		return nil, errInvalidInput
 	}
+	unlock := lockMoneyAccount(fmt.Sprintf("card:%d", cardID))
+	defer unlock()
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err

@@ -12,6 +12,7 @@ import (
 	"go-admin/internal/ent/esportsdispatchprioritygrant"
 	"go-admin/internal/ent/esportsdispatchprioritynotice"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -77,6 +78,11 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 	}
 	// §5.9：首次进入待派单池的时间点（只写一次，后续回退不覆盖）。
 	if err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstPooled, now); err != nil {
+		return err
+	}
+	// 回到待派单即可重新派单：把此前被拒/过期/撤回的席位统一恢复为 open，
+	// 否则单席订单会因为没有 open 席位而永久卡在待派单。既有席位事件保留历史。
+	if _, err = reopenDeadDispatchSeatsForRedispatch(ctx, tx, order.ID); err != nil {
 		return err
 	}
 	// 客户指定陪玩：客户/客服已明确人选，直接走指派流程，不进入优先通知窗口（§5.4）。
@@ -159,7 +165,9 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 	return nil
 }
 
-// activePriorityPlayerIDs 取某游戏分区当前生效名单里的陪玩 ID。
+// activePriorityPlayerIDs 取某游戏分区当前生效名单里**当前可接单**的陪玩 ID。
+// 开窗前过滤不可接单者：离线、未合格、并发/每日接单上限已满的名单成员不产生通知；
+// 若全部不可接则返回空列表，调用方不开窗，订单按常规待派单流程处理。
 func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string, now time.Time) ([]int, error) {
 	grants, err := tx.EsportsDispatchPriorityGrant.Query().Where(
 		esportsdispatchprioritygrant.GameEQ(game),
@@ -170,23 +178,68 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string, now t
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]int, 0, len(grants))
+	if len(grants) == 0 {
+		return nil, nil
+	}
+	candidateIDs := make([]int, 0, len(grants))
 	for _, grant := range grants {
+		candidateIDs = append(candidateIDs, grant.PlayerID)
+	}
+	players, err := tx.EsportsPlayer.Query().Where(
+		esportsplayer.IDIn(candidateIDs...),
+	).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[int]*ent.EsportsPlayer, len(players))
+	for _, player := range players {
+		byID[player.ID] = player
+	}
+	ids := make([]int, 0, len(grants))
+	seen := make(map[int]bool, len(grants))
+	for _, grant := range grants {
+		if seen[grant.PlayerID] {
+			continue
+		}
+		player := byID[grant.PlayerID]
+		if player == nil || player.Qualification != esportsplayer.QualificationQualified ||
+			player.Presence != esportsplayer.PresenceOnline {
+			continue
+		}
+		// 容量粗筛：已满则本次不通知，避免名单成员收到注定接不了的通知。
+		if err = checkPlayerDispatchLimit(ctx, tx, player, nil, now, 0); err != nil {
+			if errors.Is(err, errInvalidInput) {
+				continue
+			}
+			return nil, err
+		}
+		seen[grant.PlayerID] = true
 		ids = append(ids, grant.PlayerID)
 	}
 	return ids, nil
 }
 
 // releaseDispatchPriorityNoticeIn 事务内把优先通知窗口释放到抢单大厅：订单转 grabbing、窗口置 released、
-// 未回应的通知置 expired，并留事件与事务外盒通知。幂等：仅 pending → released 生效一次。
+// 未回应的通知置 expired，并留事件与事务外盒通知。幂等：仅 pending/accepted → released 生效一次。
+// 允许 accepted → released：名单内接单后若因转单/退回待派单需要重新释放，窗口已闭合不应再判冲突。
 func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, reason string, now time.Time) (*ent.EsportsOrder, error) {
 	if order.PriorityNoticeStatus == esportsorder.PriorityNoticeStatusReleased {
 		return order, nil
 	}
+	if order.PriorityNoticeStatus != esportsorder.PriorityNoticeStatusPending &&
+		order.PriorityNoticeStatus != esportsorder.PriorityNoticeStatusAccepted {
+		return nil, errConflict
+	}
+	// 释放到大厅前先补回 open 席位，避免只有 revoked/expired/rejected 席位时无人可抢。
+	if _, err := reopenDeadDispatchSeatsForRedispatch(ctx, tx, order.ID); err != nil {
+		return nil, err
+	}
+	previousStatus := order.PriorityNoticeStatus.String()
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID),
 		esportsorder.VersionEQ(order.Version),
-		esportsorder.PriorityNoticeStatusEQ(esportsorder.PriorityNoticeStatusPending),
+		esportsorder.PriorityNoticeStatusIn(
+			esportsorder.PriorityNoticeStatusPending, esportsorder.PriorityNoticeStatusAccepted),
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingDispatch),
 	).SetPriorityNoticeStatus(esportsorder.PriorityNoticeStatusReleased).
 		SetPriorityReleaseReason(reason).
@@ -200,6 +253,7 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 		return nil, errConflict
 	}
 	newVersion := order.Version + 1
+	// 只作废仍待回应的通知；已接受的通知保留 accepted 作为历史。
 	if _, err = tx.EsportsDispatchPriorityNotice.Update().Where(
 		esportsdispatchprioritynotice.OrderIDEQ(order.ID),
 		esportsdispatchprioritynotice.StatusEQ(esportsdispatchprioritynotice.StatusNotified),
@@ -210,7 +264,7 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 		SetOrderVersion(newVersion).SetEventType("order.dispatch_released").
 		SetActorType("system").SetActorID("").
 		SetDetails(map[string]interface{}{
-			"reason": reason, "game": order.PriorityGame,
+			"reason": reason, "game": order.PriorityGame, "from_priority_status": previousStatus,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}

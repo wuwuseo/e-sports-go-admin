@@ -199,8 +199,9 @@ func TestAfterSaleRefundOriginalLifecycle(t *testing.T) {
 	}
 	refundTx := db.EsportsWalletTx.Query().Where(
 		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeRefundReturn)).OnlyX(ctx)
-	if refundTx.PrincipalDeltaCents != 1000 || refundTx.BonusDeltaCents != 500 {
-		t.Fatalf("退款流水构成为先本金后赠送不正确：%+v", refundTx)
+	// 原核销构成本金 1000 / 赠送 1000，退款 1500 按构成各退 750（不再本金单边优先）。
+	if refundTx.PrincipalDeltaCents != 750 || refundTx.BonusDeltaCents != 750 {
+		t.Fatalf("退款流水未按原核销构成分摊：%+v", refundTx)
 	}
 	if refundTx.SourceType != "after_sale" || refundTx.SourceID != created.AfterSaleNo || refundTx.OwnerID != order.CustomerID {
 		t.Fatalf("退款流水幂等键或归属不正确：%+v", refundTx)

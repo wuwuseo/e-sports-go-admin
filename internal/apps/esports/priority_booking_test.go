@@ -19,7 +19,7 @@ func TestMemberDedicatedCSProfileDisplay(t *testing.T) {
 
 	owner := db.Admin.Create().SetEmail("dedicated-cs@example.com").SetPassword("test").
 		SetUID("dedicated-cs-owner").SetUsername("dedicated-cs-owner").SetNickname("专属客服小王").SaveX(ctx)
-	seedMemberLevel(t, db, memberLevelInput{Code: "silver-dedicated", Name: "银卡", GrowthThreshold: 0, DiscountBps: 10000, DedicatedCs: true})
+	seedMemberLevel(t, db, memberLevelInput{Code: "silver-dedicated", Name: "银卡", GrowthThreshold: 0, DiscountBps: 10000, DedicatedCs: memberBoolPtr(true)})
 	customer := saveCustomerOrFail(t, db, owner.ID)
 	db.EsportsCustomer.UpdateOneID(customer.ID).SetMemberLevelCode("silver-dedicated").SaveX(ctx)
 
@@ -62,7 +62,7 @@ func TestPriorityBookingSubmitAndTodo(t *testing.T) {
 
 	owner := db.Admin.Create().SetEmail("pb-owner@example.com").SetPassword("test").
 		SetUID("pb-owner").SetUsername("pb-owner").SaveX(ctx)
-	seedMemberLevel(t, db, memberLevelInput{Code: "gold-booking", Name: "金卡", GrowthThreshold: 0, DiscountBps: 10000, PriorityBooking: true})
+	seedMemberLevel(t, db, memberLevelInput{Code: "gold-booking", Name: "金卡", GrowthThreshold: 0, DiscountBps: 10000, PriorityBooking: memberBoolPtr(true)})
 	customer := saveCustomerOrFail(t, db, owner.ID)
 	customer = db.EsportsCustomer.UpdateOneID(customer.ID).SetMemberLevelCode("gold-booking").SaveX(ctx)
 	player := seedPlayer(t, db, 88001, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
@@ -114,7 +114,7 @@ func TestPriorityBookingRequiresBenefit(t *testing.T) {
 
 	owner := db.Admin.Create().SetEmail("pb-guard@example.com").SetPassword("test").
 		SetUID("pb-guard").SetUsername("pb-guard").SaveX(ctx)
-	seedMemberLevel(t, db, memberLevelInput{Code: "bronze", Name: "青铜", GrowthThreshold: 0, DiscountBps: 10000, PriorityBooking: false})
+	seedMemberLevel(t, db, memberLevelInput{Code: "bronze", Name: "青铜", GrowthThreshold: 0, DiscountBps: 10000, PriorityBooking: memberBoolPtr(false)})
 	player := seedPlayer(t, db, 88002, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 
 	// 等级未开启 priority_booking。
@@ -133,7 +133,7 @@ func TestPriorityBookingRequiresBenefit(t *testing.T) {
 		t.Fatalf("未定级客户应被拒，err=%v", err)
 	}
 	// 有权益但时段非法 / 已过期。
-	seedMemberLevel(t, db, memberLevelInput{Code: "gold-guard", Name: "金卡", GrowthThreshold: 0, DiscountBps: 10000, PriorityBooking: true})
+	seedMemberLevel(t, db, memberLevelInput{Code: "gold-guard", Name: "金卡", GrowthThreshold: 0, DiscountBps: 10000, PriorityBooking: memberBoolPtr(true)})
 	benefit := saveCustomerOrFail(t, db, owner.ID)
 	benefit = db.EsportsCustomer.UpdateOneID(benefit.ID).SetMemberLevelCode("gold-guard").SaveX(ctx)
 	if _, err := createPriorityBooking(ctx, db, benefit, priorityBookingInput{
@@ -158,8 +158,8 @@ func TestPriorityBookingSortedByLevel(t *testing.T) {
 
 	owner := db.Admin.Create().SetEmail("pb-sort@example.com").SetPassword("test").
 		SetUID("pb-sort").SetUsername("pb-sort").SaveX(ctx)
-	seedMemberLevel(t, db, memberLevelInput{Code: "silver-sort", Name: "银卡", GrowthThreshold: 10000, DiscountBps: 10000, PriorityBooking: true})
-	seedMemberLevel(t, db, memberLevelInput{Code: "gold-sort", Name: "金卡", GrowthThreshold: 50000, DiscountBps: 10000, PriorityBooking: true})
+	seedMemberLevel(t, db, memberLevelInput{Code: "silver-sort", Name: "银卡", GrowthThreshold: 10000, DiscountBps: 10000, PriorityBooking: memberBoolPtr(true)})
+	seedMemberLevel(t, db, memberLevelInput{Code: "gold-sort", Name: "金卡", GrowthThreshold: 50000, DiscountBps: 10000, PriorityBooking: memberBoolPtr(true)})
 	player := seedPlayer(t, db, 88003, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 
 	submit := func(name, levelCode string) {

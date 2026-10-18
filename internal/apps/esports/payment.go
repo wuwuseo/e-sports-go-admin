@@ -17,6 +17,19 @@ import (
 	"go-admin/internal/ent/esportssku"
 )
 
+func externalPaymentChannel(channel string) (esportsorder.PaymentChannel, bool) {
+	switch channel {
+	case string(esportsorder.PaymentChannelWechatWork):
+		return esportsorder.PaymentChannelWechatWork, true
+	case string(esportsorder.PaymentChannelMerchantQr):
+		return esportsorder.PaymentChannelMerchantQr, true
+	case string(esportsorder.PaymentChannelCorporateTransfer):
+		return esportsorder.PaymentChannelCorporateTransfer, true
+	default:
+		return esportsorder.PaymentChannelNone, false
+	}
+}
+
 // verifiedPayment can only be constructed by a channel adapter after its
 // signature and settlement evidence have been checked. No public route calls it.
 type verifiedPayment struct {
@@ -135,6 +148,10 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 		).SetPaymentStatus(esportsorder.PaymentStatusPaid).
 			SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).
 			SetPaidAt(p.ConfirmedAt.UTC()).AddVersion(1)
+		// 外部到账核销必须回写订单收款方式，供渠道对账/原路退款识别；未知渠道保持 none。
+		if channel, ok := externalPaymentChannel(p.Channel); ok {
+			update.SetPaymentChannel(channel)
+		}
 		if err := lockCsCommissionOnPayment(ctx, tx, order, update, p.ConfirmedAt); err != nil {
 			return nil, err
 		}

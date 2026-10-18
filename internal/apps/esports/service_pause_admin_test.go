@@ -26,6 +26,7 @@ func TestAdminServicePauseResumeOnBehalfOfPlayer(t *testing.T) {
 	player := seedPlayer(t, db, 701, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	other := seedPlayer(t, db, 702, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	order := seedGrabbingOrder(t, db, "admin-service-pause-1")
+	db.EsportsOrder.UpdateOneID(order.ID).SetResponsibleAdminID(adminID).ExecX(ctx)
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
@@ -34,24 +35,24 @@ func TestAdminServicePauseResumeOnBehalfOfPlayer(t *testing.T) {
 	}
 
 	// 理由必填。
-	if _, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, true, "  ", now.Add(5*time.Second)); !errors.Is(err, errInvalidInput) {
+	if _, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, false, true, "  ", now.Add(5*time.Second)); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("空理由应拒绝：%v", err)
 	}
 	// 非本单成员被拒（该陪玩在本单没有服务段）。
-	if _, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, other.ID, true, "越权代操作", now.Add(5*time.Second)); !errors.Is(err, errForbidden) {
+	if _, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, other.ID, false, true, "越权代操作", now.Add(5*time.Second)); !errors.Is(err, errForbidden) {
 		t.Fatalf("非本单成员应拒绝：%v", err)
 	}
 
-	paused, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, true, "客户报障，客服代暂停", now.Add(10*time.Second))
+	paused, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, false, true, "客户报障，客服代暂停", now.Add(10*time.Second))
 	if err != nil || paused.Status != "paused" || paused.EffectiveSeconds != 10 {
 		t.Fatalf("客服代暂停失败：%+v, %v", paused, err)
 	}
 	// 重复暂停应冲突，避免重复计停工。
-	if _, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, true, "重复", now.Add(11*time.Second)); !errors.Is(err, errConflict) {
+	if _, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, false, true, "重复", now.Add(11*time.Second)); !errors.Is(err, errConflict) {
 		t.Fatalf("重复暂停应冲突：%v", err)
 	}
 
-	resumed, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, false, "客户已恢复", now.Add(40*time.Second))
+	resumed, err := setServicePauseByAdmin(ctx, db, adminID, order.ID, player.ID, false, false, "客户已恢复", now.Add(40*time.Second))
 	if err != nil || resumed.Status != "in_service" || resumed.PausedSeconds != 30 {
 		t.Fatalf("客服代恢复失败：%+v, %v", resumed, err)
 	}
@@ -82,6 +83,7 @@ func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T)
 
 	player := seedPlayer(t, db, 703, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	order := seedGrabbingOrder(t, db, "admin-service-correct-1")
+	db.EsportsOrder.UpdateOneID(order.ID).SetResponsibleAdminID(adminID).ExecX(ctx)
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +92,7 @@ func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T)
 	}
 
 	// 进行中的服务段不允许直接更正，应走客服代暂停 / 恢复路径。
-	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, 100, 10, "player", "越权更正", now.Add(10*time.Second)); !errors.Is(err, errConflict) {
+	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, 100, 10, "player", "越权更正", now.Add(10*time.Second)); !errors.Is(err, errConflict) {
 		t.Fatalf("进行中服务段更正应冲突：%v", err)
 	}
 
@@ -105,17 +107,17 @@ func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T)
 	}
 
 	// 非法入参。
-	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, -1, 0, "player", "负值", now.Add(80*time.Second)); !errors.Is(err, errInvalidInput) {
+	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, -1, 0, "player", "负值", now.Add(80*time.Second)); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("负有效秒数应拒绝：%v", err)
 	}
-	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, 100, 0, "player", "", now.Add(80*time.Second)); !errors.Is(err, errInvalidInput) {
+	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, 100, 0, "player", "", now.Add(80*time.Second)); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("空原因应拒绝：%v", err)
 	}
-	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, 100, 0, "boss", "责任方非法", now.Add(80*time.Second)); !errors.Is(err, errInvalidInput) {
+	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, 100, 0, "boss", "责任方非法", now.Add(80*time.Second)); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("非法责任方应拒绝：%v", err)
 	}
 
-	result, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, 500, 120, "player", "客户投诉时长，核实后更正", now.Add(90*time.Second))
+	result, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, 500, 120, "player", "客户投诉时长，核实后更正", now.Add(90*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}

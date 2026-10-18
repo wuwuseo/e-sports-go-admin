@@ -414,6 +414,20 @@ func writeCampaignRechargeTx(ctx context.Context, tx *ent.Tx, operatorID int, no
 		}
 		return err
 	}
+	if batchCents := principalCents + bonusCents; batchCents > 0 {
+		// 批次账本（§4.5）：活动充值的本金+赠送同样写入 recharge_batch，
+		// 供消费分摊与按批次退款还原；与手工充值保持同一口径。
+		if _, err := tx.EsportsLedgerEntry.Create().
+			SetAccountType(normalized).SetAccountID(strconv.Itoa(ownerID)).
+			SetSourceType(campaignSourceType).SetSourceID(key).
+			SetEntryRole("recharge_batch").SetDeltaCents(batchCents).
+			SetFundBatch(key).Save(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return errConflict
+			}
+			return err
+		}
+	}
 	return nil
 }
 

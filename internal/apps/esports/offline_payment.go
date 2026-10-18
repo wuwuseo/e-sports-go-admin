@@ -2,12 +2,14 @@ package esports
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportsconfirmation"
 	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportspaymentintent"
@@ -62,10 +64,7 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	if in.AmountCents < order.PayableCents {
 		return nil, errInvalidInput
 	}
-	intent, err := db.EsportsPaymentIntent.Query().Where(
-		esportspaymentintent.OrderIDEQ(order.ID),
-		esportspaymentintent.StatusEQ(esportspaymentintent.StatusPending),
-	).Order(ent.Desc(esportspaymentintent.FieldID)).First(ctx)
+	intent, err := ensureCSOfflinePaymentIntent(ctx, db, order, channel, adminID, now)
 	if err != nil {
 		return nil, err
 	}
@@ -197,4 +196,50 @@ func listOfflinePaymentProofs(ctx context.Context, db *ent.Client, status string
 		q.Where(esportsofflinepaymentproof.OrderIDEQ(orderID))
 	}
 	return q.Order(ent.Desc(esportsofflinepaymentproof.FieldID)).Limit(limit).All(ctx)
+}
+
+// ensureCSOfflinePaymentIntent 为纯客服报单补建「客服代确认」的报价确认书与支付意图：
+// 首次报价（quote_version=1）允许客服在提交外部到账凭证时一并确认；
+// 改价后的订单仍要求客户先确认新报价，避免客服绕过改价确认直接收款。
+func ensureCSOfflinePaymentIntent(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
+	channel string, adminID int, now time.Time) (*ent.EsportsPaymentIntent, error) {
+	intent, err := db.EsportsPaymentIntent.Query().Where(
+		esportspaymentintent.OrderIDEQ(order.ID),
+		esportspaymentintent.ChannelEQ(channel),
+		esportspaymentintent.StatusEQ(esportspaymentintent.StatusPending),
+	).Order(ent.Desc(esportspaymentintent.FieldID)).First(ctx)
+	if err == nil {
+		return intent, nil
+	}
+	if !ent.IsNotFound(err) {
+		return nil, err
+	}
+	if order.QuoteVersion > 1 {
+		return nil, fmt.Errorf("%w：改价后的订单需客户确认新报价后再收款", errConflict)
+	}
+	confirmation, err := db.EsportsConfirmation.Create().
+		SetCustomerID(order.CustomerID).
+		SetSubjectType("order_quote").SetSubjectID(order.ID).
+		SetSubjectVersion(order.QuoteVersion).SetSkuID(order.SkuID).
+		SetQuantity(order.Quantity).SetAmountCents(order.PayableCents).
+		SetChannel("cs_offline").SetEvidenceRef(fmt.Sprintf("admin:%d", adminID)).
+		SetStatus(esportsconfirmation.StatusVerified).
+		SetVerifiedAt(now.UTC()).SetExpiresAt(order.PaymentDeadline).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	raw := strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))
+	intent, err = db.EsportsPaymentIntent.Create().
+		SetIntentNo("ORD" + raw[:12]).
+		SetOrderID(order.ID).SetConfirmationID(confirmation.ID).
+		SetQuoteVersion(order.QuoteVersion).SetAmountCents(order.PayableCents).
+		SetChannel(channel).SetStatus(esportspaymentintent.StatusPending).
+		SetExpiresAt(order.PaymentDeadline).Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	return intent, nil
 }

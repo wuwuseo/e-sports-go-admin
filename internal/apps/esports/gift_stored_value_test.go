@@ -59,7 +59,7 @@ func TestGiftStoredValuePrincipalAndOriginalRefund(t *testing.T) {
 		StoredValueCardID: card.ID, ClientKey: "gift-card-intent-2"}, now); !errors.Is(err, errInsufficientBalance) {
 		t.Fatalf("本金不足却使用赠送权益送礼：%v", err)
 	}
-	if _, err := refundGift(ctx, db, 11, false, order.ID, "原路退回", now); err != nil {
+	if _, err := refundGift(ctx, db, 11, true, order.ID, "原路退回", now); err != nil {
 		t.Fatal(err)
 	}
 	bal, err = storedValueCardBalance(ctx, db, card.ID)

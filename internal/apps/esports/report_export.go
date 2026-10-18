@@ -255,7 +255,12 @@ func streamAftersaleCSV(ctx context.Context, db *ent.Client, f reportFilter, han
 	}
 	err := forEachOrderIDPage(ctx, db, sourcePredicates, func(ids []int) error {
 		return stream(func(query *ent.EsportsAfterSaleQuery) {
-			query.Where(esportsaftersale.SourceIDIn(ids...))
+			// 与售后质量报表口径一致：按订单渠道 / 入口圈定时必须限定 source_type=order，
+			// 避免礼物 / 储值卡 / 充值售后的 ID 与订单 ID 撞号。
+			query.Where(
+				esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeOrder),
+				esportsaftersale.SourceIDIn(ids...),
+			)
 		})
 	})
 	return count, err

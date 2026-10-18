@@ -620,6 +620,10 @@ func autoPassCloseApproval(ctx context.Context, db *ent.Client, order *ent.Espor
 	if err != nil {
 		return err
 	}
+	// 存单冻结期间不自动通过审批节点，也不推进结单：先恢复存单再由人工或下一轮超时扫描处理。
+	if err = ensureOrderNotFrozen(currentOrder); err != nil {
+		return err
+	}
 	if currentOrder.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCloseReview {
 		return nil
 	}

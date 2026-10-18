@@ -344,6 +344,13 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 	if previous, err := existingGift(ctx, db, principal, key, hash); err != nil || previous != nil {
 		return previous, err
 	}
+	// 与余额/储值卡核销共用账户锁，避免并发送礼绕过余额校验。
+	lockKey := "balance:" + strconv.Itoa(in.CustomerID)
+	if in.PaymentSource == "stored_value_card_principal" {
+		lockKey = "card:" + strconv.Itoa(in.StoredValueCardID)
+	}
+	unlock := lockMoneyAccount(lockKey)
+	defer unlock()
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -536,7 +543,8 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 			}
 		}
 	}
-	// 疑似关联交易先标记，复核通过前不生成可提现礼物分成（§9.4）。
+	// 疑似关联交易先标记：复核通过前不生成可提现礼物分成，也不计提成长值/不升级（§9.4）。
+	// 复核通过后由 reviewGiftOrder 补记同一笔成长值（幂等键为礼物单号）。
 	if !flagged {
 		if err = createGiftCommissionEntry(ctx, tx, order, income); err != nil {
 			return nil, err
@@ -544,18 +552,12 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 		if err = accrueGiftCsCommission(ctx, tx, order, now); err != nil {
 			return nil, err
 		}
-	}
-	if _, err = tx.EsportsGrowthLedger.Create().
-		SetCustomerID(customer.ID).SetDelta(amount).
-		SetSourceType(esportsgrowthledger.SourceTypeGift).
-		SetSourceID(giftNo).SetOperatorID(adminID).SetNote("礼物消费计提").Save(ctx); err != nil {
-		if ent.IsConstraintError(err) {
-			return nil, errConflict
+		if err = accrueGiftGrowth(ctx, tx, order, adminID); err != nil {
+			return nil, err
 		}
-		return nil, err
-	}
-	if err = recomputeCustomerLevel(ctx, tx.Client(), customer.ID, now); err != nil {
-		return nil, err
+		if err = recomputeCustomerLevel(ctx, tx.Client(), customer.ID, now); err != nil {
+			return nil, err
+		}
 	}
 	if _, err = tx.EsportsIdempotency.Create().SetOperation("send_gift").SetPrincipal(principal).
 		SetRequestKey(key).SetRequestHash(hash).SetResultRef(giftNo).Save(ctx); err != nil {
@@ -613,8 +615,61 @@ func createGiftCommissionEntry(ctx context.Context, tx *ent.Tx, order *ent.Espor
 	return nil
 }
 
-// reviewGiftOrder 复核疑似关联礼物（§9.4）：approve 补建分成明细（释放收入），reject 不释放。
-// 仅 flagged 状态可复核；复核后状态不可再改。
+// accrueGiftGrowth 为正常礼物或复核通过的疑似礼物计提成长值（§10.2）。
+// 疑似礼物在送礼时挂起，复核通过后调用本函数补记；同一礼物单只允许一条流水，
+// (source_type, source_id) 唯一索引兜底幂等，重复调用直接视为已计提。
+func accrueGiftGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, operatorID int) error {
+	if order.AmountCents <= 0 {
+		return nil
+	}
+	_, err := tx.EsportsGrowthLedger.Create().
+		SetCustomerID(order.CustomerID).SetDelta(order.AmountCents).
+		SetSourceType(esportsgrowthledger.SourceTypeGift).
+		SetSourceID(order.GiftNo).SetOperatorID(operatorID).
+		SetNote("礼物消费计提").Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// reverseGiftGrowthIn 退款时冲回礼物成长值（§10.2/§10.5）。
+// 只有该礼物单已经计提过成长值（正常礼物，或疑似礼物已复核通过）才需要冲回；
+// 待复核/被驳回的礼物从未计提，退款不得凭空产生负成长值。
+// 幂等由 (source_type, source_id) 唯一索引兜底，sourceID 由各退款路径传入以保证多次部分退款互不覆盖。
+func reverseGiftGrowthIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, amount int64,
+	sourceID string, adminID int) error {
+	if amount <= 0 {
+		return nil
+	}
+	accrued, err := tx.EsportsGrowthLedger.Query().Where(
+		esportsgrowthledger.SourceTypeEQ(esportsgrowthledger.SourceTypeGift),
+		esportsgrowthledger.SourceIDEQ(order.GiftNo),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !accrued {
+		return nil
+	}
+	if _, err = tx.EsportsGrowthLedger.Create().
+		SetCustomerID(order.CustomerID).SetDelta(-amount).
+		SetSourceType(esportsgrowthledger.SourceTypeGift).
+		SetSourceID(sourceID).SetOperatorID(adminID).
+		SetNote("礼物退款冲回成长值").Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return errConflict
+		}
+		return err
+	}
+	return nil
+}
+
+// reviewGiftOrder 复核疑似关联礼物（§9.4）：approve 补建分成明细（释放收入）并补记成长值，
+// reject 不释放分成、不计成长值；复核后状态不可再改。
 func reviewGiftOrder(ctx context.Context, db *ent.Client, adminID, giftOrderID int, decision string, now time.Time) (*ent.EsportsGiftOrder, error) {
 	if giftOrderID < 1 || adminID < 1 {
 		return nil, errInvalidInput
@@ -651,6 +706,13 @@ func reviewGiftOrder(ctx context.Context, db *ent.Client, adminID, giftOrderID i
 		if err = accrueGiftCsCommission(ctx, tx, order, now); err != nil {
 			return nil, err
 		}
+		// 复核通过后才补记成长值并重算等级；幂等键为礼物单号，不会与送礼时重复计提。
+		if err = accrueGiftGrowth(ctx, tx, order, adminID); err != nil {
+			return nil, err
+		}
+		if err = recomputeCustomerLevel(ctx, tx.Client(), order.CustomerID, now); err != nil {
+			return nil, err
+		}
 	}
 	changed, err := tx.EsportsGiftOrder.Update().Where(
 		esportsgiftorder.IDEQ(order.ID), esportsgiftorder.VersionEQ(order.Version),
@@ -668,12 +730,18 @@ func reviewGiftOrder(ctx context.Context, db *ent.Client, adminID, giftOrderID i
 	return db.EsportsGiftOrder.Get(ctx, order.ID)
 }
 
-// refundGift 礼物全额退款（§9.5）：由管理员直接执行——退还本金、冲回礼物分成、客服提成与成长值。
-// 仅已支付且未退款的礼物可全额退；礼物争议（客户申请 → 审核 → 执行）走 refundGiftIn 的部分退款路径。
+// refundGift 礼物全额退款（§9.5）：仅超级管理员可直接执行——退还本金、冲回礼物分成、
+// 客服提成与成长值。归属客服不得单人直接退款，只能走礼物争议（客户申请 → 审核 → 执行）
+// 的部分退款路径（refundGiftIn）；该路径保留独立审批与执行人分离校验。
+// 仅已支付且未退款的礼物可全额退。
 func refundGift(ctx context.Context, db *ent.Client, adminID int, isSuper bool, giftOrderID int, reason string, now time.Time) (*ent.EsportsGiftOrder, error) {
 	reason = strings.TrimSpace(reason)
 	if giftOrderID < 1 || adminID < 1 || reason == "" || len([]rune(reason)) > 255 {
 		return nil, errInvalidInput
+	}
+	// 直接退款是资金终态操作，只允许超级管理员（财务权限由主控在路由/权限层接线）。
+	if !isSuper {
+		return nil, errForbidden
 	}
 	tx, err := db.Tx(ctx)
 	if err != nil {
@@ -683,15 +751,6 @@ func refundGift(ctx context.Context, db *ent.Client, adminID int, isSuper bool, 
 	order, err := tx.EsportsGiftOrder.Get(ctx, giftOrderID)
 	if err != nil {
 		return nil, err
-	}
-	if !isSuper {
-		customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)
-		if err != nil {
-			return nil, err
-		}
-		if customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID {
-			return nil, errForbidden
-		}
 	}
 	if order.Status != esportsgiftorder.StatusPaid || order.RefundCents > 0 {
 		return nil, errConflict
@@ -771,14 +830,7 @@ func refundGiftIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, 
 			return err
 		}
 	}
-	if _, err = tx.EsportsGrowthLedger.Create().
-		SetCustomerID(order.CustomerID).SetDelta(-amount).
-		SetSourceType(esportsgrowthledger.SourceTypeGift).
-		SetSourceID(sourceID).SetOperatorID(adminID).
-		SetNote("礼物退款冲回成长值").Save(ctx); err != nil {
-		if ent.IsConstraintError(err) {
-			return errConflict
-		}
+	if err = reverseGiftGrowthIn(ctx, tx, order, amount, sourceID, adminID); err != nil {
 		return err
 	}
 	refundedAfter := order.RefundCents + amount

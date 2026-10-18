@@ -70,11 +70,12 @@ func submitPlayerIdentity(ctx context.Context, db *ent.Client, player *ent.Espor
 	if err != nil && !ent.IsNotFound(err) {
 		return nil, err
 	}
-	// 被驳回后重新提交：先把旧 rejected 记录归档，再写新 pending 记录（同一陪玩同状态唯一索引兜底）。
-	if _, err = db.EsportsPlayerIdentity.Update().Where(
+	// 被驳回后重新提交：删除旧 rejected 记录后再写新 pending，避免
+	// (player_id,status) 唯一索引在第二次驳回时冲突。
+	if _, err = db.EsportsPlayerIdentity.Delete().Where(
 		esportsplayeridentity.PlayerIDEQ(player.ID),
 		esportsplayeridentity.StatusEQ(esportsplayeridentity.StatusRejected),
-	).SetStatus(esportsplayeridentity.StatusRejected).Save(ctx); err != nil {
+	).Exec(ctx); err != nil {
 		return nil, err
 	}
 	return db.EsportsPlayerIdentity.Create().SetPlayerID(player.ID).
@@ -115,6 +116,15 @@ func reviewPlayerIdentity(ctx context.Context, db *ent.Client, reviewer *ent.Adm
 	if in.Approved {
 		upd = upd.SetStatus(esportsplayeridentity.StatusVerified)
 	} else {
+		// 兼容历史遗留的多条 rejected：先删除其它 rejected 行，再落本次驳回，
+		// 避免 (player_id,status) 唯一索引冲突。
+		if _, err = tx.EsportsPlayerIdentity.Delete().Where(
+			esportsplayeridentity.PlayerIDEQ(playerID),
+			esportsplayeridentity.StatusEQ(esportsplayeridentity.StatusRejected),
+			esportsplayeridentity.IDNEQ(record.ID),
+		).Exec(ctx); err != nil {
+			return nil, err
+		}
 		upd = upd.SetStatus(esportsplayeridentity.StatusRejected).SetRejectReason(in.RejectReason)
 	}
 	changed, err := upd.Save(ctx)
@@ -212,6 +222,50 @@ func adminReviewPlayerIdentityHandler(c fiber.Ctx) error {
 		status = playerIdentityVerified
 	}
 	return reply(c, fiber.Map{"id": record.ID, "status": status})
+}
+
+// adminPlayerIdentityHandler 管理员查看陪玩最近一次实名认证记录（§6.1）。
+// 身份证号只返回脱敏值；无记录时 status 为空串。
+func adminPlayerIdentityHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	playerID, err := parsePathID(c, "陪玩")
+	if err != nil {
+		return businessError(c, err)
+	}
+	record, err := latestPlayerIdentity(c.Context(), global.ORM, playerID)
+	if err != nil {
+		return businessError(c, err)
+	}
+	if record == nil {
+		return reply(c, fiber.Map{"player_id": playerID, "status": ""})
+	}
+	return reply(c, fiber.Map{
+		"id":                   record.ID,
+		"player_id":            record.PlayerID,
+		"real_name":            record.RealName,
+		"id_number_masked":     record.IDNumberMasked,
+		"status":               record.Status,
+		"reject_reason":        record.RejectReason,
+		"reviewed_by_admin_id": record.ReviewedByAdminID,
+		"reviewed_at":          record.ReviewedAt,
+		"created_at":           record.CreatedAt,
+	})
+}
+
+// latestPlayerIdentity 取陪玩最近一次实名认证记录；无记录返回 nil。
+func latestPlayerIdentity(ctx context.Context, db *ent.Client, playerID int) (*ent.EsportsPlayerIdentity, error) {
+	record, err := db.EsportsPlayerIdentity.Query().Where(
+		esportsplayeridentity.PlayerIDEQ(playerID),
+	).Order(ent.Desc(esportsplayeridentity.FieldID)).First(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return record, nil
 }
 
 // ensurePlayerQualificationAllowed 实名未通过时禁止将陪玩资格置为 qualified（§6.1）。

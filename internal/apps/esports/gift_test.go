@@ -12,6 +12,7 @@ import (
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscscommissionentry"
+	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/migrate"
@@ -54,8 +55,12 @@ func TestGiftOrderScopeFollowsCurrentCustomerOwner(t *testing.T) {
 	if _, err := loadOwnedGiftOrder(ctx, db, 11, false, order.ID); !errors.Is(err, errForbidden) {
 		t.Fatalf("原客服读取已转移客户礼物单：%v", err)
 	}
-	if _, err := refundGift(ctx, db, 22, false, order.ID, "客户申请退款", now); err != nil {
-		t.Fatalf("新客服退款失败：%v", err)
+	// 归属客服也不得直接退款（只能走争议单）；直接退款仅超级管理员可执行。
+	if _, err := refundGift(ctx, db, 22, false, order.ID, "客户申请退款", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("归属客服直接退款未拦截：%v", err)
+	}
+	if _, err := refundGift(ctx, db, 22, true, order.ID, "客户申请退款", now); err != nil {
+		t.Fatalf("超管退款失败：%v", err)
 	}
 }
 
@@ -83,8 +88,13 @@ func TestRefundedFlaggedGiftCannotReleaseCommission(t *testing.T) {
 	if flagged.ReviewStatus != "flagged" {
 		t.Fatalf("未触发复核：%+v", flagged)
 	}
-	if _, err := refundGift(ctx, db, 11, false, flagged.ID, "客户撤销礼物", now); err != nil {
+	if _, err := refundGift(ctx, db, 11, true, flagged.ID, "客户撤销礼物", now); err != nil {
 		t.Fatal(err)
+	}
+	// 待复核礼物从未计提成长值，退款不得凭空产生负成长值。
+	if growth, err := customerGrowthTotal(ctx, db, customer.ID); err != nil ||
+		growth != int64(giftFlagPairLimit)*1000 {
+		t.Fatalf("待复核礼物退款凭空冲回成长值：%d, %v", growth, err)
 	}
 	before := db.EsportsCommissionEntry.Query().CountX(ctx)
 	if _, err := reviewGiftOrder(ctx, db, 22, flagged.ID, "approve", now); !errors.Is(err, errConflict) {
@@ -92,6 +102,117 @@ func TestRefundedFlaggedGiftCannotReleaseCommission(t *testing.T) {
 	}
 	if after := db.EsportsCommissionEntry.Query().CountX(ctx); after != before {
 		t.Fatalf("已退款礼物产生分成：%d → %d", before, after)
+	}
+}
+
+// 礼物直接退款仅超级管理员可执行：归属客服（含客户当前归属客服）一律 403，
+// 争议单路径不受影响（由 gift_dispute 测试覆盖）。
+func TestRefundGiftRequiresSuperAdmin(t *testing.T) {
+	db := openGiftDB(t, "esports_gift_refund_super")
+	defer db.Close()
+	ctx := t.Context()
+	customer := seedGiftCustomer(t, db, 101)
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 20000, Note: "退款权限测试"}, "gift-refund-super-recharge"); err != nil {
+		t.Fatal(err)
+	}
+	player := seedPlayer(t, db, 202, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "REFUND-SUPER", Name: "退款权限礼物", PriceCents: 10000,
+		CommissionMode: "percent", CommissionBp: 6000})
+	now := time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)
+	order, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customer.ID, GiftID: gift.ID,
+		PlayerID: player.ID, Quantity: 1, ClientKey: "gift-refund-super-key"}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := refundGift(ctx, db, 11, false, order.ID, "归属客服直接退款", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("归属客服直接退款未被拦截：%v", err)
+	}
+	if _, err := refundGift(ctx, db, 22, false, order.ID, "其他客服直接退款", now); !errors.Is(err, errForbidden) {
+		t.Fatalf("其他客服直接退款未被拦截：%v", err)
+	}
+	if got := db.EsportsGiftOrder.GetX(ctx, order.ID); got.Status != esportsgiftorder.StatusPaid || got.RefundCents != 0 {
+		t.Fatalf("越权退款改动了礼物单：%+v", got)
+	}
+	if balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, customer.ID); err != nil || balance.PrincipalCents != 10000 {
+		t.Fatalf("越权退款改动了客户余额：%+v, %v", balance, err)
+	}
+	if _, err := refundGift(ctx, db, 22, true, order.ID, "超管退款", now); err != nil {
+		t.Fatalf("超管直接退款失败：%v", err)
+	}
+}
+
+// 疑似关联礼物：送礼时挂起成长值且不升级，复核通过后才补记并重算等级；
+// 复核驳回不生成成长值，重复复核不会重复计提。
+func TestFlaggedGiftGrowthHeldUntilApproved(t *testing.T) {
+	db := openGiftDB(t, "esports_gift_flag_growth")
+	defer db.Close()
+	ctx := t.Context()
+	customer := seedGiftCustomer(t, db, 101)
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 200000, Note: "待复核成长值测试"}, "gift-flag-growth-recharge"); err != nil {
+		t.Fatal(err)
+	}
+	player := seedPlayer(t, db, 202, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "FLAG-GROWTH", Name: "待复核成长值礼物", PriceCents: 10000,
+		CommissionMode: "percent", CommissionBp: 6000})
+	// 门槛设为 6 笔礼物：若第 6 笔（flagged）即时计提，客户会立刻升级。
+	seedMemberLevel(t, db, memberLevelInput{Code: "silver-growth", Name: "银卡", GrowthThreshold: 60000, DiscountBps: 9500})
+	now := time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)
+
+	var flagged *ent.EsportsGiftOrder
+	for i := 0; i <= giftFlagPairLimit; i++ {
+		order, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customer.ID, GiftID: gift.ID,
+			PlayerID: player.ID, Quantity: 1, ClientKey: "gift-flag-growth-" + strconv.Itoa(i)}, now)
+		if err != nil {
+			t.Fatalf("第 %d 笔送礼失败：%v", i+1, err)
+		}
+		flagged = order
+	}
+	if flagged.ReviewStatus != esportsgiftorder.ReviewStatusFlagged {
+		t.Fatalf("未触发复核：%+v", flagged)
+	}
+	if growth := customerGrowthTotalX(t, db, customer.ID); growth != int64(giftFlagPairLimit)*10000 {
+		t.Fatalf("待复核礼物即时计提了成长值：%d", growth)
+	}
+	if level := db.EsportsCustomer.GetX(ctx, customer.ID).MemberLevelCode; level != "" {
+		t.Fatalf("待复核礼物导致即时升级：%q", level)
+	}
+	if count := db.EsportsGrowthLedger.Query().Where(
+		esportsgrowthledger.SourceTypeEQ(esportsgrowthledger.SourceTypeGift),
+		esportsgrowthledger.SourceIDEQ(flagged.GiftNo),
+	).CountX(ctx); count != 0 {
+		t.Fatalf("待复核礼物生成了成长值流水：%d", count)
+	}
+
+	// 再来一笔疑似礼物，复核驳回：不得生成成长值。
+	rejected, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customer.ID, GiftID: gift.ID,
+		PlayerID: player.ID, Quantity: 1, ClientKey: "gift-flag-growth-reject"}, now)
+	if err != nil || rejected.ReviewStatus != esportsgiftorder.ReviewStatusFlagged {
+		t.Fatalf("第二笔疑似礼物未标记：%+v, %v", rejected, err)
+	}
+	if _, err := reviewGiftOrder(ctx, db, 22, rejected.ID, "reject", now); err != nil {
+		t.Fatalf("复核驳回失败：%v", err)
+	}
+	if growth := customerGrowthTotalX(t, db, customer.ID); growth != int64(giftFlagPairLimit)*10000 {
+		t.Fatalf("复核驳回仍计提成长值：%d", growth)
+	}
+
+	// 复核通过：补记成长值并触发升级，重复复核不重复计提。
+	if _, err := reviewGiftOrder(ctx, db, 22, flagged.ID, "approve", now); err != nil {
+		t.Fatalf("复核通过失败：%v", err)
+	}
+	if growth := customerGrowthTotalX(t, db, customer.ID); growth != int64(giftFlagPairLimit+1)*10000 {
+		t.Fatalf("复核通过未补记成长值：%d", growth)
+	}
+	if level := db.EsportsCustomer.GetX(ctx, customer.ID).MemberLevelCode; level != "silver-growth" {
+		t.Fatalf("复核通过后未按成长值升级：%q", level)
+	}
+	if _, err := reviewGiftOrder(ctx, db, 22, flagged.ID, "approve", now); !errors.Is(err, errConflict) {
+		t.Fatalf("重复复核未被拦截：%v", err)
+	}
+	if growth := customerGrowthTotalX(t, db, customer.ID); growth != int64(giftFlagPairLimit+1)*10000 {
+		t.Fatalf("重复复核重复计提成长值：%d", growth)
 	}
 }
 
@@ -457,7 +578,7 @@ func TestGiftFlagReviewRefundAndLeaderboard(t *testing.T) {
 
 	// 退款：退还本金、冲回分成与成长值。
 	target := orders[0]
-	refunded, err := refundGift(ctx, db, 11, false, target.ID, "客户申请退款", now)
+	refunded, err := refundGift(ctx, db, 11, true, target.ID, "客户申请退款", now)
 	if err != nil || refunded.Status != "refunded" || refunded.RefundCents != 10000 {
 		t.Fatalf("礼物退款失败：%+v, %v", refunded, err)
 	}
@@ -475,7 +596,7 @@ func TestGiftFlagReviewRefundAndLeaderboard(t *testing.T) {
 	if growth, err := customerGrowthTotal(ctx, db, customer.ID); err != nil || growth != growthTotal-10000 {
 		t.Fatalf("成长值未按退款冲回：%d, %v", growth, err)
 	}
-	if _, err := refundGift(ctx, db, 11, false, target.ID, "重复退款", now); !errors.Is(err, errConflict) {
+	if _, err := refundGift(ctx, db, 11, true, target.ID, "重复退款", now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复退款未被拦截：%v", err)
 	}
 

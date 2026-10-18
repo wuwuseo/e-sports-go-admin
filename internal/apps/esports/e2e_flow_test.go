@@ -207,7 +207,7 @@ func TestE2EEndToEndBusinessFlow(t *testing.T) {
 	if approvedWd.Status != esportswithdrawal.StatusApproved {
 		t.Fatalf("提现审核未通过：%+v", approvedWd)
 	}
-	paidWd, err := payWithdrawal(ctx, db, finance, wd.ID, "BANK-E2E-0001", "", now.Add(11*time.Minute))
+	paidWd, err := payWithdrawal(ctx, db, finance+1, wd.ID, "BANK-E2E-0001", "", now.Add(11*time.Minute))
 	if err != nil {
 		t.Fatal(err)
 	}

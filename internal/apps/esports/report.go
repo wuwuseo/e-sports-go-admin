@@ -814,7 +814,12 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 		}
 		return forEachOrderIDPage(ctx, db, sourcePredicates, func(ids []int) error {
 			return fn(func(query *ent.EsportsAfterSaleQuery) {
-				query.Where(esportsaftersale.SourceIDIn(ids...))
+				// 同一 source_id 在不同来源下可能指向不同单据（礼物 / 储值卡 / 充值也会占用订单 ID 空间），
+				// 按订单渠道 / 入口圈定时必须同时限定 source_type=order。
+				query.Where(
+					esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeOrder),
+					esportsaftersale.SourceIDIn(ids...),
+				)
 			})
 		})
 	}
@@ -910,32 +915,39 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 
 // financeReport 财务资金与结算：区间内钱包流水、结算单与按支付方式聚合的支付回执。
 func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
-	// 钱包流水：按（账户类型 + 流水类型）分组求和；储值卡是独立预付账户，
-	// 单独分桶，不与客户余额混算（§11.3）。
+	// 钱包流水：按（账户类型 + 流水类型）分组求和；金额取本金 + 赠送权益，
+	// 与钱包余额（本金 + 赠送）口径一致，避免报表只看到本金、漏掉充值活动赠送的部分。
+	// 储值卡是独立预付账户，单独分桶，不与客户余额混算（§11.3）。
 	var walletRows []struct {
 		AccountType string `json:"account_type"`
 		EntryType   string `json:"entry_type"`
 		Principal   int64  `json:"principal_delta_cents"`
+		Bonus       int64  `json:"bonus_delta_cents"`
 	}
 	if err := db.EsportsWalletTx.Query().Where(
 		esportswallettx.CreatedAtGTE(f.Start),
 		esportswallettx.CreatedAtLT(f.End),
 	).GroupBy(esportswallettx.FieldAccountType, esportswallettx.FieldEntryType).
-		Aggregate(ent.As(ent.Sum(esportswallettx.FieldPrincipalDeltaCents), "principal_delta_cents")).
+		Aggregate(
+			ent.As(ent.Sum(esportswallettx.FieldPrincipalDeltaCents), "principal_delta_cents"),
+			ent.As(ent.Sum(esportswallettx.FieldBonusDeltaCents), "bonus_delta_cents"),
+		).
 		Scan(ctx, &walletRows); err != nil {
 		return nil, err
 	}
-	customerPrincipal := map[string]int64{}
-	playerPrincipal := map[string]int64{}
-	storedValuePrincipal := map[string]int64{}
+	customerBalance := map[string]int64{}
+	playerCatfood := map[string]int64{}
+	storedValueCard := map[string]int64{}
 	for _, row := range walletRows {
+		// 收入 / 支出按流水方向自带正负号，本金与赠送同号相加即净额，无需按 entry_type 再翻转。
+		amount := row.Principal + row.Bonus
 		switch row.AccountType {
 		case string(esportswallettx.AccountTypePlayerCatfood):
-			playerPrincipal[row.EntryType] += row.Principal
+			playerCatfood[row.EntryType] += amount
 		case string(esportswallettx.AccountTypeStoredValueCard):
-			storedValuePrincipal[row.EntryType] += row.Principal
+			storedValueCard[row.EntryType] += amount
 		default:
-			customerPrincipal[row.EntryType] += row.Principal
+			customerBalance[row.EntryType] += amount
 		}
 	}
 
@@ -997,9 +1009,9 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	return map[string]any{
 		"type": "finance",
 		"wallet": map[string]any{
-			"customer_balance":  customerPrincipal,
-			"player_catfood":    playerPrincipal,
-			"stored_value_card": storedValuePrincipal,
+			"customer_balance":  customerBalance,
+			"player_catfood":    playerCatfood,
+			"stored_value_card": storedValueCard,
 		},
 		"settlement": map[string]any{
 			"count": settlementCount, "gross_cents": settlementGross,

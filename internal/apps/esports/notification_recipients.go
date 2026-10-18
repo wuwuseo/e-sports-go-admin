@@ -11,6 +11,7 @@ import (
 	entadmin "go-admin/internal/ent/admin"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsorder"
 )
 
@@ -53,6 +54,8 @@ type notificationRecipient struct {
 //   - aftersale.*            → 售后/来源客户 + 责任客服
 //   - payment.*              → 责任客服（退款/拒付/撤销类同时通知客户）
 //   - dispatch.remind_admin  → 责任客服
+//   - gift.*                 → 送礼客户 + 收礼陪玩 + 礼物单快照的归属客服
+//   - member.*               → 该客户 + 归属客服
 //   - customer.*             → 该客户 + 归属客服
 //   - player.*               → 该陪玩
 func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventType, aggregateRef string, payload map[string]interface{}) ([]notificationRecipient, error) {
@@ -68,6 +71,10 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "payment."):
 		return resolvePaymentNotificationRecipients(ctx, db, eventType, aggregateRef, payload)
+	case strings.HasPrefix(eventType, "gift."):
+		return resolveGiftNotificationRecipients(ctx, db, aggregateRef, payload)
+	case strings.HasPrefix(eventType, "member."):
+		return resolveCustomerNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "customer."):
 		return resolveCustomerNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "player."):
@@ -146,6 +153,34 @@ func resolveAfterSaleNotificationRecipients(ctx context.Context, db *ent.Client,
 	}
 	if responsibleAdminID != nil {
 		set.addAdmin(ctx, db, *responsibleAdminID, notificationRoleAdmin)
+	}
+	return set.result()
+}
+
+// resolveGiftNotificationRecipients 解析礼物事件收件人：送礼客户 + 收礼陪玩 + 礼物单快照的
+// 业绩归属客服。事件聚合键即礼物单号（gift.paid / gift.refunded 均以 gift_no 为 aggregate_ref），
+// 退款事件载荷可能不含客户/陪玩 ID，因此统一按礼物单回查。查不到礼物单按收件人缺失处理，
+// 由外盒退避重试直至 dead，绝不降级为广播。
+func resolveGiftNotificationRecipients(ctx context.Context, db *ent.Client, aggregateRef string, payload map[string]interface{}) ([]notificationRecipient, error) {
+	giftNo := payloadString(payload, "gift_no")
+	if giftNo == "" {
+		giftNo = strings.TrimSpace(aggregateRef)
+	}
+	if giftNo == "" {
+		return nil, errNotificationRecipientMissing
+	}
+	order, err := db.EsportsGiftOrder.Query().Where(esportsgiftorder.GiftNoEQ(giftNo)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, errNotificationRecipientMissing
+	}
+	if err != nil {
+		return nil, err
+	}
+	set := newNotificationRecipientSet()
+	set.addCustomer(order.CustomerID, notificationRoleCustomer)
+	set.addPlayer(order.PlayerID, notificationRolePlayer)
+	if order.ResponsibleAdminID != nil {
+		set.addAdmin(ctx, db, *order.ResponsibleAdminID, notificationRoleAdmin)
 	}
 	return set.result()
 }

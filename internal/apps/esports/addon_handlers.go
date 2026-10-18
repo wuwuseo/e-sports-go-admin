@@ -61,7 +61,8 @@ func cancelOrderAddonHandler(c fiber.Ctx) error {
 	return reply(c, addon)
 }
 
-// payOrderAddonByBalanceHandler 客服收款：对已确认的加钟单用客户余额核销追加金额（§3.3）。
+// payOrderAddonByBalanceHandler 客服收款：对已确认的加钟单用客户余额核销追加金额（§3.3），
+// 收款成功后按确认时保存的规则快照计提加钟分成。
 func payOrderAddonByBalanceHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -91,7 +92,7 @@ func playerPendingAddonsHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// playerConfirmAddonHandler 陪玩端：确认加钟（生成加钟分成并累加到订单）。
+// playerConfirmAddonHandler 陪玩端：确认加钟（保存分成快照并累加到订单，收款后再计提分成）。
 func playerConfirmAddonHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {

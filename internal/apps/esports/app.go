@@ -486,6 +486,7 @@ func init() {
 			{Method: "GET", Path: "/admin/orders/:id/teammate-candidates", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(adminTeammateCandidates)},
 			{Method: "POST", Path: "/admin/orders/:id/team-dispatch", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(teamDispatchHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/claim", Auth: cmfapp.AuthAdmin, Handler: claimOrderHandler},
+			{Method: "POST", Path: "/admin/orders/:id/release-pool", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(releaseOrderToPublicPoolHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/transfer", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(transferOrderHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/remind", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(remindOrderHandler)},
 			// 加钟（§3.3 / §6.2 / §12.5）：服务中订单追加金额与工时，由陪玩确认后累加并生成加钟分成。
@@ -502,7 +503,7 @@ func init() {
 			// 结单表单（§3.4）：返回订单适用的表单模板与字段定义，供结单弹窗渲染。
 			{Method: "GET", Path: "/admin/orders/:id/close-form", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderCloseFormHandler)},
 			// 结单审批进度（§3.4）：当前待审批节点，供复核弹窗展示。
-			{Method: "GET", Path: "/admin/orders/:id/close-approval", Auth: cmfapp.AuthAdmin, Handler: orderCloseApprovalHandler},
+			{Method: "GET", Path: "/admin/orders/:id/close-approval", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderCloseApprovalHandler)},
 			{Method: "GET", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: adminAfterSales},
 			{Method: "GET", Path: "/admin/after-sales/:id", Auth: cmfapp.AuthAdmin, Handler: ownedAfterSaleHandler(adminAfterSaleDetail)},
 			{Method: "POST", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: createAfterSaleHandler},
@@ -612,6 +613,7 @@ func init() {
 			{Method: "GET", Path: "/admin/players", Auth: cmfapp.AuthAdmin, Handler: adminPlayers},
 			{Method: "POST", Path: "/admin/players", Auth: cmfapp.AuthAdmin, Handler: createPlayer},
 			{Method: "PUT", Path: "/admin/players/:id", Auth: cmfapp.AuthAdmin, Handler: updatePlayerHandler},
+			{Method: "GET", Path: "/admin/players/:id/identity", Auth: cmfapp.AuthAdmin, Handler: adminPlayerIdentityHandler},
 			{Method: "POST", Path: "/admin/players/:id/identity/review", Auth: cmfapp.AuthAdmin, Handler: adminReviewPlayerIdentityHandler},
 			// 陪玩端自助：供 uni-app 客户端调用，不挂管理端菜单。
 			{Method: "GET", Path: "/user/player/dashboard", Auth: cmfapp.AuthUser, Handler: playerDashboardHandler},
@@ -912,6 +914,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "指派席位", Code: "esports:dispatch:assign", Path: "/api/v1/esports/admin/orders/{id}/seats/{seatIndex}/assign", Method: "POST", Parent: "esports:dispatch:menu"},
 			{Type: cmfapp.PermAPI, Name: "撤回席位", Code: "esports:dispatch:revoke", Path: "/api/v1/esports/admin/orders/{id}/seats/{seatIndex}/revoke", Method: "POST", Parent: "esports:dispatch:menu"},
 			{Type: cmfapp.PermAPI, Name: "认领订单", Code: "esports:dispatch:claim", Path: "/api/v1/esports/admin/orders/{id}/claim", Method: "POST", Parent: "esports:dispatch:menu"},
+			{Type: cmfapp.PermAPI, Name: "释放到公共池", Code: "esports:dispatch:release_pool", Path: "/api/v1/esports/admin/orders/{id}/release-pool", Method: "POST", Parent: "esports:dispatch:menu"},
 			{Type: cmfapp.PermAPI, Name: "转单", Code: "esports:dispatch:transfer", Path: "/api/v1/esports/admin/orders/{id}/transfer", Method: "POST", Parent: "esports:dispatch:menu"},
 			{Type: cmfapp.PermAPI, Name: "催单", Code: "esports:dispatch:remind", Path: "/api/v1/esports/admin/orders/{id}/remind", Method: "POST", Parent: "esports:dispatch:menu"},
 			{Type: cmfapp.PermButton, Name: "排单操作按钮", Code: "esports:dispatch:operate", Parent: "esports:dispatch:menu"},
@@ -921,6 +924,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看陪玩", Code: "esports:players:list", Path: "/api/v1/esports/admin/players", Method: "GET", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建陪玩", Code: "esports:players:create", Path: "/api/v1/esports/admin/players", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑陪玩", Code: "esports:players:update", Path: "/api/v1/esports/admin/players/{id}", Method: "PUT", Parent: "esports:player:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看陪玩实名认证", Code: "esports:players:identity_view", Path: "/api/v1/esports/admin/players/{id}/identity", Method: "GET", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "审核陪玩实名认证", Code: "esports:players:identity_review", Path: "/api/v1/esports/admin/players/{id}/identity/review", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermButton, Name: "陪玩管理按钮", Code: "esports:players:manage", Parent: "esports:player:menu"},
 

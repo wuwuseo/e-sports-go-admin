@@ -38,7 +38,7 @@ func seedPayableOrderForOffline(t *testing.T, db *ent.Client, suffix, channel st
 	confirmation := db.EsportsConfirmation.Create().SetCustomerID(customer.ID).
 		SetSubjectType("order_quote").SetSubjectID(order.ID).SetSubjectVersion(order.QuoteVersion).
 		SetSkuID(sku.ID).SetQuantity(order.Quantity).SetAmountCents(order.PayableCents).
-		SetChannel("verified_customer_message").SetEvidenceRef("offline-evidence-"+suffix).
+		SetChannel("verified_customer_message").SetEvidenceRef("offline-evidence-" + suffix).
 		SetStatus("verified").SetVerifiedAt(now).SetExpiresAt(order.PaymentDeadline).SaveX(ctx)
 	return db.EsportsPaymentIntent.Create().SetIntentNo("offline-intent-" + suffix).
 		SetOrderID(order.ID).SetConfirmationID(confirmation.ID).
@@ -262,5 +262,34 @@ func TestOfflinePaymentProofRejection(t *testing.T) {
 		AmountCents: intent.AmountCents, ProofRef: "proof/qr-0002.png",
 	}, 11, now); err != nil {
 		t.Fatalf("驳回后应可重新提交凭证，err=%v", err)
+	}
+}
+
+// 纯客服报单（无客户自助支付意图）：客服提交外部到账凭证时应自动补建
+// 「客服代确认」报价确认书与支付意图，财务核验后回写收款方式。
+func TestCSOfflineProofAutoCreatesIntent(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_offline_cs_auto?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+	intent := seedPayableOrderForOffline(t, db, "csauto", "wechat_work")
+	account := seedActivePaymentAccount(t, db, "wechat_work", "WX-CS-AUTO")
+	// 模拟纯客服报单：客户从未在 H5 生成支付意图。
+	db.EsportsPaymentIntent.DeleteOneID(intent.ID).ExecX(ctx)
+	now := time.Now().UTC()
+
+	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
+		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "WX-CS-AUTO-0001",
+		AmountCents: 5000, ProofRef: "proof/cs-auto.png", Note: "客服代收",
+	}, 11, now)
+	if err != nil {
+		t.Fatalf("纯客服报单提交凭证应自动补建支付意图: %v", err)
+	}
+	if _, err := verifyOfflinePaymentProof(ctx, db, proof.ID, 12, now.Add(time.Minute)); err != nil {
+		t.Fatalf("财务核验失败: %v", err)
+	}
+	order := db.EsportsOrder.GetX(ctx, intent.OrderID)
+	if order.PaymentStatus != "paid" || order.PaymentChannel != "wechat_work" {
+		t.Fatalf("核验后订单状态/收款方式不正确: status=%s channel=%s", order.PaymentStatus, order.PaymentChannel)
 	}
 }

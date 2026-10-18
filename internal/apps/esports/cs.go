@@ -29,6 +29,8 @@ type customerProfileInput struct {
 	ConsumptionPreference string   `json:"consumption_preference"`
 	Tags                  []string `json:"tags"`
 	FollowStatus          string   `json:"follow_status"`
+	// SelfOrderEnabled 工作室是否允许该客户自助下单（§4.1 / §13.7）；不传保持原值。
+	SelfOrderEnabled *bool `json:"self_order_enabled"`
 }
 
 // followUpInput 跟进记录输入（§8.3）。
@@ -120,6 +122,9 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 	update := db.EsportsCustomer.UpdateOneID(customerID).
 		SetPhone(in.Phone).SetBirthday(in.Birthday).
 		SetConsumptionPreference(in.ConsumptionPreference).SetTags(tags).AddVersion(1)
+	if in.SelfOrderEnabled != nil {
+		update.SetSelfOrderEnabled(*in.SelfOrderEnabled)
+	}
 	if in.FollowStatus != "" {
 		if !validFollowStatus(in.FollowStatus) {
 			return nil, errInvalidInput

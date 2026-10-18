@@ -345,6 +345,9 @@ func executeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID in
 	if item.Status != esportsaftersale.StatusPendingExecution && item.Status != esportsaftersale.StatusExecutionFailed {
 		return nil, errConflict
 	}
+	if err := ensureAfterSaleSourceOrderNotFrozen(ctx, db, item); err != nil {
+		return nil, err
+	}
 	actions, err := listAfterSaleActions(ctx, db, id, 200)
 	if err != nil {
 		return nil, err
@@ -371,6 +374,9 @@ func executeAfterSaleActionSeq(ctx context.Context, db *ent.Client, afterSaleID,
 	}
 	item, err := db.EsportsAfterSale.Get(ctx, afterSaleID)
 	if err != nil {
+		return nil, err
+	}
+	if err := ensureAfterSaleSourceOrderNotFrozen(ctx, db, item); err != nil {
 		return nil, err
 	}
 	if item.Status != esportsaftersale.StatusPendingExecution && item.Status != esportsaftersale.StatusExecutionFailed {
@@ -410,6 +416,9 @@ func executeAfterSaleActionOnce(ctx context.Context, db *ent.Client, item *ent.E
 		return err
 	}
 	defer tx.Rollback()
+	if err := ensureAfterSaleSourceOrderNotFrozen(ctx, tx.Client(), item); err != nil {
+		return err
+	}
 	fresh, err := tx.EsportsAfterSaleAction.Get(ctx, action.ID)
 	if err != nil {
 		return err
@@ -504,6 +513,9 @@ func executeFundingAction(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfte
 		if err := executeCompensate(ctx, tx, &shim, order, adminID); err != nil {
 			return "", 0, err
 		}
+		// 补偿只发权益：不占退款额度、不累加 refunded_cents、不冲回订单分成/提成/成长值。
+		return fmt.Sprintf("资金动作执行成功：%s %d 分", action.ActionType.String(), action.AmountCents),
+			order.Version, nil
 	}
 	// 统一额度落账：从预占额度扣减并累加 refunded_cents（与既有单动作同一条件表达式口径）。
 	changed, err := tx.EsportsOrder.Update().Where(

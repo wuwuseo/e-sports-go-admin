@@ -361,6 +361,12 @@ func walletBalanceTx(ctx context.Context, tx *ent.Tx, accountType string, ownerI
 // 扣减顺序固定为先赠送权益、后本金。
 // ponytail: 存单扣减与余额/存单混合支付未实现，仅支持余额足额支付；扣减顺序可配置项未落地。
 func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID int, now time.Time) (*ent.EsportsOrder, error) {
+	meta, err := db.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	unlock := lockMoneyAccount("balance:" + strconv.Itoa(meta.CustomerID))
+	defer unlock()
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err

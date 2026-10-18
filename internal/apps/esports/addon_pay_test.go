@@ -2,6 +2,7 @@ package esports
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -46,6 +47,11 @@ func TestPayOrderAddonByBalance(t *testing.T) {
 	if _, err = confirmOrderAddon(ctx, db, player.ID, addon.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	// 确认只保存快照：此时不应有加钟分成明细。
+	if n := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.KindEQ(esportscommissionentry.KindAddon)).CountX(ctx); n != 0 {
+		t.Fatalf("确认加钟不应立即计提分成：%d", n)
+	}
 	if _, err = payOrderAddonByBalance(ctx, db, 11, addon.ID, now); !errors.Is(err, errInsufficientBalance) {
 		t.Fatalf("余额不足应被拒：%v", err)
 	}
@@ -68,8 +74,26 @@ func TestPayOrderAddonByBalance(t *testing.T) {
 	if countEventsByType(t, db)["order.addon_paid"] != 1 {
 		t.Fatal("缺少 order.addon_paid 事件")
 	}
+	// 收款成功后才计提一次加钟分成，并沿用确认时的规则快照。
+	entries := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.KindEQ(esportscommissionentry.KindAddon)).AllX(ctx)
+	if len(entries) != 1 {
+		t.Fatalf("收款后应生成一条加钟分成明细：%d", len(entries))
+	}
+	entry := entries[0]
+	if entry.AmountCents != 2000 || entry.BaseCents != 4000 || entry.PlayerID != player.ID ||
+		entry.Status != esportscommissionentry.StatusPendingSettlement ||
+		entry.IdemKey != "commission:addon:"+addon.AddonNo+":"+strconv.Itoa(player.ID) ||
+		entry.RuleNo != "R-ADDON-PAY" || entry.RuleID == nil ||
+		entry.CalcMode != esportscommissionentry.CalcModePercent {
+		t.Fatalf("加钟分成明细不正确：%+v", entry)
+	}
 	if _, err = payOrderAddonByBalance(ctx, db, 11, addon.ID, now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复收款应冲突：%v", err)
+	}
+	if n := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.KindEQ(esportscommissionentry.KindAddon)).CountX(ctx); n != 1 {
+		t.Fatalf("重复收款不得重复计提：%d", n)
 	}
 }
 
@@ -80,6 +104,7 @@ func TestAddonCommissionReversalOnRefund(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
+	customer := saveCustomerOrFail(t, db, 11)
 	player := seedPlayer(t, db, 9302, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	order := seedInServiceOrder(t, db, "addon-rev-1", player.ID)
 	db.EsportsCommissionRule.Create().SetRuleNo("R-ADDON-REV").
@@ -100,10 +125,23 @@ func TestAddonCommissionReversalOnRefund(t *testing.T) {
 	if _, err = confirmOrderAddon(ctx, db, player.ID, addon.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	// 确认不计提；收款后才生成加钟分成，供退款冲回。
+	if n := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.KindEQ(esportscommissionentry.KindAddon),
+	).CountX(ctx); n != 0 {
+		t.Fatalf("确认加钟不应立即计提：%d", n)
+	}
+	if _, err = walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 4000, Note: "测试充值"}, "addon-rev-seed-1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = payOrderAddonByBalance(ctx, db, 11, addon.ID, now); err != nil {
+		t.Fatal(err)
+	}
 	if n := db.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.KindEQ(esportscommissionentry.KindAddon),
 	).CountX(ctx); n != 1 {
-		t.Fatalf("应生成一条加钟分成明细：%d", n)
+		t.Fatalf("收款后应生成一条加钟分成明细：%d", n)
 	}
 
 	// 退款 500 / 应付 1000 = 50%：service 冲回 -250、addon 冲回 -1000。

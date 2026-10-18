@@ -29,6 +29,8 @@ const (
 var memberLevelCodePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
 
 // memberLevelInput 是等级配置的可编辑字段。code 创建后不可变。
+// DedicatedCs / PriorityBooking 用指针区分「未传」与「显式 false」：
+// 编辑接口未传时保持原值，避免前端旧表单把已有权益误清零。
 type memberLevelInput struct {
 	Code             string `json:"code"`
 	Name             string `json:"name"`
@@ -36,9 +38,14 @@ type memberLevelInput struct {
 	DiscountBps      int    `json:"discount_bps"`
 	PriorityDispatch bool   `json:"priority_dispatch"`
 	PrepayBonusBps   int    `json:"prepay_bonus_bps"`
-	DedicatedCs      bool   `json:"dedicated_cs"`
-	PriorityBooking  bool   `json:"priority_booking"`
+	DedicatedCs      *bool  `json:"dedicated_cs"`
+	PriorityBooking  *bool  `json:"priority_booking"`
 	SortOrder        int    `json:"sort_order"`
+}
+
+// memberLevelFlag 把可选布尔开关解引用：未传按 false 处理（新建默认关闭）。
+func memberLevelFlag(value *bool) bool {
+	return value != nil && *value
 }
 
 // validateMemberLevelInput 校验等级配置；任一不满足返回 errInvalidInput，调用方不得写库。
@@ -63,7 +70,8 @@ func createMemberLevel(ctx context.Context, db *ent.Client, in memberLevelInput)
 		SetCode(strings.TrimSpace(in.Code)).SetName(strings.TrimSpace(in.Name)).
 		SetGrowthThreshold(in.GrowthThreshold).SetDiscountBps(in.DiscountBps).
 		SetPriorityDispatch(in.PriorityDispatch).SetPrepayBonusBps(in.PrepayBonusBps).
-		SetDedicatedCs(in.DedicatedCs).SetPriorityBooking(in.PriorityBooking).
+		SetDedicatedCs(memberLevelFlag(in.DedicatedCs)).
+		SetPriorityBooking(memberLevelFlag(in.PriorityBooking)).
 		SetSortOrder(in.SortOrder).SetStatus(esportsmemberlevelrule.StatusEnabled).Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -75,6 +83,7 @@ func createMemberLevel(ctx context.Context, db *ent.Client, in memberLevelInput)
 }
 
 // updateMemberLevel 条件更新等级配置（version 乐观锁）；code 不可改。
+// DedicatedCs / PriorityBooking 仅在请求显式携带时更新，未传保持库中原值。
 // 改门槛不影响历史成长值流水，只影响下次重算（§10.5 以流水为准）。
 func updateMemberLevel(ctx context.Context, db *ent.Client, id, expectedVersion int, in memberLevelInput) (*ent.EsportsMemberLevelRule, error) {
 	if id < 1 || expectedVersion < 1 {
@@ -83,14 +92,20 @@ func updateMemberLevel(ctx context.Context, db *ent.Client, id, expectedVersion 
 	if err := validateMemberLevelInput(in); err != nil {
 		return nil, err
 	}
-	changed, err := db.EsportsMemberLevelRule.Update().Where(
+	update := db.EsportsMemberLevelRule.Update().Where(
 		esportsmemberlevelrule.IDEQ(id),
 		esportsmemberlevelrule.VersionEQ(expectedVersion),
 	).SetName(strings.TrimSpace(in.Name)).
 		SetGrowthThreshold(in.GrowthThreshold).SetDiscountBps(in.DiscountBps).
 		SetPriorityDispatch(in.PriorityDispatch).SetPrepayBonusBps(in.PrepayBonusBps).
-		SetDedicatedCs(in.DedicatedCs).SetPriorityBooking(in.PriorityBooking).
-		SetSortOrder(in.SortOrder).AddVersion(1).Save(ctx)
+		SetSortOrder(in.SortOrder)
+	if in.DedicatedCs != nil {
+		update.SetDedicatedCs(*in.DedicatedCs)
+	}
+	if in.PriorityBooking != nil {
+		update.SetPriorityBooking(*in.PriorityBooking)
+	}
+	changed, err := update.AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -229,14 +244,16 @@ func customerGrowthTotal(ctx context.Context, db *ent.Client, customerID int) (i
 	return rows[0].Sum, nil
 }
 
-// accrueOrderGrowth 结单时按订单实付金额计提成长值（§10.2）。同一订单只计提一次，
+// accrueOrderGrowth 结单时按订单实付净额计提成长值（§10.2）：已发生的退款（结单前退款）
+// 不再计入，避免「先退款、后结单」时按全额补计。同一订单只计提一次，
 // 重复计提靠 (source_type, source_id) 唯一索引幂等；计提后重算客户等级。
 func accrueOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, now time.Time) error {
-	if order.PayableCents <= 0 {
+	net := order.PayableCents - order.RefundedCents
+	if net <= 0 {
 		return nil
 	}
 	_, err := tx.EsportsGrowthLedger.Create().
-		SetCustomerID(order.CustomerID).SetDelta(order.PayableCents).
+		SetCustomerID(order.CustomerID).SetDelta(net).
 		SetSourceType(esportsgrowthledger.SourceTypeOrder).
 		SetSourceID(order.OrderNo).SetNote("订单结单计提").Save(ctx)
 	if err != nil {

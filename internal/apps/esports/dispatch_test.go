@@ -81,8 +81,10 @@ func TestDispatchAssignRevokeAndGuards(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if revoked.Status != esportsdispatchseat.StatusRevoked || revoked.RespondedAt == nil {
-		t.Fatalf("撤回未生效：%+v", revoked)
+	// 撤回后订单退回待派单，席位同步重置为可重新指派；历史由 order.seat_revoked 事件保留。
+	if revoked.Status != esportsdispatchseat.StatusOpen || revoked.PlayerID != nil ||
+		revoked.RespondedAt != nil {
+		t.Fatalf("撤回未把席位释放为可派单：%+v", revoked)
 	}
 	if got := db.EsportsOrder.GetX(ctx, order.ID); got.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
 		t.Fatalf("订单未回退待派单：%+v", got)
@@ -157,8 +159,9 @@ func TestDispatchInviteExpiresOnce(t *testing.T) {
 		t.Fatalf("过期邀请未被处理：%d %v", n, err)
 	}
 	seat := db.EsportsDispatchSeat.Query().OnlyX(ctx)
-	if seat.Status != esportsdispatchseat.StatusExpired || seat.RespondedAt == nil {
-		t.Fatalf("席位未转为过期：%+v", seat)
+	// 过期后订单退回待派单，席位同步重置为可重新指派；历史由 order.seat_expired 事件保留。
+	if seat.Status != esportsdispatchseat.StatusOpen || seat.PlayerID != nil || seat.RespondedAt != nil {
+		t.Fatalf("过期席位未重置为可派单：%+v", seat)
 	}
 	if got := db.EsportsOrder.GetX(ctx, order.ID); got.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
 		t.Fatalf("订单未回退待派单：%+v", got)

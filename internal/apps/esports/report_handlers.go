@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -26,11 +27,8 @@ func adminReports(c fiber.Ctx) error {
 	if reportType == "finance" && !canAccessFinanceReport(c) {
 		return businessError(c, errForbidden)
 	}
-	// 资金总表同时包含独立钱包充值、提现与结算，不具备逐订单渠道归属。
-	// 拒绝该筛选，避免把全局资金误标为某一订单来源。
-	if reportType == "finance" && (filter.ChannelSource != "" || filter.EntryPoint != "") {
-		return businessError(c, errInvalidInput)
-	}
+	// 财务统计不具备逐订单归属：渠道 / 入口 / SKU / 游戏 / 负责客服 / 预约 / 席位等筛选
+	// 已在 parseReportFilter 中按 :type 统一拒绝（查看与导出共用），不会静默忽略成全量。
 	filter = scopeReportFilter(filter, operator.ID, isSuper)
 	var result map[string]any
 	switch reportType {
@@ -68,6 +66,7 @@ func scopeReportFilter(filter reportFilter, adminID int, isSuper bool) reportFil
 }
 
 // parseReportFilter 解析报表筛选参数；时间区间按周期推导或自定义。
+// 财务总表（:type=finance）在解析阶段就拒绝订单归属维度，查看与导出两条链路共用同一校验。
 func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 	period := strings.TrimSpace(c.Query("period"))
 	start, end, err := reportRange(period, c.Query("start"), c.Query("end"), time.Now())
@@ -89,7 +88,7 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 	default:
 		return reportFilter{}, errInvalidInput
 	}
-	return reportFilter{
+	filter := reportFilter{
 		Start:            start,
 		End:              end,
 		Period:           period,
@@ -105,7 +104,31 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 		AftersaleKind:    strings.TrimSpace(c.Query("kind")),
 		FaultParty:       strings.TrimSpace(c.Query("fault_party")),
 		Limit:            queryInt(c, "limit"),
-	}, nil
+	}
+	if err := validateReportFilter(strings.TrimSpace(c.Params("type")), filter); err != nil {
+		return reportFilter{}, err
+	}
+	return filter, nil
+}
+
+// validateReportFilter 按报表类型校验筛选维度。财务资金来自独立钱包、结算与支付回执，
+// 不具备逐订单归属，订单归属筛选若被接受只会静默变成全量数据；这里显式返回中文参数错误。
+// 时间区间与支付方式等资金维度不受影响；账户类型 / 流水类型 / 结算状态仍是报表输出维度。
+func validateReportFilter(reportType string, f reportFilter) error {
+	if reportType != "finance" {
+		return nil
+	}
+	switch {
+	case f.ChannelSource != "" || f.EntryPoint != "":
+		return fmt.Errorf("%w：财务资金报表不支持按客户渠道 / 报单入口筛选", errInvalidInput)
+	case f.SkuID > 0 || f.Game != "":
+		return fmt.Errorf("%w：财务资金报表不支持按 SKU / 游戏筛选", errInvalidInput)
+	case f.ResponsibleAdmin > 0:
+		return fmt.Errorf("%w：财务资金报表不支持按负责客服筛选", errInvalidInput)
+	case f.AppointmentType != "" || f.SeatType != "":
+		return fmt.Errorf("%w：财务资金报表不支持按即时预约 / 单人多人筛选", errInvalidInput)
+	}
+	return nil
 }
 
 // reportRange 推导统计区间：给定 start（可带 end）走自定义区间，否则按 period 取当前自然周期。
@@ -118,7 +141,7 @@ func reportRange(period, startRaw, endRaw string, now time.Time) (time.Time, tim
 		}
 		end := now.UTC()
 		if raw := strings.TrimSpace(endRaw); raw != "" {
-			if end, err = parseReportTime(raw); err != nil {
+			if end, err = parseReportEndTime(raw); err != nil {
 				return time.Time{}, time.Time{}, err
 			}
 		}
@@ -161,4 +184,14 @@ func parseReportTime(raw string) (time.Time, error) {
 		return parsed.UTC(), nil
 	}
 	return time.Time{}, errInvalidInput
+}
+
+// parseReportEndTime 解析自定义区间的结束时刻。日期（YYYY-MM-DD）按「业务时区次日零点」返回，
+// 即结束日整天包含在区间内；若只按当日零点解析会排他漏掉当天（单日区间尤其明显）。
+// 带时间的 RFC3339 仍按精确时刻处理。
+func parseReportEndTime(raw string) (time.Time, error) {
+	if parsed, err := time.ParseInLocation("2006-01-02", raw, cstZone); err == nil {
+		return parsed.AddDate(0, 0, 1).UTC(), nil
+	}
+	return parseReportTime(raw)
 }

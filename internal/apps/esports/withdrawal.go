@@ -168,6 +168,8 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 		len(key) < 8 || len(key) > 128 {
 		return nil, errInvalidInput
 	}
+	unlock := lockMoneyAccount("catfood:" + strconv.Itoa(playerID))
+	defer unlock()
 	policy := withdrawalPolicyOf(ctx, db)
 	if policy.MinCents > 0 && in.AmountCents < policy.MinCents {
 		return nil, fmt.Errorf("%w：低于最低提现金额 %d 分", errInvalidInput, policy.MinCents)
@@ -232,10 +234,14 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 		SetStatus(esportswithdrawal.StatusPendingReview).SetNote(in.Note).Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
-			// 幂等重放：返回既有提现单，不重复扣减。用事务内客户端查询，
-			// 避免未提交事务与外部连接不可见造成的误判。
+			// 幂等重放：仅当申请人、金额、渠道、收款账号完全一致时返回既有单；
+			// 不同陪玩复用同一幂等键或同人改金额/账号一律冲突，避免泄露他人单据。
 			existing, lookupErr := tx.EsportsWithdrawal.Query().Where(
 				esportswithdrawal.IdemKeyEQ(key),
+				esportswithdrawal.PlayerIDEQ(playerID),
+				esportswithdrawal.AmountCentsEQ(in.AmountCents),
+				esportswithdrawal.ChannelEQ(esportswithdrawal.Channel(in.Channel)),
+				esportswithdrawal.AccountRefEQ(in.AccountRef),
 			).Only(ctx)
 			if lookupErr != nil {
 				return nil, errConflict
@@ -324,6 +330,17 @@ func payWithdrawal(ctx context.Context, db *ent.Client, adminID, id int, payoutR
 	taxRef = strings.TrimSpace(taxRef)
 	if id < 1 || payoutRef == "" || len(payoutRef) > 128 || len(taxRef) > 128 {
 		return nil, fmt.Errorf("%w：打款须填写外部打款凭证号", errInvalidInput)
+	}
+	item, err := db.EsportsWithdrawal.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if item.Status != esportswithdrawal.StatusApproved {
+		return nil, errConflict
+	}
+	// 资金职责分离：审核人与打款执行人不得为同一人（§3.5 / §12.6 / §18-05）。
+	if item.ReviewedByAdminID != nil && *item.ReviewedByAdminID == adminID {
+		return nil, fmt.Errorf("%w：审核人不得同时登记打款", errForbidden)
 	}
 	changed, err := db.EsportsWithdrawal.Update().Where(
 		esportswithdrawal.IDEQ(id),

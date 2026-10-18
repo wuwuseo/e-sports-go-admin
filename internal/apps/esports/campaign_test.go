@@ -13,6 +13,7 @@ import (
 	"go-admin/internal/apps/esports/schema"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/enttest"
+	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/migrate"
@@ -180,6 +181,17 @@ func TestRechargeWithCampaignMatchesTierAndSnapshots(t *testing.T) {
 	}
 	if tx.PrincipalDeltaCents != 10000 || tx.BonusDeltaCents != 1200 {
 		t.Fatalf("流水金额不正确：%+v", tx)
+	}
+	batch, err := db.EsportsLedgerEntry.Query().Where(
+		esportsledgerentry.SourceTypeEQ(campaignSourceType),
+		esportsledgerentry.SourceIDEQ("camp-recharge-1"),
+		esportsledgerentry.EntryRoleEQ("recharge_batch"),
+	).Only(ctx)
+	if err != nil {
+		t.Fatalf("活动充值应写预付款批次账本: %v", err)
+	}
+	if batch.DeltaCents != 11200 {
+		t.Fatalf("批次金额应为本金+赠送=11200，got %d", batch.DeltaCents)
 	}
 	if tx.RuleSnapshot == nil {
 		t.Fatal("活动快照为空")
