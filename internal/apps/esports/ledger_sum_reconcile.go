@@ -70,22 +70,16 @@ func ledgerBatchAccountType(walletAccountType string) string {
 // scanWalletLedgerSum 对单个账户执行「钱包流水求和 == 批次账本求和」核验（§11.6-01）。
 // 由余额核验的同一轮账户扫描顺带调用：两者账户集合完全一致（登记钱包账户 + 逐张储值卡），
 // 复用同一游标与单轮上限，不新增配置键、不重复扫表。
-// P1-21：本账户新发现的异常在核验后立即写入通知事件（见 publishLedgerSumReconcileNotices），
-// 让异常进入财务 / 超管待办，而不是只躺在核验事件里等人翻日志。
+//
+// 本函数只负责「判定 + 记录异常」，不直接发通知：通知出口由调用方（ledger_reconcile.go 的
+// 账户 / 卡扫描）把该账户本轮新增的全部异常（余额类 + 求和类）合并成一条事件后统一写出，
+// 确保所有异常种类走同一个出口、同一小时窗口只提醒一次（§8.2-13）。
 func scanWalletLedgerSum(ctx context.Context, db *ent.Client,
 	result *ledgerReconcileResult, accountType, accountID string) error {
 	result.ScannedWalletSums++
-	before := len(result.Anomalies)
-	if err := checkWalletLedgerSum(ctx, db, result, ledgerWalletSumScan{
+	return checkWalletLedgerSum(ctx, db, result, ledgerWalletSumScan{
 		accountType: accountType, accountID: accountID,
-	}); err != nil {
-		return err
-	}
-	if len(result.Anomalies) <= before {
-		return nil
-	}
-	return publishLedgerSumReconcileNotices(ctx, db, accountType, accountID,
-		result.Anomalies[before:], time.Now())
+	})
 }
 
 // checkWalletLedgerSum 汇总单个账户的两侧口径、比对并输出异常。
@@ -167,15 +161,23 @@ func ledgerPrepayTracker(accountType string) bool {
 	return accountType == walletCustomerBalance || accountType == walletStoredValueCard
 }
 
-// 账本对账异常的通知出口（§11.6-01 / P1-21）。
+// 账本对账异常的通知出口（§11.6-01 / P1-21 / §8.2-13）。
 //
-// 口径：对账异常必须能进待办 / 通知，而不是只写一条 ledger.reconcile_anomaly 事件。
-// 本文件在发现「钱包流水求和 != 批次账本求和」类异常时，额外写通知事件：
+// 口径：**全部**账本核验异常种类都经本处唯一的出口函数写通知事件，而不是只写一条聚合事件
+// ledger.reconcile_anomaly。覆盖的异常种类（见 ledger_reconcile.go / 本文件的种类常量）：
+//   - account_negative_balance     账户本金 / 赠送余额为负；
+//   - allocation_batch_missing     分摊引用的批次账本不存在或非正向；
+//   - batch_over_allocated         批次被分摊额超过批次金额；
+//   - wallet_outflow_unbooked      预付账户出账未登记批次账本 / 分摊明细；
+//   - wallet_batch_sum_mismatch    钱包流水求和与批次账本求和不等。
+//
+// 出口约定：
 //   - event_type 固定以 ledger. 前缀开头（ledger.reconcile_anomaly_notice），供通知分拣按前缀识别；
 //   - 收件人字段沿用既有管理员定向通知的约定：payload.admin_id（逐收件人一条事件），
 //     另带 recipient_roles 标注来源角色（finance 财务 / super_admin 超管）便于审计；
 //   - aggregate_ref 固定 "ledger"（账本无业务单号），正文由通知层按事件类型生成；
-//   - 事件键 = 小时窗口 + 收件人 + 账户，异常持续存在时每小时最多提醒一次，避免重复轰炸。
+//   - 幂等键 = 小时窗口 + 收件人 + 账户 + 异常种类集合（event_key 唯一索引兜底）：同一异常在同一小时内
+//     只发一次，异常持续存在时最多每小时提醒一次，避免重复轰炸；同一账户一轮内的多条异常合并进同一条事件。
 //
 // 需要另一处配合（详见 w4/misc-report.md）：notification_outbox.go 的 notifyChannelTargets 需增加
 // {"ledger.", []string{notifyChannelWecomApp}}，notification_recipients.go 需增加
@@ -199,12 +201,15 @@ type ledgerReconcileNoticeRecipient struct {
 	Role    string
 }
 
-// publishLedgerSumReconcileNotices 为单个账户的「钱包流水 / 批次账本」异常写通知事件（P1-21）。
+// publishLedgerReconcileNotices 是账本核验异常的**唯一通知出口**（P1-21 / §8.2-13）：
+// 传入某个账户本轮新增的异常（可能同时含多种 kind），为每个收件人写一条通知事件。
 // 收件人优先取财务角色成员（app.esports.finance_report_role_names 配置的启用角色下的启用管理员），
 // 未配置或没有成员时回落启用中的超级管理员；两者都取不到时不做通知（异常仍可经
 // GET /admin/ledger-reconcile-anomalies 查到，不静默丢失）。
-// 同一小时窗口内同一收件人 + 同一账户只写一条，靠 outbox event_key 唯一索引兜底。
-func publishLedgerSumReconcileNotices(ctx context.Context, db *ent.Client, accountType, accountID string,
+// 同一小时窗口内同一收件人 + 同一账户 + 同一异常种类集合只写一条，靠 outbox event_key 唯一索引兜底。
+// 键里带种类集合是必需的：余额 / 求和的扫描与分摊 / 批次的扫描是两个独立阶段，
+// 同一账户可能先报求和异常、后报超额分摊，若只按账户去重，后一类异常会被幂等键吃掉。
+func publishLedgerReconcileNotices(ctx context.Context, db *ent.Client, accountType, accountID string,
 	anomalies []ledgerAnomaly, now time.Time) error {
 	if len(anomalies) == 0 {
 		return nil
@@ -217,6 +222,17 @@ func publishLedgerSumReconcileNotices(ctx context.Context, db *ent.Client, accou
 		return nil
 	}
 	bucket := now.UTC().Truncate(ledgerReconcileNoticeBucket).Format("2006010215")
+	kindSet := make([]string, 0, len(anomalies))
+	kindSeen := make(map[string]bool, len(anomalies))
+	for _, item := range anomalies {
+		if kindSeen[item.Kind] {
+			continue
+		}
+		kindSeen[item.Kind] = true
+		kindSet = append(kindSet, item.Kind)
+	}
+	sort.Strings(kindSet)
+	kindsKey := strings.Join(kindSet, "+")
 	details := make([]map[string]interface{}, 0, len(anomalies))
 	for _, item := range anomalies {
 		details = append(details, map[string]interface{}{
@@ -231,6 +247,7 @@ func publishLedgerSumReconcileNotices(ctx context.Context, db *ent.Client, accou
 			ledgerReconcileNoticeRolesField: []string{recipient.Role},
 			"account_type":                  accountType,
 			"account_id":                    accountID,
+			"anomaly_kinds":                 kindSet,
 			"anomaly_count":                 len(anomalies),
 			"anomalies":                     details,
 			"occurred_at":                   now.UTC().Format(time.RFC3339Nano),
@@ -238,11 +255,11 @@ func publishLedgerSumReconcileNotices(ctx context.Context, db *ent.Client, accou
 		}
 		_, err = db.EsportsOutbox.Create().
 			SetEventKey(ledgerReconcileNoticeEventType + ":" + bucket + ":" +
-				strconv.Itoa(recipient.AdminID) + ":" + accountType + ":" + accountID).
+				strconv.Itoa(recipient.AdminID) + ":" + accountType + ":" + accountID + ":" + kindsKey).
 			SetEventType(ledgerReconcileNoticeEventType).SetAggregateRef("ledger").
 			SetPayload(payload).Save(ctx)
 		if ent.IsConstraintError(err) {
-			// 本小时窗口内已提醒过该收件人，跳过即可（异常仍在核验事件与查询接口里）。
+			// 本小时窗口内已提醒过该收件人的同类异常，跳过即可（异常仍在核验事件与查询接口里）。
 			continue
 		}
 		if err != nil {

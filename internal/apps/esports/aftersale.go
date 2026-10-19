@@ -899,10 +899,19 @@ func playerServedOrder(ctx context.Context, db *ent.Client, orderID, playerID in
 
 // confirmAfterSalePlanIn 客户确认方案：pending_customer_confirm → pending_approval（§13.3）。
 // channel 为 self_service（客户自助）或 admin_proxy（客服代确认，客户线下已同意）。
+// 两个入口共用本函数，因此存单冻结守卫必须收在这里：冻结订单不得被推进到待审批（否则下一步审批
+// 会预占退款额度），冻结期间一律返回 errOrderFrozen（HTTP 层映射 409 并给中文提示）。
 func confirmAfterSalePlanIn(ctx context.Context, db *ent.Client, id, adminID int,
 	channel string, now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 {
 		return nil, errInvalidInput
+	}
+	item, err := db.EsportsAfterSale.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err = ensureAfterSaleSourceOrderNotFrozen(ctx, db, item); err != nil {
+		return nil, err
 	}
 	update := db.EsportsAfterSale.Update().Where(
 		esportsaftersale.IDEQ(id),
@@ -1786,8 +1795,8 @@ func afterSaleHeldRefundReserveCents(ctx context.Context, client *ent.Client,
 		if action.ActionType != esportsaftersaleaction.ActionTypeRefund {
 			continue
 		}
-		switch action.Status {
-		case esportsaftersaleaction.StatusSucceeded, esportsaftersaleaction.StatusSkipped:
+		// 已执行成功的动作项在落账时已扣减预占，不再计入待释放额度。
+		if action.Status == esportsaftersaleaction.StatusSucceeded {
 			continue
 		}
 		total += action.AmountCents
@@ -1974,8 +1983,9 @@ func customerBalanceAccountUsable(ctx context.Context, client *ent.Client, custo
 // 与「审批」严格区分，不得复用审批 handler：
 //   - 本入口只做 pending_customer_confirm → pending_approval：不写 approver_admin_id、
 //     不预占订单退款额度、不产生任何资金动作；
-//   - 非「待客户确认」状态的售后单（含已进入待审批、终态、冻结订单）一律 409，
-//     因此它不能被当作审批的替代品；
+//   - 非「待客户确认」状态（含已进入待审批、终态）一律 409；代确认前先过存单冻结守卫
+//     （confirmAfterSalePlanIn 内的 ensureAfterSaleSourceOrderNotFrozen），冻结订单同样返回 409
+//     与「订单已存单冻结，请先恢复后再操作」的中文提示——因此它不能被当作审批的替代品；
 //   - 既有职责分离不变：审批仍须由非该单处理人（handler_admin_id）执行，代确认人不会
 //     因代确认而获得审批资格；重复代确认同样 409，不会重复推进状态。
 func adminConfirmAfterSaleHandler(c fiber.Ctx) error {

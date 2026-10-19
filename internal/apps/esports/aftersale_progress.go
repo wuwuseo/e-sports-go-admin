@@ -117,7 +117,7 @@ func afterSaleCustomerSettlement(item *ent.EsportsAfterSale, actions []*ent.Espo
 			return "not_started", "处理中（方案尚未开始执行）", 0, 0
 		}
 	}
-	succeeded, failed, pendingCount, skipped := 0, 0, 0, 0
+	succeeded, failed, pendingCount := 0, 0, 0
 	var refunded, pending int64
 	for _, action := range actions {
 		funding := afterSaleActionIsFunding(action.ActionType.String())
@@ -132,16 +132,16 @@ func afterSaleCustomerSettlement(item *ent.EsportsAfterSale, actions []*ent.Espo
 			if funding {
 				pending += action.AmountCents
 			}
-		case esportsaftersaleaction.StatusSkipped:
-			skipped++
 		default:
+			// pending / executing / awaiting_execution（外部渠道退款已登记待财务执行）都算「待执行」：
+			// 钱未到账，既不能显示成已到账，也不能算失败。
 			pendingCount++
 			if funding {
 				pending += action.AmountCents
 			}
 		}
 	}
-	total := succeeded + failed + pendingCount + skipped
+	total := succeeded + failed + pendingCount
 	switch {
 	case failed > 0 && succeeded > 0:
 		return "partially_completed",
@@ -165,12 +165,13 @@ func afterSaleActionStatusLabel(status string) string {
 		return "待执行"
 	case string(esportsaftersaleaction.StatusExecuting):
 		return "执行中"
+	case string(esportsaftersaleaction.StatusAwaitingExecution):
+		// 外部渠道退款已登记、钱未出账：语义是「已登记待执行」，不能显示成「已执行」。
+		return "待执行（外部退款）"
 	case string(esportsaftersaleaction.StatusSucceeded):
 		return "已执行"
 	case string(esportsaftersaleaction.StatusFailed):
 		return "执行失败"
-	case string(esportsaftersaleaction.StatusSkipped):
-		return "已跳过"
 	}
 	return status
 }

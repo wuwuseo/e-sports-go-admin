@@ -113,59 +113,40 @@ func filterExpiredProps(props map[string]interface{}, now time.Time) map[string]
 
 // ── §16.3-12 底部导航文案 / 图标 ──
 
-// pageTabbarItem 是底部导航项：path 构建期固定（抄录 e-sports-uniapp/src/pages.json 的 tabBar），
-// 后台只能改文案 text 与图标 icon，不能增删项、改路径或调整顺序。
+// pageTabbarItem 是底部导航项（§16.3-12，审核报告 §8.1-8 后放开）：
+// 允许增删条目（1~5 项）、允许编辑 path 与 order；path 仍须命中已注册页面白名单。
+// order 未填时按提交顺序补齐（见 pageValidateTabbar），落库后客户端按 order 升序展示。
 type pageTabbarItem struct {
 	Path    string `json:"path"`
 	Text    string `json:"text"`
 	Icon    string `json:"icon"`
+	Order   *int   `json:"order,omitempty"`
 	Visible *bool  `json:"visible,omitempty"`
 }
 
-// pageTabbarPaths 是底部导航的固定路径与顺序（§16.3-12，对应客户端 pages.json tabBar 三项）。
+// pageTabbarPaths 是底部导航的**默认**路径与顺序（§16.3-12，对应客户端 pages.json tabBar 三项）。
+// 本轮放开编辑后它只作为系统默认值，不再是唯一合法形状（见 pageValidateTabbar）。
 var pageTabbarPaths = []string{"/pages/index/index", "/pages/order/list", "/pages/mine/index"}
 
 // pageTabbarDefaultTexts 是底部导航的默认文案（与客户端现状一致）。
 var pageTabbarDefaultTexts = []string{"报单", "订单", "我的"}
 
-// defaultPageTabbar 返回系统默认底部导航（路径 + 默认文案）。
+// defaultPageTabbar 返回系统默认底部导航（路径 + 默认文案 + 顺序）。
 func defaultPageTabbar() []pageTabbarItem {
 	items := make([]pageTabbarItem, 0, len(pageTabbarPaths))
 	for i, path := range pageTabbarPaths {
-		items = append(items, pageTabbarItem{Path: path, Text: pageTabbarDefaultTexts[i]})
+		order := i + 1
+		items = append(items, pageTabbarItem{Path: path, Text: pageTabbarDefaultTexts[i], Order: &order})
 	}
 	return items
 }
 
-// validatePageTabbar 校验导航项（§16.3-12）：数量与路径 / 顺序必须与构建期固定值逐位一致，
-// 只允许 text / icon / visible 变化；任何新增、删除、换序或改路径都返回参数错误。
+// validatePageTabbar 校验导航项（§16.3-12，审核报告 §8.1-8 后放开）：
+// 允许增删条目、允许编辑 path 与 order，安全约束（站内相对路径 + 已注册页面白名单 +
+// path/order 不重复 + 条目数 1~5）由 pageValidateTabbar 统一实施，本函数只做转发，
+// 保持既有调用点（保存导航 / 读取配置回落）签名不变。
 func validatePageTabbar(items []pageTabbarItem) ([]pageTabbarItem, error) {
-	if len(items) != len(pageTabbarPaths) {
-		return nil, fmt.Errorf("%w：底部导航固定 %d 项，不允许新增或删除", errInvalidInput, len(pageTabbarPaths))
-	}
-	out := make([]pageTabbarItem, 0, len(items))
-	for i, item := range items {
-		if strings.TrimSpace(item.Path) != pageTabbarPaths[i] {
-			return nil, fmt.Errorf("%w：底部导航第 %d 项路径必须为 %s（不允许改路径或调整顺序）",
-				errInvalidInput, i+1, pageTabbarPaths[i])
-		}
-		text := strings.TrimSpace(item.Text)
-		if text == "" || len([]rune(text)) > 12 {
-			return nil, fmt.Errorf("%w：底部导航第 %d 项文案须为 1~12 个字", errInvalidInput, i+1)
-		}
-		icon := strings.TrimSpace(item.Icon)
-		if len([]rune(icon)) > 200 {
-			return nil, fmt.Errorf("%w：底部导航第 %d 项图标标识过长", errInvalidInput, i+1)
-		}
-		if icon != "" && !strings.HasPrefix(icon, "https://") && !strings.HasPrefix(icon, "/") {
-			// 注意：底部导航**不接受短标识**（与组件字段 §16.3-04 的图标清单口径不同）——
-			// 客户端导航栏当前只消费图片地址，短标识会渲染成坏图，故这里直接拒绝。
-			// 原文案曾写「或客户端内置图标标识」，与实现相反，已改正避免误导运营。
-			return nil, fmt.Errorf("%w：底部导航第 %d 项图标仅允许 HTTPS 链接或站内相对路径（不支持短标识）", errInvalidInput, i+1)
-		}
-		out = append(out, pageTabbarItem{Path: pageTabbarPaths[i], Text: text, Icon: icon, Visible: item.Visible})
-	}
-	return out, nil
+	return pageValidateTabbar(items)
 }
 
 // pageTabbarFromConfig 从装修配置中读取导航项：未配置时回落系统默认（路径 + 默认文案）。

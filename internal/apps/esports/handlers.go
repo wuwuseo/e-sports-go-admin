@@ -116,9 +116,11 @@ var adminOrderFulfillmentStatuses = map[string]struct{}{
 	string(esportsorder.FulfillmentStatusCancelled):          {},
 }
 
+// adminOrderPaymentStatuses 是管理端订单列表可筛选的支付状态白名单。
+// 只列真实会被写入的状态：unpaid（待支付）→ paid（已收款），渠道撤销 / 拒付时为 exception。
+// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，故不再出现在筛选白名单里，避免一个永远 0 条的死筛选项。
 var adminOrderPaymentStatuses = map[string]struct{}{
 	string(esportsorder.PaymentStatusUnpaid):    {},
-	string(esportsorder.PaymentStatusPartial):   {},
 	string(esportsorder.PaymentStatusPaid):      {},
 	string(esportsorder.PaymentStatusException): {},
 }

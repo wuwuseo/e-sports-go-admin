@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscommissionentry"
+	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportsplayer"
@@ -196,22 +197,49 @@ func TestRound4PO3308CancelRecordsFaultParty(t *testing.T) {
 
 // ── 3.3-11 冻结拦截统一兜底 ──
 
+// 原用例验证的是 ensureOrderWritable（按 ID 重读 + 判定冻结），该函数全仓无生产调用已删除；
+// 「冻结订单不可写、恢复后可写」这一有价值的行为改为用**仍在生产使用的守卫** ensureOrderNotFrozen 验证，
+// 并额外锁定「调用方必须用库内最新订单对象判定」这一前提（旧快照看不到冻结）。
 func TestRound4PO3311FrozenOrderWriteGuard(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_po_frozen_guard")
 	defer db.Close()
 	ctx := t.Context()
+	now := time.Now().UTC()
 	order := db.EsportsOrder.Create().SetOrderNo("po-frozen-1").SetCustomerID(1).SetSkuID(1).
 		SetQuantity(1).SetUnitPriceCents(1000).SetPayableCents(1000).SetPromisedServiceUnits(1).
-		SetRequiredSeats(1).SetPaymentDeadline(time.Now().UTC().Add(time.Hour)).
+		SetRequiredSeats(1).SetPaymentDeadline(now.Add(time.Hour)).
+		SetPaymentStatus(esportsorder.PaymentStatusPaid).SetPaidAt(now).
 		SaveX(ctx)
 
-	if err := ensureOrderWritable(ctx, db, order.ID); err != nil {
+	stale := order
+	if err := ensureOrderNotFrozen(order); err != nil {
 		t.Fatalf("未冻结订单应可写：%v", err)
 	}
-	db.EsportsOrder.UpdateOneID(order.ID).SetDepositStatus("frozen").SaveX(ctx)
-	// 即使调用方拿着冻结前的旧快照，兜底守卫也必须按库内最新状态拦下。
-	if err := ensureOrderWritable(ctx, db, order.ID); !errors.Is(err, errOrderFrozen) {
-		t.Fatalf("冻结订单写操作未被兜底守卫拦下：%v", err)
+	// 走真实存单入口冻结，而不是直接改库：守卫要拦的正是这条生产路径留下的状态。
+	if _, err := depositOrder(ctx, db, order.ID, 11, now); err != nil {
+		t.Fatalf("存单应成功：%v", err)
+	}
+	// 旧快照（冻结前读出的对象）看不到冻结；这正是写入口必须重读库内状态的原因。
+	if err := ensureOrderNotFrozen(stale); err != nil {
+		t.Fatalf("冻结前快照不应感知冻结（用于说明重读的必要性）：%v", err)
+	}
+	fresh, err := db.EsportsOrder.Get(ctx, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = ensureOrderNotFrozen(fresh); !errors.Is(err, errOrderFrozen) {
+		t.Fatalf("冻结订单写操作未被守卫拦下：%v", err)
+	}
+	// 恢复存单后写操作重新放行。
+	if _, err = restoreOrder(ctx, db, order.ID, 11, now); err != nil {
+		t.Fatalf("恢复存单应成功：%v", err)
+	}
+	restored, err := db.EsportsOrder.Get(ctx, order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = ensureOrderNotFrozen(restored); err != nil {
+		t.Fatalf("恢复存单后应可写：%v", err)
 	}
 }
 

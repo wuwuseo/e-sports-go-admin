@@ -166,6 +166,50 @@ func setMemberLevelStatus(ctx context.Context, db *ent.Client, id, expectedVersi
 	return db.EsportsMemberLevelRule.Get(ctx, id)
 }
 
+// deleteMemberLevel 删除会员等级配置（审核报告 §8.1-8）：只有「已停用且未被任何客户引用」的等级才允许删除。
+// 启用中的等级直接拒绝（引导先停用）；仍有客户把该 code 作为当前等级 / 待生效等级时同样拒绝——
+// 删掉会让客户等级与历史覆盖记录悬空，停用是可逆口径，删除只用于清理从未被使用的脏配置。
+func deleteMemberLevel(ctx context.Context, db *ent.Client, id int) error {
+	if id < 1 {
+		return errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	item, err := tx.EsportsMemberLevelRule.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if item.Status != esportsmemberlevelrule.StatusDisabled {
+		return fmt.Errorf("%w：该会员等级启用中，不能删除，请先停用", errConflict)
+	}
+	referenced, err := tx.EsportsCustomer.Query().Where(
+		esportscustomer.Or(
+			esportscustomer.MemberLevelCodeEQ(item.Code),
+			esportscustomer.MemberPendingLevelCodeEQ(item.Code),
+		),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if referenced {
+		return fmt.Errorf("%w：该会员等级仍被客户引用，不能删除，请改用停用", errConflict)
+	}
+	deleted, err := tx.EsportsMemberLevelRule.Delete().Where(
+		esportsmemberlevelrule.IDEQ(id),
+		esportsmemberlevelrule.StatusEQ(esportsmemberlevelrule.StatusDisabled),
+	).Exec(ctx)
+	if err != nil {
+		return err
+	}
+	if deleted != 1 {
+		return errConflict
+	}
+	return tx.Commit()
+}
+
 // listMemberLevels 按门槛从低到高列出全部等级配置（含停用）。
 func listMemberLevels(ctx context.Context, db *ent.Client, limit int) ([]*ent.EsportsMemberLevelRule, error) {
 	if limit < 1 || limit > 200 {

@@ -53,5 +53,6 @@ func CronSeeds() []CronSeed {
 		{"esports_schedule_repurchase_follow_ups", "0 15 10 * * *", "结单后复购跟进待办兜底（§14-01）"},
 		{"esports_expire_member_level_overrides", "0 25 0 * * *", "会员手动调级覆盖到期回落成长值口径（§10.3-03）"},
 		{"esports_expire_priority_booking_intents", "0 5 * * * *", "会员优先预约意向过期消解，待办不再堆积（§10.4）"},
+		{"esports_expire_pending_external_refunds", "0 15 * * * *", "外部退款登记后长期未执行超期督办，只提醒不代办（§8.2-12）"},
 	}
 }

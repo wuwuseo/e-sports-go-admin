@@ -117,6 +117,22 @@ func setMemberLevelStatusHandler(c fiber.Ctx) error {
 	return reply(c, toMemberLevelView(item))
 }
 
+// deleteMemberLevelHandler 删除会员等级（§8.1-8）：仅「已停用且未被客户引用」的等级可删，
+// 否则返回中文冲突提示（启用中 → 请先停用；被引用 → 请改用停用）。
+func deleteMemberLevelHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "会员等级")
+	if err != nil {
+		return businessError(c, err)
+	}
+	if err := deleteMemberLevel(c.Context(), global.ORM, id); err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, fiber.Map{"id": id})
+}
+
 // adminCustomerMember 客户会员详情：当前等级、折扣、累计成长值、待降级信息与流水/覆盖记录。
 func adminCustomerMember(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)

@@ -469,6 +469,9 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 	if err != nil {
 		return nil, err
 	}
+	// 订单级串行化（§8.2-15）：以「进事务前读到的订单版本」为本次收款的仲裁依据，
+	// 任何并发收款动作（另一收款方式核销 / 提交待核验凭证）都会推进该版本，本次写回随之冲突。
+	runPaymentOrderInterleaveHook(orderID)
 	unlock := lockMoneyAccount("balance:" + strconv.Itoa(meta.CustomerID))
 	defer unlock()
 	tx, err := db.Tx(ctx)
@@ -491,6 +494,13 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
 		return nil, errConflict
 	}
+	// 订单级占位（§8.2-15）：先把该订单行按读到的版本推进一格，等价于拿订单行写锁。
+	// 影响行数为 0 说明另一个收款动作已经推进过该订单（含并发提交的待核验凭证），本次必须失败回滚。
+	if err = lockOrderPaymentSlot(ctx, tx, order.ID, meta.Version); err != nil {
+		return nil, err
+	}
+	// 占位已把库里的版本推进到 meta.Version+1，后续条件更新与订单事件版本都以它为准。
+	order.Version = meta.Version + 1
 	// P0-11 重复收款防护：该订单已有待核验的到账凭证时，不得再用余额核销——否则同一订单被收两次钱，
 	// 后到的转账凭证只能挂成悬账。判定与后面的「订单转已付款」条件更新同事务，避免并发穿插。
 	if duplicated, err := otherPendingPaymentProofExists(ctx, tx.EsportsOfflinePaymentProof.Query(),
@@ -620,4 +630,73 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 		return nil, err
 	}
 	return db.EsportsOrder.Get(ctx, orderID)
+}
+
+// ── 收款并发窗口的订单级串行化（§8.2-15 / 附录 B.3-1） ──
+//
+// 余额核销、储值卡核销、转账凭证提交/核验三条路径都要先判「同一订单是否已有待核验凭证」，
+// 再决定是否把订单转已付款。只靠「同事务内读凭证」关不掉极端并发窗口：两个请求可能各自读到
+// 「无凭证」，随后都写入收款结果——后到的那笔钱只能挂成悬账（同一订单收两次钱）。
+//
+// 选用机制：**订单行乐观版本守卫（条件更新式占位）**，而不是 SELECT ... FOR UPDATE。
+//   - MySQL 下 `UPDATE esports_orders SET version = version + 1 WHERE id = ? AND version = ?`
+//     本身就会对该行加行级写锁：并发事务被串行化到前一个提交之后，后到者按旧版本更新影响 0 行，
+//     与 FOR UPDATE 的串行化语义等价，且不依赖 Ent 生成代码的方言特性（本项目 Ent 版本未提供
+//     ForUpdate 查询构建器，SQLite 方言也不支持）。
+//   - 内存 SQLite 没有 SELECT ... FOR UPDATE，且并发写事务会直接互相锁表（"database is locked"），
+//     无法在测试里稳定复现「两个写事务同时挂起」。因此三条路径统一用同一套版本守卫表达约束，
+//     测试改以可控交错复现同一时序：A 读到旧版本 → B 完整提交 → A 写回时必须影响 0 行。
+//     两种数据库下的可观察结果一致：后写者拿到 errConflict，且不会产生任何资金/状态变更。
+//
+// 关键点：占位用的 expectedVersion 必须来自「进入事务之前」的读，否则事务内重新读到的
+// 已是新版本，守卫恒通过、窗口依然存在（这正是本机制与既有「最终更新加 VersionEQ」的差别）。
+
+// paymentOrderInterleaveHook 是仅用于测试的可控交错点：在「读订单版本」与「版本守卫写回」
+// 之间插入一次外部提交。生产路径恒为 nil。
+var paymentOrderInterleaveHook func(orderID int)
+
+// runPaymentOrderInterleaveHook 在测试注入交错点时执行它（nil 时零开销）。
+func runPaymentOrderInterleaveHook(orderID int) {
+	if hook := paymentOrderInterleaveHook; hook != nil {
+		hook(orderID)
+	}
+}
+
+// lockOrderPaymentSlot 在事务内对订单行做一次版本守卫占位：版本推进 1，影响行数不为 1 即冲突。
+// expectedVersion 来自调用方在事务前的读；同时要求订单仍处于「待付款」状态，避免占位
+// 把已付款订单当成可收款对象。
+func lockOrderPaymentSlot(ctx context.Context, tx *ent.Tx, orderID, expectedVersion int) error {
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID),
+		esportsorder.VersionEQ(expectedVersion),
+		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
+		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
+	).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return fmt.Errorf("%w：该订单已被其它收款动作占单处理，请刷新后用最新状态重试", errConflict)
+	}
+	return nil
+}
+
+// reserveOrderPaymentVersion 在独立短事务里对订单行做一次版本守卫占位并提交。
+// 用于「收款判定与落库不在同一事务」的路径（凭证核验复用 applyVerifiedPayment 自带的事务边界）：
+// 提交式占位推进订单版本，使并发中已读到旧版本的余额 / 储值卡核销在写回时守卫失败。
+func reserveOrderPaymentVersion(ctx context.Context, db *ent.Client, orderID int) error {
+	order, err := db.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	runPaymentOrderInterleaveHook(orderID)
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err = lockOrderPaymentSlot(ctx, tx, order.ID, order.Version); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

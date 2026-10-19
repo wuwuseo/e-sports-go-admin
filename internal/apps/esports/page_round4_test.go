@@ -293,9 +293,9 @@ func TestPageAssetUsageLookup(t *testing.T) {
 	}
 }
 
-// ── §16.3-12：底部导航文案 / 图标可改，路径 / 数量 / 顺序不可变 ──
+// ── §16.3-12：底部导航文案 / 图标可改；§8.1-8 后半放开增删条目与 path / order 编辑 ──
 
-func TestPageTabbarEditableWithFixedShape(t *testing.T) {
+func TestPageTabbarEditableWithPathAndOrder(t *testing.T) {
 	db := openPageDB(t, "esports_r4_page_tabbar")
 	previous := global.ORM
 	global.ORM = db
@@ -347,24 +347,20 @@ func TestPageTabbarEditableWithFixedShape(t *testing.T) {
 		t.Fatalf("GET /page 未返回新导航文案：%+v", tabbar[0])
 	}
 
-	// 增 / 删 / 换序 / 改路径一律拒绝。
+	// §8.1-8 后半（本轮放开）：允许新增条目（路径命中已注册页面白名单即可）。
 	base := doc.DraftVersion
 	extra := append(append([]pageTabbarItem{}, items...), pageTabbarItem{Path: "/pages/messages/index", Text: "消息"})
-	if _, err = savePageTabbar(ctx, db, channel, 1, base, extra); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("新增导航项应被拒，实际 %v", err)
+	doc, err = savePageTabbar(ctx, db, channel, 1, base, extra)
+	if err != nil {
+		t.Fatalf("新增已注册页面的导航项应被允许，实际 %v", err)
 	}
-	if _, err = savePageTabbar(ctx, db, channel, 1, base, items[:2]); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("删除导航项应被拒，实际 %v", err)
-	}
-	swapped := []pageTabbarItem{items[1], items[0], items[2]}
-	if _, err = savePageTabbar(ctx, db, channel, 1, base, swapped); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("调整导航顺序应被拒，实际 %v", err)
-	}
+	// 未注册页面的路径仍被拒（白名单仍是安全闸门）。
 	renamed := append([]pageTabbarItem{}, items...)
-	renamed[0].Path = "/pages/wallet/index"
-	if _, err = savePageTabbar(ctx, db, channel, 1, base, renamed); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("修改导航路径应被拒，实际 %v", err)
+	renamed[0].Path = "/pages/not-registered/index"
+	if _, err = savePageTabbar(ctx, db, channel, 1, doc.DraftVersion, renamed); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("未注册页面的导航路径应被拒，实际 %v", err)
 	}
+	base = doc.DraftVersion
 
 	// §16.3-04：底部导航**不接受短标识**（与组件字段的图标清单口径不同）——客户端导航栏只消费图片地址。
 	// 这里锁定「短标识被拒」，并验证反向（HTTPS 图片地址仍可用），避免把正常配置一起挡掉。

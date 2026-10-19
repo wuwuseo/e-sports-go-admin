@@ -547,6 +547,13 @@ func payOrderWithStoredValueCardCore(ctx context.Context, db *ent.Client, operat
 	if orderID < 1 || cardID < 1 {
 		return nil, errInvalidInput
 	}
+	// 订单级串行化（§8.2-15）：以进事务前读到的订单版本作为本次收款的仲裁依据；
+	// 并发收款动作（余额核销 / 提交待核验凭证）都会推进该版本，本次占位随之冲突。
+	meta, err := db.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	runPaymentOrderInterleaveHook(orderID)
 	unlock := lockMoneyAccount(fmt.Sprintf("card:%d", cardID))
 	defer unlock()
 	tx, err := db.Tx(ctx)
@@ -569,6 +576,11 @@ func payOrderWithStoredValueCardCore(ctx context.Context, db *ent.Client, operat
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
 		return nil, errConflict
 	}
+	// 订单级占位（§8.2-15）：按进事务前读到的版本推进订单行，影响行数不为 1 即判并发冲突。
+	if err = lockOrderPaymentSlot(ctx, tx, order.ID, meta.Version); err != nil {
+		return nil, err
+	}
+	order.Version = meta.Version + 1
 	// P0-11 重复收款防护：该订单已有待核验的到账凭证时，不得再用储值卡核销——否则同一订单被收两次钱，
 	// 后到的转账凭证只能挂成悬账。判定与后面的「订单转已付款」条件更新同事务，避免并发穿插。
 	if duplicated, err := otherPendingPaymentProofExists(ctx, tx.EsportsOfflinePaymentProof.Query(),

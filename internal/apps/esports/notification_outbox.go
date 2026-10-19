@@ -98,6 +98,11 @@ var notifyChannelTargets = []struct {
 	{"member.", []string{notifyChannelWecomApp}},
 	{"customer.", []string{notifyChannelWecomApp}},
 	{"payment.", []string{notifyChannelWecomApp}},
+	// 账本核验异常（§8.2-13）：逐收件人的 ledger.* 告警事件走企微直达财务 / 超管。
+	// 汇总审计事件 ledger.reconcile_anomaly 不在此列，见 ledgerAuditAggregateEventType 的排除口径。
+	{"ledger.", []string{notifyChannelWecomApp}},
+	// 外部退款待执行超期督办（§8.2-12）：与 ledger. 同一套前缀口径，走企微直达财务 / 超管。
+	{"external_refund.", []string{notifyChannelWecomApp}},
 	// 抢单未成功（§5.6-04）：只推送给落败者本人；必须排在通用 order. 之前。
 	{"order.grab_attempt_lost", []string{notifyChannelPush}},
 	// 优先接单通知（§5.4-09）：只推送给被通知的名单内陪玩；必须排在通用 order. 之前。
@@ -106,8 +111,18 @@ var notifyChannelTargets = []struct {
 	{"player.", []string{notifyChannelPush}},
 }
 
+// ledgerAuditAggregateEventType 是账本核验的汇总审计事件（每轮核验一条，载荷只含扫描统计与异常明细，
+// 不含任何收件人）。它是事件表里的审计留痕与查询接口（GET /admin/ledger-reconcile-anomalies）的数据来源，
+// 本身不是逐收件人的通知事件：若跟着 ledger. 前缀一起归入通知类，每轮核验都会因解析不到收件人而
+// 重试到死信，把客服「通知发送失败」待办淹没。因此它在通道映射与通知认领范围里显式排除，
+// 继续由业务消费者投递给超管留痕（与既有口径一致）。
+const ledgerAuditAggregateEventType = "ledger.reconcile_anomaly"
+
 // eventNotifyChannels 按 outbox 事件类型映射通知通道；未命中返回 nil（非通知事件，无需发送）。
 func eventNotifyChannels(eventType string) []string {
+	if eventType == ledgerAuditAggregateEventType {
+		return nil // 汇总审计事件不是通知事件（见常量注释）。
+	}
 	for _, target := range notifyChannelTargets {
 		if strings.HasPrefix(eventType, target.prefix) {
 			return target.channels
@@ -117,12 +132,16 @@ func eventNotifyChannels(eventType string) []string {
 }
 
 // notificationEventPredicate 通知类事件的 SQL 过滤，供通知消费认领时限定范围，与业务事件消费互斥。
+// 口径与 eventNotifyChannels 保持一致：ledger.* 归通知，但汇总审计事件仍留在业务事件范围。
 func notificationEventPredicate() predicate.EsportsOutbox {
 	ps := make([]predicate.EsportsOutbox, 0, len(notifyChannelTargets))
 	for _, target := range notifyChannelTargets {
 		ps = append(ps, esportsoutbox.EventTypeHasPrefix(target.prefix))
 	}
-	return esportsoutbox.Or(ps...)
+	return esportsoutbox.And(
+		esportsoutbox.Or(ps...),
+		esportsoutbox.Not(esportsoutbox.EventTypeEQ(ledgerAuditAggregateEventType)),
+	)
 }
 
 // enabledNotificationChannels 读取通知通道开关，返回启用集合；缺省为空 = 不启用 webhook 推送。
@@ -415,6 +434,11 @@ func (s *messageNotificationSender) messageAlreadySent(ctx context.Context, addr
 
 // notificationEventText 是事件类型 → 业务可读标题的映射；未命中时按前缀给出通用标题。
 var notificationEventText = map[string]string{
+	// 账本核验异常（§8.2-13）：ledger.* 是命名空间前缀，这里给命名空间级文案，
+	// 具体事件类型统一由 notificationEventTitle 的 ledger. 前缀回落给出同一标题。
+	"ledger.":                           "账本对账异常",
+	"external_refund.":                  "外部退款督办提醒",
+	"external_refund.overdue":           "外部退款待执行已超期",
 	"order.created":                     "订单已创建",
 	"order.closed":                      "订单已结单",
 	"order.cancelled":                   "订单已取消",
@@ -500,6 +524,12 @@ func notificationEventTitle(eventType string) string {
 		return "结算提醒"
 	case strings.HasPrefix(eventType, "dispatch."):
 		return "派单提醒"
+	case strings.HasPrefix(eventType, "ledger."):
+		// §8.2-13：账本核验异常直达财务 / 超管。
+		return "账本对账异常"
+	case strings.HasPrefix(eventType, "external_refund."):
+		// §8.2-12：外部退款待执行超期督办。
+		return "外部退款督办提醒"
 	}
 	return "业务通知"
 }
@@ -547,6 +577,37 @@ func notificationEventSummary(eventType, aggregateRef string, payload map[string
 		accepted := payloadInt(payload, "accepted_seats")
 		if required > 0 {
 			parts = append(parts, fmt.Sprintf("席位 %d/%d 已接单", accepted, required))
+		}
+	}
+	// §8.2-13：账本异常要让财务 / 超管一眼看出是哪个账户、哪类异常、去哪里复核，无需回查事件载荷。
+	if strings.HasPrefix(eventType, "ledger.") {
+		if accountType := payloadString(payload, "account_type"); accountType != "" {
+			parts = append(parts, "账户类型 "+accountType)
+		}
+		if accountID := payloadString(payload, "account_id"); accountID != "" {
+			parts = append(parts, "账户 "+accountID)
+		}
+		if kinds := payloadStringList(payload, "anomaly_kinds"); len(kinds) > 0 {
+			parts = append(parts, "异常类型 "+strings.Join(kinds, "/"))
+		}
+		if endpoint := payloadString(payload, "query_endpoint"); endpoint != "" {
+			parts = append(parts, "复核入口 "+endpoint)
+		}
+	}
+	// §8.2-12：外部退款超期督办要带退款单号、渠道、金额与超期时长，财务不必回查即可排优先级。
+	if strings.HasPrefix(eventType, "external_refund.") {
+		if refundNo := payloadString(payload, "refund_no"); refundNo != "" {
+			parts = append(parts, "退款单号 "+refundNo)
+		}
+		if channel := payloadString(payload, "channel"); channel != "" {
+			parts = append(parts, "渠道 "+channel)
+		}
+		if amountCents := payloadInt(payload, "amount_cents"); amountCents > 0 {
+			// 金额一律以分为单位存储，展示时用整数运算换算，避免浮点误差。
+			parts = append(parts, fmt.Sprintf("金额 %d.%02d 元", amountCents/100, amountCents%100))
+		}
+		if hours := payloadInt(payload, "overdue_hours"); hours > 0 {
+			parts = append(parts, fmt.Sprintf("已超期 %d 小时", hours))
 		}
 	}
 	return strings.Join(parts, "，")

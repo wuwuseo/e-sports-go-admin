@@ -339,6 +339,9 @@ func init() {
 		// 任务只是把回落 / 消解提前到固定时点；注册与 cron_seeds.go 的种子必须成对。
 		tasks.Register("esports_expire_member_level_overrides", applyMemberOverrideExpiryTask)
 		tasks.Register("esports_expire_priority_booking_intents", expirePriorityBookingIntentsTask)
+		// 外部退款待执行超时督办（审核报告 §8.2-12）：只写督办事件，不自动执行、不自动取消；
+		// 任务函数由 external_refund.go 提供（expirePendingExternalRefundTask），注册名与 cron 种子必须成对。
+		tasks.Register("esports_expire_pending_external_refunds", expirePendingExternalRefundTask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
@@ -350,7 +353,7 @@ func init() {
 			{Key: "reschedule_proposal_hours", Name: "改期提案确认时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "已付款订单改期提案的确认时限，且不晚于目标开始时间"},
 			{Key: "stored_value_payment_window_minutes", Name: "自助购卡支付时限（分钟）", Value: "1440", Type: "number", Group: "esports", Remark: "客户自助购卡支付意图的有效时长，超时由任务过期"},
 			{Key: "recharge_payment_window_minutes", Name: "充值支付时限（分钟）", Value: "1440", Type: "number", Group: "esports", Remark: "客户自助充值支付意图的有效时长，超时由任务过期"},
-			{Key: "page_allowed_domains", Name: "首页外部跳转已审核 HTTPS 域名白名单", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔的已审核 HTTPS 域名，仅允许这些域名的外部跳转链接；为空表示不放行任何外部跳转链接（内部跳转用站内相对路径）"},
+			{Key: "page_allowed_domains", Name: "首页外部跳转与图片资源已审核 HTTPS 域名白名单", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔的已审核 HTTPS 域名；既用于外部跳转链接（仅允许这些域名的外链），也用于发布前外部图片资源（含轮播 images）的探测白名单；为空表示不放行任何外部域名（内部跳转用站内相对路径，外部图片不探测）"},
 			{Key: "finance_report_role_names", Name: "财务报表授权角色", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔的角色名，命中者可查看财务资金报表；为空仅超管可看"},
 			{Key: "wecom_sidebar_auth_mode", Name: "企微侧边栏接入模式", Value: "account", Type: "string", Group: "esports", Remark: "js_sdk=启用企微 JS-SDK 自动识别当前客户；account=关闭 JS-SDK，客服账号登录后手动识别"},
 			{Key: "wecom_corp_id", Name: "企微企业主体 corpId", Value: "", Type: "string", Group: "esports", Remark: "企业微信 JS-SDK 签名所需 corpId；留空表示未配置，侧边栏降级为手动建档"},
@@ -584,6 +587,9 @@ func init() {
 			{Method: "POST", Path: "/admin/member-levels", Auth: cmfapp.AuthAdmin, Handler: createMemberLevelHandler},
 			{Method: "PUT", Path: "/admin/member-levels/:id", Auth: cmfapp.AuthAdmin, Handler: updateMemberLevelHandler},
 			{Method: "POST", Path: "/admin/member-levels/:id/status", Auth: cmfapp.AuthAdmin, Handler: setMemberLevelStatusHandler},
+			// 删除会员等级（审核报告 §8.1-8）：仅「已停用且未被任何客户引用」的等级可删，
+			// 启用中 / 仍被引用一律 409 中文提示，引导改用停用（可逆口径）。
+			{Method: "DELETE", Path: "/admin/member-levels/:id", Auth: cmfapp.AuthAdmin, Handler: deleteMemberLevelHandler},
 			{Method: "GET", Path: "/admin/customers/:id/member", Auth: cmfapp.AuthAdmin, Handler: adminCustomerMember},
 			{Method: "POST", Path: "/admin/customers/:id/member/level", Auth: cmfapp.AuthAdmin, Handler: setCustomerMemberLevelHandler},
 			// 会员优先预约（§10.4）：客服端待处理预约意向列表，按会员等级置顶；处理意向使其从待办消解。
@@ -800,6 +806,10 @@ func init() {
 			{Method: "POST", Path: "/admin/cs-commission-rules/:id/activate", Auth: cmfapp.AuthAdmin, Handler: activateCsCommissionRuleHandler},
 			{Method: "POST", Path: "/admin/cs-commission-rules/:id/rollback", Auth: cmfapp.AuthAdmin, Handler: rollbackCsCommissionRuleHandler},
 			{Method: "GET", Path: "/admin/cs-commission-entries", Auth: cmfapp.AuthAdmin, Handler: adminCsCommissionEntries},
+			// 客服提成明细冻结 / 解冻（审核报告 §8.2-14）：财务 / 客服可手工止血（冻结不计入可结算），
+			// 解冻记录操作人，冻结需填原因。
+			{Method: "POST", Path: "/admin/cs-commission-entries/:id/freeze", Auth: cmfapp.AuthAdmin, Handler: freezeCsCommissionEntryHandler},
+			{Method: "POST", Path: "/admin/cs-commission-entries/:id/unfreeze", Auth: cmfapp.AuthAdmin, Handler: unfreezeCsCommissionEntryHandler},
 			{Method: "GET", Path: "/admin/cs-commission/summary", Auth: cmfapp.AuthAdmin, Handler: adminCsCommissionSummary},
 			{Method: "POST", Path: "/admin/cs-settlements", Auth: cmfapp.AuthAdmin, Handler: createCsSettlementHandler},
 			{Method: "POST", Path: "/admin/settlements/:id/pay", Auth: cmfapp.AuthAdmin, Handler: markSettlementPaidHandler},
@@ -1278,6 +1288,8 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "生效客服提成规则", Code: "esports:settlements:cs_rule_activate", Path: "/api/v1/esports/admin/cs-commission-rules/{id}/activate", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "回滚客服提成规则", Code: "esports:settlements:cs_rule_rollback", Path: "/api/v1/esports/admin/cs-commission-rules/{id}/rollback", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看客服提成明细", Code: "esports:settlements:cs_entries", Path: "/api/v1/esports/admin/cs-commission-entries", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "冻结客服提成明细", Code: "esports:settlements:cs_entry_freeze", Path: "/api/v1/esports/admin/cs-commission-entries/{id}/freeze", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "解冻客服提成明细", Code: "esports:settlements:cs_entry_unfreeze", Path: "/api/v1/esports/admin/cs-commission-entries/{id}/unfreeze", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看客服提成概览", Code: "esports:settlements:cs_summary", Path: "/api/v1/esports/admin/cs-commission/summary", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "生成客服提成结算单", Code: "esports:settlements:cs_settle", Path: "/api/v1/esports/admin/cs-settlements", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "登记结算发放", Code: "esports:settlements:pay", Path: "/api/v1/esports/admin/settlements/{id}/pay", Method: "POST", Parent: "esports:settlement:menu"},
@@ -1315,6 +1327,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "创建会员等级", Code: "esports:members:level_create", Path: "/api/v1/esports/admin/member-levels", Method: "POST", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑会员等级", Code: "esports:members:level_update", Path: "/api/v1/esports/admin/member-levels/{id}", Method: "PUT", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "启停会员等级", Code: "esports:members:level_status", Path: "/api/v1/esports/admin/member-levels/{id}/status", Method: "POST", Parent: "esports:member:menu"},
+			{Type: cmfapp.PermAPI, Name: "删除会员等级", Code: "esports:members:level_delete", Path: "/api/v1/esports/admin/member-levels/{id}", Method: "DELETE", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看客户会员", Code: "esports:members:detail", Path: "/api/v1/esports/admin/customers/{id}/member", Method: "GET", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "手动调级", Code: "esports:members:set_level", Path: "/api/v1/esports/admin/customers/{id}/member/level", Method: "POST", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看会员优先预约", Code: "esports:members:priority_bookings", Path: "/api/v1/esports/admin/priority-bookings", Method: "GET", Parent: "esports:member:menu"},

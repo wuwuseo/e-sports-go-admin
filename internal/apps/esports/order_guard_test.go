@@ -97,7 +97,8 @@ func TestOrderGuardDuplicateOrderReminder(t *testing.T) {
 	}
 }
 
-// §4.6 客户欠款口径：逾期未付款 / 部分收款 / 支付异常计入，未到期待付款与已取消订单不计入。
+// §4.6 客户欠款口径：逾期未付款 / 支付异常计入，未到期待付款与已取消订单不计入。
+// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，已从欠款口径收敛掉，故不再有用例行。
 func TestOrderGuardCustomerDebtCaliber(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_order_guard_debt_caliber")
 	defer db.Close()
@@ -119,7 +120,6 @@ func TestOrderGuardCustomerDebtCaliber(t *testing.T) {
 	}{
 		{"逾期未付款计入", esportsorder.PaymentStatusUnpaid, now.Add(-time.Minute), false, 12000},
 		{"未到期待付款不计入", esportsorder.PaymentStatusUnpaid, now.Add(time.Hour), false, 0},
-		{"部分收款计入", esportsorder.PaymentStatusPartial, now.Add(time.Hour), false, 12000},
 		{"支付异常计入", esportsorder.PaymentStatusException, now.Add(time.Hour), false, 12000},
 		{"已取消不计入", esportsorder.PaymentStatusUnpaid, now.Add(-time.Minute), true, 0},
 	}

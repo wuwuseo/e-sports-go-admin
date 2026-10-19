@@ -396,7 +396,7 @@ func serviceWindowsOverlap(startA time.Time, durationA int, startB time.Time, du
 //
 //  1. 逾期未付款：payment_status=unpaid 且 payment_deadline 已过、履约未取消 → 按报价快照 payable_cents 全额计。
 //     仍在支付时限内的 unpaid 不计入 —— 那属于正常在途报单，计入会误挡同客户连续下单。
-//  2. 部分收款 / 支付异常：payment_status ∈ {partial, exception}（履约未取消）→ 订单未记录已收金额，
+//  2. 支付异常：payment_status=exception（履约未取消）→ 订单未记录已收金额，
 //     保守按 payable_cents 全额计。
 //
 // 已退款金额不冲减欠款（退款走售后单独核算，且退款单与欠款成因不同），订单被取消后自然不再计入。
@@ -405,7 +405,8 @@ func customerOutstandingDebtCents(ctx context.Context, db *ent.Client, customerI
 		esportsorder.CustomerIDEQ(customerID),
 		esportsorder.FulfillmentStatusNEQ(esportsorder.FulfillmentStatusCancelled),
 		esportsorder.Or(
-			esportsorder.PaymentStatusIn(esportsorder.PaymentStatusPartial, esportsorder.PaymentStatusException),
+			// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，欠款口径只余「支付异常」与「逾期未付」两路。
+			esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusException),
 			esportsorder.And(
 				esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
 				esportsorder.PaymentDeadlineLT(now.UTC()),

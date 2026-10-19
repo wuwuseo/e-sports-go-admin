@@ -111,8 +111,12 @@ func TestAfterSaleActionRefundExternalChannelRegistersPendingExternalRefund(t *t
 	if err != nil {
 		t.Fatalf("多动作外部渠道退款执行失败：%v", err)
 	}
-	if done.Status != esportsaftersale.StatusCompleted {
-		t.Fatalf("外部渠道退款动作项已登记，售后不应落 execution_failed：%+v", done)
+	// 钱未出账：售后单停留在待执行，既不能落执行失败（awaiting_execution 不是失败），也不能直接结案。
+	if done.Status != esportsaftersale.StatusPendingExecution {
+		t.Fatalf("外部渠道退款已登记，售后应停在待执行而非执行失败：%+v", done)
+	}
+	if !strings.Contains(done.Resolution, "外部渠道退款已登记，待财务核验执行") {
+		t.Fatalf("应说明外部退款已登记待财务执行：%q", done.Resolution)
 	}
 
 	refund := db.EsportsExternalRefund.Query().Where(
@@ -129,9 +133,9 @@ func TestAfterSaleActionRefundExternalChannelRegistersPendingExternalRefund(t *t
 		esportsaftersaleaction.AfterSaleIDEQ(planned.ID),
 		esportsaftersaleaction.SeqEQ(1),
 	).OnlyX(ctx)
-	if refundAction.Status != esportsaftersaleaction.StatusSucceeded ||
+	if refundAction.Status != esportsaftersaleaction.StatusAwaitingExecution ||
 		!strings.Contains(refundAction.ResultSummary, "已生成外部渠道退款待执行") {
-		t.Fatalf("退款动作项应落「已登记待执行」说明：%+v", refundAction)
+		t.Fatalf("退款动作项应落「已登记待执行」状态与说明：%+v", refundAction)
 	}
 	// 钱还没出账：不写钱包、不累加已退额，预占额度留到财务执行外部退款时核销。
 	if n := db.EsportsWalletTx.Query().Where(
@@ -149,13 +153,26 @@ func TestAfterSaleActionRefundExternalChannelRegistersPendingExternalRefund(t *t
 	db.EsportsAfterSale.UpdateOneID(planned.ID).
 		SetStatus(esportsaftersale.StatusPendingExecution).ExecX(ctx)
 	retried, err := executeAfterSale(ctx, db, planned.ID, 13, now)
-	if err != nil || retried.Status != esportsaftersale.StatusCompleted {
+	if err != nil || retried.Status != esportsaftersale.StatusPendingExecution {
 		t.Fatalf("重试执行失败：%v %+v", err, retried)
 	}
 	if n := db.EsportsExternalRefund.Query().Where(
 		esportsexternalrefund.OrderIDEQ(order.ID),
 	).CountX(ctx); n != 1 {
 		t.Fatalf("重复执行产生了第二张外部退款单，got=%d", n)
+	}
+
+	// 财务执行外部退款成功后：动作项由 awaiting_execution 转 succeeded，售后单同事务结案。
+	if _, err = executeExternalRefund(ctx, db, 14, refund.ID, now); err != nil {
+		t.Fatalf("财务执行外部退款失败：%v", err)
+	}
+	settledAction := db.EsportsAfterSaleAction.GetX(ctx, refundAction.ID)
+	if settledAction.Status != esportsaftersaleaction.StatusSucceeded ||
+		!strings.Contains(settledAction.ResultSummary, "外部渠道退款已由财务执行") {
+		t.Fatalf("财务执行后动作项应转已执行：%+v", settledAction)
+	}
+	if got := db.EsportsAfterSale.GetX(ctx, planned.ID); got.Status != esportsaftersale.StatusCompleted {
+		t.Fatalf("财务执行后售后单应结案：%+v", got)
 	}
 }
 

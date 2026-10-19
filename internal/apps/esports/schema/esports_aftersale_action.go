@@ -19,7 +19,10 @@ import (
 // makeup_* 退化为「聚合摘要」——refund_cents 记资金类动作金额之和，供既有审批预占额度口径直接复用；
 // 单条补履约动作的参数同时镜像到售后单 makeup_* 字段，供既有补履约读取方无感兼容。
 //
-// 状态机：pending（待执行）→ executing（执行中）→ succeeded（成功）| failed（失败）；skipped（跳过 / 不再适用）。
+// 状态机：pending（待执行）→ executing（执行中）→ succeeded（成功）| failed（失败）。
+// 外部渠道退款另行有 awaiting_execution（已登记待执行）：动作项已登记一笔待财务核验执行的外部退款单，
+// 钱尚未出账，既不算成功也不算失败；财务执行成功后由执行入口转为 succeeded，售后单在此期间停留在
+// pending_execution（不得因该项被当作 unresolved 而落 execution_failed）。
 // 幂等键 idem_key = aftersale:<after_sale_id>:action:<seq>:<source>，唯一索引兜底同一动作项重复落账；
 // 下游账本（钱包流水 / 分成冲回 / 成长值 / 补履约任务）各自的幂等键由「按项来源号」派生，避免双记。
 type EsportsAfterSaleAction struct{ ent.Schema }
@@ -47,8 +50,11 @@ func (EsportsAfterSaleAction) Fields() []ent.Field {
 		field.String("source_ref").MaxLen(120).Default("").StructTag(`json:"source_ref"`),
 		// 按项幂等键：aftersale:<after_sale_id>:action:<seq>:<source>；唯一索引兜底重复落账。
 		field.String("idem_key").NotEmpty().MaxLen(191).Immutable().StructTag(`json:"idem_key"`),
-		// pending → executing → succeeded | failed；skipped 为方案变更 / 不再适用而被跳过。
-		field.Enum("status").Values("pending", "executing", "succeeded", "failed", "skipped").
+		// pending → executing → succeeded | failed。
+		// awaiting_execution：外部渠道退款已登记、等待财务执行（钱未出账，不阻断终态判定）。
+		// 方案变更时按序整体重建动作项（见下方「同一售后单内动作序号唯一」索引），因此不需要
+		// skipped（跳过 / 不再适用）这类中间态——任何写入方都直接删除或重建动作项。
+		field.Enum("status").Values("pending", "executing", "awaiting_execution", "succeeded", "failed").
 			Default("pending").StructTag(`json:"status"`),
 		// 执行结果摘要（成功说明 / 失败原因），供逐项进度展示与人工处理参考。
 		field.String("result_summary").MaxLen(500).Default("").StructTag(`json:"result_summary"`),

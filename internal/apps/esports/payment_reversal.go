@@ -137,7 +137,7 @@ func registerPaymentReversal(ctx context.Context, db *ent.Client, adminID int,
 }
 
 // decidePaymentReversal 处置渠道撤销 / 拒付（§3.2）。登记人不得自审：
-// mark_exception 把订单置为资金异常（paid/partial → exception）转人工；
+// mark_exception 把订单置为资金异常（paid → exception）转人工；
 // suspend_customer 在其上再把客户置为受限，阻断客户自助下单；
 // ignore 认定为误报，只留结论不动订单。
 func decidePaymentReversal(ctx context.Context, db *ent.Client, id, adminID int,
@@ -205,8 +205,8 @@ func decidePaymentReversal(ctx context.Context, db *ent.Client, id, adminID int,
 	}
 	if in.Action != reversalActionIgnore {
 		// 资金异常：只有仍被当作已收款的订单才需要改判，已异常或未收款的直接跳过。
-		if order.PaymentStatus == esportsorder.PaymentStatusPaid ||
-			order.PaymentStatus == esportsorder.PaymentStatusPartial {
+		// 审核报告 §B.3-4：partial（部分收款）无写入方，真实可改判的状态只有 paid。
+		if order.PaymentStatus == esportsorder.PaymentStatusPaid {
 			updated, err := tx.EsportsOrder.Update().Where(
 				esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
 			).SetPaymentStatus(esportsorder.PaymentStatusException).AddVersion(1).Save(ctx)

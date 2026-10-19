@@ -53,6 +53,8 @@ type notificationRecipient struct {
 //   - order.*                → 订单客户 + 责任客服 + 已接单席位陪玩
 //   - aftersale.*            → 售后/来源客户 + 责任客服
 //   - payment.*              → 责任客服（退款/拒付/撤销类同时通知客户）
+//   - ledger.*               → 载荷点名的财务 / 超管（账本核验异常告警）
+//   - external_refund.*      → 财务优先、回落超管（外部退款待执行超期督办）
 //   - dispatch.remind_admin  → 责任客服
 //   - dispatch.remind_player → 该订单被提醒的陪玩（订单/席位上取不到则视为收件人缺失）
 //   - dispatch.service_overtime / service.duration_mismatch → 责任客服
@@ -96,6 +98,14 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 		return resolvePlayerPayloadRecipients(payload)
 	case strings.HasPrefix(eventType, "payment."):
 		return resolvePaymentNotificationRecipients(ctx, db, eventType, aggregateRef, payload)
+	case strings.HasPrefix(eventType, "ledger."):
+		// §8.2-13 账本核验异常：逐收件人的告警事件在载荷里点名 admin_id（财务或超管），
+		// 沿用「按 payload.admin_id 定向管理员」的既有解析；账本事件没有关联订单，
+		// 订单回查查不到即跳过，只剩载荷点名的收件人。
+		return resolveFinanceNotificationRecipients(ctx, db, aggregateRef, payload)
+	case strings.HasPrefix(eventType, "external_refund."):
+		// §8.2-12 外部退款待执行超期督办：与账本告警同一套收件人口径（财务优先、回落超管）。
+		return resolveFinanceNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "gift."):
 		return resolveGiftNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "member."):
@@ -232,6 +242,29 @@ func resolveGiftNotificationRecipients(ctx context.Context, db *ent.Client, aggr
 	return set.result()
 }
 
+// resolveFinanceNotificationRecipients 解析「财务 / 超管」类资金告警事件（ledger.* / external_refund.*）的收件人：
+//   - 载荷点名了 admin_id（账本告警逐收件人写出点）→ 沿用管理员定向解析，只发给被点名的人；
+//   - 载荷没有具体收件人（外部退款超期督办、整轮核验汇总等）→ 复用账本告警既有的收件人口径
+//     ledgerReconcileNoticeRecipients：财务角色成员优先，没有财务成员时回落启用中的超管。
+//
+// 两者都取不到时返回 errNotificationRecipientMissing，由外盒退避重试直至 dead，
+// 绝不降级为 user_uid="" 的全员广播。
+func resolveFinanceNotificationRecipients(ctx context.Context, db *ent.Client, aggregateRef string, payload map[string]interface{}) ([]notificationRecipient, error) {
+	if payloadInt(payload, "admin_id") > 0 {
+		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
+	}
+	fallbacks, err := ledgerReconcileNoticeRecipients(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	set := newNotificationRecipientSet()
+	for _, item := range fallbacks {
+		set.addAdmin(ctx, db, item.AdminID, notificationRoleAdmin)
+	}
+	return set.result()
+}
+
+// resolveOrderAdminNotificationRecipients 解析管理员定向事件：载荷点名 admin_id，另可回查订单责任客服。
 func resolveOrderAdminNotificationRecipients(ctx context.Context, db *ent.Client, aggregateRef string, payload map[string]interface{}) ([]notificationRecipient, error) {
 	set := newNotificationRecipientSet()
 	if id := payloadInt(payload, "admin_id"); id > 0 {
@@ -492,6 +525,38 @@ func payloadString(payload map[string]interface{}, key string) string {
 		return strings.TrimSpace(value.String())
 	default:
 		return ""
+	}
+}
+
+// payloadStringList 读取载荷中的字符串列表字段（如 anomaly_kinds / recipient_roles），
+// 兼容 []string 与 JSON 解码出的 []interface{}，并忽略空项。
+func payloadStringList(payload map[string]interface{}, key string) []string {
+	if payload == nil {
+		return nil
+	}
+	appendTrimmed := func(out []string, raw string) []string {
+		if trimmed := strings.TrimSpace(raw); trimmed != "" {
+			return append(out, trimmed)
+		}
+		return out
+	}
+	switch value := payload[key].(type) {
+	case []string:
+		out := make([]string, 0, len(value))
+		for _, item := range value {
+			out = appendTrimmed(out, item)
+		}
+		return out
+	case []interface{}:
+		out := make([]string, 0, len(value))
+		for _, item := range value {
+			if text, ok := item.(string); ok {
+				out = appendTrimmed(out, text)
+			}
+		}
+		return out
+	default:
+		return nil
 	}
 }
 

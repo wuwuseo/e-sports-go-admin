@@ -84,15 +84,6 @@ func afterSaleActionMakeupKind(actionType string) string {
 	return string(esportsaftersale.MakeupKindMakeupTime)
 }
 
-// validAfterSaleActionStatus 校验动作项状态。
-func validAfterSaleActionStatus(status string) bool {
-	switch status {
-	case "pending", "executing", "succeeded", "failed", "skipped":
-		return true
-	}
-	return false
-}
-
 // afterSaleActionIdemKey 按项幂等键：售后单 + 动作项序号 + 原核销明细。
 func afterSaleActionIdemKey(afterSaleID, seq int, source string) string {
 	return fmt.Sprintf("aftersale:%d:action:%d:%s", afterSaleID, seq, source)
@@ -357,7 +348,9 @@ func executeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID in
 	}
 	for _, action := range actions {
 		if action.Status == esportsaftersaleaction.StatusSucceeded ||
-			action.Status == esportsaftersaleaction.StatusSkipped {
+			// 外部渠道退款已登记待财务执行（awaiting_execution）：钱还没出账，
+			// 不再重复登记，也不当作失败，售后单停留在待执行直到财务执行外部退款。
+			action.Status == esportsaftersaleaction.StatusAwaitingExecution {
 			continue
 		}
 		// 单项失败不中断：现场已落库（动作项 failed + 订单事件），继续执行后续动作项。
@@ -389,7 +382,7 @@ func executeAfterSaleActionSeq(ctx context.Context, db *ent.Client, afterSaleID,
 	if err != nil {
 		return nil, err
 	}
-	if action.Status == esportsaftersaleaction.StatusSucceeded || action.Status == esportsaftersaleaction.StatusSkipped {
+	if action.Status == esportsaftersaleaction.StatusSucceeded {
 		return nil, errConflict
 	}
 	runAfterSaleAction(ctx, db, item, action, adminID, now)
@@ -414,7 +407,8 @@ func runAfterSaleAction(ctx context.Context, db *ent.Client, item *ent.EsportsAf
 	}
 }
 
-// executeAfterSaleActionOnce 在独立事务内执行一个动作项：标记 executing → 复用既有执行逻辑 → 标记 succeeded。
+// executeAfterSaleActionOnce 在独立事务内执行一个动作项：标记 executing → 复用既有执行逻辑 → 标记执行结果。
+// 执行结果默认 succeeded；外部渠道退款只完成「登记待执行」（awaiting_execution），由财务执行外部退款后转 succeeded。
 // 任一环节失败整体回滚（动作项状态不被改为 executing），由调用方另开事务落 failed。
 func executeAfterSaleActionOnce(ctx context.Context, db *ent.Client, item *ent.EsportsAfterSale,
 	action *ent.EsportsAfterSaleAction, adminID int, now time.Time) error {
@@ -430,8 +424,7 @@ func executeAfterSaleActionOnce(ctx context.Context, db *ent.Client, item *ent.E
 	if err != nil {
 		return err
 	}
-	if fresh.Status == esportsaftersaleaction.StatusSucceeded ||
-		fresh.Status == esportsaftersaleaction.StatusSkipped {
+	if fresh.Status == esportsaftersaleaction.StatusSucceeded {
 		return errConflict
 	}
 	changed, err := tx.EsportsAfterSaleAction.Update().Where(
@@ -451,12 +444,14 @@ func executeAfterSaleActionOnce(ctx context.Context, db *ent.Client, item *ent.E
 	}
 	var summary string
 	var newVersion int
+	// 外部渠道退款只登记待执行：动作项落 awaiting_execution，等财务执行外部退款时才转 succeeded。
+	awaitingExecution := false
 	switch fresh.ActionType {
 	case esportsaftersaleaction.ActionTypeRefund, esportsaftersaleaction.ActionTypeCompensate:
 		if item.SourceType != esportsaftersale.SourceTypeOrder {
 			return fmt.Errorf("%w：非订单来源暂不支持资金类动作项", errInvalidInput)
 		}
-		summary, newVersion, err = executeFundingAction(ctx, tx, item, order, fresh, adminID, now)
+		summary, newVersion, awaitingExecution, err = executeFundingAction(ctx, tx, item, order, fresh, adminID, now)
 	case esportsaftersaleaction.ActionTypeMakeup, esportsaftersaleaction.ActionTypeReplace:
 		summary, newVersion, err = executeMakeupAction(ctx, tx, item, order, fresh, adminID, now)
 	default:
@@ -465,11 +460,15 @@ func executeAfterSaleActionOnce(ctx context.Context, db *ent.Client, item *ent.E
 	if err != nil {
 		return err
 	}
+	targetStatus := esportsaftersaleaction.StatusSucceeded
+	if awaitingExecution {
+		targetStatus = esportsaftersaleaction.StatusAwaitingExecution
+	}
 	changed, err = tx.EsportsAfterSaleAction.Update().Where(
 		esportsaftersaleaction.IDEQ(fresh.ID),
 		esportsaftersaleaction.VersionEQ(fresh.Version+1),
 		esportsaftersaleaction.StatusEQ(esportsaftersaleaction.StatusExecuting),
-	).SetStatus(esportsaftersaleaction.StatusSucceeded).
+	).SetStatus(targetStatus).
 		SetResultSummary(summary).SetExecutorAdminID(adminID).SetExecutedAt(now.UTC()).
 		AddVersion(1).Save(ctx)
 	if err != nil {
@@ -493,10 +492,10 @@ func executeAfterSaleActionOnce(ctx context.Context, db *ent.Client, item *ent.E
 
 // executeFundingAction 复用既有资金动作执行：退原核销款 / 补偿权益 + 订单退款额度落账 + 分成 / 成长值冲回。
 // 通过「按项来源号」的临时视图（shim）复用既有函数，使各下游账本幂等键按动作项拆分、互不覆盖。
-// 返回执行摘要与订单事件应使用的新版本号。
+// 返回执行摘要、订单事件应使用的新版本号，以及该动作项是否只登记为「待财务执行」（外部渠道退款）。
 func executeFundingAction(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale,
 	order *ent.EsportsOrder, action *ent.EsportsAfterSaleAction, adminID int,
-	now time.Time) (string, int, error) {
+	now time.Time) (string, int, bool, error) {
 	shim := *item
 	// 按项来源号：钱包流水 (after_sale, source_id, refund_return)、分成冲回、成长值等
 	// 幂等键据此按项拆分，与既有单动作（用原售后单号）互不冲突。
@@ -518,37 +517,37 @@ func executeFundingAction(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfte
 		// 不写钱包、不累加 refunded_cents；预占额度留到财务执行外部退款（executeExternalRefund）时核销。
 		needsExternal, err := afterSaleNeedsExternalRefund(ctx, tx.Client(), &shim, order)
 		if err != nil {
-			return "", 0, err
+			return "", 0, false, err
 		}
 		if needsExternal {
 			refund, err := createAfterSaleExternalRefundIn(ctx, tx, &shim, order, adminID)
 			if err != nil {
-				return "", 0, err
+				return "", 0, false, err
 			}
 			// 登记后仍需占用一个订单版本，供调用方写「动作项已执行」事件（与补履约动作同口径）。
 			newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
 			if err != nil {
-				return "", 0, err
+				return "", 0, false, err
 			}
 			return fmt.Sprintf("已生成外部渠道退款待执行：退款单 %s（渠道 %s），须由财务核验后执行",
-				refund.RefundNo, order.PaymentChannel.String()), newVersion, nil
+				refund.RefundNo, order.PaymentChannel.String()), newVersion, true, nil
 		}
 		if err := executeRefundOriginal(ctx, tx, &shim, order, adminID); err != nil {
-			return "", 0, err
+			return "", 0, false, err
 		}
 	case esportsaftersaleaction.ActionTypeCompensate:
 		if err := executeCompensate(ctx, tx, &shim, order, adminID); err != nil {
-			return "", 0, err
+			return "", 0, false, err
 		}
 		// 补偿只发权益：不占退款额度、不累加 refunded_cents、不冲回订单分成/提成/成长值。
 		return fmt.Sprintf("资金动作执行成功：%s %d 分", action.ActionType.String(), action.AmountCents),
-			order.Version, nil
+			order.Version, false, nil
 	}
 	// 统一额度落账：从预占额度扣减并累加 refunded_cents（与既有单动作同一条件表达式口径）。
 	// §12.5-02：可退上界 = 服务应付 + 加钟已收款，并发谓词必须带上同一上界。
 	addonReceived, err := addonReceivedCents(ctx, tx.Client(), order.ID)
 	if err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID),
@@ -560,26 +559,26 @@ func executeFundingAction(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfte
 		SetRefundStatus(refundStatusFor(order.PayableCents+addonReceived, order.RefundedCents+action.AmountCents)).
 		AddVersion(1).Save(ctx)
 	if err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 	if changed != 1 {
-		return "", 0, errConflict
+		return "", 0, false, errConflict
 	}
 	refundedOrder, err := tx.EsportsOrder.Get(ctx, order.ID)
 	if err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 	if err = reverseOrderCommission(ctx, tx, refundedOrder, &shim, now); err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 	if err = reverseOrderCsCommission(ctx, tx, refundedOrder, &shim, now); err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 	if err = reverseOrderGrowth(ctx, tx, order, &shim, adminID, now); err != nil {
-		return "", 0, err
+		return "", 0, false, err
 	}
 	summary := fmt.Sprintf("资金动作执行成功：%s %d 分", action.ActionType.String(), action.AmountCents)
-	return summary, order.Version + 1, nil
+	return summary, order.Version + 1, false, nil
 }
 
 // executeMakeupAction 复用既有补履约任务创建：makeup → 补钟、replace → 换人。
@@ -627,8 +626,7 @@ func markAfterSaleActionFailed(ctx context.Context, db *ent.Client, item *ent.Es
 	if err != nil {
 		return
 	}
-	if fresh.Status == esportsaftersaleaction.StatusSucceeded ||
-		fresh.Status == esportsaftersaleaction.StatusSkipped {
+	if fresh.Status == esportsaftersaleaction.StatusSucceeded {
 		return
 	}
 	changed, err := tx.EsportsAfterSaleAction.Update().Where(
@@ -663,12 +661,13 @@ func markAfterSaleActionFailed(ctx context.Context, db *ent.Client, item *ent.Es
 
 // finalizeAfterSaleActions 汇总逐项执行结果推导售后单总状态（§13.6）：
 //   - 全部动作项成功 → completed（既有终态），解冻分成、建追偿、记陪玩信用并写完成事件；
+//   - 仍有外部渠道退款处于 awaiting_execution（已登记待财务执行）且其余项无失败 → 售后单停留在
+//     pending_execution 并写「已登记待财务执行」说明，**不**落 execution_failed（钱未出账不算失败）；
 //   - 存在失败 / 未完成项 → execution_failed（既有异常态：部分执行完成，需人工处理），
 //     写 order.after_sale_actions_partially_executed 事件与 aftersale.actions_partially_executed 外盒留痕。
 //
 // 说明：售后单状态枚举不含独立的 partially_completed 值，故「部分成功」沿用既有异常态 execution_failed
-// 承载，靠动作项逐项状态 + resolution + 事件 / 外盒明细区分于「全失败」；新增专用枚举值需改动
-// schema/esports_aftersale.go，超出本次改动范围。
+// 承载，靠动作项逐项状态 + resolution + 事件 / 外盒明细区分于「全失败」。
 func finalizeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID int,
 	now time.Time) (*ent.EsportsAfterSale, error) {
 	tx, err := db.Tx(ctx)
@@ -676,6 +675,19 @@ func finalizeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID i
 		return nil, err
 	}
 	defer tx.Rollback()
+	if _, err = finalizeAfterSaleActionsInTx(ctx, tx, id, adminID, now); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsAfterSale.Get(ctx, id)
+}
+
+// finalizeAfterSaleActionsInTx 在调用方事务内推导并落售后单总状态，供需要与其它账本
+// 同事务收敛的入口（如财务执行外部退款后回写动作项）复用；提交 / 回滚由调用方负责。
+func finalizeAfterSaleActionsInTx(ctx context.Context, tx *ent.Tx, id, adminID int,
+	now time.Time) (*ent.EsportsAfterSale, error) {
 	item, err := tx.EsportsAfterSale.Get(ctx, id)
 	if err != nil {
 		return nil, err
@@ -686,14 +698,15 @@ func finalizeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID i
 	if err != nil {
 		return nil, err
 	}
-	succeeded, unresolved := 0, 0
+	succeeded, unresolved, awaiting := 0, 0, 0
 	var failures []string
 	for _, action := range actions {
 		switch action.Status {
 		case esportsaftersaleaction.StatusSucceeded:
 			succeeded++
-		case esportsaftersaleaction.StatusSkipped:
-			// 跳过项不计入成功，也不阻断终态。
+		case esportsaftersaleaction.StatusAwaitingExecution:
+			// 已登记待财务执行：钱未出账，既不算成功也不算失败，售后单暂不结案。
+			awaiting++
 		default:
 			unresolved++
 			failures = append(failures, fmt.Sprintf("#%d %s：%s",
@@ -703,6 +716,37 @@ func finalizeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID i
 	order, err := tx.EsportsOrder.Get(ctx, item.SourceID)
 	if err != nil {
 		return nil, err
+	}
+	if unresolved == 0 && awaiting > 0 {
+		// 外部渠道退款登记完成、等待财务执行：售后单停在待执行，不落 execution_failed 也不结案，
+		// 预占额度继续保留到财务执行外部退款时核销（executeExternalRefund 会把动作项转 succeeded 并回调本函数）。
+		resolution := truncateRunes(fmt.Sprintf(
+			"外部渠道退款已登记，待财务核验执行（待执行 %d 项，已完成 %d 项）", awaiting, succeeded), 255)
+		changed, err := tx.EsportsAfterSale.Update().Where(
+			esportsaftersale.IDEQ(id),
+			esportsaftersale.StatusIn(esportsaftersale.StatusPendingExecution, esportsaftersale.StatusExecutionFailed),
+		).SetStatus(esportsaftersale.StatusPendingExecution).SetExecutorAdminID(adminID).
+			SetResolution(resolution).AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+		if err != nil {
+			return nil, err
+		}
+		if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+			SetOrderVersion(newVersion).SetEventType("order.after_sale_actions_awaiting_execution").
+			SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+			SetDetails(map[string]interface{}{
+				"after_sale_no": item.AfterSaleNo, "total": len(actions),
+				"succeeded": succeeded, "awaiting_execution": awaiting,
+			}).Save(ctx); err != nil {
+			return nil, err
+		}
+		return tx.EsportsAfterSale.Get(ctx, id)
 	}
 	if unresolved == 0 {
 		changed, err := tx.EsportsAfterSale.Update().Where(
@@ -745,10 +789,7 @@ func finalizeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID i
 			}).Save(ctx); err != nil {
 			return nil, err
 		}
-		if err = tx.Commit(); err != nil {
-			return nil, err
-		}
-		return db.EsportsAfterSale.Get(ctx, id)
+		return tx.EsportsAfterSale.Get(ctx, id)
 	}
 	resolution := truncateRunes(fmt.Sprintf("部分动作项执行失败，需人工处理（成功 %d / 共 %d）：%s",
 		succeeded, len(actions), strings.Join(failures, "；")), 255)
@@ -785,22 +826,73 @@ func finalizeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID i
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-	return db.EsportsAfterSale.Get(ctx, id)
+	return tx.EsportsAfterSale.Get(ctx, id)
 }
 
-// afterSaleActionProgressOf 汇总动作项进度（总数 / 成功 / 失败 / 待执行），供视图与事件复用。
+// afterSaleActionSeqFromExternalRefundTransactionNo 从按项外部退款幂等键
+// AS-EXT-<售后单号>:a<序号> 解析动作项序号；不是按项登记（单动作售后）返回 0。
+func afterSaleActionSeqFromExternalRefundTransactionNo(transactionNo string) int {
+	idx := strings.LastIndex(transactionNo, ":a")
+	if idx < 0 {
+		return 0
+	}
+	seq, err := strconv.Atoi(transactionNo[idx+2:])
+	if err != nil {
+		return 0
+	}
+	return seq
+}
+
+// afterSaleActionAwaitingExternalRefundExecuted 财务执行外部退款成功后回写售后动作项（§8.2-11）：
+// 按外部退款幂等键（AS-EXT-<售后单号>:a<序号>）定位动作项，把 awaiting_execution 转 succeeded，
+// 并在其余项已无未结项时把售后单结案（落 completed）。
+// 与退款执行同一事务，任一步失败整体回滚——不会出现「钱已出账、动作项还挂着待执行」的半截状态。
+// 单动作售后（无动作项）不涉及，直接返回。
+func afterSaleActionAwaitingExternalRefundExecuted(ctx context.Context, tx *ent.Tx,
+	refund *ent.EsportsExternalRefund, adminID int, now time.Time) error {
+	if refund == nil || refund.AftersaleID == nil || adminID < 1 {
+		return nil
+	}
+	seq := afterSaleActionSeqFromExternalRefundTransactionNo(refund.TransactionNo)
+	if seq < 1 {
+		return nil
+	}
+	changed, err := tx.EsportsAfterSaleAction.Update().Where(
+		esportsaftersaleaction.AfterSaleIDEQ(*refund.AftersaleID),
+		esportsaftersaleaction.SeqEQ(seq),
+		esportsaftersaleaction.StatusEQ(esportsaftersaleaction.StatusAwaitingExecution),
+	).SetStatus(esportsaftersaleaction.StatusSucceeded).
+		SetResultSummary(truncateRunes("外部渠道退款已由财务执行：退款单 "+refund.RefundNo, 500)).
+		SetExecutorAdminID(adminID).SetExecutedAt(now.UTC()).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return nil
+	}
+	item, err := tx.EsportsAfterSale.Get(ctx, *refund.AftersaleID)
+	if err != nil {
+		return err
+	}
+	if item.Status != esportsaftersale.StatusPendingExecution {
+		return nil
+	}
+	_, err = finalizeAfterSaleActionsInTx(ctx, tx, item.ID, adminID, now)
+	return err
+}
+
+// afterSaleActionProgressOf 汇总动作项进度（总数 / 成功 / 失败 / 待执行 / 已登记待执行），供视图与事件复用。
 func afterSaleActionProgressOf(actions []*ent.EsportsAfterSaleAction) map[string]int {
-	progress := map[string]int{"total": len(actions), "succeeded": 0, "failed": 0, "pending": 0}
+	progress := map[string]int{"total": len(actions), "succeeded": 0, "failed": 0,
+		"pending": 0, "awaiting_execution": 0}
 	for _, action := range actions {
 		switch action.Status {
 		case esportsaftersaleaction.StatusSucceeded:
 			progress["succeeded"]++
 		case esportsaftersaleaction.StatusFailed:
 			progress["failed"]++
-		case esportsaftersaleaction.StatusSkipped:
+		case esportsaftersaleaction.StatusAwaitingExecution:
+			progress["awaiting_execution"]++
 		default:
 			progress["pending"]++
 		}

@@ -24,19 +24,6 @@ func ensureOrderNotFrozen(order *ent.EsportsOrder) error {
 	return nil
 }
 
-// ensureOrderWritable 是订单写操作的统一兜底守卫（§3.3-11）：按 ID 重新读取订单再判定存单冻结，
-// 避免调用方拿旧快照 / 绕过 ensureOrderNotFrozen 而漏拦截。新增订单写入口应默认先走它。
-func ensureOrderWritable(ctx context.Context, db *ent.Client, orderID int) error {
-	if orderID < 1 {
-		return errInvalidInput
-	}
-	order, err := db.EsportsOrder.Get(ctx, orderID)
-	if err != nil {
-		return err
-	}
-	return ensureOrderNotFrozen(order)
-}
-
 // depositOrder 存单：对一张已有订单点「存单」，把订单冻结存起来。
 // 存单不是货币 / 储值账户 / 开卡套餐，只是订单上的一个冻结标记：
 // 冻结不改变履约状态，也不释放 SKU 名额占用（不动 quota_reserved、不碰 EsportsQuotaHold）。
@@ -49,8 +36,9 @@ func ensureOrderWritable(ctx context.Context, db *ent.Client, orderID int) error
 // 并发保护：条件 UPDATE 带 version + deposit_status=none + payment_status=paid，
 // changed != 1 即视为状态已变化返回 errConflict，避免并发重复存单。
 //
-// §3.3-11：冻结期间禁止一切订单变更 —— 各写入口统一经 ensureOrderNotFrozen /
-// ensureOrderWritable 拦截（后者按 ID 重新读取，避免旧快照绕过）。
+// §3.3-11：冻结期间禁止一切订单变更 —— 各写入口统一经 ensureOrderNotFrozen 拦截；
+// 调用方须用「事务内 / 库内最新」的订单对象判定，不得拿冻结前的旧快照绕过
+// （历史兜底函数 ensureOrderWritable 因无生产调用已删除，行为由 ensureOrderNotFrozen + 重读保证）。
 func depositOrder(ctx context.Context, db *ent.Client, orderID, adminID int, now time.Time) (*ent.EsportsOrder, error) {
 	if orderID < 1 || adminID < 1 {
 		return nil, errInvalidInput

@@ -594,11 +594,15 @@ func minimalRoleSpecs() []minimalRoleSpec {
 				"esports:settlements:list", "esports:settlements:detail", "esports:settlements:entries",
 				"esports:settlements:rules", "esports:settlements:cycles", "esports:settlements:close_rules",
 				"esports:settlements:cs_entries", "esports:settlements:cs_summary",
+				// 客服提成明细的争议冻结 / 解冻（资金争议处置，归财务）
+				"esports:settlements:cs_entry_freeze", "esports:settlements:cs_entry_unfreeze",
 				"esports:settlements:withdrawals", "esports:settlements:withdrawal_detail",
 				"esports:settlements:withdrawal_review", "esports:settlements:withdraw_manage",
 				"esports:settlements:withdrawal_pay", "esports:settlements:payout_request",
 				"esports:settlements:payout_list", "esports:settlements:payout_paid", "esports:settlements:payout_failed",
 				"esports:settlements:external_refund_list", "esports:settlements:external_refund_execute",
+				// 充值退款执行批次查询（与外部退款执行同属财务出款口）
+				"esports:settlements:recharge_refund_execute", "esports:settlements:recharge_refund_executions",
 				// 财务报表
 				"esports:stats:view", "esports:stats:finance", "esports:stats:export",
 			},

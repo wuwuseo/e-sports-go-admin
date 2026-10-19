@@ -112,7 +112,6 @@ const (
 	SourceAssign    Source = "assign"
 	SourceGrab      Source = "grab"
 	SourceFixedTeam Source = "fixed_team"
-	SourceTempTeam  Source = "temp_team"
 )
 
 func (s Source) String() string {
@@ -122,7 +121,7 @@ func (s Source) String() string {
 // SourceValidator is a validator for the "source" field enum values. It is called by the builders before save.
 func SourceValidator(s Source) error {
 	switch s {
-	case SourceAssign, SourceGrab, SourceFixedTeam, SourceTempTeam:
+	case SourceAssign, SourceGrab, SourceFixedTeam:
 		return nil
 	default:
 		return fmt.Errorf("esportsdispatchseat: invalid enum value for source field: %q", s)

@@ -166,7 +166,19 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	if intent.AmountCents != order.PayableCents {
 		return nil, errConflict
 	}
-	item, err := db.EsportsOfflinePaymentProof.Create().
+	// 订单级串行化（§8.2-15 / B.3-1）：提交待核验凭证同样推进订单版本。
+	// 这样并发中「已读到无凭证」的余额 / 储值卡核销在写回时版本守卫必然失败，
+	// 不会出现「余额已核销 + 凭证同时挂账」的重复收款；反之凭证先落库，核销侧也会被判冲突。
+	runPaymentOrderInterleaveHook(order.ID)
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	if err = lockOrderPaymentSlot(ctx, tx, order.ID, order.Version); err != nil {
+		return nil, err
+	}
+	item, err := tx.EsportsOfflinePaymentProof.Create().
 		SetProofNo("OP" + uuid.NewString()).
 		SetOrderID(order.ID).SetIntentID(intent.ID).SetAccountID(account.ID).
 		SetChannel(esportsofflinepaymentproof.Channel(channel)).
@@ -178,6 +190,9 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
 		}
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 	return item, nil
@@ -209,6 +224,12 @@ func verifyOfflinePaymentProof(ctx context.Context, db *ent.Client, id, adminID 
 	}
 	intent, err := db.EsportsPaymentIntent.Get(ctx, item.IntentID)
 	if err != nil {
+		return nil, err
+	}
+	// 订单级串行化（§8.2-15 / B.3-1）：核销与「订单转已付款」在 applyVerifiedPayment 内部完成，
+	// 这里先提交式占位推进订单版本——并发中已读到旧版本的余额 / 储值卡核销随后的写回必然冲突，
+	// 反过来若别的收款动作已先提交，本次占位就影响 0 行、在动钱之前失败。
+	if err = reserveOrderPaymentVersion(ctx, db, item.OrderID); err != nil {
 		return nil, err
 	}
 	// P0-11 重复收款防护：本次动作正是核销这张待核验凭证，属规则的「同一笔收款」放行分支

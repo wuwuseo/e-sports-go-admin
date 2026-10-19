@@ -168,11 +168,11 @@ const DefaultStatus = StatusPending
 
 // Status values.
 const (
-	StatusPending   Status = "pending"
-	StatusExecuting Status = "executing"
-	StatusSucceeded Status = "succeeded"
-	StatusFailed    Status = "failed"
-	StatusSkipped   Status = "skipped"
+	StatusPending           Status = "pending"
+	StatusExecuting         Status = "executing"
+	StatusAwaitingExecution Status = "awaiting_execution"
+	StatusSucceeded         Status = "succeeded"
+	StatusFailed            Status = "failed"
 )
 
 func (s Status) String() string {
@@ -182,7 +182,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusPending, StatusExecuting, StatusSucceeded, StatusFailed, StatusSkipped:
+	case StatusPending, StatusExecuting, StatusAwaitingExecution, StatusSucceeded, StatusFailed:
 		return nil
 	default:
 		return fmt.Errorf("esportsaftersaleaction: invalid enum value for status field: %q", s)

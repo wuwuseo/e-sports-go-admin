@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -720,6 +721,97 @@ func pageRoutePath(raw string) string {
 		raw = strings.TrimRight(raw, "/")
 	}
 	return raw
+}
+
+// 底部导航（tabBar）编辑口径（§16.3-12，审核报告 §8.1-8 后半放开）：
+// 允许增删条目与编辑 path / order，但条目数必须是 1~5 项。
+const (
+	pageTabbarMinItems  = 1
+	pageTabbarMaxItems  = 5
+	pageTabbarTextLimit = 12  // 单项文案上限（字符）
+	pageTabbarIconLimit = 200 // 单项图标地址上限（字符）
+)
+
+// pageValidateTabbarPath 校验底部导航路径（§16.3-12）：必须是站内相对路径且命中已注册页面白名单。
+//
+// 白名单来源与站内跳转链接**完全一致**：pageRegisteredRoutes（抄录 e-sports-uniapp/src/pages.json）。
+// 后端并不掌握前端真实页面清单，读 pages.json 不现实，因此复用这份既有的「已注册页面」常量，
+// 不新造配置项、也不引入第二份清单（两份清单会漂移，反而制造死链）。
+// 比对前按 pageRoutePath 去掉 query / hash 与末尾斜杠，返回规范化后的路径供落库。
+func pageValidateTabbarPath(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", fmt.Errorf("%w：底部导航路径不能为空", errInvalidInput)
+	}
+	if !strings.HasPrefix(raw, "/") {
+		return "", fmt.Errorf("%w：底部导航路径 %q 必须是站内相对路径（以 / 开头）", errInvalidInput, raw)
+	}
+	if strings.HasPrefix(raw, "//") || strings.Contains(raw, "://") || strings.Contains(raw, "..") ||
+		strings.ContainsAny(raw, "\r\n\t ") {
+		return "", fmt.Errorf("%w：底部导航路径 %q 非法（不得包含协议、// 开头、.. 或空白字符）", errInvalidInput, raw)
+	}
+	path := pageRoutePath(raw)
+	if !pageRegisteredRoutes[path] {
+		return "", fmt.Errorf("%w：底部导航路径 %q 不是已注册页面", errInvalidInput, path)
+	}
+	return path, nil
+}
+
+// pageValidateTabbar 校验并规范化底部导航（§16.3-12，本轮放开路径与顺序）：
+//   - 条目数 1~5（允许增删）；
+//   - path 必填、必须命中已注册页面白名单、同名路径不得重复；
+//   - order 可选：未填时按提交顺序补 1..N；填了必须是 1~5 且互不重复；
+//   - 文案 1~12 字、图标仅允许 https 或站内相对路径（客户端导航栏只消费图片地址）。
+//
+// 校验通过后按 order 升序返回，客户端拿到的数组顺序即运营配置的展示顺序。
+func pageValidateTabbar(items []pageTabbarItem) ([]pageTabbarItem, error) {
+	if len(items) < pageTabbarMinItems || len(items) > pageTabbarMaxItems {
+		return nil, fmt.Errorf("%w：底部导航须为 %d~%d 项（当前 %d 项）",
+			errInvalidInput, pageTabbarMinItems, pageTabbarMaxItems, len(items))
+	}
+	out := make([]pageTabbarItem, 0, len(items))
+	seenPath := make(map[string]int, len(items))
+	seenOrder := make(map[int]int, len(items))
+	for i, item := range items {
+		path, err := pageValidateTabbarPath(item.Path)
+		if err != nil {
+			return nil, err
+		}
+		if prev, ok := seenPath[path]; ok {
+			return nil, fmt.Errorf("%w：底部导航路径 %s 重复（第 %d 项与第 %d 项）", errInvalidInput, path, prev+1, i+1)
+		}
+		seenPath[path] = i
+
+		order := i + 1
+		if item.Order != nil {
+			order = *item.Order
+		}
+		if order < 1 || order > pageTabbarMaxItems {
+			return nil, fmt.Errorf("%w：底部导航第 %d 项 order 须在 1~%d 之间", errInvalidInput, i+1, pageTabbarMaxItems)
+		}
+		if prev, ok := seenOrder[order]; ok {
+			return nil, fmt.Errorf("%w：底部导航 order %d 重复（第 %d 项与第 %d 项）", errInvalidInput, order, prev+1, i+1)
+		}
+		seenOrder[order] = i
+
+		text := strings.TrimSpace(item.Text)
+		if text == "" || len([]rune(text)) > pageTabbarTextLimit {
+			return nil, fmt.Errorf("%w：底部导航第 %d 项文案须为 1~%d 个字", errInvalidInput, i+1, pageTabbarTextLimit)
+		}
+		icon := strings.TrimSpace(item.Icon)
+		if len([]rune(icon)) > pageTabbarIconLimit {
+			return nil, fmt.Errorf("%w：底部导航第 %d 项图标标识过长", errInvalidInput, i+1)
+		}
+		if icon != "" && !strings.HasPrefix(icon, "https://") && !strings.HasPrefix(icon, "/") {
+			// 注意：底部导航**不接受短标识**（与组件字段 §16.3-04 的图标清单口径不同）——
+			// 客户端导航栏当前只消费图片地址，短标识会渲染成坏图，故这里直接拒绝。
+			return nil, fmt.Errorf("%w：底部导航第 %d 项图标仅允许 HTTPS 链接或站内相对路径（不支持短标识）", errInvalidInput, i+1)
+		}
+		orderCopy := order
+		out = append(out, pageTabbarItem{Path: path, Text: text, Icon: icon, Order: &orderCopy, Visible: item.Visible})
+	}
+	sort.SliceStable(out, func(a, b int) bool { return *out[a].Order < *out[b].Order })
+	return out, nil
 }
 
 // validatePageImageURL 校验素材 / 图片地址（§16.5 / P0-17）：站内相对路径或图标短标识放行；

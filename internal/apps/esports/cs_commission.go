@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
 	"go-admin/internal/apps/esports/schema"
@@ -15,6 +16,7 @@ import (
 	"go-admin/internal/ent/esportscscommissionrule"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/global"
 )
 
 // csCommissionRuleInput 客服提成规则可编辑字段（§12.2）。rule_no 创建后不可变。
@@ -1183,6 +1185,60 @@ func unfreezeCsCommissionEntry(ctx context.Context, db *ent.Client, entryID int)
 	return db.EsportsCsCommissionEntry.Get(ctx, entryID)
 }
 
+// unfreezeCsCommissionEntryByAdmin 解冻一条客服提成明细并留操作痕迹（P0-8 冻结入口的 HTTP 契约）：
+// 解冻本身会清空 frozen_* 字段，因此操作人、可选原因与解冻前的冻结快照（冻结人 / 原因 / 时间）
+// 一并写入只增的业务外盒事件 settlement.cs_entry_unfrozen，供事后审计；解冻与留痕同一事务。
+func unfreezeCsCommissionEntryByAdmin(ctx context.Context, db *ent.Client, entryID, adminID int,
+	reason string, now time.Time) (*ent.EsportsCsCommissionEntry, error) {
+	if entryID < 1 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	reason = truncateRunes(strings.TrimSpace(reason), 120)
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	entry, err := tx.EsportsCsCommissionEntry.Get(ctx, entryID)
+	if err != nil {
+		return nil, err
+	}
+	if entry.FrozenAt == nil {
+		return nil, fmt.Errorf("%w：该提成明细未冻结或不存在", errConflict)
+	}
+	changed, err := tx.EsportsCsCommissionEntry.Update().Where(
+		esportscscommissionentry.IDEQ(entryID),
+		esportscscommissionentry.FrozenAtNotNil(),
+	).ClearFrozenAt().SetFrozenReason("").ClearFrozenByAdminID().AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, fmt.Errorf("%w：该提成明细未冻结或不存在", errConflict)
+	}
+	payload := map[string]interface{}{
+		"entry_id":          entryID,
+		"operator_admin_id": adminID,
+		"reason":            reason,
+		"unfrozen_at":       now.UTC().Format(time.RFC3339),
+		"frozen_at":         entry.FrozenAt.UTC().Format(time.RFC3339),
+		"frozen_reason":     entry.FrozenReason,
+	}
+	if entry.FrozenByAdminID != nil {
+		payload["frozen_by_admin_id"] = *entry.FrozenByAdminID
+	}
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("settlement.cs_entry_unfrozen:" + strconv.Itoa(entryID) + ":" + uuid.NewString()).
+		SetEventType("settlement.cs_entry_unfrozen").SetAggregateRef(strconv.Itoa(entryID)).
+		SetPayload(payload).Save(ctx); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsCsCommissionEntry.Get(ctx, entryID)
+}
+
 // freezeOrderCsCommissionEntries 冻结某订单全部待结算的客服提成明细，返回冻结条数（争议受理时调用）。
 func freezeOrderCsCommissionEntries(ctx context.Context, db *ent.Client, orderID, adminID int,
 	reason string, now time.Time) (int, error) {
@@ -1284,4 +1340,59 @@ func csCommissionSummary(ctx context.Context, db *ent.Client, adminID int, now t
 		}
 	}
 	return &view, nil
+}
+
+// ── 客服提成明细冻结 / 解冻的 HTTP 入口（审核报告 §8.2-14）──
+// 服务函数 freezeCsCommissionEntry / unfreezeCsCommissionEntry 早已存在但无路由，
+// 冻结只能由售后争议内部触发，财务 / 客服无法手工止血。两个 handler 与 service 同文件，
+// 避免本批次并行改动 _handlers.go 造成的冲突。
+
+// freezeCsCommissionEntryHandler 冻结一条客服提成明细：reason 必填（中文提示），
+// 操作人写入 frozen_by_admin_id，与明文原因一起构成可审计的冻结留痕。
+func freezeCsCommissionEntryHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "客服提成明细")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := freezeCsCommissionEntry(c.Context(), global.ORM, id, adminID, in.Reason, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
+// unfreezeCsCommissionEntryHandler 解冻一条客服提成明细：原因可选，操作人与冻结快照写外盒留痕。
+func unfreezeCsCommissionEntryHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "客服提成明细")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	// 解冻允许空正文（原因可选）；带正文时解析失败才报错。
+	if len(c.Body()) > 0 {
+		if err := c.Bind().Body(&in); err != nil {
+			return fail(c, fiber.StatusBadRequest, "请求正文无效")
+		}
+	}
+	item, err := unfreezeCsCommissionEntryByAdmin(c.Context(), global.ORM, id, adminID, in.Reason, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
 }

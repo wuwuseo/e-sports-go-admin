@@ -18,8 +18,9 @@ func (EsportsDispatchSeat) Fields() []ent.Field {
 		field.Int("order_id").Positive().StructTag(`json:"order_id"`),
 		field.Int("seat_index").Positive().StructTag(`json:"seat_index"`),
 		field.Int("player_id").Optional().Nillable().StructTag(`json:"player_id"`),
-		// source 记录席位是通过指派、抢单、固排还是临时组队占用。
-		field.Enum("source").Values("assign", "grab", "fixed_team", "temp_team").Default("assign").StructTag(`json:"source"`),
+		// source 记录席位是通过指派、抢单还是固排（固定队伍邀请）占用；
+		// 不存在「临时组队」这一写入路径，故枚举不含 temp_team（历史版本预留但从未写入）。
+		field.Enum("source").Values("assign", "grab", "fixed_team").Default("assign").StructTag(`json:"source"`),
 		field.Enum("status").Values("open", "invited", "accepted", "rejected", "expired", "revoked", "released").Default("open").StructTag(`json:"status"`),
 		field.Int("invited_by_admin_id").Optional().Nillable().StructTag(`json:"invited_by_admin_id"`),
 		// 邀请发出时刻（§5.9-01）：此前只能由 created_at 或 expires_at−TTL 反推，现显式落库。

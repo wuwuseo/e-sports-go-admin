@@ -47,10 +47,10 @@ const (
 // reportBucketPeriods 是时间轴可用的分段粒度，由细到粗。
 var reportBucketPeriods = []string{"daily", "weekly", "monthly", "yearly"}
 
-// paidPaymentStatuses 是「订单已实收」的支付状态：部分到账也计入营收，异常到账不计。
+// paidPaymentStatuses 是「订单已实收」的支付状态：只有 paid（全款到账）计入营收。
+// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，不再当作实收口径（未收到的钱不能算收入）。
 var paidPaymentStatuses = []esportsorder.PaymentStatus{
 	esportsorder.PaymentStatusPaid,
-	esportsorder.PaymentStatusPartial,
 }
 
 // reportFilter 是报表筛选条件。零值表示该维度不过滤。

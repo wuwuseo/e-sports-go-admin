@@ -288,11 +288,19 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 	if err = ensureCorporateChannelForAmount(ctx, db, channel, in.AmountCents); err != nil {
 		return nil, err
 	}
+	// 订单级串行化（§8.2-15 / B.3-1）：客户自助提交凭证与客服代提交走同一套「同单是否已有待核验
+	// 凭证」判定，因此必须同样纳入订单级占位——否则「另一路径已核销」与「客户自助提交」可以各自
+	// 读到「待付款、无凭证」，随后都落库，形成「订单已付款 + 仍挂一张待核验凭证」的悬账。
+	// 占位用的 expectedVersion 取自本函数进事务前的订单读，保证守卫的是这段窗口。
+	runPaymentOrderInterleaveHook(order.ID)
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
+	if err = lockOrderPaymentSlot(ctx, tx, order.ID, order.Version); err != nil {
+		return nil, err
+	}
 	intent, err := ensureOrderPaymentIntent(ctx, tx, order, channel, now)
 	if err != nil {
 		return nil, err

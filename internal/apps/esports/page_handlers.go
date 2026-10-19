@@ -344,7 +344,8 @@ func issuePagePreviewCodeHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// savePageTabbarHandler 保存底部导航文案 / 图标（§16.3-12，管理端）。
+// savePageTabbarHandler 保存底部导航（§16.3-12，管理端）：允许增删条目（1~5 项）与编辑
+// path / order / 文案 / 图标；path 须为命中已注册页面白名单的站内相对路径（见 pageValidateTabbar）。
 // 需在 app.go 接线 + PermAPI：
 //
 //	PUT /admin/pages/:channel/tabbar → savePageTabbarHandler

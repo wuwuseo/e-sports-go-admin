@@ -3,6 +3,7 @@ package esports
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -14,8 +15,10 @@ import (
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsexternalrefund"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/global"
 )
 
 // 外部渠道退款（§13 补全）：针对已核销的外部付款订单退款，余额 / 储值卡原路退之外的场景。
@@ -332,6 +335,11 @@ func executeExternalRefundOnce(ctx context.Context, db *ent.Client, adminID, id 
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
+	// §8.2-11：财务执行成功后，把对应的售后动作项从 awaiting_execution 转 succeeded；
+	// 其余项已无未结项时同一事务内把售后单结案（详见 aftersale_actions.go）。
+	if err = afterSaleActionAwaitingExternalRefundExecuted(ctx, tx, refund, adminID, now); err != nil {
+		return nil, err
+	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
@@ -475,4 +483,166 @@ func listExternalRefunds(ctx context.Context, db *ent.Client, orderID int, statu
 		q.Where(esportsexternalrefund.StatusEQ(esportsexternalrefund.Status(status)))
 	}
 	return q.Order(ent.Desc(esportsexternalrefund.FieldID)).Limit(limit).All(ctx)
+}
+
+// ── 外部退款待执行超期督办（审核报告 §8.2-12） ──
+//
+// 外部渠道退款登记成 registered 之后，待执行期间额度一直被占着：关联售后单时它压在售后审批
+// 预占的 refund_reserved_cents 上，未关联时它按「已登记未执行」继续占住订单可退额。只要有单
+// 长期滞留在 registered，就会一直挂单并压住同订单后续退款额度，所以必须有督办兜底。
+//
+// 督办只做「提醒 + 标记」，绝不代办：
+//   - 不自动执行：外部渠道的钱只能由财务人工核验后出账，任务代执行等于凭空放款；
+//   - 不自动取消：已登记的外部退款可能已经出款，自动取消会把已出款单变成账外纠纷。
+//
+// 督办手段是写一条事务外盒事件 external_refund.overdue（业务事件，投递时以超管兜底，
+// 即财务 / 超管可见），载荷显式带 overdue=true 供财务一眼识别「已超期」。
+// 幂等：同一单同一小时桶只督办一次（event_key 唯一索引 + 先查后写），避免任务每次扫描刷屏。
+
+// externalRefundOverdueEventType 待执行超期督办事件类型。
+const externalRefundOverdueEventType = "external_refund.overdue"
+
+// externalRefundOverdueHours 待执行外部退款的超期阈值（小时）：登记时间早于 now-该值、且仍为
+// registered 的单即视为超期待督办。
+//
+// 刻意做成代码内常量而不是新增系统配置项：§8.2-12 只要求「有督办」，不为它扩张后台配置面
+// （新增 app.esports.* 键必须同时进 app.go 的 Config 声明，且会让运维多一个必配项）。
+const externalRefundOverdueHours = 24
+
+// externalRefundOverdueScanCap 单轮督办扫描上限，避免积压时一次任务把全表拉进内存。
+const externalRefundOverdueScanCap = 200
+
+// externalRefundOverdueResult 是一轮督办扫描的统计结果，供任务日志与回归测试断言。
+type externalRefundOverdueResult struct {
+	// Scanned 本轮扫描到的「registered 且登记时间早于阈值」的单数。
+	Scanned int
+	// Overdue 其中复核后仍判定为超期的单数（与 Scanned 一致，复核用于防驱动时区差异）。
+	Overdue int
+	// Notified 本轮新写入督办事件的单数。
+	Notified int
+	// Skipped 本轮因「同一小时桶已督办过」而跳过的单数。
+	Skipped int
+	// Cutoff 本轮使用的超期判定线（now - 阈值）。
+	Cutoff time.Time
+}
+
+// externalRefundOverdueEventKey 督办事件的幂等键：同一退款单同一小时桶只产生一条事件。
+// esports_outbox.event_key 有唯一索引（并发跑同一轮时由它兜底）。
+func externalRefundOverdueEventKey(refundNo string, at time.Time) string {
+	return externalRefundOverdueEventType + ":" + refundNo + ":" + at.UTC().Format("2006010215")
+}
+
+// externalRefundOverdue 判断一条外部退款登记是否已超期待督办：仍为 registered 且登记时间
+// 距 now 已达阈值。实体上没有「超期」字段（schema 不改），该判定是超期口径的唯一事实来源，
+// 由任务扫描与列表 / 详情侧补「已超期」标记共同使用。
+func externalRefundOverdue(refund *ent.EsportsExternalRefund, now time.Time) bool {
+	if refund == nil || refund.Status != esportsexternalrefund.StatusRegistered {
+		return false
+	}
+	return now.UTC().Sub(refund.CreatedAt.UTC()) >= externalRefundOverdueHours*time.Hour
+}
+
+// writeExternalRefundOverdueEvent 为一条超期单写督办事件；同一单同一小时桶已写过时返回 false。
+// 只写事件，不改退款单状态、不改额度、不动订单——督办不代办。
+func writeExternalRefundOverdueEvent(ctx context.Context, db *ent.Client, refund *ent.EsportsExternalRefund, now time.Time) (bool, error) {
+	if db == nil || refund == nil || refund.ID < 1 || refund.RefundNo == "" {
+		return false, errInvalidInput
+	}
+	eventKey := externalRefundOverdueEventKey(refund.RefundNo, now)
+	exists, err := db.EsportsOutbox.Query().Where(esportsoutbox.EventKeyEQ(eventKey)).Exist(ctx)
+	if err != nil {
+		return false, err
+	}
+	if exists {
+		return false, nil
+	}
+	payload := map[string]interface{}{
+		"refund_id":      refund.ID,
+		"refund_no":      refund.RefundNo,
+		"order_id":       refund.OrderID,
+		"amount_cents":   refund.AmountCents,
+		"channel":        refund.Channel,
+		"transaction_no": refund.TransactionNo,
+		"status":         refund.Status.String(),
+		"registered_at":  refund.CreatedAt.UTC().Format(time.RFC3339),
+		"overdue":        true,
+		"overdue_hours":  externalRefundOverdueHours,
+		"note":           "外部退款登记后长期未执行，请财务核验后人工执行；任务不自动执行、不自动取消",
+	}
+	if refund.AftersaleID != nil {
+		payload["aftersale_id"] = *refund.AftersaleID
+	}
+	if refund.RegisteredByAdminID != nil {
+		payload["registered_by_admin_id"] = *refund.RegisteredByAdminID
+	}
+	if _, err = db.EsportsOutbox.Create().SetEventKey(eventKey).
+		SetEventType(externalRefundOverdueEventType).SetAggregateRef(refund.RefundNo).
+		// 督办事件应立即进入投递队列：显式按 UTC 写首次投递时间，与投递循环的时钟口径一致。
+		SetNextAttemptAt(now.UTC()).
+		SetPayload(payload).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			// 并发跑同一轮时唯一索引兜底：重复写入按「本轮已督办」处理，不算失败。
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// expirePendingExternalRefunds 扫描「registered 且登记时间早于 now-阈值」的外部退款单，
+// 逐单写督办事件。只读退款单、只追加事件：既不执行退款、也不取消登记、更不动额度。
+func expirePendingExternalRefunds(ctx context.Context, db *ent.Client, now time.Time, limit int) (externalRefundOverdueResult, error) {
+	var result externalRefundOverdueResult
+	if db == nil {
+		return result, errInvalidInput
+	}
+	if limit < 1 || limit > 1000 {
+		return result, errInvalidInput
+	}
+	result.Cutoff = now.UTC().Add(-externalRefundOverdueHours * time.Hour)
+	rows, err := db.EsportsExternalRefund.Query().Where(
+		esportsexternalrefund.StatusEQ(esportsexternalrefund.StatusRegistered),
+		esportsexternalrefund.CreatedAtLT(result.Cutoff),
+	).Order(ent.Asc(esportsexternalrefund.FieldCreatedAt), ent.Asc(esportsexternalrefund.FieldID)).
+		Limit(limit).All(ctx)
+	if err != nil {
+		return result, err
+	}
+	result.Scanned = len(rows)
+	for _, refund := range rows {
+		// 复核一次超期口径：查询条件已按阈值过滤，这里再按同一函数判一遍，
+		// 避免驱动返回的时间与阈值口径不一致时误督办未超期单。
+		if !externalRefundOverdue(refund, now) {
+			continue
+		}
+		result.Overdue++
+		written, err := writeExternalRefundOverdueEvent(ctx, db, refund, now)
+		if err != nil {
+			return result, err
+		}
+		if written {
+			result.Notified++
+			continue
+		}
+		result.Skipped++
+	}
+	return result, nil
+}
+
+// expirePendingExternalRefundTask 定时任务入口（签名同同包既有任务：func(ctx, logger) error，
+// 可直接被 tasks.Register 注册；注册名 esports_expire_pending_external_refunds 与 cron 种子由
+// app.go / cron_seeds.go 负责，两者必须成对）。
+//
+// 只督办、不执行、不取消：把钱留在「等人核验」状态，由财务在退款单上人工执行。
+func expirePendingExternalRefundTask(ctx context.Context, logger io.Writer) error {
+	result, err := expirePendingExternalRefunds(ctx, global.ORM, time.Now(), externalRefundOverdueScanCap)
+	if err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(logger,
+		"外部退款待执行超期督办：扫描 %d 单，超期 %d 单，本轮督办 %d 单，本小时已督办跳过 %d 单"+
+			"（阈值 %d 小时，判定线 %s）\n",
+		result.Scanned, result.Overdue, result.Notified, result.Skipped,
+		externalRefundOverdueHours, result.Cutoff.Format(time.RFC3339))
+	return nil
 }
