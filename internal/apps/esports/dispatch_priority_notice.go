@@ -36,7 +36,53 @@ const (
 	dispatchReleaseReasonPublish = "客服发布到抢单大厅"
 	// 名单内陪玩接单：窗口闭合，订单直接进入已接单。
 	dispatchReleaseReasonAccepted = "名单内陪玩已接单"
+	// 人工指派 / 固排成队确定了陪玩：窗口立即闭合（P1-05-01），不再计入看板「通知中」。
+	dispatchReleaseReasonAssigned = "已人工指派确定陪玩"
 )
+
+// closeDispatchPriorityWindowOnDispatch 在「人工指派 / 固排成队」确定陪玩后立即闭合优先通知窗口（P1-05-01）：
+// 订单 priority_notice_status 由 pending 置 released，写释放原因与释放时间，其余待回应的通知置 expired。
+//
+// 为什么不复用 releaseDispatchPriorityNoticeIn：那条路径是「释放到抢单大厅」，会把单席订单转成
+// grabbing；指派 / 成队已经把订单推进到待接单，绝不能再被改回抢单中，所以这里只闭合窗口、不动履约状态。
+//
+// 返回值：发生闭合时返回闭合后的订单版本号（调用方后续 bumpOrder 必须基于该版本），未闭合返回 0。
+func closeDispatchPriorityWindowOnDispatch(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	reason string, now time.Time) (int, error) {
+	if order == nil || order.PriorityNoticeStatus != esportsorder.PriorityNoticeStatusPending {
+		return 0, nil
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(order.ID),
+		esportsorder.VersionEQ(order.Version),
+		esportsorder.PriorityNoticeStatusEQ(esportsorder.PriorityNoticeStatusPending),
+	).SetPriorityNoticeStatus(esportsorder.PriorityNoticeStatusReleased).
+		SetPriorityReleaseReason(reason).SetPriorityReleasedAt(now.UTC()).AddVersion(1).Save(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if changed != 1 {
+		// 订单已被并发改动：窗口由并发方收敛，这里不打断指派 / 成队主流程。
+		return 0, nil
+	}
+	if _, err = tx.EsportsDispatchPriorityNotice.Update().Where(
+		esportsdispatchprioritynotice.OrderIDEQ(order.ID),
+		esportsdispatchprioritynotice.StatusEQ(esportsdispatchprioritynotice.StatusNotified),
+	).SetStatus(esportsdispatchprioritynotice.StatusExpired).AddVersion(1).Save(ctx); err != nil {
+		return 0, err
+	}
+	newVersion := order.Version + 1
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
+		SetOrderVersion(newVersion).SetEventType("order.priority_notice_closed").
+		SetActorType("system").SetActorID("dispatch_assign").
+		SetDetails(map[string]interface{}{
+			"reason": reason, "game": order.PriorityGame,
+			"notice_until": order.PriorityNoticeUntil,
+		}).Save(ctx); err != nil {
+		return 0, err
+	}
+	return newVersion, nil
+}
 
 // errDispatchPriorityHold 订单正处于优先通知窗口（名单内独占），尚未对抢单大厅开放。
 var errDispatchPriorityHold = errors.New("该订单正在优先通知名单内陪玩，暂未对大厅开放")
@@ -117,6 +163,12 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 	}
 	// 客户指定陪玩：客户/客服已明确人选，直接走指派流程，不进入优先通知窗口（§5.4）。
 	if order.PreferredPlayerID != nil && *order.PreferredPlayerID > 0 {
+		return nil
+	}
+	// P1-05-03：**多席订单不开优先通知窗口**。抢单大厅只接受单席订单（first-version 口径），
+	// 多席订单开窗后名单内陪玩点进来也抢不了，只会产生「必失败的通知」与看板长期「通知中」。
+	// 多席订单继续留在待派单池，由客服指派或固排成队（teamDispatch）推进。
+	if order.RequiredSeats > 1 {
 		return nil
 	}
 	noticed, err := tx.EsportsDispatchPriorityNotice.Query().Where(

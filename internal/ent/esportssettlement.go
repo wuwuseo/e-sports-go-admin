@@ -37,6 +37,8 @@ type EsportsSettlement struct {
 	EntryCount int `json:"entry_count"`
 	// Status holds the value of the "status" field.
 	Status esportssettlement.Status `json:"status"`
+	// Version holds the value of the "version" field.
+	Version int `json:"version"`
 	// LockedByAdminID holds the value of the "locked_by_admin_id" field.
 	LockedByAdminID *int `json:"locked_by_admin_id"`
 	// LockedAt holds the value of the "locked_at" field.
@@ -47,6 +49,12 @@ type EsportsSettlement struct {
 	PaidByAdminID *int `json:"paid_by_admin_id"`
 	// PaidAt holds the value of the "paid_at" field.
 	PaidAt *time.Time `json:"paid_at"`
+	// VoidedByAdminID holds the value of the "voided_by_admin_id" field.
+	VoidedByAdminID *int `json:"voided_by_admin_id"`
+	// VoidedAt holds the value of the "voided_at" field.
+	VoidedAt *time.Time `json:"voided_at"`
+	// VoidReason holds the value of the "void_reason" field.
+	VoidReason string `json:"void_reason"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -59,11 +67,11 @@ func (*EsportsSettlement) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportssettlement.FieldID, esportssettlement.FieldOwnerID, esportssettlement.FieldGrossCents, esportssettlement.FieldAdjustmentCents, esportssettlement.FieldNetCents, esportssettlement.FieldEntryCount, esportssettlement.FieldLockedByAdminID, esportssettlement.FieldPaidByAdminID:
+		case esportssettlement.FieldID, esportssettlement.FieldOwnerID, esportssettlement.FieldGrossCents, esportssettlement.FieldAdjustmentCents, esportssettlement.FieldNetCents, esportssettlement.FieldEntryCount, esportssettlement.FieldVersion, esportssettlement.FieldLockedByAdminID, esportssettlement.FieldPaidByAdminID, esportssettlement.FieldVoidedByAdminID:
 			values[i] = new(sql.NullInt64)
-		case esportssettlement.FieldSettlementNo, esportssettlement.FieldOwnerType, esportssettlement.FieldStatus, esportssettlement.FieldPayoutRef:
+		case esportssettlement.FieldSettlementNo, esportssettlement.FieldOwnerType, esportssettlement.FieldStatus, esportssettlement.FieldPayoutRef, esportssettlement.FieldVoidReason:
 			values[i] = new(sql.NullString)
-		case esportssettlement.FieldPeriodStart, esportssettlement.FieldPeriodEnd, esportssettlement.FieldLockedAt, esportssettlement.FieldPaidAt, esportssettlement.FieldCreatedAt, esportssettlement.FieldUpdatedAt:
+		case esportssettlement.FieldPeriodStart, esportssettlement.FieldPeriodEnd, esportssettlement.FieldLockedAt, esportssettlement.FieldPaidAt, esportssettlement.FieldVoidedAt, esportssettlement.FieldCreatedAt, esportssettlement.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -146,6 +154,12 @@ func (_m *EsportsSettlement) assignValues(columns []string, values []any) error 
 			} else if value.Valid {
 				_m.Status = esportssettlement.Status(value.String)
 			}
+		case esportssettlement.FieldVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field version", values[i])
+			} else if value.Valid {
+				_m.Version = int(value.Int64)
+			}
 		case esportssettlement.FieldLockedByAdminID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field locked_by_admin_id", values[i])
@@ -179,6 +193,26 @@ func (_m *EsportsSettlement) assignValues(columns []string, values []any) error 
 			} else if value.Valid {
 				_m.PaidAt = new(time.Time)
 				*_m.PaidAt = value.Time
+			}
+		case esportssettlement.FieldVoidedByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.VoidedByAdminID = new(int)
+				*_m.VoidedByAdminID = int(value.Int64)
+			}
+		case esportssettlement.FieldVoidedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field voided_at", values[i])
+			} else if value.Valid {
+				_m.VoidedAt = new(time.Time)
+				*_m.VoidedAt = value.Time
+			}
+		case esportssettlement.FieldVoidReason:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field void_reason", values[i])
+			} else if value.Valid {
+				_m.VoidReason = value.String
 			}
 		case esportssettlement.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -258,6 +292,9 @@ func (_m *EsportsSettlement) String() string {
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
 	builder.WriteString(", ")
+	builder.WriteString("version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Version))
+	builder.WriteString(", ")
 	if v := _m.LockedByAdminID; v != nil {
 		builder.WriteString("locked_by_admin_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -280,6 +317,19 @@ func (_m *EsportsSettlement) String() string {
 		builder.WriteString("paid_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	if v := _m.VoidedByAdminID; v != nil {
+		builder.WriteString("voided_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.VoidedAt; v != nil {
+		builder.WriteString("voided_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("void_reason=")
+	builder.WriteString(_m.VoidReason)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

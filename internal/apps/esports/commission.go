@@ -12,7 +12,9 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscommissionrule"
+	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsorderaddon"
 	"go-admin/internal/ent/esportsservicesegment"
@@ -1083,7 +1085,9 @@ func lockSettlement(ctx context.Context, db *ent.Client, id, adminID int, now ti
 		esportssettlement.IDEQ(id),
 		esportssettlement.StatusEQ(esportssettlement.StatusDraft),
 	).SetStatus(esportssettlement.StatusLocked).SetLockedByAdminID(adminID).
-		SetLockedAt(now.UTC()).Save(ctx)
+		SetLockedAt(now.UTC()).
+		// P0-8 乐观锁：锁定也抬版本，与客服提成侧的发放 / 作废版本守卫保持同一口径。
+		AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1130,15 +1134,151 @@ func getSettlement(ctx context.Context, db *ent.Client, id int) (*ent.EsportsSet
 
 // settlementDetailView 是结算单详情读模型（§12.6-06）：主表 + 本期可下钻明细，
 // 明细带 rule_no / rule_version，使规则版本可以从结算单追溯。
+//
+// Entries 用 any 承载两种读模型：
+//   - owner_type=player → commissionEntryView（陪玩分成明细，含规则数值 / 扣减项 / 到手净额）；
+//   - owner_type=cs     → csSettlementEntryView（客服提成明细，金额 / 类型 / 来源单号 / 时间）。
+//
+// 两者 JSON 字段名对齐（id、kind、amount_cents、base_cents、status、created_at、net_cents…），
+// 前端「结算单详情」表格可同一套列渲染；主体差异字段（player_id / admin_id / order_no）按主体给出。
 type settlementDetailView struct {
 	Settlement *ent.EsportsSettlement `json:"settlement"`
-	Entries    []commissionEntryView  `json:"entries"`
+	Entries    []any                  `json:"entries"`
 	EntryCount int                    `json:"entry_count"`
 	// DetailTruncated 为真表示本期明细超过返回上限，避免「静默漏数」。
 	DetailTruncated bool `json:"detail_truncated"`
 }
 
+// csSettlementEntryView 是客服提成明细的结算单详情读模型（§12.2 / §12.6-06）：
+// 与陪玩侧字段名对齐（金额、类型、来源单号、时间 + 规则快照 + 状态），
+// 主体侧差异用 admin_id（业绩归属客服）替代 player_id。
+type csSettlementEntryView struct {
+	ID          int    `json:"id"`
+	OrderID     *int   `json:"order_id"`
+	OrderNo     string `json:"order_no"`
+	GiftOrderID *int   `json:"gift_order_id"`
+	AdminID     int    `json:"admin_id"`
+	Kind        string `json:"kind"`
+	CalcMode    string `json:"calc_mode"`
+	BaseMode    string `json:"base_mode"`
+	RuleNo      string `json:"rule_no"`
+	RuleVersion int    `json:"rule_version"`
+	BaseCents   int64  `json:"base_cents"`
+	AmountCents int64  `json:"amount_cents"`
+	// NetCents 与陪玩侧同名：客服提成明细没有逐单扣减项，净额即本明细金额。
+	NetCents     int64     `json:"net_cents"`
+	Status       string    `json:"status"`
+	SettlementID *int      `json:"settlement_id"`
+	Note         string    `json:"note"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// csSettlementEntryViews 把客服提成明细补成结算单详情读模型：批量解析来源单号
+// （服务 / 冲回明细看订单号，礼物明细看礼物单号），避免逐条查询。
+func csSettlementEntryViews(ctx context.Context, db *ent.Client,
+	rows []*ent.EsportsCsCommissionEntry) ([]any, error) {
+	views := make([]any, 0, len(rows))
+	if len(rows) == 0 {
+		return views, nil
+	}
+	orderIDs := make([]int, 0, len(rows))
+	giftIDs := make([]int, 0, len(rows))
+	seenOrder, seenGift := map[int]bool{}, map[int]bool{}
+	for _, row := range rows {
+		if row.OrderID != nil && !seenOrder[*row.OrderID] {
+			seenOrder[*row.OrderID] = true
+			orderIDs = append(orderIDs, *row.OrderID)
+		}
+		if row.GiftOrderID != nil && !seenGift[*row.GiftOrderID] {
+			seenGift[*row.GiftOrderID] = true
+			giftIDs = append(giftIDs, *row.GiftOrderID)
+		}
+	}
+	orderNos := map[int]string{}
+	if len(orderIDs) > 0 {
+		orders, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(orderIDs...)).
+			Select(esportsorder.FieldID, esportsorder.FieldOrderNo).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range orders {
+			orderNos[order.ID] = order.OrderNo
+		}
+	}
+	giftNos := map[int]string{}
+	if len(giftIDs) > 0 {
+		gifts, err := db.EsportsGiftOrder.Query().Where(esportsgiftorder.IDIn(giftIDs...)).
+			Select(esportsgiftorder.FieldID, esportsgiftorder.FieldGiftNo).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, gift := range gifts {
+			giftNos[gift.ID] = gift.GiftNo
+		}
+	}
+	for _, row := range rows {
+		orderNo := ""
+		if row.OrderID != nil {
+			orderNo = orderNos[*row.OrderID]
+		}
+		if orderNo == "" && row.GiftOrderID != nil {
+			orderNo = giftNos[*row.GiftOrderID]
+		}
+		views = append(views, csSettlementEntryView{
+			ID: row.ID, OrderID: row.OrderID, OrderNo: orderNo,
+			GiftOrderID: row.GiftOrderID, AdminID: row.AdminID,
+			Kind: row.Kind.String(), CalcMode: row.CalcMode.String(), BaseMode: row.BaseMode.String(),
+			RuleNo: row.RuleNo, RuleVersion: row.RuleVersion,
+			BaseCents: row.BaseCents, AmountCents: row.AmountCents, NetCents: row.AmountCents,
+			Status: row.Status.String(), SettlementID: row.SettlementID,
+			Note: row.Note, CreatedAt: row.CreatedAt.UTC(),
+		})
+	}
+	return views, nil
+}
+
+// settlementEntriesByOwner 按 owner_type 分流查询结算单明细：陪玩结算单查 EsportsCommissionEntry，
+// 客服提成结算单查 EsportsCsCommissionEntry。
+// 修复前一律只查陪玩明细，导致客服提成结算单详情 entries 恒为空（前端只能看汇总、无法下钻核对）。
+func settlementEntriesByOwner(ctx context.Context, db *ent.Client,
+	settlement *ent.EsportsSettlement, limit int) ([]any, bool, error) {
+	if settlement.OwnerType == esportssettlement.OwnerTypeCs {
+		rows, err := db.EsportsCsCommissionEntry.Query().Where(
+			esportscscommissionentry.SettlementIDEQ(settlement.ID),
+		).Order(ent.Asc(esportscscommissionentry.FieldID)).Limit(limit + 1).All(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		truncated := len(rows) > limit
+		if truncated {
+			rows = rows[:limit]
+		}
+		views, err := csSettlementEntryViews(ctx, db, rows)
+		return views, truncated, err
+	}
+	rows, err := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.SettlementIDEQ(settlement.ID),
+	).Order(ent.Asc(esportscommissionentry.FieldID)).Limit(limit + 1).All(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	truncated := len(rows) > limit
+	if truncated {
+		rows = rows[:limit]
+	}
+	views, err := commissionEntryViews(ctx, db, rows)
+	if err != nil {
+		return nil, false, err
+	}
+	out := make([]any, 0, len(views))
+	for _, view := range views {
+		out = append(out, view)
+	}
+	return out, truncated, nil
+}
+
 // getSettlementDetail 读结算单详情并内联本期全部待结算 / 已结算明细（按明细 ID 升序）。
+// 明细按 owner_type 分流：陪玩分成结算单 → 分成明细；客服提成结算单 → 客服提成明细。
 func getSettlementDetail(ctx context.Context, db *ent.Client, id, limit int) (*settlementDetailView, error) {
 	settlement, err := getSettlement(ctx, db, id)
 	if err != nil {
@@ -1147,17 +1287,7 @@ func getSettlementDetail(ctx context.Context, db *ent.Client, id, limit int) (*s
 	if limit < 1 || limit > 2000 {
 		limit = 200
 	}
-	rows, err := db.EsportsCommissionEntry.Query().Where(
-		esportscommissionentry.SettlementIDEQ(id),
-	).Order(ent.Asc(esportscommissionentry.FieldID)).Limit(limit + 1).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	truncated := len(rows) > limit
-	if truncated {
-		rows = rows[:limit]
-	}
-	views, err := commissionEntryViews(ctx, db, rows)
+	views, truncated, err := settlementEntriesByOwner(ctx, db, settlement, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1168,13 +1298,32 @@ func getSettlementDetail(ctx context.Context, db *ent.Client, id, limit int) (*s
 }
 
 // listSettlements 列出结算单，playerID 非空时按陪玩过滤，按 ID 倒序。
-func listSettlements(ctx context.Context, db *ent.Client, playerID, limit int) ([]*ent.EsportsSettlement, error) {
+// status 为可选状态过滤（P0-8）：
+//   - 不传：默认只返回**未作废**的结算单（作废单不干扰日常发放视图）；
+//   - draft / locked / paid：只看该状态；
+//   - void：只看已作废单（审计与重开追溯需要能查到）；
+//   - all：不过滤状态，返回全部。
+func listSettlements(ctx context.Context, db *ent.Client, playerID, limit int, status ...string) ([]*ent.EsportsSettlement, error) {
 	if limit < 1 || limit > 200 {
 		limit = 100
 	}
 	q := db.EsportsSettlement.Query()
 	if playerID > 0 {
 		q.Where(esportssettlement.OwnerIDEQ(playerID))
+	}
+	filter := ""
+	if len(status) > 0 {
+		filter = strings.TrimSpace(status[0])
+	}
+	switch filter {
+	case "":
+		q.Where(esportssettlement.StatusNEQ(esportssettlement.StatusVoid))
+	case "all":
+		// 显式要求全部状态，不加过滤。
+	case "draft", "locked", "paid", "void":
+		q.Where(esportssettlement.StatusEQ(esportssettlement.Status(filter)))
+	default:
+		return nil, errInvalidInput
 	}
 	return q.Order(ent.Desc(esportssettlement.FieldID)).Limit(limit).All(ctx)
 }

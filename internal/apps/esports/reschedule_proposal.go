@@ -681,6 +681,299 @@ func expireRescheduleProposals(ctx context.Context, db *ent.Client, now time.Tim
 	return count, nil
 }
 
+// ── 用户侧：本人可见的改期提案（§3.3） ──
+//
+// 客户端此前只能「按客服告知的提案 ID」确认，看不到自己待确认的提案列表，也无法判断
+// 「还差谁的确认」。下面两个入口把提案读模型按登录身份收窄后下发：
+//   - 客户：GET /user/reschedule-proposals（可选 ?order_id=）
+//   - 陪玩：GET /user/player/reschedule-proposals
+// 数据边界由登录身份（customerForVerifiedUser / currentPlayer）决定，不接受客户端传 customer_id / player_id。
+
+// userRescheduleProposalProgress 是提案的逐人确认进度摘要（客户与陪玩共用同一口径）：
+// 需要确认的总人数、已确认 / 已拒绝人数，以及尚待表态的确认人清单。
+type userRescheduleProposalProgress struct {
+	CustomerRequired  bool `json:"customer_required"`
+	CustomerConfirmed bool `json:"customer_confirmed"`
+	// PlayerRequiredCount 是随本单需要确认的成员数（已接单 + 待回应席位，与生效判定同口径）；
+	// 历史提案的成员集合按**当前**席位计算，成员后续变动时该值可能与决策当刻不同。
+	PlayerRequiredCount  int `json:"player_required_count"`
+	PlayerConfirmedCount int `json:"player_confirmed_count"`
+	RequiredCount        int `json:"required_count"`
+	ConfirmedCount       int `json:"confirmed_count"`
+	RejectedCount        int `json:"rejected_count"`
+	// Complete 表示确认已齐（客户 + 全部成员均确认且无人拒绝）。
+	Complete          bool                         `json:"complete"`
+	PendingConfirmers []reschedulePendingConfirmer `json:"pending_confirmers"`
+}
+
+// userRescheduleProposalView 是用户侧提案列表的单条视图（§3.3）：
+// 含提案号、来源订单、原档期 / 目标档期、状态、确认截止时间与逐人确认进度摘要。
+type userRescheduleProposalView struct {
+	ProposalID                 int        `json:"proposal_id"`
+	ProposalNo                 string     `json:"proposal_no"`
+	OrderID                    int        `json:"order_id"`
+	OrderNo                    string     `json:"order_no"`
+	FromStartAt                *time.Time `json:"from_start_at"`
+	FromServiceDurationMinutes int        `json:"from_service_duration_minutes"`
+	ToStartAt                  time.Time  `json:"to_start_at"`
+	ToServiceDurationMinutes   int        `json:"to_service_duration_minutes"`
+	Status                     string     `json:"status"`
+	ExpiresAt                  time.Time  `json:"expires_at"`
+	Reason                     string     `json:"reason"`
+	DecidedAt                  *time.Time `json:"decided_at"`
+	CreatedAt                  time.Time  `json:"created_at"`
+	// MyDecision 是当前登录人的表态：confirmed / rejected / pending（尚未表态）。
+	MyDecision string `json:"my_decision"`
+	// MySeatIndex 仅陪玩端有意义（本人席位序号），客户恒为 0。
+	MySeatIndex int                            `json:"my_seat_index"`
+	Progress    userRescheduleProposalProgress `json:"progress"`
+}
+
+// rescheduleProposalScope 限定「当前登录人能看到的提案范围」：二选一，客户或陪玩。
+type rescheduleProposalScope struct {
+	CustomerID int
+	PlayerID   int
+}
+
+// rescheduleProposalCandidateLimit 是提案范围推导时的订单上限：客户看自己的订单、陪玩看自己持席位的订单，
+// 先取最近的订单再查提案，避免全表扫描。ponytail: 订单量级上万时改为按 status + 时间窗直接查提案表。
+const rescheduleProposalCandidateLimit = 200
+
+// rescheduleProposalCandidateOrders 推导提案候选订单 ID 列表（按订单 ID 倒序，上限 200）。
+// orderID 非空时只校验并返回该订单（客户须为订单客户、陪玩须在本单持已接单 / 待回应席位）。
+func rescheduleProposalCandidateOrders(ctx context.Context, db *ent.Client,
+	scope rescheduleProposalScope, orderID int) ([]int, error) {
+	if orderID > 0 {
+		order, err := db.EsportsOrder.Get(ctx, orderID)
+		if err != nil {
+			return nil, err
+		}
+		if scope.CustomerID > 0 {
+			if order.CustomerID != scope.CustomerID {
+				return nil, errForbidden
+			}
+			return []int{order.ID}, nil
+		}
+		seat, err := db.EsportsDispatchSeat.Query().Where(
+			esportsdispatchseat.OrderIDEQ(orderID),
+			esportsdispatchseat.PlayerIDEQ(scope.PlayerID),
+			esportsdispatchseat.StatusIn(
+				esportsdispatchseat.StatusAccepted, esportsdispatchseat.StatusInvited),
+		).First(ctx)
+		if ent.IsNotFound(err) {
+			return nil, errForbidden
+		}
+		if err != nil {
+			return nil, err
+		}
+		return []int{seat.OrderID}, nil
+	}
+	if scope.CustomerID > 0 {
+		return db.EsportsOrder.Query().Where(esportsorder.CustomerIDEQ(scope.CustomerID)).
+			Order(ent.Desc(esportsorder.FieldID)).
+			Limit(rescheduleProposalCandidateLimit).IDs(ctx)
+	}
+	seats, err := db.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.PlayerIDEQ(scope.PlayerID),
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusAccepted, esportsdispatchseat.StatusInvited),
+	).Order(ent.Desc(esportsdispatchseat.FieldID)).
+		Limit(rescheduleProposalCandidateLimit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int, 0, len(seats))
+	seen := map[int]bool{}
+	for _, seat := range seats {
+		if seen[seat.OrderID] {
+			continue
+		}
+		seen[seat.OrderID] = true
+		ids = append(ids, seat.OrderID)
+	}
+	return ids, nil
+}
+
+// listUserRescheduleProposals 返回当前登录人可见的改期提案：**待确认优先**，其余为历史（倒序）。
+// limit 沿用同包列表口径（默认 50，上限 100）。
+func listUserRescheduleProposals(ctx context.Context, db *ent.Client,
+	scope rescheduleProposalScope, orderID, limit int) ([]userRescheduleProposalView, error) {
+	if (scope.CustomerID < 1) == (scope.PlayerID < 1) {
+		return nil, errInvalidInput
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	orderIDs, err := rescheduleProposalCandidateOrders(ctx, db, scope, orderID)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]userRescheduleProposalView, 0, limit)
+	if len(orderIDs) == 0 {
+		return views, nil
+	}
+	// 待确认的提案排在历史之前：确认时限只有小时级，被历史记录挤出列表就等于客户端看不见。
+	pending, err := db.EsportsRescheduleProposal.Query().Where(
+		esportsrescheduleproposal.OrderIDIn(orderIDs...),
+		esportsrescheduleproposal.StatusEQ(esportsrescheduleproposal.StatusPending),
+	).Order(ent.Desc(esportsrescheduleproposal.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items := pending
+	if len(items) < limit {
+		history, err := db.EsportsRescheduleProposal.Query().Where(
+			esportsrescheduleproposal.OrderIDIn(orderIDs...),
+			esportsrescheduleproposal.StatusNEQ(esportsrescheduleproposal.StatusPending),
+		).Order(ent.Desc(esportsrescheduleproposal.FieldID)).
+			Limit(limit - len(items)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, history...)
+	}
+	if len(items) == 0 {
+		return views, nil
+	}
+	proposalIDs := make([]int, 0, len(items))
+	seenOrder := map[int]bool{}
+	itemOrderIDs := make([]int, 0, len(items))
+	for _, item := range items {
+		proposalIDs = append(proposalIDs, item.ID)
+		if !seenOrder[item.OrderID] {
+			seenOrder[item.OrderID] = true
+			itemOrderIDs = append(itemOrderIDs, item.OrderID)
+		}
+	}
+	orderNos := map[int]string{}
+	orderCustomers := map[int]int{}
+	orders, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(itemOrderIDs...)).
+		Select(esportsorder.FieldID, esportsorder.FieldOrderNo, esportsorder.FieldCustomerID).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, order := range orders {
+		orderNos[order.ID] = order.OrderNo
+		orderCustomers[order.ID] = order.CustomerID
+	}
+	// 需要逐人确认的成员（已接单 + 待回应）按订单批量取一次，供进度摘要与待表态清单共用。
+	membersByOrder := map[int][]*ent.EsportsDispatchSeat{}
+	seatRows, err := db.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDIn(itemOrderIDs...),
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusAccepted, esportsdispatchseat.StatusInvited),
+		esportsdispatchseat.PlayerIDNotNil(),
+	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, seat := range seatRows {
+		membersByOrder[seat.OrderID] = append(membersByOrder[seat.OrderID], seat)
+	}
+	confirmations, err := db.EsportsRescheduleConfirmation.Query().Where(
+		esportsrescheduleconfirmation.ProposalIDIn(proposalIDs...),
+	).Order(ent.Asc(esportsrescheduleconfirmation.FieldID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byProposal := map[int][]*ent.EsportsRescheduleConfirmation{}
+	for _, row := range confirmations {
+		byProposal[row.ProposalID] = append(byProposal[row.ProposalID], row)
+	}
+	mine := rescheduleConfirmer{}
+	if scope.CustomerID > 0 {
+		mine = rescheduleConfirmer{
+			Type: esportsrescheduleconfirmation.ConfirmerTypeCustomer, ID: scope.CustomerID}
+	} else {
+		mine = rescheduleConfirmer{
+			Type: esportsrescheduleconfirmation.ConfirmerTypePlayer, ID: scope.PlayerID}
+	}
+	for _, item := range items {
+		rows := byProposal[item.ID]
+		view := userRescheduleProposalView{
+			ProposalID: item.ID, ProposalNo: item.ProposalNo, OrderID: item.OrderID,
+			OrderNo: orderNos[item.OrderID], FromStartAt: item.FromStartAt,
+			FromServiceDurationMinutes: item.FromServiceDurationMinutes,
+			ToStartAt:                  item.ToStartAt.UTC(),
+			ToServiceDurationMinutes:   item.ToServiceDurationMinutes,
+			Status:                     item.Status.String(), ExpiresAt: item.ExpiresAt.UTC(),
+			Reason: item.Reason, DecidedAt: item.DecidedAt, CreatedAt: item.CreatedAt.UTC(),
+			// 默认未表态：confirmations 里没有本人记录即为 pending。
+			MyDecision: "pending",
+		}
+		for _, row := range rows {
+			if row.ConfirmerType == mine.Type && row.ConfirmerID == mine.ID {
+				view.MyDecision = row.Decision.String()
+				view.MySeatIndex = row.SeatIndex
+			}
+		}
+		// 尚未表态时确认明细里没有席位序号，直接用本人在本单的席位补齐，客户端无需再查一次。
+		if scope.PlayerID > 0 && view.MySeatIndex == 0 {
+			for _, seat := range membersByOrder[item.OrderID] {
+				if seat.PlayerID != nil && *seat.PlayerID == scope.PlayerID {
+					view.MySeatIndex = seat.SeatIndex
+					break
+				}
+			}
+		}
+		view.Progress = buildRescheduleProposalProgress(item, rows,
+			membersByOrder[item.OrderID], orderCustomers[item.OrderID])
+		views = append(views, view)
+	}
+	return views, nil
+}
+
+// buildRescheduleProposalProgress 汇总提案的逐人确认进度：需要谁确认、谁已确认、谁还没表态。
+// 待表态清单只对进行中的提案给出（历史提案的确认人集合已无意义）。
+func buildRescheduleProposalProgress(item *ent.EsportsRescheduleProposal,
+	rows []*ent.EsportsRescheduleConfirmation, members []*ent.EsportsDispatchSeat,
+	orderCustomerID int) userRescheduleProposalProgress {
+	progress := userRescheduleProposalProgress{CustomerRequired: true}
+	answered := map[rescheduleConfirmer]bool{}
+	for _, row := range rows {
+		key := rescheduleConfirmer{Type: row.ConfirmerType, ID: row.ConfirmerID}
+		answered[key] = true
+		switch row.Decision {
+		case esportsrescheduleconfirmation.DecisionConfirmed:
+			progress.ConfirmedCount++
+			if row.ConfirmerType == esportsrescheduleconfirmation.ConfirmerTypeCustomer {
+				progress.CustomerConfirmed = true
+			} else {
+				progress.PlayerConfirmedCount++
+			}
+		case esportsrescheduleconfirmation.DecisionRejected:
+			progress.RejectedCount++
+		}
+	}
+	progress.PlayerRequiredCount = len(members)
+	progress.RequiredCount = 1 + progress.PlayerRequiredCount
+	progress.Complete = progress.CustomerConfirmed && progress.RejectedCount == 0 &&
+		progress.PlayerConfirmedCount >= progress.PlayerRequiredCount
+	if item.Status != esportsrescheduleproposal.StatusPending {
+		return progress
+	}
+	if !progress.CustomerConfirmed {
+		progress.PendingConfirmers = append(progress.PendingConfirmers, reschedulePendingConfirmer{
+			Type: esportsrescheduleconfirmation.ConfirmerTypeCustomer.String(), ID: orderCustomerID,
+		})
+	}
+	for _, seat := range members {
+		if seat.PlayerID == nil {
+			continue
+		}
+		key := rescheduleConfirmer{
+			Type: esportsrescheduleconfirmation.ConfirmerTypePlayer, ID: *seat.PlayerID}
+		if answered[key] {
+			continue
+		}
+		progress.PendingConfirmers = append(progress.PendingConfirmers, reschedulePendingConfirmer{
+			Type: esportsrescheduleconfirmation.ConfirmerTypePlayer.String(),
+			ID:   *seat.PlayerID, SeatIndex: seat.SeatIndex,
+		})
+	}
+	return progress
+}
+
 // reschedulePendingConfirmer 尚未表态的确认人。
 type reschedulePendingConfirmer struct {
 	Type      string `json:"type"`

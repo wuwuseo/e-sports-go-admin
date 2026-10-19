@@ -108,7 +108,7 @@ func TestCloseSubmitRuleLifecycle(t *testing.T) {
 	}
 }
 
-// 最少提交成员数：单人 1 名、多人全部、自定义按比例向上取整。
+// 最少提交成员数：single / multi 均为逐人（功能列表 §3.4-76）、自定义按比例向上取整。
 func TestSubmitRequiredCount(t *testing.T) {
 	cases := []struct {
 		mode   esportsclosesubmitrule.Mode
@@ -116,7 +116,10 @@ func TestSubmitRequiredCount(t *testing.T) {
 		total  int
 		expect int
 	}{
-		{esportsclosesubmitrule.ModeSingle, 0, 4, 1},
+		// §3.4-76：单人单本人提交，临时多人单所有实际服务成员逐人提交；
+		// mode=single 不得把多人单放宽成「任一人提交即可」。
+		{esportsclosesubmitrule.ModeSingle, 0, 4, 4},
+		{esportsclosesubmitrule.ModeSingle, 0, 1, 1},
 		{esportsclosesubmitrule.ModeMulti, 0, 4, 4},
 		{esportsclosesubmitrule.ModeCustom, 5000, 3, 2},
 		{esportsclosesubmitrule.ModeCustom, 10000, 3, 3},

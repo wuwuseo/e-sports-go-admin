@@ -11,7 +11,8 @@ import (
 )
 
 // adminReports 是 §17 经营统计报表入口：单一路由按 :type 分派五类只读聚合报表。
-// 数据边界：非超级管理员（客服）只能看本人负责的订单与本人处理的售后；财务资金报表仅超级管理员可见。
+// 数据边界：非超级管理员（客服）只能看本人负责 / 协作授权 / 本人报单的订单与本人处理的售后；
+// 财务资金报表仅超级管理员或命中 app.esports.finance_report_role_names 的财务角色可见。
 func adminReports(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)
 	if err != nil {
@@ -55,6 +56,10 @@ func adminReports(c fiber.Ctx) error {
 	result["range"] = map[string]any{
 		"start": filter.Start, "end": filter.End, "period": filter.Period,
 	}
+	// §17 / P1-07：响应显式带出本次请求的数据域，便于事后审计「这次是全量还是局部」。
+	// 财务资金报表不存在「订单局部」口径（需求明确不接受订单归属维度），授权者恒走显式全量分支。
+	label, _, _ := reportDataScope(reportType, filter)
+	result["data_scope"] = label
 	// §17-07：按报表类型给出可用筛选项清单，前端据此裁剪筛选控件。
 	result["filter_capabilities"] = map[string]any{
 		"supported":   supportedReportDimensions(reportType),
@@ -113,17 +118,48 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 		AftersaleKind:    strings.TrimSpace(c.Query("kind")),
 		FaultParty:       strings.TrimSpace(c.Query("fault_party")),
 		Limit:            queryInt(c, "limit"),
+		// 资金维度（§17 / P1-08）：账户类型 / 流水类型 / 结算状态只由财务资金报表接受，
+		// 且必须真正下推到查询；其余报表类型由 validateReportFilter 显式 400。
+		WalletAccountType: strings.TrimSpace(c.Query("account_type")),
+		WalletEntryType:   strings.TrimSpace(c.Query("entry_type")),
+		SettlementStatus:  strings.TrimSpace(c.Query("settlement_status")),
 	}
 	if err := validateReportFilter(strings.TrimSpace(c.Params("type")), filter); err != nil {
 		return reportFilter{}, err
 	}
+	// 维度取值校验放在维度支持性校验之后：先报「该报表不支持此维度」，再报「取值非法」。
+	if err := validateReportDimensionValues(filter); err != nil {
+		return reportFilter{}, err
+	}
 	return filter, nil
+}
+
+// validateReportDimensionValues 校验筛选维度的取值是否合法（P1-08 / P1-09）：
+// 取值非法时显式返回中文参数错误，避免拼错枚举被静默当成「命中 0 行」。
+func validateReportDimensionValues(f reportFilter) error {
+	switch f.WalletAccountType {
+	case "", "customer_balance", "player_catfood", "stored_value_card":
+	default:
+		return fmt.Errorf("%w：账户类型仅支持 customer_balance / player_catfood / stored_value_card", errInvalidInput)
+	}
+	switch f.WalletEntryType {
+	case "", "recharge", "consume", "refund_return", "adjust", "expire", "withdraw":
+	default:
+		return fmt.Errorf("%w：流水类型仅支持 recharge / consume / refund_return / adjust / expire / withdraw", errInvalidInput)
+	}
+	switch f.SettlementStatus {
+	case "", "draft", "locked", "paid", "void":
+	default:
+		return fmt.Errorf("%w：结算状态仅支持 draft / locked / paid / void", errInvalidInput)
+	}
+	return nil
 }
 
 // reportFilterDimensionOrder 是报表筛选维度的稳定顺序（错误提示与能力清单共用）。
 var reportFilterDimensionOrder = []string{
 	"channel_source", "entry_point", "responsible_admin_id", "created_by_admin_id",
 	"sku_id", "game", "appointment_type", "seat_type", "payment_channel", "kind", "fault_party",
+	"account_type", "entry_type", "settlement_status",
 }
 
 // reportDimensionLabels 是各筛选维度的中文说明（拒绝提示用）。
@@ -131,7 +167,7 @@ var reportDimensionLabels = map[string]string{
 	"channel_source":       "按客户渠道筛选",
 	"entry_point":          "按报单入口筛选",
 	"responsible_admin_id": "按负责客服筛选",
-	"created_by_admin_id":  "按报单客服筛选",
+	"created_by_admin_id":  "按业绩归属客服（报单客服）筛选",
 	"sku_id":               "按 SKU 筛选",
 	"game":                 "按游戏筛选",
 	"appointment_type":     "按即时预约筛选",
@@ -139,6 +175,9 @@ var reportDimensionLabels = map[string]string{
 	"payment_channel":      "按支付方式筛选",
 	"kind":                 "按售后类型筛选",
 	"fault_party":          "按责任方筛选",
+	"account_type":         "按账户类型筛选",
+	"entry_type":           "按流水类型筛选",
+	"settlement_status":    "按结算状态筛选",
 }
 
 // reportTypeLabel 返回报表中文名（用于筛选拒绝提示）。
@@ -159,22 +198,31 @@ func reportTypeLabel(reportType string) string {
 }
 
 // unsupportedReportDimensions 返回该报表类型不收下（也不静默忽略）的维度键（§17-07）：
-// 售后质量只按订单渠道 / 入口圈定订单；财务资金不具备逐订单归属；经营总览 / 客服业绩 /
-// 派单效率均不使用售后类型与责任方维度。
+//   - 售后质量只按订单渠道 / 入口圈定订单，另支持售后类型、责任方与处理客服；
+//   - 财务资金不具备逐订单归属（含业绩归属客服 / 负责客服 / 创建人），只接受资金维度；
+//   - 经营总览 / 客服业绩不使用售后类型、责任方与资金维度；
+//   - 派单效率的需求筛选项里没有「业绩归属客服」（§17 只列负责客服），该维度必须显式 400。
 func unsupportedReportDimensions(reportType string) []string {
 	unsupported := map[string]bool{}
 	switch reportType {
 	case "aftersale_quality":
-		for _, key := range []string{"sku_id", "game", "payment_channel", "appointment_type", "seat_type"} {
+		for _, key := range []string{"sku_id", "game", "payment_channel", "appointment_type", "seat_type",
+			"created_by_admin_id", "account_type", "entry_type", "settlement_status"} {
 			unsupported[key] = true
 		}
 	case "finance":
 		for _, key := range []string{"channel_source", "entry_point", "responsible_admin_id",
-			"sku_id", "game", "appointment_type", "seat_type", "kind", "fault_party"} {
+			"created_by_admin_id", "sku_id", "game", "appointment_type", "seat_type",
+			"kind", "fault_party"} {
 			unsupported[key] = true
 		}
-	case "owner_overview", "cs_performance", "dispatch_efficiency":
-		for _, key := range []string{"kind", "fault_party"} {
+	case "dispatch_efficiency":
+		for _, key := range []string{"created_by_admin_id", "kind", "fault_party",
+			"account_type", "entry_type", "settlement_status"} {
+			unsupported[key] = true
+		}
+	case "owner_overview", "cs_performance":
+		for _, key := range []string{"kind", "fault_party", "account_type", "entry_type", "settlement_status"} {
 			unsupported[key] = true
 		}
 	}
@@ -237,6 +285,15 @@ func reportFilterDimensionsInUse(f reportFilter) map[string]bool {
 	}
 	if f.FaultParty != "" {
 		inUse["fault_party"] = true
+	}
+	if f.WalletAccountType != "" {
+		inUse["account_type"] = true
+	}
+	if f.WalletEntryType != "" {
+		inUse["entry_type"] = true
+	}
+	if f.SettlementStatus != "" {
+		inUse["settlement_status"] = true
 	}
 	return inUse
 }

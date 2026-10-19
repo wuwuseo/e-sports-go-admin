@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -36,11 +37,40 @@ var (
 	errNotConfigured = errors.New("支付时限尚未由业务方配置")
 )
 
+// optionalInt64 表示「未传 / 显式 null / 具体数值」三态的可空整数字段（当前用于成本价）。
+//
+// 只靠 *int64 无法区分「字段未出现在请求体」与「字段显式为 null」，而后端对这两者必须区别对待：
+// 管理端编辑表单会整表回传，未传成本时不得静默清空已登记的成本（资金相关字段，P1-22 回归口径）。
+// 因此 Present=false 表示保持不变，Present=true 且 Value=nil 才表示显式清空。
+type optionalInt64 struct {
+	Value   *int64
+	Present bool
+}
+
+// UnmarshalJSON 实现 JSON 三态解析：本方法被调用即代表字段存在。
+func (o *optionalInt64) UnmarshalJSON(data []byte) error {
+	o.Present = true
+	if string(bytes.TrimSpace(data)) == "null" {
+		o.Value = nil
+		return nil
+	}
+	var value int64
+	if err := json.Unmarshal(data, &value); err != nil {
+		return fmt.Errorf("金额字段须为整数分：%w", err)
+	}
+	o.Value = &value
+	return nil
+}
+
 type skuInput struct {
-	Code                 string `json:"code"`
-	Title                string `json:"title"`
-	ServiceType          string `json:"service_type"`
-	CategoryID           *int   `json:"category_id"`
+	Code        string `json:"code"`
+	Title       string `json:"title"`
+	ServiceType string `json:"service_type"`
+	CategoryID  *int   `json:"category_id"`
+	// ProductID / SpecGroupID 把 SKU 挂到商品父实体与规格组（§15.1 / §15.5）：可选，
+	// 传了就必须存在且状态可用（商品不得下架、规格组须启用）。
+	ProductID            *int   `json:"product_id"`
+	SpecGroupID          *int   `json:"spec_group_id"`
 	Description          string `json:"description"`
 	UnitPriceCents       int64  `json:"unit_price_cents"`
 	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
@@ -48,6 +78,9 @@ type skuInput struct {
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
 	RequiredSeats        int    `json:"required_seats"`
+	// RequiredLevel 为该 SKU 的技能等级门槛（§5.5）：枚举 novice / skilled / senior / mentor，
+	// 未传回落 novice（兼容旧前端）；报单时快照到订单，派单候选与接单校验据此拦截低等级陪玩。
+	RequiredLevel *string `json:"required_level"`
 	// PerSeatServiceUnits 为多人 SKU 每个席位承诺的服务量（§15.3-01 / §5.3-05）：required_seats > 1 时必填，
 	// 下单按「每席量 × 席位数 × 份数」落承诺量；0 表示未配置（单人单回落整单服务量）。
 	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
@@ -71,9 +104,13 @@ type categoryInput struct {
 }
 
 type skuUpdateInput struct {
-	Title                string `json:"title"`
-	ServiceType          string `json:"service_type"`
-	CategoryID           *int   `json:"category_id"`
+	Title       string `json:"title"`
+	ServiceType string `json:"service_type"`
+	CategoryID  *int   `json:"category_id"`
+	// ProductID / SpecGroupID 同 skuInput：nil 表示保持既有挂载（旧前端不传字段时不得静默解绑），
+	// 传 0 表示显式解除挂载。
+	ProductID            *int   `json:"product_id"`
+	SpecGroupID          *int   `json:"spec_group_id"`
 	Description          string `json:"description"`
 	UnitPriceCents       int64  `json:"unit_price_cents"`
 	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
@@ -81,10 +118,12 @@ type skuUpdateInput struct {
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
 	RequiredSeats        int    `json:"required_seats"`
+	// RequiredLevel 同 skuInput（§5.5）：nil 表示保持既有门槛，避免整表回传把 senior 静默降级。
+	RequiredLevel *string `json:"required_level"`
 	// PerSeatServiceUnits 同 skuInput（§15.3-01）。
 	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
-	// CostCents 同 skuInput（§15.8-03）。
-	CostCents *int64 `json:"cost_cents"`
+	// CostCents 同 skuInput（§15.8-03），但区分三态：未传保持不变、显式 null 清空。
+	CostCents optionalInt64 `json:"cost_cents"`
 	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
 	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
@@ -96,6 +135,9 @@ type skuUpdateInput struct {
 
 type customerInput struct {
 	DisplayName string `json:"display_name"`
+	// Phone 是手工建档时的手机号（§8.3 / P1-12）：可选；填了就在同一租户内唯一，
+	// 命中既有客户即返回冲突提示，避免同一个人被建成两条档案。
+	Phone string `json:"phone"`
 }
 
 type orderInput struct {
@@ -188,12 +230,35 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if err := validateSkuCloseRuleCode(ctx, db, in.CloseRuleCode); err != nil {
 		return nil, err
 	}
+	// §5.5：技能等级门槛未传回落 novice（兼容旧前端），非法枚举值直接拒绝，
+	// 避免「门槛字段写了但永不生效」。
+	requiredLevel, err := skuRequiredLevel(in.RequiredLevel)
+	if err != nil {
+		return nil, err
+	}
+	// §15.1 / §15.5：可选挂载商品父实体与规格组，传了就必须存在且状态可用。
+	_, specGroup, err := resolveSkuCatalogRefs(ctx, db, in.ProductID, in.SpecGroupID, in.RequiredSeats)
+	if err != nil {
+		return nil, err
+	}
+	var groupPerSeat int64
+	if specGroup != nil {
+		groupPerSeat = specGroup.PerSeatServiceUnits
+	}
+	if err = normalizeSkuPerSeatUnits(&in.PerSeatServiceUnits, groupPerSeat); err != nil {
+		return nil, err
+	}
+	// P1-24：多人 SKU 必须能解析出正的每席承诺服务量，否则「可上架但下单必拒」。
+	if err = validateSkuSeatPromise(in.RequiredSeats, in.PerSeatServiceUnits); err != nil {
+		return nil, err
+	}
 	create := db.EsportsSku.Create().SetCode(in.Code).SetTitle(in.Title).
 		SetServiceType(esportssku.ServiceType(in.ServiceType)).SetDescription(in.Description).
 		SetUnitPriceCents(in.UnitPriceCents).
 		SetMinUnitPriceCents(in.MinUnitPriceCents).SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).
 		SetServiceUnits(in.ServiceUnits).SetServiceUnitName(in.ServiceUnitName).
 		SetRequiredSeats(in.RequiredSeats).SetPerSeatServiceUnits(in.PerSeatServiceUnits).
+		SetRequiredLevel(requiredLevel).
 		SetServiceDurationMinutes(in.ServiceDurationMinutes).
 		SetQuotaTotal(in.QuotaTotal).
 		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
@@ -201,10 +266,59 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if in.CategoryID != nil {
 		create.SetCategoryID(*in.CategoryID)
 	}
+	if in.ProductID != nil {
+		create.SetProductID(*in.ProductID)
+	}
+	if in.SpecGroupID != nil {
+		create.SetSpecGroupID(*in.SpecGroupID)
+	}
 	if in.CostCents != nil {
 		create.SetCostCents(*in.CostCents)
 	}
 	return create.Save(ctx)
+}
+
+// skuRequiredLevel 解析并校验 SKU 技能等级门槛（§5.5）：未传 / 空串回落 novice，
+// 取值必须落在 schema 枚举 novice / skilled / senior / mentor 内。
+func skuRequiredLevel(raw *string) (esportssku.RequiredLevel, error) {
+	if raw == nil {
+		return esportssku.RequiredLevelNovice, nil
+	}
+	value := esportssku.RequiredLevel(strings.TrimSpace(*raw))
+	switch value {
+	case "", esportssku.RequiredLevelNovice:
+		return esportssku.RequiredLevelNovice, nil
+	case esportssku.RequiredLevelSkilled, esportssku.RequiredLevelSenior, esportssku.RequiredLevelMentor:
+		return value, nil
+	default:
+		return "", fmt.Errorf("%w：技能等级门槛只能是 novice / skilled / senior / mentor", errInvalidInput)
+	}
+}
+
+// normalizeSkuPerSeatUnits 统一 SKU 每席承诺量口径（§15.5-01 / P1-24）：
+// SKU 未配置时跟随所挂规格组，两者都配置但不一致时拒绝，避免同一规格两套口径。
+func normalizeSkuPerSeatUnits(perSeat *int64, groupPerSeat int64) error {
+	if groupPerSeat <= 0 {
+		return nil
+	}
+	if *perSeat <= 0 {
+		*perSeat = groupPerSeat
+		return nil
+	}
+	if *perSeat != groupPerSeat {
+		return fmt.Errorf("%w：SKU 每席承诺服务量与所挂规格组不一致", errInvalidInput)
+	}
+	return nil
+}
+
+// validateSkuSeatPromise 校验多人 SKU 的每席承诺服务量（P1-24）：required_seats > 1 时
+// 必须配置正的每席量（SKU 自身或所挂规格组），否则拒绝创建/更新，避免「可上架但下单必拒」。
+// 单人 SKU 允许缺省：下单时回落整单服务量（存量口径不变）。
+func validateSkuSeatPromise(requiredSeats int, perSeat int64) error {
+	if requiredSeats <= 1 || perSeat > 0 {
+		return nil
+	}
+	return fmt.Errorf("%w：多人 SKU 必须配置每席承诺服务量（per_seat_service_units）", errInvalidInput)
 }
 
 // validateSkuServiceType 校验 SKU 服务类型（§3.1-04）：代练（boosting）为预留枚举位，
@@ -231,12 +345,21 @@ func validateSkuCostCents(cost *int64) error {
 	return nil
 }
 
+// saveCustomer 手工建档客户（§8.3）。手机号可选，但填了就必须满足「同一租户内手机号唯一」
+// （P1-12）：命中既有客户时返回冲突提示，由客服改用既有客户，而不是再建一条重复档案。
+// 手机号唯一校验与企微自动建档（cs.go wecomUpsertCustomer）共用 ensureCustomerPhoneUnique，
+// 两条建档入口口径一致。
 func saveCustomer(ctx context.Context, db *ent.Client, adminID int, in customerInput) (*ent.EsportsCustomer, error) {
 	in.DisplayName = strings.TrimSpace(in.DisplayName)
-	if in.DisplayName == "" || len([]rune(in.DisplayName)) > 120 {
+	in.Phone = strings.TrimSpace(in.Phone)
+	if in.DisplayName == "" || len([]rune(in.DisplayName)) > 120 || len(in.Phone) > 32 {
 		return nil, errInvalidInput
 	}
-	return db.EsportsCustomer.Create().SetDisplayName(in.DisplayName).SetOwnerAdminID(adminID).Save(ctx)
+	if err := ensureCustomerPhoneUnique(ctx, db, in.Phone, 0); err != nil {
+		return nil, err
+	}
+	return db.EsportsCustomer.Create().SetDisplayName(in.DisplayName).
+		SetOwnerAdminID(adminID).SetPhone(in.Phone).Save(ctx)
 }
 
 // 分类编码创建后不可变，更新时不校验编码。
@@ -322,8 +445,11 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 	if err := validateSkuServiceType(in.ServiceType); err != nil {
 		return nil, err
 	}
-	if err := validateSkuCostCents(in.CostCents); err != nil {
-		return nil, err
+	// 成本价只在显式出现时校验：未传表示保持既有成本，不参与本次变更。
+	if in.CostCents.Present {
+		if err := validateSkuCostCents(in.CostCents.Value); err != nil {
+			return nil, err
+		}
 	}
 	if in.QuotaTotal != -1 && in.QuotaTotal < int64(in.RequiredSeats) {
 		return nil, errInvalidInput
@@ -356,26 +482,78 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 	if err := validateSkuCloseRuleCode(ctx, tx.Client(), in.CloseRuleCode); err != nil {
 		return nil, err
 	}
+	// §5.5：未传 required_level 时保持既有门槛——管理端编辑表单整表回传，不得把 senior 静默降级为 novice。
+	requiredLevel := esportssku.RequiredLevel(current.RequiredLevel)
+	if in.RequiredLevel != nil {
+		if requiredLevel, err = skuRequiredLevel(in.RequiredLevel); err != nil {
+			return nil, err
+		}
+	}
+	// §15.1 / §15.5：挂载引用「未传保持不变，传 0 显式解除」，避免旧前端不传字段时静默解绑。
+	productID := current.ProductID
+	if in.ProductID != nil {
+		if *in.ProductID == 0 {
+			productID = nil
+		} else {
+			productID = in.ProductID
+		}
+	}
+	specGroupID := current.SpecGroupID
+	if in.SpecGroupID != nil {
+		if *in.SpecGroupID == 0 {
+			specGroupID = nil
+		} else {
+			specGroupID = in.SpecGroupID
+		}
+	}
+	_, specGroup, err := resolveSkuCatalogRefs(ctx, tx.Client(), productID, specGroupID, in.RequiredSeats)
+	if err != nil {
+		return nil, err
+	}
+	var groupPerSeat int64
+	if specGroup != nil {
+		groupPerSeat = specGroup.PerSeatServiceUnits
+	}
+	perSeatUnits := in.PerSeatServiceUnits
+	if err = normalizeSkuPerSeatUnits(&perSeatUnits, groupPerSeat); err != nil {
+		return nil, err
+	}
+	// P1-24：多人 SKU 每席承诺量缺失或非正一律拒绝，避免改成「可上架但下单必拒」。
+	if err = validateSkuSeatPromise(in.RequiredSeats, perSeatUnits); err != nil {
+		return nil, err
+	}
 	update := tx.EsportsSku.UpdateOne(current).SetTitle(in.Title).
 		SetServiceType(esportssku.ServiceType(in.ServiceType)).SetDescription(in.Description).
 		SetUnitPriceCents(in.UnitPriceCents).SetMinUnitPriceCents(in.MinUnitPriceCents).
 		SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).SetServiceUnits(in.ServiceUnits).
 		SetServiceUnitName(in.ServiceUnitName).SetRequiredSeats(in.RequiredSeats).
-		SetPerSeatServiceUnits(in.PerSeatServiceUnits).
+		SetPerSeatServiceUnits(perSeatUnits).SetRequiredLevel(requiredLevel).
 		SetServiceDurationMinutes(in.ServiceDurationMinutes).
 		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetQuotaTotal(in.QuotaTotal).SetSortOrder(in.SortOrder).
 		SetStatus(esportssku.Status(in.Status)).AddVersion(1)
-	// §15.8-03：成本价可空；显式传 null 表示清空已登记的成本。
-	if in.CostCents == nil {
-		update.ClearCostCents()
-	} else {
-		update.SetCostCents(*in.CostCents)
+	// §15.8-03 / P1-22：成本价三态——未传保持不变（整表回传不静默清空），显式 null 才清空。
+	if in.CostCents.Present {
+		if in.CostCents.Value == nil {
+			update.ClearCostCents()
+		} else {
+			update.SetCostCents(*in.CostCents.Value)
+		}
 	}
 	if in.CategoryID == nil {
 		update.ClearCategoryID()
 	} else {
 		update.SetCategoryID(*in.CategoryID)
+	}
+	if productID == nil {
+		update.ClearProductID()
+	} else {
+		update.SetProductID(*productID)
+	}
+	if specGroupID == nil {
+		update.ClearSpecGroupID()
+	} else {
+		update.SetSpecGroupID(*specGroupID)
 	}
 	if _, err = update.Save(ctx); err != nil {
 		return nil, err
@@ -598,10 +776,13 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	// 优惠顺序（§10.4）：商品规格价 → 会员折扣 → 经授权人工调整；下单即落 manual_adjust_cents，
 	// 后续改价在其上覆盖（§4.2-02）。
 	subtotal := sku.UnitPriceCents * in.Quantity
-	discountBps, err := memberDiscountBps(ctx, tx.Client(), customer.MemberLevelCode)
+	// 会员权益一次读出（§10.1-02 / §10.4 / P1-11 权益消费点）：折扣与「专属通道 / 会员优先派单」
+	// 共用同一份快照，避免权益页宣称已生效而下单路径根本没读过该字段。
+	privilege, err := memberPrivilegeFlags(ctx, tx.Client(), customer.ID)
 	if err != nil {
 		return nil, err
 	}
+	discountBps := privilege.DiscountBps
 	// §4.2-06：单笔折扣上限复核（配置缺失表示不限制）。
 	if err = ensureOrderDiscountWithinLimit(discountBps, orderDiscountLimitBps(ctx, tx.Client())); err != nil {
 		return nil, err
@@ -743,6 +924,14 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	// §4.6-04：有未结清欠款时记录提醒金额。
 	if debtRemind {
 		details["debt_remind_cents"] = debtCents
+	}
+	// §10.1-02 / P1-11：会员权益在下单路径被真实消费并留痕——「专属通道」「会员优先派单」
+	// 作为派单优先级标记写入订单事件，供派单置顶与客服识别（权益页的「已生效」由此可追溯）。
+	if privilege.DedicatedChannel || privilege.PriorityDispatch {
+		details["member_dispatch_priority"] = map[string]bool{
+			"dedicated_channel": privilege.DedicatedChannel,
+			"priority_dispatch": privilege.PriorityDispatch,
+		}
 	}
 	// §5.1-02：客户自助下单的订单事件归到客户身份（无客服主体），其余仍记客服操作人。
 	actorType, actorID := "admin", strconv.Itoa(adminID)

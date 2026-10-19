@@ -115,6 +115,11 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 	if in.Presence == "online" {
 		update.SetLastHeartbeatAt(time.Now().UTC())
 	}
+	// P1-01-02：客服把陪玩置为下线同样属于**人工下线**，下一次心跳不得自动顶回 online：
+	// 除非本次显式同时开启 auto_online（视为有意配置自动上线），否则一并关闭该开关。
+	if in.Presence == "offline" && (in.AutoOnline == nil || !*in.AutoOnline) {
+		update.SetAutoOnline(false)
+	}
 	changed, err := update.AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
@@ -171,6 +176,10 @@ func playerGamesContain(games []string, game string) bool {
 }
 
 // setPlayerPresence 陪玩自助上下线：条件 UPDATE 设置 presence，冲突时 errConflict。
+//
+// P1-01-02：**人工下线必须不被下一次心跳自动改回 online**。自动上线（auto_online）只对
+// 「因心跳超时被动下线」的陪玩生效，因此本人手动下线时一并关闭 auto_online 开关：
+// 开关关闭后心跳只刷新时戳，不会再把人顶回 online；需要自动上线时由本人在接单配置里重新开启。
 func setPlayerPresence(ctx context.Context, db *ent.Client, playerID int, online bool) (*ent.EsportsPlayer, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
@@ -183,6 +192,9 @@ func setPlayerPresence(ctx context.Context, db *ent.Client, playerID int, online
 	// §6.4：上线即写入心跳基线，客户端失联后由超时任务接管自动离线。
 	if online {
 		update.SetLastHeartbeatAt(time.Now().UTC())
+	} else {
+		// P1-01-02：人工下线同时关闭自动上线，避免下一次心跳把人工下线的陪玩改回在线。
+		update.SetAutoOnline(false)
 	}
 	changed, err := update.AddVersion(1).Save(ctx)
 	if err != nil {
@@ -194,8 +206,26 @@ func setPlayerPresence(ctx context.Context, db *ent.Client, playerID int, online
 	return db.EsportsPlayer.Get(ctx, playerID)
 }
 
+// playerPresenceLabel 把 presence 枚举翻译成可直接展示的中文状态文案（§6.4-01 / P1-01）。
+//
+// 只有 offline 才叫「已下线」；心跳超时且存在在途订单的陪玩落 protected_abnormal，
+// 语义是「连接异常（受保护）」——他仍在履约，前端不得展示成已下线。
+func playerPresenceLabel(presence esportsplayer.Presence) string {
+	switch presence {
+	case esportsplayer.PresenceOnline:
+		return "在线"
+	case esportsplayer.PresenceProtectedAbnormal:
+		return "连接异常（受保护）"
+	default:
+		return "已下线"
+	}
+}
+
 type playerDashboardView struct {
-	Presence          string `json:"presence"`
+	Presence string `json:"presence"`
+	// PresenceLabel 是 presence 的可直接展示文案（在线 / 已下线 / 连接异常（受保护）），
+	// 前端应以此字段渲染状态，不要用 online 布尔值自行拼「已下线」（§6.4-01）。
+	PresenceLabel     string `json:"presence_label"`
 	Online            bool   `json:"online"`
 	PendingInvites    int    `json:"pending_invites"`
 	ActiveOrders      int    `json:"active_orders"`
@@ -279,6 +309,7 @@ func playerDashboard(ctx context.Context, db *ent.Client, playerID int, now time
 	}
 	return &playerDashboardView{
 		Presence:            player.Presence.String(),
+		PresenceLabel:       playerPresenceLabel(player.Presence),
 		Online:              player.Presence == esportsplayer.PresenceOnline,
 		PendingInvites:      pending,
 		ActiveOrders:        active,
@@ -582,16 +613,53 @@ func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Ti
 	return visible, nil
 }
 
-// playerGrabHallItem 是抢单大厅条目（§6.1-03）：内嵌订单以保持既有响应字段逐位不变，
-// 另带一个由「SKU → 商品分类」解析出的游戏分区 game，供客户端按游戏分区筛选。
-// 解析不到时 game 为空串（不得用 priority_game 等其它字段顶替）。
+// playerGrabHallItem 是抢单大厅条目（§6.1-03 / P1-06）：**专用最小信息视图**，
+// 不再是完整订单实体。只暴露「可见即可抢」所必需的字段：订单号、商品/规格名、游戏分区、
+// 席位、档期与时长、单价与总价、等级要求与优先通知截止时间。
+//
+// 显式不返回（超出最小可见边界）：customer_id（抢单不需要知道客户是谁）、客户手机号、
+// 分成 / 提成字段（commission_* / cs_commission_* / manual_commission_*）、渠道成本
+// （channel_cost_cents）、退款与调整金额（refund_* / discount_cents / manual_adjust_cents）、
+// 会员等级与报单人（responsible_admin_id / created_by_admin_id）。
+// 为兼容既有客户端类型定义，customer_id / addon_cents / addon_units 仍保留键位但恒为 0
+// 并用 omitempty 从 JSON 中省略（见报告「被脱敏字段」清单）。
 type playerGrabHallItem struct {
-	*ent.EsportsOrder
+	ID       int    `json:"id"`
+	OrderNo  string `json:"order_no"`
+	SkuID    int    `json:"sku_id"`
+	SkuCode  string `json:"sku_code"`
+	SkuName  string `json:"sku_name"`
+	SpecName string `json:"spec_name"`
+	// Game 由「SKU → 商品分类」解析出的游戏分区；解析不到时为空串（不得用 priority_game 顶替）。
 	Game string `json:"game"`
+	// PriorityGame 是优先通知窗口开窗时的分区快照（未开过窗为空串）。
+	PriorityGame string `json:"priority_game"`
+	// 席位与档期。
+	Quantity               int64      `json:"quantity"`
+	RequiredSeats          int        `json:"required_seats"`
+	PromisedServiceUnits   int64      `json:"promised_service_units"`
+	PerSeatServiceUnits    int64      `json:"per_seat_service_units"`
+	ServiceDurationMinutes int        `json:"service_duration_minutes"`
+	RequiredLevel          string     `json:"required_level"`
+	AppointmentStatus      string     `json:"appointment_status"`
+	RequestedStartAt       *time.Time `json:"requested_start_at"`
+	// 价格口径：只给单价与订单总价（单席位订单即该单价格），不含折扣 / 调整 / 退款明细。
+	UnitPriceCents int64 `json:"unit_price_cents"`
+	PayableCents   int64 `json:"payable_cents"`
+	// 状态口径：抢单大厅只列已付款可抢的订单，状态字段仅供客户端展示。
+	FulfillmentStatus    string     `json:"fulfillment_status"`
+	PaymentStatus        string     `json:"payment_status"`
+	PriorityNoticeStatus string     `json:"priority_notice_status"`
+	PriorityNoticeUntil  *time.Time `json:"priority_notice_until"`
+	CreatedAt            time.Time  `json:"created_at"`
+	// 以下字段为「键位兼容但已脱敏」：恒为 0 且从 JSON 省略。
+	CustomerID int   `json:"customer_id,omitempty"`
+	AddonCents int64 `json:"addon_cents,omitempty"`
+	AddonUnits int64 `json:"addon_units,omitempty"`
 }
 
-// listGrabHallItems 组装抢单大厅响应：为每张可抢单补上游戏分区。
-// 口径与 checkPlayerGameLevel 的调用方完全一致（orderGame：SKU → 分类 → game）；
+// listGrabHallItems 组装抢单大厅响应（P1-06 专用最小视图）：每张可抢单只带抢单必需字段。
+// 游戏分区口径与 checkPlayerGameLevel 的调用方完全一致（orderGame：SKU → 分类 → game）；
 // 按 sku_id 缓存解析结果，避免同一 SKU 的订单重复查询。
 func listGrabHallItems(ctx context.Context, db *ent.Client, playerID int, now time.Time) ([]playerGrabHallItem, error) {
 	orders, err := listGrabHall(ctx, db, playerID, now)
@@ -608,7 +676,24 @@ func listGrabHallItems(ctx context.Context, db *ent.Client, playerID int, now ti
 			}
 			gameCache[order.SkuID] = game
 		}
-		items = append(items, playerGrabHallItem{EsportsOrder: order, Game: game})
+		items = append(items, playerGrabHallItem{
+			ID: order.ID, OrderNo: order.OrderNo,
+			SkuID: order.SkuID, SkuCode: order.SkuCode, SkuName: order.SkuName,
+			SpecName: order.SpecName, Game: game, PriorityGame: order.PriorityGame,
+			Quantity: order.Quantity, RequiredSeats: order.RequiredSeats,
+			PromisedServiceUnits:   order.PromisedServiceUnits,
+			PerSeatServiceUnits:    order.PerSeatServiceUnits,
+			ServiceDurationMinutes: order.ServiceDurationMinutes,
+			RequiredLevel:          order.RequiredLevel.String(),
+			AppointmentStatus:      order.AppointmentStatus.String(),
+			RequestedStartAt:       order.RequestedStartAt,
+			UnitPriceCents:         order.UnitPriceCents, PayableCents: order.PayableCents,
+			FulfillmentStatus:    order.FulfillmentStatus.String(),
+			PaymentStatus:        order.PaymentStatus.String(),
+			PriorityNoticeStatus: order.PriorityNoticeStatus.String(),
+			PriorityNoticeUntil:  order.PriorityNoticeUntil,
+			CreatedAt:            order.CreatedAt,
+		})
 	}
 	return items, nil
 }
@@ -935,6 +1020,7 @@ func adminStoppedSeatIndexes(ctx context.Context, db *ent.Client, orderID int) (
 // 口径（可验收断言）：
 //   - 仅当订单仍在 in_service 时评估；
 //   - 订单还有任一 in_service 服务段 → 不转（还有人真的在服务）；
+//   - 存在「从未开工」的席位（无服务段且仍占位）→ 不转（P1-02：该席位须先被终止 / 移除）；
 //   - 所有未结束的服务段都处于「客服记名停工」（actor=admin 的暂停且未恢复）→ 整单转入
 //     pending_close，并把剩余履约量（承诺量 + 加钟量 − 已上报量）登记进只增事件
 //     order.pending_close_entered，供结单 / 改派 / 售后取用；
@@ -947,6 +1033,13 @@ func transitionToPendingCloseOnAdminStop(ctx context.Context, tx *ent.Tx, orderI
 		return false, err
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
+		return false, nil
+	}
+	// P1-02：存在「从未开工」的席位时不得整单转待结单——该席位还没有任何服务段，
+	// 先由客服终止 / 移除它，再收敛订单状态；否则一张有人从未上场的订单会被结单。
+	if unstarted, err := orderUnstartedSeatIndexes(ctx, tx, orderID); err != nil {
+		return false, err
+	} else if len(unstarted) > 0 {
 		return false, nil
 	}
 	segments, err := tx.EsportsServiceSegment.Query().Where(
@@ -999,8 +1092,106 @@ func transitionToPendingCloseOnAdminStop(ctx context.Context, tx *ent.Tx, orderI
 	return true, nil
 }
 
+// seatDisposed 判定席位是否已被移除（不再占位、也不会再开工）。
+// 只有 revoked / rejected / expired 三个终态算「已处置」，open / invited / accepted 仍在占位。
+func seatDisposed(status esportsdispatchseat.Status) bool {
+	switch status {
+	case esportsdispatchseat.StatusRevoked, esportsdispatchseat.StatusRejected,
+		esportsdispatchseat.StatusExpired:
+		return true
+	}
+	return false
+}
+
+// orderSeatSegmentMap 读取订单的全部在册席位，并按席位序号归集服务段（P1-02 判定共用）。
+func orderSeatSegmentMap(ctx context.Context, tx *ent.Tx, orderID int) (
+	[]*ent.EsportsDispatchSeat, map[int][]*ent.EsportsServiceSegment, error) {
+	seats, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(orderID),
+	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(seats) == 0 {
+		return seats, nil, nil
+	}
+	segments, err := tx.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID),
+	).All(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	bySeat := make(map[int][]*ent.EsportsServiceSegment, len(segments))
+	for _, segment := range segments {
+		bySeat[segment.SeatIndex] = append(bySeat[segment.SeatIndex], segment)
+	}
+	return seats, bySeat, nil
+}
+
+// orderUnstartedSeatIndexes 返回「从未开工」的席位序号：该席位没有任何服务段，且仍占着位
+// （open / invited / accepted）。已移除（revoked / rejected / expired）的席位算已处置，不在其中。
+//
+// P1-02：这类席位必须有明确处置（终止或移除）后才能让整单进入待结单/结单口径收敛。
+func orderUnstartedSeatIndexes(ctx context.Context, tx *ent.Tx, orderID int) ([]int, error) {
+	seats, bySeat, err := orderSeatSegmentMap(ctx, tx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	unstarted := make([]int, 0)
+	for _, seat := range seats {
+		if len(bySeat[seat.SeatIndex]) > 0 {
+			continue
+		}
+		if !seatDisposed(seat.Status) {
+			unstarted = append(unstarted, seat.SeatIndex)
+		}
+	}
+	return unstarted, nil
+}
+
+// orderAllSeatsServiceSettled 判定订单全部在册席位是否都已了结（P1-02）。
+//
+// 口径（可验收断言）：
+//   - 每个在册席位都要有明确结论：该席位的服务段全部进入终态（finished），或该席位已被移除
+//     （revoked / rejected / expired）；
+//   - 任一席位既没有服务段、也仍在 open / invited / accepted（**从未开工**）→ 未了结，
+//     订单不得转待结单。此前用「finishedCount >= seatCount」判定，有席位从未开工时
+//     永远凑不满数，订单会永久卡在服务中；
+//   - 没有席位（历史单 / 异常数据）时不做判定，保持既有「不转待结单」行为。
+//
+// 未了结时第二个返回值列出未了结的席位序号，供事件与客服提示使用。
+func orderAllSeatsServiceSettled(ctx context.Context, tx *ent.Tx, orderID int) (bool, []int, error) {
+	seats, bySeat, err := orderSeatSegmentMap(ctx, tx, orderID)
+	if err != nil {
+		return false, nil, err
+	}
+	if len(seats) == 0 {
+		return false, nil, nil
+	}
+	pending := make([]int, 0)
+	for _, seat := range seats {
+		seatSegments := bySeat[seat.SeatIndex]
+		if len(seatSegments) == 0 {
+			if !seatDisposed(seat.Status) {
+				pending = append(pending, seat.SeatIndex)
+			}
+			continue
+		}
+		for _, segment := range seatSegments {
+			if segment.Status != esportsservicesegment.StatusFinished {
+				pending = append(pending, seat.SeatIndex)
+				break
+			}
+		}
+	}
+	if len(pending) > 0 {
+		return false, pending, nil
+	}
+	return true, nil, nil
+}
+
 // finishPlayerService 结束服务：分别保存计费服务量、陪玩报告的服务秒数与系统有效秒数。
-// 差异过大时写客服核实事件，全部席位结束后订单进入 pending_close。
+// 差异过大时写客服核实事件，全部在册席位都了结后订单进入 pending_close。
 func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID int, reportedUnits, reportedSeconds int64, evidenceRef string, now time.Time) (*ent.EsportsOrder, error) {
 	evidenceRef = strings.TrimSpace(evidenceRef)
 	if playerID < 1 || orderID < 1 || reportedUnits < 0 || reportedSeconds <= 0 ||
@@ -1046,21 +1237,14 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
-	seatCount, err := tx.EsportsDispatchSeat.Query().Where(
-		esportsdispatchseat.OrderIDEQ(orderID),
-	).Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-	finishedCount, err := tx.EsportsServiceSegment.Query().Where(
-		esportsservicesegment.OrderIDEQ(orderID),
-		esportsservicesegment.StatusEQ(esportsservicesegment.StatusFinished),
-	).Count(ctx)
+	// P1-02：只有「全部在册席位都了结」才允许转待结单：该席位服务段已结束，或席位已被移除；
+	// 仍存在从未开工的席位（无服务段且仍占位）时保持服务中，等客服终止 / 移除该席位后再收敛。
+	settled, pendingSeats, err := orderAllSeatsServiceSettled(ctx, tx, orderID)
 	if err != nil {
 		return nil, err
 	}
 	target := esportsorder.FulfillmentStatus("")
-	if seatCount > 0 && finishedCount >= seatCount {
+	if settled {
 		target = esportsorder.FulfillmentStatusPendingClose
 	}
 	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, target)
@@ -1069,14 +1253,19 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 	}
 	durationMismatch := serviceDurationMismatch(systemSeconds, reportedSeconds,
 		serviceMismatchMinimumSeconds(ctx, tx.Client()))
+	details := map[string]interface{}{
+		"seat_index": segment.SeatIndex, "reported_units": reportedUnits,
+		"reported_seconds": reportedSeconds, "system_seconds": systemSeconds,
+		"duration_mismatch": durationMismatch,
+	}
+	if len(pendingSeats) > 0 {
+		// 未了结席位明细进事件：客服据此定位「哪个席位从未开工」，走终止 / 移除处置。
+		details["unsettled_seat_indexes"] = pendingSeats
+	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
 		SetOrderVersion(newVersion).SetEventType("order.service_finished").
 		SetActorType("player").SetActorID(strconv.Itoa(playerID)).
-		SetDetails(map[string]interface{}{
-			"seat_index": segment.SeatIndex, "reported_units": reportedUnits,
-			"reported_seconds": reportedSeconds, "system_seconds": systemSeconds,
-			"duration_mismatch": durationMismatch,
-		}).Save(ctx); err != nil {
+		SetDetails(details).Save(ctx); err != nil {
 		return nil, err
 	}
 	// §6.1-15：服务段结束即进入待结算，写一条 settlement.* 生产事件定向通知该陪玩，

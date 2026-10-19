@@ -3,6 +3,7 @@ package esports
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,11 @@ const (
 	serviceDisconnectActor = "disconnect_watchdog"
 	// serviceDisconnectReason 断线自动暂停的事件原因文案。
 	serviceDisconnectReason = "断线自动暂停"
+	// serviceTimingCorrectionMaxRatioBp 服务时长更正上界的订单系数（万分比，P1-14）：12000 = 1.2 倍。
+	// 更正后的有效秒数不得超过订单标准时长 × 1.2，给正常超时与补时留余量但不允许无限放大结单时长
+	// 与按秒分摊的分成。
+	// ponytail: 系数先用内置常量；若要按游戏 / 等级可配，需要功能集 Config 声明（app.go 归他人维护）。
+	serviceTimingCorrectionMaxRatioBp = 12000
 )
 
 // serviceResponsibilityParties 停工责任方枚举（§3.3）：陪玩 / 客户 / 平台 / 不可抗力。
@@ -165,12 +171,124 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 	return serviceTimingView(segment, order, summary, now), nil
 }
 
+// serviceTimingCorrectionBound 计算服务段有效秒数更正的上界（P1-14）：
+// 返回墙钟跨度（服务段实际经过的秒数）与最终上界 min(墙钟跨度, 订单时长上限×系数)。
+// 订单未配置标准时长（ServiceDurationMinutes<=0）时只受墙钟跨度约束；
+// 服务段尚未结束时按 now 作为墙钟终点，与 serviceTimingAt 的口径一致。
+func serviceTimingCorrectionBound(order *ent.EsportsOrder, segment *ent.EsportsServiceSegment,
+	now time.Time) (span, upper int64) {
+	if segment == nil {
+		return 0, 0
+	}
+	end := now.UTC()
+	if segment.EndedAt != nil {
+		end = segment.EndedAt.UTC()
+	}
+	if diff := int64(end.Sub(segment.StartedAt.UTC()).Seconds()); diff > 0 {
+		span = diff
+	}
+	upper = span
+	if order != nil && order.ServiceDurationMinutes > 0 {
+		limit := int64(order.ServiceDurationMinutes) * 60 * serviceTimingCorrectionMaxRatioBp / 10000
+		if limit < upper {
+			upper = limit
+		}
+	}
+	return span, upper
+}
+
+// serviceTimingReadout 是服务段计时只读接口的视图（审核报告 §3.1 缺口：时长更正无法预填）：
+// 前端据此预填「当前有效时长」与「可填上限」，避免猜一个数再被更正校验拒绝。
+// 上界与更正校验同源（serviceTimingCorrectionBound），两处口径不会漂移。
+type serviceTimingReadout struct {
+	OrderID   int    `json:"order_id"`
+	PlayerID  int    `json:"player_id"`
+	SeatIndex int    `json:"seat_index"`
+	Status    string `json:"status"`
+	// EffectiveSeconds 当前有效服务秒数（暂停期间冻结，已结束服务段取落库值）。
+	EffectiveSeconds int64 `json:"effective_seconds"`
+	// WallClockSeconds 服务段墙钟跨度（开始到结束 / 现在），是暂停秒数与有效秒数的共同上界。
+	WallClockSeconds int64 `json:"wall_clock_seconds"`
+	// UpperBoundSeconds 更正可填的有效秒数上限 = min(墙钟跨度, 订单标准时长×系数)。
+	UpperBoundSeconds int64 `json:"upper_bound_seconds"`
+	// PausedSeconds 当前累计暂停秒数（进行中的暂停按 now 续算）。
+	PausedSeconds int64 `json:"paused_seconds"`
+}
+
+// serviceTimingForAdmin 读取某订单某陪玩服务段的计时口径（只读）：不写事件、不改状态，
+// 取值全部复用既有 serviceTimingAt（有效 / 暂停秒数）与 serviceTimingCorrectionBound（墙钟跨度与上界）。
+// 目标陪玩在本单没有服务段时返回 errForbidden，与代暂停 / 更正同一「非本单成员」口径。
+func serviceTimingForAdmin(ctx context.Context, db *ent.Client, orderID, playerID int,
+	now time.Time) (serviceTimingReadout, error) {
+	if orderID < 1 || playerID < 1 {
+		return serviceTimingReadout{}, errInvalidInput
+	}
+	order, err := db.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return serviceTimingReadout{}, err
+	}
+	segment, err := db.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID), esportsservicesegment.PlayerIDEQ(playerID),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return serviceTimingReadout{}, errForbidden
+	}
+	if err != nil {
+		return serviceTimingReadout{}, err
+	}
+	span, upper := serviceTimingCorrectionBound(order, segment, now)
+	timing := serviceTimingAt(segment, now)
+	// 已结束服务段的有效秒数以落库的 system_seconds 为准：时长更正就是该字段的唯一写入口，
+	// 若此处仍按墙钟重算，更正后的值与接口读回值不一致，前端预填就会把上一次更正覆盖掉。
+	// 进行中的服务段没有最终落库值，继续用 serviceTimingAt 的实时口径。
+	effective := timing.EffectiveSeconds
+	if segment.Status == esportsservicesegment.StatusFinished {
+		effective = segment.SystemSeconds
+	}
+	return serviceTimingReadout{
+		OrderID: orderID, PlayerID: playerID, SeatIndex: segment.SeatIndex,
+		Status:            string(segment.Status),
+		EffectiveSeconds:  effective,
+		WallClockSeconds:  span,
+		UpperBoundSeconds: upper,
+		PausedSeconds:     timing.PausedSeconds,
+	}, nil
+}
+
+// ensureServiceTimingCorrectionWithinBound 校验更正后的有效 / 暂停秒数（P1-14）：
+// 有效秒数必须满足 0 < 新时长 <= min(服务段墙钟跨度, 订单时长上限×系数)，
+// 暂停秒数不得超过墙钟跨度（暂停是墙钟时间内的一部分，超出即不可能发生）。
+// span / upper 由 serviceTimingCorrectionBound 算好传入，避免重复推导同一对边界。
+// 越界一律返回带具体上下界的中文错误，绝不静默截断后落库。
+func ensureServiceTimingCorrectionWithinBound(order *ent.EsportsOrder, span, upper int64,
+	effectiveSeconds, pausedSeconds int64) error {
+	if upper <= 0 {
+		return fmt.Errorf("%w：该服务段墙钟跨度为 0 秒，没有可更正的计时区间", errInvalidInput)
+	}
+	if effectiveSeconds <= 0 || effectiveSeconds > upper {
+		limitMinutes := 0
+		if order != nil {
+			limitMinutes = order.ServiceDurationMinutes
+		}
+		return fmt.Errorf(
+			"%w：更正后的有效秒数须在 1–%d 秒之间（服务段墙钟跨度 %d 秒，订单标准时长 %d 分钟×系数 %d%%）",
+			errInvalidInput, upper, span, limitMinutes, serviceTimingCorrectionMaxRatioBp/100)
+	}
+	if pausedSeconds > span {
+		return fmt.Errorf("%w：更正后的暂停秒数 %d 秒超过服务段墙钟跨度 %d 秒，请按实际停工时长填写",
+			errInvalidInput, pausedSeconds, span)
+	}
+	return nil
+}
+
 // correctServiceTiming 争议更正（§3.3）：管理员对已结束服务段的有效 / 暂停秒数做留痕更正，并登记停工量
 // （累计暂停秒数 + 停工次数）与责任方。更正必须写只增事件 order.service_timing_corrected，记录更正前后值、
 // 原因与操作人，绝不静默改写。原始计时随更正一并变化，历史以事件为准。
 // 仅对 status=finished 的服务段开放：进行中的服务段应通过客服代暂停 / 恢复（setServicePauseByAdmin）调整，
 // 否则结束时按实际点击间隔重算 system_seconds 会覆盖更正结果。
 // 归属口径同代暂停：仅订单负责客服或超级管理员可更正，避免其他客服改写他人订单的计时与停工量。
+// P1-14：更正后的有效秒数受限（见 ensureServiceTimingCorrectionWithinBound），越界直接拒绝；
+// 留痕口径不变——原因必填、操作人落 actor_id、前后值与上下界一并进事件。
 func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID, playerID int,
 	isSuper bool, effectiveSeconds, pausedSeconds int64, responsibility, reason string, now time.Time) (serviceTimingCorrection, error) {
 	responsibility = strings.TrimSpace(responsibility)
@@ -212,6 +330,11 @@ func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID,
 	if segment.Status != esportsservicesegment.StatusFinished {
 		return serviceTimingCorrection{}, errConflict
 	}
+	// P1-14：有效秒数必须在 [1, min(墙钟跨度, 订单时长上限×系数)] 内，暂停秒数不得超过墙钟跨度。
+	span, upper := serviceTimingCorrectionBound(order, segment, now)
+	if err = ensureServiceTimingCorrectionWithinBound(order, span, upper, effectiveSeconds, pausedSeconds); err != nil {
+		return serviceTimingCorrection{}, err
+	}
 	before := serviceTimingAt(segment, now)
 	changed, err := tx.EsportsServiceSegment.Update().Where(
 		esportsservicesegment.IDEQ(segment.ID), esportsservicesegment.VersionEQ(segment.Version),
@@ -231,16 +354,19 @@ func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID,
 	if err != nil {
 		return serviceTimingCorrection{}, err
 	}
+	// P1-14：更正上界一并进事件，复核时不需要再反查服务段与订单配置。
 	details := map[string]interface{}{
-		"seat_index":               segment.SeatIndex,
-		"effective_seconds_before": before.EffectiveSeconds,
-		"effective_seconds_after":  effectiveSeconds,
-		"paused_seconds_before":    before.PausedSeconds,
-		"paused_seconds_after":     pausedSeconds,
-		"downtime_seconds":         pausedSeconds,
-		"downtime_count":           downtimeCount,
-		"responsibility":           responsibility,
-		"reason":                   reason,
+		"seat_index":                    segment.SeatIndex,
+		"effective_seconds_before":      before.EffectiveSeconds,
+		"effective_seconds_after":       effectiveSeconds,
+		"paused_seconds_before":         before.PausedSeconds,
+		"paused_seconds_after":          pausedSeconds,
+		"downtime_seconds":              pausedSeconds,
+		"downtime_count":                downtimeCount,
+		"responsibility":                responsibility,
+		"reason":                        reason,
+		"wall_clock_span_seconds":       span,
+		"effective_seconds_upper_bound": upper,
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
 		SetOrderVersion(newVersion).SetEventType("order.service_timing_corrected").

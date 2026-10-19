@@ -18,6 +18,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayerreview"
+	"go-admin/internal/ent/esportsplayerreviewappeal"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -319,7 +320,11 @@ func scoreAssessment(ctx context.Context, db *ent.Client, id, adminID int, score
 	if err != nil {
 		return nil, err
 	}
-	total := 0
+	// 加权分子按 int64 累加，最后统一除一次（P0-14）。
+	// 旧实现逐维做 `score*weight/10000` 整数除法再累加，每个维度都丢一次余数：
+	// 等权回落（1667/1667/1667/1667/1666/1666）下六维满分只得 96、六维均 60 只得 58，
+	// 60 分及格线被系统性误判为不通过。这里只保留一次舍入，判定结果不再随维度数放大误差。
+	var numerator int64
 	seen := map[string]bool{}
 	for _, item := range scores {
 		if !validDimension(item.Dimension) || seen[item.Dimension] {
@@ -337,7 +342,7 @@ func scoreAssessment(ctx context.Context, db *ent.Client, id, adminID int, score
 			return nil, errInvalidInput
 		}
 		seen[item.Dimension] = true
-		total += item.Score * weight / 10000
+		numerator += int64(item.Score) * int64(weight)
 		if _, err = tx.EsportsAssessmentScore.Create().SetAssessmentID(id).
 			SetDimension(esportsassessmentscore.Dimension(item.Dimension)).
 			SetWeightBp(weight).SetScore(item.Score).SetComment(item.Comment).Save(ctx); err != nil {
@@ -347,11 +352,22 @@ func scoreAssessment(ctx context.Context, db *ent.Client, id, adminID int, score
 			return nil, err
 		}
 	}
-	// 须覆盖全部配置维度（等权回落时即六项）。
+	// 须覆盖全部配置维度（等权回落时即六项），并累计实际参与判定的权重合计。
+	weightTotal := int64(0)
 	for dim, weight := range weights {
-		if weight > 0 && !seen[dim] {
+		if weight <= 0 {
+			continue
+		}
+		if !seen[dim] {
 			return nil, errInvalidInput
 		}
+		weightTotal += int64(weight)
+	}
+	// 定点四舍五入（round-half-up）：(Σ分数×权重 + 总权重/2) / 总权重，全程整数、无浮点参与判定。
+	// 权重合计正常为 10000，此处不写死，兼容存量 / 未满 10000 的历史配置。
+	total := 0
+	if weightTotal > 0 {
+		total = int((numerator + weightTotal/2) / weightTotal)
 	}
 	passScore := assessmentConfigInt(ctx, tx.Client(), assessmentPassScoreKey, defaultAssessmentPassScore)
 	passed := total >= passScore
@@ -419,6 +435,69 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 				SetQualification(esportsplayer.QualificationSuspended).
 				SetLevelAppraisedAt(now.UTC())
 		}
+	}
+	_, err = update.Save(ctx)
+	return err
+}
+
+// revertAssessmentOutcome 申诉改判「通过 → 不通过」时回滚该次考核带来的业务影响（P0-15 / §7.4）：
+//   - 撤销该次考核写入的等级提升与「合格」标记，并把依赖该结论的接单权限置为不可用
+//     （qualification → suspended，派单侧只认 qualified，见 dispatch.go 的资格校验）；
+//   - 等级只在「当前等级正是本次考核写入的目标档」时回退一档：后续更高档考核的成果不得被旧单改判抹掉
+//     （与 applyAssessmentOutcome 的升级单调口径对称）；
+//   - 抽查复核的通过结论本就不写等级，改判为不通过按抽查不达标的既有口径降一档。
+//
+// 只复用陪玩档案上既有的 level / qualification 写入口，不新增字段；「暂停接单」在该档案上就是
+// qualification=suspended，其它暂停来源（如信用分、presence）不在本文件可达范围内。
+func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.EsportsAssessment, now time.Time) error {
+	player, err := tx.EsportsPlayer.Get(ctx, assessment.PlayerID)
+	if err != nil {
+		return err
+	}
+	// 结论不通过即不得保留接单权限：先无条件收紧为 suspended，再按考核类型回退等级。
+	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1).
+		SetQualification(esportsplayer.QualificationSuspended)
+	switch assessment.AssessmentType {
+	case esportsassessment.AssessmentTypeEntry,
+		esportsassessment.AssessmentTypeUpgrade,
+		esportsassessment.AssessmentTypeRetry:
+		target := assessment.TargetLevel
+		if !validPlayerLevel(target) {
+			// 入职缺目标等级时 applyAssessmentOutcome 写的是 novice，改判同样按 novice 口径回退。
+			target = string(esportsplayer.LevelNovice)
+		}
+		if player.Level.String() == target {
+			update.SetLevel(demoteLevel(player.Level))
+		}
+	case esportsassessment.AssessmentTypeSpotCheck:
+		update.SetLevel(demoteLevel(player.Level))
+	}
+	_, err = update.Save(ctx)
+	return err
+}
+
+// restoreAssessmentOutcome 申诉改判「不通过 → 通过」时补记业务影响（P0-15 / §7.4）：
+// 入职 / 升级 / 复考与正常通过同一口径（定级 + 合格 + 实名门槛），抽查复核则解除该次不通过造成的暂停。
+// 抽查复核的通过结论不写等级，改判通过也不擅自上抬等级——降级可能另有原因，不能借一次改判抹掉。
+func restoreAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.EsportsAssessment, now time.Time) error {
+	if assessment.AssessmentType != esportsassessment.AssessmentTypeSpotCheck {
+		return applyAssessmentOutcome(ctx, tx, assessment, true, now)
+	}
+	player, err := tx.EsportsPlayer.Get(ctx, assessment.PlayerID)
+	if err != nil {
+		return err
+	}
+	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1).
+		SetLevelAppraisedAt(now.UTC())
+	if player.Qualification == esportsplayer.QualificationSuspended {
+		// 与正常通过同一道实名门槛（§6.1）：未实名不得设为合格。
+		if err = ensurePlayerQualificationAllowed(ctx, tx.Client(), player.ID, esportsplayer.QualificationQualified); err != nil {
+			if errors.Is(err, errInvalidInput) {
+				return fmt.Errorf("%w：考核改判通过但陪玩实名认证未通过，不得设为合格", errInvalidInput)
+			}
+			return err
+		}
+		update.SetQualification(esportsplayer.QualificationQualified)
 	}
 	_, err = update.Save(ctx)
 	return err
@@ -529,7 +608,14 @@ func reviewAppeal(ctx context.Context, db *ent.Client, assessmentID, adminID int
 		return nil, err
 	}
 	if approve {
-		if err = applyAssessmentOutcome(ctx, tx, assessment, newStatus == esportsassessment.StatusPassed, now); err != nil {
+		// 改判必须双向回滚业务影响（P0-15）：
+		// 通过 → 不通过撤销定级与合格标记并把接单权限置为不可用；不通过 → 通过补记定级并解除暂停。
+		if newStatus == esportsassessment.StatusPassed {
+			err = restoreAssessmentOutcome(ctx, tx, assessment, now)
+		} else {
+			err = revertAssessmentOutcome(ctx, tx, assessment, now)
+		}
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -542,6 +628,9 @@ func reviewAppeal(ctx context.Context, db *ent.Client, assessmentID, adminID int
 // ── 客户评价与综合评分（§7.5） ──
 
 // upsertReview 写入或更新一条评价，同时追加修订历史；同「订单+客户+陪玩」仅保留最新版本。
+// 已核验（客户本人提交、计入综合评分）的评价不得被客服代录覆盖（P0-16）：代录只是补充线索，
+// 若允许它把 verified 改回 false，等于用未核验内容改写客户真实评价并把它从综合评分里剔除。
+// 需要更正已核验评价时只能走评价申诉 / 撤回流程（§7.5-05）。未核验记录的代录更新照旧保留。
 func upsertReview(ctx context.Context, tx *ent.Tx, orderID, customerID, playerID, rating int, comment string, verified bool) (*ent.EsportsPlayerReview, error) {
 	existing, err := tx.EsportsPlayerReview.Query().Where(
 		esportsplayerreview.OrderIDEQ(orderID),
@@ -550,6 +639,9 @@ func upsertReview(ctx context.Context, tx *ent.Tx, orderID, customerID, playerID
 	).Only(ctx)
 	if err != nil && !ent.IsNotFound(err) {
 		return nil, err
+	}
+	if err == nil && existing.Verified && !verified {
+		return nil, fmt.Errorf("%w：该评价已由客户本人核验提交，客服代录不得覆盖；如需更正请走评价申诉或撤回流程", errConflict)
 	}
 	var review *ent.EsportsPlayerReview
 	if ent.IsNotFound(err) {
@@ -799,6 +891,144 @@ func assessmentDetail(ctx context.Context, db *ent.Client, id int) (*assessmentD
 		appeal = nil
 	}
 	return &assessmentDetailView{Assessment: assessment, Scores: scores, Appeal: appeal}, nil
+}
+
+// ── 客户自助：我的评价列表（§7.5） ──
+
+// 评价申诉状态枚举（与客户端契约一致）：none 未申诉 / pending 待复核 / approved 申诉成立 / rejected 申诉驳回。
+const (
+	userReviewAppealNone     = "none"
+	userReviewAppealPending  = "pending"
+	userReviewAppealApproved = "approved"
+	userReviewAppealRejected = "rejected"
+)
+
+// userReviewView 是客户本人评价列表的单条视图（§7.5 / §7.5-05）。
+// 关键补口：申诉接口需要评价 ID，而客户端此前拿不到自己的评价列表，申诉 UI 只能靠客服转述；
+// 这里一并给出 appeal_status 与 can_appeal，客户端可自行判断「能不能申诉、申诉走到哪一步」。
+type userReviewView struct {
+	ReviewID int    `json:"review_id"`
+	OrderID  int    `json:"order_id"`
+	OrderNo  string `json:"order_no"`
+	PlayerID int    `json:"player_id"`
+	Rating   int    `json:"rating"`
+	Content  string `json:"content"`
+	Verified bool   `json:"verified"`
+	// Status 是评价的风控状态（normal / disputed / invalid / appeal_pending）：
+	// 说明「这条评价是否被判定异常」，与 appeal_status（申诉走到哪一步）是两个维度。
+	Status string `json:"status"`
+	// AppealStatus 取值 none / pending / approved / rejected。
+	AppealStatus string    `json:"appeal_status"`
+	AppealID     *int      `json:"appeal_id"`
+	CanAppeal    bool      `json:"can_appeal"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// userReviewAppealStatusOf 由申诉流水推导对外申诉状态；无申诉记录时为 none。
+// 评价处于 appeal_pending 但申诉流水缺失（历史脏数据）时按 pending 处理，避免客户端误判为「可再次申诉」。
+func userReviewAppealStatusOf(review *ent.EsportsPlayerReview, appeal *ent.EsportsPlayerReviewAppeal) string {
+	if appeal != nil {
+		switch appeal.Status {
+		case esportsplayerreviewappeal.StatusPending:
+			return userReviewAppealPending
+		case esportsplayerreviewappeal.StatusApproved:
+			return userReviewAppealApproved
+		case esportsplayerreviewappeal.StatusRejected:
+			return userReviewAppealRejected
+		}
+	}
+	if review.Status == esportsplayerreview.StatusAppealPending {
+		return userReviewAppealPending
+	}
+	return userReviewAppealNone
+}
+
+// listCustomerReviews 返回当前客户本人的评价列表（倒序），可按本人订单过滤。
+// 数据边界：调用方必须传入登录身份解析出的客户 ID；本函数不接受、也不信任客户端传入的客户 ID。
+func listCustomerReviews(ctx context.Context, db *ent.Client, customerID, orderID, limit int, now time.Time) ([]userReviewView, error) {
+	if customerID < 1 {
+		return nil, errInvalidInput
+	}
+	if limit < 1 || limit > 200 {
+		limit = 100
+	}
+	if orderID > 0 {
+		order, err := db.EsportsOrder.Query().Where(
+			esportsorder.IDEQ(orderID), esportsorder.CustomerIDEQ(customerID),
+		).Only(ctx)
+		if ent.IsNotFound(err) {
+			return nil, errForbidden
+		}
+		if err != nil {
+			return nil, err
+		}
+		orderID = order.ID
+	}
+	q := db.EsportsPlayerReview.Query().Where(esportsplayerreview.CustomerIDEQ(customerID))
+	if orderID > 0 {
+		q.Where(esportsplayerreview.OrderIDEQ(orderID))
+	}
+	rows, err := q.Order(ent.Desc(esportsplayerreview.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]userReviewView, 0, len(rows))
+	if len(rows) == 0 {
+		return views, nil
+	}
+	orderIDs := make([]int, 0, len(rows))
+	reviewIDs := make([]int, 0, len(rows))
+	seenOrder := map[int]bool{}
+	for _, row := range rows {
+		reviewIDs = append(reviewIDs, row.ID)
+		if !seenOrder[row.OrderID] {
+			seenOrder[row.OrderID] = true
+			orderIDs = append(orderIDs, row.OrderID)
+		}
+	}
+	orderNos := map[int]string{}
+	if len(orderIDs) > 0 {
+		orders, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(orderIDs...)).
+			Select(esportsorder.FieldID, esportsorder.FieldOrderNo).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range orders {
+			orderNos[order.ID] = order.OrderNo
+		}
+	}
+	appeals := map[int]*ent.EsportsPlayerReviewAppeal{}
+	items, err := db.EsportsPlayerReviewAppeal.Query().Where(
+		esportsplayerreviewappeal.ReviewIDIn(reviewIDs...),
+	).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		appeals[item.ReviewID] = item
+	}
+	windowDays := reviewAppealWindowDays(ctx, db)
+	for _, row := range rows {
+		appeal := appeals[row.ID]
+		view := userReviewView{
+			ReviewID: row.ID, OrderID: row.OrderID, OrderNo: orderNos[row.OrderID],
+			PlayerID: row.PlayerID, Rating: row.Rating, Content: row.Comment,
+			Verified: row.Verified, Status: row.Status.String(),
+			AppealStatus: userReviewAppealStatusOf(row, appeal),
+			CreatedAt:    row.CreatedAt.UTC(),
+		}
+		if appeal != nil {
+			appealID := appeal.ID
+			view.AppealID = &appealID
+		}
+		// 可申诉口径与 createReviewAppeal 的拦截条件保持一致：已终局 / 申诉中 / 已有申诉 / 超过时限均不可再申诉。
+		view.CanAppeal = appeal == nil &&
+			row.Status != esportsplayerreview.StatusInvalid &&
+			row.Status != esportsplayerreview.StatusAppealPending &&
+			(windowDays <= 0 || !now.UTC().After(row.CreatedAt.UTC().AddDate(0, 0, windowDays)))
+		views = append(views, view)
+	}
+	return views, nil
 }
 
 // listReviews 列出评价，可按陪玩 / 订单 / 状态过滤。

@@ -113,7 +113,7 @@ func TestPlayerCommissionReversalTail(t *testing.T) {
 
 	// 两条 3 分服务分成；退款 50%（5000/10000）。
 	for i, pid := range []int{1, 2} {
-		db.EsportsCommissionEntry.Create().SetIdemKey("tail:service:"+strconv.Itoa(i)).
+		db.EsportsCommissionEntry.Create().SetIdemKey("tail:service:" + strconv.Itoa(i)).
 			SetOrderID(order.ID).SetPlayerID(pid).
 			SetKind(esportscommissionentry.KindService).SetSeatIndex(pid).
 			SetBaseCents(10000).SetAmountCents(3).

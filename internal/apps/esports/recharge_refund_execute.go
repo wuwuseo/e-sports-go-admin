@@ -219,3 +219,85 @@ func markRechargeRefundExecutionExecuted(ctx context.Context, db *ent.Client, id
 	}
 	return db.EsportsRechargeRefundExecution.Get(ctx, id)
 }
+
+// rechargeRefundExecutionView 是退款执行批次的列表项（审核报告 §3.1 缺口）：
+// 批次号 / 状态 / 金额 / 时间 / 关联售后单号 / 执行人，财务列表页据此直接渲染，无需再逐条查详情。
+type rechargeRefundExecutionView struct {
+	ID          int    `json:"id"`
+	ExecutionNo string `json:"execution_no"`
+	Status      string `json:"status"`
+	// AmountCents 该批次本次外部应打款金额（分）。
+	AmountCents int64 `json:"amount_cents"`
+	// AfterSaleID / AfterSaleNo 关联售后单（单号缺失时为空字符串，不阻断列表）。
+	AfterSaleID       int    `json:"after_sale_id"`
+	AfterSaleNo       string `json:"after_sale_no"`
+	AccountType       string `json:"account_type"`
+	AccountID         string `json:"account_id"`
+	BatchSourceType   string `json:"batch_source_type"`
+	BatchSourceID     string `json:"batch_source_id"`
+	ExecutedByAdminID *int   `json:"executed_by_admin_id"`
+	// ExecutedAt 财务登记打款的时间（pending 时为空）。
+	ExecutedAt *time.Time `json:"executed_at"`
+	FinanceRef string     `json:"finance_ref"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+// listRechargeRefundExecutions 列出按充值批次生成的外部退款执行明细（只读）：
+// status 为空表示不过滤，否则只接受 pending / executed（非法值中文报错，不静默放行）；
+// limit 夹在 1~200，缺省 100。关联售后单号按批次批量补齐，避免逐行查库。
+func listRechargeRefundExecutions(ctx context.Context, db *ent.Client, status string,
+	limit int) ([]rechargeRefundExecutionView, error) {
+	status = strings.TrimSpace(status)
+	if status != "" && status != string(esportsrechargerefundexecution.StatusPending) &&
+		status != string(esportsrechargerefundexecution.StatusExecuted) {
+		return nil, fmt.Errorf("%w：批次状态只能是 pending 或 executed", errInvalidInput)
+	}
+	if limit < 1 {
+		limit = 100
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	query := db.EsportsRechargeRefundExecution.Query()
+	if status != "" {
+		query = query.Where(esportsrechargerefundexecution.StatusEQ(esportsrechargerefundexecution.Status(status)))
+	}
+	rows, err := query.Order(ent.Desc(esportsrechargerefundexecution.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return []rechargeRefundExecutionView{}, nil
+	}
+	afterSaleIDs := make([]int, 0, len(rows))
+	seen := make(map[int]bool, len(rows))
+	for _, row := range rows {
+		if !seen[row.AfterSaleID] {
+			seen[row.AfterSaleID] = true
+			afterSaleIDs = append(afterSaleIDs, row.AfterSaleID)
+		}
+	}
+	afterSales, err := db.EsportsAfterSale.Query().
+		Where(esportsaftersale.IDIn(afterSaleIDs...)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	noByID := make(map[int]string, len(afterSales))
+	for _, item := range afterSales {
+		noByID[item.ID] = item.AfterSaleNo
+	}
+	views := make([]rechargeRefundExecutionView, 0, len(rows))
+	for _, row := range rows {
+		views = append(views, rechargeRefundExecutionView{
+			ID: row.ID, ExecutionNo: row.ExecutionNo, Status: string(row.Status),
+			AmountCents: row.AmountCents, AfterSaleID: row.AfterSaleID,
+			AfterSaleNo: noByID[row.AfterSaleID],
+			AccountType: row.AccountType, AccountID: row.AccountID,
+			BatchSourceType: row.BatchSourceType, BatchSourceID: row.BatchSourceID,
+			ExecutedByAdminID: row.ExecutedByAdminID, ExecutedAt: row.ExecutedAt,
+			FinanceRef: row.FinanceRef, CreatedAt: row.CreatedAt.UTC(), UpdatedAt: row.UpdatedAt.UTC(),
+		})
+	}
+	return views, nil
+}

@@ -9,7 +9,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"go-admin/internal/ent"
-	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/global"
@@ -121,21 +120,14 @@ func terminatePlayerService(ctx context.Context, db *ent.Client, adminID, orderI
 	if unfulfilledUnits < 0 {
 		unfulfilledUnits = 0
 	}
-	seatCount, err := tx.EsportsDispatchSeat.Query().Where(
-		esportsdispatchseat.OrderIDEQ(orderID),
-	).Count(ctx)
-	if err != nil {
-		return serviceTermination{}, err
-	}
-	finishedCount, err := tx.EsportsServiceSegment.Query().Where(
-		esportsservicesegment.OrderIDEQ(orderID),
-		esportsservicesegment.StatusEQ(esportsservicesegment.StatusFinished),
-	).Count(ctx)
+	// P1-02：待结单判定改为「全部在册席位都了结」（服务段已结束 / 席位已移除），
+	// 不再用 finishedCount >= seatCount —— 有席位从未开工时该条件永远不成立，订单会永久卡在服务中。
+	settled, pendingSeats, err := orderAllSeatsServiceSettled(ctx, tx, orderID)
 	if err != nil {
 		return serviceTermination{}, err
 	}
 	target := esportsorder.FulfillmentStatus("")
-	if seatCount > 0 && finishedCount >= seatCount {
+	if settled {
 		target = esportsorder.FulfillmentStatusPendingClose
 	}
 	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, target)
@@ -151,6 +143,9 @@ func terminatePlayerService(ctx context.Context, db *ent.Client, adminID, orderI
 		"effective_seconds":      before.EffectiveSeconds,
 		"paused_seconds":         pausedSeconds,
 		"reason":                 reason,
+	}
+	if len(pendingSeats) > 0 {
+		details["unsettled_seat_indexes"] = pendingSeats
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
 		SetOrderVersion(newVersion).SetEventType("order.service_terminated").

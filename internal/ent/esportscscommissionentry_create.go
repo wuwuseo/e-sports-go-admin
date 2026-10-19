@@ -256,6 +256,48 @@ func (_c *EsportsCsCommissionEntryCreate) SetNillableSettlementID(v *int) *Espor
 	return _c
 }
 
+// SetFrozenAt sets the "frozen_at" field.
+func (_c *EsportsCsCommissionEntryCreate) SetFrozenAt(v time.Time) *EsportsCsCommissionEntryCreate {
+	_c.mutation.SetFrozenAt(v)
+	return _c
+}
+
+// SetNillableFrozenAt sets the "frozen_at" field if the given value is not nil.
+func (_c *EsportsCsCommissionEntryCreate) SetNillableFrozenAt(v *time.Time) *EsportsCsCommissionEntryCreate {
+	if v != nil {
+		_c.SetFrozenAt(*v)
+	}
+	return _c
+}
+
+// SetFrozenReason sets the "frozen_reason" field.
+func (_c *EsportsCsCommissionEntryCreate) SetFrozenReason(v string) *EsportsCsCommissionEntryCreate {
+	_c.mutation.SetFrozenReason(v)
+	return _c
+}
+
+// SetNillableFrozenReason sets the "frozen_reason" field if the given value is not nil.
+func (_c *EsportsCsCommissionEntryCreate) SetNillableFrozenReason(v *string) *EsportsCsCommissionEntryCreate {
+	if v != nil {
+		_c.SetFrozenReason(*v)
+	}
+	return _c
+}
+
+// SetFrozenByAdminID sets the "frozen_by_admin_id" field.
+func (_c *EsportsCsCommissionEntryCreate) SetFrozenByAdminID(v int) *EsportsCsCommissionEntryCreate {
+	_c.mutation.SetFrozenByAdminID(v)
+	return _c
+}
+
+// SetNillableFrozenByAdminID sets the "frozen_by_admin_id" field if the given value is not nil.
+func (_c *EsportsCsCommissionEntryCreate) SetNillableFrozenByAdminID(v *int) *EsportsCsCommissionEntryCreate {
+	if v != nil {
+		_c.SetFrozenByAdminID(*v)
+	}
+	return _c
+}
+
 // SetNote sets the "note" field.
 func (_c *EsportsCsCommissionEntryCreate) SetNote(v string) *EsportsCsCommissionEntryCreate {
 	_c.mutation.SetNote(v)
@@ -391,6 +433,10 @@ func (_c *EsportsCsCommissionEntryCreate) defaults() {
 		v := esportscscommissionentry.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.FrozenReason(); !ok {
+		v := esportscscommissionentry.DefaultFrozenReason
+		_c.mutation.SetFrozenReason(v)
+	}
 	if _, ok := _c.mutation.Note(); !ok {
 		v := esportscscommissionentry.DefaultNote
 		_c.mutation.SetNote(v)
@@ -493,6 +539,14 @@ func (_c *EsportsCsCommissionEntryCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := esportscscommissionentry.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.FrozenReason(); !ok {
+		return &ValidationError{Name: "frozen_reason", err: errors.New(`ent: missing required field "EsportsCsCommissionEntry.frozen_reason"`)}
+	}
+	if v, ok := _c.mutation.FrozenReason(); ok {
+		if err := esportscscommissionentry.FrozenReasonValidator(v); err != nil {
+			return &ValidationError{Name: "frozen_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsCsCommissionEntry.frozen_reason": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Note(); !ok {
@@ -609,6 +663,18 @@ func (_c *EsportsCsCommissionEntryCreate) createSpec() (*EsportsCsCommissionEntr
 	if value, ok := _c.mutation.SettlementID(); ok {
 		_spec.SetField(esportscscommissionentry.FieldSettlementID, field.TypeInt, value)
 		_node.SettlementID = &value
+	}
+	if value, ok := _c.mutation.FrozenAt(); ok {
+		_spec.SetField(esportscscommissionentry.FieldFrozenAt, field.TypeTime, value)
+		_node.FrozenAt = &value
+	}
+	if value, ok := _c.mutation.FrozenReason(); ok {
+		_spec.SetField(esportscscommissionentry.FieldFrozenReason, field.TypeString, value)
+		_node.FrozenReason = value
+	}
+	if value, ok := _c.mutation.FrozenByAdminID(); ok {
+		_spec.SetField(esportscscommissionentry.FieldFrozenByAdminID, field.TypeInt, value)
+		_node.FrozenByAdminID = &value
 	}
 	if value, ok := _c.mutation.Note(); ok {
 		_spec.SetField(esportscscommissionentry.FieldNote, field.TypeString, value)

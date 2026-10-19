@@ -190,9 +190,14 @@ func TestInitMinimalRolesSeedsFourLeastPrivilegeRoles(t *testing.T) {
 		"esports:settlements:lock", "esports:settlements:pay",
 		"esports:payments:account_create", "esports:payments:account_review", "esports:payments:account_disable",
 		"esports:pages:publish_approve", "esports:pages:publish_reject",
-		"esports:wallets:adjust", "esports:wallets:recharge", "esports:orders:pay_balance")
+		"esports:wallets:adjust", "esports:wallets:recharge")
 	assertGranted(t, "cs_admin", granted["cs_admin"],
-		"esports:orders:close", "esports:aftersales:plan", "esports:cs:workbench", "esports:dispatch:assign")
+		"esports:orders:close", "esports:aftersales:plan", "esports:cs:workbench", "esports:dispatch:assign",
+		// 代客收款：客服需要替客户走余额/储值卡核销并提交转账凭证（§4.3）。
+		// 「收款执行」不是「资金审批」——核销凭证、退款审批、结算锁定/发放、账户审核仍全部归财务，
+		// 因此 pay_balance / stored_value:pay_order / payments:proof_submit 属于客服白名单，
+		// 而 wallets:adjust（直接调整余额）与 wallets:recharge（直接充值）依然禁止。
+		"esports:orders:pay_balance", "esports:stored_value:pay_order", "esports:payments:proof_submit")
 
 	// 财务：可持有资金查看 / 提现审核；同样不得持有改价审批与收款账户增删审。
 	assertGranted(t, "finance_admin", granted["finance_admin"],

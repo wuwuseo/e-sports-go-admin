@@ -394,7 +394,8 @@ func startOrderPayment(ctx context.Context, db *ent.Client, customerID, orderID 
 
 // startOrderPaymentAsOperator 客服 / 企微侧边栏为订单发起在线收款（§4.3-02）：
 // 与客户自助发起共用同一套渠道开通、启用账户、金额与快照校验，仅把「客户本人」归属校验
-// 换成调用方已完成的管理端订单可见性边界（路由由 ownedOrderHandler 保护）。
+// 换成调用方已完成的管理端订单写入边界（app.go 中该路由已包 ownedOrderHandler，P0-12）。
+// 因此本函数的 operatorAdminID 只用于校验调用方身份与留痕，不重复判定订单归属。
 func startOrderPaymentAsOperator(ctx context.Context, db *ent.Client, operatorAdminID, orderID int,
 	channel string, now time.Time) (*orderPaymentStartView, error) {
 	if operatorAdminID < 1 || orderID < 1 {

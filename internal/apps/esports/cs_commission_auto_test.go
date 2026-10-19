@@ -85,12 +85,13 @@ func TestGenerateDueCsSettlements(t *testing.T) {
 		!item.PeriodEnd.Equal(time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Fatalf("结算单不正确：%+v", item)
 	}
-	// 上一周期明细转 settled，当前周期明细仍待结算。
-	settled := db.EsportsCsCommissionEntry.Query().Where(
-		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusSettled),
+	// P0-6：草稿只挂单——上一周期明细已绑定结算单但仍待结算，当前周期明细未绑定。
+	bound := db.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.SettlementIDEQ(item.ID),
+		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusPendingSettlement),
 	).CountX(ctx)
-	if settled != 1 {
-		t.Fatalf("应只结算上一周期明细：%d", settled)
+	if bound != 1 {
+		t.Fatalf("应只把上一周期明细挂到结算单：%d", bound)
 	}
 	if again, err := generateDueCsSettlements(ctx, db, now, 200); err != nil || again != 0 {
 		t.Fatalf("重复运行应幂等：%v %d", err, again)

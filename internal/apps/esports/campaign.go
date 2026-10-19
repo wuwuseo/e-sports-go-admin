@@ -3,6 +3,7 @@ package esports
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -107,7 +108,7 @@ func validateCampaignInput(in campaignInput) error {
 	}
 	// 目标账户与受众必须自洽（§11.2-01）：猫粮奖励只能发给陪玩受众；
 	// 陪玩受众只能配猫粮目标账户（客户余额活动不接受陪玩受众）。
-	switch normalizeCampaignTargetAccount(in.TargetAccountType) {
+	switch target := normalizeCampaignTargetAccount(in.TargetAccountType); target {
 	case string(esportsrechargecampaign.TargetAccountTypeCustomerBalance):
 		if in.Audience == "player" {
 			return errInvalidInput
@@ -126,7 +127,13 @@ func validateCampaignInput(in campaignInput) error {
 			return errInvalidInput
 		}
 	default:
-		return errInvalidInput
+		// P1-19：账户类型只有客户余额与陪玩猫粮两类，未知类型必须显式拒绝并指出支持值，
+		// 不能静默回落成客户余额（否则前端以为奖励进了猫粮，实际发到了客户余额）。
+		return fmt.Errorf(
+			"%w：不支持的奖励目标账户类型 %q（仅支持 %s 客户余额 / %s 陪玩猫粮）",
+			errInvalidInput, strings.TrimSpace(in.TargetAccountType),
+			esportsrechargecampaign.TargetAccountTypeCustomerBalance,
+			esportsrechargecampaign.TargetAccountTypePlayerCatfood)
 	}
 	switch in.StackRule {
 	case "exclusive", "stack":

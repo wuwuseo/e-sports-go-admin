@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 )
 
 // campaignView 是充值活动的对外返回结构，字段与 schema 对齐。
+// P1-19：补上陪玩受众与奖励目标账户，管理端表单需要回显这两项才能编辑猫粮奖励活动。
 type campaignView struct {
 	ID                  int                   `json:"id"`
 	Code                string                `json:"code"`
@@ -20,6 +22,8 @@ type campaignView struct {
 	Tiers               []schema.CampaignTier `json:"tiers"`
 	Audience            string                `json:"audience"`
 	AudienceCustomerIDs []int                 `json:"audience_customer_ids"`
+	AudiencePlayerIDs   []int                 `json:"audience_player_ids"`
+	TargetAccountType   string                `json:"target_account_type"`
 	StackRule           string                `json:"stack_rule"`
 	BonusValidDays      int                   `json:"bonus_valid_days"`
 	StartsAt            time.Time             `json:"starts_at"`
@@ -35,17 +39,46 @@ func toCampaignView(item *ent.EsportsRechargeCampaign) campaignView {
 	if ids == nil {
 		ids = []int{}
 	}
+	playerIDs := item.AudiencePlayerIds
+	if playerIDs == nil {
+		playerIDs = []int{}
+	}
 	tiers := item.Tiers
 	if tiers == nil {
 		tiers = []schema.CampaignTier{}
 	}
+	targetAccount := string(item.TargetAccountType)
+	if targetAccount == "" {
+		targetAccount = normalizeCampaignTargetAccount("")
+	}
 	return campaignView{
 		ID: item.ID, Code: item.Code, Name: item.Name,
 		ActivityType: item.ActivityType.String(), Tiers: tiers,
-		Audience: item.Audience.String(), AudienceCustomerIDs: ids,
-		StackRule: item.StackRule.String(), BonusValidDays: item.BonusValidDays,
+		Audience: item.Audience.String(), AudienceCustomerIDs: ids, AudiencePlayerIDs: playerIDs,
+		TargetAccountType: targetAccount,
+		StackRule:         item.StackRule.String(), BonusValidDays: item.BonusValidDays,
 		StartsAt: item.StartsAt, EndsAt: item.EndsAt, Status: item.Status.String(),
 		Version: item.Version, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
+	}
+}
+
+// campaignRechargeAccountType 归一化「按活动充值」的账户类型（P1-19）：
+// 活动奖励支持客户余额与陪玩猫粮两类账户，两个值都必须显式指定（不传不猜），
+// 未知类型直接拒绝并指出支持值，避免把猫粮奖励误发到客户余额。
+func campaignRechargeAccountType(raw string) (string, error) {
+	switch value := strings.TrimSpace(raw); value {
+	case walletCustomerBalance:
+		return walletCustomerBalance, nil
+	case walletPlayerCatfood:
+		return walletPlayerCatfood, nil
+	case "":
+		return "", fmt.Errorf(
+			"%w：请通过 account_type 指定充值账户类型（%s 客户余额 / %s 陪玩猫粮）",
+			errInvalidInput, walletCustomerBalance, walletPlayerCatfood)
+	default:
+		return "", fmt.Errorf(
+			"%w：不支持的账户类型 %q（仅支持 %s 客户余额 / %s 陪玩猫粮）",
+			errInvalidInput, value, walletCustomerBalance, walletPlayerCatfood)
 	}
 }
 
@@ -136,23 +169,33 @@ func setCampaignStatusHandler(c fiber.Ctx) error {
 	return reply(c, toCampaignView(item))
 }
 
-// rechargeWalletByCampaignHandler 按活动充值：account_type 走 query，仅接受 customer_balance；
+// rechargeWalletByCampaignHandler 按活动充值（P1-19）：account_type 走 query，接受客户余额与陪玩猫粮
+// 两类账户，未知类型显式 400；客户余额校验客户归属，猫粮只校验陪玩档案存在（陪玩无归属客服模型）。
 // 幂等键取自请求头 Idempotency-Key。
 func rechargeWalletByCampaignHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
 		return businessError(c, err)
 	}
-	if strings.TrimSpace(c.Query("account_type")) != walletCustomerBalance {
-		return fail(c, fiber.StatusBadRequest, "充值活动仅支持客户余额账户")
+	accountType, err := campaignRechargeAccountType(c.Query("account_type"))
+	if err != nil {
+		return businessError(c, err)
 	}
 	ownerID, err := parsePathID(c, "钱包归属人")
 	if err != nil {
 		return businessError(c, err)
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	if _, err := loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, ownerID); err != nil {
-		return businessError(c, err)
+	switch accountType {
+	case walletCustomerBalance:
+		if _, err = loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, ownerID); err != nil {
+			return businessError(c, err)
+		}
+	case walletPlayerCatfood:
+		// 陪玩档案没有「归属客服」关系：与 /admin/wallets 的猫粮口径一致，只校验档案存在。
+		if _, err = global.ORM.EsportsPlayer.Get(c.Context(), ownerID); err != nil {
+			return businessError(c, err)
+		}
 	}
 	key := strings.TrimSpace(c.Get("Idempotency-Key"))
 	var in struct {
@@ -162,7 +205,7 @@ func rechargeWalletByCampaignHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	view, err := rechargeWithCampaigns(c.Context(), global.ORM, adminID, walletCustomerBalance,
+	view, err := rechargeWithCampaigns(c.Context(), global.ORM, adminID, accountType,
 		ownerID, in.PrincipalCents, in.Note, key, time.Now())
 	if err != nil {
 		return businessError(c, err)

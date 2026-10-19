@@ -7,10 +7,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsquotahold"
@@ -18,6 +20,7 @@ import (
 	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/ent/role"
 )
 
 // 储值卡（预付账户，§4.4 / §11.3）。
@@ -566,6 +569,14 @@ func payOrderWithStoredValueCardCore(ctx context.Context, db *ent.Client, operat
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
 		return nil, errConflict
 	}
+	// P0-11 重复收款防护：该订单已有待核验的到账凭证时，不得再用储值卡核销——否则同一订单被收两次钱，
+	// 后到的转账凭证只能挂成悬账。判定与后面的「订单转已付款」条件更新同事务，避免并发穿插。
+	if duplicated, err := otherPendingPaymentProofExists(ctx, tx.EsportsOfflinePaymentProof.Query(),
+		order.ID, 0); err != nil {
+		return nil, err
+	} else if duplicated {
+		return nil, fmt.Errorf("%w：该订单已有待核验的转账凭证，请先核验或驳回后再改用其它收款方式", errConflict)
+	}
 	customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)
 	if err != nil {
 		return nil, err
@@ -1010,11 +1021,105 @@ func requestStoredValueRefund(ctx context.Context, db *ent.Client, adminID, card
 	return storedValueCardViewOf(ctx, db, updated)
 }
 
+// storedValueRefundPayout 退卡出账的执行凭证（P1）：财务实际打款后登记的打款凭证 / 银行流水号与打款备注。
+// 审核通过即「已出账」，因此出账凭据必须先有：不登记的审核一律拒绝，避免一键出账无法对账。
+type storedValueRefundPayout struct {
+	PayoutRef  string `json:"payout_ref"`
+	PayoutNote string `json:"payout_note"`
+}
+
+// normalizeStoredValuePayoutRef 校验打款凭证 / 银行流水号（P1）：去空白后 6–128 个字符，
+// 只允许字母（含中文）、数字与 - _ / . 等银行流水、回单号常见字符；空白或其它符号一律判参数错误。
+func normalizeStoredValuePayoutRef(raw string) (string, error) {
+	ref := strings.TrimSpace(raw)
+	if n := len([]rune(ref)); n < 6 || n > 128 {
+		return "", fmt.Errorf("%w：退卡出账必须填写打款凭证或银行流水号（6-128 个字符）", errInvalidInput)
+	}
+	for _, r := range ref {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r):
+		case r == '-', r == '_', r == '/', r == '.':
+		default:
+			return "", fmt.Errorf("%w：打款凭证号只能包含字母、数字与 - _ / . 等字符", errInvalidInput)
+		}
+	}
+	return ref, nil
+}
+
+// adminHasFinanceRole 判断操作人是否具备财务类角色（P1 退卡出账门槛）：超级管理员直接放行；
+// 否则须命中既有配置 app.esports.finance_report_role_names 中**启用中**的角色名，复用既有角色机制、
+// 不新增配置项。配置为空表示仅超级管理员可出账（与既有「财务角色」口径一致）；账号不存在视为无权限。
+func adminHasFinanceRole(ctx context.Context, db *ent.Client, adminID int) (bool, error) {
+	if adminID < 1 {
+		return false, nil
+	}
+	operator, err := db.Admin.Get(ctx, adminID)
+	if ent.IsNotFound(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if operator.IsSuperAdmin {
+		return true, nil
+	}
+	allowed := financeReportRoleNames(ctx, db)
+	if len(allowed) == 0 {
+		return false, nil
+	}
+	rows, err := db.AdminRole.Query().Where(adminrole.AdminIDEQ(adminID)).WithRole().All(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, row := range rows {
+		if row.Edges.Role == nil || row.Edges.Role.Status != role.StatusActive {
+			continue
+		}
+		for _, name := range allowed {
+			if row.Edges.Role.Name == name {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
 // decideStoredValueRefund 财务审核退卡：通过与驳回都要求与申请人不同人（不得自审）。
 // 通过时在同一事务内写 refund_return 冲减本金与赠送并置 refunded；驳回把状态还原为可用状态。
-func decideStoredValueRefund(ctx context.Context, db *ent.Client, adminID, cardID int, approve bool, now time.Time) (*storedValueCardView, error) {
+//
+// P1 出账门槛：通过（即「已出账」）必须同时满足——
+//   - 登记打款凭证 / 银行流水号（payout.PayoutRef，缺失或格式不合理判 errInvalidInput）；
+//   - 操作人具备财务类角色（adminHasFinanceRole，否则 errForbidden）；
+//   - 审核人 ≠ 申请人（既有硬约束）。
+//
+// payout 用可变参数保持既有调用点（handler）不变；未传凭据时审核通过会被明确拒绝，不会静默出一笔无凭据的钱。
+func decideStoredValueRefund(ctx context.Context, db *ent.Client, adminID, cardID int, approve bool, now time.Time,
+	payouts ...storedValueRefundPayout) (*storedValueCardView, error) {
 	if cardID < 1 {
 		return nil, errInvalidInput
+	}
+	var payout storedValueRefundPayout
+	if len(payouts) > 0 {
+		payout = payouts[0]
+	}
+	payout.PayoutNote = strings.TrimSpace(payout.PayoutNote)
+	var payoutRef string
+	var err error
+	if approve {
+		// 出账前的强校验统一放在事务之前：缺凭据 / 无财务角色一律不开事务，避免留下半截状态。
+		if payoutRef, err = normalizeStoredValuePayoutRef(payout.PayoutRef); err != nil {
+			return nil, err
+		}
+		if len([]rune(payout.PayoutNote)) > 255 {
+			return nil, fmt.Errorf("%w：打款备注不得超过 255 个字符", errInvalidInput)
+		}
+		allowed, err := adminHasFinanceRole(ctx, db, adminID)
+		if err != nil {
+			return nil, err
+		}
+		if !allowed {
+			return nil, fmt.Errorf("%w：退卡出账须由财务角色执行", errForbidden)
+		}
 	}
 	tx, err := db.Tx(ctx)
 	if err != nil {
@@ -1079,12 +1184,23 @@ func decideStoredValueRefund(ctx context.Context, db *ent.Client, adminID, cardI
 	}
 	forfeited := balance.total() - refundable
 	// 退卡：本金退回、赠送作废，两者分列记账（§4.4 赠送与本金额分开记账）。
+	// 打款凭证 / 流水号与出账人、出账时点一并快照在流水的 rule_snapshot 里，
+	// 事后可按「谁出的账、凭哪条流水出账」对账；流水只增不改，快照随本次出账一次性写入。
+	refundNote := "退卡：本金退回，赠送作废；打款凭证 " + payoutRef
+	if payout.PayoutNote != "" {
+		refundNote += "（" + payout.PayoutNote + "）"
+	}
 	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
 		SetEntryType(esportswallettx.EntryTypeRefundReturn).
 		SetPrincipalDeltaCents(-balance.PrincipalCents).SetBonusDeltaCents(-balance.BonusCents).
 		SetSourceType("stored_value_refund").SetSourceID(card.CardNo).
-		SetOperatorID(adminID).SetNote("退卡：本金退回，赠送作废").Save(ctx); err != nil {
+		SetOperatorID(adminID).SetNote(refundNote).
+		SetRuleSnapshot(map[string]any{
+			"card_no": card.CardNo, "payout_ref": payoutRef, "payout_note": payout.PayoutNote,
+			"refunded_cents": refundable, "bonus_forfeited_cents": forfeited,
+			"decided_by_admin_id": adminID, "decided_at": utc,
+		}).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
 		}

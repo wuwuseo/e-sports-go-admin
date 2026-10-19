@@ -305,31 +305,43 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 	// 当作到账时间，补交不重置 CreatedAt，因此「客户在原支付时限内已实际付款、只是截图不清被驳回」
 	// 的订单仍可核销；财务核验的是真实到账，客户此时改的是凭证清晰度而不是付款时点。
 	// 订单若已被超时任务取消，则本函数前面的订单状态校验会拒绝补交，不会出现「取消后又付款」。
-	var item *ent.EsportsOfflinePaymentProof
-	existing, err := tx.EsportsOfflinePaymentProof.Query().Where(
+	// 先按唯一键定位目标凭证行：命中已存在行时走「原地补交」（复用被驳回的那条），否则新建一条待核验凭证。
+	existing, lookupErr := tx.EsportsOfflinePaymentProof.Query().Where(
 		esportsofflinepaymentproof.ChannelEQ(esportsofflinepaymentproof.Channel(channel)),
 		esportsofflinepaymentproof.TransactionNoEQ(in.TransactionNo),
 	).Only(ctx)
+	reusingProofID := 0
 	switch {
-	case err == nil:
+	case lookupErr == nil:
 		if existing.OrderID != order.ID {
 			return nil, fmt.Errorf("%w：该渠道流水号已被其它订单占用，请核实后改用正确的转账单号", errConflict)
 		}
 		if existing.Status != esportsofflinepaymentproof.StatusRejected {
 			return nil, fmt.Errorf("%w：该流水号已提交或已核销，请勿重复提交", errConflict)
 		}
+		// 补交的是同一条凭证行：自身不计入「其它待核验凭证」。
+		reusingProofID = existing.ID
+	case !ent.IsNotFound(lookupErr):
+		return nil, lookupErr
+	// 已过支付时限不再接受**新的**转账凭证：否则客户可用一张假凭证让订单无限期停在待付款、
+	// 长期占住 SKU 名额（超时任务会因「有待核验凭证」而跳过该单）。
+	// 被驳回凭证的补交不受此限（命中已存在行的分支）：它锚定的是首次提交时间，属同一笔已发生的转账。
+	case !now.UTC().Before(order.PaymentDeadline):
+		return nil, fmt.Errorf("%w：该订单已超过支付时限，无法再提交新的付款凭证，请联系归属客服核实", errConflict)
+	}
+	// P0-11 重复收款防护：同一订单只允许一条待核验的转账凭证。不同流水号并存时，财务核销一张、
+	// 另一张只能挂悬账，订单还存在被两种收款方式各收一次的风险；判定与写入同事务，避免并发穿插。
+	if duplicated, guardErr := otherPendingPaymentProofExists(ctx, tx.EsportsOfflinePaymentProof.Query(),
+		order.ID, reusingProofID); guardErr != nil {
+		return nil, guardErr
+	} else if duplicated {
+		return nil, fmt.Errorf("%w：该订单已有待核验的转账凭证，请等待财务核验；凭证被驳回后再按驳回结论补交", errConflict)
+	}
+	var item *ent.EsportsOfflinePaymentProof
+	if reusingProofID > 0 {
 		item, err = resetRejectedPaymentProof(ctx, tx, existing, intent.ID, account.ID,
 			in.AmountCents, string(proofRef), in.Note)
-		if err != nil {
-			return nil, err
-		}
-	case ent.IsNotFound(err):
-		// 已过支付时限不再接受**新的**转账凭证：否则客户可用一张假凭证让订单无限期停在待付款、
-		// 长期占住 SKU 名额（超时任务会因「有待核验凭证」而跳过该单）。
-		// 被驳回凭证的补交不受此限（上面分支）：它锚定的是首次提交时间，属同一笔已发生的转账。
-		if !now.UTC().Before(order.PaymentDeadline) {
-			return nil, fmt.Errorf("%w：该订单已超过支付时限，无法再提交新的付款凭证，请联系归属客服核实", errConflict)
-		}
+	} else {
 		item, err = tx.EsportsOfflinePaymentProof.Create().
 			SetProofNo("OP" + uuid.NewString()).
 			SetOrderID(order.ID).SetIntentID(intent.ID).SetAccountID(account.ID).
@@ -337,14 +349,12 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 			SetTransactionNo(in.TransactionNo).SetAmountCents(in.AmountCents).
 			SetProofRef(string(proofRef)).SetNote(in.Note).
 			SetStatus(esportsofflinepaymentproof.StatusPendingVerification).Save(ctx)
-		if err != nil {
-			if ent.IsConstraintError(err) {
-				// 并发补交同一流水号（或凭证单号撞键）：唯一键兜底判冲突，不产生第二条记录。
-				return nil, fmt.Errorf("%w：该流水号已提交或凭证单号冲突，请勿重复提交", errConflict)
-			}
-			return nil, err
+		if ent.IsConstraintError(err) {
+			// 并发补交同一流水号（或凭证单号撞键）：唯一键兜底判冲突，不产生第二条记录。
+			return nil, fmt.Errorf("%w：该流水号已提交或凭证单号冲突，请勿重复提交", errConflict)
 		}
-	default:
+	}
+	if err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {

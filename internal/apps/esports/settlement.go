@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportscloseapproval"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsorderaddon"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/global"
@@ -31,6 +33,13 @@ type closeOrderInput struct {
 // ensureCloseEvidenceViewed 校验「结单前已查看陪玩上传的凭证图片」（§3.4-03）：
 // 返回本次确认覆盖的附件 ID（按需查看集合裁剪，避免把无关或伪造 ID 写进留痕）；
 // 存在必须查看的凭证而请求未完整覆盖时返回参数错误。
+//
+// 口径（与前端契约）：
+//  1. 订单没有图片凭证（纯文本 / 历史 oss:// 凭证）时不需要传，直接放行；
+//  2. 需查看集合与请求顺序无关、按 ID 去重后比较，重复或多给的 ID 不算确认，也不会写进留痕；
+//  3. 未覆盖时错误提示逐条列出「还差哪几张附件 ID」，供结单弹窗定位。
+//
+// 这条校验是责任边界，不允许退化成「不传就通过」。
 func ensureCloseEvidenceViewed(ctx context.Context, db *ent.Client, orderID int, viewed []int) ([]int, error) {
 	required, err := serviceEvidenceAttachmentIDs(ctx, db, orderID)
 	if err != nil {
@@ -52,8 +61,12 @@ func ensureCloseEvidenceViewed(ctx context.Context, db *ent.Client, orderID int,
 		}
 	}
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("%w：结单前须逐张查看陪玩上传的服务凭证图片，尚未确认查看的附件 ID：%v",
-			errInvalidInput, missing)
+		ids := make([]string, 0, len(missing))
+		for _, id := range missing {
+			ids = append(ids, strconv.Itoa(id))
+		}
+		return nil, fmt.Errorf("%w：结单前须逐张查看陪玩上传的服务凭证图片，尚未确认查看的附件 ID：%s",
+			errInvalidInput, strings.Join(ids, "、"))
 	}
 	return required, nil
 }
@@ -190,12 +203,18 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	}
 	// 服务凭证张数与结单条件同一口径（按图片附件计），避免同名字段在事件与条件里含义不同。
 	evidenceCount := closeConditionEvidenceCount(segments)
+	// P1-16：加钟有独立收款记录，结单时把加钟收入/成本一并落进结单快照。
+	closeNetService := max(0, order.PayableCents-order.RefundedCents)
+	addonRevenue, addonCommission, err := closeAddonRevenueAndCommission(ctx, tx.Client(), order.ID)
+	if err != nil {
+		return err
+	}
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
 		esportsorder.FulfillmentStatusIn(
 			esportsorder.FulfillmentStatusPendingClose, esportsorder.FulfillmentStatusPendingCloseReview),
 	).SetFulfillmentStatus(esportsorder.FulfillmentStatusCompleted).
-		SetCloseNetServiceCents(max(0, order.PayableCents-order.RefundedCents)).
+		SetCloseNetServiceCents(closeNetService).
 		SetClosedAt(now.UTC()).AddVersion(1).Save(ctx)
 	if err != nil {
 		return err
@@ -211,6 +230,14 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	closeDetails := map[string]interface{}{
 		"note": note, "evidence_count": evidenceCount,
 		"system_seconds": totalSeconds, "reported_units": totalUnits,
+		// P1-16：close_net_service_cents 的既有语义是「订单本体净服务额」（客服提成基数依赖它，
+		// 见 commission.go），加钟金额直接并进去会污染该口径并可能与 kind=addon 分成重复计算，
+		// 故在结单快照里单列加钟实收（收入侧）与加钟分成（成本侧），并给出与经营总览 net_cents
+		// 同口径（营收 + 加钟实收 − 退款，不扣分成）的合计净额。
+		"close_net_service_cents": closeNetService,
+		"addon_revenue_cents":     addonRevenue,
+		"addon_commission_cents":  addonCommission,
+		"close_net_total_cents":   closeNetService + addonRevenue,
 	}
 	for key, value := range extra {
 		closeDetails[key] = value
@@ -259,6 +286,30 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	return nil
 }
 
+// closeAddonRevenueAndCommission 汇总订单「已收款加钟」的实收额与加钟分成成本（§3.3 / §12.5 / P1-16）。
+// 取数与 report.go 的 addonRevenueTotals 同一口径：只看 payment_status=paid 的加钟单——
+// 营收侧累加 paid_cents（客服收款成功才写），成本侧累加该加钟确认时快照的 commission_cents
+// （收款成功后才按它计提 kind=addon 分成）。未确认 / 未收款 / 已拒绝 / 已取消的加钟两边都不计，
+// 保证「收入侧只算实收、成本侧只算对应分成」的对称口径。
+func closeAddonRevenueAndCommission(ctx context.Context, db *ent.Client, orderID int) (int64, int64, error) {
+	if orderID < 1 {
+		return 0, 0, nil
+	}
+	addons, err := db.EsportsOrderAddon.Query().Where(
+		esportsorderaddon.OrderIDEQ(orderID),
+		esportsorderaddon.PaymentStatusEQ(esportsorderaddon.PaymentStatusPaid),
+	).Select(esportsorderaddon.FieldPaidCents, esportsorderaddon.FieldCommissionCents).All(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	var revenue, commission int64
+	for _, addon := range addons {
+		revenue += addon.PaidCents
+		commission += addon.CommissionCents
+	}
+	return revenue, commission, nil
+}
+
 // closeReviewApproval 取出订单的审批进度；无进度（历史数据 / 未建）返回 nil，调用方按内置单节点处理。
 func closeReviewApproval(ctx context.Context, tx *ent.Tx, orderID int) (*ent.EsportsCloseApproval, error) {
 	approval, err := tx.EsportsCloseApproval.Query().Where(
@@ -271,6 +322,30 @@ func closeReviewApproval(ctx context.Context, tx *ent.Tx, orderID int) (*ent.Esp
 		return nil, err
 	}
 	return approval, nil
+}
+
+// ensureCloseReviewActor 校验结单复核 / 驳回人资格（§3.4 不得自审 + §3.5 订单权限与数据隔离）：
+//  1. 负责客服本人不得复核自己结的单（沿用原口径，补中文说明便于排查）；
+//  2. 负责客服为空（自助单 / 公共池单 / 尚未指派）时，「比对负责客服」无人可挡——这正是
+//     原实现的漏洞：任何持权管理员都能复核自己提交的结单。此处退回**订单可见范围**判定：
+//     非超管必须是该单的负责客服或获授权协作的客服，否则要求超管。
+//
+// 取舍：不把「无人负责」当成「谁都能审」（否则职责分离在自助单上失效），也不一刀切只许超管
+// （协作客服仍需能复核）；可见范围直接复用 loadOwnedOrder，与订单读取边界同一口径，不新造平行判定。
+func ensureCloseReviewActor(ctx context.Context, db *ent.Client, order *ent.EsportsOrder, adminID int, isSuper bool) error {
+	if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID == adminID {
+		return fmt.Errorf("%w：负责客服不得复核自己结的单", errForbidden)
+	}
+	if isSuper || order.ResponsibleAdminID != nil {
+		return nil
+	}
+	if _, err := loadOwnedOrder(ctx, db, adminID, false, order.ID); err != nil {
+		if errors.Is(err, errForbidden) {
+			return fmt.Errorf("%w：该订单未指派负责客服，须由超级管理员或获授权协作的客服复核", errForbidden)
+		}
+		return err
+	}
+	return nil
 }
 
 // approveCloseReview 复核通过：推进当前审批节点；末节点通过后订单转 completed 并走完整结单计提。
@@ -296,8 +371,8 @@ func approveCloseReview(ctx context.Context, db *ent.Client, orderID, adminID in
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCloseReview {
 		return nil, errConflict
 	}
-	if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID == adminID {
-		return nil, errForbidden
+	if err = ensureCloseReviewActor(ctx, tx.Client(), order, adminID, isSuper); err != nil {
+		return nil, err
 	}
 	approval, err := closeReviewApproval(ctx, tx, orderID)
 	if err != nil {
@@ -345,8 +420,8 @@ func rejectCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCloseReview {
 		return nil, errConflict
 	}
-	if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID == adminID {
-		return nil, errForbidden
+	if err = ensureCloseReviewActor(ctx, tx.Client(), order, adminID, isSuper); err != nil {
+		return nil, err
 	}
 	approval, err := closeReviewApproval(ctx, tx, orderID)
 	if err != nil {

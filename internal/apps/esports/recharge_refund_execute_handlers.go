@@ -12,6 +12,7 @@ import (
 // §4.5 退款/退卡按充值批次还原的外部退款执行（人工核验分支）的 HTTP 入口。
 //
 //	POST /admin/after-sales/:id/refund-execute             按充值批次生成外部退款执行明细
+//	GET  /admin/recharge-refund-executions                 批次列表（?status= pending / executed）
 //	POST /admin/recharge-refund-executions/:id/execute     财务登记外部打款后置 executed
 
 // adminRechargeRefundExecuteHandler 按充值批次为售后单生成外部退款执行明细（§4.5）：
@@ -56,4 +57,18 @@ func markRechargeRefundExecutionExecutedHandler(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	return reply(c, item)
+}
+
+// listRechargeRefundExecutionsHandler 退款执行批次列表（只读，支持 ?status=&limit=）：
+// 支持 status=pending / executed 过滤，limit 缺省 100（夹在 1~200）。
+// 用例：财务列表页按状态核对「还有多少批次待打款」，并看到每批关联的售后单号与执行人。
+func listRechargeRefundExecutionsHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	items, err := listRechargeRefundExecutions(c.Context(), global.ORM, c.Query("status"), queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
 }

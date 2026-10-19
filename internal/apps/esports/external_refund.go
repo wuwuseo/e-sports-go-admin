@@ -11,8 +11,10 @@ import (
 	"github.com/google/uuid"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsexternalrefund"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -199,6 +201,11 @@ func executeExternalRefund(ctx context.Context, db *ent.Client, adminID, id int,
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
+	// P1：订单支付状态异常（渠道撤销 / 拒付）时原支付款去向已不确定，
+	// 再执行退款等于二次放款，一律禁止并交人工处置（与取消路径同口径）。
+	if err = ensureOrderPaymentStatusRefundableForExternalRefund(order); err != nil {
+		return nil, err
+	}
 	// §3.2-03：外部渠道退款已受理、结果未定 → 订单退款状态置 executing
 	// （独立事务提交，便于对账识别「已出款但未落账」的未决单）；已是 executing 时幂等跳过。
 	if order.RefundStatus != esportsorder.RefundStatusExecuting {
@@ -240,6 +247,10 @@ func executeExternalRefundOnce(ctx context.Context, db *ent.Client, adminID, id 
 	}
 	// 存单冻结期间禁止执行外部退款：冻结单的退款额度与资金状态不得变化，先恢复再操作。
 	if err = ensureOrderNotFrozen(order); err != nil {
+		return nil, err
+	}
+	// P1：渠道撤销 / 拒付（payment_status=exception）的订单一律不得再放款，转人工处置。
+	if err = ensureOrderPaymentStatusRefundableForExternalRefund(order); err != nil {
 		return nil, err
 	}
 	changed, err := tx.EsportsExternalRefund.Update().Where(
@@ -343,6 +354,103 @@ func externalRefundPendingCents(ctx context.Context, tx *ent.Tx, orderID int) (i
 		total += row.AmountCents
 	}
 	return total, nil
+}
+
+// ensureOrderPaymentStatusRefundableForExternalRefund 外部退款执行前的订单支付状态守卫（P1）：
+// 渠道撤销 / 拒付后订单落 payment_status=exception，原支付款去向已不确定，
+// 此时再放款等于二次赔付，一律拒绝并要求人工处置（与已付款取消路径同口径）。
+func ensureOrderPaymentStatusRefundableForExternalRefund(order *ent.EsportsOrder) error {
+	if order == nil {
+		return errInvalidInput
+	}
+	if order.PaymentStatus == esportsorder.PaymentStatusException {
+		return fmt.Errorf("%w：订单支付状态异常（渠道撤销 / 拒付），禁止执行退款，请先人工处置支付异常", errConflict)
+	}
+	return nil
+}
+
+// externalRefundChannelSupported 订单支付渠道是否为外部渠道（§13 补全）：
+// 微信 / 商户码 / 对公转账这类非预付账户渠道的退款必须走通道退款单，不能直接改钱包。
+func externalRefundChannelSupported(channel esportsorder.PaymentChannel) bool {
+	switch channel {
+	case esportsorder.PaymentChannelWechatWork, esportsorder.PaymentChannelMerchantQr,
+		esportsorder.PaymentChannelCorporateTransfer:
+		return true
+	}
+	return false
+}
+
+// afterSaleNeedsExternalRefund 判断售后「退原核销款」是否必须生成外部渠道退款单（P0-10）：
+// 订单支付渠道为外部渠道，且订单没有任何余额 / 储值卡核销流水（预付账户原路退回不成立）。
+// 有核销流水时仍按原账户原路退回，避免把已进预付账户的钱当通道款再退一次。
+func afterSaleNeedsExternalRefund(ctx context.Context, client *ent.Client,
+	item *ent.EsportsAfterSale, order *ent.EsportsOrder) (bool, error) {
+	if item == nil || order == nil || item.SourceType != esportsaftersale.SourceTypeOrder ||
+		item.RefundCents <= 0 {
+		return false, nil
+	}
+	if !externalRefundChannelSupported(order.PaymentChannel) {
+		return false, nil
+	}
+	exists, err := client.EsportsWalletTx.Query().Where(
+		esportswallettx.SourceTypeEQ("order"),
+		esportswallettx.SourceIDEQ(order.OrderNo),
+		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeConsume),
+	).Exist(ctx)
+	if err != nil {
+		return false, err
+	}
+	return !exists, nil
+}
+
+// afterSaleExternalRefundTransactionNo 售后自动生成的外部退款登记流水号：
+// 以「售后单号 / 按项来源号」为幂等键——单动作售后退原核销款用售后单号，
+// 多动作方案用按项来源号（<售后单号>:a<序号>），使同一售后单的多条外部退款动作项各自成单、
+// 又能靠 transaction_no 唯一索引兜底重复执行不重复登记。
+func afterSaleExternalRefundTransactionNo(item *ent.EsportsAfterSale) string {
+	return "AS-EXT-" + item.AfterSaleNo
+}
+
+// createAfterSaleExternalRefundIn 在售后执行事务内登记一笔待执行的外部渠道退款单（P0-10）：
+// 复用既有 EsportsExternalRefund 实体与 registered → executed 状态机（不新造平行结构），
+// 由财务用 executeExternalRefund 核验执行；执行时按售后预占额度落账，而不是直接改钱包。
+// 幂等：同一幂等键（transaction_no）已有待执行登记时直接复用，不重复登记。
+func createAfterSaleExternalRefundIn(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale,
+	order *ent.EsportsOrder, adminID int) (*ent.EsportsExternalRefund, error) {
+	if item == nil || order == nil || item.RefundCents <= 0 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	transactionNo := afterSaleExternalRefundTransactionNo(item)
+	existing, err := tx.EsportsExternalRefund.Query().Where(
+		esportsexternalrefund.TransactionNoEQ(transactionNo),
+	).First(ctx)
+	if err == nil {
+		if existing.Status == esportsexternalrefund.StatusRegistered {
+			return existing, nil
+		}
+		// 已执行过的幂等键不再复用（旧单已出账），明确冲突交人工核对，避免重复放款。
+		return nil, errConflict
+	}
+	if !ent.IsNotFound(err) {
+		return nil, err
+	}
+	refund, err := tx.EsportsExternalRefund.Create().
+		SetRefundNo(externalRefundNo()).
+		// 渠道沿用订单支付渠道快照：退原核销款只能退回到原通道。
+		SetChannel(order.PaymentChannel.String()).
+		SetTransactionNo(transactionNo).
+		SetAmountCents(item.RefundCents).
+		SetOrderID(order.ID).SetAftersaleID(item.ID).
+		SetStatus(esportsexternalrefund.StatusRegistered).
+		SetReason(truncateRunes("售后退原核销款（外部渠道待财务核验）："+item.AfterSaleNo, 255)).
+		SetRegisteredByAdminID(adminID).Save(ctx)
+	if err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	return refund, nil
 }
 
 // listExternalRefunds 查询外部退款登记，orderID 为 0 表示不按订单过滤，status 可选。

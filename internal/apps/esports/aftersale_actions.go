@@ -513,6 +513,26 @@ func executeFundingAction(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfte
 	}
 	switch action.ActionType {
 	case esportsaftersaleaction.ActionTypeRefund:
+		// P0-10（多动作）：外部渠道付款且订单没有余额 / 储值卡核销流水时，本动作项改为
+		// 登记一笔待执行的外部渠道退款单（幂等键用按项来源号，同一售后单多动作互不撞键），
+		// 不写钱包、不累加 refunded_cents；预占额度留到财务执行外部退款（executeExternalRefund）时核销。
+		needsExternal, err := afterSaleNeedsExternalRefund(ctx, tx.Client(), &shim, order)
+		if err != nil {
+			return "", 0, err
+		}
+		if needsExternal {
+			refund, err := createAfterSaleExternalRefundIn(ctx, tx, &shim, order, adminID)
+			if err != nil {
+				return "", 0, err
+			}
+			// 登记后仍需占用一个订单版本，供调用方写「动作项已执行」事件（与补履约动作同口径）。
+			newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+			if err != nil {
+				return "", 0, err
+			}
+			return fmt.Sprintf("已生成外部渠道退款待执行：退款单 %s（渠道 %s），须由财务核验后执行",
+				refund.RefundNo, order.PaymentChannel.String()), newVersion, nil
+		}
 		if err := executeRefundOriginal(ctx, tx, &shim, order, adminID); err != nil {
 			return "", 0, err
 		}

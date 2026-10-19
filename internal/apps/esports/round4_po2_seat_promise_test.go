@@ -53,7 +53,12 @@ func TestRound4W2MultiSeatPerSeatPromise(t *testing.T) {
 		t.Fatalf("商品快照未落库：code=%q name=%q", order.SkuCode, order.SkuName)
 	}
 
-	bad := po2SeedSku(t, db, "PO2-TRIO-NONE", 3, 6, 0)
+	// P1-24：多人 SKU 创建入口已拒绝「缺每席承诺量」，这类缺陷数据只能来自历史存量，
+	// 因此这里直接落库模拟存量坏数据，继续验证下单环节的兜底拦截不被削弱。
+	bad := db.EsportsSku.Create().SetCode("PO2-TRIO-NONE").SetTitle("商品 PO2-TRIO-NONE").
+		SetServiceType(esportssku.ServiceTypePlay).SetUnitPriceCents(1000).
+		SetServiceUnits(6).SetServiceUnitName("局").SetRequiredSeats(3).
+		SetPerSeatServiceUnits(0).SetQuotaTotal(-1).SetStatus(esportssku.StatusOnSale).SaveX(ctx)
 	_, err = placeOrder(ctx, db, 11, orderInput{CustomerID: customer.ID, SkuID: bad.ID, Quantity: 1},
 		"po2-seat-key-002", now)
 	if !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "每席承诺服务量") {
@@ -149,6 +154,7 @@ func TestRound4W2SpecGroupPerSeatPromise(t *testing.T) {
 	}
 
 	// 规格组每席量为 0 且席位也未配置时：多人单必须拒绝建单。
+	// P1-24 起「多人 SKU 无每席量」在创建/更新入口即被拒，这里直接落库模拟存量坏数据。
 	noneGroup, err := saveSpecGroup(ctx, db, specGroupInput{
 		Code: "PO2-TRIO-NONE", Name: "PO2 无每席量",
 		Seats:  []schematier.SeatSpec{{SeatIndex: 0, Role: "输出"}, {SeatIndex: 1, Role: "辅助"}},
@@ -157,18 +163,21 @@ func TestRound4W2SpecGroupPerSeatPromise(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ngid := noneGroup.ID
 	if _, err = saveProduct(ctx, db, productInput{
 		Name: "PO2 无每席量商品", Status: "on_sale",
 		Skus: []productChildSkuInput{{
 			Code: "PO2-SG-NONE", Title: "PO2 无每席量档", ServiceType: "play", UnitPriceCents: 3000,
-			ServiceUnits: 2, ServiceUnitName: "局", RequiredSeats: 2, SpecGroupID: &ngid,
+			ServiceUnits: 2, ServiceUnitName: "局", RequiredSeats: 2, SpecGroupID: &noneGroup.ID,
 			QuotaTotal: -1, Status: "on_sale",
 		}},
-	}); err != nil {
-		t.Fatal(err)
+	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "每席承诺服务量") {
+		t.Fatalf("未配置每席量的多人子 SKU 应在创建入口被拒：%v", err)
 	}
-	badSku := db.EsportsSku.Query().Where(esportssku.CodeEQ("PO2-SG-NONE")).OnlyX(ctx)
+	badSku := db.EsportsSku.Create().SetCode("PO2-SG-NONE").SetTitle("PO2 无每席量档").
+		SetServiceType(esportssku.ServiceTypePlay).SetUnitPriceCents(3000).
+		SetServiceUnits(2).SetServiceUnitName("局").SetRequiredSeats(2).
+		SetSpecGroupID(noneGroup.ID).SetPerSeatServiceUnits(0).
+		SetQuotaTotal(-1).SetStatus(esportssku.StatusOnSale).SaveX(ctx)
 	if _, err = placeOrder(ctx, db, 11, orderInput{CustomerID: customer.ID, SkuID: badSku.ID, Quantity: 1},
 		"po2-sg-key-002", now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("未配置每席量的多人规格单应被拒：%v", err)

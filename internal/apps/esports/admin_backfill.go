@@ -91,14 +91,24 @@ func parseBackfillSettledAt(raw string, now time.Time) (time.Time, error) {
 	return settled, nil
 }
 
-// backfillOrder 管理员补录历史订单（§3.3 / §4.1 / §12.5）。隔离规则：
+// backfillOrder 非超管口径的补录入口：等价于 isSuper=false。仅供服务内部与非超管用例调用；
+// HTTP 入口必须走 backfillOrderWithRole，把登录用户的超管标识透传下来（P0-13）。
+func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfillOrderInput,
+	key string, now time.Time) (*ent.EsportsOrder, error) {
+	return backfillOrderWithRole(ctx, db, adminID, false, in, key, now)
+}
+
+// backfillOrderWithRole 管理员补录历史订单（§3.3 / §4.1 / §12.5），isSuper 表示当前操作人是否超管。
+// 隔离规则：
 //  1. 入口固定 admin_backfill，必须留补录原因 / 补录人 / 补录时刻，写 order.backfilled 事件与外盒审计；
 //  2. 不占 SKU 名额、不创建支付意图与支付回执、不建派单席位（历史单不消耗当期容量）；
 //  3. 陪玩分成与成长值默认正常计提；客服提成默认不计，仅 count_cs_commission=true 时按结单口径同事务计提；
 //     已取消单不计提任何提成（不写结单快照、不分成分成），也不接受 count_cs_commission=true；
-//  4. completed 单写入 closed_at 与 close_net_service_cents 快照，保证后续退款冲回口径正确。
-func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfillOrderInput,
-	key string, now time.Time) (*ent.EsportsOrder, error) {
+//  4. completed 单写入 closed_at 与 close_net_service_cents 快照，保证后续退款冲回口径正确；
+//  5. 数据边界：非超管只能为本人负责的客户补录；超管可为任意客户补录 —— 这正是「历史订单补录」
+//     的功能定位。跨客户补录仍按「客户归属客服」记责任客服，且事件 / 外盒都记录操作人与归属差异。
+func backfillOrderWithRole(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
+	in backfillOrderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
 	// 旧字段名出现即拒绝：宁可让旧页面提交失败并提示刷新，也不能把它静默当成 false 计提错误。
 	if in.LegacyCountCommission != nil {
 		return nil, fmt.Errorf("%w：字段 count_commission 已更名为 count_cs_commission，请刷新页面后重试", errInvalidInput)
@@ -112,9 +122,12 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 	if in.PaymentStatus == "" {
 		in.PaymentStatus = esportsorder.PaymentStatusPaid.String()
 	}
+	// 补录属高危写操作：补录原因必填（4–255 字），缺失时给出明确中文提示而不是笼统的参数错误。
+	if n := len([]rune(in.Reason)); n < 4 || n > 255 {
+		return nil, fmt.Errorf("%w：补录原因必填，长度须为 4–255 个字符", errInvalidInput)
+	}
 	if in.CustomerID < 1 || in.SkuID < 0 || in.Quantity < 1 || in.Quantity > 1000 ||
 		len(key) < 8 || len(key) > 128 ||
-		len([]rune(in.Reason)) < 4 || len([]rune(in.Reason)) > 255 ||
 		(in.FulfillmentStatus != backfillStatusCompleted && in.FulfillmentStatus != backfillStatusCancelled) ||
 		(in.PaymentStatus != esportsorder.PaymentStatusPaid.String() &&
 			in.PaymentStatus != esportsorder.PaymentStatusUnpaid.String()) {
@@ -147,9 +160,17 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 	if err != nil {
 		return nil, err
 	}
-	// 与常规报单同口径的数据边界：客服只能给自己的客户补录。
-	if customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID {
+	// 数据边界：非超管只能给自己的客户补录；超管可为任意客户补录（「历史订单补录」的功能定位），
+	// 因此只在非超管时校验客户归属，而不是统一硬校验。
+	crossOwner := customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID
+	if !isSuper && crossOwner {
 		return nil, errForbidden
+	}
+	// 补录单的责任客服始终取「客户归属客服」：否则超管代补录他人客户时，业绩归属、客服提成计提对象
+	// 与数据域可见性都会错算到补录人名下。客户无归属时才回落为操作人。
+	responsibleAdminID := adminID
+	if customer.OwnerAdminID != nil {
+		responsibleAdminID = *customer.OwnerAdminID
 	}
 	var sku *ent.EsportsSku
 	unitPrice := in.UnitPriceCents
@@ -184,7 +205,7 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 	}
 	orderNo := uuid.NewString()
 	creator := tx.EsportsOrder.Create().SetOrderNo(orderNo).SetCustomerID(customer.ID).
-		SetSkuID(skuID).SetCreatedByAdminID(adminID).SetResponsibleAdminID(adminID).
+		SetSkuID(skuID).SetCreatedByAdminID(adminID).SetResponsibleAdminID(responsibleAdminID).
 		SetChannelSource(esportsorder.ChannelSource(customer.Source.String())).
 		SetEntryPoint(esportsorder.EntryPointAdminBackfill).
 		SetQuantity(in.Quantity).SetUnitPriceCents(unitPrice).
@@ -218,6 +239,13 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 			"fulfillment_status": in.FulfillmentStatus,
 			// §3.3-12：记录按哪几名陪玩生成席位 / 服务段骨架，供分成核对。
 			"player_ids": in.PlayerIDs,
+			// 高危写操作留痕：操作人、被补录客户、责任客服，以及本次是否为「超管代补录他人客户」。
+			"operator_admin_id":       adminID,
+			"customer_id":             customer.ID,
+			"customer_owner_admin_id": customer.OwnerAdminID,
+			"responsible_admin_id":    responsibleAdminID,
+			"is_super_admin":          isSuper,
+			"cross_owner":             crossOwner,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -254,6 +282,11 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 		SetPayload(map[string]interface{}{
 			"order_no": orderNo, "customer_id": customer.ID, "payable_cents": payable,
 			"settled_at": settledAt, "count_cs_commission": in.CountCsCommission,
+			// 跨客户补录的审计要素：谁补的、客户归谁、是否超管放行，便于事后追责。
+			"operator_admin_id":    adminID,
+			"responsible_admin_id": responsibleAdminID,
+			"is_super_admin":       isSuper,
+			"cross_owner":          crossOwner,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}

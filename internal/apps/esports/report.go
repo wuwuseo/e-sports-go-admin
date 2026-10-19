@@ -17,12 +17,14 @@ import (
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsorderaddon"
 	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/ent/esportswithdrawal"
 	"go-admin/internal/ent/predicate"
 )
 
@@ -73,6 +75,53 @@ type reportFilter struct {
 	// 或存在协作授权行」的订单，与订单列表 / 详情（loadOwnedOrder）同口径。
 	// 它与 ResponsibleAdmin（用户可选的业务筛选）分开：前者是权限边界，后者是筛选维度。
 	VisibleAdmin int
+	// 资金维度（§17 / P1-08）：只由财务资金报表接受，并真正下推到钱包流水 / 结算单查询。
+	WalletAccountType string
+	WalletEntryType   string
+	SettlementStatus  string
+}
+
+// financeReportDataScope 是财务资金报表的数据域标记：财务资金是账户级全量域，
+// 授权由 handler 的 canAccessFinanceReport（超管或 app.esports.finance_report_role_names 角色）判定，
+// 不存在「订单局部」口径（§17 需求明确财务报表不接受订单归属维度）。
+const financeReportDataScope = "full"
+
+// reportOwnershipScope 是一次报表请求的数据域（§17 / P1-07）：同一请求内所有子查询
+// （订单 / 钱包 / 结算 / 分成 / 提现）必须复用同一套归属过滤条件，不得出现
+// 「钱包/结算全量 + 分成局部」这类混口径。
+type reportOwnershipScope struct {
+	// AdminID > 0 表示严格局部：只统计该管理员的归属单据（本人负责 / 协作授权 / 本人报单兜底）。
+	AdminID int
+	// Full 表示显式全量分支（超级管理员，或财务资金报表的授权角色）。
+	Full bool
+}
+
+// reportOwnershipScopeOf 从筛选条件推导数据域：VisibleAdmin 由 scopeReportFilter 写入，
+// 为空即显式全量（超管），非空即严格局部（非超管）。
+func reportOwnershipScopeOf(f reportFilter) reportOwnershipScope {
+	if f.VisibleAdmin > 0 {
+		return reportOwnershipScope{AdminID: f.VisibleAdmin}
+	}
+	return reportOwnershipScope{Full: true}
+}
+
+// label 返回数据域标记：full = 显式全量分支、owner = 严格局部，随响应返回便于审计。
+func (s reportOwnershipScope) label() string {
+	if s.Full {
+		return "full"
+	}
+	return "owner"
+}
+
+// reportDataScope 返回一次报表请求的数据域三元组（查看响应与导出审计快照共用同一处推导）：
+// label 为数据域文案，adminID 为严格局部时的归属管理员（全量时为 0），full 为「是否显式全量」。
+// 财务资金报表恒为账户级全量域（授权见 canAccessFinanceReport），因此非超管也返回 full。
+func reportDataScope(reportType string, f reportFilter) (string, int, bool) {
+	scope := reportOwnershipScopeOf(f)
+	if reportType == "finance" {
+		return financeReportDataScope, scope.AdminID, true
+	}
+	return scope.label(), scope.AdminID, scope.Full
 }
 
 // reportBucket 是经营总览时间轴的一段。
@@ -148,17 +197,28 @@ type orderTimelineAggregate struct {
 	PoolToStartCount      int   `json:"pool_to_start_count"`
 }
 
-// orderVisibleToAdminPredicate 构造与 loadOwnedOrder 同口径的订单可见性谓词
-// （§17-09 / §3.5-06）：本人负责 OR 存在协作授权行。
-// 报表与导出的订单集合必须与订单列表一致，协作文档按当前数据判定（移除即失效，不缓存）。
+// orderVisibleToAdminPredicate 是报表**唯一**一处归属过滤条件构建（§17-09 / §3.5-06 / P1-07），
+// 与 loadOwnedOrder 同口径：本人负责 OR 存在协作授权行 OR（无负责客服时）本人报单兜底。
+// 所有子查询（订单聚合、席位、售后、分成对账、结算归集）都必须复用本函数，不得各自另写一套，
+// 否则同一请求会出现「部分子报表局部、部分子报表全量」的混口径。
+// created_by_admin_id 兜底覆盖「负责客服为空」的历史单 / 补录单：这类订单的原报单人仍是其归属人。
 func orderVisibleToAdminPredicate(ctx context.Context, db *ent.Client, adminID int) (predicate.EsportsOrder, error) {
+	if adminID <= 0 {
+		return nil, nil
+	}
 	rows, err := db.EsportsOrderCollaborator.Query().
 		Where(esportsordercollaborator.AdminIDEQ(adminID)).
 		Select(esportsordercollaborator.FieldOrderID).All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	options := []predicate.EsportsOrder{esportsorder.ResponsibleAdminIDEQ(adminID)}
+	options := []predicate.EsportsOrder{
+		esportsorder.ResponsibleAdminIDEQ(adminID),
+		esportsorder.And(
+			esportsorder.ResponsibleAdminIDIsNil(),
+			esportsorder.CreatedByAdminIDEQ(adminID),
+		),
+	}
 	if len(rows) > 0 {
 		orderIDs := make([]int, 0, len(rows))
 		for _, row := range rows {
@@ -175,14 +235,17 @@ func reportOrderPredicates(ctx context.Context, db *ent.Client, f reportFilter) 
 		esportsorder.CreatedAtGTE(f.Start),
 		esportsorder.CreatedAtLT(f.End),
 	}
-	// VisibleAdmin 优先于 ResponsibleAdmin：scopeReportFilter 对非超管会同时写入两者，
-	// 此时可见范围（本人负责 OR 协作授权）才是权限边界，ResponsibleAdmin 只是被强制收敛的旧字段。
-	if f.VisibleAdmin > 0 {
-		visible, err := orderVisibleToAdminPredicate(ctx, db, f.VisibleAdmin)
+	// 数据域优先级（P1-07）：VisibleAdmin 由 scopeReportFilter 对非超管写入，它就是权限边界；
+	// 超管没有 VisibleAdmin，走显式全量分支（ResponsibleAdmin 仅作为用户自选的筛选维度）。
+	scope := reportOwnershipScopeOf(f)
+	if scope.AdminID > 0 {
+		visible, err := orderVisibleToAdminPredicate(ctx, db, scope.AdminID)
 		if err != nil {
 			return nil, err
 		}
-		ps = append(ps, visible)
+		if visible != nil {
+			ps = append(ps, visible)
+		}
 	} else if f.ResponsibleAdmin > 0 {
 		ps = append(ps, esportsorder.ResponsibleAdminIDEQ(f.ResponsibleAdmin))
 	}
@@ -481,6 +544,61 @@ func orderNoByID(ctx context.Context, db *ent.Client, ids []int) (map[int]string
 	return orderNos, nil
 }
 
+// addonRevenueTotals 统计符合订单筛选的订单上「已收款加钟」的实收金额（§3.3 / §12.5 / P1-16）。
+//
+// 取数来源：`EsportsOrderAddon` 中 `payment_status=paid` 的 `paid_cents` 之和。加钟有**独立收款记录**——
+// 陪玩确认只落应收快照（并累加订单 `addon_cents`），客服收款成功才写 `paid_cents` 并在同一事务内
+// 按确认时锁定的规则计提 `kind=addon` 的加钟分成。因此营收侧取「已收款」才与成本侧（加钟分成）
+// 口径对称：未收款、已取消的加钟不计入营收，也不会产生分成。
+//
+// 归属与时间轴：加钟单按其所属订单纳入订单筛选（同一套归属过滤条件），并按订单下单时间落分段，
+// 与订单营收同轴；返回按（周期分段 / 归属客服）的拆分供经营总览与客服业绩复用。
+// 每个订单分片内的加钟行处理完即释放，不把全量单据读进内存。
+func addonRevenueTotals(ctx context.Context, db *ent.Client, predicates []predicate.EsportsOrder,
+	period string,
+) (int64, map[string]int64, map[int]int64, error) {
+	var total int64
+	byBucket := map[string]int64{}
+	byResponsible := map[int]int64{}
+	err := forEachOrderIDPage(ctx, db, predicates, func(ids []int) error {
+		orders, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(ids...)).
+			Select(esportsorder.FieldID, esportsorder.FieldResponsibleAdminID,
+				esportsorder.FieldCreatedAt).All(ctx)
+		if err != nil {
+			return err
+		}
+		owners := make(map[int]*ent.EsportsOrder, len(orders))
+		for _, order := range orders {
+			owners[order.ID] = order
+		}
+		addons, err := db.EsportsOrderAddon.Query().
+			Where(
+				esportsorderaddon.OrderIDIn(ids...),
+				esportsorderaddon.PaymentStatusEQ(esportsorderaddon.PaymentStatusPaid),
+			).
+			Select(esportsorderaddon.FieldOrderID, esportsorderaddon.FieldPaidCents).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, addon := range addons {
+			if addon.PaidCents <= 0 {
+				continue
+			}
+			order, ok := owners[addon.OrderID]
+			if !ok {
+				continue
+			}
+			total += addon.PaidCents
+			byBucket[reportBucketKey(order.CreatedAt, period)] += addon.PaidCents
+			if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID > 0 {
+				byResponsible[*order.ResponsibleAdminID] += addon.PaidCents
+			}
+		}
+		return nil
+	})
+	return total, byBucket, byResponsible, err
+}
+
 // ownerOverviewReport 老板经营总览：区间内订单量、营收、退款与净额，并按周期分段。
 // 汇总与分段均为数据库端聚合；下钻明细单独限流并标记是否被截断。
 func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
@@ -509,6 +627,9 @@ func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 	// 时间轴分段：先取数据实际跨度收敛分段范围，再逐段做 SQL 聚合（只保留有数据的分段，与既有口径一致）。
 	buckets := make([]reportBucket, 0)
 	bucketPeriod := f.Period
+	// §P1-16：加钟收入（已收款加钟的实收额）计入营收与净额，并与订单营收同轴落时间轴分段。
+	var addonRevenue int64
+	addonBuckets := map[string]int64{}
 	if aggregate.OrderCount > 0 {
 		first, last, ok, err := reportOrderCreatedSpan(ctx, db, predicates)
 		if err != nil {
@@ -517,6 +638,10 @@ func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		if ok {
 			period, ranges := reportBucketPlan(first, last, f.Period)
 			bucketPeriod = period
+			addonRevenue, addonBuckets, _, err = addonRevenueTotals(ctx, db, predicates, period)
+			if err != nil {
+				return nil, err
+			}
 			for _, item := range ranges {
 				var rows []struct {
 					OrderCount   int   `json:"order_count"`
@@ -537,7 +662,7 @@ func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 				buckets = append(buckets, reportBucket{
 					Bucket:       reportBucketKey(item.Start, period),
 					OrderCount:   rows[0].OrderCount,
-					RevenueCents: rows[0].RevenueCents,
+					RevenueCents: rows[0].RevenueCents + addonBuckets[reportBucketKey(item.Start, period)],
 					RefundCents:  rows[0].RefundCents,
 				})
 			}
@@ -573,14 +698,18 @@ func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		"type": "owner_overview",
 		"summary": map[string]any{
 			"order_count": aggregate.OrderCount, "paid_count": aggregate.PaidCount,
-			"revenue_cents": aggregate.RevenueCents, "refund_cents": aggregate.RefundCents,
-			"net_cents":       aggregate.RevenueCents - aggregate.RefundCents,
+			"revenue_cents": aggregate.RevenueCents + addonRevenue, "refund_cents": aggregate.RefundCents,
+			"net_cents":       aggregate.RevenueCents + addonRevenue - aggregate.RefundCents,
 			"completed_count": aggregate.CompletedCount, "cancelled_count": aggregate.CancelledCount,
+			// 加钟收入单列给出取数来源（P1-16）：已收款加钟单的 paid_cents 之和，
+			// 与 kind=addon 的加钟分成（收款成功时计提）同一时点口径；已包含在 revenue_cents 内。
+			"addon_revenue_cents": addonRevenue,
 		},
 		"buckets":          buckets,
 		"bucket_period":    bucketPeriod,
 		"details":          details,
 		"detail_truncated": detailTruncated,
+		"data_scope":       reportOwnershipScopeOf(f).label(),
 	}, nil
 }
 
@@ -612,18 +741,19 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 	// 订单维度筛选生效时，提成只计入「关联订单命中筛选」的明细；该限制按订单主键分片归集（Ent 无子查询表达）。
 	orderDimensions := f.ChannelSource != "" || f.EntryPoint != "" || f.PaymentChannel != "" ||
 		f.CreatedByAdmin > 0 || f.SkuID > 0 || f.Game != "" || f.AppointmentType != "" || f.SeatType != ""
+	scope := reportOwnershipScopeOf(f)
 	commissions := map[int]int64{}
 	collectCommission := func(orderIDs []int) error {
 		query := db.EsportsCsCommissionEntry.Query().Where(
 			esportscscommissionentry.CreatedAtGTE(f.Start),
 			esportscscommissionentry.CreatedAtLT(f.End),
 		)
-		if f.ResponsibleAdmin > 0 && f.VisibleAdmin == 0 {
+		if f.ResponsibleAdmin > 0 && scope.AdminID == 0 {
 			query.Where(esportscscommissionentry.AdminIDEQ(f.ResponsibleAdmin))
 		}
-		if f.VisibleAdmin > 0 {
-			// 可见范围（§17-09）：本人提成恒可见，另加被授权协作订单上的提成；礼物提成无订单号仍按本人可见。
-			options := []predicate.EsportsCsCommissionEntry{esportscscommissionentry.AdminIDEQ(f.VisibleAdmin)}
+		if scope.AdminID > 0 {
+			// 严格局部（§17-09）：本人提成恒可见，另加被授权协作订单上的提成；礼物提成无订单号仍按本人可见。
+			options := []predicate.EsportsCsCommissionEntry{esportscscommissionentry.AdminIDEQ(scope.AdminID)}
 			if len(orderIDs) > 0 {
 				options = append(options, esportscscommissionentry.OrderIDIn(orderIDs...))
 			}
@@ -645,11 +775,16 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		}
 		return nil
 	}
-	if orderDimensions || f.VisibleAdmin > 0 {
+	if orderDimensions || scope.AdminID > 0 {
 		if err := forEachOrderIDPage(ctx, db, predicates, collectCommission); err != nil {
 			return nil, err
 		}
 	} else if err := collectCommission(nil); err != nil {
+		return nil, err
+	}
+	// 加钟收入（P1-16）：与经营总览同一取数来源（已收款加钟的 paid_cents），按业绩归属客服归集。
+	_, _, addonByResponsible, err := addonRevenueTotals(ctx, db, predicates, f.Period)
+	if err != nil {
 		return nil, err
 	}
 
@@ -673,6 +808,14 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		rows[at].OrderCount += row.OrderCount
 		rows[at].RevenueCents += row.RevenueCents
 		rows[at].RefundCents += row.RefundCents
+	}
+	// 加钟收入并入业绩营收（P1-16）：只归到有业绩归属客服的订单上，与订单营收同一归属口径。
+	for adminID, amount := range addonByResponsible {
+		if adminID <= 0 {
+			continue
+		}
+		at := upsert(adminID)
+		rows[at].RevenueCents += amount
 	}
 	for adminID, amount := range commissions {
 		if adminID <= 0 {
@@ -917,15 +1060,21 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 // errReportDetailFilled 用于提前结束作用域遍历（下钻明细已取满）。
 var errReportDetailFilled = errors.New("esports: report detail filled")
 
-// aftersaleQualityReport 售后质量：区间内售后单状态分布、赔付金额与按类型 / 责任方拆分。
-// handlerAdmin > 0 时只统计该客服处理的售后（非超级管理员的数据边界）。
-func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter, handlerAdmin int) (map[string]any, error) {
+// aftersaleReportPredicates 构造售后质量**唯一**的筛选谓词（查看与导出共用，P1-09 / 第二轮补充）：
+// 时间区间 + 处理客服 + 售后类型 + 责任方。
+// 处理客服：非超管由 handlerAdmin 强制收敛（= 本人），超管按入参 responsible_admin_id 下推；
+// 导出链路必须复用本函数，否则会出现「页面筛了、导出没筛」的口径分叉。
+func aftersaleReportPredicates(f reportFilter, handlerAdmin int) []predicate.EsportsAfterSale {
 	base := []predicate.EsportsAfterSale{
 		esportsaftersale.CreatedAtGTE(f.Start),
 		esportsaftersale.CreatedAtLT(f.End),
 	}
-	if handlerAdmin > 0 {
-		base = append(base, esportsaftersale.HandlerAdminIDEQ(handlerAdmin))
+	handler := handlerAdmin
+	if handler <= 0 {
+		handler = f.ResponsibleAdmin
+	}
+	if handler > 0 {
+		base = append(base, esportsaftersale.HandlerAdminIDEQ(handler))
 	}
 	if f.AftersaleKind != "" {
 		base = append(base, esportsaftersale.KindEQ(esportsaftersale.Kind(f.AftersaleKind)))
@@ -933,8 +1082,12 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 	if f.FaultParty != "" {
 		base = append(base, esportsaftersale.FaultPartyEQ(esportsaftersale.FaultParty(f.FaultParty)))
 	}
-	// 按订单渠道 / 入口筛选售后时，Ent 没有「售后 → 订单」可比对的边，
-	// 只能把命中的订单按主键分片后逐片作为作用域（分片而非一次性物化全部订单 ID）。
+	return base
+}
+
+// aftersaleSourceOrderPredicates 构造「按来源订单的渠道 / 入口圈定售后」的订单谓词（查看与导出共用）。
+// 无渠道 / 入口筛选时返回空切片，调用方据此走单作用域（无需按订单分片）。
+func aftersaleSourceOrderPredicates(f reportFilter) []predicate.EsportsOrder {
 	sourcePredicates := make([]predicate.EsportsOrder, 0, 2)
 	if f.ChannelSource != "" {
 		sourcePredicates = append(sourcePredicates, esportsorder.ChannelSourceEQ(esportsorder.ChannelSource(f.ChannelSource)))
@@ -942,6 +1095,18 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 	if f.EntryPoint != "" {
 		sourcePredicates = append(sourcePredicates, esportsorder.EntryPointEQ(esportsorder.EntryPoint(f.EntryPoint)))
 	}
+	return sourcePredicates
+}
+
+// aftersaleQualityReport 售后质量：区间内售后单状态分布、赔付金额与按类型 / 责任方拆分。
+// handlerAdmin > 0 时只统计该客服处理的售后（非超级管理员的数据边界）。
+// 处理客服筛选（P1-09）：非超管由 handlerAdmin 强制收敛（与 scopeReportFilter 写入的
+// ResponsibleAdmin 同值），超管按入参 responsible_admin_id 真正下推——不再「接受后忽略」。
+func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter, handlerAdmin int) (map[string]any, error) {
+	base := aftersaleReportPredicates(f, handlerAdmin)
+	// 按订单渠道 / 入口筛选售后时，Ent 没有「售后 → 订单」可比对的边，
+	// 只能把命中的订单按主键分片后逐片作为作用域（分片而非一次性物化全部订单 ID）。
+	sourcePredicates := aftersaleSourceOrderPredicates(f)
 	// eachScope 顺序遍历所有作用域；没有订单维度筛选时只有一个空作用域。
 	eachScope := func(fn func(scope func(*ent.EsportsAfterSaleQuery)) error) error {
 		if len(sourcePredicates) == 0 {
@@ -1069,21 +1234,40 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 	}, nil
 }
 
-// financeReport 财务资金与结算：区间内钱包流水、结算单与按支付方式聚合的支付回执。
+// financeReport 财务资金与结算：区间内钱包流水、结算单、提现单、按支付方式聚合的支付回执与分成对账。
+//
+// §17 / P1-07 财务数据域：钱包流水、结算单、支付回执、提现与分成对账共用**同一套**口径。
+// 财务资金是账户级资金流水，需求（§17）明确不提供渠道 / 入口 / 商品 / 负责客服等订单归属维度，
+// 因此这里恒为「账户级显式全量域」（data_scope=full）：授权由 handler 的 canAccessFinanceReport
+// 判定（超级管理员或 app.esports.finance_report_role_names 角色），未授权者 403。
+// 此前分成对账还会按 VisibleAdmin 单独收敛订单，导致同一请求出现「钱包/结算全量 + 分成局部」的
+// 混口径，现已统一到全量分支（并把数据域标记回传以便审计）。
 func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
+	// 显式全量分支：清掉 scopeReportFilter 为非超管写入的订单局部收敛值，
+	// 保证每个子查询的数据域完全一致（不是「部分子查询局部」）。
+	f.VisibleAdmin = 0
+	f.ResponsibleAdmin = 0
 	// 钱包流水：按（账户类型 + 流水类型）分组求和；金额取本金 + 赠送权益，
 	// 与钱包余额（本金 + 赠送）口径一致，避免报表只看到本金、漏掉充值活动赠送的部分。
 	// 储值卡是独立预付账户，单独分桶，不与客户余额混算（§11.3）。
+	// 资金维度（P1-08）：账户类型 / 流水类型真正下推到查询，不是「收下后忽略」。
 	var walletRows []struct {
 		AccountType string `json:"account_type"`
 		EntryType   string `json:"entry_type"`
 		Principal   int64  `json:"principal_delta_cents"`
 		Bonus       int64  `json:"bonus_delta_cents"`
 	}
-	if err := db.EsportsWalletTx.Query().Where(
+	walletQuery := db.EsportsWalletTx.Query().Where(
 		esportswallettx.CreatedAtGTE(f.Start),
 		esportswallettx.CreatedAtLT(f.End),
-	).GroupBy(esportswallettx.FieldAccountType, esportswallettx.FieldEntryType).
+	)
+	if f.WalletAccountType != "" {
+		walletQuery.Where(esportswallettx.AccountTypeEQ(esportswallettx.AccountType(f.WalletAccountType)))
+	}
+	if f.WalletEntryType != "" {
+		walletQuery.Where(esportswallettx.EntryTypeEQ(esportswallettx.EntryType(f.WalletEntryType)))
+	}
+	if err := walletQuery.GroupBy(esportswallettx.FieldAccountType, esportswallettx.FieldEntryType).
 		Aggregate(
 			ent.As(ent.Sum(esportswallettx.FieldPrincipalDeltaCents), "principal_delta_cents"),
 			ent.As(ent.Sum(esportswallettx.FieldBonusDeltaCents), "bonus_delta_cents"),
@@ -1108,16 +1292,21 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	}
 
 	// 结算单：按状态分组一次聚合，再合并总量与状态分布。
+	// 资金维度（P1-08）：结算状态真正下推到查询，明细与汇总同口径。
+	// 作废单（void）是「不可再发放」的终态，金额不得计入 gross / net（第二轮补充）：
+	// 这里只做集合过滤，另把作废单数单列出来供财务对账。
 	var settlementRows []struct {
 		Status string `json:"status"`
 		Count  int    `json:"count"`
 		Gross  int64  `json:"gross_cents"`
 		Net    int64  `json:"net_cents"`
 	}
-	if err := db.EsportsSettlement.Query().Where(
+	settlementQuery := db.EsportsSettlement.Query().Where(
 		esportssettlement.CreatedAtGTE(f.Start),
 		esportssettlement.CreatedAtLT(f.End),
-	).GroupBy(esportssettlement.FieldStatus).
+	)
+	settlementQuery = applySettlementStatusFilter(settlementQuery, f.SettlementStatus)
+	if err := settlementQuery.GroupBy(esportssettlement.FieldStatus).
 		Aggregate(ent.As(ent.Count(), "count"),
 			ent.As(ent.Sum(esportssettlement.FieldGrossCents), "gross_cents"),
 			ent.As(ent.Sum(esportssettlement.FieldNetCents), "net_cents")).
@@ -1132,6 +1321,61 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 		settlementGross += row.Gross
 		settlementNet += row.Net
 		settlementStatus[row.Status] = row.Count
+	}
+	// 作废结算单单列（不计入上面的金额口径）：供财务核对「有多少单被作废、作废金额多大」。
+	var voidRows []struct {
+		Count int   `json:"count"`
+		Gross int64 `json:"gross_cents"`
+		Net   int64 `json:"net_cents"`
+	}
+	if err := db.EsportsSettlement.Query().Where(
+		esportssettlement.CreatedAtGTE(f.Start),
+		esportssettlement.CreatedAtLT(f.End),
+		esportssettlement.StatusEQ(esportssettlement.StatusVoid),
+	).Aggregate(ent.As(ent.Count(), "count"),
+		ent.As(ent.Sum(esportssettlement.FieldGrossCents), "gross_cents"),
+		ent.As(ent.Sum(esportssettlement.FieldNetCents), "net_cents")).
+		Scan(ctx, &voidRows); err != nil {
+		return nil, err
+	}
+	var voidCount int
+	var voidGross, voidNet int64
+	if len(voidRows) > 0 {
+		voidCount, voidGross, voidNet = voidRows[0].Count, voidRows[0].Gross, voidRows[0].Net
+	}
+
+	// 提现单（§6.3 / §12.6）：与结算单同一数据域的全量资金子查询，
+	// 按状态聚合申请额 / 手续费 / 代扣税费 / 实际到账，供财务对账（P1-07 子查询口径统一）。
+	var withdrawalRows []struct {
+		Status string `json:"status"`
+		Count  int    `json:"count"`
+		Amount int64  `json:"amount_cents"`
+		Fee    int64  `json:"fee_cents"`
+		Tax    int64  `json:"tax_cents"`
+		Net    int64  `json:"net_cents"`
+	}
+	if err := db.EsportsWithdrawal.Query().Where(
+		esportswithdrawal.CreatedAtGTE(f.Start),
+		esportswithdrawal.CreatedAtLT(f.End),
+	).GroupBy(esportswithdrawal.FieldStatus).
+		Aggregate(ent.As(ent.Count(), "count"),
+			ent.As(ent.Sum(esportswithdrawal.FieldAmountCents), "amount_cents"),
+			ent.As(ent.Sum(esportswithdrawal.FieldFeeCents), "fee_cents"),
+			ent.As(ent.Sum(esportswithdrawal.FieldTaxCents), "tax_cents"),
+			ent.As(ent.Sum(esportswithdrawal.FieldNetCents), "net_cents")).
+		Scan(ctx, &withdrawalRows); err != nil {
+		return nil, err
+	}
+	var withdrawalCount int
+	var withdrawalAmount, withdrawalFee, withdrawalTax, withdrawalNet int64
+	withdrawalStatus := map[string]int{}
+	for _, row := range withdrawalRows {
+		withdrawalCount += row.Count
+		withdrawalAmount += row.Amount
+		withdrawalFee += row.Fee
+		withdrawalTax += row.Tax
+		withdrawalNet += row.Net
+		withdrawalStatus[row.Status] = row.Count
 	}
 
 	// 支付回执：按支付方式分组聚合。
@@ -1187,12 +1431,23 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 		"settlement": map[string]any{
 			"count": settlementCount, "gross_cents": settlementGross,
 			"net_cents": settlementNet, "by_status": settlementStatus,
+			// 作废单（void）单列：终态不可再发放，金额不计入上面的 gross / net，仅供对账核对。
+			"void": map[string]any{
+				"count": voidCount, "gross_cents": voidGross, "net_cents": voidNet,
+			},
+		},
+		"withdrawals": map[string]any{
+			"count": withdrawalCount, "amount_cents": withdrawalAmount,
+			"fee_cents": withdrawalFee, "tax_cents": withdrawalTax,
+			"net_cents": withdrawalNet, "by_status": withdrawalStatus,
 		},
 		"payment_channels":          channels,
 		"commission_reconciliation": reconciliation,
 		"studio":                    studio,
 		"details":                   details,
 		"detail_truncated":          detailTruncated,
+		// 数据域标记（P1-07）：财务资金恒为账户级显式全量域，供前端与审计核对口径。
+		"data_scope": financeReportDataScope,
 	}, nil
 }
 
@@ -1209,7 +1464,9 @@ type commissionReconciliationRow struct {
 }
 
 // commissionReconciliationReport 按订单 / 陪玩给出分成明细级对账：聚合行 + 逐笔明细（含规则版本），
-// 财务可与结算单逐笔核对（§12.7-03）。非超管（VisibleAdmin）只对账可见订单。
+// 财务可与结算单逐笔核对（§12.7-03）。
+// 数据域（P1-07）：分成对账与钱包 / 结算 / 回执 / 提现同属财务资金全量域，**不再**单独按
+// VisibleAdmin 收敛订单——否则同一请求会出现「钱包/结算全量 + 分成局部」的混口径。
 func commissionReconciliationReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
 	base := []predicate.EsportsCommissionEntry{
 		esportscommissionentry.CreatedAtGTE(f.Start),
@@ -1219,7 +1476,7 @@ func commissionReconciliationReport(ctx context.Context, db *ent.Client, f repor
 			esportscommissionentry.KindService, esportscommissionentry.KindAddon,
 			esportscommissionentry.KindReversal),
 	}
-	groups, err := commissionReconciliationGroups(ctx, db, f, base)
+	groups, err := commissionReconciliationGroups(ctx, db, base)
 	if err != nil {
 		return nil, err
 	}
@@ -1275,59 +1532,8 @@ func commissionReconciliationReport(ctx context.Context, db *ent.Client, f repor
 	})
 
 	// 逐笔明细：单独限流，最多多取一条用于判断截断。
-	detailCap := reportDetailCap(f.Limit)
-	details := make([]map[string]any, 0, 16)
-	detailTruncated := false
-	collectDetails := func(extra ...predicate.EsportsCommissionEntry) error {
-		if detailTruncated {
-			return nil
-		}
-		entries, err := db.EsportsCommissionEntry.Query().
-			Where(append(append([]predicate.EsportsCommissionEntry{}, base...), extra...)...).
-			Order(ent.Asc(esportscommissionentry.FieldID)).Limit(detailCap + 1).All(ctx)
-		if err != nil {
-			return err
-		}
-		if len(entries) > detailCap {
-			detailTruncated = true
-			entries = entries[:detailCap]
-		}
-		detailOrderIDs := make([]int, 0, len(entries))
-		for _, entry := range entries {
-			if entry.OrderID != nil {
-				detailOrderIDs = append(detailOrderIDs, *entry.OrderID)
-			}
-		}
-		detailOrderNos, err := orderNoByID(ctx, db, detailOrderIDs)
-		if err != nil {
-			return err
-		}
-		for _, entry := range entries {
-			orderID := 0
-			if entry.OrderID != nil {
-				orderID = *entry.OrderID
-			}
-			details = append(details, map[string]any{
-				"id": entry.ID, "order_id": orderID, "order_no": detailOrderNos[orderID],
-				"player_id": entry.PlayerID, "kind": entry.Kind,
-				"rule_no": entry.RuleNo, "rule_version": entry.RuleVersion,
-				"base_cents": entry.BaseCents, "amount_cents": entry.AmountCents,
-				"settlement_id": entry.SettlementID, "created_at": entry.CreatedAt,
-			})
-		}
-		return nil
-	}
-	if f.VisibleAdmin > 0 {
-		predicates, err := reportOrderPredicates(ctx, db, f)
-		if err != nil {
-			return nil, err
-		}
-		if err := forEachOrderIDPage(ctx, db, predicates, func(ids []int) error {
-			return collectDetails(esportscommissionentry.OrderIDIn(ids...))
-		}); err != nil {
-			return nil, err
-		}
-	} else if err := collectDetails(); err != nil {
+	details, detailTruncated, err := commissionReconciliationDetails(ctx, db, base, f.Limit)
+	if err != nil {
 		return nil, err
 	}
 	return map[string]any{
@@ -1351,40 +1557,61 @@ type commissionReconciliationGroup struct {
 	Count       int    `json:"count"`
 }
 
-// commissionReconciliationGroups 取对账分组数据；VisibleAdmin 非空时按可见订单分片归集。
-func commissionReconciliationGroups(ctx context.Context, db *ent.Client, f reportFilter,
+// commissionReconciliationGroups 取对账分组数据（数据库端一次聚合）。
+// 财务资金报表统一走全量域（P1-07），不再按 VisibleAdmin 分片收敛订单。
+func commissionReconciliationGroups(ctx context.Context, db *ent.Client,
 	base []predicate.EsportsCommissionEntry,
 ) ([]commissionReconciliationGroup, error) {
-	aggregate := func(extra ...predicate.EsportsCommissionEntry) ([]commissionReconciliationGroup, error) {
-		var rows []commissionReconciliationGroup
-		err := db.EsportsCommissionEntry.Query().
-			Where(append(append([]predicate.EsportsCommissionEntry{}, base...), extra...)...).
-			GroupBy(esportscommissionentry.FieldOrderID, esportscommissionentry.FieldPlayerID,
-				esportscommissionentry.FieldKind, esportscommissionentry.FieldRuleNo,
-				esportscommissionentry.FieldRuleVersion).
-			Aggregate(ent.As(ent.Sum(esportscommissionentry.FieldAmountCents), "amount_cents"),
-				ent.As(ent.Count(), "count")).Scan(ctx, &rows)
-		return rows, err
-	}
-	if f.VisibleAdmin <= 0 {
-		return aggregate()
-	}
-	predicates, err := reportOrderPredicates(ctx, db, f)
+	var rows []commissionReconciliationGroup
+	err := db.EsportsCommissionEntry.Query().Where(base...).
+		GroupBy(esportscommissionentry.FieldOrderID, esportscommissionentry.FieldPlayerID,
+			esportscommissionentry.FieldKind, esportscommissionentry.FieldRuleNo,
+			esportscommissionentry.FieldRuleVersion).
+		Aggregate(ent.As(ent.Sum(esportscommissionentry.FieldAmountCents), "amount_cents"),
+			ent.As(ent.Count(), "count")).Scan(ctx, &rows)
+	return rows, err
+}
+
+// commissionReconciliationDetails 取分成对账逐笔明细（含规则版本与原单据订单号），
+// 单独限流、最多多取一条用于判断是否截断。
+func commissionReconciliationDetails(ctx context.Context, db *ent.Client,
+	base []predicate.EsportsCommissionEntry, limit int,
+) ([]map[string]any, bool, error) {
+	detailCap := reportDetailCap(limit)
+	entries, err := db.EsportsCommissionEntry.Query().Where(base...).
+		Order(ent.Asc(esportscommissionentry.FieldID)).Limit(detailCap + 1).All(ctx)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	all := make([]commissionReconciliationGroup, 0)
-	if err := forEachOrderIDPage(ctx, db, predicates, func(ids []int) error {
-		page, err := aggregate(esportscommissionentry.OrderIDIn(ids...))
-		if err != nil {
-			return err
+	truncated := len(entries) > detailCap
+	if truncated {
+		entries = entries[:detailCap]
+	}
+	detailOrderIDs := make([]int, 0, len(entries))
+	for _, entry := range entries {
+		if entry.OrderID != nil {
+			detailOrderIDs = append(detailOrderIDs, *entry.OrderID)
 		}
-		all = append(all, page...)
-		return nil
-	}); err != nil {
-		return nil, err
 	}
-	return all, nil
+	detailOrderNos, err := orderNoByID(ctx, db, detailOrderIDs)
+	if err != nil {
+		return nil, false, err
+	}
+	details := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		orderID := 0
+		if entry.OrderID != nil {
+			orderID = *entry.OrderID
+		}
+		details = append(details, map[string]any{
+			"id": entry.ID, "order_id": orderID, "order_no": detailOrderNos[orderID],
+			"player_id": entry.PlayerID, "kind": entry.Kind,
+			"rule_no": entry.RuleNo, "rule_version": entry.RuleVersion,
+			"base_cents": entry.BaseCents, "amount_cents": entry.AmountCents,
+			"settlement_id": entry.SettlementID, "created_at": entry.CreatedAt,
+		})
+	}
+	return details, truncated, nil
 }
 
 // studioCommissionReport 是工作室抽成汇总（§12.7-04）：按周期聚合工作室剩余
@@ -1478,14 +1705,32 @@ func csCommissionCreatedSpan(ctx context.Context, db *ent.Client, f reportFilter
 	return first[0].CreatedAt, last[0].CreatedAt, true, nil
 }
 
+// applySettlementStatusFilter 统一结算单的两件事（P1-08 / 第二轮补充）：
+//  1. 作废单（void）是「明细回退、不可再发放」的终态，任何情况下都不计入 gross / net，
+//     只在 settlement.void 单列返回供对账；
+//  2. 用户显式按 settlement_status 筛选时再叠加等值条件——因此显式筛作废时主口径为空
+//     （作废数据只从 void 单列取），不会把作废金额算进结算汇总。
+//
+// 汇总与下钻明细共用本函数，避免「汇总排除了作废单、明细却还带着」。
+func applySettlementStatusFilter(query *ent.EsportsSettlementQuery, status string) *ent.EsportsSettlementQuery {
+	query.Where(esportssettlement.StatusNEQ(esportssettlement.StatusVoid))
+	if status != "" {
+		query.Where(esportssettlement.StatusEQ(esportssettlement.Status(status)))
+	}
+	return query
+}
+
 // financeReportDetails 财务下钻明细（§17-06）：结算单与支付回执可定位原单据，超限时标记截断。
+// 与汇总同一口径：结算状态维度与「排除作废单」同样作用到结算单明细。
 func financeReportDetails(ctx context.Context, db *ent.Client, f reportFilter, limit int) ([]map[string]any, bool, error) {
 	detailCap := reportDetailCap(limit)
 	details := make([]map[string]any, 0, 16)
-	settlements, err := db.EsportsSettlement.Query().Where(
+	settlementQuery := db.EsportsSettlement.Query().Where(
 		esportssettlement.CreatedAtGTE(f.Start),
 		esportssettlement.CreatedAtLT(f.End),
-	).Order(ent.Asc(esportssettlement.FieldID)).Limit(detailCap+1).
+	)
+	settlementQuery = applySettlementStatusFilter(settlementQuery, f.SettlementStatus)
+	settlements, err := settlementQuery.Order(ent.Asc(esportssettlement.FieldID)).Limit(detailCap+1).
 		Select(esportssettlement.FieldID, esportssettlement.FieldSettlementNo,
 			esportssettlement.FieldOwnerType, esportssettlement.FieldOwnerID,
 			esportssettlement.FieldStatus, esportssettlement.FieldGrossCents,

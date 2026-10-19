@@ -3,6 +3,7 @@ package esports
 import (
 	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,8 +14,10 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsmemberleveloverride"
 	"go-admin/internal/ent/esportsmemberlevelrule"
+	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/global"
 )
 
 // 会员等级（§10）相关常量。
@@ -29,6 +32,12 @@ const (
 	memberOverrideGuardKey = "app.esports.member_override_guard_days"
 	// 默认手动调级覆盖期：90 天内手动调级等级不被成长值重算侵蚀。
 	defaultMemberOverrideGuardDays = 90
+	// 手动调级逐次指定覆盖期时的天数上下限（与系统配置允许范围一致）。
+	minMemberOverrideDays = 1
+	maxMemberOverrideDays = 3650
+	// 手动调级等级变更事件类型：覆盖期是「那一次调级」的属性，随只增事件载荷快照落库，
+	// 不引入新字段也不改写只增的覆盖记录（见 memberOverrideSnapshotExpiry）。
+	memberManualLevelEventType = "member.level_manual"
 	// 订单成长值按本金口径计提时的备注标记（§10.2-01）。成长值流水只增不改、schema 无支付来源字段，
 	// 故用备注标记计提口径：冲回时据此判断该笔计提是否已剔除赠送权益，历史（全额口径）流水仍按原口径冲回。
 	orderGrowthPrincipalNote = "订单结单计提（本金口径）"
@@ -256,6 +265,58 @@ func memberOfflineEventPriority(ctx context.Context, db *ent.Client, levelCode s
 	return rule.OfflineEventPriority, nil
 }
 
+// memberPrivilegeView 是客户当前生效的会员权益快照（§10.1-02 / §10.4）。
+// Active=false 表示未定级 / 等级停用 / 规则缺失，此时不得在权益页宣称「已生效」。
+type memberPrivilegeView struct {
+	CustomerID           int    `json:"customer_id"`
+	LevelCode            string `json:"level_code"`
+	LevelName            string `json:"level_name"`
+	Active               bool   `json:"active"`
+	DiscountBps          int    `json:"discount_bps"`
+	PrepayBonusBps       int    `json:"prepay_bonus_bps"`
+	DedicatedCs          bool   `json:"dedicated_cs"`
+	DedicatedChannel     bool   `json:"dedicated_channel"`
+	OfflineEventPriority bool   `json:"offline_event_priority"`
+	PriorityBooking      bool   `json:"priority_booking"`
+	PriorityDispatch     bool   `json:"priority_dispatch"`
+}
+
+// memberPrivilegeFlags 一次性读取客户全部会员权益字段（P1-11：权益必须有真实消费点）。
+// 口径与 customerMemberRule 一致：等级须存在且 enabled，否则返回 Active=false 的空权益。
+//
+// 已接入的消费点：客服工作台客户卡片 / 客户档案（cs.go customerProfileOverview）、
+// 会员详情视图（memberView），以及优先预约提交（priority_booking.go 读 PriorityBooking）。
+// 仍待外部文件接入（本文件不可改，见整改报告）：
+//   - 下单 / 报价：service.go placeOrder / 报价路径除会员折扣外，应读 DedicatedChannel 写入订单派单优先级标记；
+//   - 派单：dispatch.go prioritizeMemberOrders 现读 PriorityDispatch，可叠加 DedicatedChannel 作二级置顶。
+func memberPrivilegeFlags(ctx context.Context, db *ent.Client, customerID int) (*memberPrivilegeView, error) {
+	if customerID < 1 {
+		return nil, errInvalidInput
+	}
+	customer, err := db.EsportsCustomer.Get(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	view := &memberPrivilegeView{CustomerID: customer.ID, LevelCode: customer.MemberLevelCode}
+	rule, err := customerMemberRule(ctx, db, customer.MemberLevelCode)
+	if err != nil {
+		return nil, err
+	}
+	if rule == nil {
+		return view, nil
+	}
+	view.LevelName = rule.Name
+	view.Active = true
+	view.DiscountBps = rule.DiscountBps
+	view.PrepayBonusBps = rule.PrepayBonusBps
+	view.DedicatedCs = rule.DedicatedCs
+	view.DedicatedChannel = rule.DedicatedChannel
+	view.OfflineEventPriority = rule.OfflineEventPriority
+	view.PriorityBooking = rule.PriorityBooking
+	view.PriorityDispatch = rule.PriorityDispatch
+	return view, nil
+}
+
 // memberDiscountCents 按折扣基点算折扣额（分）。折后应付 = 规则价 * bps / 10000，向下取整。
 // 用 (q*bps + r*bps/10000) 分解求商，避免 subtotal*bps 整数溢出。
 // 纯函数，便于测试。
@@ -475,8 +536,9 @@ func growthReversalCents(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrde
 //   - 未定级 → 直接定级；成长值跨过更高门槛 → 即时升级并写通知事件；
 //   - 成长值跌破当前等级门槛 → 只记录应降等级与保护期到期时间，保护期满由定时任务降级；
 //   - 成长值回升到当前等级 → 撤销待降级标记；
-//   - 手动调级覆盖期内的等级作为「保底来源」参与取最高（§10.5-04 多来源取最高不叠加），
-//     手动调高的等级不会被下一次重算平掉；覆盖期到期后自动失效，回到成长值口径。
+//   - 手动调级覆盖期内的等级**优先于**成长值口径（§10.3-03 / §10.5-04）：人工设定可升可降，
+//     重算不得覆盖人工设定；覆盖期到期后自动失效（见 settleMemberLevelOverride / applyMemberOverrideExpiries），
+//     等级回落为成长值口径结果。
 func recomputeCustomerLevel(ctx context.Context, db *ent.Client, customerID int, now time.Time) error {
 	growth, err := customerGrowthTotal(ctx, db, customerID)
 	if err != nil {
@@ -486,9 +548,12 @@ func recomputeCustomerLevel(ctx context.Context, db *ent.Client, customerID int,
 	if err != nil {
 		return err
 	}
+	// 手动调级覆盖期内的等级**优先于**成长值口径（§10.3-03 / §10.5-04）。
+	// P1-10：此前只在「覆盖等级门槛更高」时采用覆盖值（取最高），人工降级会被下一次重算顶回，
+	// 表现为「只能升不能降」；现在覆盖期内人工设定即权威等级，可升也可降，覆盖到期才回落成长值口径。
 	if overridden, err := activeMemberLevelForCustomer(ctx, db, customerID, now); err != nil {
 		return err
-	} else if overridden != nil && (target == nil || overridden.GrowthThreshold > target.GrowthThreshold) {
+	} else if overridden != nil {
 		target = overridden
 	}
 	if target == nil {
@@ -631,10 +696,8 @@ func memberOverrideGuardDays(ctx context.Context, db *ent.Client) (int, error) {
 	return days, nil
 }
 
-// activeMemberLevelForCustomer 返回覆盖期内最近一次手动调级对应的**启用**等级规则（§10.3-03 / §10.5-04）。
-// 覆盖期 = 覆盖记录创建时间 + 可配天数（默认 90 天）；超出覆盖期或等级已停用/不存在时返回 nil，
-// 表示不再作为等级来源，重算回到成长值口径。
-func activeMemberLevelForCustomer(ctx context.Context, db *ent.Client, customerID int, now time.Time) (*ent.EsportsMemberLevelRule, error) {
+// lastMemberLevelOverride 返回客户最近一次手动调级覆盖记录；从未调级返回 nil。
+func lastMemberLevelOverride(ctx context.Context, db *ent.Client, customerID int) (*ent.EsportsMemberLevelOverride, error) {
 	override, err := db.EsportsMemberLevelOverride.Query().
 		Where(esportsmemberleveloverride.CustomerIDEQ(customerID)).
 		Order(ent.Desc(esportsmemberleveloverride.FieldID)).First(ctx)
@@ -644,14 +707,220 @@ func activeMemberLevelForCustomer(ctx context.Context, db *ent.Client, customerI
 	if err != nil {
 		return nil, err
 	}
+	return override, nil
+}
+
+// memberOverrideCoverage 描述客户最近一次手动调级覆盖的生效窗口（§10.3-03 / §10.5-04）。
+//   - Active：此刻是否仍在覆盖期内（覆盖期 = 覆盖记录创建时间 + 可配天数，默认 90 天）；
+//   - Rule：覆盖期内且目标等级仍启用时的等级规则；覆盖期外或等级已停用/不存在时为 nil。
+//
+// 只读、不写库，可作为「读取时惰性判定」的单一事实来源。
+type memberOverrideCoverage struct {
+	Override  *ent.EsportsMemberLevelOverride
+	Rule      *ent.EsportsMemberLevelRule
+	ExpiresAt time.Time
+	Active    bool
+}
+
+// memberOverrideWindow 是手动调级时**逐次指定**的覆盖期（§10.3-03 扩展）：
+// 与系统配置 app.esports.member_override_guard_days 二选一，零值表示沿用系统配置。
+type memberOverrideWindow struct {
+	Days  int
+	Until time.Time
+}
+
+// resolveMemberOverrideExpiry 把逐次指定的覆盖期解析为「覆盖到期时刻」。
+//   - 两者都没给：返回零值，调用方沿用系统配置天数（既有口径不变）；
+//   - 同时给出：errInvalidInput + 中文提示（不静默取其一）；
+//   - 越界 / 非未来时刻：errInvalidInput + 中文提示。
+//
+// 到期时刻是覆盖窗口的唯一落库口径：覆盖记录本身仍只增不改，窗口随等级变更事件快照保存。
+func resolveMemberOverrideExpiry(in memberOverrideWindow, now time.Time) (time.Time, error) {
+	if in.Days == 0 && in.Until.IsZero() {
+		return time.Time{}, nil
+	}
+	if in.Days != 0 && !in.Until.IsZero() {
+		return time.Time{}, fmt.Errorf("%w：override_days 与 override_until 只能二选一", errInvalidInput)
+	}
+	if in.Days != 0 {
+		if in.Days < minMemberOverrideDays || in.Days > maxMemberOverrideDays {
+			return time.Time{}, fmt.Errorf("%w：override_days 须在 %d–%d 天之间",
+				errInvalidInput, minMemberOverrideDays, maxMemberOverrideDays)
+		}
+		return now.UTC().AddDate(0, 0, in.Days), nil
+	}
+	until := in.Until.UTC()
+	if !until.After(now.UTC()) {
+		return time.Time{}, fmt.Errorf("%w：override_until 必须晚于当前时间", errInvalidInput)
+	}
+	if until.After(now.UTC().AddDate(0, 0, maxMemberOverrideDays)) {
+		return time.Time{}, fmt.Errorf("%w：override_until 不得超过当前时间 %d 天",
+			errInvalidInput, maxMemberOverrideDays)
+	}
+	return until, nil
+}
+
+// memberOverrideSnapshotExpiry 读取该客户最近一次手动调级事件里快照的覆盖到期时刻。
+//
+// 为什么要走事件：本轮不允许改 schema，而「覆盖期逐次可配」必须落库、且覆盖记录是只增的
+// 审计记录（created_at 只能代表调级发生的真实时刻，不能用来夹带到期时间）。
+// 等级变更事件本身就是这次调级的唯一留痕，窗口作为其属性随载荷保存最自然；
+// 读取时以最新一次手动调级事件为准，未指定时返回零值，调用方回落系统配置天数。
+func memberOverrideSnapshotExpiry(ctx context.Context, db *ent.Client, customerID int, levelCode string) (time.Time, error) {
+	item, err := db.EsportsOutbox.Query().Where(
+		esportsoutbox.EventTypeEQ(memberManualLevelEventType),
+		esportsoutbox.AggregateRefEQ(fmt.Sprintf("customer:%d", customerID)),
+	).Order(ent.Desc(esportsoutbox.FieldID)).First(ctx)
+	if ent.IsNotFound(err) {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	// 事件与最新覆盖记录必须是同一次调级，否则（历史数据 / 并发写入）不采用快照。
+	if code, ok := item.Payload["level_code"].(string); ok && code != levelCode {
+		return time.Time{}, nil
+	}
+	switch raw := item.Payload["override_until"].(type) {
+	case string:
+		until, parseErr := time.Parse(time.RFC3339, raw)
+		if parseErr != nil {
+			return time.Time{}, nil
+		}
+		return until.UTC(), nil
+	case time.Time:
+		return raw.UTC(), nil
+	}
+	return time.Time{}, nil
+}
+
+// memberOverrideCoverageFor 读取客户手动调级的覆盖状态；无覆盖记录时返回零值（Override 为 nil）。
+// 覆盖到期时刻优先取该次调级事件里快照的 override_until（逐次指定），缺失时回落系统配置天数。
+func memberOverrideCoverageFor(ctx context.Context, db *ent.Client, customerID int, now time.Time) (memberOverrideCoverage, error) {
+	var coverage memberOverrideCoverage
+	override, err := lastMemberLevelOverride(ctx, db, customerID)
+	if err != nil || override == nil {
+		return coverage, err
+	}
 	days, err := memberOverrideGuardDays(ctx, db)
+	if err != nil {
+		return coverage, err
+	}
+	coverage.Override = override
+	coverage.ExpiresAt = override.CreatedAt.AddDate(0, 0, days)
+	if snapshot, snapshotErr := memberOverrideSnapshotExpiry(ctx, db, customerID, override.LevelCode); snapshotErr != nil {
+		return coverage, snapshotErr
+	} else if !snapshot.IsZero() {
+		coverage.ExpiresAt = snapshot
+	}
+	coverage.Active = now.UTC().Before(coverage.ExpiresAt)
+	if !coverage.Active {
+		return coverage, nil
+	}
+	rule, err := customerMemberRule(ctx, db, override.LevelCode)
+	if err != nil {
+		return coverage, err
+	}
+	coverage.Rule = rule
+	return coverage, nil
+}
+
+// activeMemberLevelForCustomer 返回覆盖期内最近一次手动调级对应的**启用**等级规则（§10.3-03 / §10.5-04）。
+// 超出覆盖期或等级已停用/不存在时返回 nil，表示不再作为等级来源，重算回到成长值口径。
+func activeMemberLevelForCustomer(ctx context.Context, db *ent.Client, customerID int, now time.Time) (*ent.EsportsMemberLevelRule, error) {
+	coverage, err := memberOverrideCoverageFor(ctx, db, customerID, now)
 	if err != nil {
 		return nil, err
 	}
-	if !now.UTC().Before(override.CreatedAt.AddDate(0, 0, days)) {
-		return nil, nil
+	return coverage.Rule, nil
+}
+
+// settleMemberLevelOverride 是覆盖到期的**读取时惰性判定**（P1-10 回落机制的一半）：
+// 当客户最近一次手动调级的覆盖期已过、且当前等级仍停在这次人工设定的等级上时，
+// 立刻按成长值口径重算回落（可能即时升级，或按保护期挂起降级）。
+// 已由后续调级/重算改过等级、或仍在覆盖期内的情形不做任何写入。
+func settleMemberLevelOverride(ctx context.Context, db *ent.Client, customerID int, now time.Time) error {
+	coverage, err := memberOverrideCoverageFor(ctx, db, customerID, now)
+	if err != nil || coverage.Override == nil || coverage.Active {
+		return err
 	}
-	return customerMemberRule(ctx, db, override.LevelCode)
+	customer, err := db.EsportsCustomer.Get(ctx, customerID)
+	if ent.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if customer.MemberLevelCode != coverage.Override.LevelCode {
+		return nil // 覆盖到期后等级已被其它来源改写，无需回落
+	}
+	return recomputeCustomerLevel(ctx, db, customerID, now)
+}
+
+// applyMemberOverrideExpiries 批量执行覆盖期已到期的手动调级回落（P1-10 回落机制的另一半，
+// 供定时任务调用）：逐客户条件重算，重复执行安全。
+//
+// 覆盖期可能被逐次指定（override_days / override_until），与系统配置天数不一致，
+// 因此不能再用「created_at <= now - 配置天数」的粗口径筛人：改为取每个客户最近一条覆盖记录，
+// 由 memberOverrideCoverageFor 判定是否真的到期（未到期不做任何写入）。
+//
+// ponytail: 会员手动调级量级很小，扫描上限取 limit*5 即可覆盖，不引入「是否已处理」的状态位。
+func applyMemberOverrideExpiries(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
+	if limit < 1 || limit > 1000 {
+		return 0, errInvalidInput
+	}
+	rows, err := db.EsportsMemberLevelOverride.Query().
+		Order(ent.Desc(esportsmemberleveloverride.FieldID)).
+		Limit(limit * 5).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	seen := make(map[int]bool, len(rows))
+	count := 0
+	for _, row := range rows {
+		if seen[row.CustomerID] {
+			continue // 同一客户只按最新一条覆盖记录判断
+		}
+		seen[row.CustomerID] = true
+		customer, err := db.EsportsCustomer.Get(ctx, row.CustomerID)
+		if ent.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
+			return count, err
+		}
+		if customer.MemberLevelCode != row.LevelCode {
+			continue // 等级已被其它来源改写，无需回落
+		}
+		before := customer.MemberLevelCode
+		if err = settleMemberLevelOverride(ctx, db, customer.ID, now); err != nil {
+			return count, err
+		}
+		after, err := db.EsportsCustomer.Get(ctx, customer.ID)
+		if err != nil {
+			return count, err
+		}
+		if after.MemberLevelCode != before {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// applyMemberOverrideExpiryTask 定时任务入口（P1-10）：把覆盖期已到期的手动调级回落为成长值口径。
+//
+// ⚠️ 需由 app.go 注册（本文件不持有注册权）：
+//
+//	tasks.Register("esports_expire_member_level_overrides", applyMemberOverrideExpiryTask)
+//
+// 并在 cron_seeds.go 增加 CronSeed（建议每日一次，例如 "0 20 0 * * *"）。
+// 未注册时回落仍生效——读取会员详情（buildMemberView）与批量重算前都会做惰性判定。
+func applyMemberOverrideExpiryTask(ctx context.Context, logger io.Writer) error {
+	count, err := applyMemberOverrideExpiries(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "处理会员手动调级覆盖到期回落：%d\n", count)
+	}
+	return err
 }
 
 // applyMemberDowngrades 批量执行保护期已到期的待降级客户（§10.3），逐个条件更新，版本竞争跳过。
@@ -696,11 +965,23 @@ func applyMemberDowngrades(ctx context.Context, db *ent.Client, now time.Time, l
 // 不修改成长值流水。
 // 覆盖期内该等级作为稳定的等级来源参与取最高（§10.5-04）：下一次成长值变动重算不会把它平掉，
 // 覆盖期到期（默认 90 天，可配）后回到成长值口径，按保护期正常降级。
-func setMemberLevelByAdmin(ctx context.Context, db *ent.Client, customerID int, levelCode, reason string, operatorID int, now time.Time) (*ent.EsportsCustomer, error) {
+//
+// windows 可选传入本次调级的覆盖期（override_days / override_until，二选一）：不传时沿用系统配置天数，
+// 传入时以它为准并把到期时刻快照进等级变更事件（见 memberOverrideSnapshotExpiry）。
+// 用可变参数是为了不打断既有调用点（本文件外还有多处按 7 个位置参数调用）。
+func setMemberLevelByAdmin(ctx context.Context, db *ent.Client, customerID int, levelCode, reason string, operatorID int, now time.Time, windows ...memberOverrideWindow) (*ent.EsportsCustomer, error) {
 	levelCode = strings.TrimSpace(levelCode)
 	reason = strings.TrimSpace(reason)
 	if customerID < 1 || operatorID < 1 || reason == "" || len([]rune(reason)) > 255 {
 		return nil, errInvalidInput
+	}
+	var window memberOverrideWindow
+	if len(windows) > 0 {
+		window = windows[0]
+	}
+	overrideUntil, err := resolveMemberOverrideExpiry(window, now)
+	if err != nil {
+		return nil, err
 	}
 	rule, err := memberRuleByCode(ctx, db, levelCode)
 	if err != nil {
@@ -718,9 +999,10 @@ func setMemberLevelByAdmin(ctx context.Context, db *ent.Client, customerID int, 
 	if err != nil {
 		return nil, err
 	}
-	if _, err = tx.EsportsMemberLevelOverride.Create().
+	override, err := tx.EsportsMemberLevelOverride.Create().
 		SetCustomerID(customerID).SetLevelCode(levelCode).
-		SetReason(reason).SetOperatorID(operatorID).Save(ctx); err != nil {
+		SetReason(reason).SetOperatorID(operatorID).Save(ctx)
+	if err != nil {
 		return nil, err
 	}
 	changed, err := tx.EsportsCustomer.Update().Where(
@@ -733,9 +1015,13 @@ func setMemberLevelByAdmin(ctx context.Context, db *ent.Client, customerID int, 
 	if changed != 1 {
 		return nil, errConflict
 	}
-	if err = writeMemberLevelEvent(ctx, tx.EsportsOutbox.Create, "member.level_manual", customerID,
-		customer.MemberLevelCode, levelCode, 0,
-		map[string]interface{}{"reason": reason, "operator_id": operatorID}, now); err != nil {
+	manualExtra := map[string]interface{}{"reason": reason, "operator_id": operatorID, "override_id": override.ID}
+	if !overrideUntil.IsZero() {
+		// 逐次指定的覆盖到期时刻：覆盖记录只增不改，窗口随事件载荷快照，供覆盖判定读取。
+		manualExtra["override_until"] = overrideUntil.Format(time.RFC3339)
+	}
+	if err = writeMemberLevelEvent(ctx, tx.EsportsOutbox.Create, memberManualLevelEventType, customerID,
+		customer.MemberLevelCode, levelCode, 0, manualExtra, now); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -755,23 +1041,37 @@ type memberView struct {
 	DowngradeAfter   *time.Time `json:"downgrade_after"`
 	LevelChangedAt   *time.Time `json:"level_changed_at"`
 	// 当前等级生效的权益快照（§10.1-02 / §10.4）：客服端与自助端据此渲染权益与入口。
-	DedicatedCs          bool                              `json:"dedicated_cs"`
-	PriorityBooking      bool                              `json:"priority_booking"`
-	PriorityDispatch     bool                              `json:"priority_dispatch"`
-	DedicatedChannel     bool                              `json:"dedicated_channel"`
-	OfflineEventPriority bool                              `json:"offline_event_priority"`
-	PrepayBonusBps       int                               `json:"prepay_bonus_bps"`
-	Ledger               []*ent.EsportsGrowthLedger        `json:"ledger"`
-	Overrides            []*ent.EsportsMemberLevelOverride `json:"overrides"`
+	DedicatedCs          bool `json:"dedicated_cs"`
+	PriorityBooking      bool `json:"priority_booking"`
+	PriorityDispatch     bool `json:"priority_dispatch"`
+	DedicatedChannel     bool `json:"dedicated_channel"`
+	OfflineEventPriority bool `json:"offline_event_priority"`
+	PrepayBonusBps       int  `json:"prepay_bonus_bps"`
+	// 手动调级覆盖状态（P1-10）：覆盖期内 override_active=true，override_level_code 为人工设定等级，
+	// override_expires_at 为覆盖到期时刻；到期后由惰性判定回落，override_active 变 false。
+	OverrideLevelCode string                            `json:"override_level_code"`
+	OverrideExpiresAt *time.Time                        `json:"override_expires_at"`
+	OverrideActive    bool                              `json:"override_active"`
+	Ledger            []*ent.EsportsGrowthLedger        `json:"ledger"`
+	Overrides         []*ent.EsportsMemberLevelOverride `json:"overrides"`
 }
 
 // buildMemberView 组装客户会员详情：等级与折扣来自配置表，成长值由流水求和。
+// 读取前先做覆盖到期的惰性判定（P1-10）：覆盖期已过的手动调级会在此刻回落，不依赖定时任务。
 func buildMemberView(ctx context.Context, db *ent.Client, customerID int, limit int) (*memberView, error) {
+	return memberViewAt(ctx, db, customerID, limit, time.Now())
+}
+
+// memberViewAt 是 buildMemberView 的可注入时钟版本，便于测试覆盖到期后的回落行为。
+func memberViewAt(ctx context.Context, db *ent.Client, customerID int, limit int, now time.Time) (*memberView, error) {
 	if customerID < 1 {
 		return nil, errInvalidInput
 	}
 	if limit < 1 || limit > 200 {
 		limit = 50
+	}
+	if err := settleMemberLevelOverride(ctx, db, customerID, now); err != nil {
+		return nil, err
 	}
 	customer, err := db.EsportsCustomer.Get(ctx, customerID)
 	if err != nil {
@@ -785,6 +1085,14 @@ func buildMemberView(ctx context.Context, db *ent.Client, customerID int, limit 
 		CustomerID: customer.ID, LevelCode: customer.MemberLevelCode,
 		GrowthTotal: growth, PendingLevelCode: customer.MemberPendingLevelCode,
 		DowngradeAfter: customer.MemberDowngradeAfter, LevelChangedAt: customer.MemberLevelChangedAt,
+	}
+	if coverage, err := memberOverrideCoverageFor(ctx, db, customerID, now); err != nil {
+		return nil, err
+	} else if coverage.Override != nil {
+		expiresAt := coverage.ExpiresAt
+		view.OverrideLevelCode = coverage.Override.LevelCode
+		view.OverrideExpiresAt = &expiresAt
+		view.OverrideActive = coverage.Active
 	}
 	if rule, err := memberRuleByCode(ctx, db, customer.MemberLevelCode); err != nil {
 		return nil, err

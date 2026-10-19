@@ -47,7 +47,8 @@ func userStartOrderPaymentHandler(c fiber.Ctx) error {
 
 // adminStartOrderPaymentHandler 客服 / 企微侧边栏为订单发起在线收款（§4.3-02）。
 // 请求体：{"channel":"wechat_work"}；返回 {intent_no, channel, pay_url, amount_cents, expires_at}。
-// 路由须由 ownedOrderHandler 保护（负责客服或超管），权限码建议 esports:payments:order_start。
+// 路由由 ownedOrderHandler 保护（仅负责客服或超管，P0-12），权限码 esports:payments:order_start：
+// 归属边界只在路由层判定一次，service 侧不再重复校验，避免两处口径漂移。
 func adminStartOrderPaymentHandler(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)
 	if err != nil {

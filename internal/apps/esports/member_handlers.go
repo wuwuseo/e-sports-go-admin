@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -138,6 +139,8 @@ func adminCustomerMember(c fiber.Ctx) error {
 }
 
 // setCustomerMemberLevelHandler 管理员手动调级（§10.3）：记录操作人、原因与时间。
+// 覆盖期可选：override_days（天数）与 override_until（RFC3339 到期时刻）二选一，
+// 都不传时沿用系统配置 app.esports.member_override_guard_days；同时给出或越界返回参数错误。
 func setCustomerMemberLevelHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -154,11 +157,23 @@ func setCustomerMemberLevelHandler(c fiber.Ctx) error {
 	var in struct {
 		LevelCode string `json:"level_code"`
 		Reason    string `json:"reason"`
+		// 覆盖期（逐次指定）：天数或到期时刻，二选一；都不传沿用系统配置。
+		OverrideDays  int    `json:"override_days"`
+		OverrideUntil string `json:"override_until"`
 	}
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	customer, err := setMemberLevelByAdmin(c.Context(), global.ORM, customerID, in.LevelCode, in.Reason, adminID, time.Now())
+	window := memberOverrideWindow{Days: in.OverrideDays}
+	if raw := strings.TrimSpace(in.OverrideUntil); raw != "" {
+		until, parseErr := time.Parse(time.RFC3339, raw)
+		if parseErr != nil {
+			return fail(c, fiber.StatusBadRequest, "override_until 须为 RFC3339 时间格式")
+		}
+		window.Until = until
+	}
+	customer, err := setMemberLevelByAdmin(c.Context(), global.ORM, customerID, in.LevelCode, in.Reason,
+		adminID, time.Now(), window)
 	if err != nil {
 		return businessError(c, err)
 	}

@@ -75,16 +75,28 @@ func TestRound4W2SkuCostVisibility(t *testing.T) {
 		t.Fatalf("负成本应被拒：%v", err)
 	}
 
-	// 显式不传成本（nil）表示清空已登记成本。
-	cleared, err := updateSku(ctx, db, sku.ID, skuUpdateInput{
+	// P1-22：未传成本（字段不出现）表示保持不变——管理端编辑表单整表回传不得静默清空成本。
+	kept, err := updateSku(ctx, db, sku.ID, skuUpdateInput{
 		Title: "成本商品", ServiceType: "play", UnitPriceCents: 1000,
 		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if kept.CostCents == nil || *kept.CostCents != 600 {
+		t.Fatalf("未传成本时应保持既有成本：%+v", kept.CostCents)
+	}
+	// 显式 null 才清空已登记的成本。
+	cleared, err := updateSku(ctx, db, sku.ID, skuUpdateInput{
+		Title: "成本商品", ServiceType: "play", UnitPriceCents: 1000,
+		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
+		CostCents: optionalInt64{Present: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if cleared.CostCents != nil {
-		t.Fatalf("未传成本时应清空：%+v", cleared.CostCents)
+		t.Fatalf("显式传 null 时应清空成本：%+v", cleared.CostCents)
 	}
 	db.EsportsSku.UpdateOneID(sku.ID).SetCostCents(600).SaveX(ctx)
 

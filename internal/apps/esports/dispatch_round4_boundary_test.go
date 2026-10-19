@@ -393,7 +393,8 @@ func TestPriorityWindowSkipsStaleHeartbeatMembers(t *testing.T) {
 	}
 }
 
-// 6.4-01 关联：在途保护异常的陪玩要出现在派单候选池（保留上线状态）。
+// P1-01-03：连接异常（protected_abnormal）的陪玩**不得**进入派单候选池——
+// 「连接异常暂缓新派单」优先于「有在途订单保留上线状态」：在途订单只保留履约与结算。
 func TestInflightProtectedAbnormalInCandidates(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_r4_inflight_candidates")
 	defer db.Close()
@@ -418,13 +419,13 @@ func TestInflightProtectedAbnormalInCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	found := false
 	for _, item := range candidates {
 		if item.PlayerID == busy.ID {
-			found = true
+			t.Fatalf("连接异常（受保护）的陪玩不得进入派单候选：%+v", candidates)
 		}
 	}
-	if !found {
-		t.Fatalf("有在途订单的保护异常陪玩应保留候选资格：%+v", candidates)
+	// 人工指派同样被拒（暂缓一切新派单）。
+	if _, err = assignDispatchSeat(ctx, db, target.ID, 1, busy.ID, 11, now); !errors.Is(err, errForbidden) {
+		t.Fatalf("连接异常的陪玩不得被人工指派，err=%v", err)
 	}
 }

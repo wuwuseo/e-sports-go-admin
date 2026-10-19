@@ -37,6 +37,17 @@ func TestDispatchPriorityGrantQuota(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now()
 	game := "王者荣耀"
+	// P1-05-02：名单 game 必须能对上启用中的商品分类游戏分区，先建分类再录名单。
+	if _, err := saveCategory(ctx, db, categoryInput{
+		Code: "CAT-DP-Q-A", Name: "王者分类", Game: game, Status: "enabled",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := saveCategory(ctx, db, categoryInput{
+		Code: "CAT-DP-Q-B", Name: "联盟分类", Game: "英雄联盟", Status: "enabled",
+	}); err != nil {
+		t.Fatal(err)
+	}
 	first := seedPlayer(t, db, 1001, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	second := seedPlayer(t, db, 1002, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	third := seedPlayer(t, db, 1003, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
@@ -97,6 +108,12 @@ func TestDispatchPriorityRevoke(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now()
 	game := "王者荣耀"
+	// P1-05-02：名单 game 必须能对上启用中的商品分类游戏分区。
+	if _, err := saveCategory(ctx, db, categoryInput{
+		Code: "CAT-DP-R-A", Name: "王者分类", Game: game, Status: "enabled",
+	}); err != nil {
+		t.Fatal(err)
+	}
 	player := seedPlayer(t, db, 2001, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	other := seedPlayer(t, db, 2002, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	setWithdrawalConfig(t, db, dispatchPriorityQuotaKey, "1")

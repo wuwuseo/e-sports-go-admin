@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -152,6 +153,8 @@ func requestStoredValueRefundHandler(c fiber.Ctx) error {
 }
 
 // decideStoredValueRefundHandler 财务审核退卡：通过与驳回都不得自审。
+// 审核通过即「已出账」，须由操作人登记打款凭证 / 银行流水号（P1）：handler 先做必填校验并给明确提示，
+// 服务层再按同一规则校验一次，防止绕过 handler 直接调用时出一笔无凭据的钱。
 func decideStoredValueRefundHandler(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)
 	if err != nil {
@@ -162,12 +165,18 @@ func decideStoredValueRefundHandler(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	var in struct {
-		Approve *bool `json:"approve"`
+		Approve    *bool  `json:"approve"`
+		PayoutRef  string `json:"payout_ref"`
+		PayoutNote string `json:"payout_note"`
 	}
 	if err := c.Bind().Body(&in); err != nil || in.Approve == nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	view, err := decideStoredValueRefund(c.Context(), global.ORM, operator.ID, cardID, *in.Approve, time.Now())
+	if *in.Approve && strings.TrimSpace(in.PayoutRef) == "" {
+		return fail(c, fiber.StatusBadRequest, "退卡出账必须填写打款凭证或银行流水号")
+	}
+	view, err := decideStoredValueRefund(c.Context(), global.ORM, operator.ID, cardID, *in.Approve, time.Now(),
+		storedValueRefundPayout{PayoutRef: in.PayoutRef, PayoutNote: in.PayoutNote})
 	if err != nil {
 		return businessError(c, err)
 	}

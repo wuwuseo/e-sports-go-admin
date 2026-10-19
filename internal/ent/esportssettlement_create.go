@@ -128,6 +128,20 @@ func (_c *EsportsSettlementCreate) SetNillableStatus(v *esportssettlement.Status
 	return _c
 }
 
+// SetVersion sets the "version" field.
+func (_c *EsportsSettlementCreate) SetVersion(v int) *EsportsSettlementCreate {
+	_c.mutation.SetVersion(v)
+	return _c
+}
+
+// SetNillableVersion sets the "version" field if the given value is not nil.
+func (_c *EsportsSettlementCreate) SetNillableVersion(v *int) *EsportsSettlementCreate {
+	if v != nil {
+		_c.SetVersion(*v)
+	}
+	return _c
+}
+
 // SetLockedByAdminID sets the "locked_by_admin_id" field.
 func (_c *EsportsSettlementCreate) SetLockedByAdminID(v int) *EsportsSettlementCreate {
 	_c.mutation.SetLockedByAdminID(v)
@@ -194,6 +208,48 @@ func (_c *EsportsSettlementCreate) SetPaidAt(v time.Time) *EsportsSettlementCrea
 func (_c *EsportsSettlementCreate) SetNillablePaidAt(v *time.Time) *EsportsSettlementCreate {
 	if v != nil {
 		_c.SetPaidAt(*v)
+	}
+	return _c
+}
+
+// SetVoidedByAdminID sets the "voided_by_admin_id" field.
+func (_c *EsportsSettlementCreate) SetVoidedByAdminID(v int) *EsportsSettlementCreate {
+	_c.mutation.SetVoidedByAdminID(v)
+	return _c
+}
+
+// SetNillableVoidedByAdminID sets the "voided_by_admin_id" field if the given value is not nil.
+func (_c *EsportsSettlementCreate) SetNillableVoidedByAdminID(v *int) *EsportsSettlementCreate {
+	if v != nil {
+		_c.SetVoidedByAdminID(*v)
+	}
+	return _c
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (_c *EsportsSettlementCreate) SetVoidedAt(v time.Time) *EsportsSettlementCreate {
+	_c.mutation.SetVoidedAt(v)
+	return _c
+}
+
+// SetNillableVoidedAt sets the "voided_at" field if the given value is not nil.
+func (_c *EsportsSettlementCreate) SetNillableVoidedAt(v *time.Time) *EsportsSettlementCreate {
+	if v != nil {
+		_c.SetVoidedAt(*v)
+	}
+	return _c
+}
+
+// SetVoidReason sets the "void_reason" field.
+func (_c *EsportsSettlementCreate) SetVoidReason(v string) *EsportsSettlementCreate {
+	_c.mutation.SetVoidReason(v)
+	return _c
+}
+
+// SetNillableVoidReason sets the "void_reason" field if the given value is not nil.
+func (_c *EsportsSettlementCreate) SetNillableVoidReason(v *string) *EsportsSettlementCreate {
+	if v != nil {
+		_c.SetVoidReason(*v)
 	}
 	return _c
 }
@@ -285,9 +341,17 @@ func (_c *EsportsSettlementCreate) defaults() {
 		v := esportssettlement.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.Version(); !ok {
+		v := esportssettlement.DefaultVersion
+		_c.mutation.SetVersion(v)
+	}
 	if _, ok := _c.mutation.PayoutRef(); !ok {
 		v := esportssettlement.DefaultPayoutRef
 		_c.mutation.SetPayoutRef(v)
+	}
+	if _, ok := _c.mutation.VoidReason(); !ok {
+		v := esportssettlement.DefaultVoidReason
+		_c.mutation.SetVoidReason(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := esportssettlement.DefaultCreatedAt()
@@ -351,12 +415,23 @@ func (_c *EsportsSettlementCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsSettlement.status": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.Version(); !ok {
+		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "EsportsSettlement.version"`)}
+	}
 	if _, ok := _c.mutation.PayoutRef(); !ok {
 		return &ValidationError{Name: "payout_ref", err: errors.New(`ent: missing required field "EsportsSettlement.payout_ref"`)}
 	}
 	if v, ok := _c.mutation.PayoutRef(); ok {
 		if err := esportssettlement.PayoutRefValidator(v); err != nil {
 			return &ValidationError{Name: "payout_ref", err: fmt.Errorf(`ent: validator failed for field "EsportsSettlement.payout_ref": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.VoidReason(); !ok {
+		return &ValidationError{Name: "void_reason", err: errors.New(`ent: missing required field "EsportsSettlement.void_reason"`)}
+	}
+	if v, ok := _c.mutation.VoidReason(); ok {
+		if err := esportssettlement.VoidReasonValidator(v); err != nil {
+			return &ValidationError{Name: "void_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsSettlement.void_reason": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
@@ -431,6 +506,10 @@ func (_c *EsportsSettlementCreate) createSpec() (*EsportsSettlement, *sqlgraph.C
 		_spec.SetField(esportssettlement.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
 	}
+	if value, ok := _c.mutation.Version(); ok {
+		_spec.SetField(esportssettlement.FieldVersion, field.TypeInt, value)
+		_node.Version = value
+	}
 	if value, ok := _c.mutation.LockedByAdminID(); ok {
 		_spec.SetField(esportssettlement.FieldLockedByAdminID, field.TypeInt, value)
 		_node.LockedByAdminID = &value
@@ -450,6 +529,18 @@ func (_c *EsportsSettlementCreate) createSpec() (*EsportsSettlement, *sqlgraph.C
 	if value, ok := _c.mutation.PaidAt(); ok {
 		_spec.SetField(esportssettlement.FieldPaidAt, field.TypeTime, value)
 		_node.PaidAt = &value
+	}
+	if value, ok := _c.mutation.VoidedByAdminID(); ok {
+		_spec.SetField(esportssettlement.FieldVoidedByAdminID, field.TypeInt, value)
+		_node.VoidedByAdminID = &value
+	}
+	if value, ok := _c.mutation.VoidedAt(); ok {
+		_spec.SetField(esportssettlement.FieldVoidedAt, field.TypeTime, value)
+		_node.VoidedAt = &value
+	}
+	if value, ok := _c.mutation.VoidReason(); ok {
+		_spec.SetField(esportssettlement.FieldVoidReason, field.TypeString, value)
+		_node.VoidReason = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(esportssettlement.FieldCreatedAt, field.TypeTime, value)

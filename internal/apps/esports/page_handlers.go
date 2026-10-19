@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -14,11 +15,17 @@ import (
 )
 
 // adminPageDocuments 列出装修渠道文档（首版仅客户自助端首页一个渠道）。
+// P0-18：只列出允许装修的渠道，历史遗留的越权渠道文档不再回显（读 / 写 / 发布本就已拦截）。
 func adminPageDocuments(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
 		return businessError(c, err)
 	}
+	channels := make([]string, 0, len(pageAllowedChannels))
+	for channel := range pageAllowedChannels {
+		channels = append(channels, channel)
+	}
 	items, err := global.ORM.EsportsPageDocument.Query().
+		Where(esportspagedocument.ChannelIn(channels...)).
 		Order(ent.Asc(esportspagedocument.FieldChannel)).Limit(50).All(c.Context())
 	if err != nil {
 		return businessError(c, err)
@@ -34,6 +41,10 @@ func adminPageDocument(c fiber.Ctx) error {
 	channel := strings.TrimSpace(c.Params("channel"))
 	if channel == "" || len(channel) > 48 {
 		return businessError(c, errInvalidInput)
+	}
+	// P0-18：非白名单渠道不读取工作副本（避免成为探测 / 改写其它端首页的入口）。
+	if err := pageChannelAllowed(channel); err != nil {
+		return businessError(c, err)
 	}
 	doc, err := global.ORM.EsportsPageDocument.Query().
 		Where(esportspagedocument.ChannelEQ(channel)).Only(c.Context())
@@ -211,6 +222,10 @@ func publicPage(c fiber.Ctx) error {
 	if len(channel) > 48 {
 		return businessError(c, errInvalidInput)
 	}
+	// P0-18：客户端读取同样只接受白名单渠道，避免任意 :channel 的装修配置被下发到其它端。
+	if err := pageChannelAllowed(channel); err != nil {
+		return businessError(c, err)
+	}
 	rawCapab, hasCapab := c.Queries()["capab"]
 	caps := pageCapabilities(rawCapab, hasCapab)
 	snapshot, err := pageSnapshotForClient(c.Context(), global.ORM, channel, caps, time.Now())
@@ -260,6 +275,12 @@ func parseQueryInt(raw string) int {
 // publicPagePreview 设备预览码兑换入口（AuthPublic，§16.4-02）：只回草稿配置，不含个人数据。
 // 需在 app.go 接线：{Method: "GET", Path: "/page/preview/:code", Auth: cmfapp.AuthPublic, Handler: publicPagePreview}
 func publicPagePreview(c fiber.Ctx) error {
+	// P0-18：预览码里带着渠道，兑换前先做渠道白名单判定；非白名单渠道不返回任何草稿内容。
+	if channel := pagePreviewCodeChannel(c.Params("code")); channel != "" {
+		if err := pageChannelAllowed(channel); err != nil {
+			return businessError(c, err)
+		}
+	}
 	config, versionNo, err := resolvePagePreviewCode(c.Context(), global.ORM, c.Params("code"), time.Now())
 	if err != nil {
 		return businessError(c, err)
@@ -284,6 +305,25 @@ func cfgChannelHint(_ map[string]interface{}, fallback string) string {
 	return fallback
 }
 
+// pagePreviewCodeChannel 只解析预览码载荷里的渠道（**不验签**：验签由 resolvePagePreviewCode 完成）。
+// 用途是在兑换草稿前先做渠道白名单判定（P0-18）；解析失败返回空串，交由兑换流程按既有口径报错。
+func pagePreviewCodeChannel(code string) string {
+	code = strings.TrimSpace(code)
+	dot := strings.LastIndex(code, ".")
+	if dot <= 0 {
+		return ""
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(code[:dot])
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(string(raw), "|")
+	if len(parts) != 3 {
+		return ""
+	}
+	return parts[0]
+}
+
 // issuePagePreviewCodeHandler 生成设备预览码（§16.4-02，管理端）。
 // 需在 app.go 接线 + PermAPI：
 //
@@ -291,6 +331,10 @@ func cfgChannelHint(_ map[string]interface{}, fallback string) string {
 //	PermAPI Code: "esports:pages:preview_code"，Path: "/api/v1/esports/admin/pages/{channel}/preview-code"
 func issuePagePreviewCodeHandler(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	// P0-18：预览码只对白名单渠道签发。
+	if err := pageChannelAllowed(c.Params("channel")); err != nil {
 		return businessError(c, err)
 	}
 	view, err := issuePagePreviewCode(c.Context(), global.ORM, c.Params("channel"), time.Now())
@@ -316,6 +360,10 @@ func savePageTabbarHandler(c fiber.Ctx) error {
 	}
 	if err = c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	// P0-18：tabBar 写入只对白名单渠道放行。
+	if err := pageChannelAllowed(c.Params("channel")); err != nil {
+		return businessError(c, err)
 	}
 	doc, err := savePageTabbar(c.Context(), global.ORM, c.Params("channel"), admin.ID, in.ExpectedVersion, in.Items)
 	if err != nil {
@@ -352,6 +400,10 @@ func adminPageTabbar(c fiber.Ctx) error {
 	channel := strings.TrimSpace(c.Params("channel"))
 	if channel == "" || len(channel) > 48 {
 		return businessError(c, errInvalidInput)
+	}
+	// P0-18：tabBar 读取只对白名单渠道放行。
+	if err := pageChannelAllowed(channel); err != nil {
+		return businessError(c, err)
 	}
 	doc, err := global.ORM.EsportsPageDocument.Query().
 		Where(esportspagedocument.ChannelEQ(channel)).Only(c.Context())

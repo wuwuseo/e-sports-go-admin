@@ -36,6 +36,8 @@ const (
 	FieldEntryCount = "entry_count"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldVersion holds the string denoting the version field in the database.
+	FieldVersion = "version"
 	// FieldLockedByAdminID holds the string denoting the locked_by_admin_id field in the database.
 	FieldLockedByAdminID = "locked_by_admin_id"
 	// FieldLockedAt holds the string denoting the locked_at field in the database.
@@ -46,6 +48,12 @@ const (
 	FieldPaidByAdminID = "paid_by_admin_id"
 	// FieldPaidAt holds the string denoting the paid_at field in the database.
 	FieldPaidAt = "paid_at"
+	// FieldVoidedByAdminID holds the string denoting the voided_by_admin_id field in the database.
+	FieldVoidedByAdminID = "voided_by_admin_id"
+	// FieldVoidedAt holds the string denoting the voided_at field in the database.
+	FieldVoidedAt = "voided_at"
+	// FieldVoidReason holds the string denoting the void_reason field in the database.
+	FieldVoidReason = "void_reason"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -70,11 +78,15 @@ var Columns = []string{
 	FieldNetCents,
 	FieldEntryCount,
 	FieldStatus,
+	FieldVersion,
 	FieldLockedByAdminID,
 	FieldLockedAt,
 	FieldPayoutRef,
 	FieldPaidByAdminID,
 	FieldPaidAt,
+	FieldVoidedByAdminID,
+	FieldVoidedAt,
+	FieldVoidReason,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -102,10 +114,16 @@ var (
 	DefaultNetCents int64
 	// DefaultEntryCount holds the default value on creation for the "entry_count" field.
 	DefaultEntryCount int
+	// DefaultVersion holds the default value on creation for the "version" field.
+	DefaultVersion int
 	// DefaultPayoutRef holds the default value on creation for the "payout_ref" field.
 	DefaultPayoutRef string
 	// PayoutRefValidator is a validator for the "payout_ref" field. It is called by the builders before save.
 	PayoutRefValidator func(string) error
+	// DefaultVoidReason holds the default value on creation for the "void_reason" field.
+	DefaultVoidReason string
+	// VoidReasonValidator is a validator for the "void_reason" field. It is called by the builders before save.
+	VoidReasonValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -151,6 +169,7 @@ const (
 	StatusDraft  Status = "draft"
 	StatusLocked Status = "locked"
 	StatusPaid   Status = "paid"
+	StatusVoid   Status = "void"
 )
 
 func (s Status) String() string {
@@ -160,7 +179,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusDraft, StatusLocked, StatusPaid:
+	case StatusDraft, StatusLocked, StatusPaid, StatusVoid:
 		return nil
 	default:
 		return fmt.Errorf("esportssettlement: invalid enum value for status field: %q", s)
@@ -225,6 +244,11 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
+// ByVersion orders the results by the version field.
+func ByVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
 // ByLockedByAdminID orders the results by the locked_by_admin_id field.
 func ByLockedByAdminID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLockedByAdminID, opts...).ToFunc()
@@ -248,6 +272,21 @@ func ByPaidByAdminID(opts ...sql.OrderTermOption) OrderOption {
 // ByPaidAt orders the results by the paid_at field.
 func ByPaidAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPaidAt, opts...).ToFunc()
+}
+
+// ByVoidedByAdminID orders the results by the voided_by_admin_id field.
+func ByVoidedByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedByAdminID, opts...).ToFunc()
+}
+
+// ByVoidedAt orders the results by the voided_at field.
+func ByVoidedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidedAt, opts...).ToFunc()
+}
+
+// ByVoidReason orders the results by the void_reason field.
+func ByVoidReason(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVoidReason, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

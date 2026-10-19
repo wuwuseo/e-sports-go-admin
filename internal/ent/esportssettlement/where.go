@@ -94,6 +94,11 @@ func EntryCount(v int) predicate.EsportsSettlement {
 	return predicate.EsportsSettlement(sql.FieldEQ(FieldEntryCount, v))
 }
 
+// Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
+func Version(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVersion, v))
+}
+
 // LockedByAdminID applies equality check predicate on the "locked_by_admin_id" field. It's identical to LockedByAdminIDEQ.
 func LockedByAdminID(v int) predicate.EsportsSettlement {
 	return predicate.EsportsSettlement(sql.FieldEQ(FieldLockedByAdminID, v))
@@ -117,6 +122,21 @@ func PaidByAdminID(v int) predicate.EsportsSettlement {
 // PaidAt applies equality check predicate on the "paid_at" field. It's identical to PaidAtEQ.
 func PaidAt(v time.Time) predicate.EsportsSettlement {
 	return predicate.EsportsSettlement(sql.FieldEQ(FieldPaidAt, v))
+}
+
+// VoidedByAdminID applies equality check predicate on the "voided_by_admin_id" field. It's identical to VoidedByAdminIDEQ.
+func VoidedByAdminID(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVoidedByAdminID, v))
+}
+
+// VoidedAt applies equality check predicate on the "voided_at" field. It's identical to VoidedAtEQ.
+func VoidedAt(v time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVoidedAt, v))
+}
+
+// VoidReason applies equality check predicate on the "void_reason" field. It's identical to VoidReasonEQ.
+func VoidReason(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVoidReason, v))
 }
 
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
@@ -514,6 +534,46 @@ func StatusNotIn(vs ...Status) predicate.EsportsSettlement {
 	return predicate.EsportsSettlement(sql.FieldNotIn(FieldStatus, vs...))
 }
 
+// VersionEQ applies the EQ predicate on the "version" field.
+func VersionEQ(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVersion, v))
+}
+
+// VersionNEQ applies the NEQ predicate on the "version" field.
+func VersionNEQ(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNEQ(FieldVersion, v))
+}
+
+// VersionIn applies the In predicate on the "version" field.
+func VersionIn(vs ...int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldIn(FieldVersion, vs...))
+}
+
+// VersionNotIn applies the NotIn predicate on the "version" field.
+func VersionNotIn(vs ...int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNotIn(FieldVersion, vs...))
+}
+
+// VersionGT applies the GT predicate on the "version" field.
+func VersionGT(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGT(FieldVersion, v))
+}
+
+// VersionGTE applies the GTE predicate on the "version" field.
+func VersionGTE(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGTE(FieldVersion, v))
+}
+
+// VersionLT applies the LT predicate on the "version" field.
+func VersionLT(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLT(FieldVersion, v))
+}
+
+// VersionLTE applies the LTE predicate on the "version" field.
+func VersionLTE(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLTE(FieldVersion, v))
+}
+
 // LockedByAdminIDEQ applies the EQ predicate on the "locked_by_admin_id" field.
 func LockedByAdminIDEQ(v int) predicate.EsportsSettlement {
 	return predicate.EsportsSettlement(sql.FieldEQ(FieldLockedByAdminID, v))
@@ -777,6 +837,171 @@ func PaidAtIsNil() predicate.EsportsSettlement {
 // PaidAtNotNil applies the NotNil predicate on the "paid_at" field.
 func PaidAtNotNil() predicate.EsportsSettlement {
 	return predicate.EsportsSettlement(sql.FieldNotNull(FieldPaidAt))
+}
+
+// VoidedByAdminIDEQ applies the EQ predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDEQ(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVoidedByAdminID, v))
+}
+
+// VoidedByAdminIDNEQ applies the NEQ predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDNEQ(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNEQ(FieldVoidedByAdminID, v))
+}
+
+// VoidedByAdminIDIn applies the In predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDIn(vs ...int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldIn(FieldVoidedByAdminID, vs...))
+}
+
+// VoidedByAdminIDNotIn applies the NotIn predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDNotIn(vs ...int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNotIn(FieldVoidedByAdminID, vs...))
+}
+
+// VoidedByAdminIDGT applies the GT predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDGT(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGT(FieldVoidedByAdminID, v))
+}
+
+// VoidedByAdminIDGTE applies the GTE predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDGTE(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGTE(FieldVoidedByAdminID, v))
+}
+
+// VoidedByAdminIDLT applies the LT predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDLT(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLT(FieldVoidedByAdminID, v))
+}
+
+// VoidedByAdminIDLTE applies the LTE predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDLTE(v int) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLTE(FieldVoidedByAdminID, v))
+}
+
+// VoidedByAdminIDIsNil applies the IsNil predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDIsNil() predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldIsNull(FieldVoidedByAdminID))
+}
+
+// VoidedByAdminIDNotNil applies the NotNil predicate on the "voided_by_admin_id" field.
+func VoidedByAdminIDNotNil() predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNotNull(FieldVoidedByAdminID))
+}
+
+// VoidedAtEQ applies the EQ predicate on the "voided_at" field.
+func VoidedAtEQ(v time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVoidedAt, v))
+}
+
+// VoidedAtNEQ applies the NEQ predicate on the "voided_at" field.
+func VoidedAtNEQ(v time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNEQ(FieldVoidedAt, v))
+}
+
+// VoidedAtIn applies the In predicate on the "voided_at" field.
+func VoidedAtIn(vs ...time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldIn(FieldVoidedAt, vs...))
+}
+
+// VoidedAtNotIn applies the NotIn predicate on the "voided_at" field.
+func VoidedAtNotIn(vs ...time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNotIn(FieldVoidedAt, vs...))
+}
+
+// VoidedAtGT applies the GT predicate on the "voided_at" field.
+func VoidedAtGT(v time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGT(FieldVoidedAt, v))
+}
+
+// VoidedAtGTE applies the GTE predicate on the "voided_at" field.
+func VoidedAtGTE(v time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGTE(FieldVoidedAt, v))
+}
+
+// VoidedAtLT applies the LT predicate on the "voided_at" field.
+func VoidedAtLT(v time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLT(FieldVoidedAt, v))
+}
+
+// VoidedAtLTE applies the LTE predicate on the "voided_at" field.
+func VoidedAtLTE(v time.Time) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLTE(FieldVoidedAt, v))
+}
+
+// VoidedAtIsNil applies the IsNil predicate on the "voided_at" field.
+func VoidedAtIsNil() predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldIsNull(FieldVoidedAt))
+}
+
+// VoidedAtNotNil applies the NotNil predicate on the "voided_at" field.
+func VoidedAtNotNil() predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNotNull(FieldVoidedAt))
+}
+
+// VoidReasonEQ applies the EQ predicate on the "void_reason" field.
+func VoidReasonEQ(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEQ(FieldVoidReason, v))
+}
+
+// VoidReasonNEQ applies the NEQ predicate on the "void_reason" field.
+func VoidReasonNEQ(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNEQ(FieldVoidReason, v))
+}
+
+// VoidReasonIn applies the In predicate on the "void_reason" field.
+func VoidReasonIn(vs ...string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldIn(FieldVoidReason, vs...))
+}
+
+// VoidReasonNotIn applies the NotIn predicate on the "void_reason" field.
+func VoidReasonNotIn(vs ...string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldNotIn(FieldVoidReason, vs...))
+}
+
+// VoidReasonGT applies the GT predicate on the "void_reason" field.
+func VoidReasonGT(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGT(FieldVoidReason, v))
+}
+
+// VoidReasonGTE applies the GTE predicate on the "void_reason" field.
+func VoidReasonGTE(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldGTE(FieldVoidReason, v))
+}
+
+// VoidReasonLT applies the LT predicate on the "void_reason" field.
+func VoidReasonLT(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLT(FieldVoidReason, v))
+}
+
+// VoidReasonLTE applies the LTE predicate on the "void_reason" field.
+func VoidReasonLTE(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldLTE(FieldVoidReason, v))
+}
+
+// VoidReasonContains applies the Contains predicate on the "void_reason" field.
+func VoidReasonContains(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldContains(FieldVoidReason, v))
+}
+
+// VoidReasonHasPrefix applies the HasPrefix predicate on the "void_reason" field.
+func VoidReasonHasPrefix(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldHasPrefix(FieldVoidReason, v))
+}
+
+// VoidReasonHasSuffix applies the HasSuffix predicate on the "void_reason" field.
+func VoidReasonHasSuffix(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldHasSuffix(FieldVoidReason, v))
+}
+
+// VoidReasonEqualFold applies the EqualFold predicate on the "void_reason" field.
+func VoidReasonEqualFold(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldEqualFold(FieldVoidReason, v))
+}
+
+// VoidReasonContainsFold applies the ContainsFold predicate on the "void_reason" field.
+func VoidReasonContainsFold(v string) predicate.EsportsSettlement {
+	return predicate.EsportsSettlement(sql.FieldContainsFold(FieldVoidReason, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

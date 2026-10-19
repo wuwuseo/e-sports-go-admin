@@ -70,6 +70,9 @@ func generateDueCsSettlements(ctx context.Context, db *ent.Client, now time.Time
 			esportssettlement.OwnerIDEQ(adminID),
 			esportssettlement.PeriodStartEQ(start.UTC()),
 			esportssettlement.PeriodEndEQ(end.UTC()),
+			// P0-6：已作废（void）的同周期单不算「已生成」，否则作废后该周期永远无法自动补回；
+			// 作废会把明细回退为待结算，因此这里放开后即可重新生成新草稿。
+			esportssettlement.StatusNEQ(esportssettlement.StatusVoid),
 		).Exist(ctx)
 		if err != nil {
 			return created, err

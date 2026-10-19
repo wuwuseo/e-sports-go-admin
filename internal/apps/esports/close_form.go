@@ -846,6 +846,12 @@ type orderCloseFormView struct {
 	LatestSnapshot *ent.EsportsCloseFormSnapshot `json:"latest_snapshot"`
 	SubmitRule     map[string]interface{}        `json:"submit_rule"`
 	Unsubmitted    []unsubmittedMember           `json:"unsubmitted"`
+	// EvidenceAttachmentIDs 是结单前必须逐张查看的服务段凭证图片附件 ID（§3.4-03），
+	// 与 GET /admin/orders/{id}/close-conditions 的 evidence_attachment_ids 同一命名与同一口径
+	//（serviceEvidenceAttachmentIDs：JSON 数组形态的图片附件、升序去重）。
+	// 结单弹窗据此渲染「逐张确认」，并把确认过的 ID 作为 viewed_evidence_attachment_ids 原样回传；
+	// 为空表示本单没有图片凭证，无需逐张确认（纯文本凭证可直接结单）。
+	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 }
 
 // orderCloseForm 返回订单结单表单所需的模板与字段定义（供管理端结单弹窗渲染）。
@@ -858,6 +864,11 @@ func orderCloseForm(ctx context.Context, db *ent.Client, orderID int) (*orderClo
 		return nil, err
 	}
 	view := &orderCloseFormView{Fields: []*ent.EsportsCloseFormField{}}
+	// §3.4-03：把需逐张查看的凭证附件 ID 一并透出，前端才能渲染确认清单并回传
+	// viewed_evidence_attachment_ids（否则前端只能盲猜，结单必然 400）。
+	if view.EvidenceAttachmentIDs, err = serviceEvidenceAttachmentIDs(ctx, db, orderID); err != nil {
+		return nil, err
+	}
 	template, err := resolveCloseFormTemplate(ctx, db, order)
 	if err != nil {
 		return nil, err

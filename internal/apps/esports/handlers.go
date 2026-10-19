@@ -282,7 +282,9 @@ func businessError(c fiber.Ctx, err error) error {
 	case ent.IsValidationError(err):
 		return fail(c, fiber.StatusBadRequest, "请求参数无效")
 	case errors.Is(err, errForbidden):
-		return fail(c, fiber.StatusForbidden, "无权访问该客户或订单")
+		// 用 err.Error()：裸哨兵仍是「无权访问该客户或订单」，带上下文的包装（如「退卡出账须由财务角色执行」）
+		// 原样透出，前端才能提示具体原因；状态码与错误分类不变。
+		return fail(c, fiber.StatusForbidden, err.Error())
 	case errors.Is(err, errDispatchPriorityHold):
 		// 优先通知窗口内订单尚未对大厅开放，给陪玩明确原因而不是笼统的 403 文案。
 		return fail(c, fiber.StatusForbidden, errDispatchPriorityHold.Error())
@@ -296,7 +298,12 @@ func businessError(c fiber.Ctx, err error) error {
 	case errors.Is(err, errOrderFrozen):
 		// 存单冻结拦截：给前端明确中文提示（而非笼统的「业务状态已变化」），状态码 409。
 		return fail(c, fiber.StatusConflict, errOrderFrozen.Error())
-	case errors.Is(err, errConflict), ent.IsConstraintError(err):
+	case errors.Is(err, errConflict):
+		// 用 err.Error()：裸哨兵仍为「业务状态已变化，请刷新后重试」，
+		// 携带上下文的中文包装（如重复收款拦截「该订单已有待核验的转账凭证…」）原样透出给前端。
+		return fail(c, fiber.StatusConflict, err.Error())
+	case ent.IsConstraintError(err):
+		// 唯一索引冲突不带业务上下文，只可能暴露底层约束细节，沿用统一中文文案。
 		return fail(c, fiber.StatusConflict, errConflict.Error())
 	case ent.IsNotFound(err):
 		return fail(c, fiber.StatusNotFound, "记录不存在")
@@ -352,14 +359,116 @@ type skuOrderQuotePreview struct {
 	// §15.3-01 / §5.3-05：多人规格的每席承诺服务量与席位数（详情接口须能读到该字段）。
 	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
 	RequiredSeats       int   `json:"required_seats"`
+	// 会员权益消费点（P1-11）：报价页直接展示会员权益是否生效，以及本次订单是否会带
+	// 「专属通道 / 会员优先」派单优先级标记（与 placeOrder 写进订单事件的标记同一口径）。
+	MemberPrivilegeActive bool `json:"member_privilege_active"`
+	DedicatedChannel      bool `json:"dedicated_channel"`
+	DispatchPriority      bool `json:"dispatch_priority"`
+	// P1-23：单个 SKU 的配置缺失（如多人规格没配每席承诺量）降级为「不可下单 + 中文原因」，
+	// 不再让整张报单页的报价请求 400。
+	NotOrderable       bool   `json:"not_orderable"`
+	NotOrderableReason string `json:"not_orderable_reason,omitempty"`
 }
 
-// skuOrderQuote 按（客户，SKU，份数）试算报价（§15.6-01）：只读计算，不落单、不占名额。
-func skuOrderQuote(ctx context.Context, db *ent.Client, customerID, skuID int, quantity int64) (*skuOrderQuotePreview, error) {
-	if customerID < 1 || skuID < 1 || quantity < 1 || quantity > 1000 {
+// skuQuoteBaseline 是一次报价请求的客户侧基线（客户档案 + 会员权益），可跨多个 SKU 复用。
+// 客户不存在 / 参数非法属于请求级错误，仍然整体失败（P1-23 只对单个 SKU 的配置缺失降级）。
+type skuQuoteBaseline struct {
+	customer  *ent.EsportsCustomer
+	privilege *memberPrivilegeView
+}
+
+func loadSkuQuoteBaseline(ctx context.Context, db *ent.Client, customerID int, quantity int64) (*skuQuoteBaseline, error) {
+	if customerID < 1 || quantity < 1 || quantity > 1000 {
 		return nil, errInvalidInput
 	}
 	customer, err := db.EsportsCustomer.Get(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	privilege, err := memberPrivilegeFlags(ctx, db, customerID)
+	if err != nil {
+		return nil, err
+	}
+	return &skuQuoteBaseline{customer: customer, privilege: privilege}, nil
+}
+
+// buildSkuQuotePreview 按「商品规格价 → 会员折扣」口径组装单个 SKU 的报价快照。
+func buildSkuQuotePreview(sku *ent.EsportsSku, baseline *skuQuoteBaseline,
+	quantity, perSeatUnits, seatTotalUnits int64) *skuOrderQuotePreview {
+	subtotal := sku.UnitPriceCents * quantity
+	discount := memberDiscountCents(subtotal, baseline.privilege.DiscountBps)
+	return &skuOrderQuotePreview{
+		SkuID: sku.ID, Quantity: quantity, MemberLevelCode: baseline.customer.MemberLevelCode,
+		MemberDiscountBps: baseline.privilege.DiscountBps, UnitPriceCents: sku.UnitPriceCents,
+		SubtotalCents: subtotal, MemberDiscountCents: discount, PayableCents: subtotal - discount,
+		PromisedServiceUnits: seatTotalUnits * quantity,
+		ServiceUnitName:      sku.ServiceUnitName, CloseRuleCode: sku.CloseRuleCode,
+		PerSeatServiceUnits: perSeatUnits, RequiredSeats: sku.RequiredSeats,
+		MemberPrivilegeActive: baseline.privilege.Active,
+		DedicatedChannel:      baseline.privilege.DedicatedChannel,
+		DispatchPriority:      baseline.privilege.DedicatedChannel || baseline.privilege.PriorityDispatch,
+	}
+}
+
+// buildSkuOrderQuote 用同一份客户基线计算单个 SKU 的报价；SKU 侧配置缺失时返回带上下文的中文错误。
+func buildSkuOrderQuote(ctx context.Context, db *ent.Client, baseline *skuQuoteBaseline,
+	sku *ent.EsportsSku, quantity int64) (*skuOrderQuotePreview, error) {
+	if baseline == nil || sku == nil {
+		return nil, errInvalidInput
+	}
+	// §15.5-01：有规格组时提前读取，用于「每席承诺服务量」口径。
+	var specGroup *ent.EsportsSpecGroup
+	if sku.SpecGroupID != nil {
+		group, err := db.EsportsSpecGroup.Get(ctx, *sku.SpecGroupID)
+		if err != nil {
+			return nil, err
+		}
+		specGroup = group
+	}
+	// §15.3-01：试算承诺量走「每席承诺量 × 席位数 × 份数」，多人规格缺每席量时明确报错（不静默落 0）。
+	perSeatUnits, seatTotalUnits, _, err := resolveSeatPromise(sku, specGroup)
+	if err != nil {
+		return nil, err
+	}
+	return buildSkuQuotePreview(sku, baseline, quantity, perSeatUnits, seatTotalUnits), nil
+}
+
+// degradedSkuQuote 为配置缺失的单个 SKU 生成降级报价（P1-23）：价格与折扣口径照常展示，
+// 但明确标记不可下单并给出中文原因，避免一个坏 SKU 拖垮整张报单页。
+func degradedSkuQuote(sku *ent.EsportsSku, baseline *skuQuoteBaseline, quantity int64, cause error) *skuOrderQuotePreview {
+	quote := buildSkuQuotePreview(sku, baseline, quantity, 0, 0)
+	quote.NotOrderable = true
+	quote.NotOrderableReason = skuNotOrderableReason(cause)
+	return quote
+}
+
+// skuNotOrderableReason 把 SKU 侧配置错误转成面向报单页的中文原因：
+// 去掉 errInvalidInput 哨兵文案，避免把「商品配置缺失」误报成客户输入问题。
+func skuNotOrderableReason(cause error) string {
+	if cause == nil {
+		return "商品配置不完整，暂不可下单"
+	}
+	if ent.IsNotFound(cause) {
+		return "商品关联的规格配置缺失，暂不可下单"
+	}
+	if !errors.Is(cause, errInvalidInput) {
+		return "商品配置异常，暂不可下单"
+	}
+	message := strings.TrimSpace(strings.TrimPrefix(cause.Error(), errInvalidInput.Error()+"："))
+	message = strings.TrimSpace(strings.TrimPrefix(message, errInvalidInput.Error()))
+	if message == "" {
+		return "商品配置不完整，暂不可下单"
+	}
+	return message
+}
+
+// skuOrderQuote 按（客户，SKU，份数）试算报价（§15.6-01）：只读计算，不落单、不占名额。
+// 该入口只针对单个 SKU，配置缺失直接返回明确错误（P1-23 的「明确只针对该 SKU」分支）。
+func skuOrderQuote(ctx context.Context, db *ent.Client, customerID, skuID int, quantity int64) (*skuOrderQuotePreview, error) {
+	if skuID < 1 {
+		return nil, errInvalidInput
+	}
+	baseline, err := loadSkuQuoteBaseline(ctx, db, customerID, quantity)
 	if err != nil {
 		return nil, err
 	}
@@ -367,37 +476,13 @@ func skuOrderQuote(ctx context.Context, db *ent.Client, customerID, skuID int, q
 	if err != nil {
 		return nil, err
 	}
-	discountBps, err := memberDiscountBps(ctx, db, customer.MemberLevelCode)
-	if err != nil {
-		return nil, err
-	}
-	subtotal := sku.UnitPriceCents * quantity
-	discount := memberDiscountCents(subtotal, discountBps)
-	// §15.3-01：试算的承诺量走「每席承诺量 × 席位数 × 份数」，多人规格缺每席量时明确报错（不静默落 0）。
-	var specGroup *ent.EsportsSpecGroup
-	if sku.SpecGroupID != nil {
-		group, groupErr := db.EsportsSpecGroup.Get(ctx, *sku.SpecGroupID)
-		if groupErr != nil {
-			return nil, groupErr
-		}
-		specGroup = group
-	}
-	perSeatUnits, seatTotalUnits, _, err := resolveSeatPromise(sku, specGroup)
-	if err != nil {
-		return nil, err
-	}
-	return &skuOrderQuotePreview{
-		SkuID: sku.ID, Quantity: quantity, MemberLevelCode: customer.MemberLevelCode,
-		MemberDiscountBps: discountBps, UnitPriceCents: sku.UnitPriceCents,
-		SubtotalCents: subtotal, MemberDiscountCents: discount, PayableCents: subtotal - discount,
-		PromisedServiceUnits: seatTotalUnits * quantity,
-		ServiceUnitName:      sku.ServiceUnitName, CloseRuleCode: sku.CloseRuleCode,
-		PerSeatServiceUnits: perSeatUnits, RequiredSeats: sku.RequiredSeats,
-	}, nil
+	return buildSkuOrderQuote(ctx, db, baseline, sku, quantity)
 }
 
 // adminSkus 商品列表。带 quote_customer_id（可选 quote_quantity，默认 1）时按客户逐 SKU 试算报价，
 // 响应由数组变为 {"items": [...], "quotes": {"<sku_id>": {...}}}，供报单页不落单即展示会员折扣与结单要求。
+// P1-23：单个 SKU 配置缺失（如多人规格未配每席承诺量）只降级该 SKU（not_orderable + 中文原因），
+// 不再让整张报单页的报价 400；显式传 quote_sku_id 只针对该 SKU 时仍返回明确错误。
 func adminSkus(c fiber.Ctx) error {
 	items, err := global.ORM.EsportsSku.Query().Order(ent.Desc(esportssku.FieldID)).Limit(100).All(c.Context())
 	if err != nil {
@@ -417,11 +502,21 @@ func adminSkus(c fiber.Ctx) error {
 	if quantity < 1 {
 		quantity = 1
 	}
+	baseline, err := loadSkuQuoteBaseline(c.Context(), global.ORM, customerID, quantity)
+	if err != nil {
+		return businessError(c, err)
+	}
+	soleSkuID := queryInt(c, "quote_sku_id")
 	quotes := make(map[string]*skuOrderQuotePreview, len(items))
 	for _, item := range items {
-		quote, err := skuOrderQuote(c.Context(), global.ORM, customerID, item.ID, quantity)
-		if err != nil {
-			return businessError(c, err)
+		quote, quoteErr := buildSkuOrderQuote(c.Context(), global.ORM, baseline, item, quantity)
+		if quoteErr != nil {
+			// 请求体明确只针对该 SKU 时仍返回明确错误，便于报单页定位具体原因。
+			if soleSkuID == item.ID {
+				return businessError(c, quoteErr)
+			}
+			quotes[strconv.Itoa(item.ID)] = degradedSkuQuote(item, baseline, quantity, quoteErr)
+			continue
 		}
 		quotes[strconv.Itoa(item.ID)] = quote
 	}

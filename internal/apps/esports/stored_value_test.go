@@ -278,7 +278,14 @@ func TestStoredValueRefundFlow(t *testing.T) {
 	if _, err = decideStoredValueRefund(ctx, db, 11, card.ID, true, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("自审应被拒，err=%v", err)
 	}
-	refunded, err := decideStoredValueRefund(ctx, db, 22, card.ID, true, now)
+	// 退卡出账（审核通过即「已出账」）须由财务角色执行，并登记打款凭证 / 银行流水号（P1，§4.4）。
+	poSeedConfig(t, db, financeReportRoleNamesKey, "sv-refund-auditor")
+	role := db.Role.Create().SetName("sv-refund-auditor").SetDisplayName("退卡出账员").
+		SetStatus("active").SaveX(ctx)
+	auditor := seedAdminAccount(t, db, "sv-refund-auditor")
+	db.AdminRole.Create().SetAdminID(auditor.ID).SetRoleID(role.ID).SaveX(ctx)
+	refunded, err := decideStoredValueRefund(ctx, db, auditor.ID, card.ID, true, now,
+		storedValueRefundPayout{PayoutRef: "BANK-2026-000001", PayoutNote: "网银转账"})
 	if err != nil {
 		t.Fatalf("审核通过应成功，err=%v", err)
 	}

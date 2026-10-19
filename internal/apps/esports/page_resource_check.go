@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -41,9 +42,14 @@ var (
 
 // validatePageResources 发布前校验资源有效性（§16.4 增量）：图片 URL 可访问、跳转链接合法性、
 // 商品/活动有效性、文本长度超限。additive：应在域名白名单校验通过后调用。
+//
+// P0-17：外部图片探测必须先过 `app.esports.page_allowed_domains` 域名白名单，
+// 不在白名单内的地址**不发起任何网络请求**，直接判定不可用（避免发布动作被当作 SSRF 探测器）。
+// 白名单缺失时按 fail-closed 处理：视为空集合，拒绝全部外部图片探测并提示配置键。
 func validatePageResources(ctx context.Context, db *ent.Client, cfg pageConfig) error {
+	allowedDomains := pageAllowedDomains(ctx, db)
 	for i, comp := range cfg.Components {
-		if err := validatePageResourceProps(ctx, db, i, comp.Props); err != nil {
+		if err := validatePageResourceProps(ctx, db, allowedDomains, i, comp.Props); err != nil {
 			return err
 		}
 	}
@@ -51,25 +57,27 @@ func validatePageResources(ctx context.Context, db *ent.Client, cfg pageConfig) 
 }
 
 // validatePageResourceProps 递归校验单个组件的自由属性。
-func validatePageResourceProps(ctx context.Context, db *ent.Client, compIndex int, props map[string]interface{}) error {
+func validatePageResourceProps(ctx context.Context, db *ent.Client, allowedDomains map[string]bool,
+	compIndex int, props map[string]interface{}) error {
 	for key, value := range props {
-		if err := validatePageResourceValue(ctx, db, compIndex, key, value); err != nil {
+		if err := validatePageResourceValue(ctx, db, allowedDomains, compIndex, key, value); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validatePageResourceValue(ctx context.Context, db *ent.Client, compIndex int, key string, value interface{}) error {
+func validatePageResourceValue(ctx context.Context, db *ent.Client, allowedDomains map[string]bool,
+	compIndex int, key string, value interface{}) error {
 	switch v := value.(type) {
 	case string:
 		// 通用文本长度兜底（专用上限 title/subtitle/name 已在 validatePageValue 校验）。
 		if n := len([]rune(v)); n > pageGenericTextLimit {
 			return fmt.Errorf("%w：第 %d 个组件字段 %q 文本超长（%d/%d）", errInvalidInput, compIndex+1, key, n, pageGenericTextLimit)
 		}
-		if pageImageFields[key] && strings.HasPrefix(strings.TrimSpace(v), "https://") {
-			if err := pageProbeImage(ctx, strings.TrimSpace(v)); err != nil {
-				return fmt.Errorf("%w：第 %d 个组件字段 %q 的图片不可访问（%s）：%v", errInvalidInput, compIndex+1, key, v, err)
+		if pageImageFields[key] {
+			if err := pageCheckExternalImage(ctx, allowedDomains, compIndex, key, v); err != nil {
+				return err
 			}
 		}
 		if pageLinkFields[key] {
@@ -90,7 +98,7 @@ func validatePageResourceValue(ctx context.Context, db *ent.Client, compIndex in
 		}
 	case map[string]interface{}:
 		for k, sub := range v {
-			if err := validatePageResourceValue(ctx, db, compIndex, k, sub); err != nil {
+			if err := validatePageResourceValue(ctx, db, allowedDomains, compIndex, k, sub); err != nil {
 				return err
 			}
 		}
@@ -108,8 +116,9 @@ func validatePageResourceValue(ctx context.Context, db *ent.Client, compIndex in
 			}
 			return nil
 		}
+		// 图片数组（轮播图 images 等）：每个元素与单数字段走同一套校验（P1）。
 		for _, item := range v {
-			if err := validatePageResourceValue(ctx, db, compIndex, key, item); err != nil {
+			if err := validatePageResourceValue(ctx, db, allowedDomains, compIndex, key, item); err != nil {
 				return err
 			}
 		}
@@ -202,6 +211,95 @@ func validatePageLinkSafety(raw string, compIndex int, field string) error {
 		return fmt.Errorf("%w：第 %d 个组件字段 %q 的跳转链接不得包含凭证信息", errInvalidInput, compIndex+1, field)
 	}
 	return nil
+}
+
+// pageCheckExternalImage 校验发布前的外部图片地址（P0-17）。
+// 顺序刻意固定：先做网络目标校验（协议 / 凭证 / 端口 / 内网），再过域名白名单，最后才发起探测——
+// 任何一步不通过都不会产生网络请求。
+func pageCheckExternalImage(ctx context.Context, allowedDomains map[string]bool, compIndex int, field, raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.HasPrefix(raw, "/") {
+		return nil
+	}
+	// 图标短标识（如 icon-cs）由保存时的图标清单校验，不当作外部地址探测。
+	if !strings.HasPrefix(raw, "https://") && !strings.HasPrefix(raw, "http://") {
+		return nil
+	}
+	if !strings.HasPrefix(raw, "https://") {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图片地址仅允许 https:// 或站内相对路径", errInvalidInput, compIndex+1, field)
+	}
+	if err := pageValidateHTTPSURLTarget(raw); err != nil {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图片地址%s", errInvalidInput, compIndex+1, field, err)
+	}
+	if err := pageProbeAllowed(allowedDomains, raw); err != nil {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图片不可用：%v", errInvalidInput, compIndex+1, field, err)
+	}
+	if err := pageProbeImage(ctx, raw); err != nil {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图片不可访问（%s）：%v", errInvalidInput, compIndex+1, field, raw, err)
+	}
+	return nil
+}
+
+// pageProbeAllowed 判断外部图片地址是否允许发起探测（P0-17）：主机必须命中「已审核 HTTPS 域名」白名单。
+// 白名单来自既有的 `app.esports.page_allowed_domains`（与外部跳转链接同一份配置，不新增配置项）；
+// 未配置时按 fail-closed 处理：视为空集合，一律不探测。
+func pageProbeAllowed(allowedDomains map[string]bool, rawURL string) error {
+	host := pageURLHost(rawURL)
+	if host == "" {
+		return fmt.Errorf("图片地址无法解析出域名")
+	}
+	if len(allowedDomains) == 0 {
+		return fmt.Errorf("未配置已审核 HTTPS 域名白名单（%s），发布前不探测任何外部图片", pageAllowedDomainsKey)
+	}
+	if !allowedDomains[host] {
+		return fmt.Errorf("域名 %s 不在已审核域名白名单内（%s），未发起探测", host, pageAllowedDomainsKey)
+	}
+	return nil
+}
+
+// pageValidateHTTPSURLTarget 校验外部 HTTPS 地址的网络目标（P0-17）：拒绝携带用户名 / 口令、
+// 非 80 / 443 的显式端口、指向环回 / 私网 / 链路本地 / 未指定地址的字面量主机，
+// 以及 localhost / *.localhost 这类必然指向本机的主机名。返回的中文片段由调用方拼接字段上下文。
+//
+// 取舍：域名解析后的 IP 校验（DNS rebinding）不在这里做——它会给每次保存 / 发布引入 DNS 查询，
+// 且与「白名单即主防线」的既有设计冲突；白名单内的域名由运营审核，属于可信集合。
+func pageValidateHTTPSURLTarget(rawURL string) error {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return fmt.Errorf("无法解析")
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("仅允许 https://")
+	}
+	if u.User != nil {
+		return fmt.Errorf("不得包含用户名或口令")
+	}
+	if port := u.Port(); port != "" && port != "443" && port != "80" {
+		return fmt.Errorf("的端口 %s 不被允许（仅允许 80 / 443）", port)
+	}
+	host := strings.ToLower(u.Hostname())
+	if host == "" {
+		return fmt.Errorf("缺少主机名")
+	}
+	if pageHostIsLocalOrPrivate(host) {
+		return fmt.Errorf("指向本机或内网地址（%s），不允许作为装修资源", host)
+	}
+	return nil
+}
+
+// pageHostIsLocalOrPrivate 判断主机是否为 localhost / *.localhost 或字面量环回 / 私网 / 链路本地 IP。
+// 只看字面量：域名解析结果（如解析到 127.0.0.1 的外部域名）不在此判定，白名单是主防线。
+func pageHostIsLocalOrPrivate(host string) bool {
+	host = strings.Trim(strings.ToLower(strings.TrimSpace(host)), ".")
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsUnspecified() || ip.IsMulticast()
 }
 
 // probePageImageURLWithClient 对外部图片 URL 先 HEAD 探测，失败回退 GET（部分 CDN 不支持 HEAD），

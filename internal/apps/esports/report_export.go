@@ -222,27 +222,11 @@ func writeAftersaleQualityCSV(ctx context.Context, db *ent.Client, f reportFilte
 
 // streamAftersaleCSV 流式导出售后明细：无订单维度筛选时单作用域按键集分页；
 // 有渠道/入口筛选时按命中的订单主键分片归集，每个分片内售后按主键分页。
+// 筛选谓词复用 aftersaleReportPredicates / aftersaleSourceOrderPredicates（与页面同一处构建），
+// 保证「处理客服 / 售后类型 / 责任方 / 渠道 / 入口」在页面与导出两侧完全一致。
 func streamAftersaleCSV(ctx context.Context, db *ent.Client, f reportFilter, handlerAdmin int, w *csv.Writer) (int, error) {
-	base := []predicate.EsportsAfterSale{
-		esportsaftersale.CreatedAtGTE(f.Start),
-		esportsaftersale.CreatedAtLT(f.End),
-	}
-	if handlerAdmin > 0 {
-		base = append(base, esportsaftersale.HandlerAdminIDEQ(handlerAdmin))
-	}
-	if f.AftersaleKind != "" {
-		base = append(base, esportsaftersale.KindEQ(esportsaftersale.Kind(f.AftersaleKind)))
-	}
-	if f.FaultParty != "" {
-		base = append(base, esportsaftersale.FaultPartyEQ(esportsaftersale.FaultParty(f.FaultParty)))
-	}
-	sourcePredicates := make([]predicate.EsportsOrder, 0, 2)
-	if f.ChannelSource != "" {
-		sourcePredicates = append(sourcePredicates, esportsorder.ChannelSourceEQ(esportsorder.ChannelSource(f.ChannelSource)))
-	}
-	if f.EntryPoint != "" {
-		sourcePredicates = append(sourcePredicates, esportsorder.EntryPointEQ(esportsorder.EntryPoint(f.EntryPoint)))
-	}
+	base := aftersaleReportPredicates(f, handlerAdmin)
+	sourcePredicates := aftersaleSourceOrderPredicates(f)
 	count := 0
 	stream := func(scope func(*ent.EsportsAfterSaleQuery)) error {
 		cursor := 0
@@ -451,7 +435,11 @@ func reportExportFileName(reportType string, start, end time.Time) string {
 }
 
 // reportExportSnapshot 构造审计用的筛选参数快照。
-func reportExportSnapshot(f reportFilter, handlerAdmin int) map[string]any {
+// 必须覆盖「全部生效维度」+ 数据域，否则事后无法从审计记录还原这次导出的口径：
+//   - 资金维度（P1-08）：account_type / entry_type / settlement_status；
+//   - 数据域（P1-07）：scope 文案（full / owner）、归属管理员 admin_id 与 full 标记。
+func reportExportSnapshot(reportType string, f reportFilter, handlerAdmin int) map[string]any {
+	scopeLabel, scopeAdmin, scopeFull := reportDataScope(reportType, f)
 	return map[string]any{
 		"start":                f.Start,
 		"end":                  f.End,
@@ -467,8 +455,16 @@ func reportExportSnapshot(f reportFilter, handlerAdmin int) map[string]any {
 		"payment_channel":      f.PaymentChannel,
 		"kind":                 f.AftersaleKind,
 		"fault_party":          f.FaultParty,
+		"account_type":         f.WalletAccountType,
+		"entry_type":           f.WalletEntryType,
+		"settlement_status":    f.SettlementStatus,
 		"limit":                f.Limit,
 		"handler_admin_id":     handlerAdmin,
+		"data_scope": map[string]any{
+			"scope":    scopeLabel,
+			"admin_id": scopeAdmin,
+			"full":     scopeFull,
+		},
 	}
 }
 
@@ -481,7 +477,7 @@ func recordReportExport(ctx context.Context, db *ent.Client, adminID int, adminN
 		SetFormat("csv").
 		SetAdminID(adminID).
 		SetAdminName(adminName).
-		SetFilterSnapshot(reportExportSnapshot(filter, handlerAdmin)).
+		SetFilterSnapshot(reportExportSnapshot(reportType, filter, handlerAdmin)).
 		SetRowCount(rowCount).
 		SetFileName(fileName).
 		SetChecksum(checksum).

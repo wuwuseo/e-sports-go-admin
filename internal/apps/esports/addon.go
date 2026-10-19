@@ -23,6 +23,8 @@ import (
 // 分成快照，把追加金额与追加服务量累加到订单（只增不改）；`kind=addon` 的加钟分成明细在
 // **收款成功后才计提**（未收款不产生应付陪玩的负债，避免「确认即计提、未收款可结算」）。
 // 加钟金额不改写原订单报价快照（`payable_cents` 保持原报价事实）。
+// 分成上限（§12.1 / §12.5）：加钟收入并入订单可分基数（`payable + addon − 已退 − 渠道成本`），
+// 同时单笔加钟分成不得超过本次加钟本金，保证「陪玩 + 客服 + 渠道成本 ≤ 加钟本金」不透支。
 
 // addonInput 加钟申请入参。
 type addonInput struct {
@@ -43,10 +45,9 @@ func validAddonStatus(status string) bool {
 	return false
 }
 
-// addonCommissionCents 按规则计算本次加钟的陪玩分成（§12.5：按加钟确认时锁定的规则计算）。
+// addonCommissionRawCents 按规则原样算出本次加钟的陪玩分成，不做上限截断（§12.5）。
 // 基数取本次追加金额；fixed_per_unit 以追加服务量为单位数。
-// ponytail: 加钟分成不受「分成之和 ≤ 可分基数」上限约束（加钟属追加服务，基数与原订单独立）。
-func addonCommissionCents(rule *ent.EsportsCommissionRule, addedCents, addedUnits int64) int64 {
+func addonCommissionRawCents(rule *ent.EsportsCommissionRule, addedCents, addedUnits int64) int64 {
 	if rule == nil {
 		return 0
 	}
@@ -60,6 +61,23 @@ func addonCommissionCents(rule *ent.EsportsCommissionRule, addedCents, addedUnit
 	default:
 		return 0
 	}
+}
+
+// addonCommissionCents 按规则计算本次加钟的陪玩分成（§12.5：按加钟确认时锁定的规则计算），
+// 并把结果**截断在本次加钟本金以内**——加钟收入已并入订单可分基数（`payable + addon − 已退 − 渠道成本`），
+// 单笔加钟自身也必须收支平衡：`陪玩 + 客服 + 渠道成本 ≤ 加钟本金`，不透支订单资金。
+// 只有固定额 / 每单位固定额规则可能算出超过本金的值（按比例为万分比，天然不超过本金），
+// 这里统一按本金截断（口径见 internal/apps/esports/README.md §12.1 / §12.5），并保留原值供审计对比
+// （见 confirmOrderAddon 的 `commission_capped` / `commission_uncapped_cents` 事件字段）。
+func addonCommissionCents(rule *ent.EsportsCommissionRule, addedCents, addedUnits int64) int64 {
+	commission := addonCommissionRawCents(rule, addedCents, addedUnits)
+	if commission <= 0 {
+		return 0
+	}
+	if commission > addedCents {
+		return addedCents
+	}
+	return commission
 }
 
 // requestOrderAddon 客服对服务中订单发起加钟：落一条 pending 加钟单等待陪玩确认。
@@ -220,6 +238,7 @@ func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID in
 		return nil, err
 	}
 	commission := addonCommissionCents(rule, addon.AddedCents, addon.AddedUnits)
+	uncappedCommission := addonCommissionRawCents(rule, addon.AddedCents, addon.AddedUnits)
 
 	update := tx.EsportsOrderAddon.Update().Where(
 		esportsorderaddon.IDEQ(addon.ID),
@@ -255,6 +274,12 @@ func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID in
 	details := map[string]interface{}{
 		"addon_no": addon.AddonNo, "added_cents": addon.AddedCents,
 		"added_units": addon.AddedUnits, "commission_cents": commission,
+	}
+	if uncappedCommission > commission {
+		// 固定额 / 每单位固定额规则算出的分成超过本次加钟本金：按本金截断，
+		// 原值一并留痕，便于对账时区分「规则本来就低」与「被上限截断」。
+		details["commission_capped"] = true
+		details["commission_uncapped_cents"] = uncappedCommission
 	}
 	if rule != nil {
 		details["rule_id"] = rule.ID
@@ -588,6 +613,11 @@ func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonI
 	if err = accrueAddonCommissionOnPayment(ctx, tx, addon); err != nil {
 		return nil, err
 	}
+	// 事件里记实际计提额（历史快照超出本金时会被收紧，与快照值可能不同）。
+	accruedCommission := addon.CommissionCents
+	if accruedCommission > addon.AddedCents {
+		accruedCommission = addon.AddedCents
+	}
 	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
 	if err != nil {
 		return nil, err
@@ -598,7 +628,7 @@ func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonI
 		SetDetails(map[string]interface{}{
 			"addon_no": addon.AddonNo, "paid_cents": addon.AddedCents,
 			"principal_deducted": principalDeduct, "bonus_deducted": bonusDeduct,
-			"commission_cents": addon.CommissionCents,
+			"commission_cents": accruedCommission,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -611,8 +641,20 @@ func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonI
 // accrueAddonCommissionOnPayment 加钟收款成功后按确认时保存的规则快照计提 `kind=addon` 分成。
 // 只在收款成功路径调用；幂等键 `commission:addon:<addonNo>:<playerID>` 唯一，
 // 重复收款/重放或历史数据（旧版确认即计提）已有同一明细时跳过，不重复计提。
+// 计提额再次按「不得超过本次加钟本金」收紧：本次修复前落库的加钟单可能带着超出本金的
+// 旧快照（`commission_cents` 未经截断），历史数据在这一处仍会被拦住，不透支加钟本金。
 func accrueAddonCommissionOnPayment(ctx context.Context, tx *ent.Tx, addon *ent.EsportsOrderAddon) error {
 	if addon.CommissionCents <= 0 || addon.ConfirmedPlayerID == nil || *addon.ConfirmedPlayerID < 1 {
+		return nil
+	}
+	amount := addon.CommissionCents
+	capped := false
+	if amount > addon.AddedCents {
+		amount = addon.AddedCents
+		capped = true
+	}
+	if amount <= 0 {
+		// 无本金加钟（仅追加工时）没有可分配收入，不产生加钟分成。
 		return nil
 	}
 	playerID := *addon.ConfirmedPlayerID
@@ -648,13 +690,17 @@ func accrueAddonCommissionOnPayment(ctx context.Context, tx *ent.Tx, addon *ent.
 			return err
 		}
 	}
+	note := "加钟分成（" + addon.AddonNo + "）"
+	if capped {
+		note += "·已按加钟本金上限截断"
+	}
 	create := tx.EsportsCommissionEntry.Create().
 		SetIdemKey(idem).SetOrderID(addon.OrderID).SetPlayerID(playerID).
 		SetKind(esportscommissionentry.KindAddon).SetSeatIndex(seatIndex).
 		SetCalcMode(calcMode).SetBaseCents(addon.AddedCents).
-		SetAmountCents(addon.CommissionCents).
+		SetAmountCents(amount).
 		SetStatus(esportscommissionentry.StatusPendingSettlement).
-		SetNote("加钟分成（" + addon.AddonNo + "）")
+		SetNote(note)
 	if addon.RuleID != nil {
 		create = create.SetRuleID(*addon.RuleID)
 	}

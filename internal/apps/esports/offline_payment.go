@@ -83,6 +83,28 @@ func resolveOperatorProofRef(ctx context.Context, db *ent.Client, in offlinePaym
 	return string(data), nil
 }
 
+// otherPendingPaymentProofExists 是同一订单「重复收款」防护的判定核心（P0-11）：
+// 一张订单只要还有待核验的到账凭证，就说明这笔钱可能已经在途，其它收款方式（客户余额 / 储值卡）
+// 不得再把订单转已付款——否则同一订单被收两次钱，后到的凭证只能挂成悬账。
+//
+// 调用方须在**同一事务内**传事务里的凭证查询（query），把判定与随后的「订单转已付款」条件更新
+// 放在同一事务，避免并发穿插。allowProofID > 0 表示本次动作正是核销这张凭证（同一笔收款），
+// 不计入「其它凭证」，因此凭证核销路径不会自我阻断。
+func otherPendingPaymentProofExists(ctx context.Context, query *ent.EsportsOfflinePaymentProofQuery,
+	orderID, allowProofID int) (bool, error) {
+	if orderID < 1 {
+		return false, nil
+	}
+	pending := query.Where(
+		esportsofflinepaymentproof.OrderIDEQ(orderID),
+		esportsofflinepaymentproof.StatusEQ(esportsofflinepaymentproof.StatusPendingVerification),
+	)
+	if allowProofID > 0 {
+		pending = pending.Where(esportsofflinepaymentproof.IDNEQ(allowProofID))
+	}
+	return pending.Exist(ctx)
+}
+
 // submitOfflinePaymentProof 客服提交外部到账凭证（§4.3）：企微收款无回调、商户码截图、对公转账凭证。
 func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePaymentProofInput,
 	adminID int, now time.Time) (*ent.EsportsOfflinePaymentProof, error) {
@@ -188,6 +210,17 @@ func verifyOfflinePaymentProof(ctx context.Context, db *ent.Client, id, adminID 
 	intent, err := db.EsportsPaymentIntent.Get(ctx, item.IntentID)
 	if err != nil {
 		return nil, err
+	}
+	// P0-11 重复收款防护：本次动作正是核销这张待核验凭证，属规则的「同一笔收款」放行分支
+	// （按自身 ID 排除），不会自我阻断；仅当同一订单还另挂一张待核验凭证时才拒绝，
+	// 避免两张凭证各自被核销一次、或核销后另一张只能挂悬账。
+	duplicated, err := otherPendingPaymentProofExists(ctx, db.EsportsOfflinePaymentProof.Query(),
+		item.OrderID, item.ID)
+	if err != nil {
+		return nil, err
+	}
+	if duplicated {
+		return nil, fmt.Errorf("%w：该订单另有一张待核验的转账凭证，请先驳回重复凭证后再核销本笔", errConflict)
 	}
 	// 复用手续收款落库边界：金额、报价版本、过期时间与配额都在其中强校验。
 	// 到账时间以凭证提交时间（item.CreatedAt）为准，不取核验动作发生的 now：

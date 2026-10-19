@@ -502,7 +502,7 @@ func minimalRoleSpecs() []minimalRoleSpec {
 		{
 			name:        "cs_admin",
 			displayName: "客服",
-			description: "客服：报单、排单、订单服务与售后受理；不含改价/退款审批、结算锁定发放、收款账户审核等资金审批权限",
+			description: "客服：报单、排单、订单服务、代客收款与售后受理；不含改价/退款审批、凭证核验、结算锁定发放、收款账户审核等资金审批权限",
 			permissionCodes: []string{
 				// 菜单（报单与排单各自独立成项）
 				"esports:report:menu", "esports:order:menu", "esports:dispatch:menu",
@@ -528,6 +528,8 @@ func minimalRoleSpecs() []minimalRoleSpec {
 				"esports:orders:close_approval",
 				"esports:orders:service_pause_admin", "esports:orders:service_resume_admin",
 				"esports:orders:service_timing_correction", "esports:orders:service_terminate",
+				// 只读的履约辅助：档期超时处置可选方式、服务段计时快照（更正前的当前值与上界）
+				"esports:orders:appointment_disposal_options", "esports:orders:service_timing",
 				"esports:orders:deposit", "esports:orders:restore",
 				// 排单（独立权限项）
 				"esports:dispatch:board", "esports:dispatch:candidates", "esports:dispatch:teammate_candidates",
@@ -550,6 +552,25 @@ func minimalRoleSpecs() []minimalRoleSpec {
 				"esports:aftersales:actions_list", "esports:aftersales:operate",
 				"esports:aftersales:makeups", "esports:aftersales:makeup_start", "esports:aftersales:makeup_complete",
 				"esports:aftersales:review_list", "esports:aftersales:review_request",
+				// 代客确认：把「待客户确认」推进到「待审批」；审批（approve/reject）仍归财务，两者不得混用。
+				"esports:aftersales:confirm",
+				// 目录与报价读取：报单页第一步就要拉 SKU 并预览报价，缺 list 会让整个报单流程 403。
+				"esports:skus:list", "esports:orders:quote_preview",
+				// 代客收款：客服需要替客户走余额/储值卡核销并提交转账凭证；
+				// 这里只授予「发起与提交」，凭证核验、收款账户审核、退款审批等资金审批仍归财务。
+				"esports:orders:pay_balance", "esports:payments:order_start",
+				"esports:payments:proof_submit", "esports:payments:proofs",
+				"esports:stored_value:list", "esports:stored_value:pay_order",
+				// 预约档期处置（§5.5）：超时未确认档期的退还/改期由责任客服处理。
+				"esports:orders:appointment_dispose",
+				// 礼物：代客送礼与礼物单查看；档位配置、争议复核裁定仍归运营/超管。
+				"esports:gift:menu",
+				"esports:gifts:list", "esports:gifts:orders", "esports:gifts:board",
+				"esports:gifts:intents", "esports:gifts:intent_create", "esports:gifts:send",
+				"esports:gifts:disputes", "esports:gifts:dispute_create",
+				// 会员：查看客户会员权益与专属预约（调级仍归运营）。
+				"esports:member:menu", "esports:members:detail", "esports:members:levels",
+				"esports:members:priority_bookings", "esports:members:player_availability",
 			},
 		},
 		{

@@ -1034,6 +1034,8 @@ type appointmentDisposalInput struct {
 
 // disposeExpiredAppointment 处置「已付款待确认档期超时」订单（§5.5-06）：显式提供全额退还与改期两个入口。
 // 允许的处置方式受配置 app.esports.appointment_expire_action 限制（refund / reschedule / both）。
+// 归属边界在路由层（ownedOrderHandler，P0-12）：非负责客服 / 非超管在进入本函数前即被拒绝；
+// 全额退款这种动钱操作因此不会落到服务层再判一次（避免两处口径漂移）。
 func disposeExpiredAppointment(ctx context.Context, db *ent.Client, orderID, adminID int,
 	in appointmentDisposalInput, now time.Time) (*ent.EsportsOrder, error) {
 	in.Action = strings.TrimSpace(in.Action)
@@ -1112,4 +1114,41 @@ func rescheduleExpiredAppointment(ctx context.Context, db *ent.Client, order *en
 		return nil, err
 	}
 	return db.EsportsOrder.Get(ctx, order.ID)
+}
+
+// appointmentDisposalOptionView 是「档期超时可用处置动作」的只读视图（审核报告 §3.1 缺口）：
+// 前端据此渲染处置按钮，不再把 refund / reschedule 硬编码在页面里。
+// 只回显与该次处置直接相关的配置生效值，不回显其它配置、不含任何密钥类内容，也不改变任何状态。
+type appointmentDisposalOptionView struct {
+	// AllowedActions 当前配置下允许的处置方式，取值 refund / reschedule。
+	AllowedActions []string `json:"allowed_actions"`
+	// CurrentAction 配置的生效值：refund / reschedule / both（未配置或非法回落 both）。
+	CurrentAction string `json:"current_action"`
+	// ExpireAt 本单档期确认截止时间（RFC3339）；缺失时回落「暂停派单时间」，都缺失则为空字符串。
+	ExpireAt string `json:"expire_at"`
+}
+
+// appointmentDisposalOptions 由配置 app.esports.appointment_expire_action 与订单档期状态推导可用处置动作
+// （纯只读）：refund → 只允许全额退还；reschedule → 只允许改期；both → 两者皆可。
+// 判定口径与 disposeExpiredAppointment 的允许校验共用 appointmentExpireAction，两处不会漂移。
+func appointmentDisposalOptions(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) appointmentDisposalOptionView {
+	action := appointmentExpireAction(ctx, db)
+	view := appointmentDisposalOptionView{CurrentAction: action}
+	switch action {
+	case appointmentExpireActionRefund:
+		view.AllowedActions = []string{appointmentExpireActionRefund}
+	case appointmentExpireActionReschedule:
+		view.AllowedActions = []string{appointmentExpireActionReschedule}
+	default:
+		view.AllowedActions = []string{appointmentExpireActionRefund, appointmentExpireActionReschedule}
+	}
+	if order != nil {
+		switch {
+		case order.AppointmentConfirmationDeadline != nil:
+			view.ExpireAt = order.AppointmentConfirmationDeadline.UTC().Format(time.RFC3339)
+		case order.AppointmentSuspendedAt != nil:
+			view.ExpireAt = order.AppointmentSuspendedAt.UTC().Format(time.RFC3339)
+		}
+	}
+	return view
 }

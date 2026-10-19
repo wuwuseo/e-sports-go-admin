@@ -2167,22 +2167,28 @@ func init() {
 	esportscscommissionentryDescStudioRemainderCents := esportscscommissionentryFields[15].Descriptor()
 	// esportscscommissionentry.DefaultStudioRemainderCents holds the default value on creation for the studio_remainder_cents field.
 	esportscscommissionentry.DefaultStudioRemainderCents = esportscscommissionentryDescStudioRemainderCents.Default.(int64)
+	// esportscscommissionentryDescFrozenReason is the schema descriptor for frozen_reason field.
+	esportscscommissionentryDescFrozenReason := esportscscommissionentryFields[19].Descriptor()
+	// esportscscommissionentry.DefaultFrozenReason holds the default value on creation for the frozen_reason field.
+	esportscscommissionentry.DefaultFrozenReason = esportscscommissionentryDescFrozenReason.Default.(string)
+	// esportscscommissionentry.FrozenReasonValidator is a validator for the "frozen_reason" field. It is called by the builders before save.
+	esportscscommissionentry.FrozenReasonValidator = esportscscommissionentryDescFrozenReason.Validators[0].(func(string) error)
 	// esportscscommissionentryDescNote is the schema descriptor for note field.
-	esportscscommissionentryDescNote := esportscscommissionentryFields[18].Descriptor()
+	esportscscommissionentryDescNote := esportscscommissionentryFields[21].Descriptor()
 	// esportscscommissionentry.DefaultNote holds the default value on creation for the note field.
 	esportscscommissionentry.DefaultNote = esportscscommissionentryDescNote.Default.(string)
 	// esportscscommissionentry.NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	esportscscommissionentry.NoteValidator = esportscscommissionentryDescNote.Validators[0].(func(string) error)
 	// esportscscommissionentryDescVersion is the schema descriptor for version field.
-	esportscscommissionentryDescVersion := esportscscommissionentryFields[19].Descriptor()
+	esportscscommissionentryDescVersion := esportscscommissionentryFields[22].Descriptor()
 	// esportscscommissionentry.DefaultVersion holds the default value on creation for the version field.
 	esportscscommissionentry.DefaultVersion = esportscscommissionentryDescVersion.Default.(int)
 	// esportscscommissionentryDescCreatedAt is the schema descriptor for created_at field.
-	esportscscommissionentryDescCreatedAt := esportscscommissionentryFields[20].Descriptor()
+	esportscscommissionentryDescCreatedAt := esportscscommissionentryFields[23].Descriptor()
 	// esportscscommissionentry.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportscscommissionentry.DefaultCreatedAt = esportscscommissionentryDescCreatedAt.Default.(func() time.Time)
 	// esportscscommissionentryDescUpdatedAt is the schema descriptor for updated_at field.
-	esportscscommissionentryDescUpdatedAt := esportscscommissionentryFields[21].Descriptor()
+	esportscscommissionentryDescUpdatedAt := esportscscommissionentryFields[24].Descriptor()
 	// esportscscommissionentry.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportscscommissionentry.DefaultUpdatedAt = esportscscommissionentryDescUpdatedAt.Default.(func() time.Time)
 	// esportscscommissionentry.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -5935,18 +5941,28 @@ func init() {
 	esportssettlementDescEntryCount := esportssettlementFields[8].Descriptor()
 	// esportssettlement.DefaultEntryCount holds the default value on creation for the entry_count field.
 	esportssettlement.DefaultEntryCount = esportssettlementDescEntryCount.Default.(int)
+	// esportssettlementDescVersion is the schema descriptor for version field.
+	esportssettlementDescVersion := esportssettlementFields[10].Descriptor()
+	// esportssettlement.DefaultVersion holds the default value on creation for the version field.
+	esportssettlement.DefaultVersion = esportssettlementDescVersion.Default.(int)
 	// esportssettlementDescPayoutRef is the schema descriptor for payout_ref field.
-	esportssettlementDescPayoutRef := esportssettlementFields[12].Descriptor()
+	esportssettlementDescPayoutRef := esportssettlementFields[13].Descriptor()
 	// esportssettlement.DefaultPayoutRef holds the default value on creation for the payout_ref field.
 	esportssettlement.DefaultPayoutRef = esportssettlementDescPayoutRef.Default.(string)
 	// esportssettlement.PayoutRefValidator is a validator for the "payout_ref" field. It is called by the builders before save.
 	esportssettlement.PayoutRefValidator = esportssettlementDescPayoutRef.Validators[0].(func(string) error)
+	// esportssettlementDescVoidReason is the schema descriptor for void_reason field.
+	esportssettlementDescVoidReason := esportssettlementFields[18].Descriptor()
+	// esportssettlement.DefaultVoidReason holds the default value on creation for the void_reason field.
+	esportssettlement.DefaultVoidReason = esportssettlementDescVoidReason.Default.(string)
+	// esportssettlement.VoidReasonValidator is a validator for the "void_reason" field. It is called by the builders before save.
+	esportssettlement.VoidReasonValidator = esportssettlementDescVoidReason.Validators[0].(func(string) error)
 	// esportssettlementDescCreatedAt is the schema descriptor for created_at field.
-	esportssettlementDescCreatedAt := esportssettlementFields[15].Descriptor()
+	esportssettlementDescCreatedAt := esportssettlementFields[19].Descriptor()
 	// esportssettlement.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportssettlement.DefaultCreatedAt = esportssettlementDescCreatedAt.Default.(func() time.Time)
 	// esportssettlementDescUpdatedAt is the schema descriptor for updated_at field.
-	esportssettlementDescUpdatedAt := esportssettlementFields[16].Descriptor()
+	esportssettlementDescUpdatedAt := esportssettlementFields[20].Descriptor()
 	// esportssettlement.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportssettlement.DefaultUpdatedAt = esportssettlementDescUpdatedAt.Default.(func() time.Time)
 	// esportssettlement.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

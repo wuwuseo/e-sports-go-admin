@@ -92,6 +92,11 @@ func (EsportsCsCommissionEntry) Fields() []ent.Field {
 		field.Int64("studio_remainder_cents").Default(0).StructTag(`json:"studio_remainder_cents"`),
 		field.Enum("status").Values("pending_settlement", "settled", "void").Default("pending_settlement").StructTag(`json:"status"`),
 		field.Int("settlement_id").Optional().Nillable().StructTag(`json:"settlement_id"`),
+		// 争议冻结（§12.6 / P0-8）：被争议冻结的明细不得进入结算单、不得置 settled。
+		// 冻结与状态正交（仍为 pending_settlement），解冻后恢复可结算，口径与陪玩分成明细一致。
+		field.Time("frozen_at").Optional().Nillable().StructTag(`json:"frozen_at"`),
+		field.String("frozen_reason").MaxLen(255).Default("").StructTag(`json:"frozen_reason"`),
+		field.Int("frozen_by_admin_id").Optional().Nillable().StructTag(`json:"frozen_by_admin_id"`),
 		field.String("note").MaxLen(255).Default("").StructTag(`json:"note"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),

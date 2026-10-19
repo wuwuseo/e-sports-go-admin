@@ -17,17 +17,17 @@ import (
 // 审核人与申请人（客服代建时）不得为同一人，执行人不得为审核人；执行复用礼物退款事务实现。
 
 type giftDisputeInput struct {
-	GiftOrderID        int    `json:"gift_order_id"`
-	Kind               string `json:"kind"`
-	Demand             string `json:"demand"`
-	EvidenceRef        string `json:"evidence_ref"`
-	RequestedRefundCents int64 `json:"requested_refund_cents"`
+	GiftOrderID          int    `json:"gift_order_id"`
+	Kind                 string `json:"kind"`
+	Demand               string `json:"demand"`
+	EvidenceRef          string `json:"evidence_ref"`
+	RequestedRefundCents int64  `json:"requested_refund_cents"`
 }
 
 type giftDisputeReviewInput struct {
-	Approve            bool   `json:"approve"`
-	ApprovedRefundCents int64 `json:"approved_refund_cents"`
-	Resolution         string `json:"resolution"`
+	Approve             bool   `json:"approve"`
+	ApprovedRefundCents int64  `json:"approved_refund_cents"`
+	Resolution          string `json:"resolution"`
 }
 
 var giftDisputeKindValues = map[string]bool{

@@ -117,18 +117,23 @@ func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T)
 		t.Fatalf("非法责任方应拒绝：%v", err)
 	}
 
-	result, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, 500, 120, "player", "客户投诉时长，核实后更正", now.Add(90*time.Second))
+	// P1-14 上界：该服务段墙钟跨度 = now+70s − now = 70 秒，更正后的有效秒数不得超过 70。
+	// 越界（墙钟之外）必须拒绝，正常范围内的更正才落库。
+	if _, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, 500, 0, "player", "超出墙钟跨度", now.Add(90*time.Second)); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("超过墙钟跨度的有效秒数应拒绝：%v", err)
+	}
+	result, err := correctServiceTiming(ctx, db, adminID, order.ID, player.ID, false, 60, 20, "player", "客户投诉时长，核实后更正", now.Add(90*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.EffectiveBefore != 40 || result.EffectiveAfter != 500 ||
-		result.PausedBefore != 30 || result.PausedAfter != 120 ||
-		result.DowntimeSeconds != 120 || result.DowntimeCount != 1 ||
+	if result.EffectiveBefore != 40 || result.EffectiveAfter != 60 ||
+		result.PausedBefore != 30 || result.PausedAfter != 20 ||
+		result.DowntimeSeconds != 20 || result.DowntimeCount != 1 ||
 		result.Responsibility != "player" {
 		t.Fatalf("更正结果不正确：%+v", result)
 	}
 	segment := db.EsportsServiceSegment.Query().OnlyX(ctx)
-	if segment.SystemSeconds != 500 || segment.PausedSeconds != 120 || segment.Status != esportsservicesegment.StatusFinished {
+	if segment.SystemSeconds != 60 || segment.PausedSeconds != 20 || segment.Status != esportsservicesegment.StatusFinished {
 		t.Fatalf("更正未落库：%+v", segment)
 	}
 	corrected := db.EsportsOrderEvent.Query().Where(
@@ -139,10 +144,10 @@ func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T)
 		t.Fatalf("更正事件未按管理员留痕：%+v", corrected)
 	}
 	if corrected.Details["effective_seconds_before"] != float64(40) ||
-		corrected.Details["effective_seconds_after"] != float64(500) ||
+		corrected.Details["effective_seconds_after"] != float64(60) ||
 		corrected.Details["paused_seconds_before"] != float64(30) ||
-		corrected.Details["paused_seconds_after"] != float64(120) ||
-		corrected.Details["downtime_seconds"] != float64(120) ||
+		corrected.Details["paused_seconds_after"] != float64(20) ||
+		corrected.Details["downtime_seconds"] != float64(20) ||
 		corrected.Details["downtime_count"] != float64(1) ||
 		corrected.Details["responsibility"] != "player" ||
 		corrected.Details["reason"] != "客户投诉时长，核实后更正" {

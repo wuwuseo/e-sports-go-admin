@@ -334,6 +334,11 @@ func init() {
 		tasks.Register("esports_run_player_level_review", runPlayerLevelReviewTask)
 		tasks.Register("esports_detect_review_brushing", detectReviewBrushingTask)
 		tasks.Register("esports_schedule_repurchase_follow_ups", scheduleRepurchaseFollowUpsTask)
+		// 会员覆盖到期回落（§10.3-03）与会员优先预约意向过期消解（§10.4）。
+		// 两者均已有「读取时惰性判定」兜底（member.go settleMemberLevelOverride / cs.go csWorkbenchTodos），
+		// 任务只是把回落 / 消解提前到固定时点；注册与 cron_seeds.go 的种子必须成对。
+		tasks.Register("esports_expire_member_level_overrides", applyMemberOverrideExpiryTask)
+		tasks.Register("esports_expire_priority_booking_intents", expirePriorityBookingIntentsTask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
@@ -581,8 +586,9 @@ func init() {
 			{Method: "POST", Path: "/admin/member-levels/:id/status", Auth: cmfapp.AuthAdmin, Handler: setMemberLevelStatusHandler},
 			{Method: "GET", Path: "/admin/customers/:id/member", Auth: cmfapp.AuthAdmin, Handler: adminCustomerMember},
 			{Method: "POST", Path: "/admin/customers/:id/member/level", Auth: cmfapp.AuthAdmin, Handler: setCustomerMemberLevelHandler},
-			// 会员优先预约（§10.4）：客服端待处理预约意向列表，按会员等级置顶。
+			// 会员优先预约（§10.4）：客服端待处理预约意向列表，按会员等级置顶；处理意向使其从待办消解。
 			{Method: "GET", Path: "/admin/priority-bookings", Auth: cmfapp.AuthAdmin, Handler: adminPriorityBookingsHandler},
+			{Method: "POST", Path: "/admin/priority-bookings/:id/process", Auth: cmfapp.AuthAdmin, Handler: adminResolvePriorityBookingHandler},
 			// 礼物模块（§9）：礼物目录、送礼、退款、复核与榜单。
 			{Method: "GET", Path: "/admin/gifts", Auth: cmfapp.AuthAdmin, Handler: adminGifts},
 			{Method: "POST", Path: "/admin/gifts", Auth: cmfapp.AuthAdmin, Handler: createGiftHandler},
@@ -656,8 +662,10 @@ func init() {
 			{Method: "POST", Path: "/admin/after-sales/:id/messages", Auth: cmfapp.AuthAdmin, Handler: adminPostAfterSaleMessageHandler},
 			{Method: "POST", Path: "/admin/after-sales/:id/evidence-request", Auth: cmfapp.AuthAdmin, Handler: adminRequestAfterSaleEvidenceHandler},
 			// 收款发起（§4.3-02）、档期过期处置（§5.5-06）、期望报价复核（§6.1-12）
-			{Method: "POST", Path: "/admin/orders/:id/payment/start", Auth: cmfapp.AuthAdmin, Handler: adminStartOrderPaymentHandler},
-			{Method: "POST", Path: "/admin/orders/:id/appointment/disposal", Auth: cmfapp.AuthAdmin, Handler: disposeExpiredAppointmentHandler},
+			// P0-12：收款发起与档期处置都会动钱（后者含全额退款），必须与其它订单写路由一样
+			// 走 ownedOrderHandler 的「负责客服 / 超管」写入边界，不能只靠 PermissionMiddleware。
+			{Method: "POST", Path: "/admin/orders/:id/payment/start", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(adminStartOrderPaymentHandler)},
+			{Method: "POST", Path: "/admin/orders/:id/appointment/disposal", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(disposeExpiredAppointmentHandler)},
 			{Method: "POST", Path: "/admin/players/:id/expected-price/review", Auth: cmfapp.AuthAdmin, Handler: adminReviewExpectedPriceHandler},
 			// 客服在线状态写入口与列表（§1.1-08）：离线/积压自动转池已由 §5.1-05 交付，此处只补原子写入口。
 			{Method: "POST", Path: "/admin/cs/presence", Auth: cmfapp.AuthAdmin, Handler: adminSetCsPresenceHandler},
@@ -680,6 +688,8 @@ func init() {
 			{Method: "GET", Path: "/user/player/priority-status", Auth: cmfapp.AuthUser, Handler: playerPriorityStatusHandler},
 			{Method: "POST", Path: "/user/player/expected-price", Auth: cmfapp.AuthUser, Handler: playerSubmitExpectedPriceHandler},
 			{Method: "POST", Path: "/user/reviews/:id/appeal", Auth: cmfapp.AuthUser, Handler: userReviewAppealHandler},
+			// 客户自助「我的评价」列表（§7.5）：给出 review_id 与 appeal_status，申诉 UI 才能自行定位评价。
+			{Method: "GET", Path: "/user/reviews", Auth: cmfapp.AuthUser, Handler: userReviewsHandler},
 			// 公开：页面预览码兑换（§16.4-02）
 			{Method: "GET", Path: "/page/preview/:code", Auth: cmfapp.AuthPublic, Handler: publicPagePreview},
 			// —— 礼物档位与收款（§9.1-02 / §9.2-01）、账本核验异常（§11.6-01）、陪玩可用时段（§10.4-04）、收礼记录（§6.1-14）——
@@ -771,7 +781,8 @@ func init() {
 			// 客户风控（§13.7）：风险名单与人工标记 / 解除。
 			{Method: "GET", Path: "/admin/risk-customers", Auth: cmfapp.AuthAdmin, Handler: listRiskCustomersHandler},
 			{Method: "POST", Path: "/admin/customers/:id/risk", Auth: cmfapp.AuthAdmin, Handler: markCustomerRiskHandler},
-			{Method: "GET", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: adminSettlements},
+			// 结算单列表支持 ?status= 过滤（P0-8）：默认不含作废单，status=void 才返回作废单。
+			{Method: "GET", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: adminSettlementsFiltered},
 			{Method: "POST", Path: "/admin/settlements", Auth: cmfapp.AuthAdmin, Handler: createSettlementHandler},
 			{Method: "POST", Path: "/admin/settlements/:id/lock", Auth: cmfapp.AuthAdmin, Handler: lockSettlementHandler},
 			{Method: "GET", Path: "/admin/settlements/:id", Auth: cmfapp.AuthAdmin, Handler: adminSettlementDetail},
@@ -792,6 +803,10 @@ func init() {
 			{Method: "GET", Path: "/admin/cs-commission/summary", Auth: cmfapp.AuthAdmin, Handler: adminCsCommissionSummary},
 			{Method: "POST", Path: "/admin/cs-settlements", Auth: cmfapp.AuthAdmin, Handler: createCsSettlementHandler},
 			{Method: "POST", Path: "/admin/settlements/:id/pay", Auth: cmfapp.AuthAdmin, Handler: markSettlementPaidHandler},
+			// 结算单作废 / 重开（P0-6）：草稿或锁定未发放的客服提成结算单可作废（明细回退待结算），
+			// 作废后可按同一客服 + 同一周期重开重新生成草稿；作废人 / 发放人不得等于登记人（锁定人）。
+			{Method: "POST", Path: "/admin/cs-settlements/:id/void", Auth: cmfapp.AuthAdmin, Handler: voidCsSettlementHandler},
+			{Method: "POST", Path: "/admin/cs-settlements/reopen", Auth: cmfapp.AuthAdmin, Handler: reopenCsSettlementHandler},
 			// 提现（§6.3 / §12.6）：财务审核与打款登记，挂在既有「结算」菜单下。
 			{Method: "GET", Path: "/admin/withdrawals", Auth: cmfapp.AuthAdmin, Handler: adminWithdrawals},
 			{Method: "GET", Path: "/admin/withdrawals/:id", Auth: cmfapp.AuthAdmin, Handler: adminWithdrawalDetail},
@@ -928,6 +943,9 @@ func init() {
 			// 客户 / 陪玩端确认 / 拒绝改期提案（§3.3）。
 			{Method: "POST", Path: "/user/reschedule-proposals/:id/confirm", Auth: cmfapp.AuthUser, Handler: customerConfirmRescheduleProposalHandler},
 			{Method: "POST", Path: "/user/player/reschedule-proposals/:id/confirm", Auth: cmfapp.AuthUser, Handler: playerConfirmRescheduleProposalHandler},
+			// 客户 / 陪玩端读取本人可见的改期提案（§3.3）：待确认优先，含逐人确认进度摘要。
+			{Method: "GET", Path: "/user/reschedule-proposals", Auth: cmfapp.AuthUser, Handler: customerRescheduleProposalsHandler},
+			{Method: "GET", Path: "/user/player/reschedule-proposals", Auth: cmfapp.AuthUser, Handler: playerRescheduleProposalsHandler},
 			{Method: "GET", Path: "/user/gift-intents", Auth: cmfapp.AuthUser, Handler: userGiftIntents},
 			{Method: "POST", Path: "/user/gift-intents", Auth: cmfapp.AuthUser, Handler: userCreateGiftIntentHandler},
 			{Method: "POST", Path: "/user/gift-intents/:id/confirm", Auth: cmfapp.AuthUser, Handler: userConfirmGiftIntent},
@@ -991,6 +1009,16 @@ func init() {
 			{Method: "POST", Path: "/admin/stored-value-packages", Auth: cmfapp.AuthAdmin, Handler: createStoredValuePackageHandler},
 			{Method: "PUT", Path: "/admin/stored-value-packages/:id", Auth: cmfapp.AuthAdmin, Handler: updateStoredValuePackageHandler},
 			{Method: "POST", Path: "/admin/stored-value-packages/:id/status", Auth: cmfapp.AuthAdmin, Handler: setStoredValuePackageStatusHandler},
+			// —— 审核报告收尾批次：4 处「后端缺接口」补齐（均为只读或状态推进的窄接口）——
+			// 代客确认（§13.3）：pending_customer_confirm → pending_approval，只写代确认人，
+			// 不等于审批；审批仍是 /approve 且审批人不得为该单处理人。
+			{Method: "POST", Path: "/admin/after-sales/:id/confirm", Auth: cmfapp.AuthAdmin, Handler: ownedAfterSaleHandler(adminConfirmAfterSaleHandler)},
+			// 档期超时处置可用动作（§5.5-06 只读）：前端据此渲染「全额退还 / 改期」按钮。
+			{Method: "GET", Path: "/admin/orders/:id/appointment/disposal-options", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(appointmentDisposalOptionsHandler)},
+			// 服务段计时读取（§3.3 只读）：给「时长更正」弹窗预填有效时长与可填上界。
+			{Method: "GET", Path: "/admin/orders/:id/players/:playerId/service/timing", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(adminServiceTimingHandler)},
+			// 充值退款执行批次列表（§4.5 只读）：?status= pending / executed、?limit=。
+			{Method: "GET", Path: "/admin/recharge-refund-executions", Auth: cmfapp.AuthAdmin, Handler: listRechargeRefundExecutionsHandler},
 		},
 		Permissions: []cmfapp.Permission{
 			// 商品模块：一个模块一个菜单。
@@ -1253,6 +1281,8 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看客服提成概览", Code: "esports:settlements:cs_summary", Path: "/api/v1/esports/admin/cs-commission/summary", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "生成客服提成结算单", Code: "esports:settlements:cs_settle", Path: "/api/v1/esports/admin/cs-settlements", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "登记结算发放", Code: "esports:settlements:pay", Path: "/api/v1/esports/admin/settlements/{id}/pay", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "作废客服提成结算单", Code: "esports:settlements:cs_void", Path: "/api/v1/esports/admin/cs-settlements/{id}/void", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "重开客服提成结算单", Code: "esports:settlements:cs_reopen", Path: "/api/v1/esports/admin/cs-settlements/reopen", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermButton, Name: "客服提成规则按钮", Code: "esports:settlements:cs_rule_manage", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看提现单", Code: "esports:settlements:withdrawals", Path: "/api/v1/esports/admin/withdrawals", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看提现单详情", Code: "esports:settlements:withdrawal_detail", Path: "/api/v1/esports/admin/withdrawals/{id}", Method: "GET", Parent: "esports:settlement:menu"},
@@ -1288,6 +1318,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看客户会员", Code: "esports:members:detail", Path: "/api/v1/esports/admin/customers/{id}/member", Method: "GET", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "手动调级", Code: "esports:members:set_level", Path: "/api/v1/esports/admin/customers/{id}/member/level", Method: "POST", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看会员优先预约", Code: "esports:members:priority_bookings", Path: "/api/v1/esports/admin/priority-bookings", Method: "GET", Parent: "esports:member:menu"},
+			{Type: cmfapp.PermAPI, Name: "处理会员优先预约", Code: "esports:members:priority_booking_process", Path: "/api/v1/esports/admin/priority-bookings/{id}/process", Method: "POST", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermButton, Name: "会员等级管理按钮", Code: "esports:members:manage", Parent: "esports:member:menu"},
 
 			// 礼物模块：礼物目录、送礼单据、退款复核与榜单（§9）。
@@ -1414,6 +1445,14 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "新建套餐", Code: "esports:stored_value:package_create", Path: "/api/v1/esports/admin/stored-value-packages", Method: "POST", Parent: "esports:stored_value:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑套餐", Code: "esports:stored_value:package_update", Path: "/api/v1/esports/admin/stored-value-packages/{id}", Method: "PUT", Parent: "esports:stored_value:menu"},
 			{Type: cmfapp.PermAPI, Name: "上下架套餐", Code: "esports:stored_value:package_status", Path: "/api/v1/esports/admin/stored-value-packages/{id}/status", Method: "POST", Parent: "esports:stored_value:menu"},
+			// —— 审核报告收尾批次新增 PermAPI：与「审核报告收尾批次」的路由**一一对应**（方法 + 完整路径一致），
+			//    多一条少一条都会让 internal/apps 的 TestEsportsAppDeclarationsValidate 变红。 ——
+			{Type: cmfapp.PermAPI, Name: "代客确认售后方案", Code: "esports:aftersales:confirm", Path: "/api/v1/esports/admin/after-sales/{id}/confirm", Method: "POST", Parent: "esports:aftersale:menu"},
+			// 档期处置可用动作：与「处置过期档期」同一业务动作的只读前置，仍挂在订单菜单下；
+			// 权限码必须与 appointment_dispose 区分（ValidateApps 要求权限码全局唯一）。
+			{Type: cmfapp.PermAPI, Name: "查看档期处置可用动作", Code: "esports:orders:appointment_disposal_options", Path: "/api/v1/esports/admin/orders/{id}/appointment/disposal-options", Method: "GET", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看服务段计时", Code: "esports:orders:service_timing", Path: "/api/v1/esports/admin/orders/{id}/players/{playerId}/service/timing", Method: "GET", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看退款执行批次", Code: "esports:settlements:recharge_refund_executions", Path: "/api/v1/esports/admin/recharge-refund-executions", Method: "GET", Parent: "esports:settlement:menu"},
 		},
 	})
 }

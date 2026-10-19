@@ -132,10 +132,11 @@ func TestSeatTransferSucceedsAfterPriorityNoticeAccepted(t *testing.T) {
 	game := "王者荣耀"
 
 	listed := seedPlayer(t, db, 8301, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// P1-05-02：名单 game 必须能对上启用中的商品分类游戏分区，先建分类再录名单。
+	sku := seedGameSku(t, db, "D-FIX-TR-PRIO", game)
 	if _, err := grantDispatchPriority(ctx, db, 7, basePriorityInput(game, listed.ID), now); err != nil {
 		t.Fatal(err)
 	}
-	sku := seedGameSku(t, db, "D-FIX-TR-PRIO", game)
 	order := seedPendingOrderWithSku(t, db, "D-FIX-TR-PRIO-1", sku.ID)
 	db.EsportsOrder.UpdateOneID(order.ID).SetResponsibleAdminID(11).SaveX(ctx)
 
@@ -238,10 +239,11 @@ func TestPriorityNoticeFiltersUnavailablePlayers(t *testing.T) {
 	// 场景一：名单内只有离线陪玩 → 不开窗、不发通知。
 	gameOnlyOffline := "离线分区"
 	offline := seedPlayer(t, db, 8501, esportsplayer.QualificationQualified, esportsplayer.PresenceOffline)
+	// P1-05-02：名单 game 必须能对上启用中的游戏分区（商品分类），先建分类再录名单。
+	offlineSku := seedGameSku(t, db, "D-FIX-NOTICE-OFF", gameOnlyOffline)
 	if _, err := grantDispatchPriority(ctx, db, 7, basePriorityInput(gameOnlyOffline, offline.ID), now); err != nil {
 		t.Fatal(err)
 	}
-	offlineSku := seedGameSku(t, db, "D-FIX-NOTICE-OFF", gameOnlyOffline)
 	offlineOrder := seedPendingOrderWithSku(t, db, "D-FIX-NOTICE-OFF-1", offlineSku.ID)
 	tx, err := db.Tx(ctx)
 	if err != nil {
@@ -270,6 +272,8 @@ func TestPriorityNoticeFiltersUnavailablePlayers(t *testing.T) {
 	// 让 capped 在另一张订单上已占一个 accepted 席位，容量用满。
 	otherOrder := seedPaidOrder(t, db, "D-FIX-NOTICE-CAP-1", 1)
 	acceptSeat(t, db, otherOrder.ID, 1, capped.ID, 11, now)
+	// P1-05-02：先建该分区的商品分类（seedGameSku 会建分类），再录名单。
+	sku := seedGameSku(t, db, "D-FIX-NOTICE-MIX", game)
 	if _, err = grantDispatchPriority(ctx, db, 7, basePriorityInput(game, offline.ID), now); err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +283,6 @@ func TestPriorityNoticeFiltersUnavailablePlayers(t *testing.T) {
 	if _, err = grantDispatchPriority(ctx, db, 7, basePriorityInput(game, capped.ID), now); err != nil {
 		t.Fatal(err)
 	}
-	sku := seedGameSku(t, db, "D-FIX-NOTICE-MIX", game)
 	order := seedPendingOrderWithSku(t, db, "D-FIX-NOTICE-MIX-1", sku.ID)
 	tx, err = db.Tx(ctx)
 	if err != nil {

@@ -222,18 +222,25 @@ func TestPageAssetMimeAndSizeLimits(t *testing.T) {
 	}); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("非白名单 MIME 应被拒，实际 %v", err)
 	}
-	// 未声明 MIME 时按地址后缀推断；推断不出图片类型一律拒绝。
-	asset, err := savePageAsset(ctx, db, 1, pageAssetInput{
+	// 未声明 MIME：P1-20 起必填，缺失即拒绝（不再从地址后缀推断）。
+	if _, err := savePageAsset(ctx, db, 1, pageAssetInput{
 		Name: "图标", URL: "https://cdn.example.com/icon.png", SizeBytes: 1024, Width: 64, Height: 64,
+	}); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("未声明 MIME 应被拒，实际 %v", err)
+	}
+	// 显式声明图片类型 + 上限内字节数：接受并按声明落库。
+	asset, err := savePageAsset(ctx, db, 1, pageAssetInput{
+		Name: "图标", URL: "https://cdn.example.com/icon.png", Mime: "image/png",
+		SizeBytes: 1024, Width: 64, Height: 64,
 	})
 	if err != nil {
-		t.Fatalf("按后缀可推断 MIME 的素材应被接受：%v", err)
+		t.Fatalf("类型与体积合法的素材应被接受：%v", err)
 	}
 	if asset.Mime != "image/png" {
-		t.Fatalf("未声明 MIME 时应按后缀推断并落库，实际 %q", asset.Mime)
+		t.Fatalf("素材应按声明 MIME 落库，实际 %q", asset.Mime)
 	}
 	if _, err := savePageAsset(ctx, db, 1, pageAssetInput{
-		Name: "无类型", URL: "https://cdn.example.com/download",
+		Name: "无类型", URL: "https://cdn.example.com/download", SizeBytes: 1024,
 	}); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("无法推断类型且未声明 MIME 应被拒，实际 %v", err)
 	}
@@ -447,6 +454,8 @@ func TestPageCapabilityCompatAndVersionCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	// v2：加入 carousel（新客户端才能渲染）。
+	// 图片域名须在已审核域名白名单内（P0-17：发布前只探测白名单内的外部图片）。
+	setPageAllowedDomains(t, db, "cdn.example.com")
 	if _, err = savePageDraft(ctx, db, channel, 1, pageDraftInput{
 		Components: pagePropsFor("carousel", map[string]interface{}{
 			"items": []interface{}{map[string]interface{}{"image": "https://cdn.example.com/a.png"}},

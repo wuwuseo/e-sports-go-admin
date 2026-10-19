@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
 	"go-admin/internal/ent"
@@ -18,9 +19,12 @@ import (
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
+	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/predicate"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/global"
 )
 
 // errExecutionFailed 标记"售后方案执行失败"（区别于可重试的并发冲突 / 配置缺失），
@@ -28,8 +32,9 @@ import (
 var errExecutionFailed = errors.New("售后执行失败")
 
 var (
-	// 外部渠道退款未接入：仅支持原订单以客户余额核销的退款。
-	errRefundChannelUnavailable = fmt.Errorf("%w：外部渠道退款未接入，仅支持原订单余额核销退回", errNotConfigured)
+	// 没有可原路退回的预付账户核销流水：外部渠道付款走「待执行外部退款单」（见
+	// registerExternalChannelAfterSaleRefund），其余无法识别的付款方式明确失败。
+	errRefundChannelUnavailable = fmt.Errorf("%w：该订单没有余额 / 储值卡核销流水，无法按原账户原路退回", errNotConfigured)
 )
 
 type afterSaleInput struct {
@@ -1026,6 +1031,11 @@ func approveAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 		return nil, err
 	}
 	if reserveCents > 0 {
+		// P1：退原核销款的审批会预占订单退款额度，订单支付状态异常（渠道撤销 / 拒付）时
+		// 资金去向未定，必须与取消路径同口径拦截并转人工处置；补偿 / 补履约不占原单额度，不受此限。
+		if err = ensureAfterSalePaymentStatusRefundable(ctx, tx.Client(), item); err != nil {
+			return nil, err
+		}
 		// §12.5-02：可退上界 = 服务应付 + 加钟已收款（由只增流水求和派生），
 		// 并发条件谓词必须带上同一上界，否则会打开超退缺口（D34 不变量的证明前提）。
 		addonReceived, err := addonReceivedCents(ctx, tx.Client(), item.SourceID)
@@ -1122,26 +1132,13 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 		item.Status == esportsaftersale.StatusWithdrawn {
 		return nil, errConflict
 	}
-	if item.Status == esportsaftersale.StatusPendingExecution {
-		// 按审批时的同一口径释放预占：单动作退款释放方案金额，多动作释放聚合额；
-		// compensate 审批本就不预占，撤回不得把 reserved_cents 减成负数。
-		reserveCents, err := afterSaleRefundReserveCents(ctx, tx.Client(), item)
-		if err != nil {
+	if item.Status == esportsaftersale.StatusPendingExecution ||
+		item.Status == esportsaftersale.StatusExecutionFailed {
+		// P0-9：已审批预占的额度必须在售后终结时原路释放，否则该订单的可退额度会被永久占住、
+		// 后续退款全部冲突。执行失败终结（execution_failed）与待执行（pending_execution）同一口径，
+		// 释放额按「尚未成功执行的退款动作项」计算，多动作方案里已成功项不会重复释放。
+		if err = releaseAfterSaleRefundReserve(ctx, tx, item); err != nil {
 			return nil, err
-		}
-		if reserveCents > 0 {
-			released, err := tx.EsportsOrder.Update().Where(
-				esportsorder.IDEQ(item.SourceID),
-				func(s *sql.Selector) {
-					s.Where(sql.ExprP("refund_reserved_cents >= ?", reserveCents))
-				},
-			).AddRefundReservedCents(-reserveCents).AddVersion(1).Save(ctx)
-			if err != nil {
-				return nil, err
-			}
-			if released != 1 {
-				return nil, errConflict
-			}
 		}
 	}
 	changed, err := tx.EsportsAfterSale.Update().Where(
@@ -1191,6 +1188,15 @@ func executeAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 	if err = ensureAfterSaleSourceOrderNotFrozen(ctx, db, source); err != nil {
 		return nil, err
 	}
+	// P1：退原核销款的执行入口同样先看订单支付状态——渠道撤销 / 拒付（payment_status=exception）
+	// 时原支付款去向未定，与取消路径同口径禁止执行，交人工处置。
+	if refundReserveCents, rerr := afterSaleRefundReserveCents(ctx, db, source); rerr != nil {
+		return nil, rerr
+	} else if refundReserveCents > 0 {
+		if err = ensureAfterSalePaymentStatusRefundable(ctx, db, source); err != nil {
+			return nil, err
+		}
+	}
 	reviewCents, err := afterSaleReviewAmountCents(ctx, db, source)
 	if err != nil {
 		return nil, err
@@ -1222,11 +1228,7 @@ func executeAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 	}
 	if err != nil {
 		if errors.Is(err, errExecutionFailed) {
-			if _, markErr := db.EsportsAfterSale.Update().Where(
-				esportsaftersale.IDEQ(id),
-				esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
-			).SetStatus(esportsaftersale.StatusExecutionFailed).
-				SetResolution(err.Error()).AddVersion(1).Save(ctx); markErr != nil {
+			if markErr := markAfterSaleExecutionFailed(ctx, db, id, source, err); markErr != nil {
 				return nil, markErr
 			}
 		}
@@ -1267,6 +1269,22 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	case esportsaftersale.PlanActionRefundOriginal:
 		if item.RefundCents <= 0 {
 			return nil, errInvalidInput
+		}
+		// P0-10：外部渠道付款（微信 / 商户码 / 对公转账）没有预付账户可原路退回。
+		// 先登记一笔待执行的外部退款单，由财务核验后用既有 executeExternalRefund 执行，
+		// 本次执行只结案留痕（不写钱包、不累加 refunded_cents），预占额度留到执行时核销。
+		needsExternal, err := afterSaleNeedsExternalRefund(ctx, tx.Client(), item, order)
+		if err != nil {
+			return nil, err
+		}
+		if needsExternal {
+			if err = registerExternalChannelAfterSaleRefund(ctx, tx, item, order, adminID, now); err != nil {
+				return nil, err
+			}
+			if err = tx.Commit(); err != nil {
+				return nil, err
+			}
+			return db.EsportsAfterSale.Get(ctx, id)
 		}
 		if err = executeRefundOriginal(ctx, tx, item, order, adminID); err != nil {
 			return nil, err
@@ -1640,12 +1658,25 @@ func executeRefundOriginal(ctx context.Context, tx *ent.Tx, item *ent.EsportsAft
 		if err != nil {
 			return err
 		}
-		if err = createAfterSaleRefundTx(ctx, tx, item, adminID, consume.AccountType, consume.OwnerID,
-			"after_sale", principalBack, bonusBack, "售后退款"); err != nil {
+		// P0-4：原支付是储值卡时，写回前先查卡状态——卡已退卡 / 作废 / 冻结 / 过期 / 耗尽时
+		// 写回该卡等于把钱打进一张再也用不掉的卡，改为退回客户余额或转人工处置。
+		refundAccountType, refundOwnerID, writeCardLedger := consume.AccountType, consume.OwnerID, false
+		if consume.AccountType == esportswallettx.AccountTypeStoredValueCard {
+			refundAccountType, refundOwnerID, writeCardLedger, err = afterSaleRefundAccountForCard(ctx, tx, order, consume.OwnerID)
+			if err != nil {
+				return err
+			}
+		}
+		refundNote := "售后退款"
+		if consume.AccountType == esportswallettx.AccountTypeStoredValueCard && !writeCardLedger {
+			refundNote = "售后退款（原储值卡已不可用，退回客户余额）"
+		}
+		if err = createAfterSaleRefundTx(ctx, tx, item, adminID, refundAccountType, refundOwnerID,
+			"after_sale", principalBack, bonusBack, refundNote); err != nil {
 			return err
 		}
 		// 储值卡订单退款冲回对应预付款批次，保持批次账本与卡片余额一致。
-		if consume.AccountType == esportswallettx.AccountTypeStoredValueCard {
+		if writeCardLedger {
 			if _, err = tx.EsportsLedgerEntry.Create().
 				SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(consume.OwnerID)).
 				SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
@@ -1712,4 +1743,253 @@ func executeCompensate(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSa
 	}
 	// §13.4：补偿由陪玩承担时同样另建待审批的追偿明细。
 	return createRecoveryFromAfterSale(ctx, tx, item, adminID)
+}
+
+// ensureAfterSalePaymentStatusRefundable 售后资金入口（审批 / 执行）的订单支付状态守卫（P1）：
+// 订单 payment_status=exception 表示渠道撤销 / 拒付，原支付款去向已不确定，
+// 此时审批预占与退款执行都必须停手并交人工处置（与已付款取消路径同口径）。
+// 仅对订单来源生效；补偿 / 补履约不涉及原支付款回退，调用方按「是否退原核销款」决定是否调用。
+func ensureAfterSalePaymentStatusRefundable(ctx context.Context, client *ent.Client,
+	item *ent.EsportsAfterSale) error {
+	if item == nil || item.SourceType != esportsaftersale.SourceTypeOrder {
+		return nil
+	}
+	order, err := client.EsportsOrder.Get(ctx, item.SourceID)
+	if err != nil {
+		return err
+	}
+	return ensureOrderPaymentStatusRefundableForExternalRefund(order)
+}
+
+// afterSaleHeldRefundReserveCents 该售后单当前仍占用订单 refund_reserved_cents 的金额（P0-9）：
+// 单动作 refund_original 为方案退款额；多动作方案为「尚未成功 / 跳过」的退款动作项金额之和，
+// 已执行成功的动作项在落账时已扣减预占，不能再次释放。
+func afterSaleHeldRefundReserveCents(ctx context.Context, client *ent.Client,
+	item *ent.EsportsAfterSale) (int64, error) {
+	if item == nil || item.SourceType != esportsaftersale.SourceTypeOrder {
+		return 0, nil
+	}
+	actions, err := client.EsportsAfterSaleAction.Query().Where(
+		esportsaftersaleaction.AfterSaleIDEQ(item.ID),
+	).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(actions) == 0 {
+		if item.PlanAction != esportsaftersale.PlanActionRefundOriginal {
+			return 0, nil
+		}
+		return max(item.RefundCents, 0), nil
+	}
+	var total int64
+	for _, action := range actions {
+		if action.ActionType != esportsaftersaleaction.ActionTypeRefund {
+			continue
+		}
+		switch action.Status {
+		case esportsaftersaleaction.StatusSucceeded, esportsaftersaleaction.StatusSkipped:
+			continue
+		}
+		total += action.AmountCents
+	}
+	return total, nil
+}
+
+// markAfterSaleExecutionFailed 单动作执行失败终结（P0-9）：售后单落 execution_failed，并在同一事务内
+// 释放该单仍占用的预占额度——单动作售后从 execution_failed 无法再次执行（只能撤回重开），
+// 不释放就会把订单可退额度永久占住、后续退款全部冲突。
+// 多动作方案（有动作项）可由人工续跑，预占额度保留，不在此释放。
+func markAfterSaleExecutionFailed(ctx context.Context, db *ent.Client, id int,
+	item *ent.EsportsAfterSale, cause error) error {
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	changed, err := tx.EsportsAfterSale.Update().Where(
+		esportsaftersale.IDEQ(id),
+		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
+	).SetStatus(esportsaftersale.StatusExecutionFailed).
+		SetResolution(truncateRunes(cause.Error(), 255)).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return errConflict
+	}
+	hasActions, err := tx.EsportsAfterSaleAction.Query().Where(
+		esportsaftersaleaction.AfterSaleIDEQ(id),
+	).Exist(ctx)
+	if err != nil {
+		return err
+	}
+	if !hasActions {
+		if err = releaseAfterSaleRefundReserve(ctx, tx, item); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// releaseAfterSaleRefundReserve 售后终结（撤回 / 执行失败终结）时原路释放预占额度（P0-9）：
+// 释放额取「仍占用的预占额」，并用 refund_reserved_cents >= 释放额 的条件表达式兜底，
+// 重复调用幂等，绝不把 refund_reserved_cents 释放成负数；refunded_cents 不受影响。
+func releaseAfterSaleRefundReserve(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale) error {
+	held, err := afterSaleHeldRefundReserveCents(ctx, tx.Client(), item)
+	if err != nil {
+		return err
+	}
+	if held <= 0 {
+		return nil
+	}
+	order, err := tx.EsportsOrder.Get(ctx, item.SourceID)
+	if err != nil {
+		return err
+	}
+	// 二次收口：即便并发下订单已被别的路径释放过一部分，也只释放当前仍占用的额度。
+	releaseCents := min(held, max(order.RefundReservedCents, 0))
+	if releaseCents <= 0 {
+		return nil
+	}
+	released, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(order.ID),
+		func(s *sql.Selector) {
+			s.Where(sql.ExprP("refund_reserved_cents >= ?", releaseCents))
+		},
+	).AddRefundReservedCents(-releaseCents).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if released != 1 {
+		return errConflict
+	}
+	return nil
+}
+
+// registerExternalChannelAfterSaleRefund 外部渠道「退原核销款」的执行（P0-10）：
+// 在售后执行事务内登记一笔待执行的外部退款单，本次执行即结案——
+// 不写钱包、不累加 refunded_cents（钱还没出账），预占额度保留到财务执行外部退款时核销扣除。
+// 退款冲回陪玩分成 / 客服提成 / 客户成长值随外部退款执行同事务完成（见 executeExternalRefund）。
+func registerExternalChannelAfterSaleRefund(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale,
+	order *ent.EsportsOrder, adminID int, now time.Time) error {
+	refund, err := createAfterSaleExternalRefundIn(ctx, tx, item, order, adminID)
+	if err != nil {
+		return err
+	}
+	// §12.6：争议随本单执行终结，解冻该订单待结算分成明细。
+	if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
+		return err
+	}
+	// §13.4：赔付由陪玩承担时，仍按方案建待审批的追偿明细。
+	if err = createRecoveryFromAfterSale(ctx, tx, item, adminID); err != nil {
+		return err
+	}
+	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+	if err != nil {
+		return err
+	}
+	message := fmt.Sprintf("已生成外部渠道退款待执行：退款单 %s（渠道 %s），须由财务核验后执行",
+		refund.RefundNo, order.PaymentChannel.String())
+	if err = completeAfterSaleExecution(ctx, tx, item.ID, order.ID, adminID, newVersion,
+		"order.refund_external_registered", map[string]interface{}{
+			"after_sale_no": item.AfterSaleNo, "plan_action": item.PlanAction.String(),
+			"refund_cents": item.RefundCents, "external_refund_no": refund.RefundNo,
+			"external_refund_channel": order.PaymentChannel.String(), "message": message,
+		}, now); err != nil {
+		return err
+	}
+	return appendAfterSaleResolution(ctx, tx, item, message)
+}
+
+// appendAfterSaleResolution 把执行结论追加进售后单的处理 / 执行说明（255 字上限），
+// 让管理端在售后详情直接看到「已生成外部退款待执行」这类提示，而不是只留在订单事件里。
+func appendAfterSaleResolution(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale, note string) error {
+	note = strings.TrimSpace(note)
+	if note == "" {
+		return nil
+	}
+	resolution := strings.TrimSpace(item.Resolution)
+	if resolution == "" {
+		resolution = note
+	} else {
+		resolution = resolution + "；" + note
+	}
+	_, err := tx.EsportsAfterSale.UpdateOneID(item.ID).
+		SetResolution(truncateRunes(resolution, 255)).Save(ctx)
+	return err
+}
+
+// afterSaleRefundAccountForCard 决定储值卡订单「退原核销款」的入账账户（§4.4 / P0-4）。
+// 只有仍为 active 的卡才把钱写回原卡（active 是唯一可再次消费的状态，见
+// schema/esports_stored_value.go 的状态枚举：pending_verification / rejected / active /
+// exhausted / refund_pending / refunded / expired / frozen）。卡已退出可消费状态时：
+//   - 卡属该订单客户且客户余额账户可用 → 退回客户余额（第三个返回值 false，不再写卡片批次冲回）；
+//   - 否则返回 errExecutionFailed，由售后单落 execution_failed（既有异常态）交人工处置，
+//     绝不把钱写回一张已退卡 / 作废的卡。
+func afterSaleRefundAccountForCard(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	cardID int) (esportswallettx.AccountType, int, bool, error) {
+	card, err := tx.EsportsStoredValueCard.Get(ctx, cardID)
+	if err != nil {
+		return "", 0, false, err
+	}
+	if card.Status == esportsstoredvaluecard.StatusActive {
+		return esportswallettx.AccountTypeStoredValueCard, card.ID, true, nil
+	}
+	if card.CustomerID == order.CustomerID {
+		usable, err := customerBalanceAccountUsable(ctx, tx.Client(), order.CustomerID)
+		if err != nil {
+			return "", 0, false, err
+		}
+		if usable {
+			return esportswallettx.AccountTypeCustomerBalance, order.CustomerID, false, nil
+		}
+	}
+	return "", 0, false, fmt.Errorf(
+		"%w：原支付储值卡已不可用（状态 %s），且无法退回客户余额，退款需人工处置",
+		errExecutionFailed, card.Status.String())
+}
+
+// customerBalanceAccountUsable 客户余额账户是否可入账：未建账户（余额完全由流水求和派生）视为可用，
+// 已建账户但被冻结时不可入账。
+func customerBalanceAccountUsable(ctx context.Context, client *ent.Client, customerID int) (bool, error) {
+	account, err := client.EsportsWalletAccount.Query().Where(
+		esportswalletaccount.AccountTypeEQ(esportswalletaccount.AccountTypeCustomerBalance),
+		esportswalletaccount.OwnerIDEQ(customerID),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return account.Status == esportswalletaccount.StatusActive, nil
+}
+
+// ── 售后「代客确认」HTTP 入口（审核报告 §3.1：confirmAfterSaleByAdmin 此前无路由） ──
+
+// adminConfirmAfterSaleHandler 客服代客户确认方案（§13.3「待客户确认」→「待审批」）：
+// 客户线下已同意时由客服代为确认，写入 customer_confirm_channel=admin_proxy 与
+// customer_confirmed_by_admin_id，并清除上一次的客户拒绝原因。
+//
+// 与「审批」严格区分，不得复用审批 handler：
+//   - 本入口只做 pending_customer_confirm → pending_approval：不写 approver_admin_id、
+//     不预占订单退款额度、不产生任何资金动作；
+//   - 非「待客户确认」状态的售后单（含已进入待审批、终态、冻结订单）一律 409，
+//     因此它不能被当作审批的替代品；
+//   - 既有职责分离不变：审批仍须由非该单处理人（handler_admin_id）执行，代确认人不会
+//     因代确认而获得审批资格；重复代确认同样 409，不会重复推进状态。
+func adminConfirmAfterSaleHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "售后单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	item, err := confirmAfterSaleByAdmin(c.Context(), global.ORM, id, adminID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
 }

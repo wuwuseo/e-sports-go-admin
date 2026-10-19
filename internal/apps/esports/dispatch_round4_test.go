@@ -705,7 +705,8 @@ func TestSeatInviteAndSettlementNotificationRecipients(t *testing.T) {
 	}
 }
 
-// 6.4-01：有在途订单的陪玩保留派单候选资格，但仍禁止抢新单（保留上线状态与可接新单分离）。
+// P1-01-03：在途保护异常（protected_abnormal）的陪玩**不得**再被指派新单，
+// 也仍然禁止抢新单——「连接异常暂缓新派单」不因在途订单而放宽。
 func TestInflightProtectedAbnormalPlayerStaysDispatchable(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_r4_inflight_dispatchable")
 	defer db.Close()
@@ -730,12 +731,17 @@ func TestInflightProtectedAbnormalPlayerStaysDispatchable(t *testing.T) {
 	}
 
 	other := seedPaidOrder(t, db, "r4-inflight-2", 1)
-	if _, err = assignDispatchSeat(ctx, db, other.ID, 1, busy.ID, 11, now); err != nil {
-		t.Fatalf("有在途订单的陪玩应保留派单候选资格，err=%v", err)
+	if _, err = assignDispatchSeat(ctx, db, other.ID, 1, busy.ID, 11, now); !errors.Is(err, errForbidden) {
+		t.Fatalf("连接异常的陪玩不得被指派新单，err=%v", err)
 	}
-	// 抢新单仍被禁止：与「可接新单」分离。
+	// 抢新单同样被禁止。
 	if _, err = grabPlayerOrder(ctx, db, busy.ID, seedGrabbingOrder(t, db, "r4-inflight-grab").ID, now); !errors.Is(err, errForbidden) {
 		t.Fatalf("在途保护异常陪玩应禁止抢新单，err=%v", err)
+	}
+	// 在途履约不受影响：既有席位仍是他本人。
+	if got := db.EsportsDispatchSeat.GetX(ctx, seat.ID); got.Status != esportsdispatchseat.StatusAccepted ||
+		got.PlayerID == nil || *got.PlayerID != busy.ID {
+		t.Fatalf("在途席位应保留原陪玩：%+v", got)
 	}
 }
 

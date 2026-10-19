@@ -213,7 +213,16 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 			return nil, errConflict
 		}
 	}
-	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, esportsorder.FulfillmentStatusPendingAcceptance)
+	// P1-05-01：固排成队确定陪玩后立即闭合该订单的优先通知窗口（名单内其他人不再收到必失败的通知，
+	// 看板也不再显示「通知中」）。闭合占用一个订单版本，后续 bumpOrder 必须基于闭合后的版本。
+	orderVersion := order.Version
+	if closedVersion, err := closeDispatchPriorityWindowOnDispatch(ctx, tx, order,
+		dispatchReleaseReasonAssigned, now); err != nil {
+		return nil, err
+	} else if closedVersion > 0 {
+		orderVersion = closedVersion
+	}
+	newVersion, err := bumpOrder(ctx, tx, orderID, orderVersion, esportsorder.FulfillmentStatusPendingAcceptance)
 	if err != nil {
 		return nil, err
 	}

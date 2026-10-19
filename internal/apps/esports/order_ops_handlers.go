@@ -332,22 +332,45 @@ func queryLimit(c fiber.Ctx, fallback int) int {
 	return value
 }
 
+// errCatfoodSuperOnly 陪玩猫粮写入口的拒绝原因。
+// 陪玩没有「归属客服」关系（EsportsPlayer 上不存在 owner_admin_id），无法按客户余额那种
+// 「归属客服本人或超管」的方式收窄，因此猫粮充值 / 调整统一由超级管理员执行。
+var errCatfoodSuperOnly = errors.New("陪玩猫粮的充值 / 调整仅限超级管理员操作")
+
+// ensureCatfoodMutationAllowed 校验猫粮写入口的授权边界（P1）：猫粮是陪玩的结算账户，
+// 任意持权客服都能写入会让「先给陪玩充猫粮、再走提现」成为一条无痕迹的套现路径。
+// isSuper 取自 PermissionMiddleware 注入的 isSuperAdmin（与 loadOwnedCustomer 同源）。
+func ensureCatfoodMutationAllowed(isSuper bool) error {
+	if !isSuper {
+		return errCatfoodSuperOnly
+	}
+	return nil
+}
+
 // walletMutationHandler 充值 / 调整共用：区分点只在 entry_type，幂等键取自请求头。
+// 账户边界：customer_balance 按客户归属（归属客服本人或超管）收窄；
+// player_catfood 没有归属关系，改为超管兜底（P1）。
 func walletMutationHandler(adjust bool) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		adminID, err := requireAdmin(c)
 		if err != nil {
 			return businessError(c, err)
 		}
-		accountType := c.Query("account_type")
+		accountType := strings.TrimSpace(c.Query("account_type"))
 		ownerID, err := parsePathID(c, "钱包归属人")
 		if err != nil {
 			return businessError(c, err)
 		}
-		if strings.TrimSpace(accountType) == walletCustomerBalance {
-			isSuper, _ := c.Locals("isSuperAdmin").(bool)
+		isSuper, _ := c.Locals("isSuperAdmin").(bool)
+		switch accountType {
+		case walletCustomerBalance:
 			if _, err := loadOwnedCustomer(c.Context(), global.ORM, adminID, isSuper, ownerID); err != nil {
 				return businessError(c, err)
+			}
+		case walletPlayerCatfood:
+			// 猫粮写入口的拒绝文案要能直接给运营看，故不走 businessError 的通用 403 文案。
+			if err := ensureCatfoodMutationAllowed(isSuper); err != nil {
+				return fail(c, fiber.StatusForbidden, err.Error())
 			}
 		}
 		key := strings.TrimSpace(c.Get("Idempotency-Key"))
@@ -370,7 +393,8 @@ func walletMutationHandler(adjust bool) fiber.Handler {
 
 // disposeExpiredAppointmentHandler 处置「已付款待确认档期超时」订单（§5.5-06）：
 // 请求体 {"action":"refund|reschedule","reason":"...","start_at":"RFC3339","expected_version":N}。
-// 路由须由 ownedOrderHandler 保护，权限码建议 esports:orders:appointment_dispose。
+// 路由由 ownedOrderHandler 保护（仅负责客服或超管，P0-12），权限码 esports:orders:appointment_dispose；
+// action=refund 会触发全额退款，故归属边界必须在进入本 handler 之前判完。
 func disposeExpiredAppointmentHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -389,4 +413,47 @@ func disposeExpiredAppointmentHandler(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	return reply(c, order)
+}
+
+// appointmentDisposalOptionsHandler 读取档期超时处置的可用动作（只读，无副作用）：
+// 返回 {allowed_actions, current_action, expire_at}，前端据此渲染「全额退还 / 改期」按钮，
+// 不再硬编码处置方式；判定与 disposeExpiredAppointmentHandler 共用同一份配置口径。
+// 路由由 readableOrderHandler 保护（只读可见：负责客服 / 协作客服 / 超管），不放开写边界。
+func appointmentDisposalOptionsHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	order, err := global.ORM.EsportsOrder.Get(c.Context(), id)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, appointmentDisposalOptions(c.Context(), global.ORM, order))
+}
+
+// adminServiceTimingHandler 读取某订单某陪玩服务段的当前计时（只读，无副作用）：
+// 返回 {effective_seconds, wall_clock_seconds, upper_bound_seconds, paused_seconds, status}，
+// 供「时长更正」弹窗预填当前有效时长与可填上限。上界与更正校验共用
+// serviceTimingCorrectionBound，因此接口给的上限恒等于更正时被接受的边界。
+// 路由由 readableOrderHandler 保护（只读可见），更正本身仍是负责客服 / 超管的写入口。
+func adminServiceTimingHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	playerID, err := parsePlayerPathID(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	readout, err := serviceTimingForAdmin(c.Context(), global.ORM, orderID, playerID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, readout)
 }

@@ -426,12 +426,12 @@ func TestCsCommissionSettleAndPayout(t *testing.T) {
 	if got := db.EsportsWalletTx.Query().CountX(ctx); got != 0 {
 		t.Fatalf("客服提成结算不应写钱包流水，got=%d", got)
 	}
-	// 待结算明细已转 settled 并挂上结算单。
+	// P0-6：草稿阶段明细只挂单，仍为待结算（不发钱就不算已结算）。
 	entry := db.EsportsCsCommissionEntry.Query().Where(
 		esportscscommissionentry.OrderIDEQ(order.ID)).OnlyX(ctx)
-	if entry.Status != esportscscommissionentry.StatusSettled || entry.SettlementID == nil ||
+	if entry.Status != esportscscommissionentry.StatusPendingSettlement || entry.SettlementID == nil ||
 		*entry.SettlementID != settlement.ID {
-		t.Fatalf("明细应转已结算并挂结算单：%+v", entry)
+		t.Fatalf("草稿阶段明细应待结算并挂结算单：%+v", entry)
 	}
 	// 无待结算明细再结算被拒。
 	if _, err = settleCsCommission(ctx, db, admin.ID, start, end, admin.ID, now); !errors.Is(err, errInvalidInput) {
@@ -459,6 +459,10 @@ func TestCsCommissionSettleAndPayout(t *testing.T) {
 	}
 	if _, err = markSettlementPaid(ctx, db, settlement.ID, admin.ID, "PAY-2", now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复发放应冲突，err=%v", err)
+	}
+	// 发放成功后明细才转已结算（P0-6）。
+	if got := db.EsportsCsCommissionEntry.GetX(ctx, entry.ID).Status; got != esportscscommissionentry.StatusSettled {
+		t.Fatalf("发放后明细应转已结算，got=%s", got)
 	}
 	_ = locked
 }

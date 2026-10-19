@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/esportsdispatchprioritynotice"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsplayer"
+	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -107,6 +108,21 @@ func grantDispatchPriority(ctx context.Context, db *ent.Client, adminID int, in 
 	}
 	if _, err := db.EsportsPlayer.Get(ctx, in.PlayerID); err != nil {
 		return nil, err
+	}
+	// P1-05-02：名单 game 必须能对上真实的商品分类游戏分区，否则该名单永远匹配不到任何订单，
+	// 开窗逻辑会**静默跳过**（订单看起来「没进优先通知」）。这里显式报错并指出名单项，
+	// 不允许把填错的游戏分区静默落库。
+	// 口令：分区名按 SKU → 商品分类（category.game）匹配，因此必须有启用中的分类使用该 game。
+	gameExists, err := db.EsportsProductCategory.Query().Where(
+		esportsproductcategory.GameEQ(in.Game),
+		esportsproductcategory.StatusEQ(esportsproductcategory.StatusEnabled),
+	).Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !gameExists {
+		return nil, fmt.Errorf("%w：名单项 game「%s」找不到对应的启用游戏分区（商品分类），"+
+			"请先在产品分类里维护该游戏分区名，或改成与分类一致的游戏分区", errInvalidInput, in.Game)
 	}
 	// 先判重（同游戏同期同陪玩），再判名额：重复录入应给出更精确的原因，而不是笼统的「名额已满」。
 	duplicated, err := db.EsportsDispatchPriorityGrant.Query().Where(
@@ -562,10 +578,9 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 	}
 	playerQuery := db.EsportsPlayer.Query().Where(
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
-		// §6.4-01：连接异常（protected_abnormal）但存在在途订单的陪玩保留候选资格，
-		// 因此候选池先纳入 protected_abnormal，再由 playerEligibleForDispatch 精筛。
-		esportsplayer.PresenceIn(
-			esportsplayer.PresenceOnline, esportsplayer.PresenceProtectedAbnormal),
+		// P1-01-03：连接异常（protected_abnormal）不得进入派单候选——「连接异常暂缓新派单」。
+		// 候选池只取在线陪玩，再由 playerEligibleForDispatch 复核心跳新鲜度。
+		esportsplayer.PresenceEQ(esportsplayer.PresenceOnline),
 	)
 	if windowOpen {
 		if len(notified) == 0 {

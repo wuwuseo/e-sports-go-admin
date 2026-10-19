@@ -22,25 +22,26 @@ import (
 // productChildSkuInput 是商品同一入口维护的子 SKU 定义。
 // ID 为 0 表示新建，大于 0 表示编辑既有子 SKU（须属于当前商品）。
 type productChildSkuInput struct {
-	ID                     int    `json:"id"`
-	Code                   string `json:"code"`
-	Title                  string `json:"title"`
-	ServiceType            string `json:"service_type"`
-	Description            string `json:"description"`
-	UnitPriceCents         int64  `json:"unit_price_cents"`
-	MinUnitPriceCents      int64  `json:"min_unit_price_cents"`
-	AdjustmentApprovalBp   int    `json:"adjustment_approval_bp"`
-	ServiceUnits           int64  `json:"service_units"`
-	ServiceUnitName        string `json:"service_unit_name"`
-	RequiredSeats          int    `json:"required_seats"`
-	PerSeatServiceUnits    int64  `json:"per_seat_service_units"`
-	CostCents              *int64 `json:"cost_cents"`
-	ServiceDurationMinutes int    `json:"service_duration_minutes"`
-	CloseRuleCode          string `json:"close_rule_code"`
-	SpecGroupID            *int   `json:"spec_group_id"`
-	QuotaTotal             int64  `json:"quota_total"`
-	SortOrder              int    `json:"sort_order"`
-	Status                 string `json:"status"`
+	ID                     int           `json:"id"`
+	Code                   string        `json:"code"`
+	Title                  string        `json:"title"`
+	ServiceType            string        `json:"service_type"`
+	Description            string        `json:"description"`
+	UnitPriceCents         int64         `json:"unit_price_cents"`
+	MinUnitPriceCents      int64         `json:"min_unit_price_cents"`
+	AdjustmentApprovalBp   int           `json:"adjustment_approval_bp"`
+	ServiceUnits           int64         `json:"service_units"`
+	ServiceUnitName        string        `json:"service_unit_name"`
+	RequiredSeats          int           `json:"required_seats"`
+	PerSeatServiceUnits    int64         `json:"per_seat_service_units"`
+	RequiredLevel          *string       `json:"required_level"`
+	CostCents              optionalInt64 `json:"cost_cents"`
+	ServiceDurationMinutes int           `json:"service_duration_minutes"`
+	CloseRuleCode          string        `json:"close_rule_code"`
+	SpecGroupID            *int          `json:"spec_group_id"`
+	QuotaTotal             int64         `json:"quota_total"`
+	SortOrder              int           `json:"sort_order"`
+	Status                 string        `json:"status"`
 }
 
 type productInput struct {
@@ -217,13 +218,61 @@ func normalizeProductChildSku(in productChildSkuInput) (productChildSkuInput, er
 	if err := validateSkuServiceType(in.ServiceType); err != nil {
 		return in, err
 	}
-	if err := validateSkuCostCents(in.CostCents); err != nil {
-		return in, err
+	// 成本价三态：仅在显式出现时校验与落库（未传保持不变）。
+	if in.CostCents.Present {
+		if err := validateSkuCostCents(in.CostCents.Value); err != nil {
+			return in, err
+		}
 	}
 	if in.SpecGroupID != nil && *in.SpecGroupID < 1 {
 		return in, errInvalidInput
 	}
 	return in, nil
+}
+
+// resolveSkuCatalogRefs 校验 SKU 挂载的商品父实体与规格组（§15.1 / §15.5）：
+// 传了就必须存在且状态可用——商品不得下架、规格组须为启用，且规格组席位数量与 required_seats 一致。
+// 返回对应实体（未传时为 nil），调用方据此复用规格组的每席承诺服务量口径。
+func resolveSkuCatalogRefs(ctx context.Context, db *ent.Client, productID, specGroupID *int,
+	requiredSeats int) (*ent.EsportsProduct, *ent.EsportsSpecGroup, error) {
+	var product *ent.EsportsProduct
+	if productID != nil {
+		if *productID < 1 {
+			return nil, nil, errInvalidInput
+		}
+		item, err := db.EsportsProduct.Get(ctx, *productID)
+		if ent.IsNotFound(err) {
+			return nil, nil, fmt.Errorf("%w：关联的商品不存在", errInvalidInput)
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		if item.Status == esportsproduct.StatusOffSale {
+			return nil, nil, fmt.Errorf("%w：关联的商品已下架，不能再挂载 SKU", errInvalidInput)
+		}
+		product = item
+	}
+	var group *ent.EsportsSpecGroup
+	if specGroupID != nil {
+		if *specGroupID < 1 {
+			return nil, nil, errInvalidInput
+		}
+		item, err := db.EsportsSpecGroup.Get(ctx, *specGroupID)
+		if ent.IsNotFound(err) {
+			return nil, nil, fmt.Errorf("%w：关联的规格组不存在", errInvalidInput)
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+		if item.Status != esportsspecgroup.StatusEnabled {
+			return nil, nil, fmt.Errorf("%w：关联的规格组已停用，不能再挂载 SKU", errInvalidInput)
+		}
+		if len(item.Seats) > 0 && len(item.Seats) != requiredSeats {
+			return nil, nil, fmt.Errorf("%w：规格组席位数量与 required_seats 不一致", errInvalidInput)
+		}
+		group = item
+	}
+	return product, group, nil
 }
 
 // applyProductChildSkus 在事务内新建/更新商品子 SKU；引用规格组时校验席位数量与 required_seats 一致。
@@ -233,6 +282,14 @@ func applyProductChildSkus(ctx context.Context, tx *ent.Tx, productID int, skus 
 		if err != nil {
 			return fmt.Errorf("第 %d 个子 SKU：%w", i+1, err)
 		}
+		// §5.5：子 SKU 同样支持技能等级门槛；未传新建默认 novice（更新时未传保持不变）。
+		requiredLevel := esportssku.RequiredLevelNovice
+		if in.RequiredLevel != nil {
+			if requiredLevel, err = skuRequiredLevel(in.RequiredLevel); err != nil {
+				return fmt.Errorf("第 %d 个子 SKU：%w", i+1, err)
+			}
+		}
+		var groupPerSeat int64
 		if in.SpecGroupID != nil {
 			group, err := tx.EsportsSpecGroup.Get(ctx, *in.SpecGroupID)
 			if err != nil {
@@ -242,13 +299,14 @@ func applyProductChildSkus(ctx context.Context, tx *ent.Tx, productID int, skus 
 				return fmt.Errorf("%w：第 %d 个子 SKU 规格组席位数量与 required_seats 不一致", errInvalidInput, i+1)
 			}
 			// §15.5-01：规格组已声明每席承诺服务量时，子 SKU 未单独配置则跟随规格组，避免同规格两套口径。
-			if in.PerSeatServiceUnits <= 0 && group.PerSeatServiceUnits > 0 {
-				in.PerSeatServiceUnits = group.PerSeatServiceUnits
-			}
-			if in.PerSeatServiceUnits > 0 && group.PerSeatServiceUnits > 0 &&
-				in.PerSeatServiceUnits != group.PerSeatServiceUnits {
-				return fmt.Errorf("%w：第 %d 个子 SKU 每席承诺服务量与规格组不一致", errInvalidInput, i+1)
-			}
+			groupPerSeat = group.PerSeatServiceUnits
+		}
+		if err := normalizeSkuPerSeatUnits(&in.PerSeatServiceUnits, groupPerSeat); err != nil {
+			return fmt.Errorf("第 %d 个子 SKU：%w", i+1, err)
+		}
+		// P1-24：多人规格必须声明每席承诺服务量，避免「可上架但下单必拒」。
+		if err := validateSkuSeatPromise(in.RequiredSeats, in.PerSeatServiceUnits); err != nil {
+			return fmt.Errorf("第 %d 个子 SKU：%w", i+1, err)
 		}
 		if in.ID > 0 {
 			update := tx.EsportsSku.Update().Where(
@@ -261,10 +319,17 @@ func applyProductChildSkus(ctx context.Context, tx *ent.Tx, productID int, skus 
 				SetServiceDurationMinutes(in.ServiceDurationMinutes).
 				SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).SetQuotaTotal(in.QuotaTotal).
 				SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status)).AddVersion(1)
-			if in.CostCents == nil {
-				update.ClearCostCents()
-			} else {
-				update.SetCostCents(*in.CostCents)
+			// §5.5：未传 required_level 时保持子 SKU 既有门槛，整表回传不静默降级。
+			if in.RequiredLevel != nil {
+				update.SetRequiredLevel(requiredLevel)
+			}
+			// §15.8-03 / P1-22：成本价三态——未传保持不变，显式 null 才清空。
+			if in.CostCents.Present {
+				if in.CostCents.Value == nil {
+					update.ClearCostCents()
+				} else {
+					update.SetCostCents(*in.CostCents.Value)
+				}
 			}
 			changed, err := update.Save(ctx)
 			if err != nil {
@@ -280,13 +345,13 @@ func applyProductChildSkus(ctx context.Context, tx *ent.Tx, productID int, skus 
 			SetUnitPriceCents(in.UnitPriceCents).SetMinUnitPriceCents(in.MinUnitPriceCents).
 			SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).SetServiceUnits(in.ServiceUnits).
 			SetServiceUnitName(in.ServiceUnitName).SetRequiredSeats(in.RequiredSeats).
-			SetPerSeatServiceUnits(in.PerSeatServiceUnits).
+			SetPerSeatServiceUnits(in.PerSeatServiceUnits).SetRequiredLevel(requiredLevel).
 			SetServiceDurationMinutes(in.ServiceDurationMinutes).
 			SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).SetQuotaTotal(in.QuotaTotal).
 			SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status)).
 			SetProductID(productID)
-		if in.CostCents != nil {
-			create.SetCostCents(*in.CostCents)
+		if in.CostCents.Present && in.CostCents.Value != nil {
+			create.SetCostCents(*in.CostCents.Value)
 		}
 		if in.SpecGroupID != nil {
 			create.SetSpecGroupID(*in.SpecGroupID)

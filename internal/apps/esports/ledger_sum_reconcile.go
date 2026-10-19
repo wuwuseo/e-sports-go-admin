@@ -3,14 +3,19 @@ package esports
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
+	"go-admin/internal/ent/adminrole"
 	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
 	"go-admin/internal/ent/esportsoutbox"
 	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/ent/role"
 )
 
 // 账本核验新增维度：「钱包流水求和 == 批次账本求和」（§11.6-01）。
@@ -65,12 +70,22 @@ func ledgerBatchAccountType(walletAccountType string) string {
 // scanWalletLedgerSum 对单个账户执行「钱包流水求和 == 批次账本求和」核验（§11.6-01）。
 // 由余额核验的同一轮账户扫描顺带调用：两者账户集合完全一致（登记钱包账户 + 逐张储值卡），
 // 复用同一游标与单轮上限，不新增配置键、不重复扫表。
+// P1-21：本账户新发现的异常在核验后立即写入通知事件（见 publishLedgerSumReconcileNotices），
+// 让异常进入财务 / 超管待办，而不是只躺在核验事件里等人翻日志。
 func scanWalletLedgerSum(ctx context.Context, db *ent.Client,
 	result *ledgerReconcileResult, accountType, accountID string) error {
 	result.ScannedWalletSums++
-	return checkWalletLedgerSum(ctx, db, result, ledgerWalletSumScan{
+	before := len(result.Anomalies)
+	if err := checkWalletLedgerSum(ctx, db, result, ledgerWalletSumScan{
 		accountType: accountType, accountID: accountID,
-	})
+	}); err != nil {
+		return err
+	}
+	if len(result.Anomalies) <= before {
+		return nil
+	}
+	return publishLedgerSumReconcileNotices(ctx, db, accountType, accountID,
+		result.Anomalies[before:], time.Now())
 }
 
 // checkWalletLedgerSum 汇总单个账户的两侧口径、比对并输出异常。
@@ -150,6 +165,167 @@ func checkWalletLedgerSum(ctx context.Context, db *ent.Client,
 // 客户余额与储值卡是预付款，陪玩猫粮是结算发放（不走预付款批次）。
 func ledgerPrepayTracker(accountType string) bool {
 	return accountType == walletCustomerBalance || accountType == walletStoredValueCard
+}
+
+// 账本对账异常的通知出口（§11.6-01 / P1-21）。
+//
+// 口径：对账异常必须能进待办 / 通知，而不是只写一条 ledger.reconcile_anomaly 事件。
+// 本文件在发现「钱包流水求和 != 批次账本求和」类异常时，额外写通知事件：
+//   - event_type 固定以 ledger. 前缀开头（ledger.reconcile_anomaly_notice），供通知分拣按前缀识别；
+//   - 收件人字段沿用既有管理员定向通知的约定：payload.admin_id（逐收件人一条事件），
+//     另带 recipient_roles 标注来源角色（finance 财务 / super_admin 超管）便于审计；
+//   - aggregate_ref 固定 "ledger"（账本无业务单号），正文由通知层按事件类型生成；
+//   - 事件键 = 小时窗口 + 收件人 + 账户，异常持续存在时每小时最多提醒一次，避免重复轰炸。
+//
+// 需要另一处配合（详见 w4/misc-report.md）：notification_outbox.go 的 notifyChannelTargets 需增加
+// {"ledger.", []string{notifyChannelWecomApp}}，notification_recipients.go 需增加
+// `case strings.HasPrefix(eventType, "ledger."): return resolveOrderAdminNotificationRecipients(...)`，
+// 该函数已按 payload.admin_id 解析收件人（账本事件没有关联订单，回落到载荷里的 admin_id）。
+const (
+	// ledgerReconcileNoticeEventType 账本对账异常的通知事件类型（ledger. 前缀供通知分拣识别）。
+	ledgerReconcileNoticeEventType = "ledger.reconcile_anomaly_notice"
+	// ledgerReconcileNoticeRolesField 载荷中的收件人角色标记字段。
+	ledgerReconcileNoticeRolesField = "recipient_roles"
+	// ledgerReconcileNoticeBucket 同一账户同一收件人的告警去重窗口（按小时）。
+	ledgerReconcileNoticeBucket = time.Hour
+	// ledgerReconcileNoticeQueryPath 异常查询接口（GET /admin/ledger-reconcile-anomalies），
+	// 写进通知载荷便于财务 / 超管直接定位复核入口。
+	ledgerReconcileNoticeQueryPath = "/api/v1/esports/admin/ledger-reconcile-anomalies"
+)
+
+// ledgerReconcileNoticeRecipient 是一条对账异常通知的收件人。
+type ledgerReconcileNoticeRecipient struct {
+	AdminID int
+	Role    string
+}
+
+// publishLedgerSumReconcileNotices 为单个账户的「钱包流水 / 批次账本」异常写通知事件（P1-21）。
+// 收件人优先取财务角色成员（app.esports.finance_report_role_names 配置的启用角色下的启用管理员），
+// 未配置或没有成员时回落启用中的超级管理员；两者都取不到时不做通知（异常仍可经
+// GET /admin/ledger-reconcile-anomalies 查到，不静默丢失）。
+// 同一小时窗口内同一收件人 + 同一账户只写一条，靠 outbox event_key 唯一索引兜底。
+func publishLedgerSumReconcileNotices(ctx context.Context, db *ent.Client, accountType, accountID string,
+	anomalies []ledgerAnomaly, now time.Time) error {
+	if len(anomalies) == 0 {
+		return nil
+	}
+	recipients, err := ledgerReconcileNoticeRecipients(ctx, db)
+	if err != nil {
+		return err
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
+	bucket := now.UTC().Truncate(ledgerReconcileNoticeBucket).Format("2006010215")
+	details := make([]map[string]interface{}, 0, len(anomalies))
+	for _, item := range anomalies {
+		details = append(details, map[string]interface{}{
+			"kind": item.Kind, "account_type": item.AccountType,
+			"account_id": item.AccountID, "detail": item.Detail,
+		})
+	}
+	for _, recipient := range recipients {
+		payload := map[string]interface{}{
+			// 收件人字段：与既有管理员定向通知一致，通知分拣直接读 admin_id。
+			"admin_id":                      recipient.AdminID,
+			ledgerReconcileNoticeRolesField: []string{recipient.Role},
+			"account_type":                  accountType,
+			"account_id":                    accountID,
+			"anomaly_count":                 len(anomalies),
+			"anomalies":                     details,
+			"occurred_at":                   now.UTC().Format(time.RFC3339Nano),
+			"query_endpoint":                ledgerReconcileNoticeQueryPath,
+		}
+		_, err = db.EsportsOutbox.Create().
+			SetEventKey(ledgerReconcileNoticeEventType + ":" + bucket + ":" +
+				strconv.Itoa(recipient.AdminID) + ":" + accountType + ":" + accountID).
+			SetEventType(ledgerReconcileNoticeEventType).SetAggregateRef("ledger").
+			SetPayload(payload).Save(ctx)
+		if ent.IsConstraintError(err) {
+			// 本小时窗口内已提醒过该收件人，跳过即可（异常仍在核验事件与查询接口里）。
+			continue
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ledgerReconcileNoticeRecipients 解析账本对账异常的通知收件人（P1-21）：
+// 财务角色成员优先，未配置财务角色或没有启用成员时回落启用中的超管。
+func ledgerReconcileNoticeRecipients(ctx context.Context, db *ent.Client) ([]ledgerReconcileNoticeRecipient, error) {
+	if finance := ledgerFinanceAdminIDs(ctx, db); len(finance) > 0 {
+		recipients := make([]ledgerReconcileNoticeRecipient, 0, len(finance))
+		for _, id := range finance {
+			recipients = append(recipients, ledgerReconcileNoticeRecipient{AdminID: id, Role: "finance"})
+		}
+		return recipients, nil
+	}
+	supers, err := db.Admin.Query().Where(
+		admin.IsSuperAdminEQ(true), admin.StatusEQ(admin.StatusActive),
+	).Select(admin.FieldID).Order(ent.Asc(admin.FieldID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	recipients := make([]ledgerReconcileNoticeRecipient, 0, len(supers))
+	for _, item := range supers {
+		recipients = append(recipients, ledgerReconcileNoticeRecipient{AdminID: item.ID, Role: "super_admin"})
+	}
+	return recipients, nil
+}
+
+// ledgerFinanceAdminIDs 取财务角色下的启用管理员 ID（升序、去重）：
+// 角色名取 app.esports.finance_report_role_names（与 canAccessFinanceReport 同一份配置），
+// 只认启用角色 + 启用管理员的组合，缺失或读取失败时返回空表示「未配置财务角色」。
+func ledgerFinanceAdminIDs(ctx context.Context, db *ent.Client) []int {
+	names := financeReportRoleNames(ctx, db)
+	if len(names) == 0 {
+		return nil
+	}
+	roles, err := db.Role.Query().Where(
+		role.NameIn(names...), role.StatusEQ(role.StatusActive),
+	).Select(role.FieldID).Order(ent.Asc(role.FieldID)).All(ctx)
+	if err != nil || len(roles) == 0 {
+		return nil
+	}
+	roleIDs := make([]int, 0, len(roles))
+	for _, item := range roles {
+		roleIDs = append(roleIDs, item.ID)
+	}
+	bindings, err := db.AdminRole.Query().Where(
+		adminrole.RoleIDIn(roleIDs...),
+	).Select(adminrole.FieldAdminID).All(ctx)
+	if err != nil || len(bindings) == 0 {
+		return nil
+	}
+	seen := make(map[int]struct{}, len(bindings))
+	ids := make([]int, 0, len(bindings))
+	for _, item := range bindings {
+		if _, ok := seen[item.AdminID]; ok {
+			continue
+		}
+		seen[item.AdminID] = struct{}{}
+		ids = append(ids, item.AdminID)
+	}
+	sort.Ints(ids)
+	admins, err := db.Admin.Query().Where(
+		admin.IDIn(ids...), admin.StatusEQ(admin.StatusActive),
+	).Select(admin.FieldID).All(ctx)
+	if err != nil {
+		return nil
+	}
+	active := make(map[int]struct{}, len(admins))
+	for _, item := range admins {
+		active[item.ID] = struct{}{}
+	}
+	out := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := active[id]; ok {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // walletRowHasAllocation 判断某笔出账是否有对应的批次分摊明细。

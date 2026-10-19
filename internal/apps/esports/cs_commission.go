@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscscommissionrule"
 	"go-admin/internal/ent/esportssettlement"
+	"go-admin/internal/ent/esportswallettx"
 )
 
 // csCommissionRuleInput 客服提成规则可编辑字段（§12.2）。rule_no 创建后不可变。
@@ -722,22 +723,45 @@ func reverseOrderCsCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Esp
 
 // settleCsCommission 结算某客服一个周期内的全部待结算提成明细，生成独立客服提成结算单（§12.2）。
 // 与陪玩结算不同：**不写猫粮钱包**，发放由财务打款并留外部凭证。
+// P0-6：这里生成的是**草稿**，明细只「挂单」（写 settlement_id）而**不置 settled**；明细转为
+// settled 发生在登记发放成功时（markSettlementPaid，锁定之后的发放环节）。这样草稿未被锁定也不会
+// 造成提成永久漏发——明细仍是「待结算」，可作废（void）后重开重新汇总。
+// operatorID / now 预留给审计留痕（当前调用方含定时任务，传 0 / 由 created_at 兜底）。
 func settleCsCommission(ctx context.Context, db *ent.Client, adminID int,
 	periodStart, periodEnd time.Time, operatorID int, now time.Time) (*ent.EsportsSettlement, error) {
-	if adminID < 1 || !periodStart.Before(periodEnd) {
-		return nil, errInvalidInput
-	}
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	if _, err = tx.Admin.Get(ctx, adminID); err != nil {
+	settlement, err := createCsSettlementDraft(ctx, tx, adminID, periodStart, periodEnd)
+	if err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsSettlement.Get(ctx, settlement.ID)
+}
+
+// createCsSettlementDraft 在事务内生成客服提成草稿结算单，并把该周期的待结算明细挂到这张单上。
+// 挂单只写 settlement_id、不改明细状态（P0-6）；settlement_id 非空同时充当「已纳入结算」标记，
+// 使同一明细不会被第二张结算单重复汇总（防重复发钱），作废时再解绑回退。
+func createCsSettlementDraft(ctx context.Context, tx *ent.Tx, adminID int,
+	periodStart, periodEnd time.Time) (*ent.EsportsSettlement, error) {
+	if adminID < 1 || !periodStart.Before(periodEnd) {
+		return nil, errInvalidInput
+	}
+	if _, err := tx.Admin.Get(ctx, adminID); err != nil {
 		return nil, err
 	}
 	pending, err := tx.EsportsCsCommissionEntry.Query().Where(
 		esportscscommissionentry.AdminIDEQ(adminID),
 		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusPendingSettlement),
+		// 已挂到其它结算单（草稿或已结算）的明细不再重复汇总。
+		esportscscommissionentry.SettlementIDIsNil(),
+		// P0-8：被争议冻结的明细不得进入结算单，解冻后才恢复可结算。
+		esportscscommissionentry.FrozenAtIsNil(),
 	).All(ctx)
 	if err != nil {
 		return nil, err
@@ -775,13 +799,335 @@ func settleCsCommission(ctx context.Context, db *ent.Client, adminID int,
 	changed, err := tx.EsportsCsCommissionEntry.Update().Where(
 		esportscscommissionentry.IDIn(ids...),
 		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusPendingSettlement),
-	).SetStatus(esportscscommissionentry.StatusSettled).SetSettlementID(settlement.ID).
-		AddVersion(1).Save(ctx)
+		esportscscommissionentry.SettlementIDIsNil(),
+	).SetSettlementID(settlement.ID).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if changed != len(ids) {
 		return nil, errConflict
+	}
+	return settlement, nil
+}
+
+// markSettlementPaid 登记发放：locked → paid，并留外部打款凭证（§12.2 发放记录关联外部凭证）。
+// 事务、读取与提交在此；全部资金校验与状态迁移见 payLockedCsSettlement。
+func markSettlementPaid(ctx context.Context, db *ent.Client, id, adminID int, payoutRef string, now time.Time) (*ent.EsportsSettlement, error) {
+	if id < 1 {
+		return nil, errInvalidInput
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	settlement, err := tx.EsportsSettlement.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if err = payLockedCsSettlement(ctx, tx, settlement, adminID, payoutRef, now); err != nil {
+		return nil, err
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return db.EsportsSettlement.Get(ctx, id)
+}
+
+// payLockedCsSettlement 在事务内完成客服提成结算单登记发放的全部校验与落库。
+// P0-7 约束：
+//  1. 只有 owner_type=cs 的客服提成结算单走外部打款；陪玩结算单在锁定时已把金额写入猫粮钱包，
+//     再登记外部发放就是重复发钱，必须拒绝并给中文提示；
+//  2. 该结算单若已存在钱包/猫粮入账流水（历史或异常数据），同样拒绝外部发放；
+//  3. 发放人（执行）不得与登记人（锁定人）相同——资金类不得自审；
+//  4. 状态与版本条件更新（status=locked AND version=读取值 AND paid_at 为空 AND payout_ref 为空）：
+//     P0-8 有了 version 后，并发下只有一个操作能成功，影响行数不为 1 即 errConflict。
+//
+// 发放成功时把该结算单绑定的明细由 pending_settlement 置 settled（冻结明细不置），
+// 并校验 settled 条数 == entry_count，不一致整单回滚。
+func payLockedCsSettlement(ctx context.Context, tx *ent.Tx, settlement *ent.EsportsSettlement,
+	adminID int, payoutRef string, now time.Time) error {
+	payoutRef = strings.TrimSpace(payoutRef)
+	if adminID < 1 || payoutRef == "" || len(payoutRef) > 128 {
+		return fmt.Errorf("%w：发放须填写外部打款凭证号", errInvalidInput)
+	}
+	if settlement.OwnerType != esportssettlement.OwnerTypeCs {
+		return fmt.Errorf("%w：该结算单的领取主体是陪玩，金额已进入猫粮账户，不能登记外部发放", errInvalidInput)
+	}
+	if settlement.Status == esportssettlement.StatusVoid {
+		return fmt.Errorf("%w：结算单已作废，不能登记发放", errConflict)
+	}
+	if settlement.Status != esportssettlement.StatusLocked ||
+		settlement.PaidAt != nil || settlement.PayoutRef != "" {
+		return errConflict
+	}
+	if csSettlementRegistrar(settlement) == adminID {
+		return fmt.Errorf("%w：发放人不得与登记人相同，资金发放须由他人执行", errInvalidInput)
+	}
+	// 该单号已入账到钱包（猫粮等）时禁止再登记外部发放，避免一笔钱发两次。
+	credited, err := tx.EsportsWalletTx.Query().Where(
+		esportswallettx.SourceTypeEQ("settlement"),
+		esportswallettx.SourceIDEQ(settlement.SettlementNo),
+	).Count(ctx)
+	if err != nil {
+		return err
+	}
+	if credited > 0 {
+		return fmt.Errorf("%w：该结算单资金已入账到钱包账户，不能重复登记外部发放", errInvalidInput)
+	}
+	changed, err := tx.EsportsSettlement.Update().Where(
+		esportssettlement.IDEQ(settlement.ID),
+		esportssettlement.StatusEQ(esportssettlement.StatusLocked),
+		esportssettlement.VersionEQ(settlement.Version),
+		esportssettlement.PaidAtIsNil(),
+		esportssettlement.PayoutRefEQ(""),
+	).SetStatus(esportssettlement.StatusPaid).SetPayoutRef(payoutRef).
+		SetPaidByAdminID(adminID).SetPaidAt(now.UTC()).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return errConflict
+	}
+	if _, err = tx.EsportsCsCommissionEntry.Update().Where(
+		esportscscommissionentry.SettlementIDEQ(settlement.ID),
+		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusPendingSettlement),
+		// 冻结明细不得置 settled（正常流程下冻结与挂单互斥，这里是兜底）。
+		esportscscommissionentry.FrozenAtIsNil(),
+	).SetStatus(esportscscommissionentry.StatusSettled).AddVersion(1).Save(ctx); err != nil {
+		return err
+	}
+	settled, err := tx.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.SettlementIDEQ(settlement.ID),
+		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusSettled),
+	).Count(ctx)
+	if err != nil {
+		return err
+	}
+	if settled != settlement.EntryCount {
+		return errConflict
+	}
+	return nil
+}
+
+// csSettlementRegistrar 返回结算单的登记人（锁定即确认登记）管理员 ID；未锁定时为 0。
+// 发放与作废都据此做「执行人不得等于登记人」的职责分离校验。
+func csSettlementRegistrar(settlement *ent.EsportsSettlement) int {
+	if settlement.LockedByAdminID == nil {
+		return 0
+	}
+	return *settlement.LockedByAdminID
+}
+
+// csSettlementVoidResult 是作废结算单的结果快照：含被回退的明细数与操作留痕，供调用方回显与对账。
+type csSettlementVoidResult struct {
+	SettlementID  int       `json:"settlement_id"`
+	SettlementNo  string    `json:"settlement_no"`
+	OwnerType     string    `json:"owner_type"`
+	OwnerID       int       `json:"owner_id"`
+	PeriodStart   time.Time `json:"period_start"`
+	PeriodEnd     time.Time `json:"period_end"`
+	NetCents      int64     `json:"net_cents"`
+	EntryCount    int       `json:"entry_count"`
+	ReleasedCount int       `json:"released_count"`
+	OperatorID    int       `json:"operator_id"`
+	Reason        string    `json:"reason"`
+	VoidedAt      time.Time `json:"voided_at"`
+	// Version 为作废后的结算单版本（乐观锁），便于调用方核对并发状态。
+	Version int `json:"version"`
+}
+
+// csSettlementReason 规整作废 / 重开原因：去空白、必填、限长，避免写坏备注与事件载荷。
+func csSettlementReason(reason, action string) (string, error) {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return "", fmt.Errorf("%w：%s须填写原因", errInvalidInput, action)
+	}
+	return truncateRunes(reason, 120), nil
+}
+
+// csVoidEntryNote 生成作废回退备注：保留原备注并追加操作人、原因与原单号，超长按字符截断。
+func csVoidEntryNote(old, settlementNo string, operatorID int, reason string, now time.Time) string {
+	extra := fmt.Sprintf("作废回退：原结算单 %s，%s 管理员 #%d 作废，原因：%s",
+		settlementNo, now.UTC().Format(time.RFC3339), operatorID, reason)
+	if strings.TrimSpace(old) == "" {
+		return truncateRunes(extra, 255)
+	}
+	return truncateRunes(old+"；"+extra, 255)
+}
+
+// voidCsCommissionSettlement 作废客服提成结算单（P0-6 / P0-8 软作废）：把该单绑定的明细从 settled /
+// 挂单状态安全回退到 pending_settlement，并把结算单转为 void 终态使其不可再发放。
+//   - 仅 owner_type=cs 且状态为 draft / locked 可作废；已登记发放（paid）直接拒绝，须走财务冲正；
+//   - 作废人不得等于登记人（锁定人），与发放同一套职责分离口径；
+//   - 每条明细都按「ID + 原状态 + 仍绑定本单」条件更新并校验影响行数，重复调用不会重复回退；
+//   - 结算单按「id + version + 状态」条件更新并置 voided_by_admin_id / voided_at / void_reason，
+//     版本不一致（并发操作）返回 errConflict；
+//   - 操作人、原因、原单金额快照同时写入外盒事件 settlement.voided，并追加到明细备注，形成审计痕迹。
+func voidCsCommissionSettlement(ctx context.Context, db *ent.Client, id, operatorID int, reason string, now time.Time) (*csSettlementVoidResult, error) {
+	if id < 1 || operatorID < 1 {
+		return nil, errInvalidInput
+	}
+	reason, err := csSettlementReason(reason, "作废")
+	if err != nil {
+		return nil, err
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	settlement, err := tx.EsportsSettlement.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if settlement.OwnerType != esportssettlement.OwnerTypeCs {
+		return nil, fmt.Errorf("%w：仅客服提成结算单支持作废", errInvalidInput)
+	}
+	if settlement.Status == esportssettlement.StatusVoid {
+		return nil, fmt.Errorf("%w：结算单已作废，请勿重复操作", errConflict)
+	}
+	if settlement.Status == esportssettlement.StatusPaid ||
+		settlement.PaidAt != nil || settlement.PayoutRef != "" {
+		return nil, fmt.Errorf("%w：结算单已登记发放，不能作废，请走财务冲正", errConflict)
+	}
+	if csSettlementRegistrar(settlement) == operatorID {
+		return nil, fmt.Errorf("%w：作废人不得与登记人相同，作废须由他人执行", errInvalidInput)
+	}
+	entries, err := tx.EsportsCsCommissionEntry.Query().Where(
+		esportscscommissionentry.SettlementIDEQ(id),
+	).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) != settlement.EntryCount {
+		return nil, errConflict
+	}
+	released := 0
+	for _, entry := range entries {
+		if entry.Status == esportscscommissionentry.StatusVoid {
+			// 已撤销的明细无需回退，也不计入回退数。
+			continue
+		}
+		changed, err := tx.EsportsCsCommissionEntry.Update().Where(
+			esportscscommissionentry.IDEQ(entry.ID),
+			esportscscommissionentry.StatusEQ(entry.Status),
+			esportscscommissionentry.SettlementIDEQ(id),
+		).SetStatus(esportscscommissionentry.StatusPendingSettlement).
+			ClearSettlementID().
+			SetNote(csVoidEntryNote(entry.Note, settlement.SettlementNo, operatorID, reason, now)).
+			AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		released++
+	}
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("settlement.voided:" + settlement.SettlementNo).
+		SetEventType("settlement.voided").
+		SetAggregateRef(settlement.SettlementNo).
+		SetPayload(map[string]interface{}{
+			"settlement_id":    settlement.ID,
+			"settlement_no":    settlement.SettlementNo,
+			"owner_type":       string(settlement.OwnerType),
+			"owner_id":         settlement.OwnerID,
+			"status_before":    string(settlement.Status),
+			"period_start":     settlement.PeriodStart.UTC().Format(time.RFC3339),
+			"period_end":       settlement.PeriodEnd.UTC().Format(time.RFC3339),
+			"gross_cents":      settlement.GrossCents,
+			"adjustment_cents": settlement.AdjustmentCents,
+			"net_cents":        settlement.NetCents,
+			"entry_count":      settlement.EntryCount,
+			"released_count":   released,
+			"operator_id":      operatorID,
+			"reason":           reason,
+			"voided_at":        now.UTC().Format(time.RFC3339),
+		}).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
+	}
+	changed, err := tx.EsportsSettlement.Update().Where(
+		esportssettlement.IDEQ(id),
+		esportssettlement.VersionEQ(settlement.Version),
+		esportssettlement.StatusIn(esportssettlement.StatusDraft, esportssettlement.StatusLocked),
+		esportssettlement.PaidAtIsNil(),
+		esportssettlement.PayoutRefEQ(""),
+	).SetStatus(esportssettlement.StatusVoid).
+		SetVoidedByAdminID(operatorID).SetVoidedAt(now.UTC()).SetVoidReason(reason).
+		AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
+	}
+	if err = tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &csSettlementVoidResult{
+		SettlementID:  settlement.ID,
+		SettlementNo:  settlement.SettlementNo,
+		OwnerType:     string(settlement.OwnerType),
+		OwnerID:       settlement.OwnerID,
+		PeriodStart:   settlement.PeriodStart.UTC(),
+		PeriodEnd:     settlement.PeriodEnd.UTC(),
+		NetCents:      settlement.NetCents,
+		EntryCount:    settlement.EntryCount,
+		ReleasedCount: released,
+		OperatorID:    operatorID,
+		Reason:        reason,
+		VoidedAt:      now.UTC(),
+		Version:       settlement.Version + 1,
+	}, nil
+}
+
+// reopenCsCommissionSettlement 重开客服提成结算单：作废后按同一客服、同一周期重新生成草稿单，
+// 保证提成不被漏发。重开只出**草稿**，仍需锁定与登记发放（且发放人不得等于登记人），
+// 因此「作废 + 重开」不会产生重复发钱；重开动作写外盒事件 settlement.reopened 留痕。
+func reopenCsCommissionSettlement(ctx context.Context, db *ent.Client, adminID int,
+	periodStart, periodEnd time.Time, operatorID int, reason string, now time.Time) (*ent.EsportsSettlement, error) {
+	if adminID < 1 || operatorID < 1 || !periodStart.Before(periodEnd) {
+		return nil, errInvalidInput
+	}
+	reason, err := csSettlementReason(reason, "重开")
+	if err != nil {
+		return nil, err
+	}
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	settlement, err := createCsSettlementDraft(ctx, tx, adminID, periodStart, periodEnd)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("settlement.reopened:" + settlement.SettlementNo).
+		SetEventType("settlement.reopened").
+		SetAggregateRef(settlement.SettlementNo).
+		SetPayload(map[string]interface{}{
+			"settlement_id": settlement.ID,
+			"settlement_no": settlement.SettlementNo,
+			"owner_type":    string(settlement.OwnerType),
+			"owner_id":      settlement.OwnerID,
+			"period_start":  settlement.PeriodStart.UTC().Format(time.RFC3339),
+			"period_end":    settlement.PeriodEnd.UTC().Format(time.RFC3339),
+			"net_cents":     settlement.NetCents,
+			"entry_count":   settlement.EntryCount,
+			"operator_id":   operatorID,
+			"reason":        reason,
+			"reopened_at":   now.UTC().Format(time.RFC3339),
+		}).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
+		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -789,24 +1135,82 @@ func settleCsCommission(ctx context.Context, db *ent.Client, adminID int,
 	return db.EsportsSettlement.Get(ctx, settlement.ID)
 }
 
-// markSettlementPaid 登记发放：locked → paid，并留外部打款凭证（§12.2 发放记录关联外部凭证）。
-func markSettlementPaid(ctx context.Context, db *ent.Client, id, adminID int, payoutRef string, now time.Time) (*ent.EsportsSettlement, error) {
-	payoutRef = strings.TrimSpace(payoutRef)
-	if id < 1 || payoutRef == "" || len(payoutRef) > 128 {
-		return nil, fmt.Errorf("%w：发放须填写外部打款凭证号", errInvalidInput)
+// freezeCsCommissionEntry 冻结一条客服提成明细（P0-8 争议冻结）。
+// 只允许冻结「待结算且未挂到任何结算单」的明细：已结算或已纳入结算单的明细冻结会造成口径冲突，
+// 直接拒绝并给中文提示。冻结与状态正交（仍为 pending_settlement），解冻后恢复可结算。
+func freezeCsCommissionEntry(ctx context.Context, db *ent.Client, entryID, adminID int, reason string, now time.Time) (*ent.EsportsCsCommissionEntry, error) {
+	reason, err := csSettlementReason(reason, "冻结")
+	if err != nil {
+		return nil, err
 	}
-	changed, err := db.EsportsSettlement.Update().Where(
-		esportssettlement.IDEQ(id),
-		esportssettlement.StatusEQ(esportssettlement.StatusLocked),
-	).SetStatus(esportssettlement.StatusPaid).SetPayoutRef(payoutRef).
-		SetPaidByAdminID(adminID).SetPaidAt(now.UTC()).Save(ctx)
+	if entryID < 1 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	changed, err := db.EsportsCsCommissionEntry.Update().Where(
+		esportscscommissionentry.IDEQ(entryID),
+		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusPendingSettlement),
+		esportscscommissionentry.SettlementIDIsNil(),
+		esportscscommissionentry.FrozenAtIsNil(),
+	).SetFrozenAt(now.UTC()).SetFrozenReason(reason).
+		SetFrozenByAdminID(adminID).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if changed != 1 {
-		return nil, errConflict
+		if _, err = db.EsportsCsCommissionEntry.Get(ctx, entryID); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("%w：该提成明细已结算、已纳入结算单或已冻结，不能冻结", errConflict)
 	}
-	return db.EsportsSettlement.Get(ctx, id)
+	return db.EsportsCsCommissionEntry.Get(ctx, entryID)
+}
+
+// unfreezeCsCommissionEntry 解冻一条客服提成明细（争议终结后恢复可结算）。
+func unfreezeCsCommissionEntry(ctx context.Context, db *ent.Client, entryID int) (*ent.EsportsCsCommissionEntry, error) {
+	if entryID < 1 {
+		return nil, errInvalidInput
+	}
+	changed, err := db.EsportsCsCommissionEntry.Update().Where(
+		esportscscommissionentry.IDEQ(entryID),
+		esportscscommissionentry.FrozenAtNotNil(),
+	).ClearFrozenAt().SetFrozenReason("").ClearFrozenByAdminID().AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, fmt.Errorf("%w：该提成明细未冻结或不存在", errConflict)
+	}
+	return db.EsportsCsCommissionEntry.Get(ctx, entryID)
+}
+
+// freezeOrderCsCommissionEntries 冻结某订单全部待结算的客服提成明细，返回冻结条数（争议受理时调用）。
+func freezeOrderCsCommissionEntries(ctx context.Context, db *ent.Client, orderID, adminID int,
+	reason string, now time.Time) (int, error) {
+	reason, err := csSettlementReason(reason, "冻结")
+	if err != nil {
+		return 0, err
+	}
+	if orderID < 1 || adminID < 1 {
+		return 0, errInvalidInput
+	}
+	return db.EsportsCsCommissionEntry.Update().Where(
+		esportscscommissionentry.OrderIDEQ(orderID),
+		esportscscommissionentry.StatusEQ(esportscscommissionentry.StatusPendingSettlement),
+		esportscscommissionentry.SettlementIDIsNil(),
+		esportscscommissionentry.FrozenAtIsNil(),
+	).SetFrozenAt(now.UTC()).SetFrozenReason(reason).
+		SetFrozenByAdminID(adminID).AddVersion(1).Save(ctx)
+}
+
+// unfreezeOrderCsCommissionEntries 解冻某订单全部已冻结的客服提成明细，返回解冻条数。
+func unfreezeOrderCsCommissionEntries(ctx context.Context, db *ent.Client, orderID int) (int, error) {
+	if orderID < 1 {
+		return 0, errInvalidInput
+	}
+	return db.EsportsCsCommissionEntry.Update().Where(
+		esportscscommissionentry.OrderIDEQ(orderID),
+		esportscscommissionentry.FrozenAtNotNil(),
+	).ClearFrozenAt().SetFrozenReason("").ClearFrozenByAdminID().AddVersion(1).Save(ctx)
 }
 
 // listCsCommissionEntries 列出客服提成明细，按需过滤，按 ID 倒序。
@@ -832,9 +1236,10 @@ func listCsCommissionEntries(ctx context.Context, db *ent.Client, adminID, order
 	return q.Order(ent.Desc(esportscscommissionentry.FieldID)).Limit(limit).All(ctx)
 }
 
-// csCommissionView 客服提成概览：待结算净额、已结算合计、本月累计与下次结算时间。
+// csCommissionView 客服提成概览：待结算净额、冻结金额、已结算合计、本月累计与下次结算时间。
 type csCommissionView struct {
 	PendingSettlementCents int64     `json:"pending_settlement_cents"`
+	FrozenCents            int64     `json:"frozen_cents"`
 	SettledCents           int64     `json:"settled_cents"`
 	MonthlyCents           int64     `json:"monthly_cents"`
 	MonthStart             time.Time `json:"month_start"`
@@ -843,6 +1248,7 @@ type csCommissionView struct {
 }
 
 // csCommissionSummary 客服提成概览（§12.7 当月累计）。
+// P0-8：被冻结的待结算明细单独计入 frozen_cents，不混进待结算净额（冻结不可结算）。
 func csCommissionSummary(ctx context.Context, db *ent.Client, adminID int, now time.Time) (*csCommissionView, error) {
 	if adminID < 1 {
 		return nil, errInvalidInput
@@ -855,7 +1261,7 @@ func csCommissionSummary(ctx context.Context, db *ent.Client, adminID int, now t
 		esportscscommissionentry.StatusIn(
 			esportscscommissionentry.StatusPendingSettlement, esportscscommissionentry.StatusSettled),
 	).Select(esportscscommissionentry.FieldAmountCents, esportscscommissionentry.FieldStatus,
-		esportscscommissionentry.FieldCreatedAt).All(ctx)
+		esportscscommissionentry.FieldCreatedAt, esportscscommissionentry.FieldFrozenAt).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -865,7 +1271,11 @@ func csCommissionSummary(ctx context.Context, db *ent.Client, adminID int, now t
 	view.NextSettlementAt = nextSettlementAt(settlementPeriod(ctx, db), now)
 	for _, row := range rows {
 		if row.Status == esportscscommissionentry.StatusPendingSettlement {
-			view.PendingSettlementCents += row.AmountCents
+			if row.FrozenAt != nil {
+				view.FrozenCents += row.AmountCents
+			} else {
+				view.PendingSettlementCents += row.AmountCents
+			}
 		} else {
 			view.SettledCents += row.AmountCents
 		}

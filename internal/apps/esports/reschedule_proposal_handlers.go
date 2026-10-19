@@ -94,6 +94,41 @@ func withdrawRescheduleProposalHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
+// customerRescheduleProposalsHandler 已绑定身份客户读取本人可见的改期提案列表（§3.3）：
+// **待确认优先**、其后是历史；可选 ?order_id= 只看某单（非本人订单返回 403）。
+// 客户身份由登录态解析，不接受客户端传 customer_id。
+// 需在 app.go 接线：GET /user/reschedule-proposals（AuthUser，自助路由不声明 PermAPI）。
+func customerRescheduleProposalsHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listUserRescheduleProposals(c.Context(), global.ORM,
+		rescheduleProposalScope{CustomerID: customer.ID}, queryInt(c, "order_id"), queryLimit(c, 50))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+// playerRescheduleProposalsHandler 已接单成员读取本人需确认 / 参与过的改期提案列表（§3.3）：
+// 范围限定为「本人持已接单或待回应席位」的订单，待确认优先、其后是历史。
+// 陪玩身份由 currentPlayer 解析，不接受客户端传 player_id。
+// 需在 app.go 接线：GET /user/player/reschedule-proposals（AuthUser，自助路由不声明 PermAPI）。
+func playerRescheduleProposalsHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listUserRescheduleProposals(c.Context(), global.ORM,
+		rescheduleProposalScope{PlayerID: player.ID}, 0, queryLimit(c, 50))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
 // customerConfirmRescheduleProposalHandler 已绑定身份客户确认 / 拒绝本人订单的改期提案（§3.3）。
 // 确认须来自已绑定的客户身份（customerForVerifiedUser），不接受客服代确认。
 func customerConfirmRescheduleProposalHandler(c fiber.Ctx) error {

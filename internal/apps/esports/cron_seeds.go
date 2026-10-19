@@ -51,5 +51,7 @@ func CronSeeds() []CronSeed {
 		{"esports_run_player_level_review", "0 30 3 * * *", "陪玩等级定期复核，连续不达标降一档（§7.3-02）"},
 		{"esports_detect_review_brushing", "0 */5 * * * *", "异常刷评自动识别与留痕（§7.5-05）"},
 		{"esports_schedule_repurchase_follow_ups", "0 15 10 * * *", "结单后复购跟进待办兜底（§14-01）"},
+		{"esports_expire_member_level_overrides", "0 25 0 * * *", "会员手动调级覆盖到期回落成长值口径（§10.3-03）"},
+		{"esports_expire_priority_booking_intents", "0 5 * * * *", "会员优先预约意向过期消解，待办不再堆积（§10.4）"},
 	}
 }

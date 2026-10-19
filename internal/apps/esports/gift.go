@@ -573,12 +573,14 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 		return nil, err
 	}
 	// 原子扣减：仅扣本金，禁止动用赠送权益。外部收款不产生钱包流水（钱未进入预付账户）。
+	giftWalletTxNo := ""
 	if !external {
 		beneficiaryType, beneficiaryID := esportswallettx.BeneficiaryTypeCustomer, customer.ID
 		if card != nil {
 			beneficiaryID = card.CustomerID
 		}
-		if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+		giftWalletTxNo = uuid.NewString()
+		if _, err = tx.EsportsWalletTx.Create().SetTxNo(giftWalletTxNo).
 			SetAccountType(esportswallettx.AccountType(paymentAccount)).SetOwnerID(paymentOwnerID).
 			SetEntryType(esportswallettx.EntryTypeConsume).
 			SetPrincipalDeltaCents(-amount).SetBonusDeltaCents(0).
@@ -591,11 +593,19 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 			}
 			return nil, err
 		}
-	} else if !external {
+	}
+	// 余额与储值卡分别记批次账本、互斥不重复（§4.5-04）：
+	//   - 客户余额支付（`card == nil`）：本分支记负向条目 `balance_gift_consume` 并登记批次分摊；
+	//   - 储值卡支付（`card != nil`）：只由下方卡片路径记 `card_gift_consume`，
+	//     本分支对同一笔卡消费不再记一次，避免批次账本双记、把卡余额算成扣了两次。
+	if !external && card == nil {
 		// 余额本金支付的礼物：批次账本同步记一条负向条目并登记分摊（§4.5-04），
 		// 使「这笔余额被礼物消费掉」在批次层可追溯（与储值卡路径同口径）。
+		// 来源记钱包流水号而非礼物单号：账本核验「钱包流水求和 == 批次账本求和」按流水号 / 主键匹配，
+		// 用业务单号会被判成「未登记」并算出假差额（余额核销订单走 `wallet_tx` / 流水号同此口径）；
+		// 批次分摊仍按「gift / 礼物单号」登记，便于按单据追溯动用了哪些充值批次。
 		if _, err = tx.EsportsLedgerEntry.Create().SetAccountType(walletCustomerBalance).
-			SetAccountID(strconv.Itoa(customer.ID)).SetSourceType("gift").SetSourceID(giftNo).
+			SetAccountID(strconv.Itoa(customer.ID)).SetSourceType("wallet_tx").SetSourceID(giftWalletTxNo).
 			SetEntryRole("balance_gift_consume").SetDeltaCents(-amount).
 			SetPrincipalDeltaCents(-amount).SetBonusDeltaCents(0).Save(ctx); err != nil {
 			return nil, err

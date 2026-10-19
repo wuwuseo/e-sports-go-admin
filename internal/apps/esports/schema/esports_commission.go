@@ -115,13 +115,21 @@ func (EsportsSettlement) Fields() []ent.Field {
 		// 实结＝gross + adjustment。
 		field.Int64("net_cents").Default(0).StructTag(`json:"net_cents"`),
 		field.Int("entry_count").Default(0).StructTag(`json:"entry_count"`),
-		field.Enum("status").Values("draft", "locked", "paid").Default("draft").StructTag(`json:"status"`),
+		// 状态机：draft（草稿，明细只挂单）→ locked（锁定）→ paid（已发放）；
+		// void 为作废终态（P0-8）：明细回退待结算、原单不可再发放，作废留痕见 voided_* 字段。
+		field.Enum("status").Values("draft", "locked", "paid", "void").Default("draft").StructTag(`json:"status"`),
+		// 乐观锁版本（P0-8）：锁定 / 发放 / 作废均按读取到的 version 做条件更新，防并发重复操作。
+		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Int("locked_by_admin_id").Optional().Nillable().StructTag(`json:"locked_by_admin_id"`),
 		field.Time("locked_at").Optional().Nillable().StructTag(`json:"locked_at"`),
 		// 发放（打款）留痕：外部凭证号与打款人，仅 status=paid 时非空（§12.2 客服提成发放记录关联外部凭证）。
 		field.String("payout_ref").MaxLen(128).Default("").StructTag(`json:"payout_ref"`),
 		field.Int("paid_by_admin_id").Optional().Nillable().StructTag(`json:"paid_by_admin_id"`),
 		field.Time("paid_at").Optional().Nillable().StructTag(`json:"paid_at"`),
+		// 作废留痕（P0-8）：作废人、作废时间与原因，仅 status=void 时非空。
+		field.Int("voided_by_admin_id").Optional().Nillable().StructTag(`json:"voided_by_admin_id"`),
+		field.Time("voided_at").Optional().Nillable().StructTag(`json:"voided_at"`),
+		field.String("void_reason").MaxLen(255).Default("").StructTag(`json:"void_reason"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),
 	}
@@ -131,5 +139,7 @@ func (EsportsSettlement) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("settlement_no").Unique(),
 		index.Fields("owner_id", "period_start"),
+		// 结算单列表 / 发放候选按主体 + 状态过滤（P0-8）。
+		index.Fields("owner_type", "owner_id", "status"),
 	}
 }

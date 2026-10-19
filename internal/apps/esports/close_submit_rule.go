@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -257,7 +258,12 @@ func resolveCloseSubmitRule(ctx context.Context, db *ent.Client, order *ent.Espo
 	return pick(esportsclosesubmitrule.ScopeGlobal, ""), nil
 }
 
-// submitRequiredCount 按模式算「最少提交成员数」：single 1 名 / multi 全部 / custom 按比例向上取整。
+// submitRequiredCount 按模式算「最少提交成员数」：multi 全部 / custom 按比例向上取整 / single 单人单。
+// 依据（功能列表 §3.4-76）：单人单本人提交，临时多人单所有实际服务成员逐人提交。
+// 因此 mode=single 只表达「单人单由本人提交」，**不能**把多人单放宽成「任一人提交即可」——
+// 只要订单有多个服务段仍返回 total。原实现 single 一律返回 1，等于允许一次提交覆盖多人，
+// 与上述规则冲突，此处收严；代价是 multi 与 single 在多席订单上行为一致（single 退化为
+// 「单席订单的多人提交口径」），但不会让任何一席的上报凭空被免除。
 // 返回 0 表示不要求（custom 比例为 0，或订单没有服务段）。
 func submitRequiredCount(rule *ent.EsportsCloseSubmitRule, total int) int {
 	if total <= 0 {
@@ -265,7 +271,7 @@ func submitRequiredCount(rule *ent.EsportsCloseSubmitRule, total int) int {
 	}
 	switch rule.Mode {
 	case esportsclosesubmitrule.ModeSingle:
-		return 1
+		return total
 	case esportsclosesubmitrule.ModeCustom:
 		if rule.MinSubmitRatioBp <= 0 {
 			return 0
@@ -338,9 +344,46 @@ func unsubmittedMembers(ctx context.Context, db *ent.Client, orderID int) ([]uns
 	return missing, nil
 }
 
+// evidenceImageAttachmentIDs 解析单条 evidence_ref 里的图片附件 ID（JSON 数组形态，如 [11,12]），
+// 按 ID 去重、忽略非正数；非数组 / 非法 JSON / 历史 oss:// 与纯文本一律返回空。
+// 用途：判定代提交凭证是否真的带图片——自由文本不算图片凭证（审核报告 §3.2b）。
+func evidenceImageAttachmentIDs(ref string) []int {
+	ref = strings.TrimSpace(ref)
+	if ref == "" || !strings.HasPrefix(ref, "[") {
+		return nil
+	}
+	var ids []int
+	if err := json.Unmarshal([]byte(ref), &ids); err != nil {
+		return nil
+	}
+	seen := map[int]bool{}
+	out := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if id > 0 && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// closeSubmitMinEvidenceImages 返回订单生效结单规则要求的最少服务凭证图片张数（§3.4 默认项
+// 「服务截图不少于 N 张」）。未配置生效结单规则时返回 0：此时凭证张数仍由结单条件统一判定
+// （历史文本凭证按 1 张计），不对代提交 / 视为已提交额外加码，避免存量单被新口径追溯拦截。
+func closeSubmitMinEvidenceImages(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) (int, error) {
+	rule, err := resolveCloseRule(ctx, db, order)
+	if err != nil || rule == nil {
+		return 0, err
+	}
+	return effectiveCloseConditions(rule).MinEvidence, nil
+}
+
 // applySubstituteReports 客服代未上报成员补填服务段上报（§3.4 代提交）：逐条写回并留痕。
+// minImages 为生效结单规则要求的最少图片张数：>0 时每条代提交的凭证必须是不少于该张数的
+// 图片附件 ID（JSON 数组），纯文本凭证不能替代图片，否则「代提交」就成了绕过
+// 「服务截图不少于 N 张」的通道（审核报告 §3.2b）。
 func applySubstituteReports(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int,
-	segments []*ent.EsportsServiceSegment, substitutes []closeSubstituteReport) error {
+	segments []*ent.EsportsServiceSegment, substitutes []closeSubstituteReport, minImages int) error {
 	bySeat := make(map[int]*ent.EsportsServiceSegment, len(segments))
 	for _, segment := range segments {
 		bySeat[segment.SeatIndex] = segment
@@ -362,12 +405,28 @@ func applySubstituteReports(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 		if item.ReportedUnits <= 0 && evidence == "" {
 			return fmt.Errorf("%w：第 %d 个席位的代提交须填服务量或服务凭证", errInvalidInput, item.SeatIndex)
 		}
+		if minImages > 0 {
+			if got := len(evidenceImageAttachmentIDs(evidence)); got < minImages {
+				return fmt.Errorf("%w：结单规则要求至少 %d 张服务凭证图片，第 %d 个席位的代提交当前只有 %d 张图片（文本凭证不能替代图片），还差 %d 张",
+					errInvalidInput, minImages, item.SeatIndex, got, minImages-got)
+			}
+		}
 		if _, err := tx.EsportsServiceSegment.UpdateOneID(segment.ID).
 			SetReportedUnits(item.ReportedUnits).SetEvidenceRef(evidence).AddVersion(1).Save(ctx); err != nil {
 			return err
 		}
+		// 订单事件按 (order_id, order_version) 唯一：代提交留痕必须写在 bump 之后的新版本上。
+		// 待结单订单的当前 version 必然已被「进入待结单」那条事件占用，用读取时的旧版本号写事件
+		// 必然撞唯一索引 → 结单返回 409「业务状态已变化」，代提交 / 视为已提交两条路径全部结不了。
+		newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+		if err != nil {
+			return err
+		}
+		// 版本号前移后，调用方（closeOrder / finalizeCloseOrderIn）必须看到新版本才能继续
+		// 做条件更新与后续事件，故就地回写实体。
+		order.Version = newVersion
 		if _, err := tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
-			SetOrderVersion(order.Version).SetEventType("order.service_submitted_by_admin").
+			SetOrderVersion(newVersion).SetEventType("order.service_submitted_by_admin").
 			SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
 			SetDetails(map[string]interface{}{
 				"seat_index": item.SeatIndex, "reported_units": item.ReportedUnits, "evidence_ref": evidence,
@@ -401,6 +460,12 @@ func applyCloseSubmitRule(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	if required == 0 {
 		return nil
 	}
+	// 审核报告 §3.2b：代提交 / 视为已提交不能让自由文本凭证绕过「服务截图不少于 N 张」。
+	// 仅在订单确实配了生效结单规则时加码（未配置时沿用结单条件既有口径）。
+	minImages, err := closeSubmitMinEvidenceImages(ctx, tx.Client(), order)
+	if err != nil {
+		return err
+	}
 	countSubmitted := func(items []*ent.EsportsServiceSegment) int {
 		submitted := 0
 		for _, item := range items {
@@ -412,7 +477,7 @@ func applyCloseSubmitRule(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	}
 	submitted := countSubmitted(segments)
 	if submitted < required && rule.AllowSubstitute && len(substitutes) > 0 {
-		if err = applySubstituteReports(ctx, tx, order, adminID, segments, substitutes); err != nil {
+		if err = applySubstituteReports(ctx, tx, order, adminID, segments, substitutes, minImages); err != nil {
 			return err
 		}
 		if segments, err = tx.EsportsServiceSegment.Query().Where(
@@ -431,9 +496,26 @@ func applyCloseSubmitRule(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	}
 	switch rule.OnMissing {
 	case esportsclosesubmitrule.OnMissingAutoAccept:
-		// 视为已提交：不阻塞结单，只留痕。
+		// 视为已提交：不阻塞结单，只留痕。但同样不得让「未传图片」借「视为已提交」绕开图片底线：
+		// 配了结单规则时，本单图片凭证张数必须已达规则要求（文本凭证不计入图片张数）。
+		if minImages > 0 {
+			images, err := serviceEvidenceAttachmentIDs(ctx, tx.Client(), order.ID)
+			if err != nil {
+				return err
+			}
+			if len(images) < minImages {
+				return fmt.Errorf("%w：结单规则「%s」要求至少 %d 张服务凭证图片，本单当前只有 %d 张图片凭证（文本凭证不能替代图片），还差 %d 张，不能按「视为已提交」放行",
+					errInvalidInput, rule.Code, minImages, len(images), minImages-len(images))
+			}
+		}
+		// 同上：先 bump 占一个新版本，再用新版本号写事件，否则撞 (order_id, order_version) 唯一索引。
+		newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")
+		if err != nil {
+			return err
+		}
+		order.Version = newVersion
 		_, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
-			SetOrderVersion(order.Version).SetEventType("order.close_submit_auto_accepted").
+			SetOrderVersion(newVersion).SetEventType("order.close_submit_auto_accepted").
 			SetActorType("system").SetActorID("system").SetDetails(details).Save(ctx)
 		return err
 	case esportsclosesubmitrule.OnMissingRemind:

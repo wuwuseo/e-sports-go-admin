@@ -279,6 +279,27 @@ func playerAppealHandler(c fiber.Ctx) error {
 	return reply(c, appeal)
 }
 
+// ── 客户自助：我的评价列表（§7.5 / §7.5-05） ──
+
+// userReviewsHandler 客户自助「我的评价」列表：只返回**当前登录客户本人**的评价，
+// 客户身份由 customerForVerifiedUser（AuthUser + 已绑定身份）解析，不接受客户端传 customer_id。
+// 分页沿用同包既有列表风格（?limit=，默认 100、上限 200）；可选 ?order_id= 只看某单。
+// 需在 app.go 接线：{Method: "GET", Path: "/user/reviews", Auth: cmfapp.AuthUser, Handler: userReviewsHandler}
+// AuthUser 自助路由按仓库惯例不声明 PermAPI。
+func userReviewsHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listCustomerReviews(c.Context(), global.ORM, customer.ID,
+		queryInt(c, "order_id"), queryLimit(c, 100), time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
 // ── 客户自助：已完成订单的服务评价（§7.5） ──
 
 func userSubmitReviewHandler(c fiber.Ctx) error {

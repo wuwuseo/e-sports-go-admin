@@ -51,6 +51,8 @@ func seedActiveCampaign(t *testing.T, db *ent.Client, code string) *ent.EsportsR
 // 图片不可访问时发布前资源校验被拒（§16.4 增量）。
 func TestPageResourceCheckImageUnreachable(t *testing.T) {
 	db := openPageDB(t, "esports_page_res_image")
+	// P0-17：探测只对已审核域名发起，因此先把该域名登记进白名单，再断言探测结果。
+	setPageAllowedDomains(t, db, "broken.example.com")
 	withPageProbe(t, func(_ context.Context, rawURL string) error {
 		if strings.Contains(rawURL, "broken") {
 			return errors.New("connection refused")

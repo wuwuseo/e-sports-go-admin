@@ -155,6 +155,10 @@ type priceDeviation struct {
 // evaluatePriceDeviation 判定订单价是否明显偏离 SKU 标准价并决定是否强制填写原因（§4.6-02）：
 // 未超阈值返回 nil（无需提醒）；超阈值且开启强制时未填原因（4–255 字）即拒绝；
 // 超阈值但关闭强制时只返回判定结果，交由调用方落提醒留痕。
+//
+// P1-13：入参字段名固定为 price_deviation_reason（orderInput.PriceDeviationReason），
+// 缺原因时的错误必须点名该字段与当前阈值，前端与客服才知道要补什么、补了是否够；
+// 超长原因同样点名该字段，不再退化为无上下文的「请求参数无效」。
 func evaluatePriceDeviation(ctx context.Context, db *ent.Client, standardCents, payableCents int64,
 	reason string) (*priceDeviation, error) {
 	threshold := priceDeviationThresholdBp(ctx, db)
@@ -167,12 +171,15 @@ func evaluatePriceDeviation(ctx context.Context, db *ent.Client, standardCents, 
 	}
 	reason = strings.TrimSpace(reason)
 	if len([]rune(reason)) > 255 {
-		return nil, errInvalidInput
+		return nil, fmt.Errorf(
+			"%w：price_deviation_reason 最长 255 字，当前 %d 字，请精简后重新提交",
+			errInvalidInput, len([]rune(reason)))
 	}
 	if priceDeviationReasonRequired(ctx, db) && len([]rune(reason)) < 4 {
 		return nil, fmt.Errorf(
-			"%w：订单价较 SKU 标准价偏离 %d 基点（标准 %d 分，应付 %d 分）超过阈值 %d 基点，请填写偏离原因（4–255 字）",
-			errPriceDeviation, deviationBp, standardCents, payableCents, threshold)
+			"%w：订单价较 SKU 标准价偏离 %d 基点（标准 %d 分，应付 %d 分），超过当前阈值 %d 基点"+
+				"（配置项 %s）；请在报单入参中填写 price_deviation_reason（4–255 字）说明偏离原因",
+			errPriceDeviation, deviationBp, standardCents, payableCents, threshold, priceDeviationThresholdKey)
 	}
 	return &priceDeviation{
 		StandardCents: standardCents, PayableCents: payableCents,

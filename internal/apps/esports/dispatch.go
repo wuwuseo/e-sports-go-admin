@@ -23,6 +23,9 @@ import (
 // 派单邀请默认有效期（分钟）对应的系统配置键。
 const dispatchInviteTTLKey = "app.esports.dispatch_invite_ttl_minutes"
 
+// orderEnteredPendingCloseEvent 是「订单进入待结单」的只增事件类型（P1-02 的席位移除收敛路径复用）。
+const orderEnteredPendingCloseEvent = "order.pending_close_entered"
+
 // ensureDispatchSeats 若订单尚无席位，按 order.RequiredSeats 生成 seat_index=1..N 的 open 席位；
 // 已存在则直接返回。并发下靠 (order_id, seat_index) 唯一索引兜底，重复插入视为已生成。
 func ensureDispatchSeats(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder) error {
@@ -252,20 +255,17 @@ func playerConnectionHealthyWith(player *ent.EsportsPlayer, now time.Time, timeo
 // playerEligibleForDispatch 是人工指派 / 派单候选 / 优先通知开窗共用的派单资格（§5.5 + §6.4-01）：
 //   - 资质必须 qualified；
 //   - 在线且连接正常（心跳新鲜度）；
-//   - 例外：连接异常（protected_abnormal）但**存在在途订单**的陪玩保留派单资格（§6.4-01
-//     「有在途订单的陪玩保留上线状态」），避免心跳超时任务把在途履约者整体摘出候选池。
-//     该例外只放开「被指派 / 被通知」，不影响「抢新单」：抢单仍走 playerCanGrabNewOrder（先到先得）。
+//   - **连接异常（protected_abnormal）一律不具备派单资格**（P1-01-03「连接异常暂缓新派单」）：
+//     心跳超时但有在途订单的陪玩只会保留履约与结算，绝不再进入派单候选、优先通知名单或被人工指派。
+//     抢新单另走 playerCanGrabNewOrder，同样排除 protected_abnormal。
 func playerEligibleForDispatch(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, now time.Time) (bool, error) {
 	if player == nil || player.Qualification != esportsplayer.QualificationQualified {
 		return false, nil
 	}
-	if player.Presence == esportsplayer.PresenceOnline && playerConnectionHealthy(ctx, db, player, now) {
-		return true, nil
-	}
-	if player.Presence != esportsplayer.PresenceProtectedAbnormal {
+	if player.Presence != esportsplayer.PresenceOnline {
 		return false, nil
 	}
-	return playerHasInflightOrder(ctx, db, player.ID)
+	return playerConnectionHealthy(ctx, db, player, now), nil
 }
 
 // ensureRequiredSeatsIntact 显式守护「不得下调已售必需席位」（§3.3-07）：
@@ -297,36 +297,53 @@ func orderHasInServiceSegment(ctx context.Context, tx *ent.Tx, orderID int) (boo
 	).Exist(ctx)
 }
 
-// settleSeatServiceSegment 结算某陪玩在某席位的**进行中**服务段（§5.7-02 / §3.3-03）：
-// 置 finished、写 ended_at 与 system_seconds（陪玩上报量保留原值，由客服后续核实）。
+// settleSeatServiceSegment 结算某陪玩在某席位上的**进行中**服务段（§5.7-02 / §3.3-03 / P1-03）：
+// 把 in_service 与 paused 两种进行中状态的服务段统一置 finished、写 ended_at 与
+// system_seconds（按**有效时长**：墙钟 − 累计暂停 − 在途暂停），陪玩上报量保留原值由客服核实。
+//
+// 为什么必须含 paused（P1-03）：改派 / 换人时被换下的陪玩可能正处于暂停中，只匹配 in_service
+// 会让这段服务完全不结算；更糟的是该段仍是 paused，被换下的人还能 resume 它继续累加时长、
+// 污染结算基数。因此这里一次性把该陪玩在本席位的进行中服务段全部终结，且状态落到 finished，
+// 恢复入口（applySegmentPauseChange 要求 status=paused）随即拒绝任何 resume / 恢复。
+//
 // 没有进行中服务段时是空操作（幂等）。
 func settleSeatServiceSegment(ctx context.Context, tx *ent.Tx, orderID, playerID, seatIndex int, now time.Time) error {
-	segment, err := tx.EsportsServiceSegment.Query().Where(
+	segments, err := tx.EsportsServiceSegment.Query().Where(
 		esportsservicesegment.OrderIDEQ(orderID),
 		esportsservicesegment.PlayerIDEQ(playerID),
 		esportsservicesegment.SeatIndexEQ(seatIndex),
-		esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
-	).Only(ctx)
-	if ent.IsNotFound(err) {
-		return nil
-	}
+		esportsservicesegment.StatusIn(
+			esportsservicesegment.StatusInService, esportsservicesegment.StatusPaused),
+	).All(ctx)
 	if err != nil {
 		return err
 	}
-	systemSeconds := int64(now.UTC().Sub(segment.StartedAt.UTC()).Seconds()) - segment.PausedSeconds
-	if systemSeconds < 0 {
-		systemSeconds = 0
-	}
-	changed, err := tx.EsportsServiceSegment.Update().Where(
-		esportsservicesegment.IDEQ(segment.ID),
-		esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
-	).SetStatus(esportsservicesegment.StatusFinished).SetEndedAt(now.UTC()).
-		SetSystemSeconds(systemSeconds).AddVersion(1).Save(ctx)
-	if err != nil {
-		return err
-	}
-	if changed != 1 {
-		return errConflict
+	for _, segment := range segments {
+		// 暂停中的服务段：在途暂停时长要先落库（paused_seconds），有效秒数才能扣干净。
+		pausedSeconds := segment.PausedSeconds
+		if segment.Status == esportsservicesegment.StatusPaused && segment.PausedAt != nil {
+			if pending := int64(now.UTC().Sub(segment.PausedAt.UTC()).Seconds()); pending > 0 {
+				pausedSeconds += pending
+			}
+		}
+		systemSeconds := int64(now.UTC().Sub(segment.StartedAt.UTC()).Seconds()) - pausedSeconds
+		if systemSeconds < 0 {
+			systemSeconds = 0
+		}
+		changed, err := tx.EsportsServiceSegment.Update().Where(
+			esportsservicesegment.IDEQ(segment.ID),
+			esportsservicesegment.VersionEQ(segment.Version),
+			esportsservicesegment.StatusIn(
+				esportsservicesegment.StatusInService, esportsservicesegment.StatusPaused),
+		).SetStatus(esportsservicesegment.StatusFinished).SetEndedAt(now.UTC()).
+			SetSystemSeconds(systemSeconds).SetPausedSeconds(pausedSeconds).
+			ClearPausedAt().AddVersion(1).Save(ctx)
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return errConflict
+		}
 	}
 	return nil
 }
@@ -613,7 +630,17 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 			targetStatus = esportsorder.FulfillmentStatusInService
 		}
 	}
-	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, targetStatus)
+	// P1-05-01：人工指派一旦确定陪玩，立即闭合该订单的优先通知窗口（状态置结束、
+	// 名单内其他人的待回应通知作废），既不再计入看板「通知中」，也不会再有人看到
+	// 注定接不了的通知。闭合会占用一个订单版本，后续 bumpOrder 必须基于闭合后的版本。
+	orderVersion := order.Version
+	if closedVersion, err := closeDispatchPriorityWindowOnDispatch(ctx, tx, order,
+		dispatchReleaseReasonAssigned, now); err != nil {
+		return nil, err
+	} else if closedVersion > 0 {
+		orderVersion = closedVersion
+	}
+	newVersion, err := bumpOrder(ctx, tx, orderID, orderVersion, targetStatus)
 	if err != nil {
 		return nil, err
 	}
@@ -655,12 +682,18 @@ func rollbackIfNoActiveSeats(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	return !remaining && order.FulfillmentStatus == esportsorder.FulfillmentStatusPendingAcceptance, nil
 }
 
-// revokeDispatchSeat 撤回邀请中的席位：席位转 revoked，若订单再无有效席位则退回待派单。
+// revokeDispatchSeat 撤回席位：席位转 revoked，若订单再无有效席位则退回待派单。
+//
+// P1-02：除「邀请中」的席位外，**已接单但从未开工**（该席位没有任何服务段）的席位也允许由客服移除——
+// 这是「从未开工的席位须有明确处置」的处置入口。已开工的席位必须走「终止服务段」（登记责任与已履约量），
+// 否则会绕过责任认定直接抹掉在途履约。
+// 移除后若整单再无未了结席位且在服务中，订单直接收敛到待结单（P1-02 的判定口径见 orderAllSeatsServiceSettled）。
 func revokeDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex, adminID int, reason string) (*ent.EsportsDispatchSeat, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" || len([]rune(reason)) > 255 {
 		return nil, errInvalidInput
 	}
+	now := time.Now().UTC()
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -679,14 +712,34 @@ func revokeDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err != nil {
 		return nil, err
 	}
-	if seat.Status != esportsdispatchseat.StatusInvited {
+	switch seat.Status {
+	case esportsdispatchseat.StatusInvited:
+	case esportsdispatchseat.StatusAccepted:
+		// 已接单席位：只有「从未开工」的才允许移除；已开工必须走终止服务段。
+		hasSegment, err := tx.EsportsServiceSegment.Query().Where(
+			esportsservicesegment.OrderIDEQ(orderID),
+			esportsservicesegment.SeatIndexEQ(seatIndex),
+		).Exist(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if hasSegment {
+			return nil, fmt.Errorf("%w：该席位的陪玩已开工，不能直接撤回，请先用「终止服务段」登记责任与已履约量", errConflict)
+		}
+	default:
 		return nil, errConflict
 	}
-	changed, err := tx.EsportsDispatchSeat.Update().Where(
+	update := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.IDEQ(seat.ID),
-		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusInvited),
+		esportsdispatchseat.VersionEQ(seat.Version),
+		esportsdispatchseat.StatusEQ(seat.Status),
 	).SetStatus(esportsdispatchseat.StatusRevoked).
-		SetRespondedAt(time.Now().UTC()).AddVersion(1).Save(ctx)
+		SetRespondedAt(now).AddVersion(1)
+	if seat.Status == esportsdispatchseat.StatusAccepted {
+		// 移除已接单席位：清空陪玩与接单时锁定的分成规则快照。
+		update = update.ClearPlayerID().ClearCommissionRuleID().ClearCommissionRuleLockedAt()
+	}
+	changed, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -694,9 +747,16 @@ func revokeDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 		return nil, errConflict
 	}
 	target := esportsorder.FulfillmentStatus("")
-	if back, err := rollbackIfNoActiveSeats(ctx, tx, order); err != nil {
+	remainingActive, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(orderID),
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusInvited, esportsdispatchseat.StatusAccepted),
+	).Exist(ctx)
+	if err != nil {
 		return nil, err
-	} else if back {
+	}
+	if !remainingActive && (order.FulfillmentStatus == esportsorder.FulfillmentStatusPendingAcceptance ||
+		order.FulfillmentStatus == esportsorder.FulfillmentStatusAccepted) {
 		target = esportsorder.FulfillmentStatusPendingDispatch
 	}
 	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, target)
@@ -705,15 +765,43 @@ func revokeDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	}
 	// 退回待派单：优先通知已开过窗时直接释放到大厅，否则按名单重新开窗（§5.4 业务口径）。
 	if target == esportsorder.FulfillmentStatusPendingDispatch {
-		if err = onOrderEnteredPendingDispatch(ctx, tx, orderID, time.Now()); err != nil {
+		if err = onOrderEnteredPendingDispatch(ctx, tx, orderID, now); err != nil {
 			return nil, err
 		}
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
 		SetOrderVersion(newVersion).SetEventType("order.seat_revoked").
 		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
-		SetDetails(map[string]interface{}{"seat_index": seatIndex, "reason": reason}).Save(ctx); err != nil {
+		SetDetails(map[string]interface{}{
+			"seat_index": seatIndex, "reason": reason, "previous_status": seat.Status.String(),
+		}).Save(ctx); err != nil {
 		return nil, err
+	}
+	// P1-02：移除从未开工的席位后，若整单已无未了结席位且在服务中，直接转入待结单。
+	if order.FulfillmentStatus == esportsorder.FulfillmentStatusInService {
+		settled, _, err := orderAllSeatsServiceSettled(ctx, tx, orderID)
+		if err != nil {
+			return nil, err
+		}
+		if settled {
+			current, err := tx.EsportsOrder.Get(ctx, orderID)
+			if err != nil {
+				return nil, err
+			}
+			closeVersion, err := bumpOrder(ctx, tx, orderID, current.Version,
+				esportsorder.FulfillmentStatusPendingClose)
+			if err != nil {
+				return nil, err
+			}
+			if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+				SetOrderVersion(closeVersion).SetEventType(orderEnteredPendingCloseEvent).
+				SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+				SetDetails(map[string]interface{}{
+					"reason": "seat_removed", "seat_index": seatIndex,
+				}).Save(ctx); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -864,7 +952,73 @@ func remindOrder(ctx context.Context, db *ent.Client, orderID, adminID int, leve
 		SetDetails(map[string]interface{}{"level": level, "note": note}).Save(ctx); err != nil {
 		return err
 	}
+	// P1-04：催单必须**真的触达**被催方，不能只写订单字段与订单事件。
+	// 在同一事务内写事务外盒：事件类型沿用通知分拣已注册的 dispatch.remind_player /
+	// dispatch.remind_admin（见 notification_outbox.go / notification_recipients.go），
+	// 由投递器落成站内信 + 推送；未配置通道时至少留可查的投递事件。
+	// 事件键含订单 ID 与本次催单占用的订单版本，天然幂等：同一次催单重复投递只留一条。
+	remindedVersion := order.Version + 1
+	if err = writeManualRemindOutbox(ctx, tx, order, adminID, level, note, remindedVersion, now); err != nil {
+		return err
+	}
 	return tx.Commit()
+}
+
+// writeManualRemindOutbox 在催单事务内写手动催单的通知外盒（P1-04）：
+//   - dispatch.remind_player：逐席定向通知被催的陪玩（payload 带 player_id / seat_index）；
+//   - dispatch.remind_admin：通知责任客服（无负责客服时回落本次操作客服）。
+//
+// 事件键 dispatch_remind_manual:<订单ID>:<订单版本>:player:<席位|admin>，同一次催单幂等。
+func writeManualRemindOutbox(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	adminID, level int, note string, version int, now time.Time) error {
+	seats, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(order.ID),
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusInvited, esportsdispatchseat.StatusAccepted),
+		esportsdispatchseat.PlayerIDNotNil(),
+	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
+	if err != nil {
+		return err
+	}
+	keyPrefix := "dispatch_remind_manual:" + strconv.Itoa(order.ID) + ":" + strconv.Itoa(version)
+	for _, seat := range seats {
+		if seat.PlayerID == nil {
+			continue
+		}
+		if _, err = tx.EsportsOutbox.Create().
+			SetEventKey(keyPrefix + ":player:" + strconv.Itoa(seat.SeatIndex)).
+			SetEventType("dispatch.remind_player").SetAggregateRef(order.OrderNo).
+			SetPayload(map[string]interface{}{
+				"order_no": order.OrderNo, "order_id": order.ID,
+				"player_id": *seat.PlayerID, "seat_index": seat.SeatIndex,
+				"level": level, "note": note, "source": "manual",
+				"reminded_at": now.UTC(),
+			}).Save(ctx); err != nil {
+			if !ent.IsConstraintError(err) {
+				return err
+			}
+		}
+	}
+	// 责任客服优先；订单无负责客服时退回本次催单的操作客服，保证催单一定有人收到。
+	adminTarget := adminID
+	if order.ResponsibleAdminID != nil && *order.ResponsibleAdminID > 0 {
+		adminTarget = *order.ResponsibleAdminID
+	}
+	if adminTarget < 1 {
+		return nil
+	}
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey(keyPrefix + ":admin").
+		SetEventType("dispatch.remind_admin").SetAggregateRef(order.OrderNo).
+		SetPayload(map[string]interface{}{
+			"order_no": order.OrderNo, "order_id": order.ID, "admin_id": adminTarget,
+			"level": level, "note": note, "source": "manual", "reminded_at": now.UTC(),
+		}).Save(ctx); err != nil {
+		if !ent.IsConstraintError(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 // publishOrderToGrabHall 客服把已付款的待派单订单发布到抢单大厅（§5.2 / §5.6）。
@@ -1139,6 +1293,9 @@ type dispatchBoardPlayer struct {
 	// Presence 取 EsportsPlayer.presence 原文（online / offline / protected_abnormal），
 	// 与 online_players 计数**同一字段、同一口径**，不另立在线判定。
 	Presence string `json:"presence"`
+	// PresenceLabel 是 presence 的可直接展示文案（P1-01）：只有 offline 才叫「已下线」，
+	// protected_abnormal 展示为「连接异常（受保护）」，避免看板把在途履约者显示成已下线。
+	PresenceLabel string `json:"presence_label"`
 	// LastActiveAt 是最近一次心跳时间（无心跳基线的存量档案为 null）。
 	LastActiveAt *time.Time `json:"last_active_at"`
 	// ConnectionHealthy 复用既有 playerConnectionHealthy 口径，仅供客服识别
@@ -1169,6 +1326,9 @@ type dispatchBoard struct {
 	Admins []dispatchBoardAdmin `json:"admins"`
 	// 会员订单优先（§10.4）：待派单池 / 公共池中属于「会员优先等级」客户的订单 ID，已置顶，供前端标记。
 	MemberPriorityOrderIDs []int `json:"member_priority_order_ids"`
+	// 会员专属通道（§10.1-02 / P1-11 消费点）：待派单池 / 公共池中**因「专属通道」权益被二级置顶**的订单 ID
+	// （排在会员优先档之后、普通订单之前）。同时命中会员优先派单的订单只出现在 member_priority_order_ids。
+	MemberDedicatedChannelOrderIDs []int `json:"member_dedicated_channel_order_ids"`
 	// 公共池脱敏（§5.1 / §8.2）：非超管在公共池只看到脱敏摘要，客户身份与金额字段被掩码；
 	// 此字段列出被掩码的订单 ID，供前端以「***」展示。超管为空（看完整数据）。
 	MaskedPublicPoolIDs []int `json:"masked_public_pool_ids"`
@@ -1197,6 +1357,7 @@ func loadDispatchBoardPlayers(ctx context.Context, db *ent.Client, now time.Time
 				PlayerID:          player.ID,
 				Nickname:          nickname,
 				Presence:          player.Presence.String(),
+				PresenceLabel:     playerPresenceLabel(player.Presence),
 				LastActiveAt:      player.LastHeartbeatAt,
 				ConnectionHealthy: playerConnectionHealthyWith(player, now, heartbeatTimeout),
 			})
@@ -1297,11 +1458,14 @@ func loadDispatchBoardSorted(ctx context.Context, db *ent.Client, adminID int, i
 	if board.PendingDispatch, err = bucket(esportsorder.FulfillmentStatusPendingDispatch); err != nil {
 		return nil, err
 	}
-	// 会员订单优先（§10.4）：会员优先等级客户的待派单订单置顶并标记；只影响展示顺序，
+	// 会员订单优先（§10.4）+ 专属通道二级置顶（§10.1-02）：只影响展示顺序，
 	// 不绕过资质、档期与接单上限等硬性条件。
-	if board.MemberPriorityOrderIDs, board.PendingDispatch, err = prioritizeMemberOrders(ctx, db, board.PendingDispatch); err != nil {
+	pendingPriorityIDs, pendingChannelIDs, sortedPending, err := prioritizeMemberOrders(ctx, db, board.PendingDispatch)
+	if err != nil {
 		return nil, err
 	}
+	board.MemberPriorityOrderIDs, board.PendingDispatch = pendingPriorityIDs, sortedPending
+	board.MemberDedicatedChannelOrderIDs = pendingChannelIDs
 	if board.Grabbing, err = bucket(esportsorder.FulfillmentStatusGrabbing); err != nil {
 		return nil, err
 	}
@@ -1325,13 +1489,15 @@ func loadDispatchBoardSorted(ctx context.Context, db *ent.Client, adminID int, i
 	if board.PublicPool, err = pool.Order(ent.Desc(esportsorder.FieldID)).Limit(100).All(ctx); err != nil {
 		return nil, err
 	}
-	pubMemberIDs, sortedPool, err := prioritizeMemberOrders(ctx, db, board.PublicPool)
+	pubPriorityIDs, pubChannelIDs, sortedPool, err := prioritizeMemberOrders(ctx, db, board.PublicPool)
 	if err != nil {
 		return nil, err
 	}
 	board.PublicPool = sortedPool
-	// 公共池是待派单池的子集，标记按订单去重（§10.4）。
-	board.MemberPriorityOrderIDs = appendUniqueIDs(board.MemberPriorityOrderIDs, pubMemberIDs)
+	// 公共池是待派单池的子集，标记按订单去重（§10.4 / §10.1-02）。
+	board.MemberPriorityOrderIDs = appendUniqueIDs(board.MemberPriorityOrderIDs, pubPriorityIDs)
+	board.MemberDedicatedChannelOrderIDs = appendUniqueIDs(
+		board.MemberDedicatedChannelOrderIDs, pubChannelIDs)
 	// 公共池脱敏（§5.1 / §8.2）：非超管只看到脱敏摘要，掩码客户身份与金额字段。
 	if !isSuper {
 		for _, o := range board.PublicPool {
@@ -1471,12 +1637,20 @@ func maskPublicPoolOrder(o *ent.EsportsOrder) {
 	o.RefundReservedCents = 0
 }
 
-// prioritizeMemberOrders 标记「会员优先等级」客户的订单并把它们稳定置顶（§10.4）。
-// 会员优先由客户当前 member_level_code 指向的等级规则决定，规则须 enabled 且 priority_dispatch=true。
-// 返回被置顶的订单 ID（供前端标记）与排序后的订单切片；只影响展示顺序，不改变任何校验。
-func prioritizeMemberOrders(ctx context.Context, db *ent.Client, orders []*ent.EsportsOrder) ([]int, []*ent.EsportsOrder, error) {
+// prioritizeMemberOrders 标记会员权益客户的订单并分档置顶（§10.4 / §10.1-02）。
+//
+// 会员权益由客户当前 member_level_code 指向的等级规则决定，规则须 enabled；本次接入两个
+// **派单侧消费点**，按档位排序（只影响展示顺序，不改变任何校验）：
+//   - 第一档 priorityIDs：命中「会员优先派单」（priority_dispatch）的订单，置顶最前；
+//   - 第二档 dedicatedIDs：「专属通道」（dedicated_channel）且未命中优先派单的订单，
+//     排在会员优先档之后、普通订单之前（二级置顶，不与第一档混排）；
+//   - 普通订单按原顺序跟在最后。
+//
+// 同时命中两个权益的等级只计入第一档（避免同一单被重复标记两次）。
+func prioritizeMemberOrders(ctx context.Context, db *ent.Client, orders []*ent.EsportsOrder) (
+	priorityIDs, dedicatedIDs []int, sorted []*ent.EsportsOrder, err error) {
 	if len(orders) == 0 {
-		return nil, orders, nil
+		return nil, nil, orders, nil
 	}
 	customerIDs := make([]int, 0, len(orders))
 	seen := make(map[int]bool, len(orders))
@@ -1490,7 +1664,7 @@ func prioritizeMemberOrders(ctx context.Context, db *ent.Client, orders []*ent.E
 		esportscustomer.IDIn(customerIDs...),
 	).Select(esportscustomer.FieldID, esportscustomer.FieldMemberLevelCode).All(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	levelByCustomer := make(map[int]string, len(customers))
 	codes := make([]string, 0, len(customers))
@@ -1501,38 +1675,66 @@ func prioritizeMemberOrders(ctx context.Context, db *ent.Client, orders []*ent.E
 		}
 	}
 	if len(codes) == 0 {
-		return nil, orders, nil
+		return nil, nil, orders, nil
 	}
 	rules, err := db.EsportsMemberLevelRule.Query().Where(
 		esportsmemberlevelrule.CodeIn(codes...),
 		esportsmemberlevelrule.StatusEQ(esportsmemberlevelrule.StatusEnabled),
-		esportsmemberlevelrule.PriorityDispatchEQ(true),
-	).Select(esportsmemberlevelrule.FieldCode).All(ctx)
+		// 两个权益都参与派单侧分档：优先派单（第一档）与专属通道（第二档）。
+		esportsmemberlevelrule.Or(
+			esportsmemberlevelrule.PriorityDispatchEQ(true),
+			esportsmemberlevelrule.DedicatedChannelEQ(true),
+		),
+	).Select(
+		esportsmemberlevelrule.FieldCode,
+		esportsmemberlevelrule.FieldPriorityDispatch,
+		esportsmemberlevelrule.FieldDedicatedChannel,
+	).All(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	if len(rules) == 0 {
-		return nil, orders, nil
+		return nil, nil, orders, nil
 	}
 	priorityCodes := make(map[string]bool, len(rules))
+	channelCodes := make(map[string]bool, len(rules))
 	for _, rule := range rules {
-		priorityCodes[rule.Code] = true
-	}
-	ids := make([]int, 0, len(orders))
-	head := make([]*ent.EsportsOrder, 0, len(orders))
-	tail := make([]*ent.EsportsOrder, 0, len(orders))
-	for _, order := range orders {
-		if priorityCodes[levelByCustomer[order.CustomerID]] {
-			ids = append(ids, order.ID)
-			head = append(head, order)
+		if rule.PriorityDispatch {
+			// 第一档：会员优先派单。同时开专属通道的等级不再进第二档。
+			priorityCodes[rule.Code] = true
 			continue
 		}
-		tail = append(tail, order)
+		if rule.DedicatedChannel {
+			channelCodes[rule.Code] = true
+		}
 	}
-	if len(ids) == 0 {
-		return nil, orders, nil
+	priorityIDs = make([]int, 0, len(orders))
+	dedicatedIDs = make([]int, 0, len(orders))
+	head := make([]*ent.EsportsOrder, 0, len(orders))
+	middle := make([]*ent.EsportsOrder, 0, len(orders))
+	tail := make([]*ent.EsportsOrder, 0, len(orders))
+	for _, order := range orders {
+		code := levelByCustomer[order.CustomerID]
+		switch {
+		case priorityCodes[code]:
+			priorityIDs = append(priorityIDs, order.ID)
+			head = append(head, order)
+		case channelCodes[code]:
+			dedicatedIDs = append(dedicatedIDs, order.ID)
+			middle = append(middle, order)
+		default:
+			tail = append(tail, order)
+		}
 	}
-	return ids, append(head, tail...), nil
+	if len(head) == 0 && len(middle) == 0 {
+		// 无会员权益：保持原始顺序（与未接入分档前的行为逐位一致）。
+		return nil, nil, orders, nil
+	}
+	merged := make([]*ent.EsportsOrder, 0, len(orders))
+	merged = append(merged, head...)
+	merged = append(merged, middle...)
+	merged = append(merged, tail...)
+	return priorityIDs, dedicatedIDs, merged, nil
 }
 
 // appendUniqueIDs 追加去重后的 ID，保持既有顺序不变。

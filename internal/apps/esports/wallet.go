@@ -491,6 +491,14 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
 		return nil, errConflict
 	}
+	// P0-11 重复收款防护：该订单已有待核验的到账凭证时，不得再用余额核销——否则同一订单被收两次钱，
+	// 后到的转账凭证只能挂成悬账。判定与后面的「订单转已付款」条件更新同事务，避免并发穿插。
+	if duplicated, err := otherPendingPaymentProofExists(ctx, tx.EsportsOfflinePaymentProof.Query(),
+		order.ID, 0); err != nil {
+		return nil, err
+	} else if duplicated {
+		return nil, fmt.Errorf("%w：该订单已有待核验的转账凭证，请先核验或驳回后再改用其它收款方式", errConflict)
+	}
 	customer, err := tx.EsportsCustomer.Get(ctx, order.CustomerID)
 	if err != nil {
 		return nil, err

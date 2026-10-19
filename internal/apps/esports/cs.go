@@ -2,6 +2,8 @@ package esports
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +14,10 @@ import (
 	"go-admin/internal/ent/esportscustomerfollowup"
 	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsscript"
 	"go-admin/internal/ent/esportswallettx"
+	"go-admin/internal/global"
 )
 
 // 客服端（§8）常量：标签数量 / 长度上限与话术状态。
@@ -123,6 +127,11 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 	if len(tags) > csMaxTags {
 		return nil, errInvalidInput
 	}
+	// P1-12：同一租户内手机号唯一。把手机号改成他人已占用的号码时显式冲突，
+	// 避免两个客户档案共用同一联系号码（按手机号认人 / 企微建档去重都会失真）。
+	if err := ensureCustomerPhoneUnique(ctx, db, in.Phone, customerID); err != nil {
+		return nil, err
+	}
 	update := db.EsportsCustomer.Update().Where(esportscustomer.IDEQ(customerID)).
 		SetPhone(in.Phone).SetBirthday(in.Birthday).
 		SetConsumptionPreference(in.ConsumptionPreference).AddVersion(1)
@@ -210,13 +219,11 @@ func customerProfileOverview(ctx context.Context, db *ent.Client, adminID int, i
 	if err != nil {
 		return nil, err
 	}
-	// 身份标识（§10.4）：客户卡片返回等级 code/name 与专属客服标识；专属客服由当前等级 dedicated_cs 决定。
-	memberLevelName, dedicatedCS := "", false
-	if rule, err := customerMemberRule(ctx, db, customer.MemberLevelCode); err != nil {
+	// 身份标识 + 会员权益快照（§10.1-02 / §10.4 / P1-11）：客户卡片一次性读出全部权益字段，
+	// 让权益页宣称的「已生效」与真实消费点（会员折扣 / 派单置顶 / 优先预约）共用同一判定口径。
+	privilege, err := memberPrivilegeFlags(ctx, db, customerID)
+	if err != nil {
 		return nil, err
-	} else if rule != nil {
-		memberLevelName = rule.Name
-		dedicatedCS = rule.DedicatedCs
 	}
 	ownerAdminName := ""
 	if customer.OwnerAdminID != nil {
@@ -235,8 +242,9 @@ func customerProfileOverview(ctx context.Context, db *ent.Client, adminID int, i
 		"growth_total":      growth,
 		"order_count":       orderCount,
 		"member_level_code": customer.MemberLevelCode,
-		"member_level_name": memberLevelName,
-		"dedicated_cs":      dedicatedCS,
+		"member_level_name": privilege.LevelName,
+		"dedicated_cs":      privilege.DedicatedCs,
+		"member_privilege":  privilege,
 		"owner_admin_name":  ownerAdminName,
 		"source":            customer.Source.String(),
 		"follow_status":     customer.FollowStatus.String(),
@@ -360,6 +368,10 @@ type wecomIntakeCard struct {
 	OwnedByOther   bool   `json:"owned_by_other"`
 	OwnerAdminName string `json:"owner_admin_name"`
 	Message        string `json:"message,omitempty"`
+	// MatchedBy 说明本次建档案命中的是哪个去重口径（P1-12）：
+	// wecom = 「企业主体 + 外部联系人标识」幂等命中；phone = 同手机号既有客户；
+	// created 为 true 表示本次新建（created 字段已表达，此处留空）。
+	MatchedBy string `json:"matched_by,omitempty"`
 }
 
 // wecomIntakeCardFor 按归属决定返回整条档案还是最小卡片：仅归属当前客服本人才回传完整档案。
@@ -390,9 +402,94 @@ func wecomIntakeCardFor(ctx context.Context, db *ent.Client, adminID int, existi
 	return card
 }
 
+// wecomCorpTrustCheck 校验企微上行 corp_id 的可信性（P1-26 / P1-12 第 2 条）。
+//   - 已配置 app.esports.wecom_corp_id 且与上行一致：通过，返回空提示；
+//   - 已配置但不一致：返回错误（信任边界，拒绝建档）；
+//   - 未配置：按既有降级策略继续建档，但返回明确的中文提示（提示调用方补齐配置），
+//     与 wecom_sidebar.go 中「留空表示未配置，侧边栏降级为手动建档」的口径一致。
+func wecomCorpTrustCheck(ctx context.Context, db *ent.Client, corpID string) (string, error) {
+	configured := wecomConfigString(ctx, db, wecomCorpIDKey)
+	if configured == "" {
+		return "企微企业主体未配置（" + wecomCorpIDKey + "），本次建档按手动建档降级处理；请管理员补齐 corp_id 后重试自动建档", nil
+	}
+	if configured == corpID {
+		return "", nil
+	}
+	return "", fmt.Errorf("%w：企微上行 corp_id（%s）与系统配置 %s 不一致，拒绝建档",
+		errForbidden, corpID, wecomCorpIDKey)
+}
+
+// customersByPhone 返回同租户内手机号等于 phone 的客户（P1-12：手机号去重口径）。
+// 空手机号不参与去重（未填手机号的档案可以有多条）；excludeID > 0 时排除该客户自身（改档场景）。
+func customersByPhone(ctx context.Context, db *ent.Client, phone string, excludeID int) ([]*ent.EsportsCustomer, error) {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return nil, nil
+	}
+	q := db.EsportsCustomer.Query().Where(esportscustomer.PhoneEQ(phone))
+	if excludeID > 0 {
+		q.Where(esportscustomer.IDNEQ(excludeID))
+	}
+	return q.Order(ent.Asc(esportscustomer.FieldID)).Limit(5).All(ctx)
+}
+
+// ensureCustomerPhoneUnique 校验「同一租户内手机号唯一」（P1-12）。
+// 手机号为空视为不参与去重；命中他人档案时返回中文冲突提示，调用方不得写库。
+func ensureCustomerPhoneUnique(ctx context.Context, db *ent.Client, phone string, selfID int) error {
+	matches, err := customersByPhone(ctx, db, phone, selfID)
+	if err != nil {
+		return err
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+	if len(matches) == 1 {
+		return fmt.Errorf("%w：该手机号已存在客户档案（客户 ID %d），请直接使用既有客户，勿重复建档",
+			errConflict, matches[0].ID)
+	}
+	return fmt.Errorf("%w：该手机号存在 %d 条客户档案，请先在客户档案中合并后再建档", errConflict, len(matches))
+}
+
+// attachWecomIdentity 给「同手机号命中」的本人客户补齐企微标识（P1-12）：
+// 仅当两个企微字段都为空时写入，使下一次自动建档能以「企业主体 + 外部联系人标识」直接幂等命中。
+// 幂等键冲突（极端并发下已被其它档案占用）时不改写，返回原档案。
+func attachWecomIdentity(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer, corpID, externalID string) (*ent.EsportsCustomer, error) {
+	if customer.WecomCorpID != nil || customer.WecomExternalID != nil {
+		return customer, nil
+	}
+	updated, err := db.EsportsCustomer.UpdateOneID(customer.ID).
+		SetWecomCorpID(corpID).SetWecomExternalID(externalID).Save(ctx)
+	if ent.IsConstraintError(err) {
+		return customer, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return updated, nil
+}
+
+// withWecomHint 把降级提示附到返回卡片上（已有提示时以「；」拼接，避免覆盖归属提示）。
+func withWecomHint(card *wecomIntakeCard, hint string) *wecomIntakeCard {
+	if card == nil || hint == "" {
+		return card
+	}
+	if card.Message == "" {
+		card.Message = hint
+		return card
+	}
+	card.Message = card.Message + "；" + hint
+	return card
+}
+
 // wecomUpsertCustomer 企微侧边栏自动建档（§8.4）：以「企业主体 + 外部联系人标识」组合幂等。
 // 已存在且归属当前客服则原样返回既有档案（created=false），只补基础字段，不覆盖客服已维护的偏好与标签；
 // 已存在但归属他人则只返回最小卡片（见 wecomIntakeCard），不泄露他人客户档案。
+//
+// P1-12 / P1-26 信任边界与去重：
+//   - corp_id 必须与系统配置 app.esports.wecom_corp_id 一致，不一致直接拒绝（403 中文提示）；
+//     未配置时降级建档并在 message 中明确提示补齐配置；
+//   - 「企业主体 + 外部联系人标识」未命中时按**手机号**在同租户内去重：命中本人客户则返回既有档案
+//     （并补齐企微标识，created=false），命中他人客户只回最小卡片，命中多条则显式冲突报错。
 func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in wecomIntakeInput, now time.Time) (*wecomIntakeCard, bool, error) {
 	in.CorpID = strings.TrimSpace(in.CorpID)
 	in.ExternalID = strings.TrimSpace(in.ExternalID)
@@ -407,6 +504,10 @@ func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in we
 	if len([]rune(in.DisplayName)) > 120 || len(in.Phone) > 32 {
 		return nil, false, errInvalidInput
 	}
+	hint, err := wecomCorpTrustCheck(ctx, db, in.CorpID)
+	if err != nil {
+		return nil, false, err
+	}
 	find := func() (*ent.EsportsCustomer, error) {
 		return db.EsportsCustomer.Query().Where(
 			esportscustomer.WecomCorpIDEQ(in.CorpID),
@@ -415,10 +516,34 @@ func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in we
 	}
 	existing, err := find()
 	if err == nil {
-		return wecomIntakeCardFor(ctx, db, adminID, existing), false, nil
+		card := wecomIntakeCardFor(ctx, db, adminID, existing)
+		card.MatchedBy = "wecom"
+		return withWecomHint(card, hint), false, nil
 	}
 	if !ent.IsNotFound(err) {
 		return nil, false, err
+	}
+	// 手机号去重（P1-12）：同租户内手机号唯一，命中既有客户就不再新建。
+	if byPhone, err := customersByPhone(ctx, db, in.Phone, 0); err != nil {
+		return nil, false, err
+	} else if len(byPhone) == 1 {
+		matched := byPhone[0]
+		if matched.OwnerAdminID != nil && *matched.OwnerAdminID == adminID {
+			linked, err := attachWecomIdentity(ctx, db, matched, in.CorpID, in.ExternalID)
+			if err != nil {
+				return nil, false, err
+			}
+			card := wecomIntakeCardFor(ctx, db, adminID, linked)
+			card.MatchedBy = "phone"
+			card.Message = fmt.Sprintf("该手机号已存在客户档案（客户 ID %d），已返回既有客户，未重复建档", linked.ID)
+			return withWecomHint(card, hint), false, nil
+		}
+		card := wecomIntakeCardFor(ctx, db, adminID, matched)
+		card.MatchedBy = "phone"
+		return withWecomHint(card, hint), false, nil
+	} else if len(byPhone) > 1 {
+		return nil, false, fmt.Errorf("%w：该手机号存在 %d 条客户档案，请先在客户档案中合并后再建档",
+			errConflict, len(byPhone))
 	}
 	customer, err := db.EsportsCustomer.Create().SetDisplayName(in.DisplayName).
 		SetOwnerAdminID(adminID).SetPhone(in.Phone).
@@ -431,12 +556,19 @@ func wecomUpsertCustomer(ctx context.Context, db *ent.Client, adminID int, in we
 		if qerr != nil {
 			return nil, false, qerr
 		}
-		return wecomIntakeCardFor(ctx, db, adminID, existing), false, nil
+		card := wecomIntakeCardFor(ctx, db, adminID, existing)
+		card.MatchedBy = "wecom"
+		return withWecomHint(card, hint), false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	return &wecomIntakeCard{EsportsCustomer: customer}, true, nil
+	created := &wecomIntakeCard{EsportsCustomer: customer}
+	if hint != "" {
+		// 未配置 corp_id 的降级提示必须随新建档案一并回传（P1-26：降级要明确提示，不得静默）。
+		created.Message = hint
+	}
+	return created, true, nil
 }
 
 // validateScriptInput 校验话术字段；分类可空，正文与标题必填。
@@ -602,7 +734,11 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
-	// 会员优先预约提醒（§10.4）：待处理预约意向，提醒客服按会员等级置顶跟进。
+	// 会员优先预约提醒（§10.4 / P1-11）：先做**过期消解**（读取时惰性判定），
+	// 保证「已过期」的意向不再计入待办——不依赖定时任务注册也能自愈。
+	if _, err = expirePriorityBookingIntents(ctx, db, now, 200); err != nil {
+		return nil, err
+	}
 	priorityBookingCount, err := countPriorityBookingsPending(ctx, db, adminID, isSuper)
 	if err != nil {
 		return nil, err
@@ -642,4 +778,111 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		{Key: "close_deadline_overdue", Label: "结单超时待处理", Count: closeDeadlineCount},
 		{Key: "appointment_pending_confirm", Label: "档期待确认待处置", Count: appointmentPendingCount},
 	}, nil
+}
+
+// ── 会员优先预约意向的处理与过期消解（§10.4 / P1-11） ──
+//
+// 修复前的缺口：意向实体只有 status 字段，代码里没有任何「处理 / 过期」的写入路径，
+// 导致客服工作台「会员优先预约」待办只增不减。此处补齐：
+//   - resolvePriorityBookingIntent：客服显式处理（已处理 / 已取消），条件更新 pending → 终态；
+//   - expirePriorityBookingIntents：期望时段已过（或未填期望时段且超宽限期）仍 pending 的意向自动消解；
+//   - 工作台待办在计数前调用过期消解，计数只统计 pending，因此处理后待办必然下降。
+
+// priorityBookingExpiryGraceDays 是无期望时段意向的保留期：久未处理仍 pending 即按过期消解。
+const priorityBookingExpiryGraceDays = 30
+
+// resolvePriorityBookingIntent 客服处理会员优先预约意向（§10.4 / P1-11）。
+// 只允许 pending → processed / cancelled 的单向条件更新：已处理 / 已取消的意向再次处理返回冲突，
+// 并发处理只有一次生效。非超管只能处理归属本人客户的意向（§8.2 归属隔离）。
+func resolvePriorityBookingIntent(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
+	intentID int, status string, now time.Time) (*ent.EsportsPriorityBookingIntent, error) {
+	if intentID < 1 || adminID < 1 {
+		return nil, errInvalidInput
+	}
+	var target esportsprioritybookingintent.Status
+	switch strings.TrimSpace(status) {
+	case string(esportsprioritybookingintent.StatusProcessed):
+		target = esportsprioritybookingintent.StatusProcessed
+	case string(esportsprioritybookingintent.StatusCancelled):
+		target = esportsprioritybookingintent.StatusCancelled
+	default:
+		return nil, fmt.Errorf("%w：处理结果只能是 processed（已处理）或 cancelled（已取消）", errInvalidInput)
+	}
+	intent, err := db.EsportsPriorityBookingIntent.Get(ctx, intentID)
+	if err != nil {
+		return nil, err
+	}
+	if !isSuper {
+		customer, err := db.EsportsCustomer.Get(ctx, intent.CustomerID)
+		if err != nil {
+			return nil, err
+		}
+		if customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID {
+			return nil, errForbidden
+		}
+	}
+	changed, err := db.EsportsPriorityBookingIntent.Update().Where(
+		esportsprioritybookingintent.IDEQ(intentID),
+		esportsprioritybookingintent.StatusEQ(esportsprioritybookingintent.StatusPending),
+	).SetStatus(target).SetProcessedByAdminID(adminID).SetProcessedAt(now.UTC()).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, fmt.Errorf("%w：该预约意向已处理或已取消，请刷新后重试", errConflict)
+	}
+	return db.EsportsPriorityBookingIntent.Get(ctx, intentID)
+}
+
+// expirePriorityBookingIntents 过期消解优先预约意向（§10.4 / P1-11）：
+// 期望时段已过、或未填期望时段且提交超过宽限期的 pending 意向，条件更新为 cancelled
+// 并记录处理时间（processed_at），使其不再计入客服待办。逐条条件更新，重复执行安全。
+func expirePriorityBookingIntents(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
+	if limit < 1 || limit > 1000 {
+		return 0, errInvalidInput
+	}
+	rows, err := db.EsportsPriorityBookingIntent.Query().Where(
+		esportsprioritybookingintent.StatusEQ(esportsprioritybookingintent.StatusPending),
+		esportsprioritybookingintent.Or(
+			esportsprioritybookingintent.RequestedStartAtLTE(now.UTC()),
+			esportsprioritybookingintent.And(
+				esportsprioritybookingintent.RequestedStartAtIsNil(),
+				esportsprioritybookingintent.CreatedAtLTE(now.UTC().AddDate(0, 0, -priorityBookingExpiryGraceDays)),
+			),
+		),
+	).Order(ent.Asc(esportsprioritybookingintent.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, row := range rows {
+		changed, err := db.EsportsPriorityBookingIntent.Update().Where(
+			esportsprioritybookingintent.IDEQ(row.ID),
+			esportsprioritybookingintent.StatusEQ(esportsprioritybookingintent.StatusPending),
+		).SetStatus(esportsprioritybookingintent.StatusCancelled).
+			SetProcessedAt(now.UTC()).Save(ctx)
+		if err != nil {
+			return count, err
+		}
+		if changed == 1 {
+			count++
+		}
+	}
+	return count, nil
+}
+
+// expirePriorityBookingIntentsTask 定时任务入口（§10.4 / P1-11）：批量过期消解预约意向。
+//
+// ⚠️ 需由 app.go 注册（本文件不持有注册权）：
+//
+//	tasks.Register("esports_expire_priority_booking_intents", expirePriorityBookingIntentsTask)
+//
+// 并在 cron_seeds.go 增加 CronSeed（建议每小时一次，例如 "0 5 * * * *"）。
+// 未注册时过期消解仍生效——客服工作台待办在计数前会做同样的惰性判定。
+func expirePriorityBookingIntentsTask(ctx context.Context, logger io.Writer) error {
+	count, err := expirePriorityBookingIntents(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "处理过期会员优先预约意向：%d\n", count)
+	}
+	return err
 }

@@ -104,7 +104,7 @@ func TestPageValidateRequiredEntry(t *testing.T) {
 	visible := true
 	hidden := false
 	for _, comps := range [][]pageComponent{
-		{{Type: "search", Visible: &visible}},                                  // 缺失
+		{{Type: "search", Visible: &visible}},                                            // 缺失
 		{{Type: "search", Visible: &visible}, {Type: "support_entry", Visible: &hidden}}, // 隐藏
 	} {
 		if err := validatePageConfig(pageConfig{Components: comps}); !errors.Is(err, errInvalidInput) {
@@ -321,8 +321,8 @@ func TestPagePublishDomainWhitelist(t *testing.T) {
 		t.Fatalf("未配置白名单定时发布应被拒，实际：%v", err)
 	}
 
-	// 白名单只含 allowed.example.com：未审核域名仍被拒。
-	setPageAllowedDomains(t, db, "allowed.example.com")
+	// 白名单只含 allowed.example.com：未审核域名仍被拒（图片域名一并登记，避免被图片探测拦下）。
+	setPageAllowedDomains(t, db, "allowed.example.com,cdn.example.com")
 	if _, err = publishPage(t.Context(), db, channel, 1, pagePublishInput{Mode: "immediate"}, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("未审核域名发布应被拒，实际：%v", err)
 	}
@@ -416,7 +416,8 @@ func TestPageAsset(t *testing.T) {
 	}
 
 	asset, err := savePageAsset(t.Context(), db, 1, pageAssetInput{
-		Name: "图标", URL: "https://cdn.example.com/a.png", Width: 120, Height: 120,
+		Name: "图标", URL: "https://cdn.example.com/a.png", Mime: "image/png", SizeBytes: 2048,
+		Width: 120, Height: 120,
 	})
 	if err != nil {
 		t.Fatalf("新增素材失败：%v", err)

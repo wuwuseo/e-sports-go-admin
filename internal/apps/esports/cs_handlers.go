@@ -207,6 +207,37 @@ func setScriptStatusHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
+// adminResolvePriorityBookingHandler 客服处理会员优先预约意向（§10.4 / P1-11）：
+// pending → processed（已处理）/ cancelled（已取消），处理后工作台「会员优先预约」待办随之下降。
+//
+// 需在 app.go 接线 + PermAPI（本文件不持有路由注册权）：
+//
+//	POST /admin/priority-bookings/:id/process → adminResolvePriorityBookingHandler
+//	PermAPI: {Type: cmfapp.PermAPI, Name: "处理会员优先预约", Code: "esports:members:priority_booking_process",
+//	          Path: "/api/v1/esports/admin/priority-bookings/{id}/process", Method: "POST", Parent: "esports:member:menu"}
+func adminResolvePriorityBookingHandler(c fiber.Ctx) error {
+	operator, err := requestAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	intentID, err := strconv.Atoi(c.Params("id"))
+	if err != nil || intentID < 1 {
+		return fail(c, fiber.StatusBadRequest, "预约意向 ID 无效")
+	}
+	var in struct {
+		Status string `json:"status"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	item, err := resolvePriorityBookingIntent(c.Context(), global.ORM, operator.ID, isSuper, intentID, in.Status, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
+}
+
 // csWorkbenchHandler 客服工作台聚合（§8.2）：我的客户数、我的订单池（含公共池）、待办提醒、本人业绩。
 // 三个客服入口（PC 工作台 / 移动客服端 / 企微侧边栏）共用本接口。
 func csWorkbenchHandler(c fiber.Ctx) error {

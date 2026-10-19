@@ -17,6 +17,23 @@ import (
 // pageChannelCustomerHome 是首版唯一支持的装修渠道：uni-app 客户自助端首页（§16.1）。
 const pageChannelCustomerHome = "uni_customer_home"
 
+// pageAllowedChannels 是允许装修的渠道集合（§16.1）：首版只装修客户自助端首页，
+// 陪玩端与移动客服端首页**不在装修范围**（后两端不得被运营配置改写）。
+// 来源与 pageChannelCustomerHome 同一处常量，不另立配置项：新增渠道须同步 §16.1 口径。
+var pageAllowedChannels = map[string]bool{pageChannelCustomerHome: true}
+
+// pageChannelAllowed 统一判定装修渠道是否在允许集合内（P0-18）。
+// 所有入口（建文档 / 发布 / 回滚 / 审核 / tabBar 读写 / 预览码 / 预览 / 客户端读取）共用此一处，
+// 避免某个入口漏拦后仍能越权「装修」陪玩端或客服端首页。
+func pageChannelAllowed(channel string) error {
+	channel = strings.TrimSpace(channel)
+	if pageAllowedChannels[channel] {
+		return nil
+	}
+	return fmt.Errorf("%w：渠道 %q 不在允许装修范围内（当前仅支持 %s，即客户自助端首页；陪玩端与客服端首页不在装修范围）",
+		errInvalidInput, channel, pageChannelCustomerHome)
+}
+
 // pageMaxComponents 是单页组件数量上限，防止配置被无限膨胀。
 const pageMaxComponents = 20
 
@@ -47,10 +64,12 @@ var pageLinkFields = map[string]bool{
 }
 
 // pageImageFields 是素材 / 图片地址字段：仅允许 https:// 或站内相对路径（§16.5）。
+// images 是轮播图的多图数组（P1：此前只认单数 image/icon，数组元素既不做 https 校验也不做发布前探测，
+// 等于绕过整套资源校验）；把它并入同一集合后，数组元素与单数字段走完全相同的校验与探测。
 var pageImageFields = map[string]bool{
 	"image": true, "img": true, "image_url": true, "pic": true, "pic_url": true,
 	"banner": true, "icon": true, "avatar": true, "cover": true, "logo": true,
-	"src": true, "background": true,
+	"src": true, "background": true, "images": true,
 }
 
 // pageComponentTypes 是首版允许的组件类型集合（§16.3）。
@@ -703,7 +722,10 @@ func pageRoutePath(raw string) string {
 	return raw
 }
 
-// validatePageImageURL 校验素材 / 图片地址（§16.5）：https:// 或站内相对路径，不允许 http。
+// validatePageImageURL 校验素材 / 图片地址（§16.5 / P0-17）：站内相对路径或图标短标识放行；
+// 外部地址仅允许 https://，且必须通过网络目标校验（拒绝 http、带用户名 / 口令、非 80/443 显式端口、
+// 指向本机 / 私网 / 链路本地地址）。域名白名单在发布前探测阶段强制（见 validatePageResources），
+// 与外部跳转链接的口径一致：保存草稿放行待审核域名，发布前才强制白名单。
 func validatePageImageURL(raw string, compIndex int, field string) error {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || strings.HasPrefix(raw, "/") {
@@ -711,6 +733,9 @@ func validatePageImageURL(raw string, compIndex int, field string) error {
 	}
 	if !strings.HasPrefix(raw, "https://") {
 		return fmt.Errorf("%w：第 %d 个组件字段 %q 的素材地址仅允许 https:// 或站内相对路径", errInvalidInput, compIndex+1, field)
+	}
+	if err := pageValidateHTTPSURLTarget(raw); err != nil {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的素材地址%s", errInvalidInput, compIndex+1, field, err)
 	}
 	return nil
 }
@@ -785,6 +810,10 @@ func savePageDraft(ctx context.Context, db *ent.Client, channel string, adminID 
 	if channel == "" || len(channel) > 48 {
 		return nil, errInvalidInput
 	}
+	// P0-18：只能建 / 改允许装修的渠道文档，任意 :channel 都不放行。
+	if err := pageChannelAllowed(channel); err != nil {
+		return nil, err
+	}
 	cfg := pageConfig{Components: in.Components}
 	if err := validatePageConfigWithIcons(cfg, pageAllowedDomains(ctx, db), false,
 		pageIconExtraAllowlist(ctx, db)); err != nil {
@@ -847,6 +876,10 @@ func publishPage(ctx context.Context, db *ent.Client, channel string, adminID in
 	channel = strings.TrimSpace(channel)
 	if channel == "" || len(channel) > 48 {
 		return nil, errInvalidInput
+	}
+	// P0-18：非白名单渠道不得发布（否则可通过发布任意渠道快照越权改造其它端首页）。
+	if err := pageChannelAllowed(channel); err != nil {
+		return nil, err
 	}
 	in.Note = strings.TrimSpace(in.Note)
 	if len([]rune(in.Note)) > 255 {
@@ -928,6 +961,10 @@ func reviewPagePublish(ctx context.Context, db *ent.Client, channel string, vers
 	channel = strings.TrimSpace(channel)
 	if channel == "" || versionID < 1 {
 		return nil, errInvalidInput
+	}
+	// P0-18：审核通过即生效，同样只对白名单渠道放行。
+	if err := pageChannelAllowed(channel); err != nil {
+		return nil, err
 	}
 	in.Reason = strings.TrimSpace(in.Reason)
 	if !in.Approved && in.Reason == "" {
@@ -1030,6 +1067,10 @@ func rollbackPage(ctx context.Context, db *ent.Client, channel string, adminID, 
 	if channel == "" || versionNo < 1 {
 		return nil, errInvalidInput
 	}
+	// P0-18：回滚会生成可发布的新版本，同样只对白名单渠道放行。
+	if err := pageChannelAllowed(channel); err != nil {
+		return nil, err
+	}
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -1082,6 +1123,10 @@ func rollbackPage(ctx context.Context, db *ent.Client, channel string, adminID, 
 }
 
 func listPageVersions(ctx context.Context, db *ent.Client, channel string, limit int) ([]*ent.EsportsPageVersion, error) {
+	// P0-18：非白名单渠道不暴露发布记录（避免成为探测其它端渠道的入口）。
+	if err := pageChannelAllowed(channel); err != nil {
+		return nil, err
+	}
 	doc, err := db.EsportsPageDocument.Query().Where(esportspagedocument.ChannelEQ(strings.TrimSpace(channel))).Only(ctx)
 	if ent.IsNotFound(err) {
 		return []*ent.EsportsPageVersion{}, nil
@@ -1133,34 +1178,20 @@ var pageAssetAllowedMimes = map[string]bool{
 	"image/jpeg": true, "image/png": true, "image/webp": true, "image/gif": true,
 }
 
-// pageAssetMimeByExt 是「未声明 MIME 时按地址后缀推断」的映射；推断不出的类型一律拒绝。
-var pageAssetMimeByExt = map[string]string{
-	".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-	".webp": "image/webp", ".gif": "image/gif",
-}
-
-// resolvePageAssetMime 解析素材 MIME（§16.2-06 / §16.5-04）：显式声明必须命中白名单；
-// 未声明时按地址后缀推断，推断不出图片类型即拒绝，避免任意类型素材落库。
-func resolvePageAssetMime(rawURL, declared string) (string, error) {
+// resolvePageAssetMime 校验素材 MIME（P1-20）：mime 必填且必须命中图片类型白名单。
+// 不再「未声明时按后缀推断」——推断会让前端漏传 mime 时静默通过，
+// 与 size_bytes 一起导致「类型 / 体积限制形同虚设」。
+func resolvePageAssetMime(declared string) (string, error) {
 	declared = strings.ToLower(strings.TrimSpace(declared))
-	if declared != "" {
-		if !pageAssetAllowedMimes[declared] {
-			return "", fmt.Errorf("%w：素材类型 %q 不在白名单（仅允许 image/jpeg、image/png、image/webp、image/gif）",
-				errInvalidInput, declared)
-		}
-		return declared, nil
+	if declared == "" {
+		return "", fmt.Errorf("%w：素材类型 mime 必填（仅允许 image/jpeg、image/png、image/webp、image/gif）",
+			errInvalidInput)
 	}
-	path := rawURL
-	if i := strings.IndexAny(path, "?#"); i >= 0 {
-		path = path[:i]
+	if !pageAssetAllowedMimes[declared] {
+		return "", fmt.Errorf("%w：素材类型 %q 不在白名单（仅允许 image/jpeg、image/png、image/webp、image/gif）",
+			errInvalidInput, declared)
 	}
-	if i := strings.LastIndex(path, "."); i >= 0 {
-		if mime, ok := pageAssetMimeByExt[strings.ToLower(path[i:])]; ok {
-			return mime, nil
-		}
-	}
-	return "", fmt.Errorf("%w：素材类型未声明且无法从地址后缀判断，请显式提交 mime（仅允许 image/jpeg、image/png、image/webp、image/gif）",
-		errInvalidInput)
+	return declared, nil
 }
 
 func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAssetInput) (*ent.EsportsPageAsset, error) {
@@ -1176,14 +1207,19 @@ func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAsse
 	if !strings.HasPrefix(in.URL, "https://") && !strings.HasPrefix(in.URL, "/") {
 		return nil, fmt.Errorf("%w：素材地址仅允许 HTTPS 链接或站内相对路径", errInvalidInput)
 	}
-	// §16.2-06 / §16.5-04：字节上限与 MIME 白名单（显式声明或按后缀推断），超限/非白名单一律不落库。
+	// §16.2-06 / §16.5-04 / P1-20：mime 与 size_bytes 必填，体积上限与 MIME 白名单一并校验，
+	// 缺失 / 超限 / 非图片类型一律不落库（此前二者缺失时全部跳过，上限形同虚设）。
+	if in.SizeBytes <= 0 {
+		return nil, fmt.Errorf("%w：素材大小 size_bytes 必填且须大于 0（单位：字节，上限 %d 字节）",
+			errInvalidInput, pageAssetMaxBytes)
+	}
 	if in.SizeBytes > pageAssetMaxBytes {
 		return nil, fmt.Errorf("%w：素材体积超限（%d 字节 > 上限 %d 字节）", errInvalidInput, in.SizeBytes, pageAssetMaxBytes)
 	}
 	if in.Width > pageImageMaxDim || in.Height > pageImageMaxDim {
 		return nil, fmt.Errorf("%w：素材尺寸须在 %d~%d 之间", errInvalidInput, pageImageMinDim, pageImageMaxDim)
 	}
-	mime, err := resolvePageAssetMime(in.URL, in.Mime)
+	mime, err := resolvePageAssetMime(in.Mime)
 	if err != nil {
 		return nil, err
 	}

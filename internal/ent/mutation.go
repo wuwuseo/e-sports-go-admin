@@ -37477,6 +37477,10 @@ type EsportsCsCommissionEntryMutation struct {
 	status                    *esportscscommissionentry.Status
 	settlement_id             *int
 	addsettlement_id          *int
+	frozen_at                 *time.Time
+	frozen_reason             *string
+	frozen_by_admin_id        *int
+	addfrozen_by_admin_id     *int
 	note                      *string
 	version                   *int
 	addversion                *int
@@ -38544,6 +38548,161 @@ func (m *EsportsCsCommissionEntryMutation) ResetSettlementID() {
 	delete(m.clearedFields, esportscscommissionentry.FieldSettlementID)
 }
 
+// SetFrozenAt sets the "frozen_at" field.
+func (m *EsportsCsCommissionEntryMutation) SetFrozenAt(t time.Time) {
+	m.frozen_at = &t
+}
+
+// FrozenAt returns the value of the "frozen_at" field in the mutation.
+func (m *EsportsCsCommissionEntryMutation) FrozenAt() (r time.Time, exists bool) {
+	v := m.frozen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenAt returns the old "frozen_at" field's value of the EsportsCsCommissionEntry entity.
+// If the EsportsCsCommissionEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsCommissionEntryMutation) OldFrozenAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenAt: %w", err)
+	}
+	return oldValue.FrozenAt, nil
+}
+
+// ClearFrozenAt clears the value of the "frozen_at" field.
+func (m *EsportsCsCommissionEntryMutation) ClearFrozenAt() {
+	m.frozen_at = nil
+	m.clearedFields[esportscscommissionentry.FieldFrozenAt] = struct{}{}
+}
+
+// FrozenAtCleared returns if the "frozen_at" field was cleared in this mutation.
+func (m *EsportsCsCommissionEntryMutation) FrozenAtCleared() bool {
+	_, ok := m.clearedFields[esportscscommissionentry.FieldFrozenAt]
+	return ok
+}
+
+// ResetFrozenAt resets all changes to the "frozen_at" field.
+func (m *EsportsCsCommissionEntryMutation) ResetFrozenAt() {
+	m.frozen_at = nil
+	delete(m.clearedFields, esportscscommissionentry.FieldFrozenAt)
+}
+
+// SetFrozenReason sets the "frozen_reason" field.
+func (m *EsportsCsCommissionEntryMutation) SetFrozenReason(s string) {
+	m.frozen_reason = &s
+}
+
+// FrozenReason returns the value of the "frozen_reason" field in the mutation.
+func (m *EsportsCsCommissionEntryMutation) FrozenReason() (r string, exists bool) {
+	v := m.frozen_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenReason returns the old "frozen_reason" field's value of the EsportsCsCommissionEntry entity.
+// If the EsportsCsCommissionEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsCommissionEntryMutation) OldFrozenReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenReason: %w", err)
+	}
+	return oldValue.FrozenReason, nil
+}
+
+// ResetFrozenReason resets all changes to the "frozen_reason" field.
+func (m *EsportsCsCommissionEntryMutation) ResetFrozenReason() {
+	m.frozen_reason = nil
+}
+
+// SetFrozenByAdminID sets the "frozen_by_admin_id" field.
+func (m *EsportsCsCommissionEntryMutation) SetFrozenByAdminID(i int) {
+	m.frozen_by_admin_id = &i
+	m.addfrozen_by_admin_id = nil
+}
+
+// FrozenByAdminID returns the value of the "frozen_by_admin_id" field in the mutation.
+func (m *EsportsCsCommissionEntryMutation) FrozenByAdminID() (r int, exists bool) {
+	v := m.frozen_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrozenByAdminID returns the old "frozen_by_admin_id" field's value of the EsportsCsCommissionEntry entity.
+// If the EsportsCsCommissionEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsCommissionEntryMutation) OldFrozenByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrozenByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrozenByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrozenByAdminID: %w", err)
+	}
+	return oldValue.FrozenByAdminID, nil
+}
+
+// AddFrozenByAdminID adds i to the "frozen_by_admin_id" field.
+func (m *EsportsCsCommissionEntryMutation) AddFrozenByAdminID(i int) {
+	if m.addfrozen_by_admin_id != nil {
+		*m.addfrozen_by_admin_id += i
+	} else {
+		m.addfrozen_by_admin_id = &i
+	}
+}
+
+// AddedFrozenByAdminID returns the value that was added to the "frozen_by_admin_id" field in this mutation.
+func (m *EsportsCsCommissionEntryMutation) AddedFrozenByAdminID() (r int, exists bool) {
+	v := m.addfrozen_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearFrozenByAdminID clears the value of the "frozen_by_admin_id" field.
+func (m *EsportsCsCommissionEntryMutation) ClearFrozenByAdminID() {
+	m.frozen_by_admin_id = nil
+	m.addfrozen_by_admin_id = nil
+	m.clearedFields[esportscscommissionentry.FieldFrozenByAdminID] = struct{}{}
+}
+
+// FrozenByAdminIDCleared returns if the "frozen_by_admin_id" field was cleared in this mutation.
+func (m *EsportsCsCommissionEntryMutation) FrozenByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportscscommissionentry.FieldFrozenByAdminID]
+	return ok
+}
+
+// ResetFrozenByAdminID resets all changes to the "frozen_by_admin_id" field.
+func (m *EsportsCsCommissionEntryMutation) ResetFrozenByAdminID() {
+	m.frozen_by_admin_id = nil
+	m.addfrozen_by_admin_id = nil
+	delete(m.clearedFields, esportscscommissionentry.FieldFrozenByAdminID)
+}
+
 // SetNote sets the "note" field.
 func (m *EsportsCsCommissionEntryMutation) SetNote(s string) {
 	m.note = &s
@@ -38742,7 +38901,7 @@ func (m *EsportsCsCommissionEntryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsCsCommissionEntryMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 25)
 	if m.idem_key != nil {
 		fields = append(fields, esportscscommissionentry.FieldIdemKey)
 	}
@@ -38796,6 +38955,15 @@ func (m *EsportsCsCommissionEntryMutation) Fields() []string {
 	}
 	if m.settlement_id != nil {
 		fields = append(fields, esportscscommissionentry.FieldSettlementID)
+	}
+	if m.frozen_at != nil {
+		fields = append(fields, esportscscommissionentry.FieldFrozenAt)
+	}
+	if m.frozen_reason != nil {
+		fields = append(fields, esportscscommissionentry.FieldFrozenReason)
+	}
+	if m.frozen_by_admin_id != nil {
+		fields = append(fields, esportscscommissionentry.FieldFrozenByAdminID)
 	}
 	if m.note != nil {
 		fields = append(fields, esportscscommissionentry.FieldNote)
@@ -38853,6 +39021,12 @@ func (m *EsportsCsCommissionEntryMutation) Field(name string) (ent.Value, bool) 
 		return m.Status()
 	case esportscscommissionentry.FieldSettlementID:
 		return m.SettlementID()
+	case esportscscommissionentry.FieldFrozenAt:
+		return m.FrozenAt()
+	case esportscscommissionentry.FieldFrozenReason:
+		return m.FrozenReason()
+	case esportscscommissionentry.FieldFrozenByAdminID:
+		return m.FrozenByAdminID()
 	case esportscscommissionentry.FieldNote:
 		return m.Note()
 	case esportscscommissionentry.FieldVersion:
@@ -38906,6 +39080,12 @@ func (m *EsportsCsCommissionEntryMutation) OldField(ctx context.Context, name st
 		return m.OldStatus(ctx)
 	case esportscscommissionentry.FieldSettlementID:
 		return m.OldSettlementID(ctx)
+	case esportscscommissionentry.FieldFrozenAt:
+		return m.OldFrozenAt(ctx)
+	case esportscscommissionentry.FieldFrozenReason:
+		return m.OldFrozenReason(ctx)
+	case esportscscommissionentry.FieldFrozenByAdminID:
+		return m.OldFrozenByAdminID(ctx)
 	case esportscscommissionentry.FieldNote:
 		return m.OldNote(ctx)
 	case esportscscommissionentry.FieldVersion:
@@ -39049,6 +39229,27 @@ func (m *EsportsCsCommissionEntryMutation) SetField(name string, value ent.Value
 		}
 		m.SetSettlementID(v)
 		return nil
+	case esportscscommissionentry.FieldFrozenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenAt(v)
+		return nil
+	case esportscscommissionentry.FieldFrozenReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenReason(v)
+		return nil
+	case esportscscommissionentry.FieldFrozenByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrozenByAdminID(v)
+		return nil
 	case esportscscommissionentry.FieldNote:
 		v, ok := value.(string)
 		if !ok {
@@ -39121,6 +39322,9 @@ func (m *EsportsCsCommissionEntryMutation) AddedFields() []string {
 	if m.addsettlement_id != nil {
 		fields = append(fields, esportscscommissionentry.FieldSettlementID)
 	}
+	if m.addfrozen_by_admin_id != nil {
+		fields = append(fields, esportscscommissionentry.FieldFrozenByAdminID)
+	}
 	if m.addversion != nil {
 		fields = append(fields, esportscscommissionentry.FieldVersion)
 	}
@@ -39156,6 +39360,8 @@ func (m *EsportsCsCommissionEntryMutation) AddedField(name string) (ent.Value, b
 		return m.AddedStudioRemainderCents()
 	case esportscscommissionentry.FieldSettlementID:
 		return m.AddedSettlementID()
+	case esportscscommissionentry.FieldFrozenByAdminID:
+		return m.AddedFrozenByAdminID()
 	case esportscscommissionentry.FieldVersion:
 		return m.AddedVersion()
 	}
@@ -39251,6 +39457,13 @@ func (m *EsportsCsCommissionEntryMutation) AddField(name string, value ent.Value
 		}
 		m.AddSettlementID(v)
 		return nil
+	case esportscscommissionentry.FieldFrozenByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFrozenByAdminID(v)
+		return nil
 	case esportscscommissionentry.FieldVersion:
 		v, ok := value.(int)
 		if !ok {
@@ -39281,6 +39494,12 @@ func (m *EsportsCsCommissionEntryMutation) ClearedFields() []string {
 	if m.FieldCleared(esportscscommissionentry.FieldSettlementID) {
 		fields = append(fields, esportscscommissionentry.FieldSettlementID)
 	}
+	if m.FieldCleared(esportscscommissionentry.FieldFrozenAt) {
+		fields = append(fields, esportscscommissionentry.FieldFrozenAt)
+	}
+	if m.FieldCleared(esportscscommissionentry.FieldFrozenByAdminID) {
+		fields = append(fields, esportscscommissionentry.FieldFrozenByAdminID)
+	}
 	return fields
 }
 
@@ -39309,6 +39528,12 @@ func (m *EsportsCsCommissionEntryMutation) ClearField(name string) error {
 		return nil
 	case esportscscommissionentry.FieldSettlementID:
 		m.ClearSettlementID()
+		return nil
+	case esportscscommissionentry.FieldFrozenAt:
+		m.ClearFrozenAt()
+		return nil
+	case esportscscommissionentry.FieldFrozenByAdminID:
+		m.ClearFrozenByAdminID()
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsCsCommissionEntry nullable field %s", name)
@@ -39371,6 +39596,15 @@ func (m *EsportsCsCommissionEntryMutation) ResetField(name string) error {
 		return nil
 	case esportscscommissionentry.FieldSettlementID:
 		m.ResetSettlementID()
+		return nil
+	case esportscscommissionentry.FieldFrozenAt:
+		m.ResetFrozenAt()
+		return nil
+	case esportscscommissionentry.FieldFrozenReason:
+		m.ResetFrozenReason()
+		return nil
+	case esportscscommissionentry.FieldFrozenByAdminID:
+		m.ResetFrozenByAdminID()
 		return nil
 	case esportscscommissionentry.FieldNote:
 		m.ResetNote()
@@ -110328,6 +110562,8 @@ type EsportsSettlementMutation struct {
 	entry_count           *int
 	addentry_count        *int
 	status                *esportssettlement.Status
+	version               *int
+	addversion            *int
 	locked_by_admin_id    *int
 	addlocked_by_admin_id *int
 	locked_at             *time.Time
@@ -110335,6 +110571,10 @@ type EsportsSettlementMutation struct {
 	paid_by_admin_id      *int
 	addpaid_by_admin_id   *int
 	paid_at               *time.Time
+	voided_by_admin_id    *int
+	addvoided_by_admin_id *int
+	voided_at             *time.Time
+	void_reason           *string
 	created_at            *time.Time
 	updated_at            *time.Time
 	clearedFields         map[string]struct{}
@@ -110901,6 +111141,62 @@ func (m *EsportsSettlementMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetVersion sets the "version" field.
+func (m *EsportsSettlementMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsSettlementMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsSettlement entity.
+// If the EsportsSettlement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSettlementMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsSettlementMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsSettlementMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsSettlementMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
 // SetLockedByAdminID sets the "locked_by_admin_id" field.
 func (m *EsportsSettlementMutation) SetLockedByAdminID(i int) {
 	m.locked_by_admin_id = &i
@@ -111175,6 +111471,161 @@ func (m *EsportsSettlementMutation) ResetPaidAt() {
 	delete(m.clearedFields, esportssettlement.FieldPaidAt)
 }
 
+// SetVoidedByAdminID sets the "voided_by_admin_id" field.
+func (m *EsportsSettlementMutation) SetVoidedByAdminID(i int) {
+	m.voided_by_admin_id = &i
+	m.addvoided_by_admin_id = nil
+}
+
+// VoidedByAdminID returns the value of the "voided_by_admin_id" field in the mutation.
+func (m *EsportsSettlementMutation) VoidedByAdminID() (r int, exists bool) {
+	v := m.voided_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVoidedByAdminID returns the old "voided_by_admin_id" field's value of the EsportsSettlement entity.
+// If the EsportsSettlement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSettlementMutation) OldVoidedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVoidedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVoidedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVoidedByAdminID: %w", err)
+	}
+	return oldValue.VoidedByAdminID, nil
+}
+
+// AddVoidedByAdminID adds i to the "voided_by_admin_id" field.
+func (m *EsportsSettlementMutation) AddVoidedByAdminID(i int) {
+	if m.addvoided_by_admin_id != nil {
+		*m.addvoided_by_admin_id += i
+	} else {
+		m.addvoided_by_admin_id = &i
+	}
+}
+
+// AddedVoidedByAdminID returns the value that was added to the "voided_by_admin_id" field in this mutation.
+func (m *EsportsSettlementMutation) AddedVoidedByAdminID() (r int, exists bool) {
+	v := m.addvoided_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVoidedByAdminID clears the value of the "voided_by_admin_id" field.
+func (m *EsportsSettlementMutation) ClearVoidedByAdminID() {
+	m.voided_by_admin_id = nil
+	m.addvoided_by_admin_id = nil
+	m.clearedFields[esportssettlement.FieldVoidedByAdminID] = struct{}{}
+}
+
+// VoidedByAdminIDCleared returns if the "voided_by_admin_id" field was cleared in this mutation.
+func (m *EsportsSettlementMutation) VoidedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportssettlement.FieldVoidedByAdminID]
+	return ok
+}
+
+// ResetVoidedByAdminID resets all changes to the "voided_by_admin_id" field.
+func (m *EsportsSettlementMutation) ResetVoidedByAdminID() {
+	m.voided_by_admin_id = nil
+	m.addvoided_by_admin_id = nil
+	delete(m.clearedFields, esportssettlement.FieldVoidedByAdminID)
+}
+
+// SetVoidedAt sets the "voided_at" field.
+func (m *EsportsSettlementMutation) SetVoidedAt(t time.Time) {
+	m.voided_at = &t
+}
+
+// VoidedAt returns the value of the "voided_at" field in the mutation.
+func (m *EsportsSettlementMutation) VoidedAt() (r time.Time, exists bool) {
+	v := m.voided_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVoidedAt returns the old "voided_at" field's value of the EsportsSettlement entity.
+// If the EsportsSettlement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSettlementMutation) OldVoidedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVoidedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVoidedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVoidedAt: %w", err)
+	}
+	return oldValue.VoidedAt, nil
+}
+
+// ClearVoidedAt clears the value of the "voided_at" field.
+func (m *EsportsSettlementMutation) ClearVoidedAt() {
+	m.voided_at = nil
+	m.clearedFields[esportssettlement.FieldVoidedAt] = struct{}{}
+}
+
+// VoidedAtCleared returns if the "voided_at" field was cleared in this mutation.
+func (m *EsportsSettlementMutation) VoidedAtCleared() bool {
+	_, ok := m.clearedFields[esportssettlement.FieldVoidedAt]
+	return ok
+}
+
+// ResetVoidedAt resets all changes to the "voided_at" field.
+func (m *EsportsSettlementMutation) ResetVoidedAt() {
+	m.voided_at = nil
+	delete(m.clearedFields, esportssettlement.FieldVoidedAt)
+}
+
+// SetVoidReason sets the "void_reason" field.
+func (m *EsportsSettlementMutation) SetVoidReason(s string) {
+	m.void_reason = &s
+}
+
+// VoidReason returns the value of the "void_reason" field in the mutation.
+func (m *EsportsSettlementMutation) VoidReason() (r string, exists bool) {
+	v := m.void_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVoidReason returns the old "void_reason" field's value of the EsportsSettlement entity.
+// If the EsportsSettlement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSettlementMutation) OldVoidReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVoidReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVoidReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVoidReason: %w", err)
+	}
+	return oldValue.VoidReason, nil
+}
+
+// ResetVoidReason resets all changes to the "void_reason" field.
+func (m *EsportsSettlementMutation) ResetVoidReason() {
+	m.void_reason = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *EsportsSettlementMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -111281,7 +111732,7 @@ func (m *EsportsSettlementMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsSettlementMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 21)
 	if m.settlement_no != nil {
 		fields = append(fields, esportssettlement.FieldSettlementNo)
 	}
@@ -111312,6 +111763,9 @@ func (m *EsportsSettlementMutation) Fields() []string {
 	if m.status != nil {
 		fields = append(fields, esportssettlement.FieldStatus)
 	}
+	if m.version != nil {
+		fields = append(fields, esportssettlement.FieldVersion)
+	}
 	if m.locked_by_admin_id != nil {
 		fields = append(fields, esportssettlement.FieldLockedByAdminID)
 	}
@@ -111326,6 +111780,15 @@ func (m *EsportsSettlementMutation) Fields() []string {
 	}
 	if m.paid_at != nil {
 		fields = append(fields, esportssettlement.FieldPaidAt)
+	}
+	if m.voided_by_admin_id != nil {
+		fields = append(fields, esportssettlement.FieldVoidedByAdminID)
+	}
+	if m.voided_at != nil {
+		fields = append(fields, esportssettlement.FieldVoidedAt)
+	}
+	if m.void_reason != nil {
+		fields = append(fields, esportssettlement.FieldVoidReason)
 	}
 	if m.created_at != nil {
 		fields = append(fields, esportssettlement.FieldCreatedAt)
@@ -111361,6 +111824,8 @@ func (m *EsportsSettlementMutation) Field(name string) (ent.Value, bool) {
 		return m.EntryCount()
 	case esportssettlement.FieldStatus:
 		return m.Status()
+	case esportssettlement.FieldVersion:
+		return m.Version()
 	case esportssettlement.FieldLockedByAdminID:
 		return m.LockedByAdminID()
 	case esportssettlement.FieldLockedAt:
@@ -111371,6 +111836,12 @@ func (m *EsportsSettlementMutation) Field(name string) (ent.Value, bool) {
 		return m.PaidByAdminID()
 	case esportssettlement.FieldPaidAt:
 		return m.PaidAt()
+	case esportssettlement.FieldVoidedByAdminID:
+		return m.VoidedByAdminID()
+	case esportssettlement.FieldVoidedAt:
+		return m.VoidedAt()
+	case esportssettlement.FieldVoidReason:
+		return m.VoidReason()
 	case esportssettlement.FieldCreatedAt:
 		return m.CreatedAt()
 	case esportssettlement.FieldUpdatedAt:
@@ -111404,6 +111875,8 @@ func (m *EsportsSettlementMutation) OldField(ctx context.Context, name string) (
 		return m.OldEntryCount(ctx)
 	case esportssettlement.FieldStatus:
 		return m.OldStatus(ctx)
+	case esportssettlement.FieldVersion:
+		return m.OldVersion(ctx)
 	case esportssettlement.FieldLockedByAdminID:
 		return m.OldLockedByAdminID(ctx)
 	case esportssettlement.FieldLockedAt:
@@ -111414,6 +111887,12 @@ func (m *EsportsSettlementMutation) OldField(ctx context.Context, name string) (
 		return m.OldPaidByAdminID(ctx)
 	case esportssettlement.FieldPaidAt:
 		return m.OldPaidAt(ctx)
+	case esportssettlement.FieldVoidedByAdminID:
+		return m.OldVoidedByAdminID(ctx)
+	case esportssettlement.FieldVoidedAt:
+		return m.OldVoidedAt(ctx)
+	case esportssettlement.FieldVoidReason:
+		return m.OldVoidReason(ctx)
 	case esportssettlement.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case esportssettlement.FieldUpdatedAt:
@@ -111497,6 +111976,13 @@ func (m *EsportsSettlementMutation) SetField(name string, value ent.Value) error
 		}
 		m.SetStatus(v)
 		return nil
+	case esportssettlement.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
 	case esportssettlement.FieldLockedByAdminID:
 		v, ok := value.(int)
 		if !ok {
@@ -111531,6 +112017,27 @@ func (m *EsportsSettlementMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPaidAt(v)
+		return nil
+	case esportssettlement.FieldVoidedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVoidedByAdminID(v)
+		return nil
+	case esportssettlement.FieldVoidedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVoidedAt(v)
+		return nil
+	case esportssettlement.FieldVoidReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVoidReason(v)
 		return nil
 	case esportssettlement.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -111569,11 +112076,17 @@ func (m *EsportsSettlementMutation) AddedFields() []string {
 	if m.addentry_count != nil {
 		fields = append(fields, esportssettlement.FieldEntryCount)
 	}
+	if m.addversion != nil {
+		fields = append(fields, esportssettlement.FieldVersion)
+	}
 	if m.addlocked_by_admin_id != nil {
 		fields = append(fields, esportssettlement.FieldLockedByAdminID)
 	}
 	if m.addpaid_by_admin_id != nil {
 		fields = append(fields, esportssettlement.FieldPaidByAdminID)
+	}
+	if m.addvoided_by_admin_id != nil {
+		fields = append(fields, esportssettlement.FieldVoidedByAdminID)
 	}
 	return fields
 }
@@ -111593,10 +112106,14 @@ func (m *EsportsSettlementMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedNetCents()
 	case esportssettlement.FieldEntryCount:
 		return m.AddedEntryCount()
+	case esportssettlement.FieldVersion:
+		return m.AddedVersion()
 	case esportssettlement.FieldLockedByAdminID:
 		return m.AddedLockedByAdminID()
 	case esportssettlement.FieldPaidByAdminID:
 		return m.AddedPaidByAdminID()
+	case esportssettlement.FieldVoidedByAdminID:
+		return m.AddedVoidedByAdminID()
 	}
 	return nil, false
 }
@@ -111641,6 +112158,13 @@ func (m *EsportsSettlementMutation) AddField(name string, value ent.Value) error
 		}
 		m.AddEntryCount(v)
 		return nil
+	case esportssettlement.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
 	case esportssettlement.FieldLockedByAdminID:
 		v, ok := value.(int)
 		if !ok {
@@ -111654,6 +112178,13 @@ func (m *EsportsSettlementMutation) AddField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddPaidByAdminID(v)
+		return nil
+	case esportssettlement.FieldVoidedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVoidedByAdminID(v)
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsSettlement numeric field %s", name)
@@ -111674,6 +112205,12 @@ func (m *EsportsSettlementMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(esportssettlement.FieldPaidAt) {
 		fields = append(fields, esportssettlement.FieldPaidAt)
+	}
+	if m.FieldCleared(esportssettlement.FieldVoidedByAdminID) {
+		fields = append(fields, esportssettlement.FieldVoidedByAdminID)
+	}
+	if m.FieldCleared(esportssettlement.FieldVoidedAt) {
+		fields = append(fields, esportssettlement.FieldVoidedAt)
 	}
 	return fields
 }
@@ -111700,6 +112237,12 @@ func (m *EsportsSettlementMutation) ClearField(name string) error {
 		return nil
 	case esportssettlement.FieldPaidAt:
 		m.ClearPaidAt()
+		return nil
+	case esportssettlement.FieldVoidedByAdminID:
+		m.ClearVoidedByAdminID()
+		return nil
+	case esportssettlement.FieldVoidedAt:
+		m.ClearVoidedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsSettlement nullable field %s", name)
@@ -111739,6 +112282,9 @@ func (m *EsportsSettlementMutation) ResetField(name string) error {
 	case esportssettlement.FieldStatus:
 		m.ResetStatus()
 		return nil
+	case esportssettlement.FieldVersion:
+		m.ResetVersion()
+		return nil
 	case esportssettlement.FieldLockedByAdminID:
 		m.ResetLockedByAdminID()
 		return nil
@@ -111753,6 +112299,15 @@ func (m *EsportsSettlementMutation) ResetField(name string) error {
 		return nil
 	case esportssettlement.FieldPaidAt:
 		m.ResetPaidAt()
+		return nil
+	case esportssettlement.FieldVoidedByAdminID:
+		m.ResetVoidedByAdminID()
+		return nil
+	case esportssettlement.FieldVoidedAt:
+		m.ResetVoidedAt()
+		return nil
+	case esportssettlement.FieldVoidReason:
+		m.ResetVoidReason()
 		return nil
 	case esportssettlement.FieldCreatedAt:
 		m.ResetCreatedAt()
