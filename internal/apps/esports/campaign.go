@@ -31,10 +31,22 @@ type campaignInput struct {
 	Tiers               []schema.CampaignTier `json:"tiers"`
 	Audience            string                `json:"audience"`
 	AudienceCustomerIDs []int                 `json:"audience_customer_ids"`
-	StackRule           string                `json:"stack_rule"`
-	BonusValidDays      int                   `json:"bonus_valid_days"`
-	StartsAt            time.Time             `json:"starts_at"`
-	EndsAt              time.Time             `json:"ends_at"`
+	// 陪玩受众（§11.2-01）：audience=player 时按陪玩 ID 命中，奖励可入陪玩猫粮。
+	AudiencePlayerIDs []int `json:"audience_player_ids"`
+	// 奖励目标账户（§11.2-01）：customer_balance 入客户余额 / player_catfood 入陪玩猫粮。
+	TargetAccountType string    `json:"target_account_type"`
+	StackRule         string    `json:"stack_rule"`
+	BonusValidDays    int       `json:"bonus_valid_days"`
+	StartsAt          time.Time `json:"starts_at"`
+	EndsAt            time.Time `json:"ends_at"`
+}
+
+// normalizeCampaignTargetAccount 归一化奖励目标账户；留空按客户余额（兼容存量活动）。
+func normalizeCampaignTargetAccount(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return string(esportsrechargecampaign.TargetAccountTypeCustomerBalance)
+	}
+	return strings.TrimSpace(value)
 }
 
 // validateCampaignInput 校验活动配置；任一不满足返回 errInvalidInput，调用方不得写库。
@@ -78,6 +90,41 @@ func validateCampaignInput(in campaignInput) error {
 			}
 			seen[id] = true
 		}
+	case "player":
+		// 陪玩受众（§11.2-01）：必须给出陪玩 ID 列表，且不与客户受众字段混用。
+		if len(in.AudiencePlayerIDs) == 0 || len(in.AudienceCustomerIDs) > 0 {
+			return errInvalidInput
+		}
+		seen := map[int]bool{}
+		for _, id := range in.AudiencePlayerIDs {
+			if id < 1 || seen[id] {
+				return errInvalidInput
+			}
+			seen[id] = true
+		}
+	default:
+		return errInvalidInput
+	}
+	// 目标账户与受众必须自洽（§11.2-01）：猫粮奖励只能发给陪玩受众；
+	// 陪玩受众只能配猫粮目标账户（客户余额活动不接受陪玩受众）。
+	switch normalizeCampaignTargetAccount(in.TargetAccountType) {
+	case string(esportsrechargecampaign.TargetAccountTypeCustomerBalance):
+		if in.Audience == "player" {
+			return errInvalidInput
+		}
+	case string(esportsrechargecampaign.TargetAccountTypePlayerCatfood):
+		if in.Audience != "player" && in.Audience != "all" {
+			return errInvalidInput
+		}
+		if in.Audience == "all" && len(in.AudiencePlayerIDs) > 0 {
+			return errInvalidInput
+		}
+		if in.Audience == "player" && len(in.AudiencePlayerIDs) == 0 {
+			return errInvalidInput
+		}
+		if in.Audience == "new_customer" || in.Audience == "specified" {
+			return errInvalidInput
+		}
 	default:
 		return errInvalidInput
 	}
@@ -99,6 +146,8 @@ func createCampaign(ctx context.Context, db *ent.Client, in campaignInput) (*ent
 		SetActivityType(esportsrechargecampaign.ActivityType(in.ActivityType)).
 		SetTiers(in.Tiers).SetAudience(esportsrechargecampaign.Audience(in.Audience)).
 		SetAudienceCustomerIds(in.AudienceCustomerIDs).
+		SetAudiencePlayerIds(in.AudiencePlayerIDs).
+		SetTargetAccountType(esportsrechargecampaign.TargetAccountType(normalizeCampaignTargetAccount(in.TargetAccountType))).
 		SetStackRule(esportsrechargecampaign.StackRule(in.StackRule)).
 		SetBonusValidDays(in.BonusValidDays).
 		SetStartsAt(in.StartsAt.UTC()).SetEndsAt(in.EndsAt.UTC()).
@@ -127,6 +176,8 @@ func updateCampaign(ctx context.Context, db *ent.Client, id, expectedVersion int
 		SetActivityType(esportsrechargecampaign.ActivityType(in.ActivityType)).
 		SetTiers(in.Tiers).SetAudience(esportsrechargecampaign.Audience(in.Audience)).
 		SetAudienceCustomerIds(in.AudienceCustomerIDs).
+		SetAudiencePlayerIds(in.AudiencePlayerIDs).
+		SetTargetAccountType(esportsrechargecampaign.TargetAccountType(normalizeCampaignTargetAccount(in.TargetAccountType))).
 		SetStackRule(esportsrechargecampaign.StackRule(in.StackRule)).
 		SetBonusValidDays(in.BonusValidDays).
 		SetStartsAt(in.StartsAt.UTC()).SetEndsAt(in.EndsAt.UTC()).AddVersion(1).Save(ctx)
@@ -216,32 +267,41 @@ func campaignTierBonus(tiers []schema.CampaignTier, principalCents int64) (match
 	return matchedThreshold, bonusCents
 }
 
-// resolveRechargeBonus 按实充金额与客户资格解析充值赠送：阶梯取最高档，多活动按叠加规则处理，
+// resolveRechargeBonus 按实充金额与受众资格解析充值赠送：阶梯取最高档，多活动按叠加规则处理，
 // 并产出写入钱包流水的规则快照。无命中返回 (0, nil, nil, nil)。
-func resolveRechargeBonus(ctx context.Context, db *ent.Client, customerID int, principalCents int64, now time.Time) (int64, map[string]any, *time.Time, error) {
+//
+// targetAccountType 决定受众口径（§11.2-01）：customer_balance 按客户受众
+// （all / new_customer / specified 客户 ID）匹配；player_catfood 按陪玩受众
+// （all / player + audience_player_ids）匹配，ownerID 即陪玩 ID。
+func resolveRechargeBonus(ctx context.Context, db *ent.Client, targetAccountType string,
+	ownerID int, principalCents int64, now time.Time) (int64, map[string]any, *time.Time, error) {
+	targetAccountType = normalizeCampaignTargetAccount(targetAccountType)
 	utc := now.UTC()
 	active, err := db.EsportsRechargeCampaign.Query().Where(
 		esportsrechargecampaign.StatusEQ(esportsrechargecampaign.StatusActive),
+		esportsrechargecampaign.TargetAccountTypeEQ(esportsrechargecampaign.TargetAccountType(targetAccountType)),
 		esportsrechargecampaign.StartsAtLTE(utc),
 		esportsrechargecampaign.EndsAtGTE(utc),
 	).Order(ent.Asc(esportsrechargecampaign.FieldID)).All(ctx)
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	// 新客判定：无任何 customer_balance recharge 流水即为新客。仅当存在新客活动时才查询。
+	// 新客判定：无任何 customer_balance recharge 流水即为新客。仅客户余额活动使用该口径。
 	hasPriorRecharge := false
-	for _, campaign := range active {
-		if campaign.Audience == esportsrechargecampaign.AudienceNewCustomer {
-			exists, err := db.EsportsWalletTx.Query().Where(
-				esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeCustomerBalance),
-				esportswallettx.OwnerIDEQ(customerID),
-				esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeRecharge),
-			).Exist(ctx)
-			if err != nil {
-				return 0, nil, nil, err
+	if targetAccountType == string(esportsrechargecampaign.TargetAccountTypeCustomerBalance) {
+		for _, campaign := range active {
+			if campaign.Audience == esportsrechargecampaign.AudienceNewCustomer {
+				exists, err := db.EsportsWalletTx.Query().Where(
+					esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeCustomerBalance),
+					esportswallettx.OwnerIDEQ(ownerID),
+					esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeRecharge),
+				).Exist(ctx)
+				if err != nil {
+					return 0, nil, nil, err
+				}
+				hasPriorRecharge = exists
+				break
 			}
-			hasPriorRecharge = exists
-			break
 		}
 	}
 	type campaignHit struct {
@@ -260,7 +320,18 @@ func resolveRechargeBonus(ctx context.Context, db *ent.Client, customerID int, p
 		case esportsrechargecampaign.AudienceSpecified:
 			matched := false
 			for _, id := range campaign.AudienceCustomerIds {
-				if id == customerID {
+				if id == ownerID {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				continue
+			}
+		case esportsrechargecampaign.AudiencePlayer:
+			matched := false
+			for _, id := range campaign.AudiencePlayerIds {
+				if id == ownerID {
 					matched = true
 					break
 				}
@@ -321,6 +392,7 @@ func resolveRechargeBonus(ctx context.Context, db *ent.Client, customerID int, p
 			"matched_threshold_cents": hit.threshold,
 			"bonus_cents":             hit.bonus,
 			"audience":                hit.campaign.Audience.String(),
+			"target_account_type":     hit.campaign.TargetAccountType.String(),
 			"bonus_valid_days":        hit.campaign.BonusValidDays,
 			"bonus_expires_at": func() string {
 				if hit.campaign.BonusValidDays <= 0 {
@@ -343,16 +415,16 @@ func resolveRechargeBonus(ctx context.Context, db *ent.Client, customerID int, p
 	return totalBonus, snapshot, expiresAt, nil
 }
 
-// rechargeWithCampaigns 按活动充值：只接受 customer_balance；事务内解析活动赠送并写一条
-// 充值流水（本金 / 赠送分列，附规则快照与赠送有效期）。重复幂等键返回 errConflict。
+// rechargeWithCampaigns 按活动充值（§4.5 / §11.2-01）：接受客户余额与陪玩猫粮两类账户；
+// 事务内按目标账户口径解析活动赠送并写一条充值流水（本金 / 赠送分列，附规则快照与赠送有效期）。
+// 重复幂等键返回 errConflict。
 // 余额拆分记账＝本金与赠送同一条流水分列（principal_delta_cents / bonus_delta_cents），
-// 符合「进入不同来源批次」的记账要求。
+// 批次账本同口径分列（principal_delta_cents / bonus_delta_cents，§4.5-04）。
 func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, accountType string,
 	ownerID int, principalCents int64, note, key string, now time.Time) (*walletAccountView, error) {
 	normalized, err := normalizeWalletType(accountType)
-	if err != nil || normalized != walletCustomerBalance {
-		// 陪玩猫粮属结算发放，不接受充值活动。
-		return nil, errInvalidInput
+	if err != nil {
+		return nil, err
 	}
 	note = strings.TrimSpace(note)
 	key = strings.TrimSpace(key)
@@ -375,7 +447,7 @@ func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, 
 	if account.Status != esportswalletaccount.StatusActive {
 		return nil, errConflict
 	}
-	bonus, snapshot, expiresAt, err := resolveRechargeBonus(ctx, tx.Client(), ownerID, principalCents, now)
+	bonus, snapshot, expiresAt, err := resolveRechargeBonus(ctx, tx.Client(), normalized, ownerID, principalCents, now)
 	if err != nil {
 		return nil, err
 	}
@@ -393,14 +465,24 @@ func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, 
 // 规则快照与赠送有效期），source_type 固定为 recharge_campaign。赠送额与快照由调用方给定：
 // rechargeWithCampaigns 在事务内即时匹配活动，充值独立支付意图则按发起时锁定的活动快照传入，
 // 两处落库口径完全一致，避免赠送随活动变更漂移。
+// 流水同时落归属人、资金批次与变动前后余额（§11.6-02）；批次账本按本金/赠送分列（§4.5-04）。
 func writeCampaignRechargeTx(ctx context.Context, tx *ent.Tx, operatorID int, normalized string,
 	ownerID int, principalCents, bonusCents int64, snapshot map[string]any, expiresAt *time.Time,
 	note, key string) error {
+	before, err := walletBalanceTx(ctx, tx, normalized, ownerID)
+	if err != nil {
+		return err
+	}
+	beneficiaryType, beneficiaryID := walletBeneficiaryFor(normalized, ownerID)
 	create := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountType(normalized)).SetOwnerID(ownerID).
 		SetEntryType(esportswallettx.EntryTypeRecharge).
 		SetPrincipalDeltaCents(principalCents).SetBonusDeltaCents(bonusCents).
 		SetSourceType(campaignSourceType).SetSourceID(key).
+		SetBeneficiaryType(beneficiaryType).SetBeneficiaryID(beneficiaryID).
+		SetBalanceBeforeCents(before.total()).
+		SetBalanceAfterCents(before.total() + principalCents + bonusCents).
+		SetFundBatch(key).
 		SetOperatorID(operatorID).SetNote(note)
 	if snapshot != nil {
 		create.SetRuleSnapshot(snapshot)
@@ -415,12 +497,13 @@ func writeCampaignRechargeTx(ctx context.Context, tx *ent.Tx, operatorID int, no
 		return err
 	}
 	if batchCents := principalCents + bonusCents; batchCents > 0 {
-		// 批次账本（§4.5）：活动充值的本金+赠送同样写入 recharge_batch，
-		// 供消费分摊与按批次退款还原；与手工充值保持同一口径。
+		// 批次账本（§4.5 / §4.5-04）：活动充值的本金 + 赠送同样写入 recharge_batch，
+		// 且本金 / 赠送分列，供消费分摊与按批次退款还原分辨来源性质。
 		if _, err := tx.EsportsLedgerEntry.Create().
 			SetAccountType(normalized).SetAccountID(strconv.Itoa(ownerID)).
 			SetSourceType(campaignSourceType).SetSourceID(key).
 			SetEntryRole("recharge_batch").SetDeltaCents(batchCents).
+			SetPrincipalDeltaCents(principalCents).SetBonusDeltaCents(bonusCents).
 			SetFundBatch(key).Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				return errConflict
@@ -605,11 +688,25 @@ func expireOwnerBonus(ctx context.Context, db *ent.Client, ownerID int, now time
 			SetEntryType(esportswallettx.EntryTypeExpire).
 			SetPrincipalDeltaCents(0).SetBonusDeltaCents(-batch.remaining).
 			SetSourceType(campaignSourceType).SetSourceID(batch.sourceID).
+			SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(ownerID).
 			SetNote("赠送权益到期作废").Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				// 该批次此前已作废，跳过即可。
 				continue
 			}
+			return count, err
+		}
+		// 批次账本同步减少并登记分摊（§4.5-04）：赠送到期作废也要能在批次层追溯到。
+		if _, err = tx.EsportsLedgerEntry.Create().
+			SetAccountType(walletCustomerBalance).SetAccountID(strconv.Itoa(ownerID)).
+			SetSourceType(campaignSourceType).SetSourceID(batch.sourceID).
+			SetEntryRole("bonus_expire").SetDeltaCents(-batch.remaining).
+			SetPrincipalDeltaCents(0).SetBonusDeltaCents(-batch.remaining).Save(ctx); err != nil {
+			if !ent.IsConstraintError(err) {
+				return count, err
+			}
+		} else if err = allocateLedgerConsumptionWithComposition(ctx, tx, walletCustomerBalance,
+			strconv.Itoa(ownerID), campaignSourceType, batch.sourceID, 0, batch.remaining); err != nil {
 			return count, err
 		}
 		count++

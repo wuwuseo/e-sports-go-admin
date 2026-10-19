@@ -102,6 +102,16 @@ func userWalletDisplayHandler(c fiber.Ctx) error {
 
 func (b walletBalance) total() int64 { return b.PrincipalCents + b.BonusCents }
 
+// walletBeneficiaryFor 由账户类型推出归属人（§11.6-02）：客户余额归属客户、陪玩猫粮归属陪玩。
+// account_type=stored_value_card 的归属人须查卡上的 customer_id，不在本函数覆盖范围
+// （卡账户的写入点自行解析后 SetBeneficiaryID）。
+func walletBeneficiaryFor(accountType string, ownerID int) (esportswallettx.BeneficiaryType, int) {
+	if accountType == walletPlayerCatfood {
+		return esportswallettx.BeneficiaryTypePlayer, ownerID
+	}
+	return esportswallettx.BeneficiaryTypeCustomer, ownerID
+}
+
 func normalizeWalletType(accountType string) (string, error) {
 	switch strings.TrimSpace(accountType) {
 	case walletCustomerBalance:
@@ -254,10 +264,73 @@ func listWalletTransactions(ctx context.Context, db *ent.Client, accountType str
 	if limit < 1 || limit > 500 {
 		limit = 200
 	}
-	return db.EsportsWalletTx.Query().Where(
+	rows, err := db.EsportsWalletTx.Query().Where(
 		esportswallettx.AccountTypeEQ(esportswallettx.AccountType(normalized)),
 		esportswallettx.OwnerIDEQ(ownerID),
 	).Order(ent.Desc(esportswallettx.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err = backfillWalletTxSelfProving(ctx, db, normalized, ownerID, rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// backfillWalletTxSelfProving 为「未快照」的历史流水补齐读模型字段（§11.6-02）：归属人、资金批次、
+// 变动前后余额。只改内存中的返回副本，不落库（钱包流水只增不改）。
+// 已写入的三项保持原值；仅当字段确为未快照（归属人 0 / 批次空 / 前后余额均为 0）时才派生。
+func backfillWalletTxSelfProving(ctx context.Context, db *ent.Client, accountType string, ownerID int,
+	rows []*ent.EsportsWalletTx) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	derivedType, derivedID := walletBeneficiaryFor(accountType, ownerID)
+	if accountType == walletStoredValueCard {
+		if card, err := db.EsportsStoredValueCard.Get(ctx, ownerID); err == nil {
+			derivedType, derivedID = esportswallettx.BeneficiaryTypeCustomer, card.CustomerID
+		}
+	}
+	needBalance := false
+	for _, row := range rows {
+		row.BeneficiaryType, row.BeneficiaryID = derivedType, derivedID
+		if row.FundBatch == "" && row.EntryType == esportswallettx.EntryTypeRecharge {
+			row.FundBatch = row.SourceID
+		}
+		if row.BalanceBeforeCents == 0 && row.BalanceAfterCents == 0 {
+			needBalance = true
+		}
+	}
+	if !needBalance {
+		return nil
+	}
+	// 按 ID 升序重放该账户全部流水，得到每笔的变动前后余额。
+	all, err := db.EsportsWalletTx.Query().Where(
+		esportswallettx.AccountTypeEQ(esportswallettx.AccountType(accountType)),
+		esportswallettx.OwnerIDEQ(ownerID),
+	).Order(ent.Asc(esportswallettx.FieldID)).
+		Select(esportswallettx.FieldID, esportswallettx.FieldPrincipalDeltaCents,
+			esportswallettx.FieldBonusDeltaCents).All(ctx)
+	if err != nil {
+		return err
+	}
+	type snapshot struct{ before, after int64 }
+	replay := make(map[int]snapshot, len(all))
+	var running int64
+	for _, row := range all {
+		before := running
+		running += row.PrincipalDeltaCents + row.BonusDeltaCents
+		replay[row.ID] = snapshot{before: before, after: running}
+	}
+	for _, row := range rows {
+		if row.BalanceBeforeCents != 0 || row.BalanceAfterCents != 0 {
+			continue
+		}
+		if item, ok := replay[row.ID]; ok {
+			row.BalanceBeforeCents, row.BalanceAfterCents = item.before, item.after
+		}
+	}
+	return nil
 }
 
 // walletRecharge 充值 / 发放本金与赠送权益。本金与赠送同事务写入同一条流水，分列记账。
@@ -311,22 +384,29 @@ func walletEntry(ctx context.Context, db *ent.Client, operatorID int, accountTyp
 		return nil, errInsufficientBalance
 	}
 	txNo := uuid.NewString()
+	beneficiaryType, beneficiaryID := walletBeneficiaryFor(normalized, ownerID)
 	if _, err = tx.EsportsWalletTx.Create().SetTxNo(txNo).
 		SetAccountType(esportswallettx.AccountType(normalized)).SetOwnerID(ownerID).
 		SetEntryType(entryType).SetPrincipalDeltaCents(in.PrincipalCents).
 		SetBonusDeltaCents(in.BonusCents).SetSourceType("manual_" + entryType.String()).
-		SetSourceID(key).SetOperatorID(operatorID).SetNote(in.Note).Save(ctx); err != nil {
+		SetSourceID(key).SetOperatorID(operatorID).SetNote(in.Note).
+		SetBeneficiaryType(beneficiaryType).SetBeneficiaryID(beneficiaryID).
+		SetBalanceBeforeCents(current.total()).
+		SetBalanceAfterCents(current.total() + in.PrincipalCents + in.BonusCents).
+		SetFundBatch(key).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
 		}
 		return nil, err
 	}
-	// 批次账本（§4.5）：充值的正向部分写入批次，供消费时按批次逐笔扣减（§4.3）。
+	// 批次账本（§4.5 / §4.5-04）：充值的正向部分写入批次，本金 / 赠送分列，
+	// 供消费时按批次逐笔扣减（§4.3）与按来源性质还原。
 	if batchCents := in.PrincipalCents + in.BonusCents; batchCents > 0 {
 		if _, err = tx.EsportsLedgerEntry.Create().
 			SetAccountType(normalized).SetAccountID(strconv.Itoa(ownerID)).
 			SetSourceType("wallet_tx").SetSourceID(txNo).
 			SetEntryRole("recharge_batch").SetDeltaCents(batchCents).
+			SetPrincipalDeltaCents(in.PrincipalCents).SetBonusDeltaCents(in.BonusCents).
 			SetFundBatch(key).Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				return nil, errConflict
@@ -412,6 +492,8 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 		SetEntryType(esportswallettx.EntryTypeConsume).
 		SetPrincipalDeltaCents(-principalDeduct).SetBonusDeltaCents(-bonusDeduct).
 		SetSourceType("order").SetSourceID(order.OrderNo).
+		SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(customer.ID).
+		SetBalanceBeforeCents(balance.total()).SetBalanceAfterCents(balance.total() - payable).
 		SetOperatorID(adminID).SetNote("订单余额核销").Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
@@ -466,9 +548,10 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 		SetDeltaCents(payable).Save(ctx); err != nil {
 		return nil, err
 	}
-	// 批次级逐笔扣减（§4.3 / §4.5）：记录本次余额消费动用了哪些充值批次。
-	if err = allocateLedgerConsumption(ctx, tx, walletCustomerBalance, strconv.Itoa(customer.ID),
-		"order", order.OrderNo, payable); err != nil {
+	// 批次级逐笔扣减（§4.3 / §4.5 / §4.5-04）：记录本次余额消费动用了哪些充值批次，
+	// 并按实际扣减构成分别记本金 / 赠送动用量。
+	if err = allocateLedgerConsumptionWithComposition(ctx, tx, walletCustomerBalance, strconv.Itoa(customer.ID),
+		"order", order.OrderNo, principalDeduct, bonusDeduct); err != nil {
 		return nil, err
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).

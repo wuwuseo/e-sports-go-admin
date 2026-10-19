@@ -20,6 +20,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/predicate"
+	"go-admin/internal/ent/systemconfig"
 )
 
 // errExecutionFailed 标记"售后方案执行失败"（区别于可重试的并发冲突 / 配置缺失），
@@ -247,6 +248,13 @@ func activeAfterSaleStatuses() []esportsaftersale.Status {
 	}
 }
 
+// activeAfterSaleDedupKey 是「同来源同问题至多一张进行中售后单」的唯一索引兜底键（§13.2-09）：
+// 建单时写入 <source_type>:<source_id>:<kind>，落终态时清空为 NULL 释放额度。
+// 先查后建只能挡住顺序提交，并发下两张事务都会通过查重，必须由 DB 唯一索引兜底。
+func activeAfterSaleDedupKey(sourceType string, sourceID int, kind string) string {
+	return sourceType + ":" + strconv.Itoa(sourceID) + ":" + kind
+}
+
 // afterSaleCreateOptions 控制事务内创建售后单时的留痕身份：
 // 客服入口记为 admin，客户自助记为 customer，陪玩申诉记为 player，系统自动建单记为 system。
 type afterSaleCreateOptions struct {
@@ -310,7 +318,9 @@ func createAfterSaleTx(ctx context.Context, tx *ent.Tx, in afterSaleInput, opts 
 		SetSourceType(esportsaftersale.SourceType(in.SourceType)).SetSourceID(in.SourceID).
 		SetKind(esportsaftersale.Kind(in.Kind)).SetChannel(esportsaftersale.Channel(in.Channel)).
 		SetDemand(in.Demand).SetExpectedPlan(in.ExpectedPlan).SetEvidenceRef(in.EvidenceRef).
-		SetContact(in.Contact).SetStatus(esportsaftersale.StatusPendingAccept)
+		SetContact(in.Contact).SetStatus(esportsaftersale.StatusPendingAccept).
+		// §13.2-09：进行中唯一键，DB 唯一索引兜底并发重复建单。
+		SetActiveDedupKey(activeAfterSaleDedupKey(in.SourceType, in.SourceID, in.Kind))
 	if source.CustomerID != nil {
 		create.SetCustomerID(*source.CustomerID)
 	}
@@ -496,6 +506,180 @@ func afterSaleRefundReserveCents(ctx context.Context, client *ent.Client,
 	return total, nil
 }
 
+// 退款大额复核的门槛与财务角色配置键（§3.3-09 / §13.5-02）。
+const (
+	afterSaleRefundReviewThresholdKey = "app.esports.aftersale_refund_review_threshold_cents"
+	afterSaleRefundFinanceRolesKey    = "app.esports.aftersale_refund_finance_role_names"
+)
+
+// afterSaleRefundPolicy 退款金额分流门槛与财务复核角色（§3.3-09 / §13.5-02）。
+type afterSaleRefundPolicy struct {
+	// ReviewThresholdCents 达该金额（分）的退款审批 / 执行须财务复核；≤0（未配置或非法）表示不启用金额分流。
+	ReviewThresholdCents int64
+	// FinanceRoleNames 具备财务复核资格的角色名（逗号分隔配置）；为空表示未配置，
+	// 此时大额退款明确降级为「仅超级管理员可复核」，不静默放行。
+	FinanceRoleNames []string
+}
+
+// afterSaleRefundPolicyOf 读取退款复核门槛与财务角色配置；缺失 / 非法回落「不启用分流 + 未配置角色」。
+func afterSaleRefundPolicyOf(ctx context.Context, db *ent.Client) afterSaleRefundPolicy {
+	items, err := db.SystemConfig.Query().Where(systemconfig.KeyIn(
+		afterSaleRefundReviewThresholdKey, afterSaleRefundFinanceRolesKey,
+	)).Select(systemconfig.FieldKey, systemconfig.FieldValue).All(ctx)
+	if err != nil {
+		return afterSaleRefundPolicy{}
+	}
+	values := map[string]string{}
+	for _, item := range items {
+		values[item.Key] = strings.TrimSpace(item.Value)
+	}
+	policy := afterSaleRefundPolicy{}
+	if value, err := strconv.ParseInt(values[afterSaleRefundReviewThresholdKey], 10, 64); err == nil && value > 0 {
+		policy.ReviewThresholdCents = value
+	}
+	for _, part := range strings.Split(values[afterSaleRefundFinanceRolesKey], ",") {
+		if name := strings.TrimSpace(part); name != "" {
+			policy.FinanceRoleNames = append(policy.FinanceRoleNames, name)
+		}
+	}
+	return policy
+}
+
+// afterSaleRefundReviewer 当前操作人的资金复核资格：由 handler 从登录态解析；
+// 内部无身份入口（测试 / 任务）给零值 = 未解析，一律按「非财务角色」处理，不静默放行。
+type afterSaleRefundReviewer struct {
+	IsSuper   bool
+	RoleNames []string
+}
+
+// financeQualified 是否具备财务复核资格：超级管理员直接放行，否则活跃角色名须命中配置角色。
+func (r afterSaleRefundReviewer) financeQualified(policy afterSaleRefundPolicy) bool {
+	if r.IsSuper {
+		return true
+	}
+	for _, name := range r.RoleNames {
+		for _, allowed := range policy.FinanceRoleNames {
+			if name == allowed {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ensureAfterSaleRefundFinanceReview 退款审批 / 执行的金额门槛与财务角色绑定（§3.3-09 / §13.5-02）：
+//   - 未配置门槛（≤0）或未达门槛：直接放行（既有流程不变）；
+//   - 达门槛：须超级管理员或配置的财务角色，否则 errForbidden（不把大额资金动作交给普通客服）。
+func ensureAfterSaleRefundFinanceReview(policy afterSaleRefundPolicy, amountCents int64,
+	reviewer afterSaleRefundReviewer) error {
+	if policy.ReviewThresholdCents <= 0 || amountCents < policy.ReviewThresholdCents {
+		return nil
+	}
+	if reviewer.financeQualified(policy) {
+		return nil
+	}
+	return fmt.Errorf("%w：退款金额 %d 分已达 %d 分的财务复核门槛，须管理员 / 财务角色复核",
+		errForbidden, amountCents, policy.ReviewThresholdCents)
+}
+
+// afterSaleReviewAmountCents 资金复核门槛判定的金额口径：单动作取方案赔付额（退原款 / 补偿权益同样计入），
+// 多动作方案取资金类动作项（refund + compensate）金额之和；补履约 / 无资金动作返回 0。
+// 不限来源类型：礼物 / 储值卡 / 充值的售后赔付同样是大额资金动作，一并纳入财务复核门槛。
+func afterSaleReviewAmountCents(ctx context.Context, client *ent.Client,
+	item *ent.EsportsAfterSale) (int64, error) {
+	if item == nil {
+		return 0, nil
+	}
+	actions, err := client.EsportsAfterSaleAction.Query().Where(
+		esportsaftersaleaction.AfterSaleIDEQ(item.ID),
+	).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(actions) == 0 {
+		if item.PlanAction == esportsaftersale.PlanActionNone {
+			return 0, nil
+		}
+		return max(item.RefundCents, 0), nil
+	}
+	var total int64
+	for _, action := range actions {
+		switch action.ActionType {
+		case esportsaftersaleaction.ActionTypeRefund, esportsaftersaleaction.ActionTypeCompensate:
+			total += action.AmountCents
+		}
+	}
+	return total, nil
+}
+
+// afterSaleShortfallBp 计算订单未履约比例（基点，0~10000）：(承诺量 − 已履约量) / 承诺量。
+// 承诺量缺失或已履约量达标时返回 0（不折算）；已履约量超过承诺量按 0 收口。
+func afterSaleShortfallBp(promisedUnits, servedUnits int64) int {
+	if promisedUnits <= 0 {
+		return 0
+	}
+	unfulfilled := promisedUnits - servedUnits
+	if unfulfilled <= 0 {
+		return 0
+	}
+	if unfulfilled > promisedUnits {
+		unfulfilled = promisedUnits
+	}
+	return int(unfulfilled * 10000 / promisedUnits)
+}
+
+// estimateProratedRefundCents 按未履约比例折算应退金额（分）：向下取整（尾差归平台），不超过可退基数。
+func estimateProratedRefundCents(refundableCents int64, shortfallBp int) int64 {
+	if refundableCents <= 0 || shortfallBp <= 0 {
+		return 0
+	}
+	if shortfallBp > 10000 {
+		shortfallBp = 10000
+	}
+	return refundableCents * int64(shortfallBp) / 10000
+}
+
+// afterSalePlanNeedsRefundAmount 方案动作是否属于「资金赔付」口径（退原核销款 / 补偿权益），
+// 未手填金额时按不足比例折算（§13.4-02）。
+func afterSalePlanNeedsRefundAmount(action string) bool {
+	return action == "refund_original" || action == "compensate"
+}
+
+// proratedRefundForOrderSource 按订单服务量不足比例折算应退金额（§13.4-02）：
+// 已履约量取订单全部服务段 reported_units 之和，承诺量含加钟（与 service_terminate.go 同口径）；
+// 可退基数 = 应付额 − 已退 − 已预占（未审批时为应付额全额）。非订单来源返回 0（无服务量可比）。
+func proratedRefundForOrderSource(ctx context.Context, client *ent.Client,
+	item *ent.EsportsAfterSale) (int64, error) {
+	if item == nil || item.SourceType != esportsaftersale.SourceTypeOrder {
+		return 0, nil
+	}
+	order, err := client.EsportsOrder.Get(ctx, item.SourceID)
+	if err != nil {
+		return 0, err
+	}
+	segments, err := client.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(order.ID),
+	).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var servedUnits int64
+	for _, segment := range segments {
+		servedUnits += segment.ReportedUnits
+	}
+	promisedUnits := order.PromisedServiceUnits + order.AddonUnits
+	// §12.5-02：可退上界 = 服务应付 + 加钟已收款（加钟已收由只增流水求和派生）。
+	addonReceived, err := addonReceivedCents(ctx, client, order.ID)
+	if err != nil {
+		return 0, err
+	}
+	refundable := order.PayableCents + addonReceived - order.RefundedCents - order.RefundReservedCents
+	if refundable < 0 {
+		refundable = 0
+	}
+	return estimateProratedRefundCents(refundable, afterSaleShortfallBp(promisedUnits, servedUnits)), nil
+}
+
 // acceptAfterSale 受理：pending_accept → processing，记录处理客服。
 // 受理即冻结该订单待结算的分成明细（§12.6 争议冻结），争议终结时解冻。
 func acceptAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
@@ -601,6 +785,23 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		makeupPlayerID, makeupSeatIndex = &playerID, &seatIndex
 		// 补履约不产生退款金额。
 		refundCents = 0
+	}
+	// §13.4-02：未手填退款金额的资金类方案按「服务量不足比例」折算应退额；
+	// 折算不出（履约量已达标或没有服务上报）时明确失败，绝不静默落 0 让方案形同不赔。
+	if refundCents == 0 && afterSalePlanNeedsRefundAmount(in.PlanAction) {
+		current, err := db.EsportsAfterSale.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		derived, err := proratedRefundForOrderSource(ctx, db, current)
+		if err != nil {
+			return nil, err
+		}
+		if derived <= 0 {
+			return nil, fmt.Errorf("%w：未手填退款金额，且按服务量不足比例折算为 0（服务量未不足或缺少服务上报），请手工填写退款金额",
+				errInvalidInput)
+		}
+		refundCents = derived
 	}
 	// §13.4：追偿金额不得超过本次赔付金额；不产生赔付的方案不允许追偿。
 	if in.RecoveryCents > refundCents {
@@ -776,10 +977,19 @@ func declineAfterSaleByCustomer(ctx context.Context, db *ent.Client, id, custome
 	return db.EsportsAfterSale.Get(ctx, id)
 }
 
-// approveAfterSale 审批：pending_approval → pending_execution。
+// approveAfterSale 审批：pending_approval → pending_execution（无身份入口，见下方 WithReviewer 版本）。
 // 不得自审（审批人不得为该单处理人 / 方案提交人）；同时在同一事务内按条件表达式预占订单退款额度，
-// 即 refunded_cents + refund_reserved_cents + 本次金额 <= payable_cents，超退或并发冲突均 errConflict。
+// 即 refunded_cents + refund_reserved_cents + 本次金额 <= payable_cents + 加钟已收款（§12.5-02），
+// 超退或并发冲突均 errConflict。
 func approveAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
+	return approveAfterSaleWithReviewer(ctx, db, id, adminID, afterSaleRefundReviewer{}, now)
+}
+
+// approveAfterSaleWithReviewer 审批（带资金复核资格）：除自审校验与额度预占外，
+// 退款金额达配置门槛时须管理员 / 财务角色复核（§3.3-09 / §13.5-02），
+// 门槛判定放在额度预占之前，避免不通过的门槛先改了订单额度。
+func approveAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, adminID int,
+	reviewer afterSaleRefundReviewer, now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 || adminID < 1 {
 		return nil, errInvalidInput
 	}
@@ -801,6 +1011,14 @@ func approveAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 	if item.HandlerAdminID != nil && *item.HandlerAdminID == adminID {
 		return nil, errForbidden
 	}
+	// §3.3-09 / §13.5-02：大额退款审批须财务复核资格（同一事务内判定，不通过直接回滚）。
+	reviewCents, err := afterSaleReviewAmountCents(ctx, tx.Client(), item)
+	if err != nil {
+		return nil, err
+	}
+	if err = ensureAfterSaleRefundFinanceReview(afterSaleRefundPolicyOf(ctx, db), reviewCents, reviewer); err != nil {
+		return nil, err
+	}
 	// 退款额度预占只对订单来源的「退原核销款」有效（§13.6）；compensate / makeup_service
 	// 不占原单退款额度。多动作方案沿用聚合额预占，待逐项执行器拆分补偿落账后再收窄。
 	reserveCents, err := afterSaleRefundReserveCents(ctx, tx.Client(), item)
@@ -808,10 +1026,17 @@ func approveAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 		return nil, err
 	}
 	if reserveCents > 0 {
+		// §12.5-02：可退上界 = 服务应付 + 加钟已收款（由只增流水求和派生），
+		// 并发条件谓词必须带上同一上界，否则会打开超退缺口（D34 不变量的证明前提）。
+		addonReceived, err := addonReceivedCents(ctx, tx.Client(), item.SourceID)
+		if err != nil {
+			return nil, err
+		}
 		changed, err := tx.EsportsOrder.Update().Where(
 			esportsorder.IDEQ(item.SourceID),
 			func(s *sql.Selector) {
-				s.Where(sql.ExprP("refunded_cents + refund_reserved_cents + ? <= payable_cents", reserveCents))
+				s.Where(sql.ExprP("refunded_cents + refund_reserved_cents + ? <= payable_cents + ?",
+					reserveCents, addonReceived))
 			},
 		).AddRefundReservedCents(reserveCents).AddVersion(1).Save(ctx)
 		if err != nil {
@@ -859,7 +1084,9 @@ func rejectAfterSale(ctx context.Context, db *ent.Client, id, adminID int, in af
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingApproval),
 		esportsaftersale.VersionEQ(item.Version),
 	).SetStatus(esportsaftersale.StatusRejected).SetApproverAdminID(adminID).
-		SetResolution(in.Reason).SetResolvedAt(now.UTC()).AddVersion(1).Save(ctx)
+		SetResolution(in.Reason).SetResolvedAt(now.UTC()).AddVersion(1).
+		// §13.2-09：落终态必须释放进行中唯一键，否则该来源同问题再也建不了新售后单。
+		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -920,7 +1147,9 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 	changed, err := tx.EsportsAfterSale.Update().Where(
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(item.Status),
-	).SetStatus(esportsaftersale.StatusWithdrawn).SetResolvedAt(now.UTC()).AddVersion(1).Save(ctx)
+	).SetStatus(esportsaftersale.StatusWithdrawn).SetResolvedAt(now.UTC()).AddVersion(1).
+		// §13.2-09：落终态释放进行中唯一键。
+		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -939,10 +1168,18 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 	return db.EsportsAfterSale.Get(ctx, id)
 }
 
-// executeAfterSale 执行售后方案：pending_execution → completed。
+// executeAfterSale 执行售后方案：pending_execution → completed（无身份入口，见下方 WithReviewer 版本）。
 // 钱包流水写入与订单退款额度扣减必须在同一事务，任一失败整体回滚；
 // 真正的执行失败（非并发 / 配置类）回滚后单独把售后单落为 execution_failed，且不吞错。
 func executeAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
+	return executeAfterSaleWithReviewer(ctx, db, id, adminID, afterSaleRefundReviewer{}, now)
+}
+
+// executeAfterSaleWithReviewer 执行售后方案（带资金复核资格）：
+// 退款金额达配置门槛时，执行人与审批人一样须管理员 / 财务角色（§13.5-02 大额门槛与财务角色绑定），
+// 避免「审批卡住了、执行随手放行」绕过门槛。
+func executeAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, adminID int,
+	reviewer afterSaleRefundReviewer, now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 || adminID < 1 {
 		return nil, errInvalidInput
 	}
@@ -952,6 +1189,13 @@ func executeAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 	}
 	// 执行会改订单退款额度 / 分成 / 成长值；冻结订单在进入任何执行分支（含多动作逐项执行）前拦截。
 	if err = ensureAfterSaleSourceOrderNotFrozen(ctx, db, source); err != nil {
+		return nil, err
+	}
+	reviewCents, err := afterSaleReviewAmountCents(ctx, db, source)
+	if err != nil {
+		return nil, err
+	}
+	if err = ensureAfterSaleRefundFinanceReview(afterSaleRefundPolicyOf(ctx, db), reviewCents, reviewer); err != nil {
 		return nil, err
 	}
 	// §13.3 / §13.6：挂了动作项的售后单改走「逐项执行」，总状态由动作项汇总推导（允许部分成功）。
@@ -976,13 +1220,23 @@ func executeAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 		// assessment（陪玩申诉）不产生退款 / 补履约执行动作。
 		return nil, errNotConfigured
 	}
-	if err != nil && errors.Is(err, errExecutionFailed) {
-		if _, markErr := db.EsportsAfterSale.Update().Where(
-			esportsaftersale.IDEQ(id),
-			esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
-		).SetStatus(esportsaftersale.StatusExecutionFailed).
-			SetResolution(err.Error()).AddVersion(1).Save(ctx); markErr != nil {
-			return nil, markErr
+	if err != nil {
+		if errors.Is(err, errExecutionFailed) {
+			if _, markErr := db.EsportsAfterSale.Update().Where(
+				esportsaftersale.IDEQ(id),
+				esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
+			).SetStatus(esportsaftersale.StatusExecutionFailed).
+				SetResolution(err.Error()).AddVersion(1).Save(ctx); markErr != nil {
+				return nil, markErr
+			}
+		}
+		// §3.2-03：退款未能执行时把订单退款状态落 failed 并留原因；
+		// 并发冲突 / 入参不合法属可重试与可修正，不改订单退款状态。
+		if source.SourceType == esportsaftersale.SourceTypeOrder && reviewCents > 0 &&
+			shouldMarkOrderRefundFailed(err) {
+			if markErr := markOrderRefundFailed(ctx, db, source.SourceID, adminID, err.Error(), now); markErr != nil {
+				return nil, fmt.Errorf("%w（另：退款失败留痕写入失败：%v）", err, markErr)
+			}
 		}
 		return nil, err
 	}
@@ -1083,14 +1337,20 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	}
 	// 统一处理：仅「退原核销款」走到这里——从预占额度扣减并累加 refunded_cents。
 	// 补偿动作已在上方提前完成，不会进入本段占用退款额度或触发冲回。
-	// 条件表达式再次校验预占充足，避免并发超退；refund_status 视累计已退额一并更新。
+	// 条件表达式再次校验预占充足且累计不越可退上界（§12.5-02：服务应付 + 加钟已收款），
+	// 避免并发超退；refund_status 视累计已退额一并更新。
+	addonReceived, err := addonReceivedCents(ctx, tx.Client(), order.ID)
+	if err != nil {
+		return nil, err
+	}
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID),
 		func(s *sql.Selector) {
 			s.Where(sql.ExprP("refund_reserved_cents >= ?", item.RefundCents))
+			s.Where(sql.ExprP("refunded_cents + refund_reserved_cents <= payable_cents + ?", addonReceived))
 		},
 	).AddRefundReservedCents(-item.RefundCents).AddRefundedCents(item.RefundCents).
-		SetRefundStatus(refundStatusFor(order.PayableCents, order.RefundedCents+item.RefundCents)).
+		SetRefundStatus(refundStatusFor(order.PayableCents+addonReceived, order.RefundedCents+item.RefundCents)).
 		AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
@@ -1146,7 +1406,9 @@ func completeAfterSaleExecution(ctx context.Context, tx *ent.Tx, id, orderID, ad
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
 	).SetStatus(esportsaftersale.StatusCompleted).SetExecutorAdminID(adminID).
-		SetResolvedAt(now.UTC()).AddVersion(1).Save(ctx)
+		SetResolvedAt(now.UTC()).AddVersion(1).
+		// §13.2-09：落终态释放进行中唯一键。
+		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return err
 	}
@@ -1163,12 +1425,115 @@ func completeAfterSaleExecution(ctx context.Context, tx *ent.Tx, id, orderID, ad
 	return recordPlayerFaultCredit(ctx, tx, id)
 }
 
-// refundStatusFor 按累计已退额与应付额推导退款状态：退满为 full，否则 partial。
-func refundStatusFor(payableCents, refundedCents int64) esportsorder.RefundStatus {
-	if refundedCents >= payableCents {
+// refundStatusFor 按累计已退额与可退上界推导退款状态：退满为 full，否则 partial。
+// §12.5-02：可退上界 = 服务应付 + 加钟已收款（加钟款可退后，「退满」不能再只按 payable_cents 判）。
+func refundStatusFor(refundableUpperCents, refundedCents int64) esportsorder.RefundStatus {
+	if refundedCents >= refundableUpperCents {
 		return esportsorder.RefundStatusFull
 	}
 	return esportsorder.RefundStatusPartial
+}
+
+// shouldMarkOrderRefundFailed 判断执行返回的错误是否属于「退款执行失败」，需要把订单退款状态落 failed：
+// 并发冲突（errConflict）、入参不合法（errInvalidInput）、越权（errForbidden）属可重试 / 可修正，
+// 不改订单退款状态；其余（含 errExecutionFailed 与退款通道未配置）都视为退款未能执行，落 failed 留痕。
+func shouldMarkOrderRefundFailed(err error) bool {
+	if err == nil {
+		return false
+	}
+	switch {
+	case errors.Is(err, errConflict), errors.Is(err, errInvalidInput), errors.Is(err, errForbidden):
+		return false
+	}
+	return true
+}
+
+// markOrderRefundExecuting 把订单退款状态置为 executing（退款已受理、结果未定）并写
+// order.refund_executing 事件留痕（§3.2-03 六态枚举中的 executing 不再是无写入方的死值）。
+// 已退满（full）的订单不改写，避免覆盖「已全额退还」这一既成事实。
+func markOrderRefundExecuting(ctx context.Context, client *ent.Client, orderID, adminID int,
+	reason string, now time.Time) error {
+	if orderID < 1 {
+		return errInvalidInput
+	}
+	reason = truncateRunes(strings.TrimSpace(reason), 255)
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if order.RefundStatus == esportsorder.RefundStatusFull {
+		return nil
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID),
+		esportsorder.RefundStatusNEQ(esportsorder.RefundStatusFull),
+	).SetRefundStatus(esportsorder.RefundStatusExecuting).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return nil
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.refund_executing").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"reason": reason, "refunded_cents": order.RefundedCents,
+			"refund_reserved_cents": order.RefundReservedCents,
+		}).Save(ctx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// markOrderRefundFailed 把订单退款状态置为 failed 并写带原因的 order.refund_failed 事件（§3.2-03）：
+// 退款执行失败时订单不再停在旧的金额派生态，失败原因随时序留痕可查。已退满的订单不改写。
+func markOrderRefundFailed(ctx context.Context, client *ent.Client, orderID, adminID int,
+	reason string, now time.Time) error {
+	if orderID < 1 {
+		return errInvalidInput
+	}
+	reason = truncateRunes(strings.TrimSpace(reason), 500)
+	if reason == "" {
+		reason = "退款执行失败，未记录具体原因"
+	}
+	tx, err := client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if order.RefundStatus == esportsorder.RefundStatusFull {
+		return nil
+	}
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID),
+		esportsorder.RefundStatusNEQ(esportsorder.RefundStatusFull),
+	).SetRefundStatus(esportsorder.RefundStatusFailed).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return nil
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+		SetOrderVersion(order.Version + 1).SetEventType("order.refund_failed").
+		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetDetails(map[string]interface{}{
+			"reason": reason, "refunded_cents": order.RefundedCents,
+			"refund_reserved_cents": order.RefundReservedCents,
+		}).Save(ctx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // refundComposition 计算本次「退原核销款」应退本金 / 赠送构成（分）。
@@ -1179,6 +1544,8 @@ func refundStatusFor(payableCents, refundedCents int64) esportsorder.RefundStatu
 //
 // 边界：P+B 与订单应付额不一致时以实际核销构成 C 为分摊基数，仅用应付额限制剩余可退额，
 // 避免按虚高应付额放大本金；T<=0 时以 C 兜底；A 超过剩余应付额或原核销无构成时拒绝执行。
+// §12.5-02：服务与加钟两部分分别调用本函数，各自传该类原核销构成与剩余可退额
+// （服务传 payable_cents，加钟传加钟已收款），因此「已退额」也按类分别传入。
 func refundComposition(principalCents, bonusCents, payableCents, refundedBefore, amountCents int64) (int64, int64, error) {
 	principal := max(principalCents, 0)
 	bonus := max(bonusCents, 0)
@@ -1219,10 +1586,19 @@ func refundComposition(principalCents, bonusCents, payableCents, refundedBefore,
 	return principalBack, amountCents - principalBack, nil
 }
 
+// addonRefundWalletSource 是加钟退款流水的来源类型（§12.5-02）：
+// 加钟首版只能由客户余额收单（addon.go），与订单原核销账户可能不同，
+// 故加钟部分的原路退回单独成行、单独来源类型，继续由 (source_type, source_id, entry_type) 唯一索引兜底幂等。
+const addonRefundWalletSource = "after_sale_addon"
+
 // executeRefundOriginal 退原核销款：支持原订单以客户余额或储值卡核销的退款。
 // 查原核销流水，按原流水本金 / 赠送构成与订单累计已退额计算本次本金 / 赠送，按原账户「原路退回」
 // 写一条 refund_return 流水；幂等靠 (source_type, source_id, entry_type) 唯一索引兜底。
 // 原路退回是储值卡的关键约束：订单退款把预付款还回原卡，与「退卡」是两层独立资金动作（§4.4）。
+//
+// §12.5-02 加钟款原路退回：可退上界含加钟已收款，本次退款先冲服务部分（沿用原核销构成与账户），
+// 超出服务可退额的部分按加钟余额收款流水的构成退回加钟原账户（首版为客户余额），
+// 使「加钟已收」可经原路退回而不是被当作服务赠送退回。
 func executeRefundOriginal(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale, order *ent.EsportsOrder, adminID int) error {
 	consume, err := tx.EsportsWalletTx.Query().Where(
 		esportswallettx.SourceTypeEQ("order"),
@@ -1235,35 +1611,86 @@ func executeRefundOriginal(ctx context.Context, tx *ent.Tx, item *ent.EsportsAft
 	if err != nil {
 		return err
 	}
-	// 分次退款必须扣除「已退本金」：按原核销构成计算累计应退本金，再减去此前累计，不能每次都重新先本金。
-	principalBack, bonusBack, err := refundComposition(
-		-consume.PrincipalDeltaCents, -consume.BonusDeltaCents,
-		order.PayableCents, order.RefundedCents, item.RefundCents)
+	addonRows, err := orderAddonConsumeRows(ctx, tx.Client(), order.ID)
 	if err != nil {
 		return err
 	}
-	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
-		SetAccountType(consume.AccountType).SetOwnerID(consume.OwnerID).
+	var addonPrincipal, addonBonus int64
+	var addonAccount esportswallettx.AccountType
+	addonOwner := order.CustomerID
+	for _, row := range addonRows {
+		addonPrincipal += -row.PrincipalDeltaCents
+		addonBonus += -row.BonusDeltaCents
+		addonAccount, addonOwner = row.AccountType, row.OwnerID
+	}
+	addonTotal := addonPrincipal + addonBonus
+	// 先冲服务部分（不超过剩余服务可退额），剩余部分退加钟已收款。
+	serviceRemaining := max(order.PayableCents-max(order.RefundedCents, 0), 0)
+	serviceRefund := min(item.RefundCents, serviceRemaining)
+	addonRefund := item.RefundCents - serviceRefund
+	if addonRefund > 0 && addonTotal <= 0 {
+		return fmt.Errorf("%w：本次退款 %d 分超出服务可退 %d 分，且该订单没有可原路退回的加钟已收款",
+			errConflict, item.RefundCents, serviceRefund)
+	}
+	if serviceRefund > 0 {
+		// 分次退款必须扣除「已退本金」：按原核销构成计算累计应退本金，再减去此前累计，不能每次都重新先本金。
+		principalBack, bonusBack, err := refundComposition(
+			-consume.PrincipalDeltaCents, -consume.BonusDeltaCents,
+			order.PayableCents, min(max(order.RefundedCents, 0), order.PayableCents), serviceRefund)
+		if err != nil {
+			return err
+		}
+		if err = createAfterSaleRefundTx(ctx, tx, item, adminID, consume.AccountType, consume.OwnerID,
+			"after_sale", principalBack, bonusBack, "售后退款"); err != nil {
+			return err
+		}
+		// 储值卡订单退款冲回对应预付款批次，保持批次账本与卡片余额一致。
+		if consume.AccountType == esportswallettx.AccountTypeStoredValueCard {
+			if _, err = tx.EsportsLedgerEntry.Create().
+				SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(consume.OwnerID)).
+				SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
+				SetEntryRole("card_refund_return").SetDeltaCents(serviceRefund).Save(ctx); err != nil {
+				if ent.IsConstraintError(err) {
+					return errConflict
+				}
+				return fmt.Errorf("%w：储值卡退款批次写入失败：%v", errExecutionFailed, err)
+			}
+		}
+	}
+	if addonRefund > 0 {
+		// 加钟部分：构成取加钟余额收款流水（本金 / 赠送），按加钟口径的「已退额」扣除后原路退回。
+		priorAddonRefunded := max(order.RefundedCents-order.PayableCents, 0)
+		principalBack, bonusBack, err := refundComposition(
+			addonPrincipal, addonBonus, addonTotal, priorAddonRefunded, addonRefund)
+		if err != nil {
+			return err
+		}
+		if err = createAfterSaleRefundTx(ctx, tx, item, adminID, addonAccount, addonOwner,
+			addonRefundWalletSource, principalBack, bonusBack, "售后退款（加钟原路退回）"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// createAfterSaleRefundTx 写一条原路退款流水（本金 / 赠送分列）；
+// 幂等靠 (source_type, source_id, entry_type) 唯一索引兜底，重复执行返回冲突。
+func createAfterSaleRefundTx(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale, adminID int,
+	accountType esportswallettx.AccountType, ownerID int, sourceType string,
+	principalBack, bonusBack int64, note string) error {
+	if principalBack == 0 && bonusBack == 0 {
+		return nil
+	}
+	if _, err := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+		SetAccountType(accountType).SetOwnerID(ownerID).
 		SetEntryType(esportswallettx.EntryTypeRefundReturn).
 		SetPrincipalDeltaCents(principalBack).SetBonusDeltaCents(bonusBack).
-		SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
-		SetOperatorID(adminID).SetNote("售后退款").Save(ctx); err != nil {
+		SetSourceType(sourceType).SetSourceID(item.AfterSaleNo).
+		SetOperatorID(adminID).SetNote(note).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return errConflict
 		}
 		return fmt.Errorf("%w：退款流水写入失败：%v", errExecutionFailed, err)
-	}
-	// 储值卡订单退款冲回对应预付款批次，保持批次账本与卡片余额一致。
-	if consume.AccountType == esportswallettx.AccountTypeStoredValueCard {
-		if _, err = tx.EsportsLedgerEntry.Create().
-			SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(consume.OwnerID)).
-			SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
-			SetEntryRole("card_refund_return").SetDeltaCents(item.RefundCents).Save(ctx); err != nil {
-			if ent.IsConstraintError(err) {
-				return errConflict
-			}
-			return fmt.Errorf("%w：储值卡退款批次写入失败：%v", errExecutionFailed, err)
-		}
 	}
 	return nil
 }

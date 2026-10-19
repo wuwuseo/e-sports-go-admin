@@ -256,13 +256,15 @@ func recordRescheduleConfirmation(ctx context.Context, db *ent.Client, proposalI
 			return errForbidden
 		}
 	case esportsrescheduleconfirmation.ConfirmerTypePlayer:
+		// §5.9-07：已接单成员与待回应（invited）成员都必须逐人确认档期变更。
 		seat, seatErr := tx.EsportsDispatchSeat.Query().Where(
 			esportsdispatchseat.OrderIDEQ(item.OrderID),
 			esportsdispatchseat.PlayerIDEQ(confirmer.ID),
-			esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
+			esportsdispatchseat.StatusIn(
+				esportsdispatchseat.StatusAccepted, esportsdispatchseat.StatusInvited),
 		).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).First(ctx)
 		if ent.IsNotFound(seatErr) {
-			return fmt.Errorf("%w：仅本单已接单成员可确认改期提案", errForbidden)
+			return fmt.Errorf("%w：仅本单已接单或待回应成员可确认改期提案", errForbidden)
 		}
 		if seatErr != nil {
 			return seatErr
@@ -351,16 +353,48 @@ func rescheduleConfirmationsComplete(ctx context.Context, tx *ent.Tx,
 	if !customerConfirmed {
 		return false, nil
 	}
-	members, err := acceptedRescheduleMembers(ctx, tx, item.OrderID)
+	members, err := rescheduleConfirmableMembers(ctx, tx, item.OrderID)
 	if err != nil {
 		return false, err
 	}
 	for _, seat := range members {
-		if !playerConfirmed[*seat.PlayerID] {
+		if seat.PlayerID == nil || !playerConfirmed[*seat.PlayerID] {
 			return false, nil
 		}
 	}
 	return true, nil
+}
+
+// pendingRescheduleProposalExists 判定订单是否存在**仍有效**的进行中改期提案（§5.9-07）。
+// 提案 pending 期间订单档期处于「待切换」状态，任何新派单 / 改派 / 转单都会让提案的
+// order_version 与原档期快照失效，因此必须在这些入口先挡掉。已过确认时限或目标时间已过的
+// 提案不再锁定（由过期任务收敛），避免死锁。
+func pendingRescheduleProposalExists(ctx context.Context, tx *ent.Tx, orderID int, now time.Time) (bool, error) {
+	items, err := tx.EsportsRescheduleProposal.Query().Where(
+		esportsrescheduleproposal.OrderIDEQ(orderID),
+		esportsrescheduleproposal.StatusEQ(esportsrescheduleproposal.StatusPending),
+	).All(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, item := range items {
+		if item.ExpiresAt.After(now.UTC()) && item.ToStartAt.After(now.UTC()) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// rescheduleConfirmableMembers 返回「必须逐人确认改期提案」的成员席位（§5.9-07）：
+// 已接单成员 + **待回应（invited）成员**。待接单成员虽未确认接单，但已持有席位承诺与
+// 目标档期占用，档期变更同样需要其同意，否则提案生效后会与新档期冲突。
+func rescheduleConfirmableMembers(ctx context.Context, tx *ent.Tx, orderID int) ([]*ent.EsportsDispatchSeat, error) {
+	return tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(orderID),
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusAccepted, esportsdispatchseat.StatusInvited),
+		esportsdispatchseat.PlayerIDNotNil(),
+	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
 }
 
 // acceptedRescheduleMembers 返回订单上已接单且带陪玩归属的席位（按席位序号升序）。

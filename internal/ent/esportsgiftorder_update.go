@@ -359,6 +359,55 @@ func (_u *EsportsGiftOrderUpdate) ClearStoredValueCardID() *EsportsGiftOrderUpda
 	return _u
 }
 
+// SetGiftTierID sets the "gift_tier_id" field.
+func (_u *EsportsGiftOrderUpdate) SetGiftTierID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.ResetGiftTierID()
+	_u.mutation.SetGiftTierID(v)
+	return _u
+}
+
+// SetNillableGiftTierID sets the "gift_tier_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillableGiftTierID(v *int) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetGiftTierID(*v)
+	}
+	return _u
+}
+
+// AddGiftTierID adds value to the "gift_tier_id" field.
+func (_u *EsportsGiftOrderUpdate) AddGiftTierID(v int) *EsportsGiftOrderUpdate {
+	_u.mutation.AddGiftTierID(v)
+	return _u
+}
+
+// SetGiftTierCode sets the "gift_tier_code" field.
+func (_u *EsportsGiftOrderUpdate) SetGiftTierCode(v string) *EsportsGiftOrderUpdate {
+	_u.mutation.SetGiftTierCode(v)
+	return _u
+}
+
+// SetNillableGiftTierCode sets the "gift_tier_code" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillableGiftTierCode(v *string) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetGiftTierCode(*v)
+	}
+	return _u
+}
+
+// SetPaymentRef sets the "payment_ref" field.
+func (_u *EsportsGiftOrderUpdate) SetPaymentRef(v string) *EsportsGiftOrderUpdate {
+	_u.mutation.SetPaymentRef(v)
+	return _u
+}
+
+// SetNillablePaymentRef sets the "payment_ref" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdate) SetNillablePaymentRef(v *string) *EsportsGiftOrderUpdate {
+	if v != nil {
+		_u.SetPaymentRef(*v)
+	}
+	return _u
+}
+
 // SetCommissionMode sets the "commission_mode" field.
 func (_u *EsportsGiftOrderUpdate) SetCommissionMode(v esportsgiftorder.CommissionMode) *EsportsGiftOrderUpdate {
 	_u.mutation.SetCommissionMode(v)
@@ -624,6 +673,16 @@ func (_u *EsportsGiftOrderUpdate) check() error {
 			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.stored_value_card_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftTierCode(); ok {
+		if err := esportsgiftorder.GiftTierCodeValidator(v); err != nil {
+			return &ValidationError{Name: "gift_tier_code", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_tier_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentRef(); ok {
+		if err := esportsgiftorder.PaymentRefValidator(v); err != nil {
+			return &ValidationError{Name: "payment_ref", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.payment_ref": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CommissionMode(); ok {
 		if err := esportsgiftorder.CommissionModeValidator(v); err != nil {
 			return &ValidationError{Name: "commission_mode", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.commission_mode": %w`, err)}
@@ -757,6 +816,18 @@ func (_u *EsportsGiftOrderUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.StoredValueCardIDCleared() {
 		_spec.ClearField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.GiftTierID(); ok {
+		_spec.SetField(esportsgiftorder.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftTierID(); ok {
+		_spec.AddField(esportsgiftorder.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GiftTierCode(); ok {
+		_spec.SetField(esportsgiftorder.FieldGiftTierCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PaymentRef(); ok {
+		_spec.SetField(esportsgiftorder.FieldPaymentRef, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CommissionMode(); ok {
 		_spec.SetField(esportsgiftorder.FieldCommissionMode, field.TypeEnum, value)
@@ -1154,6 +1225,55 @@ func (_u *EsportsGiftOrderUpdateOne) ClearStoredValueCardID() *EsportsGiftOrderU
 	return _u
 }
 
+// SetGiftTierID sets the "gift_tier_id" field.
+func (_u *EsportsGiftOrderUpdateOne) SetGiftTierID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.ResetGiftTierID()
+	_u.mutation.SetGiftTierID(v)
+	return _u
+}
+
+// SetNillableGiftTierID sets the "gift_tier_id" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillableGiftTierID(v *int) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetGiftTierID(*v)
+	}
+	return _u
+}
+
+// AddGiftTierID adds value to the "gift_tier_id" field.
+func (_u *EsportsGiftOrderUpdateOne) AddGiftTierID(v int) *EsportsGiftOrderUpdateOne {
+	_u.mutation.AddGiftTierID(v)
+	return _u
+}
+
+// SetGiftTierCode sets the "gift_tier_code" field.
+func (_u *EsportsGiftOrderUpdateOne) SetGiftTierCode(v string) *EsportsGiftOrderUpdateOne {
+	_u.mutation.SetGiftTierCode(v)
+	return _u
+}
+
+// SetNillableGiftTierCode sets the "gift_tier_code" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillableGiftTierCode(v *string) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetGiftTierCode(*v)
+	}
+	return _u
+}
+
+// SetPaymentRef sets the "payment_ref" field.
+func (_u *EsportsGiftOrderUpdateOne) SetPaymentRef(v string) *EsportsGiftOrderUpdateOne {
+	_u.mutation.SetPaymentRef(v)
+	return _u
+}
+
+// SetNillablePaymentRef sets the "payment_ref" field if the given value is not nil.
+func (_u *EsportsGiftOrderUpdateOne) SetNillablePaymentRef(v *string) *EsportsGiftOrderUpdateOne {
+	if v != nil {
+		_u.SetPaymentRef(*v)
+	}
+	return _u
+}
+
 // SetCommissionMode sets the "commission_mode" field.
 func (_u *EsportsGiftOrderUpdateOne) SetCommissionMode(v esportsgiftorder.CommissionMode) *EsportsGiftOrderUpdateOne {
 	_u.mutation.SetCommissionMode(v)
@@ -1432,6 +1552,16 @@ func (_u *EsportsGiftOrderUpdateOne) check() error {
 			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.stored_value_card_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftTierCode(); ok {
+		if err := esportsgiftorder.GiftTierCodeValidator(v); err != nil {
+			return &ValidationError{Name: "gift_tier_code", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.gift_tier_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentRef(); ok {
+		if err := esportsgiftorder.PaymentRefValidator(v); err != nil {
+			return &ValidationError{Name: "payment_ref", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.payment_ref": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CommissionMode(); ok {
 		if err := esportsgiftorder.CommissionModeValidator(v); err != nil {
 			return &ValidationError{Name: "commission_mode", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.commission_mode": %w`, err)}
@@ -1582,6 +1712,18 @@ func (_u *EsportsGiftOrderUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if _u.mutation.StoredValueCardIDCleared() {
 		_spec.ClearField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.GiftTierID(); ok {
+		_spec.SetField(esportsgiftorder.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftTierID(); ok {
+		_spec.AddField(esportsgiftorder.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GiftTierCode(); ok {
+		_spec.SetField(esportsgiftorder.FieldGiftTierCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PaymentRef(); ok {
+		_spec.SetField(esportsgiftorder.FieldPaymentRef, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CommissionMode(); ok {
 		_spec.SetField(esportsgiftorder.FieldCommissionMode, field.TypeEnum, value)

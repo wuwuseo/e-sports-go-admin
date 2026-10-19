@@ -32,6 +32,10 @@ const (
 	FieldDedicatedCs = "dedicated_cs"
 	// FieldPriorityBooking holds the string denoting the priority_booking field in the database.
 	FieldPriorityBooking = "priority_booking"
+	// FieldDedicatedChannel holds the string denoting the dedicated_channel field in the database.
+	FieldDedicatedChannel = "dedicated_channel"
+	// FieldOfflineEventPriority holds the string denoting the offline_event_priority field in the database.
+	FieldOfflineEventPriority = "offline_event_priority"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
 	FieldSortOrder = "sort_order"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -60,6 +64,8 @@ var Columns = []string{
 	FieldPrepayBonusBps,
 	FieldDedicatedCs,
 	FieldPriorityBooking,
+	FieldDedicatedChannel,
+	FieldOfflineEventPriority,
 	FieldSortOrder,
 	FieldStatus,
 	FieldVersion,
@@ -94,6 +100,10 @@ var (
 	DefaultDedicatedCs bool
 	// DefaultPriorityBooking holds the default value on creation for the "priority_booking" field.
 	DefaultPriorityBooking bool
+	// DefaultDedicatedChannel holds the default value on creation for the "dedicated_channel" field.
+	DefaultDedicatedChannel bool
+	// DefaultOfflineEventPriority holds the default value on creation for the "offline_event_priority" field.
+	DefaultOfflineEventPriority bool
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
 	DefaultSortOrder int
 	// DefaultVersion holds the default value on creation for the "version" field.
@@ -178,6 +188,16 @@ func ByDedicatedCs(opts ...sql.OrderTermOption) OrderOption {
 // ByPriorityBooking orders the results by the priority_booking field.
 func ByPriorityBooking(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPriorityBooking, opts...).ToFunc()
+}
+
+// ByDedicatedChannel orders the results by the dedicated_channel field.
+func ByDedicatedChannel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDedicatedChannel, opts...).ToFunc()
+}
+
+// ByOfflineEventPriority orders the results by the offline_event_priority field.
+func ByOfflineEventPriority(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldOfflineEventPriority, opts...).ToFunc()
 }
 
 // BySortOrder orders the results by the sort_order field.

@@ -3,6 +3,7 @@ package esports
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -28,7 +29,8 @@ import (
 const dispatchRankWeightsKey = "app.esports.dispatch_ranking_weights"
 
 // dispatchRankWeights 是排序合成权重。权重为 0 表示该分量不参与排序；
-// HistoryCap / BalanceCap 是历史合作与在途席位的归一化上限（须 >=1）。
+// HistoryCap / BalanceCap 是历史合作与在途席位的归一化上限（须 >=1）；
+// DistanceCapKm 是距离分量的归一化半径（km，须 >=1）：客户与陪玩距离 >= 该半径得 0 分。
 //
 // Zone 为历史配置项（app.esports.dispatch_ranking_weights 的 zone 字段），为保证既有配置
 // 仍可解析而保留；优先派单权不参与排序（§5.2-04），该权重不再影响排序结果。
@@ -38,13 +40,23 @@ type dispatchRankWeights struct {
 	Preference int `json:"preference"`
 	Zone       int `json:"zone"`
 	Balance    int `json:"balance"`
-	HistoryCap int `json:"history_cap"`
-	BalanceCap int `json:"balance_cap"`
+	// Distance / Timezone 是 §5.5-03 新增分量，默认 0（不参与排序，保持既有行为不变）。
+	Distance int `json:"distance"`
+	Timezone int `json:"timezone"`
+	// DistanceCapKm 距离归一化半径（km）：仅当 Distance > 0 时生效。
+	DistanceCapKm int `json:"distance_cap_km"`
+	HistoryCap    int `json:"history_cap"`
+	BalanceCap    int `json:"balance_cap"`
 }
+
+// defaultDispatchRankDistanceCapKm 距离分量未配置归一化半径时的回落值（km）。
+const defaultDispatchRankDistanceCapKm = 200
 
 func defaultDispatchRankWeights() dispatchRankWeights {
 	return dispatchRankWeights{
 		Rating: 40, History: 30, Preference: 60, Zone: 30, Balance: 20,
+		// 新增分量默认 0：不参与排序，既有部署的排序结果逐位不变。
+		Distance: 0, Timezone: 0, DistanceCapKm: defaultDispatchRankDistanceCapKm,
 		HistoryCap: 10, BalanceCap: 10,
 	}
 }
@@ -59,13 +71,16 @@ func dispatchRankWeightsFor(ctx context.Context, db *ent.Client) dispatchRankWei
 	}
 	// 用指针区分「字段缺失」与「显式给 0」：权重允许为 0（不参与排序）。
 	var raw struct {
-		Rating     *int `json:"rating"`
-		History    *int `json:"history"`
-		Preference *int `json:"preference"`
-		Zone       *int `json:"zone"`
-		Balance    *int `json:"balance"`
-		HistoryCap *int `json:"history_cap"`
-		BalanceCap *int `json:"balance_cap"`
+		Rating        *int `json:"rating"`
+		History       *int `json:"history"`
+		Preference    *int `json:"preference"`
+		Zone          *int `json:"zone"`
+		Balance       *int `json:"balance"`
+		Distance      *int `json:"distance"`
+		Timezone      *int `json:"timezone"`
+		DistanceCapKm *int `json:"distance_cap_km"`
+		HistoryCap    *int `json:"history_cap"`
+		BalanceCap    *int `json:"balance_cap"`
 	}
 	if err := json.Unmarshal([]byte(item.Value), &raw); err != nil {
 		return w
@@ -94,6 +109,15 @@ func dispatchRankWeightsFor(ctx context.Context, db *ent.Client) dispatchRankWei
 	if raw.Balance != nil {
 		w.Balance = clampNonNegative(raw.Balance)
 	}
+	if raw.Distance != nil {
+		w.Distance = clampNonNegative(raw.Distance)
+	}
+	if raw.Timezone != nil {
+		w.Timezone = clampNonNegative(raw.Timezone)
+	}
+	if raw.DistanceCapKm != nil && *raw.DistanceCapKm >= 1 {
+		w.DistanceCapKm = *raw.DistanceCapKm
+	}
 	if raw.HistoryCap != nil && *raw.HistoryCap >= 1 {
 		w.HistoryCap = *raw.HistoryCap
 	}
@@ -109,12 +133,66 @@ type dispatchRankFactors struct {
 	HistoryScore    int
 	PreferenceScore int
 	BalanceScore    int
+	// DistanceScore / TimezoneScore 为 §5.5-03 的距离与时区分量（0~100）。
+	DistanceScore int
+	TimezoneScore int
 }
 
 // dispatchRankScore 按权重把各分量合成为排序分，越大越靠前。
 func dispatchRankScore(w dispatchRankWeights, f dispatchRankFactors) int {
 	return w.Rating*f.RatingScore + w.History*f.HistoryScore +
-		w.Preference*f.PreferenceScore + w.Balance*f.BalanceScore
+		w.Preference*f.PreferenceScore + w.Balance*f.BalanceScore +
+		w.Distance*f.DistanceScore + w.Timezone*f.TimezoneScore
+}
+
+// ── 距离 / 时区分量（§5.5-03） ──
+//
+// 参考点：订单所属客户档案的定位（latitude_e6 / longitude_e6）与时区（timezone）。
+// 任一缺失即视为「无加分」（分值 0），不臆造位置，因此存量数据不会因新分量产生排序抖动。
+
+// dispatchDistanceMeters 两点球面距离（米）。任一坐标非「有效微度」时第二个返回值为 false：
+// (0,0) 在业务上表示未采集定位（几内亚湾），不作为真实坐标参与计算。
+func dispatchDistanceMeters(latE6A, lonE6A, latE6B, lonE6B int) (int64, bool) {
+	if (latE6A == 0 && lonE6A == 0) || (latE6B == 0 && lonE6B == 0) {
+		return 0, false
+	}
+	const earthRadiusMeters = 6371000.0
+	toRad := func(e6 int) float64 { return float64(e6) / 1e6 * math.Pi / 180 }
+	lat1, lat2 := toRad(latE6A), toRad(latE6B)
+	dLat := lat2 - lat1
+	dLon := toRad(lonE6B) - toRad(lonE6A)
+	h := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(lat1)*math.Cos(lat2)*math.Sin(dLon/2)*math.Sin(dLon/2)
+	return int64(2 * earthRadiusMeters * math.Asin(math.Min(1, math.Sqrt(h)))), true
+}
+
+// dispatchDistanceScore 把距离归一化为 0~100 的加分：同点 100 分，距离 >= 半径 0 分，线性衰减。
+// capKm < 1 时回落默认半径。
+func dispatchDistanceScore(meters int64, capKm int) int {
+	if meters < 0 {
+		return 0
+	}
+	if capKm < 1 {
+		capKm = defaultDispatchRankDistanceCapKm
+	}
+	capMeters := int64(capKm) * 1000
+	if meters >= capMeters {
+		return 0
+	}
+	return int(100 - meters*100/capMeters)
+}
+
+// dispatchTimezoneScore 时区加分：双方时区非空且一致得 100 分，否则 0 分（未知不加分也不扣分）。
+func dispatchTimezoneScore(playerTimezone, customerTimezone string) int {
+	playerTimezone = strings.TrimSpace(playerTimezone)
+	customerTimezone = strings.TrimSpace(customerTimezone)
+	if playerTimezone == "" || customerTimezone == "" {
+		return 0
+	}
+	if playerTimezone == customerTimezone {
+		return 100
+	}
+	return 0
 }
 
 // normalizeCappedScore 把非负计数按上限归一化为 0~100（上限为 0 时返回 0，避免除零）。

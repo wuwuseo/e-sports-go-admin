@@ -11,13 +11,14 @@ import (
 	"go-admin/internal/ent/esportscloseformfield"
 	"go-admin/internal/ent/esportscloseformsnapshot"
 	"go-admin/internal/ent/esportscloseformtemplate"
+	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// 结单表单设计器（§3.4 首版）：字段库 + 模板（按 全局 / 游戏分区 / SKU + 金额区间绑定）
+// 结单表单设计器（§3.4 首版）：字段库 + 模板（按 全局 / 游戏分区 / SKU / 订单类型 + 金额区间绑定）
 // + 下单时锁定模板版本，结单时按该模板校验必填字段并留痕快照。
-// ponytail: 拖拽画布与任意坐标、字段级联与条件显示、字段库版本历史、
-// 按订单类型（即时 / 预约）绑定尚未实现。旧模板未存字段定义快照时仍回退实时字段库。
+// ponytail: 拖拽画布与任意坐标、字段级联与条件显示、字段库版本历史尚未实现。
+// 旧模板未存字段定义快照时仍回退实时字段库。
 
 // closeFormFieldTypes 是工程实现的字段类型全集（§3.4 自定义字段类型）。
 var closeFormFieldTypes = map[string]bool{
@@ -25,9 +26,118 @@ var closeFormFieldTypes = map[string]bool{
 	"datetime": true, "image": true, "switch": true, "reference": true,
 }
 
-// validCloseFormScope 与结单规则同款适用范围。
+// validCloseFormScope 与结单规则同款适用范围，另支持按订单类型绑定（§3.4-07）：
+// scope=order_type 时 scope_key 取 instant（即时单）/ request（预约单）。
 func validCloseFormScope(scope string) bool {
-	return scope == "global" || scope == "game" || scope == "sku"
+	return scope == "global" || scope == "game" || scope == "sku" || string(esportscloseformtemplate.ScopeOrderType) == scope
+}
+
+// validCloseFormOrderTypeKey 校验按订单类型绑定时的范围标识（§3.4-07）。
+func validCloseFormOrderTypeKey(key string) bool {
+	return key == "instant" || key == "request"
+}
+
+// closeFormOrderTypeKeyOf 把订单映射为模板绑定的订单类型范围标识（§3.4-07）：
+// 有预约开始时间（或已处于预约态）即为预约单 request，否则即时单 instant。
+func closeFormOrderTypeKeyOf(order *ent.EsportsOrder) string {
+	if order == nil {
+		return "instant"
+	}
+	if order.RequestedStartAt != nil ||
+		(order.AppointmentStatus != "" && order.AppointmentStatus != esportsorder.AppointmentStatusInstant) {
+		return "request"
+	}
+	return "instant"
+}
+
+// §3.4-01 系统内置结单模板：新库没有任何人工模板时，结单表单不能再「整单跳过」，
+// 至少要有内置模板采集「服务结果」等基础字段。
+const (
+	// builtinCloseFormTemplateCode 内置模板 code（人工模板不受影响，同层优先）。
+	builtinCloseFormTemplateCode = "builtin_default"
+	// builtinServiceResultFieldKey 内置「服务结果」字段 key。
+	builtinServiceResultFieldKey = "service_result"
+	// closeFormRequireServiceResultKey 是否启用「系统内置结单模板 + 强制采集服务结果」（§3.4-01 ①②）。
+	// 口径：默认 false —— 「服务结果」是否必填由**生效模板是否绑定该字段**决定，存量订单与未绑定该
+	// 字段的人工模板不受影响；置 true 时内置模板生效，并按内置模板的必填绑定强制采集。
+	closeFormRequireServiceResultKey = "app.esports.close_form_require_service_result"
+)
+
+// ensureBuiltinCloseFormField 保障内置「服务结果」字段存在且启用（§3.4-01）。
+func ensureBuiltinCloseFormField(ctx context.Context, db *ent.Client) (*ent.EsportsCloseFormField, error) {
+	item, err := db.EsportsCloseFormField.Query().Where(
+		esportscloseformfield.KeyEQ(builtinServiceResultFieldKey)).Only(ctx)
+	if err == nil {
+		if item.Enabled {
+			return item, nil
+		}
+		// 内置字段被误停用会让结单无法满足强制项：直接重新启用，而不是放行。
+		return db.EsportsCloseFormField.UpdateOne(item).SetEnabled(true).AddVersion(1).Save(ctx)
+	}
+	if !ent.IsNotFound(err) {
+		return nil, err
+	}
+	created, err := db.EsportsCloseFormField.Create().SetKey(builtinServiceResultFieldKey).
+		SetLabel("服务结果").SetFieldType(esportscloseformfield.FieldTypeText).
+		SetRequired(true).SetMaxLength(500).SetSortOrder(0).
+		SetNote("系统内置字段：结单必须填写本次服务的结果说明").Save(ctx)
+	if ent.IsConstraintError(err) {
+		return db.EsportsCloseFormField.Query().Where(
+			esportscloseformfield.KeyEQ(builtinServiceResultFieldKey)).Only(ctx)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+// ensureBuiltinCloseFormTemplate 保障系统内置结单模板存在且生效（§3.4-01 ①）。
+// 幂等：已有 active 的内置模板直接返回；并发下由 (code, version) 唯一约束兜底后回读。
+func ensureBuiltinCloseFormTemplate(ctx context.Context, db *ent.Client) (*ent.EsportsCloseFormTemplate, error) {
+	existing, err := db.EsportsCloseFormTemplate.Query().Where(
+		esportscloseformtemplate.CodeEQ(builtinCloseFormTemplateCode),
+		esportscloseformtemplate.StatusEQ(esportscloseformtemplate.StatusActive),
+	).Order(ent.Desc(esportscloseformtemplate.FieldVersion)).First(ctx)
+	if err == nil {
+		return existing, nil
+	}
+	if !ent.IsNotFound(err) {
+		return nil, err
+	}
+	field, err := ensureBuiltinCloseFormField(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+	bindings := []schema.CloseFormFieldBinding{
+		{FieldKey: field.Key, Required: true, Sort: 0},
+	}
+	definitions, err := snapshotCloseFormFields(ctx, db, bindings)
+	if err != nil {
+		return nil, err
+	}
+	created, err := db.EsportsCloseFormTemplate.Create().
+		SetCode(builtinCloseFormTemplateCode).SetName("系统内置结单模板").
+		SetScope(esportscloseformtemplate.ScopeGlobal).SetScopeKey("").
+		SetMinCents(0).SetMaxCents(0).SetFields(bindings).SetFieldDefinitions(definitions).
+		SetVersion(1).SetStatus(esportscloseformtemplate.StatusActive).
+		SetNote("系统内置：无人工模板时兜底，强制采集服务结果").Save(ctx)
+	if ent.IsConstraintError(err) {
+		return db.EsportsCloseFormTemplate.Query().Where(
+			esportscloseformtemplate.CodeEQ(builtinCloseFormTemplateCode),
+			esportscloseformtemplate.StatusEQ(esportscloseformtemplate.StatusActive),
+		).Order(ent.Desc(esportscloseformtemplate.FieldVersion)).First(ctx)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+// closeFormRequireServiceResult 是否启用「内置结单模板 + 强制采集服务结果」（§3.4-01 ①②）：默认 false。
+// 关闭时「服务结果」的必要性完全由模板绑定决定（绑定且 required 的模板仍会强制），
+// 存量订单与既有模板调用方行为不变；开启后内置模板生效。
+func closeFormRequireServiceResult(ctx context.Context, db *ent.Client) bool {
+	return orderGuardConfigBool(ctx, db, closeFormRequireServiceResultKey, false)
 }
 
 // validCloseFormFieldKey 字段 key 形如小写字母开头、仅含小写字母 / 数字 / 下划线。
@@ -192,7 +302,11 @@ func normalizeCloseFormTemplateInput(ctx context.Context, db *ent.Client, in clo
 		return in, errInvalidInput
 	}
 	if in.Scope != "global" && in.ScopeKey == "" {
-		return in, fmt.Errorf("%w：按游戏分区 / SKU 绑定时须填写范围标识", errInvalidInput)
+		return in, fmt.Errorf("%w：按游戏分区 / SKU / 订单类型绑定时须填写范围标识", errInvalidInput)
+	}
+	// §3.4-07：按订单类型绑定时范围标识只接受 instant / request（其他值永不命中，属配置错误）。
+	if string(esportscloseformtemplate.ScopeOrderType) == in.Scope && !validCloseFormOrderTypeKey(in.ScopeKey) {
+		return in, fmt.Errorf("%w：按订单类型绑定的范围标识须为 instant 或 request", errInvalidInput)
 	}
 	if len(in.Fields) == 0 {
 		return in, fmt.Errorf("%w：模板须至少绑定一个字段", errInvalidInput)
@@ -379,6 +493,10 @@ func listCloseFormTemplates(ctx context.Context, db *ent.Client, limit int) ([]*
 	if limit < 1 || limit > 200 {
 		limit = 100
 	}
+	// §3.4-01：列表即兜底生成系统内置模板，保证「初始化后至少有一条 active 模板」。
+	if _, err := ensureBuiltinCloseFormTemplate(ctx, db); err != nil {
+		return nil, err
+	}
 	return db.EsportsCloseFormTemplate.Query().
 		Order(ent.Desc(esportscloseformtemplate.FieldID)).Limit(limit).All(ctx)
 }
@@ -393,6 +511,10 @@ func closeFormTemplateMatchesAmount(t *ent.EsportsCloseFormTemplate, payableCent
 
 // resolveCloseFormTemplate 解析订单适用的生效模板：sku > game > global，同层取命中金额区间且 version 最大；
 // 无命中返回 nil, nil（结单表单非必填）。
+//
+// §3.4-01：系统内置模板（code=builtin_default）不参与本次解析，除非显式开启
+// app.esports.close_form_require_service_result —— 内置模板只作为「可被启用的兜底模板」存在，
+// 不会悄悄改变存量订单与人工模板的结单要求。
 func resolveCloseFormTemplate(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) (*ent.EsportsCloseFormTemplate, error) {
 	if order.CloseFormTemplateLockedAt != nil {
 		if order.CloseFormTemplateID == nil {
@@ -406,12 +528,20 @@ func resolveCloseFormTemplate(ctx context.Context, db *ent.Client, order *ent.Es
 	if err != nil {
 		return nil, err
 	}
-	if len(active) == 0 {
+	useBuiltin := closeFormRequireServiceResult(ctx, db)
+	usable := make([]*ent.EsportsCloseFormTemplate, 0, len(active))
+	for _, item := range active {
+		if item.Code == builtinCloseFormTemplateCode && !useBuiltin {
+			continue
+		}
+		usable = append(usable, item)
+	}
+	if len(usable) == 0 {
 		return nil, nil
 	}
 	pick := func(scope esportscloseformtemplate.Scope, key string) *ent.EsportsCloseFormTemplate {
 		var best *ent.EsportsCloseFormTemplate
-		for _, item := range active {
+		for _, item := range usable {
 			if item.Scope != scope || item.ScopeKey != key ||
 				!closeFormTemplateMatchesAmount(item, order.PayableCents) {
 				continue
@@ -436,6 +566,10 @@ func resolveCloseFormTemplate(ctx context.Context, db *ent.Client, order *ent.Es
 				}
 			}
 		}
+	}
+	// §3.4-07：按订单类型（即时 / 预约）绑定，优先于全局模板；SKU 与游戏分区绑定仍更具体。
+	if item := pick(esportscloseformtemplate.ScopeOrderType, closeFormOrderTypeKeyOf(order)); item != nil {
+		return item, nil
 	}
 	return pick(esportscloseformtemplate.ScopeGlobal, ""), nil
 }
@@ -664,12 +798,45 @@ func applyCloseForm(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, ad
 		}
 		recorded[def.Key] = normalized
 	}
+	// §3.4-01 ②：启用内置模板时，按内置模板的必填绑定采集「服务结果」。
+	// 未启用时该字段的必要性完全由适用模板自己的绑定决定（模板绑定即强制，未绑定不影响存量单）。
+	if closeFormRequireServiceResult(ctx, tx.Client()) {
+		result, err := requireCloseServiceResult(ctx, tx.Client(), template, values, recorded)
+		if err != nil {
+			return err
+		}
+		recorded[builtinServiceResultFieldKey] = result
+	}
 	if _, err = tx.EsportsCloseFormSnapshot.Create().SetOrderID(order.ID).
 		SetTemplateID(template.ID).SetTemplateCode(template.Code).SetTemplateVersion(template.Version).
 		SetValues(recorded).SetNote(note).SetSubmittedByAdminID(adminID).Save(ctx); err != nil {
 		return err
 	}
 	return nil
+}
+
+// requireCloseServiceResult 取并校验「服务结果」（§3.4-01 ②）：
+// 模板已绑定该字段时按模板校验结果；未绑定时按内置字段口径校验（4–500 字文本）。
+func requireCloseServiceResult(ctx context.Context, db *ent.Client, template *ent.EsportsCloseFormTemplate,
+	values map[string]any, recorded map[string]any) (string, error) {
+	if existing, ok := recorded[builtinServiceResultFieldKey]; ok && !isEmptyCloseFormValue(existing) {
+		if text, ok := existing.(string); ok {
+			return text, nil
+		}
+	}
+	raw, ok := values[builtinServiceResultFieldKey]
+	if !ok || isEmptyCloseFormValue(raw) {
+		return "", fmt.Errorf("%w：请填写结单表单必填项「服务结果」", errInvalidInput)
+	}
+	text, ok := raw.(string)
+	if !ok {
+		return "", fmt.Errorf("%w：字段「服务结果」取值不合法", errInvalidInput)
+	}
+	text = strings.TrimSpace(text)
+	if len([]rune(text)) < 2 || len([]rune(text)) > 500 {
+		return "", fmt.Errorf("%w：字段「服务结果」须为 2–500 字", errInvalidInput)
+	}
+	return text, nil
 }
 
 // orderCloseFormView 是订单结单配置视图：适用表单模板与字段、最近一次快照、提交规则摘要与未上报成员。
@@ -694,6 +861,12 @@ func orderCloseForm(ctx context.Context, db *ent.Client, orderID int) (*orderClo
 	template, err := resolveCloseFormTemplate(ctx, db, order)
 	if err != nil {
 		return nil, err
+	}
+	// §3.4-01：启用内置模板时，未锁定 / 无人工模板的订单在结单弹窗也展示内置模板（含「服务结果」）。
+	if template == nil && closeFormRequireServiceResult(ctx, db) {
+		if template, err = ensureBuiltinCloseFormTemplate(ctx, db); err != nil {
+			return nil, err
+		}
 	}
 	total, err := db.EsportsServiceSegment.Query().Where(
 		esportsservicesegment.OrderIDEQ(orderID),

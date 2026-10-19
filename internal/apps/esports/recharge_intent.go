@@ -177,6 +177,10 @@ func createRechargeIntent(ctx context.Context, db *ent.Client, customer *ent.Esp
 	if err := validateRechargeIntentInput(in); err != nil {
 		return nil, err
 	}
+	// 渠道启停校验（§4.3-08 / §4.3-03）：停用的收款渠道不得发起充值（不生成支付意图、不伪成功）。
+	if !paymentChannelEnabled(ctx, db, in.PaymentChannel) {
+		return nil, fmt.Errorf("%w：收款方式 %s 已停用", errPaymentGatewayUnavailable, in.PaymentChannel)
+	}
 	key := strings.TrimSpace(in.IdempotencyKey)
 	hash := rechargeIntentRequestHash(in)
 	if prior, err := existingRechargeIntent(ctx, db, customer.ID, key, hash); err != nil || prior != nil {
@@ -189,7 +193,8 @@ func createRechargeIntent(ctx context.Context, db *ent.Client, customer *ent.Esp
 	}
 	defer tx.Rollback()
 	// 活动资格与赠送快照在发起时锁定：核验入账以本快照为准，不重新匹配活动。
-	bonus, snapshot, expiresAt, err := resolveRechargeBonus(ctx, tx.Client(), customer.ID, in.PrincipalCents, now)
+	bonus, snapshot, expiresAt, err := resolveRechargeBonus(ctx, tx.Client(), walletCustomerBalance,
+		customer.ID, in.PrincipalCents, now)
 	if err != nil {
 		return nil, err
 	}
@@ -367,6 +372,9 @@ func verifyRechargeIntentPayment(ctx context.Context, db *ent.Client, adminID in
 // settleRechargeIntent 已验签通道适配器核销入口（§4.5 / §4.2 同口径）：只接受已通过签名与
 // 到账证据校验的通道通知，校验支付意图—充值意图—金额—渠道一致后按快照入账。
 // 渠道流水号 (channel, transaction_no) 唯一：同一笔到账重复回调按幂等返回已入账视图。
+//
+// §4.3-03：本入口同时服务「渠道自动回调」与「财务人工核销」——回调由 payment.go 分流进入且
+// 没有管理员操作人（OperatorAdminID=0），此时回执的 verified_by_admin_id 保持为空。
 func settleRechargeIntent(ctx context.Context, db *ent.Client,
 	in rechargeSettlementInput, now time.Time) (*rechargeIntentView, error) {
 	in.IntentNo = strings.TrimSpace(in.IntentNo)
@@ -374,7 +382,7 @@ func settleRechargeIntent(ctx context.Context, db *ent.Client,
 	in.TransactionNo = strings.TrimSpace(in.TransactionNo)
 	in.EvidenceNote = strings.TrimSpace(in.EvidenceNote)
 	if in.IntentNo == "" || in.Channel == "" || in.TransactionNo == "" || len(in.TransactionNo) > 128 ||
-		in.ReceivedCents <= 0 || in.ConfirmedAt.IsZero() || in.OperatorAdminID < 1 ||
+		in.ReceivedCents <= 0 || in.ConfirmedAt.IsZero() || in.OperatorAdminID < 0 ||
 		len([]rune(in.EvidenceNote)) < 8 {
 		return nil, errInvalidInput
 	}
@@ -442,10 +450,18 @@ func settleRechargeIntent(ctx context.Context, db *ent.Client,
 	}
 	if _, err = db.EsportsPaymentReceipt.UpdateOneID(reserved.ID).
 		SetStatus(esportspaymentreceipt.StatusVerified).SetAppliedCents(recharge.PrincipalCents).
-		SetExceptionCents(0).SetVerifiedByAdminID(in.OperatorAdminID).Save(ctx); err != nil {
+		SetExceptionCents(0).SetNillableVerifiedByAdminID(rechargeSettlementOperator(in.OperatorAdminID)).Save(ctx); err != nil {
 		return nil, err
 	}
 	return rechargeIntentViewByNo(ctx, db, in.IntentNo)
+}
+
+// rechargeSettlementOperator 把核销操作人转成可空值：0 表示渠道自动回调（无管理员操作人）。
+func rechargeSettlementOperator(adminID int) *int {
+	if adminID < 1 {
+		return nil
+	}
+	return &adminID
 }
 
 // expireRechargeIntents 把过期的充值支付意图标记为 expired（§4.5）：只动「仍未核验且已超时」的意图，

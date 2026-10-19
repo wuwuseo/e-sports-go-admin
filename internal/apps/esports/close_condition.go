@@ -2,8 +2,10 @@ package esports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 
 	"go-admin/internal/ent"
@@ -348,6 +350,49 @@ type closeConditionStatus struct {
 	Reasons              []string                  `json:"reasons"`
 	Fields               []closeConditionFieldSpec `json:"fields"`
 	Operators            []string                  `json:"operators"`
+	// §3.4-03：结单前必须逐张查看的服务段凭证附件 ID（陪玩上传的图片）。
+	// 结单接口须原样回传覆盖全部 ID 的 viewed_evidence_attachment_ids，缺一即参数错误。
+	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
+}
+
+// serviceEvidenceAttachmentIDs 汇总订单全部服务段 evidence_ref 中的凭证附件 ID（§3.4-03），
+// 升序去重返回。仅解析 JSON 数组形态（陪玩上传的图片附件 ID）；历史文本型凭证（如 oss://...）
+// 解析不出附件，不纳入「已查看」强制口径，避免存量单被新规则追溯拦截。
+func serviceEvidenceAttachmentIDs(ctx context.Context, db *ent.Client, orderID int) ([]int, error) {
+	if orderID < 1 {
+		return nil, errInvalidInput
+	}
+	segments, err := db.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID),
+	).Select(esportsservicesegment.FieldEvidenceRef).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[int]bool{}
+	for _, segment := range segments {
+		ref := strings.TrimSpace(segment.EvidenceRef)
+		if ref == "" || !strings.HasPrefix(ref, "[") {
+			continue
+		}
+		var ids []int
+		if err := json.Unmarshal([]byte(ref), &ids); err != nil {
+			continue
+		}
+		for _, id := range ids {
+			if id > 0 {
+				seen[id] = true
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return []int{}, nil
+	}
+	out := make([]int, 0, len(seen))
+	for id := range seen {
+		out = append(out, id)
+	}
+	sort.Ints(out)
+	return out, nil
 }
 
 // orderCloseConditionStatus 读取订单当前结单条件状态（供结单按钮可用性与逐项提示）。
@@ -373,6 +418,12 @@ func checkCloseConditions(ctx context.Context, db *ent.Client, order *ent.Esport
 		Fields: closeConditionFieldSpecs, Operators: closeConditionOperators,
 	}
 	tree := structuredCloseConditionTree(conds)
+	// §3.4-03：无论条件树是否配置，都要给出「结单前必须查看」的服务段凭证附件 ID。
+	evidenceIDs, err := serviceEvidenceAttachmentIDs(ctx, db, order.ID)
+	if err != nil {
+		return status, err
+	}
+	status.EvidenceAttachmentIDs = evidenceIDs
 	if rule != nil {
 		status.RuleCode = rule.Code
 		status.RuleVersion = rule.Version

@@ -64,6 +64,11 @@ func Name(v string) predicate.EsportsSpecGroup {
 	return predicate.EsportsSpecGroup(sql.FieldEQ(FieldName, v))
 }
 
+// PerSeatServiceUnits applies equality check predicate on the "per_seat_service_units" field. It's identical to PerSeatServiceUnitsEQ.
+func PerSeatServiceUnits(v int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldEQ(FieldPerSeatServiceUnits, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int) predicate.EsportsSpecGroup {
 	return predicate.EsportsSpecGroup(sql.FieldEQ(FieldVersion, v))
@@ -207,6 +212,46 @@ func NameEqualFold(v string) predicate.EsportsSpecGroup {
 // NameContainsFold applies the ContainsFold predicate on the "name" field.
 func NameContainsFold(v string) predicate.EsportsSpecGroup {
 	return predicate.EsportsSpecGroup(sql.FieldContainsFold(FieldName, v))
+}
+
+// PerSeatServiceUnitsEQ applies the EQ predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsEQ(v int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldEQ(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsNEQ applies the NEQ predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsNEQ(v int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldNEQ(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsIn applies the In predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsIn(vs ...int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldIn(FieldPerSeatServiceUnits, vs...))
+}
+
+// PerSeatServiceUnitsNotIn applies the NotIn predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsNotIn(vs ...int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldNotIn(FieldPerSeatServiceUnits, vs...))
+}
+
+// PerSeatServiceUnitsGT applies the GT predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsGT(v int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldGT(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsGTE applies the GTE predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsGTE(v int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldGTE(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsLT applies the LT predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsLT(v int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldLT(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsLTE applies the LTE predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsLTE(v int64) predicate.EsportsSpecGroup {
+	return predicate.EsportsSpecGroup(sql.FieldLTE(FieldPerSeatServiceUnits, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

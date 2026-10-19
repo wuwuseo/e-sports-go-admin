@@ -26,9 +26,14 @@ func adminPlayers(c fiber.Ctx) error {
 	return reply(c, players)
 }
 
-// publicPlayers 客户端陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩公开字段。
+// publicPlayers 客户端陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩公开字段，
+// 并按 player_recommend 组件 props 透传的查询参数（game / level / online / bookable）收窄（§16.3-07）。
 func publicPlayers(c fiber.Ctx) error {
-	views, err := listPublicPlayers(c.Context(), global.ORM, c.Query("game"), queryLimit(c, 100))
+	props, err := parsePlayerRecommendProps(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	views, err := listPublicPlayersByProps(c.Context(), global.ORM, props, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -163,7 +168,7 @@ func playerGrabHallHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	orders, err := listGrabHall(c.Context(), global.ORM, player.ID, time.Now())
+	orders, err := listGrabHallItems(c.Context(), global.ORM, player.ID, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

@@ -84,6 +84,23 @@ func declineDispatchNoticeHandler(c fiber.Ctx) error {
 	return reply(c, notice)
 }
 
+// playerPriorityStatusHandler 陪玩端「我的优先派单权」状态（§6.1-06）：
+// 是否持有 / 来源 / 有效期 / 剩余名额。需在 app.go 接线：
+// {Method: "GET", Path: "/user/player/priority-status", Auth: cmfapp.AuthUser, Handler: playerPriorityStatusHandler}
+// 陪玩身份由 AuthUser + requestPlayer 保证，无需 PermAPI。
+func playerPriorityStatusHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	view, err := playerPriorityStatus(c.Context(), global.ORM, player.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
+}
+
+// adminDispatchPriority 列出优先派单权名单（管理端，§5.4）。
 func adminDispatchPriority(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)

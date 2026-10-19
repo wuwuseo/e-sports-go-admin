@@ -154,6 +154,66 @@ func (_u *EsportsPlayerReviewUpdate) SetNillableStatus(v *esportsplayerreview.St
 	return _u
 }
 
+// SetAutoDisputed sets the "auto_disputed" field.
+func (_u *EsportsPlayerReviewUpdate) SetAutoDisputed(v bool) *EsportsPlayerReviewUpdate {
+	_u.mutation.SetAutoDisputed(v)
+	return _u
+}
+
+// SetNillableAutoDisputed sets the "auto_disputed" field if the given value is not nil.
+func (_u *EsportsPlayerReviewUpdate) SetNillableAutoDisputed(v *bool) *EsportsPlayerReviewUpdate {
+	if v != nil {
+		_u.SetAutoDisputed(*v)
+	}
+	return _u
+}
+
+// SetDisputeRuleCode sets the "dispute_rule_code" field.
+func (_u *EsportsPlayerReviewUpdate) SetDisputeRuleCode(v string) *EsportsPlayerReviewUpdate {
+	_u.mutation.SetDisputeRuleCode(v)
+	return _u
+}
+
+// SetNillableDisputeRuleCode sets the "dispute_rule_code" field if the given value is not nil.
+func (_u *EsportsPlayerReviewUpdate) SetNillableDisputeRuleCode(v *string) *EsportsPlayerReviewUpdate {
+	if v != nil {
+		_u.SetDisputeRuleCode(*v)
+	}
+	return _u
+}
+
+// SetDisputeDetail sets the "dispute_detail" field.
+func (_u *EsportsPlayerReviewUpdate) SetDisputeDetail(v map[string]interface{}) *EsportsPlayerReviewUpdate {
+	_u.mutation.SetDisputeDetail(v)
+	return _u
+}
+
+// ClearDisputeDetail clears the value of the "dispute_detail" field.
+func (_u *EsportsPlayerReviewUpdate) ClearDisputeDetail() *EsportsPlayerReviewUpdate {
+	_u.mutation.ClearDisputeDetail()
+	return _u
+}
+
+// SetDisputedAt sets the "disputed_at" field.
+func (_u *EsportsPlayerReviewUpdate) SetDisputedAt(v time.Time) *EsportsPlayerReviewUpdate {
+	_u.mutation.SetDisputedAt(v)
+	return _u
+}
+
+// SetNillableDisputedAt sets the "disputed_at" field if the given value is not nil.
+func (_u *EsportsPlayerReviewUpdate) SetNillableDisputedAt(v *time.Time) *EsportsPlayerReviewUpdate {
+	if v != nil {
+		_u.SetDisputedAt(*v)
+	}
+	return _u
+}
+
+// ClearDisputedAt clears the value of the "disputed_at" field.
+func (_u *EsportsPlayerReviewUpdate) ClearDisputedAt() *EsportsPlayerReviewUpdate {
+	_u.mutation.ClearDisputedAt()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsPlayerReviewUpdate) SetVersion(v int) *EsportsPlayerReviewUpdate {
 	_u.mutation.ResetVersion()
@@ -254,6 +314,11 @@ func (_u *EsportsPlayerReviewUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayerReview.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DisputeRuleCode(); ok {
+		if err := esportsplayerreview.DisputeRuleCodeValidator(v); err != nil {
+			return &ValidationError{Name: "dispute_rule_code", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayerReview.dispute_rule_code": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -301,6 +366,24 @@ func (_u *EsportsPlayerReviewUpdate) sqlSave(ctx context.Context) (_node int, er
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsplayerreview.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.AutoDisputed(); ok {
+		_spec.SetField(esportsplayerreview.FieldAutoDisputed, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DisputeRuleCode(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputeRuleCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisputeDetail(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputeDetail, field.TypeJSON, value)
+	}
+	if _u.mutation.DisputeDetailCleared() {
+		_spec.ClearField(esportsplayerreview.FieldDisputeDetail, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DisputedAt(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DisputedAtCleared() {
+		_spec.ClearField(esportsplayerreview.FieldDisputedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsplayerreview.FieldVersion, field.TypeInt, value)
@@ -457,6 +540,66 @@ func (_u *EsportsPlayerReviewUpdateOne) SetNillableStatus(v *esportsplayerreview
 	return _u
 }
 
+// SetAutoDisputed sets the "auto_disputed" field.
+func (_u *EsportsPlayerReviewUpdateOne) SetAutoDisputed(v bool) *EsportsPlayerReviewUpdateOne {
+	_u.mutation.SetAutoDisputed(v)
+	return _u
+}
+
+// SetNillableAutoDisputed sets the "auto_disputed" field if the given value is not nil.
+func (_u *EsportsPlayerReviewUpdateOne) SetNillableAutoDisputed(v *bool) *EsportsPlayerReviewUpdateOne {
+	if v != nil {
+		_u.SetAutoDisputed(*v)
+	}
+	return _u
+}
+
+// SetDisputeRuleCode sets the "dispute_rule_code" field.
+func (_u *EsportsPlayerReviewUpdateOne) SetDisputeRuleCode(v string) *EsportsPlayerReviewUpdateOne {
+	_u.mutation.SetDisputeRuleCode(v)
+	return _u
+}
+
+// SetNillableDisputeRuleCode sets the "dispute_rule_code" field if the given value is not nil.
+func (_u *EsportsPlayerReviewUpdateOne) SetNillableDisputeRuleCode(v *string) *EsportsPlayerReviewUpdateOne {
+	if v != nil {
+		_u.SetDisputeRuleCode(*v)
+	}
+	return _u
+}
+
+// SetDisputeDetail sets the "dispute_detail" field.
+func (_u *EsportsPlayerReviewUpdateOne) SetDisputeDetail(v map[string]interface{}) *EsportsPlayerReviewUpdateOne {
+	_u.mutation.SetDisputeDetail(v)
+	return _u
+}
+
+// ClearDisputeDetail clears the value of the "dispute_detail" field.
+func (_u *EsportsPlayerReviewUpdateOne) ClearDisputeDetail() *EsportsPlayerReviewUpdateOne {
+	_u.mutation.ClearDisputeDetail()
+	return _u
+}
+
+// SetDisputedAt sets the "disputed_at" field.
+func (_u *EsportsPlayerReviewUpdateOne) SetDisputedAt(v time.Time) *EsportsPlayerReviewUpdateOne {
+	_u.mutation.SetDisputedAt(v)
+	return _u
+}
+
+// SetNillableDisputedAt sets the "disputed_at" field if the given value is not nil.
+func (_u *EsportsPlayerReviewUpdateOne) SetNillableDisputedAt(v *time.Time) *EsportsPlayerReviewUpdateOne {
+	if v != nil {
+		_u.SetDisputedAt(*v)
+	}
+	return _u
+}
+
+// ClearDisputedAt clears the value of the "disputed_at" field.
+func (_u *EsportsPlayerReviewUpdateOne) ClearDisputedAt() *EsportsPlayerReviewUpdateOne {
+	_u.mutation.ClearDisputedAt()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsPlayerReviewUpdateOne) SetVersion(v int) *EsportsPlayerReviewUpdateOne {
 	_u.mutation.ResetVersion()
@@ -570,6 +713,11 @@ func (_u *EsportsPlayerReviewUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayerReview.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DisputeRuleCode(); ok {
+		if err := esportsplayerreview.DisputeRuleCodeValidator(v); err != nil {
+			return &ValidationError{Name: "dispute_rule_code", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayerReview.dispute_rule_code": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -634,6 +782,24 @@ func (_u *EsportsPlayerReviewUpdateOne) sqlSave(ctx context.Context) (_node *Esp
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsplayerreview.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.AutoDisputed(); ok {
+		_spec.SetField(esportsplayerreview.FieldAutoDisputed, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DisputeRuleCode(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputeRuleCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DisputeDetail(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputeDetail, field.TypeJSON, value)
+	}
+	if _u.mutation.DisputeDetailCleared() {
+		_spec.ClearField(esportsplayerreview.FieldDisputeDetail, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.DisputedAt(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DisputedAtCleared() {
+		_spec.ClearField(esportsplayerreview.FieldDisputedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsplayerreview.FieldVersion, field.TypeInt, value)

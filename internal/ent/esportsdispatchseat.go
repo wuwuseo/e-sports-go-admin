@@ -29,6 +29,12 @@ type EsportsDispatchSeat struct {
 	Status esportsdispatchseat.Status `json:"status"`
 	// InvitedByAdminID holds the value of the "invited_by_admin_id" field.
 	InvitedByAdminID *int `json:"invited_by_admin_id"`
+	// InvitedAt holds the value of the "invited_at" field.
+	InvitedAt *time.Time `json:"invited_at"`
+	// SlotStart holds the value of the "slot_start" field.
+	SlotStart *time.Time `json:"slot_start"`
+	// SlotEnd holds the value of the "slot_end" field.
+	SlotEnd *time.Time `json:"slot_end"`
 	// ExpiresAt holds the value of the "expires_at" field.
 	ExpiresAt *time.Time `json:"expires_at"`
 	// RespondedAt holds the value of the "responded_at" field.
@@ -55,7 +61,7 @@ func (*EsportsDispatchSeat) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case esportsdispatchseat.FieldSource, esportsdispatchseat.FieldStatus:
 			values[i] = new(sql.NullString)
-		case esportsdispatchseat.FieldExpiresAt, esportsdispatchseat.FieldRespondedAt, esportsdispatchseat.FieldCommissionRuleLockedAt, esportsdispatchseat.FieldCreatedAt, esportsdispatchseat.FieldUpdatedAt:
+		case esportsdispatchseat.FieldInvitedAt, esportsdispatchseat.FieldSlotStart, esportsdispatchseat.FieldSlotEnd, esportsdispatchseat.FieldExpiresAt, esportsdispatchseat.FieldRespondedAt, esportsdispatchseat.FieldCommissionRuleLockedAt, esportsdispatchseat.FieldCreatedAt, esportsdispatchseat.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -115,6 +121,27 @@ func (_m *EsportsDispatchSeat) assignValues(columns []string, values []any) erro
 			} else if value.Valid {
 				_m.InvitedByAdminID = new(int)
 				*_m.InvitedByAdminID = int(value.Int64)
+			}
+		case esportsdispatchseat.FieldInvitedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field invited_at", values[i])
+			} else if value.Valid {
+				_m.InvitedAt = new(time.Time)
+				*_m.InvitedAt = value.Time
+			}
+		case esportsdispatchseat.FieldSlotStart:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field slot_start", values[i])
+			} else if value.Valid {
+				_m.SlotStart = new(time.Time)
+				*_m.SlotStart = value.Time
+			}
+		case esportsdispatchseat.FieldSlotEnd:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field slot_end", values[i])
+			} else if value.Valid {
+				_m.SlotEnd = new(time.Time)
+				*_m.SlotEnd = value.Time
 			}
 		case esportsdispatchseat.FieldExpiresAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -218,6 +245,21 @@ func (_m *EsportsDispatchSeat) String() string {
 	if v := _m.InvitedByAdminID; v != nil {
 		builder.WriteString("invited_by_admin_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.InvitedAt; v != nil {
+		builder.WriteString("invited_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.SlotStart; v != nil {
+		builder.WriteString("slot_start=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.SlotEnd; v != nil {
+		builder.WriteString("slot_end=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
 	if v := _m.ExpiresAt; v != nil {

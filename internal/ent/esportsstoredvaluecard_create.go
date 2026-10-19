@@ -362,6 +362,20 @@ func (_c *EsportsStoredValueCardCreate) SetNillableVersion(v *int) *EsportsStore
 	return _c
 }
 
+// SetDeductionOrder sets the "deduction_order" field.
+func (_c *EsportsStoredValueCardCreate) SetDeductionOrder(v string) *EsportsStoredValueCardCreate {
+	_c.mutation.SetDeductionOrder(v)
+	return _c
+}
+
+// SetNillableDeductionOrder sets the "deduction_order" field if the given value is not nil.
+func (_c *EsportsStoredValueCardCreate) SetNillableDeductionOrder(v *string) *EsportsStoredValueCardCreate {
+	if v != nil {
+		_c.SetDeductionOrder(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *EsportsStoredValueCardCreate) SetCreatedAt(v time.Time) *EsportsStoredValueCardCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -468,6 +482,10 @@ func (_c *EsportsStoredValueCardCreate) defaults() {
 	if _, ok := _c.mutation.Version(); !ok {
 		v := esportsstoredvaluecard.DefaultVersion
 		_c.mutation.SetVersion(v)
+	}
+	if _, ok := _c.mutation.DeductionOrder(); !ok {
+		v := esportsstoredvaluecard.DefaultDeductionOrder
+		_c.mutation.SetDeductionOrder(v)
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		v := esportsstoredvaluecard.DefaultCreatedAt()
@@ -581,6 +599,14 @@ func (_c *EsportsStoredValueCardCreate) check() error {
 	}
 	if _, ok := _c.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "EsportsStoredValueCard.version"`)}
+	}
+	if _, ok := _c.mutation.DeductionOrder(); !ok {
+		return &ValidationError{Name: "deduction_order", err: errors.New(`ent: missing required field "EsportsStoredValueCard.deduction_order"`)}
+	}
+	if v, ok := _c.mutation.DeductionOrder(); ok {
+		if err := esportsstoredvaluecard.DeductionOrderValidator(v); err != nil {
+			return &ValidationError{Name: "deduction_order", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.deduction_order": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "EsportsStoredValueCard.created_at"`)}
@@ -729,6 +755,10 @@ func (_c *EsportsStoredValueCardCreate) createSpec() (*EsportsStoredValueCard, *
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldVersion, field.TypeInt, value)
 		_node.Version = value
+	}
+	if value, ok := _c.mutation.DeductionOrder(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldDeductionOrder, field.TypeString, value)
+		_node.DeductionOrder = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldCreatedAt, field.TypeTime, value)

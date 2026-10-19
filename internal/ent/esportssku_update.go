@@ -249,6 +249,54 @@ func (_u *EsportsSkuUpdate) SetNillableServiceUnitName(v *string) *EsportsSkuUpd
 	return _u
 }
 
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_u *EsportsSkuUpdate) SetPerSeatServiceUnits(v int64) *EsportsSkuUpdate {
+	_u.mutation.ResetPerSeatServiceUnits()
+	_u.mutation.SetPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_u *EsportsSkuUpdate) SetNillablePerSeatServiceUnits(v *int64) *EsportsSkuUpdate {
+	if v != nil {
+		_u.SetPerSeatServiceUnits(*v)
+	}
+	return _u
+}
+
+// AddPerSeatServiceUnits adds value to the "per_seat_service_units" field.
+func (_u *EsportsSkuUpdate) AddPerSeatServiceUnits(v int64) *EsportsSkuUpdate {
+	_u.mutation.AddPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetCostCents sets the "cost_cents" field.
+func (_u *EsportsSkuUpdate) SetCostCents(v int64) *EsportsSkuUpdate {
+	_u.mutation.ResetCostCents()
+	_u.mutation.SetCostCents(v)
+	return _u
+}
+
+// SetNillableCostCents sets the "cost_cents" field if the given value is not nil.
+func (_u *EsportsSkuUpdate) SetNillableCostCents(v *int64) *EsportsSkuUpdate {
+	if v != nil {
+		_u.SetCostCents(*v)
+	}
+	return _u
+}
+
+// AddCostCents adds value to the "cost_cents" field.
+func (_u *EsportsSkuUpdate) AddCostCents(v int64) *EsportsSkuUpdate {
+	_u.mutation.AddCostCents(v)
+	return _u
+}
+
+// ClearCostCents clears the value of the "cost_cents" field.
+func (_u *EsportsSkuUpdate) ClearCostCents() *EsportsSkuUpdate {
+	_u.mutation.ClearCostCents()
+	return _u
+}
+
 // SetServiceDurationMinutes sets the "service_duration_minutes" field.
 func (_u *EsportsSkuUpdate) SetServiceDurationMinutes(v int) *EsportsSkuUpdate {
 	_u.mutation.ResetServiceDurationMinutes()
@@ -615,6 +663,21 @@ func (_u *EsportsSkuUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.ServiceUnitName(); ok {
 		_spec.SetField(esportssku.FieldServiceUnitName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportssku.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPerSeatServiceUnits(); ok {
+		_spec.AddField(esportssku.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CostCents(); ok {
+		_spec.SetField(esportssku.FieldCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCostCents(); ok {
+		_spec.AddField(esportssku.FieldCostCents, field.TypeInt64, value)
+	}
+	if _u.mutation.CostCentsCleared() {
+		_spec.ClearField(esportssku.FieldCostCents, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
 		_spec.SetField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)
 	}
@@ -907,6 +970,54 @@ func (_u *EsportsSkuUpdateOne) SetNillableServiceUnitName(v *string) *EsportsSku
 	if v != nil {
 		_u.SetServiceUnitName(*v)
 	}
+	return _u
+}
+
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_u *EsportsSkuUpdateOne) SetPerSeatServiceUnits(v int64) *EsportsSkuUpdateOne {
+	_u.mutation.ResetPerSeatServiceUnits()
+	_u.mutation.SetPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_u *EsportsSkuUpdateOne) SetNillablePerSeatServiceUnits(v *int64) *EsportsSkuUpdateOne {
+	if v != nil {
+		_u.SetPerSeatServiceUnits(*v)
+	}
+	return _u
+}
+
+// AddPerSeatServiceUnits adds value to the "per_seat_service_units" field.
+func (_u *EsportsSkuUpdateOne) AddPerSeatServiceUnits(v int64) *EsportsSkuUpdateOne {
+	_u.mutation.AddPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetCostCents sets the "cost_cents" field.
+func (_u *EsportsSkuUpdateOne) SetCostCents(v int64) *EsportsSkuUpdateOne {
+	_u.mutation.ResetCostCents()
+	_u.mutation.SetCostCents(v)
+	return _u
+}
+
+// SetNillableCostCents sets the "cost_cents" field if the given value is not nil.
+func (_u *EsportsSkuUpdateOne) SetNillableCostCents(v *int64) *EsportsSkuUpdateOne {
+	if v != nil {
+		_u.SetCostCents(*v)
+	}
+	return _u
+}
+
+// AddCostCents adds value to the "cost_cents" field.
+func (_u *EsportsSkuUpdateOne) AddCostCents(v int64) *EsportsSkuUpdateOne {
+	_u.mutation.AddCostCents(v)
+	return _u
+}
+
+// ClearCostCents clears the value of the "cost_cents" field.
+func (_u *EsportsSkuUpdateOne) ClearCostCents() *EsportsSkuUpdateOne {
+	_u.mutation.ClearCostCents()
 	return _u
 }
 
@@ -1305,6 +1416,21 @@ func (_u *EsportsSkuUpdateOne) sqlSave(ctx context.Context) (_node *EsportsSku, 
 	}
 	if value, ok := _u.mutation.ServiceUnitName(); ok {
 		_spec.SetField(esportssku.FieldServiceUnitName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportssku.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPerSeatServiceUnits(); ok {
+		_spec.AddField(esportssku.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.CostCents(); ok {
+		_spec.SetField(esportssku.FieldCostCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCostCents(); ok {
+		_spec.AddField(esportssku.FieldCostCents, field.TypeInt64, value)
+	}
+	if _u.mutation.CostCentsCleared() {
+		_spec.ClearField(esportssku.FieldCostCents, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
 		_spec.SetField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)

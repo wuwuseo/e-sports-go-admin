@@ -55,12 +55,21 @@ func adminReports(c fiber.Ctx) error {
 	result["range"] = map[string]any{
 		"start": filter.Start, "end": filter.End, "period": filter.Period,
 	}
+	// §17-07：按报表类型给出可用筛选项清单，前端据此裁剪筛选控件。
+	result["filter_capabilities"] = map[string]any{
+		"supported":   supportedReportDimensions(reportType),
+		"unsupported": unsupportedReportDimensions(reportType),
+	}
 	return reply(c, result)
 }
 
+// scopeReportFilter 收敛非超管的数据可见范围（§17-09 / §3.5-06）。
+// ResponsibleAdmin 保留为「被强制收敛的筛选值」（历史行为：客服不能借筛选参数读他人数据），
+// 真正的权限边界交给 VisibleAdmin＝本人负责 OR 存在协作授权行，与订单列表 / 详情同口径。
 func scopeReportFilter(filter reportFilter, adminID int, isSuper bool) reportFilter {
 	if !isSuper {
 		filter.ResponsibleAdmin = adminID
+		filter.VisibleAdmin = adminID
 	}
 	return filter
 }
@@ -111,22 +120,140 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 	return filter, nil
 }
 
-// validateReportFilter 按报表类型校验筛选维度。财务资金来自独立钱包、结算与支付回执，
-// 不具备逐订单归属，订单归属筛选若被接受只会静默变成全量数据；这里显式返回中文参数错误。
-// 时间区间与支付方式等资金维度不受影响；账户类型 / 流水类型 / 结算状态仍是报表输出维度。
-func validateReportFilter(reportType string, f reportFilter) error {
-	if reportType != "finance" {
-		return nil
+// reportFilterDimensionOrder 是报表筛选维度的稳定顺序（错误提示与能力清单共用）。
+var reportFilterDimensionOrder = []string{
+	"channel_source", "entry_point", "responsible_admin_id", "created_by_admin_id",
+	"sku_id", "game", "appointment_type", "seat_type", "payment_channel", "kind", "fault_party",
+}
+
+// reportDimensionLabels 是各筛选维度的中文说明（拒绝提示用）。
+var reportDimensionLabels = map[string]string{
+	"channel_source":       "按客户渠道筛选",
+	"entry_point":          "按报单入口筛选",
+	"responsible_admin_id": "按负责客服筛选",
+	"created_by_admin_id":  "按报单客服筛选",
+	"sku_id":               "按 SKU 筛选",
+	"game":                 "按游戏筛选",
+	"appointment_type":     "按即时预约筛选",
+	"seat_type":            "按单人多人筛选",
+	"payment_channel":      "按支付方式筛选",
+	"kind":                 "按售后类型筛选",
+	"fault_party":          "按责任方筛选",
+}
+
+// reportTypeLabel 返回报表中文名（用于筛选拒绝提示）。
+func reportTypeLabel(reportType string) string {
+	switch reportType {
+	case "owner_overview":
+		return "经营总览报表"
+	case "cs_performance":
+		return "客服业绩报表"
+	case "dispatch_efficiency":
+		return "派单效率报表"
+	case "aftersale_quality":
+		return "售后质量报表"
+	case "finance":
+		return "财务资金报表"
 	}
-	switch {
-	case f.ChannelSource != "" || f.EntryPoint != "":
-		return fmt.Errorf("%w：财务资金报表不支持按客户渠道 / 报单入口筛选", errInvalidInput)
-	case f.SkuID > 0 || f.Game != "":
-		return fmt.Errorf("%w：财务资金报表不支持按 SKU / 游戏筛选", errInvalidInput)
-	case f.ResponsibleAdmin > 0:
-		return fmt.Errorf("%w：财务资金报表不支持按负责客服筛选", errInvalidInput)
-	case f.AppointmentType != "" || f.SeatType != "":
-		return fmt.Errorf("%w：财务资金报表不支持按即时预约 / 单人多人筛选", errInvalidInput)
+	return "报表"
+}
+
+// unsupportedReportDimensions 返回该报表类型不收下（也不静默忽略）的维度键（§17-07）：
+// 售后质量只按订单渠道 / 入口圈定订单；财务资金不具备逐订单归属；经营总览 / 客服业绩 /
+// 派单效率均不使用售后类型与责任方维度。
+func unsupportedReportDimensions(reportType string) []string {
+	unsupported := map[string]bool{}
+	switch reportType {
+	case "aftersale_quality":
+		for _, key := range []string{"sku_id", "game", "payment_channel", "appointment_type", "seat_type"} {
+			unsupported[key] = true
+		}
+	case "finance":
+		for _, key := range []string{"channel_source", "entry_point", "responsible_admin_id",
+			"sku_id", "game", "appointment_type", "seat_type", "kind", "fault_party"} {
+			unsupported[key] = true
+		}
+	case "owner_overview", "cs_performance", "dispatch_efficiency":
+		for _, key := range []string{"kind", "fault_party"} {
+			unsupported[key] = true
+		}
+	}
+	out := make([]string, 0, len(unsupported))
+	for _, key := range reportFilterDimensionOrder {
+		if unsupported[key] {
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+// supportedReportDimensions 返回该报表类型可用的维度键，与不支持清单互补。
+func supportedReportDimensions(reportType string) []string {
+	unsupported := map[string]bool{}
+	for _, key := range unsupportedReportDimensions(reportType) {
+		unsupported[key] = true
+	}
+	out := make([]string, 0, len(reportFilterDimensionOrder))
+	for _, key := range reportFilterDimensionOrder {
+		if !unsupported[key] {
+			out = append(out, key)
+		}
+	}
+	return out
+}
+
+// reportFilterDimensionsInUse 返回本次请求实际带上的筛选维度键。
+func reportFilterDimensionsInUse(f reportFilter) map[string]bool {
+	inUse := map[string]bool{}
+	if f.ChannelSource != "" {
+		inUse["channel_source"] = true
+	}
+	if f.EntryPoint != "" {
+		inUse["entry_point"] = true
+	}
+	if f.ResponsibleAdmin > 0 {
+		inUse["responsible_admin_id"] = true
+	}
+	if f.CreatedByAdmin > 0 {
+		inUse["created_by_admin_id"] = true
+	}
+	if f.SkuID > 0 {
+		inUse["sku_id"] = true
+	}
+	if f.Game != "" {
+		inUse["game"] = true
+	}
+	if f.AppointmentType != "" {
+		inUse["appointment_type"] = true
+	}
+	if f.SeatType != "" {
+		inUse["seat_type"] = true
+	}
+	if f.PaymentChannel != "" {
+		inUse["payment_channel"] = true
+	}
+	if f.AftersaleKind != "" {
+		inUse["kind"] = true
+	}
+	if f.FaultParty != "" {
+		inUse["fault_party"] = true
+	}
+	return inUse
+}
+
+// validateReportFilter 按报表类型校验筛选维度（§17-07）：不支持的维度显式返回中文参数错误，
+// 避免「收下后不使用」把筛选静默变成全量统计。支持维度之间可叠加；同一请求命中多个不支持维度时
+// 按固定顺序报告第一个，保证提示稳定且可断言。
+func validateReportFilter(reportType string, f reportFilter) error {
+	unsupported := map[string]bool{}
+	for _, key := range unsupportedReportDimensions(reportType) {
+		unsupported[key] = true
+	}
+	inUse := reportFilterDimensionsInUse(f)
+	for _, key := range reportFilterDimensionOrder {
+		if inUse[key] && unsupported[key] {
+			return fmt.Errorf("%w：%s不支持%s", errInvalidInput, reportTypeLabel(reportType), reportDimensionLabels[key])
+		}
 	}
 	return nil
 }

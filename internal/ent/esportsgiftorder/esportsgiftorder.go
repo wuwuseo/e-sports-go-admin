@@ -48,6 +48,12 @@ const (
 	FieldPaymentSource = "payment_source"
 	// FieldStoredValueCardID holds the string denoting the stored_value_card_id field in the database.
 	FieldStoredValueCardID = "stored_value_card_id"
+	// FieldGiftTierID holds the string denoting the gift_tier_id field in the database.
+	FieldGiftTierID = "gift_tier_id"
+	// FieldGiftTierCode holds the string denoting the gift_tier_code field in the database.
+	FieldGiftTierCode = "gift_tier_code"
+	// FieldPaymentRef holds the string denoting the payment_ref field in the database.
+	FieldPaymentRef = "payment_ref"
 	// FieldCommissionMode holds the string denoting the commission_mode field in the database.
 	FieldCommissionMode = "commission_mode"
 	// FieldCommissionBp holds the string denoting the commission_bp field in the database.
@@ -96,6 +102,9 @@ var Columns = []string{
 	FieldBonusCents,
 	FieldPaymentSource,
 	FieldStoredValueCardID,
+	FieldGiftTierID,
+	FieldGiftTierCode,
+	FieldPaymentRef,
 	FieldCommissionMode,
 	FieldCommissionBp,
 	FieldCommissionCents,
@@ -154,6 +163,16 @@ var (
 	DefaultPaymentSource string
 	// StoredValueCardIDValidator is a validator for the "stored_value_card_id" field. It is called by the builders before save.
 	StoredValueCardIDValidator func(int) error
+	// DefaultGiftTierID holds the default value on creation for the "gift_tier_id" field.
+	DefaultGiftTierID int
+	// DefaultGiftTierCode holds the default value on creation for the "gift_tier_code" field.
+	DefaultGiftTierCode string
+	// GiftTierCodeValidator is a validator for the "gift_tier_code" field. It is called by the builders before save.
+	GiftTierCodeValidator func(string) error
+	// DefaultPaymentRef holds the default value on creation for the "payment_ref" field.
+	DefaultPaymentRef string
+	// PaymentRefValidator is a validator for the "payment_ref" field. It is called by the builders before save.
+	PaymentRefValidator func(string) error
 	// DefaultCommissionBp holds the default value on creation for the "commission_bp" field.
 	DefaultCommissionBp int
 	// DefaultCommissionCents holds the default value on creation for the "commission_cents" field.
@@ -365,6 +384,21 @@ func ByPaymentSource(opts ...sql.OrderTermOption) OrderOption {
 // ByStoredValueCardID orders the results by the stored_value_card_id field.
 func ByStoredValueCardID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStoredValueCardID, opts...).ToFunc()
+}
+
+// ByGiftTierID orders the results by the gift_tier_id field.
+func ByGiftTierID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGiftTierID, opts...).ToFunc()
+}
+
+// ByGiftTierCode orders the results by the gift_tier_code field.
+func ByGiftTierCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGiftTierCode, opts...).ToFunc()
+}
+
+// ByPaymentRef orders the results by the payment_ref field.
+func ByPaymentRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentRef, opts...).ToFunc()
 }
 
 // ByCommissionMode orders the results by the commission_mode field.

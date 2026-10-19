@@ -33,6 +33,8 @@ type productChildSkuInput struct {
 	ServiceUnits           int64  `json:"service_units"`
 	ServiceUnitName        string `json:"service_unit_name"`
 	RequiredSeats          int    `json:"required_seats"`
+	PerSeatServiceUnits    int64  `json:"per_seat_service_units"`
+	CostCents              *int64 `json:"cost_cents"`
 	ServiceDurationMinutes int    `json:"service_duration_minutes"`
 	CloseRuleCode          string `json:"close_rule_code"`
 	SpecGroupID            *int   `json:"spec_group_id"`
@@ -49,11 +51,14 @@ type productInput struct {
 	Skus        []productChildSkuInput `json:"skus"`
 }
 
+// specGroupInput 规格组入参（§15.5-01）：per_seat_service_units 为规格组级「每席承诺服务量」，
+// 落库时逐席补全 SeatSpec.PromisedUnits，保证「Σ 每席承诺量 = 每席量 × 席位数」。
 type specGroupInput struct {
-	Code   string                `json:"code"`
-	Name   string                `json:"name"`
-	Seats  []schematier.SeatSpec `json:"seats"`
-	Status string                `json:"status"`
+	Code                string                `json:"code"`
+	Name                string                `json:"name"`
+	Seats               []schematier.SeatSpec `json:"seats"`
+	PerSeatServiceUnits int64                 `json:"per_seat_service_units"`
+	Status              string                `json:"status"`
 }
 
 // productDetailView 是商品详情返回结构：父商品 + 子 SKU + 被引用的规格组。
@@ -64,7 +69,12 @@ type productDetailView struct {
 }
 
 // validateSeats 校验规格组席位定义：序号从 0 起、不重复、角色必填。
-func validateSeats(seats []schematier.SeatSpec) error {
+// §15.5-01：逐席承诺服务量以规格组级每席量为准（未配置的席位补全，显式配置但不一致的拒绝），
+// 保证下游「Σ 每席承诺量 = 每席量 × 席位数」恒成立。
+func validateSeats(seats []schematier.SeatSpec, perSeat int64) error {
+	if perSeat < 0 {
+		return fmt.Errorf("%w：每席承诺服务量不能为负", errInvalidInput)
+	}
 	seen := map[int]bool{}
 	for i := range seats {
 		seats[i].Role = strings.TrimSpace(seats[i].Role)
@@ -76,8 +86,49 @@ func validateSeats(seats []schematier.SeatSpec) error {
 		if seats[i].Role == "" {
 			return fmt.Errorf("%w：席位角色不能为空", errInvalidInput)
 		}
+		if seats[i].PromisedUnits < 0 {
+			return fmt.Errorf("%w：每席承诺服务量不能为负", errInvalidInput)
+		}
+	}
+	// 规格组未声明每席量时：各席显式配置必须一致，并据此回填组级每席量。
+	if perSeat <= 0 {
+		for i := range seats {
+			if seats[i].PromisedUnits <= 0 {
+				continue
+			}
+			if perSeat <= 0 {
+				perSeat = seats[i].PromisedUnits
+				continue
+			}
+			if seats[i].PromisedUnits != perSeat {
+				return fmt.Errorf("%w：各席位每席承诺服务量须一致", errInvalidInput)
+			}
+		}
+		return nil
+	}
+	for i := range seats {
+		if seats[i].PromisedUnits <= 0 {
+			seats[i].PromisedUnits = perSeat
+			continue
+		}
+		if seats[i].PromisedUnits != perSeat {
+			return fmt.Errorf("%w：席位每席承诺服务量须与规格组一致", errInvalidInput)
+		}
 	}
 	return nil
+}
+
+// normalizePerSeatUnits 由席位定义反推组级每席承诺量：组级为 0 时取各席显式值（须一致）。
+func normalizePerSeatUnits(seats []schematier.SeatSpec, perSeat int64) int64 {
+	if perSeat > 0 {
+		return perSeat
+	}
+	for _, seat := range seats {
+		if seat.PromisedUnits > 0 {
+			return seat.PromisedUnits
+		}
+	}
+	return perSeat
 }
 
 func validateSpecGroupInput(in specGroupInput) (specGroupInput, error) {
@@ -87,8 +138,17 @@ func validateSpecGroupInput(in specGroupInput) (specGroupInput, error) {
 		(in.Status != "enabled" && in.Status != "disabled") {
 		return in, errInvalidInput
 	}
-	if err := validateSeats(in.Seats); err != nil {
+	if err := validateSeats(in.Seats, in.PerSeatServiceUnits); err != nil {
 		return in, err
+	}
+	in.PerSeatServiceUnits = normalizePerSeatUnits(in.Seats, in.PerSeatServiceUnits)
+	// 席位已在 validateSeats 内补全承诺量；组级每席量再统一回填一次，规避值语义的切片别名问题。
+	if in.PerSeatServiceUnits > 0 {
+		for i := range in.Seats {
+			if in.Seats[i].PromisedUnits <= 0 {
+				in.Seats[i].PromisedUnits = in.PerSeatServiceUnits
+			}
+		}
 	}
 	return in, nil
 }
@@ -99,7 +159,8 @@ func saveSpecGroup(ctx context.Context, db *ent.Client, in specGroupInput) (*ent
 		return nil, err
 	}
 	return db.EsportsSpecGroup.Create().SetCode(in.Code).SetName(in.Name).
-		SetSeats(in.Seats).SetStatus(esportsspecgroup.Status(in.Status)).Save(ctx)
+		SetSeats(in.Seats).SetPerSeatServiceUnits(in.PerSeatServiceUnits).
+		SetStatus(esportsspecgroup.Status(in.Status)).Save(ctx)
 }
 
 func updateSpecGroup(ctx context.Context, db *ent.Client, id int, in specGroupInput) (*ent.EsportsSpecGroup, error) {
@@ -108,7 +169,8 @@ func updateSpecGroup(ctx context.Context, db *ent.Client, id int, in specGroupIn
 		return nil, err
 	}
 	changed, err := db.EsportsSpecGroup.Update().Where(esportsspecgroup.IDEQ(id)).
-		SetName(in.Name).SetSeats(in.Seats).SetStatus(esportsspecgroup.Status(in.Status)).AddVersion(1).Save(ctx)
+		SetName(in.Name).SetSeats(in.Seats).SetPerSeatServiceUnits(in.PerSeatServiceUnits).
+		SetStatus(esportsspecgroup.Status(in.Status)).AddVersion(1).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,11 +209,16 @@ func normalizeProductChildSku(in productChildSkuInput) (productChildSkuInput, er
 		in.ServiceUnitName == "" || len([]rune(in.ServiceUnitName)) > 32 || len([]rune(in.Description)) > 500 ||
 		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
 		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 ||
-		in.RequiredSeats < 1 || in.QuotaTotal < -1 ||
+		in.RequiredSeats < 1 || in.QuotaTotal < -1 || in.PerSeatServiceUnits < 0 ||
 		in.ServiceDurationMinutes < 0 || in.ServiceDurationMinutes > 24*60 ||
-		(in.ServiceType != "play" && in.ServiceType != "teaching" && in.ServiceType != "entertainment") ||
 		(in.Status != "draft" && in.Status != "on_sale" && in.Status != "off_sale") {
 		return in, errInvalidInput
+	}
+	if err := validateSkuServiceType(in.ServiceType); err != nil {
+		return in, err
+	}
+	if err := validateSkuCostCents(in.CostCents); err != nil {
+		return in, err
 	}
 	if in.SpecGroupID != nil && *in.SpecGroupID < 1 {
 		return in, errInvalidInput
@@ -174,17 +241,32 @@ func applyProductChildSkus(ctx context.Context, tx *ent.Tx, productID int, skus 
 			if len(group.Seats) != in.RequiredSeats {
 				return fmt.Errorf("%w：第 %d 个子 SKU 规格组席位数量与 required_seats 不一致", errInvalidInput, i+1)
 			}
+			// §15.5-01：规格组已声明每席承诺服务量时，子 SKU 未单独配置则跟随规格组，避免同规格两套口径。
+			if in.PerSeatServiceUnits <= 0 && group.PerSeatServiceUnits > 0 {
+				in.PerSeatServiceUnits = group.PerSeatServiceUnits
+			}
+			if in.PerSeatServiceUnits > 0 && group.PerSeatServiceUnits > 0 &&
+				in.PerSeatServiceUnits != group.PerSeatServiceUnits {
+				return fmt.Errorf("%w：第 %d 个子 SKU 每席承诺服务量与规格组不一致", errInvalidInput, i+1)
+			}
 		}
 		if in.ID > 0 {
-			changed, err := tx.EsportsSku.Update().Where(
+			update := tx.EsportsSku.Update().Where(
 				esportssku.IDEQ(in.ID), esportssku.ProductIDEQ(productID),
 			).SetTitle(in.Title).SetServiceType(esportssku.ServiceType(in.ServiceType)).
 				SetDescription(in.Description).SetUnitPriceCents(in.UnitPriceCents).
 				SetMinUnitPriceCents(in.MinUnitPriceCents).SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).
 				SetServiceUnits(in.ServiceUnits).SetServiceUnitName(in.ServiceUnitName).
-				SetRequiredSeats(in.RequiredSeats).SetServiceDurationMinutes(in.ServiceDurationMinutes).
+				SetRequiredSeats(in.RequiredSeats).SetPerSeatServiceUnits(in.PerSeatServiceUnits).
+				SetServiceDurationMinutes(in.ServiceDurationMinutes).
 				SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).SetQuotaTotal(in.QuotaTotal).
-				SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status)).AddVersion(1).Save(ctx)
+				SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status)).AddVersion(1)
+			if in.CostCents == nil {
+				update.ClearCostCents()
+			} else {
+				update.SetCostCents(*in.CostCents)
+			}
+			changed, err := update.Save(ctx)
 			if err != nil {
 				return err
 			}
@@ -198,10 +280,14 @@ func applyProductChildSkus(ctx context.Context, tx *ent.Tx, productID int, skus 
 			SetUnitPriceCents(in.UnitPriceCents).SetMinUnitPriceCents(in.MinUnitPriceCents).
 			SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).SetServiceUnits(in.ServiceUnits).
 			SetServiceUnitName(in.ServiceUnitName).SetRequiredSeats(in.RequiredSeats).
+			SetPerSeatServiceUnits(in.PerSeatServiceUnits).
 			SetServiceDurationMinutes(in.ServiceDurationMinutes).
 			SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).SetQuotaTotal(in.QuotaTotal).
 			SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status)).
 			SetProductID(productID)
+		if in.CostCents != nil {
+			create.SetCostCents(*in.CostCents)
+		}
 		if in.SpecGroupID != nil {
 			create.SetSpecGroupID(*in.SpecGroupID)
 		}
@@ -369,4 +455,75 @@ func orderSeatRoles(ctx context.Context, db *ent.Client, orderID int) ([]schemat
 		return []schematier.SeatSpec{}, nil
 	}
 	return order.SeatRoles, nil
+}
+
+// resolveSeatPromise 解析下单时的每席承诺服务量与逐席快照（§15.3-01 / §15.5-01 / §5.3-05 / §4.2-08）：
+//
+//	perSeat    订单落库的「每席承诺服务量」；
+//	seatTotal  Σ 每席承诺服务量（订单承诺量 = seatTotal × 份数）；
+//	seats      补全 PromisedUnits 后的逐席快照（有规格组时非空）。
+//
+// 口径：
+//   - 有规格组：每席量取规格组（其次 SKU），逐席缺失的补全为每席量，Σ 即每席量 × 席位数；
+//   - 无规格组：required_seats > 1 时必须显式配置每席量，否则拒绝报单（不静默落 0）；
+//   - 无规格组且单人：未配置每席量时回落整单服务量，保持存量单人单口径不变。
+func resolveSeatPromise(sku *ent.EsportsSku, group *ent.EsportsSpecGroup) (int64, int64, []schematier.SeatSpec, error) {
+	if sku == nil {
+		return 0, 0, nil, errInvalidInput
+	}
+	seats := []schematier.SeatSpec{}
+	if group != nil {
+		seats = append(seats, group.Seats...)
+	}
+	perSeat := int64(0)
+	if group != nil && group.PerSeatServiceUnits > 0 {
+		perSeat = group.PerSeatServiceUnits
+	}
+	if perSeat <= 0 {
+		perSeat = sku.PerSeatServiceUnits
+	}
+	if perSeat < 0 {
+		return 0, 0, nil, fmt.Errorf("%w：每席承诺服务量不能为负", errInvalidInput)
+	}
+	if len(seats) > 1 && perSeat <= 0 {
+		// 规格组未声明每席量时允许各席自带一致口径；缺失或口径不一的多人规格一律拒绝。
+		derived := int64(0)
+		for _, seat := range seats {
+			if seat.PromisedUnits <= 0 || (derived > 0 && seat.PromisedUnits != derived) {
+				return 0, 0, nil, fmt.Errorf(
+					"%w：多人规格未配置每席承诺服务量，无法报单", errInvalidInput)
+			}
+			derived = seat.PromisedUnits
+		}
+		perSeat = derived
+	}
+	if len(seats) == 0 {
+		if perSeat <= 0 {
+			if sku.RequiredSeats > 1 {
+				return 0, 0, nil, fmt.Errorf(
+					"%w：多人 SKU 未配置每席承诺服务量，无法报单", errInvalidInput)
+			}
+			if sku.ServiceUnits <= 0 {
+				return 0, 0, nil, fmt.Errorf("%w：SKU 未配置服务量，无法报单", errInvalidInput)
+			}
+			return sku.ServiceUnits, sku.ServiceUnits, seats, nil
+		}
+		return perSeat, perSeat * int64(sku.RequiredSeats), seats, nil
+	}
+	for i := range seats {
+		if seats[i].PromisedUnits <= 0 {
+			seats[i].PromisedUnits = perSeat
+		}
+	}
+	total := int64(0)
+	for _, seat := range seats {
+		total += seat.PromisedUnits
+	}
+	if total <= 0 {
+		return 0, 0, nil, fmt.Errorf("%w：多人规格未配置每席承诺服务量，无法报单", errInvalidInput)
+	}
+	if perSeat <= 0 {
+		perSeat = total
+	}
+	return perSeat, total, seats, nil
 }

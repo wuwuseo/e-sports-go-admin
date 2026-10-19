@@ -34,6 +34,12 @@ type EsportsCustomer struct {
 	Birthday string `json:"birthday"`
 	// ConsumptionPreference holds the value of the "consumption_preference" field.
 	ConsumptionPreference string `json:"consumption_preference"`
+	// Timezone holds the value of the "timezone" field.
+	Timezone string `json:"timezone"`
+	// LatitudeE6 holds the value of the "latitude_e6" field.
+	LatitudeE6 int `json:"latitude_e6"`
+	// LongitudeE6 holds the value of the "longitude_e6" field.
+	LongitudeE6 int `json:"longitude_e6"`
 	// Tags holds the value of the "tags" field.
 	Tags []string `json:"tags"`
 	// Source holds the value of the "source" field.
@@ -78,9 +84,9 @@ func (*EsportsCustomer) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case esportscustomer.FieldSelfOrderEnabled:
 			values[i] = new(sql.NullBool)
-		case esportscustomer.FieldID, esportscustomer.FieldUserID, esportscustomer.FieldOwnerAdminID, esportscustomer.FieldVersion:
+		case esportscustomer.FieldID, esportscustomer.FieldUserID, esportscustomer.FieldOwnerAdminID, esportscustomer.FieldLatitudeE6, esportscustomer.FieldLongitudeE6, esportscustomer.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportscustomer.FieldDisplayName, esportscustomer.FieldAgeStatus, esportscustomer.FieldPhone, esportscustomer.FieldBirthday, esportscustomer.FieldConsumptionPreference, esportscustomer.FieldSource, esportscustomer.FieldFollowStatus, esportscustomer.FieldRiskStatus, esportscustomer.FieldRiskReason, esportscustomer.FieldWecomCorpID, esportscustomer.FieldWecomExternalID, esportscustomer.FieldMemberLevelCode, esportscustomer.FieldMemberPendingLevelCode:
+		case esportscustomer.FieldDisplayName, esportscustomer.FieldAgeStatus, esportscustomer.FieldPhone, esportscustomer.FieldBirthday, esportscustomer.FieldConsumptionPreference, esportscustomer.FieldTimezone, esportscustomer.FieldSource, esportscustomer.FieldFollowStatus, esportscustomer.FieldRiskStatus, esportscustomer.FieldRiskReason, esportscustomer.FieldWecomCorpID, esportscustomer.FieldWecomExternalID, esportscustomer.FieldMemberLevelCode, esportscustomer.FieldMemberPendingLevelCode:
 			values[i] = new(sql.NullString)
 		case esportscustomer.FieldRiskMarkedAt, esportscustomer.FieldLastContactAt, esportscustomer.FieldMemberDowngradeAfter, esportscustomer.FieldMemberLevelChangedAt, esportscustomer.FieldCreatedAt, esportscustomer.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -154,6 +160,24 @@ func (_m *EsportsCustomer) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field consumption_preference", values[i])
 			} else if value.Valid {
 				_m.ConsumptionPreference = value.String
+			}
+		case esportscustomer.FieldTimezone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field timezone", values[i])
+			} else if value.Valid {
+				_m.Timezone = value.String
+			}
+		case esportscustomer.FieldLatitudeE6:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field latitude_e6", values[i])
+			} else if value.Valid {
+				_m.LatitudeE6 = int(value.Int64)
+			}
+		case esportscustomer.FieldLongitudeE6:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field longitude_e6", values[i])
+			} else if value.Valid {
+				_m.LongitudeE6 = int(value.Int64)
 			}
 		case esportscustomer.FieldTags:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -322,6 +346,15 @@ func (_m *EsportsCustomer) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("consumption_preference=")
 	builder.WriteString(_m.ConsumptionPreference)
+	builder.WriteString(", ")
+	builder.WriteString("timezone=")
+	builder.WriteString(_m.Timezone)
+	builder.WriteString(", ")
+	builder.WriteString("latitude_e6=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LatitudeE6))
+	builder.WriteString(", ")
+	builder.WriteString("longitude_e6=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LongitudeE6))
 	builder.WriteString(", ")
 	builder.WriteString("tags=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Tags))

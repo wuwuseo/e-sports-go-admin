@@ -192,6 +192,20 @@ func (_c *EsportsAssessmentCreate) SetNillableCreatedByAdminID(v *int) *EsportsA
 	return _c
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (_c *EsportsAssessmentCreate) SetActiveDedupKey(v string) *EsportsAssessmentCreate {
+	_c.mutation.SetActiveDedupKey(v)
+	return _c
+}
+
+// SetNillableActiveDedupKey sets the "active_dedup_key" field if the given value is not nil.
+func (_c *EsportsAssessmentCreate) SetNillableActiveDedupKey(v *string) *EsportsAssessmentCreate {
+	if v != nil {
+		_c.SetActiveDedupKey(*v)
+	}
+	return _c
+}
+
 // SetVersion sets the "version" field.
 func (_c *EsportsAssessmentCreate) SetVersion(v int) *EsportsAssessmentCreate {
 	_c.mutation.SetVersion(v)
@@ -376,6 +390,11 @@ func (_c *EsportsAssessmentCreate) check() error {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.note": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.ActiveDedupKey(); ok {
+		if err := esportsassessment.ActiveDedupKeyValidator(v); err != nil {
+			return &ValidationError{Name: "active_dedup_key", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.active_dedup_key": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "EsportsAssessment.version"`)}
 	}
@@ -466,6 +485,10 @@ func (_c *EsportsAssessmentCreate) createSpec() (*EsportsAssessment, *sqlgraph.C
 	if value, ok := _c.mutation.CreatedByAdminID(); ok {
 		_spec.SetField(esportsassessment.FieldCreatedByAdminID, field.TypeInt, value)
 		_node.CreatedByAdminID = &value
+	}
+	if value, ok := _c.mutation.ActiveDedupKey(); ok {
+		_spec.SetField(esportsassessment.FieldActiveDedupKey, field.TypeString, value)
+		_node.ActiveDedupKey = &value
 	}
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsassessment.FieldVersion, field.TypeInt, value)

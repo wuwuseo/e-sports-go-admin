@@ -54,9 +54,20 @@ func TestGiftStoredValuePrincipalAndOriginalRefund(t *testing.T) {
 	if len(allocations) != 1 || allocations[0].AmountCents != 8000 {
 		t.Fatalf("礼物本金未落批次分摊：%+v", allocations)
 	}
-	if _, err := createGiftIntent(ctx, db, 11, false, giftIntentInput{CustomerID: customer.ID,
+	// §9.2-01 口径更新：卡内本金不足时**不再在发起阶段直接报本金不足**，确认单照常落库
+	// （客户可改走「发起收款」补资金）；但「本金不足不得用赠送权益送礼」这条安全口径不变——
+	// 核销成单时必须仍然失败。规格依据：台账 9.2-01「余额与卡本金均不足的客户可对礼物单发起收款
+	// 并核销成单（当前直接报本金不足）」。
+	insufficient, err := createGiftIntent(ctx, db, 11, false, giftIntentInput{CustomerID: customer.ID,
 		GiftID: gift.ID, PlayerID: player.ID, Quantity: 1, PaymentSource: "stored_value_card_principal",
-		StoredValueCardID: card.ID, ClientKey: "gift-card-intent-2"}, now); !errors.Is(err, errInsufficientBalance) {
+		StoredValueCardID: card.ID, ClientKey: "gift-card-intent-2"}, now)
+	if err != nil {
+		t.Fatalf("本金不足时应可落确认单并发起收款：%v", err)
+	}
+	if _, err := confirmGiftIntent(ctx, db, account.UID, insufficient.ID, insufficient.Version, true, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := executeGiftIntent(ctx, db, 11, false, insufficient.ID, now); !errors.Is(err, errInsufficientBalance) {
 		t.Fatalf("本金不足却使用赠送权益送礼：%v", err)
 	}
 	if _, err := refundGift(ctx, db, 11, true, order.ID, "原路退回", now); err != nil {

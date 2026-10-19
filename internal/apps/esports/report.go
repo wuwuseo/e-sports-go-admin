@@ -13,9 +13,11 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/esportsaftersale"
+	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportssettlement"
@@ -67,6 +69,10 @@ type reportFilter struct {
 	AftersaleKind    string
 	FaultParty       string
 	Limit            int
+	// VisibleAdmin 是数据可见范围（§17-09 / §3.5-06）：非空时报表只统计「本人负责
+	// 或存在协作授权行」的订单，与订单列表 / 详情（loadOwnedOrder）同口径。
+	// 它与 ResponsibleAdmin（用户可选的业务筛选）分开：前者是权限边界，后者是筛选维度。
+	VisibleAdmin int
 }
 
 // reportBucket 是经营总览时间轴的一段。
@@ -105,6 +111,14 @@ type dispatchEfficiencyRow struct {
 	ExpiredCount  int    `json:"expired_count"`
 }
 
+// studioRemainderBucket 是工作室抽成汇总按周期聚合的一段（§12.7-04）。
+type studioRemainderBucket struct {
+	Bucket               string `json:"bucket"`
+	StudioRemainderCents int64  `json:"studio_remainder_cents"`
+	CsCommissionCents    int64  `json:"cs_commission_cents"`
+	EntryCount           int    `json:"entry_count"`
+}
+
 // financeChannelRow 是财务资金报表按支付方式聚合的一行。
 type financeChannelRow struct {
 	Channel     string `json:"channel"`
@@ -134,13 +148,42 @@ type orderTimelineAggregate struct {
 	PoolToStartCount      int   `json:"pool_to_start_count"`
 }
 
+// orderVisibleToAdminPredicate 构造与 loadOwnedOrder 同口径的订单可见性谓词
+// （§17-09 / §3.5-06）：本人负责 OR 存在协作授权行。
+// 报表与导出的订单集合必须与订单列表一致，协作文档按当前数据判定（移除即失效，不缓存）。
+func orderVisibleToAdminPredicate(ctx context.Context, db *ent.Client, adminID int) (predicate.EsportsOrder, error) {
+	rows, err := db.EsportsOrderCollaborator.Query().
+		Where(esportsordercollaborator.AdminIDEQ(adminID)).
+		Select(esportsordercollaborator.FieldOrderID).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	options := []predicate.EsportsOrder{esportsorder.ResponsibleAdminIDEQ(adminID)}
+	if len(rows) > 0 {
+		orderIDs := make([]int, 0, len(rows))
+		for _, row := range rows {
+			orderIDs = append(orderIDs, row.OrderID)
+		}
+		options = append(options, esportsorder.IDIn(orderIDs...))
+	}
+	return esportsorder.Or(options...), nil
+}
+
 // reportOrderPredicates 把报表筛选条件翻译成订单查询谓词。
 func reportOrderPredicates(ctx context.Context, db *ent.Client, f reportFilter) ([]predicate.EsportsOrder, error) {
 	ps := []predicate.EsportsOrder{
 		esportsorder.CreatedAtGTE(f.Start),
 		esportsorder.CreatedAtLT(f.End),
 	}
-	if f.ResponsibleAdmin > 0 {
+	// VisibleAdmin 优先于 ResponsibleAdmin：scopeReportFilter 对非超管会同时写入两者，
+	// 此时可见范围（本人负责 OR 协作授权）才是权限边界，ResponsibleAdmin 只是被强制收敛的旧字段。
+	if f.VisibleAdmin > 0 {
+		visible, err := orderVisibleToAdminPredicate(ctx, db, f.VisibleAdmin)
+		if err != nil {
+			return nil, err
+		}
+		ps = append(ps, visible)
+	} else if f.ResponsibleAdmin > 0 {
 		ps = append(ps, esportsorder.ResponsibleAdminIDEQ(f.ResponsibleAdmin))
 	}
 	if f.CreatedByAdmin > 0 {
@@ -420,6 +463,24 @@ func adminNames(ctx context.Context, db *ent.Client, ids []int) map[int]string {
 	return names
 }
 
+// orderNoByID 批量取订单号（分片避免 IN 参数过多）。缺失的 ID 不出现在结果里。
+func orderNoByID(ctx context.Context, db *ent.Client, ids []int) (map[int]string, error) {
+	orderNos := map[int]string{}
+	const chunk = 500
+	for start := 0; start < len(ids); start += chunk {
+		end := min(start+chunk, len(ids))
+		items, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(ids[start:end]...)).
+			Select(esportsorder.FieldID, esportsorder.FieldOrderNo).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			orderNos[item.ID] = item.OrderNo
+		}
+	}
+	return orderNos, nil
+}
+
 // ownerOverviewReport 老板经营总览：区间内订单量、营收、退款与净额，并按周期分段。
 // 汇总与分段均为数据库端聚合；下钻明细单独限流并标记是否被截断。
 func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
@@ -557,10 +618,17 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 			esportscscommissionentry.CreatedAtGTE(f.Start),
 			esportscscommissionentry.CreatedAtLT(f.End),
 		)
-		if f.ResponsibleAdmin > 0 {
+		if f.ResponsibleAdmin > 0 && f.VisibleAdmin == 0 {
 			query.Where(esportscscommissionentry.AdminIDEQ(f.ResponsibleAdmin))
 		}
-		if len(orderIDs) > 0 {
+		if f.VisibleAdmin > 0 {
+			// 可见范围（§17-09）：本人提成恒可见，另加被授权协作订单上的提成；礼物提成无订单号仍按本人可见。
+			options := []predicate.EsportsCsCommissionEntry{esportscscommissionentry.AdminIDEQ(f.VisibleAdmin)}
+			if len(orderIDs) > 0 {
+				options = append(options, esportscscommissionentry.OrderIDIn(orderIDs...))
+			}
+			query.Where(esportscscommissionentry.Or(options...))
+		} else if len(orderIDs) > 0 {
 			query.Where(esportscscommissionentry.OrderIDIn(orderIDs...))
 		}
 		var rows []struct {
@@ -577,7 +645,7 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		}
 		return nil
 	}
-	if orderDimensions {
+	if orderDimensions || f.VisibleAdmin > 0 {
 		if err := forEachOrderIDPage(ctx, db, predicates, collectCommission); err != nil {
 			return nil, err
 		}
@@ -628,7 +696,45 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		}
 		return rows[i].OrderCount > rows[j].OrderCount
 	})
-	return map[string]any{"type": "cs_performance", "rows": rows}, nil
+	// §17-06 下钻明细：返回可定位原单据（订单 id + order_no）的明细与截断标记。
+	details, detailTruncated, err := orderDetailRows(ctx, db, predicates, f.Limit)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"type": "cs_performance", "rows": rows,
+		"details": details, "detail_truncated": detailTruncated,
+	}, nil
+}
+
+// orderDetailRows 取符合条件的订单下钻明细（id / order_no + 归属与金额），超限时标记截断。
+func orderDetailRows(ctx context.Context, db *ent.Client, predicates []predicate.EsportsOrder, limit int) ([]map[string]any, bool, error) {
+	detailCap := reportDetailCap(limit)
+	orders, err := db.EsportsOrder.Query().Where(predicates...).
+		Order(ent.Asc(esportsorder.FieldCreatedAt), ent.Asc(esportsorder.FieldID)).
+		Limit(detailCap+1).
+		Select(esportsorder.FieldID, esportsorder.FieldOrderNo, esportsorder.FieldCustomerID,
+			esportsorder.FieldResponsibleAdminID, esportsorder.FieldPayableCents,
+			esportsorder.FieldRefundedCents, esportsorder.FieldPaymentStatus,
+			esportsorder.FieldFulfillmentStatus, esportsorder.FieldCreatedAt).All(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	truncated := len(orders) > detailCap
+	if truncated {
+		orders = orders[:detailCap]
+	}
+	details := make([]map[string]any, 0, len(orders))
+	for _, order := range orders {
+		details = append(details, map[string]any{
+			"id": order.ID, "order_no": order.OrderNo, "customer_id": order.CustomerID,
+			"responsible_admin_id": order.ResponsibleAdminID,
+			"payable_cents":        order.PayableCents, "refunded_cents": order.RefundedCents,
+			"payment_status": order.PaymentStatus, "fulfillment_status": order.FulfillmentStatus,
+			"created_at": order.CreatedAt,
+		})
+	}
+	return details, truncated, nil
 }
 
 // dispatchEfficiencyReport 派单效率：区间内席位的邀请、接单、拒单、过期与平均接单时长。
@@ -646,6 +752,9 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 		RespondedSeconds int64
 	}
 	groups := make([]seatGroup, 0)
+	// §17-06 下钻明细：派单效率按订单 + 席位归集，明细须能定位原单据（订单 id + order_no）。
+	detailCap := reportDetailCap(f.Limit)
+	details := make([]map[string]any, 0, 16)
 	// 席位聚合：Ent 无订单边可比对，按订单主键分片归集后再合并（各分组计数与时长求和均可加）。
 	err = forEachOrderIDPage(ctx, db, predicates, func(orderIDs []int) error {
 		var rows []struct {
@@ -671,10 +780,33 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 				RespondedCount: row.RespondedCount, RespondedSeconds: row.RespondedSeconds,
 			})
 		}
+		if len(details) <= detailCap {
+			orders, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(orderIDs...)).
+				Order(ent.Asc(esportsorder.FieldID)).
+				Select(esportsorder.FieldID, esportsorder.FieldOrderNo,
+					esportsorder.FieldResponsibleAdminID, esportsorder.FieldCreatedAt).All(ctx)
+			if err != nil {
+				return err
+			}
+			for _, order := range orders {
+				if len(details) > detailCap {
+					break
+				}
+				details = append(details, map[string]any{
+					"id": order.ID, "order_no": order.OrderNo,
+					"responsible_admin_id": order.ResponsibleAdminID,
+					"created_at":           order.CreatedAt,
+				})
+			}
+		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+	detailTruncated := len(details) > detailCap
+	if detailTruncated {
+		details = details[:detailCap]
 	}
 
 	var invite, accepted, rejected, expired, open int
@@ -776,6 +908,9 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 			"avg_pool_to_start_seconds":    avgSeconds(timelineRow.PoolToStartSeconds, timelineRow.PoolToStartCount),
 		},
 		"rows": rows,
+		// §17-06：下钻明细与截断标记，明细可定位原单据（订单 id + order_no）。
+		"details":          details,
+		"detail_truncated": detailTruncated,
 	}, nil
 }
 
@@ -880,7 +1015,8 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 			Limit(detailCap+1-len(details)).
 			Select(esportsaftersale.FieldID, esportsaftersale.FieldKind,
 				esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty,
-				esportsaftersale.FieldRefundCents, esportsaftersale.FieldCreatedAt).All(ctx)
+				esportsaftersale.FieldRefundCents, esportsaftersale.FieldSourceType,
+				esportsaftersale.FieldSourceID, esportsaftersale.FieldCreatedAt).All(ctx)
 		if err != nil {
 			return err
 		}
@@ -888,6 +1024,8 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 			details = append(details, map[string]any{
 				"id": row.ID, "kind": row.Kind, "status": row.Status,
 				"fault_party": row.FaultParty, "refund_cents": row.RefundCents,
+				// §17-06：售后明细须带来源单据与来源订单号，便于跳回原单据核对。
+				"source_type": row.SourceType, "source_id": row.SourceID,
 				"created_at": row.CreatedAt,
 			})
 		}
@@ -899,6 +1037,24 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 	detailTruncated := len(details) > detailCap
 	if detailTruncated {
 		details = details[:detailCap]
+	}
+	// 批量补出来源订单号（仅来源为订单的售后）。
+	sourceOrderIDs := make([]int, 0, len(details))
+	for _, detail := range details {
+		if detail["source_type"] == esportsaftersale.SourceTypeOrder {
+			if id, ok := detail["source_id"].(int); ok && id > 0 {
+				sourceOrderIDs = append(sourceOrderIDs, id)
+			}
+		}
+	}
+	if orderNos, err := orderNoByID(ctx, db, sourceOrderIDs); err == nil {
+		for _, detail := range details {
+			if id, ok := detail["source_id"].(int); ok {
+				if no, found := orderNos[id]; found {
+					detail["order_no"] = no
+				}
+			}
+		}
 	}
 	return map[string]any{
 		"type": "aftersale_quality",
@@ -1006,6 +1162,21 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 		}
 		return channels[i].Channel < channels[j].Channel
 	})
+	// §12.7-03 分成明细级对账：按订单 / 陪玩聚合，并保留逐笔明细供财务与结算单逐笔核对。
+	reconciliation, err := commissionReconciliationReport(ctx, db, f)
+	if err != nil {
+		return nil, err
+	}
+	// §12.7-04 工作室抽成汇总：按周期聚合工作室剩余（studio_remainder_cents）。
+	studio, err := studioCommissionReport(ctx, db, f)
+	if err != nil {
+		return nil, err
+	}
+	// §17-06 财务下钻明细：结算单 / 支付回执须可定位原单据。
+	details, detailTruncated, err := financeReportDetails(ctx, db, f, f.Limit)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]any{
 		"type": "finance",
 		"wallet": map[string]any{
@@ -1017,6 +1188,352 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 			"count": settlementCount, "gross_cents": settlementGross,
 			"net_cents": settlementNet, "by_status": settlementStatus,
 		},
-		"payment_channels": channels,
+		"payment_channels":          channels,
+		"commission_reconciliation": reconciliation,
+		"studio":                    studio,
+		"details":                   details,
+		"detail_truncated":          detailTruncated,
 	}, nil
+}
+
+// commissionReconciliationRow 是分成明细级对账的一行（§12.7-03）：按订单 + 陪玩聚合。
+type commissionReconciliationRow struct {
+	OrderID       int    `json:"order_id"`
+	OrderNo       string `json:"order_no"`
+	PlayerID      int    `json:"player_id"`
+	RuleNo        string `json:"rule_no"`
+	RuleVersion   int    `json:"rule_version"`
+	GrossCents    int64  `json:"gross_cents"`
+	ReversalCents int64  `json:"reversal_cents"`
+	NetCents      int64  `json:"net_cents"`
+}
+
+// commissionReconciliationReport 按订单 / 陪玩给出分成明细级对账：聚合行 + 逐笔明细（含规则版本），
+// 财务可与结算单逐笔核对（§12.7-03）。非超管（VisibleAdmin）只对账可见订单。
+func commissionReconciliationReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
+	base := []predicate.EsportsCommissionEntry{
+		esportscommissionentry.CreatedAtGTE(f.Start),
+		esportscommissionentry.CreatedAtLT(f.End),
+		esportscommissionentry.OrderIDNotNil(),
+		esportscommissionentry.KindIn(
+			esportscommissionentry.KindService, esportscommissionentry.KindAddon,
+			esportscommissionentry.KindReversal),
+	}
+	groups, err := commissionReconciliationGroups(ctx, db, f, base)
+	if err != nil {
+		return nil, err
+	}
+	// 合并成（订单 + 陪玩）一行：正向计入 gross，冲回（reversal）计入 reversal。
+	index := map[[2]int]int{}
+	rows := make([]commissionReconciliationRow, 0, len(groups))
+	var orderSequence []int
+	for _, group := range groups {
+		key := [2]int{group.OrderID, group.PlayerID}
+		at, ok := index[key]
+		if !ok {
+			at = len(rows)
+			index[key] = at
+			rows = append(rows, commissionReconciliationRow{
+				OrderID: group.OrderID, PlayerID: group.PlayerID,
+			})
+			orderSequence = append(orderSequence, group.OrderID)
+		}
+		if group.Kind == string(esportscommissionentry.KindReversal) {
+			rows[at].ReversalCents += group.AmountCents
+			continue
+		}
+		rows[at].GrossCents += group.AmountCents
+		if rows[at].RuleNo == "" {
+			rows[at].RuleNo, rows[at].RuleVersion = group.RuleNo, group.RuleVersion
+		}
+	}
+	orderNos, err := orderNoByID(ctx, db, orderSequence)
+	if err != nil {
+		return nil, err
+	}
+	var gross, reversal int64
+	var entryCount int
+	for _, group := range groups {
+		entryCount += group.Count
+		if group.Kind == string(esportscommissionentry.KindReversal) {
+			reversal += group.AmountCents
+		} else {
+			gross += group.AmountCents
+		}
+	}
+	distinctOrders := map[int]bool{}
+	for i := range rows {
+		rows[i].OrderNo = orderNos[rows[i].OrderID]
+		rows[i].NetCents = rows[i].GrossCents + rows[i].ReversalCents
+		distinctOrders[rows[i].OrderID] = true
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].OrderID != rows[j].OrderID {
+			return rows[i].OrderID < rows[j].OrderID
+		}
+		return rows[i].PlayerID < rows[j].PlayerID
+	})
+
+	// 逐笔明细：单独限流，最多多取一条用于判断截断。
+	detailCap := reportDetailCap(f.Limit)
+	details := make([]map[string]any, 0, 16)
+	detailTruncated := false
+	collectDetails := func(extra ...predicate.EsportsCommissionEntry) error {
+		if detailTruncated {
+			return nil
+		}
+		entries, err := db.EsportsCommissionEntry.Query().
+			Where(append(append([]predicate.EsportsCommissionEntry{}, base...), extra...)...).
+			Order(ent.Asc(esportscommissionentry.FieldID)).Limit(detailCap + 1).All(ctx)
+		if err != nil {
+			return err
+		}
+		if len(entries) > detailCap {
+			detailTruncated = true
+			entries = entries[:detailCap]
+		}
+		detailOrderIDs := make([]int, 0, len(entries))
+		for _, entry := range entries {
+			if entry.OrderID != nil {
+				detailOrderIDs = append(detailOrderIDs, *entry.OrderID)
+			}
+		}
+		detailOrderNos, err := orderNoByID(ctx, db, detailOrderIDs)
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			orderID := 0
+			if entry.OrderID != nil {
+				orderID = *entry.OrderID
+			}
+			details = append(details, map[string]any{
+				"id": entry.ID, "order_id": orderID, "order_no": detailOrderNos[orderID],
+				"player_id": entry.PlayerID, "kind": entry.Kind,
+				"rule_no": entry.RuleNo, "rule_version": entry.RuleVersion,
+				"base_cents": entry.BaseCents, "amount_cents": entry.AmountCents,
+				"settlement_id": entry.SettlementID, "created_at": entry.CreatedAt,
+			})
+		}
+		return nil
+	}
+	if f.VisibleAdmin > 0 {
+		predicates, err := reportOrderPredicates(ctx, db, f)
+		if err != nil {
+			return nil, err
+		}
+		if err := forEachOrderIDPage(ctx, db, predicates, func(ids []int) error {
+			return collectDetails(esportscommissionentry.OrderIDIn(ids...))
+		}); err != nil {
+			return nil, err
+		}
+	} else if err := collectDetails(); err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"summary": map[string]any{
+			"order_count": len(distinctOrders), "player_count": len(rows),
+			"entry_count": entryCount, "gross_cents": gross,
+			"reversal_cents": reversal, "net_cents": gross + reversal,
+		},
+		"rows": rows, "details": details, "detail_truncated": detailTruncated,
+	}, nil
+}
+
+// commissionReconciliationGroup 是分成明细按（订单 + 陪玩 + 类型 + 规则版本）的数据库端聚合结果。
+type commissionReconciliationGroup struct {
+	OrderID     int    `json:"order_id"`
+	PlayerID    int    `json:"player_id"`
+	Kind        string `json:"kind"`
+	RuleNo      string `json:"rule_no"`
+	RuleVersion int    `json:"rule_version"`
+	AmountCents int64  `json:"amount_cents"`
+	Count       int    `json:"count"`
+}
+
+// commissionReconciliationGroups 取对账分组数据；VisibleAdmin 非空时按可见订单分片归集。
+func commissionReconciliationGroups(ctx context.Context, db *ent.Client, f reportFilter,
+	base []predicate.EsportsCommissionEntry,
+) ([]commissionReconciliationGroup, error) {
+	aggregate := func(extra ...predicate.EsportsCommissionEntry) ([]commissionReconciliationGroup, error) {
+		var rows []commissionReconciliationGroup
+		err := db.EsportsCommissionEntry.Query().
+			Where(append(append([]predicate.EsportsCommissionEntry{}, base...), extra...)...).
+			GroupBy(esportscommissionentry.FieldOrderID, esportscommissionentry.FieldPlayerID,
+				esportscommissionentry.FieldKind, esportscommissionentry.FieldRuleNo,
+				esportscommissionentry.FieldRuleVersion).
+			Aggregate(ent.As(ent.Sum(esportscommissionentry.FieldAmountCents), "amount_cents"),
+				ent.As(ent.Count(), "count")).Scan(ctx, &rows)
+		return rows, err
+	}
+	if f.VisibleAdmin <= 0 {
+		return aggregate()
+	}
+	predicates, err := reportOrderPredicates(ctx, db, f)
+	if err != nil {
+		return nil, err
+	}
+	all := make([]commissionReconciliationGroup, 0)
+	if err := forEachOrderIDPage(ctx, db, predicates, func(ids []int) error {
+		page, err := aggregate(esportscommissionentry.OrderIDIn(ids...))
+		if err != nil {
+			return err
+		}
+		all = append(all, page...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return all, nil
+}
+
+// studioCommissionReport 是工作室抽成汇总（§12.7-04）：按周期聚合工作室剩余
+// （studio_remainder_cents）与客服提成本金，供老板看本期抽成合计。
+func studioCommissionReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
+	rangePredicates := []predicate.EsportsCsCommissionEntry{
+		esportscscommissionentry.CreatedAtGTE(f.Start),
+		esportscscommissionentry.CreatedAtLT(f.End),
+	}
+	type studioTotals struct {
+		Studio     int64 `json:"studio_remainder_cents"`
+		Commission int64 `json:"amount_cents"`
+		Count      int   `json:"entry_count"`
+	}
+	var totals []studioTotals
+	if err := db.EsportsCsCommissionEntry.Query().Where(rangePredicates...).Aggregate(
+		ent.As(ent.Sum(esportscscommissionentry.FieldStudioRemainderCents), "studio_remainder_cents"),
+		ent.As(ent.Sum(esportscscommissionentry.FieldAmountCents), "amount_cents"),
+		ent.As(ent.Count(), "entry_count"),
+	).Scan(ctx, &totals); err != nil {
+		return nil, err
+	}
+	var aggregate studioTotals
+	if len(totals) > 0 {
+		aggregate = totals[0]
+	}
+	// 时间轴分段：先取数据实际跨度收敛分段范围，再逐段做 SQL 聚合（与经营总览同口径）。
+	buckets := make([]studioRemainderBucket, 0)
+	if aggregate.Count > 0 {
+		first, last, ok, err := csCommissionCreatedSpan(ctx, db, f)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			period, ranges := reportBucketPlan(first, last, f.Period)
+			for _, item := range ranges {
+				var rows []studioTotals
+				if err := db.EsportsCsCommissionEntry.Query().Where(
+					esportscscommissionentry.CreatedAtGTE(item.Start),
+					esportscscommissionentry.CreatedAtLT(item.End),
+				).Aggregate(
+					ent.As(ent.Sum(esportscscommissionentry.FieldStudioRemainderCents), "studio_remainder_cents"),
+					ent.As(ent.Sum(esportscscommissionentry.FieldAmountCents), "amount_cents"),
+					ent.As(ent.Count(), "entry_count"),
+				).Scan(ctx, &rows); err != nil {
+					return nil, err
+				}
+				if len(rows) == 0 || rows[0].Count == 0 {
+					continue
+				}
+				buckets = append(buckets, studioRemainderBucket{
+					Bucket:               reportBucketKey(item.Start, period),
+					StudioRemainderCents: rows[0].Studio,
+					CsCommissionCents:    rows[0].Commission,
+					EntryCount:           rows[0].Count,
+				})
+			}
+		}
+	}
+	return map[string]any{
+		"summary": map[string]any{
+			"studio_remainder_cents": aggregate.Studio,
+			"cs_commission_cents":    aggregate.Commission,
+			"entry_count":            aggregate.Count,
+		},
+		"buckets": buckets,
+	}, nil
+}
+
+// csCommissionCreatedSpan 取区间内客服提成明细最早 / 最晚创建时间（各取一行，用于收敛分段范围）。
+func csCommissionCreatedSpan(ctx context.Context, db *ent.Client, f reportFilter) (time.Time, time.Time, bool, error) {
+	predicates := []predicate.EsportsCsCommissionEntry{
+		esportscscommissionentry.CreatedAtGTE(f.Start),
+		esportscscommissionentry.CreatedAtLT(f.End),
+	}
+	first, err := db.EsportsCsCommissionEntry.Query().Where(predicates...).
+		Order(ent.Asc(esportscscommissionentry.FieldCreatedAt), ent.Asc(esportscscommissionentry.FieldID)).
+		Limit(1).Select(esportscscommissionentry.FieldCreatedAt).All(ctx)
+	if err != nil {
+		return time.Time{}, time.Time{}, false, err
+	}
+	if len(first) == 0 {
+		return time.Time{}, time.Time{}, false, nil
+	}
+	last, err := db.EsportsCsCommissionEntry.Query().Where(predicates...).
+		Order(ent.Desc(esportscscommissionentry.FieldCreatedAt), ent.Desc(esportscscommissionentry.FieldID)).
+		Limit(1).Select(esportscscommissionentry.FieldCreatedAt).All(ctx)
+	if err != nil {
+		return time.Time{}, time.Time{}, false, err
+	}
+	return first[0].CreatedAt, last[0].CreatedAt, true, nil
+}
+
+// financeReportDetails 财务下钻明细（§17-06）：结算单与支付回执可定位原单据，超限时标记截断。
+func financeReportDetails(ctx context.Context, db *ent.Client, f reportFilter, limit int) ([]map[string]any, bool, error) {
+	detailCap := reportDetailCap(limit)
+	details := make([]map[string]any, 0, 16)
+	settlements, err := db.EsportsSettlement.Query().Where(
+		esportssettlement.CreatedAtGTE(f.Start),
+		esportssettlement.CreatedAtLT(f.End),
+	).Order(ent.Asc(esportssettlement.FieldID)).Limit(detailCap+1).
+		Select(esportssettlement.FieldID, esportssettlement.FieldSettlementNo,
+			esportssettlement.FieldOwnerType, esportssettlement.FieldOwnerID,
+			esportssettlement.FieldStatus, esportssettlement.FieldGrossCents,
+			esportssettlement.FieldAdjustmentCents, esportssettlement.FieldNetCents,
+			esportssettlement.FieldEntryCount, esportssettlement.FieldCreatedAt).All(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	truncated := len(settlements) > detailCap
+	if truncated {
+		settlements = settlements[:detailCap]
+	}
+	for _, item := range settlements {
+		details = append(details, map[string]any{
+			"doc_type": "settlement", "id": item.ID, "settlement_no": item.SettlementNo,
+			"owner_type": item.OwnerType, "owner_id": item.OwnerID, "status": item.Status,
+			"gross_cents": item.GrossCents, "adjustment_cents": item.AdjustmentCents,
+			"net_cents": item.NetCents, "entry_count": item.EntryCount,
+			"created_at": item.CreatedAt,
+		})
+	}
+	if remaining := detailCap + 1 - len(details); remaining > 0 {
+		receiptQuery := db.EsportsPaymentReceipt.Query().Where(
+			esportspaymentreceipt.CreatedAtGTE(f.Start),
+			esportspaymentreceipt.CreatedAtLT(f.End),
+		)
+		if f.PaymentChannel != "" {
+			receiptQuery.Where(esportspaymentreceipt.ChannelEQ(f.PaymentChannel))
+		}
+		receipts, err := receiptQuery.Order(ent.Asc(esportspaymentreceipt.FieldID)).Limit(remaining).
+			Select(esportspaymentreceipt.FieldID, esportspaymentreceipt.FieldTransactionNo,
+				esportspaymentreceipt.FieldChannel, esportspaymentreceipt.FieldActualCents,
+				esportspaymentreceipt.FieldAppliedCents, esportspaymentreceipt.FieldExceptionCents,
+				esportspaymentreceipt.FieldStatus, esportspaymentreceipt.FieldCreatedAt).All(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		if len(receipts) >= remaining {
+			truncated = true
+		}
+		for _, item := range receipts {
+			details = append(details, map[string]any{
+				"doc_type": "payment_receipt", "id": item.ID, "tx_no": item.TransactionNo,
+				"channel": item.Channel, "amount_cents": item.ActualCents,
+				"applied_cents": item.AppliedCents, "exception_cents": item.ExceptionCents,
+				"status": item.Status, "created_at": item.CreatedAt,
+			})
+		}
+	}
+	return details, truncated, nil
 }

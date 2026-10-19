@@ -29,6 +29,10 @@ type EsportsLedgerEntry struct {
 	EntryRole string `json:"entry_role"`
 	// DeltaCents holds the value of the "delta_cents" field.
 	DeltaCents int64 `json:"delta_cents"`
+	// PrincipalDeltaCents holds the value of the "principal_delta_cents" field.
+	PrincipalDeltaCents int64 `json:"principal_delta_cents"`
+	// BonusDeltaCents holds the value of the "bonus_delta_cents" field.
+	BonusDeltaCents int64 `json:"bonus_delta_cents"`
 	// FundBatch holds the value of the "fund_batch" field.
 	FundBatch string `json:"fund_batch"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -41,7 +45,7 @@ func (*EsportsLedgerEntry) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsledgerentry.FieldID, esportsledgerentry.FieldDeltaCents:
+		case esportsledgerentry.FieldID, esportsledgerentry.FieldDeltaCents, esportsledgerentry.FieldPrincipalDeltaCents, esportsledgerentry.FieldBonusDeltaCents:
 			values[i] = new(sql.NullInt64)
 		case esportsledgerentry.FieldAccountType, esportsledgerentry.FieldAccountID, esportsledgerentry.FieldSourceType, esportsledgerentry.FieldSourceID, esportsledgerentry.FieldEntryRole, esportsledgerentry.FieldFundBatch:
 			values[i] = new(sql.NullString)
@@ -103,6 +107,18 @@ func (_m *EsportsLedgerEntry) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field delta_cents", values[i])
 			} else if value.Valid {
 				_m.DeltaCents = value.Int64
+			}
+		case esportsledgerentry.FieldPrincipalDeltaCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field principal_delta_cents", values[i])
+			} else if value.Valid {
+				_m.PrincipalDeltaCents = value.Int64
+			}
+		case esportsledgerentry.FieldBonusDeltaCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field bonus_delta_cents", values[i])
+			} else if value.Valid {
+				_m.BonusDeltaCents = value.Int64
 			}
 		case esportsledgerentry.FieldFundBatch:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -169,6 +185,12 @@ func (_m *EsportsLedgerEntry) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("delta_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.DeltaCents))
+	builder.WriteString(", ")
+	builder.WriteString("principal_delta_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PrincipalDeltaCents))
+	builder.WriteString(", ")
+	builder.WriteString("bonus_delta_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BonusDeltaCents))
 	builder.WriteString(", ")
 	builder.WriteString("fund_batch=")
 	builder.WriteString(_m.FundBatch)

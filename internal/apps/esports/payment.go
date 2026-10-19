@@ -3,11 +3,13 @@ package esports
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/esportsconfirmation"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsorder"
@@ -92,6 +94,27 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 		p.AmountCents <= 0 || p.ConfirmedAt.IsZero() {
 		return nil, errInvalidInput
 	}
+	// §4.3-03：支付意图按所属单据类型分流——订单收款 / 客户充值 / 客户自助购卡。
+	// 充值意图与购卡意图的 order_id 是保留段（非真实订单），必须走各自核销入口，
+	// 否则 tx.EsportsOrder.Get 必然查不到而导致到账无法入账。
+	intent, err := db.EsportsPaymentIntent.Query().Where(
+		esportspaymentintent.IntentNoEQ(p.IntentNo)).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if intent.Channel != p.Channel {
+		return nil, errInvalidInput
+	}
+	switch paymentDocumentKindOf(intent.OrderID) {
+	case paymentDocumentRecharge:
+		return settleChannelRecharge(ctx, db, p, intent)
+	case paymentDocumentStoredValue:
+		return settleChannelStoredValue(ctx, db, p, intent)
+	}
+	// §7 / 18-02：支付时限未配置时不得核销（明确失败，不返回伪成功）。
+	if err := ensurePaymentDeadlineConfigured(ctx, db); err != nil {
+		return nil, err
+	}
 	if previous, err := priorReceipt(ctx, db, p); err != nil || previous != nil {
 		return previous, err
 	}
@@ -100,7 +123,7 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 		return nil, err
 	}
 	defer tx.Rollback()
-	intent, err := tx.EsportsPaymentIntent.Query().Where(esportspaymentintent.IntentNoEQ(p.IntentNo)).Only(ctx)
+	intent, err = tx.EsportsPaymentIntent.Query().Where(esportspaymentintent.IntentNoEQ(p.IntentNo)).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -256,6 +279,109 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 }
 
 var errPaymentGatewayUnavailable = errors.New("收款通道尚未配置")
+
+// paymentDocumentKind 是支付意图所属单据类型（§4.3-03）：订单 / 客户充值 / 客户自助购卡。
+// 三类意图共用 EsportsPaymentIntent 表，用 order_id 的保留段区分。
+type paymentDocumentKind int
+
+const (
+	paymentDocumentOrder paymentDocumentKind = iota
+	paymentDocumentRecharge
+	paymentDocumentStoredValue
+)
+
+// paymentDocumentKindOf 按 order_id 所属保留段判定单据类型（真实订单 ID 不落在保留段内）。
+func paymentDocumentKindOf(orderID int) paymentDocumentKind {
+	if rechargeIntentCustomerID(orderID) > 0 {
+		return paymentDocumentRecharge
+	}
+	if customerStoredValueIntentCardID(orderID) > 0 {
+		return paymentDocumentStoredValue
+	}
+	return paymentDocumentOrder
+}
+
+// settleChannelRecharge 已验签回调核销客户充值意图（§4.3-03）：转 settleRechargeIntent，
+// 渠道回调没有管理员操作人（OperatorAdminID=0），到账依据是渠道流水号。
+func settleChannelRecharge(ctx context.Context, db *ent.Client, p verifiedPayment,
+	intent *ent.EsportsPaymentIntent) (*paymentOutcome, error) {
+	if _, err := settleRechargeIntent(ctx, db, rechargeSettlementInput{
+		IntentNo:      p.IntentNo,
+		Channel:       p.Channel,
+		TransactionNo: p.TransactionNo,
+		ReceivedCents: p.AmountCents,
+		ConfirmedAt:   p.ConfirmedAt.UTC(),
+		EvidenceNote: fmt.Sprintf("已验签渠道回调自动核销：%s 流水 %s（支付意图 %s）",
+			p.Channel, p.TransactionNo, intent.IntentNo),
+	}, p.ConfirmedAt.UTC()); err != nil {
+		return nil, err
+	}
+	return channelReceiptOutcome(ctx, db, p)
+}
+
+// settleChannelStoredValue 已验签回调核销客户自助购卡意图（§4.3-03）：转 settleCustomerStoredValuePurchase。
+// 购卡核验边界要求非空记账管理员（开卡申请人不得自审），渠道回调没有登录身份，
+// 因此取「客户归属客服 → 任一启用中管理员」作为记账人；都取不到时明确失败，不用 0 冒充。
+func settleChannelStoredValue(ctx context.Context, db *ent.Client, p verifiedPayment,
+	intent *ent.EsportsPaymentIntent) (*paymentOutcome, error) {
+	card, err := db.EsportsStoredValueCard.Get(ctx, customerStoredValueIntentCardID(intent.OrderID))
+	if err != nil {
+		return nil, err
+	}
+	operatorID, err := channelSettlementOperatorAdminID(ctx, db, card.CustomerID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = settleCustomerStoredValuePurchase(ctx, db, customerStoredValueSettlementInput{
+		IntentNo:        p.IntentNo,
+		Channel:         p.Channel,
+		TransactionNo:   p.TransactionNo,
+		ReceivedCents:   p.AmountCents,
+		ConfirmedAt:     p.ConfirmedAt.UTC(),
+		OperatorAdminID: operatorID,
+		EvidenceNote: fmt.Sprintf("已验签渠道回调自动核销：%s 流水 %s（支付意图 %s）",
+			p.Channel, p.TransactionNo, intent.IntentNo),
+	}, p.ConfirmedAt.UTC()); err != nil {
+		return nil, err
+	}
+	return channelReceiptOutcome(ctx, db, p)
+}
+
+// channelSettlementOperatorAdminID 渠道自动回调的记账管理员（§4.3-03）：
+// 优先客户归属客服，其次任一启用中管理员；取不到时明确报错（不假成功、不用 0 占位）。
+func channelSettlementOperatorAdminID(ctx context.Context, db *ent.Client, customerID int) (int, error) {
+	if customerID > 0 {
+		customer, err := db.EsportsCustomer.Get(ctx, customerID)
+		if err != nil {
+			return 0, err
+		}
+		if customer.OwnerAdminID != nil && *customer.OwnerAdminID > 0 {
+			return *customer.OwnerAdminID, nil
+		}
+	}
+	operator, err := db.Admin.Query().Where(admin.StatusEQ("active")).
+		Order(ent.Asc(admin.FieldID)).First(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("%w：渠道回调核销缺少可用的记账管理员，请先配置归属客服",
+			errPaymentGatewayUnavailable)
+	}
+	return operator.ID, nil
+}
+
+// channelReceiptOutcome 按 (channel, transaction_no) 读回核销回执，构造与订单核销同口径的 outcome。
+func channelReceiptOutcome(ctx context.Context, db *ent.Client, p verifiedPayment) (*paymentOutcome, error) {
+	receipt, err := db.EsportsPaymentReceipt.Query().Where(
+		esportspaymentreceipt.ChannelEQ(p.Channel),
+		esportspaymentreceipt.TransactionNoEQ(p.TransactionNo),
+	).Only(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &paymentOutcome{
+		ReceiptID: receipt.ID, AppliedCents: receipt.AppliedCents,
+		ExceptionCents: receipt.ExceptionCents, OrderDispatched: receipt.AppliedCents > 0,
+	}, nil
+}
 
 // PaymentGateway is implemented only for an approved studio merchant account.
 // Production checkout never falls back to a fake successful gateway.

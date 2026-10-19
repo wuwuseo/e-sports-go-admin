@@ -84,6 +84,21 @@ func Verified(v bool) predicate.EsportsPlayerReview {
 	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldVerified, v))
 }
 
+// AutoDisputed applies equality check predicate on the "auto_disputed" field. It's identical to AutoDisputedEQ.
+func AutoDisputed(v bool) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldAutoDisputed, v))
+}
+
+// DisputeRuleCode applies equality check predicate on the "dispute_rule_code" field. It's identical to DisputeRuleCodeEQ.
+func DisputeRuleCode(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldDisputeRuleCode, v))
+}
+
+// DisputedAt applies equality check predicate on the "disputed_at" field. It's identical to DisputedAtEQ.
+func DisputedAt(v time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldDisputedAt, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int) predicate.EsportsPlayerReview {
 	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldVersion, v))
@@ -352,6 +367,141 @@ func StatusIn(vs ...Status) predicate.EsportsPlayerReview {
 // StatusNotIn applies the NotIn predicate on the "status" field.
 func StatusNotIn(vs ...Status) predicate.EsportsPlayerReview {
 	return predicate.EsportsPlayerReview(sql.FieldNotIn(FieldStatus, vs...))
+}
+
+// AutoDisputedEQ applies the EQ predicate on the "auto_disputed" field.
+func AutoDisputedEQ(v bool) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldAutoDisputed, v))
+}
+
+// AutoDisputedNEQ applies the NEQ predicate on the "auto_disputed" field.
+func AutoDisputedNEQ(v bool) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldNEQ(FieldAutoDisputed, v))
+}
+
+// DisputeRuleCodeEQ applies the EQ predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeEQ(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeNEQ applies the NEQ predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeNEQ(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldNEQ(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeIn applies the In predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeIn(vs ...string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldIn(FieldDisputeRuleCode, vs...))
+}
+
+// DisputeRuleCodeNotIn applies the NotIn predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeNotIn(vs ...string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldNotIn(FieldDisputeRuleCode, vs...))
+}
+
+// DisputeRuleCodeGT applies the GT predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeGT(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldGT(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeGTE applies the GTE predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeGTE(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldGTE(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeLT applies the LT predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeLT(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldLT(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeLTE applies the LTE predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeLTE(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldLTE(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeContains applies the Contains predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeContains(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldContains(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeHasPrefix applies the HasPrefix predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeHasPrefix(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldHasPrefix(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeHasSuffix applies the HasSuffix predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeHasSuffix(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldHasSuffix(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeEqualFold applies the EqualFold predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeEqualFold(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldEqualFold(FieldDisputeRuleCode, v))
+}
+
+// DisputeRuleCodeContainsFold applies the ContainsFold predicate on the "dispute_rule_code" field.
+func DisputeRuleCodeContainsFold(v string) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldContainsFold(FieldDisputeRuleCode, v))
+}
+
+// DisputeDetailIsNil applies the IsNil predicate on the "dispute_detail" field.
+func DisputeDetailIsNil() predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldIsNull(FieldDisputeDetail))
+}
+
+// DisputeDetailNotNil applies the NotNil predicate on the "dispute_detail" field.
+func DisputeDetailNotNil() predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldNotNull(FieldDisputeDetail))
+}
+
+// DisputedAtEQ applies the EQ predicate on the "disputed_at" field.
+func DisputedAtEQ(v time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldEQ(FieldDisputedAt, v))
+}
+
+// DisputedAtNEQ applies the NEQ predicate on the "disputed_at" field.
+func DisputedAtNEQ(v time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldNEQ(FieldDisputedAt, v))
+}
+
+// DisputedAtIn applies the In predicate on the "disputed_at" field.
+func DisputedAtIn(vs ...time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldIn(FieldDisputedAt, vs...))
+}
+
+// DisputedAtNotIn applies the NotIn predicate on the "disputed_at" field.
+func DisputedAtNotIn(vs ...time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldNotIn(FieldDisputedAt, vs...))
+}
+
+// DisputedAtGT applies the GT predicate on the "disputed_at" field.
+func DisputedAtGT(v time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldGT(FieldDisputedAt, v))
+}
+
+// DisputedAtGTE applies the GTE predicate on the "disputed_at" field.
+func DisputedAtGTE(v time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldGTE(FieldDisputedAt, v))
+}
+
+// DisputedAtLT applies the LT predicate on the "disputed_at" field.
+func DisputedAtLT(v time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldLT(FieldDisputedAt, v))
+}
+
+// DisputedAtLTE applies the LTE predicate on the "disputed_at" field.
+func DisputedAtLTE(v time.Time) predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldLTE(FieldDisputedAt, v))
+}
+
+// DisputedAtIsNil applies the IsNil predicate on the "disputed_at" field.
+func DisputedAtIsNil() predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldIsNull(FieldDisputedAt))
+}
+
+// DisputedAtNotNil applies the NotNil predicate on the "disputed_at" field.
+func DisputedAtNotNil() predicate.EsportsPlayerReview {
+	return predicate.EsportsPlayerReview(sql.FieldNotNull(FieldDisputedAt))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.

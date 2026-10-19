@@ -287,6 +287,10 @@ func purchaseCustomerStoredValueCard(ctx context.Context, db *ent.Client, custom
 	if err := validateCustomerStoredValuePurchase(in); err != nil {
 		return nil, err
 	}
+	// 渠道启停校验（§4.3-08 / §4.3-03）：停用的收款渠道不得发起自助购卡（不建卡、不伪成功）。
+	if !paymentChannelEnabled(ctx, db, in.PaymentChannel) {
+		return nil, fmt.Errorf("%w：收款方式 %s 已停用", errPaymentGatewayUnavailable, in.PaymentChannel)
+	}
 	// 登录身份绑定既是数据隔离依据，也是合同确认书的证据来源。
 	if _, err := customerSelfIdentityBinding(ctx, db, customer.ID); err != nil {
 		return nil, err

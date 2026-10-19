@@ -89,6 +89,16 @@ func AmountCents(v int64) predicate.EsportsLedgerAllocation {
 	return predicate.EsportsLedgerAllocation(sql.FieldEQ(FieldAmountCents, v))
 }
 
+// PrincipalCents applies equality check predicate on the "principal_cents" field. It's identical to PrincipalCentsEQ.
+func PrincipalCents(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldEQ(FieldPrincipalCents, v))
+}
+
+// BonusCents applies equality check predicate on the "bonus_cents" field. It's identical to BonusCentsEQ.
+func BonusCents(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldEQ(FieldBonusCents, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.EsportsLedgerAllocation {
 	return predicate.EsportsLedgerAllocation(sql.FieldEQ(FieldCreatedAt, v))
@@ -522,6 +532,86 @@ func AmountCentsLT(v int64) predicate.EsportsLedgerAllocation {
 // AmountCentsLTE applies the LTE predicate on the "amount_cents" field.
 func AmountCentsLTE(v int64) predicate.EsportsLedgerAllocation {
 	return predicate.EsportsLedgerAllocation(sql.FieldLTE(FieldAmountCents, v))
+}
+
+// PrincipalCentsEQ applies the EQ predicate on the "principal_cents" field.
+func PrincipalCentsEQ(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldEQ(FieldPrincipalCents, v))
+}
+
+// PrincipalCentsNEQ applies the NEQ predicate on the "principal_cents" field.
+func PrincipalCentsNEQ(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldNEQ(FieldPrincipalCents, v))
+}
+
+// PrincipalCentsIn applies the In predicate on the "principal_cents" field.
+func PrincipalCentsIn(vs ...int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldIn(FieldPrincipalCents, vs...))
+}
+
+// PrincipalCentsNotIn applies the NotIn predicate on the "principal_cents" field.
+func PrincipalCentsNotIn(vs ...int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldNotIn(FieldPrincipalCents, vs...))
+}
+
+// PrincipalCentsGT applies the GT predicate on the "principal_cents" field.
+func PrincipalCentsGT(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldGT(FieldPrincipalCents, v))
+}
+
+// PrincipalCentsGTE applies the GTE predicate on the "principal_cents" field.
+func PrincipalCentsGTE(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldGTE(FieldPrincipalCents, v))
+}
+
+// PrincipalCentsLT applies the LT predicate on the "principal_cents" field.
+func PrincipalCentsLT(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldLT(FieldPrincipalCents, v))
+}
+
+// PrincipalCentsLTE applies the LTE predicate on the "principal_cents" field.
+func PrincipalCentsLTE(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldLTE(FieldPrincipalCents, v))
+}
+
+// BonusCentsEQ applies the EQ predicate on the "bonus_cents" field.
+func BonusCentsEQ(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldEQ(FieldBonusCents, v))
+}
+
+// BonusCentsNEQ applies the NEQ predicate on the "bonus_cents" field.
+func BonusCentsNEQ(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldNEQ(FieldBonusCents, v))
+}
+
+// BonusCentsIn applies the In predicate on the "bonus_cents" field.
+func BonusCentsIn(vs ...int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldIn(FieldBonusCents, vs...))
+}
+
+// BonusCentsNotIn applies the NotIn predicate on the "bonus_cents" field.
+func BonusCentsNotIn(vs ...int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldNotIn(FieldBonusCents, vs...))
+}
+
+// BonusCentsGT applies the GT predicate on the "bonus_cents" field.
+func BonusCentsGT(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldGT(FieldBonusCents, v))
+}
+
+// BonusCentsGTE applies the GTE predicate on the "bonus_cents" field.
+func BonusCentsGTE(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldGTE(FieldBonusCents, v))
+}
+
+// BonusCentsLT applies the LT predicate on the "bonus_cents" field.
+func BonusCentsLT(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldLT(FieldBonusCents, v))
+}
+
+// BonusCentsLTE applies the LTE predicate on the "bonus_cents" field.
+func BonusCentsLTE(v int64) predicate.EsportsLedgerAllocation {
+	return predicate.EsportsLedgerAllocation(sql.FieldLTE(FieldBonusCents, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

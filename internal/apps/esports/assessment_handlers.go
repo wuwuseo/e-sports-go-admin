@@ -225,17 +225,35 @@ func adminPlayerRating(c fiber.Ctx) error {
 
 // ── 陪玩端自助：我的考核与申诉（§7.4） ──
 
+// playerAssessmentsHandler 陪玩端「我的考核」（§6.1-13）：返回主表 + 逐维度得分与权重（评级依据），
+// 否则陪玩只能看到等级与结论、看不到评级依据。
 func playerAssessmentsHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	player, err := currentPlayer(c.Context(), global.ORM, uid)
 	if err != nil {
 		return businessError(c, err)
 	}
-	items, err := listAssessments(c.Context(), global.ORM, player.ID, "", "", 100)
+	items, err := listPlayerAssessmentDetails(c.Context(), global.ORM, player.ID, 100)
 	if err != nil {
 		return businessError(c, err)
 	}
 	return reply(c, items)
+}
+
+// playerApplyUpgradeAssessmentHandler 陪玩端自助申请升级考核（§7.1-02）。
+// 需在 app.go 接线：{Method: "POST", Path: "/user/player/assessments/upgrade-apply", Auth: cmfapp.AuthUser, Handler: playerApplyUpgradeAssessmentHandler}
+// 陪玩身份由 AuthUser + requestPlayer 保证；按仓库约定 AuthUser 自助路由不需要 PermAPI（PermAPI 只声明管理端 /admin 路径）。
+// 目标档位由服务端按当前等级推导，客户端无需也不能指定等级。
+func playerApplyUpgradeAssessmentHandler(c fiber.Ctx) error {
+	player, err := requestPlayer(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	item, err := applyPlayerUpgradeAssessment(c.Context(), global.ORM, player.ID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, item)
 }
 
 func playerAppealHandler(c fiber.Ctx) error {
@@ -282,6 +300,80 @@ func userSubmitReviewHandler(c fiber.Ctx) error {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
 	review, err := submitCustomerReview(c.Context(), global.ORM, customer.ID, orderID, in.PlayerID, in.Rating, in.Comment)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, review)
+}
+
+// ── 客户 / 陪玩自助：评价申诉与管理员复核（§7.5-05） ──
+
+// userReviewAppealHandler 客户或陪玩对评价发起申诉。
+// 需在 app.go 接线：{Method: "POST", Path: "/user/reviews/:id/appeal", Auth: cmfapp.AuthUser, Handler: userReviewAppealHandler}
+// AuthUser 自助路由按仓库约定不需要 PermAPI。
+func userReviewAppealHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	appellantType, appellantID, err := reviewAppealAppellant(c.Context(), uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	reviewID, err := strconv.Atoi(c.Params("id"))
+	if err != nil || reviewID < 1 {
+		return fail(c, fiber.StatusBadRequest, "评价 ID 无效")
+	}
+	var in struct {
+		Reason      string `json:"reason"`
+		EvidenceRef string `json:"evidence_ref"`
+	}
+	if err = c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	appeal, err := createReviewAppeal(c.Context(), global.ORM, reviewID, appellantType, appellantID,
+		in.Reason, in.EvidenceRef, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, appeal)
+}
+
+// adminReviewAppeals 管理端评价申诉复核队列。
+// 需在 app.go 接线 + PermAPI（码前缀 esports:player_reviews:*）：
+//
+//	GET  /admin/player-review-appeals            → adminReviewAppeals
+//	POST /admin/player-review-appeals/:id/review → reviewReviewAppealHandler
+func adminReviewAppeals(c fiber.Ctx) error {
+	if _, err := requestAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	items, err := listReviewAppeals(c.Context(), global.ORM, c.Query("status"), queryInt(c, "limit"))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, items)
+}
+
+func reviewReviewAppealHandler(c fiber.Ctx) error {
+	operator, err := requestAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	appealID, err := strconv.Atoi(c.Params("id"))
+	if err != nil || appealID < 1 {
+		return fail(c, fiber.StatusBadRequest, "申诉 ID 无效")
+	}
+	var in struct {
+		Decision string `json:"decision"`
+		Note     string `json:"note"`
+	}
+	if err = c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	decision := strings.TrimSpace(in.Decision)
+	if decision != "approve" && decision != "reject" {
+		return fail(c, fiber.StatusBadRequest, "复核结论无效")
+	}
+	review, err := reviewReviewAppeal(c.Context(), global.ORM, appealID, operator.ID,
+		decision == "approve", in.Note, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

@@ -56,6 +56,27 @@ func (_u *EsportsSpecGroupUpdate) AppendSeats(v []schematier.SeatSpec) *EsportsS
 	return _u
 }
 
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_u *EsportsSpecGroupUpdate) SetPerSeatServiceUnits(v int64) *EsportsSpecGroupUpdate {
+	_u.mutation.ResetPerSeatServiceUnits()
+	_u.mutation.SetPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_u *EsportsSpecGroupUpdate) SetNillablePerSeatServiceUnits(v *int64) *EsportsSpecGroupUpdate {
+	if v != nil {
+		_u.SetPerSeatServiceUnits(*v)
+	}
+	return _u
+}
+
+// AddPerSeatServiceUnits adds value to the "per_seat_service_units" field.
+func (_u *EsportsSpecGroupUpdate) AddPerSeatServiceUnits(v int64) *EsportsSpecGroupUpdate {
+	_u.mutation.AddPerSeatServiceUnits(v)
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsSpecGroupUpdate) SetStatus(v esportsspecgroup.Status) *EsportsSpecGroupUpdate {
 	_u.mutation.SetStatus(v)
@@ -176,6 +197,12 @@ func (_u *EsportsSpecGroupUpdate) sqlSave(ctx context.Context) (_node int, err e
 			sqljson.Append(u, esportsspecgroup.FieldSeats, value)
 		})
 	}
+	if value, ok := _u.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportsspecgroup.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPerSeatServiceUnits(); ok {
+		_spec.AddField(esportsspecgroup.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsspecgroup.FieldStatus, field.TypeEnum, value)
 	}
@@ -231,6 +258,27 @@ func (_u *EsportsSpecGroupUpdateOne) SetSeats(v []schematier.SeatSpec) *EsportsS
 // AppendSeats appends value to the "seats" field.
 func (_u *EsportsSpecGroupUpdateOne) AppendSeats(v []schematier.SeatSpec) *EsportsSpecGroupUpdateOne {
 	_u.mutation.AppendSeats(v)
+	return _u
+}
+
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_u *EsportsSpecGroupUpdateOne) SetPerSeatServiceUnits(v int64) *EsportsSpecGroupUpdateOne {
+	_u.mutation.ResetPerSeatServiceUnits()
+	_u.mutation.SetPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_u *EsportsSpecGroupUpdateOne) SetNillablePerSeatServiceUnits(v *int64) *EsportsSpecGroupUpdateOne {
+	if v != nil {
+		_u.SetPerSeatServiceUnits(*v)
+	}
+	return _u
+}
+
+// AddPerSeatServiceUnits adds value to the "per_seat_service_units" field.
+func (_u *EsportsSpecGroupUpdateOne) AddPerSeatServiceUnits(v int64) *EsportsSpecGroupUpdateOne {
+	_u.mutation.AddPerSeatServiceUnits(v)
 	return _u
 }
 
@@ -383,6 +431,12 @@ func (_u *EsportsSpecGroupUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, esportsspecgroup.FieldSeats, value)
 		})
+	}
+	if value, ok := _u.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportsspecgroup.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPerSeatServiceUnits(); ok {
+		_spec.AddField(esportsspecgroup.FieldPerSeatServiceUnits, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsspecgroup.FieldStatus, field.TypeEnum, value)

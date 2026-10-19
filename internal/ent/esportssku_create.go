@@ -140,6 +140,34 @@ func (_c *EsportsSkuCreate) SetServiceUnitName(v string) *EsportsSkuCreate {
 	return _c
 }
 
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_c *EsportsSkuCreate) SetPerSeatServiceUnits(v int64) *EsportsSkuCreate {
+	_c.mutation.SetPerSeatServiceUnits(v)
+	return _c
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_c *EsportsSkuCreate) SetNillablePerSeatServiceUnits(v *int64) *EsportsSkuCreate {
+	if v != nil {
+		_c.SetPerSeatServiceUnits(*v)
+	}
+	return _c
+}
+
+// SetCostCents sets the "cost_cents" field.
+func (_c *EsportsSkuCreate) SetCostCents(v int64) *EsportsSkuCreate {
+	_c.mutation.SetCostCents(v)
+	return _c
+}
+
+// SetNillableCostCents sets the "cost_cents" field if the given value is not nil.
+func (_c *EsportsSkuCreate) SetNillableCostCents(v *int64) *EsportsSkuCreate {
+	if v != nil {
+		_c.SetCostCents(*v)
+	}
+	return _c
+}
+
 // SetServiceDurationMinutes sets the "service_duration_minutes" field.
 func (_c *EsportsSkuCreate) SetServiceDurationMinutes(v int) *EsportsSkuCreate {
 	_c.mutation.SetServiceDurationMinutes(v)
@@ -355,6 +383,10 @@ func (_c *EsportsSkuCreate) defaults() {
 		v := esportssku.DefaultAdjustmentApprovalBp
 		_c.mutation.SetAdjustmentApprovalBp(v)
 	}
+	if _, ok := _c.mutation.PerSeatServiceUnits(); !ok {
+		v := esportssku.DefaultPerSeatServiceUnits
+		_c.mutation.SetPerSeatServiceUnits(v)
+	}
 	if _, ok := _c.mutation.ServiceDurationMinutes(); !ok {
 		v := esportssku.DefaultServiceDurationMinutes
 		_c.mutation.SetServiceDurationMinutes(v)
@@ -468,6 +500,9 @@ func (_c *EsportsSkuCreate) check() error {
 		if err := esportssku.ServiceUnitNameValidator(v); err != nil {
 			return &ValidationError{Name: "service_unit_name", err: fmt.Errorf(`ent: validator failed for field "EsportsSku.service_unit_name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.PerSeatServiceUnits(); !ok {
+		return &ValidationError{Name: "per_seat_service_units", err: errors.New(`ent: missing required field "EsportsSku.per_seat_service_units"`)}
 	}
 	if _, ok := _c.mutation.ServiceDurationMinutes(); !ok {
 		return &ValidationError{Name: "service_duration_minutes", err: errors.New(`ent: missing required field "EsportsSku.service_duration_minutes"`)}
@@ -598,6 +633,14 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ServiceUnitName(); ok {
 		_spec.SetField(esportssku.FieldServiceUnitName, field.TypeString, value)
 		_node.ServiceUnitName = value
+	}
+	if value, ok := _c.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportssku.FieldPerSeatServiceUnits, field.TypeInt64, value)
+		_node.PerSeatServiceUnits = value
+	}
+	if value, ok := _c.mutation.CostCents(); ok {
+		_spec.SetField(esportssku.FieldCostCents, field.TypeInt64, value)
+		_node.CostCents = &value
 	}
 	if value, ok := _c.mutation.ServiceDurationMinutes(); ok {
 		_spec.SetField(esportssku.FieldServiceDurationMinutes, field.TypeInt, value)

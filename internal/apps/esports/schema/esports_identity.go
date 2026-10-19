@@ -23,6 +23,11 @@ func (EsportsCustomer) Fields() []ent.Field {
 		// 生日（月-日，如 03-15），用于生日礼遇待办（§10.4）；空表示未填。
 		field.String("birthday").MaxLen(5).Default("").StructTag(`json:"birthday"`),
 		field.String("consumption_preference").MaxLen(255).Default("").StructTag(`json:"consumption_preference"`),
+		// 客户时区与坐标（§5.5-03）：坐标用微度整数（1e-6 度）避免浮点；
+		// 与陪玩的同名字段共同支撑派单排序的距离 / 时区分量。空 / 0 表示未采集。
+		field.String("timezone").MaxLen(64).Default("").StructTag(`json:"timezone"`),
+		field.Int("latitude_e6").Default(0).StructTag(`json:"latitude_e6"`),
+		field.Int("longitude_e6").Default(0).StructTag(`json:"longitude_e6"`),
 		field.JSON("tags", []string{}).Optional().StructTag(`json:"tags"`),
 		field.Enum("source").Values("manual", "wecom", "self", "import").Default("manual").StructTag(`json:"source"`),
 		field.Enum("follow_status").Values("new", "following", "pending", "dormant", "closed").Default("new").StructTag(`json:"follow_status"`),
@@ -79,6 +84,33 @@ func (EsportsPlayer) Fields() []ent.Field {
 		// 心跳时戳（§6.4）：陪玩端保活打点；上线时也会写入基线，
 		// 超时任务据此把长时间无心跳的在线陪玩自动离线，在途订单则转 protected_abnormal 并提醒客服。
 		field.Time("last_heartbeat_at").Optional().Nillable().StructTag(`json:"last_heartbeat_at"`),
+		// 期望报价（§6.1-12）：陪玩在资料页自填的期望单价（分），提交后进入待运营审核；0 表示未填写。
+		field.Int64("expected_price_cents").Default(0).StructTag(`json:"expected_price_cents"`),
+		// 期望报价审核状态（§6.1-12）：none 未提交 / pending 待运营审核 / approved 通过 / rejected 驳回。
+		field.Enum("expected_price_status").Values("none", "pending", "approved", "rejected").
+			Default("none").StructTag(`json:"expected_price_status"`),
+		field.Time("expected_price_submitted_at").Optional().Nillable().StructTag(`json:"expected_price_submitted_at"`),
+		field.Int("expected_price_reviewed_by_admin_id").Optional().Nillable().StructTag(`json:"expected_price_reviewed_by_admin_id"`),
+		field.Time("expected_price_reviewed_at").Optional().Nillable().StructTag(`json:"expected_price_reviewed_at"`),
+		field.String("expected_price_review_note").MaxLen(255).Default("").StructTag(`json:"expected_price_review_note"`),
+		// 服务时段（§6.4-06）：按 UTC+8 的「当日分钟数」（0~1440）表示每日可接单窗口，须 start < end；
+		// 两者都为 0 表示不限时段（默认，存量档案不受影响）。时段外不被派单。
+		field.Int("service_slot_start_minute").Default(0).StructTag(`json:"service_slot_start_minute"`),
+		field.Int("service_slot_end_minute").Default(0).StructTag(`json:"service_slot_end_minute"`),
+		// 自动上线（§6.4-06）：开启后由陪玩端心跳 / 登录自动置为 online，无需手动上线。
+		field.Bool("auto_online").Default(false).StructTag(`json:"auto_online"`),
+		// 可接单价范围（分，§6.4-06）：0 表示该侧不限；超出范围的订单不参与派单。
+		field.Int64("accept_price_min_cents").Default(0).StructTag(`json:"accept_price_min_cents"`),
+		field.Int64("accept_price_max_cents").Default(0).StructTag(`json:"accept_price_max_cents"`),
+		// 固排开关与固排时段（§6.4-06）：仅开关开启且处于固排时段内，才允许以固排身份被组队。
+		field.Bool("fixed_team_enabled").Default(false).StructTag(`json:"fixed_team_enabled"`),
+		field.Int("fixed_team_slot_start_minute").Default(0).StructTag(`json:"fixed_team_slot_start_minute"`),
+		field.Int("fixed_team_slot_end_minute").Default(0).StructTag(`json:"fixed_team_slot_end_minute"`),
+		// 时区与坐标（§5.5-03）：坐标用微度整数（1e-6 度）避免浮点；
+		// 用于派单排序的距离 / 时区分量（此前 dispatchRankFactors 恒缺该分量）。空 / 0 表示未采集。
+		field.String("timezone").MaxLen(64).Default("").StructTag(`json:"timezone"`),
+		field.Int("latitude_e6").Default(0).StructTag(`json:"latitude_e6"`),
+		field.Int("longitude_e6").Default(0).StructTag(`json:"longitude_e6"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),

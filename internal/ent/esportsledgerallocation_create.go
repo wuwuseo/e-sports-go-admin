@@ -62,6 +62,34 @@ func (_c *EsportsLedgerAllocationCreate) SetAmountCents(v int64) *EsportsLedgerA
 	return _c
 }
 
+// SetPrincipalCents sets the "principal_cents" field.
+func (_c *EsportsLedgerAllocationCreate) SetPrincipalCents(v int64) *EsportsLedgerAllocationCreate {
+	_c.mutation.SetPrincipalCents(v)
+	return _c
+}
+
+// SetNillablePrincipalCents sets the "principal_cents" field if the given value is not nil.
+func (_c *EsportsLedgerAllocationCreate) SetNillablePrincipalCents(v *int64) *EsportsLedgerAllocationCreate {
+	if v != nil {
+		_c.SetPrincipalCents(*v)
+	}
+	return _c
+}
+
+// SetBonusCents sets the "bonus_cents" field.
+func (_c *EsportsLedgerAllocationCreate) SetBonusCents(v int64) *EsportsLedgerAllocationCreate {
+	_c.mutation.SetBonusCents(v)
+	return _c
+}
+
+// SetNillableBonusCents sets the "bonus_cents" field if the given value is not nil.
+func (_c *EsportsLedgerAllocationCreate) SetNillableBonusCents(v *int64) *EsportsLedgerAllocationCreate {
+	if v != nil {
+		_c.SetBonusCents(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *EsportsLedgerAllocationCreate) SetCreatedAt(v time.Time) *EsportsLedgerAllocationCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -113,6 +141,14 @@ func (_c *EsportsLedgerAllocationCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *EsportsLedgerAllocationCreate) defaults() error {
+	if _, ok := _c.mutation.PrincipalCents(); !ok {
+		v := esportsledgerallocation.DefaultPrincipalCents
+		_c.mutation.SetPrincipalCents(v)
+	}
+	if _, ok := _c.mutation.BonusCents(); !ok {
+		v := esportsledgerallocation.DefaultBonusCents
+		_c.mutation.SetBonusCents(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if esportsledgerallocation.DefaultCreatedAt == nil {
 			return fmt.Errorf("ent: uninitialized esportsledgerallocation.DefaultCreatedAt (forgotten import ent/runtime?)")
@@ -181,6 +217,12 @@ func (_c *EsportsLedgerAllocationCreate) check() error {
 			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsLedgerAllocation.amount_cents": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.PrincipalCents(); !ok {
+		return &ValidationError{Name: "principal_cents", err: errors.New(`ent: missing required field "EsportsLedgerAllocation.principal_cents"`)}
+	}
+	if _, ok := _c.mutation.BonusCents(); !ok {
+		return &ValidationError{Name: "bonus_cents", err: errors.New(`ent: missing required field "EsportsLedgerAllocation.bonus_cents"`)}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "EsportsLedgerAllocation.created_at"`)}
 	}
@@ -237,6 +279,14 @@ func (_c *EsportsLedgerAllocationCreate) createSpec() (*EsportsLedgerAllocation,
 	if value, ok := _c.mutation.AmountCents(); ok {
 		_spec.SetField(esportsledgerallocation.FieldAmountCents, field.TypeInt64, value)
 		_node.AmountCents = value
+	}
+	if value, ok := _c.mutation.PrincipalCents(); ok {
+		_spec.SetField(esportsledgerallocation.FieldPrincipalCents, field.TypeInt64, value)
+		_node.PrincipalCents = value
+	}
+	if value, ok := _c.mutation.BonusCents(); ok {
+		_spec.SetField(esportsledgerallocation.FieldBonusCents, field.TypeInt64, value)
+		_node.BonusCents = value
 	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(esportsledgerallocation.FieldCreatedAt, field.TypeTime, value)

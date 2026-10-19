@@ -45,6 +45,35 @@ func userStartOrderPaymentHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
+// adminStartOrderPaymentHandler 客服 / 企微侧边栏为订单发起在线收款（§4.3-02）。
+// 请求体：{"channel":"wechat_work"}；返回 {intent_no, channel, pay_url, amount_cents, expires_at}。
+// 路由须由 ownedOrderHandler 保护（负责客服或超管），权限码建议 esports:payments:order_start。
+func adminStartOrderPaymentHandler(c fiber.Ctx) error {
+	operator, err := requestAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Channel string `json:"channel"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	view, err := startOrderPaymentAsOperator(c.Context(), global.ORM, operator.ID, orderID, in.Channel, time.Now())
+	if err != nil {
+		// errPaymentGatewayUnavailable 未纳入 businessError 的公共映射，单独给出 503 与明确文案。
+		if errors.Is(err, errPaymentGatewayUnavailable) {
+			return fail(c, fiber.StatusServiceUnavailable, err.Error())
+		}
+		return businessError(c, err)
+	}
+	return reply(c, view)
+}
+
 // paymentGatewayNotifyHandler 在线支付渠道验签回调。
 //
 // 渠道编码取自路径参数 :channel（推荐路由 /payment-notify/:channel），

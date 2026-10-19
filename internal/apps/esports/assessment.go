@@ -226,8 +226,15 @@ func createAssessment(ctx context.Context, db *ent.Client, adminID int, in asses
 	create := db.EsportsAssessment.Create().SetTaskNo("AS" + uuid.NewString()).
 		SetPlayerID(in.PlayerID).SetAssessmentType(esportsassessment.AssessmentType(in.AssessmentType)).
 		SetTargetLevel(in.TargetLevel).SetStatus(esportsassessment.StatusPending).
-		SetSource(esportsassessment.Source(in.Source)).SetNote(in.Note).
-		SetCreatedByAdminID(adminID)
+		SetSource(esportsassessment.Source(in.Source)).SetNote(in.Note)
+	// 升级考核写入唯一索引兜底键：同一陪玩至多一条进行中升级单（并发双击不会落两条）。
+	if in.AssessmentType == "upgrade" {
+		create.SetActiveDedupKey(upgradeDedupKey(in.PlayerID))
+	}
+	// 陪玩自助申请（§7.1-02）没有操作管理员，adminID=0 时不落 created_by_admin_id（保持 NULL）。
+	if adminID > 0 {
+		create.SetCreatedByAdminID(adminID)
+	}
 	if in.ExaminerAdminID != nil {
 		create.SetExaminerAdminID(*in.ExaminerAdminID)
 	}
@@ -354,6 +361,8 @@ func scoreAssessment(ctx context.Context, db *ent.Client, id, adminID int, score
 	}
 	if _, err = tx.EsportsAssessment.Update().Where(esportsassessment.IDEQ(id)).
 		SetStatus(status).SetTotalScore(total).SetNote(note).SetScoredAt(now.UTC()).
+		// 结论落终态：释放升级考核去重键（清空为 NULL），否则该陪玩将永久无法再申请。
+		ClearActiveDedupKey().
 		AddVersion(1).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -394,8 +403,13 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 		if !validPlayerLevel(level) {
 			level = string(esportsplayer.LevelNovice)
 		}
-		update.SetLevel(esportsplayer.Level(level)).
-			SetQualification(esportsplayer.QualificationQualified).
+		// 升级考核的定级回写必须单调：旧单（尤其是申诉改判）不得把已经升上去的等级改回旧目标档。
+		// 复核通过的升级单仍要把资格置为「合格」并刷新考核时间。
+		if assessment.AssessmentType != esportsassessment.AssessmentTypeUpgrade ||
+			playerLevelRank(level) > playerLevelRank(player.Level.String()) {
+			update.SetLevel(esportsplayer.Level(level))
+		}
+		update.SetQualification(esportsplayer.QualificationQualified).
 			SetLevelAppraisedAt(now.UTC())
 	case esportsassessment.AssessmentTypeSpotCheck:
 		if passed {
@@ -444,10 +458,26 @@ func createAppeal(ctx context.Context, db *ent.Client, playerID, assessmentID in
 		}
 		return nil, err
 	}
-	if _, err = tx.EsportsAssessment.Update().Where(
+	update := tx.EsportsAssessment.Update().Where(
 		esportsassessment.IDEQ(assessmentID),
 		esportsassessment.AppealStatusEQ(esportsassessment.AppealStatusNone),
-	).SetAppealStatus(esportsassessment.AppealStatusPending).AddVersion(1).Save(ctx); err != nil {
+	)
+	// 升级考核：申诉待复核期间重新占住去重键，与「进行中」同口径拦截新申请——
+	// 否则新单把等级升上去后旧申诉改判会回写更低档位。若该陪玩已有其他进行中升级单（键已被占用），
+	// 不重复占键，避免唯一索引误报冲突。
+	if assessment.AssessmentType == esportsassessment.AssessmentTypeUpgrade {
+		other, findErr := findInProgressUpgradeAssessment(ctx, tx.Client(), playerID, assessmentID)
+		if findErr != nil {
+			return nil, findErr
+		}
+		if other == nil {
+			update.SetActiveDedupKey(upgradeDedupKey(playerID))
+		}
+	}
+	if _, err = update.SetAppealStatus(esportsassessment.AppealStatusPending).AddVersion(1).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return nil, errConflict
+		}
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -492,7 +522,10 @@ func reviewAppeal(ctx context.Context, db *ent.Client, assessmentID, adminID int
 		return nil, err
 	}
 	if _, err = tx.EsportsAssessment.Update().Where(esportsassessment.IDEQ(assessmentID)).
-		SetAppealStatus(appealStatus).SetStatus(newStatus).AddVersion(1).Save(ctx); err != nil {
+		SetAppealStatus(appealStatus).SetStatus(newStatus).
+		// 申诉复核落终态：释放升级考核去重键（清空为 NULL），否则该陪玩将永久无法再申请。
+		ClearActiveDedupKey().
+		AddVersion(1).Save(ctx); err != nil {
 		return nil, err
 	}
 	if approve {
@@ -644,9 +677,17 @@ type playerRatingView struct {
 	SampleCount  int     `json:"sample_count"`
 	Insufficient bool    `json:"insufficient"`
 	RuleVersion  string  `json:"rule_version"`
+	// 计算周期（§7.5-04）：与样本数 / 规则版本一并返回，供事后复核「这个分数是哪个窗口算出来的」。
+	// PeriodScope 为口径名：sample_window=按纳入样本的时间跨度；empty=无样本，以计算时刻为起止。
+	PeriodScope string `json:"period_scope"`
+	PeriodStart string `json:"period_start"`
+	PeriodEnd   string `json:"period_end"`
+	PeriodDays  int    `json:"period_days"`
+	ComputedAt  string `json:"computed_at"`
 }
 
 // playerRatingSummary 陪玩综合评分：仅纳入已核验身份、状态正常的评价；样本不足时不当作低分。
+// 响应同时给出计算周期（口径 + 起止时间 + 跨度天数 + 计算时刻，§7.5-04），字段恒非空。
 func playerRatingSummary(ctx context.Context, db *ent.Client, playerID int) (*playerRatingView, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
@@ -658,7 +699,7 @@ func playerRatingSummary(ctx context.Context, db *ent.Client, playerID int) (*pl
 		esportsplayerreview.PlayerIDEQ(playerID),
 		esportsplayerreview.VerifiedEQ(true),
 		esportsplayerreview.StatusEQ(esportsplayerreview.StatusNormal),
-	).Select(esportsplayerreview.FieldRating).All(ctx)
+	).Select(esportsplayerreview.FieldRating, esportsplayerreview.FieldCreatedAt).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -672,13 +713,39 @@ func playerRatingSummary(ctx context.Context, db *ent.Client, playerID int) (*pl
 		average = float64(sum) / float64(count)
 	}
 	minSamples := assessmentConfigInt(ctx, db, reviewMinSamplesKey, defaultReviewMinSamples)
+	scope, start, end, days := ratingPeriod(rows, time.Now().UTC())
 	return &playerRatingView{
 		PlayerID:     playerID,
 		Average:      average,
 		SampleCount:  count,
 		Insufficient: count < minSamples,
 		RuleVersion:  assessmentConfigString(ctx, db, reviewRuleVersionKey, defaultReviewRuleVersion),
+		PeriodScope:  scope,
+		PeriodStart:  start.Format(time.RFC3339),
+		PeriodEnd:    end.Format(time.RFC3339),
+		PeriodDays:   days,
+		ComputedAt:   time.Now().UTC().Format(time.RFC3339),
 	}, nil
+}
+
+// ratingPeriod 推导评分计算周期（§7.5-04）：有样本时取纳入样本 createdAt 的最小/最大值（向上取整天数），
+// 无样本时以计算时刻为起止、口径标记 empty，保证响应中的周期字段恒非空。
+func ratingPeriod(rows []*ent.EsportsPlayerReview, now time.Time) (string, time.Time, time.Time, int) {
+	if len(rows) == 0 {
+		return "empty", now, now, 0
+	}
+	start, end := rows[0].CreatedAt.UTC(), rows[0].CreatedAt.UTC()
+	for _, row := range rows {
+		at := row.CreatedAt.UTC()
+		if at.Before(start) {
+			start = at
+		}
+		if at.After(end) {
+			end = at
+		}
+	}
+	days := int((end.Sub(start) + 24*time.Hour - time.Nanosecond) / (24 * time.Hour))
+	return "sample_window", start, end, days
 }
 
 // ── 查询 ──

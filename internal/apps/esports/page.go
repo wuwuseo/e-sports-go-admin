@@ -104,6 +104,35 @@ var pageRegisteredRoutes = map[string]bool{
 	"/pages/wecom/index":        true,
 }
 
+// pageUniversalPropKeys 是所有组件通用的属性键（§16.2-05 属性面板四类字段）：
+// 间距（spacing）、跳转目标（link / link_type）、数据来源（data_source）、筛选条件（filter / filters / sort）。
+var pageUniversalPropKeys = map[string]bool{
+	"spacing": true, "link": true, "link_type": true,
+	"data_source": true, "filter": true, "filters": true, "sort": true,
+}
+
+// pageExtraPropKeys 是第 4 轮为各组件补齐的专属字段（§16.3-01 / 03 / 05 / 08 / 09 / 10 / 11）。
+// 必须与 pagePropsWhitelist 一并放行：任何未列入的键都会在保存草稿时被判「不支持的属性键」。
+var pageExtraPropKeys = map[string]map[string]bool{
+	"search":           {"hot_words": true, "scope": true},
+	"carousel":         {"valid_from": true, "valid_to": true},
+	"notice":           {"icon": true, "valid_from": true, "valid_to": true},
+	"category":         {"limit": true, "layout": true},
+	"product_list":     {"data_source": true, "rule_code": true, "rules": true},
+	"player_recommend": {"game": true, "level": true, "online": true, "bookable": true},
+	"activity":         {"image": true, "images": true, "valid_from": true, "valid_to": true},
+	"member_entry":     {"subtitle": true, "style": true, "items": true},
+	"support_entry":    {"icon": true, "text": true, "order": true, "position": true, "items": true},
+}
+
+// pagePropAllowed 判断某组件类型下的属性键是否被放行（通用键 ∪ 专属补充键 ∪ 既有白名单）。
+func pagePropAllowed(compType, key string) bool {
+	if pageUniversalPropKeys[key] || pageExtraPropKeys[compType][key] {
+		return true
+	}
+	return pagePropsWhitelist[compType][key]
+}
+
 // pagePropsWhitelist 是按组件类型定义的 props 键白名单（§16.5）：只允许客户端真实消费的键
 // （e-sports-uniapp/src/pages/index/index.vue 渲染所用，以及管理端属性面板 / 预览的字段），
 // 其余任意键（html / script / 事件处理器等）一律返回参数错误，防止未渲染内容透传到客户端。
@@ -117,7 +146,9 @@ var pagePropsWhitelist = map[string]map[string]bool{
 	"product_list": {
 		"title": true, "limit": true, "empty_text": true,
 		"sku_id": true, "sku_ids": true, "product_id": true, "product_ids": true,
-		"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
+		// §16.3-06（本轮口径收紧）：充值活动 / 充值赠送活动（campaign / activity）与 SKU 没有任何
+		// 关联字段，商品列表永远无法据此取数。允许保存等于「先承诺、取数时再反悔」，
+		// 因此不再受理这四个键；活动引用请配置到 activity 组件（那里才有真实语义）。
 	},
 	"player_recommend": {"title": true, "empty_text": true},
 	"activity": {
@@ -135,7 +166,76 @@ var pageNestedPropKeys = map[string]bool{
 	"limit": true, "interval": true, "color": true, "empty_text": true, "placeholder": true,
 	"sku_id": true, "sku_ids": true, "product_id": true, "product_ids": true,
 	"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
+	// 第 4 轮补全（§16.2-05 / §16.3）：面板四类字段与组件专属字段在嵌套项内同样放行。
+	"spacing": true, "link_type": true, "data_source": true, "filters": true, "sort": true,
+	"order": true, "position": true, "style": true, "scope": true, "game": true, "level": true,
+	"online": true, "bookable": true, "valid_from": true, "valid_to": true, "rule_code": true,
+	"rules": true, "layout": true, "hot_words": true, "status": true, "tag": true,
+	"min_price_cents": true, "max_price_cents": true, "category_id": true,
 }
+
+// pageFilterKeys 是「筛选条件」（filter / filters）允许的键（§16.2-05 / §16.3-06 / §16.3-07）：
+// 只允许已知筛选维度，未知键返回参数错误，避免运营写入服务端根本不解析的条件。
+var pageFilterKeys = map[string]bool{
+	"game": true, "level": true, "online": true, "bookable": true, "status": true, "tag": true,
+	"min_price_cents": true, "max_price_cents": true, "category_id": true,
+	"sku_id": true, "campaign_id": true, "activity_id": true, "product_id": true,
+}
+
+// pageFilterKeysByComp 是「按组件类型的筛选条件白名单」（§16.2-05 / §16.3-06 / §16.3-07）。
+// pageFilterKeys 只是所有组件的并集：只按并集放行会让运营把 A 组件的筛选键配到 B 组件上
+// （保存 200、取数时才 400 或干脆不生效），因此这里再按组件收窄一层（叠加校验，并集校验不变）。
+//
+// 未登记筛选维度的组件给**空集合**：没有任何服务端取数会消费它的筛选条件，
+// 允许保存等于「先承诺、取数时再反悔」（§7 不假成功），因此不接受保存。
+var pageFilterKeysByComp = map[string]map[string]bool{
+	// 商品列表（§16.3-06 / §16.3-11）：SKU 侧可落地的维度。
+	// game 经分类（EsportsSku.category_id → EsportsProductCategory.game）落到 SKU；
+	// 充值活动维度不在其列（SKU 与活动无关联字段，活动引用属于 activity 组件）。
+	"product_list": {
+		"game": true, "category_id": true, "min_price_cents": true, "max_price_cents": true,
+		"status": true, "sku_id": true, "product_id": true,
+	},
+	// 陪玩推荐（§16.3-07）：游戏分区 / 技能等级 / 在线 / 可接单。
+	"player_recommend": {"game": true, "level": true, "online": true, "bookable": true},
+	// 活动组件：活动 / 充值活动引用（真正有语义的组件）。
+	"activity": {"campaign_id": true, "activity_id": true},
+	// 其余组件暂无服务端取数语义。
+	"search": {}, "carousel": {}, "notice": {}, "quick_nav": {},
+	"category": {}, "member_entry": {}, "support_entry": {},
+}
+
+// pageRulesKeys 是「取数规则」（rules）允许的键（§16.3-11）：规则码与排序 / 数量 / 筛选。
+var pageRulesKeys = map[string]bool{
+	"rule_code": true, "data_source": true, "sort": true, "limit": true, "filter": true, "filters": true,
+}
+
+// 属性面板枚举取值（§16.2-05 / §16.3）：非法取值一律返回参数错误，避免运营配置出客户端不认的值。
+var (
+	pageDataSourceValues = map[string]bool{
+		"manual": true, "sku": true, "product": true, "campaign": true, "player": true,
+		"category": true, "rule": true,
+	}
+	pageRuleCodeValues = map[string]bool{
+		"on_sale": true, "hot": true, "new": true, "discount": true, "member_only": true, "recent": true,
+	}
+	pageSortValues        = map[string]bool{"default": true, "price_asc": true, "price_desc": true, "newest": true, "hot": true}
+	pageLayoutValues      = map[string]bool{"grid": true, "list": true, "scroll": true, "compact": true}
+	pageLinkTypeValues    = map[string]bool{"none": true, "page": true, "web": true, "tab": true}
+	pageMemberStyleValues = map[string]bool{"card": true, "list": true, "compact": true}
+	pageSearchScopeValues = map[string]bool{"sku": true, "player": true, "both": true}
+	pagePositionValues    = map[string]bool{"top": true, "bottom": true, "inline": true}
+	pagePlayerLevelValues = map[string]bool{"novice": true, "skilled": true, "senior": true, "mentor": true, "any": true}
+)
+
+// 属性面板字段取值范围（§16.2-05）。
+const (
+	pageSpacingMax   = 240 // 间距（px）
+	pageHotWordMax   = 10  // 热门词条数上限
+	pageHotWordLimit = 30  // 单条热门词长度上限（字符）
+	pageFilterKeyMax = 20  // 筛选条件键数量上限
+	pageGameLimit    = 40
+)
 
 // pageNestedPropKeyAllowed 判断嵌套属性键是否被允许（含图片 / 跳转字段）。
 func pageNestedPropKeyAllowed(key string) bool {
@@ -150,8 +250,10 @@ type pageComponent struct {
 }
 
 // pageConfig 是首页装修的结构化配置。
+// Tabbar 为底部导航项（§16.3-12）：路径 / 数量 / 顺序构建期固定，后台只能改文案与图标。
 type pageConfig struct {
-	Components []pageComponent `json:"components"`
+	Components []pageComponent  `json:"components"`
+	Tabbar     []pageTabbarItem `json:"tabbar,omitempty"`
 }
 
 type pageDraftInput struct {
@@ -201,7 +303,7 @@ func defaultPageConfig() pageConfig {
 // validatePageConfig 校验发布 / 保存前的配置完整性（§16.4 发布前自动检查）。
 // 保持无 ctx / db 的既有签名：不启用域名白名单，供测试与纯静态校验使用。
 func validatePageConfig(cfg pageConfig) error {
-	return validatePageConfigWithAllowedDomains(cfg, nil, false)
+	return validatePageConfigWithIcons(cfg, nil, false, nil)
 }
 
 // validatePageConfigWithAllowedDomains 校验组件类型、数量上限、必需入口，并递归校验每个组件的
@@ -209,7 +311,15 @@ func validatePageConfig(cfg pageConfig) error {
 // support_entry 缺失或 visible=false 时拒绝（§16.5）。
 // enforceDomain 为 true 时外部跳转链接须命中 allowedDomains「已审核 HTTPS 域名」白名单（发布前校验），
 // 为 false 时仅校验链接协议（https 或站内相对路径），供保存草稿放行待审核域名。
+// 图标短标识按基准清单判定（不含运营扩展项），供不持库的调用方复用。
 func validatePageConfigWithAllowedDomains(cfg pageConfig, allowedDomains map[string]bool, enforceDomain bool) error {
+	return validatePageConfigWithIcons(cfg, allowedDomains, enforceDomain, nil)
+}
+
+// validatePageConfigWithIcons 在 validatePageConfigWithAllowedDomains 的基础上，
+// 额外接收「运营扩展的图标短标识清单」（§16.3-04，见 pageIconExtraAllowlist）。
+func validatePageConfigWithIcons(cfg pageConfig, allowedDomains map[string]bool, enforceDomain bool,
+	extraIcons map[string]bool) error {
 	if len(cfg.Components) < 1 || len(cfg.Components) > pageMaxComponents {
 		return fmt.Errorf("%w：首页组件数量须在 1~%d 之间", errInvalidInput, pageMaxComponents)
 	}
@@ -221,7 +331,7 @@ func validatePageConfigWithAllowedDomains(cfg pageConfig, allowedDomains map[str
 		if comp.Type == "support_entry" && (comp.Visible == nil || *comp.Visible) {
 			hasVisibleSupport = true
 		}
-		if err := validatePageProps(i, comp.Type, comp.Props, allowedDomains, enforceDomain); err != nil {
+		if err := validatePageProps(i, comp.Type, comp.Props, allowedDomains, enforceDomain, extraIcons); err != nil {
 			return err
 		}
 	}
@@ -234,23 +344,68 @@ func validatePageConfigWithAllowedDomains(cfg pageConfig, allowedDomains map[str
 
 // validatePageProps 校验组件自由属性（§16.5）：先按组件类型做 props 键白名单，
 // 未知键直接返回参数错误，再递归校验取值。compIndex 从 0 起，错误信息里以 1 起呈现给运营。
-func validatePageProps(compIndex int, compType string, props map[string]interface{}, allowedDomains map[string]bool, enforceDomain bool) error {
-	allowed, ok := pagePropsWhitelist[compType]
-	if !ok {
+func validatePageProps(compIndex int, compType string, props map[string]interface{}, allowedDomains map[string]bool,
+	enforceDomain bool, extraIcons map[string]bool) error {
+	if _, ok := pagePropsWhitelist[compType]; !ok {
 		return fmt.Errorf("%w：第 %d 个组件类型 %q 不支持属性配置", errInvalidInput, compIndex+1, compType)
 	}
 	for key, value := range props {
-		if !allowed[key] {
+		if !pagePropAllowed(compType, key) {
 			return fmt.Errorf("%w：第 %d 个组件（%s）不支持的属性键 %q", errInvalidInput, compIndex+1, compType, key)
 		}
-		if err := validatePageValue(compIndex, key, value, allowedDomains, enforceDomain); err != nil {
+		// 筛选条件额外按组件类型收窄（§16.3-06 / §16.3-07）：并集校验仍由 validatePageValue 负责。
+		if err := validatePageComponentFilterKeys(compIndex, compType, key, value); err != nil {
+			return err
+		}
+		if err := validatePageValue(compIndex, key, value, allowedDomains, enforceDomain, extraIcons); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validatePageValue(compIndex int, key string, value interface{}, allowedDomains map[string]bool, enforceDomain bool) error {
+// validatePageComponentFilterKeys 校验筛选条件是否属于该组件允许的维度：
+// filter / filters 直接校验；rules 内的 filter / filters 同样校验（rules 仅 product_list 放行）。
+// 只做「该组件允许哪些筛选键」这一层叠加，整体形态（对象、键在并集内）仍由 validatePageValue 负责。
+func validatePageComponentFilterKeys(compIndex int, compType, key string, value interface{}) error {
+	switch key {
+	case "filter", "filters":
+		return validatePageFilterKeySet(compIndex, compType, key, value)
+	case "rules":
+		rules, ok := value.(map[string]interface{})
+		if !ok {
+			return nil
+		}
+		for _, field := range []string{"filter", "filters"} {
+			inner, ok := rules[field]
+			if !ok {
+				continue
+			}
+			if err := validatePageFilterKeySet(compIndex, compType, field, inner); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validatePageFilterKeySet 按组件类型校验筛选条件字典的键集合。
+func validatePageFilterKeySet(compIndex int, compType, field string, value interface{}) error {
+	dict, ok := value.(map[string]interface{})
+	if !ok {
+		return nil // 非对象形态不在这里判：保持既有行为，由 validatePageValue 处理。
+	}
+	for dim := range dict {
+		if !pageFilterKeysByComp[compType][dim] {
+			return fmt.Errorf("%w：第 %d 个组件（%s）的筛选条件 %s 不支持键 %q",
+				errInvalidInput, compIndex+1, compType, field, dim)
+		}
+	}
+	return nil
+}
+
+func validatePageValue(compIndex int, key string, value interface{}, allowedDomains map[string]bool,
+	enforceDomain bool, extraIcons map[string]bool) error {
 	switch v := value.(type) {
 	case string:
 		switch key {
@@ -266,39 +421,247 @@ func validatePageValue(compIndex int, key string, value interface{}, allowedDoma
 			if n := len([]rune(v)); n > pageNameLimit {
 				return fmt.Errorf("%w：第 %d 个组件字段 %q 文本超长（%d/%d）", errInvalidInput, compIndex+1, key, n, pageNameLimit)
 			}
+		case "game":
+			if n := len([]rune(v)); n > pageGameLimit {
+				return fmt.Errorf("%w：第 %d 个组件字段 %q 文本超长（%d/%d）", errInvalidInput, compIndex+1, key, n, pageGameLimit)
+			}
+		}
+		if err := validatePageEnumValue(compIndex, key, v); err != nil {
+			return err
+		}
+		if err := validatePagePropTime(compIndex, key, v); err != nil {
+			return err
 		}
 		if pageLinkFields[key] {
 			return validatePageLink(v, allowedDomains, enforceDomain, compIndex, key)
+		}
+		if key == "icon" {
+			return validatePageIcon(v, compIndex, extraIcons)
 		}
 		if pageImageFields[key] {
 			return validatePageImageURL(v, compIndex, key)
 		}
 	case float64:
-		if key == "width" || key == "height" {
-			return validatePageDimension(float64(v), compIndex, key)
+		if err := validatePageNumericProp(compIndex, key, v); err != nil {
+			return err
 		}
 	case int:
-		if key == "width" || key == "height" {
-			return validatePageDimension(float64(v), compIndex, key)
+		if err := validatePageNumericProp(compIndex, key, float64(v)); err != nil {
+			return err
 		}
-	case map[string]interface{}:
-		// 嵌套属性（items 元素等）同样做键白名单，避免绕过顶层白名单注入未知键。
-		for k, sub := range v {
-			if !pageNestedPropKeyAllowed(k) {
-				return fmt.Errorf("%w：第 %d 个组件属性子项不支持的键 %q", errInvalidInput, compIndex+1, k)
+	case bool:
+		// online / bookable 等开关类字段无额外约束（类型已由 JSON 解码保证）。
+	case []interface{}:
+		if key == "hot_words" {
+			if len(v) > pageHotWordMax {
+				return fmt.Errorf("%w：第 %d 个组件字段 %q 词条过多（%d/%d）", errInvalidInput, compIndex+1, key, len(v), pageHotWordMax)
 			}
-			if err := validatePageValue(compIndex, k, sub, allowedDomains, enforceDomain); err != nil {
+			for _, item := range v {
+				word, ok := item.(string)
+				if !ok || strings.TrimSpace(word) == "" || len([]rune(word)) > pageHotWordLimit {
+					return fmt.Errorf("%w：第 %d 个组件字段 %q 含非法词条", errInvalidInput, compIndex+1, key)
+				}
+			}
+		}
+		for _, item := range v {
+			if err := validatePageValue(compIndex, key, item, allowedDomains, enforceDomain, extraIcons); err != nil {
 				return err
 			}
 		}
-	case []interface{}:
-		for _, item := range v {
-			if err := validatePageValue(compIndex, key, item, allowedDomains, enforceDomain); err != nil {
+	case map[string]interface{}:
+		// 嵌套属性（items 元素等）同样做键白名单，避免绕过顶层白名单注入未知键。
+		for k := range v {
+			if !pageNestedPropKeyAllowed(k) {
+				return fmt.Errorf("%w：第 %d 个组件属性子项不支持的键 %q", errInvalidInput, compIndex+1, k)
+			}
+		}
+		// 筛选条件 / 取数规则是「受约束的字典」：键集合必须落在已知维度内（§16.2-05 / §16.3-11）。
+		if key == "filter" || key == "filters" {
+			if len(v) > pageFilterKeyMax {
+				return fmt.Errorf("%w：第 %d 个组件字段 %q 条件过多（%d/%d）", errInvalidInput, compIndex+1, key, len(v), pageFilterKeyMax)
+			}
+			for k := range v {
+				if !pageFilterKeys[k] {
+					return fmt.Errorf("%w：第 %d 个组件字段 %q 不支持的筛选条件 %q", errInvalidInput, compIndex+1, key, k)
+				}
+			}
+		}
+		if key == "rules" {
+			for k := range v {
+				if !pageRulesKeys[k] {
+					return fmt.Errorf("%w：第 %d 个组件字段 %q 不支持的取数规则键 %q", errInvalidInput, compIndex+1, key, k)
+				}
+			}
+		}
+		for k, sub := range v {
+			if err := validatePageValue(compIndex, k, sub, allowedDomains, enforceDomain, extraIcons); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// validatePageEnumValue 校验属性面板枚举取值（§16.2-05 / §16.3）：非法取值返回参数错误，
+// 而不是把客户端不认的值原样存进配置。
+func validatePageEnumValue(compIndex int, key, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	var allowed map[string]bool
+	switch key {
+	case "data_source":
+		allowed = pageDataSourceValues
+	case "rule_code":
+		allowed = pageRuleCodeValues
+	case "sort":
+		allowed = pageSortValues
+	case "layout":
+		allowed = pageLayoutValues
+	case "link_type":
+		allowed = pageLinkTypeValues
+	case "style":
+		allowed = pageMemberStyleValues
+	case "scope":
+		allowed = pageSearchScopeValues
+	case "position":
+		allowed = pagePositionValues
+	case "level":
+		allowed = pagePlayerLevelValues
+	default:
+		return nil
+	}
+	if !allowed[value] {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的取值 %q 不支持", errInvalidInput, compIndex+1, key, value)
+	}
+	return nil
+}
+
+// validatePagePropTime 校验有效期字段（valid_from / valid_to，§16.3-02 / 03 / 08）：
+// 支持 RFC3339 与「2006-01-02」「2006-01-02 15:04」写法，非法时间返回参数错误。
+func validatePagePropTime(compIndex int, key, value string) error {
+	if key != "valid_from" && key != "valid_to" {
+		return nil
+	}
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	if _, err := parsePagePropTime(value); err != nil {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的时间格式非法（%q）", errInvalidInput, compIndex+1, key, value)
+	}
+	return nil
+}
+
+// validatePageNumericProp 校验数值型属性（§16.2-05）：间距 0~240 px。
+func validatePageNumericProp(compIndex int, key string, value float64) error {
+	if key == "width" || key == "height" {
+		return validatePageDimension(value, compIndex, key)
+	}
+	if key == "spacing" {
+		if value < 0 || value > pageSpacingMax {
+			return fmt.Errorf("%w：第 %d 个组件字段 %q 的间距须在 0~%d 之间", errInvalidInput, compIndex+1, key, pageSpacingMax)
+		}
+	}
+	return nil
+}
+
+// pageIconAllowlistKey 是「客户端内置图标短标识允许清单」的系统配置键
+// （裸键 page_icon_allowlist，逗号分隔）。它只在基准清单之上做**加法**，
+// 运营可以扩展清单，但无法收窄（收窄会让存量已发布页面在新口径下不可发布）。
+const pageIconAllowlistKey = "app.esports.page_icon_allowlist"
+
+// pageIconDefaultAllowlist 是短标识图标的**基准清单**（§16.3-04 向后兼容收紧）：
+// 取自本仓现有代码 / 文档里**实际出现过**的短标识——app.go 的 PermMenu Icon
+// （icon-apps、icon-list、icon-wallet …）与 §16.3-04 本身举例的 icon-cs。
+// 客户端当前尚未内置图标集，因此清单外的新短标识一律拒绝，由运营按需通过
+// app.esports.page_icon_allowlist 扩展，避免运营写出 icon-nonexistent 这类坏图。
+var pageIconDefaultAllowlist = []string{
+	"icon-apps",
+	"icon-archive",
+	"icon-bar-chart",
+	"icon-check-circle",
+	"icon-cs",
+	"icon-customer-service",
+	"icon-desktop",
+	"icon-edit",
+	"icon-exclamation-circle",
+	"icon-file",
+	"icon-gift",
+	"icon-heart",
+	"icon-list",
+	"icon-safe",
+	"icon-share-alt",
+	"icon-star",
+	"icon-user",
+	"icon-wallet",
+}
+
+// pageIconExtraAllowlist 读运营扩展的图标短标识清单（逗号分隔，`app.esports.page_icon_allowlist`）。
+// 缺失 / 空值返回 nil（只按基准清单判定）；非法项（空串）忽略。
+func pageIconExtraAllowlist(ctx context.Context, db *ent.Client) map[string]bool {
+	raw := assessmentConfigString(ctx, db, pageIconAllowlistKey, "")
+	if raw == "" {
+		return nil
+	}
+	out := make(map[string]bool)
+	for _, part := range strings.Split(raw, ",") {
+		if id := strings.TrimSpace(part); id != "" {
+			out[id] = true
+		}
+	}
+	return out
+}
+
+// pageIconAllowed 判断短标识是否命中允许清单（基准清单 ∪ 运营扩展项）。
+func pageIconAllowed(identifier string, extra map[string]bool) bool {
+	for _, allowed := range pageIconDefaultAllowlist {
+		if identifier == allowed {
+			return true
+		}
+	}
+	return extra[identifier]
+}
+
+// validatePageIcon 校验图标字段（§16.3-03 / §16.3-04 / §16.3-10）：允许 https / 站内相对路径，
+// 短标识（如 icon-cs）必须命中允许清单（基准清单 ∪ extra 运营扩展项），
+// 清单外一律参数错误——客户端没有内置图标集，放行任意短标识会渲染成坏图。
+func validatePageIcon(raw string, compIndex int, extra map[string]bool) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.HasPrefix(raw, "https://") || strings.HasPrefix(raw, "/") {
+		return validatePageImageURL(raw, compIndex, "icon")
+	}
+	if len([]rune(raw)) > 40 {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图标标识过长", errInvalidInput, compIndex+1, "icon")
+	}
+	for _, r := range raw {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			continue
+		}
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图标取值非法（仅允许 URL 或短标识）", errInvalidInput, compIndex+1, "icon")
+	}
+	if !pageIconAllowed(raw, extra) {
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图标短标识 %q 不在允许清单内（仅允许 https 图片地址、站内相对路径，或后台「页面图标短标识允许清单」中已登记的标识）",
+			errInvalidInput, compIndex+1, "icon", raw)
+	}
+	return nil
+}
+
+// parsePagePropTime 解析有效期时间（RFC3339 / 日期 / 日期时间，按 UTC+8 业务时区解释无时区的写法）。
+func parsePagePropTime(raw string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05", "2006-01-02 15:04", "2006-01-02"} {
+		if layout == "2006-01-02" || layout == "2006-01-02 15:04" || layout == "2006-01-02 15:04:05" {
+			if parsed, err := time.ParseInLocation(layout, raw, cstZone); err == nil {
+				return parsed.UTC(), nil
+			}
+			continue
+		}
+		if parsed, err := time.Parse(layout, raw); err == nil {
+			return parsed.UTC(), nil
+		}
+	}
+	return time.Time{}, errInvalidInput
 }
 
 // validatePageLink 校验外部跳转链接（§16.5）：站内相对路径须命中已注册页面路径白名单，
@@ -423,8 +786,16 @@ func savePageDraft(ctx context.Context, db *ent.Client, channel string, adminID 
 		return nil, errInvalidInput
 	}
 	cfg := pageConfig{Components: in.Components}
-	if err := validatePageConfigWithAllowedDomains(cfg, pageAllowedDomains(ctx, db), false); err != nil {
+	if err := validatePageConfigWithIcons(cfg, pageAllowedDomains(ctx, db), false,
+		pageIconExtraAllowlist(ctx, db)); err != nil {
 		return nil, err
+	}
+	// 底部导航（§16.3-12）不在本请求体内：保存组件草稿时须原样保留已配置的导航文案 / 图标，
+	// 否则一次「保存草稿」就会把运营改好的导航重置掉。
+	if existing, err := db.EsportsPageDocument.Query().Where(esportspagedocument.ChannelEQ(channel)).Only(ctx); err == nil {
+		if tabbar, err := pageTabbarFromConfig(existing.DraftConfig); err == nil {
+			cfg.Tabbar = tabbar
+		}
 	}
 	config := pageConfigToMap(cfg)
 	doc, err := db.EsportsPageDocument.Query().Where(esportspagedocument.ChannelEQ(channel)).Only(ctx)
@@ -512,7 +883,8 @@ func publishPage(ctx context.Context, db *ent.Client, channel string, adminID in
 	if err != nil {
 		return nil, err
 	}
-	if err = validatePageConfigWithAllowedDomains(cfg, pageAllowedDomains(ctx, db), true); err != nil {
+	if err = validatePageConfigWithIcons(cfg, pageAllowedDomains(ctx, db), true,
+		pageIconExtraAllowlist(ctx, db)); err != nil {
 		return nil, err
 	}
 	// 发布前资源有效性校验（§16.4 增量）：图片可访问、跳转链接合法、商品/活动有效、文本超限。
@@ -683,7 +1055,8 @@ func rollbackPage(ctx context.Context, db *ent.Client, channel string, adminID, 
 	if err != nil {
 		return nil, err
 	}
-	if err = validatePageConfigWithAllowedDomains(sourceCfg, pageAllowedDomains(ctx, db), true); err != nil {
+	if err = validatePageConfigWithIcons(sourceCfg, pageAllowedDomains(ctx, db), true,
+		pageIconExtraAllowlist(ctx, db)); err != nil {
 		return nil, err
 	}
 	// 回滚同样执行发布前资源有效性校验（§16.4 增量）。
@@ -747,11 +1120,54 @@ func publishedPageConfig(ctx context.Context, db *ent.Client, channel string) (m
 	return version.Config, version.VersionNo, nil
 }
 
+// 素材库限制（§16.2-06 / §16.5-04）：仅允许登记白名单图片类型，且单条素材不超过字节上限。
+const (
+	// pageAssetMaxBytes 是单个素材登记允许的最大字节数（10 MiB）。
+	pageAssetMaxBytes = 10 << 20
+	// pageAssetURLMaxLen 是素材地址长度上限（与 schema 的 512 对齐）。
+	pageAssetURLMaxLen = 512
+)
+
+// pageAssetAllowedMimes 是素材允许的 MIME 白名单（§16.5-04）：装修素材只承载图片。
+var pageAssetAllowedMimes = map[string]bool{
+	"image/jpeg": true, "image/png": true, "image/webp": true, "image/gif": true,
+}
+
+// pageAssetMimeByExt 是「未声明 MIME 时按地址后缀推断」的映射；推断不出的类型一律拒绝。
+var pageAssetMimeByExt = map[string]string{
+	".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+	".webp": "image/webp", ".gif": "image/gif",
+}
+
+// resolvePageAssetMime 解析素材 MIME（§16.2-06 / §16.5-04）：显式声明必须命中白名单；
+// 未声明时按地址后缀推断，推断不出图片类型即拒绝，避免任意类型素材落库。
+func resolvePageAssetMime(rawURL, declared string) (string, error) {
+	declared = strings.ToLower(strings.TrimSpace(declared))
+	if declared != "" {
+		if !pageAssetAllowedMimes[declared] {
+			return "", fmt.Errorf("%w：素材类型 %q 不在白名单（仅允许 image/jpeg、image/png、image/webp、image/gif）",
+				errInvalidInput, declared)
+		}
+		return declared, nil
+	}
+	path := rawURL
+	if i := strings.IndexAny(path, "?#"); i >= 0 {
+		path = path[:i]
+	}
+	if i := strings.LastIndex(path, "."); i >= 0 {
+		if mime, ok := pageAssetMimeByExt[strings.ToLower(path[i:])]; ok {
+			return mime, nil
+		}
+	}
+	return "", fmt.Errorf("%w：素材类型未声明且无法从地址后缀判断，请显式提交 mime（仅允许 image/jpeg、image/png、image/webp、image/gif）",
+		errInvalidInput)
+}
+
 func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAssetInput) (*ent.EsportsPageAsset, error) {
 	in.Name = strings.TrimSpace(in.Name)
 	in.URL = strings.TrimSpace(in.URL)
 	in.Mime = strings.TrimSpace(in.Mime)
-	if in.Name == "" || len([]rune(in.Name)) > 160 || in.URL == "" || len(in.URL) > 512 ||
+	if in.Name == "" || len([]rune(in.Name)) > 160 || in.URL == "" || len(in.URL) > pageAssetURLMaxLen ||
 		len(in.Mime) > 80 || in.SizeBytes < 0 || in.Width < 0 || in.Height < 0 {
 		return nil, errInvalidInput
 	}
@@ -760,7 +1176,18 @@ func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAsse
 	if !strings.HasPrefix(in.URL, "https://") && !strings.HasPrefix(in.URL, "/") {
 		return nil, fmt.Errorf("%w：素材地址仅允许 HTTPS 链接或站内相对路径", errInvalidInput)
 	}
-	return db.EsportsPageAsset.Create().SetName(in.Name).SetURL(in.URL).SetMime(in.Mime).
+	// §16.2-06 / §16.5-04：字节上限与 MIME 白名单（显式声明或按后缀推断），超限/非白名单一律不落库。
+	if in.SizeBytes > pageAssetMaxBytes {
+		return nil, fmt.Errorf("%w：素材体积超限（%d 字节 > 上限 %d 字节）", errInvalidInput, in.SizeBytes, pageAssetMaxBytes)
+	}
+	if in.Width > pageImageMaxDim || in.Height > pageImageMaxDim {
+		return nil, fmt.Errorf("%w：素材尺寸须在 %d~%d 之间", errInvalidInput, pageImageMinDim, pageImageMaxDim)
+	}
+	mime, err := resolvePageAssetMime(in.URL, in.Mime)
+	if err != nil {
+		return nil, err
+	}
+	return db.EsportsPageAsset.Create().SetName(in.Name).SetURL(in.URL).SetMime(mime).
 		SetSizeBytes(in.SizeBytes).SetWidth(in.Width).SetHeight(in.Height).
 		SetCreatedBy(adminID).Save(ctx)
 }

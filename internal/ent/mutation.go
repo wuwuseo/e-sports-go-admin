@@ -21,7 +21,10 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsaftersaleaction"
+	"go-admin/internal/ent/esportsaftersalemessage"
 	"go-admin/internal/ent/esportsaftersalereview"
+	"go-admin/internal/ent/esportsaftersalerule"
+	"go-admin/internal/ent/esportsaftersalerulehit"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsassessmentappeal"
@@ -39,6 +42,7 @@ import (
 	"go-admin/internal/ent/esportsconfirmation"
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscscommissionrule"
+	"go-admin/internal/ent/esportscspresence"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportscustomerfollowup"
 	"go-admin/internal/ent/esportsdispatchprioritygrant"
@@ -50,6 +54,7 @@ import (
 	"go-admin/internal/ent/esportsgiftdispute"
 	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsgiftorder"
+	"go-admin/internal/ent/esportsgifttier"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
@@ -75,6 +80,7 @@ import (
 	"go-admin/internal/ent/esportsplayeridentity"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
+	"go-admin/internal/ent/esportsplayerreviewappeal"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsprioritybookingintent"
@@ -97,6 +103,7 @@ import (
 	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsspecgroup"
 	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportsstoredvalueexception"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
@@ -148,7 +155,10 @@ const (
 	TypeDictData                       = "DictData"
 	TypeEsportsAfterSale               = "EsportsAfterSale"
 	TypeEsportsAfterSaleAction         = "EsportsAfterSaleAction"
+	TypeEsportsAfterSaleMessage        = "EsportsAfterSaleMessage"
 	TypeEsportsAfterSaleReview         = "EsportsAfterSaleReview"
+	TypeEsportsAfterSaleRule           = "EsportsAfterSaleRule"
+	TypeEsportsAfterSaleRuleHit        = "EsportsAfterSaleRuleHit"
 	TypeEsportsAgeCheck                = "EsportsAgeCheck"
 	TypeEsportsAssessment              = "EsportsAssessment"
 	TypeEsportsAssessmentAppeal        = "EsportsAssessmentAppeal"
@@ -166,6 +176,7 @@ const (
 	TypeEsportsConfirmation            = "EsportsConfirmation"
 	TypeEsportsCsCommissionEntry       = "EsportsCsCommissionEntry"
 	TypeEsportsCsCommissionRule        = "EsportsCsCommissionRule"
+	TypeEsportsCsPresence              = "EsportsCsPresence"
 	TypeEsportsCustomer                = "EsportsCustomer"
 	TypeEsportsCustomerFollowUp        = "EsportsCustomerFollowUp"
 	TypeEsportsDispatchPriorityGrant   = "EsportsDispatchPriorityGrant"
@@ -177,6 +188,7 @@ const (
 	TypeEsportsGiftDispute             = "EsportsGiftDispute"
 	TypeEsportsGiftIntent              = "EsportsGiftIntent"
 	TypeEsportsGiftOrder               = "EsportsGiftOrder"
+	TypeEsportsGiftTier                = "EsportsGiftTier"
 	TypeEsportsGrowthLedger            = "EsportsGrowthLedger"
 	TypeEsportsIdempotency             = "EsportsIdempotency"
 	TypeEsportsIdentityBinding         = "EsportsIdentityBinding"
@@ -202,6 +214,7 @@ const (
 	TypeEsportsPlayerIdentity          = "EsportsPlayerIdentity"
 	TypeEsportsPlayerRecovery          = "EsportsPlayerRecovery"
 	TypeEsportsPlayerReview            = "EsportsPlayerReview"
+	TypeEsportsPlayerReviewAppeal      = "EsportsPlayerReviewAppeal"
 	TypeEsportsPlayerReviewRevision    = "EsportsPlayerReviewRevision"
 	TypeEsportsPriceAdjustment         = "EsportsPriceAdjustment"
 	TypeEsportsPriorityBookingIntent   = "EsportsPriorityBookingIntent"
@@ -224,6 +237,7 @@ const (
 	TypeEsportsSkuSuspensionItem       = "EsportsSkuSuspensionItem"
 	TypeEsportsSpecGroup               = "EsportsSpecGroup"
 	TypeEsportsStoredValueCard         = "EsportsStoredValueCard"
+	TypeEsportsStoredValueException    = "EsportsStoredValueException"
 	TypeEsportsStoredValuePackage      = "EsportsStoredValuePackage"
 	TypeEsportsTeammate                = "EsportsTeammate"
 	TypeEsportsWalletAccount           = "EsportsWalletAccount"
@@ -10926,6 +10940,7 @@ type EsportsAfterSaleMutation struct {
 	resolution                        *string
 	version                           *int
 	addversion                        *int
+	active_dedup_key                  *string
 	resolved_at                       *time.Time
 	created_at                        *time.Time
 	updated_at                        *time.Time
@@ -12784,6 +12799,55 @@ func (m *EsportsAfterSaleMutation) ResetVersion() {
 	m.addversion = nil
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (m *EsportsAfterSaleMutation) SetActiveDedupKey(s string) {
+	m.active_dedup_key = &s
+}
+
+// ActiveDedupKey returns the value of the "active_dedup_key" field in the mutation.
+func (m *EsportsAfterSaleMutation) ActiveDedupKey() (r string, exists bool) {
+	v := m.active_dedup_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActiveDedupKey returns the old "active_dedup_key" field's value of the EsportsAfterSale entity.
+// If the EsportsAfterSale object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMutation) OldActiveDedupKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActiveDedupKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActiveDedupKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActiveDedupKey: %w", err)
+	}
+	return oldValue.ActiveDedupKey, nil
+}
+
+// ClearActiveDedupKey clears the value of the "active_dedup_key" field.
+func (m *EsportsAfterSaleMutation) ClearActiveDedupKey() {
+	m.active_dedup_key = nil
+	m.clearedFields[esportsaftersale.FieldActiveDedupKey] = struct{}{}
+}
+
+// ActiveDedupKeyCleared returns if the "active_dedup_key" field was cleared in this mutation.
+func (m *EsportsAfterSaleMutation) ActiveDedupKeyCleared() bool {
+	_, ok := m.clearedFields[esportsaftersale.FieldActiveDedupKey]
+	return ok
+}
+
+// ResetActiveDedupKey resets all changes to the "active_dedup_key" field.
+func (m *EsportsAfterSaleMutation) ResetActiveDedupKey() {
+	m.active_dedup_key = nil
+	delete(m.clearedFields, esportsaftersale.FieldActiveDedupKey)
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (m *EsportsAfterSaleMutation) SetResolvedAt(t time.Time) {
 	m.resolved_at = &t
@@ -12939,7 +13003,7 @@ func (m *EsportsAfterSaleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsAfterSaleMutation) Fields() []string {
-	fields := make([]string, 0, 38)
+	fields := make([]string, 0, 39)
 	if m.after_sale_no != nil {
 		fields = append(fields, esportsaftersale.FieldAfterSaleNo)
 	}
@@ -13045,6 +13109,9 @@ func (m *EsportsAfterSaleMutation) Fields() []string {
 	if m.version != nil {
 		fields = append(fields, esportsaftersale.FieldVersion)
 	}
+	if m.active_dedup_key != nil {
+		fields = append(fields, esportsaftersale.FieldActiveDedupKey)
+	}
 	if m.resolved_at != nil {
 		fields = append(fields, esportsaftersale.FieldResolvedAt)
 	}
@@ -13132,6 +13199,8 @@ func (m *EsportsAfterSaleMutation) Field(name string) (ent.Value, bool) {
 		return m.Resolution()
 	case esportsaftersale.FieldVersion:
 		return m.Version()
+	case esportsaftersale.FieldActiveDedupKey:
+		return m.ActiveDedupKey()
 	case esportsaftersale.FieldResolvedAt:
 		return m.ResolvedAt()
 	case esportsaftersale.FieldCreatedAt:
@@ -13217,6 +13286,8 @@ func (m *EsportsAfterSaleMutation) OldField(ctx context.Context, name string) (e
 		return m.OldResolution(ctx)
 	case esportsaftersale.FieldVersion:
 		return m.OldVersion(ctx)
+	case esportsaftersale.FieldActiveDedupKey:
+		return m.OldActiveDedupKey(ctx)
 	case esportsaftersale.FieldResolvedAt:
 		return m.OldResolvedAt(ctx)
 	case esportsaftersale.FieldCreatedAt:
@@ -13476,6 +13547,13 @@ func (m *EsportsAfterSaleMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetVersion(v)
+		return nil
+	case esportsaftersale.FieldActiveDedupKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActiveDedupKey(v)
 		return nil
 	case esportsaftersale.FieldResolvedAt:
 		v, ok := value.(time.Time)
@@ -13753,6 +13831,9 @@ func (m *EsportsAfterSaleMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsaftersale.FieldExecutorAdminID) {
 		fields = append(fields, esportsaftersale.FieldExecutorAdminID)
 	}
+	if m.FieldCleared(esportsaftersale.FieldActiveDedupKey) {
+		fields = append(fields, esportsaftersale.FieldActiveDedupKey)
+	}
 	if m.FieldCleared(esportsaftersale.FieldResolvedAt) {
 		fields = append(fields, esportsaftersale.FieldResolvedAt)
 	}
@@ -13811,6 +13892,9 @@ func (m *EsportsAfterSaleMutation) ClearField(name string) error {
 		return nil
 	case esportsaftersale.FieldExecutorAdminID:
 		m.ClearExecutorAdminID()
+		return nil
+	case esportsaftersale.FieldActiveDedupKey:
+		m.ClearActiveDedupKey()
 		return nil
 	case esportsaftersale.FieldResolvedAt:
 		m.ClearResolvedAt()
@@ -13927,6 +14011,9 @@ func (m *EsportsAfterSaleMutation) ResetField(name string) error {
 		return nil
 	case esportsaftersale.FieldVersion:
 		m.ResetVersion()
+		return nil
+	case esportsaftersale.FieldActiveDedupKey:
+		m.ResetActiveDedupKey()
 		return nil
 	case esportsaftersale.FieldResolvedAt:
 		m.ResetResolvedAt()
@@ -15809,6 +15896,818 @@ func (m *EsportsAfterSaleActionMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsAfterSaleAction edge %s", name)
 }
 
+// EsportsAfterSaleMessageMutation represents an operation that mutates the EsportsAfterSaleMessage nodes in the graph.
+type EsportsAfterSaleMessageMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	after_sale_id     *int
+	addafter_sale_id  *int
+	author_type       *esportsaftersalemessage.AuthorType
+	author_id         *int
+	addauthor_id      *int
+	author_name       *string
+	content           *string
+	attachments       *[]string
+	appendattachments []string
+	visibility        *esportsaftersalemessage.Visibility
+	created_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*EsportsAfterSaleMessage, error)
+	predicates        []predicate.EsportsAfterSaleMessage
+}
+
+var _ ent.Mutation = (*EsportsAfterSaleMessageMutation)(nil)
+
+// esportsaftersalemessageOption allows management of the mutation configuration using functional options.
+type esportsaftersalemessageOption func(*EsportsAfterSaleMessageMutation)
+
+// newEsportsAfterSaleMessageMutation creates new mutation for the EsportsAfterSaleMessage entity.
+func newEsportsAfterSaleMessageMutation(c config, op Op, opts ...esportsaftersalemessageOption) *EsportsAfterSaleMessageMutation {
+	m := &EsportsAfterSaleMessageMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsAfterSaleMessage,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsAfterSaleMessageID sets the ID field of the mutation.
+func withEsportsAfterSaleMessageID(id int) esportsaftersalemessageOption {
+	return func(m *EsportsAfterSaleMessageMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsAfterSaleMessage
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsAfterSaleMessage, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsAfterSaleMessage.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsAfterSaleMessage sets the old EsportsAfterSaleMessage of the mutation.
+func withEsportsAfterSaleMessage(node *EsportsAfterSaleMessage) esportsaftersalemessageOption {
+	return func(m *EsportsAfterSaleMessageMutation) {
+		m.oldValue = func(context.Context) (*EsportsAfterSaleMessage, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsAfterSaleMessageMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsAfterSaleMessageMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsAfterSaleMessageMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsAfterSaleMessageMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsAfterSaleMessage.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAfterSaleID sets the "after_sale_id" field.
+func (m *EsportsAfterSaleMessageMutation) SetAfterSaleID(i int) {
+	m.after_sale_id = &i
+	m.addafter_sale_id = nil
+}
+
+// AfterSaleID returns the value of the "after_sale_id" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) AfterSaleID() (r int, exists bool) {
+	v := m.after_sale_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAfterSaleID returns the old "after_sale_id" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldAfterSaleID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAfterSaleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAfterSaleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAfterSaleID: %w", err)
+	}
+	return oldValue.AfterSaleID, nil
+}
+
+// AddAfterSaleID adds i to the "after_sale_id" field.
+func (m *EsportsAfterSaleMessageMutation) AddAfterSaleID(i int) {
+	if m.addafter_sale_id != nil {
+		*m.addafter_sale_id += i
+	} else {
+		m.addafter_sale_id = &i
+	}
+}
+
+// AddedAfterSaleID returns the value that was added to the "after_sale_id" field in this mutation.
+func (m *EsportsAfterSaleMessageMutation) AddedAfterSaleID() (r int, exists bool) {
+	v := m.addafter_sale_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAfterSaleID resets all changes to the "after_sale_id" field.
+func (m *EsportsAfterSaleMessageMutation) ResetAfterSaleID() {
+	m.after_sale_id = nil
+	m.addafter_sale_id = nil
+}
+
+// SetAuthorType sets the "author_type" field.
+func (m *EsportsAfterSaleMessageMutation) SetAuthorType(et esportsaftersalemessage.AuthorType) {
+	m.author_type = &et
+}
+
+// AuthorType returns the value of the "author_type" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) AuthorType() (r esportsaftersalemessage.AuthorType, exists bool) {
+	v := m.author_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthorType returns the old "author_type" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldAuthorType(ctx context.Context) (v esportsaftersalemessage.AuthorType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthorType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthorType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthorType: %w", err)
+	}
+	return oldValue.AuthorType, nil
+}
+
+// ResetAuthorType resets all changes to the "author_type" field.
+func (m *EsportsAfterSaleMessageMutation) ResetAuthorType() {
+	m.author_type = nil
+}
+
+// SetAuthorID sets the "author_id" field.
+func (m *EsportsAfterSaleMessageMutation) SetAuthorID(i int) {
+	m.author_id = &i
+	m.addauthor_id = nil
+}
+
+// AuthorID returns the value of the "author_id" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) AuthorID() (r int, exists bool) {
+	v := m.author_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthorID returns the old "author_id" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldAuthorID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthorID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthorID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthorID: %w", err)
+	}
+	return oldValue.AuthorID, nil
+}
+
+// AddAuthorID adds i to the "author_id" field.
+func (m *EsportsAfterSaleMessageMutation) AddAuthorID(i int) {
+	if m.addauthor_id != nil {
+		*m.addauthor_id += i
+	} else {
+		m.addauthor_id = &i
+	}
+}
+
+// AddedAuthorID returns the value that was added to the "author_id" field in this mutation.
+func (m *EsportsAfterSaleMessageMutation) AddedAuthorID() (r int, exists bool) {
+	v := m.addauthor_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAuthorID resets all changes to the "author_id" field.
+func (m *EsportsAfterSaleMessageMutation) ResetAuthorID() {
+	m.author_id = nil
+	m.addauthor_id = nil
+}
+
+// SetAuthorName sets the "author_name" field.
+func (m *EsportsAfterSaleMessageMutation) SetAuthorName(s string) {
+	m.author_name = &s
+}
+
+// AuthorName returns the value of the "author_name" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) AuthorName() (r string, exists bool) {
+	v := m.author_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAuthorName returns the old "author_name" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldAuthorName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAuthorName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAuthorName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAuthorName: %w", err)
+	}
+	return oldValue.AuthorName, nil
+}
+
+// ResetAuthorName resets all changes to the "author_name" field.
+func (m *EsportsAfterSaleMessageMutation) ResetAuthorName() {
+	m.author_name = nil
+}
+
+// SetContent sets the "content" field.
+func (m *EsportsAfterSaleMessageMutation) SetContent(s string) {
+	m.content = &s
+}
+
+// Content returns the value of the "content" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) Content() (r string, exists bool) {
+	v := m.content
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContent returns the old "content" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldContent(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContent: %w", err)
+	}
+	return oldValue.Content, nil
+}
+
+// ResetContent resets all changes to the "content" field.
+func (m *EsportsAfterSaleMessageMutation) ResetContent() {
+	m.content = nil
+}
+
+// SetAttachments sets the "attachments" field.
+func (m *EsportsAfterSaleMessageMutation) SetAttachments(s []string) {
+	m.attachments = &s
+	m.appendattachments = nil
+}
+
+// Attachments returns the value of the "attachments" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) Attachments() (r []string, exists bool) {
+	v := m.attachments
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttachments returns the old "attachments" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldAttachments(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttachments is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttachments requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttachments: %w", err)
+	}
+	return oldValue.Attachments, nil
+}
+
+// AppendAttachments adds s to the "attachments" field.
+func (m *EsportsAfterSaleMessageMutation) AppendAttachments(s []string) {
+	m.appendattachments = append(m.appendattachments, s...)
+}
+
+// AppendedAttachments returns the list of values that were appended to the "attachments" field in this mutation.
+func (m *EsportsAfterSaleMessageMutation) AppendedAttachments() ([]string, bool) {
+	if len(m.appendattachments) == 0 {
+		return nil, false
+	}
+	return m.appendattachments, true
+}
+
+// ClearAttachments clears the value of the "attachments" field.
+func (m *EsportsAfterSaleMessageMutation) ClearAttachments() {
+	m.attachments = nil
+	m.appendattachments = nil
+	m.clearedFields[esportsaftersalemessage.FieldAttachments] = struct{}{}
+}
+
+// AttachmentsCleared returns if the "attachments" field was cleared in this mutation.
+func (m *EsportsAfterSaleMessageMutation) AttachmentsCleared() bool {
+	_, ok := m.clearedFields[esportsaftersalemessage.FieldAttachments]
+	return ok
+}
+
+// ResetAttachments resets all changes to the "attachments" field.
+func (m *EsportsAfterSaleMessageMutation) ResetAttachments() {
+	m.attachments = nil
+	m.appendattachments = nil
+	delete(m.clearedFields, esportsaftersalemessage.FieldAttachments)
+}
+
+// SetVisibility sets the "visibility" field.
+func (m *EsportsAfterSaleMessageMutation) SetVisibility(e esportsaftersalemessage.Visibility) {
+	m.visibility = &e
+}
+
+// Visibility returns the value of the "visibility" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) Visibility() (r esportsaftersalemessage.Visibility, exists bool) {
+	v := m.visibility
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVisibility returns the old "visibility" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldVisibility(ctx context.Context) (v esportsaftersalemessage.Visibility, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVisibility is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVisibility requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVisibility: %w", err)
+	}
+	return oldValue.Visibility, nil
+}
+
+// ResetVisibility resets all changes to the "visibility" field.
+func (m *EsportsAfterSaleMessageMutation) ResetVisibility() {
+	m.visibility = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsAfterSaleMessageMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsAfterSaleMessageMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsAfterSaleMessage entity.
+// If the EsportsAfterSaleMessage object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleMessageMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsAfterSaleMessageMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the EsportsAfterSaleMessageMutation builder.
+func (m *EsportsAfterSaleMessageMutation) Where(ps ...predicate.EsportsAfterSaleMessage) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsAfterSaleMessageMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsAfterSaleMessageMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsAfterSaleMessage, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsAfterSaleMessageMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsAfterSaleMessageMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsAfterSaleMessage).
+func (m *EsportsAfterSaleMessageMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsAfterSaleMessageMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.after_sale_id != nil {
+		fields = append(fields, esportsaftersalemessage.FieldAfterSaleID)
+	}
+	if m.author_type != nil {
+		fields = append(fields, esportsaftersalemessage.FieldAuthorType)
+	}
+	if m.author_id != nil {
+		fields = append(fields, esportsaftersalemessage.FieldAuthorID)
+	}
+	if m.author_name != nil {
+		fields = append(fields, esportsaftersalemessage.FieldAuthorName)
+	}
+	if m.content != nil {
+		fields = append(fields, esportsaftersalemessage.FieldContent)
+	}
+	if m.attachments != nil {
+		fields = append(fields, esportsaftersalemessage.FieldAttachments)
+	}
+	if m.visibility != nil {
+		fields = append(fields, esportsaftersalemessage.FieldVisibility)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsaftersalemessage.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsAfterSaleMessageMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsaftersalemessage.FieldAfterSaleID:
+		return m.AfterSaleID()
+	case esportsaftersalemessage.FieldAuthorType:
+		return m.AuthorType()
+	case esportsaftersalemessage.FieldAuthorID:
+		return m.AuthorID()
+	case esportsaftersalemessage.FieldAuthorName:
+		return m.AuthorName()
+	case esportsaftersalemessage.FieldContent:
+		return m.Content()
+	case esportsaftersalemessage.FieldAttachments:
+		return m.Attachments()
+	case esportsaftersalemessage.FieldVisibility:
+		return m.Visibility()
+	case esportsaftersalemessage.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsAfterSaleMessageMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsaftersalemessage.FieldAfterSaleID:
+		return m.OldAfterSaleID(ctx)
+	case esportsaftersalemessage.FieldAuthorType:
+		return m.OldAuthorType(ctx)
+	case esportsaftersalemessage.FieldAuthorID:
+		return m.OldAuthorID(ctx)
+	case esportsaftersalemessage.FieldAuthorName:
+		return m.OldAuthorName(ctx)
+	case esportsaftersalemessage.FieldContent:
+		return m.OldContent(ctx)
+	case esportsaftersalemessage.FieldAttachments:
+		return m.OldAttachments(ctx)
+	case esportsaftersalemessage.FieldVisibility:
+		return m.OldVisibility(ctx)
+	case esportsaftersalemessage.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsAfterSaleMessage field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsAfterSaleMessageMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsaftersalemessage.FieldAfterSaleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAfterSaleID(v)
+		return nil
+	case esportsaftersalemessage.FieldAuthorType:
+		v, ok := value.(esportsaftersalemessage.AuthorType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthorType(v)
+		return nil
+	case esportsaftersalemessage.FieldAuthorID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthorID(v)
+		return nil
+	case esportsaftersalemessage.FieldAuthorName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAuthorName(v)
+		return nil
+	case esportsaftersalemessage.FieldContent:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContent(v)
+		return nil
+	case esportsaftersalemessage.FieldAttachments:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttachments(v)
+		return nil
+	case esportsaftersalemessage.FieldVisibility:
+		v, ok := value.(esportsaftersalemessage.Visibility)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVisibility(v)
+		return nil
+	case esportsaftersalemessage.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleMessage field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsAfterSaleMessageMutation) AddedFields() []string {
+	var fields []string
+	if m.addafter_sale_id != nil {
+		fields = append(fields, esportsaftersalemessage.FieldAfterSaleID)
+	}
+	if m.addauthor_id != nil {
+		fields = append(fields, esportsaftersalemessage.FieldAuthorID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsAfterSaleMessageMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsaftersalemessage.FieldAfterSaleID:
+		return m.AddedAfterSaleID()
+	case esportsaftersalemessage.FieldAuthorID:
+		return m.AddedAuthorID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsAfterSaleMessageMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsaftersalemessage.FieldAfterSaleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAfterSaleID(v)
+		return nil
+	case esportsaftersalemessage.FieldAuthorID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAuthorID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleMessage numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsAfterSaleMessageMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsaftersalemessage.FieldAttachments) {
+		fields = append(fields, esportsaftersalemessage.FieldAttachments)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsAfterSaleMessageMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsAfterSaleMessageMutation) ClearField(name string) error {
+	switch name {
+	case esportsaftersalemessage.FieldAttachments:
+		m.ClearAttachments()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleMessage nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsAfterSaleMessageMutation) ResetField(name string) error {
+	switch name {
+	case esportsaftersalemessage.FieldAfterSaleID:
+		m.ResetAfterSaleID()
+		return nil
+	case esportsaftersalemessage.FieldAuthorType:
+		m.ResetAuthorType()
+		return nil
+	case esportsaftersalemessage.FieldAuthorID:
+		m.ResetAuthorID()
+		return nil
+	case esportsaftersalemessage.FieldAuthorName:
+		m.ResetAuthorName()
+		return nil
+	case esportsaftersalemessage.FieldContent:
+		m.ResetContent()
+		return nil
+	case esportsaftersalemessage.FieldAttachments:
+		m.ResetAttachments()
+		return nil
+	case esportsaftersalemessage.FieldVisibility:
+		m.ResetVisibility()
+		return nil
+	case esportsaftersalemessage.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleMessage field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsAfterSaleMessageMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsAfterSaleMessageMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsAfterSaleMessageMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsAfterSaleMessageMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsAfterSaleMessageMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsAfterSaleMessageMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsAfterSaleMessageMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsAfterSaleMessage unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsAfterSaleMessageMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsAfterSaleMessage edge %s", name)
+}
+
 // EsportsAfterSaleReviewMutation represents an operation that mutates the EsportsAfterSaleReview nodes in the graph.
 type EsportsAfterSaleReviewMutation struct {
 	config
@@ -16993,6 +17892,2421 @@ func (m *EsportsAfterSaleReviewMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsAfterSaleReview edge %s", name)
 }
 
+// EsportsAfterSaleRuleMutation represents an operation that mutates the EsportsAfterSaleRule nodes in the graph.
+type EsportsAfterSaleRuleMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	code               *string
+	name               *string
+	source_type        *esportsaftersalerule.SourceType
+	trigger_event      *esportsaftersalerule.TriggerEvent
+	metric             *esportsaftersalerule.Metric
+	threshold_value    *int64
+	addthreshold_value *int64
+	window_minutes     *int
+	addwindow_minutes  *int
+	scope_game         *string
+	scope_sku_id       *int
+	addscope_sku_id    *int
+	after_sale_kind    *esportsaftersalerule.AfterSaleKind
+	channel            *esportsaftersalerule.Channel
+	fault_party        *esportsaftersalerule.FaultParty
+	auto_create        *bool
+	priority           *int
+	addpriority        *int
+	note               *string
+	status             *esportsaftersalerule.Status
+	version            *int
+	addversion         *int
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*EsportsAfterSaleRule, error)
+	predicates         []predicate.EsportsAfterSaleRule
+}
+
+var _ ent.Mutation = (*EsportsAfterSaleRuleMutation)(nil)
+
+// esportsaftersaleruleOption allows management of the mutation configuration using functional options.
+type esportsaftersaleruleOption func(*EsportsAfterSaleRuleMutation)
+
+// newEsportsAfterSaleRuleMutation creates new mutation for the EsportsAfterSaleRule entity.
+func newEsportsAfterSaleRuleMutation(c config, op Op, opts ...esportsaftersaleruleOption) *EsportsAfterSaleRuleMutation {
+	m := &EsportsAfterSaleRuleMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsAfterSaleRule,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsAfterSaleRuleID sets the ID field of the mutation.
+func withEsportsAfterSaleRuleID(id int) esportsaftersaleruleOption {
+	return func(m *EsportsAfterSaleRuleMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsAfterSaleRule
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsAfterSaleRule, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsAfterSaleRule.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsAfterSaleRule sets the old EsportsAfterSaleRule of the mutation.
+func withEsportsAfterSaleRule(node *EsportsAfterSaleRule) esportsaftersaleruleOption {
+	return func(m *EsportsAfterSaleRuleMutation) {
+		m.oldValue = func(context.Context) (*EsportsAfterSaleRule, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsAfterSaleRuleMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsAfterSaleRuleMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsAfterSaleRuleMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsAfterSaleRuleMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsAfterSaleRule.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCode sets the "code" field.
+func (m *EsportsAfterSaleRuleMutation) SetCode(s string) {
+	m.code = &s
+}
+
+// Code returns the value of the "code" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Code() (r string, exists bool) {
+	v := m.code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCode returns the old "code" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCode: %w", err)
+	}
+	return oldValue.Code, nil
+}
+
+// ResetCode resets all changes to the "code" field.
+func (m *EsportsAfterSaleRuleMutation) ResetCode() {
+	m.code = nil
+}
+
+// SetName sets the "name" field.
+func (m *EsportsAfterSaleRuleMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *EsportsAfterSaleRuleMutation) ResetName() {
+	m.name = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *EsportsAfterSaleRuleMutation) SetSourceType(et esportsaftersalerule.SourceType) {
+	m.source_type = &et
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) SourceType() (r esportsaftersalerule.SourceType, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldSourceType(ctx context.Context) (v esportsaftersalerule.SourceType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *EsportsAfterSaleRuleMutation) ResetSourceType() {
+	m.source_type = nil
+}
+
+// SetTriggerEvent sets the "trigger_event" field.
+func (m *EsportsAfterSaleRuleMutation) SetTriggerEvent(ee esportsaftersalerule.TriggerEvent) {
+	m.trigger_event = &ee
+}
+
+// TriggerEvent returns the value of the "trigger_event" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) TriggerEvent() (r esportsaftersalerule.TriggerEvent, exists bool) {
+	v := m.trigger_event
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTriggerEvent returns the old "trigger_event" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldTriggerEvent(ctx context.Context) (v esportsaftersalerule.TriggerEvent, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTriggerEvent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTriggerEvent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTriggerEvent: %w", err)
+	}
+	return oldValue.TriggerEvent, nil
+}
+
+// ResetTriggerEvent resets all changes to the "trigger_event" field.
+func (m *EsportsAfterSaleRuleMutation) ResetTriggerEvent() {
+	m.trigger_event = nil
+}
+
+// SetMetric sets the "metric" field.
+func (m *EsportsAfterSaleRuleMutation) SetMetric(e esportsaftersalerule.Metric) {
+	m.metric = &e
+}
+
+// Metric returns the value of the "metric" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Metric() (r esportsaftersalerule.Metric, exists bool) {
+	v := m.metric
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetric returns the old "metric" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldMetric(ctx context.Context) (v esportsaftersalerule.Metric, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetric is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetric requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetric: %w", err)
+	}
+	return oldValue.Metric, nil
+}
+
+// ResetMetric resets all changes to the "metric" field.
+func (m *EsportsAfterSaleRuleMutation) ResetMetric() {
+	m.metric = nil
+}
+
+// SetThresholdValue sets the "threshold_value" field.
+func (m *EsportsAfterSaleRuleMutation) SetThresholdValue(i int64) {
+	m.threshold_value = &i
+	m.addthreshold_value = nil
+}
+
+// ThresholdValue returns the value of the "threshold_value" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) ThresholdValue() (r int64, exists bool) {
+	v := m.threshold_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldThresholdValue returns the old "threshold_value" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldThresholdValue(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldThresholdValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldThresholdValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldThresholdValue: %w", err)
+	}
+	return oldValue.ThresholdValue, nil
+}
+
+// AddThresholdValue adds i to the "threshold_value" field.
+func (m *EsportsAfterSaleRuleMutation) AddThresholdValue(i int64) {
+	if m.addthreshold_value != nil {
+		*m.addthreshold_value += i
+	} else {
+		m.addthreshold_value = &i
+	}
+}
+
+// AddedThresholdValue returns the value that was added to the "threshold_value" field in this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedThresholdValue() (r int64, exists bool) {
+	v := m.addthreshold_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetThresholdValue resets all changes to the "threshold_value" field.
+func (m *EsportsAfterSaleRuleMutation) ResetThresholdValue() {
+	m.threshold_value = nil
+	m.addthreshold_value = nil
+}
+
+// SetWindowMinutes sets the "window_minutes" field.
+func (m *EsportsAfterSaleRuleMutation) SetWindowMinutes(i int) {
+	m.window_minutes = &i
+	m.addwindow_minutes = nil
+}
+
+// WindowMinutes returns the value of the "window_minutes" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) WindowMinutes() (r int, exists bool) {
+	v := m.window_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWindowMinutes returns the old "window_minutes" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldWindowMinutes(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWindowMinutes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWindowMinutes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWindowMinutes: %w", err)
+	}
+	return oldValue.WindowMinutes, nil
+}
+
+// AddWindowMinutes adds i to the "window_minutes" field.
+func (m *EsportsAfterSaleRuleMutation) AddWindowMinutes(i int) {
+	if m.addwindow_minutes != nil {
+		*m.addwindow_minutes += i
+	} else {
+		m.addwindow_minutes = &i
+	}
+}
+
+// AddedWindowMinutes returns the value that was added to the "window_minutes" field in this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedWindowMinutes() (r int, exists bool) {
+	v := m.addwindow_minutes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWindowMinutes resets all changes to the "window_minutes" field.
+func (m *EsportsAfterSaleRuleMutation) ResetWindowMinutes() {
+	m.window_minutes = nil
+	m.addwindow_minutes = nil
+}
+
+// SetScopeGame sets the "scope_game" field.
+func (m *EsportsAfterSaleRuleMutation) SetScopeGame(s string) {
+	m.scope_game = &s
+}
+
+// ScopeGame returns the value of the "scope_game" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) ScopeGame() (r string, exists bool) {
+	v := m.scope_game
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeGame returns the old "scope_game" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldScopeGame(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeGame is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeGame requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeGame: %w", err)
+	}
+	return oldValue.ScopeGame, nil
+}
+
+// ResetScopeGame resets all changes to the "scope_game" field.
+func (m *EsportsAfterSaleRuleMutation) ResetScopeGame() {
+	m.scope_game = nil
+}
+
+// SetScopeSkuID sets the "scope_sku_id" field.
+func (m *EsportsAfterSaleRuleMutation) SetScopeSkuID(i int) {
+	m.scope_sku_id = &i
+	m.addscope_sku_id = nil
+}
+
+// ScopeSkuID returns the value of the "scope_sku_id" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) ScopeSkuID() (r int, exists bool) {
+	v := m.scope_sku_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldScopeSkuID returns the old "scope_sku_id" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldScopeSkuID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldScopeSkuID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldScopeSkuID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldScopeSkuID: %w", err)
+	}
+	return oldValue.ScopeSkuID, nil
+}
+
+// AddScopeSkuID adds i to the "scope_sku_id" field.
+func (m *EsportsAfterSaleRuleMutation) AddScopeSkuID(i int) {
+	if m.addscope_sku_id != nil {
+		*m.addscope_sku_id += i
+	} else {
+		m.addscope_sku_id = &i
+	}
+}
+
+// AddedScopeSkuID returns the value that was added to the "scope_sku_id" field in this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedScopeSkuID() (r int, exists bool) {
+	v := m.addscope_sku_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearScopeSkuID clears the value of the "scope_sku_id" field.
+func (m *EsportsAfterSaleRuleMutation) ClearScopeSkuID() {
+	m.scope_sku_id = nil
+	m.addscope_sku_id = nil
+	m.clearedFields[esportsaftersalerule.FieldScopeSkuID] = struct{}{}
+}
+
+// ScopeSkuIDCleared returns if the "scope_sku_id" field was cleared in this mutation.
+func (m *EsportsAfterSaleRuleMutation) ScopeSkuIDCleared() bool {
+	_, ok := m.clearedFields[esportsaftersalerule.FieldScopeSkuID]
+	return ok
+}
+
+// ResetScopeSkuID resets all changes to the "scope_sku_id" field.
+func (m *EsportsAfterSaleRuleMutation) ResetScopeSkuID() {
+	m.scope_sku_id = nil
+	m.addscope_sku_id = nil
+	delete(m.clearedFields, esportsaftersalerule.FieldScopeSkuID)
+}
+
+// SetAfterSaleKind sets the "after_sale_kind" field.
+func (m *EsportsAfterSaleRuleMutation) SetAfterSaleKind(esk esportsaftersalerule.AfterSaleKind) {
+	m.after_sale_kind = &esk
+}
+
+// AfterSaleKind returns the value of the "after_sale_kind" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) AfterSaleKind() (r esportsaftersalerule.AfterSaleKind, exists bool) {
+	v := m.after_sale_kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAfterSaleKind returns the old "after_sale_kind" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldAfterSaleKind(ctx context.Context) (v esportsaftersalerule.AfterSaleKind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAfterSaleKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAfterSaleKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAfterSaleKind: %w", err)
+	}
+	return oldValue.AfterSaleKind, nil
+}
+
+// ResetAfterSaleKind resets all changes to the "after_sale_kind" field.
+func (m *EsportsAfterSaleRuleMutation) ResetAfterSaleKind() {
+	m.after_sale_kind = nil
+}
+
+// SetChannel sets the "channel" field.
+func (m *EsportsAfterSaleRuleMutation) SetChannel(e esportsaftersalerule.Channel) {
+	m.channel = &e
+}
+
+// Channel returns the value of the "channel" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Channel() (r esportsaftersalerule.Channel, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannel returns the old "channel" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldChannel(ctx context.Context) (v esportsaftersalerule.Channel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannel: %w", err)
+	}
+	return oldValue.Channel, nil
+}
+
+// ResetChannel resets all changes to the "channel" field.
+func (m *EsportsAfterSaleRuleMutation) ResetChannel() {
+	m.channel = nil
+}
+
+// SetFaultParty sets the "fault_party" field.
+func (m *EsportsAfterSaleRuleMutation) SetFaultParty(ep esportsaftersalerule.FaultParty) {
+	m.fault_party = &ep
+}
+
+// FaultParty returns the value of the "fault_party" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) FaultParty() (r esportsaftersalerule.FaultParty, exists bool) {
+	v := m.fault_party
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFaultParty returns the old "fault_party" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldFaultParty(ctx context.Context) (v esportsaftersalerule.FaultParty, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFaultParty is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFaultParty requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFaultParty: %w", err)
+	}
+	return oldValue.FaultParty, nil
+}
+
+// ResetFaultParty resets all changes to the "fault_party" field.
+func (m *EsportsAfterSaleRuleMutation) ResetFaultParty() {
+	m.fault_party = nil
+}
+
+// SetAutoCreate sets the "auto_create" field.
+func (m *EsportsAfterSaleRuleMutation) SetAutoCreate(b bool) {
+	m.auto_create = &b
+}
+
+// AutoCreate returns the value of the "auto_create" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) AutoCreate() (r bool, exists bool) {
+	v := m.auto_create
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoCreate returns the old "auto_create" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldAutoCreate(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoCreate is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoCreate requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoCreate: %w", err)
+	}
+	return oldValue.AutoCreate, nil
+}
+
+// ResetAutoCreate resets all changes to the "auto_create" field.
+func (m *EsportsAfterSaleRuleMutation) ResetAutoCreate() {
+	m.auto_create = nil
+}
+
+// SetPriority sets the "priority" field.
+func (m *EsportsAfterSaleRuleMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *EsportsAfterSaleRuleMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *EsportsAfterSaleRuleMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
+}
+
+// SetNote sets the "note" field.
+func (m *EsportsAfterSaleRuleMutation) SetNote(s string) {
+	m.note = &s
+}
+
+// Note returns the value of the "note" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Note() (r string, exists bool) {
+	v := m.note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNote returns the old "note" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNote: %w", err)
+	}
+	return oldValue.Note, nil
+}
+
+// ResetNote resets all changes to the "note" field.
+func (m *EsportsAfterSaleRuleMutation) ResetNote() {
+	m.note = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsAfterSaleRuleMutation) SetStatus(e esportsaftersalerule.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Status() (r esportsaftersalerule.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldStatus(ctx context.Context) (v esportsaftersalerule.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsAfterSaleRuleMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsAfterSaleRuleMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsAfterSaleRuleMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsAfterSaleRuleMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsAfterSaleRuleMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsAfterSaleRuleMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsAfterSaleRuleMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsAfterSaleRuleMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsAfterSaleRule entity.
+// If the EsportsAfterSaleRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsAfterSaleRuleMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsAfterSaleRuleMutation builder.
+func (m *EsportsAfterSaleRuleMutation) Where(ps ...predicate.EsportsAfterSaleRule) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsAfterSaleRuleMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsAfterSaleRuleMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsAfterSaleRule, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsAfterSaleRuleMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsAfterSaleRuleMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsAfterSaleRule).
+func (m *EsportsAfterSaleRuleMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsAfterSaleRuleMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.code != nil {
+		fields = append(fields, esportsaftersalerule.FieldCode)
+	}
+	if m.name != nil {
+		fields = append(fields, esportsaftersalerule.FieldName)
+	}
+	if m.source_type != nil {
+		fields = append(fields, esportsaftersalerule.FieldSourceType)
+	}
+	if m.trigger_event != nil {
+		fields = append(fields, esportsaftersalerule.FieldTriggerEvent)
+	}
+	if m.metric != nil {
+		fields = append(fields, esportsaftersalerule.FieldMetric)
+	}
+	if m.threshold_value != nil {
+		fields = append(fields, esportsaftersalerule.FieldThresholdValue)
+	}
+	if m.window_minutes != nil {
+		fields = append(fields, esportsaftersalerule.FieldWindowMinutes)
+	}
+	if m.scope_game != nil {
+		fields = append(fields, esportsaftersalerule.FieldScopeGame)
+	}
+	if m.scope_sku_id != nil {
+		fields = append(fields, esportsaftersalerule.FieldScopeSkuID)
+	}
+	if m.after_sale_kind != nil {
+		fields = append(fields, esportsaftersalerule.FieldAfterSaleKind)
+	}
+	if m.channel != nil {
+		fields = append(fields, esportsaftersalerule.FieldChannel)
+	}
+	if m.fault_party != nil {
+		fields = append(fields, esportsaftersalerule.FieldFaultParty)
+	}
+	if m.auto_create != nil {
+		fields = append(fields, esportsaftersalerule.FieldAutoCreate)
+	}
+	if m.priority != nil {
+		fields = append(fields, esportsaftersalerule.FieldPriority)
+	}
+	if m.note != nil {
+		fields = append(fields, esportsaftersalerule.FieldNote)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsaftersalerule.FieldStatus)
+	}
+	if m.version != nil {
+		fields = append(fields, esportsaftersalerule.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsaftersalerule.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportsaftersalerule.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsAfterSaleRuleMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsaftersalerule.FieldCode:
+		return m.Code()
+	case esportsaftersalerule.FieldName:
+		return m.Name()
+	case esportsaftersalerule.FieldSourceType:
+		return m.SourceType()
+	case esportsaftersalerule.FieldTriggerEvent:
+		return m.TriggerEvent()
+	case esportsaftersalerule.FieldMetric:
+		return m.Metric()
+	case esportsaftersalerule.FieldThresholdValue:
+		return m.ThresholdValue()
+	case esportsaftersalerule.FieldWindowMinutes:
+		return m.WindowMinutes()
+	case esportsaftersalerule.FieldScopeGame:
+		return m.ScopeGame()
+	case esportsaftersalerule.FieldScopeSkuID:
+		return m.ScopeSkuID()
+	case esportsaftersalerule.FieldAfterSaleKind:
+		return m.AfterSaleKind()
+	case esportsaftersalerule.FieldChannel:
+		return m.Channel()
+	case esportsaftersalerule.FieldFaultParty:
+		return m.FaultParty()
+	case esportsaftersalerule.FieldAutoCreate:
+		return m.AutoCreate()
+	case esportsaftersalerule.FieldPriority:
+		return m.Priority()
+	case esportsaftersalerule.FieldNote:
+		return m.Note()
+	case esportsaftersalerule.FieldStatus:
+		return m.Status()
+	case esportsaftersalerule.FieldVersion:
+		return m.Version()
+	case esportsaftersalerule.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportsaftersalerule.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsAfterSaleRuleMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsaftersalerule.FieldCode:
+		return m.OldCode(ctx)
+	case esportsaftersalerule.FieldName:
+		return m.OldName(ctx)
+	case esportsaftersalerule.FieldSourceType:
+		return m.OldSourceType(ctx)
+	case esportsaftersalerule.FieldTriggerEvent:
+		return m.OldTriggerEvent(ctx)
+	case esportsaftersalerule.FieldMetric:
+		return m.OldMetric(ctx)
+	case esportsaftersalerule.FieldThresholdValue:
+		return m.OldThresholdValue(ctx)
+	case esportsaftersalerule.FieldWindowMinutes:
+		return m.OldWindowMinutes(ctx)
+	case esportsaftersalerule.FieldScopeGame:
+		return m.OldScopeGame(ctx)
+	case esportsaftersalerule.FieldScopeSkuID:
+		return m.OldScopeSkuID(ctx)
+	case esportsaftersalerule.FieldAfterSaleKind:
+		return m.OldAfterSaleKind(ctx)
+	case esportsaftersalerule.FieldChannel:
+		return m.OldChannel(ctx)
+	case esportsaftersalerule.FieldFaultParty:
+		return m.OldFaultParty(ctx)
+	case esportsaftersalerule.FieldAutoCreate:
+		return m.OldAutoCreate(ctx)
+	case esportsaftersalerule.FieldPriority:
+		return m.OldPriority(ctx)
+	case esportsaftersalerule.FieldNote:
+		return m.OldNote(ctx)
+	case esportsaftersalerule.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsaftersalerule.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportsaftersalerule.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportsaftersalerule.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsAfterSaleRule field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsAfterSaleRuleMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsaftersalerule.FieldCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCode(v)
+		return nil
+	case esportsaftersalerule.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case esportsaftersalerule.FieldSourceType:
+		v, ok := value.(esportsaftersalerule.SourceType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
+		return nil
+	case esportsaftersalerule.FieldTriggerEvent:
+		v, ok := value.(esportsaftersalerule.TriggerEvent)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTriggerEvent(v)
+		return nil
+	case esportsaftersalerule.FieldMetric:
+		v, ok := value.(esportsaftersalerule.Metric)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetric(v)
+		return nil
+	case esportsaftersalerule.FieldThresholdValue:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetThresholdValue(v)
+		return nil
+	case esportsaftersalerule.FieldWindowMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWindowMinutes(v)
+		return nil
+	case esportsaftersalerule.FieldScopeGame:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeGame(v)
+		return nil
+	case esportsaftersalerule.FieldScopeSkuID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetScopeSkuID(v)
+		return nil
+	case esportsaftersalerule.FieldAfterSaleKind:
+		v, ok := value.(esportsaftersalerule.AfterSaleKind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAfterSaleKind(v)
+		return nil
+	case esportsaftersalerule.FieldChannel:
+		v, ok := value.(esportsaftersalerule.Channel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannel(v)
+		return nil
+	case esportsaftersalerule.FieldFaultParty:
+		v, ok := value.(esportsaftersalerule.FaultParty)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFaultParty(v)
+		return nil
+	case esportsaftersalerule.FieldAutoCreate:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoCreate(v)
+		return nil
+	case esportsaftersalerule.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
+	case esportsaftersalerule.FieldNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNote(v)
+		return nil
+	case esportsaftersalerule.FieldStatus:
+		v, ok := value.(esportsaftersalerule.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsaftersalerule.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportsaftersalerule.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportsaftersalerule.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleRule field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedFields() []string {
+	var fields []string
+	if m.addthreshold_value != nil {
+		fields = append(fields, esportsaftersalerule.FieldThresholdValue)
+	}
+	if m.addwindow_minutes != nil {
+		fields = append(fields, esportsaftersalerule.FieldWindowMinutes)
+	}
+	if m.addscope_sku_id != nil {
+		fields = append(fields, esportsaftersalerule.FieldScopeSkuID)
+	}
+	if m.addpriority != nil {
+		fields = append(fields, esportsaftersalerule.FieldPriority)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportsaftersalerule.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsAfterSaleRuleMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsaftersalerule.FieldThresholdValue:
+		return m.AddedThresholdValue()
+	case esportsaftersalerule.FieldWindowMinutes:
+		return m.AddedWindowMinutes()
+	case esportsaftersalerule.FieldScopeSkuID:
+		return m.AddedScopeSkuID()
+	case esportsaftersalerule.FieldPriority:
+		return m.AddedPriority()
+	case esportsaftersalerule.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsAfterSaleRuleMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsaftersalerule.FieldThresholdValue:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddThresholdValue(v)
+		return nil
+	case esportsaftersalerule.FieldWindowMinutes:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWindowMinutes(v)
+		return nil
+	case esportsaftersalerule.FieldScopeSkuID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddScopeSkuID(v)
+		return nil
+	case esportsaftersalerule.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
+		return nil
+	case esportsaftersalerule.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleRule numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsAfterSaleRuleMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsaftersalerule.FieldScopeSkuID) {
+		fields = append(fields, esportsaftersalerule.FieldScopeSkuID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsAfterSaleRuleMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsAfterSaleRuleMutation) ClearField(name string) error {
+	switch name {
+	case esportsaftersalerule.FieldScopeSkuID:
+		m.ClearScopeSkuID()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleRule nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsAfterSaleRuleMutation) ResetField(name string) error {
+	switch name {
+	case esportsaftersalerule.FieldCode:
+		m.ResetCode()
+		return nil
+	case esportsaftersalerule.FieldName:
+		m.ResetName()
+		return nil
+	case esportsaftersalerule.FieldSourceType:
+		m.ResetSourceType()
+		return nil
+	case esportsaftersalerule.FieldTriggerEvent:
+		m.ResetTriggerEvent()
+		return nil
+	case esportsaftersalerule.FieldMetric:
+		m.ResetMetric()
+		return nil
+	case esportsaftersalerule.FieldThresholdValue:
+		m.ResetThresholdValue()
+		return nil
+	case esportsaftersalerule.FieldWindowMinutes:
+		m.ResetWindowMinutes()
+		return nil
+	case esportsaftersalerule.FieldScopeGame:
+		m.ResetScopeGame()
+		return nil
+	case esportsaftersalerule.FieldScopeSkuID:
+		m.ResetScopeSkuID()
+		return nil
+	case esportsaftersalerule.FieldAfterSaleKind:
+		m.ResetAfterSaleKind()
+		return nil
+	case esportsaftersalerule.FieldChannel:
+		m.ResetChannel()
+		return nil
+	case esportsaftersalerule.FieldFaultParty:
+		m.ResetFaultParty()
+		return nil
+	case esportsaftersalerule.FieldAutoCreate:
+		m.ResetAutoCreate()
+		return nil
+	case esportsaftersalerule.FieldPriority:
+		m.ResetPriority()
+		return nil
+	case esportsaftersalerule.FieldNote:
+		m.ResetNote()
+		return nil
+	case esportsaftersalerule.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsaftersalerule.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportsaftersalerule.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportsaftersalerule.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleRule field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsAfterSaleRuleMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsAfterSaleRuleMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsAfterSaleRuleMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsAfterSaleRuleMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsAfterSaleRuleMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsAfterSaleRuleMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsAfterSaleRule unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsAfterSaleRuleMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsAfterSaleRule edge %s", name)
+}
+
+// EsportsAfterSaleRuleHitMutation represents an operation that mutates the EsportsAfterSaleRuleHit nodes in the graph.
+type EsportsAfterSaleRuleHitMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *int
+	rule_id            *int
+	addrule_id         *int
+	rule_code          *string
+	source_type        *string
+	source_id          *int
+	addsource_id       *int
+	metric_value       *int64
+	addmetric_value    *int64
+	threshold_value    *int64
+	addthreshold_value *int64
+	after_sale_id      *int
+	addafter_sale_id   *int
+	dedup_key          *string
+	created_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*EsportsAfterSaleRuleHit, error)
+	predicates         []predicate.EsportsAfterSaleRuleHit
+}
+
+var _ ent.Mutation = (*EsportsAfterSaleRuleHitMutation)(nil)
+
+// esportsaftersalerulehitOption allows management of the mutation configuration using functional options.
+type esportsaftersalerulehitOption func(*EsportsAfterSaleRuleHitMutation)
+
+// newEsportsAfterSaleRuleHitMutation creates new mutation for the EsportsAfterSaleRuleHit entity.
+func newEsportsAfterSaleRuleHitMutation(c config, op Op, opts ...esportsaftersalerulehitOption) *EsportsAfterSaleRuleHitMutation {
+	m := &EsportsAfterSaleRuleHitMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsAfterSaleRuleHit,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsAfterSaleRuleHitID sets the ID field of the mutation.
+func withEsportsAfterSaleRuleHitID(id int) esportsaftersalerulehitOption {
+	return func(m *EsportsAfterSaleRuleHitMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsAfterSaleRuleHit
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsAfterSaleRuleHit, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsAfterSaleRuleHit.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsAfterSaleRuleHit sets the old EsportsAfterSaleRuleHit of the mutation.
+func withEsportsAfterSaleRuleHit(node *EsportsAfterSaleRuleHit) esportsaftersalerulehitOption {
+	return func(m *EsportsAfterSaleRuleHitMutation) {
+		m.oldValue = func(context.Context) (*EsportsAfterSaleRuleHit, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsAfterSaleRuleHitMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsAfterSaleRuleHitMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsAfterSaleRuleHitMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsAfterSaleRuleHit.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRuleID sets the "rule_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetRuleID(i int) {
+	m.rule_id = &i
+	m.addrule_id = nil
+}
+
+// RuleID returns the value of the "rule_id" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) RuleID() (r int, exists bool) {
+	v := m.rule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleID returns the old "rule_id" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldRuleID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleID: %w", err)
+	}
+	return oldValue.RuleID, nil
+}
+
+// AddRuleID adds i to the "rule_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) AddRuleID(i int) {
+	if m.addrule_id != nil {
+		*m.addrule_id += i
+	} else {
+		m.addrule_id = &i
+	}
+}
+
+// AddedRuleID returns the value that was added to the "rule_id" field in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedRuleID() (r int, exists bool) {
+	v := m.addrule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRuleID resets all changes to the "rule_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetRuleID() {
+	m.rule_id = nil
+	m.addrule_id = nil
+}
+
+// SetRuleCode sets the "rule_code" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetRuleCode(s string) {
+	m.rule_code = &s
+}
+
+// RuleCode returns the value of the "rule_code" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) RuleCode() (r string, exists bool) {
+	v := m.rule_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleCode returns the old "rule_code" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldRuleCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleCode: %w", err)
+	}
+	return oldValue.RuleCode, nil
+}
+
+// ResetRuleCode resets all changes to the "rule_code" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetRuleCode() {
+	m.rule_code = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetSourceType(s string) {
+	m.source_type = &s
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) SourceType() (r string, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetSourceType() {
+	m.source_type = nil
+}
+
+// SetSourceID sets the "source_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetSourceID(i int) {
+	m.source_id = &i
+	m.addsource_id = nil
+}
+
+// SourceID returns the value of the "source_id" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) SourceID() (r int, exists bool) {
+	v := m.source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceID returns the old "source_id" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldSourceID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
+	}
+	return oldValue.SourceID, nil
+}
+
+// AddSourceID adds i to the "source_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) AddSourceID(i int) {
+	if m.addsource_id != nil {
+		*m.addsource_id += i
+	} else {
+		m.addsource_id = &i
+	}
+}
+
+// AddedSourceID returns the value that was added to the "source_id" field in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedSourceID() (r int, exists bool) {
+	v := m.addsource_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourceID resets all changes to the "source_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetSourceID() {
+	m.source_id = nil
+	m.addsource_id = nil
+}
+
+// SetMetricValue sets the "metric_value" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetMetricValue(i int64) {
+	m.metric_value = &i
+	m.addmetric_value = nil
+}
+
+// MetricValue returns the value of the "metric_value" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) MetricValue() (r int64, exists bool) {
+	v := m.metric_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetricValue returns the old "metric_value" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldMetricValue(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetricValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetricValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetricValue: %w", err)
+	}
+	return oldValue.MetricValue, nil
+}
+
+// AddMetricValue adds i to the "metric_value" field.
+func (m *EsportsAfterSaleRuleHitMutation) AddMetricValue(i int64) {
+	if m.addmetric_value != nil {
+		*m.addmetric_value += i
+	} else {
+		m.addmetric_value = &i
+	}
+}
+
+// AddedMetricValue returns the value that was added to the "metric_value" field in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedMetricValue() (r int64, exists bool) {
+	v := m.addmetric_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMetricValue resets all changes to the "metric_value" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetMetricValue() {
+	m.metric_value = nil
+	m.addmetric_value = nil
+}
+
+// SetThresholdValue sets the "threshold_value" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetThresholdValue(i int64) {
+	m.threshold_value = &i
+	m.addthreshold_value = nil
+}
+
+// ThresholdValue returns the value of the "threshold_value" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) ThresholdValue() (r int64, exists bool) {
+	v := m.threshold_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldThresholdValue returns the old "threshold_value" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldThresholdValue(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldThresholdValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldThresholdValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldThresholdValue: %w", err)
+	}
+	return oldValue.ThresholdValue, nil
+}
+
+// AddThresholdValue adds i to the "threshold_value" field.
+func (m *EsportsAfterSaleRuleHitMutation) AddThresholdValue(i int64) {
+	if m.addthreshold_value != nil {
+		*m.addthreshold_value += i
+	} else {
+		m.addthreshold_value = &i
+	}
+}
+
+// AddedThresholdValue returns the value that was added to the "threshold_value" field in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedThresholdValue() (r int64, exists bool) {
+	v := m.addthreshold_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetThresholdValue resets all changes to the "threshold_value" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetThresholdValue() {
+	m.threshold_value = nil
+	m.addthreshold_value = nil
+}
+
+// SetAfterSaleID sets the "after_sale_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetAfterSaleID(i int) {
+	m.after_sale_id = &i
+	m.addafter_sale_id = nil
+}
+
+// AfterSaleID returns the value of the "after_sale_id" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AfterSaleID() (r int, exists bool) {
+	v := m.after_sale_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAfterSaleID returns the old "after_sale_id" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldAfterSaleID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAfterSaleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAfterSaleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAfterSaleID: %w", err)
+	}
+	return oldValue.AfterSaleID, nil
+}
+
+// AddAfterSaleID adds i to the "after_sale_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) AddAfterSaleID(i int) {
+	if m.addafter_sale_id != nil {
+		*m.addafter_sale_id += i
+	} else {
+		m.addafter_sale_id = &i
+	}
+}
+
+// AddedAfterSaleID returns the value that was added to the "after_sale_id" field in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedAfterSaleID() (r int, exists bool) {
+	v := m.addafter_sale_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAfterSaleID resets all changes to the "after_sale_id" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetAfterSaleID() {
+	m.after_sale_id = nil
+	m.addafter_sale_id = nil
+}
+
+// SetDedupKey sets the "dedup_key" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetDedupKey(s string) {
+	m.dedup_key = &s
+}
+
+// DedupKey returns the value of the "dedup_key" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) DedupKey() (r string, exists bool) {
+	v := m.dedup_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedupKey returns the old "dedup_key" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldDedupKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedupKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedupKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedupKey: %w", err)
+	}
+	return oldValue.DedupKey, nil
+}
+
+// ResetDedupKey resets all changes to the "dedup_key" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetDedupKey() {
+	m.dedup_key = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsAfterSaleRuleHitMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsAfterSaleRuleHitMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsAfterSaleRuleHit entity.
+// If the EsportsAfterSaleRuleHit object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAfterSaleRuleHitMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsAfterSaleRuleHitMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the EsportsAfterSaleRuleHitMutation builder.
+func (m *EsportsAfterSaleRuleHitMutation) Where(ps ...predicate.EsportsAfterSaleRuleHit) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsAfterSaleRuleHitMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsAfterSaleRuleHitMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsAfterSaleRuleHit, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsAfterSaleRuleHitMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsAfterSaleRuleHitMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsAfterSaleRuleHit).
+func (m *EsportsAfterSaleRuleHitMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsAfterSaleRuleHitMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.rule_id != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldRuleID)
+	}
+	if m.rule_code != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldRuleCode)
+	}
+	if m.source_type != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldSourceType)
+	}
+	if m.source_id != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldSourceID)
+	}
+	if m.metric_value != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldMetricValue)
+	}
+	if m.threshold_value != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldThresholdValue)
+	}
+	if m.after_sale_id != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldAfterSaleID)
+	}
+	if m.dedup_key != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldDedupKey)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsAfterSaleRuleHitMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsaftersalerulehit.FieldRuleID:
+		return m.RuleID()
+	case esportsaftersalerulehit.FieldRuleCode:
+		return m.RuleCode()
+	case esportsaftersalerulehit.FieldSourceType:
+		return m.SourceType()
+	case esportsaftersalerulehit.FieldSourceID:
+		return m.SourceID()
+	case esportsaftersalerulehit.FieldMetricValue:
+		return m.MetricValue()
+	case esportsaftersalerulehit.FieldThresholdValue:
+		return m.ThresholdValue()
+	case esportsaftersalerulehit.FieldAfterSaleID:
+		return m.AfterSaleID()
+	case esportsaftersalerulehit.FieldDedupKey:
+		return m.DedupKey()
+	case esportsaftersalerulehit.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsAfterSaleRuleHitMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsaftersalerulehit.FieldRuleID:
+		return m.OldRuleID(ctx)
+	case esportsaftersalerulehit.FieldRuleCode:
+		return m.OldRuleCode(ctx)
+	case esportsaftersalerulehit.FieldSourceType:
+		return m.OldSourceType(ctx)
+	case esportsaftersalerulehit.FieldSourceID:
+		return m.OldSourceID(ctx)
+	case esportsaftersalerulehit.FieldMetricValue:
+		return m.OldMetricValue(ctx)
+	case esportsaftersalerulehit.FieldThresholdValue:
+		return m.OldThresholdValue(ctx)
+	case esportsaftersalerulehit.FieldAfterSaleID:
+		return m.OldAfterSaleID(ctx)
+	case esportsaftersalerulehit.FieldDedupKey:
+		return m.OldDedupKey(ctx)
+	case esportsaftersalerulehit.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsAfterSaleRuleHit field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsAfterSaleRuleHitMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsaftersalerulehit.FieldRuleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleID(v)
+		return nil
+	case esportsaftersalerulehit.FieldRuleCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleCode(v)
+		return nil
+	case esportsaftersalerulehit.FieldSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
+		return nil
+	case esportsaftersalerulehit.FieldSourceID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceID(v)
+		return nil
+	case esportsaftersalerulehit.FieldMetricValue:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetricValue(v)
+		return nil
+	case esportsaftersalerulehit.FieldThresholdValue:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetThresholdValue(v)
+		return nil
+	case esportsaftersalerulehit.FieldAfterSaleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAfterSaleID(v)
+		return nil
+	case esportsaftersalerulehit.FieldDedupKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedupKey(v)
+		return nil
+	case esportsaftersalerulehit.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleRuleHit field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedFields() []string {
+	var fields []string
+	if m.addrule_id != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldRuleID)
+	}
+	if m.addsource_id != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldSourceID)
+	}
+	if m.addmetric_value != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldMetricValue)
+	}
+	if m.addthreshold_value != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldThresholdValue)
+	}
+	if m.addafter_sale_id != nil {
+		fields = append(fields, esportsaftersalerulehit.FieldAfterSaleID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsAfterSaleRuleHitMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsaftersalerulehit.FieldRuleID:
+		return m.AddedRuleID()
+	case esportsaftersalerulehit.FieldSourceID:
+		return m.AddedSourceID()
+	case esportsaftersalerulehit.FieldMetricValue:
+		return m.AddedMetricValue()
+	case esportsaftersalerulehit.FieldThresholdValue:
+		return m.AddedThresholdValue()
+	case esportsaftersalerulehit.FieldAfterSaleID:
+		return m.AddedAfterSaleID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsAfterSaleRuleHitMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsaftersalerulehit.FieldRuleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRuleID(v)
+		return nil
+	case esportsaftersalerulehit.FieldSourceID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceID(v)
+		return nil
+	case esportsaftersalerulehit.FieldMetricValue:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMetricValue(v)
+		return nil
+	case esportsaftersalerulehit.FieldThresholdValue:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddThresholdValue(v)
+		return nil
+	case esportsaftersalerulehit.FieldAfterSaleID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAfterSaleID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleRuleHit numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsAfterSaleRuleHitMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsAfterSaleRuleHitMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown EsportsAfterSaleRuleHit nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsAfterSaleRuleHitMutation) ResetField(name string) error {
+	switch name {
+	case esportsaftersalerulehit.FieldRuleID:
+		m.ResetRuleID()
+		return nil
+	case esportsaftersalerulehit.FieldRuleCode:
+		m.ResetRuleCode()
+		return nil
+	case esportsaftersalerulehit.FieldSourceType:
+		m.ResetSourceType()
+		return nil
+	case esportsaftersalerulehit.FieldSourceID:
+		m.ResetSourceID()
+		return nil
+	case esportsaftersalerulehit.FieldMetricValue:
+		m.ResetMetricValue()
+		return nil
+	case esportsaftersalerulehit.FieldThresholdValue:
+		m.ResetThresholdValue()
+		return nil
+	case esportsaftersalerulehit.FieldAfterSaleID:
+		m.ResetAfterSaleID()
+		return nil
+	case esportsaftersalerulehit.FieldDedupKey:
+		m.ResetDedupKey()
+		return nil
+	case esportsaftersalerulehit.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsAfterSaleRuleHit field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsAfterSaleRuleHitMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsAfterSaleRuleHitMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsAfterSaleRuleHit unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsAfterSaleRuleHitMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsAfterSaleRuleHit edge %s", name)
+}
+
 // EsportsAgeCheckMutation represents an operation that mutates the EsportsAgeCheck nodes in the graph.
 type EsportsAgeCheckMutation struct {
 	config
@@ -18133,6 +21447,7 @@ type EsportsAssessmentMutation struct {
 	note                   *string
 	created_by_admin_id    *int
 	addcreated_by_admin_id *int
+	active_dedup_key       *string
 	version                *int
 	addversion             *int
 	created_at             *time.Time
@@ -18892,6 +22207,55 @@ func (m *EsportsAssessmentMutation) ResetCreatedByAdminID() {
 	delete(m.clearedFields, esportsassessment.FieldCreatedByAdminID)
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (m *EsportsAssessmentMutation) SetActiveDedupKey(s string) {
+	m.active_dedup_key = &s
+}
+
+// ActiveDedupKey returns the value of the "active_dedup_key" field in the mutation.
+func (m *EsportsAssessmentMutation) ActiveDedupKey() (r string, exists bool) {
+	v := m.active_dedup_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActiveDedupKey returns the old "active_dedup_key" field's value of the EsportsAssessment entity.
+// If the EsportsAssessment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAssessmentMutation) OldActiveDedupKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActiveDedupKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActiveDedupKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActiveDedupKey: %w", err)
+	}
+	return oldValue.ActiveDedupKey, nil
+}
+
+// ClearActiveDedupKey clears the value of the "active_dedup_key" field.
+func (m *EsportsAssessmentMutation) ClearActiveDedupKey() {
+	m.active_dedup_key = nil
+	m.clearedFields[esportsassessment.FieldActiveDedupKey] = struct{}{}
+}
+
+// ActiveDedupKeyCleared returns if the "active_dedup_key" field was cleared in this mutation.
+func (m *EsportsAssessmentMutation) ActiveDedupKeyCleared() bool {
+	_, ok := m.clearedFields[esportsassessment.FieldActiveDedupKey]
+	return ok
+}
+
+// ResetActiveDedupKey resets all changes to the "active_dedup_key" field.
+func (m *EsportsAssessmentMutation) ResetActiveDedupKey() {
+	m.active_dedup_key = nil
+	delete(m.clearedFields, esportsassessment.FieldActiveDedupKey)
+}
+
 // SetVersion sets the "version" field.
 func (m *EsportsAssessmentMutation) SetVersion(i int) {
 	m.version = &i
@@ -19054,7 +22418,7 @@ func (m *EsportsAssessmentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsAssessmentMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 18)
 	if m.task_no != nil {
 		fields = append(fields, esportsassessment.FieldTaskNo)
 	}
@@ -19096,6 +22460,9 @@ func (m *EsportsAssessmentMutation) Fields() []string {
 	}
 	if m.created_by_admin_id != nil {
 		fields = append(fields, esportsassessment.FieldCreatedByAdminID)
+	}
+	if m.active_dedup_key != nil {
+		fields = append(fields, esportsassessment.FieldActiveDedupKey)
 	}
 	if m.version != nil {
 		fields = append(fields, esportsassessment.FieldVersion)
@@ -19142,6 +22509,8 @@ func (m *EsportsAssessmentMutation) Field(name string) (ent.Value, bool) {
 		return m.Note()
 	case esportsassessment.FieldCreatedByAdminID:
 		return m.CreatedByAdminID()
+	case esportsassessment.FieldActiveDedupKey:
+		return m.ActiveDedupKey()
 	case esportsassessment.FieldVersion:
 		return m.Version()
 	case esportsassessment.FieldCreatedAt:
@@ -19185,6 +22554,8 @@ func (m *EsportsAssessmentMutation) OldField(ctx context.Context, name string) (
 		return m.OldNote(ctx)
 	case esportsassessment.FieldCreatedByAdminID:
 		return m.OldCreatedByAdminID(ctx)
+	case esportsassessment.FieldActiveDedupKey:
+		return m.OldActiveDedupKey(ctx)
 	case esportsassessment.FieldVersion:
 		return m.OldVersion(ctx)
 	case esportsassessment.FieldCreatedAt:
@@ -19297,6 +22668,13 @@ func (m *EsportsAssessmentMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedByAdminID(v)
+		return nil
+	case esportsassessment.FieldActiveDedupKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActiveDedupKey(v)
 		return nil
 	case esportsassessment.FieldVersion:
 		v, ok := value.(int)
@@ -19427,6 +22805,9 @@ func (m *EsportsAssessmentMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsassessment.FieldCreatedByAdminID) {
 		fields = append(fields, esportsassessment.FieldCreatedByAdminID)
 	}
+	if m.FieldCleared(esportsassessment.FieldActiveDedupKey) {
+		fields = append(fields, esportsassessment.FieldActiveDedupKey)
+	}
 	return fields
 }
 
@@ -19455,6 +22836,9 @@ func (m *EsportsAssessmentMutation) ClearField(name string) error {
 		return nil
 	case esportsassessment.FieldCreatedByAdminID:
 		m.ClearCreatedByAdminID()
+		return nil
+	case esportsassessment.FieldActiveDedupKey:
+		m.ClearActiveDedupKey()
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsAssessment nullable field %s", name)
@@ -19505,6 +22889,9 @@ func (m *EsportsAssessmentMutation) ResetField(name string) error {
 		return nil
 	case esportsassessment.FieldCreatedByAdminID:
 		m.ResetCreatedByAdminID()
+		return nil
+	case esportsassessment.FieldActiveDedupKey:
+		m.ResetActiveDedupKey()
 		return nil
 	case esportsassessment.FieldVersion:
 		m.ResetVersion()
@@ -37452,6 +40839,912 @@ func (m *EsportsCsCommissionRuleMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsCsCommissionRule edge %s", name)
 }
 
+// EsportsCsPresenceMutation represents an operation that mutates the EsportsCsPresence nodes in the graph.
+type EsportsCsPresenceMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	admin_id        *int
+	addadmin_id     *int
+	presence        *esportscspresence.Presence
+	last_active_at  *time.Time
+	last_online_at  *time.Time
+	last_offline_at *time.Time
+	auto_offline_at *time.Time
+	version         *int
+	addversion      *int
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*EsportsCsPresence, error)
+	predicates      []predicate.EsportsCsPresence
+}
+
+var _ ent.Mutation = (*EsportsCsPresenceMutation)(nil)
+
+// esportscspresenceOption allows management of the mutation configuration using functional options.
+type esportscspresenceOption func(*EsportsCsPresenceMutation)
+
+// newEsportsCsPresenceMutation creates new mutation for the EsportsCsPresence entity.
+func newEsportsCsPresenceMutation(c config, op Op, opts ...esportscspresenceOption) *EsportsCsPresenceMutation {
+	m := &EsportsCsPresenceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCsPresence,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCsPresenceID sets the ID field of the mutation.
+func withEsportsCsPresenceID(id int) esportscspresenceOption {
+	return func(m *EsportsCsPresenceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCsPresence
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCsPresence, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCsPresence.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCsPresence sets the old EsportsCsPresence of the mutation.
+func withEsportsCsPresence(node *EsportsCsPresence) esportscspresenceOption {
+	return func(m *EsportsCsPresenceMutation) {
+		m.oldValue = func(context.Context) (*EsportsCsPresence, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCsPresenceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCsPresenceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCsPresenceMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCsPresenceMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCsPresence.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetAdminID sets the "admin_id" field.
+func (m *EsportsCsPresenceMutation) SetAdminID(i int) {
+	m.admin_id = &i
+	m.addadmin_id = nil
+}
+
+// AdminID returns the value of the "admin_id" field in the mutation.
+func (m *EsportsCsPresenceMutation) AdminID() (r int, exists bool) {
+	v := m.admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAdminID returns the old "admin_id" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldAdminID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAdminID: %w", err)
+	}
+	return oldValue.AdminID, nil
+}
+
+// AddAdminID adds i to the "admin_id" field.
+func (m *EsportsCsPresenceMutation) AddAdminID(i int) {
+	if m.addadmin_id != nil {
+		*m.addadmin_id += i
+	} else {
+		m.addadmin_id = &i
+	}
+}
+
+// AddedAdminID returns the value that was added to the "admin_id" field in this mutation.
+func (m *EsportsCsPresenceMutation) AddedAdminID() (r int, exists bool) {
+	v := m.addadmin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAdminID resets all changes to the "admin_id" field.
+func (m *EsportsCsPresenceMutation) ResetAdminID() {
+	m.admin_id = nil
+	m.addadmin_id = nil
+}
+
+// SetPresence sets the "presence" field.
+func (m *EsportsCsPresenceMutation) SetPresence(e esportscspresence.Presence) {
+	m.presence = &e
+}
+
+// Presence returns the value of the "presence" field in the mutation.
+func (m *EsportsCsPresenceMutation) Presence() (r esportscspresence.Presence, exists bool) {
+	v := m.presence
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPresence returns the old "presence" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldPresence(ctx context.Context) (v esportscspresence.Presence, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPresence is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPresence requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPresence: %w", err)
+	}
+	return oldValue.Presence, nil
+}
+
+// ResetPresence resets all changes to the "presence" field.
+func (m *EsportsCsPresenceMutation) ResetPresence() {
+	m.presence = nil
+}
+
+// SetLastActiveAt sets the "last_active_at" field.
+func (m *EsportsCsPresenceMutation) SetLastActiveAt(t time.Time) {
+	m.last_active_at = &t
+}
+
+// LastActiveAt returns the value of the "last_active_at" field in the mutation.
+func (m *EsportsCsPresenceMutation) LastActiveAt() (r time.Time, exists bool) {
+	v := m.last_active_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastActiveAt returns the old "last_active_at" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldLastActiveAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastActiveAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastActiveAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastActiveAt: %w", err)
+	}
+	return oldValue.LastActiveAt, nil
+}
+
+// ClearLastActiveAt clears the value of the "last_active_at" field.
+func (m *EsportsCsPresenceMutation) ClearLastActiveAt() {
+	m.last_active_at = nil
+	m.clearedFields[esportscspresence.FieldLastActiveAt] = struct{}{}
+}
+
+// LastActiveAtCleared returns if the "last_active_at" field was cleared in this mutation.
+func (m *EsportsCsPresenceMutation) LastActiveAtCleared() bool {
+	_, ok := m.clearedFields[esportscspresence.FieldLastActiveAt]
+	return ok
+}
+
+// ResetLastActiveAt resets all changes to the "last_active_at" field.
+func (m *EsportsCsPresenceMutation) ResetLastActiveAt() {
+	m.last_active_at = nil
+	delete(m.clearedFields, esportscspresence.FieldLastActiveAt)
+}
+
+// SetLastOnlineAt sets the "last_online_at" field.
+func (m *EsportsCsPresenceMutation) SetLastOnlineAt(t time.Time) {
+	m.last_online_at = &t
+}
+
+// LastOnlineAt returns the value of the "last_online_at" field in the mutation.
+func (m *EsportsCsPresenceMutation) LastOnlineAt() (r time.Time, exists bool) {
+	v := m.last_online_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastOnlineAt returns the old "last_online_at" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldLastOnlineAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastOnlineAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastOnlineAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastOnlineAt: %w", err)
+	}
+	return oldValue.LastOnlineAt, nil
+}
+
+// ClearLastOnlineAt clears the value of the "last_online_at" field.
+func (m *EsportsCsPresenceMutation) ClearLastOnlineAt() {
+	m.last_online_at = nil
+	m.clearedFields[esportscspresence.FieldLastOnlineAt] = struct{}{}
+}
+
+// LastOnlineAtCleared returns if the "last_online_at" field was cleared in this mutation.
+func (m *EsportsCsPresenceMutation) LastOnlineAtCleared() bool {
+	_, ok := m.clearedFields[esportscspresence.FieldLastOnlineAt]
+	return ok
+}
+
+// ResetLastOnlineAt resets all changes to the "last_online_at" field.
+func (m *EsportsCsPresenceMutation) ResetLastOnlineAt() {
+	m.last_online_at = nil
+	delete(m.clearedFields, esportscspresence.FieldLastOnlineAt)
+}
+
+// SetLastOfflineAt sets the "last_offline_at" field.
+func (m *EsportsCsPresenceMutation) SetLastOfflineAt(t time.Time) {
+	m.last_offline_at = &t
+}
+
+// LastOfflineAt returns the value of the "last_offline_at" field in the mutation.
+func (m *EsportsCsPresenceMutation) LastOfflineAt() (r time.Time, exists bool) {
+	v := m.last_offline_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastOfflineAt returns the old "last_offline_at" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldLastOfflineAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastOfflineAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastOfflineAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastOfflineAt: %w", err)
+	}
+	return oldValue.LastOfflineAt, nil
+}
+
+// ClearLastOfflineAt clears the value of the "last_offline_at" field.
+func (m *EsportsCsPresenceMutation) ClearLastOfflineAt() {
+	m.last_offline_at = nil
+	m.clearedFields[esportscspresence.FieldLastOfflineAt] = struct{}{}
+}
+
+// LastOfflineAtCleared returns if the "last_offline_at" field was cleared in this mutation.
+func (m *EsportsCsPresenceMutation) LastOfflineAtCleared() bool {
+	_, ok := m.clearedFields[esportscspresence.FieldLastOfflineAt]
+	return ok
+}
+
+// ResetLastOfflineAt resets all changes to the "last_offline_at" field.
+func (m *EsportsCsPresenceMutation) ResetLastOfflineAt() {
+	m.last_offline_at = nil
+	delete(m.clearedFields, esportscspresence.FieldLastOfflineAt)
+}
+
+// SetAutoOfflineAt sets the "auto_offline_at" field.
+func (m *EsportsCsPresenceMutation) SetAutoOfflineAt(t time.Time) {
+	m.auto_offline_at = &t
+}
+
+// AutoOfflineAt returns the value of the "auto_offline_at" field in the mutation.
+func (m *EsportsCsPresenceMutation) AutoOfflineAt() (r time.Time, exists bool) {
+	v := m.auto_offline_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoOfflineAt returns the old "auto_offline_at" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldAutoOfflineAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoOfflineAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoOfflineAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoOfflineAt: %w", err)
+	}
+	return oldValue.AutoOfflineAt, nil
+}
+
+// ClearAutoOfflineAt clears the value of the "auto_offline_at" field.
+func (m *EsportsCsPresenceMutation) ClearAutoOfflineAt() {
+	m.auto_offline_at = nil
+	m.clearedFields[esportscspresence.FieldAutoOfflineAt] = struct{}{}
+}
+
+// AutoOfflineAtCleared returns if the "auto_offline_at" field was cleared in this mutation.
+func (m *EsportsCsPresenceMutation) AutoOfflineAtCleared() bool {
+	_, ok := m.clearedFields[esportscspresence.FieldAutoOfflineAt]
+	return ok
+}
+
+// ResetAutoOfflineAt resets all changes to the "auto_offline_at" field.
+func (m *EsportsCsPresenceMutation) ResetAutoOfflineAt() {
+	m.auto_offline_at = nil
+	delete(m.clearedFields, esportscspresence.FieldAutoOfflineAt)
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsCsPresenceMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsCsPresenceMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsCsPresenceMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsCsPresenceMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsCsPresenceMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCsPresenceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCsPresenceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCsPresenceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsCsPresenceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsCsPresenceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsCsPresence entity.
+// If the EsportsCsPresence object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCsPresenceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsCsPresenceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsCsPresenceMutation builder.
+func (m *EsportsCsPresenceMutation) Where(ps ...predicate.EsportsCsPresence) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCsPresenceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCsPresenceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCsPresence, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCsPresenceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCsPresenceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCsPresence).
+func (m *EsportsCsPresenceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCsPresenceMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.admin_id != nil {
+		fields = append(fields, esportscspresence.FieldAdminID)
+	}
+	if m.presence != nil {
+		fields = append(fields, esportscspresence.FieldPresence)
+	}
+	if m.last_active_at != nil {
+		fields = append(fields, esportscspresence.FieldLastActiveAt)
+	}
+	if m.last_online_at != nil {
+		fields = append(fields, esportscspresence.FieldLastOnlineAt)
+	}
+	if m.last_offline_at != nil {
+		fields = append(fields, esportscspresence.FieldLastOfflineAt)
+	}
+	if m.auto_offline_at != nil {
+		fields = append(fields, esportscspresence.FieldAutoOfflineAt)
+	}
+	if m.version != nil {
+		fields = append(fields, esportscspresence.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscspresence.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportscspresence.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCsPresenceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscspresence.FieldAdminID:
+		return m.AdminID()
+	case esportscspresence.FieldPresence:
+		return m.Presence()
+	case esportscspresence.FieldLastActiveAt:
+		return m.LastActiveAt()
+	case esportscspresence.FieldLastOnlineAt:
+		return m.LastOnlineAt()
+	case esportscspresence.FieldLastOfflineAt:
+		return m.LastOfflineAt()
+	case esportscspresence.FieldAutoOfflineAt:
+		return m.AutoOfflineAt()
+	case esportscspresence.FieldVersion:
+		return m.Version()
+	case esportscspresence.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportscspresence.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCsPresenceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscspresence.FieldAdminID:
+		return m.OldAdminID(ctx)
+	case esportscspresence.FieldPresence:
+		return m.OldPresence(ctx)
+	case esportscspresence.FieldLastActiveAt:
+		return m.OldLastActiveAt(ctx)
+	case esportscspresence.FieldLastOnlineAt:
+		return m.OldLastOnlineAt(ctx)
+	case esportscspresence.FieldLastOfflineAt:
+		return m.OldLastOfflineAt(ctx)
+	case esportscspresence.FieldAutoOfflineAt:
+		return m.OldAutoOfflineAt(ctx)
+	case esportscspresence.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportscspresence.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportscspresence.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCsPresence field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCsPresenceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscspresence.FieldAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAdminID(v)
+		return nil
+	case esportscspresence.FieldPresence:
+		v, ok := value.(esportscspresence.Presence)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPresence(v)
+		return nil
+	case esportscspresence.FieldLastActiveAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastActiveAt(v)
+		return nil
+	case esportscspresence.FieldLastOnlineAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastOnlineAt(v)
+		return nil
+	case esportscspresence.FieldLastOfflineAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastOfflineAt(v)
+		return nil
+	case esportscspresence.FieldAutoOfflineAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoOfflineAt(v)
+		return nil
+	case esportscspresence.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportscspresence.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportscspresence.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCsPresence field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCsPresenceMutation) AddedFields() []string {
+	var fields []string
+	if m.addadmin_id != nil {
+		fields = append(fields, esportscspresence.FieldAdminID)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportscspresence.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCsPresenceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscspresence.FieldAdminID:
+		return m.AddedAdminID()
+	case esportscspresence.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCsPresenceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscspresence.FieldAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAdminID(v)
+		return nil
+	case esportscspresence.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCsPresence numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCsPresenceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportscspresence.FieldLastActiveAt) {
+		fields = append(fields, esportscspresence.FieldLastActiveAt)
+	}
+	if m.FieldCleared(esportscspresence.FieldLastOnlineAt) {
+		fields = append(fields, esportscspresence.FieldLastOnlineAt)
+	}
+	if m.FieldCleared(esportscspresence.FieldLastOfflineAt) {
+		fields = append(fields, esportscspresence.FieldLastOfflineAt)
+	}
+	if m.FieldCleared(esportscspresence.FieldAutoOfflineAt) {
+		fields = append(fields, esportscspresence.FieldAutoOfflineAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCsPresenceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCsPresenceMutation) ClearField(name string) error {
+	switch name {
+	case esportscspresence.FieldLastActiveAt:
+		m.ClearLastActiveAt()
+		return nil
+	case esportscspresence.FieldLastOnlineAt:
+		m.ClearLastOnlineAt()
+		return nil
+	case esportscspresence.FieldLastOfflineAt:
+		m.ClearLastOfflineAt()
+		return nil
+	case esportscspresence.FieldAutoOfflineAt:
+		m.ClearAutoOfflineAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCsPresence nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCsPresenceMutation) ResetField(name string) error {
+	switch name {
+	case esportscspresence.FieldAdminID:
+		m.ResetAdminID()
+		return nil
+	case esportscspresence.FieldPresence:
+		m.ResetPresence()
+		return nil
+	case esportscspresence.FieldLastActiveAt:
+		m.ResetLastActiveAt()
+		return nil
+	case esportscspresence.FieldLastOnlineAt:
+		m.ResetLastOnlineAt()
+		return nil
+	case esportscspresence.FieldLastOfflineAt:
+		m.ResetLastOfflineAt()
+		return nil
+	case esportscspresence.FieldAutoOfflineAt:
+		m.ResetAutoOfflineAt()
+		return nil
+	case esportscspresence.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportscspresence.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportscspresence.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCsPresence field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCsPresenceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCsPresenceMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCsPresenceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCsPresenceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCsPresenceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCsPresenceMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCsPresenceMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCsPresence unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCsPresenceMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCsPresence edge %s", name)
+}
+
 // EsportsCustomerMutation represents an operation that mutates the EsportsCustomer nodes in the graph.
 type EsportsCustomerMutation struct {
 	config
@@ -37468,6 +41761,11 @@ type EsportsCustomerMutation struct {
 	phone                     *string
 	birthday                  *string
 	consumption_preference    *string
+	timezone                  *string
+	latitude_e6               *int
+	addlatitude_e6            *int
+	longitude_e6              *int
+	addlongitude_e6           *int
 	tags                      *[]string
 	appendtags                []string
 	source                    *esportscustomer.Source
@@ -37944,6 +42242,154 @@ func (m *EsportsCustomerMutation) OldConsumptionPreference(ctx context.Context) 
 // ResetConsumptionPreference resets all changes to the "consumption_preference" field.
 func (m *EsportsCustomerMutation) ResetConsumptionPreference() {
 	m.consumption_preference = nil
+}
+
+// SetTimezone sets the "timezone" field.
+func (m *EsportsCustomerMutation) SetTimezone(s string) {
+	m.timezone = &s
+}
+
+// Timezone returns the value of the "timezone" field in the mutation.
+func (m *EsportsCustomerMutation) Timezone() (r string, exists bool) {
+	v := m.timezone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTimezone returns the old "timezone" field's value of the EsportsCustomer entity.
+// If the EsportsCustomer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCustomerMutation) OldTimezone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTimezone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTimezone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTimezone: %w", err)
+	}
+	return oldValue.Timezone, nil
+}
+
+// ResetTimezone resets all changes to the "timezone" field.
+func (m *EsportsCustomerMutation) ResetTimezone() {
+	m.timezone = nil
+}
+
+// SetLatitudeE6 sets the "latitude_e6" field.
+func (m *EsportsCustomerMutation) SetLatitudeE6(i int) {
+	m.latitude_e6 = &i
+	m.addlatitude_e6 = nil
+}
+
+// LatitudeE6 returns the value of the "latitude_e6" field in the mutation.
+func (m *EsportsCustomerMutation) LatitudeE6() (r int, exists bool) {
+	v := m.latitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatitudeE6 returns the old "latitude_e6" field's value of the EsportsCustomer entity.
+// If the EsportsCustomer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCustomerMutation) OldLatitudeE6(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatitudeE6 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatitudeE6 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatitudeE6: %w", err)
+	}
+	return oldValue.LatitudeE6, nil
+}
+
+// AddLatitudeE6 adds i to the "latitude_e6" field.
+func (m *EsportsCustomerMutation) AddLatitudeE6(i int) {
+	if m.addlatitude_e6 != nil {
+		*m.addlatitude_e6 += i
+	} else {
+		m.addlatitude_e6 = &i
+	}
+}
+
+// AddedLatitudeE6 returns the value that was added to the "latitude_e6" field in this mutation.
+func (m *EsportsCustomerMutation) AddedLatitudeE6() (r int, exists bool) {
+	v := m.addlatitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLatitudeE6 resets all changes to the "latitude_e6" field.
+func (m *EsportsCustomerMutation) ResetLatitudeE6() {
+	m.latitude_e6 = nil
+	m.addlatitude_e6 = nil
+}
+
+// SetLongitudeE6 sets the "longitude_e6" field.
+func (m *EsportsCustomerMutation) SetLongitudeE6(i int) {
+	m.longitude_e6 = &i
+	m.addlongitude_e6 = nil
+}
+
+// LongitudeE6 returns the value of the "longitude_e6" field in the mutation.
+func (m *EsportsCustomerMutation) LongitudeE6() (r int, exists bool) {
+	v := m.longitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLongitudeE6 returns the old "longitude_e6" field's value of the EsportsCustomer entity.
+// If the EsportsCustomer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCustomerMutation) OldLongitudeE6(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLongitudeE6 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLongitudeE6 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLongitudeE6: %w", err)
+	}
+	return oldValue.LongitudeE6, nil
+}
+
+// AddLongitudeE6 adds i to the "longitude_e6" field.
+func (m *EsportsCustomerMutation) AddLongitudeE6(i int) {
+	if m.addlongitude_e6 != nil {
+		*m.addlongitude_e6 += i
+	} else {
+		m.addlongitude_e6 = &i
+	}
+}
+
+// AddedLongitudeE6 returns the value that was added to the "longitude_e6" field in this mutation.
+func (m *EsportsCustomerMutation) AddedLongitudeE6() (r int, exists bool) {
+	v := m.addlongitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLongitudeE6 resets all changes to the "longitude_e6" field.
+func (m *EsportsCustomerMutation) ResetLongitudeE6() {
+	m.longitude_e6 = nil
+	m.addlongitude_e6 = nil
 }
 
 // SetTags sets the "tags" field.
@@ -38683,7 +43129,7 @@ func (m *EsportsCustomerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsCustomerMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 27)
 	if m.user_id != nil {
 		fields = append(fields, esportscustomer.FieldUserID)
 	}
@@ -38707,6 +43153,15 @@ func (m *EsportsCustomerMutation) Fields() []string {
 	}
 	if m.consumption_preference != nil {
 		fields = append(fields, esportscustomer.FieldConsumptionPreference)
+	}
+	if m.timezone != nil {
+		fields = append(fields, esportscustomer.FieldTimezone)
+	}
+	if m.latitude_e6 != nil {
+		fields = append(fields, esportscustomer.FieldLatitudeE6)
+	}
+	if m.longitude_e6 != nil {
+		fields = append(fields, esportscustomer.FieldLongitudeE6)
 	}
 	if m.tags != nil {
 		fields = append(fields, esportscustomer.FieldTags)
@@ -38780,6 +43235,12 @@ func (m *EsportsCustomerMutation) Field(name string) (ent.Value, bool) {
 		return m.Birthday()
 	case esportscustomer.FieldConsumptionPreference:
 		return m.ConsumptionPreference()
+	case esportscustomer.FieldTimezone:
+		return m.Timezone()
+	case esportscustomer.FieldLatitudeE6:
+		return m.LatitudeE6()
+	case esportscustomer.FieldLongitudeE6:
+		return m.LongitudeE6()
 	case esportscustomer.FieldTags:
 		return m.Tags()
 	case esportscustomer.FieldSource:
@@ -38837,6 +43298,12 @@ func (m *EsportsCustomerMutation) OldField(ctx context.Context, name string) (en
 		return m.OldBirthday(ctx)
 	case esportscustomer.FieldConsumptionPreference:
 		return m.OldConsumptionPreference(ctx)
+	case esportscustomer.FieldTimezone:
+		return m.OldTimezone(ctx)
+	case esportscustomer.FieldLatitudeE6:
+		return m.OldLatitudeE6(ctx)
+	case esportscustomer.FieldLongitudeE6:
+		return m.OldLongitudeE6(ctx)
 	case esportscustomer.FieldTags:
 		return m.OldTags(ctx)
 	case esportscustomer.FieldSource:
@@ -38933,6 +43400,27 @@ func (m *EsportsCustomerMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetConsumptionPreference(v)
+		return nil
+	case esportscustomer.FieldTimezone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTimezone(v)
+		return nil
+	case esportscustomer.FieldLatitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatitudeE6(v)
+		return nil
+	case esportscustomer.FieldLongitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLongitudeE6(v)
 		return nil
 	case esportscustomer.FieldTags:
 		v, ok := value.([]string)
@@ -39060,6 +43548,12 @@ func (m *EsportsCustomerMutation) AddedFields() []string {
 	if m.addowner_admin_id != nil {
 		fields = append(fields, esportscustomer.FieldOwnerAdminID)
 	}
+	if m.addlatitude_e6 != nil {
+		fields = append(fields, esportscustomer.FieldLatitudeE6)
+	}
+	if m.addlongitude_e6 != nil {
+		fields = append(fields, esportscustomer.FieldLongitudeE6)
+	}
 	if m.addversion != nil {
 		fields = append(fields, esportscustomer.FieldVersion)
 	}
@@ -39075,6 +43569,10 @@ func (m *EsportsCustomerMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedUserID()
 	case esportscustomer.FieldOwnerAdminID:
 		return m.AddedOwnerAdminID()
+	case esportscustomer.FieldLatitudeE6:
+		return m.AddedLatitudeE6()
+	case esportscustomer.FieldLongitudeE6:
+		return m.AddedLongitudeE6()
 	case esportscustomer.FieldVersion:
 		return m.AddedVersion()
 	}
@@ -39099,6 +43597,20 @@ func (m *EsportsCustomerMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddOwnerAdminID(v)
+		return nil
+	case esportscustomer.FieldLatitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatitudeE6(v)
+		return nil
+	case esportscustomer.FieldLongitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLongitudeE6(v)
 		return nil
 	case esportscustomer.FieldVersion:
 		v, ok := value.(int)
@@ -39214,6 +43726,15 @@ func (m *EsportsCustomerMutation) ResetField(name string) error {
 		return nil
 	case esportscustomer.FieldConsumptionPreference:
 		m.ResetConsumptionPreference()
+		return nil
+	case esportscustomer.FieldTimezone:
+		m.ResetTimezone()
+		return nil
+	case esportscustomer.FieldLatitudeE6:
+		m.ResetLatitudeE6()
+		return nil
+	case esportscustomer.FieldLongitudeE6:
+		m.ResetLongitudeE6()
 		return nil
 	case esportscustomer.FieldTags:
 		m.ResetTags()
@@ -42140,6 +46661,9 @@ type EsportsDispatchSeatMutation struct {
 	status                    *esportsdispatchseat.Status
 	invited_by_admin_id       *int
 	addinvited_by_admin_id    *int
+	invited_at                *time.Time
+	slot_start                *time.Time
+	slot_end                  *time.Time
 	expires_at                *time.Time
 	responded_at              *time.Time
 	commission_rule_id        *int
@@ -42577,6 +47101,153 @@ func (m *EsportsDispatchSeatMutation) ResetInvitedByAdminID() {
 	delete(m.clearedFields, esportsdispatchseat.FieldInvitedByAdminID)
 }
 
+// SetInvitedAt sets the "invited_at" field.
+func (m *EsportsDispatchSeatMutation) SetInvitedAt(t time.Time) {
+	m.invited_at = &t
+}
+
+// InvitedAt returns the value of the "invited_at" field in the mutation.
+func (m *EsportsDispatchSeatMutation) InvitedAt() (r time.Time, exists bool) {
+	v := m.invited_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInvitedAt returns the old "invited_at" field's value of the EsportsDispatchSeat entity.
+// If the EsportsDispatchSeat object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsDispatchSeatMutation) OldInvitedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInvitedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInvitedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInvitedAt: %w", err)
+	}
+	return oldValue.InvitedAt, nil
+}
+
+// ClearInvitedAt clears the value of the "invited_at" field.
+func (m *EsportsDispatchSeatMutation) ClearInvitedAt() {
+	m.invited_at = nil
+	m.clearedFields[esportsdispatchseat.FieldInvitedAt] = struct{}{}
+}
+
+// InvitedAtCleared returns if the "invited_at" field was cleared in this mutation.
+func (m *EsportsDispatchSeatMutation) InvitedAtCleared() bool {
+	_, ok := m.clearedFields[esportsdispatchseat.FieldInvitedAt]
+	return ok
+}
+
+// ResetInvitedAt resets all changes to the "invited_at" field.
+func (m *EsportsDispatchSeatMutation) ResetInvitedAt() {
+	m.invited_at = nil
+	delete(m.clearedFields, esportsdispatchseat.FieldInvitedAt)
+}
+
+// SetSlotStart sets the "slot_start" field.
+func (m *EsportsDispatchSeatMutation) SetSlotStart(t time.Time) {
+	m.slot_start = &t
+}
+
+// SlotStart returns the value of the "slot_start" field in the mutation.
+func (m *EsportsDispatchSeatMutation) SlotStart() (r time.Time, exists bool) {
+	v := m.slot_start
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlotStart returns the old "slot_start" field's value of the EsportsDispatchSeat entity.
+// If the EsportsDispatchSeat object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsDispatchSeatMutation) OldSlotStart(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlotStart is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlotStart requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlotStart: %w", err)
+	}
+	return oldValue.SlotStart, nil
+}
+
+// ClearSlotStart clears the value of the "slot_start" field.
+func (m *EsportsDispatchSeatMutation) ClearSlotStart() {
+	m.slot_start = nil
+	m.clearedFields[esportsdispatchseat.FieldSlotStart] = struct{}{}
+}
+
+// SlotStartCleared returns if the "slot_start" field was cleared in this mutation.
+func (m *EsportsDispatchSeatMutation) SlotStartCleared() bool {
+	_, ok := m.clearedFields[esportsdispatchseat.FieldSlotStart]
+	return ok
+}
+
+// ResetSlotStart resets all changes to the "slot_start" field.
+func (m *EsportsDispatchSeatMutation) ResetSlotStart() {
+	m.slot_start = nil
+	delete(m.clearedFields, esportsdispatchseat.FieldSlotStart)
+}
+
+// SetSlotEnd sets the "slot_end" field.
+func (m *EsportsDispatchSeatMutation) SetSlotEnd(t time.Time) {
+	m.slot_end = &t
+}
+
+// SlotEnd returns the value of the "slot_end" field in the mutation.
+func (m *EsportsDispatchSeatMutation) SlotEnd() (r time.Time, exists bool) {
+	v := m.slot_end
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlotEnd returns the old "slot_end" field's value of the EsportsDispatchSeat entity.
+// If the EsportsDispatchSeat object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsDispatchSeatMutation) OldSlotEnd(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlotEnd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlotEnd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlotEnd: %w", err)
+	}
+	return oldValue.SlotEnd, nil
+}
+
+// ClearSlotEnd clears the value of the "slot_end" field.
+func (m *EsportsDispatchSeatMutation) ClearSlotEnd() {
+	m.slot_end = nil
+	m.clearedFields[esportsdispatchseat.FieldSlotEnd] = struct{}{}
+}
+
+// SlotEndCleared returns if the "slot_end" field was cleared in this mutation.
+func (m *EsportsDispatchSeatMutation) SlotEndCleared() bool {
+	_, ok := m.clearedFields[esportsdispatchseat.FieldSlotEnd]
+	return ok
+}
+
+// ResetSlotEnd resets all changes to the "slot_end" field.
+func (m *EsportsDispatchSeatMutation) ResetSlotEnd() {
+	m.slot_end = nil
+	delete(m.clearedFields, esportsdispatchseat.FieldSlotEnd)
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (m *EsportsDispatchSeatMutation) SetExpiresAt(t time.Time) {
 	m.expires_at = &t
@@ -42956,7 +47627,7 @@ func (m *EsportsDispatchSeatMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsDispatchSeatMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 16)
 	if m.order_id != nil {
 		fields = append(fields, esportsdispatchseat.FieldOrderID)
 	}
@@ -42974,6 +47645,15 @@ func (m *EsportsDispatchSeatMutation) Fields() []string {
 	}
 	if m.invited_by_admin_id != nil {
 		fields = append(fields, esportsdispatchseat.FieldInvitedByAdminID)
+	}
+	if m.invited_at != nil {
+		fields = append(fields, esportsdispatchseat.FieldInvitedAt)
+	}
+	if m.slot_start != nil {
+		fields = append(fields, esportsdispatchseat.FieldSlotStart)
+	}
+	if m.slot_end != nil {
+		fields = append(fields, esportsdispatchseat.FieldSlotEnd)
 	}
 	if m.expires_at != nil {
 		fields = append(fields, esportsdispatchseat.FieldExpiresAt)
@@ -43016,6 +47696,12 @@ func (m *EsportsDispatchSeatMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case esportsdispatchseat.FieldInvitedByAdminID:
 		return m.InvitedByAdminID()
+	case esportsdispatchseat.FieldInvitedAt:
+		return m.InvitedAt()
+	case esportsdispatchseat.FieldSlotStart:
+		return m.SlotStart()
+	case esportsdispatchseat.FieldSlotEnd:
+		return m.SlotEnd()
 	case esportsdispatchseat.FieldExpiresAt:
 		return m.ExpiresAt()
 	case esportsdispatchseat.FieldRespondedAt:
@@ -43051,6 +47737,12 @@ func (m *EsportsDispatchSeatMutation) OldField(ctx context.Context, name string)
 		return m.OldStatus(ctx)
 	case esportsdispatchseat.FieldInvitedByAdminID:
 		return m.OldInvitedByAdminID(ctx)
+	case esportsdispatchseat.FieldInvitedAt:
+		return m.OldInvitedAt(ctx)
+	case esportsdispatchseat.FieldSlotStart:
+		return m.OldSlotStart(ctx)
+	case esportsdispatchseat.FieldSlotEnd:
+		return m.OldSlotEnd(ctx)
 	case esportsdispatchseat.FieldExpiresAt:
 		return m.OldExpiresAt(ctx)
 	case esportsdispatchseat.FieldRespondedAt:
@@ -43115,6 +47807,27 @@ func (m *EsportsDispatchSeatMutation) SetField(name string, value ent.Value) err
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInvitedByAdminID(v)
+		return nil
+	case esportsdispatchseat.FieldInvitedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInvitedAt(v)
+		return nil
+	case esportsdispatchseat.FieldSlotStart:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlotStart(v)
+		return nil
+	case esportsdispatchseat.FieldSlotEnd:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlotEnd(v)
 		return nil
 	case esportsdispatchseat.FieldExpiresAt:
 		v, ok := value.(time.Time)
@@ -43276,6 +47989,15 @@ func (m *EsportsDispatchSeatMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsdispatchseat.FieldInvitedByAdminID) {
 		fields = append(fields, esportsdispatchseat.FieldInvitedByAdminID)
 	}
+	if m.FieldCleared(esportsdispatchseat.FieldInvitedAt) {
+		fields = append(fields, esportsdispatchseat.FieldInvitedAt)
+	}
+	if m.FieldCleared(esportsdispatchseat.FieldSlotStart) {
+		fields = append(fields, esportsdispatchseat.FieldSlotStart)
+	}
+	if m.FieldCleared(esportsdispatchseat.FieldSlotEnd) {
+		fields = append(fields, esportsdispatchseat.FieldSlotEnd)
+	}
 	if m.FieldCleared(esportsdispatchseat.FieldExpiresAt) {
 		fields = append(fields, esportsdispatchseat.FieldExpiresAt)
 	}
@@ -43307,6 +48029,15 @@ func (m *EsportsDispatchSeatMutation) ClearField(name string) error {
 		return nil
 	case esportsdispatchseat.FieldInvitedByAdminID:
 		m.ClearInvitedByAdminID()
+		return nil
+	case esportsdispatchseat.FieldInvitedAt:
+		m.ClearInvitedAt()
+		return nil
+	case esportsdispatchseat.FieldSlotStart:
+		m.ClearSlotStart()
+		return nil
+	case esportsdispatchseat.FieldSlotEnd:
+		m.ClearSlotEnd()
 		return nil
 	case esportsdispatchseat.FieldExpiresAt:
 		m.ClearExpiresAt()
@@ -43345,6 +48076,15 @@ func (m *EsportsDispatchSeatMutation) ResetField(name string) error {
 		return nil
 	case esportsdispatchseat.FieldInvitedByAdminID:
 		m.ResetInvitedByAdminID()
+		return nil
+	case esportsdispatchseat.FieldInvitedAt:
+		m.ResetInvitedAt()
+		return nil
+	case esportsdispatchseat.FieldSlotStart:
+		m.ResetSlotStart()
+		return nil
+	case esportsdispatchseat.FieldSlotEnd:
+		m.ResetSlotEnd()
 		return nil
 	case esportsdispatchseat.FieldExpiresAt:
 		m.ResetExpiresAt()
@@ -49541,48 +54281,61 @@ func (m *EsportsGiftDisputeMutation) ResetEdge(name string) error {
 // EsportsGiftIntentMutation represents an operation that mutates the EsportsGiftIntent nodes in the graph.
 type EsportsGiftIntentMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *int
-	customer_id             *int
-	addcustomer_id          *int
-	gift_id                 *int
-	addgift_id              *int
-	gift_name               *string
-	gift_version            *int
-	addgift_version         *int
-	player_id               *int
-	addplayer_id            *int
-	player_name             *string
-	order_id                *int
-	addorder_id             *int
-	quantity                *int
-	addquantity             *int
-	unit_price_cents        *int64
-	addunit_price_cents     *int64
-	amount_cents            *int64
-	addamount_cents         *int64
-	payment_source          *string
-	stored_value_card_id    *int
-	addstored_value_card_id *int
-	stored_value_card_no    *string
-	created_by_admin_id     *int
-	addcreated_by_admin_id  *int
-	client_key              *string
-	status                  *esportsgiftintent.Status
-	version                 *int
-	addversion              *int
-	confirmation_ref        *string
-	gift_order_id           *int
-	addgift_order_id        *int
-	expires_at              *time.Time
-	confirmed_at            *time.Time
-	created_at              *time.Time
-	updated_at              *time.Time
-	clearedFields           map[string]struct{}
-	done                    bool
-	oldValue                func(context.Context) (*EsportsGiftIntent, error)
-	predicates              []predicate.EsportsGiftIntent
+	op                              Op
+	typ                             string
+	id                              *int
+	customer_id                     *int
+	addcustomer_id                  *int
+	gift_id                         *int
+	addgift_id                      *int
+	gift_name                       *string
+	gift_version                    *int
+	addgift_version                 *int
+	player_id                       *int
+	addplayer_id                    *int
+	player_name                     *string
+	order_id                        *int
+	addorder_id                     *int
+	quantity                        *int
+	addquantity                     *int
+	unit_price_cents                *int64
+	addunit_price_cents             *int64
+	amount_cents                    *int64
+	addamount_cents                 *int64
+	payment_source                  *string
+	stored_value_card_id            *int
+	addstored_value_card_id         *int
+	stored_value_card_no            *string
+	gift_tier_id                    *int
+	addgift_tier_id                 *int
+	gift_tier_code                  *string
+	high_value                      *bool
+	require_age                     *bool
+	payment_channel                 *esportsgiftintent.PaymentChannel
+	payment_status                  *esportsgiftintent.PaymentStatus
+	payment_intent_no               *string
+	payment_ref                     *string
+	payment_expires_at              *time.Time
+	payment_verified_at             *time.Time
+	payment_verified_by_admin_id    *int
+	addpayment_verified_by_admin_id *int
+	created_by_admin_id             *int
+	addcreated_by_admin_id          *int
+	client_key                      *string
+	status                          *esportsgiftintent.Status
+	version                         *int
+	addversion                      *int
+	confirmation_ref                *string
+	gift_order_id                   *int
+	addgift_order_id                *int
+	expires_at                      *time.Time
+	confirmed_at                    *time.Time
+	created_at                      *time.Time
+	updated_at                      *time.Time
+	clearedFields                   map[string]struct{}
+	done                            bool
+	oldValue                        func(context.Context) (*EsportsGiftIntent, error)
+	predicates                      []predicate.EsportsGiftIntent
 }
 
 var _ ent.Mutation = (*EsportsGiftIntentMutation)(nil)
@@ -50359,6 +55112,495 @@ func (m *EsportsGiftIntentMutation) ResetStoredValueCardNo() {
 	m.stored_value_card_no = nil
 }
 
+// SetGiftTierID sets the "gift_tier_id" field.
+func (m *EsportsGiftIntentMutation) SetGiftTierID(i int) {
+	m.gift_tier_id = &i
+	m.addgift_tier_id = nil
+}
+
+// GiftTierID returns the value of the "gift_tier_id" field in the mutation.
+func (m *EsportsGiftIntentMutation) GiftTierID() (r int, exists bool) {
+	v := m.gift_tier_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGiftTierID returns the old "gift_tier_id" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldGiftTierID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGiftTierID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGiftTierID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGiftTierID: %w", err)
+	}
+	return oldValue.GiftTierID, nil
+}
+
+// AddGiftTierID adds i to the "gift_tier_id" field.
+func (m *EsportsGiftIntentMutation) AddGiftTierID(i int) {
+	if m.addgift_tier_id != nil {
+		*m.addgift_tier_id += i
+	} else {
+		m.addgift_tier_id = &i
+	}
+}
+
+// AddedGiftTierID returns the value that was added to the "gift_tier_id" field in this mutation.
+func (m *EsportsGiftIntentMutation) AddedGiftTierID() (r int, exists bool) {
+	v := m.addgift_tier_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGiftTierID resets all changes to the "gift_tier_id" field.
+func (m *EsportsGiftIntentMutation) ResetGiftTierID() {
+	m.gift_tier_id = nil
+	m.addgift_tier_id = nil
+}
+
+// SetGiftTierCode sets the "gift_tier_code" field.
+func (m *EsportsGiftIntentMutation) SetGiftTierCode(s string) {
+	m.gift_tier_code = &s
+}
+
+// GiftTierCode returns the value of the "gift_tier_code" field in the mutation.
+func (m *EsportsGiftIntentMutation) GiftTierCode() (r string, exists bool) {
+	v := m.gift_tier_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGiftTierCode returns the old "gift_tier_code" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldGiftTierCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGiftTierCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGiftTierCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGiftTierCode: %w", err)
+	}
+	return oldValue.GiftTierCode, nil
+}
+
+// ResetGiftTierCode resets all changes to the "gift_tier_code" field.
+func (m *EsportsGiftIntentMutation) ResetGiftTierCode() {
+	m.gift_tier_code = nil
+}
+
+// SetHighValue sets the "high_value" field.
+func (m *EsportsGiftIntentMutation) SetHighValue(b bool) {
+	m.high_value = &b
+}
+
+// HighValue returns the value of the "high_value" field in the mutation.
+func (m *EsportsGiftIntentMutation) HighValue() (r bool, exists bool) {
+	v := m.high_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHighValue returns the old "high_value" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldHighValue(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHighValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHighValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHighValue: %w", err)
+	}
+	return oldValue.HighValue, nil
+}
+
+// ResetHighValue resets all changes to the "high_value" field.
+func (m *EsportsGiftIntentMutation) ResetHighValue() {
+	m.high_value = nil
+}
+
+// SetRequireAge sets the "require_age" field.
+func (m *EsportsGiftIntentMutation) SetRequireAge(b bool) {
+	m.require_age = &b
+}
+
+// RequireAge returns the value of the "require_age" field in the mutation.
+func (m *EsportsGiftIntentMutation) RequireAge() (r bool, exists bool) {
+	v := m.require_age
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequireAge returns the old "require_age" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldRequireAge(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequireAge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequireAge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequireAge: %w", err)
+	}
+	return oldValue.RequireAge, nil
+}
+
+// ResetRequireAge resets all changes to the "require_age" field.
+func (m *EsportsGiftIntentMutation) ResetRequireAge() {
+	m.require_age = nil
+}
+
+// SetPaymentChannel sets the "payment_channel" field.
+func (m *EsportsGiftIntentMutation) SetPaymentChannel(ec esportsgiftintent.PaymentChannel) {
+	m.payment_channel = &ec
+}
+
+// PaymentChannel returns the value of the "payment_channel" field in the mutation.
+func (m *EsportsGiftIntentMutation) PaymentChannel() (r esportsgiftintent.PaymentChannel, exists bool) {
+	v := m.payment_channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentChannel returns the old "payment_channel" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldPaymentChannel(ctx context.Context) (v esportsgiftintent.PaymentChannel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentChannel: %w", err)
+	}
+	return oldValue.PaymentChannel, nil
+}
+
+// ResetPaymentChannel resets all changes to the "payment_channel" field.
+func (m *EsportsGiftIntentMutation) ResetPaymentChannel() {
+	m.payment_channel = nil
+}
+
+// SetPaymentStatus sets the "payment_status" field.
+func (m *EsportsGiftIntentMutation) SetPaymentStatus(es esportsgiftintent.PaymentStatus) {
+	m.payment_status = &es
+}
+
+// PaymentStatus returns the value of the "payment_status" field in the mutation.
+func (m *EsportsGiftIntentMutation) PaymentStatus() (r esportsgiftintent.PaymentStatus, exists bool) {
+	v := m.payment_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentStatus returns the old "payment_status" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldPaymentStatus(ctx context.Context) (v esportsgiftintent.PaymentStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentStatus: %w", err)
+	}
+	return oldValue.PaymentStatus, nil
+}
+
+// ResetPaymentStatus resets all changes to the "payment_status" field.
+func (m *EsportsGiftIntentMutation) ResetPaymentStatus() {
+	m.payment_status = nil
+}
+
+// SetPaymentIntentNo sets the "payment_intent_no" field.
+func (m *EsportsGiftIntentMutation) SetPaymentIntentNo(s string) {
+	m.payment_intent_no = &s
+}
+
+// PaymentIntentNo returns the value of the "payment_intent_no" field in the mutation.
+func (m *EsportsGiftIntentMutation) PaymentIntentNo() (r string, exists bool) {
+	v := m.payment_intent_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentIntentNo returns the old "payment_intent_no" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldPaymentIntentNo(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentIntentNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentIntentNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentIntentNo: %w", err)
+	}
+	return oldValue.PaymentIntentNo, nil
+}
+
+// ClearPaymentIntentNo clears the value of the "payment_intent_no" field.
+func (m *EsportsGiftIntentMutation) ClearPaymentIntentNo() {
+	m.payment_intent_no = nil
+	m.clearedFields[esportsgiftintent.FieldPaymentIntentNo] = struct{}{}
+}
+
+// PaymentIntentNoCleared returns if the "payment_intent_no" field was cleared in this mutation.
+func (m *EsportsGiftIntentMutation) PaymentIntentNoCleared() bool {
+	_, ok := m.clearedFields[esportsgiftintent.FieldPaymentIntentNo]
+	return ok
+}
+
+// ResetPaymentIntentNo resets all changes to the "payment_intent_no" field.
+func (m *EsportsGiftIntentMutation) ResetPaymentIntentNo() {
+	m.payment_intent_no = nil
+	delete(m.clearedFields, esportsgiftintent.FieldPaymentIntentNo)
+}
+
+// SetPaymentRef sets the "payment_ref" field.
+func (m *EsportsGiftIntentMutation) SetPaymentRef(s string) {
+	m.payment_ref = &s
+}
+
+// PaymentRef returns the value of the "payment_ref" field in the mutation.
+func (m *EsportsGiftIntentMutation) PaymentRef() (r string, exists bool) {
+	v := m.payment_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentRef returns the old "payment_ref" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldPaymentRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentRef: %w", err)
+	}
+	return oldValue.PaymentRef, nil
+}
+
+// ResetPaymentRef resets all changes to the "payment_ref" field.
+func (m *EsportsGiftIntentMutation) ResetPaymentRef() {
+	m.payment_ref = nil
+}
+
+// SetPaymentExpiresAt sets the "payment_expires_at" field.
+func (m *EsportsGiftIntentMutation) SetPaymentExpiresAt(t time.Time) {
+	m.payment_expires_at = &t
+}
+
+// PaymentExpiresAt returns the value of the "payment_expires_at" field in the mutation.
+func (m *EsportsGiftIntentMutation) PaymentExpiresAt() (r time.Time, exists bool) {
+	v := m.payment_expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentExpiresAt returns the old "payment_expires_at" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldPaymentExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentExpiresAt: %w", err)
+	}
+	return oldValue.PaymentExpiresAt, nil
+}
+
+// ClearPaymentExpiresAt clears the value of the "payment_expires_at" field.
+func (m *EsportsGiftIntentMutation) ClearPaymentExpiresAt() {
+	m.payment_expires_at = nil
+	m.clearedFields[esportsgiftintent.FieldPaymentExpiresAt] = struct{}{}
+}
+
+// PaymentExpiresAtCleared returns if the "payment_expires_at" field was cleared in this mutation.
+func (m *EsportsGiftIntentMutation) PaymentExpiresAtCleared() bool {
+	_, ok := m.clearedFields[esportsgiftintent.FieldPaymentExpiresAt]
+	return ok
+}
+
+// ResetPaymentExpiresAt resets all changes to the "payment_expires_at" field.
+func (m *EsportsGiftIntentMutation) ResetPaymentExpiresAt() {
+	m.payment_expires_at = nil
+	delete(m.clearedFields, esportsgiftintent.FieldPaymentExpiresAt)
+}
+
+// SetPaymentVerifiedAt sets the "payment_verified_at" field.
+func (m *EsportsGiftIntentMutation) SetPaymentVerifiedAt(t time.Time) {
+	m.payment_verified_at = &t
+}
+
+// PaymentVerifiedAt returns the value of the "payment_verified_at" field in the mutation.
+func (m *EsportsGiftIntentMutation) PaymentVerifiedAt() (r time.Time, exists bool) {
+	v := m.payment_verified_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentVerifiedAt returns the old "payment_verified_at" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldPaymentVerifiedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentVerifiedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentVerifiedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentVerifiedAt: %w", err)
+	}
+	return oldValue.PaymentVerifiedAt, nil
+}
+
+// ClearPaymentVerifiedAt clears the value of the "payment_verified_at" field.
+func (m *EsportsGiftIntentMutation) ClearPaymentVerifiedAt() {
+	m.payment_verified_at = nil
+	m.clearedFields[esportsgiftintent.FieldPaymentVerifiedAt] = struct{}{}
+}
+
+// PaymentVerifiedAtCleared returns if the "payment_verified_at" field was cleared in this mutation.
+func (m *EsportsGiftIntentMutation) PaymentVerifiedAtCleared() bool {
+	_, ok := m.clearedFields[esportsgiftintent.FieldPaymentVerifiedAt]
+	return ok
+}
+
+// ResetPaymentVerifiedAt resets all changes to the "payment_verified_at" field.
+func (m *EsportsGiftIntentMutation) ResetPaymentVerifiedAt() {
+	m.payment_verified_at = nil
+	delete(m.clearedFields, esportsgiftintent.FieldPaymentVerifiedAt)
+}
+
+// SetPaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field.
+func (m *EsportsGiftIntentMutation) SetPaymentVerifiedByAdminID(i int) {
+	m.payment_verified_by_admin_id = &i
+	m.addpayment_verified_by_admin_id = nil
+}
+
+// PaymentVerifiedByAdminID returns the value of the "payment_verified_by_admin_id" field in the mutation.
+func (m *EsportsGiftIntentMutation) PaymentVerifiedByAdminID() (r int, exists bool) {
+	v := m.payment_verified_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentVerifiedByAdminID returns the old "payment_verified_by_admin_id" field's value of the EsportsGiftIntent entity.
+// If the EsportsGiftIntent object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftIntentMutation) OldPaymentVerifiedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentVerifiedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentVerifiedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentVerifiedByAdminID: %w", err)
+	}
+	return oldValue.PaymentVerifiedByAdminID, nil
+}
+
+// AddPaymentVerifiedByAdminID adds i to the "payment_verified_by_admin_id" field.
+func (m *EsportsGiftIntentMutation) AddPaymentVerifiedByAdminID(i int) {
+	if m.addpayment_verified_by_admin_id != nil {
+		*m.addpayment_verified_by_admin_id += i
+	} else {
+		m.addpayment_verified_by_admin_id = &i
+	}
+}
+
+// AddedPaymentVerifiedByAdminID returns the value that was added to the "payment_verified_by_admin_id" field in this mutation.
+func (m *EsportsGiftIntentMutation) AddedPaymentVerifiedByAdminID() (r int, exists bool) {
+	v := m.addpayment_verified_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPaymentVerifiedByAdminID clears the value of the "payment_verified_by_admin_id" field.
+func (m *EsportsGiftIntentMutation) ClearPaymentVerifiedByAdminID() {
+	m.payment_verified_by_admin_id = nil
+	m.addpayment_verified_by_admin_id = nil
+	m.clearedFields[esportsgiftintent.FieldPaymentVerifiedByAdminID] = struct{}{}
+}
+
+// PaymentVerifiedByAdminIDCleared returns if the "payment_verified_by_admin_id" field was cleared in this mutation.
+func (m *EsportsGiftIntentMutation) PaymentVerifiedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsgiftintent.FieldPaymentVerifiedByAdminID]
+	return ok
+}
+
+// ResetPaymentVerifiedByAdminID resets all changes to the "payment_verified_by_admin_id" field.
+func (m *EsportsGiftIntentMutation) ResetPaymentVerifiedByAdminID() {
+	m.payment_verified_by_admin_id = nil
+	m.addpayment_verified_by_admin_id = nil
+	delete(m.clearedFields, esportsgiftintent.FieldPaymentVerifiedByAdminID)
+}
+
 // SetCreatedByAdminID sets the "created_by_admin_id" field.
 func (m *EsportsGiftIntentMutation) SetCreatedByAdminID(i int) {
 	m.created_by_admin_id = &i
@@ -50840,7 +56082,7 @@ func (m *EsportsGiftIntentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsGiftIntentMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 34)
 	if m.customer_id != nil {
 		fields = append(fields, esportsgiftintent.FieldCustomerID)
 	}
@@ -50879,6 +56121,39 @@ func (m *EsportsGiftIntentMutation) Fields() []string {
 	}
 	if m.stored_value_card_no != nil {
 		fields = append(fields, esportsgiftintent.FieldStoredValueCardNo)
+	}
+	if m.gift_tier_id != nil {
+		fields = append(fields, esportsgiftintent.FieldGiftTierID)
+	}
+	if m.gift_tier_code != nil {
+		fields = append(fields, esportsgiftintent.FieldGiftTierCode)
+	}
+	if m.high_value != nil {
+		fields = append(fields, esportsgiftintent.FieldHighValue)
+	}
+	if m.require_age != nil {
+		fields = append(fields, esportsgiftintent.FieldRequireAge)
+	}
+	if m.payment_channel != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentChannel)
+	}
+	if m.payment_status != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentStatus)
+	}
+	if m.payment_intent_no != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentIntentNo)
+	}
+	if m.payment_ref != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentRef)
+	}
+	if m.payment_expires_at != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentExpiresAt)
+	}
+	if m.payment_verified_at != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentVerifiedAt)
+	}
+	if m.payment_verified_by_admin_id != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentVerifiedByAdminID)
 	}
 	if m.created_by_admin_id != nil {
 		fields = append(fields, esportsgiftintent.FieldCreatedByAdminID)
@@ -50944,6 +56219,28 @@ func (m *EsportsGiftIntentMutation) Field(name string) (ent.Value, bool) {
 		return m.StoredValueCardID()
 	case esportsgiftintent.FieldStoredValueCardNo:
 		return m.StoredValueCardNo()
+	case esportsgiftintent.FieldGiftTierID:
+		return m.GiftTierID()
+	case esportsgiftintent.FieldGiftTierCode:
+		return m.GiftTierCode()
+	case esportsgiftintent.FieldHighValue:
+		return m.HighValue()
+	case esportsgiftintent.FieldRequireAge:
+		return m.RequireAge()
+	case esportsgiftintent.FieldPaymentChannel:
+		return m.PaymentChannel()
+	case esportsgiftintent.FieldPaymentStatus:
+		return m.PaymentStatus()
+	case esportsgiftintent.FieldPaymentIntentNo:
+		return m.PaymentIntentNo()
+	case esportsgiftintent.FieldPaymentRef:
+		return m.PaymentRef()
+	case esportsgiftintent.FieldPaymentExpiresAt:
+		return m.PaymentExpiresAt()
+	case esportsgiftintent.FieldPaymentVerifiedAt:
+		return m.PaymentVerifiedAt()
+	case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+		return m.PaymentVerifiedByAdminID()
 	case esportsgiftintent.FieldCreatedByAdminID:
 		return m.CreatedByAdminID()
 	case esportsgiftintent.FieldClientKey:
@@ -50999,6 +56296,28 @@ func (m *EsportsGiftIntentMutation) OldField(ctx context.Context, name string) (
 		return m.OldStoredValueCardID(ctx)
 	case esportsgiftintent.FieldStoredValueCardNo:
 		return m.OldStoredValueCardNo(ctx)
+	case esportsgiftintent.FieldGiftTierID:
+		return m.OldGiftTierID(ctx)
+	case esportsgiftintent.FieldGiftTierCode:
+		return m.OldGiftTierCode(ctx)
+	case esportsgiftintent.FieldHighValue:
+		return m.OldHighValue(ctx)
+	case esportsgiftintent.FieldRequireAge:
+		return m.OldRequireAge(ctx)
+	case esportsgiftintent.FieldPaymentChannel:
+		return m.OldPaymentChannel(ctx)
+	case esportsgiftintent.FieldPaymentStatus:
+		return m.OldPaymentStatus(ctx)
+	case esportsgiftintent.FieldPaymentIntentNo:
+		return m.OldPaymentIntentNo(ctx)
+	case esportsgiftintent.FieldPaymentRef:
+		return m.OldPaymentRef(ctx)
+	case esportsgiftintent.FieldPaymentExpiresAt:
+		return m.OldPaymentExpiresAt(ctx)
+	case esportsgiftintent.FieldPaymentVerifiedAt:
+		return m.OldPaymentVerifiedAt(ctx)
+	case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+		return m.OldPaymentVerifiedByAdminID(ctx)
 	case esportsgiftintent.FieldCreatedByAdminID:
 		return m.OldCreatedByAdminID(ctx)
 	case esportsgiftintent.FieldClientKey:
@@ -51119,6 +56438,83 @@ func (m *EsportsGiftIntentMutation) SetField(name string, value ent.Value) error
 		}
 		m.SetStoredValueCardNo(v)
 		return nil
+	case esportsgiftintent.FieldGiftTierID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGiftTierID(v)
+		return nil
+	case esportsgiftintent.FieldGiftTierCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGiftTierCode(v)
+		return nil
+	case esportsgiftintent.FieldHighValue:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHighValue(v)
+		return nil
+	case esportsgiftintent.FieldRequireAge:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequireAge(v)
+		return nil
+	case esportsgiftintent.FieldPaymentChannel:
+		v, ok := value.(esportsgiftintent.PaymentChannel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentChannel(v)
+		return nil
+	case esportsgiftintent.FieldPaymentStatus:
+		v, ok := value.(esportsgiftintent.PaymentStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentStatus(v)
+		return nil
+	case esportsgiftintent.FieldPaymentIntentNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentIntentNo(v)
+		return nil
+	case esportsgiftintent.FieldPaymentRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentRef(v)
+		return nil
+	case esportsgiftintent.FieldPaymentExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentExpiresAt(v)
+		return nil
+	case esportsgiftintent.FieldPaymentVerifiedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentVerifiedAt(v)
+		return nil
+	case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentVerifiedByAdminID(v)
+		return nil
 	case esportsgiftintent.FieldCreatedByAdminID:
 		v, ok := value.(int)
 		if !ok {
@@ -51224,6 +56620,12 @@ func (m *EsportsGiftIntentMutation) AddedFields() []string {
 	if m.addstored_value_card_id != nil {
 		fields = append(fields, esportsgiftintent.FieldStoredValueCardID)
 	}
+	if m.addgift_tier_id != nil {
+		fields = append(fields, esportsgiftintent.FieldGiftTierID)
+	}
+	if m.addpayment_verified_by_admin_id != nil {
+		fields = append(fields, esportsgiftintent.FieldPaymentVerifiedByAdminID)
+	}
 	if m.addcreated_by_admin_id != nil {
 		fields = append(fields, esportsgiftintent.FieldCreatedByAdminID)
 	}
@@ -51259,6 +56661,10 @@ func (m *EsportsGiftIntentMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAmountCents()
 	case esportsgiftintent.FieldStoredValueCardID:
 		return m.AddedStoredValueCardID()
+	case esportsgiftintent.FieldGiftTierID:
+		return m.AddedGiftTierID()
+	case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+		return m.AddedPaymentVerifiedByAdminID()
 	case esportsgiftintent.FieldCreatedByAdminID:
 		return m.AddedCreatedByAdminID()
 	case esportsgiftintent.FieldVersion:
@@ -51337,6 +56743,20 @@ func (m *EsportsGiftIntentMutation) AddField(name string, value ent.Value) error
 		}
 		m.AddStoredValueCardID(v)
 		return nil
+	case esportsgiftintent.FieldGiftTierID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGiftTierID(v)
+		return nil
+	case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPaymentVerifiedByAdminID(v)
+		return nil
 	case esportsgiftintent.FieldCreatedByAdminID:
 		v, ok := value.(int)
 		if !ok {
@@ -51372,6 +56792,18 @@ func (m *EsportsGiftIntentMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsgiftintent.FieldStoredValueCardID) {
 		fields = append(fields, esportsgiftintent.FieldStoredValueCardID)
 	}
+	if m.FieldCleared(esportsgiftintent.FieldPaymentIntentNo) {
+		fields = append(fields, esportsgiftintent.FieldPaymentIntentNo)
+	}
+	if m.FieldCleared(esportsgiftintent.FieldPaymentExpiresAt) {
+		fields = append(fields, esportsgiftintent.FieldPaymentExpiresAt)
+	}
+	if m.FieldCleared(esportsgiftintent.FieldPaymentVerifiedAt) {
+		fields = append(fields, esportsgiftintent.FieldPaymentVerifiedAt)
+	}
+	if m.FieldCleared(esportsgiftintent.FieldPaymentVerifiedByAdminID) {
+		fields = append(fields, esportsgiftintent.FieldPaymentVerifiedByAdminID)
+	}
 	if m.FieldCleared(esportsgiftintent.FieldGiftOrderID) {
 		fields = append(fields, esportsgiftintent.FieldGiftOrderID)
 	}
@@ -51397,6 +56829,18 @@ func (m *EsportsGiftIntentMutation) ClearField(name string) error {
 		return nil
 	case esportsgiftintent.FieldStoredValueCardID:
 		m.ClearStoredValueCardID()
+		return nil
+	case esportsgiftintent.FieldPaymentIntentNo:
+		m.ClearPaymentIntentNo()
+		return nil
+	case esportsgiftintent.FieldPaymentExpiresAt:
+		m.ClearPaymentExpiresAt()
+		return nil
+	case esportsgiftintent.FieldPaymentVerifiedAt:
+		m.ClearPaymentVerifiedAt()
+		return nil
+	case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+		m.ClearPaymentVerifiedByAdminID()
 		return nil
 	case esportsgiftintent.FieldGiftOrderID:
 		m.ClearGiftOrderID()
@@ -51450,6 +56894,39 @@ func (m *EsportsGiftIntentMutation) ResetField(name string) error {
 		return nil
 	case esportsgiftintent.FieldStoredValueCardNo:
 		m.ResetStoredValueCardNo()
+		return nil
+	case esportsgiftintent.FieldGiftTierID:
+		m.ResetGiftTierID()
+		return nil
+	case esportsgiftintent.FieldGiftTierCode:
+		m.ResetGiftTierCode()
+		return nil
+	case esportsgiftintent.FieldHighValue:
+		m.ResetHighValue()
+		return nil
+	case esportsgiftintent.FieldRequireAge:
+		m.ResetRequireAge()
+		return nil
+	case esportsgiftintent.FieldPaymentChannel:
+		m.ResetPaymentChannel()
+		return nil
+	case esportsgiftintent.FieldPaymentStatus:
+		m.ResetPaymentStatus()
+		return nil
+	case esportsgiftintent.FieldPaymentIntentNo:
+		m.ResetPaymentIntentNo()
+		return nil
+	case esportsgiftintent.FieldPaymentRef:
+		m.ResetPaymentRef()
+		return nil
+	case esportsgiftintent.FieldPaymentExpiresAt:
+		m.ResetPaymentExpiresAt()
+		return nil
+	case esportsgiftintent.FieldPaymentVerifiedAt:
+		m.ResetPaymentVerifiedAt()
+		return nil
+	case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+		m.ResetPaymentVerifiedByAdminID()
 		return nil
 	case esportsgiftintent.FieldCreatedByAdminID:
 		m.ResetCreatedByAdminID()
@@ -51568,6 +57045,10 @@ type EsportsGiftOrderMutation struct {
 	payment_source           *string
 	stored_value_card_id     *int
 	addstored_value_card_id  *int
+	gift_tier_id             *int
+	addgift_tier_id          *int
+	gift_tier_code           *string
+	payment_ref              *string
 	commission_mode          *esportsgiftorder.CommissionMode
 	commission_bp            *int
 	addcommission_bp         *int
@@ -52594,6 +58075,134 @@ func (m *EsportsGiftOrderMutation) ResetStoredValueCardID() {
 	delete(m.clearedFields, esportsgiftorder.FieldStoredValueCardID)
 }
 
+// SetGiftTierID sets the "gift_tier_id" field.
+func (m *EsportsGiftOrderMutation) SetGiftTierID(i int) {
+	m.gift_tier_id = &i
+	m.addgift_tier_id = nil
+}
+
+// GiftTierID returns the value of the "gift_tier_id" field in the mutation.
+func (m *EsportsGiftOrderMutation) GiftTierID() (r int, exists bool) {
+	v := m.gift_tier_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGiftTierID returns the old "gift_tier_id" field's value of the EsportsGiftOrder entity.
+// If the EsportsGiftOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftOrderMutation) OldGiftTierID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGiftTierID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGiftTierID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGiftTierID: %w", err)
+	}
+	return oldValue.GiftTierID, nil
+}
+
+// AddGiftTierID adds i to the "gift_tier_id" field.
+func (m *EsportsGiftOrderMutation) AddGiftTierID(i int) {
+	if m.addgift_tier_id != nil {
+		*m.addgift_tier_id += i
+	} else {
+		m.addgift_tier_id = &i
+	}
+}
+
+// AddedGiftTierID returns the value that was added to the "gift_tier_id" field in this mutation.
+func (m *EsportsGiftOrderMutation) AddedGiftTierID() (r int, exists bool) {
+	v := m.addgift_tier_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGiftTierID resets all changes to the "gift_tier_id" field.
+func (m *EsportsGiftOrderMutation) ResetGiftTierID() {
+	m.gift_tier_id = nil
+	m.addgift_tier_id = nil
+}
+
+// SetGiftTierCode sets the "gift_tier_code" field.
+func (m *EsportsGiftOrderMutation) SetGiftTierCode(s string) {
+	m.gift_tier_code = &s
+}
+
+// GiftTierCode returns the value of the "gift_tier_code" field in the mutation.
+func (m *EsportsGiftOrderMutation) GiftTierCode() (r string, exists bool) {
+	v := m.gift_tier_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGiftTierCode returns the old "gift_tier_code" field's value of the EsportsGiftOrder entity.
+// If the EsportsGiftOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftOrderMutation) OldGiftTierCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGiftTierCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGiftTierCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGiftTierCode: %w", err)
+	}
+	return oldValue.GiftTierCode, nil
+}
+
+// ResetGiftTierCode resets all changes to the "gift_tier_code" field.
+func (m *EsportsGiftOrderMutation) ResetGiftTierCode() {
+	m.gift_tier_code = nil
+}
+
+// SetPaymentRef sets the "payment_ref" field.
+func (m *EsportsGiftOrderMutation) SetPaymentRef(s string) {
+	m.payment_ref = &s
+}
+
+// PaymentRef returns the value of the "payment_ref" field in the mutation.
+func (m *EsportsGiftOrderMutation) PaymentRef() (r string, exists bool) {
+	v := m.payment_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentRef returns the old "payment_ref" field's value of the EsportsGiftOrder entity.
+// If the EsportsGiftOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftOrderMutation) OldPaymentRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentRef: %w", err)
+	}
+	return oldValue.PaymentRef, nil
+}
+
+// ResetPaymentRef resets all changes to the "payment_ref" field.
+func (m *EsportsGiftOrderMutation) ResetPaymentRef() {
+	m.payment_ref = nil
+}
+
 // SetCommissionMode sets the "commission_mode" field.
 func (m *EsportsGiftOrderMutation) SetCommissionMode(em esportsgiftorder.CommissionMode) {
 	m.commission_mode = &em
@@ -53124,7 +58733,7 @@ func (m *EsportsGiftOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsGiftOrderMutation) Fields() []string {
-	fields := make([]string, 0, 27)
+	fields := make([]string, 0, 30)
 	if m.gift_no != nil {
 		fields = append(fields, esportsgiftorder.FieldGiftNo)
 	}
@@ -53172,6 +58781,15 @@ func (m *EsportsGiftOrderMutation) Fields() []string {
 	}
 	if m.stored_value_card_id != nil {
 		fields = append(fields, esportsgiftorder.FieldStoredValueCardID)
+	}
+	if m.gift_tier_id != nil {
+		fields = append(fields, esportsgiftorder.FieldGiftTierID)
+	}
+	if m.gift_tier_code != nil {
+		fields = append(fields, esportsgiftorder.FieldGiftTierCode)
+	}
+	if m.payment_ref != nil {
+		fields = append(fields, esportsgiftorder.FieldPaymentRef)
 	}
 	if m.commission_mode != nil {
 		fields = append(fields, esportsgiftorder.FieldCommissionMode)
@@ -53246,6 +58864,12 @@ func (m *EsportsGiftOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.PaymentSource()
 	case esportsgiftorder.FieldStoredValueCardID:
 		return m.StoredValueCardID()
+	case esportsgiftorder.FieldGiftTierID:
+		return m.GiftTierID()
+	case esportsgiftorder.FieldGiftTierCode:
+		return m.GiftTierCode()
+	case esportsgiftorder.FieldPaymentRef:
+		return m.PaymentRef()
 	case esportsgiftorder.FieldCommissionMode:
 		return m.CommissionMode()
 	case esportsgiftorder.FieldCommissionBp:
@@ -53309,6 +58933,12 @@ func (m *EsportsGiftOrderMutation) OldField(ctx context.Context, name string) (e
 		return m.OldPaymentSource(ctx)
 	case esportsgiftorder.FieldStoredValueCardID:
 		return m.OldStoredValueCardID(ctx)
+	case esportsgiftorder.FieldGiftTierID:
+		return m.OldGiftTierID(ctx)
+	case esportsgiftorder.FieldGiftTierCode:
+		return m.OldGiftTierCode(ctx)
+	case esportsgiftorder.FieldPaymentRef:
+		return m.OldPaymentRef(ctx)
 	case esportsgiftorder.FieldCommissionMode:
 		return m.OldCommissionMode(ctx)
 	case esportsgiftorder.FieldCommissionBp:
@@ -53452,6 +59082,27 @@ func (m *EsportsGiftOrderMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetStoredValueCardID(v)
 		return nil
+	case esportsgiftorder.FieldGiftTierID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGiftTierID(v)
+		return nil
+	case esportsgiftorder.FieldGiftTierCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGiftTierCode(v)
+		return nil
+	case esportsgiftorder.FieldPaymentRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentRef(v)
+		return nil
 	case esportsgiftorder.FieldCommissionMode:
 		v, ok := value.(esportsgiftorder.CommissionMode)
 		if !ok {
@@ -53576,6 +59227,9 @@ func (m *EsportsGiftOrderMutation) AddedFields() []string {
 	if m.addstored_value_card_id != nil {
 		fields = append(fields, esportsgiftorder.FieldStoredValueCardID)
 	}
+	if m.addgift_tier_id != nil {
+		fields = append(fields, esportsgiftorder.FieldGiftTierID)
+	}
 	if m.addcommission_bp != nil {
 		fields = append(fields, esportsgiftorder.FieldCommissionBp)
 	}
@@ -53625,6 +59279,8 @@ func (m *EsportsGiftOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedBonusCents()
 	case esportsgiftorder.FieldStoredValueCardID:
 		return m.AddedStoredValueCardID()
+	case esportsgiftorder.FieldGiftTierID:
+		return m.AddedGiftTierID()
 	case esportsgiftorder.FieldCommissionBp:
 		return m.AddedCommissionBp()
 	case esportsgiftorder.FieldCommissionCents:
@@ -53734,6 +59390,13 @@ func (m *EsportsGiftOrderMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddStoredValueCardID(v)
+		return nil
+	case esportsgiftorder.FieldGiftTierID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGiftTierID(v)
 		return nil
 	case esportsgiftorder.FieldCommissionBp:
 		v, ok := value.(int)
@@ -53878,6 +59541,15 @@ func (m *EsportsGiftOrderMutation) ResetField(name string) error {
 	case esportsgiftorder.FieldStoredValueCardID:
 		m.ResetStoredValueCardID()
 		return nil
+	case esportsgiftorder.FieldGiftTierID:
+		m.ResetGiftTierID()
+		return nil
+	case esportsgiftorder.FieldGiftTierCode:
+		m.ResetGiftTierCode()
+		return nil
+	case esportsgiftorder.FieldPaymentRef:
+		m.ResetPaymentRef()
+		return nil
 	case esportsgiftorder.FieldCommissionMode:
 		m.ResetCommissionMode()
 		return nil
@@ -53963,6 +59635,1061 @@ func (m *EsportsGiftOrderMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsGiftOrder edge %s", name)
 }
 
+// EsportsGiftTierMutation represents an operation that mutates the EsportsGiftTier nodes in the graph.
+type EsportsGiftTierMutation struct {
+	config
+	op             Op
+	typ            string
+	id             *int
+	gift_id        *int
+	addgift_id     *int
+	tier_code      *string
+	name           *string
+	price_cents    *int64
+	addprice_cents *int64
+	high_value     *bool
+	require_age    *bool
+	is_default     *bool
+	sort_order     *int
+	addsort_order  *int
+	status         *esportsgifttier.Status
+	version        *int
+	addversion     *int
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	done           bool
+	oldValue       func(context.Context) (*EsportsGiftTier, error)
+	predicates     []predicate.EsportsGiftTier
+}
+
+var _ ent.Mutation = (*EsportsGiftTierMutation)(nil)
+
+// esportsgifttierOption allows management of the mutation configuration using functional options.
+type esportsgifttierOption func(*EsportsGiftTierMutation)
+
+// newEsportsGiftTierMutation creates new mutation for the EsportsGiftTier entity.
+func newEsportsGiftTierMutation(c config, op Op, opts ...esportsgifttierOption) *EsportsGiftTierMutation {
+	m := &EsportsGiftTierMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsGiftTier,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsGiftTierID sets the ID field of the mutation.
+func withEsportsGiftTierID(id int) esportsgifttierOption {
+	return func(m *EsportsGiftTierMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsGiftTier
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsGiftTier, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsGiftTier.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsGiftTier sets the old EsportsGiftTier of the mutation.
+func withEsportsGiftTier(node *EsportsGiftTier) esportsgifttierOption {
+	return func(m *EsportsGiftTierMutation) {
+		m.oldValue = func(context.Context) (*EsportsGiftTier, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsGiftTierMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsGiftTierMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsGiftTierMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsGiftTierMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsGiftTier.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetGiftID sets the "gift_id" field.
+func (m *EsportsGiftTierMutation) SetGiftID(i int) {
+	m.gift_id = &i
+	m.addgift_id = nil
+}
+
+// GiftID returns the value of the "gift_id" field in the mutation.
+func (m *EsportsGiftTierMutation) GiftID() (r int, exists bool) {
+	v := m.gift_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGiftID returns the old "gift_id" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldGiftID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGiftID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGiftID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGiftID: %w", err)
+	}
+	return oldValue.GiftID, nil
+}
+
+// AddGiftID adds i to the "gift_id" field.
+func (m *EsportsGiftTierMutation) AddGiftID(i int) {
+	if m.addgift_id != nil {
+		*m.addgift_id += i
+	} else {
+		m.addgift_id = &i
+	}
+}
+
+// AddedGiftID returns the value that was added to the "gift_id" field in this mutation.
+func (m *EsportsGiftTierMutation) AddedGiftID() (r int, exists bool) {
+	v := m.addgift_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetGiftID resets all changes to the "gift_id" field.
+func (m *EsportsGiftTierMutation) ResetGiftID() {
+	m.gift_id = nil
+	m.addgift_id = nil
+}
+
+// SetTierCode sets the "tier_code" field.
+func (m *EsportsGiftTierMutation) SetTierCode(s string) {
+	m.tier_code = &s
+}
+
+// TierCode returns the value of the "tier_code" field in the mutation.
+func (m *EsportsGiftTierMutation) TierCode() (r string, exists bool) {
+	v := m.tier_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTierCode returns the old "tier_code" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldTierCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTierCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTierCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTierCode: %w", err)
+	}
+	return oldValue.TierCode, nil
+}
+
+// ResetTierCode resets all changes to the "tier_code" field.
+func (m *EsportsGiftTierMutation) ResetTierCode() {
+	m.tier_code = nil
+}
+
+// SetName sets the "name" field.
+func (m *EsportsGiftTierMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *EsportsGiftTierMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *EsportsGiftTierMutation) ResetName() {
+	m.name = nil
+}
+
+// SetPriceCents sets the "price_cents" field.
+func (m *EsportsGiftTierMutation) SetPriceCents(i int64) {
+	m.price_cents = &i
+	m.addprice_cents = nil
+}
+
+// PriceCents returns the value of the "price_cents" field in the mutation.
+func (m *EsportsGiftTierMutation) PriceCents() (r int64, exists bool) {
+	v := m.price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriceCents returns the old "price_cents" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldPriceCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriceCents: %w", err)
+	}
+	return oldValue.PriceCents, nil
+}
+
+// AddPriceCents adds i to the "price_cents" field.
+func (m *EsportsGiftTierMutation) AddPriceCents(i int64) {
+	if m.addprice_cents != nil {
+		*m.addprice_cents += i
+	} else {
+		m.addprice_cents = &i
+	}
+}
+
+// AddedPriceCents returns the value that was added to the "price_cents" field in this mutation.
+func (m *EsportsGiftTierMutation) AddedPriceCents() (r int64, exists bool) {
+	v := m.addprice_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriceCents resets all changes to the "price_cents" field.
+func (m *EsportsGiftTierMutation) ResetPriceCents() {
+	m.price_cents = nil
+	m.addprice_cents = nil
+}
+
+// SetHighValue sets the "high_value" field.
+func (m *EsportsGiftTierMutation) SetHighValue(b bool) {
+	m.high_value = &b
+}
+
+// HighValue returns the value of the "high_value" field in the mutation.
+func (m *EsportsGiftTierMutation) HighValue() (r bool, exists bool) {
+	v := m.high_value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHighValue returns the old "high_value" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldHighValue(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHighValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHighValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHighValue: %w", err)
+	}
+	return oldValue.HighValue, nil
+}
+
+// ResetHighValue resets all changes to the "high_value" field.
+func (m *EsportsGiftTierMutation) ResetHighValue() {
+	m.high_value = nil
+}
+
+// SetRequireAge sets the "require_age" field.
+func (m *EsportsGiftTierMutation) SetRequireAge(b bool) {
+	m.require_age = &b
+}
+
+// RequireAge returns the value of the "require_age" field in the mutation.
+func (m *EsportsGiftTierMutation) RequireAge() (r bool, exists bool) {
+	v := m.require_age
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequireAge returns the old "require_age" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldRequireAge(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequireAge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequireAge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequireAge: %w", err)
+	}
+	return oldValue.RequireAge, nil
+}
+
+// ResetRequireAge resets all changes to the "require_age" field.
+func (m *EsportsGiftTierMutation) ResetRequireAge() {
+	m.require_age = nil
+}
+
+// SetIsDefault sets the "is_default" field.
+func (m *EsportsGiftTierMutation) SetIsDefault(b bool) {
+	m.is_default = &b
+}
+
+// IsDefault returns the value of the "is_default" field in the mutation.
+func (m *EsportsGiftTierMutation) IsDefault() (r bool, exists bool) {
+	v := m.is_default
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsDefault returns the old "is_default" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldIsDefault(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsDefault is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsDefault requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsDefault: %w", err)
+	}
+	return oldValue.IsDefault, nil
+}
+
+// ResetIsDefault resets all changes to the "is_default" field.
+func (m *EsportsGiftTierMutation) ResetIsDefault() {
+	m.is_default = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *EsportsGiftTierMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *EsportsGiftTierMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *EsportsGiftTierMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *EsportsGiftTierMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *EsportsGiftTierMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsGiftTierMutation) SetStatus(e esportsgifttier.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsGiftTierMutation) Status() (r esportsgifttier.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldStatus(ctx context.Context) (v esportsgifttier.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsGiftTierMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsGiftTierMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsGiftTierMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsGiftTierMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsGiftTierMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsGiftTierMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsGiftTierMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsGiftTierMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsGiftTierMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsGiftTierMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsGiftTierMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsGiftTier entity.
+// If the EsportsGiftTier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGiftTierMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsGiftTierMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsGiftTierMutation builder.
+func (m *EsportsGiftTierMutation) Where(ps ...predicate.EsportsGiftTier) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsGiftTierMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsGiftTierMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsGiftTier, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsGiftTierMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsGiftTierMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsGiftTier).
+func (m *EsportsGiftTierMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsGiftTierMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.gift_id != nil {
+		fields = append(fields, esportsgifttier.FieldGiftID)
+	}
+	if m.tier_code != nil {
+		fields = append(fields, esportsgifttier.FieldTierCode)
+	}
+	if m.name != nil {
+		fields = append(fields, esportsgifttier.FieldName)
+	}
+	if m.price_cents != nil {
+		fields = append(fields, esportsgifttier.FieldPriceCents)
+	}
+	if m.high_value != nil {
+		fields = append(fields, esportsgifttier.FieldHighValue)
+	}
+	if m.require_age != nil {
+		fields = append(fields, esportsgifttier.FieldRequireAge)
+	}
+	if m.is_default != nil {
+		fields = append(fields, esportsgifttier.FieldIsDefault)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, esportsgifttier.FieldSortOrder)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsgifttier.FieldStatus)
+	}
+	if m.version != nil {
+		fields = append(fields, esportsgifttier.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsgifttier.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportsgifttier.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsGiftTierMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsgifttier.FieldGiftID:
+		return m.GiftID()
+	case esportsgifttier.FieldTierCode:
+		return m.TierCode()
+	case esportsgifttier.FieldName:
+		return m.Name()
+	case esportsgifttier.FieldPriceCents:
+		return m.PriceCents()
+	case esportsgifttier.FieldHighValue:
+		return m.HighValue()
+	case esportsgifttier.FieldRequireAge:
+		return m.RequireAge()
+	case esportsgifttier.FieldIsDefault:
+		return m.IsDefault()
+	case esportsgifttier.FieldSortOrder:
+		return m.SortOrder()
+	case esportsgifttier.FieldStatus:
+		return m.Status()
+	case esportsgifttier.FieldVersion:
+		return m.Version()
+	case esportsgifttier.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportsgifttier.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsGiftTierMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsgifttier.FieldGiftID:
+		return m.OldGiftID(ctx)
+	case esportsgifttier.FieldTierCode:
+		return m.OldTierCode(ctx)
+	case esportsgifttier.FieldName:
+		return m.OldName(ctx)
+	case esportsgifttier.FieldPriceCents:
+		return m.OldPriceCents(ctx)
+	case esportsgifttier.FieldHighValue:
+		return m.OldHighValue(ctx)
+	case esportsgifttier.FieldRequireAge:
+		return m.OldRequireAge(ctx)
+	case esportsgifttier.FieldIsDefault:
+		return m.OldIsDefault(ctx)
+	case esportsgifttier.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	case esportsgifttier.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsgifttier.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportsgifttier.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportsgifttier.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsGiftTier field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsGiftTierMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsgifttier.FieldGiftID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGiftID(v)
+		return nil
+	case esportsgifttier.FieldTierCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTierCode(v)
+		return nil
+	case esportsgifttier.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case esportsgifttier.FieldPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriceCents(v)
+		return nil
+	case esportsgifttier.FieldHighValue:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHighValue(v)
+		return nil
+	case esportsgifttier.FieldRequireAge:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequireAge(v)
+		return nil
+	case esportsgifttier.FieldIsDefault:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsDefault(v)
+		return nil
+	case esportsgifttier.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	case esportsgifttier.FieldStatus:
+		v, ok := value.(esportsgifttier.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsgifttier.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportsgifttier.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportsgifttier.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsGiftTier field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsGiftTierMutation) AddedFields() []string {
+	var fields []string
+	if m.addgift_id != nil {
+		fields = append(fields, esportsgifttier.FieldGiftID)
+	}
+	if m.addprice_cents != nil {
+		fields = append(fields, esportsgifttier.FieldPriceCents)
+	}
+	if m.addsort_order != nil {
+		fields = append(fields, esportsgifttier.FieldSortOrder)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportsgifttier.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsGiftTierMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsgifttier.FieldGiftID:
+		return m.AddedGiftID()
+	case esportsgifttier.FieldPriceCents:
+		return m.AddedPriceCents()
+	case esportsgifttier.FieldSortOrder:
+		return m.AddedSortOrder()
+	case esportsgifttier.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsGiftTierMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsgifttier.FieldGiftID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGiftID(v)
+		return nil
+	case esportsgifttier.FieldPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriceCents(v)
+		return nil
+	case esportsgifttier.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	case esportsgifttier.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsGiftTier numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsGiftTierMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsGiftTierMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsGiftTierMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown EsportsGiftTier nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsGiftTierMutation) ResetField(name string) error {
+	switch name {
+	case esportsgifttier.FieldGiftID:
+		m.ResetGiftID()
+		return nil
+	case esportsgifttier.FieldTierCode:
+		m.ResetTierCode()
+		return nil
+	case esportsgifttier.FieldName:
+		m.ResetName()
+		return nil
+	case esportsgifttier.FieldPriceCents:
+		m.ResetPriceCents()
+		return nil
+	case esportsgifttier.FieldHighValue:
+		m.ResetHighValue()
+		return nil
+	case esportsgifttier.FieldRequireAge:
+		m.ResetRequireAge()
+		return nil
+	case esportsgifttier.FieldIsDefault:
+		m.ResetIsDefault()
+		return nil
+	case esportsgifttier.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	case esportsgifttier.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsgifttier.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportsgifttier.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportsgifttier.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsGiftTier field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsGiftTierMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsGiftTierMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsGiftTierMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsGiftTierMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsGiftTierMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsGiftTierMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsGiftTierMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsGiftTier unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsGiftTierMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsGiftTier edge %s", name)
+}
+
 // EsportsGrowthLedgerMutation represents an operation that mutates the EsportsGrowthLedger nodes in the graph.
 type EsportsGrowthLedgerMutation struct {
 	config
@@ -53975,6 +60702,7 @@ type EsportsGrowthLedgerMutation struct {
 	adddelta       *int64
 	source_type    *esportsgrowthledger.SourceType
 	source_id      *string
+	payment_source *esportsgrowthledger.PaymentSource
 	operator_id    *int
 	addoperator_id *int
 	note           *string
@@ -54267,6 +60995,42 @@ func (m *EsportsGrowthLedgerMutation) ResetSourceID() {
 	m.source_id = nil
 }
 
+// SetPaymentSource sets the "payment_source" field.
+func (m *EsportsGrowthLedgerMutation) SetPaymentSource(es esportsgrowthledger.PaymentSource) {
+	m.payment_source = &es
+}
+
+// PaymentSource returns the value of the "payment_source" field in the mutation.
+func (m *EsportsGrowthLedgerMutation) PaymentSource() (r esportsgrowthledger.PaymentSource, exists bool) {
+	v := m.payment_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPaymentSource returns the old "payment_source" field's value of the EsportsGrowthLedger entity.
+// If the EsportsGrowthLedger object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsGrowthLedgerMutation) OldPaymentSource(ctx context.Context) (v esportsgrowthledger.PaymentSource, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPaymentSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPaymentSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPaymentSource: %w", err)
+	}
+	return oldValue.PaymentSource, nil
+}
+
+// ResetPaymentSource resets all changes to the "payment_source" field.
+func (m *EsportsGrowthLedgerMutation) ResetPaymentSource() {
+	m.payment_source = nil
+}
+
 // SetOperatorID sets the "operator_id" field.
 func (m *EsportsGrowthLedgerMutation) SetOperatorID(i int) {
 	m.operator_id = &i
@@ -54443,7 +61207,7 @@ func (m *EsportsGrowthLedgerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsGrowthLedgerMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.customer_id != nil {
 		fields = append(fields, esportsgrowthledger.FieldCustomerID)
 	}
@@ -54455,6 +61219,9 @@ func (m *EsportsGrowthLedgerMutation) Fields() []string {
 	}
 	if m.source_id != nil {
 		fields = append(fields, esportsgrowthledger.FieldSourceID)
+	}
+	if m.payment_source != nil {
+		fields = append(fields, esportsgrowthledger.FieldPaymentSource)
 	}
 	if m.operator_id != nil {
 		fields = append(fields, esportsgrowthledger.FieldOperatorID)
@@ -54481,6 +61248,8 @@ func (m *EsportsGrowthLedgerMutation) Field(name string) (ent.Value, bool) {
 		return m.SourceType()
 	case esportsgrowthledger.FieldSourceID:
 		return m.SourceID()
+	case esportsgrowthledger.FieldPaymentSource:
+		return m.PaymentSource()
 	case esportsgrowthledger.FieldOperatorID:
 		return m.OperatorID()
 	case esportsgrowthledger.FieldNote:
@@ -54504,6 +61273,8 @@ func (m *EsportsGrowthLedgerMutation) OldField(ctx context.Context, name string)
 		return m.OldSourceType(ctx)
 	case esportsgrowthledger.FieldSourceID:
 		return m.OldSourceID(ctx)
+	case esportsgrowthledger.FieldPaymentSource:
+		return m.OldPaymentSource(ctx)
 	case esportsgrowthledger.FieldOperatorID:
 		return m.OldOperatorID(ctx)
 	case esportsgrowthledger.FieldNote:
@@ -54546,6 +61317,13 @@ func (m *EsportsGrowthLedgerMutation) SetField(name string, value ent.Value) err
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSourceID(v)
+		return nil
+	case esportsgrowthledger.FieldPaymentSource:
+		v, ok := value.(esportsgrowthledger.PaymentSource)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPaymentSource(v)
 		return nil
 	case esportsgrowthledger.FieldOperatorID:
 		v, ok := value.(int)
@@ -54676,6 +61454,9 @@ func (m *EsportsGrowthLedgerMutation) ResetField(name string) error {
 		return nil
 	case esportsgrowthledger.FieldSourceID:
 		m.ResetSourceID()
+		return nil
+	case esportsgrowthledger.FieldPaymentSource:
+		m.ResetPaymentSource()
 		return nil
 	case esportsgrowthledger.FieldOperatorID:
 		m.ResetOperatorID()
@@ -56164,6 +62945,10 @@ type EsportsLedgerAllocationMutation struct {
 	batch_source_id     *string
 	amount_cents        *int64
 	addamount_cents     *int64
+	principal_cents     *int64
+	addprincipal_cents  *int64
+	bonus_cents         *int64
+	addbonus_cents      *int64
 	created_at          *time.Time
 	clearedFields       map[string]struct{}
 	done                bool
@@ -56541,6 +63326,118 @@ func (m *EsportsLedgerAllocationMutation) ResetAmountCents() {
 	m.addamount_cents = nil
 }
 
+// SetPrincipalCents sets the "principal_cents" field.
+func (m *EsportsLedgerAllocationMutation) SetPrincipalCents(i int64) {
+	m.principal_cents = &i
+	m.addprincipal_cents = nil
+}
+
+// PrincipalCents returns the value of the "principal_cents" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) PrincipalCents() (r int64, exists bool) {
+	v := m.principal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrincipalCents returns the old "principal_cents" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldPrincipalCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrincipalCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrincipalCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrincipalCents: %w", err)
+	}
+	return oldValue.PrincipalCents, nil
+}
+
+// AddPrincipalCents adds i to the "principal_cents" field.
+func (m *EsportsLedgerAllocationMutation) AddPrincipalCents(i int64) {
+	if m.addprincipal_cents != nil {
+		*m.addprincipal_cents += i
+	} else {
+		m.addprincipal_cents = &i
+	}
+}
+
+// AddedPrincipalCents returns the value that was added to the "principal_cents" field in this mutation.
+func (m *EsportsLedgerAllocationMutation) AddedPrincipalCents() (r int64, exists bool) {
+	v := m.addprincipal_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPrincipalCents resets all changes to the "principal_cents" field.
+func (m *EsportsLedgerAllocationMutation) ResetPrincipalCents() {
+	m.principal_cents = nil
+	m.addprincipal_cents = nil
+}
+
+// SetBonusCents sets the "bonus_cents" field.
+func (m *EsportsLedgerAllocationMutation) SetBonusCents(i int64) {
+	m.bonus_cents = &i
+	m.addbonus_cents = nil
+}
+
+// BonusCents returns the value of the "bonus_cents" field in the mutation.
+func (m *EsportsLedgerAllocationMutation) BonusCents() (r int64, exists bool) {
+	v := m.bonus_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBonusCents returns the old "bonus_cents" field's value of the EsportsLedgerAllocation entity.
+// If the EsportsLedgerAllocation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerAllocationMutation) OldBonusCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBonusCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBonusCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBonusCents: %w", err)
+	}
+	return oldValue.BonusCents, nil
+}
+
+// AddBonusCents adds i to the "bonus_cents" field.
+func (m *EsportsLedgerAllocationMutation) AddBonusCents(i int64) {
+	if m.addbonus_cents != nil {
+		*m.addbonus_cents += i
+	} else {
+		m.addbonus_cents = &i
+	}
+}
+
+// AddedBonusCents returns the value that was added to the "bonus_cents" field in this mutation.
+func (m *EsportsLedgerAllocationMutation) AddedBonusCents() (r int64, exists bool) {
+	v := m.addbonus_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBonusCents resets all changes to the "bonus_cents" field.
+func (m *EsportsLedgerAllocationMutation) ResetBonusCents() {
+	m.bonus_cents = nil
+	m.addbonus_cents = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *EsportsLedgerAllocationMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -56611,7 +63508,7 @@ func (m *EsportsLedgerAllocationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsLedgerAllocationMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 10)
 	if m.account_type != nil {
 		fields = append(fields, esportsledgerallocation.FieldAccountType)
 	}
@@ -56632,6 +63529,12 @@ func (m *EsportsLedgerAllocationMutation) Fields() []string {
 	}
 	if m.amount_cents != nil {
 		fields = append(fields, esportsledgerallocation.FieldAmountCents)
+	}
+	if m.principal_cents != nil {
+		fields = append(fields, esportsledgerallocation.FieldPrincipalCents)
+	}
+	if m.bonus_cents != nil {
+		fields = append(fields, esportsledgerallocation.FieldBonusCents)
 	}
 	if m.created_at != nil {
 		fields = append(fields, esportsledgerallocation.FieldCreatedAt)
@@ -56658,6 +63561,10 @@ func (m *EsportsLedgerAllocationMutation) Field(name string) (ent.Value, bool) {
 		return m.BatchSourceID()
 	case esportsledgerallocation.FieldAmountCents:
 		return m.AmountCents()
+	case esportsledgerallocation.FieldPrincipalCents:
+		return m.PrincipalCents()
+	case esportsledgerallocation.FieldBonusCents:
+		return m.BonusCents()
 	case esportsledgerallocation.FieldCreatedAt:
 		return m.CreatedAt()
 	}
@@ -56683,6 +63590,10 @@ func (m *EsportsLedgerAllocationMutation) OldField(ctx context.Context, name str
 		return m.OldBatchSourceID(ctx)
 	case esportsledgerallocation.FieldAmountCents:
 		return m.OldAmountCents(ctx)
+	case esportsledgerallocation.FieldPrincipalCents:
+		return m.OldPrincipalCents(ctx)
+	case esportsledgerallocation.FieldBonusCents:
+		return m.OldBonusCents(ctx)
 	case esportsledgerallocation.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	}
@@ -56743,6 +63654,20 @@ func (m *EsportsLedgerAllocationMutation) SetField(name string, value ent.Value)
 		}
 		m.SetAmountCents(v)
 		return nil
+	case esportsledgerallocation.FieldPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrincipalCents(v)
+		return nil
+	case esportsledgerallocation.FieldBonusCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBonusCents(v)
+		return nil
 	case esportsledgerallocation.FieldCreatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -56761,6 +63686,12 @@ func (m *EsportsLedgerAllocationMutation) AddedFields() []string {
 	if m.addamount_cents != nil {
 		fields = append(fields, esportsledgerallocation.FieldAmountCents)
 	}
+	if m.addprincipal_cents != nil {
+		fields = append(fields, esportsledgerallocation.FieldPrincipalCents)
+	}
+	if m.addbonus_cents != nil {
+		fields = append(fields, esportsledgerallocation.FieldBonusCents)
+	}
 	return fields
 }
 
@@ -56771,6 +63702,10 @@ func (m *EsportsLedgerAllocationMutation) AddedField(name string) (ent.Value, bo
 	switch name {
 	case esportsledgerallocation.FieldAmountCents:
 		return m.AddedAmountCents()
+	case esportsledgerallocation.FieldPrincipalCents:
+		return m.AddedPrincipalCents()
+	case esportsledgerallocation.FieldBonusCents:
+		return m.AddedBonusCents()
 	}
 	return nil, false
 }
@@ -56786,6 +63721,20 @@ func (m *EsportsLedgerAllocationMutation) AddField(name string, value ent.Value)
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddAmountCents(v)
+		return nil
+	case esportsledgerallocation.FieldPrincipalCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPrincipalCents(v)
+		return nil
+	case esportsledgerallocation.FieldBonusCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBonusCents(v)
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsLedgerAllocation numeric field %s", name)
@@ -56834,6 +63783,12 @@ func (m *EsportsLedgerAllocationMutation) ResetField(name string) error {
 		return nil
 	case esportsledgerallocation.FieldAmountCents:
 		m.ResetAmountCents()
+		return nil
+	case esportsledgerallocation.FieldPrincipalCents:
+		m.ResetPrincipalCents()
+		return nil
+	case esportsledgerallocation.FieldBonusCents:
+		m.ResetBonusCents()
 		return nil
 	case esportsledgerallocation.FieldCreatedAt:
 		m.ResetCreatedAt()
@@ -56893,22 +63848,26 @@ func (m *EsportsLedgerAllocationMutation) ResetEdge(name string) error {
 // EsportsLedgerEntryMutation represents an operation that mutates the EsportsLedgerEntry nodes in the graph.
 type EsportsLedgerEntryMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	account_type   *string
-	account_id     *string
-	source_type    *string
-	source_id      *string
-	entry_role     *string
-	delta_cents    *int64
-	adddelta_cents *int64
-	fund_batch     *string
-	created_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*EsportsLedgerEntry, error)
-	predicates     []predicate.EsportsLedgerEntry
+	op                       Op
+	typ                      string
+	id                       *int
+	account_type             *string
+	account_id               *string
+	source_type              *string
+	source_id                *string
+	entry_role               *string
+	delta_cents              *int64
+	adddelta_cents           *int64
+	principal_delta_cents    *int64
+	addprincipal_delta_cents *int64
+	bonus_delta_cents        *int64
+	addbonus_delta_cents     *int64
+	fund_batch               *string
+	created_at               *time.Time
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*EsportsLedgerEntry, error)
+	predicates               []predicate.EsportsLedgerEntry
 }
 
 var _ ent.Mutation = (*EsportsLedgerEntryMutation)(nil)
@@ -57245,6 +64204,118 @@ func (m *EsportsLedgerEntryMutation) ResetDeltaCents() {
 	m.adddelta_cents = nil
 }
 
+// SetPrincipalDeltaCents sets the "principal_delta_cents" field.
+func (m *EsportsLedgerEntryMutation) SetPrincipalDeltaCents(i int64) {
+	m.principal_delta_cents = &i
+	m.addprincipal_delta_cents = nil
+}
+
+// PrincipalDeltaCents returns the value of the "principal_delta_cents" field in the mutation.
+func (m *EsportsLedgerEntryMutation) PrincipalDeltaCents() (r int64, exists bool) {
+	v := m.principal_delta_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrincipalDeltaCents returns the old "principal_delta_cents" field's value of the EsportsLedgerEntry entity.
+// If the EsportsLedgerEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerEntryMutation) OldPrincipalDeltaCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrincipalDeltaCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrincipalDeltaCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrincipalDeltaCents: %w", err)
+	}
+	return oldValue.PrincipalDeltaCents, nil
+}
+
+// AddPrincipalDeltaCents adds i to the "principal_delta_cents" field.
+func (m *EsportsLedgerEntryMutation) AddPrincipalDeltaCents(i int64) {
+	if m.addprincipal_delta_cents != nil {
+		*m.addprincipal_delta_cents += i
+	} else {
+		m.addprincipal_delta_cents = &i
+	}
+}
+
+// AddedPrincipalDeltaCents returns the value that was added to the "principal_delta_cents" field in this mutation.
+func (m *EsportsLedgerEntryMutation) AddedPrincipalDeltaCents() (r int64, exists bool) {
+	v := m.addprincipal_delta_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPrincipalDeltaCents resets all changes to the "principal_delta_cents" field.
+func (m *EsportsLedgerEntryMutation) ResetPrincipalDeltaCents() {
+	m.principal_delta_cents = nil
+	m.addprincipal_delta_cents = nil
+}
+
+// SetBonusDeltaCents sets the "bonus_delta_cents" field.
+func (m *EsportsLedgerEntryMutation) SetBonusDeltaCents(i int64) {
+	m.bonus_delta_cents = &i
+	m.addbonus_delta_cents = nil
+}
+
+// BonusDeltaCents returns the value of the "bonus_delta_cents" field in the mutation.
+func (m *EsportsLedgerEntryMutation) BonusDeltaCents() (r int64, exists bool) {
+	v := m.bonus_delta_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBonusDeltaCents returns the old "bonus_delta_cents" field's value of the EsportsLedgerEntry entity.
+// If the EsportsLedgerEntry object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsLedgerEntryMutation) OldBonusDeltaCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBonusDeltaCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBonusDeltaCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBonusDeltaCents: %w", err)
+	}
+	return oldValue.BonusDeltaCents, nil
+}
+
+// AddBonusDeltaCents adds i to the "bonus_delta_cents" field.
+func (m *EsportsLedgerEntryMutation) AddBonusDeltaCents(i int64) {
+	if m.addbonus_delta_cents != nil {
+		*m.addbonus_delta_cents += i
+	} else {
+		m.addbonus_delta_cents = &i
+	}
+}
+
+// AddedBonusDeltaCents returns the value that was added to the "bonus_delta_cents" field in this mutation.
+func (m *EsportsLedgerEntryMutation) AddedBonusDeltaCents() (r int64, exists bool) {
+	v := m.addbonus_delta_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBonusDeltaCents resets all changes to the "bonus_delta_cents" field.
+func (m *EsportsLedgerEntryMutation) ResetBonusDeltaCents() {
+	m.bonus_delta_cents = nil
+	m.addbonus_delta_cents = nil
+}
+
 // SetFundBatch sets the "fund_batch" field.
 func (m *EsportsLedgerEntryMutation) SetFundBatch(s string) {
 	m.fund_batch = &s
@@ -57351,7 +64422,7 @@ func (m *EsportsLedgerEntryMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsLedgerEntryMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 10)
 	if m.account_type != nil {
 		fields = append(fields, esportsledgerentry.FieldAccountType)
 	}
@@ -57369,6 +64440,12 @@ func (m *EsportsLedgerEntryMutation) Fields() []string {
 	}
 	if m.delta_cents != nil {
 		fields = append(fields, esportsledgerentry.FieldDeltaCents)
+	}
+	if m.principal_delta_cents != nil {
+		fields = append(fields, esportsledgerentry.FieldPrincipalDeltaCents)
+	}
+	if m.bonus_delta_cents != nil {
+		fields = append(fields, esportsledgerentry.FieldBonusDeltaCents)
 	}
 	if m.fund_batch != nil {
 		fields = append(fields, esportsledgerentry.FieldFundBatch)
@@ -57396,6 +64473,10 @@ func (m *EsportsLedgerEntryMutation) Field(name string) (ent.Value, bool) {
 		return m.EntryRole()
 	case esportsledgerentry.FieldDeltaCents:
 		return m.DeltaCents()
+	case esportsledgerentry.FieldPrincipalDeltaCents:
+		return m.PrincipalDeltaCents()
+	case esportsledgerentry.FieldBonusDeltaCents:
+		return m.BonusDeltaCents()
 	case esportsledgerentry.FieldFundBatch:
 		return m.FundBatch()
 	case esportsledgerentry.FieldCreatedAt:
@@ -57421,6 +64502,10 @@ func (m *EsportsLedgerEntryMutation) OldField(ctx context.Context, name string) 
 		return m.OldEntryRole(ctx)
 	case esportsledgerentry.FieldDeltaCents:
 		return m.OldDeltaCents(ctx)
+	case esportsledgerentry.FieldPrincipalDeltaCents:
+		return m.OldPrincipalDeltaCents(ctx)
+	case esportsledgerentry.FieldBonusDeltaCents:
+		return m.OldBonusDeltaCents(ctx)
 	case esportsledgerentry.FieldFundBatch:
 		return m.OldFundBatch(ctx)
 	case esportsledgerentry.FieldCreatedAt:
@@ -57476,6 +64561,20 @@ func (m *EsportsLedgerEntryMutation) SetField(name string, value ent.Value) erro
 		}
 		m.SetDeltaCents(v)
 		return nil
+	case esportsledgerentry.FieldPrincipalDeltaCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrincipalDeltaCents(v)
+		return nil
+	case esportsledgerentry.FieldBonusDeltaCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBonusDeltaCents(v)
+		return nil
 	case esportsledgerentry.FieldFundBatch:
 		v, ok := value.(string)
 		if !ok {
@@ -57501,6 +64600,12 @@ func (m *EsportsLedgerEntryMutation) AddedFields() []string {
 	if m.adddelta_cents != nil {
 		fields = append(fields, esportsledgerentry.FieldDeltaCents)
 	}
+	if m.addprincipal_delta_cents != nil {
+		fields = append(fields, esportsledgerentry.FieldPrincipalDeltaCents)
+	}
+	if m.addbonus_delta_cents != nil {
+		fields = append(fields, esportsledgerentry.FieldBonusDeltaCents)
+	}
 	return fields
 }
 
@@ -57511,6 +64616,10 @@ func (m *EsportsLedgerEntryMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case esportsledgerentry.FieldDeltaCents:
 		return m.AddedDeltaCents()
+	case esportsledgerentry.FieldPrincipalDeltaCents:
+		return m.AddedPrincipalDeltaCents()
+	case esportsledgerentry.FieldBonusDeltaCents:
+		return m.AddedBonusDeltaCents()
 	}
 	return nil, false
 }
@@ -57526,6 +64635,20 @@ func (m *EsportsLedgerEntryMutation) AddField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddDeltaCents(v)
+		return nil
+	case esportsledgerentry.FieldPrincipalDeltaCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPrincipalDeltaCents(v)
+		return nil
+	case esportsledgerentry.FieldBonusDeltaCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBonusDeltaCents(v)
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsLedgerEntry numeric field %s", name)
@@ -57571,6 +64694,12 @@ func (m *EsportsLedgerEntryMutation) ResetField(name string) error {
 		return nil
 	case esportsledgerentry.FieldDeltaCents:
 		m.ResetDeltaCents()
+		return nil
+	case esportsledgerentry.FieldPrincipalDeltaCents:
+		m.ResetPrincipalDeltaCents()
+		return nil
+	case esportsledgerentry.FieldBonusDeltaCents:
+		m.ResetBonusDeltaCents()
 		return nil
 	case esportsledgerentry.FieldFundBatch:
 		m.ResetFundBatch()
@@ -58244,31 +65373,33 @@ func (m *EsportsMemberLevelOverrideMutation) ResetEdge(name string) error {
 // EsportsMemberLevelRuleMutation represents an operation that mutates the EsportsMemberLevelRule nodes in the graph.
 type EsportsMemberLevelRuleMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	code                *string
-	name                *string
-	growth_threshold    *int64
-	addgrowth_threshold *int64
-	discount_bps        *int
-	adddiscount_bps     *int
-	priority_dispatch   *bool
-	prepay_bonus_bps    *int
-	addprepay_bonus_bps *int
-	dedicated_cs        *bool
-	priority_booking    *bool
-	sort_order          *int
-	addsort_order       *int
-	status              *esportsmemberlevelrule.Status
-	version             *int
-	addversion          *int
-	created_at          *time.Time
-	updated_at          *time.Time
-	clearedFields       map[string]struct{}
-	done                bool
-	oldValue            func(context.Context) (*EsportsMemberLevelRule, error)
-	predicates          []predicate.EsportsMemberLevelRule
+	op                     Op
+	typ                    string
+	id                     *int
+	code                   *string
+	name                   *string
+	growth_threshold       *int64
+	addgrowth_threshold    *int64
+	discount_bps           *int
+	adddiscount_bps        *int
+	priority_dispatch      *bool
+	prepay_bonus_bps       *int
+	addprepay_bonus_bps    *int
+	dedicated_cs           *bool
+	priority_booking       *bool
+	dedicated_channel      *bool
+	offline_event_priority *bool
+	sort_order             *int
+	addsort_order          *int
+	status                 *esportsmemberlevelrule.Status
+	version                *int
+	addversion             *int
+	created_at             *time.Time
+	updated_at             *time.Time
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*EsportsMemberLevelRule, error)
+	predicates             []predicate.EsportsMemberLevelRule
 }
 
 var _ ent.Mutation = (*EsportsMemberLevelRuleMutation)(nil)
@@ -58717,6 +65848,78 @@ func (m *EsportsMemberLevelRuleMutation) ResetPriorityBooking() {
 	m.priority_booking = nil
 }
 
+// SetDedicatedChannel sets the "dedicated_channel" field.
+func (m *EsportsMemberLevelRuleMutation) SetDedicatedChannel(b bool) {
+	m.dedicated_channel = &b
+}
+
+// DedicatedChannel returns the value of the "dedicated_channel" field in the mutation.
+func (m *EsportsMemberLevelRuleMutation) DedicatedChannel() (r bool, exists bool) {
+	v := m.dedicated_channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedicatedChannel returns the old "dedicated_channel" field's value of the EsportsMemberLevelRule entity.
+// If the EsportsMemberLevelRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsMemberLevelRuleMutation) OldDedicatedChannel(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedicatedChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedicatedChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedicatedChannel: %w", err)
+	}
+	return oldValue.DedicatedChannel, nil
+}
+
+// ResetDedicatedChannel resets all changes to the "dedicated_channel" field.
+func (m *EsportsMemberLevelRuleMutation) ResetDedicatedChannel() {
+	m.dedicated_channel = nil
+}
+
+// SetOfflineEventPriority sets the "offline_event_priority" field.
+func (m *EsportsMemberLevelRuleMutation) SetOfflineEventPriority(b bool) {
+	m.offline_event_priority = &b
+}
+
+// OfflineEventPriority returns the value of the "offline_event_priority" field in the mutation.
+func (m *EsportsMemberLevelRuleMutation) OfflineEventPriority() (r bool, exists bool) {
+	v := m.offline_event_priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOfflineEventPriority returns the old "offline_event_priority" field's value of the EsportsMemberLevelRule entity.
+// If the EsportsMemberLevelRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsMemberLevelRuleMutation) OldOfflineEventPriority(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOfflineEventPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOfflineEventPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOfflineEventPriority: %w", err)
+	}
+	return oldValue.OfflineEventPriority, nil
+}
+
+// ResetOfflineEventPriority resets all changes to the "offline_event_priority" field.
+func (m *EsportsMemberLevelRuleMutation) ResetOfflineEventPriority() {
+	m.offline_event_priority = nil
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (m *EsportsMemberLevelRuleMutation) SetSortOrder(i int) {
 	m.sort_order = &i
@@ -58971,7 +66174,7 @@ func (m *EsportsMemberLevelRuleMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsMemberLevelRuleMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 15)
 	if m.code != nil {
 		fields = append(fields, esportsmemberlevelrule.FieldCode)
 	}
@@ -58995,6 +66198,12 @@ func (m *EsportsMemberLevelRuleMutation) Fields() []string {
 	}
 	if m.priority_booking != nil {
 		fields = append(fields, esportsmemberlevelrule.FieldPriorityBooking)
+	}
+	if m.dedicated_channel != nil {
+		fields = append(fields, esportsmemberlevelrule.FieldDedicatedChannel)
+	}
+	if m.offline_event_priority != nil {
+		fields = append(fields, esportsmemberlevelrule.FieldOfflineEventPriority)
 	}
 	if m.sort_order != nil {
 		fields = append(fields, esportsmemberlevelrule.FieldSortOrder)
@@ -59035,6 +66244,10 @@ func (m *EsportsMemberLevelRuleMutation) Field(name string) (ent.Value, bool) {
 		return m.DedicatedCs()
 	case esportsmemberlevelrule.FieldPriorityBooking:
 		return m.PriorityBooking()
+	case esportsmemberlevelrule.FieldDedicatedChannel:
+		return m.DedicatedChannel()
+	case esportsmemberlevelrule.FieldOfflineEventPriority:
+		return m.OfflineEventPriority()
 	case esportsmemberlevelrule.FieldSortOrder:
 		return m.SortOrder()
 	case esportsmemberlevelrule.FieldStatus:
@@ -59070,6 +66283,10 @@ func (m *EsportsMemberLevelRuleMutation) OldField(ctx context.Context, name stri
 		return m.OldDedicatedCs(ctx)
 	case esportsmemberlevelrule.FieldPriorityBooking:
 		return m.OldPriorityBooking(ctx)
+	case esportsmemberlevelrule.FieldDedicatedChannel:
+		return m.OldDedicatedChannel(ctx)
+	case esportsmemberlevelrule.FieldOfflineEventPriority:
+		return m.OldOfflineEventPriority(ctx)
 	case esportsmemberlevelrule.FieldSortOrder:
 		return m.OldSortOrder(ctx)
 	case esportsmemberlevelrule.FieldStatus:
@@ -59144,6 +66361,20 @@ func (m *EsportsMemberLevelRuleMutation) SetField(name string, value ent.Value) 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPriorityBooking(v)
+		return nil
+	case esportsmemberlevelrule.FieldDedicatedChannel:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedicatedChannel(v)
+		return nil
+	case esportsmemberlevelrule.FieldOfflineEventPriority:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOfflineEventPriority(v)
 		return nil
 	case esportsmemberlevelrule.FieldSortOrder:
 		v, ok := value.(int)
@@ -59315,6 +66546,12 @@ func (m *EsportsMemberLevelRuleMutation) ResetField(name string) error {
 		return nil
 	case esportsmemberlevelrule.FieldPriorityBooking:
 		m.ResetPriorityBooking()
+		return nil
+	case esportsmemberlevelrule.FieldDedicatedChannel:
+		m.ResetDedicatedChannel()
+		return nil
+	case esportsmemberlevelrule.FieldOfflineEventPriority:
+		m.ResetOfflineEventPriority()
 		return nil
 	case esportsmemberlevelrule.FieldSortOrder:
 		m.ResetSortOrder()
@@ -60987,6 +68224,9 @@ type EsportsOrderMutation struct {
 	addcustomer_id                            *int
 	sku_id                                    *int
 	addsku_id                                 *int
+	sku_code                                  *string
+	sku_name                                  *string
+	spec_name                                 *string
 	created_by_admin_id                       *int
 	addcreated_by_admin_id                    *int
 	responsible_admin_id                      *int
@@ -61018,10 +68258,15 @@ type EsportsOrderMutation struct {
 	adddiscount_cents                         *int64
 	manual_adjust_cents                       *int64
 	addmanual_adjust_cents                    *int64
+	member_level_code                         *string
+	member_discount_bps                       *int
+	addmember_discount_bps                    *int
 	payable_cents                             *int64
 	addpayable_cents                          *int64
 	promised_service_units                    *int64
 	addpromised_service_units                 *int64
+	per_seat_service_units                    *int64
+	addper_seat_service_units                 *int64
 	service_duration_minutes                  *int
 	addservice_duration_minutes               *int
 	addon_cents                               *int64
@@ -61046,10 +68291,15 @@ type EsportsOrderMutation struct {
 	priority_notice_until                     *time.Time
 	priority_game                             *string
 	priority_release_reason                   *string
+	remind_priority_level                     *int
+	addremind_priority_level                  *int
+	remind_note                               *string
+	reminded_at                               *time.Time
 	first_pooled_at                           *time.Time
 	first_invited_at                          *time.Time
 	first_accepted_at                         *time.Time
 	service_started_at                        *time.Time
+	ready_to_start_at                         *time.Time
 	priority_released_at                      *time.Time
 	preferred_player_id                       *int
 	addpreferred_player_id                    *int
@@ -61065,6 +68315,7 @@ type EsportsOrderMutation struct {
 	appointment_status                        *esportsorder.AppointmentStatus
 	requested_start_at                        *time.Time
 	appointment_confirmation_deadline         *time.Time
+	appointment_suspended_at                  *time.Time
 	payment_deadline                          *time.Time
 	paid_at                                   *time.Time
 	closed_at                                 *time.Time
@@ -61332,6 +68583,114 @@ func (m *EsportsOrderMutation) AddedSkuID() (r int, exists bool) {
 func (m *EsportsOrderMutation) ResetSkuID() {
 	m.sku_id = nil
 	m.addsku_id = nil
+}
+
+// SetSkuCode sets the "sku_code" field.
+func (m *EsportsOrderMutation) SetSkuCode(s string) {
+	m.sku_code = &s
+}
+
+// SkuCode returns the value of the "sku_code" field in the mutation.
+func (m *EsportsOrderMutation) SkuCode() (r string, exists bool) {
+	v := m.sku_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSkuCode returns the old "sku_code" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldSkuCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSkuCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSkuCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSkuCode: %w", err)
+	}
+	return oldValue.SkuCode, nil
+}
+
+// ResetSkuCode resets all changes to the "sku_code" field.
+func (m *EsportsOrderMutation) ResetSkuCode() {
+	m.sku_code = nil
+}
+
+// SetSkuName sets the "sku_name" field.
+func (m *EsportsOrderMutation) SetSkuName(s string) {
+	m.sku_name = &s
+}
+
+// SkuName returns the value of the "sku_name" field in the mutation.
+func (m *EsportsOrderMutation) SkuName() (r string, exists bool) {
+	v := m.sku_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSkuName returns the old "sku_name" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldSkuName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSkuName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSkuName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSkuName: %w", err)
+	}
+	return oldValue.SkuName, nil
+}
+
+// ResetSkuName resets all changes to the "sku_name" field.
+func (m *EsportsOrderMutation) ResetSkuName() {
+	m.sku_name = nil
+}
+
+// SetSpecName sets the "spec_name" field.
+func (m *EsportsOrderMutation) SetSpecName(s string) {
+	m.spec_name = &s
+}
+
+// SpecName returns the value of the "spec_name" field in the mutation.
+func (m *EsportsOrderMutation) SpecName() (r string, exists bool) {
+	v := m.spec_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSpecName returns the old "spec_name" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldSpecName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSpecName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSpecName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSpecName: %w", err)
+	}
+	return oldValue.SpecName, nil
+}
+
+// ResetSpecName resets all changes to the "spec_name" field.
+func (m *EsportsOrderMutation) ResetSpecName() {
+	m.spec_name = nil
 }
 
 // SetCreatedByAdminID sets the "created_by_admin_id" field.
@@ -62379,6 +69738,98 @@ func (m *EsportsOrderMutation) ResetManualAdjustCents() {
 	m.addmanual_adjust_cents = nil
 }
 
+// SetMemberLevelCode sets the "member_level_code" field.
+func (m *EsportsOrderMutation) SetMemberLevelCode(s string) {
+	m.member_level_code = &s
+}
+
+// MemberLevelCode returns the value of the "member_level_code" field in the mutation.
+func (m *EsportsOrderMutation) MemberLevelCode() (r string, exists bool) {
+	v := m.member_level_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMemberLevelCode returns the old "member_level_code" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldMemberLevelCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMemberLevelCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMemberLevelCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMemberLevelCode: %w", err)
+	}
+	return oldValue.MemberLevelCode, nil
+}
+
+// ResetMemberLevelCode resets all changes to the "member_level_code" field.
+func (m *EsportsOrderMutation) ResetMemberLevelCode() {
+	m.member_level_code = nil
+}
+
+// SetMemberDiscountBps sets the "member_discount_bps" field.
+func (m *EsportsOrderMutation) SetMemberDiscountBps(i int) {
+	m.member_discount_bps = &i
+	m.addmember_discount_bps = nil
+}
+
+// MemberDiscountBps returns the value of the "member_discount_bps" field in the mutation.
+func (m *EsportsOrderMutation) MemberDiscountBps() (r int, exists bool) {
+	v := m.member_discount_bps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMemberDiscountBps returns the old "member_discount_bps" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldMemberDiscountBps(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMemberDiscountBps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMemberDiscountBps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMemberDiscountBps: %w", err)
+	}
+	return oldValue.MemberDiscountBps, nil
+}
+
+// AddMemberDiscountBps adds i to the "member_discount_bps" field.
+func (m *EsportsOrderMutation) AddMemberDiscountBps(i int) {
+	if m.addmember_discount_bps != nil {
+		*m.addmember_discount_bps += i
+	} else {
+		m.addmember_discount_bps = &i
+	}
+}
+
+// AddedMemberDiscountBps returns the value that was added to the "member_discount_bps" field in this mutation.
+func (m *EsportsOrderMutation) AddedMemberDiscountBps() (r int, exists bool) {
+	v := m.addmember_discount_bps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMemberDiscountBps resets all changes to the "member_discount_bps" field.
+func (m *EsportsOrderMutation) ResetMemberDiscountBps() {
+	m.member_discount_bps = nil
+	m.addmember_discount_bps = nil
+}
+
 // SetPayableCents sets the "payable_cents" field.
 func (m *EsportsOrderMutation) SetPayableCents(i int64) {
 	m.payable_cents = &i
@@ -62489,6 +69940,62 @@ func (m *EsportsOrderMutation) AddedPromisedServiceUnits() (r int64, exists bool
 func (m *EsportsOrderMutation) ResetPromisedServiceUnits() {
 	m.promised_service_units = nil
 	m.addpromised_service_units = nil
+}
+
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (m *EsportsOrderMutation) SetPerSeatServiceUnits(i int64) {
+	m.per_seat_service_units = &i
+	m.addper_seat_service_units = nil
+}
+
+// PerSeatServiceUnits returns the value of the "per_seat_service_units" field in the mutation.
+func (m *EsportsOrderMutation) PerSeatServiceUnits() (r int64, exists bool) {
+	v := m.per_seat_service_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPerSeatServiceUnits returns the old "per_seat_service_units" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldPerSeatServiceUnits(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPerSeatServiceUnits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPerSeatServiceUnits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPerSeatServiceUnits: %w", err)
+	}
+	return oldValue.PerSeatServiceUnits, nil
+}
+
+// AddPerSeatServiceUnits adds i to the "per_seat_service_units" field.
+func (m *EsportsOrderMutation) AddPerSeatServiceUnits(i int64) {
+	if m.addper_seat_service_units != nil {
+		*m.addper_seat_service_units += i
+	} else {
+		m.addper_seat_service_units = &i
+	}
+}
+
+// AddedPerSeatServiceUnits returns the value that was added to the "per_seat_service_units" field in this mutation.
+func (m *EsportsOrderMutation) AddedPerSeatServiceUnits() (r int64, exists bool) {
+	v := m.addper_seat_service_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPerSeatServiceUnits resets all changes to the "per_seat_service_units" field.
+func (m *EsportsOrderMutation) ResetPerSeatServiceUnits() {
+	m.per_seat_service_units = nil
+	m.addper_seat_service_units = nil
 }
 
 // SetServiceDurationMinutes sets the "service_duration_minutes" field.
@@ -63263,6 +70770,147 @@ func (m *EsportsOrderMutation) ResetPriorityReleaseReason() {
 	m.priority_release_reason = nil
 }
 
+// SetRemindPriorityLevel sets the "remind_priority_level" field.
+func (m *EsportsOrderMutation) SetRemindPriorityLevel(i int) {
+	m.remind_priority_level = &i
+	m.addremind_priority_level = nil
+}
+
+// RemindPriorityLevel returns the value of the "remind_priority_level" field in the mutation.
+func (m *EsportsOrderMutation) RemindPriorityLevel() (r int, exists bool) {
+	v := m.remind_priority_level
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemindPriorityLevel returns the old "remind_priority_level" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldRemindPriorityLevel(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemindPriorityLevel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemindPriorityLevel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemindPriorityLevel: %w", err)
+	}
+	return oldValue.RemindPriorityLevel, nil
+}
+
+// AddRemindPriorityLevel adds i to the "remind_priority_level" field.
+func (m *EsportsOrderMutation) AddRemindPriorityLevel(i int) {
+	if m.addremind_priority_level != nil {
+		*m.addremind_priority_level += i
+	} else {
+		m.addremind_priority_level = &i
+	}
+}
+
+// AddedRemindPriorityLevel returns the value that was added to the "remind_priority_level" field in this mutation.
+func (m *EsportsOrderMutation) AddedRemindPriorityLevel() (r int, exists bool) {
+	v := m.addremind_priority_level
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRemindPriorityLevel resets all changes to the "remind_priority_level" field.
+func (m *EsportsOrderMutation) ResetRemindPriorityLevel() {
+	m.remind_priority_level = nil
+	m.addremind_priority_level = nil
+}
+
+// SetRemindNote sets the "remind_note" field.
+func (m *EsportsOrderMutation) SetRemindNote(s string) {
+	m.remind_note = &s
+}
+
+// RemindNote returns the value of the "remind_note" field in the mutation.
+func (m *EsportsOrderMutation) RemindNote() (r string, exists bool) {
+	v := m.remind_note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemindNote returns the old "remind_note" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldRemindNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemindNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemindNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemindNote: %w", err)
+	}
+	return oldValue.RemindNote, nil
+}
+
+// ResetRemindNote resets all changes to the "remind_note" field.
+func (m *EsportsOrderMutation) ResetRemindNote() {
+	m.remind_note = nil
+}
+
+// SetRemindedAt sets the "reminded_at" field.
+func (m *EsportsOrderMutation) SetRemindedAt(t time.Time) {
+	m.reminded_at = &t
+}
+
+// RemindedAt returns the value of the "reminded_at" field in the mutation.
+func (m *EsportsOrderMutation) RemindedAt() (r time.Time, exists bool) {
+	v := m.reminded_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRemindedAt returns the old "reminded_at" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldRemindedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRemindedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRemindedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRemindedAt: %w", err)
+	}
+	return oldValue.RemindedAt, nil
+}
+
+// ClearRemindedAt clears the value of the "reminded_at" field.
+func (m *EsportsOrderMutation) ClearRemindedAt() {
+	m.reminded_at = nil
+	m.clearedFields[esportsorder.FieldRemindedAt] = struct{}{}
+}
+
+// RemindedAtCleared returns if the "reminded_at" field was cleared in this mutation.
+func (m *EsportsOrderMutation) RemindedAtCleared() bool {
+	_, ok := m.clearedFields[esportsorder.FieldRemindedAt]
+	return ok
+}
+
+// ResetRemindedAt resets all changes to the "reminded_at" field.
+func (m *EsportsOrderMutation) ResetRemindedAt() {
+	m.reminded_at = nil
+	delete(m.clearedFields, esportsorder.FieldRemindedAt)
+}
+
 // SetFirstPooledAt sets the "first_pooled_at" field.
 func (m *EsportsOrderMutation) SetFirstPooledAt(t time.Time) {
 	m.first_pooled_at = &t
@@ -63457,6 +71105,55 @@ func (m *EsportsOrderMutation) ServiceStartedAtCleared() bool {
 func (m *EsportsOrderMutation) ResetServiceStartedAt() {
 	m.service_started_at = nil
 	delete(m.clearedFields, esportsorder.FieldServiceStartedAt)
+}
+
+// SetReadyToStartAt sets the "ready_to_start_at" field.
+func (m *EsportsOrderMutation) SetReadyToStartAt(t time.Time) {
+	m.ready_to_start_at = &t
+}
+
+// ReadyToStartAt returns the value of the "ready_to_start_at" field in the mutation.
+func (m *EsportsOrderMutation) ReadyToStartAt() (r time.Time, exists bool) {
+	v := m.ready_to_start_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReadyToStartAt returns the old "ready_to_start_at" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldReadyToStartAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReadyToStartAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReadyToStartAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReadyToStartAt: %w", err)
+	}
+	return oldValue.ReadyToStartAt, nil
+}
+
+// ClearReadyToStartAt clears the value of the "ready_to_start_at" field.
+func (m *EsportsOrderMutation) ClearReadyToStartAt() {
+	m.ready_to_start_at = nil
+	m.clearedFields[esportsorder.FieldReadyToStartAt] = struct{}{}
+}
+
+// ReadyToStartAtCleared returns if the "ready_to_start_at" field was cleared in this mutation.
+func (m *EsportsOrderMutation) ReadyToStartAtCleared() bool {
+	_, ok := m.clearedFields[esportsorder.FieldReadyToStartAt]
+	return ok
+}
+
+// ResetReadyToStartAt resets all changes to the "ready_to_start_at" field.
+func (m *EsportsOrderMutation) ResetReadyToStartAt() {
+	m.ready_to_start_at = nil
+	delete(m.clearedFields, esportsorder.FieldReadyToStartAt)
 }
 
 // SetPriorityReleasedAt sets the "priority_released_at" field.
@@ -63984,6 +71681,55 @@ func (m *EsportsOrderMutation) AppointmentConfirmationDeadlineCleared() bool {
 func (m *EsportsOrderMutation) ResetAppointmentConfirmationDeadline() {
 	m.appointment_confirmation_deadline = nil
 	delete(m.clearedFields, esportsorder.FieldAppointmentConfirmationDeadline)
+}
+
+// SetAppointmentSuspendedAt sets the "appointment_suspended_at" field.
+func (m *EsportsOrderMutation) SetAppointmentSuspendedAt(t time.Time) {
+	m.appointment_suspended_at = &t
+}
+
+// AppointmentSuspendedAt returns the value of the "appointment_suspended_at" field in the mutation.
+func (m *EsportsOrderMutation) AppointmentSuspendedAt() (r time.Time, exists bool) {
+	v := m.appointment_suspended_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppointmentSuspendedAt returns the old "appointment_suspended_at" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldAppointmentSuspendedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppointmentSuspendedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppointmentSuspendedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppointmentSuspendedAt: %w", err)
+	}
+	return oldValue.AppointmentSuspendedAt, nil
+}
+
+// ClearAppointmentSuspendedAt clears the value of the "appointment_suspended_at" field.
+func (m *EsportsOrderMutation) ClearAppointmentSuspendedAt() {
+	m.appointment_suspended_at = nil
+	m.clearedFields[esportsorder.FieldAppointmentSuspendedAt] = struct{}{}
+}
+
+// AppointmentSuspendedAtCleared returns if the "appointment_suspended_at" field was cleared in this mutation.
+func (m *EsportsOrderMutation) AppointmentSuspendedAtCleared() bool {
+	_, ok := m.clearedFields[esportsorder.FieldAppointmentSuspendedAt]
+	return ok
+}
+
+// ResetAppointmentSuspendedAt resets all changes to the "appointment_suspended_at" field.
+func (m *EsportsOrderMutation) ResetAppointmentSuspendedAt() {
+	m.appointment_suspended_at = nil
+	delete(m.clearedFields, esportsorder.FieldAppointmentSuspendedAt)
 }
 
 // SetPaymentDeadline sets the "payment_deadline" field.
@@ -64626,7 +72372,7 @@ func (m *EsportsOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsOrderMutation) Fields() []string {
-	fields := make([]string, 0, 65)
+	fields := make([]string, 0, 76)
 	if m.order_no != nil {
 		fields = append(fields, esportsorder.FieldOrderNo)
 	}
@@ -64635,6 +72381,15 @@ func (m *EsportsOrderMutation) Fields() []string {
 	}
 	if m.sku_id != nil {
 		fields = append(fields, esportsorder.FieldSkuID)
+	}
+	if m.sku_code != nil {
+		fields = append(fields, esportsorder.FieldSkuCode)
+	}
+	if m.sku_name != nil {
+		fields = append(fields, esportsorder.FieldSkuName)
+	}
+	if m.spec_name != nil {
+		fields = append(fields, esportsorder.FieldSpecName)
 	}
 	if m.created_by_admin_id != nil {
 		fields = append(fields, esportsorder.FieldCreatedByAdminID)
@@ -64690,11 +72445,20 @@ func (m *EsportsOrderMutation) Fields() []string {
 	if m.manual_adjust_cents != nil {
 		fields = append(fields, esportsorder.FieldManualAdjustCents)
 	}
+	if m.member_level_code != nil {
+		fields = append(fields, esportsorder.FieldMemberLevelCode)
+	}
+	if m.member_discount_bps != nil {
+		fields = append(fields, esportsorder.FieldMemberDiscountBps)
+	}
 	if m.payable_cents != nil {
 		fields = append(fields, esportsorder.FieldPayableCents)
 	}
 	if m.promised_service_units != nil {
 		fields = append(fields, esportsorder.FieldPromisedServiceUnits)
+	}
+	if m.per_seat_service_units != nil {
+		fields = append(fields, esportsorder.FieldPerSeatServiceUnits)
 	}
 	if m.service_duration_minutes != nil {
 		fields = append(fields, esportsorder.FieldServiceDurationMinutes)
@@ -64744,6 +72508,15 @@ func (m *EsportsOrderMutation) Fields() []string {
 	if m.priority_release_reason != nil {
 		fields = append(fields, esportsorder.FieldPriorityReleaseReason)
 	}
+	if m.remind_priority_level != nil {
+		fields = append(fields, esportsorder.FieldRemindPriorityLevel)
+	}
+	if m.remind_note != nil {
+		fields = append(fields, esportsorder.FieldRemindNote)
+	}
+	if m.reminded_at != nil {
+		fields = append(fields, esportsorder.FieldRemindedAt)
+	}
 	if m.first_pooled_at != nil {
 		fields = append(fields, esportsorder.FieldFirstPooledAt)
 	}
@@ -64755,6 +72528,9 @@ func (m *EsportsOrderMutation) Fields() []string {
 	}
 	if m.service_started_at != nil {
 		fields = append(fields, esportsorder.FieldServiceStartedAt)
+	}
+	if m.ready_to_start_at != nil {
+		fields = append(fields, esportsorder.FieldReadyToStartAt)
 	}
 	if m.priority_released_at != nil {
 		fields = append(fields, esportsorder.FieldPriorityReleasedAt)
@@ -64785,6 +72561,9 @@ func (m *EsportsOrderMutation) Fields() []string {
 	}
 	if m.appointment_confirmation_deadline != nil {
 		fields = append(fields, esportsorder.FieldAppointmentConfirmationDeadline)
+	}
+	if m.appointment_suspended_at != nil {
+		fields = append(fields, esportsorder.FieldAppointmentSuspendedAt)
 	}
 	if m.payment_deadline != nil {
 		fields = append(fields, esportsorder.FieldPaymentDeadline)
@@ -64836,6 +72615,12 @@ func (m *EsportsOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.CustomerID()
 	case esportsorder.FieldSkuID:
 		return m.SkuID()
+	case esportsorder.FieldSkuCode:
+		return m.SkuCode()
+	case esportsorder.FieldSkuName:
+		return m.SkuName()
+	case esportsorder.FieldSpecName:
+		return m.SpecName()
 	case esportsorder.FieldCreatedByAdminID:
 		return m.CreatedByAdminID()
 	case esportsorder.FieldResponsibleAdminID:
@@ -64872,10 +72657,16 @@ func (m *EsportsOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.DiscountCents()
 	case esportsorder.FieldManualAdjustCents:
 		return m.ManualAdjustCents()
+	case esportsorder.FieldMemberLevelCode:
+		return m.MemberLevelCode()
+	case esportsorder.FieldMemberDiscountBps:
+		return m.MemberDiscountBps()
 	case esportsorder.FieldPayableCents:
 		return m.PayableCents()
 	case esportsorder.FieldPromisedServiceUnits:
 		return m.PromisedServiceUnits()
+	case esportsorder.FieldPerSeatServiceUnits:
+		return m.PerSeatServiceUnits()
 	case esportsorder.FieldServiceDurationMinutes:
 		return m.ServiceDurationMinutes()
 	case esportsorder.FieldAddonCents:
@@ -64908,6 +72699,12 @@ func (m *EsportsOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.PriorityGame()
 	case esportsorder.FieldPriorityReleaseReason:
 		return m.PriorityReleaseReason()
+	case esportsorder.FieldRemindPriorityLevel:
+		return m.RemindPriorityLevel()
+	case esportsorder.FieldRemindNote:
+		return m.RemindNote()
+	case esportsorder.FieldRemindedAt:
+		return m.RemindedAt()
 	case esportsorder.FieldFirstPooledAt:
 		return m.FirstPooledAt()
 	case esportsorder.FieldFirstInvitedAt:
@@ -64916,6 +72713,8 @@ func (m *EsportsOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.FirstAcceptedAt()
 	case esportsorder.FieldServiceStartedAt:
 		return m.ServiceStartedAt()
+	case esportsorder.FieldReadyToStartAt:
+		return m.ReadyToStartAt()
 	case esportsorder.FieldPriorityReleasedAt:
 		return m.PriorityReleasedAt()
 	case esportsorder.FieldPreferredPlayerID:
@@ -64936,6 +72735,8 @@ func (m *EsportsOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.RequestedStartAt()
 	case esportsorder.FieldAppointmentConfirmationDeadline:
 		return m.AppointmentConfirmationDeadline()
+	case esportsorder.FieldAppointmentSuspendedAt:
+		return m.AppointmentSuspendedAt()
 	case esportsorder.FieldPaymentDeadline:
 		return m.PaymentDeadline()
 	case esportsorder.FieldPaidAt:
@@ -64975,6 +72776,12 @@ func (m *EsportsOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCustomerID(ctx)
 	case esportsorder.FieldSkuID:
 		return m.OldSkuID(ctx)
+	case esportsorder.FieldSkuCode:
+		return m.OldSkuCode(ctx)
+	case esportsorder.FieldSkuName:
+		return m.OldSkuName(ctx)
+	case esportsorder.FieldSpecName:
+		return m.OldSpecName(ctx)
 	case esportsorder.FieldCreatedByAdminID:
 		return m.OldCreatedByAdminID(ctx)
 	case esportsorder.FieldResponsibleAdminID:
@@ -65011,10 +72818,16 @@ func (m *EsportsOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldDiscountCents(ctx)
 	case esportsorder.FieldManualAdjustCents:
 		return m.OldManualAdjustCents(ctx)
+	case esportsorder.FieldMemberLevelCode:
+		return m.OldMemberLevelCode(ctx)
+	case esportsorder.FieldMemberDiscountBps:
+		return m.OldMemberDiscountBps(ctx)
 	case esportsorder.FieldPayableCents:
 		return m.OldPayableCents(ctx)
 	case esportsorder.FieldPromisedServiceUnits:
 		return m.OldPromisedServiceUnits(ctx)
+	case esportsorder.FieldPerSeatServiceUnits:
+		return m.OldPerSeatServiceUnits(ctx)
 	case esportsorder.FieldServiceDurationMinutes:
 		return m.OldServiceDurationMinutes(ctx)
 	case esportsorder.FieldAddonCents:
@@ -65047,6 +72860,12 @@ func (m *EsportsOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldPriorityGame(ctx)
 	case esportsorder.FieldPriorityReleaseReason:
 		return m.OldPriorityReleaseReason(ctx)
+	case esportsorder.FieldRemindPriorityLevel:
+		return m.OldRemindPriorityLevel(ctx)
+	case esportsorder.FieldRemindNote:
+		return m.OldRemindNote(ctx)
+	case esportsorder.FieldRemindedAt:
+		return m.OldRemindedAt(ctx)
 	case esportsorder.FieldFirstPooledAt:
 		return m.OldFirstPooledAt(ctx)
 	case esportsorder.FieldFirstInvitedAt:
@@ -65055,6 +72874,8 @@ func (m *EsportsOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldFirstAcceptedAt(ctx)
 	case esportsorder.FieldServiceStartedAt:
 		return m.OldServiceStartedAt(ctx)
+	case esportsorder.FieldReadyToStartAt:
+		return m.OldReadyToStartAt(ctx)
 	case esportsorder.FieldPriorityReleasedAt:
 		return m.OldPriorityReleasedAt(ctx)
 	case esportsorder.FieldPreferredPlayerID:
@@ -65075,6 +72896,8 @@ func (m *EsportsOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldRequestedStartAt(ctx)
 	case esportsorder.FieldAppointmentConfirmationDeadline:
 		return m.OldAppointmentConfirmationDeadline(ctx)
+	case esportsorder.FieldAppointmentSuspendedAt:
+		return m.OldAppointmentSuspendedAt(ctx)
 	case esportsorder.FieldPaymentDeadline:
 		return m.OldPaymentDeadline(ctx)
 	case esportsorder.FieldPaidAt:
@@ -65128,6 +72951,27 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSkuID(v)
+		return nil
+	case esportsorder.FieldSkuCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSkuCode(v)
+		return nil
+	case esportsorder.FieldSkuName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSkuName(v)
+		return nil
+	case esportsorder.FieldSpecName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSpecName(v)
 		return nil
 	case esportsorder.FieldCreatedByAdminID:
 		v, ok := value.(int)
@@ -65255,6 +73099,20 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetManualAdjustCents(v)
 		return nil
+	case esportsorder.FieldMemberLevelCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMemberLevelCode(v)
+		return nil
+	case esportsorder.FieldMemberDiscountBps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMemberDiscountBps(v)
+		return nil
 	case esportsorder.FieldPayableCents:
 		v, ok := value.(int64)
 		if !ok {
@@ -65268,6 +73126,13 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPromisedServiceUnits(v)
+		return nil
+	case esportsorder.FieldPerSeatServiceUnits:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPerSeatServiceUnits(v)
 		return nil
 	case esportsorder.FieldServiceDurationMinutes:
 		v, ok := value.(int)
@@ -65381,6 +73246,27 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetPriorityReleaseReason(v)
 		return nil
+	case esportsorder.FieldRemindPriorityLevel:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemindPriorityLevel(v)
+		return nil
+	case esportsorder.FieldRemindNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemindNote(v)
+		return nil
+	case esportsorder.FieldRemindedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRemindedAt(v)
+		return nil
 	case esportsorder.FieldFirstPooledAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -65408,6 +73294,13 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetServiceStartedAt(v)
+		return nil
+	case esportsorder.FieldReadyToStartAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReadyToStartAt(v)
 		return nil
 	case esportsorder.FieldPriorityReleasedAt:
 		v, ok := value.(time.Time)
@@ -65478,6 +73371,13 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAppointmentConfirmationDeadline(v)
+		return nil
+	case esportsorder.FieldAppointmentSuspendedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppointmentSuspendedAt(v)
 		return nil
 	case esportsorder.FieldPaymentDeadline:
 		v, ok := value.(time.Time)
@@ -65616,11 +73516,17 @@ func (m *EsportsOrderMutation) AddedFields() []string {
 	if m.addmanual_adjust_cents != nil {
 		fields = append(fields, esportsorder.FieldManualAdjustCents)
 	}
+	if m.addmember_discount_bps != nil {
+		fields = append(fields, esportsorder.FieldMemberDiscountBps)
+	}
 	if m.addpayable_cents != nil {
 		fields = append(fields, esportsorder.FieldPayableCents)
 	}
 	if m.addpromised_service_units != nil {
 		fields = append(fields, esportsorder.FieldPromisedServiceUnits)
+	}
+	if m.addper_seat_service_units != nil {
+		fields = append(fields, esportsorder.FieldPerSeatServiceUnits)
 	}
 	if m.addservice_duration_minutes != nil {
 		fields = append(fields, esportsorder.FieldServiceDurationMinutes)
@@ -65642,6 +73548,9 @@ func (m *EsportsOrderMutation) AddedFields() []string {
 	}
 	if m.addstored_value_card_id != nil {
 		fields = append(fields, esportsorder.FieldStoredValueCardID)
+	}
+	if m.addremind_priority_level != nil {
+		fields = append(fields, esportsorder.FieldRemindPriorityLevel)
 	}
 	if m.addpreferred_player_id != nil {
 		fields = append(fields, esportsorder.FieldPreferredPlayerID)
@@ -65702,10 +73611,14 @@ func (m *EsportsOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDiscountCents()
 	case esportsorder.FieldManualAdjustCents:
 		return m.AddedManualAdjustCents()
+	case esportsorder.FieldMemberDiscountBps:
+		return m.AddedMemberDiscountBps()
 	case esportsorder.FieldPayableCents:
 		return m.AddedPayableCents()
 	case esportsorder.FieldPromisedServiceUnits:
 		return m.AddedPromisedServiceUnits()
+	case esportsorder.FieldPerSeatServiceUnits:
+		return m.AddedPerSeatServiceUnits()
 	case esportsorder.FieldServiceDurationMinutes:
 		return m.AddedServiceDurationMinutes()
 	case esportsorder.FieldAddonCents:
@@ -65720,6 +73633,8 @@ func (m *EsportsOrderMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedVersion()
 	case esportsorder.FieldStoredValueCardID:
 		return m.AddedStoredValueCardID()
+	case esportsorder.FieldRemindPriorityLevel:
+		return m.AddedRemindPriorityLevel()
 	case esportsorder.FieldPreferredPlayerID:
 		return m.AddedPreferredPlayerID()
 	case esportsorder.FieldRefundedCents:
@@ -65848,6 +73763,13 @@ func (m *EsportsOrderMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddManualAdjustCents(v)
 		return nil
+	case esportsorder.FieldMemberDiscountBps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMemberDiscountBps(v)
+		return nil
 	case esportsorder.FieldPayableCents:
 		v, ok := value.(int64)
 		if !ok {
@@ -65861,6 +73783,13 @@ func (m *EsportsOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddPromisedServiceUnits(v)
+		return nil
+	case esportsorder.FieldPerSeatServiceUnits:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPerSeatServiceUnits(v)
 		return nil
 	case esportsorder.FieldServiceDurationMinutes:
 		v, ok := value.(int)
@@ -65910,6 +73839,13 @@ func (m *EsportsOrderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddStoredValueCardID(v)
+		return nil
+	case esportsorder.FieldRemindPriorityLevel:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRemindPriorityLevel(v)
 		return nil
 	case esportsorder.FieldPreferredPlayerID:
 		v, ok := value.(int)
@@ -66007,6 +73943,9 @@ func (m *EsportsOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsorder.FieldPriorityNoticeUntil) {
 		fields = append(fields, esportsorder.FieldPriorityNoticeUntil)
 	}
+	if m.FieldCleared(esportsorder.FieldRemindedAt) {
+		fields = append(fields, esportsorder.FieldRemindedAt)
+	}
 	if m.FieldCleared(esportsorder.FieldFirstPooledAt) {
 		fields = append(fields, esportsorder.FieldFirstPooledAt)
 	}
@@ -66018,6 +73957,9 @@ func (m *EsportsOrderMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(esportsorder.FieldServiceStartedAt) {
 		fields = append(fields, esportsorder.FieldServiceStartedAt)
+	}
+	if m.FieldCleared(esportsorder.FieldReadyToStartAt) {
+		fields = append(fields, esportsorder.FieldReadyToStartAt)
 	}
 	if m.FieldCleared(esportsorder.FieldPriorityReleasedAt) {
 		fields = append(fields, esportsorder.FieldPriorityReleasedAt)
@@ -66033,6 +73975,9 @@ func (m *EsportsOrderMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(esportsorder.FieldAppointmentConfirmationDeadline) {
 		fields = append(fields, esportsorder.FieldAppointmentConfirmationDeadline)
+	}
+	if m.FieldCleared(esportsorder.FieldAppointmentSuspendedAt) {
+		fields = append(fields, esportsorder.FieldAppointmentSuspendedAt)
 	}
 	if m.FieldCleared(esportsorder.FieldPaidAt) {
 		fields = append(fields, esportsorder.FieldPaidAt)
@@ -66105,6 +74050,9 @@ func (m *EsportsOrderMutation) ClearField(name string) error {
 	case esportsorder.FieldPriorityNoticeUntil:
 		m.ClearPriorityNoticeUntil()
 		return nil
+	case esportsorder.FieldRemindedAt:
+		m.ClearRemindedAt()
+		return nil
 	case esportsorder.FieldFirstPooledAt:
 		m.ClearFirstPooledAt()
 		return nil
@@ -66116,6 +74064,9 @@ func (m *EsportsOrderMutation) ClearField(name string) error {
 		return nil
 	case esportsorder.FieldServiceStartedAt:
 		m.ClearServiceStartedAt()
+		return nil
+	case esportsorder.FieldReadyToStartAt:
+		m.ClearReadyToStartAt()
 		return nil
 	case esportsorder.FieldPriorityReleasedAt:
 		m.ClearPriorityReleasedAt()
@@ -66131,6 +74082,9 @@ func (m *EsportsOrderMutation) ClearField(name string) error {
 		return nil
 	case esportsorder.FieldAppointmentConfirmationDeadline:
 		m.ClearAppointmentConfirmationDeadline()
+		return nil
+	case esportsorder.FieldAppointmentSuspendedAt:
+		m.ClearAppointmentSuspendedAt()
 		return nil
 	case esportsorder.FieldPaidAt:
 		m.ClearPaidAt()
@@ -66166,6 +74120,15 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 		return nil
 	case esportsorder.FieldSkuID:
 		m.ResetSkuID()
+		return nil
+	case esportsorder.FieldSkuCode:
+		m.ResetSkuCode()
+		return nil
+	case esportsorder.FieldSkuName:
+		m.ResetSkuName()
+		return nil
+	case esportsorder.FieldSpecName:
+		m.ResetSpecName()
 		return nil
 	case esportsorder.FieldCreatedByAdminID:
 		m.ResetCreatedByAdminID()
@@ -66221,11 +74184,20 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 	case esportsorder.FieldManualAdjustCents:
 		m.ResetManualAdjustCents()
 		return nil
+	case esportsorder.FieldMemberLevelCode:
+		m.ResetMemberLevelCode()
+		return nil
+	case esportsorder.FieldMemberDiscountBps:
+		m.ResetMemberDiscountBps()
+		return nil
 	case esportsorder.FieldPayableCents:
 		m.ResetPayableCents()
 		return nil
 	case esportsorder.FieldPromisedServiceUnits:
 		m.ResetPromisedServiceUnits()
+		return nil
+	case esportsorder.FieldPerSeatServiceUnits:
+		m.ResetPerSeatServiceUnits()
 		return nil
 	case esportsorder.FieldServiceDurationMinutes:
 		m.ResetServiceDurationMinutes()
@@ -66275,6 +74247,15 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 	case esportsorder.FieldPriorityReleaseReason:
 		m.ResetPriorityReleaseReason()
 		return nil
+	case esportsorder.FieldRemindPriorityLevel:
+		m.ResetRemindPriorityLevel()
+		return nil
+	case esportsorder.FieldRemindNote:
+		m.ResetRemindNote()
+		return nil
+	case esportsorder.FieldRemindedAt:
+		m.ResetRemindedAt()
+		return nil
 	case esportsorder.FieldFirstPooledAt:
 		m.ResetFirstPooledAt()
 		return nil
@@ -66286,6 +74267,9 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 		return nil
 	case esportsorder.FieldServiceStartedAt:
 		m.ResetServiceStartedAt()
+		return nil
+	case esportsorder.FieldReadyToStartAt:
+		m.ResetReadyToStartAt()
 		return nil
 	case esportsorder.FieldPriorityReleasedAt:
 		m.ResetPriorityReleasedAt()
@@ -66316,6 +74300,9 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 		return nil
 	case esportsorder.FieldAppointmentConfirmationDeadline:
 		m.ResetAppointmentConfirmationDeadline()
+		return nil
+	case esportsorder.FieldAppointmentSuspendedAt:
+		m.ResetAppointmentSuspendedAt()
 		return nil
 	case esportsorder.FieldPaymentDeadline:
 		m.ResetPaymentDeadline()
@@ -78118,31 +86105,58 @@ func (m *EsportsPaymentReversalMutation) ResetEdge(name string) error {
 // EsportsPlayerMutation represents an operation that mutates the EsportsPlayer nodes in the graph.
 type EsportsPlayerMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *int
-	user_id             *int
-	adduser_id          *int
-	display_name        *string
-	qualification       *esportsplayer.Qualification
-	presence            *esportsplayer.Presence
-	level               *esportsplayer.Level
-	level_appraised_at  *time.Time
-	daily_limit         *int
-	adddaily_limit      *int
-	concurrent_limit    *int
-	addconcurrent_limit *int
-	games               *[]string
-	appendgames         []string
-	last_heartbeat_at   *time.Time
-	version             *int
-	addversion          *int
-	created_at          *time.Time
-	updated_at          *time.Time
-	clearedFields       map[string]struct{}
-	done                bool
-	oldValue            func(context.Context) (*EsportsPlayer, error)
-	predicates          []predicate.EsportsPlayer
+	op                                     Op
+	typ                                    string
+	id                                     *int
+	user_id                                *int
+	adduser_id                             *int
+	display_name                           *string
+	qualification                          *esportsplayer.Qualification
+	presence                               *esportsplayer.Presence
+	level                                  *esportsplayer.Level
+	level_appraised_at                     *time.Time
+	daily_limit                            *int
+	adddaily_limit                         *int
+	concurrent_limit                       *int
+	addconcurrent_limit                    *int
+	games                                  *[]string
+	appendgames                            []string
+	last_heartbeat_at                      *time.Time
+	expected_price_cents                   *int64
+	addexpected_price_cents                *int64
+	expected_price_status                  *esportsplayer.ExpectedPriceStatus
+	expected_price_submitted_at            *time.Time
+	expected_price_reviewed_by_admin_id    *int
+	addexpected_price_reviewed_by_admin_id *int
+	expected_price_reviewed_at             *time.Time
+	expected_price_review_note             *string
+	service_slot_start_minute              *int
+	addservice_slot_start_minute           *int
+	service_slot_end_minute                *int
+	addservice_slot_end_minute             *int
+	auto_online                            *bool
+	accept_price_min_cents                 *int64
+	addaccept_price_min_cents              *int64
+	accept_price_max_cents                 *int64
+	addaccept_price_max_cents              *int64
+	fixed_team_enabled                     *bool
+	fixed_team_slot_start_minute           *int
+	addfixed_team_slot_start_minute        *int
+	fixed_team_slot_end_minute             *int
+	addfixed_team_slot_end_minute          *int
+	timezone                               *string
+	latitude_e6                            *int
+	addlatitude_e6                         *int
+	longitude_e6                           *int
+	addlongitude_e6                        *int
+	version                                *int
+	addversion                             *int
+	created_at                             *time.Time
+	updated_at                             *time.Time
+	clearedFields                          map[string]struct{}
+	done                                   bool
+	oldValue                               func(context.Context) (*EsportsPlayer, error)
+	predicates                             []predicate.EsportsPlayer
 }
 
 var _ ent.Mutation = (*EsportsPlayerMutation)(nil)
@@ -78718,6 +86732,858 @@ func (m *EsportsPlayerMutation) ResetLastHeartbeatAt() {
 	delete(m.clearedFields, esportsplayer.FieldLastHeartbeatAt)
 }
 
+// SetExpectedPriceCents sets the "expected_price_cents" field.
+func (m *EsportsPlayerMutation) SetExpectedPriceCents(i int64) {
+	m.expected_price_cents = &i
+	m.addexpected_price_cents = nil
+}
+
+// ExpectedPriceCents returns the value of the "expected_price_cents" field in the mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceCents() (r int64, exists bool) {
+	v := m.expected_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedPriceCents returns the old "expected_price_cents" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldExpectedPriceCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedPriceCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedPriceCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedPriceCents: %w", err)
+	}
+	return oldValue.ExpectedPriceCents, nil
+}
+
+// AddExpectedPriceCents adds i to the "expected_price_cents" field.
+func (m *EsportsPlayerMutation) AddExpectedPriceCents(i int64) {
+	if m.addexpected_price_cents != nil {
+		*m.addexpected_price_cents += i
+	} else {
+		m.addexpected_price_cents = &i
+	}
+}
+
+// AddedExpectedPriceCents returns the value that was added to the "expected_price_cents" field in this mutation.
+func (m *EsportsPlayerMutation) AddedExpectedPriceCents() (r int64, exists bool) {
+	v := m.addexpected_price_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetExpectedPriceCents resets all changes to the "expected_price_cents" field.
+func (m *EsportsPlayerMutation) ResetExpectedPriceCents() {
+	m.expected_price_cents = nil
+	m.addexpected_price_cents = nil
+}
+
+// SetExpectedPriceStatus sets the "expected_price_status" field.
+func (m *EsportsPlayerMutation) SetExpectedPriceStatus(eps esportsplayer.ExpectedPriceStatus) {
+	m.expected_price_status = &eps
+}
+
+// ExpectedPriceStatus returns the value of the "expected_price_status" field in the mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceStatus() (r esportsplayer.ExpectedPriceStatus, exists bool) {
+	v := m.expected_price_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedPriceStatus returns the old "expected_price_status" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldExpectedPriceStatus(ctx context.Context) (v esportsplayer.ExpectedPriceStatus, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedPriceStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedPriceStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedPriceStatus: %w", err)
+	}
+	return oldValue.ExpectedPriceStatus, nil
+}
+
+// ResetExpectedPriceStatus resets all changes to the "expected_price_status" field.
+func (m *EsportsPlayerMutation) ResetExpectedPriceStatus() {
+	m.expected_price_status = nil
+}
+
+// SetExpectedPriceSubmittedAt sets the "expected_price_submitted_at" field.
+func (m *EsportsPlayerMutation) SetExpectedPriceSubmittedAt(t time.Time) {
+	m.expected_price_submitted_at = &t
+}
+
+// ExpectedPriceSubmittedAt returns the value of the "expected_price_submitted_at" field in the mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceSubmittedAt() (r time.Time, exists bool) {
+	v := m.expected_price_submitted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedPriceSubmittedAt returns the old "expected_price_submitted_at" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldExpectedPriceSubmittedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedPriceSubmittedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedPriceSubmittedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedPriceSubmittedAt: %w", err)
+	}
+	return oldValue.ExpectedPriceSubmittedAt, nil
+}
+
+// ClearExpectedPriceSubmittedAt clears the value of the "expected_price_submitted_at" field.
+func (m *EsportsPlayerMutation) ClearExpectedPriceSubmittedAt() {
+	m.expected_price_submitted_at = nil
+	m.clearedFields[esportsplayer.FieldExpectedPriceSubmittedAt] = struct{}{}
+}
+
+// ExpectedPriceSubmittedAtCleared returns if the "expected_price_submitted_at" field was cleared in this mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceSubmittedAtCleared() bool {
+	_, ok := m.clearedFields[esportsplayer.FieldExpectedPriceSubmittedAt]
+	return ok
+}
+
+// ResetExpectedPriceSubmittedAt resets all changes to the "expected_price_submitted_at" field.
+func (m *EsportsPlayerMutation) ResetExpectedPriceSubmittedAt() {
+	m.expected_price_submitted_at = nil
+	delete(m.clearedFields, esportsplayer.FieldExpectedPriceSubmittedAt)
+}
+
+// SetExpectedPriceReviewedByAdminID sets the "expected_price_reviewed_by_admin_id" field.
+func (m *EsportsPlayerMutation) SetExpectedPriceReviewedByAdminID(i int) {
+	m.expected_price_reviewed_by_admin_id = &i
+	m.addexpected_price_reviewed_by_admin_id = nil
+}
+
+// ExpectedPriceReviewedByAdminID returns the value of the "expected_price_reviewed_by_admin_id" field in the mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceReviewedByAdminID() (r int, exists bool) {
+	v := m.expected_price_reviewed_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedPriceReviewedByAdminID returns the old "expected_price_reviewed_by_admin_id" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldExpectedPriceReviewedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedPriceReviewedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedPriceReviewedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedPriceReviewedByAdminID: %w", err)
+	}
+	return oldValue.ExpectedPriceReviewedByAdminID, nil
+}
+
+// AddExpectedPriceReviewedByAdminID adds i to the "expected_price_reviewed_by_admin_id" field.
+func (m *EsportsPlayerMutation) AddExpectedPriceReviewedByAdminID(i int) {
+	if m.addexpected_price_reviewed_by_admin_id != nil {
+		*m.addexpected_price_reviewed_by_admin_id += i
+	} else {
+		m.addexpected_price_reviewed_by_admin_id = &i
+	}
+}
+
+// AddedExpectedPriceReviewedByAdminID returns the value that was added to the "expected_price_reviewed_by_admin_id" field in this mutation.
+func (m *EsportsPlayerMutation) AddedExpectedPriceReviewedByAdminID() (r int, exists bool) {
+	v := m.addexpected_price_reviewed_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearExpectedPriceReviewedByAdminID clears the value of the "expected_price_reviewed_by_admin_id" field.
+func (m *EsportsPlayerMutation) ClearExpectedPriceReviewedByAdminID() {
+	m.expected_price_reviewed_by_admin_id = nil
+	m.addexpected_price_reviewed_by_admin_id = nil
+	m.clearedFields[esportsplayer.FieldExpectedPriceReviewedByAdminID] = struct{}{}
+}
+
+// ExpectedPriceReviewedByAdminIDCleared returns if the "expected_price_reviewed_by_admin_id" field was cleared in this mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceReviewedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsplayer.FieldExpectedPriceReviewedByAdminID]
+	return ok
+}
+
+// ResetExpectedPriceReviewedByAdminID resets all changes to the "expected_price_reviewed_by_admin_id" field.
+func (m *EsportsPlayerMutation) ResetExpectedPriceReviewedByAdminID() {
+	m.expected_price_reviewed_by_admin_id = nil
+	m.addexpected_price_reviewed_by_admin_id = nil
+	delete(m.clearedFields, esportsplayer.FieldExpectedPriceReviewedByAdminID)
+}
+
+// SetExpectedPriceReviewedAt sets the "expected_price_reviewed_at" field.
+func (m *EsportsPlayerMutation) SetExpectedPriceReviewedAt(t time.Time) {
+	m.expected_price_reviewed_at = &t
+}
+
+// ExpectedPriceReviewedAt returns the value of the "expected_price_reviewed_at" field in the mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceReviewedAt() (r time.Time, exists bool) {
+	v := m.expected_price_reviewed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedPriceReviewedAt returns the old "expected_price_reviewed_at" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldExpectedPriceReviewedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedPriceReviewedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedPriceReviewedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedPriceReviewedAt: %w", err)
+	}
+	return oldValue.ExpectedPriceReviewedAt, nil
+}
+
+// ClearExpectedPriceReviewedAt clears the value of the "expected_price_reviewed_at" field.
+func (m *EsportsPlayerMutation) ClearExpectedPriceReviewedAt() {
+	m.expected_price_reviewed_at = nil
+	m.clearedFields[esportsplayer.FieldExpectedPriceReviewedAt] = struct{}{}
+}
+
+// ExpectedPriceReviewedAtCleared returns if the "expected_price_reviewed_at" field was cleared in this mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceReviewedAtCleared() bool {
+	_, ok := m.clearedFields[esportsplayer.FieldExpectedPriceReviewedAt]
+	return ok
+}
+
+// ResetExpectedPriceReviewedAt resets all changes to the "expected_price_reviewed_at" field.
+func (m *EsportsPlayerMutation) ResetExpectedPriceReviewedAt() {
+	m.expected_price_reviewed_at = nil
+	delete(m.clearedFields, esportsplayer.FieldExpectedPriceReviewedAt)
+}
+
+// SetExpectedPriceReviewNote sets the "expected_price_review_note" field.
+func (m *EsportsPlayerMutation) SetExpectedPriceReviewNote(s string) {
+	m.expected_price_review_note = &s
+}
+
+// ExpectedPriceReviewNote returns the value of the "expected_price_review_note" field in the mutation.
+func (m *EsportsPlayerMutation) ExpectedPriceReviewNote() (r string, exists bool) {
+	v := m.expected_price_review_note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpectedPriceReviewNote returns the old "expected_price_review_note" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldExpectedPriceReviewNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpectedPriceReviewNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpectedPriceReviewNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpectedPriceReviewNote: %w", err)
+	}
+	return oldValue.ExpectedPriceReviewNote, nil
+}
+
+// ResetExpectedPriceReviewNote resets all changes to the "expected_price_review_note" field.
+func (m *EsportsPlayerMutation) ResetExpectedPriceReviewNote() {
+	m.expected_price_review_note = nil
+}
+
+// SetServiceSlotStartMinute sets the "service_slot_start_minute" field.
+func (m *EsportsPlayerMutation) SetServiceSlotStartMinute(i int) {
+	m.service_slot_start_minute = &i
+	m.addservice_slot_start_minute = nil
+}
+
+// ServiceSlotStartMinute returns the value of the "service_slot_start_minute" field in the mutation.
+func (m *EsportsPlayerMutation) ServiceSlotStartMinute() (r int, exists bool) {
+	v := m.service_slot_start_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServiceSlotStartMinute returns the old "service_slot_start_minute" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldServiceSlotStartMinute(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServiceSlotStartMinute is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServiceSlotStartMinute requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServiceSlotStartMinute: %w", err)
+	}
+	return oldValue.ServiceSlotStartMinute, nil
+}
+
+// AddServiceSlotStartMinute adds i to the "service_slot_start_minute" field.
+func (m *EsportsPlayerMutation) AddServiceSlotStartMinute(i int) {
+	if m.addservice_slot_start_minute != nil {
+		*m.addservice_slot_start_minute += i
+	} else {
+		m.addservice_slot_start_minute = &i
+	}
+}
+
+// AddedServiceSlotStartMinute returns the value that was added to the "service_slot_start_minute" field in this mutation.
+func (m *EsportsPlayerMutation) AddedServiceSlotStartMinute() (r int, exists bool) {
+	v := m.addservice_slot_start_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetServiceSlotStartMinute resets all changes to the "service_slot_start_minute" field.
+func (m *EsportsPlayerMutation) ResetServiceSlotStartMinute() {
+	m.service_slot_start_minute = nil
+	m.addservice_slot_start_minute = nil
+}
+
+// SetServiceSlotEndMinute sets the "service_slot_end_minute" field.
+func (m *EsportsPlayerMutation) SetServiceSlotEndMinute(i int) {
+	m.service_slot_end_minute = &i
+	m.addservice_slot_end_minute = nil
+}
+
+// ServiceSlotEndMinute returns the value of the "service_slot_end_minute" field in the mutation.
+func (m *EsportsPlayerMutation) ServiceSlotEndMinute() (r int, exists bool) {
+	v := m.service_slot_end_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldServiceSlotEndMinute returns the old "service_slot_end_minute" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldServiceSlotEndMinute(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldServiceSlotEndMinute is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldServiceSlotEndMinute requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldServiceSlotEndMinute: %w", err)
+	}
+	return oldValue.ServiceSlotEndMinute, nil
+}
+
+// AddServiceSlotEndMinute adds i to the "service_slot_end_minute" field.
+func (m *EsportsPlayerMutation) AddServiceSlotEndMinute(i int) {
+	if m.addservice_slot_end_minute != nil {
+		*m.addservice_slot_end_minute += i
+	} else {
+		m.addservice_slot_end_minute = &i
+	}
+}
+
+// AddedServiceSlotEndMinute returns the value that was added to the "service_slot_end_minute" field in this mutation.
+func (m *EsportsPlayerMutation) AddedServiceSlotEndMinute() (r int, exists bool) {
+	v := m.addservice_slot_end_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetServiceSlotEndMinute resets all changes to the "service_slot_end_minute" field.
+func (m *EsportsPlayerMutation) ResetServiceSlotEndMinute() {
+	m.service_slot_end_minute = nil
+	m.addservice_slot_end_minute = nil
+}
+
+// SetAutoOnline sets the "auto_online" field.
+func (m *EsportsPlayerMutation) SetAutoOnline(b bool) {
+	m.auto_online = &b
+}
+
+// AutoOnline returns the value of the "auto_online" field in the mutation.
+func (m *EsportsPlayerMutation) AutoOnline() (r bool, exists bool) {
+	v := m.auto_online
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoOnline returns the old "auto_online" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldAutoOnline(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoOnline is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoOnline requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoOnline: %w", err)
+	}
+	return oldValue.AutoOnline, nil
+}
+
+// ResetAutoOnline resets all changes to the "auto_online" field.
+func (m *EsportsPlayerMutation) ResetAutoOnline() {
+	m.auto_online = nil
+}
+
+// SetAcceptPriceMinCents sets the "accept_price_min_cents" field.
+func (m *EsportsPlayerMutation) SetAcceptPriceMinCents(i int64) {
+	m.accept_price_min_cents = &i
+	m.addaccept_price_min_cents = nil
+}
+
+// AcceptPriceMinCents returns the value of the "accept_price_min_cents" field in the mutation.
+func (m *EsportsPlayerMutation) AcceptPriceMinCents() (r int64, exists bool) {
+	v := m.accept_price_min_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcceptPriceMinCents returns the old "accept_price_min_cents" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldAcceptPriceMinCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcceptPriceMinCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcceptPriceMinCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcceptPriceMinCents: %w", err)
+	}
+	return oldValue.AcceptPriceMinCents, nil
+}
+
+// AddAcceptPriceMinCents adds i to the "accept_price_min_cents" field.
+func (m *EsportsPlayerMutation) AddAcceptPriceMinCents(i int64) {
+	if m.addaccept_price_min_cents != nil {
+		*m.addaccept_price_min_cents += i
+	} else {
+		m.addaccept_price_min_cents = &i
+	}
+}
+
+// AddedAcceptPriceMinCents returns the value that was added to the "accept_price_min_cents" field in this mutation.
+func (m *EsportsPlayerMutation) AddedAcceptPriceMinCents() (r int64, exists bool) {
+	v := m.addaccept_price_min_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAcceptPriceMinCents resets all changes to the "accept_price_min_cents" field.
+func (m *EsportsPlayerMutation) ResetAcceptPriceMinCents() {
+	m.accept_price_min_cents = nil
+	m.addaccept_price_min_cents = nil
+}
+
+// SetAcceptPriceMaxCents sets the "accept_price_max_cents" field.
+func (m *EsportsPlayerMutation) SetAcceptPriceMaxCents(i int64) {
+	m.accept_price_max_cents = &i
+	m.addaccept_price_max_cents = nil
+}
+
+// AcceptPriceMaxCents returns the value of the "accept_price_max_cents" field in the mutation.
+func (m *EsportsPlayerMutation) AcceptPriceMaxCents() (r int64, exists bool) {
+	v := m.accept_price_max_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcceptPriceMaxCents returns the old "accept_price_max_cents" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldAcceptPriceMaxCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcceptPriceMaxCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcceptPriceMaxCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcceptPriceMaxCents: %w", err)
+	}
+	return oldValue.AcceptPriceMaxCents, nil
+}
+
+// AddAcceptPriceMaxCents adds i to the "accept_price_max_cents" field.
+func (m *EsportsPlayerMutation) AddAcceptPriceMaxCents(i int64) {
+	if m.addaccept_price_max_cents != nil {
+		*m.addaccept_price_max_cents += i
+	} else {
+		m.addaccept_price_max_cents = &i
+	}
+}
+
+// AddedAcceptPriceMaxCents returns the value that was added to the "accept_price_max_cents" field in this mutation.
+func (m *EsportsPlayerMutation) AddedAcceptPriceMaxCents() (r int64, exists bool) {
+	v := m.addaccept_price_max_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAcceptPriceMaxCents resets all changes to the "accept_price_max_cents" field.
+func (m *EsportsPlayerMutation) ResetAcceptPriceMaxCents() {
+	m.accept_price_max_cents = nil
+	m.addaccept_price_max_cents = nil
+}
+
+// SetFixedTeamEnabled sets the "fixed_team_enabled" field.
+func (m *EsportsPlayerMutation) SetFixedTeamEnabled(b bool) {
+	m.fixed_team_enabled = &b
+}
+
+// FixedTeamEnabled returns the value of the "fixed_team_enabled" field in the mutation.
+func (m *EsportsPlayerMutation) FixedTeamEnabled() (r bool, exists bool) {
+	v := m.fixed_team_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedTeamEnabled returns the old "fixed_team_enabled" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldFixedTeamEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedTeamEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedTeamEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedTeamEnabled: %w", err)
+	}
+	return oldValue.FixedTeamEnabled, nil
+}
+
+// ResetFixedTeamEnabled resets all changes to the "fixed_team_enabled" field.
+func (m *EsportsPlayerMutation) ResetFixedTeamEnabled() {
+	m.fixed_team_enabled = nil
+}
+
+// SetFixedTeamSlotStartMinute sets the "fixed_team_slot_start_minute" field.
+func (m *EsportsPlayerMutation) SetFixedTeamSlotStartMinute(i int) {
+	m.fixed_team_slot_start_minute = &i
+	m.addfixed_team_slot_start_minute = nil
+}
+
+// FixedTeamSlotStartMinute returns the value of the "fixed_team_slot_start_minute" field in the mutation.
+func (m *EsportsPlayerMutation) FixedTeamSlotStartMinute() (r int, exists bool) {
+	v := m.fixed_team_slot_start_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedTeamSlotStartMinute returns the old "fixed_team_slot_start_minute" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldFixedTeamSlotStartMinute(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedTeamSlotStartMinute is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedTeamSlotStartMinute requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedTeamSlotStartMinute: %w", err)
+	}
+	return oldValue.FixedTeamSlotStartMinute, nil
+}
+
+// AddFixedTeamSlotStartMinute adds i to the "fixed_team_slot_start_minute" field.
+func (m *EsportsPlayerMutation) AddFixedTeamSlotStartMinute(i int) {
+	if m.addfixed_team_slot_start_minute != nil {
+		*m.addfixed_team_slot_start_minute += i
+	} else {
+		m.addfixed_team_slot_start_minute = &i
+	}
+}
+
+// AddedFixedTeamSlotStartMinute returns the value that was added to the "fixed_team_slot_start_minute" field in this mutation.
+func (m *EsportsPlayerMutation) AddedFixedTeamSlotStartMinute() (r int, exists bool) {
+	v := m.addfixed_team_slot_start_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFixedTeamSlotStartMinute resets all changes to the "fixed_team_slot_start_minute" field.
+func (m *EsportsPlayerMutation) ResetFixedTeamSlotStartMinute() {
+	m.fixed_team_slot_start_minute = nil
+	m.addfixed_team_slot_start_minute = nil
+}
+
+// SetFixedTeamSlotEndMinute sets the "fixed_team_slot_end_minute" field.
+func (m *EsportsPlayerMutation) SetFixedTeamSlotEndMinute(i int) {
+	m.fixed_team_slot_end_minute = &i
+	m.addfixed_team_slot_end_minute = nil
+}
+
+// FixedTeamSlotEndMinute returns the value of the "fixed_team_slot_end_minute" field in the mutation.
+func (m *EsportsPlayerMutation) FixedTeamSlotEndMinute() (r int, exists bool) {
+	v := m.fixed_team_slot_end_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedTeamSlotEndMinute returns the old "fixed_team_slot_end_minute" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldFixedTeamSlotEndMinute(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedTeamSlotEndMinute is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedTeamSlotEndMinute requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedTeamSlotEndMinute: %w", err)
+	}
+	return oldValue.FixedTeamSlotEndMinute, nil
+}
+
+// AddFixedTeamSlotEndMinute adds i to the "fixed_team_slot_end_minute" field.
+func (m *EsportsPlayerMutation) AddFixedTeamSlotEndMinute(i int) {
+	if m.addfixed_team_slot_end_minute != nil {
+		*m.addfixed_team_slot_end_minute += i
+	} else {
+		m.addfixed_team_slot_end_minute = &i
+	}
+}
+
+// AddedFixedTeamSlotEndMinute returns the value that was added to the "fixed_team_slot_end_minute" field in this mutation.
+func (m *EsportsPlayerMutation) AddedFixedTeamSlotEndMinute() (r int, exists bool) {
+	v := m.addfixed_team_slot_end_minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFixedTeamSlotEndMinute resets all changes to the "fixed_team_slot_end_minute" field.
+func (m *EsportsPlayerMutation) ResetFixedTeamSlotEndMinute() {
+	m.fixed_team_slot_end_minute = nil
+	m.addfixed_team_slot_end_minute = nil
+}
+
+// SetTimezone sets the "timezone" field.
+func (m *EsportsPlayerMutation) SetTimezone(s string) {
+	m.timezone = &s
+}
+
+// Timezone returns the value of the "timezone" field in the mutation.
+func (m *EsportsPlayerMutation) Timezone() (r string, exists bool) {
+	v := m.timezone
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTimezone returns the old "timezone" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldTimezone(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTimezone is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTimezone requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTimezone: %w", err)
+	}
+	return oldValue.Timezone, nil
+}
+
+// ResetTimezone resets all changes to the "timezone" field.
+func (m *EsportsPlayerMutation) ResetTimezone() {
+	m.timezone = nil
+}
+
+// SetLatitudeE6 sets the "latitude_e6" field.
+func (m *EsportsPlayerMutation) SetLatitudeE6(i int) {
+	m.latitude_e6 = &i
+	m.addlatitude_e6 = nil
+}
+
+// LatitudeE6 returns the value of the "latitude_e6" field in the mutation.
+func (m *EsportsPlayerMutation) LatitudeE6() (r int, exists bool) {
+	v := m.latitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLatitudeE6 returns the old "latitude_e6" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldLatitudeE6(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLatitudeE6 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLatitudeE6 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLatitudeE6: %w", err)
+	}
+	return oldValue.LatitudeE6, nil
+}
+
+// AddLatitudeE6 adds i to the "latitude_e6" field.
+func (m *EsportsPlayerMutation) AddLatitudeE6(i int) {
+	if m.addlatitude_e6 != nil {
+		*m.addlatitude_e6 += i
+	} else {
+		m.addlatitude_e6 = &i
+	}
+}
+
+// AddedLatitudeE6 returns the value that was added to the "latitude_e6" field in this mutation.
+func (m *EsportsPlayerMutation) AddedLatitudeE6() (r int, exists bool) {
+	v := m.addlatitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLatitudeE6 resets all changes to the "latitude_e6" field.
+func (m *EsportsPlayerMutation) ResetLatitudeE6() {
+	m.latitude_e6 = nil
+	m.addlatitude_e6 = nil
+}
+
+// SetLongitudeE6 sets the "longitude_e6" field.
+func (m *EsportsPlayerMutation) SetLongitudeE6(i int) {
+	m.longitude_e6 = &i
+	m.addlongitude_e6 = nil
+}
+
+// LongitudeE6 returns the value of the "longitude_e6" field in the mutation.
+func (m *EsportsPlayerMutation) LongitudeE6() (r int, exists bool) {
+	v := m.longitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLongitudeE6 returns the old "longitude_e6" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldLongitudeE6(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLongitudeE6 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLongitudeE6 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLongitudeE6: %w", err)
+	}
+	return oldValue.LongitudeE6, nil
+}
+
+// AddLongitudeE6 adds i to the "longitude_e6" field.
+func (m *EsportsPlayerMutation) AddLongitudeE6(i int) {
+	if m.addlongitude_e6 != nil {
+		*m.addlongitude_e6 += i
+	} else {
+		m.addlongitude_e6 = &i
+	}
+}
+
+// AddedLongitudeE6 returns the value that was added to the "longitude_e6" field in this mutation.
+func (m *EsportsPlayerMutation) AddedLongitudeE6() (r int, exists bool) {
+	v := m.addlongitude_e6
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLongitudeE6 resets all changes to the "longitude_e6" field.
+func (m *EsportsPlayerMutation) ResetLongitudeE6() {
+	m.longitude_e6 = nil
+	m.addlongitude_e6 = nil
+}
+
 // SetVersion sets the "version" field.
 func (m *EsportsPlayerMutation) SetVersion(i int) {
 	m.version = &i
@@ -78880,7 +87746,7 @@ func (m *EsportsPlayerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsPlayerMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 30)
 	if m.user_id != nil {
 		fields = append(fields, esportsplayer.FieldUserID)
 	}
@@ -78910,6 +87776,57 @@ func (m *EsportsPlayerMutation) Fields() []string {
 	}
 	if m.last_heartbeat_at != nil {
 		fields = append(fields, esportsplayer.FieldLastHeartbeatAt)
+	}
+	if m.expected_price_cents != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceCents)
+	}
+	if m.expected_price_status != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceStatus)
+	}
+	if m.expected_price_submitted_at != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceSubmittedAt)
+	}
+	if m.expected_price_reviewed_by_admin_id != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceReviewedByAdminID)
+	}
+	if m.expected_price_reviewed_at != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceReviewedAt)
+	}
+	if m.expected_price_review_note != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceReviewNote)
+	}
+	if m.service_slot_start_minute != nil {
+		fields = append(fields, esportsplayer.FieldServiceSlotStartMinute)
+	}
+	if m.service_slot_end_minute != nil {
+		fields = append(fields, esportsplayer.FieldServiceSlotEndMinute)
+	}
+	if m.auto_online != nil {
+		fields = append(fields, esportsplayer.FieldAutoOnline)
+	}
+	if m.accept_price_min_cents != nil {
+		fields = append(fields, esportsplayer.FieldAcceptPriceMinCents)
+	}
+	if m.accept_price_max_cents != nil {
+		fields = append(fields, esportsplayer.FieldAcceptPriceMaxCents)
+	}
+	if m.fixed_team_enabled != nil {
+		fields = append(fields, esportsplayer.FieldFixedTeamEnabled)
+	}
+	if m.fixed_team_slot_start_minute != nil {
+		fields = append(fields, esportsplayer.FieldFixedTeamSlotStartMinute)
+	}
+	if m.fixed_team_slot_end_minute != nil {
+		fields = append(fields, esportsplayer.FieldFixedTeamSlotEndMinute)
+	}
+	if m.timezone != nil {
+		fields = append(fields, esportsplayer.FieldTimezone)
+	}
+	if m.latitude_e6 != nil {
+		fields = append(fields, esportsplayer.FieldLatitudeE6)
+	}
+	if m.longitude_e6 != nil {
+		fields = append(fields, esportsplayer.FieldLongitudeE6)
 	}
 	if m.version != nil {
 		fields = append(fields, esportsplayer.FieldVersion)
@@ -78948,6 +87865,40 @@ func (m *EsportsPlayerMutation) Field(name string) (ent.Value, bool) {
 		return m.Games()
 	case esportsplayer.FieldLastHeartbeatAt:
 		return m.LastHeartbeatAt()
+	case esportsplayer.FieldExpectedPriceCents:
+		return m.ExpectedPriceCents()
+	case esportsplayer.FieldExpectedPriceStatus:
+		return m.ExpectedPriceStatus()
+	case esportsplayer.FieldExpectedPriceSubmittedAt:
+		return m.ExpectedPriceSubmittedAt()
+	case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+		return m.ExpectedPriceReviewedByAdminID()
+	case esportsplayer.FieldExpectedPriceReviewedAt:
+		return m.ExpectedPriceReviewedAt()
+	case esportsplayer.FieldExpectedPriceReviewNote:
+		return m.ExpectedPriceReviewNote()
+	case esportsplayer.FieldServiceSlotStartMinute:
+		return m.ServiceSlotStartMinute()
+	case esportsplayer.FieldServiceSlotEndMinute:
+		return m.ServiceSlotEndMinute()
+	case esportsplayer.FieldAutoOnline:
+		return m.AutoOnline()
+	case esportsplayer.FieldAcceptPriceMinCents:
+		return m.AcceptPriceMinCents()
+	case esportsplayer.FieldAcceptPriceMaxCents:
+		return m.AcceptPriceMaxCents()
+	case esportsplayer.FieldFixedTeamEnabled:
+		return m.FixedTeamEnabled()
+	case esportsplayer.FieldFixedTeamSlotStartMinute:
+		return m.FixedTeamSlotStartMinute()
+	case esportsplayer.FieldFixedTeamSlotEndMinute:
+		return m.FixedTeamSlotEndMinute()
+	case esportsplayer.FieldTimezone:
+		return m.Timezone()
+	case esportsplayer.FieldLatitudeE6:
+		return m.LatitudeE6()
+	case esportsplayer.FieldLongitudeE6:
+		return m.LongitudeE6()
 	case esportsplayer.FieldVersion:
 		return m.Version()
 	case esportsplayer.FieldCreatedAt:
@@ -78983,6 +87934,40 @@ func (m *EsportsPlayerMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldGames(ctx)
 	case esportsplayer.FieldLastHeartbeatAt:
 		return m.OldLastHeartbeatAt(ctx)
+	case esportsplayer.FieldExpectedPriceCents:
+		return m.OldExpectedPriceCents(ctx)
+	case esportsplayer.FieldExpectedPriceStatus:
+		return m.OldExpectedPriceStatus(ctx)
+	case esportsplayer.FieldExpectedPriceSubmittedAt:
+		return m.OldExpectedPriceSubmittedAt(ctx)
+	case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+		return m.OldExpectedPriceReviewedByAdminID(ctx)
+	case esportsplayer.FieldExpectedPriceReviewedAt:
+		return m.OldExpectedPriceReviewedAt(ctx)
+	case esportsplayer.FieldExpectedPriceReviewNote:
+		return m.OldExpectedPriceReviewNote(ctx)
+	case esportsplayer.FieldServiceSlotStartMinute:
+		return m.OldServiceSlotStartMinute(ctx)
+	case esportsplayer.FieldServiceSlotEndMinute:
+		return m.OldServiceSlotEndMinute(ctx)
+	case esportsplayer.FieldAutoOnline:
+		return m.OldAutoOnline(ctx)
+	case esportsplayer.FieldAcceptPriceMinCents:
+		return m.OldAcceptPriceMinCents(ctx)
+	case esportsplayer.FieldAcceptPriceMaxCents:
+		return m.OldAcceptPriceMaxCents(ctx)
+	case esportsplayer.FieldFixedTeamEnabled:
+		return m.OldFixedTeamEnabled(ctx)
+	case esportsplayer.FieldFixedTeamSlotStartMinute:
+		return m.OldFixedTeamSlotStartMinute(ctx)
+	case esportsplayer.FieldFixedTeamSlotEndMinute:
+		return m.OldFixedTeamSlotEndMinute(ctx)
+	case esportsplayer.FieldTimezone:
+		return m.OldTimezone(ctx)
+	case esportsplayer.FieldLatitudeE6:
+		return m.OldLatitudeE6(ctx)
+	case esportsplayer.FieldLongitudeE6:
+		return m.OldLongitudeE6(ctx)
 	case esportsplayer.FieldVersion:
 		return m.OldVersion(ctx)
 	case esportsplayer.FieldCreatedAt:
@@ -79068,6 +88053,125 @@ func (m *EsportsPlayerMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLastHeartbeatAt(v)
 		return nil
+	case esportsplayer.FieldExpectedPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedPriceCents(v)
+		return nil
+	case esportsplayer.FieldExpectedPriceStatus:
+		v, ok := value.(esportsplayer.ExpectedPriceStatus)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedPriceStatus(v)
+		return nil
+	case esportsplayer.FieldExpectedPriceSubmittedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedPriceSubmittedAt(v)
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedPriceReviewedByAdminID(v)
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedPriceReviewedAt(v)
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpectedPriceReviewNote(v)
+		return nil
+	case esportsplayer.FieldServiceSlotStartMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServiceSlotStartMinute(v)
+		return nil
+	case esportsplayer.FieldServiceSlotEndMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetServiceSlotEndMinute(v)
+		return nil
+	case esportsplayer.FieldAutoOnline:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoOnline(v)
+		return nil
+	case esportsplayer.FieldAcceptPriceMinCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcceptPriceMinCents(v)
+		return nil
+	case esportsplayer.FieldAcceptPriceMaxCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcceptPriceMaxCents(v)
+		return nil
+	case esportsplayer.FieldFixedTeamEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedTeamEnabled(v)
+		return nil
+	case esportsplayer.FieldFixedTeamSlotStartMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedTeamSlotStartMinute(v)
+		return nil
+	case esportsplayer.FieldFixedTeamSlotEndMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedTeamSlotEndMinute(v)
+		return nil
+	case esportsplayer.FieldTimezone:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTimezone(v)
+		return nil
+	case esportsplayer.FieldLatitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLatitudeE6(v)
+		return nil
+	case esportsplayer.FieldLongitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLongitudeE6(v)
+		return nil
 	case esportsplayer.FieldVersion:
 		v, ok := value.(int)
 		if !ok {
@@ -79106,6 +88210,36 @@ func (m *EsportsPlayerMutation) AddedFields() []string {
 	if m.addconcurrent_limit != nil {
 		fields = append(fields, esportsplayer.FieldConcurrentLimit)
 	}
+	if m.addexpected_price_cents != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceCents)
+	}
+	if m.addexpected_price_reviewed_by_admin_id != nil {
+		fields = append(fields, esportsplayer.FieldExpectedPriceReviewedByAdminID)
+	}
+	if m.addservice_slot_start_minute != nil {
+		fields = append(fields, esportsplayer.FieldServiceSlotStartMinute)
+	}
+	if m.addservice_slot_end_minute != nil {
+		fields = append(fields, esportsplayer.FieldServiceSlotEndMinute)
+	}
+	if m.addaccept_price_min_cents != nil {
+		fields = append(fields, esportsplayer.FieldAcceptPriceMinCents)
+	}
+	if m.addaccept_price_max_cents != nil {
+		fields = append(fields, esportsplayer.FieldAcceptPriceMaxCents)
+	}
+	if m.addfixed_team_slot_start_minute != nil {
+		fields = append(fields, esportsplayer.FieldFixedTeamSlotStartMinute)
+	}
+	if m.addfixed_team_slot_end_minute != nil {
+		fields = append(fields, esportsplayer.FieldFixedTeamSlotEndMinute)
+	}
+	if m.addlatitude_e6 != nil {
+		fields = append(fields, esportsplayer.FieldLatitudeE6)
+	}
+	if m.addlongitude_e6 != nil {
+		fields = append(fields, esportsplayer.FieldLongitudeE6)
+	}
 	if m.addversion != nil {
 		fields = append(fields, esportsplayer.FieldVersion)
 	}
@@ -79123,6 +88257,26 @@ func (m *EsportsPlayerMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedDailyLimit()
 	case esportsplayer.FieldConcurrentLimit:
 		return m.AddedConcurrentLimit()
+	case esportsplayer.FieldExpectedPriceCents:
+		return m.AddedExpectedPriceCents()
+	case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+		return m.AddedExpectedPriceReviewedByAdminID()
+	case esportsplayer.FieldServiceSlotStartMinute:
+		return m.AddedServiceSlotStartMinute()
+	case esportsplayer.FieldServiceSlotEndMinute:
+		return m.AddedServiceSlotEndMinute()
+	case esportsplayer.FieldAcceptPriceMinCents:
+		return m.AddedAcceptPriceMinCents()
+	case esportsplayer.FieldAcceptPriceMaxCents:
+		return m.AddedAcceptPriceMaxCents()
+	case esportsplayer.FieldFixedTeamSlotStartMinute:
+		return m.AddedFixedTeamSlotStartMinute()
+	case esportsplayer.FieldFixedTeamSlotEndMinute:
+		return m.AddedFixedTeamSlotEndMinute()
+	case esportsplayer.FieldLatitudeE6:
+		return m.AddedLatitudeE6()
+	case esportsplayer.FieldLongitudeE6:
+		return m.AddedLongitudeE6()
 	case esportsplayer.FieldVersion:
 		return m.AddedVersion()
 	}
@@ -79155,6 +88309,76 @@ func (m *EsportsPlayerMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddConcurrentLimit(v)
 		return nil
+	case esportsplayer.FieldExpectedPriceCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExpectedPriceCents(v)
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddExpectedPriceReviewedByAdminID(v)
+		return nil
+	case esportsplayer.FieldServiceSlotStartMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddServiceSlotStartMinute(v)
+		return nil
+	case esportsplayer.FieldServiceSlotEndMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddServiceSlotEndMinute(v)
+		return nil
+	case esportsplayer.FieldAcceptPriceMinCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAcceptPriceMinCents(v)
+		return nil
+	case esportsplayer.FieldAcceptPriceMaxCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAcceptPriceMaxCents(v)
+		return nil
+	case esportsplayer.FieldFixedTeamSlotStartMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFixedTeamSlotStartMinute(v)
+		return nil
+	case esportsplayer.FieldFixedTeamSlotEndMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFixedTeamSlotEndMinute(v)
+		return nil
+	case esportsplayer.FieldLatitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLatitudeE6(v)
+		return nil
+	case esportsplayer.FieldLongitudeE6:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLongitudeE6(v)
+		return nil
 	case esportsplayer.FieldVersion:
 		v, ok := value.(int)
 		if !ok {
@@ -79179,6 +88403,15 @@ func (m *EsportsPlayerMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsplayer.FieldLastHeartbeatAt) {
 		fields = append(fields, esportsplayer.FieldLastHeartbeatAt)
 	}
+	if m.FieldCleared(esportsplayer.FieldExpectedPriceSubmittedAt) {
+		fields = append(fields, esportsplayer.FieldExpectedPriceSubmittedAt)
+	}
+	if m.FieldCleared(esportsplayer.FieldExpectedPriceReviewedByAdminID) {
+		fields = append(fields, esportsplayer.FieldExpectedPriceReviewedByAdminID)
+	}
+	if m.FieldCleared(esportsplayer.FieldExpectedPriceReviewedAt) {
+		fields = append(fields, esportsplayer.FieldExpectedPriceReviewedAt)
+	}
 	return fields
 }
 
@@ -79201,6 +88434,15 @@ func (m *EsportsPlayerMutation) ClearField(name string) error {
 		return nil
 	case esportsplayer.FieldLastHeartbeatAt:
 		m.ClearLastHeartbeatAt()
+		return nil
+	case esportsplayer.FieldExpectedPriceSubmittedAt:
+		m.ClearExpectedPriceSubmittedAt()
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+		m.ClearExpectedPriceReviewedByAdminID()
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewedAt:
+		m.ClearExpectedPriceReviewedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsPlayer nullable field %s", name)
@@ -79239,6 +88481,57 @@ func (m *EsportsPlayerMutation) ResetField(name string) error {
 		return nil
 	case esportsplayer.FieldLastHeartbeatAt:
 		m.ResetLastHeartbeatAt()
+		return nil
+	case esportsplayer.FieldExpectedPriceCents:
+		m.ResetExpectedPriceCents()
+		return nil
+	case esportsplayer.FieldExpectedPriceStatus:
+		m.ResetExpectedPriceStatus()
+		return nil
+	case esportsplayer.FieldExpectedPriceSubmittedAt:
+		m.ResetExpectedPriceSubmittedAt()
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+		m.ResetExpectedPriceReviewedByAdminID()
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewedAt:
+		m.ResetExpectedPriceReviewedAt()
+		return nil
+	case esportsplayer.FieldExpectedPriceReviewNote:
+		m.ResetExpectedPriceReviewNote()
+		return nil
+	case esportsplayer.FieldServiceSlotStartMinute:
+		m.ResetServiceSlotStartMinute()
+		return nil
+	case esportsplayer.FieldServiceSlotEndMinute:
+		m.ResetServiceSlotEndMinute()
+		return nil
+	case esportsplayer.FieldAutoOnline:
+		m.ResetAutoOnline()
+		return nil
+	case esportsplayer.FieldAcceptPriceMinCents:
+		m.ResetAcceptPriceMinCents()
+		return nil
+	case esportsplayer.FieldAcceptPriceMaxCents:
+		m.ResetAcceptPriceMaxCents()
+		return nil
+	case esportsplayer.FieldFixedTeamEnabled:
+		m.ResetFixedTeamEnabled()
+		return nil
+	case esportsplayer.FieldFixedTeamSlotStartMinute:
+		m.ResetFixedTeamSlotStartMinute()
+		return nil
+	case esportsplayer.FieldFixedTeamSlotEndMinute:
+		m.ResetFixedTeamSlotEndMinute()
+		return nil
+	case esportsplayer.FieldTimezone:
+		m.ResetTimezone()
+		return nil
+	case esportsplayer.FieldLatitudeE6:
+		m.ResetLatitudeE6()
+		return nil
+	case esportsplayer.FieldLongitudeE6:
+		m.ResetLongitudeE6()
 		return nil
 	case esportsplayer.FieldVersion:
 		m.ResetVersion()
@@ -83229,28 +92522,32 @@ func (m *EsportsPlayerRecoveryMutation) ResetEdge(name string) error {
 // EsportsPlayerReviewMutation represents an operation that mutates the EsportsPlayerReview nodes in the graph.
 type EsportsPlayerReviewMutation struct {
 	config
-	op             Op
-	typ            string
-	id             *int
-	order_id       *int
-	addorder_id    *int
-	customer_id    *int
-	addcustomer_id *int
-	player_id      *int
-	addplayer_id   *int
-	rating         *int
-	addrating      *int
-	comment        *string
-	verified       *bool
-	status         *esportsplayerreview.Status
-	version        *int
-	addversion     *int
-	created_at     *time.Time
-	updated_at     *time.Time
-	clearedFields  map[string]struct{}
-	done           bool
-	oldValue       func(context.Context) (*EsportsPlayerReview, error)
-	predicates     []predicate.EsportsPlayerReview
+	op                Op
+	typ               string
+	id                *int
+	order_id          *int
+	addorder_id       *int
+	customer_id       *int
+	addcustomer_id    *int
+	player_id         *int
+	addplayer_id      *int
+	rating            *int
+	addrating         *int
+	comment           *string
+	verified          *bool
+	status            *esportsplayerreview.Status
+	auto_disputed     *bool
+	dispute_rule_code *string
+	dispute_detail    *map[string]interface{}
+	disputed_at       *time.Time
+	version           *int
+	addversion        *int
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*EsportsPlayerReview, error)
+	predicates        []predicate.EsportsPlayerReview
 }
 
 var _ ent.Mutation = (*EsportsPlayerReviewMutation)(nil)
@@ -83683,6 +92980,176 @@ func (m *EsportsPlayerReviewMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetAutoDisputed sets the "auto_disputed" field.
+func (m *EsportsPlayerReviewMutation) SetAutoDisputed(b bool) {
+	m.auto_disputed = &b
+}
+
+// AutoDisputed returns the value of the "auto_disputed" field in the mutation.
+func (m *EsportsPlayerReviewMutation) AutoDisputed() (r bool, exists bool) {
+	v := m.auto_disputed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoDisputed returns the old "auto_disputed" field's value of the EsportsPlayerReview entity.
+// If the EsportsPlayerReview object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewMutation) OldAutoDisputed(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoDisputed is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoDisputed requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoDisputed: %w", err)
+	}
+	return oldValue.AutoDisputed, nil
+}
+
+// ResetAutoDisputed resets all changes to the "auto_disputed" field.
+func (m *EsportsPlayerReviewMutation) ResetAutoDisputed() {
+	m.auto_disputed = nil
+}
+
+// SetDisputeRuleCode sets the "dispute_rule_code" field.
+func (m *EsportsPlayerReviewMutation) SetDisputeRuleCode(s string) {
+	m.dispute_rule_code = &s
+}
+
+// DisputeRuleCode returns the value of the "dispute_rule_code" field in the mutation.
+func (m *EsportsPlayerReviewMutation) DisputeRuleCode() (r string, exists bool) {
+	v := m.dispute_rule_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisputeRuleCode returns the old "dispute_rule_code" field's value of the EsportsPlayerReview entity.
+// If the EsportsPlayerReview object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewMutation) OldDisputeRuleCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisputeRuleCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisputeRuleCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisputeRuleCode: %w", err)
+	}
+	return oldValue.DisputeRuleCode, nil
+}
+
+// ResetDisputeRuleCode resets all changes to the "dispute_rule_code" field.
+func (m *EsportsPlayerReviewMutation) ResetDisputeRuleCode() {
+	m.dispute_rule_code = nil
+}
+
+// SetDisputeDetail sets the "dispute_detail" field.
+func (m *EsportsPlayerReviewMutation) SetDisputeDetail(value map[string]interface{}) {
+	m.dispute_detail = &value
+}
+
+// DisputeDetail returns the value of the "dispute_detail" field in the mutation.
+func (m *EsportsPlayerReviewMutation) DisputeDetail() (r map[string]interface{}, exists bool) {
+	v := m.dispute_detail
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisputeDetail returns the old "dispute_detail" field's value of the EsportsPlayerReview entity.
+// If the EsportsPlayerReview object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewMutation) OldDisputeDetail(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisputeDetail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisputeDetail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisputeDetail: %w", err)
+	}
+	return oldValue.DisputeDetail, nil
+}
+
+// ClearDisputeDetail clears the value of the "dispute_detail" field.
+func (m *EsportsPlayerReviewMutation) ClearDisputeDetail() {
+	m.dispute_detail = nil
+	m.clearedFields[esportsplayerreview.FieldDisputeDetail] = struct{}{}
+}
+
+// DisputeDetailCleared returns if the "dispute_detail" field was cleared in this mutation.
+func (m *EsportsPlayerReviewMutation) DisputeDetailCleared() bool {
+	_, ok := m.clearedFields[esportsplayerreview.FieldDisputeDetail]
+	return ok
+}
+
+// ResetDisputeDetail resets all changes to the "dispute_detail" field.
+func (m *EsportsPlayerReviewMutation) ResetDisputeDetail() {
+	m.dispute_detail = nil
+	delete(m.clearedFields, esportsplayerreview.FieldDisputeDetail)
+}
+
+// SetDisputedAt sets the "disputed_at" field.
+func (m *EsportsPlayerReviewMutation) SetDisputedAt(t time.Time) {
+	m.disputed_at = &t
+}
+
+// DisputedAt returns the value of the "disputed_at" field in the mutation.
+func (m *EsportsPlayerReviewMutation) DisputedAt() (r time.Time, exists bool) {
+	v := m.disputed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisputedAt returns the old "disputed_at" field's value of the EsportsPlayerReview entity.
+// If the EsportsPlayerReview object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewMutation) OldDisputedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisputedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisputedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisputedAt: %w", err)
+	}
+	return oldValue.DisputedAt, nil
+}
+
+// ClearDisputedAt clears the value of the "disputed_at" field.
+func (m *EsportsPlayerReviewMutation) ClearDisputedAt() {
+	m.disputed_at = nil
+	m.clearedFields[esportsplayerreview.FieldDisputedAt] = struct{}{}
+}
+
+// DisputedAtCleared returns if the "disputed_at" field was cleared in this mutation.
+func (m *EsportsPlayerReviewMutation) DisputedAtCleared() bool {
+	_, ok := m.clearedFields[esportsplayerreview.FieldDisputedAt]
+	return ok
+}
+
+// ResetDisputedAt resets all changes to the "disputed_at" field.
+func (m *EsportsPlayerReviewMutation) ResetDisputedAt() {
+	m.disputed_at = nil
+	delete(m.clearedFields, esportsplayerreview.FieldDisputedAt)
+}
+
 // SetVersion sets the "version" field.
 func (m *EsportsPlayerReviewMutation) SetVersion(i int) {
 	m.version = &i
@@ -83845,7 +93312,7 @@ func (m *EsportsPlayerReviewMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsPlayerReviewMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 14)
 	if m.order_id != nil {
 		fields = append(fields, esportsplayerreview.FieldOrderID)
 	}
@@ -83866,6 +93333,18 @@ func (m *EsportsPlayerReviewMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, esportsplayerreview.FieldStatus)
+	}
+	if m.auto_disputed != nil {
+		fields = append(fields, esportsplayerreview.FieldAutoDisputed)
+	}
+	if m.dispute_rule_code != nil {
+		fields = append(fields, esportsplayerreview.FieldDisputeRuleCode)
+	}
+	if m.dispute_detail != nil {
+		fields = append(fields, esportsplayerreview.FieldDisputeDetail)
+	}
+	if m.disputed_at != nil {
+		fields = append(fields, esportsplayerreview.FieldDisputedAt)
 	}
 	if m.version != nil {
 		fields = append(fields, esportsplayerreview.FieldVersion)
@@ -83898,6 +93377,14 @@ func (m *EsportsPlayerReviewMutation) Field(name string) (ent.Value, bool) {
 		return m.Verified()
 	case esportsplayerreview.FieldStatus:
 		return m.Status()
+	case esportsplayerreview.FieldAutoDisputed:
+		return m.AutoDisputed()
+	case esportsplayerreview.FieldDisputeRuleCode:
+		return m.DisputeRuleCode()
+	case esportsplayerreview.FieldDisputeDetail:
+		return m.DisputeDetail()
+	case esportsplayerreview.FieldDisputedAt:
+		return m.DisputedAt()
 	case esportsplayerreview.FieldVersion:
 		return m.Version()
 	case esportsplayerreview.FieldCreatedAt:
@@ -83927,6 +93414,14 @@ func (m *EsportsPlayerReviewMutation) OldField(ctx context.Context, name string)
 		return m.OldVerified(ctx)
 	case esportsplayerreview.FieldStatus:
 		return m.OldStatus(ctx)
+	case esportsplayerreview.FieldAutoDisputed:
+		return m.OldAutoDisputed(ctx)
+	case esportsplayerreview.FieldDisputeRuleCode:
+		return m.OldDisputeRuleCode(ctx)
+	case esportsplayerreview.FieldDisputeDetail:
+		return m.OldDisputeDetail(ctx)
+	case esportsplayerreview.FieldDisputedAt:
+		return m.OldDisputedAt(ctx)
 	case esportsplayerreview.FieldVersion:
 		return m.OldVersion(ctx)
 	case esportsplayerreview.FieldCreatedAt:
@@ -83990,6 +93485,34 @@ func (m *EsportsPlayerReviewMutation) SetField(name string, value ent.Value) err
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case esportsplayerreview.FieldAutoDisputed:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoDisputed(v)
+		return nil
+	case esportsplayerreview.FieldDisputeRuleCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisputeRuleCode(v)
+		return nil
+	case esportsplayerreview.FieldDisputeDetail:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisputeDetail(v)
+		return nil
+	case esportsplayerreview.FieldDisputedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisputedAt(v)
 		return nil
 	case esportsplayerreview.FieldVersion:
 		v, ok := value.(int)
@@ -84104,7 +93627,14 @@ func (m *EsportsPlayerReviewMutation) AddField(name string, value ent.Value) err
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *EsportsPlayerReviewMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(esportsplayerreview.FieldDisputeDetail) {
+		fields = append(fields, esportsplayerreview.FieldDisputeDetail)
+	}
+	if m.FieldCleared(esportsplayerreview.FieldDisputedAt) {
+		fields = append(fields, esportsplayerreview.FieldDisputedAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -84117,6 +93647,14 @@ func (m *EsportsPlayerReviewMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *EsportsPlayerReviewMutation) ClearField(name string) error {
+	switch name {
+	case esportsplayerreview.FieldDisputeDetail:
+		m.ClearDisputeDetail()
+		return nil
+	case esportsplayerreview.FieldDisputedAt:
+		m.ClearDisputedAt()
+		return nil
+	}
 	return fmt.Errorf("unknown EsportsPlayerReview nullable field %s", name)
 }
 
@@ -84144,6 +93682,18 @@ func (m *EsportsPlayerReviewMutation) ResetField(name string) error {
 		return nil
 	case esportsplayerreview.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case esportsplayerreview.FieldAutoDisputed:
+		m.ResetAutoDisputed()
+		return nil
+	case esportsplayerreview.FieldDisputeRuleCode:
+		m.ResetDisputeRuleCode()
+		return nil
+	case esportsplayerreview.FieldDisputeDetail:
+		m.ResetDisputeDetail()
+		return nil
+	case esportsplayerreview.FieldDisputedAt:
+		m.ResetDisputedAt()
 		return nil
 	case esportsplayerreview.FieldVersion:
 		m.ResetVersion()
@@ -84204,6 +93754,1049 @@ func (m *EsportsPlayerReviewMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsPlayerReviewMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsPlayerReview edge %s", name)
+}
+
+// EsportsPlayerReviewAppealMutation represents an operation that mutates the EsportsPlayerReviewAppeal nodes in the graph.
+type EsportsPlayerReviewAppealMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int
+	review_id            *int
+	addreview_id         *int
+	appellant_type       *esportsplayerreviewappeal.AppellantType
+	appellant_id         *int
+	addappellant_id      *int
+	order_id             *int
+	addorder_id          *int
+	reason               *string
+	evidence_ref         *string
+	status               *esportsplayerreviewappeal.Status
+	reviewer_admin_id    *int
+	addreviewer_admin_id *int
+	review_note          *string
+	reviewed_at          *time.Time
+	created_at           *time.Time
+	clearedFields        map[string]struct{}
+	done                 bool
+	oldValue             func(context.Context) (*EsportsPlayerReviewAppeal, error)
+	predicates           []predicate.EsportsPlayerReviewAppeal
+}
+
+var _ ent.Mutation = (*EsportsPlayerReviewAppealMutation)(nil)
+
+// esportsplayerreviewappealOption allows management of the mutation configuration using functional options.
+type esportsplayerreviewappealOption func(*EsportsPlayerReviewAppealMutation)
+
+// newEsportsPlayerReviewAppealMutation creates new mutation for the EsportsPlayerReviewAppeal entity.
+func newEsportsPlayerReviewAppealMutation(c config, op Op, opts ...esportsplayerreviewappealOption) *EsportsPlayerReviewAppealMutation {
+	m := &EsportsPlayerReviewAppealMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsPlayerReviewAppeal,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsPlayerReviewAppealID sets the ID field of the mutation.
+func withEsportsPlayerReviewAppealID(id int) esportsplayerreviewappealOption {
+	return func(m *EsportsPlayerReviewAppealMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsPlayerReviewAppeal
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsPlayerReviewAppeal, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsPlayerReviewAppeal.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsPlayerReviewAppeal sets the old EsportsPlayerReviewAppeal of the mutation.
+func withEsportsPlayerReviewAppeal(node *EsportsPlayerReviewAppeal) esportsplayerreviewappealOption {
+	return func(m *EsportsPlayerReviewAppealMutation) {
+		m.oldValue = func(context.Context) (*EsportsPlayerReviewAppeal, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsPlayerReviewAppealMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsPlayerReviewAppealMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsPlayerReviewAppealMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsPlayerReviewAppealMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsPlayerReviewAppeal.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetReviewID sets the "review_id" field.
+func (m *EsportsPlayerReviewAppealMutation) SetReviewID(i int) {
+	m.review_id = &i
+	m.addreview_id = nil
+}
+
+// ReviewID returns the value of the "review_id" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) ReviewID() (r int, exists bool) {
+	v := m.review_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewID returns the old "review_id" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldReviewID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewID: %w", err)
+	}
+	return oldValue.ReviewID, nil
+}
+
+// AddReviewID adds i to the "review_id" field.
+func (m *EsportsPlayerReviewAppealMutation) AddReviewID(i int) {
+	if m.addreview_id != nil {
+		*m.addreview_id += i
+	} else {
+		m.addreview_id = &i
+	}
+}
+
+// AddedReviewID returns the value that was added to the "review_id" field in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) AddedReviewID() (r int, exists bool) {
+	v := m.addreview_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetReviewID resets all changes to the "review_id" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetReviewID() {
+	m.review_id = nil
+	m.addreview_id = nil
+}
+
+// SetAppellantType sets the "appellant_type" field.
+func (m *EsportsPlayerReviewAppealMutation) SetAppellantType(et esportsplayerreviewappeal.AppellantType) {
+	m.appellant_type = &et
+}
+
+// AppellantType returns the value of the "appellant_type" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) AppellantType() (r esportsplayerreviewappeal.AppellantType, exists bool) {
+	v := m.appellant_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppellantType returns the old "appellant_type" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldAppellantType(ctx context.Context) (v esportsplayerreviewappeal.AppellantType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppellantType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppellantType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppellantType: %w", err)
+	}
+	return oldValue.AppellantType, nil
+}
+
+// ResetAppellantType resets all changes to the "appellant_type" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetAppellantType() {
+	m.appellant_type = nil
+}
+
+// SetAppellantID sets the "appellant_id" field.
+func (m *EsportsPlayerReviewAppealMutation) SetAppellantID(i int) {
+	m.appellant_id = &i
+	m.addappellant_id = nil
+}
+
+// AppellantID returns the value of the "appellant_id" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) AppellantID() (r int, exists bool) {
+	v := m.appellant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppellantID returns the old "appellant_id" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldAppellantID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppellantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppellantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppellantID: %w", err)
+	}
+	return oldValue.AppellantID, nil
+}
+
+// AddAppellantID adds i to the "appellant_id" field.
+func (m *EsportsPlayerReviewAppealMutation) AddAppellantID(i int) {
+	if m.addappellant_id != nil {
+		*m.addappellant_id += i
+	} else {
+		m.addappellant_id = &i
+	}
+}
+
+// AddedAppellantID returns the value that was added to the "appellant_id" field in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) AddedAppellantID() (r int, exists bool) {
+	v := m.addappellant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAppellantID resets all changes to the "appellant_id" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetAppellantID() {
+	m.appellant_id = nil
+	m.addappellant_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *EsportsPlayerReviewAppealMutation) SetOrderID(i int) {
+	m.order_id = &i
+	m.addorder_id = nil
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) OrderID() (r int, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldOrderID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// AddOrderID adds i to the "order_id" field.
+func (m *EsportsPlayerReviewAppealMutation) AddOrderID(i int) {
+	if m.addorder_id != nil {
+		*m.addorder_id += i
+	} else {
+		m.addorder_id = &i
+	}
+}
+
+// AddedOrderID returns the value that was added to the "order_id" field in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) AddedOrderID() (r int, exists bool) {
+	v := m.addorder_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetOrderID() {
+	m.order_id = nil
+	m.addorder_id = nil
+}
+
+// SetReason sets the "reason" field.
+func (m *EsportsPlayerReviewAppealMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetEvidenceRef sets the "evidence_ref" field.
+func (m *EsportsPlayerReviewAppealMutation) SetEvidenceRef(s string) {
+	m.evidence_ref = &s
+}
+
+// EvidenceRef returns the value of the "evidence_ref" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) EvidenceRef() (r string, exists bool) {
+	v := m.evidence_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEvidenceRef returns the old "evidence_ref" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldEvidenceRef(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEvidenceRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEvidenceRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEvidenceRef: %w", err)
+	}
+	return oldValue.EvidenceRef, nil
+}
+
+// ResetEvidenceRef resets all changes to the "evidence_ref" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetEvidenceRef() {
+	m.evidence_ref = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsPlayerReviewAppealMutation) SetStatus(e esportsplayerreviewappeal.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) Status() (r esportsplayerreviewappeal.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldStatus(ctx context.Context) (v esportsplayerreviewappeal.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetReviewerAdminID sets the "reviewer_admin_id" field.
+func (m *EsportsPlayerReviewAppealMutation) SetReviewerAdminID(i int) {
+	m.reviewer_admin_id = &i
+	m.addreviewer_admin_id = nil
+}
+
+// ReviewerAdminID returns the value of the "reviewer_admin_id" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) ReviewerAdminID() (r int, exists bool) {
+	v := m.reviewer_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewerAdminID returns the old "reviewer_admin_id" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldReviewerAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewerAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewerAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewerAdminID: %w", err)
+	}
+	return oldValue.ReviewerAdminID, nil
+}
+
+// AddReviewerAdminID adds i to the "reviewer_admin_id" field.
+func (m *EsportsPlayerReviewAppealMutation) AddReviewerAdminID(i int) {
+	if m.addreviewer_admin_id != nil {
+		*m.addreviewer_admin_id += i
+	} else {
+		m.addreviewer_admin_id = &i
+	}
+}
+
+// AddedReviewerAdminID returns the value that was added to the "reviewer_admin_id" field in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) AddedReviewerAdminID() (r int, exists bool) {
+	v := m.addreviewer_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReviewerAdminID clears the value of the "reviewer_admin_id" field.
+func (m *EsportsPlayerReviewAppealMutation) ClearReviewerAdminID() {
+	m.reviewer_admin_id = nil
+	m.addreviewer_admin_id = nil
+	m.clearedFields[esportsplayerreviewappeal.FieldReviewerAdminID] = struct{}{}
+}
+
+// ReviewerAdminIDCleared returns if the "reviewer_admin_id" field was cleared in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) ReviewerAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsplayerreviewappeal.FieldReviewerAdminID]
+	return ok
+}
+
+// ResetReviewerAdminID resets all changes to the "reviewer_admin_id" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetReviewerAdminID() {
+	m.reviewer_admin_id = nil
+	m.addreviewer_admin_id = nil
+	delete(m.clearedFields, esportsplayerreviewappeal.FieldReviewerAdminID)
+}
+
+// SetReviewNote sets the "review_note" field.
+func (m *EsportsPlayerReviewAppealMutation) SetReviewNote(s string) {
+	m.review_note = &s
+}
+
+// ReviewNote returns the value of the "review_note" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) ReviewNote() (r string, exists bool) {
+	v := m.review_note
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewNote returns the old "review_note" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldReviewNote(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewNote is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewNote requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewNote: %w", err)
+	}
+	return oldValue.ReviewNote, nil
+}
+
+// ResetReviewNote resets all changes to the "review_note" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetReviewNote() {
+	m.review_note = nil
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (m *EsportsPlayerReviewAppealMutation) SetReviewedAt(t time.Time) {
+	m.reviewed_at = &t
+}
+
+// ReviewedAt returns the value of the "reviewed_at" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) ReviewedAt() (r time.Time, exists bool) {
+	v := m.reviewed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewedAt returns the old "reviewed_at" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldReviewedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewedAt: %w", err)
+	}
+	return oldValue.ReviewedAt, nil
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (m *EsportsPlayerReviewAppealMutation) ClearReviewedAt() {
+	m.reviewed_at = nil
+	m.clearedFields[esportsplayerreviewappeal.FieldReviewedAt] = struct{}{}
+}
+
+// ReviewedAtCleared returns if the "reviewed_at" field was cleared in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) ReviewedAtCleared() bool {
+	_, ok := m.clearedFields[esportsplayerreviewappeal.FieldReviewedAt]
+	return ok
+}
+
+// ResetReviewedAt resets all changes to the "reviewed_at" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetReviewedAt() {
+	m.reviewed_at = nil
+	delete(m.clearedFields, esportsplayerreviewappeal.FieldReviewedAt)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsPlayerReviewAppealMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsPlayerReviewAppealMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsPlayerReviewAppeal entity.
+// If the EsportsPlayerReviewAppeal object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerReviewAppealMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsPlayerReviewAppealMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// Where appends a list predicates to the EsportsPlayerReviewAppealMutation builder.
+func (m *EsportsPlayerReviewAppealMutation) Where(ps ...predicate.EsportsPlayerReviewAppeal) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsPlayerReviewAppealMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsPlayerReviewAppealMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsPlayerReviewAppeal, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsPlayerReviewAppealMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsPlayerReviewAppealMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsPlayerReviewAppeal).
+func (m *EsportsPlayerReviewAppealMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsPlayerReviewAppealMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.review_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewID)
+	}
+	if m.appellant_type != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldAppellantType)
+	}
+	if m.appellant_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldAppellantID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldOrderID)
+	}
+	if m.reason != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldReason)
+	}
+	if m.evidence_ref != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldEvidenceRef)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldStatus)
+	}
+	if m.reviewer_admin_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewerAdminID)
+	}
+	if m.review_note != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewNote)
+	}
+	if m.reviewed_at != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewedAt)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldCreatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsPlayerReviewAppealMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsplayerreviewappeal.FieldReviewID:
+		return m.ReviewID()
+	case esportsplayerreviewappeal.FieldAppellantType:
+		return m.AppellantType()
+	case esportsplayerreviewappeal.FieldAppellantID:
+		return m.AppellantID()
+	case esportsplayerreviewappeal.FieldOrderID:
+		return m.OrderID()
+	case esportsplayerreviewappeal.FieldReason:
+		return m.Reason()
+	case esportsplayerreviewappeal.FieldEvidenceRef:
+		return m.EvidenceRef()
+	case esportsplayerreviewappeal.FieldStatus:
+		return m.Status()
+	case esportsplayerreviewappeal.FieldReviewerAdminID:
+		return m.ReviewerAdminID()
+	case esportsplayerreviewappeal.FieldReviewNote:
+		return m.ReviewNote()
+	case esportsplayerreviewappeal.FieldReviewedAt:
+		return m.ReviewedAt()
+	case esportsplayerreviewappeal.FieldCreatedAt:
+		return m.CreatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsPlayerReviewAppealMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsplayerreviewappeal.FieldReviewID:
+		return m.OldReviewID(ctx)
+	case esportsplayerreviewappeal.FieldAppellantType:
+		return m.OldAppellantType(ctx)
+	case esportsplayerreviewappeal.FieldAppellantID:
+		return m.OldAppellantID(ctx)
+	case esportsplayerreviewappeal.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case esportsplayerreviewappeal.FieldReason:
+		return m.OldReason(ctx)
+	case esportsplayerreviewappeal.FieldEvidenceRef:
+		return m.OldEvidenceRef(ctx)
+	case esportsplayerreviewappeal.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsplayerreviewappeal.FieldReviewerAdminID:
+		return m.OldReviewerAdminID(ctx)
+	case esportsplayerreviewappeal.FieldReviewNote:
+		return m.OldReviewNote(ctx)
+	case esportsplayerreviewappeal.FieldReviewedAt:
+		return m.OldReviewedAt(ctx)
+	case esportsplayerreviewappeal.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsPlayerReviewAppeal field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsPlayerReviewAppealMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsplayerreviewappeal.FieldReviewID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewID(v)
+		return nil
+	case esportsplayerreviewappeal.FieldAppellantType:
+		v, ok := value.(esportsplayerreviewappeal.AppellantType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppellantType(v)
+		return nil
+	case esportsplayerreviewappeal.FieldAppellantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppellantID(v)
+		return nil
+	case esportsplayerreviewappeal.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case esportsplayerreviewappeal.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case esportsplayerreviewappeal.FieldEvidenceRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEvidenceRef(v)
+		return nil
+	case esportsplayerreviewappeal.FieldStatus:
+		v, ok := value.(esportsplayerreviewappeal.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsplayerreviewappeal.FieldReviewerAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewerAdminID(v)
+		return nil
+	case esportsplayerreviewappeal.FieldReviewNote:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewNote(v)
+		return nil
+	case esportsplayerreviewappeal.FieldReviewedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewedAt(v)
+		return nil
+	case esportsplayerreviewappeal.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerReviewAppeal field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsPlayerReviewAppealMutation) AddedFields() []string {
+	var fields []string
+	if m.addreview_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewID)
+	}
+	if m.addappellant_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldAppellantID)
+	}
+	if m.addorder_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldOrderID)
+	}
+	if m.addreviewer_admin_id != nil {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewerAdminID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsPlayerReviewAppealMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsplayerreviewappeal.FieldReviewID:
+		return m.AddedReviewID()
+	case esportsplayerreviewappeal.FieldAppellantID:
+		return m.AddedAppellantID()
+	case esportsplayerreviewappeal.FieldOrderID:
+		return m.AddedOrderID()
+	case esportsplayerreviewappeal.FieldReviewerAdminID:
+		return m.AddedReviewerAdminID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsPlayerReviewAppealMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsplayerreviewappeal.FieldReviewID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReviewID(v)
+		return nil
+	case esportsplayerreviewappeal.FieldAppellantID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAppellantID(v)
+		return nil
+	case esportsplayerreviewappeal.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderID(v)
+		return nil
+	case esportsplayerreviewappeal.FieldReviewerAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReviewerAdminID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerReviewAppeal numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsPlayerReviewAppealMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsplayerreviewappeal.FieldReviewerAdminID) {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewerAdminID)
+	}
+	if m.FieldCleared(esportsplayerreviewappeal.FieldReviewedAt) {
+		fields = append(fields, esportsplayerreviewappeal.FieldReviewedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsPlayerReviewAppealMutation) ClearField(name string) error {
+	switch name {
+	case esportsplayerreviewappeal.FieldReviewerAdminID:
+		m.ClearReviewerAdminID()
+		return nil
+	case esportsplayerreviewappeal.FieldReviewedAt:
+		m.ClearReviewedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerReviewAppeal nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsPlayerReviewAppealMutation) ResetField(name string) error {
+	switch name {
+	case esportsplayerreviewappeal.FieldReviewID:
+		m.ResetReviewID()
+		return nil
+	case esportsplayerreviewappeal.FieldAppellantType:
+		m.ResetAppellantType()
+		return nil
+	case esportsplayerreviewappeal.FieldAppellantID:
+		m.ResetAppellantID()
+		return nil
+	case esportsplayerreviewappeal.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case esportsplayerreviewappeal.FieldReason:
+		m.ResetReason()
+		return nil
+	case esportsplayerreviewappeal.FieldEvidenceRef:
+		m.ResetEvidenceRef()
+		return nil
+	case esportsplayerreviewappeal.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsplayerreviewappeal.FieldReviewerAdminID:
+		m.ResetReviewerAdminID()
+		return nil
+	case esportsplayerreviewappeal.FieldReviewNote:
+		m.ResetReviewNote()
+		return nil
+	case esportsplayerreviewappeal.FieldReviewedAt:
+		m.ResetReviewedAt()
+		return nil
+	case esportsplayerreviewappeal.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsPlayerReviewAppeal field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsPlayerReviewAppealMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsPlayerReviewAppealMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsPlayerReviewAppeal unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsPlayerReviewAppealMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsPlayerReviewAppeal edge %s", name)
 }
 
 // EsportsPlayerReviewRevisionMutation represents an operation that mutates the EsportsPlayerReviewRevision nodes in the graph.
@@ -89483,6 +100076,9 @@ type EsportsRechargeCampaignMutation struct {
 	audience                    *esportsrechargecampaign.Audience
 	audience_customer_ids       *[]int
 	appendaudience_customer_ids []int
+	audience_player_ids         *[]int
+	appendaudience_player_ids   []int
+	target_account_type         *esportsrechargecampaign.TargetAccountType
 	stack_rule                  *esportsrechargecampaign.StackRule
 	bonus_valid_days            *int
 	addbonus_valid_days         *int
@@ -89857,6 +100453,107 @@ func (m *EsportsRechargeCampaignMutation) ResetAudienceCustomerIds() {
 	delete(m.clearedFields, esportsrechargecampaign.FieldAudienceCustomerIds)
 }
 
+// SetAudiencePlayerIds sets the "audience_player_ids" field.
+func (m *EsportsRechargeCampaignMutation) SetAudiencePlayerIds(i []int) {
+	m.audience_player_ids = &i
+	m.appendaudience_player_ids = nil
+}
+
+// AudiencePlayerIds returns the value of the "audience_player_ids" field in the mutation.
+func (m *EsportsRechargeCampaignMutation) AudiencePlayerIds() (r []int, exists bool) {
+	v := m.audience_player_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAudiencePlayerIds returns the old "audience_player_ids" field's value of the EsportsRechargeCampaign entity.
+// If the EsportsRechargeCampaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRechargeCampaignMutation) OldAudiencePlayerIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAudiencePlayerIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAudiencePlayerIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAudiencePlayerIds: %w", err)
+	}
+	return oldValue.AudiencePlayerIds, nil
+}
+
+// AppendAudiencePlayerIds adds i to the "audience_player_ids" field.
+func (m *EsportsRechargeCampaignMutation) AppendAudiencePlayerIds(i []int) {
+	m.appendaudience_player_ids = append(m.appendaudience_player_ids, i...)
+}
+
+// AppendedAudiencePlayerIds returns the list of values that were appended to the "audience_player_ids" field in this mutation.
+func (m *EsportsRechargeCampaignMutation) AppendedAudiencePlayerIds() ([]int, bool) {
+	if len(m.appendaudience_player_ids) == 0 {
+		return nil, false
+	}
+	return m.appendaudience_player_ids, true
+}
+
+// ClearAudiencePlayerIds clears the value of the "audience_player_ids" field.
+func (m *EsportsRechargeCampaignMutation) ClearAudiencePlayerIds() {
+	m.audience_player_ids = nil
+	m.appendaudience_player_ids = nil
+	m.clearedFields[esportsrechargecampaign.FieldAudiencePlayerIds] = struct{}{}
+}
+
+// AudiencePlayerIdsCleared returns if the "audience_player_ids" field was cleared in this mutation.
+func (m *EsportsRechargeCampaignMutation) AudiencePlayerIdsCleared() bool {
+	_, ok := m.clearedFields[esportsrechargecampaign.FieldAudiencePlayerIds]
+	return ok
+}
+
+// ResetAudiencePlayerIds resets all changes to the "audience_player_ids" field.
+func (m *EsportsRechargeCampaignMutation) ResetAudiencePlayerIds() {
+	m.audience_player_ids = nil
+	m.appendaudience_player_ids = nil
+	delete(m.clearedFields, esportsrechargecampaign.FieldAudiencePlayerIds)
+}
+
+// SetTargetAccountType sets the "target_account_type" field.
+func (m *EsportsRechargeCampaignMutation) SetTargetAccountType(eat esportsrechargecampaign.TargetAccountType) {
+	m.target_account_type = &eat
+}
+
+// TargetAccountType returns the value of the "target_account_type" field in the mutation.
+func (m *EsportsRechargeCampaignMutation) TargetAccountType() (r esportsrechargecampaign.TargetAccountType, exists bool) {
+	v := m.target_account_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetAccountType returns the old "target_account_type" field's value of the EsportsRechargeCampaign entity.
+// If the EsportsRechargeCampaign object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRechargeCampaignMutation) OldTargetAccountType(ctx context.Context) (v esportsrechargecampaign.TargetAccountType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetAccountType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetAccountType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetAccountType: %w", err)
+	}
+	return oldValue.TargetAccountType, nil
+}
+
+// ResetTargetAccountType resets all changes to the "target_account_type" field.
+func (m *EsportsRechargeCampaignMutation) ResetTargetAccountType() {
+	m.target_account_type = nil
+}
+
 // SetStackRule sets the "stack_rule" field.
 func (m *EsportsRechargeCampaignMutation) SetStackRule(er esportsrechargecampaign.StackRule) {
 	m.stack_rule = &er
@@ -90219,7 +100916,7 @@ func (m *EsportsRechargeCampaignMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsRechargeCampaignMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.code != nil {
 		fields = append(fields, esportsrechargecampaign.FieldCode)
 	}
@@ -90237,6 +100934,12 @@ func (m *EsportsRechargeCampaignMutation) Fields() []string {
 	}
 	if m.audience_customer_ids != nil {
 		fields = append(fields, esportsrechargecampaign.FieldAudienceCustomerIds)
+	}
+	if m.audience_player_ids != nil {
+		fields = append(fields, esportsrechargecampaign.FieldAudiencePlayerIds)
+	}
+	if m.target_account_type != nil {
+		fields = append(fields, esportsrechargecampaign.FieldTargetAccountType)
 	}
 	if m.stack_rule != nil {
 		fields = append(fields, esportsrechargecampaign.FieldStackRule)
@@ -90282,6 +100985,10 @@ func (m *EsportsRechargeCampaignMutation) Field(name string) (ent.Value, bool) {
 		return m.Audience()
 	case esportsrechargecampaign.FieldAudienceCustomerIds:
 		return m.AudienceCustomerIds()
+	case esportsrechargecampaign.FieldAudiencePlayerIds:
+		return m.AudiencePlayerIds()
+	case esportsrechargecampaign.FieldTargetAccountType:
+		return m.TargetAccountType()
 	case esportsrechargecampaign.FieldStackRule:
 		return m.StackRule()
 	case esportsrechargecampaign.FieldBonusValidDays:
@@ -90319,6 +101026,10 @@ func (m *EsportsRechargeCampaignMutation) OldField(ctx context.Context, name str
 		return m.OldAudience(ctx)
 	case esportsrechargecampaign.FieldAudienceCustomerIds:
 		return m.OldAudienceCustomerIds(ctx)
+	case esportsrechargecampaign.FieldAudiencePlayerIds:
+		return m.OldAudiencePlayerIds(ctx)
+	case esportsrechargecampaign.FieldTargetAccountType:
+		return m.OldTargetAccountType(ctx)
 	case esportsrechargecampaign.FieldStackRule:
 		return m.OldStackRule(ctx)
 	case esportsrechargecampaign.FieldBonusValidDays:
@@ -90385,6 +101096,20 @@ func (m *EsportsRechargeCampaignMutation) SetField(name string, value ent.Value)
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAudienceCustomerIds(v)
+		return nil
+	case esportsrechargecampaign.FieldAudiencePlayerIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAudiencePlayerIds(v)
+		return nil
+	case esportsrechargecampaign.FieldTargetAccountType:
+		v, ok := value.(esportsrechargecampaign.TargetAccountType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetAccountType(v)
 		return nil
 	case esportsrechargecampaign.FieldStackRule:
 		v, ok := value.(esportsrechargecampaign.StackRule)
@@ -90502,6 +101227,9 @@ func (m *EsportsRechargeCampaignMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsrechargecampaign.FieldAudienceCustomerIds) {
 		fields = append(fields, esportsrechargecampaign.FieldAudienceCustomerIds)
 	}
+	if m.FieldCleared(esportsrechargecampaign.FieldAudiencePlayerIds) {
+		fields = append(fields, esportsrechargecampaign.FieldAudiencePlayerIds)
+	}
 	return fields
 }
 
@@ -90518,6 +101246,9 @@ func (m *EsportsRechargeCampaignMutation) ClearField(name string) error {
 	switch name {
 	case esportsrechargecampaign.FieldAudienceCustomerIds:
 		m.ClearAudienceCustomerIds()
+		return nil
+	case esportsrechargecampaign.FieldAudiencePlayerIds:
+		m.ClearAudiencePlayerIds()
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsRechargeCampaign nullable field %s", name)
@@ -90544,6 +101275,12 @@ func (m *EsportsRechargeCampaignMutation) ResetField(name string) error {
 		return nil
 	case esportsrechargecampaign.FieldAudienceCustomerIds:
 		m.ResetAudienceCustomerIds()
+		return nil
+	case esportsrechargecampaign.FieldAudiencePlayerIds:
+		m.ResetAudiencePlayerIds()
+		return nil
+	case esportsrechargecampaign.FieldTargetAccountType:
+		m.ResetTargetAccountType()
 		return nil
 	case esportsrechargecampaign.FieldStackRule:
 		m.ResetStackRule()
@@ -102037,6 +112774,10 @@ type EsportsSkuMutation struct {
 	service_units               *int64
 	addservice_units            *int64
 	service_unit_name           *string
+	per_seat_service_units      *int64
+	addper_seat_service_units   *int64
+	cost_cents                  *int64
+	addcost_cents               *int64
 	service_duration_minutes    *int
 	addservice_duration_minutes *int
 	required_seats              *int
@@ -102774,6 +113515,132 @@ func (m *EsportsSkuMutation) ResetServiceUnitName() {
 	m.service_unit_name = nil
 }
 
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (m *EsportsSkuMutation) SetPerSeatServiceUnits(i int64) {
+	m.per_seat_service_units = &i
+	m.addper_seat_service_units = nil
+}
+
+// PerSeatServiceUnits returns the value of the "per_seat_service_units" field in the mutation.
+func (m *EsportsSkuMutation) PerSeatServiceUnits() (r int64, exists bool) {
+	v := m.per_seat_service_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPerSeatServiceUnits returns the old "per_seat_service_units" field's value of the EsportsSku entity.
+// If the EsportsSku object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSkuMutation) OldPerSeatServiceUnits(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPerSeatServiceUnits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPerSeatServiceUnits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPerSeatServiceUnits: %w", err)
+	}
+	return oldValue.PerSeatServiceUnits, nil
+}
+
+// AddPerSeatServiceUnits adds i to the "per_seat_service_units" field.
+func (m *EsportsSkuMutation) AddPerSeatServiceUnits(i int64) {
+	if m.addper_seat_service_units != nil {
+		*m.addper_seat_service_units += i
+	} else {
+		m.addper_seat_service_units = &i
+	}
+}
+
+// AddedPerSeatServiceUnits returns the value that was added to the "per_seat_service_units" field in this mutation.
+func (m *EsportsSkuMutation) AddedPerSeatServiceUnits() (r int64, exists bool) {
+	v := m.addper_seat_service_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPerSeatServiceUnits resets all changes to the "per_seat_service_units" field.
+func (m *EsportsSkuMutation) ResetPerSeatServiceUnits() {
+	m.per_seat_service_units = nil
+	m.addper_seat_service_units = nil
+}
+
+// SetCostCents sets the "cost_cents" field.
+func (m *EsportsSkuMutation) SetCostCents(i int64) {
+	m.cost_cents = &i
+	m.addcost_cents = nil
+}
+
+// CostCents returns the value of the "cost_cents" field in the mutation.
+func (m *EsportsSkuMutation) CostCents() (r int64, exists bool) {
+	v := m.cost_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCostCents returns the old "cost_cents" field's value of the EsportsSku entity.
+// If the EsportsSku object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSkuMutation) OldCostCents(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCostCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCostCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCostCents: %w", err)
+	}
+	return oldValue.CostCents, nil
+}
+
+// AddCostCents adds i to the "cost_cents" field.
+func (m *EsportsSkuMutation) AddCostCents(i int64) {
+	if m.addcost_cents != nil {
+		*m.addcost_cents += i
+	} else {
+		m.addcost_cents = &i
+	}
+}
+
+// AddedCostCents returns the value that was added to the "cost_cents" field in this mutation.
+func (m *EsportsSkuMutation) AddedCostCents() (r int64, exists bool) {
+	v := m.addcost_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCostCents clears the value of the "cost_cents" field.
+func (m *EsportsSkuMutation) ClearCostCents() {
+	m.cost_cents = nil
+	m.addcost_cents = nil
+	m.clearedFields[esportssku.FieldCostCents] = struct{}{}
+}
+
+// CostCentsCleared returns if the "cost_cents" field was cleared in this mutation.
+func (m *EsportsSkuMutation) CostCentsCleared() bool {
+	_, ok := m.clearedFields[esportssku.FieldCostCents]
+	return ok
+}
+
+// ResetCostCents resets all changes to the "cost_cents" field.
+func (m *EsportsSkuMutation) ResetCostCents() {
+	m.cost_cents = nil
+	m.addcost_cents = nil
+	delete(m.clearedFields, esportssku.FieldCostCents)
+}
+
 // SetServiceDurationMinutes sets the "service_duration_minutes" field.
 func (m *EsportsSkuMutation) SetServiceDurationMinutes(i int) {
 	m.service_duration_minutes = &i
@@ -103380,7 +114247,7 @@ func (m *EsportsSkuMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsSkuMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 26)
 	if m.code != nil {
 		fields = append(fields, esportssku.FieldCode)
 	}
@@ -103416,6 +114283,12 @@ func (m *EsportsSkuMutation) Fields() []string {
 	}
 	if m.service_unit_name != nil {
 		fields = append(fields, esportssku.FieldServiceUnitName)
+	}
+	if m.per_seat_service_units != nil {
+		fields = append(fields, esportssku.FieldPerSeatServiceUnits)
+	}
+	if m.cost_cents != nil {
+		fields = append(fields, esportssku.FieldCostCents)
 	}
 	if m.service_duration_minutes != nil {
 		fields = append(fields, esportssku.FieldServiceDurationMinutes)
@@ -103485,6 +114358,10 @@ func (m *EsportsSkuMutation) Field(name string) (ent.Value, bool) {
 		return m.ServiceUnits()
 	case esportssku.FieldServiceUnitName:
 		return m.ServiceUnitName()
+	case esportssku.FieldPerSeatServiceUnits:
+		return m.PerSeatServiceUnits()
+	case esportssku.FieldCostCents:
+		return m.CostCents()
 	case esportssku.FieldServiceDurationMinutes:
 		return m.ServiceDurationMinutes()
 	case esportssku.FieldRequiredSeats:
@@ -103542,6 +114419,10 @@ func (m *EsportsSkuMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldServiceUnits(ctx)
 	case esportssku.FieldServiceUnitName:
 		return m.OldServiceUnitName(ctx)
+	case esportssku.FieldPerSeatServiceUnits:
+		return m.OldPerSeatServiceUnits(ctx)
+	case esportssku.FieldCostCents:
+		return m.OldCostCents(ctx)
 	case esportssku.FieldServiceDurationMinutes:
 		return m.OldServiceDurationMinutes(ctx)
 	case esportssku.FieldRequiredSeats:
@@ -103659,6 +114540,20 @@ func (m *EsportsSkuMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetServiceUnitName(v)
 		return nil
+	case esportssku.FieldPerSeatServiceUnits:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPerSeatServiceUnits(v)
+		return nil
+	case esportssku.FieldCostCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCostCents(v)
+		return nil
 	case esportssku.FieldServiceDurationMinutes:
 		v, ok := value.(int)
 		if !ok {
@@ -103772,6 +114667,12 @@ func (m *EsportsSkuMutation) AddedFields() []string {
 	if m.addservice_units != nil {
 		fields = append(fields, esportssku.FieldServiceUnits)
 	}
+	if m.addper_seat_service_units != nil {
+		fields = append(fields, esportssku.FieldPerSeatServiceUnits)
+	}
+	if m.addcost_cents != nil {
+		fields = append(fields, esportssku.FieldCostCents)
+	}
 	if m.addservice_duration_minutes != nil {
 		fields = append(fields, esportssku.FieldServiceDurationMinutes)
 	}
@@ -103815,6 +114716,10 @@ func (m *EsportsSkuMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedAdjustmentApprovalBp()
 	case esportssku.FieldServiceUnits:
 		return m.AddedServiceUnits()
+	case esportssku.FieldPerSeatServiceUnits:
+		return m.AddedPerSeatServiceUnits()
+	case esportssku.FieldCostCents:
+		return m.AddedCostCents()
 	case esportssku.FieldServiceDurationMinutes:
 		return m.AddedServiceDurationMinutes()
 	case esportssku.FieldRequiredSeats:
@@ -103887,6 +114792,20 @@ func (m *EsportsSkuMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddServiceUnits(v)
 		return nil
+	case esportssku.FieldPerSeatServiceUnits:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPerSeatServiceUnits(v)
+		return nil
+	case esportssku.FieldCostCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCostCents(v)
+		return nil
 	case esportssku.FieldServiceDurationMinutes:
 		v, ok := value.(int)
 		if !ok {
@@ -103953,6 +114872,9 @@ func (m *EsportsSkuMutation) ClearedFields() []string {
 	if m.FieldCleared(esportssku.FieldSpecGroupID) {
 		fields = append(fields, esportssku.FieldSpecGroupID)
 	}
+	if m.FieldCleared(esportssku.FieldCostCents) {
+		fields = append(fields, esportssku.FieldCostCents)
+	}
 	return fields
 }
 
@@ -103975,6 +114897,9 @@ func (m *EsportsSkuMutation) ClearField(name string) error {
 		return nil
 	case esportssku.FieldSpecGroupID:
 		m.ClearSpecGroupID()
+		return nil
+	case esportssku.FieldCostCents:
+		m.ClearCostCents()
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsSku nullable field %s", name)
@@ -104019,6 +114944,12 @@ func (m *EsportsSkuMutation) ResetField(name string) error {
 		return nil
 	case esportssku.FieldServiceUnitName:
 		m.ResetServiceUnitName()
+		return nil
+	case esportssku.FieldPerSeatServiceUnits:
+		m.ResetPerSeatServiceUnits()
+		return nil
+	case esportssku.FieldCostCents:
+		m.ResetCostCents()
 		return nil
 	case esportssku.FieldServiceDurationMinutes:
 		m.ResetServiceDurationMinutes()
@@ -106724,22 +117655,24 @@ func (m *EsportsSkuSuspensionItemMutation) ResetEdge(name string) error {
 // EsportsSpecGroupMutation represents an operation that mutates the EsportsSpecGroup nodes in the graph.
 type EsportsSpecGroupMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int
-	code          *string
-	name          *string
-	seats         *[]schematier.SeatSpec
-	appendseats   []schematier.SeatSpec
-	status        *esportsspecgroup.Status
-	version       *int
-	addversion    *int
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*EsportsSpecGroup, error)
-	predicates    []predicate.EsportsSpecGroup
+	op                        Op
+	typ                       string
+	id                        *int
+	code                      *string
+	name                      *string
+	seats                     *[]schematier.SeatSpec
+	appendseats               []schematier.SeatSpec
+	per_seat_service_units    *int64
+	addper_seat_service_units *int64
+	status                    *esportsspecgroup.Status
+	version                   *int
+	addversion                *int
+	created_at                *time.Time
+	updated_at                *time.Time
+	clearedFields             map[string]struct{}
+	done                      bool
+	oldValue                  func(context.Context) (*EsportsSpecGroup, error)
+	predicates                []predicate.EsportsSpecGroup
 }
 
 var _ ent.Mutation = (*EsportsSpecGroupMutation)(nil)
@@ -106963,6 +117896,62 @@ func (m *EsportsSpecGroupMutation) ResetSeats() {
 	m.appendseats = nil
 }
 
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (m *EsportsSpecGroupMutation) SetPerSeatServiceUnits(i int64) {
+	m.per_seat_service_units = &i
+	m.addper_seat_service_units = nil
+}
+
+// PerSeatServiceUnits returns the value of the "per_seat_service_units" field in the mutation.
+func (m *EsportsSpecGroupMutation) PerSeatServiceUnits() (r int64, exists bool) {
+	v := m.per_seat_service_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPerSeatServiceUnits returns the old "per_seat_service_units" field's value of the EsportsSpecGroup entity.
+// If the EsportsSpecGroup object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSpecGroupMutation) OldPerSeatServiceUnits(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPerSeatServiceUnits is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPerSeatServiceUnits requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPerSeatServiceUnits: %w", err)
+	}
+	return oldValue.PerSeatServiceUnits, nil
+}
+
+// AddPerSeatServiceUnits adds i to the "per_seat_service_units" field.
+func (m *EsportsSpecGroupMutation) AddPerSeatServiceUnits(i int64) {
+	if m.addper_seat_service_units != nil {
+		*m.addper_seat_service_units += i
+	} else {
+		m.addper_seat_service_units = &i
+	}
+}
+
+// AddedPerSeatServiceUnits returns the value that was added to the "per_seat_service_units" field in this mutation.
+func (m *EsportsSpecGroupMutation) AddedPerSeatServiceUnits() (r int64, exists bool) {
+	v := m.addper_seat_service_units
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPerSeatServiceUnits resets all changes to the "per_seat_service_units" field.
+func (m *EsportsSpecGroupMutation) ResetPerSeatServiceUnits() {
+	m.per_seat_service_units = nil
+	m.addper_seat_service_units = nil
+}
+
 // SetStatus sets the "status" field.
 func (m *EsportsSpecGroupMutation) SetStatus(e esportsspecgroup.Status) {
 	m.status = &e
@@ -107161,7 +118150,7 @@ func (m *EsportsSpecGroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsSpecGroupMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.code != nil {
 		fields = append(fields, esportsspecgroup.FieldCode)
 	}
@@ -107170,6 +118159,9 @@ func (m *EsportsSpecGroupMutation) Fields() []string {
 	}
 	if m.seats != nil {
 		fields = append(fields, esportsspecgroup.FieldSeats)
+	}
+	if m.per_seat_service_units != nil {
+		fields = append(fields, esportsspecgroup.FieldPerSeatServiceUnits)
 	}
 	if m.status != nil {
 		fields = append(fields, esportsspecgroup.FieldStatus)
@@ -107197,6 +118189,8 @@ func (m *EsportsSpecGroupMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case esportsspecgroup.FieldSeats:
 		return m.Seats()
+	case esportsspecgroup.FieldPerSeatServiceUnits:
+		return m.PerSeatServiceUnits()
 	case esportsspecgroup.FieldStatus:
 		return m.Status()
 	case esportsspecgroup.FieldVersion:
@@ -107220,6 +118214,8 @@ func (m *EsportsSpecGroupMutation) OldField(ctx context.Context, name string) (e
 		return m.OldName(ctx)
 	case esportsspecgroup.FieldSeats:
 		return m.OldSeats(ctx)
+	case esportsspecgroup.FieldPerSeatServiceUnits:
+		return m.OldPerSeatServiceUnits(ctx)
 	case esportsspecgroup.FieldStatus:
 		return m.OldStatus(ctx)
 	case esportsspecgroup.FieldVersion:
@@ -107258,6 +118254,13 @@ func (m *EsportsSpecGroupMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetSeats(v)
 		return nil
+	case esportsspecgroup.FieldPerSeatServiceUnits:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPerSeatServiceUnits(v)
+		return nil
 	case esportsspecgroup.FieldStatus:
 		v, ok := value.(esportsspecgroup.Status)
 		if !ok {
@@ -107294,6 +118297,9 @@ func (m *EsportsSpecGroupMutation) SetField(name string, value ent.Value) error 
 // this mutation.
 func (m *EsportsSpecGroupMutation) AddedFields() []string {
 	var fields []string
+	if m.addper_seat_service_units != nil {
+		fields = append(fields, esportsspecgroup.FieldPerSeatServiceUnits)
+	}
 	if m.addversion != nil {
 		fields = append(fields, esportsspecgroup.FieldVersion)
 	}
@@ -107305,6 +118311,8 @@ func (m *EsportsSpecGroupMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *EsportsSpecGroupMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case esportsspecgroup.FieldPerSeatServiceUnits:
+		return m.AddedPerSeatServiceUnits()
 	case esportsspecgroup.FieldVersion:
 		return m.AddedVersion()
 	}
@@ -107316,6 +118324,13 @@ func (m *EsportsSpecGroupMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *EsportsSpecGroupMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case esportsspecgroup.FieldPerSeatServiceUnits:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPerSeatServiceUnits(v)
+		return nil
 	case esportsspecgroup.FieldVersion:
 		v, ok := value.(int)
 		if !ok {
@@ -107358,6 +118373,9 @@ func (m *EsportsSpecGroupMutation) ResetField(name string) error {
 		return nil
 	case esportsspecgroup.FieldSeats:
 		m.ResetSeats()
+		return nil
+	case esportsspecgroup.FieldPerSeatServiceUnits:
+		m.ResetPerSeatServiceUnits()
 		return nil
 	case esportsspecgroup.FieldStatus:
 		m.ResetStatus()
@@ -107471,6 +118489,7 @@ type EsportsStoredValueCardMutation struct {
 	refunded_at                      *time.Time
 	version                          *int
 	addversion                       *int
+	deduction_order                  *string
 	created_at                       *time.Time
 	updated_at                       *time.Time
 	clearedFields                    map[string]struct{}
@@ -109038,6 +120057,42 @@ func (m *EsportsStoredValueCardMutation) ResetVersion() {
 	m.addversion = nil
 }
 
+// SetDeductionOrder sets the "deduction_order" field.
+func (m *EsportsStoredValueCardMutation) SetDeductionOrder(s string) {
+	m.deduction_order = &s
+}
+
+// DeductionOrder returns the value of the "deduction_order" field in the mutation.
+func (m *EsportsStoredValueCardMutation) DeductionOrder() (r string, exists bool) {
+	v := m.deduction_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeductionOrder returns the old "deduction_order" field's value of the EsportsStoredValueCard entity.
+// If the EsportsStoredValueCard object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueCardMutation) OldDeductionOrder(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeductionOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeductionOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeductionOrder: %w", err)
+	}
+	return oldValue.DeductionOrder, nil
+}
+
+// ResetDeductionOrder resets all changes to the "deduction_order" field.
+func (m *EsportsStoredValueCardMutation) ResetDeductionOrder() {
+	m.deduction_order = nil
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (m *EsportsStoredValueCardMutation) SetCreatedAt(t time.Time) {
 	m.created_at = &t
@@ -109144,7 +120199,7 @@ func (m *EsportsStoredValueCardMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsStoredValueCardMutation) Fields() []string {
-	fields := make([]string, 0, 31)
+	fields := make([]string, 0, 32)
 	if m.card_no != nil {
 		fields = append(fields, esportsstoredvaluecard.FieldCardNo)
 	}
@@ -109232,6 +120287,9 @@ func (m *EsportsStoredValueCardMutation) Fields() []string {
 	if m.version != nil {
 		fields = append(fields, esportsstoredvaluecard.FieldVersion)
 	}
+	if m.deduction_order != nil {
+		fields = append(fields, esportsstoredvaluecard.FieldDeductionOrder)
+	}
 	if m.created_at != nil {
 		fields = append(fields, esportsstoredvaluecard.FieldCreatedAt)
 	}
@@ -109304,6 +120362,8 @@ func (m *EsportsStoredValueCardMutation) Field(name string) (ent.Value, bool) {
 		return m.RefundedAt()
 	case esportsstoredvaluecard.FieldVersion:
 		return m.Version()
+	case esportsstoredvaluecard.FieldDeductionOrder:
+		return m.DeductionOrder()
 	case esportsstoredvaluecard.FieldCreatedAt:
 		return m.CreatedAt()
 	case esportsstoredvaluecard.FieldUpdatedAt:
@@ -109375,6 +120435,8 @@ func (m *EsportsStoredValueCardMutation) OldField(ctx context.Context, name stri
 		return m.OldRefundedAt(ctx)
 	case esportsstoredvaluecard.FieldVersion:
 		return m.OldVersion(ctx)
+	case esportsstoredvaluecard.FieldDeductionOrder:
+		return m.OldDeductionOrder(ctx)
 	case esportsstoredvaluecard.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
 	case esportsstoredvaluecard.FieldUpdatedAt:
@@ -109590,6 +120652,13 @@ func (m *EsportsStoredValueCardMutation) SetField(name string, value ent.Value) 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetVersion(v)
+		return nil
+	case esportsstoredvaluecard.FieldDeductionOrder:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeductionOrder(v)
 		return nil
 	case esportsstoredvaluecard.FieldCreatedAt:
 		v, ok := value.(time.Time)
@@ -109963,6 +121032,9 @@ func (m *EsportsStoredValueCardMutation) ResetField(name string) error {
 	case esportsstoredvaluecard.FieldVersion:
 		m.ResetVersion()
 		return nil
+	case esportsstoredvaluecard.FieldDeductionOrder:
+		m.ResetDeductionOrder()
+		return nil
 	case esportsstoredvaluecard.FieldCreatedAt:
 		m.ResetCreatedAt()
 		return nil
@@ -110019,6 +121091,1676 @@ func (m *EsportsStoredValueCardMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsStoredValueCardMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsStoredValueCard edge %s", name)
+}
+
+// EsportsStoredValueExceptionMutation represents an operation that mutates the EsportsStoredValueException nodes in the graph.
+type EsportsStoredValueExceptionMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *int
+	exception_no            *string
+	card_id                 *int
+	addcard_id              *int
+	order_id                *int
+	addorder_id             *int
+	customer_id             *int
+	addcustomer_id          *int
+	kind                    *esportsstoredvalueexception.Kind
+	detail                  *map[string]interface{}
+	reason                  *string
+	status                  *esportsstoredvalueexception.Status
+	assignee_admin_id       *int
+	addassignee_admin_id    *int
+	assigned_at             *time.Time
+	occurrences             *int
+	addoccurrences          *int
+	last_hit_at             *time.Time
+	resolved_by_admin_id    *int
+	addresolved_by_admin_id *int
+	resolved_at             *time.Time
+	resolution              *string
+	dedup_key               *string
+	version                 *int
+	addversion              *int
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*EsportsStoredValueException, error)
+	predicates              []predicate.EsportsStoredValueException
+}
+
+var _ ent.Mutation = (*EsportsStoredValueExceptionMutation)(nil)
+
+// esportsstoredvalueexceptionOption allows management of the mutation configuration using functional options.
+type esportsstoredvalueexceptionOption func(*EsportsStoredValueExceptionMutation)
+
+// newEsportsStoredValueExceptionMutation creates new mutation for the EsportsStoredValueException entity.
+func newEsportsStoredValueExceptionMutation(c config, op Op, opts ...esportsstoredvalueexceptionOption) *EsportsStoredValueExceptionMutation {
+	m := &EsportsStoredValueExceptionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsStoredValueException,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsStoredValueExceptionID sets the ID field of the mutation.
+func withEsportsStoredValueExceptionID(id int) esportsstoredvalueexceptionOption {
+	return func(m *EsportsStoredValueExceptionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsStoredValueException
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsStoredValueException, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsStoredValueException.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsStoredValueException sets the old EsportsStoredValueException of the mutation.
+func withEsportsStoredValueException(node *EsportsStoredValueException) esportsstoredvalueexceptionOption {
+	return func(m *EsportsStoredValueExceptionMutation) {
+		m.oldValue = func(context.Context) (*EsportsStoredValueException, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsStoredValueExceptionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsStoredValueExceptionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsStoredValueExceptionMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsStoredValueExceptionMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsStoredValueException.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetExceptionNo sets the "exception_no" field.
+func (m *EsportsStoredValueExceptionMutation) SetExceptionNo(s string) {
+	m.exception_no = &s
+}
+
+// ExceptionNo returns the value of the "exception_no" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) ExceptionNo() (r string, exists bool) {
+	v := m.exception_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExceptionNo returns the old "exception_no" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldExceptionNo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExceptionNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExceptionNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExceptionNo: %w", err)
+	}
+	return oldValue.ExceptionNo, nil
+}
+
+// ResetExceptionNo resets all changes to the "exception_no" field.
+func (m *EsportsStoredValueExceptionMutation) ResetExceptionNo() {
+	m.exception_no = nil
+}
+
+// SetCardID sets the "card_id" field.
+func (m *EsportsStoredValueExceptionMutation) SetCardID(i int) {
+	m.card_id = &i
+	m.addcard_id = nil
+}
+
+// CardID returns the value of the "card_id" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) CardID() (r int, exists bool) {
+	v := m.card_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCardID returns the old "card_id" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldCardID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCardID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCardID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCardID: %w", err)
+	}
+	return oldValue.CardID, nil
+}
+
+// AddCardID adds i to the "card_id" field.
+func (m *EsportsStoredValueExceptionMutation) AddCardID(i int) {
+	if m.addcard_id != nil {
+		*m.addcard_id += i
+	} else {
+		m.addcard_id = &i
+	}
+}
+
+// AddedCardID returns the value that was added to the "card_id" field in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedCardID() (r int, exists bool) {
+	v := m.addcard_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCardID resets all changes to the "card_id" field.
+func (m *EsportsStoredValueExceptionMutation) ResetCardID() {
+	m.card_id = nil
+	m.addcard_id = nil
+}
+
+// SetOrderID sets the "order_id" field.
+func (m *EsportsStoredValueExceptionMutation) SetOrderID(i int) {
+	m.order_id = &i
+	m.addorder_id = nil
+}
+
+// OrderID returns the value of the "order_id" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) OrderID() (r int, exists bool) {
+	v := m.order_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrderID returns the old "order_id" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldOrderID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrderID: %w", err)
+	}
+	return oldValue.OrderID, nil
+}
+
+// AddOrderID adds i to the "order_id" field.
+func (m *EsportsStoredValueExceptionMutation) AddOrderID(i int) {
+	if m.addorder_id != nil {
+		*m.addorder_id += i
+	} else {
+		m.addorder_id = &i
+	}
+}
+
+// AddedOrderID returns the value that was added to the "order_id" field in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedOrderID() (r int, exists bool) {
+	v := m.addorder_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOrderID resets all changes to the "order_id" field.
+func (m *EsportsStoredValueExceptionMutation) ResetOrderID() {
+	m.order_id = nil
+	m.addorder_id = nil
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *EsportsStoredValueExceptionMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *EsportsStoredValueExceptionMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *EsportsStoredValueExceptionMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *EsportsStoredValueExceptionMutation) SetKind(e esportsstoredvalueexception.Kind) {
+	m.kind = &e
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) Kind() (r esportsstoredvalueexception.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldKind(ctx context.Context) (v esportsstoredvalueexception.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *EsportsStoredValueExceptionMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetDetail sets the "detail" field.
+func (m *EsportsStoredValueExceptionMutation) SetDetail(value map[string]interface{}) {
+	m.detail = &value
+}
+
+// Detail returns the value of the "detail" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) Detail() (r map[string]interface{}, exists bool) {
+	v := m.detail
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDetail returns the old "detail" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldDetail(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDetail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDetail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDetail: %w", err)
+	}
+	return oldValue.Detail, nil
+}
+
+// ClearDetail clears the value of the "detail" field.
+func (m *EsportsStoredValueExceptionMutation) ClearDetail() {
+	m.detail = nil
+	m.clearedFields[esportsstoredvalueexception.FieldDetail] = struct{}{}
+}
+
+// DetailCleared returns if the "detail" field was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) DetailCleared() bool {
+	_, ok := m.clearedFields[esportsstoredvalueexception.FieldDetail]
+	return ok
+}
+
+// ResetDetail resets all changes to the "detail" field.
+func (m *EsportsStoredValueExceptionMutation) ResetDetail() {
+	m.detail = nil
+	delete(m.clearedFields, esportsstoredvalueexception.FieldDetail)
+}
+
+// SetReason sets the "reason" field.
+func (m *EsportsStoredValueExceptionMutation) SetReason(s string) {
+	m.reason = &s
+}
+
+// Reason returns the value of the "reason" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) Reason() (r string, exists bool) {
+	v := m.reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReason returns the old "reason" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReason: %w", err)
+	}
+	return oldValue.Reason, nil
+}
+
+// ResetReason resets all changes to the "reason" field.
+func (m *EsportsStoredValueExceptionMutation) ResetReason() {
+	m.reason = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsStoredValueExceptionMutation) SetStatus(e esportsstoredvalueexception.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) Status() (r esportsstoredvalueexception.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldStatus(ctx context.Context) (v esportsstoredvalueexception.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsStoredValueExceptionMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetAssigneeAdminID sets the "assignee_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) SetAssigneeAdminID(i int) {
+	m.assignee_admin_id = &i
+	m.addassignee_admin_id = nil
+}
+
+// AssigneeAdminID returns the value of the "assignee_admin_id" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) AssigneeAdminID() (r int, exists bool) {
+	v := m.assignee_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssigneeAdminID returns the old "assignee_admin_id" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldAssigneeAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssigneeAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssigneeAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssigneeAdminID: %w", err)
+	}
+	return oldValue.AssigneeAdminID, nil
+}
+
+// AddAssigneeAdminID adds i to the "assignee_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) AddAssigneeAdminID(i int) {
+	if m.addassignee_admin_id != nil {
+		*m.addassignee_admin_id += i
+	} else {
+		m.addassignee_admin_id = &i
+	}
+}
+
+// AddedAssigneeAdminID returns the value that was added to the "assignee_admin_id" field in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedAssigneeAdminID() (r int, exists bool) {
+	v := m.addassignee_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAssigneeAdminID clears the value of the "assignee_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) ClearAssigneeAdminID() {
+	m.assignee_admin_id = nil
+	m.addassignee_admin_id = nil
+	m.clearedFields[esportsstoredvalueexception.FieldAssigneeAdminID] = struct{}{}
+}
+
+// AssigneeAdminIDCleared returns if the "assignee_admin_id" field was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AssigneeAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsstoredvalueexception.FieldAssigneeAdminID]
+	return ok
+}
+
+// ResetAssigneeAdminID resets all changes to the "assignee_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) ResetAssigneeAdminID() {
+	m.assignee_admin_id = nil
+	m.addassignee_admin_id = nil
+	delete(m.clearedFields, esportsstoredvalueexception.FieldAssigneeAdminID)
+}
+
+// SetAssignedAt sets the "assigned_at" field.
+func (m *EsportsStoredValueExceptionMutation) SetAssignedAt(t time.Time) {
+	m.assigned_at = &t
+}
+
+// AssignedAt returns the value of the "assigned_at" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) AssignedAt() (r time.Time, exists bool) {
+	v := m.assigned_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAssignedAt returns the old "assigned_at" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldAssignedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAssignedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAssignedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAssignedAt: %w", err)
+	}
+	return oldValue.AssignedAt, nil
+}
+
+// ClearAssignedAt clears the value of the "assigned_at" field.
+func (m *EsportsStoredValueExceptionMutation) ClearAssignedAt() {
+	m.assigned_at = nil
+	m.clearedFields[esportsstoredvalueexception.FieldAssignedAt] = struct{}{}
+}
+
+// AssignedAtCleared returns if the "assigned_at" field was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AssignedAtCleared() bool {
+	_, ok := m.clearedFields[esportsstoredvalueexception.FieldAssignedAt]
+	return ok
+}
+
+// ResetAssignedAt resets all changes to the "assigned_at" field.
+func (m *EsportsStoredValueExceptionMutation) ResetAssignedAt() {
+	m.assigned_at = nil
+	delete(m.clearedFields, esportsstoredvalueexception.FieldAssignedAt)
+}
+
+// SetOccurrences sets the "occurrences" field.
+func (m *EsportsStoredValueExceptionMutation) SetOccurrences(i int) {
+	m.occurrences = &i
+	m.addoccurrences = nil
+}
+
+// Occurrences returns the value of the "occurrences" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) Occurrences() (r int, exists bool) {
+	v := m.occurrences
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOccurrences returns the old "occurrences" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldOccurrences(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOccurrences is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOccurrences requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOccurrences: %w", err)
+	}
+	return oldValue.Occurrences, nil
+}
+
+// AddOccurrences adds i to the "occurrences" field.
+func (m *EsportsStoredValueExceptionMutation) AddOccurrences(i int) {
+	if m.addoccurrences != nil {
+		*m.addoccurrences += i
+	} else {
+		m.addoccurrences = &i
+	}
+}
+
+// AddedOccurrences returns the value that was added to the "occurrences" field in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedOccurrences() (r int, exists bool) {
+	v := m.addoccurrences
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOccurrences resets all changes to the "occurrences" field.
+func (m *EsportsStoredValueExceptionMutation) ResetOccurrences() {
+	m.occurrences = nil
+	m.addoccurrences = nil
+}
+
+// SetLastHitAt sets the "last_hit_at" field.
+func (m *EsportsStoredValueExceptionMutation) SetLastHitAt(t time.Time) {
+	m.last_hit_at = &t
+}
+
+// LastHitAt returns the value of the "last_hit_at" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) LastHitAt() (r time.Time, exists bool) {
+	v := m.last_hit_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastHitAt returns the old "last_hit_at" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldLastHitAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastHitAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastHitAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastHitAt: %w", err)
+	}
+	return oldValue.LastHitAt, nil
+}
+
+// ClearLastHitAt clears the value of the "last_hit_at" field.
+func (m *EsportsStoredValueExceptionMutation) ClearLastHitAt() {
+	m.last_hit_at = nil
+	m.clearedFields[esportsstoredvalueexception.FieldLastHitAt] = struct{}{}
+}
+
+// LastHitAtCleared returns if the "last_hit_at" field was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) LastHitAtCleared() bool {
+	_, ok := m.clearedFields[esportsstoredvalueexception.FieldLastHitAt]
+	return ok
+}
+
+// ResetLastHitAt resets all changes to the "last_hit_at" field.
+func (m *EsportsStoredValueExceptionMutation) ResetLastHitAt() {
+	m.last_hit_at = nil
+	delete(m.clearedFields, esportsstoredvalueexception.FieldLastHitAt)
+}
+
+// SetResolvedByAdminID sets the "resolved_by_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) SetResolvedByAdminID(i int) {
+	m.resolved_by_admin_id = &i
+	m.addresolved_by_admin_id = nil
+}
+
+// ResolvedByAdminID returns the value of the "resolved_by_admin_id" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) ResolvedByAdminID() (r int, exists bool) {
+	v := m.resolved_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedByAdminID returns the old "resolved_by_admin_id" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldResolvedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedByAdminID: %w", err)
+	}
+	return oldValue.ResolvedByAdminID, nil
+}
+
+// AddResolvedByAdminID adds i to the "resolved_by_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) AddResolvedByAdminID(i int) {
+	if m.addresolved_by_admin_id != nil {
+		*m.addresolved_by_admin_id += i
+	} else {
+		m.addresolved_by_admin_id = &i
+	}
+}
+
+// AddedResolvedByAdminID returns the value that was added to the "resolved_by_admin_id" field in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedResolvedByAdminID() (r int, exists bool) {
+	v := m.addresolved_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearResolvedByAdminID clears the value of the "resolved_by_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) ClearResolvedByAdminID() {
+	m.resolved_by_admin_id = nil
+	m.addresolved_by_admin_id = nil
+	m.clearedFields[esportsstoredvalueexception.FieldResolvedByAdminID] = struct{}{}
+}
+
+// ResolvedByAdminIDCleared returns if the "resolved_by_admin_id" field was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) ResolvedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsstoredvalueexception.FieldResolvedByAdminID]
+	return ok
+}
+
+// ResetResolvedByAdminID resets all changes to the "resolved_by_admin_id" field.
+func (m *EsportsStoredValueExceptionMutation) ResetResolvedByAdminID() {
+	m.resolved_by_admin_id = nil
+	m.addresolved_by_admin_id = nil
+	delete(m.clearedFields, esportsstoredvalueexception.FieldResolvedByAdminID)
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *EsportsStoredValueExceptionMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *EsportsStoredValueExceptionMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[esportsstoredvalueexception.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[esportsstoredvalueexception.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *EsportsStoredValueExceptionMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, esportsstoredvalueexception.FieldResolvedAt)
+}
+
+// SetResolution sets the "resolution" field.
+func (m *EsportsStoredValueExceptionMutation) SetResolution(s string) {
+	m.resolution = &s
+}
+
+// Resolution returns the value of the "resolution" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) Resolution() (r string, exists bool) {
+	v := m.resolution
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolution returns the old "resolution" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldResolution(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolution is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolution requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolution: %w", err)
+	}
+	return oldValue.Resolution, nil
+}
+
+// ResetResolution resets all changes to the "resolution" field.
+func (m *EsportsStoredValueExceptionMutation) ResetResolution() {
+	m.resolution = nil
+}
+
+// SetDedupKey sets the "dedup_key" field.
+func (m *EsportsStoredValueExceptionMutation) SetDedupKey(s string) {
+	m.dedup_key = &s
+}
+
+// DedupKey returns the value of the "dedup_key" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) DedupKey() (r string, exists bool) {
+	v := m.dedup_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedupKey returns the old "dedup_key" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldDedupKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedupKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedupKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedupKey: %w", err)
+	}
+	return oldValue.DedupKey, nil
+}
+
+// ClearDedupKey clears the value of the "dedup_key" field.
+func (m *EsportsStoredValueExceptionMutation) ClearDedupKey() {
+	m.dedup_key = nil
+	m.clearedFields[esportsstoredvalueexception.FieldDedupKey] = struct{}{}
+}
+
+// DedupKeyCleared returns if the "dedup_key" field was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) DedupKeyCleared() bool {
+	_, ok := m.clearedFields[esportsstoredvalueexception.FieldDedupKey]
+	return ok
+}
+
+// ResetDedupKey resets all changes to the "dedup_key" field.
+func (m *EsportsStoredValueExceptionMutation) ResetDedupKey() {
+	m.dedup_key = nil
+	delete(m.clearedFields, esportsstoredvalueexception.FieldDedupKey)
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsStoredValueExceptionMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsStoredValueExceptionMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsStoredValueExceptionMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsStoredValueExceptionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsStoredValueExceptionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsStoredValueExceptionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsStoredValueExceptionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsStoredValueException entity.
+// If the EsportsStoredValueException object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsStoredValueExceptionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsStoredValueExceptionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsStoredValueExceptionMutation builder.
+func (m *EsportsStoredValueExceptionMutation) Where(ps ...predicate.EsportsStoredValueException) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsStoredValueExceptionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsStoredValueExceptionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsStoredValueException, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsStoredValueExceptionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsStoredValueExceptionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsStoredValueException).
+func (m *EsportsStoredValueExceptionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsStoredValueExceptionMutation) Fields() []string {
+	fields := make([]string, 0, 19)
+	if m.exception_no != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldExceptionNo)
+	}
+	if m.card_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldCardID)
+	}
+	if m.order_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldOrderID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldCustomerID)
+	}
+	if m.kind != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldKind)
+	}
+	if m.detail != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldDetail)
+	}
+	if m.reason != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldReason)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldStatus)
+	}
+	if m.assignee_admin_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldAssigneeAdminID)
+	}
+	if m.assigned_at != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldAssignedAt)
+	}
+	if m.occurrences != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldOccurrences)
+	}
+	if m.last_hit_at != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldLastHitAt)
+	}
+	if m.resolved_by_admin_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldResolvedByAdminID)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldResolvedAt)
+	}
+	if m.resolution != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldResolution)
+	}
+	if m.dedup_key != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldDedupKey)
+	}
+	if m.version != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsStoredValueExceptionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsstoredvalueexception.FieldExceptionNo:
+		return m.ExceptionNo()
+	case esportsstoredvalueexception.FieldCardID:
+		return m.CardID()
+	case esportsstoredvalueexception.FieldOrderID:
+		return m.OrderID()
+	case esportsstoredvalueexception.FieldCustomerID:
+		return m.CustomerID()
+	case esportsstoredvalueexception.FieldKind:
+		return m.Kind()
+	case esportsstoredvalueexception.FieldDetail:
+		return m.Detail()
+	case esportsstoredvalueexception.FieldReason:
+		return m.Reason()
+	case esportsstoredvalueexception.FieldStatus:
+		return m.Status()
+	case esportsstoredvalueexception.FieldAssigneeAdminID:
+		return m.AssigneeAdminID()
+	case esportsstoredvalueexception.FieldAssignedAt:
+		return m.AssignedAt()
+	case esportsstoredvalueexception.FieldOccurrences:
+		return m.Occurrences()
+	case esportsstoredvalueexception.FieldLastHitAt:
+		return m.LastHitAt()
+	case esportsstoredvalueexception.FieldResolvedByAdminID:
+		return m.ResolvedByAdminID()
+	case esportsstoredvalueexception.FieldResolvedAt:
+		return m.ResolvedAt()
+	case esportsstoredvalueexception.FieldResolution:
+		return m.Resolution()
+	case esportsstoredvalueexception.FieldDedupKey:
+		return m.DedupKey()
+	case esportsstoredvalueexception.FieldVersion:
+		return m.Version()
+	case esportsstoredvalueexception.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportsstoredvalueexception.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsStoredValueExceptionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsstoredvalueexception.FieldExceptionNo:
+		return m.OldExceptionNo(ctx)
+	case esportsstoredvalueexception.FieldCardID:
+		return m.OldCardID(ctx)
+	case esportsstoredvalueexception.FieldOrderID:
+		return m.OldOrderID(ctx)
+	case esportsstoredvalueexception.FieldCustomerID:
+		return m.OldCustomerID(ctx)
+	case esportsstoredvalueexception.FieldKind:
+		return m.OldKind(ctx)
+	case esportsstoredvalueexception.FieldDetail:
+		return m.OldDetail(ctx)
+	case esportsstoredvalueexception.FieldReason:
+		return m.OldReason(ctx)
+	case esportsstoredvalueexception.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsstoredvalueexception.FieldAssigneeAdminID:
+		return m.OldAssigneeAdminID(ctx)
+	case esportsstoredvalueexception.FieldAssignedAt:
+		return m.OldAssignedAt(ctx)
+	case esportsstoredvalueexception.FieldOccurrences:
+		return m.OldOccurrences(ctx)
+	case esportsstoredvalueexception.FieldLastHitAt:
+		return m.OldLastHitAt(ctx)
+	case esportsstoredvalueexception.FieldResolvedByAdminID:
+		return m.OldResolvedByAdminID(ctx)
+	case esportsstoredvalueexception.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	case esportsstoredvalueexception.FieldResolution:
+		return m.OldResolution(ctx)
+	case esportsstoredvalueexception.FieldDedupKey:
+		return m.OldDedupKey(ctx)
+	case esportsstoredvalueexception.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportsstoredvalueexception.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportsstoredvalueexception.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsStoredValueException field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsStoredValueExceptionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsstoredvalueexception.FieldExceptionNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExceptionNo(v)
+		return nil
+	case esportsstoredvalueexception.FieldCardID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCardID(v)
+		return nil
+	case esportsstoredvalueexception.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrderID(v)
+		return nil
+	case esportsstoredvalueexception.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
+		return nil
+	case esportsstoredvalueexception.FieldKind:
+		v, ok := value.(esportsstoredvalueexception.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case esportsstoredvalueexception.FieldDetail:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDetail(v)
+		return nil
+	case esportsstoredvalueexception.FieldReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReason(v)
+		return nil
+	case esportsstoredvalueexception.FieldStatus:
+		v, ok := value.(esportsstoredvalueexception.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsstoredvalueexception.FieldAssigneeAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssigneeAdminID(v)
+		return nil
+	case esportsstoredvalueexception.FieldAssignedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAssignedAt(v)
+		return nil
+	case esportsstoredvalueexception.FieldOccurrences:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOccurrences(v)
+		return nil
+	case esportsstoredvalueexception.FieldLastHitAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastHitAt(v)
+		return nil
+	case esportsstoredvalueexception.FieldResolvedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedByAdminID(v)
+		return nil
+	case esportsstoredvalueexception.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	case esportsstoredvalueexception.FieldResolution:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolution(v)
+		return nil
+	case esportsstoredvalueexception.FieldDedupKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedupKey(v)
+		return nil
+	case esportsstoredvalueexception.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportsstoredvalueexception.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportsstoredvalueexception.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsStoredValueException field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedFields() []string {
+	var fields []string
+	if m.addcard_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldCardID)
+	}
+	if m.addorder_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldOrderID)
+	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldCustomerID)
+	}
+	if m.addassignee_admin_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldAssigneeAdminID)
+	}
+	if m.addoccurrences != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldOccurrences)
+	}
+	if m.addresolved_by_admin_id != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldResolvedByAdminID)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportsstoredvalueexception.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsStoredValueExceptionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsstoredvalueexception.FieldCardID:
+		return m.AddedCardID()
+	case esportsstoredvalueexception.FieldOrderID:
+		return m.AddedOrderID()
+	case esportsstoredvalueexception.FieldCustomerID:
+		return m.AddedCustomerID()
+	case esportsstoredvalueexception.FieldAssigneeAdminID:
+		return m.AddedAssigneeAdminID()
+	case esportsstoredvalueexception.FieldOccurrences:
+		return m.AddedOccurrences()
+	case esportsstoredvalueexception.FieldResolvedByAdminID:
+		return m.AddedResolvedByAdminID()
+	case esportsstoredvalueexception.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsStoredValueExceptionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsstoredvalueexception.FieldCardID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCardID(v)
+		return nil
+	case esportsstoredvalueexception.FieldOrderID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOrderID(v)
+		return nil
+	case esportsstoredvalueexception.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
+		return nil
+	case esportsstoredvalueexception.FieldAssigneeAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAssigneeAdminID(v)
+		return nil
+	case esportsstoredvalueexception.FieldOccurrences:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOccurrences(v)
+		return nil
+	case esportsstoredvalueexception.FieldResolvedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResolvedByAdminID(v)
+		return nil
+	case esportsstoredvalueexception.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsStoredValueException numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsStoredValueExceptionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsstoredvalueexception.FieldDetail) {
+		fields = append(fields, esportsstoredvalueexception.FieldDetail)
+	}
+	if m.FieldCleared(esportsstoredvalueexception.FieldAssigneeAdminID) {
+		fields = append(fields, esportsstoredvalueexception.FieldAssigneeAdminID)
+	}
+	if m.FieldCleared(esportsstoredvalueexception.FieldAssignedAt) {
+		fields = append(fields, esportsstoredvalueexception.FieldAssignedAt)
+	}
+	if m.FieldCleared(esportsstoredvalueexception.FieldLastHitAt) {
+		fields = append(fields, esportsstoredvalueexception.FieldLastHitAt)
+	}
+	if m.FieldCleared(esportsstoredvalueexception.FieldResolvedByAdminID) {
+		fields = append(fields, esportsstoredvalueexception.FieldResolvedByAdminID)
+	}
+	if m.FieldCleared(esportsstoredvalueexception.FieldResolvedAt) {
+		fields = append(fields, esportsstoredvalueexception.FieldResolvedAt)
+	}
+	if m.FieldCleared(esportsstoredvalueexception.FieldDedupKey) {
+		fields = append(fields, esportsstoredvalueexception.FieldDedupKey)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsStoredValueExceptionMutation) ClearField(name string) error {
+	switch name {
+	case esportsstoredvalueexception.FieldDetail:
+		m.ClearDetail()
+		return nil
+	case esportsstoredvalueexception.FieldAssigneeAdminID:
+		m.ClearAssigneeAdminID()
+		return nil
+	case esportsstoredvalueexception.FieldAssignedAt:
+		m.ClearAssignedAt()
+		return nil
+	case esportsstoredvalueexception.FieldLastHitAt:
+		m.ClearLastHitAt()
+		return nil
+	case esportsstoredvalueexception.FieldResolvedByAdminID:
+		m.ClearResolvedByAdminID()
+		return nil
+	case esportsstoredvalueexception.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	case esportsstoredvalueexception.FieldDedupKey:
+		m.ClearDedupKey()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsStoredValueException nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsStoredValueExceptionMutation) ResetField(name string) error {
+	switch name {
+	case esportsstoredvalueexception.FieldExceptionNo:
+		m.ResetExceptionNo()
+		return nil
+	case esportsstoredvalueexception.FieldCardID:
+		m.ResetCardID()
+		return nil
+	case esportsstoredvalueexception.FieldOrderID:
+		m.ResetOrderID()
+		return nil
+	case esportsstoredvalueexception.FieldCustomerID:
+		m.ResetCustomerID()
+		return nil
+	case esportsstoredvalueexception.FieldKind:
+		m.ResetKind()
+		return nil
+	case esportsstoredvalueexception.FieldDetail:
+		m.ResetDetail()
+		return nil
+	case esportsstoredvalueexception.FieldReason:
+		m.ResetReason()
+		return nil
+	case esportsstoredvalueexception.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsstoredvalueexception.FieldAssigneeAdminID:
+		m.ResetAssigneeAdminID()
+		return nil
+	case esportsstoredvalueexception.FieldAssignedAt:
+		m.ResetAssignedAt()
+		return nil
+	case esportsstoredvalueexception.FieldOccurrences:
+		m.ResetOccurrences()
+		return nil
+	case esportsstoredvalueexception.FieldLastHitAt:
+		m.ResetLastHitAt()
+		return nil
+	case esportsstoredvalueexception.FieldResolvedByAdminID:
+		m.ResetResolvedByAdminID()
+		return nil
+	case esportsstoredvalueexception.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	case esportsstoredvalueexception.FieldResolution:
+		m.ResetResolution()
+		return nil
+	case esportsstoredvalueexception.FieldDedupKey:
+		m.ResetDedupKey()
+		return nil
+	case esportsstoredvalueexception.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportsstoredvalueexception.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportsstoredvalueexception.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsStoredValueException field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsStoredValueExceptionMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsStoredValueExceptionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsStoredValueExceptionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsStoredValueExceptionMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsStoredValueExceptionMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsStoredValueException unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsStoredValueExceptionMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsStoredValueException edge %s", name)
 }
 
 // EsportsStoredValuePackageMutation represents an operation that mutates the EsportsStoredValuePackage nodes in the graph.
@@ -112802,6 +125544,14 @@ type EsportsWalletTxMutation struct {
 	operator_id              *int
 	addoperator_id           *int
 	note                     *string
+	beneficiary_type         *esportswallettx.BeneficiaryType
+	beneficiary_id           *int
+	addbeneficiary_id        *int
+	balance_before_cents     *int64
+	addbalance_before_cents  *int64
+	balance_after_cents      *int64
+	addbalance_after_cents   *int64
+	fund_batch               *string
 	rule_snapshot            *map[string]interface{}
 	bonus_expires_at         *time.Time
 	created_at               *time.Time
@@ -113363,6 +126113,246 @@ func (m *EsportsWalletTxMutation) ResetNote() {
 	m.note = nil
 }
 
+// SetBeneficiaryType sets the "beneficiary_type" field.
+func (m *EsportsWalletTxMutation) SetBeneficiaryType(et esportswallettx.BeneficiaryType) {
+	m.beneficiary_type = &et
+}
+
+// BeneficiaryType returns the value of the "beneficiary_type" field in the mutation.
+func (m *EsportsWalletTxMutation) BeneficiaryType() (r esportswallettx.BeneficiaryType, exists bool) {
+	v := m.beneficiary_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBeneficiaryType returns the old "beneficiary_type" field's value of the EsportsWalletTx entity.
+// If the EsportsWalletTx object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsWalletTxMutation) OldBeneficiaryType(ctx context.Context) (v esportswallettx.BeneficiaryType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBeneficiaryType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBeneficiaryType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBeneficiaryType: %w", err)
+	}
+	return oldValue.BeneficiaryType, nil
+}
+
+// ResetBeneficiaryType resets all changes to the "beneficiary_type" field.
+func (m *EsportsWalletTxMutation) ResetBeneficiaryType() {
+	m.beneficiary_type = nil
+}
+
+// SetBeneficiaryID sets the "beneficiary_id" field.
+func (m *EsportsWalletTxMutation) SetBeneficiaryID(i int) {
+	m.beneficiary_id = &i
+	m.addbeneficiary_id = nil
+}
+
+// BeneficiaryID returns the value of the "beneficiary_id" field in the mutation.
+func (m *EsportsWalletTxMutation) BeneficiaryID() (r int, exists bool) {
+	v := m.beneficiary_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBeneficiaryID returns the old "beneficiary_id" field's value of the EsportsWalletTx entity.
+// If the EsportsWalletTx object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsWalletTxMutation) OldBeneficiaryID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBeneficiaryID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBeneficiaryID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBeneficiaryID: %w", err)
+	}
+	return oldValue.BeneficiaryID, nil
+}
+
+// AddBeneficiaryID adds i to the "beneficiary_id" field.
+func (m *EsportsWalletTxMutation) AddBeneficiaryID(i int) {
+	if m.addbeneficiary_id != nil {
+		*m.addbeneficiary_id += i
+	} else {
+		m.addbeneficiary_id = &i
+	}
+}
+
+// AddedBeneficiaryID returns the value that was added to the "beneficiary_id" field in this mutation.
+func (m *EsportsWalletTxMutation) AddedBeneficiaryID() (r int, exists bool) {
+	v := m.addbeneficiary_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBeneficiaryID resets all changes to the "beneficiary_id" field.
+func (m *EsportsWalletTxMutation) ResetBeneficiaryID() {
+	m.beneficiary_id = nil
+	m.addbeneficiary_id = nil
+}
+
+// SetBalanceBeforeCents sets the "balance_before_cents" field.
+func (m *EsportsWalletTxMutation) SetBalanceBeforeCents(i int64) {
+	m.balance_before_cents = &i
+	m.addbalance_before_cents = nil
+}
+
+// BalanceBeforeCents returns the value of the "balance_before_cents" field in the mutation.
+func (m *EsportsWalletTxMutation) BalanceBeforeCents() (r int64, exists bool) {
+	v := m.balance_before_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceBeforeCents returns the old "balance_before_cents" field's value of the EsportsWalletTx entity.
+// If the EsportsWalletTx object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsWalletTxMutation) OldBalanceBeforeCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceBeforeCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceBeforeCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceBeforeCents: %w", err)
+	}
+	return oldValue.BalanceBeforeCents, nil
+}
+
+// AddBalanceBeforeCents adds i to the "balance_before_cents" field.
+func (m *EsportsWalletTxMutation) AddBalanceBeforeCents(i int64) {
+	if m.addbalance_before_cents != nil {
+		*m.addbalance_before_cents += i
+	} else {
+		m.addbalance_before_cents = &i
+	}
+}
+
+// AddedBalanceBeforeCents returns the value that was added to the "balance_before_cents" field in this mutation.
+func (m *EsportsWalletTxMutation) AddedBalanceBeforeCents() (r int64, exists bool) {
+	v := m.addbalance_before_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBalanceBeforeCents resets all changes to the "balance_before_cents" field.
+func (m *EsportsWalletTxMutation) ResetBalanceBeforeCents() {
+	m.balance_before_cents = nil
+	m.addbalance_before_cents = nil
+}
+
+// SetBalanceAfterCents sets the "balance_after_cents" field.
+func (m *EsportsWalletTxMutation) SetBalanceAfterCents(i int64) {
+	m.balance_after_cents = &i
+	m.addbalance_after_cents = nil
+}
+
+// BalanceAfterCents returns the value of the "balance_after_cents" field in the mutation.
+func (m *EsportsWalletTxMutation) BalanceAfterCents() (r int64, exists bool) {
+	v := m.balance_after_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBalanceAfterCents returns the old "balance_after_cents" field's value of the EsportsWalletTx entity.
+// If the EsportsWalletTx object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsWalletTxMutation) OldBalanceAfterCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBalanceAfterCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBalanceAfterCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBalanceAfterCents: %w", err)
+	}
+	return oldValue.BalanceAfterCents, nil
+}
+
+// AddBalanceAfterCents adds i to the "balance_after_cents" field.
+func (m *EsportsWalletTxMutation) AddBalanceAfterCents(i int64) {
+	if m.addbalance_after_cents != nil {
+		*m.addbalance_after_cents += i
+	} else {
+		m.addbalance_after_cents = &i
+	}
+}
+
+// AddedBalanceAfterCents returns the value that was added to the "balance_after_cents" field in this mutation.
+func (m *EsportsWalletTxMutation) AddedBalanceAfterCents() (r int64, exists bool) {
+	v := m.addbalance_after_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBalanceAfterCents resets all changes to the "balance_after_cents" field.
+func (m *EsportsWalletTxMutation) ResetBalanceAfterCents() {
+	m.balance_after_cents = nil
+	m.addbalance_after_cents = nil
+}
+
+// SetFundBatch sets the "fund_batch" field.
+func (m *EsportsWalletTxMutation) SetFundBatch(s string) {
+	m.fund_batch = &s
+}
+
+// FundBatch returns the value of the "fund_batch" field in the mutation.
+func (m *EsportsWalletTxMutation) FundBatch() (r string, exists bool) {
+	v := m.fund_batch
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFundBatch returns the old "fund_batch" field's value of the EsportsWalletTx entity.
+// If the EsportsWalletTx object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsWalletTxMutation) OldFundBatch(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFundBatch is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFundBatch requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFundBatch: %w", err)
+	}
+	return oldValue.FundBatch, nil
+}
+
+// ResetFundBatch resets all changes to the "fund_batch" field.
+func (m *EsportsWalletTxMutation) ResetFundBatch() {
+	m.fund_batch = nil
+}
+
 // SetRuleSnapshot sets the "rule_snapshot" field.
 func (m *EsportsWalletTxMutation) SetRuleSnapshot(value map[string]interface{}) {
 	m.rule_snapshot = &value
@@ -113531,7 +126521,7 @@ func (m *EsportsWalletTxMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsWalletTxMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 18)
 	if m.tx_no != nil {
 		fields = append(fields, esportswallettx.FieldTxNo)
 	}
@@ -113561,6 +126551,21 @@ func (m *EsportsWalletTxMutation) Fields() []string {
 	}
 	if m.note != nil {
 		fields = append(fields, esportswallettx.FieldNote)
+	}
+	if m.beneficiary_type != nil {
+		fields = append(fields, esportswallettx.FieldBeneficiaryType)
+	}
+	if m.beneficiary_id != nil {
+		fields = append(fields, esportswallettx.FieldBeneficiaryID)
+	}
+	if m.balance_before_cents != nil {
+		fields = append(fields, esportswallettx.FieldBalanceBeforeCents)
+	}
+	if m.balance_after_cents != nil {
+		fields = append(fields, esportswallettx.FieldBalanceAfterCents)
+	}
+	if m.fund_batch != nil {
+		fields = append(fields, esportswallettx.FieldFundBatch)
 	}
 	if m.rule_snapshot != nil {
 		fields = append(fields, esportswallettx.FieldRuleSnapshot)
@@ -113599,6 +126604,16 @@ func (m *EsportsWalletTxMutation) Field(name string) (ent.Value, bool) {
 		return m.OperatorID()
 	case esportswallettx.FieldNote:
 		return m.Note()
+	case esportswallettx.FieldBeneficiaryType:
+		return m.BeneficiaryType()
+	case esportswallettx.FieldBeneficiaryID:
+		return m.BeneficiaryID()
+	case esportswallettx.FieldBalanceBeforeCents:
+		return m.BalanceBeforeCents()
+	case esportswallettx.FieldBalanceAfterCents:
+		return m.BalanceAfterCents()
+	case esportswallettx.FieldFundBatch:
+		return m.FundBatch()
 	case esportswallettx.FieldRuleSnapshot:
 		return m.RuleSnapshot()
 	case esportswallettx.FieldBonusExpiresAt:
@@ -113634,6 +126649,16 @@ func (m *EsportsWalletTxMutation) OldField(ctx context.Context, name string) (en
 		return m.OldOperatorID(ctx)
 	case esportswallettx.FieldNote:
 		return m.OldNote(ctx)
+	case esportswallettx.FieldBeneficiaryType:
+		return m.OldBeneficiaryType(ctx)
+	case esportswallettx.FieldBeneficiaryID:
+		return m.OldBeneficiaryID(ctx)
+	case esportswallettx.FieldBalanceBeforeCents:
+		return m.OldBalanceBeforeCents(ctx)
+	case esportswallettx.FieldBalanceAfterCents:
+		return m.OldBalanceAfterCents(ctx)
+	case esportswallettx.FieldFundBatch:
+		return m.OldFundBatch(ctx)
 	case esportswallettx.FieldRuleSnapshot:
 		return m.OldRuleSnapshot(ctx)
 	case esportswallettx.FieldBonusExpiresAt:
@@ -113719,6 +126744,41 @@ func (m *EsportsWalletTxMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetNote(v)
 		return nil
+	case esportswallettx.FieldBeneficiaryType:
+		v, ok := value.(esportswallettx.BeneficiaryType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBeneficiaryType(v)
+		return nil
+	case esportswallettx.FieldBeneficiaryID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBeneficiaryID(v)
+		return nil
+	case esportswallettx.FieldBalanceBeforeCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceBeforeCents(v)
+		return nil
+	case esportswallettx.FieldBalanceAfterCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBalanceAfterCents(v)
+		return nil
+	case esportswallettx.FieldFundBatch:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFundBatch(v)
+		return nil
 	case esportswallettx.FieldRuleSnapshot:
 		v, ok := value.(map[string]interface{})
 		if !ok {
@@ -113760,6 +126820,15 @@ func (m *EsportsWalletTxMutation) AddedFields() []string {
 	if m.addoperator_id != nil {
 		fields = append(fields, esportswallettx.FieldOperatorID)
 	}
+	if m.addbeneficiary_id != nil {
+		fields = append(fields, esportswallettx.FieldBeneficiaryID)
+	}
+	if m.addbalance_before_cents != nil {
+		fields = append(fields, esportswallettx.FieldBalanceBeforeCents)
+	}
+	if m.addbalance_after_cents != nil {
+		fields = append(fields, esportswallettx.FieldBalanceAfterCents)
+	}
 	return fields
 }
 
@@ -113776,6 +126845,12 @@ func (m *EsportsWalletTxMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedBonusDeltaCents()
 	case esportswallettx.FieldOperatorID:
 		return m.AddedOperatorID()
+	case esportswallettx.FieldBeneficiaryID:
+		return m.AddedBeneficiaryID()
+	case esportswallettx.FieldBalanceBeforeCents:
+		return m.AddedBalanceBeforeCents()
+	case esportswallettx.FieldBalanceAfterCents:
+		return m.AddedBalanceAfterCents()
 	}
 	return nil, false
 }
@@ -113812,6 +126887,27 @@ func (m *EsportsWalletTxMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddOperatorID(v)
+		return nil
+	case esportswallettx.FieldBeneficiaryID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBeneficiaryID(v)
+		return nil
+	case esportswallettx.FieldBalanceBeforeCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceBeforeCents(v)
+		return nil
+	case esportswallettx.FieldBalanceAfterCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBalanceAfterCents(v)
 		return nil
 	}
 	return fmt.Errorf("unknown EsportsWalletTx numeric field %s", name)
@@ -113890,6 +126986,21 @@ func (m *EsportsWalletTxMutation) ResetField(name string) error {
 		return nil
 	case esportswallettx.FieldNote:
 		m.ResetNote()
+		return nil
+	case esportswallettx.FieldBeneficiaryType:
+		m.ResetBeneficiaryType()
+		return nil
+	case esportswallettx.FieldBeneficiaryID:
+		m.ResetBeneficiaryID()
+		return nil
+	case esportswallettx.FieldBalanceBeforeCents:
+		m.ResetBalanceBeforeCents()
+		return nil
+	case esportswallettx.FieldBalanceAfterCents:
+		m.ResetBalanceAfterCents()
+		return nil
+	case esportswallettx.FieldFundBatch:
+		m.ResetFundBatch()
 		return nil
 	case esportswallettx.FieldRuleSnapshot:
 		m.ResetRuleSnapshot()

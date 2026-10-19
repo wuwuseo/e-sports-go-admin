@@ -45,7 +45,49 @@ func canAccessFinanceReport(c fiber.Ctx) bool {
 
 // financeReportRoleNames 读取允许看财报的角色名配置（已去空白与去空项）。
 func financeReportRoleNames(ctx context.Context, db *ent.Client) []string {
-	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(financeReportRoleNamesKey)).Only(ctx)
+	return commaSeparatedRoleNames(ctx, db, financeReportRoleNamesKey)
+}
+
+// skuCostViewRolesKey 是允许查看 SKU 成本（cost_cents）的角色名配置（§15.8-03，逗号分隔）。
+// 缺省为空表示仅超级管理员可见；成本对未授权角色既不可写也不可读。
+const skuCostViewRolesKey = "app.esports.sku_cost_view_roles"
+
+// skuCostViewRoleNames 读取允许看 SKU 成本的角色名（已去空白与去空项）。
+func skuCostViewRoleNames(ctx context.Context, db *ent.Client) []string {
+	return commaSeparatedRoleNames(ctx, db, skuCostViewRolesKey)
+}
+
+// canViewSkuCost 判断当前请求操作人是否有权查看 SKU 成本价（§15.8-03）：
+// 超级管理员直接放行；否则命中 sku_cost_view_roles 配置角色才放行。
+func canViewSkuCost(c fiber.Ctx) bool {
+	if super, _ := c.Locals("isSuperAdmin").(bool); super {
+		return true
+	}
+	uid, _ := c.Locals("uid").(string)
+	if uid == "" {
+		return false
+	}
+	roleNames := skuCostViewRoleNames(c.Context(), global.ORM)
+	if len(roleNames) == 0 {
+		return false
+	}
+	active, _, resolved := global.FilterAssignedActiveRoleNames(c.Context(), uid, nil)
+	if !resolved {
+		return false
+	}
+	for _, name := range active {
+		for _, allowed := range roleNames {
+			if name == allowed {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// commaSeparatedRoleNames 读取逗号分隔的角色名配置，去空白与空项。
+func commaSeparatedRoleNames(ctx context.Context, db *ent.Client, key string) []string {
+	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Only(ctx)
 	if err != nil {
 		return nil
 	}

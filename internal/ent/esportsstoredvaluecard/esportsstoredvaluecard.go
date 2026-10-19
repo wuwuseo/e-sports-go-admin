@@ -74,6 +74,8 @@ const (
 	FieldRefundedAt = "refunded_at"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
+	// FieldDeductionOrder holds the string denoting the deduction_order field in the database.
+	FieldDeductionOrder = "deduction_order"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
@@ -117,6 +119,7 @@ var Columns = []string{
 	FieldRefundedCents,
 	FieldRefundedAt,
 	FieldVersion,
+	FieldDeductionOrder,
 	FieldCreatedAt,
 	FieldUpdatedAt,
 }
@@ -164,6 +167,10 @@ var (
 	DefaultRefundedCents int64
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int
+	// DefaultDeductionOrder holds the default value on creation for the "deduction_order" field.
+	DefaultDeductionOrder string
+	// DeductionOrderValidator is a validator for the "deduction_order" field. It is called by the builders before save.
+	DeductionOrderValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -396,6 +403,11 @@ func ByRefundedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByVersion orders the results by the version field.
 func ByVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
+// ByDeductionOrder orders the results by the deduction_order field.
+func ByDeductionOrder(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeductionOrder, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

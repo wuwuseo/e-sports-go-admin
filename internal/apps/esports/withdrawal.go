@@ -31,7 +31,38 @@ const (
 	// 提现明细来源类型，驳回退回用独立来源类型以便区分。
 	withdrawalSourceType       = "withdrawal"
 	withdrawalRejectSourceType = "withdrawal_reject"
+	// 提现方式（渠道）开关配置项键前缀（§6.3-05）：银行/微信/支付宝各一个开关，
+	// 值 "enabled" / "disabled"；未配置视为开通（沿用既有部署行为，不阻断存量提现）。
+	withdrawalChannelConfigPrefix = "app.esports.withdrawal_channel."
 )
+
+// withdrawalChannelValues 是提现方式的取值集合（§11.2：提现到银行卡 / 微信 / 支付宝）。
+var withdrawalChannelValues = []string{"bank_card", "wechat", "alipay"}
+
+func validWithdrawalChannel(channel string) bool {
+	for _, value := range withdrawalChannelValues {
+		if value == channel {
+			return true
+		}
+	}
+	return false
+}
+
+// withdrawalChannelConfigKey 提现方式开关配置项键（§6.3-05 工作室能力开通）。
+func withdrawalChannelConfigKey(channel string) string {
+	return withdrawalChannelConfigPrefix + channel
+}
+
+// withdrawalChannelEnabled 查询提现方式是否已按工作室能力开通：显式写 "disabled" 即未开通；
+// 未配置或读取异常按开通处理，避免配置缺失把存量提现链路整体阻断（与收款方式启停同一口径）。
+func withdrawalChannelEnabled(ctx context.Context, db *ent.Client, channel string) bool {
+	item, err := db.SystemConfig.Query().
+		Where(systemconfig.KeyEQ(withdrawalChannelConfigKey(channel))).Only(ctx)
+	if err != nil {
+		return true
+	}
+	return strings.TrimSpace(item.Value) != "disabled"
+}
 
 // withdrawalTier 是阶梯费率的一档：金额 ≥ MinCents 时适用 Bp 基点（万分比）。
 type withdrawalTier struct {
@@ -158,10 +189,12 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 	key := strings.TrimSpace(in.IdempotencyKey)
 	in.AccountRef = strings.TrimSpace(in.AccountRef)
 	in.Note = strings.TrimSpace(in.Note)
-	switch in.Channel {
-	case "bank_card", "wechat", "alipay":
-	default:
+	// 提现方式必须属于三个合法渠道，且该渠道已按工作室能力开通（§6.3-05）：未开通渠道不接受申请。
+	if !validWithdrawalChannel(in.Channel) {
 		return nil, errInvalidInput
+	}
+	if !withdrawalChannelEnabled(ctx, db, in.Channel) {
+		return nil, fmt.Errorf("%w：该提现方式未开通，请联系工作室", errInvalidInput)
 	}
 	if playerID < 1 || in.AmountCents <= 0 || in.AccountRef == "" ||
 		len(in.AccountRef) > 128 || len([]rune(in.Note)) > 255 ||
@@ -250,11 +283,17 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 		}
 		return nil, err
 	}
+	withdrawBefore, err := walletBalanceTx(ctx, tx, walletPlayerCatfood, playerID)
+	if err != nil {
+		return nil, err
+	}
 	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountTypePlayerCatfood).SetOwnerID(playerID).
 		SetEntryType(esportswallettx.EntryTypeWithdraw).
 		SetPrincipalDeltaCents(-in.AmountCents).
 		SetSourceType(withdrawalSourceType).SetSourceID(withdrawal.WithdrawalNo).
+		SetBeneficiaryType(esportswallettx.BeneficiaryTypePlayer).SetBeneficiaryID(playerID).
+		SetBalanceBeforeCents(withdrawBefore.total()).SetBalanceAfterCents(withdrawBefore.total() - in.AmountCents).
 		SetNote("陪玩申请提现").Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
@@ -305,11 +344,17 @@ func reviewWithdrawal(ctx context.Context, db *ent.Client, adminID, id int, in w
 		return nil, err
 	}
 	if !in.Approve {
+		refundBefore, err := walletBalanceTx(ctx, tx, walletPlayerCatfood, item.PlayerID)
+		if err != nil {
+			return nil, err
+		}
 		if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 			SetAccountType(esportswallettx.AccountTypePlayerCatfood).SetOwnerID(item.PlayerID).
 			SetEntryType(esportswallettx.EntryTypeRefundReturn).
 			SetPrincipalDeltaCents(item.AmountCents).
 			SetSourceType(withdrawalRejectSourceType).SetSourceID(item.WithdrawalNo).
+			SetBeneficiaryType(esportswallettx.BeneficiaryTypePlayer).SetBeneficiaryID(item.PlayerID).
+			SetBalanceBeforeCents(refundBefore.total()).SetBalanceAfterCents(refundBefore.total() + item.AmountCents).
 			SetOperatorID(adminID).SetNote("提现驳回退回").Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				return nil, errConflict
@@ -383,11 +428,18 @@ func getWithdrawal(ctx context.Context, db *ent.Client, id int) (*ent.EsportsWit
 	return db.EsportsWithdrawal.Get(ctx, id)
 }
 
-// playerWithdrawableView 陪玩端提现概览（§6.3 收入状态）：可提现猫粮余额与待审提现金额。
+// withdrawalChannelOption 提现方式的开通状态（§6.3-05）：陪玩端据此只展示已开通的提现方式。
+type withdrawalChannelOption struct {
+	Channel string `json:"channel"`
+	Enabled bool   `json:"enabled"`
+}
+
+// playerWithdrawableView 陪玩端提现概览（§6.3 收入状态）：可提现猫粮余额、待审提现金额与已开通提现方式。
 type playerWithdrawableView struct {
-	WithdrawableCents   int64 `json:"withdrawable_cents"`
-	PendingReviewCents  int64 `json:"pending_review_cents"`
-	TotalWithdrawnCents int64 `json:"total_withdrawn_cents"`
+	WithdrawableCents   int64                     `json:"withdrawable_cents"`
+	PendingReviewCents  int64                     `json:"pending_review_cents"`
+	TotalWithdrawnCents int64                     `json:"total_withdrawn_cents"`
+	Channels            []withdrawalChannelOption `json:"channels"`
 }
 
 // playerWithdrawalSummary 汇总陪玩的可提现余额与提现情况。
@@ -409,6 +461,11 @@ func playerWithdrawalSummary(ctx context.Context, db *ent.Client, playerID int) 
 		return nil, err
 	}
 	view := playerWithdrawableView{WithdrawableCents: balance.total()}
+	for _, channel := range withdrawalChannelValues {
+		view.Channels = append(view.Channels, withdrawalChannelOption{
+			Channel: channel, Enabled: withdrawalChannelEnabled(ctx, db, channel),
+		})
+	}
 	for _, row := range rows {
 		switch row.Status {
 		case esportswithdrawal.StatusPendingReview, esportswithdrawal.StatusApproved:

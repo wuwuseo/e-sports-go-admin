@@ -399,11 +399,18 @@ func executeAfterSaleActionSeq(ctx context.Context, db *ent.Client, afterSaleID,
 	return db.EsportsAfterSaleAction.Get(ctx, action.ID)
 }
 
-// runAfterSaleAction 执行单个动作项；失败时在独立事务内把动作项落为 failed 并写订单事件留痕。
+// runAfterSaleAction 执行单个动作项；失败时在独立事务内把动作项落为 failed 并写订单事件留痕，
+// 退款类动作项失败时另把订单退款状态落 failed 并留原因（§3.2-03）。
 func runAfterSaleAction(ctx context.Context, db *ent.Client, item *ent.EsportsAfterSale,
 	action *ent.EsportsAfterSaleAction, adminID int, now time.Time) {
 	if err := executeAfterSaleActionOnce(ctx, db, item, action, adminID, now); err != nil {
 		markAfterSaleActionFailed(ctx, db, item, action, adminID, err, now)
+		if item.SourceType == esportsaftersale.SourceTypeOrder &&
+			action.ActionType == esportsaftersaleaction.ActionTypeRefund &&
+			shouldMarkOrderRefundFailed(err) {
+			// 失败留痕尽力而为：动作项事件已记录主因，这里只补订单级退款失败态，不覆盖主错。
+			_ = markOrderRefundFailed(ctx, db, item.SourceID, adminID, err.Error(), now)
+		}
 	}
 }
 
@@ -518,13 +525,19 @@ func executeFundingAction(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfte
 			order.Version, nil
 	}
 	// 统一额度落账：从预占额度扣减并累加 refunded_cents（与既有单动作同一条件表达式口径）。
+	// §12.5-02：可退上界 = 服务应付 + 加钟已收款，并发谓词必须带上同一上界。
+	addonReceived, err := addonReceivedCents(ctx, tx.Client(), order.ID)
+	if err != nil {
+		return "", 0, err
+	}
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID),
 		func(s *sql.Selector) {
 			s.Where(sql.ExprP("refund_reserved_cents >= ?", action.AmountCents))
+			s.Where(sql.ExprP("refunded_cents + refund_reserved_cents <= payable_cents + ?", addonReceived))
 		},
 	).AddRefundReservedCents(-action.AmountCents).AddRefundedCents(action.AmountCents).
-		SetRefundStatus(refundStatusFor(order.PayableCents, order.RefundedCents+action.AmountCents)).
+		SetRefundStatus(refundStatusFor(order.PayableCents+addonReceived, order.RefundedCents+action.AmountCents)).
 		AddVersion(1).Save(ctx)
 	if err != nil {
 		return "", 0, err
@@ -678,7 +691,8 @@ func finalizeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID i
 		).SetStatus(esportsaftersale.StatusCompleted).SetExecutorAdminID(adminID).
 			SetResolvedAt(now.UTC()).
 			SetResolution(fmt.Sprintf("多动作方案全部执行完成（共 %d 项）", succeeded)).
-			AddVersion(1).Save(ctx)
+			// §13.2-09：落终态释放进行中唯一键。
+			ClearActiveDedupKey().AddVersion(1).Save(ctx)
 		if err != nil {
 			return nil, err
 		}

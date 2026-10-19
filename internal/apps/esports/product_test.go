@@ -23,11 +23,18 @@ func openProductDB(t *testing.T, name string) *ent.Client {
 	return db
 }
 
+// childSku 造一个子 SKU 入参。§15.3-01 起多人 SKU 必须声明「每席承诺服务量」，
+// 故 seats>1 时按 每席 1 个单位 × 席位数 配置整单服务量（验收口径：多人单缺每席量直接 400）。
 func childSku(code string, price int64, seats int) productChildSkuInput {
+	units, perSeat := int64(1), int64(0)
+	if seats > 1 {
+		units, perSeat = int64(seats), 1
+	}
 	return productChildSkuInput{
 		Code: code, Title: "子规格 " + code, ServiceType: "play",
-		UnitPriceCents: price, ServiceUnits: 1, ServiceUnitName: "局",
-		RequiredSeats: seats, QuotaTotal: -1, Status: "on_sale",
+		UnitPriceCents: price, ServiceUnits: units, ServiceUnitName: "局",
+		RequiredSeats: seats, PerSeatServiceUnits: perSeat,
+		QuotaTotal: -1, Status: "on_sale",
 	}
 }
 
@@ -76,7 +83,7 @@ func TestSpecGroupDefinitionAndReference(t *testing.T) {
 		{SeatIndex: 1, Role: "辅助", Substitutable: false, Spec: "女性陪玩"},
 	}
 	group, err := saveSpecGroup(ctx, db, specGroupInput{
-		Code: "DUO-ROLE", Name: "双人角色规格", Seats: seats, Status: "enabled",
+		Code: "DUO-ROLE", Name: "双人角色规格", Seats: seats, PerSeatServiceUnits: 1, Status: "enabled",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -133,7 +140,7 @@ func TestSpecGroupValidation(t *testing.T) {
 		Code: "DUO", Name: "双人", Seats: []schematier.SeatSpec{
 			{SeatIndex: 0, Role: "输出"},
 			{SeatIndex: 1, Role: "辅助"},
-		}, Status: "enabled",
+		}, PerSeatServiceUnits: 1, Status: "enabled",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +171,7 @@ func TestSpecSeatRolesSnapshot(t *testing.T) {
 		{SeatIndex: 2, Role: "指挥", Substitutable: true, Spec: "语音"},
 	}
 	group, err := saveSpecGroup(ctx, db, specGroupInput{
-		Code: "TRIO", Name: "三人规格", Seats: seats, Status: "enabled",
+		Code: "TRIO", Name: "三人规格", Seats: seats, PerSeatServiceUnits: 1, Status: "enabled",
 	})
 	if err != nil {
 		t.Fatal(err)

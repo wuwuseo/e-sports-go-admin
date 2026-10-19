@@ -10,6 +10,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportsseattransferrequest"
 	"go-admin/internal/ent/esportsservicesegment"
 )
@@ -48,8 +49,15 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 		return nil, err
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance &&
-		order.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted {
-		return nil, fmt.Errorf("%w：仅已接单且未开始服务的订单可发起转单", errInvalidInput)
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted &&
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
+		return nil, fmt.Errorf("%w：仅已接单且未完结的订单可发起转单", errInvalidInput)
+	}
+	// §5.9-07：改期提案进行中时锁定订单档期与派单，转单会让提案快照失效。
+	if locked, err := pendingRescheduleProposalExists(ctx, tx, orderID, now); err != nil {
+		return nil, err
+	} else if locked {
+		return nil, fmt.Errorf("%w：该订单存在进行中的改期提案，请先确认或撤回提案", errConflict)
 	}
 	seat, err := tx.EsportsDispatchSeat.Query().Where(
 		esportsdispatchseat.OrderIDEQ(orderID),
@@ -62,15 +70,26 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 		}
 		return nil, err
 	}
-	started, err := tx.EsportsServiceSegment.Query().Where(
+	// §5.7-02：服务中同样允许转单 —— 确认通过时先结算原陪玩的服务段，再由新陪玩接手。
+	// 只有「该陪玩在本单的服务段已经结算」时才拒绝，避免对已结算的服务段重复发起。
+	serviceInProgress, err := tx.EsportsServiceSegment.Query().Where(
 		esportsservicesegment.OrderIDEQ(orderID),
 		esportsservicesegment.PlayerIDEQ(playerID),
+		esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
 	).Exist(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if started {
-		return nil, fmt.Errorf("%w：已开始服务后不可转单，请走售后补履约", errInvalidInput)
+	settled, err := tx.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID),
+		esportsservicesegment.PlayerIDEQ(playerID),
+		esportsservicesegment.StatusEQ(esportsservicesegment.StatusFinished),
+	).Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if settled && !serviceInProgress {
+		return nil, fmt.Errorf("%w：该陪玩在本单的服务段已结算，不可再发起转单", errInvalidInput)
 	}
 	// 先判幂等重放：同一幂等键重复提交应返回既有申请，而不是被「已有待确认申请」拦成冲突。
 	replayed, err := tx.EsportsSeatTransferRequest.Query().Where(
@@ -118,8 +137,22 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 		SetActorType("player").SetActorID(strconv.Itoa(playerID)).
 		SetDetails(map[string]interface{}{
 			"seat_index": seat.SeatIndex, "reason": in.Reason,
+			"service_in_progress": serviceInProgress,
 		}).Save(ctx); err != nil {
 		return nil, err
+	}
+	// §5.7-02 缺口二：转单申请必须写 outbox 定向通知责任客服（order.* 收件人分支已含责任客服）。
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("order.seat_transfer_requested:" + strconv.Itoa(created.ID)).
+		SetEventType("order.seat_transfer_requested").SetAggregateRef(order.OrderNo).
+		SetPayload(map[string]interface{}{
+			"order_no": order.OrderNo, "seat_index": seat.SeatIndex,
+			"player_id": playerID, "reason": in.Reason,
+			"service_in_progress": serviceInProgress,
+		}).Save(ctx); err != nil {
+		if !ent.IsConstraintError(err) {
+			return nil, err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -250,6 +283,11 @@ func releaseSeatForTransfer(ctx context.Context, tx *ent.Tx, item *ent.EsportsSe
 	if seat.Status != esportsdispatchseat.StatusAccepted {
 		return fmt.Errorf("%w：席位状态已变化，转单无法生效", errConflict)
 	}
+	// §5.7-02：服务中转单先把原陪玩在该席位的进行中服务段结算（保留历史）再释放席位。
+	wasInService := order.FulfillmentStatus == esportsorder.FulfillmentStatusInService
+	if err = settleSeatServiceSegment(ctx, tx, order.ID, item.PlayerID, seat.SeatIndex, now); err != nil {
+		return err
+	}
 	changed, err := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.IDEQ(seat.ID),
 		esportsdispatchseat.VersionEQ(seat.Version),
@@ -272,6 +310,15 @@ func releaseSeatForTransfer(ctx context.Context, tx *ent.Tx, item *ent.EsportsSe
 	target := esportsorder.FulfillmentStatusPendingAcceptance
 	if !remaining {
 		target = esportsorder.FulfillmentStatusPendingDispatch
+	} else if wasInService {
+		// 服务中换人：还有其他成员在开工，订单保持服务中，只把空缺席位交回补位流程。
+		stillInService, err := orderHasInServiceSegment(ctx, tx, order.ID)
+		if err != nil {
+			return err
+		}
+		if stillInService {
+			target = esportsorder.FulfillmentStatusInService
+		}
 	}
 	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, target)
 	if err != nil {
@@ -290,6 +337,18 @@ func releaseSeatForTransfer(ctx context.Context, tx *ent.Tx, item *ent.EsportsSe
 			"seat_index": seat.SeatIndex, "player_id": item.PlayerID,
 		}).Save(ctx); err != nil {
 		return err
+	}
+	// 转单通过同样通知责任客服（order.* 收件人分支已含责任客服），让「谁被换下」可追溯。
+	if _, err = tx.EsportsOutbox.Create().
+		SetEventKey("order.seat_transfer_approved:" + strconv.Itoa(item.ID)).
+		SetEventType("order.seat_transfer_approved").SetAggregateRef(order.OrderNo).
+		SetPayload(map[string]interface{}{
+			"order_no": order.OrderNo, "seat_index": seat.SeatIndex,
+			"player_id": item.PlayerID, "order_status": target.String(),
+		}).Save(ctx); err != nil {
+		if !ent.IsConstraintError(err) {
+			return err
+		}
 	}
 	return nil
 }
@@ -316,4 +375,61 @@ func listSeatTransfers(ctx context.Context, db *ent.Client, status string,
 		q.Where(esportsseattransferrequest.PlayerIDEQ(playerID))
 	}
 	return q.Order(ent.Desc(esportsseattransferrequest.FieldID)).Limit(limit).All(ctx)
+}
+
+// listSeatTransfersForAdmin 管理端按订单归属列出转单申请（§3.5-02 越权读修复）：
+// 非超管只能看到「本人负责」「本人被授权协作」或「订单尚无负责客服（公共池）」的申请，
+// 归属口径与 ensureSeatTransferDecider 的确认边界一致。显式指定 order_id 且无权时返回
+// errForbidden，而不是静默返回空列表（避免调用方把越权当成「没有数据」）。
+func listSeatTransfersForAdmin(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
+	status string, orderID, playerID, limit int) ([]*ent.EsportsSeatTransferRequest, error) {
+	if adminID < 1 {
+		return nil, errInvalidInput
+	}
+	if orderID > 0 && !isSuper {
+		if _, err := loadOwnedOrder(ctx, db, adminID, isSuper, orderID); err != nil {
+			return nil, err
+		}
+	}
+	items, err := listSeatTransfers(ctx, db, status, orderID, playerID, limit)
+	if err != nil || isSuper || len(items) == 0 {
+		return items, err
+	}
+	orderIDs := make([]int, 0, len(items))
+	seen := make(map[int]bool, len(items))
+	for _, item := range items {
+		if !seen[item.OrderID] {
+			seen[item.OrderID] = true
+			orderIDs = append(orderIDs, item.OrderID)
+		}
+	}
+	orders, err := db.EsportsOrder.Query().Where(
+		esportsorder.IDIn(orderIDs...),
+	).Select(esportsorder.FieldID, esportsorder.FieldResponsibleAdminID).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	owned := make(map[int]bool, len(orders))
+	for _, order := range orders {
+		if order.ResponsibleAdminID == nil || *order.ResponsibleAdminID == adminID {
+			owned[order.ID] = true
+		}
+	}
+	collaborations, err := db.EsportsOrderCollaborator.Query().Where(
+		esportsordercollaborator.AdminIDEQ(adminID),
+		esportsordercollaborator.OrderIDIn(orderIDs...),
+	).Select(esportsordercollaborator.FieldOrderID).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range collaborations {
+		owned[row.OrderID] = true
+	}
+	scoped := make([]*ent.EsportsSeatTransferRequest, 0, len(items))
+	for _, item := range items {
+		if owned[item.OrderID] {
+			scoped = append(scoped, item)
+		}
+	}
+	return scoped, nil
 }

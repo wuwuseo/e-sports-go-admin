@@ -435,7 +435,15 @@ func approveCloseApprovalIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 		if autoPassed {
 			actorType = "system"
 		}
-		return finalizeCloseOrderIn(ctx, tx, order, adminID, actorType, note, now)
+		// §3.4-03：复核通过也要在结单留痕里带上「已查看凭证附件 + 复核人」，
+		// 凭证集合在结单申请环节已被强制确认过，这里按订单服务段重新汇总落库。
+		extra := map[string]interface{}{"viewed_by_admin_id": adminID}
+		if reviewed, err := serviceEvidenceAttachmentIDs(ctx, tx.Client(), order.ID); err != nil {
+			return err
+		} else if len(reviewed) > 0 {
+			extra["viewed_evidence_attachment_ids"] = reviewed
+		}
+		return finalizeCloseOrderIn(ctx, tx, order, adminID, actorType, note, extra, now)
 	}
 	// 中间节点：先推进订单版本，再按新版本号写事件（事件按 order_version 唯一）。
 	newVersion, err := bumpOrder(ctx, tx, order.ID, order.Version, "")

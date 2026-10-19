@@ -274,6 +274,36 @@ func AudienceCustomerIdsNotNil() predicate.EsportsRechargeCampaign {
 	return predicate.EsportsRechargeCampaign(sql.FieldNotNull(FieldAudienceCustomerIds))
 }
 
+// AudiencePlayerIdsIsNil applies the IsNil predicate on the "audience_player_ids" field.
+func AudiencePlayerIdsIsNil() predicate.EsportsRechargeCampaign {
+	return predicate.EsportsRechargeCampaign(sql.FieldIsNull(FieldAudiencePlayerIds))
+}
+
+// AudiencePlayerIdsNotNil applies the NotNil predicate on the "audience_player_ids" field.
+func AudiencePlayerIdsNotNil() predicate.EsportsRechargeCampaign {
+	return predicate.EsportsRechargeCampaign(sql.FieldNotNull(FieldAudiencePlayerIds))
+}
+
+// TargetAccountTypeEQ applies the EQ predicate on the "target_account_type" field.
+func TargetAccountTypeEQ(v TargetAccountType) predicate.EsportsRechargeCampaign {
+	return predicate.EsportsRechargeCampaign(sql.FieldEQ(FieldTargetAccountType, v))
+}
+
+// TargetAccountTypeNEQ applies the NEQ predicate on the "target_account_type" field.
+func TargetAccountTypeNEQ(v TargetAccountType) predicate.EsportsRechargeCampaign {
+	return predicate.EsportsRechargeCampaign(sql.FieldNEQ(FieldTargetAccountType, v))
+}
+
+// TargetAccountTypeIn applies the In predicate on the "target_account_type" field.
+func TargetAccountTypeIn(vs ...TargetAccountType) predicate.EsportsRechargeCampaign {
+	return predicate.EsportsRechargeCampaign(sql.FieldIn(FieldTargetAccountType, vs...))
+}
+
+// TargetAccountTypeNotIn applies the NotIn predicate on the "target_account_type" field.
+func TargetAccountTypeNotIn(vs ...TargetAccountType) predicate.EsportsRechargeCampaign {
+	return predicate.EsportsRechargeCampaign(sql.FieldNotIn(FieldTargetAccountType, vs...))
+}
+
 // StackRuleEQ applies the EQ predicate on the "stack_rule" field.
 func StackRuleEQ(v StackRule) predicate.EsportsRechargeCampaign {
 	return predicate.EsportsRechargeCampaign(sql.FieldEQ(FieldStackRule, v))

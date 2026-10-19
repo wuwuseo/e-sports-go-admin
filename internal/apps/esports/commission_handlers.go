@@ -105,7 +105,8 @@ func adminCommissionEntries(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
 	}
-	items, err := listCommissionEntries(c.Context(), global.ORM,
+	// §12.7-01：返回读模型（规则数值 + 扣减项 + 到手净额 + 逐单位留痕），而非原始明细。
+	items, err := listCommissionEntryViews(c.Context(), global.ORM,
 		queryInt(c, "player_id"), queryInt(c, "order_id"), c.Query("status"), queryLimit(c, 200))
 	if err != nil {
 		return businessError(c, err)
@@ -168,6 +169,8 @@ func lockSettlementHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
+// adminSettlementDetail 结算单详情：主表 + 本期可下钻明细（带规则版本，§12.6-06）。
+// 建议接线：GET /admin/settlements/:id（管理端 Auth）。
 func adminSettlementDetail(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -176,19 +179,21 @@ func adminSettlementDetail(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	item, err := getSettlement(c.Context(), global.ORM, id)
+	item, err := getSettlementDetail(c.Context(), global.ORM, id, queryLimit(c, 200))
 	if err != nil {
 		return businessError(c, err)
 	}
 	return reply(c, item)
 }
 
+// playerCommissionEntries 陪玩端分成明细：与管理员同一读模型，
+// 供陪玩端渲染分成方式、规则版本号、扣减项与到手净额（§12.7-01）。
 func playerCommissionEntries(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
 		return businessError(c, err)
 	}
-	items, err := listCommissionEntries(c.Context(), global.ORM, player.ID, 0,
+	items, err := listCommissionEntryViews(c.Context(), global.ORM, player.ID, 0,
 		c.Query("status"), queryLimit(c, 200))
 	if err != nil {
 		return businessError(c, err)

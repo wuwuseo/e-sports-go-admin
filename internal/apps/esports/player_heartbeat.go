@@ -34,9 +34,32 @@ func playerHeartbeatTimeout(ctx context.Context, db *ent.Client) time.Duration {
 
 // recordPlayerHeartbeat 陪玩端保活（§6.4）：只写心跳时戳，不改变在线状态，
 // 避免客户端把一次保活误当作上线 / 下线操作。
+//
+// 例外（§6.4-06 自动上线）：开启 auto_online 且心跳时「处于本人服务时段内」时，把 offline
+// 自动置为 online——这就是「自动上线」的生效点。自动上线只负责上线，不在时段外把人踢下线
+// （时段外由心跳超时任务按失联口径收敛），也不会覆盖 protected_abnormal。
 func recordPlayerHeartbeat(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*ent.EsportsPlayer, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
+	}
+	player, err := db.EsportsPlayer.Get(ctx, playerID)
+	if err != nil {
+		return nil, err
+	}
+	if player.AutoOnline && player.Presence == esportsplayer.PresenceOffline &&
+		playerServiceSlotAllows(player, now) {
+		changed, err := db.EsportsPlayer.Update().Where(
+			esportsplayer.IDEQ(playerID), esportsplayer.VersionEQ(player.Version),
+			esportsplayer.PresenceEQ(esportsplayer.PresenceOffline),
+		).SetPresence(esportsplayer.PresenceOnline).SetLastHeartbeatAt(now.UTC()).
+			AddVersion(1).Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if changed != 1 {
+			return nil, errConflict
+		}
+		return db.EsportsPlayer.Get(ctx, playerID)
 	}
 	changed, err := db.EsportsPlayer.Update().Where(esportsplayer.IDEQ(playerID)).
 		SetLastHeartbeatAt(now.UTC()).AddVersion(1).Save(ctx)

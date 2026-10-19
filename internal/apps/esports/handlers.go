@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
@@ -189,15 +190,24 @@ func (filter adminOrderFilter) apply(q *ent.EsportsOrderQuery) *ent.EsportsOrder
 }
 
 // adminOrderScope 是订单的行级边界：非超管可见「本人负责」或「被授权协作」的订单。
-func adminOrderScope(operatorID int, isSuper bool) *ent.EsportsOrderQuery {
+// allOrders 为 true 时不做收敛（超管，或命中 app.esports.finance_report_role_names 的财务角色，
+// 见 §3.5-05：财务需要看到全部订单及其金额明细）。
+func adminOrderScope(operatorID int, isSuper, allOrders bool) *ent.EsportsOrderQuery {
 	q := global.ORM.EsportsOrder.Query()
-	if !isSuper {
-		q.Where(esportsorder.Or(
-			esportsorder.ResponsibleAdminIDEQ(operatorID),
-			esportsorder.HasCollaboratorsWith(esportsordercollaborator.AdminIDEQ(operatorID)),
-		))
+	if isSuper || allOrders {
+		return q
 	}
+	q.Where(esportsorder.Or(
+		esportsorder.ResponsibleAdminIDEQ(operatorID),
+		esportsorder.HasCollaboratorsWith(esportsordercollaborator.AdminIDEQ(operatorID)),
+	))
 	return q
+}
+
+// canViewAllOrders 判断当前操作人是否可看全部订单（§3.5-05）：超管，或命中财务角色配置。
+// 财务角色沿用 finance_access.go 的同一配置键与判定，避免出现第二套财务口径。
+func canViewAllOrders(c fiber.Ctx) bool {
+	return canAccessFinanceReport(c)
 }
 
 // adminCustomerFilter 是客户列表的筛选条件（display_name / phone 模糊、跟进状态与风险状态精确匹配）。
@@ -260,6 +270,9 @@ func businessError(c fiber.Ctx, err error) error {
 		return fail(c, fiber.StatusConflict, err.Error())
 	case errors.Is(err, errCustomerDebt):
 		return fail(c, fiber.StatusConflict, err.Error())
+	case errors.Is(err, errPriceDeviation):
+		// §4.6-02：订单价明显偏离 SKU 标准价，需客服确认并填写偏离原因，状态码 409。
+		return fail(c, fiber.StatusConflict, err.Error())
 	case errors.Is(err, errAppointmentResource):
 		return fail(c, fiber.StatusConflict, err.Error())
 	// 用 err.Error() 返回：裸 errInvalidInput 文案仍为「请求参数无效」，
@@ -276,7 +289,8 @@ func businessError(c fiber.Ctx, err error) error {
 	case errors.Is(err, errAgeUnverified):
 		return fail(c, fiber.StatusForbidden, errAgeUnverified.Error())
 	case errors.Is(err, errInsufficientBalance):
-		return fail(c, fiber.StatusBadRequest, errInsufficientBalance.Error())
+		// 用 err.Error()：裸哨兵仍为「钱包余额不足」，带上下文的包装（余额 / 储值卡）原样透出。
+		return fail(c, fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, errNotConfigured):
 		return fail(c, fiber.StatusServiceUnavailable, err.Error())
 	case errors.Is(err, errOrderFrozen):
@@ -296,9 +310,14 @@ func requestAdmin(c fiber.Ctx) (*ent.Admin, error) {
 	return currentAdmin(c.Context(), global.ORM, uid)
 }
 
+// publicSkus 客户端商品列表（AuthPublic）：保持既有「仅在售」口径，
+// 并按 product_list 组件 props 透传的查询参数收窄取数（§16.3-06 / §16.3-11）。
 func publicSkus(c fiber.Ctx) error {
-	items, err := global.ORM.EsportsSku.Query().Where(esportssku.StatusEQ(esportssku.StatusOnSale)).
-		Order(ent.Desc(esportssku.FieldID)).Limit(100).All(c.Context())
+	props, err := parseSkuCatalogProps(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listPublicSkusByProps(c.Context(), global.ORM, props)
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -309,17 +328,104 @@ func publicSkus(c fiber.Ctx) error {
 			"service_type": item.ServiceType, "unit_price_cents": item.UnitPriceCents,
 			"service_units": item.ServiceUnits, "service_unit_name": item.ServiceUnitName,
 			"required_seats": item.RequiredSeats,
+			// §15.6-01：报单页需要一并看到结单要求与标准时长，避免再单独查后台接口。
+			"close_rule_code": item.CloseRuleCode, "service_duration_minutes": item.ServiceDurationMinutes,
 		})
 	}
 	return reply(c, public)
 }
 
+// skuOrderQuotePreview 是报单页的报价试算结果（§15.6-01）：不落单即可看到会员折扣金额、
+// 应付金额、承诺服务量与该 SKU 适用的结单要求。
+type skuOrderQuotePreview struct {
+	SkuID                int    `json:"sku_id"`
+	Quantity             int64  `json:"quantity"`
+	MemberLevelCode      string `json:"member_level_code"`
+	MemberDiscountBps    int    `json:"member_discount_bps"`
+	UnitPriceCents       int64  `json:"unit_price_cents"`
+	SubtotalCents        int64  `json:"subtotal_cents"`
+	MemberDiscountCents  int64  `json:"member_discount_cents"`
+	PayableCents         int64  `json:"payable_cents"`
+	PromisedServiceUnits int64  `json:"promised_service_units"`
+	ServiceUnitName      string `json:"service_unit_name"`
+	CloseRuleCode        string `json:"close_rule_code"`
+	// §15.3-01 / §5.3-05：多人规格的每席承诺服务量与席位数（详情接口须能读到该字段）。
+	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
+	RequiredSeats       int   `json:"required_seats"`
+}
+
+// skuOrderQuote 按（客户，SKU，份数）试算报价（§15.6-01）：只读计算，不落单、不占名额。
+func skuOrderQuote(ctx context.Context, db *ent.Client, customerID, skuID int, quantity int64) (*skuOrderQuotePreview, error) {
+	if customerID < 1 || skuID < 1 || quantity < 1 || quantity > 1000 {
+		return nil, errInvalidInput
+	}
+	customer, err := db.EsportsCustomer.Get(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	sku, err := db.EsportsSku.Get(ctx, skuID)
+	if err != nil {
+		return nil, err
+	}
+	discountBps, err := memberDiscountBps(ctx, db, customer.MemberLevelCode)
+	if err != nil {
+		return nil, err
+	}
+	subtotal := sku.UnitPriceCents * quantity
+	discount := memberDiscountCents(subtotal, discountBps)
+	// §15.3-01：试算的承诺量走「每席承诺量 × 席位数 × 份数」，多人规格缺每席量时明确报错（不静默落 0）。
+	var specGroup *ent.EsportsSpecGroup
+	if sku.SpecGroupID != nil {
+		group, groupErr := db.EsportsSpecGroup.Get(ctx, *sku.SpecGroupID)
+		if groupErr != nil {
+			return nil, groupErr
+		}
+		specGroup = group
+	}
+	perSeatUnits, seatTotalUnits, _, err := resolveSeatPromise(sku, specGroup)
+	if err != nil {
+		return nil, err
+	}
+	return &skuOrderQuotePreview{
+		SkuID: sku.ID, Quantity: quantity, MemberLevelCode: customer.MemberLevelCode,
+		MemberDiscountBps: discountBps, UnitPriceCents: sku.UnitPriceCents,
+		SubtotalCents: subtotal, MemberDiscountCents: discount, PayableCents: subtotal - discount,
+		PromisedServiceUnits: seatTotalUnits * quantity,
+		ServiceUnitName:      sku.ServiceUnitName, CloseRuleCode: sku.CloseRuleCode,
+		PerSeatServiceUnits: perSeatUnits, RequiredSeats: sku.RequiredSeats,
+	}, nil
+}
+
+// adminSkus 商品列表。带 quote_customer_id（可选 quote_quantity，默认 1）时按客户逐 SKU 试算报价，
+// 响应由数组变为 {"items": [...], "quotes": {"<sku_id>": {...}}}，供报单页不落单即展示会员折扣与结单要求。
 func adminSkus(c fiber.Ctx) error {
 	items, err := global.ORM.EsportsSku.Query().Order(ent.Desc(esportssku.FieldID)).Limit(100).All(c.Context())
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	// §15.8-03：成本价只对授权角色（配置 sku_cost_view_roles，缺省仅超管）可见，其余角色按未登记返回。
+	if !canViewSkuCost(c) {
+		for _, item := range items {
+			item.CostCents = nil
+		}
+	}
+	customerID := queryInt(c, "quote_customer_id")
+	if customerID < 1 {
+		return reply(c, items)
+	}
+	quantity := int64(queryInt(c, "quote_quantity"))
+	if quantity < 1 {
+		quantity = 1
+	}
+	quotes := make(map[string]*skuOrderQuotePreview, len(items))
+	for _, item := range items {
+		quote, err := skuOrderQuote(c.Context(), global.ORM, customerID, item.ID, quantity)
+		if err != nil {
+			return businessError(c, err)
+		}
+		quotes[strconv.Itoa(item.ID)] = quote
+	}
+	return reply(c, fiber.Map{"items": items, "quotes": quotes})
 }
 
 func createSku(c fiber.Ctx) error {
@@ -478,11 +584,12 @@ func adminOrders(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	total, err := filter.apply(adminOrderScope(operator.ID, isSuper)).Count(c.Context())
+	allOrders := canViewAllOrders(c)
+	total, err := filter.apply(adminOrderScope(operator.ID, isSuper, allOrders)).Count(c.Context())
 	if err != nil {
 		return businessError(c, err)
 	}
-	items, err := filter.apply(adminOrderScope(operator.ID, isSuper)).
+	items, err := filter.apply(adminOrderScope(operator.ID, isSuper, allOrders)).
 		Order(ent.Desc(esportsorder.FieldID)).
 		Limit(window.limit).Offset(window.offset).All(c.Context())
 	if err != nil {
@@ -501,7 +608,8 @@ func adminOrder(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	item, err := adminOrderScope(operator.ID, isSuper).Where(esportsorder.IDEQ(id)).Only(c.Context())
+	item, err := adminOrderScope(operator.ID, isSuper, canViewAllOrders(c)).
+		Where(esportsorder.IDEQ(id)).Only(c.Context())
 	if err != nil {
 		return businessError(c, err)
 	}

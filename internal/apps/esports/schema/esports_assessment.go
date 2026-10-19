@@ -50,6 +50,11 @@ func (EsportsAssessment) Fields() []ent.Field {
 		field.Int("total_score").Default(0).StructTag(`json:"total_score"`),
 		field.String("note").MaxLen(500).Default("").StructTag(`json:"note"`),
 		field.Int("created_by_admin_id").Optional().Nillable().StructTag(`json:"created_by_admin_id"`),
+		// active_dedup_key 是「同一陪玩至多一条进行中单」的唯一索引兜底键（可空）：
+		// 升级考核建单时写入 upgrade:<playerID>，落终态（结论已出且无待复核申诉）时清空为 NULL。
+		// MySQL / SQLite 的唯一索引都允许多个 NULL，因此终态单据与其它考核类型不冲突；
+		// 不用部分索引（partial index），MySQL 5.7 不支持。
+		field.String("active_dedup_key").Optional().Nillable().MaxLen(80).StructTag(`json:"active_dedup_key,omitempty"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),
@@ -59,6 +64,7 @@ func (EsportsAssessment) Fields() []ent.Field {
 func (EsportsAssessment) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("task_no").Unique(),
+		index.Fields("active_dedup_key").Unique(),
 		index.Fields("player_id", "created_at"),
 		index.Fields("status", "assessment_type"),
 	}
@@ -118,7 +124,13 @@ func (EsportsPlayerReview) Fields() []ent.Field {
 		field.String("comment").MaxLen(500).Default("").StructTag(`json:"comment"`),
 		// 是否来自已核验身份的客户自助评价；客服代录为 false。
 		field.Bool("verified").Default(false).StructTag(`json:"verified"`),
-		field.Enum("status").Values("normal", "disputed", "invalid").Default("normal").StructTag(`json:"status"`),
+		field.Enum("status").Values("normal", "disputed", "invalid", "appeal_pending").Default("normal").StructTag(`json:"status"`),
+		// 异常刷评自动识别留痕（§7.5-05）：命中规则即置 status=disputed 并写入命中规则码与明细；
+		// auto_disputed=true 表示由规则自动标记（与管理员手工标记区分，便于事后复核与申诉）。
+		field.Bool("auto_disputed").Default(false).StructTag(`json:"auto_disputed"`),
+		field.String("dispute_rule_code").MaxLen(48).Default("").StructTag(`json:"dispute_rule_code"`),
+		field.JSON("dispute_detail", map[string]any{}).Optional().StructTag(`json:"dispute_detail"`),
+		field.Time("disputed_at").Optional().Nillable().StructTag(`json:"disputed_at"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),
@@ -149,4 +161,35 @@ func (EsportsPlayerReviewRevision) Fields() []ent.Field {
 
 func (EsportsPlayerReviewRevision) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("review_id", "version").Unique()}
+}
+
+// EsportsPlayerReviewAppeal 是评价申诉流水（§7.5-05）：客户 / 陪玩对评价（含被自动判定的异常刷评）
+// 发起申诉，管理员复核后改判。与考核申诉同构，每条评价仅一条申诉记录（唯一索引兜底）。
+// 建议表名：esports_player_review_appeals。
+type EsportsPlayerReviewAppeal struct{ ent.Schema }
+
+func (EsportsPlayerReviewAppeal) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int("review_id").Positive().StructTag(`json:"review_id"`),
+		// 申诉发起方：客户 / 陪玩。
+		field.Enum("appellant_type").Values("customer", "player").StructTag(`json:"appellant_type"`),
+		field.Int("appellant_id").Positive().StructTag(`json:"appellant_id"`),
+		field.Int("order_id").Default(0).StructTag(`json:"order_id"`),
+		field.String("reason").NotEmpty().MaxLen(500).StructTag(`json:"reason"`),
+		field.String("evidence_ref").MaxLen(255).Default("").StructTag(`json:"evidence_ref"`),
+		// pending 进入管理员复核队列；approved 申诉成立（评价改为 invalid 或复原 normal，由复核结论决定）；
+		// rejected 申诉驳回（维持 disputed / invalid）。
+		field.Enum("status").Values("pending", "approved", "rejected").Default("pending").StructTag(`json:"status"`),
+		field.Int("reviewer_admin_id").Optional().Nillable().StructTag(`json:"reviewer_admin_id"`),
+		field.String("review_note").MaxLen(500).Default("").StructTag(`json:"review_note"`),
+		field.Time("reviewed_at").Optional().Nillable().StructTag(`json:"reviewed_at"`),
+		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
+	}
+}
+
+func (EsportsPlayerReviewAppeal) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("review_id").Unique(),
+		index.Fields("status", "created_at"),
+	}
 }

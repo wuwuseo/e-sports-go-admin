@@ -30,6 +30,14 @@ const (
 	FieldVerified = "verified"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldAutoDisputed holds the string denoting the auto_disputed field in the database.
+	FieldAutoDisputed = "auto_disputed"
+	// FieldDisputeRuleCode holds the string denoting the dispute_rule_code field in the database.
+	FieldDisputeRuleCode = "dispute_rule_code"
+	// FieldDisputeDetail holds the string denoting the dispute_detail field in the database.
+	FieldDisputeDetail = "dispute_detail"
+	// FieldDisputedAt holds the string denoting the disputed_at field in the database.
+	FieldDisputedAt = "disputed_at"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -53,6 +61,10 @@ var Columns = []string{
 	FieldComment,
 	FieldVerified,
 	FieldStatus,
+	FieldAutoDisputed,
+	FieldDisputeRuleCode,
+	FieldDisputeDetail,
+	FieldDisputedAt,
 	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -83,6 +95,12 @@ var (
 	CommentValidator func(string) error
 	// DefaultVerified holds the default value on creation for the "verified" field.
 	DefaultVerified bool
+	// DefaultAutoDisputed holds the default value on creation for the "auto_disputed" field.
+	DefaultAutoDisputed bool
+	// DefaultDisputeRuleCode holds the default value on creation for the "dispute_rule_code" field.
+	DefaultDisputeRuleCode string
+	// DisputeRuleCodeValidator is a validator for the "dispute_rule_code" field. It is called by the builders before save.
+	DisputeRuleCodeValidator func(string) error
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -101,9 +119,10 @@ const DefaultStatus = StatusNormal
 
 // Status values.
 const (
-	StatusNormal   Status = "normal"
-	StatusDisputed Status = "disputed"
-	StatusInvalid  Status = "invalid"
+	StatusNormal        Status = "normal"
+	StatusDisputed      Status = "disputed"
+	StatusInvalid       Status = "invalid"
+	StatusAppealPending Status = "appeal_pending"
 )
 
 func (s Status) String() string {
@@ -113,7 +132,7 @@ func (s Status) String() string {
 // StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
 func StatusValidator(s Status) error {
 	switch s {
-	case StatusNormal, StatusDisputed, StatusInvalid:
+	case StatusNormal, StatusDisputed, StatusInvalid, StatusAppealPending:
 		return nil
 	default:
 		return fmt.Errorf("esportsplayerreview: invalid enum value for status field: %q", s)
@@ -161,6 +180,21 @@ func ByVerified(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// ByAutoDisputed orders the results by the auto_disputed field.
+func ByAutoDisputed(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoDisputed, opts...).ToFunc()
+}
+
+// ByDisputeRuleCode orders the results by the dispute_rule_code field.
+func ByDisputeRuleCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisputeRuleCode, opts...).ToFunc()
+}
+
+// ByDisputedAt orders the results by the disputed_at field.
+func ByDisputedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDisputedAt, opts...).ToFunc()
 }
 
 // ByVersion orders the results by the version field.

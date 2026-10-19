@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -348,6 +349,35 @@ type orderPaymentStartView struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 }
 
+// ensureOrderPerSeatPromise 收款前复核多人单的每席承诺量口径（§4.2-08）：
+// required_seats > 1 的订单必须已快照每席承诺服务量，且 promised_service_units == 每席量 × 席位数 × 份数；
+// 不满足即返回参数错误（400），不允许带着不完整口径进入收款。
+func ensureOrderPerSeatPromise(order *ent.EsportsOrder) error {
+	if order == nil || order.RequiredSeats <= 1 {
+		return nil
+	}
+	if order.PerSeatServiceUnits <= 0 {
+		return fmt.Errorf("%w：该订单未提供每席承诺服务量，请先补齐后再发起收款", errInvalidInput)
+	}
+	if order.Quantity < 1 {
+		return fmt.Errorf("%w：订单份数无效，无法发起收款", errInvalidInput)
+	}
+	if order.PerSeatServiceUnits > math.MaxInt64/int64(order.RequiredSeats) {
+		return fmt.Errorf("%w：每席承诺服务量超出可计算范围", errInvalidInput)
+	}
+	expected := order.PerSeatServiceUnits * int64(order.RequiredSeats)
+	if expected > math.MaxInt64/order.Quantity {
+		return fmt.Errorf("%w：每席承诺服务量超出可计算范围", errInvalidInput)
+	}
+	expected *= order.Quantity
+	if order.PromisedServiceUnits != expected {
+		return fmt.Errorf("%w：订单承诺服务量（%d）与每席承诺服务量口径不一致（每席 %d × %d 席 × %d 份 = %d）",
+			errInvalidInput, order.PromisedServiceUnits, order.PerSeatServiceUnits,
+			order.RequiredSeats, order.Quantity, expected)
+	}
+	return nil
+}
+
 // startOrderPayment 客户为本人待付款订单发起在线收款（§4.3）：
 // 校验归属 / 状态 / 渠道开通 / 启用账户 → 同一事务内保障支付意图（金额与报价确认书版本一致）
 // → 调渠道下单拿 pay_url。
@@ -356,20 +386,56 @@ type orderPaymentStartView struct {
 // 重复发起会复用同一 pending 意图，渠道按 intent_no 幂等返码即可。
 func startOrderPayment(ctx context.Context, db *ent.Client, customerID, orderID int,
 	channel string, now time.Time) (*orderPaymentStartView, error) {
-	channel = strings.TrimSpace(channel)
-	if customerID < 1 || orderID < 1 || !validPaymentChannel(channel) {
+	if customerID < 1 {
 		return nil, errInvalidInput
+	}
+	return startOrderPaymentCore(ctx, db, customerID, orderID, channel, now)
+}
+
+// startOrderPaymentAsOperator 客服 / 企微侧边栏为订单发起在线收款（§4.3-02）：
+// 与客户自助发起共用同一套渠道开通、启用账户、金额与快照校验，仅把「客户本人」归属校验
+// 换成调用方已完成的管理端订单可见性边界（路由由 ownedOrderHandler 保护）。
+func startOrderPaymentAsOperator(ctx context.Context, db *ent.Client, operatorAdminID, orderID int,
+	channel string, now time.Time) (*orderPaymentStartView, error) {
+	if operatorAdminID < 1 || orderID < 1 {
+		return nil, errForbidden
+	}
+	return startOrderPaymentCore(ctx, db, 0, orderID, channel, now)
+}
+
+// startOrderPaymentCore 发起收款的公共实现：customerID=0 表示由客服发起（跳过「本人订单」校验）。
+func startOrderPaymentCore(ctx context.Context, db *ent.Client, customerID, orderID int,
+	channel string, now time.Time) (*orderPaymentStartView, error) {
+	channel = strings.TrimSpace(channel)
+	if orderID < 1 || !validPaymentChannel(channel) {
+		return nil, errInvalidInput
+	}
+	// §7 / 18-02：支付时限未配置时不得发起支付（明确失败，不返回伪成功）。
+	if err := ensurePaymentDeadlineConfigured(ctx, db); err != nil {
+		return nil, err
 	}
 	order, err := db.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
-	if order.CustomerID != customerID {
+	if customerID > 0 && order.CustomerID != customerID {
 		return nil, errForbidden
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
 		return nil, errConflict
+	}
+	// §15.7-01：下架商品不得发起收款。
+	if err = ensureOrderSkuOnSale(ctx, db, order); err != nil {
+		return nil, err
+	}
+	// §4.2-08：多人单每席承诺服务量缺失 / 与订单承诺量不一致时不得发起收款。
+	if err = ensureOrderPerSeatPromise(order); err != nil {
+		return nil, err
+	}
+	// §4.3-05：大额订单只允许对公转账。
+	if err = ensureCorporateChannelForAmount(ctx, db, channel, order.PayableCents); err != nil {
+		return nil, err
 	}
 	if now.UTC().After(order.PaymentDeadline) {
 		return nil, fmt.Errorf("%w：订单已超过支付时限", errConflict)
@@ -402,7 +468,7 @@ func startOrderPayment(ctx context.Context, db *ent.Client, customerID, orderID 
 		return nil, err
 	}
 	payURL, err := gateway.CreatePayment(ctx, intent.IntentNo, intent.AmountCents,
-		intent.ExpiresAt, sku.Title+"（订单 "+order.OrderNo+"）")
+		intent.ExpiresAt, orderPaymentSubject(order, sku))
 	if err != nil {
 		return nil, err
 	}
@@ -410,6 +476,19 @@ func startOrderPayment(ctx context.Context, db *ent.Client, customerID, orderID 
 		IntentNo: intent.IntentNo, Channel: channel, PayURL: payURL,
 		AmountCents: intent.AmountCents, ExpiresAt: intent.ExpiresAt,
 	}, nil
+}
+
+// orderPaymentSubject 拼渠道收银台标题（§15.6-03）：优先用下单时的商品名快照，
+// 历史单无快照（空串）才回落实时 SKU 标题，避免改 SKU 名后收银台标题漂移。
+func orderPaymentSubject(order *ent.EsportsOrder, sku *ent.EsportsSku) string {
+	name := strings.TrimSpace(order.SkuName)
+	if name == "" && sku != nil {
+		name = sku.Title
+	}
+	if name == "" {
+		name = "陪玩服务"
+	}
+	return name + "（订单 " + order.OrderNo + "）"
 }
 
 // handlePaymentNotification 在线渠道回调验签 + 核销（§4.3）：

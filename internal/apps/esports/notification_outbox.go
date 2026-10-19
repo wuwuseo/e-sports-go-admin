@@ -50,6 +50,13 @@ const legacyNotificationChannelsConfigKey = "notification_channels"
 
 var errNotificationSenderUnavailable = errors.New("通知发送通道尚未配置")
 
+// errNotificationChannelDegraded 表示「通道已启用但网关未配置」：投递侧必须显式降级并留痕，
+// 不能因为站内信成功就把它当作已送达（§5.7-06 不假成功）。
+var errNotificationChannelDegraded = errors.New("通知通道已启用但网关未配置，已降级")
+
+// notificationDegradedChannelsField 是站内信 extra 中记录降级通道的字段名，供客服与运维观测。
+const notificationDegradedChannelsField = "degraded_channels"
+
 // NotificationSender 通知发送适配层接口。既有签名保持不变；新实现可通过
 // notificationBatchSender 在一次调用中完成站内信 + 多通道推送，避免重复解析收件人。
 type NotificationSender interface {
@@ -73,13 +80,28 @@ var notifyChannelTargets = []struct {
 	{"dispatch.remind_player", []string{notifyChannelPush}},
 	// 服务超时提醒客服确认加钟（§5.7）。
 	{"dispatch.service_overtime", []string{notifyChannelWecomApp}},
+	// 派单逐级升级（§5.9-06）：企微 + 语音；语音网关未配置时由 deliver 记录 degraded_channels
+	// 明确降级（§5.7-06），绝不伪成功。
+	{"dispatch.escalation_no_taker", []string{notifyChannelWecomApp, notifyChannelVoice}},
+	{"dispatch.escalation_member_absent", []string{notifyChannelWecomApp, notifyChannelVoice}},
+	{"dispatch.escalation_starting_unfilled", []string{notifyChannelWecomApp, notifyChannelVoice}},
+	// 客服离线 / 积压自动转公共池（§5.1-05）：定向通知原负责客服。
+	{"dispatch.auto_pool_release", []string{notifyChannelWecomApp}},
 	// 服务时长差异过大提醒客服核实（§6.2-03）。
 	{"service.duration_mismatch", []string{notifyChannelWecomApp}},
+	// 服务段结束进入待结算（§6.1-15）：定向推送该陪玩。
+	// 只映射本事件，不整段收编 settlement.* ：结算模块自身的 settlement.generated /
+	// settlement.reversed 属业务事件，必须继续由业务消费方处理。
+	{"settlement.segment_finished", []string{notifyChannelPush}},
 	{"aftersale.", []string{notifyChannelWecomApp}},
 	{"gift.", []string{notifyChannelWecomApp, notifyChannelPush}},
 	{"member.", []string{notifyChannelWecomApp}},
 	{"customer.", []string{notifyChannelWecomApp}},
 	{"payment.", []string{notifyChannelWecomApp}},
+	// 抢单未成功（§5.6-04）：只推送给落败者本人；必须排在通用 order. 之前。
+	{"order.grab_attempt_lost", []string{notifyChannelPush}},
+	// 优先接单通知（§5.4-09）：只推送给被通知的名单内陪玩；必须排在通用 order. 之前。
+	{"order.priority_notice", []string{notifyChannelPush}},
 	{"order.", []string{notifyChannelWecomApp, notifyChannelPush}},
 	{"player.", []string{notifyChannelPush}},
 }
@@ -236,17 +258,18 @@ func (s *compositeNotificationSender) deliver(ctx context.Context, channels []st
 	if err != nil {
 		return err
 	}
-	inAppErr := s.inApp.sendToRecipients(ctx, notifyChannelInApp, eventKey, eventType, aggregateRef, payload, recipients)
-	if inAppErr != nil {
-		// 站内信失败但推送可能成功，这里先留痕；最终是否算投递由下方判定决定。
-		log.Printf("[esports][notification] 站内信投递失败 event=%s ref=%s err=%v", eventType, aggregateRef, inAppErr)
-	}
 	configured, pushed := 0, 0
+	degraded := make([]string, 0, len(channels))
 	var pushErr error
 	for _, channel := range channels {
 		err := s.webhook.send(ctx, channel, eventType, aggregateRef, payload, recipients)
 		if errors.Is(err, errNotificationWebhookNotConfigured) {
-			continue // 未配置 = 该通道未启用，不阻断站内信。
+			// §5.7-06：通道已启用但网关未配置 —— 明确降级并可见（写入站内信且记日志），
+			// 既不伪成功也不把事件无限重试。
+			degraded = append(degraded, channel)
+			log.Printf("[esports][notification] 通道 %s 已启用但未配置网关，明确降级 event=%s ref=%s",
+				channel, eventType, aggregateRef)
+			continue
 		}
 		configured++
 		if err == nil {
@@ -254,6 +277,11 @@ func (s *compositeNotificationSender) deliver(ctx context.Context, channels []st
 			continue
 		}
 		pushErr = fmt.Errorf("通道 %s 推送失败: %w", channel, err)
+	}
+	inAppErr := s.inApp.sendToRecipients(ctx, notifyChannelInApp, eventKey, eventType, aggregateRef, payload, recipients, degraded)
+	if inAppErr != nil {
+		// 站内信失败但推送可能成功，这里先留痕；最终是否算投递由下方判定决定。
+		log.Printf("[esports][notification] 站内信投递失败 event=%s ref=%s err=%v", eventType, aggregateRef, inAppErr)
 	}
 	switch {
 	case inAppErr == nil && (configured == 0 || pushed > 0):
@@ -285,10 +313,12 @@ func (s *messageNotificationSender) Send(ctx context.Context, channel, eventType
 	if err != nil {
 		return err
 	}
-	return s.sendToRecipients(ctx, channel, "", eventType, aggregateRef, payload, recipients)
+	return s.sendToRecipients(ctx, channel, "", eventType, aggregateRef, payload, recipients, nil)
 }
 
-func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channel, eventKey, eventType, aggregateRef string, payload map[string]interface{}, recipients []notificationRecipient) error {
+// sendToRecipients 逐收件人写站内信。degraded 是本次投递中「已启用但网关未配置」的通道，
+// 非空时写入消息 extra 的 degraded_channels，让降级可见（§5.7-06）。
+func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channel, eventKey, eventType, aggregateRef string, payload map[string]interface{}, recipients []notificationRecipient, degraded []string) error {
 	if len(recipients) == 0 {
 		return errNotificationRecipientMissing
 	}
@@ -312,6 +342,9 @@ func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channe
 			"aggregate_ref": aggregateRef,
 			"roles":         recipient.Roles,
 			"dedupe_key":    dedupeKey,
+		}
+		if len(degraded) > 0 {
+			extra[notificationDegradedChannelsField] = degraded
 		}
 		if eventKey != "" {
 			extra["event_key"] = eventKey
@@ -382,28 +415,43 @@ func (s *messageNotificationSender) messageAlreadySent(ctx context.Context, addr
 
 // notificationEventText 是事件类型 → 业务可读标题的映射；未命中时按前缀给出通用标题。
 var notificationEventText = map[string]string{
-	"order.created":                        "订单已创建",
-	"order.closed":                         "订单已结单",
-	"order.cancelled":                      "订单已取消",
-	"order.payment_verified":               "订单支付已核销",
-	"order.payment_expired":                "订单支付已超时",
-	"order.payment_reversal_registered":    "订单支付冲正已登记",
-	"order.seat_invited":                   "新的接单邀请",
-	"order.seat_accepted":                  "陪玩已接单",
-	"order.seat_rejected":                  "陪玩已拒绝接单",
-	"order.seat_expired":                   "接单邀请已过期",
-	"order.published_to_grab_hall":         "订单已释放到抢单大厅",
-	"order.dispatch_released":              "订单已释放派单",
-	"order.service_started":                "服务已开始",
-	"order.service_paused":                 "服务已暂停",
-	"order.service_finished":               "服务已结束",
-	"order.service_overtime":               "服务时长已超时",
-	"order.addon_requested":                "加钟待确认",
-	"order.reschedule_proposed":            "改期提案待确认",
-	"order.reschedule_applied":             "改期已生效",
-	"order.restored":                       "订单已恢复",
-	"order.transferred":                    "订单已转移",
-	"order.after_sale_created":             "订单售后已创建",
+	"order.created":                     "订单已创建",
+	"order.closed":                      "订单已结单",
+	"order.cancelled":                   "订单已取消",
+	"order.payment_verified":            "订单支付已核销",
+	"order.payment_expired":             "订单支付已超时",
+	"order.payment_reversal_registered": "订单支付冲正已登记",
+	"order.seat_invited":                "新的接单邀请",
+	"order.seat_accepted":               "陪玩已接单",
+	"order.seat_rejected":               "陪玩已拒绝接单",
+	"order.seat_expired":                "接单邀请已过期",
+	"order.published_to_grab_hall":      "订单已释放到抢单大厅",
+	"order.dispatch_released":           "订单已释放派单",
+	"order.service_started":             "服务已开始",
+	"order.service_paused":              "服务已暂停",
+	"order.service_finished":            "服务已结束",
+	"order.service_overtime":            "服务时长已超时",
+	"order.addon_requested":             "加钟待确认",
+	"order.reschedule_proposed":         "改期提案待确认",
+	"order.reschedule_applied":          "改期已生效",
+	"order.restored":                    "订单已恢复",
+	"order.transferred":                 "订单已转移",
+	"order.after_sale_created":          "订单售后已创建",
+	// §5.4-09 / §5.6-04 / §5.7-02 / §5.3-06 / §3.3-03：派单域新增事件的专用文案。
+	"order.priority_notice":         "优先接单通知",
+	"order.grab_attempt_lost":       "抢单未成功",
+	"order.seat_transfer_requested": "陪玩申请转单待确认",
+	"order.seat_transfer_approved":  "转单已通过",
+	"order.seat_refill_required":    "席位待补位",
+	"order.service_player_replaced": "服务中已更换陪玩",
+	// §6.1-15：服务段结束进入待结算。
+	"settlement.segment_finished": "服务段已结束待结算",
+	// §5.9-06：派单逐级升级。
+	"dispatch.escalation_no_taker":          "无人接单待人工干预",
+	"dispatch.escalation_member_absent":     "多人缺席待补位",
+	"dispatch.escalation_starting_unfilled": "临近开始仍未满员",
+	// §5.1-05：客服离线 / 积压自动转公共池。
+	"dispatch.auto_pool_release":           "订单已自动转入公共池",
 	"aftersale.source_created":             "售后单已创建",
 	"aftersale.review_requested":           "售后待审批",
 	"aftersale.sla_breach":                 "售后处理已超时",
@@ -448,6 +496,8 @@ func notificationEventTitle(eventType string) string {
 		return "客户提醒"
 	case strings.HasPrefix(eventType, "player."):
 		return "陪玩提醒"
+	case strings.HasPrefix(eventType, "settlement."):
+		return "结算提醒"
 	case strings.HasPrefix(eventType, "dispatch."):
 		return "派单提醒"
 	}
@@ -482,7 +532,51 @@ func notificationEventSummary(eventType, aggregateRef string, payload map[string
 			parts = append(parts, fmt.Sprintf("陪玩上报 %d 秒，系统计时 %d 秒，请核实", reported, system))
 		}
 	}
+	// §5.4-09：优先接单通知必须带游戏分区与响应截止时间，陪玩端无需再回查订单。
+	if eventType == "order.priority_notice" {
+		if game := payloadString(payload, "game"); game != "" {
+			parts = append(parts, "分区 "+game)
+		}
+		if until := payloadTime(payload, "notice_until"); until != "" {
+			parts = append(parts, "请在 "+until+" 前响应")
+		}
+	}
+	// §5.9-06：升级通知带未满员席位情况，客服一眼看出缺几个。
+	if strings.HasPrefix(eventType, "dispatch.escalation_") {
+		required := payloadInt(payload, "required_seats")
+		accepted := payloadInt(payload, "accepted_seats")
+		if required > 0 {
+			parts = append(parts, fmt.Sprintf("席位 %d/%d 已接单", accepted, required))
+		}
+	}
 	return strings.Join(parts, "，")
+}
+
+// payloadTime 把载荷中的时间值格式化为可读文本（支持 time.Time / RFC3339 字符串 / fmt.Stringer）。
+func payloadTime(payload map[string]interface{}, key string) string {
+	if payload == nil {
+		return ""
+	}
+	switch value := payload[key].(type) {
+	case time.Time:
+		if value.IsZero() {
+			return ""
+		}
+		return value.UTC().Format("2006-01-02 15:04")
+	case *time.Time:
+		if value == nil || value.IsZero() {
+			return ""
+		}
+		return value.UTC().Format("2006-01-02 15:04")
+	case string:
+		trimmed := strings.TrimSpace(value)
+		if parsed, err := time.Parse(time.RFC3339, trimmed); err == nil {
+			return parsed.UTC().Format("2006-01-02 15:04")
+		}
+		return trimmed
+	default:
+		return ""
+	}
 }
 
 // notificationOrderNo 提取订单号：优先 payload.order_no；order.* / payment.* 与三个派单/服务类

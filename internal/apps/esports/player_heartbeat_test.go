@@ -25,7 +25,6 @@ func TestPlayerHeartbeatAutoOfflineProtectsInflightOrders(t *testing.T) {
 	db.EsportsPlayer.UpdateOneID(idle.ID).SetLastHeartbeatAt(stale).ExecX(ctx)
 
 	busy := seedPlayer(t, db, 922, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(busy.ID).SetLastHeartbeatAt(stale).ExecX(ctx)
 	order := seedPaidOrder(t, db, "heartbeat-inflight", 1)
 	seat, err := assignDispatchSeat(ctx, db, order.ID, 1, busy.ID, 11, now)
 	if err != nil {
@@ -34,6 +33,8 @@ func TestPlayerHeartbeatAutoOfflineProtectsInflightOrders(t *testing.T) {
 	if err := respondPlayerInvite(ctx, db, busy.ID, seat.ID, true, now); err != nil {
 		t.Fatal(err)
 	}
+	// §5.5：人工指派按连接健康度（在线 + 心跳新鲜）校验，故先把在途订单建好再制造心跳超时失联。
+	db.EsportsPlayer.UpdateOneID(busy.ID).SetLastHeartbeatAt(stale).ExecX(ctx)
 
 	fresh := seedPlayer(t, db, 923, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(fresh.ID).SetLastHeartbeatAt(now.Add(-time.Minute)).ExecX(ctx)
@@ -138,14 +139,14 @@ func TestPlayerGrabBlocksAutoOfflineAndProtectedAbnormal(t *testing.T) {
 
 	// 人工下线 + 心跳陈旧（已断开）→ 禁止抢单。
 	staleOffline := seedPlayer(t, db, 926, esportsplayer.QualificationQualified, esportsplayer.PresenceOffline)
-	db.EsportsPlayer.UpdateOneID(staleOffline.ID).SetLastHeartbeatAt(now.Add(-30*time.Minute)).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(staleOffline.ID).SetLastHeartbeatAt(now.Add(-30 * time.Minute)).SaveX(ctx)
 	if _, err := grabPlayerOrder(ctx, db, staleOffline.ID, seedGrabbingOrder(t, db, "grab-offline-stale").ID, now); !errors.Is(err, errForbidden) {
 		t.Fatalf("心跳超时的离线陪玩应禁止抢单：%v", err)
 	}
 
 	// 在线但心跳超时 → 超时任务收敛为 offline 后禁止抢单。
 	onlineStale := seedPlayer(t, db, 927, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(onlineStale.ID).SetLastHeartbeatAt(now.Add(-30*time.Minute)).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(onlineStale.ID).SetLastHeartbeatAt(now.Add(-30 * time.Minute)).SaveX(ctx)
 	if _, err := autoOfflineStalePlayers(ctx, db, now, 100); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +173,6 @@ func TestPlayerHeartbeatProtectsInflightAndBlocksGrab(t *testing.T) {
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
 	busy := seedPlayer(t, db, 929, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(busy.ID).SetLastHeartbeatAt(now.Add(-30*time.Minute)).SaveX(ctx)
 	order := seedPaidOrder(t, db, "heartbeat-inflight-grab", 1)
 	seat, err := assignDispatchSeat(ctx, db, order.ID, 1, busy.ID, 11, now)
 	if err != nil {
@@ -181,6 +181,8 @@ func TestPlayerHeartbeatProtectsInflightAndBlocksGrab(t *testing.T) {
 	if err := respondPlayerInvite(ctx, db, busy.ID, seat.ID, true, now); err != nil {
 		t.Fatal(err)
 	}
+	// §5.5：人工指派按连接健康度（在线 + 心跳新鲜）校验，故先把在途订单建好再制造心跳超时失联。
+	db.EsportsPlayer.UpdateOneID(busy.ID).SetLastHeartbeatAt(now.Add(-30 * time.Minute).UTC()).SaveX(ctx)
 
 	if _, err := autoOfflineStalePlayers(ctx, db, now, 100); err != nil {
 		t.Fatal(err)

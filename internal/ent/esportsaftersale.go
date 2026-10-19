@@ -87,6 +87,8 @@ type EsportsAfterSale struct {
 	Resolution string `json:"resolution"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
+	// ActiveDedupKey holds the value of the "active_dedup_key" field.
+	ActiveDedupKey *string `json:"active_dedup_key,omitempty"`
 	// ResolvedAt holds the value of the "resolved_at" field.
 	ResolvedAt *time.Time `json:"resolved_at"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -103,7 +105,7 @@ func (*EsportsAfterSale) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsaftersale.FieldID, esportsaftersale.FieldSourceID, esportsaftersale.FieldRefundCents, esportsaftersale.FieldMakeupPlayerID, esportsaftersale.FieldMakeupSeatIndex, esportsaftersale.FieldMakeupUnits, esportsaftersale.FieldMakeupCompanyPayCents, esportsaftersale.FieldCustomerID, esportsaftersale.FieldPlayerID, esportsaftersale.FieldCustomerConfirmedByAdminID, esportsaftersale.FieldRecoveryPlayerID, esportsaftersale.FieldRecoveryCents, esportsaftersale.FieldHandlerAdminID, esportsaftersale.FieldApproverAdminID, esportsaftersale.FieldExecutorAdminID, esportsaftersale.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsaftersale.FieldAfterSaleNo, esportsaftersale.FieldSourceType, esportsaftersale.FieldKind, esportsaftersale.FieldChannel, esportsaftersale.FieldDemand, esportsaftersale.FieldExpectedPlan, esportsaftersale.FieldEvidenceRef, esportsaftersale.FieldContact, esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty, esportsaftersale.FieldPlanAction, esportsaftersale.FieldMakeupKind, esportsaftersale.FieldCustomerConfirmChannel, esportsaftersale.FieldCustomerDeclineReason, esportsaftersale.FieldResolution:
+		case esportsaftersale.FieldAfterSaleNo, esportsaftersale.FieldSourceType, esportsaftersale.FieldKind, esportsaftersale.FieldChannel, esportsaftersale.FieldDemand, esportsaftersale.FieldExpectedPlan, esportsaftersale.FieldEvidenceRef, esportsaftersale.FieldContact, esportsaftersale.FieldStatus, esportsaftersale.FieldFaultParty, esportsaftersale.FieldPlanAction, esportsaftersale.FieldMakeupKind, esportsaftersale.FieldCustomerConfirmChannel, esportsaftersale.FieldCustomerDeclineReason, esportsaftersale.FieldResolution, esportsaftersale.FieldActiveDedupKey:
 			values[i] = new(sql.NullString)
 		case esportsaftersale.FieldCustomerConfirmedAt, esportsaftersale.FieldCustomerDeclinedAt, esportsaftersale.FieldAcceptedAt, esportsaftersale.FieldPlannedAt, esportsaftersale.FieldApprovedAt, esportsaftersale.FieldResolvedAt, esportsaftersale.FieldCreatedAt, esportsaftersale.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -352,6 +354,13 @@ func (_m *EsportsAfterSale) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Version = int(value.Int64)
 			}
+		case esportsaftersale.FieldActiveDedupKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field active_dedup_key", values[i])
+			} else if value.Valid {
+				_m.ActiveDedupKey = new(string)
+				*_m.ActiveDedupKey = value.String
+			}
 		case esportsaftersale.FieldResolvedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field resolved_at", values[i])
@@ -539,6 +548,11 @@ func (_m *EsportsAfterSale) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Version))
+	builder.WriteString(", ")
+	if v := _m.ActiveDedupKey; v != nil {
+		builder.WriteString("active_dedup_key=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	if v := _m.ResolvedAt; v != nil {
 		builder.WriteString("resolved_at=")

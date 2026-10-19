@@ -127,7 +127,7 @@ func playerInviteTeammates(ctx context.Context, db *ent.Client, playerID, orderI
 	if err != nil {
 		return nil, err
 	}
-	if err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstInvited, now); err != nil {
+	if _, err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstInvited, now); err != nil {
 		return nil, err
 	}
 	type seatRef struct {

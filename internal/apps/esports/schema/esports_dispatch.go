@@ -22,6 +22,11 @@ func (EsportsDispatchSeat) Fields() []ent.Field {
 		field.Enum("source").Values("assign", "grab", "fixed_team", "temp_team").Default("assign").StructTag(`json:"source"`),
 		field.Enum("status").Values("open", "invited", "accepted", "rejected", "expired", "revoked", "released").Default("open").StructTag(`json:"status"`),
 		field.Int("invited_by_admin_id").Optional().Nillable().StructTag(`json:"invited_by_admin_id"`),
+		// 邀请发出时刻（§5.9-01）：此前只能由 created_at 或 expires_at−TTL 反推，现显式落库。
+		field.Time("invited_at").Optional().Nillable().StructTag(`json:"invited_at"`),
+		// 该席位的服务时段（§5.9-01）：多人预约单每席可不同，用于席位级时段展示与冲突判定；空表示随订单。
+		field.Time("slot_start").Optional().Nillable().StructTag(`json:"slot_start"`),
+		field.Time("slot_end").Optional().Nillable().StructTag(`json:"slot_end"`),
 		field.Time("expires_at").Optional().Nillable().StructTag(`json:"expires_at"`),
 		field.Time("responded_at").Optional().Nillable().StructTag(`json:"responded_at"`),
 		// 接受或抢单时锁定该陪玩的分成规则；locked_at 非空且 rule_id 为空表示当时无规则。

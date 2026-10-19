@@ -44,6 +44,20 @@ func (_c *EsportsGrowthLedgerCreate) SetSourceID(v string) *EsportsGrowthLedgerC
 	return _c
 }
 
+// SetPaymentSource sets the "payment_source" field.
+func (_c *EsportsGrowthLedgerCreate) SetPaymentSource(v esportsgrowthledger.PaymentSource) *EsportsGrowthLedgerCreate {
+	_c.mutation.SetPaymentSource(v)
+	return _c
+}
+
+// SetNillablePaymentSource sets the "payment_source" field if the given value is not nil.
+func (_c *EsportsGrowthLedgerCreate) SetNillablePaymentSource(v *esportsgrowthledger.PaymentSource) *EsportsGrowthLedgerCreate {
+	if v != nil {
+		_c.SetPaymentSource(*v)
+	}
+	return _c
+}
+
 // SetOperatorID sets the "operator_id" field.
 func (_c *EsportsGrowthLedgerCreate) SetOperatorID(v int) *EsportsGrowthLedgerCreate {
 	_c.mutation.SetOperatorID(v)
@@ -123,6 +137,10 @@ func (_c *EsportsGrowthLedgerCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *EsportsGrowthLedgerCreate) defaults() error {
+	if _, ok := _c.mutation.PaymentSource(); !ok {
+		v := esportsgrowthledger.DefaultPaymentSource
+		_c.mutation.SetPaymentSource(v)
+	}
 	if _, ok := _c.mutation.Note(); !ok {
 		v := esportsgrowthledger.DefaultNote
 		_c.mutation.SetNote(v)
@@ -164,6 +182,14 @@ func (_c *EsportsGrowthLedgerCreate) check() error {
 	if v, ok := _c.mutation.SourceID(); ok {
 		if err := esportsgrowthledger.SourceIDValidator(v); err != nil {
 			return &ValidationError{Name: "source_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.source_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PaymentSource(); !ok {
+		return &ValidationError{Name: "payment_source", err: errors.New(`ent: missing required field "EsportsGrowthLedger.payment_source"`)}
+	}
+	if v, ok := _c.mutation.PaymentSource(); ok {
+		if err := esportsgrowthledger.PaymentSourceValidator(v); err != nil {
+			return &ValidationError{Name: "payment_source", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.payment_source": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Note(); !ok {
@@ -218,6 +244,10 @@ func (_c *EsportsGrowthLedgerCreate) createSpec() (*EsportsGrowthLedger, *sqlgra
 	if value, ok := _c.mutation.SourceID(); ok {
 		_spec.SetField(esportsgrowthledger.FieldSourceID, field.TypeString, value)
 		_node.SourceID = value
+	}
+	if value, ok := _c.mutation.PaymentSource(); ok {
+		_spec.SetField(esportsgrowthledger.FieldPaymentSource, field.TypeEnum, value)
+		_node.PaymentSource = value
 	}
 	if value, ok := _c.mutation.OperatorID(); ok {
 		_spec.SetField(esportsgrowthledger.FieldOperatorID, field.TypeInt, value)

@@ -116,6 +116,38 @@ func (_u *EsportsRechargeCampaignUpdate) ClearAudienceCustomerIds() *EsportsRech
 	return _u
 }
 
+// SetAudiencePlayerIds sets the "audience_player_ids" field.
+func (_u *EsportsRechargeCampaignUpdate) SetAudiencePlayerIds(v []int) *EsportsRechargeCampaignUpdate {
+	_u.mutation.SetAudiencePlayerIds(v)
+	return _u
+}
+
+// AppendAudiencePlayerIds appends value to the "audience_player_ids" field.
+func (_u *EsportsRechargeCampaignUpdate) AppendAudiencePlayerIds(v []int) *EsportsRechargeCampaignUpdate {
+	_u.mutation.AppendAudiencePlayerIds(v)
+	return _u
+}
+
+// ClearAudiencePlayerIds clears the value of the "audience_player_ids" field.
+func (_u *EsportsRechargeCampaignUpdate) ClearAudiencePlayerIds() *EsportsRechargeCampaignUpdate {
+	_u.mutation.ClearAudiencePlayerIds()
+	return _u
+}
+
+// SetTargetAccountType sets the "target_account_type" field.
+func (_u *EsportsRechargeCampaignUpdate) SetTargetAccountType(v esportsrechargecampaign.TargetAccountType) *EsportsRechargeCampaignUpdate {
+	_u.mutation.SetTargetAccountType(v)
+	return _u
+}
+
+// SetNillableTargetAccountType sets the "target_account_type" field if the given value is not nil.
+func (_u *EsportsRechargeCampaignUpdate) SetNillableTargetAccountType(v *esportsrechargecampaign.TargetAccountType) *EsportsRechargeCampaignUpdate {
+	if v != nil {
+		_u.SetTargetAccountType(*v)
+	}
+	return _u
+}
+
 // SetStackRule sets the "stack_rule" field.
 func (_u *EsportsRechargeCampaignUpdate) SetStackRule(v esportsrechargecampaign.StackRule) *EsportsRechargeCampaignUpdate {
 	_u.mutation.SetStackRule(v)
@@ -283,6 +315,11 @@ func (_u *EsportsRechargeCampaignUpdate) check() error {
 			return &ValidationError{Name: "audience", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.audience": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.TargetAccountType(); ok {
+		if err := esportsrechargecampaign.TargetAccountTypeValidator(v); err != nil {
+			return &ValidationError{Name: "target_account_type", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.target_account_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.StackRule(); ok {
 		if err := esportsrechargecampaign.StackRuleValidator(v); err != nil {
 			return &ValidationError{Name: "stack_rule", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.stack_rule": %w`, err)}
@@ -338,6 +375,20 @@ func (_u *EsportsRechargeCampaignUpdate) sqlSave(ctx context.Context) (_node int
 	}
 	if _u.mutation.AudienceCustomerIdsCleared() {
 		_spec.ClearField(esportsrechargecampaign.FieldAudienceCustomerIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AudiencePlayerIds(); ok {
+		_spec.SetField(esportsrechargecampaign.FieldAudiencePlayerIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAudiencePlayerIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsrechargecampaign.FieldAudiencePlayerIds, value)
+		})
+	}
+	if _u.mutation.AudiencePlayerIdsCleared() {
+		_spec.ClearField(esportsrechargecampaign.FieldAudiencePlayerIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.TargetAccountType(); ok {
+		_spec.SetField(esportsrechargecampaign.FieldTargetAccountType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.StackRule(); ok {
 		_spec.SetField(esportsrechargecampaign.FieldStackRule, field.TypeEnum, value)
@@ -469,6 +520,38 @@ func (_u *EsportsRechargeCampaignUpdateOne) AppendAudienceCustomerIds(v []int) *
 // ClearAudienceCustomerIds clears the value of the "audience_customer_ids" field.
 func (_u *EsportsRechargeCampaignUpdateOne) ClearAudienceCustomerIds() *EsportsRechargeCampaignUpdateOne {
 	_u.mutation.ClearAudienceCustomerIds()
+	return _u
+}
+
+// SetAudiencePlayerIds sets the "audience_player_ids" field.
+func (_u *EsportsRechargeCampaignUpdateOne) SetAudiencePlayerIds(v []int) *EsportsRechargeCampaignUpdateOne {
+	_u.mutation.SetAudiencePlayerIds(v)
+	return _u
+}
+
+// AppendAudiencePlayerIds appends value to the "audience_player_ids" field.
+func (_u *EsportsRechargeCampaignUpdateOne) AppendAudiencePlayerIds(v []int) *EsportsRechargeCampaignUpdateOne {
+	_u.mutation.AppendAudiencePlayerIds(v)
+	return _u
+}
+
+// ClearAudiencePlayerIds clears the value of the "audience_player_ids" field.
+func (_u *EsportsRechargeCampaignUpdateOne) ClearAudiencePlayerIds() *EsportsRechargeCampaignUpdateOne {
+	_u.mutation.ClearAudiencePlayerIds()
+	return _u
+}
+
+// SetTargetAccountType sets the "target_account_type" field.
+func (_u *EsportsRechargeCampaignUpdateOne) SetTargetAccountType(v esportsrechargecampaign.TargetAccountType) *EsportsRechargeCampaignUpdateOne {
+	_u.mutation.SetTargetAccountType(v)
+	return _u
+}
+
+// SetNillableTargetAccountType sets the "target_account_type" field if the given value is not nil.
+func (_u *EsportsRechargeCampaignUpdateOne) SetNillableTargetAccountType(v *esportsrechargecampaign.TargetAccountType) *EsportsRechargeCampaignUpdateOne {
+	if v != nil {
+		_u.SetTargetAccountType(*v)
+	}
 	return _u
 }
 
@@ -652,6 +735,11 @@ func (_u *EsportsRechargeCampaignUpdateOne) check() error {
 			return &ValidationError{Name: "audience", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.audience": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.TargetAccountType(); ok {
+		if err := esportsrechargecampaign.TargetAccountTypeValidator(v); err != nil {
+			return &ValidationError{Name: "target_account_type", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.target_account_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.StackRule(); ok {
 		if err := esportsrechargecampaign.StackRuleValidator(v); err != nil {
 			return &ValidationError{Name: "stack_rule", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.stack_rule": %w`, err)}
@@ -724,6 +812,20 @@ func (_u *EsportsRechargeCampaignUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if _u.mutation.AudienceCustomerIdsCleared() {
 		_spec.ClearField(esportsrechargecampaign.FieldAudienceCustomerIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.AudiencePlayerIds(); ok {
+		_spec.SetField(esportsrechargecampaign.FieldAudiencePlayerIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedAudiencePlayerIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsrechargecampaign.FieldAudiencePlayerIds, value)
+		})
+	}
+	if _u.mutation.AudiencePlayerIdsCleared() {
+		_spec.ClearField(esportsrechargecampaign.FieldAudiencePlayerIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.TargetAccountType(); ok {
+		_spec.SetField(esportsrechargecampaign.FieldTargetAccountType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.StackRule(); ok {
 		_spec.SetField(esportsrechargecampaign.FieldStackRule, field.TypeEnum, value)

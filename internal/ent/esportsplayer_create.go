@@ -136,6 +136,244 @@ func (_c *EsportsPlayerCreate) SetNillableLastHeartbeatAt(v *time.Time) *Esports
 	return _c
 }
 
+// SetExpectedPriceCents sets the "expected_price_cents" field.
+func (_c *EsportsPlayerCreate) SetExpectedPriceCents(v int64) *EsportsPlayerCreate {
+	_c.mutation.SetExpectedPriceCents(v)
+	return _c
+}
+
+// SetNillableExpectedPriceCents sets the "expected_price_cents" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableExpectedPriceCents(v *int64) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetExpectedPriceCents(*v)
+	}
+	return _c
+}
+
+// SetExpectedPriceStatus sets the "expected_price_status" field.
+func (_c *EsportsPlayerCreate) SetExpectedPriceStatus(v esportsplayer.ExpectedPriceStatus) *EsportsPlayerCreate {
+	_c.mutation.SetExpectedPriceStatus(v)
+	return _c
+}
+
+// SetNillableExpectedPriceStatus sets the "expected_price_status" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableExpectedPriceStatus(v *esportsplayer.ExpectedPriceStatus) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetExpectedPriceStatus(*v)
+	}
+	return _c
+}
+
+// SetExpectedPriceSubmittedAt sets the "expected_price_submitted_at" field.
+func (_c *EsportsPlayerCreate) SetExpectedPriceSubmittedAt(v time.Time) *EsportsPlayerCreate {
+	_c.mutation.SetExpectedPriceSubmittedAt(v)
+	return _c
+}
+
+// SetNillableExpectedPriceSubmittedAt sets the "expected_price_submitted_at" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableExpectedPriceSubmittedAt(v *time.Time) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetExpectedPriceSubmittedAt(*v)
+	}
+	return _c
+}
+
+// SetExpectedPriceReviewedByAdminID sets the "expected_price_reviewed_by_admin_id" field.
+func (_c *EsportsPlayerCreate) SetExpectedPriceReviewedByAdminID(v int) *EsportsPlayerCreate {
+	_c.mutation.SetExpectedPriceReviewedByAdminID(v)
+	return _c
+}
+
+// SetNillableExpectedPriceReviewedByAdminID sets the "expected_price_reviewed_by_admin_id" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableExpectedPriceReviewedByAdminID(v *int) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetExpectedPriceReviewedByAdminID(*v)
+	}
+	return _c
+}
+
+// SetExpectedPriceReviewedAt sets the "expected_price_reviewed_at" field.
+func (_c *EsportsPlayerCreate) SetExpectedPriceReviewedAt(v time.Time) *EsportsPlayerCreate {
+	_c.mutation.SetExpectedPriceReviewedAt(v)
+	return _c
+}
+
+// SetNillableExpectedPriceReviewedAt sets the "expected_price_reviewed_at" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableExpectedPriceReviewedAt(v *time.Time) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetExpectedPriceReviewedAt(*v)
+	}
+	return _c
+}
+
+// SetExpectedPriceReviewNote sets the "expected_price_review_note" field.
+func (_c *EsportsPlayerCreate) SetExpectedPriceReviewNote(v string) *EsportsPlayerCreate {
+	_c.mutation.SetExpectedPriceReviewNote(v)
+	return _c
+}
+
+// SetNillableExpectedPriceReviewNote sets the "expected_price_review_note" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableExpectedPriceReviewNote(v *string) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetExpectedPriceReviewNote(*v)
+	}
+	return _c
+}
+
+// SetServiceSlotStartMinute sets the "service_slot_start_minute" field.
+func (_c *EsportsPlayerCreate) SetServiceSlotStartMinute(v int) *EsportsPlayerCreate {
+	_c.mutation.SetServiceSlotStartMinute(v)
+	return _c
+}
+
+// SetNillableServiceSlotStartMinute sets the "service_slot_start_minute" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableServiceSlotStartMinute(v *int) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetServiceSlotStartMinute(*v)
+	}
+	return _c
+}
+
+// SetServiceSlotEndMinute sets the "service_slot_end_minute" field.
+func (_c *EsportsPlayerCreate) SetServiceSlotEndMinute(v int) *EsportsPlayerCreate {
+	_c.mutation.SetServiceSlotEndMinute(v)
+	return _c
+}
+
+// SetNillableServiceSlotEndMinute sets the "service_slot_end_minute" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableServiceSlotEndMinute(v *int) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetServiceSlotEndMinute(*v)
+	}
+	return _c
+}
+
+// SetAutoOnline sets the "auto_online" field.
+func (_c *EsportsPlayerCreate) SetAutoOnline(v bool) *EsportsPlayerCreate {
+	_c.mutation.SetAutoOnline(v)
+	return _c
+}
+
+// SetNillableAutoOnline sets the "auto_online" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableAutoOnline(v *bool) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetAutoOnline(*v)
+	}
+	return _c
+}
+
+// SetAcceptPriceMinCents sets the "accept_price_min_cents" field.
+func (_c *EsportsPlayerCreate) SetAcceptPriceMinCents(v int64) *EsportsPlayerCreate {
+	_c.mutation.SetAcceptPriceMinCents(v)
+	return _c
+}
+
+// SetNillableAcceptPriceMinCents sets the "accept_price_min_cents" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableAcceptPriceMinCents(v *int64) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetAcceptPriceMinCents(*v)
+	}
+	return _c
+}
+
+// SetAcceptPriceMaxCents sets the "accept_price_max_cents" field.
+func (_c *EsportsPlayerCreate) SetAcceptPriceMaxCents(v int64) *EsportsPlayerCreate {
+	_c.mutation.SetAcceptPriceMaxCents(v)
+	return _c
+}
+
+// SetNillableAcceptPriceMaxCents sets the "accept_price_max_cents" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableAcceptPriceMaxCents(v *int64) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetAcceptPriceMaxCents(*v)
+	}
+	return _c
+}
+
+// SetFixedTeamEnabled sets the "fixed_team_enabled" field.
+func (_c *EsportsPlayerCreate) SetFixedTeamEnabled(v bool) *EsportsPlayerCreate {
+	_c.mutation.SetFixedTeamEnabled(v)
+	return _c
+}
+
+// SetNillableFixedTeamEnabled sets the "fixed_team_enabled" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableFixedTeamEnabled(v *bool) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetFixedTeamEnabled(*v)
+	}
+	return _c
+}
+
+// SetFixedTeamSlotStartMinute sets the "fixed_team_slot_start_minute" field.
+func (_c *EsportsPlayerCreate) SetFixedTeamSlotStartMinute(v int) *EsportsPlayerCreate {
+	_c.mutation.SetFixedTeamSlotStartMinute(v)
+	return _c
+}
+
+// SetNillableFixedTeamSlotStartMinute sets the "fixed_team_slot_start_minute" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableFixedTeamSlotStartMinute(v *int) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetFixedTeamSlotStartMinute(*v)
+	}
+	return _c
+}
+
+// SetFixedTeamSlotEndMinute sets the "fixed_team_slot_end_minute" field.
+func (_c *EsportsPlayerCreate) SetFixedTeamSlotEndMinute(v int) *EsportsPlayerCreate {
+	_c.mutation.SetFixedTeamSlotEndMinute(v)
+	return _c
+}
+
+// SetNillableFixedTeamSlotEndMinute sets the "fixed_team_slot_end_minute" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableFixedTeamSlotEndMinute(v *int) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetFixedTeamSlotEndMinute(*v)
+	}
+	return _c
+}
+
+// SetTimezone sets the "timezone" field.
+func (_c *EsportsPlayerCreate) SetTimezone(v string) *EsportsPlayerCreate {
+	_c.mutation.SetTimezone(v)
+	return _c
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableTimezone(v *string) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetTimezone(*v)
+	}
+	return _c
+}
+
+// SetLatitudeE6 sets the "latitude_e6" field.
+func (_c *EsportsPlayerCreate) SetLatitudeE6(v int) *EsportsPlayerCreate {
+	_c.mutation.SetLatitudeE6(v)
+	return _c
+}
+
+// SetNillableLatitudeE6 sets the "latitude_e6" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableLatitudeE6(v *int) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetLatitudeE6(*v)
+	}
+	return _c
+}
+
+// SetLongitudeE6 sets the "longitude_e6" field.
+func (_c *EsportsPlayerCreate) SetLongitudeE6(v int) *EsportsPlayerCreate {
+	_c.mutation.SetLongitudeE6(v)
+	return _c
+}
+
+// SetNillableLongitudeE6 sets the "longitude_e6" field if the given value is not nil.
+func (_c *EsportsPlayerCreate) SetNillableLongitudeE6(v *int) *EsportsPlayerCreate {
+	if v != nil {
+		_c.SetLongitudeE6(*v)
+	}
+	return _c
+}
+
 // SetVersion sets the "version" field.
 func (_c *EsportsPlayerCreate) SetVersion(v int) *EsportsPlayerCreate {
 	_c.mutation.SetVersion(v)
@@ -233,6 +471,62 @@ func (_c *EsportsPlayerCreate) defaults() {
 		v := esportsplayer.DefaultConcurrentLimit
 		_c.mutation.SetConcurrentLimit(v)
 	}
+	if _, ok := _c.mutation.ExpectedPriceCents(); !ok {
+		v := esportsplayer.DefaultExpectedPriceCents
+		_c.mutation.SetExpectedPriceCents(v)
+	}
+	if _, ok := _c.mutation.ExpectedPriceStatus(); !ok {
+		v := esportsplayer.DefaultExpectedPriceStatus
+		_c.mutation.SetExpectedPriceStatus(v)
+	}
+	if _, ok := _c.mutation.ExpectedPriceReviewNote(); !ok {
+		v := esportsplayer.DefaultExpectedPriceReviewNote
+		_c.mutation.SetExpectedPriceReviewNote(v)
+	}
+	if _, ok := _c.mutation.ServiceSlotStartMinute(); !ok {
+		v := esportsplayer.DefaultServiceSlotStartMinute
+		_c.mutation.SetServiceSlotStartMinute(v)
+	}
+	if _, ok := _c.mutation.ServiceSlotEndMinute(); !ok {
+		v := esportsplayer.DefaultServiceSlotEndMinute
+		_c.mutation.SetServiceSlotEndMinute(v)
+	}
+	if _, ok := _c.mutation.AutoOnline(); !ok {
+		v := esportsplayer.DefaultAutoOnline
+		_c.mutation.SetAutoOnline(v)
+	}
+	if _, ok := _c.mutation.AcceptPriceMinCents(); !ok {
+		v := esportsplayer.DefaultAcceptPriceMinCents
+		_c.mutation.SetAcceptPriceMinCents(v)
+	}
+	if _, ok := _c.mutation.AcceptPriceMaxCents(); !ok {
+		v := esportsplayer.DefaultAcceptPriceMaxCents
+		_c.mutation.SetAcceptPriceMaxCents(v)
+	}
+	if _, ok := _c.mutation.FixedTeamEnabled(); !ok {
+		v := esportsplayer.DefaultFixedTeamEnabled
+		_c.mutation.SetFixedTeamEnabled(v)
+	}
+	if _, ok := _c.mutation.FixedTeamSlotStartMinute(); !ok {
+		v := esportsplayer.DefaultFixedTeamSlotStartMinute
+		_c.mutation.SetFixedTeamSlotStartMinute(v)
+	}
+	if _, ok := _c.mutation.FixedTeamSlotEndMinute(); !ok {
+		v := esportsplayer.DefaultFixedTeamSlotEndMinute
+		_c.mutation.SetFixedTeamSlotEndMinute(v)
+	}
+	if _, ok := _c.mutation.Timezone(); !ok {
+		v := esportsplayer.DefaultTimezone
+		_c.mutation.SetTimezone(v)
+	}
+	if _, ok := _c.mutation.LatitudeE6(); !ok {
+		v := esportsplayer.DefaultLatitudeE6
+		_c.mutation.SetLatitudeE6(v)
+	}
+	if _, ok := _c.mutation.LongitudeE6(); !ok {
+		v := esportsplayer.DefaultLongitudeE6
+		_c.mutation.SetLongitudeE6(v)
+	}
 	if _, ok := _c.mutation.Version(); !ok {
 		v := esportsplayer.DefaultVersion
 		_c.mutation.SetVersion(v)
@@ -294,6 +588,63 @@ func (_c *EsportsPlayerCreate) check() error {
 	}
 	if _, ok := _c.mutation.ConcurrentLimit(); !ok {
 		return &ValidationError{Name: "concurrent_limit", err: errors.New(`ent: missing required field "EsportsPlayer.concurrent_limit"`)}
+	}
+	if _, ok := _c.mutation.ExpectedPriceCents(); !ok {
+		return &ValidationError{Name: "expected_price_cents", err: errors.New(`ent: missing required field "EsportsPlayer.expected_price_cents"`)}
+	}
+	if _, ok := _c.mutation.ExpectedPriceStatus(); !ok {
+		return &ValidationError{Name: "expected_price_status", err: errors.New(`ent: missing required field "EsportsPlayer.expected_price_status"`)}
+	}
+	if v, ok := _c.mutation.ExpectedPriceStatus(); ok {
+		if err := esportsplayer.ExpectedPriceStatusValidator(v); err != nil {
+			return &ValidationError{Name: "expected_price_status", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayer.expected_price_status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ExpectedPriceReviewNote(); !ok {
+		return &ValidationError{Name: "expected_price_review_note", err: errors.New(`ent: missing required field "EsportsPlayer.expected_price_review_note"`)}
+	}
+	if v, ok := _c.mutation.ExpectedPriceReviewNote(); ok {
+		if err := esportsplayer.ExpectedPriceReviewNoteValidator(v); err != nil {
+			return &ValidationError{Name: "expected_price_review_note", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayer.expected_price_review_note": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ServiceSlotStartMinute(); !ok {
+		return &ValidationError{Name: "service_slot_start_minute", err: errors.New(`ent: missing required field "EsportsPlayer.service_slot_start_minute"`)}
+	}
+	if _, ok := _c.mutation.ServiceSlotEndMinute(); !ok {
+		return &ValidationError{Name: "service_slot_end_minute", err: errors.New(`ent: missing required field "EsportsPlayer.service_slot_end_minute"`)}
+	}
+	if _, ok := _c.mutation.AutoOnline(); !ok {
+		return &ValidationError{Name: "auto_online", err: errors.New(`ent: missing required field "EsportsPlayer.auto_online"`)}
+	}
+	if _, ok := _c.mutation.AcceptPriceMinCents(); !ok {
+		return &ValidationError{Name: "accept_price_min_cents", err: errors.New(`ent: missing required field "EsportsPlayer.accept_price_min_cents"`)}
+	}
+	if _, ok := _c.mutation.AcceptPriceMaxCents(); !ok {
+		return &ValidationError{Name: "accept_price_max_cents", err: errors.New(`ent: missing required field "EsportsPlayer.accept_price_max_cents"`)}
+	}
+	if _, ok := _c.mutation.FixedTeamEnabled(); !ok {
+		return &ValidationError{Name: "fixed_team_enabled", err: errors.New(`ent: missing required field "EsportsPlayer.fixed_team_enabled"`)}
+	}
+	if _, ok := _c.mutation.FixedTeamSlotStartMinute(); !ok {
+		return &ValidationError{Name: "fixed_team_slot_start_minute", err: errors.New(`ent: missing required field "EsportsPlayer.fixed_team_slot_start_minute"`)}
+	}
+	if _, ok := _c.mutation.FixedTeamSlotEndMinute(); !ok {
+		return &ValidationError{Name: "fixed_team_slot_end_minute", err: errors.New(`ent: missing required field "EsportsPlayer.fixed_team_slot_end_minute"`)}
+	}
+	if _, ok := _c.mutation.Timezone(); !ok {
+		return &ValidationError{Name: "timezone", err: errors.New(`ent: missing required field "EsportsPlayer.timezone"`)}
+	}
+	if v, ok := _c.mutation.Timezone(); ok {
+		if err := esportsplayer.TimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "timezone", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayer.timezone": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.LatitudeE6(); !ok {
+		return &ValidationError{Name: "latitude_e6", err: errors.New(`ent: missing required field "EsportsPlayer.latitude_e6"`)}
+	}
+	if _, ok := _c.mutation.LongitudeE6(); !ok {
+		return &ValidationError{Name: "longitude_e6", err: errors.New(`ent: missing required field "EsportsPlayer.longitude_e6"`)}
 	}
 	if _, ok := _c.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "EsportsPlayer.version"`)}
@@ -369,6 +720,74 @@ func (_c *EsportsPlayerCreate) createSpec() (*EsportsPlayer, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.LastHeartbeatAt(); ok {
 		_spec.SetField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime, value)
 		_node.LastHeartbeatAt = &value
+	}
+	if value, ok := _c.mutation.ExpectedPriceCents(); ok {
+		_spec.SetField(esportsplayer.FieldExpectedPriceCents, field.TypeInt64, value)
+		_node.ExpectedPriceCents = value
+	}
+	if value, ok := _c.mutation.ExpectedPriceStatus(); ok {
+		_spec.SetField(esportsplayer.FieldExpectedPriceStatus, field.TypeEnum, value)
+		_node.ExpectedPriceStatus = value
+	}
+	if value, ok := _c.mutation.ExpectedPriceSubmittedAt(); ok {
+		_spec.SetField(esportsplayer.FieldExpectedPriceSubmittedAt, field.TypeTime, value)
+		_node.ExpectedPriceSubmittedAt = &value
+	}
+	if value, ok := _c.mutation.ExpectedPriceReviewedByAdminID(); ok {
+		_spec.SetField(esportsplayer.FieldExpectedPriceReviewedByAdminID, field.TypeInt, value)
+		_node.ExpectedPriceReviewedByAdminID = &value
+	}
+	if value, ok := _c.mutation.ExpectedPriceReviewedAt(); ok {
+		_spec.SetField(esportsplayer.FieldExpectedPriceReviewedAt, field.TypeTime, value)
+		_node.ExpectedPriceReviewedAt = &value
+	}
+	if value, ok := _c.mutation.ExpectedPriceReviewNote(); ok {
+		_spec.SetField(esportsplayer.FieldExpectedPriceReviewNote, field.TypeString, value)
+		_node.ExpectedPriceReviewNote = value
+	}
+	if value, ok := _c.mutation.ServiceSlotStartMinute(); ok {
+		_spec.SetField(esportsplayer.FieldServiceSlotStartMinute, field.TypeInt, value)
+		_node.ServiceSlotStartMinute = value
+	}
+	if value, ok := _c.mutation.ServiceSlotEndMinute(); ok {
+		_spec.SetField(esportsplayer.FieldServiceSlotEndMinute, field.TypeInt, value)
+		_node.ServiceSlotEndMinute = value
+	}
+	if value, ok := _c.mutation.AutoOnline(); ok {
+		_spec.SetField(esportsplayer.FieldAutoOnline, field.TypeBool, value)
+		_node.AutoOnline = value
+	}
+	if value, ok := _c.mutation.AcceptPriceMinCents(); ok {
+		_spec.SetField(esportsplayer.FieldAcceptPriceMinCents, field.TypeInt64, value)
+		_node.AcceptPriceMinCents = value
+	}
+	if value, ok := _c.mutation.AcceptPriceMaxCents(); ok {
+		_spec.SetField(esportsplayer.FieldAcceptPriceMaxCents, field.TypeInt64, value)
+		_node.AcceptPriceMaxCents = value
+	}
+	if value, ok := _c.mutation.FixedTeamEnabled(); ok {
+		_spec.SetField(esportsplayer.FieldFixedTeamEnabled, field.TypeBool, value)
+		_node.FixedTeamEnabled = value
+	}
+	if value, ok := _c.mutation.FixedTeamSlotStartMinute(); ok {
+		_spec.SetField(esportsplayer.FieldFixedTeamSlotStartMinute, field.TypeInt, value)
+		_node.FixedTeamSlotStartMinute = value
+	}
+	if value, ok := _c.mutation.FixedTeamSlotEndMinute(); ok {
+		_spec.SetField(esportsplayer.FieldFixedTeamSlotEndMinute, field.TypeInt, value)
+		_node.FixedTeamSlotEndMinute = value
+	}
+	if value, ok := _c.mutation.Timezone(); ok {
+		_spec.SetField(esportsplayer.FieldTimezone, field.TypeString, value)
+		_node.Timezone = value
+	}
+	if value, ok := _c.mutation.LatitudeE6(); ok {
+		_spec.SetField(esportsplayer.FieldLatitudeE6, field.TypeInt, value)
+		_node.LatitudeE6 = value
+	}
+	if value, ok := _c.mutation.LongitudeE6(); ok {
+		_spec.SetField(esportsplayer.FieldLongitudeE6, field.TypeInt, value)
+		_node.LongitudeE6 = value
 	}
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsplayer.FieldVersion, field.TypeInt, value)

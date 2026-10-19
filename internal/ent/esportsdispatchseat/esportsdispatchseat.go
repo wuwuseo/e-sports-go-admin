@@ -28,6 +28,12 @@ const (
 	FieldStatus = "status"
 	// FieldInvitedByAdminID holds the string denoting the invited_by_admin_id field in the database.
 	FieldInvitedByAdminID = "invited_by_admin_id"
+	// FieldInvitedAt holds the string denoting the invited_at field in the database.
+	FieldInvitedAt = "invited_at"
+	// FieldSlotStart holds the string denoting the slot_start field in the database.
+	FieldSlotStart = "slot_start"
+	// FieldSlotEnd holds the string denoting the slot_end field in the database.
+	FieldSlotEnd = "slot_end"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
 	FieldExpiresAt = "expires_at"
 	// FieldRespondedAt holds the string denoting the responded_at field in the database.
@@ -58,6 +64,9 @@ var Columns = []string{
 	FieldSource,
 	FieldStatus,
 	FieldInvitedByAdminID,
+	FieldInvitedAt,
+	FieldSlotStart,
+	FieldSlotEnd,
 	FieldExpiresAt,
 	FieldRespondedAt,
 	FieldCommissionRuleID,
@@ -187,6 +196,21 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByInvitedByAdminID orders the results by the invited_by_admin_id field.
 func ByInvitedByAdminID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInvitedByAdminID, opts...).ToFunc()
+}
+
+// ByInvitedAt orders the results by the invited_at field.
+func ByInvitedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInvitedAt, opts...).ToFunc()
+}
+
+// BySlotStart orders the results by the slot_start field.
+func BySlotStart(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSlotStart, opts...).ToFunc()
+}
+
+// BySlotEnd orders the results by the slot_end field.
+func BySlotEnd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSlotEnd, opts...).ToFunc()
 }
 
 // ByExpiresAt orders the results by the expires_at field.

@@ -76,6 +76,8 @@ type EsportsStoredValueCard struct {
 	RefundedAt *time.Time `json:"refunded_at"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
+	// DeductionOrder holds the value of the "deduction_order" field.
+	DeductionOrder string `json:"deduction_order"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at"`
 	// UpdatedAt holds the value of the "updated_at" field.
@@ -94,7 +96,7 @@ func (*EsportsStoredValueCard) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case esportsstoredvaluecard.FieldID, esportsstoredvaluecard.FieldCustomerID, esportsstoredvaluecard.FieldPrincipalCents, esportsstoredvaluecard.FieldBonusCents, esportsstoredvaluecard.FieldRequestedValidityDays, esportsstoredvaluecard.FieldPaymentVerifiedByAdminID, esportsstoredvaluecard.FieldPaymentVerifiedAmountCents, esportsstoredvaluecard.FieldPackageID, esportsstoredvaluecard.FieldOpenedByAdminID, esportsstoredvaluecard.FieldRefundRequestedByAdminID, esportsstoredvaluecard.FieldRefundDecidedByAdminID, esportsstoredvaluecard.FieldRefundedCents, esportsstoredvaluecard.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsstoredvaluecard.FieldCardNo, esportsstoredvaluecard.FieldSource, esportsstoredvaluecard.FieldPaymentChannel, esportsstoredvaluecard.FieldPaymentRef, esportsstoredvaluecard.FieldStatus, esportsstoredvaluecard.FieldOpenRequestKey, esportsstoredvaluecard.FieldVerifiedPaymentKey, esportsstoredvaluecard.FieldPaymentVerificationNote:
+		case esportsstoredvaluecard.FieldCardNo, esportsstoredvaluecard.FieldSource, esportsstoredvaluecard.FieldPaymentChannel, esportsstoredvaluecard.FieldPaymentRef, esportsstoredvaluecard.FieldStatus, esportsstoredvaluecard.FieldOpenRequestKey, esportsstoredvaluecard.FieldVerifiedPaymentKey, esportsstoredvaluecard.FieldPaymentVerificationNote, esportsstoredvaluecard.FieldDeductionOrder:
 			values[i] = new(sql.NullString)
 		case esportsstoredvaluecard.FieldValidFrom, esportsstoredvaluecard.FieldValidUntil, esportsstoredvaluecard.FieldPaymentVerifiedAt, esportsstoredvaluecard.FieldRefundRequestedAt, esportsstoredvaluecard.FieldRefundedAt, esportsstoredvaluecard.FieldCreatedAt, esportsstoredvaluecard.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -307,6 +309,12 @@ func (_m *EsportsStoredValueCard) assignValues(columns []string, values []any) e
 			} else if value.Valid {
 				_m.Version = int(value.Int64)
 			}
+		case esportsstoredvaluecard.FieldDeductionOrder:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field deduction_order", values[i])
+			} else if value.Valid {
+				_m.DeductionOrder = value.String
+			}
 		case esportsstoredvaluecard.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -461,6 +469,9 @@ func (_m *EsportsStoredValueCard) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Version))
+	builder.WriteString(", ")
+	builder.WriteString("deduction_order=")
+	builder.WriteString(_m.DeductionOrder)
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

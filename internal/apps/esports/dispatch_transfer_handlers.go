@@ -11,11 +11,14 @@ import (
 // 陪玩转单（§5.7）：陪玩端发起 / 撤回 / 查看，管理端确认。
 
 // adminSeatTransfers 管理端列出转单申请，按状态 / 订单 / 陪玩过滤。
+// §3.5-02：列表按订单归属收口（非超管只看本人负责 / 协作 / 公共池订单的申请）。
 func adminSeatTransfers(c fiber.Ctx) error {
-	if _, err := requireAdmin(c); err != nil {
+	adminID, err := requireAdmin(c)
+	if err != nil {
 		return businessError(c, err)
 	}
-	items, err := listSeatTransfers(c.Context(), global.ORM, c.Query("status"),
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	items, err := listSeatTransfersForAdmin(c.Context(), global.ORM, adminID, isSuper, c.Query("status"),
 		queryInt(c, "order_id"), queryInt(c, "player_id"), queryLimit(c, 100))
 	if err != nil {
 		return businessError(c, err)

@@ -74,6 +74,21 @@ func InvitedByAdminID(v int) predicate.EsportsDispatchSeat {
 	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldInvitedByAdminID, v))
 }
 
+// InvitedAt applies equality check predicate on the "invited_at" field. It's identical to InvitedAtEQ.
+func InvitedAt(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldInvitedAt, v))
+}
+
+// SlotStart applies equality check predicate on the "slot_start" field. It's identical to SlotStartEQ.
+func SlotStart(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldSlotStart, v))
+}
+
+// SlotEnd applies equality check predicate on the "slot_end" field. It's identical to SlotEndEQ.
+func SlotEnd(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldSlotEnd, v))
+}
+
 // ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
 func ExpiresAt(v time.Time) predicate.EsportsDispatchSeat {
 	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldExpiresAt, v))
@@ -327,6 +342,156 @@ func InvitedByAdminIDIsNil() predicate.EsportsDispatchSeat {
 // InvitedByAdminIDNotNil applies the NotNil predicate on the "invited_by_admin_id" field.
 func InvitedByAdminIDNotNil() predicate.EsportsDispatchSeat {
 	return predicate.EsportsDispatchSeat(sql.FieldNotNull(FieldInvitedByAdminID))
+}
+
+// InvitedAtEQ applies the EQ predicate on the "invited_at" field.
+func InvitedAtEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldInvitedAt, v))
+}
+
+// InvitedAtNEQ applies the NEQ predicate on the "invited_at" field.
+func InvitedAtNEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNEQ(FieldInvitedAt, v))
+}
+
+// InvitedAtIn applies the In predicate on the "invited_at" field.
+func InvitedAtIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIn(FieldInvitedAt, vs...))
+}
+
+// InvitedAtNotIn applies the NotIn predicate on the "invited_at" field.
+func InvitedAtNotIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotIn(FieldInvitedAt, vs...))
+}
+
+// InvitedAtGT applies the GT predicate on the "invited_at" field.
+func InvitedAtGT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGT(FieldInvitedAt, v))
+}
+
+// InvitedAtGTE applies the GTE predicate on the "invited_at" field.
+func InvitedAtGTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGTE(FieldInvitedAt, v))
+}
+
+// InvitedAtLT applies the LT predicate on the "invited_at" field.
+func InvitedAtLT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLT(FieldInvitedAt, v))
+}
+
+// InvitedAtLTE applies the LTE predicate on the "invited_at" field.
+func InvitedAtLTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLTE(FieldInvitedAt, v))
+}
+
+// InvitedAtIsNil applies the IsNil predicate on the "invited_at" field.
+func InvitedAtIsNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIsNull(FieldInvitedAt))
+}
+
+// InvitedAtNotNil applies the NotNil predicate on the "invited_at" field.
+func InvitedAtNotNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotNull(FieldInvitedAt))
+}
+
+// SlotStartEQ applies the EQ predicate on the "slot_start" field.
+func SlotStartEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldSlotStart, v))
+}
+
+// SlotStartNEQ applies the NEQ predicate on the "slot_start" field.
+func SlotStartNEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNEQ(FieldSlotStart, v))
+}
+
+// SlotStartIn applies the In predicate on the "slot_start" field.
+func SlotStartIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIn(FieldSlotStart, vs...))
+}
+
+// SlotStartNotIn applies the NotIn predicate on the "slot_start" field.
+func SlotStartNotIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotIn(FieldSlotStart, vs...))
+}
+
+// SlotStartGT applies the GT predicate on the "slot_start" field.
+func SlotStartGT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGT(FieldSlotStart, v))
+}
+
+// SlotStartGTE applies the GTE predicate on the "slot_start" field.
+func SlotStartGTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGTE(FieldSlotStart, v))
+}
+
+// SlotStartLT applies the LT predicate on the "slot_start" field.
+func SlotStartLT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLT(FieldSlotStart, v))
+}
+
+// SlotStartLTE applies the LTE predicate on the "slot_start" field.
+func SlotStartLTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLTE(FieldSlotStart, v))
+}
+
+// SlotStartIsNil applies the IsNil predicate on the "slot_start" field.
+func SlotStartIsNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIsNull(FieldSlotStart))
+}
+
+// SlotStartNotNil applies the NotNil predicate on the "slot_start" field.
+func SlotStartNotNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotNull(FieldSlotStart))
+}
+
+// SlotEndEQ applies the EQ predicate on the "slot_end" field.
+func SlotEndEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldEQ(FieldSlotEnd, v))
+}
+
+// SlotEndNEQ applies the NEQ predicate on the "slot_end" field.
+func SlotEndNEQ(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNEQ(FieldSlotEnd, v))
+}
+
+// SlotEndIn applies the In predicate on the "slot_end" field.
+func SlotEndIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIn(FieldSlotEnd, vs...))
+}
+
+// SlotEndNotIn applies the NotIn predicate on the "slot_end" field.
+func SlotEndNotIn(vs ...time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotIn(FieldSlotEnd, vs...))
+}
+
+// SlotEndGT applies the GT predicate on the "slot_end" field.
+func SlotEndGT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGT(FieldSlotEnd, v))
+}
+
+// SlotEndGTE applies the GTE predicate on the "slot_end" field.
+func SlotEndGTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldGTE(FieldSlotEnd, v))
+}
+
+// SlotEndLT applies the LT predicate on the "slot_end" field.
+func SlotEndLT(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLT(FieldSlotEnd, v))
+}
+
+// SlotEndLTE applies the LTE predicate on the "slot_end" field.
+func SlotEndLTE(v time.Time) predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldLTE(FieldSlotEnd, v))
+}
+
+// SlotEndIsNil applies the IsNil predicate on the "slot_end" field.
+func SlotEndIsNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldIsNull(FieldSlotEnd))
+}
+
+// SlotEndNotNil applies the NotNil predicate on the "slot_end" field.
+func SlotEndNotNil() predicate.EsportsDispatchSeat {
+	return predicate.EsportsDispatchSeat(sql.FieldNotNull(FieldSlotEnd))
 }
 
 // ExpiresAtEQ applies the EQ predicate on the "expires_at" field.

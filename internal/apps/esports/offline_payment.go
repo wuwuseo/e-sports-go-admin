@@ -2,6 +2,7 @@ package esports
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportspaymentintent"
+	"go-admin/internal/ent/esportspaymentreceipt"
+	"go-admin/internal/ent/esportssku"
 )
 
 // 线下 / 外部到账核销（§4.2 / §4.3）：
@@ -28,6 +31,56 @@ type offlinePaymentProofInput struct {
 	AmountCents   int64  `json:"amount_cents"`
 	ProofRef      string `json:"proof_ref"`
 	Note          string `json:"note"`
+	// EvidenceAttachmentIDs 是客服上传的转账截图附件 ID（§4.2-04）：非空时按本人归属 + 私有目录 +
+	// 内容哈希 + 图片/PDF MIME 强校验，并以 JSON 数组落 proof_ref；为空时兼容存量文本 proof_ref。
+	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
+}
+
+// ensureOrderSkuOnSale 校验收款订单的商品仍在售（§15.7-01）：SKU 下架后不得再发起收款，
+// 必须在生成收款单 / 支付意图之前就明确失败，而不是等到核销环节才退回人工。
+func ensureOrderSkuOnSale(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) error {
+	if order == nil {
+		return errInvalidInput
+	}
+	sku, err := db.EsportsSku.Get(ctx, order.SkuID)
+	if err != nil {
+		return err
+	}
+	if sku.Status != esportssku.StatusOnSale {
+		return fmt.Errorf("%w：商品已下架，无法发起收款，请更换在售商品或联系客户改单", errConflict)
+	}
+	return nil
+}
+
+// ensurePaymentDeadlineConfigured 发起收款 / 核销前的上线校验（§7 / 18-02）：
+// app.esports.payment_deadline_minutes 未配置或非法时，收款入口一律明确失败（不得伪成功）。
+func ensurePaymentDeadlineConfigured(ctx context.Context, db *ent.Client) error {
+	_, err := paymentDeadlineMinutes(ctx, db)
+	if err != nil {
+		return fmt.Errorf("%w：订单支付时限尚未配置，暂不可发起收款", err)
+	}
+	return nil
+}
+
+// resolveOperatorProofRef 解析客服提交凭证的落库值（§4.2-04）：
+// 传了附件 ID 就落 JSON 数组（可解析出附件与上传人），否则沿用存量文本 proof_ref。
+func resolveOperatorProofRef(ctx context.Context, db *ent.Client, in offlinePaymentProofInput,
+	adminID int) (string, error) {
+	if len(in.EvidenceAttachmentIDs) == 0 {
+		return in.ProofRef, nil
+	}
+	subject, err := adminUploadSubject(ctx, db, adminID)
+	if err != nil {
+		return "", err
+	}
+	if _, err = resolvePaymentProofEvidence(ctx, db, in.EvidenceAttachmentIDs, subject); err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(in.EvidenceAttachmentIDs)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // submitOfflinePaymentProof 客服提交外部到账凭证（§4.3）：企微收款无回调、商户码截图、对公转账凭证。
@@ -38,9 +91,13 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	in.Note = strings.TrimSpace(in.Note)
 	if in.OrderID < 1 || in.AccountID < 1 || adminID < 1 || in.AmountCents <= 0 ||
 		in.TransactionNo == "" || len([]rune(in.TransactionNo)) > 128 ||
-		len([]rune(in.ProofRef)) < 8 || len([]rune(in.ProofRef)) > 255 ||
-		len([]rune(in.Note)) > 500 {
+		len([]rune(in.Note)) > 500 ||
+		(len(in.EvidenceAttachmentIDs) == 0 &&
+			(len([]rune(in.ProofRef)) < 8 || len([]rune(in.ProofRef)) > 255)) {
 		return nil, errInvalidInput
+	}
+	if err := ensurePaymentDeadlineConfigured(ctx, db); err != nil {
+		return nil, err
 	}
 	account, err := db.EsportsPaymentAccount.Get(ctx, in.AccountID)
 	if err != nil {
@@ -57,12 +114,25 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	if err != nil {
 		return nil, err
 	}
+	// §15.7-01：商品下架后直接拒绝发起收款，不生成收款单 / 支付意图。
+	if err = ensureOrderSkuOnSale(ctx, db, order); err != nil {
+		return nil, err
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
 		return nil, errConflict
 	}
 	if in.AmountCents < order.PayableCents {
 		return nil, errInvalidInput
+	}
+	// §4.3-05：大额订单只允许对公转账。
+	if err = ensureCorporateChannelForAmount(ctx, db, channel, in.AmountCents); err != nil {
+		return nil, err
+	}
+	// §4.2-04：客服转账凭证须落附件并校验归属与 MIME。
+	proofRef, err := resolveOperatorProofRef(ctx, db, in, adminID)
+	if err != nil {
+		return nil, err
 	}
 	intent, err := ensureCSOfflinePaymentIntent(ctx, db, order, channel, adminID, now)
 	if err != nil {
@@ -79,7 +149,7 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 		SetOrderID(order.ID).SetIntentID(intent.ID).SetAccountID(account.ID).
 		SetChannel(esportsofflinepaymentproof.Channel(channel)).
 		SetTransactionNo(in.TransactionNo).SetAmountCents(in.AmountCents).
-		SetProofRef(in.ProofRef).SetNote(in.Note).
+		SetProofRef(proofRef).SetNote(in.Note).
 		SetStatus(esportsofflinepaymentproof.StatusPendingVerification).
 		SetSubmittedByAdminID(adminID).Save(ctx)
 	if err != nil {
@@ -198,8 +268,90 @@ func listOfflinePaymentProofs(ctx context.Context, db *ent.Client, status string
 	return q.Order(ent.Desc(esportsofflinepaymentproof.FieldID)).Limit(limit).All(ctx)
 }
 
-// ensureCSOfflinePaymentIntent 为纯客服报单补建「客服代确认」的报价确认书与支付意图：
-// 首次报价（quote_version=1）允许客服在提交外部到账凭证时一并确认；
+// ── §4.3-04 收款自动对账 ──
+
+// paymentReconcileMismatch 是一条对账差异：按渠道流水号 / 金额比对得出。
+type paymentReconcileMismatch struct {
+	ProofNo       string `json:"proof_no"`
+	TransactionNo string `json:"transaction_no"`
+	Channel       string `json:"channel"`
+	// Kind 差异类型：channel_unmatched（渠道无此回执）/ amount_mismatch（与渠道回执金额不一致）/
+	// order_amount_mismatch（与订单应付金额不一致）。
+	Kind          string `json:"kind"`
+	ProofCents    int64  `json:"proof_cents"`
+	ChannelCents  int64  `json:"channel_cents"`
+	ExpectedCents int64  `json:"expected_cents"`
+	Detail        string `json:"detail"`
+}
+
+// paymentReconcileReport 是订单维度的收款自动对账结果：逐笔比对收款单与渠道回执 / 订单应付。
+type paymentReconcileReport struct {
+	OrderID      int                        `json:"order_id"`
+	PayableCents int64                      `json:"payable_cents"`
+	Compared     int                        `json:"compared"`
+	Matched      int                        `json:"matched"`
+	Mismatches   []paymentReconcileMismatch `json:"mismatches"`
+}
+
+// reconcileOrderPaymentProofs 对订单已提交的收款单做自动对账（§4.3-04）：
+//  1. 按「渠道 + 渠道流水号」在渠道回执（EsportsPaymentReceipt）中找同一笔到账；
+//     找不到 → channel_unmatched（本地有凭证、渠道账单无此流水）；
+//  2. 找到但金额不一致 → amount_mismatch；
+//  3. 收款单金额与订单应付金额不一致 → order_amount_mismatch。
+//
+// 三项全部一致才计入 matched，供财务只处理差异笔，而不是逐笔人工核验。
+func reconcileOrderPaymentProofs(ctx context.Context, db *ent.Client, orderID int) (*paymentReconcileReport, error) {
+	if orderID < 1 {
+		return nil, errInvalidInput
+	}
+	order, err := db.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	items, err := db.EsportsOfflinePaymentProof.Query().Where(
+		esportsofflinepaymentproof.OrderIDEQ(orderID),
+	).Order(ent.Asc(esportsofflinepaymentproof.FieldID)).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	report := &paymentReconcileReport{
+		OrderID: order.ID, PayableCents: order.PayableCents,
+		Compared: len(items), Mismatches: []paymentReconcileMismatch{},
+	}
+	for _, item := range items {
+		channel := item.Channel.String()
+		mismatch := paymentReconcileMismatch{
+			ProofNo: item.ProofNo, TransactionNo: item.TransactionNo, Channel: channel,
+			ProofCents: item.AmountCents, ExpectedCents: order.PayableCents,
+		}
+		receipt, receiptErr := db.EsportsPaymentReceipt.Query().Where(
+			esportspaymentreceipt.ChannelEQ(channel),
+			esportspaymentreceipt.TransactionNoEQ(item.TransactionNo),
+		).Only(ctx)
+		switch {
+		case ent.IsNotFound(receiptErr):
+			mismatch.Kind = "channel_unmatched"
+			mismatch.Detail = "渠道账单中未找到该流水号对应的到账回执"
+		case receiptErr != nil:
+			return nil, receiptErr
+		case receipt.ActualCents != item.AmountCents:
+			mismatch.Kind = "amount_mismatch"
+			mismatch.ChannelCents = receipt.ActualCents
+			mismatch.Detail = fmt.Sprintf("收款单 %d 分与渠道回执 %d 分不一致", item.AmountCents, receipt.ActualCents)
+		case item.AmountCents != order.PayableCents:
+			mismatch.Kind = "order_amount_mismatch"
+			mismatch.ChannelCents = receipt.ActualCents
+			mismatch.Detail = fmt.Sprintf("收款单 %d 分与订单应付 %d 分不一致", item.AmountCents, order.PayableCents)
+		default:
+			report.Matched++
+			continue
+		}
+		report.Mismatches = append(report.Mismatches, mismatch)
+	}
+	return report, nil
+}
+
+// ensureCSOfflinePaymentIntent 为纯客服报单补建「客服代确认」的报价确认书与支付意图：// 首次报价（quote_version=1）允许客服在提交外部到账凭证时一并确认；
 // 改价后的订单仍要求客户先确认新报价，避免客服绕过改价确认直接收款。
 func ensureCSOfflinePaymentIntent(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
 	channel string, adminID int, now time.Time) (*ent.EsportsPaymentIntent, error) {

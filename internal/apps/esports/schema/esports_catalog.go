@@ -35,7 +35,9 @@ func (EsportsSku) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("code").NotEmpty().MaxLen(80).Immutable().StructTag(`json:"code"`),
 		field.String("title").NotEmpty().MaxLen(160).StructTag(`json:"title"`),
-		field.Enum("service_type").Values("play", "teaching", "entertainment").StructTag(`json:"service_type"`),
+		// service_type 枚举仅在末尾追加 boosting 预留值（§3.1-04）：代练首版未开放，
+		// 业务侧须对 boosting 显式返回「代练首版未开放」参数错误；既有取值一个都不删除。
+		field.Enum("service_type").Values("play", "teaching", "entertainment", "boosting").StructTag(`json:"service_type"`),
 		field.Int("category_id").Optional().Nillable().StructTag(`json:"category_id"`),
 		// 商品父实体（§15.1）：可空，兼容既有独立 SKU；有值时该 SKU 挂在父商品下统一维护。
 		field.Int("product_id").Optional().Nillable().StructTag(`json:"product_id"`),
@@ -49,6 +51,12 @@ func (EsportsSku) Fields() []ent.Field {
 		field.Int("adjustment_approval_bp").Default(2000).StructTag(`json:"adjustment_approval_bp"`),
 		field.Int64("service_units").Positive().StructTag(`json:"service_units"`),
 		field.String("service_unit_name").NotEmpty().MaxLen(32).StructTag(`json:"service_unit_name"`),
+		// 每席承诺服务量（§15.3-01 / §15.5-01）：多人 SKU（required_seats>1）必须 >0，
+		// 下单校验 promised_service_units = per_seat_service_units × required_seats；0=未配置（下单报参数错误）。
+		field.Int64("per_seat_service_units").Default(0).StructTag(`json:"per_seat_service_units"`),
+		// SKU 成本（分，§15.8-03）：可选，仅财务角色只读可见，供订单毛利口径；
+		// 未填写为 NULL（历史 SKU 不回填），读取方按 nil 处理。
+		field.Int64("cost_cents").Optional().Nillable().StructTag(`json:"cost_cents"`),
 		// 单次服务的标准时长（分钟，§5.5）：用于预约时段重叠与服务开始自然日的容量判定；0 表示未配置，
 		// 此时容量判定回落到「未结束即占位」的保守口径。
 		field.Int("service_duration_minutes").Default(0).StructTag(`json:"service_duration_minutes"`),

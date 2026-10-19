@@ -38,6 +38,40 @@ type EsportsPlayer struct {
 	Games []string `json:"games"`
 	// LastHeartbeatAt holds the value of the "last_heartbeat_at" field.
 	LastHeartbeatAt *time.Time `json:"last_heartbeat_at"`
+	// ExpectedPriceCents holds the value of the "expected_price_cents" field.
+	ExpectedPriceCents int64 `json:"expected_price_cents"`
+	// ExpectedPriceStatus holds the value of the "expected_price_status" field.
+	ExpectedPriceStatus esportsplayer.ExpectedPriceStatus `json:"expected_price_status"`
+	// ExpectedPriceSubmittedAt holds the value of the "expected_price_submitted_at" field.
+	ExpectedPriceSubmittedAt *time.Time `json:"expected_price_submitted_at"`
+	// ExpectedPriceReviewedByAdminID holds the value of the "expected_price_reviewed_by_admin_id" field.
+	ExpectedPriceReviewedByAdminID *int `json:"expected_price_reviewed_by_admin_id"`
+	// ExpectedPriceReviewedAt holds the value of the "expected_price_reviewed_at" field.
+	ExpectedPriceReviewedAt *time.Time `json:"expected_price_reviewed_at"`
+	// ExpectedPriceReviewNote holds the value of the "expected_price_review_note" field.
+	ExpectedPriceReviewNote string `json:"expected_price_review_note"`
+	// ServiceSlotStartMinute holds the value of the "service_slot_start_minute" field.
+	ServiceSlotStartMinute int `json:"service_slot_start_minute"`
+	// ServiceSlotEndMinute holds the value of the "service_slot_end_minute" field.
+	ServiceSlotEndMinute int `json:"service_slot_end_minute"`
+	// AutoOnline holds the value of the "auto_online" field.
+	AutoOnline bool `json:"auto_online"`
+	// AcceptPriceMinCents holds the value of the "accept_price_min_cents" field.
+	AcceptPriceMinCents int64 `json:"accept_price_min_cents"`
+	// AcceptPriceMaxCents holds the value of the "accept_price_max_cents" field.
+	AcceptPriceMaxCents int64 `json:"accept_price_max_cents"`
+	// FixedTeamEnabled holds the value of the "fixed_team_enabled" field.
+	FixedTeamEnabled bool `json:"fixed_team_enabled"`
+	// FixedTeamSlotStartMinute holds the value of the "fixed_team_slot_start_minute" field.
+	FixedTeamSlotStartMinute int `json:"fixed_team_slot_start_minute"`
+	// FixedTeamSlotEndMinute holds the value of the "fixed_team_slot_end_minute" field.
+	FixedTeamSlotEndMinute int `json:"fixed_team_slot_end_minute"`
+	// Timezone holds the value of the "timezone" field.
+	Timezone string `json:"timezone"`
+	// LatitudeE6 holds the value of the "latitude_e6" field.
+	LatitudeE6 int `json:"latitude_e6"`
+	// LongitudeE6 holds the value of the "longitude_e6" field.
+	LongitudeE6 int `json:"longitude_e6"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -54,11 +88,13 @@ func (*EsportsPlayer) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsplayer.FieldGames:
 			values[i] = new([]byte)
-		case esportsplayer.FieldID, esportsplayer.FieldUserID, esportsplayer.FieldDailyLimit, esportsplayer.FieldConcurrentLimit, esportsplayer.FieldVersion:
+		case esportsplayer.FieldAutoOnline, esportsplayer.FieldFixedTeamEnabled:
+			values[i] = new(sql.NullBool)
+		case esportsplayer.FieldID, esportsplayer.FieldUserID, esportsplayer.FieldDailyLimit, esportsplayer.FieldConcurrentLimit, esportsplayer.FieldExpectedPriceCents, esportsplayer.FieldExpectedPriceReviewedByAdminID, esportsplayer.FieldServiceSlotStartMinute, esportsplayer.FieldServiceSlotEndMinute, esportsplayer.FieldAcceptPriceMinCents, esportsplayer.FieldAcceptPriceMaxCents, esportsplayer.FieldFixedTeamSlotStartMinute, esportsplayer.FieldFixedTeamSlotEndMinute, esportsplayer.FieldLatitudeE6, esportsplayer.FieldLongitudeE6, esportsplayer.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsplayer.FieldDisplayName, esportsplayer.FieldQualification, esportsplayer.FieldPresence, esportsplayer.FieldLevel:
+		case esportsplayer.FieldDisplayName, esportsplayer.FieldQualification, esportsplayer.FieldPresence, esportsplayer.FieldLevel, esportsplayer.FieldExpectedPriceStatus, esportsplayer.FieldExpectedPriceReviewNote, esportsplayer.FieldTimezone:
 			values[i] = new(sql.NullString)
-		case esportsplayer.FieldLevelAppraisedAt, esportsplayer.FieldLastHeartbeatAt, esportsplayer.FieldCreatedAt, esportsplayer.FieldUpdatedAt:
+		case esportsplayer.FieldLevelAppraisedAt, esportsplayer.FieldLastHeartbeatAt, esportsplayer.FieldExpectedPriceSubmittedAt, esportsplayer.FieldExpectedPriceReviewedAt, esportsplayer.FieldCreatedAt, esportsplayer.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -144,6 +180,111 @@ func (_m *EsportsPlayer) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.LastHeartbeatAt = new(time.Time)
 				*_m.LastHeartbeatAt = value.Time
+			}
+		case esportsplayer.FieldExpectedPriceCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_price_cents", values[i])
+			} else if value.Valid {
+				_m.ExpectedPriceCents = value.Int64
+			}
+		case esportsplayer.FieldExpectedPriceStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_price_status", values[i])
+			} else if value.Valid {
+				_m.ExpectedPriceStatus = esportsplayer.ExpectedPriceStatus(value.String)
+			}
+		case esportsplayer.FieldExpectedPriceSubmittedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_price_submitted_at", values[i])
+			} else if value.Valid {
+				_m.ExpectedPriceSubmittedAt = new(time.Time)
+				*_m.ExpectedPriceSubmittedAt = value.Time
+			}
+		case esportsplayer.FieldExpectedPriceReviewedByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_price_reviewed_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.ExpectedPriceReviewedByAdminID = new(int)
+				*_m.ExpectedPriceReviewedByAdminID = int(value.Int64)
+			}
+		case esportsplayer.FieldExpectedPriceReviewedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_price_reviewed_at", values[i])
+			} else if value.Valid {
+				_m.ExpectedPriceReviewedAt = new(time.Time)
+				*_m.ExpectedPriceReviewedAt = value.Time
+			}
+		case esportsplayer.FieldExpectedPriceReviewNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field expected_price_review_note", values[i])
+			} else if value.Valid {
+				_m.ExpectedPriceReviewNote = value.String
+			}
+		case esportsplayer.FieldServiceSlotStartMinute:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field service_slot_start_minute", values[i])
+			} else if value.Valid {
+				_m.ServiceSlotStartMinute = int(value.Int64)
+			}
+		case esportsplayer.FieldServiceSlotEndMinute:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field service_slot_end_minute", values[i])
+			} else if value.Valid {
+				_m.ServiceSlotEndMinute = int(value.Int64)
+			}
+		case esportsplayer.FieldAutoOnline:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_online", values[i])
+			} else if value.Valid {
+				_m.AutoOnline = value.Bool
+			}
+		case esportsplayer.FieldAcceptPriceMinCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field accept_price_min_cents", values[i])
+			} else if value.Valid {
+				_m.AcceptPriceMinCents = value.Int64
+			}
+		case esportsplayer.FieldAcceptPriceMaxCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field accept_price_max_cents", values[i])
+			} else if value.Valid {
+				_m.AcceptPriceMaxCents = value.Int64
+			}
+		case esportsplayer.FieldFixedTeamEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field fixed_team_enabled", values[i])
+			} else if value.Valid {
+				_m.FixedTeamEnabled = value.Bool
+			}
+		case esportsplayer.FieldFixedTeamSlotStartMinute:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field fixed_team_slot_start_minute", values[i])
+			} else if value.Valid {
+				_m.FixedTeamSlotStartMinute = int(value.Int64)
+			}
+		case esportsplayer.FieldFixedTeamSlotEndMinute:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field fixed_team_slot_end_minute", values[i])
+			} else if value.Valid {
+				_m.FixedTeamSlotEndMinute = int(value.Int64)
+			}
+		case esportsplayer.FieldTimezone:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field timezone", values[i])
+			} else if value.Valid {
+				_m.Timezone = value.String
+			}
+		case esportsplayer.FieldLatitudeE6:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field latitude_e6", values[i])
+			} else if value.Valid {
+				_m.LatitudeE6 = int(value.Int64)
+			}
+		case esportsplayer.FieldLongitudeE6:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field longitude_e6", values[i])
+			} else if value.Valid {
+				_m.LongitudeE6 = int(value.Int64)
 			}
 		case esportsplayer.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -232,6 +373,63 @@ func (_m *EsportsPlayer) String() string {
 		builder.WriteString("last_heartbeat_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("expected_price_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ExpectedPriceCents))
+	builder.WriteString(", ")
+	builder.WriteString("expected_price_status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ExpectedPriceStatus))
+	builder.WriteString(", ")
+	if v := _m.ExpectedPriceSubmittedAt; v != nil {
+		builder.WriteString("expected_price_submitted_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ExpectedPriceReviewedByAdminID; v != nil {
+		builder.WriteString("expected_price_reviewed_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ExpectedPriceReviewedAt; v != nil {
+		builder.WriteString("expected_price_reviewed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("expected_price_review_note=")
+	builder.WriteString(_m.ExpectedPriceReviewNote)
+	builder.WriteString(", ")
+	builder.WriteString("service_slot_start_minute=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ServiceSlotStartMinute))
+	builder.WriteString(", ")
+	builder.WriteString("service_slot_end_minute=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ServiceSlotEndMinute))
+	builder.WriteString(", ")
+	builder.WriteString("auto_online=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoOnline))
+	builder.WriteString(", ")
+	builder.WriteString("accept_price_min_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AcceptPriceMinCents))
+	builder.WriteString(", ")
+	builder.WriteString("accept_price_max_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AcceptPriceMaxCents))
+	builder.WriteString(", ")
+	builder.WriteString("fixed_team_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FixedTeamEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("fixed_team_slot_start_minute=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FixedTeamSlotStartMinute))
+	builder.WriteString(", ")
+	builder.WriteString("fixed_team_slot_end_minute=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FixedTeamSlotEndMinute))
+	builder.WriteString(", ")
+	builder.WriteString("timezone=")
+	builder.WriteString(_m.Timezone)
+	builder.WriteString(", ")
+	builder.WriteString("latitude_e6=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LatitudeE6))
+	builder.WriteString(", ")
+	builder.WriteString("longitude_e6=")
+	builder.WriteString(fmt.Sprintf("%v", _m.LongitudeE6))
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Version))

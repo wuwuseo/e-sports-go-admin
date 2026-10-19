@@ -28,6 +28,10 @@ const (
 	FieldAudience = "audience"
 	// FieldAudienceCustomerIds holds the string denoting the audience_customer_ids field in the database.
 	FieldAudienceCustomerIds = "audience_customer_ids"
+	// FieldAudiencePlayerIds holds the string denoting the audience_player_ids field in the database.
+	FieldAudiencePlayerIds = "audience_player_ids"
+	// FieldTargetAccountType holds the string denoting the target_account_type field in the database.
+	FieldTargetAccountType = "target_account_type"
 	// FieldStackRule holds the string denoting the stack_rule field in the database.
 	FieldStackRule = "stack_rule"
 	// FieldBonusValidDays holds the string denoting the bonus_valid_days field in the database.
@@ -60,6 +64,8 @@ var Columns = []string{
 	FieldTiers,
 	FieldAudience,
 	FieldAudienceCustomerIds,
+	FieldAudiencePlayerIds,
+	FieldTargetAccountType,
 	FieldStackRule,
 	FieldBonusValidDays,
 	FieldStartsAt,
@@ -135,6 +141,7 @@ const (
 	AudienceAll         Audience = "all"
 	AudienceNewCustomer Audience = "new_customer"
 	AudienceSpecified   Audience = "specified"
+	AudiencePlayer      Audience = "player"
 )
 
 func (a Audience) String() string {
@@ -144,10 +151,36 @@ func (a Audience) String() string {
 // AudienceValidator is a validator for the "audience" field enum values. It is called by the builders before save.
 func AudienceValidator(a Audience) error {
 	switch a {
-	case AudienceAll, AudienceNewCustomer, AudienceSpecified:
+	case AudienceAll, AudienceNewCustomer, AudienceSpecified, AudiencePlayer:
 		return nil
 	default:
 		return fmt.Errorf("esportsrechargecampaign: invalid enum value for audience field: %q", a)
+	}
+}
+
+// TargetAccountType defines the type for the "target_account_type" enum field.
+type TargetAccountType string
+
+// TargetAccountTypeCustomerBalance is the default value of the TargetAccountType enum.
+const DefaultTargetAccountType = TargetAccountTypeCustomerBalance
+
+// TargetAccountType values.
+const (
+	TargetAccountTypeCustomerBalance TargetAccountType = "customer_balance"
+	TargetAccountTypePlayerCatfood   TargetAccountType = "player_catfood"
+)
+
+func (tat TargetAccountType) String() string {
+	return string(tat)
+}
+
+// TargetAccountTypeValidator is a validator for the "target_account_type" field enum values. It is called by the builders before save.
+func TargetAccountTypeValidator(tat TargetAccountType) error {
+	switch tat {
+	case TargetAccountTypeCustomerBalance, TargetAccountTypePlayerCatfood:
+		return nil
+	default:
+		return fmt.Errorf("esportsrechargecampaign: invalid enum value for target_account_type field: %q", tat)
 	}
 }
 
@@ -231,6 +264,11 @@ func ByActivityType(opts ...sql.OrderTermOption) OrderOption {
 // ByAudience orders the results by the audience field.
 func ByAudience(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAudience, opts...).ToFunc()
+}
+
+// ByTargetAccountType orders the results by the target_account_type field.
+func ByTargetAccountType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTargetAccountType, opts...).ToFunc()
 }
 
 // ByStackRule orders the results by the stack_rule field.

@@ -33,6 +33,10 @@ type EsportsMemberLevelRule struct {
 	DedicatedCs bool `json:"dedicated_cs"`
 	// PriorityBooking holds the value of the "priority_booking" field.
 	PriorityBooking bool `json:"priority_booking"`
+	// DedicatedChannel holds the value of the "dedicated_channel" field.
+	DedicatedChannel bool `json:"dedicated_channel"`
+	// OfflineEventPriority holds the value of the "offline_event_priority" field.
+	OfflineEventPriority bool `json:"offline_event_priority"`
 	// SortOrder holds the value of the "sort_order" field.
 	SortOrder int `json:"sort_order"`
 	// Status holds the value of the "status" field.
@@ -51,7 +55,7 @@ func (*EsportsMemberLevelRule) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsmemberlevelrule.FieldPriorityDispatch, esportsmemberlevelrule.FieldDedicatedCs, esportsmemberlevelrule.FieldPriorityBooking:
+		case esportsmemberlevelrule.FieldPriorityDispatch, esportsmemberlevelrule.FieldDedicatedCs, esportsmemberlevelrule.FieldPriorityBooking, esportsmemberlevelrule.FieldDedicatedChannel, esportsmemberlevelrule.FieldOfflineEventPriority:
 			values[i] = new(sql.NullBool)
 		case esportsmemberlevelrule.FieldID, esportsmemberlevelrule.FieldGrowthThreshold, esportsmemberlevelrule.FieldDiscountBps, esportsmemberlevelrule.FieldPrepayBonusBps, esportsmemberlevelrule.FieldSortOrder, esportsmemberlevelrule.FieldVersion:
 			values[i] = new(sql.NullInt64)
@@ -127,6 +131,18 @@ func (_m *EsportsMemberLevelRule) assignValues(columns []string, values []any) e
 				return fmt.Errorf("unexpected type %T for field priority_booking", values[i])
 			} else if value.Valid {
 				_m.PriorityBooking = value.Bool
+			}
+		case esportsmemberlevelrule.FieldDedicatedChannel:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field dedicated_channel", values[i])
+			} else if value.Valid {
+				_m.DedicatedChannel = value.Bool
+			}
+		case esportsmemberlevelrule.FieldOfflineEventPriority:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field offline_event_priority", values[i])
+			} else if value.Valid {
+				_m.OfflineEventPriority = value.Bool
 			}
 		case esportsmemberlevelrule.FieldSortOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -217,6 +233,12 @@ func (_m *EsportsMemberLevelRule) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("priority_booking=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PriorityBooking))
+	builder.WriteString(", ")
+	builder.WriteString("dedicated_channel=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DedicatedChannel))
+	builder.WriteString(", ")
+	builder.WriteString("offline_event_priority=")
+	builder.WriteString(fmt.Sprintf("%v", _m.OfflineEventPriority))
 	builder.WriteString(", ")
 	builder.WriteString("sort_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SortOrder))

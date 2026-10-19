@@ -31,7 +31,7 @@ import (
 //   - 「分摊引用的消费条目存在」：`EsportsLedgerAllocation.consume_source_*` 记录的是消费业务来源
 //     （如 order / 订单号），并不指向一条 `EsportsLedgerEntry`，按四元组检索必然落空。
 //
-// 核验结果只写外盒事件与任务日志，不修改任何账本数据。
+// 核验结果只写外盒事件、储值卡一致性异常队列（§4.6-06）与任务日志，不修改任何账本数据。
 
 const (
 	// ledgerReconcileBatchSize 游标分页每批读取条数。
@@ -68,6 +68,8 @@ type ledgerReconcileResult struct {
 	ScannedAccounts    int
 	ScannedAllocations int
 	ScannedBatches     int
+	// ScannedWalletSums 是「钱包流水求和 == 批次账本求和」维度已核验的账户数（§11.6-01）。
+	ScannedWalletSums int
 	// ScanTruncated 表示已达单轮扫描上限、仍有数据未核验，下轮继续。
 	ScanTruncated bool
 	// AnomalyOverflow 表示异常条数超过输出上限，清单被截断（计数仍可反映异常存在）。
@@ -120,6 +122,11 @@ func reconcileWalletBalances(ctx context.Context, db *ent.Client, scanCap int, r
 					return 0, 0, err
 				}
 				checkWalletBalanceNonNegative(result, account.AccountType.String(), strconv.Itoa(account.OwnerID), balance)
+				// §11.6-01：同一账户顺带核验「钱包流水求和 == 批次账本求和」（账户集合相同，不额外扫描）。
+				if err = scanWalletLedgerSum(ctx, db, result,
+					account.AccountType.String(), strconv.Itoa(account.OwnerID)); err != nil {
+					return 0, 0, err
+				}
 			}
 			if len(accounts) == 0 {
 				return 0, 0, nil
@@ -147,11 +154,31 @@ func reconcileStoredValueCardBalances(ctx context.Context, db *ent.Client, scanC
 			}
 			for _, card := range cards {
 				result.ScannedAccounts++
-				balance, err := walletBalanceOf(ctx, db, storedValuePrepayAccount, card.ID)
+				// §4.6-06 修正：卡的钱包流水 account_type 是 stored_value_card，stored_value_prepay
+				// 只是它的批次账本账户——按预付款账户名求和恒为 0，导致「卡余额为负」这条不变量
+				// 此前从未被真正核验过（同时让卡标记 / 异常队列拿不到真实派生余额）。
+				balance, err := walletBalanceOf(ctx, db, walletStoredValueCard, card.ID)
 				if err != nil {
 					return 0, 0, err
 				}
-				checkWalletBalanceNonNegative(result, storedValuePrepayAccount, strconv.Itoa(card.ID), balance)
+				// §4.6-06：本卡新产生的账本异常（余额为负）与卡标记不符都要落进可跟进的异常队列，
+				// 而不是只写只增事件。
+				firstAnomaly := len(result.Anomalies)
+				checkWalletBalanceNonNegative(result, walletStoredValueCard, strconv.Itoa(card.ID), balance)
+				// §11.6-01：逐卡核验「钱包流水求和 == 开卡批次账本求和」（卡账户集合相同，不额外扫描）。
+				if err = scanWalletLedgerSum(ctx, db, result,
+					walletStoredValueCard, strconv.Itoa(card.ID)); err != nil {
+					return 0, 0, err
+				}
+				now := time.Now()
+				if err = recordStoredValueCardReconcileExceptions(ctx, db, card, balance,
+					result.Anomalies[firstAnomaly:], now); err != nil {
+					return 0, 0, err
+				}
+				// §4.6-06：逐卡复检其名下储值卡订单的关联完整性（闸口之外的第二道检测）。
+				if err = recordStoredValueOrderReconcileExceptions(ctx, db, card.ID, now); err != nil {
+					return 0, 0, err
+				}
 			}
 			if len(cards) == 0 {
 				return 0, 0, nil
@@ -343,10 +370,12 @@ func publishLedgerReconcileAnomalies(ctx context.Context, db *ent.Client, result
 		"scanned_accounts":    result.ScannedAccounts,
 		"scanned_allocations": result.ScannedAllocations,
 		"scanned_batches":     result.ScannedBatches,
+		"scanned_wallet_sums": result.ScannedWalletSums,
 		"anomaly_count":       len(result.Anomalies),
 		"scan_truncated":      result.ScanTruncated,
 		"anomaly_overflow":    result.AnomalyOverflow,
 		"anomalies":           result.Anomalies,
+		"occurred_at":         now.UTC().Format(time.RFC3339Nano),
 	}
 	_, err := db.EsportsOutbox.Create().
 		SetEventKey("ledger.reconcile_anomaly:" + now.UTC().Format("20060102150405")).

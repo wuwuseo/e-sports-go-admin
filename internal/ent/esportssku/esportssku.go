@@ -40,6 +40,10 @@ const (
 	FieldServiceUnits = "service_units"
 	// FieldServiceUnitName holds the string denoting the service_unit_name field in the database.
 	FieldServiceUnitName = "service_unit_name"
+	// FieldPerSeatServiceUnits holds the string denoting the per_seat_service_units field in the database.
+	FieldPerSeatServiceUnits = "per_seat_service_units"
+	// FieldCostCents holds the string denoting the cost_cents field in the database.
+	FieldCostCents = "cost_cents"
 	// FieldServiceDurationMinutes holds the string denoting the service_duration_minutes field in the database.
 	FieldServiceDurationMinutes = "service_duration_minutes"
 	// FieldRequiredSeats holds the string denoting the required_seats field in the database.
@@ -86,6 +90,8 @@ var Columns = []string{
 	FieldAdjustmentApprovalBp,
 	FieldServiceUnits,
 	FieldServiceUnitName,
+	FieldPerSeatServiceUnits,
+	FieldCostCents,
 	FieldServiceDurationMinutes,
 	FieldRequiredSeats,
 	FieldRequiredLevel,
@@ -129,6 +135,8 @@ var (
 	ServiceUnitsValidator func(int64) error
 	// ServiceUnitNameValidator is a validator for the "service_unit_name" field. It is called by the builders before save.
 	ServiceUnitNameValidator func(string) error
+	// DefaultPerSeatServiceUnits holds the default value on creation for the "per_seat_service_units" field.
+	DefaultPerSeatServiceUnits int64
 	// DefaultServiceDurationMinutes holds the default value on creation for the "service_duration_minutes" field.
 	DefaultServiceDurationMinutes int
 	// DefaultRequiredSeats holds the default value on creation for the "required_seats" field.
@@ -165,6 +173,7 @@ const (
 	ServiceTypePlay          ServiceType = "play"
 	ServiceTypeTeaching      ServiceType = "teaching"
 	ServiceTypeEntertainment ServiceType = "entertainment"
+	ServiceTypeBoosting      ServiceType = "boosting"
 )
 
 func (st ServiceType) String() string {
@@ -174,7 +183,7 @@ func (st ServiceType) String() string {
 // ServiceTypeValidator is a validator for the "service_type" field enum values. It is called by the builders before save.
 func ServiceTypeValidator(st ServiceType) error {
 	switch st {
-	case ServiceTypePlay, ServiceTypeTeaching, ServiceTypeEntertainment:
+	case ServiceTypePlay, ServiceTypeTeaching, ServiceTypeEntertainment, ServiceTypeBoosting:
 		return nil
 	default:
 		return fmt.Errorf("esportssku: invalid enum value for service_type field: %q", st)
@@ -302,6 +311,16 @@ func ByServiceUnits(opts ...sql.OrderTermOption) OrderOption {
 // ByServiceUnitName orders the results by the service_unit_name field.
 func ByServiceUnitName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldServiceUnitName, opts...).ToFunc()
+}
+
+// ByPerSeatServiceUnits orders the results by the per_seat_service_units field.
+func ByPerSeatServiceUnits(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPerSeatServiceUnits, opts...).ToFunc()
+}
+
+// ByCostCents orders the results by the cost_cents field.
+func ByCostCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCostCents, opts...).ToFunc()
 }
 
 // ByServiceDurationMinutes orders the results by the service_duration_minutes field.

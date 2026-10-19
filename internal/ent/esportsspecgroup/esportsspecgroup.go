@@ -22,6 +22,8 @@ const (
 	FieldName = "name"
 	// FieldSeats holds the string denoting the seats field in the database.
 	FieldSeats = "seats"
+	// FieldPerSeatServiceUnits holds the string denoting the per_seat_service_units field in the database.
+	FieldPerSeatServiceUnits = "per_seat_service_units"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldVersion holds the string denoting the version field in the database.
@@ -43,6 +45,7 @@ var Columns = []string{
 	FieldCode,
 	FieldName,
 	FieldSeats,
+	FieldPerSeatServiceUnits,
 	FieldStatus,
 	FieldVersion,
 	FieldCreatedAt,
@@ -64,6 +67,8 @@ var (
 	CodeValidator func(string) error
 	// NameValidator is a validator for the "name" field. It is called by the builders before save.
 	NameValidator func(string) error
+	// DefaultPerSeatServiceUnits holds the default value on creation for the "per_seat_service_units" field.
+	DefaultPerSeatServiceUnits int64
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -116,6 +121,11 @@ func ByCode(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByPerSeatServiceUnits orders the results by the per_seat_service_units field.
+func ByPerSeatServiceUnits(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPerSeatServiceUnits, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

@@ -104,6 +104,11 @@ func CreatedByAdminID(v int) predicate.EsportsAssessment {
 	return predicate.EsportsAssessment(sql.FieldEQ(FieldCreatedByAdminID, v))
 }
 
+// ActiveDedupKey applies equality check predicate on the "active_dedup_key" field. It's identical to ActiveDedupKeyEQ.
+func ActiveDedupKey(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldEQ(FieldActiveDedupKey, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int) predicate.EsportsAssessment {
 	return predicate.EsportsAssessment(sql.FieldEQ(FieldVersion, v))
@@ -722,6 +727,81 @@ func CreatedByAdminIDIsNil() predicate.EsportsAssessment {
 // CreatedByAdminIDNotNil applies the NotNil predicate on the "created_by_admin_id" field.
 func CreatedByAdminIDNotNil() predicate.EsportsAssessment {
 	return predicate.EsportsAssessment(sql.FieldNotNull(FieldCreatedByAdminID))
+}
+
+// ActiveDedupKeyEQ applies the EQ predicate on the "active_dedup_key" field.
+func ActiveDedupKeyEQ(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldEQ(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyNEQ applies the NEQ predicate on the "active_dedup_key" field.
+func ActiveDedupKeyNEQ(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldNEQ(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyIn applies the In predicate on the "active_dedup_key" field.
+func ActiveDedupKeyIn(vs ...string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldIn(FieldActiveDedupKey, vs...))
+}
+
+// ActiveDedupKeyNotIn applies the NotIn predicate on the "active_dedup_key" field.
+func ActiveDedupKeyNotIn(vs ...string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldNotIn(FieldActiveDedupKey, vs...))
+}
+
+// ActiveDedupKeyGT applies the GT predicate on the "active_dedup_key" field.
+func ActiveDedupKeyGT(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldGT(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyGTE applies the GTE predicate on the "active_dedup_key" field.
+func ActiveDedupKeyGTE(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldGTE(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyLT applies the LT predicate on the "active_dedup_key" field.
+func ActiveDedupKeyLT(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldLT(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyLTE applies the LTE predicate on the "active_dedup_key" field.
+func ActiveDedupKeyLTE(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldLTE(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyContains applies the Contains predicate on the "active_dedup_key" field.
+func ActiveDedupKeyContains(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldContains(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyHasPrefix applies the HasPrefix predicate on the "active_dedup_key" field.
+func ActiveDedupKeyHasPrefix(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldHasPrefix(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyHasSuffix applies the HasSuffix predicate on the "active_dedup_key" field.
+func ActiveDedupKeyHasSuffix(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldHasSuffix(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyIsNil applies the IsNil predicate on the "active_dedup_key" field.
+func ActiveDedupKeyIsNil() predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldIsNull(FieldActiveDedupKey))
+}
+
+// ActiveDedupKeyNotNil applies the NotNil predicate on the "active_dedup_key" field.
+func ActiveDedupKeyNotNil() predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldNotNull(FieldActiveDedupKey))
+}
+
+// ActiveDedupKeyEqualFold applies the EqualFold predicate on the "active_dedup_key" field.
+func ActiveDedupKeyEqualFold(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldEqualFold(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyContainsFold applies the ContainsFold predicate on the "active_dedup_key" field.
+func ActiveDedupKeyContainsFold(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldContainsFold(FieldActiveDedupKey, v))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.

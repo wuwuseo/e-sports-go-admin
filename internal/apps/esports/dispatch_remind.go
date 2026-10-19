@@ -26,7 +26,44 @@ const (
 	// 服务超时提醒阈值（分钟）：服务段有效时长超过该值即提醒客服确认是否加钟；0 表示关闭。
 	serviceOvertimeKey     = "app.esports.service_overtime_minutes"
 	defaultServiceOvertime = 0
+	// 无人接单升级阈值（分钟）：订单进入待派单池后超过该时长仍无任何有效席位即升级。
+	dispatchNoTakerMinutesKey     = "app.esports.dispatch_no_taker_minutes"
+	defaultDispatchNoTakerMinutes = 60
+	// 临近开始升级提前量（分钟）：预约开始时间落在该窗口内且席位未接满即升级。
+	dispatchStartEscalateMinutesKey     = "app.esports.dispatch_start_escalate_minutes"
+	defaultDispatchStartEscalateMinutes = 60
+	// 多席缺员自动补位阈值（分钟）：失效席位超过该时长未补齐才自动重开为待补位（§5.3-06）；
+	// 未超时前保留 rejected / expired 原状态作为历史。
+	dispatchRefillMinutesKey     = "app.esports.dispatch_refill_minutes"
+	defaultDispatchRefillMinutes = 10
 )
+
+// dispatchRefillMinutes 多席缺员自动补位阈值（分钟）；<1 或 >1440 或非法回落 10。
+func dispatchRefillMinutes(ctx context.Context, db *ent.Client) int {
+	value := csConfigInt(ctx, db, dispatchRefillMinutesKey)
+	if value < 1 || value > 1440 {
+		return defaultDispatchRefillMinutes
+	}
+	return value
+}
+
+// dispatchNoTakerMinutes 无人接单升级阈值（分钟）；<1 或 >1440 或非法回落 60。
+func dispatchNoTakerMinutes(ctx context.Context, db *ent.Client) int {
+	value := csConfigInt(ctx, db, dispatchNoTakerMinutesKey)
+	if value < 1 || value > 1440 {
+		return defaultDispatchNoTakerMinutes
+	}
+	return value
+}
+
+// dispatchStartEscalateMinutes 临近开始升级提前量（分钟）；<1 或 >1440 或非法回落 60。
+func dispatchStartEscalateMinutes(ctx context.Context, db *ent.Client) int {
+	value := csConfigInt(ctx, db, dispatchStartEscalateMinutesKey)
+	if value < 1 || value > 1440 {
+		return defaultDispatchStartEscalateMinutes
+	}
+	return value
+}
 
 // remindLadderMinutes 读催单时间阶梯（分钟，升序去重）；缺失或非法时回落 5/15/30。
 func remindLadderMinutes(ctx context.Context, db *ent.Client) []int {
@@ -294,6 +331,143 @@ func sendServiceOvertimeReminder(ctx context.Context, db *ent.Client, orderID in
 		return false, err
 	}
 	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// 派单升级触发类型（§5.9-06）。
+const (
+	escalationNoTaker          = "no_taker"
+	escalationMemberAbsent     = "member_absent"
+	escalationStartingUnfilled = "starting_unfilled"
+)
+
+// runDispatchEscalations 三类逐级升级（§5.9-06）：
+//
+//	① no_taker          无人接单：进入待派单池超过 dispatch_no_taker_minutes 且已无任何
+//	                    有效席位（invited/accepted），阶梯催单已用尽；
+//	② member_absent     多人缺席：多席订单既有已接单成员又存在空缺席位（自动补位后仍缺员）；
+//	③ starting_unfilled 临近开始未满员：预约开始时间落在 dispatch_start_escalate_minutes
+//	                    内且席位未接满。
+//
+// 每类各写一条 dispatch.escalation_<trigger> 外盒（定向通知责任客服），event_key 含订单号与
+// 触发类型保证幂等（任务可安全重复运行）。返回本次新增的升级条数。
+//
+// 说明：本函数**不改订单版本**（不写订单事件），避免让进行中的改期提案的 order_version
+// 快照失效；升级留痕由外盒与看板异常桶承载。
+func runDispatchEscalations(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
+	if limit < 1 {
+		limit = 200
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	noTakerMinutes := dispatchNoTakerMinutes(ctx, db)
+	startLeadMinutes := dispatchStartEscalateMinutes(ctx, db)
+	// §5.3-06：先做多席订单缺员自动补位（超时失效席位重开为待补位），再评估升级。
+	// 同一任务驱动，避免客服既要等补位又要等升级两套定时。
+	if _, err := refillVacantMultiSeatSeats(ctx, db, now, limit); err != nil {
+		return 0, err
+	}
+	orders, err := db.EsportsOrder.Query().Where(
+		esportsorder.FulfillmentStatusIn(
+			esportsorder.FulfillmentStatusPendingDispatch,
+			esportsorder.FulfillmentStatusPendingAcceptance,
+		),
+	).Order(ent.Asc(esportsorder.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, order := range orders {
+		if order.RequiredSeats < 1 {
+			continue
+		}
+		seats, err := db.EsportsDispatchSeat.Query().Where(
+			esportsdispatchseat.OrderIDEQ(order.ID),
+		).All(ctx)
+		if err != nil {
+			return total, err
+		}
+		accepted, active, vacant, dead := 0, 0, 0, 0
+		for _, seat := range seats {
+			switch seat.Status {
+			case esportsdispatchseat.StatusAccepted:
+				accepted++
+				active++
+			case esportsdispatchseat.StatusInvited:
+				active++
+			case esportsdispatchseat.StatusOpen:
+				vacant++
+			case esportsdispatchseat.StatusRejected, esportsdispatchseat.StatusExpired,
+				esportsdispatchseat.StatusRevoked:
+				dead++
+			}
+		}
+		if accepted >= order.RequiredSeats {
+			continue // 已接满，无需升级。
+		}
+		triggers := make([]string, 0, 3)
+		elapsedFrom := order.FirstPooledAt
+		if elapsedFrom == nil {
+			elapsedFrom = order.FirstInvitedAt
+		}
+		if active == 0 && elapsedFrom != nil &&
+			!elapsedFrom.After(now.UTC().Add(-time.Duration(noTakerMinutes)*time.Minute)) {
+			triggers = append(triggers, escalationNoTaker)
+		}
+		if order.RequiredSeats > 1 && accepted > 0 && (vacant > 0 || dead > 0) {
+			// 多席订单已有成员接单但仍有空缺 / 失效席位（成员缺席或自动补位后的待补位状态）。
+			triggers = append(triggers, escalationMemberAbsent)
+		}
+		if order.RequestedStartAt != nil &&
+			!order.RequestedStartAt.After(now.UTC().Add(time.Duration(startLeadMinutes)*time.Minute)) {
+			triggers = append(triggers, escalationStartingUnfilled)
+		}
+		if len(triggers) == 0 {
+			continue
+		}
+		for _, trigger := range triggers {
+			sent, err := sendDispatchEscalation(ctx, db, order, trigger, accepted)
+			if err != nil {
+				return total, err
+			}
+			if sent {
+				total++
+			}
+		}
+	}
+	return total, nil
+}
+
+// sendDispatchEscalation 写一条派单升级外盒；同一 (订单, 触发类型) 只发一次（event_key 唯一索引兜底）。
+func sendDispatchEscalation(ctx context.Context, db *ent.Client, order *ent.EsportsOrder, trigger string, accepted int) (bool, error) {
+	eventType := "dispatch.escalation_" + trigger
+	eventKey := "dispatch_escalation:" + trigger + ":" + order.OrderNo
+	exists, err := db.EsportsOutbox.Query().Where(esportsoutbox.EventKeyEQ(eventKey)).Exist(ctx)
+	if err != nil {
+		return false, err
+	}
+	if exists {
+		return false, nil
+	}
+	payload := map[string]interface{}{
+		"order_no": order.OrderNo, "trigger": trigger,
+		"required_seats": order.RequiredSeats, "accepted_seats": accepted,
+	}
+	if order.ResponsibleAdminID != nil {
+		payload["admin_id"] = *order.ResponsibleAdminID
+	}
+	if order.RequestedStartAt != nil {
+		payload["requested_start_at"] = order.RequestedStartAt.UTC().Format(time.RFC3339)
+	}
+	if _, err = db.EsportsOutbox.Create().SetEventKey(eventKey).
+		SetEventType(eventType).SetAggregateRef(order.OrderNo).
+		SetPayload(payload).Save(ctx); err != nil {
+		if ent.IsConstraintError(err) {
+			return false, nil
+		}
 		return false, err
 	}
 	return true, nil

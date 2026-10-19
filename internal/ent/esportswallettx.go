@@ -38,6 +38,16 @@ type EsportsWalletTx struct {
 	OperatorID *int `json:"operator_id"`
 	// Note holds the value of the "note" field.
 	Note string `json:"note"`
+	// BeneficiaryType holds the value of the "beneficiary_type" field.
+	BeneficiaryType esportswallettx.BeneficiaryType `json:"beneficiary_type"`
+	// BeneficiaryID holds the value of the "beneficiary_id" field.
+	BeneficiaryID int `json:"beneficiary_id"`
+	// BalanceBeforeCents holds the value of the "balance_before_cents" field.
+	BalanceBeforeCents int64 `json:"balance_before_cents"`
+	// BalanceAfterCents holds the value of the "balance_after_cents" field.
+	BalanceAfterCents int64 `json:"balance_after_cents"`
+	// FundBatch holds the value of the "fund_batch" field.
+	FundBatch string `json:"fund_batch"`
 	// RuleSnapshot holds the value of the "rule_snapshot" field.
 	RuleSnapshot map[string]interface{} `json:"rule_snapshot"`
 	// BonusExpiresAt holds the value of the "bonus_expires_at" field.
@@ -54,9 +64,9 @@ func (*EsportsWalletTx) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportswallettx.FieldRuleSnapshot:
 			values[i] = new([]byte)
-		case esportswallettx.FieldID, esportswallettx.FieldOwnerID, esportswallettx.FieldPrincipalDeltaCents, esportswallettx.FieldBonusDeltaCents, esportswallettx.FieldOperatorID:
+		case esportswallettx.FieldID, esportswallettx.FieldOwnerID, esportswallettx.FieldPrincipalDeltaCents, esportswallettx.FieldBonusDeltaCents, esportswallettx.FieldOperatorID, esportswallettx.FieldBeneficiaryID, esportswallettx.FieldBalanceBeforeCents, esportswallettx.FieldBalanceAfterCents:
 			values[i] = new(sql.NullInt64)
-		case esportswallettx.FieldTxNo, esportswallettx.FieldAccountType, esportswallettx.FieldEntryType, esportswallettx.FieldSourceType, esportswallettx.FieldSourceID, esportswallettx.FieldNote:
+		case esportswallettx.FieldTxNo, esportswallettx.FieldAccountType, esportswallettx.FieldEntryType, esportswallettx.FieldSourceType, esportswallettx.FieldSourceID, esportswallettx.FieldNote, esportswallettx.FieldBeneficiaryType, esportswallettx.FieldFundBatch:
 			values[i] = new(sql.NullString)
 		case esportswallettx.FieldBonusExpiresAt, esportswallettx.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -141,6 +151,36 @@ func (_m *EsportsWalletTx) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field note", values[i])
 			} else if value.Valid {
 				_m.Note = value.String
+			}
+		case esportswallettx.FieldBeneficiaryType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field beneficiary_type", values[i])
+			} else if value.Valid {
+				_m.BeneficiaryType = esportswallettx.BeneficiaryType(value.String)
+			}
+		case esportswallettx.FieldBeneficiaryID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field beneficiary_id", values[i])
+			} else if value.Valid {
+				_m.BeneficiaryID = int(value.Int64)
+			}
+		case esportswallettx.FieldBalanceBeforeCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_before_cents", values[i])
+			} else if value.Valid {
+				_m.BalanceBeforeCents = value.Int64
+			}
+		case esportswallettx.FieldBalanceAfterCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field balance_after_cents", values[i])
+			} else if value.Valid {
+				_m.BalanceAfterCents = value.Int64
+			}
+		case esportswallettx.FieldFundBatch:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field fund_batch", values[i])
+			} else if value.Valid {
+				_m.FundBatch = value.String
 			}
 		case esportswallettx.FieldRuleSnapshot:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -230,6 +270,21 @@ func (_m *EsportsWalletTx) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("note=")
 	builder.WriteString(_m.Note)
+	builder.WriteString(", ")
+	builder.WriteString("beneficiary_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BeneficiaryType))
+	builder.WriteString(", ")
+	builder.WriteString("beneficiary_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BeneficiaryID))
+	builder.WriteString(", ")
+	builder.WriteString("balance_before_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BalanceBeforeCents))
+	builder.WriteString(", ")
+	builder.WriteString("balance_after_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BalanceAfterCents))
+	builder.WriteString(", ")
+	builder.WriteString("fund_batch=")
+	builder.WriteString(_m.FundBatch)
 	builder.WriteString(", ")
 	builder.WriteString("rule_snapshot=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RuleSnapshot))

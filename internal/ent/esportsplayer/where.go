@@ -84,6 +84,86 @@ func LastHeartbeatAt(v time.Time) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldLastHeartbeatAt, v))
 }
 
+// ExpectedPriceCents applies equality check predicate on the "expected_price_cents" field. It's identical to ExpectedPriceCentsEQ.
+func ExpectedPriceCents(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceCents, v))
+}
+
+// ExpectedPriceSubmittedAt applies equality check predicate on the "expected_price_submitted_at" field. It's identical to ExpectedPriceSubmittedAtEQ.
+func ExpectedPriceSubmittedAt(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceSubmittedAt, v))
+}
+
+// ExpectedPriceReviewedByAdminID applies equality check predicate on the "expected_price_reviewed_by_admin_id" field. It's identical to ExpectedPriceReviewedByAdminIDEQ.
+func ExpectedPriceReviewedByAdminID(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceReviewedByAdminID, v))
+}
+
+// ExpectedPriceReviewedAt applies equality check predicate on the "expected_price_reviewed_at" field. It's identical to ExpectedPriceReviewedAtEQ.
+func ExpectedPriceReviewedAt(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceReviewedAt, v))
+}
+
+// ExpectedPriceReviewNote applies equality check predicate on the "expected_price_review_note" field. It's identical to ExpectedPriceReviewNoteEQ.
+func ExpectedPriceReviewNote(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceReviewNote, v))
+}
+
+// ServiceSlotStartMinute applies equality check predicate on the "service_slot_start_minute" field. It's identical to ServiceSlotStartMinuteEQ.
+func ServiceSlotStartMinute(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldServiceSlotStartMinute, v))
+}
+
+// ServiceSlotEndMinute applies equality check predicate on the "service_slot_end_minute" field. It's identical to ServiceSlotEndMinuteEQ.
+func ServiceSlotEndMinute(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldServiceSlotEndMinute, v))
+}
+
+// AutoOnline applies equality check predicate on the "auto_online" field. It's identical to AutoOnlineEQ.
+func AutoOnline(v bool) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldAutoOnline, v))
+}
+
+// AcceptPriceMinCents applies equality check predicate on the "accept_price_min_cents" field. It's identical to AcceptPriceMinCentsEQ.
+func AcceptPriceMinCents(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldAcceptPriceMinCents, v))
+}
+
+// AcceptPriceMaxCents applies equality check predicate on the "accept_price_max_cents" field. It's identical to AcceptPriceMaxCentsEQ.
+func AcceptPriceMaxCents(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldAcceptPriceMaxCents, v))
+}
+
+// FixedTeamEnabled applies equality check predicate on the "fixed_team_enabled" field. It's identical to FixedTeamEnabledEQ.
+func FixedTeamEnabled(v bool) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldFixedTeamEnabled, v))
+}
+
+// FixedTeamSlotStartMinute applies equality check predicate on the "fixed_team_slot_start_minute" field. It's identical to FixedTeamSlotStartMinuteEQ.
+func FixedTeamSlotStartMinute(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldFixedTeamSlotStartMinute, v))
+}
+
+// FixedTeamSlotEndMinute applies equality check predicate on the "fixed_team_slot_end_minute" field. It's identical to FixedTeamSlotEndMinuteEQ.
+func FixedTeamSlotEndMinute(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldFixedTeamSlotEndMinute, v))
+}
+
+// Timezone applies equality check predicate on the "timezone" field. It's identical to TimezoneEQ.
+func Timezone(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldTimezone, v))
+}
+
+// LatitudeE6 applies equality check predicate on the "latitude_e6" field. It's identical to LatitudeE6EQ.
+func LatitudeE6(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldLatitudeE6, v))
+}
+
+// LongitudeE6 applies equality check predicate on the "longitude_e6" field. It's identical to LongitudeE6EQ.
+func LongitudeE6(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldLongitudeE6, v))
+}
+
 // Version applies equality check predicate on the "version" field. It's identical to VersionEQ.
 func Version(v int) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldVersion, v))
@@ -452,6 +532,686 @@ func LastHeartbeatAtIsNil() predicate.EsportsPlayer {
 // LastHeartbeatAtNotNil applies the NotNil predicate on the "last_heartbeat_at" field.
 func LastHeartbeatAtNotNil() predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldNotNull(FieldLastHeartbeatAt))
+}
+
+// ExpectedPriceCentsEQ applies the EQ predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsEQ(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceCents, v))
+}
+
+// ExpectedPriceCentsNEQ applies the NEQ predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsNEQ(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldExpectedPriceCents, v))
+}
+
+// ExpectedPriceCentsIn applies the In predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsIn(vs ...int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldExpectedPriceCents, vs...))
+}
+
+// ExpectedPriceCentsNotIn applies the NotIn predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsNotIn(vs ...int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldExpectedPriceCents, vs...))
+}
+
+// ExpectedPriceCentsGT applies the GT predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsGT(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldExpectedPriceCents, v))
+}
+
+// ExpectedPriceCentsGTE applies the GTE predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsGTE(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldExpectedPriceCents, v))
+}
+
+// ExpectedPriceCentsLT applies the LT predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsLT(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldExpectedPriceCents, v))
+}
+
+// ExpectedPriceCentsLTE applies the LTE predicate on the "expected_price_cents" field.
+func ExpectedPriceCentsLTE(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldExpectedPriceCents, v))
+}
+
+// ExpectedPriceStatusEQ applies the EQ predicate on the "expected_price_status" field.
+func ExpectedPriceStatusEQ(v ExpectedPriceStatus) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceStatus, v))
+}
+
+// ExpectedPriceStatusNEQ applies the NEQ predicate on the "expected_price_status" field.
+func ExpectedPriceStatusNEQ(v ExpectedPriceStatus) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldExpectedPriceStatus, v))
+}
+
+// ExpectedPriceStatusIn applies the In predicate on the "expected_price_status" field.
+func ExpectedPriceStatusIn(vs ...ExpectedPriceStatus) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldExpectedPriceStatus, vs...))
+}
+
+// ExpectedPriceStatusNotIn applies the NotIn predicate on the "expected_price_status" field.
+func ExpectedPriceStatusNotIn(vs ...ExpectedPriceStatus) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldExpectedPriceStatus, vs...))
+}
+
+// ExpectedPriceSubmittedAtEQ applies the EQ predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtEQ(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceSubmittedAt, v))
+}
+
+// ExpectedPriceSubmittedAtNEQ applies the NEQ predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtNEQ(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldExpectedPriceSubmittedAt, v))
+}
+
+// ExpectedPriceSubmittedAtIn applies the In predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtIn(vs ...time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldExpectedPriceSubmittedAt, vs...))
+}
+
+// ExpectedPriceSubmittedAtNotIn applies the NotIn predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtNotIn(vs ...time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldExpectedPriceSubmittedAt, vs...))
+}
+
+// ExpectedPriceSubmittedAtGT applies the GT predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtGT(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldExpectedPriceSubmittedAt, v))
+}
+
+// ExpectedPriceSubmittedAtGTE applies the GTE predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtGTE(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldExpectedPriceSubmittedAt, v))
+}
+
+// ExpectedPriceSubmittedAtLT applies the LT predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtLT(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldExpectedPriceSubmittedAt, v))
+}
+
+// ExpectedPriceSubmittedAtLTE applies the LTE predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtLTE(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldExpectedPriceSubmittedAt, v))
+}
+
+// ExpectedPriceSubmittedAtIsNil applies the IsNil predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtIsNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIsNull(FieldExpectedPriceSubmittedAt))
+}
+
+// ExpectedPriceSubmittedAtNotNil applies the NotNil predicate on the "expected_price_submitted_at" field.
+func ExpectedPriceSubmittedAtNotNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotNull(FieldExpectedPriceSubmittedAt))
+}
+
+// ExpectedPriceReviewedByAdminIDEQ applies the EQ predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceReviewedByAdminID, v))
+}
+
+// ExpectedPriceReviewedByAdminIDNEQ applies the NEQ predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDNEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldExpectedPriceReviewedByAdminID, v))
+}
+
+// ExpectedPriceReviewedByAdminIDIn applies the In predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldExpectedPriceReviewedByAdminID, vs...))
+}
+
+// ExpectedPriceReviewedByAdminIDNotIn applies the NotIn predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDNotIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldExpectedPriceReviewedByAdminID, vs...))
+}
+
+// ExpectedPriceReviewedByAdminIDGT applies the GT predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDGT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldExpectedPriceReviewedByAdminID, v))
+}
+
+// ExpectedPriceReviewedByAdminIDGTE applies the GTE predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDGTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldExpectedPriceReviewedByAdminID, v))
+}
+
+// ExpectedPriceReviewedByAdminIDLT applies the LT predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDLT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldExpectedPriceReviewedByAdminID, v))
+}
+
+// ExpectedPriceReviewedByAdminIDLTE applies the LTE predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDLTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldExpectedPriceReviewedByAdminID, v))
+}
+
+// ExpectedPriceReviewedByAdminIDIsNil applies the IsNil predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDIsNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIsNull(FieldExpectedPriceReviewedByAdminID))
+}
+
+// ExpectedPriceReviewedByAdminIDNotNil applies the NotNil predicate on the "expected_price_reviewed_by_admin_id" field.
+func ExpectedPriceReviewedByAdminIDNotNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotNull(FieldExpectedPriceReviewedByAdminID))
+}
+
+// ExpectedPriceReviewedAtEQ applies the EQ predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtEQ(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceReviewedAt, v))
+}
+
+// ExpectedPriceReviewedAtNEQ applies the NEQ predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtNEQ(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldExpectedPriceReviewedAt, v))
+}
+
+// ExpectedPriceReviewedAtIn applies the In predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtIn(vs ...time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldExpectedPriceReviewedAt, vs...))
+}
+
+// ExpectedPriceReviewedAtNotIn applies the NotIn predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtNotIn(vs ...time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldExpectedPriceReviewedAt, vs...))
+}
+
+// ExpectedPriceReviewedAtGT applies the GT predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtGT(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldExpectedPriceReviewedAt, v))
+}
+
+// ExpectedPriceReviewedAtGTE applies the GTE predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtGTE(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldExpectedPriceReviewedAt, v))
+}
+
+// ExpectedPriceReviewedAtLT applies the LT predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtLT(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldExpectedPriceReviewedAt, v))
+}
+
+// ExpectedPriceReviewedAtLTE applies the LTE predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtLTE(v time.Time) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldExpectedPriceReviewedAt, v))
+}
+
+// ExpectedPriceReviewedAtIsNil applies the IsNil predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtIsNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIsNull(FieldExpectedPriceReviewedAt))
+}
+
+// ExpectedPriceReviewedAtNotNil applies the NotNil predicate on the "expected_price_reviewed_at" field.
+func ExpectedPriceReviewedAtNotNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotNull(FieldExpectedPriceReviewedAt))
+}
+
+// ExpectedPriceReviewNoteEQ applies the EQ predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteEQ(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteNEQ applies the NEQ predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteNEQ(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteIn applies the In predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteIn(vs ...string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldExpectedPriceReviewNote, vs...))
+}
+
+// ExpectedPriceReviewNoteNotIn applies the NotIn predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteNotIn(vs ...string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldExpectedPriceReviewNote, vs...))
+}
+
+// ExpectedPriceReviewNoteGT applies the GT predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteGT(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteGTE applies the GTE predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteGTE(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteLT applies the LT predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteLT(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteLTE applies the LTE predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteLTE(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteContains applies the Contains predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteContains(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldContains(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteHasPrefix applies the HasPrefix predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteHasPrefix(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldHasPrefix(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteHasSuffix applies the HasSuffix predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteHasSuffix(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldHasSuffix(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteEqualFold applies the EqualFold predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteEqualFold(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEqualFold(FieldExpectedPriceReviewNote, v))
+}
+
+// ExpectedPriceReviewNoteContainsFold applies the ContainsFold predicate on the "expected_price_review_note" field.
+func ExpectedPriceReviewNoteContainsFold(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldContainsFold(FieldExpectedPriceReviewNote, v))
+}
+
+// ServiceSlotStartMinuteEQ applies the EQ predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldServiceSlotStartMinute, v))
+}
+
+// ServiceSlotStartMinuteNEQ applies the NEQ predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteNEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldServiceSlotStartMinute, v))
+}
+
+// ServiceSlotStartMinuteIn applies the In predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldServiceSlotStartMinute, vs...))
+}
+
+// ServiceSlotStartMinuteNotIn applies the NotIn predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteNotIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldServiceSlotStartMinute, vs...))
+}
+
+// ServiceSlotStartMinuteGT applies the GT predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteGT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldServiceSlotStartMinute, v))
+}
+
+// ServiceSlotStartMinuteGTE applies the GTE predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteGTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldServiceSlotStartMinute, v))
+}
+
+// ServiceSlotStartMinuteLT applies the LT predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteLT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldServiceSlotStartMinute, v))
+}
+
+// ServiceSlotStartMinuteLTE applies the LTE predicate on the "service_slot_start_minute" field.
+func ServiceSlotStartMinuteLTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldServiceSlotStartMinute, v))
+}
+
+// ServiceSlotEndMinuteEQ applies the EQ predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldServiceSlotEndMinute, v))
+}
+
+// ServiceSlotEndMinuteNEQ applies the NEQ predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteNEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldServiceSlotEndMinute, v))
+}
+
+// ServiceSlotEndMinuteIn applies the In predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldServiceSlotEndMinute, vs...))
+}
+
+// ServiceSlotEndMinuteNotIn applies the NotIn predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteNotIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldServiceSlotEndMinute, vs...))
+}
+
+// ServiceSlotEndMinuteGT applies the GT predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteGT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldServiceSlotEndMinute, v))
+}
+
+// ServiceSlotEndMinuteGTE applies the GTE predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteGTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldServiceSlotEndMinute, v))
+}
+
+// ServiceSlotEndMinuteLT applies the LT predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteLT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldServiceSlotEndMinute, v))
+}
+
+// ServiceSlotEndMinuteLTE applies the LTE predicate on the "service_slot_end_minute" field.
+func ServiceSlotEndMinuteLTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldServiceSlotEndMinute, v))
+}
+
+// AutoOnlineEQ applies the EQ predicate on the "auto_online" field.
+func AutoOnlineEQ(v bool) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldAutoOnline, v))
+}
+
+// AutoOnlineNEQ applies the NEQ predicate on the "auto_online" field.
+func AutoOnlineNEQ(v bool) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldAutoOnline, v))
+}
+
+// AcceptPriceMinCentsEQ applies the EQ predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsEQ(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldAcceptPriceMinCents, v))
+}
+
+// AcceptPriceMinCentsNEQ applies the NEQ predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsNEQ(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldAcceptPriceMinCents, v))
+}
+
+// AcceptPriceMinCentsIn applies the In predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsIn(vs ...int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldAcceptPriceMinCents, vs...))
+}
+
+// AcceptPriceMinCentsNotIn applies the NotIn predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsNotIn(vs ...int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldAcceptPriceMinCents, vs...))
+}
+
+// AcceptPriceMinCentsGT applies the GT predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsGT(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldAcceptPriceMinCents, v))
+}
+
+// AcceptPriceMinCentsGTE applies the GTE predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsGTE(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldAcceptPriceMinCents, v))
+}
+
+// AcceptPriceMinCentsLT applies the LT predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsLT(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldAcceptPriceMinCents, v))
+}
+
+// AcceptPriceMinCentsLTE applies the LTE predicate on the "accept_price_min_cents" field.
+func AcceptPriceMinCentsLTE(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldAcceptPriceMinCents, v))
+}
+
+// AcceptPriceMaxCentsEQ applies the EQ predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsEQ(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldAcceptPriceMaxCents, v))
+}
+
+// AcceptPriceMaxCentsNEQ applies the NEQ predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsNEQ(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldAcceptPriceMaxCents, v))
+}
+
+// AcceptPriceMaxCentsIn applies the In predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsIn(vs ...int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldAcceptPriceMaxCents, vs...))
+}
+
+// AcceptPriceMaxCentsNotIn applies the NotIn predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsNotIn(vs ...int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldAcceptPriceMaxCents, vs...))
+}
+
+// AcceptPriceMaxCentsGT applies the GT predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsGT(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldAcceptPriceMaxCents, v))
+}
+
+// AcceptPriceMaxCentsGTE applies the GTE predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsGTE(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldAcceptPriceMaxCents, v))
+}
+
+// AcceptPriceMaxCentsLT applies the LT predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsLT(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldAcceptPriceMaxCents, v))
+}
+
+// AcceptPriceMaxCentsLTE applies the LTE predicate on the "accept_price_max_cents" field.
+func AcceptPriceMaxCentsLTE(v int64) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldAcceptPriceMaxCents, v))
+}
+
+// FixedTeamEnabledEQ applies the EQ predicate on the "fixed_team_enabled" field.
+func FixedTeamEnabledEQ(v bool) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldFixedTeamEnabled, v))
+}
+
+// FixedTeamEnabledNEQ applies the NEQ predicate on the "fixed_team_enabled" field.
+func FixedTeamEnabledNEQ(v bool) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldFixedTeamEnabled, v))
+}
+
+// FixedTeamSlotStartMinuteEQ applies the EQ predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldFixedTeamSlotStartMinute, v))
+}
+
+// FixedTeamSlotStartMinuteNEQ applies the NEQ predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteNEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldFixedTeamSlotStartMinute, v))
+}
+
+// FixedTeamSlotStartMinuteIn applies the In predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldFixedTeamSlotStartMinute, vs...))
+}
+
+// FixedTeamSlotStartMinuteNotIn applies the NotIn predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteNotIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldFixedTeamSlotStartMinute, vs...))
+}
+
+// FixedTeamSlotStartMinuteGT applies the GT predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteGT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldFixedTeamSlotStartMinute, v))
+}
+
+// FixedTeamSlotStartMinuteGTE applies the GTE predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteGTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldFixedTeamSlotStartMinute, v))
+}
+
+// FixedTeamSlotStartMinuteLT applies the LT predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteLT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldFixedTeamSlotStartMinute, v))
+}
+
+// FixedTeamSlotStartMinuteLTE applies the LTE predicate on the "fixed_team_slot_start_minute" field.
+func FixedTeamSlotStartMinuteLTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldFixedTeamSlotStartMinute, v))
+}
+
+// FixedTeamSlotEndMinuteEQ applies the EQ predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldFixedTeamSlotEndMinute, v))
+}
+
+// FixedTeamSlotEndMinuteNEQ applies the NEQ predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteNEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldFixedTeamSlotEndMinute, v))
+}
+
+// FixedTeamSlotEndMinuteIn applies the In predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldFixedTeamSlotEndMinute, vs...))
+}
+
+// FixedTeamSlotEndMinuteNotIn applies the NotIn predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteNotIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldFixedTeamSlotEndMinute, vs...))
+}
+
+// FixedTeamSlotEndMinuteGT applies the GT predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteGT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldFixedTeamSlotEndMinute, v))
+}
+
+// FixedTeamSlotEndMinuteGTE applies the GTE predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteGTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldFixedTeamSlotEndMinute, v))
+}
+
+// FixedTeamSlotEndMinuteLT applies the LT predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteLT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldFixedTeamSlotEndMinute, v))
+}
+
+// FixedTeamSlotEndMinuteLTE applies the LTE predicate on the "fixed_team_slot_end_minute" field.
+func FixedTeamSlotEndMinuteLTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldFixedTeamSlotEndMinute, v))
+}
+
+// TimezoneEQ applies the EQ predicate on the "timezone" field.
+func TimezoneEQ(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldTimezone, v))
+}
+
+// TimezoneNEQ applies the NEQ predicate on the "timezone" field.
+func TimezoneNEQ(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldTimezone, v))
+}
+
+// TimezoneIn applies the In predicate on the "timezone" field.
+func TimezoneIn(vs ...string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldTimezone, vs...))
+}
+
+// TimezoneNotIn applies the NotIn predicate on the "timezone" field.
+func TimezoneNotIn(vs ...string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldTimezone, vs...))
+}
+
+// TimezoneGT applies the GT predicate on the "timezone" field.
+func TimezoneGT(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldTimezone, v))
+}
+
+// TimezoneGTE applies the GTE predicate on the "timezone" field.
+func TimezoneGTE(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldTimezone, v))
+}
+
+// TimezoneLT applies the LT predicate on the "timezone" field.
+func TimezoneLT(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldTimezone, v))
+}
+
+// TimezoneLTE applies the LTE predicate on the "timezone" field.
+func TimezoneLTE(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldTimezone, v))
+}
+
+// TimezoneContains applies the Contains predicate on the "timezone" field.
+func TimezoneContains(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldContains(FieldTimezone, v))
+}
+
+// TimezoneHasPrefix applies the HasPrefix predicate on the "timezone" field.
+func TimezoneHasPrefix(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldHasPrefix(FieldTimezone, v))
+}
+
+// TimezoneHasSuffix applies the HasSuffix predicate on the "timezone" field.
+func TimezoneHasSuffix(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldHasSuffix(FieldTimezone, v))
+}
+
+// TimezoneEqualFold applies the EqualFold predicate on the "timezone" field.
+func TimezoneEqualFold(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEqualFold(FieldTimezone, v))
+}
+
+// TimezoneContainsFold applies the ContainsFold predicate on the "timezone" field.
+func TimezoneContainsFold(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldContainsFold(FieldTimezone, v))
+}
+
+// LatitudeE6EQ applies the EQ predicate on the "latitude_e6" field.
+func LatitudeE6EQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldLatitudeE6, v))
+}
+
+// LatitudeE6NEQ applies the NEQ predicate on the "latitude_e6" field.
+func LatitudeE6NEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldLatitudeE6, v))
+}
+
+// LatitudeE6In applies the In predicate on the "latitude_e6" field.
+func LatitudeE6In(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldLatitudeE6, vs...))
+}
+
+// LatitudeE6NotIn applies the NotIn predicate on the "latitude_e6" field.
+func LatitudeE6NotIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldLatitudeE6, vs...))
+}
+
+// LatitudeE6GT applies the GT predicate on the "latitude_e6" field.
+func LatitudeE6GT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldLatitudeE6, v))
+}
+
+// LatitudeE6GTE applies the GTE predicate on the "latitude_e6" field.
+func LatitudeE6GTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldLatitudeE6, v))
+}
+
+// LatitudeE6LT applies the LT predicate on the "latitude_e6" field.
+func LatitudeE6LT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldLatitudeE6, v))
+}
+
+// LatitudeE6LTE applies the LTE predicate on the "latitude_e6" field.
+func LatitudeE6LTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldLatitudeE6, v))
+}
+
+// LongitudeE6EQ applies the EQ predicate on the "longitude_e6" field.
+func LongitudeE6EQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldLongitudeE6, v))
+}
+
+// LongitudeE6NEQ applies the NEQ predicate on the "longitude_e6" field.
+func LongitudeE6NEQ(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNEQ(FieldLongitudeE6, v))
+}
+
+// LongitudeE6In applies the In predicate on the "longitude_e6" field.
+func LongitudeE6In(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIn(FieldLongitudeE6, vs...))
+}
+
+// LongitudeE6NotIn applies the NotIn predicate on the "longitude_e6" field.
+func LongitudeE6NotIn(vs ...int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotIn(FieldLongitudeE6, vs...))
+}
+
+// LongitudeE6GT applies the GT predicate on the "longitude_e6" field.
+func LongitudeE6GT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldLongitudeE6, v))
+}
+
+// LongitudeE6GTE applies the GTE predicate on the "longitude_e6" field.
+func LongitudeE6GTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldLongitudeE6, v))
+}
+
+// LongitudeE6LT applies the LT predicate on the "longitude_e6" field.
+func LongitudeE6LT(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldLongitudeE6, v))
+}
+
+// LongitudeE6LTE applies the LTE predicate on the "longitude_e6" field.
+func LongitudeE6LTE(v int) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldLongitudeE6, v))
 }
 
 // VersionEQ applies the EQ predicate on the "version" field.

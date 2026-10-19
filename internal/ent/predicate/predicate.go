@@ -48,8 +48,17 @@ type EsportsAfterSale func(*sql.Selector)
 // EsportsAfterSaleAction is the predicate function for esportsaftersaleaction builders.
 type EsportsAfterSaleAction func(*sql.Selector)
 
+// EsportsAfterSaleMessage is the predicate function for esportsaftersalemessage builders.
+type EsportsAfterSaleMessage func(*sql.Selector)
+
 // EsportsAfterSaleReview is the predicate function for esportsaftersalereview builders.
 type EsportsAfterSaleReview func(*sql.Selector)
+
+// EsportsAfterSaleRule is the predicate function for esportsaftersalerule builders.
+type EsportsAfterSaleRule func(*sql.Selector)
+
+// EsportsAfterSaleRuleHit is the predicate function for esportsaftersalerulehit builders.
+type EsportsAfterSaleRuleHit func(*sql.Selector)
 
 // EsportsAgeCheck is the predicate function for esportsagecheck builders.
 type EsportsAgeCheck func(*sql.Selector)
@@ -102,6 +111,9 @@ type EsportsCsCommissionEntry func(*sql.Selector)
 // EsportsCsCommissionRule is the predicate function for esportscscommissionrule builders.
 type EsportsCsCommissionRule func(*sql.Selector)
 
+// EsportsCsPresence is the predicate function for esportscspresence builders.
+type EsportsCsPresence func(*sql.Selector)
+
 // EsportsCustomer is the predicate function for esportscustomer builders.
 type EsportsCustomer func(*sql.Selector)
 
@@ -134,6 +146,9 @@ type EsportsGiftIntent func(*sql.Selector)
 
 // EsportsGiftOrder is the predicate function for esportsgiftorder builders.
 type EsportsGiftOrder func(*sql.Selector)
+
+// EsportsGiftTier is the predicate function for esportsgifttier builders.
+type EsportsGiftTier func(*sql.Selector)
 
 // EsportsGrowthLedger is the predicate function for esportsgrowthledger builders.
 type EsportsGrowthLedger func(*sql.Selector)
@@ -210,6 +225,9 @@ type EsportsPlayerRecovery func(*sql.Selector)
 // EsportsPlayerReview is the predicate function for esportsplayerreview builders.
 type EsportsPlayerReview func(*sql.Selector)
 
+// EsportsPlayerReviewAppeal is the predicate function for esportsplayerreviewappeal builders.
+type EsportsPlayerReviewAppeal func(*sql.Selector)
+
 // EsportsPlayerReviewRevision is the predicate function for esportsplayerreviewrevision builders.
 type EsportsPlayerReviewRevision func(*sql.Selector)
 
@@ -275,6 +293,9 @@ type EsportsSpecGroup func(*sql.Selector)
 
 // EsportsStoredValueCard is the predicate function for esportsstoredvaluecard builders.
 type EsportsStoredValueCard func(*sql.Selector)
+
+// EsportsStoredValueException is the predicate function for esportsstoredvalueexception builders.
+type EsportsStoredValueException func(*sql.Selector)
 
 // EsportsStoredValuePackage is the predicate function for esportsstoredvaluepackage builders.
 type EsportsStoredValuePackage func(*sql.Selector)

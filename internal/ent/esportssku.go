@@ -41,6 +41,10 @@ type EsportsSku struct {
 	ServiceUnits int64 `json:"service_units"`
 	// ServiceUnitName holds the value of the "service_unit_name" field.
 	ServiceUnitName string `json:"service_unit_name"`
+	// PerSeatServiceUnits holds the value of the "per_seat_service_units" field.
+	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
+	// CostCents holds the value of the "cost_cents" field.
+	CostCents *int64 `json:"cost_cents"`
 	// ServiceDurationMinutes holds the value of the "service_duration_minutes" field.
 	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// RequiredSeats holds the value of the "required_seats" field.
@@ -73,7 +77,7 @@ func (*EsportsSku) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldProductID, esportssku.FieldSpecGroupID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldServiceDurationMinutes, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
+		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldProductID, esportssku.FieldSpecGroupID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldPerSeatServiceUnits, esportssku.FieldCostCents, esportssku.FieldServiceDurationMinutes, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldRequiredLevel, esportssku.FieldCloseRuleCode, esportssku.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -174,6 +178,19 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field service_unit_name", values[i])
 			} else if value.Valid {
 				_m.ServiceUnitName = value.String
+			}
+		case esportssku.FieldPerSeatServiceUnits:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field per_seat_service_units", values[i])
+			} else if value.Valid {
+				_m.PerSeatServiceUnits = value.Int64
+			}
+		case esportssku.FieldCostCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field cost_cents", values[i])
+			} else if value.Valid {
+				_m.CostCents = new(int64)
+				*_m.CostCents = value.Int64
 			}
 		case esportssku.FieldServiceDurationMinutes:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -324,6 +341,14 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("service_unit_name=")
 	builder.WriteString(_m.ServiceUnitName)
+	builder.WriteString(", ")
+	builder.WriteString("per_seat_service_units=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PerSeatServiceUnits))
+	builder.WriteString(", ")
+	if v := _m.CostCents; v != nil {
+		builder.WriteString("cost_cents=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("service_duration_minutes=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ServiceDurationMinutes))

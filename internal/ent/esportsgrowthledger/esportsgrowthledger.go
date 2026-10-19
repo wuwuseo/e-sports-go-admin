@@ -25,6 +25,8 @@ const (
 	FieldSourceType = "source_type"
 	// FieldSourceID holds the string denoting the source_id field in the database.
 	FieldSourceID = "source_id"
+	// FieldPaymentSource holds the string denoting the payment_source field in the database.
+	FieldPaymentSource = "payment_source"
 	// FieldOperatorID holds the string denoting the operator_id field in the database.
 	FieldOperatorID = "operator_id"
 	// FieldNote holds the string denoting the note field in the database.
@@ -45,6 +47,7 @@ var Columns = []string{
 	FieldDelta,
 	FieldSourceType,
 	FieldSourceID,
+	FieldPaymentSource,
 	FieldOperatorID,
 	FieldNote,
 	FieldCreatedAt,
@@ -104,6 +107,35 @@ func SourceTypeValidator(st SourceType) error {
 	}
 }
 
+// PaymentSource defines the type for the "payment_source" enum field.
+type PaymentSource string
+
+// PaymentSourceNone is the default value of the PaymentSource enum.
+const DefaultPaymentSource = PaymentSourceNone
+
+// PaymentSource values.
+const (
+	PaymentSourceNone             PaymentSource = "none"
+	PaymentSourceCash             PaymentSource = "cash"
+	PaymentSourcePrepaidPrincipal PaymentSource = "prepaid_principal"
+	PaymentSourceBonusGrant       PaymentSource = "bonus_grant"
+	PaymentSourceMixed            PaymentSource = "mixed"
+)
+
+func (ps PaymentSource) String() string {
+	return string(ps)
+}
+
+// PaymentSourceValidator is a validator for the "payment_source" field enum values. It is called by the builders before save.
+func PaymentSourceValidator(ps PaymentSource) error {
+	switch ps {
+	case PaymentSourceNone, PaymentSourceCash, PaymentSourcePrepaidPrincipal, PaymentSourceBonusGrant, PaymentSourceMixed:
+		return nil
+	default:
+		return fmt.Errorf("esportsgrowthledger: invalid enum value for payment_source field: %q", ps)
+	}
+}
+
 // OrderOption defines the ordering options for the EsportsGrowthLedger queries.
 type OrderOption func(*sql.Selector)
 
@@ -130,6 +162,11 @@ func BySourceType(opts ...sql.OrderTermOption) OrderOption {
 // BySourceID orders the results by the source_id field.
 func BySourceID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSourceID, opts...).ToFunc()
+}
+
+// ByPaymentSource orders the results by the payment_source field.
+func ByPaymentSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentSource, opts...).ToFunc()
 }
 
 // ByOperatorID orders the results by the operator_id field.

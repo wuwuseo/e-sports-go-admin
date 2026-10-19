@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsdispatchprioritygrant"
 	"go-admin/internal/ent/esportsdispatchprioritynotice"
 	"go-admin/internal/ent/esportsdispatchseat"
@@ -197,6 +198,149 @@ func listDispatchPriority(ctx context.Context, db *ent.Client, game, status stri
 	).Limit(limit).All(ctx)
 }
 
+// ── 陪玩端「我的优先派单权」状态查询（§6.1-06） ──
+//
+// 与 §5.4-09 的通知列表互补：通知列表回答「现在有哪张单只通知了我」，本状态回答
+// 「我这一期是否在名单里、怎么来的、有效期到什么时候、这个游戏分区还剩几个名额」。
+
+// dispatchPriorityHolding 是一条持权记录。
+type dispatchPriorityHolding struct {
+	Game string `json:"game"`
+	// Period 周期类型（daily/weekly/biweekly/monthly）。
+	Period string `json:"period"`
+	// PeriodStart / PeriodEnd 有效期（左闭右开）；period_end 之后条目由重算任务转 expired。
+	PeriodStart time.Time `json:"period_start"`
+	PeriodEnd   time.Time `json:"period_end"`
+	Rank        int       `json:"rank"`
+	// Source 获得方式：ranking / points / threshold / rotation / manual。
+	Source string `json:"source"`
+	// Status 名单条目状态（active / pending）；本接口不返回 revoked / expired。
+	Status string `json:"status"`
+	// Active 是否当前生效（status=active 且 now ∈ [period_start, period_end)）。
+	Active bool   `json:"active"`
+	Note   string `json:"note"`
+	// Quota / Used / Remaining 是该游戏该期的名额口径（Used 含 pending 与 active 条目）。
+	Quota     int `json:"quota"`
+	Used      int `json:"used"`
+	Remaining int `json:"remaining"`
+}
+
+// dispatchPriorityGameQuota 按游戏汇总的名额占用。
+type dispatchPriorityGameQuota struct {
+	Game      string `json:"game"`
+	Quota     int    `json:"quota"`
+	Used      int    `json:"used"`
+	Remaining int    `json:"remaining"`
+}
+
+// playerPriorityStatusView 是陪玩端优先派单权状态（§6.1-06）。
+type playerPriorityStatusView struct {
+	PlayerID int `json:"player_id"`
+	// Holding 当前是否有生效中的优先派单权（pending 的下一期名单不算持有）。
+	Holding  bool                        `json:"holding"`
+	Holdings []dispatchPriorityHolding   `json:"holdings"`
+	Games    []dispatchPriorityGameQuota `json:"games"`
+}
+
+// playerPriorityStatus 查询陪玩本人的优先派单权状态（§6.1-06）：
+//   - 只返回未过期的 pending / active 条目（revoked / expired 属于历史，不在「当前是否持有」范围内）；
+//   - Active 同时要求 now ∈ [period_start, period_end)，避免周期切换点前后把未生效名单误报为生效；
+//   - Quota 取 app.esports.dispatch_priority_quota（缺失/非法回落 3），Used 按「同游戏同 period_start」的
+//     未失效条目计数，Remaining = max(0, Quota − Used)。
+func playerPriorityStatus(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*playerPriorityStatusView, error) {
+	if playerID < 1 {
+		return nil, errInvalidInput
+	}
+	now = now.UTC()
+	grants, err := db.EsportsDispatchPriorityGrant.Query().Where(
+		esportsdispatchprioritygrant.PlayerIDEQ(playerID),
+		esportsdispatchprioritygrant.StatusIn(
+			esportsdispatchprioritygrant.StatusPending, esportsdispatchprioritygrant.StatusActive),
+		esportsdispatchprioritygrant.PeriodEndGT(now),
+	).Order(
+		ent.Asc(esportsdispatchprioritygrant.FieldPeriodStart),
+		ent.Asc(esportsdispatchprioritygrant.FieldRank),
+	).Limit(50).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	view := &playerPriorityStatusView{
+		PlayerID: playerID,
+		Holdings: make([]dispatchPriorityHolding, 0, len(grants)),
+		Games:    []dispatchPriorityGameQuota{},
+	}
+	// 名额占用按「游戏 + 期起点」统计（同游戏同期才有名额上限）。
+	used := map[string]int{}
+	quotaByGame := map[string]int{}
+	seenGame := map[string]bool{}
+	for _, grant := range grants {
+		key := priorityQuotaKey(grant.Game, grant.PeriodStart)
+		if _, ok := used[key]; !ok {
+			count, err := db.EsportsDispatchPriorityGrant.Query().Where(
+				esportsdispatchprioritygrant.GameEQ(grant.Game),
+				esportsdispatchprioritygrant.PeriodStartEQ(grant.PeriodStart.UTC()),
+				esportsdispatchprioritygrant.StatusIn(
+					esportsdispatchprioritygrant.StatusPending, esportsdispatchprioritygrant.StatusActive),
+			).Count(ctx)
+			if err != nil {
+				return nil, err
+			}
+			used[key] = count
+		}
+		if !seenGame[grant.Game] {
+			seenGame[grant.Game] = true
+			quotaByGame[grant.Game] = dispatchPriorityQuota(ctx, db)
+		}
+		quota := quotaByGame[grant.Game]
+		remaining := quota - used[key]
+		if remaining < 0 {
+			remaining = 0
+		}
+		active := grant.Status == esportsdispatchprioritygrant.StatusActive &&
+			!now.Before(grant.PeriodStart.UTC()) && now.Before(grant.PeriodEnd.UTC())
+		if active {
+			view.Holding = true
+		}
+		view.Holdings = append(view.Holdings, dispatchPriorityHolding{
+			Game: grant.Game, Period: grant.Period.String(),
+			PeriodStart: grant.PeriodStart.UTC(), PeriodEnd: grant.PeriodEnd.UTC(),
+			Rank: grant.Rank, Source: grant.Source.String(), Status: grant.Status.String(),
+			Active: active, Note: grant.Note,
+			Quota: quota, Used: used[key], Remaining: remaining,
+		})
+	}
+	for _, grant := range grants {
+		if grant.Game == "" {
+			continue
+		}
+		found := false
+		for _, item := range view.Games {
+			if item.Game == grant.Game {
+				found = true
+				break
+			}
+		}
+		if found {
+			continue
+		}
+		key := priorityQuotaKey(grant.Game, grant.PeriodStart)
+		quota := quotaByGame[grant.Game]
+		remaining := quota - used[key]
+		if remaining < 0 {
+			remaining = 0
+		}
+		view.Games = append(view.Games, dispatchPriorityGameQuota{
+			Game: grant.Game, Quota: quota, Used: used[key], Remaining: remaining,
+		})
+	}
+	return view, nil
+}
+
+// priorityQuotaKey 名额统计键：同游戏同「期起点」共用一份名额。
+func priorityQuotaKey(game string, periodStart time.Time) string {
+	return game + "|" + periodStart.UTC().Format(time.RFC3339)
+}
+
 // rebuildDispatchPriority 周期重算（§5.4）：过期名单转 expired、到点名单转 active，
 // 并在切换点前为下一期预生成名单。获得方式为排名制/积分制/达标制的名单按各自口径自动计算
 // （见 autoComputeDispatchPriority），轮换制与人工指定仍延续本期名单。返回处理的条目数。
@@ -354,6 +498,10 @@ type dispatchCandidate struct {
 	// 分区等级：当前生效优先派单权名单内的排名，0 表示不在名单或未排名。
 	// 仅作展示（客服了解名单情况），不参与排序（§5.2-04 / §5.4-03）。
 	ZoneRank int `json:"zone_rank"`
+	// 距客户的直线距离（米，§5.5-03）；0 表示客户或本人未采集定位（未知，不加分）。
+	DistanceMeters int64 `json:"distance_meters"`
+	// 是否与客户档案同一天时区（§5.5-03）；任一方未配置时区时为 false。
+	TimezoneMatched bool `json:"timezone_matched"`
 	// 合成排序分（§5.5）：各分量按配置权重加权，越大越靠前；仅作排序诊断。
 	Score int `json:"score"`
 }
@@ -366,10 +514,11 @@ type dispatchCandidate struct {
 //
 // 硬性条件：资质 qualified、在线（与人工指派的门槛一致）；已在该订单席位上的陪玩不重复列出。
 // 排序：客服指定陪玩（preferredPlayerID）最前；其余按「评分 / 在途席位均衡 / 历史合作 /
-// 客户偏好」以可配置权重合成排序分降序（§5.5），同分按档案 ID 稳定兜底。
+// 客户偏好 / 距离 / 时区」以可配置权重合成排序分降序（§5.5），同分按档案 ID 稳定兜底。
 // 优先派单权名单名次**不参与排序**（§5.2-04 / §5.4-03），只在候选上保留 ZoneRank 展示字段。
+// 距离与时区（§5.5-03）以订单所属客户档案的定位/时区为参考点，权重默认 0（不参与排序）。
 //
-// ponytail: 距离/时区以「分区等级（优先派单权名单排名）」近似，未接真实定位；真实推送未接入。
+// ponytail: 距离为球面直线距离，未接实时轨迹/导航距离；真实推送未接入。
 // 评分与历史合作按候选逐个聚合，候选量级大时可改为一次批量聚合。
 func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
 	preferredPlayerID, limit int, now time.Time) ([]*dispatchCandidate, error) {
@@ -412,7 +561,10 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 	}
 	playerQuery := db.EsportsPlayer.Query().Where(
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
-		esportsplayer.PresenceEQ(esportsplayer.PresenceOnline),
+		// §6.4-01：连接异常（protected_abnormal）但存在在途订单的陪玩保留候选资格，
+		// 因此候选池先纳入 protected_abnormal，再由 playerEligibleForDispatch 精筛。
+		esportsplayer.PresenceIn(
+			esportsplayer.PresenceOnline, esportsplayer.PresenceProtectedAbnormal),
 	)
 	if windowOpen {
 		if len(notified) == 0 {
@@ -463,6 +615,19 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		return nil, err
 	}
 	weights := dispatchRankWeightsFor(ctx, db)
+	// §5.5-03：距离/时区的参考点是订单所属客户档案；客户不存在或无定位时不产生任何加分。
+	var customerTZ string
+	customerLatE6, customerLonE6 := 0, 0
+	if order.CustomerID > 0 {
+		customer, err := db.EsportsCustomer.Query().Where(esportscustomer.IDEQ(order.CustomerID)).Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return nil, err
+		}
+		if customer != nil {
+			customerTZ = customer.Timezone
+			customerLatE6, customerLonE6 = customer.LatitudeE6, customer.LongitudeE6
+		}
+	}
 	capacityTx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, err
@@ -473,8 +638,20 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if occupied[player.ID] {
 			continue
 		}
+		// §5.5-01：连接正常（在线 + 心跳新鲜度）；有在途订单的保护异常陪玩保留资格（§6.4-01）。
+		eligible, err := playerEligibleForDispatch(ctx, db, player, now)
+		if err != nil {
+			return nil, err
+		}
+		if !eligible {
+			continue
+		}
 		// 游戏分区权限 + 技能等级（§5.5）：不满足硬性条件的陪玩不出现在候选池。
 		if err := checkPlayerGameLevel(player, game, requiredLevel); err != nil {
+			continue
+		}
+		// §6.4-06：服务时段外 / 可接单价范围外的陪玩不作为候选（不给注定接不了的单）。
+		if !playerServiceSlotAllows(player, now) || !playerAcceptsOrderPrice(player, order) {
 			continue
 		}
 		if err := checkPlayerDispatchLimit(ctx, capacityTx, player, order, now, 0); err != nil {
@@ -498,11 +675,24 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 			preferenceScore = 100
 		}
 		zoneRank := zoneRanks[player.ID]
+		// §5.5-03：距离/时区加分（权重为 0 时对排序无影响，但展示字段照常给出）。
+		distanceMeters, located := dispatchDistanceMeters(player.LatitudeE6, player.LongitudeE6,
+			customerLatE6, customerLonE6)
+		if !located {
+			distanceMeters = 0
+		}
+		timezoneMatched := false
+		if strings.TrimSpace(customerTZ) != "" &&
+			strings.TrimSpace(player.Timezone) == strings.TrimSpace(customerTZ) {
+			timezoneMatched = true
+		}
 		score := dispatchRankScore(weights, dispatchRankFactors{
 			RatingScore:     ratingScore,
 			HistoryScore:    normalizeCappedScore(historyCounts[player.ID], weights.HistoryCap),
 			PreferenceScore: preferenceScore,
 			BalanceScore:    normalizeCappedScore(load[player.ID], weights.BalanceCap),
+			DistanceScore:   dispatchDistanceScore(distanceMeters, weights.DistanceCapKm),
+			TimezoneScore:   dispatchTimezoneScore(player.Timezone, customerTZ),
 		})
 		candidates = append(candidates, &dispatchCandidate{
 			PlayerID:           player.ID,
@@ -518,6 +708,8 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 			ActiveSeats:        load[player.ID],
 			HistoryCompleted:   historyCounts[player.ID],
 			ZoneRank:           zoneRank,
+			DistanceMeters:     distanceMeters,
+			TimezoneMatched:    timezoneMatched,
 			Score:              score,
 		})
 	}

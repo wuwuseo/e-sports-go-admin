@@ -86,6 +86,8 @@ const (
 	FieldResolution = "resolution"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
+	// FieldActiveDedupKey holds the string denoting the active_dedup_key field in the database.
+	FieldActiveDedupKey = "active_dedup_key"
 	// FieldResolvedAt holds the string denoting the resolved_at field in the database.
 	FieldResolvedAt = "resolved_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -137,6 +139,7 @@ var Columns = []string{
 	FieldExecutorAdminID,
 	FieldResolution,
 	FieldVersion,
+	FieldActiveDedupKey,
 	FieldResolvedAt,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -189,6 +192,8 @@ var (
 	ResolutionValidator func(string) error
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int
+	// ActiveDedupKeyValidator is a validator for the "active_dedup_key" field. It is called by the builders before save.
+	ActiveDedupKeyValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
@@ -606,6 +611,11 @@ func ByResolution(opts ...sql.OrderTermOption) OrderOption {
 // ByVersion orders the results by the version field.
 func ByVersion(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldVersion, opts...).ToFunc()
+}
+
+// ByActiveDedupKey orders the results by the active_dedup_key field.
+func ByActiveDedupKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActiveDedupKey, opts...).ToFunc()
 }
 
 // ByResolvedAt orders the results by the resolved_at field.

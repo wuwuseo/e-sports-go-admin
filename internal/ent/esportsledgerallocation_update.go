@@ -132,6 +132,48 @@ func (_u *EsportsLedgerAllocationUpdate) AddAmountCents(v int64) *EsportsLedgerA
 	return _u
 }
 
+// SetPrincipalCents sets the "principal_cents" field.
+func (_u *EsportsLedgerAllocationUpdate) SetPrincipalCents(v int64) *EsportsLedgerAllocationUpdate {
+	_u.mutation.ResetPrincipalCents()
+	_u.mutation.SetPrincipalCents(v)
+	return _u
+}
+
+// SetNillablePrincipalCents sets the "principal_cents" field if the given value is not nil.
+func (_u *EsportsLedgerAllocationUpdate) SetNillablePrincipalCents(v *int64) *EsportsLedgerAllocationUpdate {
+	if v != nil {
+		_u.SetPrincipalCents(*v)
+	}
+	return _u
+}
+
+// AddPrincipalCents adds value to the "principal_cents" field.
+func (_u *EsportsLedgerAllocationUpdate) AddPrincipalCents(v int64) *EsportsLedgerAllocationUpdate {
+	_u.mutation.AddPrincipalCents(v)
+	return _u
+}
+
+// SetBonusCents sets the "bonus_cents" field.
+func (_u *EsportsLedgerAllocationUpdate) SetBonusCents(v int64) *EsportsLedgerAllocationUpdate {
+	_u.mutation.ResetBonusCents()
+	_u.mutation.SetBonusCents(v)
+	return _u
+}
+
+// SetNillableBonusCents sets the "bonus_cents" field if the given value is not nil.
+func (_u *EsportsLedgerAllocationUpdate) SetNillableBonusCents(v *int64) *EsportsLedgerAllocationUpdate {
+	if v != nil {
+		_u.SetBonusCents(*v)
+	}
+	return _u
+}
+
+// AddBonusCents adds value to the "bonus_cents" field.
+func (_u *EsportsLedgerAllocationUpdate) AddBonusCents(v int64) *EsportsLedgerAllocationUpdate {
+	_u.mutation.AddBonusCents(v)
+	return _u
+}
+
 // Mutation returns the EsportsLedgerAllocationMutation object of the builder.
 func (_u *EsportsLedgerAllocationUpdate) Mutation() *EsportsLedgerAllocationMutation {
 	return _u.mutation
@@ -239,6 +281,18 @@ func (_u *EsportsLedgerAllocationUpdate) sqlSave(ctx context.Context) (_node int
 	}
 	if value, ok := _u.mutation.AddedAmountCents(); ok {
 		_spec.AddField(esportsledgerallocation.FieldAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PrincipalCents(); ok {
+		_spec.SetField(esportsledgerallocation.FieldPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPrincipalCents(); ok {
+		_spec.AddField(esportsledgerallocation.FieldPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.BonusCents(); ok {
+		_spec.SetField(esportsledgerallocation.FieldBonusCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedBonusCents(); ok {
+		_spec.AddField(esportsledgerallocation.FieldBonusCents, field.TypeInt64, value)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -362,6 +416,48 @@ func (_u *EsportsLedgerAllocationUpdateOne) SetNillableAmountCents(v *int64) *Es
 // AddAmountCents adds value to the "amount_cents" field.
 func (_u *EsportsLedgerAllocationUpdateOne) AddAmountCents(v int64) *EsportsLedgerAllocationUpdateOne {
 	_u.mutation.AddAmountCents(v)
+	return _u
+}
+
+// SetPrincipalCents sets the "principal_cents" field.
+func (_u *EsportsLedgerAllocationUpdateOne) SetPrincipalCents(v int64) *EsportsLedgerAllocationUpdateOne {
+	_u.mutation.ResetPrincipalCents()
+	_u.mutation.SetPrincipalCents(v)
+	return _u
+}
+
+// SetNillablePrincipalCents sets the "principal_cents" field if the given value is not nil.
+func (_u *EsportsLedgerAllocationUpdateOne) SetNillablePrincipalCents(v *int64) *EsportsLedgerAllocationUpdateOne {
+	if v != nil {
+		_u.SetPrincipalCents(*v)
+	}
+	return _u
+}
+
+// AddPrincipalCents adds value to the "principal_cents" field.
+func (_u *EsportsLedgerAllocationUpdateOne) AddPrincipalCents(v int64) *EsportsLedgerAllocationUpdateOne {
+	_u.mutation.AddPrincipalCents(v)
+	return _u
+}
+
+// SetBonusCents sets the "bonus_cents" field.
+func (_u *EsportsLedgerAllocationUpdateOne) SetBonusCents(v int64) *EsportsLedgerAllocationUpdateOne {
+	_u.mutation.ResetBonusCents()
+	_u.mutation.SetBonusCents(v)
+	return _u
+}
+
+// SetNillableBonusCents sets the "bonus_cents" field if the given value is not nil.
+func (_u *EsportsLedgerAllocationUpdateOne) SetNillableBonusCents(v *int64) *EsportsLedgerAllocationUpdateOne {
+	if v != nil {
+		_u.SetBonusCents(*v)
+	}
+	return _u
+}
+
+// AddBonusCents adds value to the "bonus_cents" field.
+func (_u *EsportsLedgerAllocationUpdateOne) AddBonusCents(v int64) *EsportsLedgerAllocationUpdateOne {
+	_u.mutation.AddBonusCents(v)
 	return _u
 }
 
@@ -502,6 +598,18 @@ func (_u *EsportsLedgerAllocationUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := _u.mutation.AddedAmountCents(); ok {
 		_spec.AddField(esportsledgerallocation.FieldAmountCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PrincipalCents(); ok {
+		_spec.SetField(esportsledgerallocation.FieldPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPrincipalCents(); ok {
+		_spec.AddField(esportsledgerallocation.FieldPrincipalCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.BonusCents(); ok {
+		_spec.SetField(esportsledgerallocation.FieldBonusCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedBonusCents(); ok {
+		_spec.AddField(esportsledgerallocation.FieldBonusCents, field.TypeInt64, value)
 	}
 	_node = &EsportsLedgerAllocation{config: _u.config}
 	_spec.Assign = _node.assignValues

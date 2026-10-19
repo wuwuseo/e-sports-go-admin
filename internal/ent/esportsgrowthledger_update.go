@@ -97,6 +97,20 @@ func (_u *EsportsGrowthLedgerUpdate) SetNillableSourceID(v *string) *EsportsGrow
 	return _u
 }
 
+// SetPaymentSource sets the "payment_source" field.
+func (_u *EsportsGrowthLedgerUpdate) SetPaymentSource(v esportsgrowthledger.PaymentSource) *EsportsGrowthLedgerUpdate {
+	_u.mutation.SetPaymentSource(v)
+	return _u
+}
+
+// SetNillablePaymentSource sets the "payment_source" field if the given value is not nil.
+func (_u *EsportsGrowthLedgerUpdate) SetNillablePaymentSource(v *esportsgrowthledger.PaymentSource) *EsportsGrowthLedgerUpdate {
+	if v != nil {
+		_u.SetPaymentSource(*v)
+	}
+	return _u
+}
+
 // SetOperatorID sets the "operator_id" field.
 func (_u *EsportsGrowthLedgerUpdate) SetOperatorID(v int) *EsportsGrowthLedgerUpdate {
 	_u.mutation.ResetOperatorID()
@@ -187,6 +201,11 @@ func (_u *EsportsGrowthLedgerUpdate) check() error {
 			return &ValidationError{Name: "source_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.source_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PaymentSource(); ok {
+		if err := esportsgrowthledger.PaymentSourceValidator(v); err != nil {
+			return &ValidationError{Name: "payment_source", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.payment_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Note(); ok {
 		if err := esportsgrowthledger.NoteValidator(v); err != nil {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.note": %w`, err)}
@@ -224,6 +243,9 @@ func (_u *EsportsGrowthLedgerUpdate) sqlSave(ctx context.Context) (_node int, er
 	}
 	if value, ok := _u.mutation.SourceID(); ok {
 		_spec.SetField(esportsgrowthledger.FieldSourceID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PaymentSource(); ok {
+		_spec.SetField(esportsgrowthledger.FieldPaymentSource, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.OperatorID(); ok {
 		_spec.SetField(esportsgrowthledger.FieldOperatorID, field.TypeInt, value)
@@ -323,6 +345,20 @@ func (_u *EsportsGrowthLedgerUpdateOne) SetSourceID(v string) *EsportsGrowthLedg
 func (_u *EsportsGrowthLedgerUpdateOne) SetNillableSourceID(v *string) *EsportsGrowthLedgerUpdateOne {
 	if v != nil {
 		_u.SetSourceID(*v)
+	}
+	return _u
+}
+
+// SetPaymentSource sets the "payment_source" field.
+func (_u *EsportsGrowthLedgerUpdateOne) SetPaymentSource(v esportsgrowthledger.PaymentSource) *EsportsGrowthLedgerUpdateOne {
+	_u.mutation.SetPaymentSource(v)
+	return _u
+}
+
+// SetNillablePaymentSource sets the "payment_source" field if the given value is not nil.
+func (_u *EsportsGrowthLedgerUpdateOne) SetNillablePaymentSource(v *esportsgrowthledger.PaymentSource) *EsportsGrowthLedgerUpdateOne {
+	if v != nil {
+		_u.SetPaymentSource(*v)
 	}
 	return _u
 }
@@ -430,6 +466,11 @@ func (_u *EsportsGrowthLedgerUpdateOne) check() error {
 			return &ValidationError{Name: "source_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.source_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PaymentSource(); ok {
+		if err := esportsgrowthledger.PaymentSourceValidator(v); err != nil {
+			return &ValidationError{Name: "payment_source", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.payment_source": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Note(); ok {
 		if err := esportsgrowthledger.NoteValidator(v); err != nil {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsGrowthLedger.note": %w`, err)}
@@ -484,6 +525,9 @@ func (_u *EsportsGrowthLedgerUpdateOne) sqlSave(ctx context.Context) (_node *Esp
 	}
 	if value, ok := _u.mutation.SourceID(); ok {
 		_spec.SetField(esportsgrowthledger.FieldSourceID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PaymentSource(); ok {
+		_spec.SetField(esportsgrowthledger.FieldPaymentSource, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.OperatorID(); ok {
 		_spec.SetField(esportsgrowthledger.FieldOperatorID, field.TypeInt, value)

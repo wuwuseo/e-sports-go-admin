@@ -24,6 +24,8 @@ const (
 
 // customerProfileInput 客户档案可编辑字段（§8.3）。跟进状态可选传，空表示不改。
 // Tags 为增量语义（§8.3-02）：字段缺省 / null（nil）表示不改动既有标签，显式传（含空数组）才整体覆盖。
+// ExpectedVersion 为乐观锁（§8.3-02）：>0 时按 customer.version 条件更新，版本不符返回冲突；
+// 缺省 0 保持既有「最后写入者胜」行为，兼容尚未接入版本号的前端。
 type customerProfileInput struct {
 	Phone                 string   `json:"phone"`
 	Birthday              string   `json:"birthday"`
@@ -32,6 +34,7 @@ type customerProfileInput struct {
 	FollowStatus          string   `json:"follow_status"`
 	// SelfOrderEnabled 工作室是否允许该客户自助下单（§4.1 / §13.7）；不传保持原值。
 	SelfOrderEnabled *bool `json:"self_order_enabled"`
+	ExpectedVersion  int   `json:"expected_version"`
 }
 
 // followUpInput 跟进记录输入（§8.3）。
@@ -120,7 +123,7 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 	if len(tags) > csMaxTags {
 		return nil, errInvalidInput
 	}
-	update := db.EsportsCustomer.UpdateOneID(customerID).
+	update := db.EsportsCustomer.Update().Where(esportscustomer.IDEQ(customerID)).
 		SetPhone(in.Phone).SetBirthday(in.Birthday).
 		SetConsumptionPreference(in.ConsumptionPreference).AddVersion(1)
 	// §8.3-02 标签增量语义：请求未提供 tags（JSON 中不存在 / null，解码为 nil）时不改动既有标签，
@@ -137,8 +140,16 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 		}
 		update.SetFollowStatus(esportscustomer.FollowStatus(in.FollowStatus))
 	}
-	if _, err := update.Save(ctx); err != nil {
+	// §8.3-02 乐观锁：显式传 expected_version 时按版本条件更新，避免并发改档互相覆盖。
+	if in.ExpectedVersion > 0 {
+		update.Where(esportscustomer.VersionEQ(in.ExpectedVersion))
+	}
+	changed, err := update.Save(ctx)
+	if err != nil {
 		return nil, err
+	}
+	if changed != 1 {
+		return nil, errConflict
 	}
 	return db.EsportsCustomer.Get(ctx, customerID)
 }
@@ -515,11 +526,12 @@ type csTodoItem struct {
 	Count int    `json:"count"`
 }
 
-// countOrders 统计某履约状态下的订单数，非超管收敛到本人负责的订单。
+// countOrders 统计某履约状态下的订单数：非超管收敛到「本人负责或被授权协作」的订单（§3.5-06），
+// 与订单列表 / 详情同一可见性口径，避免协作订单在列表可见、在看板统计中丢失。
 func countOrders(ctx context.Context, db *ent.Client, adminID int, isSuper bool, status esportsorder.FulfillmentStatus) (int, error) {
 	q := db.EsportsOrder.Query().Where(esportsorder.FulfillmentStatusEQ(status))
 	if !isSuper {
-		q.Where(esportsorder.ResponsibleAdminIDEQ(adminID))
+		q.Where(visibleOrdersToAdmin(adminID))
 	}
 	return q.Count(ctx)
 }
@@ -543,7 +555,8 @@ func countCustomerBirthdaysDue(ctx context.Context, db *ent.Client, adminID int,
 	return q.Count(ctx)
 }
 
-// csWorkbenchTodos 组装客服待办提醒（§8.2）：订单超时、待结单、售后待处理、跟进到期、储值卡到期、生日礼遇（§10.4）。
+// csWorkbenchTodos 组装客服待办提醒（§8.2）：订单超时、待结单、售后待处理、跟进到期、储值卡到期、生日礼遇（§10.4）、
+// 会员优先预约、通知失败与结单后复购跟进（§14-01）。订单类计数与列表共用「负责 OR 协作」可见性谓词（§3.5-06）。
 func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) ([]csTodoItem, error) {
 	overdue := db.EsportsOrder.Query().Where(
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
@@ -551,7 +564,7 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		esportsorder.PaymentDeadlineLTE(now.UTC()),
 	)
 	if !isSuper {
-		overdue.Where(esportsorder.ResponsibleAdminIDEQ(adminID))
+		overdue.Where(visibleOrdersToAdmin(adminID))
 	}
 	overdueCount, err := overdue.Count(ctx)
 	if err != nil {
@@ -569,10 +582,12 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
+	// 复购跟进待办单列（§14-01），因此「跟进已到期」排除复购标记记录，避免同一件事计两次。
 	followCount, err := db.EsportsCustomerFollowUp.Query().Where(
 		esportscustomerfollowup.AdminIDEQ(adminID),
 		esportscustomerfollowup.NextFollowAtNotNil(),
 		esportscustomerfollowup.NextFollowAtLTE(now.UTC()),
+		esportscustomerfollowup.Not(esportscustomerfollowup.SummaryHasPrefix(repurchaseFollowUpPrefix)),
 	).Count(ctx)
 	if err != nil {
 		return nil, err
@@ -597,6 +612,23 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
+	// 结单后复购跟进待办（§14-01）：结单 N 天后到期、且尚未被回访的客户维度待办。
+	repurchaseCount, err := countRepurchaseTodosDue(ctx, db, adminID, isSuper, now)
+	if err != nil {
+		return nil, err
+	}
+	// 结单时限超时（§2.1-09，T14.3 的「管理员待办」那一半）：时限未配置（close_deadline_hours=0）时计数为 0，待办整体关闭。
+	// ⚠️ 口径说明：与既有的「通知发送失败」一致，该计数是**全站口径**（未按客服可见性收敛）——
+	// 只暴露数量、不暴露单据；若要按客服收敛，需给 listCloseDeadlineOverdue 叠加 visibleOrdersToAdmin 谓词。
+	closeDeadlineCount, err := closeDeadlineOverdueCount(ctx, db, now)
+	if err != nil {
+		return nil, err
+	}
+	// 档期确认过期待处置（§3.2-04 / §5.5-06）：已付款但档期确认超时，需客服/管理员处置（全额退还或改期）。
+	appointmentPendingCount, err := appointmentPendingDisposalCount(ctx, db)
+	if err != nil {
+		return nil, err
+	}
 	return []csTodoItem{
 		{Key: "overdue_payment", Label: "待付款已超时订单", Count: overdueCount},
 		{Key: "pending_close", Label: "待结单", Count: closeCount},
@@ -606,5 +638,8 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		{Key: "customer_birthday", Label: "今日生日客户", Count: birthdayCount},
 		{Key: "member_priority_booking", Label: "会员优先预约", Count: priorityBookingCount},
 		{Key: "notification_failed", Label: "通知发送失败", Count: notificationFailCount},
+		{Key: "repurchase_due", Label: "复购跟进待办", Count: repurchaseCount},
+		{Key: "close_deadline_overdue", Label: "结单超时待处理", Count: closeDeadlineCount},
+		{Key: "appointment_pending_confirm", Label: "档期待确认待处置", Count: appointmentPendingCount},
 	}, nil
 }

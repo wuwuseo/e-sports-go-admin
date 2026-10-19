@@ -152,6 +152,66 @@ func (_u *EsportsDispatchSeatUpdate) ClearInvitedByAdminID() *EsportsDispatchSea
 	return _u
 }
 
+// SetInvitedAt sets the "invited_at" field.
+func (_u *EsportsDispatchSeatUpdate) SetInvitedAt(v time.Time) *EsportsDispatchSeatUpdate {
+	_u.mutation.SetInvitedAt(v)
+	return _u
+}
+
+// SetNillableInvitedAt sets the "invited_at" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdate) SetNillableInvitedAt(v *time.Time) *EsportsDispatchSeatUpdate {
+	if v != nil {
+		_u.SetInvitedAt(*v)
+	}
+	return _u
+}
+
+// ClearInvitedAt clears the value of the "invited_at" field.
+func (_u *EsportsDispatchSeatUpdate) ClearInvitedAt() *EsportsDispatchSeatUpdate {
+	_u.mutation.ClearInvitedAt()
+	return _u
+}
+
+// SetSlotStart sets the "slot_start" field.
+func (_u *EsportsDispatchSeatUpdate) SetSlotStart(v time.Time) *EsportsDispatchSeatUpdate {
+	_u.mutation.SetSlotStart(v)
+	return _u
+}
+
+// SetNillableSlotStart sets the "slot_start" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdate) SetNillableSlotStart(v *time.Time) *EsportsDispatchSeatUpdate {
+	if v != nil {
+		_u.SetSlotStart(*v)
+	}
+	return _u
+}
+
+// ClearSlotStart clears the value of the "slot_start" field.
+func (_u *EsportsDispatchSeatUpdate) ClearSlotStart() *EsportsDispatchSeatUpdate {
+	_u.mutation.ClearSlotStart()
+	return _u
+}
+
+// SetSlotEnd sets the "slot_end" field.
+func (_u *EsportsDispatchSeatUpdate) SetSlotEnd(v time.Time) *EsportsDispatchSeatUpdate {
+	_u.mutation.SetSlotEnd(v)
+	return _u
+}
+
+// SetNillableSlotEnd sets the "slot_end" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdate) SetNillableSlotEnd(v *time.Time) *EsportsDispatchSeatUpdate {
+	if v != nil {
+		_u.SetSlotEnd(*v)
+	}
+	return _u
+}
+
+// ClearSlotEnd clears the value of the "slot_end" field.
+func (_u *EsportsDispatchSeatUpdate) ClearSlotEnd() *EsportsDispatchSeatUpdate {
+	_u.mutation.ClearSlotEnd()
+	return _u
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (_u *EsportsDispatchSeatUpdate) SetExpiresAt(v time.Time) *EsportsDispatchSeatUpdate {
 	_u.mutation.SetExpiresAt(v)
@@ -380,6 +440,24 @@ func (_u *EsportsDispatchSeatUpdate) sqlSave(ctx context.Context) (_node int, er
 	if _u.mutation.InvitedByAdminIDCleared() {
 		_spec.ClearField(esportsdispatchseat.FieldInvitedByAdminID, field.TypeInt)
 	}
+	if value, ok := _u.mutation.InvitedAt(); ok {
+		_spec.SetField(esportsdispatchseat.FieldInvitedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InvitedAtCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldInvitedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SlotStart(); ok {
+		_spec.SetField(esportsdispatchseat.FieldSlotStart, field.TypeTime, value)
+	}
+	if _u.mutation.SlotStartCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldSlotStart, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SlotEnd(); ok {
+		_spec.SetField(esportsdispatchseat.FieldSlotEnd, field.TypeTime, value)
+	}
+	if _u.mutation.SlotEndCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldSlotEnd, field.TypeTime)
+	}
 	if value, ok := _u.mutation.ExpiresAt(); ok {
 		_spec.SetField(esportsdispatchseat.FieldExpiresAt, field.TypeTime, value)
 	}
@@ -557,6 +635,66 @@ func (_u *EsportsDispatchSeatUpdateOne) AddInvitedByAdminID(v int) *EsportsDispa
 // ClearInvitedByAdminID clears the value of the "invited_by_admin_id" field.
 func (_u *EsportsDispatchSeatUpdateOne) ClearInvitedByAdminID() *EsportsDispatchSeatUpdateOne {
 	_u.mutation.ClearInvitedByAdminID()
+	return _u
+}
+
+// SetInvitedAt sets the "invited_at" field.
+func (_u *EsportsDispatchSeatUpdateOne) SetInvitedAt(v time.Time) *EsportsDispatchSeatUpdateOne {
+	_u.mutation.SetInvitedAt(v)
+	return _u
+}
+
+// SetNillableInvitedAt sets the "invited_at" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdateOne) SetNillableInvitedAt(v *time.Time) *EsportsDispatchSeatUpdateOne {
+	if v != nil {
+		_u.SetInvitedAt(*v)
+	}
+	return _u
+}
+
+// ClearInvitedAt clears the value of the "invited_at" field.
+func (_u *EsportsDispatchSeatUpdateOne) ClearInvitedAt() *EsportsDispatchSeatUpdateOne {
+	_u.mutation.ClearInvitedAt()
+	return _u
+}
+
+// SetSlotStart sets the "slot_start" field.
+func (_u *EsportsDispatchSeatUpdateOne) SetSlotStart(v time.Time) *EsportsDispatchSeatUpdateOne {
+	_u.mutation.SetSlotStart(v)
+	return _u
+}
+
+// SetNillableSlotStart sets the "slot_start" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdateOne) SetNillableSlotStart(v *time.Time) *EsportsDispatchSeatUpdateOne {
+	if v != nil {
+		_u.SetSlotStart(*v)
+	}
+	return _u
+}
+
+// ClearSlotStart clears the value of the "slot_start" field.
+func (_u *EsportsDispatchSeatUpdateOne) ClearSlotStart() *EsportsDispatchSeatUpdateOne {
+	_u.mutation.ClearSlotStart()
+	return _u
+}
+
+// SetSlotEnd sets the "slot_end" field.
+func (_u *EsportsDispatchSeatUpdateOne) SetSlotEnd(v time.Time) *EsportsDispatchSeatUpdateOne {
+	_u.mutation.SetSlotEnd(v)
+	return _u
+}
+
+// SetNillableSlotEnd sets the "slot_end" field if the given value is not nil.
+func (_u *EsportsDispatchSeatUpdateOne) SetNillableSlotEnd(v *time.Time) *EsportsDispatchSeatUpdateOne {
+	if v != nil {
+		_u.SetSlotEnd(*v)
+	}
+	return _u
+}
+
+// ClearSlotEnd clears the value of the "slot_end" field.
+func (_u *EsportsDispatchSeatUpdateOne) ClearSlotEnd() *EsportsDispatchSeatUpdateOne {
+	_u.mutation.ClearSlotEnd()
 	return _u
 }
 
@@ -817,6 +955,24 @@ func (_u *EsportsDispatchSeatUpdateOne) sqlSave(ctx context.Context) (_node *Esp
 	}
 	if _u.mutation.InvitedByAdminIDCleared() {
 		_spec.ClearField(esportsdispatchseat.FieldInvitedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.InvitedAt(); ok {
+		_spec.SetField(esportsdispatchseat.FieldInvitedAt, field.TypeTime, value)
+	}
+	if _u.mutation.InvitedAtCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldInvitedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SlotStart(); ok {
+		_spec.SetField(esportsdispatchseat.FieldSlotStart, field.TypeTime, value)
+	}
+	if _u.mutation.SlotStartCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldSlotStart, field.TypeTime)
+	}
+	if value, ok := _u.mutation.SlotEnd(); ok {
+		_spec.SetField(esportsdispatchseat.FieldSlotEnd, field.TypeTime, value)
+	}
+	if _u.mutation.SlotEndCleared() {
+		_spec.ClearField(esportsdispatchseat.FieldSlotEnd, field.TypeTime)
 	}
 	if value, ok := _u.mutation.ExpiresAt(); ok {
 		_spec.SetField(esportsdispatchseat.FieldExpiresAt, field.TypeTime, value)

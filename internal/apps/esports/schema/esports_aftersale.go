@@ -72,6 +72,11 @@ func (EsportsAfterSale) Fields() []ent.Field {
 		// 处理 / 执行结果说明。
 		field.String("resolution").MaxLen(255).Default("").StructTag(`json:"resolution"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
+		// active_dedup_key 是「同来源同问题至多一张进行中售后单」的唯一索引兜底键（§13.2-09，可空）：
+		// 建单时写入 <source_type>:<source_id>:<kind>，落终态（completed / rejected / withdrawn）时清空为 NULL。
+		// MySQL 与 SQLite 的唯一索引都允许多个 NULL，因此终态单据之间、终态与进行中都不冲突；
+		// 不用部分索引（partial index），MySQL 5.7 不支持。
+		field.String("active_dedup_key").Optional().Nillable().MaxLen(160).StructTag(`json:"active_dedup_key,omitempty"`),
 		field.Time("resolved_at").Optional().Nillable().StructTag(`json:"resolved_at"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),
@@ -81,6 +86,8 @@ func (EsportsAfterSale) Fields() []ent.Field {
 func (EsportsAfterSale) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("after_sale_no").Unique(),
+		// 进行中售后单的 DB 级兜底：空值 NULL 不参与冲突（§13.2-09）。
+		index.Fields("active_dedup_key").Unique(),
 		index.Fields("source_type", "source_id", "status"),
 		index.Fields("status", "created_at"),
 	}

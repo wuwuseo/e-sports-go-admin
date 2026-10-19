@@ -18,13 +18,14 @@ func parseSeatIndex(c fiber.Ctx) (int, error) {
 	return index, nil
 }
 
+// dispatchBoardHandler 排单看板（§5.8）。sort=remind_priority 时按催单优先级降序（§5.7-05）。
 func dispatchBoardHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
 		return businessError(c, err)
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	board, err := loadDispatchBoard(c.Context(), global.ORM, adminID, isSuper)
+	board, err := loadDispatchBoardSorted(c.Context(), global.ORM, adminID, isSuper, c.Query("sort"))
 	if err != nil {
 		return businessError(c, err)
 	}

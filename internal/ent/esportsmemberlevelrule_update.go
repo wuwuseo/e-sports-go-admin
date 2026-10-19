@@ -147,6 +147,34 @@ func (_u *EsportsMemberLevelRuleUpdate) SetNillablePriorityBooking(v *bool) *Esp
 	return _u
 }
 
+// SetDedicatedChannel sets the "dedicated_channel" field.
+func (_u *EsportsMemberLevelRuleUpdate) SetDedicatedChannel(v bool) *EsportsMemberLevelRuleUpdate {
+	_u.mutation.SetDedicatedChannel(v)
+	return _u
+}
+
+// SetNillableDedicatedChannel sets the "dedicated_channel" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdate) SetNillableDedicatedChannel(v *bool) *EsportsMemberLevelRuleUpdate {
+	if v != nil {
+		_u.SetDedicatedChannel(*v)
+	}
+	return _u
+}
+
+// SetOfflineEventPriority sets the "offline_event_priority" field.
+func (_u *EsportsMemberLevelRuleUpdate) SetOfflineEventPriority(v bool) *EsportsMemberLevelRuleUpdate {
+	_u.mutation.SetOfflineEventPriority(v)
+	return _u
+}
+
+// SetNillableOfflineEventPriority sets the "offline_event_priority" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdate) SetNillableOfflineEventPriority(v *bool) *EsportsMemberLevelRuleUpdate {
+	if v != nil {
+		_u.SetOfflineEventPriority(*v)
+	}
+	return _u
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_u *EsportsMemberLevelRuleUpdate) SetSortOrder(v int) *EsportsMemberLevelRuleUpdate {
 	_u.mutation.ResetSortOrder()
@@ -307,6 +335,12 @@ func (_u *EsportsMemberLevelRuleUpdate) sqlSave(ctx context.Context) (_node int,
 	if value, ok := _u.mutation.PriorityBooking(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldPriorityBooking, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.DedicatedChannel(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldDedicatedChannel, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OfflineEventPriority(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldOfflineEventPriority, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldSortOrder, field.TypeInt, value)
 	}
@@ -460,6 +494,34 @@ func (_u *EsportsMemberLevelRuleUpdateOne) SetPriorityBooking(v bool) *EsportsMe
 func (_u *EsportsMemberLevelRuleUpdateOne) SetNillablePriorityBooking(v *bool) *EsportsMemberLevelRuleUpdateOne {
 	if v != nil {
 		_u.SetPriorityBooking(*v)
+	}
+	return _u
+}
+
+// SetDedicatedChannel sets the "dedicated_channel" field.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetDedicatedChannel(v bool) *EsportsMemberLevelRuleUpdateOne {
+	_u.mutation.SetDedicatedChannel(v)
+	return _u
+}
+
+// SetNillableDedicatedChannel sets the "dedicated_channel" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetNillableDedicatedChannel(v *bool) *EsportsMemberLevelRuleUpdateOne {
+	if v != nil {
+		_u.SetDedicatedChannel(*v)
+	}
+	return _u
+}
+
+// SetOfflineEventPriority sets the "offline_event_priority" field.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetOfflineEventPriority(v bool) *EsportsMemberLevelRuleUpdateOne {
+	_u.mutation.SetOfflineEventPriority(v)
+	return _u
+}
+
+// SetNillableOfflineEventPriority sets the "offline_event_priority" field if the given value is not nil.
+func (_u *EsportsMemberLevelRuleUpdateOne) SetNillableOfflineEventPriority(v *bool) *EsportsMemberLevelRuleUpdateOne {
+	if v != nil {
+		_u.SetOfflineEventPriority(*v)
 	}
 	return _u
 }
@@ -653,6 +715,12 @@ func (_u *EsportsMemberLevelRuleUpdateOne) sqlSave(ctx context.Context) (_node *
 	}
 	if value, ok := _u.mutation.PriorityBooking(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldPriorityBooking, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DedicatedChannel(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldDedicatedChannel, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.OfflineEventPriority(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldOfflineEventPriority, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.SortOrder(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldSortOrder, field.TypeInt, value)

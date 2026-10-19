@@ -124,7 +124,7 @@ func streamOrdersCSV(ctx context.Context, db *ent.Client, predicates []predicate
 	}
 }
 
-// writeCsPerformanceCSV 导出客服个人业绩（按负责客服聚合）。
+// writeCsPerformanceCSV 导出客服个人业绩（按负责客服聚合）+ 订单下钻明细（§17-06）。
 func writeCsPerformanceCSV(ctx context.Context, db *ent.Client, f reportFilter, w *csv.Writer) (int, error) {
 	result, err := csPerformanceReport(ctx, db, f)
 	if err != nil {
@@ -139,7 +139,19 @@ func writeCsPerformanceCSV(ctx context.Context, db *ent.Client, f reportFilter, 
 			return 0, err
 		}
 	}
-	return len(rows), nil
+	details, _ := result["details"].([]map[string]any)
+	if err := writeCSV(w, "cs_order", "id", "order_no", "responsible_admin_id",
+		"payable_cents", "refunded_cents", "created_at"); err != nil {
+		return 0, err
+	}
+	for _, detail := range details {
+		if err := writeCSV(w, "cs_order", detail["id"], detail["order_no"],
+			detail["responsible_admin_id"], detail["payable_cents"],
+			detail["refunded_cents"], detail["created_at"]); err != nil {
+			return 0, err
+		}
+	}
+	return len(rows) + len(details), nil
 }
 
 // writeDispatchEfficiencyCSV 导出派单效率：汇总 + 按邀请管理员聚合。
@@ -164,7 +176,18 @@ func writeDispatchEfficiencyCSV(ctx context.Context, db *ent.Client, f reportFil
 			return 0, err
 		}
 	}
-	return len(rows), nil
+	// §17-06：派单效率的订单下钻明细，可定位原单据。
+	details, _ := result["details"].([]map[string]any)
+	if err := writeCSV(w, "dispatch_order", "id", "order_no", "responsible_admin_id", "created_at"); err != nil {
+		return 0, err
+	}
+	for _, detail := range details {
+		if err := writeCSV(w, "dispatch_order", detail["id"], detail["order_no"],
+			detail["responsible_admin_id"], detail["created_at"]); err != nil {
+			return 0, err
+		}
+	}
+	return len(rows) + len(details), nil
 }
 
 // writeAftersaleQualityCSV 导出售后质量：汇总 + 类型/责任方拆分 + 售后下钻明细。
@@ -191,7 +214,7 @@ func writeAftersaleQualityCSV(ctx context.Context, db *ent.Client, f reportFilte
 			return 0, err
 		}
 	}
-	if err := writeCSV(w, "aftersale", "id", "kind", "status", "fault_party", "refund_cents", "created_at"); err != nil {
+	if err := writeCSV(w, "aftersale", "id", "kind", "status", "fault_party", "refund_cents", "source_type", "source_id", "order_no", "created_at"); err != nil {
 		return 0, err
 	}
 	return streamAftersaleCSV(ctx, db, f, handlerAdmin, w)
@@ -231,15 +254,30 @@ func streamAftersaleCSV(ctx context.Context, db *ent.Client, f reportFilter, han
 			query.Where(esportsaftersale.IDGT(cursor))
 			rows, err := query.Order(ent.Asc(esportsaftersale.FieldID)).Limit(reportExportPageSize).
 				Select(esportsaftersale.FieldID, esportsaftersale.FieldKind, esportsaftersale.FieldStatus,
-					esportsaftersale.FieldFaultParty, esportsaftersale.FieldRefundCents, esportsaftersale.FieldCreatedAt).All(ctx)
+					esportsaftersale.FieldFaultParty, esportsaftersale.FieldRefundCents,
+					esportsaftersale.FieldSourceType, esportsaftersale.FieldSourceID,
+					esportsaftersale.FieldCreatedAt).All(ctx)
 			if err != nil {
 				return err
 			}
 			if len(rows) == 0 {
 				return nil
 			}
+			// §17-06：来源为订单的售后补出来源订单号，便于跳回原单据核对。
+			sourceOrderIDs := make([]int, 0, len(rows))
 			for _, row := range rows {
-				if err := writeCSV(w, "aftersale", row.ID, string(row.Kind), string(row.Status), string(row.FaultParty), row.RefundCents, row.CreatedAt); err != nil {
+				if row.SourceType == esportsaftersale.SourceTypeOrder {
+					sourceOrderIDs = append(sourceOrderIDs, row.SourceID)
+				}
+			}
+			orderNos, err := orderNoByID(ctx, db, sourceOrderIDs)
+			if err != nil {
+				return err
+			}
+			for _, row := range rows {
+				if err := writeCSV(w, "aftersale", row.ID, string(row.Kind), string(row.Status),
+					string(row.FaultParty), row.RefundCents, string(row.SourceType), row.SourceID,
+					orderNos[row.SourceID], row.CreatedAt); err != nil {
 					return err
 				}
 				count++
@@ -302,7 +340,57 @@ func writeFinanceCSV(ctx context.Context, db *ent.Client, f reportFilter, w *csv
 			return 0, err
 		}
 	}
-	return len(channels), nil
+	// §12.7-03：分成明细级对账逐笔明细（含规则版本），财务可与结算单逐笔核对。
+	reconciliation, _ := result["commission_reconciliation"].(map[string]any)
+	details, _ := reconciliation["details"].([]map[string]any)
+	if err := writeCSV(w, "commission_reconciliation", "id", "order_no", "player_id", "kind",
+		"rule_no", "rule_version", "base_cents", "amount_cents"); err != nil {
+		return 0, err
+	}
+	for _, detail := range details {
+		if err := writeCSV(w, "commission_reconciliation", detail["id"], detail["order_no"],
+			detail["player_id"], detail["kind"], detail["rule_no"], detail["rule_version"],
+			detail["base_cents"], detail["amount_cents"]); err != nil {
+			return 0, err
+		}
+	}
+	// §12.7-04：工作室抽成汇总（按周期聚合工作室剩余）随财务导出。
+	studio, _ := result["studio"].(map[string]any)
+	studioSummary, _ := studio["summary"].(map[string]any)
+	for _, key := range []string{"studio_remainder_cents", "cs_commission_cents", "entry_count"} {
+		if err := writeCSV(w, "summary", "studio."+key, studioSummary[key]); err != nil {
+			return 0, err
+		}
+	}
+	if err := writeCSV(w, "studio_bucket", "bucket", "studio_remainder_cents", "cs_commission_cents", "entry_count"); err != nil {
+		return 0, err
+	}
+	for _, bucket := range studio["buckets"].([]studioRemainderBucket) {
+		if err := writeCSV(w, "studio_bucket", bucket.Bucket, bucket.StudioRemainderCents,
+			bucket.CsCommissionCents, bucket.EntryCount); err != nil {
+			return 0, err
+		}
+	}
+	// §17-06：财务下钻单据明细（结算单 / 支付回执）。
+	docs, _ := result["details"].([]map[string]any)
+	if err := writeCSV(w, "finance_doc", "doc_type", "id", "doc_no", "amount_cents", "status", "created_at"); err != nil {
+		return 0, err
+	}
+	for _, doc := range docs {
+		docNo := doc["settlement_no"]
+		if docNo == nil || docNo == "" {
+			docNo = doc["tx_no"]
+		}
+		amount := doc["net_cents"]
+		if amount == nil {
+			amount = doc["amount_cents"]
+		}
+		if err := writeCSV(w, "finance_doc", doc["doc_type"], doc["id"], docNo, amount,
+			doc["status"], doc["created_at"]); err != nil {
+			return 0, err
+		}
+	}
+	return len(channels) + len(details) + len(docs), nil
 }
 
 // writeCSV 把任意类型字段序列化为一行 CSV 记录。
@@ -328,6 +416,12 @@ func csvField(value any) string {
 		return strconv.FormatBool(v)
 	case time.Time:
 		return v.UTC().Format(time.RFC3339)
+	case *int:
+		// 可空外键（结算单 / 归属客服 / 结算单号）导出为整数或空，避免打印指针地址。
+		if v == nil {
+			return ""
+		}
+		return strconv.Itoa(*v)
 	default:
 		return fmt.Sprint(v)
 	}

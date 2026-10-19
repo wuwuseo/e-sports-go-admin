@@ -31,6 +31,10 @@ type EsportsRechargeCampaign struct {
 	Audience esportsrechargecampaign.Audience `json:"audience"`
 	// AudienceCustomerIds holds the value of the "audience_customer_ids" field.
 	AudienceCustomerIds []int `json:"audience_customer_ids"`
+	// AudiencePlayerIds holds the value of the "audience_player_ids" field.
+	AudiencePlayerIds []int `json:"audience_player_ids"`
+	// TargetAccountType holds the value of the "target_account_type" field.
+	TargetAccountType esportsrechargecampaign.TargetAccountType `json:"target_account_type"`
 	// StackRule holds the value of the "stack_rule" field.
 	StackRule esportsrechargecampaign.StackRule `json:"stack_rule"`
 	// BonusValidDays holds the value of the "bonus_valid_days" field.
@@ -55,11 +59,11 @@ func (*EsportsRechargeCampaign) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsrechargecampaign.FieldTiers, esportsrechargecampaign.FieldAudienceCustomerIds:
+		case esportsrechargecampaign.FieldTiers, esportsrechargecampaign.FieldAudienceCustomerIds, esportsrechargecampaign.FieldAudiencePlayerIds:
 			values[i] = new([]byte)
 		case esportsrechargecampaign.FieldID, esportsrechargecampaign.FieldBonusValidDays, esportsrechargecampaign.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsrechargecampaign.FieldCode, esportsrechargecampaign.FieldName, esportsrechargecampaign.FieldActivityType, esportsrechargecampaign.FieldAudience, esportsrechargecampaign.FieldStackRule, esportsrechargecampaign.FieldStatus:
+		case esportsrechargecampaign.FieldCode, esportsrechargecampaign.FieldName, esportsrechargecampaign.FieldActivityType, esportsrechargecampaign.FieldAudience, esportsrechargecampaign.FieldTargetAccountType, esportsrechargecampaign.FieldStackRule, esportsrechargecampaign.FieldStatus:
 			values[i] = new(sql.NullString)
 		case esportsrechargecampaign.FieldStartsAt, esportsrechargecampaign.FieldEndsAt, esportsrechargecampaign.FieldCreatedAt, esportsrechargecampaign.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -123,6 +127,20 @@ func (_m *EsportsRechargeCampaign) assignValues(columns []string, values []any) 
 				if err := json.Unmarshal(*value, &_m.AudienceCustomerIds); err != nil {
 					return fmt.Errorf("unmarshal field audience_customer_ids: %w", err)
 				}
+			}
+		case esportsrechargecampaign.FieldAudiencePlayerIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field audience_player_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AudiencePlayerIds); err != nil {
+					return fmt.Errorf("unmarshal field audience_player_ids: %w", err)
+				}
+			}
+		case esportsrechargecampaign.FieldTargetAccountType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field target_account_type", values[i])
+			} else if value.Valid {
+				_m.TargetAccountType = esportsrechargecampaign.TargetAccountType(value.String)
 			}
 		case esportsrechargecampaign.FieldStackRule:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -225,6 +243,12 @@ func (_m *EsportsRechargeCampaign) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("audience_customer_ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AudienceCustomerIds))
+	builder.WriteString(", ")
+	builder.WriteString("audience_player_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AudiencePlayerIds))
+	builder.WriteString(", ")
+	builder.WriteString("target_account_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TargetAccountType))
 	builder.WriteString(", ")
 	builder.WriteString("stack_rule=")
 	builder.WriteString(fmt.Sprintf("%v", _m.StackRule))

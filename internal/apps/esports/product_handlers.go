@@ -39,6 +39,12 @@ func adminProduct(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	// §15.8-03：商品详情内的子 SKU 成本口径同样按角色可见，未授权角色按未登记返回。
+	if !canViewSkuCost(c) {
+		for _, sku := range view.Skus {
+			sku.CostCents = nil
+		}
+	}
 	return reply(c, view)
 }
 

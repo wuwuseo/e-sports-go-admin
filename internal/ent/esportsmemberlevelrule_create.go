@@ -116,6 +116,34 @@ func (_c *EsportsMemberLevelRuleCreate) SetNillablePriorityBooking(v *bool) *Esp
 	return _c
 }
 
+// SetDedicatedChannel sets the "dedicated_channel" field.
+func (_c *EsportsMemberLevelRuleCreate) SetDedicatedChannel(v bool) *EsportsMemberLevelRuleCreate {
+	_c.mutation.SetDedicatedChannel(v)
+	return _c
+}
+
+// SetNillableDedicatedChannel sets the "dedicated_channel" field if the given value is not nil.
+func (_c *EsportsMemberLevelRuleCreate) SetNillableDedicatedChannel(v *bool) *EsportsMemberLevelRuleCreate {
+	if v != nil {
+		_c.SetDedicatedChannel(*v)
+	}
+	return _c
+}
+
+// SetOfflineEventPriority sets the "offline_event_priority" field.
+func (_c *EsportsMemberLevelRuleCreate) SetOfflineEventPriority(v bool) *EsportsMemberLevelRuleCreate {
+	_c.mutation.SetOfflineEventPriority(v)
+	return _c
+}
+
+// SetNillableOfflineEventPriority sets the "offline_event_priority" field if the given value is not nil.
+func (_c *EsportsMemberLevelRuleCreate) SetNillableOfflineEventPriority(v *bool) *EsportsMemberLevelRuleCreate {
+	if v != nil {
+		_c.SetOfflineEventPriority(*v)
+	}
+	return _c
+}
+
 // SetSortOrder sets the "sort_order" field.
 func (_c *EsportsMemberLevelRuleCreate) SetSortOrder(v int) *EsportsMemberLevelRuleCreate {
 	_c.mutation.SetSortOrder(v)
@@ -245,6 +273,14 @@ func (_c *EsportsMemberLevelRuleCreate) defaults() {
 		v := esportsmemberlevelrule.DefaultPriorityBooking
 		_c.mutation.SetPriorityBooking(v)
 	}
+	if _, ok := _c.mutation.DedicatedChannel(); !ok {
+		v := esportsmemberlevelrule.DefaultDedicatedChannel
+		_c.mutation.SetDedicatedChannel(v)
+	}
+	if _, ok := _c.mutation.OfflineEventPriority(); !ok {
+		v := esportsmemberlevelrule.DefaultOfflineEventPriority
+		_c.mutation.SetOfflineEventPriority(v)
+	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		v := esportsmemberlevelrule.DefaultSortOrder
 		_c.mutation.SetSortOrder(v)
@@ -302,6 +338,12 @@ func (_c *EsportsMemberLevelRuleCreate) check() error {
 	}
 	if _, ok := _c.mutation.PriorityBooking(); !ok {
 		return &ValidationError{Name: "priority_booking", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.priority_booking"`)}
+	}
+	if _, ok := _c.mutation.DedicatedChannel(); !ok {
+		return &ValidationError{Name: "dedicated_channel", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.dedicated_channel"`)}
+	}
+	if _, ok := _c.mutation.OfflineEventPriority(); !ok {
+		return &ValidationError{Name: "offline_event_priority", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.offline_event_priority"`)}
 	}
 	if _, ok := _c.mutation.SortOrder(); !ok {
 		return &ValidationError{Name: "sort_order", err: errors.New(`ent: missing required field "EsportsMemberLevelRule.sort_order"`)}
@@ -380,6 +422,14 @@ func (_c *EsportsMemberLevelRuleCreate) createSpec() (*EsportsMemberLevelRule, *
 	if value, ok := _c.mutation.PriorityBooking(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldPriorityBooking, field.TypeBool, value)
 		_node.PriorityBooking = value
+	}
+	if value, ok := _c.mutation.DedicatedChannel(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldDedicatedChannel, field.TypeBool, value)
+		_node.DedicatedChannel = value
+	}
+	if value, ok := _c.mutation.OfflineEventPriority(); ok {
+		_spec.SetField(esportsmemberlevelrule.FieldOfflineEventPriority, field.TypeBool, value)
+		_node.OfflineEventPriority = value
 	}
 	if value, ok := _c.mutation.SortOrder(); ok {
 		_spec.SetField(esportsmemberlevelrule.FieldSortOrder, field.TypeInt, value)

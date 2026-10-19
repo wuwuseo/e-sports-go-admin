@@ -17,7 +17,10 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsaftersaleaction"
+	"go-admin/internal/ent/esportsaftersalemessage"
 	"go-admin/internal/ent/esportsaftersalereview"
+	"go-admin/internal/ent/esportsaftersalerule"
+	"go-admin/internal/ent/esportsaftersalerulehit"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsassessmentappeal"
@@ -35,6 +38,7 @@ import (
 	"go-admin/internal/ent/esportsconfirmation"
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscscommissionrule"
+	"go-admin/internal/ent/esportscspresence"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportscustomerfollowup"
 	"go-admin/internal/ent/esportsdispatchprioritygrant"
@@ -46,6 +50,7 @@ import (
 	"go-admin/internal/ent/esportsgiftdispute"
 	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsgiftorder"
+	"go-admin/internal/ent/esportsgifttier"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
@@ -71,6 +76,7 @@ import (
 	"go-admin/internal/ent/esportsplayeridentity"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
+	"go-admin/internal/ent/esportsplayerreviewappeal"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsprioritybookingintent"
@@ -93,6 +99,7 @@ import (
 	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsspecgroup"
 	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportsstoredvalueexception"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
@@ -920,12 +927,16 @@ func init() {
 	esportsaftersaleDescVersion := esportsaftersaleFields[34].Descriptor()
 	// esportsaftersale.DefaultVersion holds the default value on creation for the version field.
 	esportsaftersale.DefaultVersion = esportsaftersaleDescVersion.Default.(int)
+	// esportsaftersaleDescActiveDedupKey is the schema descriptor for active_dedup_key field.
+	esportsaftersaleDescActiveDedupKey := esportsaftersaleFields[35].Descriptor()
+	// esportsaftersale.ActiveDedupKeyValidator is a validator for the "active_dedup_key" field. It is called by the builders before save.
+	esportsaftersale.ActiveDedupKeyValidator = esportsaftersaleDescActiveDedupKey.Validators[0].(func(string) error)
 	// esportsaftersaleDescCreatedAt is the schema descriptor for created_at field.
-	esportsaftersaleDescCreatedAt := esportsaftersaleFields[36].Descriptor()
+	esportsaftersaleDescCreatedAt := esportsaftersaleFields[37].Descriptor()
 	// esportsaftersale.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsaftersale.DefaultCreatedAt = esportsaftersaleDescCreatedAt.Default.(func() time.Time)
 	// esportsaftersaleDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsaftersaleDescUpdatedAt := esportsaftersaleFields[37].Descriptor()
+	esportsaftersaleDescUpdatedAt := esportsaftersaleFields[38].Descriptor()
 	// esportsaftersale.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsaftersale.DefaultUpdatedAt = esportsaftersaleDescUpdatedAt.Default.(func() time.Time)
 	// esportsaftersale.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -1006,6 +1017,46 @@ func init() {
 	esportsaftersaleaction.DefaultUpdatedAt = esportsaftersaleactionDescUpdatedAt.Default.(func() time.Time)
 	// esportsaftersaleaction.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsaftersaleaction.UpdateDefaultUpdatedAt = esportsaftersaleactionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsaftersalemessageHooks := schema.EsportsAfterSaleMessage{}.Hooks()
+	esportsaftersalemessage.Hooks[0] = esportsaftersalemessageHooks[0]
+	esportsaftersalemessageFields := schema.EsportsAfterSaleMessage{}.Fields()
+	_ = esportsaftersalemessageFields
+	// esportsaftersalemessageDescAfterSaleID is the schema descriptor for after_sale_id field.
+	esportsaftersalemessageDescAfterSaleID := esportsaftersalemessageFields[0].Descriptor()
+	// esportsaftersalemessage.AfterSaleIDValidator is a validator for the "after_sale_id" field. It is called by the builders before save.
+	esportsaftersalemessage.AfterSaleIDValidator = esportsaftersalemessageDescAfterSaleID.Validators[0].(func(int) error)
+	// esportsaftersalemessageDescAuthorID is the schema descriptor for author_id field.
+	esportsaftersalemessageDescAuthorID := esportsaftersalemessageFields[2].Descriptor()
+	// esportsaftersalemessage.DefaultAuthorID holds the default value on creation for the author_id field.
+	esportsaftersalemessage.DefaultAuthorID = esportsaftersalemessageDescAuthorID.Default.(int)
+	// esportsaftersalemessageDescAuthorName is the schema descriptor for author_name field.
+	esportsaftersalemessageDescAuthorName := esportsaftersalemessageFields[3].Descriptor()
+	// esportsaftersalemessage.DefaultAuthorName holds the default value on creation for the author_name field.
+	esportsaftersalemessage.DefaultAuthorName = esportsaftersalemessageDescAuthorName.Default.(string)
+	// esportsaftersalemessage.AuthorNameValidator is a validator for the "author_name" field. It is called by the builders before save.
+	esportsaftersalemessage.AuthorNameValidator = esportsaftersalemessageDescAuthorName.Validators[0].(func(string) error)
+	// esportsaftersalemessageDescContent is the schema descriptor for content field.
+	esportsaftersalemessageDescContent := esportsaftersalemessageFields[4].Descriptor()
+	// esportsaftersalemessage.ContentValidator is a validator for the "content" field. It is called by the builders before save.
+	esportsaftersalemessage.ContentValidator = func() func(string) error {
+		validators := esportsaftersalemessageDescContent.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(content string) error {
+			for _, fn := range fns {
+				if err := fn(content); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsaftersalemessageDescCreatedAt is the schema descriptor for created_at field.
+	esportsaftersalemessageDescCreatedAt := esportsaftersalemessageFields[7].Descriptor()
+	// esportsaftersalemessage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsaftersalemessage.DefaultCreatedAt = esportsaftersalemessageDescCreatedAt.Default.(func() time.Time)
 	esportsaftersalereviewFields := schema.EsportsAfterSaleReview{}.Fields()
 	_ = esportsaftersalereviewFields
 	// esportsaftersalereviewDescReviewNo is the schema descriptor for review_no field.
@@ -1082,6 +1133,168 @@ func init() {
 	esportsaftersalereview.DefaultUpdatedAt = esportsaftersalereviewDescUpdatedAt.Default.(func() time.Time)
 	// esportsaftersalereview.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsaftersalereview.UpdateDefaultUpdatedAt = esportsaftersalereviewDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsaftersaleruleFields := schema.EsportsAfterSaleRule{}.Fields()
+	_ = esportsaftersaleruleFields
+	// esportsaftersaleruleDescCode is the schema descriptor for code field.
+	esportsaftersaleruleDescCode := esportsaftersaleruleFields[0].Descriptor()
+	// esportsaftersalerule.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	esportsaftersalerule.CodeValidator = func() func(string) error {
+		validators := esportsaftersaleruleDescCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(code string) error {
+			for _, fn := range fns {
+				if err := fn(code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsaftersaleruleDescName is the schema descriptor for name field.
+	esportsaftersaleruleDescName := esportsaftersaleruleFields[1].Descriptor()
+	// esportsaftersalerule.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	esportsaftersalerule.NameValidator = func() func(string) error {
+		validators := esportsaftersaleruleDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsaftersaleruleDescThresholdValue is the schema descriptor for threshold_value field.
+	esportsaftersaleruleDescThresholdValue := esportsaftersaleruleFields[5].Descriptor()
+	// esportsaftersalerule.DefaultThresholdValue holds the default value on creation for the threshold_value field.
+	esportsaftersalerule.DefaultThresholdValue = esportsaftersaleruleDescThresholdValue.Default.(int64)
+	// esportsaftersaleruleDescWindowMinutes is the schema descriptor for window_minutes field.
+	esportsaftersaleruleDescWindowMinutes := esportsaftersaleruleFields[6].Descriptor()
+	// esportsaftersalerule.DefaultWindowMinutes holds the default value on creation for the window_minutes field.
+	esportsaftersalerule.DefaultWindowMinutes = esportsaftersaleruleDescWindowMinutes.Default.(int)
+	// esportsaftersaleruleDescScopeGame is the schema descriptor for scope_game field.
+	esportsaftersaleruleDescScopeGame := esportsaftersaleruleFields[7].Descriptor()
+	// esportsaftersalerule.DefaultScopeGame holds the default value on creation for the scope_game field.
+	esportsaftersalerule.DefaultScopeGame = esportsaftersaleruleDescScopeGame.Default.(string)
+	// esportsaftersalerule.ScopeGameValidator is a validator for the "scope_game" field. It is called by the builders before save.
+	esportsaftersalerule.ScopeGameValidator = esportsaftersaleruleDescScopeGame.Validators[0].(func(string) error)
+	// esportsaftersaleruleDescAutoCreate is the schema descriptor for auto_create field.
+	esportsaftersaleruleDescAutoCreate := esportsaftersaleruleFields[12].Descriptor()
+	// esportsaftersalerule.DefaultAutoCreate holds the default value on creation for the auto_create field.
+	esportsaftersalerule.DefaultAutoCreate = esportsaftersaleruleDescAutoCreate.Default.(bool)
+	// esportsaftersaleruleDescPriority is the schema descriptor for priority field.
+	esportsaftersaleruleDescPriority := esportsaftersaleruleFields[13].Descriptor()
+	// esportsaftersalerule.DefaultPriority holds the default value on creation for the priority field.
+	esportsaftersalerule.DefaultPriority = esportsaftersaleruleDescPriority.Default.(int)
+	// esportsaftersaleruleDescNote is the schema descriptor for note field.
+	esportsaftersaleruleDescNote := esportsaftersaleruleFields[14].Descriptor()
+	// esportsaftersalerule.DefaultNote holds the default value on creation for the note field.
+	esportsaftersalerule.DefaultNote = esportsaftersaleruleDescNote.Default.(string)
+	// esportsaftersalerule.NoteValidator is a validator for the "note" field. It is called by the builders before save.
+	esportsaftersalerule.NoteValidator = esportsaftersaleruleDescNote.Validators[0].(func(string) error)
+	// esportsaftersaleruleDescVersion is the schema descriptor for version field.
+	esportsaftersaleruleDescVersion := esportsaftersaleruleFields[16].Descriptor()
+	// esportsaftersalerule.DefaultVersion holds the default value on creation for the version field.
+	esportsaftersalerule.DefaultVersion = esportsaftersaleruleDescVersion.Default.(int)
+	// esportsaftersaleruleDescCreatedAt is the schema descriptor for created_at field.
+	esportsaftersaleruleDescCreatedAt := esportsaftersaleruleFields[17].Descriptor()
+	// esportsaftersalerule.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsaftersalerule.DefaultCreatedAt = esportsaftersaleruleDescCreatedAt.Default.(func() time.Time)
+	// esportsaftersaleruleDescUpdatedAt is the schema descriptor for updated_at field.
+	esportsaftersaleruleDescUpdatedAt := esportsaftersaleruleFields[18].Descriptor()
+	// esportsaftersalerule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportsaftersalerule.DefaultUpdatedAt = esportsaftersaleruleDescUpdatedAt.Default.(func() time.Time)
+	// esportsaftersalerule.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportsaftersalerule.UpdateDefaultUpdatedAt = esportsaftersaleruleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsaftersalerulehitHooks := schema.EsportsAfterSaleRuleHit{}.Hooks()
+	esportsaftersalerulehit.Hooks[0] = esportsaftersalerulehitHooks[0]
+	esportsaftersalerulehitFields := schema.EsportsAfterSaleRuleHit{}.Fields()
+	_ = esportsaftersalerulehitFields
+	// esportsaftersalerulehitDescRuleID is the schema descriptor for rule_id field.
+	esportsaftersalerulehitDescRuleID := esportsaftersalerulehitFields[0].Descriptor()
+	// esportsaftersalerulehit.RuleIDValidator is a validator for the "rule_id" field. It is called by the builders before save.
+	esportsaftersalerulehit.RuleIDValidator = esportsaftersalerulehitDescRuleID.Validators[0].(func(int) error)
+	// esportsaftersalerulehitDescRuleCode is the schema descriptor for rule_code field.
+	esportsaftersalerulehitDescRuleCode := esportsaftersalerulehitFields[1].Descriptor()
+	// esportsaftersalerulehit.RuleCodeValidator is a validator for the "rule_code" field. It is called by the builders before save.
+	esportsaftersalerulehit.RuleCodeValidator = func() func(string) error {
+		validators := esportsaftersalerulehitDescRuleCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(rule_code string) error {
+			for _, fn := range fns {
+				if err := fn(rule_code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsaftersalerulehitDescSourceType is the schema descriptor for source_type field.
+	esportsaftersalerulehitDescSourceType := esportsaftersalerulehitFields[2].Descriptor()
+	// esportsaftersalerulehit.SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
+	esportsaftersalerulehit.SourceTypeValidator = func() func(string) error {
+		validators := esportsaftersalerulehitDescSourceType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_type string) error {
+			for _, fn := range fns {
+				if err := fn(source_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsaftersalerulehitDescSourceID is the schema descriptor for source_id field.
+	esportsaftersalerulehitDescSourceID := esportsaftersalerulehitFields[3].Descriptor()
+	// esportsaftersalerulehit.SourceIDValidator is a validator for the "source_id" field. It is called by the builders before save.
+	esportsaftersalerulehit.SourceIDValidator = esportsaftersalerulehitDescSourceID.Validators[0].(func(int) error)
+	// esportsaftersalerulehitDescMetricValue is the schema descriptor for metric_value field.
+	esportsaftersalerulehitDescMetricValue := esportsaftersalerulehitFields[4].Descriptor()
+	// esportsaftersalerulehit.DefaultMetricValue holds the default value on creation for the metric_value field.
+	esportsaftersalerulehit.DefaultMetricValue = esportsaftersalerulehitDescMetricValue.Default.(int64)
+	// esportsaftersalerulehitDescThresholdValue is the schema descriptor for threshold_value field.
+	esportsaftersalerulehitDescThresholdValue := esportsaftersalerulehitFields[5].Descriptor()
+	// esportsaftersalerulehit.DefaultThresholdValue holds the default value on creation for the threshold_value field.
+	esportsaftersalerulehit.DefaultThresholdValue = esportsaftersalerulehitDescThresholdValue.Default.(int64)
+	// esportsaftersalerulehitDescAfterSaleID is the schema descriptor for after_sale_id field.
+	esportsaftersalerulehitDescAfterSaleID := esportsaftersalerulehitFields[6].Descriptor()
+	// esportsaftersalerulehit.DefaultAfterSaleID holds the default value on creation for the after_sale_id field.
+	esportsaftersalerulehit.DefaultAfterSaleID = esportsaftersalerulehitDescAfterSaleID.Default.(int)
+	// esportsaftersalerulehitDescDedupKey is the schema descriptor for dedup_key field.
+	esportsaftersalerulehitDescDedupKey := esportsaftersalerulehitFields[7].Descriptor()
+	// esportsaftersalerulehit.DedupKeyValidator is a validator for the "dedup_key" field. It is called by the builders before save.
+	esportsaftersalerulehit.DedupKeyValidator = func() func(string) error {
+		validators := esportsaftersalerulehitDescDedupKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(dedup_key string) error {
+			for _, fn := range fns {
+				if err := fn(dedup_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsaftersalerulehitDescCreatedAt is the schema descriptor for created_at field.
+	esportsaftersalerulehitDescCreatedAt := esportsaftersalerulehitFields[8].Descriptor()
+	// esportsaftersalerulehit.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsaftersalerulehit.DefaultCreatedAt = esportsaftersalerulehitDescCreatedAt.Default.(func() time.Time)
 	esportsagecheckFields := schema.EsportsAgeCheck{}.Fields()
 	_ = esportsagecheckFields
 	// esportsagecheckDescCustomerID is the schema descriptor for customer_id field.
@@ -1168,16 +1381,20 @@ func init() {
 	esportsassessment.DefaultNote = esportsassessmentDescNote.Default.(string)
 	// esportsassessment.NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	esportsassessment.NoteValidator = esportsassessmentDescNote.Validators[0].(func(string) error)
+	// esportsassessmentDescActiveDedupKey is the schema descriptor for active_dedup_key field.
+	esportsassessmentDescActiveDedupKey := esportsassessmentFields[14].Descriptor()
+	// esportsassessment.ActiveDedupKeyValidator is a validator for the "active_dedup_key" field. It is called by the builders before save.
+	esportsassessment.ActiveDedupKeyValidator = esportsassessmentDescActiveDedupKey.Validators[0].(func(string) error)
 	// esportsassessmentDescVersion is the schema descriptor for version field.
-	esportsassessmentDescVersion := esportsassessmentFields[14].Descriptor()
+	esportsassessmentDescVersion := esportsassessmentFields[15].Descriptor()
 	// esportsassessment.DefaultVersion holds the default value on creation for the version field.
 	esportsassessment.DefaultVersion = esportsassessmentDescVersion.Default.(int)
 	// esportsassessmentDescCreatedAt is the schema descriptor for created_at field.
-	esportsassessmentDescCreatedAt := esportsassessmentFields[15].Descriptor()
+	esportsassessmentDescCreatedAt := esportsassessmentFields[16].Descriptor()
 	// esportsassessment.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsassessment.DefaultCreatedAt = esportsassessmentDescCreatedAt.Default.(func() time.Time)
 	// esportsassessmentDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsassessmentDescUpdatedAt := esportsassessmentFields[16].Descriptor()
+	esportsassessmentDescUpdatedAt := esportsassessmentFields[17].Descriptor()
 	// esportsassessment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsassessment.DefaultUpdatedAt = esportsassessmentDescUpdatedAt.Default.(func() time.Time)
 	// esportsassessment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2028,6 +2245,26 @@ func init() {
 	esportscscommissionrule.DefaultUpdatedAt = esportscscommissionruleDescUpdatedAt.Default.(func() time.Time)
 	// esportscscommissionrule.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportscscommissionrule.UpdateDefaultUpdatedAt = esportscscommissionruleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportscspresenceFields := schema.EsportsCsPresence{}.Fields()
+	_ = esportscspresenceFields
+	// esportscspresenceDescAdminID is the schema descriptor for admin_id field.
+	esportscspresenceDescAdminID := esportscspresenceFields[0].Descriptor()
+	// esportscspresence.AdminIDValidator is a validator for the "admin_id" field. It is called by the builders before save.
+	esportscspresence.AdminIDValidator = esportscspresenceDescAdminID.Validators[0].(func(int) error)
+	// esportscspresenceDescVersion is the schema descriptor for version field.
+	esportscspresenceDescVersion := esportscspresenceFields[6].Descriptor()
+	// esportscspresence.DefaultVersion holds the default value on creation for the version field.
+	esportscspresence.DefaultVersion = esportscspresenceDescVersion.Default.(int)
+	// esportscspresenceDescCreatedAt is the schema descriptor for created_at field.
+	esportscspresenceDescCreatedAt := esportscspresenceFields[7].Descriptor()
+	// esportscspresence.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscspresence.DefaultCreatedAt = esportscspresenceDescCreatedAt.Default.(func() time.Time)
+	// esportscspresenceDescUpdatedAt is the schema descriptor for updated_at field.
+	esportscspresenceDescUpdatedAt := esportscspresenceFields[8].Descriptor()
+	// esportscspresence.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportscspresence.DefaultUpdatedAt = esportscspresenceDescUpdatedAt.Default.(func() time.Time)
+	// esportscspresence.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportscspresence.UpdateDefaultUpdatedAt = esportscspresenceDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportscustomerFields := schema.EsportsCustomer{}.Fields()
 	_ = esportscustomerFields
 	// esportscustomerDescDisplayName is the schema descriptor for display_name field.
@@ -2056,42 +2293,56 @@ func init() {
 	esportscustomer.DefaultConsumptionPreference = esportscustomerDescConsumptionPreference.Default.(string)
 	// esportscustomer.ConsumptionPreferenceValidator is a validator for the "consumption_preference" field. It is called by the builders before save.
 	esportscustomer.ConsumptionPreferenceValidator = esportscustomerDescConsumptionPreference.Validators[0].(func(string) error)
+	// esportscustomerDescTimezone is the schema descriptor for timezone field.
+	esportscustomerDescTimezone := esportscustomerFields[8].Descriptor()
+	// esportscustomer.DefaultTimezone holds the default value on creation for the timezone field.
+	esportscustomer.DefaultTimezone = esportscustomerDescTimezone.Default.(string)
+	// esportscustomer.TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	esportscustomer.TimezoneValidator = esportscustomerDescTimezone.Validators[0].(func(string) error)
+	// esportscustomerDescLatitudeE6 is the schema descriptor for latitude_e6 field.
+	esportscustomerDescLatitudeE6 := esportscustomerFields[9].Descriptor()
+	// esportscustomer.DefaultLatitudeE6 holds the default value on creation for the latitude_e6 field.
+	esportscustomer.DefaultLatitudeE6 = esportscustomerDescLatitudeE6.Default.(int)
+	// esportscustomerDescLongitudeE6 is the schema descriptor for longitude_e6 field.
+	esportscustomerDescLongitudeE6 := esportscustomerFields[10].Descriptor()
+	// esportscustomer.DefaultLongitudeE6 holds the default value on creation for the longitude_e6 field.
+	esportscustomer.DefaultLongitudeE6 = esportscustomerDescLongitudeE6.Default.(int)
 	// esportscustomerDescRiskReason is the schema descriptor for risk_reason field.
-	esportscustomerDescRiskReason := esportscustomerFields[12].Descriptor()
+	esportscustomerDescRiskReason := esportscustomerFields[15].Descriptor()
 	// esportscustomer.DefaultRiskReason holds the default value on creation for the risk_reason field.
 	esportscustomer.DefaultRiskReason = esportscustomerDescRiskReason.Default.(string)
 	// esportscustomer.RiskReasonValidator is a validator for the "risk_reason" field. It is called by the builders before save.
 	esportscustomer.RiskReasonValidator = esportscustomerDescRiskReason.Validators[0].(func(string) error)
 	// esportscustomerDescWecomCorpID is the schema descriptor for wecom_corp_id field.
-	esportscustomerDescWecomCorpID := esportscustomerFields[15].Descriptor()
+	esportscustomerDescWecomCorpID := esportscustomerFields[18].Descriptor()
 	// esportscustomer.WecomCorpIDValidator is a validator for the "wecom_corp_id" field. It is called by the builders before save.
 	esportscustomer.WecomCorpIDValidator = esportscustomerDescWecomCorpID.Validators[0].(func(string) error)
 	// esportscustomerDescWecomExternalID is the schema descriptor for wecom_external_id field.
-	esportscustomerDescWecomExternalID := esportscustomerFields[16].Descriptor()
+	esportscustomerDescWecomExternalID := esportscustomerFields[19].Descriptor()
 	// esportscustomer.WecomExternalIDValidator is a validator for the "wecom_external_id" field. It is called by the builders before save.
 	esportscustomer.WecomExternalIDValidator = esportscustomerDescWecomExternalID.Validators[0].(func(string) error)
 	// esportscustomerDescMemberLevelCode is the schema descriptor for member_level_code field.
-	esportscustomerDescMemberLevelCode := esportscustomerFields[17].Descriptor()
+	esportscustomerDescMemberLevelCode := esportscustomerFields[20].Descriptor()
 	// esportscustomer.DefaultMemberLevelCode holds the default value on creation for the member_level_code field.
 	esportscustomer.DefaultMemberLevelCode = esportscustomerDescMemberLevelCode.Default.(string)
 	// esportscustomer.MemberLevelCodeValidator is a validator for the "member_level_code" field. It is called by the builders before save.
 	esportscustomer.MemberLevelCodeValidator = esportscustomerDescMemberLevelCode.Validators[0].(func(string) error)
 	// esportscustomerDescMemberPendingLevelCode is the schema descriptor for member_pending_level_code field.
-	esportscustomerDescMemberPendingLevelCode := esportscustomerFields[18].Descriptor()
+	esportscustomerDescMemberPendingLevelCode := esportscustomerFields[21].Descriptor()
 	// esportscustomer.DefaultMemberPendingLevelCode holds the default value on creation for the member_pending_level_code field.
 	esportscustomer.DefaultMemberPendingLevelCode = esportscustomerDescMemberPendingLevelCode.Default.(string)
 	// esportscustomer.MemberPendingLevelCodeValidator is a validator for the "member_pending_level_code" field. It is called by the builders before save.
 	esportscustomer.MemberPendingLevelCodeValidator = esportscustomerDescMemberPendingLevelCode.Validators[0].(func(string) error)
 	// esportscustomerDescVersion is the schema descriptor for version field.
-	esportscustomerDescVersion := esportscustomerFields[21].Descriptor()
+	esportscustomerDescVersion := esportscustomerFields[24].Descriptor()
 	// esportscustomer.DefaultVersion holds the default value on creation for the version field.
 	esportscustomer.DefaultVersion = esportscustomerDescVersion.Default.(int)
 	// esportscustomerDescCreatedAt is the schema descriptor for created_at field.
-	esportscustomerDescCreatedAt := esportscustomerFields[22].Descriptor()
+	esportscustomerDescCreatedAt := esportscustomerFields[25].Descriptor()
 	// esportscustomer.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportscustomer.DefaultCreatedAt = esportscustomerDescCreatedAt.Default.(func() time.Time)
 	// esportscustomerDescUpdatedAt is the schema descriptor for updated_at field.
-	esportscustomerDescUpdatedAt := esportscustomerFields[23].Descriptor()
+	esportscustomerDescUpdatedAt := esportscustomerFields[26].Descriptor()
 	// esportscustomer.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportscustomer.DefaultUpdatedAt = esportscustomerDescUpdatedAt.Default.(func() time.Time)
 	// esportscustomer.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2231,15 +2482,15 @@ func init() {
 	// esportsdispatchseat.SeatIndexValidator is a validator for the "seat_index" field. It is called by the builders before save.
 	esportsdispatchseat.SeatIndexValidator = esportsdispatchseatDescSeatIndex.Validators[0].(func(int) error)
 	// esportsdispatchseatDescVersion is the schema descriptor for version field.
-	esportsdispatchseatDescVersion := esportsdispatchseatFields[10].Descriptor()
+	esportsdispatchseatDescVersion := esportsdispatchseatFields[13].Descriptor()
 	// esportsdispatchseat.DefaultVersion holds the default value on creation for the version field.
 	esportsdispatchseat.DefaultVersion = esportsdispatchseatDescVersion.Default.(int)
 	// esportsdispatchseatDescCreatedAt is the schema descriptor for created_at field.
-	esportsdispatchseatDescCreatedAt := esportsdispatchseatFields[11].Descriptor()
+	esportsdispatchseatDescCreatedAt := esportsdispatchseatFields[14].Descriptor()
 	// esportsdispatchseat.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsdispatchseat.DefaultCreatedAt = esportsdispatchseatDescCreatedAt.Default.(func() time.Time)
 	// esportsdispatchseatDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsdispatchseatDescUpdatedAt := esportsdispatchseatFields[12].Descriptor()
+	esportsdispatchseatDescUpdatedAt := esportsdispatchseatFields[15].Descriptor()
 	// esportsdispatchseat.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsdispatchseat.DefaultUpdatedAt = esportsdispatchseatDescUpdatedAt.Default.(func() time.Time)
 	// esportsdispatchseat.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2650,12 +2901,40 @@ func init() {
 	esportsgiftintent.DefaultStoredValueCardNo = esportsgiftintentDescStoredValueCardNo.Default.(string)
 	// esportsgiftintent.StoredValueCardNoValidator is a validator for the "stored_value_card_no" field. It is called by the builders before save.
 	esportsgiftintent.StoredValueCardNoValidator = esportsgiftintentDescStoredValueCardNo.Validators[0].(func(string) error)
+	// esportsgiftintentDescGiftTierID is the schema descriptor for gift_tier_id field.
+	esportsgiftintentDescGiftTierID := esportsgiftintentFields[13].Descriptor()
+	// esportsgiftintent.DefaultGiftTierID holds the default value on creation for the gift_tier_id field.
+	esportsgiftintent.DefaultGiftTierID = esportsgiftintentDescGiftTierID.Default.(int)
+	// esportsgiftintentDescGiftTierCode is the schema descriptor for gift_tier_code field.
+	esportsgiftintentDescGiftTierCode := esportsgiftintentFields[14].Descriptor()
+	// esportsgiftintent.DefaultGiftTierCode holds the default value on creation for the gift_tier_code field.
+	esportsgiftintent.DefaultGiftTierCode = esportsgiftintentDescGiftTierCode.Default.(string)
+	// esportsgiftintent.GiftTierCodeValidator is a validator for the "gift_tier_code" field. It is called by the builders before save.
+	esportsgiftintent.GiftTierCodeValidator = esportsgiftintentDescGiftTierCode.Validators[0].(func(string) error)
+	// esportsgiftintentDescHighValue is the schema descriptor for high_value field.
+	esportsgiftintentDescHighValue := esportsgiftintentFields[15].Descriptor()
+	// esportsgiftintent.DefaultHighValue holds the default value on creation for the high_value field.
+	esportsgiftintent.DefaultHighValue = esportsgiftintentDescHighValue.Default.(bool)
+	// esportsgiftintentDescRequireAge is the schema descriptor for require_age field.
+	esportsgiftintentDescRequireAge := esportsgiftintentFields[16].Descriptor()
+	// esportsgiftintent.DefaultRequireAge holds the default value on creation for the require_age field.
+	esportsgiftintent.DefaultRequireAge = esportsgiftintentDescRequireAge.Default.(bool)
+	// esportsgiftintentDescPaymentIntentNo is the schema descriptor for payment_intent_no field.
+	esportsgiftintentDescPaymentIntentNo := esportsgiftintentFields[19].Descriptor()
+	// esportsgiftintent.PaymentIntentNoValidator is a validator for the "payment_intent_no" field. It is called by the builders before save.
+	esportsgiftintent.PaymentIntentNoValidator = esportsgiftintentDescPaymentIntentNo.Validators[0].(func(string) error)
+	// esportsgiftintentDescPaymentRef is the schema descriptor for payment_ref field.
+	esportsgiftintentDescPaymentRef := esportsgiftintentFields[20].Descriptor()
+	// esportsgiftintent.DefaultPaymentRef holds the default value on creation for the payment_ref field.
+	esportsgiftintent.DefaultPaymentRef = esportsgiftintentDescPaymentRef.Default.(string)
+	// esportsgiftintent.PaymentRefValidator is a validator for the "payment_ref" field. It is called by the builders before save.
+	esportsgiftintent.PaymentRefValidator = esportsgiftintentDescPaymentRef.Validators[0].(func(string) error)
 	// esportsgiftintentDescCreatedByAdminID is the schema descriptor for created_by_admin_id field.
-	esportsgiftintentDescCreatedByAdminID := esportsgiftintentFields[13].Descriptor()
+	esportsgiftintentDescCreatedByAdminID := esportsgiftintentFields[24].Descriptor()
 	// esportsgiftintent.CreatedByAdminIDValidator is a validator for the "created_by_admin_id" field. It is called by the builders before save.
 	esportsgiftintent.CreatedByAdminIDValidator = esportsgiftintentDescCreatedByAdminID.Validators[0].(func(int) error)
 	// esportsgiftintentDescClientKey is the schema descriptor for client_key field.
-	esportsgiftintentDescClientKey := esportsgiftintentFields[14].Descriptor()
+	esportsgiftintentDescClientKey := esportsgiftintentFields[25].Descriptor()
 	// esportsgiftintent.ClientKeyValidator is a validator for the "client_key" field. It is called by the builders before save.
 	esportsgiftintent.ClientKeyValidator = func() func(string) error {
 		validators := esportsgiftintentDescClientKey.Validators
@@ -2673,25 +2952,25 @@ func init() {
 		}
 	}()
 	// esportsgiftintentDescVersion is the schema descriptor for version field.
-	esportsgiftintentDescVersion := esportsgiftintentFields[16].Descriptor()
+	esportsgiftintentDescVersion := esportsgiftintentFields[27].Descriptor()
 	// esportsgiftintent.DefaultVersion holds the default value on creation for the version field.
 	esportsgiftintent.DefaultVersion = esportsgiftintentDescVersion.Default.(int)
 	// esportsgiftintentDescConfirmationRef is the schema descriptor for confirmation_ref field.
-	esportsgiftintentDescConfirmationRef := esportsgiftintentFields[17].Descriptor()
+	esportsgiftintentDescConfirmationRef := esportsgiftintentFields[28].Descriptor()
 	// esportsgiftintent.DefaultConfirmationRef holds the default value on creation for the confirmation_ref field.
 	esportsgiftintent.DefaultConfirmationRef = esportsgiftintentDescConfirmationRef.Default.(string)
 	// esportsgiftintent.ConfirmationRefValidator is a validator for the "confirmation_ref" field. It is called by the builders before save.
 	esportsgiftintent.ConfirmationRefValidator = esportsgiftintentDescConfirmationRef.Validators[0].(func(string) error)
 	// esportsgiftintentDescGiftOrderID is the schema descriptor for gift_order_id field.
-	esportsgiftintentDescGiftOrderID := esportsgiftintentFields[18].Descriptor()
+	esportsgiftintentDescGiftOrderID := esportsgiftintentFields[29].Descriptor()
 	// esportsgiftintent.GiftOrderIDValidator is a validator for the "gift_order_id" field. It is called by the builders before save.
 	esportsgiftintent.GiftOrderIDValidator = esportsgiftintentDescGiftOrderID.Validators[0].(func(int) error)
 	// esportsgiftintentDescCreatedAt is the schema descriptor for created_at field.
-	esportsgiftintentDescCreatedAt := esportsgiftintentFields[21].Descriptor()
+	esportsgiftintentDescCreatedAt := esportsgiftintentFields[32].Descriptor()
 	// esportsgiftintent.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsgiftintent.DefaultCreatedAt = esportsgiftintentDescCreatedAt.Default.(func() time.Time)
 	// esportsgiftintentDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsgiftintentDescUpdatedAt := esportsgiftintentFields[22].Descriptor()
+	esportsgiftintentDescUpdatedAt := esportsgiftintentFields[33].Descriptor()
 	// esportsgiftintent.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsgiftintent.DefaultUpdatedAt = esportsgiftintentDescUpdatedAt.Default.(func() time.Time)
 	// esportsgiftintent.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -2776,36 +3055,128 @@ func init() {
 	esportsgiftorderDescStoredValueCardID := esportsgiftorderFields[15].Descriptor()
 	// esportsgiftorder.StoredValueCardIDValidator is a validator for the "stored_value_card_id" field. It is called by the builders before save.
 	esportsgiftorder.StoredValueCardIDValidator = esportsgiftorderDescStoredValueCardID.Validators[0].(func(int) error)
+	// esportsgiftorderDescGiftTierID is the schema descriptor for gift_tier_id field.
+	esportsgiftorderDescGiftTierID := esportsgiftorderFields[16].Descriptor()
+	// esportsgiftorder.DefaultGiftTierID holds the default value on creation for the gift_tier_id field.
+	esportsgiftorder.DefaultGiftTierID = esportsgiftorderDescGiftTierID.Default.(int)
+	// esportsgiftorderDescGiftTierCode is the schema descriptor for gift_tier_code field.
+	esportsgiftorderDescGiftTierCode := esportsgiftorderFields[17].Descriptor()
+	// esportsgiftorder.DefaultGiftTierCode holds the default value on creation for the gift_tier_code field.
+	esportsgiftorder.DefaultGiftTierCode = esportsgiftorderDescGiftTierCode.Default.(string)
+	// esportsgiftorder.GiftTierCodeValidator is a validator for the "gift_tier_code" field. It is called by the builders before save.
+	esportsgiftorder.GiftTierCodeValidator = esportsgiftorderDescGiftTierCode.Validators[0].(func(string) error)
+	// esportsgiftorderDescPaymentRef is the schema descriptor for payment_ref field.
+	esportsgiftorderDescPaymentRef := esportsgiftorderFields[18].Descriptor()
+	// esportsgiftorder.DefaultPaymentRef holds the default value on creation for the payment_ref field.
+	esportsgiftorder.DefaultPaymentRef = esportsgiftorderDescPaymentRef.Default.(string)
+	// esportsgiftorder.PaymentRefValidator is a validator for the "payment_ref" field. It is called by the builders before save.
+	esportsgiftorder.PaymentRefValidator = esportsgiftorderDescPaymentRef.Validators[0].(func(string) error)
 	// esportsgiftorderDescCommissionBp is the schema descriptor for commission_bp field.
-	esportsgiftorderDescCommissionBp := esportsgiftorderFields[17].Descriptor()
+	esportsgiftorderDescCommissionBp := esportsgiftorderFields[20].Descriptor()
 	// esportsgiftorder.DefaultCommissionBp holds the default value on creation for the commission_bp field.
 	esportsgiftorder.DefaultCommissionBp = esportsgiftorderDescCommissionBp.Default.(int)
 	// esportsgiftorderDescCommissionCents is the schema descriptor for commission_cents field.
-	esportsgiftorderDescCommissionCents := esportsgiftorderFields[18].Descriptor()
+	esportsgiftorderDescCommissionCents := esportsgiftorderFields[21].Descriptor()
 	// esportsgiftorder.DefaultCommissionCents holds the default value on creation for the commission_cents field.
 	esportsgiftorder.DefaultCommissionCents = esportsgiftorderDescCommissionCents.Default.(int64)
 	// esportsgiftorderDescIncomeCents is the schema descriptor for income_cents field.
-	esportsgiftorderDescIncomeCents := esportsgiftorderFields[19].Descriptor()
+	esportsgiftorderDescIncomeCents := esportsgiftorderFields[22].Descriptor()
 	// esportsgiftorder.DefaultIncomeCents holds the default value on creation for the income_cents field.
 	esportsgiftorder.DefaultIncomeCents = esportsgiftorderDescIncomeCents.Default.(int64)
 	// esportsgiftorderDescRefundCents is the schema descriptor for refund_cents field.
-	esportsgiftorderDescRefundCents := esportsgiftorderFields[20].Descriptor()
+	esportsgiftorderDescRefundCents := esportsgiftorderFields[23].Descriptor()
 	// esportsgiftorder.DefaultRefundCents holds the default value on creation for the refund_cents field.
 	esportsgiftorder.DefaultRefundCents = esportsgiftorderDescRefundCents.Default.(int64)
 	// esportsgiftorderDescVersion is the schema descriptor for version field.
-	esportsgiftorderDescVersion := esportsgiftorderFields[24].Descriptor()
+	esportsgiftorderDescVersion := esportsgiftorderFields[27].Descriptor()
 	// esportsgiftorder.DefaultVersion holds the default value on creation for the version field.
 	esportsgiftorder.DefaultVersion = esportsgiftorderDescVersion.Default.(int)
 	// esportsgiftorderDescCreatedAt is the schema descriptor for created_at field.
-	esportsgiftorderDescCreatedAt := esportsgiftorderFields[25].Descriptor()
+	esportsgiftorderDescCreatedAt := esportsgiftorderFields[28].Descriptor()
 	// esportsgiftorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsgiftorder.DefaultCreatedAt = esportsgiftorderDescCreatedAt.Default.(func() time.Time)
 	// esportsgiftorderDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsgiftorderDescUpdatedAt := esportsgiftorderFields[26].Descriptor()
+	esportsgiftorderDescUpdatedAt := esportsgiftorderFields[29].Descriptor()
 	// esportsgiftorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsgiftorder.DefaultUpdatedAt = esportsgiftorderDescUpdatedAt.Default.(func() time.Time)
 	// esportsgiftorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsgiftorder.UpdateDefaultUpdatedAt = esportsgiftorderDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsgifttierFields := schema.EsportsGiftTier{}.Fields()
+	_ = esportsgifttierFields
+	// esportsgifttierDescGiftID is the schema descriptor for gift_id field.
+	esportsgifttierDescGiftID := esportsgifttierFields[0].Descriptor()
+	// esportsgifttier.GiftIDValidator is a validator for the "gift_id" field. It is called by the builders before save.
+	esportsgifttier.GiftIDValidator = esportsgifttierDescGiftID.Validators[0].(func(int) error)
+	// esportsgifttierDescTierCode is the schema descriptor for tier_code field.
+	esportsgifttierDescTierCode := esportsgifttierFields[1].Descriptor()
+	// esportsgifttier.TierCodeValidator is a validator for the "tier_code" field. It is called by the builders before save.
+	esportsgifttier.TierCodeValidator = func() func(string) error {
+		validators := esportsgifttierDescTierCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(tier_code string) error {
+			for _, fn := range fns {
+				if err := fn(tier_code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsgifttierDescName is the schema descriptor for name field.
+	esportsgifttierDescName := esportsgifttierFields[2].Descriptor()
+	// esportsgifttier.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	esportsgifttier.NameValidator = func() func(string) error {
+		validators := esportsgifttierDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsgifttierDescPriceCents is the schema descriptor for price_cents field.
+	esportsgifttierDescPriceCents := esportsgifttierFields[3].Descriptor()
+	// esportsgifttier.PriceCentsValidator is a validator for the "price_cents" field. It is called by the builders before save.
+	esportsgifttier.PriceCentsValidator = esportsgifttierDescPriceCents.Validators[0].(func(int64) error)
+	// esportsgifttierDescHighValue is the schema descriptor for high_value field.
+	esportsgifttierDescHighValue := esportsgifttierFields[4].Descriptor()
+	// esportsgifttier.DefaultHighValue holds the default value on creation for the high_value field.
+	esportsgifttier.DefaultHighValue = esportsgifttierDescHighValue.Default.(bool)
+	// esportsgifttierDescRequireAge is the schema descriptor for require_age field.
+	esportsgifttierDescRequireAge := esportsgifttierFields[5].Descriptor()
+	// esportsgifttier.DefaultRequireAge holds the default value on creation for the require_age field.
+	esportsgifttier.DefaultRequireAge = esportsgifttierDescRequireAge.Default.(bool)
+	// esportsgifttierDescIsDefault is the schema descriptor for is_default field.
+	esportsgifttierDescIsDefault := esportsgifttierFields[6].Descriptor()
+	// esportsgifttier.DefaultIsDefault holds the default value on creation for the is_default field.
+	esportsgifttier.DefaultIsDefault = esportsgifttierDescIsDefault.Default.(bool)
+	// esportsgifttierDescSortOrder is the schema descriptor for sort_order field.
+	esportsgifttierDescSortOrder := esportsgifttierFields[7].Descriptor()
+	// esportsgifttier.DefaultSortOrder holds the default value on creation for the sort_order field.
+	esportsgifttier.DefaultSortOrder = esportsgifttierDescSortOrder.Default.(int)
+	// esportsgifttierDescVersion is the schema descriptor for version field.
+	esportsgifttierDescVersion := esportsgifttierFields[9].Descriptor()
+	// esportsgifttier.DefaultVersion holds the default value on creation for the version field.
+	esportsgifttier.DefaultVersion = esportsgifttierDescVersion.Default.(int)
+	// esportsgifttierDescCreatedAt is the schema descriptor for created_at field.
+	esportsgifttierDescCreatedAt := esportsgifttierFields[10].Descriptor()
+	// esportsgifttier.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsgifttier.DefaultCreatedAt = esportsgifttierDescCreatedAt.Default.(func() time.Time)
+	// esportsgifttierDescUpdatedAt is the schema descriptor for updated_at field.
+	esportsgifttierDescUpdatedAt := esportsgifttierFields[11].Descriptor()
+	// esportsgifttier.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportsgifttier.DefaultUpdatedAt = esportsgifttierDescUpdatedAt.Default.(func() time.Time)
+	// esportsgifttier.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportsgifttier.UpdateDefaultUpdatedAt = esportsgifttierDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportsgrowthledgerHooks := schema.EsportsGrowthLedger{}.Hooks()
 	esportsgrowthledger.Hooks[0] = esportsgrowthledgerHooks[0]
 	esportsgrowthledgerFields := schema.EsportsGrowthLedger{}.Fields()
@@ -2833,13 +3204,13 @@ func init() {
 		}
 	}()
 	// esportsgrowthledgerDescNote is the schema descriptor for note field.
-	esportsgrowthledgerDescNote := esportsgrowthledgerFields[5].Descriptor()
+	esportsgrowthledgerDescNote := esportsgrowthledgerFields[6].Descriptor()
 	// esportsgrowthledger.DefaultNote holds the default value on creation for the note field.
 	esportsgrowthledger.DefaultNote = esportsgrowthledgerDescNote.Default.(string)
 	// esportsgrowthledger.NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	esportsgrowthledger.NoteValidator = esportsgrowthledgerDescNote.Validators[0].(func(string) error)
 	// esportsgrowthledgerDescCreatedAt is the schema descriptor for created_at field.
-	esportsgrowthledgerDescCreatedAt := esportsgrowthledgerFields[6].Descriptor()
+	esportsgrowthledgerDescCreatedAt := esportsgrowthledgerFields[7].Descriptor()
 	// esportsgrowthledger.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsgrowthledger.DefaultCreatedAt = esportsgrowthledgerDescCreatedAt.Default.(func() time.Time)
 	esportsidempotencyHooks := schema.EsportsIdempotency{}.Hooks()
@@ -3084,8 +3455,16 @@ func init() {
 	esportsledgerallocationDescAmountCents := esportsledgerallocationFields[6].Descriptor()
 	// esportsledgerallocation.AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
 	esportsledgerallocation.AmountCentsValidator = esportsledgerallocationDescAmountCents.Validators[0].(func(int64) error)
+	// esportsledgerallocationDescPrincipalCents is the schema descriptor for principal_cents field.
+	esportsledgerallocationDescPrincipalCents := esportsledgerallocationFields[7].Descriptor()
+	// esportsledgerallocation.DefaultPrincipalCents holds the default value on creation for the principal_cents field.
+	esportsledgerallocation.DefaultPrincipalCents = esportsledgerallocationDescPrincipalCents.Default.(int64)
+	// esportsledgerallocationDescBonusCents is the schema descriptor for bonus_cents field.
+	esportsledgerallocationDescBonusCents := esportsledgerallocationFields[8].Descriptor()
+	// esportsledgerallocation.DefaultBonusCents holds the default value on creation for the bonus_cents field.
+	esportsledgerallocation.DefaultBonusCents = esportsledgerallocationDescBonusCents.Default.(int64)
 	// esportsledgerallocationDescCreatedAt is the schema descriptor for created_at field.
-	esportsledgerallocationDescCreatedAt := esportsledgerallocationFields[7].Descriptor()
+	esportsledgerallocationDescCreatedAt := esportsledgerallocationFields[9].Descriptor()
 	// esportsledgerallocation.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsledgerallocation.DefaultCreatedAt = esportsledgerallocationDescCreatedAt.Default.(func() time.Time)
 	esportsledgerentryHooks := schema.EsportsLedgerEntry{}.Hooks()
@@ -3182,14 +3561,22 @@ func init() {
 			return nil
 		}
 	}()
+	// esportsledgerentryDescPrincipalDeltaCents is the schema descriptor for principal_delta_cents field.
+	esportsledgerentryDescPrincipalDeltaCents := esportsledgerentryFields[6].Descriptor()
+	// esportsledgerentry.DefaultPrincipalDeltaCents holds the default value on creation for the principal_delta_cents field.
+	esportsledgerentry.DefaultPrincipalDeltaCents = esportsledgerentryDescPrincipalDeltaCents.Default.(int64)
+	// esportsledgerentryDescBonusDeltaCents is the schema descriptor for bonus_delta_cents field.
+	esportsledgerentryDescBonusDeltaCents := esportsledgerentryFields[7].Descriptor()
+	// esportsledgerentry.DefaultBonusDeltaCents holds the default value on creation for the bonus_delta_cents field.
+	esportsledgerentry.DefaultBonusDeltaCents = esportsledgerentryDescBonusDeltaCents.Default.(int64)
 	// esportsledgerentryDescFundBatch is the schema descriptor for fund_batch field.
-	esportsledgerentryDescFundBatch := esportsledgerentryFields[6].Descriptor()
+	esportsledgerentryDescFundBatch := esportsledgerentryFields[8].Descriptor()
 	// esportsledgerentry.DefaultFundBatch holds the default value on creation for the fund_batch field.
 	esportsledgerentry.DefaultFundBatch = esportsledgerentryDescFundBatch.Default.(string)
 	// esportsledgerentry.FundBatchValidator is a validator for the "fund_batch" field. It is called by the builders before save.
 	esportsledgerentry.FundBatchValidator = esportsledgerentryDescFundBatch.Validators[0].(func(string) error)
 	// esportsledgerentryDescCreatedAt is the schema descriptor for created_at field.
-	esportsledgerentryDescCreatedAt := esportsledgerentryFields[7].Descriptor()
+	esportsledgerentryDescCreatedAt := esportsledgerentryFields[9].Descriptor()
 	// esportsledgerentry.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsledgerentry.DefaultCreatedAt = esportsledgerentryDescCreatedAt.Default.(func() time.Time)
 	esportsmemberleveloverrideHooks := schema.EsportsMemberLevelOverride{}.Hooks()
@@ -3306,20 +3693,28 @@ func init() {
 	esportsmemberlevelruleDescPriorityBooking := esportsmemberlevelruleFields[7].Descriptor()
 	// esportsmemberlevelrule.DefaultPriorityBooking holds the default value on creation for the priority_booking field.
 	esportsmemberlevelrule.DefaultPriorityBooking = esportsmemberlevelruleDescPriorityBooking.Default.(bool)
+	// esportsmemberlevelruleDescDedicatedChannel is the schema descriptor for dedicated_channel field.
+	esportsmemberlevelruleDescDedicatedChannel := esportsmemberlevelruleFields[8].Descriptor()
+	// esportsmemberlevelrule.DefaultDedicatedChannel holds the default value on creation for the dedicated_channel field.
+	esportsmemberlevelrule.DefaultDedicatedChannel = esportsmemberlevelruleDescDedicatedChannel.Default.(bool)
+	// esportsmemberlevelruleDescOfflineEventPriority is the schema descriptor for offline_event_priority field.
+	esportsmemberlevelruleDescOfflineEventPriority := esportsmemberlevelruleFields[9].Descriptor()
+	// esportsmemberlevelrule.DefaultOfflineEventPriority holds the default value on creation for the offline_event_priority field.
+	esportsmemberlevelrule.DefaultOfflineEventPriority = esportsmemberlevelruleDescOfflineEventPriority.Default.(bool)
 	// esportsmemberlevelruleDescSortOrder is the schema descriptor for sort_order field.
-	esportsmemberlevelruleDescSortOrder := esportsmemberlevelruleFields[8].Descriptor()
+	esportsmemberlevelruleDescSortOrder := esportsmemberlevelruleFields[10].Descriptor()
 	// esportsmemberlevelrule.DefaultSortOrder holds the default value on creation for the sort_order field.
 	esportsmemberlevelrule.DefaultSortOrder = esportsmemberlevelruleDescSortOrder.Default.(int)
 	// esportsmemberlevelruleDescVersion is the schema descriptor for version field.
-	esportsmemberlevelruleDescVersion := esportsmemberlevelruleFields[10].Descriptor()
+	esportsmemberlevelruleDescVersion := esportsmemberlevelruleFields[12].Descriptor()
 	// esportsmemberlevelrule.DefaultVersion holds the default value on creation for the version field.
 	esportsmemberlevelrule.DefaultVersion = esportsmemberlevelruleDescVersion.Default.(int)
 	// esportsmemberlevelruleDescCreatedAt is the schema descriptor for created_at field.
-	esportsmemberlevelruleDescCreatedAt := esportsmemberlevelruleFields[11].Descriptor()
+	esportsmemberlevelruleDescCreatedAt := esportsmemberlevelruleFields[13].Descriptor()
 	// esportsmemberlevelrule.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsmemberlevelrule.DefaultCreatedAt = esportsmemberlevelruleDescCreatedAt.Default.(func() time.Time)
 	// esportsmemberlevelruleDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsmemberlevelruleDescUpdatedAt := esportsmemberlevelruleFields[12].Descriptor()
+	esportsmemberlevelruleDescUpdatedAt := esportsmemberlevelruleFields[14].Descriptor()
 	// esportsmemberlevelrule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsmemberlevelrule.DefaultUpdatedAt = esportsmemberlevelruleDescUpdatedAt.Default.(func() time.Time)
 	// esportsmemberlevelrule.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -3446,102 +3841,144 @@ func init() {
 	esportsorderDescCustomerID := esportsorderFields[1].Descriptor()
 	// esportsorder.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
 	esportsorder.CustomerIDValidator = esportsorderDescCustomerID.Validators[0].(func(int) error)
+	// esportsorderDescSkuCode is the schema descriptor for sku_code field.
+	esportsorderDescSkuCode := esportsorderFields[3].Descriptor()
+	// esportsorder.DefaultSkuCode holds the default value on creation for the sku_code field.
+	esportsorder.DefaultSkuCode = esportsorderDescSkuCode.Default.(string)
+	// esportsorder.SkuCodeValidator is a validator for the "sku_code" field. It is called by the builders before save.
+	esportsorder.SkuCodeValidator = esportsorderDescSkuCode.Validators[0].(func(string) error)
+	// esportsorderDescSkuName is the schema descriptor for sku_name field.
+	esportsorderDescSkuName := esportsorderFields[4].Descriptor()
+	// esportsorder.DefaultSkuName holds the default value on creation for the sku_name field.
+	esportsorder.DefaultSkuName = esportsorderDescSkuName.Default.(string)
+	// esportsorder.SkuNameValidator is a validator for the "sku_name" field. It is called by the builders before save.
+	esportsorder.SkuNameValidator = esportsorderDescSkuName.Validators[0].(func(string) error)
+	// esportsorderDescSpecName is the schema descriptor for spec_name field.
+	esportsorderDescSpecName := esportsorderFields[5].Descriptor()
+	// esportsorder.DefaultSpecName holds the default value on creation for the spec_name field.
+	esportsorder.DefaultSpecName = esportsorderDescSpecName.Default.(string)
+	// esportsorder.SpecNameValidator is a validator for the "spec_name" field. It is called by the builders before save.
+	esportsorder.SpecNameValidator = esportsorderDescSpecName.Validators[0].(func(string) error)
 	// esportsorderDescQuantity is the schema descriptor for quantity field.
-	esportsorderDescQuantity := esportsorderFields[15].Descriptor()
+	esportsorderDescQuantity := esportsorderFields[18].Descriptor()
 	// esportsorder.QuantityValidator is a validator for the "quantity" field. It is called by the builders before save.
 	esportsorder.QuantityValidator = esportsorderDescQuantity.Validators[0].(func(int64) error)
 	// esportsorderDescUnitPriceCents is the schema descriptor for unit_price_cents field.
-	esportsorderDescUnitPriceCents := esportsorderFields[16].Descriptor()
+	esportsorderDescUnitPriceCents := esportsorderFields[19].Descriptor()
 	// esportsorder.UnitPriceCentsValidator is a validator for the "unit_price_cents" field. It is called by the builders before save.
 	esportsorder.UnitPriceCentsValidator = esportsorderDescUnitPriceCents.Validators[0].(func(int64) error)
 	// esportsorderDescMinUnitPriceCents is the schema descriptor for min_unit_price_cents field.
-	esportsorderDescMinUnitPriceCents := esportsorderFields[17].Descriptor()
+	esportsorderDescMinUnitPriceCents := esportsorderFields[20].Descriptor()
 	// esportsorder.DefaultMinUnitPriceCents holds the default value on creation for the min_unit_price_cents field.
 	esportsorder.DefaultMinUnitPriceCents = esportsorderDescMinUnitPriceCents.Default.(int64)
 	// esportsorderDescAdjustmentApprovalBp is the schema descriptor for adjustment_approval_bp field.
-	esportsorderDescAdjustmentApprovalBp := esportsorderFields[18].Descriptor()
+	esportsorderDescAdjustmentApprovalBp := esportsorderFields[21].Descriptor()
 	// esportsorder.DefaultAdjustmentApprovalBp holds the default value on creation for the adjustment_approval_bp field.
 	esportsorder.DefaultAdjustmentApprovalBp = esportsorderDescAdjustmentApprovalBp.Default.(int)
 	// esportsorderDescDiscountCents is the schema descriptor for discount_cents field.
-	esportsorderDescDiscountCents := esportsorderFields[19].Descriptor()
+	esportsorderDescDiscountCents := esportsorderFields[22].Descriptor()
 	// esportsorder.DefaultDiscountCents holds the default value on creation for the discount_cents field.
 	esportsorder.DefaultDiscountCents = esportsorderDescDiscountCents.Default.(int64)
 	// esportsorderDescManualAdjustCents is the schema descriptor for manual_adjust_cents field.
-	esportsorderDescManualAdjustCents := esportsorderFields[20].Descriptor()
+	esportsorderDescManualAdjustCents := esportsorderFields[23].Descriptor()
 	// esportsorder.DefaultManualAdjustCents holds the default value on creation for the manual_adjust_cents field.
 	esportsorder.DefaultManualAdjustCents = esportsorderDescManualAdjustCents.Default.(int64)
+	// esportsorderDescMemberLevelCode is the schema descriptor for member_level_code field.
+	esportsorderDescMemberLevelCode := esportsorderFields[24].Descriptor()
+	// esportsorder.DefaultMemberLevelCode holds the default value on creation for the member_level_code field.
+	esportsorder.DefaultMemberLevelCode = esportsorderDescMemberLevelCode.Default.(string)
+	// esportsorder.MemberLevelCodeValidator is a validator for the "member_level_code" field. It is called by the builders before save.
+	esportsorder.MemberLevelCodeValidator = esportsorderDescMemberLevelCode.Validators[0].(func(string) error)
+	// esportsorderDescMemberDiscountBps is the schema descriptor for member_discount_bps field.
+	esportsorderDescMemberDiscountBps := esportsorderFields[25].Descriptor()
+	// esportsorder.DefaultMemberDiscountBps holds the default value on creation for the member_discount_bps field.
+	esportsorder.DefaultMemberDiscountBps = esportsorderDescMemberDiscountBps.Default.(int)
 	// esportsorderDescPayableCents is the schema descriptor for payable_cents field.
-	esportsorderDescPayableCents := esportsorderFields[21].Descriptor()
+	esportsorderDescPayableCents := esportsorderFields[26].Descriptor()
 	// esportsorder.PayableCentsValidator is a validator for the "payable_cents" field. It is called by the builders before save.
 	esportsorder.PayableCentsValidator = esportsorderDescPayableCents.Validators[0].(func(int64) error)
 	// esportsorderDescPromisedServiceUnits is the schema descriptor for promised_service_units field.
-	esportsorderDescPromisedServiceUnits := esportsorderFields[22].Descriptor()
+	esportsorderDescPromisedServiceUnits := esportsorderFields[27].Descriptor()
 	// esportsorder.PromisedServiceUnitsValidator is a validator for the "promised_service_units" field. It is called by the builders before save.
 	esportsorder.PromisedServiceUnitsValidator = esportsorderDescPromisedServiceUnits.Validators[0].(func(int64) error)
+	// esportsorderDescPerSeatServiceUnits is the schema descriptor for per_seat_service_units field.
+	esportsorderDescPerSeatServiceUnits := esportsorderFields[28].Descriptor()
+	// esportsorder.DefaultPerSeatServiceUnits holds the default value on creation for the per_seat_service_units field.
+	esportsorder.DefaultPerSeatServiceUnits = esportsorderDescPerSeatServiceUnits.Default.(int64)
 	// esportsorderDescServiceDurationMinutes is the schema descriptor for service_duration_minutes field.
-	esportsorderDescServiceDurationMinutes := esportsorderFields[23].Descriptor()
+	esportsorderDescServiceDurationMinutes := esportsorderFields[29].Descriptor()
 	// esportsorder.DefaultServiceDurationMinutes holds the default value on creation for the service_duration_minutes field.
 	esportsorder.DefaultServiceDurationMinutes = esportsorderDescServiceDurationMinutes.Default.(int)
 	// esportsorderDescAddonCents is the schema descriptor for addon_cents field.
-	esportsorderDescAddonCents := esportsorderFields[24].Descriptor()
+	esportsorderDescAddonCents := esportsorderFields[30].Descriptor()
 	// esportsorder.DefaultAddonCents holds the default value on creation for the addon_cents field.
 	esportsorder.DefaultAddonCents = esportsorderDescAddonCents.Default.(int64)
 	// esportsorderDescAddonUnits is the schema descriptor for addon_units field.
-	esportsorderDescAddonUnits := esportsorderFields[25].Descriptor()
+	esportsorderDescAddonUnits := esportsorderFields[31].Descriptor()
 	// esportsorder.DefaultAddonUnits holds the default value on creation for the addon_units field.
 	esportsorder.DefaultAddonUnits = esportsorderDescAddonUnits.Default.(int64)
 	// esportsorderDescRequiredSeats is the schema descriptor for required_seats field.
-	esportsorderDescRequiredSeats := esportsorderFields[26].Descriptor()
+	esportsorderDescRequiredSeats := esportsorderFields[32].Descriptor()
 	// esportsorder.RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
 	esportsorder.RequiredSeatsValidator = esportsorderDescRequiredSeats.Validators[0].(func(int) error)
 	// esportsorderDescQuoteVersion is the schema descriptor for quote_version field.
-	esportsorderDescQuoteVersion := esportsorderFields[29].Descriptor()
+	esportsorderDescQuoteVersion := esportsorderFields[35].Descriptor()
 	// esportsorder.DefaultQuoteVersion holds the default value on creation for the quote_version field.
 	esportsorder.DefaultQuoteVersion = esportsorderDescQuoteVersion.Default.(int)
 	// esportsorderDescVersion is the schema descriptor for version field.
-	esportsorderDescVersion := esportsorderFields[30].Descriptor()
+	esportsorderDescVersion := esportsorderFields[36].Descriptor()
 	// esportsorder.DefaultVersion holds the default value on creation for the version field.
 	esportsorder.DefaultVersion = esportsorderDescVersion.Default.(int)
 	// esportsorderDescPriorityGame is the schema descriptor for priority_game field.
-	esportsorderDescPriorityGame := esportsorderFields[37].Descriptor()
+	esportsorderDescPriorityGame := esportsorderFields[43].Descriptor()
 	// esportsorder.DefaultPriorityGame holds the default value on creation for the priority_game field.
 	esportsorder.DefaultPriorityGame = esportsorderDescPriorityGame.Default.(string)
 	// esportsorder.PriorityGameValidator is a validator for the "priority_game" field. It is called by the builders before save.
 	esportsorder.PriorityGameValidator = esportsorderDescPriorityGame.Validators[0].(func(string) error)
 	// esportsorderDescPriorityReleaseReason is the schema descriptor for priority_release_reason field.
-	esportsorderDescPriorityReleaseReason := esportsorderFields[38].Descriptor()
+	esportsorderDescPriorityReleaseReason := esportsorderFields[44].Descriptor()
 	// esportsorder.DefaultPriorityReleaseReason holds the default value on creation for the priority_release_reason field.
 	esportsorder.DefaultPriorityReleaseReason = esportsorderDescPriorityReleaseReason.Default.(string)
 	// esportsorder.PriorityReleaseReasonValidator is a validator for the "priority_release_reason" field. It is called by the builders before save.
 	esportsorder.PriorityReleaseReasonValidator = esportsorderDescPriorityReleaseReason.Validators[0].(func(string) error)
+	// esportsorderDescRemindPriorityLevel is the schema descriptor for remind_priority_level field.
+	esportsorderDescRemindPriorityLevel := esportsorderFields[45].Descriptor()
+	// esportsorder.DefaultRemindPriorityLevel holds the default value on creation for the remind_priority_level field.
+	esportsorder.DefaultRemindPriorityLevel = esportsorderDescRemindPriorityLevel.Default.(int)
+	// esportsorderDescRemindNote is the schema descriptor for remind_note field.
+	esportsorderDescRemindNote := esportsorderFields[46].Descriptor()
+	// esportsorder.DefaultRemindNote holds the default value on creation for the remind_note field.
+	esportsorder.DefaultRemindNote = esportsorderDescRemindNote.Default.(string)
+	// esportsorder.RemindNoteValidator is a validator for the "remind_note" field. It is called by the builders before save.
+	esportsorder.RemindNoteValidator = esportsorderDescRemindNote.Validators[0].(func(string) error)
 	// esportsorderDescRefundedCents is the schema descriptor for refunded_cents field.
-	esportsorderDescRefundedCents := esportsorderFields[46].Descriptor()
+	esportsorderDescRefundedCents := esportsorderFields[56].Descriptor()
 	// esportsorder.DefaultRefundedCents holds the default value on creation for the refunded_cents field.
 	esportsorder.DefaultRefundedCents = esportsorderDescRefundedCents.Default.(int64)
 	// esportsorderDescRefundReservedCents is the schema descriptor for refund_reserved_cents field.
-	esportsorderDescRefundReservedCents := esportsorderFields[48].Descriptor()
+	esportsorderDescRefundReservedCents := esportsorderFields[58].Descriptor()
 	// esportsorder.DefaultRefundReservedCents holds the default value on creation for the refund_reserved_cents field.
 	esportsorder.DefaultRefundReservedCents = esportsorderDescRefundReservedCents.Default.(int64)
 	// esportsorderDescChannelCostCents is the schema descriptor for channel_cost_cents field.
-	esportsorderDescChannelCostCents := esportsorderFields[49].Descriptor()
+	esportsorderDescChannelCostCents := esportsorderFields[59].Descriptor()
 	// esportsorder.DefaultChannelCostCents holds the default value on creation for the channel_cost_cents field.
 	esportsorder.DefaultChannelCostCents = esportsorderDescChannelCostCents.Default.(int64)
 	// esportsorderDescBackfillReason is the schema descriptor for backfill_reason field.
-	esportsorderDescBackfillReason := esportsorderFields[59].Descriptor()
+	esportsorderDescBackfillReason := esportsorderFields[70].Descriptor()
 	// esportsorder.DefaultBackfillReason holds the default value on creation for the backfill_reason field.
 	esportsorder.DefaultBackfillReason = esportsorderDescBackfillReason.Default.(string)
 	// esportsorder.BackfillReasonValidator is a validator for the "backfill_reason" field. It is called by the builders before save.
 	esportsorder.BackfillReasonValidator = esportsorderDescBackfillReason.Validators[0].(func(string) error)
 	// esportsorderDescBackfillCountCommission is the schema descriptor for backfill_count_commission field.
-	esportsorderDescBackfillCountCommission := esportsorderFields[60].Descriptor()
+	esportsorderDescBackfillCountCommission := esportsorderFields[71].Descriptor()
 	// esportsorder.DefaultBackfillCountCommission holds the default value on creation for the backfill_count_commission field.
 	esportsorder.DefaultBackfillCountCommission = esportsorderDescBackfillCountCommission.Default.(bool)
 	// esportsorderDescCreatedAt is the schema descriptor for created_at field.
-	esportsorderDescCreatedAt := esportsorderFields[63].Descriptor()
+	esportsorderDescCreatedAt := esportsorderFields[74].Descriptor()
 	// esportsorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsorder.DefaultCreatedAt = esportsorderDescCreatedAt.Default.(func() time.Time)
 	// esportsorderDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsorderDescUpdatedAt := esportsorderFields[64].Descriptor()
+	esportsorderDescUpdatedAt := esportsorderFields[75].Descriptor()
 	// esportsorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsorder.DefaultUpdatedAt = esportsorderDescUpdatedAt.Default.(func() time.Time)
 	// esportsorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -4224,16 +4661,72 @@ func init() {
 	esportsplayerDescConcurrentLimit := esportsplayerFields[7].Descriptor()
 	// esportsplayer.DefaultConcurrentLimit holds the default value on creation for the concurrent_limit field.
 	esportsplayer.DefaultConcurrentLimit = esportsplayerDescConcurrentLimit.Default.(int)
+	// esportsplayerDescExpectedPriceCents is the schema descriptor for expected_price_cents field.
+	esportsplayerDescExpectedPriceCents := esportsplayerFields[10].Descriptor()
+	// esportsplayer.DefaultExpectedPriceCents holds the default value on creation for the expected_price_cents field.
+	esportsplayer.DefaultExpectedPriceCents = esportsplayerDescExpectedPriceCents.Default.(int64)
+	// esportsplayerDescExpectedPriceReviewNote is the schema descriptor for expected_price_review_note field.
+	esportsplayerDescExpectedPriceReviewNote := esportsplayerFields[15].Descriptor()
+	// esportsplayer.DefaultExpectedPriceReviewNote holds the default value on creation for the expected_price_review_note field.
+	esportsplayer.DefaultExpectedPriceReviewNote = esportsplayerDescExpectedPriceReviewNote.Default.(string)
+	// esportsplayer.ExpectedPriceReviewNoteValidator is a validator for the "expected_price_review_note" field. It is called by the builders before save.
+	esportsplayer.ExpectedPriceReviewNoteValidator = esportsplayerDescExpectedPriceReviewNote.Validators[0].(func(string) error)
+	// esportsplayerDescServiceSlotStartMinute is the schema descriptor for service_slot_start_minute field.
+	esportsplayerDescServiceSlotStartMinute := esportsplayerFields[16].Descriptor()
+	// esportsplayer.DefaultServiceSlotStartMinute holds the default value on creation for the service_slot_start_minute field.
+	esportsplayer.DefaultServiceSlotStartMinute = esportsplayerDescServiceSlotStartMinute.Default.(int)
+	// esportsplayerDescServiceSlotEndMinute is the schema descriptor for service_slot_end_minute field.
+	esportsplayerDescServiceSlotEndMinute := esportsplayerFields[17].Descriptor()
+	// esportsplayer.DefaultServiceSlotEndMinute holds the default value on creation for the service_slot_end_minute field.
+	esportsplayer.DefaultServiceSlotEndMinute = esportsplayerDescServiceSlotEndMinute.Default.(int)
+	// esportsplayerDescAutoOnline is the schema descriptor for auto_online field.
+	esportsplayerDescAutoOnline := esportsplayerFields[18].Descriptor()
+	// esportsplayer.DefaultAutoOnline holds the default value on creation for the auto_online field.
+	esportsplayer.DefaultAutoOnline = esportsplayerDescAutoOnline.Default.(bool)
+	// esportsplayerDescAcceptPriceMinCents is the schema descriptor for accept_price_min_cents field.
+	esportsplayerDescAcceptPriceMinCents := esportsplayerFields[19].Descriptor()
+	// esportsplayer.DefaultAcceptPriceMinCents holds the default value on creation for the accept_price_min_cents field.
+	esportsplayer.DefaultAcceptPriceMinCents = esportsplayerDescAcceptPriceMinCents.Default.(int64)
+	// esportsplayerDescAcceptPriceMaxCents is the schema descriptor for accept_price_max_cents field.
+	esportsplayerDescAcceptPriceMaxCents := esportsplayerFields[20].Descriptor()
+	// esportsplayer.DefaultAcceptPriceMaxCents holds the default value on creation for the accept_price_max_cents field.
+	esportsplayer.DefaultAcceptPriceMaxCents = esportsplayerDescAcceptPriceMaxCents.Default.(int64)
+	// esportsplayerDescFixedTeamEnabled is the schema descriptor for fixed_team_enabled field.
+	esportsplayerDescFixedTeamEnabled := esportsplayerFields[21].Descriptor()
+	// esportsplayer.DefaultFixedTeamEnabled holds the default value on creation for the fixed_team_enabled field.
+	esportsplayer.DefaultFixedTeamEnabled = esportsplayerDescFixedTeamEnabled.Default.(bool)
+	// esportsplayerDescFixedTeamSlotStartMinute is the schema descriptor for fixed_team_slot_start_minute field.
+	esportsplayerDescFixedTeamSlotStartMinute := esportsplayerFields[22].Descriptor()
+	// esportsplayer.DefaultFixedTeamSlotStartMinute holds the default value on creation for the fixed_team_slot_start_minute field.
+	esportsplayer.DefaultFixedTeamSlotStartMinute = esportsplayerDescFixedTeamSlotStartMinute.Default.(int)
+	// esportsplayerDescFixedTeamSlotEndMinute is the schema descriptor for fixed_team_slot_end_minute field.
+	esportsplayerDescFixedTeamSlotEndMinute := esportsplayerFields[23].Descriptor()
+	// esportsplayer.DefaultFixedTeamSlotEndMinute holds the default value on creation for the fixed_team_slot_end_minute field.
+	esportsplayer.DefaultFixedTeamSlotEndMinute = esportsplayerDescFixedTeamSlotEndMinute.Default.(int)
+	// esportsplayerDescTimezone is the schema descriptor for timezone field.
+	esportsplayerDescTimezone := esportsplayerFields[24].Descriptor()
+	// esportsplayer.DefaultTimezone holds the default value on creation for the timezone field.
+	esportsplayer.DefaultTimezone = esportsplayerDescTimezone.Default.(string)
+	// esportsplayer.TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	esportsplayer.TimezoneValidator = esportsplayerDescTimezone.Validators[0].(func(string) error)
+	// esportsplayerDescLatitudeE6 is the schema descriptor for latitude_e6 field.
+	esportsplayerDescLatitudeE6 := esportsplayerFields[25].Descriptor()
+	// esportsplayer.DefaultLatitudeE6 holds the default value on creation for the latitude_e6 field.
+	esportsplayer.DefaultLatitudeE6 = esportsplayerDescLatitudeE6.Default.(int)
+	// esportsplayerDescLongitudeE6 is the schema descriptor for longitude_e6 field.
+	esportsplayerDescLongitudeE6 := esportsplayerFields[26].Descriptor()
+	// esportsplayer.DefaultLongitudeE6 holds the default value on creation for the longitude_e6 field.
+	esportsplayer.DefaultLongitudeE6 = esportsplayerDescLongitudeE6.Default.(int)
 	// esportsplayerDescVersion is the schema descriptor for version field.
-	esportsplayerDescVersion := esportsplayerFields[10].Descriptor()
+	esportsplayerDescVersion := esportsplayerFields[27].Descriptor()
 	// esportsplayer.DefaultVersion holds the default value on creation for the version field.
 	esportsplayer.DefaultVersion = esportsplayerDescVersion.Default.(int)
 	// esportsplayerDescCreatedAt is the schema descriptor for created_at field.
-	esportsplayerDescCreatedAt := esportsplayerFields[11].Descriptor()
+	esportsplayerDescCreatedAt := esportsplayerFields[28].Descriptor()
 	// esportsplayer.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsplayer.DefaultCreatedAt = esportsplayerDescCreatedAt.Default.(func() time.Time)
 	// esportsplayerDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsplayerDescUpdatedAt := esportsplayerFields[12].Descriptor()
+	esportsplayerDescUpdatedAt := esportsplayerFields[29].Descriptor()
 	// esportsplayer.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsplayer.DefaultUpdatedAt = esportsplayerDescUpdatedAt.Default.(func() time.Time)
 	// esportsplayer.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -4468,20 +4961,78 @@ func init() {
 	esportsplayerreviewDescVerified := esportsplayerreviewFields[5].Descriptor()
 	// esportsplayerreview.DefaultVerified holds the default value on creation for the verified field.
 	esportsplayerreview.DefaultVerified = esportsplayerreviewDescVerified.Default.(bool)
+	// esportsplayerreviewDescAutoDisputed is the schema descriptor for auto_disputed field.
+	esportsplayerreviewDescAutoDisputed := esportsplayerreviewFields[7].Descriptor()
+	// esportsplayerreview.DefaultAutoDisputed holds the default value on creation for the auto_disputed field.
+	esportsplayerreview.DefaultAutoDisputed = esportsplayerreviewDescAutoDisputed.Default.(bool)
+	// esportsplayerreviewDescDisputeRuleCode is the schema descriptor for dispute_rule_code field.
+	esportsplayerreviewDescDisputeRuleCode := esportsplayerreviewFields[8].Descriptor()
+	// esportsplayerreview.DefaultDisputeRuleCode holds the default value on creation for the dispute_rule_code field.
+	esportsplayerreview.DefaultDisputeRuleCode = esportsplayerreviewDescDisputeRuleCode.Default.(string)
+	// esportsplayerreview.DisputeRuleCodeValidator is a validator for the "dispute_rule_code" field. It is called by the builders before save.
+	esportsplayerreview.DisputeRuleCodeValidator = esportsplayerreviewDescDisputeRuleCode.Validators[0].(func(string) error)
 	// esportsplayerreviewDescVersion is the schema descriptor for version field.
-	esportsplayerreviewDescVersion := esportsplayerreviewFields[7].Descriptor()
+	esportsplayerreviewDescVersion := esportsplayerreviewFields[11].Descriptor()
 	// esportsplayerreview.DefaultVersion holds the default value on creation for the version field.
 	esportsplayerreview.DefaultVersion = esportsplayerreviewDescVersion.Default.(int)
 	// esportsplayerreviewDescCreatedAt is the schema descriptor for created_at field.
-	esportsplayerreviewDescCreatedAt := esportsplayerreviewFields[8].Descriptor()
+	esportsplayerreviewDescCreatedAt := esportsplayerreviewFields[12].Descriptor()
 	// esportsplayerreview.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsplayerreview.DefaultCreatedAt = esportsplayerreviewDescCreatedAt.Default.(func() time.Time)
 	// esportsplayerreviewDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsplayerreviewDescUpdatedAt := esportsplayerreviewFields[9].Descriptor()
+	esportsplayerreviewDescUpdatedAt := esportsplayerreviewFields[13].Descriptor()
 	// esportsplayerreview.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsplayerreview.DefaultUpdatedAt = esportsplayerreviewDescUpdatedAt.Default.(func() time.Time)
 	// esportsplayerreview.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsplayerreview.UpdateDefaultUpdatedAt = esportsplayerreviewDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsplayerreviewappealFields := schema.EsportsPlayerReviewAppeal{}.Fields()
+	_ = esportsplayerreviewappealFields
+	// esportsplayerreviewappealDescReviewID is the schema descriptor for review_id field.
+	esportsplayerreviewappealDescReviewID := esportsplayerreviewappealFields[0].Descriptor()
+	// esportsplayerreviewappeal.ReviewIDValidator is a validator for the "review_id" field. It is called by the builders before save.
+	esportsplayerreviewappeal.ReviewIDValidator = esportsplayerreviewappealDescReviewID.Validators[0].(func(int) error)
+	// esportsplayerreviewappealDescAppellantID is the schema descriptor for appellant_id field.
+	esportsplayerreviewappealDescAppellantID := esportsplayerreviewappealFields[2].Descriptor()
+	// esportsplayerreviewappeal.AppellantIDValidator is a validator for the "appellant_id" field. It is called by the builders before save.
+	esportsplayerreviewappeal.AppellantIDValidator = esportsplayerreviewappealDescAppellantID.Validators[0].(func(int) error)
+	// esportsplayerreviewappealDescOrderID is the schema descriptor for order_id field.
+	esportsplayerreviewappealDescOrderID := esportsplayerreviewappealFields[3].Descriptor()
+	// esportsplayerreviewappeal.DefaultOrderID holds the default value on creation for the order_id field.
+	esportsplayerreviewappeal.DefaultOrderID = esportsplayerreviewappealDescOrderID.Default.(int)
+	// esportsplayerreviewappealDescReason is the schema descriptor for reason field.
+	esportsplayerreviewappealDescReason := esportsplayerreviewappealFields[4].Descriptor()
+	// esportsplayerreviewappeal.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	esportsplayerreviewappeal.ReasonValidator = func() func(string) error {
+		validators := esportsplayerreviewappealDescReason.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(reason string) error {
+			for _, fn := range fns {
+				if err := fn(reason); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsplayerreviewappealDescEvidenceRef is the schema descriptor for evidence_ref field.
+	esportsplayerreviewappealDescEvidenceRef := esportsplayerreviewappealFields[5].Descriptor()
+	// esportsplayerreviewappeal.DefaultEvidenceRef holds the default value on creation for the evidence_ref field.
+	esportsplayerreviewappeal.DefaultEvidenceRef = esportsplayerreviewappealDescEvidenceRef.Default.(string)
+	// esportsplayerreviewappeal.EvidenceRefValidator is a validator for the "evidence_ref" field. It is called by the builders before save.
+	esportsplayerreviewappeal.EvidenceRefValidator = esportsplayerreviewappealDescEvidenceRef.Validators[0].(func(string) error)
+	// esportsplayerreviewappealDescReviewNote is the schema descriptor for review_note field.
+	esportsplayerreviewappealDescReviewNote := esportsplayerreviewappealFields[8].Descriptor()
+	// esportsplayerreviewappeal.DefaultReviewNote holds the default value on creation for the review_note field.
+	esportsplayerreviewappeal.DefaultReviewNote = esportsplayerreviewappealDescReviewNote.Default.(string)
+	// esportsplayerreviewappeal.ReviewNoteValidator is a validator for the "review_note" field. It is called by the builders before save.
+	esportsplayerreviewappeal.ReviewNoteValidator = esportsplayerreviewappealDescReviewNote.Validators[0].(func(string) error)
+	// esportsplayerreviewappealDescCreatedAt is the schema descriptor for created_at field.
+	esportsplayerreviewappealDescCreatedAt := esportsplayerreviewappealFields[10].Descriptor()
+	// esportsplayerreviewappeal.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsplayerreviewappeal.DefaultCreatedAt = esportsplayerreviewappealDescCreatedAt.Default.(func() time.Time)
 	esportsplayerreviewrevisionHooks := schema.EsportsPlayerReviewRevision{}.Hooks()
 	esportsplayerreviewrevision.Hooks[0] = esportsplayerreviewrevisionHooks[0]
 	esportsplayerreviewrevisionFields := schema.EsportsPlayerReviewRevision{}.Fields()
@@ -4783,19 +5334,19 @@ func init() {
 		}
 	}()
 	// esportsrechargecampaignDescBonusValidDays is the schema descriptor for bonus_valid_days field.
-	esportsrechargecampaignDescBonusValidDays := esportsrechargecampaignFields[7].Descriptor()
+	esportsrechargecampaignDescBonusValidDays := esportsrechargecampaignFields[9].Descriptor()
 	// esportsrechargecampaign.DefaultBonusValidDays holds the default value on creation for the bonus_valid_days field.
 	esportsrechargecampaign.DefaultBonusValidDays = esportsrechargecampaignDescBonusValidDays.Default.(int)
 	// esportsrechargecampaignDescVersion is the schema descriptor for version field.
-	esportsrechargecampaignDescVersion := esportsrechargecampaignFields[11].Descriptor()
+	esportsrechargecampaignDescVersion := esportsrechargecampaignFields[13].Descriptor()
 	// esportsrechargecampaign.DefaultVersion holds the default value on creation for the version field.
 	esportsrechargecampaign.DefaultVersion = esportsrechargecampaignDescVersion.Default.(int)
 	// esportsrechargecampaignDescCreatedAt is the schema descriptor for created_at field.
-	esportsrechargecampaignDescCreatedAt := esportsrechargecampaignFields[12].Descriptor()
+	esportsrechargecampaignDescCreatedAt := esportsrechargecampaignFields[14].Descriptor()
 	// esportsrechargecampaign.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsrechargecampaign.DefaultCreatedAt = esportsrechargecampaignDescCreatedAt.Default.(func() time.Time)
 	// esportsrechargecampaignDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsrechargecampaignDescUpdatedAt := esportsrechargecampaignFields[13].Descriptor()
+	esportsrechargecampaignDescUpdatedAt := esportsrechargecampaignFields[15].Descriptor()
 	// esportsrechargecampaign.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsrechargecampaign.DefaultUpdatedAt = esportsrechargecampaignDescUpdatedAt.Default.(func() time.Time)
 	// esportsrechargecampaign.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -5514,48 +6065,52 @@ func init() {
 			return nil
 		}
 	}()
+	// esportsskuDescPerSeatServiceUnits is the schema descriptor for per_seat_service_units field.
+	esportsskuDescPerSeatServiceUnits := esportsskuFields[12].Descriptor()
+	// esportssku.DefaultPerSeatServiceUnits holds the default value on creation for the per_seat_service_units field.
+	esportssku.DefaultPerSeatServiceUnits = esportsskuDescPerSeatServiceUnits.Default.(int64)
 	// esportsskuDescServiceDurationMinutes is the schema descriptor for service_duration_minutes field.
-	esportsskuDescServiceDurationMinutes := esportsskuFields[12].Descriptor()
+	esportsskuDescServiceDurationMinutes := esportsskuFields[14].Descriptor()
 	// esportssku.DefaultServiceDurationMinutes holds the default value on creation for the service_duration_minutes field.
 	esportssku.DefaultServiceDurationMinutes = esportsskuDescServiceDurationMinutes.Default.(int)
 	// esportsskuDescRequiredSeats is the schema descriptor for required_seats field.
-	esportsskuDescRequiredSeats := esportsskuFields[13].Descriptor()
+	esportsskuDescRequiredSeats := esportsskuFields[15].Descriptor()
 	// esportssku.DefaultRequiredSeats holds the default value on creation for the required_seats field.
 	esportssku.DefaultRequiredSeats = esportsskuDescRequiredSeats.Default.(int)
 	// esportssku.RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
 	esportssku.RequiredSeatsValidator = esportsskuDescRequiredSeats.Validators[0].(func(int) error)
 	// esportsskuDescCloseRuleCode is the schema descriptor for close_rule_code field.
-	esportsskuDescCloseRuleCode := esportsskuFields[15].Descriptor()
+	esportsskuDescCloseRuleCode := esportsskuFields[17].Descriptor()
 	// esportssku.DefaultCloseRuleCode holds the default value on creation for the close_rule_code field.
 	esportssku.DefaultCloseRuleCode = esportsskuDescCloseRuleCode.Default.(string)
 	// esportssku.CloseRuleCodeValidator is a validator for the "close_rule_code" field. It is called by the builders before save.
 	esportssku.CloseRuleCodeValidator = esportsskuDescCloseRuleCode.Validators[0].(func(string) error)
 	// esportsskuDescQuotaTotal is the schema descriptor for quota_total field.
-	esportsskuDescQuotaTotal := esportsskuFields[16].Descriptor()
+	esportsskuDescQuotaTotal := esportsskuFields[18].Descriptor()
 	// esportssku.DefaultQuotaTotal holds the default value on creation for the quota_total field.
 	esportssku.DefaultQuotaTotal = esportsskuDescQuotaTotal.Default.(int64)
 	// esportsskuDescQuotaReserved is the schema descriptor for quota_reserved field.
-	esportsskuDescQuotaReserved := esportsskuFields[17].Descriptor()
+	esportsskuDescQuotaReserved := esportsskuFields[19].Descriptor()
 	// esportssku.DefaultQuotaReserved holds the default value on creation for the quota_reserved field.
 	esportssku.DefaultQuotaReserved = esportsskuDescQuotaReserved.Default.(int64)
 	// esportsskuDescQuotaSold is the schema descriptor for quota_sold field.
-	esportsskuDescQuotaSold := esportsskuFields[18].Descriptor()
+	esportsskuDescQuotaSold := esportsskuFields[20].Descriptor()
 	// esportssku.DefaultQuotaSold holds the default value on creation for the quota_sold field.
 	esportssku.DefaultQuotaSold = esportsskuDescQuotaSold.Default.(int64)
 	// esportsskuDescSortOrder is the schema descriptor for sort_order field.
-	esportsskuDescSortOrder := esportsskuFields[19].Descriptor()
+	esportsskuDescSortOrder := esportsskuFields[21].Descriptor()
 	// esportssku.DefaultSortOrder holds the default value on creation for the sort_order field.
 	esportssku.DefaultSortOrder = esportsskuDescSortOrder.Default.(int)
 	// esportsskuDescVersion is the schema descriptor for version field.
-	esportsskuDescVersion := esportsskuFields[21].Descriptor()
+	esportsskuDescVersion := esportsskuFields[23].Descriptor()
 	// esportssku.DefaultVersion holds the default value on creation for the version field.
 	esportssku.DefaultVersion = esportsskuDescVersion.Default.(int)
 	// esportsskuDescCreatedAt is the schema descriptor for created_at field.
-	esportsskuDescCreatedAt := esportsskuFields[22].Descriptor()
+	esportsskuDescCreatedAt := esportsskuFields[24].Descriptor()
 	// esportssku.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportssku.DefaultCreatedAt = esportsskuDescCreatedAt.Default.(func() time.Time)
 	// esportsskuDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsskuDescUpdatedAt := esportsskuFields[23].Descriptor()
+	esportsskuDescUpdatedAt := esportsskuFields[25].Descriptor()
 	// esportssku.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportssku.DefaultUpdatedAt = esportsskuDescUpdatedAt.Default.(func() time.Time)
 	// esportssku.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -5716,16 +6271,20 @@ func init() {
 			return nil
 		}
 	}()
+	// esportsspecgroupDescPerSeatServiceUnits is the schema descriptor for per_seat_service_units field.
+	esportsspecgroupDescPerSeatServiceUnits := esportsspecgroupFields[3].Descriptor()
+	// esportsspecgroup.DefaultPerSeatServiceUnits holds the default value on creation for the per_seat_service_units field.
+	esportsspecgroup.DefaultPerSeatServiceUnits = esportsspecgroupDescPerSeatServiceUnits.Default.(int64)
 	// esportsspecgroupDescVersion is the schema descriptor for version field.
-	esportsspecgroupDescVersion := esportsspecgroupFields[4].Descriptor()
+	esportsspecgroupDescVersion := esportsspecgroupFields[5].Descriptor()
 	// esportsspecgroup.DefaultVersion holds the default value on creation for the version field.
 	esportsspecgroup.DefaultVersion = esportsspecgroupDescVersion.Default.(int)
 	// esportsspecgroupDescCreatedAt is the schema descriptor for created_at field.
-	esportsspecgroupDescCreatedAt := esportsspecgroupFields[5].Descriptor()
+	esportsspecgroupDescCreatedAt := esportsspecgroupFields[6].Descriptor()
 	// esportsspecgroup.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsspecgroup.DefaultCreatedAt = esportsspecgroupDescCreatedAt.Default.(func() time.Time)
 	// esportsspecgroupDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsspecgroupDescUpdatedAt := esportsspecgroupFields[6].Descriptor()
+	esportsspecgroupDescUpdatedAt := esportsspecgroupFields[7].Descriptor()
 	// esportsspecgroup.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsspecgroup.DefaultUpdatedAt = esportsspecgroupDescUpdatedAt.Default.(func() time.Time)
 	// esportsspecgroup.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -5806,16 +6365,88 @@ func init() {
 	esportsstoredvaluecardDescVersion := esportsstoredvaluecardFields[28].Descriptor()
 	// esportsstoredvaluecard.DefaultVersion holds the default value on creation for the version field.
 	esportsstoredvaluecard.DefaultVersion = esportsstoredvaluecardDescVersion.Default.(int)
+	// esportsstoredvaluecardDescDeductionOrder is the schema descriptor for deduction_order field.
+	esportsstoredvaluecardDescDeductionOrder := esportsstoredvaluecardFields[29].Descriptor()
+	// esportsstoredvaluecard.DefaultDeductionOrder holds the default value on creation for the deduction_order field.
+	esportsstoredvaluecard.DefaultDeductionOrder = esportsstoredvaluecardDescDeductionOrder.Default.(string)
+	// esportsstoredvaluecard.DeductionOrderValidator is a validator for the "deduction_order" field. It is called by the builders before save.
+	esportsstoredvaluecard.DeductionOrderValidator = esportsstoredvaluecardDescDeductionOrder.Validators[0].(func(string) error)
 	// esportsstoredvaluecardDescCreatedAt is the schema descriptor for created_at field.
-	esportsstoredvaluecardDescCreatedAt := esportsstoredvaluecardFields[29].Descriptor()
+	esportsstoredvaluecardDescCreatedAt := esportsstoredvaluecardFields[30].Descriptor()
 	// esportsstoredvaluecard.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsstoredvaluecard.DefaultCreatedAt = esportsstoredvaluecardDescCreatedAt.Default.(func() time.Time)
 	// esportsstoredvaluecardDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsstoredvaluecardDescUpdatedAt := esportsstoredvaluecardFields[30].Descriptor()
+	esportsstoredvaluecardDescUpdatedAt := esportsstoredvaluecardFields[31].Descriptor()
 	// esportsstoredvaluecard.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsstoredvaluecard.DefaultUpdatedAt = esportsstoredvaluecardDescUpdatedAt.Default.(func() time.Time)
 	// esportsstoredvaluecard.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsstoredvaluecard.UpdateDefaultUpdatedAt = esportsstoredvaluecardDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsstoredvalueexceptionFields := schema.EsportsStoredValueException{}.Fields()
+	_ = esportsstoredvalueexceptionFields
+	// esportsstoredvalueexceptionDescExceptionNo is the schema descriptor for exception_no field.
+	esportsstoredvalueexceptionDescExceptionNo := esportsstoredvalueexceptionFields[0].Descriptor()
+	// esportsstoredvalueexception.ExceptionNoValidator is a validator for the "exception_no" field. It is called by the builders before save.
+	esportsstoredvalueexception.ExceptionNoValidator = func() func(string) error {
+		validators := esportsstoredvalueexceptionDescExceptionNo.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(exception_no string) error {
+			for _, fn := range fns {
+				if err := fn(exception_no); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsstoredvalueexceptionDescCardID is the schema descriptor for card_id field.
+	esportsstoredvalueexceptionDescCardID := esportsstoredvalueexceptionFields[1].Descriptor()
+	// esportsstoredvalueexception.CardIDValidator is a validator for the "card_id" field. It is called by the builders before save.
+	esportsstoredvalueexception.CardIDValidator = esportsstoredvalueexceptionDescCardID.Validators[0].(func(int) error)
+	// esportsstoredvalueexceptionDescOrderID is the schema descriptor for order_id field.
+	esportsstoredvalueexceptionDescOrderID := esportsstoredvalueexceptionFields[2].Descriptor()
+	// esportsstoredvalueexception.DefaultOrderID holds the default value on creation for the order_id field.
+	esportsstoredvalueexception.DefaultOrderID = esportsstoredvalueexceptionDescOrderID.Default.(int)
+	// esportsstoredvalueexceptionDescCustomerID is the schema descriptor for customer_id field.
+	esportsstoredvalueexceptionDescCustomerID := esportsstoredvalueexceptionFields[3].Descriptor()
+	// esportsstoredvalueexception.DefaultCustomerID holds the default value on creation for the customer_id field.
+	esportsstoredvalueexception.DefaultCustomerID = esportsstoredvalueexceptionDescCustomerID.Default.(int)
+	// esportsstoredvalueexceptionDescReason is the schema descriptor for reason field.
+	esportsstoredvalueexceptionDescReason := esportsstoredvalueexceptionFields[6].Descriptor()
+	// esportsstoredvalueexception.DefaultReason holds the default value on creation for the reason field.
+	esportsstoredvalueexception.DefaultReason = esportsstoredvalueexceptionDescReason.Default.(string)
+	// esportsstoredvalueexception.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	esportsstoredvalueexception.ReasonValidator = esportsstoredvalueexceptionDescReason.Validators[0].(func(string) error)
+	// esportsstoredvalueexceptionDescOccurrences is the schema descriptor for occurrences field.
+	esportsstoredvalueexceptionDescOccurrences := esportsstoredvalueexceptionFields[10].Descriptor()
+	// esportsstoredvalueexception.DefaultOccurrences holds the default value on creation for the occurrences field.
+	esportsstoredvalueexception.DefaultOccurrences = esportsstoredvalueexceptionDescOccurrences.Default.(int)
+	// esportsstoredvalueexceptionDescResolution is the schema descriptor for resolution field.
+	esportsstoredvalueexceptionDescResolution := esportsstoredvalueexceptionFields[14].Descriptor()
+	// esportsstoredvalueexception.DefaultResolution holds the default value on creation for the resolution field.
+	esportsstoredvalueexception.DefaultResolution = esportsstoredvalueexceptionDescResolution.Default.(string)
+	// esportsstoredvalueexception.ResolutionValidator is a validator for the "resolution" field. It is called by the builders before save.
+	esportsstoredvalueexception.ResolutionValidator = esportsstoredvalueexceptionDescResolution.Validators[0].(func(string) error)
+	// esportsstoredvalueexceptionDescDedupKey is the schema descriptor for dedup_key field.
+	esportsstoredvalueexceptionDescDedupKey := esportsstoredvalueexceptionFields[15].Descriptor()
+	// esportsstoredvalueexception.DedupKeyValidator is a validator for the "dedup_key" field. It is called by the builders before save.
+	esportsstoredvalueexception.DedupKeyValidator = esportsstoredvalueexceptionDescDedupKey.Validators[0].(func(string) error)
+	// esportsstoredvalueexceptionDescVersion is the schema descriptor for version field.
+	esportsstoredvalueexceptionDescVersion := esportsstoredvalueexceptionFields[16].Descriptor()
+	// esportsstoredvalueexception.DefaultVersion holds the default value on creation for the version field.
+	esportsstoredvalueexception.DefaultVersion = esportsstoredvalueexceptionDescVersion.Default.(int)
+	// esportsstoredvalueexceptionDescCreatedAt is the schema descriptor for created_at field.
+	esportsstoredvalueexceptionDescCreatedAt := esportsstoredvalueexceptionFields[17].Descriptor()
+	// esportsstoredvalueexception.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsstoredvalueexception.DefaultCreatedAt = esportsstoredvalueexceptionDescCreatedAt.Default.(func() time.Time)
+	// esportsstoredvalueexceptionDescUpdatedAt is the schema descriptor for updated_at field.
+	esportsstoredvalueexceptionDescUpdatedAt := esportsstoredvalueexceptionFields[18].Descriptor()
+	// esportsstoredvalueexception.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportsstoredvalueexception.DefaultUpdatedAt = esportsstoredvalueexceptionDescUpdatedAt.Default.(func() time.Time)
+	// esportsstoredvalueexception.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportsstoredvalueexception.UpdateDefaultUpdatedAt = esportsstoredvalueexceptionDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportsstoredvaluepackageFields := schema.EsportsStoredValuePackage{}.Fields()
 	_ = esportsstoredvaluepackageFields
 	// esportsstoredvaluepackageDescCode is the schema descriptor for code field.
@@ -6046,8 +6677,26 @@ func init() {
 	esportswallettx.DefaultNote = esportswallettxDescNote.Default.(string)
 	// esportswallettx.NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	esportswallettx.NoteValidator = esportswallettxDescNote.Validators[0].(func(string) error)
+	// esportswallettxDescBeneficiaryID is the schema descriptor for beneficiary_id field.
+	esportswallettxDescBeneficiaryID := esportswallettxFields[11].Descriptor()
+	// esportswallettx.DefaultBeneficiaryID holds the default value on creation for the beneficiary_id field.
+	esportswallettx.DefaultBeneficiaryID = esportswallettxDescBeneficiaryID.Default.(int)
+	// esportswallettxDescBalanceBeforeCents is the schema descriptor for balance_before_cents field.
+	esportswallettxDescBalanceBeforeCents := esportswallettxFields[12].Descriptor()
+	// esportswallettx.DefaultBalanceBeforeCents holds the default value on creation for the balance_before_cents field.
+	esportswallettx.DefaultBalanceBeforeCents = esportswallettxDescBalanceBeforeCents.Default.(int64)
+	// esportswallettxDescBalanceAfterCents is the schema descriptor for balance_after_cents field.
+	esportswallettxDescBalanceAfterCents := esportswallettxFields[13].Descriptor()
+	// esportswallettx.DefaultBalanceAfterCents holds the default value on creation for the balance_after_cents field.
+	esportswallettx.DefaultBalanceAfterCents = esportswallettxDescBalanceAfterCents.Default.(int64)
+	// esportswallettxDescFundBatch is the schema descriptor for fund_batch field.
+	esportswallettxDescFundBatch := esportswallettxFields[14].Descriptor()
+	// esportswallettx.DefaultFundBatch holds the default value on creation for the fund_batch field.
+	esportswallettx.DefaultFundBatch = esportswallettxDescFundBatch.Default.(string)
+	// esportswallettx.FundBatchValidator is a validator for the "fund_batch" field. It is called by the builders before save.
+	esportswallettx.FundBatchValidator = esportswallettxDescFundBatch.Validators[0].(func(string) error)
 	// esportswallettxDescCreatedAt is the schema descriptor for created_at field.
-	esportswallettxDescCreatedAt := esportswallettxFields[12].Descriptor()
+	esportswallettxDescCreatedAt := esportswallettxFields[17].Descriptor()
 	// esportswallettx.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportswallettx.DefaultCreatedAt = esportswallettxDescCreatedAt.Default.(func() time.Time)
 	esportswithdrawalFields := schema.EsportsWithdrawal{}.Fields()

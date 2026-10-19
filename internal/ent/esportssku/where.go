@@ -109,6 +109,16 @@ func ServiceUnitName(v string) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldServiceUnitName, v))
 }
 
+// PerSeatServiceUnits applies equality check predicate on the "per_seat_service_units" field. It's identical to PerSeatServiceUnitsEQ.
+func PerSeatServiceUnits(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldPerSeatServiceUnits, v))
+}
+
+// CostCents applies equality check predicate on the "cost_cents" field. It's identical to CostCentsEQ.
+func CostCents(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldCostCents, v))
+}
+
 // ServiceDurationMinutes applies equality check predicate on the "service_duration_minutes" field. It's identical to ServiceDurationMinutesEQ.
 func ServiceDurationMinutes(v int) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldServiceDurationMinutes, v))
@@ -747,6 +757,96 @@ func ServiceUnitNameEqualFold(v string) predicate.EsportsSku {
 // ServiceUnitNameContainsFold applies the ContainsFold predicate on the "service_unit_name" field.
 func ServiceUnitNameContainsFold(v string) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldContainsFold(FieldServiceUnitName, v))
+}
+
+// PerSeatServiceUnitsEQ applies the EQ predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsEQ(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsNEQ applies the NEQ predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsNEQ(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsIn applies the In predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsIn(vs ...int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldPerSeatServiceUnits, vs...))
+}
+
+// PerSeatServiceUnitsNotIn applies the NotIn predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsNotIn(vs ...int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldPerSeatServiceUnits, vs...))
+}
+
+// PerSeatServiceUnitsGT applies the GT predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsGT(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsGTE applies the GTE predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsGTE(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsLT applies the LT predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsLT(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsLTE applies the LTE predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsLTE(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldPerSeatServiceUnits, v))
+}
+
+// CostCentsEQ applies the EQ predicate on the "cost_cents" field.
+func CostCentsEQ(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldEQ(FieldCostCents, v))
+}
+
+// CostCentsNEQ applies the NEQ predicate on the "cost_cents" field.
+func CostCentsNEQ(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNEQ(FieldCostCents, v))
+}
+
+// CostCentsIn applies the In predicate on the "cost_cents" field.
+func CostCentsIn(vs ...int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIn(FieldCostCents, vs...))
+}
+
+// CostCentsNotIn applies the NotIn predicate on the "cost_cents" field.
+func CostCentsNotIn(vs ...int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotIn(FieldCostCents, vs...))
+}
+
+// CostCentsGT applies the GT predicate on the "cost_cents" field.
+func CostCentsGT(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGT(FieldCostCents, v))
+}
+
+// CostCentsGTE applies the GTE predicate on the "cost_cents" field.
+func CostCentsGTE(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldGTE(FieldCostCents, v))
+}
+
+// CostCentsLT applies the LT predicate on the "cost_cents" field.
+func CostCentsLT(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLT(FieldCostCents, v))
+}
+
+// CostCentsLTE applies the LTE predicate on the "cost_cents" field.
+func CostCentsLTE(v int64) predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldLTE(FieldCostCents, v))
+}
+
+// CostCentsIsNil applies the IsNil predicate on the "cost_cents" field.
+func CostCentsIsNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIsNull(FieldCostCents))
+}
+
+// CostCentsNotNil applies the NotNil predicate on the "cost_cents" field.
+func CostCentsNotNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotNull(FieldCostCents))
 }
 
 // ServiceDurationMinutesEQ applies the EQ predicate on the "service_duration_minutes" field.

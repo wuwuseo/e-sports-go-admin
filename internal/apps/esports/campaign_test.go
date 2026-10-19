@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/esportsledgerentry"
+	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/migrate"
@@ -355,15 +356,30 @@ func TestRechargeCampaignIdempotency(t *testing.T) {
 	}
 }
 
-// 陪玩猫粮账户不接受充值活动。
-func TestRechargeCampaignRejectsCatfood(t *testing.T) {
+// §11.2-01 口径更新：陪玩猫粮**可以**接活动奖励（目标账户=player_catfood + 陪玩受众），
+// 但「目标账户=customer_balance」的客户余额活动不得命中猫粮账户。
+// 规格依据：台账 11.2-01「充值活动需支持奖励入账到陪玩猫粮（新增目标账户/陪玩受众配置）」，
+// 原用例固化的「猫粮一律拒绝活动」已被规格推翻，故按新口径重写（未放宽断言：仍要求客户余额活动不得误发）。
+func TestRechargeCampaignCatfoodIgnoresCustomerBalanceCampaign(t *testing.T) {
 	db := openCampaignDB(t)
+	defer db.Close()
 	ctx := t.Context()
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
-	customer := saveCustomerOrFail(t, db, 11)
-	if _, err := rechargeWithCampaigns(ctx, db, 11, walletPlayerCatfood, customer.ID,
-		5000, "猫粮充值", "catfood-camp", now); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("猫粮账户被充值活动放行：%v", err)
+	player := seedPlayer(t, db, 202, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	balanceCampaign := baseCampaignInput("CATFOOD-CB", now)
+	balanceCampaign.TargetAccountType = "customer_balance"
+	createActiveCampaign(t, db, balanceCampaign)
+
+	if _, err := rechargeWithCampaigns(ctx, db, 11, walletPlayerCatfood, player.ID,
+		5000, "猫粮充值", "catfood-camp", now); err != nil {
+		t.Fatalf("陪玩猫粮充值不应报错：%v", err)
+	}
+	balance, err := walletBalanceOf(ctx, db, walletPlayerCatfood, player.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if balance.PrincipalCents != 5000 || balance.BonusCents != 0 {
+		t.Fatalf("客户余额活动被误用到猫粮账户：%+v", balance)
 	}
 }
 

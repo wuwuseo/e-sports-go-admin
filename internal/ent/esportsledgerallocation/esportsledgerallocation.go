@@ -30,6 +30,10 @@ const (
 	FieldBatchSourceID = "batch_source_id"
 	// FieldAmountCents holds the string denoting the amount_cents field in the database.
 	FieldAmountCents = "amount_cents"
+	// FieldPrincipalCents holds the string denoting the principal_cents field in the database.
+	FieldPrincipalCents = "principal_cents"
+	// FieldBonusCents holds the string denoting the bonus_cents field in the database.
+	FieldBonusCents = "bonus_cents"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 )
@@ -49,6 +53,8 @@ var Columns = []string{
 	FieldBatchSourceType,
 	FieldBatchSourceID,
 	FieldAmountCents,
+	FieldPrincipalCents,
+	FieldBonusCents,
 	FieldCreatedAt,
 }
 
@@ -83,6 +89,10 @@ var (
 	BatchSourceIDValidator func(string) error
 	// AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
 	AmountCentsValidator func(int64) error
+	// DefaultPrincipalCents holds the default value on creation for the "principal_cents" field.
+	DefaultPrincipalCents int64
+	// DefaultBonusCents holds the default value on creation for the "bonus_cents" field.
+	DefaultBonusCents int64
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -128,6 +138,16 @@ func ByBatchSourceID(opts ...sql.OrderTermOption) OrderOption {
 // ByAmountCents orders the results by the amount_cents field.
 func ByAmountCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAmountCents, opts...).ToFunc()
+}
+
+// ByPrincipalCents orders the results by the principal_cents field.
+func ByPrincipalCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrincipalCents, opts...).ToFunc()
+}
+
+// ByBonusCents orders the results by the bonus_cents field.
+func ByBonusCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBonusCents, opts...).ToFunc()
 }
 
 // ByCreatedAt orders the results by the created_at field.

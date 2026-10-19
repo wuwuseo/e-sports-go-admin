@@ -42,6 +42,28 @@ const (
 	FieldStoredValueCardID = "stored_value_card_id"
 	// FieldStoredValueCardNo holds the string denoting the stored_value_card_no field in the database.
 	FieldStoredValueCardNo = "stored_value_card_no"
+	// FieldGiftTierID holds the string denoting the gift_tier_id field in the database.
+	FieldGiftTierID = "gift_tier_id"
+	// FieldGiftTierCode holds the string denoting the gift_tier_code field in the database.
+	FieldGiftTierCode = "gift_tier_code"
+	// FieldHighValue holds the string denoting the high_value field in the database.
+	FieldHighValue = "high_value"
+	// FieldRequireAge holds the string denoting the require_age field in the database.
+	FieldRequireAge = "require_age"
+	// FieldPaymentChannel holds the string denoting the payment_channel field in the database.
+	FieldPaymentChannel = "payment_channel"
+	// FieldPaymentStatus holds the string denoting the payment_status field in the database.
+	FieldPaymentStatus = "payment_status"
+	// FieldPaymentIntentNo holds the string denoting the payment_intent_no field in the database.
+	FieldPaymentIntentNo = "payment_intent_no"
+	// FieldPaymentRef holds the string denoting the payment_ref field in the database.
+	FieldPaymentRef = "payment_ref"
+	// FieldPaymentExpiresAt holds the string denoting the payment_expires_at field in the database.
+	FieldPaymentExpiresAt = "payment_expires_at"
+	// FieldPaymentVerifiedAt holds the string denoting the payment_verified_at field in the database.
+	FieldPaymentVerifiedAt = "payment_verified_at"
+	// FieldPaymentVerifiedByAdminID holds the string denoting the payment_verified_by_admin_id field in the database.
+	FieldPaymentVerifiedByAdminID = "payment_verified_by_admin_id"
 	// FieldCreatedByAdminID holds the string denoting the created_by_admin_id field in the database.
 	FieldCreatedByAdminID = "created_by_admin_id"
 	// FieldClientKey holds the string denoting the client_key field in the database.
@@ -85,6 +107,17 @@ var Columns = []string{
 	FieldPaymentSource,
 	FieldStoredValueCardID,
 	FieldStoredValueCardNo,
+	FieldGiftTierID,
+	FieldGiftTierCode,
+	FieldHighValue,
+	FieldRequireAge,
+	FieldPaymentChannel,
+	FieldPaymentStatus,
+	FieldPaymentIntentNo,
+	FieldPaymentRef,
+	FieldPaymentExpiresAt,
+	FieldPaymentVerifiedAt,
+	FieldPaymentVerifiedByAdminID,
 	FieldCreatedByAdminID,
 	FieldClientKey,
 	FieldStatus,
@@ -134,6 +167,22 @@ var (
 	DefaultStoredValueCardNo string
 	// StoredValueCardNoValidator is a validator for the "stored_value_card_no" field. It is called by the builders before save.
 	StoredValueCardNoValidator func(string) error
+	// DefaultGiftTierID holds the default value on creation for the "gift_tier_id" field.
+	DefaultGiftTierID int
+	// DefaultGiftTierCode holds the default value on creation for the "gift_tier_code" field.
+	DefaultGiftTierCode string
+	// GiftTierCodeValidator is a validator for the "gift_tier_code" field. It is called by the builders before save.
+	GiftTierCodeValidator func(string) error
+	// DefaultHighValue holds the default value on creation for the "high_value" field.
+	DefaultHighValue bool
+	// DefaultRequireAge holds the default value on creation for the "require_age" field.
+	DefaultRequireAge bool
+	// PaymentIntentNoValidator is a validator for the "payment_intent_no" field. It is called by the builders before save.
+	PaymentIntentNoValidator func(string) error
+	// DefaultPaymentRef holds the default value on creation for the "payment_ref" field.
+	DefaultPaymentRef string
+	// PaymentRefValidator is a validator for the "payment_ref" field. It is called by the builders before save.
+	PaymentRefValidator func(string) error
 	// CreatedByAdminIDValidator is a validator for the "created_by_admin_id" field. It is called by the builders before save.
 	CreatedByAdminIDValidator func(int) error
 	// ClientKeyValidator is a validator for the "client_key" field. It is called by the builders before save.
@@ -153,6 +202,65 @@ var (
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
 )
+
+// PaymentChannel defines the type for the "payment_channel" enum field.
+type PaymentChannel string
+
+// PaymentChannelNone is the default value of the PaymentChannel enum.
+const DefaultPaymentChannel = PaymentChannelNone
+
+// PaymentChannel values.
+const (
+	PaymentChannelNone              PaymentChannel = "none"
+	PaymentChannelCustomerBalance   PaymentChannel = "customer_balance"
+	PaymentChannelStoredValueCard   PaymentChannel = "stored_value_card"
+	PaymentChannelWechatWork        PaymentChannel = "wechat_work"
+	PaymentChannelMerchantQr        PaymentChannel = "merchant_qr"
+	PaymentChannelCorporateTransfer PaymentChannel = "corporate_transfer"
+)
+
+func (pc PaymentChannel) String() string {
+	return string(pc)
+}
+
+// PaymentChannelValidator is a validator for the "payment_channel" field enum values. It is called by the builders before save.
+func PaymentChannelValidator(pc PaymentChannel) error {
+	switch pc {
+	case PaymentChannelNone, PaymentChannelCustomerBalance, PaymentChannelStoredValueCard, PaymentChannelWechatWork, PaymentChannelMerchantQr, PaymentChannelCorporateTransfer:
+		return nil
+	default:
+		return fmt.Errorf("esportsgiftintent: invalid enum value for payment_channel field: %q", pc)
+	}
+}
+
+// PaymentStatus defines the type for the "payment_status" enum field.
+type PaymentStatus string
+
+// PaymentStatusNotRequired is the default value of the PaymentStatus enum.
+const DefaultPaymentStatus = PaymentStatusNotRequired
+
+// PaymentStatus values.
+const (
+	PaymentStatusNotRequired         PaymentStatus = "not_required"
+	PaymentStatusAwaitingPayment     PaymentStatus = "awaiting_payment"
+	PaymentStatusPendingVerification PaymentStatus = "pending_verification"
+	PaymentStatusVerified            PaymentStatus = "verified"
+	PaymentStatusFailed              PaymentStatus = "failed"
+)
+
+func (ps PaymentStatus) String() string {
+	return string(ps)
+}
+
+// PaymentStatusValidator is a validator for the "payment_status" field enum values. It is called by the builders before save.
+func PaymentStatusValidator(ps PaymentStatus) error {
+	switch ps {
+	case PaymentStatusNotRequired, PaymentStatusAwaitingPayment, PaymentStatusPendingVerification, PaymentStatusVerified, PaymentStatusFailed:
+		return nil
+	default:
+		return fmt.Errorf("esportsgiftintent: invalid enum value for payment_status field: %q", ps)
+	}
+}
 
 // Status defines the type for the "status" enum field.
 type Status string
@@ -253,6 +361,61 @@ func ByStoredValueCardID(opts ...sql.OrderTermOption) OrderOption {
 // ByStoredValueCardNo orders the results by the stored_value_card_no field.
 func ByStoredValueCardNo(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStoredValueCardNo, opts...).ToFunc()
+}
+
+// ByGiftTierID orders the results by the gift_tier_id field.
+func ByGiftTierID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGiftTierID, opts...).ToFunc()
+}
+
+// ByGiftTierCode orders the results by the gift_tier_code field.
+func ByGiftTierCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGiftTierCode, opts...).ToFunc()
+}
+
+// ByHighValue orders the results by the high_value field.
+func ByHighValue(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldHighValue, opts...).ToFunc()
+}
+
+// ByRequireAge orders the results by the require_age field.
+func ByRequireAge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequireAge, opts...).ToFunc()
+}
+
+// ByPaymentChannel orders the results by the payment_channel field.
+func ByPaymentChannel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentChannel, opts...).ToFunc()
+}
+
+// ByPaymentStatus orders the results by the payment_status field.
+func ByPaymentStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentStatus, opts...).ToFunc()
+}
+
+// ByPaymentIntentNo orders the results by the payment_intent_no field.
+func ByPaymentIntentNo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentIntentNo, opts...).ToFunc()
+}
+
+// ByPaymentRef orders the results by the payment_ref field.
+func ByPaymentRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentRef, opts...).ToFunc()
+}
+
+// ByPaymentExpiresAt orders the results by the payment_expires_at field.
+func ByPaymentExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentExpiresAt, opts...).ToFunc()
+}
+
+// ByPaymentVerifiedAt orders the results by the payment_verified_at field.
+func ByPaymentVerifiedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentVerifiedAt, opts...).ToFunc()
+}
+
+// ByPaymentVerifiedByAdminID orders the results by the payment_verified_by_admin_id field.
+func ByPaymentVerifiedByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentVerifiedByAdminID, opts...).ToFunc()
 }
 
 // ByCreatedByAdminID orders the results by the created_by_admin_id field.

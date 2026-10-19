@@ -86,6 +86,54 @@ func (_c *EsportsPlayerReviewCreate) SetNillableStatus(v *esportsplayerreview.St
 	return _c
 }
 
+// SetAutoDisputed sets the "auto_disputed" field.
+func (_c *EsportsPlayerReviewCreate) SetAutoDisputed(v bool) *EsportsPlayerReviewCreate {
+	_c.mutation.SetAutoDisputed(v)
+	return _c
+}
+
+// SetNillableAutoDisputed sets the "auto_disputed" field if the given value is not nil.
+func (_c *EsportsPlayerReviewCreate) SetNillableAutoDisputed(v *bool) *EsportsPlayerReviewCreate {
+	if v != nil {
+		_c.SetAutoDisputed(*v)
+	}
+	return _c
+}
+
+// SetDisputeRuleCode sets the "dispute_rule_code" field.
+func (_c *EsportsPlayerReviewCreate) SetDisputeRuleCode(v string) *EsportsPlayerReviewCreate {
+	_c.mutation.SetDisputeRuleCode(v)
+	return _c
+}
+
+// SetNillableDisputeRuleCode sets the "dispute_rule_code" field if the given value is not nil.
+func (_c *EsportsPlayerReviewCreate) SetNillableDisputeRuleCode(v *string) *EsportsPlayerReviewCreate {
+	if v != nil {
+		_c.SetDisputeRuleCode(*v)
+	}
+	return _c
+}
+
+// SetDisputeDetail sets the "dispute_detail" field.
+func (_c *EsportsPlayerReviewCreate) SetDisputeDetail(v map[string]interface{}) *EsportsPlayerReviewCreate {
+	_c.mutation.SetDisputeDetail(v)
+	return _c
+}
+
+// SetDisputedAt sets the "disputed_at" field.
+func (_c *EsportsPlayerReviewCreate) SetDisputedAt(v time.Time) *EsportsPlayerReviewCreate {
+	_c.mutation.SetDisputedAt(v)
+	return _c
+}
+
+// SetNillableDisputedAt sets the "disputed_at" field if the given value is not nil.
+func (_c *EsportsPlayerReviewCreate) SetNillableDisputedAt(v *time.Time) *EsportsPlayerReviewCreate {
+	if v != nil {
+		_c.SetDisputedAt(*v)
+	}
+	return _c
+}
+
 // SetVersion sets the "version" field.
 func (_c *EsportsPlayerReviewCreate) SetVersion(v int) *EsportsPlayerReviewCreate {
 	_c.mutation.SetVersion(v)
@@ -175,6 +223,14 @@ func (_c *EsportsPlayerReviewCreate) defaults() {
 		v := esportsplayerreview.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.AutoDisputed(); !ok {
+		v := esportsplayerreview.DefaultAutoDisputed
+		_c.mutation.SetAutoDisputed(v)
+	}
+	if _, ok := _c.mutation.DisputeRuleCode(); !ok {
+		v := esportsplayerreview.DefaultDisputeRuleCode
+		_c.mutation.SetDisputeRuleCode(v)
+	}
 	if _, ok := _c.mutation.Version(); !ok {
 		v := esportsplayerreview.DefaultVersion
 		_c.mutation.SetVersion(v)
@@ -242,6 +298,17 @@ func (_c *EsportsPlayerReviewCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayerReview.status": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.AutoDisputed(); !ok {
+		return &ValidationError{Name: "auto_disputed", err: errors.New(`ent: missing required field "EsportsPlayerReview.auto_disputed"`)}
+	}
+	if _, ok := _c.mutation.DisputeRuleCode(); !ok {
+		return &ValidationError{Name: "dispute_rule_code", err: errors.New(`ent: missing required field "EsportsPlayerReview.dispute_rule_code"`)}
+	}
+	if v, ok := _c.mutation.DisputeRuleCode(); ok {
+		if err := esportsplayerreview.DisputeRuleCodeValidator(v); err != nil {
+			return &ValidationError{Name: "dispute_rule_code", err: fmt.Errorf(`ent: validator failed for field "EsportsPlayerReview.dispute_rule_code": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "EsportsPlayerReview.version"`)}
 	}
@@ -304,6 +371,22 @@ func (_c *EsportsPlayerReviewCreate) createSpec() (*EsportsPlayerReview, *sqlgra
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(esportsplayerreview.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.AutoDisputed(); ok {
+		_spec.SetField(esportsplayerreview.FieldAutoDisputed, field.TypeBool, value)
+		_node.AutoDisputed = value
+	}
+	if value, ok := _c.mutation.DisputeRuleCode(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputeRuleCode, field.TypeString, value)
+		_node.DisputeRuleCode = value
+	}
+	if value, ok := _c.mutation.DisputeDetail(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputeDetail, field.TypeJSON, value)
+		_node.DisputeDetail = value
+	}
+	if value, ok := _c.mutation.DisputedAt(); ok {
+		_spec.SetField(esportsplayerreview.FieldDisputedAt, field.TypeTime, value)
+		_node.DisputedAt = &value
 	}
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsplayerreview.FieldVersion, field.TypeInt, value)

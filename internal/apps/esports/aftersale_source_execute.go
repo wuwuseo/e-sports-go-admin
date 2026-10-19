@@ -26,7 +26,9 @@ func completeSourceAfterSale(ctx context.Context, tx *ent.Tx, id, adminID int, e
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
 	).SetStatus(esportsaftersale.StatusCompleted).SetExecutorAdminID(adminID).
-		SetResolvedAt(now.UTC()).AddVersion(1).Save(ctx)
+		SetResolvedAt(now.UTC()).AddVersion(1).
+		// §13.2-09：落终态释放进行中唯一键。
+		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return err
 	}

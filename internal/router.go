@@ -203,6 +203,26 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	publicOAuth.Get("/:provider/callback", handler.OAuthCallback)
 	publicOAuth.Post("/exchange", handler.ExchangeOAuthLoginCode)
 
+	// §6.1-01 短信验证码登录通道（AuthPublic，平台级 user-auth）。
+	// 安全关键：必须在本行之后的 `userAuthBase` 鉴权分组**之前**注册 —— 该分组的 JWT 是 Fiber 的
+	// USE 中间件，对 `/api/v1/user/auth` 前缀下其后注册的一切路由同样生效；后注册会被强制鉴权。
+	// 这两条路由只返回完成操作所需的最小信息（发码不回验证码；登录失败统一提示）。
+	smsCodeLimiter := middleware.NewRateLimiter(middleware.RateLimiterConfig{
+		Window:   1 * time.Minute,
+		MaxCount: 5,
+	})
+	var smsCodeStore service.SMSCodeStore
+	if appInstance != nil && appInstance.Cache != nil {
+		smsCodeStore = service.NewCacheSMSCodeStore(appInstance.Cache)
+	}
+	smsCodeService := service.NewSMSCodeService(global.ORM, smsCodeStore, notifierRegistry)
+	userAuthPublic := v1.Group("/user/auth", func(c fiber.Ctx) error {
+		c.Locals("service.SMSCodeService", smsCodeService)
+		return c.Next()
+	})
+	userAuthPublic.Post("/sms-code", smsCodeLimiter.Handler(), handler.SendUserSMSCode)
+	userAuthPublic.Post("/login-by-sms", handler.LoginUserBySMS)
+
 	userAuthBase := v1.Group("/user/auth", jwt.NewJWTMiddleware(config.App.Secret), middleware.DomainMiddleware(), func(c fiber.Ctx) error {
 		c.Locals("service.OAuthAuthService", oauthAuthService)
 		return c.Next()
@@ -636,6 +656,10 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		return c.Next()
 	})
 	sseGroup.Get("/connect", handler.SSEConnect)
+	// 陪玩报单（esports）管理端路由纳入统一操作审计（§2.1-05 ② / §15.7-03）：
+	// 功能集路由由 apps.Mount 在 /api/v1/esports 下自带鉴权链挂载，与 /api/v1/admin/auth
+	// 的审计挂载点不是同一棵树，故在此按前缀挂同一套审计中间件（必须在 Mount 之前注册）。
+	v1.Use("/esports/admin", middleware.Audit(middleware.AdminAuditRules(), opLogService))
 	if err := apps.Mount(v1, config, blacklistService); err != nil {
 		panic("mount source feature sets: " + err.Error())
 	}

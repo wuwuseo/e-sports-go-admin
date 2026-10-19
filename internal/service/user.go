@@ -177,17 +177,21 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 		return err
 	}
 
-	// 创建用户
-	_, err = s.client.User.Create().
+	// 创建用户。
+	// 手机号为空串时**不写该列**（保持 NULL）：users.phone 有唯一索引（§6.1-01，列可空），
+	// 唯一索引允许多个 NULL 但**不允许多个空串**——若这里写空串，第二个「未填手机号」的用户就建不出来。
+	create := s.client.User.Create().
 		SetEmail(req.Email).
 		SetPassword(hashedPassword).
 		SetPasswordSalt(salt).
 		SetUsername(req.Username).
 		SetNickname(req.Nickname).
-		SetPhone(req.Phone).
 		SetUID(utils.GenerateUID()).
-		SetStatus(user.StatusInactive). // 需要邮箱验证后才能激活
-		Save(ctx)
+		SetStatus(user.StatusInactive) // 需要邮箱验证后才能激活
+	if phone := strings.TrimSpace(req.Phone); phone != "" {
+		create.SetPhone(phone)
+	}
+	_, err = create.Save(ctx)
 
 	return err
 }
@@ -490,6 +494,13 @@ func dedupeRoleIDs(roleIDs []int) []int {
 // 仅当请求上下文携带登录元数据（HTTP 登录入口注入）时记录；
 // 内部调用与单测上下文无元数据，跳过写入。
 func (s *UserService) recordLoginAttempt(ctx context.Context, account string, userID int, success bool, message string) {
+	recordUserLoginAttempt(ctx, account, userID, success, message)
+}
+
+// recordUserLoginAttempt 记录前台用户（密码登录 / 短信验证码登录）登录成败日志。
+// 仅当请求上下文携带登录元数据（HTTP 登录入口注入）时记录；
+// 内部调用与单测上下文无元数据，跳过写入。
+func recordUserLoginAttempt(ctx context.Context, account string, userID int, success bool, message string) {
 	meta, ok := loginMetaFromContext(ctx)
 	if !ok || (meta.IP == "" && meta.UserAgent == "") {
 		return
@@ -775,7 +786,12 @@ func (s *UserService) UpdateManagedUser(ctx context.Context, id int, req *Update
 		update.SetNickname(*req.Nickname)
 	}
 	if req.Phone != nil {
-		update.SetPhone(*req.Phone)
+		// 空串一律落 NULL：唯一索引允许多个 NULL，但不允许多个空串（§6.1-01）。
+		if phone := strings.TrimSpace(*req.Phone); phone != "" {
+			update.SetPhone(phone)
+		} else {
+			update.ClearPhone()
+		}
 	}
 	if req.Avatar != nil {
 		update.SetAvatar(*req.Avatar)

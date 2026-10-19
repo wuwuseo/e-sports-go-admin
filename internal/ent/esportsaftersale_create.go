@@ -470,6 +470,20 @@ func (_c *EsportsAfterSaleCreate) SetNillableVersion(v *int) *EsportsAfterSaleCr
 	return _c
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (_c *EsportsAfterSaleCreate) SetActiveDedupKey(v string) *EsportsAfterSaleCreate {
+	_c.mutation.SetActiveDedupKey(v)
+	return _c
+}
+
+// SetNillableActiveDedupKey sets the "active_dedup_key" field if the given value is not nil.
+func (_c *EsportsAfterSaleCreate) SetNillableActiveDedupKey(v *string) *EsportsAfterSaleCreate {
+	if v != nil {
+		_c.SetActiveDedupKey(*v)
+	}
+	return _c
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (_c *EsportsAfterSaleCreate) SetResolvedAt(v time.Time) *EsportsAfterSaleCreate {
 	_c.mutation.SetResolvedAt(v)
@@ -766,6 +780,11 @@ func (_c *EsportsAfterSaleCreate) check() error {
 	if _, ok := _c.mutation.Version(); !ok {
 		return &ValidationError{Name: "version", err: errors.New(`ent: missing required field "EsportsAfterSale.version"`)}
 	}
+	if v, ok := _c.mutation.ActiveDedupKey(); ok {
+		if err := esportsaftersale.ActiveDedupKeyValidator(v); err != nil {
+			return &ValidationError{Name: "active_dedup_key", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.active_dedup_key": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "EsportsAfterSale.created_at"`)}
 	}
@@ -937,6 +956,10 @@ func (_c *EsportsAfterSaleCreate) createSpec() (*EsportsAfterSale, *sqlgraph.Cre
 	if value, ok := _c.mutation.Version(); ok {
 		_spec.SetField(esportsaftersale.FieldVersion, field.TypeInt, value)
 		_node.Version = value
+	}
+	if value, ok := _c.mutation.ActiveDedupKey(); ok {
+		_spec.SetField(esportsaftersale.FieldActiveDedupKey, field.TypeString, value)
+		_node.ActiveDedupKey = &value
 	}
 	if value, ok := _c.mutation.ResolvedAt(); ok {
 		_spec.SetField(esportsaftersale.FieldResolvedAt, field.TypeTime, value)

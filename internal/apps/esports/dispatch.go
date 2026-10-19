@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"go-admin/internal/ent"
+	entadmin "go-admin/internal/ent/admin"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsmemberlevelrule"
@@ -88,6 +90,18 @@ func dispatchServiceWindow(order *ent.EsportsOrder) (time.Time, time.Time, bool)
 	}
 	start := order.RequestedStartAt.UTC()
 	return start, start.Add(time.Duration(order.ServiceDurationMinutes) * time.Minute), true
+}
+
+// applySeatServiceSlot 把订单档期写入席位的服务时段（§5.9-01）：
+// 预约单（有预约开始时间 + 服务时长快照）落 slot_start / slot_end；
+// 即时单或历史单没有档期，显式清空，避免复用席位时残留上一轮的时段。
+func applySeatServiceSlot(update *ent.EsportsDispatchSeatUpdate,
+	order *ent.EsportsOrder) *ent.EsportsDispatchSeatUpdate {
+	start, end, ok := dispatchServiceWindow(order)
+	if !ok {
+		return update.ClearSlotStart().ClearSlotEnd()
+	}
+	return update.SetSlotStart(start).SetSlotEnd(end)
 }
 
 // dispatchSeatServiceStart 返回席位占位归属的「服务开始时刻」（§5.5）：预约单取预约开始时间，
@@ -215,8 +229,262 @@ func reservePlayerDispatchCapacity(ctx context.Context, tx *ent.Tx, player *ent.
 	return checkPlayerDispatchLimit(ctx, tx, player, targetOrder, now, exceptSeatID)
 }
 
-// assignDispatchSeat 指派陪玩到某一席位：校验资质、分区、等级及容量，条件更新抢下 open 席位并邀请。
-// 订单、席位、陪玩版本和事件同事务写入；服务时段重叠校验仍待预约时长快照。
+// playerConnectionHealthy 判定陪玩「连接正常」（§5.5 硬性条件）：
+//   - 连接异常（protected_abnormal）一律视为断开；
+//   - 无心跳基线的存量档案不判失联（与 autoOfflineStalePlayers 的存量口径一致）；
+//   - 有心跳基线时按 app.esports.player_heartbeat_timeout_minutes 判新鲜度。
+func playerConnectionHealthy(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, now time.Time) bool {
+	return playerConnectionHealthyWith(player, now, playerHeartbeatTimeout(ctx, db))
+}
+
+// playerConnectionHealthyWith 与 playerConnectionHealthy 完全同口径，但由调用方传入已解析的
+// 心跳超时阈值：供批量场景（看板逐人明细）复用同一判定而不产生 N 次配置查询。
+func playerConnectionHealthyWith(player *ent.EsportsPlayer, now time.Time, timeout time.Duration) bool {
+	if player == nil || player.Presence == esportsplayer.PresenceProtectedAbnormal {
+		return false
+	}
+	if player.LastHeartbeatAt == nil {
+		return true
+	}
+	return player.LastHeartbeatAt.After(now.UTC().Add(-timeout))
+}
+
+// playerEligibleForDispatch 是人工指派 / 派单候选 / 优先通知开窗共用的派单资格（§5.5 + §6.4-01）：
+//   - 资质必须 qualified；
+//   - 在线且连接正常（心跳新鲜度）；
+//   - 例外：连接异常（protected_abnormal）但**存在在途订单**的陪玩保留派单资格（§6.4-01
+//     「有在途订单的陪玩保留上线状态」），避免心跳超时任务把在途履约者整体摘出候选池。
+//     该例外只放开「被指派 / 被通知」，不影响「抢新单」：抢单仍走 playerCanGrabNewOrder（先到先得）。
+func playerEligibleForDispatch(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, now time.Time) (bool, error) {
+	if player == nil || player.Qualification != esportsplayer.QualificationQualified {
+		return false, nil
+	}
+	if player.Presence == esportsplayer.PresenceOnline && playerConnectionHealthy(ctx, db, player, now) {
+		return true, nil
+	}
+	if player.Presence != esportsplayer.PresenceProtectedAbnormal {
+		return false, nil
+	}
+	return playerHasInflightOrder(ctx, db, player.ID)
+}
+
+// ensureRequiredSeatsIntact 显式守护「不得下调已售必需席位」（§3.3-07）：
+// 订单已有派单席位时，席位条数不得少于 required_seats（席位被删/缺失即视为被下调）；
+// 尚无席位时放行，由 ensureDispatchSeats 按 required_seats 补齐。
+func ensureRequiredSeatsIntact(ctx context.Context, db *ent.Client, orderID int) error {
+	order, err := db.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	count, err := db.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(orderID),
+	).Count(ctx)
+	if err != nil {
+		return err
+	}
+	if count > 0 && count < order.RequiredSeats {
+		return fmt.Errorf("%w：该订单已售必需席位 %d 个，现存席位仅 %d 个，不得下调",
+			errConflict, order.RequiredSeats, count)
+	}
+	return nil
+}
+
+// orderHasInServiceSegment 判断订单是否仍有进行中的服务段（用于服务中换人后的落点判定）。
+func orderHasInServiceSegment(ctx context.Context, tx *ent.Tx, orderID int) (bool, error) {
+	return tx.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID),
+		esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
+	).Exist(ctx)
+}
+
+// settleSeatServiceSegment 结算某陪玩在某席位的**进行中**服务段（§5.7-02 / §3.3-03）：
+// 置 finished、写 ended_at 与 system_seconds（陪玩上报量保留原值，由客服后续核实）。
+// 没有进行中服务段时是空操作（幂等）。
+func settleSeatServiceSegment(ctx context.Context, tx *ent.Tx, orderID, playerID, seatIndex int, now time.Time) error {
+	segment, err := tx.EsportsServiceSegment.Query().Where(
+		esportsservicesegment.OrderIDEQ(orderID),
+		esportsservicesegment.PlayerIDEQ(playerID),
+		esportsservicesegment.SeatIndexEQ(seatIndex),
+		esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
+	).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	systemSeconds := int64(now.UTC().Sub(segment.StartedAt.UTC()).Seconds()) - segment.PausedSeconds
+	if systemSeconds < 0 {
+		systemSeconds = 0
+	}
+	changed, err := tx.EsportsServiceSegment.Update().Where(
+		esportsservicesegment.IDEQ(segment.ID),
+		esportsservicesegment.StatusEQ(esportsservicesegment.StatusInService),
+	).SetStatus(esportsservicesegment.StatusFinished).SetEndedAt(now.UTC()).
+		SetSystemSeconds(systemSeconds).AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return errConflict
+	}
+	return nil
+}
+
+// refillVacantMultiSeatSeats 多席订单缺员自动补位（§5.3-06），由派单升级扫描任务周期调用。
+//
+// 口径（可验收断言）：
+//   - 只处理 required_seats > 1 且仍在途（待派单 / 待接单 / 已接单 / 服务中）的订单；
+//   - 只重开「已超时」的失效席位：席位状态为 rejected / expired / revoked 且 responded_at
+//     早于 app.esports.dispatch_refill_minutes（默认 10）之前 —— 未超时前保留原状态作为历史
+//     （与既有「多席部分拒绝保留 rejected」口径一致）；
+//   - 重开时跳过已产生服务段的席位（实际开过工不能清空陪玩）；
+//   - 每次实际重开写一条 order.seat_refill_required 事件（抬订单版本承载唯一事件），
+//     客服据此可立即重新指派；缺员本身还会由 runDispatchEscalations 升级为异常待办。
+//
+// 返回本次补位的席位数。
+func refillVacantMultiSeatSeats(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
+	minutes := dispatchRefillMinutes(ctx, db)
+	if minutes <= 0 {
+		return 0, nil
+	}
+	if limit < 1 {
+		limit = 200
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	cutoff := now.UTC().Add(-time.Duration(minutes) * time.Minute)
+	orderIDs, err := db.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusRejected, esportsdispatchseat.StatusExpired,
+			esportsdispatchseat.StatusRevoked),
+		esportsdispatchseat.RespondedAtNotNil(),
+		esportsdispatchseat.RespondedAtLTE(cutoff),
+	).Order(ent.Asc(esportsdispatchseat.FieldOrderID)).
+		Limit(limit * 4).Select(esportsdispatchseat.FieldOrderID).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(orderIDs) == 0 {
+		return 0, nil
+	}
+	ids := make([]int, 0, len(orderIDs))
+	seen := map[int]bool{}
+	for _, row := range orderIDs {
+		if !seen[row.OrderID] {
+			seen[row.OrderID] = true
+			ids = append(ids, row.OrderID)
+		}
+	}
+	total := 0
+	for _, orderID := range ids {
+		if total >= limit {
+			break
+		}
+		changed, err := refillMultiSeatOrder(ctx, db, orderID, cutoff, now)
+		if err != nil {
+			if err == errConflict {
+				continue
+			}
+			return total, err
+		}
+		total += changed
+	}
+	return total, nil
+}
+
+// refillMultiSeatOrder 在独立事务内为一张多席订单重开超时失效的席位并留事件。
+func refillMultiSeatOrder(ctx context.Context, db *ent.Client, orderID int, cutoff, now time.Time) (int, error) {
+	tx, err := db.Tx(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
+	if err != nil {
+		return 0, err
+	}
+	if order.RequiredSeats <= 1 {
+		return 0, nil
+	}
+	switch order.FulfillmentStatus {
+	case esportsorder.FulfillmentStatusPendingDispatch, esportsorder.FulfillmentStatusPendingAcceptance,
+		esportsorder.FulfillmentStatusAccepted, esportsorder.FulfillmentStatusInService:
+	default:
+		return 0, nil
+	}
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return 0, nil
+	}
+	stale, err := tx.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDEQ(orderID),
+		esportsdispatchseat.StatusIn(
+			esportsdispatchseat.StatusRejected, esportsdispatchseat.StatusExpired,
+			esportsdispatchseat.StatusRevoked),
+		esportsdispatchseat.RespondedAtNotNil(),
+		esportsdispatchseat.RespondedAtLTE(cutoff),
+	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if len(stale) == 0 {
+		return 0, nil
+	}
+	reopened := make([]int, 0, len(stale))
+	for _, seat := range stale {
+		if seat.PlayerID != nil {
+			started, err := tx.EsportsServiceSegment.Query().Where(
+				esportsservicesegment.OrderIDEQ(orderID),
+				esportsservicesegment.PlayerIDEQ(*seat.PlayerID),
+				esportsservicesegment.SeatIndexEQ(seat.SeatIndex),
+			).Exist(ctx)
+			if err != nil {
+				return 0, err
+			}
+			if started {
+				continue // 实际开过工的席位不能清空陪玩
+			}
+		}
+		changed, err := tx.EsportsDispatchSeat.Update().Where(
+			esportsdispatchseat.IDEQ(seat.ID),
+			esportsdispatchseat.VersionEQ(seat.Version),
+			esportsdispatchseat.StatusIn(
+				esportsdispatchseat.StatusRejected, esportsdispatchseat.StatusExpired,
+				esportsdispatchseat.StatusRevoked),
+		).ClearPlayerID().ClearExpiresAt().ClearRespondedAt().
+			ClearCommissionRuleID().ClearCommissionRuleLockedAt().
+			// §5.9-01：补位席位回到 open，上一轮的发出时间与时段一并清空。
+			ClearInvitedAt().ClearSlotStart().ClearSlotEnd().
+			SetStatus(esportsdispatchseat.StatusOpen).AddVersion(1).Save(ctx)
+		if err != nil {
+			return 0, err
+		}
+		if changed == 1 {
+			reopened = append(reopened, seat.SeatIndex)
+		}
+	}
+	if len(reopened) == 0 {
+		return 0, nil
+	}
+	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, "")
+	if err != nil {
+		return 0, err
+	}
+	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+		SetOrderVersion(newVersion).SetEventType("order.seat_refill_required").
+		SetActorType("system").SetActorID("seat_refill").
+		SetDetails(map[string]interface{}{"refilled_seat_indexes": reopened}).Save(ctx); err != nil {
+		return 0, err
+	}
+	if err = tx.Commit(); err != nil {
+		return 0, err
+	}
+	return len(reopened), nil
+}
+
+// assignDispatchSeat 指派陪玩到某一席位：校验 SKU 快照、资质、分区、等级、连接与容量，
+// 条件更新抢下 open 席位并邀请（服务中订单则换人并结算原服务段）。订单、席位、陪玩版本和事件同事务写入。
 func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex, playerID, adminID int, now time.Time) (*ent.EsportsDispatchSeat, error) {
 	if seatIndex < 1 || playerID < 1 {
 		return nil, errInvalidInput
@@ -234,20 +502,42 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
-	if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
-		(order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch &&
-			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance) {
+	if order.PaymentStatus != esportsorder.PaymentStatusPaid {
+		return nil, errConflict
+	}
+	// 服务中换人（§3.3-03 / §3.3-07）：服务中订单允许改派（先结算原陪玩服务段再换人）；
+	// 其余订单仍只允许在待派单 / 待接单阶段派单。
+	inServiceReplace := order.FulfillmentStatus == esportsorder.FulfillmentStatusInService
+	if !inServiceReplace &&
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch &&
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance {
 		return nil, errConflict
 	}
 	if err = ensureAppointmentConfirmed(order); err != nil {
+		return nil, err
+	}
+	if err = ensureRequiredSeatsIntact(ctx, tx.Client(), orderID); err != nil {
+		return nil, err
+	}
+	// §5.9-07：改期提案进行中时订单档期待切换，任何新派单 / 改派都会让提案快照失效。
+	if locked, err := pendingRescheduleProposalExists(ctx, tx, orderID, now); err != nil {
+		return nil, err
+	} else if locked {
+		return nil, fmt.Errorf("%w：该订单存在进行中的改期提案，请先确认或撤回提案", errConflict)
+	}
+	// §5.9-02：SKU 快照必须仍可售，否则会静默跳过分区权限校验。
+	if err = ensureOrderSkuDispatchable(ctx, tx, order); err != nil {
 		return nil, err
 	}
 	player, err := tx.EsportsPlayer.Get(ctx, playerID)
 	if err != nil {
 		return nil, err
 	}
-	if player.Qualification != esportsplayer.QualificationQualified ||
-		player.Presence != esportsplayer.PresenceOnline {
+	eligible, err := playerEligibleForDispatch(ctx, tx.Client(), player, now)
+	if err != nil {
+		return nil, err
+	}
+	if !eligible {
 		return nil, errForbidden
 	}
 	if err = reservePlayerDispatchCapacity(ctx, tx, player, order, now, 0); err != nil {
@@ -260,39 +550,88 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
 		return nil, err
 	}
+	// §6.4-06：服务时段外 / 可接单价范围外的陪玩不得被指派（给出明确中文原因）。
+	if err = playerAcceptsDispatchTerms(player, order, now); err != nil {
+		return nil, err
+	}
 	if err = ensureDispatchSeats(ctx, tx, order); err != nil {
 		return nil, err
 	}
+	// 服务中换人：记下被替换的原陪玩，待席位改派成功后结算其进行中的服务段。
+	replacedPlayerID := 0
+	reusableStatuses := []esportsdispatchseat.Status{
+		esportsdispatchseat.StatusOpen, esportsdispatchseat.StatusRejected,
+		esportsdispatchseat.StatusExpired, esportsdispatchseat.StatusRevoked,
+	}
+	if inServiceReplace {
+		reusableStatuses = append(reusableStatuses, esportsdispatchseat.StatusAccepted)
+		existing, err := tx.EsportsDispatchSeat.Query().Where(
+			esportsdispatchseat.OrderIDEQ(orderID), esportsdispatchseat.SeatIndexEQ(seatIndex),
+		).Only(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if existing.Status == esportsdispatchseat.StatusAccepted && existing.PlayerID != nil &&
+			*existing.PlayerID != playerID {
+			replacedPlayerID = *existing.PlayerID
+		}
+	}
 	// 可复用 open 席位，也可接管此前被收回的 rejected / expired / revoked 席位：
 	// 这些席位未开工，派单回退后若不允许重新占用，单席订单会永久卡死。
-	changed, err := tx.EsportsDispatchSeat.Update().Where(
+	// §5.9-01：发出邀请时落 invited_at，并按订单档期落本席服务时段（即时单无档期则留空）。
+	inviteUpdate := tx.EsportsDispatchSeat.Update().Where(
 		esportsdispatchseat.OrderIDEQ(orderID), esportsdispatchseat.SeatIndexEQ(seatIndex),
-		esportsdispatchseat.StatusIn(
-			esportsdispatchseat.StatusOpen, esportsdispatchseat.StatusRejected,
-			esportsdispatchseat.StatusExpired, esportsdispatchseat.StatusRevoked,
-		),
+		esportsdispatchseat.StatusIn(reusableStatuses...),
 	).SetPlayerID(playerID).SetStatus(esportsdispatchseat.StatusInvited).
 		SetSource(esportsdispatchseat.SourceAssign).SetInvitedByAdminID(adminID).
 		SetExpiresAt(now.UTC().Add(ttl)).ClearRespondedAt().
-		ClearCommissionRuleID().ClearCommissionRuleLockedAt().AddVersion(1).Save(ctx)
+		ClearCommissionRuleID().ClearCommissionRuleLockedAt().AddVersion(1)
+	inviteUpdate = applySeatServiceSlot(inviteUpdate, order)
+	changed, err := inviteUpdate.SetInvitedAt(now.UTC()).Save(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if changed != 1 {
 		return nil, errConflict
 	}
-	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, esportsorder.FulfillmentStatusPendingAcceptance)
+	// §5.7-02：服务中换人先把原陪玩的服务段结算（保留历史），再让新陪玩接单。
+	if replacedPlayerID > 0 {
+		if err = settleSeatServiceSegment(ctx, tx, orderID, replacedPlayerID, seatIndex, now); err != nil {
+			return nil, err
+		}
+	}
+	// 服务中换人后的订单落点：仍有其他进行中服务段则保持服务中，否则回到待接单等新陪玩接单。
+	targetStatus := esportsorder.FulfillmentStatusPendingAcceptance
+	if inServiceReplace {
+		remainingInService, err := orderHasInServiceSegment(ctx, tx, orderID)
+		if err != nil {
+			return nil, err
+		}
+		if !remainingInService {
+			targetStatus = esportsorder.FulfillmentStatusPendingAcceptance
+		} else {
+			targetStatus = esportsorder.FulfillmentStatusInService
+		}
+	}
+	newVersion, err := bumpOrder(ctx, tx, orderID, order.Version, targetStatus)
 	if err != nil {
 		return nil, err
 	}
+	eventType := "order.seat_invited"
+	details := map[string]interface{}{"seat_index": seatIndex, "player_id": playerID}
+	if replacedPlayerID > 0 {
+		// 席位版本唯一约束下每次派单只承载一个订单事件，服务中换人合并为一条换人事件。
+		eventType = "order.service_player_replaced"
+		details["replaced_player_id"] = replacedPlayerID
+	}
 	// §5.9：首次派出邀请的时间点（只写一次）。
-	if err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstInvited, now); err != nil {
+	if _, err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstInvited, now); err != nil {
 		return nil, err
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
-		SetOrderVersion(newVersion).SetEventType("order.seat_invited").
+		SetOrderVersion(newVersion).SetEventType(eventType).
 		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
-		SetDetails(map[string]interface{}{"seat_index": seatIndex, "player_id": playerID}).Save(ctx); err != nil {
+		SetDetails(details).Save(ctx); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -447,6 +786,12 @@ func transferOrder(ctx context.Context, db *ent.Client, orderID, toAdminID, admi
 		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
 		return nil, errConflict
 	}
+	// §5.9-07：改期提案进行中时锁定订单档期，转单会改变负责人并让提案快照失效。
+	if locked, err := pendingRescheduleProposalExists(ctx, tx, orderID, time.Now()); err != nil {
+		return nil, err
+	} else if locked {
+		return nil, fmt.Errorf("%w：该订单存在进行中的改期提案，请先确认或撤回提案", errConflict)
+	}
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
 		esportsorder.FulfillmentStatusNotIn(
@@ -474,13 +819,16 @@ func transferOrder(ctx context.Context, db *ent.Client, orderID, toAdminID, admi
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// remindOrder 催单：仅留痕，不改履约状态；每次催单抬升订单版本以承载唯一事件。
+// remindOrder 催单：把优先级（1~3）、备注与催单时间落到**订单字段**（§5.7-05，可检索、可排序），
+// 同时抬升订单版本写 order.reminded 事件留痕；不改履约状态。
+// 同一订单多次催单以「最新一次」为准（档位 / 备注 / 时间一并覆盖）。
 // ponytail: 催单时间阶梯、升级自动通知与企微/电话等多渠道提醒未实现。
 func remindOrder(ctx context.Context, db *ent.Client, orderID, adminID int, level int, note string) error {
 	note = strings.TrimSpace(note)
 	if level < 1 || level > 3 || len([]rune(note)) > 255 {
 		return errInvalidInput
 	}
+	now := time.Now().UTC()
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return err
@@ -494,8 +842,16 @@ func remindOrder(ctx context.Context, db *ent.Client, orderID, adminID int, leve
 		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
 		return errConflict
 	}
-	if _, err = bumpOrder(ctx, tx, orderID, order.Version, ""); err != nil {
+	// 一次条件更新同时抬版本与落催单字段，避免「事件写了字段没写」的半成品状态。
+	changed, err := tx.EsportsOrder.Update().Where(
+		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+	).SetRemindPriorityLevel(level).SetRemindNote(note).SetRemindedAt(now).
+		AddVersion(1).Save(ctx)
+	if err != nil {
 		return err
+	}
+	if changed != 1 {
+		return errConflict
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
 		SetOrderVersion(order.Version + 1).SetEventType("order.reminded").
@@ -578,7 +934,8 @@ func publishOrderToGrabHall(ctx context.Context, db *ent.Client, orderID, adminI
 		}
 	}
 	// §5.9：兜底确保「首次进入待派单池」的时间点已落（订单处于待派单即视为已入池，只写一次）。
-	if err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstPooled, now); err != nil {
+	// 此处只补时间点：存量订单直接发布到大厅时不再补写入池事件（订单已离开待派单池，避免事件语义错位）。
+	if _, err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstPooled, now); err != nil {
 		return nil, err
 	}
 	if err = reopenDispatchSeatsForGrab(ctx, tx, orderID); err != nil {
@@ -632,6 +989,8 @@ func reopenDeadDispatchSeatsForRedispatch(ctx context.Context, tx *ent.Tx, order
 			esportsdispatchseat.StatusIn(deadStatuses...),
 		).ClearPlayerID().ClearExpiresAt().ClearRespondedAt().
 			ClearCommissionRuleID().ClearCommissionRuleLockedAt().
+			// §5.9-01：席位回到 open 即清空上一轮的发出时间与时段，重新邀请时再写。
+			ClearInvitedAt().ClearSlotStart().ClearSlotEnd().
 			SetStatus(esportsdispatchseat.StatusOpen).AddVersion(1).Save(ctx)
 		if err != nil {
 			return nil, err
@@ -756,7 +1115,37 @@ func listOrderSeats(ctx context.Context, db *ent.Client, orderID int) ([]*ent.Es
 	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
 }
 
-// dispatchBoard 排单看板：按履约状态分桶的订单摘要与在线陪玩数。
+// dispatchBoardAdmin 是看板顶部的客服在线摘要（§5.8-04）：客服清单 + 在线状态 + 最近活跃时间。
+type dispatchBoardAdmin struct {
+	AdminID  int    `json:"admin_id"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	// Presence 取 presence 表口径（online / busy / offline）；无 presence 档案时按最近操作推导为 online / offline。
+	Presence string `json:"presence"`
+	Online   bool   `json:"online"`
+	// LastActiveAt 是「presence 表 last_active_at」与「Admin.last_login / 最近一次管理员订单操作」的较大者。
+	LastActiveAt *time.Time `json:"last_active_at"`
+}
+
+// dispatchBoardPlayer 是看板的逐人上下线明细条目（§5.8-02 / §5.8-03）。
+type dispatchBoardPlayer struct {
+	PlayerID int    `json:"player_id"`
+	Nickname string `json:"nickname"`
+	// Presence 取 EsportsPlayer.presence 原文（online / offline / protected_abnormal），
+	// 与 online_players 计数**同一字段、同一口径**，不另立在线判定。
+	Presence string `json:"presence"`
+	// LastActiveAt 是最近一次心跳时间（无心跳基线的存量档案为 null）。
+	LastActiveAt *time.Time `json:"last_active_at"`
+	// ConnectionHealthy 复用既有 playerConnectionHealthy 口径，仅供客服识别
+	// 「presence=online 但心跳已失联」的挂机档案；presence 非 online 时该值无业务含义。
+	ConnectionHealthy bool `json:"connection_healthy"`
+}
+
+// dispatchBoardPlayerLimit 是看板逐人明细的条数上限（防止响应体随陪玩规模膨胀）；
+// 超出时 players_truncated=true，online_players 计数仍为全量真实值。
+const dispatchBoardPlayerLimit = 200
+
+// dispatchBoard 排单看板：按履约状态分桶的订单摘要、在线陪玩数与客服在线清单。
 type dispatchBoard struct {
 	PendingDispatch   []*ent.EsportsOrder `json:"pending_dispatch"`
 	PublicPool        []*ent.EsportsOrder `json:"public_pool"`
@@ -767,6 +1156,12 @@ type dispatchBoard struct {
 	PendingClose      []*ent.EsportsOrder `json:"pending_close"`
 	Abnormal          []*ent.EsportsOrder `json:"abnormal"`
 	OnlinePlayers     int                 `json:"online_players"`
+	// Players 是逐人上下线明细（§5.8-02 / §5.8-03）：在线优先、同类按 ID 升序。
+	Players []dispatchBoardPlayer `json:"players"`
+	// PlayersTruncated 表示合格陪玩总数超过明细上限，明细不全（计数仍为全量真实值）。
+	PlayersTruncated bool `json:"players_truncated"`
+	// Admins 是各客服及其在线状态（§5.8-04），供看板顶部展示「谁在值班」。
+	Admins []dispatchBoardAdmin `json:"admins"`
 	// 会员订单优先（§10.4）：待派单池 / 公共池中属于「会员优先等级」客户的订单 ID，已置顶，供前端标记。
 	MemberPriorityOrderIDs []int `json:"member_priority_order_ids"`
 	// 公共池脱敏（§5.1 / §8.2）：非超管在公共池只看到脱敏摘要，客户身份与金额字段被掩码；
@@ -774,10 +1169,113 @@ type dispatchBoard struct {
 	MaskedPublicPoolIDs []int `json:"masked_public_pool_ids"`
 }
 
-// loadDispatchBoard 组装看板。每桶按 ID 倒序取前 100 条；非超管只看自己负责的订单，
+// loadDispatchBoardPlayers 组装看板的逐人上下线明细（§5.8-02 / §5.8-03）：
+//   - 只列合格陪玩（与 online_players 计数的资格口径一致）；
+//   - 在线（presence=online，与计数同一字段）优先，其余合格陪玩补足，同类按 ID 升序；
+//   - 最多 dispatchBoardPlayerLimit 条，超出时第二个返回值为 true。
+func loadDispatchBoardPlayers(ctx context.Context, db *ent.Client, now time.Time) ([]dispatchBoardPlayer, bool, error) {
+	qualified := esportsplayer.QualificationEQ(esportsplayer.QualificationQualified)
+	total, err := db.EsportsPlayer.Query().Where(qualified).Count(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	if total == 0 {
+		return []dispatchBoardPlayer{}, false, nil
+	}
+	out := make([]dispatchBoardPlayer, 0, dispatchBoardPlayerLimit)
+	// 心跳超时阈值只解析一次，避免逐人判定时反复查配置（口径仍由 playerConnectionHealthyWith 统一）。
+	heartbeatTimeout := playerHeartbeatTimeout(ctx, db)
+	appendRows := func(rows []*ent.EsportsPlayer) {
+		for _, player := range rows {
+			nickname := strings.TrimSpace(player.DisplayName)
+			out = append(out, dispatchBoardPlayer{
+				PlayerID:          player.ID,
+				Nickname:          nickname,
+				Presence:          player.Presence.String(),
+				LastActiveAt:      player.LastHeartbeatAt,
+				ConnectionHealthy: playerConnectionHealthyWith(player, now, heartbeatTimeout),
+			})
+		}
+	}
+	// ① 在线（与 online_players 计数完全同一过滤条件）。
+	online, err := db.EsportsPlayer.Query().Where(
+		qualified, esportsplayer.PresenceEQ(esportsplayer.PresenceOnline),
+	).Order(ent.Asc(esportsplayer.FieldID)).Limit(dispatchBoardPlayerLimit).All(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	appendRows(online)
+	// ② 其余合格陪玩（离线 / 连接异常）补足剩余名额。
+	if remaining := dispatchBoardPlayerLimit - len(out); remaining > 0 {
+		rest, err := db.EsportsPlayer.Query().Where(
+			qualified, esportsplayer.PresenceNEQ(esportsplayer.PresenceOnline),
+		).Order(ent.Asc(esportsplayer.FieldID)).Limit(remaining).All(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		appendRows(rest)
+	}
+	return out, total > len(out), nil
+}
+
+// loadDispatchBoardAdmins 组装客服在线清单（§5.8-04）：列出启用态管理员，合并 presence 表
+// 与「最近操作时间」推导出在线状态与最近活跃时间。presence 表（EsportsCsPresence）是权威数据源；
+// 无档案的客服回落「最近一次管理员操作」口径，让看板在 presence 写入方上线前也可用。
+func loadDispatchBoardAdmins(ctx context.Context, db *ent.Client, now time.Time) ([]dispatchBoardAdmin, error) {
+	accounts, err := db.Admin.Query().Where(
+		entadmin.StatusEQ(entadmin.StatusActive),
+	).Order(ent.Asc(entadmin.FieldID)).Limit(200).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(accounts) == 0 {
+		return nil, nil
+	}
+	ids := make([]int, 0, len(accounts))
+	for _, account := range accounts {
+		ids = append(ids, account.ID)
+	}
+	activities, err := csAdminActivities(ctx, db, ids, now)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dispatchBoardAdmin, 0, len(accounts))
+	for _, account := range accounts {
+		activity := activities[account.ID]
+		nickname := strings.TrimSpace(account.Nickname)
+		if nickname == "" {
+			nickname = strings.TrimSpace(account.Name)
+		}
+		out = append(out, dispatchBoardAdmin{
+			AdminID: account.ID, Username: account.Username, Nickname: nickname,
+			Presence: activity.Presence, Online: activity.Online,
+			LastActiveAt: activity.LastActiveAt,
+		})
+	}
+	return out, nil
+}
+
+// dispatchBoardSortRemindPriority 看板排序参数取值（§5.7-05）：按催单优先级降序。
+const dispatchBoardSortRemindPriority = "remind_priority"
+
+// loadDispatchBoard 组装看板（默认顺序）。每桶按 ID 倒序取前 100 条；非超管只看自己负责的订单，
 // 但公共池始终返回作为脱敏摘要（非超管掩码客户身份与金额字段）。
-// ponytail: 异常桶暂按支付异常汇总。
 func loadDispatchBoard(ctx context.Context, db *ent.Client, adminID int, isSuper bool) (*dispatchBoard, error) {
+	return loadDispatchBoardSorted(ctx, db, adminID, isSuper, "")
+}
+
+// loadDispatchBoardSorted 组装看板，支持 sort 参数（§5.7-05）：
+//   - ""（默认）：各桶按订单 ID 倒序（既有行为，逐位不变）；
+//   - "remind_priority"：各订单桶按「催单优先级降序 → 订单 ID 倒序」重排，便于客服先处理被催的单；
+//   - 其他取值：明确参数错误（不得静默忽略，避免调用方误以为已排序）。
+//
+// 排序只影响展示顺序：可见性（非超管只看本人名下）、会员订单置顶标记、脱敏口径都不受影响。
+func loadDispatchBoardSorted(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
+	sortBy string) (*dispatchBoard, error) {
+	sortBy = strings.TrimSpace(sortBy)
+	if sortBy != "" && sortBy != dispatchBoardSortRemindPriority {
+		return nil, fmt.Errorf("%w：sort 仅支持 %s", errInvalidInput, dispatchBoardSortRemindPriority)
+	}
 	bucket := func(status esportsorder.FulfillmentStatus) ([]*ent.EsportsOrder, error) {
 		q := db.EsportsOrder.Query().Where(esportsorder.FulfillmentStatusEQ(status))
 		if !isSuper {
@@ -785,8 +1283,12 @@ func loadDispatchBoard(ctx context.Context, db *ent.Client, adminID int, isSuper
 		}
 		return q.Order(ent.Desc(esportsorder.FieldID)).Limit(100).All(ctx)
 	}
+	now := time.Now()
 	var err error
 	board := &dispatchBoard{}
+	if board.Admins, err = loadDispatchBoardAdmins(ctx, db, now); err != nil {
+		return nil, err
+	}
 	if board.PendingDispatch, err = bucket(esportsorder.FulfillmentStatusPendingDispatch); err != nil {
 		return nil, err
 	}
@@ -832,15 +1334,8 @@ func loadDispatchBoard(ctx context.Context, db *ent.Client, adminID int, isSuper
 			board.MaskedPublicPoolIDs = append(board.MaskedPublicPoolIDs, o.ID)
 		}
 	}
-	abnormal := db.EsportsOrder.Query().Where(
-		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusException),
-		esportsorder.FulfillmentStatusNotIn(
-			esportsorder.FulfillmentStatusCompleted, esportsorder.FulfillmentStatusCancelled),
-	)
-	if !isSuper {
-		abnormal.Where(esportsorder.ResponsibleAdminIDEQ(adminID))
-	}
-	if board.Abnormal, err = abnormal.Order(ent.Desc(esportsorder.FieldID)).Limit(100).All(ctx); err != nil {
+	// 异常桶（§5.3-06 / §5.9-06）：支付异常 ∪ 非支付类派单异常（临近开始未满员 / 无人接单超时）。
+	if board.Abnormal, err = dispatchAbnormalOrders(ctx, db, adminID, isSuper, now); err != nil {
 		return nil, err
 	}
 	online, err := db.EsportsPlayer.Query().Where(
@@ -851,7 +1346,110 @@ func loadDispatchBoard(ctx context.Context, db *ent.Client, adminID int, isSuper
 		return nil, err
 	}
 	board.OnlinePlayers = online
+	// §5.8-02 / §5.8-03：逐人上下线明细（与上面的在线计数同一 presence 口径）。
+	if board.Players, board.PlayersTruncated, err = loadDispatchBoardPlayers(ctx, db, now); err != nil {
+		return nil, err
+	}
+	// §5.7-05：显式要求按催单优先级排序时，重排各订单桶（默认不动，保持既有顺序）。
+	if sortBy == dispatchBoardSortRemindPriority {
+		sortBoardByRemindPriority(board)
+	}
 	return board, nil
+}
+
+// sortBoardByRemindPriority 按催单优先级降序重排看板各订单桶（§5.7-05）。
+// 未催单（level=0）的订单排在已催单之后；同档按订单 ID 倒序，与默认顺序一致，避免顺序抖动。
+func sortBoardByRemindPriority(board *dispatchBoard) {
+	if board == nil {
+		return
+	}
+	buckets := [][]*ent.EsportsOrder{
+		board.PendingDispatch, board.PublicPool, board.Grabbing, board.PendingAcceptance,
+		board.Accepted, board.InService, board.PendingClose, board.Abnormal,
+	}
+	for _, bucket := range buckets {
+		sort.SliceStable(bucket, func(i, j int) bool {
+			a, b := bucket[i], bucket[j]
+			if a.RemindPriorityLevel != b.RemindPriorityLevel {
+				return a.RemindPriorityLevel > b.RemindPriorityLevel
+			}
+			return a.ID > b.ID
+		})
+	}
+}
+
+// dispatchAbnormalOrders 组装看板异常桶（§5.3-06 / §5.9-06）：除既有支付异常外，
+// 把「非支付类派单异常」也纳入客服异常待办。判定按可观测数据**实时派生**，不依赖升级任务是否跑过：
+//
+//   - 临近开始仍未满员：预约开始时间落在 app.esports.dispatch_start_escalate_minutes 之内，
+//     且已接单席位数不足 required_seats；
+//   - 无人接单超时：进入待派单池（first_pooled_at）已超过 app.esports.dispatch_no_taker_minutes，
+//     且席位仍未接满。
+//
+// 终态订单（completed / cancelled）一律不在异常桶内。返回上限 100 条（与其余桶一致）。
+func dispatchAbnormalOrders(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) ([]*ent.EsportsOrder, error) {
+	startLead := dispatchStartEscalateMinutes(ctx, db)
+	noTaker := dispatchNoTakerMinutes(ctx, db)
+	q := db.EsportsOrder.Query().Where(
+		esportsorder.FulfillmentStatusNotIn(
+			esportsorder.FulfillmentStatusCompleted, esportsorder.FulfillmentStatusCancelled),
+		esportsorder.Or(
+			esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusException),
+			esportsorder.FulfillmentStatusIn(
+				esportsorder.FulfillmentStatusPendingDispatch,
+				esportsorder.FulfillmentStatusPendingAcceptance),
+		),
+	)
+	if !isSuper {
+		q.Where(esportsorder.ResponsibleAdminIDEQ(adminID))
+	}
+	items, err := q.Order(ent.Desc(esportsorder.FieldID)).Limit(300).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return []*ent.EsportsOrder{}, nil
+	}
+	ids := make([]int, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	accepted := map[int]int{}
+	seats, err := db.EsportsDispatchSeat.Query().Where(
+		esportsdispatchseat.OrderIDIn(ids...),
+		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
+	).Select(esportsdispatchseat.FieldOrderID).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, seat := range seats {
+		accepted[seat.OrderID]++
+	}
+	startLeadBefore := now.UTC().Add(time.Duration(startLead) * time.Minute)
+	noTakerBefore := now.UTC().Add(-time.Duration(noTaker) * time.Minute)
+	out := make([]*ent.EsportsOrder, 0, len(items))
+	for _, item := range items {
+		if item.PaymentStatus == esportsorder.PaymentStatusException {
+			out = append(out, item)
+			continue
+		}
+		// 席位已接满的正常在途订单不算异常。
+		if item.RequiredSeats > 0 && accepted[item.ID] >= item.RequiredSeats {
+			continue
+		}
+		if item.RequestedStartAt != nil && !item.RequestedStartAt.After(startLeadBefore) {
+			out = append(out, item)
+			continue
+		}
+		if item.FirstPooledAt != nil && !item.FirstPooledAt.After(noTakerBefore) {
+			out = append(out, item)
+			continue
+		}
+	}
+	if len(out) > 100 {
+		out = out[:100]
+	}
+	return out, nil
 }
 
 // maskPublicPoolOrder 对公共池订单做脱敏（§5.1 / §8.2）：清零客户身份与金额字段，

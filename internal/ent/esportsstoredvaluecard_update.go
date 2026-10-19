@@ -547,6 +547,20 @@ func (_u *EsportsStoredValueCardUpdate) AddVersion(v int) *EsportsStoredValueCar
 	return _u
 }
 
+// SetDeductionOrder sets the "deduction_order" field.
+func (_u *EsportsStoredValueCardUpdate) SetDeductionOrder(v string) *EsportsStoredValueCardUpdate {
+	_u.mutation.SetDeductionOrder(v)
+	return _u
+}
+
+// SetNillableDeductionOrder sets the "deduction_order" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdate) SetNillableDeductionOrder(v *string) *EsportsStoredValueCardUpdate {
+	if v != nil {
+		_u.SetDeductionOrder(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *EsportsStoredValueCardUpdate) SetUpdatedAt(v time.Time) *EsportsStoredValueCardUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -634,6 +648,11 @@ func (_u *EsportsStoredValueCardUpdate) check() error {
 	if v, ok := _u.mutation.PaymentVerificationNote(); ok {
 		if err := esportsstoredvaluecard.PaymentVerificationNoteValidator(v); err != nil {
 			return &ValidationError{Name: "payment_verification_note", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.payment_verification_note": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DeductionOrder(); ok {
+		if err := esportsstoredvaluecard.DeductionOrderValidator(v); err != nil {
+			return &ValidationError{Name: "deduction_order", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.deduction_order": %w`, err)}
 		}
 	}
 	return nil
@@ -808,6 +827,9 @@ func (_u *EsportsStoredValueCardUpdate) sqlSave(ctx context.Context) (_node int,
 	}
 	if value, ok := _u.mutation.AddedVersion(); ok {
 		_spec.AddField(esportsstoredvaluecard.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.DeductionOrder(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldDeductionOrder, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldUpdatedAt, field.TypeTime, value)
@@ -1350,6 +1372,20 @@ func (_u *EsportsStoredValueCardUpdateOne) AddVersion(v int) *EsportsStoredValue
 	return _u
 }
 
+// SetDeductionOrder sets the "deduction_order" field.
+func (_u *EsportsStoredValueCardUpdateOne) SetDeductionOrder(v string) *EsportsStoredValueCardUpdateOne {
+	_u.mutation.SetDeductionOrder(v)
+	return _u
+}
+
+// SetNillableDeductionOrder sets the "deduction_order" field if the given value is not nil.
+func (_u *EsportsStoredValueCardUpdateOne) SetNillableDeductionOrder(v *string) *EsportsStoredValueCardUpdateOne {
+	if v != nil {
+		_u.SetDeductionOrder(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *EsportsStoredValueCardUpdateOne) SetUpdatedAt(v time.Time) *EsportsStoredValueCardUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1450,6 +1486,11 @@ func (_u *EsportsStoredValueCardUpdateOne) check() error {
 	if v, ok := _u.mutation.PaymentVerificationNote(); ok {
 		if err := esportsstoredvaluecard.PaymentVerificationNoteValidator(v); err != nil {
 			return &ValidationError{Name: "payment_verification_note", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.payment_verification_note": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.DeductionOrder(); ok {
+		if err := esportsstoredvaluecard.DeductionOrderValidator(v); err != nil {
+			return &ValidationError{Name: "deduction_order", err: fmt.Errorf(`ent: validator failed for field "EsportsStoredValueCard.deduction_order": %w`, err)}
 		}
 	}
 	return nil
@@ -1641,6 +1682,9 @@ func (_u *EsportsStoredValueCardUpdateOne) sqlSave(ctx context.Context) (_node *
 	}
 	if value, ok := _u.mutation.AddedVersion(); ok {
 		_spec.AddField(esportsstoredvaluecard.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.DeductionOrder(); ok {
+		_spec.SetField(esportsstoredvaluecard.FieldDeductionOrder, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(esportsstoredvaluecard.FieldUpdatedAt, field.TypeTime, value)

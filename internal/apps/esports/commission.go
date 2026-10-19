@@ -14,6 +14,7 @@ import (
 	"go-admin/internal/ent/esportscommissionrule"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsorderaddon"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportswallettx"
@@ -391,6 +392,128 @@ func listCommissionRules(ctx context.Context, db *ent.Client, ruleNo string, lim
 	return q.Order(ent.Desc(esportscommissionrule.FieldID)).Limit(limit).All(ctx)
 }
 
+// tailReversalNote 是「舍入尾差单列」冲回明细的备注标记（§12.1-05）：
+// 多条原明细按比例截断产生的尾差不再并入最后一条冲回明细，而是单列一条 kind=reversal 明细，
+// 既保证冲回合计等于精确值，也让尾差可被单独查询与对账。
+const tailReversalNote = "舍入尾差单列"
+
+// splitServiceUnits 把「折后明细金额」按最小服务单位拆分（§15.5-04）：
+// 每单位金额 = 折后金额 ÷ 承诺服务量（整数分向下取整），舍入尾差固定记在最后一单位，
+// 逐单位金额合计恒等于折后金额。（§18.2 裁决：优先「尾差记在最后一单位」的规则，
+// 而不是台账举例 [34,33,33]。）
+func splitServiceUnits(amount int64, units int64) []int64 {
+	if units < 1 {
+		return nil
+	}
+	parts := make([]int64, units)
+	share := amount / units
+	var allocated int64
+	for i := range parts {
+		parts[i] = share
+		allocated += share
+	}
+	parts[len(parts)-1] += amount - allocated
+	return parts
+}
+
+// unitReversalTargets 按最小服务单位分摊「某类明细（服务 / 加钟）的退款冲回目标」（§15.5-04）：
+// 先按「折后明细金额 ÷ 承诺服务量」求逐单位金额，再逐单位按退款比例（退款额 ÷ 统一可退基数）
+// 求逐单位冲回额；两步的舍入尾差都并入最后一单位（§18.2 裁决）。
+// 返回值合计恒等于 amount×refundCents÷refundBase，即该类冲回目标本身——
+// 单位级分摊因此真正参与退款金额除法，而不仅仅是展示。
+func unitReversalTargets(amount, units, refundCents, refundBase int64) []int64 {
+	if amount <= 0 || refundCents <= 0 || refundBase <= 0 {
+		return nil
+	}
+	if units < 1 {
+		units = 1
+	}
+	unitAmounts := splitServiceUnits(amount, units)
+	parts := make([]int64, len(unitAmounts))
+	var allocated int64
+	for i, unitAmount := range unitAmounts {
+		parts[i] = unitAmount * refundCents / refundBase
+		allocated += parts[i]
+	}
+	if target := amount * refundCents / refundBase; target != allocated {
+		parts[len(parts)-1] += target - allocated
+	}
+	return parts
+}
+
+// sumUnitAmounts 汇总逐单位金额（冲回目标由单位级分摊求和得出）。
+func sumUnitAmounts(parts []int64) int64 {
+	var total int64
+	for _, part := range parts {
+		total += part
+	}
+	return total
+}
+
+// addonWalletSourceType 是加钟余额收款流水的来源类型（见 addon.go payOrderAddonByBalance）。
+const addonWalletSourceType = "order_addon"
+
+// addonReceivedCents 订单「加钟已收款」合计（分，§12.5-02）：由只增钱包流水
+// （source_type=order_addon、entry_type=consume，source_id=本单加钟单号）求和派生，
+// 沿用本仓「余额一律由流水求和派生」的口径，不新增冗余余额字段。
+// 加钟单尚未收款（无收款流水）时返回 0，即不计入可退额度。
+func addonReceivedCents(ctx context.Context, client *ent.Client, orderID int) (int64, error) {
+	rows, err := orderAddonConsumeRows(ctx, client, orderID)
+	if err != nil {
+		return 0, err
+	}
+	var total int64
+	for _, row := range rows {
+		total += -(row.PrincipalDeltaCents + row.BonusDeltaCents)
+	}
+	if total < 0 {
+		total = 0
+	}
+	return total, nil
+}
+
+// orderAddonConsumeRows 订单全部加钟余额收款流水（只增），按写入顺序返回；
+// 供「加钟已收款派生」与「加钟款原路退回构成」共用同一取数口径。
+func orderAddonConsumeRows(ctx context.Context, client *ent.Client, orderID int) ([]*ent.EsportsWalletTx, error) {
+	addons, err := client.EsportsOrderAddon.Query().Where(
+		esportsorderaddon.OrderIDEQ(orderID),
+	).Select(esportsorderaddon.FieldAddonNo).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(addons) == 0 {
+		return nil, nil
+	}
+	nos := make([]string, 0, len(addons))
+	for _, addon := range addons {
+		nos = append(nos, addon.AddonNo)
+	}
+	return client.EsportsWalletTx.Query().Where(
+		esportswallettx.SourceTypeEQ(addonWalletSourceType),
+		esportswallettx.SourceIDIn(nos...),
+		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeConsume),
+	).Order(ent.Asc(esportswallettx.FieldID)).All(ctx)
+}
+
+// refundableCommissionBase 是退款冲回的统一「可退基数」（§12.1-05 / §12.5-02）：
+// 服务与加钟两类冲回必须按同一基数计算比例，否则同一次退款两类冲回比例不一致（加钟侧被少冲）。
+// 基数 = 结单净服务额快照（缺失时回落订单应付额）+ 加钟已收款：与可退上界（服务应付 + 加钟已收）
+// 同源，保证「把可退额度全部退完」时服务 / 加钟冲回都恰好回到 100% 原计提（D34 不变量）。
+func refundableCommissionBase(ctx context.Context, client *ent.Client, order *ent.EsportsOrder) (int64, error) {
+	if order == nil {
+		return 0, nil
+	}
+	addonReceived, err := addonReceivedCents(ctx, client, order.ID)
+	if err != nil {
+		return 0, err
+	}
+	base := commissionCloseBase(order)
+	if base <= 0 {
+		base = order.PayableCents
+	}
+	return base + addonReceived, nil
+}
+
 // commissionPool 按规则算出订单总分成池（成员间再分摊，避免多陪玩订单超额）。
 func commissionPool(order *ent.EsportsOrder, rule *ent.EsportsCommissionRule) int64 {
 	switch rule.CalcMode {
@@ -592,8 +715,8 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 }
 
 // reverseOrderCommissionFor 冲回实现（售后 / 外部退款共用）。
-// 服务与加钟两类明细分别按各自基数计算冲回目标，舍入尾差归各自最后一条冲回明细（§12.1 尾差单列）。
-// 服务分成按结单净服务额冲回，加钟分成沿用原单应付额分摊口径。
+// 服务与加钟两类明细都按同一「可退基数」计算冲回目标（§12.1-05 / §12.5-02），
+// 舍入尾差不再并入最后一条冲回明细，而是单列为独立的冲回行（§12.1-05）。
 // 售后单指定争议陪玩时优先冲回该成员的明细：先冲满其本人分成（不超过该类冲回目标），
 // 剩余目标再按比例分摊其他成员；未指定或该成员无明细时维持整体比例冲回。
 func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
@@ -612,7 +735,10 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 	if err != nil {
 		return err
 	}
-	serviceBase := commissionCloseBase(order)
+	refundBase, err := refundableCommissionBase(ctx, tx.Client(), order)
+	if err != nil {
+		return err
+	}
 	// 先读该订单全部既有冲回明细，按成员区分服务/加钟口径累计，用于限制争议成员
 	// 在多次部分退款下的累计冲回不超过其本人原分成。
 	// 加钟备注可能带外部退款前缀，用包含匹配保持历史数据兼容。
@@ -624,18 +750,29 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 		return err
 	}
 	priorService, priorAddon := map[int]int64{}, map[int]int64{}
+	var priorServiceTotal, priorAddonTotal int64
 	for _, prior := range priorRevs {
 		if strings.Contains(prior.Note, addonReversalNote) {
 			priorAddon[prior.PlayerID] += prior.AmountCents
+			priorAddonTotal += prior.AmountCents
 		} else {
 			priorService[prior.PlayerID] += prior.AmountCents
+			priorServiceTotal += prior.AmountCents
 		}
 	}
-	// allocate 计算一组明细各自应冲回的正数金额（分），并归置舍入尾差。
-	allocate := func(idxs []int, target int64, prior map[int]int64) []int64 {
+	// reversalTail 是舍入尾差单列出的一条独立冲回明细：index 指向它归属的原明细，
+	// 由该明细决定陪玩 / 席位 / 规则快照，amount 为正数尾差。
+	type reversalTail struct {
+		index  int
+		addon  bool
+		amount int64
+	}
+	// allocate 计算一组明细各自应冲回的正数金额（分），并把舍入尾差单列返回。
+	allocate := func(idxs []int, target int64, prior map[int]int64, addon bool) ([]int64, []reversalTail) {
 		amounts := make([]int64, len(entries))
+		var tails []reversalTail
 		if len(idxs) == 0 || target <= 0 {
-			return amounts
+			return amounts, tails
 		}
 		spread := func(sub []int, amount int64) {
 			if len(sub) == 0 || amount <= 0 {
@@ -653,7 +790,10 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 				amounts[i] = amount * entries[i].AmountCents / subTotal
 				allocated += amounts[i]
 			}
-			amounts[sub[len(sub)-1]] += amount - allocated
+			// 尾差单列（§12.1-05）：不再并入最后一条明细，而是独立冲回行，便于单独对账。
+			if tail := amount - allocated; tail != 0 {
+				tails = append(tails, reversalTail{index: sub[len(sub)-1], addon: addon, amount: tail})
+			}
 		}
 		var preferred, others []int
 		if rev.PlayerID != nil {
@@ -667,7 +807,7 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 		}
 		if len(preferred) == 0 {
 			spread(idxs, target)
-			return amounts
+			return amounts, tails
 		}
 		var preferredTotal int64
 		for _, i := range preferred {
@@ -685,7 +825,7 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 		cap := min(target, preferredTotal)
 		spread(preferred, cap)
 		spread(others, target-cap)
-		return amounts
+		return amounts, tails
 	}
 	serviceIdx, addonIdx := []int{}, []int{}
 	var totalService, totalAddon int64
@@ -699,11 +839,22 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 		}
 	}
 	var amounts []int64
-	if serviceBase > 0 && totalService > 0 {
-		amounts = allocate(serviceIdx, totalService*rev.RefundCents/serviceBase, priorService)
+	var tails []reversalTail
+	// §15.5-04：两类冲回目标先按最小服务单位分摊求和（逐单位金额 × 退款额 ÷ 统一可退基数，
+	// 尾差并入最后一单位），再用该目标在条目级按比例冲回；单位级与条目级共用同一可退基数。
+	// D34（§12.1-05）：同一类别累计冲回不得超过原计提——加钟收款后统一基数扩容时，
+	// 早期已冲满的类别不得因分母变大而被再次冲回，故目标按「原计提 − 既有冲回」封顶。
+	serviceUnits := order.PromisedServiceUnits
+	addonUnits := order.AddonUnits
+	if refundBase > 0 && totalService > 0 {
+		serviceTarget := sumUnitAmounts(unitReversalTargets(totalService, serviceUnits, rev.RefundCents, refundBase))
+		serviceTarget = min(serviceTarget, max(totalService+priorServiceTotal, 0))
+		amounts, tails = allocate(serviceIdx, serviceTarget, priorService, false)
 	}
-	if order.PayableCents > 0 && totalAddon > 0 {
-		addonAmounts := allocate(addonIdx, totalAddon*rev.RefundCents/order.PayableCents, priorAddon)
+	if refundBase > 0 && totalAddon > 0 {
+		addonTarget := sumUnitAmounts(unitReversalTargets(totalAddon, addonUnits, rev.RefundCents, refundBase))
+		addonTarget = min(addonTarget, max(totalAddon+priorAddonTotal, 0))
+		addonAmounts, addonTails := allocate(addonIdx, addonTarget, priorAddon, true)
 		if amounts == nil {
 			amounts = addonAmounts
 		} else {
@@ -713,33 +864,18 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 				}
 			}
 		}
+		tails = append(tails, addonTails...)
 	}
 	if amounts == nil {
 		return nil
 	}
-	for i, entry := range entries {
-		if amounts[i] <= 0 {
-			continue
-		}
-		base := order.PayableCents
-		if entry.Kind == esportscommissionentry.KindService {
-			base = serviceBase
-		}
-		// 加钟明细可能同一陪玩多条，幂等键改用明细 ID 以免互相覆盖。
-		idem := "commission:reversal:" + rev.RefKey + ":" + strconv.Itoa(entry.PlayerID)
-		note := rev.Note
-		if entry.Kind == esportscommissionentry.KindAddon {
-			idem = "commission:reversal:addon:" + rev.RefKey + ":" + strconv.Itoa(entry.ID)
-			note = addonReversalNote
-			if rev.Note != "" {
-				note = addonReversalNote + "·" + rev.Note
-			}
-		}
+	// createReversal 写一条冲回明细：base 统一为可退基数，规则快照沿用原明细。
+	createReversal := func(entry *ent.EsportsCommissionEntry, idem, note string, amount int64) error {
 		create := tx.EsportsCommissionEntry.Create().
 			SetIdemKey(idem).
 			SetOrderID(order.ID).SetPlayerID(entry.PlayerID).
 			SetKind(esportscommissionentry.KindReversal).SetSeatIndex(entry.SeatIndex).
-			SetBaseCents(base).SetAmountCents(-amounts[i]).
+			SetBaseCents(refundBase).SetAmountCents(-amount).
 			SetRuleNo(entry.RuleNo).SetRuleVersion(entry.RuleVersion).
 			SetCalcMode(esportscommissionentry.CalcMode(entry.CalcMode.String())).
 			SetStatus(esportscommissionentry.StatusPendingSettlement)
@@ -756,6 +892,38 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 			if ent.IsConstraintError(err) {
 				return errConflict
 			}
+			return err
+		}
+		return nil
+	}
+	for i, entry := range entries {
+		if amounts[i] <= 0 {
+			continue
+		}
+		// 加钟明细可能同一陪玩多条，幂等键改用明细 ID 以免互相覆盖。
+		idem := "commission:reversal:" + rev.RefKey + ":" + strconv.Itoa(entry.PlayerID)
+		note := rev.Note
+		if entry.Kind == esportscommissionentry.KindAddon {
+			idem = "commission:reversal:addon:" + rev.RefKey + ":" + strconv.Itoa(entry.ID)
+			note = addonReversalNote
+			if rev.Note != "" {
+				note = addonReversalNote + "·" + rev.Note
+			}
+		}
+		if err := createReversal(entry, idem, note, amounts[i]); err != nil {
+			return err
+		}
+	}
+	for _, tail := range tails {
+		entry := entries[tail.index]
+		// 尾差行必须与明细行可区分：备注带尾差标记，幂等键独立，便于财务逐笔核对。
+		idem := "commission:reversal:tail:" + rev.RefKey + ":" + strconv.Itoa(entry.ID)
+		note := tailReversalNote
+		if tail.addon {
+			idem = "commission:reversal:tail:addon:" + rev.RefKey + ":" + strconv.Itoa(entry.ID)
+			note = addonReversalNote + "·" + tailReversalNote
+		}
+		if err := createReversal(entry, idem, note, tail.amount); err != nil {
 			return err
 		}
 	}
@@ -960,6 +1128,45 @@ func getSettlement(ctx context.Context, db *ent.Client, id int) (*ent.EsportsSet
 	return db.EsportsSettlement.Get(ctx, id)
 }
 
+// settlementDetailView 是结算单详情读模型（§12.6-06）：主表 + 本期可下钻明细，
+// 明细带 rule_no / rule_version，使规则版本可以从结算单追溯。
+type settlementDetailView struct {
+	Settlement *ent.EsportsSettlement `json:"settlement"`
+	Entries    []commissionEntryView  `json:"entries"`
+	EntryCount int                    `json:"entry_count"`
+	// DetailTruncated 为真表示本期明细超过返回上限，避免「静默漏数」。
+	DetailTruncated bool `json:"detail_truncated"`
+}
+
+// getSettlementDetail 读结算单详情并内联本期全部待结算 / 已结算明细（按明细 ID 升序）。
+func getSettlementDetail(ctx context.Context, db *ent.Client, id, limit int) (*settlementDetailView, error) {
+	settlement, err := getSettlement(ctx, db, id)
+	if err != nil {
+		return nil, err
+	}
+	if limit < 1 || limit > 2000 {
+		limit = 200
+	}
+	rows, err := db.EsportsCommissionEntry.Query().Where(
+		esportscommissionentry.SettlementIDEQ(id),
+	).Order(ent.Asc(esportscommissionentry.FieldID)).Limit(limit + 1).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	truncated := len(rows) > limit
+	if truncated {
+		rows = rows[:limit]
+	}
+	views, err := commissionEntryViews(ctx, db, rows)
+	if err != nil {
+		return nil, err
+	}
+	return &settlementDetailView{
+		Settlement: settlement, Entries: views,
+		EntryCount: len(views), DetailTruncated: truncated,
+	}, nil
+}
+
 // listSettlements 列出结算单，playerID 非空时按陪玩过滤，按 ID 倒序。
 func listSettlements(ctx context.Context, db *ent.Client, playerID, limit int) ([]*ent.EsportsSettlement, error) {
 	if limit < 1 || limit > 200 {
@@ -993,6 +1200,146 @@ func listCommissionEntries(ctx context.Context, db *ent.Client, playerID, orderI
 		}
 	}
 	return q.Order(ent.Desc(esportscommissionentry.FieldID)).Limit(limit).All(ctx)
+}
+
+// commissionEntryView 是分成明细的读模型（§12.7-01）：在明细原始字段（分成方式、
+// 规则版本、基数、金额）之上补出规则数值、该明细被冲回的扣减项与到手净额，
+// 以及按最小服务单位拆分的留痕（§15.5-04）。
+type commissionEntryView struct {
+	*ent.EsportsCommissionEntry
+	// RuleValueBp / RuleValueCents 是该明细规则快照的数值：percent 看 bp，固定额看分。
+	RuleValueBp    int   `json:"rule_value_bp"`
+	RuleValueCents int64 `json:"rule_value_cents"`
+	// DeductedCents 是同一订单同一陪玩在该明细口径上累计的冲回金额（负数，含尾差单列行）。
+	DeductedCents int64 `json:"deducted_cents"`
+	// NetCents 是到手净额：本明细金额 + 扣减项（明细行扣减后净额；冲回行即其本身金额）。
+	NetCents int64 `json:"net_cents"`
+	// ServiceUnitAmounts 是逐最小服务单位留痕（§15.5-04，承诺量 > 1 时给出）：
+	// 分成明细为「每单位折后金额」，退款冲回明细为「每单位冲回额」，尾差记在最后一单位。
+	ServiceUnitAmounts []int64 `json:"service_unit_amounts,omitempty"`
+}
+
+// listCommissionEntryViews 列出分成明细读模型（管理员 / 陪玩端共用同一口径）。
+func listCommissionEntryViews(ctx context.Context, db *ent.Client, playerID, orderID int, status string, limit int) ([]commissionEntryView, error) {
+	entries, err := listCommissionEntries(ctx, db, playerID, orderID, status, limit)
+	if err != nil {
+		return nil, err
+	}
+	return commissionEntryViews(ctx, db, entries)
+}
+
+// commissionEntryViews 把一批明细补成读模型：批量取规则数值与订单承诺服务量，
+// 并把冲回明细按（订单 + 陪玩 + 口径）归集为对应正向明细的扣减项。
+func commissionEntryViews(ctx context.Context, db *ent.Client, entries []*ent.EsportsCommissionEntry) ([]commissionEntryView, error) {
+	views := make([]commissionEntryView, 0, len(entries))
+	if len(entries) == 0 {
+		return views, nil
+	}
+	ruleIDs := make([]int, 0, len(entries))
+	orderIDs := make([]int, 0, len(entries))
+	seenRule, seenOrder := map[int]bool{}, map[int]bool{}
+	// 冲回归集：服务/加钟口径按（订单 + 陪玩），礼物按陪玩（礼物订单与订单 ID 空间不通用）。
+	serviceReversed, addonReversed := map[[2]int]int64{}, map[[2]int]int64{}
+	giftReversed := map[int]int64{}
+	for _, entry := range entries {
+		orderID := 0
+		if entry.OrderID != nil {
+			orderID = *entry.OrderID
+			if !seenOrder[orderID] {
+				seenOrder[orderID] = true
+				orderIDs = append(orderIDs, orderID)
+			}
+		}
+		if entry.RuleID != nil && !seenRule[*entry.RuleID] {
+			seenRule[*entry.RuleID] = true
+			ruleIDs = append(ruleIDs, *entry.RuleID)
+		}
+		switch entry.Kind {
+		case esportscommissionentry.KindReversal:
+			// 加钟冲回（含尾差单列行）备注带加钟标记，其余计入服务口径。
+			if strings.Contains(entry.Note, addonReversalNote) {
+				addonReversed[[2]int{orderID, entry.PlayerID}] += entry.AmountCents
+			} else {
+				serviceReversed[[2]int{orderID, entry.PlayerID}] += entry.AmountCents
+			}
+		case esportscommissionentry.KindGiftReversal:
+			giftReversed[entry.PlayerID] += entry.AmountCents
+		}
+	}
+	rules := map[int]*ent.EsportsCommissionRule{}
+	if len(ruleIDs) > 0 {
+		items, err := db.EsportsCommissionRule.Query().
+			Where(esportscommissionrule.IDIn(ruleIDs...)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, rule := range items {
+			rules[rule.ID] = rule
+		}
+	}
+	// 单位级分摊的分母按口径取：服务明细用承诺服务量，加钟明细用加钟服务量（§15.5-04）。
+	type orderUnits struct{ service, addon int64 }
+	unitsByOrder := map[int]orderUnits{}
+	if len(orderIDs) > 0 {
+		items, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(orderIDs...)).
+			Select(esportsorder.FieldID, esportsorder.FieldPromisedServiceUnits,
+				esportsorder.FieldAddonUnits).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, order := range items {
+			unitsByOrder[order.ID] = orderUnits{
+				service: order.PromisedServiceUnits, addon: order.AddonUnits,
+			}
+		}
+	}
+	for _, entry := range entries {
+		view := commissionEntryView{EsportsCommissionEntry: entry, NetCents: entry.AmountCents}
+		if entry.RuleID != nil {
+			if rule := rules[*entry.RuleID]; rule != nil {
+				view.RuleValueBp = rule.ValueBp
+				view.RuleValueCents = rule.ValueCents
+			}
+		}
+		orderID := 0
+		if entry.OrderID != nil {
+			orderID = *entry.OrderID
+		}
+		switch entry.Kind {
+		case esportscommissionentry.KindService:
+			view.DeductedCents = serviceReversed[[2]int{orderID, entry.PlayerID}]
+		case esportscommissionentry.KindAddon:
+			view.DeductedCents = addonReversed[[2]int{orderID, entry.PlayerID}]
+		case esportscommissionentry.KindGift:
+			view.DeductedCents = giftReversed[entry.PlayerID]
+		}
+		view.NetCents = entry.AmountCents + view.DeductedCents
+		// §15.5-04：逐最小服务单位留痕，尾差记在最后一单位（§18.2 裁决）。
+		// 分成明细给「每单位折后金额」（折后明细金额 ÷ 承诺服务量），退款冲回明细给「每单位冲回额」；
+		// 尾差单列行不再重复拆分，礼物类不按订单服务量拆分。
+		units := unitsByOrder[orderID].service
+		amount := entry.BaseCents
+		switch entry.Kind {
+		case esportscommissionentry.KindAddon:
+			units = unitsByOrder[orderID].addon
+		case esportscommissionentry.KindReversal:
+			if strings.Contains(entry.Note, tailReversalNote) {
+				amount = 0
+			} else {
+				amount = -entry.AmountCents
+				if strings.Contains(entry.Note, addonReversalNote) {
+					units = unitsByOrder[orderID].addon
+				}
+			}
+		case esportscommissionentry.KindGift, esportscommissionentry.KindGiftReversal:
+			amount = 0
+		}
+		if units > 1 && amount > 0 {
+			view.ServiceUnitAmounts = splitServiceUnits(amount, units)
+		}
+		views = append(views, view)
+	}
+	return views, nil
 }
 
 type playerCommissionView struct {

@@ -118,6 +118,48 @@ func (_u *EsportsLedgerEntryUpdate) AddDeltaCents(v int64) *EsportsLedgerEntryUp
 	return _u
 }
 
+// SetPrincipalDeltaCents sets the "principal_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdate) SetPrincipalDeltaCents(v int64) *EsportsLedgerEntryUpdate {
+	_u.mutation.ResetPrincipalDeltaCents()
+	_u.mutation.SetPrincipalDeltaCents(v)
+	return _u
+}
+
+// SetNillablePrincipalDeltaCents sets the "principal_delta_cents" field if the given value is not nil.
+func (_u *EsportsLedgerEntryUpdate) SetNillablePrincipalDeltaCents(v *int64) *EsportsLedgerEntryUpdate {
+	if v != nil {
+		_u.SetPrincipalDeltaCents(*v)
+	}
+	return _u
+}
+
+// AddPrincipalDeltaCents adds value to the "principal_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdate) AddPrincipalDeltaCents(v int64) *EsportsLedgerEntryUpdate {
+	_u.mutation.AddPrincipalDeltaCents(v)
+	return _u
+}
+
+// SetBonusDeltaCents sets the "bonus_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdate) SetBonusDeltaCents(v int64) *EsportsLedgerEntryUpdate {
+	_u.mutation.ResetBonusDeltaCents()
+	_u.mutation.SetBonusDeltaCents(v)
+	return _u
+}
+
+// SetNillableBonusDeltaCents sets the "bonus_delta_cents" field if the given value is not nil.
+func (_u *EsportsLedgerEntryUpdate) SetNillableBonusDeltaCents(v *int64) *EsportsLedgerEntryUpdate {
+	if v != nil {
+		_u.SetBonusDeltaCents(*v)
+	}
+	return _u
+}
+
+// AddBonusDeltaCents adds value to the "bonus_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdate) AddBonusDeltaCents(v int64) *EsportsLedgerEntryUpdate {
+	_u.mutation.AddBonusDeltaCents(v)
+	return _u
+}
+
 // SetFundBatch sets the "fund_batch" field.
 func (_u *EsportsLedgerEntryUpdate) SetFundBatch(v string) *EsportsLedgerEntryUpdate {
 	_u.mutation.SetFundBatch(v)
@@ -232,6 +274,18 @@ func (_u *EsportsLedgerEntryUpdate) sqlSave(ctx context.Context) (_node int, err
 	if value, ok := _u.mutation.AddedDeltaCents(); ok {
 		_spec.AddField(esportsledgerentry.FieldDeltaCents, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.PrincipalDeltaCents(); ok {
+		_spec.SetField(esportsledgerentry.FieldPrincipalDeltaCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPrincipalDeltaCents(); ok {
+		_spec.AddField(esportsledgerentry.FieldPrincipalDeltaCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.BonusDeltaCents(); ok {
+		_spec.SetField(esportsledgerentry.FieldBonusDeltaCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedBonusDeltaCents(); ok {
+		_spec.AddField(esportsledgerentry.FieldBonusDeltaCents, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.FundBatch(); ok {
 		_spec.SetField(esportsledgerentry.FieldFundBatch, field.TypeString, value)
 	}
@@ -343,6 +397,48 @@ func (_u *EsportsLedgerEntryUpdateOne) SetNillableDeltaCents(v *int64) *EsportsL
 // AddDeltaCents adds value to the "delta_cents" field.
 func (_u *EsportsLedgerEntryUpdateOne) AddDeltaCents(v int64) *EsportsLedgerEntryUpdateOne {
 	_u.mutation.AddDeltaCents(v)
+	return _u
+}
+
+// SetPrincipalDeltaCents sets the "principal_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdateOne) SetPrincipalDeltaCents(v int64) *EsportsLedgerEntryUpdateOne {
+	_u.mutation.ResetPrincipalDeltaCents()
+	_u.mutation.SetPrincipalDeltaCents(v)
+	return _u
+}
+
+// SetNillablePrincipalDeltaCents sets the "principal_delta_cents" field if the given value is not nil.
+func (_u *EsportsLedgerEntryUpdateOne) SetNillablePrincipalDeltaCents(v *int64) *EsportsLedgerEntryUpdateOne {
+	if v != nil {
+		_u.SetPrincipalDeltaCents(*v)
+	}
+	return _u
+}
+
+// AddPrincipalDeltaCents adds value to the "principal_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdateOne) AddPrincipalDeltaCents(v int64) *EsportsLedgerEntryUpdateOne {
+	_u.mutation.AddPrincipalDeltaCents(v)
+	return _u
+}
+
+// SetBonusDeltaCents sets the "bonus_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdateOne) SetBonusDeltaCents(v int64) *EsportsLedgerEntryUpdateOne {
+	_u.mutation.ResetBonusDeltaCents()
+	_u.mutation.SetBonusDeltaCents(v)
+	return _u
+}
+
+// SetNillableBonusDeltaCents sets the "bonus_delta_cents" field if the given value is not nil.
+func (_u *EsportsLedgerEntryUpdateOne) SetNillableBonusDeltaCents(v *int64) *EsportsLedgerEntryUpdateOne {
+	if v != nil {
+		_u.SetBonusDeltaCents(*v)
+	}
+	return _u
+}
+
+// AddBonusDeltaCents adds value to the "bonus_delta_cents" field.
+func (_u *EsportsLedgerEntryUpdateOne) AddBonusDeltaCents(v int64) *EsportsLedgerEntryUpdateOne {
+	_u.mutation.AddBonusDeltaCents(v)
 	return _u
 }
 
@@ -489,6 +585,18 @@ func (_u *EsportsLedgerEntryUpdateOne) sqlSave(ctx context.Context) (_node *Espo
 	}
 	if value, ok := _u.mutation.AddedDeltaCents(); ok {
 		_spec.AddField(esportsledgerentry.FieldDeltaCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PrincipalDeltaCents(); ok {
+		_spec.SetField(esportsledgerentry.FieldPrincipalDeltaCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPrincipalDeltaCents(); ok {
+		_spec.AddField(esportsledgerentry.FieldPrincipalDeltaCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.BonusDeltaCents(); ok {
+		_spec.SetField(esportsledgerentry.FieldBonusDeltaCents, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedBonusDeltaCents(); ok {
+		_spec.AddField(esportsledgerentry.FieldBonusDeltaCents, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.FundBatch(); ok {
 		_spec.SetField(esportsledgerentry.FieldFundBatch, field.TypeString, value)

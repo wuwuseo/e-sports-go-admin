@@ -135,3 +135,45 @@ func TestDisabledFeatureSetSkipsRuntimeState(t *testing.T) {
 		}
 	}
 }
+
+// 功能集启用时必须为新库播种会员等级：等级表为空会让客户永远无法定级，
+// 折扣、优先派单、储值卡赠送比例、专属客服等**按等级生效的权益全部静默失效**（审计 D14）。
+// 该测试锁定「Provision → 五档等级存在」，而不是只测 esports 包内的播种函数本身。
+func TestProvisionSeedsEsportsMemberLevels(t *testing.T) {
+	enabled := false
+	for _, app := range cmfapp.Registered() {
+		if app.Code == "esports" {
+			enabled = app.Enabled
+		}
+	}
+	if !enabled {
+		t.Skip("功能集未启用（需 ESPORTS_EXPERIMENTAL=1）：此时不应播种会员等级")
+	}
+	client := enttest.Open(t, "sqlite3", "file:esports_member_level_seed?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	previous := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = previous })
+	cfg := &config.Config{}
+	cfg.Casbin.DomainsDefault = "default"
+	for run := 0; run < 2; run++ { // 两次 Provision 验证幂等（不重复建行）
+		if err := Provision(t.Context(), cfg, client); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	levels := client.EsportsMemberLevelRule.Query().AllX(t.Context())
+	got := make(map[string]bool, len(levels))
+	for _, level := range levels {
+		got[level.Code] = true
+	}
+	if len(levels) != 5 {
+		t.Fatalf("应播种 5 档会员等级，实际 %d 档：%v", len(levels), got)
+	}
+	for _, code := range []string{"normal", "silver", "gold", "platinum", "diamond"} {
+		if !got[code] {
+			t.Fatalf("缺少会员等级 %q，实际：%v", code, got)
+		}
+	}
+}

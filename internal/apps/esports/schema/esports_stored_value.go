@@ -60,6 +60,10 @@ func (EsportsStoredValueCard) Fields() []ent.Field {
 		field.Int64("refunded_cents").Default(0).StructTag(`json:"refunded_cents"`),
 		field.Time("refunded_at").Optional().Nillable().StructTag(`json:"refunded_at"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
+		// 卡级扣减顺序（§11.3-02）：bonus_first / principal_first / proportional；空串表示沿用全局键
+		// app.esports.prepay_deduction_order（默认 bonus_first，非法值同样回落全局口径）。
+		// 历史卡为空串，不追溯改写既有扣减结果。
+		field.String("deduction_order").MaxLen(32).Default("").StructTag(`json:"deduction_order"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now).StructTag(`json:"updated_at"`),
 	}

@@ -215,6 +215,11 @@ func systemReadiness(ctx context.Context, db *ent.Client, getenv func(string) st
 		Detail: "未配置时使用内置默认（余额 / 猫粮，100 分每单位）",
 	})
 
+	// 9. 功能集配置声明（§18-02）：核对「已声明 ↔ 已落库」，缺失则后台无法配置该键。
+	if check := declaredConfigCheck(ctx, db); check != nil {
+		add(*check)
+	}
+
 	report.Ready = report.Blockers == 0
 	return report
 }

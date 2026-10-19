@@ -39,6 +39,20 @@ func (_c *EsportsSpecGroupCreate) SetSeats(v []schematier.SeatSpec) *EsportsSpec
 	return _c
 }
 
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_c *EsportsSpecGroupCreate) SetPerSeatServiceUnits(v int64) *EsportsSpecGroupCreate {
+	_c.mutation.SetPerSeatServiceUnits(v)
+	return _c
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_c *EsportsSpecGroupCreate) SetNillablePerSeatServiceUnits(v *int64) *EsportsSpecGroupCreate {
+	if v != nil {
+		_c.SetPerSeatServiceUnits(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *EsportsSpecGroupCreate) SetStatus(v esportsspecgroup.Status) *EsportsSpecGroupCreate {
 	_c.mutation.SetStatus(v)
@@ -130,6 +144,10 @@ func (_c *EsportsSpecGroupCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *EsportsSpecGroupCreate) defaults() {
+	if _, ok := _c.mutation.PerSeatServiceUnits(); !ok {
+		v := esportsspecgroup.DefaultPerSeatServiceUnits
+		_c.mutation.SetPerSeatServiceUnits(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := esportsspecgroup.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -168,6 +186,9 @@ func (_c *EsportsSpecGroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.Seats(); !ok {
 		return &ValidationError{Name: "seats", err: errors.New(`ent: missing required field "EsportsSpecGroup.seats"`)}
+	}
+	if _, ok := _c.mutation.PerSeatServiceUnits(); !ok {
+		return &ValidationError{Name: "per_seat_service_units", err: errors.New(`ent: missing required field "EsportsSpecGroup.per_seat_service_units"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "EsportsSpecGroup.status"`)}
@@ -223,6 +244,10 @@ func (_c *EsportsSpecGroupCreate) createSpec() (*EsportsSpecGroup, *sqlgraph.Cre
 	if value, ok := _c.mutation.Seats(); ok {
 		_spec.SetField(esportsspecgroup.FieldSeats, field.TypeJSON, value)
 		_node.Seats = value
+	}
+	if value, ok := _c.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportsspecgroup.FieldPerSeatServiceUnits, field.TypeInt64, value)
+		_node.PerSeatServiceUnits = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(esportsspecgroup.FieldStatus, field.TypeEnum, value)

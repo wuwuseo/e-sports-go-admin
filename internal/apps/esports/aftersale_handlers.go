@@ -207,6 +207,24 @@ func planAfterSaleHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
+// afterSaleRefundReviewerOf 从登录态解析当前操作人的资金复核资格（§3.3-09 / §13.5-02）：
+// 超级管理员直接具备；否则读取活跃角色名，命中「退款财务复核角色」配置即具备。
+// uid 缺失或角色未解析时返回零值 = 非财务角色，由服务层按门槛明确拒绝，不静默放行。
+func afterSaleRefundReviewerOf(c fiber.Ctx) afterSaleRefundReviewer {
+	reviewer := afterSaleRefundReviewer{}
+	if super, _ := c.Locals("isSuperAdmin").(bool); super {
+		reviewer.IsSuper = true
+	}
+	uid, _ := c.Locals("uid").(string)
+	if uid == "" {
+		return reviewer
+	}
+	if names, _, resolved := global.FilterAssignedActiveRoleNames(c.Context(), uid, nil); resolved {
+		reviewer.RoleNames = names
+	}
+	return reviewer
+}
+
 func approveAfterSaleHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -216,7 +234,8 @@ func approveAfterSaleHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	item, err := approveAfterSale(c.Context(), global.ORM, id, adminID, time.Now())
+	item, err := approveAfterSaleWithReviewer(c.Context(), global.ORM, id, adminID,
+		afterSaleRefundReviewerOf(c), time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -252,7 +271,8 @@ func executeAfterSaleHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	item, err := executeAfterSale(c.Context(), global.ORM, id, adminID, time.Now())
+	item, err := executeAfterSaleWithReviewer(c.Context(), global.ORM, id, adminID,
+		afterSaleRefundReviewerOf(c), time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

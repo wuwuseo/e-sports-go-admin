@@ -23,6 +23,12 @@ const (
 	FieldCustomerID = "customer_id"
 	// FieldSkuID holds the string denoting the sku_id field in the database.
 	FieldSkuID = "sku_id"
+	// FieldSkuCode holds the string denoting the sku_code field in the database.
+	FieldSkuCode = "sku_code"
+	// FieldSkuName holds the string denoting the sku_name field in the database.
+	FieldSkuName = "sku_name"
+	// FieldSpecName holds the string denoting the spec_name field in the database.
+	FieldSpecName = "spec_name"
 	// FieldCreatedByAdminID holds the string denoting the created_by_admin_id field in the database.
 	FieldCreatedByAdminID = "created_by_admin_id"
 	// FieldResponsibleAdminID holds the string denoting the responsible_admin_id field in the database.
@@ -59,10 +65,16 @@ const (
 	FieldDiscountCents = "discount_cents"
 	// FieldManualAdjustCents holds the string denoting the manual_adjust_cents field in the database.
 	FieldManualAdjustCents = "manual_adjust_cents"
+	// FieldMemberLevelCode holds the string denoting the member_level_code field in the database.
+	FieldMemberLevelCode = "member_level_code"
+	// FieldMemberDiscountBps holds the string denoting the member_discount_bps field in the database.
+	FieldMemberDiscountBps = "member_discount_bps"
 	// FieldPayableCents holds the string denoting the payable_cents field in the database.
 	FieldPayableCents = "payable_cents"
 	// FieldPromisedServiceUnits holds the string denoting the promised_service_units field in the database.
 	FieldPromisedServiceUnits = "promised_service_units"
+	// FieldPerSeatServiceUnits holds the string denoting the per_seat_service_units field in the database.
+	FieldPerSeatServiceUnits = "per_seat_service_units"
 	// FieldServiceDurationMinutes holds the string denoting the service_duration_minutes field in the database.
 	FieldServiceDurationMinutes = "service_duration_minutes"
 	// FieldAddonCents holds the string denoting the addon_cents field in the database.
@@ -95,6 +107,12 @@ const (
 	FieldPriorityGame = "priority_game"
 	// FieldPriorityReleaseReason holds the string denoting the priority_release_reason field in the database.
 	FieldPriorityReleaseReason = "priority_release_reason"
+	// FieldRemindPriorityLevel holds the string denoting the remind_priority_level field in the database.
+	FieldRemindPriorityLevel = "remind_priority_level"
+	// FieldRemindNote holds the string denoting the remind_note field in the database.
+	FieldRemindNote = "remind_note"
+	// FieldRemindedAt holds the string denoting the reminded_at field in the database.
+	FieldRemindedAt = "reminded_at"
 	// FieldFirstPooledAt holds the string denoting the first_pooled_at field in the database.
 	FieldFirstPooledAt = "first_pooled_at"
 	// FieldFirstInvitedAt holds the string denoting the first_invited_at field in the database.
@@ -103,6 +121,8 @@ const (
 	FieldFirstAcceptedAt = "first_accepted_at"
 	// FieldServiceStartedAt holds the string denoting the service_started_at field in the database.
 	FieldServiceStartedAt = "service_started_at"
+	// FieldReadyToStartAt holds the string denoting the ready_to_start_at field in the database.
+	FieldReadyToStartAt = "ready_to_start_at"
 	// FieldPriorityReleasedAt holds the string denoting the priority_released_at field in the database.
 	FieldPriorityReleasedAt = "priority_released_at"
 	// FieldPreferredPlayerID holds the string denoting the preferred_player_id field in the database.
@@ -123,6 +143,8 @@ const (
 	FieldRequestedStartAt = "requested_start_at"
 	// FieldAppointmentConfirmationDeadline holds the string denoting the appointment_confirmation_deadline field in the database.
 	FieldAppointmentConfirmationDeadline = "appointment_confirmation_deadline"
+	// FieldAppointmentSuspendedAt holds the string denoting the appointment_suspended_at field in the database.
+	FieldAppointmentSuspendedAt = "appointment_suspended_at"
 	// FieldPaymentDeadline holds the string denoting the payment_deadline field in the database.
 	FieldPaymentDeadline = "payment_deadline"
 	// FieldPaidAt holds the string denoting the paid_at field in the database.
@@ -170,6 +192,9 @@ var Columns = []string{
 	FieldOrderNo,
 	FieldCustomerID,
 	FieldSkuID,
+	FieldSkuCode,
+	FieldSkuName,
+	FieldSpecName,
 	FieldCreatedByAdminID,
 	FieldResponsibleAdminID,
 	FieldCsCommissionAdminID,
@@ -188,8 +213,11 @@ var Columns = []string{
 	FieldAdjustmentApprovalBp,
 	FieldDiscountCents,
 	FieldManualAdjustCents,
+	FieldMemberLevelCode,
+	FieldMemberDiscountBps,
 	FieldPayableCents,
 	FieldPromisedServiceUnits,
+	FieldPerSeatServiceUnits,
 	FieldServiceDurationMinutes,
 	FieldAddonCents,
 	FieldAddonUnits,
@@ -206,10 +234,14 @@ var Columns = []string{
 	FieldPriorityNoticeUntil,
 	FieldPriorityGame,
 	FieldPriorityReleaseReason,
+	FieldRemindPriorityLevel,
+	FieldRemindNote,
+	FieldRemindedAt,
 	FieldFirstPooledAt,
 	FieldFirstInvitedAt,
 	FieldFirstAcceptedAt,
 	FieldServiceStartedAt,
+	FieldReadyToStartAt,
 	FieldPriorityReleasedAt,
 	FieldPreferredPlayerID,
 	FieldRefundStatus,
@@ -220,6 +252,7 @@ var Columns = []string{
 	FieldAppointmentStatus,
 	FieldRequestedStartAt,
 	FieldAppointmentConfirmationDeadline,
+	FieldAppointmentSuspendedAt,
 	FieldPaymentDeadline,
 	FieldPaidAt,
 	FieldClosedAt,
@@ -249,6 +282,18 @@ var (
 	OrderNoValidator func(string) error
 	// CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
 	CustomerIDValidator func(int) error
+	// DefaultSkuCode holds the default value on creation for the "sku_code" field.
+	DefaultSkuCode string
+	// SkuCodeValidator is a validator for the "sku_code" field. It is called by the builders before save.
+	SkuCodeValidator func(string) error
+	// DefaultSkuName holds the default value on creation for the "sku_name" field.
+	DefaultSkuName string
+	// SkuNameValidator is a validator for the "sku_name" field. It is called by the builders before save.
+	SkuNameValidator func(string) error
+	// DefaultSpecName holds the default value on creation for the "spec_name" field.
+	DefaultSpecName string
+	// SpecNameValidator is a validator for the "spec_name" field. It is called by the builders before save.
+	SpecNameValidator func(string) error
 	// QuantityValidator is a validator for the "quantity" field. It is called by the builders before save.
 	QuantityValidator func(int64) error
 	// UnitPriceCentsValidator is a validator for the "unit_price_cents" field. It is called by the builders before save.
@@ -261,10 +306,18 @@ var (
 	DefaultDiscountCents int64
 	// DefaultManualAdjustCents holds the default value on creation for the "manual_adjust_cents" field.
 	DefaultManualAdjustCents int64
+	// DefaultMemberLevelCode holds the default value on creation for the "member_level_code" field.
+	DefaultMemberLevelCode string
+	// MemberLevelCodeValidator is a validator for the "member_level_code" field. It is called by the builders before save.
+	MemberLevelCodeValidator func(string) error
+	// DefaultMemberDiscountBps holds the default value on creation for the "member_discount_bps" field.
+	DefaultMemberDiscountBps int
 	// PayableCentsValidator is a validator for the "payable_cents" field. It is called by the builders before save.
 	PayableCentsValidator func(int64) error
 	// PromisedServiceUnitsValidator is a validator for the "promised_service_units" field. It is called by the builders before save.
 	PromisedServiceUnitsValidator func(int64) error
+	// DefaultPerSeatServiceUnits holds the default value on creation for the "per_seat_service_units" field.
+	DefaultPerSeatServiceUnits int64
 	// DefaultServiceDurationMinutes holds the default value on creation for the "service_duration_minutes" field.
 	DefaultServiceDurationMinutes int
 	// DefaultAddonCents holds the default value on creation for the "addon_cents" field.
@@ -285,6 +338,12 @@ var (
 	DefaultPriorityReleaseReason string
 	// PriorityReleaseReasonValidator is a validator for the "priority_release_reason" field. It is called by the builders before save.
 	PriorityReleaseReasonValidator func(string) error
+	// DefaultRemindPriorityLevel holds the default value on creation for the "remind_priority_level" field.
+	DefaultRemindPriorityLevel int
+	// DefaultRemindNote holds the default value on creation for the "remind_note" field.
+	DefaultRemindNote string
+	// RemindNoteValidator is a validator for the "remind_note" field. It is called by the builders before save.
+	RemindNoteValidator func(string) error
 	// DefaultRefundedCents holds the default value on creation for the "refunded_cents" field.
 	DefaultRefundedCents int64
 	// DefaultRefundReservedCents holds the default value on creation for the "refund_reserved_cents" field.
@@ -548,9 +607,10 @@ const DefaultAppointmentStatus = AppointmentStatusInstant
 
 // AppointmentStatus values.
 const (
-	AppointmentStatusInstant   AppointmentStatus = "instant"
-	AppointmentStatusRequest   AppointmentStatus = "request"
-	AppointmentStatusConfirmed AppointmentStatus = "confirmed"
+	AppointmentStatusInstant        AppointmentStatus = "instant"
+	AppointmentStatusRequest        AppointmentStatus = "request"
+	AppointmentStatusConfirmed      AppointmentStatus = "confirmed"
+	AppointmentStatusPendingConfirm AppointmentStatus = "pending_confirm"
 )
 
 func (as AppointmentStatus) String() string {
@@ -560,7 +620,7 @@ func (as AppointmentStatus) String() string {
 // AppointmentStatusValidator is a validator for the "appointment_status" field enum values. It is called by the builders before save.
 func AppointmentStatusValidator(as AppointmentStatus) error {
 	switch as {
-	case AppointmentStatusInstant, AppointmentStatusRequest, AppointmentStatusConfirmed:
+	case AppointmentStatusInstant, AppointmentStatusRequest, AppointmentStatusConfirmed, AppointmentStatusPendingConfirm:
 		return nil
 	default:
 		return fmt.Errorf("esportsorder: invalid enum value for appointment_status field: %q", as)
@@ -614,6 +674,21 @@ func ByCustomerID(opts ...sql.OrderTermOption) OrderOption {
 // BySkuID orders the results by the sku_id field.
 func BySkuID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSkuID, opts...).ToFunc()
+}
+
+// BySkuCode orders the results by the sku_code field.
+func BySkuCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSkuCode, opts...).ToFunc()
+}
+
+// BySkuName orders the results by the sku_name field.
+func BySkuName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSkuName, opts...).ToFunc()
+}
+
+// BySpecName orders the results by the spec_name field.
+func BySpecName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSpecName, opts...).ToFunc()
 }
 
 // ByCreatedByAdminID orders the results by the created_by_admin_id field.
@@ -706,6 +781,16 @@ func ByManualAdjustCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldManualAdjustCents, opts...).ToFunc()
 }
 
+// ByMemberLevelCode orders the results by the member_level_code field.
+func ByMemberLevelCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemberLevelCode, opts...).ToFunc()
+}
+
+// ByMemberDiscountBps orders the results by the member_discount_bps field.
+func ByMemberDiscountBps(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemberDiscountBps, opts...).ToFunc()
+}
+
 // ByPayableCents orders the results by the payable_cents field.
 func ByPayableCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPayableCents, opts...).ToFunc()
@@ -714,6 +799,11 @@ func ByPayableCents(opts ...sql.OrderTermOption) OrderOption {
 // ByPromisedServiceUnits orders the results by the promised_service_units field.
 func ByPromisedServiceUnits(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPromisedServiceUnits, opts...).ToFunc()
+}
+
+// ByPerSeatServiceUnits orders the results by the per_seat_service_units field.
+func ByPerSeatServiceUnits(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPerSeatServiceUnits, opts...).ToFunc()
 }
 
 // ByServiceDurationMinutes orders the results by the service_duration_minutes field.
@@ -791,6 +881,21 @@ func ByPriorityReleaseReason(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPriorityReleaseReason, opts...).ToFunc()
 }
 
+// ByRemindPriorityLevel orders the results by the remind_priority_level field.
+func ByRemindPriorityLevel(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRemindPriorityLevel, opts...).ToFunc()
+}
+
+// ByRemindNote orders the results by the remind_note field.
+func ByRemindNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRemindNote, opts...).ToFunc()
+}
+
+// ByRemindedAt orders the results by the reminded_at field.
+func ByRemindedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRemindedAt, opts...).ToFunc()
+}
+
 // ByFirstPooledAt orders the results by the first_pooled_at field.
 func ByFirstPooledAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFirstPooledAt, opts...).ToFunc()
@@ -809,6 +914,11 @@ func ByFirstAcceptedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByServiceStartedAt orders the results by the service_started_at field.
 func ByServiceStartedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldServiceStartedAt, opts...).ToFunc()
+}
+
+// ByReadyToStartAt orders the results by the ready_to_start_at field.
+func ByReadyToStartAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReadyToStartAt, opts...).ToFunc()
 }
 
 // ByPriorityReleasedAt orders the results by the priority_released_at field.
@@ -859,6 +969,11 @@ func ByRequestedStartAt(opts ...sql.OrderTermOption) OrderOption {
 // ByAppointmentConfirmationDeadline orders the results by the appointment_confirmation_deadline field.
 func ByAppointmentConfirmationDeadline(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAppointmentConfirmationDeadline, opts...).ToFunc()
+}
+
+// ByAppointmentSuspendedAt orders the results by the appointment_suspended_at field.
+func ByAppointmentSuspendedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAppointmentSuspendedAt, opts...).ToFunc()
 }
 
 // ByPaymentDeadline orders the results by the payment_deadline field.

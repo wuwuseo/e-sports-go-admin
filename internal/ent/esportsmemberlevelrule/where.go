@@ -94,6 +94,16 @@ func PriorityBooking(v bool) predicate.EsportsMemberLevelRule {
 	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldPriorityBooking, v))
 }
 
+// DedicatedChannel applies equality check predicate on the "dedicated_channel" field. It's identical to DedicatedChannelEQ.
+func DedicatedChannel(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldDedicatedChannel, v))
+}
+
+// OfflineEventPriority applies equality check predicate on the "offline_event_priority" field. It's identical to OfflineEventPriorityEQ.
+func OfflineEventPriority(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldOfflineEventPriority, v))
+}
+
 // SortOrder applies equality check predicate on the "sort_order" field. It's identical to SortOrderEQ.
 func SortOrder(v int) predicate.EsportsMemberLevelRule {
 	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldSortOrder, v))
@@ -392,6 +402,26 @@ func PriorityBookingEQ(v bool) predicate.EsportsMemberLevelRule {
 // PriorityBookingNEQ applies the NEQ predicate on the "priority_booking" field.
 func PriorityBookingNEQ(v bool) predicate.EsportsMemberLevelRule {
 	return predicate.EsportsMemberLevelRule(sql.FieldNEQ(FieldPriorityBooking, v))
+}
+
+// DedicatedChannelEQ applies the EQ predicate on the "dedicated_channel" field.
+func DedicatedChannelEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldDedicatedChannel, v))
+}
+
+// DedicatedChannelNEQ applies the NEQ predicate on the "dedicated_channel" field.
+func DedicatedChannelNEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldNEQ(FieldDedicatedChannel, v))
+}
+
+// OfflineEventPriorityEQ applies the EQ predicate on the "offline_event_priority" field.
+func OfflineEventPriorityEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldEQ(FieldOfflineEventPriority, v))
+}
+
+// OfflineEventPriorityNEQ applies the NEQ predicate on the "offline_event_priority" field.
+func OfflineEventPriorityNEQ(v bool) predicate.EsportsMemberLevelRule {
+	return predicate.EsportsMemberLevelRule(sql.FieldNEQ(FieldOfflineEventPriority, v))
 }
 
 // SortOrderEQ applies the EQ predicate on the "sort_order" field.

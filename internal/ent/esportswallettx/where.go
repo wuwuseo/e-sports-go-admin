@@ -94,6 +94,26 @@ func Note(v string) predicate.EsportsWalletTx {
 	return predicate.EsportsWalletTx(sql.FieldEQ(FieldNote, v))
 }
 
+// BeneficiaryID applies equality check predicate on the "beneficiary_id" field. It's identical to BeneficiaryIDEQ.
+func BeneficiaryID(v int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBeneficiaryID, v))
+}
+
+// BalanceBeforeCents applies equality check predicate on the "balance_before_cents" field. It's identical to BalanceBeforeCentsEQ.
+func BalanceBeforeCents(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBalanceBeforeCents, v))
+}
+
+// BalanceAfterCents applies equality check predicate on the "balance_after_cents" field. It's identical to BalanceAfterCentsEQ.
+func BalanceAfterCents(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBalanceAfterCents, v))
+}
+
+// FundBatch applies equality check predicate on the "fund_batch" field. It's identical to FundBatchEQ.
+func FundBatch(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldFundBatch, v))
+}
+
 // BonusExpiresAt applies equality check predicate on the "bonus_expires_at" field. It's identical to BonusExpiresAtEQ.
 func BonusExpiresAt(v time.Time) predicate.EsportsWalletTx {
 	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBonusExpiresAt, v))
@@ -572,6 +592,211 @@ func NoteEqualFold(v string) predicate.EsportsWalletTx {
 // NoteContainsFold applies the ContainsFold predicate on the "note" field.
 func NoteContainsFold(v string) predicate.EsportsWalletTx {
 	return predicate.EsportsWalletTx(sql.FieldContainsFold(FieldNote, v))
+}
+
+// BeneficiaryTypeEQ applies the EQ predicate on the "beneficiary_type" field.
+func BeneficiaryTypeEQ(v BeneficiaryType) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBeneficiaryType, v))
+}
+
+// BeneficiaryTypeNEQ applies the NEQ predicate on the "beneficiary_type" field.
+func BeneficiaryTypeNEQ(v BeneficiaryType) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNEQ(FieldBeneficiaryType, v))
+}
+
+// BeneficiaryTypeIn applies the In predicate on the "beneficiary_type" field.
+func BeneficiaryTypeIn(vs ...BeneficiaryType) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldIn(FieldBeneficiaryType, vs...))
+}
+
+// BeneficiaryTypeNotIn applies the NotIn predicate on the "beneficiary_type" field.
+func BeneficiaryTypeNotIn(vs ...BeneficiaryType) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNotIn(FieldBeneficiaryType, vs...))
+}
+
+// BeneficiaryIDEQ applies the EQ predicate on the "beneficiary_id" field.
+func BeneficiaryIDEQ(v int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBeneficiaryID, v))
+}
+
+// BeneficiaryIDNEQ applies the NEQ predicate on the "beneficiary_id" field.
+func BeneficiaryIDNEQ(v int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNEQ(FieldBeneficiaryID, v))
+}
+
+// BeneficiaryIDIn applies the In predicate on the "beneficiary_id" field.
+func BeneficiaryIDIn(vs ...int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldIn(FieldBeneficiaryID, vs...))
+}
+
+// BeneficiaryIDNotIn applies the NotIn predicate on the "beneficiary_id" field.
+func BeneficiaryIDNotIn(vs ...int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNotIn(FieldBeneficiaryID, vs...))
+}
+
+// BeneficiaryIDGT applies the GT predicate on the "beneficiary_id" field.
+func BeneficiaryIDGT(v int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGT(FieldBeneficiaryID, v))
+}
+
+// BeneficiaryIDGTE applies the GTE predicate on the "beneficiary_id" field.
+func BeneficiaryIDGTE(v int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGTE(FieldBeneficiaryID, v))
+}
+
+// BeneficiaryIDLT applies the LT predicate on the "beneficiary_id" field.
+func BeneficiaryIDLT(v int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLT(FieldBeneficiaryID, v))
+}
+
+// BeneficiaryIDLTE applies the LTE predicate on the "beneficiary_id" field.
+func BeneficiaryIDLTE(v int) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLTE(FieldBeneficiaryID, v))
+}
+
+// BalanceBeforeCentsEQ applies the EQ predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsEQ(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBalanceBeforeCents, v))
+}
+
+// BalanceBeforeCentsNEQ applies the NEQ predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsNEQ(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNEQ(FieldBalanceBeforeCents, v))
+}
+
+// BalanceBeforeCentsIn applies the In predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsIn(vs ...int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldIn(FieldBalanceBeforeCents, vs...))
+}
+
+// BalanceBeforeCentsNotIn applies the NotIn predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsNotIn(vs ...int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNotIn(FieldBalanceBeforeCents, vs...))
+}
+
+// BalanceBeforeCentsGT applies the GT predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsGT(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGT(FieldBalanceBeforeCents, v))
+}
+
+// BalanceBeforeCentsGTE applies the GTE predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsGTE(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGTE(FieldBalanceBeforeCents, v))
+}
+
+// BalanceBeforeCentsLT applies the LT predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsLT(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLT(FieldBalanceBeforeCents, v))
+}
+
+// BalanceBeforeCentsLTE applies the LTE predicate on the "balance_before_cents" field.
+func BalanceBeforeCentsLTE(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLTE(FieldBalanceBeforeCents, v))
+}
+
+// BalanceAfterCentsEQ applies the EQ predicate on the "balance_after_cents" field.
+func BalanceAfterCentsEQ(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldBalanceAfterCents, v))
+}
+
+// BalanceAfterCentsNEQ applies the NEQ predicate on the "balance_after_cents" field.
+func BalanceAfterCentsNEQ(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNEQ(FieldBalanceAfterCents, v))
+}
+
+// BalanceAfterCentsIn applies the In predicate on the "balance_after_cents" field.
+func BalanceAfterCentsIn(vs ...int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldIn(FieldBalanceAfterCents, vs...))
+}
+
+// BalanceAfterCentsNotIn applies the NotIn predicate on the "balance_after_cents" field.
+func BalanceAfterCentsNotIn(vs ...int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNotIn(FieldBalanceAfterCents, vs...))
+}
+
+// BalanceAfterCentsGT applies the GT predicate on the "balance_after_cents" field.
+func BalanceAfterCentsGT(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGT(FieldBalanceAfterCents, v))
+}
+
+// BalanceAfterCentsGTE applies the GTE predicate on the "balance_after_cents" field.
+func BalanceAfterCentsGTE(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGTE(FieldBalanceAfterCents, v))
+}
+
+// BalanceAfterCentsLT applies the LT predicate on the "balance_after_cents" field.
+func BalanceAfterCentsLT(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLT(FieldBalanceAfterCents, v))
+}
+
+// BalanceAfterCentsLTE applies the LTE predicate on the "balance_after_cents" field.
+func BalanceAfterCentsLTE(v int64) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLTE(FieldBalanceAfterCents, v))
+}
+
+// FundBatchEQ applies the EQ predicate on the "fund_batch" field.
+func FundBatchEQ(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEQ(FieldFundBatch, v))
+}
+
+// FundBatchNEQ applies the NEQ predicate on the "fund_batch" field.
+func FundBatchNEQ(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNEQ(FieldFundBatch, v))
+}
+
+// FundBatchIn applies the In predicate on the "fund_batch" field.
+func FundBatchIn(vs ...string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldIn(FieldFundBatch, vs...))
+}
+
+// FundBatchNotIn applies the NotIn predicate on the "fund_batch" field.
+func FundBatchNotIn(vs ...string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldNotIn(FieldFundBatch, vs...))
+}
+
+// FundBatchGT applies the GT predicate on the "fund_batch" field.
+func FundBatchGT(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGT(FieldFundBatch, v))
+}
+
+// FundBatchGTE applies the GTE predicate on the "fund_batch" field.
+func FundBatchGTE(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldGTE(FieldFundBatch, v))
+}
+
+// FundBatchLT applies the LT predicate on the "fund_batch" field.
+func FundBatchLT(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLT(FieldFundBatch, v))
+}
+
+// FundBatchLTE applies the LTE predicate on the "fund_batch" field.
+func FundBatchLTE(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldLTE(FieldFundBatch, v))
+}
+
+// FundBatchContains applies the Contains predicate on the "fund_batch" field.
+func FundBatchContains(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldContains(FieldFundBatch, v))
+}
+
+// FundBatchHasPrefix applies the HasPrefix predicate on the "fund_batch" field.
+func FundBatchHasPrefix(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldHasPrefix(FieldFundBatch, v))
+}
+
+// FundBatchHasSuffix applies the HasSuffix predicate on the "fund_batch" field.
+func FundBatchHasSuffix(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldHasSuffix(FieldFundBatch, v))
+}
+
+// FundBatchEqualFold applies the EqualFold predicate on the "fund_batch" field.
+func FundBatchEqualFold(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldEqualFold(FieldFundBatch, v))
+}
+
+// FundBatchContainsFold applies the ContainsFold predicate on the "fund_batch" field.
+func FundBatchContainsFold(v string) predicate.EsportsWalletTx {
+	return predicate.EsportsWalletTx(sql.FieldContainsFold(FieldFundBatch, v))
 }
 
 // RuleSnapshotIsNil applies the IsNil predicate on the "rule_snapshot" field.

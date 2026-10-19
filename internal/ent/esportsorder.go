@@ -25,6 +25,12 @@ type EsportsOrder struct {
 	CustomerID int `json:"customer_id"`
 	// SkuID holds the value of the "sku_id" field.
 	SkuID int `json:"sku_id"`
+	// SkuCode holds the value of the "sku_code" field.
+	SkuCode string `json:"sku_code"`
+	// SkuName holds the value of the "sku_name" field.
+	SkuName string `json:"sku_name"`
+	// SpecName holds the value of the "spec_name" field.
+	SpecName string `json:"spec_name"`
 	// CreatedByAdminID holds the value of the "created_by_admin_id" field.
 	CreatedByAdminID *int `json:"created_by_admin_id"`
 	// ResponsibleAdminID holds the value of the "responsible_admin_id" field.
@@ -61,10 +67,16 @@ type EsportsOrder struct {
 	DiscountCents int64 `json:"discount_cents"`
 	// ManualAdjustCents holds the value of the "manual_adjust_cents" field.
 	ManualAdjustCents int64 `json:"manual_adjust_cents"`
+	// MemberLevelCode holds the value of the "member_level_code" field.
+	MemberLevelCode string `json:"member_level_code"`
+	// MemberDiscountBps holds the value of the "member_discount_bps" field.
+	MemberDiscountBps int `json:"member_discount_bps"`
 	// PayableCents holds the value of the "payable_cents" field.
 	PayableCents int64 `json:"payable_cents"`
 	// PromisedServiceUnits holds the value of the "promised_service_units" field.
 	PromisedServiceUnits int64 `json:"promised_service_units"`
+	// PerSeatServiceUnits holds the value of the "per_seat_service_units" field.
+	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
 	// ServiceDurationMinutes holds the value of the "service_duration_minutes" field.
 	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// AddonCents holds the value of the "addon_cents" field.
@@ -97,6 +109,12 @@ type EsportsOrder struct {
 	PriorityGame string `json:"priority_game"`
 	// PriorityReleaseReason holds the value of the "priority_release_reason" field.
 	PriorityReleaseReason string `json:"priority_release_reason"`
+	// RemindPriorityLevel holds the value of the "remind_priority_level" field.
+	RemindPriorityLevel int `json:"remind_priority_level"`
+	// RemindNote holds the value of the "remind_note" field.
+	RemindNote string `json:"remind_note"`
+	// RemindedAt holds the value of the "reminded_at" field.
+	RemindedAt *time.Time `json:"reminded_at"`
 	// FirstPooledAt holds the value of the "first_pooled_at" field.
 	FirstPooledAt *time.Time `json:"first_pooled_at"`
 	// FirstInvitedAt holds the value of the "first_invited_at" field.
@@ -105,6 +123,8 @@ type EsportsOrder struct {
 	FirstAcceptedAt *time.Time `json:"first_accepted_at"`
 	// ServiceStartedAt holds the value of the "service_started_at" field.
 	ServiceStartedAt *time.Time `json:"service_started_at"`
+	// ReadyToStartAt holds the value of the "ready_to_start_at" field.
+	ReadyToStartAt *time.Time `json:"ready_to_start_at"`
 	// PriorityReleasedAt holds the value of the "priority_released_at" field.
 	PriorityReleasedAt *time.Time `json:"priority_released_at"`
 	// PreferredPlayerID holds the value of the "preferred_player_id" field.
@@ -125,6 +145,8 @@ type EsportsOrder struct {
 	RequestedStartAt *time.Time `json:"requested_start_at"`
 	// AppointmentConfirmationDeadline holds the value of the "appointment_confirmation_deadline" field.
 	AppointmentConfirmationDeadline *time.Time `json:"appointment_confirmation_deadline"`
+	// AppointmentSuspendedAt holds the value of the "appointment_suspended_at" field.
+	AppointmentSuspendedAt *time.Time `json:"appointment_suspended_at"`
 	// PaymentDeadline holds the value of the "payment_deadline" field.
 	PaymentDeadline time.Time `json:"payment_deadline"`
 	// PaidAt holds the value of the "paid_at" field.
@@ -182,11 +204,11 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case esportsorder.FieldBackfillCountCommission:
 			values[i] = new(sql.NullBool)
-		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldManualCommissionRuleID, esportsorder.FieldManualCommissionRuleSetByAdminID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldServiceDurationMinutes, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
+		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldManualCommissionRuleID, esportsorder.FieldManualCommissionRuleSetByAdminID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldMemberDiscountBps, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldPerSeatServiceUnits, esportsorder.FieldServiceDurationMinutes, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldRemindPriorityLevel, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
 			values[i] = new(sql.NullInt64)
-		case esportsorder.FieldOrderNo, esportsorder.FieldChannelSource, esportsorder.FieldEntryPoint, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus, esportsorder.FieldBackfillReason:
+		case esportsorder.FieldOrderNo, esportsorder.FieldSkuCode, esportsorder.FieldSkuName, esportsorder.FieldSpecName, esportsorder.FieldChannelSource, esportsorder.FieldEntryPoint, esportsorder.FieldMemberLevelCode, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRemindNote, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus, esportsorder.FieldBackfillReason:
 			values[i] = new(sql.NullString)
-		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldManualCommissionRuleSetAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldBackfilledAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
+		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldManualCommissionRuleSetAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldRemindedAt, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldReadyToStartAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldAppointmentSuspendedAt, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldBackfilledAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -226,6 +248,24 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field sku_id", values[i])
 			} else if value.Valid {
 				_m.SkuID = int(value.Int64)
+			}
+		case esportsorder.FieldSkuCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field sku_code", values[i])
+			} else if value.Valid {
+				_m.SkuCode = value.String
+			}
+		case esportsorder.FieldSkuName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field sku_name", values[i])
+			} else if value.Valid {
+				_m.SkuName = value.String
+			}
+		case esportsorder.FieldSpecName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field spec_name", values[i])
+			} else if value.Valid {
+				_m.SpecName = value.String
 			}
 		case esportsorder.FieldCreatedByAdminID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -345,6 +385,18 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ManualAdjustCents = value.Int64
 			}
+		case esportsorder.FieldMemberLevelCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field member_level_code", values[i])
+			} else if value.Valid {
+				_m.MemberLevelCode = value.String
+			}
+		case esportsorder.FieldMemberDiscountBps:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field member_discount_bps", values[i])
+			} else if value.Valid {
+				_m.MemberDiscountBps = int(value.Int64)
+			}
 		case esportsorder.FieldPayableCents:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field payable_cents", values[i])
@@ -356,6 +408,12 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field promised_service_units", values[i])
 			} else if value.Valid {
 				_m.PromisedServiceUnits = value.Int64
+			}
+		case esportsorder.FieldPerSeatServiceUnits:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field per_seat_service_units", values[i])
+			} else if value.Valid {
+				_m.PerSeatServiceUnits = value.Int64
 			}
 		case esportsorder.FieldServiceDurationMinutes:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -457,6 +515,25 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PriorityReleaseReason = value.String
 			}
+		case esportsorder.FieldRemindPriorityLevel:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field remind_priority_level", values[i])
+			} else if value.Valid {
+				_m.RemindPriorityLevel = int(value.Int64)
+			}
+		case esportsorder.FieldRemindNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field remind_note", values[i])
+			} else if value.Valid {
+				_m.RemindNote = value.String
+			}
+		case esportsorder.FieldRemindedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field reminded_at", values[i])
+			} else if value.Valid {
+				_m.RemindedAt = new(time.Time)
+				*_m.RemindedAt = value.Time
+			}
 		case esportsorder.FieldFirstPooledAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field first_pooled_at", values[i])
@@ -484,6 +561,13 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ServiceStartedAt = new(time.Time)
 				*_m.ServiceStartedAt = value.Time
+			}
+		case esportsorder.FieldReadyToStartAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field ready_to_start_at", values[i])
+			} else if value.Valid {
+				_m.ReadyToStartAt = new(time.Time)
+				*_m.ReadyToStartAt = value.Time
 			}
 		case esportsorder.FieldPriorityReleasedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -549,6 +633,13 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.AppointmentConfirmationDeadline = new(time.Time)
 				*_m.AppointmentConfirmationDeadline = value.Time
+			}
+		case esportsorder.FieldAppointmentSuspendedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field appointment_suspended_at", values[i])
+			} else if value.Valid {
+				_m.AppointmentSuspendedAt = new(time.Time)
+				*_m.AppointmentSuspendedAt = value.Time
 			}
 		case esportsorder.FieldPaymentDeadline:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -678,6 +769,15 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString("sku_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SkuID))
 	builder.WriteString(", ")
+	builder.WriteString("sku_code=")
+	builder.WriteString(_m.SkuCode)
+	builder.WriteString(", ")
+	builder.WriteString("sku_name=")
+	builder.WriteString(_m.SkuName)
+	builder.WriteString(", ")
+	builder.WriteString("spec_name=")
+	builder.WriteString(_m.SpecName)
+	builder.WriteString(", ")
 	if v := _m.CreatedByAdminID; v != nil {
 		builder.WriteString("created_by_admin_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -752,11 +852,20 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString("manual_adjust_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ManualAdjustCents))
 	builder.WriteString(", ")
+	builder.WriteString("member_level_code=")
+	builder.WriteString(_m.MemberLevelCode)
+	builder.WriteString(", ")
+	builder.WriteString("member_discount_bps=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemberDiscountBps))
+	builder.WriteString(", ")
 	builder.WriteString("payable_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PayableCents))
 	builder.WriteString(", ")
 	builder.WriteString("promised_service_units=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PromisedServiceUnits))
+	builder.WriteString(", ")
+	builder.WriteString("per_seat_service_units=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PerSeatServiceUnits))
 	builder.WriteString(", ")
 	builder.WriteString("service_duration_minutes=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ServiceDurationMinutes))
@@ -810,6 +919,17 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString("priority_release_reason=")
 	builder.WriteString(_m.PriorityReleaseReason)
 	builder.WriteString(", ")
+	builder.WriteString("remind_priority_level=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RemindPriorityLevel))
+	builder.WriteString(", ")
+	builder.WriteString("remind_note=")
+	builder.WriteString(_m.RemindNote)
+	builder.WriteString(", ")
+	if v := _m.RemindedAt; v != nil {
+		builder.WriteString("reminded_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
 	if v := _m.FirstPooledAt; v != nil {
 		builder.WriteString("first_pooled_at=")
 		builder.WriteString(v.Format(time.ANSIC))
@@ -827,6 +947,11 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	if v := _m.ServiceStartedAt; v != nil {
 		builder.WriteString("service_started_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ReadyToStartAt; v != nil {
+		builder.WriteString("ready_to_start_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
@@ -867,6 +992,11 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	if v := _m.AppointmentConfirmationDeadline; v != nil {
 		builder.WriteString("appointment_confirmation_deadline=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.AppointmentSuspendedAt; v != nil {
+		builder.WriteString("appointment_suspended_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

@@ -189,6 +189,11 @@ func Version(v int) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldVersion, v))
 }
 
+// ActiveDedupKey applies equality check predicate on the "active_dedup_key" field. It's identical to ActiveDedupKeyEQ.
+func ActiveDedupKey(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldActiveDedupKey, v))
+}
+
 // ResolvedAt applies equality check predicate on the "resolved_at" field. It's identical to ResolvedAtEQ.
 func ResolvedAt(v time.Time) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldEQ(FieldResolvedAt, v))
@@ -1757,6 +1762,81 @@ func VersionLT(v int) predicate.EsportsAfterSale {
 // VersionLTE applies the LTE predicate on the "version" field.
 func VersionLTE(v int) predicate.EsportsAfterSale {
 	return predicate.EsportsAfterSale(sql.FieldLTE(FieldVersion, v))
+}
+
+// ActiveDedupKeyEQ applies the EQ predicate on the "active_dedup_key" field.
+func ActiveDedupKeyEQ(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEQ(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyNEQ applies the NEQ predicate on the "active_dedup_key" field.
+func ActiveDedupKeyNEQ(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNEQ(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyIn applies the In predicate on the "active_dedup_key" field.
+func ActiveDedupKeyIn(vs ...string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIn(FieldActiveDedupKey, vs...))
+}
+
+// ActiveDedupKeyNotIn applies the NotIn predicate on the "active_dedup_key" field.
+func ActiveDedupKeyNotIn(vs ...string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotIn(FieldActiveDedupKey, vs...))
+}
+
+// ActiveDedupKeyGT applies the GT predicate on the "active_dedup_key" field.
+func ActiveDedupKeyGT(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGT(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyGTE applies the GTE predicate on the "active_dedup_key" field.
+func ActiveDedupKeyGTE(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldGTE(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyLT applies the LT predicate on the "active_dedup_key" field.
+func ActiveDedupKeyLT(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLT(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyLTE applies the LTE predicate on the "active_dedup_key" field.
+func ActiveDedupKeyLTE(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldLTE(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyContains applies the Contains predicate on the "active_dedup_key" field.
+func ActiveDedupKeyContains(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldContains(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyHasPrefix applies the HasPrefix predicate on the "active_dedup_key" field.
+func ActiveDedupKeyHasPrefix(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldHasPrefix(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyHasSuffix applies the HasSuffix predicate on the "active_dedup_key" field.
+func ActiveDedupKeyHasSuffix(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldHasSuffix(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyIsNil applies the IsNil predicate on the "active_dedup_key" field.
+func ActiveDedupKeyIsNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldIsNull(FieldActiveDedupKey))
+}
+
+// ActiveDedupKeyNotNil applies the NotNil predicate on the "active_dedup_key" field.
+func ActiveDedupKeyNotNil() predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldNotNull(FieldActiveDedupKey))
+}
+
+// ActiveDedupKeyEqualFold applies the EqualFold predicate on the "active_dedup_key" field.
+func ActiveDedupKeyEqualFold(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldEqualFold(FieldActiveDedupKey, v))
+}
+
+// ActiveDedupKeyContainsFold applies the ContainsFold predicate on the "active_dedup_key" field.
+func ActiveDedupKeyContainsFold(v string) predicate.EsportsAfterSale {
+	return predicate.EsportsAfterSale(sql.FieldContainsFold(FieldActiveDedupKey, v))
 }
 
 // ResolvedAtEQ applies the EQ predicate on the "resolved_at" field.

@@ -32,6 +32,12 @@ const (
 	FieldBirthday = "birthday"
 	// FieldConsumptionPreference holds the string denoting the consumption_preference field in the database.
 	FieldConsumptionPreference = "consumption_preference"
+	// FieldTimezone holds the string denoting the timezone field in the database.
+	FieldTimezone = "timezone"
+	// FieldLatitudeE6 holds the string denoting the latitude_e6 field in the database.
+	FieldLatitudeE6 = "latitude_e6"
+	// FieldLongitudeE6 holds the string denoting the longitude_e6 field in the database.
+	FieldLongitudeE6 = "longitude_e6"
 	// FieldTags holds the string denoting the tags field in the database.
 	FieldTags = "tags"
 	// FieldSource holds the string denoting the source field in the database.
@@ -82,6 +88,9 @@ var Columns = []string{
 	FieldPhone,
 	FieldBirthday,
 	FieldConsumptionPreference,
+	FieldTimezone,
+	FieldLatitudeE6,
+	FieldLongitudeE6,
 	FieldTags,
 	FieldSource,
 	FieldFollowStatus,
@@ -127,6 +136,14 @@ var (
 	DefaultConsumptionPreference string
 	// ConsumptionPreferenceValidator is a validator for the "consumption_preference" field. It is called by the builders before save.
 	ConsumptionPreferenceValidator func(string) error
+	// DefaultTimezone holds the default value on creation for the "timezone" field.
+	DefaultTimezone string
+	// TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	TimezoneValidator func(string) error
+	// DefaultLatitudeE6 holds the default value on creation for the "latitude_e6" field.
+	DefaultLatitudeE6 int
+	// DefaultLongitudeE6 holds the default value on creation for the "longitude_e6" field.
+	DefaultLongitudeE6 int
 	// DefaultRiskReason holds the default value on creation for the "risk_reason" field.
 	DefaultRiskReason string
 	// RiskReasonValidator is a validator for the "risk_reason" field. It is called by the builders before save.
@@ -310,6 +327,21 @@ func ByBirthday(opts ...sql.OrderTermOption) OrderOption {
 // ByConsumptionPreference orders the results by the consumption_preference field.
 func ByConsumptionPreference(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldConsumptionPreference, opts...).ToFunc()
+}
+
+// ByTimezone orders the results by the timezone field.
+func ByTimezone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTimezone, opts...).ToFunc()
+}
+
+// ByLatitudeE6 orders the results by the latitude_e6 field.
+func ByLatitudeE6(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatitudeE6, opts...).ToFunc()
+}
+
+// ByLongitudeE6 orders the results by the longitude_e6 field.
+func ByLongitudeE6(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLongitudeE6, opts...).ToFunc()
 }
 
 // BySource orders the results by the source field.

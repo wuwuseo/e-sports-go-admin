@@ -68,6 +68,10 @@ func (EsportsGiftOrder) Fields() []ent.Field {
 		field.Int64("bonus_cents").Default(0).StructTag(`json:"bonus_cents"`),
 		field.String("payment_source").Default("customer_balance_principal").StructTag(`json:"payment_source"`),
 		field.Int("stored_value_card_id").Positive().Optional().Nillable().StructTag(`json:"stored_value_card_id"`),
+		// 价格档位与收款留痕（§9.1-02 / §9.2-01）：档位随单快照，改档不追溯改写历史礼物单。
+		field.Int("gift_tier_id").Default(0).StructTag(`json:"gift_tier_id"`),
+		field.String("gift_tier_code").MaxLen(48).Default("").StructTag(`json:"gift_tier_code"`),
+		field.String("payment_ref").MaxLen(128).Default("").StructTag(`json:"payment_ref"`),
 		// 礼物分成快照（与服务订单分开配置）。
 		field.Enum("commission_mode").Values("percent", "fixed").Default("percent").StructTag(`json:"commission_mode"`),
 		field.Int("commission_bp").Default(0).StructTag(`json:"commission_bp"`),

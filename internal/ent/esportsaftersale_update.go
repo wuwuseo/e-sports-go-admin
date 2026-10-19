@@ -693,6 +693,26 @@ func (_u *EsportsAfterSaleUpdate) AddVersion(v int) *EsportsAfterSaleUpdate {
 	return _u
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (_u *EsportsAfterSaleUpdate) SetActiveDedupKey(v string) *EsportsAfterSaleUpdate {
+	_u.mutation.SetActiveDedupKey(v)
+	return _u
+}
+
+// SetNillableActiveDedupKey sets the "active_dedup_key" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdate) SetNillableActiveDedupKey(v *string) *EsportsAfterSaleUpdate {
+	if v != nil {
+		_u.SetActiveDedupKey(*v)
+	}
+	return _u
+}
+
+// ClearActiveDedupKey clears the value of the "active_dedup_key" field.
+func (_u *EsportsAfterSaleUpdate) ClearActiveDedupKey() *EsportsAfterSaleUpdate {
+	_u.mutation.ClearActiveDedupKey()
+	return _u
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (_u *EsportsAfterSaleUpdate) SetResolvedAt(v time.Time) *EsportsAfterSaleUpdate {
 	_u.mutation.SetResolvedAt(v)
@@ -835,6 +855,11 @@ func (_u *EsportsAfterSaleUpdate) check() error {
 	if v, ok := _u.mutation.Resolution(); ok {
 		if err := esportsaftersale.ResolutionValidator(v); err != nil {
 			return &ValidationError{Name: "resolution", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.resolution": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ActiveDedupKey(); ok {
+		if err := esportsaftersale.ActiveDedupKeyValidator(v); err != nil {
+			return &ValidationError{Name: "active_dedup_key", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.active_dedup_key": %w`, err)}
 		}
 	}
 	return nil
@@ -1040,6 +1065,12 @@ func (_u *EsportsAfterSaleUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedVersion(); ok {
 		_spec.AddField(esportsaftersale.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ActiveDedupKey(); ok {
+		_spec.SetField(esportsaftersale.FieldActiveDedupKey, field.TypeString, value)
+	}
+	if _u.mutation.ActiveDedupKeyCleared() {
+		_spec.ClearField(esportsaftersale.FieldActiveDedupKey, field.TypeString)
 	}
 	if value, ok := _u.mutation.ResolvedAt(); ok {
 		_spec.SetField(esportsaftersale.FieldResolvedAt, field.TypeTime, value)
@@ -1735,6 +1766,26 @@ func (_u *EsportsAfterSaleUpdateOne) AddVersion(v int) *EsportsAfterSaleUpdateOn
 	return _u
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (_u *EsportsAfterSaleUpdateOne) SetActiveDedupKey(v string) *EsportsAfterSaleUpdateOne {
+	_u.mutation.SetActiveDedupKey(v)
+	return _u
+}
+
+// SetNillableActiveDedupKey sets the "active_dedup_key" field if the given value is not nil.
+func (_u *EsportsAfterSaleUpdateOne) SetNillableActiveDedupKey(v *string) *EsportsAfterSaleUpdateOne {
+	if v != nil {
+		_u.SetActiveDedupKey(*v)
+	}
+	return _u
+}
+
+// ClearActiveDedupKey clears the value of the "active_dedup_key" field.
+func (_u *EsportsAfterSaleUpdateOne) ClearActiveDedupKey() *EsportsAfterSaleUpdateOne {
+	_u.mutation.ClearActiveDedupKey()
+	return _u
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (_u *EsportsAfterSaleUpdateOne) SetResolvedAt(v time.Time) *EsportsAfterSaleUpdateOne {
 	_u.mutation.SetResolvedAt(v)
@@ -1890,6 +1941,11 @@ func (_u *EsportsAfterSaleUpdateOne) check() error {
 	if v, ok := _u.mutation.Resolution(); ok {
 		if err := esportsaftersale.ResolutionValidator(v); err != nil {
 			return &ValidationError{Name: "resolution", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.resolution": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ActiveDedupKey(); ok {
+		if err := esportsaftersale.ActiveDedupKeyValidator(v); err != nil {
+			return &ValidationError{Name: "active_dedup_key", err: fmt.Errorf(`ent: validator failed for field "EsportsAfterSale.active_dedup_key": %w`, err)}
 		}
 	}
 	return nil
@@ -2112,6 +2168,12 @@ func (_u *EsportsAfterSaleUpdateOne) sqlSave(ctx context.Context) (_node *Esport
 	}
 	if value, ok := _u.mutation.AddedVersion(); ok {
 		_spec.AddField(esportsaftersale.FieldVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ActiveDedupKey(); ok {
+		_spec.SetField(esportsaftersale.FieldActiveDedupKey, field.TypeString, value)
+	}
+	if _u.mutation.ActiveDedupKeyCleared() {
+		_spec.ClearField(esportsaftersale.FieldActiveDedupKey, field.TypeString)
 	}
 	if value, ok := _u.mutation.ResolvedAt(); ok {
 		_spec.SetField(esportsaftersale.FieldResolvedAt, field.TypeTime, value)

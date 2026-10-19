@@ -11,8 +11,8 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsconfirmation"
-	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsofflinepaymentproof"
+	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportspaymentintent"
 )
 
@@ -22,10 +22,10 @@ import (
 
 // customerPaymentMethodName 收款方式展示名（与订单 payment_channel 枚举一一对应）。
 var customerPaymentMethodName = map[string]string{
-	"customer_balance":  "客户余额",
-	"stored_value_card": "储值卡",
-	"wechat_work":       "企微收款",
-	"merchant_qr":       "商户码",
+	"customer_balance":   "客户余额",
+	"stored_value_card":  "储值卡",
+	"wechat_work":        "企微收款",
+	"merchant_qr":        "商户码",
 	"corporate_transfer": "对公转账",
 }
 
@@ -42,10 +42,10 @@ type customerPaymentAccountView struct {
 // customerPaymentMethodView 客户侧收款方式视图：internal 为余额/储值卡等站内方式（无账户），
 // external 为需上传凭证的外部收款渠道（携带财务审核通过的收款账户）。
 type customerPaymentMethodView struct {
-	Channel  string                        `json:"channel"`
-	Name     string                        `json:"name"`
-	Kind     string                        `json:"kind"`
-	Enabled  bool                          `json:"enabled"`
+	Channel  string                       `json:"channel"`
+	Name     string                       `json:"name"`
+	Kind     string                       `json:"kind"`
+	Enabled  bool                         `json:"enabled"`
 	Accounts []customerPaymentAccountView `json:"accounts"`
 }
 
@@ -60,11 +60,12 @@ func listCustomerPaymentMethods(ctx context.Context, db *ent.Client) ([]customer
 	for _, channel := range channels {
 		enabled[channel.Channel] = channel.Enabled
 	}
+	// 站内方式（余额 / 储值卡）同样受后台启停约束（§4.3-08）：停用后不再作为可选收款方式。
 	methods := []customerPaymentMethodView{
-		{Channel: "customer_balance", Name: customerPaymentMethodName["customer_balance"], Kind: "internal", Enabled: true, Accounts: []customerPaymentAccountView{}},
-		{Channel: "stored_value_card", Name: customerPaymentMethodName["stored_value_card"], Kind: "internal", Enabled: true, Accounts: []customerPaymentAccountView{}},
+		{Channel: "customer_balance", Name: customerPaymentMethodName["customer_balance"], Kind: "internal", Enabled: enabled["customer_balance"], Accounts: []customerPaymentAccountView{}},
+		{Channel: "stored_value_card", Name: customerPaymentMethodName["stored_value_card"], Kind: "internal", Enabled: enabled["stored_value_card"], Accounts: []customerPaymentAccountView{}},
 	}
-	for _, channel := range paymentChannelValues {
+	for _, channel := range externalPaymentChannelValues {
 		if !enabled[channel] {
 			continue
 		}
@@ -119,7 +120,7 @@ func resolvePaymentProofEvidence(ctx context.Context, db *ent.Client, ids []int,
 		if err != nil {
 			return nil, errInvalidInput
 		}
-		if item.UploadedBy != expectedUploadedBy {
+		if !matchesEvidenceUploader(item.UploadedBy, expectedUploadedBy) {
 			return nil, errForbidden
 		}
 		if item.Directory != paymentProofEvidenceDirectory ||
@@ -130,6 +131,35 @@ func resolvePaymentProofEvidence(ctx context.Context, db *ent.Client, ids []int,
 		attachments = append(attachments, item)
 	}
 	return attachments, nil
+}
+
+// matchesEvidenceUploader 判断附件上传人是否为期望的归属主体。
+// 前台路由写入的上传人带 "user:" / "admin:" 域前缀，管理端与存量数据可能只存裸 uid，两者都视为本人。
+func matchesEvidenceUploader(uploadedBy, subject string) bool {
+	if uploadedBy == "" || subject == "" {
+		return false
+	}
+	if uploadedBy == subject {
+		return true
+	}
+	for _, prefix := range []string{"user:", "admin:"} {
+		if strings.HasPrefix(subject, prefix) && uploadedBy == strings.TrimPrefix(subject, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// adminUploadSubject 返回管理端上传附件的归属标识 "admin:<uid>"（§4.2 客服凭证归属可追溯）。
+func adminUploadSubject(ctx context.Context, db *ent.Client, adminID int) (string, error) {
+	if adminID < 1 {
+		return "", errForbidden
+	}
+	operator, err := db.Admin.Get(ctx, adminID)
+	if err != nil || strings.TrimSpace(operator.UID) == "" {
+		return "", errForbidden
+	}
+	return "admin:" + operator.UID, nil
 }
 
 // customerPaymentProofInput 客户自助提交付款凭证入参（§4.3）。
@@ -211,6 +241,9 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 		len(in.EvidenceAttachmentIDs) > maxPaymentProofAttachments {
 		return nil, errInvalidInput
 	}
+	if err := ensurePaymentDeadlineConfigured(ctx, db); err != nil {
+		return nil, err
+	}
 	subject, err := customerUploadSubject(ctx, db, customer)
 	if err != nil {
 		return nil, err
@@ -246,6 +279,14 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 	}
 	if in.AmountCents < order.PayableCents {
 		return nil, errInvalidInput
+	}
+	// §15.7-01：商品下架后直接拒绝发起收款，不生成收款单 / 支付意图。
+	if err = ensureOrderSkuOnSale(ctx, db, order); err != nil {
+		return nil, err
+	}
+	// §4.3-05：大额订单只允许对公转账。
+	if err = ensureCorporateChannelForAmount(ctx, db, channel, in.AmountCents); err != nil {
+		return nil, err
 	}
 	tx, err := db.Tx(ctx)
 	if err != nil {

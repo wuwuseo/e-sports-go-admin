@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"go-admin/internal/ent/esportsplayerreview"
 	"strings"
@@ -31,6 +32,14 @@ type EsportsPlayerReview struct {
 	Verified bool `json:"verified"`
 	// Status holds the value of the "status" field.
 	Status esportsplayerreview.Status `json:"status"`
+	// AutoDisputed holds the value of the "auto_disputed" field.
+	AutoDisputed bool `json:"auto_disputed"`
+	// DisputeRuleCode holds the value of the "dispute_rule_code" field.
+	DisputeRuleCode string `json:"dispute_rule_code"`
+	// DisputeDetail holds the value of the "dispute_detail" field.
+	DisputeDetail map[string]interface{} `json:"dispute_detail"`
+	// DisputedAt holds the value of the "disputed_at" field.
+	DisputedAt *time.Time `json:"disputed_at"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -45,13 +54,15 @@ func (*EsportsPlayerReview) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsplayerreview.FieldVerified:
+		case esportsplayerreview.FieldDisputeDetail:
+			values[i] = new([]byte)
+		case esportsplayerreview.FieldVerified, esportsplayerreview.FieldAutoDisputed:
 			values[i] = new(sql.NullBool)
 		case esportsplayerreview.FieldID, esportsplayerreview.FieldOrderID, esportsplayerreview.FieldCustomerID, esportsplayerreview.FieldPlayerID, esportsplayerreview.FieldRating, esportsplayerreview.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsplayerreview.FieldComment, esportsplayerreview.FieldStatus:
+		case esportsplayerreview.FieldComment, esportsplayerreview.FieldStatus, esportsplayerreview.FieldDisputeRuleCode:
 			values[i] = new(sql.NullString)
-		case esportsplayerreview.FieldCreatedAt, esportsplayerreview.FieldUpdatedAt:
+		case esportsplayerreview.FieldDisputedAt, esportsplayerreview.FieldCreatedAt, esportsplayerreview.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -115,6 +126,33 @@ func (_m *EsportsPlayerReview) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = esportsplayerreview.Status(value.String)
+			}
+		case esportsplayerreview.FieldAutoDisputed:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_disputed", values[i])
+			} else if value.Valid {
+				_m.AutoDisputed = value.Bool
+			}
+		case esportsplayerreview.FieldDisputeRuleCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field dispute_rule_code", values[i])
+			} else if value.Valid {
+				_m.DisputeRuleCode = value.String
+			}
+		case esportsplayerreview.FieldDisputeDetail:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field dispute_detail", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.DisputeDetail); err != nil {
+					return fmt.Errorf("unmarshal field dispute_detail: %w", err)
+				}
+			}
+		case esportsplayerreview.FieldDisputedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field disputed_at", values[i])
+			} else if value.Valid {
+				_m.DisputedAt = new(time.Time)
+				*_m.DisputedAt = value.Time
 			}
 		case esportsplayerreview.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -190,6 +228,20 @@ func (_m *EsportsPlayerReview) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("auto_disputed=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoDisputed))
+	builder.WriteString(", ")
+	builder.WriteString("dispute_rule_code=")
+	builder.WriteString(_m.DisputeRuleCode)
+	builder.WriteString(", ")
+	builder.WriteString("dispute_detail=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DisputeDetail))
+	builder.WriteString(", ")
+	if v := _m.DisputedAt; v != nil {
+		builder.WriteString("disputed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("version=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Version))

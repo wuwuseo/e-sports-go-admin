@@ -40,8 +40,14 @@ type Tx struct {
 	EsportsAfterSale *EsportsAfterSaleClient
 	// EsportsAfterSaleAction is the client for interacting with the EsportsAfterSaleAction builders.
 	EsportsAfterSaleAction *EsportsAfterSaleActionClient
+	// EsportsAfterSaleMessage is the client for interacting with the EsportsAfterSaleMessage builders.
+	EsportsAfterSaleMessage *EsportsAfterSaleMessageClient
 	// EsportsAfterSaleReview is the client for interacting with the EsportsAfterSaleReview builders.
 	EsportsAfterSaleReview *EsportsAfterSaleReviewClient
+	// EsportsAfterSaleRule is the client for interacting with the EsportsAfterSaleRule builders.
+	EsportsAfterSaleRule *EsportsAfterSaleRuleClient
+	// EsportsAfterSaleRuleHit is the client for interacting with the EsportsAfterSaleRuleHit builders.
+	EsportsAfterSaleRuleHit *EsportsAfterSaleRuleHitClient
 	// EsportsAgeCheck is the client for interacting with the EsportsAgeCheck builders.
 	EsportsAgeCheck *EsportsAgeCheckClient
 	// EsportsAssessment is the client for interacting with the EsportsAssessment builders.
@@ -76,6 +82,8 @@ type Tx struct {
 	EsportsCsCommissionEntry *EsportsCsCommissionEntryClient
 	// EsportsCsCommissionRule is the client for interacting with the EsportsCsCommissionRule builders.
 	EsportsCsCommissionRule *EsportsCsCommissionRuleClient
+	// EsportsCsPresence is the client for interacting with the EsportsCsPresence builders.
+	EsportsCsPresence *EsportsCsPresenceClient
 	// EsportsCustomer is the client for interacting with the EsportsCustomer builders.
 	EsportsCustomer *EsportsCustomerClient
 	// EsportsCustomerFollowUp is the client for interacting with the EsportsCustomerFollowUp builders.
@@ -98,6 +106,8 @@ type Tx struct {
 	EsportsGiftIntent *EsportsGiftIntentClient
 	// EsportsGiftOrder is the client for interacting with the EsportsGiftOrder builders.
 	EsportsGiftOrder *EsportsGiftOrderClient
+	// EsportsGiftTier is the client for interacting with the EsportsGiftTier builders.
+	EsportsGiftTier *EsportsGiftTierClient
 	// EsportsGrowthLedger is the client for interacting with the EsportsGrowthLedger builders.
 	EsportsGrowthLedger *EsportsGrowthLedgerClient
 	// EsportsIdempotency is the client for interacting with the EsportsIdempotency builders.
@@ -148,6 +158,8 @@ type Tx struct {
 	EsportsPlayerRecovery *EsportsPlayerRecoveryClient
 	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
 	EsportsPlayerReview *EsportsPlayerReviewClient
+	// EsportsPlayerReviewAppeal is the client for interacting with the EsportsPlayerReviewAppeal builders.
+	EsportsPlayerReviewAppeal *EsportsPlayerReviewAppealClient
 	// EsportsPlayerReviewRevision is the client for interacting with the EsportsPlayerReviewRevision builders.
 	EsportsPlayerReviewRevision *EsportsPlayerReviewRevisionClient
 	// EsportsPriceAdjustment is the client for interacting with the EsportsPriceAdjustment builders.
@@ -192,6 +204,8 @@ type Tx struct {
 	EsportsSpecGroup *EsportsSpecGroupClient
 	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
 	EsportsStoredValueCard *EsportsStoredValueCardClient
+	// EsportsStoredValueException is the client for interacting with the EsportsStoredValueException builders.
+	EsportsStoredValueException *EsportsStoredValueExceptionClient
 	// EsportsStoredValuePackage is the client for interacting with the EsportsStoredValuePackage builders.
 	EsportsStoredValuePackage *EsportsStoredValuePackageClient
 	// EsportsTeammate is the client for interacting with the EsportsTeammate builders.
@@ -377,7 +391,10 @@ func (tx *Tx) init() {
 	tx.DictData = NewDictDataClient(tx.config)
 	tx.EsportsAfterSale = NewEsportsAfterSaleClient(tx.config)
 	tx.EsportsAfterSaleAction = NewEsportsAfterSaleActionClient(tx.config)
+	tx.EsportsAfterSaleMessage = NewEsportsAfterSaleMessageClient(tx.config)
 	tx.EsportsAfterSaleReview = NewEsportsAfterSaleReviewClient(tx.config)
+	tx.EsportsAfterSaleRule = NewEsportsAfterSaleRuleClient(tx.config)
+	tx.EsportsAfterSaleRuleHit = NewEsportsAfterSaleRuleHitClient(tx.config)
 	tx.EsportsAgeCheck = NewEsportsAgeCheckClient(tx.config)
 	tx.EsportsAssessment = NewEsportsAssessmentClient(tx.config)
 	tx.EsportsAssessmentAppeal = NewEsportsAssessmentAppealClient(tx.config)
@@ -395,6 +412,7 @@ func (tx *Tx) init() {
 	tx.EsportsConfirmation = NewEsportsConfirmationClient(tx.config)
 	tx.EsportsCsCommissionEntry = NewEsportsCsCommissionEntryClient(tx.config)
 	tx.EsportsCsCommissionRule = NewEsportsCsCommissionRuleClient(tx.config)
+	tx.EsportsCsPresence = NewEsportsCsPresenceClient(tx.config)
 	tx.EsportsCustomer = NewEsportsCustomerClient(tx.config)
 	tx.EsportsCustomerFollowUp = NewEsportsCustomerFollowUpClient(tx.config)
 	tx.EsportsDispatchPriorityGrant = NewEsportsDispatchPriorityGrantClient(tx.config)
@@ -406,6 +424,7 @@ func (tx *Tx) init() {
 	tx.EsportsGiftDispute = NewEsportsGiftDisputeClient(tx.config)
 	tx.EsportsGiftIntent = NewEsportsGiftIntentClient(tx.config)
 	tx.EsportsGiftOrder = NewEsportsGiftOrderClient(tx.config)
+	tx.EsportsGiftTier = NewEsportsGiftTierClient(tx.config)
 	tx.EsportsGrowthLedger = NewEsportsGrowthLedgerClient(tx.config)
 	tx.EsportsIdempotency = NewEsportsIdempotencyClient(tx.config)
 	tx.EsportsIdentityBinding = NewEsportsIdentityBindingClient(tx.config)
@@ -431,6 +450,7 @@ func (tx *Tx) init() {
 	tx.EsportsPlayerIdentity = NewEsportsPlayerIdentityClient(tx.config)
 	tx.EsportsPlayerRecovery = NewEsportsPlayerRecoveryClient(tx.config)
 	tx.EsportsPlayerReview = NewEsportsPlayerReviewClient(tx.config)
+	tx.EsportsPlayerReviewAppeal = NewEsportsPlayerReviewAppealClient(tx.config)
 	tx.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(tx.config)
 	tx.EsportsPriceAdjustment = NewEsportsPriceAdjustmentClient(tx.config)
 	tx.EsportsPriorityBookingIntent = NewEsportsPriorityBookingIntentClient(tx.config)
@@ -453,6 +473,7 @@ func (tx *Tx) init() {
 	tx.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(tx.config)
 	tx.EsportsSpecGroup = NewEsportsSpecGroupClient(tx.config)
 	tx.EsportsStoredValueCard = NewEsportsStoredValueCardClient(tx.config)
+	tx.EsportsStoredValueException = NewEsportsStoredValueExceptionClient(tx.config)
 	tx.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(tx.config)
 	tx.EsportsTeammate = NewEsportsTeammateClient(tx.config)
 	tx.EsportsWalletAccount = NewEsportsWalletAccountClient(tx.config)

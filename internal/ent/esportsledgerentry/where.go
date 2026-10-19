@@ -84,6 +84,16 @@ func DeltaCents(v int64) predicate.EsportsLedgerEntry {
 	return predicate.EsportsLedgerEntry(sql.FieldEQ(FieldDeltaCents, v))
 }
 
+// PrincipalDeltaCents applies equality check predicate on the "principal_delta_cents" field. It's identical to PrincipalDeltaCentsEQ.
+func PrincipalDeltaCents(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldEQ(FieldPrincipalDeltaCents, v))
+}
+
+// BonusDeltaCents applies equality check predicate on the "bonus_delta_cents" field. It's identical to BonusDeltaCentsEQ.
+func BonusDeltaCents(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldEQ(FieldBonusDeltaCents, v))
+}
+
 // FundBatch applies equality check predicate on the "fund_batch" field. It's identical to FundBatchEQ.
 func FundBatch(v string) predicate.EsportsLedgerEntry {
 	return predicate.EsportsLedgerEntry(sql.FieldEQ(FieldFundBatch, v))
@@ -457,6 +467,86 @@ func DeltaCentsLT(v int64) predicate.EsportsLedgerEntry {
 // DeltaCentsLTE applies the LTE predicate on the "delta_cents" field.
 func DeltaCentsLTE(v int64) predicate.EsportsLedgerEntry {
 	return predicate.EsportsLedgerEntry(sql.FieldLTE(FieldDeltaCents, v))
+}
+
+// PrincipalDeltaCentsEQ applies the EQ predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsEQ(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldEQ(FieldPrincipalDeltaCents, v))
+}
+
+// PrincipalDeltaCentsNEQ applies the NEQ predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsNEQ(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldNEQ(FieldPrincipalDeltaCents, v))
+}
+
+// PrincipalDeltaCentsIn applies the In predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsIn(vs ...int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldIn(FieldPrincipalDeltaCents, vs...))
+}
+
+// PrincipalDeltaCentsNotIn applies the NotIn predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsNotIn(vs ...int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldNotIn(FieldPrincipalDeltaCents, vs...))
+}
+
+// PrincipalDeltaCentsGT applies the GT predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsGT(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldGT(FieldPrincipalDeltaCents, v))
+}
+
+// PrincipalDeltaCentsGTE applies the GTE predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsGTE(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldGTE(FieldPrincipalDeltaCents, v))
+}
+
+// PrincipalDeltaCentsLT applies the LT predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsLT(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldLT(FieldPrincipalDeltaCents, v))
+}
+
+// PrincipalDeltaCentsLTE applies the LTE predicate on the "principal_delta_cents" field.
+func PrincipalDeltaCentsLTE(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldLTE(FieldPrincipalDeltaCents, v))
+}
+
+// BonusDeltaCentsEQ applies the EQ predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsEQ(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldEQ(FieldBonusDeltaCents, v))
+}
+
+// BonusDeltaCentsNEQ applies the NEQ predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsNEQ(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldNEQ(FieldBonusDeltaCents, v))
+}
+
+// BonusDeltaCentsIn applies the In predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsIn(vs ...int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldIn(FieldBonusDeltaCents, vs...))
+}
+
+// BonusDeltaCentsNotIn applies the NotIn predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsNotIn(vs ...int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldNotIn(FieldBonusDeltaCents, vs...))
+}
+
+// BonusDeltaCentsGT applies the GT predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsGT(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldGT(FieldBonusDeltaCents, v))
+}
+
+// BonusDeltaCentsGTE applies the GTE predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsGTE(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldGTE(FieldBonusDeltaCents, v))
+}
+
+// BonusDeltaCentsLT applies the LT predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsLT(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldLT(FieldBonusDeltaCents, v))
+}
+
+// BonusDeltaCentsLTE applies the LTE predicate on the "bonus_delta_cents" field.
+func BonusDeltaCentsLTE(v int64) predicate.EsportsLedgerEntry {
+	return predicate.EsportsLedgerEntry(sql.FieldLTE(FieldBonusDeltaCents, v))
 }
 
 // FundBatchEQ applies the EQ predicate on the "fund_batch" field.

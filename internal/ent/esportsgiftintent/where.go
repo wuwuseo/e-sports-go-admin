@@ -119,6 +119,51 @@ func StoredValueCardNo(v string) predicate.EsportsGiftIntent {
 	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldStoredValueCardNo, v))
 }
 
+// GiftTierID applies equality check predicate on the "gift_tier_id" field. It's identical to GiftTierIDEQ.
+func GiftTierID(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldGiftTierID, v))
+}
+
+// GiftTierCode applies equality check predicate on the "gift_tier_code" field. It's identical to GiftTierCodeEQ.
+func GiftTierCode(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldGiftTierCode, v))
+}
+
+// HighValue applies equality check predicate on the "high_value" field. It's identical to HighValueEQ.
+func HighValue(v bool) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldHighValue, v))
+}
+
+// RequireAge applies equality check predicate on the "require_age" field. It's identical to RequireAgeEQ.
+func RequireAge(v bool) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldRequireAge, v))
+}
+
+// PaymentIntentNo applies equality check predicate on the "payment_intent_no" field. It's identical to PaymentIntentNoEQ.
+func PaymentIntentNo(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentIntentNo, v))
+}
+
+// PaymentRef applies equality check predicate on the "payment_ref" field. It's identical to PaymentRefEQ.
+func PaymentRef(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentRef, v))
+}
+
+// PaymentExpiresAt applies equality check predicate on the "payment_expires_at" field. It's identical to PaymentExpiresAtEQ.
+func PaymentExpiresAt(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentExpiresAt, v))
+}
+
+// PaymentVerifiedAt applies equality check predicate on the "payment_verified_at" field. It's identical to PaymentVerifiedAtEQ.
+func PaymentVerifiedAt(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedByAdminID applies equality check predicate on the "payment_verified_by_admin_id" field. It's identical to PaymentVerifiedByAdminIDEQ.
+func PaymentVerifiedByAdminID(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentVerifiedByAdminID, v))
+}
+
 // CreatedByAdminID applies equality check predicate on the "created_by_admin_id" field. It's identical to CreatedByAdminIDEQ.
 func CreatedByAdminID(v int) predicate.EsportsGiftIntent {
 	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldCreatedByAdminID, v))
@@ -802,6 +847,461 @@ func StoredValueCardNoEqualFold(v string) predicate.EsportsGiftIntent {
 // StoredValueCardNoContainsFold applies the ContainsFold predicate on the "stored_value_card_no" field.
 func StoredValueCardNoContainsFold(v string) predicate.EsportsGiftIntent {
 	return predicate.EsportsGiftIntent(sql.FieldContainsFold(FieldStoredValueCardNo, v))
+}
+
+// GiftTierIDEQ applies the EQ predicate on the "gift_tier_id" field.
+func GiftTierIDEQ(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldGiftTierID, v))
+}
+
+// GiftTierIDNEQ applies the NEQ predicate on the "gift_tier_id" field.
+func GiftTierIDNEQ(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldGiftTierID, v))
+}
+
+// GiftTierIDIn applies the In predicate on the "gift_tier_id" field.
+func GiftTierIDIn(vs ...int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldGiftTierID, vs...))
+}
+
+// GiftTierIDNotIn applies the NotIn predicate on the "gift_tier_id" field.
+func GiftTierIDNotIn(vs ...int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldGiftTierID, vs...))
+}
+
+// GiftTierIDGT applies the GT predicate on the "gift_tier_id" field.
+func GiftTierIDGT(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGT(FieldGiftTierID, v))
+}
+
+// GiftTierIDGTE applies the GTE predicate on the "gift_tier_id" field.
+func GiftTierIDGTE(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldGiftTierID, v))
+}
+
+// GiftTierIDLT applies the LT predicate on the "gift_tier_id" field.
+func GiftTierIDLT(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLT(FieldGiftTierID, v))
+}
+
+// GiftTierIDLTE applies the LTE predicate on the "gift_tier_id" field.
+func GiftTierIDLTE(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldGiftTierID, v))
+}
+
+// GiftTierCodeEQ applies the EQ predicate on the "gift_tier_code" field.
+func GiftTierCodeEQ(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeNEQ applies the NEQ predicate on the "gift_tier_code" field.
+func GiftTierCodeNEQ(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeIn applies the In predicate on the "gift_tier_code" field.
+func GiftTierCodeIn(vs ...string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldGiftTierCode, vs...))
+}
+
+// GiftTierCodeNotIn applies the NotIn predicate on the "gift_tier_code" field.
+func GiftTierCodeNotIn(vs ...string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldGiftTierCode, vs...))
+}
+
+// GiftTierCodeGT applies the GT predicate on the "gift_tier_code" field.
+func GiftTierCodeGT(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGT(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeGTE applies the GTE predicate on the "gift_tier_code" field.
+func GiftTierCodeGTE(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeLT applies the LT predicate on the "gift_tier_code" field.
+func GiftTierCodeLT(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLT(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeLTE applies the LTE predicate on the "gift_tier_code" field.
+func GiftTierCodeLTE(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeContains applies the Contains predicate on the "gift_tier_code" field.
+func GiftTierCodeContains(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldContains(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeHasPrefix applies the HasPrefix predicate on the "gift_tier_code" field.
+func GiftTierCodeHasPrefix(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldHasPrefix(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeHasSuffix applies the HasSuffix predicate on the "gift_tier_code" field.
+func GiftTierCodeHasSuffix(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldHasSuffix(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeEqualFold applies the EqualFold predicate on the "gift_tier_code" field.
+func GiftTierCodeEqualFold(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEqualFold(FieldGiftTierCode, v))
+}
+
+// GiftTierCodeContainsFold applies the ContainsFold predicate on the "gift_tier_code" field.
+func GiftTierCodeContainsFold(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldContainsFold(FieldGiftTierCode, v))
+}
+
+// HighValueEQ applies the EQ predicate on the "high_value" field.
+func HighValueEQ(v bool) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldHighValue, v))
+}
+
+// HighValueNEQ applies the NEQ predicate on the "high_value" field.
+func HighValueNEQ(v bool) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldHighValue, v))
+}
+
+// RequireAgeEQ applies the EQ predicate on the "require_age" field.
+func RequireAgeEQ(v bool) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldRequireAge, v))
+}
+
+// RequireAgeNEQ applies the NEQ predicate on the "require_age" field.
+func RequireAgeNEQ(v bool) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldRequireAge, v))
+}
+
+// PaymentChannelEQ applies the EQ predicate on the "payment_channel" field.
+func PaymentChannelEQ(v PaymentChannel) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentChannel, v))
+}
+
+// PaymentChannelNEQ applies the NEQ predicate on the "payment_channel" field.
+func PaymentChannelNEQ(v PaymentChannel) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldPaymentChannel, v))
+}
+
+// PaymentChannelIn applies the In predicate on the "payment_channel" field.
+func PaymentChannelIn(vs ...PaymentChannel) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldPaymentChannel, vs...))
+}
+
+// PaymentChannelNotIn applies the NotIn predicate on the "payment_channel" field.
+func PaymentChannelNotIn(vs ...PaymentChannel) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldPaymentChannel, vs...))
+}
+
+// PaymentStatusEQ applies the EQ predicate on the "payment_status" field.
+func PaymentStatusEQ(v PaymentStatus) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentStatus, v))
+}
+
+// PaymentStatusNEQ applies the NEQ predicate on the "payment_status" field.
+func PaymentStatusNEQ(v PaymentStatus) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldPaymentStatus, v))
+}
+
+// PaymentStatusIn applies the In predicate on the "payment_status" field.
+func PaymentStatusIn(vs ...PaymentStatus) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldPaymentStatus, vs...))
+}
+
+// PaymentStatusNotIn applies the NotIn predicate on the "payment_status" field.
+func PaymentStatusNotIn(vs ...PaymentStatus) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldPaymentStatus, vs...))
+}
+
+// PaymentIntentNoEQ applies the EQ predicate on the "payment_intent_no" field.
+func PaymentIntentNoEQ(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoNEQ applies the NEQ predicate on the "payment_intent_no" field.
+func PaymentIntentNoNEQ(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoIn applies the In predicate on the "payment_intent_no" field.
+func PaymentIntentNoIn(vs ...string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldPaymentIntentNo, vs...))
+}
+
+// PaymentIntentNoNotIn applies the NotIn predicate on the "payment_intent_no" field.
+func PaymentIntentNoNotIn(vs ...string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldPaymentIntentNo, vs...))
+}
+
+// PaymentIntentNoGT applies the GT predicate on the "payment_intent_no" field.
+func PaymentIntentNoGT(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGT(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoGTE applies the GTE predicate on the "payment_intent_no" field.
+func PaymentIntentNoGTE(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoLT applies the LT predicate on the "payment_intent_no" field.
+func PaymentIntentNoLT(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLT(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoLTE applies the LTE predicate on the "payment_intent_no" field.
+func PaymentIntentNoLTE(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoContains applies the Contains predicate on the "payment_intent_no" field.
+func PaymentIntentNoContains(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldContains(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoHasPrefix applies the HasPrefix predicate on the "payment_intent_no" field.
+func PaymentIntentNoHasPrefix(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldHasPrefix(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoHasSuffix applies the HasSuffix predicate on the "payment_intent_no" field.
+func PaymentIntentNoHasSuffix(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldHasSuffix(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoIsNil applies the IsNil predicate on the "payment_intent_no" field.
+func PaymentIntentNoIsNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIsNull(FieldPaymentIntentNo))
+}
+
+// PaymentIntentNoNotNil applies the NotNil predicate on the "payment_intent_no" field.
+func PaymentIntentNoNotNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotNull(FieldPaymentIntentNo))
+}
+
+// PaymentIntentNoEqualFold applies the EqualFold predicate on the "payment_intent_no" field.
+func PaymentIntentNoEqualFold(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEqualFold(FieldPaymentIntentNo, v))
+}
+
+// PaymentIntentNoContainsFold applies the ContainsFold predicate on the "payment_intent_no" field.
+func PaymentIntentNoContainsFold(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldContainsFold(FieldPaymentIntentNo, v))
+}
+
+// PaymentRefEQ applies the EQ predicate on the "payment_ref" field.
+func PaymentRefEQ(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentRef, v))
+}
+
+// PaymentRefNEQ applies the NEQ predicate on the "payment_ref" field.
+func PaymentRefNEQ(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldPaymentRef, v))
+}
+
+// PaymentRefIn applies the In predicate on the "payment_ref" field.
+func PaymentRefIn(vs ...string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldPaymentRef, vs...))
+}
+
+// PaymentRefNotIn applies the NotIn predicate on the "payment_ref" field.
+func PaymentRefNotIn(vs ...string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldPaymentRef, vs...))
+}
+
+// PaymentRefGT applies the GT predicate on the "payment_ref" field.
+func PaymentRefGT(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGT(FieldPaymentRef, v))
+}
+
+// PaymentRefGTE applies the GTE predicate on the "payment_ref" field.
+func PaymentRefGTE(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldPaymentRef, v))
+}
+
+// PaymentRefLT applies the LT predicate on the "payment_ref" field.
+func PaymentRefLT(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLT(FieldPaymentRef, v))
+}
+
+// PaymentRefLTE applies the LTE predicate on the "payment_ref" field.
+func PaymentRefLTE(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldPaymentRef, v))
+}
+
+// PaymentRefContains applies the Contains predicate on the "payment_ref" field.
+func PaymentRefContains(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldContains(FieldPaymentRef, v))
+}
+
+// PaymentRefHasPrefix applies the HasPrefix predicate on the "payment_ref" field.
+func PaymentRefHasPrefix(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldHasPrefix(FieldPaymentRef, v))
+}
+
+// PaymentRefHasSuffix applies the HasSuffix predicate on the "payment_ref" field.
+func PaymentRefHasSuffix(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldHasSuffix(FieldPaymentRef, v))
+}
+
+// PaymentRefEqualFold applies the EqualFold predicate on the "payment_ref" field.
+func PaymentRefEqualFold(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEqualFold(FieldPaymentRef, v))
+}
+
+// PaymentRefContainsFold applies the ContainsFold predicate on the "payment_ref" field.
+func PaymentRefContainsFold(v string) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldContainsFold(FieldPaymentRef, v))
+}
+
+// PaymentExpiresAtEQ applies the EQ predicate on the "payment_expires_at" field.
+func PaymentExpiresAtEQ(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentExpiresAt, v))
+}
+
+// PaymentExpiresAtNEQ applies the NEQ predicate on the "payment_expires_at" field.
+func PaymentExpiresAtNEQ(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldPaymentExpiresAt, v))
+}
+
+// PaymentExpiresAtIn applies the In predicate on the "payment_expires_at" field.
+func PaymentExpiresAtIn(vs ...time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldPaymentExpiresAt, vs...))
+}
+
+// PaymentExpiresAtNotIn applies the NotIn predicate on the "payment_expires_at" field.
+func PaymentExpiresAtNotIn(vs ...time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldPaymentExpiresAt, vs...))
+}
+
+// PaymentExpiresAtGT applies the GT predicate on the "payment_expires_at" field.
+func PaymentExpiresAtGT(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGT(FieldPaymentExpiresAt, v))
+}
+
+// PaymentExpiresAtGTE applies the GTE predicate on the "payment_expires_at" field.
+func PaymentExpiresAtGTE(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldPaymentExpiresAt, v))
+}
+
+// PaymentExpiresAtLT applies the LT predicate on the "payment_expires_at" field.
+func PaymentExpiresAtLT(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLT(FieldPaymentExpiresAt, v))
+}
+
+// PaymentExpiresAtLTE applies the LTE predicate on the "payment_expires_at" field.
+func PaymentExpiresAtLTE(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldPaymentExpiresAt, v))
+}
+
+// PaymentExpiresAtIsNil applies the IsNil predicate on the "payment_expires_at" field.
+func PaymentExpiresAtIsNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIsNull(FieldPaymentExpiresAt))
+}
+
+// PaymentExpiresAtNotNil applies the NotNil predicate on the "payment_expires_at" field.
+func PaymentExpiresAtNotNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotNull(FieldPaymentExpiresAt))
+}
+
+// PaymentVerifiedAtEQ applies the EQ predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtEQ(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtNEQ applies the NEQ predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtNEQ(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtIn applies the In predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtIn(vs ...time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldPaymentVerifiedAt, vs...))
+}
+
+// PaymentVerifiedAtNotIn applies the NotIn predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtNotIn(vs ...time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldPaymentVerifiedAt, vs...))
+}
+
+// PaymentVerifiedAtGT applies the GT predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtGT(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGT(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtGTE applies the GTE predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtGTE(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtLT applies the LT predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtLT(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLT(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtLTE applies the LTE predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtLTE(v time.Time) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldPaymentVerifiedAt, v))
+}
+
+// PaymentVerifiedAtIsNil applies the IsNil predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtIsNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIsNull(FieldPaymentVerifiedAt))
+}
+
+// PaymentVerifiedAtNotNil applies the NotNil predicate on the "payment_verified_at" field.
+func PaymentVerifiedAtNotNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotNull(FieldPaymentVerifiedAt))
+}
+
+// PaymentVerifiedByAdminIDEQ applies the EQ predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDEQ(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDNEQ applies the NEQ predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDNEQ(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDIn applies the In predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDIn(vs ...int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIn(FieldPaymentVerifiedByAdminID, vs...))
+}
+
+// PaymentVerifiedByAdminIDNotIn applies the NotIn predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDNotIn(vs ...int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldPaymentVerifiedByAdminID, vs...))
+}
+
+// PaymentVerifiedByAdminIDGT applies the GT predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDGT(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGT(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDGTE applies the GTE predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDGTE(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDLT applies the LT predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDLT(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLT(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDLTE applies the LTE predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDLTE(v int) predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldPaymentVerifiedByAdminID, v))
+}
+
+// PaymentVerifiedByAdminIDIsNil applies the IsNil predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDIsNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldIsNull(FieldPaymentVerifiedByAdminID))
+}
+
+// PaymentVerifiedByAdminIDNotNil applies the NotNil predicate on the "payment_verified_by_admin_id" field.
+func PaymentVerifiedByAdminIDNotNil() predicate.EsportsGiftIntent {
+	return predicate.EsportsGiftIntent(sql.FieldNotNull(FieldPaymentVerifiedByAdminID))
 }
 
 // CreatedByAdminIDEQ applies the EQ predicate on the "created_by_admin_id" field.

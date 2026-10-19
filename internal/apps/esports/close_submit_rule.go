@@ -289,6 +289,25 @@ func segmentSubmitted(segment *ent.EsportsServiceSegment) bool {
 		(segment.ReportedUnits > 0 || strings.TrimSpace(segment.EvidenceRef) != "")
 }
 
+// requireAllSegmentsSubmitted 未配置提交规则时的默认口径（§3.4-01 ③）：
+// 多人单（服务段 > 1）要求每一名陪玩都形成有效上报；单人单沿用既有口径（单段结单条件已覆盖）。
+func requireAllSegmentsSubmitted(segments []*ent.EsportsServiceSegment) error {
+	if len(segments) <= 1 {
+		return nil
+	}
+	missing := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if !segmentSubmitted(segment) {
+			missing = append(missing, strconv.Itoa(segment.SeatIndex))
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%w：多人单未配置提交规则时须逐人上报，第 %s 席尚未上报，无法结单",
+		errInvalidInput, strings.Join(missing, "、"))
+}
+
 // closeSubstituteReport 是客服代提交的一条上报（席位号 + 服务量 + 凭证）。
 type closeSubstituteReport struct {
 	SeatIndex     int    `json:"seat_index"`
@@ -361,20 +380,22 @@ func applySubstituteReports(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 
 // applyCloseSubmitRule 结单时按生效提交规则校验陪玩上报达标情况（§3.4）。
 // 规则允许代提交时先用 substitutes 补填未上报成员再复核；仍未达标按 on_missing 阻塞 / 提醒 / 视为已提交。
+// §3.4-01 ③：未配置任何生效提交规则时，多人单（服务段 > 1）仍要求逐人上报，
+// 避免「没配规则 = 谁都不用上报」把多人单的结单口径放空。
 func applyCloseSubmitRule(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int,
 	substitutes []closeSubstituteReport) error {
 	rule, err := resolveCloseSubmitRule(ctx, tx.Client(), order)
 	if err != nil {
 		return err
 	}
-	if rule == nil {
-		return nil
-	}
 	segments, err := tx.EsportsServiceSegment.Query().Where(
 		esportsservicesegment.OrderIDEQ(order.ID),
 	).Order(ent.Asc(esportsservicesegment.FieldSeatIndex)).All(ctx)
 	if err != nil {
 		return err
+	}
+	if rule == nil {
+		return requireAllSegmentsSubmitted(segments)
 	}
 	required := submitRequiredCount(rule, len(segments))
 	if required == 0 {

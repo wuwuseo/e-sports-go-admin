@@ -23,6 +23,9 @@ func (EsportsSpecGroup) Fields() []ent.Field {
 		field.String("code").NotEmpty().MaxLen(48).Immutable().StructTag(`json:"code"`),
 		field.String("name").NotEmpty().MaxLen(120).StructTag(`json:"name"`),
 		field.JSON("seats", []SeatSpec{}).StructTag(`json:"seats"`),
+		// 规格组级每席承诺服务量（§15.5-01 / §5.3-05）：多人规格固定每席承诺量，
+		// 下单校验 Σ(每席量) × 份数 = 订单 promised_service_units；0=未配置（可回落到 SKU 的同名字段）。
+		field.Int64("per_seat_service_units").Default(0).StructTag(`json:"per_seat_service_units"`),
 		field.Enum("status").Values("enabled", "disabled").Default("enabled").StructTag(`json:"status"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),

@@ -13,8 +13,10 @@ import (
 	"github.com/google/uuid"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsservicesegment"
 )
 
 // 补录单一律写成「已成交」的历史单，因此只允许这两个终态：
@@ -47,6 +49,9 @@ type backfillOrderInput struct {
 	// 陪玩分成与成长值始终正常计提，不受本开关影响；已取消单不允许开启（见 backfillOrder 校验）。
 	// 字段名与管理端提交的 count_cs_commission 一一对应。
 	CountCsCommission bool `json:"count_cs_commission"`
+	// PlayerIDs 补录单的到场陪玩（§3.3-12）：可指定 1..required_seats 名陪玩，补录时按他们生成
+	// 派单席位与服务段骨架，使陪玩分成能正常计提。留空表示不登记成员（历史单没有陪玩记录）。
+	PlayerIDs []int `json:"player_ids,omitempty"`
 	// LegacyCountCommission 是已废弃的字段名（旧管理端曾提交 count_commission）。
 	// 指针只用于识别「字段是否出现」：一旦出现即返回参数错误，绝不再静默当成 false ——
 	// 否则前后端字段名错配会变成「开关点了没用」的隐性财务错误。
@@ -87,11 +92,11 @@ func parseBackfillSettledAt(raw string, now time.Time) (time.Time, error) {
 }
 
 // backfillOrder 管理员补录历史订单（§3.3 / §4.1 / §12.5）。隔离规则：
-// 1. 入口固定 admin_backfill，必须留补录原因 / 补录人 / 补录时刻，写 order.backfilled 事件与外盒审计；
-// 2. 不占 SKU 名额、不创建支付意图与支付回执、不建派单席位（历史单不消耗当期容量）；
-// 3. 陪玩分成与成长值默认正常计提；客服提成默认不计，仅 count_cs_commission=true 时按结单口径同事务计提；
-//    已取消单不计提任何提成（不写结单快照、不分成分成），也不接受 count_cs_commission=true；
-// 4. completed 单写入 closed_at 与 close_net_service_cents 快照，保证后续退款冲回口径正确。
+//  1. 入口固定 admin_backfill，必须留补录原因 / 补录人 / 补录时刻，写 order.backfilled 事件与外盒审计；
+//  2. 不占 SKU 名额、不创建支付意图与支付回执、不建派单席位（历史单不消耗当期容量）；
+//  3. 陪玩分成与成长值默认正常计提；客服提成默认不计，仅 count_cs_commission=true 时按结单口径同事务计提；
+//     已取消单不计提任何提成（不写结单快照、不分成分成），也不接受 count_cs_commission=true；
+//  4. completed 单写入 closed_at 与 close_net_service_cents 快照，保证后续退款冲回口径正确。
 func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfillOrderInput,
 	key string, now time.Time) (*ent.EsportsOrder, error) {
 	// 旧字段名出现即拒绝：宁可让旧页面提交失败并提示刷新，也不能把它静默当成 false 计提错误。
@@ -211,10 +216,17 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 			"reason": in.Reason, "settled_at": settledAt, "payable_cents": payable,
 			"unit_price_cents": unitPrice, "count_cs_commission": in.CountCsCommission,
 			"fulfillment_status": in.FulfillmentStatus,
+			// §3.3-12：记录按哪几名陪玩生成席位 / 服务段骨架，供分成核对。
+			"player_ids": in.PlayerIDs,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
 	if in.FulfillmentStatus == backfillStatusCompleted {
+		// §3.3-12：按指定陪玩生成席位 / 服务段骨架，使陪玩分成可以正常计提。
+		if err = createBackfillMembers(ctx, tx, order, in.PlayerIDs, requiredSeats, promisedUnits,
+			settledAt, adminID); err != nil {
+			return nil, err
+		}
 		// 陪玩分成与成长值默认正常计提（与普通订单一致，§12.5 / §10.2）。
 		if err = accrueOrderCommission(ctx, tx, order, now); err != nil {
 			return nil, err
@@ -256,6 +268,57 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 		return nil, err
 	}
 	return db.EsportsOrder.Get(ctx, order.ID)
+}
+
+// createBackfillMembers 为补录单按指定陪玩生成席位与服务段骨架（§3.3-12）。
+// 补录单不占当期 SKU 名额（历史单不消耗容量），但必须有成员才能计提陪玩分成；
+// 因此只写「已接受席位 + 已结束服务段」的历史事实，不进派单池、不发通知。
+// 未指定陪玩时不做任何事（保持既有「历史单无成员」的口径）。
+func createBackfillMembers(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
+	playerIDs []int, requiredSeats int, promisedUnits int64, settledAt time.Time, adminID int) error {
+	if len(playerIDs) == 0 {
+		return nil
+	}
+	if requiredSeats < 1 {
+		requiredSeats = 1
+	}
+	if len(playerIDs) > requiredSeats {
+		return fmt.Errorf("%w：补录单最多登记 %d 名陪玩（与席位数一致），当前 %d 名",
+			errInvalidInput, requiredSeats, len(playerIDs))
+	}
+	seen := make(map[int]struct{}, len(playerIDs))
+	unitsPerSeat := int64(0)
+	if len(playerIDs) > 0 && promisedUnits > 0 {
+		unitsPerSeat = promisedUnits / int64(len(playerIDs))
+	}
+	for i, playerID := range playerIDs {
+		if playerID < 1 {
+			return fmt.Errorf("%w：补录单登记的陪玩不合法", errInvalidInput)
+		}
+		if _, dup := seen[playerID]; dup {
+			return fmt.Errorf("%w：补录单登记的陪玩重复", errInvalidInput)
+		}
+		seen[playerID] = struct{}{}
+		if _, err := tx.EsportsPlayer.Get(ctx, playerID); err != nil {
+			return fmt.Errorf("%w：补录单登记的陪玩 %d 不存在", errInvalidInput, playerID)
+		}
+		seatIndex := i + 1
+		if _, err := tx.EsportsDispatchSeat.Create().SetOrderID(order.ID).SetSeatIndex(seatIndex).
+			SetPlayerID(playerID).SetSource(esportsdispatchseat.SourceAssign).
+			SetStatus(esportsdispatchseat.StatusAccepted).SetRespondedAt(settledAt).
+			SetInvitedByAdminID(adminID).Save(ctx); err != nil {
+			return err
+		}
+		if _, err := tx.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(playerID).
+			SetSeatIndex(seatIndex).SetStatus(esportsservicesegment.StatusFinished).
+			SetStartedAt(settledAt).SetEndedAt(settledAt).
+			SetReportedUnits(unitsPerSeat).SetSystemSeconds(0).
+			SetEvidenceRef("backfill:" + order.OrderNo).Save(ctx); err != nil {
+			return err
+		}
+	}
+	// 成员登记明细并入既有 order.backfilled 事件（同订单同版本只能有一条事件）。
+	return nil
 }
 
 // existingBackfillOrder 幂等命中时返回既有补录单；请求体不一致视为冲突。

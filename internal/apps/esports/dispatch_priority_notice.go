@@ -78,13 +78,42 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 		return nil
 	}
 	// §5.9：首次进入待派单池的时间点（只写一次，后续回退不覆盖）。
-	if err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstPooled, now); err != nil {
+	firstPooled, err := markOrderTimelineIn(ctx, tx, orderID, timelineFirstPooled, now)
+	if err != nil {
 		return err
 	}
 	// 回到待派单即可重新派单：把此前被拒/过期/撤回的席位统一恢复为 open，
 	// 否则单席订单会因为没有 open 席位而永久卡在待派单。既有席位事件保留历史。
 	if _, err = reopenDeadDispatchSeatsForRedispatch(ctx, tx, order.ID); err != nil {
 		return err
+	}
+	// §5.9-01：「进入待派单池」是独立事件，与「发出邀请」「成员确认」「可以开工」区分开，
+	// 且与 first_pooled_at 一样只写一次。
+	//
+	// 版本占用说明：调用方在本事务内已经/即将用 order.Version+1 登记自己的事件
+	// （如 order.seat_rejected / order.seat_expired / order.payment_verified），
+	// 因此本事件占用 order.Version+2，把 order.Version+1 留给调用方，避免 (order_id, order_version) 唯一索引冲突。
+	if firstPooled {
+		enteredVersion := order.Version + 2
+		changed, err := tx.EsportsOrder.Update().Where(
+			esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
+		).AddVersion(2).Save(ctx)
+		if err != nil {
+			return err
+		}
+		if changed != 1 {
+			return errConflict
+		}
+		if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
+			SetOrderVersion(enteredVersion).SetEventType(orderEnteredPendingDispatchEvent).
+			SetActorType("system").SetActorID("dispatch_pool").
+			SetDetails(map[string]interface{}{"pooled_at": now.UTC()}).Save(ctx); err != nil {
+			return err
+		}
+		// 后续逻辑（开窗 / 释放）必须基于最新版本，重新读取订单。
+		if order, err = tx.EsportsOrder.Get(ctx, orderID); err != nil {
+			return err
+		}
 	}
 	// 客户指定陪玩：客户/客服已明确人选，直接走指派流程，不进入优先通知窗口（§5.4）。
 	if order.PreferredPlayerID != nil && *order.PreferredPlayerID > 0 {
@@ -108,7 +137,7 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 	if game == "" {
 		return nil
 	}
-	playerIDs, err := activePriorityPlayerIDs(ctx, tx, game, now)
+	playerIDs, err := activePriorityPlayerIDs(ctx, tx, game, order, now)
 	if err != nil {
 		return err
 	}
@@ -167,9 +196,15 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 }
 
 // activePriorityPlayerIDs 取某游戏分区当前生效名单里**当前可接单**的陪玩 ID。
-// 开窗前过滤不可接单者：离线、未合格、并发/每日接单上限已满的名单成员不产生通知；
-// 若全部不可接则返回空列表，调用方不开窗，订单按常规待派单流程处理。
-func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string, now time.Time) ([]int, error) {
+// 开窗前逐项按 §5.5 硬性条件过滤：资质、连接正常（在线 + 心跳新鲜度）、游戏分区权限、
+// 技能等级（requiredLevel）与并发/每日接单上限；全部不可接则返回空列表，调用方不开窗，
+// 订单按常规待派单流程处理，避免名单成员收到注定接不了的通知。
+func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string,
+	order *ent.EsportsOrder, now time.Time) ([]int, error) {
+	requiredLevel := ""
+	if order != nil {
+		requiredLevel = order.RequiredLevel.String()
+	}
 	grants, err := tx.EsportsDispatchPriorityGrant.Query().Where(
 		esportsdispatchprioritygrant.GameEQ(game),
 		esportsdispatchprioritygrant.StatusEQ(esportsdispatchprioritygrant.StatusActive),
@@ -203,8 +238,26 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string, now t
 			continue
 		}
 		player := byID[grant.PlayerID]
-		if player == nil || player.Qualification != esportsplayer.QualificationQualified ||
-			player.Presence != esportsplayer.PresenceOnline {
+		if player == nil {
+			continue
+		}
+		// §5.5-01：连接正常（在线 + 心跳新鲜；有在途订单的保护异常陪玩保留资格，§6.4-01）。
+		eligible, err := playerEligibleForDispatch(ctx, tx.Client(), player, now)
+		if err != nil {
+			return nil, err
+		}
+		if !eligible {
+			continue
+		}
+		// §5.4-13 / §5.5-01：游戏分区权限 + 技能等级必须达标，否则不产生注定接不了的通知。
+		if err = checkPlayerGameLevel(player, game, requiredLevel); err != nil {
+			if errors.Is(err, errForbidden) {
+				continue
+			}
+			return nil, err
+		}
+		// §6.4-06：服务时段外 / 可接单价范围外的陪玩不产生优先通知。
+		if !playerServiceSlotAllows(player, now) || !playerAcceptsOrderPrice(player, order) {
 			continue
 		}
 		// 容量粗筛：已满则本次不通知，避免名单成员收到注定接不了的通知。
@@ -442,8 +495,23 @@ func playerNotifiedForOrderTx(ctx context.Context, tx *ent.Tx, orderID, playerID
 	).Exist(ctx)
 }
 
-// listPlayerDispatchNotices 陪玩端的「我的优先通知」：待回应且窗口未结束的通知。
-func listPlayerDispatchNotices(ctx context.Context, db *ent.Client, playerID int, now time.Time) ([]*ent.EsportsDispatchPriorityNotice, error) {
+// dispatchNoticeView 是陪玩端「我的优先通知」的返回体（§5.4-09）：除通知本身外带上订单号、
+// 游戏分区与响应截止时间，陪玩端无需再回查订单即可展示「哪张单、什么分区、何时截止」。
+type dispatchNoticeView struct {
+	ID          int        `json:"id"`
+	OrderID     int        `json:"order_id"`
+	OrderNo     string     `json:"order_no"`
+	Game        string     `json:"game"`
+	Status      string     `json:"status"`
+	NotifiedAt  time.Time  `json:"notified_at"`
+	NoticeUntil *time.Time `json:"notice_until"`
+	// PriorityNoticeUntil 与 NoticeUntil 同值，字段名对齐规格原文（§6.1-06 的
+	// 「通知截止时间 priority_notice_until」），供按规格命名的客户端直接取用。
+	PriorityNoticeUntil *time.Time `json:"priority_notice_until"`
+}
+
+// listPlayerDispatchNotices 陪玩端的「我的优先通知」：待回应且窗口未结束的通知（带订单号与截止时间）。
+func listPlayerDispatchNotices(ctx context.Context, db *ent.Client, playerID int, now time.Time) ([]*dispatchNoticeView, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
 	}
@@ -458,15 +526,29 @@ func listPlayerDispatchNotices(ctx context.Context, db *ent.Client, playerID int
 	for _, row := range rows {
 		orderIDs = append(orderIDs, row.OrderID)
 	}
-	open, err := openWindowOrderIDs(ctx, db, orderIDs, now)
+	orders, err := db.EsportsOrder.Query().Where(esportsorder.IDIn(orderIDs...)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
-	items := make([]*ent.EsportsDispatchPriorityNotice, 0, len(rows))
+	byID := make(map[int]*ent.EsportsOrder, len(orders))
+	for _, order := range orders {
+		byID[order.ID] = order
+	}
+	items := make([]*dispatchNoticeView, 0, len(rows))
 	for _, row := range rows {
-		if open[row.OrderID] {
-			items = append(items, row)
+		order := byID[row.OrderID]
+		if order == nil || !dispatchPriorityWindowOpen(order, now) {
+			continue
 		}
+		game := row.Game
+		if game == "" {
+			game = order.PriorityGame
+		}
+		items = append(items, &dispatchNoticeView{
+			ID: row.ID, OrderID: row.OrderID, OrderNo: order.OrderNo, Game: game,
+			Status: row.Status.String(), NotifiedAt: row.NotifiedAt,
+			NoticeUntil: order.PriorityNoticeUntil, PriorityNoticeUntil: order.PriorityNoticeUntil,
+		})
 	}
 	return items, nil
 }

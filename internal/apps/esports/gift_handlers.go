@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -332,4 +333,187 @@ func giftLeaderboardHandler(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	return reply(c, rows)
+}
+
+// giftTierView 是礼物价格档位的对外返回结构（§9.1-02）。
+type giftTierView struct {
+	ID         int       `json:"id"`
+	GiftID     int       `json:"gift_id"`
+	TierCode   string    `json:"tier_code"`
+	Name       string    `json:"name"`
+	PriceCents int64     `json:"price_cents"`
+	HighValue  bool      `json:"high_value"`
+	RequireAge bool      `json:"require_age"`
+	IsDefault  bool      `json:"is_default"`
+	SortOrder  int       `json:"sort_order"`
+	Status     string    `json:"status"`
+	Version    int       `json:"version"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+func toGiftTierView(item *ent.EsportsGiftTier) giftTierView {
+	return giftTierView{
+		ID: item.ID, GiftID: item.GiftID, TierCode: item.TierCode, Name: item.Name,
+		PriceCents: item.PriceCents, HighValue: item.HighValue, RequireAge: item.RequireAge,
+		IsDefault: item.IsDefault, SortOrder: item.SortOrder,
+		Status: item.Status.String(), Version: item.Version,
+		CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
+	}
+}
+
+// giftTierListHandler 礼物的价格档位列表（§9.1-02）。
+func giftTierListHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	giftID, err := parsePathID(c, "礼物")
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := listGiftTiers(c.Context(), global.ORM, giftID, c.Query("status"))
+	if err != nil {
+		return businessError(c, err)
+	}
+	views := make([]giftTierView, 0, len(items))
+	for _, item := range items {
+		views = append(views, toGiftTierView(item))
+	}
+	return reply(c, views)
+}
+
+// createGiftTierHandler 新建礼物价格档位（§9.1-02）。
+func createGiftTierHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	giftID, err := parsePathID(c, "礼物")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in giftTierInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	in.GiftID = giftID
+	item, err := createGiftTier(c.Context(), global.ORM, in)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, toGiftTierView(item))
+}
+
+// updateGiftTierHandler 编辑价格档位（§9.1-02）；gift_id / tier_code 不可改。
+func updateGiftTierHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "礼物档位")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		giftTierInput
+		ExpectedVersion int `json:"expected_version"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := updateGiftTier(c.Context(), global.ORM, id, in.ExpectedVersion, in.giftTierInput)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, toGiftTierView(item))
+}
+
+// deleteGiftTierHandler 删除价格档位（§9.1-02）：已被礼物单引用时只能停用。
+func deleteGiftTierHandler(c fiber.Ctx) error {
+	if _, err := requireAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "礼物档位")
+	if err != nil {
+		return businessError(c, err)
+	}
+	if err := deleteGiftTier(c.Context(), global.ORM, id, queryInt(c, "expected_version")); err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, map[string]any{"id": id, "deleted": true})
+}
+
+// startGiftPaymentHandler 对礼物确认单发起收款（§9.2-01）：未开通渠道明确失败。
+func startGiftPaymentHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "礼物确认单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in giftPaymentStartInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	view, err := startGiftPayment(c.Context(), global.ORM, adminID, isSuper, id, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
+}
+
+// verifyGiftPaymentHandler 财务核销礼物收款并成单（§9.2-01）：发起人不得自审。
+func verifyGiftPaymentHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "礼物确认单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in giftPaymentVerifyInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	order, err := verifyGiftPayment(c.Context(), global.ORM, adminID, isSuper, id, in, time.Now())
+	if errors.Is(err, errGiftPaymentRejected) {
+		return reply(c, map[string]any{"intent_id": id, "payment_status": "failed"})
+	}
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
+// giftPaymentNotifyHandler 在线渠道回调核销礼物收款（§9.2-01，AuthPublic）：
+// 请求体为原始字节（验签依据），通道与签名从请求头 / 查询串取。
+func giftPaymentNotifyHandler(c fiber.Ctx) error {
+	channel := c.Query("channel")
+	if channel == "" {
+		channel = c.Get("X-Pay-Channel")
+	}
+	signature := c.Get("X-Pay-Signature")
+	body := c.Body()
+	order, err := handleGiftPaymentNotification(c.Context(), global.ORM, channel, body, signature, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
+// userPlayerGiftRecordsHandler 陪玩端收礼记录与本人榜单排名（§6.1-14）。
+func userPlayerGiftRecordsHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	period := c.Query("period")
+	if period == "" {
+		period = "daily"
+	}
+	view, err := listPlayerGiftRecords(c.Context(), global.ORM, uid, period, time.Now(), queryLimit(c, 20))
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
 }

@@ -56,6 +56,34 @@ func (_c *EsportsLedgerEntryCreate) SetDeltaCents(v int64) *EsportsLedgerEntryCr
 	return _c
 }
 
+// SetPrincipalDeltaCents sets the "principal_delta_cents" field.
+func (_c *EsportsLedgerEntryCreate) SetPrincipalDeltaCents(v int64) *EsportsLedgerEntryCreate {
+	_c.mutation.SetPrincipalDeltaCents(v)
+	return _c
+}
+
+// SetNillablePrincipalDeltaCents sets the "principal_delta_cents" field if the given value is not nil.
+func (_c *EsportsLedgerEntryCreate) SetNillablePrincipalDeltaCents(v *int64) *EsportsLedgerEntryCreate {
+	if v != nil {
+		_c.SetPrincipalDeltaCents(*v)
+	}
+	return _c
+}
+
+// SetBonusDeltaCents sets the "bonus_delta_cents" field.
+func (_c *EsportsLedgerEntryCreate) SetBonusDeltaCents(v int64) *EsportsLedgerEntryCreate {
+	_c.mutation.SetBonusDeltaCents(v)
+	return _c
+}
+
+// SetNillableBonusDeltaCents sets the "bonus_delta_cents" field if the given value is not nil.
+func (_c *EsportsLedgerEntryCreate) SetNillableBonusDeltaCents(v *int64) *EsportsLedgerEntryCreate {
+	if v != nil {
+		_c.SetBonusDeltaCents(*v)
+	}
+	return _c
+}
+
 // SetFundBatch sets the "fund_batch" field.
 func (_c *EsportsLedgerEntryCreate) SetFundBatch(v string) *EsportsLedgerEntryCreate {
 	_c.mutation.SetFundBatch(v)
@@ -121,6 +149,14 @@ func (_c *EsportsLedgerEntryCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *EsportsLedgerEntryCreate) defaults() error {
+	if _, ok := _c.mutation.PrincipalDeltaCents(); !ok {
+		v := esportsledgerentry.DefaultPrincipalDeltaCents
+		_c.mutation.SetPrincipalDeltaCents(v)
+	}
+	if _, ok := _c.mutation.BonusDeltaCents(); !ok {
+		v := esportsledgerentry.DefaultBonusDeltaCents
+		_c.mutation.SetBonusDeltaCents(v)
+	}
 	if _, ok := _c.mutation.FundBatch(); !ok {
 		v := esportsledgerentry.DefaultFundBatch
 		_c.mutation.SetFundBatch(v)
@@ -179,6 +215,12 @@ func (_c *EsportsLedgerEntryCreate) check() error {
 	}
 	if _, ok := _c.mutation.DeltaCents(); !ok {
 		return &ValidationError{Name: "delta_cents", err: errors.New(`ent: missing required field "EsportsLedgerEntry.delta_cents"`)}
+	}
+	if _, ok := _c.mutation.PrincipalDeltaCents(); !ok {
+		return &ValidationError{Name: "principal_delta_cents", err: errors.New(`ent: missing required field "EsportsLedgerEntry.principal_delta_cents"`)}
+	}
+	if _, ok := _c.mutation.BonusDeltaCents(); !ok {
+		return &ValidationError{Name: "bonus_delta_cents", err: errors.New(`ent: missing required field "EsportsLedgerEntry.bonus_delta_cents"`)}
 	}
 	if _, ok := _c.mutation.FundBatch(); !ok {
 		return &ValidationError{Name: "fund_batch", err: errors.New(`ent: missing required field "EsportsLedgerEntry.fund_batch"`)}
@@ -240,6 +282,14 @@ func (_c *EsportsLedgerEntryCreate) createSpec() (*EsportsLedgerEntry, *sqlgraph
 	if value, ok := _c.mutation.DeltaCents(); ok {
 		_spec.SetField(esportsledgerentry.FieldDeltaCents, field.TypeInt64, value)
 		_node.DeltaCents = value
+	}
+	if value, ok := _c.mutation.PrincipalDeltaCents(); ok {
+		_spec.SetField(esportsledgerentry.FieldPrincipalDeltaCents, field.TypeInt64, value)
+		_node.PrincipalDeltaCents = value
+	}
+	if value, ok := _c.mutation.BonusDeltaCents(); ok {
+		_spec.SetField(esportsledgerentry.FieldBonusDeltaCents, field.TypeInt64, value)
+		_node.BonusDeltaCents = value
 	}
 	if value, ok := _c.mutation.FundBatch(); ok {
 		_spec.SetField(esportsledgerentry.FieldFundBatch, field.TypeString, value)

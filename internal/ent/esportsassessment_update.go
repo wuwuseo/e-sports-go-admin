@@ -268,6 +268,26 @@ func (_u *EsportsAssessmentUpdate) ClearCreatedByAdminID() *EsportsAssessmentUpd
 	return _u
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (_u *EsportsAssessmentUpdate) SetActiveDedupKey(v string) *EsportsAssessmentUpdate {
+	_u.mutation.SetActiveDedupKey(v)
+	return _u
+}
+
+// SetNillableActiveDedupKey sets the "active_dedup_key" field if the given value is not nil.
+func (_u *EsportsAssessmentUpdate) SetNillableActiveDedupKey(v *string) *EsportsAssessmentUpdate {
+	if v != nil {
+		_u.SetActiveDedupKey(*v)
+	}
+	return _u
+}
+
+// ClearActiveDedupKey clears the value of the "active_dedup_key" field.
+func (_u *EsportsAssessmentUpdate) ClearActiveDedupKey() *EsportsAssessmentUpdate {
+	_u.mutation.ClearActiveDedupKey()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsAssessmentUpdate) SetVersion(v int) *EsportsAssessmentUpdate {
 	_u.mutation.ResetVersion()
@@ -373,6 +393,11 @@ func (_u *EsportsAssessmentUpdate) check() error {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.note": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ActiveDedupKey(); ok {
+		if err := esportsassessment.ActiveDedupKeyValidator(v); err != nil {
+			return &ValidationError{Name: "active_dedup_key", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.active_dedup_key": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -453,6 +478,12 @@ func (_u *EsportsAssessmentUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if _u.mutation.CreatedByAdminIDCleared() {
 		_spec.ClearField(esportsassessment.FieldCreatedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ActiveDedupKey(); ok {
+		_spec.SetField(esportsassessment.FieldActiveDedupKey, field.TypeString, value)
+	}
+	if _u.mutation.ActiveDedupKeyCleared() {
+		_spec.ClearField(esportsassessment.FieldActiveDedupKey, field.TypeString)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsassessment.FieldVersion, field.TypeInt, value)
@@ -723,6 +754,26 @@ func (_u *EsportsAssessmentUpdateOne) ClearCreatedByAdminID() *EsportsAssessment
 	return _u
 }
 
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (_u *EsportsAssessmentUpdateOne) SetActiveDedupKey(v string) *EsportsAssessmentUpdateOne {
+	_u.mutation.SetActiveDedupKey(v)
+	return _u
+}
+
+// SetNillableActiveDedupKey sets the "active_dedup_key" field if the given value is not nil.
+func (_u *EsportsAssessmentUpdateOne) SetNillableActiveDedupKey(v *string) *EsportsAssessmentUpdateOne {
+	if v != nil {
+		_u.SetActiveDedupKey(*v)
+	}
+	return _u
+}
+
+// ClearActiveDedupKey clears the value of the "active_dedup_key" field.
+func (_u *EsportsAssessmentUpdateOne) ClearActiveDedupKey() *EsportsAssessmentUpdateOne {
+	_u.mutation.ClearActiveDedupKey()
+	return _u
+}
+
 // SetVersion sets the "version" field.
 func (_u *EsportsAssessmentUpdateOne) SetVersion(v int) *EsportsAssessmentUpdateOne {
 	_u.mutation.ResetVersion()
@@ -841,6 +892,11 @@ func (_u *EsportsAssessmentUpdateOne) check() error {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.note": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ActiveDedupKey(); ok {
+		if err := esportsassessment.ActiveDedupKeyValidator(v); err != nil {
+			return &ValidationError{Name: "active_dedup_key", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.active_dedup_key": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -938,6 +994,12 @@ func (_u *EsportsAssessmentUpdateOne) sqlSave(ctx context.Context) (_node *Espor
 	}
 	if _u.mutation.CreatedByAdminIDCleared() {
 		_spec.ClearField(esportsassessment.FieldCreatedByAdminID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.ActiveDedupKey(); ok {
+		_spec.SetField(esportsassessment.FieldActiveDedupKey, field.TypeString, value)
+	}
+	if _u.mutation.ActiveDedupKeyCleared() {
+		_spec.ClearField(esportsassessment.FieldActiveDedupKey, field.TypeString)
 	}
 	if value, ok := _u.mutation.Version(); ok {
 		_spec.SetField(esportsassessment.FieldVersion, field.TypeInt, value)

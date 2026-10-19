@@ -45,6 +45,8 @@ type EsportsAssessment struct {
 	Note string `json:"note"`
 	// CreatedByAdminID holds the value of the "created_by_admin_id" field.
 	CreatedByAdminID *int `json:"created_by_admin_id"`
+	// ActiveDedupKey holds the value of the "active_dedup_key" field.
+	ActiveDedupKey *string `json:"active_dedup_key,omitempty"`
 	// Version holds the value of the "version" field.
 	Version int `json:"version"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -61,7 +63,7 @@ func (*EsportsAssessment) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsassessment.FieldID, esportsassessment.FieldPlayerID, esportsassessment.FieldExaminerAdminID, esportsassessment.FieldTotalScore, esportsassessment.FieldCreatedByAdminID, esportsassessment.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsassessment.FieldTaskNo, esportsassessment.FieldAssessmentType, esportsassessment.FieldTargetLevel, esportsassessment.FieldStatus, esportsassessment.FieldAppealStatus, esportsassessment.FieldSource, esportsassessment.FieldNote:
+		case esportsassessment.FieldTaskNo, esportsassessment.FieldAssessmentType, esportsassessment.FieldTargetLevel, esportsassessment.FieldStatus, esportsassessment.FieldAppealStatus, esportsassessment.FieldSource, esportsassessment.FieldNote, esportsassessment.FieldActiveDedupKey:
 			values[i] = new(sql.NullString)
 		case esportsassessment.FieldScheduledAt, esportsassessment.FieldContactedAt, esportsassessment.FieldScoredAt, esportsassessment.FieldCreatedAt, esportsassessment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -175,6 +177,13 @@ func (_m *EsportsAssessment) assignValues(columns []string, values []any) error 
 				_m.CreatedByAdminID = new(int)
 				*_m.CreatedByAdminID = int(value.Int64)
 			}
+		case esportsassessment.FieldActiveDedupKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field active_dedup_key", values[i])
+			} else if value.Valid {
+				_m.ActiveDedupKey = new(string)
+				*_m.ActiveDedupKey = value.String
+			}
 		case esportsassessment.FieldVersion:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field version", values[i])
@@ -279,6 +288,11 @@ func (_m *EsportsAssessment) String() string {
 	if v := _m.CreatedByAdminID; v != nil {
 		builder.WriteString("created_by_admin_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ActiveDedupKey; v != nil {
+		builder.WriteString("active_dedup_key=")
+		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
 	builder.WriteString("version=")

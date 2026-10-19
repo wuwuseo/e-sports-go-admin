@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -196,8 +197,12 @@ func deletePageAssetHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"id": id})
 }
 
-// publicPage 是客户端读取入口（AuthPublic，§16.5）：只返回已发布配置，
-// 不含任何个人数据或动态参数。
+// publicPage 是客户端读取入口（AuthPublic，§16.5）：只返回已发布配置，不含任何个人数据或动态参数。
+//
+// 第 4 轮补齐（§16.4-06）：
+//   - capab 声明客户端支持的组件类型；不兼容时回退最近有效版本，再不行回系统默认模板；
+//   - version_no / If-None-Match 命中同一版本时返回 304，不再重复全量下发；
+//   - 下发前剔除已过有效期的组件与轮播项（§16.3-02/03/08），并附带底部导航（§16.3-12）。
 func publicPage(c fiber.Ctx) error {
 	channel := strings.TrimSpace(c.Query("channel"))
 	if channel == "" {
@@ -206,9 +211,159 @@ func publicPage(c fiber.Ctx) error {
 	if len(channel) > 48 {
 		return businessError(c, errInvalidInput)
 	}
-	config, versionNo, err := publishedPageConfig(c.Context(), global.ORM, channel)
+	rawCapab, hasCapab := c.Queries()["capab"]
+	caps := pageCapabilities(rawCapab, hasCapab)
+	snapshot, err := pageSnapshotForClient(c.Context(), global.ORM, channel, caps, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, fiber.Map{"channel": channel, "version_no": versionNo, "config": config})
+	etag := pageSnapshotETag(snapshot)
+	if strings.TrimSpace(c.Get("If-None-Match")) == etag ||
+		(parseQueryInt(c.Query("version_no")) == snapshot.VersionNo && snapshot.VersionNo > 0) {
+		c.Set("ETag", etag)
+		c.Set("X-Page-Version", strconv.Itoa(snapshot.VersionNo))
+		return c.Status(fiber.StatusNotModified).Send(nil)
+	}
+	cfg, err := decodePageConfig(snapshot.Config)
+	if err != nil {
+		return businessError(c, err)
+	}
+	cfg = filterExpiredPageConfig(cfg, time.Now())
+	tabbar, err := pageTabbarFromConfig(snapshot.Config)
+	if err != nil {
+		return businessError(c, err)
+	}
+	c.Set("ETag", etag)
+	c.Set("X-Page-Version", strconv.Itoa(snapshot.VersionNo))
+	return reply(c, fiber.Map{
+		"channel": channel, "version_no": snapshot.VersionNo,
+		"current_version_no": snapshot.CurrentVersionNo,
+		"compatible":         snapshot.Compatible, "fallback": snapshot.Fallback,
+		"config": pageConfigToMap(cfg), "tabbar": visiblePageTabbar(tabbar),
+	})
+}
+
+// pageSnapshotETag 生成快照的缓存标识：版本号相同即内容相同（版本快照不可变）。
+func pageSnapshotETag(snapshot *pageSnapshot) string {
+	return fmt.Sprintf(`"page-%s-%d"`, snapshot.Channel, snapshot.VersionNo)
+}
+
+// parseQueryInt 宽松解析查询参数中的整数（非法 / 缺失返回 0）。
+func parseQueryInt(raw string) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return 0
+	}
+	return value
+}
+
+// publicPagePreview 设备预览码兑换入口（AuthPublic，§16.4-02）：只回草稿配置，不含个人数据。
+// 需在 app.go 接线：{Method: "GET", Path: "/page/preview/:code", Auth: cmfapp.AuthPublic, Handler: publicPagePreview}
+func publicPagePreview(c fiber.Ctx) error {
+	config, versionNo, err := resolvePagePreviewCode(c.Context(), global.ORM, c.Params("code"), time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	cfg, err := decodePageConfig(config)
+	if err != nil {
+		return businessError(c, err)
+	}
+	cfg = filterExpiredPageConfig(cfg, time.Now())
+	tabbar, err := pageTabbarFromConfig(config)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, fiber.Map{
+		"channel": cfgChannelHint(config, c.Query("channel")), "draft_version": versionNo,
+		"preview": true, "config": pageConfigToMap(cfg), "tabbar": visiblePageTabbar(tabbar),
+	})
+}
+
+// cfgChannelHint 返回预览配置对应的渠道（预览码内已含渠道，这里只做回显）。
+func cfgChannelHint(_ map[string]interface{}, fallback string) string {
+	return fallback
+}
+
+// issuePagePreviewCodeHandler 生成设备预览码（§16.4-02，管理端）。
+// 需在 app.go 接线 + PermAPI：
+//
+//	POST /admin/pages/:channel/preview-code → issuePagePreviewCodeHandler
+//	PermAPI Code: "esports:pages:preview_code"，Path: "/api/v1/esports/admin/pages/{channel}/preview-code"
+func issuePagePreviewCodeHandler(c fiber.Ctx) error {
+	if _, err := requestAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	view, err := issuePagePreviewCode(c.Context(), global.ORM, c.Params("channel"), time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
+}
+
+// savePageTabbarHandler 保存底部导航文案 / 图标（§16.3-12，管理端）。
+// 需在 app.go 接线 + PermAPI：
+//
+//	PUT /admin/pages/:channel/tabbar → savePageTabbarHandler
+//	PermAPI Code: "esports:pages:tabbar_update"，Path: "/api/v1/esports/admin/pages/{channel}/tabbar"
+func savePageTabbarHandler(c fiber.Ctx) error {
+	admin, err := requestAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in struct {
+		Items           []pageTabbarItem `json:"items"`
+		ExpectedVersion int              `json:"expected_version"`
+	}
+	if err = c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	doc, err := savePageTabbar(c.Context(), global.ORM, c.Params("channel"), admin.ID, in.ExpectedVersion, in.Items)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, doc)
+}
+
+// pageAssetUsagesHandler 素材被引用位置反查（§16.2-06，管理端）。
+// 需在 app.go 接线 + PermAPI：
+//
+//	GET /admin/page-assets/:id/usages → pageAssetUsagesHandler
+//	PermAPI Code: "esports:pages:asset_usages"，Path: "/api/v1/esports/admin/page-assets/{id}/usages"
+func pageAssetUsagesHandler(c fiber.Ctx) error {
+	if _, err := requestAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil || id < 1 {
+		return fail(c, fiber.StatusBadRequest, "素材 ID 无效")
+	}
+	view, err := pageAssetUsageView(c.Context(), global.ORM, id)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
+}
+
+// adminPageTabbar 读取当前渠道的底部导航（未装修时回系统默认），供管理端面板回显。
+func adminPageTabbar(c fiber.Ctx) error {
+	if _, err := requestAdmin(c); err != nil {
+		return businessError(c, err)
+	}
+	channel := strings.TrimSpace(c.Params("channel"))
+	if channel == "" || len(channel) > 48 {
+		return businessError(c, errInvalidInput)
+	}
+	doc, err := global.ORM.EsportsPageDocument.Query().
+		Where(esportspagedocument.ChannelEQ(channel)).Only(c.Context())
+	if ent.IsNotFound(err) {
+		return reply(c, fiber.Map{"channel": channel, "draft_version": 0, "items": defaultPageTabbar()})
+	}
+	if err != nil {
+		return businessError(c, err)
+	}
+	items, err := pageTabbarFromConfig(doc.DraftConfig)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, fiber.Map{"channel": channel, "draft_version": doc.DraftVersion, "items": items})
 }

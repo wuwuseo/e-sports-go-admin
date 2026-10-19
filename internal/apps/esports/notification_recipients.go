@@ -65,8 +65,14 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 		return nil, errNotificationRecipientMissing
 	}
 	switch {
+	case eventType == "order.priority_notice":
+		// §5.4-09：优先接单通知只投给被通知的名单内陪玩本人（绝不放宽为通用 order.* 收件人）。
+		return resolvePlayerPayloadRecipients(payload)
+	case eventType == "order.grab_attempt_lost":
+		// §5.6-04：落败抢单只定向通知本人，避免把「抢单未成功」广播给客户与客服。
+		return resolvePlayerPayloadRecipients(payload)
 	case strings.HasPrefix(eventType, "order."):
-		return resolveOrderNotificationRecipients(ctx, db, aggregateRef, payload)
+		return resolveOrderNotificationRecipients(ctx, db, eventType, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "aftersale."):
 		return resolveAfterSaleNotificationRecipients(ctx, db, aggregateRef, payload)
 	case eventType == "dispatch.remind_admin":
@@ -76,9 +82,18 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 	case eventType == "dispatch.service_overtime":
 		// §5.7 服务超时提醒客服确认是否加钟。
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
+	case eventType == "dispatch.auto_pool_release":
+		// §5.1-05 客服离线 / 积压自动转公共池：定向通知原负责客服。
+		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
+	case strings.HasPrefix(eventType, "dispatch.escalation_"):
+		// §5.9-06 派单逐级升级：定向通知责任客服。
+		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
 	case eventType == "service.duration_mismatch":
 		// §6.2-03 服务时长差异过大提醒客服核实。
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
+	case strings.HasPrefix(eventType, "settlement."):
+		// §6.1-15 服务段结束进入待结算：定向通知该陪玩。
+		return resolvePlayerPayloadRecipients(payload)
 	case strings.HasPrefix(eventType, "payment."):
 		return resolvePaymentNotificationRecipients(ctx, db, eventType, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "gift."):
@@ -93,7 +108,20 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 	return nil, errNotificationRecipientMissing
 }
 
-func resolveOrderNotificationRecipients(ctx context.Context, db *ent.Client, aggregateRef string, payload map[string]interface{}) ([]notificationRecipient, error) {
+// resolvePlayerPayloadRecipients 解析「载荷里已带 player_id」的定向单播事件（§5.4-09 / §5.6-04 / §6.1-15）：
+// 取不到 player_id 时返回 errNotificationRecipientMissing，由外盒退避重试直至 dead，
+// 绝不降级成客户 / 客服 / 全员广播。
+func resolvePlayerPayloadRecipients(payload map[string]interface{}) ([]notificationRecipient, error) {
+	playerID := payloadInt(payload, "player_id")
+	if playerID < 1 {
+		return nil, errNotificationRecipientMissing
+	}
+	set := newNotificationRecipientSet()
+	set.addPlayer(playerID, notificationRolePlayer)
+	return set.result()
+}
+
+func resolveOrderNotificationRecipients(ctx context.Context, db *ent.Client, eventType, aggregateRef string, payload map[string]interface{}) ([]notificationRecipient, error) {
 	order, err := findNotificationOrder(ctx, db, aggregateRef, payload)
 	if err != nil {
 		return nil, err
@@ -106,9 +134,14 @@ func resolveOrderNotificationRecipients(ctx context.Context, db *ent.Client, agg
 	if order.ResponsibleAdminID != nil {
 		set.addAdmin(ctx, db, *order.ResponsibleAdminID, notificationRoleAdmin)
 	}
+	// §6.1-15：接单邀请必须同时触达「待回应（invited）席位」的陪玩；其余 order.* 事件仍只带已接单成员。
+	statuses := []esportsdispatchseat.Status{esportsdispatchseat.StatusAccepted}
+	if eventType == "order.seat_invited" {
+		statuses = append(statuses, esportsdispatchseat.StatusInvited)
+	}
 	seats, err := db.EsportsDispatchSeat.Query().Where(
 		esportsdispatchseat.OrderIDEQ(order.ID),
-		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusAccepted),
+		esportsdispatchseat.StatusIn(statuses...),
 		esportsdispatchseat.PlayerIDNotNil(),
 	).Order(ent.Asc(esportsdispatchseat.FieldSeatIndex)).All(ctx)
 	if err != nil {
@@ -118,6 +151,10 @@ func resolveOrderNotificationRecipients(ctx context.Context, db *ent.Client, agg
 		if seat.PlayerID != nil {
 			set.addPlayer(*seat.PlayerID, notificationRolePlayer)
 		}
+	}
+	// 邀请事件若未落席位陪玩（例如载荷自带 player_id 的历史事件），用载荷兜底补齐。
+	if eventType == "order.seat_invited" {
+		set.addPlayer(payloadInt(payload, "player_id"), notificationRolePlayer)
 	}
 	return set.result()
 }

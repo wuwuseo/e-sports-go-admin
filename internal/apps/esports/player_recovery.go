@@ -168,6 +168,8 @@ func executePlayerRecovery(ctx context.Context, db *ent.Client, id, adminID int,
 		SetEntryType(esportswallettx.EntryTypeAdjust).
 		SetPrincipalDeltaCents(-item.AmountCents).
 		SetSourceType("player_recovery").SetSourceID(item.RecoveryNo).
+		SetBeneficiaryType(esportswallettx.BeneficiaryTypePlayer).SetBeneficiaryID(item.PlayerID).
+		SetBalanceBeforeCents(balance.total()).SetBalanceAfterCents(balance.total() - item.AmountCents).
 		SetOperatorID(adminID).SetNote("陪玩追偿扣回").Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {

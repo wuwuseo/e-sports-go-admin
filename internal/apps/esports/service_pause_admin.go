@@ -97,7 +97,14 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return playerServiceTiming{}, err
 	}
-	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
+	// §6.2-02：暂停要求订单在服务中；恢复额外允许订单已因「记名停工」进入待结单
+	// （客服误操作或陪玩重新联系上后可回退到服务中），避免整单被永久卡在待结单。
+	if pause {
+		if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
+			return playerServiceTiming{}, errConflict
+		}
+	} else if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService &&
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose {
 		return playerServiceTiming{}, errConflict
 	}
 	// 服务段是订单服务成员的信用锚点：找不到服务段即非本单成员。
@@ -132,6 +139,17 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 		}).Save(ctx); err != nil {
 		return playerServiceTiming{}, err
 	}
+	// §6.2-02：客服记名停工后按剩余履约量判定整单是否进入待结单。
+	if pause {
+		if _, err = transitionToPendingCloseOnAdminStop(ctx, tx, orderID, newVersion, adminID, now); err != nil {
+			return playerServiceTiming{}, err
+		}
+	} else if order.FulfillmentStatus == esportsorder.FulfillmentStatusPendingClose {
+		// 恢复：整单从待结单回到服务中（服务段已复为 in_service）。
+		if _, err = bumpOrder(ctx, tx, orderID, newVersion, esportsorder.FulfillmentStatusInService); err != nil {
+			return playerServiceTiming{}, err
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		return playerServiceTiming{}, err
 	}
@@ -139,7 +157,12 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 	if err != nil {
 		return playerServiceTiming{}, err
 	}
-	return serviceTimingAt(segment, now), nil
+	// §6.2-04：代暂停/恢复的响应同样带逐成员履约量与订单级仍需履约量。
+	_, _, summary, err := loadOrderFulfillment(ctx, db, orderID)
+	if err != nil {
+		return playerServiceTiming{}, err
+	}
+	return serviceTimingView(segment, order, summary, now), nil
 }
 
 // correctServiceTiming 争议更正（§3.3）：管理员对已结束服务段的有效 / 暂停秒数做留痕更正，并登记停工量
@@ -223,6 +246,11 @@ func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID,
 		SetOrderVersion(newVersion).SetEventType("order.service_timing_corrected").
 		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
 		SetDetails(details).Save(ctx); err != nil {
+		return serviceTimingCorrection{}, err
+	}
+	// §6.2-02：登记停工量 / 责任方后同样按剩余履约量判定整单是否进入待结单
+	// （若全部席位已结束，结单路径已经推进过，此处为幂等的补充判定）。
+	if _, err = transitionToPendingCloseOnAdminStop(ctx, tx, orderID, newVersion, adminID, now); err != nil {
 		return serviceTimingCorrection{}, err
 	}
 	if err = tx.Commit(); err != nil {

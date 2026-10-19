@@ -41,5 +41,15 @@ func CronSeeds() []CronSeed {
 		{"esports_expire_recharge_intents", "0 */5 * * * *", "充值支付意图过期（§4.5）"},
 		{"esports_deliver_outbox", "0 * * * * *", "事务外盒事件投递与失败重试（§2.1）"},
 		{"esports_deliver_notifications", "0 * * * * *", "关键通知定向投递与失败待办（§2.1）"},
+		{"esports_auto_trigger_upgrade_assessments", "0 25 * * * *", "达标陪玩自动生成升级考核单（§7.1/§7.2）"},
+		{"esports_auto_transfer_backlog_orders", "0 * * * * *", "客服离线/订单积压自动转公共池（§5.1-05）"},
+		{"esports_scan_dispatch_escalations", "0 * * * * *", "派单三类逐级升级与多席缺员自动补位（§5.9-06/§5.3-06）"},
+		{"esports_scan_aftersale_rules", "0 * * * * *", "按规则扫描结单后金额/时长异常并建 channel=system 售后单（§13.2-05）"},
+		{"esports_scan_close_deadline", "0 */10 * * * *", "结单时限超时进客服与管理员待办（§2.1-09）"},
+		{"esports_expire_appointment_confirmations", "0 * * * * *", "档期确认过期置待处置并提供退还/改期（§3.2-04/§5.5-06）"},
+		{"esports_generate_spot_checks", "0 0 * * * *", "按周期与抽取比例生成随机抽查任务（§7.1-03）"},
+		{"esports_run_player_level_review", "0 30 3 * * *", "陪玩等级定期复核，连续不达标降一档（§7.3-02）"},
+		{"esports_detect_review_brushing", "0 */5 * * * *", "异常刷评自动识别与留痕（§7.5-05）"},
+		{"esports_schedule_repurchase_follow_ups", "0 15 10 * * *", "结单后复购跟进待办兜底（§14-01）"},
 	}
 }

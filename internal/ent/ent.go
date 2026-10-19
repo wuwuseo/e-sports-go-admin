@@ -20,7 +20,10 @@ import (
 	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsaftersaleaction"
+	"go-admin/internal/ent/esportsaftersalemessage"
 	"go-admin/internal/ent/esportsaftersalereview"
+	"go-admin/internal/ent/esportsaftersalerule"
+	"go-admin/internal/ent/esportsaftersalerulehit"
 	"go-admin/internal/ent/esportsagecheck"
 	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsassessmentappeal"
@@ -38,6 +41,7 @@ import (
 	"go-admin/internal/ent/esportsconfirmation"
 	"go-admin/internal/ent/esportscscommissionentry"
 	"go-admin/internal/ent/esportscscommissionrule"
+	"go-admin/internal/ent/esportscspresence"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportscustomerfollowup"
 	"go-admin/internal/ent/esportsdispatchprioritygrant"
@@ -49,6 +53,7 @@ import (
 	"go-admin/internal/ent/esportsgiftdispute"
 	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsgiftorder"
+	"go-admin/internal/ent/esportsgifttier"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsidempotency"
 	"go-admin/internal/ent/esportsidentitybinding"
@@ -74,6 +79,7 @@ import (
 	"go-admin/internal/ent/esportsplayeridentity"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
+	"go-admin/internal/ent/esportsplayerreviewappeal"
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsprioritybookingintent"
@@ -96,6 +102,7 @@ import (
 	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsspecgroup"
 	"go-admin/internal/ent/esportsstoredvaluecard"
+	"go-admin/internal/ent/esportsstoredvalueexception"
 	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
@@ -196,7 +203,10 @@ func checkColumn(t, c string) error {
 			dictdata.Table:                       dictdata.ValidColumn,
 			esportsaftersale.Table:               esportsaftersale.ValidColumn,
 			esportsaftersaleaction.Table:         esportsaftersaleaction.ValidColumn,
+			esportsaftersalemessage.Table:        esportsaftersalemessage.ValidColumn,
 			esportsaftersalereview.Table:         esportsaftersalereview.ValidColumn,
+			esportsaftersalerule.Table:           esportsaftersalerule.ValidColumn,
+			esportsaftersalerulehit.Table:        esportsaftersalerulehit.ValidColumn,
 			esportsagecheck.Table:                esportsagecheck.ValidColumn,
 			esportsassessment.Table:              esportsassessment.ValidColumn,
 			esportsassessmentappeal.Table:        esportsassessmentappeal.ValidColumn,
@@ -214,6 +224,7 @@ func checkColumn(t, c string) error {
 			esportsconfirmation.Table:            esportsconfirmation.ValidColumn,
 			esportscscommissionentry.Table:       esportscscommissionentry.ValidColumn,
 			esportscscommissionrule.Table:        esportscscommissionrule.ValidColumn,
+			esportscspresence.Table:              esportscspresence.ValidColumn,
 			esportscustomer.Table:                esportscustomer.ValidColumn,
 			esportscustomerfollowup.Table:        esportscustomerfollowup.ValidColumn,
 			esportsdispatchprioritygrant.Table:   esportsdispatchprioritygrant.ValidColumn,
@@ -225,6 +236,7 @@ func checkColumn(t, c string) error {
 			esportsgiftdispute.Table:             esportsgiftdispute.ValidColumn,
 			esportsgiftintent.Table:              esportsgiftintent.ValidColumn,
 			esportsgiftorder.Table:               esportsgiftorder.ValidColumn,
+			esportsgifttier.Table:                esportsgifttier.ValidColumn,
 			esportsgrowthledger.Table:            esportsgrowthledger.ValidColumn,
 			esportsidempotency.Table:             esportsidempotency.ValidColumn,
 			esportsidentitybinding.Table:         esportsidentitybinding.ValidColumn,
@@ -250,6 +262,7 @@ func checkColumn(t, c string) error {
 			esportsplayeridentity.Table:          esportsplayeridentity.ValidColumn,
 			esportsplayerrecovery.Table:          esportsplayerrecovery.ValidColumn,
 			esportsplayerreview.Table:            esportsplayerreview.ValidColumn,
+			esportsplayerreviewappeal.Table:      esportsplayerreviewappeal.ValidColumn,
 			esportsplayerreviewrevision.Table:    esportsplayerreviewrevision.ValidColumn,
 			esportspriceadjustment.Table:         esportspriceadjustment.ValidColumn,
 			esportsprioritybookingintent.Table:   esportsprioritybookingintent.ValidColumn,
@@ -272,6 +285,7 @@ func checkColumn(t, c string) error {
 			esportsskususpensionitem.Table:       esportsskususpensionitem.ValidColumn,
 			esportsspecgroup.Table:               esportsspecgroup.ValidColumn,
 			esportsstoredvaluecard.Table:         esportsstoredvaluecard.ValidColumn,
+			esportsstoredvalueexception.Table:    esportsstoredvalueexception.ValidColumn,
 			esportsstoredvaluepackage.Table:      esportsstoredvaluepackage.ValidColumn,
 			esportsteammate.Table:                esportsteammate.ValidColumn,
 			esportswalletaccount.Table:           esportswalletaccount.ValidColumn,

@@ -31,6 +31,10 @@ type EsportsLedgerAllocation struct {
 	BatchSourceID string `json:"batch_source_id"`
 	// AmountCents holds the value of the "amount_cents" field.
 	AmountCents int64 `json:"amount_cents"`
+	// PrincipalCents holds the value of the "principal_cents" field.
+	PrincipalCents int64 `json:"principal_cents"`
+	// BonusCents holds the value of the "bonus_cents" field.
+	BonusCents int64 `json:"bonus_cents"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt    time.Time `json:"created_at"`
 	selectValues sql.SelectValues
@@ -41,7 +45,7 @@ func (*EsportsLedgerAllocation) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsledgerallocation.FieldID, esportsledgerallocation.FieldAmountCents:
+		case esportsledgerallocation.FieldID, esportsledgerallocation.FieldAmountCents, esportsledgerallocation.FieldPrincipalCents, esportsledgerallocation.FieldBonusCents:
 			values[i] = new(sql.NullInt64)
 		case esportsledgerallocation.FieldAccountType, esportsledgerallocation.FieldAccountID, esportsledgerallocation.FieldConsumeSourceType, esportsledgerallocation.FieldConsumeSourceID, esportsledgerallocation.FieldBatchSourceType, esportsledgerallocation.FieldBatchSourceID:
 			values[i] = new(sql.NullString)
@@ -110,6 +114,18 @@ func (_m *EsportsLedgerAllocation) assignValues(columns []string, values []any) 
 			} else if value.Valid {
 				_m.AmountCents = value.Int64
 			}
+		case esportsledgerallocation.FieldPrincipalCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field principal_cents", values[i])
+			} else if value.Valid {
+				_m.PrincipalCents = value.Int64
+			}
+		case esportsledgerallocation.FieldBonusCents:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field bonus_cents", values[i])
+			} else if value.Valid {
+				_m.BonusCents = value.Int64
+			}
 		case esportsledgerallocation.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -172,6 +188,12 @@ func (_m *EsportsLedgerAllocation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("amount_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AmountCents))
+	builder.WriteString(", ")
+	builder.WriteString("principal_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PrincipalCents))
+	builder.WriteString(", ")
+	builder.WriteString("bonus_cents=")
+	builder.WriteString(fmt.Sprintf("%v", _m.BonusCents))
 	builder.WriteString(", ")
 	builder.WriteString("created_at=")
 	builder.WriteString(_m.CreatedAt.Format(time.ANSIC))

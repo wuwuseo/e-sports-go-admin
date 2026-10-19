@@ -38,7 +38,14 @@ type wecomSidebarConfig struct {
 	AuthMode string `json:"auth_mode"`
 	// JsSdkEnabled 是 auth_mode 的布尔化表达，便于前端直接判断开关。
 	JsSdkEnabled bool `json:"js_sdk_enabled"`
+	// FooterTip 是侧边栏「底部提示」区块文案（§8.4-11），来自系统配置键
+	// app.esports.wecom_sidebar_footer_tip；空串表示前端不展示该区块。
+	FooterTip string `json:"footer_tip"`
 }
+
+// wecomSidebarFooterTipKey 是侧边栏底部提示文案的系统配置键（裸键 wecom_sidebar_footer_tip）。
+// 未配置 / 空值回落空串 = 不展示底部提示区块。
+const wecomSidebarFooterTipKey = "app.esports.wecom_sidebar_footer_tip"
 
 // wecomSidebarAuthMode 读取侧边栏接入模式配置，非法 / 缺失时回落 account（默认账号登录模式）。
 func wecomSidebarAuthMode(ctx context.Context, db *ent.Client) string {
@@ -62,8 +69,10 @@ func wecomSidebarAuthMode(ctx context.Context, db *ent.Client) string {
 func publicWecomSidebarConfig(c fiber.Ctx) error {
 	mode := wecomSidebarAuthMode(c.Context(), global.ORM)
 	return reply(c, wecomSidebarConfig{
-		AuthMode:      mode,
-		JsSdkEnabled:  mode == wecomAuthModeJsSDK,
+		AuthMode:     mode,
+		JsSdkEnabled: mode == wecomAuthModeJsSDK,
+		// §8.4-11：底部提示由后台配置下发；未配置即空串，前端据此隐藏该区块。
+		FooterTip: wecomConfigString(c.Context(), global.ORM, wecomSidebarFooterTipKey),
 	})
 }
 

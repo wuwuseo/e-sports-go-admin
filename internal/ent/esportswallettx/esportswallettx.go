@@ -37,6 +37,16 @@ const (
 	FieldOperatorID = "operator_id"
 	// FieldNote holds the string denoting the note field in the database.
 	FieldNote = "note"
+	// FieldBeneficiaryType holds the string denoting the beneficiary_type field in the database.
+	FieldBeneficiaryType = "beneficiary_type"
+	// FieldBeneficiaryID holds the string denoting the beneficiary_id field in the database.
+	FieldBeneficiaryID = "beneficiary_id"
+	// FieldBalanceBeforeCents holds the string denoting the balance_before_cents field in the database.
+	FieldBalanceBeforeCents = "balance_before_cents"
+	// FieldBalanceAfterCents holds the string denoting the balance_after_cents field in the database.
+	FieldBalanceAfterCents = "balance_after_cents"
+	// FieldFundBatch holds the string denoting the fund_batch field in the database.
+	FieldFundBatch = "fund_batch"
 	// FieldRuleSnapshot holds the string denoting the rule_snapshot field in the database.
 	FieldRuleSnapshot = "rule_snapshot"
 	// FieldBonusExpiresAt holds the string denoting the bonus_expires_at field in the database.
@@ -63,6 +73,11 @@ var Columns = []string{
 	FieldSourceID,
 	FieldOperatorID,
 	FieldNote,
+	FieldBeneficiaryType,
+	FieldBeneficiaryID,
+	FieldBalanceBeforeCents,
+	FieldBalanceAfterCents,
+	FieldFundBatch,
 	FieldRuleSnapshot,
 	FieldBonusExpiresAt,
 	FieldCreatedAt,
@@ -101,6 +116,16 @@ var (
 	DefaultNote string
 	// NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	NoteValidator func(string) error
+	// DefaultBeneficiaryID holds the default value on creation for the "beneficiary_id" field.
+	DefaultBeneficiaryID int
+	// DefaultBalanceBeforeCents holds the default value on creation for the "balance_before_cents" field.
+	DefaultBalanceBeforeCents int64
+	// DefaultBalanceAfterCents holds the default value on creation for the "balance_after_cents" field.
+	DefaultBalanceAfterCents int64
+	// DefaultFundBatch holds the default value on creation for the "fund_batch" field.
+	DefaultFundBatch string
+	// FundBatchValidator is a validator for the "fund_batch" field. It is called by the builders before save.
+	FundBatchValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 )
@@ -153,6 +178,33 @@ func EntryTypeValidator(et EntryType) error {
 		return nil
 	default:
 		return fmt.Errorf("esportswallettx: invalid enum value for entry_type field: %q", et)
+	}
+}
+
+// BeneficiaryType defines the type for the "beneficiary_type" enum field.
+type BeneficiaryType string
+
+// BeneficiaryTypeCustomer is the default value of the BeneficiaryType enum.
+const DefaultBeneficiaryType = BeneficiaryTypeCustomer
+
+// BeneficiaryType values.
+const (
+	BeneficiaryTypeCustomer BeneficiaryType = "customer"
+	BeneficiaryTypePlayer   BeneficiaryType = "player"
+	BeneficiaryTypePlatform BeneficiaryType = "platform"
+)
+
+func (bt BeneficiaryType) String() string {
+	return string(bt)
+}
+
+// BeneficiaryTypeValidator is a validator for the "beneficiary_type" field enum values. It is called by the builders before save.
+func BeneficiaryTypeValidator(bt BeneficiaryType) error {
+	switch bt {
+	case BeneficiaryTypeCustomer, BeneficiaryTypePlayer, BeneficiaryTypePlatform:
+		return nil
+	default:
+		return fmt.Errorf("esportswallettx: invalid enum value for beneficiary_type field: %q", bt)
 	}
 }
 
@@ -212,6 +264,31 @@ func ByOperatorID(opts ...sql.OrderTermOption) OrderOption {
 // ByNote orders the results by the note field.
 func ByNote(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNote, opts...).ToFunc()
+}
+
+// ByBeneficiaryType orders the results by the beneficiary_type field.
+func ByBeneficiaryType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBeneficiaryType, opts...).ToFunc()
+}
+
+// ByBeneficiaryID orders the results by the beneficiary_id field.
+func ByBeneficiaryID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBeneficiaryID, opts...).ToFunc()
+}
+
+// ByBalanceBeforeCents orders the results by the balance_before_cents field.
+func ByBalanceBeforeCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceBeforeCents, opts...).ToFunc()
+}
+
+// ByBalanceAfterCents orders the results by the balance_after_cents field.
+func ByBalanceAfterCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBalanceAfterCents, opts...).ToFunc()
+}
+
+// ByFundBatch orders the results by the fund_batch field.
+func ByFundBatch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFundBatch, opts...).ToFunc()
 }
 
 // ByBonusExpiresAt orders the results by the bonus_expires_at field.

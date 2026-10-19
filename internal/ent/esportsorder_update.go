@@ -73,6 +73,48 @@ func (_u *EsportsOrderUpdate) AddSkuID(v int) *EsportsOrderUpdate {
 	return _u
 }
 
+// SetSkuCode sets the "sku_code" field.
+func (_u *EsportsOrderUpdate) SetSkuCode(v string) *EsportsOrderUpdate {
+	_u.mutation.SetSkuCode(v)
+	return _u
+}
+
+// SetNillableSkuCode sets the "sku_code" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableSkuCode(v *string) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetSkuCode(*v)
+	}
+	return _u
+}
+
+// SetSkuName sets the "sku_name" field.
+func (_u *EsportsOrderUpdate) SetSkuName(v string) *EsportsOrderUpdate {
+	_u.mutation.SetSkuName(v)
+	return _u
+}
+
+// SetNillableSkuName sets the "sku_name" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableSkuName(v *string) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetSkuName(*v)
+	}
+	return _u
+}
+
+// SetSpecName sets the "spec_name" field.
+func (_u *EsportsOrderUpdate) SetSpecName(v string) *EsportsOrderUpdate {
+	_u.mutation.SetSpecName(v)
+	return _u
+}
+
+// SetNillableSpecName sets the "spec_name" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableSpecName(v *string) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetSpecName(*v)
+	}
+	return _u
+}
+
 // SetCreatedByAdminID sets the "created_by_admin_id" field.
 func (_u *EsportsOrderUpdate) SetCreatedByAdminID(v int) *EsportsOrderUpdate {
 	_u.mutation.ResetCreatedByAdminID()
@@ -476,6 +518,41 @@ func (_u *EsportsOrderUpdate) AddManualAdjustCents(v int64) *EsportsOrderUpdate 
 	return _u
 }
 
+// SetMemberLevelCode sets the "member_level_code" field.
+func (_u *EsportsOrderUpdate) SetMemberLevelCode(v string) *EsportsOrderUpdate {
+	_u.mutation.SetMemberLevelCode(v)
+	return _u
+}
+
+// SetNillableMemberLevelCode sets the "member_level_code" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableMemberLevelCode(v *string) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetMemberLevelCode(*v)
+	}
+	return _u
+}
+
+// SetMemberDiscountBps sets the "member_discount_bps" field.
+func (_u *EsportsOrderUpdate) SetMemberDiscountBps(v int) *EsportsOrderUpdate {
+	_u.mutation.ResetMemberDiscountBps()
+	_u.mutation.SetMemberDiscountBps(v)
+	return _u
+}
+
+// SetNillableMemberDiscountBps sets the "member_discount_bps" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableMemberDiscountBps(v *int) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetMemberDiscountBps(*v)
+	}
+	return _u
+}
+
+// AddMemberDiscountBps adds value to the "member_discount_bps" field.
+func (_u *EsportsOrderUpdate) AddMemberDiscountBps(v int) *EsportsOrderUpdate {
+	_u.mutation.AddMemberDiscountBps(v)
+	return _u
+}
+
 // SetPayableCents sets the "payable_cents" field.
 func (_u *EsportsOrderUpdate) SetPayableCents(v int64) *EsportsOrderUpdate {
 	_u.mutation.ResetPayableCents()
@@ -515,6 +592,27 @@ func (_u *EsportsOrderUpdate) SetNillablePromisedServiceUnits(v *int64) *Esports
 // AddPromisedServiceUnits adds value to the "promised_service_units" field.
 func (_u *EsportsOrderUpdate) AddPromisedServiceUnits(v int64) *EsportsOrderUpdate {
 	_u.mutation.AddPromisedServiceUnits(v)
+	return _u
+}
+
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_u *EsportsOrderUpdate) SetPerSeatServiceUnits(v int64) *EsportsOrderUpdate {
+	_u.mutation.ResetPerSeatServiceUnits()
+	_u.mutation.SetPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillablePerSeatServiceUnits(v *int64) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetPerSeatServiceUnits(*v)
+	}
+	return _u
+}
+
+// AddPerSeatServiceUnits adds value to the "per_seat_service_units" field.
+func (_u *EsportsOrderUpdate) AddPerSeatServiceUnits(v int64) *EsportsOrderUpdate {
+	_u.mutation.AddPerSeatServiceUnits(v)
 	return _u
 }
 
@@ -807,6 +905,61 @@ func (_u *EsportsOrderUpdate) SetNillablePriorityReleaseReason(v *string) *Espor
 	return _u
 }
 
+// SetRemindPriorityLevel sets the "remind_priority_level" field.
+func (_u *EsportsOrderUpdate) SetRemindPriorityLevel(v int) *EsportsOrderUpdate {
+	_u.mutation.ResetRemindPriorityLevel()
+	_u.mutation.SetRemindPriorityLevel(v)
+	return _u
+}
+
+// SetNillableRemindPriorityLevel sets the "remind_priority_level" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableRemindPriorityLevel(v *int) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetRemindPriorityLevel(*v)
+	}
+	return _u
+}
+
+// AddRemindPriorityLevel adds value to the "remind_priority_level" field.
+func (_u *EsportsOrderUpdate) AddRemindPriorityLevel(v int) *EsportsOrderUpdate {
+	_u.mutation.AddRemindPriorityLevel(v)
+	return _u
+}
+
+// SetRemindNote sets the "remind_note" field.
+func (_u *EsportsOrderUpdate) SetRemindNote(v string) *EsportsOrderUpdate {
+	_u.mutation.SetRemindNote(v)
+	return _u
+}
+
+// SetNillableRemindNote sets the "remind_note" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableRemindNote(v *string) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetRemindNote(*v)
+	}
+	return _u
+}
+
+// SetRemindedAt sets the "reminded_at" field.
+func (_u *EsportsOrderUpdate) SetRemindedAt(v time.Time) *EsportsOrderUpdate {
+	_u.mutation.SetRemindedAt(v)
+	return _u
+}
+
+// SetNillableRemindedAt sets the "reminded_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableRemindedAt(v *time.Time) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetRemindedAt(*v)
+	}
+	return _u
+}
+
+// ClearRemindedAt clears the value of the "reminded_at" field.
+func (_u *EsportsOrderUpdate) ClearRemindedAt() *EsportsOrderUpdate {
+	_u.mutation.ClearRemindedAt()
+	return _u
+}
+
 // SetFirstPooledAt sets the "first_pooled_at" field.
 func (_u *EsportsOrderUpdate) SetFirstPooledAt(v time.Time) *EsportsOrderUpdate {
 	_u.mutation.SetFirstPooledAt(v)
@@ -884,6 +1037,26 @@ func (_u *EsportsOrderUpdate) SetNillableServiceStartedAt(v *time.Time) *Esports
 // ClearServiceStartedAt clears the value of the "service_started_at" field.
 func (_u *EsportsOrderUpdate) ClearServiceStartedAt() *EsportsOrderUpdate {
 	_u.mutation.ClearServiceStartedAt()
+	return _u
+}
+
+// SetReadyToStartAt sets the "ready_to_start_at" field.
+func (_u *EsportsOrderUpdate) SetReadyToStartAt(v time.Time) *EsportsOrderUpdate {
+	_u.mutation.SetReadyToStartAt(v)
+	return _u
+}
+
+// SetNillableReadyToStartAt sets the "ready_to_start_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableReadyToStartAt(v *time.Time) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetReadyToStartAt(*v)
+	}
+	return _u
+}
+
+// ClearReadyToStartAt clears the value of the "ready_to_start_at" field.
+func (_u *EsportsOrderUpdate) ClearReadyToStartAt() *EsportsOrderUpdate {
+	_u.mutation.ClearReadyToStartAt()
 	return _u
 }
 
@@ -1089,6 +1262,26 @@ func (_u *EsportsOrderUpdate) SetNillableAppointmentConfirmationDeadline(v *time
 // ClearAppointmentConfirmationDeadline clears the value of the "appointment_confirmation_deadline" field.
 func (_u *EsportsOrderUpdate) ClearAppointmentConfirmationDeadline() *EsportsOrderUpdate {
 	_u.mutation.ClearAppointmentConfirmationDeadline()
+	return _u
+}
+
+// SetAppointmentSuspendedAt sets the "appointment_suspended_at" field.
+func (_u *EsportsOrderUpdate) SetAppointmentSuspendedAt(v time.Time) *EsportsOrderUpdate {
+	_u.mutation.SetAppointmentSuspendedAt(v)
+	return _u
+}
+
+// SetNillableAppointmentSuspendedAt sets the "appointment_suspended_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableAppointmentSuspendedAt(v *time.Time) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetAppointmentSuspendedAt(*v)
+	}
+	return _u
+}
+
+// ClearAppointmentSuspendedAt clears the value of the "appointment_suspended_at" field.
+func (_u *EsportsOrderUpdate) ClearAppointmentSuspendedAt() *EsportsOrderUpdate {
+	_u.mutation.ClearAppointmentSuspendedAt()
 	return _u
 }
 
@@ -1372,6 +1565,21 @@ func (_u *EsportsOrderUpdate) check() error {
 			return &ValidationError{Name: "customer_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.customer_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SkuCode(); ok {
+		if err := esportsorder.SkuCodeValidator(v); err != nil {
+			return &ValidationError{Name: "sku_code", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SkuName(); ok {
+		if err := esportsorder.SkuNameValidator(v); err != nil {
+			return &ValidationError{Name: "sku_name", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SpecName(); ok {
+		if err := esportsorder.SpecNameValidator(v); err != nil {
+			return &ValidationError{Name: "spec_name", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.spec_name": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ChannelSource(); ok {
 		if err := esportsorder.ChannelSourceValidator(v); err != nil {
 			return &ValidationError{Name: "channel_source", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.channel_source": %w`, err)}
@@ -1390,6 +1598,11 @@ func (_u *EsportsOrderUpdate) check() error {
 	if v, ok := _u.mutation.UnitPriceCents(); ok {
 		if err := esportsorder.UnitPriceCentsValidator(v); err != nil {
 			return &ValidationError{Name: "unit_price_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.unit_price_cents": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MemberLevelCode(); ok {
+		if err := esportsorder.MemberLevelCodeValidator(v); err != nil {
+			return &ValidationError{Name: "member_level_code", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.member_level_code": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.PayableCents(); ok {
@@ -1442,6 +1655,11 @@ func (_u *EsportsOrderUpdate) check() error {
 			return &ValidationError{Name: "priority_release_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.priority_release_reason": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.RemindNote(); ok {
+		if err := esportsorder.RemindNoteValidator(v); err != nil {
+			return &ValidationError{Name: "remind_note", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.remind_note": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.RefundStatus(); ok {
 		if err := esportsorder.RefundStatusValidator(v); err != nil {
 			return &ValidationError{Name: "refund_status", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.refund_status": %w`, err)}
@@ -1488,6 +1706,15 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedSkuID(); ok {
 		_spec.AddField(esportsorder.FieldSkuID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SkuCode(); ok {
+		_spec.SetField(esportsorder.FieldSkuCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SkuName(); ok {
+		_spec.SetField(esportsorder.FieldSkuName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SpecName(); ok {
+		_spec.SetField(esportsorder.FieldSpecName, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedByAdminID(); ok {
 		_spec.SetField(esportsorder.FieldCreatedByAdminID, field.TypeInt, value)
@@ -1612,6 +1839,15 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.AddedManualAdjustCents(); ok {
 		_spec.AddField(esportsorder.FieldManualAdjustCents, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.MemberLevelCode(); ok {
+		_spec.SetField(esportsorder.FieldMemberLevelCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MemberDiscountBps(); ok {
+		_spec.SetField(esportsorder.FieldMemberDiscountBps, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMemberDiscountBps(); ok {
+		_spec.AddField(esportsorder.FieldMemberDiscountBps, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.PayableCents(); ok {
 		_spec.SetField(esportsorder.FieldPayableCents, field.TypeInt64, value)
 	}
@@ -1623,6 +1859,12 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedPromisedServiceUnits(); ok {
 		_spec.AddField(esportsorder.FieldPromisedServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportsorder.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPerSeatServiceUnits(); ok {
+		_spec.AddField(esportsorder.FieldPerSeatServiceUnits, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
 		_spec.SetField(esportsorder.FieldServiceDurationMinutes, field.TypeInt, value)
@@ -1707,6 +1949,21 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.PriorityReleaseReason(); ok {
 		_spec.SetField(esportsorder.FieldPriorityReleaseReason, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RemindPriorityLevel(); ok {
+		_spec.SetField(esportsorder.FieldRemindPriorityLevel, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRemindPriorityLevel(); ok {
+		_spec.AddField(esportsorder.FieldRemindPriorityLevel, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RemindNote(); ok {
+		_spec.SetField(esportsorder.FieldRemindNote, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RemindedAt(); ok {
+		_spec.SetField(esportsorder.FieldRemindedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RemindedAtCleared() {
+		_spec.ClearField(esportsorder.FieldRemindedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.FirstPooledAt(); ok {
 		_spec.SetField(esportsorder.FieldFirstPooledAt, field.TypeTime, value)
 	}
@@ -1730,6 +1987,12 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.ServiceStartedAtCleared() {
 		_spec.ClearField(esportsorder.FieldServiceStartedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReadyToStartAt(); ok {
+		_spec.SetField(esportsorder.FieldReadyToStartAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReadyToStartAtCleared() {
+		_spec.ClearField(esportsorder.FieldReadyToStartAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.PriorityReleasedAt(); ok {
 		_spec.SetField(esportsorder.FieldPriorityReleasedAt, field.TypeTime, value)
@@ -1790,6 +2053,12 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.AppointmentConfirmationDeadlineCleared() {
 		_spec.ClearField(esportsorder.FieldAppointmentConfirmationDeadline, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AppointmentSuspendedAt(); ok {
+		_spec.SetField(esportsorder.FieldAppointmentSuspendedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AppointmentSuspendedAtCleared() {
+		_spec.ClearField(esportsorder.FieldAppointmentSuspendedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.PaymentDeadline(); ok {
 		_spec.SetField(esportsorder.FieldPaymentDeadline, field.TypeTime, value)
@@ -1952,6 +2221,48 @@ func (_u *EsportsOrderUpdateOne) SetNillableSkuID(v *int) *EsportsOrderUpdateOne
 // AddSkuID adds value to the "sku_id" field.
 func (_u *EsportsOrderUpdateOne) AddSkuID(v int) *EsportsOrderUpdateOne {
 	_u.mutation.AddSkuID(v)
+	return _u
+}
+
+// SetSkuCode sets the "sku_code" field.
+func (_u *EsportsOrderUpdateOne) SetSkuCode(v string) *EsportsOrderUpdateOne {
+	_u.mutation.SetSkuCode(v)
+	return _u
+}
+
+// SetNillableSkuCode sets the "sku_code" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableSkuCode(v *string) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetSkuCode(*v)
+	}
+	return _u
+}
+
+// SetSkuName sets the "sku_name" field.
+func (_u *EsportsOrderUpdateOne) SetSkuName(v string) *EsportsOrderUpdateOne {
+	_u.mutation.SetSkuName(v)
+	return _u
+}
+
+// SetNillableSkuName sets the "sku_name" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableSkuName(v *string) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetSkuName(*v)
+	}
+	return _u
+}
+
+// SetSpecName sets the "spec_name" field.
+func (_u *EsportsOrderUpdateOne) SetSpecName(v string) *EsportsOrderUpdateOne {
+	_u.mutation.SetSpecName(v)
+	return _u
+}
+
+// SetNillableSpecName sets the "spec_name" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableSpecName(v *string) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetSpecName(*v)
+	}
 	return _u
 }
 
@@ -2358,6 +2669,41 @@ func (_u *EsportsOrderUpdateOne) AddManualAdjustCents(v int64) *EsportsOrderUpda
 	return _u
 }
 
+// SetMemberLevelCode sets the "member_level_code" field.
+func (_u *EsportsOrderUpdateOne) SetMemberLevelCode(v string) *EsportsOrderUpdateOne {
+	_u.mutation.SetMemberLevelCode(v)
+	return _u
+}
+
+// SetNillableMemberLevelCode sets the "member_level_code" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableMemberLevelCode(v *string) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetMemberLevelCode(*v)
+	}
+	return _u
+}
+
+// SetMemberDiscountBps sets the "member_discount_bps" field.
+func (_u *EsportsOrderUpdateOne) SetMemberDiscountBps(v int) *EsportsOrderUpdateOne {
+	_u.mutation.ResetMemberDiscountBps()
+	_u.mutation.SetMemberDiscountBps(v)
+	return _u
+}
+
+// SetNillableMemberDiscountBps sets the "member_discount_bps" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableMemberDiscountBps(v *int) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetMemberDiscountBps(*v)
+	}
+	return _u
+}
+
+// AddMemberDiscountBps adds value to the "member_discount_bps" field.
+func (_u *EsportsOrderUpdateOne) AddMemberDiscountBps(v int) *EsportsOrderUpdateOne {
+	_u.mutation.AddMemberDiscountBps(v)
+	return _u
+}
+
 // SetPayableCents sets the "payable_cents" field.
 func (_u *EsportsOrderUpdateOne) SetPayableCents(v int64) *EsportsOrderUpdateOne {
 	_u.mutation.ResetPayableCents()
@@ -2397,6 +2743,27 @@ func (_u *EsportsOrderUpdateOne) SetNillablePromisedServiceUnits(v *int64) *Espo
 // AddPromisedServiceUnits adds value to the "promised_service_units" field.
 func (_u *EsportsOrderUpdateOne) AddPromisedServiceUnits(v int64) *EsportsOrderUpdateOne {
 	_u.mutation.AddPromisedServiceUnits(v)
+	return _u
+}
+
+// SetPerSeatServiceUnits sets the "per_seat_service_units" field.
+func (_u *EsportsOrderUpdateOne) SetPerSeatServiceUnits(v int64) *EsportsOrderUpdateOne {
+	_u.mutation.ResetPerSeatServiceUnits()
+	_u.mutation.SetPerSeatServiceUnits(v)
+	return _u
+}
+
+// SetNillablePerSeatServiceUnits sets the "per_seat_service_units" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillablePerSeatServiceUnits(v *int64) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetPerSeatServiceUnits(*v)
+	}
+	return _u
+}
+
+// AddPerSeatServiceUnits adds value to the "per_seat_service_units" field.
+func (_u *EsportsOrderUpdateOne) AddPerSeatServiceUnits(v int64) *EsportsOrderUpdateOne {
+	_u.mutation.AddPerSeatServiceUnits(v)
 	return _u
 }
 
@@ -2689,6 +3056,61 @@ func (_u *EsportsOrderUpdateOne) SetNillablePriorityReleaseReason(v *string) *Es
 	return _u
 }
 
+// SetRemindPriorityLevel sets the "remind_priority_level" field.
+func (_u *EsportsOrderUpdateOne) SetRemindPriorityLevel(v int) *EsportsOrderUpdateOne {
+	_u.mutation.ResetRemindPriorityLevel()
+	_u.mutation.SetRemindPriorityLevel(v)
+	return _u
+}
+
+// SetNillableRemindPriorityLevel sets the "remind_priority_level" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableRemindPriorityLevel(v *int) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetRemindPriorityLevel(*v)
+	}
+	return _u
+}
+
+// AddRemindPriorityLevel adds value to the "remind_priority_level" field.
+func (_u *EsportsOrderUpdateOne) AddRemindPriorityLevel(v int) *EsportsOrderUpdateOne {
+	_u.mutation.AddRemindPriorityLevel(v)
+	return _u
+}
+
+// SetRemindNote sets the "remind_note" field.
+func (_u *EsportsOrderUpdateOne) SetRemindNote(v string) *EsportsOrderUpdateOne {
+	_u.mutation.SetRemindNote(v)
+	return _u
+}
+
+// SetNillableRemindNote sets the "remind_note" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableRemindNote(v *string) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetRemindNote(*v)
+	}
+	return _u
+}
+
+// SetRemindedAt sets the "reminded_at" field.
+func (_u *EsportsOrderUpdateOne) SetRemindedAt(v time.Time) *EsportsOrderUpdateOne {
+	_u.mutation.SetRemindedAt(v)
+	return _u
+}
+
+// SetNillableRemindedAt sets the "reminded_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableRemindedAt(v *time.Time) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetRemindedAt(*v)
+	}
+	return _u
+}
+
+// ClearRemindedAt clears the value of the "reminded_at" field.
+func (_u *EsportsOrderUpdateOne) ClearRemindedAt() *EsportsOrderUpdateOne {
+	_u.mutation.ClearRemindedAt()
+	return _u
+}
+
 // SetFirstPooledAt sets the "first_pooled_at" field.
 func (_u *EsportsOrderUpdateOne) SetFirstPooledAt(v time.Time) *EsportsOrderUpdateOne {
 	_u.mutation.SetFirstPooledAt(v)
@@ -2766,6 +3188,26 @@ func (_u *EsportsOrderUpdateOne) SetNillableServiceStartedAt(v *time.Time) *Espo
 // ClearServiceStartedAt clears the value of the "service_started_at" field.
 func (_u *EsportsOrderUpdateOne) ClearServiceStartedAt() *EsportsOrderUpdateOne {
 	_u.mutation.ClearServiceStartedAt()
+	return _u
+}
+
+// SetReadyToStartAt sets the "ready_to_start_at" field.
+func (_u *EsportsOrderUpdateOne) SetReadyToStartAt(v time.Time) *EsportsOrderUpdateOne {
+	_u.mutation.SetReadyToStartAt(v)
+	return _u
+}
+
+// SetNillableReadyToStartAt sets the "ready_to_start_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableReadyToStartAt(v *time.Time) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetReadyToStartAt(*v)
+	}
+	return _u
+}
+
+// ClearReadyToStartAt clears the value of the "ready_to_start_at" field.
+func (_u *EsportsOrderUpdateOne) ClearReadyToStartAt() *EsportsOrderUpdateOne {
+	_u.mutation.ClearReadyToStartAt()
 	return _u
 }
 
@@ -2971,6 +3413,26 @@ func (_u *EsportsOrderUpdateOne) SetNillableAppointmentConfirmationDeadline(v *t
 // ClearAppointmentConfirmationDeadline clears the value of the "appointment_confirmation_deadline" field.
 func (_u *EsportsOrderUpdateOne) ClearAppointmentConfirmationDeadline() *EsportsOrderUpdateOne {
 	_u.mutation.ClearAppointmentConfirmationDeadline()
+	return _u
+}
+
+// SetAppointmentSuspendedAt sets the "appointment_suspended_at" field.
+func (_u *EsportsOrderUpdateOne) SetAppointmentSuspendedAt(v time.Time) *EsportsOrderUpdateOne {
+	_u.mutation.SetAppointmentSuspendedAt(v)
+	return _u
+}
+
+// SetNillableAppointmentSuspendedAt sets the "appointment_suspended_at" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableAppointmentSuspendedAt(v *time.Time) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetAppointmentSuspendedAt(*v)
+	}
+	return _u
+}
+
+// ClearAppointmentSuspendedAt clears the value of the "appointment_suspended_at" field.
+func (_u *EsportsOrderUpdateOne) ClearAppointmentSuspendedAt() *EsportsOrderUpdateOne {
+	_u.mutation.ClearAppointmentSuspendedAt()
 	return _u
 }
 
@@ -3267,6 +3729,21 @@ func (_u *EsportsOrderUpdateOne) check() error {
 			return &ValidationError{Name: "customer_id", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.customer_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SkuCode(); ok {
+		if err := esportsorder.SkuCodeValidator(v); err != nil {
+			return &ValidationError{Name: "sku_code", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SkuName(); ok {
+		if err := esportsorder.SkuNameValidator(v); err != nil {
+			return &ValidationError{Name: "sku_name", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.sku_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.SpecName(); ok {
+		if err := esportsorder.SpecNameValidator(v); err != nil {
+			return &ValidationError{Name: "spec_name", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.spec_name": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ChannelSource(); ok {
 		if err := esportsorder.ChannelSourceValidator(v); err != nil {
 			return &ValidationError{Name: "channel_source", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.channel_source": %w`, err)}
@@ -3285,6 +3762,11 @@ func (_u *EsportsOrderUpdateOne) check() error {
 	if v, ok := _u.mutation.UnitPriceCents(); ok {
 		if err := esportsorder.UnitPriceCentsValidator(v); err != nil {
 			return &ValidationError{Name: "unit_price_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.unit_price_cents": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MemberLevelCode(); ok {
+		if err := esportsorder.MemberLevelCodeValidator(v); err != nil {
+			return &ValidationError{Name: "member_level_code", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.member_level_code": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.PayableCents(); ok {
@@ -3335,6 +3817,11 @@ func (_u *EsportsOrderUpdateOne) check() error {
 	if v, ok := _u.mutation.PriorityReleaseReason(); ok {
 		if err := esportsorder.PriorityReleaseReasonValidator(v); err != nil {
 			return &ValidationError{Name: "priority_release_reason", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.priority_release_reason": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RemindNote(); ok {
+		if err := esportsorder.RemindNoteValidator(v); err != nil {
+			return &ValidationError{Name: "remind_note", err: fmt.Errorf(`ent: validator failed for field "EsportsOrder.remind_note": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.RefundStatus(); ok {
@@ -3400,6 +3887,15 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if value, ok := _u.mutation.AddedSkuID(); ok {
 		_spec.AddField(esportsorder.FieldSkuID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SkuCode(); ok {
+		_spec.SetField(esportsorder.FieldSkuCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SkuName(); ok {
+		_spec.SetField(esportsorder.FieldSkuName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SpecName(); ok {
+		_spec.SetField(esportsorder.FieldSpecName, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CreatedByAdminID(); ok {
 		_spec.SetField(esportsorder.FieldCreatedByAdminID, field.TypeInt, value)
@@ -3524,6 +4020,15 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	if value, ok := _u.mutation.AddedManualAdjustCents(); ok {
 		_spec.AddField(esportsorder.FieldManualAdjustCents, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.MemberLevelCode(); ok {
+		_spec.SetField(esportsorder.FieldMemberLevelCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MemberDiscountBps(); ok {
+		_spec.SetField(esportsorder.FieldMemberDiscountBps, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMemberDiscountBps(); ok {
+		_spec.AddField(esportsorder.FieldMemberDiscountBps, field.TypeInt, value)
+	}
 	if value, ok := _u.mutation.PayableCents(); ok {
 		_spec.SetField(esportsorder.FieldPayableCents, field.TypeInt64, value)
 	}
@@ -3535,6 +4040,12 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if value, ok := _u.mutation.AddedPromisedServiceUnits(); ok {
 		_spec.AddField(esportsorder.FieldPromisedServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PerSeatServiceUnits(); ok {
+		_spec.SetField(esportsorder.FieldPerSeatServiceUnits, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedPerSeatServiceUnits(); ok {
+		_spec.AddField(esportsorder.FieldPerSeatServiceUnits, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.ServiceDurationMinutes(); ok {
 		_spec.SetField(esportsorder.FieldServiceDurationMinutes, field.TypeInt, value)
@@ -3619,6 +4130,21 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	if value, ok := _u.mutation.PriorityReleaseReason(); ok {
 		_spec.SetField(esportsorder.FieldPriorityReleaseReason, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RemindPriorityLevel(); ok {
+		_spec.SetField(esportsorder.FieldRemindPriorityLevel, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedRemindPriorityLevel(); ok {
+		_spec.AddField(esportsorder.FieldRemindPriorityLevel, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RemindNote(); ok {
+		_spec.SetField(esportsorder.FieldRemindNote, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RemindedAt(); ok {
+		_spec.SetField(esportsorder.FieldRemindedAt, field.TypeTime, value)
+	}
+	if _u.mutation.RemindedAtCleared() {
+		_spec.ClearField(esportsorder.FieldRemindedAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.FirstPooledAt(); ok {
 		_spec.SetField(esportsorder.FieldFirstPooledAt, field.TypeTime, value)
 	}
@@ -3642,6 +4168,12 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if _u.mutation.ServiceStartedAtCleared() {
 		_spec.ClearField(esportsorder.FieldServiceStartedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReadyToStartAt(); ok {
+		_spec.SetField(esportsorder.FieldReadyToStartAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReadyToStartAtCleared() {
+		_spec.ClearField(esportsorder.FieldReadyToStartAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.PriorityReleasedAt(); ok {
 		_spec.SetField(esportsorder.FieldPriorityReleasedAt, field.TypeTime, value)
@@ -3702,6 +4234,12 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if _u.mutation.AppointmentConfirmationDeadlineCleared() {
 		_spec.ClearField(esportsorder.FieldAppointmentConfirmationDeadline, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AppointmentSuspendedAt(); ok {
+		_spec.SetField(esportsorder.FieldAppointmentSuspendedAt, field.TypeTime, value)
+	}
+	if _u.mutation.AppointmentSuspendedAtCleared() {
+		_spec.ClearField(esportsorder.FieldAppointmentSuspendedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.PaymentDeadline(); ok {
 		_spec.SetField(esportsorder.FieldPaymentDeadline, field.TypeTime, value)

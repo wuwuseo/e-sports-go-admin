@@ -47,6 +47,11 @@ type skuInput struct {
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
 	RequiredSeats        int    `json:"required_seats"`
+	// PerSeatServiceUnits 为多人 SKU 每个席位承诺的服务量（§15.3-01 / §5.3-05）：required_seats > 1 时必填，
+	// 下单按「每席量 × 席位数 × 份数」落承诺量；0 表示未配置（单人单回落整单服务量）。
+	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
+	// CostCents 为 SKU 成本价（分，可空，§15.8-03）：仅授权角色可读，用于毛利口径；nil 表示未登记成本。
+	CostCents *int64 `json:"cost_cents"`
 	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
 	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
@@ -75,6 +80,10 @@ type skuUpdateInput struct {
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
 	RequiredSeats        int    `json:"required_seats"`
+	// PerSeatServiceUnits 同 skuInput（§15.3-01）。
+	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
+	// CostCents 同 skuInput（§15.8-03）。
+	CostCents *int64 `json:"cost_cents"`
 	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
 	ServiceDurationMinutes int `json:"service_duration_minutes"`
 	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
@@ -103,6 +112,17 @@ type orderInput struct {
 	// 报单入口（§3.4）：移动客服端传 cs_mobile 以区别于后台 cs_pc；客户自助下单由身份前缀决定。
 	// 仅允许 cs_pc / cs_mobile / wecom_sidebar 三个客服侧入口，非法值回落 cs_pc。
 	EntryPoint string `json:"entry_point,omitempty"`
+	// 经授权的人工调整（§4.2）：非零时须同时给出 4–255 字的 manual_adjust_reason；
+	// 绝对值超过 SKU 的 adjustment_approval_bp 免审额度时，报单环节不予受理（须先落单再走改价审批）。
+	ManualAdjustCents  int64  `json:"manual_adjust_cents,omitempty"`
+	ManualAdjustReason string `json:"manual_adjust_reason,omitempty"`
+	// 负责客服（§4.2）：留空默认建单人；显式指定时须为启用中的管理员。
+	ResponsibleAdminID int `json:"responsible_admin_id,omitempty"`
+	// 站内收款方式（§4.2 / §4.3）：customer_balance / stored_value_card 时在下单环节复核资金可用余额；
+	// 留空或 external 表示走外部收款，下单不锁资金。
+	PaymentChannel string `json:"payment_channel,omitempty"`
+	// 订单价明显偏离 SKU 标准价时的偏离原因（§4.6-02）：超阈值且开启强制时必填。
+	PriceDeviationReason string `json:"price_deviation_reason,omitempty"`
 }
 
 // normalizeEntryPoint 规范化报单入口：仅客服侧入口可显式指定，客户自助入口由调用方身份前缀决定，
@@ -141,10 +161,16 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
 		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 ||
 		in.RequiredSeats < 1 || in.QuotaTotal < -1 || (in.QuotaTotal != -1 && in.QuotaTotal < int64(in.RequiredSeats)) ||
+		in.PerSeatServiceUnits < 0 ||
 		in.ServiceDurationMinutes < 0 || in.ServiceDurationMinutes > 24*60 ||
-		(in.ServiceType != "play" && in.ServiceType != "teaching" && in.ServiceType != "entertainment") ||
 		(in.Status != "draft" && in.Status != "on_sale") {
 		return nil, errInvalidInput
+	}
+	if err := validateSkuServiceType(in.ServiceType); err != nil {
+		return nil, err
+	}
+	if err := validateSkuCostCents(in.CostCents); err != nil {
+		return nil, err
 	}
 	if in.CategoryID != nil {
 		exists, err := db.EsportsProductCategory.Query().Where(
@@ -166,14 +192,42 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 		SetUnitPriceCents(in.UnitPriceCents).
 		SetMinUnitPriceCents(in.MinUnitPriceCents).SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).
 		SetServiceUnits(in.ServiceUnits).SetServiceUnitName(in.ServiceUnitName).
-		SetRequiredSeats(in.RequiredSeats).SetServiceDurationMinutes(in.ServiceDurationMinutes).
+		SetRequiredSeats(in.RequiredSeats).SetPerSeatServiceUnits(in.PerSeatServiceUnits).
+		SetServiceDurationMinutes(in.ServiceDurationMinutes).
 		SetQuotaTotal(in.QuotaTotal).
 		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status))
 	if in.CategoryID != nil {
 		create.SetCategoryID(*in.CategoryID)
 	}
+	if in.CostCents != nil {
+		create.SetCostCents(*in.CostCents)
+	}
 	return create.Save(ctx)
+}
+
+// validateSkuServiceType 校验 SKU 服务类型（§3.1-04）：代练（boosting）为预留枚举位，
+// 首版未开放上架与下单——必须显式返回「未开放」而不是与非法值混为一谈的笼统参数错误。
+func validateSkuServiceType(raw string) error {
+	switch strings.TrimSpace(raw) {
+	case "play", "teaching", "entertainment":
+		return nil
+	case "boosting":
+		return fmt.Errorf("%w：代练（boosting）首版未开放，暂不能上架或下单", errInvalidInput)
+	default:
+		return errInvalidInput
+	}
+}
+
+// validateSkuCostCents 校验 SKU 成本价（§15.8-03）：可空；登记时须为非负整数分。
+func validateSkuCostCents(cost *int64) error {
+	if cost == nil {
+		return nil
+	}
+	if *cost < 0 {
+		return fmt.Errorf("%w：SKU 成本价不能为负", errInvalidInput)
+	}
+	return nil
 }
 
 func saveCustomer(ctx context.Context, db *ent.Client, adminID int, in customerInput) (*ent.EsportsCustomer, error) {
@@ -258,11 +312,17 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 		len([]rune(in.ServiceUnitName)) > 32 || len([]rune(in.Description)) > 500 ||
 		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
 		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 || in.RequiredSeats < 1 ||
+		in.PerSeatServiceUnits < 0 ||
 		in.ServiceDurationMinutes < 0 || in.ServiceDurationMinutes > 24*60 ||
 		in.QuotaTotal < -1 ||
-		(in.ServiceType != "play" && in.ServiceType != "teaching" && in.ServiceType != "entertainment") ||
 		(in.Status != "draft" && in.Status != "on_sale" && in.Status != "off_sale") {
 		return nil, errInvalidInput
+	}
+	if err := validateSkuServiceType(in.ServiceType); err != nil {
+		return nil, err
+	}
+	if err := validateSkuCostCents(in.CostCents); err != nil {
+		return nil, err
 	}
 	if in.QuotaTotal != -1 && in.QuotaTotal < int64(in.RequiredSeats) {
 		return nil, errInvalidInput
@@ -300,10 +360,17 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 		SetUnitPriceCents(in.UnitPriceCents).SetMinUnitPriceCents(in.MinUnitPriceCents).
 		SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).SetServiceUnits(in.ServiceUnits).
 		SetServiceUnitName(in.ServiceUnitName).SetRequiredSeats(in.RequiredSeats).
+		SetPerSeatServiceUnits(in.PerSeatServiceUnits).
 		SetServiceDurationMinutes(in.ServiceDurationMinutes).
 		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetQuotaTotal(in.QuotaTotal).SetSortOrder(in.SortOrder).
 		SetStatus(esportssku.Status(in.Status)).AddVersion(1)
+	// §15.8-03：成本价可空；显式传 null 表示清空已登记的成本。
+	if in.CostCents == nil {
+		update.ClearCostCents()
+	} else {
+		update.SetCostCents(*in.CostCents)
+	}
 	if in.CategoryID == nil {
 		update.ClearCategoryID()
 	} else {
@@ -376,6 +443,50 @@ func placeOrderWithPrincipal(ctx context.Context, db *ent.Client, principal stri
 	return order, err
 }
 
+// applyOrderManualAdjust 计算下单应付金额并校验收单环节的人工调整（§4.2-02）：
+//   - 未填调整金额时只走会员折扣；
+//   - 填了调整金额必须同时给出 4–255 字原因；
+//   - 调整后的小计不得低于 SKU 最低允许价 × 份数；
+//   - 调整绝对值超过 SKU 免审额度（adjustment_approval_bp）时下单环节不予受理：调价单必须挂已有订单，
+//     报单时尚无可引用的已审批调价单，须先落单再走 POST /admin/orders/{id}/quote 的审批 → 改价链路。
+func applyOrderManualAdjust(subtotal, discount int64, in orderInput, sku *ent.EsportsSku) (int64, error) {
+	reason := strings.TrimSpace(in.ManualAdjustReason)
+	if in.ManualAdjustCents == 0 {
+		if reason != "" {
+			return 0, fmt.Errorf("%w：未填写人工调整金额时不应带调整原因", errInvalidInput)
+		}
+		return subtotal - discount, nil
+	}
+	if len([]rune(reason)) < 4 || len([]rune(reason)) > 255 {
+		return 0, fmt.Errorf("%w：人工调整须填写 4–255 字的调整原因", errInvalidInput)
+	}
+	if in.ManualAdjustCents <= -subtotal || in.ManualAdjustCents > math.MaxInt64-subtotal {
+		return 0, errInvalidInput
+	}
+	floor := sku.MinUnitPriceCents
+	if floor <= 0 {
+		floor = sku.UnitPriceCents
+	}
+	adjusted := subtotal + in.ManualAdjustCents
+	if adjusted < floor*in.Quantity {
+		return 0, fmt.Errorf("%w：人工议价低于 SKU 最低允许价", errInvalidInput)
+	}
+	approvalBp := sku.AdjustmentApprovalBp
+	if approvalBp <= 0 || approvalBp > 10000 {
+		approvalBp = 2000
+	}
+	threshold := subtotal/10000*int64(approvalBp) + subtotal%10000*int64(approvalBp)/10000
+	absAdjust := in.ManualAdjustCents
+	if absAdjust < 0 {
+		absAdjust = -absAdjust
+	}
+	if absAdjust > threshold {
+		return 0, fmt.Errorf("%w：人工调整 %d 分超过免审额度 %d 分，请先落单后走改价审批",
+			errInvalidInput, absAdjust, threshold)
+	}
+	return adjusted - discount, nil
+}
+
 func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, adminID int,
 	in orderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
 	if in.CustomerID < 1 || in.SkuID < 1 || in.Quantity < 1 || in.Quantity > 1000 || len(key) < 8 || len(key) > 128 {
@@ -399,7 +510,14 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if err != nil {
 		return nil, err
 	}
-	if customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID {
+	// §5.1-02：客户自助下单允许「无归属客服」——此时 adminID=0，订单进公共池（responsible_admin_id 为 NULL）。
+	// 客服侧报单仍严格校验归属，避免越权代报。
+	selfService := adminID < 1
+	if selfService {
+		if strings.TrimSpace(principal) != customerSelfPrincipal(customer.ID) {
+			return nil, errForbidden
+		}
+	} else if customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID {
 		return nil, errForbidden
 	}
 	if customer.AgeStatus != esportscustomer.AgeStatusAdult {
@@ -413,18 +531,53 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		sku.ServiceUnits > math.MaxInt64/in.Quantity {
 		return nil, errConflict
 	}
+	// §15.5-01：有规格组时提前读取，用于「每席承诺服务量」与商品/规格名快照（§15.6-03）。
+	var specGroup *ent.EsportsSpecGroup
+	if sku.SpecGroupID != nil {
+		if specGroup, err = tx.EsportsSpecGroup.Get(ctx, *sku.SpecGroupID); err != nil {
+			return nil, err
+		}
+	}
+	// §15.3-01 / §15.5-01 / §5.3-05：解析每席承诺服务量；多人单缺每席量即拒绝报单（不静默落 0）。
+	perSeatUnits, seatTotalUnits, seatSnapshot, err := resolveSeatPromise(sku, specGroup)
+	if err != nil {
+		return nil, err
+	}
+	// 承诺服务量 = Σ 每席承诺量 × 份数（§5.3-05 验收口径），并复核溢出与正值约束。
+	if seatTotalUnits > math.MaxInt64/in.Quantity {
+		return nil, errInvalidInput
+	}
+	promisedUnits := seatTotalUnits * in.Quantity
+	if promisedUnits <= 0 {
+		return nil, fmt.Errorf("%w：承诺服务量必须为正，请检查 SKU 每席承诺服务量配置", errInvalidInput)
+	}
 	// §4.6 报单校验补充（顺序：先硬拦截后提醒）：预约开始时间合法性 → 客户欠款拦截 → 重复报单提醒。
 	// 三项都在本事务内完成，未通过即整单回滚（不占名额、不写幂等记录），不影响既有幂等与报价快照语义。
 	if err = validateAppointmentStart(in, now); err != nil {
 		return nil, err
 	}
-	if err = ensureCustomerDebtAllowed(ctx, tx.Client(), customer.ID,
-		customerDebtLimitCents(ctx, tx.Client()), now); err != nil {
+	// §4.6-04：欠款默认「有欠款即提醒」，配置阈值后升级为强制拦截。
+	debtCents, debtRemind, err := customerDebtTier(ctx, tx.Client(), customer.ID,
+		customerDebtLimitCents(ctx, tx.Client()), customerDebtRemindCents(ctx, tx.Client()), now)
+	if err != nil {
 		return nil, err
 	}
 	if err = checkDuplicateOrder(ctx, tx.Client(), in, now,
 		duplicateOrderWindowMinutes(ctx, tx.Client())); err != nil {
 		return nil, err
+	}
+	// §4.2-02：指定负责客服须为启用中的管理员；留空默认建单人。客户自助下单（无归属客服）落 NULL。
+	responsibleAdminID := adminID
+	if in.ResponsibleAdminID > 0 && in.ResponsibleAdminID != adminID {
+		operator, adminErr := tx.Admin.Query().Where(
+			admin.IDEQ(in.ResponsibleAdminID), admin.StatusEQ("active")).Only(ctx)
+		if adminErr != nil {
+			return nil, fmt.Errorf("%w：指定的负责客服不存在或已停用", errInvalidInput)
+		}
+		responsibleAdminID = operator.ID
+	}
+	if responsibleAdminID < 1 && !selfService {
+		return nil, errForbidden
 	}
 	// A conditional UPDATE, rather than a prior SELECT alone, wins the final unit.
 	updated, err := tx.EsportsSku.Update().Where(
@@ -441,18 +594,34 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if updated != 1 {
 		return nil, errConflict
 	}
-	// 优惠顺序（§10.4）：商品规格价 → 会员折扣 → 经授权人工调整；下单只落规格价与会员折扣，
-	// 人工调整在改价时写入 manual_adjust_cents。
+	// 优惠顺序（§10.4）：商品规格价 → 会员折扣 → 经授权人工调整；下单即落 manual_adjust_cents，
+	// 后续改价在其上覆盖（§4.2-02）。
 	subtotal := sku.UnitPriceCents * in.Quantity
 	discountBps, err := memberDiscountBps(ctx, tx.Client(), customer.MemberLevelCode)
 	if err != nil {
 		return nil, err
 	}
+	// §4.2-06：单笔折扣上限复核（配置缺失表示不限制）。
+	if err = ensureOrderDiscountWithinLimit(discountBps, orderDiscountLimitBps(ctx, tx.Client())); err != nil {
+		return nil, err
+	}
 	discount := memberDiscountCents(subtotal, discountBps)
-	payable := subtotal - discount
+	payable, err := applyOrderManualAdjust(subtotal, discount, in, sku)
+	if err != nil {
+		return nil, err
+	}
 	if payable <= 0 {
 		// §4.6：普通服务单折后应付为零时拦截。
 		return nil, fmt.Errorf("%w：该订单会员折扣后应付金额为零，无法报单", errInvalidInput)
+	}
+	// §4.6-02：订单价明显偏离 SKU 标准价时的提醒 / 原因必填。
+	deviation, err := evaluatePriceDeviation(ctx, tx.Client(), subtotal, payable, in.PriceDeviationReason)
+	if err != nil {
+		return nil, err
+	}
+	// §4.2-06：显式选择站内收款方式时复核资金可用余额，避免下单成功而收款才失败。
+	if err = ensureOrderFundsAvailable(ctx, tx.Client(), customer.ID, payable, in.PaymentChannel); err != nil {
+		return nil, err
 	}
 	// §4.6 报单校验：指定陪玩须存在且资质合格（未通过考核或已停用不允许选择）。
 	if in.PreferredPlayerID > 0 {
@@ -477,24 +646,53 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		entryPoint = normalizeEntryPoint(in.EntryPoint, principal)
 	}
 	// 下单时固定适用结单表单（包括无模板）；后续发布新版本不改变旧单结单要求。
-	closeTemplate, err := resolveCloseFormTemplate(ctx, tx.Client(), &ent.EsportsOrder{
-		SkuID: sku.ID, PayableCents: payable,
-	})
+	// §3.4-07：探针带上订单类型字段，保证 scope=order_type 的模板在报单环节即可命中。
+	closeProbe := &ent.EsportsOrder{SkuID: sku.ID, PayableCents: payable,
+		AppointmentStatus: esportsorder.AppointmentStatusInstant}
+	if in.RequestedStartAt != nil {
+		closeProbe.AppointmentStatus = esportsorder.AppointmentStatusRequest
+	}
+	closeTemplate, err := resolveCloseFormTemplate(ctx, tx.Client(), closeProbe)
 	if err != nil {
 		return nil, err
 	}
+	// §3.4-01：仅在启用内置结单模板时兜底锁定它，默认不改变存量「无模板」口径。
+	if closeTemplate == nil && closeFormRequireServiceResult(ctx, tx.Client()) {
+		if closeTemplate, err = ensureBuiltinCloseFormTemplate(ctx, tx.Client()); err != nil {
+			return nil, err
+		}
+	}
 	creator := tx.EsportsOrder.Create().SetOrderNo(orderNo).SetCustomerID(customer.ID).
-		SetSkuID(sku.ID).SetCreatedByAdminID(adminID).SetResponsibleAdminID(adminID).
+		SetSkuID(sku.ID).
+		// §15.6-03：下单即固定商品 / 规格名快照，之后改 SKU 标题或规格名不追溯历史单。
+		SetSkuCode(sku.Code).SetSkuName(sku.Title).
 		SetChannelSource(esportsorder.ChannelSource(customer.Source.String())).SetEntryPoint(entryPoint).
 		SetQuantity(in.Quantity).SetUnitPriceCents(sku.UnitPriceCents).
 		SetMinUnitPriceCents(sku.MinUnitPriceCents).SetAdjustmentApprovalBp(sku.AdjustmentApprovalBp).
-		SetDiscountCents(discount).SetPayableCents(payable).
-		SetPromisedServiceUnits(sku.ServiceUnits * in.Quantity).
+		SetDiscountCents(discount).SetManualAdjustCents(in.ManualAdjustCents).SetPayableCents(payable).
+		// §10.4-08：会员等级与折扣基点快照，事后改折扣规则不追溯。
+		SetMemberLevelCode(customer.MemberLevelCode).SetMemberDiscountBps(discountBps).
+		// §15.3-01 / §15.5-01 / §5.3-05：承诺量按「Σ 每席承诺量 × 份数」落库。
+		SetPromisedServiceUnits(promisedUnits).SetPerSeatServiceUnits(perSeatUnits).
 		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(esportsorder.RequiredLevel(sku.RequiredLevel)).
 		SetServiceDurationMinutes(sku.ServiceDurationMinutes).
 		SetPaymentDeadline(deadline).SetCloseFormTemplateLockedAt(now.UTC())
+	// §5.1-02：客户自助下单且客户无归属客服时负责客服为 NULL，订单进公共池；建单人同样留空。
+	if adminID > 0 {
+		creator = creator.SetCreatedByAdminID(adminID)
+	}
+	if responsibleAdminID > 0 {
+		creator = creator.SetResponsibleAdminID(responsibleAdminID)
+	}
 	if closeTemplate != nil {
 		creator = creator.SetCloseFormTemplateID(closeTemplate.ID)
+	}
+	// §15.5-02：报单时把规格组席位定义（含逐席承诺量）快照进订单 seat_roles（后续改规格不影响历史单）。
+	if specGroup != nil {
+		creator = creator.SetSpecName(specGroup.Name)
+	}
+	if len(seatSnapshot) > 0 {
+		creator = creator.SetSeatRoles(seatSnapshot)
 	}
 	if in.PreferredPlayerID > 0 {
 		creator = creator.SetPreferredPlayerID(in.PreferredPlayerID)
@@ -527,10 +725,56 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if in.RequestedStartAt != nil {
 		details["requested_start_at"] = in.RequestedStartAt.UTC().Format(time.RFC3339)
 	}
+	// §4.2-02：人工调整的原因与指定负责客服留痕。
+	if in.ManualAdjustCents != 0 {
+		details["manual_adjust_cents"] = in.ManualAdjustCents
+		details["manual_adjust_reason"] = strings.TrimSpace(in.ManualAdjustReason)
+	}
+	if responsibleAdminID != adminID {
+		details["responsible_admin_id"] = responsibleAdminID
+	}
+	// §4.6-02：明显偏离 SKU 标准价时把偏离度与原因写进订单事件（提醒 + 留痕）。
+	if deviation != nil {
+		details["price_deviation_bp"] = deviation.DeviationBp
+		details["price_deviation_standard_cents"] = deviation.StandardCents
+		details["price_deviation_reason"] = deviation.Reason
+	}
+	// §4.6-04：有未结清欠款时记录提醒金额。
+	if debtRemind {
+		details["debt_remind_cents"] = debtCents
+	}
+	// §5.1-02：客户自助下单的订单事件归到客户身份（无客服主体），其余仍记客服操作人。
+	actorType, actorID := "admin", strconv.Itoa(adminID)
+	if adminID < 1 {
+		actorType, actorID = "customer", strconv.Itoa(customer.ID)
+	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).SetOrderVersion(1).
-		SetEventType("order.created").SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetEventType("order.created").SetActorType(actorType).SetActorID(actorID).
 		SetDetails(details).Save(ctx); err != nil {
 		return nil, err
+	}
+	// §4.6-04 提醒档：欠款提醒写一条事务外盒，供客服工作台催收；不阻断下单。
+	if debtRemind {
+		if _, err = tx.EsportsOutbox.Create().SetEventKey("order.debt_remind:" + orderNo).
+			SetEventType("order.debt_remind").SetAggregateRef(orderNo).
+			SetPayload(map[string]interface{}{
+				"order_no": orderNo, "customer_id": customer.ID, "debt_cents": debtCents,
+			}).Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	// §4.6-02 提醒档：偏离标准价的独立提醒外盒（关闭强制填写时也会落；订单事件已按版本唯一，
+	// 故提醒走事务外盒而非第二条订单事件）。
+	if deviation != nil {
+		if _, err = tx.EsportsOutbox.Create().SetEventKey("order.price_deviation_flagged:" + orderNo).
+			SetEventType("order.price_deviation_flagged").SetAggregateRef(orderNo).
+			SetPayload(map[string]interface{}{
+				"order_no": orderNo, "deviation_bp": deviation.DeviationBp,
+				"standard_cents": deviation.StandardCents, "payable_cents": deviation.PayableCents,
+				"reason": deviation.Reason,
+			}).Save(ctx); err != nil {
+			return nil, err
+		}
 	}
 	if _, err = tx.EsportsIdempotency.Create().SetOperation("create_order").SetPrincipal(principal).
 		SetRequestKey(key).SetRequestHash(hash).SetResultRef(orderNo).Save(ctx); err != nil {

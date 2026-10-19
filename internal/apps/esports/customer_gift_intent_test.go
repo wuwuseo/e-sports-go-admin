@@ -60,10 +60,23 @@ func TestCustomerGiftIntentBalancePrincipalAndIdempotency(t *testing.T) {
 	if _, err := createCustomerGiftIntent(ctx, db, account.UID, conflict, now); !errors.Is(err, errConflict) {
 		t.Fatalf("同 client_key 换内容未被拦截：%v", err)
 	}
-	// 余额不足被拦。
+	// §9.2-01 口径更新：余额（与卡本金）不足时**不再直接报本金不足**，仍可落确认单，
+	// 由客户改走「发起收款」补齐资金；真正的资金校验在核销成单时强制执行。
+	// 规格依据：台账 9.2-01「余额与卡本金均不足的客户可对礼物单发起收款并核销成单（当前直接报本金不足）」。
 	short := customerGiftIntentInput{GiftID: gift.ID, PlayerID: player.ID, Quantity: 3, ClientKey: "cust-gift-key-short"}
-	if _, err := createCustomerGiftIntent(ctx, db, account.UID, short, now); !errors.Is(err, errInsufficientBalance) {
-		t.Fatalf("余额不足未被拦截：%v", err)
+	shortIntent, err := createCustomerGiftIntent(ctx, db, account.UID, short, now)
+	if err != nil {
+		t.Fatalf("余额不足时应可创建确认单并发起收款：%v", err)
+	}
+	if shortIntent.PaymentChannel != "none" || shortIntent.PaymentStatus != "not_required" {
+		t.Fatalf("未发起收款的确认单不应带收款状态：%+v", shortIntent)
+	}
+	if sufficient, hint, err := customerGiftIntentFunding(ctx, db, shortIntent); err != nil || sufficient || hint == "" {
+		t.Fatalf("本金不足判定不符：%v %q %v", sufficient, hint, err)
+	}
+	// 资金仍不足时直接送礼必须被拦住（不得伪成功）。
+	if _, err := executeGiftIntent(ctx, db, 11, false, shortIntent.ID, now); !errors.Is(err, errConflict) {
+		t.Fatalf("未确认的确认单被执行：%v", err)
 	}
 }
 

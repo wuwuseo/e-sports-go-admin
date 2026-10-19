@@ -65,8 +65,32 @@ type storedValueOpenInput struct {
 	ContractConfirmed bool   `json:"contract_confirmed"`
 	ValidUntil        string `json:"valid_until"`
 	ValidityDays      int    `json:"validity_days"`
-	Note              string `json:"note"`
-	IdempotencyKey    string `json:"idempotency_key"`
+	// 卡级扣减顺序（§11.3-02）：bonus_first / principal_first / proportional；留空回落全局键。
+	DeductionOrder string `json:"deduction_order"`
+	Note           string `json:"note"`
+	IdempotencyKey string `json:"idempotency_key"`
+}
+
+// storedValueDeductionOrderValues 卡级扣减顺序的合法取值（空 = 回落全局键）。
+func storedValueDeductionOrderValue(value string) (string, bool) {
+	switch strings.TrimSpace(value) {
+	case "", "bonus_first", "principal_first", "proportional":
+		return strings.TrimSpace(value), true
+	default:
+		return "", false
+	}
+}
+
+// storedValueDeductionOrder 解析某张卡实际生效的扣减顺序（§11.3-02）：卡级字段优先，
+// 留空（含历史卡）回落全局键 app.esports.prepay_deduction_order。
+func storedValueDeductionOrder(ctx context.Context, db *ent.Client, card *ent.EsportsStoredValueCard) (string, error) {
+	if card == nil {
+		return "", errInvalidInput
+	}
+	if value, ok := storedValueDeductionOrderValue(card.DeductionOrder); ok && value != "" {
+		return value, nil
+	}
+	return prepayDeductionOrder(ctx, db), nil
 }
 
 func newStoredValueCardNo() string {
@@ -87,6 +111,10 @@ func validateStoredValueOpen(in storedValueOpenInput, now time.Time) (time.Time,
 	}
 	if len(key) < 8 || len(key) > 128 || len([]rune(in.Note)) > 255 {
 		return time.Time{}, nil, errInvalidInput
+	}
+	// 卡级扣减顺序（§11.3-02）：非法取值直接拒绝，留空表示回落全局键。
+	if _, ok := storedValueDeductionOrderValue(in.DeductionOrder); !ok {
+		return time.Time{}, nil, fmt.Errorf("%w：储值卡扣减顺序取值非法", errInvalidInput)
 	}
 	// 开卡必须确认合同（§4.4 记录合同确认）。
 	if !in.ContractConfirmed {
@@ -191,17 +219,30 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		in.PrincipalCents = pkg.PrincipalCents
 		in.BonusCents = pkg.BonusCents
 		packageID = &pkg.ID
-	} else if in.BonusCents == 0 && in.PaymentChannel != "customer_balance" {
-		// 未选套餐且未手填赠送：按客户会员等级的赠送比例开卡（§10.4），等级越高赠送越多；余额购卡不赠送。
+	}
+	// 开卡赠送的权益来源有「套餐赠送」与「会员等级赠送比例」两处：同一权益多来源取最高档、不叠加（§10.5-04）。
+	// 未选套餐且未手填赠送时按等级比例；已选套餐时与套餐赠送取大（套餐低于等级比例时按等级发放）；
+	// 余额购卡属账户间划转，不产生赠送权益（§4.4）。
+	if in.PaymentChannel != "customer_balance" {
 		bonus, bonusErr := memberPrepayBonusCents(ctx, tx.Client(), customer.MemberLevelCode, in.PrincipalCents)
 		if bonusErr != nil {
 			return nil, bonusErr
 		}
-		in.BonusCents = bonus
+		if packageID != nil {
+			if bonus > in.BonusCents {
+				in.BonusCents = bonus
+			}
+		} else if in.BonusCents == 0 {
+			in.BonusCents = bonus
+		}
 	}
 	validUntil, scope, err := validateStoredValueOpen(in, now)
 	if err != nil {
 		return nil, err
+	}
+	// 渠道启停校验（§4.3-08 / §4.3-03）：停用的收款渠道不得发起开卡收款（客服代开卡与自助购卡同一口径）。
+	if !paymentChannelEnabled(ctx, db, in.PaymentChannel) {
+		return nil, fmt.Errorf("%w：收款方式 %s 已停用", errPaymentGatewayUnavailable, in.PaymentChannel)
 	}
 	utc := now.UTC()
 	if in.PaymentChannel == "customer_balance" {
@@ -251,6 +292,7 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		SetPaymentRef(ref).SetPrincipalCents(in.PrincipalCents).SetBonusCents(in.BonusCents).
 		SetApplicableScope(scope).SetAllowGifts(in.AllowGifts).SetContractConfirmed(true).
 		SetValidFrom(utc).SetValidUntil(validUntil).
+		SetDeductionOrder(in.DeductionOrder).
 		SetStatus(status).
 		SetOpenedByAdminID(adminID)
 	if strings.TrimSpace(in.ValidUntil) == "" && in.ValidityDays > 0 {
@@ -277,6 +319,8 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		SetEntryType(esportswallettx.EntryTypeRecharge).
 		SetPrincipalDeltaCents(in.PrincipalCents).SetBonusDeltaCents(in.BonusCents).
 		SetSourceType(storedValueSourceOpen).SetSourceID(key).
+		SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(card.CustomerID).
+		SetBalanceBeforeCents(0).SetBalanceAfterCents(in.PrincipalCents + in.BonusCents).
 		SetOperatorID(adminID).SetNote(note).
 		SetRuleSnapshot(map[string]any{
 			"card_no": card.CardNo, "payment_channel": string(card.PaymentChannel),
@@ -300,6 +344,7 @@ func openStoredValueCard(ctx context.Context, db *ent.Client, adminID int, in st
 		SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
 		SetSourceType(storedValueSourceOpen).SetSourceID(key).
 		SetEntryRole("card_open").SetDeltaCents(in.PrincipalCents + in.BonusCents).
+		SetPrincipalDeltaCents(in.PrincipalCents).SetBonusDeltaCents(in.BonusCents).
 		SetFundBatch(fundBatch).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
@@ -370,6 +415,9 @@ func verifyStoredValueCardPayment(ctx context.Context, db *ent.Client, adminID, 
 			SetEntryType(esportswallettx.EntryTypeRecharge).
 			SetPrincipalDeltaCents(card.PrincipalCents).SetBonusDeltaCents(card.BonusCents).
 			SetSourceType(storedValueSourceOpen).SetSourceID(sourceID).
+			SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(card.CustomerID).
+			SetBalanceBeforeCents(0).SetBalanceAfterCents(card.PrincipalCents + card.BonusCents).
+			SetFundBatch(sourceID).
 			SetOperatorID(adminID).SetNote("财务核验外部收款后开卡：" + evidenceNote).
 			SetRuleSnapshot(map[string]any{
 				"card_no": card.CardNo, "payment_channel": string(card.PaymentChannel),
@@ -392,6 +440,7 @@ func verifyStoredValueCardPayment(ctx context.Context, db *ent.Client, adminID, 
 			SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
 			SetSourceType(storedValueSourceOpen).SetSourceID(sourceID).
 			SetEntryRole("card_open").SetDeltaCents(card.PrincipalCents + card.BonusCents).
+			SetPrincipalDeltaCents(card.PrincipalCents).SetBonusDeltaCents(card.BonusCents).
 			SetFundBatch(key).Save(ctx); err != nil {
 			if ent.IsConstraintError(err) {
 				return nil, errConflict
@@ -519,13 +568,20 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 	if balance.total() < payable {
 		return nil, errInsufficientBalance
 	}
+	// 卡级扣减顺序优先，留空回落全局键（§11.3-02）。
+	order_, err := storedValueDeductionOrder(ctx, tx.Client(), card)
+	if err != nil {
+		return nil, err
+	}
 	principalDeduct, bonusDeduct := splitPrepayDeduction(
-		prepayDeductionOrder(ctx, tx.Client()), balance.PrincipalCents, balance.BonusCents, payable)
+		order_, balance.PrincipalCents, balance.BonusCents, payable)
 	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
 		SetEntryType(esportswallettx.EntryTypeConsume).
 		SetPrincipalDeltaCents(-principalDeduct).SetBonusDeltaCents(-bonusDeduct).
 		SetSourceType("order").SetSourceID(order.OrderNo).
+		SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(card.CustomerID).
+		SetBalanceBeforeCents(balance.total()).SetBalanceAfterCents(balance.total() - payable).
 		SetOperatorID(adminID).SetNote("订单储值卡核销").Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
@@ -574,19 +630,20 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 	if err != nil || changed != 1 {
 		return nil, errConflict
 	}
-	// 预付款批次账本：核销冲减对应卡片批次。
+	// 预付款批次账本：核销冲减对应卡片批次（本金 / 赠送分列，§4.5-04）。
 	if _, err = tx.EsportsLedgerEntry.Create().
 		SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
 		SetSourceType("order").SetSourceID(order.OrderNo).
-		SetEntryRole("card_consume").SetDeltaCents(-payable).Save(ctx); err != nil {
+		SetEntryRole("card_consume").SetDeltaCents(-payable).
+		SetPrincipalDeltaCents(-principalDeduct).SetBonusDeltaCents(-bonusDeduct).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
 		}
 		return nil, err
 	}
-	// 批次级逐笔扣减（§4.3 / §11.3）：记录本次卡消费动用了哪些开卡批次。
-	if err = allocateLedgerConsumption(ctx, tx, storedValuePrepayAccount, strconv.Itoa(card.ID),
-		"order", order.OrderNo, payable); err != nil {
+	// 批次级逐笔扣减（§4.3 / §11.3 / §4.5-04）：记录本次卡消费动用了哪些开卡批次，按实际构成分列。
+	if err = allocateLedgerConsumptionWithComposition(ctx, tx, storedValuePrepayAccount, strconv.Itoa(card.ID),
+		"order", order.OrderNo, principalDeduct, bonusDeduct); err != nil {
 		return nil, err
 	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
@@ -621,30 +678,16 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 
 // storedValueOrderConsistent 校验储值卡订单的「标记 / 关联卡 / 核销流水」三者一致（§4.6）。
 // 不一致时结单与结算都应拒绝，避免拿一张没有核销凭证的卡单去结单。
+// 判定与异常队列共用 storedValueOrderLinkMissing（§4.6-06），错误文案保持不变。
 func storedValueOrderConsistent(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) error {
-	if order.PaymentChannel != esportsorder.PaymentChannelStoredValueCard {
-		return nil
-	}
-	if order.StoredValueCardID == nil {
-		return fmt.Errorf("%w：订单标记为储值卡支付但未关联储值卡，无法结单", errInvalidInput)
-	}
-	if _, err := db.EsportsStoredValueCard.Get(ctx, *order.StoredValueCardID); err != nil {
-		return fmt.Errorf("%w：订单关联的储值卡不存在，无法结单", errInvalidInput)
-	}
-	exists, err := db.EsportsWalletTx.Query().Where(
-		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeStoredValueCard),
-		esportswallettx.OwnerIDEQ(*order.StoredValueCardID),
-		esportswallettx.SourceTypeEQ("order"),
-		esportswallettx.SourceIDEQ(order.OrderNo),
-		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeConsume),
-	).Exist(ctx)
+	kind, reason, _, err := storedValueOrderLinkMissing(ctx, db, order)
 	if err != nil {
 		return err
 	}
-	if !exists {
-		return fmt.Errorf("%w：订单缺少储值卡核销流水，无法结单", errInvalidInput)
+	if kind == "" {
+		return nil
 	}
-	return nil
+	return fmt.Errorf("%w：%s", errInvalidInput, reason)
 }
 
 // listStoredValueCards 列出储值卡：customer_id / status 可选过滤，remind_days 命中「临近有效期」。
@@ -707,10 +750,18 @@ func listStoredValueCardTransactions(ctx context.Context, db *ent.Client, cardID
 	if limit < 1 || limit > 200 {
 		limit = 100
 	}
-	return db.EsportsWalletTx.Query().Where(
+	rows, err := db.EsportsWalletTx.Query().Where(
 		esportswallettx.AccountTypeEQ(esportswallettx.AccountTypeStoredValueCard),
 		esportswallettx.OwnerIDEQ(cardID),
 	).Order(ent.Desc(esportswallettx.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// 卡流水的归属人是持卡客户（owner_id 是卡 ID），历史行按读模型回填（§11.6-02）。
+	if err = backfillWalletTxSelfProving(ctx, db, walletStoredValueCard, cardID, rows); err != nil {
+		return nil, err
+	}
+	return rows, nil
 }
 
 // countStoredValueCardsDue 统计临近有效期、仍可用的储值卡，用于客服待办提醒（§4.4 到期提醒）。
@@ -806,10 +857,29 @@ func expireStoredValueCard(ctx context.Context, db *ent.Client, cardID int, now 
 			SetEntryType(esportswallettx.EntryTypeExpire).
 			SetPrincipalDeltaCents(0).SetBonusDeltaCents(-balance.BonusCents).
 			SetSourceType("stored_value_expire").SetSourceID(card.CardNo).
+			SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(card.CustomerID).
 			SetNote("储值卡到期赠送权益作废").Save(ctx); err != nil {
 			if !ent.IsConstraintError(err) {
 				return 0, err
 			}
+			// 已作废过：批次账本与分摊同样无需重复写。
+			if err = tx.Commit(); err != nil {
+				return 0, err
+			}
+			return 1, nil
+		}
+		// 批次账本同步减少并登记分摊（§4.5-04）：赠送作废也要能在批次层追溯到。
+		if _, err = tx.EsportsLedgerEntry.Create().
+			SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(cardID)).
+			SetSourceType("stored_value_expire").SetSourceID(card.CardNo).
+			SetEntryRole("card_bonus_expire").SetDeltaCents(-balance.BonusCents).
+			SetPrincipalDeltaCents(0).SetBonusDeltaCents(-balance.BonusCents).Save(ctx); err != nil {
+			if !ent.IsConstraintError(err) {
+				return 0, err
+			}
+		} else if err = allocateLedgerConsumptionWithComposition(ctx, tx, storedValuePrepayAccount,
+			strconv.Itoa(cardID), "stored_value_expire", card.CardNo, 0, balance.BonusCents); err != nil {
+			return 0, err
 		}
 	}
 	if err = tx.Commit(); err != nil {

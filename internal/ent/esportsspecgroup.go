@@ -25,6 +25,8 @@ type EsportsSpecGroup struct {
 	Name string `json:"name"`
 	// Seats holds the value of the "seats" field.
 	Seats []schematier.SeatSpec `json:"seats"`
+	// PerSeatServiceUnits holds the value of the "per_seat_service_units" field.
+	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
 	// Status holds the value of the "status" field.
 	Status esportsspecgroup.Status `json:"status"`
 	// Version holds the value of the "version" field.
@@ -43,7 +45,7 @@ func (*EsportsSpecGroup) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsspecgroup.FieldSeats:
 			values[i] = new([]byte)
-		case esportsspecgroup.FieldID, esportsspecgroup.FieldVersion:
+		case esportsspecgroup.FieldID, esportsspecgroup.FieldPerSeatServiceUnits, esportsspecgroup.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportsspecgroup.FieldCode, esportsspecgroup.FieldName, esportsspecgroup.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -89,6 +91,12 @@ func (_m *EsportsSpecGroup) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.Seats); err != nil {
 					return fmt.Errorf("unmarshal field seats: %w", err)
 				}
+			}
+		case esportsspecgroup.FieldPerSeatServiceUnits:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field per_seat_service_units", values[i])
+			} else if value.Valid {
+				_m.PerSeatServiceUnits = value.Int64
 			}
 		case esportsspecgroup.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -158,6 +166,9 @@ func (_m *EsportsSpecGroup) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("seats=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Seats))
+	builder.WriteString(", ")
+	builder.WriteString("per_seat_service_units=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PerSeatServiceUnits))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

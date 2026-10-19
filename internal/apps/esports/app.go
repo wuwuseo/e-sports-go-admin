@@ -197,6 +197,27 @@ func expireRescheduleProposalsTask(ctx context.Context, logger io.Writer) error 
 	return err
 }
 
+// autoTransferBacklogOrdersTask 客服离线 / 订单积压自动转公共池（§5.1-05）。
+// 两个触发条件是**独立**的（离线超 cs_backlog_auto_transfer_minutes **或** 待派单数超
+// cs_backlog_order_threshold），两键同时为 0 时整体跳过、不做任何改动。
+func autoTransferBacklogOrdersTask(ctx context.Context, logger io.Writer) error {
+	count, err := autoTransferBacklogOrders(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "客服离线/积压自动转公共池：%d 单\n", count)
+	}
+	return err
+}
+
+// scanDispatchEscalationsTask 派单三类逐级升级（§5.9-06）+ 多席缺员自动补位（§5.3-06）。
+// 补位在该函数内部先执行，因此**不需要**为 §5.3-06 再注册第二个任务。
+func scanDispatchEscalationsTask(ctx context.Context, logger io.Writer) error {
+	count, err := runDispatchEscalations(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "派单升级与多席补位：%d\n", count)
+	}
+	return err
+}
+
 // applyDueSkuSuspensionsTask 到点的定时停服申请生效（§15.7）：下架 SKU 并生成逐单处置清单。
 func applyDueSkuSuspensionsTask(ctx context.Context, logger io.Writer) error {
 	count, err := applyDueSkuSuspensions(ctx, global.ORM, time.Now(), 200)
@@ -300,6 +321,19 @@ func init() {
 		tasks.Register("esports_expire_recharge_intents", expireRechargeIntentsTask)
 		tasks.Register("esports_deliver_outbox", deliverOutboxTask)
 		tasks.Register("esports_deliver_notifications", deliverNotificationsTask)
+		tasks.Register("esports_auto_trigger_upgrade_assessments", autoTriggerUpgradeAssessmentsTask)
+		tasks.Register("esports_auto_transfer_backlog_orders", autoTransferBacklogOrdersTask)
+		tasks.Register("esports_scan_dispatch_escalations", scanDispatchEscalationsTask)
+		// 第 4 轮第 2 波：售后规则扫描（§13.2-05）、结单时限（§2.1-09）、档期确认过期（§3.2-04/§5.5-06）、
+		// 抽查与等级复核（§7.1-03/§7.3-02）、刷评识别（§7.5-05）、复购跟进兜底（§14-01）。
+		// 注册与 cron_seeds.go 的种子**必须成对**，否则一致性测试会红。
+		tasks.Register("esports_scan_aftersale_rules", scanAfterSaleRulesTask)
+		tasks.Register("esports_scan_close_deadline", scanCloseDeadlineTask)
+		tasks.Register("esports_expire_appointment_confirmations", scanAppointmentExpiryTask)
+		tasks.Register("esports_generate_spot_checks", generateSpotCheckAssessmentsTask)
+		tasks.Register("esports_run_player_level_review", runPlayerLevelReviewTask)
+		tasks.Register("esports_detect_review_brushing", detectReviewBrushingTask)
+		tasks.Register("esports_schedule_repurchase_follow_ups", scheduleRepurchaseFollowUpsTask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
@@ -318,10 +352,112 @@ func init() {
 			{Key: "wecom_agent_id", Name: "企微自建应用 agentId", Value: "", Type: "string", Group: "esports", Remark: "企业微信自建应用 agentId；留空表示未配置"},
 			{Key: "wecom_secret", Name: "企微自建应用密钥", Value: "", Type: "string", Group: "esports", Remark: "企业微信自建应用 secret，用于换取 access_token / jsapi_ticket；留空表示未配置"},
 			{Key: "wecom_jsapi_ticket", Name: "企微 JS-SDK 票据", Value: "", Type: "string", Group: "esports", Remark: "企微 JS-SDK jsapi_ticket；可手动预置或由后台自动拉取；留空表示未配置"},
+			{Key: "wecom_sidebar_footer_tip", Name: "企微侧边栏底部提示", Value: "", Type: "string", Group: "esports", Remark: "企微侧边栏 H5「底部提示」区块文案（§8.4-11）；留空表示不展示该区块"},
+			{Key: "page_icon_allowlist", Name: "页面图标短标识允许清单", Value: "icon-apps,icon-archive,icon-bar-chart,icon-check-circle,icon-cs,icon-customer-service,icon-desktop,icon-edit,icon-exclamation-circle,icon-file,icon-gift,icon-heart,icon-list,icon-safe,icon-share-alt,icon-star,icon-user,icon-wallet", Type: "string", Group: "esports", Remark: "页面装修图标短标识白名单（§16.3-04），逗号分隔；在代码基准清单上做**加法**（可扩展、不可收窄）；https 图片地址与站内相对路径不受此限"},
 			{Key: "notification_channels", Name: "通知通道开关", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔启用的通知通道（wecom_app/voice/push），如 \"wecom_app,push\"；为空表示不启用任何通道，通知事件将进入失败待办"},
 			{Key: "notification_push_webhook", Name: "通知推送网关", Value: "", Type: "string", Group: "esports", Remark: "JSON：{\"url\":\"https://...\",\"secret\":\"...\",\"timeout_seconds\":5}；配置后按收件人推送并带 X-Esports-Signature 签名；留空表示不推送（站内信仍投递）"},
 			{Key: "payment_gateways", Name: "在线收款渠道配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按渠道编码索引）：{\"wechat_work\":{\"kind\":\"http_hmac\",\"base_url\":\"https://...\",\"app_id\":\"...\",\"app_secret\":\"...\",\"notify_url\":\"...\",\"enabled\":true}}；未配置的渠道发起收款返回 503"},
 			{Key: "wallet_display", Name: "钱包展示配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按账户类型索引）：{\"customer_balance\":{\"display_name\":\"账户余额\",\"unit_name\":\"元\",\"unit_cents\":100},\"player_catfood\":{\"display_name\":\"猫粮\",\"unit_name\":\"猫粮\",\"unit_cents\":100}}；留空用内置默认"},
+			// —— §13.5 售后四段时限（小时，0 = 该阶段不限时；超时只写升级外盒，不自动流转状态）——
+			{Key: "aftersale_accept_hours", Name: "售后受理时限（小时）", Value: "2", Type: "number", Group: "esports", Remark: "0 表示该阶段不限时；非法值（<0 或 >2160）回落 2"},
+			{Key: "aftersale_plan_hours", Name: "售后方案时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "0 不限时；非法值回落 24"},
+			{Key: "aftersale_customer_confirm_hours", Name: "售后客户确认时限（小时）", Value: "48", Type: "number", Group: "esports", Remark: "0 不限时；非法值回落 48"},
+			{Key: "aftersale_execute_hours", Name: "售后执行时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "0 不限时；非法值回落 24"},
+			// —— 订单取消、档期与预付款扣减 ——
+			{Key: "appointment_confirm_hours", Name: "档期确认时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "预约单确认档期的时限，合法 1~720；为 0 或非法均回落 24（无「0 关闭」语义）"},
+			{Key: "cancel_free_hours", Name: "取消免费窗口（小时）", Value: "0", Type: "number", Group: "esports", Remark: "0 表示无免费窗口（任何取消都按手续费计）；非法值（<0 或 >720）直接拒绝取消操作，不回落"},
+			{Key: "cancel_fee_bp", Name: "取消手续费（基点）", Value: "0", Type: "number", Group: "esports", Remark: "万分比；0 表示不收取消费；非法值（<0 或 >10000）直接拒绝取消操作，不回落"},
+			{Key: "customer_aftersale_window_days", Name: "客户自助售后申请时限（天）", Value: "30", Type: "number", Group: "esports", Remark: "0 表示不限时；非法值（<0 或 >365）直接报错，不回落；不影响客服代建售后单"},
+			{Key: "prepay_deduction_order", Name: "预付款扣减顺序", Value: "bonus_first", Type: "string", Group: "esports", Remark: "bonus_first=先赠送后本金（默认）/ principal_first=先本金后赠送 / proportional=按剩余比例分摊；留空或非法回落 bonus_first"},
+			// —— 排单与派单 ——
+			{Key: "dispatch_invite_ttl_minutes", Name: "派单邀请有效期（分钟）", Value: "10", Type: "number", Group: "esports", Remark: "邀请到期未回应即回收改派；合法 1~1440，为 0 或非法回落 10（无「0 关闭」语义）"},
+			{Key: "dispatch_priority_quota", Name: "优先派单名额上限（人）", Value: "3", Type: "number", Group: "esports", Remark: "每个游戏每期的优先名单名额；<1 或非法回落 3；候选不足时宁缺毋滥，不填满名额"},
+			{Key: "dispatch_priority_auto", Name: "优先权达标制阈值", Value: "{\"rating_min\":4.0,\"completed_min\":1}", Type: "string", Group: "esports", Remark: "JSON：{\"rating_min\":4.0,\"completed_min\":1}；rating_min 须 0<x≤5，completed_min≥0（0 表示不卡完成单数）；整体或单字段非法回落默认"},
+			{Key: "dispatch_priority_notice_minutes", Name: "优先通知独占时长（分钟）", Value: "3", Type: "number", Group: "esports", Remark: "名单内陪玩的独占抢单窗口；合法 1~1440，为 0 或非法回落 3；超时释放到抢单大厅"},
+			{Key: "dispatch_ranking_weights", Name: "派单排序权重", Value: "{\"rating\":40,\"history\":30,\"preference\":60,\"zone\":30,\"balance\":20,\"history_cap\":10,\"balance_cap\":10,\"distance\":0,\"timezone\":0}", Type: "string", Group: "esports", Remark: "JSON 权重，某项为 0 表示该分量不参与排序；history_cap / balance_cap 须 ≥1；zone 为历史字段，优先派单权不参与排序（§5.2-04），该值已不影响结果；distance / timezone 为 §5.5-03 新增的加分项，**默认 0 = 不参与排序，以保持既有排序行为不变**"},
+			{Key: "remind_ladder_minutes", Name: "催单时间阶梯（分钟）", Value: "5,15,30", Type: "string", Group: "esports", Remark: "逗号分隔的升序档位（每档 1~1440），如 5,15,30；非法档位被跳过；留空或全非法回落 5,15,30"},
+			{Key: "service_overtime_minutes", Name: "服务超时提醒阈值（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭提醒；服务段有效时长超过该值即提醒责任客服确认是否加钟；>1440 或非法回落 0（关闭）"},
+			// —— 陪玩在线、服务时长与考核评价 ——
+			{Key: "player_heartbeat_timeout_minutes", Name: "陪玩心跳超时（分钟）", Value: "10", Type: "number", Group: "esports", Remark: "心跳超时后由任务判定在线状态；合法 1~1440，<1 或非法回落 10（无「0 关闭」语义）"},
+			{Key: "service_duration_mismatch_minutes", Name: "服务时长差异提醒阈值（分钟）", Value: "15", Type: "number", Group: "esports", Remark: "<1 或非法回落 15；实际阈值取 max(该值, 上报时长×20%)；超阈值提醒客服核实"},
+			{Key: "service_duration_severe_minutes", Name: "严重时长差异阈值（分钟）", Value: "30", Type: "number", Group: "esports", Remark: "<1 或非法回落 30；超阈值在同一事务内自动建售后单（channel=system）"},
+			{Key: "assessment_pass_score", Name: "考核通过分数线", Value: "60", Type: "number", Group: "esports", Remark: "百分制；≤0 或非法回落 60，不能用 0 表达关闭"},
+			{Key: "review_min_samples", Name: "评分样本充足下限（条）", Value: "5", Type: "number", Group: "esports", Remark: "低于该样本数标记样本不足；≤0 或非法回落 5（无「0 关闭」语义）"},
+			{Key: "review_rule_version", Name: "评价规则版本号", Value: "v1", Type: "string", Group: "esports", Remark: "如 v1 / v2；留空或全空白回落 v1；用于评价计算口径留痕"},
+			// —— 升级考核申请门槛（§7.1-02 / §7.2-01）——
+			{Key: "upgrade_apply_min_service_units", Name: "升级申请·最低累计服务量", Value: "30", Type: "number", Group: "esports", Remark: "已完成服务段的 reported_units 求和（进行中不计）；≤0 或非法回落 30（无「0 关闭」语义）"},
+			{Key: "upgrade_apply_min_rating_score", Name: "升级申请·最低综合评分", Value: "80", Type: "number", Group: "esports", Remark: "百分制，1~5 星按每星 20 分折算；评价样本不足时不按低分处理；≤0 或非法回落 80"},
+			{Key: "upgrade_apply_min_tenure_days", Name: "升级申请·最低在岗天数", Value: "7", Type: "number", Group: "esports", Remark: "自陪玩档案创建时间起算；≤0 或非法回落 7（无「0 关闭」语义）"},
+			{Key: "upgrade_apply_cooldown_days", Name: "升级申请冷却期（天）", Value: "30", Type: "number", Group: "esports", Remark: "距上次升级考核单创建时间；冷却期内重复申请被拒；≤0 或非法回落 30"},
+			// —— 礼物与风控 ——
+			{Key: "gift_high_value_threshold_cents", Name: "大额礼物确认阈值（分）", Value: "100000", Type: "number", Group: "esports", Remark: "≤0 或非法回落 100000（1000 元）；达到阈值须显式 confirmed=true 才可送出"},
+			{Key: "risk_window_days", Name: "风控退款观察窗口（天）", Value: "30", Type: "number", Group: "esports", Remark: "<0 或非法回落 30；为 0 时窗口即「现在」，历史退款不再计入"},
+			{Key: "risk_refund_count", Name: "风控退款次数阈值（次）", Value: "3", Type: "number", Group: "esports", Remark: "0 表示不按次数判；与 risk_refund_cents 同时 ≤0 时风控任务整体跳过"},
+			{Key: "risk_refund_cents", Name: "风控退款金额阈值（分）", Value: "50000", Type: "number", Group: "esports", Remark: "0 表示不按金额判（与非法值回落 50000 语义不同）；与 risk_refund_count 同时 ≤0 时任务跳过"},
+			// —— 会员等级 ——
+			{Key: "member_downgrade_guard_days", Name: "会员降级保护期（天）", Value: "30", Type: "number", Group: "esports", Remark: "<1 或 >3650 或非法回落 30；保护期届满由任务执行降级并留事件"},
+			// —— 结算周期与提现 ——
+			{Key: "settlement_period", Name: "结算周期", Value: "weekly", Type: "string", Group: "esports", Remark: "daily / weekly / monthly；被结算周期表（陪玩 / 等级 / 游戏 / 全局）命中时不生效；留空或非法回落 weekly"},
+			{Key: "withdrawal_min_cents", Name: "最低提现金额（分）", Value: "0", Type: "number", Group: "esports", Remark: "0 不限门槛；非法值或 >1 亿分回落 0"},
+			{Key: "withdrawal_min_interval_hours", Name: "提现最小间隔（小时）", Value: "0", Type: "number", Group: "esports", Remark: "0 不限间隔；非法值或 >720 回落 0；间隔按最近一次申请（含已驳回）计算"},
+			{Key: "withdrawal_daily_limit", Name: "每日提现次数上限（次）", Value: "0", Type: "number", Group: "esports", Remark: "0 不限次数；非法值或 >100 回落 0；按 UTC+8 自然日统计，含已驳回申请"},
+			{Key: "withdrawal_fee_bp", Name: "提现手续费（基点）", Value: "0", Type: "number", Group: "esports", Remark: "万分比；0 不收费；仅在未配置合法阶梯时生效；非法值或 >10000 回落 0"},
+			{Key: "withdrawal_tax_bp", Name: "提现代扣税费（基点）", Value: "0", Type: "number", Group: "esports", Remark: "万分比；0 不收税；仅在未配置合法阶梯时生效；非法值或 >10000 回落 0"},
+			{Key: "withdrawal_fee_tiers", Name: "提现手续费阶梯", Value: "", Type: "string", Group: "esports", Remark: "JSON 数组，如 [{\"min_cents\":0,\"bp\":100},{\"min_cents\":50000,\"bp\":50}]，取「金额≥min_cents」的最高档；留空或任一项非法视为未配置，回落 withdrawal_fee_bp"},
+			{Key: "withdrawal_tax_tiers", Name: "提现代扣税费阶梯", Value: "", Type: "string", Group: "esports", Remark: "JSON 数组，格式同 withdrawal_fee_tiers；留空或任一项非法视为未配置，回落 withdrawal_tax_bp"},
+			// —— 账本核验游标（内部运行时状态：程序自写自读，运维改成非 0 会永久跳过低位 ID 的核验）——
+			{Key: "ledger_reconcile_cursor_wallet_account", Name: "账本核验游标（钱包账户）", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大账户 ID，缺失读作 0（从头扫）；由 esports_reconcile_ledgers 任务写回，运维不要手改"},
+			{Key: "ledger_reconcile_cursor_stored_value_card", Name: "账本核验游标（储值卡）", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大储值卡 ID，缺失读作 0；由账本核验任务写回，运维不要手改"},
+			{Key: "ledger_reconcile_cursor_allocation", Name: "账本核验游标（分摊明细）", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大分摊明细 ID（单轮上限 5000 条，截断时写回续扫）；由账本核验任务写回，运维不要手改"},
+			{Key: "upgrade_auto_trigger_cursor", Name: "升级考核自动触发游标", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大陪玩 ID；0/缺失/非法/负数均读作 0（从头扫）；由 esports_auto_trigger_upgrade_assessments 写回，运维不要手改"},
+			// —— 第 4 轮补充声明：以下 18 键由 TestEsportsConfigKeysAreDeclared 实测出「已读未声明」，
+			//    默认值一律取自**读取点的真实代码回落**（不是按键名猜），声明前已逐键 grep 复核。 ——
+			// 售后 / 风控
+			{Key: "aftersale_refund_review_threshold_cents", Name: "退款财务复核门槛（分）", Value: "0", Type: "number", Group: "esports", Remark: "0/负数/非法/未配置=不启用金额分流（照常放行）；>0 且退款额达门槛须超管或配置的财务角色复核，否则 403"},
+			{Key: "aftersale_refund_finance_role_names", Name: "大额退款财务复核角色", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔角色名；留空=未配置，此时大额退款仅超管可复核（明确降级，不静默放行）；只配本键不配门槛键则不生效"},
+			{Key: "external_refund_require_aftersale", Name: "外部退款强制关联售后单", Value: "0", Type: "number", Group: "esports", Remark: "仅整数 1 启用；未配置或其他值（含 true）一律读作关闭——此时仍可登记，但强制写 payout.offbook_suspected 私下赔付留痕"},
+			{Key: "risk_restrict_refund_count", Name: "风控限制档次数阈值（次）", Value: "6", Type: "number", Group: "esports", Remark: "缺失/负数/非法回落 6；显式 0=不按次数判；与金额键同时 ≤0 时限制档关闭（仅落 watch，不拦自助下单）"},
+			{Key: "risk_restrict_refund_cents", Name: "风控限制档金额阈值（分）", Value: "200000", Type: "number", Group: "esports", Remark: "缺失/负数/非法回落 200000（2000 元）；显式 0=不按金额判该档；与次数键同时 ≤0 时自动限制整体关闭"},
+			// 订单报单校验
+			{Key: "price_deviation_threshold_bp", Name: "订单价偏离提醒阈值（基点）", Value: "3000", Type: "number", Group: "esports", Remark: "基点，3000=30%；缺失/<0/>10000/非法回落 3000；显式 0=关闭偏离判定；偏离度超阈值才提醒"},
+			{Key: "price_deviation_reason_required", Name: "偏离强制填写原因", Value: "true", Type: "string", Group: "esports", Remark: "true/1/yes/on=强制（缺失或非法也回落强制）；仅显式 false/0/no/off 关停；仅在超偏离阈值时生效"},
+			{Key: "order_discount_limit_bps", Name: "单笔会员折扣上限（基点）", Value: "0", Type: "number", Group: "esports", Remark: "0/≤0/>10000/非法/未配置=不限制；>0 时折扣基点超上限即拒绝下单"},
+			{Key: "customer_debt_remind_cents", Name: "客户欠款提醒阈值（分）", Value: "0", Type: "number", Group: "esports", Remark: "0=只要有欠款就提醒（与 customer_debt_limit_cents 的 0=关闭拦截语义相反）；负数回落 0；只提醒不拦截"},
+			{Key: "close_form_require_service_result", Name: "结单强制服务结果", Value: "false", Type: "string", Group: "esports", Remark: "默认 false：内置结单模板 builtin_default 恒出现在模板列表，但只有置 true 才启用并强制采集「服务结果」——默认关闭是为不改存量结单口径"},
+			// 收款账户
+			{Key: "corporate_transfer_threshold_cents", Name: "大额对公转账门槛（分）", Value: "0", Type: "number", Group: "esports", Remark: "0/负数/非法/未配置=不限制渠道；>0 时金额≥门槛且渠道≠corporate_transfer 即拒绝"},
+			{Key: "payment_subject_whitelist", Name: "收款主体白名单", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔主体名；留空或全空白=不限制（不是「谁都不许」）；非空时仅名单内主体名通过校验"},
+			// 客服离线与积压自动转池（对应定时任务尚未注册，属预留）
+			{Key: "cs_offline_timeout_minutes", Name: "客服离线判定时长（分钟）", Value: "15", Type: "number", Group: "esports", Remark: "无「0 关闭」语义：0/<1/>1440/非法/未配置一律回落 15；口径=最近活跃时间 + 该时长；看板在线状态与自动转池共用此口径"},
+			{Key: "cs_backlog_auto_transfer_minutes", Name: "积压自动转池时长（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0=关闭「滞留超时」这个触发条件；与单量阈值同时为 0 时任务整体跳过；由 esports_auto_transfer_backlog_orders 执行"},
+			{Key: "cs_backlog_order_threshold", Name: "积压自动转池单量阈值（单）", Value: "0", Type: "number", Group: "esports", Remark: "0=不按单量判；>0 时该客服待派单数**严格大于**阈值即转池——与「离线超时」是两个**独立**触发器，满足任一即转（不要求同时离线）；由 esports_auto_transfer_backlog_orders 执行"},
+			// 派单升级
+			{Key: "dispatch_no_taker_minutes", Name: "无人接单升级阈值（分钟）", Value: "60", Type: "number", Group: "esports", Remark: "无「0 关闭」语义：0/<1/>1440/非法/未配置一律回落 60"},
+			{Key: "dispatch_start_escalate_minutes", Name: "临近开始升级提前量（分钟）", Value: "60", Type: "number", Group: "esports", Remark: "无「0 关闭」语义：0/<1/>1440/非法/未配置一律回落 60"},
+			{Key: "dispatch_refill_minutes", Name: "多席缺员自动补位阈值（分钟）", Value: "10", Type: "number", Group: "esports", Remark: "多席订单出现空缺席位后，超过该时长仍未补齐即触发自动补位；<1/>1440/非法回落 10（无「0 关闭」语义）"},
+			// 会员
+			{Key: "member_override_guard_days", Name: "手动调级覆盖期（天）", Value: "90", Type: "number", Group: "esports", Remark: "无「0 关闭」语义：0/非法（<1 或 >3650）/未配置一律回落 90；覆盖期内手动等级作为保底来源"},
+			// 提现渠道开关（真实键带渠道后缀；裸前缀 withdrawal_channel 已在 config_declaration_test.go 豁免正则误报）
+			// 未配置/空/非 disabled 一律视为**开通**（与代码回落一致，保持既有行为）；要停用某渠道必须显式写 disabled。
+			{Key: "withdrawal_channel.bank_card", Name: "提现方式·银行卡", Value: "enabled", Type: "string", Group: "esports", Remark: "enabled 或空=开通；仅显式 disabled 关闭；未开通渠道发起提现申请被拒（中文提示）"},
+			{Key: "withdrawal_channel.wechat", Name: "提现方式·微信", Value: "enabled", Type: "string", Group: "esports", Remark: "enabled 或空=开通；仅显式 disabled 关闭；未开通渠道发起提现申请被拒（中文提示）"},
+			{Key: "withdrawal_channel.alipay", Name: "提现方式·支付宝", Value: "enabled", Type: "string", Group: "esports", Remark: "enabled 或空=开通；仅显式 disabled 关闭；未开通渠道发起提现申请被拒（中文提示）"},
+			// —— 第 4 轮第 2 波补充声明：以下 16 键由守卫测试实测出「已读未声明」，
+			//    默认值一律取自**读取点的真实代码回落**（已逐键 grep 复核），不按键名猜。 ——
+			{Key: "aftersale_rule_auto_create_enabled", Name: "售后规则自动建单总开关", Value: "1", Type: "string", Group: "esports", Remark: "默认开启；**仅当值恰为字符串 \"0\" 才关闭**（只留痕+待办、不建单）。\"false\"/\"off\"/空值都会被读成开启，别按 bool 直觉填"},
+			{Key: "appointment_expire_action", Name: "档期过期处置方式", Value: "both", Type: "string", Group: "esports", Remark: "refund=超时单只允许全额退还 / reschedule=只允许改期 / both=两者都允许（默认）；未配置或非枚举值一律回落 both，无「关闭」语义"},
+			{Key: "close_deadline_hours", Name: "结单时限（小时）", Value: "0", Type: "number", Group: "esports", Remark: "0=关闭该超时待办（缺失/空/非法/<1/>1440 也一律回落 0）；>0 时「待结单 / 待结单复核」超该小时数即进客服与管理员待办"},
+			{Key: "gift_payment_window_minutes", Name: "礼物收款时限（分钟）", Value: "1440", Type: "number", Group: "esports", Remark: "1440=24 小时（缺失/空/非法/0/负数/>10080 一律回落 1440）；**0 不是关闭而是非法**，无法用 0 关闭礼物收款"},
+			{Key: "spot_check_cycle_days", Name: "随机抽查最小间隔（天）", Value: "7", Type: "number", Group: "esports", Remark: "≥1；缺失/空/非法/≤0 一律回落 7（**无「0 关闭」语义**）；口径=同一陪玩两次抽查之间的最小间隔"},
+			{Key: "spot_check_ratio_bp", Name: "随机抽查抽取比例（万分比）", Value: "1000", Type: "number", Group: "esports", Remark: "1000=10%（缺失/空/非法/0/负数/>10000 一律回落 1000）；10000=全抽；**0 无法关闭抽查**（会被当非法回落 10%）；逐人独立按概率判定，非精确配额"},
+			{Key: "level_review_cycle_days", Name: "等级复核周期（天）", Value: "30", Type: "number", Group: "esports", Remark: "≥1；缺失/空/非法/≤0 一律回落 30（**无「0 关闭」语义**）；按判定时刻向前切窗"},
+			{Key: "level_review_fail_periods", Name: "等级复核连续不达标期数", Value: "3", Type: "number", Group: "esports", Remark: "≥1；缺失/空/非法/≤0 一律回落 3（无「0 关闭」语义）；连续不达标期数达到该值才降一档"},
+			{Key: "review_appeal_window_days", Name: "评价申诉时限（天）", Value: "30", Type: "number", Group: "esports", Remark: "缺失/空/非数字回落 30；显式 0=不限时；**注意负数也被按 0 处理（=不限时）**，与「非法一律回落 30」并不一致"},
+			{Key: "review_brush_rule", Name: "异常刷评识别规则", Value: "", Type: "string", Group: "esports", Remark: "JSON：{\"window_hours\":24,\"max_reviews_per_customer\":3,\"identical_comment\":true}；留空=**关闭**自动识别（显式降级）；JSON 非法则明确报错（不静默关闭）；window_hours / max_reviews 非正回落 24 / 3"},
+			{Key: "sku_cost_view_roles", Name: "SKU 成本可见角色", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔角色名；留空=不额外授权（**仅超管可看成本，超管恒放行**）；非空时命中任一活跃角色即可读；未授权角色成本既不可读也不可写"},
+			{Key: "page_preview_secret", Name: "页面预览签名密钥", Value: "", Type: "string", Group: "esports", Remark: "**全局单份 HMAC-SHA256 密钥**（不是每设备一份）；留空=预览码功能不可用：生成接口明确失败「页面预览签名密钥未配置」，**不降级、不假成功**；换密钥会让已发出的预览码立刻失效（预览码 TTL 30 分钟）"},
+			{Key: "player_expected_price_limits_cents", Name: "期望报价允许区间（分）", Value: "0,0", Type: "string", Group: "esports", Remark: "格式 \"min,max\"（两个非负整数分，逗号分隔）；\"0,0\"=两侧都不限（也是缺失/空/字段数≠2/非数字/负数/min>max 的回落）；**键名虽含 _cents 但实际是字符串，后台数字框写不进去**"},
+			{Key: "repurchase_follow_up_days", Name: "结单后复购跟进天数", Value: "7", Type: "number", Group: "esports", Remark: "缺失/空/非数字/负数回落 7；**显式 0 = 关闭**（不生成复购回访待办）；>0 时结单后该天数生成客户维度复购跟进待办"},
 		},
 		Routes: []cmfapp.Route{
 			{Method: "GET", Path: "/skus", Auth: cmfapp.AuthPublic, Handler: publicSkus},
@@ -397,6 +533,8 @@ func init() {
 			{Method: "POST", Path: "/admin/orders/:id/players/:playerId/service/resume", Auth: cmfapp.AuthAdmin, Handler: adminResumePlayerServiceHandler},
 			// 服务段时长争议更正（§3.3）：留痕更正有效 / 暂停秒数并登记停工量与责任方。
 			{Method: "POST", Path: "/admin/orders/:id/players/:playerId/service/timing-correction", Auth: cmfapp.AuthAdmin, Handler: adminCorrectServiceTimingHandler},
+			// 终止服务段（§3.3-06）：客服侧提前结束某陪玩的服务段，登记已履约量 / 未履约量 / 责任方。
+			{Method: "POST", Path: "/admin/orders/:id/players/:playerId/service/terminate", Auth: cmfapp.AuthAdmin, Handler: adminTerminatePlayerServiceHandler},
 			{Method: "PUT", Path: "/admin/orders/:id/channel-cost", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(setOrderChannelCostHandler)},
 			// 单笔手动指定分成规则（§12.3 最高一级）：仅未锁定成员规则前可设，rule_id=0 清除。
 			{Method: "PUT", Path: "/admin/orders/:id/commission-rule", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(setOrderManualCommissionRuleHandler)},
@@ -504,6 +642,64 @@ func init() {
 			{Method: "GET", Path: "/admin/orders/:id/close-form", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderCloseFormHandler)},
 			// 结单审批进度（§3.4）：当前待审批节点，供复核弹窗展示。
 			{Method: "GET", Path: "/admin/orders/:id/close-approval", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(orderCloseApprovalHandler)},
+			// —— 第 4 轮第 2 波新增路由 ——
+			// ⚠️ `/admin/after-sales/rules` 与 `/admin/after-sales/rule-hits` 必须**先于**紧邻其下的
+			// `/admin/after-sales/:id` 注册：Fiber 按注册顺序匹配，`:id` 会把字面量段 `rules` 吃掉
+			// （实测 `:id` 就在下一行）。改动此顺序会静默让规则 CRUD 变成「查详情」。
+			{Method: "GET", Path: "/admin/after-sales/rules", Auth: cmfapp.AuthAdmin, Handler: adminAfterSaleRulesHandler},
+			{Method: "POST", Path: "/admin/after-sales/rules", Auth: cmfapp.AuthAdmin, Handler: adminCreateAfterSaleRuleHandler},
+			{Method: "GET", Path: "/admin/after-sales/rules/:id", Auth: cmfapp.AuthAdmin, Handler: adminAfterSaleRuleDetailHandler},
+			{Method: "PUT", Path: "/admin/after-sales/rules/:id", Auth: cmfapp.AuthAdmin, Handler: adminUpdateAfterSaleRuleHandler},
+			{Method: "DELETE", Path: "/admin/after-sales/rules/:id", Auth: cmfapp.AuthAdmin, Handler: adminDeleteAfterSaleRuleHandler},
+			{Method: "GET", Path: "/admin/after-sales/rule-hits", Auth: cmfapp.AuthAdmin, Handler: adminAfterSaleRuleHitsHandler},
+			{Method: "GET", Path: "/admin/after-sales/:id/messages", Auth: cmfapp.AuthAdmin, Handler: adminAfterSaleMessagesHandler},
+			{Method: "POST", Path: "/admin/after-sales/:id/messages", Auth: cmfapp.AuthAdmin, Handler: adminPostAfterSaleMessageHandler},
+			{Method: "POST", Path: "/admin/after-sales/:id/evidence-request", Auth: cmfapp.AuthAdmin, Handler: adminRequestAfterSaleEvidenceHandler},
+			// 收款发起（§4.3-02）、档期过期处置（§5.5-06）、期望报价复核（§6.1-12）
+			{Method: "POST", Path: "/admin/orders/:id/payment/start", Auth: cmfapp.AuthAdmin, Handler: adminStartOrderPaymentHandler},
+			{Method: "POST", Path: "/admin/orders/:id/appointment/disposal", Auth: cmfapp.AuthAdmin, Handler: disposeExpiredAppointmentHandler},
+			{Method: "POST", Path: "/admin/players/:id/expected-price/review", Auth: cmfapp.AuthAdmin, Handler: adminReviewExpectedPriceHandler},
+			// 客服在线状态写入口与列表（§1.1-08）：离线/积压自动转池已由 §5.1-05 交付，此处只补原子写入口。
+			{Method: "POST", Path: "/admin/cs/presence", Auth: cmfapp.AuthAdmin, Handler: adminSetCsPresenceHandler},
+			{Method: "GET", Path: "/admin/cs/presences", Auth: cmfapp.AuthAdmin, Handler: adminListCsPresencesHandler},
+			// 客户归属转移（§8.3-02）：追加交接留痕，历史跟进不变。
+			{Method: "POST", Path: "/admin/customers/:id/owner-transfer", Auth: cmfapp.AuthAdmin, Handler: transferCustomerOwnerHandler},
+			// 页面预览码与底部导航（§16.4-02 / §16.3-12）；素材引用反查（§16.2-06）
+			{Method: "POST", Path: "/admin/pages/:channel/preview-code", Auth: cmfapp.AuthAdmin, Handler: issuePagePreviewCodeHandler},
+			{Method: "PUT", Path: "/admin/pages/:channel/tabbar", Auth: cmfapp.AuthAdmin, Handler: savePageTabbarHandler},
+			{Method: "GET", Path: "/admin/pages/:channel/tabbar", Auth: cmfapp.AuthAdmin, Handler: adminPageTabbar},
+			{Method: "GET", Path: "/admin/page-assets/:id/usages", Auth: cmfapp.AuthAdmin, Handler: pageAssetUsagesHandler},
+			// 评价申诉（§7.5-05）：管理端列表与复核
+			{Method: "GET", Path: "/admin/player-review-appeals", Auth: cmfapp.AuthAdmin, Handler: adminReviewAppeals},
+			{Method: "POST", Path: "/admin/player-review-appeals/:id/review", Auth: cmfapp.AuthAdmin, Handler: reviewReviewAppealHandler},
+			// 客户 / 陪玩端自助（AuthUser 按仓库约定不需要 PermAPI）
+			{Method: "GET", Path: "/user/after-sales/:id/messages", Auth: cmfapp.AuthUser, Handler: userAfterSaleMessagesHandler},
+			{Method: "POST", Path: "/user/after-sales/:id/messages", Auth: cmfapp.AuthUser, Handler: userPostAfterSaleMessageHandler},
+			{Method: "GET", Path: "/user/after-sales/:id/progress", Auth: cmfapp.AuthUser, Handler: userAfterSaleProgressHandler},
+			{Method: "GET", Path: "/user/after-sales/:id/evidence-status", Auth: cmfapp.AuthUser, Handler: userAfterSaleEvidenceStatusHandler},
+			{Method: "GET", Path: "/user/player/priority-status", Auth: cmfapp.AuthUser, Handler: playerPriorityStatusHandler},
+			{Method: "POST", Path: "/user/player/expected-price", Auth: cmfapp.AuthUser, Handler: playerSubmitExpectedPriceHandler},
+			{Method: "POST", Path: "/user/reviews/:id/appeal", Auth: cmfapp.AuthUser, Handler: userReviewAppealHandler},
+			// 公开：页面预览码兑换（§16.4-02）
+			{Method: "GET", Path: "/page/preview/:code", Auth: cmfapp.AuthPublic, Handler: publicPagePreview},
+			// —— 礼物档位与收款（§9.1-02 / §9.2-01）、账本核验异常（§11.6-01）、陪玩可用时段（§10.4-04）、收礼记录（§6.1-14）——
+			{Method: "GET", Path: "/admin/gifts/:id/tiers", Auth: cmfapp.AuthAdmin, Handler: giftTierListHandler},
+			{Method: "POST", Path: "/admin/gifts/:id/tiers", Auth: cmfapp.AuthAdmin, Handler: createGiftTierHandler},
+			{Method: "PUT", Path: "/admin/gift-tiers/:id", Auth: cmfapp.AuthAdmin, Handler: updateGiftTierHandler},
+			{Method: "DELETE", Path: "/admin/gift-tiers/:id", Auth: cmfapp.AuthAdmin, Handler: deleteGiftTierHandler},
+			{Method: "POST", Path: "/admin/gift-intents/:id/payment/start", Auth: cmfapp.AuthAdmin, Handler: startGiftPaymentHandler},
+			{Method: "POST", Path: "/admin/gift-intents/:id/payment/verify", Auth: cmfapp.AuthAdmin, Handler: verifyGiftPaymentHandler},
+			{Method: "GET", Path: "/admin/ledger-reconcile-anomalies", Auth: cmfapp.AuthAdmin, Handler: adminLedgerReconcileAnomalies},
+			{Method: "GET", Path: "/admin/players/:id/availability", Auth: cmfapp.AuthAdmin, Handler: adminPlayerAvailabilityHandler},
+			{Method: "GET", Path: "/user/player/players/:id/availability", Auth: cmfapp.AuthUser, Handler: userPlayerAvailabilityHandler},
+			{Method: "GET", Path: "/user/player/gift-records", Auth: cmfapp.AuthUser, Handler: userPlayerGiftRecordsHandler},
+			// 公开：礼物收款回调（§9.2-01）：原始字节 + `X-Pay-Signature` 验签，渠道取 `?channel=` 或 `X-Pay-Channel`。
+			{Method: "POST", Path: "/public/gift-payment-notify", Auth: cmfapp.AuthPublic, Handler: giftPaymentNotifyHandler},
+			// —— 储值卡一致性异常队列（§4.6-06）：列表 / 详情 / 指派跟进人 / 处置（resolved|ignored）——
+			{Method: "GET", Path: "/admin/stored-value-exceptions", Auth: cmfapp.AuthAdmin, Handler: adminStoredValueExceptions},
+			{Method: "GET", Path: "/admin/stored-value-exceptions/:id", Auth: cmfapp.AuthAdmin, Handler: adminStoredValueExceptionDetail},
+			{Method: "POST", Path: "/admin/stored-value-exceptions/:id/assign", Auth: cmfapp.AuthAdmin, Handler: assignStoredValueExceptionHandler},
+			{Method: "POST", Path: "/admin/stored-value-exceptions/:id/resolve", Auth: cmfapp.AuthAdmin, Handler: resolveStoredValueExceptionHandler},
 			{Method: "GET", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: adminAfterSales},
 			{Method: "GET", Path: "/admin/after-sales/:id", Auth: cmfapp.AuthAdmin, Handler: ownedAfterSaleHandler(adminAfterSaleDetail)},
 			{Method: "POST", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: createAfterSaleHandler},
@@ -690,6 +886,8 @@ func init() {
 			// 陪玩端自助：我的考核与申诉（§7.4）。
 			{Method: "GET", Path: "/user/player/assessments", Auth: cmfapp.AuthUser, Handler: playerAssessmentsHandler},
 			{Method: "POST", Path: "/user/player/assessments/:id/appeal", Auth: cmfapp.AuthUser, Handler: playerAppealHandler},
+			// 陪玩自助申请升级考核（§7.1-02 / §7.2-01）：自助形态走 AuthUser，无需 PermAPI。
+			{Method: "POST", Path: "/user/player/assessments/upgrade-apply", Auth: cmfapp.AuthUser, Handler: playerApplyUpgradeAssessmentHandler},
 			// 客户自助：已完成订单的服务评价（§7.5）。
 			{Method: "POST", Path: "/user/orders/:id/reviews", Auth: cmfapp.AuthUser, Handler: userSubmitReviewHandler},
 			// 客户自助（§13.2 / §10）：下单、我的订单 / 售后、余额与资料，均按绑定客户做数据隔离。
@@ -858,6 +1056,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "代操作服务暂停", Code: "esports:orders:service_pause_admin", Path: "/api/v1/esports/admin/orders/{id}/players/{playerId}/service/pause", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "代操作服务恢复", Code: "esports:orders:service_resume_admin", Path: "/api/v1/esports/admin/orders/{id}/players/{playerId}/service/resume", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "服务时长更正", Code: "esports:orders:service_timing_correction", Path: "/api/v1/esports/admin/orders/{id}/players/{playerId}/service/timing-correction", Method: "POST", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "终止服务段", Code: "esports:orders:service_terminate", Path: "/api/v1/esports/admin/orders/{id}/players/{playerId}/service/terminate", Method: "POST", Parent: "esports:order:menu"},
 			// 限时改期提案（§3.3）：发起 / 查看 / 撤回。
 			{Type: cmfapp.PermAPI, Name: "发起改期提案", Code: "esports:orders:reschedule_propose", Path: "/api/v1/esports/admin/orders/{id}/reschedule-proposals", Method: "POST", Parent: "esports:order:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看改期提案", Code: "esports:orders:reschedule_list", Path: "/api/v1/esports/admin/orders/{id}/reschedule-proposals", Method: "GET", Parent: "esports:order:menu"},
@@ -957,6 +1156,41 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看陪玩信用记载", Code: "esports:players:credit_list", Path: "/api/v1/esports/admin/player-credit-events", Method: "GET", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "复核陪玩信用", Code: "esports:players:credit_review", Path: "/api/v1/esports/admin/player-credit-events/{id}/review", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermButton, Name: "售后操作按钮", Code: "esports:aftersales:operate", Parent: "esports:aftersale:menu"},
+			// —— 第 4 轮第 2 波新增 PermAPI：与「第 4 轮第 2 波新增路由」**一一对应**（方法 + 完整路径），
+			//    多一条少一条都会让 TestEsportsAppDeclarationsValidate 变红。AuthUser/AuthPublic 路由按仓库约定不需要 PermAPI。——
+			{Type: cmfapp.PermAPI, Name: "查看售后规则", Code: "esports:aftersale:rules_list", Path: "/api/v1/esports/admin/after-sales/rules", Method: "GET", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "创建售后规则", Code: "esports:aftersale:rules_create", Path: "/api/v1/esports/admin/after-sales/rules", Method: "POST", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看售后规则详情", Code: "esports:aftersale:rules_detail", Path: "/api/v1/esports/admin/after-sales/rules/{id}", Method: "GET", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "编辑售后规则", Code: "esports:aftersale:rules_update", Path: "/api/v1/esports/admin/after-sales/rules/{id}", Method: "PUT", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "删除售后规则", Code: "esports:aftersale:rules_delete", Path: "/api/v1/esports/admin/after-sales/rules/{id}", Method: "DELETE", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看售后规则命中留痕", Code: "esports:aftersale:rules_hits", Path: "/api/v1/esports/admin/after-sales/rule-hits", Method: "GET", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看售后沟通记录", Code: "esports:aftersales:messages_list", Path: "/api/v1/esports/admin/after-sales/{id}/messages", Method: "GET", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "回复售后沟通记录", Code: "esports:aftersales:messages_create", Path: "/api/v1/esports/admin/after-sales/{id}/messages", Method: "POST", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "提示客户补证", Code: "esports:aftersales:evidence_request", Path: "/api/v1/esports/admin/after-sales/{id}/evidence-request", Method: "POST", Parent: "esports:aftersale:menu"},
+			{Type: cmfapp.PermAPI, Name: "客服为订单发起收款", Code: "esports:payments:order_start", Path: "/api/v1/esports/admin/orders/{id}/payment/start", Method: "POST", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "处置过期档期", Code: "esports:orders:appointment_dispose", Path: "/api/v1/esports/admin/orders/{id}/appointment/disposal", Method: "POST", Parent: "esports:order:menu"},
+			{Type: cmfapp.PermAPI, Name: "复核陪玩期望报价", Code: "esports:players:expected_price_review", Path: "/api/v1/esports/admin/players/{id}/expected-price/review", Method: "POST", Parent: "esports:player:menu"},
+			{Type: cmfapp.PermAPI, Name: "写入客服在线状态", Code: "esports:cs:presence_write", Path: "/api/v1/esports/admin/cs/presence", Method: "POST", Parent: "esports:cs:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看客服在线状态", Code: "esports:cs:presence_list", Path: "/api/v1/esports/admin/cs/presences", Method: "GET", Parent: "esports:cs:menu"},
+			{Type: cmfapp.PermAPI, Name: "转移客户归属", Code: "esports:customers:transfer_owner", Path: "/api/v1/esports/admin/customers/{id}/owner-transfer", Method: "POST", Parent: "esports:cs:menu"},
+			{Type: cmfapp.PermAPI, Name: "生成页面预览码", Code: "esports:pages:preview_code", Path: "/api/v1/esports/admin/pages/{channel}/preview-code", Method: "POST", Parent: "esports:page:menu"},
+			{Type: cmfapp.PermAPI, Name: "保存底部导航", Code: "esports:pages:tabbar_update", Path: "/api/v1/esports/admin/pages/{channel}/tabbar", Method: "PUT", Parent: "esports:page:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看底部导航", Code: "esports:pages:tabbar_detail", Path: "/api/v1/esports/admin/pages/{channel}/tabbar", Method: "GET", Parent: "esports:page:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看素材引用位置", Code: "esports:pages:asset_usages", Path: "/api/v1/esports/admin/page-assets/{id}/usages", Method: "GET", Parent: "esports:page:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看评价申诉", Code: "esports:assessments:review_appeals_list", Path: "/api/v1/esports/admin/player-review-appeals", Method: "GET", Parent: "esports:assessment:menu"},
+			{Type: cmfapp.PermAPI, Name: "复核评价申诉", Code: "esports:assessments:review_appeal_decide", Path: "/api/v1/esports/admin/player-review-appeals/{id}/review", Method: "POST", Parent: "esports:assessment:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看礼物档位", Code: "esports:gifts:tiers", Path: "/api/v1/esports/admin/gifts/{id}/tiers", Method: "GET", Parent: "esports:gift:menu"},
+			{Type: cmfapp.PermAPI, Name: "创建礼物档位", Code: "esports:gifts:tier_create", Path: "/api/v1/esports/admin/gifts/{id}/tiers", Method: "POST", Parent: "esports:gift:menu"},
+			{Type: cmfapp.PermAPI, Name: "编辑礼物档位", Code: "esports:gifts:tier_update", Path: "/api/v1/esports/admin/gift-tiers/{id}", Method: "PUT", Parent: "esports:gift:menu"},
+			{Type: cmfapp.PermAPI, Name: "删除礼物档位", Code: "esports:gifts:tier_delete", Path: "/api/v1/esports/admin/gift-tiers/{id}", Method: "DELETE", Parent: "esports:gift:menu"},
+			{Type: cmfapp.PermAPI, Name: "发起礼物收款", Code: "esports:gifts:payment_start", Path: "/api/v1/esports/admin/gift-intents/{id}/payment/start", Method: "POST", Parent: "esports:gift:menu"},
+			{Type: cmfapp.PermAPI, Name: "核验礼物收款", Code: "esports:gifts:payment_verify", Path: "/api/v1/esports/admin/gift-intents/{id}/payment/verify", Method: "POST", Parent: "esports:gift:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看账本核验异常", Code: "esports:wallets:reconcile_anomalies", Path: "/api/v1/esports/admin/ledger-reconcile-anomalies", Method: "GET", Parent: "esports:wallet:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看陪玩可用时段", Code: "esports:members:player_availability", Path: "/api/v1/esports/admin/players/{id}/availability", Method: "GET", Parent: "esports:member:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看储值卡异常", Code: "esports:stored_value:exceptions_list", Path: "/api/v1/esports/admin/stored-value-exceptions", Method: "GET", Parent: "esports:stored_value:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看储值卡异常详情", Code: "esports:stored_value:exceptions_detail", Path: "/api/v1/esports/admin/stored-value-exceptions/{id}", Method: "GET", Parent: "esports:stored_value:menu"},
+			{Type: cmfapp.PermAPI, Name: "指派储值卡异常跟进人", Code: "esports:stored_value:exceptions_assign", Path: "/api/v1/esports/admin/stored-value-exceptions/{id}/assign", Method: "POST", Parent: "esports:stored_value:menu"},
+			{Type: cmfapp.PermAPI, Name: "处置储值卡异常", Code: "esports:stored_value:exceptions_resolve", Path: "/api/v1/esports/admin/stored-value-exceptions/{id}/resolve", Method: "POST", Parent: "esports:stored_value:menu"},
 
 			// 结算模块：分成规则 / 分成明细 / 结算单。
 			{Type: cmfapp.PermMenu, Name: "结算", Code: "esports:settlement:menu", MenuPath: "/esports/settlements", Component: "esports/settlements/index", Icon: "icon-safe", SortOrder: 47},
@@ -1113,8 +1347,12 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "查看财务资金报表", Code: "esports:stats:finance", Parent: "esports:stats:menu"},
 			{Type: cmfapp.PermButton, Name: "报表操作按钮", Code: "esports:stats:manage", Parent: "esports:stats:menu"},
 
-			// 页面装修模块（§16）：uni-app 客户自助端首页装修草稿、发布版本、回滚与素材库。
-			{Type: cmfapp.PermMenu, Name: "页面装修", Code: "esports:page:menu", MenuPath: "/esports/pages", Component: "esports/pages/index", Icon: "icon-desktop", SortOrder: 53},
+			// 运营管理目录与页面装修模块（§16 / §16.2-01）：后台菜单层级为
+			// 运营管理 → 页面装修 → 客户首页；前两级是导航目录（无组件），
+			// 客户首页承载既有的装修编辑器组件。
+			{Type: cmfapp.PermMenu, Name: "运营管理", Code: "esports:operations:menu", MenuPath: "/esports/operations", Icon: "icon-apps", SortOrder: 39},
+			{Type: cmfapp.PermMenu, Name: "页面装修", Code: "esports:page:menu", MenuPath: "/esports/pages", Parent: "esports:operations:menu", Icon: "icon-desktop", SortOrder: 53},
+			{Type: cmfapp.PermMenu, Name: "客户首页", Code: "esports:pages:home_menu", MenuPath: "/esports/pages/home", Parent: "esports:page:menu", Component: "esports/pages/index", Icon: "icon-desktop", SortOrder: 53},
 			{Type: cmfapp.PermAPI, Name: "查看装修文档", Code: "esports:pages:list", Path: "/api/v1/esports/admin/pages", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看装修详情", Code: "esports:pages:detail", Path: "/api/v1/esports/admin/pages/{channel}", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "保存草稿", Code: "esports:pages:draft_save", Path: "/api/v1/esports/admin/pages/{channel}/draft", Method: "PUT", Parent: "esports:page:menu"},

@@ -11,20 +11,23 @@ import (
 
 // memberLevelView 是等级配置的对外返回结构。
 type memberLevelView struct {
-	ID               int       `json:"id"`
-	Code             string    `json:"code"`
-	Name             string    `json:"name"`
-	GrowthThreshold  int64     `json:"growth_threshold"`
-	DiscountBps      int       `json:"discount_bps"`
-	PriorityDispatch bool      `json:"priority_dispatch"`
-	PrepayBonusBps   int       `json:"prepay_bonus_bps"`
-	DedicatedCs      bool      `json:"dedicated_cs"`
-	PriorityBooking  bool      `json:"priority_booking"`
-	SortOrder        int       `json:"sort_order"`
-	Status           string    `json:"status"`
-	Version          int       `json:"version"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               int    `json:"id"`
+	Code             string `json:"code"`
+	Name             string `json:"name"`
+	GrowthThreshold  int64  `json:"growth_threshold"`
+	DiscountBps      int    `json:"discount_bps"`
+	PriorityDispatch bool   `json:"priority_dispatch"`
+	PrepayBonusBps   int    `json:"prepay_bonus_bps"`
+	DedicatedCs      bool   `json:"dedicated_cs"`
+	PriorityBooking  bool   `json:"priority_booking"`
+	// 专属通道 / 线下活动优先（§10.1-02）。
+	DedicatedChannel     bool      `json:"dedicated_channel"`
+	OfflineEventPriority bool      `json:"offline_event_priority"`
+	SortOrder            int       `json:"sort_order"`
+	Status               string    `json:"status"`
+	Version              int       `json:"version"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
 }
 
 func toMemberLevelView(item *ent.EsportsMemberLevelRule) memberLevelView {
@@ -33,6 +36,7 @@ func toMemberLevelView(item *ent.EsportsMemberLevelRule) memberLevelView {
 		GrowthThreshold: item.GrowthThreshold, DiscountBps: item.DiscountBps,
 		PriorityDispatch: item.PriorityDispatch, PrepayBonusBps: item.PrepayBonusBps,
 		DedicatedCs: item.DedicatedCs, PriorityBooking: item.PriorityBooking,
+		DedicatedChannel: item.DedicatedChannel, OfflineEventPriority: item.OfflineEventPriority,
 		SortOrder: item.SortOrder, Status: item.Status.String(), Version: item.Version,
 		CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
 	}

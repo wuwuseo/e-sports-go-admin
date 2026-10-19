@@ -174,6 +174,11 @@ func Version(v int) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldVersion, v))
 }
 
+// DeductionOrder applies equality check predicate on the "deduction_order" field. It's identical to DeductionOrderEQ.
+func DeductionOrder(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldDeductionOrder, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldCreatedAt, v))
@@ -1387,6 +1392,71 @@ func VersionLT(v int) predicate.EsportsStoredValueCard {
 // VersionLTE applies the LTE predicate on the "version" field.
 func VersionLTE(v int) predicate.EsportsStoredValueCard {
 	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldVersion, v))
+}
+
+// DeductionOrderEQ applies the EQ predicate on the "deduction_order" field.
+func DeductionOrderEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEQ(FieldDeductionOrder, v))
+}
+
+// DeductionOrderNEQ applies the NEQ predicate on the "deduction_order" field.
+func DeductionOrderNEQ(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNEQ(FieldDeductionOrder, v))
+}
+
+// DeductionOrderIn applies the In predicate on the "deduction_order" field.
+func DeductionOrderIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldIn(FieldDeductionOrder, vs...))
+}
+
+// DeductionOrderNotIn applies the NotIn predicate on the "deduction_order" field.
+func DeductionOrderNotIn(vs ...string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldNotIn(FieldDeductionOrder, vs...))
+}
+
+// DeductionOrderGT applies the GT predicate on the "deduction_order" field.
+func DeductionOrderGT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGT(FieldDeductionOrder, v))
+}
+
+// DeductionOrderGTE applies the GTE predicate on the "deduction_order" field.
+func DeductionOrderGTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldGTE(FieldDeductionOrder, v))
+}
+
+// DeductionOrderLT applies the LT predicate on the "deduction_order" field.
+func DeductionOrderLT(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLT(FieldDeductionOrder, v))
+}
+
+// DeductionOrderLTE applies the LTE predicate on the "deduction_order" field.
+func DeductionOrderLTE(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldLTE(FieldDeductionOrder, v))
+}
+
+// DeductionOrderContains applies the Contains predicate on the "deduction_order" field.
+func DeductionOrderContains(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContains(FieldDeductionOrder, v))
+}
+
+// DeductionOrderHasPrefix applies the HasPrefix predicate on the "deduction_order" field.
+func DeductionOrderHasPrefix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasPrefix(FieldDeductionOrder, v))
+}
+
+// DeductionOrderHasSuffix applies the HasSuffix predicate on the "deduction_order" field.
+func DeductionOrderHasSuffix(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldHasSuffix(FieldDeductionOrder, v))
+}
+
+// DeductionOrderEqualFold applies the EqualFold predicate on the "deduction_order" field.
+func DeductionOrderEqualFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldEqualFold(FieldDeductionOrder, v))
+}
+
+// DeductionOrderContainsFold applies the ContainsFold predicate on the "deduction_order" field.
+func DeductionOrderContainsFold(v string) predicate.EsportsStoredValueCard {
+	return predicate.EsportsStoredValueCard(sql.FieldContainsFold(FieldDeductionOrder, v))
 }
 
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.

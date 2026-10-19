@@ -89,6 +89,21 @@ func ConsumptionPreference(v string) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldEQ(FieldConsumptionPreference, v))
 }
 
+// Timezone applies equality check predicate on the "timezone" field. It's identical to TimezoneEQ.
+func Timezone(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldTimezone, v))
+}
+
+// LatitudeE6 applies equality check predicate on the "latitude_e6" field. It's identical to LatitudeE6EQ.
+func LatitudeE6(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldLatitudeE6, v))
+}
+
+// LongitudeE6 applies equality check predicate on the "longitude_e6" field. It's identical to LongitudeE6EQ.
+func LongitudeE6(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldLongitudeE6, v))
+}
+
 // RiskReason applies equality check predicate on the "risk_reason" field. It's identical to RiskReasonEQ.
 func RiskReason(v string) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldEQ(FieldRiskReason, v))
@@ -537,6 +552,151 @@ func ConsumptionPreferenceEqualFold(v string) predicate.EsportsCustomer {
 // ConsumptionPreferenceContainsFold applies the ContainsFold predicate on the "consumption_preference" field.
 func ConsumptionPreferenceContainsFold(v string) predicate.EsportsCustomer {
 	return predicate.EsportsCustomer(sql.FieldContainsFold(FieldConsumptionPreference, v))
+}
+
+// TimezoneEQ applies the EQ predicate on the "timezone" field.
+func TimezoneEQ(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldTimezone, v))
+}
+
+// TimezoneNEQ applies the NEQ predicate on the "timezone" field.
+func TimezoneNEQ(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNEQ(FieldTimezone, v))
+}
+
+// TimezoneIn applies the In predicate on the "timezone" field.
+func TimezoneIn(vs ...string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIn(FieldTimezone, vs...))
+}
+
+// TimezoneNotIn applies the NotIn predicate on the "timezone" field.
+func TimezoneNotIn(vs ...string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotIn(FieldTimezone, vs...))
+}
+
+// TimezoneGT applies the GT predicate on the "timezone" field.
+func TimezoneGT(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGT(FieldTimezone, v))
+}
+
+// TimezoneGTE applies the GTE predicate on the "timezone" field.
+func TimezoneGTE(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGTE(FieldTimezone, v))
+}
+
+// TimezoneLT applies the LT predicate on the "timezone" field.
+func TimezoneLT(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLT(FieldTimezone, v))
+}
+
+// TimezoneLTE applies the LTE predicate on the "timezone" field.
+func TimezoneLTE(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLTE(FieldTimezone, v))
+}
+
+// TimezoneContains applies the Contains predicate on the "timezone" field.
+func TimezoneContains(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldContains(FieldTimezone, v))
+}
+
+// TimezoneHasPrefix applies the HasPrefix predicate on the "timezone" field.
+func TimezoneHasPrefix(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldHasPrefix(FieldTimezone, v))
+}
+
+// TimezoneHasSuffix applies the HasSuffix predicate on the "timezone" field.
+func TimezoneHasSuffix(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldHasSuffix(FieldTimezone, v))
+}
+
+// TimezoneEqualFold applies the EqualFold predicate on the "timezone" field.
+func TimezoneEqualFold(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEqualFold(FieldTimezone, v))
+}
+
+// TimezoneContainsFold applies the ContainsFold predicate on the "timezone" field.
+func TimezoneContainsFold(v string) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldContainsFold(FieldTimezone, v))
+}
+
+// LatitudeE6EQ applies the EQ predicate on the "latitude_e6" field.
+func LatitudeE6EQ(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldLatitudeE6, v))
+}
+
+// LatitudeE6NEQ applies the NEQ predicate on the "latitude_e6" field.
+func LatitudeE6NEQ(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNEQ(FieldLatitudeE6, v))
+}
+
+// LatitudeE6In applies the In predicate on the "latitude_e6" field.
+func LatitudeE6In(vs ...int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIn(FieldLatitudeE6, vs...))
+}
+
+// LatitudeE6NotIn applies the NotIn predicate on the "latitude_e6" field.
+func LatitudeE6NotIn(vs ...int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotIn(FieldLatitudeE6, vs...))
+}
+
+// LatitudeE6GT applies the GT predicate on the "latitude_e6" field.
+func LatitudeE6GT(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGT(FieldLatitudeE6, v))
+}
+
+// LatitudeE6GTE applies the GTE predicate on the "latitude_e6" field.
+func LatitudeE6GTE(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGTE(FieldLatitudeE6, v))
+}
+
+// LatitudeE6LT applies the LT predicate on the "latitude_e6" field.
+func LatitudeE6LT(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLT(FieldLatitudeE6, v))
+}
+
+// LatitudeE6LTE applies the LTE predicate on the "latitude_e6" field.
+func LatitudeE6LTE(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLTE(FieldLatitudeE6, v))
+}
+
+// LongitudeE6EQ applies the EQ predicate on the "longitude_e6" field.
+func LongitudeE6EQ(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldEQ(FieldLongitudeE6, v))
+}
+
+// LongitudeE6NEQ applies the NEQ predicate on the "longitude_e6" field.
+func LongitudeE6NEQ(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNEQ(FieldLongitudeE6, v))
+}
+
+// LongitudeE6In applies the In predicate on the "longitude_e6" field.
+func LongitudeE6In(vs ...int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldIn(FieldLongitudeE6, vs...))
+}
+
+// LongitudeE6NotIn applies the NotIn predicate on the "longitude_e6" field.
+func LongitudeE6NotIn(vs ...int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldNotIn(FieldLongitudeE6, vs...))
+}
+
+// LongitudeE6GT applies the GT predicate on the "longitude_e6" field.
+func LongitudeE6GT(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGT(FieldLongitudeE6, v))
+}
+
+// LongitudeE6GTE applies the GTE predicate on the "longitude_e6" field.
+func LongitudeE6GTE(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldGTE(FieldLongitudeE6, v))
+}
+
+// LongitudeE6LT applies the LT predicate on the "longitude_e6" field.
+func LongitudeE6LT(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLT(FieldLongitudeE6, v))
+}
+
+// LongitudeE6LTE applies the LTE predicate on the "longitude_e6" field.
+func LongitudeE6LTE(v int) predicate.EsportsCustomer {
+	return predicate.EsportsCustomer(sql.FieldLTE(FieldLongitudeE6, v))
 }
 
 // TagsIsNil applies the IsNil predicate on the "tags" field.

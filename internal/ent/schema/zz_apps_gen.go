@@ -18,8 +18,20 @@ type EsportsAfterSaleAction struct {
 	appschemaesports.EsportsAfterSaleAction
 }
 
+type EsportsAfterSaleMessage struct {
+	appschemaesports.EsportsAfterSaleMessage
+}
+
 type EsportsAfterSaleReview struct {
 	appschemaesports.EsportsAfterSaleReview
+}
+
+type EsportsAfterSaleRule struct {
+	appschemaesports.EsportsAfterSaleRule
+}
+
+type EsportsAfterSaleRuleHit struct {
+	appschemaesports.EsportsAfterSaleRuleHit
 }
 
 type EsportsAgeCheck struct {
@@ -90,6 +102,10 @@ type EsportsCsCommissionRule struct {
 	appschemaesports.EsportsCsCommissionRule
 }
 
+type EsportsCsPresence struct {
+	appschemaesports.EsportsCsPresence
+}
+
 type EsportsCustomer struct {
 	appschemaesports.EsportsCustomer
 }
@@ -130,6 +146,10 @@ type EsportsGiftIntent struct {
 
 type EsportsGiftOrder struct {
 	appschemaesports.EsportsGiftOrder
+}
+
+type EsportsGiftTier struct {
+	appschemaesports.EsportsGiftTier
 }
 
 type EsportsGrowthLedger struct {
@@ -226,6 +246,10 @@ type EsportsPlayerReview struct {
 	appschemaesports.EsportsPlayerReview
 }
 
+type EsportsPlayerReviewAppeal struct {
+	appschemaesports.EsportsPlayerReviewAppeal
+}
+
 type EsportsPlayerReviewRevision struct {
 	appschemaesports.EsportsPlayerReviewRevision
 }
@@ -308,6 +332,10 @@ type EsportsSpecGroup struct {
 
 type EsportsStoredValueCard struct {
 	appschemaesports.EsportsStoredValueCard
+}
+
+type EsportsStoredValueException struct {
+	appschemaesports.EsportsStoredValueException
 }
 
 type EsportsStoredValuePackage struct {

@@ -23,6 +23,10 @@ func (EsportsLedgerEntry) Fields() []ent.Field {
 		field.String("source_id").NotEmpty().MaxLen(80).StructTag(`json:"source_id"`),
 		field.String("entry_role").NotEmpty().MaxLen(48).StructTag(`json:"entry_role"`),
 		field.Int64("delta_cents").StructTag(`json:"delta_cents"`),
+		// 本金 / 赠送分列（§4.5-04）：delta_cents 仍是合计（既有读取方不变），
+		// 新增两列承载「这条批次里有多少是本金、多少是赠送权益」。历史批次与不分列的账户类型为 0。
+		field.Int64("principal_delta_cents").Default(0).StructTag(`json:"principal_delta_cents"`),
+		field.Int64("bonus_delta_cents").Default(0).StructTag(`json:"bonus_delta_cents"`),
 		field.String("fund_batch").MaxLen(80).Default("").StructTag(`json:"fund_batch"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 	}
@@ -52,6 +56,10 @@ func (EsportsLedgerAllocation) Fields() []ent.Field {
 		field.String("batch_source_type").NotEmpty().MaxLen(48).StructTag(`json:"batch_source_type"`),
 		field.String("batch_source_id").NotEmpty().MaxLen(80).StructTag(`json:"batch_source_id"`),
 		field.Int64("amount_cents").Positive().StructTag(`json:"amount_cents"`),
+		// 该笔分摊里本金 / 赠送各占多少（§4.5-04）：amount_cents 是合计（FIFO 分摊口径不变），
+		// 新增两列让批次账本与分摊明细都能分别给出本金 / 赠送动用量；历史明细为 0。
+		field.Int64("principal_cents").Default(0).StructTag(`json:"principal_cents"`),
+		field.Int64("bonus_cents").Default(0).StructTag(`json:"bonus_cents"`),
 		field.Time("created_at").Immutable().Default(time.Now).StructTag(`json:"created_at"`),
 	}
 }

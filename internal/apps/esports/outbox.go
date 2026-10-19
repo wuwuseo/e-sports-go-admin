@@ -2,12 +2,13 @@ package esports
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"time"
 
 	"go-admin/internal/ent"
+	entadmin "go-admin/internal/ent/admin"
 	"go-admin/internal/ent/esportsoutbox"
+	"go-admin/internal/ent/message"
 	"go-admin/internal/ent/predicate"
 )
 
@@ -127,34 +128,138 @@ func outboxBackoff(attempt int) time.Duration {
 	return time.Minute * time.Duration(1<<(attempt-1))
 }
 
-// messageEventPublisher 是本地可验证的业务事件投递器：把事件写入站内消息（admin_messages），
-// 便于在管理后台消息中心观测外盒事件的投递结果；接入真实事件总线后替换为对应实现。
+// 业务事件站内信口径（§2.1-05 ①，P0）：
+//   - 绝不写 user_uid="" 的全员广播；也绝不把事件载荷序列化进正文；
+//   - 定向投递：载荷点名了管理员（操作人/责任人等）就只发给他；
+//     资金/账务类业务事件载荷里没有管理员时，发给超管（最小可见范围）；
+//   - 一个可定向收件人都解析不到时返回错误，由外盒退避重试直至 dead
+//     （dead 计入客服「通知发送失败」待办），不伪成功、不降级广播。
+//
+// 事件本身（含完整载荷）长期保留在 esports_outbox 表中，即独立的事件表。
+const (
+	// businessEventMessageType 业务事件站内信的消息类型（沿用既有 "task"，不改消息中心分类）。
+	businessEventMessageType = "task"
+	// businessEventDedupeField 写入 ent.Message.extra 的事件定位键字段名。
+	businessEventDedupeField = "dedupe_key"
+	// businessEventDedupeScan 单次查重扫描的最近消息条数上限。
+	businessEventDedupeScan = 200
+)
+
+// errBusinessEventRecipientMissing 业务事件解析不到可定向投递的管理员收件人。
+var errBusinessEventRecipientMissing = errors.New("业务事件没有可定向投递的管理员收件人")
+
+// businessEventAdminPayloadKeys 事件载荷中点名管理员的字段（任一命中即可定向）。
+var businessEventAdminPayloadKeys = []string{
+	"admin_id", "operator_id", "operator_admin_id", "created_by_admin_id",
+	"responsible_admin_id", "handler_admin_id", "reviewer_admin_id", "decided_by_admin_id",
+}
+
+// messageEventPublisher 是本地可验证的业务事件投递器：把事件定向写入站内消息
+// （admin_messages）便于在管理后台消息中心观测投递结果；接入真实事件总线后替换为对应实现。
 type messageEventPublisher struct {
 	db *ent.Client
 }
 
 func (p *messageEventPublisher) Publish(ctx context.Context, eventKey, eventType, aggregateRef string, payload map[string]interface{}) error {
-	_, err := p.db.Message.Create().
-		SetUserUID("").
-		SetType("task").
-		SetLevel("info").
-		SetTitle("业务事件：" + eventType).
-		SetContent(outboxEventContent(eventType, aggregateRef, payload)).
-		SetExtra(map[string]interface{}{
-			"event_key":     eventKey,
-			"event_type":    eventType,
-			"aggregate_ref": aggregateRef,
-			"payload":       payload,
-		}).
-		Save(ctx)
-	return err
+	if p.db == nil {
+		return errOutboxPublisherUnavailable
+	}
+	addresses, err := resolveBusinessEventAdminAddresses(ctx, p.db, payload)
+	if err != nil {
+		return err
+	}
+	if len(addresses) == 0 {
+		return errBusinessEventRecipientMissing
+	}
+
+	dedupeKey := notificationMessageDedupeKey(eventKey, eventType, aggregateRef)
+	title := "业务事件：" + notificationEventTitle(eventType)
+	content := notificationEventSummary(eventType, aggregateRef, payload) +
+		"（事件 " + eventType + "，聚合键 " + aggregateRef + "）"
+
+	for _, address := range addresses {
+		sent, err := p.messageAlreadySent(ctx, address, dedupeKey)
+		if err != nil {
+			return err
+		}
+		if sent {
+			continue // 该事件已给此收件人写过站内信，重试时跳过。
+		}
+		extra := map[string]interface{}{
+			"event_type":             eventType,
+			"aggregate_ref":          aggregateRef,
+			businessEventDedupeField: dedupeKey,
+		}
+		if eventKey != "" {
+			extra["event_key"] = eventKey
+		}
+		if _, err := p.db.Message.Create().
+			SetUserUID(address).
+			SetType(businessEventMessageType).
+			SetLevel("info").
+			SetTitle(title).
+			SetContent(content).
+			SetExtra(extra).
+			Save(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// outboxEventContent 把事件载荷序列化为可观测的文本内容，供审计/消息记录展示。
-func outboxEventContent(eventType, aggregateRef string, payload map[string]interface{}) string {
-	raw, err := json.Marshal(payload)
-	if err != nil || len(raw) == 0 {
-		return "event=" + eventType + " ref=" + aggregateRef
+// messageAlreadySent 判断该收件人是否已收到同一业务事件的站内信：extra 是 JSON 字段，
+// ent 未生成可移植的 JSON 条件，这里按收件人 + 类型 + 时间窗取最近若干条在内存比对
+// （与通知类站内信同一套去重口径）。
+func (p *messageEventPublisher) messageAlreadySent(ctx context.Context, address, dedupeKey string) (bool, error) {
+	if dedupeKey == "" {
+		return false, nil
 	}
-	return "event=" + eventType + " ref=" + aggregateRef + " payload=" + string(raw)
+	recent, err := p.db.Message.Query().Where(
+		message.UserUIDEQ(address),
+		message.TypeEQ(businessEventMessageType),
+		message.CreatedAtGTE(time.Now().UTC().Add(-notificationMessageDedupeWindow)),
+	).Order(ent.Desc(message.FieldID)).Limit(businessEventDedupeScan).All(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, row := range recent {
+		if stored, _ := row.Extra[businessEventDedupeField].(string); stored == dedupeKey {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// resolveBusinessEventAdminAddresses 解析业务事件的定向管理员收件地址：
+// 先取载荷点名的管理员；取不到时退化为超管（仅超管可见，仍不是广播）。
+func resolveBusinessEventAdminAddresses(ctx context.Context, db *ent.Client, payload map[string]interface{}) ([]string, error) {
+	addresses := make([]string, 0, 2)
+	seen := map[string]bool{}
+	add := func(address string) {
+		if address == "" || seen[address] {
+			return
+		}
+		seen[address] = true
+		addresses = append(addresses, address)
+	}
+
+	for _, key := range businessEventAdminPayloadKeys {
+		if id := payloadInt(payload, key); id > 0 {
+			add(adminNotificationAddress(ctx, db, id))
+		}
+	}
+	if len(addresses) > 0 {
+		return addresses, nil
+	}
+
+	supers, err := db.Admin.Query().
+		Where(entadmin.IsSuperAdminEQ(true), entadmin.StatusEQ(entadmin.StatusActive)).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range supers {
+		add(adminNotificationAddress(ctx, db, row.ID))
+	}
+	return addresses, nil
 }

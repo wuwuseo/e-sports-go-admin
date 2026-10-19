@@ -113,6 +113,8 @@ func setPaymentChannelStatusHandler(c fiber.Ctx) error {
 }
 
 // adminOfflinePaymentProofs 待核验收款单列表（§4.2）：财务核验外部到账的入口。
+// 带 reconcile=1 且指定 order_id 时，一并返回该订单的收款自动对账结果（§4.3-04），
+// 财务只看差异笔而不是逐笔人工比对；不带该参数时保持原数组响应（向后兼容）。
 func adminOfflinePaymentProofs(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -121,6 +123,16 @@ func adminOfflinePaymentProofs(c fiber.Ctx) error {
 	items, err := listOfflinePaymentProofs(c.Context(), global.ORM, c.Query("status"), orderID, queryLimit(c, 200))
 	if err != nil {
 		return businessError(c, err)
+	}
+	if raw := strings.TrimSpace(c.Query("reconcile")); raw == "1" || strings.EqualFold(raw, "true") {
+		if orderID < 1 {
+			return fail(c, fiber.StatusBadRequest, "自动对账须指定订单 order_id")
+		}
+		report, err := reconcileOrderPaymentProofs(c.Context(), global.ORM, orderID)
+		if err != nil {
+			return businessError(c, err)
+		}
+		return reply(c, fiber.Map{"items": items, "reconcile": report})
 	}
 	return reply(c, items)
 }

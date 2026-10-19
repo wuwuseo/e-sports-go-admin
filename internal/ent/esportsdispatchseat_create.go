@@ -88,6 +88,48 @@ func (_c *EsportsDispatchSeatCreate) SetNillableInvitedByAdminID(v *int) *Esport
 	return _c
 }
 
+// SetInvitedAt sets the "invited_at" field.
+func (_c *EsportsDispatchSeatCreate) SetInvitedAt(v time.Time) *EsportsDispatchSeatCreate {
+	_c.mutation.SetInvitedAt(v)
+	return _c
+}
+
+// SetNillableInvitedAt sets the "invited_at" field if the given value is not nil.
+func (_c *EsportsDispatchSeatCreate) SetNillableInvitedAt(v *time.Time) *EsportsDispatchSeatCreate {
+	if v != nil {
+		_c.SetInvitedAt(*v)
+	}
+	return _c
+}
+
+// SetSlotStart sets the "slot_start" field.
+func (_c *EsportsDispatchSeatCreate) SetSlotStart(v time.Time) *EsportsDispatchSeatCreate {
+	_c.mutation.SetSlotStart(v)
+	return _c
+}
+
+// SetNillableSlotStart sets the "slot_start" field if the given value is not nil.
+func (_c *EsportsDispatchSeatCreate) SetNillableSlotStart(v *time.Time) *EsportsDispatchSeatCreate {
+	if v != nil {
+		_c.SetSlotStart(*v)
+	}
+	return _c
+}
+
+// SetSlotEnd sets the "slot_end" field.
+func (_c *EsportsDispatchSeatCreate) SetSlotEnd(v time.Time) *EsportsDispatchSeatCreate {
+	_c.mutation.SetSlotEnd(v)
+	return _c
+}
+
+// SetNillableSlotEnd sets the "slot_end" field if the given value is not nil.
+func (_c *EsportsDispatchSeatCreate) SetNillableSlotEnd(v *time.Time) *EsportsDispatchSeatCreate {
+	if v != nil {
+		_c.SetSlotEnd(*v)
+	}
+	return _c
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (_c *EsportsDispatchSeatCreate) SetExpiresAt(v time.Time) *EsportsDispatchSeatCreate {
 	_c.mutation.SetExpiresAt(v)
@@ -335,6 +377,18 @@ func (_c *EsportsDispatchSeatCreate) createSpec() (*EsportsDispatchSeat, *sqlgra
 	if value, ok := _c.mutation.InvitedByAdminID(); ok {
 		_spec.SetField(esportsdispatchseat.FieldInvitedByAdminID, field.TypeInt, value)
 		_node.InvitedByAdminID = &value
+	}
+	if value, ok := _c.mutation.InvitedAt(); ok {
+		_spec.SetField(esportsdispatchseat.FieldInvitedAt, field.TypeTime, value)
+		_node.InvitedAt = &value
+	}
+	if value, ok := _c.mutation.SlotStart(); ok {
+		_spec.SetField(esportsdispatchseat.FieldSlotStart, field.TypeTime, value)
+		_node.SlotStart = &value
+	}
+	if value, ok := _c.mutation.SlotEnd(); ok {
+		_spec.SetField(esportsdispatchseat.FieldSlotEnd, field.TypeTime, value)
+		_node.SlotEnd = &value
 	}
 	if value, ok := _c.mutation.ExpiresAt(); ok {
 		_spec.SetField(esportsdispatchseat.FieldExpiresAt, field.TypeTime, value)

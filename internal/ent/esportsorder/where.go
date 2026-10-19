@@ -70,6 +70,21 @@ func SkuID(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldSkuID, v))
 }
 
+// SkuCode applies equality check predicate on the "sku_code" field. It's identical to SkuCodeEQ.
+func SkuCode(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldSkuCode, v))
+}
+
+// SkuName applies equality check predicate on the "sku_name" field. It's identical to SkuNameEQ.
+func SkuName(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldSkuName, v))
+}
+
+// SpecName applies equality check predicate on the "spec_name" field. It's identical to SpecNameEQ.
+func SpecName(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldSpecName, v))
+}
+
 // CreatedByAdminID applies equality check predicate on the "created_by_admin_id" field. It's identical to CreatedByAdminIDEQ.
 func CreatedByAdminID(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldCreatedByAdminID, v))
@@ -150,6 +165,16 @@ func ManualAdjustCents(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldManualAdjustCents, v))
 }
 
+// MemberLevelCode applies equality check predicate on the "member_level_code" field. It's identical to MemberLevelCodeEQ.
+func MemberLevelCode(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldMemberLevelCode, v))
+}
+
+// MemberDiscountBps applies equality check predicate on the "member_discount_bps" field. It's identical to MemberDiscountBpsEQ.
+func MemberDiscountBps(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldMemberDiscountBps, v))
+}
+
 // PayableCents applies equality check predicate on the "payable_cents" field. It's identical to PayableCentsEQ.
 func PayableCents(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldPayableCents, v))
@@ -158,6 +183,11 @@ func PayableCents(v int64) predicate.EsportsOrder {
 // PromisedServiceUnits applies equality check predicate on the "promised_service_units" field. It's identical to PromisedServiceUnitsEQ.
 func PromisedServiceUnits(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldPromisedServiceUnits, v))
+}
+
+// PerSeatServiceUnits applies equality check predicate on the "per_seat_service_units" field. It's identical to PerSeatServiceUnitsEQ.
+func PerSeatServiceUnits(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldPerSeatServiceUnits, v))
 }
 
 // ServiceDurationMinutes applies equality check predicate on the "service_duration_minutes" field. It's identical to ServiceDurationMinutesEQ.
@@ -210,6 +240,21 @@ func PriorityReleaseReason(v string) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldPriorityReleaseReason, v))
 }
 
+// RemindPriorityLevel applies equality check predicate on the "remind_priority_level" field. It's identical to RemindPriorityLevelEQ.
+func RemindPriorityLevel(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRemindPriorityLevel, v))
+}
+
+// RemindNote applies equality check predicate on the "remind_note" field. It's identical to RemindNoteEQ.
+func RemindNote(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRemindNote, v))
+}
+
+// RemindedAt applies equality check predicate on the "reminded_at" field. It's identical to RemindedAtEQ.
+func RemindedAt(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRemindedAt, v))
+}
+
 // FirstPooledAt applies equality check predicate on the "first_pooled_at" field. It's identical to FirstPooledAtEQ.
 func FirstPooledAt(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldFirstPooledAt, v))
@@ -228,6 +273,11 @@ func FirstAcceptedAt(v time.Time) predicate.EsportsOrder {
 // ServiceStartedAt applies equality check predicate on the "service_started_at" field. It's identical to ServiceStartedAtEQ.
 func ServiceStartedAt(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldServiceStartedAt, v))
+}
+
+// ReadyToStartAt applies equality check predicate on the "ready_to_start_at" field. It's identical to ReadyToStartAtEQ.
+func ReadyToStartAt(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldReadyToStartAt, v))
 }
 
 // PriorityReleasedAt applies equality check predicate on the "priority_released_at" field. It's identical to PriorityReleasedAtEQ.
@@ -268,6 +318,11 @@ func RequestedStartAt(v time.Time) predicate.EsportsOrder {
 // AppointmentConfirmationDeadline applies equality check predicate on the "appointment_confirmation_deadline" field. It's identical to AppointmentConfirmationDeadlineEQ.
 func AppointmentConfirmationDeadline(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldAppointmentConfirmationDeadline, v))
+}
+
+// AppointmentSuspendedAt applies equality check predicate on the "appointment_suspended_at" field. It's identical to AppointmentSuspendedAtEQ.
+func AppointmentSuspendedAt(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldAppointmentSuspendedAt, v))
 }
 
 // PaymentDeadline applies equality check predicate on the "payment_deadline" field. It's identical to PaymentDeadlineEQ.
@@ -468,6 +523,201 @@ func SkuIDLT(v int) predicate.EsportsOrder {
 // SkuIDLTE applies the LTE predicate on the "sku_id" field.
 func SkuIDLTE(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldLTE(FieldSkuID, v))
+}
+
+// SkuCodeEQ applies the EQ predicate on the "sku_code" field.
+func SkuCodeEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldSkuCode, v))
+}
+
+// SkuCodeNEQ applies the NEQ predicate on the "sku_code" field.
+func SkuCodeNEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldSkuCode, v))
+}
+
+// SkuCodeIn applies the In predicate on the "sku_code" field.
+func SkuCodeIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldSkuCode, vs...))
+}
+
+// SkuCodeNotIn applies the NotIn predicate on the "sku_code" field.
+func SkuCodeNotIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldSkuCode, vs...))
+}
+
+// SkuCodeGT applies the GT predicate on the "sku_code" field.
+func SkuCodeGT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldSkuCode, v))
+}
+
+// SkuCodeGTE applies the GTE predicate on the "sku_code" field.
+func SkuCodeGTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldSkuCode, v))
+}
+
+// SkuCodeLT applies the LT predicate on the "sku_code" field.
+func SkuCodeLT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldSkuCode, v))
+}
+
+// SkuCodeLTE applies the LTE predicate on the "sku_code" field.
+func SkuCodeLTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldSkuCode, v))
+}
+
+// SkuCodeContains applies the Contains predicate on the "sku_code" field.
+func SkuCodeContains(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContains(FieldSkuCode, v))
+}
+
+// SkuCodeHasPrefix applies the HasPrefix predicate on the "sku_code" field.
+func SkuCodeHasPrefix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasPrefix(FieldSkuCode, v))
+}
+
+// SkuCodeHasSuffix applies the HasSuffix predicate on the "sku_code" field.
+func SkuCodeHasSuffix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasSuffix(FieldSkuCode, v))
+}
+
+// SkuCodeEqualFold applies the EqualFold predicate on the "sku_code" field.
+func SkuCodeEqualFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEqualFold(FieldSkuCode, v))
+}
+
+// SkuCodeContainsFold applies the ContainsFold predicate on the "sku_code" field.
+func SkuCodeContainsFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContainsFold(FieldSkuCode, v))
+}
+
+// SkuNameEQ applies the EQ predicate on the "sku_name" field.
+func SkuNameEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldSkuName, v))
+}
+
+// SkuNameNEQ applies the NEQ predicate on the "sku_name" field.
+func SkuNameNEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldSkuName, v))
+}
+
+// SkuNameIn applies the In predicate on the "sku_name" field.
+func SkuNameIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldSkuName, vs...))
+}
+
+// SkuNameNotIn applies the NotIn predicate on the "sku_name" field.
+func SkuNameNotIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldSkuName, vs...))
+}
+
+// SkuNameGT applies the GT predicate on the "sku_name" field.
+func SkuNameGT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldSkuName, v))
+}
+
+// SkuNameGTE applies the GTE predicate on the "sku_name" field.
+func SkuNameGTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldSkuName, v))
+}
+
+// SkuNameLT applies the LT predicate on the "sku_name" field.
+func SkuNameLT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldSkuName, v))
+}
+
+// SkuNameLTE applies the LTE predicate on the "sku_name" field.
+func SkuNameLTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldSkuName, v))
+}
+
+// SkuNameContains applies the Contains predicate on the "sku_name" field.
+func SkuNameContains(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContains(FieldSkuName, v))
+}
+
+// SkuNameHasPrefix applies the HasPrefix predicate on the "sku_name" field.
+func SkuNameHasPrefix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasPrefix(FieldSkuName, v))
+}
+
+// SkuNameHasSuffix applies the HasSuffix predicate on the "sku_name" field.
+func SkuNameHasSuffix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasSuffix(FieldSkuName, v))
+}
+
+// SkuNameEqualFold applies the EqualFold predicate on the "sku_name" field.
+func SkuNameEqualFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEqualFold(FieldSkuName, v))
+}
+
+// SkuNameContainsFold applies the ContainsFold predicate on the "sku_name" field.
+func SkuNameContainsFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContainsFold(FieldSkuName, v))
+}
+
+// SpecNameEQ applies the EQ predicate on the "spec_name" field.
+func SpecNameEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldSpecName, v))
+}
+
+// SpecNameNEQ applies the NEQ predicate on the "spec_name" field.
+func SpecNameNEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldSpecName, v))
+}
+
+// SpecNameIn applies the In predicate on the "spec_name" field.
+func SpecNameIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldSpecName, vs...))
+}
+
+// SpecNameNotIn applies the NotIn predicate on the "spec_name" field.
+func SpecNameNotIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldSpecName, vs...))
+}
+
+// SpecNameGT applies the GT predicate on the "spec_name" field.
+func SpecNameGT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldSpecName, v))
+}
+
+// SpecNameGTE applies the GTE predicate on the "spec_name" field.
+func SpecNameGTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldSpecName, v))
+}
+
+// SpecNameLT applies the LT predicate on the "spec_name" field.
+func SpecNameLT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldSpecName, v))
+}
+
+// SpecNameLTE applies the LTE predicate on the "spec_name" field.
+func SpecNameLTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldSpecName, v))
+}
+
+// SpecNameContains applies the Contains predicate on the "spec_name" field.
+func SpecNameContains(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContains(FieldSpecName, v))
+}
+
+// SpecNameHasPrefix applies the HasPrefix predicate on the "spec_name" field.
+func SpecNameHasPrefix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasPrefix(FieldSpecName, v))
+}
+
+// SpecNameHasSuffix applies the HasSuffix predicate on the "spec_name" field.
+func SpecNameHasSuffix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasSuffix(FieldSpecName, v))
+}
+
+// SpecNameEqualFold applies the EqualFold predicate on the "spec_name" field.
+func SpecNameEqualFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEqualFold(FieldSpecName, v))
+}
+
+// SpecNameContainsFold applies the ContainsFold predicate on the "spec_name" field.
+func SpecNameContainsFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContainsFold(FieldSpecName, v))
 }
 
 // CreatedByAdminIDEQ applies the EQ predicate on the "created_by_admin_id" field.
@@ -1250,6 +1500,111 @@ func ManualAdjustCentsLTE(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldLTE(FieldManualAdjustCents, v))
 }
 
+// MemberLevelCodeEQ applies the EQ predicate on the "member_level_code" field.
+func MemberLevelCodeEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeNEQ applies the NEQ predicate on the "member_level_code" field.
+func MemberLevelCodeNEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeIn applies the In predicate on the "member_level_code" field.
+func MemberLevelCodeIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldMemberLevelCode, vs...))
+}
+
+// MemberLevelCodeNotIn applies the NotIn predicate on the "member_level_code" field.
+func MemberLevelCodeNotIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldMemberLevelCode, vs...))
+}
+
+// MemberLevelCodeGT applies the GT predicate on the "member_level_code" field.
+func MemberLevelCodeGT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeGTE applies the GTE predicate on the "member_level_code" field.
+func MemberLevelCodeGTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeLT applies the LT predicate on the "member_level_code" field.
+func MemberLevelCodeLT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeLTE applies the LTE predicate on the "member_level_code" field.
+func MemberLevelCodeLTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeContains applies the Contains predicate on the "member_level_code" field.
+func MemberLevelCodeContains(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContains(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeHasPrefix applies the HasPrefix predicate on the "member_level_code" field.
+func MemberLevelCodeHasPrefix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasPrefix(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeHasSuffix applies the HasSuffix predicate on the "member_level_code" field.
+func MemberLevelCodeHasSuffix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasSuffix(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeEqualFold applies the EqualFold predicate on the "member_level_code" field.
+func MemberLevelCodeEqualFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEqualFold(FieldMemberLevelCode, v))
+}
+
+// MemberLevelCodeContainsFold applies the ContainsFold predicate on the "member_level_code" field.
+func MemberLevelCodeContainsFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContainsFold(FieldMemberLevelCode, v))
+}
+
+// MemberDiscountBpsEQ applies the EQ predicate on the "member_discount_bps" field.
+func MemberDiscountBpsEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldMemberDiscountBps, v))
+}
+
+// MemberDiscountBpsNEQ applies the NEQ predicate on the "member_discount_bps" field.
+func MemberDiscountBpsNEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldMemberDiscountBps, v))
+}
+
+// MemberDiscountBpsIn applies the In predicate on the "member_discount_bps" field.
+func MemberDiscountBpsIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldMemberDiscountBps, vs...))
+}
+
+// MemberDiscountBpsNotIn applies the NotIn predicate on the "member_discount_bps" field.
+func MemberDiscountBpsNotIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldMemberDiscountBps, vs...))
+}
+
+// MemberDiscountBpsGT applies the GT predicate on the "member_discount_bps" field.
+func MemberDiscountBpsGT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldMemberDiscountBps, v))
+}
+
+// MemberDiscountBpsGTE applies the GTE predicate on the "member_discount_bps" field.
+func MemberDiscountBpsGTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldMemberDiscountBps, v))
+}
+
+// MemberDiscountBpsLT applies the LT predicate on the "member_discount_bps" field.
+func MemberDiscountBpsLT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldMemberDiscountBps, v))
+}
+
+// MemberDiscountBpsLTE applies the LTE predicate on the "member_discount_bps" field.
+func MemberDiscountBpsLTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldMemberDiscountBps, v))
+}
+
 // PayableCentsEQ applies the EQ predicate on the "payable_cents" field.
 func PayableCentsEQ(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldPayableCents, v))
@@ -1328,6 +1683,46 @@ func PromisedServiceUnitsLT(v int64) predicate.EsportsOrder {
 // PromisedServiceUnitsLTE applies the LTE predicate on the "promised_service_units" field.
 func PromisedServiceUnitsLTE(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldLTE(FieldPromisedServiceUnits, v))
+}
+
+// PerSeatServiceUnitsEQ applies the EQ predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsEQ(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsNEQ applies the NEQ predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsNEQ(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsIn applies the In predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsIn(vs ...int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldPerSeatServiceUnits, vs...))
+}
+
+// PerSeatServiceUnitsNotIn applies the NotIn predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsNotIn(vs ...int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldPerSeatServiceUnits, vs...))
+}
+
+// PerSeatServiceUnitsGT applies the GT predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsGT(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsGTE applies the GTE predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsGTE(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsLT applies the LT predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsLT(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldPerSeatServiceUnits, v))
+}
+
+// PerSeatServiceUnitsLTE applies the LTE predicate on the "per_seat_service_units" field.
+func PerSeatServiceUnitsLTE(v int64) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldPerSeatServiceUnits, v))
 }
 
 // ServiceDurationMinutesEQ applies the EQ predicate on the "service_duration_minutes" field.
@@ -1910,6 +2305,161 @@ func PriorityReleaseReasonContainsFold(v string) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldContainsFold(FieldPriorityReleaseReason, v))
 }
 
+// RemindPriorityLevelEQ applies the EQ predicate on the "remind_priority_level" field.
+func RemindPriorityLevelEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRemindPriorityLevel, v))
+}
+
+// RemindPriorityLevelNEQ applies the NEQ predicate on the "remind_priority_level" field.
+func RemindPriorityLevelNEQ(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldRemindPriorityLevel, v))
+}
+
+// RemindPriorityLevelIn applies the In predicate on the "remind_priority_level" field.
+func RemindPriorityLevelIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldRemindPriorityLevel, vs...))
+}
+
+// RemindPriorityLevelNotIn applies the NotIn predicate on the "remind_priority_level" field.
+func RemindPriorityLevelNotIn(vs ...int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldRemindPriorityLevel, vs...))
+}
+
+// RemindPriorityLevelGT applies the GT predicate on the "remind_priority_level" field.
+func RemindPriorityLevelGT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldRemindPriorityLevel, v))
+}
+
+// RemindPriorityLevelGTE applies the GTE predicate on the "remind_priority_level" field.
+func RemindPriorityLevelGTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldRemindPriorityLevel, v))
+}
+
+// RemindPriorityLevelLT applies the LT predicate on the "remind_priority_level" field.
+func RemindPriorityLevelLT(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldRemindPriorityLevel, v))
+}
+
+// RemindPriorityLevelLTE applies the LTE predicate on the "remind_priority_level" field.
+func RemindPriorityLevelLTE(v int) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldRemindPriorityLevel, v))
+}
+
+// RemindNoteEQ applies the EQ predicate on the "remind_note" field.
+func RemindNoteEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRemindNote, v))
+}
+
+// RemindNoteNEQ applies the NEQ predicate on the "remind_note" field.
+func RemindNoteNEQ(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldRemindNote, v))
+}
+
+// RemindNoteIn applies the In predicate on the "remind_note" field.
+func RemindNoteIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldRemindNote, vs...))
+}
+
+// RemindNoteNotIn applies the NotIn predicate on the "remind_note" field.
+func RemindNoteNotIn(vs ...string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldRemindNote, vs...))
+}
+
+// RemindNoteGT applies the GT predicate on the "remind_note" field.
+func RemindNoteGT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldRemindNote, v))
+}
+
+// RemindNoteGTE applies the GTE predicate on the "remind_note" field.
+func RemindNoteGTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldRemindNote, v))
+}
+
+// RemindNoteLT applies the LT predicate on the "remind_note" field.
+func RemindNoteLT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldRemindNote, v))
+}
+
+// RemindNoteLTE applies the LTE predicate on the "remind_note" field.
+func RemindNoteLTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldRemindNote, v))
+}
+
+// RemindNoteContains applies the Contains predicate on the "remind_note" field.
+func RemindNoteContains(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContains(FieldRemindNote, v))
+}
+
+// RemindNoteHasPrefix applies the HasPrefix predicate on the "remind_note" field.
+func RemindNoteHasPrefix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasPrefix(FieldRemindNote, v))
+}
+
+// RemindNoteHasSuffix applies the HasSuffix predicate on the "remind_note" field.
+func RemindNoteHasSuffix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasSuffix(FieldRemindNote, v))
+}
+
+// RemindNoteEqualFold applies the EqualFold predicate on the "remind_note" field.
+func RemindNoteEqualFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEqualFold(FieldRemindNote, v))
+}
+
+// RemindNoteContainsFold applies the ContainsFold predicate on the "remind_note" field.
+func RemindNoteContainsFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContainsFold(FieldRemindNote, v))
+}
+
+// RemindedAtEQ applies the EQ predicate on the "reminded_at" field.
+func RemindedAtEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRemindedAt, v))
+}
+
+// RemindedAtNEQ applies the NEQ predicate on the "reminded_at" field.
+func RemindedAtNEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldRemindedAt, v))
+}
+
+// RemindedAtIn applies the In predicate on the "reminded_at" field.
+func RemindedAtIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldRemindedAt, vs...))
+}
+
+// RemindedAtNotIn applies the NotIn predicate on the "reminded_at" field.
+func RemindedAtNotIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldRemindedAt, vs...))
+}
+
+// RemindedAtGT applies the GT predicate on the "reminded_at" field.
+func RemindedAtGT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldRemindedAt, v))
+}
+
+// RemindedAtGTE applies the GTE predicate on the "reminded_at" field.
+func RemindedAtGTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldRemindedAt, v))
+}
+
+// RemindedAtLT applies the LT predicate on the "reminded_at" field.
+func RemindedAtLT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldRemindedAt, v))
+}
+
+// RemindedAtLTE applies the LTE predicate on the "reminded_at" field.
+func RemindedAtLTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldRemindedAt, v))
+}
+
+// RemindedAtIsNil applies the IsNil predicate on the "reminded_at" field.
+func RemindedAtIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldRemindedAt))
+}
+
+// RemindedAtNotNil applies the NotNil predicate on the "reminded_at" field.
+func RemindedAtNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldRemindedAt))
+}
+
 // FirstPooledAtEQ applies the EQ predicate on the "first_pooled_at" field.
 func FirstPooledAtEQ(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldFirstPooledAt, v))
@@ -2108,6 +2658,56 @@ func ServiceStartedAtIsNil() predicate.EsportsOrder {
 // ServiceStartedAtNotNil applies the NotNil predicate on the "service_started_at" field.
 func ServiceStartedAtNotNil() predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotNull(FieldServiceStartedAt))
+}
+
+// ReadyToStartAtEQ applies the EQ predicate on the "ready_to_start_at" field.
+func ReadyToStartAtEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldReadyToStartAt, v))
+}
+
+// ReadyToStartAtNEQ applies the NEQ predicate on the "ready_to_start_at" field.
+func ReadyToStartAtNEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldReadyToStartAt, v))
+}
+
+// ReadyToStartAtIn applies the In predicate on the "ready_to_start_at" field.
+func ReadyToStartAtIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldReadyToStartAt, vs...))
+}
+
+// ReadyToStartAtNotIn applies the NotIn predicate on the "ready_to_start_at" field.
+func ReadyToStartAtNotIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldReadyToStartAt, vs...))
+}
+
+// ReadyToStartAtGT applies the GT predicate on the "ready_to_start_at" field.
+func ReadyToStartAtGT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldReadyToStartAt, v))
+}
+
+// ReadyToStartAtGTE applies the GTE predicate on the "ready_to_start_at" field.
+func ReadyToStartAtGTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldReadyToStartAt, v))
+}
+
+// ReadyToStartAtLT applies the LT predicate on the "ready_to_start_at" field.
+func ReadyToStartAtLT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldReadyToStartAt, v))
+}
+
+// ReadyToStartAtLTE applies the LTE predicate on the "ready_to_start_at" field.
+func ReadyToStartAtLTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldReadyToStartAt, v))
+}
+
+// ReadyToStartAtIsNil applies the IsNil predicate on the "ready_to_start_at" field.
+func ReadyToStartAtIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldReadyToStartAt))
+}
+
+// ReadyToStartAtNotNil applies the NotNil predicate on the "ready_to_start_at" field.
+func ReadyToStartAtNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldReadyToStartAt))
 }
 
 // PriorityReleasedAtEQ applies the EQ predicate on the "priority_released_at" field.
@@ -2518,6 +3118,56 @@ func AppointmentConfirmationDeadlineIsNil() predicate.EsportsOrder {
 // AppointmentConfirmationDeadlineNotNil applies the NotNil predicate on the "appointment_confirmation_deadline" field.
 func AppointmentConfirmationDeadlineNotNil() predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotNull(FieldAppointmentConfirmationDeadline))
+}
+
+// AppointmentSuspendedAtEQ applies the EQ predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldAppointmentSuspendedAt, v))
+}
+
+// AppointmentSuspendedAtNEQ applies the NEQ predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtNEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldAppointmentSuspendedAt, v))
+}
+
+// AppointmentSuspendedAtIn applies the In predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldAppointmentSuspendedAt, vs...))
+}
+
+// AppointmentSuspendedAtNotIn applies the NotIn predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtNotIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldAppointmentSuspendedAt, vs...))
+}
+
+// AppointmentSuspendedAtGT applies the GT predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtGT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldAppointmentSuspendedAt, v))
+}
+
+// AppointmentSuspendedAtGTE applies the GTE predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtGTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldAppointmentSuspendedAt, v))
+}
+
+// AppointmentSuspendedAtLT applies the LT predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtLT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldAppointmentSuspendedAt, v))
+}
+
+// AppointmentSuspendedAtLTE applies the LTE predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtLTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldAppointmentSuspendedAt, v))
+}
+
+// AppointmentSuspendedAtIsNil applies the IsNil predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldAppointmentSuspendedAt))
+}
+
+// AppointmentSuspendedAtNotNil applies the NotNil predicate on the "appointment_suspended_at" field.
+func AppointmentSuspendedAtNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldAppointmentSuspendedAt))
 }
 
 // PaymentDeadlineEQ applies the EQ predicate on the "payment_deadline" field.

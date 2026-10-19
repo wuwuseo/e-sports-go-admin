@@ -28,6 +28,10 @@ const (
 	FieldEntryRole = "entry_role"
 	// FieldDeltaCents holds the string denoting the delta_cents field in the database.
 	FieldDeltaCents = "delta_cents"
+	// FieldPrincipalDeltaCents holds the string denoting the principal_delta_cents field in the database.
+	FieldPrincipalDeltaCents = "principal_delta_cents"
+	// FieldBonusDeltaCents holds the string denoting the bonus_delta_cents field in the database.
+	FieldBonusDeltaCents = "bonus_delta_cents"
 	// FieldFundBatch holds the string denoting the fund_batch field in the database.
 	FieldFundBatch = "fund_batch"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -48,6 +52,8 @@ var Columns = []string{
 	FieldSourceID,
 	FieldEntryRole,
 	FieldDeltaCents,
+	FieldPrincipalDeltaCents,
+	FieldBonusDeltaCents,
 	FieldFundBatch,
 	FieldCreatedAt,
 }
@@ -79,6 +85,10 @@ var (
 	SourceIDValidator func(string) error
 	// EntryRoleValidator is a validator for the "entry_role" field. It is called by the builders before save.
 	EntryRoleValidator func(string) error
+	// DefaultPrincipalDeltaCents holds the default value on creation for the "principal_delta_cents" field.
+	DefaultPrincipalDeltaCents int64
+	// DefaultBonusDeltaCents holds the default value on creation for the "bonus_delta_cents" field.
+	DefaultBonusDeltaCents int64
 	// DefaultFundBatch holds the default value on creation for the "fund_batch" field.
 	DefaultFundBatch string
 	// FundBatchValidator is a validator for the "fund_batch" field. It is called by the builders before save.
@@ -123,6 +133,16 @@ func ByEntryRole(opts ...sql.OrderTermOption) OrderOption {
 // ByDeltaCents orders the results by the delta_cents field.
 func ByDeltaCents(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeltaCents, opts...).ToFunc()
+}
+
+// ByPrincipalDeltaCents orders the results by the principal_delta_cents field.
+func ByPrincipalDeltaCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPrincipalDeltaCents, opts...).ToFunc()
+}
+
+// ByBonusDeltaCents orders the results by the bonus_delta_cents field.
+func ByBonusDeltaCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBonusDeltaCents, opts...).ToFunc()
 }
 
 // ByFundBatch orders the results by the fund_batch field.

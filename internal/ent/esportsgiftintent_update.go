@@ -285,6 +285,198 @@ func (_u *EsportsGiftIntentUpdate) SetNillableStoredValueCardNo(v *string) *Espo
 	return _u
 }
 
+// SetGiftTierID sets the "gift_tier_id" field.
+func (_u *EsportsGiftIntentUpdate) SetGiftTierID(v int) *EsportsGiftIntentUpdate {
+	_u.mutation.ResetGiftTierID()
+	_u.mutation.SetGiftTierID(v)
+	return _u
+}
+
+// SetNillableGiftTierID sets the "gift_tier_id" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillableGiftTierID(v *int) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetGiftTierID(*v)
+	}
+	return _u
+}
+
+// AddGiftTierID adds value to the "gift_tier_id" field.
+func (_u *EsportsGiftIntentUpdate) AddGiftTierID(v int) *EsportsGiftIntentUpdate {
+	_u.mutation.AddGiftTierID(v)
+	return _u
+}
+
+// SetGiftTierCode sets the "gift_tier_code" field.
+func (_u *EsportsGiftIntentUpdate) SetGiftTierCode(v string) *EsportsGiftIntentUpdate {
+	_u.mutation.SetGiftTierCode(v)
+	return _u
+}
+
+// SetNillableGiftTierCode sets the "gift_tier_code" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillableGiftTierCode(v *string) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetGiftTierCode(*v)
+	}
+	return _u
+}
+
+// SetHighValue sets the "high_value" field.
+func (_u *EsportsGiftIntentUpdate) SetHighValue(v bool) *EsportsGiftIntentUpdate {
+	_u.mutation.SetHighValue(v)
+	return _u
+}
+
+// SetNillableHighValue sets the "high_value" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillableHighValue(v *bool) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetHighValue(*v)
+	}
+	return _u
+}
+
+// SetRequireAge sets the "require_age" field.
+func (_u *EsportsGiftIntentUpdate) SetRequireAge(v bool) *EsportsGiftIntentUpdate {
+	_u.mutation.SetRequireAge(v)
+	return _u
+}
+
+// SetNillableRequireAge sets the "require_age" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillableRequireAge(v *bool) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetRequireAge(*v)
+	}
+	return _u
+}
+
+// SetPaymentChannel sets the "payment_channel" field.
+func (_u *EsportsGiftIntentUpdate) SetPaymentChannel(v esportsgiftintent.PaymentChannel) *EsportsGiftIntentUpdate {
+	_u.mutation.SetPaymentChannel(v)
+	return _u
+}
+
+// SetNillablePaymentChannel sets the "payment_channel" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillablePaymentChannel(v *esportsgiftintent.PaymentChannel) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetPaymentChannel(*v)
+	}
+	return _u
+}
+
+// SetPaymentStatus sets the "payment_status" field.
+func (_u *EsportsGiftIntentUpdate) SetPaymentStatus(v esportsgiftintent.PaymentStatus) *EsportsGiftIntentUpdate {
+	_u.mutation.SetPaymentStatus(v)
+	return _u
+}
+
+// SetNillablePaymentStatus sets the "payment_status" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillablePaymentStatus(v *esportsgiftintent.PaymentStatus) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetPaymentStatus(*v)
+	}
+	return _u
+}
+
+// SetPaymentIntentNo sets the "payment_intent_no" field.
+func (_u *EsportsGiftIntentUpdate) SetPaymentIntentNo(v string) *EsportsGiftIntentUpdate {
+	_u.mutation.SetPaymentIntentNo(v)
+	return _u
+}
+
+// SetNillablePaymentIntentNo sets the "payment_intent_no" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillablePaymentIntentNo(v *string) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetPaymentIntentNo(*v)
+	}
+	return _u
+}
+
+// ClearPaymentIntentNo clears the value of the "payment_intent_no" field.
+func (_u *EsportsGiftIntentUpdate) ClearPaymentIntentNo() *EsportsGiftIntentUpdate {
+	_u.mutation.ClearPaymentIntentNo()
+	return _u
+}
+
+// SetPaymentRef sets the "payment_ref" field.
+func (_u *EsportsGiftIntentUpdate) SetPaymentRef(v string) *EsportsGiftIntentUpdate {
+	_u.mutation.SetPaymentRef(v)
+	return _u
+}
+
+// SetNillablePaymentRef sets the "payment_ref" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillablePaymentRef(v *string) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetPaymentRef(*v)
+	}
+	return _u
+}
+
+// SetPaymentExpiresAt sets the "payment_expires_at" field.
+func (_u *EsportsGiftIntentUpdate) SetPaymentExpiresAt(v time.Time) *EsportsGiftIntentUpdate {
+	_u.mutation.SetPaymentExpiresAt(v)
+	return _u
+}
+
+// SetNillablePaymentExpiresAt sets the "payment_expires_at" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillablePaymentExpiresAt(v *time.Time) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetPaymentExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearPaymentExpiresAt clears the value of the "payment_expires_at" field.
+func (_u *EsportsGiftIntentUpdate) ClearPaymentExpiresAt() *EsportsGiftIntentUpdate {
+	_u.mutation.ClearPaymentExpiresAt()
+	return _u
+}
+
+// SetPaymentVerifiedAt sets the "payment_verified_at" field.
+func (_u *EsportsGiftIntentUpdate) SetPaymentVerifiedAt(v time.Time) *EsportsGiftIntentUpdate {
+	_u.mutation.SetPaymentVerifiedAt(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedAt sets the "payment_verified_at" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillablePaymentVerifiedAt(v *time.Time) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetPaymentVerifiedAt(*v)
+	}
+	return _u
+}
+
+// ClearPaymentVerifiedAt clears the value of the "payment_verified_at" field.
+func (_u *EsportsGiftIntentUpdate) ClearPaymentVerifiedAt() *EsportsGiftIntentUpdate {
+	_u.mutation.ClearPaymentVerifiedAt()
+	return _u
+}
+
+// SetPaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field.
+func (_u *EsportsGiftIntentUpdate) SetPaymentVerifiedByAdminID(v int) *EsportsGiftIntentUpdate {
+	_u.mutation.ResetPaymentVerifiedByAdminID()
+	_u.mutation.SetPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdate) SetNillablePaymentVerifiedByAdminID(v *int) *EsportsGiftIntentUpdate {
+	if v != nil {
+		_u.SetPaymentVerifiedByAdminID(*v)
+	}
+	return _u
+}
+
+// AddPaymentVerifiedByAdminID adds value to the "payment_verified_by_admin_id" field.
+func (_u *EsportsGiftIntentUpdate) AddPaymentVerifiedByAdminID(v int) *EsportsGiftIntentUpdate {
+	_u.mutation.AddPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// ClearPaymentVerifiedByAdminID clears the value of the "payment_verified_by_admin_id" field.
+func (_u *EsportsGiftIntentUpdate) ClearPaymentVerifiedByAdminID() *EsportsGiftIntentUpdate {
+	_u.mutation.ClearPaymentVerifiedByAdminID()
+	return _u
+}
+
 // SetCreatedByAdminID sets the "created_by_admin_id" field.
 func (_u *EsportsGiftIntentUpdate) SetCreatedByAdminID(v int) *EsportsGiftIntentUpdate {
 	_u.mutation.ResetCreatedByAdminID()
@@ -534,6 +726,31 @@ func (_u *EsportsGiftIntentUpdate) check() error {
 			return &ValidationError{Name: "stored_value_card_no", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_no": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftTierCode(); ok {
+		if err := esportsgiftintent.GiftTierCodeValidator(v); err != nil {
+			return &ValidationError{Name: "gift_tier_code", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.gift_tier_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentChannel(); ok {
+		if err := esportsgiftintent.PaymentChannelValidator(v); err != nil {
+			return &ValidationError{Name: "payment_channel", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_channel": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentStatus(); ok {
+		if err := esportsgiftintent.PaymentStatusValidator(v); err != nil {
+			return &ValidationError{Name: "payment_status", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentIntentNo(); ok {
+		if err := esportsgiftintent.PaymentIntentNoValidator(v); err != nil {
+			return &ValidationError{Name: "payment_intent_no", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_intent_no": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentRef(); ok {
+		if err := esportsgiftintent.PaymentRefValidator(v); err != nil {
+			return &ValidationError{Name: "payment_ref", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_ref": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CreatedByAdminID(); ok {
 		if err := esportsgiftintent.CreatedByAdminIDValidator(v); err != nil {
 			return &ValidationError{Name: "created_by_admin_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.created_by_admin_id": %w`, err)}
@@ -645,6 +862,57 @@ func (_u *EsportsGiftIntentUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if value, ok := _u.mutation.StoredValueCardNo(); ok {
 		_spec.SetField(esportsgiftintent.FieldStoredValueCardNo, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GiftTierID(); ok {
+		_spec.SetField(esportsgiftintent.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftTierID(); ok {
+		_spec.AddField(esportsgiftintent.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GiftTierCode(); ok {
+		_spec.SetField(esportsgiftintent.FieldGiftTierCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.HighValue(); ok {
+		_spec.SetField(esportsgiftintent.FieldHighValue, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequireAge(); ok {
+		_spec.SetField(esportsgiftintent.FieldRequireAge, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PaymentChannel(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentChannel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PaymentStatus(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PaymentIntentNo(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentIntentNo, field.TypeString, value)
+	}
+	if _u.mutation.PaymentIntentNoCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentIntentNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaymentRef(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentRef, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PaymentExpiresAt(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.PaymentExpiresAtCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedAt(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentVerifiedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PaymentVerifiedAtCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentVerifiedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedByAdminID(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPaymentVerifiedByAdminID(); ok {
+		_spec.AddField(esportsgiftintent.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.PaymentVerifiedByAdminIDCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentVerifiedByAdminID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedByAdminID(); ok {
 		_spec.SetField(esportsgiftintent.FieldCreatedByAdminID, field.TypeInt, value)
@@ -965,6 +1233,198 @@ func (_u *EsportsGiftIntentUpdateOne) SetNillableStoredValueCardNo(v *string) *E
 	return _u
 }
 
+// SetGiftTierID sets the "gift_tier_id" field.
+func (_u *EsportsGiftIntentUpdateOne) SetGiftTierID(v int) *EsportsGiftIntentUpdateOne {
+	_u.mutation.ResetGiftTierID()
+	_u.mutation.SetGiftTierID(v)
+	return _u
+}
+
+// SetNillableGiftTierID sets the "gift_tier_id" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillableGiftTierID(v *int) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetGiftTierID(*v)
+	}
+	return _u
+}
+
+// AddGiftTierID adds value to the "gift_tier_id" field.
+func (_u *EsportsGiftIntentUpdateOne) AddGiftTierID(v int) *EsportsGiftIntentUpdateOne {
+	_u.mutation.AddGiftTierID(v)
+	return _u
+}
+
+// SetGiftTierCode sets the "gift_tier_code" field.
+func (_u *EsportsGiftIntentUpdateOne) SetGiftTierCode(v string) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetGiftTierCode(v)
+	return _u
+}
+
+// SetNillableGiftTierCode sets the "gift_tier_code" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillableGiftTierCode(v *string) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetGiftTierCode(*v)
+	}
+	return _u
+}
+
+// SetHighValue sets the "high_value" field.
+func (_u *EsportsGiftIntentUpdateOne) SetHighValue(v bool) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetHighValue(v)
+	return _u
+}
+
+// SetNillableHighValue sets the "high_value" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillableHighValue(v *bool) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetHighValue(*v)
+	}
+	return _u
+}
+
+// SetRequireAge sets the "require_age" field.
+func (_u *EsportsGiftIntentUpdateOne) SetRequireAge(v bool) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetRequireAge(v)
+	return _u
+}
+
+// SetNillableRequireAge sets the "require_age" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillableRequireAge(v *bool) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetRequireAge(*v)
+	}
+	return _u
+}
+
+// SetPaymentChannel sets the "payment_channel" field.
+func (_u *EsportsGiftIntentUpdateOne) SetPaymentChannel(v esportsgiftintent.PaymentChannel) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetPaymentChannel(v)
+	return _u
+}
+
+// SetNillablePaymentChannel sets the "payment_channel" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentChannel(v *esportsgiftintent.PaymentChannel) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetPaymentChannel(*v)
+	}
+	return _u
+}
+
+// SetPaymentStatus sets the "payment_status" field.
+func (_u *EsportsGiftIntentUpdateOne) SetPaymentStatus(v esportsgiftintent.PaymentStatus) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetPaymentStatus(v)
+	return _u
+}
+
+// SetNillablePaymentStatus sets the "payment_status" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentStatus(v *esportsgiftintent.PaymentStatus) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetPaymentStatus(*v)
+	}
+	return _u
+}
+
+// SetPaymentIntentNo sets the "payment_intent_no" field.
+func (_u *EsportsGiftIntentUpdateOne) SetPaymentIntentNo(v string) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetPaymentIntentNo(v)
+	return _u
+}
+
+// SetNillablePaymentIntentNo sets the "payment_intent_no" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentIntentNo(v *string) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetPaymentIntentNo(*v)
+	}
+	return _u
+}
+
+// ClearPaymentIntentNo clears the value of the "payment_intent_no" field.
+func (_u *EsportsGiftIntentUpdateOne) ClearPaymentIntentNo() *EsportsGiftIntentUpdateOne {
+	_u.mutation.ClearPaymentIntentNo()
+	return _u
+}
+
+// SetPaymentRef sets the "payment_ref" field.
+func (_u *EsportsGiftIntentUpdateOne) SetPaymentRef(v string) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetPaymentRef(v)
+	return _u
+}
+
+// SetNillablePaymentRef sets the "payment_ref" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentRef(v *string) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetPaymentRef(*v)
+	}
+	return _u
+}
+
+// SetPaymentExpiresAt sets the "payment_expires_at" field.
+func (_u *EsportsGiftIntentUpdateOne) SetPaymentExpiresAt(v time.Time) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetPaymentExpiresAt(v)
+	return _u
+}
+
+// SetNillablePaymentExpiresAt sets the "payment_expires_at" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentExpiresAt(v *time.Time) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetPaymentExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearPaymentExpiresAt clears the value of the "payment_expires_at" field.
+func (_u *EsportsGiftIntentUpdateOne) ClearPaymentExpiresAt() *EsportsGiftIntentUpdateOne {
+	_u.mutation.ClearPaymentExpiresAt()
+	return _u
+}
+
+// SetPaymentVerifiedAt sets the "payment_verified_at" field.
+func (_u *EsportsGiftIntentUpdateOne) SetPaymentVerifiedAt(v time.Time) *EsportsGiftIntentUpdateOne {
+	_u.mutation.SetPaymentVerifiedAt(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedAt sets the "payment_verified_at" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentVerifiedAt(v *time.Time) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetPaymentVerifiedAt(*v)
+	}
+	return _u
+}
+
+// ClearPaymentVerifiedAt clears the value of the "payment_verified_at" field.
+func (_u *EsportsGiftIntentUpdateOne) ClearPaymentVerifiedAt() *EsportsGiftIntentUpdateOne {
+	_u.mutation.ClearPaymentVerifiedAt()
+	return _u
+}
+
+// SetPaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field.
+func (_u *EsportsGiftIntentUpdateOne) SetPaymentVerifiedByAdminID(v int) *EsportsGiftIntentUpdateOne {
+	_u.mutation.ResetPaymentVerifiedByAdminID()
+	_u.mutation.SetPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// SetNillablePaymentVerifiedByAdminID sets the "payment_verified_by_admin_id" field if the given value is not nil.
+func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentVerifiedByAdminID(v *int) *EsportsGiftIntentUpdateOne {
+	if v != nil {
+		_u.SetPaymentVerifiedByAdminID(*v)
+	}
+	return _u
+}
+
+// AddPaymentVerifiedByAdminID adds value to the "payment_verified_by_admin_id" field.
+func (_u *EsportsGiftIntentUpdateOne) AddPaymentVerifiedByAdminID(v int) *EsportsGiftIntentUpdateOne {
+	_u.mutation.AddPaymentVerifiedByAdminID(v)
+	return _u
+}
+
+// ClearPaymentVerifiedByAdminID clears the value of the "payment_verified_by_admin_id" field.
+func (_u *EsportsGiftIntentUpdateOne) ClearPaymentVerifiedByAdminID() *EsportsGiftIntentUpdateOne {
+	_u.mutation.ClearPaymentVerifiedByAdminID()
+	return _u
+}
+
 // SetCreatedByAdminID sets the "created_by_admin_id" field.
 func (_u *EsportsGiftIntentUpdateOne) SetCreatedByAdminID(v int) *EsportsGiftIntentUpdateOne {
 	_u.mutation.ResetCreatedByAdminID()
@@ -1227,6 +1687,31 @@ func (_u *EsportsGiftIntentUpdateOne) check() error {
 			return &ValidationError{Name: "stored_value_card_no", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_no": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.GiftTierCode(); ok {
+		if err := esportsgiftintent.GiftTierCodeValidator(v); err != nil {
+			return &ValidationError{Name: "gift_tier_code", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.gift_tier_code": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentChannel(); ok {
+		if err := esportsgiftintent.PaymentChannelValidator(v); err != nil {
+			return &ValidationError{Name: "payment_channel", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_channel": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentStatus(); ok {
+		if err := esportsgiftintent.PaymentStatusValidator(v); err != nil {
+			return &ValidationError{Name: "payment_status", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentIntentNo(); ok {
+		if err := esportsgiftintent.PaymentIntentNoValidator(v); err != nil {
+			return &ValidationError{Name: "payment_intent_no", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_intent_no": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PaymentRef(); ok {
+		if err := esportsgiftintent.PaymentRefValidator(v); err != nil {
+			return &ValidationError{Name: "payment_ref", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.payment_ref": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CreatedByAdminID(); ok {
 		if err := esportsgiftintent.CreatedByAdminIDValidator(v); err != nil {
 			return &ValidationError{Name: "created_by_admin_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.created_by_admin_id": %w`, err)}
@@ -1355,6 +1840,57 @@ func (_u *EsportsGiftIntentUpdateOne) sqlSave(ctx context.Context) (_node *Espor
 	}
 	if value, ok := _u.mutation.StoredValueCardNo(); ok {
 		_spec.SetField(esportsgiftintent.FieldStoredValueCardNo, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.GiftTierID(); ok {
+		_spec.SetField(esportsgiftintent.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedGiftTierID(); ok {
+		_spec.AddField(esportsgiftintent.FieldGiftTierID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GiftTierCode(); ok {
+		_spec.SetField(esportsgiftintent.FieldGiftTierCode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.HighValue(); ok {
+		_spec.SetField(esportsgiftintent.FieldHighValue, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.RequireAge(); ok {
+		_spec.SetField(esportsgiftintent.FieldRequireAge, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.PaymentChannel(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentChannel, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PaymentStatus(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PaymentIntentNo(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentIntentNo, field.TypeString, value)
+	}
+	if _u.mutation.PaymentIntentNoCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentIntentNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.PaymentRef(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentRef, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PaymentExpiresAt(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.PaymentExpiresAtCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentExpiresAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedAt(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentVerifiedAt, field.TypeTime, value)
+	}
+	if _u.mutation.PaymentVerifiedAtCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentVerifiedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.PaymentVerifiedByAdminID(); ok {
+		_spec.SetField(esportsgiftintent.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPaymentVerifiedByAdminID(); ok {
+		_spec.AddField(esportsgiftintent.FieldPaymentVerifiedByAdminID, field.TypeInt, value)
+	}
+	if _u.mutation.PaymentVerifiedByAdminIDCleared() {
+		_spec.ClearField(esportsgiftintent.FieldPaymentVerifiedByAdminID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.CreatedByAdminID(); ok {
 		_spec.SetField(esportsgiftintent.FieldCreatedByAdminID, field.TypeInt, value)

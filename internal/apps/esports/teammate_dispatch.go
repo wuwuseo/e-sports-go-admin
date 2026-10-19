@@ -28,6 +28,13 @@ type teammateDispatchCandidate struct {
 // listTeammateCandidatesForOrder 列出主陪玩在该订单上可一次成队的合格固排。
 // 硬性条件与人工指派一致（资质合格 + 在线 + 分区/等级 + 未占用席位）；接单上限在成队动作硬校验。
 func listTeammateCandidatesForOrder(ctx context.Context, db *ent.Client, orderID, mainPlayerID int) ([]teammateDispatchCandidate, error) {
+	return listTeammateCandidatesAt(ctx, db, orderID, mainPlayerID, time.Now())
+}
+
+// listTeammateCandidatesAt 同 listTeammateCandidatesForOrder，但把「现在」显式传入，
+// 便于用固定时钟校验固排时段（§6.4-06）等与时间相关的过滤。
+func listTeammateCandidatesAt(ctx context.Context, db *ent.Client, orderID, mainPlayerID int,
+	now time.Time) ([]teammateDispatchCandidate, error) {
 	if orderID < 1 || mainPlayerID < 1 {
 		return nil, errInvalidInput
 	}
@@ -70,6 +77,10 @@ func listTeammateCandidatesForOrder(ctx context.Context, db *ent.Client, orderID
 			continue
 		}
 		if err := checkPlayerGameLevel(p, game, requiredLevel); err != nil {
+			continue
+		}
+		// §6.4-06：固排时段外的固排不作为候选（未开启固排时段限制者不受影响）。
+		if !playerFixedTeamSlotAllows(p, now) {
 			continue
 		}
 		out = append(out, teammateDispatchCandidate{
@@ -166,6 +177,10 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 		if err = checkPlayerGameLevel(p, game, requiredLevel); err != nil {
 			return nil, err
 		}
+		// §6.4-06：固排时段外的固排不得成队（未开启固排时段限制者不受影响）。
+		if !playerFixedTeamSlotAllows(p, now) {
+			return nil, fmt.Errorf("%w：固排 %s 当前不在其固排时段内", errForbidden, p.DisplayName)
+		}
 		team = append(team, p)
 	}
 
@@ -202,7 +217,7 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 	if err != nil {
 		return nil, err
 	}
-	if err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstInvited, now); err != nil {
+	if _, err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstInvited, now); err != nil {
 		return nil, err
 	}
 	// (order_id, order_version) 唯一：一次成队只写一条汇总事件，席位明细挂在 details。

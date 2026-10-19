@@ -73,6 +73,26 @@ func (_c *EsportsRechargeCampaignCreate) SetAudienceCustomerIds(v []int) *Esport
 	return _c
 }
 
+// SetAudiencePlayerIds sets the "audience_player_ids" field.
+func (_c *EsportsRechargeCampaignCreate) SetAudiencePlayerIds(v []int) *EsportsRechargeCampaignCreate {
+	_c.mutation.SetAudiencePlayerIds(v)
+	return _c
+}
+
+// SetTargetAccountType sets the "target_account_type" field.
+func (_c *EsportsRechargeCampaignCreate) SetTargetAccountType(v esportsrechargecampaign.TargetAccountType) *EsportsRechargeCampaignCreate {
+	_c.mutation.SetTargetAccountType(v)
+	return _c
+}
+
+// SetNillableTargetAccountType sets the "target_account_type" field if the given value is not nil.
+func (_c *EsportsRechargeCampaignCreate) SetNillableTargetAccountType(v *esportsrechargecampaign.TargetAccountType) *EsportsRechargeCampaignCreate {
+	if v != nil {
+		_c.SetTargetAccountType(*v)
+	}
+	return _c
+}
+
 // SetStackRule sets the "stack_rule" field.
 func (_c *EsportsRechargeCampaignCreate) SetStackRule(v esportsrechargecampaign.StackRule) *EsportsRechargeCampaignCreate {
 	_c.mutation.SetStackRule(v)
@@ -212,6 +232,10 @@ func (_c *EsportsRechargeCampaignCreate) defaults() {
 		v := esportsrechargecampaign.DefaultAudience
 		_c.mutation.SetAudience(v)
 	}
+	if _, ok := _c.mutation.TargetAccountType(); !ok {
+		v := esportsrechargecampaign.DefaultTargetAccountType
+		_c.mutation.SetTargetAccountType(v)
+	}
 	if _, ok := _c.mutation.StackRule(); !ok {
 		v := esportsrechargecampaign.DefaultStackRule
 		_c.mutation.SetStackRule(v)
@@ -273,6 +297,14 @@ func (_c *EsportsRechargeCampaignCreate) check() error {
 	if v, ok := _c.mutation.Audience(); ok {
 		if err := esportsrechargecampaign.AudienceValidator(v); err != nil {
 			return &ValidationError{Name: "audience", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.audience": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.TargetAccountType(); !ok {
+		return &ValidationError{Name: "target_account_type", err: errors.New(`ent: missing required field "EsportsRechargeCampaign.target_account_type"`)}
+	}
+	if v, ok := _c.mutation.TargetAccountType(); ok {
+		if err := esportsrechargecampaign.TargetAccountTypeValidator(v); err != nil {
+			return &ValidationError{Name: "target_account_type", err: fmt.Errorf(`ent: validator failed for field "EsportsRechargeCampaign.target_account_type": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.StackRule(); !ok {
@@ -358,6 +390,14 @@ func (_c *EsportsRechargeCampaignCreate) createSpec() (*EsportsRechargeCampaign,
 	if value, ok := _c.mutation.AudienceCustomerIds(); ok {
 		_spec.SetField(esportsrechargecampaign.FieldAudienceCustomerIds, field.TypeJSON, value)
 		_node.AudienceCustomerIds = value
+	}
+	if value, ok := _c.mutation.AudiencePlayerIds(); ok {
+		_spec.SetField(esportsrechargecampaign.FieldAudiencePlayerIds, field.TypeJSON, value)
+		_node.AudiencePlayerIds = value
+	}
+	if value, ok := _c.mutation.TargetAccountType(); ok {
+		_spec.SetField(esportsrechargecampaign.FieldTargetAccountType, field.TypeEnum, value)
+		_node.TargetAccountType = value
 	}
 	if value, ok := _c.mutation.StackRule(); ok {
 		_spec.SetField(esportsrechargecampaign.FieldStackRule, field.TypeEnum, value)

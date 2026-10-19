@@ -154,11 +154,13 @@ func cancelOrderHandler(c fiber.Ctx) error {
 	}
 	var in struct {
 		Reason string `json:"reason"`
+		// FaultParty 取消责任方（§3.3-08）：customer / player / admin / platform / none，留空按客户方责任。
+		FaultParty string `json:"fault_party"`
 	}
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	order, err := cancelOrder(c.Context(), global.ORM, id, adminID, in.Reason, time.Now())
+	order, err := cancelOrderWithFault(c.Context(), global.ORM, id, adminID, in.Reason, in.FaultParty, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -364,4 +366,27 @@ func walletMutationHandler(adjust bool) fiber.Handler {
 		}
 		return reply(c, view)
 	}
+}
+
+// disposeExpiredAppointmentHandler 处置「已付款待确认档期超时」订单（§5.5-06）：
+// 请求体 {"action":"refund|reschedule","reason":"...","start_at":"RFC3339","expected_version":N}。
+// 路由须由 ownedOrderHandler 保护，权限码建议 esports:orders:appointment_dispose。
+func disposeExpiredAppointmentHandler(c fiber.Ctx) error {
+	adminID, err := requireAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	id, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	var in appointmentDisposalInput
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	order, err := disposeExpiredAppointment(c.Context(), global.ORM, id, adminID, in, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
 }

@@ -116,12 +116,15 @@ func TestPageResourceCheckEntityValidity(t *testing.T) {
 		return pageConfig{Components: []pageComponent{
 			{Type: "search", Visible: &visible},
 			{Type: "product_list", Visible: &visible, Props: props},
+			// §16.3-06（本轮口径收紧）：活动引用只属于 activity 组件，
+			// product_list 不再受理 campaign_id / activity_id（保存即 400）。
+			{Type: "activity", Visible: &visible, Props: map[string]interface{}{"campaign_id": camp.ID}},
 			{Type: "support_entry", Visible: &visible},
 		}}
 	}
-	// 有效引用：上架 SKU + 进行中活动。
+	// 有效引用：上架 SKU（商品列表）+ 进行中活动（活动组件）。
 	if err := validatePageResources(t.Context(), db, build(map[string]interface{}{
-		"sku_id": sku.ID, "campaign_id": camp.ID,
+		"sku_id": sku.ID,
 	})); err != nil {
 		t.Fatalf("有效实体引用应通过：%v", err)
 	}

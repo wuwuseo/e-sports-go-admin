@@ -112,6 +112,76 @@ func (_c *EsportsWalletTxCreate) SetNillableNote(v *string) *EsportsWalletTxCrea
 	return _c
 }
 
+// SetBeneficiaryType sets the "beneficiary_type" field.
+func (_c *EsportsWalletTxCreate) SetBeneficiaryType(v esportswallettx.BeneficiaryType) *EsportsWalletTxCreate {
+	_c.mutation.SetBeneficiaryType(v)
+	return _c
+}
+
+// SetNillableBeneficiaryType sets the "beneficiary_type" field if the given value is not nil.
+func (_c *EsportsWalletTxCreate) SetNillableBeneficiaryType(v *esportswallettx.BeneficiaryType) *EsportsWalletTxCreate {
+	if v != nil {
+		_c.SetBeneficiaryType(*v)
+	}
+	return _c
+}
+
+// SetBeneficiaryID sets the "beneficiary_id" field.
+func (_c *EsportsWalletTxCreate) SetBeneficiaryID(v int) *EsportsWalletTxCreate {
+	_c.mutation.SetBeneficiaryID(v)
+	return _c
+}
+
+// SetNillableBeneficiaryID sets the "beneficiary_id" field if the given value is not nil.
+func (_c *EsportsWalletTxCreate) SetNillableBeneficiaryID(v *int) *EsportsWalletTxCreate {
+	if v != nil {
+		_c.SetBeneficiaryID(*v)
+	}
+	return _c
+}
+
+// SetBalanceBeforeCents sets the "balance_before_cents" field.
+func (_c *EsportsWalletTxCreate) SetBalanceBeforeCents(v int64) *EsportsWalletTxCreate {
+	_c.mutation.SetBalanceBeforeCents(v)
+	return _c
+}
+
+// SetNillableBalanceBeforeCents sets the "balance_before_cents" field if the given value is not nil.
+func (_c *EsportsWalletTxCreate) SetNillableBalanceBeforeCents(v *int64) *EsportsWalletTxCreate {
+	if v != nil {
+		_c.SetBalanceBeforeCents(*v)
+	}
+	return _c
+}
+
+// SetBalanceAfterCents sets the "balance_after_cents" field.
+func (_c *EsportsWalletTxCreate) SetBalanceAfterCents(v int64) *EsportsWalletTxCreate {
+	_c.mutation.SetBalanceAfterCents(v)
+	return _c
+}
+
+// SetNillableBalanceAfterCents sets the "balance_after_cents" field if the given value is not nil.
+func (_c *EsportsWalletTxCreate) SetNillableBalanceAfterCents(v *int64) *EsportsWalletTxCreate {
+	if v != nil {
+		_c.SetBalanceAfterCents(*v)
+	}
+	return _c
+}
+
+// SetFundBatch sets the "fund_batch" field.
+func (_c *EsportsWalletTxCreate) SetFundBatch(v string) *EsportsWalletTxCreate {
+	_c.mutation.SetFundBatch(v)
+	return _c
+}
+
+// SetNillableFundBatch sets the "fund_batch" field if the given value is not nil.
+func (_c *EsportsWalletTxCreate) SetNillableFundBatch(v *string) *EsportsWalletTxCreate {
+	if v != nil {
+		_c.SetFundBatch(*v)
+	}
+	return _c
+}
+
 // SetRuleSnapshot sets the "rule_snapshot" field.
 func (_c *EsportsWalletTxCreate) SetRuleSnapshot(v map[string]interface{}) *EsportsWalletTxCreate {
 	_c.mutation.SetRuleSnapshot(v)
@@ -195,6 +265,26 @@ func (_c *EsportsWalletTxCreate) defaults() error {
 		v := esportswallettx.DefaultNote
 		_c.mutation.SetNote(v)
 	}
+	if _, ok := _c.mutation.BeneficiaryType(); !ok {
+		v := esportswallettx.DefaultBeneficiaryType
+		_c.mutation.SetBeneficiaryType(v)
+	}
+	if _, ok := _c.mutation.BeneficiaryID(); !ok {
+		v := esportswallettx.DefaultBeneficiaryID
+		_c.mutation.SetBeneficiaryID(v)
+	}
+	if _, ok := _c.mutation.BalanceBeforeCents(); !ok {
+		v := esportswallettx.DefaultBalanceBeforeCents
+		_c.mutation.SetBalanceBeforeCents(v)
+	}
+	if _, ok := _c.mutation.BalanceAfterCents(); !ok {
+		v := esportswallettx.DefaultBalanceAfterCents
+		_c.mutation.SetBalanceAfterCents(v)
+	}
+	if _, ok := _c.mutation.FundBatch(); !ok {
+		v := esportswallettx.DefaultFundBatch
+		_c.mutation.SetFundBatch(v)
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		if esportswallettx.DefaultCreatedAt == nil {
 			return fmt.Errorf("ent: uninitialized esportswallettx.DefaultCreatedAt (forgotten import ent/runtime?)")
@@ -269,6 +359,31 @@ func (_c *EsportsWalletTxCreate) check() error {
 			return &ValidationError{Name: "note", err: fmt.Errorf(`ent: validator failed for field "EsportsWalletTx.note": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.BeneficiaryType(); !ok {
+		return &ValidationError{Name: "beneficiary_type", err: errors.New(`ent: missing required field "EsportsWalletTx.beneficiary_type"`)}
+	}
+	if v, ok := _c.mutation.BeneficiaryType(); ok {
+		if err := esportswallettx.BeneficiaryTypeValidator(v); err != nil {
+			return &ValidationError{Name: "beneficiary_type", err: fmt.Errorf(`ent: validator failed for field "EsportsWalletTx.beneficiary_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.BeneficiaryID(); !ok {
+		return &ValidationError{Name: "beneficiary_id", err: errors.New(`ent: missing required field "EsportsWalletTx.beneficiary_id"`)}
+	}
+	if _, ok := _c.mutation.BalanceBeforeCents(); !ok {
+		return &ValidationError{Name: "balance_before_cents", err: errors.New(`ent: missing required field "EsportsWalletTx.balance_before_cents"`)}
+	}
+	if _, ok := _c.mutation.BalanceAfterCents(); !ok {
+		return &ValidationError{Name: "balance_after_cents", err: errors.New(`ent: missing required field "EsportsWalletTx.balance_after_cents"`)}
+	}
+	if _, ok := _c.mutation.FundBatch(); !ok {
+		return &ValidationError{Name: "fund_batch", err: errors.New(`ent: missing required field "EsportsWalletTx.fund_batch"`)}
+	}
+	if v, ok := _c.mutation.FundBatch(); ok {
+		if err := esportswallettx.FundBatchValidator(v); err != nil {
+			return &ValidationError{Name: "fund_batch", err: fmt.Errorf(`ent: validator failed for field "EsportsWalletTx.fund_batch": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "EsportsWalletTx.created_at"`)}
 	}
@@ -337,6 +452,26 @@ func (_c *EsportsWalletTxCreate) createSpec() (*EsportsWalletTx, *sqlgraph.Creat
 	if value, ok := _c.mutation.Note(); ok {
 		_spec.SetField(esportswallettx.FieldNote, field.TypeString, value)
 		_node.Note = value
+	}
+	if value, ok := _c.mutation.BeneficiaryType(); ok {
+		_spec.SetField(esportswallettx.FieldBeneficiaryType, field.TypeEnum, value)
+		_node.BeneficiaryType = value
+	}
+	if value, ok := _c.mutation.BeneficiaryID(); ok {
+		_spec.SetField(esportswallettx.FieldBeneficiaryID, field.TypeInt, value)
+		_node.BeneficiaryID = value
+	}
+	if value, ok := _c.mutation.BalanceBeforeCents(); ok {
+		_spec.SetField(esportswallettx.FieldBalanceBeforeCents, field.TypeInt64, value)
+		_node.BalanceBeforeCents = value
+	}
+	if value, ok := _c.mutation.BalanceAfterCents(); ok {
+		_spec.SetField(esportswallettx.FieldBalanceAfterCents, field.TypeInt64, value)
+		_node.BalanceAfterCents = value
+	}
+	if value, ok := _c.mutation.FundBatch(); ok {
+		_spec.SetField(esportswallettx.FieldFundBatch, field.TypeString, value)
+		_node.FundBatch = value
 	}
 	if value, ok := _c.mutation.RuleSnapshot(); ok {
 		_spec.SetField(esportswallettx.FieldRuleSnapshot, field.TypeJSON, value)

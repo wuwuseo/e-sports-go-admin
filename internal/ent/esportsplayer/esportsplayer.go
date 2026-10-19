@@ -36,6 +36,40 @@ const (
 	FieldGames = "games"
 	// FieldLastHeartbeatAt holds the string denoting the last_heartbeat_at field in the database.
 	FieldLastHeartbeatAt = "last_heartbeat_at"
+	// FieldExpectedPriceCents holds the string denoting the expected_price_cents field in the database.
+	FieldExpectedPriceCents = "expected_price_cents"
+	// FieldExpectedPriceStatus holds the string denoting the expected_price_status field in the database.
+	FieldExpectedPriceStatus = "expected_price_status"
+	// FieldExpectedPriceSubmittedAt holds the string denoting the expected_price_submitted_at field in the database.
+	FieldExpectedPriceSubmittedAt = "expected_price_submitted_at"
+	// FieldExpectedPriceReviewedByAdminID holds the string denoting the expected_price_reviewed_by_admin_id field in the database.
+	FieldExpectedPriceReviewedByAdminID = "expected_price_reviewed_by_admin_id"
+	// FieldExpectedPriceReviewedAt holds the string denoting the expected_price_reviewed_at field in the database.
+	FieldExpectedPriceReviewedAt = "expected_price_reviewed_at"
+	// FieldExpectedPriceReviewNote holds the string denoting the expected_price_review_note field in the database.
+	FieldExpectedPriceReviewNote = "expected_price_review_note"
+	// FieldServiceSlotStartMinute holds the string denoting the service_slot_start_minute field in the database.
+	FieldServiceSlotStartMinute = "service_slot_start_minute"
+	// FieldServiceSlotEndMinute holds the string denoting the service_slot_end_minute field in the database.
+	FieldServiceSlotEndMinute = "service_slot_end_minute"
+	// FieldAutoOnline holds the string denoting the auto_online field in the database.
+	FieldAutoOnline = "auto_online"
+	// FieldAcceptPriceMinCents holds the string denoting the accept_price_min_cents field in the database.
+	FieldAcceptPriceMinCents = "accept_price_min_cents"
+	// FieldAcceptPriceMaxCents holds the string denoting the accept_price_max_cents field in the database.
+	FieldAcceptPriceMaxCents = "accept_price_max_cents"
+	// FieldFixedTeamEnabled holds the string denoting the fixed_team_enabled field in the database.
+	FieldFixedTeamEnabled = "fixed_team_enabled"
+	// FieldFixedTeamSlotStartMinute holds the string denoting the fixed_team_slot_start_minute field in the database.
+	FieldFixedTeamSlotStartMinute = "fixed_team_slot_start_minute"
+	// FieldFixedTeamSlotEndMinute holds the string denoting the fixed_team_slot_end_minute field in the database.
+	FieldFixedTeamSlotEndMinute = "fixed_team_slot_end_minute"
+	// FieldTimezone holds the string denoting the timezone field in the database.
+	FieldTimezone = "timezone"
+	// FieldLatitudeE6 holds the string denoting the latitude_e6 field in the database.
+	FieldLatitudeE6 = "latitude_e6"
+	// FieldLongitudeE6 holds the string denoting the longitude_e6 field in the database.
+	FieldLongitudeE6 = "longitude_e6"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -62,6 +96,23 @@ var Columns = []string{
 	FieldConcurrentLimit,
 	FieldGames,
 	FieldLastHeartbeatAt,
+	FieldExpectedPriceCents,
+	FieldExpectedPriceStatus,
+	FieldExpectedPriceSubmittedAt,
+	FieldExpectedPriceReviewedByAdminID,
+	FieldExpectedPriceReviewedAt,
+	FieldExpectedPriceReviewNote,
+	FieldServiceSlotStartMinute,
+	FieldServiceSlotEndMinute,
+	FieldAutoOnline,
+	FieldAcceptPriceMinCents,
+	FieldAcceptPriceMaxCents,
+	FieldFixedTeamEnabled,
+	FieldFixedTeamSlotStartMinute,
+	FieldFixedTeamSlotEndMinute,
+	FieldTimezone,
+	FieldLatitudeE6,
+	FieldLongitudeE6,
 	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -86,6 +137,36 @@ var (
 	DefaultDailyLimit int
 	// DefaultConcurrentLimit holds the default value on creation for the "concurrent_limit" field.
 	DefaultConcurrentLimit int
+	// DefaultExpectedPriceCents holds the default value on creation for the "expected_price_cents" field.
+	DefaultExpectedPriceCents int64
+	// DefaultExpectedPriceReviewNote holds the default value on creation for the "expected_price_review_note" field.
+	DefaultExpectedPriceReviewNote string
+	// ExpectedPriceReviewNoteValidator is a validator for the "expected_price_review_note" field. It is called by the builders before save.
+	ExpectedPriceReviewNoteValidator func(string) error
+	// DefaultServiceSlotStartMinute holds the default value on creation for the "service_slot_start_minute" field.
+	DefaultServiceSlotStartMinute int
+	// DefaultServiceSlotEndMinute holds the default value on creation for the "service_slot_end_minute" field.
+	DefaultServiceSlotEndMinute int
+	// DefaultAutoOnline holds the default value on creation for the "auto_online" field.
+	DefaultAutoOnline bool
+	// DefaultAcceptPriceMinCents holds the default value on creation for the "accept_price_min_cents" field.
+	DefaultAcceptPriceMinCents int64
+	// DefaultAcceptPriceMaxCents holds the default value on creation for the "accept_price_max_cents" field.
+	DefaultAcceptPriceMaxCents int64
+	// DefaultFixedTeamEnabled holds the default value on creation for the "fixed_team_enabled" field.
+	DefaultFixedTeamEnabled bool
+	// DefaultFixedTeamSlotStartMinute holds the default value on creation for the "fixed_team_slot_start_minute" field.
+	DefaultFixedTeamSlotStartMinute int
+	// DefaultFixedTeamSlotEndMinute holds the default value on creation for the "fixed_team_slot_end_minute" field.
+	DefaultFixedTeamSlotEndMinute int
+	// DefaultTimezone holds the default value on creation for the "timezone" field.
+	DefaultTimezone string
+	// TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
+	TimezoneValidator func(string) error
+	// DefaultLatitudeE6 holds the default value on creation for the "latitude_e6" field.
+	DefaultLatitudeE6 int
+	// DefaultLongitudeE6 holds the default value on creation for the "longitude_e6" field.
+	DefaultLongitudeE6 int
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -178,6 +259,34 @@ func LevelValidator(l Level) error {
 	}
 }
 
+// ExpectedPriceStatus defines the type for the "expected_price_status" enum field.
+type ExpectedPriceStatus string
+
+// ExpectedPriceStatusNone is the default value of the ExpectedPriceStatus enum.
+const DefaultExpectedPriceStatus = ExpectedPriceStatusNone
+
+// ExpectedPriceStatus values.
+const (
+	ExpectedPriceStatusNone     ExpectedPriceStatus = "none"
+	ExpectedPriceStatusPending  ExpectedPriceStatus = "pending"
+	ExpectedPriceStatusApproved ExpectedPriceStatus = "approved"
+	ExpectedPriceStatusRejected ExpectedPriceStatus = "rejected"
+)
+
+func (eps ExpectedPriceStatus) String() string {
+	return string(eps)
+}
+
+// ExpectedPriceStatusValidator is a validator for the "expected_price_status" field enum values. It is called by the builders before save.
+func ExpectedPriceStatusValidator(eps ExpectedPriceStatus) error {
+	switch eps {
+	case ExpectedPriceStatusNone, ExpectedPriceStatusPending, ExpectedPriceStatusApproved, ExpectedPriceStatusRejected:
+		return nil
+	default:
+		return fmt.Errorf("esportsplayer: invalid enum value for expected_price_status field: %q", eps)
+	}
+}
+
 // OrderOption defines the ordering options for the EsportsPlayer queries.
 type OrderOption func(*sql.Selector)
 
@@ -229,6 +338,91 @@ func ByConcurrentLimit(opts ...sql.OrderTermOption) OrderOption {
 // ByLastHeartbeatAt orders the results by the last_heartbeat_at field.
 func ByLastHeartbeatAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastHeartbeatAt, opts...).ToFunc()
+}
+
+// ByExpectedPriceCents orders the results by the expected_price_cents field.
+func ByExpectedPriceCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedPriceCents, opts...).ToFunc()
+}
+
+// ByExpectedPriceStatus orders the results by the expected_price_status field.
+func ByExpectedPriceStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedPriceStatus, opts...).ToFunc()
+}
+
+// ByExpectedPriceSubmittedAt orders the results by the expected_price_submitted_at field.
+func ByExpectedPriceSubmittedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedPriceSubmittedAt, opts...).ToFunc()
+}
+
+// ByExpectedPriceReviewedByAdminID orders the results by the expected_price_reviewed_by_admin_id field.
+func ByExpectedPriceReviewedByAdminID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedPriceReviewedByAdminID, opts...).ToFunc()
+}
+
+// ByExpectedPriceReviewedAt orders the results by the expected_price_reviewed_at field.
+func ByExpectedPriceReviewedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedPriceReviewedAt, opts...).ToFunc()
+}
+
+// ByExpectedPriceReviewNote orders the results by the expected_price_review_note field.
+func ByExpectedPriceReviewNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpectedPriceReviewNote, opts...).ToFunc()
+}
+
+// ByServiceSlotStartMinute orders the results by the service_slot_start_minute field.
+func ByServiceSlotStartMinute(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceSlotStartMinute, opts...).ToFunc()
+}
+
+// ByServiceSlotEndMinute orders the results by the service_slot_end_minute field.
+func ByServiceSlotEndMinute(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldServiceSlotEndMinute, opts...).ToFunc()
+}
+
+// ByAutoOnline orders the results by the auto_online field.
+func ByAutoOnline(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAutoOnline, opts...).ToFunc()
+}
+
+// ByAcceptPriceMinCents orders the results by the accept_price_min_cents field.
+func ByAcceptPriceMinCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAcceptPriceMinCents, opts...).ToFunc()
+}
+
+// ByAcceptPriceMaxCents orders the results by the accept_price_max_cents field.
+func ByAcceptPriceMaxCents(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAcceptPriceMaxCents, opts...).ToFunc()
+}
+
+// ByFixedTeamEnabled orders the results by the fixed_team_enabled field.
+func ByFixedTeamEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFixedTeamEnabled, opts...).ToFunc()
+}
+
+// ByFixedTeamSlotStartMinute orders the results by the fixed_team_slot_start_minute field.
+func ByFixedTeamSlotStartMinute(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFixedTeamSlotStartMinute, opts...).ToFunc()
+}
+
+// ByFixedTeamSlotEndMinute orders the results by the fixed_team_slot_end_minute field.
+func ByFixedTeamSlotEndMinute(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFixedTeamSlotEndMinute, opts...).ToFunc()
+}
+
+// ByTimezone orders the results by the timezone field.
+func ByTimezone(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTimezone, opts...).ToFunc()
+}
+
+// ByLatitudeE6 orders the results by the latitude_e6 field.
+func ByLatitudeE6(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLatitudeE6, opts...).ToFunc()
+}
+
+// ByLongitudeE6 orders the results by the longitude_e6 field.
+func ByLongitudeE6(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLongitudeE6, opts...).ToFunc()
 }
 
 // ByVersion orders the results by the version field.

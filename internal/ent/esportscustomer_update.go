@@ -167,6 +167,62 @@ func (_u *EsportsCustomerUpdate) SetNillableConsumptionPreference(v *string) *Es
 	return _u
 }
 
+// SetTimezone sets the "timezone" field.
+func (_u *EsportsCustomerUpdate) SetTimezone(v string) *EsportsCustomerUpdate {
+	_u.mutation.SetTimezone(v)
+	return _u
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_u *EsportsCustomerUpdate) SetNillableTimezone(v *string) *EsportsCustomerUpdate {
+	if v != nil {
+		_u.SetTimezone(*v)
+	}
+	return _u
+}
+
+// SetLatitudeE6 sets the "latitude_e6" field.
+func (_u *EsportsCustomerUpdate) SetLatitudeE6(v int) *EsportsCustomerUpdate {
+	_u.mutation.ResetLatitudeE6()
+	_u.mutation.SetLatitudeE6(v)
+	return _u
+}
+
+// SetNillableLatitudeE6 sets the "latitude_e6" field if the given value is not nil.
+func (_u *EsportsCustomerUpdate) SetNillableLatitudeE6(v *int) *EsportsCustomerUpdate {
+	if v != nil {
+		_u.SetLatitudeE6(*v)
+	}
+	return _u
+}
+
+// AddLatitudeE6 adds value to the "latitude_e6" field.
+func (_u *EsportsCustomerUpdate) AddLatitudeE6(v int) *EsportsCustomerUpdate {
+	_u.mutation.AddLatitudeE6(v)
+	return _u
+}
+
+// SetLongitudeE6 sets the "longitude_e6" field.
+func (_u *EsportsCustomerUpdate) SetLongitudeE6(v int) *EsportsCustomerUpdate {
+	_u.mutation.ResetLongitudeE6()
+	_u.mutation.SetLongitudeE6(v)
+	return _u
+}
+
+// SetNillableLongitudeE6 sets the "longitude_e6" field if the given value is not nil.
+func (_u *EsportsCustomerUpdate) SetNillableLongitudeE6(v *int) *EsportsCustomerUpdate {
+	if v != nil {
+		_u.SetLongitudeE6(*v)
+	}
+	return _u
+}
+
+// AddLongitudeE6 adds value to the "longitude_e6" field.
+func (_u *EsportsCustomerUpdate) AddLongitudeE6(v int) *EsportsCustomerUpdate {
+	_u.mutation.AddLongitudeE6(v)
+	return _u
+}
+
 // SetTags sets the "tags" field.
 func (_u *EsportsCustomerUpdate) SetTags(v []string) *EsportsCustomerUpdate {
 	_u.mutation.SetTags(v)
@@ -484,6 +540,11 @@ func (_u *EsportsCustomerUpdate) check() error {
 			return &ValidationError{Name: "consumption_preference", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.consumption_preference": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Timezone(); ok {
+		if err := esportscustomer.TimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "timezone", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.timezone": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Source(); ok {
 		if err := esportscustomer.SourceValidator(v); err != nil {
 			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.source": %w`, err)}
@@ -574,6 +635,21 @@ func (_u *EsportsCustomerUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.ConsumptionPreference(); ok {
 		_spec.SetField(esportscustomer.FieldConsumptionPreference, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Timezone(); ok {
+		_spec.SetField(esportscustomer.FieldTimezone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LatitudeE6(); ok {
+		_spec.SetField(esportscustomer.FieldLatitudeE6, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLatitudeE6(); ok {
+		_spec.AddField(esportscustomer.FieldLatitudeE6, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.LongitudeE6(); ok {
+		_spec.SetField(esportscustomer.FieldLongitudeE6, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLongitudeE6(); ok {
+		_spec.AddField(esportscustomer.FieldLongitudeE6, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Tags(); ok {
 		_spec.SetField(esportscustomer.FieldTags, field.TypeJSON, value)
@@ -804,6 +880,62 @@ func (_u *EsportsCustomerUpdateOne) SetNillableConsumptionPreference(v *string) 
 	if v != nil {
 		_u.SetConsumptionPreference(*v)
 	}
+	return _u
+}
+
+// SetTimezone sets the "timezone" field.
+func (_u *EsportsCustomerUpdateOne) SetTimezone(v string) *EsportsCustomerUpdateOne {
+	_u.mutation.SetTimezone(v)
+	return _u
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_u *EsportsCustomerUpdateOne) SetNillableTimezone(v *string) *EsportsCustomerUpdateOne {
+	if v != nil {
+		_u.SetTimezone(*v)
+	}
+	return _u
+}
+
+// SetLatitudeE6 sets the "latitude_e6" field.
+func (_u *EsportsCustomerUpdateOne) SetLatitudeE6(v int) *EsportsCustomerUpdateOne {
+	_u.mutation.ResetLatitudeE6()
+	_u.mutation.SetLatitudeE6(v)
+	return _u
+}
+
+// SetNillableLatitudeE6 sets the "latitude_e6" field if the given value is not nil.
+func (_u *EsportsCustomerUpdateOne) SetNillableLatitudeE6(v *int) *EsportsCustomerUpdateOne {
+	if v != nil {
+		_u.SetLatitudeE6(*v)
+	}
+	return _u
+}
+
+// AddLatitudeE6 adds value to the "latitude_e6" field.
+func (_u *EsportsCustomerUpdateOne) AddLatitudeE6(v int) *EsportsCustomerUpdateOne {
+	_u.mutation.AddLatitudeE6(v)
+	return _u
+}
+
+// SetLongitudeE6 sets the "longitude_e6" field.
+func (_u *EsportsCustomerUpdateOne) SetLongitudeE6(v int) *EsportsCustomerUpdateOne {
+	_u.mutation.ResetLongitudeE6()
+	_u.mutation.SetLongitudeE6(v)
+	return _u
+}
+
+// SetNillableLongitudeE6 sets the "longitude_e6" field if the given value is not nil.
+func (_u *EsportsCustomerUpdateOne) SetNillableLongitudeE6(v *int) *EsportsCustomerUpdateOne {
+	if v != nil {
+		_u.SetLongitudeE6(*v)
+	}
+	return _u
+}
+
+// AddLongitudeE6 adds value to the "longitude_e6" field.
+func (_u *EsportsCustomerUpdateOne) AddLongitudeE6(v int) *EsportsCustomerUpdateOne {
+	_u.mutation.AddLongitudeE6(v)
 	return _u
 }
 
@@ -1137,6 +1269,11 @@ func (_u *EsportsCustomerUpdateOne) check() error {
 			return &ValidationError{Name: "consumption_preference", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.consumption_preference": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Timezone(); ok {
+		if err := esportscustomer.TimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "timezone", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.timezone": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Source(); ok {
 		if err := esportscustomer.SourceValidator(v); err != nil {
 			return &ValidationError{Name: "source", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.source": %w`, err)}
@@ -1244,6 +1381,21 @@ func (_u *EsportsCustomerUpdateOne) sqlSave(ctx context.Context) (_node *Esports
 	}
 	if value, ok := _u.mutation.ConsumptionPreference(); ok {
 		_spec.SetField(esportscustomer.FieldConsumptionPreference, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Timezone(); ok {
+		_spec.SetField(esportscustomer.FieldTimezone, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.LatitudeE6(); ok {
+		_spec.SetField(esportscustomer.FieldLatitudeE6, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLatitudeE6(); ok {
+		_spec.AddField(esportscustomer.FieldLatitudeE6, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.LongitudeE6(); ok {
+		_spec.SetField(esportscustomer.FieldLongitudeE6, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedLongitudeE6(); ok {
+		_spec.AddField(esportscustomer.FieldLongitudeE6, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Tags(); ok {
 		_spec.SetField(esportscustomer.FieldTags, field.TypeJSON, value)

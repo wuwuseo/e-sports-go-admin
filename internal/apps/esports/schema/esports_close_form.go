@@ -58,7 +58,9 @@ func (EsportsCloseFormTemplate) Fields() []ent.Field {
 		field.String("code").NotEmpty().MaxLen(48).Immutable().StructTag(`json:"code"`),
 		field.String("name").NotEmpty().MaxLen(64).StructTag(`json:"name"`),
 		// scope 决定适用范围：global 全局 / game 按游戏分区 / sku 按具体 SKU。
-		field.Enum("scope").Values("global", "game", "sku").Default("global").StructTag(`json:"scope"`),
+		// scope 末尾追加 order_type（§3.4-07）：按订单类型（即时/预约）绑定模板，
+		// 此时 scope_key 取 appointment_status 的取值（instant / request / confirmed）；既有取值保留。
+		field.Enum("scope").Values("global", "game", "sku", "order_type").Default("global").StructTag(`json:"scope"`),
 		// scope=game 时为游戏分区名；scope=sku 时为 SKU 的 code。
 		field.String("scope_key").MaxLen(64).Default("").StructTag(`json:"scope_key"`),
 		// 金额区间（分）：min_cents ≤ 订单应付 < max_cents；任一侧为 0 表示该侧不限。

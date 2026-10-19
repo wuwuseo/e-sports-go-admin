@@ -249,6 +249,26 @@ func SourceIDContainsFold(v string) predicate.EsportsGrowthLedger {
 	return predicate.EsportsGrowthLedger(sql.FieldContainsFold(FieldSourceID, v))
 }
 
+// PaymentSourceEQ applies the EQ predicate on the "payment_source" field.
+func PaymentSourceEQ(v PaymentSource) predicate.EsportsGrowthLedger {
+	return predicate.EsportsGrowthLedger(sql.FieldEQ(FieldPaymentSource, v))
+}
+
+// PaymentSourceNEQ applies the NEQ predicate on the "payment_source" field.
+func PaymentSourceNEQ(v PaymentSource) predicate.EsportsGrowthLedger {
+	return predicate.EsportsGrowthLedger(sql.FieldNEQ(FieldPaymentSource, v))
+}
+
+// PaymentSourceIn applies the In predicate on the "payment_source" field.
+func PaymentSourceIn(vs ...PaymentSource) predicate.EsportsGrowthLedger {
+	return predicate.EsportsGrowthLedger(sql.FieldIn(FieldPaymentSource, vs...))
+}
+
+// PaymentSourceNotIn applies the NotIn predicate on the "payment_source" field.
+func PaymentSourceNotIn(vs ...PaymentSource) predicate.EsportsGrowthLedger {
+	return predicate.EsportsGrowthLedger(sql.FieldNotIn(FieldPaymentSource, vs...))
+}
+
 // OperatorIDEQ applies the EQ predicate on the "operator_id" field.
 func OperatorIDEQ(v int) predicate.EsportsGrowthLedger {
 	return predicate.EsportsGrowthLedger(sql.FieldEQ(FieldOperatorID, v))

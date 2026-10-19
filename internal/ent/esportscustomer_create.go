@@ -124,6 +124,48 @@ func (_c *EsportsCustomerCreate) SetNillableConsumptionPreference(v *string) *Es
 	return _c
 }
 
+// SetTimezone sets the "timezone" field.
+func (_c *EsportsCustomerCreate) SetTimezone(v string) *EsportsCustomerCreate {
+	_c.mutation.SetTimezone(v)
+	return _c
+}
+
+// SetNillableTimezone sets the "timezone" field if the given value is not nil.
+func (_c *EsportsCustomerCreate) SetNillableTimezone(v *string) *EsportsCustomerCreate {
+	if v != nil {
+		_c.SetTimezone(*v)
+	}
+	return _c
+}
+
+// SetLatitudeE6 sets the "latitude_e6" field.
+func (_c *EsportsCustomerCreate) SetLatitudeE6(v int) *EsportsCustomerCreate {
+	_c.mutation.SetLatitudeE6(v)
+	return _c
+}
+
+// SetNillableLatitudeE6 sets the "latitude_e6" field if the given value is not nil.
+func (_c *EsportsCustomerCreate) SetNillableLatitudeE6(v *int) *EsportsCustomerCreate {
+	if v != nil {
+		_c.SetLatitudeE6(*v)
+	}
+	return _c
+}
+
+// SetLongitudeE6 sets the "longitude_e6" field.
+func (_c *EsportsCustomerCreate) SetLongitudeE6(v int) *EsportsCustomerCreate {
+	_c.mutation.SetLongitudeE6(v)
+	return _c
+}
+
+// SetNillableLongitudeE6 sets the "longitude_e6" field if the given value is not nil.
+func (_c *EsportsCustomerCreate) SetNillableLongitudeE6(v *int) *EsportsCustomerCreate {
+	if v != nil {
+		_c.SetLongitudeE6(*v)
+	}
+	return _c
+}
+
 // SetTags sets the "tags" field.
 func (_c *EsportsCustomerCreate) SetTags(v []string) *EsportsCustomerCreate {
 	_c.mutation.SetTags(v)
@@ -395,6 +437,18 @@ func (_c *EsportsCustomerCreate) defaults() {
 		v := esportscustomer.DefaultConsumptionPreference
 		_c.mutation.SetConsumptionPreference(v)
 	}
+	if _, ok := _c.mutation.Timezone(); !ok {
+		v := esportscustomer.DefaultTimezone
+		_c.mutation.SetTimezone(v)
+	}
+	if _, ok := _c.mutation.LatitudeE6(); !ok {
+		v := esportscustomer.DefaultLatitudeE6
+		_c.mutation.SetLatitudeE6(v)
+	}
+	if _, ok := _c.mutation.LongitudeE6(); !ok {
+		v := esportscustomer.DefaultLongitudeE6
+		_c.mutation.SetLongitudeE6(v)
+	}
 	if _, ok := _c.mutation.Source(); !ok {
 		v := esportscustomer.DefaultSource
 		_c.mutation.SetSource(v)
@@ -477,6 +531,20 @@ func (_c *EsportsCustomerCreate) check() error {
 		if err := esportscustomer.ConsumptionPreferenceValidator(v); err != nil {
 			return &ValidationError{Name: "consumption_preference", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.consumption_preference": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.Timezone(); !ok {
+		return &ValidationError{Name: "timezone", err: errors.New(`ent: missing required field "EsportsCustomer.timezone"`)}
+	}
+	if v, ok := _c.mutation.Timezone(); ok {
+		if err := esportscustomer.TimezoneValidator(v); err != nil {
+			return &ValidationError{Name: "timezone", err: fmt.Errorf(`ent: validator failed for field "EsportsCustomer.timezone": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.LatitudeE6(); !ok {
+		return &ValidationError{Name: "latitude_e6", err: errors.New(`ent: missing required field "EsportsCustomer.latitude_e6"`)}
+	}
+	if _, ok := _c.mutation.LongitudeE6(); !ok {
+		return &ValidationError{Name: "longitude_e6", err: errors.New(`ent: missing required field "EsportsCustomer.longitude_e6"`)}
 	}
 	if _, ok := _c.mutation.Source(); !ok {
 		return &ValidationError{Name: "source", err: errors.New(`ent: missing required field "EsportsCustomer.source"`)}
@@ -602,6 +670,18 @@ func (_c *EsportsCustomerCreate) createSpec() (*EsportsCustomer, *sqlgraph.Creat
 	if value, ok := _c.mutation.ConsumptionPreference(); ok {
 		_spec.SetField(esportscustomer.FieldConsumptionPreference, field.TypeString, value)
 		_node.ConsumptionPreference = value
+	}
+	if value, ok := _c.mutation.Timezone(); ok {
+		_spec.SetField(esportscustomer.FieldTimezone, field.TypeString, value)
+		_node.Timezone = value
+	}
+	if value, ok := _c.mutation.LatitudeE6(); ok {
+		_spec.SetField(esportscustomer.FieldLatitudeE6, field.TypeInt, value)
+		_node.LatitudeE6 = value
+	}
+	if value, ok := _c.mutation.LongitudeE6(); ok {
+		_spec.SetField(esportscustomer.FieldLongitudeE6, field.TypeInt, value)
+		_node.LongitudeE6 = value
 	}
 	if value, ok := _c.mutation.Tags(); ok {
 		_spec.SetField(esportscustomer.FieldTags, field.TypeJSON, value)

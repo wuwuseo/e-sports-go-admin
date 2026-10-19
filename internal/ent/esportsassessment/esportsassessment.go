@@ -44,6 +44,8 @@ const (
 	FieldNote = "note"
 	// FieldCreatedByAdminID holds the string denoting the created_by_admin_id field in the database.
 	FieldCreatedByAdminID = "created_by_admin_id"
+	// FieldActiveDedupKey holds the string denoting the active_dedup_key field in the database.
+	FieldActiveDedupKey = "active_dedup_key"
 	// FieldVersion holds the string denoting the version field in the database.
 	FieldVersion = "version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -74,6 +76,7 @@ var Columns = []string{
 	FieldTotalScore,
 	FieldNote,
 	FieldCreatedByAdminID,
+	FieldActiveDedupKey,
 	FieldVersion,
 	FieldCreatedAt,
 	FieldUpdatedAt,
@@ -104,6 +107,8 @@ var (
 	DefaultNote string
 	// NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	NoteValidator func(string) error
+	// ActiveDedupKeyValidator is a validator for the "active_dedup_key" field. It is called by the builders before save.
+	ActiveDedupKeyValidator func(string) error
 	// DefaultVersion holds the default value on creation for the "version" field.
 	DefaultVersion int
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
@@ -297,6 +302,11 @@ func ByNote(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedByAdminID orders the results by the created_by_admin_id field.
 func ByCreatedByAdminID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedByAdminID, opts...).ToFunc()
+}
+
+// ByActiveDedupKey orders the results by the active_dedup_key field.
+func ByActiveDedupKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldActiveDedupKey, opts...).ToFunc()
 }
 
 // ByVersion orders the results by the version field.

@@ -90,6 +90,37 @@ func createCustomerFollowUpHandler(c fiber.Ctx) error {
 	return reply(c, record)
 }
 
+// transferCustomerOwnerHandler 客户归属转移（§8.3-02）。
+// 需在 app.go 接线 + PermAPI：
+//
+//	POST /admin/customers/:id/owner-transfer → transferCustomerOwnerHandler
+//	PermAPI: {Type: cmfapp.PermAPI, Name: "转移客户归属", Code: "esports:customers:transfer_owner",
+//	          Path: "/api/v1/esports/admin/customers/{id}/owner-transfer", Method: "POST", Parent: "esports:cs:menu"}
+func transferCustomerOwnerHandler(c fiber.Ctx) error {
+	operator, err := requestAdmin(c)
+	if err != nil {
+		return businessError(c, err)
+	}
+	customerID, err := strconv.Atoi(c.Params("id"))
+	if err != nil || customerID < 1 {
+		return fail(c, fiber.StatusBadRequest, "客户 ID 无效")
+	}
+	var in struct {
+		TargetAdminID int    `json:"target_admin_id"`
+		Reason        string `json:"reason"`
+	}
+	if err = c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	isSuper, _ := c.Locals("isSuperAdmin").(bool)
+	customer, err := transferCustomerOwner(c.Context(), global.ORM, operator.ID, isSuper,
+		customerID, in.TargetAdminID, in.Reason, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, customer)
+}
+
 // wecomIntakeHandler 企微侧边栏自动建档（§8.4）：企业主体 + 外部联系人标识幂等。
 func wecomIntakeHandler(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)

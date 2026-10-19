@@ -468,7 +468,293 @@ func initSeedData() error {
 		return fmt.Errorf("failed to initialize normal_admin role: %w", err)
 	}
 
+	// 7. 初始化最小权限角色（客服 / 财务 / 考官 / 运营编辑 + 客服/财务只读）
+	if err := initMinimalRoles(ctx, client, domain); err != nil {
+		appInstance.Logger.Error("failed to initialize minimal privilege roles", zap.Error(err))
+		return fmt.Errorf("failed to initialize minimal privilege roles: %w", err)
+	}
+
 	appInstance.Logger.Info("seed data initialization completed")
+	return nil
+}
+
+// minimalRoleSpec 描述一类按显式白名单播种的最小权限角色（§2.1-01 / §16.5-03）。
+//
+// 与 normal_admin 不同，这里绝不使用「全部非敏感权限」式的通配授权：
+// permissionCodes 就是该角色的全部授权来源，权限点按 esports 权限 code 精确列出，
+// 白名单之外的能力（改价审批、退款审批、结算锁定/发放、收款账户审核、发布审核等）
+// 一律不授予。code 不存在时只记日志跳过，绝不报错，以便功能集未启用时也能建角色。
+type minimalRoleSpec struct {
+	name        string
+	displayName string
+	description string
+	// permissionCodes 是「按权限 code 精确列举」的白名单；
+	// 排单 / 报单等权限各自独立成项，因此必须逐个 code 列出，不允许用前缀通配。
+	permissionCodes []string
+}
+
+// minimalRoleSpecs 返回内置最小权限角色清单（顺序即播种与日志顺序）。
+//
+// 排单权限独立成项（§2.1-01）：esports:dispatch:* 与 esports:report:*（报单）
+// 是两套互不包含的权限项，报单角色不会自动获得排单能力，反之亦然。
+func minimalRoleSpecs() []minimalRoleSpec {
+	return []minimalRoleSpec{
+		{
+			name:        "cs_admin",
+			displayName: "客服",
+			description: "客服：报单、排单、订单服务与售后受理；不含改价/退款审批、结算锁定发放、收款账户审核等资金审批权限",
+			permissionCodes: []string{
+				// 菜单（报单与排单各自独立成项）
+				"esports:report:menu", "esports:order:menu", "esports:dispatch:menu",
+				"esports:cs:menu", "esports:aftersale:menu", "esports:player:menu",
+				// 报单与客户档案
+				"esports:orders:create", "esports:orders:add",
+				"esports:customers:list", "esports:customers:create", "esports:customers:add",
+				"esports:customers:profile", "esports:customers:profile_update",
+				"esports:customers:followups", "esports:customers:followup_create",
+				"esports:customers:wecom_intake",
+				"esports:age_checks:create", "esports:age_checks:list", "esports:age_checks:review",
+				"esports:age_checks:add", "esports:age_checks:approve",
+				// 订单读取与履约操作（不含价格与资金核销）
+				"esports:orders:list", "esports:orders:get", "esports:orders:operate",
+				"esports:orders:seat_roles", "esports:orders:collaborators",
+				"esports:orders:collaborator_add", "esports:orders:collaborator_remove",
+				"esports:orders:cancel", "esports:orders:cancel_preview",
+				"esports:orders:reschedule", "esports:orders:reschedule_list",
+				"esports:orders:reschedule_propose", "esports:orders:reschedule_withdraw",
+				"esports:orders:appointment_confirm",
+				"esports:orders:addons", "esports:orders:addon_request", "esports:orders:addon_cancel",
+				"esports:orders:close", "esports:orders:close_form", "esports:orders:close_conditions",
+				"esports:orders:close_approval",
+				"esports:orders:service_pause_admin", "esports:orders:service_resume_admin",
+				"esports:orders:service_timing_correction", "esports:orders:service_terminate",
+				"esports:orders:deposit", "esports:orders:restore",
+				// 排单（独立权限项）
+				"esports:dispatch:board", "esports:dispatch:candidates", "esports:dispatch:teammate_candidates",
+				"esports:dispatch:team_dispatch", "esports:dispatch:seats", "esports:dispatch:assign",
+				"esports:dispatch:revoke", "esports:dispatch:claim", "esports:dispatch:release_pool",
+				"esports:dispatch:transfer", "esports:dispatch:transfer_decide", "esports:dispatch:transfer_manage",
+				"esports:dispatch:transfers", "esports:dispatch:remind", "esports:dispatch:publish_grab",
+				"esports:dispatch:priority_list", "esports:dispatch:priority_notices",
+				"esports:dispatch:priority_release", "esports:dispatch:operate",
+				// 客服工作台与话术
+				"esports:cs:workbench", "esports:cs:manage", "esports:cs:risk_customers",
+				"esports:scripts:list", "esports:scripts:create", "esports:scripts:update", "esports:scripts:status",
+				"esports:wecom:js_config", "esports:wecom:payment_methods",
+				// 陪玩档案（不含考核配置与信用复核）
+				"esports:players:list", "esports:players:create", "esports:players:update",
+				"esports:players:identity_view", "esports:players:identity_review", "esports:players:manage",
+				// 售后受理与方案（不含审批/执行/复核裁定）
+				"esports:aftersales:list", "esports:aftersales:detail", "esports:aftersales:create",
+				"esports:aftersales:accept", "esports:aftersales:plan", "esports:aftersales:withdraw",
+				"esports:aftersales:actions_list", "esports:aftersales:operate",
+				"esports:aftersales:makeups", "esports:aftersales:makeup_start", "esports:aftersales:makeup_complete",
+				"esports:aftersales:review_list", "esports:aftersales:review_request",
+			},
+		},
+		{
+			name:        "finance_admin",
+			displayName: "财务",
+			description: "财务：资金与结算查看、到账核销、提现审核与打款、财务报表明细；不含改价审批、退款审批、结算锁定、收款账户审核",
+			permissionCodes: []string{
+				// 菜单
+				"esports:wallet:menu", "esports:settlement:menu", "esports:payment:menu",
+				"esports:stats:menu", "esports:order:menu",
+				// 资金查看（只读）
+				"esports:wallets:list", "esports:wallets:transactions", "esports:wallets:ledger_allocations",
+				"esports:wallets:refund_quote",
+				// 订单读取与渠道成本登记
+				"esports:orders:list", "esports:orders:get", "esports:orders:channel-cost",
+				// 收款账户与到账核销（不含账户新增/审核/停用）
+				"esports:payments:accounts", "esports:payments:channels", "esports:payments:readiness",
+				"esports:payments:proofs", "esports:payments:proof_verify", "esports:payments:proof_reject",
+				"esports:payments:reversal_list",
+				// 结算与提现
+				"esports:settlements:list", "esports:settlements:detail", "esports:settlements:entries",
+				"esports:settlements:rules", "esports:settlements:cycles", "esports:settlements:close_rules",
+				"esports:settlements:cs_entries", "esports:settlements:cs_summary",
+				"esports:settlements:withdrawals", "esports:settlements:withdrawal_detail",
+				"esports:settlements:withdrawal_review", "esports:settlements:withdraw_manage",
+				"esports:settlements:withdrawal_pay", "esports:settlements:payout_request",
+				"esports:settlements:payout_list", "esports:settlements:payout_paid", "esports:settlements:payout_failed",
+				"esports:settlements:external_refund_list", "esports:settlements:external_refund_execute",
+				// 财务报表
+				"esports:stats:view", "esports:stats:finance", "esports:stats:export",
+			},
+		},
+		{
+			name:        "examiner_admin",
+			displayName: "考官",
+			description: "考官：考核任务查看、分配考官、打分与申诉复核、评分查看；不含考核规则配置与资金权限",
+			permissionCodes: []string{
+				"esports:assessment:menu", "esports:player:menu",
+				"esports:assessments:list", "esports:assessments:detail", "esports:assessments:assign",
+				"esports:assessments:score", "esports:assessments:appeal_review",
+				"esports:assessments:rating", "esports:assessments:reviews_list", "esports:assessments:rules_list",
+				"esports:assessments:manage",
+				"esports:players:list", "esports:players:identity_view",
+			},
+		},
+		{
+			name:        "operation_editor_admin",
+			displayName: "运营编辑",
+			description: "运营编辑：页面装修草稿、素材与发布/回滚申请；审核发布保留给管理员（不含发布审核与资金权限）",
+			permissionCodes: []string{
+				"esports:operations:menu", "esports:page:menu",
+				"esports:pages:list", "esports:pages:detail", "esports:pages:versions",
+				"esports:pages:draft_save", "esports:pages:publish", "esports:pages:rollback",
+				"esports:pages:assets", "esports:pages:asset_create", "esports:pages:asset_delete",
+				"esports:pages:manage", "esports:pages:publish_submit", "esports:pages:rollback_btn",
+			},
+		},
+		{
+			name:        "cs_readonly",
+			displayName: "客服只读",
+			description: "客服只读：仅可查看页面装修（文档、详情、发布记录），服务端一律拒绝对装修写接口的调用",
+			permissionCodes: []string{
+				"esports:operations:menu", "esports:page:menu",
+				"esports:pages:list", "esports:pages:detail", "esports:pages:versions",
+			},
+		},
+		{
+			name:        "finance_readonly",
+			displayName: "财务只读",
+			description: "财务只读：仅可查看页面装修（文档、详情、发布记录），服务端一律拒绝对装修写接口的调用",
+			permissionCodes: []string{
+				"esports:operations:menu", "esports:page:menu",
+				"esports:pages:list", "esports:pages:detail", "esports:pages:versions",
+			},
+		},
+	}
+}
+
+// initMinimalRoles 幂等播种最小权限角色（§2.1-01 / §16.5-03）。
+//
+// 幂等与兼容口径（与 initNormalAdminRole 一致）：
+//   - 角色已存在时整角色跳过：既有的手工授权（增删改）一律不被覆盖或回填；
+//   - 角色新建时只按显式白名单逐条插入缺失的 casbin 规则，已存在规则不重复插入；
+//   - 白名单 code 在系统权限表中不存在（功能集未启用）时只记日志，不报错、不伪造授权；
+//   - 完成后重载 casbin 策略，使新授权立即生效（已登录账号需重新加载策略，见升级说明）。
+func initMinimalRoles(ctx context.Context, client *ent.Client, domains ...string) error {
+	domain := "default"
+	if len(domains) > 0 && domains[0] != "" {
+		domain = domains[0]
+	}
+
+	perms, err := client.SystemPermission.Query().
+		Where(systempermission.StatusEQ(1)).
+		All(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to query system permissions for minimal roles: %w", err)
+	}
+	byCode := make(map[string]*ent.SystemPermission, len(perms))
+	for _, p := range perms {
+		byCode[p.Code] = p
+	}
+
+	totalCreated, totalSkipped, totalMissing := 0, 0, 0
+	for _, spec := range minimalRoleSpecs() {
+		roleRow, err := client.Role.Query().Where(role.NameEQ(spec.name)).Only(ctx)
+		roleCreated := false
+		if err != nil {
+			if !ent.IsNotFound(err) {
+				return fmt.Errorf("failed to query role %s: %w", spec.name, err)
+			}
+			roleRow, err = client.Role.Create().
+				SetName(spec.name).
+				SetDisplayName(spec.displayName).
+				SetDescription(spec.description).
+				SetIsSystem(true).
+				SetStatus(role.StatusActive).
+				Save(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to create role %s: %w", spec.name, err)
+			}
+			roleCreated = true
+			appInstance.Logger.Info("minimal privilege role created",
+				zap.String("role", spec.name), zap.Int("id", roleRow.ID))
+		} else {
+			appInstance.Logger.Warn("minimal privilege role already exists, preserving assigned permissions",
+				zap.String("role", spec.name), zap.Int("id", roleRow.ID))
+		}
+		if !roleCreated {
+			continue
+		}
+
+		created, skipped, missing := 0, 0, 0
+		for _, code := range spec.permissionCodes {
+			p, ok := byCode[code]
+			if !ok {
+				missing++
+				appInstance.Logger.Warn("minimal privilege role permission not declared yet, skipping",
+					zap.String("role", spec.name), zap.String("code", code))
+				continue
+			}
+			object, action, permType := buildCasbinTupleFromSystemPermission(p)
+			if object == "" {
+				missing++
+				continue
+			}
+			exists, err := client.CasbinRule.Query().
+				Where(
+					casbinrule.PtypeEQ("p"),
+					casbinrule.V0EQ(spec.name),
+					casbinrule.V1EQ(domain),
+					casbinrule.V2EQ(object),
+					casbinrule.V3EQ(action),
+				).Exist(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to query casbin rule for %s: %w", spec.name, err)
+			}
+			if exists {
+				skipped++
+				continue
+			}
+			if _, err := client.CasbinRule.Create().
+				SetPtype("p").
+				SetV0(spec.name).
+				SetV1(domain).
+				SetV2(object).
+				SetV3(action).
+				SetV4(permType).
+				SetV5(p.Description).
+				Save(ctx); err != nil {
+				return fmt.Errorf("failed to create casbin rule for %s: %w", spec.name, err)
+			}
+			created++
+		}
+		totalCreated += created
+		totalSkipped += skipped
+		totalMissing += missing
+		appInstance.Logger.Info("minimal privilege role permissions assigned",
+			zap.String("role", spec.name),
+			zap.Int("created", created),
+			zap.Int("skipped", skipped),
+			zap.Int("missing", missing),
+			zap.Int("total_whitelist", len(spec.permissionCodes)),
+		)
+	}
+
+	appInstance.Logger.Info("minimal privilege roles initialization completed",
+		zap.Int("roles", len(minimalRoleSpecs())),
+		zap.Int("created", totalCreated),
+		zap.Int("skipped", totalSkipped),
+		zap.Int("missing", totalMissing),
+	)
+
+	if global.EnforcerManager != nil {
+		enforcer, err := global.EnforcerManager.GetEnforcer(domain)
+		if err != nil {
+			appInstance.Logger.Error("failed to get casbin enforcer for minimal roles", zap.Error(err))
+			return fmt.Errorf("failed to get casbin enforcer for minimal roles: %w", err)
+		}
+		if err := enforcer.LoadPolicy(); err != nil {
+			appInstance.Logger.Error("failed to reload casbin policy after minimal roles init", zap.Error(err))
+			return fmt.Errorf("failed to reload casbin policy after minimal roles init: %w", err)
+		}
+		appInstance.Logger.Info("casbin policy reloaded after minimal privilege roles initialization")
+	}
+
 	return nil
 }
 
@@ -595,8 +881,25 @@ func initSystemConfigSeedData() error {
 		},
 	}
 
+	// 短信验证码登录配置项（§6.1-01，平台级 user-auth，键不带功能集前缀）
+	smsLoginConfigs := []struct {
+		name   string
+		key    string
+		value  string
+		group  string
+		typeV  string
+		remark string
+	}{
+		{"短信验证码有效期", "login_sms_code_ttl_seconds", "300", "user_auth", "number", "登录验证码有效期（秒），缺省或非法回落 300"},
+		{"短信验证码发送间隔", "login_sms_send_interval_seconds", "60", "user_auth", "number", "同一手机号两次发码的最小间隔（秒），缺省或非法回落 60"},
+		{"短信验证码最大校验次数", "login_sms_max_verify_attempts", "5", "user_auth", "number", "同一验证码最多允许校验失败的次数，用尽即作废，缺省或非法回落 5"},
+		{"短信验证码手机号日上限", "login_sms_phone_daily_limit", "10", "user_auth", "number", "同一手机号每日发码次数上限（按 UTC+8 自然日计），0 表示不限，缺省或非法回落 10"},
+		{"短信验证码 IP 日上限", "login_sms_ip_daily_limit", "20", "user_auth", "number", "同一 IP 每日发码次数上限（按 UTC+8 自然日计），0 表示不限，缺省或非法回落 20"},
+	}
+
 	allConfigs := append(basicConfigs, attachmentConfigs...)
 	allConfigs = append(allConfigs, captchaConfigs...)
+	allConfigs = append(allConfigs, smsLoginConfigs...)
 
 	for _, c := range allConfigs {
 		exists, err := client.SystemConfig.Query().

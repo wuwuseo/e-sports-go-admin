@@ -3,6 +3,7 @@ package esports
 import (
 	"errors"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -144,7 +145,8 @@ func TestAddonCommissionReversalOnRefund(t *testing.T) {
 		t.Fatalf("收款后应生成一条加钟分成明细：%d", n)
 	}
 
-	// 退款 500 / 应付 1000 = 50%：service 冲回 -250、addon 冲回 -1000。
+	// §12.5-02：统一可退基数 = 结单净服务额 / 应付 1000 + 加钟已收 4000 = 5000，
+	// 退款 500 = 10% → 服务冲回 -50（500×10%）、加钟冲回 -200（2000×10%），两类比例一致。
 	paid := db.EsportsOrder.GetX(ctx, order.ID)
 	item := &ent.EsportsAfterSale{AfterSaleNo: "AS-ADDON-1", RefundCents: 500}
 	tx, err := db.Tx(ctx)
@@ -158,7 +160,7 @@ func TestAddonCommissionReversalOnRefund(t *testing.T) {
 	if err = tx.Commit(); err != nil {
 		t.Fatal(err)
 	}
-	total := int64(0)
+	var total, serviceReversed, addonReversed int64
 	reversals := db.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.OrderIDEQ(order.ID),
 		esportscommissionentry.KindEQ(esportscommissionentry.KindReversal),
@@ -168,9 +170,18 @@ func TestAddonCommissionReversalOnRefund(t *testing.T) {
 	}
 	for _, entry := range reversals {
 		total += entry.AmountCents
+		if strings.Contains(entry.Note, addonReversalNote) {
+			addonReversed -= entry.AmountCents
+			continue
+		}
+		serviceReversed -= entry.AmountCents
 	}
-	if total != -1250 {
-		t.Fatalf("冲回合计应为 -1250，实际 %d", total)
+	if serviceReversed != 50 || addonReversed != 200 {
+		t.Fatalf("统一可退基数后冲回额不正确（期望服务 50、加钟 200）：服务 %d、加钟 %d",
+			serviceReversed, addonReversed)
+	}
+	if total != -250 {
+		t.Fatalf("冲回合计应为 -250，实际 %d", total)
 	}
 	// 重复冲回被幂等键拦截。
 	tx, err = db.Tx(ctx)

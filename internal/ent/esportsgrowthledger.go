@@ -25,6 +25,8 @@ type EsportsGrowthLedger struct {
 	SourceType esportsgrowthledger.SourceType `json:"source_type"`
 	// SourceID holds the value of the "source_id" field.
 	SourceID string `json:"source_id"`
+	// PaymentSource holds the value of the "payment_source" field.
+	PaymentSource esportsgrowthledger.PaymentSource `json:"payment_source"`
 	// OperatorID holds the value of the "operator_id" field.
 	OperatorID *int `json:"operator_id"`
 	// Note holds the value of the "note" field.
@@ -41,7 +43,7 @@ func (*EsportsGrowthLedger) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsgrowthledger.FieldID, esportsgrowthledger.FieldCustomerID, esportsgrowthledger.FieldDelta, esportsgrowthledger.FieldOperatorID:
 			values[i] = new(sql.NullInt64)
-		case esportsgrowthledger.FieldSourceType, esportsgrowthledger.FieldSourceID, esportsgrowthledger.FieldNote:
+		case esportsgrowthledger.FieldSourceType, esportsgrowthledger.FieldSourceID, esportsgrowthledger.FieldPaymentSource, esportsgrowthledger.FieldNote:
 			values[i] = new(sql.NullString)
 		case esportsgrowthledger.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
@@ -89,6 +91,12 @@ func (_m *EsportsGrowthLedger) assignValues(columns []string, values []any) erro
 				return fmt.Errorf("unexpected type %T for field source_id", values[i])
 			} else if value.Valid {
 				_m.SourceID = value.String
+			}
+		case esportsgrowthledger.FieldPaymentSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_source", values[i])
+			} else if value.Valid {
+				_m.PaymentSource = esportsgrowthledger.PaymentSource(value.String)
 			}
 		case esportsgrowthledger.FieldOperatorID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -156,6 +164,9 @@ func (_m *EsportsGrowthLedger) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("source_id=")
 	builder.WriteString(_m.SourceID)
+	builder.WriteString(", ")
+	builder.WriteString("payment_source=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PaymentSource))
 	builder.WriteString(", ")
 	if v := _m.OperatorID; v != nil {
 		builder.WriteString("operator_id=")

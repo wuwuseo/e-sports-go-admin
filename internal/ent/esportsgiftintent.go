@@ -43,6 +43,28 @@ type EsportsGiftIntent struct {
 	StoredValueCardID *int `json:"stored_value_card_id"`
 	// StoredValueCardNo holds the value of the "stored_value_card_no" field.
 	StoredValueCardNo string `json:"stored_value_card_no"`
+	// GiftTierID holds the value of the "gift_tier_id" field.
+	GiftTierID int `json:"gift_tier_id"`
+	// GiftTierCode holds the value of the "gift_tier_code" field.
+	GiftTierCode string `json:"gift_tier_code"`
+	// HighValue holds the value of the "high_value" field.
+	HighValue bool `json:"high_value"`
+	// RequireAge holds the value of the "require_age" field.
+	RequireAge bool `json:"require_age"`
+	// PaymentChannel holds the value of the "payment_channel" field.
+	PaymentChannel esportsgiftintent.PaymentChannel `json:"payment_channel"`
+	// PaymentStatus holds the value of the "payment_status" field.
+	PaymentStatus esportsgiftintent.PaymentStatus `json:"payment_status"`
+	// PaymentIntentNo holds the value of the "payment_intent_no" field.
+	PaymentIntentNo *string `json:"payment_intent_no"`
+	// PaymentRef holds the value of the "payment_ref" field.
+	PaymentRef string `json:"payment_ref"`
+	// PaymentExpiresAt holds the value of the "payment_expires_at" field.
+	PaymentExpiresAt *time.Time `json:"payment_expires_at"`
+	// PaymentVerifiedAt holds the value of the "payment_verified_at" field.
+	PaymentVerifiedAt *time.Time `json:"payment_verified_at"`
+	// PaymentVerifiedByAdminID holds the value of the "payment_verified_by_admin_id" field.
+	PaymentVerifiedByAdminID *int `json:"payment_verified_by_admin_id"`
 	// CreatedByAdminID holds the value of the "created_by_admin_id" field.
 	CreatedByAdminID int `json:"created_by_admin_id"`
 	// ClientKey holds the value of the "client_key" field.
@@ -71,11 +93,13 @@ func (*EsportsGiftIntent) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsgiftintent.FieldID, esportsgiftintent.FieldCustomerID, esportsgiftintent.FieldGiftID, esportsgiftintent.FieldGiftVersion, esportsgiftintent.FieldPlayerID, esportsgiftintent.FieldOrderID, esportsgiftintent.FieldQuantity, esportsgiftintent.FieldUnitPriceCents, esportsgiftintent.FieldAmountCents, esportsgiftintent.FieldStoredValueCardID, esportsgiftintent.FieldCreatedByAdminID, esportsgiftintent.FieldVersion, esportsgiftintent.FieldGiftOrderID:
+		case esportsgiftintent.FieldHighValue, esportsgiftintent.FieldRequireAge:
+			values[i] = new(sql.NullBool)
+		case esportsgiftintent.FieldID, esportsgiftintent.FieldCustomerID, esportsgiftintent.FieldGiftID, esportsgiftintent.FieldGiftVersion, esportsgiftintent.FieldPlayerID, esportsgiftintent.FieldOrderID, esportsgiftintent.FieldQuantity, esportsgiftintent.FieldUnitPriceCents, esportsgiftintent.FieldAmountCents, esportsgiftintent.FieldStoredValueCardID, esportsgiftintent.FieldGiftTierID, esportsgiftintent.FieldPaymentVerifiedByAdminID, esportsgiftintent.FieldCreatedByAdminID, esportsgiftintent.FieldVersion, esportsgiftintent.FieldGiftOrderID:
 			values[i] = new(sql.NullInt64)
-		case esportsgiftintent.FieldGiftName, esportsgiftintent.FieldPlayerName, esportsgiftintent.FieldPaymentSource, esportsgiftintent.FieldStoredValueCardNo, esportsgiftintent.FieldClientKey, esportsgiftintent.FieldStatus, esportsgiftintent.FieldConfirmationRef:
+		case esportsgiftintent.FieldGiftName, esportsgiftintent.FieldPlayerName, esportsgiftintent.FieldPaymentSource, esportsgiftintent.FieldStoredValueCardNo, esportsgiftintent.FieldGiftTierCode, esportsgiftintent.FieldPaymentChannel, esportsgiftintent.FieldPaymentStatus, esportsgiftintent.FieldPaymentIntentNo, esportsgiftintent.FieldPaymentRef, esportsgiftintent.FieldClientKey, esportsgiftintent.FieldStatus, esportsgiftintent.FieldConfirmationRef:
 			values[i] = new(sql.NullString)
-		case esportsgiftintent.FieldExpiresAt, esportsgiftintent.FieldConfirmedAt, esportsgiftintent.FieldCreatedAt, esportsgiftintent.FieldUpdatedAt:
+		case esportsgiftintent.FieldPaymentExpiresAt, esportsgiftintent.FieldPaymentVerifiedAt, esportsgiftintent.FieldExpiresAt, esportsgiftintent.FieldConfirmedAt, esportsgiftintent.FieldCreatedAt, esportsgiftintent.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -177,6 +201,76 @@ func (_m *EsportsGiftIntent) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field stored_value_card_no", values[i])
 			} else if value.Valid {
 				_m.StoredValueCardNo = value.String
+			}
+		case esportsgiftintent.FieldGiftTierID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field gift_tier_id", values[i])
+			} else if value.Valid {
+				_m.GiftTierID = int(value.Int64)
+			}
+		case esportsgiftintent.FieldGiftTierCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field gift_tier_code", values[i])
+			} else if value.Valid {
+				_m.GiftTierCode = value.String
+			}
+		case esportsgiftintent.FieldHighValue:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field high_value", values[i])
+			} else if value.Valid {
+				_m.HighValue = value.Bool
+			}
+		case esportsgiftintent.FieldRequireAge:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field require_age", values[i])
+			} else if value.Valid {
+				_m.RequireAge = value.Bool
+			}
+		case esportsgiftintent.FieldPaymentChannel:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_channel", values[i])
+			} else if value.Valid {
+				_m.PaymentChannel = esportsgiftintent.PaymentChannel(value.String)
+			}
+		case esportsgiftintent.FieldPaymentStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_status", values[i])
+			} else if value.Valid {
+				_m.PaymentStatus = esportsgiftintent.PaymentStatus(value.String)
+			}
+		case esportsgiftintent.FieldPaymentIntentNo:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_intent_no", values[i])
+			} else if value.Valid {
+				_m.PaymentIntentNo = new(string)
+				*_m.PaymentIntentNo = value.String
+			}
+		case esportsgiftintent.FieldPaymentRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_ref", values[i])
+			} else if value.Valid {
+				_m.PaymentRef = value.String
+			}
+		case esportsgiftintent.FieldPaymentExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_expires_at", values[i])
+			} else if value.Valid {
+				_m.PaymentExpiresAt = new(time.Time)
+				*_m.PaymentExpiresAt = value.Time
+			}
+		case esportsgiftintent.FieldPaymentVerifiedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_verified_at", values[i])
+			} else if value.Valid {
+				_m.PaymentVerifiedAt = new(time.Time)
+				*_m.PaymentVerifiedAt = value.Time
+			}
+		case esportsgiftintent.FieldPaymentVerifiedByAdminID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_verified_by_admin_id", values[i])
+			} else if value.Valid {
+				_m.PaymentVerifiedByAdminID = new(int)
+				*_m.PaymentVerifiedByAdminID = int(value.Int64)
 			}
 		case esportsgiftintent.FieldCreatedByAdminID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -318,6 +412,47 @@ func (_m *EsportsGiftIntent) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("stored_value_card_no=")
 	builder.WriteString(_m.StoredValueCardNo)
+	builder.WriteString(", ")
+	builder.WriteString("gift_tier_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GiftTierID))
+	builder.WriteString(", ")
+	builder.WriteString("gift_tier_code=")
+	builder.WriteString(_m.GiftTierCode)
+	builder.WriteString(", ")
+	builder.WriteString("high_value=")
+	builder.WriteString(fmt.Sprintf("%v", _m.HighValue))
+	builder.WriteString(", ")
+	builder.WriteString("require_age=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequireAge))
+	builder.WriteString(", ")
+	builder.WriteString("payment_channel=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PaymentChannel))
+	builder.WriteString(", ")
+	builder.WriteString("payment_status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PaymentStatus))
+	builder.WriteString(", ")
+	if v := _m.PaymentIntentNo; v != nil {
+		builder.WriteString("payment_intent_no=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("payment_ref=")
+	builder.WriteString(_m.PaymentRef)
+	builder.WriteString(", ")
+	if v := _m.PaymentExpiresAt; v != nil {
+		builder.WriteString("payment_expires_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.PaymentVerifiedAt; v != nil {
+		builder.WriteString("payment_verified_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.PaymentVerifiedByAdminID; v != nil {
+		builder.WriteString("payment_verified_by_admin_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("created_by_admin_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CreatedByAdminID))
