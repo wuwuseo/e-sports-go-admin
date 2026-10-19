@@ -364,18 +364,41 @@ func dispatchPriorityAutoSource(grants []*ent.EsportsDispatchPriorityGrant) espo
 	}
 }
 
-// autoComputeDispatchPriority 按获得方式自动计算下一期名单（qualified 陪玩为候选池），
-// 返回按 rank 升序、长度不超过 quota 的候选。
-func autoComputeDispatchPriority(ctx context.Context, db *ent.Client, source esportsdispatchprioritygrant.Source, quota int) ([]priorityNominee, error) {
+// autoComputeDispatchPriority 按获得方式自动计算下一期名单：候选池**先按游戏分区收窄**，
+// 再在分区内取前 quota 名并返回（按 rank 升序，长度不超过 quota）。
+//
+// 分区口径与派单/优先通知阶段一致（§6.4）：player.Games 为空表示不限分区（缺省口径），
+// 任何游戏都可入选；非空时必须包含 game。game 为空串时不做分区过滤（保持既有全量口径）。
+//
+// 生成阶段**不按服务时段 / 在线快照过滤**：名单是「本期资格」，可接单性由通知 / 派单阶段
+// （activePriorityPlayerIDs 取当前可接单）判定。名单预生成发生在每天 01:00，若在生成时按
+// 服务时段过滤，白天档陪玩会被整期排除，甚至产生空名单使该分区下期不再参与自动生成。
+//
+// 之所以先收窄再排名：名额是「每个游戏分区」的，若在全量合格陪玩里取名次，其它游戏（甚至无该
+// 分区权限）的陪玩会占满名额，而通知阶段按分区/可接单过滤后该游戏可能一个有效陪玩都不剩。
+// 收窄后 quota 即「该游戏分区内的名额」，因此 len(nominees) <= quota 恒成立。
+func autoComputeDispatchPriority(ctx context.Context, db *ent.Client, source esportsdispatchprioritygrant.Source,
+	game string, quota int) ([]priorityNominee, error) {
 	if quota < 1 {
 		return nil, errInvalidInput
 	}
+	// 仅用于分区匹配；写入侧沿用调用方已 trim 的 game。
+	game = strings.TrimSpace(game)
 	players, err := db.EsportsPlayer.Query().Where(
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
 	).Order(ent.Asc(esportsplayer.FieldID)).All(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// 候选池收窄：只排除分区不符的陪玩；不按服务时段 / 容量在生成阶段过滤（见函数注释）。
+	filteredPlayers := make([]*ent.EsportsPlayer, 0, len(players))
+	for _, player := range players {
+		if game != "" && len(player.Games) > 0 && !playerGamesContain(player.Games, game) {
+			continue
+		}
+		filteredPlayers = append(filteredPlayers, player)
+	}
+	players = filteredPlayers
 	if len(players) == 0 {
 		return nil, nil
 	}

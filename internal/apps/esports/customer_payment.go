@@ -297,23 +297,84 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 	if err != nil {
 		return nil, err
 	}
-	item, err := tx.EsportsOfflinePaymentProof.Create().
-		SetProofNo("OP" + uuid.NewString()).
-		SetOrderID(order.ID).SetIntentID(intent.ID).SetAccountID(account.ID).
-		SetChannel(esportsofflinepaymentproof.Channel(channel)).
-		SetTransactionNo(in.TransactionNo).SetAmountCents(in.AmountCents).
-		SetProofRef(string(proofRef)).SetNote(in.Note).
-		SetStatus(esportsofflinepaymentproof.StatusPendingVerification).Save(ctx)
-	if err != nil {
-		if ent.IsConstraintError(err) {
-			return nil, errConflict
+	// 客户补交口径：唯一键 (channel, transaction_no) 保住「同一笔渠道流水不会被核销两次」，
+	// 因此被财务驳回后不新增数据行，而是按流水号找回原凭证单原地上传新截图：
+	// 保留凭证单号 / 创建时间 / 提交人归属（驳回原因已清空，但驳回动作本身在管理端审计日志里可回溯）。
+	//
+	// 到账时间口径（有意为之，勿按「放宽时限」理解）：核销时 applyVerifiedPayment 用 CreatedAt
+	// 当作到账时间，补交不重置 CreatedAt，因此「客户在原支付时限内已实际付款、只是截图不清被驳回」
+	// 的订单仍可核销；财务核验的是真实到账，客户此时改的是凭证清晰度而不是付款时点。
+	// 订单若已被超时任务取消，则本函数前面的订单状态校验会拒绝补交，不会出现「取消后又付款」。
+	var item *ent.EsportsOfflinePaymentProof
+	existing, err := tx.EsportsOfflinePaymentProof.Query().Where(
+		esportsofflinepaymentproof.ChannelEQ(esportsofflinepaymentproof.Channel(channel)),
+		esportsofflinepaymentproof.TransactionNoEQ(in.TransactionNo),
+	).Only(ctx)
+	switch {
+	case err == nil:
+		if existing.OrderID != order.ID {
+			return nil, fmt.Errorf("%w：该渠道流水号已被其它订单占用，请核实后改用正确的转账单号", errConflict)
 		}
+		if existing.Status != esportsofflinepaymentproof.StatusRejected {
+			return nil, fmt.Errorf("%w：该流水号已提交或已核销，请勿重复提交", errConflict)
+		}
+		item, err = resetRejectedPaymentProof(ctx, tx, existing, intent.ID, account.ID,
+			in.AmountCents, string(proofRef), in.Note)
+		if err != nil {
+			return nil, err
+		}
+	case ent.IsNotFound(err):
+		// 已过支付时限不再接受**新的**转账凭证：否则客户可用一张假凭证让订单无限期停在待付款、
+		// 长期占住 SKU 名额（超时任务会因「有待核验凭证」而跳过该单）。
+		// 被驳回凭证的补交不受此限（上面分支）：它锚定的是首次提交时间，属同一笔已发生的转账。
+		if !now.UTC().Before(order.PaymentDeadline) {
+			return nil, fmt.Errorf("%w：该订单已超过支付时限，无法再提交新的付款凭证，请联系归属客服核实", errConflict)
+		}
+		item, err = tx.EsportsOfflinePaymentProof.Create().
+			SetProofNo("OP" + uuid.NewString()).
+			SetOrderID(order.ID).SetIntentID(intent.ID).SetAccountID(account.ID).
+			SetChannel(esportsofflinepaymentproof.Channel(channel)).
+			SetTransactionNo(in.TransactionNo).SetAmountCents(in.AmountCents).
+			SetProofRef(string(proofRef)).SetNote(in.Note).
+			SetStatus(esportsofflinepaymentproof.StatusPendingVerification).Save(ctx)
+		if err != nil {
+			if ent.IsConstraintError(err) {
+				// 并发补交同一流水号（或凭证单号撞键）：唯一键兜底判冲突，不产生第二条记录。
+				return nil, fmt.Errorf("%w：该流水号已提交或凭证单号冲突，请勿重复提交", errConflict)
+			}
+			return nil, err
+		}
+	default:
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 	return item, nil
+}
+
+// resetRejectedPaymentProof 把被驳回的到账凭证原地重置为待核验（§4.3 客户补交同一笔转账）：
+// 只刷新支付意图、收款账户、金额与凭证引用，并清空核验结论与核销回填，
+// 凭证单号、创建时间与提交人归属（submitted_by_admin_id，客服提交时保留）保持不变；
+// 驳回结论本身从凭证行上清空，但驳回动作已进管理端审计日志，可按凭证单号回溯。
+// 更新条件带上「驳回态」并校验影响行数，避免并发重复补交绕过财务核验。
+func resetRejectedPaymentProof(ctx context.Context, tx *ent.Tx, existing *ent.EsportsOfflinePaymentProof,
+	intentID, accountID int, amountCents int64, proofRef, note string) (*ent.EsportsOfflinePaymentProof, error) {
+	changed, err := tx.EsportsOfflinePaymentProof.Update().Where(
+		esportsofflinepaymentproof.IDEQ(existing.ID),
+		esportsofflinepaymentproof.StatusEQ(esportsofflinepaymentproof.StatusRejected),
+	).SetIntentID(intentID).SetAccountID(accountID).SetAmountCents(amountCents).
+		SetProofRef(proofRef).SetNote(note).
+		SetStatus(esportsofflinepaymentproof.StatusPendingVerification).
+		SetResolution("").ClearVerifiedByAdminID().ClearVerifiedAt().ClearReceiptID().
+		AddVersion(1).Save(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if changed != 1 {
+		return nil, fmt.Errorf("%w：该流水号已提交或已核销，请勿重复提交", errConflict)
+	}
+	return tx.EsportsOfflinePaymentProof.Get(ctx, existing.ID)
 }
 
 // customerPaymentProofView 客户侧付款凭证核验进度视图。

@@ -426,7 +426,7 @@ func init() {
 			{Key: "close_form_require_service_result", Name: "结单强制服务结果", Value: "false", Type: "string", Group: "esports", Remark: "默认 false：内置结单模板 builtin_default 恒出现在模板列表，但只有置 true 才启用并强制采集「服务结果」——默认关闭是为不改存量结单口径"},
 			// 收款账户
 			{Key: "corporate_transfer_threshold_cents", Name: "大额对公转账门槛（分）", Value: "0", Type: "number", Group: "esports", Remark: "0/负数/非法/未配置=不限制渠道；>0 时金额≥门槛且渠道≠corporate_transfer 即拒绝"},
-			{Key: "payment_subject_whitelist", Name: "收款主体白名单", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔主体名；留空或全空白=不限制（不是「谁都不许」）；非空时仅名单内主体名通过校验"},
+			{Key: "payment_subject_whitelist", Name: "收款主体白名单", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔主体名；留空或全空白=未配置（提交与启用收款账户一律拒绝，须先登记白名单，避免任意主体名经财务审核启用）；非空时仅名单内主体名通过校验"},
 			// 客服离线与积压自动转池（对应定时任务尚未注册，属预留）
 			{Key: "cs_offline_timeout_minutes", Name: "客服离线判定时长（分钟）", Value: "15", Type: "number", Group: "esports", Remark: "无「0 关闭」语义：0/<1/>1440/非法/未配置一律回落 15；口径=最近活跃时间 + 该时长；看板在线状态与自动转池共用此口径"},
 			{Key: "cs_backlog_auto_transfer_minutes", Name: "积压自动转池时长（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0=关闭「滞留超时」这个触发条件；与单量阈值同时为 0 时任务整体跳过；由 esports_auto_transfer_backlog_orders 执行"},
@@ -902,6 +902,9 @@ func init() {
 			{Method: "GET", Path: "/user/orders/:id/payment-proofs", Auth: cmfapp.AuthUser, Handler: userPaymentProofsHandler},
 			// 在线收款（§4.3）：已开通渠道发起收款，返回渠道收银台地址；核销走公开回调 payment-notify。
 			{Method: "POST", Path: "/user/orders/:id/payment/start", Auth: cmfapp.AuthUser, Handler: userStartOrderPaymentHandler},
+			// 客户自助站内付款（§4.3 / §4.4）：余额 / 储值卡足额核销，复用管理端同一核销边界并核对订单归属。
+			{Method: "POST", Path: "/user/orders/:id/pay-by-balance", Auth: cmfapp.AuthUser, Handler: userPayOrderByBalanceHandler},
+			{Method: "POST", Path: "/user/orders/:id/pay-by-stored-value-card", Auth: cmfapp.AuthUser, Handler: userPayOrderByStoredValueCardHandler},
 			{Method: "GET", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userAfterSalesHandler},
 			{Method: "POST", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userCreateAfterSaleHandler},
 			{Method: "GET", Path: "/user/wallets", Auth: cmfapp.AuthUser, Handler: userWalletHandler},

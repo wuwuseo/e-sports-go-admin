@@ -469,7 +469,52 @@ go test ./...
 | 首页发布直接生效 | 已改为「提交 → 异人审核」（`publish_review` 状态 + approve / reject） | `page.go` `publishPage` |
 | uni-app 只有示例页、无客户端会话 | 已具备 customer / player / cs 三身份会话与订单、钱包、礼物、售后页面 | `e-sports-uniapp/src/pages/` |
 | 没有真实收款通道接口 | 已有 `payment-notify` 验签回调与 `payment_gateways`，仍缺商户密钥 | 本批次第 4 项 |
+| 排名 / 积分 / 达标制自动计算未实现 | 已实现：下一期名单按本期获得方式自动重算（ranking 按综合评分降序、points 按历史完成单数降序、threshold 按「评分 ≥ `rating_min` 且完成单数 ≥ `completed_min`」双阈值），且**先按游戏分区收窄候选池再取名次** | `dispatch_ranking.go` `autoComputeDispatchPriority`、`esports_rebuild_dispatch_priority` |
+| 礼物外部直付未实现 | 已实现：余额与卡本金都不足时对礼物确认单「发起收款」，在线渠道须网关可用且有启用中的收款账户，人工核销与渠道回调共用同一落库边界；**抽奖类礼物仍缺** | `gift_payment.go`、`gift.go` `giftPaymentSourceExternal` |
+| 页面素材字节上传 / 裁剪未实现 | 已实现：装修页 canvas 裁剪后按附件上传（目录 `esports-page`），再把地址登记进素材库；**拖拽画布 / 任意坐标仍缺** | `go-admin-web` `components/page-designer/ImageCropper.vue`、`views/pages/index.vue` `uploadImageBlob`；`page.go` `savePageAsset` |
+| 提现差异化税率未实现 | 按**金额**的阶梯税费已实现（`app.esports.withdrawal_tax_tiers`，取「金额 ≥ `min_cents`」的最高档）；**按陪玩 / 渠道区分的差异化税率仍缺** | `withdrawal.go` `taxBpFor` / `parseWithdrawalTiers` |
 
-**仍未实现（保留，不要误读为已完成）**：自动结单 / 客户确认结单、拖拽式表单设计器与并行 / 条件分支审批、规则灰度与陪玩分成阶梯、团队分成、排名 / 积分 / 达标制自动计算、外盒死信的人工重发入口、加钟的支付意图与储值卡核销、礼物外部直付与抽奖类礼物、页面拖拽画布与素材字节上传 / 裁剪、企微应用消息与电话 / 语音渠道、企微「发送到会话」通道与 `jsapi_ticket` 自动拉取、个性化陪玩推荐、差异化提现税率、真实商户收款 / 打款 / 退款通道与企微应用凭据。
+**仍未实现（保留，不要误读为已完成）**：以下保留项按代码复核后的口径写清「缺的是什么」；已完成项已移入上表。
+
+- **自动结单 / 客户确认结单**：没有任何定时任务执行自动结单（`esports_scan_close_deadline` / `scanCloseDeadlineOverdue` 只把超时单写进客服与管理员待办），客户自助端也没有「确认结单」入口；结单仍只能由员工调 `POST /admin/orders/{id}/close`。
+- **拖拽式表单设计器**：字段库 + 模板（全局 / 游戏分区 / SKU / 订单类型 + 金额区间）+ 提交规则 + 版本化已有，缺拖拽画布、任意坐标、字段级联与条件显示（`close_form.go` 顶部 ponytail 注明）。
+- **并行 / 条件分支审批**：审批流只支持**串行**节点（`nodes.seq` 从 1 连续递增、逐节点推进，末节点通过才结单），缺并行会签与按条件跳转的分支节点。
+- **规则灰度**：分成 / 提成 / 结单 / 结单表单规则只有 draft → active → history（另含 `scheduled` 到点生效）的版本管理，缺按比例或人群分批放量的灰度开关。
+- **陪玩分成阶梯**：陪玩分成规则只有单一 `percent` / `fixed_per_order` / `fixed_per_unit` 口径（`ruleInput` 无阶梯字段）；阶梯目前只在客服提成上实现（`schema.CsCommissionTier`、`matchCsCommissionTier`）。
+- **团队分成**：多席订单按**各成员自己的规则**与有效服务秒数分别计提（`splitPool` 分摊基数），缺团队级分成池与团队内部分摊比例配置。
+- **外盒死信的人工重发入口**：`EsportsOutbox` 达上限置 `dead` 后只计入客服待办计数（`notification_failed`），缺查询死信明细与人工重投的管理端接口。
+- **加钟的支付意图与储值卡核销**：加钟只有客服「余额收款」（`POST /admin/order-addons/{id}/pay-by-balance`），缺在线收款意图与储值卡本金核销两条路径。
+- **抽奖类礼物**：礼物只有固定价与价格档位（`EsportsGiftTier`），无抽奖玩法、无开奖记录。
+- **页面拖拽画布**：装修仍是纵向模块列表拖拽排序 + 右侧属性面板，缺自由画布与任意坐标（素材字节上传 / 裁剪已实现，见上表）。
+- **企微应用消息与电话 / 语音渠道**：`app.esports.notification_channels` 已可填 `wecom_app` / `voice` / `push`，但三类通道名都发往同一个 `app.esports.notification_push_webhook` 网关，缺企微应用消息 API 与语音外呼网关的真实实现（未配置网关时只降级并记 `degraded_channels`）。
+- **企微「发送到会话」与 `jsapi_ticket` 自动拉取**：侧边栏只能「复制话术」自行粘贴，缺发送到会话的通道能力；签名票据仍需手工预置 `app.esports.wecom_jsapi_ticket`，`access_token → jsapi_ticket` 自动拉取未接（`wecom_sidebar.go` 注释已标注接入点）。
+- **个性化陪玩推荐**：`player_recommend` 走公开 `/players` 的筛选口径（游戏 / 等级 / 在线 / 可接单），不按客户偏好、历史合作或画像取数。
+- **差异化提现税率**：按陪玩 / 渠道区分税率未实现（按金额阶梯已实现，见上表）。
+- **真实商户收款 / 打款 / 退款通道与企微应用凭据**：`payment_gateways` 仍只有 `kind=http_hmac` 一种适配器；提现打款（`withdrawal_payout.go`）与外部退款（`external_refund.go`）仍是人工登记外部流水号；企微 `corpId` / `agentId` / 应用密钥待业务方提供。
+
+### 11. 本轮流程缺口修复（订单收款 / 结单 / 优先派单 / 客户首页）
+
+本轮把「收款 → 结单 → 派单 → 客户首页」闭环上的一批缺口补齐，**无数据库迁移、无新增环境变量**；除客户端一条外，每条都带同目录回归测试，测试名可直接在 `internal/apps/esports` 下检索。
+
+| 问题 | 现在的行为 | 接口或文件 | 回归测试 |
+| --- | --- | --- | --- |
+| 外部到账凭证按「核验时刻」算到账时间，客户在支付时限内已付款、只是截图不清被驳回补交后会被判超时 | 核销的到账时间改按**凭证提交时间**（`proof.CreatedAt`）判定；超时任务 `expireOrder` 发现该订单仍有 `pending_verification` 凭证时不再取消订单（交还财务裁决，被驳回后才由下一轮超时扫描取消） | `offline_payment.go` `verifyOfflinePaymentProof`（`ConfirmedAt: item.CreatedAt`）、`service.go` `expireOrder`（前置查待核验凭证） | `timeout_pending_proof_test.go` `TestVerifyOfflinePaymentProofAcceptsProofSubmittedBeforeDeadline`、`TestExpireOrderSkipsOrderWithPendingVerificationProof`、`TestExpireOrderCancelsOrderAfterProofRejected` |
+| 被驳回的凭证只能换流水号重提，撞 `(channel, transaction_no)` 唯一键后财务无法把「同一笔转账」对上 | 允许**同一流水号原地补交**：按流水号找回原凭证行重置为待核验（刷新意图 / 账户 / 金额 / 截图、清空核验结论），凭证单号、创建时间与提交人保持不变，唯一键仍保证同一笔流水不会被核销两次 | `customer_payment.go` `submitCustomerOfflinePaymentProof`（复用分支）、`resetRejectedPaymentProof` | `customer_payment_resubmit_test.go` `TestCustomerPaymentProofResubmitAfterRejection`、`TestCustomerPaymentProofResubmitVerifiedConflicts`、`TestCustomerPaymentProofDuplicateResubmitConflicts` |
+| 结单条件 `evidence_count` 按服务段条数计（一段多图只算 1），且自定义条件树会**替换**默认底线，配一棵宽松条件树即可绕过「有凭证 / 服务量不为零」 | `evidence_count` 改按**图片附件张数**计（同段多图算多张、跨段重复附件 ID 只算 1 张、历史文本引用按 1 张兜底）；自定义条件树与默认底线树 **AND 合并**，只能加严、不能删掉默认底线 | `close_condition.go` `closeConditionEvidenceCount`、`mergeCloseConditionTrees`、`checkCloseConditions` | `close_condition_fix_test.go` `TestCloseConditionEvidenceCountByImageRefs`、`TestCustomConditionTreeCannotDropDefaultEvidenceFloor` |
+| 优先派单下一期名单在全量合格陪玩里取名次，其它分区（甚至无权接该分区）的陪玩占满名额，通知阶段按分区过滤后该分区可能一个有效陪玩都不剩 | 生成阶段**先按游戏分区收窄候选池，再在分区内取名次**；生成阶段不按服务时段过滤（可接单性仍在通知 / 派单阶段判定），`len(名单) ≤ 名额` 恒成立 | `dispatch_ranking.go` `autoComputeDispatchPriority`、`dispatch_priority.go`（重算任务按 `grant.game` 逐分区调用）、`app.go`（`esports_rebuild_dispatch_priority` 注册） | `dispatch_priority_game_scope_test.go` `TestDispatchPriorityNextPeriodScopedByGame`、`TestDispatchPriorityNextPeriodIgnoresServiceSlotAtGeneration`、`TestDispatchPriorityNextPeriodTruncatesWithinGame` |
+| 客户自助端只有「发起收款 + 提交凭证」，余额 / 储值卡核销要走客服人工；站内渠道停用也没有拦截 | 客户自助端补齐**余额核销 / 储值卡核销**：`POST /user/orders/{id}/pay-by-balance`、`POST /user/orders/{id}/pay-by-stored-value-card`（在线收银台 `POST /user/orders/{id}/payment/start` 此前已有）；三者复用管理端同一核销边界（金额、订单状态、支付时限、配额、账本），并按**站内渠道启停**明确拒绝。客户自助路由走 `AuthUser`、按绑定客户做数据隔离，不声明 `PermAPI`（与既有 `/user/...` 一致） | `customer_self_payment.go`、`app.go`（客户自助路由）、`wallet.go` `payOrderWithBalanceAsCustomer`、`stored_value.go` `payOrderWithStoredValueCardAsCustomer` | `customer_self_payment_test.go` `TestCustomerSelfBalancePayment`、`TestCustomerSelfStoredValueCardPayment`、`TestAdminBalancePaymentKeepsOperator` |
+| 陪玩推荐公开接口只给在线状态，客户端只能猜「能不能约」，下单后才发现不可接单 | 公开陪玩接口返回真实 `bookable`（在线连接健康 ∩ 服务时段 ∩ 固排时段 ∩ 并发 / 当日容量），`player_recommend` 也可用 `bookable=true` 继续收窄 | `player.go` `publicPlayerView.Bookable`、`page_component_data.go` `listPublicPlayersByProps` | `page_player_bookable_test.go` `TestPlayerBookableFlagsConnectionServiceSlotAndFixedTeamSlot`、`TestPublicPlayersBookableFlagInDefaultJSON`、`TestPlayerBookableFalseWhenDailyCapacityFull` |
+| 存单冻结的订单仍可催单，而催单会写 `remind_priority_level` / `remind_note` / `reminded_at` 并抬升版本，等于冻结期改单 | 催单纳入冻结守卫，返回 `errOrderFrozen`（HTTP 409），冻结期间不改字段、不升版本、不写 `order.reminded`；恢复存单后催单恢复可用 | `dispatch.go` `remindOrder`（调 `ensureOrderNotFrozen`） | `dispatch_remind_freeze_test.go` `TestRemindOrderRejectedWhenDepositFrozen` |
+| 收款主体白名单为空时被当作「不限制」，任意主体名都能经财务审核变成可收款账户 | 白名单**未配置即 fail-closed**：提交与启用收款账户一律拒绝并提示先登记 `app.esports.payment_subject_whitelist`；批准（review）时再按**当前**白名单复核，提交后白名单被改小 / 清空的一律拦下 | `payment_account.go` `ensurePaymentSubjectAllowed`、`createPaymentAccount`、`reviewPaymentAccount`、`app.go`（配置项 Remark） | `payment_account_whitelist_test.go` `TestPaymentSubjectWhitelistFailsClosed` |
+| 客户端仍按旧口径实现：报价确认前就展示收款账户、驳回后不能重提、没有余额 / 储值卡 / 在线收银台入口、首页不吃组件 props、推荐卡片用 `online` 判可约 | 客户端（`e-sports-uniapp`，**不在本仓库**）已同步：报价确认前不展示收款账户、驳回后允许重提、接入余额 / 储值卡 / 在线收银台、首页按组件 props 取数、推荐卡片按 `bookable` 展示并用「客户指定陪玩」下单 | `e-sports-uniapp`（本仓库不含源码，此处只记口径） | 无（客户端自测，本仓库不覆盖） |
+
+**升级注意（合并前后的口径变化）**：
+
+1. **到账时间改口径**：外部到账核销改按凭证**提交时间**判定到账，且订单存在 `pending_verification` 凭证时超时任务不再取消订单。上线后会出现「已过支付时限但仍待财务核验」的订单，这是有意为之——不要手工取消，先让财务核销或驳回。
+2. **白名单由「空 = 不限制」改为「空 = 拒绝启用」**：升级前必须先在系统配置登记 `app.esports.payment_subject_whitelist`（逗号分隔工作室主体名），否则新**提交**与**启用**收款账户全部被拒；**存量处于待审核的收款账户在批准时会被这条规则拦下**，须先配好白名单再审批。
+3. **结单条件合并**：默认底线（凭证 / 非零服务量 / 无未处理加钟与售后）现在恒定生效，历史上为「放宽」而配的宽松条件树会突然结单失败；`evidence_count` 也改为按图片张数计，存量单的凭证张数可能变多（同段多图）或按 1 张兜底（历史文本引用）。
+4. **优先派单名单生成口径**：下一期名单改为「先按游戏分区收窄再取名次」，各分区名单成员可能与之前明显不同，且不再按服务时段过滤（白天档陪玩也会入名单，接单性在通知 / 派单阶段判定）。升级后第一次重算前后建议各留一份名单做对比，再对外解释差异。
+
+四类改动都是**行为收紧**，不需要数据库迁移；除收款主体白名单是新增的**前置配置**外，其余都不需要改配置。白名单未登记完成前不要放开收款账户的提交与启用。
 
 维护约定：新增能力时同步改写本节「仍未实现」列表，不要再把已完成项留在里面。

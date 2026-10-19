@@ -69,7 +69,7 @@ func TestServiceEvidenceSubmitOwnSegment(t *testing.T) {
 	if !segmentSubmitted(segment) {
 		t.Fatalf("segmentSubmitted 未识别凭证：%+v", segment)
 	}
-	// 结单条件口径：evidence_count 按非空 evidence_ref 计数。
+	// 结单条件口径：evidence_count 按图片附件张数计（本用例单段一个附件 = 1 张）。
 	facts, err := closeConditionFactsOf(ctx, db, order)
 	if err != nil {
 		t.Fatal(err)

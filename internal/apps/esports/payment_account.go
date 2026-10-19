@@ -128,7 +128,8 @@ type paymentAccountInput struct {
 }
 
 // paymentSubjectWhitelistKey 是允许作为收款主体的主体名白名单（逗号分隔，§4.3-07）。
-// 缺省为空表示不做限制（向后兼容既有部署）。
+// 未配置（缺行 / 留空 / 全空白）时**一律拒绝**：默认拒绝是 §4.3-07 的落地口径，
+// 否则任何主体名都能提交、再经财务审核被启用为收款账户，等于该控制默认关闭。
 const paymentSubjectWhitelistKey = "app.esports.payment_subject_whitelist"
 
 // corporateTransferThresholdKey 是「大额订单必须走对公转账」的金额阈值（分，§4.3-05）。
@@ -159,11 +160,13 @@ func splitConfigList(raw string) []string {
 	return out
 }
 
-// ensurePaymentSubjectAllowed 校验收款主体落在白名单内（§4.3-07）：白名单为空表示不限制。
+// ensurePaymentSubjectAllowed 校验收款主体落在白名单内（§4.3-07），fail-closed：
+// 白名单未配置（缺行 / 留空 / 全空白）时直接拒绝并提示配置键，避免任意主体名经财务审核被启用为收款账户；
+// 白名单非空时主体名须与名单项完全匹配。提交（createPaymentAccount）与批准（reviewPaymentAccount）都须走本校验。
 func ensurePaymentSubjectAllowed(ctx context.Context, db *ent.Client, subject string) error {
 	allowed := paymentSubjectWhitelist(ctx, db)
 	if len(allowed) == 0 {
-		return nil
+		return fmt.Errorf("%w：未配置收款主体白名单（app.esports.payment_subject_whitelist），请先在系统配置中登记工作室主体后再提交或启用收款账户", errInvalidInput)
 	}
 	subject = strings.TrimSpace(subject)
 	for _, name := range allowed {
@@ -219,7 +222,7 @@ func createPaymentAccount(ctx context.Context, db *ent.Client, in paymentAccount
 	if (in.Channel == "merchant_qr" || in.Channel == "wechat_work") && in.QrURL == "" && in.AccountNo == "" {
 		return nil, errInvalidInput
 	}
-	// §4.3-07：收款主体须为工作室主体之一（白名单未配置时不限制）。
+	// §4.3-07：收款主体须为工作室主体之一（fail-closed：白名单未配置时不接受任何主体）。
 	if err := ensurePaymentSubjectAllowed(ctx, db, in.SubjectName); err != nil {
 		return nil, err
 	}
@@ -239,6 +242,7 @@ func createPaymentAccount(ctx context.Context, db *ent.Client, in paymentAccount
 }
 
 // reviewPaymentAccount 财务审核收款账户（§4.3）：待审核 → 启用 / 驳回；提交人不得自审。
+// 批准前按**当前**收款主体白名单重新校验（§4.3-07），白名单在提交后被改小 / 清空时不得过审。
 func reviewPaymentAccount(ctx context.Context, db *ent.Client, id, adminID int,
 	approve bool, resolution string, now time.Time) (*ent.EsportsPaymentAccount, error) {
 	resolution = strings.TrimSpace(resolution)
@@ -257,6 +261,13 @@ func reviewPaymentAccount(ctx context.Context, db *ent.Client, id, adminID int,
 	}
 	if !approve && resolution == "" {
 		return nil, errInvalidInput
+	}
+	// §4.3-07：批准时必须按当前白名单重新校验主体。提交之后白名单可能被改小或清空，
+	// 若只在提交时校验，旧资料仍会被过审启用为收款账户；驳回路径不需要该校验。
+	if approve {
+		if err = ensurePaymentSubjectAllowed(ctx, db, item.SubjectName); err != nil {
+			return nil, err
+		}
 	}
 	status := esportspaymentaccount.StatusActive
 	if !approve {

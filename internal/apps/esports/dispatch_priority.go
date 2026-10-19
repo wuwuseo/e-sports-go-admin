@@ -419,7 +419,8 @@ func rebuildDispatchPriority(ctx context.Context, db *ent.Client, now time.Time,
 				nominees = append(nominees, priorityNominee{playerID: grant.PlayerID, rank: i + 1})
 			}
 		} else {
-			nominees, err = autoComputeDispatchPriority(ctx, db, source, quota)
+			// 按本游戏分区取名额：候选池在分区内收窄后再排名（§5.4），避免其它游戏占用名额。
+			nominees, err = autoComputeDispatchPriority(ctx, db, source, key.game, quota)
 			if err != nil {
 				return total, err
 			}

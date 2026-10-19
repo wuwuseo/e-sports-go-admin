@@ -70,6 +70,7 @@ func TestCustomerPaymentMethodsList(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
+	seedPaymentSubjectWhitelist(t, db)
 	active := seedActivePaymentAccount(t, db, "wechat_work", "WX-ACCT-1")
 	pending, err := createPaymentAccount(ctx, db, paymentAccountInput{
 		Channel: "wechat_work", SubjectName: "待审主体有限公司", QrURL: "https://example.com/pending.png",

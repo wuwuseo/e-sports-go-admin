@@ -85,8 +85,9 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose {
 		return nil, errConflict
 	}
-	// §3.4：解析生效结单规则（SKU 结单要求 > sku 规则 > game > global），
-	// 通用 AND/OR 条件树优先，未配置时折叠结构化默认项（凭证 ≥N、时长不为零、无未处理加钟 / 售后）。
+	// §3.4：解析生效结单规则（SKU 结单要求 > sku 规则 > game > global）。
+	// 结构化默认项（凭证 ≥N、时长不为零、无未处理加钟 / 售后）是硬性底线；配置了通用 AND/OR
+	// 条件树时两者按 AND 合并求值，条件树不能删掉底线。
 	rule, err := resolveCloseRule(ctx, tx.Client(), order)
 	if err != nil {
 		return nil, err
@@ -182,14 +183,13 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	if err != nil {
 		return err
 	}
-	var evidenceCount, totalSeconds, totalUnits int64
+	var totalSeconds, totalUnits int64
 	for _, segment := range segments {
-		if strings.TrimSpace(segment.EvidenceRef) != "" {
-			evidenceCount++
-		}
 		totalSeconds += segment.SystemSeconds
 		totalUnits += segment.ReportedUnits
 	}
+	// 服务凭证张数与结单条件同一口径（按图片附件计），避免同名字段在事件与条件里含义不同。
+	evidenceCount := closeConditionEvidenceCount(segments)
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
 		esportsorder.FulfillmentStatusIn(

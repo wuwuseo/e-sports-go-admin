@@ -74,6 +74,7 @@ func TestCloseConditionTreeValidation(t *testing.T) {
 }
 
 // AND/OR 嵌套条件树（§3.4）：凭证 ≥1 且（系统时长 ≥600 秒 或 上报服务量 ≥2）；
+// 该规则同时配置了默认结构化条件项，求值时自定义树与默认底线按 AND 合并（不能被替换）；
 // 条件未满足时结单被拦截、条件状态接口同步给出逐项明细（供结单按钮置灰）。
 func TestCloseConditionTreeAndOrEvaluation(t *testing.T) {
 	db := openCloseRuleDB(t, "esports_close_condition_tree")
@@ -120,8 +121,10 @@ func TestCloseConditionTreeAndOrEvaluation(t *testing.T) {
 	if err != nil || status.Satisfied || !status.TreeConfigured || status.RuleCode != "TREE-AND-OR" {
 		t.Fatalf("条件状态不正确：%+v err=%v", status, err)
 	}
-	if len(status.Items) != 3 || len(status.Reasons) == 0 {
-		t.Fatalf("条件状态应逐项列出叶子结果：%+v", status.Items)
+	// 默认底线树（凭证 ≥1、时长 >0、无未处理加钟、无进行中售后，共 5 个叶子）与自定义树
+	// （3 个叶子）按 AND 合并，条件状态应逐项列出合并后的全部 8 个叶子。
+	if len(status.Items) != 8 || len(status.Reasons) == 0 {
+		t.Fatalf("条件状态应逐项列出合并后的叶子结果：%+v", status.Items)
 	}
 	// 补足服务量到 2 → 满足，可结单。
 	db.EsportsServiceSegment.Update().Where(esportsservicesegment.OrderIDEQ(badOrder.ID)).
@@ -238,6 +241,7 @@ func TestStructuredConditionsExposeStatus(t *testing.T) {
 }
 
 // 事实字段覆盖：承诺服务量、加钟量、进行中售后数与储值卡一致性均可作为条件字段。
+// 凭证张数口径：seedSimpleCloseableOrder 的 evidence_ref 是历史文本引用（shot-1），按 1 张计。
 func TestCloseConditionFactsAndExtraFields(t *testing.T) {
 	db := openCloseRuleDB(t, "esports_close_condition_facts")
 	defer db.Close()

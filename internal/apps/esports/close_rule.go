@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/apps/esports/schematier"
 )
 
-// derefCloseConditionNode 把可选条件树指针转为值（nil 表示未配置，回落结构化条件项）。
+// derefCloseConditionNode 把可选条件树指针转为值（nil 表示未配置，只按结构化条件项求值）。
 func derefCloseConditionNode(node *schematier.CloseConditionNode) schematier.CloseConditionNode {
 	if node == nil {
 		return schematier.CloseConditionNode{}
@@ -36,7 +36,8 @@ type closeRuleInput struct {
 	RequireNoPendingAddon  bool   `json:"require_no_pending_addon"`
 	RequireNoOpenAftersale bool   `json:"require_no_open_aftersale"`
 	ReviewThresholdCents   int64  `json:"review_threshold_cents"`
-	// ConditionTree 是通用 AND/OR 结单条件树（§3.4 结单条件自定义）；留空表示使用结构化条件项。
+	// ConditionTree 是通用 AND/OR 结单条件树（§3.4 结单条件自定义）。留空表示只用结构化条件项；
+	// 配置后与结构化条件项**按 AND 合并**（结构化条件是硬性底线，不能被条件树删掉）。
 	ConditionTree *schematier.CloseConditionNode `json:"condition_tree"`
 	Note          string                         `json:"note"`
 }
@@ -130,7 +131,7 @@ func updateCloseRule(ctx context.Context, db *ent.Client, id, expectedVersion in
 		SetRequireNoPendingAddon(in.RequireNoPendingAddon).
 		SetRequireNoOpenAftersale(in.RequireNoOpenAftersale).
 		SetReviewThresholdCents(in.ReviewThresholdCents).SetNote(in.Note)
-	// 条件树置空即回落结构化条件项。
+	// 条件树置空即只保留结构化条件项；配置后与结构化条件项按 AND 合并（底线不可删）。
 	if tree == nil {
 		update.SetConditionTree(schematier.CloseConditionNode{})
 	} else {

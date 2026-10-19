@@ -190,9 +190,15 @@ func verifyOfflinePaymentProof(ctx context.Context, db *ent.Client, id, adminID 
 		return nil, err
 	}
 	// 复用手续收款落库边界：金额、报价版本、过期时间与配额都在其中强校验。
+	// 到账时间以凭证提交时间（item.CreatedAt）为准，不取核验动作发生的 now：
+	// applyVerifiedPayment 用它比对报价确认时间、支付意图到期时间与订单支付时限，
+	// 客户在时限内转账并上传凭证、财务晚些时候才核验的，不应因为「核验发生在时限之后」
+	// 被判为超时；核验动作本身发生在时限之后只是人工处理延迟，不是付款延迟。
+	// 真实核验时间仍由下方 SetVerifiedAt(now.UTC()) 记录，两者含义不同、都要保留；
+	// AppliedAt 传核验动作时刻，供派单优先通知窗口等运营时点使用。
 	outcome, err := applyVerifiedPayment(ctx, db, verifiedPayment{
 		IntentNo: intent.IntentNo, Channel: channel, TransactionNo: item.TransactionNo,
-		AmountCents: item.AmountCents, ConfirmedAt: now.UTC(),
+		AmountCents: item.AmountCents, ConfirmedAt: item.CreatedAt, AppliedAt: now.UTC(),
 	})
 	if err != nil {
 		return nil, err

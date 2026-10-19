@@ -19,8 +19,12 @@ import (
 // 结单条件自定义（§3.4）：字段 + 运算符 + 值，支持 AND / OR / NOT 嵌套。
 // 结单执行（closeOrder）与「结单按钮是否可点」共用同一套求值（checkCloseConditions），
 // 保证条件不满足时既拦截结单、也能在前端把按钮置灰。
-// 规则未配置条件树时，把结构化条件项（凭证 ≥N、时长为零、无未处理加钟 / 售后）折叠为等价条件树，
-// 两条路径共用同一求值实现，行为与历史默认口径一致。
+// 结构化条件项（凭证 ≥N、服务时长 / 服务量不为零、无未处理加钟 / 售后）折叠为
+// structuredCloseConditionTree，它是**不可被自定义条件树替换的默认底线**：
+// 规则配置了 condition_tree 时，默认树与自定义树按 AND 合并求值（默认树为 nil 时只用自定义树，
+// 自定义树未配置时只用默认树），管理员无法用自定义条件树整条删掉默认底线。
+// 「服务凭证张数」（evidence_count）按订单全部服务段 evidence_ref 中的图片附件张数统计：
+// JSON 数组形态按附件 ID 去重后计数，非空的历史文本引用整段按 1 张计。
 
 const (
 	closeCondMaxDepth = 5
@@ -156,10 +160,9 @@ func closeConditionFactsOf(ctx context.Context, db *ent.Client, order *ent.Espor
 	if err != nil {
 		return facts, err
 	}
+	// 凭证张数按图片计：JSON 数组形态按附件 ID 去重后计数，历史文本引用整段按 1 张计。
+	facts.EvidenceCount = closeConditionEvidenceCount(segments)
 	for _, segment := range segments {
-		if strings.TrimSpace(segment.EvidenceRef) != "" {
-			facts.EvidenceCount++
-		}
 		facts.ServiceSeconds += segment.SystemSeconds
 		facts.ServiceUnits += segment.ReportedUnits
 	}
@@ -191,6 +194,35 @@ func closeConditionFactsOf(ctx context.Context, db *ent.Client, order *ent.Espor
 	facts.OpenAfterSaleCount = int64(openAfterSales)
 	facts.StoredValueOK = storedValueOrderConsistent(ctx, db, order) == nil
 	return facts, nil
+}
+
+// closeConditionEvidenceCount 统计订单全部服务段的「服务凭证张数」（§3.4 evidence_count）：
+// 与 serviceEvidenceAttachmentIDs 同一解析口径，JSON 数组形态（如 [11,12]）按其中的附件 ID
+// 去重后计张数（同一段传两张图算 2 张，跨段重复的 ID 只算 1 张）；
+// 非空但不是合法 JSON 数组的历史文本引用（如 shot-1 / backfill:xxx）整段按 1 张计，
+// 保证存量单不会因新口径突然变成 0；空引用（含空 JSON 数组）不计。
+func closeConditionEvidenceCount(segments []*ent.EsportsServiceSegment) int64 {
+	seen := map[int]bool{}
+	var textCount int64
+	for _, segment := range segments {
+		ref := strings.TrimSpace(segment.EvidenceRef)
+		if ref == "" {
+			continue
+		}
+		if strings.HasPrefix(ref, "[") {
+			var ids []int
+			if err := json.Unmarshal([]byte(ref), &ids); err == nil {
+				for _, id := range ids {
+					if id > 0 {
+						seen[id] = true
+					}
+				}
+				continue
+			}
+		}
+		textCount++
+	}
+	return int64(len(seen)) + textCount
 }
 
 // closeConditionActual 取事实字段的当前值（布尔成立为 1，否则为 0）。
@@ -339,6 +371,22 @@ func structuredCloseConditionTree(conds closeConditions) *schematier.CloseCondit
 	return &schematier.CloseConditionNode{Op: closeCondOpAnd, Children: children}
 }
 
+// mergeCloseConditionTrees 把默认底线树与自定义条件树按 AND 合并（§3.4）：
+// 任一侧为 nil 时返回另一侧（默认树无条件项 / 规则未配置条件树，行为与历史一致），
+// 两棵都在时包一个 and 节点，求值仍会递归收集两侧全部叶子，条件状态逐项明细不丢。
+func mergeCloseConditionTrees(defaultTree, customTree *schematier.CloseConditionNode) *schematier.CloseConditionNode {
+	if defaultTree == nil {
+		return customTree
+	}
+	if customTree == nil {
+		return defaultTree
+	}
+	return &schematier.CloseConditionNode{
+		Op:       closeCondOpAnd,
+		Children: []schematier.CloseConditionNode{*defaultTree, *customTree},
+	}
+}
+
 // closeConditionStatus 结单条件求值结果：供结单执行拦截与前端结单按钮置灰共用。
 type closeConditionStatus struct {
 	Satisfied            bool                      `json:"satisfied"`
@@ -409,7 +457,11 @@ func orderCloseConditionStatus(ctx context.Context, db *ent.Client, orderID int)
 }
 
 // checkCloseConditions 按订单生效的结单规则求值结单条件（§3.4）。
-// 规则配置了条件树时用条件树；否则折叠结构化条件项。储值卡核销一致性为硬性条件，仍在结单链路单独校验。
+// 默认结构化条件树（structuredCloseConditionTree）是硬性底线，永远参与求值；
+// 规则配置了 condition_tree 时与其按 AND 合并（TreeConfigured 仍表示「规则是否配置了条件树」），
+// 因此自定义条件树只能加严、不能删掉「有凭证」「服务量不为零」这类默认底线。
+// 合并后逐项 Items / Reasons 仍列出全部叶子结果，供前端逐项展示与结单失败文案使用。
+// 储值卡核销一致性为硬性条件，仍在结单链路单独校验。
 func checkCloseConditions(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
 	rule *ent.EsportsCloseRule) (closeConditionStatus, error) {
 	conds := effectiveCloseConditions(rule)
@@ -417,6 +469,7 @@ func checkCloseConditions(ctx context.Context, db *ent.Client, order *ent.Esport
 		Satisfied: true, ReviewThresholdCents: conds.ReviewThresholdCents,
 		Fields: closeConditionFieldSpecs, Operators: closeConditionOperators,
 	}
+	// 默认底线树：由生效规则的结构化条件项折叠而来，无任何默认项时为 nil。
 	tree := structuredCloseConditionTree(conds)
 	// §3.4-03：无论条件树是否配置，都要给出「结单前必须查看」的服务段凭证附件 ID。
 	evidenceIDs, err := serviceEvidenceAttachmentIDs(ctx, db, order.ID)
@@ -432,7 +485,8 @@ func checkCloseConditions(ctx context.Context, db *ent.Client, order *ent.Esport
 			if err != nil {
 				return status, err
 			}
-			tree = normalized
+			// 默认底线不可被替换：与自定义树 AND 合并后一起求值。
+			tree = mergeCloseConditionTrees(tree, normalized)
 			status.TreeConfigured = true
 		}
 	}

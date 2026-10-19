@@ -40,6 +40,10 @@ type verifiedPayment struct {
 	TransactionNo string
 	AmountCents   int64
 	ConfirmedAt   time.Time
+	// AppliedAt 是「核销动作发生时刻」（财务核验 / 渠道回调处理时刻），用于派单优先通知窗口、
+	// 入池时间等运营时点；账务时点（paid_at、收据、提成规则归属）仍用 ConfirmedAt（真实到账时刻）。
+	// 零值表示与 ConfirmedAt 相同（保持既有调用方与测试口径）。
+	AppliedAt time.Time
 }
 
 type paymentOutcome struct {
@@ -186,7 +190,13 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 			return nil, errConflict
 		}
 		// 进入待派单：若该游戏分区有优先派单权生效名单，则只通知名单内陪玩（§5.4 业务口径）。
-		if err = onOrderEnteredPendingDispatch(ctx, tx, order.ID, p.ConfirmedAt.UTC()); err != nil {
+		// 窗口与「当前可接单」判定必须用核销动作时刻：晚核验的订单若用真实到账时刻，
+		// 优先通知窗口会在开窗瞬间就已过期，名单内陪玩收不到通知。
+		appliedAt := p.AppliedAt
+		if appliedAt.IsZero() {
+			appliedAt = p.ConfirmedAt
+		}
+		if err = onOrderEnteredPendingDispatch(ctx, tx, order.ID, appliedAt.UTC()); err != nil {
 			return nil, err
 		}
 		hold, err := tx.EsportsQuotaHold.Query().Where(esportsquotahold.OrderIDEQ(order.ID)).Only(ctx)

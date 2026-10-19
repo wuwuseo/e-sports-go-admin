@@ -146,6 +146,10 @@ type publicPlayerView struct {
 	Qualification string   `json:"qualification"`
 	Presence      string   `json:"presence"`
 	Online        bool     `json:"online"`
+	// Bookable 表示当前时刻是否真正可接单：在线连接健康 ∩ 服务时段 ∩ 固排时段 ∩
+	// 并发 / 每日接单容量（§6.4-06）。客户端据此决定是否展示「立即下单」，
+	// 不能再用 Online 代替（在线 ≠ 可接单）。
+	Bookable bool `json:"bookable"`
 }
 
 // listPublicPlayers 陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩；game 非空时按游戏分区过滤，

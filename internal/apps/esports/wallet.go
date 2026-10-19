@@ -3,6 +3,7 @@ package esports
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -441,6 +442,29 @@ func walletBalanceTx(ctx context.Context, tx *ent.Tx, accountType string, ownerI
 // 扣减顺序固定为先赠送权益、后本金。
 // ponytail: 存单扣减与余额/存单混合支付未实现，仅支持余额足额支付；扣减顺序可配置项未落地。
 func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID int, now time.Time) (*ent.EsportsOrder, error) {
+	return payOrderWithBalanceCore(ctx, db, adminID, 0, orderID, now)
+}
+
+// payOrderWithBalanceAsCustomer 客户自助余额核销（§4.3 / §13.2）：与管理端共用同一核销边界
+// （金额、订单状态、支付时限、配额与账本口径全部复用），差异只有三点：
+//   - 订单必须属于当前客户（actorCustomerID），避免用他人身份核销；
+//   - 钱包流水不写 operator_id（客户不是后台操作人），备注标记「客户自助」；
+//   - 订单事件 actor 记为 customer，且站内方式受后台渠道启停约束（§4.3-08）。
+func payOrderWithBalanceAsCustomer(ctx context.Context, db *ent.Client, customerID, orderID int,
+	now time.Time) (*ent.EsportsOrder, error) {
+	if customerID < 1 || orderID < 1 {
+		return nil, errInvalidInput
+	}
+	if !paymentChannelEnabled(ctx, db, walletCustomerBalance) {
+		return nil, fmt.Errorf("%w：余额支付已被后台停用，暂不可用于订单支付", errForbidden)
+	}
+	return payOrderWithBalanceCore(ctx, db, 0, customerID, orderID, now)
+}
+
+// payOrderWithBalanceCore 是余额核销的唯一实现：operatorID > 0 表示后台操作人（写 operator_id、
+// 事件 actor=admin）；actorCustomerID > 0 表示客户自助（不写 operator_id、事件 actor=customer）。
+func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, actorCustomerID, orderID int,
+	now time.Time) (*ent.EsportsOrder, error) {
 	meta, err := db.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -458,6 +482,10 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 	}
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
+	}
+	// 客户自助路径必须核对订单归属：不能用一个客户的身份核销另一个客户的订单。
+	if actorCustomerID > 0 && order.CustomerID != actorCustomerID {
+		return nil, errForbidden
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
@@ -487,14 +515,22 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 	}
 	principalDeduct, bonusDeduct := splitPrepayDeduction(
 		prepayDeductionOrder(ctx, tx.Client()), balance.PrincipalCents, balance.BonusCents, payable)
-	walletTx, err := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+	walletTxCreate := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountTypeCustomerBalance).SetOwnerID(customer.ID).
 		SetEntryType(esportswallettx.EntryTypeConsume).
 		SetPrincipalDeltaCents(-principalDeduct).SetBonusDeltaCents(-bonusDeduct).
 		SetSourceType("order").SetSourceID(order.OrderNo).
 		SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(customer.ID).
-		SetBalanceBeforeCents(balance.total()).SetBalanceAfterCents(balance.total() - payable).
-		SetOperatorID(adminID).SetNote("订单余额核销").Save(ctx)
+		SetBalanceBeforeCents(balance.total()).SetBalanceAfterCents(balance.total() - payable)
+	// operator_id 是后台操作人字段：客户自助不写，改用备注与订单事件 actor 区分来源。
+	if operatorID > 0 {
+		walletTxCreate.SetOperatorID(operatorID)
+	}
+	note := "订单余额核销"
+	if actorCustomerID > 0 {
+		note = "订单余额核销（客户自助）"
+	}
+	walletTx, err := walletTxCreate.SetNote(note).Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
@@ -554,9 +590,13 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 		"order", order.OrderNo, principalDeduct, bonusDeduct); err != nil {
 		return nil, err
 	}
+	eventActorType, eventActorID := "admin", strconv.Itoa(operatorID)
+	if actorCustomerID > 0 {
+		eventActorType, eventActorID = "customer", strconv.Itoa(actorCustomerID)
+	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
 		SetOrderVersion(order.Version + 1).SetEventType("order.payment_verified").
-		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetActorType(eventActorType).SetActorID(eventActorID).
 		SetDetails(map[string]interface{}{
 			"channel": "customer_balance", "applied_cents": payable,
 			"principal_deducted": principalDeduct, "bonus_deducted": bonusDeduct,

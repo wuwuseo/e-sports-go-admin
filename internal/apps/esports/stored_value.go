@@ -518,6 +518,29 @@ func storedValueCardUsableForGift(card *ent.EsportsStoredValueCard, customerID i
 // 储值卡标记与关联卡 ID 并转入待派单。扣减顺序固定为先赠送权益、后本金。
 // ponytail: 扣减顺序可配置（先本金/按比例）未落地；存单与储值卡混合支付未实现。
 func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, orderID, cardID int, now time.Time) (*ent.EsportsOrder, error) {
+	return payOrderWithStoredValueCardCore(ctx, db, adminID, 0, orderID, cardID, now)
+}
+
+// payOrderWithStoredValueCardAsCustomer 客户自助储值卡核销（§4.4 / §13.2）：与管理端共用同一核销边界
+// （卡归属与可用性、金额、订单状态、支付时限、配额与账本口径全部复用），差异只有三点：
+//   - 订单必须属于当前客户（actorCustomerID）；
+//   - 卡流水不写 operator_id（客户不是后台操作人），备注标记「客户自助」；
+//   - 订单事件 actor 记为 customer，且站内方式受后台渠道启停约束（§4.3-08）。
+func payOrderWithStoredValueCardAsCustomer(ctx context.Context, db *ent.Client, customerID, orderID, cardID int,
+	now time.Time) (*ent.EsportsOrder, error) {
+	if customerID < 1 || orderID < 1 || cardID < 1 {
+		return nil, errInvalidInput
+	}
+	if !paymentChannelEnabled(ctx, db, walletStoredValueCard) {
+		return nil, fmt.Errorf("%w：储值卡支付已被后台停用，暂不可用于订单支付", errForbidden)
+	}
+	return payOrderWithStoredValueCardCore(ctx, db, 0, customerID, orderID, cardID, now)
+}
+
+// payOrderWithStoredValueCardCore 是储值卡核销的唯一实现：operatorID > 0 表示后台操作人
+// （写 operator_id、事件 actor=admin）；actorCustomerID > 0 表示客户自助（不写 operator_id、事件 actor=customer）。
+func payOrderWithStoredValueCardCore(ctx context.Context, db *ent.Client, operatorID, actorCustomerID, orderID,
+	cardID int, now time.Time) (*ent.EsportsOrder, error) {
 	if orderID < 1 || cardID < 1 {
 		return nil, errInvalidInput
 	}
@@ -534,6 +557,10 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 	}
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
+	}
+	// 客户自助路径必须核对订单归属：不能用一个客户的身份核销另一个客户的订单。
+	if actorCustomerID > 0 && order.CustomerID != actorCustomerID {
+		return nil, errForbidden
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
@@ -575,14 +602,22 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 	}
 	principalDeduct, bonusDeduct := splitPrepayDeduction(
 		order_, balance.PrincipalCents, balance.BonusCents, payable)
-	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
+	walletTxCreate := tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
 		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
 		SetEntryType(esportswallettx.EntryTypeConsume).
 		SetPrincipalDeltaCents(-principalDeduct).SetBonusDeltaCents(-bonusDeduct).
 		SetSourceType("order").SetSourceID(order.OrderNo).
 		SetBeneficiaryType(esportswallettx.BeneficiaryTypeCustomer).SetBeneficiaryID(card.CustomerID).
-		SetBalanceBeforeCents(balance.total()).SetBalanceAfterCents(balance.total() - payable).
-		SetOperatorID(adminID).SetNote("订单储值卡核销").Save(ctx); err != nil {
+		SetBalanceBeforeCents(balance.total()).SetBalanceAfterCents(balance.total() - payable)
+	// operator_id 是后台操作人字段：客户自助不写，改用备注与订单事件 actor 区分来源。
+	if operatorID > 0 {
+		walletTxCreate.SetOperatorID(operatorID)
+	}
+	note := "订单储值卡核销"
+	if actorCustomerID > 0 {
+		note = "订单储值卡核销（客户自助）"
+	}
+	if _, err = walletTxCreate.SetNote(note).Save(ctx); err != nil {
 		if ent.IsConstraintError(err) {
 			return nil, errConflict
 		}
@@ -646,9 +681,13 @@ func payOrderWithStoredValueCard(ctx context.Context, db *ent.Client, adminID, o
 		"order", order.OrderNo, principalDeduct, bonusDeduct); err != nil {
 		return nil, err
 	}
+	eventActorType, eventActorID := "admin", strconv.Itoa(operatorID)
+	if actorCustomerID > 0 {
+		eventActorType, eventActorID = "customer", strconv.Itoa(actorCustomerID)
+	}
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(order.ID).
 		SetOrderVersion(order.Version + 1).SetEventType("order.payment_verified").
-		SetActorType("admin").SetActorID(strconv.Itoa(adminID)).
+		SetActorType(eventActorType).SetActorID(eventActorID).
 		SetDetails(map[string]interface{}{
 			"channel": walletStoredValueCard, "card_id": card.ID, "card_no": card.CardNo,
 			"applied_cents": payable, "principal_deducted": principalDeduct, "bonus_deducted": bonusDeduct,

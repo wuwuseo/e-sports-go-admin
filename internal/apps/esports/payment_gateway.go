@@ -516,5 +516,9 @@ func handlePaymentNotification(ctx context.Context, db *ent.Client, channel stri
 	if !now.IsZero() && payment.ConfirmedAt.After(now.Add(paymentNotifyTolerance)) {
 		return nil, fmt.Errorf("%w：回调到账时间晚于当前时间过多", errForbidden)
 	}
+	// 回调处理时刻用于派单开窗等运营时点；到账时刻仍以渠道回调的 ConfirmedAt 记账。
+	if payment.AppliedAt.IsZero() {
+		payment.AppliedAt = now
+	}
 	return applyVerifiedPayment(ctx, db, payment)
 }

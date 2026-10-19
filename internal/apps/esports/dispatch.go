@@ -842,6 +842,11 @@ func remindOrder(ctx context.Context, db *ent.Client, orderID, adminID int, leve
 		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled {
 		return errConflict
 	}
+	// §3.3-11：催单会改订单字段（remind_priority_level / remind_note / reminded_at）并抬升订单版本，
+	// 属订单写操作，存单冻结期间必须拒绝；与同文件的转单路径保持同一守卫口径。
+	if err = ensureOrderNotFrozen(order); err != nil {
+		return err
+	}
 	// 一次条件更新同时抬版本与落催单字段，避免「事件写了字段没写」的半成品状态。
 	changed, err := tx.EsportsOrder.Update().Where(
 		esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),

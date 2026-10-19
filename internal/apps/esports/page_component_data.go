@@ -490,10 +490,21 @@ func applySkuCatalogOrder(q *ent.EsportsSkuQuery, props skuCatalogProps) (*ent.E
 // listPublicPlayersByProps 按 player_recommend 的 props 取推荐陪玩。
 // 既有默认口径不变：资质合格 + 在线；game / level / online / bookable 只在默认之上继续收窄。
 //
-// 注意（口径限制，勿误以为它在任何数据下都能收窄）：bookable=true 复用既有字段与判定——
-// 服务时段 0/0（未配置）、固排未开启（fixed_team_enabled=false）、接单上限 0（未配置）
-// 在既有口径里都表示「不限」。因此这些字段在库里普遍为空时，bookable 的实际收窄效果≈0，
-// 只等同于「在线且连接正常」；要让它真正生效，须先让陪玩档案填上服务时段 / 接单上限等配置。
+// 「筛选开关」与「返回标记」是两件事，勿混为一谈：
+//   - 开关（props.Online / props.Bookable 为 true）只用于**收窄候选**：为真时过滤掉不满足该维度的陪玩；
+//   - 返回标记 Bookable 对**每个返回的**陪玩都回填「此刻是否真的可接单」
+//     （在线连接健康 ∩ 服务时段 ∩ 固排时段 ∩ 并发 / 每日接单容量）。
+//     未开开关时不可接单的陪玩仍会返回（Bookable=false），由客户端按标记决定是否展示「立即下单」。
+//
+// 口径限制（勿误以为开关在任何数据下都能收窄）：服务时段 0/0（未配置）、固排未开启
+// （fixed_team_enabled=false）、接单上限 0（未配置）在既有口径里都表示「不限」。
+// 因此这些字段在库里普遍为空时，bookable=true 的实际收窄效果≈0，只等同于「在线且连接正常」；
+// 要让它真正生效，须先让陪玩档案填上服务时段 / 接单上限等配置。
+//
+// 性能边界：容量判定（checkPlayerDispatchLimit 的粗筛）只为「便宜判定（连接健康 / 服务时段 /
+// 固排时段）通过」的候选执行，且最多执行到返回条数凑满 limit 为止；容量不足时按开关决定
+// 丢弃（bookable=true 收窄）或保留并回填 Bookable=false（未开开关），不因容量判定额外回填行。
+// 绝不为扫描上限（200）内的全部候选开事务做容量查询。
 func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerRecommendProps, now time.Time) ([]publicPlayerView, error) {
 	limit := props.Limit
 	if limit < 1 || limit > playerRecommendScanCap {
@@ -530,28 +541,31 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 		if level != "" && level != "any" && playerLevelRank(player.Level.String()) < playerLevelRank(level) {
 			continue
 		}
-		// 在线 / 可接单都要求连接正常（复用 playerConnectionHealthy 的心跳口径，不另立一套）。
-		if (props.Online || props.Bookable) && !playerConnectionHealthyWith(player, now, timeout) {
+		healthy := playerConnectionHealthyWith(player, now, timeout)
+		// online=true 是收窄开关，只要求连接正常（复用 playerConnectionHealthy 的心跳口径，不另立一套）。
+		if props.Online && !healthy {
 			continue
 		}
-		if props.Bookable {
-			// 可接单复用既有判定：服务时段（§6.4-06）∩ 固排时段 ∩ 并发 / 每日接单容量。
-			if !playerServiceSlotAllows(player, now) || !playerFixedTeamSlotAllows(player, now) {
-				continue
-			}
-			if player.ConcurrentLimit > 0 || player.DailyLimit > 0 {
-				if capacityTx == nil {
-					tx, txErr := db.Tx(ctx)
-					if txErr != nil {
-						return nil, txErr
-					}
-					capacityTx = tx
+		// 便宜判定：连接健康 ∩ 服务时段（§6.4-06）∩ 固排时段。任一不满足即不可接单。
+		bookable := healthy && playerServiceSlotAllows(player, now) && playerFixedTeamSlotAllows(player, now)
+		// 容量判定较贵（要开事务查席位 / 订单），只为便宜判定通过且真的配置了上限的候选执行。
+		if bookable && (player.ConcurrentLimit > 0 || player.DailyLimit > 0) {
+			if capacityTx == nil {
+				tx, txErr := db.Tx(ctx)
+				if txErr != nil {
+					return nil, txErr
 				}
-				// nil 目标订单 = 只做「是否还有容量」的粗筛（checkPlayerDispatchLimit 的既有语义）。
-				if limitErr := checkPlayerDispatchLimit(ctx, capacityTx, player, nil, now, 0); limitErr != nil {
-					continue
-				}
+				capacityTx = tx
 			}
+			// nil 目标订单 = 只做「是否还有容量」的粗筛（checkPlayerDispatchLimit 的既有语义），
+			// 失败即「此刻不能接单」，而不是整个取数失败。
+			if limitErr := checkPlayerDispatchLimit(ctx, capacityTx, player, nil, now, 0); limitErr != nil {
+				bookable = false
+			}
+		}
+		// bookable=true 时按标记收窄：不可接单的候选丢弃并继续往后扫，直到凑满 limit 或候选耗尽。
+		if props.Bookable && !bookable {
+			continue
 		}
 		games := player.Games
 		if games == nil {
@@ -561,6 +575,7 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 			ID: player.ID, DisplayName: player.DisplayName, Level: player.Level.String(),
 			Games: games, Qualification: player.Qualification.String(),
 			Presence: player.Presence.String(), Online: player.Presence == esportsplayer.PresenceOnline,
+			Bookable: bookable,
 		})
 		if len(views) >= limit {
 			break

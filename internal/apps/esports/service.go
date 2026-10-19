@@ -19,6 +19,7 @@ import (
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsidempotency"
+	"go-admin/internal/ent/esportsofflinepaymentproof"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportsplayer"
@@ -806,6 +807,19 @@ func expireOrder(ctx context.Context, db *ent.Client, orderID int, now time.Time
 	if err != nil {
 		return false, err
 	}
+	// 先看本订单是否还有待核验的外部到账凭证：有待核验凭证说明客户可能已实际转账、
+	// 只是财务还没核验，超时任务不得抢先取消订单并释放名额；本轮直接交还给核验流程，
+	// 订单保持待付款，等财务核验后再走收款核销或由驳回后的下一轮超时扫描处理。
+	hasPendingProof, err := tx.EsportsOfflinePaymentProof.Query().Where(
+		esportsofflinepaymentproof.OrderIDEQ(orderID),
+		esportsofflinepaymentproof.StatusEQ(esportsofflinepaymentproof.StatusPendingVerification),
+	).Exist(ctx)
+	if err != nil {
+		return false, fmt.Errorf("查询订单待核验到账凭证失败: %w", err)
+	}
+	if hasPendingProof {
+		return false, nil
+	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || order.PaymentDeadline.After(now.UTC()) {
 		return false, nil
@@ -851,11 +865,22 @@ func expireDueOrders(ctx context.Context, db *ent.Client, now time.Time, limit i
 	if limit < 1 || limit > 1000 {
 		return 0, errInvalidInput
 	}
-	ids, err := db.EsportsOrder.Query().Where(
+	// 有待核验到账凭证的订单本轮不取消（客户可能已实际付款，见 expireOrder）。
+	// 在扫描阶段就排除它们：这类订单会一直满足「已过期」条件且按 payment_deadline 排在最前，
+	// 若只靠逐单守卫跳过，累计占满 LIMIT 窗口后每轮都扫不到真正可取消的订单，超时任务会停摆。
+	pendingOrderIDs, err := pendingVerificationProofOrderIDs(ctx, db)
+	if err != nil {
+		return 0, err
+	}
+	query := db.EsportsOrder.Query().Where(
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
 		esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
 		esportsorder.PaymentDeadlineLTE(now.UTC()),
-	).Order(ent.Asc(esportsorder.FieldPaymentDeadline)).Limit(limit).IDs(ctx)
+	)
+	if len(pendingOrderIDs) > 0 {
+		query = query.Where(esportsorder.IDNotIn(pendingOrderIDs...))
+	}
+	ids, err := query.Order(ent.Asc(esportsorder.FieldPaymentDeadline)).Limit(limit).IDs(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -873,4 +898,28 @@ func expireDueOrders(ctx context.Context, db *ent.Client, now time.Time, limit i
 		}
 	}
 	return count, nil
+}
+
+// pendingVerificationProofOrderIDs 返回仍有待核验到账凭证的订单 ID（去重，升序无关）。
+// 供超时取消的扫描窗口排除这些订单，避免它们长期占用 LIMIT 名额。
+func pendingVerificationProofOrderIDs(ctx context.Context, db *ent.Client) ([]int, error) {
+	orderIDs, err := db.EsportsOfflinePaymentProof.Query().Where(
+		esportsofflinepaymentproof.StatusEQ(esportsofflinepaymentproof.StatusPendingVerification),
+	).Select(esportsofflinepaymentproof.FieldOrderID).Ints(ctx)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[int]struct{}, len(orderIDs))
+	out := make([]int, 0, len(orderIDs))
+	for _, id := range orderIDs {
+		if id < 1 {
+			continue
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out, nil
 }

@@ -46,9 +46,17 @@ func seedPayableOrderForOffline(t *testing.T, db *ent.Client, suffix, channel st
 		SetChannel(channel).SetExpiresAt(order.PaymentDeadline).SaveX(ctx)
 }
 
+// seedPaymentSubjectWhitelist 登记测试用的工作室主体白名单（§4.3-07 fail-closed：
+// 未配置白名单时不允许提交或启用收款账户，因此涉收款账户的测试须先按已配置口径播种）。
+func seedPaymentSubjectWhitelist(t *testing.T, db *ent.Client) {
+	t.Helper()
+	poSeedConfig(t, db, paymentSubjectWhitelistKey, "示例工作室有限公司,另一主体有限公司,待审主体有限公司")
+}
+
 // seedActivePaymentAccount 建一个已审核启用的收款账户。
 func seedActivePaymentAccount(t *testing.T, db *ent.Client, channel, accountNo string) *ent.EsportsPaymentAccount {
 	t.Helper()
+	seedPaymentSubjectWhitelist(t, db)
 	ctx := t.Context()
 	now := time.Now().UTC()
 	item, err := createPaymentAccount(ctx, db, paymentAccountInput{
@@ -73,6 +81,7 @@ func TestPaymentAccountReviewAndChannelSwitch(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
+	seedPaymentSubjectWhitelist(t, db)
 
 	// 对公转账必须填账号；企业微信收款须有收款码或商户号。
 	if _, err := createPaymentAccount(ctx, db, paymentAccountInput{

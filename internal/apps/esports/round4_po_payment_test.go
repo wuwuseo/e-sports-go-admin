@@ -263,12 +263,17 @@ func TestRound4PO4307PaymentSubjectWhitelist(t *testing.T) {
 	}, 11, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("白名单外主体应被拒：%v", err)
 	}
-	// 白名单清空 = 不限制（向后兼容既有部署）。
+	// 白名单清空 = 未配置：fail-closed，任何主体一律拒绝（旧口径「留空=不限制」已废弃）。
 	poSeedConfig(t, db, "app.esports.payment_subject_whitelist", "")
 	if _, err = createPaymentAccount(ctx, db, paymentAccountInput{
 		Channel: "merchant_qr", SubjectName: "冒名主体有限公司", QrURL: "https://example.com/bad.png",
-	}, 11, now); err != nil {
-		t.Fatalf("未配置白名单时不应限制主体：%v", err)
+	}, 11, now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("未配置白名单时必须拒绝任何主体：%v", err)
+	}
+	if _, err = createPaymentAccount(ctx, db, paymentAccountInput{
+		Channel: "merchant_qr", SubjectName: "示例工作室有限公司", QrURL: "https://example.com/ok2.png",
+	}, 11, now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("未配置白名单时名单内主体同样应被拒（须先登记白名单）：%v", err)
 	}
 }
 
