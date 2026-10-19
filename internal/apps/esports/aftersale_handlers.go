@@ -87,8 +87,13 @@ func adminAfterSales(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	// §13.5：附带当前阶段时限与是否超时，前端据此高亮。
-	return reply(c, afterSaleViewsOf(c.Context(), global.ORM, items, time.Now()))
+	// §13.5：附带当前阶段时限与是否超时，前端据此高亮；
+	// §8.2-24：同时带出「等待财务执行外部退款的动作项数」与「关联外部退款是否已超期」。
+	views, err := afterSaleAdminViewsOf(c.Context(), global.ORM, items, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
 }
 
 func adminAfterSaleDetail(c fiber.Ctx) error {
@@ -103,8 +108,12 @@ func adminAfterSaleDetail(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	policy := afterSaleSLAPolicyOf(c.Context(), global.ORM)
-	return reply(c, afterSaleViewOf(item, policy, time.Now()))
+	// §13.5 限时信息 + §8.2-24 外部执行信号：与列表复用同一聚合函数，避免两套口径。
+	view, err := afterSaleAdminViewOf(c.Context(), global.ORM, item, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, view)
 }
 
 func createAfterSaleHandler(c fiber.Ctx) error {

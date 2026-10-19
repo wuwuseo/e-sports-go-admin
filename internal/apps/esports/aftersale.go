@@ -17,6 +17,7 @@ import (
 	"go-admin/internal/ent/esportsaftersaleaction"
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsdispatchseat"
+	"go-admin/internal/ent/esportsexternalrefund"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportsstoredvaluecard"
@@ -461,6 +462,130 @@ func getAfterSale(ctx context.Context, db *ent.Client, id int) (*ent.EsportsAfte
 		return nil, errInvalidInput
 	}
 	return db.EsportsAfterSale.Get(ctx, id)
+}
+
+// ── 售后列表 / 详情的外部执行信号（审核报告 §8.2-24） ──
+//
+// 客服在售后列表要能一眼看出两件事，不必逐单点进「动作项」明细：
+//  1. 这单还在等财务执行外部退款（存在 awaiting_execution 动作项）；
+//  2. 这单关联的外部退款单已超过督办阈值仍未执行（registered 且登记时间早于判定线）。
+//
+// 两者都是「钱还没出账、单还挂着」的信号，所以随列表 / 详情一起返回，字段只增不改。
+
+// afterSaleExternalSignal 单张售后单的外部执行信号。零值即「没有待执行项、没有超期退款」。
+type afterSaleExternalSignal struct {
+	// AwaitingExternalExecutionCount 当前处于 awaiting_execution 的动作项数量。
+	AwaitingExternalExecutionCount int
+	// ExternalRefundOverdue 关联的外部退款单是否存在已超期未执行（registered 且超过阈值）。
+	ExternalRefundOverdue bool
+}
+
+// afterSaleAdminView 管理端列表 / 详情视图：在既有 SLA 视图（§13.5）之上追加外部执行信号。
+// 既有字段（内嵌的售后单字段与 sla_*）名称 / 结构一律不变，前端可增量消费；
+// 无相关数据时两个新字段为 0 / false。
+type afterSaleAdminView struct {
+	afterSaleView
+	AwaitingExternalExecutionCount int  `json:"awaiting_external_execution_count"`
+	ExternalRefundOverdue          bool `json:"external_refund_overdue"`
+}
+
+// afterSaleAdminViewsOf 批量包装售后单（列表用）：限时信息复用既有 SLA 批量视图（一次读策略），
+// 外部执行信号按「一批」聚合，两者都与售后单数量无关——不逐单查库。
+func afterSaleAdminViewsOf(ctx context.Context, db *ent.Client, items []*ent.EsportsAfterSale,
+	now time.Time) ([]afterSaleAdminView, error) {
+	ids := make([]int, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			return nil, errInvalidInput
+		}
+		ids = append(ids, item.ID)
+	}
+	signals, err := afterSaleExternalSignalsOf(ctx, db, ids, now)
+	if err != nil {
+		return nil, err
+	}
+	base := afterSaleViewsOf(ctx, db, items, now)
+	views := make([]afterSaleAdminView, 0, len(base))
+	for i, view := range base {
+		signal := signals[items[i].ID]
+		views = append(views, afterSaleAdminView{
+			afterSaleView:                  view,
+			AwaitingExternalExecutionCount: signal.AwaitingExternalExecutionCount,
+			ExternalRefundOverdue:          signal.ExternalRefundOverdue,
+		})
+	}
+	return views, nil
+}
+
+// afterSaleAdminViewOf 包装单条售后单（详情用）：与列表复用同一聚合函数，避免两套口径。
+func afterSaleAdminViewOf(ctx context.Context, db *ent.Client, item *ent.EsportsAfterSale,
+	now time.Time) (afterSaleAdminView, error) {
+	views, err := afterSaleAdminViewsOf(ctx, db, []*ent.EsportsAfterSale{item}, now)
+	if err != nil {
+		return afterSaleAdminView{}, err
+	}
+	if len(views) == 0 {
+		return afterSaleAdminView{}, errInvalidInput
+	}
+	return views[0], nil
+}
+
+// afterSaleExternalSignalsOf 一次算出一批售后单的外部执行信号（key = 售后单 ID）：
+//   - 动作项：一条 after_sale_id IN (...) 的查询取出所有 awaiting_execution 动作项，内存按售后单计数；
+//   - 外部退款：一条 after_sale_id IN (...) 的查询取出 registered 且登记时间早于超期判定线的单，
+//     再用督办任务同一个判定函数 externalRefundOverdue 复核一遍，命中即标记该售后单「已超期」。
+//
+// 两条查询与售后单数量无关（列表一页最多 200 单也只发这两条），不构造 N+1。
+// 超期口径只来自 externalRefundOverdueHours / externalRefundOverdueCutoff，不在此重复硬编码。
+func afterSaleExternalSignalsOf(ctx context.Context, db *ent.Client, afterSaleIDs []int,
+	now time.Time) (map[int]afterSaleExternalSignal, error) {
+	signals := make(map[int]afterSaleExternalSignal, len(afterSaleIDs))
+	ids := make([]int, 0, len(afterSaleIDs))
+	seen := make(map[int]struct{}, len(afterSaleIDs))
+	for _, id := range afterSaleIDs {
+		if id < 1 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return signals, nil
+	}
+	actions, err := db.EsportsAfterSaleAction.Query().Where(
+		esportsaftersaleaction.AfterSaleIDIn(ids...),
+		esportsaftersaleaction.StatusEQ(esportsaftersaleaction.StatusAwaitingExecution),
+	).Select(esportsaftersaleaction.FieldAfterSaleID).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("统计售后待执行动作项失败: %w", err)
+	}
+	for _, action := range actions {
+		signal := signals[action.AfterSaleID]
+		signal.AwaitingExternalExecutionCount++
+		signals[action.AfterSaleID] = signal
+	}
+	refunds, err := db.EsportsExternalRefund.Query().Where(
+		esportsexternalrefund.AftersaleIDIn(ids...),
+		esportsexternalrefund.StatusEQ(esportsexternalrefund.StatusRegistered),
+		esportsexternalrefund.CreatedAtLT(externalRefundOverdueCutoff(now)),
+	).Select(esportsexternalrefund.FieldAftersaleID, esportsexternalrefund.FieldStatus,
+		esportsexternalrefund.FieldCreatedAt).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("统计售后关联的外部退款超期失败: %w", err)
+	}
+	for _, refund := range refunds {
+		// 查询条件已按阈值过滤，这里再按同一判定函数复核，避免驱动时区口径差异误标超期。
+		if refund.AftersaleID == nil || !externalRefundOverdue(refund, now) {
+			continue
+		}
+		signal := signals[*refund.AftersaleID]
+		signal.ExternalRefundOverdue = true
+		signals[*refund.AftersaleID] = signal
+	}
+	return signals, nil
 }
 
 // ensureAfterSaleSourceOrderNotFrozen 售后写操作统一存单守卫（§4.6 存单冻结）：

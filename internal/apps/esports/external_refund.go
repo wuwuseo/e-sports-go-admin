@@ -532,6 +532,13 @@ func externalRefundOverdueEventKey(refundNo string, at time.Time) string {
 	return externalRefundOverdueEventType + ":" + refundNo + ":" + at.UTC().Format("2006010215")
 }
 
+// externalRefundOverdueCutoff 返回超期判定线（now - 阈值）：登记时间早于该判定线的 registered 单
+// 才算「已超期未执行」。督办扫描与售后列表 / 详情侧的「外部退款已超期」标记共用本函数，
+// 阈值只在 externalRefundOverdueHours 定义一次，不允许在查询条件里另写一份小时数。
+func externalRefundOverdueCutoff(now time.Time) time.Time {
+	return now.UTC().Add(-externalRefundOverdueHours * time.Hour)
+}
+
 // externalRefundOverdue 判断一条外部退款登记是否已超期待督办：仍为 registered 且登记时间
 // 距 now 已达阈值。实体上没有「超期」字段（schema 不改），该判定是超期口径的唯一事实来源，
 // 由任务扫描与列表 / 详情侧补「已超期」标记共同使用。
@@ -599,7 +606,7 @@ func expirePendingExternalRefunds(ctx context.Context, db *ent.Client, now time.
 	if limit < 1 || limit > 1000 {
 		return result, errInvalidInput
 	}
-	result.Cutoff = now.UTC().Add(-externalRefundOverdueHours * time.Hour)
+	result.Cutoff = externalRefundOverdueCutoff(now)
 	rows, err := db.EsportsExternalRefund.Query().Where(
 		esportsexternalrefund.StatusEQ(esportsexternalrefund.StatusRegistered),
 		esportsexternalrefund.CreatedAtLT(result.Cutoff),
