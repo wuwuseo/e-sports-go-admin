@@ -114,17 +114,6 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 		return nil, fmt.Errorf("%w：结单条件未满足：%s", errInvalidInput,
 			strings.Join(status.Reasons, "；"))
 	}
-	// §4.6：储值卡标记 / 关联储值卡 / 核销流水不一致时禁止结单（硬性，不随规则变化）。
-	if err = storedValueOrderConsistent(ctx, tx.Client(), order); err != nil {
-		// §4.6-06：拦截同时把不一致落进异常队列（可查询 / 指派 / 处置）。
-		// 必须先回滚本事务——队列写入要独立提交，否则会被 defer tx.Rollback() 一起丢掉，
-		// 那正是「只拦不落队列」的老坑。写队列失败时不假装拦截已记档，直接报错。
-		_ = tx.Rollback()
-		if _, recordErr := enqueueStoredValueOrderException(ctx, db, order, adminID, now); recordErr != nil {
-			return nil, fmt.Errorf("储值卡订单被拦下但异常队列写入失败: %w", recordErr)
-		}
-		return nil, err
-	}
 	// §3.4-03：结单前必须逐张查看陪玩上传的凭证图片，并落「已查看附件 + 操作人」留痕。
 	viewedEvidence, err := ensureCloseEvidenceViewed(ctx, tx.Client(), orderID, in.ViewedEvidenceAttachmentIDs)
 	if err != nil {

@@ -1,6 +1,6 @@
 # 陪玩报单系统 · 后端（go-admin）
 
-基于 Go + Fiber v3 + Ent 的管理后台 API，承载 **陪玩报单系统**（业务代号 `esports`）的完整服务端能力：商品与报价、报单与派单、服务与结单、售后与退款、钱包与储值卡、分成结算与提现、会员与礼物、考核与报表，以及通用后台能力（双身份认证、RBAC、验证码、附件、SSE、插件、任务队列、定时任务、OAuth）。
+基于 Go + Fiber v3 + Ent 的管理后台 API，承载 **陪玩报单系统**（业务代号 `esports`）的完整服务端能力：商品与报价、报单与派单、服务与结单、售后与退款、钱包与客户余额、分成结算与提现、会员与礼物、考核与报表，以及通用后台能力（双身份认证、RBAC、验证码、附件、SSE、插件、任务队列、定时任务、OAuth）。
 
 ## 仓库分工
 
@@ -38,7 +38,7 @@
 | 陪玩管理 | 档案与资格、在线状态、心跳保活、自助接单/开工/完工、考核定级、责任信用 |
 | 服务与结单 | 服务凭证、结单规则、结单表单设计器、提交规则、串行审批流、待复核 |
 | 售后与退款 | 受理→方案→客户确认→审批→执行状态机、补履约任务、陪玩追偿、SLA 超时升级、终态复核 |
-| 资金与账本 | 客户余额、陪玩猫粮、只增流水、批次分摊、储值卡（开卡/核销/退卡）、充值活动、在线收款与回调 |
+| 资金与账本 | 客户余额、陪玩猫粮、只增流水、批次分摊、充值活动、在线收款与回调 |
 | 结算与提现 | 陪玩分成规则与结算单、客服提成（含争议冻结、作废与重开）、提现申请与审核打款、退款冲回、渠道成本与工作室剩余 |
 | 会员与礼物 | 会员等级与成长值、生日礼遇、优先预约、礼物目录、代客送礼、防刷榜、贡献榜 |
 | 客服工作台 | 客户档案与跟进、企微自动建档、话术库、订单池与待办聚合、数据隔离 |
@@ -357,11 +357,11 @@ WantedBy=multi-user.target
 
 ### 注册的后台任务
 
-`esports` 功能集在启用后注册 **37 个**任务（由 Cron 管理端或队列调度）：
+`esports` 功能集在启用后注册 **36 个**任务（由 Cron 管理端或队列调度）：
 
-`esports_activate_scheduled_commission_rules`、`esports_apply_due_sku_suspensions`、`esports_apply_member_downgrade`、`esports_auto_offline_players`、`esports_auto_pause_disconnected_players`、`esports_auto_transfer_backlog_orders`、`esports_auto_trigger_upgrade_assessments`、`esports_check_aftersale_sla`、`esports_check_close_approval_timeout`、`esports_check_service_overtime`、`esports_deliver_notifications`、`esports_deliver_outbox`、`esports_detect_review_brushing`、`esports_expire_appointment_confirmations`、`esports_expire_customer_stored_value_intents`、`esports_expire_dispatch_invites`、`esports_expire_dispatch_priority_notice`、`esports_expire_member_level_overrides`、`esports_expire_orders`、`esports_expire_priority_booking_intents`、`esports_expire_recharge_intents`、`esports_expire_reschedule_proposals`、`esports_expire_stored_value_cards`、`esports_expire_wallet_bonus`、`esports_flag_high_risk_customers`、`esports_generate_cs_settlements`、`esports_generate_player_settlements`、`esports_generate_spot_checks`、`esports_publish_scheduled_pages`、`esports_rebuild_dispatch_priority`、`esports_reconcile_ledgers`、`esports_remind_dispatch_ladder`、`esports_run_player_level_review`、`esports_scan_aftersale_rules`、`esports_scan_close_deadline`、`esports_scan_dispatch_escalations`、`esports_schedule_repurchase_follow_ups`。
+`esports_activate_scheduled_commission_rules`、`esports_apply_due_sku_suspensions`、`esports_apply_member_downgrade`、`esports_auto_offline_players`、`esports_auto_pause_disconnected_players`、`esports_auto_transfer_backlog_orders`、`esports_auto_trigger_upgrade_assessments`、`esports_check_aftersale_sla`、`esports_check_close_approval_timeout`、`esports_check_service_overtime`、`esports_deliver_notifications`、`esports_deliver_outbox`、`esports_detect_review_brushing`、`esports_expire_appointment_confirmations`、`esports_expire_dispatch_invites`、`esports_expire_dispatch_priority_notice`、`esports_expire_member_level_overrides`、`esports_expire_orders`、`esports_expire_pending_external_refunds`、`esports_expire_priority_booking_intents`、`esports_expire_recharge_intents`、`esports_expire_reschedule_proposals`、`esports_expire_wallet_bonus`、`esports_flag_high_risk_customers`、`esports_generate_cs_settlements`、`esports_generate_player_settlements`、`esports_generate_spot_checks`、`esports_publish_scheduled_pages`、`esports_rebuild_dispatch_priority`、`esports_reconcile_ledgers`、`esports_remind_dispatch_ladder`、`esports_run_player_level_review`、`esports_scan_aftersale_rules`、`esports_scan_close_deadline`、`esports_scan_dispatch_escalations`、`esports_schedule_repurchase_follow_ups`。
 
-> 该清单与 `internal/apps/esports/*.go` 中 `tasks.Register` 的注册项一一对应（37 注册 / 37 种子，种子见 `internal/apps/esports/cron_seeds.go`）。其中 `esports_expire_member_level_overrides`（会员手动调级覆盖到期回落）与 `esports_expire_priority_booking_intents`（会员优先预约意向过期消解）为 2026-10 新增；两者对应的回落 / 消解在读路径也有惰性判定，因此任务未注册时能力仍自愈。
+> 该清单与 `internal/apps/esports/*.go` 中 `tasks.Register` 的注册项一一对应（36 注册 / 36 种子，种子见 `internal/apps/esports/cron_seeds.go`）。其中 `esports_expire_member_level_overrides`（会员手动调级覆盖到期回落）与 `esports_expire_priority_booking_intents`（会员优先预约意向过期消解）为 2026-10 新增；两者对应的回落 / 消解在读路径也有惰性判定，因此任务未注册时能力仍自愈。**2026-10-20 移除储值卡功能后**，`esports_expire_stored_value_cards`（卡到期作废赠送）与 `esports_expire_customer_stored_value_intents`（自助购卡支付意图过期）两个任务连同其种子一并删除，注册 / 种子数由 38 降为 36；2026-10-19 新增的 `esports_expire_pending_external_refunds` 本轮补入本清单。
 
 ## 安全基线
 

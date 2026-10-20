@@ -165,6 +165,26 @@ type afterSaleView struct {
 	SLALimitHours int        `json:"sla_limit_hours"`
 	SLADeadline   *time.Time `json:"sla_deadline"`
 	SLAOverdue    bool       `json:"sla_overdue"`
+	// SourceTypeLabel 来源类型中文名：来源类型枚举里的 stored_value_card 已随储值卡功能下线，
+	// 由后端统一给出「储值卡（已停用）」，两端无需再维护这个废弃值的中文映射。
+	SourceTypeLabel string `json:"source_type_label"`
+}
+
+// afterSaleSourceTypeLabels 来源类型的中文名（含已废弃但仍需可读的 stored_value_card）。
+var afterSaleSourceTypeLabels = map[string]string{
+	"order":             "服务订单",
+	"gift":              "礼物单",
+	"recharge":          "钱包充值",
+	"assessment":        "考核记录",
+	"stored_value_card": "储值卡（已停用）",
+}
+
+// afterSaleSourceTypeLabel 返回来源类型中文名；未知类型回落原始值，不隐藏数据。
+func afterSaleSourceTypeLabel(sourceType string) string {
+	if label, ok := afterSaleSourceTypeLabels[sourceType]; ok {
+		return label
+	}
+	return sourceType
 }
 
 // afterSaleViewsOf 批量包装售后单并计算限时信息（一次读取策略，避免逐条查配置）。
@@ -179,7 +199,7 @@ func afterSaleViewsOf(ctx context.Context, db *ent.Client, items []*ent.EsportsA
 
 // afterSaleViewOf 包装单条售后单并计算限时信息。
 func afterSaleViewOf(item *ent.EsportsAfterSale, policy afterSaleSLAPolicy, now time.Time) afterSaleView {
-	view := afterSaleView{EsportsAfterSale: item}
+	view := afterSaleView{EsportsAfterSale: item, SourceTypeLabel: afterSaleSourceTypeLabel(item.SourceType.String())}
 	if _, hours, deadline, ok := afterSaleSLADeadline(item, policy); ok {
 		at := deadline
 		view.SLALimitHours = hours

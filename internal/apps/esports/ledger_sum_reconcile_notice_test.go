@@ -14,7 +14,7 @@ import (
 // P1-21 账本对账异常的通知出口：ledger. 前缀事件 + 收件人字段（财务优先、回落超管），
 // 异常持续存在时同一小时窗口内不重复轰炸，且异常仍可经查询接口读到。
 func TestLedgerReconcileAnomalyNotifiesFinanceOrSuperAdmin(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile_notice")
+	db := openWalletTestDB(t, "esports_ledger_reconcile_notice")
 	defer db.Close()
 	ctx := t.Context()
 
@@ -112,7 +112,7 @@ func TestLedgerReconcileAnomalyNotifiesFinanceOrSuperAdmin(t *testing.T) {
 
 // P1-21 异常仍可查询：核验异常事件写入后，管理端查询接口能读到同一次核验的异常清单。
 func TestLedgerReconcileAnomalyStillQueryable(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile_query")
+	db := openWalletTestDB(t, "esports_ledger_reconcile_query")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()

@@ -267,6 +267,12 @@ type customerOrderInput struct {
 	IdempotencyKey    string `json:"idempotency_key"`
 }
 
+// customerSelfPrincipal 自助入口的幂等主体口径（客户 ID）：下单 / 充值 / 礼物等自助写接口共用，
+// 保证「同一客户 + 同一幂等键」在所有自助入口按同一主体去重。
+func customerSelfPrincipal(customerID int) string {
+	return "customer:" + strconv.Itoa(customerID)
+}
+
 // placeCustomerSelfOrder 客户自助下单（§13.2 / §13.7 / §5.1-02）：须已绑定登录身份与成年资格，
 // 且未被「限制自助下单」；有归属客服时该客服即订单负责客服，**无归属客服时也必须能自助下单**，
 // 此时订单 responsible_admin_id 为 NULL（进公共池，由 dispatch 认领）。
@@ -286,7 +292,7 @@ func placeCustomerSelfOrder(ctx context.Context, db *ent.Client, customer *ent.E
 	if customer.OwnerAdminID != nil && *customer.OwnerAdminID > 0 {
 		ownerAdminID = *customer.OwnerAdminID
 	}
-	return placeOrderWithPrincipal(ctx, db, fmt.Sprintf("customer:%d", customer.ID),
+	return placeOrderWithPrincipal(ctx, db, customerSelfPrincipal(customer.ID),
 		ownerAdminID, orderInput{
 			CustomerID:        customer.ID,
 			SkuID:             in.SkuID,

@@ -9,66 +9,6 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 )
 
-// 等级权益多来源取最高不叠加（§10.5-04）：开卡赠送在「套餐赠送」与「会员等级比例」
-// 两个来源间取高——套餐 1% 而等级 5% 时按 5% 发放，套餐 8% 时按 8%，不叠加。
-func TestStoredValueBonusTakesHighestOfPackageAndMemberLevel(t *testing.T) {
-	db := openStoredValueDB(t, "r4wm_sv_bonus_highest")
-	defer db.Close()
-	ctx := t.Context()
-	customer := saveCustomerOrFail(t, db, 11)
-	now := time.Now()
-
-	level, err := createMemberLevel(ctx, db, memberLevelInput{
-		Code: "R4WM-HIGH", Name: "等级 5%", GrowthThreshold: 0, DiscountBps: 10000,
-		PrepayBonusBps: 500, SortOrder: 1,
-	})
-	if err != nil {
-		t.Fatalf("创建等级失败：%v", err)
-	}
-	db.EsportsCustomer.UpdateOneID(customer.ID).SetMemberLevelCode(level.Code).SaveX(ctx)
-
-	lowPkg, err := saveStoredValuePackage(ctx, db, storedValuePackageInput{
-		Code: "R4WM-PKG-LOW", Name: "套餐赠送 1%", PrincipalCents: 10000, BonusCents: 100,
-	})
-	if err != nil {
-		t.Fatalf("创建套餐失败：%v", err)
-	}
-	byLowPkg, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
-		PaymentRef: "R4WM-QR-1", PackageID: lowPkg.ID,
-		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "r4wm-sv-bonus-1",
-	}, now)
-	if err != nil {
-		t.Fatalf("选套餐开卡失败：%v", err)
-	}
-	if byLowPkg.BonusRemainingCents != 500 {
-		t.Fatalf("套餐赠送 1%% 低于等级比例 5%% 时应按 5%% 发放：得到 %d，期望 500",
-			byLowPkg.BonusRemainingCents)
-	}
-	if byLowPkg.PackageID == nil || *byLowPkg.PackageID != lowPkg.ID {
-		t.Fatalf("按等级比例发放时仍应记录套餐 ID：%+v", byLowPkg)
-	}
-
-	highPkg, err := saveStoredValuePackage(ctx, db, storedValuePackageInput{
-		Code: "R4WM-PKG-HIGH", Name: "套餐赠送 8%", PrincipalCents: 10000, BonusCents: 800,
-	})
-	if err != nil {
-		t.Fatalf("创建套餐失败：%v", err)
-	}
-	byHighPkg, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
-		PaymentRef: "R4WM-QR-2", PackageID: highPkg.ID,
-		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "r4wm-sv-bonus-2",
-	}, now)
-	if err != nil {
-		t.Fatalf("选套餐开卡失败：%v", err)
-	}
-	if byHighPkg.BonusRemainingCents != 800 {
-		t.Fatalf("套餐赠送高于等级比例时应按套餐发放（不叠加）：得到 %d，期望 800",
-			byHighPkg.BonusRemainingCents)
-	}
-}
-
 // 手动调级建立稳定覆盖期（§10.5-04）：覆盖期内成长值重算不得平掉手动调高的等级，
 // 也不得登记待降级；覆盖期（可配，默认 90 天）到期后恢复成长值口径并按保护期降级。
 func TestManualMemberLevelOverrideHoldsDuringCoverageWindow(t *testing.T) {

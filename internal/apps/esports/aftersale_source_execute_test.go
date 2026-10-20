@@ -13,7 +13,6 @@ import (
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportsgiftorder"
 	"go-admin/internal/ent/esportsrechargerefundexecution"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswallettx"
 )
 
@@ -111,62 +110,10 @@ func TestGiftAfterSaleExecuteRefund(t *testing.T) {
 	}
 }
 
-// 储值卡售后执行：退卡退款按原路冲减卡内本金 / 赠送、冲回批次账本并把卡置 refunded。
-func TestStoredValueCardAfterSaleExecuteRefund(t *testing.T) {
-	db := openStoredValueDB(t, "esports_aftersale_card_exec")
-	defer db.Close()
-	ctx := t.Context()
-	now := time.Now()
-
-	customer := saveCustomerOrFail(t, db, 11)
-	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
-		PaymentRef: "AS-CARD-1", PrincipalCents: 10000, BonusCents: 2000,
-		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "as-card-open-1",
-	}, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	item := newSourceRefundAfterSale(t, db, "stored_value_card", card.ID, 10000, 11, now)
-	if _, err := approveAfterSale(ctx, db, item.ID, 12, now); err != nil {
-		t.Fatalf("审批失败：%v", err)
-	}
-	done, err := executeAfterSale(ctx, db, item.ID, 12, now)
-	if err != nil || done.Status != esportsaftersale.StatusCompleted {
-		t.Fatalf("储值卡售后执行失败：%v %+v", err, done)
-	}
-	if _, err := executeAfterSale(ctx, db, item.ID, 12, now); !errors.Is(err, errConflict) {
-		t.Fatalf("重复执行未拦截：%v", err)
-	}
-
-	got := db.EsportsStoredValueCard.GetX(ctx, card.ID)
-	if got.Status != esportsstoredvaluecard.StatusRefunded || got.RefundedCents != 10000 {
-		t.Fatalf("卡退款状态不正确：%+v", got)
-	}
-	// 退款流水：本金退回、赠送作废（负向）。
-	refundTx := db.EsportsWalletTx.Query().Where(
-		esportswallettx.EntryTypeEQ(esportswallettx.EntryTypeRefundReturn),
-		esportswallettx.SourceTypeEQ("after_sale")).OnlyX(ctx)
-	if refundTx.AccountType != esportswallettx.AccountTypeStoredValueCard ||
-		refundTx.OwnerID != card.ID || refundTx.PrincipalDeltaCents != -10000 ||
-		refundTx.BonusDeltaCents != -2000 {
-		t.Fatalf("退卡退款流水不正确：%+v", refundTx)
-	}
-	// 卡内余额归零。
-	balance, err := storedValueCardBalance(ctx, db, card.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if balance.PrincipalCents != 0 || balance.BonusCents != 0 {
-		t.Fatalf("退卡后余额应归零：%+v", balance)
-	}
-}
-
 // 充值售后部分退款：按累计已退计算剩余可返本金，允许退款额 <= 可退本金；
 // 本金按实际退款额冲减、赠送按同比例作废，执行明细同样按退款额封顶。
 func TestRechargeAfterSalePartialRefund(t *testing.T) {
-	db := openStoredValueDB(t, "esports_aftersale_recharge_partial")
+	db := openWalletTestDB(t, "esports_aftersale_recharge_partial")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()
@@ -210,7 +157,7 @@ func TestRechargeAfterSalePartialRefund(t *testing.T) {
 
 // 充值售后执行：按充值批次还原可退本金、生成外部退款执行明细，内部余额归零。
 func TestRechargeAfterSaleExecuteRefund(t *testing.T) {
-	db := openStoredValueDB(t, "esports_aftersale_recharge_exec")
+	db := openWalletTestDB(t, "esports_aftersale_recharge_exec")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()

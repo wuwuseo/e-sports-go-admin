@@ -20,7 +20,6 @@ import (
 	"go-admin/internal/ent/esportsexternalrefund"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsservicesegment"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
 	"go-admin/internal/ent/predicate"
@@ -35,7 +34,7 @@ var errExecutionFailed = errors.New("售后执行失败")
 var (
 	// 没有可原路退回的预付账户核销流水：外部渠道付款走「待执行外部退款单」（见
 	// registerExternalChannelAfterSaleRefund），其余无法识别的付款方式明确失败。
-	errRefundChannelUnavailable = fmt.Errorf("%w：该订单没有余额 / 储值卡核销流水，无法按原账户原路退回", errNotConfigured)
+	errRefundChannelUnavailable = fmt.Errorf("%w：该订单没有余额核销流水，无法按原账户原路退回", errNotConfigured)
 )
 
 type afterSaleInput struct {
@@ -90,15 +89,16 @@ func validAfterSaleKind(kind string) bool {
 }
 
 // validAfterSaleSourceType 统一售后支持的来源类型（§13.1 / §13.3）。
+// stored_value_card 为已废弃来源（2026-10-20 储值卡功能移除），不再受理新单，仅历史售后单可读。
 func validAfterSaleSourceType(sourceType string) bool {
 	switch sourceType {
-	case "order", "gift", "stored_value_card", "recharge", "assessment":
+	case "order", "gift", "recharge", "assessment":
 		return true
 	}
 	return false
 }
 
-// validAfterSaleKindForSource 按来源限制问题类型，避免「储值卡提考核申诉」这类无意义组合。
+// validAfterSaleKindForSource 按来源限制问题类型，避免「充值提考核申诉」这类无意义组合。
 func validAfterSaleKindForSource(sourceType, kind string) bool {
 	switch sourceType {
 	case "order":
@@ -148,15 +148,6 @@ func resolveAfterSaleSource(ctx context.Context, client *ent.Client, sourceType 
 			CustomerID: &gift.CustomerID, PlayerID: &gift.PlayerID,
 			Ref: map[string]interface{}{"gift_no": gift.GiftNo, "amount_cents": gift.AmountCents},
 		}, nil
-	case "stored_value_card":
-		card, err := client.EsportsStoredValueCard.Get(ctx, sourceID)
-		if err != nil {
-			return afterSaleSource{}, err
-		}
-		return afterSaleSource{
-			CustomerID: &card.CustomerID,
-			Ref:        map[string]interface{}{"card_no": card.CardNo},
-		}, nil
 	case "recharge":
 		row, err := client.EsportsWalletTx.Get(ctx, sourceID)
 		if err != nil {
@@ -192,18 +183,19 @@ func resolveAfterSaleSource(ctx context.Context, client *ent.Client, sourceType 
 	return afterSaleSource{}, errInvalidInput
 }
 
-// walletTxCustomerID 由充值流水反查客户：余额账户 owner 即客户；储值卡账户 owner 是卡 ID，再取卡上客户。
+// walletTxCustomerID 由充值流水反查客户：余额账户 owner 即客户；已废弃的储值卡账户（历史流水）
+// 以流水自证的 beneficiary 为准（该类型账户的 owner_id 是卡 ID，卡表已随功能移除）。
 func walletTxCustomerID(ctx context.Context, client *ent.Client, row *ent.EsportsWalletTx) (*int, error) {
 	switch row.AccountType {
 	case esportswallettx.AccountTypeCustomerBalance:
 		owner := row.OwnerID
 		return &owner, nil
 	case esportswallettx.AccountTypeStoredValueCard:
-		card, err := client.EsportsStoredValueCard.Get(ctx, row.OwnerID)
-		if err != nil {
-			return nil, err
+		if row.BeneficiaryType == esportswallettx.BeneficiaryTypeCustomer && row.BeneficiaryID > 0 {
+			beneficiary := row.BeneficiaryID
+			return &beneficiary, nil
 		}
-		return &card.CustomerID, nil
+		return nil, errInvalidInput
 	}
 	// 陪玩猫粮充值不属于客户来源，不进客户售后。
 	return nil, errInvalidInput
@@ -425,7 +417,7 @@ func listAfterSales(ctx context.Context, db *ent.Client, adminID int, isSuper bo
 }
 
 // afterSaleOwnedPredicate 构造非超级管理员的售后可见范围（§13.1 / §13.3）：
-// order 按负责客服的订单 ID 过滤；gift / stored_value_card / recharge 按归属客服的客户 ID 过滤
+// order 按负责客服的订单 ID 过滤；gift / recharge 按归属客服的客户 ID 过滤
 // （售后单上的 customer_id 已由 resolveAfterSaleSource 落为真实归属客户）；assessment 无客户归属，任意管理员可见。
 // 归属集合为空时返回 nil，调用方直接返回空列表。
 func afterSaleOwnedPredicate(ctx context.Context, db *ent.Client, adminID int) (predicate.EsportsAfterSale, error) {
@@ -445,7 +437,6 @@ func afterSaleOwnedPredicate(ctx context.Context, db *ent.Client, adminID int) (
 		esportsaftersale.And(
 			esportsaftersale.SourceTypeIn(
 				esportsaftersale.SourceTypeGift,
-				esportsaftersale.SourceTypeStoredValueCard,
 				esportsaftersale.SourceTypeRecharge,
 			),
 			esportsaftersale.CustomerIDIn(customerIDs...),
@@ -591,7 +582,7 @@ func afterSaleExternalSignalsOf(ctx context.Context, db *ent.Client, afterSaleID
 // ensureAfterSaleSourceOrderNotFrozen 售后写操作统一存单守卫（§4.6 存单冻结）：
 // 订单来源售后在受理 / 方案 / 审批 / 驳回 / 执行 / 撤回等会改订单或资金的入口，
 // 先按来源加载订单并复用 ensureOrderNotFrozen，冻结期间一律拒绝，避免绕过订单侧冻结。
-// 非订单来源（礼物 / 储值卡 / 充值 / 考核）没有订单可冻结，直接放行。
+// 非订单来源（礼物 / 充值 / 考核）没有订单可冻结，直接放行。
 func ensureAfterSaleSourceOrderNotFrozen(ctx context.Context, client *ent.Client,
 	item *ent.EsportsAfterSale) error {
 	if item == nil || item.SourceType != esportsaftersale.SourceTypeOrder {
@@ -1352,12 +1343,11 @@ func executeAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 		item, err = executeAfterSaleOnce(ctx, db, id, adminID, now)
 	case esportsaftersale.SourceTypeGift:
 		item, err = executeGiftAfterSale(ctx, db, id, adminID, now)
-	case esportsaftersale.SourceTypeStoredValueCard:
-		item, err = executeStoredValueCardAfterSale(ctx, db, id, adminID, now)
 	case esportsaftersale.SourceTypeRecharge:
 		item, err = executeRechargeAfterSale(ctx, db, id, adminID, now)
 	default:
-		// assessment（陪玩申诉）不产生退款 / 补履约执行动作。
+		// assessment（陪玩申诉）不产生退款 / 补履约执行动作；
+		// 已废弃的 stored_value_card 来源（历史售后单）同理，不再有可执行动作。
 		return nil, errNotConfigured
 	}
 	if err != nil {
@@ -1743,10 +1733,10 @@ func refundComposition(principalCents, bonusCents, payableCents, refundedBefore,
 // 故加钟部分的原路退回单独成行、单独来源类型，继续由 (source_type, source_id, entry_type) 唯一索引兜底幂等。
 const addonRefundWalletSource = "after_sale_addon"
 
-// executeRefundOriginal 退原核销款：支持原订单以客户余额或储值卡核销的退款。
+// executeRefundOriginal 退原核销款：支持原订单以客户余额核销的退款。
 // 查原核销流水，按原流水本金 / 赠送构成与订单累计已退额计算本次本金 / 赠送，按原账户「原路退回」
 // 写一条 refund_return 流水；幂等靠 (source_type, source_id, entry_type) 唯一索引兜底。
-// 原路退回是储值卡的关键约束：订单退款把预付款还回原卡，与「退卡」是两层独立资金动作（§4.4）。
+// 历史储值卡核销订单（账户类型已废弃）统一退回客户余额。
 //
 // §12.5-02 加钟款原路退回：可退上界含加钟已收款，本次退款先冲服务部分（沿用原核销构成与账户），
 // 超出服务可退额的部分按加钟余额收款流水的构成退回加钟原账户（首版为客户余额），
@@ -1792,34 +1782,25 @@ func executeRefundOriginal(ctx context.Context, tx *ent.Tx, item *ent.EsportsAft
 		if err != nil {
 			return err
 		}
-		// P0-4：原支付是储值卡时，写回前先查卡状态——卡已退卡 / 作废 / 冻结 / 过期 / 耗尽时
-		// 写回该卡等于把钱打进一张再也用不掉的卡，改为退回客户余额或转人工处置。
-		refundAccountType, refundOwnerID, writeCardLedger := consume.AccountType, consume.OwnerID, false
-		if consume.AccountType == esportswallettx.AccountTypeStoredValueCard {
-			refundAccountType, refundOwnerID, writeCardLedger, err = afterSaleRefundAccountForCard(ctx, tx, order, consume.OwnerID)
-			if err != nil {
-				return err
-			}
-		}
+		// 原核销账户是已废弃的储值卡（2026-10-20 储值卡功能移除，卡表已 DROP）：卡一律视为不可用，
+		// 沿用既有「卡不可用 → 退回客户余额」口径；余额账户也不可入账时明确失败交人工处置，
+		// 绝不把钱写回一个已下线的卡账户。
+		refundAccountType, refundOwnerID := consume.AccountType, consume.OwnerID
 		refundNote := "售后退款"
-		if consume.AccountType == esportswallettx.AccountTypeStoredValueCard && !writeCardLedger {
-			refundNote = "售后退款（原储值卡已不可用，退回客户余额）"
+		if consume.AccountType == esportswallettx.AccountTypeStoredValueCard {
+			usable, uerr := customerBalanceAccountUsable(ctx, tx.Client(), order.CustomerID)
+			if uerr != nil {
+				return uerr
+			}
+			if !usable {
+				return fmt.Errorf("%w：原支付储值卡已下线且客户余额账户不可入账，退款需人工处置", errExecutionFailed)
+			}
+			refundAccountType, refundOwnerID = esportswallettx.AccountTypeCustomerBalance, order.CustomerID
+			refundNote = "售后退款（原储值卡已下线，退回客户余额）"
 		}
 		if err = createAfterSaleRefundTx(ctx, tx, item, adminID, refundAccountType, refundOwnerID,
 			"after_sale", principalBack, bonusBack, refundNote); err != nil {
 			return err
-		}
-		// 储值卡订单退款冲回对应预付款批次，保持批次账本与卡片余额一致。
-		if writeCardLedger {
-			if _, err = tx.EsportsLedgerEntry.Create().
-				SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(consume.OwnerID)).
-				SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
-				SetEntryRole("card_refund_return").SetDeltaCents(serviceRefund).Save(ctx); err != nil {
-				if ent.IsConstraintError(err) {
-					return errConflict
-				}
-				return fmt.Errorf("%w：储值卡退款批次写入失败：%v", errExecutionFailed, err)
-			}
 		}
 	}
 	if addonRefund > 0 {
@@ -2051,36 +2032,6 @@ func appendAfterSaleResolution(ctx context.Context, tx *ent.Tx, item *ent.Esport
 	_, err := tx.EsportsAfterSale.UpdateOneID(item.ID).
 		SetResolution(truncateRunes(resolution, 255)).Save(ctx)
 	return err
-}
-
-// afterSaleRefundAccountForCard 决定储值卡订单「退原核销款」的入账账户（§4.4 / P0-4）。
-// 只有仍为 active 的卡才把钱写回原卡（active 是唯一可再次消费的状态，见
-// schema/esports_stored_value.go 的状态枚举：pending_verification / rejected / active /
-// exhausted / refund_pending / refunded / expired / frozen）。卡已退出可消费状态时：
-//   - 卡属该订单客户且客户余额账户可用 → 退回客户余额（第三个返回值 false，不再写卡片批次冲回）；
-//   - 否则返回 errExecutionFailed，由售后单落 execution_failed（既有异常态）交人工处置，
-//     绝不把钱写回一张已退卡 / 作废的卡。
-func afterSaleRefundAccountForCard(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
-	cardID int) (esportswallettx.AccountType, int, bool, error) {
-	card, err := tx.EsportsStoredValueCard.Get(ctx, cardID)
-	if err != nil {
-		return "", 0, false, err
-	}
-	if card.Status == esportsstoredvaluecard.StatusActive {
-		return esportswallettx.AccountTypeStoredValueCard, card.ID, true, nil
-	}
-	if card.CustomerID == order.CustomerID {
-		usable, err := customerBalanceAccountUsable(ctx, tx.Client(), order.CustomerID)
-		if err != nil {
-			return "", 0, false, err
-		}
-		if usable {
-			return esportswallettx.AccountTypeCustomerBalance, order.CustomerID, false, nil
-		}
-	}
-	return "", 0, false, fmt.Errorf(
-		"%w：原支付储值卡已不可用（状态 %s），且无法退回客户余额，退款需人工处置",
-		errExecutionFailed, card.Status.String())
 }
 
 // customerBalanceAccountUsable 客户余额账户是否可入账：未建账户（余额完全由流水求和派生）视为可用，

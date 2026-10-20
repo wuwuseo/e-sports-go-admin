@@ -11,12 +11,11 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportsgiftorder"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswallettx"
 )
 
 // 非订单来源售后执行（§13.3 / §13.6）：
-// 礼物 / 储值卡 / 充值三类来源从「待执行」落账并完成，各按自身退款口径原路退回、
+// 礼物 / 充值两类来源从「待执行」落账并完成，各按自身退款口径原路退回、
 // 冲回分成 / 权益，幂等靠售后单状态流转 + 下游唯一索引兜底。
 
 // completeSourceAfterSale 事务内把非订单售后单置为已完成并写外盒留痕（§13.6）。
@@ -48,7 +47,7 @@ func completeSourceAfterSale(ctx context.Context, tx *ent.Tx, id, adminID int, e
 	return nil
 }
 
-// executeGiftAfterSale 礼物售后执行：按原付款来源退回（余额本金或储值卡本金），
+// executeGiftAfterSale 礼物售后执行：按原付款来源退回（余额本金），
 // 复用 refundGiftIn 冲回礼物分成（kind=gift_reversal）与成长值。
 func executeGiftAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
 	tx, err := db.Tx(ctx)
@@ -82,106 +81,6 @@ func executeGiftAfterSale(ctx context.Context, db *ent.Client, id, adminID int, 
 	}
 	if err = completeSourceAfterSale(ctx, tx, id, adminID, "gift_refunded", map[string]interface{}{
 		"after_sale_no": item.AfterSaleNo, "gift_no": gift.GiftNo, "refund_cents": item.RefundCents,
-	}, now); err != nil {
-		return nil, err
-	}
-	if err = tx.Commit(); err != nil {
-		return nil, err
-	}
-	return db.EsportsAfterSale.Get(ctx, id)
-}
-
-// executeStoredValueCardAfterSale 储值卡售后执行：退卡退款按原路（与 decideStoredValueRefund 同口径），
-// 冲减卡内本金与赠送、冲回预付款批次账本并把卡置为 refunded。
-func executeStoredValueCardAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
-	tx, err := db.Tx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	item, err := tx.EsportsAfterSale.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if item.Status != esportsaftersale.StatusPendingExecution {
-		return nil, errConflict
-	}
-	if item.PlanAction != esportsaftersale.PlanActionRefundOriginal || item.RefundCents <= 0 {
-		return nil, errInvalidInput
-	}
-	card, err := tx.EsportsStoredValueCard.Get(ctx, item.SourceID)
-	if err != nil {
-		return nil, err
-	}
-	switch card.Status {
-	case esportsstoredvaluecard.StatusActive, esportsstoredvaluecard.StatusExhausted, esportsstoredvaluecard.StatusExpired:
-	default:
-		return nil, errStoredValueUnusable
-	}
-	// 售后退卡与卡消费/到期作废共用卡锁，避免并发把同一笔未消费本金退两次。
-	unlockCard := lockMoneyAccount("card:" + strconv.Itoa(card.ID))
-	defer unlockCard()
-	balance, err := storedValueCardBalanceTx(ctx, tx, card.ID)
-	if err != nil {
-		return nil, err
-	}
-	_, refundable := storedValueRefundQuote(card, balance, now)
-	if refundable <= 0 {
-		return nil, fmt.Errorf("%w：该卡已无未消费本金，无需退卡", errInvalidInput)
-	}
-	if item.RefundCents != refundable {
-		return nil, fmt.Errorf("%w：退款金额与储值卡未消费本金不一致（应退 %d）", errConflict, refundable)
-	}
-	forfeited := balance.BonusCents
-	// 退卡：本金退回、赠送作废，两者分列记账（§4.4）。
-	if _, err = tx.EsportsWalletTx.Create().SetTxNo(uuid.NewString()).
-		SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
-		SetEntryType(esportswallettx.EntryTypeRefundReturn).
-		SetPrincipalDeltaCents(-balance.PrincipalCents).SetBonusDeltaCents(-balance.BonusCents).
-		SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
-		SetOperatorID(adminID).SetNote("售后退卡：本金退回，赠送作废").Save(ctx); err != nil {
-		if ent.IsConstraintError(err) {
-			return nil, errConflict
-		}
-		return nil, fmt.Errorf("%w：退款流水写入失败：%v", errExecutionFailed, err)
-	}
-	if _, err = tx.EsportsLedgerEntry.Create().
-		SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
-		SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
-		SetEntryRole("card_refund").SetDeltaCents(-balance.total()).
-		SetFundBatch(card.CardNo).Save(ctx); err != nil {
-		if ent.IsConstraintError(err) {
-			return nil, errConflict
-		}
-		return nil, fmt.Errorf("%w：批次账本冲回写入失败：%v", errExecutionFailed, err)
-	}
-	if forfeited > 0 {
-		if _, err = tx.EsportsLedgerEntry.Create().
-			SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
-			SetSourceType("after_sale").SetSourceID(item.AfterSaleNo).
-			SetEntryRole("card_bonus_forfeit").SetDeltaCents(0).
-			SetFundBatch(card.CardNo).Save(ctx); err != nil {
-			if ent.IsConstraintError(err) {
-				return nil, errConflict
-			}
-			return nil, fmt.Errorf("%w：赠送作废留痕写入失败：%v", errExecutionFailed, err)
-		}
-	}
-	changed, err := tx.EsportsStoredValueCard.Update().Where(
-		esportsstoredvaluecard.IDEQ(card.ID),
-		esportsstoredvaluecard.VersionEQ(card.Version),
-	).SetStatus(esportsstoredvaluecard.StatusRefunded).
-		SetRefundedCents(refundable).
-		SetRefundDecidedByAdminID(adminID).SetRefundedAt(now.UTC()).
-		AddVersion(1).Save(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if changed != 1 {
-		return nil, errConflict
-	}
-	if err = completeSourceAfterSale(ctx, tx, id, adminID, "card_refunded", map[string]interface{}{
-		"after_sale_no": item.AfterSaleNo, "card_no": card.CardNo, "refund_cents": refundable,
 	}, now); err != nil {
 		return nil, err
 	}

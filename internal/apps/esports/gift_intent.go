@@ -22,42 +22,38 @@ type giftIntentInput struct {
 	CustomerID int `json:"customer_id"`
 	GiftID     int `json:"gift_id"`
 	// 价格档位（§9.1-02）：0 表示不分档。
-	GiftTierID        int    `json:"gift_tier_id"`
-	PlayerID          int    `json:"player_id"`
-	Quantity          int    `json:"quantity"`
-	OrderID           *int   `json:"order_id"`
-	PaymentSource     string `json:"payment_source"`
-	StoredValueCardID int    `json:"stored_value_card_id"`
-	ClientKey         string `json:"client_key"`
+	GiftTierID    int    `json:"gift_tier_id"`
+	PlayerID      int    `json:"player_id"`
+	Quantity      int    `json:"quantity"`
+	OrderID       *int   `json:"order_id"`
+	PaymentSource string `json:"payment_source"`
+	ClientKey     string `json:"client_key"`
 }
 
 // customerGiftIntentInput 是客户自助创建礼物确认单的入参（§9.2）：客户身份由登录态解析。
 type customerGiftIntentInput struct {
-	GiftID            int    `json:"gift_id"`
-	GiftTierID        int    `json:"gift_tier_id"`
-	PlayerID          int    `json:"player_id"`
-	Quantity          int    `json:"quantity"`
-	PaymentSource     string `json:"payment_source"`
-	StoredValueCardID int    `json:"stored_value_card_id"`
-	ClientKey         string `json:"client_key"`
+	GiftID        int    `json:"gift_id"`
+	GiftTierID    int    `json:"gift_tier_id"`
+	PlayerID      int    `json:"player_id"`
+	Quantity      int    `json:"quantity"`
+	PaymentSource string `json:"payment_source"`
+	ClientKey     string `json:"client_key"`
 }
 
 // giftIntentView 是礼物确认单的对外返回结构（§9.2）：对齐 EsportsGiftIntent，不暴露归属客服 ID。
 type giftIntentView struct {
-	ID                int    `json:"id"`
-	CustomerID        int    `json:"customer_id"`
-	GiftID            int    `json:"gift_id"`
-	GiftName          string `json:"gift_name"`
-	GiftVersion       int    `json:"gift_version"`
-	PlayerID          int    `json:"player_id"`
-	PlayerName        string `json:"player_name"`
-	OrderID           *int   `json:"order_id"`
-	Quantity          int    `json:"quantity"`
-	UnitPriceCents    int64  `json:"unit_price_cents"`
-	AmountCents       int64  `json:"amount_cents"`
-	PaymentSource     string `json:"payment_source"`
-	StoredValueCardID *int   `json:"stored_value_card_id"`
-	StoredValueCardNo string `json:"stored_value_card_no"`
+	ID             int    `json:"id"`
+	CustomerID     int    `json:"customer_id"`
+	GiftID         int    `json:"gift_id"`
+	GiftName       string `json:"gift_name"`
+	GiftVersion    int    `json:"gift_version"`
+	PlayerID       int    `json:"player_id"`
+	PlayerName     string `json:"player_name"`
+	OrderID        *int   `json:"order_id"`
+	Quantity       int    `json:"quantity"`
+	UnitPriceCents int64  `json:"unit_price_cents"`
+	AmountCents    int64  `json:"amount_cents"`
+	PaymentSource  string `json:"payment_source"`
 	// 价格档位快照（§9.1-02）。
 	GiftTierID   int    `json:"gift_tier_id"`
 	GiftTierCode string `json:"gift_tier_code"`
@@ -86,8 +82,7 @@ func toGiftIntentView(item *ent.EsportsGiftIntent) giftIntentView {
 		GiftName: item.GiftName, GiftVersion: item.GiftVersion,
 		PlayerID: item.PlayerID, PlayerName: item.PlayerName, OrderID: item.OrderID,
 		Quantity: item.Quantity, UnitPriceCents: item.UnitPriceCents, AmountCents: item.AmountCents,
-		PaymentSource: item.PaymentSource, StoredValueCardID: item.StoredValueCardID,
-		StoredValueCardNo: item.StoredValueCardNo, ClientKey: item.ClientKey,
+		PaymentSource: item.PaymentSource, ClientKey: item.ClientKey,
 		GiftTierID: item.GiftTierID, GiftTierCode: item.GiftTierCode,
 		HighValue: item.HighValue, RequireAge: item.RequireAge,
 		PaymentChannel: item.PaymentChannel.String(), PaymentStatus: item.PaymentStatus.String(),
@@ -116,46 +111,32 @@ func createCustomerGiftIntent(ctx context.Context, db *ent.Client, uid string, i
 		in.PaymentSource = "customer_balance_principal"
 	}
 	return createGiftIntent(ctx, db, *customer.OwnerAdminID, false, giftIntentInput{
-		CustomerID:        customer.ID,
-		GiftID:            in.GiftID,
-		GiftTierID:        in.GiftTierID,
-		PlayerID:          in.PlayerID,
-		Quantity:          in.Quantity,
-		PaymentSource:     in.PaymentSource,
-		StoredValueCardID: in.StoredValueCardID,
-		ClientKey:         in.ClientKey,
+		CustomerID:    customer.ID,
+		GiftID:        in.GiftID,
+		GiftTierID:    in.GiftTierID,
+		PlayerID:      in.PlayerID,
+		Quantity:      in.Quantity,
+		PaymentSource: in.PaymentSource,
+		ClientKey:     in.ClientKey,
 	}, now)
 }
 
 // customerGiftIntentFunding 判断确认单的本金来源是否充足（§9.2 / §9.2-01）：
-// 余额本金与储值卡本金两条链路在发起时都要能足额核销；不足时客户端应改走发起收款。
+// 余额本金链路在发起时就要能足额核销；不足时客户端应改走发起收款。
 // 返回 (是否充足, 提示)。
 func customerGiftIntentFunding(ctx context.Context, db *ent.Client,
 	intent *ent.EsportsGiftIntent) (bool, string, error) {
 	if intent == nil {
 		return false, "", errInvalidInput
 	}
-	if intent.PaymentSource != "stored_value_card_principal" {
-		balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, intent.CustomerID)
-		if err != nil {
-			return false, "", err
-		}
-		if balance.PrincipalCents >= intent.AmountCents {
-			return true, "", nil
-		}
-		return false, "本金余额不足，请充值或发起收款", nil
-	}
-	if intent.StoredValueCardID == nil {
-		return false, "储值卡信息缺失，请重新发起", nil
-	}
-	balance, err := storedValueCardBalance(ctx, db, *intent.StoredValueCardID)
+	balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, intent.CustomerID)
 	if err != nil {
 		return false, "", err
 	}
 	if balance.PrincipalCents >= intent.AmountCents {
 		return true, "", nil
 	}
-	return false, "卡内本金不足，请充值或发起收款", nil
+	return false, "本金余额不足，请充值或发起收款", nil
 }
 
 func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper bool, in giftIntentInput, now time.Time) (*ent.EsportsGiftIntent, error) {
@@ -167,8 +148,9 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if adminID < 1 || in.CustomerID < 1 || in.GiftID < 1 || in.PlayerID < 1 || in.Quantity < 1 || in.Quantity > 999 || len(key) < 8 || len(key) > 128 {
 		return nil, errInvalidInput
 	}
-	if (in.PaymentSource != "customer_balance_principal" || in.StoredValueCardID != 0) &&
-		(in.PaymentSource != "stored_value_card_principal" || in.StoredValueCardID < 1) {
+	// 付款来源仅支持客户余额本金；储值卡本金（stored_value_card_principal）随功能下线，
+	// 外部收款走 confirmation 之后的 payment/start 链路（§9.2-01）。
+	if in.PaymentSource != "customer_balance_principal" {
 		return nil, errInvalidInput
 	}
 	customer, err := loadOwnedCustomer(ctx, db, adminID, isSuper, in.CustomerID)
@@ -178,8 +160,7 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	prior, err := db.EsportsGiftIntent.Query().Where(esportsgiftintent.CreatedByAdminIDEQ(adminID), esportsgiftintent.ClientKeyEQ(key)).Only(ctx)
 	if err == nil {
 		if prior.CustomerID == in.CustomerID && prior.GiftID == in.GiftID && prior.PlayerID == in.PlayerID && prior.Quantity == in.Quantity &&
-			sameOptionalID(prior.OrderID, in.OrderID) && prior.PaymentSource == in.PaymentSource &&
-			(in.StoredValueCardID == 0 && prior.StoredValueCardID == nil || prior.StoredValueCardID != nil && *prior.StoredValueCardID == in.StoredValueCardID) {
+			sameOptionalID(prior.OrderID, in.OrderID) && prior.PaymentSource == in.PaymentSource {
 			return prior, nil
 		}
 		return nil, errConflict
@@ -222,19 +203,8 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if terms.requireAdult && customer.AgeStatus != esportscustomer.AgeStatusAdult {
 		return nil, errAgeUnverified
 	}
-	// 余额 / 卡本金不足时不再直接拒绝：客户可改走「发起收款」（§9.2-01），
+	// 余额本金不足时不再直接拒绝：客户可改走「发起收款」（§9.2-01），
 	// 真正的资金校验仍在送礼核销时强制执行，不存在伪成功。
-	var cardNo string
-	if in.StoredValueCardID > 0 {
-		card, err := db.EsportsStoredValueCard.Get(ctx, in.StoredValueCardID)
-		if err != nil {
-			return nil, err
-		}
-		if err := storedValueCardUsableForGift(card, customer.ID, now); err != nil {
-			return nil, err
-		}
-		cardNo = card.CardNo
-	}
 	if in.OrderID != nil {
 		order, err := db.EsportsOrder.Get(ctx, *in.OrderID)
 		if err != nil {
@@ -253,14 +223,11 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		SetGiftName(gift.Name).SetGiftVersion(gift.Version).SetPlayerID(player.ID).
 		SetPlayerName(player.DisplayName).SetQuantity(in.Quantity).
 		SetUnitPriceCents(terms.unitPrice).SetAmountCents(terms.unitPrice * int64(in.Quantity)).
-		SetPaymentSource(in.PaymentSource).SetStoredValueCardNo(cardNo).
+		SetPaymentSource(in.PaymentSource).
 		SetGiftTierID(in.GiftTierID).SetHighValue(terms.highValue).SetRequireAge(terms.requireAge).
 		SetCreatedByAdminID(adminID).SetClientKey(key).SetExpiresAt(now.UTC().Add(30 * time.Minute))
 	if terms.tier != nil {
 		create.SetGiftTierCode(terms.tier.TierCode)
-	}
-	if in.StoredValueCardID > 0 {
-		create.SetStoredValueCardID(in.StoredValueCardID)
 	}
 	if in.OrderID != nil {
 		create.SetOrderID(*in.OrderID)
@@ -390,7 +357,7 @@ func executeGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper
 		return nil, errConflict
 	}
 	paymentSource := intent.PaymentSource
-	// 已发起外部收款的确认单：钱从渠道来，核销时按外部收款来源成单（不再动余额 / 卡本金）。
+	// 已发起外部收款的确认单：钱从渠道来，核销时按外部收款来源成单（不再动余额）。
 	if validGiftPaymentChannel(intent.PaymentChannel.String()) {
 		paymentSource = giftPaymentSourceExternal
 	}
@@ -399,9 +366,6 @@ func executeGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper
 		PlayerID:   intent.PlayerID, Quantity: intent.Quantity, OrderID: intent.OrderID,
 		PaymentSource: paymentSource,
 		Confirmed:     true, AuthorizationID: intent.ID, ClientKey: fmt.Sprintf("gift-intent:%d", intent.ID)}
-	if intent.StoredValueCardID != nil {
-		in.StoredValueCardID = *intent.StoredValueCardID
-	}
 	order, err := sendGiftWithRole(ctx, db, adminID, isSuper, in, now)
 	if errors.Is(err, errConflict) {
 		latest, lookupErr := db.EsportsGiftIntent.Get(ctx, intentID)

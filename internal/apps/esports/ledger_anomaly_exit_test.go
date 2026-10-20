@@ -65,7 +65,7 @@ func w8ContainsKind(kinds []string, want string) bool {
 // 五类异常全部走同一通知出口：每个账户一条事件、种类齐全、收件人与幂等口径一致，
 // 且同一小时窗口内重复核验不重复发送。
 func TestLedgerReconcileAllAnomalyKindsShareNoticeExit(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_notice_exit")
+	db := openWalletTestDB(t, "esports_ledger_notice_exit")
 	defer db.Close()
 	ctx := t.Context()
 
@@ -163,7 +163,7 @@ func TestLedgerReconcileAllAnomalyKindsShareNoticeExit(t *testing.T) {
 
 // 幂等键 = 类型:小时窗口:收件人:账户类型:账户 ID：同小时去重、跨小时重新提醒。
 func TestLedgerReconcileNoticeHourlyIdempotencyKey(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_notice_hour_bucket")
+	db := openWalletTestDB(t, "esports_ledger_notice_hour_bucket")
 	defer db.Close()
 	ctx := t.Context()
 
@@ -201,7 +201,7 @@ func TestLedgerReconcileNoticeHourlyIdempotencyKey(t *testing.T) {
 
 // 新接入出口的「批次超额分摊」类异常同样投递给财务角色成员（收件人口径与既有两类一致）。
 func TestLedgerReconcileOverAllocatedNotifiesFinanceRole(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_notice_finance_over")
+	db := openWalletTestDB(t, "esports_ledger_notice_finance_over")
 	defer db.Close()
 	ctx := t.Context()
 

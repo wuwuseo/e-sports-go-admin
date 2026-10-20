@@ -109,16 +109,6 @@ func PaymentSource(v string) predicate.EsportsGiftIntent {
 	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldPaymentSource, v))
 }
 
-// StoredValueCardID applies equality check predicate on the "stored_value_card_id" field. It's identical to StoredValueCardIDEQ.
-func StoredValueCardID(v int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardNo applies equality check predicate on the "stored_value_card_no" field. It's identical to StoredValueCardNoEQ.
-func StoredValueCardNo(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldStoredValueCardNo, v))
-}
-
 // GiftTierID applies equality check predicate on the "gift_tier_id" field. It's identical to GiftTierIDEQ.
 func GiftTierID(v int) predicate.EsportsGiftIntent {
 	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldGiftTierID, v))
@@ -732,121 +722,6 @@ func PaymentSourceEqualFold(v string) predicate.EsportsGiftIntent {
 // PaymentSourceContainsFold applies the ContainsFold predicate on the "payment_source" field.
 func PaymentSourceContainsFold(v string) predicate.EsportsGiftIntent {
 	return predicate.EsportsGiftIntent(sql.FieldContainsFold(FieldPaymentSource, v))
-}
-
-// StoredValueCardIDEQ applies the EQ predicate on the "stored_value_card_id" field.
-func StoredValueCardIDEQ(v int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDNEQ applies the NEQ predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNEQ(v int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDIn applies the In predicate on the "stored_value_card_id" field.
-func StoredValueCardIDIn(vs ...int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldIn(FieldStoredValueCardID, vs...))
-}
-
-// StoredValueCardIDNotIn applies the NotIn predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNotIn(vs ...int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldStoredValueCardID, vs...))
-}
-
-// StoredValueCardIDGT applies the GT predicate on the "stored_value_card_id" field.
-func StoredValueCardIDGT(v int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldGT(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDGTE applies the GTE predicate on the "stored_value_card_id" field.
-func StoredValueCardIDGTE(v int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDLT applies the LT predicate on the "stored_value_card_id" field.
-func StoredValueCardIDLT(v int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldLT(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDLTE applies the LTE predicate on the "stored_value_card_id" field.
-func StoredValueCardIDLTE(v int) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDIsNil applies the IsNil predicate on the "stored_value_card_id" field.
-func StoredValueCardIDIsNil() predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldIsNull(FieldStoredValueCardID))
-}
-
-// StoredValueCardIDNotNil applies the NotNil predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNotNil() predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldNotNull(FieldStoredValueCardID))
-}
-
-// StoredValueCardNoEQ applies the EQ predicate on the "stored_value_card_no" field.
-func StoredValueCardNoEQ(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldEQ(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoNEQ applies the NEQ predicate on the "stored_value_card_no" field.
-func StoredValueCardNoNEQ(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldNEQ(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoIn applies the In predicate on the "stored_value_card_no" field.
-func StoredValueCardNoIn(vs ...string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldIn(FieldStoredValueCardNo, vs...))
-}
-
-// StoredValueCardNoNotIn applies the NotIn predicate on the "stored_value_card_no" field.
-func StoredValueCardNoNotIn(vs ...string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldNotIn(FieldStoredValueCardNo, vs...))
-}
-
-// StoredValueCardNoGT applies the GT predicate on the "stored_value_card_no" field.
-func StoredValueCardNoGT(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldGT(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoGTE applies the GTE predicate on the "stored_value_card_no" field.
-func StoredValueCardNoGTE(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldGTE(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoLT applies the LT predicate on the "stored_value_card_no" field.
-func StoredValueCardNoLT(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldLT(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoLTE applies the LTE predicate on the "stored_value_card_no" field.
-func StoredValueCardNoLTE(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldLTE(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoContains applies the Contains predicate on the "stored_value_card_no" field.
-func StoredValueCardNoContains(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldContains(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoHasPrefix applies the HasPrefix predicate on the "stored_value_card_no" field.
-func StoredValueCardNoHasPrefix(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldHasPrefix(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoHasSuffix applies the HasSuffix predicate on the "stored_value_card_no" field.
-func StoredValueCardNoHasSuffix(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldHasSuffix(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoEqualFold applies the EqualFold predicate on the "stored_value_card_no" field.
-func StoredValueCardNoEqualFold(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldEqualFold(FieldStoredValueCardNo, v))
-}
-
-// StoredValueCardNoContainsFold applies the ContainsFold predicate on the "stored_value_card_no" field.
-func StoredValueCardNoContainsFold(v string) predicate.EsportsGiftIntent {
-	return predicate.EsportsGiftIntent(sql.FieldContainsFold(FieldStoredValueCardNo, v))
 }
 
 // GiftTierIDEQ applies the EQ predicate on the "gift_tier_id" field.

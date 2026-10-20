@@ -13,7 +13,7 @@ import (
 
 // §8.2-15 / 附录 B.3-1：收款并发窗口的订单级串行化回归。
 //
-// 这三条路径（余额核销 / 储值卡核销 / 凭证提交与核验）都要先判「同一订单是否已有待核验凭证」，
+// 这两条路径（余额核销 / 凭证提交与核验）都要先判「同一订单是否已有待核验凭证」，
 // 仅靠同事务读无法关闭极端并发窗口。实现用「订单行乐观版本守卫（条件更新式占位）」：
 // 事务前的读给出 expectedVersion，事务内的占位 `UPDATE ... WHERE version = ? AND 待付款` 影响行数
 // 不为 1 即冲突（MySQL 下该 UPDATE 本身持有行级写锁，等价 SELECT ... FOR UPDATE）。
@@ -86,51 +86,6 @@ func TestOrderLockBlocksBalancePaymentWhenProofSubmittedInWindow(t *testing.T) {
 	}
 }
 
-// A（储值卡核销）读到「无待核验凭证」后，B 提交转账凭证并提交事务 → A 写回必须失败，卡内余额不动。
-func TestOrderLockBlocksStoredValuePaymentWhenProofSubmittedInWindow(t *testing.T) {
-	db := openDuplicateGuardDB(t, "esports_order_lock_card_window")
-	defer db.Close()
-	ctx := t.Context()
-	now := time.Now().UTC()
-
-	account := seedActivePaymentAccount(t, db, "merchant_qr", "QR-OL-0001")
-	intent := seedPayableOrderForOffline(t, db, "ollockcard", "merchant_qr")
-	order := db.EsportsOrder.GetX(ctx, intent.OrderID)
-	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: order.CustomerID, Source: "staff", PaymentChannel: "merchant_qr",
-		PaymentRef: "QR-OL-CARD-OPEN", PrincipalCents: order.PayableCents + 1000,
-		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "ol-lock-card-open",
-	}, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var proofErr error
-	setPaymentOrderInterleaveHook(t, onceOnlyHook(func() {
-		_, proofErr = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-			OrderID: order.ID, AccountID: account.ID, TransactionNo: "QR-OL-TXN-0001",
-			AmountCents: order.PayableCents, ProofRef: "proof/ol-lock-0002.png",
-		}, 11, now)
-	}))
-
-	if _, err := payOrderWithStoredValueCard(ctx, db, 11, order.ID, card.ID, now); !errors.Is(err, errConflict) {
-		t.Fatalf("交错点后储值卡核销必须判冲突，err=%v", err)
-	}
-	if proofErr != nil {
-		t.Fatalf("交错点内提交待核验凭证应成功：%v", proofErr)
-	}
-	remaining, err := storedValueCardBalance(ctx, db, card.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if remaining.total() != card.PrincipalCents+card.BonusCents {
-		t.Fatalf("失败的储值卡核销不得扣卡内余额：%+v", remaining)
-	}
-	if reload := db.EsportsOrder.GetX(ctx, order.ID); reload.PaymentStatus != esportsorder.PaymentStatusUnpaid {
-		t.Fatalf("失败的储值卡核销不得改单：%+v", reload)
-	}
-}
-
 // 反向：A（提交待核验凭证）读到「订单待付款」后，B 已用余额核销并提交 → A 必须失败且不落凭证，
 // 避免出现「订单已付款 + 仍挂一张待核验凭证」的悬账。
 func TestOrderLockBlocksProofSubmitWhenBalancePaidInWindow(t *testing.T) {
@@ -200,7 +155,7 @@ func TestOrderLockReserveRejectsWhenOrderPaidInWindow(t *testing.T) {
 	}
 }
 
-// 正常单请求路径不受影响：余额核销、储值卡核销、凭证提交 + 核验三条路径各自一遍走通。
+// 正常单请求路径不受影响：余额核销、凭证提交 + 核验两条路径各自一遍走通。
 func TestOrderLockKeepsSingleRequestPaymentPathsWorking(t *testing.T) {
 	t.Run("余额核销", func(t *testing.T) {
 		db := openDuplicateGuardDB(t, "esports_order_lock_normal_balance")
@@ -231,38 +186,6 @@ func TestOrderLockKeepsSingleRequestPaymentPathsWorking(t *testing.T) {
 		balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, order.CustomerID)
 		if err != nil || balance.total() != 500 {
 			t.Fatalf("余额核销应只扣应付额：%+v err=%v", balance, err)
-		}
-	})
-
-	t.Run("储值卡核销", func(t *testing.T) {
-		db := openDuplicateGuardDB(t, "esports_order_lock_normal_card")
-		defer db.Close()
-		ctx := t.Context()
-		now := time.Now().UTC()
-
-		seedActivePaymentAccount(t, db, "merchant_qr", "QR-OL-0002")
-		intent := seedPayableOrderForOffline(t, db, "olnormcard", "merchant_qr")
-		order := db.EsportsOrder.GetX(ctx, intent.OrderID)
-		card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-			CustomerID: order.CustomerID, Source: "staff", PaymentChannel: "merchant_qr",
-			PaymentRef: "QR-OL-NORMAL-OPEN", PrincipalCents: order.PayableCents + 800,
-			ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "ol-normal-card-open",
-		}, now)
-		if err != nil {
-			t.Fatal(err)
-		}
-		paid, err := payOrderWithStoredValueCard(ctx, db, 11, order.ID, card.ID, now)
-		if err != nil {
-			t.Fatalf("单请求储值卡核销应成功：%v", err)
-		}
-		if paid.PaymentStatus != esportsorder.PaymentStatusPaid ||
-			paid.PaymentChannel != esportsorder.PaymentChannelStoredValueCard ||
-			paid.StoredValueCardID == nil || *paid.StoredValueCardID != card.ID {
-			t.Fatalf("储值卡核销后订单状态不正确：%+v", paid)
-		}
-		remaining, err := storedValueCardBalance(ctx, db, card.ID)
-		if err != nil || remaining.total() != 800 {
-			t.Fatalf("储值卡核销应只扣应付额：%+v err=%v", remaining, err)
 		}
 	})
 

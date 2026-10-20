@@ -16,7 +16,7 @@ import (
 // 按充值批次退款执行（§4.5）：两个充值批次未消费时，按批次生成执行明细；
 // 幂等键按「售后单来源 + 批次来源」拆分，重复执行不重复落账。
 func TestRechargeRefundExecGeneratesBatchItems(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_exec")
+	db := openWalletTestDB(t, "esports_recharge_refund_exec")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()
@@ -86,7 +86,7 @@ func TestRechargeRefundExecGeneratesBatchItems(t *testing.T) {
 
 // 同一批次被多张售后单分次退款：执行明细合计不得超过批次原始本金。
 func TestRechargeRefundExecCumulativeBatchCap(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_exec_cumulative")
+	db := openWalletTestDB(t, "esports_recharge_refund_exec_cumulative")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()
@@ -166,7 +166,7 @@ func firstSourceID(t *testing.T, db *ent.Client, customerID int) string {
 
 // 异常批次不落账：分摊额超过批次额的批次退款金额不可信，跳过生成明细，只落健康批次。
 func TestRechargeRefundExecSkipsAnomalousBatch(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_exec_anomaly")
+	db := openWalletTestDB(t, "esports_recharge_refund_exec_anomaly")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()

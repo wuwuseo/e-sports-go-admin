@@ -147,7 +147,7 @@ func TestDeliverOutboxBatchBusinessEventsNeverBroadcast(t *testing.T) {
 		{"wallet.recharge", "wallet_account:1", map[string]interface{}{"admin_id": operator.ID, "amount_cents": 500}},
 		{"ledger.reconcile_anomaly", "wallet_account:1", map[string]interface{}{"admin_id": operator.ID}},
 		{"commission.generated", "commission:1", map[string]interface{}{"admin_id": operator.ID}},
-		{"stored_value.card_activated", "stored_value_card:1", map[string]interface{}{"admin_id": operator.ID}},
+		{"gift.intent_confirmed", "gift_intent:1", map[string]interface{}{"admin_id": operator.ID}},
 		{"sku.suspension_requested", "sku:1", map[string]interface{}{"admin_id": operator.ID}},
 	}
 	seeded := 0

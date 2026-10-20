@@ -93,15 +93,6 @@ func rebuildDispatchPriorityTask(ctx context.Context, logger io.Writer) error {
 	return err
 }
 
-// expireStoredValueCardsTask 把已过有效期的储值卡标记为已过期（§4.4 到期）。
-func expireStoredValueCardsTask(ctx context.Context, logger io.Writer) error {
-	count, err := expireStoredValueCards(ctx, global.ORM, time.Now(), 200)
-	if err == nil {
-		_, _ = fmt.Fprintf(logger, "处理到期储值卡：%d\n", count)
-	}
-	return err
-}
-
 // generateCsSettlementsTask 为各客服按上一完整周期自动生成提成结算单（§12.2）。
 func generateCsSettlementsTask(ctx context.Context, logger io.Writer) error {
 	count, err := generateDueCsSettlements(ctx, global.ORM, time.Now(), 200)
@@ -227,15 +218,6 @@ func applyDueSkuSuspensionsTask(ctx context.Context, logger io.Writer) error {
 	return err
 }
 
-// expireCustomerStoredValueIntentsTask 过期自助购卡支付意图（§4.4）：未核验且已超时的购卡意图转 expired。
-func expireCustomerStoredValueIntentsTask(ctx context.Context, logger io.Writer) error {
-	count, err := expireCustomerStoredValueIntents(ctx, global.ORM, time.Now(), 200)
-	if err == nil {
-		_, _ = fmt.Fprintf(logger, "处理过期自助购卡意图：%d\n", count)
-	}
-	return err
-}
-
 // expireRechargeIntentsTask 过期充值支付意图（§4.5）：未核验且已超时的充值意图转 expired。
 func expireRechargeIntentsTask(ctx context.Context, logger io.Writer) error {
 	count, err := expireRechargeIntents(ctx, global.ORM, time.Now(), 200)
@@ -301,7 +283,6 @@ func init() {
 		tasks.Register("esports_expire_wallet_bonus", expireWalletBonusTask)
 		tasks.Register("esports_apply_member_downgrade", applyMemberDowngradeTask)
 		tasks.Register("esports_publish_scheduled_pages", publishScheduledPagesTask)
-		tasks.Register("esports_expire_stored_value_cards", expireStoredValueCardsTask)
 		tasks.Register("esports_rebuild_dispatch_priority", rebuildDispatchPriorityTask)
 		tasks.Register("esports_expire_dispatch_priority_notice", expireDispatchPriorityNoticeTask)
 		tasks.Register("esports_remind_dispatch_ladder", remindDispatchLadderTask)
@@ -317,7 +298,6 @@ func init() {
 		tasks.Register("esports_auto_pause_disconnected_players", autoPauseDisconnectedPlayersTask)
 		tasks.Register("esports_expire_reschedule_proposals", expireRescheduleProposalsTask)
 		tasks.Register("esports_apply_due_sku_suspensions", applyDueSkuSuspensionsTask)
-		tasks.Register("esports_expire_customer_stored_value_intents", expireCustomerStoredValueIntentsTask)
 		tasks.Register("esports_expire_recharge_intents", expireRechargeIntentsTask)
 		tasks.Register("esports_deliver_outbox", deliverOutboxTask)
 		tasks.Register("esports_deliver_notifications", deliverNotificationsTask)
@@ -351,7 +331,6 @@ func init() {
 			{Key: "customer_debt_limit_cents", Name: "客户欠款拦截阈值（分）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；客户欠款超过该值时拒绝新报单"},
 			{Key: "service_disconnect_pause_minutes", Name: "断线自动暂停阈值（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；服务中陪玩心跳超时该时长后自动暂停服务段"},
 			{Key: "reschedule_proposal_hours", Name: "改期提案确认时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "已付款订单改期提案的确认时限，且不晚于目标开始时间"},
-			{Key: "stored_value_payment_window_minutes", Name: "自助购卡支付时限（分钟）", Value: "1440", Type: "number", Group: "esports", Remark: "客户自助购卡支付意图的有效时长，超时由任务过期"},
 			{Key: "recharge_payment_window_minutes", Name: "充值支付时限（分钟）", Value: "1440", Type: "number", Group: "esports", Remark: "客户自助充值支付意图的有效时长，超时由任务过期"},
 			{Key: "page_allowed_domains", Name: "首页外部跳转与图片资源已审核 HTTPS 域名白名单", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔的已审核 HTTPS 域名；既用于外部跳转链接（仅允许这些域名的外链），也用于发布前外部图片资源（含轮播 images）的探测白名单；为空表示不放行任何外部域名（内部跳转用站内相对路径，外部图片不探测）"},
 			{Key: "finance_report_role_names", Name: "财务报表授权角色", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔的角色名，命中者可查看财务资金报表；为空仅超管可看"},
@@ -415,7 +394,6 @@ func init() {
 			{Key: "withdrawal_tax_tiers", Name: "提现代扣税费阶梯", Value: "", Type: "string", Group: "esports", Remark: "JSON 数组，格式同 withdrawal_fee_tiers；留空或任一项非法视为未配置，回落 withdrawal_tax_bp"},
 			// —— 账本核验游标（内部运行时状态：程序自写自读，运维改成非 0 会永久跳过低位 ID 的核验）——
 			{Key: "ledger_reconcile_cursor_wallet_account", Name: "账本核验游标（钱包账户）", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大账户 ID，缺失读作 0（从头扫）；由 esports_reconcile_ledgers 任务写回，运维不要手改"},
-			{Key: "ledger_reconcile_cursor_stored_value_card", Name: "账本核验游标（储值卡）", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大储值卡 ID，缺失读作 0；由账本核验任务写回，运维不要手改"},
 			{Key: "ledger_reconcile_cursor_allocation", Name: "账本核验游标（分摊明细）", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大分摊明细 ID（单轮上限 5000 条，截断时写回续扫）；由账本核验任务写回，运维不要手改"},
 			{Key: "upgrade_auto_trigger_cursor", Name: "升级考核自动触发游标", Value: "0", Type: "number", Group: "esports", Remark: "内部状态：已扫过的最大陪玩 ID；0/缺失/非法/负数均读作 0（从头扫）；由 esports_auto_trigger_upgrade_assessments 写回，运维不要手改"},
 			// —— 第 4 轮补充声明：以下 18 键由 TestEsportsConfigKeysAreDeclared 实测出「已读未声明」，
@@ -711,11 +689,7 @@ func init() {
 			{Method: "GET", Path: "/user/player/gift-records", Auth: cmfapp.AuthUser, Handler: userPlayerGiftRecordsHandler},
 			// 公开：礼物收款回调（§9.2-01）：原始字节 + `X-Pay-Signature` 验签，渠道取 `?channel=` 或 `X-Pay-Channel`。
 			{Method: "POST", Path: "/public/gift-payment-notify", Auth: cmfapp.AuthPublic, Handler: giftPaymentNotifyHandler},
-			// —— 储值卡一致性异常队列（§4.6-06）：列表 / 详情 / 指派跟进人 / 处置（resolved|ignored）——
-			{Method: "GET", Path: "/admin/stored-value-exceptions", Auth: cmfapp.AuthAdmin, Handler: adminStoredValueExceptions},
-			{Method: "GET", Path: "/admin/stored-value-exceptions/:id", Auth: cmfapp.AuthAdmin, Handler: adminStoredValueExceptionDetail},
-			{Method: "POST", Path: "/admin/stored-value-exceptions/:id/assign", Auth: cmfapp.AuthAdmin, Handler: assignStoredValueExceptionHandler},
-			{Method: "POST", Path: "/admin/stored-value-exceptions/:id/resolve", Auth: cmfapp.AuthAdmin, Handler: resolveStoredValueExceptionHandler},
+			// —— 售后单（§13.1）：列表 / 详情 / 建单 / 受理 / 方案 / 审批 / 执行 / 撤回 ——
 			{Method: "GET", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: adminAfterSales},
 			{Method: "GET", Path: "/admin/after-sales/:id", Auth: cmfapp.AuthAdmin, Handler: ownedAfterSaleHandler(adminAfterSaleDetail)},
 			{Method: "POST", Path: "/admin/after-sales", Auth: cmfapp.AuthAdmin, Handler: createAfterSaleHandler},
@@ -927,9 +901,8 @@ func init() {
 			{Method: "GET", Path: "/user/orders/:id/payment-proofs", Auth: cmfapp.AuthUser, Handler: userPaymentProofsHandler},
 			// 在线收款（§4.3）：已开通渠道发起收款，返回渠道收银台地址；核销走公开回调 payment-notify。
 			{Method: "POST", Path: "/user/orders/:id/payment/start", Auth: cmfapp.AuthUser, Handler: userStartOrderPaymentHandler},
-			// 客户自助站内付款（§4.3 / §4.4）：余额 / 储值卡足额核销，复用管理端同一核销边界并核对订单归属。
+			// 客户自助站内付款（§4.3）：余额足额核销，复用管理端同一核销边界并核对订单归属。
 			{Method: "POST", Path: "/user/orders/:id/pay-by-balance", Auth: cmfapp.AuthUser, Handler: userPayOrderByBalanceHandler},
-			{Method: "POST", Path: "/user/orders/:id/pay-by-stored-value-card", Auth: cmfapp.AuthUser, Handler: userPayOrderByStoredValueCardHandler},
 			{Method: "GET", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userAfterSalesHandler},
 			{Method: "POST", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userCreateAfterSaleHandler},
 			{Method: "GET", Path: "/user/wallets", Auth: cmfapp.AuthUser, Handler: userWalletHandler},
@@ -942,12 +915,6 @@ func init() {
 			{Method: "POST", Path: "/user/messages/read", Auth: cmfapp.AuthUser, Handler: userMessagesMarkReadHandler},
 			// 会员优先预约（§10.4）：客户自助提交预约意向（陪玩 + 期望时段 + 备注）。
 			{Method: "POST", Path: "/user/priority-bookings", Auth: cmfapp.AuthUser, Handler: userCreatePriorityBookingHandler},
-			// 客户自助储值卡（§4.4）：在售套餐、自助购卡（合同确认 + 支付意图）、我的储值卡与购卡申请详情。
-			{Method: "GET", Path: "/user/stored-value-packages", Auth: cmfapp.AuthUser, Handler: userStoredValuePackagesHandler},
-			{Method: "POST", Path: "/user/stored-value-cards", Auth: cmfapp.AuthUser, Handler: userPurchaseStoredValueCardHandler},
-			{Method: "GET", Path: "/user/stored-value-cards", Auth: cmfapp.AuthUser, Handler: userStoredValueCardsHandler},
-			{Method: "GET", Path: "/user/stored-value-cards/:id", Auth: cmfapp.AuthUser, Handler: userStoredValueCardDetailHandler},
-			{Method: "GET", Path: "/user/stored-value-cards/:id/purchase", Auth: cmfapp.AuthUser, Handler: userStoredValuePurchaseDetailHandler},
 			// 客户自助充值意图（§4.5）：锁定活动快照 + 支付意图 + 付款指引。
 			{Method: "POST", Path: "/user/recharge-intents", Auth: cmfapp.AuthUser, Handler: userCreateRechargeIntentHandler},
 			// 客户 / 陪玩端确认 / 拒绝改期提案（§3.3）。
@@ -1001,24 +968,6 @@ func init() {
 			{Method: "PUT", Path: "/admin/scripts/:id", Auth: cmfapp.AuthAdmin, Handler: updateScriptHandler},
 			{Method: "POST", Path: "/admin/scripts/:id/status", Auth: cmfapp.AuthAdmin, Handler: setScriptStatusHandler},
 			{Method: "GET", Path: "/admin/cs/workbench", Auth: cmfapp.AuthAdmin, Handler: csWorkbenchHandler},
-			// 储值卡（§4.4 / §11.3）：开卡与余额查询、退卡试算与财务审核、订单用储值卡核销。
-			{Method: "GET", Path: "/admin/stored-value-cards", Auth: cmfapp.AuthAdmin, Handler: adminStoredValueCards},
-			{Method: "POST", Path: "/admin/stored-value-cards", Auth: cmfapp.AuthAdmin, Handler: createStoredValueCardHandler},
-			{Method: "POST", Path: "/admin/stored-value-cards/:id/payment-verification", Auth: cmfapp.AuthAdmin, Handler: verifyStoredValueCardPaymentHandler},
-			// 客户自助购卡到账核验（§4.4）：复用既有核验边界，核验后同步支付意图并写激活外盒。
-			{Method: "POST", Path: "/admin/stored-value-cards/:id/verify-self-purchase", Auth: cmfapp.AuthAdmin, Handler: adminVerifyCustomerStoredValuePurchaseHandler},
-			{Method: "GET", Path: "/admin/stored-value-cards/:id", Auth: cmfapp.AuthAdmin, Handler: adminStoredValueCardDetail},
-			{Method: "GET", Path: "/admin/stored-value-cards/:id/refund-quote", Auth: cmfapp.AuthAdmin, Handler: storedValueCardRefundQuoteHandler},
-			// 退卡批次维度试算（§4.5）：与退卡试算同口径，额外按预付款批次展开逐批还原明细。
-			{Method: "GET", Path: "/admin/stored-value-cards/:id/refund-batch-quote", Auth: cmfapp.AuthAdmin, Handler: adminStoredValueCardRefundBatchQuote},
-			{Method: "POST", Path: "/admin/stored-value-cards/:id/refund-request", Auth: cmfapp.AuthAdmin, Handler: requestStoredValueRefundHandler},
-			{Method: "POST", Path: "/admin/stored-value-cards/:id/refund-decision", Auth: cmfapp.AuthAdmin, Handler: decideStoredValueRefundHandler},
-			{Method: "POST", Path: "/admin/orders/:id/pay-by-stored-value-card", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(payOrderByStoredValueCardHandler)},
-			// 储值卡套餐（§4.4）：档位维护，开卡时择一。
-			{Method: "GET", Path: "/admin/stored-value-packages", Auth: cmfapp.AuthAdmin, Handler: listStoredValuePackagesHandler},
-			{Method: "POST", Path: "/admin/stored-value-packages", Auth: cmfapp.AuthAdmin, Handler: createStoredValuePackageHandler},
-			{Method: "PUT", Path: "/admin/stored-value-packages/:id", Auth: cmfapp.AuthAdmin, Handler: updateStoredValuePackageHandler},
-			{Method: "POST", Path: "/admin/stored-value-packages/:id/status", Auth: cmfapp.AuthAdmin, Handler: setStoredValuePackageStatusHandler},
 			// —— 审核报告收尾批次：4 处「后端缺接口」补齐（均为只读或状态推进的窄接口）——
 			// 代客确认（§13.3）：pending_customer_confirm → pending_approval，只写代确认人，
 			// 不等于审批；审批仍是 /approve 且审批人不得为该单处理人。
@@ -1228,10 +1177,6 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "核验礼物收款", Code: "esports:gifts:payment_verify", Path: "/api/v1/esports/admin/gift-intents/{id}/payment/verify", Method: "POST", Parent: "esports:gift:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看账本核验异常", Code: "esports:wallets:reconcile_anomalies", Path: "/api/v1/esports/admin/ledger-reconcile-anomalies", Method: "GET", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看陪玩可用时段", Code: "esports:members:player_availability", Path: "/api/v1/esports/admin/players/{id}/availability", Method: "GET", Parent: "esports:member:menu"},
-			{Type: cmfapp.PermAPI, Name: "查看储值卡异常", Code: "esports:stored_value:exceptions_list", Path: "/api/v1/esports/admin/stored-value-exceptions", Method: "GET", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "查看储值卡异常详情", Code: "esports:stored_value:exceptions_detail", Path: "/api/v1/esports/admin/stored-value-exceptions/{id}", Method: "GET", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "指派储值卡异常跟进人", Code: "esports:stored_value:exceptions_assign", Path: "/api/v1/esports/admin/stored-value-exceptions/{id}/assign", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "处置储值卡异常", Code: "esports:stored_value:exceptions_resolve", Path: "/api/v1/esports/admin/stored-value-exceptions/{id}/resolve", Method: "POST", Parent: "esports:stored_value:menu"},
 
 			// 结算模块：分成规则 / 分成明细 / 结算单。
 			{Type: cmfapp.PermMenu, Name: "结算", Code: "esports:settlement:menu", MenuPath: "/esports/settlements", Component: "esports/settlements/index", Icon: "icon-safe", SortOrder: 47},
@@ -1437,27 +1382,6 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "风险客户操作按钮", Code: "esports:risk:manage", Parent: "esports:risk:menu"},
 			{Type: cmfapp.PermButton, Name: "客服工作台操作按钮", Code: "esports:cs:manage", Parent: "esports:cs:menu"},
 
-			// 储值卡模块（§4.4）：预付账户开卡、余额与流水、退卡审核。
-			{Type: cmfapp.PermMenu, Name: "储值卡", Code: "esports:stored_value:menu", MenuPath: "/esports/stored-value", Component: "esports/stored-value/index", Icon: "icon-safe", SortOrder: 55},
-			{Type: cmfapp.PermAPI, Name: "查看储值卡", Code: "esports:stored_value:list", Path: "/api/v1/esports/admin/stored-value-cards", Method: "GET", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "开卡", Code: "esports:stored_value:create", Path: "/api/v1/esports/admin/stored-value-cards", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "核验开卡到账", Code: "esports:stored_value:payment_verification", Path: "/api/v1/esports/admin/stored-value-cards/{id}/payment-verification", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermButton, Name: "核验开卡到账按钮", Code: "esports:stored_value:payment_verify", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "查看储值卡详情", Code: "esports:stored_value:detail", Path: "/api/v1/esports/admin/stored-value-cards/{id}", Method: "GET", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "退卡试算", Code: "esports:stored_value:refund_quote", Path: "/api/v1/esports/admin/stored-value-cards/{id}/refund-quote", Method: "GET", Parent: "esports:stored_value:menu"},
-			// 退卡批次维度试算（§4.5）：按预付款批次展开逐批还原明细。
-			{Type: cmfapp.PermAPI, Name: "退卡批次试算", Code: "esports:stored_value:refund_batch_quote", Path: "/api/v1/esports/admin/stored-value-cards/{id}/refund-batch-quote", Method: "GET", Parent: "esports:stored_value:menu"},
-			// 客户自助购卡到账核验（§4.4）。
-			{Type: cmfapp.PermAPI, Name: "自助购卡核验", Code: "esports:stored_value:verify_self_purchase", Path: "/api/v1/esports/admin/stored-value-cards/{id}/verify-self-purchase", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "申请退卡", Code: "esports:stored_value:refund_request", Path: "/api/v1/esports/admin/stored-value-cards/{id}/refund-request", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "审核退卡", Code: "esports:stored_value:refund_decision", Path: "/api/v1/esports/admin/stored-value-cards/{id}/refund-decision", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "储值卡核销订单", Code: "esports:stored_value:pay_order", Path: "/api/v1/esports/admin/orders/{id}/pay-by-stored-value-card", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermButton, Name: "储值卡操作按钮", Code: "esports:stored_value:manage", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermButton, Name: "储值卡退卡审核按钮", Code: "esports:stored_value:refund_approve", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "查看储值卡套餐", Code: "esports:stored_value:package_list", Path: "/api/v1/esports/admin/stored-value-packages", Method: "GET", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "新建套餐", Code: "esports:stored_value:package_create", Path: "/api/v1/esports/admin/stored-value-packages", Method: "POST", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "编辑套餐", Code: "esports:stored_value:package_update", Path: "/api/v1/esports/admin/stored-value-packages/{id}", Method: "PUT", Parent: "esports:stored_value:menu"},
-			{Type: cmfapp.PermAPI, Name: "上下架套餐", Code: "esports:stored_value:package_status", Path: "/api/v1/esports/admin/stored-value-packages/{id}/status", Method: "POST", Parent: "esports:stored_value:menu"},
 			// —— 审核报告收尾批次新增 PermAPI：与「审核报告收尾批次」的路由**一一对应**（方法 + 完整路径一致），
 			//    多一条少一条都会让 internal/apps 的 TestEsportsAppDeclarationsValidate 变红。 ——
 			{Type: cmfapp.PermAPI, Name: "代客确认售后方案", Code: "esports:aftersales:confirm", Path: "/api/v1/esports/admin/after-sales/{id}/confirm", Method: "POST", Parent: "esports:aftersale:menu"},

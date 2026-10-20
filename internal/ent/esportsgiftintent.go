@@ -39,10 +39,6 @@ type EsportsGiftIntent struct {
 	AmountCents int64 `json:"amount_cents"`
 	// PaymentSource holds the value of the "payment_source" field.
 	PaymentSource string `json:"payment_source"`
-	// StoredValueCardID holds the value of the "stored_value_card_id" field.
-	StoredValueCardID *int `json:"stored_value_card_id"`
-	// StoredValueCardNo holds the value of the "stored_value_card_no" field.
-	StoredValueCardNo string `json:"stored_value_card_no"`
 	// GiftTierID holds the value of the "gift_tier_id" field.
 	GiftTierID int `json:"gift_tier_id"`
 	// GiftTierCode holds the value of the "gift_tier_code" field.
@@ -95,9 +91,9 @@ func (*EsportsGiftIntent) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsgiftintent.FieldHighValue, esportsgiftintent.FieldRequireAge:
 			values[i] = new(sql.NullBool)
-		case esportsgiftintent.FieldID, esportsgiftintent.FieldCustomerID, esportsgiftintent.FieldGiftID, esportsgiftintent.FieldGiftVersion, esportsgiftintent.FieldPlayerID, esportsgiftintent.FieldOrderID, esportsgiftintent.FieldQuantity, esportsgiftintent.FieldUnitPriceCents, esportsgiftintent.FieldAmountCents, esportsgiftintent.FieldStoredValueCardID, esportsgiftintent.FieldGiftTierID, esportsgiftintent.FieldPaymentVerifiedByAdminID, esportsgiftintent.FieldCreatedByAdminID, esportsgiftintent.FieldVersion, esportsgiftintent.FieldGiftOrderID:
+		case esportsgiftintent.FieldID, esportsgiftintent.FieldCustomerID, esportsgiftintent.FieldGiftID, esportsgiftintent.FieldGiftVersion, esportsgiftintent.FieldPlayerID, esportsgiftintent.FieldOrderID, esportsgiftintent.FieldQuantity, esportsgiftintent.FieldUnitPriceCents, esportsgiftintent.FieldAmountCents, esportsgiftintent.FieldGiftTierID, esportsgiftintent.FieldPaymentVerifiedByAdminID, esportsgiftintent.FieldCreatedByAdminID, esportsgiftintent.FieldVersion, esportsgiftintent.FieldGiftOrderID:
 			values[i] = new(sql.NullInt64)
-		case esportsgiftintent.FieldGiftName, esportsgiftintent.FieldPlayerName, esportsgiftintent.FieldPaymentSource, esportsgiftintent.FieldStoredValueCardNo, esportsgiftintent.FieldGiftTierCode, esportsgiftintent.FieldPaymentChannel, esportsgiftintent.FieldPaymentStatus, esportsgiftintent.FieldPaymentIntentNo, esportsgiftintent.FieldPaymentRef, esportsgiftintent.FieldClientKey, esportsgiftintent.FieldStatus, esportsgiftintent.FieldConfirmationRef:
+		case esportsgiftintent.FieldGiftName, esportsgiftintent.FieldPlayerName, esportsgiftintent.FieldPaymentSource, esportsgiftintent.FieldGiftTierCode, esportsgiftintent.FieldPaymentChannel, esportsgiftintent.FieldPaymentStatus, esportsgiftintent.FieldPaymentIntentNo, esportsgiftintent.FieldPaymentRef, esportsgiftintent.FieldClientKey, esportsgiftintent.FieldStatus, esportsgiftintent.FieldConfirmationRef:
 			values[i] = new(sql.NullString)
 		case esportsgiftintent.FieldPaymentExpiresAt, esportsgiftintent.FieldPaymentVerifiedAt, esportsgiftintent.FieldExpiresAt, esportsgiftintent.FieldConfirmedAt, esportsgiftintent.FieldCreatedAt, esportsgiftintent.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -188,19 +184,6 @@ func (_m *EsportsGiftIntent) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field payment_source", values[i])
 			} else if value.Valid {
 				_m.PaymentSource = value.String
-			}
-		case esportsgiftintent.FieldStoredValueCardID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field stored_value_card_id", values[i])
-			} else if value.Valid {
-				_m.StoredValueCardID = new(int)
-				*_m.StoredValueCardID = int(value.Int64)
-			}
-		case esportsgiftintent.FieldStoredValueCardNo:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field stored_value_card_no", values[i])
-			} else if value.Valid {
-				_m.StoredValueCardNo = value.String
 			}
 		case esportsgiftintent.FieldGiftTierID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -404,14 +387,6 @@ func (_m *EsportsGiftIntent) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("payment_source=")
 	builder.WriteString(_m.PaymentSource)
-	builder.WriteString(", ")
-	if v := _m.StoredValueCardID; v != nil {
-		builder.WriteString("stored_value_card_id=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
-	builder.WriteString(", ")
-	builder.WriteString("stored_value_card_no=")
-	builder.WriteString(_m.StoredValueCardNo)
 	builder.WriteString(", ")
 	builder.WriteString("gift_tier_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GiftTierID))

@@ -10,7 +10,6 @@ import (
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsorder"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -187,37 +186,23 @@ func evaluatePriceDeviation(ctx context.Context, db *ent.Client, standardCents, 
 	}, nil
 }
 
-// customerAvailableFundsCents 客户可用于站内收款方式的资金（分，§4.2-06）：
-// 余额可用额（余额一律由流水求和派生）与启用中储值卡的本金余额合计。
-func customerAvailableFundsCents(ctx context.Context, db *ent.Client, customerID int) (int64, int64, error) {
+// customerAvailableBalanceCents 客户可用于站内收款方式的资金（分，§4.2-06）：
+// 余额可用额（余额一律由流水求和派生）。储值卡侧的本金合计随功能下线（2026-10-20）删除。
+func customerAvailableBalanceCents(ctx context.Context, db *ent.Client, customerID int) (int64, error) {
 	if customerID < 1 {
-		return 0, 0, errInvalidInput
+		return 0, errInvalidInput
 	}
 	balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, customerID)
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
-	cards, err := db.EsportsStoredValueCard.Query().Where(
-		esportsstoredvaluecard.CustomerIDEQ(customerID),
-		esportsstoredvaluecard.StatusEQ(esportsstoredvaluecard.StatusActive),
-	).All(ctx)
-	if err != nil {
-		return 0, 0, err
-	}
-	var principal int64
-	for _, card := range cards {
-		cardBalance, err := storedValueCardBalance(ctx, db, card.ID)
-		if err != nil {
-			return 0, 0, err
-		}
-		principal += cardBalance.PrincipalCents
-	}
-	return balance.PrincipalCents, principal, nil
+	return balance.PrincipalCents, nil
 }
 
 // ensureOrderFundsAvailable 下单时的资金可用余额复核（§4.2-06）：显式选择站内收款方式
-// （余额 / 储值卡）时，可用本金不足即拒绝下单，避免「下单成功、收款时才失败」；
+// （余额）时，可用本金不足即拒绝下单，避免「下单成功、收款时才失败」；
 // 未指定站内方式（走外部收款）时不做资金复核。
+// 储值卡收款方式已随功能下线（2026-10-20），传入该值按不支持处理。
 func ensureOrderFundsAvailable(ctx context.Context, db *ent.Client, customerID int,
 	payableCents int64, channel string) error {
 	channel = strings.TrimSpace(channel)
@@ -225,7 +210,7 @@ func ensureOrderFundsAvailable(ctx context.Context, db *ent.Client, customerID i
 	if channel == "" || channel == "external" {
 		return nil
 	}
-	balanceCents, storedValueCents, err := customerAvailableFundsCents(ctx, db, customerID)
+	balanceCents, err := customerAvailableBalanceCents(ctx, db, customerID)
 	if err != nil {
 		return err
 	}
@@ -234,11 +219,6 @@ func ensureOrderFundsAvailable(ctx context.Context, db *ent.Client, customerID i
 		if balanceCents < payableCents {
 			return fmt.Errorf("%w：客户余额不足（可用 %d 分，应付 %d 分），请改为外部收款",
 				errInsufficientBalance, balanceCents, payableCents)
-		}
-	case "stored_value_card":
-		if storedValueCents < payableCents {
-			return fmt.Errorf("%w：客户储值卡可用本金不足（可用 %d 分，应付 %d 分），请改为外部收款",
-				errInsufficientBalance, storedValueCents, payableCents)
 		}
 	default:
 		return fmt.Errorf("%w：不支持的下单收款方式 %s", errInvalidInput, channel)

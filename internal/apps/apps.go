@@ -83,7 +83,7 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 // seedFeatureBaseline 为公司功能集播种「新库必需」的基准数据（幂等，已有数据一律不改动）。
 //
 // 与 seedCronJobs 的分工：前者保证任务会被调度，本函数保证**业务本身可用**。
-// 以会员等级为例：全新库里等级表为空，客户将永远无法定级，折扣、优先派单、储值卡赠送比例、
+// 以会员等级为例：全新库里等级表为空，客户将永远无法定级，折扣、优先派单、
 // 专属客服等按等级生效的权益会**全部静默失效**（审计 D14），因此功能启用时必须播种五档默认等级。
 func seedFeatureBaseline(ctx context.Context, client *ent.Client, code string) error {
 	if code != "esports" {

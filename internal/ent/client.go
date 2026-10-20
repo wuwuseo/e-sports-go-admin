@@ -106,9 +106,6 @@ import (
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsspecgroup"
-	"go-admin/internal/ent/esportsstoredvaluecard"
-	"go-admin/internal/ent/esportsstoredvalueexception"
-	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
@@ -330,12 +327,6 @@ type Client struct {
 	EsportsSkuSuspensionItem *EsportsSkuSuspensionItemClient
 	// EsportsSpecGroup is the client for interacting with the EsportsSpecGroup builders.
 	EsportsSpecGroup *EsportsSpecGroupClient
-	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
-	EsportsStoredValueCard *EsportsStoredValueCardClient
-	// EsportsStoredValueException is the client for interacting with the EsportsStoredValueException builders.
-	EsportsStoredValueException *EsportsStoredValueExceptionClient
-	// EsportsStoredValuePackage is the client for interacting with the EsportsStoredValuePackage builders.
-	EsportsStoredValuePackage *EsportsStoredValuePackageClient
 	// EsportsTeammate is the client for interacting with the EsportsTeammate builders.
 	EsportsTeammate *EsportsTeammateClient
 	// EsportsWalletAccount is the client for interacting with the EsportsWalletAccount builders.
@@ -480,9 +471,6 @@ func (c *Client) init() {
 	c.EsportsSkuSuspension = NewEsportsSkuSuspensionClient(c.config)
 	c.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(c.config)
 	c.EsportsSpecGroup = NewEsportsSpecGroupClient(c.config)
-	c.EsportsStoredValueCard = NewEsportsStoredValueCardClient(c.config)
-	c.EsportsStoredValueException = NewEsportsStoredValueExceptionClient(c.config)
-	c.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(c.config)
 	c.EsportsTeammate = NewEsportsTeammateClient(c.config)
 	c.EsportsWalletAccount = NewEsportsWalletAccountClient(c.config)
 	c.EsportsWalletTx = NewEsportsWalletTxClient(c.config)
@@ -689,9 +677,6 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsSkuSuspension:           NewEsportsSkuSuspensionClient(cfg),
 		EsportsSkuSuspensionItem:       NewEsportsSkuSuspensionItemClient(cfg),
 		EsportsSpecGroup:               NewEsportsSpecGroupClient(cfg),
-		EsportsStoredValueCard:         NewEsportsStoredValueCardClient(cfg),
-		EsportsStoredValueException:    NewEsportsStoredValueExceptionClient(cfg),
-		EsportsStoredValuePackage:      NewEsportsStoredValuePackageClient(cfg),
 		EsportsTeammate:                NewEsportsTeammateClient(cfg),
 		EsportsWalletAccount:           NewEsportsWalletAccountClient(cfg),
 		EsportsWalletTx:                NewEsportsWalletTxClient(cfg),
@@ -825,9 +810,6 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsSkuSuspension:           NewEsportsSkuSuspensionClient(cfg),
 		EsportsSkuSuspensionItem:       NewEsportsSkuSuspensionItemClient(cfg),
 		EsportsSpecGroup:               NewEsportsSpecGroupClient(cfg),
-		EsportsStoredValueCard:         NewEsportsStoredValueCardClient(cfg),
-		EsportsStoredValueException:    NewEsportsStoredValueExceptionClient(cfg),
-		EsportsStoredValuePackage:      NewEsportsStoredValuePackageClient(cfg),
 		EsportsTeammate:                NewEsportsTeammateClient(cfg),
 		EsportsWalletAccount:           NewEsportsWalletAccountClient(cfg),
 		EsportsWalletTx:                NewEsportsWalletTxClient(cfg),
@@ -907,8 +889,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
 		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
 		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
-		c.EsportsSpecGroup, c.EsportsStoredValueCard, c.EsportsStoredValueException,
-		c.EsportsStoredValuePackage, c.EsportsTeammate, c.EsportsWalletAccount,
+		c.EsportsSpecGroup, c.EsportsTeammate, c.EsportsWalletAccount,
 		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
 		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
 		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
@@ -953,8 +934,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
 		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
 		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
-		c.EsportsSpecGroup, c.EsportsStoredValueCard, c.EsportsStoredValueException,
-		c.EsportsStoredValuePackage, c.EsportsTeammate, c.EsportsWalletAccount,
+		c.EsportsSpecGroup, c.EsportsTeammate, c.EsportsWalletAccount,
 		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
 		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
 		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
@@ -1157,12 +1137,6 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsSkuSuspensionItem.mutate(ctx, m)
 	case *EsportsSpecGroupMutation:
 		return c.EsportsSpecGroup.mutate(ctx, m)
-	case *EsportsStoredValueCardMutation:
-		return c.EsportsStoredValueCard.mutate(ctx, m)
-	case *EsportsStoredValueExceptionMutation:
-		return c.EsportsStoredValueException.mutate(ctx, m)
-	case *EsportsStoredValuePackageMutation:
-		return c.EsportsStoredValuePackage.mutate(ctx, m)
 	case *EsportsTeammateMutation:
 		return c.EsportsTeammate.mutate(ctx, m)
 	case *EsportsWalletAccountMutation:
@@ -14011,405 +13985,6 @@ func (c *EsportsSpecGroupClient) mutate(ctx context.Context, m *EsportsSpecGroup
 	}
 }
 
-// EsportsStoredValueCardClient is a client for the EsportsStoredValueCard schema.
-type EsportsStoredValueCardClient struct {
-	config
-}
-
-// NewEsportsStoredValueCardClient returns a client for the EsportsStoredValueCard from the given config.
-func NewEsportsStoredValueCardClient(c config) *EsportsStoredValueCardClient {
-	return &EsportsStoredValueCardClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `esportsstoredvaluecard.Hooks(f(g(h())))`.
-func (c *EsportsStoredValueCardClient) Use(hooks ...Hook) {
-	c.hooks.EsportsStoredValueCard = append(c.hooks.EsportsStoredValueCard, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `esportsstoredvaluecard.Intercept(f(g(h())))`.
-func (c *EsportsStoredValueCardClient) Intercept(interceptors ...Interceptor) {
-	c.inters.EsportsStoredValueCard = append(c.inters.EsportsStoredValueCard, interceptors...)
-}
-
-// Create returns a builder for creating a EsportsStoredValueCard entity.
-func (c *EsportsStoredValueCardClient) Create() *EsportsStoredValueCardCreate {
-	mutation := newEsportsStoredValueCardMutation(c.config, OpCreate)
-	return &EsportsStoredValueCardCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of EsportsStoredValueCard entities.
-func (c *EsportsStoredValueCardClient) CreateBulk(builders ...*EsportsStoredValueCardCreate) *EsportsStoredValueCardCreateBulk {
-	return &EsportsStoredValueCardCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *EsportsStoredValueCardClient) MapCreateBulk(slice any, setFunc func(*EsportsStoredValueCardCreate, int)) *EsportsStoredValueCardCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &EsportsStoredValueCardCreateBulk{err: fmt.Errorf("calling to EsportsStoredValueCardClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*EsportsStoredValueCardCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &EsportsStoredValueCardCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for EsportsStoredValueCard.
-func (c *EsportsStoredValueCardClient) Update() *EsportsStoredValueCardUpdate {
-	mutation := newEsportsStoredValueCardMutation(c.config, OpUpdate)
-	return &EsportsStoredValueCardUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *EsportsStoredValueCardClient) UpdateOne(_m *EsportsStoredValueCard) *EsportsStoredValueCardUpdateOne {
-	mutation := newEsportsStoredValueCardMutation(c.config, OpUpdateOne, withEsportsStoredValueCard(_m))
-	return &EsportsStoredValueCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *EsportsStoredValueCardClient) UpdateOneID(id int) *EsportsStoredValueCardUpdateOne {
-	mutation := newEsportsStoredValueCardMutation(c.config, OpUpdateOne, withEsportsStoredValueCardID(id))
-	return &EsportsStoredValueCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for EsportsStoredValueCard.
-func (c *EsportsStoredValueCardClient) Delete() *EsportsStoredValueCardDelete {
-	mutation := newEsportsStoredValueCardMutation(c.config, OpDelete)
-	return &EsportsStoredValueCardDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *EsportsStoredValueCardClient) DeleteOne(_m *EsportsStoredValueCard) *EsportsStoredValueCardDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *EsportsStoredValueCardClient) DeleteOneID(id int) *EsportsStoredValueCardDeleteOne {
-	builder := c.Delete().Where(esportsstoredvaluecard.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &EsportsStoredValueCardDeleteOne{builder}
-}
-
-// Query returns a query builder for EsportsStoredValueCard.
-func (c *EsportsStoredValueCardClient) Query() *EsportsStoredValueCardQuery {
-	return &EsportsStoredValueCardQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeEsportsStoredValueCard},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a EsportsStoredValueCard entity by its id.
-func (c *EsportsStoredValueCardClient) Get(ctx context.Context, id int) (*EsportsStoredValueCard, error) {
-	return c.Query().Where(esportsstoredvaluecard.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *EsportsStoredValueCardClient) GetX(ctx context.Context, id int) *EsportsStoredValueCard {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// Hooks returns the client hooks.
-func (c *EsportsStoredValueCardClient) Hooks() []Hook {
-	return c.hooks.EsportsStoredValueCard
-}
-
-// Interceptors returns the client interceptors.
-func (c *EsportsStoredValueCardClient) Interceptors() []Interceptor {
-	return c.inters.EsportsStoredValueCard
-}
-
-func (c *EsportsStoredValueCardClient) mutate(ctx context.Context, m *EsportsStoredValueCardMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&EsportsStoredValueCardCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&EsportsStoredValueCardUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&EsportsStoredValueCardUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&EsportsStoredValueCardDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown EsportsStoredValueCard mutation op: %q", m.Op())
-	}
-}
-
-// EsportsStoredValueExceptionClient is a client for the EsportsStoredValueException schema.
-type EsportsStoredValueExceptionClient struct {
-	config
-}
-
-// NewEsportsStoredValueExceptionClient returns a client for the EsportsStoredValueException from the given config.
-func NewEsportsStoredValueExceptionClient(c config) *EsportsStoredValueExceptionClient {
-	return &EsportsStoredValueExceptionClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `esportsstoredvalueexception.Hooks(f(g(h())))`.
-func (c *EsportsStoredValueExceptionClient) Use(hooks ...Hook) {
-	c.hooks.EsportsStoredValueException = append(c.hooks.EsportsStoredValueException, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `esportsstoredvalueexception.Intercept(f(g(h())))`.
-func (c *EsportsStoredValueExceptionClient) Intercept(interceptors ...Interceptor) {
-	c.inters.EsportsStoredValueException = append(c.inters.EsportsStoredValueException, interceptors...)
-}
-
-// Create returns a builder for creating a EsportsStoredValueException entity.
-func (c *EsportsStoredValueExceptionClient) Create() *EsportsStoredValueExceptionCreate {
-	mutation := newEsportsStoredValueExceptionMutation(c.config, OpCreate)
-	return &EsportsStoredValueExceptionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of EsportsStoredValueException entities.
-func (c *EsportsStoredValueExceptionClient) CreateBulk(builders ...*EsportsStoredValueExceptionCreate) *EsportsStoredValueExceptionCreateBulk {
-	return &EsportsStoredValueExceptionCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *EsportsStoredValueExceptionClient) MapCreateBulk(slice any, setFunc func(*EsportsStoredValueExceptionCreate, int)) *EsportsStoredValueExceptionCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &EsportsStoredValueExceptionCreateBulk{err: fmt.Errorf("calling to EsportsStoredValueExceptionClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*EsportsStoredValueExceptionCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &EsportsStoredValueExceptionCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for EsportsStoredValueException.
-func (c *EsportsStoredValueExceptionClient) Update() *EsportsStoredValueExceptionUpdate {
-	mutation := newEsportsStoredValueExceptionMutation(c.config, OpUpdate)
-	return &EsportsStoredValueExceptionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *EsportsStoredValueExceptionClient) UpdateOne(_m *EsportsStoredValueException) *EsportsStoredValueExceptionUpdateOne {
-	mutation := newEsportsStoredValueExceptionMutation(c.config, OpUpdateOne, withEsportsStoredValueException(_m))
-	return &EsportsStoredValueExceptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *EsportsStoredValueExceptionClient) UpdateOneID(id int) *EsportsStoredValueExceptionUpdateOne {
-	mutation := newEsportsStoredValueExceptionMutation(c.config, OpUpdateOne, withEsportsStoredValueExceptionID(id))
-	return &EsportsStoredValueExceptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for EsportsStoredValueException.
-func (c *EsportsStoredValueExceptionClient) Delete() *EsportsStoredValueExceptionDelete {
-	mutation := newEsportsStoredValueExceptionMutation(c.config, OpDelete)
-	return &EsportsStoredValueExceptionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *EsportsStoredValueExceptionClient) DeleteOne(_m *EsportsStoredValueException) *EsportsStoredValueExceptionDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *EsportsStoredValueExceptionClient) DeleteOneID(id int) *EsportsStoredValueExceptionDeleteOne {
-	builder := c.Delete().Where(esportsstoredvalueexception.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &EsportsStoredValueExceptionDeleteOne{builder}
-}
-
-// Query returns a query builder for EsportsStoredValueException.
-func (c *EsportsStoredValueExceptionClient) Query() *EsportsStoredValueExceptionQuery {
-	return &EsportsStoredValueExceptionQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeEsportsStoredValueException},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a EsportsStoredValueException entity by its id.
-func (c *EsportsStoredValueExceptionClient) Get(ctx context.Context, id int) (*EsportsStoredValueException, error) {
-	return c.Query().Where(esportsstoredvalueexception.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *EsportsStoredValueExceptionClient) GetX(ctx context.Context, id int) *EsportsStoredValueException {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// Hooks returns the client hooks.
-func (c *EsportsStoredValueExceptionClient) Hooks() []Hook {
-	return c.hooks.EsportsStoredValueException
-}
-
-// Interceptors returns the client interceptors.
-func (c *EsportsStoredValueExceptionClient) Interceptors() []Interceptor {
-	return c.inters.EsportsStoredValueException
-}
-
-func (c *EsportsStoredValueExceptionClient) mutate(ctx context.Context, m *EsportsStoredValueExceptionMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&EsportsStoredValueExceptionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&EsportsStoredValueExceptionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&EsportsStoredValueExceptionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&EsportsStoredValueExceptionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown EsportsStoredValueException mutation op: %q", m.Op())
-	}
-}
-
-// EsportsStoredValuePackageClient is a client for the EsportsStoredValuePackage schema.
-type EsportsStoredValuePackageClient struct {
-	config
-}
-
-// NewEsportsStoredValuePackageClient returns a client for the EsportsStoredValuePackage from the given config.
-func NewEsportsStoredValuePackageClient(c config) *EsportsStoredValuePackageClient {
-	return &EsportsStoredValuePackageClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `esportsstoredvaluepackage.Hooks(f(g(h())))`.
-func (c *EsportsStoredValuePackageClient) Use(hooks ...Hook) {
-	c.hooks.EsportsStoredValuePackage = append(c.hooks.EsportsStoredValuePackage, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `esportsstoredvaluepackage.Intercept(f(g(h())))`.
-func (c *EsportsStoredValuePackageClient) Intercept(interceptors ...Interceptor) {
-	c.inters.EsportsStoredValuePackage = append(c.inters.EsportsStoredValuePackage, interceptors...)
-}
-
-// Create returns a builder for creating a EsportsStoredValuePackage entity.
-func (c *EsportsStoredValuePackageClient) Create() *EsportsStoredValuePackageCreate {
-	mutation := newEsportsStoredValuePackageMutation(c.config, OpCreate)
-	return &EsportsStoredValuePackageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of EsportsStoredValuePackage entities.
-func (c *EsportsStoredValuePackageClient) CreateBulk(builders ...*EsportsStoredValuePackageCreate) *EsportsStoredValuePackageCreateBulk {
-	return &EsportsStoredValuePackageCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *EsportsStoredValuePackageClient) MapCreateBulk(slice any, setFunc func(*EsportsStoredValuePackageCreate, int)) *EsportsStoredValuePackageCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &EsportsStoredValuePackageCreateBulk{err: fmt.Errorf("calling to EsportsStoredValuePackageClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*EsportsStoredValuePackageCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &EsportsStoredValuePackageCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for EsportsStoredValuePackage.
-func (c *EsportsStoredValuePackageClient) Update() *EsportsStoredValuePackageUpdate {
-	mutation := newEsportsStoredValuePackageMutation(c.config, OpUpdate)
-	return &EsportsStoredValuePackageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *EsportsStoredValuePackageClient) UpdateOne(_m *EsportsStoredValuePackage) *EsportsStoredValuePackageUpdateOne {
-	mutation := newEsportsStoredValuePackageMutation(c.config, OpUpdateOne, withEsportsStoredValuePackage(_m))
-	return &EsportsStoredValuePackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *EsportsStoredValuePackageClient) UpdateOneID(id int) *EsportsStoredValuePackageUpdateOne {
-	mutation := newEsportsStoredValuePackageMutation(c.config, OpUpdateOne, withEsportsStoredValuePackageID(id))
-	return &EsportsStoredValuePackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for EsportsStoredValuePackage.
-func (c *EsportsStoredValuePackageClient) Delete() *EsportsStoredValuePackageDelete {
-	mutation := newEsportsStoredValuePackageMutation(c.config, OpDelete)
-	return &EsportsStoredValuePackageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *EsportsStoredValuePackageClient) DeleteOne(_m *EsportsStoredValuePackage) *EsportsStoredValuePackageDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *EsportsStoredValuePackageClient) DeleteOneID(id int) *EsportsStoredValuePackageDeleteOne {
-	builder := c.Delete().Where(esportsstoredvaluepackage.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &EsportsStoredValuePackageDeleteOne{builder}
-}
-
-// Query returns a query builder for EsportsStoredValuePackage.
-func (c *EsportsStoredValuePackageClient) Query() *EsportsStoredValuePackageQuery {
-	return &EsportsStoredValuePackageQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeEsportsStoredValuePackage},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a EsportsStoredValuePackage entity by its id.
-func (c *EsportsStoredValuePackageClient) Get(ctx context.Context, id int) (*EsportsStoredValuePackage, error) {
-	return c.Query().Where(esportsstoredvaluepackage.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *EsportsStoredValuePackageClient) GetX(ctx context.Context, id int) *EsportsStoredValuePackage {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// Hooks returns the client hooks.
-func (c *EsportsStoredValuePackageClient) Hooks() []Hook {
-	return c.hooks.EsportsStoredValuePackage
-}
-
-// Interceptors returns the client interceptors.
-func (c *EsportsStoredValuePackageClient) Interceptors() []Interceptor {
-	return c.inters.EsportsStoredValuePackage
-}
-
-func (c *EsportsStoredValuePackageClient) mutate(ctx context.Context, m *EsportsStoredValuePackageMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&EsportsStoredValuePackageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&EsportsStoredValuePackageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&EsportsStoredValuePackageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&EsportsStoredValuePackageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown EsportsStoredValuePackage mutation op: %q", m.Op())
-	}
-}
-
 // EsportsTeammateClient is a client for the EsportsTeammate schema.
 type EsportsTeammateClient struct {
 	config
@@ -17017,8 +16592,7 @@ type (
 		EsportsRescheduleConfirmation, EsportsRescheduleProposal, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
 		EsportsSettlementCycle, EsportsSku, EsportsSkuSuspension,
-		EsportsSkuSuspensionItem, EsportsSpecGroup, EsportsStoredValueCard,
-		EsportsStoredValueException, EsportsStoredValuePackage, EsportsTeammate,
+		EsportsSkuSuspensionItem, EsportsSpecGroup, EsportsTeammate,
 		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal,
 		EsportsWithdrawalPayout, LoginLog, Message, MessagePreference,
 		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,
@@ -17053,8 +16627,7 @@ type (
 		EsportsRescheduleConfirmation, EsportsRescheduleProposal, EsportsScript,
 		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
 		EsportsSettlementCycle, EsportsSku, EsportsSkuSuspension,
-		EsportsSkuSuspensionItem, EsportsSpecGroup, EsportsStoredValueCard,
-		EsportsStoredValueException, EsportsStoredValuePackage, EsportsTeammate,
+		EsportsSkuSuspensionItem, EsportsSpecGroup, EsportsTeammate,
 		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal,
 		EsportsWithdrawalPayout, LoginLog, Message, MessagePreference,
 		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,

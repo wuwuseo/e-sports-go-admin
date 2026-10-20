@@ -39,12 +39,10 @@ func rechargeRefundExecutionIdemKey(afterSaleID int, sourceType string, sourceID
 	return fmt.Sprintf("refund:%d:%s:%d:%s:%s", afterSaleID, sourceType, sourceID, batchSourceType, batchSourceID)
 }
 
-// refundExecutionAccount 由售后单来源推导退款账户的账本身份。
-// 储值卡来源退预付款批次；充值来源按充值流水落到客户余额或储值卡预付款账户。
+// refundExecutionAccount 由售后单来源推导退款账户的账本身份：充值来源按充值流水落到客户余额，
+// 历史储值卡账户的充值流水仍落到已废弃的预付款批次账户（卡表已 DROP，仅存量数据可达）。
 func refundExecutionAccount(ctx context.Context, db *ent.Client, item *ent.EsportsAfterSale) (accountType, accountID string, err error) {
 	switch item.SourceType {
-	case esportsaftersale.SourceTypeStoredValueCard:
-		return storedValuePrepayAccount, strconv.Itoa(item.SourceID), nil
 	case esportsaftersale.SourceTypeRecharge:
 		row, err := db.EsportsWalletTx.Get(ctx, item.SourceID)
 		if err != nil {
@@ -54,10 +52,11 @@ func refundExecutionAccount(ctx context.Context, db *ent.Client, item *ent.Espor
 		case esportswallettx.AccountTypeCustomerBalance:
 			return walletCustomerBalance, strconv.Itoa(row.OwnerID), nil
 		case esportswallettx.AccountTypeStoredValueCard:
+			// 已废弃账户类型（历史储值卡充值流水）：批次账本账户按既有口径映射，仅用于存量还原。
 			return storedValuePrepayAccount, strconv.Itoa(row.OwnerID), nil
 		}
 	}
-	return "", "", fmt.Errorf("%w：仅充值 / 储值卡来源支持按批次退款执行", errInvalidInput)
+	return "", "", fmt.Errorf("%w：仅充值来源支持按批次退款执行", errInvalidInput)
 }
 
 // executeRechargeRefundByBatch 按充值批次生成外部退款执行明细（§4.5）：
@@ -106,7 +105,7 @@ func executeRechargeRefundQuote(ctx context.Context, db *ent.Client, item *ent.E
 }
 
 // executeRechargeRefundQuoteTx 在调用方事务内按试算生成外部退款执行明细（幂等）：
-// 供售后执行链（充值 / 储值卡来源）在同一事务内与内部退款一并落账。
+// 供售后执行链（充值来源）在同一事务内与内部退款一并落账。
 //
 // 累计口径（§4.5 修复）：试算的 RefundableCents 只反映「按账户余额还原的批次剩余被退额」，
 // 执行明细的 pending 状态并不扣减余额（真实打款后才扣），因此同一批次可能被多张售后单

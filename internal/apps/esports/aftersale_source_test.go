@@ -15,11 +15,10 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// seedAfterSaleSourceScene 建一条礼物单、一张储值卡、一条客户余额充值流水与一条考核记录，
+// seedAfterSaleSourceScene 建一条礼物单、一条客户余额充值流水与一条考核记录，
 // 用于验证 §13.1 / §13.3 的统一售后来源扩展。
 func seedAfterSaleSourceScene(t *testing.T, db *ent.Client, now time.Time) (
-	*ent.EsportsCustomer, *ent.EsportsGiftOrder, *ent.EsportsStoredValueCard,
-	*ent.EsportsWalletTx, *ent.EsportsAssessment) {
+	*ent.EsportsCustomer, *ent.EsportsGiftOrder, *ent.EsportsWalletTx, *ent.EsportsAssessment) {
 	t.Helper()
 	ctx := t.Context()
 	customer := saveCustomerOrFail(t, db, 11)
@@ -30,10 +29,6 @@ func seedAfterSaleSourceScene(t *testing.T, db *ent.Client, now time.Time) (
 		SetUnitPriceCents(1000).SetAmountCents(1000).
 		SetStatus(esportsgiftorder.StatusPaid).SaveX(ctx)
 
-	card := db.EsportsStoredValueCard.Create().SetCardNo("CARD-AS-1").
-		SetCustomerID(customer.ID).SetPaymentChannel("merchant_qr").
-		SetPrincipalCents(10000).SetValidFrom(now).SetValidUntil(now.AddDate(0, 0, 30)).SaveX(ctx)
-
 	recharge := db.EsportsWalletTx.Create().SetTxNo("TX-AS-1").
 		SetAccountType(esportswallettx.AccountTypeCustomerBalance).SetOwnerID(customer.ID).
 		SetEntryType(esportswallettx.EntryTypeRecharge).
@@ -43,16 +38,16 @@ func seedAfterSaleSourceScene(t *testing.T, db *ent.Client, now time.Time) (
 	assessment := db.EsportsAssessment.Create().SetTaskNo("AS-TASK-1").
 		SetPlayerID(player.ID).SetAssessmentType("retry").SaveX(ctx)
 
-	return customer, gift, card, recharge, assessment
+	return customer, gift, recharge, assessment
 }
 
-// 礼物 / 储值卡 / 充值 / 考核来源都能进入统一售后状态机，且正确绑定归属与写留痕。
+// 礼物 / 充值 / 考核来源都能进入统一售后状态机，且正确绑定归属与写留痕。
 func TestAfterSaleSupportsNonOrderSources(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_aftersale_sources")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	customer, gift, card, recharge, assessment := seedAfterSaleSourceScene(t, db, now)
+	customer, gift, recharge, assessment := seedAfterSaleSourceScene(t, db, now)
 
 	giftItem, err := createAfterSale(ctx, db, afterSaleInput{
 		SourceType: "gift", SourceID: gift.ID, Kind: "refund_request", Channel: "customer",
@@ -81,18 +76,6 @@ func TestAfterSaleSupportsNonOrderSources(t *testing.T) {
 		SourceType: "gift", SourceID: gift.ID, Kind: "refund_request", Channel: "admin", Demand: "重复受理",
 	}, 11, now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复礼物售后未拦截：%v", err)
-	}
-
-	// 储值卡来源。
-	cardItem, err := createAfterSale(ctx, db, afterSaleInput{
-		SourceType: "stored_value_card", SourceID: card.ID, Kind: "refund_request", Channel: "customer",
-		Demand: "储值卡未按约定到账，申请退卡", ExpectedPlan: "按剩余本金退卡",
-	}, 11, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cardItem.CustomerID == nil || *cardItem.CustomerID != customer.ID {
-		t.Fatalf("储值卡来源未绑定持卡客户：%+v", cardItem)
 	}
 
 	// 充值来源：由流水反查客户。
@@ -129,7 +112,7 @@ func TestAfterSaleSourceGuards(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	customer, gift, _, _, _ := seedAfterSaleSourceScene(t, db, now)
+	customer, gift, _, _ := seedAfterSaleSourceScene(t, db, now)
 
 	// 礼物单提不出「考核申诉」。
 	if _, err := createAfterSale(ctx, db, afterSaleInput{

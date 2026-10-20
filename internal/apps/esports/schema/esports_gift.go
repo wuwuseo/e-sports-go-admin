@@ -66,8 +66,9 @@ func (EsportsGiftOrder) Fields() []ent.Field {
 		// 支付构成：首版仅本金，拒绝赠送权益支付礼物（§9.5）。
 		field.Int64("principal_cents").Default(0).StructTag(`json:"principal_cents"`),
 		field.Int64("bonus_cents").Default(0).StructTag(`json:"bonus_cents"`),
+		// customer_balance_principal 余额本金 / external_* 外部收款；stored_value_card_principal 为已废弃值
+		// （2026-10-20 储值卡功能移除），保留仅为历史礼物单可读，禁止新写入。
 		field.String("payment_source").Default("customer_balance_principal").StructTag(`json:"payment_source"`),
-		field.Int("stored_value_card_id").Positive().Optional().Nillable().StructTag(`json:"stored_value_card_id"`),
 		// 价格档位与收款留痕（§9.1-02 / §9.2-01）：档位随单快照，改档不追溯改写历史礼物单。
 		field.Int("gift_tier_id").Default(0).StructTag(`json:"gift_tier_id"`),
 		field.String("gift_tier_code").MaxLen(48).Default("").StructTag(`json:"gift_tier_code"`),

@@ -97,8 +97,6 @@ const (
 	FieldPaymentStatus = "payment_status"
 	// FieldPaymentChannel holds the string denoting the payment_channel field in the database.
 	FieldPaymentChannel = "payment_channel"
-	// FieldStoredValueCardID holds the string denoting the stored_value_card_id field in the database.
-	FieldStoredValueCardID = "stored_value_card_id"
 	// FieldPriorityNoticeStatus holds the string denoting the priority_notice_status field in the database.
 	FieldPriorityNoticeStatus = "priority_notice_status"
 	// FieldPriorityNoticeUntil holds the string denoting the priority_notice_until field in the database.
@@ -229,7 +227,6 @@ var Columns = []string{
 	FieldFulfillmentStatus,
 	FieldPaymentStatus,
 	FieldPaymentChannel,
-	FieldStoredValueCardID,
 	FieldPriorityNoticeStatus,
 	FieldPriorityNoticeUntil,
 	FieldPriorityGame,
@@ -854,11 +851,6 @@ func ByPaymentStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByPaymentChannel orders the results by the payment_channel field.
 func ByPaymentChannel(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPaymentChannel, opts...).ToFunc()
-}
-
-// ByStoredValueCardID orders the results by the stored_value_card_id field.
-func ByStoredValueCardID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStoredValueCardID, opts...).ToFunc()
 }
 
 // ByPriorityNoticeStatus orders the results by the priority_notice_status field.

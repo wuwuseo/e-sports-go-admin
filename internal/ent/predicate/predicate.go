@@ -291,15 +291,6 @@ type EsportsSkuSuspensionItem func(*sql.Selector)
 // EsportsSpecGroup is the predicate function for esportsspecgroup builders.
 type EsportsSpecGroup func(*sql.Selector)
 
-// EsportsStoredValueCard is the predicate function for esportsstoredvaluecard builders.
-type EsportsStoredValueCard func(*sql.Selector)
-
-// EsportsStoredValueException is the predicate function for esportsstoredvalueexception builders.
-type EsportsStoredValueException func(*sql.Selector)
-
-// EsportsStoredValuePackage is the predicate function for esportsstoredvaluepackage builders.
-type EsportsStoredValuePackage func(*sql.Selector)
-
 // EsportsTeammate is the predicate function for esportsteammate builders.
 type EsportsTeammate func(*sql.Selector)
 

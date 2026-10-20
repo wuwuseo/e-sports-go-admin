@@ -20,13 +20,14 @@ import (
 // externalPaymentChannelValues 是需走收款账户与到账凭证的外部渠道。
 var externalPaymentChannelValues = []string{"wechat_work", "merchant_qr", "corporate_transfer"}
 
-// internalPaymentChannelValues 是站内扣款方式（余额 / 储值卡）：无收款账户，但也须纳入启停
+// internalPaymentChannelValues 是站内扣款方式（余额）：无收款账户，但也须纳入启停
 // 与核销开关口径（§4.3-08），停用后不再接受以该方式收款。
-var internalPaymentChannelValues = []string{"customer_balance", "stored_value_card"}
+// 储值卡（stored_value_card）已随该功能下线（2026-10-20），不再作为可启停的站内方式。
+var internalPaymentChannelValues = []string{"customer_balance"}
 
 // paymentChannelValues 是可启停的收款方式全集（外部 + 站内）。
 var paymentChannelValues = []string{
-	"wechat_work", "merchant_qr", "corporate_transfer", "customer_balance", "stored_value_card",
+	"wechat_work", "merchant_qr", "corporate_transfer", "customer_balance",
 }
 
 // validPaymentChannel 判断是否为需收款账户的外部渠道。
@@ -39,7 +40,7 @@ func validPaymentChannel(channel string) bool {
 	return false
 }
 
-// toggleablePaymentChannel 判断该收款方式是否可被后台启停（含站内的余额与储值卡，§4.3-08）。
+// toggleablePaymentChannel 判断该收款方式是否可被后台启停（含站内的余额，§4.3-08）。
 func toggleablePaymentChannel(channel string) bool {
 	for _, value := range paymentChannelValues {
 		if value == channel {

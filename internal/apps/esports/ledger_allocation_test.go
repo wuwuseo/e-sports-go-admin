@@ -11,7 +11,7 @@ import (
 
 // 批次级逐笔扣减（§4.3 / §4.5）：充值写批次账本，余额消费按批次分摊并记录明细。
 func TestLedgerBatchAllocation(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_allocation")
+	db := openWalletTestDB(t, "esports_ledger_allocation")
 	ctx := t.Context()
 	now := time.Now()
 	customer := saveCustomerOrFail(t, db, 11)

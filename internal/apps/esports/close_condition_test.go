@@ -240,7 +240,7 @@ func TestStructuredConditionsExposeStatus(t *testing.T) {
 	}
 }
 
-// 事实字段覆盖：承诺服务量、加钟量、进行中售后数与储值卡一致性均可作为条件字段。
+// 事实字段覆盖：承诺服务量、加钟量、进行中售后数均可作为条件字段。
 // 凭证张数口径：seedSimpleCloseableOrder 的 evidence_ref 是历史文本引用（shot-1），按 1 张计。
 func TestCloseConditionFactsAndExtraFields(t *testing.T) {
 	db := openCloseRuleDB(t, "esports_close_condition_facts")
@@ -254,17 +254,13 @@ func TestCloseConditionFactsAndExtraFields(t *testing.T) {
 	}
 	if facts.EvidenceCount != 1 || facts.ServiceSeconds != 600 || facts.ServiceUnits != 1 ||
 		facts.PromisedServiceUnits != 1 || facts.PendingAddonCount != 0 ||
-		facts.OpenAfterSaleCount != 0 || !facts.StoredValueOK || facts.AddonUnits != 0 {
+		facts.OpenAfterSaleCount != 0 || facts.AddonUnits != 0 {
 		t.Fatalf("事实快照不正确：%+v", facts)
-	}
-	// 布尔字段以 1/0 参与比较。
-	if closeConditionActual(facts, "stored_value_consistent") != 1 {
-		t.Fatal("储值卡一致应为 1")
 	}
 	tree := schematier.CloseConditionNode{Op: "and", Children: []schematier.CloseConditionNode{
 		closeLeaf("promised_service_units", ">=", 1),
 		closeLeaf("service_units", ">=", 1),
-		closeLeaf("stored_value_consistent", "==", 1),
+		closeLeaf("open_aftersale_count", "==", 0),
 	}}
 	satisfied, items := evaluateCloseConditionTree(tree, facts)
 	if !satisfied || len(items) != 3 {

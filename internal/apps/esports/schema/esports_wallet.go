@@ -10,12 +10,13 @@ import (
 
 // EsportsWalletAccount 是钱包账户登记表。余额不落库，一律由 EsportsWalletTx 流水求和得出，
 // 从结构上保证"账户余额等于对应流水之和"，不存在两处金额可以对不上的情况。
-// account_type=stored_value_card 的账户号为储值卡 ID（§11.3 每张卡独立账户），
-// 该类型不为卡建登记行——EsportsStoredValueCard 本身就是登记信息，避免卡状态出现两处真相。
+// account_type 里的 stored_value_card 为已废弃值（2026-10-20 储值卡功能移除）：该类型的账户号曾是
+// 储值卡 ID，且不为卡建登记行。历史流水仍可能带该值，保留枚举仅为历史台账可读，禁止新写入。
 type EsportsWalletAccount struct{ ent.Schema }
 
 func (EsportsWalletAccount) Fields() []ent.Field {
 	return []ent.Field{
+		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史流水/历史台账可读，禁止新写入。
 		field.Enum("account_type").Values("customer_balance", "player_catfood", "stored_value_card").StructTag(`json:"account_type"`),
 		field.Int("owner_id").Positive().StructTag(`json:"owner_id"`),
 		field.String("display_name").MaxLen(120).Default("").StructTag(`json:"display_name"`),
@@ -32,7 +33,8 @@ func (EsportsWalletAccount) Indexes() []ent.Index {
 
 // EsportsWalletTx 只增不改的钱包流水。本金与赠送权益分列记录，退款、更正一律新增冲正流水，
 // 不改历史行。customer_balance / player_catfood 的 (account_type, owner_id) 对应 EsportsWalletAccount；
-// account_type=stored_value_card 时 owner_id 为储值卡 ID（每张卡独立账户，归属人由卡上的 customer_id 得出）。
+// account_type 里的 stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史流水可读，
+// 禁止新写入。
 type EsportsWalletTx struct{ ent.Schema }
 
 func (EsportsWalletTx) Hooks() []ent.Hook { return appendOnlyHooks() }
@@ -40,6 +42,7 @@ func (EsportsWalletTx) Hooks() []ent.Hook { return appendOnlyHooks() }
 func (EsportsWalletTx) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("tx_no").NotEmpty().MaxLen(64).Immutable().StructTag(`json:"tx_no"`),
+		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史流水/历史台账可读，禁止新写入。
 		field.Enum("account_type").Values("customer_balance", "player_catfood", "stored_value_card").StructTag(`json:"account_type"`),
 		field.Int("owner_id").Positive().StructTag(`json:"owner_id"`),
 		// withdraw：陪玩提现申请时扣减猫粮（§6.3）；驳回用 refund_return 退回。
@@ -50,8 +53,8 @@ func (EsportsWalletTx) Fields() []ent.Field {
 		field.String("source_id").NotEmpty().MaxLen(80).StructTag(`json:"source_id"`),
 		field.Int("operator_id").Optional().Nillable().StructTag(`json:"operator_id"`),
 		field.String("note").MaxLen(255).Default("").StructTag(`json:"note"`),
-		// 归属人（§11.6-02）：account_type=stored_value_card 时 owner_id 是卡 ID，归属人须由卡上的
-		// customer_id 得出，故额外显式落归属人，使单条流水可独立自证「这笔钱是谁的」。
+		// 归属人（§11.6-02）：归属人须显式落库，使单条流水可独立自证「这笔钱是谁的」
+		// （历史上 stored_value_card 账户的 owner_id 是卡 ID，归属人须由卡上 customer_id 得出）。
 		// customer=客户 / player=陪玩 / platform=平台自有；历史数据默认 customer，可按下方 SQL 回填。
 		field.Enum("beneficiary_type").Values("customer", "player", "platform").Default("customer").StructTag(`json:"beneficiary_type"`),
 		field.Int("beneficiary_id").Default(0).StructTag(`json:"beneficiary_id"`),

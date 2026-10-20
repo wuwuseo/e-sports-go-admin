@@ -2,13 +2,11 @@ package esports
 
 import (
 	"errors"
-	"strconv"
 	"testing"
 	"time"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsgiftintent"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 )
 
 // seedVerifiedCustomer 建一个已绑定登录身份（active 用户 + 客户 + 活跃身份绑定）的成年客户。
@@ -77,44 +75,6 @@ func TestCustomerGiftIntentBalancePrincipalAndIdempotency(t *testing.T) {
 	// 资金仍不足时直接送礼必须被拦住（不得伪成功）。
 	if _, err := executeGiftIntent(ctx, db, 11, false, shortIntent.ID, now); !errors.Is(err, errConflict) {
 		t.Fatalf("未确认的确认单被执行：%v", err)
-	}
-}
-
-// 客户自助创建礼物确认单：储值卡本金路径走通，卡须 active && allow_gifts。
-func TestCustomerGiftIntentStoredValueCard(t *testing.T) {
-	db := openGiftDB(t, "esports_customer_gift_card")
-	defer db.Close()
-	ctx := t.Context()
-	now := time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)
-	account, customer := seedVerifiedCustomer(t, db, "cust-gift-card")
-	player := seedPlayer(t, db, account.ID+100, "qualified", "online")
-	gift := seedGift(t, db, giftInput{Code: "CUST-CARD-GIFT", Name: "卡礼物", PriceCents: 8000, CommissionMode: "percent", CommissionBp: 5000})
-
-	card := db.EsportsStoredValueCard.Create().SetCardNo("SV-CUST-GIFT-1").SetCustomerID(customer.ID).
-		SetPaymentChannel(esportsstoredvaluecard.PaymentChannelMerchantQr).
-		SetPrincipalCents(10000).SetBonusCents(5000).SetAllowGifts(true).SetContractConfirmed(true).
-		SetStatus(esportsstoredvaluecard.StatusActive).SetValidFrom(now.Add(-time.Hour)).
-		SetValidUntil(now.AddDate(0, 1, 0)).SaveX(ctx)
-	db.EsportsWalletTx.Create().SetTxNo("cust-gift-card-seed").SetAccountType("stored_value_card").
-		SetOwnerID(card.ID).SetEntryType("recharge").SetPrincipalDeltaCents(10000).SetBonusDeltaCents(5000).
-		SetSourceType("stored_value_card_open").SetSourceID("cust-gift-card-open").SaveX(ctx)
-	db.EsportsLedgerEntry.Create().SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
-		SetSourceType("stored_value_card_open").SetSourceID("cust-gift-card-open").SetEntryRole("card_open").
-		SetDeltaCents(15000).SaveX(ctx)
-
-	in := customerGiftIntentInput{GiftID: gift.ID, PlayerID: player.ID, Quantity: 1,
-		PaymentSource: "stored_value_card_principal", StoredValueCardID: card.ID, ClientKey: "cust-gift-card-key-1"}
-	intent, err := createCustomerGiftIntent(ctx, db, account.UID, in, now)
-	if err != nil || intent.StoredValueCardID == nil || *intent.StoredValueCardID != card.ID ||
-		intent.StoredValueCardNo != card.CardNo {
-		t.Fatalf("卡送礼确认单不正确：%+v %v", intent, err)
-	}
-	// 未授权礼物（allow_gifts=false）的卡被拦。
-	db.EsportsStoredValueCard.UpdateOneID(card.ID).SetAllowGifts(false).ExecX(ctx)
-	if _, err := createCustomerGiftIntent(ctx, db, account.UID, customerGiftIntentInput{GiftID: gift.ID,
-		PlayerID: player.ID, Quantity: 1, PaymentSource: "stored_value_card_principal",
-		StoredValueCardID: card.ID, ClientKey: "cust-gift-card-key-2"}, now); !errors.Is(err, errStoredValueUnusable) {
-		t.Fatalf("未授权礼物的卡未被拦截：%v", err)
 	}
 }
 

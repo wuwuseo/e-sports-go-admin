@@ -202,12 +202,6 @@ type Tx struct {
 	EsportsSkuSuspensionItem *EsportsSkuSuspensionItemClient
 	// EsportsSpecGroup is the client for interacting with the EsportsSpecGroup builders.
 	EsportsSpecGroup *EsportsSpecGroupClient
-	// EsportsStoredValueCard is the client for interacting with the EsportsStoredValueCard builders.
-	EsportsStoredValueCard *EsportsStoredValueCardClient
-	// EsportsStoredValueException is the client for interacting with the EsportsStoredValueException builders.
-	EsportsStoredValueException *EsportsStoredValueExceptionClient
-	// EsportsStoredValuePackage is the client for interacting with the EsportsStoredValuePackage builders.
-	EsportsStoredValuePackage *EsportsStoredValuePackageClient
 	// EsportsTeammate is the client for interacting with the EsportsTeammate builders.
 	EsportsTeammate *EsportsTeammateClient
 	// EsportsWalletAccount is the client for interacting with the EsportsWalletAccount builders.
@@ -472,9 +466,6 @@ func (tx *Tx) init() {
 	tx.EsportsSkuSuspension = NewEsportsSkuSuspensionClient(tx.config)
 	tx.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(tx.config)
 	tx.EsportsSpecGroup = NewEsportsSpecGroupClient(tx.config)
-	tx.EsportsStoredValueCard = NewEsportsStoredValueCardClient(tx.config)
-	tx.EsportsStoredValueException = NewEsportsStoredValueExceptionClient(tx.config)
-	tx.EsportsStoredValuePackage = NewEsportsStoredValuePackageClient(tx.config)
 	tx.EsportsTeammate = NewEsportsTeammateClient(tx.config)
 	tx.EsportsWalletAccount = NewEsportsWalletAccountClient(tx.config)
 	tx.EsportsWalletTx = NewEsportsWalletTxClient(tx.config)

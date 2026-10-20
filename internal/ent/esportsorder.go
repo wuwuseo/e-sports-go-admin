@@ -99,8 +99,6 @@ type EsportsOrder struct {
 	PaymentStatus esportsorder.PaymentStatus `json:"payment_status"`
 	// PaymentChannel holds the value of the "payment_channel" field.
 	PaymentChannel esportsorder.PaymentChannel `json:"payment_channel"`
-	// StoredValueCardID holds the value of the "stored_value_card_id" field.
-	StoredValueCardID *int `json:"stored_value_card_id"`
 	// PriorityNoticeStatus holds the value of the "priority_notice_status" field.
 	PriorityNoticeStatus esportsorder.PriorityNoticeStatus `json:"priority_notice_status"`
 	// PriorityNoticeUntil holds the value of the "priority_notice_until" field.
@@ -204,7 +202,7 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case esportsorder.FieldBackfillCountCommission:
 			values[i] = new(sql.NullBool)
-		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldManualCommissionRuleID, esportsorder.FieldManualCommissionRuleSetByAdminID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldMemberDiscountBps, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldPerSeatServiceUnits, esportsorder.FieldServiceDurationMinutes, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldStoredValueCardID, esportsorder.FieldRemindPriorityLevel, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
+		case esportsorder.FieldID, esportsorder.FieldCustomerID, esportsorder.FieldSkuID, esportsorder.FieldCreatedByAdminID, esportsorder.FieldResponsibleAdminID, esportsorder.FieldCsCommissionAdminID, esportsorder.FieldCsCommissionRuleID, esportsorder.FieldManualCommissionRuleID, esportsorder.FieldManualCommissionRuleSetByAdminID, esportsorder.FieldCloseFormTemplateID, esportsorder.FieldQuantity, esportsorder.FieldUnitPriceCents, esportsorder.FieldMinUnitPriceCents, esportsorder.FieldAdjustmentApprovalBp, esportsorder.FieldDiscountCents, esportsorder.FieldManualAdjustCents, esportsorder.FieldMemberDiscountBps, esportsorder.FieldPayableCents, esportsorder.FieldPromisedServiceUnits, esportsorder.FieldPerSeatServiceUnits, esportsorder.FieldServiceDurationMinutes, esportsorder.FieldAddonCents, esportsorder.FieldAddonUnits, esportsorder.FieldRequiredSeats, esportsorder.FieldQuoteVersion, esportsorder.FieldVersion, esportsorder.FieldRemindPriorityLevel, esportsorder.FieldPreferredPlayerID, esportsorder.FieldRefundedCents, esportsorder.FieldCloseNetServiceCents, esportsorder.FieldRefundReservedCents, esportsorder.FieldChannelCostCents, esportsorder.FieldDepositedByAdminID, esportsorder.FieldBackfilledByAdminID:
 			values[i] = new(sql.NullInt64)
 		case esportsorder.FieldOrderNo, esportsorder.FieldSkuCode, esportsorder.FieldSkuName, esportsorder.FieldSpecName, esportsorder.FieldChannelSource, esportsorder.FieldEntryPoint, esportsorder.FieldMemberLevelCode, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRemindNote, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus, esportsorder.FieldBackfillReason:
 			values[i] = new(sql.NullString)
@@ -482,13 +480,6 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field payment_channel", values[i])
 			} else if value.Valid {
 				_m.PaymentChannel = esportsorder.PaymentChannel(value.String)
-			}
-		case esportsorder.FieldStoredValueCardID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field stored_value_card_id", values[i])
-			} else if value.Valid {
-				_m.StoredValueCardID = new(int)
-				*_m.StoredValueCardID = int(value.Int64)
 			}
 		case esportsorder.FieldPriorityNoticeStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -899,11 +890,6 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("payment_channel=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PaymentChannel))
-	builder.WriteString(", ")
-	if v := _m.StoredValueCardID; v != nil {
-		builder.WriteString("stored_value_card_id=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
 	builder.WriteString(", ")
 	builder.WriteString("priority_notice_status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PriorityNoticeStatus))

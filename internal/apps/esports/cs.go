@@ -687,7 +687,7 @@ func countCustomerBirthdaysDue(ctx context.Context, db *ent.Client, adminID int,
 	return q.Count(ctx)
 }
 
-// csWorkbenchTodos 组装客服待办提醒（§8.2）：订单超时、待结单、售后待处理、跟进到期、储值卡到期、生日礼遇（§10.4）、
+// csWorkbenchTodos 组装客服待办提醒（§8.2）：订单超时、待结单、售后待处理、跟进到期、生日礼遇（§10.4）、
 // 会员优先预约、通知失败与结单后复购跟进（§14-01）。订单类计数与列表共用「负责 OR 协作」可见性谓词（§3.5-06）。
 func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) ([]csTodoItem, error) {
 	overdue := db.EsportsOrder.Query().Where(
@@ -721,11 +721,6 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		esportscustomerfollowup.NextFollowAtLTE(now.UTC()),
 		esportscustomerfollowup.Not(esportscustomerfollowup.SummaryHasPrefix(repurchaseFollowUpPrefix)),
 	).Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// 储值卡临近到期提醒（§4.4）：让客服在卡过期前跟进客户。
-	storedValueDueCount, err := countStoredValueCardsDue(ctx, db, adminID, isSuper, now, storedValueDueDays)
 	if err != nil {
 		return nil, err
 	}
@@ -770,7 +765,6 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		{Key: "pending_close", Label: "待结单", Count: closeCount},
 		{Key: "pending_aftersale", Label: "售后待处理", Count: aftersaleCount},
 		{Key: "due_follow_up", Label: "跟进已到期", Count: followCount},
-		{Key: "stored_value_due", Label: "储值卡临近到期", Count: storedValueDueCount},
 		{Key: "customer_birthday", Label: "今日生日客户", Count: birthdayCount},
 		{Key: "member_priority_booking", Label: "会员优先预约", Count: priorityBookingCount},
 		{Key: "notification_failed", Label: "通知发送失败", Count: notificationFailCount},

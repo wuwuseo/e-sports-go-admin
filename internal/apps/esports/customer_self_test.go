@@ -12,7 +12,6 @@ import (
 	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsorder"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -97,11 +96,6 @@ func TestCustomerSelfProfileAndWallet(t *testing.T) {
 		"self-profile-seed"); err != nil {
 		t.Fatal(err)
 	}
-	db.EsportsStoredValueCard.Create().SetCardNo("SVC-SELF-1").SetCustomerID(customer.ID).
-		SetPaymentChannel(esportsstoredvaluecard.PaymentChannel("customer_balance")).
-		SetPrincipalCents(20000).SetStatus(esportsstoredvaluecard.StatusActive).
-		SetValidFrom(time.Now().UTC()).SetValidUntil(time.Now().UTC().AddDate(1, 0, 0)).SaveX(ctx)
-
 	profile, err := customerSelfProfileOf(ctx, db, db.EsportsCustomer.GetX(ctx, customer.ID))
 	if err != nil {
 		t.Fatal(err)
@@ -116,7 +110,7 @@ func TestCustomerSelfProfileAndWallet(t *testing.T) {
 		t.Fatal(err)
 	}
 	if wallet.PrincipalCents != 3000 || wallet.BonusCents != 500 ||
-		wallet.TotalCents != 3500 || len(wallet.Cards) != 1 {
+		wallet.TotalCents != 3500 {
 		t.Fatalf("客户余额视图不正确：%+v", wallet)
 	}
 	// 被限制自助下单时资料里只读暴露，便于客户端提示。

@@ -102,34 +102,6 @@ func (_c *EsportsGiftIntentCreate) SetNillablePaymentSource(v *string) *EsportsG
 	return _c
 }
 
-// SetStoredValueCardID sets the "stored_value_card_id" field.
-func (_c *EsportsGiftIntentCreate) SetStoredValueCardID(v int) *EsportsGiftIntentCreate {
-	_c.mutation.SetStoredValueCardID(v)
-	return _c
-}
-
-// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
-func (_c *EsportsGiftIntentCreate) SetNillableStoredValueCardID(v *int) *EsportsGiftIntentCreate {
-	if v != nil {
-		_c.SetStoredValueCardID(*v)
-	}
-	return _c
-}
-
-// SetStoredValueCardNo sets the "stored_value_card_no" field.
-func (_c *EsportsGiftIntentCreate) SetStoredValueCardNo(v string) *EsportsGiftIntentCreate {
-	_c.mutation.SetStoredValueCardNo(v)
-	return _c
-}
-
-// SetNillableStoredValueCardNo sets the "stored_value_card_no" field if the given value is not nil.
-func (_c *EsportsGiftIntentCreate) SetNillableStoredValueCardNo(v *string) *EsportsGiftIntentCreate {
-	if v != nil {
-		_c.SetStoredValueCardNo(*v)
-	}
-	return _c
-}
-
 // SetGiftTierID sets the "gift_tier_id" field.
 func (_c *EsportsGiftIntentCreate) SetGiftTierID(v int) *EsportsGiftIntentCreate {
 	_c.mutation.SetGiftTierID(v)
@@ -439,10 +411,6 @@ func (_c *EsportsGiftIntentCreate) defaults() {
 		v := esportsgiftintent.DefaultPaymentSource
 		_c.mutation.SetPaymentSource(v)
 	}
-	if _, ok := _c.mutation.StoredValueCardNo(); !ok {
-		v := esportsgiftintent.DefaultStoredValueCardNo
-		_c.mutation.SetStoredValueCardNo(v)
-	}
 	if _, ok := _c.mutation.GiftTierID(); !ok {
 		v := esportsgiftintent.DefaultGiftTierID
 		_c.mutation.SetGiftTierID(v)
@@ -569,19 +537,6 @@ func (_c *EsportsGiftIntentCreate) check() error {
 	}
 	if _, ok := _c.mutation.PaymentSource(); !ok {
 		return &ValidationError{Name: "payment_source", err: errors.New(`ent: missing required field "EsportsGiftIntent.payment_source"`)}
-	}
-	if v, ok := _c.mutation.StoredValueCardID(); ok {
-		if err := esportsgiftintent.StoredValueCardIDValidator(v); err != nil {
-			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_id": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.StoredValueCardNo(); !ok {
-		return &ValidationError{Name: "stored_value_card_no", err: errors.New(`ent: missing required field "EsportsGiftIntent.stored_value_card_no"`)}
-	}
-	if v, ok := _c.mutation.StoredValueCardNo(); ok {
-		if err := esportsgiftintent.StoredValueCardNoValidator(v); err != nil {
-			return &ValidationError{Name: "stored_value_card_no", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_no": %w`, err)}
-		}
 	}
 	if _, ok := _c.mutation.GiftTierID(); !ok {
 		return &ValidationError{Name: "gift_tier_id", err: errors.New(`ent: missing required field "EsportsGiftIntent.gift_tier_id"`)}
@@ -747,14 +702,6 @@ func (_c *EsportsGiftIntentCreate) createSpec() (*EsportsGiftIntent, *sqlgraph.C
 	if value, ok := _c.mutation.PaymentSource(); ok {
 		_spec.SetField(esportsgiftintent.FieldPaymentSource, field.TypeString, value)
 		_node.PaymentSource = value
-	}
-	if value, ok := _c.mutation.StoredValueCardID(); ok {
-		_spec.SetField(esportsgiftintent.FieldStoredValueCardID, field.TypeInt, value)
-		_node.StoredValueCardID = &value
-	}
-	if value, ok := _c.mutation.StoredValueCardNo(); ok {
-		_spec.SetField(esportsgiftintent.FieldStoredValueCardNo, field.TypeString, value)
-		_node.StoredValueCardNo = value
 	}
 	if value, ok := _c.mutation.GiftTierID(); ok {
 		_spec.SetField(esportsgiftintent.FieldGiftTierID, field.TypeInt, value)

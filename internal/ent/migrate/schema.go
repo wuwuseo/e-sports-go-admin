@@ -1762,8 +1762,6 @@ var (
 		{Name: "unit_price_cents", Type: field.TypeInt64},
 		{Name: "amount_cents", Type: field.TypeInt64},
 		{Name: "payment_source", Type: field.TypeString, Default: "customer_balance_principal"},
-		{Name: "stored_value_card_id", Type: field.TypeInt, Nullable: true},
-		{Name: "stored_value_card_no", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "gift_tier_id", Type: field.TypeInt, Default: 0},
 		{Name: "gift_tier_code", Type: field.TypeString, Size: 48, Default: ""},
 		{Name: "high_value", Type: field.TypeBool, Default: false},
@@ -1795,22 +1793,22 @@ var (
 			{
 				Name:    "esportsgiftintent_created_by_admin_id_client_key",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsGiftIntentsColumns[25], EsportsGiftIntentsColumns[26]},
+				Columns: []*schema.Column{EsportsGiftIntentsColumns[23], EsportsGiftIntentsColumns[24]},
 			},
 			{
 				Name:    "esportsgiftintent_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsGiftIntentsColumns[1], EsportsGiftIntentsColumns[33]},
+				Columns: []*schema.Column{EsportsGiftIntentsColumns[1], EsportsGiftIntentsColumns[31]},
 			},
 			{
 				Name:    "esportsgiftintent_status_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsGiftIntentsColumns[27], EsportsGiftIntentsColumns[31]},
+				Columns: []*schema.Column{EsportsGiftIntentsColumns[25], EsportsGiftIntentsColumns[29]},
 			},
 			{
 				Name:    "esportsgiftintent_payment_intent_no",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsGiftIntentsColumns[20]},
+				Columns: []*schema.Column{EsportsGiftIntentsColumns[18]},
 			},
 		},
 	}
@@ -1832,7 +1830,6 @@ var (
 		{Name: "principal_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "bonus_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "payment_source", Type: field.TypeString, Default: "customer_balance_principal"},
-		{Name: "stored_value_card_id", Type: field.TypeInt, Nullable: true},
 		{Name: "gift_tier_id", Type: field.TypeInt, Default: 0},
 		{Name: "gift_tier_code", Type: field.TypeString, Size: 48, Default: ""},
 		{Name: "payment_ref", Type: field.TypeString, Size: 128, Default: ""},
@@ -1867,12 +1864,12 @@ var (
 			{
 				Name:    "esportsgiftorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsGiftOrdersColumns[4], EsportsGiftOrdersColumns[29]},
+				Columns: []*schema.Column{EsportsGiftOrdersColumns[4], EsportsGiftOrdersColumns[28]},
 			},
 			{
 				Name:    "esportsgiftorder_player_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsGiftOrdersColumns[5], EsportsGiftOrdersColumns[29]},
+				Columns: []*schema.Column{EsportsGiftOrdersColumns[5], EsportsGiftOrdersColumns[28]},
 			},
 		},
 	}
@@ -2210,7 +2207,6 @@ var (
 		{Name: "fulfillment_status", Type: field.TypeEnum, Enums: []string{"pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled"}, Default: "pending_payment"},
 		{Name: "payment_status", Type: field.TypeEnum, Enums: []string{"unpaid", "partial", "paid", "exception"}, Default: "unpaid"},
 		{Name: "payment_channel", Type: field.TypeEnum, Enums: []string{"none", "customer_balance", "stored_value_card", "wechat_work", "merchant_qr", "corporate_transfer"}, Default: "none"},
-		{Name: "stored_value_card_id", Type: field.TypeInt, Nullable: true},
 		{Name: "priority_notice_status", Type: field.TypeEnum, Enums: []string{"none", "pending", "released", "accepted"}, Default: "none"},
 		{Name: "priority_notice_until", Type: field.TypeTime, Nullable: true},
 		{Name: "priority_game", Type: field.TypeString, Size: 64, Default: ""},
@@ -2261,7 +2257,7 @@ var (
 			{
 				Name:    "esportsorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[75]},
+				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[74]},
 			},
 			{
 				Name:    "esportsorder_responsible_admin_id_fulfillment_status",
@@ -2271,7 +2267,7 @@ var (
 			{
 				Name:    "esportsorder_channel_source_entry_point_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[17], EsportsOrdersColumns[18], EsportsOrdersColumns[75]},
+				Columns: []*schema.Column{EsportsOrdersColumns[17], EsportsOrdersColumns[18], EsportsOrdersColumns[74]},
 			},
 		},
 	}
@@ -3647,162 +3643,6 @@ var (
 			},
 		},
 	}
-	// EsportsStoredValueCardsColumns holds the columns for the "esports_stored_value_cards" table.
-	EsportsStoredValueCardsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "card_no", Type: field.TypeString, Size: 64},
-		{Name: "customer_id", Type: field.TypeInt},
-		{Name: "source", Type: field.TypeEnum, Enums: []string{"staff", "self"}, Default: "staff"},
-		{Name: "payment_channel", Type: field.TypeEnum, Enums: []string{"wechat_work", "merchant_qr", "corporate_transfer", "customer_balance"}},
-		{Name: "payment_ref", Type: field.TypeString, Size: 128, Default: ""},
-		{Name: "principal_cents", Type: field.TypeInt64},
-		{Name: "bonus_cents", Type: field.TypeInt64, Default: 0},
-		{Name: "applicable_scope", Type: field.TypeJSON, Nullable: true},
-		{Name: "allow_gifts", Type: field.TypeBool, Default: false},
-		{Name: "contract_confirmed", Type: field.TypeBool, Default: false},
-		{Name: "valid_from", Type: field.TypeTime},
-		{Name: "valid_until", Type: field.TypeTime},
-		{Name: "requested_validity_days", Type: field.TypeInt, Default: 0},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_verification", "rejected", "active", "exhausted", "refund_pending", "refunded", "expired", "frozen"}, Default: "active"},
-		{Name: "open_request_key", Type: field.TypeString, Nullable: true, Size: 128},
-		{Name: "verified_payment_key", Type: field.TypeString, Nullable: true, Size: 160},
-		{Name: "payment_verified_by_admin_id", Type: field.TypeInt, Nullable: true},
-		{Name: "payment_verified_at", Type: field.TypeTime, Nullable: true},
-		{Name: "payment_verified_amount_cents", Type: field.TypeInt64, Default: 0},
-		{Name: "payment_verification_note", Type: field.TypeString, Size: 255, Default: ""},
-		{Name: "package_id", Type: field.TypeInt, Nullable: true},
-		{Name: "opened_by_admin_id", Type: field.TypeInt, Nullable: true},
-		{Name: "refund_quote", Type: field.TypeJSON, Nullable: true},
-		{Name: "refund_requested_by_admin_id", Type: field.TypeInt, Nullable: true},
-		{Name: "refund_requested_at", Type: field.TypeTime, Nullable: true},
-		{Name: "refund_decided_by_admin_id", Type: field.TypeInt, Nullable: true},
-		{Name: "refunded_cents", Type: field.TypeInt64, Default: 0},
-		{Name: "refunded_at", Type: field.TypeTime, Nullable: true},
-		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "deduction_order", Type: field.TypeString, Size: 32, Default: ""},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
-	}
-	// EsportsStoredValueCardsTable holds the schema information for the "esports_stored_value_cards" table.
-	EsportsStoredValueCardsTable = &schema.Table{
-		Name:       TablePrefix + "esports_stored_value_cards",
-		Columns:    EsportsStoredValueCardsColumns,
-		PrimaryKey: []*schema.Column{EsportsStoredValueCardsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "esportsstoredvaluecard_card_no",
-				Unique:  true,
-				Columns: []*schema.Column{EsportsStoredValueCardsColumns[1]},
-			},
-			{
-				Name:    "esportsstoredvaluecard_open_request_key",
-				Unique:  true,
-				Columns: []*schema.Column{EsportsStoredValueCardsColumns[15]},
-			},
-			{
-				Name:    "esportsstoredvaluecard_verified_payment_key",
-				Unique:  true,
-				Columns: []*schema.Column{EsportsStoredValueCardsColumns[16]},
-			},
-			{
-				Name:    "esportsstoredvaluecard_customer_id_status",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValueCardsColumns[2], EsportsStoredValueCardsColumns[14]},
-			},
-			{
-				Name:    "esportsstoredvaluecard_status_valid_until",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValueCardsColumns[14], EsportsStoredValueCardsColumns[12]},
-			},
-		},
-	}
-	// EsportsStoredValueExceptionsColumns holds the columns for the "esports_stored_value_exceptions" table.
-	EsportsStoredValueExceptionsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "exception_no", Type: field.TypeString, Size: 64},
-		{Name: "card_id", Type: field.TypeInt},
-		{Name: "order_id", Type: field.TypeInt, Default: 0},
-		{Name: "customer_id", Type: field.TypeInt, Default: 0},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"write_off_mismatch", "card_flag_mismatch", "card_link_mismatch", "settlement_blocked"}, Default: "write_off_mismatch"},
-		{Name: "detail", Type: field.TypeJSON, Nullable: true},
-		{Name: "reason", Type: field.TypeString, Size: 255, Default: ""},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"open", "following", "resolved", "ignored"}, Default: "open"},
-		{Name: "assignee_admin_id", Type: field.TypeInt, Nullable: true},
-		{Name: "assigned_at", Type: field.TypeTime, Nullable: true},
-		{Name: "occurrences", Type: field.TypeInt, Default: 1},
-		{Name: "last_hit_at", Type: field.TypeTime, Nullable: true},
-		{Name: "resolved_by_admin_id", Type: field.TypeInt, Nullable: true},
-		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
-		{Name: "resolution", Type: field.TypeString, Size: 500, Default: ""},
-		{Name: "dedup_key", Type: field.TypeString, Nullable: true, Size: 191},
-		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
-	}
-	// EsportsStoredValueExceptionsTable holds the schema information for the "esports_stored_value_exceptions" table.
-	EsportsStoredValueExceptionsTable = &schema.Table{
-		Name:       TablePrefix + "esports_stored_value_exceptions",
-		Columns:    EsportsStoredValueExceptionsColumns,
-		PrimaryKey: []*schema.Column{EsportsStoredValueExceptionsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "esportsstoredvalueexception_exception_no",
-				Unique:  true,
-				Columns: []*schema.Column{EsportsStoredValueExceptionsColumns[1]},
-			},
-			{
-				Name:    "esportsstoredvalueexception_dedup_key",
-				Unique:  true,
-				Columns: []*schema.Column{EsportsStoredValueExceptionsColumns[16]},
-			},
-			{
-				Name:    "esportsstoredvalueexception_status_created_at",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValueExceptionsColumns[8], EsportsStoredValueExceptionsColumns[18]},
-			},
-			{
-				Name:    "esportsstoredvalueexception_assignee_admin_id_status",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValueExceptionsColumns[9], EsportsStoredValueExceptionsColumns[8]},
-			},
-			{
-				Name:    "esportsstoredvalueexception_card_id_status",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValueExceptionsColumns[2], EsportsStoredValueExceptionsColumns[8]},
-			},
-		},
-	}
-	// EsportsStoredValuePackagesColumns holds the columns for the "esports_stored_value_packages" table.
-	EsportsStoredValuePackagesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "code", Type: field.TypeString, Size: 64},
-		{Name: "name", Type: field.TypeString, Size: 120},
-		{Name: "principal_cents", Type: field.TypeInt64},
-		{Name: "bonus_cents", Type: field.TypeInt64, Default: 0},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"on_sale", "off_sale"}, Default: "on_sale"},
-		{Name: "sort_order", Type: field.TypeInt, Default: 0},
-		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
-	}
-	// EsportsStoredValuePackagesTable holds the schema information for the "esports_stored_value_packages" table.
-	EsportsStoredValuePackagesTable = &schema.Table{
-		Name:       TablePrefix + "esports_stored_value_packages",
-		Columns:    EsportsStoredValuePackagesColumns,
-		PrimaryKey: []*schema.Column{EsportsStoredValuePackagesColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "esportsstoredvaluepackage_code",
-				Unique:  true,
-				Columns: []*schema.Column{EsportsStoredValuePackagesColumns[1]},
-			},
-			{
-				Name:    "esportsstoredvaluepackage_status_sort_order",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsStoredValuePackagesColumns[5], EsportsStoredValuePackagesColumns[6]},
-			},
-		},
-	}
 	// EsportsTeammatesColumns holds the columns for the "esports_teammates" table.
 	EsportsTeammatesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -4697,9 +4537,6 @@ var (
 		EsportsSkuSuspensionsTable,
 		EsportsSkuSuspensionItemsTable,
 		EsportsSpecGroupsTable,
-		EsportsStoredValueCardsTable,
-		EsportsStoredValueExceptionsTable,
-		EsportsStoredValuePackagesTable,
 		EsportsTeammatesTable,
 		EsportsWalletAccountsTable,
 		EsportsWalletTxesTable,

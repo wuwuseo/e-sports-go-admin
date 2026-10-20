@@ -23,7 +23,6 @@ import (
 // customerPaymentMethodName 收款方式展示名（与订单 payment_channel 枚举一一对应）。
 var customerPaymentMethodName = map[string]string{
 	"customer_balance":   "客户余额",
-	"stored_value_card":  "储值卡",
 	"wechat_work":        "企微收款",
 	"merchant_qr":        "商户码",
 	"corporate_transfer": "对公转账",
@@ -39,7 +38,7 @@ type customerPaymentAccountView struct {
 	BankName    string `json:"bank_name"`
 }
 
-// customerPaymentMethodView 客户侧收款方式视图：internal 为余额/储值卡等站内方式（无账户），
+// customerPaymentMethodView 客户侧收款方式视图：internal 为余额等站内方式（无账户），
 // external 为需上传凭证的外部收款渠道（携带财务审核通过的收款账户）。
 type customerPaymentMethodView struct {
 	Channel  string                       `json:"channel"`
@@ -60,10 +59,10 @@ func listCustomerPaymentMethods(ctx context.Context, db *ent.Client) ([]customer
 	for _, channel := range channels {
 		enabled[channel.Channel] = channel.Enabled
 	}
-	// 站内方式（余额 / 储值卡）同样受后台启停约束（§4.3-08）：停用后不再作为可选收款方式。
+	// 站内方式（余额）同样受后台启停约束（§4.3-08）：停用后不再作为可选收款方式。
+	// 储值卡（stored_value_card）已随该功能下线（2026-10-20），不再作为客户可选收款方式下发。
 	methods := []customerPaymentMethodView{
 		{Channel: "customer_balance", Name: customerPaymentMethodName["customer_balance"], Kind: "internal", Enabled: enabled["customer_balance"], Accounts: []customerPaymentAccountView{}},
-		{Channel: "stored_value_card", Name: customerPaymentMethodName["stored_value_card"], Kind: "internal", Enabled: enabled["stored_value_card"], Accounts: []customerPaymentAccountView{}},
 	}
 	for _, channel := range externalPaymentChannelValues {
 		if !enabled[channel] {

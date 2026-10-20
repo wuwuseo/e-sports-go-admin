@@ -137,10 +137,12 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 // validateReportDimensionValues 校验筛选维度的取值是否合法（P1-08 / P1-09）：
 // 取值非法时显式返回中文参数错误，避免拼错枚举被静默当成「命中 0 行」。
 func validateReportDimensionValues(f reportFilter) error {
+	// 储值卡账户类型（stored_value_card）已随该功能下线（2026-10-20），不再作为报表筛选维度；
+	// 历史卡流水的导出与核对改用运维命令 cmd/esports-stored-value-export。
 	switch f.WalletAccountType {
-	case "", "customer_balance", "player_catfood", "stored_value_card":
+	case "", "customer_balance", "player_catfood":
 	default:
-		return fmt.Errorf("%w：账户类型仅支持 customer_balance / player_catfood / stored_value_card", errInvalidInput)
+		return fmt.Errorf("%w：账户类型仅支持 customer_balance / player_catfood", errInvalidInput)
 	}
 	switch f.WalletEntryType {
 	case "", "recharge", "consume", "refund_return", "adjust", "expire", "withdraw":

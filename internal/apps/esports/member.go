@@ -54,9 +54,11 @@ type memberLevelInput struct {
 	GrowthThreshold  int64  `json:"growth_threshold"`
 	DiscountBps      int    `json:"discount_bps"`
 	PriorityDispatch bool   `json:"priority_dispatch"`
-	PrepayBonusBps   int    `json:"prepay_bonus_bps"`
-	DedicatedCs      *bool  `json:"dedicated_cs"`
-	PriorityBooking  *bool  `json:"priority_booking"`
+	// PrepayBonusBps 已废弃（2026-10-20 储值卡功能移除）：开卡赠送比例随卡一起下线，
+	// 入参仍可携带但不再校验、不再落库写入，库中历史值原样保留（前端已不下发该输入项）。
+	PrepayBonusBps  int   `json:"prepay_bonus_bps,omitempty"`
+	DedicatedCs     *bool `json:"dedicated_cs"`
+	PriorityBooking *bool `json:"priority_booking"`
 	// 专属通道 / 线下活动优先（§10.1-02）：与 DedicatedCs / PriorityBooking 同一「未传不清零」口径。
 	DedicatedChannel     *bool `json:"dedicated_channel"`
 	OfflineEventPriority *bool `json:"offline_event_priority"`
@@ -74,8 +76,7 @@ func validateMemberLevelInput(in memberLevelInput) error {
 	if name == "" || len([]rune(name)) > 32 || !memberLevelCodePattern.MatchString(strings.TrimSpace(in.Code)) {
 		return errInvalidInput
 	}
-	if in.GrowthThreshold < 0 || in.DiscountBps < 0 || in.DiscountBps > memberDiscountBpsFull ||
-		in.PrepayBonusBps < 0 || in.PrepayBonusBps > memberDiscountBpsFull {
+	if in.GrowthThreshold < 0 || in.DiscountBps < 0 || in.DiscountBps > memberDiscountBpsFull {
 		return errInvalidInput
 	}
 	return nil
@@ -89,7 +90,7 @@ func createMemberLevel(ctx context.Context, db *ent.Client, in memberLevelInput)
 	item, err := db.EsportsMemberLevelRule.Create().
 		SetCode(strings.TrimSpace(in.Code)).SetName(strings.TrimSpace(in.Name)).
 		SetGrowthThreshold(in.GrowthThreshold).SetDiscountBps(in.DiscountBps).
-		SetPriorityDispatch(in.PriorityDispatch).SetPrepayBonusBps(in.PrepayBonusBps).
+		SetPriorityDispatch(in.PriorityDispatch).
 		SetDedicatedCs(memberLevelFlag(in.DedicatedCs)).
 		SetPriorityBooking(memberLevelFlag(in.PriorityBooking)).
 		SetDedicatedChannel(memberLevelFlag(in.DedicatedChannel)).
@@ -119,7 +120,7 @@ func updateMemberLevel(ctx context.Context, db *ent.Client, id, expectedVersion 
 		esportsmemberlevelrule.VersionEQ(expectedVersion),
 	).SetName(strings.TrimSpace(in.Name)).
 		SetGrowthThreshold(in.GrowthThreshold).SetDiscountBps(in.DiscountBps).
-		SetPriorityDispatch(in.PriorityDispatch).SetPrepayBonusBps(in.PrepayBonusBps).
+		SetPriorityDispatch(in.PriorityDispatch).
 		SetSortOrder(in.SortOrder)
 	if in.DedicatedCs != nil {
 		update.SetDedicatedCs(*in.DedicatedCs)
@@ -275,20 +276,6 @@ func memberDiscountBps(ctx context.Context, db *ent.Client, levelCode string) (i
 	return rule.DiscountBps, nil
 }
 
-// memberPrepayBonusCents 按会员等级的储值卡赠送比例（§10.4）算开卡赠送额（分）；
-// 未定级、等级停用或比例为 0 时返回 0。整数向下取整，按 (q*bps + r*bps/10000) 分解避免溢出。
-func memberPrepayBonusCents(ctx context.Context, db *ent.Client, levelCode string, principalCents int64) (int64, error) {
-	rule, err := memberRuleByCode(ctx, db, levelCode)
-	if err != nil || rule == nil {
-		return 0, err
-	}
-	if rule.Status != esportsmemberlevelrule.StatusEnabled || rule.PrepayBonusBps <= 0 || principalCents <= 0 {
-		return 0, nil
-	}
-	bps := int64(rule.PrepayBonusBps)
-	return principalCents/memberDiscountBpsFull*bps + principalCents%memberDiscountBpsFull*bps/memberDiscountBpsFull, nil
-}
-
 // memberDedicatedChannel 返回客户当前等级是否开通「专属通道」权益（§10.1-02）。
 // 未定级、等级不存在或已停用一律返回 false（不享受任何权益，与 customerMemberRule 同口径）。
 func memberDedicatedChannel(ctx context.Context, db *ent.Client, levelCode string) (bool, error) {
@@ -312,17 +299,18 @@ func memberOfflineEventPriority(ctx context.Context, db *ent.Client, levelCode s
 // memberPrivilegeView 是客户当前生效的会员权益快照（§10.1-02 / §10.4）。
 // Active=false 表示未定级 / 等级停用 / 规则缺失，此时不得在权益页宣称「已生效」。
 type memberPrivilegeView struct {
-	CustomerID           int    `json:"customer_id"`
-	LevelCode            string `json:"level_code"`
-	LevelName            string `json:"level_name"`
-	Active               bool   `json:"active"`
-	DiscountBps          int    `json:"discount_bps"`
-	PrepayBonusBps       int    `json:"prepay_bonus_bps"`
-	DedicatedCs          bool   `json:"dedicated_cs"`
-	DedicatedChannel     bool   `json:"dedicated_channel"`
-	OfflineEventPriority bool   `json:"offline_event_priority"`
-	PriorityBooking      bool   `json:"priority_booking"`
-	PriorityDispatch     bool   `json:"priority_dispatch"`
+	CustomerID  int    `json:"customer_id"`
+	LevelCode   string `json:"level_code"`
+	LevelName   string `json:"level_name"`
+	Active      bool   `json:"active"`
+	DiscountBps int    `json:"discount_bps"`
+	// PrepayBonusBps 已废弃（2026-10-20 储值卡功能移除）：仅回显库中历史值，无任何消费点。
+	PrepayBonusBps       int  `json:"prepay_bonus_bps"`
+	DedicatedCs          bool `json:"dedicated_cs"`
+	DedicatedChannel     bool `json:"dedicated_channel"`
+	OfflineEventPriority bool `json:"offline_event_priority"`
+	PriorityBooking      bool `json:"priority_booking"`
+	PriorityDispatch     bool `json:"priority_dispatch"`
 }
 
 // memberPrivilegeFlags 一次性读取客户全部会员权益字段（P1-11：权益必须有真实消费点）。
@@ -1090,7 +1078,8 @@ type memberView struct {
 	PriorityDispatch     bool `json:"priority_dispatch"`
 	DedicatedChannel     bool `json:"dedicated_channel"`
 	OfflineEventPriority bool `json:"offline_event_priority"`
-	PrepayBonusBps       int  `json:"prepay_bonus_bps"`
+	// PrepayBonusBps 已废弃（2026-10-20 储值卡功能移除）：仅回显库中历史值，无任何消费点。
+	PrepayBonusBps int `json:"prepay_bonus_bps"`
 	// 手动调级覆盖状态（P1-10）：覆盖期内 override_active=true，override_level_code 为人工设定等级，
 	// override_expires_at 为覆盖到期时刻；到期后由惰性判定回落，override_active 变 false。
 	OverrideLevelCode string                            `json:"override_level_code"`

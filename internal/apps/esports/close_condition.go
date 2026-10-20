@@ -50,7 +50,6 @@ var closeConditionFieldSpecs = []closeConditionFieldSpec{
 	{Key: "addon_units", Label: "加钟量", Kind: "units"},
 	{Key: "pending_addon_count", Label: "未处理加钟数（待确认/未收款）", Kind: "count"},
 	{Key: "open_aftersale_count", Label: "进行中售后数", Kind: "count"},
-	{Key: "stored_value_consistent", Label: "储值卡核销一致", Kind: "bool"},
 }
 
 var closeConditionOperators = []string{">=", ">", "<=", "<", "==", "!="}
@@ -145,10 +144,9 @@ type closeConditionFacts struct {
 	AddonUnits           int64
 	PendingAddonCount    int64
 	OpenAfterSaleCount   int64
-	StoredValueOK        bool
 }
 
-// closeConditionFactsOf 汇总订单事实：服务段凭证 / 时长 / 服务量、未处理加钟、进行中售后与储值卡一致性。
+// closeConditionFactsOf 汇总订单事实：服务段凭证 / 时长 / 服务量、未处理加钟与进行中售后。
 func closeConditionFactsOf(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) (closeConditionFacts, error) {
 	facts := closeConditionFacts{
 		PromisedServiceUnits: order.PromisedServiceUnits,
@@ -192,7 +190,6 @@ func closeConditionFactsOf(ctx context.Context, db *ent.Client, order *ent.Espor
 		return facts, err
 	}
 	facts.OpenAfterSaleCount = int64(openAfterSales)
-	facts.StoredValueOK = storedValueOrderConsistent(ctx, db, order) == nil
 	return facts, nil
 }
 
@@ -242,11 +239,6 @@ func closeConditionActual(facts closeConditionFacts, field string) float64 {
 		return float64(facts.PendingAddonCount)
 	case "open_aftersale_count":
 		return float64(facts.OpenAfterSaleCount)
-	case "stored_value_consistent":
-		if facts.StoredValueOK {
-			return 1
-		}
-		return 0
 	}
 	return 0
 }
@@ -461,7 +453,6 @@ func orderCloseConditionStatus(ctx context.Context, db *ent.Client, orderID int)
 // 规则配置了 condition_tree 时与其按 AND 合并（TreeConfigured 仍表示「规则是否配置了条件树」），
 // 因此自定义条件树只能加严、不能删掉「有凭证」「服务量不为零」这类默认底线。
 // 合并后逐项 Items / Reasons 仍列出全部叶子结果，供前端逐项展示与结单失败文案使用。
-// 储值卡核销一致性为硬性条件，仍在结单链路单独校验。
 func checkCloseConditions(ctx context.Context, db *ent.Client, order *ent.EsportsOrder,
 	rule *ent.EsportsCloseRule) (closeConditionStatus, error) {
 	conds := effectiveCloseConditions(rule)

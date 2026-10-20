@@ -244,47 +244,6 @@ func (_u *EsportsGiftIntentUpdate) SetNillablePaymentSource(v *string) *EsportsG
 	return _u
 }
 
-// SetStoredValueCardID sets the "stored_value_card_id" field.
-func (_u *EsportsGiftIntentUpdate) SetStoredValueCardID(v int) *EsportsGiftIntentUpdate {
-	_u.mutation.ResetStoredValueCardID()
-	_u.mutation.SetStoredValueCardID(v)
-	return _u
-}
-
-// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
-func (_u *EsportsGiftIntentUpdate) SetNillableStoredValueCardID(v *int) *EsportsGiftIntentUpdate {
-	if v != nil {
-		_u.SetStoredValueCardID(*v)
-	}
-	return _u
-}
-
-// AddStoredValueCardID adds value to the "stored_value_card_id" field.
-func (_u *EsportsGiftIntentUpdate) AddStoredValueCardID(v int) *EsportsGiftIntentUpdate {
-	_u.mutation.AddStoredValueCardID(v)
-	return _u
-}
-
-// ClearStoredValueCardID clears the value of the "stored_value_card_id" field.
-func (_u *EsportsGiftIntentUpdate) ClearStoredValueCardID() *EsportsGiftIntentUpdate {
-	_u.mutation.ClearStoredValueCardID()
-	return _u
-}
-
-// SetStoredValueCardNo sets the "stored_value_card_no" field.
-func (_u *EsportsGiftIntentUpdate) SetStoredValueCardNo(v string) *EsportsGiftIntentUpdate {
-	_u.mutation.SetStoredValueCardNo(v)
-	return _u
-}
-
-// SetNillableStoredValueCardNo sets the "stored_value_card_no" field if the given value is not nil.
-func (_u *EsportsGiftIntentUpdate) SetNillableStoredValueCardNo(v *string) *EsportsGiftIntentUpdate {
-	if v != nil {
-		_u.SetStoredValueCardNo(*v)
-	}
-	return _u
-}
-
 // SetGiftTierID sets the "gift_tier_id" field.
 func (_u *EsportsGiftIntentUpdate) SetGiftTierID(v int) *EsportsGiftIntentUpdate {
 	_u.mutation.ResetGiftTierID()
@@ -716,16 +675,6 @@ func (_u *EsportsGiftIntentUpdate) check() error {
 			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.amount_cents": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.StoredValueCardID(); ok {
-		if err := esportsgiftintent.StoredValueCardIDValidator(v); err != nil {
-			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_id": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.StoredValueCardNo(); ok {
-		if err := esportsgiftintent.StoredValueCardNoValidator(v); err != nil {
-			return &ValidationError{Name: "stored_value_card_no", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_no": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.GiftTierCode(); ok {
 		if err := esportsgiftintent.GiftTierCodeValidator(v); err != nil {
 			return &ValidationError{Name: "gift_tier_code", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.gift_tier_code": %w`, err)}
@@ -850,18 +799,6 @@ func (_u *EsportsGiftIntentUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if value, ok := _u.mutation.PaymentSource(); ok {
 		_spec.SetField(esportsgiftintent.FieldPaymentSource, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.StoredValueCardID(); ok {
-		_spec.SetField(esportsgiftintent.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedStoredValueCardID(); ok {
-		_spec.AddField(esportsgiftintent.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if _u.mutation.StoredValueCardIDCleared() {
-		_spec.ClearField(esportsgiftintent.FieldStoredValueCardID, field.TypeInt)
-	}
-	if value, ok := _u.mutation.StoredValueCardNo(); ok {
-		_spec.SetField(esportsgiftintent.FieldStoredValueCardNo, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.GiftTierID(); ok {
 		_spec.SetField(esportsgiftintent.FieldGiftTierID, field.TypeInt, value)
@@ -1188,47 +1125,6 @@ func (_u *EsportsGiftIntentUpdateOne) SetPaymentSource(v string) *EsportsGiftInt
 func (_u *EsportsGiftIntentUpdateOne) SetNillablePaymentSource(v *string) *EsportsGiftIntentUpdateOne {
 	if v != nil {
 		_u.SetPaymentSource(*v)
-	}
-	return _u
-}
-
-// SetStoredValueCardID sets the "stored_value_card_id" field.
-func (_u *EsportsGiftIntentUpdateOne) SetStoredValueCardID(v int) *EsportsGiftIntentUpdateOne {
-	_u.mutation.ResetStoredValueCardID()
-	_u.mutation.SetStoredValueCardID(v)
-	return _u
-}
-
-// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
-func (_u *EsportsGiftIntentUpdateOne) SetNillableStoredValueCardID(v *int) *EsportsGiftIntentUpdateOne {
-	if v != nil {
-		_u.SetStoredValueCardID(*v)
-	}
-	return _u
-}
-
-// AddStoredValueCardID adds value to the "stored_value_card_id" field.
-func (_u *EsportsGiftIntentUpdateOne) AddStoredValueCardID(v int) *EsportsGiftIntentUpdateOne {
-	_u.mutation.AddStoredValueCardID(v)
-	return _u
-}
-
-// ClearStoredValueCardID clears the value of the "stored_value_card_id" field.
-func (_u *EsportsGiftIntentUpdateOne) ClearStoredValueCardID() *EsportsGiftIntentUpdateOne {
-	_u.mutation.ClearStoredValueCardID()
-	return _u
-}
-
-// SetStoredValueCardNo sets the "stored_value_card_no" field.
-func (_u *EsportsGiftIntentUpdateOne) SetStoredValueCardNo(v string) *EsportsGiftIntentUpdateOne {
-	_u.mutation.SetStoredValueCardNo(v)
-	return _u
-}
-
-// SetNillableStoredValueCardNo sets the "stored_value_card_no" field if the given value is not nil.
-func (_u *EsportsGiftIntentUpdateOne) SetNillableStoredValueCardNo(v *string) *EsportsGiftIntentUpdateOne {
-	if v != nil {
-		_u.SetStoredValueCardNo(*v)
 	}
 	return _u
 }
@@ -1677,16 +1573,6 @@ func (_u *EsportsGiftIntentUpdateOne) check() error {
 			return &ValidationError{Name: "amount_cents", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.amount_cents": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.StoredValueCardID(); ok {
-		if err := esportsgiftintent.StoredValueCardIDValidator(v); err != nil {
-			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_id": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.StoredValueCardNo(); ok {
-		if err := esportsgiftintent.StoredValueCardNoValidator(v); err != nil {
-			return &ValidationError{Name: "stored_value_card_no", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.stored_value_card_no": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.GiftTierCode(); ok {
 		if err := esportsgiftintent.GiftTierCodeValidator(v); err != nil {
 			return &ValidationError{Name: "gift_tier_code", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftIntent.gift_tier_code": %w`, err)}
@@ -1828,18 +1714,6 @@ func (_u *EsportsGiftIntentUpdateOne) sqlSave(ctx context.Context) (_node *Espor
 	}
 	if value, ok := _u.mutation.PaymentSource(); ok {
 		_spec.SetField(esportsgiftintent.FieldPaymentSource, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.StoredValueCardID(); ok {
-		_spec.SetField(esportsgiftintent.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedStoredValueCardID(); ok {
-		_spec.AddField(esportsgiftintent.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if _u.mutation.StoredValueCardIDCleared() {
-		_spec.ClearField(esportsgiftintent.FieldStoredValueCardID, field.TypeInt)
-	}
-	if value, ok := _u.mutation.StoredValueCardNo(); ok {
-		_spec.SetField(esportsgiftintent.FieldStoredValueCardNo, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.GiftTierID(); ok {
 		_spec.SetField(esportsgiftintent.FieldGiftTierID, field.TypeInt, value)

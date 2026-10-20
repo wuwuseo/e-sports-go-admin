@@ -73,12 +73,10 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Enum("fulfillment_status").Values("pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled").Default("pending_payment").StructTag(`json:"fulfillment_status"`),
 		field.Enum("payment_status").Values("unpaid", "partial", "paid", "exception").Default("unpaid").StructTag(`json:"payment_status"`),
-		// 付款方式标记（§3.1：储值卡不作为订单类型，用订单上的独立字段标记付款方式）。
-		// 核销成功时写入，仅用于查询与结单一致性校验。
+		// 付款方式标记（§3.1）：核销成功时写入，仅用于查询与结单一致性校验。
+		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史订单可读，禁止新写入。
 		field.Enum("payment_channel").Values("none", "customer_balance", "stored_value_card",
 			"wechat_work", "merchant_qr", "corporate_transfer").Default("none").StructTag(`json:"payment_channel"`),
-		// 关联储值卡（§4.6：储值卡标记、关联储值卡与核销流水不一致时禁止结算）。
-		field.Int("stored_value_card_id").Optional().Nillable().StructTag(`json:"stored_value_card_id"`),
 		// 优先派单权「独占优先通知」窗口（§5.4 业务口径）：进入待派单时若该游戏分区存在生效名单，
 		// 则只有名单内陪玩可见并可接单；名单内全部拒绝或窗口超时后释放到抢单大厅（转 grabbing）。
 		// none=未开窗（直接进大厅） / pending=优先通知中 / released=已释放到大厅 / accepted=名单内陪玩已接单。

@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 第 4 轮 · 双钱包 / 储值卡 / 会员 / 礼物桶（wallet-member）回归测试。
+// 第 4 轮 · 双钱包 / 会员 / 礼物桶（wallet-member）回归测试。
 // 覆盖条目：10.1-02、10.2-03、10.4-04、11.2-01、11.3-02、11.6-01、11.6-02、
 // 4.3-03（发起侧）、4.5-04、6.1-14、9.1-02、9.2-01。
 // 辅助物一律 r4wm 前缀，避免与其他桶的同名测试辅助冲突。
@@ -241,85 +241,9 @@ func TestR4WMCampaignRewardsPlayerCatfood(t *testing.T) {
 	}
 }
 
-// 11.3-02 / 4.5-04：卡级扣减顺序优先于全局键，批次账本与分摊明细分列本金/赠送。
-func TestR4WMStoredValueCardDeductionOrderAndBatchSplit(t *testing.T) {
-	db := openStoredValueDB(t, "r4wm_card_deduction_order")
-	defer db.Close()
-	ctx := t.Context()
-	now := time.Now().UTC()
-
-	customer := seedGiftCustomer(t, db, 101)
-	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: customer.ID, Source: "staff", PaymentChannel: "corporate_transfer",
-		PaymentRef: "r4wm-sv-ref-1", PrincipalCents: 5000, BonusCents: 5000,
-		ContractConfirmed: true, ValidityDays: 365, Note: "r4wm 开卡",
-		IdempotencyKey: "r4wm-sv-open-1", DeductionOrder: "principal_first",
-	}, now)
-	if err != nil {
-		t.Fatalf("开卡失败：%v", err)
-	}
-	got, err := db.EsportsStoredValueCard.Get(ctx, card.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.DeductionOrder != "principal_first" {
-		t.Fatalf("卡级扣减顺序未落库：%q", got.DeductionOrder)
-	}
-	if resolved, err := storedValueDeductionOrder(ctx, db, got); err != nil || resolved != "principal_first" {
-		t.Fatalf("卡级扣减顺序解析异常：%q %v", resolved, err)
-	}
-	// 开卡批次：本金 / 赠送分列。
-	open := db.EsportsLedgerEntry.Query().Where(
-		esportsledgerentry.AccountTypeEQ(storedValuePrepayAccount),
-		esportsledgerentry.AccountIDEQ(strconv.Itoa(card.ID)),
-		esportsledgerentry.EntryRoleEQ("card_open"),
-	).OnlyX(ctx)
-	if open.PrincipalDeltaCents != 5000 || open.BonusDeltaCents != 5000 || open.DeltaCents != 10000 {
-		t.Fatalf("开卡批次未分列本金/赠送：%+v", open)
-	}
-
-	// 礼物只扣本金：分摊明细应全部记在本金侧。
-	gift := seedGift(t, db, giftInput{
-		Code: "R4WM-CARD-GIFT", Name: "卡礼物", PriceCents: 3000,
-		CommissionMode: "percent", CommissionBp: 5000,
-	})
-	db.EsportsStoredValueCard.UpdateOneID(card.ID).SetAllowGifts(true).ExecX(ctx)
-	player := seedPlayer(t, db, 303, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	if _, err := sendGift(ctx, db, 11, giftSendInput{
-		CustomerID: customer.ID, GiftID: gift.ID, PlayerID: player.ID, Quantity: 1,
-		PaymentSource: "stored_value_card_principal", StoredValueCardID: card.ID,
-		ClientKey: "r4wm-card-gift-1",
-	}, now); err != nil {
-		t.Fatalf("卡内本金送礼失败：%v", err)
-	}
-	allocs, err := listLedgerAllocations(ctx, db, storedValuePrepayAccount, strconv.Itoa(card.ID), 10)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(allocs) == 0 {
-		t.Fatal("礼物消费未产生批次分摊明细")
-	}
-	var principalAllocated, bonusAllocated int64
-	for _, item := range allocs {
-		principalAllocated += item.PrincipalCents
-		bonusAllocated += item.BonusCents
-	}
-	if principalAllocated+bonusAllocated != 3000 || bonusAllocated != 0 {
-		t.Fatalf("礼物分摊应全部记在本金侧：本金 %d / 赠送 %d", principalAllocated, bonusAllocated)
-	}
-	// 开卡批次未被赠送污染：卡级扣减顺序 principal_first 下，首笔消费后本金余额 2000、赠送 5000。
-	balance, err := storedValueCardBalance(ctx, db, card.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if balance.PrincipalCents != 2000 || balance.BonusCents != 5000 {
-		t.Fatalf("卡内余额不符：%+v", balance)
-	}
-}
-
 // 11.6-01：新增「钱包流水求和 == 批次账本求和」维度，并把异常落到管理端可查列表。
 func TestR4WMLedgerReconcileDetectsWalletBatchSumMismatchAndListable(t *testing.T) {
-	db := openStoredValueDB(t, "r4wm_ledger_sum")
+	db := openWalletTestDB(t, "r4wm_ledger_sum")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Date(2026, 10, 14, 10, 0, 0, 0, time.UTC)
@@ -377,7 +301,7 @@ func TestR4WMLedgerReconcileDetectsWalletBatchSumMismatchAndListable(t *testing.
 
 // 11.6-02：钱包流水记录归属人、资金批次与变动前后余额，且历史行返回时可派生。
 func TestR4WMWalletTxSelfProvingFields(t *testing.T) {
-	db := openStoredValueDB(t, "r4wm_wallet_tx_self_proving")
+	db := openWalletTestDB(t, "r4wm_wallet_tx_self_proving")
 	defer db.Close()
 	ctx := t.Context()
 
@@ -413,9 +337,9 @@ func TestR4WMWalletTxSelfProvingFields(t *testing.T) {
 	}
 }
 
-// 4.3-03（发起侧）：未开通渠道不得发起充值 / 自助购卡。
+// 4.3-03（发起侧）：未开通渠道不得发起充值。
 func TestR4WMInitiatedPaymentsRejectDisabledChannel(t *testing.T) {
-	db := openStoredValueDB(t, "r4wm_channel_gate")
+	db := openWalletTestDB(t, "r4wm_channel_gate")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
@@ -428,12 +352,6 @@ func TestR4WMInitiatedPaymentsRejectDisabledChannel(t *testing.T) {
 		PrincipalCents: 1000, PaymentChannel: "corporate_transfer", IdempotencyKey: "r4wm-ch-1",
 	}, now); err == nil {
 		t.Fatal("停用渠道仍可发起充值")
-	}
-	if _, err := purchaseCustomerStoredValueCard(ctx, db, customer, customerStoredValuePurchaseInput{
-		PrincipalCents: 1000, PaymentChannel: "corporate_transfer",
-		ContractConfirmed: true, IdempotencyKey: "r4wm-ch-2",
-	}, now); err == nil {
-		t.Fatal("停用渠道仍可发起自助购卡")
 	}
 	if err := setPaymentChannelEnabled(ctx, db, "corporate_transfer", true); err != nil {
 		t.Fatalf("开通渠道失败：%v", err)

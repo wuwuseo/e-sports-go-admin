@@ -170,7 +170,8 @@ func TestMemberPrivilegeFlagsExposeBenefitFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("读取权益失败：%v", err)
 	}
-	if !flags.Active || flags.LevelName != "黑卡" || flags.DiscountBps != 9000 || flags.PrepayBonusBps != 200 {
+	// prepay_bonus_bps 已随储值卡下线（2026-10-20），权益快照不再携带开卡赠送比例。
+	if !flags.Active || flags.LevelName != "黑卡" || flags.DiscountBps != 9000 {
 		t.Fatalf("权益基础字段不正确：%+v", flags)
 	}
 	if !flags.DedicatedCs || !flags.PriorityBooking || !flags.PriorityDispatch ||

@@ -13,7 +13,6 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 	"go-admin/internal/ent/esportsmemberlevelrule"
 	"go-admin/internal/ent/esportsorder"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/systemconfig"
 )
 
@@ -125,7 +124,7 @@ func createCustomerAfterSale(ctx context.Context, db *ent.Client, customer *ent.
 }
 
 // createCustomerAfterSaleWithEvidence 客户自助发起售后（§13.2 / §13.3）：本人来源单据可发起，归属客服记为发起人。
-// 订单来源沿用「终态订单 + 配置时限」的窗口；礼物 / 储值卡 / 充值来源带自身单据语义，不做自助时限。
+// 订单来源沿用「终态订单 + 配置时限」的窗口；礼物 / 充值来源带自身单据语义，不做自助时限。
 // 考核处罚来源属陪玩申诉，不由客户自助发起。
 // evidenceAttachmentIDs 非空时校验凭证附件为本人上传（图片/文档私有附件），并把引用序列化为
 // evidence_ref 的 JSON 数组落库；引用他人附件返回 errForbidden，非图片/非私有目录返回 errInvalidInput。
@@ -265,15 +264,14 @@ func customerSelfProfileOf(ctx context.Context, db *ent.Client,
 	return profile, nil
 }
 
-// customerSelfWallet 客户自助「余额与权益」：余额（本金 / 赠送分列）与持有的储值卡。
+// customerSelfWallet 客户自助「余额与权益」：余额（本金 / 赠送分列）。
 type customerSelfWallet struct {
-	PrincipalCents int64                         `json:"principal_cents"`
-	BonusCents     int64                         `json:"bonus_cents"`
-	TotalCents     int64                         `json:"total_cents"`
-	Cards          []*ent.EsportsStoredValueCard `json:"cards"`
+	PrincipalCents int64 `json:"principal_cents"`
+	BonusCents     int64 `json:"bonus_cents"`
+	TotalCents     int64 `json:"total_cents"`
 }
 
-// customerSelfWalletOf 汇总客户余额与储值卡（余额由流水求和派生，不落库）。
+// customerSelfWalletOf 汇总客户余额（余额由流水求和派生，不落库）。
 func customerSelfWalletOf(ctx context.Context, db *ent.Client, customerID int) (*customerSelfWallet, error) {
 	if customerID < 1 {
 		return nil, errForbidden
@@ -282,14 +280,8 @@ func customerSelfWalletOf(ctx context.Context, db *ent.Client, customerID int) (
 	if err != nil {
 		return nil, err
 	}
-	cards, err := db.EsportsStoredValueCard.Query().Where(
-		esportsstoredvaluecard.CustomerIDEQ(customerID),
-	).Order(ent.Desc(esportsstoredvaluecard.FieldID)).Limit(50).All(ctx)
-	if err != nil {
-		return nil, err
-	}
 	return &customerSelfWallet{
 		PrincipalCents: balance.PrincipalCents, BonusCents: balance.BonusCents,
-		TotalCents: balance.total(), Cards: cards,
+		TotalCents: balance.total(),
 	}, nil
 }

@@ -11,7 +11,6 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/systemconfig"
 )
@@ -31,7 +30,7 @@ import (
 //   - 「分摊引用的消费条目存在」：`EsportsLedgerAllocation.consume_source_*` 记录的是消费业务来源
 //     （如 order / 订单号），并不指向一条 `EsportsLedgerEntry`，按四元组检索必然落空。
 //
-// 核验结果只写外盒事件、储值卡一致性异常队列（§4.6-06）与任务日志，不修改任何账本数据。
+// 核验结果只写外盒事件与任务日志，不修改任何账本数据。
 // 每一类异常还会按账户合并成一条 ledger. 前缀的通知事件（§8.2-13，唯一出口见
 // ledger_sum_reconcile.go 的 publishLedgerReconcileNotices），进入财务 / 超管待办。
 
@@ -45,9 +44,8 @@ const (
 
 	// 各扫描维度的持久游标键：记录「上一轮已扫到的最大 ID」，下一轮从该 ID 继续，
 	// 扫完一整圈后重置为 0 从头开始，保证连续多轮运行覆盖全部数据而不重复扫。
-	ledgerCursorKeyWalletAccount   = "app.esports.ledger_reconcile_cursor_wallet_account"
-	ledgerCursorKeyStoredValueCard = "app.esports.ledger_reconcile_cursor_stored_value_card"
-	ledgerCursorKeyAllocation      = "app.esports.ledger_reconcile_cursor_allocation"
+	ledgerCursorKeyWalletAccount = "app.esports.ledger_reconcile_cursor_wallet_account"
+	ledgerCursorKeyAllocation    = "app.esports.ledger_reconcile_cursor_allocation"
 )
 
 // 异常类型。命名与事件 key 一起构成对外契约，勿随意改动。
@@ -110,9 +108,9 @@ func reconcileLedgers(ctx context.Context, db *ent.Client, scanCap int) (ledgerR
 	return result, nil
 }
 
-// reconcileWalletBalances 逐账户核验余额不为负：登记型钱包账户（客户余额 / 陪玩猫粮）
-// 与储值卡（每张卡一个独立账户，account_id 为卡 ID）。两类账户各自独立持久游标与单轮上限，
-// 互不挤占配额，连续多轮运行后各自扫完整圈。
+// reconcileWalletBalances 逐账户核验余额不为负：登记型钱包账户（客户余额 / 陪玩猫粮），
+// 账户集合与批次账本求和核验共用同一轮扫描（§11.6-01）。
+// 曾在此逐张储值卡扫描的维度随储值卡功能下线（2026-10-20）删除。
 func reconcileWalletBalances(ctx context.Context, db *ent.Client, scanCap int, result *ledgerReconcileResult) error {
 	truncated, err := ledgerCursorScan(ctx, db, ledgerCursorKeyWalletAccount, scanCap,
 		func(lastID, limit int) (int, int, error) {
@@ -141,58 +139,6 @@ func reconcileWalletBalances(ctx context.Context, db *ent.Client, scanCap int, r
 				return 0, 0, nil
 			}
 			return accounts[len(accounts)-1].ID, len(accounts), nil
-		})
-	if err != nil {
-		return err
-	}
-	if truncated {
-		result.ScanTruncated = true
-	}
-	return reconcileStoredValueCardBalances(ctx, db, scanCap, result)
-}
-
-func reconcileStoredValueCardBalances(ctx context.Context, db *ent.Client, scanCap int, result *ledgerReconcileResult) error {
-	truncated, err := ledgerCursorScan(ctx, db, ledgerCursorKeyStoredValueCard, scanCap,
-		func(lastID, limit int) (int, int, error) {
-			cards, err := db.EsportsStoredValueCard.Query().
-				Where(esportsstoredvaluecard.IDGT(lastID)).
-				Order(ent.Asc(esportsstoredvaluecard.FieldID)).
-				Limit(limit).All(ctx)
-			if err != nil {
-				return 0, 0, err
-			}
-			for _, card := range cards {
-				result.ScannedAccounts++
-				// §4.6-06 修正：卡的钱包流水 account_type 是 stored_value_card，stored_value_prepay
-				// 只是它的批次账本账户——按预付款账户名求和恒为 0，导致「卡余额为负」这条不变量
-				// 此前从未被真正核验过（同时让卡标记 / 异常队列拿不到真实派生余额）。
-				balance, err := walletBalanceOf(ctx, db, walletStoredValueCard, card.ID)
-				if err != nil {
-					return 0, 0, err
-				}
-				// §4.6-06：本卡新产生的账本异常（余额为负）与卡标记不符都要落进可跟进的异常队列，
-				// 而不是只写只增事件。
-				firstAnomaly := len(result.Anomalies)
-				checkWalletBalanceNonNegative(result, walletStoredValueCard, strconv.Itoa(card.ID), balance)
-				// §11.6-01：逐卡核验「钱包流水求和 == 开卡批次账本求和」（卡账户集合相同，不额外扫描）。
-				if err = scanWalletLedgerSum(ctx, db, result,
-					walletStoredValueCard, strconv.Itoa(card.ID)); err != nil {
-					return 0, 0, err
-				}
-				now := time.Now()
-				if err = recordStoredValueCardReconcileExceptions(ctx, db, card, balance,
-					result.Anomalies[firstAnomaly:], now); err != nil {
-					return 0, 0, err
-				}
-				// §4.6-06：逐卡复检其名下储值卡订单的关联完整性（闸口之外的第二道检测）。
-				if err = recordStoredValueOrderReconcileExceptions(ctx, db, card.ID, now); err != nil {
-					return 0, 0, err
-				}
-			}
-			if len(cards) == 0 {
-				return 0, 0, nil
-			}
-			return cards[len(cards)-1].ID, len(cards), nil
 		})
 	if err != nil {
 		return err

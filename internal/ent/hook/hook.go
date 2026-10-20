@@ -1148,42 +1148,6 @@ func (f EsportsSpecGroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSpecGroupMutation", m)
 }
 
-// The EsportsStoredValueCardFunc type is an adapter to allow the use of ordinary
-// function as EsportsStoredValueCard mutator.
-type EsportsStoredValueCardFunc func(context.Context, *ent.EsportsStoredValueCardMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f EsportsStoredValueCardFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.EsportsStoredValueCardMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsStoredValueCardMutation", m)
-}
-
-// The EsportsStoredValueExceptionFunc type is an adapter to allow the use of ordinary
-// function as EsportsStoredValueException mutator.
-type EsportsStoredValueExceptionFunc func(context.Context, *ent.EsportsStoredValueExceptionMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f EsportsStoredValueExceptionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.EsportsStoredValueExceptionMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsStoredValueExceptionMutation", m)
-}
-
-// The EsportsStoredValuePackageFunc type is an adapter to allow the use of ordinary
-// function as EsportsStoredValuePackage mutator.
-type EsportsStoredValuePackageFunc func(context.Context, *ent.EsportsStoredValuePackageMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f EsportsStoredValuePackageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.EsportsStoredValuePackageMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsStoredValuePackageMutation", m)
-}
-
 // The EsportsTeammateFunc type is an adapter to allow the use of ordinary
 // function as EsportsTeammate mutator.
 type EsportsTeammateFunc func(context.Context, *ent.EsportsTeammateMutation) (ent.Value, error)

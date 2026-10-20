@@ -24,18 +24,19 @@ func (EsportsGiftIntent) Fields() []ent.Field {
 		field.Int("quantity").Positive().StructTag(`json:"quantity"`),
 		field.Int64("unit_price_cents").Positive().StructTag(`json:"unit_price_cents"`),
 		field.Int64("amount_cents").Positive().StructTag(`json:"amount_cents"`),
+		// customer_balance_principal 余额本金 / external_* 外部收款；stored_value_card_principal 为已废弃值
+		// （2026-10-20 储值卡功能移除），保留仅为历史意图可读，禁止新写入。
 		field.String("payment_source").Default("customer_balance_principal").StructTag(`json:"payment_source"`),
-		field.Int("stored_value_card_id").Positive().Optional().Nillable().StructTag(`json:"stored_value_card_id"`),
-		field.String("stored_value_card_no").MaxLen(64).Default("").StructTag(`json:"stored_value_card_no"`),
 		// 价格档位快照（§9.1-02）：同一礼物多档价格时记录所选档；未分档的礼物为 0 / 空串。
 		field.Int("gift_tier_id").Default(0).StructTag(`json:"gift_tier_id"`),
 		field.String("gift_tier_code").MaxLen(48).Default("").StructTag(`json:"gift_tier_code"`),
 		// 该档 / 该礼物的限制快照（§9.1-02）：在高额二次确认与年龄拦截时读取。
 		field.Bool("high_value").Default(false).StructTag(`json:"high_value"`),
 		field.Bool("require_age").Default(false).StructTag(`json:"require_age"`),
-		// 收款通道（§9.2-01）：none 未发起收款 / customer_balance 余额本金 / stored_value_card 卡本金 /
-		// wechat_work / merchant_qr / corporate_transfer 走在线渠道或人工核销。余额与卡本金都不足时，
+		// 收款通道（§9.2-01）：none 未发起收款 / customer_balance 余额本金 /
+		// wechat_work / merchant_qr / corporate_transfer 走在线渠道或人工核销。余额本金不足时，
 		// 业务侧改走外部渠道收款，而不是直接报本金不足。
+		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史意图可读，禁止新写入。
 		field.Enum("payment_channel").
 			Values("none", "customer_balance", "stored_value_card", "wechat_work", "merchant_qr", "corporate_transfer").
 			Default("none").StructTag(`json:"payment_channel"`),

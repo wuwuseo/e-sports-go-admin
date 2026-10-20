@@ -26,6 +26,13 @@ import (
 const (
 	walletCustomerBalance = "customer_balance"
 	walletPlayerCatfood   = "player_catfood"
+
+	// walletStoredValueCard 与 storedValuePrepayAccount 是已废弃的储值卡账户身份
+	// （2026-10-20 储值卡功能移除，卡表已 DROP）：钱包账户类型 / 批次账本账户类型。
+	// 保留常量仅为识别与处置历史流水、历史批次账本（如历史充值批次还原），
+	// 禁止任何生产路径再写入这两个值。
+	walletStoredValueCard    = "stored_value_card"
+	storedValuePrepayAccount = "stored_value_prepay"
 )
 
 // errInsufficientBalance 余额不足以完成扣减。
@@ -50,7 +57,7 @@ func prepayDeductionOrder(ctx context.Context, db *ent.Client) string {
 }
 
 // splitPrepayDeduction 按扣减顺序把应付额拆成本金 / 赠送两部分（§4.5）。
-// principal_first 先扣本金（余额 / 储值卡的本金批次优先）；proportional 按本金 / 赠送剩余额比例分摊
+// principal_first 先扣本金（预付款本金批次优先）；proportional 按本金 / 赠送剩余额比例分摊
 // （本金向下取整，尾差归赠送），先扣赠送则为默认。拆分之和恒等于应付额，故调用前须保证余额充足。
 func splitPrepayDeduction(order string, principalCents, bonusCents, amountCents int64) (principalDeduct, bonusDeduct int64) {
 	switch order {
@@ -104,8 +111,6 @@ func userWalletDisplayHandler(c fiber.Ctx) error {
 func (b walletBalance) total() int64 { return b.PrincipalCents + b.BonusCents }
 
 // walletBeneficiaryFor 由账户类型推出归属人（§11.6-02）：客户余额归属客户、陪玩猫粮归属陪玩。
-// account_type=stored_value_card 的归属人须查卡上的 customer_id，不在本函数覆盖范围
-// （卡账户的写入点自行解析后 SetBeneficiaryID）。
 func walletBeneficiaryFor(accountType string, ownerID int) (esportswallettx.BeneficiaryType, int) {
 	if accountType == walletPlayerCatfood {
 		return esportswallettx.BeneficiaryTypePlayer, ownerID
@@ -286,12 +291,9 @@ func backfillWalletTxSelfProving(ctx context.Context, db *ent.Client, accountTyp
 	if len(rows) == 0 {
 		return nil
 	}
+	// 已废弃的储值卡账户（历史流水）不再派生归属人：卡表随功能 DROP，无法由卡反查 customer_id，
+	// 这些流水按自身已快照的 beneficiary_* 字段展示（见 schema/esports_wallet.go 的账户口径）。
 	derivedType, derivedID := walletBeneficiaryFor(accountType, ownerID)
-	if accountType == walletStoredValueCard {
-		if card, err := db.EsportsStoredValueCard.Get(ctx, ownerID); err == nil {
-			derivedType, derivedID = esportswallettx.BeneficiaryTypeCustomer, card.CustomerID
-		}
-	}
 	needBalance := false
 	for _, row := range rows {
 		row.BeneficiaryType, row.BeneficiaryID = derivedType, derivedID
@@ -634,7 +636,7 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 
 // ── 收款并发窗口的订单级串行化（§8.2-15 / 附录 B.3-1） ──
 //
-// 余额核销、储值卡核销、转账凭证提交/核验三条路径都要先判「同一订单是否已有待核验凭证」，
+// 余额核销、转账凭证提交/核验两条路径都要先判「同一订单是否已有待核验凭证」，
 // 再决定是否把订单转已付款。只靠「同事务内读凭证」关不掉极端并发窗口：两个请求可能各自读到
 // 「无凭证」，随后都写入收款结果——后到的那笔钱只能挂成悬账（同一订单收两次钱）。
 //
@@ -683,7 +685,7 @@ func lockOrderPaymentSlot(ctx context.Context, tx *ent.Tx, orderID, expectedVers
 
 // reserveOrderPaymentVersion 在独立短事务里对订单行做一次版本守卫占位并提交。
 // 用于「收款判定与落库不在同一事务」的路径（凭证核验复用 applyVerifiedPayment 自带的事务边界）：
-// 提交式占位推进订单版本，使并发中已读到旧版本的余额 / 储值卡核销在写回时守卫失败。
+// 提交式占位推进订单版本，使并发中已读到旧版本的余额核销在写回时守卫失败。
 func reserveOrderPaymentVersion(ctx context.Context, db *ent.Client, orderID int) error {
 	order, err := db.EsportsOrder.Get(ctx, orderID)
 	if err != nil {

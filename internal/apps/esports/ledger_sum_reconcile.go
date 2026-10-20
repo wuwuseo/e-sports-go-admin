@@ -20,7 +20,7 @@ import (
 
 // 账本核验新增维度：「钱包流水求和 == 批次账本求和」（§11.6-01）。
 //
-// 口径（逐账户比对；登记账户 = customer_balance / player_catfood，储值卡 = 每张卡一个账户）：
+// 口径（逐账户比对；登记账户 = customer_balance / player_catfood）：
 //
 //	钱包净额   = Σ wallet_tx(principal_delta + bonus_delta)   （该钱包账户）
 //	批次净额   = Σ ledger_entry.delta                          （对应批次账本账户）
@@ -34,10 +34,9 @@ import (
 // 报错条件：钱包净额 != 批次净额 − 跨账户消费 + 未登记净额。
 // 正常数据下恒等；一旦出现「有流水无账本」「有账本无流水」「两侧金额不等」都会报出。
 //
-// 两处必须记住的映射差异：
-//   - 储值卡钱包账户的 account_type 是 `stored_value_card`，其批次账本账户是 `stored_value_prepay`；
-//     两侧靠 owner_id == account_id == 卡 ID 对齐（schema/esports_wallet.go 的账户口径）。
-//   - 客户余额核销订单的批次记账落在 `customer_order_prepayment`，故需要跨账户还原项。
+// 必须记住的映射差异：客户余额核销订单的批次记账落在 `customer_order_prepayment`，
+// 故需要跨账户还原项。曾用于储值卡钱包账户（stored_value_card）与预付款批次账户
+// （stored_value_prepay）对齐的映射已随该功能下线（2026-10-20）移除。
 
 // ledgerAnomalyWalletBatchMismatch 钱包流水求和与批次账本求和不一致。
 const ledgerAnomalyWalletBatchMismatch = "wallet_batch_sum_mismatch"
@@ -59,16 +58,14 @@ type ledgerWalletSumScan struct {
 	unbooked      []string
 }
 
-// ledgerBatchAccountType 把钱包账户类型映射到其批次账本账户类型（储值卡是唯一不一致的一处）。
+// ledgerBatchAccountType 把钱包账户类型映射到其批次账本账户类型：余额与猫粮两侧同名，
+// 储值卡（唯一不一致的一处）已随功能下线（2026-10-20），不再参与核验扫描。
 func ledgerBatchAccountType(walletAccountType string) string {
-	if walletAccountType == walletStoredValueCard {
-		return storedValuePrepayAccount
-	}
 	return walletAccountType
 }
 
 // scanWalletLedgerSum 对单个账户执行「钱包流水求和 == 批次账本求和」核验（§11.6-01）。
-// 由余额核验的同一轮账户扫描顺带调用：两者账户集合完全一致（登记钱包账户 + 逐张储值卡），
+// 由余额核验的同一轮账户扫描顺带调用：两者账户集合完全一致（登记钱包账户），
 // 复用同一游标与单轮上限，不新增配置键、不重复扫表。
 //
 // 本函数只负责「判定 + 记录异常」，不直接发通知：通知出口由调用方（ledger_reconcile.go 的
@@ -156,9 +153,9 @@ func checkWalletLedgerSum(ctx context.Context, db *ent.Client,
 }
 
 // ledgerPrepayTracker 只有预付性质账户参与「出账必须批次可追溯」的判定：
-// 客户余额与储值卡是预付款，陪玩猫粮是结算发放（不走预付款批次）。
+// 客户余额是预付款，陪玩猫粮是结算发放（不走预付款批次）。
 func ledgerPrepayTracker(accountType string) bool {
-	return accountType == walletCustomerBalance || accountType == walletStoredValueCard
+	return accountType == walletCustomerBalance
 }
 
 // 账本对账异常的通知出口（§11.6-01 / P1-21 / §8.2-13）。

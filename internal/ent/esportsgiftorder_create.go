@@ -182,20 +182,6 @@ func (_c *EsportsGiftOrderCreate) SetNillablePaymentSource(v *string) *EsportsGi
 	return _c
 }
 
-// SetStoredValueCardID sets the "stored_value_card_id" field.
-func (_c *EsportsGiftOrderCreate) SetStoredValueCardID(v int) *EsportsGiftOrderCreate {
-	_c.mutation.SetStoredValueCardID(v)
-	return _c
-}
-
-// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
-func (_c *EsportsGiftOrderCreate) SetNillableStoredValueCardID(v *int) *EsportsGiftOrderCreate {
-	if v != nil {
-		_c.SetStoredValueCardID(*v)
-	}
-	return _c
-}
-
 // SetGiftTierID sets the "gift_tier_id" field.
 func (_c *EsportsGiftOrderCreate) SetGiftTierID(v int) *EsportsGiftOrderCreate {
 	_c.mutation.SetGiftTierID(v)
@@ -595,11 +581,6 @@ func (_c *EsportsGiftOrderCreate) check() error {
 	if _, ok := _c.mutation.PaymentSource(); !ok {
 		return &ValidationError{Name: "payment_source", err: errors.New(`ent: missing required field "EsportsGiftOrder.payment_source"`)}
 	}
-	if v, ok := _c.mutation.StoredValueCardID(); ok {
-		if err := esportsgiftorder.StoredValueCardIDValidator(v); err != nil {
-			return &ValidationError{Name: "stored_value_card_id", err: fmt.Errorf(`ent: validator failed for field "EsportsGiftOrder.stored_value_card_id": %w`, err)}
-		}
-	}
 	if _, ok := _c.mutation.GiftTierID(); !ok {
 		return &ValidationError{Name: "gift_tier_id", err: errors.New(`ent: missing required field "EsportsGiftOrder.gift_tier_id"`)}
 	}
@@ -757,10 +738,6 @@ func (_c *EsportsGiftOrderCreate) createSpec() (*EsportsGiftOrder, *sqlgraph.Cre
 	if value, ok := _c.mutation.PaymentSource(); ok {
 		_spec.SetField(esportsgiftorder.FieldPaymentSource, field.TypeString, value)
 		_node.PaymentSource = value
-	}
-	if value, ok := _c.mutation.StoredValueCardID(); ok {
-		_spec.SetField(esportsgiftorder.FieldStoredValueCardID, field.TypeInt, value)
-		_node.StoredValueCardID = &value
 	}
 	if value, ok := _c.mutation.GiftTierID(); ok {
 		_spec.SetField(esportsgiftorder.FieldGiftTierID, field.TypeInt, value)

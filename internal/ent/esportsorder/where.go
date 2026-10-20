@@ -220,11 +220,6 @@ func Version(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldVersion, v))
 }
 
-// StoredValueCardID applies equality check predicate on the "stored_value_card_id" field. It's identical to StoredValueCardIDEQ.
-func StoredValueCardID(v int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldEQ(FieldStoredValueCardID, v))
-}
-
 // PriorityNoticeUntil applies equality check predicate on the "priority_notice_until" field. It's identical to PriorityNoticeUntilEQ.
 func PriorityNoticeUntil(v time.Time) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldPriorityNoticeUntil, v))
@@ -2053,56 +2048,6 @@ func PaymentChannelIn(vs ...PaymentChannel) predicate.EsportsOrder {
 // PaymentChannelNotIn applies the NotIn predicate on the "payment_channel" field.
 func PaymentChannelNotIn(vs ...PaymentChannel) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotIn(FieldPaymentChannel, vs...))
-}
-
-// StoredValueCardIDEQ applies the EQ predicate on the "stored_value_card_id" field.
-func StoredValueCardIDEQ(v int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldEQ(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDNEQ applies the NEQ predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNEQ(v int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldNEQ(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDIn applies the In predicate on the "stored_value_card_id" field.
-func StoredValueCardIDIn(vs ...int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldIn(FieldStoredValueCardID, vs...))
-}
-
-// StoredValueCardIDNotIn applies the NotIn predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNotIn(vs ...int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldNotIn(FieldStoredValueCardID, vs...))
-}
-
-// StoredValueCardIDGT applies the GT predicate on the "stored_value_card_id" field.
-func StoredValueCardIDGT(v int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldGT(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDGTE applies the GTE predicate on the "stored_value_card_id" field.
-func StoredValueCardIDGTE(v int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldGTE(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDLT applies the LT predicate on the "stored_value_card_id" field.
-func StoredValueCardIDLT(v int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldLT(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDLTE applies the LTE predicate on the "stored_value_card_id" field.
-func StoredValueCardIDLTE(v int) predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldLTE(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDIsNil applies the IsNil predicate on the "stored_value_card_id" field.
-func StoredValueCardIDIsNil() predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldIsNull(FieldStoredValueCardID))
-}
-
-// StoredValueCardIDNotNil applies the NotNil predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNotNil() predicate.EsportsOrder {
-	return predicate.EsportsOrder(sql.FieldNotNull(FieldStoredValueCardID))
 }
 
 // PriorityNoticeStatusEQ applies the EQ predicate on the "priority_notice_status" field.

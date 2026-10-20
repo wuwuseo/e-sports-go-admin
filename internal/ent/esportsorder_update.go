@@ -816,33 +816,6 @@ func (_u *EsportsOrderUpdate) SetNillablePaymentChannel(v *esportsorder.PaymentC
 	return _u
 }
 
-// SetStoredValueCardID sets the "stored_value_card_id" field.
-func (_u *EsportsOrderUpdate) SetStoredValueCardID(v int) *EsportsOrderUpdate {
-	_u.mutation.ResetStoredValueCardID()
-	_u.mutation.SetStoredValueCardID(v)
-	return _u
-}
-
-// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
-func (_u *EsportsOrderUpdate) SetNillableStoredValueCardID(v *int) *EsportsOrderUpdate {
-	if v != nil {
-		_u.SetStoredValueCardID(*v)
-	}
-	return _u
-}
-
-// AddStoredValueCardID adds value to the "stored_value_card_id" field.
-func (_u *EsportsOrderUpdate) AddStoredValueCardID(v int) *EsportsOrderUpdate {
-	_u.mutation.AddStoredValueCardID(v)
-	return _u
-}
-
-// ClearStoredValueCardID clears the value of the "stored_value_card_id" field.
-func (_u *EsportsOrderUpdate) ClearStoredValueCardID() *EsportsOrderUpdate {
-	_u.mutation.ClearStoredValueCardID()
-	return _u
-}
-
 // SetPriorityNoticeStatus sets the "priority_notice_status" field.
 func (_u *EsportsOrderUpdate) SetPriorityNoticeStatus(v esportsorder.PriorityNoticeStatus) *EsportsOrderUpdate {
 	_u.mutation.SetPriorityNoticeStatus(v)
@@ -1925,15 +1898,6 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.PaymentChannel(); ok {
 		_spec.SetField(esportsorder.FieldPaymentChannel, field.TypeEnum, value)
 	}
-	if value, ok := _u.mutation.StoredValueCardID(); ok {
-		_spec.SetField(esportsorder.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedStoredValueCardID(); ok {
-		_spec.AddField(esportsorder.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if _u.mutation.StoredValueCardIDCleared() {
-		_spec.ClearField(esportsorder.FieldStoredValueCardID, field.TypeInt)
-	}
 	if value, ok := _u.mutation.PriorityNoticeStatus(); ok {
 		_spec.SetField(esportsorder.FieldPriorityNoticeStatus, field.TypeEnum, value)
 	}
@@ -2964,33 +2928,6 @@ func (_u *EsportsOrderUpdateOne) SetNillablePaymentChannel(v *esportsorder.Payme
 	if v != nil {
 		_u.SetPaymentChannel(*v)
 	}
-	return _u
-}
-
-// SetStoredValueCardID sets the "stored_value_card_id" field.
-func (_u *EsportsOrderUpdateOne) SetStoredValueCardID(v int) *EsportsOrderUpdateOne {
-	_u.mutation.ResetStoredValueCardID()
-	_u.mutation.SetStoredValueCardID(v)
-	return _u
-}
-
-// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
-func (_u *EsportsOrderUpdateOne) SetNillableStoredValueCardID(v *int) *EsportsOrderUpdateOne {
-	if v != nil {
-		_u.SetStoredValueCardID(*v)
-	}
-	return _u
-}
-
-// AddStoredValueCardID adds value to the "stored_value_card_id" field.
-func (_u *EsportsOrderUpdateOne) AddStoredValueCardID(v int) *EsportsOrderUpdateOne {
-	_u.mutation.AddStoredValueCardID(v)
-	return _u
-}
-
-// ClearStoredValueCardID clears the value of the "stored_value_card_id" field.
-func (_u *EsportsOrderUpdateOne) ClearStoredValueCardID() *EsportsOrderUpdateOne {
-	_u.mutation.ClearStoredValueCardID()
 	return _u
 }
 
@@ -4105,15 +4042,6 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if value, ok := _u.mutation.PaymentChannel(); ok {
 		_spec.SetField(esportsorder.FieldPaymentChannel, field.TypeEnum, value)
-	}
-	if value, ok := _u.mutation.StoredValueCardID(); ok {
-		_spec.SetField(esportsorder.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedStoredValueCardID(); ok {
-		_spec.AddField(esportsorder.FieldStoredValueCardID, field.TypeInt, value)
-	}
-	if _u.mutation.StoredValueCardIDCleared() {
-		_spec.ClearField(esportsorder.FieldStoredValueCardID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.PriorityNoticeStatus(); ok {
 		_spec.SetField(esportsorder.FieldPriorityNoticeStatus, field.TypeEnum, value)

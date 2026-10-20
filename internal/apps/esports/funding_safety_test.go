@@ -17,7 +17,6 @@ import (
 	"go-admin/internal/ent/esportsordercollaborator"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayerrecovery"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswallettx"
 )
 
@@ -87,7 +86,7 @@ func TestPayOrderAddonByBalanceAcquiresAccountLock(t *testing.T) {
 // 幂等键不含售后单号时，第二次会撞首张单的唯一索引被静默跳过，
 // 而内部余额已按 RefundCents 冲减（aftersale_source_execute.go）→ 账实不符、漏退。
 func TestRechargeRefundExecSecondPartialRefundOnSameSource(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_second")
+	db := openWalletTestDB(t, "esports_recharge_refund_second")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()
@@ -245,47 +244,10 @@ func TestFrozenOrderBlocksPoolReleaseAndCollaboratorWrites(t *testing.T) {
 }
 
 // D4：其余「求和 → 写负数流水」路径也必须取账户锁，否则与订单核销 / 提现并发时可超扣。
-// 覆盖：用余额购卡（客户余额）、储值卡到期作废赠送（卡）、赠送到期作废（客户余额）、追偿扣猫粮（猫粮）。
+// 覆盖：赠送到期作废（客户余额）、追偿扣猫粮（猫粮）。
 func TestFundingPathsAcquireAccountLock(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
-
-	t.Run("用余额购卡取客户余额锁", func(t *testing.T) {
-		db := openStoredValueDB(t, "esports_lock_open_card")
-		defer db.Close()
-		customer := saveCustomerOrFail(t, db, 11)
-		if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
-			walletInput{PrincipalCents: 10000, Note: "测试充值"}, "lock-open-card-seed"); err != nil {
-			t.Fatal(err)
-		}
-		in := storedValueOpenInput{CustomerID: customer.ID, Source: "staff",
-			PaymentChannel: "customer_balance", PrincipalCents: 5000,
-			ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "lock-open-card"}
-		holdAccountLockThenRun(t, "balance:"+strconv.Itoa(customer.ID), func() error {
-			_, err := openStoredValueCard(ctx, db, 11, in, now)
-			return err
-		})
-	})
-
-	t.Run("储值卡到期作废赠送取卡锁", func(t *testing.T) {
-		db := openStoredValueDB(t, "esports_lock_card_expire")
-		defer db.Close()
-		customer := saveCustomerOrFail(t, db, 11)
-		card := db.EsportsStoredValueCard.Create().SetCardNo("CARD-LOCK-1").
-			SetCustomerID(customer.ID).SetPaymentChannel("merchant_qr").
-			SetStatus(esportsstoredvaluecard.StatusActive).
-			SetPrincipalCents(10000).SetBonusCents(1000).
-			SetValidFrom(now.AddDate(0, 0, -60)).SetValidUntil(now.AddDate(0, 0, -1)).SaveX(ctx)
-		db.EsportsWalletTx.Create().SetTxNo("TX-LOCK-CARD").
-			SetAccountType(esportswallettx.AccountTypeStoredValueCard).SetOwnerID(card.ID).
-			SetEntryType(esportswallettx.EntryTypeRecharge).
-			SetPrincipalDeltaCents(10000).SetBonusDeltaCents(1000).
-			SetSourceType("test").SetSourceID("lock-card-1").SaveX(ctx)
-		holdAccountLockThenRun(t, "card:"+strconv.Itoa(card.ID), func() error {
-			_, err := expireStoredValueCard(ctx, db, card.ID, now)
-			return err
-		})
-	})
 
 	t.Run("赠送到期作废取客户余额锁", func(t *testing.T) {
 		db := openCampaignDB(t)

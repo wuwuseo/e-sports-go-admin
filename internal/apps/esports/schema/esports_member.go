@@ -24,7 +24,8 @@ func (EsportsMemberLevelRule) Fields() []ent.Field {
 		field.Int("discount_bps").Default(10000).StructTag(`json:"discount_bps"`),
 		// 会员订单在客服派单池置顶（§10.4）。
 		field.Bool("priority_dispatch").Default(false).StructTag(`json:"priority_dispatch"`),
-		// 储值卡开卡赠送比例基点（§10.4）：开卡（未选套餐且未手填赠送）时按本金 × bps / 10000 赠送。
+		// prepay_bonus_bps 曾用于储值卡开卡赠送比例（§10.4），已废弃（2026-10-20 储值卡功能移除）。
+		// 列保留仅为历史配置可读，无任何生产消费点、不再由接口写入。
 		field.Int("prepay_bonus_bps").Default(0).StructTag(`json:"prepay_bonus_bps"`),
 		// 专属客服权益（§10.4）：客户绑定固定负责客服、不参与轮转。首版无轮转（客户已有 owner_admin_id），
 		// 该开关仅用于客服端 / 企微侧边栏客户卡片展示「专属客服」标识。

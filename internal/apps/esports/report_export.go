@@ -278,7 +278,7 @@ func streamAftersaleCSV(ctx context.Context, db *ent.Client, f reportFilter, han
 	err := forEachOrderIDPage(ctx, db, sourcePredicates, func(ids []int) error {
 		return stream(func(query *ent.EsportsAfterSaleQuery) {
 			// 与售后质量报表口径一致：按订单渠道 / 入口圈定时必须限定 source_type=order，
-			// 避免礼物 / 储值卡 / 充值售后的 ID 与订单 ID 撞号。
+			// 避免礼物 / 充值售后的 ID 与订单 ID 撞号。
 			query.Where(
 				esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeOrder),
 				esportsaftersale.SourceIDIn(ids...),
@@ -295,6 +295,8 @@ func writeFinanceCSV(ctx context.Context, db *ent.Client, f reportFilter, w *csv
 		return 0, err
 	}
 	wallet := result["wallet"].(map[string]any)
+	// 储值卡账户（stored_value_card）已随该功能下线（2026-10-20）：该列只导出历史卡流水，
+	// 保证财务导出与页面报表口径一致、历史资金不丢。
 	for _, account := range []string{"customer_balance", "player_catfood", "stored_value_card"} {
 		entries := wallet[account].(map[string]int64)
 		for _, key := range sortedInt64Keys(entries) {

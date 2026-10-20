@@ -120,7 +120,7 @@ func TestDepositRejectsUnpaidAndCancelledOrders(t *testing.T) {
 	}
 }
 
-// 冻结订单的写操作统一拦截：改价/取消/派单/认领/发布抢单/加钟/余额核销/储值卡核销/抢单/启动服务/结单/转单
+// 冻结订单的写操作统一拦截：改价/取消/派单/认领/发布抢单/加钟/余额核销/抢单/启动服务/结单/转单
 // 均返回 errOrderFrozen（中文错误），且不改变订单状态；恢复后写操作恢复可用。
 func TestFrozenOrderBlocksWriteOperations(t *testing.T) {
 	db := openDepositDB(t, "esports_deposit_frozen_guard")
@@ -167,10 +167,6 @@ func TestFrozenOrderBlocksWriteOperations(t *testing.T) {
 		}},
 		{"余额核销", func() error {
 			_, err := payOrderWithBalance(ctx, db, 99, order.ID, now)
-			return err
-		}},
-		{"储值卡核销", func() error {
-			_, err := payOrderWithStoredValueCard(ctx, db, 99, order.ID, 1, now)
 			return err
 		}},
 		{"抢单", func() error {

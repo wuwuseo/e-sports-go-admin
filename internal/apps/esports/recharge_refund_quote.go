@@ -19,19 +19,19 @@ import (
 // 目标：给出「以充值批次为粒度」的可审计试算——每一笔充值批次在退款 / 退卡时各自还剩多少、
 // 其中可退本金与随退作废的赠送分别是多少，并把无法按批次还原的账本异常显式报出，
 // 而不是静默给出一个对不上的结论。本文件只做试算，不落库；真实退款执行仍由既有模块承接
-// （退卡走 stored_value.go 的申请 / 审核，充值还原走售后执行链）。
+// （充值还原走售后执行链）。
 //
 // 口径（随结果一并返回 Basis，便于审计对照）：
 //  1. 批次集合取账本 `EsportsLedgerEntry` 中该账户 `delta_cents > 0` 的正向批次，按 created_at FIFO；
 //     批次的本金 / 赠送拆分由开启该批次的来源钱包流水给出（客户余额批次按 tx_no 命中充值流水；
-//     储值卡预付款批次按来源类型 + 来源 ID 命中开卡流水），赠送到期时间同样取该流水。
+//     批次按流水号命中开卡 / 充值流水），赠送到期时间同样取该流水。
 //  2. 「已被消费分摊额」= `EsportsLedgerAllocation` 求和，原样展示（纯分摊视图），供审计对照；
 //     该口径只覆盖走了 `allocateLedgerConsumption` 的消费，不含管理员调整、赠送作废、划转等冲减。
 //  3. 批次剩余按「账户派生余额」口径还原：本金总消耗 = 批次本金合计 − 账户本金余额，
 //     赠送总消耗 = 批次赠送合计 − 账户赠送余额；本金按批次 FIFO 扣减，赠送按「先到期先扣、
 //     永久赠送最后」扣减（与 `rechargeBonusBatches` / `expireOwnerBonus` 的消耗次序一致）。
 //     这样各批次剩余之和恒等于账户派生余额，可退本金 / 作废赠送合计与既有退卡试算
-//     （`storedValueRefundQuote`：未消费本金可退、未消费赠送不折现）是同一套结论。
+//     （未消费本金可退、未消费赠送不折现）是同一套结论。
 //  4. 纯只读：只查询账本、分摊与钱包流水，不写任何账本 / 流水 / 卡状态，可重复执行。
 //  5. 数据异常显式分类报出：分摊额超批次额、批次本金 / 赠送无法拆分、账户余额大于批次合计
 //     （存在未落批次的正向资金，如未写批次的活动充值或管理员调整）。
@@ -111,8 +111,6 @@ type rechargeRefundQuoteBasis struct {
 type rechargeRefundQuote struct {
 	AccountType string `json:"account_type"`
 	AccountID   string `json:"account_id"`
-	// CardNo 储值卡账户时才返回，便于与退卡试算对照。
-	CardNo string `json:"card_no,omitempty"`
 	// QuotedAt 试算生成的时刻（UTC），保证结论可审计到具体时点。
 	QuotedAt time.Time                `json:"quoted_at"`
 	Basis    rechargeRefundQuoteBasis `json:"basis"`
@@ -137,13 +135,11 @@ type refundQuoteAccount struct {
 	// walletAccountType / walletOwnerID 余额派生的钱包账户键。
 	walletAccountType string
 	walletOwnerID     int
-	// card 储值卡账户时非空，用于拆分兜底与卡号展示。
-	card *ent.EsportsStoredValueCard
 }
 
-// rechargeRefundQuoteFor 按充值批次还原试算指定账户的退款 / 退卡金额。纯只读，可重复执行。
-// accountType 支持 customer_balance（客户余额）与 stored_value_prepay（储值卡预付款），
-// accountID 分别为客户 ID 与储值卡 ID。
+// rechargeRefundQuoteFor 按充值批次还原试算指定账户的退款金额。纯只读，可重复执行。
+// accountType 仅支持 customer_balance（客户余额），accountID 为客户 ID；
+// 储值卡预付款账户（stored_value_prepay）随储值卡功能下线（2026-10-20）不再支持。
 func rechargeRefundQuoteFor(ctx context.Context, db *ent.Client, accountType, accountID string, now time.Time) (*rechargeRefundQuote, error) {
 	account, err := resolveRefundQuoteAccount(ctx, db, accountType, accountID)
 	if err != nil {
@@ -166,7 +162,7 @@ func rechargeRefundQuoteFor(ctx context.Context, db *ent.Client, accountType, ac
 	if err != nil {
 		return nil, err
 	}
-	byTxNo, bySource, err := refundQuoteWalletIndex(ctx, db, account.walletAccountType, account.walletOwnerID)
+	byTxNo, err := refundQuoteWalletIndex(ctx, db, account.walletAccountType, account.walletOwnerID)
 	if err != nil {
 		return nil, err
 	}
@@ -178,16 +174,13 @@ func rechargeRefundQuoteFor(ctx context.Context, db *ent.Client, accountType, ac
 		Anomalies:   []ledgerAnomaly{},
 		Batches:     make([]rechargeRefundBatch, 0, len(batches)),
 	}
-	if account.card != nil {
-		quote.CardNo = account.card.CardNo
-	}
 	// 逐批还原：先补齐批次原始金额与本金 / 赠送拆分，再按余额口径回扣消耗。
 	principalRemain := make([]int64, 0, len(batches))
 	bonusRemain := make([]int64, 0, len(batches))
 	expiries := make([]*time.Time, 0, len(batches))
 	var principalIn, bonusIn int64
 	for _, batch := range batches {
-		principal, bonus, expiresAt, splitKnown := refundQuoteBatchSplit(account, batch, byTxNo, bySource)
+		principal, bonus, expiresAt, splitKnown := refundQuoteBatchSplit(batch, byTxNo)
 		allocated := allocatedByBatch[batch.SourceType+"\x00"+batch.SourceID]
 		detail := rechargeRefundBatch{
 			BatchSourceType: batch.SourceType, BatchSourceID: batch.SourceID,
@@ -243,15 +236,9 @@ func rechargeRefundQuoteFor(ctx context.Context, db *ent.Client, accountType, ac
 		quote.BatchBonusRemainingCents += bonusRemain[index]
 	}
 
-	// 顶层合计与既有口径保持同一套结论：储值卡直接复用退卡试算，客户余额取派生本金余额。
+	// 顶层合计：可退本金取派生本金余额，未消费赠送随退作废（不折现）。
 	refundRule := "可退本金 = 账户本金余额；未消费赠送不折现、随退作废"
-	if account.card != nil {
-		_, refundable := storedValueRefundQuote(account.card, balance, now)
-		quote.RefundablePrincipalCents = refundable
-		refundRule = "未消费本金可退、未消费赠送随退作废（与储值卡退卡试算 storedValueRefundQuote 同口径）"
-	} else {
-		quote.RefundablePrincipalCents = max(balance.PrincipalCents, 0)
-	}
+	quote.RefundablePrincipalCents = max(balance.PrincipalCents, 0)
 	quote.ForfeitedBonusCents = max(balance.BonusCents, 0)
 
 	// 账户余额大于批次合计：多出的资金没有批次可追溯，逐批明细无法覆盖，显式报出而不是静默截断。
@@ -299,15 +286,6 @@ func resolveRefundQuoteAccount(ctx context.Context, db *ent.Client, accountType,
 			ledgerAccountType: walletCustomerBalance, accountID: strconv.Itoa(id),
 			walletAccountType: walletCustomerBalance, walletOwnerID: id,
 		}, nil
-	case storedValuePrepayAccount:
-		card, err := db.EsportsStoredValueCard.Get(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		return &refundQuoteAccount{
-			ledgerAccountType: storedValuePrepayAccount, accountID: strconv.Itoa(id),
-			walletAccountType: walletStoredValueCard, walletOwnerID: id, card: card,
-		}, nil
 	default:
 		return nil, errInvalidInput
 	}
@@ -333,49 +311,32 @@ func refundQuoteAllocatedByBatch(ctx context.Context, db *ent.Client, accountTyp
 	return allocated, nil
 }
 
-// refundQuoteWalletIndex 建两份钱包流水索引：按 tx_no（客户余额批次命中），
-// 按 source_type + source_id（储值卡预付款批次命中，同一来源取金额最大的一条）。
+// refundQuoteWalletIndex 建钱包流水索引：按 tx_no 命中批次（客户余额批次口径）。
 func refundQuoteWalletIndex(ctx context.Context, db *ent.Client, accountType string, ownerID int) (
-	map[string]*ent.EsportsWalletTx, map[string]*ent.EsportsWalletTx, error) {
+	map[string]*ent.EsportsWalletTx, error) {
 	rows, err := db.EsportsWalletTx.Query().Where(
 		esportswallettx.AccountTypeEQ(esportswallettx.AccountType(accountType)),
 		esportswallettx.OwnerIDEQ(ownerID),
 	).Order(ent.Asc(esportswallettx.FieldID)).All(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	byTxNo := make(map[string]*ent.EsportsWalletTx, len(rows))
-	bySource := make(map[string]*ent.EsportsWalletTx, len(rows))
 	for _, row := range rows {
 		byTxNo[row.TxNo] = row
-		key := row.SourceType + "\x00" + row.SourceID
-		if prior, ok := bySource[key]; !ok ||
-			row.PrincipalDeltaCents+row.BonusDeltaCents > prior.PrincipalDeltaCents+prior.BonusDeltaCents {
-			bySource[key] = row
-		}
 	}
-	return byTxNo, bySource, nil
+	return byTxNo, nil
 }
 
 // refundQuoteBatchSplit 把批次金额拆成本金 / 赠送，并带回赠送到期时间。
 // 拆分依据是开启该批次的来源钱包流水（金额须与批次一致）；拿不到可信拆分时
 // 保守按全额本金计并返回 splitKnown=false，由调用方落异常，不静默按本金处理。
-func refundQuoteBatchSplit(account *refundQuoteAccount, batch *ent.EsportsLedgerEntry,
-	byTxNo, bySource map[string]*ent.EsportsWalletTx) (principal, bonus int64, expiresAt *time.Time, splitKnown bool) {
-	var row *ent.EsportsWalletTx
-	if account.ledgerAccountType == storedValuePrepayAccount {
-		row = bySource[batch.SourceType+"\x00"+batch.SourceID]
-	} else {
-		row = byTxNo[batch.SourceID]
-	}
+func refundQuoteBatchSplit(batch *ent.EsportsLedgerEntry,
+	byTxNo map[string]*ent.EsportsWalletTx) (principal, bonus int64, expiresAt *time.Time, splitKnown bool) {
+	row := byTxNo[batch.SourceID]
 	if row != nil && row.PrincipalDeltaCents >= 0 && row.BonusDeltaCents >= 0 &&
 		row.PrincipalDeltaCents+row.BonusDeltaCents == batch.DeltaCents {
 		return row.PrincipalDeltaCents, row.BonusDeltaCents, row.BonusExpiresAt, true
-	}
-	// 兜底：来源流水未命中时，用储值卡登记的本金 / 赠送与有效期拆分。
-	if card := account.card; card != nil && card.PrincipalCents+card.BonusCents == batch.DeltaCents {
-		validUntil := card.ValidUntil
-		return card.PrincipalCents, card.BonusCents, &validUntil, true
 	}
 	return batch.DeltaCents, 0, nil, false
 }

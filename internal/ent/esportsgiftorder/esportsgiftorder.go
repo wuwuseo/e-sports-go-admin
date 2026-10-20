@@ -46,8 +46,6 @@ const (
 	FieldBonusCents = "bonus_cents"
 	// FieldPaymentSource holds the string denoting the payment_source field in the database.
 	FieldPaymentSource = "payment_source"
-	// FieldStoredValueCardID holds the string denoting the stored_value_card_id field in the database.
-	FieldStoredValueCardID = "stored_value_card_id"
 	// FieldGiftTierID holds the string denoting the gift_tier_id field in the database.
 	FieldGiftTierID = "gift_tier_id"
 	// FieldGiftTierCode holds the string denoting the gift_tier_code field in the database.
@@ -101,7 +99,6 @@ var Columns = []string{
 	FieldPrincipalCents,
 	FieldBonusCents,
 	FieldPaymentSource,
-	FieldStoredValueCardID,
 	FieldGiftTierID,
 	FieldGiftTierCode,
 	FieldPaymentRef,
@@ -161,8 +158,6 @@ var (
 	DefaultBonusCents int64
 	// DefaultPaymentSource holds the default value on creation for the "payment_source" field.
 	DefaultPaymentSource string
-	// StoredValueCardIDValidator is a validator for the "stored_value_card_id" field. It is called by the builders before save.
-	StoredValueCardIDValidator func(int) error
 	// DefaultGiftTierID holds the default value on creation for the "gift_tier_id" field.
 	DefaultGiftTierID int
 	// DefaultGiftTierCode holds the default value on creation for the "gift_tier_code" field.
@@ -379,11 +374,6 @@ func ByBonusCents(opts ...sql.OrderTermOption) OrderOption {
 // ByPaymentSource orders the results by the payment_source field.
 func ByPaymentSource(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPaymentSource, opts...).ToFunc()
-}
-
-// ByStoredValueCardID orders the results by the stored_value_card_id field.
-func ByStoredValueCardID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldStoredValueCardID, opts...).ToFunc()
 }
 
 // ByGiftTierID orders the results by the gift_tier_id field.

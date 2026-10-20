@@ -129,11 +129,6 @@ func PaymentSource(v string) predicate.EsportsGiftOrder {
 	return predicate.EsportsGiftOrder(sql.FieldEQ(FieldPaymentSource, v))
 }
 
-// StoredValueCardID applies equality check predicate on the "stored_value_card_id" field. It's identical to StoredValueCardIDEQ.
-func StoredValueCardID(v int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldEQ(FieldStoredValueCardID, v))
-}
-
 // GiftTierID applies equality check predicate on the "gift_tier_id" field. It's identical to GiftTierIDEQ.
 func GiftTierID(v int) predicate.EsportsGiftOrder {
 	return predicate.EsportsGiftOrder(sql.FieldEQ(FieldGiftTierID, v))
@@ -897,56 +892,6 @@ func PaymentSourceEqualFold(v string) predicate.EsportsGiftOrder {
 // PaymentSourceContainsFold applies the ContainsFold predicate on the "payment_source" field.
 func PaymentSourceContainsFold(v string) predicate.EsportsGiftOrder {
 	return predicate.EsportsGiftOrder(sql.FieldContainsFold(FieldPaymentSource, v))
-}
-
-// StoredValueCardIDEQ applies the EQ predicate on the "stored_value_card_id" field.
-func StoredValueCardIDEQ(v int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldEQ(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDNEQ applies the NEQ predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNEQ(v int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldNEQ(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDIn applies the In predicate on the "stored_value_card_id" field.
-func StoredValueCardIDIn(vs ...int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldIn(FieldStoredValueCardID, vs...))
-}
-
-// StoredValueCardIDNotIn applies the NotIn predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNotIn(vs ...int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldNotIn(FieldStoredValueCardID, vs...))
-}
-
-// StoredValueCardIDGT applies the GT predicate on the "stored_value_card_id" field.
-func StoredValueCardIDGT(v int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldGT(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDGTE applies the GTE predicate on the "stored_value_card_id" field.
-func StoredValueCardIDGTE(v int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldGTE(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDLT applies the LT predicate on the "stored_value_card_id" field.
-func StoredValueCardIDLT(v int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldLT(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDLTE applies the LTE predicate on the "stored_value_card_id" field.
-func StoredValueCardIDLTE(v int) predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldLTE(FieldStoredValueCardID, v))
-}
-
-// StoredValueCardIDIsNil applies the IsNil predicate on the "stored_value_card_id" field.
-func StoredValueCardIDIsNil() predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldIsNull(FieldStoredValueCardID))
-}
-
-// StoredValueCardIDNotNil applies the NotNil predicate on the "stored_value_card_id" field.
-func StoredValueCardIDNotNil() predicate.EsportsGiftOrder {
-	return predicate.EsportsGiftOrder(sql.FieldNotNull(FieldStoredValueCardID))
 }
 
 // GiftTierIDEQ applies the EQ predicate on the "gift_tier_id" field.

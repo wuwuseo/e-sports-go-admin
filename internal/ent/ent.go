@@ -101,9 +101,6 @@ import (
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsspecgroup"
-	"go-admin/internal/ent/esportsstoredvaluecard"
-	"go-admin/internal/ent/esportsstoredvalueexception"
-	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
@@ -284,9 +281,6 @@ func checkColumn(t, c string) error {
 			esportsskususpension.Table:           esportsskususpension.ValidColumn,
 			esportsskususpensionitem.Table:       esportsskususpensionitem.ValidColumn,
 			esportsspecgroup.Table:               esportsspecgroup.ValidColumn,
-			esportsstoredvaluecard.Table:         esportsstoredvaluecard.ValidColumn,
-			esportsstoredvalueexception.Table:    esportsstoredvalueexception.ValidColumn,
-			esportsstoredvaluepackage.Table:      esportsstoredvaluepackage.ValidColumn,
 			esportsteammate.Table:                esportsteammate.ValidColumn,
 			esportswalletaccount.Table:           esportswalletaccount.ValidColumn,
 			esportswallettx.Table:                esportswallettx.ValidColumn,

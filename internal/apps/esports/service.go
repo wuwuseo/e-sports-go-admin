@@ -161,7 +161,7 @@ type orderInput struct {
 	ManualAdjustReason string `json:"manual_adjust_reason,omitempty"`
 	// 负责客服（§4.2）：留空默认建单人；显式指定时须为启用中的管理员。
 	ResponsibleAdminID int `json:"responsible_admin_id,omitempty"`
-	// 站内收款方式（§4.2 / §4.3）：customer_balance / stored_value_card 时在下单环节复核资金可用余额；
+	// 站内收款方式（§4.2 / §4.3）：customer_balance 时在下单环节复核资金可用余额；
 	// 留空或 external 表示走外部收款，下单不锁资金。
 	PaymentChannel string `json:"payment_channel,omitempty"`
 	// 订单价明显偏离 SKU 标准价时的偏离原因（§4.6-02）：超阈值且开启强制时必填。

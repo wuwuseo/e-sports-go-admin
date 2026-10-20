@@ -1114,7 +1114,7 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 		}
 		return forEachOrderIDPage(ctx, db, sourcePredicates, func(ids []int) error {
 			return fn(func(query *ent.EsportsAfterSaleQuery) {
-				// 同一 source_id 在不同来源下可能指向不同单据（礼物 / 储值卡 / 充值也会占用订单 ID 空间），
+				// 同一 source_id 在不同来源下可能指向不同单据（礼物 / 充值也会占用订单 ID 空间），
 				// 按订单渠道 / 入口圈定时必须同时限定 source_type=order。
 				query.Where(
 					esportsaftersale.SourceTypeEQ(esportsaftersale.SourceTypeOrder),
@@ -1249,7 +1249,8 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	f.ResponsibleAdmin = 0
 	// 钱包流水：按（账户类型 + 流水类型）分组求和；金额取本金 + 赠送权益，
 	// 与钱包余额（本金 + 赠送）口径一致，避免报表只看到本金、漏掉充值活动赠送的部分。
-	// 储值卡是独立预付账户，单独分桶，不与客户余额混算（§11.3）。
+	// 账户类型逐类分桶，不与客户余额混算（§11.3）。储值卡账户（stored_value_card）已随该功能下线
+	// （2026-10-20），分桶保留仅为让历史卡流水仍可读、不被混进客户余额，不再产生新数据。
 	// 资金维度（P1-08）：账户类型 / 流水类型真正下推到查询，不是「收下后忽略」。
 	var walletRows []struct {
 		AccountType string `json:"account_type"`

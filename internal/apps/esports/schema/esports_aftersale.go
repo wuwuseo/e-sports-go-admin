@@ -23,12 +23,13 @@ type EsportsAfterSale struct{ ent.Schema }
 func (EsportsAfterSale) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("after_sale_no").NotEmpty().MaxLen(64).Immutable().StructTag(`json:"after_sale_no"`),
-		// 来源单据类型（§13.1 / §13.3）：order 服务订单 / gift 礼物单 / stored_value_card 储值卡 /
-		// recharge 钱包充值流水 / assessment 考核记录（陪玩申诉）。
+		// 来源单据类型（§13.1 / §13.3）：order 服务订单 / gift 礼物单 / recharge 钱包充值流水 /
+		// assessment 考核记录（陪玩申诉）。
+		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史售后单可读，禁止新写入。
 		field.Enum("source_type").Values("order", "gift", "stored_value_card", "recharge", "assessment").
 			Default("order").StructTag(`json:"source_type"`),
-		// 来源单据 ID：order→订单 ID；gift→礼物单 ID；stored_value_card→卡 ID；
-		// recharge→钱包流水 ID；assessment→考核记录 ID。
+		// 来源单据 ID：order→订单 ID；gift→礼物单 ID；recharge→钱包流水 ID；assessment→考核记录 ID；
+		// 历史 stored_value_card 来源为卡 ID。
 		field.Int("source_id").Positive().StructTag(`json:"source_id"`),
 		field.Enum("kind").Values("service_mismatch", "duration_short", "no_show", "wrong_item", "overcharge", "player_appeal", "refund_request", "other").StructTag(`json:"kind"`),
 		// 发起入口：客户 / 客服 / 陪玩 / 系统。

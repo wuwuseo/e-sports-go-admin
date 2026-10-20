@@ -33,7 +33,6 @@ func TestAdminAuditRulesCoverEsportsFundPriceSpecAndPublishRoutes(t *testing.T) 
 		"PUT /api/v1/esports/admin/orders/:id/quote",
 		"POST /api/v1/esports/admin/price-adjustments/:id/decision",
 		"POST /api/v1/esports/admin/orders/:id/pay-by-balance",
-		"POST /api/v1/esports/admin/orders/:id/pay-by-stored-value-card",
 		// 钱包与提现
 		"POST /api/v1/esports/admin/wallets/:id/recharge",
 		"POST /api/v1/esports/admin/wallets/:id/adjust",

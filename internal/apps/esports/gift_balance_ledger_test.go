@@ -11,7 +11,6 @@ import (
 	"go-admin/internal/ent/esportsgiftintent"
 	"go-admin/internal/ent/esportsledgerallocation"
 	"go-admin/internal/ent/esportsledgerentry"
-	"go-admin/internal/ent/esportsstoredvaluecard"
 	"go-admin/internal/ent/esportswallettx"
 )
 
@@ -90,57 +89,6 @@ func TestBalanceGiftWritesSingleBatchLedgerEntry(t *testing.T) {
 		if anomaly.Kind == ledgerAnomalyWalletBatchMismatch && anomaly.AccountType == walletCustomerBalance {
 			t.Fatalf("余额礼物导致钱包流水与批次账本求和不符：%+v", anomaly)
 		}
-	}
-}
-
-// 储值卡本金支付的礼物只记 card_gift_consume，不产生余额条目（防双记）。
-func TestStoredValueCardGiftWritesOnlyCardLedger(t *testing.T) {
-	db := openGiftDB(t, "esports_gift_card_ledger_only")
-	defer db.Close()
-	ctx := t.Context()
-	now := time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)
-	customer := seedGiftCustomer(t, db, 101)
-	player := seedPlayer(t, db, 202, "qualified", "online")
-	gift := seedGift(t, db, giftInput{Code: "CARD-LEDGER", Name: "卡礼物", PriceCents: 8000,
-		CommissionMode: "percent", CommissionBp: 5000})
-	card := db.EsportsStoredValueCard.Create().SetCardNo("SV-LEDGER-1").SetCustomerID(customer.ID).
-		SetPaymentChannel(esportsstoredvaluecard.PaymentChannelMerchantQr).
-		SetPrincipalCents(10000).SetBonusCents(5000).SetAllowGifts(true).SetContractConfirmed(true).
-		SetStatus(esportsstoredvaluecard.StatusActive).SetValidFrom(now.Add(-time.Hour)).
-		SetValidUntil(now.AddDate(0, 1, 0)).SaveX(ctx)
-	db.EsportsWalletTx.Create().SetTxNo("gift-card-ledger-seed").SetAccountType("stored_value_card").
-		SetOwnerID(card.ID).SetEntryType("recharge").SetPrincipalDeltaCents(10000).SetBonusDeltaCents(5000).
-		SetSourceType("stored_value_card_open").SetSourceID("gift-card-ledger-open").SaveX(ctx)
-	db.EsportsLedgerEntry.Create().SetAccountType(storedValuePrepayAccount).SetAccountID(strconv.Itoa(card.ID)).
-		SetSourceType("stored_value_card_open").SetSourceID("gift-card-ledger-open").SetEntryRole("card_open").
-		SetDeltaCents(15000).SetPrincipalDeltaCents(10000).SetBonusDeltaCents(5000).SaveX(ctx)
-
-	order, err := sendGift(ctx, db, 11, giftSendInput{CustomerID: customer.ID, GiftID: gift.ID,
-		PlayerID: player.ID, Quantity: 1, PaymentSource: "stored_value_card_principal",
-		StoredValueCardID: card.ID, ClientKey: "gift-card-ledger-1"}, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if order.StoredValueCardID == nil || *order.StoredValueCardID != card.ID || order.PaymentSource != "stored_value_card_principal" {
-		t.Fatalf("卡支付礼物未记录卡来源：%+v", order)
-	}
-	// 只有卡片路径的批次条目。
-	if got := countLedgerEntriesByRole(t, db, "card_gift_consume"); got != 1 {
-		t.Fatalf("储值卡支付礼物应产生且仅产生一条 card_gift_consume：%d", got)
-	}
-	if got := countLedgerEntriesByRole(t, db, "balance_gift_consume"); got != 0 {
-		t.Fatalf("储值卡支付礼物不得再记余额批次条目（双记）：%d", got)
-	}
-	entry := db.EsportsLedgerEntry.Query().
-		Where(esportsledgerentry.EntryRoleEQ("card_gift_consume")).OnlyX(ctx)
-	if entry.AccountType != storedValuePrepayAccount || entry.AccountID != strconv.Itoa(card.ID) ||
-		entry.DeltaCents != -8000 || entry.PrincipalDeltaCents != -8000 {
-		t.Fatalf("卡片礼物批次条目口径不正确：%+v", entry)
-	}
-	// 卡内余额只被扣一次（赠送权益不动）。
-	balance, err := storedValueCardBalance(ctx, db, card.ID)
-	if err != nil || balance.PrincipalCents != 2000 || balance.BonusCents != 5000 {
-		t.Fatalf("卡余额被重复扣减或动用了赠送权益：%+v %v", balance, err)
 	}
 }
 

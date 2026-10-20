@@ -489,13 +489,13 @@ func TestRound4PO4206DiscountCapAndFundsGuard(t *testing.T) {
 		t.Fatalf("余额不足应下单即拒：status=%d msg=%s", status, poMessage(payload))
 	}
 
-	// 储值卡核销但无可用卡 → 明确拒绝。
+	// 已下线的储值卡收款方式 → 下单即明确拒绝（不再有卡内资金可复核）。
 	card := map[string]any{
 		"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1, "payment_channel": "stored_value_card",
 	}
 	status, payload = poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-cap-004", card)
-	if status != fiber.StatusBadRequest || !strings.Contains(poMessage(payload), "储值卡") {
-		t.Fatalf("储值卡余额不足应下单即拒：status=%d msg=%s", status, poMessage(payload))
+	if status != fiber.StatusBadRequest || !strings.Contains(poMessage(payload), "不支持的下单收款方式") {
+		t.Fatalf("已下线的储值卡收款方式应下单即拒：status=%d msg=%s", status, poMessage(payload))
 	}
 
 	// 未指定站内收款方式（走外部收款）→ 不做资金复核，正常放行。

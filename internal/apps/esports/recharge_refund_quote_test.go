@@ -16,7 +16,7 @@ import (
 // 按充值批次还原的退款试算（§4.5）：多批次充值 + 部分消费后，逐批给出已分摊额、批次剩余、
 // 可退本金与作废赠送，且各批次可退本金之和等于账户派生本金余额（覆盖批次 FIFO 分摊）。
 func TestRechargeRefundQuoteBatchFIFO(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_quote_fifo")
+	db := openWalletTestDB(t, "esports_recharge_refund_quote_fifo")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()
@@ -110,7 +110,7 @@ func TestRechargeRefundQuoteBatchFIFO(t *testing.T) {
 // 赠送过期批次的处理：已到期批次的剩余赠送标记为已过期并计入作废额、不折现；
 // 到期作废流水写入后，批次剩余赠送与账户赠送余额同步归零。
 func TestRechargeRefundQuoteExpiredBonusForfeited(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_quote_expired")
+	db := openWalletTestDB(t, "esports_recharge_refund_quote_expired")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Date(2026, 10, 16, 10, 0, 0, 0, time.UTC)
@@ -164,98 +164,9 @@ func TestRechargeRefundQuoteExpiredBonusForfeited(t *testing.T) {
 	}
 }
 
-// 储值卡退卡的批次维度试算与既有退卡试算口径一致（未消费本金可退、未消费赠送作废），
-// 并给出预付款批次（account_type=stored_value_prepay）的逐批还原明细。
-func TestRechargeRefundQuoteStoredValueCardMatchesRefundQuote(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_quote_card")
-	defer db.Close()
-	ctx := t.Context()
-	now := time.Now()
-	customer := saveCustomerOrFail(t, db, 11)
-
-	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
-		PaymentRef: "RRQ-CARD-1", PrincipalCents: 10000, BonusCents: 2000,
-		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "rrq-card-open-1",
-	}, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sku, err := saveSku(ctx, db, skuInput{
-		Code: "RRQ-CARD", Title: "储值卡批次试算商品", ServiceType: "play", UnitPriceCents: 3000,
-		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: 5, Status: "on_sale",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	order, err := placeOrder(ctx, db, 11, orderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1},
-		"rrq-card-order-1", now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := payOrderWithStoredValueCard(ctx, db, 11, order.ID, card.ID, now); err != nil {
-		t.Fatal(err)
-	}
-	// 先赠送后本金：卡消费 3000 → 赠送扣 2000、本金扣 1000，余本金 9000 / 赠送 0。
-	_, refundable, err := storedValueRefundQuoteFor(ctx, db, card.EsportsStoredValueCard, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if refundable != 9000 {
-		t.Fatalf("既有退卡试算可退本金应为 9000，got=%d", refundable)
-	}
-
-	quote, err := rechargeRefundQuoteFor(ctx, db, storedValuePrepayAccount, strconv.Itoa(card.ID), now)
-	if err != nil {
-		t.Fatalf("储值卡批次试算应成功，err=%v", err)
-	}
-	if quote.CardNo != card.CardNo || len(quote.Batches) != 1 {
-		t.Fatalf("应定位到该卡的开卡批次：%+v", quote)
-	}
-	batch := quote.Batches[0]
-	if batch.EntryRole != "card_open" || batch.OriginalCents != 12000 ||
-		batch.PrincipalCents != 10000 || batch.BonusCents != 2000 {
-		t.Fatalf("开卡批次拆分不正确：%+v", batch)
-	}
-	if batch.AllocatedCents != 3000 || batch.RemainingByAllocationCents != 9000 {
-		t.Fatalf("卡消费应落批次分摊：%+v", batch)
-	}
-	if batch.RefundableCents != 9000 || batch.BonusForfeitedCents != 0 {
-		t.Fatalf("逐批可退 / 作废不正确：%+v", batch)
-	}
-	// 与既有退卡试算同口径：可退本金一致、未消费赠送全部作废。
-	if quote.RefundablePrincipalCents != refundable {
-		t.Fatalf("批次试算可退本金 %d 应与既有退卡试算 %d 一致",
-			quote.RefundablePrincipalCents, refundable)
-	}
-	if quote.ForfeitedBonusCents != 0 {
-		t.Fatalf("赠送已被消费，作废额应为 0：%+v", quote)
-	}
-	if len(quote.Anomalies) != 0 {
-		t.Fatalf("正常卡不应报批次异常：%+v", quote.Anomalies)
-	}
-
-	// 未消费的卡：可退本金 = 开卡本金，作废赠送 = 开卡赠送，同样与既有试算一致。
-	fresh, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: customer.ID, Source: "staff", PaymentChannel: "merchant_qr",
-		PaymentRef: "RRQ-CARD-2", PrincipalCents: 5000, BonusCents: 1000,
-		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "rrq-card-open-2",
-	}, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	freshQuote, err := rechargeRefundQuoteFor(ctx, db, storedValuePrepayAccount, strconv.Itoa(fresh.ID), now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if freshQuote.RefundablePrincipalCents != 5000 || freshQuote.ForfeitedBonusCents != 1000 {
-		t.Fatalf("未消费卡应可退本金 5000、作废赠送 1000：%+v", freshQuote)
-	}
-}
-
 // 批次数据异常：分摊额超过批次额时报明确异常并标记（不静默给出错误结论）。
 func TestRechargeRefundQuoteFlagsOverAllocatedBatch(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_quote_overallocation")
+	db := openWalletTestDB(t, "esports_recharge_refund_quote_overallocation")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()
@@ -292,7 +203,7 @@ func TestRechargeRefundQuoteFlagsOverAllocatedBatch(t *testing.T) {
 
 // 账户余额大于批次合计（存在未落批次的正向资金）时显式报异常，不静默按批次结论对外。
 func TestRechargeRefundQuoteFlagsUnbatchedBalance(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_quote_unbatched")
+	db := openWalletTestDB(t, "esports_recharge_refund_quote_unbatched")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()
@@ -325,7 +236,7 @@ func TestRechargeRefundQuoteFlagsUnbatchedBalance(t *testing.T) {
 
 // 试算入参校验：账户类型不支持或账户不存在时分别返回参数错误与 NotFound。
 func TestRechargeRefundQuoteValidatesAccount(t *testing.T) {
-	db := openStoredValueDB(t, "esports_recharge_refund_quote_validate")
+	db := openWalletTestDB(t, "esports_recharge_refund_quote_validate")
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now()

@@ -24,7 +24,7 @@ func hasLedgerAnomaly(result ledgerReconcileResult, kind string) bool {
 
 // 账本全量核验（§11.6）：健康账本无异常，异常账本按不变量分类报出，异常落外盒事件。
 func TestLedgerReconcileDetectsAnomalies(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile")
+	db := openWalletTestDB(t, "esports_ledger_reconcile")
 	ctx := t.Context()
 	now := time.Now()
 	customer := saveCustomerOrFail(t, db, 11)
@@ -106,7 +106,7 @@ func TestLedgerReconcileDetectsAnomalies(t *testing.T) {
 
 // 分摊引用的批次条目不存在（或不是正向条目）时按「批次缺失」报出。
 func TestLedgerReconcileDetectsMissingBatch(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile_batch")
+	db := openWalletTestDB(t, "esports_ledger_reconcile_batch")
 	ctx := t.Context()
 	customer := saveCustomerOrFail(t, db, 11)
 	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
@@ -133,7 +133,7 @@ func TestLedgerReconcileDetectsMissingBatch(t *testing.T) {
 
 // 账户流水求和为负（超扣或重复冲正）时按「负余额」报出。
 func TestLedgerReconcileDetectsNegativeBalance(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile_negative")
+	db := openWalletTestDB(t, "esports_ledger_reconcile_negative")
 	ctx := t.Context()
 	customer := saveCustomerOrFail(t, db, 11)
 	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
@@ -158,7 +158,7 @@ func TestLedgerReconcileDetectsNegativeBalance(t *testing.T) {
 
 // 达单轮扫描上限时标记截断，提示下轮继续，不静默漏检。
 func TestLedgerReconcileMarksScanTruncated(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile_cap")
+	db := openWalletTestDB(t, "esports_ledger_reconcile_cap")
 	ctx := t.Context()
 	first := saveCustomerOrFail(t, db, 11)
 	second, err := saveCustomer(ctx, db, 11, customerInput{DisplayName: "第二个客户"})
@@ -195,7 +195,7 @@ func TestLedgerReconcileMarksScanTruncated(t *testing.T) {
 
 // 持久游标持续推进：账户数超过单轮上限时，连续多轮运行覆盖全部账户，且发现后半段的负余额异常。
 func TestLedgerReconcileCursorCoversTailAccounts(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile_cursor_accounts")
+	db := openWalletTestDB(t, "esports_ledger_reconcile_cursor_accounts")
 	ctx := t.Context()
 	const accountCount = 25
 	const scanCap = 10
@@ -248,7 +248,7 @@ func TestLedgerReconcileCursorCoversTailAccounts(t *testing.T) {
 
 // 持久游标持续推进：分摊数超过单轮上限时，连续多轮运行覆盖全部分摊，且发现后半段的批次缺失异常。
 func TestLedgerReconcileCursorCoversTailAllocations(t *testing.T) {
-	db := openStoredValueDB(t, "esports_ledger_reconcile_cursor_allocations")
+	db := openWalletTestDB(t, "esports_ledger_reconcile_cursor_allocations")
 	ctx := t.Context()
 	customer := saveCustomerOrFail(t, db, 11)
 	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,

@@ -16,7 +16,7 @@ import (
 )
 
 // 本文件覆盖 P0-11「重复收款」：同一订单已有待核验的转账凭证时，
-// 客户余额核销、储值卡核销都必须被拒；而核销该凭证本身不得被自己拦住。
+// 客户余额核销必须被拒；而核销该凭证本身不得被自己拦住。
 
 func openDuplicateGuardDB(t *testing.T, name string) *ent.Client {
 	t.Helper()
@@ -84,58 +84,6 @@ func TestBalancePaymentBlockedByPendingOfflineProof(t *testing.T) {
 	// 已付款订单再走余额核销仍判冲突（既有口径不变）。
 	if _, err = payOrderWithBalance(ctx, db, 11, order.ID, now.Add(2*time.Minute)); !errors.Is(err, errConflict) {
 		t.Fatalf("已付款订单再余额核销应冲突，err=%v", err)
-	}
-}
-
-// 已有待核验转账凭证时，储值卡核销被拒；卡内余额不得被扣减。
-func TestStoredValueCardPaymentBlockedByPendingOfflineProof(t *testing.T) {
-	db := openDuplicateGuardDB(t, "esports_dup_guard_card")
-	ctx := t.Context()
-	now := time.Now().UTC()
-
-	account := seedActivePaymentAccount(t, db, "merchant_qr", "QR-DUP-CARD-0001")
-	intent := seedPayableOrderForOffline(t, db, "dupcard", "merchant_qr")
-	order := db.EsportsOrder.GetX(ctx, intent.OrderID)
-	card, err := openVerifiedStoredValueCard(t, ctx, db, 11, storedValueOpenInput{
-		CustomerID: order.CustomerID, Source: "staff", PaymentChannel: "merchant_qr",
-		PaymentRef: "QR-DUP-CARD-OPEN", PrincipalCents: order.PayableCents + 1000,
-		ContractConfirmed: true, ValidityDays: 30, IdempotencyKey: "dup-card-open-key",
-	}, now)
-	if err != nil {
-		t.Fatal(err)
-	}
-	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "QR-DUP-CARD-TXN-1",
-		AmountCents: order.PayableCents, ProofRef: "proof/dup-card-0001.png",
-	}, 11, now)
-	if err != nil {
-		t.Fatalf("提交待核验凭证应成功：%v", err)
-	}
-
-	if _, err = payOrderWithStoredValueCard(ctx, db, 11, order.ID, card.ID, now); !errors.Is(err, errConflict) ||
-		!strings.Contains(err.Error(), "待核验的转账凭证") {
-		t.Fatalf("已有待核验凭证时储值卡核销应被拒，err=%v", err)
-	}
-	remaining, err := storedValueCardBalance(ctx, db, card.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if remaining.total() != card.PrincipalCents+card.BonusCents {
-		t.Fatalf("被拒的储值卡核销不应扣卡内余额：%+v", remaining)
-	}
-
-	// 核销该凭证本身正常通过，卡内余额保持不动。
-	if _, err = verifyOfflinePaymentProof(ctx, db, proof.ID, 12, now.Add(time.Minute)); err != nil {
-		t.Fatalf("核销自身待核验凭证应放行：%v", err)
-	}
-	paid := db.EsportsOrder.GetX(ctx, order.ID)
-	if paid.PaymentStatus != esportsorder.PaymentStatusPaid ||
-		paid.PaymentChannel != esportsorder.PaymentChannelMerchantQr {
-		t.Fatalf("核销后订单应转已付款：%+v", paid)
-	}
-	if remaining, err = storedValueCardBalance(ctx, db, card.ID); err != nil ||
-		remaining.total() != card.PrincipalCents+card.BonusCents {
-		t.Fatalf("凭证核销不应动储值卡：%+v err=%v", remaining, err)
 	}
 }
 

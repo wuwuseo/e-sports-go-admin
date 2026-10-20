@@ -94,7 +94,6 @@ var pageRegisteredRoutes = map[string]bool{
 	"/pages/aftersale/list":     true,
 	"/pages/wallet/index":       true,
 	"/pages/wallet/recharge":    true,
-	"/pages/wallet/buy-card":    true,
 	"/pages/gift/intents":       true,
 	"/pages/gift/disputes":      true,
 	"/pages/player/home":        true,
@@ -119,7 +118,6 @@ var pageRegisteredRoutes = map[string]bool{
 	"/pages/cs/order-detail":    true,
 	"/pages/cs/scripts":         true,
 	"/pages/cs/after-sales":     true,
-	"/pages/cs/stored-value":    true,
 	"/pages/cs/gift":            true,
 	"/pages/wecom/index":        true,
 }
@@ -310,7 +308,6 @@ func defaultPageConfig() pageConfig {
 			"items": []interface{}{
 				map[string]interface{}{"name": "商品分类", "target": "category"},
 				map[string]interface{}{"name": "我的订单", "target": "orders"},
-				map[string]interface{}{"name": "储值卡", "target": "prepay_card"},
 				map[string]interface{}{"name": "会员", "target": "member"},
 				map[string]interface{}{"name": "联系客服", "target": "support"},
 			},

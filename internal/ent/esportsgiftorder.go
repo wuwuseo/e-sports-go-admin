@@ -47,8 +47,6 @@ type EsportsGiftOrder struct {
 	BonusCents int64 `json:"bonus_cents"`
 	// PaymentSource holds the value of the "payment_source" field.
 	PaymentSource string `json:"payment_source"`
-	// StoredValueCardID holds the value of the "stored_value_card_id" field.
-	StoredValueCardID *int `json:"stored_value_card_id"`
 	// GiftTierID holds the value of the "gift_tier_id" field.
 	GiftTierID int `json:"gift_tier_id"`
 	// GiftTierCode holds the value of the "gift_tier_code" field.
@@ -85,7 +83,7 @@ func (*EsportsGiftOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsgiftorder.FieldID, esportsgiftorder.FieldGiftID, esportsgiftorder.FieldGiftIntentID, esportsgiftorder.FieldCustomerID, esportsgiftorder.FieldPlayerID, esportsgiftorder.FieldResponsibleAdminID, esportsgiftorder.FieldCsCommissionRuleID, esportsgiftorder.FieldOrderID, esportsgiftorder.FieldQuantity, esportsgiftorder.FieldUnitPriceCents, esportsgiftorder.FieldAmountCents, esportsgiftorder.FieldPrincipalCents, esportsgiftorder.FieldBonusCents, esportsgiftorder.FieldStoredValueCardID, esportsgiftorder.FieldGiftTierID, esportsgiftorder.FieldCommissionBp, esportsgiftorder.FieldCommissionCents, esportsgiftorder.FieldIncomeCents, esportsgiftorder.FieldRefundCents, esportsgiftorder.FieldVersion:
+		case esportsgiftorder.FieldID, esportsgiftorder.FieldGiftID, esportsgiftorder.FieldGiftIntentID, esportsgiftorder.FieldCustomerID, esportsgiftorder.FieldPlayerID, esportsgiftorder.FieldResponsibleAdminID, esportsgiftorder.FieldCsCommissionRuleID, esportsgiftorder.FieldOrderID, esportsgiftorder.FieldQuantity, esportsgiftorder.FieldUnitPriceCents, esportsgiftorder.FieldAmountCents, esportsgiftorder.FieldPrincipalCents, esportsgiftorder.FieldBonusCents, esportsgiftorder.FieldGiftTierID, esportsgiftorder.FieldCommissionBp, esportsgiftorder.FieldCommissionCents, esportsgiftorder.FieldIncomeCents, esportsgiftorder.FieldRefundCents, esportsgiftorder.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportsgiftorder.FieldGiftNo, esportsgiftorder.FieldPlayerName, esportsgiftorder.FieldPaymentSource, esportsgiftorder.FieldGiftTierCode, esportsgiftorder.FieldPaymentRef, esportsgiftorder.FieldCommissionMode, esportsgiftorder.FieldRefundStatus, esportsgiftorder.FieldReviewStatus, esportsgiftorder.FieldStatus:
 			values[i] = new(sql.NullString)
@@ -205,13 +203,6 @@ func (_m *EsportsGiftOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field payment_source", values[i])
 			} else if value.Valid {
 				_m.PaymentSource = value.String
-			}
-		case esportsgiftorder.FieldStoredValueCardID:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field stored_value_card_id", values[i])
-			} else if value.Valid {
-				_m.StoredValueCardID = new(int)
-				*_m.StoredValueCardID = int(value.Int64)
 			}
 		case esportsgiftorder.FieldGiftTierID:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -385,11 +376,6 @@ func (_m *EsportsGiftOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("payment_source=")
 	builder.WriteString(_m.PaymentSource)
-	builder.WriteString(", ")
-	if v := _m.StoredValueCardID; v != nil {
-		builder.WriteString("stored_value_card_id=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
 	builder.WriteString(", ")
 	builder.WriteString("gift_tier_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GiftTierID))

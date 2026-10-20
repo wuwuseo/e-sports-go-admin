@@ -510,20 +510,6 @@ func (_c *EsportsOrderCreate) SetNillablePaymentChannel(v *esportsorder.PaymentC
 	return _c
 }
 
-// SetStoredValueCardID sets the "stored_value_card_id" field.
-func (_c *EsportsOrderCreate) SetStoredValueCardID(v int) *EsportsOrderCreate {
-	_c.mutation.SetStoredValueCardID(v)
-	return _c
-}
-
-// SetNillableStoredValueCardID sets the "stored_value_card_id" field if the given value is not nil.
-func (_c *EsportsOrderCreate) SetNillableStoredValueCardID(v *int) *EsportsOrderCreate {
-	if v != nil {
-		_c.SetStoredValueCardID(*v)
-	}
-	return _c
-}
-
 // SetPriorityNoticeStatus sets the "priority_notice_status" field.
 func (_c *EsportsOrderCreate) SetPriorityNoticeStatus(v esportsorder.PriorityNoticeStatus) *EsportsOrderCreate {
 	_c.mutation.SetPriorityNoticeStatus(v)
@@ -1649,10 +1635,6 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.PaymentChannel(); ok {
 		_spec.SetField(esportsorder.FieldPaymentChannel, field.TypeEnum, value)
 		_node.PaymentChannel = value
-	}
-	if value, ok := _c.mutation.StoredValueCardID(); ok {
-		_spec.SetField(esportsorder.FieldStoredValueCardID, field.TypeInt, value)
-		_node.StoredValueCardID = &value
 	}
 	if value, ok := _c.mutation.PriorityNoticeStatus(); ok {
 		_spec.SetField(esportsorder.FieldPriorityNoticeStatus, field.TypeEnum, value)

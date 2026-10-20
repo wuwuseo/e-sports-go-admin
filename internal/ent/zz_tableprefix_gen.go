@@ -97,9 +97,6 @@ import (
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
 	"go-admin/internal/ent/esportsspecgroup"
-	"go-admin/internal/ent/esportsstoredvaluecard"
-	"go-admin/internal/ent/esportsstoredvalueexception"
-	"go-admin/internal/ent/esportsstoredvaluepackage"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
@@ -618,21 +615,6 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsspecgroup.TablePrefix
 		esportsspecgroup.TablePrefix = prefix
 		esportsspecgroup.Table = prefix + strings.TrimPrefix(esportsspecgroup.Table, old)
-	}
-	{
-		old := esportsstoredvaluecard.TablePrefix
-		esportsstoredvaluecard.TablePrefix = prefix
-		esportsstoredvaluecard.Table = prefix + strings.TrimPrefix(esportsstoredvaluecard.Table, old)
-	}
-	{
-		old := esportsstoredvalueexception.TablePrefix
-		esportsstoredvalueexception.TablePrefix = prefix
-		esportsstoredvalueexception.Table = prefix + strings.TrimPrefix(esportsstoredvalueexception.Table, old)
-	}
-	{
-		old := esportsstoredvaluepackage.TablePrefix
-		esportsstoredvaluepackage.TablePrefix = prefix
-		esportsstoredvaluepackage.Table = prefix + strings.TrimPrefix(esportsstoredvaluepackage.Table, old)
 	}
 	{
 		old := esportsteammate.TablePrefix

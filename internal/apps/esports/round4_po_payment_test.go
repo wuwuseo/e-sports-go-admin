@@ -277,7 +277,7 @@ func TestRound4PO4307PaymentSubjectWhitelist(t *testing.T) {
 	}
 }
 
-// ── 4.3-08 余额与储值卡纳入渠道启停 ──
+// ── 4.3-08 余额（站内方式）纳入渠道启停；储值卡已下线，仅校验其被明确拒绝 ──
 
 func TestRound4PO4308InternalPaymentChannelToggles(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_po_internal_channels")
@@ -302,8 +302,9 @@ func TestRound4PO4308InternalPaymentChannelToggles(t *testing.T) {
 	if err = setPaymentChannelEnabled(ctx, db, "customer_balance", false); err != nil {
 		t.Fatalf("余额应可被后台停用：%v", err)
 	}
-	if err = setPaymentChannelEnabled(ctx, db, "stored_value_card", false); err != nil {
-		t.Fatalf("储值卡应可被后台停用：%v", err)
+	// 储值卡已随功能下线，不再是可启停的收款方式：显式拒绝而不是静默写配置。
+	if err = setPaymentChannelEnabled(ctx, db, "stored_value_card", false); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("已下线的储值卡收款方式应被拒绝启停，err=%v", err)
 	}
 	channels, err := listPaymentChannels(ctx, db)
 	if err != nil {

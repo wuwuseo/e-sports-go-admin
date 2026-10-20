@@ -12,7 +12,7 @@ import (
 )
 
 // loadOwnedAfterSaleSourceByRef 按来源类型 + 来源 ID 校验归属（§13.1 / §13.3）。
-// order 校验负责客服；gift / stored_value_card / recharge 校验来源单据客户归属客服；
+// order 校验负责客服；gift / recharge 校验来源单据客户归属客服；
 // assessment（陪玩申诉）无客户归属，任意管理员可见。
 // 超级管理员直接放行。
 func loadOwnedAfterSaleSourceByRef(ctx context.Context, db *ent.Client, adminID int, isSuper bool, sourceType string, sourceID int) error {
@@ -27,15 +27,6 @@ func loadOwnedAfterSaleSourceByRef(ctx context.Context, db *ent.Client, adminID 
 		return nil
 	case esportsaftersale.SourceTypeGift:
 		if _, err := loadOwnedGiftOrder(ctx, db, adminID, false, sourceID); err != nil {
-			return err
-		}
-		return nil
-	case esportsaftersale.SourceTypeStoredValueCard:
-		card, err := db.EsportsStoredValueCard.Get(ctx, sourceID)
-		if err != nil {
-			return err
-		}
-		if _, err := loadOwnedCustomer(ctx, db, adminID, false, card.CustomerID); err != nil {
 			return err
 		}
 		return nil

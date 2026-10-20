@@ -330,18 +330,6 @@ type EsportsSpecGroup struct {
 	appschemaesports.EsportsSpecGroup
 }
 
-type EsportsStoredValueCard struct {
-	appschemaesports.EsportsStoredValueCard
-}
-
-type EsportsStoredValueException struct {
-	appschemaesports.EsportsStoredValueException
-}
-
-type EsportsStoredValuePackage struct {
-	appschemaesports.EsportsStoredValuePackage
-}
-
 type EsportsTeammate struct {
 	appschemaesports.EsportsTeammate
 }
