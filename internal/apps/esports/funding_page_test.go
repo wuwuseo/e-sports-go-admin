@@ -83,6 +83,14 @@ func TestFundingPagePropsWhitelistAllowsEachComponentType(t *testing.T) {
 		{"member_entry", pageComponent{Type: "member_entry", Visible: &visible, Props: map[string]interface{}{
 			"title": "会员与余额",
 		}}},
+		{"image", pageComponent{Type: "image", Visible: &visible, Props: map[string]interface{}{
+			"image":   "https://cdn.example.com/promo.png",
+			"link":    "/pages/order/create",
+			"fit":     "aspectFill",
+			"height":  180,
+			"radius":  12,
+			"spacing": 8,
+		}}},
 		{"support_entry", pageComponent{Type: "support_entry", Visible: &visible}},
 	}
 	for _, tc := range cases {
@@ -92,6 +100,29 @@ func TestFundingPagePropsWhitelistAllowsEachComponentType(t *testing.T) {
 		}}
 		if err := validatePageConfig(cfg); err != nil {
 			t.Fatalf("组件 %s 的合法配置应通过，实际：%v", tc.name, err)
+		}
+	}
+}
+
+// 图片组件的填充方式 / 圆角 / 高度 / 间距在保存期即校验，避免客户端拿到不认的样式。
+func TestFundingPageImagePropsValidated(t *testing.T) {
+	visible := true
+	build := func(props map[string]interface{}) pageConfig {
+		return pageConfig{Components: []pageComponent{
+			{Type: "image", Visible: &visible, Props: props},
+			{Type: "support_entry", Visible: &visible},
+		}}
+	}
+	cases := []map[string]interface{}{
+		{"image": "https://cdn.example.com/a.png", "fit": "magic"},
+		{"image": "https://cdn.example.com/a.png", "radius": 99},
+		{"image": "https://cdn.example.com/a.png", "height": -1},
+		{"image": "https://cdn.example.com/a.png", "spacing": pageSpacingMax + 1},
+		{"image": "http://cdn.example.com/a.png"},
+	}
+	for _, props := range cases {
+		if err := validatePageConfig(build(props)); !errors.Is(err, errInvalidInput) {
+			t.Fatalf("图片属性 %v 应被拒，实际：%v", props, err)
 		}
 	}
 }

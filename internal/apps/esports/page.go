@@ -78,7 +78,7 @@ var pageComponentTypes = map[string]bool{
 	"search": true, "carousel": true, "notice": true, "quick_nav": true,
 	"category": true, "product_list": true, "player_recommend": true,
 	"activity": true, "member_entry": true, "support_entry": true,
-	"layout": true,
+	"image": true, "layout": true,
 }
 
 // pageLayoutMaxColumns 是布局容器的最大列数（1×1 / 1×2 / 1×3）。
@@ -179,6 +179,8 @@ var pagePropsWhitelist = map[string]map[string]bool{
 	},
 	"member_entry":  {"title": true},
 	"support_entry": {},
+	// 图片组件：单图 + 通用 link / spacing；fit / height / radius 控制展示样式。
+	"image": {"image": true, "fit": true, "height": true, "radius": true},
 	// 布局只开放列数；子组件在 children 中，不通过 props 承载。
 	"layout": {"columns": true},
 }
@@ -226,7 +228,7 @@ var pageFilterKeysByComp = map[string]map[string]bool{
 	"activity": {"campaign_id": true, "activity_id": true},
 	// 其余组件暂无服务端取数语义。
 	"search": {}, "carousel": {}, "notice": {}, "quick_nav": {},
-	"category": {}, "member_entry": {}, "support_entry": {}, "layout": {},
+	"category": {}, "member_entry": {}, "support_entry": {}, "image": {}, "layout": {},
 }
 
 // pageRulesKeys 是「取数规则」（rules）允许的键（§16.3-11）：规则码与排序 / 数量 / 筛选。
@@ -250,6 +252,7 @@ var (
 	pageSearchScopeValues = map[string]bool{"sku": true, "player": true, "both": true}
 	pagePositionValues    = map[string]bool{"top": true, "bottom": true, "inline": true}
 	pagePlayerLevelValues = map[string]bool{"novice": true, "skilled": true, "senior": true, "mentor": true, "any": true}
+	pageImageFitValues    = map[string]bool{"widthFix": true, "aspectFill": true, "aspectFit": true}
 )
 
 // 属性面板字段取值范围（§16.2-05）。
@@ -647,6 +650,8 @@ func validatePageEnumValue(compIndex int, key, value string) error {
 		allowed = pagePositionValues
 	case "level":
 		allowed = pagePlayerLevelValues
+	case "fit":
+		allowed = pageImageFitValues
 	default:
 		return nil
 	}
@@ -679,6 +684,11 @@ func validatePageNumericProp(compIndex int, key string, value float64) error {
 	if key == "spacing" {
 		if value < 0 || value > pageSpacingMax {
 			return fmt.Errorf("%w：第 %d 个组件字段 %q 的间距须在 0~%d 之间", errInvalidInput, compIndex+1, key, pageSpacingMax)
+		}
+	}
+	if key == "radius" {
+		if value < 0 || value > 48 {
+			return fmt.Errorf("%w：第 %d 个组件字段 %q 的圆角须在 0~48 之间", errInvalidInput, compIndex+1, key)
 		}
 	}
 	return nil
