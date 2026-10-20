@@ -195,6 +195,19 @@
 - 历史售后单 / 礼物单 / 订单 / 流水上的 `stored_value_card*` 值只作只读识别：售后来源显示「储值卡（已停用）」，财务报表该桶里仍有历史数据，但不再作为可选项或可写入值。
 - 会员等级编辑表单不再提供「储值卡赠送比例」，历史值仅在只读接口回显；礼物付款来源只剩「客户余额本金 / 外部收款」两条。
 
+**装修快捷入口的存量清理（`target=prepay_card`）**
+
+储值卡下线后，存量装修文档（草稿与已发布版本）里可能仍留着指向它的快捷入口。处理口径：
+
+- **写时拒绝**：保存草稿与发布前，`quick_nav` 条目的 `target` 命中已下线集合（`prepay_card` / `stored_value_card` / `stored-value`）会返回参数错误，并提示改用 `category` / `orders` / `member` / `support`（见 `page.go` 的 `pageRemovedNavTargets`、`pageNavTargetHint` 与 `validatePageEnumValue`）。
+- **读时剔除**：客户端读取（`GET /page`）与预览码预览（`GET /page/preview/:code`）统一走 `normalizePageConfigForClient`——先剔除指向已下线功能的入口，再过滤过期组件；被剔空的 `quick_nav` 整块不下发。已发布版本是**不可变快照**，不回写历史数据，所以只能在读取侧兜底。
+- **排查存量影响面**（只读 SQL，`{prefix}` 换成实际表前缀）：
+  ```sql
+  SELECT id, channel FROM {prefix}esports_page_documents WHERE draft_config LIKE '%prepay_card%';
+  SELECT id, document_id, version_no FROM {prefix}esports_page_versions WHERE config LIKE '%prepay_card%';
+  ```
+  草稿命中：在「页面装修」里把该入口改成可用 target 后保存（保存会被强制校验）；已发布命中：**不必改历史版本**，重新发布一次即写出干净配置。
+
 ### 预付批次分摊与扣减顺序（§4.3 / §11.3）
 
 已实现**批次级逐笔扣减（§4.3 / §11.3）**：新增只增表 `EsportsLedgerAllocation`，记录「每笔消费（`consume_source_*`）动用了哪些正向批次（`batch_source_*`）各多少金额」。充值写入 `recharge_batch` 正向批次，余额消费按批次 FIFO 分摊并落明细；`GET /admin/ledger-allocations?account_type=&account_id=` 查询分摊明细（历史储值卡账户的批次仍按 `account_type=stored_value_prepay` 只读可查，见上节）。

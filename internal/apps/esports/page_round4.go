@@ -52,6 +52,67 @@ func filterExpiredPageConfig(cfg pageConfig, now time.Time) pageConfig {
 	return out
 }
 
+// normalizePageConfigForClient 是客户端读取装修配置前的统一归一化入口：
+// 先剔除指向已下线功能的快捷入口，再剔除已过有效期的组件与嵌套项。
+//
+// 只读、不写库：已发布版本是不可变快照，不能回写历史数据，因此「已下线功能的入口」
+// 只能在读取侧剔除，保证客户端不会拿到一个点了没反应的入口。
+// 顺序有意如此——先剔除入口再过滤有效期，被剔空的 quick_nav 会由
+// filterExpiredPageConfig 的「items 为空且无 images → 整块不下发」规则一并去掉。
+func normalizePageConfigForClient(cfg pageConfig, now time.Time) pageConfig {
+	return filterExpiredPageConfig(pruneRemovedPageNavTargets(cfg), now)
+}
+
+// pruneRemovedPageNavTargets 剔除 target 指向已下线功能（见 pageRemovedNavTargets）的 quick_nav 条目。
+// 未命中时原样返回入参，避免对绝大多数页面产生额外分配。
+func pruneRemovedPageNavTargets(cfg pageConfig) pageConfig {
+	var pruned []pageComponent
+	changed := false
+	for index, comp := range cfg.Components {
+		if comp.Type != "quick_nav" || comp.Props == nil {
+			continue
+		}
+		items, ok := comp.Props["items"].([]interface{})
+		if !ok || len(items) == 0 {
+			continue
+		}
+		kept := make([]interface{}, 0, len(items))
+		removed := 0
+		for _, rawItem := range items {
+			item, ok := rawItem.(map[string]interface{})
+			if !ok {
+				kept = append(kept, rawItem)
+				continue
+			}
+			target, _ := item["target"].(string)
+			if _, dead := pageRemovedNavTargets[strings.ToLower(strings.TrimSpace(target))]; dead {
+				removed++
+				continue
+			}
+			kept = append(kept, rawItem)
+		}
+		if removed == 0 {
+			continue
+		}
+		if pruned == nil {
+			pruned = make([]pageComponent, len(cfg.Components))
+			copy(pruned, cfg.Components)
+		}
+		clonedProps := make(map[string]interface{}, len(comp.Props))
+		for key, value := range comp.Props {
+			clonedProps[key] = value
+		}
+		clonedProps["items"] = kept
+		pruned[index].Props = clonedProps
+		changed = true
+	}
+	if !changed {
+		return cfg
+	}
+	cfg.Components = pruned
+	return cfg
+}
+
 // pagePropsWithinWindow 判断属性集合自带的有效期是否覆盖 now；未配置有效期视为有效。
 // 第二个返回值表示该属性集合是否配置过有效期（false = 未配置，调用方按有效处理）。
 func pagePropsWithinWindow(props map[string]interface{}, now time.Time) (bool, bool) {

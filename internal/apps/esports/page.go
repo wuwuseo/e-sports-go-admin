@@ -526,6 +526,14 @@ func validatePageEnumValue(compIndex int, key, value string) error {
 	if value == "" {
 		return nil
 	}
+	// 快捷入口 target 不是受约束枚举（客户端按语义分支跳转），但已随功能下线的
+	// target 必须拒绝新写入：否则运营会把一个「点了没反应」的入口重新发到客户端。
+	if key == "target" {
+		if feature, removed := pageRemovedNavTargets[strings.ToLower(value)]; removed {
+			return fmt.Errorf("%w：第 %d 个组件的快捷入口 target=%q 属于已下线的%s功能，请改用 %s",
+				errInvalidInput, compIndex+1, value, feature, pageNavTargetHint)
+		}
+	}
 	var allowed map[string]bool
 	switch key {
 	case "data_source":
@@ -1253,6 +1261,20 @@ func publishedPageConfig(ctx context.Context, db *ent.Client, channel string) (m
 	}
 	return version.Config, version.VersionNo, nil
 }
+
+// pageRemovedNavTargets 是「已随功能下线、但存量装修文档里仍可能出现」的快捷入口 target。
+//
+// 值是语义标识（客户端按 target 分支跳转），下线后既不该新写入（validatePageEnumValue 拒绝），
+// 也不该继续下发（pruneRemovedPageNavTargets 在读时剔除）——发布版本是不可变快照，
+// 不能回写历史数据，所以只能在读取侧兜底，保证客户端不会拿到一个点了没反应的入口。
+var pageRemovedNavTargets = map[string]string{
+	"prepay_card":       "储值卡",
+	"stored_value_card": "储值卡",
+	"stored-value":      "储值卡",
+}
+
+// pageNavTargetHint 是报错时给出的可用替代入口（与客户端 index.vue 的 target 分支一致）。
+const pageNavTargetHint = "category（商品分类）/ orders（我的订单）/ member（会员）/ support（联系客服）"
 
 // 素材库限制（§16.2-06 / §16.5-04）：仅允许登记白名单图片类型，且单条素材不超过字节上限。
 const (

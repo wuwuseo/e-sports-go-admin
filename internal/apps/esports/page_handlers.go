@@ -243,7 +243,7 @@ func publicPage(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	cfg = filterExpiredPageConfig(cfg, time.Now())
+	cfg = normalizePageConfigForClient(cfg, time.Now())
 	tabbar, err := pageTabbarFromConfig(snapshot.Config)
 	if err != nil {
 		return businessError(c, err)
@@ -289,7 +289,7 @@ func publicPagePreview(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	cfg = filterExpiredPageConfig(cfg, time.Now())
+	cfg = normalizePageConfigForClient(cfg, time.Now())
 	tabbar, err := pageTabbarFromConfig(config)
 	if err != nil {
 		return businessError(c, err)
