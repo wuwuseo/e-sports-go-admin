@@ -6,9 +6,9 @@ import (
 	cmfapp "github.com/wuwuseo/cmf/app"
 )
 
-// 后台菜单层级（§16.2-01）：页面装修必须是「运营管理 → 页面装修 → 客户首页」三级菜单链，
-// 而不是顶层菜单；客户首页承载原有装修编辑器组件，父级为导航目录（无组件）。
-func TestEsportsPageMenuHierarchy(t *testing.T) {
+// 后台菜单：页面装修是「运营管理」下的一条菜单，直接承载装修编辑器组件。
+// 原「客户首页」子菜单已合并进来，权限声明里不应再出现 esports:pages:home_menu。
+func TestEsportsPageMenuMerged(t *testing.T) {
 	var esports *cmfapp.App
 	for _, app := range cmfapp.Registered() {
 		if app.Code == "esports" {
@@ -44,24 +44,35 @@ func TestEsportsPageMenuHierarchy(t *testing.T) {
 	if pageMenu.Parent != operations.Code {
 		t.Fatalf("页面装修的父菜单 = %q，期望 %q", pageMenu.Parent, operations.Code)
 	}
-	if pageMenu.Type != cmfapp.PermMenu || pageMenu.MenuPath == "" {
+	if pageMenu.Type != cmfapp.PermMenu || pageMenu.Name != "页面装修" {
 		t.Fatalf("页面装修菜单声明不正确: %+v", pageMenu)
 	}
+	if pageMenu.MenuPath != "/esports/pages/home" || pageMenu.Component != "esports/pages/index" {
+		t.Fatalf("页面装修应直接指向装修页，实际 %+v", pageMenu)
+	}
 
-	home, ok := byCode["esports:pages:home_menu"]
-	if !ok {
-		t.Fatal("缺少「客户首页」子菜单 esports:pages:home_menu")
+	if _, ok := byCode["esports:pages:home_menu"]; ok {
+		t.Fatal("「客户首页」已合并进「页面装修」，不应再声明 esports:pages:home_menu")
 	}
-	if home.Type != cmfapp.PermMenu || home.Name != "客户首页" {
-		t.Fatalf("客户首页菜单声明不正确: %+v", home)
-	}
-	if home.Parent != pageMenu.Code {
-		t.Fatalf("客户首页的父菜单 = %q，期望 %q", home.Parent, pageMenu.Code)
-	}
-	if home.Component != "esports/pages/index" {
-		t.Fatalf("客户首页应承载既有装修组件 esports/pages/index，实际 %q", home.Component)
-	}
-	if home.MenuPath == pageMenu.MenuPath {
-		t.Fatalf("父子菜单路径不得相同：%q", home.MenuPath)
+
+	// 商品、充值活动、结单表单、礼物、钱包、陪玩、会员等级、收款管理与页面装修
+	// 同属运营管理，不再作为顶层菜单。
+	for _, code := range []string{
+		"esports:product:menu",
+		"esports:campaign:menu",
+		"esports:close_form:menu",
+		"esports:gift:menu",
+		"esports:wallet:menu",
+		"esports:player:menu",
+		"esports:member:menu",
+		"esports:payment:menu",
+	} {
+		menu, ok := byCode[code]
+		if !ok {
+			t.Fatalf("缺少菜单 %s", code)
+		}
+		if menu.Parent != operations.Code {
+			t.Fatalf("菜单 %s 的父菜单 = %q，期望 %q", code, menu.Parent, operations.Code)
+		}
 	}
 }

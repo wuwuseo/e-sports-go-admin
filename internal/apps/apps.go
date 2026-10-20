@@ -16,14 +16,28 @@ import (
 
 	"go-admin/internal/apps/esports"
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/systemconfig"
+	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/global"
 	"go-admin/internal/middleware"
 	"go-admin/internal/service"
 )
 
 var reservedCodes = []string{"admin", "public", "user", "plugin", "attachments", "auth"}
+
+// retiredAppPermissions 记录功能集已合并/下线的权限码。种子权限只做创建与更新、
+// 不删除历史行，不显式清理会在超管菜单树里留下孤儿菜单。
+var retiredAppPermissions = map[string][]string{
+	"esports": {"esports:pages:home_menu"},
+}
+
+// appMenuPathMigrations 记录菜单路径变更后的角色授权迁移。角色授权以菜单路径为
+// Casbin object，路径改了但角色规则没跟着走，非超管角色会丢掉该菜单。
+var appMenuPathMigrations = map[string][][2]string{
+	"esports": {{"/esports/pages", "/esports/pages/home"}},
+}
 
 func options() cmfapp.Options {
 	return cmfapp.Options{BasePath: "/api/v1", ReservedCodes: reservedCodes}
@@ -70,6 +84,9 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 		if err := service.NewSystemPermissionServiceWithClient(client).InitSeedPermissions(ctx, seeds); err != nil {
 			return fmt.Errorf("app %s: provision permissions: %w", a.Code, err)
 		}
+		if err := retireAppPermissions(ctx, client, a.Code, domain); err != nil {
+			return err
+		}
 		if err := seedCronJobs(ctx, client, a.Code); err != nil {
 			return err
 		}
@@ -80,8 +97,34 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 	return nil
 }
 
+// retireAppPermissions 清理功能集已退役的权限行，并把变更过路径的菜单授权平移到新路径。
+// 两步都必须幂等：Provision 每次启动都会执行。
+func retireAppPermissions(ctx context.Context, client *ent.Client, appCode, domain string) error {
+	for _, code := range retiredAppPermissions[appCode] {
+		if _, err := client.SystemPermission.Delete().
+			Where(systempermission.DomainEQ(domain), systempermission.CodeEQ(code)).
+			Exec(ctx); err != nil {
+			return fmt.Errorf("app %s: retire permission %s: %w", appCode, code, err)
+		}
+	}
+	for _, migration := range appMenuPathMigrations[appCode] {
+		from, to := migration[0], migration[1]
+		if _, err := client.CasbinRule.Update().
+			Where(
+				casbinrule.PtypeEQ("p"),
+				casbinrule.V1EQ(domain),
+				casbinrule.V2EQ(from),
+				casbinrule.V4EQ("menu"),
+			).
+			SetV2(to).
+			Save(ctx); err != nil {
+			return fmt.Errorf("app %s: migrate menu grant %s -> %s: %w", appCode, from, to, err)
+		}
+	}
+	return nil
+}
+
 // seedFeatureBaseline 为公司功能集播种「新库必需」的基准数据（幂等，已有数据一律不改动）。
-//
 // 与 seedCronJobs 的分工：前者保证任务会被调度，本函数保证**业务本身可用**。
 // 以会员等级为例：全新库里等级表为空，客户将永远无法定级，折扣、优先派单、
 // 专属客服等按等级生效的权益会**全部静默失效**（审计 D14），因此功能启用时必须播种五档默认等级。

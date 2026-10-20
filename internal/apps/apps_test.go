@@ -9,6 +9,7 @@ import (
 	"github.com/wuwuseo/cmf/config"
 
 	"go-admin/internal/apps/esports"
+	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
@@ -175,5 +176,58 @@ func TestProvisionSeedsEsportsMemberLevels(t *testing.T) {
 		if !got[code] {
 			t.Fatalf("缺少会员等级 %q，实际：%v", code, got)
 		}
+	}
+}
+
+// 菜单合并后的存量同步：Provision 需要删除已退役的「客户首页」权限行，
+// 并把角色授权从旧目录路径 /esports/pages 平移到新菜单路径 /esports/pages/home。
+func TestProvisionRetiresMergedPageMenu(t *testing.T) {
+	enabled := false
+	for _, app := range cmfapp.Registered() {
+		if app.Code == "esports" {
+			enabled = app.Enabled
+		}
+	}
+	if !enabled {
+		t.Skip("功能集未启用（需 ESPORTS_EXPERIMENTAL=1）：此时不会同步功能集权限")
+	}
+	client := enttest.Open(t, "sqlite3", "file:esports_page_menu_sync?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	previous := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = previous })
+	cfg := &config.Config{}
+	cfg.Casbin.DomainsDefault = "default"
+	if err := Provision(t.Context(), cfg, client); err != nil {
+		t.Fatal(err)
+	}
+
+	operations := client.SystemPermission.Query().Where(systempermission.CodeEQ("esports:operations:menu")).OnlyX(t.Context())
+	pageMenu := client.SystemPermission.Query().Where(systempermission.CodeEQ("esports:page:menu")).OnlyX(t.Context())
+	if pageMenu.MenuPath != "/esports/pages/home" || pageMenu.Component != "esports/pages/index" || pageMenu.ParentID != operations.ID {
+		t.Fatalf("页面装修菜单未同步为单条菜单：%+v", pageMenu)
+	}
+
+	// 模拟存量数据：旧子菜单行 + 指向旧目录路径的角色菜单授权。
+	client.SystemPermission.Create().
+		SetDomain("default").SetType("menu").SetName("客户首页").
+		SetCode("esports:pages:home_menu").SetMenuPath("/esports/pages/home").
+		SetParentID(pageMenu.ID).SetStatus(1).SaveX(t.Context())
+	client.CasbinRule.Create().
+		SetPtype("p").SetV0("cs_readonly").SetV1("default").
+		SetV2("/esports/pages").SetV3("menu").SetV4("menu").SaveX(t.Context())
+
+	if err := Provision(t.Context(), cfg, client); err != nil {
+		t.Fatal(err)
+	}
+	if client.SystemPermission.Query().Where(systempermission.CodeEQ("esports:pages:home_menu")).ExistX(t.Context()) {
+		t.Fatal("退役的「客户首页」权限行应被清理")
+	}
+	if client.CasbinRule.Query().Where(casbinrule.V2EQ("/esports/pages"), casbinrule.V4EQ("menu")).ExistX(t.Context()) {
+		t.Fatal("旧目录路径的角色菜单授权应被迁移")
+	}
+	if got := client.CasbinRule.Query().Where(casbinrule.V2EQ("/esports/pages/home"), casbinrule.V4EQ("menu")).CountX(t.Context()); got != 1 {
+		t.Fatalf("新菜单路径的角色授权应为 1 条，实际 %d", got)
 	}
 }

@@ -981,7 +981,7 @@ func init() {
 		},
 		Permissions: []cmfapp.Permission{
 			// 商品模块：一个模块一个菜单。
-			{Type: cmfapp.PermMenu, Name: "商品", Code: "esports:product:menu", MenuPath: "/esports/products", Component: "esports/products/index", Icon: "icon-apps", SortOrder: 40},
+			{Type: cmfapp.PermMenu, Name: "商品", Code: "esports:product:menu", MenuPath: "/esports/products", Parent: "esports:operations:menu", Component: "esports/products/index", Icon: "icon-apps", SortOrder: 40},
 			{Type: cmfapp.PermAPI, Name: "查看商品", Code: "esports:skus:list", Path: "/api/v1/esports/admin/skus", Method: "GET", Parent: "esports:product:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建商品", Code: "esports:skus:create", Path: "/api/v1/esports/admin/skus", Method: "POST", Parent: "esports:product:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑商品", Code: "esports:skus:update", Path: "/api/v1/esports/admin/skus/{id}", Method: "PUT", Parent: "esports:product:menu"},
@@ -1060,7 +1060,7 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "订单操作按钮", Code: "esports:orders:operate", Parent: "esports:order:menu"},
 
 			// 钱包模块：客户余额与陪玩猫粮账户、只增流水。
-			{Type: cmfapp.PermMenu, Name: "钱包", Code: "esports:wallet:menu", MenuPath: "/esports/wallets", Component: "esports/wallets/index", Icon: "icon-wallet", SortOrder: 43},
+			{Type: cmfapp.PermMenu, Name: "钱包", Code: "esports:wallet:menu", MenuPath: "/esports/wallets", Parent: "esports:operations:menu", Component: "esports/wallets/index", Icon: "icon-wallet", SortOrder: 43},
 			{Type: cmfapp.PermAPI, Name: "查看钱包账户", Code: "esports:wallets:list", Path: "/api/v1/esports/admin/wallets", Method: "GET", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看钱包流水", Code: "esports:wallets:transactions", Path: "/api/v1/esports/admin/wallets/{id}/transactions", Method: "GET", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "钱包充值", Code: "esports:wallets:recharge", Path: "/api/v1/esports/admin/wallets/{id}/recharge", Method: "POST", Parent: "esports:wallet:menu"},
@@ -1109,7 +1109,7 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "排单操作按钮", Code: "esports:dispatch:operate", Parent: "esports:dispatch:menu"},
 
 			// 陪玩模块：管理端陪玩档案；陪玩端自助接口属独立客户端，不挂管理菜单。
-			{Type: cmfapp.PermMenu, Name: "陪玩", Code: "esports:player:menu", MenuPath: "/esports/players", Component: "esports/players/index", Icon: "icon-user", SortOrder: 45},
+			{Type: cmfapp.PermMenu, Name: "陪玩", Code: "esports:player:menu", MenuPath: "/esports/players", Parent: "esports:operations:menu", Component: "esports/players/index", Icon: "icon-user", SortOrder: 45},
 			{Type: cmfapp.PermAPI, Name: "查看陪玩", Code: "esports:players:list", Path: "/api/v1/esports/admin/players", Method: "GET", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建陪玩", Code: "esports:players:create", Path: "/api/v1/esports/admin/players", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑陪玩", Code: "esports:players:update", Path: "/api/v1/esports/admin/players/{id}", Method: "PUT", Parent: "esports:player:menu"},
@@ -1186,7 +1186,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "生效结单规则", Code: "esports:settlements:close_rule_activate", Path: "/api/v1/esports/admin/close-rules/{id}/activate", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "回滚结单规则", Code: "esports:settlements:close_rule_rollback", Path: "/api/v1/esports/admin/close-rules/{id}/rollback", Method: "POST", Parent: "esports:settlement:menu"},
 			// 结单表单设计器（§3.4）：字段库与模板配置，独立菜单。
-			{Type: cmfapp.PermMenu, Name: "结单表单", Code: "esports:close_form:menu", MenuPath: "/esports/close-forms", Component: "esports/close-forms/index", Icon: "icon-file", SortOrder: 48},
+			{Type: cmfapp.PermMenu, Name: "结单表单", Code: "esports:close_form:menu", MenuPath: "/esports/close-forms", Parent: "esports:operations:menu", Component: "esports/close-forms/index", Icon: "icon-file", SortOrder: 48},
 			{Type: cmfapp.PermAPI, Name: "查看结单表单字段", Code: "esports:close_forms:fields", Path: "/api/v1/esports/admin/close-form-fields", Method: "GET", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建结单表单字段", Code: "esports:close_forms:field_create", Path: "/api/v1/esports/admin/close-form-fields", Method: "POST", Parent: "esports:close_form:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑结单表单字段", Code: "esports:close_forms:field_update", Path: "/api/v1/esports/admin/close-form-fields/{id}", Method: "PUT", Parent: "esports:close_form:menu"},
@@ -1256,7 +1256,7 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "提现审核按钮", Code: "esports:settlements:withdraw_manage", Parent: "esports:settlement:menu"},
 
 			// 充值活动模块：活动配置与按活动自动匹配赠送的充值（§4.5）。
-			{Type: cmfapp.PermMenu, Name: "充值活动", Code: "esports:campaign:menu", MenuPath: "/esports/campaigns", Component: "esports/campaigns/index", Icon: "icon-gift", SortOrder: 48},
+			{Type: cmfapp.PermMenu, Name: "充值活动", Code: "esports:campaign:menu", MenuPath: "/esports/campaigns", Parent: "esports:operations:menu", Component: "esports/campaigns/index", Icon: "icon-gift", SortOrder: 48},
 			{Type: cmfapp.PermAPI, Name: "查看充值活动", Code: "esports:campaigns:list", Path: "/api/v1/esports/admin/campaigns", Method: "GET", Parent: "esports:campaign:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建充值活动", Code: "esports:campaigns:create", Path: "/api/v1/esports/admin/campaigns", Method: "POST", Parent: "esports:campaign:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑充值活动", Code: "esports:campaigns:update", Path: "/api/v1/esports/admin/campaigns/{id}", Method: "PUT", Parent: "esports:campaign:menu"},
@@ -1267,7 +1267,7 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "充值活动管理按钮", Code: "esports:campaigns:manage", Parent: "esports:campaign:menu"},
 
 			// 会员等级模块：等级配置与客户会员等级（§10）。
-			{Type: cmfapp.PermMenu, Name: "会员等级", Code: "esports:member:menu", MenuPath: "/esports/members", Component: "esports/members/index", Icon: "icon-star", SortOrder: 49},
+			{Type: cmfapp.PermMenu, Name: "会员等级", Code: "esports:member:menu", MenuPath: "/esports/members", Parent: "esports:operations:menu", Component: "esports/members/index", Icon: "icon-star", SortOrder: 49},
 			{Type: cmfapp.PermAPI, Name: "查看会员等级", Code: "esports:members:levels", Path: "/api/v1/esports/admin/member-levels", Method: "GET", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建会员等级", Code: "esports:members:level_create", Path: "/api/v1/esports/admin/member-levels", Method: "POST", Parent: "esports:member:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑会员等级", Code: "esports:members:level_update", Path: "/api/v1/esports/admin/member-levels/{id}", Method: "PUT", Parent: "esports:member:menu"},
@@ -1280,7 +1280,7 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "会员等级管理按钮", Code: "esports:members:manage", Parent: "esports:member:menu"},
 
 			// 礼物模块：礼物目录、送礼单据、退款复核与榜单（§9）。
-			{Type: cmfapp.PermMenu, Name: "礼物", Code: "esports:gift:menu", MenuPath: "/esports/gifts", Component: "esports/gifts/index", Icon: "icon-heart", SortOrder: 50},
+			{Type: cmfapp.PermMenu, Name: "礼物", Code: "esports:gift:menu", MenuPath: "/esports/gifts", Parent: "esports:operations:menu", Component: "esports/gifts/index", Icon: "icon-heart", SortOrder: 50},
 			{Type: cmfapp.PermAPI, Name: "查看礼物目录", Code: "esports:gifts:list", Path: "/api/v1/esports/admin/gifts", Method: "GET", Parent: "esports:gift:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建礼物", Code: "esports:gifts:create", Path: "/api/v1/esports/admin/gifts", Method: "POST", Parent: "esports:gift:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑礼物", Code: "esports:gifts:update", Path: "/api/v1/esports/admin/gifts/{id}", Method: "PUT", Parent: "esports:gift:menu"},
@@ -1299,7 +1299,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "执行礼物争议退款", Code: "esports:gifts:dispute_execute", Path: "/api/v1/esports/admin/gift-disputes/{id}/execute", Method: "POST", Parent: "esports:gift:menu"},
 
 			// 收款管理（§4.3）：收款账户财务审核、收款方式启停、外部到账核销与到账凭证。
-			{Type: cmfapp.PermMenu, Name: "收款管理", Code: "esports:payment:menu", MenuPath: "/esports/payments", Component: "esports/payments/index", Icon: "icon-safe", SortOrder: 52},
+			{Type: cmfapp.PermMenu, Name: "收款管理", Code: "esports:payment:menu", MenuPath: "/esports/payments", Parent: "esports:operations:menu", Component: "esports/payments/index", Icon: "icon-safe", SortOrder: 52},
 			{Type: cmfapp.PermAPI, Name: "查看收款账户", Code: "esports:payments:accounts", Path: "/api/v1/esports/admin/payment-accounts", Method: "GET", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "上线自检", Code: "esports:payments:readiness", Path: "/api/v1/esports/admin/readiness", Method: "GET", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "提交收款账户", Code: "esports:payments:account_create", Path: "/api/v1/esports/admin/payment-accounts", Method: "POST", Parent: "esports:payment:menu"},
@@ -1339,12 +1339,10 @@ func init() {
 			{Type: cmfapp.PermButton, Name: "查看财务资金报表", Code: "esports:stats:finance", Parent: "esports:stats:menu"},
 			{Type: cmfapp.PermButton, Name: "报表操作按钮", Code: "esports:stats:manage", Parent: "esports:stats:menu"},
 
-			// 运营管理目录与页面装修模块（§16 / §16.2-01）：后台菜单层级为
-			// 运营管理 → 页面装修 → 客户首页；前两级是导航目录（无组件），
-			// 客户首页承载既有的装修编辑器组件。
+			// 运营管理目录与页面装修模块（§16 / §16.2-01）：页面装修直接承载
+			// 装修编辑器组件，作为运营管理下的一条菜单（不再设「客户首页」子菜单）。
 			{Type: cmfapp.PermMenu, Name: "运营管理", Code: "esports:operations:menu", MenuPath: "/esports/operations", Icon: "icon-apps", SortOrder: 39},
-			{Type: cmfapp.PermMenu, Name: "页面装修", Code: "esports:page:menu", MenuPath: "/esports/pages", Parent: "esports:operations:menu", Icon: "icon-desktop", SortOrder: 53},
-			{Type: cmfapp.PermMenu, Name: "客户首页", Code: "esports:pages:home_menu", MenuPath: "/esports/pages/home", Parent: "esports:page:menu", Component: "esports/pages/index", Icon: "icon-desktop", SortOrder: 53},
+			{Type: cmfapp.PermMenu, Name: "页面装修", Code: "esports:page:menu", MenuPath: "/esports/pages/home", Parent: "esports:operations:menu", Component: "esports/pages/index", Icon: "icon-desktop", SortOrder: 53},
 			{Type: cmfapp.PermAPI, Name: "查看装修文档", Code: "esports:pages:list", Path: "/api/v1/esports/admin/pages", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看装修详情", Code: "esports:pages:detail", Path: "/api/v1/esports/admin/pages/{channel}", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "保存草稿", Code: "esports:pages:draft_save", Path: "/api/v1/esports/admin/pages/{channel}/draft", Method: "PUT", Parent: "esports:page:menu"},
