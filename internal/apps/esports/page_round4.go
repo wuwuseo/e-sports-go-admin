@@ -33,23 +33,49 @@ import (
 func filterExpiredPageConfig(cfg pageConfig, now time.Time) pageConfig {
 	out := pageConfig{Tabbar: cfg.Tabbar, Components: make([]pageComponent, 0, len(cfg.Components))}
 	for _, comp := range cfg.Components {
-		if comp.Type != "support_entry" {
-			active, ok := pagePropsWithinWindow(comp.Props, now)
-			if ok && !active {
-				continue
-			}
+		if filtered, ok := filterExpiredPageComponent(comp, now); ok {
+			out.Components = append(out.Components, filtered)
 		}
-		filtered := filterExpiredProps(comp.Props, now)
-		comp.Props = filtered
-		// 轮播 / 分类等以 items 承载内容的组件：全部条目过期时整块不下发（没有任何可渲染内容）。
-		if items, ok := filtered["items"].([]interface{}); ok && len(items) == 0 {
-			if _, hasImages := filtered["images"]; !hasImages {
-				continue
-			}
-		}
-		out.Components = append(out.Components, comp)
 	}
 	return out
+}
+
+// filterExpiredPageComponent 对单个组件做有效期过滤；ok=false 表示整块不再下发。
+// 布局按列保留 null 占位，某一列失效时其它列的位置不偏移。
+func filterExpiredPageComponent(comp pageComponent, now time.Time) (pageComponent, bool) {
+	if comp.Type != "support_entry" {
+		active, ok := pagePropsWithinWindow(comp.Props, now)
+		if ok && !active {
+			return comp, false
+		}
+	}
+	filteredProps := filterExpiredProps(comp.Props, now)
+	comp.Props = filteredProps
+	// 轮播 / 分类等以 items 承载内容的组件：全部条目过期时整块不下发（没有任何可渲染内容）。
+	if items, ok := filteredProps["items"].([]interface{}); ok && len(items) == 0 {
+		if _, hasImages := filteredProps["images"]; !hasImages {
+			return comp, false
+		}
+	}
+	if comp.Type != "layout" || len(comp.Children) == 0 {
+		return comp, true
+	}
+	children := make([]*pageComponent, len(comp.Children))
+	kept := 0
+	for i, child := range comp.Children {
+		if child == nil {
+			continue
+		}
+		filtered, ok := filterExpiredPageComponent(*child, now)
+		if !ok {
+			continue
+		}
+		children[i] = &filtered
+		kept++
+	}
+	comp.Children = children
+	// 没有可渲染子组件的布局整行不下发。
+	return comp, kept > 0
 }
 
 // normalizePageConfigForClient 是客户端读取装修配置前的统一归一化入口：
@@ -66,51 +92,78 @@ func normalizePageConfigForClient(cfg pageConfig, now time.Time) pageConfig {
 // pruneRemovedPageNavTargets 剔除 target 指向已下线功能（见 pageRemovedNavTargets）的 quick_nav 条目。
 // 未命中时原样返回入参，避免对绝大多数页面产生额外分配。
 func pruneRemovedPageNavTargets(cfg pageConfig) pageConfig {
-	var pruned []pageComponent
 	changed := false
+	pruned := make([]pageComponent, len(cfg.Components))
+	copy(pruned, cfg.Components)
 	for index, comp := range cfg.Components {
-		if comp.Type != "quick_nav" || comp.Props == nil {
-			continue
+		next, compChanged := pruneRemovedNavTargetsInComponent(comp)
+		if compChanged {
+			pruned[index] = next
+			changed = true
 		}
-		items, ok := comp.Props["items"].([]interface{})
-		if !ok || len(items) == 0 {
-			continue
-		}
-		kept := make([]interface{}, 0, len(items))
-		removed := 0
-		for _, rawItem := range items {
-			item, ok := rawItem.(map[string]interface{})
-			if !ok {
-				kept = append(kept, rawItem)
-				continue
-			}
-			target, _ := item["target"].(string)
-			if _, dead := pageRemovedNavTargets[strings.ToLower(strings.TrimSpace(target))]; dead {
-				removed++
-				continue
-			}
-			kept = append(kept, rawItem)
-		}
-		if removed == 0 {
-			continue
-		}
-		if pruned == nil {
-			pruned = make([]pageComponent, len(cfg.Components))
-			copy(pruned, cfg.Components)
-		}
-		clonedProps := make(map[string]interface{}, len(comp.Props))
-		for key, value := range comp.Props {
-			clonedProps[key] = value
-		}
-		clonedProps["items"] = kept
-		pruned[index].Props = clonedProps
-		changed = true
 	}
 	if !changed {
 		return cfg
 	}
 	cfg.Components = pruned
 	return cfg
+}
+
+// pruneRemovedNavTargetsInComponent 递归处理布局子组件里的 quick_nav，未命中时返回原值。
+func pruneRemovedNavTargetsInComponent(comp pageComponent) (pageComponent, bool) {
+	changed := false
+	if comp.Type == "layout" && len(comp.Children) > 0 {
+		children := comp.Children
+		for index, child := range comp.Children {
+			if child == nil {
+				continue
+			}
+			next, childChanged := pruneRemovedNavTargetsInComponent(*child)
+			if !childChanged {
+				continue
+			}
+			if !changed {
+				cloned := make([]*pageComponent, len(children))
+				copy(cloned, children)
+				children = cloned
+				changed = true
+			}
+			children[index] = &next
+		}
+		comp.Children = children
+	}
+	if comp.Type != "quick_nav" || comp.Props == nil {
+		return comp, changed
+	}
+	items, ok := comp.Props["items"].([]interface{})
+	if !ok || len(items) == 0 {
+		return comp, changed
+	}
+	kept := make([]interface{}, 0, len(items))
+	removed := 0
+	for _, rawItem := range items {
+		item, ok := rawItem.(map[string]interface{})
+		if !ok {
+			kept = append(kept, rawItem)
+			continue
+		}
+		target, _ := item["target"].(string)
+		if _, dead := pageRemovedNavTargets[strings.ToLower(strings.TrimSpace(target))]; dead {
+			removed++
+			continue
+		}
+		kept = append(kept, rawItem)
+	}
+	if removed == 0 {
+		return comp, changed
+	}
+	clonedProps := make(map[string]interface{}, len(comp.Props))
+	for key, value := range comp.Props {
+		clonedProps[key] = value
+	}
+	clonedProps["items"] = kept
+	comp.Props = clonedProps
+	return comp, true
 }
 
 // pagePropsWithinWindow 判断属性集合自带的有效期是否覆盖 now；未配置有效期视为有效。
@@ -423,10 +476,23 @@ func pageCapabilities(raw string, provided bool) map[string]bool {
 // pageConfigSupportsCaps 判断配置是否可被该客户端渲染：所有「可见」组件的类型都必须在能力清单内。
 func pageConfigSupportsCaps(cfg pageConfig, caps map[string]bool) bool {
 	for _, comp := range cfg.Components {
-		if comp.Visible != nil && !*comp.Visible {
-			continue
+		if !pageComponentSupportsCaps(comp, caps) {
+			return false
 		}
-		if !caps[comp.Type] {
+	}
+	return true
+}
+
+// pageComponentSupportsCaps 递归检查组件与布局子组件：隐藏组件及其子组件不参与渲染，不做能力要求。
+func pageComponentSupportsCaps(comp pageComponent, caps map[string]bool) bool {
+	if comp.Visible != nil && !*comp.Visible {
+		return true
+	}
+	if !caps[comp.Type] {
+		return false
+	}
+	for _, child := range comp.Children {
+		if child != nil && !pageComponentSupportsCaps(*child, caps) {
 			return false
 		}
 	}
@@ -579,6 +645,23 @@ func pageConfigAssetUsages(channel string, versionNo int, scope string, raw map[
 					Channel: channel, VersionNo: versionNo, Scope: scope,
 					ComponentIndex: i, ComponentType: comp.Type, PropPath: path,
 				})
+			}
+		}
+		// 布局子组件里的图片同样要能反查到引用位置，路径带上列号便于运营定位。
+		if comp.Type == "layout" {
+			for column, child := range comp.Children {
+				if child == nil {
+					continue
+				}
+				prefix := fmt.Sprintf("children[%d].props", column)
+				for path, value := range pageAssetRefPaths(child.Props, prefix) {
+					if value == assetURL {
+						out = append(out, pageAssetUsage{
+							Channel: channel, VersionNo: versionNo, Scope: scope,
+							ComponentIndex: i, ComponentType: child.Type, PropPath: path,
+						})
+					}
+				}
 			}
 		}
 	}

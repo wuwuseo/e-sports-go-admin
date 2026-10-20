@@ -78,7 +78,11 @@ var pageComponentTypes = map[string]bool{
 	"search": true, "carousel": true, "notice": true, "quick_nav": true,
 	"category": true, "product_list": true, "player_recommend": true,
 	"activity": true, "member_entry": true, "support_entry": true,
+	"layout": true,
 }
+
+// pageLayoutMaxColumns 是布局容器的最大列数（1×1 / 1×2 / 1×3）。
+const pageLayoutMaxColumns = 3
 
 // pageRegisteredRoutes 是 uni-app 已注册页面路径白名单（§16.5，抄录 e-sports-uniapp/src/pages.json）。
 // 站内跳转必须是客户端真实注册的页面，避免运营配置出「看似站内、实际未注册」的死链
@@ -175,6 +179,8 @@ var pagePropsWhitelist = map[string]map[string]bool{
 	},
 	"member_entry":  {"title": true},
 	"support_entry": {},
+	// 布局只开放列数；子组件在 children 中，不通过 props 承载。
+	"layout": {"columns": true},
 }
 
 // pageNestedPropKeys 是嵌套属性（items 元素，如导航项 / 轮播项）允许的键（§16.5）：
@@ -220,7 +226,7 @@ var pageFilterKeysByComp = map[string]map[string]bool{
 	"activity": {"campaign_id": true, "activity_id": true},
 	// 其余组件暂无服务端取数语义。
 	"search": {}, "carousel": {}, "notice": {}, "quick_nav": {},
-	"category": {}, "member_entry": {}, "support_entry": {},
+	"category": {}, "member_entry": {}, "support_entry": {}, "layout": {},
 }
 
 // pageRulesKeys 是「取数规则」（rules）允许的键（§16.3-11）：规则码与排序 / 数量 / 筛选。
@@ -261,10 +267,13 @@ func pageNestedPropKeyAllowed(key string) bool {
 }
 
 // pageComponent 是单个装修组件：类型 + 显隐 + 自由属性。
+// Children 仅 layout 使用：按列存放子组件（null 表示空列），当前只开放一层，
+// 布局内不能再嵌套布局，避免任意深度导致客户端渲染与运营配置不可控。
 type pageComponent struct {
-	Type    string                 `json:"type"`
-	Visible *bool                  `json:"visible"`
-	Props   map[string]interface{} `json:"props,omitempty"`
+	Type     string                 `json:"type"`
+	Visible  *bool                  `json:"visible"`
+	Props    map[string]interface{} `json:"props,omitempty"`
+	Children []*pageComponent       `json:"children,omitempty"`
 }
 
 // pageConfig 是首页装修的结构化配置。
@@ -337,26 +346,110 @@ func validatePageConfigWithAllowedDomains(cfg pageConfig, allowedDomains map[str
 // 额外接收「运营扩展的图标短标识清单」（§16.3-04，见 pageIconExtraAllowlist）。
 func validatePageConfigWithIcons(cfg pageConfig, allowedDomains map[string]bool, enforceDomain bool,
 	extraIcons map[string]bool) error {
-	if len(cfg.Components) < 1 || len(cfg.Components) > pageMaxComponents {
+	if len(cfg.Components) < 1 {
 		return fmt.Errorf("%w：首页组件数量须在 1~%d 之间", errInvalidInput, pageMaxComponents)
 	}
 	hasVisibleSupport := false
+	totalComponents := 0
 	for i, comp := range cfg.Components {
-		if !pageComponentTypes[comp.Type] {
-			return fmt.Errorf("%w：不支持的组件类型 %q", errInvalidInput, comp.Type)
-		}
-		if comp.Type == "support_entry" && (comp.Visible == nil || *comp.Visible) {
-			hasVisibleSupport = true
-		}
-		if err := validatePageProps(i, comp.Type, comp.Props, allowedDomains, enforceDomain, extraIcons); err != nil {
+		totalComponents += pageComponentCount(comp)
+		if err := validatePageComponentNode(i, 0, comp, allowedDomains, enforceDomain, extraIcons); err != nil {
 			return err
 		}
+		if pageComponentHasVisibleSupport(comp) {
+			hasVisibleSupport = true
+		}
+	}
+	if totalComponents > pageMaxComponents {
+		return fmt.Errorf("%w：首页组件数量须在 1~%d 之间", errInvalidInput, pageMaxComponents)
 	}
 	// 必需入口：客服与订单入口组件同时承载「联系客服」与「我的订单 / 售后」，且不得隐藏。
 	if !hasVisibleSupport {
 		return fmt.Errorf("%w：首页必须保留可见的「客服与订单入口」组件", errInvalidInput)
 	}
 	return nil
+}
+
+// validatePageComponentNode 递归校验单个组件（布局最多一层）：
+// 布局按 columns 限定列数，children 仅承载叶子组件；普通组件不允许携带 children。
+func validatePageComponentNode(compIndex, depth int, comp pageComponent,
+	allowedDomains map[string]bool, enforceDomain bool, extraIcons map[string]bool) error {
+	if !pageComponentTypes[comp.Type] {
+		return fmt.Errorf("%w：不支持的组件类型 %q", errInvalidInput, comp.Type)
+	}
+	if comp.Type == "layout" {
+		if depth > 0 {
+			return fmt.Errorf("%w：布局组件不能嵌套布局", errInvalidInput)
+		}
+		columns, err := pageLayoutColumns(comp.Props)
+		if err != nil {
+			return fmt.Errorf("%w：第 %d 个布局：%v", errInvalidInput, compIndex+1, err)
+		}
+		if len(comp.Children) > columns {
+			return fmt.Errorf("%w：第 %d 个布局有 %d 列内容，超过 %d 列上限",
+				errInvalidInput, compIndex+1, len(comp.Children), columns)
+		}
+		for childIndex, child := range comp.Children {
+			if child == nil {
+				continue
+			}
+			if err := validatePageComponentNode(compIndex, depth+1, *child, allowedDomains, enforceDomain, extraIcons); err != nil {
+				return fmt.Errorf("第 %d 个布局第 %d 列：%w", compIndex+1, childIndex+1, err)
+			}
+		}
+	} else if len(comp.Children) > 0 {
+		return fmt.Errorf("%w：第 %d 个组件（%s）不支持子组件", errInvalidInput, compIndex+1, comp.Type)
+	}
+	return validatePageProps(compIndex, comp.Type, comp.Props, allowedDomains, enforceDomain, extraIcons)
+}
+
+// pageLayoutColumns 读取布局列数；未配置按 1 列处理，非法值直接拒绝。
+func pageLayoutColumns(props map[string]interface{}) (int, error) {
+	raw, ok := props["columns"]
+	if !ok || raw == nil {
+		return 1, nil
+	}
+	var value float64
+	switch v := raw.(type) {
+	case float64:
+		value = v
+	case int:
+		value = float64(v)
+	default:
+		return 0, fmt.Errorf("列数必须是 1~%d 的整数", pageLayoutMaxColumns)
+	}
+	if value != float64(int(value)) || int(value) < 1 || int(value) > pageLayoutMaxColumns {
+		return 0, fmt.Errorf("列数须为 1~%d 的整数", pageLayoutMaxColumns)
+	}
+	return int(value), nil
+}
+
+// pageComponentCount 统计顶层组件与其子组件数量（含空列占位不算）。
+func pageComponentCount(comp pageComponent) int {
+	count := 1
+	for _, child := range comp.Children {
+		if child != nil {
+			count += pageComponentCount(*child)
+		}
+	}
+	return count
+}
+
+// pageComponentHasVisibleSupport 递归判断组件中是否存在可见的客服入口：
+// 布局隐藏时整行不渲染，其内部入口不计入必需入口。
+func pageComponentHasVisibleSupport(comp pageComponent) bool {
+	if comp.Visible != nil && !*comp.Visible {
+		return false
+	}
+	if comp.Type == "support_entry" {
+		return true
+	}
+	for _, child := range comp.Children {
+		if child != nil && pageComponentHasVisibleSupport(*child) {
+			return true
+		}
+	}
+	return false
 }
 
 // validatePageProps 校验组件自由属性（§16.5）：先按组件类型做 props 键白名单，
