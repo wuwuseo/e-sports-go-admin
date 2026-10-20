@@ -130,16 +130,135 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 	return db.EsportsPlayer.Get(ctx, id)
 }
 
-// listPlayers 列出陪玩档案，keyword 非空时按昵称模糊匹配（不区分大小写）。
+// listPlayers 列出陪玩档案，keyword 非空时同时匹配陪玩昵称与关联用户的用户名 / 昵称 / 手机号。
 func listPlayers(ctx context.Context, db *ent.Client, keyword string, limit int) ([]*ent.EsportsPlayer, error) {
 	if limit < 1 || limit > 200 {
 		limit = 100
 	}
 	q := db.EsportsPlayer.Query()
 	if keyword = strings.TrimSpace(keyword); keyword != "" {
-		q.Where(esportsplayer.DisplayNameContainsFold(keyword))
+		userIDs, err := db.User.Query().Where(user.Or(
+			user.UsernameContainsFold(keyword),
+			user.NicknameContainsFold(keyword),
+			user.NameContainsFold(keyword),
+			user.EmailContainsFold(keyword),
+			user.PhoneContainsFold(keyword),
+		)).IDs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(userIDs) > 0 {
+			q.Where(esportsplayer.Or(
+				esportsplayer.DisplayNameContainsFold(keyword),
+				esportsplayer.UserIDIn(userIDs...),
+			))
+		} else {
+			q.Where(esportsplayer.DisplayNameContainsFold(keyword))
+		}
 	}
 	return q.Order(ent.Desc(esportsplayer.FieldID)).Limit(limit).All(ctx)
+}
+
+// adminPlayerView 是管理端陪玩列表项：在档案字段外补充关联用户的可读信息，
+// 避免界面只显示 user_id。
+type adminPlayerView struct {
+	*ent.EsportsPlayer
+	UserDisplayName string `json:"user_display_name"`
+	UserUsername    string `json:"user_username"`
+	UserPhone       string `json:"user_phone"`
+	UserEmail       string `json:"user_email"`
+}
+
+// playerUserLabel 取用户最可读的名称：昵称 → 姓名 → 用户名 → 邮箱 → 手机号。
+func playerUserLabel(account *ent.User) string {
+	for _, value := range []string{account.Nickname, account.Name, account.Username, account.Email, account.Phone} {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// playerViewsWithUsers 批量补齐陪玩档案关联的用户名称 / 用户名 / 手机号 / 邮箱。
+func playerViewsWithUsers(ctx context.Context, db *ent.Client, players []*ent.EsportsPlayer) ([]*adminPlayerView, error) {
+	userIDs := make([]int, 0, len(players))
+	for _, player := range players {
+		userIDs = append(userIDs, player.UserID)
+	}
+	byID := make(map[int]*ent.User, len(userIDs))
+	if len(userIDs) > 0 {
+		accounts, err := db.User.Query().Where(user.IDIn(userIDs...)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, account := range accounts {
+			byID[account.ID] = account
+		}
+	}
+	views := make([]*adminPlayerView, 0, len(players))
+	for _, player := range players {
+		view := &adminPlayerView{EsportsPlayer: player}
+		if account, ok := byID[player.UserID]; ok {
+			view.UserDisplayName = playerUserLabel(account)
+			view.UserUsername = account.Username
+			view.UserPhone = account.Phone
+			view.UserEmail = account.Email
+		}
+		views = append(views, view)
+	}
+	return views, nil
+}
+
+// playerUserCandidate 是「新建陪玩」时可选择的用户账号：已存在陪玩档案的用户会被排除。
+type playerUserCandidate struct {
+	ID          int    `json:"id"`
+	DisplayName string `json:"display_name"`
+	Username    string `json:"username"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+}
+
+// listPlayerUserCandidates 按关键词搜索尚未建陪玩档案的用户账号。
+func listPlayerUserCandidates(ctx context.Context, db *ent.Client, keyword string, limit int) ([]*playerUserCandidate, error) {
+	if limit < 1 || limit > 200 {
+		limit = 50
+	}
+	existing, err := db.EsportsPlayer.Query().Select(esportsplayer.FieldUserID).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	excluded := make([]int, 0, len(existing))
+	for _, player := range existing {
+		excluded = append(excluded, player.UserID)
+	}
+	q := db.User.Query()
+	if keyword = strings.TrimSpace(keyword); keyword != "" {
+		q.Where(user.Or(
+			user.UsernameContainsFold(keyword),
+			user.NicknameContainsFold(keyword),
+			user.NameContainsFold(keyword),
+			user.EmailContainsFold(keyword),
+			user.PhoneContainsFold(keyword),
+		))
+	}
+	if len(excluded) > 0 {
+		q.Where(user.IDNotIn(excluded...))
+	}
+	accounts, err := q.Order(ent.Desc(user.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	candidates := make([]*playerUserCandidate, 0, len(accounts))
+	for _, account := range accounts {
+		candidates = append(candidates, &playerUserCandidate{
+			ID:          account.ID,
+			DisplayName: playerUserLabel(account),
+			Username:    account.Username,
+			Email:       account.Email,
+			Phone:       account.Phone,
+		})
+	}
+	return candidates, nil
 }
 
 // publicPlayerView 是客户端陪玩推荐的公开字段：绝不包含 user_id 等敏感信息。

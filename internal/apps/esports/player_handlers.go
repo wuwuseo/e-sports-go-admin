@@ -19,11 +19,25 @@ func adminPlayers(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
 	}
+	// 新建陪玩时的用户搜索复用本路由（同一 players:list 权限），
+	// 避免额外要求客服拥有系统用户管理权限。
+	if c.Query("scope") == "user_candidates" {
+		candidates, err := listPlayerUserCandidates(c.Context(), global.ORM,
+			c.Query("keyword"), queryLimit(c, 50))
+		if err != nil {
+			return businessError(c, err)
+		}
+		return reply(c, candidates)
+	}
 	players, err := listPlayers(c.Context(), global.ORM, c.Query("keyword"), queryLimit(c, 100))
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, players)
+	views, err := playerViewsWithUsers(c.Context(), global.ORM, players)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
 }
 
 // publicPlayers 客户端陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩公开字段，

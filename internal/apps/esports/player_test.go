@@ -365,3 +365,47 @@ func TestPlayerMultiSeatServiceFlow(t *testing.T) {
 		t.Fatalf("全部成员结束后未转待结单：%+v", got)
 	}
 }
+
+// 管理端陪玩列表补充关联用户信息，新建陪玩的用户候选排除已建档案用户。
+func TestPlayerAdminUserDisplayAndCandidates(t *testing.T) {
+	db := openPlayerTestDB(t, "esports_player_admin_user")
+	defer db.Close()
+	ctx := t.Context()
+
+	linked := db.User.Create().SetEmail("linked-player@example.com").
+		SetUsername("linked_user").SetNickname("已建档案").
+		SetPhone("13800000001").SaveX(ctx)
+	free := db.User.Create().SetEmail("free-player@example.com").
+		SetUsername("free_user").SetNickname("待建档案").
+		SetPhone("13800000002").SaveX(ctx)
+	player := db.EsportsPlayer.Create().SetUserID(linked.ID).SetDisplayName("陪玩昵称").
+		SetQualification(esportsplayer.QualificationQualified).
+		SetPresence(esportsplayer.PresenceOffline).SaveX(ctx)
+
+	views, err := playerViewsWithUsers(ctx, db, []*ent.EsportsPlayer{player})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(views) != 1 || views[0].UserDisplayName != "已建档案" ||
+		views[0].UserUsername != "linked_user" || views[0].UserPhone != "13800000001" {
+		t.Fatalf("陪玩列表未补齐关联用户信息：%+v", views)
+	}
+
+	candidates, err := listPlayerUserCandidates(ctx, db, "", 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(candidates) != 1 || candidates[0].ID != free.ID {
+		t.Fatalf("用户候选应排除已建档案用户：%+v", candidates)
+	}
+	candidates, err = listPlayerUserCandidates(ctx, db, "待建", 50)
+	if err != nil || len(candidates) != 1 || candidates[0].ID != free.ID {
+		t.Fatalf("用户候选关键词未匹配昵称：%+v err=%v", candidates, err)
+	}
+
+	// 陪玩列表关键词也要能命中关联用户的用户名 / 昵称 / 手机号。
+	players, err := listPlayers(ctx, db, "linked_user", 100)
+	if err != nil || len(players) != 1 || players[0].ID != player.ID {
+		t.Fatalf("陪玩列表未按关联用户搜索：%+v err=%v", players, err)
+	}
+}
