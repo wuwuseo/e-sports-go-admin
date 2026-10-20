@@ -148,7 +148,7 @@
 
 ### 储值卡功能移除（2026-10-20）
 
-> **产品决定：储值卡（原 §4.4「储值卡与套餐」/ §11.3「储值卡账户」）整体下线。**这是产品决策、不是缺陷修复，也不存在「回归」。三仓库（`go-admin` / `go-admin-web` / `e-sports-uniapp`）的代码删除均已完成、未提交。`app.go`、`init.go`、`cron_seeds.go` 与两个前端仓库的 `src` 全仓 grep `stored_value|storedValue|储值卡|stored-value` 均为 0 命中（仅剩 schema 注释里的「已废弃」说明）。
+> **产品决定：储值卡（原 §4.4「储值卡与套餐」/ §11.3「储值卡账户」）整体下线。**这是产品决策、不是缺陷修复，也不存在「回归」。三仓库（`go-admin` / `go-admin-web` / `e-sports-uniapp`）的代码删除均已完成、已提交（`d99e2bf` / `7adcd51` / `fc5851a`）。`app.go`、`init.go`、`cron_seeds.go` 与两个前端仓库的 `src` 全仓 grep `stored_value|storedValue|储值卡|stored-value` 均为 0 命中（仅剩 `schema/*.go` 里「已废弃、禁止新写入」的说明与历史兼容分支）。
 
 **移除的能力（原先都有实现，现全部不可用，接口调用会 404）**
 
@@ -168,7 +168,7 @@
 **DROP 的表与列**
 
 - 表（下一次迁移执行 DROP，三张）：`{prefix}esports_stored_value_cards`（卡主表）、`{prefix}esports_stored_value_packages`（套餐）、`{prefix}esports_stored_value_exceptions`（异常队列）。对应 schema `EsportsStoredValueCard` / `EsportsStoredValuePackage` / `EsportsStoredValueException` 已从 `schema/` 删除，`migrate/schema.go` 中已无这三张表。
-- 列：订单 / 礼物单 / 礼物意图上的 `stored_value_card_id` / `stored_value_card_no` 已从 Ent schema 源删除；**但生成产物 `internal/ent/migrate/schema.go` 中仍残留这几列（1765 / 1766 / 1835 / 2213 行）——未核实是否已重新生成**，上线前须先跑 `go generate ./internal/apps` + `go generate ./internal/ent` 复核生成产物，再决定这些列是否随迁移 DROP（历史行该列的值在 DROP 后不可回读，如仍需保留请先随导出清单一并备份）。
+- 列：订单 / 礼物单 / 礼物意图上的 `stored_value_card_id` / `stored_value_card_no` 已从 Ent schema 源删除，**并已重新生成生成产物**——`internal/ent/migrate/schema.go` 与 `internal/ent/runtime/runtime.go` 中均已无这些列与对应校验器（重新生成前曾因陈旧 runtime 导致进程启动 panic，若回退请重跑 `go generate ./internal/ent`，不要手改生成文件）。这些列会随迁移 `DROP COLUMN` 一并丢失；历史行上的卡 ID 在 DROP 后不可回读，如需保留请先随导出清单一起备份。
 
 **刻意保留（不是漏删）**
 
