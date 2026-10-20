@@ -486,7 +486,18 @@ func skuOrderQuote(ctx context.Context, db *ent.Client, customerID, skuID int, q
 // P1-23：单个 SKU 配置缺失（如多人规格未配每席承诺量）只降级该 SKU（not_orderable + 中文原因），
 // 不再让整张报单页的报价 400；显式传 quote_sku_id 只针对该 SKU 时仍返回明确错误。
 func adminSkus(c fiber.Ctx) error {
-	items, err := global.ORM.EsportsSku.Query().Order(ent.Desc(esportssku.FieldID)).Limit(100).All(c.Context())
+	q := global.ORM.EsportsSku.Query()
+	// 关键词同时匹配商品名与编码，供报单 / 补录页的可搜索商品下拉按需取数。
+	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
+		q.Where(esportssku.Or(
+			esportssku.TitleContainsFold(keyword),
+			esportssku.CodeContainsFold(keyword),
+		))
+	}
+	if status := strings.TrimSpace(c.Query("status")); status != "" {
+		q.Where(esportssku.StatusEQ(esportssku.Status(status)))
+	}
+	items, err := q.Order(ent.Desc(esportssku.FieldID)).Limit(queryLimit(c, 100)).All(c.Context())
 	if err != nil {
 		return businessError(c, err)
 	}
