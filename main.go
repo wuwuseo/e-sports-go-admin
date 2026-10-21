@@ -18,6 +18,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/wuwuseo/cmf/bootstrap"
 	"github.com/wuwuseo/cmf/config"
+	"github.com/wuwuseo/cmf/filesystem"
 	"github.com/wuwuseo/cmf/log"
 	"go.uber.org/zap"
 )
@@ -68,7 +69,15 @@ func main() {
 		if err != nil {
 			stdlog.Fatalf("Failed to create sub filesystem: %v", err)
 		}
-		registerUploadStaticMiddleware(app, "./data/storage/public")
+		// 本地附件静态目录：从 filesystem.disks.local.options.root 推导，
+		// 而不是写死 ./data/storage/public。默认磁盘切到 S3 后，这里仍然
+		// 为历史本地附件提供 /uploads 访问；未配置 local 磁盘则跳过挂载。
+		if uploadRoot, ok := filesystem.LocalPublicRoot(*config, ""); ok {
+			log.Info("挂载本地附件静态目录", zap.String("root", uploadRoot))
+			registerUploadStaticMiddleware(app, uploadRoot)
+		} else {
+			log.Info("未配置本地存储磁盘，跳过 /uploads 静态挂载")
+		}
 		staticHandler := static.New("", static.Config{
 			FS:     subFS,
 			Browse: false,

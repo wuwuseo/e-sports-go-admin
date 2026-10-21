@@ -210,11 +210,49 @@ $env:ESPORTS_EXPERIMENTAL="1"
 | `redis` / `cache` | 命名连接（缓存与队列分离）、默认 TTL |
 | `captcha` | 存储位置（`memory` / `redis`）、键前缀；多实例或 `prefork` 必须用 Redis |
 | `queue` | 驱动、命名空间、并发、队列权重与优先级、重试/超时/保留期、载荷上限、监控页 |
-| `filesystem` | `local` / `s3` 磁盘与根目录 |
+| `filesystem` | `local` / `s3` 磁盘、默认磁盘与根目录；附件按记录自身的 `disk` 读写 |
 | `plugin` | 是否强制签名、可信 Ed25519 公钥列表 |
 | `notify` | 短信 / 邮件 / 推送渠道，未配置即自动禁用 |
 | `casbin` | 默认域与多域模型（内联 `model_text` 或 `model_path`） |
 | `attachment` | 是否启用 `X-Accel-Redirect`（生产建议经 Nginx 下发） |
+
+### 附件存储（S3 / MinIO）
+
+本仓库默认使用 `local` 磁盘；`s3` 磁盘已配置好，可在需要时切换。历史附件按记录自身的 `disk` 字段读取，local / s3 可混存。
+
+本地开发可用一条命令启动 MinIO 并初始化桶（`public/` 前缀匿名可读，私有附件走预签名 URL）：
+
+```bash
+docker compose -f docker-compose.minio.yml up -d
+```
+
+```yaml
+filesystem:
+  default: local
+  is_and_local: false
+  disks:
+    local:
+      driver: local
+      options:
+        root: ./data/storage
+        public_base_url: /uploads
+    s3:
+      driver: s3
+      options:
+        access_key: minioadmin
+        secret_key: minioadmin
+        region: us-east-1
+        bucket: admin-attachments
+        endpoint: http://127.0.0.1:9000
+        public_base_url: http://127.0.0.1:9000/admin-attachments
+        use_path_style: true
+```
+
+- 切换默认盘为 `s3` 前，需把 `public_base_url` 换成 https CDN 或同源 https 代理：页面装修只接受 `/uploads/...` 或 `https://` 图片地址，本地 MinIO 的 `http://127.0.0.1:9000` 直链会被装修草稿校验拒绝。
+- 生产环境必须通过 `CMF_FILESYSTEM_DISKS_S3_OPTIONS_ACCESS_KEY` / `..._SECRET_KEY` 注入密钥。
+- `/uploads` 静态目录由 `local.options.root` 推导为 `<root>/public`；默认磁盘切到 S3 后仍可访问历史本地附件。
+- 附件记录按自身 `disk` 字段读写；无磁盘信息的历史记录按本地文件处理。
+- `public/` 前缀附件返回 `public_base_url` 直链，其余附件返回预签名 URL。
 
 ### 环境变量
 
