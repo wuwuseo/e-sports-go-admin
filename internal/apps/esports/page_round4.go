@@ -641,33 +641,34 @@ func pageConfigAssetUsages(channel string, versionNo int, scope string, raw map[
 	// public/... 与 /uploads/... 是同一张图的两种写法，引用反查按归一后的地址比较。
 	assetKey := pageAssetURLKey(assetURL)
 	for i, comp := range cfg.Components {
-		for path, value := range pageAssetRefPaths(comp.Props, "props") {
-			if pageAssetURLKey(value) == assetKey {
-				out = append(out, pageAssetUsage{
-					Channel: channel, VersionNo: versionNo, Scope: scope,
-					ComponentIndex: i, ComponentType: comp.Type, PropPath: path,
-				})
-			}
-		}
-		// 布局子组件里的图片同样要能反查到引用位置，路径带上列号便于运营定位。
-		if comp.Type == "layout" {
-			for column, child := range comp.Children {
-				if child == nil {
-					continue
-				}
-				prefix := fmt.Sprintf("children[%d].props", column)
-				for path, value := range pageAssetRefPaths(child.Props, prefix) {
-					if pageAssetURLKey(value) == assetKey {
-						out = append(out, pageAssetUsage{
-							Channel: channel, VersionNo: versionNo, Scope: scope,
-							ComponentIndex: i, ComponentType: child.Type, PropPath: path,
-						})
-					}
-				}
-			}
-		}
+		appendPageAssetUsages(&out, channel, versionNo, scope, i, comp, "", assetKey)
 	}
 	return out
+}
+
+// appendPageAssetUsages 递归收集单个组件（含布局内各层子组件）对指定图片的引用。
+// 子组件路径按列号逐层拼接（children[0].children[1].props.x），便于运营定位；
+// prefix 为空表示顶层组件，其属性路径直接从 props 开始。
+func appendPageAssetUsages(out *[]pageAssetUsage, channel string, versionNo int, scope string,
+	compIndex int, comp pageComponent, prefix string, assetKey string) {
+	for path, value := range pageAssetRefPaths(comp.Props, prefix+"props") {
+		if pageAssetURLKey(value) == assetKey {
+			*out = append(*out, pageAssetUsage{
+				Channel: channel, VersionNo: versionNo, Scope: scope,
+				ComponentIndex: compIndex, ComponentType: comp.Type, PropPath: path,
+			})
+		}
+	}
+	if comp.Type != "layout" {
+		return
+	}
+	for column, child := range comp.Children {
+		if child == nil {
+			continue
+		}
+		appendPageAssetUsages(out, channel, versionNo, scope, compIndex, *child,
+			fmt.Sprintf("%schildren[%d].", prefix, column), assetKey)
+	}
 }
 
 // pageAssetRefPaths 递归收集属性中的「图片类字段」取值及其路径（items[0].image 这种形式）。

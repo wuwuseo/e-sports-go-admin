@@ -86,6 +86,11 @@ var pageComponentTypes = map[string]bool{
 // pageLayoutMaxColumns 是布局容器的最大列数（1×1 / 1×2 / 1×3）。
 const pageLayoutMaxColumns = 3
 
+// pageLayoutMaxDepth 是布局嵌套的最大深度（顶层布局为 0），即最多三层布局：
+// 顶层 1×3 里再放一个 1×2 布局在其某一列中。再深在手机窄栏里已无法正常阅读，
+// 也会让客户端渲染与运营配置失控，因此保存 / 发布期直接拒绝。
+const pageLayoutMaxDepth = 2
+
 // pageRegisteredRoutes 是 uni-app 已注册页面路径白名单（§16.5，抄录 e-sports-uniapp/src/pages.json）。
 // 站内跳转必须是客户端真实注册的页面，避免运营配置出「看似站内、实际未注册」的死链
 // 或跳转到未预期的页面；比对前去掉 query / hash。
@@ -187,8 +192,9 @@ var pagePropsWhitelist = map[string]map[string]bool{
 	// 图片组件：单图 + 通用 link / spacing；fit / height / radius 控制展示样式。
 	"image": {"image": true, "fit": true, "height": true, "radius": true},
 	// 布局列数与常用样式；子组件在 children 中，不通过 props 承载。
+	// column_weights 是按列的相对宽度（1~12 的整数，长度须等于 columns），缺省为等宽。
 	"layout": {
-		"columns": true, "gap": true, "padding": true,
+		"columns": true, "column_weights": true, "gap": true, "padding": true,
 		"margin_top": true, "margin_right": true, "margin_bottom": true, "margin_left": true,
 		"background_color": true, "radius": true,
 	},
@@ -280,8 +286,8 @@ func pageNestedPropKeyAllowed(key string) bool {
 }
 
 // pageComponent 是单个装修组件：类型 + 显隐 + 自由属性。
-// Children 仅 layout 使用：按列存放子组件（null 表示空列），当前只开放一层，
-// 布局内不能再嵌套布局，避免任意深度导致客户端渲染与运营配置不可控。
+// Children 仅 layout 使用：按列存放子组件（null 表示空列）；布局可嵌套布局，
+// 但总层级受 pageLayoutMaxDepth 限制（默认三层），避免任意深度导致客户端渲染与运营配置不可控。
 type pageComponent struct {
 	Type     string                 `json:"type"`
 	Visible  *bool                  `json:"visible"`
@@ -379,16 +385,17 @@ func validatePageConfigWithIcons(cfg pageConfig, allowedDomains map[string]bool,
 	return nil
 }
 
-// validatePageComponentNode 递归校验单个组件（布局最多一层）：
-// 布局按 columns 限定列数，children 仅承载叶子组件；普通组件不允许携带 children。
+// validatePageComponentNode 递归校验单个组件（布局按 pageLayoutMaxDepth 限制嵌套层级）：
+// 布局按 columns 限定列数，children 承载每列的子组件；普通组件不允许携带 children。
 func validatePageComponentNode(compIndex, depth int, comp pageComponent,
 	allowedDomains map[string]bool, enforceDomain bool, extraIcons map[string]bool) error {
 	if !pageComponentTypes[comp.Type] {
 		return fmt.Errorf("%w：不支持的组件类型 %q", errInvalidInput, comp.Type)
 	}
 	if comp.Type == "layout" {
-		if depth > 0 {
-			return fmt.Errorf("%w：布局组件不能嵌套布局", errInvalidInput)
+		if depth > pageLayoutMaxDepth {
+			return fmt.Errorf("%w：布局最多 %d 层（顶层 + %d 层嵌套）",
+				errInvalidInput, pageLayoutMaxDepth+1, pageLayoutMaxDepth)
 		}
 		columns, err := pageLayoutColumns(comp.Props)
 		if err != nil {
@@ -436,7 +443,7 @@ func pageLayoutColumns(props map[string]interface{}) (int, error) {
 	return int(value), nil
 }
 
-// validatePageLayoutProps 约束布局尺寸和背景色，避免无效样式进入客户端。
+// validatePageLayoutProps 约束布局尺寸、列宽比例和背景色，避免无效样式进入客户端。
 func validatePageLayoutProps(compIndex int, props map[string]interface{}) error {
 	for _, key := range []string{
 		"gap", "padding", "spacing", "margin_top", "margin_right", "margin_bottom", "margin_left", "radius",
@@ -462,6 +469,11 @@ func validatePageLayoutProps(compIndex int, props map[string]interface{}) error 
 			return fmt.Errorf("%w：第 %d 个布局字段 %q 须在 0~%g 之间", errInvalidInput, compIndex+1, key, limit)
 		}
 	}
+	if raw, exists := props["column_weights"]; exists && raw != nil {
+		if err := validatePageColumnWeights(compIndex, props, raw); err != nil {
+			return err
+		}
+	}
 	if raw, exists := props["background_color"]; exists {
 		color, ok := raw.(string)
 		if !ok || len(color) != 7 || color[0] != '#' {
@@ -471,6 +483,38 @@ func validatePageLayoutProps(compIndex int, props map[string]interface{}) error 
 			if !((digit >= '0' && digit <= '9') || (digit >= 'a' && digit <= 'f') || (digit >= 'A' && digit <= 'F')) {
 				return fmt.Errorf("%w：第 %d 个布局背景色须为 #RRGGBB", errInvalidInput, compIndex+1)
 			}
+		}
+	}
+	return nil
+}
+
+// validatePageColumnWeights 校验列宽比例：长度必须与列数一致，每项为 1~12 的整数。
+// 客户端按比例分配列宽（如 1,1,2 即右侧列宽是其它列的两倍），缺省表示等宽。
+func validatePageColumnWeights(compIndex int, props map[string]interface{}, raw interface{}) error {
+	columns, err := pageLayoutColumns(props)
+	if err != nil {
+		return fmt.Errorf("%w：第 %d 个布局：%v", errInvalidInput, compIndex+1, err)
+	}
+	list, ok := raw.([]interface{})
+	if !ok {
+		return fmt.Errorf("%w：第 %d 个布局的列宽比例须为数组", errInvalidInput, compIndex+1)
+	}
+	if len(list) != columns {
+		return fmt.Errorf("%w：第 %d 个布局的列宽比例须与列数（%d）一致，实际 %d 项",
+			errInvalidInput, compIndex+1, columns, len(list))
+	}
+	for i, item := range list {
+		var value float64
+		switch v := item.(type) {
+		case float64:
+			value = v
+		case int:
+			value = float64(v)
+		default:
+			return fmt.Errorf("%w：第 %d 个布局第 %d 列的宽度须为数字", errInvalidInput, compIndex+1, i+1)
+		}
+		if value != float64(int(value)) || value < 1 || value > 12 {
+			return fmt.Errorf("%w：第 %d 个布局第 %d 列的宽度须为 1~12 的整数", errInvalidInput, compIndex+1, i+1)
 		}
 	}
 	return nil

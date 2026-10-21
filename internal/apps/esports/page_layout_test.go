@@ -60,6 +60,26 @@ func TestPageLayoutValidation(t *testing.T) {
 		}
 	}
 
+	weighted := layoutTestComponent(3, notice("左"), notice("中"), notice("右"))
+	weighted.Props["column_weights"] = []interface{}{float64(1), float64(1), float64(2)}
+	if err := validatePageConfig(pageConfig{Components: []pageComponent{weighted, support}}); err != nil {
+		t.Fatalf("合法的列宽比例应通过，实际：%v", err)
+	}
+	for name, weights := range map[string]interface{}{
+		"长度与列数不一致": []interface{}{float64(1), float64(2)},
+		"含 0":      []interface{}{float64(1), float64(0), float64(1)},
+		"超过上限":     []interface{}{float64(1), float64(13), float64(1)},
+		"非整数":      []interface{}{float64(1), float64(1.5), float64(1)},
+		"非数字":      []interface{}{"1", float64(1), float64(1)},
+		"不是数组":     "1:1:2",
+	} {
+		invalid := layoutTestComponent(3, notice("左"), notice("中"), notice("右"))
+		invalid.Props["column_weights"] = weights
+		if err := validatePageConfig(pageConfig{Components: []pageComponent{invalid, support}}); !errors.Is(err, errInvalidInput) {
+			t.Fatalf("列宽比例（%s）应被拒，实际：%v", name, err)
+		}
+	}
+
 	tooManyChildren := pageConfig{Components: []pageComponent{
 		layoutTestComponent(1, notice("左"), notice("右")),
 		support,
@@ -73,8 +93,29 @@ func TestPageLayoutValidation(t *testing.T) {
 		layoutTestComponent(1, &innerLayout),
 		support,
 	}}
-	if err := validatePageConfig(nested); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("布局嵌套布局应被拒，实际：%v", err)
+	if err := validatePageConfig(nested); err != nil {
+		t.Fatalf("布局嵌套布局应被允许（两层），实际：%v", err)
+	}
+
+	// 深度上限：顶层 + 2 层嵌套共 3 层合法，第 4 层拒绝。
+	thirdLevelInner := layoutTestComponent(1, notice("第三层"))
+	secondLevel := layoutTestComponent(1, &thirdLevelInner)
+	threeLevels := pageConfig{Components: []pageComponent{
+		layoutTestComponent(1, &secondLevel),
+		support,
+	}}
+	if err := validatePageConfig(threeLevels); err != nil {
+		t.Fatalf("三层布局应被允许，实际：%v", err)
+	}
+	fourthLevelInner := layoutTestComponent(1, notice("第四层"))
+	thirdLevel := layoutTestComponent(1, &fourthLevelInner)
+	secondLevel = layoutTestComponent(1, &thirdLevel)
+	tooDeep := pageConfig{Components: []pageComponent{
+		layoutTestComponent(1, &secondLevel),
+		support,
+	}}
+	if err := validatePageConfig(tooDeep); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("超过布局深度上限应被拒，实际：%v", err)
 	}
 
 	leafWithChildren := pageConfig{Components: []pageComponent{
