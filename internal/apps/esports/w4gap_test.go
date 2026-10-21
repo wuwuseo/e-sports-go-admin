@@ -279,7 +279,7 @@ func TestW4GapWecomSidebarFooterTip(t *testing.T) {
 
 // ── D：page 图标短标识允许清单（§16.3-04 残留风险） ──
 
-// w4gapIconConfig 用给定短标识构造一份含必需入口的合法装修配置。
+// w4gapIconConfig 用给定短标识构造一份含客服入口的合法装修配置。
 func w4gapIconConfig(icon string) pageConfig {
 	visible := true
 	return pageConfig{Components: []pageComponent{

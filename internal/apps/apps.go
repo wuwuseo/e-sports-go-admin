@@ -6,8 +6,11 @@ package apps
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	cmfapp "github.com/wuwuseo/cmf/app"
@@ -64,6 +67,12 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 		}
 		for _, item := range a.Config {
 			key := "app." + a.Code + "." + item.Key
+			if key == "app.esports.page_preview_secret" {
+				if err := seedPagePreviewSecret(ctx, client, key, item); err != nil {
+					return fmt.Errorf("app %s: seed config %s: %w", a.Code, key, err)
+				}
+				continue
+			}
 			exists, err := client.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Exist(ctx)
 			if err != nil {
 				return fmt.Errorf("app %s: query config %s: %w", a.Code, key, err)
@@ -93,6 +102,38 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 		if err := seedFeatureBaseline(ctx, client, a.Code); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// seedPagePreviewSecret gives each installation its own persistent signing key.
+// Older installations may already have an empty seed row; fill only that value.
+func seedPagePreviewSecret(ctx context.Context, client *ent.Client, key string, item cmfapp.ConfigItem) error {
+	row, err := client.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Only(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return fmt.Errorf("query config: %w", err)
+	}
+	if err == nil && strings.TrimSpace(row.Value) != "" {
+		return nil
+	}
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return fmt.Errorf("generate random signing key: %w", err)
+	}
+	secret := hex.EncodeToString(bytes)
+	if row != nil {
+		// Preserve a value set by an administrator after the read.
+		if _, err := client.SystemConfig.Update().
+			Where(systemconfig.KeyEQ(key), systemconfig.ValueEQ(row.Value)).
+			SetValue(secret).Save(ctx); err != nil {
+			return fmt.Errorf("update empty config: %w", err)
+		}
+		return nil
+	}
+	if _, err := client.SystemConfig.Create().SetKey(key).SetName(item.Name).
+		SetValue(secret).SetType(item.Type).SetGroup(item.Group).
+		SetRemark(item.Remark).SetStatus(1).Save(ctx); err != nil {
+		return fmt.Errorf("create config: %w", err)
 	}
 	return nil
 }

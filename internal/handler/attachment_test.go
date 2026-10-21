@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -197,6 +198,44 @@ func TestGetAttachmentAccessURLReturnsLocalPublicCDN(t *testing.T) {
 	}
 	if body.Data.Disk != "local" || body.Data.Driver != "local" {
 		t.Fatalf("unexpected disk metadata: %+v", body.Data)
+	}
+}
+
+func TestServePublicPageImageOnlyAllowsDecorationImages(t *testing.T) {
+	app, client, _, fs := setupAttachmentHandlerTest(t)
+	app.Get("/attachments/:id/public-page-image", ServePublicPageImage)
+	allowed := createHandlerAttachmentFile(t, client, fs, "public/esports-page/banner.png", "banner.png", "image/png", "png", []byte("image"), true)
+	private := createHandlerAttachmentFile(t, client, fs, "esports-page/private.png", "private.png", "image/png", "png", []byte("secret"), true)
+	otherPublic := createHandlerAttachmentFile(t, client, fs, "public/avatar/avatar.png", "avatar.png", "image/png", "png", []byte("avatar"), true)
+	unsafeMime := createHandlerAttachmentFile(t, client, fs, "public/esports-page/unsafe.svg", "unsafe.svg", "image/svg+xml", "svg", []byte("<svg/>"), true)
+
+	for _, tc := range []struct {
+		id   int
+		want int
+	}{
+		{allowed.ID, http.StatusOK},
+		{private.ID, http.StatusNotFound},
+		{otherPublic.ID, http.StatusNotFound},
+		{unsafeMime.ID, http.StatusNotFound},
+		{999999, http.StatusNotFound},
+	} {
+		response, err := app.Test(httptest.NewRequest(http.MethodGet, "/attachments/"+strconv.Itoa(tc.id)+"/public-page-image", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.StatusCode != tc.want {
+			t.Fatalf("attachment %d: got %d, want %d", tc.id, response.StatusCode, tc.want)
+		}
+		if tc.id == allowed.ID {
+			data, err := io.ReadAll(response.Body)
+			if err != nil || string(data) != "image" {
+				t.Fatalf("public image body = %q, err = %v", data, err)
+			}
+			if response.Header.Get("Content-Type") != "image/png" {
+				t.Fatalf("public image content type = %q", response.Header.Get("Content-Type"))
+			}
+		}
+		response.Body.Close()
 	}
 }
 

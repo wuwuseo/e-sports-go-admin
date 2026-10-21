@@ -441,7 +441,8 @@ func init() {
 			{Key: "review_appeal_window_days", Name: "评价申诉时限（天）", Value: "30", Type: "number", Group: "esports", Remark: "缺失/空/非数字回落 30；显式 0=不限时；**注意负数也被按 0 处理（=不限时）**，与「非法一律回落 30」并不一致"},
 			{Key: "review_brush_rule", Name: "异常刷评识别规则", Value: "", Type: "string", Group: "esports", Remark: "JSON：{\"window_hours\":24,\"max_reviews_per_customer\":3,\"identical_comment\":true}；留空=**关闭**自动识别（显式降级）；JSON 非法则明确报错（不静默关闭）；window_hours / max_reviews 非正回落 24 / 3"},
 			{Key: "sku_cost_view_roles", Name: "SKU 成本可见角色", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔角色名；留空=不额外授权（**仅超管可看成本，超管恒放行**）；非空时命中任一活跃角色即可读；未授权角色成本既不可读也不可写"},
-			{Key: "page_preview_secret", Name: "页面预览签名密钥", Value: "", Type: "string", Group: "esports", Remark: "**全局单份 HMAC-SHA256 密钥**（不是每设备一份）；留空=预览码功能不可用：生成接口明确失败「页面预览签名密钥未配置」，**不降级、不假成功**；换密钥会让已发出的预览码立刻失效（预览码 TTL 30 分钟）"},
+			// 密钥由 apps.Provision 为每个安装实例随机生成，不在源码中存固定值。
+			{Key: "page_preview_secret", Name: "页面预览签名密钥", Value: "", Type: "string", Group: "esports", Remark: "**全局单份 HMAC-SHA256 密钥**（不是每设备一份）；首次播种时随机生成 32 字节密钥，启动时也会补齐历史空值；运行中留空则预览码功能不可用，生成接口明确失败「页面预览签名密钥未配置」；换密钥会让已发出的预览码立刻失效（预览码 TTL 30 分钟）"},
 			{Key: "player_expected_price_limits_cents", Name: "期望报价允许区间（分）", Value: "0,0", Type: "string", Group: "esports", Remark: "格式 \"min,max\"（两个非负整数分，逗号分隔）；\"0,0\"=两侧都不限（也是缺失/空/字段数≠2/非数字/负数/min>max 的回落）；**键名虽含 _cents 但实际是字符串，后台数字框写不进去**"},
 			{Key: "repurchase_follow_up_days", Name: "结单后复购跟进天数", Value: "7", Type: "number", Group: "esports", Remark: "缺失/空/非数字/负数回落 7；**显式 0 = 关闭**（不生成复购回访待办）；>0 时结单后该天数生成客户维度复购跟进待办"},
 		},

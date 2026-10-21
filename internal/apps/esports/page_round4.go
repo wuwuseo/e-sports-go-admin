@@ -638,9 +638,11 @@ func pageConfigAssetUsages(channel string, versionNo int, scope string, raw map[
 	if err != nil {
 		return out
 	}
+	// public/... 与 /uploads/... 是同一张图的两种写法，引用反查按归一后的地址比较。
+	assetKey := pageAssetURLKey(assetURL)
 	for i, comp := range cfg.Components {
 		for path, value := range pageAssetRefPaths(comp.Props, "props") {
-			if value == assetURL {
+			if pageAssetURLKey(value) == assetKey {
 				out = append(out, pageAssetUsage{
 					Channel: channel, VersionNo: versionNo, Scope: scope,
 					ComponentIndex: i, ComponentType: comp.Type, PropPath: path,
@@ -655,7 +657,7 @@ func pageConfigAssetUsages(channel string, versionNo int, scope string, raw map[
 				}
 				prefix := fmt.Sprintf("children[%d].props", column)
 				for path, value := range pageAssetRefPaths(child.Props, prefix) {
-					if value == assetURL {
+					if pageAssetURLKey(value) == assetKey {
 						out = append(out, pageAssetUsage{
 							Channel: channel, VersionNo: versionNo, Scope: scope,
 							ComponentIndex: i, ComponentType: child.Type, PropPath: path,

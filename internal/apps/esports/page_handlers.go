@@ -149,6 +149,8 @@ func reviewPagePublishHandler(c fiber.Ctx, approved bool) error {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
 	in.Approved = approved // 以路径为准，忽略请求体中的 approved 字段。
+	// 超管身份仅取权限中间件的认证结果，不接受请求体声明。
+	in.isSuperAdmin, _ = c.Locals("isSuperAdmin").(bool)
 	version, err := reviewPagePublish(c.Context(), global.ORM, c.Params("channel"), versionID, admin.ID, in, time.Now())
 	if err != nil {
 		return businessError(c, err)

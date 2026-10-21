@@ -127,7 +127,7 @@ func TestNormalizePageConfigDropsEmptiedQuickNav(t *testing.T) {
 			t.Fatal("全部条目被剔除后 quick_nav 整块不应下发")
 		}
 	}
-	// 必需入口必须仍然存在，否则客户端会失去客服/订单入口。
+	// 客服入口组件不应被剔除，否则客户端会失去客服/订单入口。
 	found := false
 	for _, comp := range normalized.Components {
 		if comp.Type == "support_entry" {

@@ -498,6 +498,7 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		return c.Next()
 	})
 	attachmentContent.Get("/:id/content", handler.ServeAttachmentContent)
+	attachmentContent.Get("/:id/public-page-image", handler.ServePublicPageImage)
 
 	// 前台统一上传路由（小程序/App/Web）：复用管理端附件上传服务与全部校验逻辑，
 	// 身份来自用户JWT（config.App.Secret）+ UserIdentity，upload_subject 区分归属域，

@@ -91,22 +91,15 @@ func TestPageLayoutValidation(t *testing.T) {
 		layoutTestComponent(1, &supportChild),
 	}}
 	hiddenLayoutSupport.Components[0].Visible = &hidden
-	if err := validatePageConfig(hiddenLayoutSupport); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("隐藏布局中的客服入口不应满足必需入口，实际：%v", err)
+	if err := validatePageConfig(hiddenLayoutSupport); err != nil {
+		t.Fatalf("入口可见性不应影响布局校验，实际：%v", err)
 	}
 
 	hiddenChildSupport := pageConfig{Components: []pageComponent{
 		layoutTestComponent(1, &pageComponent{Type: "support_entry", Visible: &hidden}),
 	}}
-	if err := validatePageConfig(hiddenChildSupport); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("布局内隐藏的客服入口不应满足必需入口，实际：%v", err)
-	}
-
-	visibleChildSupport := pageConfig{Components: []pageComponent{
-		layoutTestComponent(1, &pageComponent{Type: "support_entry", Visible: &visible}),
-	}}
-	if err := validatePageConfig(visibleChildSupport); err != nil {
-		t.Fatalf("布局内可见客服入口应满足必需入口，实际：%v", err)
+	if err := validatePageConfig(hiddenChildSupport); err != nil {
+		t.Fatalf("布局内隐藏入口应可保存，实际：%v", err)
 	}
 
 	tooMany := pageConfig{Components: []pageComponent{
@@ -118,6 +111,70 @@ func TestPageLayoutValidation(t *testing.T) {
 	}
 	if err := validatePageConfig(tooMany); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("布局子组件也应计入数量上限，实际：%v", err)
+	}
+}
+
+func TestPageEntryComponents(t *testing.T) {
+	visible := true
+	hidden := false
+	entry := func(kind string, show *bool) *pageComponent {
+		return &pageComponent{Type: kind, Visible: show}
+	}
+	children := []*pageComponent{
+		entry("contact_entry", &visible),
+		entry("orders_entry", &visible),
+		entry("aftersale_entry", &visible),
+	}
+	cfg := pageConfig{Components: []pageComponent{layoutTestComponent(3, children...)}}
+	if err := validatePageConfig(cfg); err != nil {
+		t.Fatalf("三个独立入口组成的 1×3 布局应通过：%v", err)
+	}
+	if err := validatePageConfig(defaultPageConfig()); err != nil {
+		t.Fatalf("默认模板应使用合法的独立入口布局：%v", err)
+	}
+	children[2] = entry("aftersale_entry", &hidden)
+	if err := validatePageConfig(cfg); err != nil {
+		t.Fatalf("入口隐藏不应影响保存：%v", err)
+	}
+	children[2] = entry("aftersale_entry", &visible)
+	cfg.Components[0].Visible = &hidden
+	if err := validatePageConfig(cfg); err != nil {
+		t.Fatalf("隐藏布局也应可保存：%v", err)
+	}
+	legacy := pageConfig{Components: []pageComponent{{Type: "support_entry", Visible: &visible}}}
+	if err := validatePageConfig(legacy); err != nil {
+		t.Fatalf("旧版入口应保持兼容：%v", err)
+	}
+}
+
+func TestPageLayoutStyleProps(t *testing.T) {
+	visible := true
+	layout := layoutTestComponent(1, &pageComponent{Type: "support_entry", Visible: &visible})
+	layout.Props["gap"] = 12
+	layout.Props["padding"] = 16
+	layout.Props["spacing"] = 20
+	layout.Props["margin_top"] = 4
+	layout.Props["margin_right"] = 8
+	layout.Props["margin_bottom"] = 12
+	layout.Props["margin_left"] = 16
+	layout.Props["background_color"] = "#f5F6F8"
+	layout.Props["radius"] = 10
+	cfg := pageConfig{Components: []pageComponent{layout}}
+	if err := validatePageConfig(cfg); err != nil {
+		t.Fatalf("合法布局样式属性应通过：%v", err)
+	}
+	for _, invalid := range []map[string]interface{}{
+		{"gap": -1}, {"padding": 81}, {"spacing": "12"},
+		{"margin_top": -1}, {"margin_right": 81}, {"margin_bottom": "12"}, {"margin_left": 81},
+		{"radius": 49}, {"background_color": "red"},
+	} {
+		cfg.Components[0].Props = map[string]interface{}{"columns": 1}
+		for key, value := range invalid {
+			cfg.Components[0].Props[key] = value
+		}
+		if err := validatePageConfig(cfg); !errors.Is(err, errInvalidInput) {
+			t.Fatalf("非法布局样式 %v 应被拒绝：%v", invalid, err)
+		}
 	}
 }
 

@@ -64,7 +64,8 @@ var pageLinkFields = map[string]bool{
 	"url": true, "link": true, "href": true, "jump": true, "jump_url": true, "target_url": true,
 }
 
-// pageImageFields 是素材 / 图片地址字段：仅允许 https:// 或站内相对路径（§16.5）。
+// pageImageFields 是素材 / 图片地址字段：仅允许 https://、附件表同款 public/ 存储路径
+// 或旧版站内相对路径（§16.5）。
 // images 是轮播图的多图数组（P1：此前只认单数 image/icon，数组元素既不做 https 校验也不做发布前探测，
 // 等于绕过整套资源校验）；把它并入同一集合后，数组元素与单数字段走完全相同的校验与探测。
 var pageImageFields = map[string]bool{
@@ -78,6 +79,7 @@ var pageComponentTypes = map[string]bool{
 	"search": true, "carousel": true, "notice": true, "quick_nav": true,
 	"category": true, "product_list": true, "player_recommend": true,
 	"activity": true, "member_entry": true, "support_entry": true,
+	"contact_entry": true, "orders_entry": true, "aftersale_entry": true,
 	"image": true, "layout": true,
 }
 
@@ -177,12 +179,19 @@ var pagePropsWhitelist = map[string]map[string]bool{
 		"title": true, "empty_text": true,
 		"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
 	},
-	"member_entry":  {"title": true},
-	"support_entry": {},
+	"member_entry":    {"title": true},
+	"support_entry":   {},
+	"contact_entry":   {},
+	"orders_entry":    {},
+	"aftersale_entry": {},
 	// 图片组件：单图 + 通用 link / spacing；fit / height / radius 控制展示样式。
 	"image": {"image": true, "fit": true, "height": true, "radius": true},
-	// 布局只开放列数；子组件在 children 中，不通过 props 承载。
-	"layout": {"columns": true},
+	// 布局列数与常用样式；子组件在 children 中，不通过 props 承载。
+	"layout": {
+		"columns": true, "gap": true, "padding": true,
+		"margin_top": true, "margin_right": true, "margin_bottom": true, "margin_left": true,
+		"background_color": true, "radius": true,
+	},
 }
 
 // pageNestedPropKeys 是嵌套属性（items 元素，如导航项 / 轮播项）允许的键（§16.5）：
@@ -229,6 +238,7 @@ var pageFilterKeysByComp = map[string]map[string]bool{
 	// 其余组件暂无服务端取数语义。
 	"search": {}, "carousel": {}, "notice": {}, "quick_nav": {},
 	"category": {}, "member_entry": {}, "support_entry": {}, "image": {}, "layout": {},
+	"contact_entry": {}, "orders_entry": {}, "aftersale_entry": {},
 }
 
 // pageRulesKeys 是「取数规则」（rules）允许的键（§16.3-11）：规则码与排序 / 数量 / 筛选。
@@ -325,7 +335,11 @@ func defaultPageConfig() pageConfig {
 			},
 		}},
 		{Type: "product_list", Visible: &visible},
-		{Type: "support_entry", Visible: &visible},
+		{Type: "layout", Visible: &visible, Props: map[string]interface{}{"columns": 3}, Children: []*pageComponent{
+			{Type: "contact_entry", Visible: &visible},
+			{Type: "orders_entry", Visible: &visible},
+			{Type: "aftersale_entry", Visible: &visible},
+		}},
 	}}
 }
 
@@ -335,9 +349,9 @@ func validatePageConfig(cfg pageConfig) error {
 	return validatePageConfigWithIcons(cfg, nil, false, nil)
 }
 
-// validatePageConfigWithAllowedDomains 校验组件类型、数量上限、必需入口，并递归校验每个组件的
+// validatePageConfigWithAllowedDomains 校验组件类型、数量上限，并递归校验每个组件的
 // Props：外部跳转链接、素材图片地址（https / 站内相对路径）、文本超限、图片尺寸范围。
-// support_entry 缺失或 visible=false 时拒绝（§16.5）。
+// 首页入口组件（客服 / 订单 / 售后）由运营自行取舍，不做必需性校验。
 // enforceDomain 为 true 时外部跳转链接须命中 allowedDomains「已审核 HTTPS 域名」白名单（发布前校验），
 // 为 false 时仅校验链接协议（https 或站内相对路径），供保存草稿放行待审核域名。
 // 图标短标识按基准清单判定（不含运营扩展项），供不持库的调用方复用。
@@ -352,23 +366,15 @@ func validatePageConfigWithIcons(cfg pageConfig, allowedDomains map[string]bool,
 	if len(cfg.Components) < 1 {
 		return fmt.Errorf("%w：首页组件数量须在 1~%d 之间", errInvalidInput, pageMaxComponents)
 	}
-	hasVisibleSupport := false
 	totalComponents := 0
 	for i, comp := range cfg.Components {
 		totalComponents += pageComponentCount(comp)
 		if err := validatePageComponentNode(i, 0, comp, allowedDomains, enforceDomain, extraIcons); err != nil {
 			return err
 		}
-		if pageComponentHasVisibleSupport(comp) {
-			hasVisibleSupport = true
-		}
 	}
 	if totalComponents > pageMaxComponents {
 		return fmt.Errorf("%w：首页组件数量须在 1~%d 之间", errInvalidInput, pageMaxComponents)
-	}
-	// 必需入口：客服与订单入口组件同时承载「联系客服」与「我的订单 / 售后」，且不得隐藏。
-	if !hasVisibleSupport {
-		return fmt.Errorf("%w：首页必须保留可见的「客服与订单入口」组件", errInvalidInput)
 	}
 	return nil
 }
@@ -387,6 +393,9 @@ func validatePageComponentNode(compIndex, depth int, comp pageComponent,
 		columns, err := pageLayoutColumns(comp.Props)
 		if err != nil {
 			return fmt.Errorf("%w：第 %d 个布局：%v", errInvalidInput, compIndex+1, err)
+		}
+		if err := validatePageLayoutProps(compIndex, comp.Props); err != nil {
+			return err
 		}
 		if len(comp.Children) > columns {
 			return fmt.Errorf("%w：第 %d 个布局有 %d 列内容，超过 %d 列上限",
@@ -427,6 +436,46 @@ func pageLayoutColumns(props map[string]interface{}) (int, error) {
 	return int(value), nil
 }
 
+// validatePageLayoutProps 约束布局尺寸和背景色，避免无效样式进入客户端。
+func validatePageLayoutProps(compIndex int, props map[string]interface{}) error {
+	for _, key := range []string{
+		"gap", "padding", "spacing", "margin_top", "margin_right", "margin_bottom", "margin_left", "radius",
+	} {
+		raw, exists := props[key]
+		if !exists {
+			continue
+		}
+		var value float64
+		switch v := raw.(type) {
+		case float64:
+			value = v
+		case int:
+			value = float64(v)
+		default:
+			return fmt.Errorf("%w：第 %d 个布局字段 %q 须为数字", errInvalidInput, compIndex+1, key)
+		}
+		limit := float64(80)
+		if key == "radius" {
+			limit = 48
+		}
+		if value < 0 || value > limit || value != value {
+			return fmt.Errorf("%w：第 %d 个布局字段 %q 须在 0~%g 之间", errInvalidInput, compIndex+1, key, limit)
+		}
+	}
+	if raw, exists := props["background_color"]; exists {
+		color, ok := raw.(string)
+		if !ok || len(color) != 7 || color[0] != '#' {
+			return fmt.Errorf("%w：第 %d 个布局背景色须为 #RRGGBB", errInvalidInput, compIndex+1)
+		}
+		for _, digit := range color[1:] {
+			if !((digit >= '0' && digit <= '9') || (digit >= 'a' && digit <= 'f') || (digit >= 'A' && digit <= 'F')) {
+				return fmt.Errorf("%w：第 %d 个布局背景色须为 #RRGGBB", errInvalidInput, compIndex+1)
+			}
+		}
+	}
+	return nil
+}
+
 // pageComponentCount 统计顶层组件与其子组件数量（含空列占位不算）。
 func pageComponentCount(comp pageComponent) int {
 	count := 1
@@ -436,23 +485,6 @@ func pageComponentCount(comp pageComponent) int {
 		}
 	}
 	return count
-}
-
-// pageComponentHasVisibleSupport 递归判断组件中是否存在可见的客服入口：
-// 布局隐藏时整行不渲染，其内部入口不计入必需入口。
-func pageComponentHasVisibleSupport(comp pageComponent) bool {
-	if comp.Visible != nil && !*comp.Visible {
-		return false
-	}
-	if comp.Type == "support_entry" {
-		return true
-	}
-	for _, child := range comp.Children {
-		if child != nil && pageComponentHasVisibleSupport(*child) {
-			return true
-		}
-	}
-	return false
 }
 
 // validatePageProps 校验组件自由属性（§16.5）：先按组件类型做 props 键白名单，
@@ -928,16 +960,48 @@ func pageValidateTabbar(items []pageTabbarItem) ([]pageTabbarItem, error) {
 // 与外部跳转链接的口径一致：保存草稿放行待审核域名，发布前才强制白名单。
 func validatePageImageURL(raw string, compIndex int, field string) error {
 	raw = strings.TrimSpace(raw)
-	if raw == "" || strings.HasPrefix(raw, "/") {
-		return nil // 空值跳过；站内相对路径。
+	if raw == "" {
+		return nil
+	}
+	// 附件表口径的存储相对路径（public/...）：只做路径安全校验，不允许父目录 / 空段。
+	if strings.HasPrefix(raw, "public/") {
+		if !pageValidStoragePath(raw) {
+			return fmt.Errorf("%w：第 %d 个组件字段 %q 的素材存储路径非法（仅允许 public/ 下、不含 .. 的相对路径）",
+				errInvalidInput, compIndex+1, field)
+		}
+		return nil
+	}
+	if strings.HasPrefix(raw, "/") {
+		return nil // 旧版站内相对路径。
 	}
 	if !strings.HasPrefix(raw, "https://") {
-		return fmt.Errorf("%w：第 %d 个组件字段 %q 的素材地址仅允许 https:// 或站内相对路径", errInvalidInput, compIndex+1, field)
+		return fmt.Errorf("%w：第 %d 个组件字段 %q 的素材地址仅允许 https://、附件表 public/ 存储路径或站内相对路径",
+			errInvalidInput, compIndex+1, field)
 	}
 	if err := pageValidateHTTPSURLTarget(raw); err != nil {
 		return fmt.Errorf("%w：第 %d 个组件字段 %q 的素材地址%s", errInvalidInput, compIndex+1, field, err)
 	}
 	return nil
+}
+
+// pageValidStoragePath 校验附件表口径的存储相对路径（public/...）：
+// 只允许 public/ 下的 ASCII 路径，拒绝父目录、空段、反斜杠、尾斜杠与超长值。
+func pageValidStoragePath(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if !strings.HasPrefix(raw, "public/") || strings.HasSuffix(raw, "/") || len(raw) > pageAssetURLMaxLen {
+		return false
+	}
+	if strings.Contains(raw, "..") || strings.Contains(raw, "//") || strings.Contains(raw, `\`) {
+		return false
+	}
+	for _, r := range raw {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') ||
+			r == '/' || r == '.' || r == '-' || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // validatePageDimension 校验图片尺寸：0 视为未设置，跳过；其余须在 1~4096 像素之间。
@@ -1069,7 +1133,7 @@ func nextPageVersionNo(ctx context.Context, db *ent.Client, documentID int) (int
 }
 
 // publishPage 提交发布申请（§16.4 / §16.5）。运营编辑提交后一律落 pending_review 待审核，
-// 由有发布权限且非申请人的管理员审核（reviewPagePublish）后才切换生效：
+// 由有发布权限的管理员审核（普通管理员须异人审核，超级管理员可自审）后才切换生效：
 // immediate 审核通过即生效，scheduled 审核通过后转 scheduled 待系统任务到点激活。
 // 提交前执行发布校验（组件完整性、已审核 HTTPS 域名、可见的客服与订单入口）。
 func publishPage(ctx context.Context, db *ent.Client, channel string, adminID int, in pagePublishInput, now time.Time) (*ent.EsportsPageVersion, error) {
@@ -1150,11 +1214,12 @@ func publishPage(ctx context.Context, db *ent.Client, channel string, adminID in
 // pagePublishReviewInput 发布审核输入（§16.4）：Approved 由路由路径决定（approve/reject），
 // Reason 为驳回原因（驳回必填）。
 type pagePublishReviewInput struct {
-	Approved bool   `json:"approved"`
-	Reason   string `json:"reason"`
+	Approved     bool   `json:"approved"`
+	Reason       string `json:"reason"`
+	isSuperAdmin bool
 }
 
-// reviewPagePublish 审核一条待发布版本（§16.4 / §16.5）。审核人不得为发布申请人；
+// reviewPagePublish 审核一条待发布版本（§16.4 / §16.5）。普通管理员不得自审，超级管理员可自审；
 // 通过后按 publish_mode 切换生效：immediate 一次性版本切换（旧生效版本转历史、更新文档生效指针），
 // scheduled 转 scheduled 待系统任务到点激活；驳回则转历史不生效。
 func reviewPagePublish(ctx context.Context, db *ent.Client, channel string, versionID, adminID int, in pagePublishReviewInput, now time.Time) (*ent.EsportsPageVersion, error) {
@@ -1185,7 +1250,7 @@ func reviewPagePublish(ctx context.Context, db *ent.Client, channel string, vers
 	if version.Channel != channel || version.Status != pageVersionStatusPendingReview {
 		return nil, errConflict
 	}
-	if version.PublishedBy == adminID {
+	if version.PublishedBy == adminID && !in.isSuperAdmin {
 		return nil, fmt.Errorf("%w：审核人不得为发布申请人", errForbidden)
 	}
 	if in.Approved {
@@ -1416,10 +1481,16 @@ func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAsse
 		len(in.Mime) > 80 || in.SizeBytes < 0 || in.Width < 0 || in.Height < 0 {
 		return nil, errInvalidInput
 	}
-	// 素材是运营上传的图片/资源，外部地址强制 HTTPS，内部跳转使用站内相对路径。
-	// 与首页组件的「链接跳转」口径（http/https 均可）区分：素材落库须可安全访问。
-	if !strings.HasPrefix(in.URL, "https://") && !strings.HasPrefix(in.URL, "/") {
-		return nil, fmt.Errorf("%w：素材地址仅允许 HTTPS 链接或站内相对路径", errInvalidInput)
+	// 素材是运营上传的图片/资源：外部地址强制 HTTPS；本地素材使用附件表同款
+	// public/... 存储路径（旧数据可能是 /uploads/... 或站内 / 路径）。
+	switch {
+	case strings.HasPrefix(in.URL, "public/"):
+		if !pageValidStoragePath(in.URL) {
+			return nil, fmt.Errorf("%w：素材存储路径非法（仅允许 public/ 下、不含 .. 的相对路径）", errInvalidInput)
+		}
+	case strings.HasPrefix(in.URL, "https://"), strings.HasPrefix(in.URL, "/"):
+	default:
+		return nil, fmt.Errorf("%w：素材地址仅允许 HTTPS 链接、附件表 public/ 存储路径或站内相对路径", errInvalidInput)
 	}
 	// §16.2-06 / §16.5-04 / P1-20：mime 与 size_bytes 必填，体积上限与 MIME 白名单一并校验，
 	// 缺失 / 超限 / 非图片类型一律不落库（此前二者缺失时全部跳过，上限形同虚设）。
@@ -1437,9 +1508,60 @@ func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAsse
 	if err != nil {
 		return nil, err
 	}
+	// 素材按地址幂等：组件上传、历史补登记与多次加载可能同时提交同一张图，
+	// 重复登记只会让素材库出现多条完全相同的记录；public/... 与 /uploads/...
+	// 是同一张图的两种写法，一并视为已登记。
+	existing, err := findPageAssetByURL(ctx, db, in.URL)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return existing, nil
+	}
 	return db.EsportsPageAsset.Create().SetName(in.Name).SetURL(in.URL).SetMime(mime).
 		SetSizeBytes(in.SizeBytes).SetWidth(in.Width).SetHeight(in.Height).
 		SetCreatedBy(adminID).Save(ctx)
+}
+
+// pageAssetURLAlternate 返回同一张图在「附件表存储路径」与「本地公开 URL」之间的另一种写法；
+// 外部 HTTPS 地址没有等价写法，返回空串。
+func pageAssetURLAlternate(raw string) string {
+	switch {
+	case strings.HasPrefix(raw, "public/"):
+		return "/uploads/" + strings.TrimPrefix(raw, "public/")
+	case strings.HasPrefix(raw, "/uploads/"):
+		return "public/" + strings.TrimPrefix(raw, "/uploads/")
+	default:
+		return ""
+	}
+}
+
+// pageAssetURLKey 把 /uploads/... 与 public/... 归一成同一个比较键，供去重与引用反查使用。
+func pageAssetURLKey(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "/uploads/") {
+		return "public/" + strings.TrimPrefix(raw, "/uploads/")
+	}
+	return raw
+}
+
+// findPageAssetByURL 先按原地址查找，再按等价写法查找；不存在时返回 nil, nil。
+func findPageAssetByURL(ctx context.Context, db *ent.Client, raw string) (*ent.EsportsPageAsset, error) {
+	find := func(value string) (*ent.EsportsPageAsset, error) {
+		asset, err := db.EsportsPageAsset.Query().Where(esportspageasset.URLEQ(value)).First(ctx)
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		return asset, err
+	}
+	asset, err := find(raw)
+	if err != nil || asset != nil {
+		return asset, err
+	}
+	if alternate := pageAssetURLAlternate(raw); alternate != "" {
+		return find(alternate)
+	}
+	return nil, nil
 }
 
 func listPageAssets(ctx context.Context, db *ent.Client, limit int) ([]*ent.EsportsPageAsset, error) {

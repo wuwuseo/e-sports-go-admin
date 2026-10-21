@@ -2,6 +2,7 @@ package esports
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func openPageDB(t *testing.T, name string) *ent.Client {
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 }
 
-// pageTestComponents 返回含必需入口的最小合法组件集。
+// pageTestComponents 返回含客服入口的最小合法组件集。
 func pageTestComponents() []pageComponent {
 	visible := true
 	return []pageComponent{
@@ -99,16 +100,135 @@ func TestPageDraftOptimisticLock(t *testing.T) {
 	}
 }
 
-// 缺少客服与订单入口组件、或将其隐藏时保存被拒。
-func TestPageValidateRequiredEntry(t *testing.T) {
+// 轮播图每张图片各自保存跳转链接（§16.3-02）：多图多链接在草稿存储与客户端归一化后
+// 不得丢失或串号；旧版 images 数组的兼容逻辑不得覆盖 items 中的 link。
+func TestPageCarouselKeepsPerImageLinks(t *testing.T) {
+	db := openPageDB(t, "esports_page_carousel_links")
+	visible := true
+	wantLinks := []string{"/pages/order/list", "/pages/mine/index"}
+	items := make([]interface{}, 0, len(wantLinks))
+	for i, link := range wantLinks {
+		items = append(items, map[string]interface{}{
+			"image": fmt.Sprintf("/uploads/esports-page/carousel-%d.png", i+1),
+			"link":  link,
+		})
+	}
+	doc, err := savePageDraft(t.Context(), db, pageChannelCustomerHome, 1, pageDraftInput{
+		Components: []pageComponent{
+			{Type: "carousel", Visible: &visible, Props: map[string]interface{}{"items": items}},
+			{Type: "support_entry", Visible: &visible},
+		},
+		ExpectedVersion: 0,
+	})
+	if err != nil {
+		t.Fatalf("保存轮播草稿失败：%v", err)
+	}
+	cfg, err := decodePageConfig(doc.DraftConfig)
+	if err != nil {
+		t.Fatalf("解码草稿失败：%v", err)
+	}
+	// 下发前归一化（有效期剔除等）也必须保持每张图的独立链接。
+	for _, round := range []pageConfig{cfg, normalizePageConfigForClient(cfg, time.Now())} {
+		if len(round.Components) == 0 || round.Components[0].Type != "carousel" {
+			t.Fatalf("草稿缺少轮播组件：%+v", round.Components)
+		}
+		stored, ok := round.Components[0].Props["items"].([]interface{})
+		if !ok || len(stored) != len(wantLinks) {
+			t.Fatalf("轮播项数量异常：%+v", round.Components[0].Props["items"])
+		}
+		for i, link := range wantLinks {
+			item, ok := stored[i].(map[string]interface{})
+			if !ok {
+				t.Fatalf("第 %d 个轮播项类型异常：%T", i+1, stored[i])
+			}
+			if got, _ := item["link"].(string); got != link {
+				t.Fatalf("第 %d 个轮播项链接丢失或串号：got %q want %q", i+1, got, link)
+			}
+		}
+	}
+}
+
+// 素材按地址幂等：组件上传 / 历史补登记可能重复提交同一张图，
+// 同一 URL 只落一条素材记录；public/... 与 /uploads/... 视为同一张图。
+func TestPageAssetCreateIdempotentByURL(t *testing.T) {
+	db := openPageDB(t, "esports_page_asset_dedup")
+	input := pageAssetInput{
+		Name: "轮播图.png", URL: "public/esports-page/carousel.png",
+		Mime: "image/png", SizeBytes: 1024, Width: 64, Height: 48,
+	}
+	first, err := savePageAsset(t.Context(), db, 1, input)
+	if err != nil {
+		t.Fatalf("首次登记素材失败：%v", err)
+	}
+	input.Name = "同名重复登记.png"
+	input.URL = "/uploads/esports-page/carousel.png" // 同一张图的旧写法
+	second, err := savePageAsset(t.Context(), db, 2, input)
+	if err != nil {
+		t.Fatalf("重复登记素材失败：%v", err)
+	}
+	if second.ID != first.ID {
+		t.Fatalf("同一张图应复用既有素材：first=%d second=%d", first.ID, second.ID)
+	}
+	items, err := listPageAssets(t.Context(), db, 100)
+	if err != nil {
+		t.Fatalf("读取素材列表失败：%v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("同一张图只应有一条素材记录，实际 %d 条", len(items))
+	}
+}
+
+// 页面图片允许附件表同款 public/... 存储路径，但路径穿越 / 空段 / 反斜杠必须拒绝。
+func TestPageImageAllowsAttachmentStoragePath(t *testing.T) {
+	visible := true
+	comps := []pageComponent{
+		{Type: "image", Visible: &visible, Props: map[string]interface{}{
+			"image": "public/esports-page/a.png",
+		}},
+		{Type: "support_entry", Visible: &visible},
+	}
+	if err := validatePageConfig(pageConfig{Components: comps}); err != nil {
+		t.Fatalf("public/... 存储路径应可保存：%v", err)
+	}
+	for _, bad := range []string{
+		"public/../secret.png",
+		"public//secret.png",
+		`public/a\b.png`,
+		"public/esports-page/",
+	} {
+		comps[0].Props["image"] = bad
+		if err := validatePageConfig(pageConfig{Components: comps}); !errors.Is(err, errInvalidInput) {
+			t.Fatalf("非法存储路径 %q 应被拒绝，实际：%v", bad, err)
+		}
+	}
+}
+
+// 素材引用反查要兼容 public/... 与 /uploads/... 两种写法。
+func TestPageAssetUsageMatchesStoragePathAndUploads(t *testing.T) {
+	visible := true
+	cfg := pageConfig{Components: []pageComponent{
+		{Type: "image", Visible: &visible, Props: map[string]interface{}{
+			"image": "public/esports-page/a.png",
+		}},
+		{Type: "support_entry", Visible: &visible},
+	}}
+	usages := pageConfigAssetUsages(pageChannelCustomerHome, 0, "draft",
+		pageConfigToMap(cfg), "/uploads/esports-page/a.png")
+	if len(usages) != 1 {
+		t.Fatalf("素材引用反查应命中 1 处，实际 %d 处：%+v", len(usages), usages)
+	}
+}
+
+// 首页入口组件不做必需性校验：缺失或隐藏客服 / 订单 / 售后入口都应能保存。
+func TestPageEntryComponentsOptional(t *testing.T) {
 	visible := true
 	hidden := false
 	for _, comps := range [][]pageComponent{
 		{{Type: "search", Visible: &visible}},                                            // 缺失
 		{{Type: "search", Visible: &visible}, {Type: "support_entry", Visible: &hidden}}, // 隐藏
 	} {
-		if err := validatePageConfig(pageConfig{Components: comps}); !errors.Is(err, errInvalidInput) {
-			t.Fatalf("缺失或隐藏必需入口应报参数错误，实际：%v", err)
+		if err := validatePageConfig(pageConfig{Components: comps}); err != nil {
+			t.Fatalf("入口组件应可省略或隐藏，实际：%v", err)
 		}
 	}
 }
@@ -343,38 +463,29 @@ func TestPagePublishDomainWhitelist(t *testing.T) {
 	}
 }
 
-// 隐藏客服与订单入口不能发布（§16.5）：publish / scheduled / rollback 都拦截。
-func TestPagePublishSupportEntryHiddenRejected(t *testing.T) {
+// 隐藏客服与订单入口不再受限：保存草稿与提交发布都应放行。
+func TestPageSupportEntryHiddenAllowed(t *testing.T) {
 	db := openPageDB(t, "esports_page_support")
 	channel := pageChannelCustomerHome
 	now := time.Now().UTC()
 	hidden := false
-	badComponents := []pageComponent{
+	components := []pageComponent{
 		{Type: "search", Visible: boolPtr(true)},
 		{Type: "support_entry", Visible: &hidden},
 	}
 
-	// 保存草稿即拦（§16.5：保存草稿可拦）。
 	if _, err := savePageDraft(t.Context(), db, channel, 1, pageDraftInput{
-		Components: badComponents, ExpectedVersion: 0,
-	}); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("隐藏客服与订单入口的草稿应被拦，实际：%v", err)
+		Components: components, ExpectedVersion: 0,
+	}); err != nil {
+		t.Fatalf("隐藏客服与订单入口的草稿应可保存，实际：%v", err)
 	}
-
-	// 直接种文档绕过保存：发布与定时发布都必须拦。
-	seedPageDocument(t, db, channel, badComponents)
-	if _, err := publishPage(t.Context(), db, channel, 1, pagePublishInput{Mode: "immediate"}, now); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("隐藏客服与订单入口发布应被拒，实际：%v", err)
-	}
-	if _, err := publishPage(t.Context(), db, channel, 1, pagePublishInput{
-		Mode: "scheduled", ScheduledAt: now.Add(time.Hour).Format(time.RFC3339),
-	}, now); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("隐藏客服与订单入口定时发布应被拒，实际：%v", err)
+	if _, err := publishPage(t.Context(), db, channel, 1, pagePublishInput{Mode: "immediate"}, now); err != nil {
+		t.Fatalf("隐藏客服与订单入口应可提交发布，实际：%v", err)
 	}
 }
 
-// 回滚走同样校验（§16.5）：回滚到「隐藏客服入口」或「未审核域名」的历史快照都被拒。
-func TestPageRollbackSameValidation(t *testing.T) {
+// 回滚不再校验入口可见性，但未审核域名的历史快照仍被拒。
+func TestPageRollbackDomainValidation(t *testing.T) {
 	db := openPageDB(t, "esports_page_rollback_validation")
 	channel := pageChannelCustomerHome
 	now := time.Now().UTC()
@@ -384,24 +495,15 @@ func TestPageRollbackSameValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hidden := false
-	for i, cfg := range []pageConfig{
-		{Components: []pageComponent{
-			{Type: "search", Visible: boolPtr(true)},
-			{Type: "support_entry", Visible: &hidden},
-		}},
-		{Components: pageComponentsWithLink("https://unapproved.example.com/x")},
-	} {
-		versionNo := i + 1
-		if _, err = db.EsportsPageVersion.Create().SetDocumentID(doc.ID).SetChannel(channel).
-			SetVersionNo(versionNo).SetConfig(pageConfigToMap(cfg)).
-			SetStatus(esportspageversion.StatusHistory).SetPublishMode(esportspageversion.PublishModeImmediate).
-			SetPublishedBy(9).Save(t.Context()); err != nil {
-			t.Fatal(err)
-		}
-		if _, err = rollbackPage(t.Context(), db, channel, 1, versionNo, now); !errors.Is(err, errInvalidInput) {
-			t.Fatalf("回滚到非法历史快照（%d）应被拒，实际：%v", versionNo, err)
-		}
+	cfg := pageConfig{Components: pageComponentsWithLink("https://unapproved.example.com/x")}
+	if _, err = db.EsportsPageVersion.Create().SetDocumentID(doc.ID).SetChannel(channel).
+		SetVersionNo(1).SetConfig(pageConfigToMap(cfg)).
+		SetStatus(esportspageversion.StatusHistory).SetPublishMode(esportspageversion.PublishModeImmediate).
+		SetPublishedBy(9).Save(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = rollbackPage(t.Context(), db, channel, 1, 1, now); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("回滚到未审核域名的历史快照应被拒，实际：%v", err)
 	}
 }
 

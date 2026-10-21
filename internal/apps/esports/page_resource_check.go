@@ -19,7 +19,7 @@ import (
 	"go-admin/internal/ent/esportssku"
 )
 
-// 发布前资源有效性校验（§16.4 增量补充）：在既有域名白名单与 support_entry 校验之后执行，
+// 发布前资源有效性校验（§16.4 增量补充）：在既有域名白名单校验之后执行，
 // 不改动、不回退既有校验链（validatePageConfigWithAllowedDomains）。
 //
 // 本轮（清零残留 §8.2-16）在此文件内做两件事：

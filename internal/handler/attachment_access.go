@@ -3,6 +3,7 @@ package handler
 import (
 	"mime"
 	"strconv"
+	"strings"
 	"time"
 
 	"go-admin/internal/global"
@@ -107,6 +108,39 @@ func ServeAttachmentContent(c fiber.Ctx) error {
 	}
 
 	return sendAttachmentData(c, data, mimeType, filename)
+}
+
+// ServePublicPageImage serves only images uploaded for page decoration.
+// 保留该端点是为了让已保存过 /api/v1/attachments/{id}/public-page-image 的旧草稿
+// 仍能显示；新草稿保存附件表同款 public/... 存储路径（或 CDN https），渲染时再转公开地址。
+func ServePublicPageImage(c fiber.Ctx) error {
+	svc := c.Locals("service.AttachmentService").(*service.AttachmentService)
+	id, err := strconv.Atoi(c.Params("id"))
+	if err != nil || id < 1 {
+		return c.SendStatus(fiber.StatusNotFound)
+	}
+	item, err := svc.Get(c.Context(), id)
+	if err != nil {
+		return c.SendStatus(fiber.StatusNotFound)
+	}
+	if !strings.HasPrefix(item.Path, "public/esports-page/") ||
+		(item.Directory != "public/esports-page" && !strings.HasPrefix(item.Directory, "public/esports-page/")) ||
+		!publicPageImageMimes[item.MimeType] || item.Size < 1 || item.Size > 10<<20 {
+		return c.SendStatus(fiber.StatusNotFound)
+	}
+	data, mimeType, filename, err := svc.GetFileData(c.Context(), id)
+	if err != nil {
+		return c.SendStatus(fiber.StatusNotFound)
+	}
+	c.Set("Cache-Control", "public, max-age=31536000, immutable")
+	return sendAttachmentData(c, data, mimeType, filename)
+}
+
+var publicPageImageMimes = map[string]bool{
+	"image/jpeg": true,
+	"image/png":  true,
+	"image/webp": true,
+	"image/gif":  true,
 }
 
 func sendAttachmentData(c fiber.Ctx, data []byte, mimeType string, filename string) error {
