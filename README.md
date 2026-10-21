@@ -247,6 +247,41 @@ cache:
       default_ttl: 3600
 ```
 
+### 附件存储（S3 / MinIO）
+
+默认磁盘为 S3。本地开发用一条命令启动 MinIO 并初始化桶（`public/` 前缀匿名可读，私有附件走预签名 URL）：
+
+```bash
+docker compose -f docker-compose.minio.yml up -d
+```
+
+```yaml
+filesystem:
+  default: s3
+  is_and_local: false
+  disks:
+    local:
+      driver: local
+      options:
+        root: ./data/storage
+        public_base_url: /uploads
+    s3:
+      driver: s3
+      options:
+        access_key: minioadmin
+        secret_key: minioadmin
+        region: us-east-1
+        bucket: admin-attachments
+        endpoint: http://127.0.0.1:9000
+        public_base_url: http://127.0.0.1:9000/admin-attachments
+        use_path_style: true
+```
+
+- 生产环境必须通过 `CMF_FILESYSTEM_DISKS_S3_OPTIONS_ACCESS_KEY` / `..._SECRET_KEY` 注入密钥。
+- `/uploads` 静态目录由 `local.options.root` 推导为 `<root>/public`；默认磁盘切到 S3 后仍可访问历史本地附件。
+- 附件记录按自身 `disk` 字段读写，local / s3 可混存；无磁盘信息的历史记录按本地文件处理。
+- `public/` 前缀附件返回 `public_base_url` 直链，其余附件返回预签名 URL。
+
 ### 验证码配置
 
 ```yaml

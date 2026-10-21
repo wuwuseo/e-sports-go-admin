@@ -504,31 +504,33 @@ func (s *AttachmentService) mergeChunksWithDedupe(ctx context.Context, session *
 		return nil, err
 	}
 
-	readers, files, err := openChunkReaders(session, chunkDir)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.filesystem.SetReader(key, io.MultiReader(readers...), 0); err != nil {
-		closeFiles(files)
-		return nil, fmt.Errorf("存储文件失败: %w", err)
-	}
-	closeFiles(files)
-
-	mimeType := session.MimeType
-	if mimeType == "" {
+	// 先确定 MIME：对象存储写入时作为 Content-Type 元数据，
+	// 未声明类型时按首片内容嗅探
+	mimeType := strings.TrimSpace(session.MimeType)
+	if mimeType == "" || mimeType == "application/octet-stream" {
 		firstChunkPath := filepath.Join(chunkDir, "0")
-		firstChunkData, err := os.ReadFile(firstChunkPath)
-		if err == nil && len(firstChunkData) > 0 {
+		firstChunkData, readErr := os.ReadFile(firstChunkPath)
+		if readErr == nil && len(firstChunkData) > 0 {
 			detectSize := 512
 			if len(firstChunkData) < detectSize {
 				detectSize = len(firstChunkData)
 			}
 			mimeType = http.DetectContentType(firstChunkData[:detectSize])
 		}
-		if mimeType == "" {
-			mimeType = "application/octet-stream"
-		}
 	}
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+
+	readers, files, err := openChunkReaders(session, chunkDir)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.filesystem.SetReaderWithContentType(key, io.MultiReader(readers...), mimeType, 0); err != nil {
+		closeFiles(files)
+		return nil, fmt.Errorf("存储文件失败: %w", err)
+	}
+	closeFiles(files)
 
 	diskInfo := filesystem.DefaultDiskInfo(s.filesystem.Config)
 	builder := s.Client.Attachment.Create().

@@ -1,10 +1,13 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
+	"net/http"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -175,14 +178,24 @@ func (s *AttachmentService) Upload(ctx context.Context, fileHeader *multipart.Fi
 		return nil, fmt.Errorf("打开上传文件失败: %w", err)
 	}
 	defer file.Close()
-	if err := s.filesystem.SetReader(key, file, 0); err != nil {
-		return nil, fmt.Errorf("存储文件失败: %w", err)
-	}
 
-	mimeType := fileHeader.Header.Get("Content-Type")
+	mimeType := strings.TrimSpace(fileHeader.Header.Get("Content-Type"))
+	var body io.Reader = file
+	// 客户端未声明类型时按内容嗅探，避免 S3 对象一律落成 octet-stream
+	if mimeType == "" || mimeType == "application/octet-stream" {
+		buffered := bufio.NewReader(file)
+		if head, _ := buffered.Peek(512); len(head) > 0 {
+			mimeType = http.DetectContentType(head)
+		}
+		body = buffered
+	}
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
 	}
+	if err := s.filesystem.SetReaderWithContentType(key, body, mimeType, 0); err != nil {
+		return nil, fmt.Errorf("存储文件失败: %w", err)
+	}
+
 	diskInfo := filesystem.DefaultDiskInfo(s.filesystem.Config)
 
 	builder := s.Client.Attachment.Create().
@@ -225,8 +238,8 @@ func (s *AttachmentService) Delete(ctx context.Context, id int) error {
 		return fmt.Errorf("查询附件失败: %w", err)
 	}
 
-	if s.filesystem != nil {
-		_ = s.filesystem.Delete(a.Path)
+	if fs, fsErr := s.resolveFilesystem(a.Disk); fsErr == nil {
+		_ = fs.Delete(a.Path)
 	}
 
 	err = s.Client.Attachment.DeleteOneID(id).Exec(ctx)
@@ -247,7 +260,9 @@ func (s *AttachmentService) BatchDelete(ctx context.Context, ids []int) error {
 
 	if s.filesystem != nil {
 		for _, a := range attachments {
-			_ = s.filesystem.Delete(a.Path)
+			if fs, fsErr := s.resolveFilesystem(a.Disk); fsErr == nil {
+				_ = fs.Delete(a.Path)
+			}
 		}
 	}
 
@@ -316,11 +331,12 @@ func (s *AttachmentService) GetFileData(ctx context.Context, id int) ([]byte, st
 		return nil, "", "", fmt.Errorf("查询附件失败: %w", err)
 	}
 
-	if s.filesystem == nil {
-		return nil, "", "", ErrAttachmentStorageUnavailable
+	fs, err := s.resolveFilesystem(a.Disk)
+	if err != nil {
+		return nil, "", "", err
 	}
 
-	data, err := s.filesystem.Get(a.Path)
+	data, err := fs.Get(a.Path)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("获取文件数据失败: %w", err)
 	}
@@ -390,23 +406,25 @@ func (s *AttachmentService) BuildAccessURL(ctx context.Context, id int, basePath
 
 	switch strings.ToLower(driver) {
 	case "s3":
-		if s.filesystem == nil {
-			return nil, ErrAttachmentStorageUnavailable
+		fs, fsErr := s.resolveFilesystem(disk)
+		if fsErr != nil {
+			return nil, fsErr
 		}
 		if public {
-			accessURL, err = filesystem.S3PublicURL(s.filesystem.Config, disk, a.Path)
+			accessURL, err = filesystem.S3PublicURL(fs.Config, disk, a.Path)
 			mode = "public_s3"
 		} else {
-			accessURL, err = filesystem.S3PresignedGetURL(ctx, s.filesystem.Config, disk, a.Path, ttl)
+			accessURL, err = filesystem.S3PresignedGetURL(ctx, fs.Config, disk, a.Path, ttl)
 			mode = "private_s3"
 			expiresIn = int64(ttl / time.Second)
 		}
 	default:
 		if public {
-			if s.filesystem == nil {
-				return nil, ErrAttachmentStorageUnavailable
+			fs, fsErr := s.resolveFilesystem(disk)
+			if fsErr != nil {
+				return nil, fsErr
 			}
-			accessURL, err = filesystem.LocalPublicURL(s.filesystem.Config, disk, a.Path)
+			accessURL, err = filesystem.LocalPublicURL(fs.Config, disk, a.Path)
 			mode = "public_local"
 		} else {
 			accessURL, err = createAttachmentTokenAccessURL(id, basePath, ttl, secret)
@@ -443,12 +461,16 @@ func (s *AttachmentService) BuildXAccelRedirect(ctx context.Context, id int) (*A
 		return nil, fmt.Errorf("查询附件失败: %w", err)
 	}
 
-	_, driver := s.attachmentDiskDriver(a)
+	disk, driver := s.attachmentDiskDriver(a)
 	if strings.ToLower(driver) != "local" {
 		return nil, nil
 	}
 
-	redirectPath, err := filesystem.XAccelRedirectPath(s.filesystem.Config, a.Path)
+	fs, err := s.resolveFilesystem(disk)
+	if err != nil {
+		return nil, err
+	}
+	redirectPath, err := filesystem.XAccelRedirectPath(fs.Config, a.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -502,25 +524,72 @@ func attachmentAccessSubject(id int) string {
 	return "attachment:" + strconv.Itoa(id)
 }
 
+// resolveFilesystem 返回附件记录实际所在磁盘的文件系统。
+// 切换默认磁盘（如 local → s3）后，历史记录仍按自身 disk 字段读取；
+// 记录引用了已下线的磁盘配置时回退默认磁盘，与旧行为保持一致。
+func (s *AttachmentService) resolveFilesystem(disk string) (*filesystem.Filesystem, error) {
+	if s.filesystem == nil {
+		return nil, ErrAttachmentStorageUnavailable
+	}
+	name := strings.TrimSpace(disk)
+	if name == "" || name == filesystem.DefaultDiskInfo(s.filesystem.Config).Disk {
+		return s.filesystem, nil
+	}
+	if _, ok := s.filesystem.Config.Filesystem.Disks[name]; !ok {
+		return s.filesystem, nil
+	}
+	return filesystem.Disk(&s.filesystem.Config, name)
+}
+
+// attachmentDiskDriver 解析记录实际使用的磁盘与驱动。
+// 早期记录可能没有 disk/driver 字段（文件都落在本地），此时不能直接
+// 套用当前默认磁盘——否则默认磁盘切到 S3 后旧文件会被误读。
 func (s *AttachmentService) attachmentDiskDriver(a *ent.Attachment) (string, string) {
 	disk := strings.TrimSpace(a.Disk)
 	driver := strings.TrimSpace(a.Driver)
-	if s.filesystem != nil {
-		defaultInfo := filesystem.DefaultDiskInfo(s.filesystem.Config)
-		if disk == "" {
-			disk = defaultInfo.Disk
+
+	if disk != "" {
+		if driver == "" && s.filesystem != nil {
+			for name, configured := range s.filesystem.Config.Filesystem.Disks {
+				if name == disk {
+					driver = strings.TrimSpace(configured.Driver)
+					break
+				}
+			}
+			if driver == "" {
+				driver = filesystem.DefaultDiskInfo(s.filesystem.Config).Driver
+			}
 		}
 		if driver == "" {
-			driver = defaultInfo.Driver
+			driver = "local"
+		}
+		return disk, driver
+	}
+
+	if driver == "" {
+		// 最早期记录没有任何存储信息：按历史事实回落本地磁盘。
+		if s.filesystem != nil {
+			defaultInfo := filesystem.DefaultDiskInfo(s.filesystem.Config)
+			if strings.EqualFold(defaultInfo.Driver, "local") {
+				return defaultInfo.Disk, defaultInfo.Driver
+			}
+		}
+		return "local", "local"
+	}
+
+	// 只有 driver：优先当前默认磁盘，其次查找同驱动的磁盘配置。
+	if s.filesystem != nil {
+		defaultInfo := filesystem.DefaultDiskInfo(s.filesystem.Config)
+		if strings.EqualFold(defaultInfo.Driver, driver) {
+			return defaultInfo.Disk, defaultInfo.Driver
+		}
+		for name, configured := range s.filesystem.Config.Filesystem.Disks {
+			if strings.EqualFold(strings.TrimSpace(configured.Driver), driver) {
+				return name, driver
+			}
 		}
 	}
-	if disk == "" {
-		disk = "local"
-	}
-	if driver == "" {
-		driver = "local"
-	}
-	return disk, driver
+	return "local", driver
 }
 
 func attachmentDirectory(a *ent.Attachment) string {

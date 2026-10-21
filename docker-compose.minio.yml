@@ -1,0 +1,62 @@
+# 本地开发用 MinIO：go run main.go 前执行
+#   docker compose -f docker-compose.minio.yml up -d
+#
+# 控制台 http://127.0.0.1:9001（minioadmin / minioadmin）
+# API     http://127.0.0.1:9000
+# 桶      admin-attachments（public/ 前缀匿名可读，其余走预签名 URL）
+#
+# 生产环境请勿使用默认账号，并通过环境变量注入 config.yml：
+#   CMF_FILESYSTEM_DISKS_S3_OPTIONS_ACCESS_KEY
+#   CMF_FILESYSTEM_DISKS_S3_OPTIONS_SECRET_KEY
+name: go-admin-minio
+
+services:
+  minio:
+    # 官方 minio/minio 镜像已不再公开分发；pgsty/minio 为包含 minio + mc 的镜像
+    image: pgsty/minio:latest
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+
+  # 一次性初始化：建桶 + 只放开 public/ 前缀的匿名读
+  minio-init:
+    image: pgsty/minio:latest
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          echo "waiting for minio..."
+          sleep 2
+        done
+        mc mb --ignore-existing local/admin-attachments
+        cat > /tmp/public-policy.json <<'EOF'
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {"AWS": ["*"]},
+              "Action": ["s3:GetObject"],
+              "Resource": ["arn:aws:s3:::admin-attachments/public/*"]
+            }
+          ]
+        }
+        EOF
+        mc anonymous set-json /tmp/public-policy.json local/admin-attachments
+        echo "MinIO bucket admin-attachments ready"
+
+volumes:
+  minio_data:

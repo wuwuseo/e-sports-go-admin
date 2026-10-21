@@ -88,21 +88,35 @@ plugin:
   trusted_public_keys: ""
 
 filesystem:
-  default: local
+  # 附件写入磁盘。切换为 local 即可回退本地存储；
+  # 历史附件始终按记录里的 disk 字段读取，local/s3 混存不会互相影响。
+  default: s3
+  # 是否同时写一份到 local（S3 主存 + 本地副本）
   is_and_local: false
   disks:
     local:
       driver: local
       options:
+        # /uploads 静态目录由该 root 推导：<root>/public
         root: ./data/storage
+        public_base_url: /uploads
     s3:
       driver: s3
       options:
-        access_key: ""
-        secret_key: ""
-        region: ""
-        bucket: ""
-        endpoint: ""
+        # 本地开发默认对接 docker-compose.minio.yml 启动的 MinIO；
+        # 生产环境必须通过环境变量注入密钥，例如：
+        # CMF_FILESYSTEM_DISKS_S3_OPTIONS_ACCESS_KEY / ..._SECRET_KEY
+        access_key: "minioadmin"
+        secret_key: "minioadmin"
+        region: "us-east-1"
+        bucket: "admin-attachments"
+        endpoint: "http://127.0.0.1:9000"
+        # public/ 前缀附件的直链前缀（需浏览器可达）；私有附件走预签名 URL
+        public_base_url: "http://127.0.0.1:9000/admin-attachments"
+        # MinIO 及自建 S3 网关必须使用 path-style 访问
+        use_path_style: true
+        # 私有附件预签名有效期（秒），留空回落到 attachment.access_url_ttl
+        presign_expires: 600
 
 casbin:
   # 默认域名称，GetDefaultEnforcer() 将返回此域的 Enforcer
