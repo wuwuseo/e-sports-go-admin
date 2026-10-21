@@ -12,8 +12,11 @@ name: go-admin-minio
 
 services:
   minio:
-    # 官方 minio/minio 镜像已不再公开分发；pgsty/minio 为包含 minio + mc 的镜像
-    image: pgsty/minio:latest
+    # alpine/minio 无 latest 标签；latest-release 指向社区 Alpine 构建。
+    # 容器以 uid 100 运行；若沿用旧镜像创建的卷（root 属主），先执行：
+    # docker run --rm -u 0 -v go-admin-minio_minio_data:/data \
+    #   --entrypoint /bin/sh alpine/minio:latest-release -c 'chown -R 100:101 /data'
+    image: alpine/minio:latest-release
     command: server /data --console-address ":9001"
     restart: unless-stopped
     environment:
@@ -25,7 +28,8 @@ services:
     volumes:
       - minio_data:/data
 
-  # 一次性初始化：建桶 + 只放开 public/ 前缀的匿名读
+  # 一次性初始化：建桶 + 只放开 public/ 前缀的匿名读。
+  # alpine/minio 不自带 mc，这里沿用包含 mc 的镜像。
   minio-init:
     image: pgsty/minio:latest
     depends_on:
