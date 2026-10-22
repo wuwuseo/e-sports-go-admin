@@ -47,12 +47,12 @@ func TestDw2PlayerPriorityStatusQuery(t *testing.T) {
 		SetRank(1).SetSource(esportsdispatchprioritygrant.SourceRanking).
 		SetStatus(esportsdispatchprioritygrant.StatusPending).SaveX(ctx)
 	// 已移出 / 已过期：不得出现在状态查询里（(game, period_start, player_id) 唯一，故用不同期）。
-	revokedStart, revokedEnd := dispatchPriorityPeriodWindow("daily", now.Add(-48*time.Hour))
+	revokedStart, revokedEnd := dispatchPriorityPeriodWindow("daily", now.AddDate(-1, 0, 0))
 	db.EsportsDispatchPriorityGrant.Create().SetGame(game).SetPlayerID(holder.ID).
 		SetPeriod(esportsdispatchprioritygrant.PeriodDaily).
 		SetPeriodStart(revokedStart).SetPeriodEnd(revokedEnd).
 		SetStatus(esportsdispatchprioritygrant.StatusRevoked).SaveX(ctx)
-	expiredStart, expiredEnd := dispatchPriorityPeriodWindow("daily", now.Add(-72*time.Hour))
+	expiredStart, expiredEnd := dispatchPriorityPeriodWindow("daily", now.AddDate(-1, 0, -1))
 	db.EsportsDispatchPriorityGrant.Create().SetGame(game).SetPlayerID(holder.ID).
 		SetPeriod(esportsdispatchprioritygrant.PeriodDaily).
 		SetPeriodStart(expiredStart).SetPeriodEnd(expiredEnd).

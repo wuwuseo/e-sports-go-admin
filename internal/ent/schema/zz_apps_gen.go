@@ -262,10 +262,6 @@ type EsportsPriorityBookingIntent struct {
 	appschemaesports.EsportsPriorityBookingIntent
 }
 
-type EsportsProduct struct {
-	appschemaesports.EsportsProduct
-}
-
 type EsportsProductCategory struct {
 	appschemaesports.EsportsProductCategory
 }
@@ -324,10 +320,6 @@ type EsportsSkuSuspension struct {
 
 type EsportsSkuSuspensionItem struct {
 	appschemaesports.EsportsSkuSuspensionItem
-}
-
-type EsportsSpecGroup struct {
-	appschemaesports.EsportsSpecGroup
 }
 
 type EsportsTeammate struct {

@@ -57,7 +57,7 @@ type afterSaleRuleInput struct {
 	ThresholdValue int64  `json:"threshold_value"`
 	WindowMinutes  int    `json:"window_minutes"`
 	ScopeGame      string `json:"scope_game"`
-	ScopeSkuID     *int   `json:"scope_sku_id"`
+	ScopeSkuID     *int   `json:"scope_product_id"`
 	AfterSaleKind  string `json:"after_sale_kind"`
 	Channel        string `json:"channel"`
 	FaultParty     string `json:"fault_party"`
@@ -483,7 +483,7 @@ func afterSaleRuleSnapshot(rule *ent.EsportsAfterSaleRule) map[string]interface{
 		"note": rule.Note, "status": rule.Status.String(), "version": rule.Version,
 	}
 	if rule.ScopeSkuID != nil {
-		snapshot["scope_sku_id"] = *rule.ScopeSkuID
+		snapshot["scope_product_id"] = *rule.ScopeSkuID
 	}
 	return snapshot
 }

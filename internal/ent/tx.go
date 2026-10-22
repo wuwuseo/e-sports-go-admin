@@ -166,8 +166,6 @@ type Tx struct {
 	EsportsPriceAdjustment *EsportsPriceAdjustmentClient
 	// EsportsPriorityBookingIntent is the client for interacting with the EsportsPriorityBookingIntent builders.
 	EsportsPriorityBookingIntent *EsportsPriorityBookingIntentClient
-	// EsportsProduct is the client for interacting with the EsportsProduct builders.
-	EsportsProduct *EsportsProductClient
 	// EsportsProductCategory is the client for interacting with the EsportsProductCategory builders.
 	EsportsProductCategory *EsportsProductCategoryClient
 	// EsportsQuotaHold is the client for interacting with the EsportsQuotaHold builders.
@@ -200,8 +198,6 @@ type Tx struct {
 	EsportsSkuSuspension *EsportsSkuSuspensionClient
 	// EsportsSkuSuspensionItem is the client for interacting with the EsportsSkuSuspensionItem builders.
 	EsportsSkuSuspensionItem *EsportsSkuSuspensionItemClient
-	// EsportsSpecGroup is the client for interacting with the EsportsSpecGroup builders.
-	EsportsSpecGroup *EsportsSpecGroupClient
 	// EsportsTeammate is the client for interacting with the EsportsTeammate builders.
 	EsportsTeammate *EsportsTeammateClient
 	// EsportsWalletAccount is the client for interacting with the EsportsWalletAccount builders.
@@ -448,7 +444,6 @@ func (tx *Tx) init() {
 	tx.EsportsPlayerReviewRevision = NewEsportsPlayerReviewRevisionClient(tx.config)
 	tx.EsportsPriceAdjustment = NewEsportsPriceAdjustmentClient(tx.config)
 	tx.EsportsPriorityBookingIntent = NewEsportsPriorityBookingIntentClient(tx.config)
-	tx.EsportsProduct = NewEsportsProductClient(tx.config)
 	tx.EsportsProductCategory = NewEsportsProductCategoryClient(tx.config)
 	tx.EsportsQuotaHold = NewEsportsQuotaHoldClient(tx.config)
 	tx.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(tx.config)
@@ -465,7 +460,6 @@ func (tx *Tx) init() {
 	tx.EsportsSku = NewEsportsSkuClient(tx.config)
 	tx.EsportsSkuSuspension = NewEsportsSkuSuspensionClient(tx.config)
 	tx.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(tx.config)
-	tx.EsportsSpecGroup = NewEsportsSpecGroupClient(tx.config)
 	tx.EsportsTeammate = NewEsportsTeammateClient(tx.config)
 	tx.EsportsWalletAccount = NewEsportsWalletAccountClient(tx.config)
 	tx.EsportsWalletTx = NewEsportsWalletTxClient(tx.config)

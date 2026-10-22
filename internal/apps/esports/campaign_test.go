@@ -54,6 +54,28 @@ func baseCampaignInput(code string, now time.Time) campaignInput {
 	}
 }
 
+func TestCreateCampaignAutoCode(t *testing.T) {
+	db := openCampaignDB(t)
+	ctx := t.Context()
+	now := time.Now()
+	first, err := createCampaignAutoCode(ctx, db, baseCampaignInput("MANUAL-CODE", now))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := createCampaignAutoCode(ctx, db, baseCampaignInput("MANUAL-CODE", now))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []*ent.EsportsRechargeCampaign{first, second} {
+		if !campaignCodePattern.MatchString(item.Code) || !strings.HasPrefix(item.Code, "RC-") || item.Code == "MANUAL-CODE" {
+			t.Fatalf("活动编码未由服务端生成: %s", item.Code)
+		}
+	}
+	if first.Code == second.Code {
+		t.Fatalf("两条活动生成了相同编码: %s", first.Code)
+	}
+}
+
 // 阶梯匹配取满足门槛的最高档。
 func TestCampaignTierBonusPicksHighestTier(t *testing.T) {
 	tiers := []schema.CampaignTier{

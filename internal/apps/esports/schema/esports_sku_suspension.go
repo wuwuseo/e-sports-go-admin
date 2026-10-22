@@ -4,27 +4,33 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
+	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
 
 // EsportsSkuSuspension 是 SKU 停服（下架并停服）申请（§15.7）：一次下架动作的申请 → 异人审批 →
-// 受影响订单逐单处置闭环。它与既有直接上下架接口（PUT /admin/skus/{id} 直接改 status）并存：
+// 受影响订单逐单处置闭环。它与既有直接上下架接口（PUT /admin/products/{id} 直接改 status）并存：
 // 直接下架不做审批与订单处置，停服申请用于「需要审批、且必须逐单收敛在途订单」的下架场景。
 //
 // 同一 SKU 同一时刻只允许一张进行中申请（pending_key 唯一索引兜底），申请人不得自审。
 type EsportsSkuSuspension struct{ ent.Schema }
 
+func (EsportsSkuSuspension) Annotations() []entschema.Annotation {
+	return []entschema.Annotation{entsql.Annotation{Table: "esports_product_suspensions"}}
+}
+
 func (EsportsSkuSuspension) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int("sku_id").Positive().StructTag(`json:"sku_id"`),
+		field.Int("sku_id").Positive().StorageKey("product_id").StructTag(`json:"product_id"`),
 		field.Int("requested_by_admin_id").Positive().StructTag(`json:"requested_by_admin_id"`),
 		field.String("reason").NotEmpty().MaxLen(500).StructTag(`json:"reason"`),
 		// 生效方式：immediate = 审批通过即下架；scheduled = 审批通过后等到 effective_at 由定时任务下架。
 		field.Enum("effective_mode").Values("immediate", "scheduled").Default("immediate").StructTag(`json:"effective_mode"`),
 		field.Time("effective_at").Optional().Nillable().StructTag(`json:"effective_at"`),
 		field.Enum("status").Values("pending", "approved", "rejected", "applied", "cancelled").Default("pending").StructTag(`json:"status"`),
-		// pending_key 在「进行中」（pending / approved 未生效）期间固定为 sku:<sku_id>，进入终结状态后清空；
+		// pending_key 在「进行中」（pending / approved 未生效）期间固定为 product:<product_id>，进入终结状态后清空；
 		// 唯一索引保证同一 SKU 同一时刻只有一张进行中申请（重复申请直接被数据库拒绝）。
 		field.String("pending_key").Optional().Nillable().MaxLen(80).StructTag(`json:"-"`),
 		field.Int("reviewed_by_admin_id").Optional().Nillable().StructTag(`json:"reviewed_by_admin_id"`),

@@ -41,7 +41,7 @@ func (EsportsAfterSaleRule) Fields() []ent.Field {
 		field.Int("window_minutes").Default(0).StructTag(`json:"window_minutes"`),
 		// 适用范围：为空表示不限；scope_sku_id 为空表示不限 SKU。两条同时命中才生效。
 		field.String("scope_game").MaxLen(64).Default("").StructTag(`json:"scope_game"`),
-		field.Int("scope_sku_id").Optional().Nillable().StructTag(`json:"scope_sku_id"`),
+		field.Int("scope_sku_id").Optional().Nillable().StorageKey("scope_product_id").StructTag(`json:"scope_product_id"`),
 		// 命中后生成的售后单 kind（与 EsportsAfterSale.kind 同值集）。
 		field.Enum("after_sale_kind").
 			Values("service_mismatch", "duration_short", "no_show", "wrong_item", "overcharge", "player_appeal", "refund_request", "other").

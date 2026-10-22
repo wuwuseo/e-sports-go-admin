@@ -20,7 +20,7 @@ type EsportsQuotaHold struct {
 	// OrderID holds the value of the "order_id" field.
 	OrderID int `json:"order_id"`
 	// SkuID holds the value of the "sku_id" field.
-	SkuID int `json:"sku_id"`
+	SkuID int `json:"product_id"`
 	// Quantity holds the value of the "quantity" field.
 	Quantity int64 `json:"quantity"`
 	// Status holds the value of the "status" field.

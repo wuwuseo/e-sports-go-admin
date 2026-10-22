@@ -17,7 +17,7 @@ func (EsportsConfirmation) Fields() []ent.Field {
 		field.String("subject_type").NotEmpty().MaxLen(48).StructTag(`json:"subject_type"`),
 		field.Int("subject_id").Positive().StructTag(`json:"subject_id"`),
 		field.Int("subject_version").Positive().StructTag(`json:"subject_version"`),
-		field.Int("sku_id").Positive().StructTag(`json:"sku_id"`),
+		field.Int("sku_id").Positive().StorageKey("product_id").StructTag(`json:"product_id"`),
 		field.Int64("quantity").Positive().StructTag(`json:"quantity"`),
 		field.Int64("amount_cents").Positive().StructTag(`json:"amount_cents"`),
 		field.String("channel").NotEmpty().MaxLen(48).StructTag(`json:"channel"`),

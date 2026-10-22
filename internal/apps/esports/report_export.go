@@ -448,7 +448,7 @@ func reportExportSnapshot(reportType string, f reportFilter, handlerAdmin int) m
 		"period":               f.Period,
 		"responsible_admin_id": f.ResponsibleAdmin,
 		"created_by_admin_id":  f.CreatedByAdmin,
-		"sku_id":               f.SkuID,
+		"product_id":           f.SkuID,
 		"game":                 f.Game,
 		"channel_source":       f.ChannelSource,
 		"entry_point":          f.EntryPoint,

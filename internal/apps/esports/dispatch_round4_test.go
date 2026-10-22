@@ -450,7 +450,7 @@ func TestAssignRejectsUnavailableSkuSnapshot(t *testing.T) {
 		t.Fatal("SKU 已被删除时不应放行派单")
 	}
 
-	// 管理员补录的无 SKU 历史单（sku_id=0）不因此被拦。
+	// 管理员补录的无 SKU 历史单（product_id=0）不因此被拦。
 	legacy := seedPaidOrder(t, db, "r4-sku-legacy", 1)
 	db.EsportsOrder.UpdateOneID(legacy.ID).SetSkuID(0).SaveX(ctx)
 	if _, err := assignDispatchSeat(ctx, db, legacy.ID, 1, player.ID, 11, now); err != nil {

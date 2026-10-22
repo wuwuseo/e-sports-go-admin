@@ -932,18 +932,6 @@ func (f EsportsPriorityBookingIntentFunc) Mutate(ctx context.Context, m ent.Muta
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsPriorityBookingIntentMutation", m)
 }
 
-// The EsportsProductFunc type is an adapter to allow the use of ordinary
-// function as EsportsProduct mutator.
-type EsportsProductFunc func(context.Context, *ent.EsportsProductMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f EsportsProductFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.EsportsProductMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsProductMutation", m)
-}
-
 // The EsportsProductCategoryFunc type is an adapter to allow the use of ordinary
 // function as EsportsProductCategory mutator.
 type EsportsProductCategoryFunc func(context.Context, *ent.EsportsProductCategoryMutation) (ent.Value, error)
@@ -1134,18 +1122,6 @@ func (f EsportsSkuSuspensionItemFunc) Mutate(ctx context.Context, m ent.Mutation
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSkuSuspensionItemMutation", m)
-}
-
-// The EsportsSpecGroupFunc type is an adapter to allow the use of ordinary
-// function as EsportsSpecGroup mutator.
-type EsportsSpecGroupFunc func(context.Context, *ent.EsportsSpecGroupMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f EsportsSpecGroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.EsportsSpecGroupMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSpecGroupMutation", m)
 }
 
 // The EsportsTeammateFunc type is an adapter to allow the use of ordinary

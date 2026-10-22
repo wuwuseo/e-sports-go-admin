@@ -24,11 +24,11 @@ type EsportsOrder struct {
 	// CustomerID holds the value of the "customer_id" field.
 	CustomerID int `json:"customer_id"`
 	// SkuID holds the value of the "sku_id" field.
-	SkuID int `json:"sku_id"`
+	SkuID int `json:"product_id"`
 	// SkuCode holds the value of the "sku_code" field.
-	SkuCode string `json:"sku_code"`
+	SkuCode string `json:"product_code"`
 	// SkuName holds the value of the "sku_name" field.
-	SkuName string `json:"sku_name"`
+	SkuName string `json:"product_name"`
 	// SpecName holds the value of the "spec_name" field.
 	SpecName string `json:"spec_name"`
 	// CreatedByAdminID holds the value of the "created_by_admin_id" field.

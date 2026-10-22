@@ -83,60 +83,6 @@ func (_u *EsportsSkuUpdate) ClearCategoryID() *EsportsSkuUpdate {
 	return _u
 }
 
-// SetProductID sets the "product_id" field.
-func (_u *EsportsSkuUpdate) SetProductID(v int) *EsportsSkuUpdate {
-	_u.mutation.ResetProductID()
-	_u.mutation.SetProductID(v)
-	return _u
-}
-
-// SetNillableProductID sets the "product_id" field if the given value is not nil.
-func (_u *EsportsSkuUpdate) SetNillableProductID(v *int) *EsportsSkuUpdate {
-	if v != nil {
-		_u.SetProductID(*v)
-	}
-	return _u
-}
-
-// AddProductID adds value to the "product_id" field.
-func (_u *EsportsSkuUpdate) AddProductID(v int) *EsportsSkuUpdate {
-	_u.mutation.AddProductID(v)
-	return _u
-}
-
-// ClearProductID clears the value of the "product_id" field.
-func (_u *EsportsSkuUpdate) ClearProductID() *EsportsSkuUpdate {
-	_u.mutation.ClearProductID()
-	return _u
-}
-
-// SetSpecGroupID sets the "spec_group_id" field.
-func (_u *EsportsSkuUpdate) SetSpecGroupID(v int) *EsportsSkuUpdate {
-	_u.mutation.ResetSpecGroupID()
-	_u.mutation.SetSpecGroupID(v)
-	return _u
-}
-
-// SetNillableSpecGroupID sets the "spec_group_id" field if the given value is not nil.
-func (_u *EsportsSkuUpdate) SetNillableSpecGroupID(v *int) *EsportsSkuUpdate {
-	if v != nil {
-		_u.SetSpecGroupID(*v)
-	}
-	return _u
-}
-
-// AddSpecGroupID adds value to the "spec_group_id" field.
-func (_u *EsportsSkuUpdate) AddSpecGroupID(v int) *EsportsSkuUpdate {
-	_u.mutation.AddSpecGroupID(v)
-	return _u
-}
-
-// ClearSpecGroupID clears the value of the "spec_group_id" field.
-func (_u *EsportsSkuUpdate) ClearSpecGroupID() *EsportsSkuUpdate {
-	_u.mutation.ClearSpecGroupID()
-	return _u
-}
-
 // SetDescription sets the "description" field.
 func (_u *EsportsSkuUpdate) SetDescription(v string) *EsportsSkuUpdate {
 	_u.mutation.SetDescription(v)
@@ -615,24 +561,6 @@ func (_u *EsportsSkuUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.CategoryIDCleared() {
 		_spec.ClearField(esportssku.FieldCategoryID, field.TypeInt)
 	}
-	if value, ok := _u.mutation.ProductID(); ok {
-		_spec.SetField(esportssku.FieldProductID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedProductID(); ok {
-		_spec.AddField(esportssku.FieldProductID, field.TypeInt, value)
-	}
-	if _u.mutation.ProductIDCleared() {
-		_spec.ClearField(esportssku.FieldProductID, field.TypeInt)
-	}
-	if value, ok := _u.mutation.SpecGroupID(); ok {
-		_spec.SetField(esportssku.FieldSpecGroupID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedSpecGroupID(); ok {
-		_spec.AddField(esportssku.FieldSpecGroupID, field.TypeInt, value)
-	}
-	if _u.mutation.SpecGroupIDCleared() {
-		_spec.ClearField(esportssku.FieldSpecGroupID, field.TypeInt)
-	}
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(esportssku.FieldDescription, field.TypeString, value)
 	}
@@ -804,60 +732,6 @@ func (_u *EsportsSkuUpdateOne) AddCategoryID(v int) *EsportsSkuUpdateOne {
 // ClearCategoryID clears the value of the "category_id" field.
 func (_u *EsportsSkuUpdateOne) ClearCategoryID() *EsportsSkuUpdateOne {
 	_u.mutation.ClearCategoryID()
-	return _u
-}
-
-// SetProductID sets the "product_id" field.
-func (_u *EsportsSkuUpdateOne) SetProductID(v int) *EsportsSkuUpdateOne {
-	_u.mutation.ResetProductID()
-	_u.mutation.SetProductID(v)
-	return _u
-}
-
-// SetNillableProductID sets the "product_id" field if the given value is not nil.
-func (_u *EsportsSkuUpdateOne) SetNillableProductID(v *int) *EsportsSkuUpdateOne {
-	if v != nil {
-		_u.SetProductID(*v)
-	}
-	return _u
-}
-
-// AddProductID adds value to the "product_id" field.
-func (_u *EsportsSkuUpdateOne) AddProductID(v int) *EsportsSkuUpdateOne {
-	_u.mutation.AddProductID(v)
-	return _u
-}
-
-// ClearProductID clears the value of the "product_id" field.
-func (_u *EsportsSkuUpdateOne) ClearProductID() *EsportsSkuUpdateOne {
-	_u.mutation.ClearProductID()
-	return _u
-}
-
-// SetSpecGroupID sets the "spec_group_id" field.
-func (_u *EsportsSkuUpdateOne) SetSpecGroupID(v int) *EsportsSkuUpdateOne {
-	_u.mutation.ResetSpecGroupID()
-	_u.mutation.SetSpecGroupID(v)
-	return _u
-}
-
-// SetNillableSpecGroupID sets the "spec_group_id" field if the given value is not nil.
-func (_u *EsportsSkuUpdateOne) SetNillableSpecGroupID(v *int) *EsportsSkuUpdateOne {
-	if v != nil {
-		_u.SetSpecGroupID(*v)
-	}
-	return _u
-}
-
-// AddSpecGroupID adds value to the "spec_group_id" field.
-func (_u *EsportsSkuUpdateOne) AddSpecGroupID(v int) *EsportsSkuUpdateOne {
-	_u.mutation.AddSpecGroupID(v)
-	return _u
-}
-
-// ClearSpecGroupID clears the value of the "spec_group_id" field.
-func (_u *EsportsSkuUpdateOne) ClearSpecGroupID() *EsportsSkuUpdateOne {
-	_u.mutation.ClearSpecGroupID()
 	return _u
 }
 
@@ -1368,24 +1242,6 @@ func (_u *EsportsSkuUpdateOne) sqlSave(ctx context.Context) (_node *EsportsSku, 
 	}
 	if _u.mutation.CategoryIDCleared() {
 		_spec.ClearField(esportssku.FieldCategoryID, field.TypeInt)
-	}
-	if value, ok := _u.mutation.ProductID(); ok {
-		_spec.SetField(esportssku.FieldProductID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedProductID(); ok {
-		_spec.AddField(esportssku.FieldProductID, field.TypeInt, value)
-	}
-	if _u.mutation.ProductIDCleared() {
-		_spec.ClearField(esportssku.FieldProductID, field.TypeInt)
-	}
-	if value, ok := _u.mutation.SpecGroupID(); ok {
-		_spec.SetField(esportssku.FieldSpecGroupID, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedSpecGroupID(); ok {
-		_spec.AddField(esportssku.FieldSpecGroupID, field.TypeInt, value)
-	}
-	if _u.mutation.SpecGroupIDCleared() {
-		_spec.ClearField(esportssku.FieldSpecGroupID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(esportssku.FieldDescription, field.TypeString, value)

@@ -31,13 +31,13 @@ type repriceInput struct {
 	ApprovalID        int    `json:"approval_id"`
 	// SkuID 改规格 / 改档位（§3.3-01）：目标子 SKU ID。0 或与本单当前 SKU 相同时只改价 / 改份数。
 	// 改规格时会作废旧支付意图、抬升报价版本，并按新规格的快照价、名额与席位置重算。
-	SkuID int `json:"sku_id,omitempty"`
+	SkuID int `json:"product_id,omitempty"`
 }
 
 type repriceQuote struct {
 	OrderID              int   `json:"order_id"`
 	QuoteVersion         int   `json:"quote_version"`
-	SkuID                int   `json:"sku_id"`
+	SkuID                int   `json:"product_id"`
 	Quantity             int64 `json:"quantity"`
 	UnitPriceCents       int64 `json:"unit_price_cents"`
 	DiscountCents        int64 `json:"discount_cents"`
@@ -87,17 +87,7 @@ func calculateRepriceQuoteForSku(ctx context.Context, db *ent.Client, order *ent
 			return repriceQuote{}, errInvalidInput
 		}
 		unitPrice = target.UnitPriceCents
-		// §15.3-01 / §5.3-05：改规格时按目标 SKU（及其规格组）重算每席承诺服务量，
-		// 多人规格缺每席量即拒绝改价，避免改完规格订单承诺量与新规格口径脱节。
-		var targetGroup *ent.EsportsSpecGroup
-		if target.SpecGroupID != nil {
-			group, groupErr := db.EsportsSpecGroup.Get(ctx, *target.SpecGroupID)
-			if groupErr != nil {
-				return repriceQuote{}, groupErr
-			}
-			targetGroup = group
-		}
-		targetPerSeat, targetSeatTotal, _, promiseErr := resolveSeatPromise(target, targetGroup)
+		targetPerSeat, targetSeatTotal, _, promiseErr := resolveSeatPromise(target)
 		if promiseErr != nil {
 			return repriceQuote{}, promiseErr
 		}
@@ -160,14 +150,11 @@ func calculateRepriceQuoteForSku(ctx context.Context, db *ent.Client, order *ent
 // validateSpecSwitchTarget 改规格 / 改档位的目标校验（§3.3-01）：
 // 只能切到同一规格组（同父商品的兄弟 SKU）内的在售规格，避免跨商品改单绕过规格定义。
 func validateSpecSwitchTarget(current, target *ent.EsportsSku) error {
-	if current == nil || target == nil || current.ID == target.ID {
-		return nil
+	if current == nil || target == nil {
+		return errInvalidInput
 	}
-	if current.ProductID != nil && target.ProductID != nil && *current.ProductID != *target.ProductID {
-		return fmt.Errorf("%w：改规格只能在同一商品下的规格之间切换", errInvalidInput)
-	}
-	if current.SpecGroupID != nil && target.SpecGroupID != nil && *current.SpecGroupID != *target.SpecGroupID {
-		return fmt.Errorf("%w：改档位只能切到同一规格组内的规格", errInvalidInput)
+	if current.ID != target.ID {
+		return fmt.Errorf("%w：单商品模式不支持切换规格或商品", errInvalidInput)
 	}
 	return nil
 }
@@ -396,15 +383,8 @@ func repriceOrder(ctx context.Context, db *ent.Client, orderID, adminID int, isS
 			SetSpecName("").
 			SetUnitPriceCents(targetSku.UnitPriceCents).SetMinUnitPriceCents(targetSku.MinUnitPriceCents).
 			SetAdjustmentApprovalBp(targetSku.AdjustmentApprovalBp)
-		if targetSku.SpecGroupID != nil {
-			group, groupErr := tx.EsportsSpecGroup.Get(ctx, *targetSku.SpecGroupID)
-			if groupErr != nil {
-				return nil, groupErr
-			}
-			orderUpdate = orderUpdate.SetSeatRoles(group.Seats).SetSpecName(group.Name)
-		} else {
-			orderUpdate = orderUpdate.ClearSeatRoles()
-		}
+		orderUpdate = orderUpdate.ClearSeatRoles()
+
 	}
 	if _, err = orderUpdate.Save(ctx); err != nil {
 		return nil, err
@@ -415,10 +395,10 @@ func repriceOrder(ctx context.Context, db *ent.Client, orderID, adminID int, isS
 		SetDetails(map[string]interface{}{
 			"reason": in.Reason, "quantity": in.Quantity,
 			"discount_cents": quote.DiscountCents, "manual_adjust_cents": in.ManualAdjustCents,
-			"payable_cents":   quote.PayableCents,
-			"spec_changed":    quote.SpecChanged,
-			"previous_sku_id": order.SkuID,
-			"sku_id":          quote.SkuID,
+			"payable_cents":       quote.PayableCents,
+			"spec_changed":        quote.SpecChanged,
+			"previous_product_id": order.SkuID,
+			"product_id":          quote.SkuID,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}

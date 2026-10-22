@@ -18,11 +18,11 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.String("order_no").NotEmpty().MaxLen(64).Immutable().StructTag(`json:"order_no"`),
 		field.Int("customer_id").Positive().StructTag(`json:"customer_id"`),
 		// 常规报单必须绑定已上架 SKU；管理员补录无 SKU 的历史单（§15.6）允许 sku_id=0 不绑定 SKU。
-		field.Int("sku_id").StructTag(`json:"sku_id"`),
+		field.Int("sku_id").StorageKey("product_id").StructTag(`json:"product_id"`),
 		// 下单时的商品 / 规格名快照（§15.6-03）：报单时从 SKU 与规格组写入，详情与导出改读快照，
 		// 之后改 SKU 标题或规格名不追溯改写历史单；历史单为空串，读取方回落实时 SKU。
-		field.String("sku_code").MaxLen(80).Default("").StructTag(`json:"sku_code"`),
-		field.String("sku_name").MaxLen(160).Default("").StructTag(`json:"sku_name"`),
+		field.String("sku_code").StorageKey("product_code").MaxLen(80).Default("").StructTag(`json:"product_code"`),
+		field.String("sku_name").StorageKey("product_name").MaxLen(160).Default("").StructTag(`json:"product_name"`),
 		field.String("spec_name").MaxLen(120).Default("").StructTag(`json:"spec_name"`),
 		field.Int("created_by_admin_id").Optional().Nillable().StructTag(`json:"created_by_admin_id"`),
 		field.Int("responsible_admin_id").Optional().Nillable().StructTag(`json:"responsible_admin_id"`),

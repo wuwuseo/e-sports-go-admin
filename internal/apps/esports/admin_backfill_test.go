@@ -259,7 +259,7 @@ func TestOrderCountsCsCommissionOnlyForBackfill(t *testing.T) {
 	}
 }
 
-// 无 SKU 历史补录（§15.6）：sku_id 可省略，用 unit_price_cents 兜底定价、不绑定 SKU、不占名额，且幂等。
+// 无 SKU 历史补录（§15.6）：product_id 可省略，用 unit_price_cents 兜底定价、不绑定 SKU、不占名额，且幂等。
 func TestAdminBackfillWithoutSku(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_admin_backfill_no_sku")
 	defer db.Close()

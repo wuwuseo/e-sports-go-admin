@@ -27,7 +27,7 @@ import (
 //     改期（复用既有档期提案）或保留继续服务；逐单独立完成，允许部分完成。
 //  4. 留痕：申请 / 审批 / 生效 / 每单处置都写 EsportsOutbox；每张受影响订单另有订单事件留痕。
 //
-// 与既有 SKU 上下架接口的关系：PUT /admin/skus/{id} 直接改 status 的既有行为完全不变（不做审批、
+// 与既有 商品上下架接口的关系：PUT /admin/products/{id} 直接改 status 的既有行为完全不变（不做审批、
 // 不生成处置清单）；停服是「有审批与处置联动的下架」，只在下架需要审批与在途订单收敛时使用。
 
 // 逐单处置方式（§15.7）。
@@ -78,7 +78,7 @@ type skuSuspensionReport struct {
 
 // suspensionPendingKey 进行中占位键：同一 SKU 唯一，申请进入终结状态时清空。
 func suspensionPendingKey(skuID int) string {
-	return "sku:" + strconv.Itoa(skuID)
+	return "product:" + strconv.Itoa(skuID)
 }
 
 // suspensionAffectedOrders 枚举该 SKU 下的未终结订单（§15.7）：未付款、已付款待派单、派单中、
@@ -202,11 +202,11 @@ func requestSkuSuspension(ctx context.Context, db *ent.Client, skuID, adminID in
 		return nil, err
 	}
 	if _, err = tx.EsportsOutbox.Create().
-		SetEventKey(fmt.Sprintf("sku.suspension_requested:%d", suspension.ID)).
-		SetEventType("sku.suspension_requested").
-		SetAggregateRef("sku:" + strconv.Itoa(skuID)).
+		SetEventKey(fmt.Sprintf("product.suspension_requested:%d", suspension.ID)).
+		SetEventType("product.suspension_requested").
+		SetAggregateRef("product:" + strconv.Itoa(skuID)).
 		SetPayload(map[string]interface{}{
-			"suspension_id": suspension.ID, "sku_id": skuID,
+			"suspension_id": suspension.ID, "product_id": skuID,
 			"requested_by_admin_id": adminID, "effective_mode": mode.String(),
 			"affected_order_count": len(orders),
 		}).Save(ctx); err != nil {
@@ -274,17 +274,17 @@ func reviewSkuSuspension(ctx context.Context, db *ent.Client, id, reviewerID int
 			return nil, err
 		}
 	}
-	// 审批结论单独留痕；立即生效时下架与清单生成另由 sku.suspension_applied 留痕，两类事件职责不重叠。
-	eventType := "sku.suspension_rejected"
+	// 审批结论单独留痕；立即生效时下架与清单生成另由 product.suspension_applied 留痕，两类事件职责不重叠。
+	eventType := "product.suspension_rejected"
 	if in.Approve {
-		eventType = "sku.suspension_approved"
+		eventType = "product.suspension_approved"
 	}
 	if _, err = tx.EsportsOutbox.Create().
-		SetEventKey(fmt.Sprintf("sku.suspension_reviewed:%d", id)).
+		SetEventKey(fmt.Sprintf("product.suspension_reviewed:%d", id)).
 		SetEventType(eventType).
-		SetAggregateRef("sku:" + strconv.Itoa(suspension.SkuID)).
+		SetAggregateRef("product:" + strconv.Itoa(suspension.SkuID)).
 		SetPayload(map[string]interface{}{
-			"suspension_id": id, "sku_id": suspension.SkuID, "approved": in.Approve,
+			"suspension_id": id, "product_id": suspension.SkuID, "approved": in.Approve,
 			"reviewed_by_admin_id": reviewerID, "effective_mode": suspension.EffectiveMode.String(),
 		}).Save(ctx); err != nil {
 		return nil, err
@@ -326,11 +326,11 @@ func cancelSkuSuspension(ctx context.Context, db *ent.Client, id, adminID int, i
 		return nil, errConflict
 	}
 	if _, err = tx.EsportsOutbox.Create().
-		SetEventKey(fmt.Sprintf("sku.suspension_cancelled:%d", id)).
-		SetEventType("sku.suspension_cancelled").
-		SetAggregateRef("sku:" + strconv.Itoa(suspension.SkuID)).
+		SetEventKey(fmt.Sprintf("product.suspension_cancelled:%d", id)).
+		SetEventType("product.suspension_cancelled").
+		SetAggregateRef("product:" + strconv.Itoa(suspension.SkuID)).
 		SetPayload(map[string]interface{}{
-			"suspension_id": id, "sku_id": suspension.SkuID, "cancelled_by_admin_id": adminID,
+			"suspension_id": id, "product_id": suspension.SkuID, "cancelled_by_admin_id": adminID,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
@@ -377,7 +377,7 @@ func applySkuSuspension(ctx context.Context, tx *ent.Tx, suspension *ent.Esports
 		}
 		if err = recordSuspensionOrderEvent(ctx, tx, order.ID, actorType, actorID,
 			"order.sku_suspension_notice", map[string]interface{}{
-				"suspension_id": suspension.ID, "sku_id": sku.ID,
+				"suspension_id": suspension.ID, "product_id": sku.ID,
 				"order_status":     order.FulfillmentStatus.String(),
 				"suggested_action": suggested,
 			}); err != nil {
@@ -386,11 +386,11 @@ func applySkuSuspension(ctx context.Context, tx *ent.Tx, suspension *ent.Esports
 		orderIDs = append(orderIDs, order.ID)
 	}
 	if _, err = tx.EsportsOutbox.Create().
-		SetEventKey(fmt.Sprintf("sku.suspension_applied:%d", suspension.ID)).
-		SetEventType("sku.suspension_applied").
-		SetAggregateRef("sku:" + strconv.Itoa(sku.ID)).
+		SetEventKey(fmt.Sprintf("product.suspension_applied:%d", suspension.ID)).
+		SetEventType("product.suspension_applied").
+		SetAggregateRef("product:" + strconv.Itoa(sku.ID)).
 		SetPayload(map[string]interface{}{
-			"suspension_id": suspension.ID, "sku_id": sku.ID,
+			"suspension_id": suspension.ID, "product_id": sku.ID,
 			"affected_order_count": len(orderIDs), "order_ids": orderIDs,
 		}).Save(ctx); err != nil {
 		return err
@@ -689,7 +689,7 @@ func finalizeSkuSuspensionItem(ctx context.Context, db *ent.Client, itemID int, 
 	}
 	// 事件键带随机后缀：同一张订单的失败重试与多次处置都会各写一条留痕，不会被外盒去重吃掉。
 	if _, err = tx.EsportsOutbox.Create().
-		SetEventKey(fmt.Sprintf("sku.suspension_item:%d:%s", itemID, uuid.NewString())).
+		SetEventKey(fmt.Sprintf("product.suspension_item:%d:%s", itemID, uuid.NewString())).
 		SetEventType(result.EventType).SetAggregateRef(result.AggregateRef).
 		SetPayload(details).Save(ctx); err != nil {
 		return nil, err

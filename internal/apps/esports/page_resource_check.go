@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"go-admin/internal/ent"
-	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportssku"
 )
@@ -76,7 +75,6 @@ var pageProbeImage = func(ctx context.Context, rawURL string) error {
 
 // 指向商品 / 活动的组件属性键（§16.4）：自由 props 中引用这些键时，发布前校验其有效性。
 var (
-	pageSKUFields      = map[string]bool{"sku_id": true, "sku_ids": true}
 	pageProductFields  = map[string]bool{"product_id": true, "product_ids": true}
 	pageCampaignFields = map[string]bool{"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true}
 )
@@ -149,8 +147,8 @@ func validatePageResourceValue(ctx context.Context, db *ent.Client, allowedDomai
 			}
 		}
 	case []interface{}:
-		// 实体引用列表（sku_ids / product_ids / activity_ids 等）逐项校验。
-		if pageSKUFields[key] || pageProductFields[key] || pageCampaignFields[key] {
+		// 实体引用列表（product_ids / activity_ids 等）逐项校验。
+		if pageProductFields[key] || pageCampaignFields[key] {
 			for _, item := range v {
 				id, ok := pageEntityFieldID(key, item)
 				if !ok {
@@ -174,7 +172,7 @@ func validatePageResourceValue(ctx context.Context, db *ent.Client, allowedDomai
 
 // pageEntityFieldID 从属性值中解析出实体 ID（数字或数字字符串）；非实体字段返回 ok=false。
 func pageEntityFieldID(key string, value interface{}) (int, bool) {
-	if !pageSKUFields[key] && !pageProductFields[key] && !pageCampaignFields[key] {
+	if !pageProductFields[key] && !pageCampaignFields[key] {
 		return 0, false
 	}
 	switch v := value.(type) {
@@ -203,8 +201,6 @@ func pageEntityFieldID(key string, value interface{}) (int, bool) {
 func pageCheckEntity(ctx context.Context, db *ent.Client, key string, id, compIndex int) error {
 	var err error
 	switch key {
-	case "sku_id", "sku_ids":
-		err = pageCheckSKU(ctx, db, id)
 	case "product_id", "product_ids":
 		err = pageCheckProduct(ctx, db, id)
 	case "campaign_id", "campaign_ids", "activity_id", "activity_ids":
@@ -225,8 +221,7 @@ func pageCheckSKU(ctx context.Context, db *ent.Client, id int) error {
 }
 
 func pageCheckProduct(ctx context.Context, db *ent.Client, id int) error {
-	_, err := db.EsportsProduct.Query().Where(esportsproduct.IDEQ(id), esportsproduct.StatusEQ(esportsproduct.StatusOnSale)).Only(ctx)
-	return err
+	return pageCheckSKU(ctx, db, id)
 }
 
 func pageCheckCampaign(ctx context.Context, db *ent.Client, id int) error {

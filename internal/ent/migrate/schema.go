@@ -3,6 +3,7 @@
 package migrate
 
 import (
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/dialect/sql/schema"
 	"entgo.io/ent/schema/field"
 	"github.com/wuwuseo/cmf/orm"
@@ -644,7 +645,7 @@ var (
 		{Name: "threshold_value", Type: field.TypeInt64, Default: 0},
 		{Name: "window_minutes", Type: field.TypeInt, Default: 0},
 		{Name: "scope_game", Type: field.TypeString, Size: 64, Default: ""},
-		{Name: "scope_sku_id", Type: field.TypeInt, Nullable: true},
+		{Name: "scope_product_id", Type: field.TypeInt, Nullable: true},
 		{Name: "after_sale_kind", Type: field.TypeEnum, Enums: []string{"service_mismatch", "duration_short", "no_show", "wrong_item", "overcharge", "player_appeal", "refund_request", "other"}, Default: "other"},
 		{Name: "channel", Type: field.TypeEnum, Enums: []string{"system", "admin"}, Default: "system"},
 		{Name: "fault_party", Type: field.TypeEnum, Enums: []string{"undetermined", "player", "admin", "customer", "platform", "none"}, Default: "undetermined"},
@@ -1201,7 +1202,7 @@ var (
 		{Name: "subject_type", Type: field.TypeString, Size: 48},
 		{Name: "subject_id", Type: field.TypeInt},
 		{Name: "subject_version", Type: field.TypeInt},
-		{Name: "sku_id", Type: field.TypeInt},
+		{Name: "product_id", Type: field.TypeInt},
 		{Name: "quantity", Type: field.TypeInt64},
 		{Name: "amount_cents", Type: field.TypeInt64},
 		{Name: "channel", Type: field.TypeString, Size: 48},
@@ -2169,9 +2170,9 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "order_no", Type: field.TypeString, Size: 64},
 		{Name: "customer_id", Type: field.TypeInt},
-		{Name: "sku_id", Type: field.TypeInt},
-		{Name: "sku_code", Type: field.TypeString, Size: 80, Default: ""},
-		{Name: "sku_name", Type: field.TypeString, Size: 160, Default: ""},
+		{Name: "product_id", Type: field.TypeInt},
+		{Name: "product_code", Type: field.TypeString, Size: 80, Default: ""},
+		{Name: "product_name", Type: field.TypeString, Size: 160, Default: ""},
 		{Name: "spec_name", Type: field.TypeString, Size: 120, Default: ""},
 		{Name: "created_by_admin_id", Type: field.TypeInt, Nullable: true},
 		{Name: "responsible_admin_id", Type: field.TypeInt, Nullable: true},
@@ -2978,35 +2979,6 @@ var (
 			},
 		},
 	}
-	// EsportsProductsColumns holds the columns for the "esports_products" table.
-	EsportsProductsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "name", Type: field.TypeString, Size: 160},
-		{Name: "category_id", Type: field.TypeInt, Nullable: true},
-		{Name: "description", Type: field.TypeString, Size: 500, Default: ""},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "on_sale", "off_sale"}, Default: "draft"},
-		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
-	}
-	// EsportsProductsTable holds the schema information for the "esports_products" table.
-	EsportsProductsTable = &schema.Table{
-		Name:       TablePrefix + "esports_products",
-		Columns:    EsportsProductsColumns,
-		PrimaryKey: []*schema.Column{EsportsProductsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "esportsproduct_category_id_status",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsProductsColumns[2], EsportsProductsColumns[4]},
-			},
-			{
-				Name:    "esportsproduct_status",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsProductsColumns[4]},
-			},
-		},
-	}
 	// EsportsProductCategoriesColumns holds the columns for the "esports_product_categories" table.
 	EsportsProductCategoriesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -3041,7 +3013,7 @@ var (
 	EsportsQuotaHoldsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "order_id", Type: field.TypeInt},
-		{Name: "sku_id", Type: field.TypeInt},
+		{Name: "product_id", Type: field.TypeInt},
 		{Name: "quantity", Type: field.TypeInt64},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"reserved", "sold", "released", "returned"}},
 		{Name: "expires_at", Type: field.TypeTime},
@@ -3060,7 +3032,7 @@ var (
 				Columns: []*schema.Column{EsportsQuotaHoldsColumns[1]},
 			},
 			{
-				Name:    "esportsquotahold_sku_id_status_expires_at",
+				Name:    "esportsquotahold_product_id_status_expires_at",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsQuotaHoldsColumns[2], EsportsQuotaHoldsColumns[4], EsportsQuotaHoldsColumns[5]},
 			},
@@ -3476,15 +3448,13 @@ var (
 			},
 		},
 	}
-	// EsportsSkusColumns holds the columns for the "esports_skus" table.
-	EsportsSkusColumns = []*schema.Column{
+	// EsportsProductsColumns holds the columns for the "esports_products" table.
+	EsportsProductsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "code", Type: field.TypeString, Size: 80},
 		{Name: "title", Type: field.TypeString, Size: 160},
 		{Name: "service_type", Type: field.TypeEnum, Enums: []string{"play", "teaching", "entertainment", "boosting"}},
 		{Name: "category_id", Type: field.TypeInt, Nullable: true},
-		{Name: "product_id", Type: field.TypeInt, Nullable: true},
-		{Name: "spec_group_id", Type: field.TypeInt, Nullable: true},
 		{Name: "description", Type: field.TypeString, Size: 500, Default: ""},
 		{Name: "unit_price_cents", Type: field.TypeInt64},
 		{Name: "min_unit_price_cents", Type: field.TypeInt64, Default: 0},
@@ -3506,38 +3476,33 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
-	// EsportsSkusTable holds the schema information for the "esports_skus" table.
-	EsportsSkusTable = &schema.Table{
-		Name:       TablePrefix + "esports_skus",
-		Columns:    EsportsSkusColumns,
-		PrimaryKey: []*schema.Column{EsportsSkusColumns[0]},
+	// EsportsProductsTable holds the schema information for the "esports_products" table.
+	EsportsProductsTable = &schema.Table{
+		Name:       TablePrefix + "esports_products",
+		Columns:    EsportsProductsColumns,
+		PrimaryKey: []*schema.Column{EsportsProductsColumns[0]},
 		Indexes: []*schema.Index{
 			{
 				Name:    "esportssku_code",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsSkusColumns[1]},
+				Columns: []*schema.Column{EsportsProductsColumns[1]},
 			},
 			{
 				Name:    "esportssku_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkusColumns[23]},
+				Columns: []*schema.Column{EsportsProductsColumns[21]},
 			},
 			{
 				Name:    "esportssku_category_id_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkusColumns[4], EsportsSkusColumns[22]},
-			},
-			{
-				Name:    "esportssku_product_id_sort_order",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsSkusColumns[5], EsportsSkusColumns[22]},
+				Columns: []*schema.Column{EsportsProductsColumns[4], EsportsProductsColumns[20]},
 			},
 		},
 	}
-	// EsportsSkuSuspensionsColumns holds the columns for the "esports_sku_suspensions" table.
-	EsportsSkuSuspensionsColumns = []*schema.Column{
+	// EsportsProductSuspensionsColumns holds the columns for the "esports_product_suspensions" table.
+	EsportsProductSuspensionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "sku_id", Type: field.TypeInt},
+		{Name: "product_id", Type: field.TypeInt},
 		{Name: "requested_by_admin_id", Type: field.TypeInt},
 		{Name: "reason", Type: field.TypeString, Size: 500},
 		{Name: "effective_mode", Type: field.TypeEnum, Enums: []string{"immediate", "scheduled"}, Default: "immediate"},
@@ -3555,26 +3520,26 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
-	// EsportsSkuSuspensionsTable holds the schema information for the "esports_sku_suspensions" table.
-	EsportsSkuSuspensionsTable = &schema.Table{
-		Name:       TablePrefix + "esports_sku_suspensions",
-		Columns:    EsportsSkuSuspensionsColumns,
-		PrimaryKey: []*schema.Column{EsportsSkuSuspensionsColumns[0]},
+	// EsportsProductSuspensionsTable holds the schema information for the "esports_product_suspensions" table.
+	EsportsProductSuspensionsTable = &schema.Table{
+		Name:       TablePrefix + "esports_product_suspensions",
+		Columns:    EsportsProductSuspensionsColumns,
+		PrimaryKey: []*schema.Column{EsportsProductSuspensionsColumns[0]},
 		Indexes: []*schema.Index{
 			{
 				Name:    "esportsskususpension_pending_key",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsSkuSuspensionsColumns[7]},
+				Columns: []*schema.Column{EsportsProductSuspensionsColumns[7]},
 			},
 			{
-				Name:    "esportsskususpension_sku_id_status",
+				Name:    "esportsskususpension_product_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkuSuspensionsColumns[1], EsportsSkuSuspensionsColumns[6]},
+				Columns: []*schema.Column{EsportsProductSuspensionsColumns[1], EsportsProductSuspensionsColumns[6]},
 			},
 			{
 				Name:    "esportsskususpension_status_effective_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsSkuSuspensionsColumns[6], EsportsSkuSuspensionsColumns[5]},
+				Columns: []*schema.Column{EsportsProductSuspensionsColumns[6], EsportsProductSuspensionsColumns[5]},
 			},
 		},
 	}
@@ -3610,36 +3575,6 @@ var (
 				Name:    "esportsskususpensionitem_suspension_id_status",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsSkuSuspensionItemsColumns[1], EsportsSkuSuspensionItemsColumns[8]},
-			},
-		},
-	}
-	// EsportsSpecGroupsColumns holds the columns for the "esports_spec_groups" table.
-	EsportsSpecGroupsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "code", Type: field.TypeString, Size: 48},
-		{Name: "name", Type: field.TypeString, Size: 120},
-		{Name: "seats", Type: field.TypeJSON},
-		{Name: "per_seat_service_units", Type: field.TypeInt64, Default: 0},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"enabled", "disabled"}, Default: "enabled"},
-		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "updated_at", Type: field.TypeTime},
-	}
-	// EsportsSpecGroupsTable holds the schema information for the "esports_spec_groups" table.
-	EsportsSpecGroupsTable = &schema.Table{
-		Name:       TablePrefix + "esports_spec_groups",
-		Columns:    EsportsSpecGroupsColumns,
-		PrimaryKey: []*schema.Column{EsportsSpecGroupsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "esportsspecgroup_code",
-				Unique:  true,
-				Columns: []*schema.Column{EsportsSpecGroupsColumns[1]},
-			},
-			{
-				Name:    "esportsspecgroup_status",
-				Unique:  false,
-				Columns: []*schema.Column{EsportsSpecGroupsColumns[5]},
 			},
 		},
 	}
@@ -4519,7 +4454,6 @@ var (
 		EsportsPlayerReviewRevisionsTable,
 		EsportsPriceAdjustmentsTable,
 		EsportsPriorityBookingIntentsTable,
-		EsportsProductsTable,
 		EsportsProductCategoriesTable,
 		EsportsQuotaHoldsTable,
 		EsportsRechargeCampaignsTable,
@@ -4533,10 +4467,9 @@ var (
 		EsportsServiceSegmentsTable,
 		EsportsSettlementsTable,
 		EsportsSettlementCyclesTable,
-		EsportsSkusTable,
-		EsportsSkuSuspensionsTable,
+		EsportsProductsTable,
+		EsportsProductSuspensionsTable,
 		EsportsSkuSuspensionItemsTable,
-		EsportsSpecGroupsTable,
 		EsportsTeammatesTable,
 		EsportsWalletAccountsTable,
 		EsportsWalletTxesTable,
@@ -4567,6 +4500,12 @@ func init() {
 	AttachmentsTable.ForeignKeys[0].RefTable = AttachmentGroupsTable
 	BlacklistsTable.ForeignKeys[0].RefTable = UsersTable
 	EsportsOrderCollaboratorsTable.ForeignKeys[0].RefTable = EsportsOrdersTable
+	EsportsProductsTable.Annotation = &entsql.Annotation{
+		Table: "esports_products",
+	}
+	EsportsProductSuspensionsTable.Annotation = &entsql.Annotation{
+		Table: "esports_product_suspensions",
+	}
 	ThirdPartyUsersTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[0].RefTable = UsersTable
 	UserRolesTable.ForeignKeys[1].RefTable = RolesTable

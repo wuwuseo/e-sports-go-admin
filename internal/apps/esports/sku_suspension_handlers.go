@@ -12,16 +12,16 @@ import (
 // §15.7 停服申请 / 异人审批 / 受影响订单逐单处置的路由处理函数。
 // 路由由 app.go 统一接线（本文件只提供 handler）：
 //
-//	POST /admin/skus/:id/suspensions                     发起停服申请
-//	GET  /admin/sku-suspensions                          停服申请列表（可按 status 过滤）
-//	GET  /admin/sku-suspensions/:id                      申请详情 + 逐单处置清单与进度
-//	POST /admin/sku-suspensions/:id/decision             异人审批（approve / reject）
-//	POST /admin/sku-suspensions/:id/cancel               撤回待审批的申请
-//	POST /admin/sku-suspensions/:id/orders/:orderId/disposal  逐单处置
+//	POST /admin/products/:id/suspensions                     发起停服申请
+//	GET  /admin/product-suspensions                          停服申请列表（可按 status 过滤）
+//	GET  /admin/product-suspensions/:id                      申请详情 + 逐单处置清单与进度
+//	POST /admin/product-suspensions/:id/decision             异人审批（approve / reject）
+//	POST /admin/product-suspensions/:id/cancel               撤回待审批的申请
+//	POST /admin/product-suspensions/:id/orders/:orderId/disposal  逐单处置
 //
-// 既有 SKU 直接上下架接口（PUT /admin/skus/:id 改 status）保持不变。
+// 既有 商品直接上下架接口（PUT /admin/products/:id 改 status）保持不变。
 
-// requestSkuSuspensionHandler 发起 SKU 停服申请（§15.7）。
+// requestSkuSuspensionHandler 发起 商品停服申请（§15.7）。
 func requestSkuSuspensionHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

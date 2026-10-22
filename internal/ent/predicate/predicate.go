@@ -237,9 +237,6 @@ type EsportsPriceAdjustment func(*sql.Selector)
 // EsportsPriorityBookingIntent is the predicate function for esportsprioritybookingintent builders.
 type EsportsPriorityBookingIntent func(*sql.Selector)
 
-// EsportsProduct is the predicate function for esportsproduct builders.
-type EsportsProduct func(*sql.Selector)
-
 // EsportsProductCategory is the predicate function for esportsproductcategory builders.
 type EsportsProductCategory func(*sql.Selector)
 
@@ -287,9 +284,6 @@ type EsportsSkuSuspension func(*sql.Selector)
 
 // EsportsSkuSuspensionItem is the predicate function for esportsskususpensionitem builders.
 type EsportsSkuSuspensionItem func(*sql.Selector)
-
-// EsportsSpecGroup is the predicate function for esportsspecgroup builders.
-type EsportsSpecGroup func(*sql.Selector)
 
 // EsportsTeammate is the predicate function for esportsteammate builders.
 type EsportsTeammate func(*sql.Selector)

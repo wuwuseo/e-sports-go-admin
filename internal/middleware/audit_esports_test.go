@@ -20,15 +20,13 @@ func TestAdminAuditRulesCoverEsportsFundPriceSpecAndPublishRoutes(t *testing.T) 
 	rules := AdminAuditRules()
 	for _, key := range []string{
 		// 价格 / 规格 / 结单要求
-		"POST /api/v1/esports/admin/skus",
-		"PUT /api/v1/esports/admin/skus/:id",
+		"POST /api/v1/esports/admin/products",
 		"PUT /api/v1/esports/admin/products/:id",
-		"PUT /api/v1/esports/admin/spec-groups/:id",
 		"PUT /api/v1/esports/admin/close-rules/:id",
 		"POST /api/v1/esports/admin/close-rules/:id/activate",
 		"POST /api/v1/esports/admin/close-rules/:id/rollback",
-		"POST /api/v1/esports/admin/skus/:id/suspensions",
-		"POST /api/v1/esports/admin/sku-suspensions/:id/decision",
+		"POST /api/v1/esports/admin/products/:id/suspensions",
+		"POST /api/v1/esports/admin/product-suspensions/:id/decision",
 		// 订单资金
 		"PUT /api/v1/esports/admin/orders/:id/quote",
 		"POST /api/v1/esports/admin/price-adjustments/:id/decision",
@@ -92,7 +90,7 @@ func TestAuditRecordsSkuPriceChangeWithOperatorAndBeforeAfter(t *testing.T) {
 	app := fiber.New()
 	app.Use(cmfjwt.NewJWTMiddleware(auditTestSecret))
 	app.Use(Audit(AdminAuditRules(), svc))
-	app.Put("/api/v1/esports/admin/skus/:id", func(c fiber.Ctx) error {
+	app.Put("/api/v1/esports/admin/products/:id", func(c fiber.Ctx) error {
 		// 模拟真实改价 handler：只改价，不写任何手工审计埋点。
 		if err := client.EsportsSku.UpdateOneID(sku.ID).SetUnitPriceCents(2500).Exec(c.Context()); err != nil {
 			return err
@@ -100,7 +98,7 @@ func TestAuditRecordsSkuPriceChangeWithOperatorAndBeforeAfter(t *testing.T) {
 		return c.SendStatus(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/esports/admin/skus/"+strconv.Itoa(sku.ID), strings.NewReader(`{"unit_price_cents":2500}`))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/esports/admin/products/"+strconv.Itoa(sku.ID), strings.NewReader(`{"unit_price_cents":2500}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+makeAuditTestToken(t, "31", "operator"))
 	resp, err := app.Test(req)
@@ -157,14 +155,14 @@ func TestAuditPrefixMountCoversFeatureSetRoutes(t *testing.T) {
 	v1.Use("/esports/admin", Audit(AdminAuditRules(), svc))
 	// 模拟 cmfapp.Mount 的注册方式：在 v1 的子分组上追加路由（功能集挂在 /esports 下）。
 	group := v1.Group("/esports")
-	group.Add([]string{http.MethodPut}, "/admin/skus/:id", func(c fiber.Ctx) error {
+	group.Add([]string{http.MethodPut}, "/admin/products/:id", func(c fiber.Ctx) error {
 		if err := client.EsportsSku.UpdateOneID(sku.ID).SetMinUnitPriceCents(2900).Exec(c.Context()); err != nil {
 			return err
 		}
 		return c.SendStatus(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/esports/admin/skus/"+strconv.Itoa(sku.ID), nil)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/esports/admin/products/"+strconv.Itoa(sku.ID), nil)
 	req.Header.Set("Authorization", "Bearer "+makeAuditTestToken(t, "44", "operator2"))
 	resp, err := app.Test(req)
 	if err != nil {
@@ -195,11 +193,11 @@ func TestAuditSkipsSnapshotWhenEntityMissing(t *testing.T) {
 	app := fiber.New()
 	app.Use(cmfjwt.NewJWTMiddleware(auditTestSecret))
 	app.Use(Audit(AdminAuditRules(), svc))
-	app.Put("/api/v1/esports/admin/skus/:id", func(c fiber.Ctx) error {
+	app.Put("/api/v1/esports/admin/products/:id", func(c fiber.Ctx) error {
 		return c.SendStatus(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/esports/admin/skus/999", nil)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/esports/admin/products/999", nil)
 	req.Header.Set("Authorization", "Bearer "+makeAuditTestToken(t, "31", "operator"))
 	resp, err := app.Test(req)
 	if err != nil {

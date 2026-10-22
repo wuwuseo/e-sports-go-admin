@@ -26,7 +26,7 @@ type EsportsConfirmation struct {
 	// SubjectVersion holds the value of the "subject_version" field.
 	SubjectVersion int `json:"subject_version"`
 	// SkuID holds the value of the "sku_id" field.
-	SkuID int `json:"sku_id"`
+	SkuID int `json:"product_id"`
 	// Quantity holds the value of the "quantity" field.
 	Quantity int64 `json:"quantity"`
 	// AmountCents holds the value of the "amount_cents" field.

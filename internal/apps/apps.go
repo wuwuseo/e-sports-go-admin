@@ -33,7 +33,33 @@ var reservedCodes = []string{"admin", "public", "user", "plugin", "attachments",
 // retiredAppPermissions 记录功能集已合并/下线的权限码。种子权限只做创建与更新、
 // 不删除历史行，不显式清理会在超管菜单树里留下孤儿菜单。
 var retiredAppPermissions = map[string][]string{
-	"esports": {"esports:pages:home_menu"},
+	"esports": {
+		"esports:pages:home_menu", "esports:products:detail", "esports:orders:seat_roles",
+		"esports:spec_groups:list", "esports:spec_groups:create", "esports:spec_groups:update",
+		"esports:skus:list", "esports:skus:create", "esports:skus:update",
+		"esports:skus:suspension_request", "esports:skus:suspension_list",
+		"esports:skus:suspension_detail", "esports:skus:suspension_decision",
+		"esports:skus:suspension_cancel", "esports:skus:suspension_disposal",
+		"esports:skus:add", "esports:skus:edit",
+	},
+}
+
+type appPolicyMigration struct{ from, to, method, kind string }
+
+var appPolicyMigrations = map[string][]appPolicyMigration{
+	"esports": {
+		{"/api/v1/esports/admin/skus", "/api/v1/esports/admin/products", "GET", "api"},
+		{"/api/v1/esports/admin/skus", "/api/v1/esports/admin/products", "POST", "api"},
+		{"/api/v1/esports/admin/skus/{id}", "/api/v1/esports/admin/products/{id}", "PUT", "api"},
+		{"/api/v1/esports/admin/skus/{id}/suspensions", "/api/v1/esports/admin/products/{id}/suspensions", "POST", "api"},
+		{"/api/v1/esports/admin/sku-suspensions", "/api/v1/esports/admin/product-suspensions", "GET", "api"},
+		{"/api/v1/esports/admin/sku-suspensions/{id}", "/api/v1/esports/admin/product-suspensions/{id}", "GET", "api"},
+		{"/api/v1/esports/admin/sku-suspensions/{id}/decision", "/api/v1/esports/admin/product-suspensions/{id}/decision", "POST", "api"},
+		{"/api/v1/esports/admin/sku-suspensions/{id}/cancel", "/api/v1/esports/admin/product-suspensions/{id}/cancel", "POST", "api"},
+		{"/api/v1/esports/admin/sku-suspensions/{id}/orders/{orderId}/disposal", "/api/v1/esports/admin/product-suspensions/{id}/orders/{orderId}/disposal", "POST", "api"},
+		{"esports:skus:add", "esports:products:add", "button", "button"},
+		{"esports:skus:edit", "esports:products:edit", "button", "button"},
+	},
 }
 
 // appMenuPathMigrations 记录菜单路径变更后的角色授权迁移。角色授权以菜单路径为
@@ -141,6 +167,50 @@ func seedPagePreviewSecret(ctx context.Context, client *ent.Client, key string, 
 // retireAppPermissions 清理功能集已退役的权限行，并把变更过路径的菜单授权平移到新路径。
 // 两步都必须幂等：Provision 每次启动都会执行。
 func retireAppPermissions(ctx context.Context, client *ent.Client, appCode, domain string) error {
+	for _, migration := range appPolicyMigrations[appCode] {
+		oldRules, err := client.CasbinRule.Query().Where(
+			casbinrule.PtypeEQ("p"), casbinrule.V1EQ(domain),
+			casbinrule.V2EQ(migration.from), casbinrule.V3EQ(migration.method),
+			casbinrule.V4EQ(migration.kind),
+		).All(ctx)
+		if err != nil {
+			return err
+		}
+		for _, old := range oldRules {
+			exists, err := client.CasbinRule.Query().Where(
+				casbinrule.PtypeEQ(old.Ptype), casbinrule.V0EQ(old.V0), casbinrule.V1EQ(old.V1),
+				casbinrule.V2EQ(migration.to), casbinrule.V3EQ(old.V3),
+				casbinrule.V4EQ(old.V4), casbinrule.V5EQ(old.V5),
+			).Exist(ctx)
+			if err != nil {
+				return err
+			}
+			if exists {
+				if err := client.CasbinRule.DeleteOne(old).Exec(ctx); err != nil {
+					return err
+				}
+			} else if _, err := client.CasbinRule.UpdateOne(old).SetV2(migration.to).Save(ctx); err != nil {
+				return fmt.Errorf("app %s: migrate policy %s -> %s: %w", appCode, migration.from, migration.to, err)
+			}
+		}
+	}
+	if appCode == "esports" {
+		for _, path := range []string{
+			"/api/v1/esports/admin/spec-groups", "/api/v1/esports/admin/spec-groups/{id}",
+			"/api/v1/esports/admin/products/{id}", "/api/v1/esports/admin/orders/{id}/seat-roles",
+		} {
+			query := client.CasbinRule.Delete().Where(
+				casbinrule.PtypeEQ("p"), casbinrule.V1EQ(domain), casbinrule.V2EQ(path),
+				casbinrule.V4EQ("api"),
+			)
+			if path == "/api/v1/esports/admin/products/{id}" {
+				query = query.Where(casbinrule.V3EQ("GET"))
+			}
+			if _, err := query.Exec(ctx); err != nil {
+				return err
+			}
+		}
+	}
 	for _, code := range retiredAppPermissions[appCode] {
 		if _, err := client.SystemPermission.Delete().
 			Where(systempermission.DomainEQ(domain), systempermission.CodeEQ(code)).
@@ -175,6 +245,9 @@ func seedFeatureBaseline(ctx context.Context, client *ent.Client, code string) e
 	}
 	if _, err := esports.SeedMemberLevels(ctx, client); err != nil {
 		return fmt.Errorf("app %s: seed member levels: %w", code, err)
+	}
+	if _, err := esports.SeedRechargeCampaign(ctx, client); err != nil {
+		return fmt.Errorf("app %s: seed recharge campaign: %w", code, err)
 	}
 	return nil
 }

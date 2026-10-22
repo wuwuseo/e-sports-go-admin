@@ -126,13 +126,13 @@ func TestPageResourceCheckEntityValidity(t *testing.T) {
 	}
 	// 有效引用：上架 SKU（商品列表）+ 进行中活动（活动组件）。
 	if err := validatePageResources(t.Context(), db, build(map[string]interface{}{
-		"sku_id": sku.ID,
+		"product_id": sku.ID,
 	})); err != nil {
 		t.Fatalf("有效实体引用应通过：%v", err)
 	}
 	// 不存在的 SKU。
 	if err := validatePageResources(t.Context(), db, build(map[string]interface{}{
-		"sku_id": 999999,
+		"product_id": 999999,
 	})); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("不存在的 SKU 应被拒，实际：%v", err)
 	}
@@ -141,7 +141,7 @@ func TestPageResourceCheckEntityValidity(t *testing.T) {
 		SetServiceType("play").SetUnitPriceCents(1000).SetServiceUnits(1).
 		SetServiceUnitName("小时").SetStatus(esportssku.StatusOffSale).SaveX(t.Context())
 	if err := validatePageResources(t.Context(), db, build(map[string]interface{}{
-		"sku_id": offSku.ID,
+		"product_id": offSku.ID,
 	})); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("下架 SKU 应被拒，实际：%v", err)
 	}
@@ -158,7 +158,7 @@ func TestPagePublishResourceValidityWired(t *testing.T) {
 		visible := true
 		return []pageComponent{
 			{Type: "search", Visible: &visible},
-			{Type: "product_list", Visible: &visible, Props: map[string]interface{}{"sku_id": id}},
+			{Type: "product_list", Visible: &visible, Props: map[string]interface{}{"product_id": id}},
 			{Type: "support_entry", Visible: &visible},
 		}
 	}

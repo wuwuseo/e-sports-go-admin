@@ -20,7 +20,7 @@ type quoteSnapshot struct {
 	OrderID              int       `json:"order_id"`
 	OrderNo              string    `json:"order_no"`
 	QuoteVersion         int       `json:"quote_version"`
-	SkuID                int       `json:"sku_id"`
+	SkuID                int       `json:"product_id"`
 	Quantity             int64     `json:"quantity"`
 	UnitPriceCents       int64     `json:"unit_price_cents"`
 	DiscountCents        int64     `json:"discount_cents"`

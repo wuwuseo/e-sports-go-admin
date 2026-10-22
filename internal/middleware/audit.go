@@ -21,7 +21,6 @@ import (
 // 使价格 / 规格 / 结单要求等变更可查「操作人 + 时间 + 改前改后值」。
 const (
 	AuditSnapshotEsportsSku       = "esports_sku"
-	AuditSnapshotEsportsSpecGroup = "esports_spec_group"
 	AuditSnapshotEsportsCloseRule = "esports_close_rule"
 )
 
@@ -69,15 +68,13 @@ func AdminAuditRules() map[string]AuditRule {
 
 		// —— 陪玩报单（§2.1-05 ② / §15.7-03）：资金 / 价格 / 规格 / 结单要求 / 内容发布变更 ——
 		// 价格与规格：Snapshot 让操作日志带上改前改后值（实体的价格/规格/结单要求字段）。
-		"POST /api/v1/esports/admin/skus":                         {Module: "陪玩报单·商品", Action: "创建SKU"},
-		"PUT /api/v1/esports/admin/skus/:id":                      {Module: "陪玩报单·商品", Action: "编辑SKU（价格/规格/结单要求）", Snapshot: AuditSnapshotEsportsSku},
-		"PUT /api/v1/esports/admin/products/:id":                  {Module: "陪玩报单·商品", Action: "编辑商品"},
-		"PUT /api/v1/esports/admin/spec-groups/:id":               {Module: "陪玩报单·商品", Action: "编辑规格组（每席承诺量）", Snapshot: AuditSnapshotEsportsSpecGroup},
-		"PUT /api/v1/esports/admin/close-rules/:id":               {Module: "陪玩报单·结单要求", Action: "编辑结单要求", Snapshot: AuditSnapshotEsportsCloseRule},
-		"POST /api/v1/esports/admin/close-rules/:id/activate":     {Module: "陪玩报单·结单要求", Action: "生效结单要求"},
-		"POST /api/v1/esports/admin/close-rules/:id/rollback":     {Module: "陪玩报单·结单要求", Action: "回滚结单要求"},
-		"POST /api/v1/esports/admin/skus/:id/suspensions":         {Module: "陪玩报单·商品", Action: "发起停服申请"},
-		"POST /api/v1/esports/admin/sku-suspensions/:id/decision": {Module: "陪玩报单·商品", Action: "审批停服申请"},
+		"POST /api/v1/esports/admin/products":                         {Module: "陪玩报单·商品", Action: "创建商品"},
+		"PUT /api/v1/esports/admin/products/:id":                      {Module: "陪玩报单·商品", Action: "编辑商品（价格/结单要求）", Snapshot: AuditSnapshotEsportsSku},
+		"PUT /api/v1/esports/admin/close-rules/:id":                   {Module: "陪玩报单·结单要求", Action: "编辑结单要求", Snapshot: AuditSnapshotEsportsCloseRule},
+		"POST /api/v1/esports/admin/close-rules/:id/activate":         {Module: "陪玩报单·结单要求", Action: "生效结单要求"},
+		"POST /api/v1/esports/admin/close-rules/:id/rollback":         {Module: "陪玩报单·结单要求", Action: "回滚结单要求"},
+		"POST /api/v1/esports/admin/products/:id/suspensions":         {Module: "陪玩报单·商品", Action: "发起停服申请"},
+		"POST /api/v1/esports/admin/product-suspensions/:id/decision": {Module: "陪玩报单·商品", Action: "审批停服申请"},
 		// 订单资金
 		"PUT /api/v1/esports/admin/orders/:id/quote":                {Module: "陪玩报单·订单资金", Action: "订单改价"},
 		"POST /api/v1/esports/admin/price-adjustments/:id/decision": {Module: "陪玩报单·订单资金", Action: "复核超限改价"},
@@ -196,19 +193,6 @@ func auditEntitySnapshot(c fiber.Ctx, kind, routePath string) map[string]string 
 			"required_seats":         strconv.Itoa(row.RequiredSeats),
 			"close_rule_code":        row.CloseRuleCode,
 			"quota_total":            strconv.FormatInt(row.QuotaTotal, 10),
-			"status":                 string(row.Status),
-			"version":                strconv.Itoa(row.Version),
-		}
-	case AuditSnapshotEsportsSpecGroup:
-		row, err := db.EsportsSpecGroup.Get(ctx, id)
-		if err != nil {
-			return nil
-		}
-		return map[string]string{
-			"code":                   row.Code,
-			"name":                   row.Name,
-			"seats":                  auditSnapshotJSON(row.Seats),
-			"per_seat_service_units": strconv.FormatInt(row.PerSeatServiceUnits, 10),
 			"status":                 string(row.Status),
 			"version":                strconv.Itoa(row.Version),
 		}

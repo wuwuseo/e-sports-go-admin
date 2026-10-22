@@ -24,13 +24,13 @@ func po2SkuCostApp(admin *ent.Admin, isSuper bool) *fiber.App {
 		c.Locals("isSuperAdmin", isSuper)
 		return c.Next()
 	})
-	app.Get("/admin/skus", adminSkus)
+	app.Get("/admin/products", adminSkus)
 	return app
 }
 
 func po2FetchSkus(t *testing.T, app *fiber.App) []map[string]any {
 	t.Helper()
-	req := httptest.NewRequest("GET", "/admin/skus", nil)
+	req := httptest.NewRequest("GET", "/admin/products", nil)
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 10 * time.Second})
 	if err != nil {
 		t.Fatal(err)

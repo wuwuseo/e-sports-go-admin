@@ -256,7 +256,7 @@ func TestPcqPublicPlayersHandlerHonoursProps(t *testing.T) {
 
 // 显式 id 列表优先，limit 与既有 100 条上限取更严者；未配置时保持既有默认返回。
 func TestPcqPublicSkusExplicitIDsAndLimit(t *testing.T) {
-	db := openGiftDB(t, "esports_pcq_sku_ids")
+	db := openGiftDB(t, "esports_pcq_product_ids")
 	defer db.Close()
 	prev := global.ORM
 	global.ORM = db
@@ -270,9 +270,9 @@ func TestPcqPublicSkusExplicitIDsAndLimit(t *testing.T) {
 	db.EsportsSku.UpdateOneID(offSale.ID).SetStatus("off_sale").ExecX(ctx)
 
 	app := fiber.New()
-	app.Get("/skus", publicSkus)
+	app.Get("/products", publicSkus)
 
-	status, payload := pcqDoGet(t, app, "/skus")
+	status, payload := pcqDoGet(t, app, "/products")
 	if status != fiber.StatusOK {
 		t.Fatalf("默认商品列表失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -280,7 +280,7 @@ func TestPcqPublicSkusExplicitIDsAndLimit(t *testing.T) {
 		t.Fatalf("未配置 props 时应保持既有默认（仅在售 + ID 倒序）：%v", got)
 	}
 
-	status, payload = pcqDoGet(t, app, fmt.Sprintf("/skus?sku_ids=%d,%d&limit=1", first.ID, second.ID))
+	status, payload = pcqDoGet(t, app, fmt.Sprintf("/products?product_ids=%d,%d&limit=1", first.ID, second.ID))
 	if status != fiber.StatusOK {
 		t.Fatalf("显式 id 取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -288,7 +288,7 @@ func TestPcqPublicSkusExplicitIDsAndLimit(t *testing.T) {
 		t.Fatalf("显式 id 列表应优先且 limit 生效：%v", got)
 	}
 
-	status, payload = pcqDoGet(t, app, "/skus?limit=2")
+	status, payload = pcqDoGet(t, app, "/products?limit=2")
 	if status != fiber.StatusOK {
 		t.Fatalf("limit 取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -297,7 +297,7 @@ func TestPcqPublicSkusExplicitIDsAndLimit(t *testing.T) {
 	}
 
 	// 客户端 limit 大于既有上限时，取更严的 100（既有硬上限），而不是放宽。
-	status, payload = pcqDoGet(t, app, "/skus?limit=500")
+	status, payload = pcqDoGet(t, app, "/products?limit=500")
 	if status != fiber.StatusOK {
 		t.Fatalf("大 limit 取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -313,20 +313,17 @@ func TestPcqPublicSkusFilterAndSortProps(t *testing.T) {
 	prev := global.ORM
 	global.ORM = db
 	defer func() { global.ORM = prev }()
-	ctx := t.Context()
 
 	lol := pcqSeedCategory(t, db, "PCQ-CAT-LOL", "英雄联盟")
 	wz := pcqSeedCategory(t, db, "PCQ-CAT-WZ", "王者荣耀")
 	pcqSeedSku(t, db, "PCQ-CHEAP", 1000, &lol.ID)
 	mid := pcqSeedSku(t, db, "PCQ-MID", 2000, &lol.ID)
 	pcqSeedSku(t, db, "PCQ-PRICEY", 5000, &wz.ID)
-	parentID := 77
-	db.EsportsSku.UpdateOneID(mid.ID).SetProductID(parentID).ExecX(ctx)
 
 	app := fiber.New()
-	app.Get("/skus", publicSkus)
+	app.Get("/products", publicSkus)
 
-	status, payload := pcqDoGet(t, app, "/skus?filter="+
+	status, payload := pcqDoGet(t, app, "/products?filter="+
 		url.QueryEscape(`{"min_price_cents":1500,"max_price_cents":6000}`)+"&sort=price_asc")
 	if status != fiber.StatusOK {
 		t.Fatalf("价格区间 + 排序取数失败：status=%d msg=%s", status, pcqMessage(payload))
@@ -335,7 +332,7 @@ func TestPcqPublicSkusFilterAndSortProps(t *testing.T) {
 		t.Fatalf("价格区间 + 价格升序未生效：%v", got)
 	}
 
-	status, payload = pcqDoGet(t, app, "/skus?sort=price_desc")
+	status, payload = pcqDoGet(t, app, "/products?sort=price_desc")
 	if status != fiber.StatusOK {
 		t.Fatalf("价格倒序取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -343,7 +340,7 @@ func TestPcqPublicSkusFilterAndSortProps(t *testing.T) {
 		t.Fatalf("价格倒序未生效：%v", got)
 	}
 
-	status, payload = pcqDoGet(t, app, "/skus?filter="+url.QueryEscape(`{"game":"王者荣耀"}`))
+	status, payload = pcqDoGet(t, app, "/products?filter="+url.QueryEscape(`{"game":"王者荣耀"}`))
 	if status != fiber.StatusOK {
 		t.Fatalf("按游戏分区取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -351,7 +348,7 @@ func TestPcqPublicSkusFilterAndSortProps(t *testing.T) {
 		t.Fatalf("按游戏分区（经分类）过滤未生效：%v", got)
 	}
 
-	status, payload = pcqDoGet(t, app, fmt.Sprintf("/skus?product_ids=%d", parentID))
+	status, payload = pcqDoGet(t, app, fmt.Sprintf("/products?product_ids=%d", mid.ID))
 	if status != fiber.StatusOK {
 		t.Fatalf("按父商品取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -375,9 +372,9 @@ func TestPcqPublicSkusRuleDataSource(t *testing.T) {
 	db.EsportsSku.UpdateOneID(hot.ID).SetQuotaSold(5).ExecX(ctx)
 
 	app := fiber.New()
-	app.Get("/skus", publicSkus)
+	app.Get("/products", publicSkus)
 
-	status, payload := pcqDoGet(t, app, "/skus?data_source=rule&rule_code=hot")
+	status, payload := pcqDoGet(t, app, "/products?data_source=rule&rule_code=hot")
 	if status != fiber.StatusOK {
 		t.Fatalf("按规则取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -385,7 +382,7 @@ func TestPcqPublicSkusRuleDataSource(t *testing.T) {
 		t.Fatalf("rule_code=hot 未按既有 quota_sold 倒序取数：%v", got)
 	}
 
-	status, payload = pcqDoGet(t, app, "/skus?rules="+
+	status, payload = pcqDoGet(t, app, "/products?rules="+
 		url.QueryEscape(`{"data_source":"rule","rule_code":"hot","limit":1}`))
 	if status != fiber.StatusOK {
 		t.Fatalf("rules 字典取数失败：status=%d msg=%s", status, pcqMessage(payload))
@@ -395,7 +392,7 @@ func TestPcqPublicSkusRuleDataSource(t *testing.T) {
 	}
 
 	// 手工指定却未给任何 id：明确空结果，而不是回落成全量。
-	status, payload = pcqDoGet(t, app, "/skus?data_source=manual")
+	status, payload = pcqDoGet(t, app, "/products?data_source=manual")
 	if status != fiber.StatusOK {
 		t.Fatalf("手工指定取数失败：status=%d msg=%s", status, pcqMessage(payload))
 	}
@@ -404,11 +401,11 @@ func TestPcqPublicSkusRuleDataSource(t *testing.T) {
 	}
 
 	for _, path := range []string{
-		"/skus?data_source=magic",
-		"/skus?data_source=rule&rule_code=magic_rule",
-		"/skus?data_source=rule&rule_code=discount",
-		"/skus?data_source=campaign",
-		"/skus?data_source=rule",
+		"/products?data_source=magic",
+		"/products?data_source=rule&rule_code=magic_rule",
+		"/products?data_source=rule&rule_code=discount",
+		"/products?data_source=campaign",
+		"/products?data_source=rule",
 	} {
 		if status, payload = pcqDoGet(t, app, path); status != fiber.StatusBadRequest {
 			t.Fatalf("%s 应明确 400，实际 %d：%+v", path, status, payload)
@@ -428,16 +425,16 @@ func TestPcqPublicSkusCampaignPropsRejectedExplicitly(t *testing.T) {
 	pcqSeedSku(t, db, "PCQ-ANY", 1000, nil)
 
 	app := fiber.New()
-	app.Get("/skus", publicSkus)
+	app.Get("/products", publicSkus)
 
 	for _, path := range []string{
-		"/skus?campaign_id=1",
-		"/skus?campaign_ids=1,2",
-		"/skus?activity_id=3",
-		"/skus?activity_ids=3,4",
-		"/skus?filter=" + url.QueryEscape(`{"campaign_id":1}`),
-		"/skus?filter=" + url.QueryEscape(`{"activity_ids":[3,4]}`),
-		"/skus?filter=" + url.QueryEscape(`{"tag":"hot"}`),
+		"/products?campaign_id=1",
+		"/products?campaign_ids=1,2",
+		"/products?activity_id=3",
+		"/products?activity_ids=3,4",
+		"/products?filter=" + url.QueryEscape(`{"campaign_id":1}`),
+		"/products?filter=" + url.QueryEscape(`{"activity_ids":[3,4]}`),
+		"/products?filter=" + url.QueryEscape(`{"tag":"hot"}`),
 	} {
 		if status, payload := pcqDoGet(t, app, path); status != fiber.StatusBadRequest {
 			t.Fatalf("%s 应明确 400，实际 %d：%+v", path, status, payload)
@@ -498,7 +495,7 @@ func TestPcqPageComponentFilterKeysAreScoped(t *testing.T) {
 	}{
 		{"product_list", map[string]interface{}{"filter": map[string]interface{}{
 			"game": "英雄联盟", "category_id": 2, "min_price_cents": 1000, "max_price_cents": 5000,
-			"status": "on_sale", "sku_id": 1, "product_id": 2,
+			"status": "on_sale", "product_id": 2,
 		}}},
 		{"player_recommend", map[string]interface{}{"title": "推荐", "filter": map[string]interface{}{
 			"game": "英雄联盟", "level": "senior", "online": true, "bookable": true,

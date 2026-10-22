@@ -33,7 +33,7 @@ type backfillOrderInput struct {
 	CustomerID int `json:"customer_id"`
 	// SkuID 可选：有 SKU 时按 SKU 快照价格 / 服务量；0 表示无 SKU 的历史补录（不绑定 SKU），
 	// 此时 unit_price_cents 必填且 >0（§15.6 无 SKU 历史补录走管理员专用入口）。
-	SkuID    int   `json:"sku_id"`
+	SkuID    int   `json:"product_id"`
 	Quantity int64 `json:"quantity"`
 	// UnitPriceCents 为实际成交单价；有 SKU 时留 0 表示按 SKU 当前规格价补录，无 SKU 时必填。
 	UnitPriceCents int64 `json:"unit_price_cents"`

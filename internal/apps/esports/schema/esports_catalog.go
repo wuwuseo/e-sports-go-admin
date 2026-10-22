@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
+	entschema "entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
 )
@@ -31,6 +33,10 @@ func (EsportsProductCategory) Indexes() []ent.Index {
 // EsportsSku is a fixed-price first-release service unit.
 type EsportsSku struct{ ent.Schema }
 
+func (EsportsSku) Annotations() []entschema.Annotation {
+	return []entschema.Annotation{entsql.Annotation{Table: "esports_products"}}
+}
+
 func (EsportsSku) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("code").NotEmpty().MaxLen(80).Immutable().StructTag(`json:"code"`),
@@ -39,10 +45,6 @@ func (EsportsSku) Fields() []ent.Field {
 		// 业务侧须对 boosting 显式返回「代练首版未开放」参数错误；既有取值一个都不删除。
 		field.Enum("service_type").Values("play", "teaching", "entertainment", "boosting").StructTag(`json:"service_type"`),
 		field.Int("category_id").Optional().Nillable().StructTag(`json:"category_id"`),
-		// 商品父实体（§15.1）：可空，兼容既有独立 SKU；有值时该 SKU 挂在父商品下统一维护。
-		field.Int("product_id").Optional().Nillable().StructTag(`json:"product_id"`),
-		// 规格组（§15.5）：多人规格 SKU 引用规格组；报单时快照每席角色/可替换条件进订单，空表示无逐席约束。
-		field.Int("spec_group_id").Optional().Nillable().StructTag(`json:"spec_group_id"`),
 		field.String("description").MaxLen(500).Default("").StructTag(`json:"description"`),
 		field.Int64("unit_price_cents").Positive().StructTag(`json:"unit_price_cents"`),
 		// 人工议价的每份最低价；会员权益折扣另行计算。旧客户端省略时服务层回落到展示价。
@@ -53,14 +55,14 @@ func (EsportsSku) Fields() []ent.Field {
 		field.String("service_unit_name").NotEmpty().MaxLen(32).StructTag(`json:"service_unit_name"`),
 		// 每席承诺服务量（§15.3-01 / §15.5-01）：多人 SKU（required_seats>1）必须 >0，
 		// 下单校验 promised_service_units = per_seat_service_units × required_seats；0=未配置（下单报参数错误）。
-		field.Int64("per_seat_service_units").Default(0).StructTag(`json:"per_seat_service_units"`),
+		field.Int64("per_seat_service_units").Default(0).StructTag(`json:"-"`),
 		// SKU 成本（分，§15.8-03）：可选，仅财务角色只读可见，供订单毛利口径；
 		// 未填写为 NULL（历史 SKU 不回填），读取方按 nil 处理。
 		field.Int64("cost_cents").Optional().Nillable().StructTag(`json:"cost_cents"`),
 		// 单次服务的标准时长（分钟，§5.5）：用于预约时段重叠与服务开始自然日的容量判定；0 表示未配置，
 		// 此时容量判定回落到「未结束即占位」的保守口径。
 		field.Int("service_duration_minutes").Default(0).StructTag(`json:"service_duration_minutes"`),
-		field.Int("required_seats").Positive().Default(1).StructTag(`json:"required_seats"`),
+		field.Int("required_seats").Positive().Default(1).StructTag(`json:"-"`),
 		// 所需技能等级（§5.5）：陪玩等级不得低于该值（novice 最低 = 无门槛）。
 		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
 		// 结单要求（§15.3）：引用生效结单规则的 code；下单时随 SKU 快照，结单按该规则的条件与审批流执行。
@@ -82,7 +84,6 @@ func (EsportsSku) Indexes() []ent.Index {
 		index.Fields("code").Unique(),
 		index.Fields("status"),
 		index.Fields("category_id", "sort_order"),
-		index.Fields("product_id", "sort_order"),
 	}
 }
 
@@ -92,7 +93,7 @@ type EsportsQuotaHold struct{ ent.Schema }
 func (EsportsQuotaHold) Fields() []ent.Field {
 	return []ent.Field{
 		field.Int("order_id").Positive().StructTag(`json:"order_id"`),
-		field.Int("sku_id").Positive().StructTag(`json:"sku_id"`),
+		field.Int("sku_id").Positive().StorageKey("product_id").StructTag(`json:"product_id"`),
 		field.Int64("quantity").Positive().StructTag(`json:"quantity"`),
 		field.Enum("status").Values("reserved", "sold", "released", "returned").StructTag(`json:"status"`),
 		field.Time("expires_at").StructTag(`json:"expires_at"`),

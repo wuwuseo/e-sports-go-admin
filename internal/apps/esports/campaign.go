@@ -143,6 +143,12 @@ func validateCampaignInput(in campaignInput) error {
 	return nil
 }
 
+// createCampaignAutoCode 为管理端新建活动生成唯一编码，不接受请求指定编码。
+func createCampaignAutoCode(ctx context.Context, db *ent.Client, in campaignInput) (*ent.EsportsRechargeCampaign, error) {
+	in.Code = "RC-" + strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))
+	return createCampaign(ctx, db, in)
+}
+
 // createCampaign 新建充值活动，状态固定为 draft；code 冲突返回 errConflict。
 func createCampaign(ctx context.Context, db *ent.Client, in campaignInput) (*ent.EsportsRechargeCampaign, error) {
 	if err := validateCampaignInput(in); err != nil {

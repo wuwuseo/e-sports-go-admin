@@ -33,7 +33,7 @@ const (
 	// FieldScopeGame holds the string denoting the scope_game field in the database.
 	FieldScopeGame = "scope_game"
 	// FieldScopeSkuID holds the string denoting the scope_sku_id field in the database.
-	FieldScopeSkuID = "scope_sku_id"
+	FieldScopeSkuID = "scope_product_id"
 	// FieldAfterSaleKind holds the string denoting the after_sale_kind field in the database.
 	FieldAfterSaleKind = "after_sale_kind"
 	// FieldChannel holds the string denoting the channel field in the database.

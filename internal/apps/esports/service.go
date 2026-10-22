@@ -63,27 +63,23 @@ func (o *optionalInt64) UnmarshalJSON(data []byte) error {
 }
 
 type skuInput struct {
-	Code        string `json:"code"`
-	Title       string `json:"title"`
-	ServiceType string `json:"service_type"`
-	CategoryID  *int   `json:"category_id"`
-	// ProductID / SpecGroupID 把 SKU 挂到商品父实体与规格组（§15.1 / §15.5）：可选，
-	// 传了就必须存在且状态可用（商品不得下架、规格组须启用）。
-	ProductID            *int   `json:"product_id"`
-	SpecGroupID          *int   `json:"spec_group_id"`
+	Code                 string `json:"code"`
+	Title                string `json:"title"`
+	ServiceType          string `json:"service_type"`
+	CategoryID           *int   `json:"category_id"`
 	Description          string `json:"description"`
 	UnitPriceCents       int64  `json:"unit_price_cents"`
 	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
 	AdjustmentApprovalBp int    `json:"adjustment_approval_bp"`
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
-	RequiredSeats        int    `json:"required_seats"`
+	RequiredSeats        int    `json:"-"`
 	// RequiredLevel 为该 SKU 的技能等级门槛（§5.5）：枚举 novice / skilled / senior / mentor，
 	// 未传回落 novice（兼容旧前端）；报单时快照到订单，派单候选与接单校验据此拦截低等级陪玩。
 	RequiredLevel *string `json:"required_level"`
 	// PerSeatServiceUnits 为多人 SKU 每个席位承诺的服务量（§15.3-01 / §5.3-05）：required_seats > 1 时必填，
 	// 下单按「每席量 × 席位数 × 份数」落承诺量；0 表示未配置（单人单回落整单服务量）。
-	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
+	PerSeatServiceUnits int64 `json:"-"`
 	// CostCents 为 SKU 成本价（分，可空，§15.8-03）：仅授权角色可读，用于毛利口径；nil 表示未登记成本。
 	CostCents *int64 `json:"cost_cents"`
 	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
@@ -104,24 +100,20 @@ type categoryInput struct {
 }
 
 type skuUpdateInput struct {
-	Title       string `json:"title"`
-	ServiceType string `json:"service_type"`
-	CategoryID  *int   `json:"category_id"`
-	// ProductID / SpecGroupID 同 skuInput：nil 表示保持既有挂载（旧前端不传字段时不得静默解绑），
-	// 传 0 表示显式解除挂载。
-	ProductID            *int   `json:"product_id"`
-	SpecGroupID          *int   `json:"spec_group_id"`
+	Title                string `json:"title"`
+	ServiceType          string `json:"service_type"`
+	CategoryID           *int   `json:"category_id"`
 	Description          string `json:"description"`
 	UnitPriceCents       int64  `json:"unit_price_cents"`
 	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
 	AdjustmentApprovalBp int    `json:"adjustment_approval_bp"`
 	ServiceUnits         int64  `json:"service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
-	RequiredSeats        int    `json:"required_seats"`
+	RequiredSeats        int    `json:"-"`
 	// RequiredLevel 同 skuInput（§5.5）：nil 表示保持既有门槛，避免整表回传把 senior 静默降级。
 	RequiredLevel *string `json:"required_level"`
 	// PerSeatServiceUnits 同 skuInput（§15.3-01）。
-	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
+	PerSeatServiceUnits int64 `json:"-"`
 	// CostCents 同 skuInput（§15.8-03），但区分三态：未传保持不变、显式 null 清空。
 	CostCents optionalInt64 `json:"cost_cents"`
 	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
@@ -142,7 +134,7 @@ type customerInput struct {
 
 type orderInput struct {
 	CustomerID int   `json:"customer_id"`
-	SkuID      int   `json:"sku_id"`
+	SkuID      int   `json:"product_id"`
 	Quantity   int64 `json:"quantity"`
 	// 客户指定陪玩（§5.4）：可选。omitempty 让不传该字段时的幂等哈希与既有口径保持一致。
 	PreferredPlayerID int `json:"preferred_player_id,omitempty"`
@@ -236,18 +228,6 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if err != nil {
 		return nil, err
 	}
-	// §15.1 / §15.5：可选挂载商品父实体与规格组，传了就必须存在且状态可用。
-	_, specGroup, err := resolveSkuCatalogRefs(ctx, db, in.ProductID, in.SpecGroupID, in.RequiredSeats)
-	if err != nil {
-		return nil, err
-	}
-	var groupPerSeat int64
-	if specGroup != nil {
-		groupPerSeat = specGroup.PerSeatServiceUnits
-	}
-	if err = normalizeSkuPerSeatUnits(&in.PerSeatServiceUnits, groupPerSeat); err != nil {
-		return nil, err
-	}
 	// P1-24：多人 SKU 必须能解析出正的每席承诺服务量，否则「可上架但下单必拒」。
 	if err = validateSkuSeatPromise(in.RequiredSeats, in.PerSeatServiceUnits); err != nil {
 		return nil, err
@@ -265,12 +245,6 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 		SetSortOrder(in.SortOrder).SetStatus(esportssku.Status(in.Status))
 	if in.CategoryID != nil {
 		create.SetCategoryID(*in.CategoryID)
-	}
-	if in.ProductID != nil {
-		create.SetProductID(*in.ProductID)
-	}
-	if in.SpecGroupID != nil {
-		create.SetSpecGroupID(*in.SpecGroupID)
 	}
 	if in.CostCents != nil {
 		create.SetCostCents(*in.CostCents)
@@ -489,35 +463,7 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 			return nil, err
 		}
 	}
-	// §15.1 / §15.5：挂载引用「未传保持不变，传 0 显式解除」，避免旧前端不传字段时静默解绑。
-	productID := current.ProductID
-	if in.ProductID != nil {
-		if *in.ProductID == 0 {
-			productID = nil
-		} else {
-			productID = in.ProductID
-		}
-	}
-	specGroupID := current.SpecGroupID
-	if in.SpecGroupID != nil {
-		if *in.SpecGroupID == 0 {
-			specGroupID = nil
-		} else {
-			specGroupID = in.SpecGroupID
-		}
-	}
-	_, specGroup, err := resolveSkuCatalogRefs(ctx, tx.Client(), productID, specGroupID, in.RequiredSeats)
-	if err != nil {
-		return nil, err
-	}
-	var groupPerSeat int64
-	if specGroup != nil {
-		groupPerSeat = specGroup.PerSeatServiceUnits
-	}
 	perSeatUnits := in.PerSeatServiceUnits
-	if err = normalizeSkuPerSeatUnits(&perSeatUnits, groupPerSeat); err != nil {
-		return nil, err
-	}
 	// P1-24：多人 SKU 每席承诺量缺失或非正一律拒绝，避免改成「可上架但下单必拒」。
 	if err = validateSkuSeatPromise(in.RequiredSeats, perSeatUnits); err != nil {
 		return nil, err
@@ -544,16 +490,6 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 		update.ClearCategoryID()
 	} else {
 		update.SetCategoryID(*in.CategoryID)
-	}
-	if productID == nil {
-		update.ClearProductID()
-	} else {
-		update.SetProductID(*productID)
-	}
-	if specGroupID == nil {
-		update.ClearSpecGroupID()
-	} else {
-		update.SetSpecGroupID(*specGroupID)
 	}
 	if _, err = update.Save(ctx); err != nil {
 		return nil, err
@@ -710,15 +646,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		sku.ServiceUnits > math.MaxInt64/in.Quantity {
 		return nil, errConflict
 	}
-	// §15.5-01：有规格组时提前读取，用于「每席承诺服务量」与商品/规格名快照（§15.6-03）。
-	var specGroup *ent.EsportsSpecGroup
-	if sku.SpecGroupID != nil {
-		if specGroup, err = tx.EsportsSpecGroup.Get(ctx, *sku.SpecGroupID); err != nil {
-			return nil, err
-		}
-	}
-	// §15.3-01 / §15.5-01 / §5.3-05：解析每席承诺服务量；多人单缺每席量即拒绝报单（不静默落 0）。
-	perSeatUnits, seatTotalUnits, seatSnapshot, err := resolveSeatPromise(sku, specGroup)
+	perSeatUnits, seatTotalUnits, seatSnapshot, err := resolveSeatPromise(sku)
 	if err != nil {
 		return nil, err
 	}
@@ -870,9 +798,6 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		creator = creator.SetCloseFormTemplateID(closeTemplate.ID)
 	}
 	// §15.5-02：报单时把规格组席位定义（含逐席承诺量）快照进订单 seat_roles（后续改规格不影响历史单）。
-	if specGroup != nil {
-		creator = creator.SetSpecName(specGroup.Name)
-	}
 	if len(seatSnapshot) > 0 {
 		creator = creator.SetSeatRoles(seatSnapshot)
 	}
@@ -899,7 +824,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		SetQuantity(in.Quantity).SetStatus("reserved").SetExpiresAt(deadline).Save(ctx); err != nil {
 		return nil, err
 	}
-	details := map[string]interface{}{"sku_code": sku.Code, "quantity": in.Quantity}
+	details := map[string]interface{}{"product_code": sku.Code, "quantity": in.Quantity}
 	// 留痕：重复报单是被客服显式确认后放行的；预约单记下档期提案时间点。
 	if in.ConfirmDuplicate {
 		details["duplicate_confirmed"] = true

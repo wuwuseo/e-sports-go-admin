@@ -59,7 +59,7 @@ func TestGrabHallMinimalViewHidesSensitiveFields(t *testing.T) {
 		}
 	}
 	for _, required := range []string{
-		"order_no", "sku_name", "unit_price_cents", "payable_cents",
+		"order_no", "product_name", "unit_price_cents", "payable_cents",
 		"required_seats", "service_duration_minutes", "game",
 	} {
 		if !strings.Contains(payload, required) {

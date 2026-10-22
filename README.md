@@ -272,7 +272,7 @@ filesystem:
 
 ## API 与认证
 
-所有业务接口位于 `/api/v1` 下，源码功能集统一挂载在 `/api/v1/esports`（如 `/api/v1/esports/admin/*`、`/api/v1/esports/user/*`、公开接口 `/api/v1/esports/skus`、`/api/v1/esports/page`）。
+所有业务接口位于 `/api/v1` 下，源码功能集统一挂载在 `/api/v1/esports`（如 `/api/v1/esports/admin/*`、`/api/v1/esports/user/*`、公开接口 `/api/v1/esports/products`、`/api/v1/esports/page`）。
 
 ### 登录与令牌
 

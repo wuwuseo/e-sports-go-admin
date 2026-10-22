@@ -52,34 +52,6 @@ func (_c *EsportsSkuCreate) SetNillableCategoryID(v *int) *EsportsSkuCreate {
 	return _c
 }
 
-// SetProductID sets the "product_id" field.
-func (_c *EsportsSkuCreate) SetProductID(v int) *EsportsSkuCreate {
-	_c.mutation.SetProductID(v)
-	return _c
-}
-
-// SetNillableProductID sets the "product_id" field if the given value is not nil.
-func (_c *EsportsSkuCreate) SetNillableProductID(v *int) *EsportsSkuCreate {
-	if v != nil {
-		_c.SetProductID(*v)
-	}
-	return _c
-}
-
-// SetSpecGroupID sets the "spec_group_id" field.
-func (_c *EsportsSkuCreate) SetSpecGroupID(v int) *EsportsSkuCreate {
-	_c.mutation.SetSpecGroupID(v)
-	return _c
-}
-
-// SetNillableSpecGroupID sets the "spec_group_id" field if the given value is not nil.
-func (_c *EsportsSkuCreate) SetNillableSpecGroupID(v *int) *EsportsSkuCreate {
-	if v != nil {
-		_c.SetSpecGroupID(*v)
-	}
-	return _c
-}
-
 // SetDescription sets the "description" field.
 func (_c *EsportsSkuCreate) SetDescription(v string) *EsportsSkuCreate {
 	_c.mutation.SetDescription(v)
@@ -601,14 +573,6 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.CategoryID(); ok {
 		_spec.SetField(esportssku.FieldCategoryID, field.TypeInt, value)
 		_node.CategoryID = &value
-	}
-	if value, ok := _c.mutation.ProductID(); ok {
-		_spec.SetField(esportssku.FieldProductID, field.TypeInt, value)
-		_node.ProductID = &value
-	}
-	if value, ok := _c.mutation.SpecGroupID(); ok {
-		_spec.SetField(esportssku.FieldSpecGroupID, field.TypeInt, value)
-		_node.SpecGroupID = &value
 	}
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(esportssku.FieldDescription, field.TypeString, value)

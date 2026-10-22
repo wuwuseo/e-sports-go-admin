@@ -443,7 +443,7 @@ type playerInviteView struct {
 	OrderID           int       `json:"order_id"`
 	OrderNo           string    `json:"order_no"`
 	CustomerID        int       `json:"customer_id"`
-	SkuID             int       `json:"sku_id"`
+	SkuID             int       `json:"product_id"`
 	PayableCents      int64     `json:"payable_cents"`
 	FulfillmentStatus string    `json:"fulfillment_status"`
 	RequiredSeats     int       `json:"required_seats"`
@@ -745,9 +745,9 @@ func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Ti
 type playerGrabHallItem struct {
 	ID       int    `json:"id"`
 	OrderNo  string `json:"order_no"`
-	SkuID    int    `json:"sku_id"`
-	SkuCode  string `json:"sku_code"`
-	SkuName  string `json:"sku_name"`
+	SkuID    int    `json:"product_id"`
+	SkuCode  string `json:"product_code"`
+	SkuName  string `json:"product_name"`
 	SpecName string `json:"spec_name"`
 	// Game 由「SKU → 商品分类」解析出的游戏分区；解析不到时为空串（不得用 priority_game 顶替）。
 	Game string `json:"game"`

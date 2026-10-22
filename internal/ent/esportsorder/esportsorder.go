@@ -22,11 +22,11 @@ const (
 	// FieldCustomerID holds the string denoting the customer_id field in the database.
 	FieldCustomerID = "customer_id"
 	// FieldSkuID holds the string denoting the sku_id field in the database.
-	FieldSkuID = "sku_id"
+	FieldSkuID = "product_id"
 	// FieldSkuCode holds the string denoting the sku_code field in the database.
-	FieldSkuCode = "sku_code"
+	FieldSkuCode = "product_code"
 	// FieldSkuName holds the string denoting the sku_name field in the database.
-	FieldSkuName = "sku_name"
+	FieldSkuName = "product_name"
 	// FieldSpecName holds the string denoting the spec_name field in the database.
 	FieldSpecName = "spec_name"
 	// FieldCreatedByAdminID holds the string denoting the created_by_admin_id field in the database.

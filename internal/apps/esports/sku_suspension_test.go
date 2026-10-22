@@ -280,7 +280,7 @@ func TestSkuSuspensionApprovalGeneratesItemsAndDisposesByOrder(t *testing.T) {
 	for _, event := range db.EsportsOutbox.Query().AllX(ctx) {
 		outboxTypes[event.EventType]++
 	}
-	for _, want := range []string{"sku.suspension_requested", "sku.suspension_approved", "sku.suspension_applied"} {
+	for _, want := range []string{"product.suspension_requested", "product.suspension_approved", "product.suspension_applied"} {
 		if outboxTypes[want] != 1 {
 			t.Fatalf("缺少外盒事件 %s：%+v", want, outboxTypes)
 		}

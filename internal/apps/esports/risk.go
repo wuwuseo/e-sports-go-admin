@@ -261,7 +261,7 @@ func flagHighRiskCustomers(ctx context.Context, db *ent.Client, now time.Time, l
 
 // customerOrderInput 客户自助下单入参（§13.2 客户自助端）。
 type customerOrderInput struct {
-	SkuID             int    `json:"sku_id"`
+	SkuID             int    `json:"product_id"`
 	Quantity          int64  `json:"quantity"`
 	PreferredPlayerID int    `json:"preferred_player_id"`
 	IdempotencyKey    string `json:"idempotency_key"`

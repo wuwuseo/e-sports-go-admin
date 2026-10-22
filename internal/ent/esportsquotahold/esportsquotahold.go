@@ -19,7 +19,7 @@ const (
 	// FieldOrderID holds the string denoting the order_id field in the database.
 	FieldOrderID = "order_id"
 	// FieldSkuID holds the string denoting the sku_id field in the database.
-	FieldSkuID = "sku_id"
+	FieldSkuID = "product_id"
 	// FieldQuantity holds the string denoting the quantity field in the database.
 	FieldQuantity = "quantity"
 	// FieldStatus holds the string denoting the status field in the database.

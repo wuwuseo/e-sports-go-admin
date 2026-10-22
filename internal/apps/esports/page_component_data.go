@@ -33,7 +33,6 @@ const (
 
 // skuCatalogProps 是 product_list 组件的取数参数（同名 props / 查询参数）。
 type skuCatalogProps struct {
-	SkuIDs        []int
 	ProductIDs    []int
 	CategoryID    int
 	Game          string
@@ -61,7 +60,7 @@ type playerRecommendProps struct {
 // 没有数据关系，配置了必须明确失败（见 parseSkuCatalogProps / applySkuCatalogFilter）。
 var skuCatalogFilterDims = map[string]bool{
 	"game": true, "category_id": true, "min_price_cents": true, "max_price_cents": true,
-	"status": true, "sku_id": true, "product_id": true,
+	"status": true, "product_id": true,
 }
 
 // playerRecommendFilterDims 是 player_recommend 能落到陪玩查询上的筛选维度（§16.3-07）。
@@ -193,19 +192,6 @@ func parseSkuCatalogProps(c fiber.Ctx) (skuCatalogProps, error) {
 	}
 	if raw := strings.TrimSpace(c.Query("status")); raw != "" {
 		props.Status = raw
-	}
-	// 显式 ID：sku_id/sku_ids 为商品本体，product_id/product_ids 为父商品。
-	if raw := strings.TrimSpace(c.Query("sku_id")); raw != "" {
-		id, idErr := componentPropID(raw)
-		if idErr != nil {
-			return props, fmt.Errorf("%w：商品列表的 sku_id 取值非法", errInvalidInput)
-		}
-		props.SkuIDs = []int{id}
-	}
-	if ids, idErr := componentIDList(c.Query("sku_ids")); idErr != nil {
-		return props, idErr
-	} else if len(ids) > 0 {
-		props.SkuIDs = ids
 	}
 	if raw := strings.TrimSpace(c.Query("product_id")); raw != "" {
 		id, idErr := componentPropID(raw)
@@ -348,12 +334,6 @@ func applySkuCatalogFilter(props *skuCatalogProps, filter map[string]interface{}
 				return fmt.Errorf("%w：商品列表筛选条件 %q 的取值非法", errInvalidInput, key)
 			}
 			props.CategoryID = id
-		case "sku_id":
-			id, err := componentPropIDFromValue(value)
-			if err != nil {
-				return fmt.Errorf("%w：商品列表筛选条件 %q 的取值非法", errInvalidInput, key)
-			}
-			props.SkuIDs = []int{id}
 		case "product_id":
 			id, err := componentPropIDFromValue(value)
 			if err != nil {
@@ -380,7 +360,7 @@ func applySkuCatalogFilter(props *skuCatalogProps, filter map[string]interface{}
 // listPublicSkusByProps 按 product_list 的 props 取公开商品（仅在售；过滤只收窄）。
 func listPublicSkusByProps(ctx context.Context, db *ent.Client, props skuCatalogProps) ([]*ent.EsportsSku, error) {
 	switch props.DataSource {
-	case "", "sku", "product", "manual", "category", "rule":
+	case "", "product", "manual", "category", "rule":
 	default:
 		return nil, fmt.Errorf("%w：商品列表不支持的数据来源 %q", errInvalidInput, props.DataSource)
 	}
@@ -393,7 +373,7 @@ func listPublicSkusByProps(ctx context.Context, db *ent.Client, props skuCatalog
 	if props.DataSource == "category" && props.CategoryID < 1 {
 		return nil, fmt.Errorf("%w：商品列表的数据来源为分类时须同时指定分类", errInvalidInput)
 	}
-	if props.DataSource == "manual" && len(props.SkuIDs) == 0 && len(props.ProductIDs) == 0 {
+	if props.DataSource == "manual" && len(props.ProductIDs) == 0 {
 		// 「手工指定」却没有任何 ID：明确空结果，不回落成全量在售。
 		return []*ent.EsportsSku{}, nil
 	}
@@ -406,11 +386,8 @@ func listPublicSkusByProps(ctx context.Context, db *ent.Client, props skuCatalog
 		limit = pageSkuListLimitMax
 	}
 	q := db.EsportsSku.Query().Where(esportssku.StatusEQ(esportssku.StatusOnSale))
-	if len(props.SkuIDs) > 0 {
-		q.Where(esportssku.IDIn(props.SkuIDs...))
-	}
 	if len(props.ProductIDs) > 0 {
-		q.Where(esportssku.ProductIDIn(props.ProductIDs...))
+		q.Where(esportssku.IDIn(props.ProductIDs...))
 	}
 	if props.CategoryID > 0 {
 		q.Where(esportssku.CategoryIDIn(props.CategoryID))

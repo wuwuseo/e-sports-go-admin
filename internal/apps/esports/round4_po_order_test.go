@@ -14,7 +14,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsorderevent"
 	"go-admin/internal/ent/esportsoutbox"
@@ -76,8 +75,8 @@ func poAdminApp(admin *ent.Admin, isSuper bool) *fiber.App {
 	app.Post("/admin/orders/:id/cancel", cancelOrderHandler)
 	app.Post("/admin/orders/:id/close", closeOrderHandler)
 	app.Get("/admin/orders/:id/close-form", orderCloseFormHandler)
-	app.Get("/admin/skus", adminSkus)
-	app.Get("/skus", publicSkus)
+	app.Get("/admin/products", adminSkus)
+	app.Get("/products", publicSkus)
 	return app
 }
 
@@ -135,7 +134,7 @@ func TestRound4PO4602PriceDeviationRequiresReason(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := poAdminApp(admin, true)
-	body := map[string]any{"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1}
+	body := map[string]any{"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1}
 
 	// 折后 8000 分（偏离 2000bp > 阈值 1000bp）且未填原因 → 拒绝并明确提示。
 	status, payload := poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-dev-001", body)
@@ -148,7 +147,7 @@ func TestRound4PO4602PriceDeviationRequiresReason(t *testing.T) {
 
 	// 填写偏离原因 → 放行，并把偏离度与原因写进订单事件（留痕）。
 	withReason := map[string]any{
-		"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1,
+		"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1,
 		"price_deviation_reason": "老客户议价补偿",
 	}
 	status, payload = poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-dev-002", withReason)
@@ -366,7 +365,7 @@ func TestRound4PO4202ManualAdjustAndResponsibleAdmin(t *testing.T) {
 	}
 	app := poAdminApp(admin, true)
 	base := map[string]any{
-		"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1,
+		"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1,
 		"manual_adjust_cents": -500, "responsible_admin_id": responsible.ID,
 	}
 
@@ -415,7 +414,7 @@ func TestRound4PO4202ManualAdjustAndResponsibleAdmin(t *testing.T) {
 
 	// 超免审阈值（|−1200| > 1000 分）且未带已审批调价单 → 明确拒绝，提示先走改价审批。
 	over := map[string]any{
-		"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1,
+		"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1,
 		"manual_adjust_cents": -1200, "manual_adjust_reason": "老客户议价补偿",
 	}
 	status, payload = poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-adj-004", over)
@@ -425,7 +424,7 @@ func TestRound4PO4202ManualAdjustAndResponsibleAdmin(t *testing.T) {
 
 	// 低于 SKU 最低允许价 → 参数错误。
 	low := map[string]any{
-		"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1,
+		"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1,
 		"manual_adjust_cents": -6000, "manual_adjust_reason": "老客户议价补偿",
 	}
 	if status, payload = poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-adj-005", low); status != fiber.StatusBadRequest {
@@ -433,7 +432,7 @@ func TestRound4PO4202ManualAdjustAndResponsibleAdmin(t *testing.T) {
 	}
 
 	// 指定不存在的负责客服 → 参数错误。
-	bad := map[string]any{"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1, "responsible_admin_id": 999999}
+	bad := map[string]any{"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1, "responsible_admin_id": 999999}
 	if status, payload = poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-adj-006", bad); status != fiber.StatusBadRequest {
 		t.Fatalf("不存在的负责客服应被拒：status=%d msg=%s", status, poMessage(payload))
 	}
@@ -463,7 +462,7 @@ func TestRound4PO4206DiscountCapAndFundsGuard(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := poAdminApp(admin, true)
-	body := map[string]any{"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1}
+	body := map[string]any{"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1}
 
 	// 会员等级折扣 8000bp 超单笔折扣上限 1000bp → 参数错误。
 	status, payload := poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-cap-001", body)
@@ -482,7 +481,7 @@ func TestRound4PO4206DiscountCapAndFundsGuard(t *testing.T) {
 
 	// 站内余额核销但余额为 0 → 明确拒绝（而不是等到收款环节才失败）。
 	balance := map[string]any{
-		"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1, "payment_channel": "customer_balance",
+		"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1, "payment_channel": "customer_balance",
 	}
 	status, payload = poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-cap-003", balance)
 	if status != fiber.StatusBadRequest || !strings.Contains(poMessage(payload), "余额") {
@@ -491,7 +490,7 @@ func TestRound4PO4206DiscountCapAndFundsGuard(t *testing.T) {
 
 	// 已下线的储值卡收款方式 → 下单即明确拒绝（不再有卡内资金可复核）。
 	card := map[string]any{
-		"customer_id": customer.ID, "sku_id": sku.ID, "quantity": 1, "payment_channel": "stored_value_card",
+		"customer_id": customer.ID, "product_id": sku.ID, "quantity": 1, "payment_channel": "stored_value_card",
 	}
 	status, payload = poSendJSON(t, app, http.MethodPost, "/admin/orders", "po-cap-004", card)
 	if status != fiber.StatusBadRequest || !strings.Contains(poMessage(payload), "不支持的下单收款方式") {
@@ -505,44 +504,6 @@ func TestRound4PO4206DiscountCapAndFundsGuard(t *testing.T) {
 }
 
 // ── 15.5-02 报单时快照 SKU 规格组席位到订单 seat_roles ──
-
-func TestRound4PO15502SeatRolesSnapshotOnPlaceOrder(t *testing.T) {
-	db := openDispatchPriorityDB(t, "esports_po_seat_roles")
-	defer db.Close()
-	ctx := t.Context()
-	poSeedBaseConfigs(t, db)
-	group := db.EsportsSpecGroup.Create().SetCode("PO-GRP-1").SetName("三排规格组").
-		SetPerSeatServiceUnits(2).
-		SetSeats([]schematier.SeatSpec{
-			{SeatIndex: 0, Role: "坦克", Substitutable: true, Spec: "星耀以上", PromisedUnits: 2},
-			{SeatIndex: 1, Role: "输出", PromisedUnits: 2},
-		}).SaveX(ctx)
-	customer := saveCustomerOrFail(t, db, 11)
-	sku, err := saveSku(ctx, db, skuInput{
-		Code: "PO-SEAT-1", Title: "规格组商品", ServiceType: "play", UnitPriceCents: 5000,
-		ServiceUnits: 4, ServiceUnitName: "小时", RequiredSeats: 2, PerSeatServiceUnits: 2,
-		QuotaTotal: -1, Status: "on_sale",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	db.EsportsSku.UpdateOneID(sku.ID).SetSpecGroupID(group.ID).SaveX(ctx)
-
-	order, err := placeOrder(ctx, db, 11, orderInput{CustomerID: customer.ID, SkuID: sku.ID, Quantity: 1},
-		"po-seat-001", time.Now().UTC())
-	if err != nil {
-		t.Fatal(err)
-	}
-	roles, err := orderSeatRoles(ctx, db, order.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(roles) != 2 || roles[0].Role != "坦克" || roles[1].Role != "输出" || roles[1].PromisedUnits != 2 {
-		t.Fatalf("报单未快照规格组席位：%+v", roles)
-	}
-}
-
-// ── 15.6-01 报单页带走「结单要求 + 会员折扣」：/admin/skus 支持按客户与份数试算 ──
 
 func TestRound4PO15601AdminSkuQuotePreview(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_po_sku_quote")
@@ -567,7 +528,7 @@ func TestRound4PO15601AdminSkuQuotePreview(t *testing.T) {
 
 	app := poAdminApp(admin, true)
 	status, payload := poSendJSON(t, app, http.MethodGet,
-		fmt.Sprintf("/admin/skus?quote_customer_id=%d&quote_quantity=1", customer.ID), "", nil)
+		fmt.Sprintf("/admin/products?quote_customer_id=%d&quote_quantity=1", customer.ID), "", nil)
 	if status != fiber.StatusOK {
 		t.Fatalf("试算请求失败：status=%d msg=%s", status, poMessage(payload))
 	}
@@ -590,8 +551,8 @@ func TestRound4PO15601AdminSkuQuotePreview(t *testing.T) {
 		t.Fatalf("试算未带出承诺服务量：%+v", quote)
 	}
 
-	// 公开 /skus 载荷至少带出结单要求与时长，供移动客服端报单页展示。
-	_, publicPayload := poSendJSON(t, app, http.MethodGet, "/skus", "", nil)
+	// 公开 /products 载荷至少带出结单要求与时长，供移动客服端报单页展示。
+	_, publicPayload := poSendJSON(t, app, http.MethodGet, "/products", "", nil)
 	publicItems, _ := publicPayload["data"].([]any)
 	if len(publicItems) != 1 {
 		t.Fatalf("公开商品列表条数异常：%+v", publicPayload)

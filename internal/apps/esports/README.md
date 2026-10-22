@@ -14,17 +14,19 @@
 
 一个模块一个菜单，均为顶层菜单（当前 18 个）：**商品**（`/esports/products`，产品分类与商品/规格维护）、**订单**（`/esports/orders`，订单列表、详情与改价/改期/取消/余额核销/结单）、**报单**（`/esports/reports`，客服报单、客户、年龄资格复核）、**钱包**（`/esports/wallets`，客户余额与陪玩猫粮账户、充值/调整/流水）、**排单**（`/esports/dispatch`，排单看板、席位指派/撤回、公共池认领、转单、催单、优先派单权名单与独占优先通知、陪玩转单确认）、**陪玩**（`/esports/players`，陪玩档案创建与编辑/上下线）、**售后**（`/esports/aftersales`，售后单受理/方案/审批/执行/退款）、**结算**（`/esports/settlements`，分成规则/分成明细/结算单/客服提成规则/客服提成明细与发放/提现审核）、**充值活动**（`/esports/campaigns`，充值活动配置与状态管理，第 9 个顶层菜单，SortOrder 48）、**会员等级**（`/esports/members`，会员等级配置与客户会员查询/手动调级，第 10 个顶层菜单，SortOrder 49）、**礼物**（`/esports/gifts`，礼物目录、代客送礼、单据复核/退款、收礼/贡献榜单，第 11 个顶层菜单，SortOrder 50）、**考核**（`/esports/assessments`，考核权重配置、考核任务打分定级、申诉复核、客户评价与综合评分，第 12 个顶层菜单，SortOrder 51）、**报表**（`/esports/stats`，五类经营统计报表入口，第 13 个顶层菜单，SortOrder 52）、**页面装修**（`/esports/pages`，uni-app 客户自助端首页装修、发布版本与素材库，第 14 个顶层菜单，SortOrder 53）、**客服工作台**（`/esports/cs`，客服端客户档案与跟进、企微自动建档、话术库、订单池与待办聚合，第 15 个顶层菜单，SortOrder 54）、**结单表单**（`/esports/close-forms`，字段库 / 模板 / 提交规则 / 审批流，第 16 个顶层菜单）、**收款管理**（`/esports/payments`，收款渠道与账户、支付回执核销、渠道撤销 / 拒付、上线自检，第 17 个顶层菜单）、**风险客户**（`/esports/risk-customers`，被标记客户列表与风险标记解除，第 18 个顶层菜单）。菜单权限码分别为 `esports:product:menu`、`esports:order:menu`、`esports:report:menu`、`esports:wallet:menu`、`esports:dispatch:menu`、`esports:player:menu`、`esports:aftersale:menu`、`esports:settlement:menu`、`esports:close_form:menu`、`esports:campaign:menu`、`esports:member:menu`、`esports:gift:menu`、`esports:payment:menu`、`esports:assessment:menu`、`esports:stats:menu`、`esports:page:menu`、`esports:cs:menu`、`esports:risk:menu`，子页面按钮沿用 `esports:skus:*`、`esports:categories:*`、`esports:orders:*`、`esports:customers:*`、`esports:age_checks:*`、`esports:wallets:*`、`esports:dispatch:*`、`esports:players:*`、`esports:aftersales:*`、`esports:settlements:*`、`esports:campaigns:*`、`esports:members:*`、`esports:gifts:*`、`esports:assessments:*`、`esports:stats:*`、`esports:scripts:*`、`esports:pages:*`、`esports:close_forms:*`、`esports:payments:*`、`esports:risk:*`。陪玩端自助接口属独立客户端（uni-app），不挂管理端菜单，其按钮权限统一归到 `esports:players:manage`。
 
-### 商品、SKU 与报价（§15）
+### 商品与报价（§15）
 
-商品父实体、规格组与 SKU 走 `GET/POST /admin/products`、`PUT /admin/products/:id`、`GET/POST /admin/spec-groups`、`PUT /admin/spec-groups/:id`、`GET/POST /admin/skus`、`PUT /admin/skus/:id`。以下口径以当前代码为准（2026-10 整改）：
+商品采用单层目录。公开接口为 `GET /products`，管理接口为 `GET/POST /admin/products`、`PUT /admin/products/:id`；商品停服使用 `/admin/products/:id/suspensions` 与 `/admin/product-suspensions`。分类接口保持不变。每件商品只有一个价格、服务量、结单规则与库存，不再有规格组、子 SKU 或商品级席位配置。新建商品固定为一人服务；存量订单的席位和服务量快照保留，供履约与历史报表读取。
 
-- **技能等级门槛**：`required_level` 可写且真正参与校验，取值 `novice / skilled / senior / mentor`（空串或未传按 `novice`，其它取值返回「技能等级门槛只能是 novice / skilled / senior / mentor」）。**创建**未传落 `novice`（与 schema 默认值一致）；**更新**未传**保持既有门槛**（管理端编辑表单整表回传，不得把 `senior` 静默降级成「谁都能接」）。报单时快照到订单，派单候选池、指派、接受邀请、抢单四处按「陪玩等级不低于订单所需等级」硬校验；商品子 SKU 入口（`PUT /admin/products/:id`）同口径。
-- **多人 SKU 每席承诺量**：`required_seats > 1` 的 SKU **必须**配置正的 `per_seat_service_units`，否则创建 / 更新（含商品子 SKU）一律被拒并点名该字段；规格组已声明每席量时 SKU 跟随规格组。单人 SKU 允许缺省（下单回落整单服务量）。
-- **SKU 挂商品与规格组**：写入 `product_id` / `spec_group_id` 时校验「商品存在且未下架」「规格组存在且启用」「规格组席位数量与 `required_seats` 一致」，不符合返回中文参数错误。
-- **更新语义（2026-10 起）**：`PUT /admin/skus/:id` 与 `PUT /admin/products/:id`（子 SKU）的 `cost_cents` 为三态——**字段未出现 = 保持不变 / 显式 `null` = 清空成本 / 数值 = 覆盖**（负值仍被拒）；`product_id` 与 `spec_group_id` 为「未传 = 保持挂载 / 传 `0` = 解除挂载」。同一次 PUT 里的 `category_id` 仍是「未传即清空」（既有行为，本次未改，三个关联字段语义暂不一致）。
-- **报价页不再整页 400**：`GET /admin/skus?quote_customer_id=&quote_quantity=` 改为逐 SKU 容错——单条 SKU 配置缺失（如多人 SKU 未配每席承诺量）时该条报价对象带 `not_orderable=true` 与中文 `not_orderable_reason`，请求仍返回 200，价格与会员折扣口径照常返回、`promised_service_units` 置 0；只有用新增的 `quote_sku_id=<id>` **显式只问这一条**时才返回 400 + 明确中文错误。客户不存在 / 参数非法等请求级错误仍整体失败；单条 SKU 报价函数（`skuOrderQuote`）语义不变，配置缺失直接报错。
+迁移时把旧 `esports_skus` 原行和原 ID 改为 `esports_products` 商品行，旧父商品与规格组表删除；订单、名额、确认、停服和售后规则的关联列改为 `product_id`，订单的编号与名称快照列改为 `product_code` / `product_name`。订单 ID 与分成明细的 `order_id` 不重新编号。已有非超管角色的旧商品与停服接口授权迁移到新路径。
+
+`required_level` 创建时默认 `novice`，编辑未传时保持原值。`cost_cents` 编辑时未传表示保持、`null` 表示清空、数值表示覆盖。`GET /admin/products?quote_customer_id=&quote_quantity=` 按商品逐条试算会员折扣、应付额和承诺服务量；单件商品不能报价时标记 `not_orderable`，只有指定 `quote_product_id` 才对该件商品返回明确错误。
 
 ### 充值活动与赠送（§4.5）
+
+启用功能集时，`Provision` 会在活动表为空时播种一条“满100送10（示例）”草稿（赠送有效期 30 天、互斥、适用全部客户）。运营确认规则与活动期并手动启用后才会对充值生效；重复启动不会新增或覆盖已有活动。
+
+后台新建充值活动时，`code` 由服务端自动生成，前端无需填写；已有活动的编码仍用于流水快照和关联查询，编辑时不可修改。
 
 充值活动通过 `GET/POST /admin/campaigns`、`PUT /admin/campaigns/:id` 与 `POST /admin/campaigns/:id/status` 维护，落库字段包括：活动类型 `activity_type`（`full_gift` 满赠 / `ladder` 阶梯 / `limited` 限时）、阶梯档位 `tiers`（元素 `{threshold_cents, bonus_cents}`，按 `threshold_cents` **严格递增**，门槛与赠送额均须为正）、叠加规则 `stack_rule`（`stack` 可叠加 / `exclusive` 互斥）、适用客户 `audience`（`all` 全部 / `new_customer` 新客 / `specified` 指定，指定时 `audience_customer_ids` 不得为空）、活动期 `starts_at ~ ends_at`（须早于结束）、赠送有效期 `bonus_valid_days`。其中 `bonus_valid_days = 0` 表示**赠送永久有效**，永不被到期作废。状态流转为 `draft ↔ active ↔ paused`，任意非 `ended` 都可转 `ended`，`ended` 不可回退；`code` 创建后不可改，编辑走 `version` 乐观锁，`code` 重复或版本不一致返回冲突。新建活动状态固定 `draft`。
 

@@ -83,7 +83,6 @@ import (
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsprioritybookingintent"
-	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
@@ -100,7 +99,6 @@ import (
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
-	"go-admin/internal/ent/esportsspecgroup"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
@@ -263,7 +261,6 @@ func checkColumn(t, c string) error {
 			esportsplayerreviewrevision.Table:    esportsplayerreviewrevision.ValidColumn,
 			esportspriceadjustment.Table:         esportspriceadjustment.ValidColumn,
 			esportsprioritybookingintent.Table:   esportsprioritybookingintent.ValidColumn,
-			esportsproduct.Table:                 esportsproduct.ValidColumn,
 			esportsproductcategory.Table:         esportsproductcategory.ValidColumn,
 			esportsquotahold.Table:               esportsquotahold.ValidColumn,
 			esportsrechargecampaign.Table:        esportsrechargecampaign.ValidColumn,
@@ -280,7 +277,6 @@ func checkColumn(t, c string) error {
 			esportssku.Table:                     esportssku.ValidColumn,
 			esportsskususpension.Table:           esportsskususpension.ValidColumn,
 			esportsskususpensionitem.Table:       esportsskususpensionitem.ValidColumn,
-			esportsspecgroup.Table:               esportsspecgroup.ValidColumn,
 			esportsteammate.Table:                esportsteammate.ValidColumn,
 			esportswalletaccount.Table:           esportswalletaccount.ValidColumn,
 			esportswallettx.Table:                esportswallettx.ValidColumn,

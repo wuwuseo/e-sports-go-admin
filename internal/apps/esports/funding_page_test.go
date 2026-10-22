@@ -72,7 +72,7 @@ func TestFundingPagePropsWhitelistAllowsEachComponentType(t *testing.T) {
 			"items": []interface{}{map[string]interface{}{"name": "王者荣耀", "target": "category"}},
 		}}},
 		{"product_list", pageComponent{Type: "product_list", Visible: &visible, Props: map[string]interface{}{
-			"title": "在售服务", "limit": 10, "sku_ids": []interface{}{1, 2}, "empty_text": "暂无可下单的服务",
+			"title": "在售服务", "limit": 10, "product_ids": []interface{}{1, 2}, "empty_text": "暂无可下单的服务",
 		}}},
 		{"player_recommend", pageComponent{Type: "player_recommend", Visible: &visible, Props: map[string]interface{}{
 			"title": "陪玩推荐", "empty_text": "暂无在线可接单的陪玩",

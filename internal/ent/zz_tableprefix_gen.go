@@ -79,7 +79,6 @@ import (
 	"go-admin/internal/ent/esportsplayerreviewrevision"
 	"go-admin/internal/ent/esportspriceadjustment"
 	"go-admin/internal/ent/esportsprioritybookingintent"
-	"go-admin/internal/ent/esportsproduct"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
 	"go-admin/internal/ent/esportsrechargecampaign"
@@ -96,7 +95,6 @@ import (
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
-	"go-admin/internal/ent/esportsspecgroup"
 	"go-admin/internal/ent/esportsteammate"
 	"go-admin/internal/ent/esportswalletaccount"
 	"go-admin/internal/ent/esportswallettx"
@@ -527,11 +525,6 @@ func initGeneratedTablePrefixes(prefix string) {
 		esportsprioritybookingintent.Table = prefix + strings.TrimPrefix(esportsprioritybookingintent.Table, old)
 	}
 	{
-		old := esportsproduct.TablePrefix
-		esportsproduct.TablePrefix = prefix
-		esportsproduct.Table = prefix + strings.TrimPrefix(esportsproduct.Table, old)
-	}
-	{
 		old := esportsproductcategory.TablePrefix
 		esportsproductcategory.TablePrefix = prefix
 		esportsproductcategory.Table = prefix + strings.TrimPrefix(esportsproductcategory.Table, old)
@@ -610,11 +603,6 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsskususpensionitem.TablePrefix
 		esportsskususpensionitem.TablePrefix = prefix
 		esportsskususpensionitem.Table = prefix + strings.TrimPrefix(esportsskususpensionitem.Table, old)
-	}
-	{
-		old := esportsspecgroup.TablePrefix
-		esportsspecgroup.TablePrefix = prefix
-		esportsspecgroup.Table = prefix + strings.TrimPrefix(esportsspecgroup.Table, old)
 	}
 	{
 		old := esportsteammate.TablePrefix

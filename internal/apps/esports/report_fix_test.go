@@ -48,7 +48,7 @@ func TestReportFinanceRejectsOrderDimensions(t *testing.T) {
 	for _, query := range []string{
 		"channel_source=wecom",
 		"entry_point=cs_pc",
-		"sku_id=1",
+		"product_id=1",
 		"game=王者荣耀",
 		"responsible_admin_id=12",
 		"appointment_type=instant",

@@ -34,7 +34,7 @@ type EsportsAfterSaleRule struct {
 	// ScopeGame holds the value of the "scope_game" field.
 	ScopeGame string `json:"scope_game"`
 	// ScopeSkuID holds the value of the "scope_sku_id" field.
-	ScopeSkuID *int `json:"scope_sku_id"`
+	ScopeSkuID *int `json:"scope_product_id"`
 	// AfterSaleKind holds the value of the "after_sale_kind" field.
 	AfterSaleKind esportsaftersalerule.AfterSaleKind `json:"after_sale_kind"`
 	// Channel holds the value of the "channel" field.

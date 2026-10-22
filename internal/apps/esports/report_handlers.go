@@ -108,7 +108,7 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 		Period:           period,
 		ResponsibleAdmin: queryInt(c, "responsible_admin_id"),
 		CreatedByAdmin:   queryInt(c, "created_by_admin_id"),
-		SkuID:            queryInt(c, "sku_id"),
+		SkuID:            queryInt(c, "product_id"),
 		Game:             strings.TrimSpace(c.Query("game")),
 		ChannelSource:    channelSource,
 		EntryPoint:       entryPoint,
@@ -160,7 +160,7 @@ func validateReportDimensionValues(f reportFilter) error {
 // reportFilterDimensionOrder 是报表筛选维度的稳定顺序（错误提示与能力清单共用）。
 var reportFilterDimensionOrder = []string{
 	"channel_source", "entry_point", "responsible_admin_id", "created_by_admin_id",
-	"sku_id", "game", "appointment_type", "seat_type", "payment_channel", "kind", "fault_party",
+	"product_id", "game", "appointment_type", "seat_type", "payment_channel", "kind", "fault_party",
 	"account_type", "entry_type", "settlement_status",
 }
 
@@ -170,7 +170,7 @@ var reportDimensionLabels = map[string]string{
 	"entry_point":          "按报单入口筛选",
 	"responsible_admin_id": "按负责客服筛选",
 	"created_by_admin_id":  "按业绩归属客服（报单客服）筛选",
-	"sku_id":               "按 SKU 筛选",
+	"product_id":           "按 SKU 筛选",
 	"game":                 "按游戏筛选",
 	"appointment_type":     "按即时预约筛选",
 	"seat_type":            "按单人多人筛选",
@@ -208,13 +208,13 @@ func unsupportedReportDimensions(reportType string) []string {
 	unsupported := map[string]bool{}
 	switch reportType {
 	case "aftersale_quality":
-		for _, key := range []string{"sku_id", "game", "payment_channel", "appointment_type", "seat_type",
+		for _, key := range []string{"product_id", "game", "payment_channel", "appointment_type", "seat_type",
 			"created_by_admin_id", "account_type", "entry_type", "settlement_status"} {
 			unsupported[key] = true
 		}
 	case "finance":
 		for _, key := range []string{"channel_source", "entry_point", "responsible_admin_id",
-			"created_by_admin_id", "sku_id", "game", "appointment_type", "seat_type",
+			"created_by_admin_id", "product_id", "game", "appointment_type", "seat_type",
 			"kind", "fault_party"} {
 			unsupported[key] = true
 		}
@@ -268,7 +268,7 @@ func reportFilterDimensionsInUse(f reportFilter) map[string]bool {
 		inUse["created_by_admin_id"] = true
 	}
 	if f.SkuID > 0 {
-		inUse["sku_id"] = true
+		inUse["product_id"] = true
 	}
 	if f.Game != "" {
 		inUse["game"] = true

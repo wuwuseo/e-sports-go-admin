@@ -17,7 +17,7 @@ const (
 	// FieldID holds the string denoting the id field in the database.
 	FieldID = "id"
 	// FieldSkuID holds the string denoting the sku_id field in the database.
-	FieldSkuID = "sku_id"
+	FieldSkuID = "product_id"
 	// FieldRequestedByAdminID holds the string denoting the requested_by_admin_id field in the database.
 	FieldRequestedByAdminID = "requested_by_admin_id"
 	// FieldReason holds the string denoting the reason field in the database.
@@ -55,7 +55,7 @@ const (
 // Table holds the table name of the esportsskususpension in the database.
 var TablePrefix = orm.GetTablePrefix()
 
-var Table = TablePrefix + "esports_sku_suspensions"
+var Table = TablePrefix + "esports_product_suspensions"
 
 // Columns holds all SQL columns for esportsskususpension fields.
 var Columns = []string{

@@ -336,7 +336,6 @@ func publicSkus(c fiber.Ctx) error {
 			"id": item.ID, "code": item.Code, "title": item.Title,
 			"service_type": item.ServiceType, "unit_price_cents": item.UnitPriceCents,
 			"service_units": item.ServiceUnits, "service_unit_name": item.ServiceUnitName,
-			"required_seats": item.RequiredSeats,
 			// §15.6-01：报单页需要一并看到结单要求与标准时长，避免再单独查后台接口。
 			"close_rule_code": item.CloseRuleCode, "service_duration_minutes": item.ServiceDurationMinutes,
 		})
@@ -347,7 +346,7 @@ func publicSkus(c fiber.Ctx) error {
 // skuOrderQuotePreview 是报单页的报价试算结果（§15.6-01）：不落单即可看到会员折扣金额、
 // 应付金额、承诺服务量与该 SKU 适用的结单要求。
 type skuOrderQuotePreview struct {
-	SkuID                int    `json:"sku_id"`
+	SkuID                int    `json:"product_id"`
 	Quantity             int64  `json:"quantity"`
 	MemberLevelCode      string `json:"member_level_code"`
 	MemberDiscountBps    int    `json:"member_discount_bps"`
@@ -359,8 +358,8 @@ type skuOrderQuotePreview struct {
 	ServiceUnitName      string `json:"service_unit_name"`
 	CloseRuleCode        string `json:"close_rule_code"`
 	// §15.3-01 / §5.3-05：多人规格的每席承诺服务量与席位数（详情接口须能读到该字段）。
-	PerSeatServiceUnits int64 `json:"per_seat_service_units"`
-	RequiredSeats       int   `json:"required_seats"`
+	PerSeatServiceUnits int64 `json:"-"`
+	RequiredSeats       int   `json:"-"`
 	// 会员权益消费点（P1-11）：报价页直接展示会员权益是否生效，以及本次订单是否会带
 	// 「专属通道 / 会员优先」派单优先级标记（与 placeOrder 写进订单事件的标记同一口径）。
 	MemberPrivilegeActive bool `json:"member_privilege_active"`
@@ -418,17 +417,7 @@ func buildSkuOrderQuote(ctx context.Context, db *ent.Client, baseline *skuQuoteB
 	if baseline == nil || sku == nil {
 		return nil, errInvalidInput
 	}
-	// §15.5-01：有规格组时提前读取，用于「每席承诺服务量」口径。
-	var specGroup *ent.EsportsSpecGroup
-	if sku.SpecGroupID != nil {
-		group, err := db.EsportsSpecGroup.Get(ctx, *sku.SpecGroupID)
-		if err != nil {
-			return nil, err
-		}
-		specGroup = group
-	}
-	// §15.3-01：试算承诺量走「每席承诺量 × 席位数 × 份数」，多人规格缺每席量时明确报错（不静默落 0）。
-	perSeatUnits, seatTotalUnits, _, err := resolveSeatPromise(sku, specGroup)
+	perSeatUnits, seatTotalUnits, _, err := resolveSeatPromise(sku)
 	if err != nil {
 		return nil, err
 	}
@@ -519,7 +508,7 @@ func adminSkus(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	soleSkuID := queryInt(c, "quote_sku_id")
+	soleSkuID := queryInt(c, "quote_product_id")
 	quotes := make(map[string]*skuOrderQuotePreview, len(items))
 	for _, item := range items {
 		quote, quoteErr := buildSkuOrderQuote(c.Context(), global.ORM, baseline, item, quantity)
@@ -544,6 +533,8 @@ func createSku(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
+	in.RequiredSeats = 1
+	in.PerSeatServiceUnits = 0
 	item, err := saveSku(c.Context(), global.ORM, in)
 	if err != nil {
 		return businessError(c, err)
@@ -563,6 +554,8 @@ func updateSkuHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
+	in.RequiredSeats = 1
+	in.PerSeatServiceUnits = 0
 	item, err := updateSku(c.Context(), global.ORM, id, in)
 	if err != nil {
 		return businessError(c, err)

@@ -25,7 +25,7 @@ const (
 	// FieldSubjectVersion holds the string denoting the subject_version field in the database.
 	FieldSubjectVersion = "subject_version"
 	// FieldSkuID holds the string denoting the sku_id field in the database.
-	FieldSkuID = "sku_id"
+	FieldSkuID = "product_id"
 	// FieldQuantity holds the string denoting the quantity field in the database.
 	FieldQuantity = "quantity"
 	// FieldAmountCents holds the string denoting the amount_cents field in the database.

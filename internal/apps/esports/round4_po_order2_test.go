@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsaftersale"
 	"go-admin/internal/ent/esportscloseformfield"
@@ -15,40 +14,12 @@ import (
 	"go-admin/internal/ent/esportscloseformtemplate"
 	"go-admin/internal/ent/esportscommissionentry"
 	"go-admin/internal/ent/esportsorder"
-	"go-admin/internal/ent/esportsorderevent"
-	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
 // poSeedSpecGroup SKU：造一个引用规格组的在售 SKU（同组两档位用同一 group）。
 // §15.3-01：多人 SKU 须声明每席承诺服务量，整单服务量 = 每席量 × 席位数。
-func poSeedSpecGroupSku(t *testing.T, db *ent.Client, code string, groupID int, price int64) *ent.EsportsSku {
-	t.Helper()
-	sku, err := saveSku(t.Context(), db, skuInput{
-		Code: code, Title: code, ServiceType: "play", UnitPriceCents: price,
-		MinUnitPriceCents: price / 2, ServiceUnits: 2, ServiceUnitName: "小时",
-		RequiredSeats: 2, PerSeatServiceUnits: 1, QuotaTotal: -1,
-		ServiceDurationMinutes: 60, Status: "on_sale",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return db.EsportsSku.UpdateOneID(sku.ID).SetSpecGroupID(groupID).SaveX(t.Context())
-}
-
-// poSeedPendingIntent 给订单造一条待支付意图（用于断言改价后旧意图被作废）。
-func poSeedPendingIntent(t *testing.T, db *ent.Client, order *ent.EsportsOrder) *ent.EsportsPaymentIntent {
-	t.Helper()
-	return db.EsportsPaymentIntent.Create().SetIntentNo("POINT" + order.OrderNo[:8]).
-		SetOrderID(order.ID).SetConfirmationID(1).SetQuoteVersion(order.QuoteVersion).
-		SetAmountCents(order.PayableCents).SetChannel("wechat_work").
-		SetStatus(esportspaymentintent.StatusPending).SetExpiresAt(order.PaymentDeadline).
-		SaveX(t.Context())
-}
-
-// poSeedPaidOrderWithSoldQuota 造一张「已付款 + 名额已售出（quota_hold=sold）」的订单，
-// 用于验证取消路径的退款单与名额退回口径。
 func poSeedPaidOrderWithSoldQuota(t *testing.T, db *ent.Client, code string) *ent.EsportsOrder {
 	t.Helper()
 	ctx := t.Context()
@@ -73,87 +44,6 @@ func poSeedPaidOrderWithSoldQuota(t *testing.T, db *ent.Client, code string) *en
 }
 
 // ── 3.3-01 改价支持改规格 / 档位：作废旧支付意图、抬升报价版本、按新规格快照重算 ──
-
-func TestRound4PO3301RepriceSpecSwitch(t *testing.T) {
-	db := openDispatchPriorityDB(t, "esports_po_reprice_spec")
-	defer db.Close()
-	ctx := t.Context()
-	poSeedBaseConfigs(t, db)
-	group := db.EsportsSpecGroup.Create().SetCode("PO-RP-GRP").SetName("改规格组").
-		SetPerSeatServiceUnits(1).
-		SetSeats([]schematier.SeatSpec{
-			{SeatIndex: 0, Role: "坦克", PromisedUnits: 1}, {SeatIndex: 1, Role: "输出", PromisedUnits: 1},
-		}).SaveX(ctx)
-	skuA := poSeedSpecGroupSku(t, db, "PO-RP-A", group.ID, 10000)
-	skuB := poSeedSpecGroupSku(t, db, "PO-RP-B", group.ID, 16000)
-	otherGroup := db.EsportsSpecGroup.Create().SetCode("PO-RP-GRP2").SetName("另一组").
-		SetPerSeatServiceUnits(1).
-		SetSeats([]schematier.SeatSpec{{SeatIndex: 0, Role: "教练", PromisedUnits: 1}}).SaveX(ctx)
-	skuC := poSeedSpecGroupSku(t, db, "PO-RP-C", otherGroup.ID, 20000)
-	customer := saveCustomerOrFail(t, db, 11)
-	order, err := placeOrder(ctx, db, 11, orderInput{CustomerID: customer.ID, SkuID: skuA.ID, Quantity: 1},
-		"po-rp-001", time.Now().UTC())
-	if err != nil {
-		t.Fatal(err)
-	}
-	intent := poSeedPendingIntent(t, db, order)
-
-	// 跨规格组改档位 → 参数错误。
-	if _, err = repriceOrder(ctx, db, order.ID, 11, true, repriceInput{
-		ExpectedVersion: order.Version, Quantity: 1, SkuID: skuC.ID, Reason: "换档位",
-	}); !errors.Is(err, errInvalidInput) {
-		t.Fatalf("跨规格组改档位应被拒：%v", err)
-	}
-
-	// 同组改档位：按新规格价重算、抬升报价版本、作废旧支付意图、重快照席位。
-	quote, err := previewReprice(ctx, db, order.ID, repriceInput{
-		ExpectedVersion: order.Version, Quantity: 1, SkuID: skuB.ID,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !quote.SpecChanged || quote.SkuID != skuB.ID || quote.PayableCents != 16000 || quote.UnitPriceCents != 16000 {
-		t.Fatalf("改档位试算不正确：%+v", quote)
-	}
-	updated, err := repriceOrder(ctx, db, order.ID, 11, true, repriceInput{
-		ExpectedVersion: order.Version, Quantity: 1, SkuID: skuB.ID, Reason: "客户升级档位",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if updated.SkuID != skuB.ID || updated.PayableCents != 16000 || updated.QuoteVersion != order.QuoteVersion+1 {
-		t.Fatalf("改档位未按新规格落单：%+v", updated)
-	}
-	if updated.SeatRoles == nil || len(updated.SeatRoles) != 2 {
-		t.Fatalf("改档位未重快照席位：%+v", updated.SeatRoles)
-	}
-	reloaded, err := db.EsportsPaymentIntent.Get(ctx, intent.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reloaded.Status != esportspaymentintent.StatusInvalidated {
-		t.Fatalf("改档位应作废旧支付意图：%+v", reloaded.Status)
-	}
-	event, err := db.EsportsOrderEvent.Query().Where(
-		esportsorderevent.OrderIDEQ(order.ID),
-		esportsorderevent.EventTypeEQ("order.repriced"),
-	).Only(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if fmt.Sprint(event.Details["spec_changed"]) != "true" {
-		t.Fatalf("改档位未留痕：%+v", event.Details)
-	}
-	// 旧规格名额退回、新规格占位。
-	if got := db.EsportsSku.GetX(ctx, skuA.ID).QuotaReserved; got != 0 {
-		t.Fatalf("旧规格名额未退回：%d", got)
-	}
-	if got := db.EsportsSku.GetX(ctx, skuB.ID).QuotaReserved; got != 1 {
-		t.Fatalf("新规格未占位：%d", got)
-	}
-}
-
-// ── 3.3-08 取消时落责任方 ──
 
 func TestRound4PO3308CancelRecordsFaultParty(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_po_cancel_fault")

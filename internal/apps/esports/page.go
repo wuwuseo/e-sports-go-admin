@@ -174,7 +174,7 @@ var pagePropsWhitelist = map[string]map[string]bool{
 	"category":  {"title": true, "items": true},
 	"product_list": {
 		"title": true, "limit": true, "empty_text": true,
-		"sku_id": true, "sku_ids": true, "product_id": true, "product_ids": true,
+		"product_id": true, "product_ids": true,
 		// §16.3-06（本轮口径收紧）：充值活动 / 充值赠送活动（campaign / activity）与 SKU 没有任何
 		// 关联字段，商品列表永远无法据此取数。允许保存等于「先承诺、取数时再反悔」，
 		// 因此不再受理这四个键；活动引用请配置到 activity 组件（那里才有真实语义）。
@@ -205,7 +205,7 @@ var pagePropsWhitelist = map[string]map[string]bool{
 var pageNestedPropKeys = map[string]bool{
 	"name": true, "target": true, "icon": true, "title": true, "subtitle": true, "text": true,
 	"limit": true, "interval": true, "color": true, "empty_text": true, "placeholder": true,
-	"sku_id": true, "sku_ids": true, "product_id": true, "product_ids": true,
+	"product_id": true, "product_ids": true,
 	"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
 	// 第 4 轮补全（§16.2-05 / §16.3）：面板四类字段与组件专属字段在嵌套项内同样放行。
 	"spacing": true, "link_type": true, "data_source": true, "filters": true, "sort": true,
@@ -220,7 +220,7 @@ var pageNestedPropKeys = map[string]bool{
 var pageFilterKeys = map[string]bool{
 	"game": true, "level": true, "online": true, "bookable": true, "status": true, "tag": true,
 	"min_price_cents": true, "max_price_cents": true, "category_id": true,
-	"sku_id": true, "campaign_id": true, "activity_id": true, "product_id": true,
+	"product_id": true, "campaign_id": true, "activity_id": true,
 }
 
 // pageFilterKeysByComp 是「按组件类型的筛选条件白名单」（§16.2-05 / §16.3-06 / §16.3-07）。
@@ -235,7 +235,7 @@ var pageFilterKeysByComp = map[string]map[string]bool{
 	// 充值活动维度不在其列（SKU 与活动无关联字段，活动引用属于 activity 组件）。
 	"product_list": {
 		"game": true, "category_id": true, "min_price_cents": true, "max_price_cents": true,
-		"status": true, "sku_id": true, "product_id": true,
+		"status": true, "product_id": true,
 	},
 	// 陪玩推荐（§16.3-07）：游戏分区 / 技能等级 / 在线 / 可接单。
 	"player_recommend": {"game": true, "level": true, "online": true, "bookable": true},
@@ -255,7 +255,7 @@ var pageRulesKeys = map[string]bool{
 // 属性面板枚举取值（§16.2-05 / §16.3）：非法取值一律返回参数错误，避免运营配置出客户端不认的值。
 var (
 	pageDataSourceValues = map[string]bool{
-		"manual": true, "sku": true, "product": true, "campaign": true, "player": true,
+		"manual": true, "product": true, "campaign": true, "player": true,
 		"category": true, "rule": true,
 	}
 	pageRuleCodeValues = map[string]bool{
@@ -265,7 +265,7 @@ var (
 	pageLayoutValues      = map[string]bool{"grid": true, "list": true, "scroll": true, "compact": true}
 	pageLinkTypeValues    = map[string]bool{"none": true, "page": true, "web": true, "tab": true}
 	pageMemberStyleValues = map[string]bool{"card": true, "list": true, "compact": true}
-	pageSearchScopeValues = map[string]bool{"sku": true, "player": true, "both": true}
+	pageSearchScopeValues = map[string]bool{"product": true, "player": true, "both": true}
 	pagePositionValues    = map[string]bool{"top": true, "bottom": true, "inline": true}
 	pagePlayerLevelValues = map[string]bool{"novice": true, "skilled": true, "senior": true, "mentor": true, "any": true}
 	pageImageFitValues    = map[string]bool{"widthFix": true, "aspectFill": true, "aspectFit": true}

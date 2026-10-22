@@ -40,7 +40,7 @@ func TestPageUniversalPanelPropsAccepted(t *testing.T) {
 			"spacing":     12,
 			"link":        "/pages/order/list",
 			"link_type":   "page",
-			"data_source": "sku",
+			"data_source": "product",
 			"filter":      map[string]interface{}{"game": "王者荣耀"},
 			"sort":        "price_asc",
 		}),

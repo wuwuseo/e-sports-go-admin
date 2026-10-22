@@ -262,7 +262,7 @@ func (_q *EsportsSkuSuspensionQuery) Clone() *EsportsSkuSuspensionQuery {
 // Example:
 //
 //	var v []struct {
-//		SkuID int `json:"sku_id"`
+//		SkuID int `json:"product_id"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
@@ -285,7 +285,7 @@ func (_q *EsportsSkuSuspensionQuery) GroupBy(field string, fields ...string) *Es
 // Example:
 //
 //	var v []struct {
-//		SkuID int `json:"sku_id"`
+//		SkuID int `json:"product_id"`
 //	}
 //
 //	client.EsportsSkuSuspension.Query().

@@ -13,7 +13,6 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"go-admin/internal/apps/esports/schematier"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsplayer"
@@ -221,191 +220,6 @@ func TestW4SkuRequiredLevelDispatchGuard(t *testing.T) {
 
 // SKU 挂到商品父实体与规格组：可选字段落库；引用不存在 / 已下架商品 / 停用规格组 / 席位不匹配都拒绝；
 // 更新未传保持既有挂载，传 0 显式解除。
-func TestW4SkuMountProductAndSpecGroup(t *testing.T) {
-	db := openProductDB(t, "esports_w4_sku_mount")
-	defer db.Close()
-	ctx := t.Context()
-
-	product, err := saveProduct(ctx, db, productInput{Name: "双人陪玩商品", Status: "on_sale"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	group, err := saveSpecGroup(ctx, db, specGroupInput{
-		Code: "W4-DUO", Name: "双人规格", PerSeatServiceUnits: 1,
-		Seats: []schematier.SeatSpec{
-			{SeatIndex: 0, Role: "输出"}, {SeatIndex: 1, Role: "辅助"},
-		},
-		Status: "enabled",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sku, err := saveSku(ctx, db, skuInput{
-		Code: "W4-MOUNT", Title: "双人档", ServiceType: "play", UnitPriceCents: 3000,
-		ServiceUnits: 2, ServiceUnitName: "局", RequiredSeats: 2, QuotaTotal: -1, Status: "on_sale",
-		ProductID: &product.ID, SpecGroupID: &group.ID,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sku.ProductID == nil || *sku.ProductID != product.ID {
-		t.Fatalf("SKU 未挂到商品：%+v", sku.ProductID)
-	}
-	if sku.SpecGroupID == nil || *sku.SpecGroupID != group.ID {
-		t.Fatalf("SKU 未挂到规格组：%+v", sku.SpecGroupID)
-	}
-	// 规格组已声明每席量时 SKU 未传则跟随，避免同规格两套口径。
-	if sku.PerSeatServiceUnits != 1 {
-		t.Fatalf("每席承诺量应跟随规格组：%d", sku.PerSeatServiceUnits)
-	}
-
-	missing := 99999
-	if _, err = saveSku(ctx, db, skuInput{
-		Code: "W4-MOUNT-BADP", Title: "坏商品挂载", ServiceType: "play", UnitPriceCents: 1000,
-		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
-		ProductID: &missing,
-	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "商品不存在") {
-		t.Fatalf("引用不存在的商品应被拒：%v", err)
-	}
-	if _, err = saveSku(ctx, db, skuInput{
-		Code: "W4-MOUNT-BADG", Title: "坏规格挂载", ServiceType: "play", UnitPriceCents: 1000,
-		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
-		SpecGroupID: &missing,
-	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "规格组不存在") {
-		t.Fatalf("引用不存在的规格组应被拒：%v", err)
-	}
-
-	// 商品下架后不允许再挂载新 SKU。
-	offSale, err := updateProduct(ctx, db, product.ID, productInput{Name: "双人陪玩商品", Status: "off_sale"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if offSale.Status != "off_sale" {
-		t.Fatalf("商品未下架：%+v", offSale.Status)
-	}
-	if _, err = saveSku(ctx, db, skuInput{
-		Code: "W4-MOUNT-OFF", Title: "下架商品挂载", ServiceType: "play", UnitPriceCents: 1000,
-		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
-		ProductID: &product.ID,
-	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "已下架") {
-		t.Fatalf("下架商品不应再接受 SKU 挂载：%v", err)
-	}
-	if _, err = updateProduct(ctx, db, product.ID, productInput{Name: "双人陪玩商品", Status: "on_sale"}); err != nil {
-		t.Fatal(err)
-	}
-
-	// 停用规格组不允许挂载。
-	disabled, err := updateSpecGroup(ctx, db, group.ID, specGroupInput{
-		Code: "W4-DUO", Name: "双人规格", PerSeatServiceUnits: 1,
-		Seats:  []schematier.SeatSpec{{SeatIndex: 0, Role: "输出"}, {SeatIndex: 1, Role: "辅助"}},
-		Status: "disabled",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if disabled.Status != "disabled" {
-		t.Fatalf("规格组未停用：%+v", disabled.Status)
-	}
-	if _, err = saveSku(ctx, db, skuInput{
-		Code: "W4-MOUNT-GOFF", Title: "停用规格挂载", ServiceType: "play", UnitPriceCents: 1000,
-		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
-		SpecGroupID: &group.ID,
-	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "已停用") {
-		t.Fatalf("停用规格组不应再接受 SKU 挂载：%v", err)
-	}
-
-	// 重新启用规格组，继续验证更新路径的挂载语义。
-	if _, err = updateSpecGroup(ctx, db, group.ID, specGroupInput{
-		Code: "W4-DUO", Name: "双人规格", PerSeatServiceUnits: 1,
-		Seats:  []schematier.SeatSpec{{SeatIndex: 0, Role: "输出"}, {SeatIndex: 1, Role: "辅助"}},
-		Status: "enabled",
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	// 更新未传挂载字段：保持既有挂载。
-	kept, err := updateSku(ctx, db, sku.ID, skuUpdateInput{
-		Title: "双人档", ServiceType: "play", UnitPriceCents: 3000, ServiceUnits: 2,
-		ServiceUnitName: "局", RequiredSeats: 2, PerSeatServiceUnits: 1, QuotaTotal: -1, Status: "on_sale",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if kept.ProductID == nil || *kept.ProductID != product.ID || kept.SpecGroupID == nil ||
-		*kept.SpecGroupID != group.ID {
-		t.Fatalf("更新未传挂载字段时应保持既有挂载：product=%+v group=%+v", kept.ProductID, kept.SpecGroupID)
-	}
-
-	// 传 0 显式解除挂载。
-	zero := 0
-	detached, err := updateSku(ctx, db, sku.ID, skuUpdateInput{
-		Title: "双人档", ServiceType: "play", UnitPriceCents: 3000, ServiceUnits: 2,
-		ServiceUnitName: "局", RequiredSeats: 2, PerSeatServiceUnits: 1, QuotaTotal: -1, Status: "on_sale",
-		ProductID: &zero, SpecGroupID: &zero,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if detached.ProductID != nil || detached.SpecGroupID != nil {
-		t.Fatalf("传 0 时应解除挂载：product=%+v group=%+v", detached.ProductID, detached.SpecGroupID)
-	}
-}
-
-// P1-24：多人（required_seats > 1）SKU 创建/更新必须提供正的每席承诺服务量，单人允许缺省。
-func TestW4SkuPerSeatPromiseValidation(t *testing.T) {
-	db := openProductDB(t, "esports_w4_per_seat")
-	defer db.Close()
-	ctx := t.Context()
-
-	if _, err := saveSku(ctx, db, skuInput{
-		Code: "W4-SEAT-NONE", Title: "缺每席量", ServiceType: "play", UnitPriceCents: 1000,
-		ServiceUnits: 3, ServiceUnitName: "局", RequiredSeats: 3, QuotaTotal: -1, Status: "on_sale",
-	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "每席承诺服务量") {
-		t.Fatalf("多人 SKU 缺每席量应在创建入口被拒：%v", err)
-	}
-	// 单人 SKU 允许缺省（下单回落整单服务量，存量口径不变）。
-	solo, err := saveSku(ctx, db, skuInput{
-		Code: "W4-SEAT-SOLO", Title: "单人档", ServiceType: "play", UnitPriceCents: 1000,
-		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
-	})
-	if err != nil {
-		t.Fatalf("单人 SKU 应允许缺省每席量：%v", err)
-	}
-	if solo.PerSeatServiceUnits != 0 {
-		t.Fatalf("单人 SKU 缺省时每席量应为 0：%d", solo.PerSeatServiceUnits)
-	}
-
-	multi, err := saveSku(ctx, db, skuInput{
-		Code: "W4-SEAT-MULTI", Title: "三人档", ServiceType: "play", UnitPriceCents: 1000,
-		ServiceUnits: 3, ServiceUnitName: "局", RequiredSeats: 3, PerSeatServiceUnits: 1,
-		QuotaTotal: -1, Status: "on_sale",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// 更新把每席量清成 0 也必须被拒（避免「改坏」成下单必拒）。
-	if _, err = updateSku(ctx, db, multi.ID, skuUpdateInput{
-		Title: "三人档", ServiceType: "play", UnitPriceCents: 1000, ServiceUnits: 3,
-		ServiceUnitName: "局", RequiredSeats: 3, PerSeatServiceUnits: 0, QuotaTotal: -1, Status: "on_sale",
-	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "每席承诺服务量") {
-		t.Fatalf("更新清空每席量应被拒：%v", err)
-	}
-
-	// 商品子 SKU 入口同样校验：多人子规格缺每席量直接拒。
-	if _, err = saveProduct(ctx, db, productInput{
-		Name: "多人商品", Status: "on_sale",
-		Skus: []productChildSkuInput{{
-			Code: "W4-CHILD-NONE", Title: "多人子档", ServiceType: "play", UnitPriceCents: 1000,
-			ServiceUnits: 2, ServiceUnitName: "局", RequiredSeats: 2, QuotaTotal: -1, Status: "on_sale",
-		}},
-	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "每席承诺服务量") {
-		t.Fatalf("多人子 SKU 缺每席量应被拒：%v", err)
-	}
-}
-
-// 成本字段（资金相关，P1-22 回归）：PUT 未传 cost_cents 保持不变，显式 null 才清空，
-// 商品入口的子 SKU 成本语义与 SKU 入口一致。
 func TestW4CostCentsNullKeepsValue(t *testing.T) {
 	db := openProductDB(t, "esports_w4_cost_cents")
 	defer db.Close()
@@ -422,14 +236,13 @@ func TestW4CostCentsNullKeepsValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	app := w4AdminApp(t, db, func(app *fiber.App) {
-		app.Put("/admin/skus/:id", updateSkuHandler)
-		app.Put("/admin/products/:id", updateProductHandler)
+		app.Put("/admin/products/:id", updateSkuHandler)
 	})
 	baseBody := `"title":"成本商品","service_type":"play","unit_price_cents":1000,` +
 		`"service_units":1,"service_unit_name":"局","required_seats":1,"quota_total":-1,"status":"on_sale"`
 
 	// 未传 cost_cents：保持既有成本，不得静默清空。
-	status, payload := w4CallJSON(t, app, "PUT", "/admin/skus/1", "{"+baseBody+"}")
+	status, payload := w4CallJSON(t, app, "PUT", "/admin/products/1", "{"+baseBody+"}")
 	if status != fiber.StatusOK {
 		t.Fatalf("未传成本应更新成功，status=%d payload=%+v", status, payload)
 	}
@@ -438,7 +251,7 @@ func TestW4CostCentsNullKeepsValue(t *testing.T) {
 	}
 
 	// 显式 null：清空成本。
-	status, payload = w4CallJSON(t, app, "PUT", "/admin/skus/1", `{"cost_cents":null,`+baseBody+`}`)
+	status, payload = w4CallJSON(t, app, "PUT", "/admin/products/1", `{"cost_cents":null,`+baseBody+`}`)
 	if status != fiber.StatusOK {
 		t.Fatalf("显式传 null 应更新成功，status=%d payload=%+v", status, payload)
 	}
@@ -447,7 +260,7 @@ func TestW4CostCentsNullKeepsValue(t *testing.T) {
 	}
 
 	// 显式传数值：更新成本。
-	status, payload = w4CallJSON(t, app, "PUT", "/admin/skus/1", `{"cost_cents":500,`+baseBody+`}`)
+	status, payload = w4CallJSON(t, app, "PUT", "/admin/products/1", `{"cost_cents":500,`+baseBody+`}`)
 	if status != fiber.StatusOK {
 		t.Fatalf("传数值应更新成功，status=%d payload=%+v", status, payload)
 	}
@@ -455,40 +268,6 @@ func TestW4CostCentsNullKeepsValue(t *testing.T) {
 		t.Fatalf("显式传数值时成本应更新：%+v", got)
 	}
 
-	// 商品入口的子 SKU 同理：PUT /admin/products 不带子 SKU 成本时保持原值。
-	childCost := int64(700)
-	product, err := saveProduct(ctx, db, productInput{
-		Name: "成本商品组", Status: "on_sale",
-		Skus: []productChildSkuInput{{
-			Code: "W4-COST-CHILD", Title: "成本子档", ServiceType: "play", UnitPriceCents: 1000,
-			ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
-			CostCents: optionalInt64{Value: &childCost, Present: true},
-		}},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	child := db.EsportsSku.Query().Where(esportssku.ProductIDEQ(product.ID)).OnlyX(ctx)
-	childBody := `{"name":"成本商品组","status":"on_sale","skus":[{"id":` +
-		strings.TrimSpace(jsonInt(child.ID)) + `,"code":"W4-COST-CHILD","title":"成本子档",` +
-		`"service_type":"play","unit_price_cents":1000,"service_units":1,"service_unit_name":"局",` +
-		`"required_seats":1,"quota_total":-1,"status":"on_sale"}]}`
-	status, payload = w4CallJSON(t, app, "PUT", "/admin/products/1", childBody)
-	if status != fiber.StatusOK {
-		t.Fatalf("商品入口未传子 SKU 成本应成功，status=%d payload=%+v", status, payload)
-	}
-	if got := db.EsportsSku.GetX(ctx, child.ID).CostCents; got == nil || *got != 700 {
-		t.Fatalf("商品入口未传子 SKU 成本时应保持原值：%+v", got)
-	}
-
-	childBody = strings.Replace(childBody, `"title":"成本子档",`, `"title":"成本子档","cost_cents":null,`, 1)
-	status, payload = w4CallJSON(t, app, "PUT", "/admin/products/1", childBody)
-	if status != fiber.StatusOK {
-		t.Fatalf("商品入口显式传 null 应成功，status=%d payload=%+v", status, payload)
-	}
-	if got := db.EsportsSku.GetX(ctx, child.ID).CostCents; got != nil {
-		t.Fatalf("商品入口显式传 null 时应清空子 SKU 成本：%+v", got)
-	}
 }
 
 // jsonInt 把整数渲染成 JSON 数字字面量。
@@ -498,7 +277,7 @@ func jsonInt(value int) string {
 }
 
 // P1-23：单个 SKU 配置缺失只降级该 SKU（not_orderable + 中文原因），其它 SKU 报价正常返回；
-// 报价请求明确只针对该 SKU（quote_sku_id）时才返回明确错误。
+// 报价请求明确只针对该 SKU（quote_product_id）时才返回明确错误。
 func TestW4AdminSkusQuoteGracefulDegrade(t *testing.T) {
 	db := openProductDB(t, "esports_w4_quote_degrade")
 	defer db.Close()
@@ -520,10 +299,10 @@ func TestW4AdminSkusQuoteGracefulDegrade(t *testing.T) {
 	customer := saveCustomerOrFail(t, db, 11)
 
 	app := fiber.New()
-	app.Get("/admin/skus", adminSkus)
+	app.Get("/admin/products", adminSkus)
 
 	status, payload := w4CallJSON(t, app, "GET",
-		"/admin/skus?quote_customer_id="+jsonInt(customer.ID)+"&quote_quantity=1", "")
+		"/admin/products?quote_customer_id="+jsonInt(customer.ID)+"&quote_quantity=1", "")
 	if status != fiber.StatusOK {
 		t.Fatalf("存在坏 SKU 时整页报价不应 400，status=%d payload=%+v", status, payload)
 	}
@@ -543,41 +322,41 @@ func TestW4AdminSkusQuoteGracefulDegrade(t *testing.T) {
 	if badQuote == nil || badQuote["not_orderable"] != true {
 		t.Fatalf("配置缺失的 SKU 应标记不可下单：%+v", badQuote)
 	}
-	if reason, _ := badQuote["not_orderable_reason"].(string); !strings.Contains(reason, "每席承诺服务量") {
+	if reason, _ := badQuote["not_orderable_reason"].(string); !strings.Contains(reason, "历史多人商品缺少每人服务量") {
 		t.Fatalf("不可下单原因应指明缺失项：%q", reason)
 	}
 
 	// 明确只针对该 SKU 报价：仍返回明确错误（400）而不是静默降级。
 	status, payload = w4CallJSON(t, app, "GET",
-		"/admin/skus?quote_customer_id="+jsonInt(customer.ID)+"&quote_quantity=1&quote_sku_id="+jsonInt(bad.ID), "")
+		"/admin/products?quote_customer_id="+jsonInt(customer.ID)+"&quote_quantity=1&quote_product_id="+jsonInt(bad.ID), "")
 	if status != fiber.StatusBadRequest {
 		t.Fatalf("指定坏 SKU 报价应返回 400，status=%d payload=%+v", status, payload)
 	}
-	if message, _ := payload["message"].(string); !strings.Contains(message, "每席承诺服务量") {
+	if message, _ := payload["message"].(string); !strings.Contains(message, "历史多人商品缺少每人服务量") {
 		t.Fatalf("指定坏 SKU 的错误应点名缺失项：%q", message)
 	}
 
 	// 客户不存在属于请求级错误，仍整体失败。
-	if status, _ = w4CallJSON(t, app, "GET", "/admin/skus?quote_customer_id=99999", ""); status == fiber.StatusOK {
+	if status, _ = w4CallJSON(t, app, "GET", "/admin/products?quote_customer_id=99999", ""); status == fiber.StatusOK {
 		t.Fatalf("客户不存在时不应返回成功")
 	}
 }
 
-// P1-22：HTTP 入口同样接线——POST/PUT /admin/skus 的 required_level 能落库，
+// P1-22：HTTP 入口同样接线——POST/PUT /admin/products 的 required_level 能落库，
 // 非法值返回 400 中文提示，避免「只改了服务层、入口没接」。
 func TestW4SkuHandlerRequiredLevel(t *testing.T) {
 	db := openProductDB(t, "esports_w4_sku_handler_level")
 	defer db.Close()
 	w4MountGlobalORM(t, db)
 	app := w4AdminApp(t, db, func(app *fiber.App) {
-		app.Post("/admin/skus", createSku)
-		app.Put("/admin/skus/:id", updateSkuHandler)
+		app.Post("/admin/products", createSku)
+		app.Put("/admin/products/:id", updateSkuHandler)
 	})
 
 	body := `{"code":"W4-H-LEVEL","title":"入口等级","service_type":"play","unit_price_cents":1000,` +
-		`"service_units":1,"service_unit_name":"局","required_seats":1,"quota_total":-1,` +
+		`"service_units":1,"service_unit_name":"局","quota_total":-1,` +
 		`"status":"on_sale","required_level":"skilled"}`
-	status, payload := w4CallJSON(t, app, "POST", "/admin/skus", body)
+	status, payload := w4CallJSON(t, app, "POST", "/admin/products", body)
 	if status != fiber.StatusOK {
 		t.Fatalf("创建 SKU 应成功，status=%d payload=%+v", status, payload)
 	}
@@ -590,18 +369,27 @@ func TestW4SkuHandlerRequiredLevel(t *testing.T) {
 	if stored.RequiredLevel != esportssku.RequiredLevelSkilled {
 		t.Fatalf("创建入口未落库 required_level：%q", stored.RequiredLevel)
 	}
+	if stored.RequiredSeats != 1 || stored.PerSeatServiceUnits != 0 {
+		t.Fatalf("新商品应固定单人服务：%d/%d", stored.RequiredSeats, stored.PerSeatServiceUnits)
+	}
+	if _, visible := data["required_seats"]; visible {
+		t.Fatal("商品接口不应暴露席位字段")
+	}
 
 	updateBody := `{"title":"入口等级","service_type":"play","unit_price_cents":1000,"service_units":1,` +
-		`"service_unit_name":"局","required_seats":1,"quota_total":-1,"status":"on_sale",`
-	status, payload = w4CallJSON(t, app, "PUT", "/admin/skus/"+jsonInt(int(id)), updateBody+`"required_level":"mentor"}`)
+		`"service_unit_name":"局","required_seats":4,"per_seat_service_units":9,"quota_total":-1,"status":"on_sale",`
+	status, payload = w4CallJSON(t, app, "PUT", "/admin/products/"+jsonInt(int(id)), updateBody+`"required_level":"mentor"}`)
 	if status != fiber.StatusOK {
 		t.Fatalf("更新 SKU 应成功，status=%d payload=%+v", status, payload)
 	}
 	if got := db.EsportsSku.GetX(t.Context(), int(id)).RequiredLevel; got != esportssku.RequiredLevelMentor {
 		t.Fatalf("更新入口未落库 required_level：%q", got)
 	}
+	if got := db.EsportsSku.GetX(t.Context(), int(id)); got.RequiredSeats != 1 || got.PerSeatServiceUnits != 0 {
+		t.Fatalf("商品接口不应接受席位输入：%d/%d", got.RequiredSeats, got.PerSeatServiceUnits)
+	}
 
-	status, payload = w4CallJSON(t, app, "PUT", "/admin/skus/"+jsonInt(int(id)), updateBody+`"required_level":"dragon"}`)
+	status, payload = w4CallJSON(t, app, "PUT", "/admin/products/"+jsonInt(int(id)), updateBody+`"required_level":"dragon"}`)
 	if status != fiber.StatusBadRequest {
 		t.Fatalf("非法技能等级应返回 400，status=%d payload=%+v", status, payload)
 	}
@@ -609,5 +397,3 @@ func TestW4SkuHandlerRequiredLevel(t *testing.T) {
 		t.Fatalf("非法技能等级应给出中文提示：%q", message)
 	}
 }
-
-// schematierSeat 说明：席位定义直接复用 schematier.SeatSpec，保持与生产入参一致。

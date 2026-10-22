@@ -47,10 +47,16 @@ func NewEntClient(cfg *config.Config, dbManager *orm.DBManager, connName ...stri
 	if err := normalizeEmptyUserPhones(context.Background(), db); err != nil {
 		return nil, err
 	}
+	if err := migrateSingleProductCatalog(context.Background(), db, driver, orm.GetTablePrefix()); err != nil {
+		return nil, fmt.Errorf("migrate single product catalog: %w", err)
+	}
 
 	// 自动迁移 schema（WithDropIndex/WithDropColumn 确保 schema 变更时自动清理旧索引和旧列）
 	if err := client.Schema.Create(context.Background(), migrate.WithDropIndex(true), migrate.WithDropColumn(true), migrate.WithForeignKeys(false)); err != nil {
 		return nil, err
+	}
+	if err := finalizeSingleProductCatalog(context.Background(), db, driver, orm.GetTablePrefix()); err != nil {
+		return nil, fmt.Errorf("finalize single product catalog: %w", err)
 	}
 
 	return client, nil

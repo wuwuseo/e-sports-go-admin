@@ -19,7 +19,7 @@ type EsportsSkuSuspension struct {
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
 	// SkuID holds the value of the "sku_id" field.
-	SkuID int `json:"sku_id"`
+	SkuID int `json:"product_id"`
 	// RequestedByAdminID holds the value of the "requested_by_admin_id" field.
 	RequestedByAdminID int `json:"requested_by_admin_id"`
 	// Reason holds the value of the "reason" field.

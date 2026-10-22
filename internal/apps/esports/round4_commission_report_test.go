@@ -544,7 +544,7 @@ func TestReportRejectsUnsupportedDimensions(t *testing.T) {
 	app := reportTestApp(admin, true)
 
 	cases := []struct{ path, message string }{
-		{"/admin/reports/aftersale_quality?sku_id=1", "售后质量报表"},
+		{"/admin/reports/aftersale_quality?product_id=1", "售后质量报表"},
 		{"/admin/reports/aftersale_quality?game=%E7%8E%8B%E8%80%85", "售后质量报表"},
 		{"/admin/reports/aftersale_quality?payment_channel=wechat", "售后质量报表"},
 		{"/admin/reports/aftersale_quality?appointment_type=instant", "售后质量报表"},
@@ -568,7 +568,7 @@ func TestReportRejectsUnsupportedDimensions(t *testing.T) {
 	// 支持的维度不得被误拒。
 	for _, path := range []string{
 		"/admin/reports/aftersale_quality?kind=refund_request&fault_party=player",
-		"/admin/reports/owner_overview?sku_id=1&channel_source=wecom",
+		"/admin/reports/owner_overview?product_id=1&channel_source=wecom",
 	} {
 		if status, _, payload := getJSON(t, app, path); status != http.StatusOK {
 			t.Fatalf("%s 支持的维度被误拒：%d %+v", path, status, payload)
@@ -600,7 +600,7 @@ func TestReportFilterCapabilitiesExposed(t *testing.T) {
 		}
 	}
 	unsupported := anyStrings(caps["unsupported"])
-	for _, key := range []string{"sku_id", "game", "payment_channel", "appointment_type", "seat_type"} {
+	for _, key := range []string{"product_id", "game", "payment_channel", "appointment_type", "seat_type"} {
 		if !containsString(unsupported, key) {
 			t.Fatalf("售后质量报表不支持维度缺少 %s：%v", key, unsupported)
 		}

@@ -517,7 +517,7 @@ func minimalRoleSpecs() []minimalRoleSpec {
 				"esports:age_checks:add", "esports:age_checks:approve",
 				// 订单读取与履约操作（不含价格与资金核销）
 				"esports:orders:list", "esports:orders:get", "esports:orders:operate",
-				"esports:orders:seat_roles", "esports:orders:collaborators",
+				"esports:orders:collaborators",
 				"esports:orders:collaborator_add", "esports:orders:collaborator_remove",
 				"esports:orders:cancel", "esports:orders:cancel_preview",
 				"esports:orders:reschedule", "esports:orders:reschedule_list",
@@ -555,7 +555,7 @@ func minimalRoleSpecs() []minimalRoleSpec {
 				// 代客确认：把「待客户确认」推进到「待审批」；审批（approve/reject）仍归财务，两者不得混用。
 				"esports:aftersales:confirm",
 				// 目录与报价读取：报单页第一步就要拉 SKU 并预览报价，缺 list 会让整个报单流程 403。
-				"esports:skus:list", "esports:orders:quote_preview",
+				"esports:products:list", "esports:orders:quote_preview",
 				// 代客收款：客服需要替客户走余额核销并提交转账凭证；
 				// 这里只授予「发起与提交」，凭证核验、收款账户审核、退款审批等资金审批仍归财务。
 				"esports:orders:pay_balance", "esports:payments:order_start",

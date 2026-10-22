@@ -220,6 +220,34 @@ func TestProvisionSeedsEsportsMemberLevels(t *testing.T) {
 	}
 }
 
+func TestProvisionSeedsEsportsRechargeCampaign(t *testing.T) {
+	enabled := false
+	for _, app := range cmfapp.Registered() {
+		if app.Code == "esports" {
+			enabled = app.Enabled
+		}
+	}
+	if !enabled {
+		t.Skip("功能集未启用（需 ESPORTS_EXPERIMENTAL=1）：此时不应播种充值活动")
+	}
+	client := enttest.Open(t, "sqlite3", "file:esports_campaign_seed_provision?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	previous := global.ORM
+	global.ORM = client
+	t.Cleanup(func() { global.ORM = previous })
+	cfg := &config.Config{}
+	cfg.Casbin.DomainsDefault = "default"
+	for run := 0; run < 2; run++ {
+		if err := Provision(t.Context(), cfg, client); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if count := client.EsportsRechargeCampaign.Query().CountX(t.Context()); count != 1 {
+		t.Fatalf("Provision 两次后应有一条充值活动，实际 %d", count)
+	}
+}
+
 // 菜单合并后的存量同步：Provision 需要删除已退役的「客户首页」权限行，
 // 并把角色授权从旧目录路径 /esports/pages 平移到新菜单路径 /esports/pages/home。
 func TestProvisionRetiresMergedPageMenu(t *testing.T) {
@@ -270,5 +298,42 @@ func TestProvisionRetiresMergedPageMenu(t *testing.T) {
 	}
 	if got := client.CasbinRule.Query().Where(casbinrule.V2EQ("/esports/pages/home"), casbinrule.V4EQ("menu")).CountX(t.Context()); got != 1 {
 		t.Fatalf("新菜单路径的角色授权应为 1 条，实际 %d", got)
+	}
+}
+
+// 旧商品接口改名时保留角色授权；已授予新路径的角色不能插入重复规则。
+func TestRetireSkuPermissionsMigratesRoleGrants(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:esports_product_grants?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	ctx := t.Context()
+	for _, item := range []struct{ path, method, kind string }{
+		{"/api/v1/esports/admin/skus", "GET", "api"},
+		{"/api/v1/esports/admin/skus", "POST", "api"},
+		{"/api/v1/esports/admin/products", "POST", "api"},
+		{"esports:skus:add", "button", "button"},
+	} {
+		client.CasbinRule.Create().SetPtype("p").SetV0("product_manager").SetV1("default").
+			SetV2(item.path).SetV3(item.method).SetV4(item.kind).SaveX(ctx)
+	}
+	if err := retireAppPermissions(ctx, client, "esports", "default"); err != nil {
+		t.Fatal(err)
+	}
+	if err := retireAppPermissions(ctx, client, "esports", "default"); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []struct{ path, method, kind string }{
+		{"/api/v1/esports/admin/products", "GET", "api"},
+		{"/api/v1/esports/admin/products", "POST", "api"},
+		{"esports:products:add", "button", "button"},
+	} {
+		n := client.CasbinRule.Query().Where(casbinrule.V0EQ("product_manager"), casbinrule.V2EQ(item.path),
+			casbinrule.V3EQ(item.method), casbinrule.V4EQ(item.kind)).CountX(ctx)
+		if n != 1 {
+			t.Fatalf("商品授权 %s %s 应为 1 条，实际 %d", item.method, item.path, n)
+		}
+	}
+	if client.CasbinRule.Query().Where(casbinrule.V2EQ("/api/v1/esports/admin/skus")).ExistX(ctx) {
+		t.Fatal("旧商品接口授权仍存在")
 	}
 }

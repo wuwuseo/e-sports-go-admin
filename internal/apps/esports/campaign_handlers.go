@@ -118,7 +118,7 @@ func createCampaignHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	item, err := createCampaign(c.Context(), global.ORM, in)
+	item, err := createCampaignAutoCode(c.Context(), global.ORM, in)
 	if err != nil {
 		return businessError(c, err)
 	}
