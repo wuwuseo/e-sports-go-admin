@@ -1,15 +1,9 @@
 web/
 tmp/
-/data/logs/*.log
+# 运行时数据（日志、编译产物、本地存储）整体不入库
+/data/
 *.exe
 *.exe.bak-*
-/data/logs/cron/job-1/*.log
-/data/logs
-/data/.uid_counter
-/data/storage
-/data/plugins
-/data/plugin-packages
-/data/plugin-tmp
 go-admin
 /.env
 
