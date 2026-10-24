@@ -112189,6 +112189,8 @@ type EsportsSkuMutation struct {
 	category_id                 *int
 	addcategory_id              *int
 	description                 *string
+	content                     *[]string
+	appendcontent               []string
 	unit_price_cents            *int64
 	addunit_price_cents         *int64
 	min_unit_price_cents        *int64
@@ -112537,6 +112539,71 @@ func (m *EsportsSkuMutation) OldDescription(ctx context.Context) (v string, err 
 // ResetDescription resets all changes to the "description" field.
 func (m *EsportsSkuMutation) ResetDescription() {
 	m.description = nil
+}
+
+// SetContent sets the "content" field.
+func (m *EsportsSkuMutation) SetContent(s []string) {
+	m.content = &s
+	m.appendcontent = nil
+}
+
+// Content returns the value of the "content" field in the mutation.
+func (m *EsportsSkuMutation) Content() (r []string, exists bool) {
+	v := m.content
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContent returns the old "content" field's value of the EsportsSku entity.
+// If the EsportsSku object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsSkuMutation) OldContent(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContent: %w", err)
+	}
+	return oldValue.Content, nil
+}
+
+// AppendContent adds s to the "content" field.
+func (m *EsportsSkuMutation) AppendContent(s []string) {
+	m.appendcontent = append(m.appendcontent, s...)
+}
+
+// AppendedContent returns the list of values that were appended to the "content" field in this mutation.
+func (m *EsportsSkuMutation) AppendedContent() ([]string, bool) {
+	if len(m.appendcontent) == 0 {
+		return nil, false
+	}
+	return m.appendcontent, true
+}
+
+// ClearContent clears the value of the "content" field.
+func (m *EsportsSkuMutation) ClearContent() {
+	m.content = nil
+	m.appendcontent = nil
+	m.clearedFields[esportssku.FieldContent] = struct{}{}
+}
+
+// ContentCleared returns if the "content" field was cleared in this mutation.
+func (m *EsportsSkuMutation) ContentCleared() bool {
+	_, ok := m.clearedFields[esportssku.FieldContent]
+	return ok
+}
+
+// ResetContent resets all changes to the "content" field.
+func (m *EsportsSkuMutation) ResetContent() {
+	m.content = nil
+	m.appendcontent = nil
+	delete(m.clearedFields, esportssku.FieldContent)
 }
 
 // SetUnitPriceCents sets the "unit_price_cents" field.
@@ -113531,7 +113598,7 @@ func (m *EsportsSkuMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsSkuMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 25)
 	if m.code != nil {
 		fields = append(fields, esportssku.FieldCode)
 	}
@@ -113546,6 +113613,9 @@ func (m *EsportsSkuMutation) Fields() []string {
 	}
 	if m.description != nil {
 		fields = append(fields, esportssku.FieldDescription)
+	}
+	if m.content != nil {
+		fields = append(fields, esportssku.FieldContent)
 	}
 	if m.unit_price_cents != nil {
 		fields = append(fields, esportssku.FieldUnitPriceCents)
@@ -113622,6 +113692,8 @@ func (m *EsportsSkuMutation) Field(name string) (ent.Value, bool) {
 		return m.CategoryID()
 	case esportssku.FieldDescription:
 		return m.Description()
+	case esportssku.FieldContent:
+		return m.Content()
 	case esportssku.FieldUnitPriceCents:
 		return m.UnitPriceCents()
 	case esportssku.FieldMinUnitPriceCents:
@@ -113679,6 +113751,8 @@ func (m *EsportsSkuMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldCategoryID(ctx)
 	case esportssku.FieldDescription:
 		return m.OldDescription(ctx)
+	case esportssku.FieldContent:
+		return m.OldContent(ctx)
 	case esportssku.FieldUnitPriceCents:
 		return m.OldUnitPriceCents(ctx)
 	case esportssku.FieldMinUnitPriceCents:
@@ -113760,6 +113834,13 @@ func (m *EsportsSkuMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDescription(v)
+		return nil
+	case esportssku.FieldContent:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContent(v)
 		return nil
 	case esportssku.FieldUnitPriceCents:
 		v, ok := value.(int64)
@@ -114098,6 +114179,9 @@ func (m *EsportsSkuMutation) ClearedFields() []string {
 	if m.FieldCleared(esportssku.FieldCategoryID) {
 		fields = append(fields, esportssku.FieldCategoryID)
 	}
+	if m.FieldCleared(esportssku.FieldContent) {
+		fields = append(fields, esportssku.FieldContent)
+	}
 	if m.FieldCleared(esportssku.FieldCostCents) {
 		fields = append(fields, esportssku.FieldCostCents)
 	}
@@ -114117,6 +114201,9 @@ func (m *EsportsSkuMutation) ClearField(name string) error {
 	switch name {
 	case esportssku.FieldCategoryID:
 		m.ClearCategoryID()
+		return nil
+	case esportssku.FieldContent:
+		m.ClearContent()
 		return nil
 	case esportssku.FieldCostCents:
 		m.ClearCostCents()
@@ -114143,6 +114230,9 @@ func (m *EsportsSkuMutation) ResetField(name string) error {
 		return nil
 	case esportssku.FieldDescription:
 		m.ResetDescription()
+		return nil
+	case esportssku.FieldContent:
+		m.ResetContent()
 		return nil
 	case esportssku.FieldUnitPriceCents:
 		m.ResetUnitPriceCents()

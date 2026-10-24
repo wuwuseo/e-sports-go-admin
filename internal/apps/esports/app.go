@@ -345,6 +345,9 @@ func init() {
 			{Key: "notification_push_webhook", Name: "通知推送网关", Value: "", Type: "string", Group: "esports", Remark: "JSON：{\"url\":\"https://...\",\"secret\":\"...\",\"timeout_seconds\":5}；配置后按收件人推送并带 X-Esports-Signature 签名；留空表示不推送（站内信仍投递）"},
 			{Key: "payment_gateways", Name: "在线收款渠道配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按渠道编码索引）：{\"wechat_work\":{\"kind\":\"http_hmac\",\"base_url\":\"https://...\",\"app_id\":\"...\",\"app_secret\":\"...\",\"notify_url\":\"...\",\"enabled\":true}}；未配置的渠道发起收款返回 503"},
 			{Key: "wallet_display", Name: "钱包展示配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按账户类型索引）：{\"customer_balance\":{\"display_name\":\"账户余额\",\"unit_name\":\"元\",\"unit_cents\":100},\"player_catfood\":{\"display_name\":\"猫粮\",\"unit_name\":\"猫粮\",\"unit_cents\":100}}；留空用内置默认"},
+			// —— 商品编码自动生成（新建商品时按「前缀-全局流水」生成，唯一索引兜底）——
+			{Key: "product_code_prefix", Name: "商品编码前缀", Value: "SKU", Type: "string", Group: "esports", Remark: "新建商品自动生成编码的前缀，最终形如 SKU-000001；留空回落 SKU"},
+			{Key: "product_code_serial_width", Name: "商品编码流水位数", Value: "6", Type: "number", Group: "esports", Remark: "流水号补零位数，1~12；≤0 或非法回落 6"},
 			// —— §13.5 售后四段时限（小时，0 = 该阶段不限时；超时只写升级外盒，不自动流转状态）——
 			{Key: "aftersale_accept_hours", Name: "售后受理时限（小时）", Value: "2", Type: "number", Group: "esports", Remark: "0 表示该阶段不限时；非法值（<0 或 >2160）回落 2"},
 			{Key: "aftersale_plan_hours", Name: "售后方案时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "0 不限时；非法值回落 24"},

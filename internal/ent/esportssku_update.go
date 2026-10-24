@@ -12,6 +12,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 )
 
@@ -94,6 +95,24 @@ func (_u *EsportsSkuUpdate) SetNillableDescription(v *string) *EsportsSkuUpdate 
 	if v != nil {
 		_u.SetDescription(*v)
 	}
+	return _u
+}
+
+// SetContent sets the "content" field.
+func (_u *EsportsSkuUpdate) SetContent(v []string) *EsportsSkuUpdate {
+	_u.mutation.SetContent(v)
+	return _u
+}
+
+// AppendContent appends value to the "content" field.
+func (_u *EsportsSkuUpdate) AppendContent(v []string) *EsportsSkuUpdate {
+	_u.mutation.AppendContent(v)
+	return _u
+}
+
+// ClearContent clears the value of the "content" field.
+func (_u *EsportsSkuUpdate) ClearContent() *EsportsSkuUpdate {
+	_u.mutation.ClearContent()
 	return _u
 }
 
@@ -564,6 +583,17 @@ func (_u *EsportsSkuUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(esportssku.FieldDescription, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.Content(); ok {
+		_spec.SetField(esportssku.FieldContent, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedContent(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportssku.FieldContent, value)
+		})
+	}
+	if _u.mutation.ContentCleared() {
+		_spec.ClearField(esportssku.FieldContent, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.UnitPriceCents(); ok {
 		_spec.SetField(esportssku.FieldUnitPriceCents, field.TypeInt64, value)
 	}
@@ -746,6 +776,24 @@ func (_u *EsportsSkuUpdateOne) SetNillableDescription(v *string) *EsportsSkuUpda
 	if v != nil {
 		_u.SetDescription(*v)
 	}
+	return _u
+}
+
+// SetContent sets the "content" field.
+func (_u *EsportsSkuUpdateOne) SetContent(v []string) *EsportsSkuUpdateOne {
+	_u.mutation.SetContent(v)
+	return _u
+}
+
+// AppendContent appends value to the "content" field.
+func (_u *EsportsSkuUpdateOne) AppendContent(v []string) *EsportsSkuUpdateOne {
+	_u.mutation.AppendContent(v)
+	return _u
+}
+
+// ClearContent clears the value of the "content" field.
+func (_u *EsportsSkuUpdateOne) ClearContent() *EsportsSkuUpdateOne {
+	_u.mutation.ClearContent()
 	return _u
 }
 
@@ -1245,6 +1293,17 @@ func (_u *EsportsSkuUpdateOne) sqlSave(ctx context.Context) (_node *EsportsSku, 
 	}
 	if value, ok := _u.mutation.Description(); ok {
 		_spec.SetField(esportssku.FieldDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Content(); ok {
+		_spec.SetField(esportssku.FieldContent, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedContent(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportssku.FieldContent, value)
+		})
+	}
+	if _u.mutation.ContentCleared() {
+		_spec.ClearField(esportssku.FieldContent, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.UnitPriceCents(); ok {
 		_spec.SetField(esportssku.FieldUnitPriceCents, field.TypeInt64, value)

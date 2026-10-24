@@ -22,6 +22,8 @@
 
 `required_level` 创建时默认 `novice`，编辑未传时保持原值。`cost_cents` 编辑时未传表示保持、`null` 表示清空、数值表示覆盖。`GET /admin/products?quote_customer_id=&quote_quantity=` 按商品逐条试算会员折扣、应付额和承诺服务量；单件商品不能报价时标记 `not_orderable`，只有指定 `quote_product_id` 才对该件商品返回明确错误。
 
+**商品编码自动生成（2026-10）**：新建商品时前端不再手填编码，`POST /admin/products` 不传 `code`（或传空串）即由服务端生成 `前缀-全局流水`（如 `SKU-000001`）。前缀与流水位数取系统配置 `app.esports.product_code_prefix`（默认 `SKU`）与 `app.esports.product_code_serial_width`（默认 6，合法 1~12）；流水取同前缀现有编码的最大序号 +1，并发撞唯一索引时最多重试 5 次后报「商品编码自动生成冲突」。显式传 `code` 仍按原样落库（兼容导入与测试）。
+
 ### 充值活动与赠送（§4.5）
 
 启用功能集时，`Provision` 会在活动表为空时播种一条“满100送10（示例）”草稿（赠送有效期 30 天、互斥、适用全部客户）。运营确认规则与活动期并手动启用后才会对充值生效；重复启动不会新增或覆盖已有活动。

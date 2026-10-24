@@ -26,6 +26,8 @@ const (
 	FieldCategoryID = "category_id"
 	// FieldDescription holds the string denoting the description field in the database.
 	FieldDescription = "description"
+	// FieldContent holds the string denoting the content field in the database.
+	FieldContent = "content"
 	// FieldUnitPriceCents holds the string denoting the unit_price_cents field in the database.
 	FieldUnitPriceCents = "unit_price_cents"
 	// FieldMinUnitPriceCents holds the string denoting the min_unit_price_cents field in the database.
@@ -79,6 +81,7 @@ var Columns = []string{
 	FieldServiceType,
 	FieldCategoryID,
 	FieldDescription,
+	FieldContent,
 	FieldUnitPriceCents,
 	FieldMinUnitPriceCents,
 	FieldAdjustmentApprovalBp,

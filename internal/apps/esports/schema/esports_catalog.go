@@ -46,6 +46,9 @@ func (EsportsSku) Fields() []ent.Field {
 		field.Enum("service_type").Values("play", "teaching", "entertainment", "boosting").StructTag(`json:"service_type"`),
 		field.Int("category_id").Optional().Nillable().StructTag(`json:"category_id"`),
 		field.String("description").MaxLen(500).Default("").StructTag(`json:"description"`),
+		// 商品内容图片（多张）：JSON 数组，元素为站内 /uploads/ 公开路径或 http/https 绝对地址，
+		// 校验与管理端上传对齐 CMS 纯图片内容（normalizeProductContent）；未设置时为 NULL。
+		field.JSON("content", []string{}).Optional().StructTag(`json:"content"`),
 		field.Int64("unit_price_cents").Positive().StructTag(`json:"unit_price_cents"`),
 		// 人工议价的每份最低价；会员权益折扣另行计算。旧客户端省略时服务层回落到展示价。
 		field.Int64("min_unit_price_cents").Default(0).StructTag(`json:"min_unit_price_cents"`),

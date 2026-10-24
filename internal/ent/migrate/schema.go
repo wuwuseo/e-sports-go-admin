@@ -3456,6 +3456,7 @@ var (
 		{Name: "service_type", Type: field.TypeEnum, Enums: []string{"play", "teaching", "entertainment", "boosting"}},
 		{Name: "category_id", Type: field.TypeInt, Nullable: true},
 		{Name: "description", Type: field.TypeString, Size: 500, Default: ""},
+		{Name: "content", Type: field.TypeJSON, Nullable: true},
 		{Name: "unit_price_cents", Type: field.TypeInt64},
 		{Name: "min_unit_price_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "adjustment_approval_bp", Type: field.TypeInt, Default: 2000},
@@ -3490,12 +3491,12 @@ var (
 			{
 				Name:    "esportssku_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsProductsColumns[21]},
+				Columns: []*schema.Column{EsportsProductsColumns[22]},
 			},
 			{
 				Name:    "esportssku_category_id_sort_order",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsProductsColumns[4], EsportsProductsColumns[20]},
+				Columns: []*schema.Column{EsportsProductsColumns[4], EsportsProductsColumns[21]},
 			},
 		},
 	}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -63,17 +64,19 @@ func (o *optionalInt64) UnmarshalJSON(data []byte) error {
 }
 
 type skuInput struct {
-	Code                 string `json:"code"`
-	Title                string `json:"title"`
-	ServiceType          string `json:"service_type"`
-	CategoryID           *int   `json:"category_id"`
-	Description          string `json:"description"`
-	UnitPriceCents       int64  `json:"unit_price_cents"`
-	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
-	AdjustmentApprovalBp int    `json:"adjustment_approval_bp"`
-	ServiceUnits         int64  `json:"service_units"`
-	ServiceUnitName      string `json:"service_unit_name"`
-	RequiredSeats        int    `json:"-"`
+	Code        string `json:"code"`
+	Title       string `json:"title"`
+	ServiceType string `json:"service_type"`
+	CategoryID  *int   `json:"category_id"`
+	Description string `json:"description"`
+	// Content 为商品内容图片地址列表（多张）：站内 /uploads/ 公开路径或 http/https 绝对地址。
+	Content              []string `json:"content"`
+	UnitPriceCents       int64    `json:"unit_price_cents"`
+	MinUnitPriceCents    int64    `json:"min_unit_price_cents"`
+	AdjustmentApprovalBp int      `json:"adjustment_approval_bp"`
+	ServiceUnits         int64    `json:"service_units"`
+	ServiceUnitName      string   `json:"service_unit_name"`
+	RequiredSeats        int      `json:"-"`
 	// RequiredLevel 为该 SKU 的技能等级门槛（§5.5）：枚举 novice / skilled / senior / mentor，
 	// 未传回落 novice（兼容旧前端）；报单时快照到订单，派单候选与接单校验据此拦截低等级陪玩。
 	RequiredLevel *string `json:"required_level"`
@@ -100,16 +103,18 @@ type categoryInput struct {
 }
 
 type skuUpdateInput struct {
-	Title                string `json:"title"`
-	ServiceType          string `json:"service_type"`
-	CategoryID           *int   `json:"category_id"`
-	Description          string `json:"description"`
-	UnitPriceCents       int64  `json:"unit_price_cents"`
-	MinUnitPriceCents    int64  `json:"min_unit_price_cents"`
-	AdjustmentApprovalBp int    `json:"adjustment_approval_bp"`
-	ServiceUnits         int64  `json:"service_units"`
-	ServiceUnitName      string `json:"service_unit_name"`
-	RequiredSeats        int    `json:"-"`
+	Title       string `json:"title"`
+	ServiceType string `json:"service_type"`
+	CategoryID  *int   `json:"category_id"`
+	Description string `json:"description"`
+	// Content 同 skuInput；编辑表单整表回传，空列表表示清空全部内容图片。
+	Content              []string `json:"content"`
+	UnitPriceCents       int64    `json:"unit_price_cents"`
+	MinUnitPriceCents    int64    `json:"min_unit_price_cents"`
+	AdjustmentApprovalBp int      `json:"adjustment_approval_bp"`
+	ServiceUnits         int64    `json:"service_units"`
+	ServiceUnitName      string   `json:"service_unit_name"`
+	RequiredSeats        int      `json:"-"`
 	// RequiredLevel 同 skuInput（§5.5）：nil 表示保持既有门槛，避免整表回传把 senior 静默降级。
 	RequiredLevel *string `json:"required_level"`
 	// PerSeatServiceUnits 同 skuInput（§15.3-01）。
@@ -180,6 +185,41 @@ func currentAdmin(ctx context.Context, db *ent.Client, uid string) (*ent.Admin, 
 	return db.Admin.Query().Where(admin.UIDEQ(uid), admin.StatusEQ("active")).Only(ctx)
 }
 
+// productContentImageURLValid 校验单条内容图片地址：站内 /uploads/ 公开路径（不带查询与片段）
+// 或 http/https 绝对地址，与 CMS 纯图片内容同规则；客户端按 /uploads 静态挂载或绝对地址直接渲染。
+func productContentImageURLValid(value string) bool {
+	if strings.HasPrefix(value, "/uploads/") && !strings.ContainsAny(value, "?#\\") {
+		return true
+	}
+	parsed, err := url.Parse(value)
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != "" && parsed.User == nil
+}
+
+// normalizeProductContent 规范商品内容图片列表：去空白、按地址去重，逐条校验；
+// 上限 50 张防误传超大批量（CMS 纯图片不限量，商品表单常配合附件库批量挑选）。
+func normalizeProductContent(raw []string) ([]string, error) {
+	list := make([]string, 0, len(raw))
+	seen := make(map[string]struct{}, len(raw))
+	for _, item := range raw {
+		src := strings.TrimSpace(item)
+		if src == "" {
+			continue
+		}
+		if len(src) > 500 || !productContentImageURLValid(src) {
+			return nil, fmt.Errorf("%w：内容图片地址必须是 /uploads/ 路径或 http/https 绝对地址", errInvalidInput)
+		}
+		if _, dup := seen[src]; dup {
+			continue
+		}
+		seen[src] = struct{}{}
+		list = append(list, src)
+	}
+	if len(list) > 50 {
+		return nil, fmt.Errorf("%w：内容图片最多 50 张", errInvalidInput)
+	}
+	return list, nil
+}
+
 func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku, error) {
 	in.Code = strings.TrimSpace(in.Code)
 	in.Title = strings.TrimSpace(in.Title)
@@ -191,7 +231,7 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if in.AdjustmentApprovalBp == 0 {
 		in.AdjustmentApprovalBp = 2000
 	}
-	if in.Code == "" || len(in.Code) > 80 || in.Title == "" || len([]rune(in.Title)) > 160 ||
+	if len(in.Code) > 80 || in.Title == "" || len([]rune(in.Title)) > 160 ||
 		in.ServiceUnitName == "" || len([]rune(in.Description)) > 500 ||
 		in.UnitPriceCents <= 0 || in.MinUnitPriceCents < 1 || in.MinUnitPriceCents > in.UnitPriceCents ||
 		in.AdjustmentApprovalBp < 1 || in.AdjustmentApprovalBp > 10000 || in.ServiceUnits <= 0 ||
@@ -207,6 +247,11 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if err := validateSkuCostCents(in.CostCents); err != nil {
 		return nil, err
 	}
+	content, err := normalizeProductContent(in.Content)
+	if err != nil {
+		return nil, err
+	}
+	in.Content = content
 	if in.CategoryID != nil {
 		exists, err := db.EsportsProductCategory.Query().Where(
 			esportsproductcategory.IDEQ(*in.CategoryID),
@@ -232,7 +277,63 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if err = validateSkuSeatPromise(in.RequiredSeats, in.PerSeatServiceUnits); err != nil {
 		return nil, err
 	}
-	create := db.EsportsSku.Create().SetCode(in.Code).SetTitle(in.Title).
+	// 未传编码时按系统配置「前缀 + 全局流水」自动生成；唯一索引冲突（并发新建）最多重试 5 次。
+	if in.Code == "" {
+		for attempt := 0; attempt < 5; attempt++ {
+			code, codeErr := generateSkuCode(ctx, db, attempt)
+			if codeErr != nil {
+				return nil, codeErr
+			}
+			item, saveErr := newSkuCreate(db, in, requiredLevel, code).Save(ctx)
+			if saveErr == nil {
+				return item, nil
+			}
+			if !ent.IsConstraintError(saveErr) {
+				return nil, saveErr
+			}
+		}
+		return nil, errSkuCodeConflict
+	}
+	return newSkuCreate(db, in, requiredLevel, in.Code).Save(ctx)
+}
+
+// 商品编码生成规则的系统配置键：前缀取值任意、流水位数 1~12，缺失或非法时回落默认值。
+const (
+	skuCodePrefixKey     = "app.esports.product_code_prefix"
+	defaultSkuCodePrefix = "SKU"
+	skuCodeWidthKey      = "app.esports.product_code_serial_width"
+	defaultSkuCodeWidth  = 6
+)
+
+// errSkuCodeConflict 自动生成编码连续冲突时返回，避免用户看到 500。
+var errSkuCodeConflict = errors.New("商品编码自动生成冲突，请重试")
+
+// generateSkuCode 生成「前缀-全局流水」编码：流水取同前缀现有编码的最大序号 + 1 + offset。
+// ponytail: 全表扫描同前缀编码，商品量到万级时改用编码序列表或 Redis 自增。
+func generateSkuCode(ctx context.Context, db *ent.Client, offset int) (string, error) {
+	prefix := strings.Trim(assessmentConfigString(ctx, db, skuCodePrefixKey, defaultSkuCodePrefix), "- ")
+	width := assessmentConfigInt(ctx, db, skuCodeWidthKey, defaultSkuCodeWidth)
+	if width > 12 {
+		width = defaultSkuCodeWidth // 超范围回落默认 6 位，避免流水过长撞编码长度限制
+	}
+	stripped := prefix + "-"
+	codes, err := db.EsportsSku.Query().Where(esportssku.CodeHasPrefix(stripped)).
+		Select(esportssku.FieldCode).Strings(ctx)
+	if err != nil {
+		return "", err
+	}
+	maxSeq := 0
+	for _, code := range codes {
+		if n, convErr := strconv.Atoi(strings.TrimPrefix(code, stripped)); convErr == nil && n > maxSeq {
+			maxSeq = n
+		}
+	}
+	return fmt.Sprintf("%s-%0*d", prefix, width, maxSeq+1+offset), nil
+}
+
+// newSkuCreate 构造 SKU 创建语句，code 由调用方确定（手填或自动生成）。
+func newSkuCreate(db *ent.Client, in skuInput, requiredLevel esportssku.RequiredLevel, code string) *ent.EsportsSkuCreate {
+	create := db.EsportsSku.Create().SetCode(code).SetTitle(in.Title).
 		SetServiceType(esportssku.ServiceType(in.ServiceType)).SetDescription(in.Description).
 		SetUnitPriceCents(in.UnitPriceCents).
 		SetMinUnitPriceCents(in.MinUnitPriceCents).SetAdjustmentApprovalBp(in.AdjustmentApprovalBp).
@@ -249,7 +350,10 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if in.CostCents != nil {
 		create.SetCostCents(*in.CostCents)
 	}
-	return create.Save(ctx)
+	if len(in.Content) > 0 {
+		create.SetContent(in.Content)
+	}
+	return create
 }
 
 // skuRequiredLevel 解析并校验 SKU 技能等级门槛（§5.5）：未传 / 空串回落 novice，
@@ -425,6 +529,10 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 			return nil, err
 		}
 	}
+	content, err := normalizeProductContent(in.Content)
+	if err != nil {
+		return nil, err
+	}
 	if in.QuotaTotal != -1 && in.QuotaTotal < int64(in.RequiredSeats) {
 		return nil, errInvalidInput
 	}
@@ -490,6 +598,12 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 		update.ClearCategoryID()
 	} else {
 		update.SetCategoryID(*in.CategoryID)
+	}
+	// 内容图片整表回传：空列表即清空（与 description 同语义），非空整体替换。
+	if len(content) > 0 {
+		update.SetContent(content)
+	} else {
+		update.ClearContent()
 	}
 	if _, err = update.Save(ctx); err != nil {
 		return nil, err

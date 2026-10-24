@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"go-admin/internal/ent/esportssku"
 	"strings"
@@ -27,6 +28,8 @@ type EsportsSku struct {
 	CategoryID *int `json:"category_id"`
 	// Description holds the value of the "description" field.
 	Description string `json:"description"`
+	// Content holds the value of the "content" field.
+	Content []string `json:"content"`
 	// UnitPriceCents holds the value of the "unit_price_cents" field.
 	UnitPriceCents int64 `json:"unit_price_cents"`
 	// MinUnitPriceCents holds the value of the "min_unit_price_cents" field.
@@ -73,6 +76,8 @@ func (*EsportsSku) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case esportssku.FieldContent:
+			values[i] = new([]byte)
 		case esportssku.FieldID, esportssku.FieldCategoryID, esportssku.FieldUnitPriceCents, esportssku.FieldMinUnitPriceCents, esportssku.FieldAdjustmentApprovalBp, esportssku.FieldServiceUnits, esportssku.FieldPerSeatServiceUnits, esportssku.FieldCostCents, esportssku.FieldServiceDurationMinutes, esportssku.FieldRequiredSeats, esportssku.FieldQuotaTotal, esportssku.FieldQuotaReserved, esportssku.FieldQuotaSold, esportssku.FieldSortOrder, esportssku.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportssku.FieldCode, esportssku.FieldTitle, esportssku.FieldServiceType, esportssku.FieldDescription, esportssku.FieldServiceUnitName, esportssku.FieldRequiredLevel, esportssku.FieldCloseRuleCode, esportssku.FieldStatus:
@@ -130,6 +135,14 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field description", values[i])
 			} else if value.Valid {
 				_m.Description = value.String
+			}
+		case esportssku.FieldContent:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field content", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.Content); err != nil {
+					return fmt.Errorf("unmarshal field content: %w", err)
+				}
 			}
 		case esportssku.FieldUnitPriceCents:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -298,6 +311,9 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("description=")
 	builder.WriteString(_m.Description)
+	builder.WriteString(", ")
+	builder.WriteString("content=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Content))
 	builder.WriteString(", ")
 	builder.WriteString("unit_price_cents=")
 	builder.WriteString(fmt.Sprintf("%v", _m.UnitPriceCents))

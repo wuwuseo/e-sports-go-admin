@@ -66,6 +66,12 @@ func (_c *EsportsSkuCreate) SetNillableDescription(v *string) *EsportsSkuCreate 
 	return _c
 }
 
+// SetContent sets the "content" field.
+func (_c *EsportsSkuCreate) SetContent(v []string) *EsportsSkuCreate {
+	_c.mutation.SetContent(v)
+	return _c
+}
+
 // SetUnitPriceCents sets the "unit_price_cents" field.
 func (_c *EsportsSkuCreate) SetUnitPriceCents(v int64) *EsportsSkuCreate {
 	_c.mutation.SetUnitPriceCents(v)
@@ -577,6 +583,10 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Description(); ok {
 		_spec.SetField(esportssku.FieldDescription, field.TypeString, value)
 		_node.Description = value
+	}
+	if value, ok := _c.mutation.Content(); ok {
+		_spec.SetField(esportssku.FieldContent, field.TypeJSON, value)
+		_node.Content = value
 	}
 	if value, ok := _c.mutation.UnitPriceCents(); ok {
 		_spec.SetField(esportssku.FieldUnitPriceCents, field.TypeInt64, value)

@@ -424,6 +424,16 @@ func DescriptionContainsFold(v string) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldContainsFold(FieldDescription, v))
 }
 
+// ContentIsNil applies the IsNil predicate on the "content" field.
+func ContentIsNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldIsNull(FieldContent))
+}
+
+// ContentNotNil applies the NotNil predicate on the "content" field.
+func ContentNotNil() predicate.EsportsSku {
+	return predicate.EsportsSku(sql.FieldNotNull(FieldContent))
+}
+
 // UnitPriceCentsEQ applies the EQ predicate on the "unit_price_cents" field.
 func UnitPriceCentsEQ(v int64) predicate.EsportsSku {
 	return predicate.EsportsSku(sql.FieldEQ(FieldUnitPriceCents, v))

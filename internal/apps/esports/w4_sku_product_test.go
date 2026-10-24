@@ -3,6 +3,7 @@ package esports
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -395,5 +396,77 @@ func TestW4SkuHandlerRequiredLevel(t *testing.T) {
 	}
 	if message, _ := payload["message"].(string); !strings.Contains(message, "技能等级门槛") {
 		t.Fatalf("非法技能等级应给出中文提示：%q", message)
+	}
+}
+
+// 商品内容图片（content）：创建/更新入口写入、地址逐条校验与去重、空列表清空。
+func TestW4SkuContentImagesWritePath(t *testing.T) {
+	db := openProductDB(t, "esports_w4_sku_content")
+	defer db.Close()
+	ctx := t.Context()
+
+	sku, err := saveSku(ctx, db, skuInput{
+		Code: "W4-CONTENT-01", Title: "内容图片商品", ServiceType: "play", UnitPriceCents: 1000,
+		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
+		Content: []string{
+			"/uploads/esports-product/a.png",
+			" https://cdn.example.com/b.webp ",
+			"/uploads/esports-product/a.png",
+			"",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sku.Content) != 2 || sku.Content[0] != "/uploads/esports-product/a.png" || sku.Content[1] != "https://cdn.example.com/b.webp" {
+		t.Fatalf("内容图片未按去重/去空白落库：%q", sku.Content)
+	}
+
+	// 非法地址逐条拒绝：非 http/https 的绝对地址、站内路径带查询串。
+	for _, bad := range []string{"ftp://cdn.example.com/x.png", "/uploads/a.png?size=1"} {
+		if _, err = saveSku(ctx, db, skuInput{
+			Code: "W4-CONTENT-BAD", Title: "非法地址商品", ServiceType: "play", UnitPriceCents: 1000,
+			ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
+			Content: []string{bad},
+		}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "内容图片") {
+			t.Fatalf("非法内容图片地址应返回参数错误（%q）：%v", bad, err)
+		}
+	}
+
+	// 更新整体替换；空列表清空（读回为 NULL → nil）。
+	replaced, err := updateSku(ctx, db, sku.ID, skuUpdateInput{
+		Title: "内容图片商品", ServiceType: "play", UnitPriceCents: 1000,
+		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
+		Content: []string{"https://cdn.example.com/c.jpg"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(replaced.Content) != 1 || replaced.Content[0] != "https://cdn.example.com/c.jpg" {
+		t.Fatalf("更新未整体替换内容图片：%q", replaced.Content)
+	}
+	cleared, err := updateSku(ctx, db, sku.ID, skuUpdateInput{
+		Title: "内容图片商品", ServiceType: "play", UnitPriceCents: 1000,
+		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
+		Content: []string{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cleared.Content) != 0 {
+		t.Fatalf("空列表应清空内容图片：%q", cleared.Content)
+	}
+
+	// 超过上限拒绝。
+	flood := make([]string, 51)
+	for i := range flood {
+		flood[i] = fmt.Sprintf("/uploads/esports-product/%02d.png", i)
+	}
+	if _, err = updateSku(ctx, db, sku.ID, skuUpdateInput{
+		Title: "内容图片商品", ServiceType: "play", UnitPriceCents: 1000,
+		ServiceUnits: 1, ServiceUnitName: "局", RequiredSeats: 1, QuotaTotal: -1, Status: "on_sale",
+		Content: flood,
+	}); !errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "50") {
+		t.Fatalf("超过 50 张应返回参数错误：%v", err)
 	}
 }

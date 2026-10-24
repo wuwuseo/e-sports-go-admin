@@ -5989,23 +5989,23 @@ func init() {
 	// esportssku.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
 	esportssku.DescriptionValidator = esportsskuDescDescription.Validators[0].(func(string) error)
 	// esportsskuDescUnitPriceCents is the schema descriptor for unit_price_cents field.
-	esportsskuDescUnitPriceCents := esportsskuFields[5].Descriptor()
+	esportsskuDescUnitPriceCents := esportsskuFields[6].Descriptor()
 	// esportssku.UnitPriceCentsValidator is a validator for the "unit_price_cents" field. It is called by the builders before save.
 	esportssku.UnitPriceCentsValidator = esportsskuDescUnitPriceCents.Validators[0].(func(int64) error)
 	// esportsskuDescMinUnitPriceCents is the schema descriptor for min_unit_price_cents field.
-	esportsskuDescMinUnitPriceCents := esportsskuFields[6].Descriptor()
+	esportsskuDescMinUnitPriceCents := esportsskuFields[7].Descriptor()
 	// esportssku.DefaultMinUnitPriceCents holds the default value on creation for the min_unit_price_cents field.
 	esportssku.DefaultMinUnitPriceCents = esportsskuDescMinUnitPriceCents.Default.(int64)
 	// esportsskuDescAdjustmentApprovalBp is the schema descriptor for adjustment_approval_bp field.
-	esportsskuDescAdjustmentApprovalBp := esportsskuFields[7].Descriptor()
+	esportsskuDescAdjustmentApprovalBp := esportsskuFields[8].Descriptor()
 	// esportssku.DefaultAdjustmentApprovalBp holds the default value on creation for the adjustment_approval_bp field.
 	esportssku.DefaultAdjustmentApprovalBp = esportsskuDescAdjustmentApprovalBp.Default.(int)
 	// esportsskuDescServiceUnits is the schema descriptor for service_units field.
-	esportsskuDescServiceUnits := esportsskuFields[8].Descriptor()
+	esportsskuDescServiceUnits := esportsskuFields[9].Descriptor()
 	// esportssku.ServiceUnitsValidator is a validator for the "service_units" field. It is called by the builders before save.
 	esportssku.ServiceUnitsValidator = esportsskuDescServiceUnits.Validators[0].(func(int64) error)
 	// esportsskuDescServiceUnitName is the schema descriptor for service_unit_name field.
-	esportsskuDescServiceUnitName := esportsskuFields[9].Descriptor()
+	esportsskuDescServiceUnitName := esportsskuFields[10].Descriptor()
 	// esportssku.ServiceUnitNameValidator is a validator for the "service_unit_name" field. It is called by the builders before save.
 	esportssku.ServiceUnitNameValidator = func() func(string) error {
 		validators := esportsskuDescServiceUnitName.Validators
@@ -6023,51 +6023,51 @@ func init() {
 		}
 	}()
 	// esportsskuDescPerSeatServiceUnits is the schema descriptor for per_seat_service_units field.
-	esportsskuDescPerSeatServiceUnits := esportsskuFields[10].Descriptor()
+	esportsskuDescPerSeatServiceUnits := esportsskuFields[11].Descriptor()
 	// esportssku.DefaultPerSeatServiceUnits holds the default value on creation for the per_seat_service_units field.
 	esportssku.DefaultPerSeatServiceUnits = esportsskuDescPerSeatServiceUnits.Default.(int64)
 	// esportsskuDescServiceDurationMinutes is the schema descriptor for service_duration_minutes field.
-	esportsskuDescServiceDurationMinutes := esportsskuFields[12].Descriptor()
+	esportsskuDescServiceDurationMinutes := esportsskuFields[13].Descriptor()
 	// esportssku.DefaultServiceDurationMinutes holds the default value on creation for the service_duration_minutes field.
 	esportssku.DefaultServiceDurationMinutes = esportsskuDescServiceDurationMinutes.Default.(int)
 	// esportsskuDescRequiredSeats is the schema descriptor for required_seats field.
-	esportsskuDescRequiredSeats := esportsskuFields[13].Descriptor()
+	esportsskuDescRequiredSeats := esportsskuFields[14].Descriptor()
 	// esportssku.DefaultRequiredSeats holds the default value on creation for the required_seats field.
 	esportssku.DefaultRequiredSeats = esportsskuDescRequiredSeats.Default.(int)
 	// esportssku.RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
 	esportssku.RequiredSeatsValidator = esportsskuDescRequiredSeats.Validators[0].(func(int) error)
 	// esportsskuDescCloseRuleCode is the schema descriptor for close_rule_code field.
-	esportsskuDescCloseRuleCode := esportsskuFields[15].Descriptor()
+	esportsskuDescCloseRuleCode := esportsskuFields[16].Descriptor()
 	// esportssku.DefaultCloseRuleCode holds the default value on creation for the close_rule_code field.
 	esportssku.DefaultCloseRuleCode = esportsskuDescCloseRuleCode.Default.(string)
 	// esportssku.CloseRuleCodeValidator is a validator for the "close_rule_code" field. It is called by the builders before save.
 	esportssku.CloseRuleCodeValidator = esportsskuDescCloseRuleCode.Validators[0].(func(string) error)
 	// esportsskuDescQuotaTotal is the schema descriptor for quota_total field.
-	esportsskuDescQuotaTotal := esportsskuFields[16].Descriptor()
+	esportsskuDescQuotaTotal := esportsskuFields[17].Descriptor()
 	// esportssku.DefaultQuotaTotal holds the default value on creation for the quota_total field.
 	esportssku.DefaultQuotaTotal = esportsskuDescQuotaTotal.Default.(int64)
 	// esportsskuDescQuotaReserved is the schema descriptor for quota_reserved field.
-	esportsskuDescQuotaReserved := esportsskuFields[17].Descriptor()
+	esportsskuDescQuotaReserved := esportsskuFields[18].Descriptor()
 	// esportssku.DefaultQuotaReserved holds the default value on creation for the quota_reserved field.
 	esportssku.DefaultQuotaReserved = esportsskuDescQuotaReserved.Default.(int64)
 	// esportsskuDescQuotaSold is the schema descriptor for quota_sold field.
-	esportsskuDescQuotaSold := esportsskuFields[18].Descriptor()
+	esportsskuDescQuotaSold := esportsskuFields[19].Descriptor()
 	// esportssku.DefaultQuotaSold holds the default value on creation for the quota_sold field.
 	esportssku.DefaultQuotaSold = esportsskuDescQuotaSold.Default.(int64)
 	// esportsskuDescSortOrder is the schema descriptor for sort_order field.
-	esportsskuDescSortOrder := esportsskuFields[19].Descriptor()
+	esportsskuDescSortOrder := esportsskuFields[20].Descriptor()
 	// esportssku.DefaultSortOrder holds the default value on creation for the sort_order field.
 	esportssku.DefaultSortOrder = esportsskuDescSortOrder.Default.(int)
 	// esportsskuDescVersion is the schema descriptor for version field.
-	esportsskuDescVersion := esportsskuFields[21].Descriptor()
+	esportsskuDescVersion := esportsskuFields[22].Descriptor()
 	// esportssku.DefaultVersion holds the default value on creation for the version field.
 	esportssku.DefaultVersion = esportsskuDescVersion.Default.(int)
 	// esportsskuDescCreatedAt is the schema descriptor for created_at field.
-	esportsskuDescCreatedAt := esportsskuFields[22].Descriptor()
+	esportsskuDescCreatedAt := esportsskuFields[23].Descriptor()
 	// esportssku.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportssku.DefaultCreatedAt = esportsskuDescCreatedAt.Default.(func() time.Time)
 	// esportsskuDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsskuDescUpdatedAt := esportsskuFields[23].Descriptor()
+	esportsskuDescUpdatedAt := esportsskuFields[24].Descriptor()
 	// esportssku.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportssku.DefaultUpdatedAt = esportsskuDescUpdatedAt.Default.(func() time.Time)
 	// esportssku.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
