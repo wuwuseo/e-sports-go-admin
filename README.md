@@ -32,7 +32,7 @@
 
 | 模块 | 能力 |
 | --- | --- |
-| 商品与定价 | 商品父实体、规格组、SKU、产品分类、游戏分区、技能等级、停服申请与逐单处置 |
+| 商品与定价 | 单一商品（每件一个价格/服务量/结单规则/库存、固定一人服务）、content 内容图片、产品分类、游戏分区、技能等级、停服申请与逐单处置 |
 | 报单与订单 | 即时/预约报单、幂等创建、名额占用、报价版本、改价/改期/取消、存单、加钟、历史补录 |
 | 排单与派单 | 席位看板、指派/撤回/认领/转单/催单、抢单大厅、优先派单权（独占优先通知）、固排成队、接单上限 |
 | 陪玩管理 | 档案与资格、在线状态、心跳保活、自助接单/开工/完工、考核定级、责任信用 |
@@ -54,7 +54,7 @@
 | 语言 | Go 1.25.1 |
 | Web 框架 | Fiber v3.2.0 |
 | ORM | Ent v0.14.5（MySQL；测试用 SQLite） |
-| 基础框架 | [github.com/wuwuseo/cmf](https://github.com/wuwuseo/cmf) v1.1.0 |
+| 基础框架 | [github.com/wuwuseo/cmf](https://github.com/wuwuseo/cmf) v1.4.0 |
 | 认证 / 权限 | golang-jwt/jwt v5.3.1、Casbin v3.10.0、bcrypt |
 | 缓存 | gocache v4（memory / Redis） |
 | 任务队列 | hibiken/asynq v0.26.0，支持 rabbitmq / nats / nsq / kafka / amqp10 |
@@ -399,7 +399,7 @@ WantedBy=multi-user.target
 
 `esports_activate_scheduled_commission_rules`、`esports_apply_due_sku_suspensions`、`esports_apply_member_downgrade`、`esports_auto_offline_players`、`esports_auto_pause_disconnected_players`、`esports_auto_transfer_backlog_orders`、`esports_auto_trigger_upgrade_assessments`、`esports_check_aftersale_sla`、`esports_check_close_approval_timeout`、`esports_check_service_overtime`、`esports_deliver_notifications`、`esports_deliver_outbox`、`esports_detect_review_brushing`、`esports_expire_appointment_confirmations`、`esports_expire_dispatch_invites`、`esports_expire_dispatch_priority_notice`、`esports_expire_member_level_overrides`、`esports_expire_orders`、`esports_expire_pending_external_refunds`、`esports_expire_priority_booking_intents`、`esports_expire_recharge_intents`、`esports_expire_reschedule_proposals`、`esports_expire_wallet_bonus`、`esports_flag_high_risk_customers`、`esports_generate_cs_settlements`、`esports_generate_player_settlements`、`esports_generate_spot_checks`、`esports_publish_scheduled_pages`、`esports_rebuild_dispatch_priority`、`esports_reconcile_ledgers`、`esports_remind_dispatch_ladder`、`esports_run_player_level_review`、`esports_scan_aftersale_rules`、`esports_scan_close_deadline`、`esports_scan_dispatch_escalations`、`esports_schedule_repurchase_follow_ups`。
 
-> 该清单与 `internal/apps/esports/*.go` 中 `tasks.Register` 的注册项一一对应（36 注册 / 36 种子，种子见 `internal/apps/esports/cron_seeds.go`）。其中 `esports_expire_member_level_overrides`（会员手动调级覆盖到期回落）与 `esports_expire_priority_booking_intents`（会员优先预约意向过期消解）为 2026-10 新增；两者对应的回落 / 消解在读路径也有惰性判定，因此任务未注册时能力仍自愈。**2026-10-20 移除储值卡功能后**，`esports_expire_stored_value_cards`（卡到期作废赠送）与 `esports_expire_customer_stored_value_intents`（自助购卡支付意图过期）两个任务连同其种子一并删除，注册 / 种子数由 38 降为 36；2026-10-19 新增的 `esports_expire_pending_external_refunds` 本轮补入本清单。
+> 该清单与 `internal/apps/esports/*.go` 中 `tasks.Register` 的注册项一一对应（36 注册 / 36 种子，种子见 `internal/apps/esports/cron_seeds.go`）。其中 `esports_expire_member_level_overrides`（会员手动调级覆盖到期回落）与 `esports_expire_priority_booking_intents`（会员优先预约意向过期消解）为 2026-10 新增；两者对应的回落 / 消解在读路径也有惰性判定，因此任务未注册时能力仍自愈。**2026-10-20 移除储值卡功能后**，`esports_expire_stored_value_cards`（卡到期作废赠送）与 `esports_expire_customer_stored_value_intents`（自助购卡支付意图过期）两个任务连同其种子一并删除，注册 / 种子数由 38 降为 36；2026-10-19 新增的 `esports_expire_pending_external_refunds` 本轮补入本清单；`esports_apply_due_sku_suspensions` 为历史任务名，2026-10-22 单一商品迁移后其语义已是「商品停服申请生效」，任务名保持不变。
 
 ## 安全基线
 
