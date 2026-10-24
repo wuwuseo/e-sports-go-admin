@@ -15,6 +15,7 @@ import (
 	"github.com/wuwuseo/cmf/jwt"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/middleware"
 	"go-admin/internal/service"
@@ -58,6 +59,33 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 				SetValue(item.Value).SetType(item.Type).SetGroup(item.Group).
 				SetRemark(item.Remark).SetStatus(1).Save(ctx); err != nil {
 				return fmt.Errorf("app %s: create config %s: %w", a.Code, key, err)
+			}
+		}
+		for _, item := range a.Dicts {
+			exists, err := client.DictData.Query().
+				Where(dictdata.DictTypeEQ(item.Type), dictdata.ValueEQ(item.Value)).
+				Exist(ctx)
+			if err != nil {
+				return fmt.Errorf("app %s: query dict %s/%s: %w", a.Code, item.Type, item.Value, err)
+			}
+			if exists {
+				continue
+			}
+			create := client.DictData.Create().
+				SetDictType(item.Type).
+				SetLabel(item.Label).
+				SetValue(item.Value).
+				SetSort(item.Sort).
+				SetStatus(1).
+				SetIsDefault(item.IsDefault)
+			if item.CSSClass != "" {
+				create.SetCSSClass(item.CSSClass)
+			}
+			if item.Remark != "" {
+				create.SetRemark(item.Remark)
+			}
+			if _, err := create.Save(ctx); err != nil {
+				return fmt.Errorf("app %s: create dict %s/%s: %w", a.Code, item.Type, item.Value, err)
 			}
 		}
 		seeds, err := permissionSeeds(a, domain)
