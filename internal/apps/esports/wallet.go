@@ -108,6 +108,12 @@ func userWalletDisplayHandler(c fiber.Ctx) error {
 	return reply(c, walletDisplayConfig(c.Context(), global.ORM))
 }
 
+// adminWalletDisplayHandler 管理端钱包展示口径：与客户端同一份配置，
+// 供管理端钱包页页签标题、账户类型选项等跟随「钱包展示配置」动态渲染。
+func adminWalletDisplayHandler(c fiber.Ctx) error {
+	return reply(c, walletDisplayConfig(c.Context(), global.ORM))
+}
+
 func (b walletBalance) total() int64 { return b.PrincipalCents + b.BonusCents }
 
 // walletBeneficiaryFor 由账户类型推出归属人（§11.6-02）：客户余额归属客户、陪玩猫粮归属陪玩。

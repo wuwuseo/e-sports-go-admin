@@ -550,6 +550,8 @@ func init() {
 			{Method: "POST", Path: "/admin/orders/:id/restore", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(restoreOrderHandler)},
 			{Method: "POST", Path: "/admin/orders/:id/pay-by-balance", Auth: cmfapp.AuthAdmin, Handler: ownedOrderHandler(payOrderWithBalanceHandler)},
 			{Method: "GET", Path: "/admin/wallets", Auth: cmfapp.AuthAdmin, Handler: adminWallets},
+			// 钱包展示口径（§11.4）：管理端页签标题 / 账户类型选项跟随「钱包展示配置」动态渲染。
+			{Method: "GET", Path: "/admin/wallets/display", Auth: cmfapp.AuthAdmin, Handler: adminWalletDisplayHandler},
 			{Method: "GET", Path: "/admin/wallets/:id/transactions", Auth: cmfapp.AuthAdmin, Handler: adminWalletTransactions},
 			{Method: "POST", Path: "/admin/wallets/:id/recharge", Auth: cmfapp.AuthAdmin, Handler: walletMutationHandler(false)},
 			{Method: "POST", Path: "/admin/wallets/:id/adjust", Auth: cmfapp.AuthAdmin, Handler: walletMutationHandler(true)},
@@ -1061,6 +1063,7 @@ func init() {
 			// 钱包模块：客户余额与陪玩猫粮账户、只增流水。
 			{Type: cmfapp.PermMenu, Name: "钱包", Code: "esports:wallet:menu", MenuPath: "/esports/wallets", Parent: "esports:operations:menu", Component: "esports/wallets/index", Icon: "icon-wallet", SortOrder: 43},
 			{Type: cmfapp.PermAPI, Name: "查看钱包账户", Code: "esports:wallets:list", Path: "/api/v1/esports/admin/wallets", Method: "GET", Parent: "esports:wallet:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看钱包展示配置", Code: "esports:wallets:display", Path: "/api/v1/esports/admin/wallets/display", Method: "GET", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看钱包流水", Code: "esports:wallets:transactions", Path: "/api/v1/esports/admin/wallets/{id}/transactions", Method: "GET", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "钱包充值", Code: "esports:wallets:recharge", Path: "/api/v1/esports/admin/wallets/{id}/recharge", Method: "POST", Parent: "esports:wallet:menu"},
 			{Type: cmfapp.PermAPI, Name: "钱包调整", Code: "esports:wallets:adjust", Path: "/api/v1/esports/admin/wallets/{id}/adjust", Method: "POST", Parent: "esports:wallet:menu"},
