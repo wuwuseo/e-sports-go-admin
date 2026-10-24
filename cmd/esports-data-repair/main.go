@@ -1,4 +1,4 @@
-// esports-data-repair 陪玩报单历史脏数据修复工具（审核报告 §8.2-17）。
+// esports-data-repair 陪玩报单历史脏数据修复工具（审核报告 ）。
 //
 // 默认 dry-run：只统计并打印样例，绝不写库；--apply 才执行第一类补齐，且必须显式传入
 // --per-seat-units N（不传则拒绝执行）。三类历史数据：
