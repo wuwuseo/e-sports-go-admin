@@ -27,7 +27,7 @@ func pagePropsFor(compType string, props map[string]interface{}) []pageComponent
 	}
 }
 
-// ── §16.2-05：属性面板四类字段（间距 / 跳转目标 / 数据来源 / 筛选条件） ──
+// ── ：属性面板四类字段（间距 / 跳转目标 / 数据来源 / 筛选条件） ──
 
 // 四类字段保存草稿时不得再被 400 拒绝，且未知键仍须拒绝。
 func TestPageUniversalPanelPropsAccepted(t *testing.T) {
@@ -68,7 +68,7 @@ func TestPageUniversalPanelPropsAccepted(t *testing.T) {
 	}
 }
 
-// 非法的枚举值 / 越界间距 / 非法时间 / 未知筛选键必须返回参数错误（§16.3-11 未知名规则明确报错）。
+// 非法的枚举值 / 越界间距 / 非法时间 / 未知筛选键必须返回参数错误（未知名规则明确报错）。
 func TestPagePanelPropValuesValidated(t *testing.T) {
 	db := openPageDB(t, "esports_r4_page_prop_values")
 	channel := pageChannelCustomerHome
@@ -94,9 +94,9 @@ func TestPagePanelPropValuesValidated(t *testing.T) {
 	}
 }
 
-// ── §16.3-01/03/05/08/09/10：组件字段补全 ──
+// ── 03/05/08/09/10：组件字段补全 ──
 
-// 各组件新增字段必须能存进草稿（否则后台配不了，是整个 §16.3 批次的前置条件）。
+// 各组件新增字段必须能存进草稿（否则后台配不了，是整个 批次的前置条件）。
 func TestPageComponentExtraFieldsAccepted(t *testing.T) {
 	db := openPageDB(t, "esports_r4_page_component_fields")
 	channel := pageChannelCustomerHome
@@ -126,7 +126,7 @@ func TestPageComponentExtraFieldsAccepted(t *testing.T) {
 	}
 }
 
-// ── §16.3-02/03/08：有效期到点的组件 / 轮播项不下发 ──
+// ── 03/08：有效期到点的组件 / 轮播项不下发 ──
 
 // 过期轮播项必须从下发配置中剔除，未过期的保留；客服入口组件永不被有效期剔除。
 func TestPageExpiredItemsFilteredFromPublicConfig(t *testing.T) {
@@ -203,7 +203,7 @@ func TestPublicPageDropsExpiredComponents(t *testing.T) {
 	}
 }
 
-// ── §16.2-06 / §16.5-04：素材 MIME 白名单与字节上限 ──
+// ── ：素材 MIME 白名单与字节上限 ──
 
 func TestPageAssetMimeAndSizeLimits(t *testing.T) {
 	db := openPageDB(t, "esports_r4_page_asset_limits")
@@ -293,7 +293,7 @@ func TestPageAssetUsageLookup(t *testing.T) {
 	}
 }
 
-// ── §16.3-12：底部导航文案 / 图标可改；§8.1-8 后半放开增删条目与 path / order 编辑 ──
+// ── ：底部导航文案 / 图标可改；后半放开增删条目与 path / order 编辑 ──
 
 func TestPageTabbarEditableWithPathAndOrder(t *testing.T) {
 	db := openPageDB(t, "esports_r4_page_tabbar")
@@ -347,7 +347,7 @@ func TestPageTabbarEditableWithPathAndOrder(t *testing.T) {
 		t.Fatalf("GET /page 未返回新导航文案：%+v", tabbar[0])
 	}
 
-	// §8.1-8 后半（本轮放开）：允许新增条目（路径命中已注册页面白名单即可）。
+	// 后半（本轮放开）：允许新增条目（路径命中已注册页面白名单即可）。
 	base := doc.DraftVersion
 	extra := append(append([]pageTabbarItem{}, items...), pageTabbarItem{Path: "/pages/messages/index", Text: "消息"})
 	doc, err = savePageTabbar(ctx, db, channel, 1, base, extra)
@@ -362,7 +362,7 @@ func TestPageTabbarEditableWithPathAndOrder(t *testing.T) {
 	}
 	base = doc.DraftVersion
 
-	// §16.3-04：底部导航**不接受短标识**（与组件字段的图标清单口径不同）——客户端导航栏只消费图片地址。
+	// ：底部导航**不接受短标识**（与组件字段的图标清单口径不同）——客户端导航栏只消费图片地址。
 	// 这里锁定「短标识被拒」，并验证反向（HTTPS 图片地址仍可用），避免把正常配置一起挡掉。
 	badIcon := append([]pageTabbarItem{}, items...)
 	badIcon[0].Icon = "icon-nonexistent"
@@ -377,7 +377,7 @@ func TestPageTabbarEditableWithPathAndOrder(t *testing.T) {
 	}
 }
 
-// ── §16.4-02：设备预览码（换取草稿而非已发布版本） ──
+// ── ：设备预览码（换取草稿而非已发布版本） ──
 
 func TestPagePreviewCodeResolvesDraft(t *testing.T) {
 	db := openPageDB(t, "esports_r4_page_preview")
@@ -428,7 +428,7 @@ func TestPagePreviewCodeResolvesDraft(t *testing.T) {
 	}
 }
 
-// ── §16.4-06：按客户端能力下发兼容快照 + 按版本缓存 ──
+// ── ：按客户端能力下发兼容快照 + 按版本缓存 ──
 
 func TestPageCapabilityCompatAndVersionCache(t *testing.T) {
 	db := openPageDB(t, "esports_r4_page_compat")

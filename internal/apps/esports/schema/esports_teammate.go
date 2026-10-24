@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsTeammate 是陪玩之间的「固排」关系（§5.3）：按游戏分区互加形成的固定队友关系，
+// EsportsTeammate 是陪玩之间的「固排」关系：按游戏分区互加形成的固定队友关系，
 // 双方确认后建立，任一方可解除。关系无方向，存为规范化对（player_id < teammate_player_id），
 // 仅用 initiator_player_id 记录是哪一方发起的邀请。组队派单时主陪玩可从固排列表邀请队友。
 type EsportsTeammate struct{ ent.Schema }

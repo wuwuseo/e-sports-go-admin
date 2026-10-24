@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 功能集配置声明自检（§18-02 的另一半）。
+// 功能集配置声明自检（的另一半）。
 //
 // apps.Provision 只为「已在功能集 Config 中声明」的键创建 SystemConfig 行，
 // 因此声明是「后台可配置」的前提：读了却没声明的键在后台根本不存在，运维只能手写数据库。

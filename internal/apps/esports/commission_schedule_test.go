@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/ent/esportscscommissionrule"
 )
 
-// 陪玩分成规则预设生效（§12.4）：未来时间激活为 scheduled，旧版保持 active；
+// 陪玩分成规则预设生效：未来时间激活为 scheduled，旧版保持 active；
 // 到点前解析仍取旧版；到点后即使激活任务未跑也直接命中新版本；任务补写状态并归档旧版。
 func TestCommissionRuleScheduledEffectiveAt(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_commission_schedule")
@@ -106,7 +106,7 @@ func TestCommissionRuleScheduledWithoutEffectiveAtIsIgnored(t *testing.T) {
 	}
 }
 
-// 客服提成规则预设生效（§12.4）：与陪玩分成使用相同的 scheduled 语义。
+// 客服提成规则预设生效：与陪玩分成使用相同的 scheduled 语义。
 func TestCsCommissionRuleScheduledEffectiveAt(t *testing.T) {
 	db := openCsCommissionDB(t, "esports_cs_commission_schedule")
 	ctx := t.Context()

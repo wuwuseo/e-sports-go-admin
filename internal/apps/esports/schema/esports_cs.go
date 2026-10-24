@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsCustomerFollowUp 是客服对客户的跟进记录（§8.3）。只增不改：离职交接时接手人靠它快速了解客户。
+// EsportsCustomerFollowUp 是客服对客户的跟进记录。只增不改：离职交接时接手人靠它快速了解客户。
 // 记录写入门槛为「归属客服本人或超级管理员」，明细权限在服务层校验。
 type EsportsCustomerFollowUp struct{ ent.Schema }
 
@@ -36,7 +36,7 @@ func (EsportsCustomerFollowUp) Indexes() []ent.Index {
 	}
 }
 
-// EsportsScript 是客服话术库（§8.2）。三个入口共用；支持分类与排序，禁用后不再下发。
+// EsportsScript 是客服话术库。三个入口共用；支持分类与排序，禁用后不再下发。
 type EsportsScript struct{ ent.Schema }
 
 func (EsportsScript) Fields() []ent.Field {

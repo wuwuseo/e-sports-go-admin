@@ -302,7 +302,7 @@ func seedOrdersBulk(t *testing.T, db *ent.Client, specs []bulkReportOrder) {
 	}
 }
 
-// §17 大样本：汇总与分组统计走数据库端聚合，订单量超过明细上限时也不得整体报错，
+// 大样本：汇总与分组统计走数据库端聚合，订单量超过明细上限时也不得整体报错，
 // 且总量 / 营收 / 净额与时间轴分段之和都必须与样本一致。
 func TestReportLargeSampleOwnerOverview(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_report_large_sample?mode=memory&cache=shared&_fk=1",
@@ -463,7 +463,7 @@ func TestReportAftersaleQualityDetailTruncated(t *testing.T) {
 	}
 }
 
-// §5.9 时间线埋点的四类平均等待时长必须由 SQL 聚合得出，且只统计时间点齐全的订单。
+// 时间线埋点的四类平均等待时长必须由 SQL 聚合得出，且只统计时间点齐全的订单。
 func TestReportDispatchEfficiencyTimelineAverages(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_report_timeline?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))

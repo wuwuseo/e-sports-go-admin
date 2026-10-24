@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// §15.7 停服申请 / 异人审批 / 受影响订单逐单处置的路由处理函数。
+// 停服申请 / 异人审批 / 受影响订单逐单处置的路由处理函数。
 // 路由由 app.go 统一接线（本文件只提供 handler）：
 //
 //	POST /admin/products/:id/suspensions                     发起停服申请
@@ -21,7 +21,7 @@ import (
 //
 // 既有 商品直接上下架接口（PUT /admin/products/:id 改 status）保持不变。
 
-// requestSkuSuspensionHandler 发起 商品停服申请（§15.7）。
+// requestSkuSuspensionHandler 发起 商品停服申请。
 func requestSkuSuspensionHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -42,7 +42,7 @@ func requestSkuSuspensionHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// adminSkuSuspensions 列出停服申请（§15.7）：非超级管理员只看自己发起的申请。
+// adminSkuSuspensions 列出停服申请：非超级管理员只看自己发起的申请。
 func adminSkuSuspensions(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -72,7 +72,7 @@ func skuSuspensionDetailHandler(c fiber.Ctx) error {
 	return reply(c, report)
 }
 
-// reviewSkuSuspensionHandler 异人审批（§15.7）：申请人不得自审，自审返回 403。
+// reviewSkuSuspensionHandler 异人审批：申请人不得自审，自审返回 403。
 func reviewSkuSuspensionHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -115,7 +115,7 @@ func cancelSkuSuspensionHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// disposeSkuSuspensionItemHandler 逐单处置（§15.7）：取消并退款 / 改期 / 保留继续服务。
+// disposeSkuSuspensionItemHandler 逐单处置：取消并退款 / 改期 / 保留继续服务。
 // 处置失败（例如已开工订单不可直接取消）也会落 failed 记录，客户端可在详情里看到阻塞原因。
 func disposeSkuSuspensionItemHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)

@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportspaymentaccount"
 )
 
-// 收款主体白名单 fail-closed（§4.3-07）：未配置时任何主体都不得提交或被批准启用，
+// 收款主体白名单 fail-closed：未配置时任何主体都不得提交或被批准启用，
 // 避免「默认空名单 = 任意主体名都能经财务审核变成收款账户」。
 func TestPaymentSubjectWhitelistFailsClosed(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_payment_subject_whitelist_fail_closed")

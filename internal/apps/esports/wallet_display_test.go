@@ -28,7 +28,7 @@ func walletAccountViewOf(t *testing.T, db *ent.Client, accountType string) *wall
 	return nil
 }
 
-// 钱包展示口径（§11.4）：默认展示名与固定倍率换算、工作室配置覆盖、非法配置回落默认。
+// 钱包展示口径：默认展示名与固定倍率换算、工作室配置覆盖、非法配置回落默认。
 func TestWalletDisplayUsesStudioConfigAndFixedRate(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_wallet_display")
 	defer db.Close()

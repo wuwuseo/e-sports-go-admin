@@ -40,7 +40,7 @@ var playerSelfPhoneRegex = regexp.MustCompile(playerSelfPhonePattern)
 // Phone / Games 用指针区分「不修改」（nil）与「清空」（空串 / 空数组）。
 // Version 为乐观锁：>0 时按 version 条件更新，冲突返回 errConflict。
 //
-// §6.4-06 的五项接单配置同样用指针表达「不修改」：
+// 的五项接单配置同样用指针表达「不修改」：
 // 服务时段（service_slot_start_minute / end_minute，UTC+8 当日分钟数，0/0=不限）、
 // 自动上线（auto_online）、可接单价范围（accept_price_min_cents / max_cents，0=该侧不限）、
 // 固排开关（fixed_team_enabled）与固排时段（fixed_team_slot_start_minute / end_minute）。
@@ -49,7 +49,7 @@ type playerSelfProfileInput struct {
 	Phone       *string   `json:"phone"`
 	Games       *[]string `json:"games"`
 	Version     int       `json:"version"`
-	// §6.4-06 接单配置。
+	// 接单配置。
 	ServiceSlotStartMinute   *int   `json:"service_slot_start_minute"`
 	ServiceSlotEndMinute     *int   `json:"service_slot_end_minute"`
 	AutoOnline               *bool  `json:"auto_online"`
@@ -61,8 +61,8 @@ type playerSelfProfileInput struct {
 }
 
 // playerSelfProfileView 陪玩自助资料视图：与 GET /user/player/profile 的档案核心字段一致，
-// 额外补上 player 表没有的预留手机号（来自登录账号）与乐观锁版本号，以及 §6.4-06 接单配置
-// 与 §6.1-12 期望报价（含审核状态，供资料页展示「待审核 / 已通过 / 已驳回」）。
+// 额外补上 player 表没有的预留手机号（来自登录账号）与乐观锁版本号，以及 接单配置
+// 与 期望报价（含审核状态，供资料页展示「待审核 / 已通过 / 已驳回」）。
 type playerSelfProfileView struct {
 	ID               int        `json:"id"`
 	DisplayName      string     `json:"display_name"`
@@ -74,7 +74,7 @@ type playerSelfProfileView struct {
 	DailyLimit       int        `json:"daily_limit"`
 	ConcurrentLimit  int        `json:"concurrent_limit"`
 	Games            []string   `json:"games"`
-	// §6.4-06 接单配置（0/0 或 0 表示不限，auto_online / fixed_team_enabled 默认关闭）。
+	// 接单配置（0/0 或 0 表示不限，auto_online / fixed_team_enabled 默认关闭）。
 	ServiceSlotStartMinute   int   `json:"service_slot_start_minute"`
 	ServiceSlotEndMinute     int   `json:"service_slot_end_minute"`
 	AutoOnline               bool  `json:"auto_online"`
@@ -83,7 +83,7 @@ type playerSelfProfileView struct {
 	FixedTeamEnabled         bool  `json:"fixed_team_enabled"`
 	FixedTeamSlotStartMinute int   `json:"fixed_team_slot_start_minute"`
 	FixedTeamSlotEndMinute   int   `json:"fixed_team_slot_end_minute"`
-	// §6.1-12 期望报价与审核留痕。
+	// 期望报价与审核留痕。
 	ExpectedPriceCents       int64      `json:"expected_price_cents"`
 	ExpectedPriceStatus      string     `json:"expected_price_status"`
 	ExpectedPriceSubmittedAt *time.Time `json:"expected_price_submitted_at"`
@@ -209,7 +209,7 @@ func updatePlayerSelfProfile(ctx context.Context, db *ent.Client, playerID int, 
 	if in.Games != nil {
 		update = update.SetGames(games)
 	}
-	// §6.4-06：五项接单配置（未传的字段保持原值）。
+	// ：五项接单配置（未传的字段保持原值）。
 	configUpdate, err := applyPlayerAcceptConfig(update, playerAcceptConfig{
 		ServiceSlotStartMinute:   in.ServiceSlotStartMinute,
 		ServiceSlotEndMinute:     in.ServiceSlotEndMinute,
@@ -251,7 +251,7 @@ func updatePlayerSelfProfile(ctx context.Context, db *ent.Client, playerID int, 
 	return db.EsportsPlayer.Get(ctx, playerID)
 }
 
-// ── §6.4-06 接单配置（服务时段 / 自动上线 / 可接单价 / 固排开关与时段） ──
+// ── 接单配置（服务时段 / 自动上线 / 可接单价 / 固排开关与时段） ──
 
 // playerAcceptConfig 是五项接单配置的「可选补丁」：nil 表示不修改。
 type playerAcceptConfig struct {
@@ -330,7 +330,7 @@ func applyPlayerAcceptConfig(update *ent.EsportsPlayerUpdate,
 	return update, nil
 }
 
-// ── §6.1-12 期望报价（陪玩提交 + 运营复核） ──
+// ── 期望报价（陪玩提交 + 运营复核） ──
 
 // playerExpectedPriceLimitsKey 期望报价允许区间（分，裸键 player_expected_price_limits_cents）。
 // 格式 "min,max"，0 表示该侧不限；缺失/非法一律回落 "0,0"（两侧不限）。
@@ -357,7 +357,7 @@ func playerExpectedPriceLimits(ctx context.Context, db *ent.Client) (int64, int6
 	return minimum, maximum
 }
 
-// submitPlayerExpectedPrice 陪玩提交期望报价（§6.1-12）：落 pending 待运营审核。
+// submitPlayerExpectedPrice 陪玩提交期望报价：落 pending 待运营审核。
 //
 // 口径（可验收断言）：
 //   - 报价必须是正整数分，越出配置区间（min,max，0=该侧不限）直接拒绝；
@@ -402,7 +402,7 @@ func submitPlayerExpectedPrice(ctx context.Context, db *ent.Client, playerID int
 	return db.EsportsPlayer.Get(ctx, playerID)
 }
 
-// reviewPlayerExpectedPrice 运营复核期望报价（§6.1-12）：通过或驳回，落审核人 / 时间 / 原因。
+// reviewPlayerExpectedPrice 运营复核期望报价：通过或驳回，落审核人 / 时间 / 原因。
 // 驳回必须填写原因（审核结论要可追溯）；仅 pending 状态可复核。
 func reviewPlayerExpectedPrice(ctx context.Context, db *ent.Client, adminID, playerID int,
 	approve bool, note string, now time.Time) (*ent.EsportsPlayer, error) {
@@ -443,7 +443,7 @@ func reviewPlayerExpectedPrice(ctx context.Context, db *ent.Client, adminID, pla
 	return db.EsportsPlayer.Get(ctx, playerID)
 }
 
-// playerSubmitExpectedPriceHandler 陪玩端提交期望报价（§6.1-12）。需在 app.go 接线：
+// playerSubmitExpectedPriceHandler 陪玩端提交期望报价。需在 app.go 接线：
 // {Method: "POST", Path: "/user/player/expected-price", Auth: cmfapp.AuthUser, Handler: playerSubmitExpectedPriceHandler}
 func playerSubmitExpectedPriceHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
@@ -468,7 +468,7 @@ func playerSubmitExpectedPriceHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// adminReviewExpectedPriceHandler 运营复核期望报价（§6.1-12）。需在 app.go 接线：
+// adminReviewExpectedPriceHandler 运营复核期望报价。需在 app.go 接线：
 // {Method: "POST", Path: "/admin/players/:id/expected-price/review", Auth: cmfapp.AuthAdmin,
 // Handler: adminReviewExpectedPriceHandler}，并补同路径 PermAPI（见交付报告）。
 func adminReviewExpectedPriceHandler(c fiber.Ctx) error {

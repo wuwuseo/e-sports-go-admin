@@ -211,7 +211,7 @@ func userGiftIntents(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// userCreateGiftIntentHandler 客户自助创建礼物确认单（§9.2）：解析登录客户并按本人身份校验。
+// userCreateGiftIntentHandler 客户自助创建礼物确认单：解析登录客户并按本人身份校验。
 func userCreateGiftIntentHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	var in customerGiftIntentInput
@@ -265,7 +265,7 @@ func sendGiftHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// refundGiftHandler 礼物退款（§9.5）：退还本金并冲回礼物分成与成长值。
+// refundGiftHandler 礼物退款：退还本金并冲回礼物分成与成长值。
 func refundGiftHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -292,7 +292,7 @@ func refundGiftHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// reviewGiftHandler 复核疑似关联礼物（§9.4）：approve 释放分成，reject 不释放。
+// reviewGiftHandler 复核疑似关联礼物：approve 释放分成，reject 不释放。
 func reviewGiftHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -315,7 +315,7 @@ func reviewGiftHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// giftLeaderboardHandler 礼物榜单（§9.4）：board=customer 客户贡献榜 / player 陪玩收礼榜。
+// giftLeaderboardHandler 礼物榜单：board=customer 客户贡献榜 / player 陪玩收礼榜。
 func giftLeaderboardHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -335,7 +335,7 @@ func giftLeaderboardHandler(c fiber.Ctx) error {
 	return reply(c, rows)
 }
 
-// giftTierView 是礼物价格档位的对外返回结构（§9.1-02）。
+// giftTierView 是礼物价格档位的对外返回结构。
 type giftTierView struct {
 	ID         int       `json:"id"`
 	GiftID     int       `json:"gift_id"`
@@ -362,7 +362,7 @@ func toGiftTierView(item *ent.EsportsGiftTier) giftTierView {
 	}
 }
 
-// giftTierListHandler 礼物的价格档位列表（§9.1-02）。
+// giftTierListHandler 礼物的价格档位列表。
 func giftTierListHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -382,7 +382,7 @@ func giftTierListHandler(c fiber.Ctx) error {
 	return reply(c, views)
 }
 
-// createGiftTierHandler 新建礼物价格档位（§9.1-02）。
+// createGiftTierHandler 新建礼物价格档位。
 func createGiftTierHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -403,7 +403,7 @@ func createGiftTierHandler(c fiber.Ctx) error {
 	return reply(c, toGiftTierView(item))
 }
 
-// updateGiftTierHandler 编辑价格档位（§9.1-02）；gift_id / tier_code 不可改。
+// updateGiftTierHandler 编辑价格档位；gift_id / tier_code 不可改。
 func updateGiftTierHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -426,7 +426,7 @@ func updateGiftTierHandler(c fiber.Ctx) error {
 	return reply(c, toGiftTierView(item))
 }
 
-// deleteGiftTierHandler 删除价格档位（§9.1-02）：已被礼物单引用时只能停用。
+// deleteGiftTierHandler 删除价格档位：已被礼物单引用时只能停用。
 func deleteGiftTierHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -441,7 +441,7 @@ func deleteGiftTierHandler(c fiber.Ctx) error {
 	return reply(c, map[string]any{"id": id, "deleted": true})
 }
 
-// startGiftPaymentHandler 对礼物确认单发起收款（§9.2-01）：未开通渠道明确失败。
+// startGiftPaymentHandler 对礼物确认单发起收款：未开通渠道明确失败。
 func startGiftPaymentHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -463,7 +463,7 @@ func startGiftPaymentHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// verifyGiftPaymentHandler 财务核销礼物收款并成单（§9.2-01）：发起人不得自审。
+// verifyGiftPaymentHandler 财务核销礼物收款并成单：发起人不得自审。
 func verifyGiftPaymentHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -488,7 +488,7 @@ func verifyGiftPaymentHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// giftPaymentNotifyHandler 在线渠道回调核销礼物收款（§9.2-01，AuthPublic）：
+// giftPaymentNotifyHandler 在线渠道回调核销礼物收款（，AuthPublic）：
 // 请求体为原始字节（验签依据），通道与签名从请求头 / 查询串取。
 func giftPaymentNotifyHandler(c fiber.Ctx) error {
 	channel := c.Query("channel")
@@ -504,7 +504,7 @@ func giftPaymentNotifyHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// userPlayerGiftRecordsHandler 陪玩端收礼记录与本人榜单排名（§6.1-14）。
+// userPlayerGiftRecordsHandler 陪玩端收礼记录与本人榜单排名。
 func userPlayerGiftRecordsHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	period := c.Query("period")

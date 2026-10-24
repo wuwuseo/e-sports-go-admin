@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// EsportsSkillLevel 是技能等级（陪玩等级，§5.5 / §7.3）配置。等级按 sort_order 升序
+// EsportsSkillLevel 是技能等级（陪玩等级，）配置。等级按 sort_order 升序
 // 即从低到高（下标小 = 低档），顺序由管理端整体保存时重排；商品门槛 / 订单快照 /
 // 陪玩档案只存 code 字符串，所有比较按保存当时的表序数进行，删档后的历史编码按
 // fail-closed 口径处理（低于一切有效档，接不了任何已知门槛的单，见 checkPlayerGameLevel）。

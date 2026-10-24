@@ -25,7 +25,7 @@ func addOrderCollaborator(ctx context.Context, db *ent.Client, operatorID int, i
 	if err != nil {
 		return nil, err
 	}
-	// §3.3-11：存单冻结期间禁止一切写操作，增删协作同属写操作。
+	// ：存单冻结期间禁止一切写操作，增删协作同属写操作。
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func removeOrderCollaborator(ctx context.Context, db *ent.Client, operatorID int
 	if err != nil {
 		return err
 	}
-	// §3.3-11：存单冻结期间禁止一切写操作，撤销协作同属写操作。
+	// ：存单冻结期间禁止一切写操作，撤销协作同属写操作。
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return err
 	}

@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 售后自动建单规则的管理端接口（§13.2-05）。
+// 售后自动建单规则的管理端接口。
 //
 // 建议接线（主控统一加，PermAPI 路径用 {id}）：
 //   - GET    /admin/aftersale-rules

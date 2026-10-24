@@ -22,7 +22,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// ============ 测试替身（§6.1-01 短信登录通道） ============
+// ============ 测试替身（短信登录通道） ============
 
 // smsLoginFakeStore 内存版验证码存储替身：按注入时钟执行 TTL（与真实缓存语义一致），
 // 键值全量可见以便断言「不落明文验证码 / 键不含完整手机号」。
@@ -237,7 +237,7 @@ func (e *smsLoginTestEnv) lastContent() string {
 
 // ============ 发码：不假成功 ============
 
-// TestSMSCodeService_SendCode_ChannelUnconfiguredFailsExplicitly §6.1-01 不假成功：
+// TestSMSCodeService_SendCode_ChannelUnconfiguredFailsExplicitly 不假成功：
 // 短信网关未配置时必须明确失败，且**不得**把验证码写进存储（否则等于发了一条永远收不到的码）。
 func TestSMSCodeService_SendCode_ChannelUnconfiguredFailsExplicitly(t *testing.T) {
 	env := newSMSLoginTestEnv(t)

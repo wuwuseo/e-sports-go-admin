@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsAssessmentRule 是考核维度权重配置（§7.2）：按考核类型分组，每个维度的权重以基点表示，
+// EsportsAssessmentRule 是考核维度权重配置：按考核类型分组，每个维度的权重以基点表示，
 // 同一类型下各维度权重合计须为 10000（即 100%）。权重可配置，改分流程按当前配置快照。
 type EsportsAssessmentRule struct{ ent.Schema }
 
@@ -27,9 +27,9 @@ func (EsportsAssessmentRule) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("assessment_type", "dimension").Unique()}
 }
 
-// EsportsAssessment 是考核任务（§7.1/§7.2）：入职 / 升级 / 抽查复核 / 复考四类，状态从待分配考官
+// EsportsAssessment 是考核任务：入职 / 升级 / 抽查复核 / 复考四类，状态从待分配考官
 // 推进到已约考核，打分后落 passed / failed。结论通过则定级并开通接单权限，不通过则可安排复考。
-// appeal_status 承载结果申诉状态（§7.4），申诉成立时由管理员复核改判并重放定级动作。
+// appeal_status 承载结果申诉状态，申诉成立时由管理员复核改判并重放定级动作。
 type EsportsAssessment struct{ ent.Schema }
 
 func (EsportsAssessment) Fields() []ent.Field {
@@ -70,8 +70,8 @@ func (EsportsAssessment) Indexes() []ent.Index {
 	}
 }
 
-// EsportsAssessmentScore 是逐维度打分（§7.2）：分值 0~100，权重在打分时快照，评语与依据必填。
-// 与考核任务一并写入，构成完整考核记录（§7.4）。
+// EsportsAssessmentScore 是逐维度打分：分值 0~100，权重在打分时快照，评语与依据必填。
+// 与考核任务一并写入，构成完整考核记录。
 type EsportsAssessmentScore struct{ ent.Schema }
 
 func (EsportsAssessmentScore) Fields() []ent.Field {
@@ -90,7 +90,7 @@ func (EsportsAssessmentScore) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("assessment_id", "dimension").Unique()}
 }
 
-// EsportsAssessmentAppeal 是考核结果申诉（§7.4）：陪玩发起，管理员复核。每个考核任务仅一条申诉记录。
+// EsportsAssessmentAppeal 是考核结果申诉：陪玩发起，管理员复核。每个考核任务仅一条申诉记录。
 type EsportsAssessmentAppeal struct{ ent.Schema }
 
 func (EsportsAssessmentAppeal) Fields() []ent.Field {
@@ -110,7 +110,7 @@ func (EsportsAssessmentAppeal) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("assessment_id").Unique()}
 }
 
-// EsportsPlayerReview 是客户对实际服务陪玩的评价（§7.5）。同客户同订单同服务成员仅保留一份
+// EsportsPlayerReview 是客户对实际服务陪玩的评价。同客户同订单同服务成员仅保留一份
 // 当前有效评价（唯一索引）；修改时递增 version 并追加一条修订历史。客服代录的反馈 verified=false，
 // 不直接计入综合评分。status 承载异常刷评 / 评价申诉的管理员复核结论。
 type EsportsPlayerReview struct{ ent.Schema }
@@ -125,7 +125,7 @@ func (EsportsPlayerReview) Fields() []ent.Field {
 		// 是否来自已核验身份的客户自助评价；客服代录为 false。
 		field.Bool("verified").Default(false).StructTag(`json:"verified"`),
 		field.Enum("status").Values("normal", "disputed", "invalid", "appeal_pending").Default("normal").StructTag(`json:"status"`),
-		// 异常刷评自动识别留痕（§7.5-05）：命中规则即置 status=disputed 并写入命中规则码与明细；
+		// 异常刷评自动识别留痕：命中规则即置 status=disputed 并写入命中规则码与明细；
 		// auto_disputed=true 表示由规则自动标记（与管理员手工标记区分，便于事后复核与申诉）。
 		field.Bool("auto_disputed").Default(false).StructTag(`json:"auto_disputed"`),
 		field.String("dispute_rule_code").MaxLen(48).Default("").StructTag(`json:"dispute_rule_code"`),
@@ -144,7 +144,7 @@ func (EsportsPlayerReview) Indexes() []ent.Index {
 	}
 }
 
-// EsportsPlayerReviewRevision 是评价修订历史（append-only）：每次新建 / 修改追加一条，保留版本与时间（§7.5）。
+// EsportsPlayerReviewRevision 是评价修订历史（append-only）：每次新建 / 修改追加一条，保留版本与时间。
 type EsportsPlayerReviewRevision struct{ ent.Schema }
 
 func (EsportsPlayerReviewRevision) Hooks() []ent.Hook { return appendOnlyHooks() }
@@ -163,7 +163,7 @@ func (EsportsPlayerReviewRevision) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("review_id", "version").Unique()}
 }
 
-// EsportsPlayerReviewAppeal 是评价申诉流水（§7.5-05）：客户 / 陪玩对评价（含被自动判定的异常刷评）
+// EsportsPlayerReviewAppeal 是评价申诉流水：客户 / 陪玩对评价（含被自动判定的异常刷评）
 // 发起申诉，管理员复核后改判。与考核申诉同构，每条评价仅一条申诉记录（唯一索引兜底）。
 // 建议表名：esports_player_review_appeals。
 type EsportsPlayerReviewAppeal struct{ ent.Schema }

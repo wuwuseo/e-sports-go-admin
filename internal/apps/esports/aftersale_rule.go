@@ -22,7 +22,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 售后自动建单规则（§13.2-05）：把「结单后异常」做成可配置的「条件 + 动作」规则，
+// 售后自动建单规则：把「结单后异常」做成可配置的「条件 + 动作」规则，
 // 由 esports_scan_aftersale_rules 任务按规则扫描并建 channel=system 的售后单，
 // 每次命中写一条 EsportsAfterSaleRuleHit 只增留痕（dedup_key 唯一兜底重复建单）。
 //
@@ -633,7 +633,7 @@ func afterSaleRuleHitDedupKey(ruleCode, sourceType string, sourceID int) string 
 	return ruleCode + ":" + sourceType + ":" + strconv.Itoa(sourceID)
 }
 
-// scanAfterSaleRules 按 active 规则扫描结单后 / 服务段结束 / 礼物支付完成的异常并建单（§13.2-05）。
+// scanAfterSaleRules 按 active 规则扫描结单后 / 服务段结束 / 礼物支付完成的异常并建单。
 // limit 是单次最多判定的来源单据数（默认 200，上限 1000），返回命中条数。
 func scanAfterSaleRules(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if db == nil {

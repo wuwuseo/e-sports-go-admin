@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsGiftTier 是礼物价格档位（§9.1-02）：同一礼物可配置多档价格，每档独立设置
+// EsportsGiftTier 是礼物价格档位：同一礼物可配置多档价格，每档独立设置
 // 高额二次确认（high_value）与年龄限制（require_age），使 require_age 真正按档生效
 // （此前 require_age 只写入、无读取点，且礼物只有一个 price_cents）。
 //
@@ -27,9 +27,9 @@ func (EsportsGiftTier) Fields() []ent.Field {
 		field.String("tier_code").NotEmpty().MaxLen(48).StructTag(`json:"tier_code"`),
 		field.String("name").NotEmpty().MaxLen(120).StructTag(`json:"name"`),
 		field.Int64("price_cents").Positive().StructTag(`json:"price_cents"`),
-		// 该档是否需送礼二次确认（§9.5 大额打赏）。
+		// 该档是否需送礼二次确认（大额打赏）。
 		field.Bool("high_value").Default(false).StructTag(`json:"high_value"`),
-		// 该档是否仅成年客户可送（§9.5 未成年人打赏拦截）；核销时按此拦截。
+		// 该档是否仅成年客户可送（未成年人打赏拦截）；核销时按此拦截。
 		field.Bool("require_age").Default(false).StructTag(`json:"require_age"`),
 		// 未指定档位时使用的默认档（每个礼物至多一档）。
 		field.Bool("is_default").Default(false).StructTag(`json:"is_default"`),

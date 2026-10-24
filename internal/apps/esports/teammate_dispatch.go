@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportsteammate"
 )
 
-// 固排成队（§5.3）：组队派单时，客服可勾选「主陪玩 + 其固排」一次成队，
+// 固排成队：组队派单时，客服可勾选「主陪玩 + 其固排」一次成队，
 // 主陪玩占第一个空席位，选中固排依次占后续空席位，全部变更同事务。
 
 // teammateDispatchCandidate 是固排成队候选（主陪玩在该订单上可一起成队的合格固排）。
@@ -32,7 +32,7 @@ func listTeammateCandidatesForOrder(ctx context.Context, db *ent.Client, orderID
 }
 
 // listTeammateCandidatesAt 同 listTeammateCandidatesForOrder，但把「现在」显式传入，
-// 便于用固定时钟校验固排时段（§6.4-06）等与时间相关的过滤。
+// 便于用固定时钟校验固排时段等与时间相关的过滤。
 func listTeammateCandidatesAt(ctx context.Context, db *ent.Client, orderID, mainPlayerID int,
 	now time.Time) ([]teammateDispatchCandidate, error) {
 	if orderID < 1 || mainPlayerID < 1 {
@@ -80,7 +80,7 @@ func listTeammateCandidatesAt(ctx context.Context, db *ent.Client, orderID, main
 		if err := checkPlayerGameLevel(levels, p, game, requiredLevel); err != nil {
 			continue
 		}
-		// §6.4-06：固排时段外的固排不作为候选（未开启固排时段限制者不受影响）。
+		// ：固排时段外的固排不作为候选（未开启固排时段限制者不受影响）。
 		if !playerFixedTeamSlotAllows(p, now) {
 			continue
 		}
@@ -95,7 +95,7 @@ func listTeammateCandidatesAt(ctx context.Context, db *ent.Client, orderID, main
 	return out, nil
 }
 
-// teamDispatch 一次成队（§5.3）：主陪玩占第一个空席位，选中固排依次占后续空席位。
+// teamDispatch 一次成队：主陪玩占第一个空席位，选中固排依次占后续空席位。
 // 主陪玩与每个固排都按人工指派的硬性条件校验；固排必须是与主陪玩在（该订单分区）已建立的固排。
 func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int,
 	teammatePlayerIDs []int, adminID int, now time.Time) ([]*ent.EsportsDispatchSeat, error) {
@@ -179,7 +179,7 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 		if err = checkPlayerGameLevel(levels, p, game, requiredLevel); err != nil {
 			return nil, err
 		}
-		// §6.4-06：固排时段外的固排不得成队（未开启固排时段限制者不受影响）。
+		// ：固排时段外的固排不得成队（未开启固排时段限制者不受影响）。
 		if !playerFixedTeamSlotAllows(p, now) {
 			return nil, fmt.Errorf("%w：固排 %s 当前不在其固排时段内", errForbidden, p.DisplayName)
 		}

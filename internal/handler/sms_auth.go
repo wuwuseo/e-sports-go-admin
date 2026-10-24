@@ -11,7 +11,7 @@ import (
 	"github.com/wuwuseo/cmf/validate"
 )
 
-// SMSAuth 短信验证码登录通道（§6.1-01）。
+// SMSAuth 短信验证码登录通道。
 //
 // 两条路由均为 AuthPublic（平台级 `/api/v1/user/auth/*`，在 internal/router.go 的
 // 鉴权分组**之前**注册），只返回完成该操作所需的最小信息：

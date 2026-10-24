@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 退款 / 退卡按充值批次还原的外部退款执行器（§4.5 执行落账编排）。
+// 退款 / 退卡按充值批次还原的外部退款执行器（执行落账编排）。
 //
 // 试算（rechargeRefundQuoteFor）只读，给出逐批可退本金 / 作废赠送与异常；本文件做「执行落账」：
 // 按每个可退批次生成一条外部退款执行明细（EsportsRechargeRefundExecution），引用批次来源、
@@ -59,7 +59,7 @@ func refundExecutionAccount(ctx context.Context, db *ent.Client, item *ent.Espor
 	return "", "", fmt.Errorf("%w：仅充值来源支持按批次退款执行", errInvalidInput)
 }
 
-// executeRechargeRefundByBatch 按充值批次生成外部退款执行明细（§4.5）：
+// executeRechargeRefundByBatch 按充值批次生成外部退款执行明细：
 // 由售后单推导账户 → 逐批还原试算 → 按可退批次落账执行明细。幂等可重复执行，返回该售后单的全部明细。
 func executeRechargeRefundByBatch(ctx context.Context, db *ent.Client, afterSaleID, adminID int, now time.Time) ([]*ent.EsportsRechargeRefundExecution, error) {
 	if afterSaleID < 1 || adminID < 1 {
@@ -107,7 +107,7 @@ func executeRechargeRefundQuote(ctx context.Context, db *ent.Client, item *ent.E
 // executeRechargeRefundQuoteTx 在调用方事务内按试算生成外部退款执行明细（幂等）：
 // 供售后执行链（充值来源）在同一事务内与内部退款一并落账。
 //
-// 累计口径（§4.5 修复）：试算的 RefundableCents 只反映「按账户余额还原的批次剩余被退额」，
+// 累计口径（修复）：试算的 RefundableCents 只反映「按账户余额还原的批次剩余被退额」，
 // 执行明细的 pending 状态并不扣减余额（真实打款后才扣），因此同一批次可能被多张售后单
 // 重复按同一可退额生成明细。这里按 (account_type, account_id, batch_source_type, batch_source_id)
 // 聚合既有执行明细，逐批扣减已占用金额：
@@ -197,7 +197,7 @@ func executeRechargeRefundQuoteTx(ctx context.Context, tx *ent.Tx, item *ent.Esp
 	return nil
 }
 
-// markRechargeRefundExecutionExecuted 财务登记外部打款后把执行明细置为 executed（§4.5）：
+// markRechargeRefundExecutionExecuted 财务登记外部打款后把执行明细置为 executed：
 // 回填外部凭证号与执行人，不接银行通道；状态只能 pending → executed。
 func markRechargeRefundExecutionExecuted(ctx context.Context, db *ent.Client, id, adminID int,
 	financeRef string, now time.Time) (*ent.EsportsRechargeRefundExecution, error) {
@@ -219,7 +219,7 @@ func markRechargeRefundExecutionExecuted(ctx context.Context, db *ent.Client, id
 	return db.EsportsRechargeRefundExecution.Get(ctx, id)
 }
 
-// rechargeRefundExecutionView 是退款执行批次的列表项（审核报告 §3.1 缺口）：
+// rechargeRefundExecutionView 是退款执行批次的列表项（审核报告 缺口）：
 // 批次号 / 状态 / 金额 / 时间 / 关联售后单号 / 执行人，财务列表页据此直接渲染，无需再逐条查详情。
 type rechargeRefundExecutionView struct {
 	ID          int    `json:"id"`

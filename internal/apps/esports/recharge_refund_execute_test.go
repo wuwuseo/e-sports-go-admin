@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 按充值批次退款执行（§4.5）：两个充值批次未消费时，按批次生成执行明细；
+// 按充值批次退款执行：两个充值批次未消费时，按批次生成执行明细；
 // 幂等键按「售后单来源 + 批次来源」拆分，重复执行不重复落账。
 func TestRechargeRefundExecGeneratesBatchItems(t *testing.T) {
 	db := openWalletTestDB(t, "esports_recharge_refund_exec")

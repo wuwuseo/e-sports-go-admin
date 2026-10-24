@@ -24,7 +24,7 @@ func validateReportExportAccess(reportType string, f reportFilter, isSuper bool)
 	return nil
 }
 
-// adminReportExport 导出报表 CSV（§17 导出与审计）。
+// adminReportExport 导出报表 CSV（导出与审计）。
 // 建议接线：GET /admin/reports/:type/export（管理端 Auth），支持 format=csv。
 // 权限与数据边界与报表接口一致：非超级管理员收敛本人、finance 仅超级管理员。
 func adminReportExport(c fiber.Ctx) error {

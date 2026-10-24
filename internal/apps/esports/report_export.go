@@ -19,7 +19,7 @@ import (
 	"go-admin/internal/ent/predicate"
 )
 
-// §17 报表导出：复用 report.go 的筛选与聚合口径，把「聚合汇总 + 下钻明细」序列化为 CSV。
+// 报表导出：复用 report.go 的筛选与聚合口径，把「聚合汇总 + 下钻明细」序列化为 CSV。
 // 汇总与分段走数据库端聚合（不随订单行数线性占用内存）；下钻明细按键集分页流式写出，
 // 大样本下 CSV 分块落盘，不一次性物化全量单据。
 const reportExportPageSize = 500
@@ -124,7 +124,7 @@ func streamOrdersCSV(ctx context.Context, db *ent.Client, predicates []predicate
 	}
 }
 
-// writeCsPerformanceCSV 导出客服个人业绩（按负责客服聚合）+ 订单下钻明细（§17-06）。
+// writeCsPerformanceCSV 导出客服个人业绩（按负责客服聚合）+ 订单下钻明细。
 func writeCsPerformanceCSV(ctx context.Context, db *ent.Client, f reportFilter, w *csv.Writer) (int, error) {
 	result, err := csPerformanceReport(ctx, db, f)
 	if err != nil {
@@ -176,7 +176,7 @@ func writeDispatchEfficiencyCSV(ctx context.Context, db *ent.Client, f reportFil
 			return 0, err
 		}
 	}
-	// §17-06：派单效率的订单下钻明细，可定位原单据。
+	// ：派单效率的订单下钻明细，可定位原单据。
 	details, _ := result["details"].([]map[string]any)
 	if err := writeCSV(w, "dispatch_order", "id", "order_no", "responsible_admin_id", "created_at"); err != nil {
 		return 0, err
@@ -247,7 +247,7 @@ func streamAftersaleCSV(ctx context.Context, db *ent.Client, f reportFilter, han
 			if len(rows) == 0 {
 				return nil
 			}
-			// §17-06：来源为订单的售后补出来源订单号，便于跳回原单据核对。
+			// ：来源为订单的售后补出来源订单号，便于跳回原单据核对。
 			sourceOrderIDs := make([]int, 0, len(rows))
 			for _, row := range rows {
 				if row.SourceType == esportsaftersale.SourceTypeOrder {
@@ -326,7 +326,7 @@ func writeFinanceCSV(ctx context.Context, db *ent.Client, f reportFilter, w *csv
 			return 0, err
 		}
 	}
-	// §12.7-03：分成明细级对账逐笔明细（含规则版本），财务可与结算单逐笔核对。
+	// ：分成明细级对账逐笔明细（含规则版本），财务可与结算单逐笔核对。
 	reconciliation, _ := result["commission_reconciliation"].(map[string]any)
 	details, _ := reconciliation["details"].([]map[string]any)
 	if err := writeCSV(w, "commission_reconciliation", "id", "order_no", "player_id", "kind",
@@ -340,7 +340,7 @@ func writeFinanceCSV(ctx context.Context, db *ent.Client, f reportFilter, w *csv
 			return 0, err
 		}
 	}
-	// §12.7-04：工作室抽成汇总（按周期聚合工作室剩余）随财务导出。
+	// ：工作室抽成汇总（按周期聚合工作室剩余）随财务导出。
 	studio, _ := result["studio"].(map[string]any)
 	studioSummary, _ := studio["summary"].(map[string]any)
 	for _, key := range []string{"studio_remainder_cents", "cs_commission_cents", "entry_count"} {
@@ -357,7 +357,7 @@ func writeFinanceCSV(ctx context.Context, db *ent.Client, f reportFilter, w *csv
 			return 0, err
 		}
 	}
-	// §17-06：财务下钻单据明细（结算单 / 支付回执）。
+	// ：财务下钻单据明细（结算单 / 支付回执）。
 	docs, _ := result["details"].([]map[string]any)
 	if err := writeCSV(w, "finance_doc", "doc_type", "id", "doc_no", "amount_cents", "status", "created_at"); err != nil {
 		return 0, err

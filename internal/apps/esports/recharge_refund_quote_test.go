@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 按充值批次还原的退款试算（§4.5）：多批次充值 + 部分消费后，逐批给出已分摊额、批次剩余、
+// 按充值批次还原的退款试算：多批次充值 + 部分消费后，逐批给出已分摊额、批次剩余、
 // 可退本金与作废赠送，且各批次可退本金之和等于账户派生本金余额（覆盖批次 FIFO 分摊）。
 func TestRechargeRefundQuoteBatchFIFO(t *testing.T) {
 	db := openWalletTestDB(t, "esports_recharge_refund_quote_fifo")

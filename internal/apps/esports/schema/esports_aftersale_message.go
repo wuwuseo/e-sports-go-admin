@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsAfterSaleMessage 是售后单内的沟通记录（§13.3-04，只增不改）：
+// EsportsAfterSaleMessage 是售后单内的沟通记录（，只增不改）：
 // 客服与客户在同一张售后单里来回回复，客户侧只能看到 visibility=all 的消息；
 // 附件以引用地址列表存放，与既有 evidence_ref 口径一致。
 //

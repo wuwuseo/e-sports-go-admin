@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// 生日礼遇（§10.4）：客户档案可写生日（MM-DD），今日生日的归属客户计入工作台待办；非法格式被拒。
+// 生日礼遇：客户档案可写生日（MM-DD），今日生日的归属客户计入工作台待办；非法格式被拒。
 func TestCustomerBirthdayTodoAndProfile(t *testing.T) {
 	db := openCSDB(t, "esports_cs_birthday")
 	ctx := t.Context()

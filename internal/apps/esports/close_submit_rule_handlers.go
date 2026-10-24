@@ -6,7 +6,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 结单提交规则（§3.4）：单人 / 多人 / 自定义（代提交、提交比例、未提交处理），挂在「结单表单」菜单下。
+// 结单提交规则：单人 / 多人 / 自定义（代提交、提交比例、未提交处理），挂在「结单表单」菜单下。
 
 func listCloseSubmitRulesHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {

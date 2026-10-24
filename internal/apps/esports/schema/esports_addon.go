@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsOrderAddon 是服务中订单的「加钟单」（§3.3 订单操作 / §6.2 陪玩端加钟确认 / §12.5 特殊场景）。
+// EsportsOrderAddon 是服务中订单的「加钟单」（订单操作 / 陪玩端加钟确认 / 特殊场景）。
 //
 // 流程：客服对**服务中**订单发起加钟（追加金额与工时）→ 陪玩收到通知后确认或拒绝 →
 // 确认时按**确认时点锁定的分成规则**为承接陪玩生成 `kind=addon` 的加钟分成明细，并把追加金额与
@@ -31,12 +31,12 @@ func (EsportsOrderAddon) Fields() []ent.Field {
 		field.Enum("status").Values("pending", "confirmed", "rejected", "cancelled").
 			Default("pending").StructTag(`json:"status"`),
 		field.Int("requested_by_admin_id").Optional().Nillable().StructTag(`json:"requested_by_admin_id"`),
-		// 确认时锁定的分成规则快照与按该规则算出的陪玩加钟分成（§12.5：按加钟确认时锁定的规则计算）。
+		// 确认时锁定的分成规则快照与按该规则算出的陪玩加钟分成（：按加钟确认时锁定的规则计算）。
 		field.Int("rule_id").Optional().Nillable().StructTag(`json:"rule_id"`),
 		field.String("rule_no").MaxLen(48).Default("").StructTag(`json:"rule_no"`),
 		field.Int("rule_version").Default(0).StructTag(`json:"rule_version"`),
 		field.Int64("commission_cents").Default(0).StructTag(`json:"commission_cents"`),
-		// 加钟收款（§3.3 收单）：确认后的追加金额由客服收单，首版仅客户余额核销。
+		// 加钟收款（收单）：确认后的追加金额由客服收单，首版仅客户余额核销。
 		field.Enum("payment_status").Values("unpaid", "paid").Default("unpaid").StructTag(`json:"payment_status"`),
 		field.Int64("paid_cents").Default(0).StructTag(`json:"paid_cents"`),
 		field.Time("paid_at").Optional().Nillable().StructTag(`json:"paid_at"`),

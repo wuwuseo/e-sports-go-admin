@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// serviceEvidenceDirectory 是陪玩服务截图的私有附件目录（§6.1 / §6.2）。
+// serviceEvidenceDirectory 是陪玩服务截图的私有附件目录。
 const serviceEvidenceDirectory = "private/esports/service-evidence"
 
 // maxServiceEvidenceAttachments 限制单次提交的服务截图数量，避免 evidence_ref 超出 255 字符上限。
@@ -70,7 +70,7 @@ func validateServiceEvidence(ctx context.Context, db *ent.Client, playerID int, 
 	return string(data), nil
 }
 
-// finishPlayerServiceWithEvidence 结束服务并提交本人服务段凭证（§6.1 / §6.2）：
+// finishPlayerServiceWithEvidence 结束服务并提交本人服务段凭证：
 // 先校验本人服务段归属（非本人 403），再校验截图附件并把附件 ID 落为 evidence_ref JSON 数组，
 // 最后复用既有 finishPlayerService，保持结单口径对「有凭证」的判定不变。
 func finishPlayerServiceWithEvidence(ctx context.Context, db *ent.Client, playerID, orderID int,

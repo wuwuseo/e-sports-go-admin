@@ -115,7 +115,7 @@ func rollbackPageHandler(c fiber.Ctx) error {
 	return reply(c, version)
 }
 
-// approvePagePublishHandler / rejectPagePublishHandler 审核待发布版本（§16.4）。
+// approvePagePublishHandler / rejectPagePublishHandler 审核待发布版本。
 // 需在 app.go 接线（perm 列表见下）：
 //
 //	{Method: "POST", Path: "/admin/pages/:channel/publish-review/:versionId/approve", Auth: cmfapp.AuthAdmin, Handler: approvePagePublishHandler}
@@ -210,12 +210,12 @@ func deletePageAssetHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"id": id})
 }
 
-// publicPage 是客户端读取入口（AuthPublic，§16.5）：只返回已发布配置，不含任何个人数据或动态参数。
+// publicPage 是客户端读取入口（AuthPublic，）：只返回已发布配置，不含任何个人数据或动态参数。
 //
-// 第 4 轮补齐（§16.4-06）：
+// 第 4 轮补齐：
 //   - capab 声明客户端支持的组件类型；不兼容时回退最近有效版本，再不行回系统默认模板；
 //   - version_no / If-None-Match 命中同一版本时返回 304，不再重复全量下发；
-//   - 下发前剔除已过有效期的组件与轮播项（§16.3-02/03/08），并附带底部导航（§16.3-12）。
+//   - 下发前剔除已过有效期的组件与轮播项（03/08），并附带底部导航。
 func publicPage(c fiber.Ctx) error {
 	channel := strings.TrimSpace(c.Query("channel"))
 	if channel == "" {
@@ -274,7 +274,7 @@ func parseQueryInt(raw string) int {
 	return value
 }
 
-// publicPagePreview 设备预览码兑换入口（AuthPublic，§16.4-02）：只回草稿配置，不含个人数据。
+// publicPagePreview 设备预览码兑换入口（AuthPublic，）：只回草稿配置，不含个人数据。
 // 需在 app.go 接线：{Method: "GET", Path: "/page/preview/:code", Auth: cmfapp.AuthPublic, Handler: publicPagePreview}
 func publicPagePreview(c fiber.Ctx) error {
 	// P0-18：预览码里带着渠道，兑换前先做渠道白名单判定；非白名单渠道不返回任何草稿内容。
@@ -326,7 +326,7 @@ func pagePreviewCodeChannel(code string) string {
 	return parts[0]
 }
 
-// issuePagePreviewCodeHandler 生成设备预览码（§16.4-02，管理端）。
+// issuePagePreviewCodeHandler 生成设备预览码（，管理端）。
 // 需在 app.go 接线 + PermAPI：
 //
 //	POST /admin/pages/:channel/preview-code → issuePagePreviewCodeHandler
@@ -346,7 +346,7 @@ func issuePagePreviewCodeHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// savePageTabbarHandler 保存底部导航（§16.3-12，管理端）：允许增删条目（1~5 项）与编辑
+// savePageTabbarHandler 保存底部导航（，管理端）：允许增删条目（1~5 项）与编辑
 // path / order / 文案 / 图标；path 须为命中已注册页面白名单的站内相对路径（见 pageValidateTabbar）。
 // 需在 app.go 接线 + PermAPI：
 //
@@ -375,7 +375,7 @@ func savePageTabbarHandler(c fiber.Ctx) error {
 	return reply(c, doc)
 }
 
-// pageAssetUsagesHandler 素材被引用位置反查（§16.2-06，管理端）。
+// pageAssetUsagesHandler 素材被引用位置反查（，管理端）。
 // 需在 app.go 接线 + PermAPI：
 //
 //	GET /admin/page-assets/:id/usages → pageAssetUsagesHandler

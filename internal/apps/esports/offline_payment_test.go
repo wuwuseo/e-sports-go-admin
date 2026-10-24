@@ -46,7 +46,7 @@ func seedPayableOrderForOffline(t *testing.T, db *ent.Client, suffix, channel st
 		SetChannel(channel).SetExpiresAt(order.PaymentDeadline).SaveX(ctx)
 }
 
-// seedPaymentSubjectWhitelist 登记测试用的工作室主体白名单（§4.3-07 fail-closed：
+// seedPaymentSubjectWhitelist 登记测试用的工作室主体白名单（fail-closed：
 // 未配置白名单时不允许提交或启用收款账户，因此涉收款账户的测试须先按已配置口径播种）。
 func seedPaymentSubjectWhitelist(t *testing.T, db *ent.Client) {
 	t.Helper()
@@ -74,7 +74,7 @@ func seedActivePaymentAccount(t *testing.T, db *ent.Client, channel, accountNo s
 	return item
 }
 
-// 收款账户审核与收款方式启停（§4.3）：提交人不得自审，停用渠道 / 停用账户后不可提交到账凭证。
+// 收款账户审核与收款方式启停：提交人不得自审，停用渠道 / 停用账户后不可提交到账凭证。
 func TestPaymentAccountReviewAndChannelSwitch(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_payment_account?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
@@ -149,7 +149,7 @@ func TestPaymentAccountReviewAndChannelSwitch(t *testing.T) {
 	}
 }
 
-// 外部到账核销闭环（§4.2 / §4.3）：客服提交凭证 → 财务核销 → 订单转已付款并放行派单；
+// 外部到账核销闭环：客服提交凭证 → 财务核销 → 订单转已付款并放行派单；
 // 提交人不得自审、同一渠道流水不可核销两次、金额不足与账户未启用一律拒绝。
 func TestOfflinePaymentProofVerificationAppliesOrder(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_offline_payment?mode=memory&cache=shared&_fk=1",

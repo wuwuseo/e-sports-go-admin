@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 结单规则（§3.4 首版）：可配置结单条件与金额复核阈值，挂在「结算」菜单下。
+// 结单规则（首版）：可配置结单条件与金额复核阈值，挂在「结算」菜单下。
 
 func listCloseRulesHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {

@@ -58,7 +58,7 @@ func TestCustomerGiftIntentBalancePrincipalAndIdempotency(t *testing.T) {
 	if _, err := createCustomerGiftIntent(ctx, db, account.UID, conflict, now); !errors.Is(err, errConflict) {
 		t.Fatalf("同 client_key 换内容未被拦截：%v", err)
 	}
-	// §9.2-01 口径更新：余额（与卡本金）不足时**不再直接报本金不足**，仍可落确认单，
+	// 口径更新：余额（与卡本金）不足时**不再直接报本金不足**，仍可落确认单，
 	// 由客户改走「发起收款」补齐资金；真正的资金校验在核销成单时强制执行。
 	// 规格依据：台账 9.2-01「余额与卡本金均不足的客户可对礼物单发起收款并核销成单（当前直接报本金不足）」。
 	short := customerGiftIntentInput{GiftID: gift.ID, PlayerID: player.ID, Quantity: 3, ClientKey: "cust-gift-key-short"}

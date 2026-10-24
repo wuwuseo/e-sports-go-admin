@@ -64,7 +64,7 @@ func seedReversalFixture(t *testing.T, db *ent.Client, suffix string) (*ent.Espo
 	return db.EsportsPaymentReceipt.GetX(ctx, *verified.ReceiptID), db.EsportsOrder.GetX(ctx, order.ID)
 }
 
-// 已核销收款的渠道撤销 / 拒付（§3.2）：登记只记账不改订单，处置才落地资金异常，且登记人不得自审。
+// 已核销收款的渠道撤销 / 拒付：登记只记账不改订单，处置才落地资金异常，且登记人不得自审。
 func TestPaymentReversalRegistersAndMarksOrderException(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_payment_reversal?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))

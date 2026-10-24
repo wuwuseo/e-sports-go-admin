@@ -11,11 +11,11 @@ import (
 // EsportsAfterSale 是售后 / 退款单。首版只支持来源为订单（source_type=order），
 // 保留 gift/deposit 供后续扩展。状态机：
 // pending_accept → processing → pending_customer_confirm → pending_approval → pending_execution → completed | execution_failed；
-// 方案提交后须经「待客户确认」（客户自助确认或客服代确认，§13.3）才进入待审批；
+// 方案提交后须经「待客户确认」（客户自助确认或客服代确认，）才进入待审批；
 // 客户拒绝则退回 processing，客服可改方案后重新提交；
 // pending_approval --reject--> rejected；非终态 --withdraw--> withdrawn。
 // "同来源单据同问题同一时刻仅保留一张进行中售后" 由 service 层在事务内查重保证。
-// 限时与超时升级（§13.5）由 `esports_check_aftersale_sla` 任务按各阶段可配时限判定并写 `aftersale.sla_breach` 外盒。
+// 限时与超时升级由 `esports_check_aftersale_sla` 任务按各阶段可配时限判定并写 `aftersale.sla_breach` 外盒。
 // ponytail: 未用部分唯一索引表达该规则（MySQL 不支持带条件的部分唯一索引），并发下依赖事务内查询 + 串行化更新兜底；
 // 超时只升级提醒、不自动流转或升级角色，超时也不影响流转。
 type EsportsAfterSale struct{ ent.Schema }
@@ -23,7 +23,7 @@ type EsportsAfterSale struct{ ent.Schema }
 func (EsportsAfterSale) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("after_sale_no").NotEmpty().MaxLen(64).Immutable().StructTag(`json:"after_sale_no"`),
-		// 来源单据类型（§13.1 / §13.3）：order 服务订单 / gift 礼物单 / recharge 钱包充值流水 /
+		// 来源单据类型：order 服务订单 / gift 礼物单 / recharge 钱包充值流水 /
 		// assessment 考核记录（陪玩申诉）。
 		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史售后单可读，禁止新写入。
 		field.Enum("source_type").Values("order", "gift", "stored_value_card", "recharge", "assessment").
@@ -43,7 +43,7 @@ func (EsportsAfterSale) Fields() []ent.Field {
 		field.Enum("plan_action").Values("none", "refund_original", "compensate", "makeup_service").Default("none").StructTag(`json:"plan_action"`),
 		// 本次赔付金额（分）。
 		field.Int64("refund_cents").Default(0).StructTag(`json:"refund_cents"`),
-		// 补履约方案参数（§13.6）：plan_action=makeup_service 时使用，执行时据此创建补履约任务。
+		// 补履约方案参数：plan_action=makeup_service 时使用，执行时据此创建补履约任务。
 		// makeup_kind 为 none 表示非补履约方案。
 		field.Enum("makeup_kind").Values("none", "makeup_time", "replace_player").Default("none").StructTag(`json:"makeup_kind"`),
 		field.Int("makeup_player_id").Optional().Nillable().StructTag(`json:"makeup_player_id"`),
@@ -53,17 +53,17 @@ func (EsportsAfterSale) Fields() []ent.Field {
 		field.Int64("makeup_company_pay_cents").Default(0).StructTag(`json:"makeup_company_pay_cents"`),
 		field.Int("customer_id").Optional().Nillable().StructTag(`json:"customer_id"`),
 		field.Int("player_id").Optional().Nillable().StructTag(`json:"player_id"`),
-		// 待客户确认（§13.3）：方案提交后由客户确认；确认渠道区分自助与客服代确认。
+		// 待客户确认：方案提交后由客户确认；确认渠道区分自助与客服代确认。
 		field.Time("customer_confirmed_at").Optional().Nillable().StructTag(`json:"customer_confirmed_at"`),
 		field.Enum("customer_confirm_channel").Values("none", "self_service", "admin_proxy").
 			Default("none").StructTag(`json:"customer_confirm_channel"`),
 		field.Int("customer_confirmed_by_admin_id").Optional().Nillable().StructTag(`json:"customer_confirmed_by_admin_id"`),
 		field.Time("customer_declined_at").Optional().Nillable().StructTag(`json:"customer_declined_at"`),
 		field.String("customer_decline_reason").MaxLen(255).Default("").StructTag(`json:"customer_decline_reason"`),
-		// 追偿（§13.4）：赔付由陪玩承担时，执行售后按此生成陪玩追偿明细（待审批）。
+		// 追偿：赔付由陪玩承担时，执行售后按此生成陪玩追偿明细（待审批）。
 		field.Int("recovery_player_id").Optional().Nillable().StructTag(`json:"recovery_player_id"`),
 		field.Int64("recovery_cents").Default(0).StructTag(`json:"recovery_cents"`),
-		// 阶段时间戳（§13.5 限时）：受理 / 提交方案 / 审批各自锚定，用于计算当前阶段的超时。
+		// 阶段时间戳（限时）：受理 / 提交方案 / 审批各自锚定，用于计算当前阶段的超时。
 		field.Time("accepted_at").Optional().Nillable().StructTag(`json:"accepted_at"`),
 		field.Time("planned_at").Optional().Nillable().StructTag(`json:"planned_at"`),
 		field.Time("approved_at").Optional().Nillable().StructTag(`json:"approved_at"`),
@@ -73,7 +73,7 @@ func (EsportsAfterSale) Fields() []ent.Field {
 		// 处理 / 执行结果说明。
 		field.String("resolution").MaxLen(255).Default("").StructTag(`json:"resolution"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
-		// active_dedup_key 是「同来源同问题至多一张进行中售后单」的唯一索引兜底键（§13.2-09，可空）：
+		// active_dedup_key 是「同来源同问题至多一张进行中售后单」的唯一索引兜底键（，可空）：
 		// 建单时写入 <source_type>:<source_id>:<kind>，落终态（completed / rejected / withdrawn）时清空为 NULL。
 		// MySQL 与 SQLite 的唯一索引都允许多个 NULL，因此终态单据之间、终态与进行中都不冲突；
 		// 不用部分索引（partial index），MySQL 5.7 不支持。
@@ -87,7 +87,7 @@ func (EsportsAfterSale) Fields() []ent.Field {
 func (EsportsAfterSale) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("after_sale_no").Unique(),
-		// 进行中售后单的 DB 级兜底：空值 NULL 不参与冲突（§13.2-09）。
+		// 进行中售后单的 DB 级兜底：空值 NULL 不参与冲突。
 		index.Fields("active_dedup_key").Unique(),
 		index.Fields("source_type", "source_id", "status"),
 		index.Fields("status", "created_at"),

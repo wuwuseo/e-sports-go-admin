@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 结算周期（§12.6）：
+// 结算周期：
 // 1. 周期支持日结 / 周结 / 月结 / 自定义间隔（间隔天数按 UTC 自然日从 epoch 对齐切分）；
 // 2. 配置维度「全局默认 → 按游戏 → 按等级 → 单个陪玩」逐级覆盖，同一维度同一 key 只有一条配置；
 // 3. 全部缺失时回落系统配置项 app.esports.settlement_period（兼容旧配置），再回落 weekly。
@@ -264,7 +264,7 @@ func previousSettlementCycleWindow(cycle effectiveSettlementCycle, now time.Time
 	return prevStart, start
 }
 
-// generateDuePlayerSettlements 为各陪玩按其生效周期自动生成「上一完整周期」的结算单（§12.6）。
+// generateDuePlayerSettlements 为各陪玩按其生效周期自动生成「上一完整周期」的结算单。
 // 只处理「该周期内有可结算（未冻结）待结算明细」的陪玩；同陪玩同周期已存在结算单时跳过（幂等）；
 // 单个陪玩失败不中断整体任务。生成的是草稿结算单，锁定与发放仍由财务操作。
 func generateDuePlayerSettlements(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {

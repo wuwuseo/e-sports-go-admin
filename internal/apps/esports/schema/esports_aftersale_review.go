@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsAfterSaleReview 是终态售后的新证据复核申请（§13.6）。
+// EsportsAfterSaleReview 是终态售后的新证据复核申请。
 // 已驳回 / 已完成的售后单此前只能另建一张不同问题单，无法在有新证据时复核原结论。状态机：
 // pending（待审查）→ upheld（维持原结论）| reopened（发回重新处理）| withdrawn（申请人撤回）。
 // 复核结论须由「非申请人且非原审批人」的异人审查产生；reopened 时售后单由终态回到 processing，
@@ -23,7 +23,7 @@ func (EsportsAfterSaleReview) Fields() []ent.Field {
 		field.Int("order_id").Default(0).StructTag(`json:"order_id"`),
 		field.Int("applicant_admin_id").Positive().StructTag(`json:"applicant_admin_id"`),
 		field.String("reason").NotEmpty().MaxLen(500).StructTag(`json:"reason"`),
-		// 新证据引用（§13.6）：凭证所有权校验在附件模块，这里只存引用。
+		// 新证据引用：凭证所有权校验在附件模块，这里只存引用。
 		field.String("evidence_ref").MaxLen(255).Default("").StructTag(`json:"evidence_ref"`),
 		field.Enum("status").Values("pending", "upheld", "reopened", "withdrawn").
 			Default("pending").StructTag(`json:"status"`),

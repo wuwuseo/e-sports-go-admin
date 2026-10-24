@@ -27,7 +27,7 @@ func ledgerBatchAllocatedTx(ctx context.Context, tx *ent.Tx, accountType, accoun
 	return rows[0].Sum, nil
 }
 
-// ledgerBatchAllocatedCompositionTx 汇总某批次已被分摊的本金 / 赠送金额（§4.5-04）。
+// ledgerBatchAllocatedCompositionTx 汇总某批次已被分摊的本金 / 赠送金额。
 // 直接取回分摊行在 Go 里求和：分摊明细条数受批次金额与单笔消费数限制，量级很小，
 // 且避免 ent 聚合结果同名字段互相覆盖。
 func ledgerBatchAllocatedCompositionTx(ctx context.Context, tx *ent.Tx, accountType, accountID,
@@ -48,15 +48,15 @@ func ledgerBatchAllocatedCompositionTx(ctx context.Context, tx *ent.Tx, accountT
 	return principal, bonus, nil
 }
 
-// allocateLedgerConsumption 把一笔消费按批次顺序分摊到该账户的正向批次账本（§4.3 / §11.3）。
-// 本金 / 赠送的拆分按「批次剩余构成 + 先赠送后本金」推断（与 §4.5 默认扣减顺序同口径）。
+// allocateLedgerConsumption 把一笔消费按批次顺序分摊到该账户的正向批次账本。
+// 本金 / 赠送的拆分按「批次剩余构成 + 先赠送后本金」推断（与 默认扣减顺序同口径）。
 func allocateLedgerConsumption(ctx context.Context, tx *ent.Tx, accountType, accountID,
 	consumeSourceType, consumeSourceID string, amountCents int64) error {
 	return allocateLedgerConsumptionSplit(ctx, tx, accountType, accountID, consumeSourceType, consumeSourceID,
 		amountCents, 0, false)
 }
 
-// allocateLedgerConsumptionWithComposition 以调用方已算好的本金 / 赠送构成分摊（§4.5-04）：
+// allocateLedgerConsumptionWithComposition 以调用方已算好的本金 / 赠送构成分摊：
 // 余额与储值卡核销已按扣减顺序拆出本金 / 赠送，批次分摊必须沿用同一构成，
 // 否则「礼物只扣本金」「先赠送后本金」在批次层无法自证。
 func allocateLedgerConsumptionWithComposition(ctx context.Context, tx *ent.Tx, accountType, accountID,
@@ -66,7 +66,7 @@ func allocateLedgerConsumptionWithComposition(ctx context.Context, tx *ent.Tx, a
 }
 
 // allocateLedgerConsumptionSplit 分摊实现。given 为 true 时按给定构成分摊（金额为两者之和）；
-// 为 false 时按批次剩余构成推断，先扣赠送后扣本金（§4.5 默认扣减顺序）。
+// 为 false 时按批次剩余构成推断，先扣赠送后扣本金（默认扣减顺序）。
 // 批次取该账户下 delta_cents > 0 的账本条目，按 created_at FIFO 逐个扣减，记录每笔分摊明细，
 // 以便审计「每笔消费动用了哪个批次、动用了多少本金 / 赠送」。
 func allocateLedgerConsumptionSplit(ctx context.Context, tx *ent.Tx, accountType, accountID,

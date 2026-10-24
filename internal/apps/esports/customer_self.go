@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 客户自助端（§13.2 / §10）只读与发起接口：一律按「登录用户绑定的客户」做数据隔离，
+// 客户自助端只读与发起接口：一律按「登录用户绑定的客户」做数据隔离，
 // 订单 / 售后均校验归属，避免越权读到他人数据。
 
 // customerOrderBucketStatuses 把客户端的分组桶映射为订单履约状态集合；空桶（all）不过滤。
@@ -116,14 +116,14 @@ func customerAfterSaleWindowDays(ctx context.Context, db *ent.Client) (int, erro
 	return days, nil // 0 = 不限时
 }
 
-// createCustomerAfterSale 客户自助发起售后（§13.2 / §13.3）：本人来源单据可发起，归属客服记为发起人。
+// createCustomerAfterSale 客户自助发起售后：本人来源单据可发起，归属客服记为发起人。
 // 不带凭证附件，等价于 createCustomerAfterSaleWithEvidence(ctx, db, customer, in, nil, now)。
 func createCustomerAfterSale(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
 	in afterSaleInput, now time.Time) (*ent.EsportsAfterSale, error) {
 	return createCustomerAfterSaleWithEvidence(ctx, db, customer, in, nil, now)
 }
 
-// createCustomerAfterSaleWithEvidence 客户自助发起售后（§13.2 / §13.3）：本人来源单据可发起，归属客服记为发起人。
+// createCustomerAfterSaleWithEvidence 客户自助发起售后：本人来源单据可发起，归属客服记为发起人。
 // 订单来源沿用「终态订单 + 配置时限」的窗口；礼物 / 充值来源带自身单据语义，不做自助时限。
 // 考核处罚来源属陪玩申诉，不由客户自助发起。
 // evidenceAttachmentIDs 非空时校验凭证附件为本人上传（图片/文档私有附件），并把引用序列化为
@@ -193,7 +193,7 @@ func createCustomerAfterSaleWithEvidence(ctx context.Context, db *ent.Client, cu
 	return createAfterSale(ctx, db, in, operator, now)
 }
 
-// customerSelfProfile 客户自助「我的」资料（§10 会员等级与成长值；§13.7 风险状态只读）。
+// customerSelfProfile 客户自助「我的」资料（会员等级与成长值；风险状态只读）。
 type customerSelfProfile struct {
 	ID               int      `json:"id"`
 	DisplayName      string   `json:"display_name"`
@@ -205,7 +205,7 @@ type customerSelfProfile struct {
 	NextLevelGrowth  int64    `json:"next_level_growth"`
 	Tags             []string `json:"tags"`
 	SelfOrderEnabled bool     `json:"self_order_enabled"`
-	// 会员优先预约入口（§10.4）：当前等级启用 priority_booking 时才为 true，前端据此显隐预约入口。
+	// 会员优先预约入口：当前等级启用 priority_booking 时才为 true，前端据此显隐预约入口。
 	PriorityBookingEnabled bool   `json:"priority_booking_enabled"`
 	RiskRestricted         bool   `json:"risk_restricted"`
 	RiskReason             string `json:"risk_reason"`
@@ -246,7 +246,7 @@ func customerSelfProfileOf(ctx context.Context, db *ent.Client,
 	for _, level := range levels {
 		if level.Code == customer.MemberLevelCode {
 			profile.MemberLevelName = level.Name
-			// 预约入口（§10.4）：仅当前等级启用 priority_booking 且等级未停用才开放。
+			// 预约入口：仅当前等级启用 priority_booking 且等级未停用才开放。
 			if level.Status == esportsmemberlevelrule.StatusEnabled {
 				profile.PriorityBookingEnabled = level.PriorityBooking
 			}

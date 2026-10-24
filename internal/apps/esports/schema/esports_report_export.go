@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsReportExport 是 §17 报表导出的只增审计表：记录谁在什么时间、以什么筛选条件
+// EsportsReportExport 是 报表导出的只增审计表：记录谁在什么时间、以什么筛选条件
 // 导出了哪份报表，以及导出结果的行数与文件引用 / 摘要。审计独立于管理端操作日志，
 // 不因操作日志被清理而丢失留痕；更正一律追加新记录，不允许修改或删除历史行。
 type EsportsReportExport struct{ ent.Schema }

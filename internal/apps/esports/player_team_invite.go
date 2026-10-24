@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// playerInviteTeammates 主陪玩在陪玩端就自己已接单的订单主动邀请固排占剩余空席位（§5.3）。
+// playerInviteTeammates 主陪玩在陪玩端就自己已接单的订单主动邀请固排占剩余空席位。
 // 与后台「一次成队」的差别：主陪玩席位已是 accepted，本接口只新增固排邀请，不重复占用主陪玩容量。
 // 固排仍须满足与该主陪玩在订单分区已建立固排关系、资质合格、在线、分区等级达标与容量可用。
 func playerInviteTeammates(ctx context.Context, db *ent.Client, playerID, orderID int,

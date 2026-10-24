@@ -32,7 +32,7 @@ const (
 type backfillOrderInput struct {
 	CustomerID int `json:"customer_id"`
 	// SkuID 可选：有 SKU 时按 SKU 快照价格 / 服务量；0 表示无 SKU 的历史补录（不绑定 SKU），
-	// 此时 unit_price_cents 必填且 >0（§15.6 无 SKU 历史补录走管理员专用入口）。
+	// 此时 unit_price_cents 必填且 >0（无 SKU 历史补录走管理员专用入口）。
 	SkuID    int   `json:"product_id"`
 	Quantity int64 `json:"quantity"`
 	// UnitPriceCents 为实际成交单价；有 SKU 时留 0 表示按 SKU 当前规格价补录，无 SKU 时必填。
@@ -49,7 +49,7 @@ type backfillOrderInput struct {
 	// 陪玩分成与成长值始终正常计提，不受本开关影响；已取消单不允许开启（见 backfillOrder 校验）。
 	// 字段名与管理端提交的 count_cs_commission 一一对应。
 	CountCsCommission bool `json:"count_cs_commission"`
-	// PlayerIDs 补录单的到场陪玩（§3.3-12）：可指定 1..required_seats 名陪玩，补录时按他们生成
+	// PlayerIDs 补录单的到场陪玩：可指定 1..required_seats 名陪玩，补录时按他们生成
 	// 派单席位与服务段骨架，使陪玩分成能正常计提。留空表示不登记成员（历史单没有陪玩记录）。
 	PlayerIDs []int `json:"player_ids,omitempty"`
 	// LegacyCountCommission 是已废弃的字段名（旧管理端曾提交 count_commission）。
@@ -58,7 +58,7 @@ type backfillOrderInput struct {
 	LegacyCountCommission *bool `json:"count_commission,omitempty"`
 }
 
-// orderCountsCsCommission 是否计提客服提成：常规单始终计提；补录单默认不计，仅显式开启才计入（§3.3 / §12.5）。
+// orderCountsCsCommission 是否计提客服提成：常规单始终计提；补录单默认不计，仅显式开启才计入。
 // 陪玩分成与成长值对补录单也始终正常计提，不再经过该守卫。
 func orderCountsCsCommission(order *ent.EsportsOrder) bool {
 	if order.EntryPoint != esportsorder.EntryPointAdminBackfill {
@@ -98,7 +98,7 @@ func backfillOrder(ctx context.Context, db *ent.Client, adminID int, in backfill
 	return backfillOrderWithRole(ctx, db, adminID, false, in, key, now)
 }
 
-// backfillOrderWithRole 管理员补录历史订单（§3.3 / §4.1 / §12.5），isSuper 表示当前操作人是否超管。
+// backfillOrderWithRole 管理员补录历史订单，isSuper 表示当前操作人是否超管。
 // 隔离规则：
 //  1. 入口固定 admin_backfill，必须留补录原因 / 补录人 / 补录时刻，写 order.backfilled 事件与外盒审计；
 //  2. 不占 SKU 名额、不创建支付意图与支付回执、不建派单席位（历史单不消耗当期容量）；
@@ -237,7 +237,7 @@ func backfillOrderWithRole(ctx context.Context, db *ent.Client, adminID int, isS
 			"reason": in.Reason, "settled_at": settledAt, "payable_cents": payable,
 			"unit_price_cents": unitPrice, "count_cs_commission": in.CountCsCommission,
 			"fulfillment_status": in.FulfillmentStatus,
-			// §3.3-12：记录按哪几名陪玩生成席位 / 服务段骨架，供分成核对。
+			// ：记录按哪几名陪玩生成席位 / 服务段骨架，供分成核对。
 			"player_ids": in.PlayerIDs,
 			// 高危写操作留痕：操作人、被补录客户、责任客服，以及本次是否为「超管代补录他人客户」。
 			"operator_admin_id":       adminID,
@@ -250,12 +250,12 @@ func backfillOrderWithRole(ctx context.Context, db *ent.Client, adminID int, isS
 		return nil, err
 	}
 	if in.FulfillmentStatus == backfillStatusCompleted {
-		// §3.3-12：按指定陪玩生成席位 / 服务段骨架，使陪玩分成可以正常计提。
+		// ：按指定陪玩生成席位 / 服务段骨架，使陪玩分成可以正常计提。
 		if err = createBackfillMembers(ctx, tx, order, in.PlayerIDs, requiredSeats, promisedUnits,
 			settledAt, adminID); err != nil {
 			return nil, err
 		}
-		// 陪玩分成与成长值默认正常计提（与普通订单一致，§12.5 / §10.2）。
+		// 陪玩分成与成长值默认正常计提（与普通订单一致，）。
 		if err = accrueOrderCommission(ctx, tx, order, now); err != nil {
 			return nil, err
 		}
@@ -303,7 +303,7 @@ func backfillOrderWithRole(ctx context.Context, db *ent.Client, adminID int, isS
 	return db.EsportsOrder.Get(ctx, order.ID)
 }
 
-// createBackfillMembers 为补录单按指定陪玩生成席位与服务段骨架（§3.3-12）。
+// createBackfillMembers 为补录单按指定陪玩生成席位与服务段骨架。
 // 补录单不占当期 SKU 名额（历史单不消耗容量），但必须有成员才能计提陪玩分成；
 // 因此只写「已接受席位 + 已结束服务段」的历史事实，不进派单池、不发通知。
 // 未指定陪玩时不做任何事（保持既有「历史单无成员」的口径）。

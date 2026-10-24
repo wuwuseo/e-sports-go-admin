@@ -48,7 +48,7 @@ func lastOrderEventReason(t *testing.T, db *ent.Client, orderID int, eventType s
 }
 
 // seedRefundFailureOrder 构造一张没有钱包核销流水的已付款订单：
-// 「退原核销款」找不到原核销流水，是当前唯一可确定性构造的退款执行失败路径（§3.2-03）。
+// 「退原核销款」找不到原核销流水，是当前唯一可确定性构造的退款执行失败路径。
 func seedRefundFailureOrder(t *testing.T, db *ent.Client, noSuffix string) *ent.EsportsOrder {
 	t.Helper()
 	return db.EsportsOrder.Create().
@@ -74,7 +74,7 @@ func seedPendingExecutionRefund(t *testing.T, db *ent.Client, orderID int, amoun
 		SetHandlerAdminID(11).SaveX(t.Context())
 }
 
-// §3.2-03 订单级退款状态必须能落到 failed 且失败原因可查：
+// 订单级退款状态必须能落到 failed 且失败原因可查：
 // 售后「退原核销款」执行失败时，订单不能停在旧的金额派生态，须置 failed 并留原因。
 func TestAfterSaleRefundExecutionFailureMarksOrderFailed(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_refund_failed")
@@ -100,7 +100,7 @@ func TestAfterSaleRefundExecutionFailureMarksOrderFailed(t *testing.T) {
 	}
 }
 
-// §3.2-03 外部渠道退款执行：订单级退款状态须真实经过 executing，并在执行失败时落 failed 且可查原因。
+// 外部渠道退款执行：订单级退款状态须真实经过 executing，并在执行失败时落 failed 且可查原因。
 func TestExternalRefundExecutionWritesExecutingThenFailed(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_external_refund_states")
 	defer db.Close()
@@ -146,7 +146,7 @@ func seedProrateOrder(t *testing.T, db *ent.Client, suffix string, servedUnits i
 	return order
 }
 
-// §13.4-02 未手填 refund_cents 时须按「不足比例」折算应退金额：
+// 未手填 refund_cents 时须按「不足比例」折算应退金额：
 // 承诺 4 单位只履约 1 单位 → 不足 75% → 应退 2000 × 75% = 1500 分。
 func TestAfterSalePlanProratesRefundByShortfall(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_prorate")
@@ -176,7 +176,7 @@ func TestAfterSalePlanProratesRefundByShortfall(t *testing.T) {
 	}
 }
 
-// §13.4-02 不足比例为 0（履约量已达承诺量）时不得静默落 0，须明确失败提示手工填写。
+// 不足比例为 0（履约量已达承诺量）时不得静默落 0，须明确失败提示手工填写。
 func TestAfterSalePlanProrationRejectsNoShortfall(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_prorate_zero")
 	defer db.Close()
@@ -202,7 +202,7 @@ func TestAfterSalePlanProrationRejectsNoShortfall(t *testing.T) {
 	}
 }
 
-// §3.3-09 / §13.5-02 退款金额达阈值须管理员 / 财务角色复核：
+// 退款金额达阈值须管理员 / 财务角色复核：
 // 阈值以上：非财务角色审批被拒；阈值以下：照常放行。
 func TestLargeRefundApprovalRequiresFinanceReview(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_refund_threshold")
@@ -227,7 +227,7 @@ func TestLargeRefundApprovalRequiresFinanceReview(t *testing.T) {
 	}
 }
 
-// §13.7-01 高频退款客户须能被自动置 restricted 并真正拦住自助下单（不再只落 watch）。
+// 高频退款客户须能被自动置 restricted 并真正拦住自助下单（不再只落 watch）。
 func TestHighRiskCustomerAutoRestricted(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_risk_restrict")
 	defer db.Close()
@@ -270,7 +270,7 @@ func TestHighRiskCustomerAutoRestricted(t *testing.T) {
 	}
 }
 
-// §13.7-01 误伤护栏：把限制档阈值显式置 0（未配置）时，自动风控只落 watch、不限制下单。
+// 误伤护栏：把限制档阈值显式置 0（未配置）时，自动风控只落 watch、不限制下单。
 func TestHighRiskAutoRestrictDisabledKeepsWatch(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_risk_watch_only")
 	defer db.Close()
@@ -300,7 +300,7 @@ func TestHighRiskAutoRestrictDisabledKeepsWatch(t *testing.T) {
 	}
 }
 
-// §13.7-04 严格模式：未关联售后单的外部退款登记（无赔付依据的对外付款）必须被拒。
+// 严格模式：未关联售后单的外部退款登记（无赔付依据的对外付款）必须被拒。
 func TestExternalRefundWithoutAfterSaleRejectedInStrictMode(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_external_refund_strict")
 	defer db.Close()
@@ -321,7 +321,7 @@ func TestExternalRefundWithoutAfterSaleRejectedInStrictMode(t *testing.T) {
 	}
 }
 
-// §13.7-04 私下赔付留痕：未关联售后单的对外付款必须额外写「私下赔付疑似」外盒，供风控 / 财务复核。
+// 私下赔付留痕：未关联售后单的对外付款必须额外写「私下赔付疑似」外盒，供风控 / 财务复核。
 func TestExternalRefundWithoutAfterSaleLeavesOffbookTrail(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4_external_refund_offbook")
 	defer db.Close()

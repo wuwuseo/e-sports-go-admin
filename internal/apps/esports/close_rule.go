@@ -20,10 +20,10 @@ func derefCloseConditionNode(node *schematier.CloseConditionNode) schematier.Clo
 	return *node
 }
 
-// 结单规则（§3.4 首版）：把「服务凭证不少于 N 张、服务时长不为零、无未处理加钟 / 售后」等
+// 结单规则（首版）：把「服务凭证不少于 N 张、服务时长不为零、无未处理加钟 / 售后」等
 // 结单条件做成可配置规则，并按 全局 / 游戏分区 / SKU 绑定到订单；金额达阈值时须由非负责客服的
 // 管理员复核结单（高额单管理员复核的最小闭环）。
-// 规则不可原地修改：改规则＝新增一条递增 version 的新行，旧行转 history（§12.4 同款版本管理）。
+// 规则不可原地修改：改规则＝新增一条递增 version 的新行，旧行转 history（同款版本管理）。
 
 // closeRuleInput 结单规则的可编辑字段（code 创建后不可改）。
 type closeRuleInput struct {
@@ -36,7 +36,7 @@ type closeRuleInput struct {
 	RequireNoPendingAddon  bool   `json:"require_no_pending_addon"`
 	RequireNoOpenAftersale bool   `json:"require_no_open_aftersale"`
 	ReviewThresholdCents   int64  `json:"review_threshold_cents"`
-	// ConditionTree 是通用 AND/OR 结单条件树（§3.4 结单条件自定义）。留空表示只用结构化条件项；
+	// ConditionTree 是通用 AND/OR 结单条件树（结单条件自定义）。留空表示只用结构化条件项；
 	// 配置后与结构化条件项**按 AND 合并**（结构化条件是硬性底线，不能被条件树删掉）。
 	ConditionTree *schematier.CloseConditionNode `json:"condition_tree"`
 	Note          string                         `json:"note"`
@@ -187,7 +187,7 @@ func activateCloseRule(ctx context.Context, db *ent.Client, id int, now time.Tim
 }
 
 // rollbackCloseRule 回滚到指定版本：以该行的 code 与配置为模板新建 max version+1 的直接 active 行，
-// 并把原 active 转 history（原历史行不可变，§12.4）。
+// 并把原 active 转 history（原历史行不可变，）。
 func rollbackCloseRule(ctx context.Context, db *ent.Client, id, adminID int) (*ent.EsportsCloseRule, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -234,7 +234,7 @@ func rollbackCloseRule(ctx context.Context, db *ent.Client, id, adminID int) (*e
 	return db.EsportsCloseRule.Get(ctx, created.ID)
 }
 
-// validateSkuCloseRuleCode 校验 SKU 的「结单要求」引用（§15.3）：
+// validateSkuCloseRuleCode 校验 SKU 的「结单要求」引用：
 // 留空表示按游戏 / 全局规则回落；非空时必须存在生效中的同 code 结单规则。
 func validateSkuCloseRuleCode(ctx context.Context, db *ent.Client, code string) error {
 	code = strings.TrimSpace(code)
@@ -291,7 +291,7 @@ func resolveCloseRule(ctx context.Context, db *ent.Client, order *ent.EsportsOrd
 	}
 	sku, err := db.EsportsSku.Get(ctx, order.SkuID)
 	if err == nil {
-		// §15.3：SKU「结单要求」直接引用结单规则 code，优先级高于按 scope 匹配。
+		// ：SKU「结单要求」直接引用结单规则 code，优先级高于按 scope 匹配。
 		if code := strings.TrimSpace(sku.CloseRuleCode); code != "" {
 			var best *ent.EsportsCloseRule
 			for _, rule := range active {
@@ -331,7 +331,7 @@ type closeConditions struct {
 	ReviewThresholdCents   int64
 }
 
-// effectiveCloseConditions 取规则条件；规则缺失时回落 §3.4 内置默认（凭证 ≥1、时长不为零、无未处理加钟 / 售后）。
+// effectiveCloseConditions 取规则条件；规则缺失时回落 内置默认（凭证 ≥1、时长不为零、无未处理加钟 / 售后）。
 func effectiveCloseConditions(rule *ent.EsportsCloseRule) closeConditions {
 	if rule == nil {
 		return closeConditions{
@@ -350,7 +350,7 @@ func effectiveCloseConditions(rule *ent.EsportsCloseRule) closeConditions {
 	}
 }
 
-// hasOpenAfterSale 判断订单是否存在进行中（非终态）的售后单（§3.4 结单条件默认项）。
+// hasOpenAfterSale 判断订单是否存在进行中（非终态）的售后单（结单条件默认项）。
 func hasOpenAfterSale(ctx context.Context, db *ent.Client, orderID int) (bool, error) {
 	return db.EsportsAfterSale.Query().Where(
 		esportsaftersale.SourceTypeEQ("order"),

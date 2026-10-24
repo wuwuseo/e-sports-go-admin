@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客服提成（§12.2）：规则配置、明细查询、独立结算单与发放登记。挂「结算」菜单。
+// 客服提成：规则配置、明细查询、独立结算单与发放登记。挂「结算」菜单。
 
 func adminCsCommissionRules(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -81,7 +81,7 @@ func adminCsCommissionEntries(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// adminCsCommissionSummary 客服提成概览（§12.7 当月累计）：不传 admin_id 时看本人。
+// adminCsCommissionSummary 客服提成概览（当月累计）：不传 admin_id 时看本人。
 func adminCsCommissionSummary(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)
 	if err != nil {
@@ -98,7 +98,7 @@ func adminCsCommissionSummary(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// createCsSettlementHandler 生成客服提成独立结算单（§12.2）。
+// createCsSettlementHandler 生成客服提成独立结算单。
 func createCsSettlementHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -127,7 +127,7 @@ func createCsSettlementHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// markSettlementPaidHandler 登记发放：locked → paid 并留外部打款凭证（§12.2）。
+// markSettlementPaidHandler 登记发放：locked → paid 并留外部打款凭证。
 func markSettlementPaidHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

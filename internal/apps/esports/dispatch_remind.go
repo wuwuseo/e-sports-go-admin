@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 催单时间阶梯与服务超时提醒（§5.7）。两个阈值都可配置，缺失或非法时回落默认值。
+// 催单时间阶梯与服务超时提醒。两个阈值都可配置，缺失或非法时回落默认值。
 // 提醒一律「写事务外盒 + 订单事件」，幂等靠事务外盒 event_key 唯一索引兜底，
 // 因此任务可以安全地重复运行，不会重复轰炸。
 const (
@@ -32,7 +32,7 @@ const (
 	// 临近开始升级提前量（分钟）：预约开始时间落在该窗口内且席位未接满即升级。
 	dispatchStartEscalateMinutesKey     = "app.esports.dispatch_start_escalate_minutes"
 	defaultDispatchStartEscalateMinutes = 60
-	// 多席缺员自动补位阈值（分钟）：失效席位超过该时长未补齐才自动重开为待补位（§5.3-06）；
+	// 多席缺员自动补位阈值（分钟）：失效席位超过该时长未补齐才自动重开为待补位；
 	// 未超时前保留 rejected / expired 原状态作为历史。
 	dispatchRefillMinutesKey     = "app.esports.dispatch_refill_minutes"
 	defaultDispatchRefillMinutes = 10
@@ -117,7 +117,7 @@ func serviceOvertimeMinutes(ctx context.Context, db *ent.Client) int {
 	return value
 }
 
-// runRemindLadder 对「待接单」订单的邀请席位按可配置时间阶梯逐级催单（§5.7）：
+// runRemindLadder 对「待接单」订单的邀请席位按可配置时间阶梯逐级催单：
 // 第 1 档先提醒在线陪玩，第 2 档起升级提醒客服。返回本次新增的提醒条数。
 func runRemindLadder(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if limit < 1 {
@@ -187,7 +187,7 @@ func sendLadderReminder(ctx context.Context, db *ent.Client, orderID int,
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance {
 		return false, nil
 	}
-	// 第 1 档提醒在线陪玩，第 2 档起升级提醒客服（§5.7 逐级提醒）。
+	// 第 1 档提醒在线陪玩，第 2 档起升级提醒客服（逐级提醒）。
 	eventType := "dispatch.remind_player"
 	payload := map[string]interface{}{
 		"order_no": order.OrderNo, "seat_index": seat.SeatIndex, "level": level,
@@ -229,10 +229,10 @@ func sendLadderReminder(ctx context.Context, db *ent.Client, orderID int,
 	return true, nil
 }
 
-// checkServiceOvertime 检查在服务中的服务段有效时长是否超过配置阈值，超过则提醒客服确认是否加钟（§5.7）。
+// checkServiceOvertime 检查在服务中的服务段有效时长是否超过配置阈值，超过则提醒客服确认是否加钟。
 // 返回本次新增的提醒条数；阈值为 0 时不检查。
 // ponytail: 订单与 SKU 未声明每单位时长，「超过订单约定」暂用可配置阈值近似；
-// 加钟确认流程（§6.2 / §12.5）与差异化时长口径未实现，此处只提醒客服核实。
+// 加钟确认流程与差异化时长口径未实现，此处只提醒客服核实。
 func checkServiceOvertime(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	minutes := serviceOvertimeMinutes(ctx, db)
 	if minutes <= 0 {
@@ -336,14 +336,14 @@ func sendServiceOvertimeReminder(ctx context.Context, db *ent.Client, orderID in
 	return true, nil
 }
 
-// 派单升级触发类型（§5.9-06）。
+// 派单升级触发类型。
 const (
 	escalationNoTaker          = "no_taker"
 	escalationMemberAbsent     = "member_absent"
 	escalationStartingUnfilled = "starting_unfilled"
 )
 
-// runDispatchEscalations 三类逐级升级（§5.9-06）：
+// runDispatchEscalations 三类逐级升级：
 //
 //	① no_taker          无人接单：进入待派单池超过 dispatch_no_taker_minutes 且已无任何
 //	                    有效席位（invited/accepted），阶梯催单已用尽；
@@ -365,7 +365,7 @@ func runDispatchEscalations(ctx context.Context, db *ent.Client, now time.Time, 
 	}
 	noTakerMinutes := dispatchNoTakerMinutes(ctx, db)
 	startLeadMinutes := dispatchStartEscalateMinutes(ctx, db)
-	// §5.3-06：先做多席订单缺员自动补位（超时失效席位重开为待补位），再评估升级。
+	// ：先做多席订单缺员自动补位（超时失效席位重开为待补位），再评估升级。
 	// 同一任务驱动，避免客服既要等补位又要等升级两套定时。
 	if _, err := refillVacantMultiSeatSeats(ctx, db, now, limit); err != nil {
 		return 0, err

@@ -26,7 +26,7 @@ func adminResumePlayerServiceHandler(c fiber.Ctx) error {
 	return adminServicePauseHandler(c, false)
 }
 
-// adminServicePauseHandler 客服代陪玩暂停 / 恢复服务段（§3.3）：理由必填，事件以管理员身份留痕。
+// adminServicePauseHandler 客服代陪玩暂停 / 恢复服务段：理由必填，事件以管理员身份留痕。
 func adminServicePauseHandler(c fiber.Ctx, pause bool) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -54,7 +54,7 @@ func adminServicePauseHandler(c fiber.Ctx, pause bool) error {
 	return reply(c, item)
 }
 
-// adminCorrectServiceTimingHandler 争议更正（§3.3）：对已结束服务段的有效 / 暂停秒数留痕更正，
+// adminCorrectServiceTimingHandler 争议更正：对已结束服务段的有效 / 暂停秒数留痕更正，
 // 同时登记停工量（累计暂停秒数与停工次数）与责任方，必须附带原因。
 func adminCorrectServiceTimingHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)

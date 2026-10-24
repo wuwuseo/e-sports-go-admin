@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/ent/esportsledgerentry"
 )
 
-// 批次级逐笔扣减（§4.3 / §4.5）：充值写批次账本，余额消费按批次分摊并记录明细。
+// 批次级逐笔扣减：充值写批次账本，余额消费按批次分摊并记录明细。
 func TestLedgerBatchAllocation(t *testing.T) {
 	db := openWalletTestDB(t, "esports_ledger_allocation")
 	ctx := t.Context()

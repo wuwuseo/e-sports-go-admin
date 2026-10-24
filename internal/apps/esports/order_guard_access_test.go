@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// 客服代暂停 / 恢复的写边界（§3.3）：只有订单负责客服或超管可代操作，
+// 客服代暂停 / 恢复的写边界：只有订单负责客服或超管可代操作，
 // 其他客服即使有权限码也不能暂停他人订单；被拒时服务段保持不变。
 func TestServicePauseRequiresOrderOwnership(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_order_guard_pause_owner")
@@ -51,7 +51,7 @@ func TestServicePauseRequiresOrderOwnership(t *testing.T) {
 	}
 }
 
-// 服务时长纠正的写边界（§3.3）：跨客服更正被拒且不改写计时，负责客服与超管可更正。
+// 服务时长纠正的写边界：跨客服更正被拒且不改写计时，负责客服与超管可更正。
 func TestServiceTimingCorrectionRequiresOrderOwnership(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_order_guard_timing_owner")
 	defer db.Close()
@@ -82,7 +82,7 @@ func TestServiceTimingCorrectionRequiresOrderOwnership(t *testing.T) {
 	}
 }
 
-// 存单冻结（§3.3 / 存单）：外部退款执行被拦截，退款单与订单退款额度均不落账。
+// 存单冻结（存单）：外部退款执行被拦截，退款单与订单退款额度均不落账。
 func TestExternalRefundBlockedWhenOrderFrozen(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_order_guard_external_refund_frozen")
 	defer db.Close()

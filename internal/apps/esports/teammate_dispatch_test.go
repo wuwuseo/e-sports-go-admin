@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 固排成队（§5.3）：主陪玩 + 固排一次成队，候选只含合格固排，席位来源记 fixed_team。
+// 固排成队：主陪玩 + 固排一次成队，候选只含合格固排，席位来源记 fixed_team。
 func TestTeamDispatch(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_team_dispatch")
 	ctx := t.Context()

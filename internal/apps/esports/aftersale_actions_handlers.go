@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// listAfterSaleActionsHandler 列出某售后单的动作项与逐项进度（§13.3 / §13.6 多动作售后方案）。
+// listAfterSaleActionsHandler 列出某售后单的动作项与逐项进度（多动作售后方案）。
 // 建议路由：GET /admin/after-sales/:id/actions（ownedAfterSaleHandler 包装）。
 func listAfterSaleActionsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -29,7 +29,7 @@ func listAfterSaleActionsHandler(c fiber.Ctx) error {
 	})
 }
 
-// executeAfterSaleActionHandler 逐项执行单个动作项（§13.6），供人工对失败项重试。
+// executeAfterSaleActionHandler 逐项执行单个动作项，供人工对失败项重试。
 // 建议路由：POST /admin/after-sales/:id/actions/:seq/execute（ownedAfterSaleHandler 包装）。
 func executeAfterSaleActionHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)

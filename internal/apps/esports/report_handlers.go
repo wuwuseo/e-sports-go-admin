@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// adminReports 是 §17 经营统计报表入口：单一路由按 :type 分派五类只读聚合报表。
+// adminReports 是 经营统计报表入口：单一路由按 :type 分派五类只读聚合报表。
 // 数据边界：非超级管理员（客服）只能看本人负责 / 协作授权 / 本人报单的订单与本人处理的售后；
 // 财务资金报表仅超级管理员或命中 app.esports.finance_report_role_names 的财务角色可见。
 func adminReports(c fiber.Ctx) error {
@@ -56,11 +56,11 @@ func adminReports(c fiber.Ctx) error {
 	result["range"] = map[string]any{
 		"start": filter.Start, "end": filter.End, "period": filter.Period,
 	}
-	// §17 / P1-07：响应显式带出本次请求的数据域，便于事后审计「这次是全量还是局部」。
+	// P1-07：响应显式带出本次请求的数据域，便于事后审计「这次是全量还是局部」。
 	// 财务资金报表不存在「订单局部」口径（需求明确不接受订单归属维度），授权者恒走显式全量分支。
 	label, _, _ := reportDataScope(reportType, filter)
 	result["data_scope"] = label
-	// §17-07：按报表类型给出可用筛选项清单，前端据此裁剪筛选控件。
+	// ：按报表类型给出可用筛选项清单，前端据此裁剪筛选控件。
 	result["filter_capabilities"] = map[string]any{
 		"supported":   supportedReportDimensions(reportType),
 		"unsupported": unsupportedReportDimensions(reportType),
@@ -68,7 +68,7 @@ func adminReports(c fiber.Ctx) error {
 	return reply(c, result)
 }
 
-// scopeReportFilter 收敛非超管的数据可见范围（§17-09 / §3.5-06）。
+// scopeReportFilter 收敛非超管的数据可见范围。
 // ResponsibleAdmin 保留为「被强制收敛的筛选值」（历史行为：客服不能借筛选参数读他人数据），
 // 真正的权限边界交给 VisibleAdmin＝本人负责 OR 存在协作授权行，与订单列表 / 详情同口径。
 func scopeReportFilter(filter reportFilter, adminID int, isSuper bool) reportFilter {
@@ -118,7 +118,7 @@ func parseReportFilter(c fiber.Ctx) (reportFilter, error) {
 		AftersaleKind:    strings.TrimSpace(c.Query("kind")),
 		FaultParty:       strings.TrimSpace(c.Query("fault_party")),
 		Limit:            queryInt(c, "limit"),
-		// 资金维度（§17 / P1-08）：账户类型 / 流水类型 / 结算状态只由财务资金报表接受，
+		// 资金维度（P1-08）：账户类型 / 流水类型 / 结算状态只由财务资金报表接受，
 		// 且必须真正下推到查询；其余报表类型由 validateReportFilter 显式 400。
 		WalletAccountType: strings.TrimSpace(c.Query("account_type")),
 		WalletEntryType:   strings.TrimSpace(c.Query("entry_type")),
@@ -199,11 +199,11 @@ func reportTypeLabel(reportType string) string {
 	return "报表"
 }
 
-// unsupportedReportDimensions 返回该报表类型不收下（也不静默忽略）的维度键（§17-07）：
+// unsupportedReportDimensions 返回该报表类型不收下（也不静默忽略）的维度键：
 //   - 售后质量只按订单渠道 / 入口圈定订单，另支持售后类型、责任方与处理客服；
 //   - 财务资金不具备逐订单归属（含业绩归属客服 / 负责客服 / 创建人），只接受资金维度；
 //   - 经营总览 / 客服业绩不使用售后类型、责任方与资金维度；
-//   - 派单效率的需求筛选项里没有「业绩归属客服」（§17 只列负责客服），该维度必须显式 400。
+//   - 派单效率的需求筛选项里没有「业绩归属客服」（只列负责客服），该维度必须显式 400。
 func unsupportedReportDimensions(reportType string) []string {
 	unsupported := map[string]bool{}
 	switch reportType {
@@ -300,7 +300,7 @@ func reportFilterDimensionsInUse(f reportFilter) map[string]bool {
 	return inUse
 }
 
-// validateReportFilter 按报表类型校验筛选维度（§17-07）：不支持的维度显式返回中文参数错误，
+// validateReportFilter 按报表类型校验筛选维度：不支持的维度显式返回中文参数错误，
 // 避免「收下后不使用」把筛选静默变成全量统计。支持维度之间可叠加；同一请求命中多个不支持维度时
 // 按固定顺序报告第一个，保证提示稳定且可断言。
 func validateReportFilter(reportType string, f reportFilter) error {

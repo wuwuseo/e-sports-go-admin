@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsSeatTransferRequest 是陪玩转单申请（§5.7）：陪玩接单后无法服务时发起，
+// EsportsSeatTransferRequest 是陪玩转单申请：陪玩接单后无法服务时发起，
 // **必须经客服确认后才生效**——确认前席位与订单状态都不变，避免陪玩单方面退出占位。
 // 确认通过时释放该席位（回到待补位）并按剩余席位把订单退回待接单或待派单。
 type EsportsSeatTransferRequest struct{ ent.Schema }

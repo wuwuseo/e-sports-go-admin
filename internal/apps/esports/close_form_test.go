@@ -23,7 +23,7 @@ func openCloseFormDB(t *testing.T, name string) *ent.Client {
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 }
 
-// 字段库（§3.4）：key 唯一且格式受限、单选必须配选项、选项去空去重。
+// 字段库：key 唯一且格式受限、单选必须配选项、选项去空去重。
 func TestCloseFormFieldValidation(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_form_field")
 	defer db.Close()
@@ -56,7 +56,7 @@ func TestCloseFormFieldValidation(t *testing.T) {
 	}
 }
 
-// 模板（§3.4）：引用不存在的字段被拒、同 code 递增版本、生效互斥、回滚生成新的 active 版本。
+// 模板：引用不存在的字段被拒、同 code 递增版本、生效互斥、回滚生成新的 active 版本。
 func TestCloseFormTemplateLifecycle(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_form_template")
 	defer db.Close()
@@ -111,7 +111,7 @@ func TestCloseFormTemplateLifecycle(t *testing.T) {
 	}
 }
 
-// 结单表单（§3.4）：无适用模板时不受约束；有模板时缺必填项拒绝结单，填全后留痕（含金额只读自动值）。
+// 结单表单：无适用模板时不受约束；有模板时缺必填项拒绝结单，填全后留痕（含金额只读自动值）。
 func TestCloseOrderFormRequiredAndSnapshot(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_form_order")
 	defer db.Close()
@@ -283,7 +283,7 @@ func TestOrderWithoutCloseFormDoesNotGainLaterTemplate(t *testing.T) {
 	}
 }
 
-// 金额区间（§3.4）：不命中的订单不受模板约束、不写快照。
+// 金额区间：不命中的订单不受模板约束、不写快照。
 func TestCloseFormTemplateAmountRange(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_form_amount")
 	defer db.Close()

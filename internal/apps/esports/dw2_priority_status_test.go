@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// §6.1-06：陪玩端必须能查到本人「是否持有优先派单权 / 来源 / 有效期 / 剩余名额」。
+// ：陪玩端必须能查到本人「是否持有优先派单权 / 来源 / 有效期 / 剩余名额」。
 // 断言：生效中的名单条目 active=true 且带 quota/used/remaining；未生效（下一期）的条目 active=false；
 // 被移出/已过期的条目不再返回；无持权者返回 holding=false 的空列表。
 func TestDw2PlayerPriorityStatusQuery(t *testing.T) {
@@ -101,7 +101,7 @@ func TestDw2PlayerPriorityStatusQuery(t *testing.T) {
 	}
 }
 
-// §6.1-06：优先通知列表必须下发窗口截止时间（notice_until / priority_notice_until 同值）。
+// ：优先通知列表必须下发窗口截止时间（notice_until / priority_notice_until 同值）。
 func TestDw2PlayerDispatchNoticeCarriesDeadline(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dw2_notice_deadline")
 	defer db.Close()

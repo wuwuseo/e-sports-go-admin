@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// §4.6 报单校验补充（P0）：重复报单提醒、客户欠款拦截、预约冲突与资源复核。
+// 报单校验补充（P0）：重复报单提醒、客户欠款拦截、预约冲突与资源复核。
 //
 // 三项校验都插在下单主流程 placeOrderOnce 的同一事务内，任一未通过即整单回滚
 // （不写订单、不占名额、不写幂等记录），既有幂等键、名额占用与报价快照语义不变：
@@ -32,15 +32,15 @@ const (
 	duplicateOrderWindowKey = "app.esports.duplicate_order_window_minutes"
 	// customerDebtLimitKey 客户欠款拦截阈值（分）：<=0（默认 0）表示关闭拦截。
 	customerDebtLimitKey = "app.esports.customer_debt_limit_cents"
-	// customerDebtRemindKey 客户欠款提醒阈值（分，§4.6-04）：欠款超过该值即提醒（默认 0 = 有欠款就提醒）。
+	// customerDebtRemindKey 客户欠款提醒阈值（分，）：欠款超过该值即提醒（默认 0 = 有欠款就提醒）。
 	// 提醒与拦截分两档：默认只提醒不拦截，配了 customerDebtLimitKey 才升级为强制拦截。
 	customerDebtRemindKey = "app.esports.customer_debt_remind_cents"
-	// priceDeviationThresholdKey 订单价偏离 SKU 标准价的提醒阈值（基点 / 万分比，§4.6-02）：
+	// priceDeviationThresholdKey 订单价偏离 SKU 标准价的提醒阈值（基点 / 万分比，）：
 	// 默认 3000（30%）；0 表示关闭判定。
 	priceDeviationThresholdKey = "app.esports.price_deviation_threshold_bp"
-	// priceDeviationReasonRequiredKey 超阈值时是否强制填写偏离原因（§4.6-02）：默认强制（true）。
+	// priceDeviationReasonRequiredKey 超阈值时是否强制填写偏离原因：默认强制（true）。
 	priceDeviationReasonRequiredKey = "app.esports.price_deviation_reason_required"
-	// orderDiscountLimitKey 单笔会员折扣上限（基点，§4.2-06）：超过即拒绝下单；默认 0 不限制。
+	// orderDiscountLimitKey 单笔会员折扣上限（基点，）：超过即拒绝下单；默认 0 不限制。
 	orderDiscountLimitKey = "app.esports.order_discount_limit_bps"
 	// defaultDuplicateOrderWindow 重复报单提醒内置默认时间窗（分钟）。
 	defaultDuplicateOrderWindow = 10
@@ -49,18 +49,18 @@ const (
 )
 
 var (
-	// errDuplicateOrder 疑似重复报单：未确认时拒绝，handler 映射成明确中文提示（§4.6）。
+	// errDuplicateOrder 疑似重复报单：未确认时拒绝，handler 映射成明确中文提示。
 	errDuplicateOrder = errors.New("疑似重复报单")
-	// errCustomerDebt 客户欠款超限：拒绝新报单，handler 映射成明确中文提示（§4.6）。
+	// errCustomerDebt 客户欠款超限：拒绝新报单，handler 映射成明确中文提示。
 	errCustomerDebt = errors.New("客户欠款超限，暂不可报单")
-	// errAppointmentResource 预约时段资源复核未通过（§4.6 / §5.5）：同时包裹派单容量判定里的
+	// errAppointmentResource 预约时段资源复核未通过：同时包裹派单容量判定里的
 	// errInvalidInput，便于 handler 与调用方分别识别「资源冲突」与「参数非法」。
 	errAppointmentResource = errors.New("预约时段资源冲突")
-	// errPriceDeviation 订单价明显偏离 SKU 标准价（§4.6-02）：未填偏离原因时拒绝下单。
+	// errPriceDeviation 订单价明显偏离 SKU 标准价：未填偏离原因时拒绝下单。
 	errPriceDeviation = errors.New("订单价明显偏离 SKU 标准价")
 )
 
-// orderGuardConfigInt64 读取整数型系统配置（§4.6）：配置缺失或非法时返回 fallback。
+// orderGuardConfigInt64 读取整数型系统配置：配置缺失或非法时返回 fallback。
 func orderGuardConfigInt64(ctx context.Context, db *ent.Client, key string, fallback int64) int64 {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Only(ctx)
 	if err != nil {
@@ -89,7 +89,7 @@ func orderGuardConfigBool(ctx context.Context, db *ent.Client, key string, fallb
 	}
 }
 
-// customerDebtRemindCents 欠款提醒阈值（分，§4.6-04）：默认 0 表示只要有欠款就提醒。
+// customerDebtRemindCents 欠款提醒阈值（分，）：默认 0 表示只要有欠款就提醒。
 func customerDebtRemindCents(ctx context.Context, db *ent.Client) int64 {
 	value := orderGuardConfigInt64(ctx, db, customerDebtRemindKey, 0)
 	if value < 0 {
@@ -98,7 +98,7 @@ func customerDebtRemindCents(ctx context.Context, db *ent.Client) int64 {
 	return value
 }
 
-// priceDeviationThresholdBp 读取订单价偏离提醒阈值（基点，§4.6-02）：非法回落默认 30%。
+// priceDeviationThresholdBp 读取订单价偏离提醒阈值（基点，）：非法回落默认 30%。
 func priceDeviationThresholdBp(ctx context.Context, db *ent.Client) int {
 	value := orderGuardConfigInt64(ctx, db, priceDeviationThresholdKey, defaultPriceDeviationThresholdBp)
 	if value < 0 || value > 10000 {
@@ -107,12 +107,12 @@ func priceDeviationThresholdBp(ctx context.Context, db *ent.Client) int {
 	return int(value)
 }
 
-// priceDeviationReasonRequired 超阈值时是否强制填写偏离原因（§4.6-02）：默认强制。
+// priceDeviationReasonRequired 超阈值时是否强制填写偏离原因：默认强制。
 func priceDeviationReasonRequired(ctx context.Context, db *ent.Client) bool {
 	return orderGuardConfigBool(ctx, db, priceDeviationReasonRequiredKey, true)
 }
 
-// orderDiscountLimitBps 读取单笔会员折扣上限（基点，§4.2-06）：0 或非法表示不限制。
+// orderDiscountLimitBps 读取单笔会员折扣上限（基点，）：0 或非法表示不限制。
 func orderDiscountLimitBps(ctx context.Context, db *ent.Client) int {
 	value := orderGuardConfigInt64(ctx, db, orderDiscountLimitKey, 0)
 	if value <= 0 || value > 10000 {
@@ -121,7 +121,7 @@ func orderDiscountLimitBps(ctx context.Context, db *ent.Client) int {
 	return int(value)
 }
 
-// ensureOrderDiscountWithinLimit 单笔折扣上限复核（§4.2-06）：会员折扣基点超过配置上限即拒绝下单。
+// ensureOrderDiscountWithinLimit 单笔折扣上限复核：会员折扣基点超过配置上限即拒绝下单。
 func ensureOrderDiscountWithinLimit(discountBps, limitBps int) error {
 	if limitBps <= 0 || discountBps <= limitBps {
 		return nil
@@ -151,7 +151,7 @@ type priceDeviation struct {
 	Reason        string `json:"reason,omitempty"`
 }
 
-// evaluatePriceDeviation 判定订单价是否明显偏离 SKU 标准价并决定是否强制填写原因（§4.6-02）：
+// evaluatePriceDeviation 判定订单价是否明显偏离 SKU 标准价并决定是否强制填写原因：
 // 未超阈值返回 nil（无需提醒）；超阈值且开启强制时未填原因（4–255 字）即拒绝；
 // 超阈值但关闭强制时只返回判定结果，交由调用方落提醒留痕。
 //
@@ -186,7 +186,7 @@ func evaluatePriceDeviation(ctx context.Context, db *ent.Client, standardCents, 
 	}, nil
 }
 
-// customerAvailableBalanceCents 客户可用于站内收款方式的资金（分，§4.2-06）：
+// customerAvailableBalanceCents 客户可用于站内收款方式的资金（分，）：
 // 余额可用额（余额一律由流水求和派生）。储值卡侧的本金合计随功能下线（2026-10-20）删除。
 func customerAvailableBalanceCents(ctx context.Context, db *ent.Client, customerID int) (int64, error) {
 	if customerID < 1 {
@@ -199,7 +199,7 @@ func customerAvailableBalanceCents(ctx context.Context, db *ent.Client, customer
 	return balance.PrincipalCents, nil
 }
 
-// ensureOrderFundsAvailable 下单时的资金可用余额复核（§4.2-06）：显式选择站内收款方式
+// ensureOrderFundsAvailable 下单时的资金可用余额复核：显式选择站内收款方式
 // （余额）时，可用本金不足即拒绝下单，避免「下单成功、收款时才失败」；
 // 未指定站内方式（走外部收款）时不做资金复核。
 // 储值卡收款方式已随功能下线（2026-10-20），传入该值按不支持处理。
@@ -226,7 +226,7 @@ func ensureOrderFundsAvailable(ctx context.Context, db *ent.Client, customerID i
 	return nil
 }
 
-// duplicateOrderWindowMinutes 读取重复报单提醒时间窗（分钟，§4.6）。
+// duplicateOrderWindowMinutes 读取重复报单提醒时间窗（分钟，）。
 // 配置缺失、非法或为负一律回落内置默认 10 分钟；0 表示关闭提醒。
 func duplicateOrderWindowMinutes(ctx context.Context, db *ent.Client) int {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(duplicateOrderWindowKey)).Only(ctx)
@@ -240,7 +240,7 @@ func duplicateOrderWindowMinutes(ctx context.Context, db *ent.Client) int {
 	return minutes
 }
 
-// customerDebtLimitCents 读取客户欠款拦截阈值（分，§4.6）。
+// customerDebtLimitCents 读取客户欠款拦截阈值（分，）。
 // 配置缺失、非法或 <=0 一律按 0 处理 —— 默认关闭拦截，避免误挡正常报单。
 func customerDebtLimitCents(ctx context.Context, db *ent.Client) int64 {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(customerDebtLimitKey)).Only(ctx)
@@ -254,10 +254,10 @@ func customerDebtLimitCents(ctx context.Context, db *ent.Client) int64 {
 	return limit
 }
 
-// checkDuplicateOrder 重复报单提醒（§4.6）：同客户在时间窗内已有相似报单时拒绝，
+// checkDuplicateOrder 重复报单提醒：同客户在时间窗内已有相似报单时拒绝，
 // 由调用方带 confirm_duplicate=true 二次提交放行。
 //
-// 相似口径（round4 §4.6-01 修正）分两支：
+// 相似口径（round4 修正）分两支：
 //  1. **预约单**（本次与历史单都带预约开始时间）：同游戏分区 + 预约服务时段重叠即视为相似，
 //     不再要求同 SKU / 同份数 / 同指定陪玩 —— 同一客户在同一时段重复约同一游戏的局就是重复报单；
 //     游戏分区取 SKU 所属分类的 game，任一侧取不到时回落「同 SKU」判定。
@@ -316,7 +316,7 @@ func checkDuplicateOrder(ctx context.Context, db *ent.Client, in orderInput, now
 		errDuplicateOrder, windowMinutes, strings.Join(refs, "、"))
 }
 
-// orderGamePartition 取 SKU 所属分类的游戏分区（§4.6-01）；分类缺失或游戏为空时返回空串。
+// orderGamePartition 取 SKU 所属分类的游戏分区；分类缺失或游戏为空时返回空串。
 func orderGamePartition(ctx context.Context, db *ent.Client, skuID int) string {
 	sku, err := db.EsportsSku.Get(ctx, skuID)
 	if err != nil || sku.CategoryID == nil {
@@ -338,7 +338,7 @@ func orderServiceDuration(ctx context.Context, db *ent.Client, skuID int) int {
 	return sku.ServiceDurationMinutes
 }
 
-// similarAppointmentOrder 判定一张历史预约单是否与本次报单「相似」（§4.6-01）：
+// similarAppointmentOrder 判定一张历史预约单是否与本次报单「相似」：
 // 同游戏分区（任一侧无游戏分区时回落同 SKU）+ 预约服务时段重叠。
 func similarAppointmentOrder(ctx context.Context, db *ent.Client, in orderInput, targetGame string,
 	targetDuration int, item *ent.EsportsOrder) bool {
@@ -372,7 +372,7 @@ func serviceWindowsOverlap(startA time.Time, durationA int, startB time.Time, du
 	return startA.Before(endB) && startB.Before(endA)
 }
 
-// customerOutstandingDebtCents 计算客户「未结清应付款」累计（分，§4.6）。口径：
+// customerOutstandingDebtCents 计算客户「未结清应付款」累计（分，）。口径：
 //
 //  1. 逾期未付款：payment_status=unpaid 且 payment_deadline 已过、履约未取消 → 按报价快照 payable_cents 全额计。
 //     仍在支付时限内的 unpaid 不计入 —— 那属于正常在途报单，计入会误挡同客户连续下单。
@@ -385,7 +385,7 @@ func customerOutstandingDebtCents(ctx context.Context, db *ent.Client, customerI
 		esportsorder.CustomerIDEQ(customerID),
 		esportsorder.FulfillmentStatusNEQ(esportsorder.FulfillmentStatusCancelled),
 		esportsorder.Or(
-			// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，欠款口径只余「支付异常」与「逾期未付」两路。
+			// 审核报告 partial（部分收款）全仓无写入方，欠款口径只余「支付异常」与「逾期未付」两路。
 			esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusException),
 			esportsorder.And(
 				esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusUnpaid),
@@ -403,7 +403,7 @@ func customerOutstandingDebtCents(ctx context.Context, db *ent.Client, customerI
 	return total, nil
 }
 
-// ensureCustomerDebtAllowed 客户欠款超过阈值时拒绝新报单（§4.6）。
+// ensureCustomerDebtAllowed 客户欠款超过阈值时拒绝新报单。
 // limitCents <= 0 表示关闭拦截（默认），此时不查库。
 func ensureCustomerDebtAllowed(ctx context.Context, db *ent.Client, customerID int, limitCents int64, now time.Time) error {
 	if limitCents <= 0 {
@@ -420,7 +420,7 @@ func ensureCustomerDebtAllowed(ctx context.Context, db *ent.Client, customerID i
 	return nil
 }
 
-// customerDebtTier 客户欠款两档判定（§4.6-04）：默认「有欠款即提醒」，配置阈值后升级为强制拦截。
+// customerDebtTier 客户欠款两档判定：默认「有欠款即提醒」，配置阈值后升级为强制拦截。
 // 返回欠款合计与是否需要提醒；欠款超过拦截阈值时返回 errCustomerDebt。
 // 默认（limitCents <= 0）不拦截，但欠款超过 remindCents（默认 0）时提醒。
 func customerDebtTier(ctx context.Context, db *ent.Client, customerID int,
@@ -439,7 +439,7 @@ func customerDebtTier(ctx context.Context, db *ent.Client, customerID int,
 	return debt, debt > remindCents, nil
 }
 
-// validateAppointmentStart 校验报单携带的预约开始时间：必须晚于当前时刻（§3.2 / §5.5），
+// validateAppointmentStart 校验报单携带的预约开始时间：必须晚于当前时刻，
 // 与改期 rescheduleOrder 的口径一致。
 func validateAppointmentStart(in orderInput, now time.Time) error {
 	if in.RequestedStartAt == nil {
@@ -451,7 +451,7 @@ func validateAppointmentStart(in orderInput, now time.Time) error {
 	return nil
 }
 
-// checkAppointmentCapacity 预约冲突与资源复核（§4.6 / §3.2 / §5.5）：报单带预约开始时间且指定了陪玩时，
+// checkAppointmentCapacity 预约冲突与资源复核：报单带预约开始时间且指定了陪玩时，
 // 按派单同一套口径（checkPlayerDispatchLimit 的时段重叠 / 服务开始自然日归集）复核该陪玩在该时段
 // 是否仍可占位 —— 与 PUT /admin/orders/{id}/appointment（改期提案）及 POST .../appointment/confirm
 // （档期确认）保持同一判定，不另起一套口径。

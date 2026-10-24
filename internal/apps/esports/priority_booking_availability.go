@@ -13,10 +13,10 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 陪玩可用时段查询（§10.4-04）：会员优先预约提交前先看「该陪玩某段日期里哪些时段可预约」。
+// 陪玩可用时段查询：会员优先预约提交前先看「该陪玩某段日期里哪些时段可预约」。
 //
 // 已占用判定有两个来源，取并集：
-//  1. 排单占位：EsportsDispatchSeat 上已邀请 / 已接单的档期（slot_start/slot_end，§5.9-01）；
+//  1. 排单占位：EsportsDispatchSeat 上已邀请 / 已接单的档期（slot_start/slot_end，）；
 //  2. 订单档期：该陪玩已接单的订单，其「预定开始时间或实际开始服务时间 + 服务时长」形成的服务窗口。
 //
 // 本查询只读订单 / 排单数据，不写任何状态，也不占用档期（占位由报单链路负责）。
@@ -69,7 +69,7 @@ type playerBusyWindow struct {
 	orderID int
 }
 
-// playerAvailableSlots 计算某陪玩在 [from, to) 内按 slotMinutes 粒度切分的可用时段（§10.4-04）。
+// playerAvailableSlots 计算某陪玩在 [from, to) 内按 slotMinutes 粒度切分的可用时段。
 // 与订单 / 排单窗口有重叠的时段返回 occupied（bookable=false），其余 available（bookable=true）。
 func playerAvailableSlots(ctx context.Context, db *ent.Client, playerID int,
 	from, to time.Time, slotMinutes int) (*playerAvailabilityView, error) {

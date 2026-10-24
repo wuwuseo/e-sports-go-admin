@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// §4.6 重复报单提醒：同客户在时间窗内已有相同报单时拦截并回带相似订单号，显式确认后放行；窗口外不拦。
+// 重复报单提醒：同客户在时间窗内已有相同报单时拦截并回带相似订单号，显式确认后放行；窗口外不拦。
 func TestOrderGuardDuplicateOrderReminder(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_order_guard_duplicate")
 	defer db.Close()
@@ -97,8 +97,8 @@ func TestOrderGuardDuplicateOrderReminder(t *testing.T) {
 	}
 }
 
-// §4.6 客户欠款口径：逾期未付款 / 支付异常计入，未到期待付款与已取消订单不计入。
-// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，已从欠款口径收敛掉，故不再有用例行。
+// 客户欠款口径：逾期未付款 / 支付异常计入，未到期待付款与已取消订单不计入。
+// 审核报告 partial（部分收款）全仓无写入方，已从欠款口径收敛掉，故不再有用例行。
 func TestOrderGuardCustomerDebtCaliber(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_order_guard_debt_caliber")
 	defer db.Close()
@@ -144,7 +144,7 @@ func TestOrderGuardCustomerDebtCaliber(t *testing.T) {
 	}
 }
 
-// §4.6 客户欠款拦截：欠款超阈值拒绝报单，阈值内 / 关闭开关放行；被拒的报单不落单、不占名额。
+// 客户欠款拦截：欠款超阈值拒绝报单，阈值内 / 关闭开关放行；被拒的报单不落单、不占名额。
 func TestOrderGuardCustomerDebtBlocksNewOrder(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_order_guard_debt_block")
 	defer db.Close()
@@ -206,7 +206,7 @@ func TestOrderGuardCustomerDebtBlocksNewOrder(t *testing.T) {
 	}
 }
 
-// §4.6 预约冲突与资源复核：指定陪玩在冲突时段报单被拒，不冲突时段放行，且落为待确认档期的预约单。
+// 预约冲突与资源复核：指定陪玩在冲突时段报单被拒，不冲突时段放行，且落为待确认档期的预约单。
 func TestOrderGuardAppointmentResourceConflict(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_order_guard_appointment")
 	defer db.Close()

@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// adminGiftDisputes 礼物争议列表（§9.5）：非超管只看归属客户的争议单，可按状态筛选。
+// adminGiftDisputes 礼物争议列表：非超管只看归属客户的争议单，可按状态筛选。
 func adminGiftDisputes(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -49,7 +49,7 @@ func createGiftDisputeByAdminHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// reviewGiftDisputeHandler 审核礼物争议（§9.5）：通过须给确认金额，驳回须给原因；申请人不得自审。
+// reviewGiftDisputeHandler 审核礼物争议：通过须给确认金额，驳回须给原因；申请人不得自审。
 func reviewGiftDisputeHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -71,7 +71,7 @@ func reviewGiftDisputeHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// executeGiftDisputeHandler 执行礼物争议退款（§9.5）：按确认金额部分退款并冲回分成，执行人不得为审核人。
+// executeGiftDisputeHandler 执行礼物争议退款：按确认金额部分退款并冲回分成，执行人不得为审核人。
 func executeGiftDisputeHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -116,7 +116,7 @@ func userGiftDisputes(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// userCreateGiftDisputeHandler 客户自助发起礼物争议（§9.5）：仅可对本人礼物订单发起。
+// userCreateGiftDisputeHandler 客户自助发起礼物争议：仅可对本人礼物订单发起。
 func userCreateGiftDisputeHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)

@@ -41,7 +41,7 @@ func useRound4ORM(t *testing.T, db *ent.Client) {
 	t.Cleanup(func() { global.ORM = previous })
 }
 
-// §12.1-05：退款冲回的舍入尾差必须单列为独立冲回行（而不是并入最后一条冲回明细），
+// ：退款冲回的舍入尾差必须单列为独立冲回行（而不是并入最后一条冲回明细），
 // 明细行不再吸收尾差，冲回合计仍等于精确值。
 func TestReversalRoundingTailListedSeparately(t *testing.T) {
 	db := openRound4DB(t, "round4_reversal_tail_row")
@@ -103,7 +103,7 @@ func TestReversalRoundingTailListedSeparately(t *testing.T) {
 	}
 }
 
-// §12.1-05 / §12.5-02：同一次退款的服务冲回与加钟冲回必须按同一「可退基数」计算比例，
+// ：同一次退款的服务冲回与加钟冲回必须按同一「可退基数」计算比例，
 // 否则两类冲回比例不一致，加钟侧被少冲。
 func TestReversalUnifiedRefundableBaseForServiceAndAddon(t *testing.T) {
 	db := openRound4DB(t, "round4_reversal_unified_base")
@@ -163,7 +163,7 @@ func TestReversalUnifiedRefundableBaseForServiceAndAddon(t *testing.T) {
 	}
 }
 
-// §15.5-04：折后明细金额 ÷ 承诺服务量得到「每最小服务单位」金额，逐单位分摊，
+// ：折后明细金额 ÷ 承诺服务量得到「每最小服务单位」金额，逐单位分摊，
 // 合计恒等于折后金额，舍入尾差固定记在最后一单位。
 func TestServiceUnitAmountsKeepTotalAndTailOnLastUnit(t *testing.T) {
 	// 承诺量 3、折后 100 分：逐单位 33/33/34（尾差落在最后一单位）。
@@ -196,7 +196,7 @@ func TestServiceUnitAmountsKeepTotalAndTailOnLastUnit(t *testing.T) {
 	}
 }
 
-// §12.7-01：分成明细接口须返回规则数值（基点 / 固定额）、该明细被冲回的扣减项与到手净额。
+// ：分成明细接口须返回规则数值（基点 / 固定额）、该明细被冲回的扣减项与到手净额。
 func TestCommissionEntryViewExposesRuleValueAndDeduction(t *testing.T) {
 	db := openRound4DB(t, "round4_commission_entry_view")
 	defer db.Close()
@@ -267,7 +267,7 @@ func TestCommissionEntryViewExposesRuleValueAndDeduction(t *testing.T) {
 	}
 }
 
-// §12.6-06：结算单详情须可下钻本期明细并带 rule_version，规则版本可从结算单追溯。
+// ：结算单详情须可下钻本期明细并带 rule_version，规则版本可从结算单追溯。
 func TestSettlementDetailInlinesEntriesWithRuleVersion(t *testing.T) {
 	db := openRound4DB(t, "round4_settlement_detail")
 	defer db.Close()
@@ -329,7 +329,7 @@ func TestSettlementDetailInlinesEntriesWithRuleVersion(t *testing.T) {
 	}
 }
 
-// §12.7-03：财务总表须给出按订单 / 陪玩的分成明细级对账（含规则版本）。
+// ：财务总表须给出按订单 / 陪玩的分成明细级对账（含规则版本）。
 func TestFinanceReportCommissionReconciliation(t *testing.T) {
 	db := openRound4DB(t, "round4_finance_reconciliation")
 	defer db.Close()
@@ -405,7 +405,7 @@ func TestFinanceReportCommissionReconciliation(t *testing.T) {
 	}
 }
 
-// §12.7-04：财务总表须给出按周期聚合工作室剩余（studio_remainder_cents）的抽成汇总。
+// ：财务总表须给出按周期聚合工作室剩余（studio_remainder_cents）的抽成汇总。
 func TestFinanceReportStudioRemainderSummary(t *testing.T) {
 	db := openRound4DB(t, "round4_finance_studio")
 	defer db.Close()
@@ -458,7 +458,7 @@ func TestFinanceReportStudioRemainderSummary(t *testing.T) {
 	}
 }
 
-// §17-06：客服业绩 / 派单效率 / 财务三类报表须返回可下钻明细（单据 id + 单号 + detail_truncated），
+// ：客服业绩 / 派单效率 / 财务三类报表须返回可下钻明细（单据 id + 单号 + detail_truncated），
 // 售后质量明细须带来源订单号。
 func TestReportDetailsCarryOriginalDocumentRefs(t *testing.T) {
 	db := openRound4DB(t, "round4_report_detail_refs")
@@ -535,7 +535,7 @@ func assertReportDetailRefs(t *testing.T, result map[string]any, reportType stri
 	}
 }
 
-// §17-07：服务端须按报表类型拒绝不支持的筛选维度（返回 400，而不是静默按全量统计）。
+// ：服务端须按报表类型拒绝不支持的筛选维度（返回 400，而不是静默按全量统计）。
 func TestReportRejectsUnsupportedDimensions(t *testing.T) {
 	db := openRound4DB(t, "round4_report_reject_dimensions")
 	defer db.Close()
@@ -576,7 +576,7 @@ func TestReportRejectsUnsupportedDimensions(t *testing.T) {
 	}
 }
 
-// §17-07：响应须给出该报表类型可用的筛选项清单（supported / unsupported）。
+// ：响应须给出该报表类型可用的筛选项清单（supported / unsupported）。
 func TestReportFilterCapabilitiesExposed(t *testing.T) {
 	db := openRound4DB(t, "round4_report_capabilities")
 	defer db.Close()
@@ -618,7 +618,7 @@ func TestReportFilterCapabilitiesExposed(t *testing.T) {
 	}
 }
 
-// §17-09 / §3.5-06：报表与导出的可见性谓词须与订单列表同口径
+// ：报表与导出的可见性谓词须与订单列表同口径
 // （本人负责 OR 存在协作授权），协作客服在报表与导出中不得丢失被授权订单。
 func TestReportVisibilityIncludesCollaborators(t *testing.T) {
 	db := openRound4DB(t, "round4_report_collaborator_scope")

@@ -42,7 +42,7 @@ func seedMemberCommissionOrder(t *testing.T, db *ent.Client, suffix string, p1, 
 	return order.ID
 }
 
-// 指定争议陪玩的部分退款（§13.3 成员明细冲回）：先冲满该成员分成，剩余目标再分摊其他成员；
+// 指定争议陪玩的部分退款（成员明细冲回）：先冲满该成员分成，剩余目标再分摊其他成员；
 // 再次退款时累计冲回不超过该成员原分成；争议陪玩须为实际服务成员。
 func TestPartialRefundPrefersDisputedMemberReversal(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_commission_member_reversal")

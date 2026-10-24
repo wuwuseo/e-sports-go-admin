@@ -102,7 +102,7 @@ func TestCloseOrderMinEvidenceRule(t *testing.T) {
 	}
 }
 
-// 金额达复核阈值：结单进入「待复核」，由非负责客服的管理员复核通过（§3.4 高额单管理员复核）。
+// 金额达复核阈值：结单进入「待复核」，由非负责客服的管理员复核通过（高额单管理员复核）。
 func TestCloseOrderReviewThreshold(t *testing.T) {
 	db := openCloseRuleDB(t, "esports_close_review")
 	defer db.Close()

@@ -6,7 +6,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 结单审批流（§3.4）：节点串行编排、审批角色与超时策略，挂在「结单表单」菜单下。
+// 结单审批流：节点串行编排、审批角色与超时策略，挂在「结单表单」菜单下。
 
 func listCloseApprovalFlowsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {

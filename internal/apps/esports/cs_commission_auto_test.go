@@ -37,7 +37,7 @@ func TestCsCommissionPreviousPeriodWindow(t *testing.T) {
 	}
 }
 
-// 自动生成结算单（§12.2）：只结算上一完整周期、当前周期不受影响、重复运行幂等。
+// 自动生成结算单：只结算上一完整周期、当前周期不受影响、重复运行幂等。
 func TestGenerateDueCsSettlements(t *testing.T) {
 	db := openCsCommissionDB(t, "esports_cs_commission_auto")
 	defer db.Close()

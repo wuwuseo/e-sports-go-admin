@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 售后限时与超时升级（§13.5）：受理 / 给出方案 / 客户确认 / 执行四段时限均可配置（小时，`0` = 不限），
+// 售后限时与超时升级：受理 / 给出方案 / 客户确认 / 执行四段时限均可配置（小时，`0` = 不限），
 // 超时由 `esports_check_aftersale_sla` 任务写 `aftersale.sla_breach` 事务外盒做升级提醒。
 // 超时只提醒，不自动流转状态、不改角色。
 
@@ -39,7 +39,7 @@ type afterSaleSLAPolicy struct {
 	ExecuteHours         int
 }
 
-// afterSaleSLAPolicyOf 读取售后限时配置；缺失或非法回落 §13.5 默认值（2 / 24 / 48 / 24 小时）。
+// afterSaleSLAPolicyOf 读取售后限时配置；缺失或非法回落 默认值（2 / 24 / 48 / 24 小时）。
 func afterSaleSLAPolicyOf(ctx context.Context, db *ent.Client) afterSaleSLAPolicy {
 	items, err := db.SystemConfig.Query().Where(systemconfig.KeyIn(
 		afterSaleAcceptHoursKey, afterSalePlanHoursKey,
@@ -159,7 +159,7 @@ func checkAfterSaleSLABreaches(ctx context.Context, db *ent.Client, now time.Tim
 	return breached, nil
 }
 
-// afterSaleView 在售后单上附加当前阶段的限时（§13.5）信息，供管理端列表 / 详情展示。
+// afterSaleView 在售后单上附加当前阶段的限时信息，供管理端列表 / 详情展示。
 type afterSaleView struct {
 	*ent.EsportsAfterSale
 	SLALimitHours int        `json:"sla_limit_hours"`

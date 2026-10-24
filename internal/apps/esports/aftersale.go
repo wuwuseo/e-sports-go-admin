@@ -54,20 +54,20 @@ type afterSalePlanInput struct {
 	PlanAction  string `json:"plan_action"`
 	RefundCents int64  `json:"refund_cents"`
 	Resolution  string `json:"resolution"`
-	// 补履约方案参数（§13.6）：plan_action=makeup_service 时必填，其余动作应留空。
+	// 补履约方案参数：plan_action=makeup_service 时必填，其余动作应留空。
 	MakeupKind            string `json:"makeup_kind"`
 	MakeupPlayerID        int    `json:"makeup_player_id"`
 	MakeupSeatIndex       int    `json:"makeup_seat_index"`
 	MakeupUnits           int64  `json:"makeup_units"`
 	MakeupCompanyPayCents int64  `json:"makeup_company_pay_cents"`
-	// 追偿（§13.4）：赔付由陪玩承担时填承接陪玩与追偿金额，执行售后时另建待审批的追偿明细。
+	// 追偿：赔付由陪玩承担时填承接陪玩与追偿金额，执行售后时另建待审批的追偿明细。
 	RecoveryPlayerID int   `json:"recovery_player_id"`
 	RecoveryCents    int64 `json:"recovery_cents"`
-	// 争议涉及陪玩（§13.3 部分退款成员明细冲回）：退款类方案可指定该单实际服务成员，
+	// 争议涉及陪玩（部分退款成员明细冲回）：退款类方案可指定该单实际服务成员，
 	// 执行退款时优先冲回该成员的服务与加钟分成，剩余额度再按比例分摊其他成员；
 	// 留空则维持按订单整体比例冲回。
 	DisputePlayerID int `json:"dispute_player_id"`
-	// 多动作方案（§13.3 / §13.6）：非空时改走「多动作方案 + 逐项执行」，忽略上面的单动作字段，
+	// 多动作方案：非空时改走「多动作方案 + 逐项执行」，忽略上面的单动作字段，
 	// 由动作项推导聚合摘要（refund_cents = 资金类动作金额之和，plan_action 取主导类型）。
 	Actions []afterSaleActionInput `json:"actions"`
 }
@@ -88,7 +88,7 @@ func validAfterSaleKind(kind string) bool {
 	return false
 }
 
-// validAfterSaleSourceType 统一售后支持的来源类型（§13.1 / §13.3）。
+// validAfterSaleSourceType 统一售后支持的来源类型。
 // stored_value_card 为已废弃来源（2026-10-20 储值卡功能移除），不再受理新单，仅历史售后单可读。
 func validAfterSaleSourceType(sourceType string) bool {
 	switch sourceType {
@@ -126,7 +126,7 @@ type afterSaleSource struct {
 	Ref map[string]interface{}
 }
 
-// resolveAfterSaleSource 解析来源单据并校验存在性，返回归属与留痕摘要（§13.1 / §13.3）。
+// resolveAfterSaleSource 解析来源单据并校验存在性，返回归属与留痕摘要。
 // 只做读查询：事务内传入 tx.Client()，事务外直接传 db，避免在外层挂未提交读事务造成写锁等待。
 func resolveAfterSaleSource(ctx context.Context, client *ent.Client, sourceType string, sourceID int) (afterSaleSource, error) {
 	switch sourceType {
@@ -246,7 +246,7 @@ func activeAfterSaleStatuses() []esportsaftersale.Status {
 	}
 }
 
-// activeAfterSaleDedupKey 是「同来源同问题至多一张进行中售后单」的唯一索引兜底键（§13.2-09）：
+// activeAfterSaleDedupKey 是「同来源同问题至多一张进行中售后单」的唯一索引兜底键：
 // 建单时写入 <source_type>:<source_id>:<kind>，落终态时清空为 NULL 释放额度。
 // 先查后建只能挡住顺序提交，并发下两张事务都会通过查重，必须由 DB 唯一索引兜底。
 func activeAfterSaleDedupKey(sourceType string, sourceID int, kind string) string {
@@ -317,7 +317,7 @@ func createAfterSaleTx(ctx context.Context, tx *ent.Tx, in afterSaleInput, opts 
 		SetKind(esportsaftersale.Kind(in.Kind)).SetChannel(esportsaftersale.Channel(in.Channel)).
 		SetDemand(in.Demand).SetExpectedPlan(in.ExpectedPlan).SetEvidenceRef(in.EvidenceRef).
 		SetContact(in.Contact).SetStatus(esportsaftersale.StatusPendingAccept).
-		// §13.2-09：进行中唯一键，DB 唯一索引兜底并发重复建单。
+		// ：进行中唯一键，DB 唯一索引兜底并发重复建单。
 		SetActiveDedupKey(activeAfterSaleDedupKey(in.SourceType, in.SourceID, in.Kind))
 	if source.CustomerID != nil {
 		create.SetCustomerID(*source.CustomerID)
@@ -416,7 +416,7 @@ func listAfterSales(ctx context.Context, db *ent.Client, adminID int, isSuper bo
 	return q.Order(ent.Desc(esportsaftersale.FieldID)).Limit(limit).All(ctx)
 }
 
-// afterSaleOwnedPredicate 构造非超级管理员的售后可见范围（§13.1 / §13.3）：
+// afterSaleOwnedPredicate 构造非超级管理员的售后可见范围：
 // order 按负责客服的订单 ID 过滤；gift / recharge 按归属客服的客户 ID 过滤
 // （售后单上的 customer_id 已由 resolveAfterSaleSource 落为真实归属客户）；assessment 无客户归属，任意管理员可见。
 // 归属集合为空时返回 nil，调用方直接返回空列表。
@@ -455,7 +455,7 @@ func getAfterSale(ctx context.Context, db *ent.Client, id int) (*ent.EsportsAfte
 	return db.EsportsAfterSale.Get(ctx, id)
 }
 
-// ── 售后列表 / 详情的外部执行信号（审核报告 §8.2-24） ──
+// ── 售后列表 / 详情的外部执行信号（审核报告 ） ──
 //
 // 客服在售后列表要能一眼看出两件事，不必逐单点进「动作项」明细：
 //  1. 这单还在等财务执行外部退款（存在 awaiting_execution 动作项）；
@@ -471,7 +471,7 @@ type afterSaleExternalSignal struct {
 	ExternalRefundOverdue bool
 }
 
-// afterSaleAdminView 管理端列表 / 详情视图：在既有 SLA 视图（§13.5）之上追加外部执行信号。
+// afterSaleAdminView 管理端列表 / 详情视图：在既有 SLA 视图之上追加外部执行信号。
 // 既有字段（内嵌的售后单字段与 sla_*）名称 / 结构一律不变，前端可增量消费；
 // 无相关数据时两个新字段为 0 / false。
 type afterSaleAdminView struct {
@@ -579,7 +579,7 @@ func afterSaleExternalSignalsOf(ctx context.Context, db *ent.Client, afterSaleID
 	return signals, nil
 }
 
-// ensureAfterSaleSourceOrderNotFrozen 售后写操作统一存单守卫（§4.6 存单冻结）：
+// ensureAfterSaleSourceOrderNotFrozen 售后写操作统一存单守卫（存单冻结）：
 // 订单来源售后在受理 / 方案 / 审批 / 驳回 / 执行 / 撤回等会改订单或资金的入口，
 // 先按来源加载订单并复用 ensureOrderNotFrozen，冻结期间一律拒绝，避免绕过订单侧冻结。
 // 非订单来源（礼物 / 充值 / 考核）没有订单可冻结，直接放行。
@@ -627,13 +627,13 @@ func afterSaleRefundReserveCents(ctx context.Context, client *ent.Client,
 	return total, nil
 }
 
-// 退款大额复核的门槛与财务角色配置键（§3.3-09 / §13.5-02）。
+// 退款大额复核的门槛与财务角色配置键。
 const (
 	afterSaleRefundReviewThresholdKey = "app.esports.aftersale_refund_review_threshold_cents"
 	afterSaleRefundFinanceRolesKey    = "app.esports.aftersale_refund_finance_role_names"
 )
 
-// afterSaleRefundPolicy 退款金额分流门槛与财务复核角色（§3.3-09 / §13.5-02）。
+// afterSaleRefundPolicy 退款金额分流门槛与财务复核角色。
 type afterSaleRefundPolicy struct {
 	// ReviewThresholdCents 达该金额（分）的退款审批 / 执行须财务复核；≤0（未配置或非法）表示不启用金额分流。
 	ReviewThresholdCents int64
@@ -688,7 +688,7 @@ func (r afterSaleRefundReviewer) financeQualified(policy afterSaleRefundPolicy) 
 	return false
 }
 
-// ensureAfterSaleRefundFinanceReview 退款审批 / 执行的金额门槛与财务角色绑定（§3.3-09 / §13.5-02）：
+// ensureAfterSaleRefundFinanceReview 退款审批 / 执行的金额门槛与财务角色绑定：
 //   - 未配置门槛（≤0）或未达门槛：直接放行（既有流程不变）；
 //   - 达门槛：须超级管理员或配置的财务角色，否则 errForbidden（不把大额资金动作交给普通客服）。
 func ensureAfterSaleRefundFinanceReview(policy afterSaleRefundPolicy, amountCents int64,
@@ -761,12 +761,12 @@ func estimateProratedRefundCents(refundableCents int64, shortfallBp int) int64 {
 }
 
 // afterSalePlanNeedsRefundAmount 方案动作是否属于「资金赔付」口径（退原核销款 / 补偿权益），
-// 未手填金额时按不足比例折算（§13.4-02）。
+// 未手填金额时按不足比例折算。
 func afterSalePlanNeedsRefundAmount(action string) bool {
 	return action == "refund_original" || action == "compensate"
 }
 
-// proratedRefundForOrderSource 按订单服务量不足比例折算应退金额（§13.4-02）：
+// proratedRefundForOrderSource 按订单服务量不足比例折算应退金额：
 // 已履约量取订单全部服务段 reported_units 之和，承诺量含加钟（与 service_terminate.go 同口径）；
 // 可退基数 = 应付额 − 已退 − 已预占（未审批时为应付额全额）。非订单来源返回 0（无服务量可比）。
 func proratedRefundForOrderSource(ctx context.Context, client *ent.Client,
@@ -789,7 +789,7 @@ func proratedRefundForOrderSource(ctx context.Context, client *ent.Client,
 		servedUnits += segment.ReportedUnits
 	}
 	promisedUnits := order.PromisedServiceUnits + order.AddonUnits
-	// §12.5-02：可退上界 = 服务应付 + 加钟已收款（加钟已收由只增流水求和派生）。
+	// ：可退上界 = 服务应付 + 加钟已收款（加钟已收由只增流水求和派生）。
 	addonReceived, err := addonReceivedCents(ctx, client, order.ID)
 	if err != nil {
 		return 0, err
@@ -802,7 +802,7 @@ func proratedRefundForOrderSource(ctx context.Context, client *ent.Client,
 }
 
 // acceptAfterSale 受理：pending_accept → processing，记录处理客服。
-// 受理即冻结该订单待结算的分成明细（§12.6 争议冻结），争议终结时解冻。
+// 受理即冻结该订单待结算的分成明细（争议冻结），争议终结时解冻。
 func acceptAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 || adminID < 1 {
 		return nil, errInvalidInput
@@ -855,8 +855,8 @@ func unfreezeAfterSaleCommission(ctx context.Context, db *ent.Client, item *ent.
 	return err
 }
 
-// submitAfterSalePlan 提交处理方案：processing → pending_customer_confirm（§13.3 方案提交 → 客户确认 → 审批 → 执行）。
-// 方案动作项首版为 退原核销款 / 发放补偿权益 / 补钟或换人履约（§13.6）。
+// submitAfterSalePlan 提交处理方案：processing → pending_customer_confirm（方案提交 → 客户确认 → 审批 → 执行）。
+// 方案动作项首版为 退原核销款 / 发放补偿权益 / 补钟或换人履约。
 // 补履约方案在提交时校验承接陪玩、席位与补足量；其余动作清空补履约参数，避免脏数据。
 // 每次提交都会清空上一轮的客户确认 / 拒绝留痕，确保「待客户确认」节点重新走一遍。
 func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, in afterSalePlanInput, now time.Time) (*ent.EsportsAfterSale, error) {
@@ -872,7 +872,7 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 	if err = ensureAfterSaleSourceOrderNotFrozen(ctx, db, item); err != nil {
 		return nil, err
 	}
-	// §13.3 / §13.6 多动作方案：传了动作项即改走逐项执行口径，与既有单动作路径完全隔离。
+	// 多动作方案：传了动作项即改走逐项执行口径，与既有单动作路径完全隔离。
 	if len(in.Actions) > 0 {
 		return submitAfterSaleActionsPlan(ctx, db, id, adminID, in, now)
 	}
@@ -907,7 +907,7 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		// 补履约不产生退款金额。
 		refundCents = 0
 	}
-	// §13.4-02：未手填退款金额的资金类方案按「服务量不足比例」折算应退额；
+	// ：未手填退款金额的资金类方案按「服务量不足比例」折算应退额；
 	// 折算不出（履约量已达标或没有服务上报）时明确失败，绝不静默落 0 让方案形同不赔。
 	if refundCents == 0 && afterSalePlanNeedsRefundAmount(in.PlanAction) {
 		current, err := db.EsportsAfterSale.Get(ctx, id)
@@ -924,7 +924,7 @@ func submitAfterSalePlan(ctx context.Context, db *ent.Client, id, adminID int, i
 		}
 		refundCents = derived
 	}
-	// §13.4：追偿金额不得超过本次赔付金额；不产生赔付的方案不允许追偿。
+	// ：追偿金额不得超过本次赔付金额；不产生赔付的方案不允许追偿。
 	if in.RecoveryCents > refundCents {
 		return nil, fmt.Errorf("%w：追偿金额不得超过本次赔付金额", errInvalidInput)
 	}
@@ -1013,7 +1013,7 @@ func playerServedOrder(ctx context.Context, db *ent.Client, orderID, playerID in
 	return count > 0, err
 }
 
-// confirmAfterSalePlanIn 客户确认方案：pending_customer_confirm → pending_approval（§13.3）。
+// confirmAfterSalePlanIn 客户确认方案：pending_customer_confirm → pending_approval。
 // channel 为 self_service（客户自助）或 admin_proxy（客服代确认，客户线下已同意）。
 // 两个入口共用本函数，因此存单冻结守卫必须收在这里：冻结订单不得被推进到待审批（否则下一步审批
 // 会预占退款额度），冻结期间一律返回 errOrderFrozen（HTTP 层映射 409 并给中文提示）。
@@ -1054,7 +1054,7 @@ func confirmAfterSalePlanIn(ctx context.Context, db *ent.Client, id, adminID int
 	return db.EsportsAfterSale.Get(ctx, id)
 }
 
-// confirmAfterSaleByCustomer 客户自助确认方案（§13.3）：须为售后单归属客户本人。
+// confirmAfterSaleByCustomer 客户自助确认方案：须为售后单归属客户本人。
 func confirmAfterSaleByCustomer(ctx context.Context, db *ent.Client, id, customerID int,
 	now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 || customerID < 1 {
@@ -1076,7 +1076,7 @@ func confirmAfterSaleByAdmin(ctx context.Context, db *ent.Client, id, adminID in
 	return confirmAfterSalePlanIn(ctx, db, id, adminID, "admin_proxy", now)
 }
 
-// declineAfterSaleByCustomer 客户拒绝方案（§13.3）：pending_customer_confirm → processing，
+// declineAfterSaleByCustomer 客户拒绝方案：pending_customer_confirm → processing，
 // 客服可修改方案后重新提交（重新提交会再次进入待客户确认）。须填原因且为归属客户本人。
 func declineAfterSaleByCustomer(ctx context.Context, db *ent.Client, id, customerID int,
 	reason string, now time.Time) (*ent.EsportsAfterSale, error) {
@@ -1109,14 +1109,14 @@ func declineAfterSaleByCustomer(ctx context.Context, db *ent.Client, id, custome
 
 // approveAfterSale 审批：pending_approval → pending_execution（无身份入口，见下方 WithReviewer 版本）。
 // 不得自审（审批人不得为该单处理人 / 方案提交人）；同时在同一事务内按条件表达式预占订单退款额度，
-// 即 refunded_cents + refund_reserved_cents + 本次金额 <= payable_cents + 加钟已收款（§12.5-02），
+// 即 refunded_cents + refund_reserved_cents + 本次金额 <= payable_cents + 加钟已收款，
 // 超退或并发冲突均 errConflict。
 func approveAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
 	return approveAfterSaleWithReviewer(ctx, db, id, adminID, afterSaleRefundReviewer{}, now)
 }
 
 // approveAfterSaleWithReviewer 审批（带资金复核资格）：除自审校验与额度预占外，
-// 退款金额达配置门槛时须管理员 / 财务角色复核（§3.3-09 / §13.5-02），
+// 退款金额达配置门槛时须管理员 / 财务角色复核，
 // 门槛判定放在额度预占之前，避免不通过的门槛先改了订单额度。
 func approveAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, adminID int,
 	reviewer afterSaleRefundReviewer, now time.Time) (*ent.EsportsAfterSale, error) {
@@ -1141,7 +1141,7 @@ func approveAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 	if item.HandlerAdminID != nil && *item.HandlerAdminID == adminID {
 		return nil, errForbidden
 	}
-	// §3.3-09 / §13.5-02：大额退款审批须财务复核资格（同一事务内判定，不通过直接回滚）。
+	// ：大额退款审批须财务复核资格（同一事务内判定，不通过直接回滚）。
 	reviewCents, err := afterSaleReviewAmountCents(ctx, tx.Client(), item)
 	if err != nil {
 		return nil, err
@@ -1149,7 +1149,7 @@ func approveAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 	if err = ensureAfterSaleRefundFinanceReview(afterSaleRefundPolicyOf(ctx, db), reviewCents, reviewer); err != nil {
 		return nil, err
 	}
-	// 退款额度预占只对订单来源的「退原核销款」有效（§13.6）；compensate / makeup_service
+	// 退款额度预占只对订单来源的「退原核销款」有效；compensate / makeup_service
 	// 不占原单退款额度。多动作方案沿用聚合额预占，待逐项执行器拆分补偿落账后再收窄。
 	reserveCents, err := afterSaleRefundReserveCents(ctx, tx.Client(), item)
 	if err != nil {
@@ -1161,7 +1161,7 @@ func approveAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 		if err = ensureAfterSalePaymentStatusRefundable(ctx, tx.Client(), item); err != nil {
 			return nil, err
 		}
-		// §12.5-02：可退上界 = 服务应付 + 加钟已收款（由只增流水求和派生），
+		// ：可退上界 = 服务应付 + 加钟已收款（由只增流水求和派生），
 		// 并发条件谓词必须带上同一上界，否则会打开超退缺口（D34 不变量的证明前提）。
 		addonReceived, err := addonReceivedCents(ctx, tx.Client(), item.SourceID)
 		if err != nil {
@@ -1220,7 +1220,7 @@ func rejectAfterSale(ctx context.Context, db *ent.Client, id, adminID int, in af
 		esportsaftersale.VersionEQ(item.Version),
 	).SetStatus(esportsaftersale.StatusRejected).SetApproverAdminID(adminID).
 		SetResolution(in.Reason).SetResolvedAt(now.UTC()).AddVersion(1).
-		// §13.2-09：落终态必须释放进行中唯一键，否则该来源同问题再也建不了新售后单。
+		// ：落终态必须释放进行中唯一键，否则该来源同问题再也建不了新售后单。
 		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return nil, err
@@ -1228,7 +1228,7 @@ func rejectAfterSale(ctx context.Context, db *ent.Client, id, adminID int, in af
 	if changed != 1 {
 		return nil, errConflict
 	}
-	// §12.6：驳回后争议终结，解冻该订单待结算分成明细。
+	// ：驳回后争议终结，解冻该订单待结算分成明细。
 	if err = unfreezeAfterSaleCommission(ctx, db, item); err != nil {
 		return nil, err
 	}
@@ -1270,7 +1270,7 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 		esportsaftersale.IDEQ(id),
 		esportsaftersale.StatusEQ(item.Status),
 	).SetStatus(esportsaftersale.StatusWithdrawn).SetResolvedAt(now.UTC()).AddVersion(1).
-		// §13.2-09：落终态释放进行中唯一键。
+		// ：落终态释放进行中唯一键。
 		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return nil, err
@@ -1278,7 +1278,7 @@ func withdrawAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now
 	if changed != 1 {
 		return nil, errConflict
 	}
-	// §12.6：撤回后争议终结，解冻该订单待结算分成明细。
+	// ：撤回后争议终结，解冻该订单待结算分成明细。
 	if item.SourceType == esportsaftersale.SourceTypeOrder {
 		if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
 			return nil, err
@@ -1298,7 +1298,7 @@ func executeAfterSale(ctx context.Context, db *ent.Client, id, adminID int, now 
 }
 
 // executeAfterSaleWithReviewer 执行售后方案（带资金复核资格）：
-// 退款金额达配置门槛时，执行人与审批人一样须管理员 / 财务角色（§13.5-02 大额门槛与财务角色绑定），
+// 退款金额达配置门槛时，执行人与审批人一样须管理员 / 财务角色（大额门槛与财务角色绑定），
 // 避免「审批卡住了、执行随手放行」绕过门槛。
 func executeAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, adminID int,
 	reviewer afterSaleRefundReviewer, now time.Time) (*ent.EsportsAfterSale, error) {
@@ -1329,7 +1329,7 @@ func executeAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 	if err = ensureAfterSaleRefundFinanceReview(afterSaleRefundPolicyOf(ctx, db), reviewCents, reviewer); err != nil {
 		return nil, err
 	}
-	// §13.3 / §13.6：挂了动作项的售后单改走「逐项执行」，总状态由动作项汇总推导（允许部分成功）。
+	// ：挂了动作项的售后单改走「逐项执行」，总状态由动作项汇总推导（允许部分成功）。
 	if hasActions, qerr := db.EsportsAfterSaleAction.Query().Where(
 		esportsaftersaleaction.AfterSaleIDEQ(id),
 	).Exist(ctx); qerr != nil {
@@ -1356,7 +1356,7 @@ func executeAfterSaleWithReviewer(ctx context.Context, db *ent.Client, id, admin
 				return nil, markErr
 			}
 		}
-		// §3.2-03：退款未能执行时把订单退款状态落 failed 并留原因；
+		// ：退款未能执行时把订单退款状态落 failed 并留原因；
 		// 并发冲突 / 入参不合法属可重试与可修正，不改订单退款状态。
 		if source.SourceType == esportsaftersale.SourceTypeOrder && reviewCents > 0 &&
 			shouldMarkOrderRefundFailed(err) {
@@ -1420,7 +1420,7 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 		if err = executeCompensate(ctx, tx, item, order, adminID); err != nil {
 			return nil, err
 		}
-		// §13.6 补偿语义：补偿权益是额外发放，不是退原单款项。
+		// 补偿语义：补偿权益是额外发放，不是退原单款项。
 		// 因此不得占用原单退款额度、不得累加 refunded_cents / 改 refund_status，
 		// 也不得按退款口径冲回陪玩分成、客服提成与客户成长值；这里直接完成，跳过下方统一退款落账段。
 		if err = createRecoveryFromAfterSale(ctx, tx, item, adminID); err != nil {
@@ -1446,7 +1446,7 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 		}
 		return db.EsportsAfterSale.Get(ctx, id)
 	case esportsaftersale.PlanActionMakeupService:
-		// 补履约（§13.6）：创建补履约任务；不退款、不冲回分成与成长值，也不改原订单实收与成交额。
+		// 补履约：创建补履约任务；不退款、不冲回分成与成长值，也不改原订单实收与成交额。
 		task, err := createFulfillmentMakeupIn(ctx, tx, item, order, adminID, now)
 		if err != nil {
 			return nil, err
@@ -1464,7 +1464,7 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 			}, now); err != nil {
 			return nil, err
 		}
-		// §12.6：补履约方案不产生退款，执行完成即争议终结并解冻分成明细。
+		// ：补履约方案不产生退款，执行完成即争议终结并解冻分成明细。
 		if item.SourceType == esportsaftersale.SourceTypeOrder {
 			if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
 				return nil, err
@@ -1479,7 +1479,7 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	}
 	// 统一处理：仅「退原核销款」走到这里——从预占额度扣减并累加 refunded_cents。
 	// 补偿动作已在上方提前完成，不会进入本段占用退款额度或触发冲回。
-	// 条件表达式再次校验预占充足且累计不越可退上界（§12.5-02：服务应付 + 加钟已收款），
+	// 条件表达式再次校验预占充足且累计不越可退上界（：服务应付 + 加钟已收款），
 	// 避免并发超退；refund_status 视累计已退额一并更新。
 	addonReceived, err := addonReceivedCents(ctx, tx.Client(), order.ID)
 	if err != nil {
@@ -1508,19 +1508,19 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	if err = reverseOrderCommission(ctx, tx, refundedOrder, item, now); err != nil {
 		return nil, err
 	}
-	// 同事务冲回客服提成（§12.2）：结单后部分退款按比例冲回，全额退款冲至零。
+	// 同事务冲回客服提成：结单后部分退款按比例冲回，全额退款冲至零。
 	if err = reverseOrderCsCommission(ctx, tx, refundedOrder, item, now); err != nil {
 		return nil, err
 	}
-	// 退款额度落账后、同事务按退款金额冲回客户成长值并重算等级（§10.2/§10.5）。
+	// 退款额度落账后、同事务按退款金额冲回客户成长值并重算等级。
 	if err = reverseOrderGrowth(ctx, tx, order, item, adminID, now); err != nil {
 		return nil, err
 	}
-	// §13.4：赔付由陪玩承担时，同事务另建待审批的陪玩追偿明细。
+	// ：赔付由陪玩承担时，同事务另建待审批的陪玩追偿明细。
 	if err = createRecoveryFromAfterSale(ctx, tx, item, adminID); err != nil {
 		return nil, err
 	}
-	// §12.6：执行完成即争议终结，解冻该订单待结算分成明细（退款冲回已单列在退款当期）。
+	// ：执行完成即争议终结，解冻该订单待结算分成明细（退款冲回已单列在退款当期）。
 	if item.SourceType == esportsaftersale.SourceTypeOrder {
 		if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
 			return nil, err
@@ -1540,7 +1540,7 @@ func executeAfterSaleOnce(ctx context.Context, db *ent.Client, id, adminID int, 
 	return db.EsportsAfterSale.Get(ctx, id)
 }
 
-// completeAfterSaleExecution 事务内把售后单置为已完成并写订单事件（§13.6 执行结果留痕）。
+// completeAfterSaleExecution 事务内把售后单置为已完成并写订单事件（执行结果留痕）。
 // 退款类动作与补履约动作共用：两者都在同一事务内完成状态流转与留痕。
 func completeAfterSaleExecution(ctx context.Context, tx *ent.Tx, id, orderID, adminID, newVersion int,
 	eventType string, details map[string]interface{}, now time.Time) error {
@@ -1549,7 +1549,7 @@ func completeAfterSaleExecution(ctx context.Context, tx *ent.Tx, id, orderID, ad
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
 	).SetStatus(esportsaftersale.StatusCompleted).SetExecutorAdminID(adminID).
 		SetResolvedAt(now.UTC()).AddVersion(1).
-		// §13.2-09：落终态释放进行中唯一键。
+		// ：落终态释放进行中唯一键。
 		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return err
@@ -1563,12 +1563,12 @@ func completeAfterSaleExecution(ctx context.Context, tx *ent.Tx, id, orderID, ad
 		SetDetails(details).Save(ctx); err != nil {
 		return err
 	}
-	// §13.5：责任方判定为陪玩的售后执行完成后自动记载陪玩信用（幂等，不自动处罚）。
+	// ：责任方判定为陪玩的售后执行完成后自动记载陪玩信用（幂等，不自动处罚）。
 	return recordPlayerFaultCredit(ctx, tx, id)
 }
 
 // refundStatusFor 按累计已退额与可退上界推导退款状态：退满为 full，否则 partial。
-// §12.5-02：可退上界 = 服务应付 + 加钟已收款（加钟款可退后，「退满」不能再只按 payable_cents 判）。
+// ：可退上界 = 服务应付 + 加钟已收款（加钟款可退后，「退满」不能再只按 payable_cents 判）。
 func refundStatusFor(refundableUpperCents, refundedCents int64) esportsorder.RefundStatus {
 	if refundedCents >= refundableUpperCents {
 		return esportsorder.RefundStatusFull
@@ -1591,7 +1591,7 @@ func shouldMarkOrderRefundFailed(err error) bool {
 }
 
 // markOrderRefundExecuting 把订单退款状态置为 executing（退款已受理、结果未定）并写
-// order.refund_executing 事件留痕（§3.2-03 六态枚举中的 executing 不再是无写入方的死值）。
+// order.refund_executing 事件留痕（六态枚举中的 executing 不再是无写入方的死值）。
 // 已退满（full）的订单不改写，避免覆盖「已全额退还」这一既成事实。
 func markOrderRefundExecuting(ctx context.Context, client *ent.Client, orderID, adminID int,
 	reason string, now time.Time) error {
@@ -1633,7 +1633,7 @@ func markOrderRefundExecuting(ctx context.Context, client *ent.Client, orderID, 
 	return tx.Commit()
 }
 
-// markOrderRefundFailed 把订单退款状态置为 failed 并写带原因的 order.refund_failed 事件（§3.2-03）：
+// markOrderRefundFailed 把订单退款状态置为 failed 并写带原因的 order.refund_failed 事件：
 // 退款执行失败时订单不再停在旧的金额派生态，失败原因随时序留痕可查。已退满的订单不改写。
 func markOrderRefundFailed(ctx context.Context, client *ent.Client, orderID, adminID int,
 	reason string, now time.Time) error {
@@ -1686,7 +1686,7 @@ func markOrderRefundFailed(ctx context.Context, client *ent.Client, orderID, adm
 //
 // 边界：P+B 与订单应付额不一致时以实际核销构成 C 为分摊基数，仅用应付额限制剩余可退额，
 // 避免按虚高应付额放大本金；T<=0 时以 C 兜底；A 超过剩余应付额或原核销无构成时拒绝执行。
-// §12.5-02：服务与加钟两部分分别调用本函数，各自传该类原核销构成与剩余可退额
+// ：服务与加钟两部分分别调用本函数，各自传该类原核销构成与剩余可退额
 // （服务传 payable_cents，加钟传加钟已收款），因此「已退额」也按类分别传入。
 func refundComposition(principalCents, bonusCents, payableCents, refundedBefore, amountCents int64) (int64, int64, error) {
 	principal := max(principalCents, 0)
@@ -1728,7 +1728,7 @@ func refundComposition(principalCents, bonusCents, payableCents, refundedBefore,
 	return principalBack, amountCents - principalBack, nil
 }
 
-// addonRefundWalletSource 是加钟退款流水的来源类型（§12.5-02）：
+// addonRefundWalletSource 是加钟退款流水的来源类型：
 // 加钟首版只能由客户余额收单（addon.go），与订单原核销账户可能不同，
 // 故加钟部分的原路退回单独成行、单独来源类型，继续由 (source_type, source_id, entry_type) 唯一索引兜底幂等。
 const addonRefundWalletSource = "after_sale_addon"
@@ -1738,7 +1738,7 @@ const addonRefundWalletSource = "after_sale_addon"
 // 写一条 refund_return 流水；幂等靠 (source_type, source_id, entry_type) 唯一索引兜底。
 // 历史储值卡核销订单（账户类型已废弃）统一退回客户余额。
 //
-// §12.5-02 加钟款原路退回：可退上界含加钟已收款，本次退款先冲服务部分（沿用原核销构成与账户），
+// 加钟款原路退回：可退上界含加钟已收款，本次退款先冲服务部分（沿用原核销构成与账户），
 // 超出服务可退额的部分按加钟余额收款流水的构成退回加钟原账户（首版为客户余额），
 // 使「加钟已收」可经原路退回而不是被当作服务赠送退回。
 func executeRefundOriginal(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale, order *ent.EsportsOrder, adminID int) error {
@@ -1856,7 +1856,7 @@ func executeCompensate(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSa
 		}
 		return fmt.Errorf("%w：补偿流水写入失败：%v", errExecutionFailed, err)
 	}
-	// §13.4：补偿由陪玩承担时同样另建待审批的追偿明细。
+	// ：补偿由陪玩承担时同样另建待审批的追偿明细。
 	return createRecoveryFromAfterSale(ctx, tx, item, adminID)
 }
 
@@ -1991,11 +1991,11 @@ func registerExternalChannelAfterSaleRefund(ctx context.Context, tx *ent.Tx, ite
 	if err != nil {
 		return err
 	}
-	// §12.6：争议随本单执行终结，解冻该订单待结算分成明细。
+	// ：争议随本单执行终结，解冻该订单待结算分成明细。
 	if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
 		return err
 	}
-	// §13.4：赔付由陪玩承担时，仍按方案建待审批的追偿明细。
+	// ：赔付由陪玩承担时，仍按方案建待审批的追偿明细。
 	if err = createRecoveryFromAfterSale(ctx, tx, item, adminID); err != nil {
 		return err
 	}
@@ -2050,9 +2050,9 @@ func customerBalanceAccountUsable(ctx context.Context, client *ent.Client, custo
 	return account.Status == esportswalletaccount.StatusActive, nil
 }
 
-// ── 售后「代客确认」HTTP 入口（审核报告 §3.1：confirmAfterSaleByAdmin 此前无路由） ──
+// ── 售后「代客确认」HTTP 入口（审核报告 ：confirmAfterSaleByAdmin 此前无路由） ──
 
-// adminConfirmAfterSaleHandler 客服代客户确认方案（§13.3「待客户确认」→「待审批」）：
+// adminConfirmAfterSaleHandler 客服代客户确认方案（「待客户确认」→「待审批」）：
 // 客户线下已同意时由客服代为确认，写入 customer_confirm_channel=admin_proxy 与
 // customer_confirmed_by_admin_id，并清除上一次的客户拒绝原因。
 //

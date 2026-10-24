@@ -9,8 +9,8 @@ import (
 )
 
 // EsportsCommissionRule 是陪玩分成规则。规则不可原地修改：改规则＝新增一条递增 version 的新行，
-// 旧行转 history 且不再变更（§12.4）。同一 rule_no 的不同版本共享编号，version 逐版递增。
-// §12.3 五级优先级：单笔手动指定（订单字段 manual_commission_rule_id，不落 scope）
+// 旧行转 history 且不再变更。同一 rule_no 的不同版本共享编号，version 逐版递增。
+// 五级优先级：单笔手动指定（订单字段 manual_commission_rule_id，不落 scope）
 // > scope=player > scope=level > scope=game > scope=global。
 // 生效时间在未来的版本进入 scheduled，达到时间后解析器可立即使用，定时任务补齐状态转换。
 type EsportsCommissionRule struct{ ent.Schema }
@@ -48,7 +48,7 @@ func (EsportsCommissionRule) Indexes() []ent.Index {
 }
 
 // EsportsCommissionEntry 是分成明细。退款冲回不使用「修改原明细」表达，而是新增 kind=reversal 的
-// 负数明细，使退款金额自然落在退款当期（§12.6）。待结算明细分批转入 settled 并记 settlement_id。
+// 负数明细，使退款金额自然落在退款当期。待结算明细分批转入 settled 并记 settlement_id。
 type EsportsCommissionEntry struct{ ent.Schema }
 
 func (EsportsCommissionEntry) Fields() []ent.Field {
@@ -56,7 +56,7 @@ func (EsportsCommissionEntry) Fields() []ent.Field {
 		// 幂等键：service 为 commission:service:<order_no>:<player_id>，reversal 为 commission:reversal:<after_sale_no>:<player_id>，
 		// gift 为 commission:gift:<gift_no>，gift_reversal 为 commission:gift_reversal:<gift_no>。
 		field.String("idem_key").NotEmpty().MaxLen(120).StructTag(`json:"idem_key"`),
-		// 礼物收入与订单无关，order_id 可空（§9.3 礼物收入单独记账、与订单收入一起结算）。
+		// 礼物收入与订单无关，order_id 可空（礼物收入单独记账、与订单收入一起结算）。
 		field.Int("order_id").Optional().Nillable().StructTag(`json:"order_id"`),
 		field.Int("player_id").Positive().StructTag(`json:"player_id"`),
 		field.Enum("kind").Values("service", "reversal", "gift", "gift_reversal", "addon").Default("service").StructTag(`json:"kind"`),
@@ -73,7 +73,7 @@ func (EsportsCommissionEntry) Fields() []ent.Field {
 		field.Int64("amount_cents").Default(0).StructTag(`json:"amount_cents"`),
 		field.Enum("status").Values("pending_settlement", "settled", "void").Default("pending_settlement").StructTag(`json:"status"`),
 		field.Int("settlement_id").Optional().Nillable().StructTag(`json:"settlement_id"`),
-		// 争议冻结（§12.6）：被争议的明细冻结待结算金额，不参与当期结算；
+		// 争议冻结：被争议的明细冻结待结算金额，不参与当期结算；
 		// 冻结与状态正交（仍为 pending_settlement），解冻后恢复可结算。
 		field.Time("frozen_at").Optional().Nillable().StructTag(`json:"frozen_at"`),
 		field.String("frozen_reason").MaxLen(255).Default("").StructTag(`json:"frozen_reason"`),
@@ -96,7 +96,7 @@ func (EsportsCommissionEntry) Indexes() []ent.Index {
 
 // EsportsSettlement 是结算单。汇总某主体一周期内的待结算明细（含正向分成与负数冲回）。
 // owner_type=player 时 net=实结额同时写入一条猫粮钱包流水（幂等靠 account_type+source_type+source_id+entry_type
-// 唯一索引兜底）；owner_type=cs 时是客服提成结算单，不写钱包，发放由财务打款并留外部凭证（§12.2）。
+// 唯一索引兜底）；owner_type=cs 时是客服提成结算单，不写钱包，发放由财务打款并留外部凭证。
 // ponytail: 按游戏/等级/单个陪玩逐级覆盖结算周期、自定义间隔、争议冻结均未实现；结算周期仅支持
 // daily/weekly/monthly 三种预设。
 type EsportsSettlement struct{ ent.Schema }
@@ -122,7 +122,7 @@ func (EsportsSettlement) Fields() []ent.Field {
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Int("locked_by_admin_id").Optional().Nillable().StructTag(`json:"locked_by_admin_id"`),
 		field.Time("locked_at").Optional().Nillable().StructTag(`json:"locked_at"`),
-		// 发放（打款）留痕：外部凭证号与打款人，仅 status=paid 时非空（§12.2 客服提成发放记录关联外部凭证）。
+		// 发放（打款）留痕：外部凭证号与打款人，仅 status=paid 时非空（客服提成发放记录关联外部凭证）。
 		field.String("payout_ref").MaxLen(128).Default("").StructTag(`json:"payout_ref"`),
 		field.Int("paid_by_admin_id").Optional().Nillable().StructTag(`json:"paid_by_admin_id"`),
 		field.Time("paid_at").Optional().Nillable().StructTag(`json:"paid_at"`),

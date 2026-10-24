@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// §5.7-05：催单优先级必须落订单字段、在看板响应中可见，并可按键排序。
+// ：催单优先级必须落订单字段、在看板响应中可见，并可按键排序。
 //   - POST /admin/orders/:id/remind 后订单详情带 remind_priority_level / remind_note / reminded_at；
 //   - GET /admin/dispatch/board 响应含该字段；
 //   - GET /admin/dispatch/board?sort=remind_priority 按优先级降序（同档按 ID 倒序）；

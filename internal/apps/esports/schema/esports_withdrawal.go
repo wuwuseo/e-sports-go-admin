@@ -8,10 +8,10 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsWithdrawal 是陪玩提现单（§6.3 / §12.6）。只有猫粮（已结算收入）可提现：申请时同事务
+// EsportsWithdrawal 是陪玩提现单。只有猫粮（已结算收入）可提现：申请时同事务
 // 扣减猫粮本金的 withdraw 流水（避免重复申请超额），驳回时写一条 refund_return 退回原额，
 // 打款不再动钱包——钱已离开猫粮账户，由工作室按外部凭证打款。
-// 首版一律由财务审核；审核与打款分两步，到账时间与外部打款 / 完税凭证分别留痕（§11.2）。
+// 首版一律由财务审核；审核与打款分两步，到账时间与外部打款 / 完税凭证分别留痕。
 type EsportsWithdrawal struct{ ent.Schema }
 
 func (EsportsWithdrawal) Fields() []ent.Field {
@@ -35,7 +35,7 @@ func (EsportsWithdrawal) Fields() []ent.Field {
 		field.String("reject_reason").MaxLen(255).Default("").StructTag(`json:"reject_reason"`),
 		field.Int("reviewed_by_admin_id").Optional().Nillable().StructTag(`json:"reviewed_by_admin_id"`),
 		field.Time("reviewed_at").Optional().Nillable().StructTag(`json:"reviewed_at"`),
-		// 外部打款凭证与完税凭证（§11.2），仅打款后非空。
+		// 外部打款凭证与完税凭证，仅打款后非空。
 		field.String("payout_ref").MaxLen(128).Default("").StructTag(`json:"payout_ref"`),
 		field.String("tax_ref").MaxLen(128).Default("").StructTag(`json:"tax_ref"`),
 		field.Int("paid_by_admin_id").Optional().Nillable().StructTag(`json:"paid_by_admin_id"`),

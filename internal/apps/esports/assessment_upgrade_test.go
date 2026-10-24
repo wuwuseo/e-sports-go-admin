@@ -23,7 +23,7 @@ import (
 const upgradeAutoTriggerCursorKeyLiteral = "app.esports.upgrade_auto_trigger_cursor"
 
 // seedUpgradePlayer 建一个已入驻的合格陪玩：created_at 是 Immutable 字段，只能在 Create 时显式写入，
-// 因此这里不使用通用 seedPlayer；实名认证一并置为通过（§6.1 定级前置条件）。
+// 因此这里不使用通用 seedPlayer；实名认证一并置为通过（定级前置条件）。
 func seedUpgradePlayer(t *testing.T, db *ent.Client, userID int, level string, createdAt time.Time) *ent.EsportsPlayer {
 	t.Helper()
 	player := db.EsportsPlayer.Create().SetUserID(userID).SetDisplayName("升级陪玩").
@@ -86,7 +86,7 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 		t.Fatalf("不存在的陪玩未被拦截：%v", err)
 	}
 
-	// 资格已是合格但实名认证未通过（§6.1）。
+	// 资格已是合格但实名认证未通过。
 	unverified := db.EsportsPlayer.Create().SetUserID(201).SetDisplayName("未实名").
 		SetQualification(esportsplayer.QualificationQualified).SetPresence(esportsplayer.PresenceOnline).
 		SetLevel("novice").SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)

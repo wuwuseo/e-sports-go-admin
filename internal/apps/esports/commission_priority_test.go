@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// §12.3 五级优先级：单笔手动指定 > 陪玩个体约定(player) > 陪玩等级(level) > 游戏或服务类型(game) > 全局默认。
+// 五级优先级：单笔手动指定 > 陪玩个体约定(player) > 陪玩等级(level) > 游戏或服务类型(game) > 全局默认。
 func TestCommissionRuleFiveLevelPriority(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_commission_priority")
 	defer db.Close()
@@ -49,7 +49,7 @@ func TestCommissionRuleFiveLevelPriority(t *testing.T) {
 	if got := resolve(order, 7, "senior"); got == nil || got.ID != player.ID {
 		t.Fatalf("有个体约定时应命中 player 级，got=%v", got)
 	}
-	// 第三级：该陪玩无个体约定时按等级自动命中（§7.3 等级与分成联动）。
+	// 第三级：该陪玩无个体约定时按等级自动命中（等级与分成联动）。
 	if got := resolve(order, 8, "senior"); got == nil || got.ID != level.ID {
 		t.Fatalf("无个体约定时应命中 level 级，got=%v", got)
 	}
@@ -121,7 +121,7 @@ func TestManualCommissionRuleGuards(t *testing.T) {
 		t.Fatalf("手动指定未连同操作人写入订单：%+v", got)
 	}
 
-	// 已有锁定席位的订单不再允许改（§12.4 关键时点锁定）。
+	// 已有锁定席位的订单不再允许改（关键时点锁定）。
 	db.EsportsDispatchSeat.Create().SetOrderID(order.ID).SetSeatIndex(1).
 		SetStatus(esportsdispatchseat.StatusAccepted).SetPlayerID(7).
 		SetCommissionRuleLockedAt(now).SaveX(ctx)

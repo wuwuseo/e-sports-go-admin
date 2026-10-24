@@ -6,7 +6,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// userAfterSaleEvidenceHandler 客户自助读取售后凭证附件清单（§13.2 只读确认）。
+// userAfterSaleEvidenceHandler 客户自助读取售后凭证附件清单（只读确认）。
 // 建议接线：GET /user/after-sales/:id/evidence（前台用户态 Auth），供主代理接入路由。
 func userAfterSaleEvidenceHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)

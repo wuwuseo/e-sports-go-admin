@@ -36,7 +36,7 @@ func ensureOrderNotFrozen(order *ent.EsportsOrder) error {
 // 并发保护：条件 UPDATE 带 version + deposit_status=none + payment_status=paid，
 // changed != 1 即视为状态已变化返回 errConflict，避免并发重复存单。
 //
-// §3.3-11：冻结期间禁止一切订单变更 —— 各写入口统一经 ensureOrderNotFrozen 拦截；
+// ：冻结期间禁止一切订单变更 —— 各写入口统一经 ensureOrderNotFrozen 拦截；
 // 调用方须用「事务内 / 库内最新」的订单对象判定，不得拿冻结前的旧快照绕过
 // （历史兜底函数 ensureOrderWritable 因无生产调用已删除，行为由 ensureOrderNotFrozen + 重读保证）。
 func depositOrder(ctx context.Context, db *ent.Client, orderID, adminID int, now time.Time) (*ent.EsportsOrder, error) {

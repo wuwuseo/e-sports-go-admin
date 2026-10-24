@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/esportscustomer"
 )
 
-// 客户风险标记（§13.7）：标记须填原因、解除清空原因与时间、风险名单只含被标记客户。
+// 客户风险标记：标记须填原因、解除清空原因与时间、风险名单只含被标记客户。
 func TestCustomerRiskMarking(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_risk_marking")
 	defer db.Close()
@@ -47,7 +47,7 @@ func TestCustomerRiskMarking(t *testing.T) {
 	}
 }
 
-// 自助入口拦截（§13.7）：未开放自助下单（self_order_enabled=false）拦截；
+// 自助入口拦截：未开放自助下单（self_order_enabled=false）拦截；
 // 开放后仅「限制自助下单」拦截；「疑似滥用复核」不拦截、不自动处罚。
 func TestEnsureCustomerSelfServiceAllowed(t *testing.T) {
 	cases := []struct {
@@ -78,7 +78,7 @@ func TestEnsureCustomerSelfServiceAllowed(t *testing.T) {
 	}
 }
 
-// 高频退款自动标记（§13.7）：达阈值标记为「疑似滥用复核」；重复运行幂等，且不降级已限制客户。
+// 高频退款自动标记：达阈值标记为「疑似滥用复核」；重复运行幂等，且不降级已限制客户。
 func TestFlagHighRiskCustomers(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_risk_flag")
 	defer db.Close()
@@ -116,7 +116,7 @@ func TestFlagHighRiskCustomers(t *testing.T) {
 	}
 }
 
-// 客户自助下单（§13.7）：被限制的客户直接拦截；无归属客服时提示联系客服。
+// 客户自助下单：被限制的客户直接拦截；无归属客服时提示联系客服。
 func TestPlaceCustomerSelfOrderGuard(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_risk_self_order")
 	defer db.Close()

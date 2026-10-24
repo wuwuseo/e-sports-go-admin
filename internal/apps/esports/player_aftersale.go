@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// playerAfterSaleKinds（§13.2）：陪玩端只开放「服务履约申诉」类问题，
+// playerAfterSaleKinds：陪玩端只开放「服务履约申诉」类问题，
 // 退款口径与赔付金额由客服在售后方案中确定，陪玩不能直接指定金额。
 var playerAfterSaleKinds = map[string]bool{
 	"service_mismatch": true,
@@ -33,7 +33,7 @@ type playerAfterSaleInput struct {
 	Contact      string `json:"contact"`
 }
 
-// createPlayerOrderAfterSale 陪玩就本人服务的订单发起售后申诉（§13.2）：
+// createPlayerOrderAfterSale 陪玩就本人服务的订单发起售后申诉：
 // 仅该单服务成员可发起，落 channel=player 与来源陪玩；客服受理后走统一售后状态机。
 func createPlayerOrderAfterSale(ctx context.Context, db *ent.Client, playerID int,
 	in playerAfterSaleInput, now time.Time) (*ent.EsportsAfterSale, error) {

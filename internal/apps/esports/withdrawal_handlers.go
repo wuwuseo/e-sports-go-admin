@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 提现（§6.3 / §12.6）：陪玩端自助申请，管理端财务审核与打款登记。管理端挂「结算」菜单。
+// 提现：陪玩端自助申请，管理端财务审核与打款登记。管理端挂「结算」菜单。
 
 func adminWithdrawals(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -58,7 +58,7 @@ func reviewWithdrawalHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// payWithdrawalHandler 登记打款：留外部打款凭证与完税凭证（§11.2）。
+// payWithdrawalHandler 登记打款：留外部打款凭证与完税凭证。
 func payWithdrawalHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -82,7 +82,7 @@ func payWithdrawalHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// playerApplyWithdrawal 陪玩端申请提现（§6.3）：须携带幂等键，重复提交返回既有提现单。
+// playerApplyWithdrawal 陪玩端申请提现：须携带幂等键，重复提交返回既有提现单。
 func playerApplyWithdrawal(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
@@ -125,7 +125,7 @@ func playerWithdrawalSummaryHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// requestWithdrawalPayoutHandler 财务提交打款执行（§11.2 补全）：仅「已审核通过」的提现单可提交。
+// requestWithdrawalPayoutHandler 财务提交打款执行（补全）：仅「已审核通过」的提现单可提交。
 func requestWithdrawalPayoutHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -146,7 +146,7 @@ func requestWithdrawalPayoutHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// markWithdrawalPayoutPaidHandler 标记打款成功（§11.2 补全）：回填完税凭证、到账时间与打款人。
+// markWithdrawalPayoutPaidHandler 标记打款成功（补全）：回填完税凭证、到账时间与打款人。
 func markWithdrawalPayoutPaidHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -169,7 +169,7 @@ func markWithdrawalPayoutPaidHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// markWithdrawalPayoutFailedHandler 标记打款失败（§11.2 补全）：提现单保持已审核通过，可重新提交打款。
+// markWithdrawalPayoutFailedHandler 标记打款失败（补全）：提现单保持已审核通过，可重新提交打款。
 func markWithdrawalPayoutFailedHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -206,7 +206,7 @@ func listWithdrawalPayoutsHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// registerExternalRefundHandler 财务登记外部渠道退款凭证（§13 补全）。
+// registerExternalRefundHandler 财务登记外部渠道退款凭证（补全）。
 func registerExternalRefundHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -223,7 +223,7 @@ func registerExternalRefundHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// executeExternalRefundHandler 财务核验并执行外部退款（§13 补全）：对齐订单退款状态。
+// executeExternalRefundHandler 财务核验并执行外部退款（补全）：对齐订单退款状态。
 func executeExternalRefundHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// 终止服务段（§3.3-06）：客服侧提前结束服务段，必须登记「已履约量 / 未履约量 / 责任方」，
+// 终止服务段：客服侧提前结束服务段，必须登记「已履约量 / 未履约量 / 责任方」，
 // 服务段保留已履约量并置 finished，责任认定以只增事件 order.service_terminated 留痕。
 func TestTerminatePlayerServiceRecordsFulfilledUnfulfilledAndResponsibility(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_service_terminate")
@@ -107,7 +107,7 @@ func TestTerminatePlayerServiceRecordsFulfilledUnfulfilledAndResponsibility(t *t
 	}
 }
 
-// 终止也须走统一存单守卫（§3.3-11）：冻结中的订单不得被改写履约量与责任认定。
+// 终止也须走统一存单守卫：冻结中的订单不得被改写履约量与责任认定。
 func TestTerminatePlayerServiceRejectsFrozenOrder(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_service_terminate_frozen")
 	defer db.Close()

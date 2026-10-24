@@ -17,9 +17,9 @@ func (EsportsOrder) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("order_no").NotEmpty().MaxLen(64).Immutable().StructTag(`json:"order_no"`),
 		field.Int("customer_id").Positive().StructTag(`json:"customer_id"`),
-		// 常规报单必须绑定已上架 SKU；管理员补录无 SKU 的历史单（§15.6）允许 sku_id=0 不绑定 SKU。
+		// 常规报单必须绑定已上架 SKU；管理员补录无 SKU 的历史单允许 sku_id=0 不绑定 SKU。
 		field.Int("sku_id").StorageKey("product_id").StructTag(`json:"product_id"`),
-		// 下单时的商品 / 规格名快照（§15.6-03）：报单时从 SKU 与规格组写入，详情与导出改读快照，
+		// 下单时的商品 / 规格名快照：报单时从 SKU 与规格组写入，详情与导出改读快照，
 		// 之后改 SKU 标题或规格名不追溯改写历史单；历史单为空串，读取方回落实时 SKU。
 		field.String("sku_code").StorageKey("product_code").MaxLen(80).Default("").StructTag(`json:"product_code"`),
 		field.String("sku_name").StorageKey("product_name").MaxLen(160).Default("").StructTag(`json:"product_name"`),
@@ -30,8 +30,8 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int("cs_commission_admin_id").Optional().Nillable().StructTag(`json:"cs_commission_admin_id"`),
 		field.Int("cs_commission_rule_id").Optional().Nillable().StructTag(`json:"cs_commission_rule_id"`),
 		field.Time("cs_commission_rule_locked_at").Optional().Nillable().StructTag(`json:"cs_commission_rule_locked_at"`),
-		// §12.3 五级优先级的最高一级「单笔手动指定」：派单/接单前由管理员为这一单指定分成规则。
-		// 只在成员锁定席位规则前生效；已锁定成员的分成快照不因事后指定而追溯（§12.4）。
+		// 五级优先级的最高一级「单笔手动指定」：派单/接单前由管理员为这一单指定分成规则。
+		// 只在成员锁定席位规则前生效；已锁定成员的分成快照不因事后指定而追溯。
 		field.Int("manual_commission_rule_id").Optional().Nillable().StructTag(`json:"manual_commission_rule_id"`),
 		field.Int("manual_commission_rule_set_by_admin_id").Optional().Nillable().StructTag(`json:"manual_commission_rule_set_by_admin_id"`),
 		field.Time("manual_commission_rule_set_at").Optional().Nillable().StructTag(`json:"manual_commission_rule_set_at"`),
@@ -48,37 +48,37 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int("adjustment_approval_bp").Default(2000).StructTag(`json:"adjustment_approval_bp"`),
 		field.Int64("discount_cents").Default(0).StructTag(`json:"discount_cents"`),
 		field.Int64("manual_adjust_cents").Default(0).StructTag(`json:"manual_adjust_cents"`),
-		// 会员等级与消费折扣基点快照（§10.4-08）：下单与改价时按当时生效的等级规则写入，
+		// 会员等级与消费折扣基点快照：下单与改价时按当时生效的等级规则写入，
 		// 事后改折扣规则不追溯改写；历史单等级为空串、基点 10000 表示按不打折口径展示。
 		field.String("member_level_code").MaxLen(32).Default("").StructTag(`json:"member_level_code"`),
 		field.Int("member_discount_bps").Default(10000).StructTag(`json:"member_discount_bps"`),
 		field.Int64("payable_cents").Positive().StructTag(`json:"payable_cents"`),
 		field.Int64("promised_service_units").Positive().StructTag(`json:"promised_service_units"`),
-		// 每席承诺服务量（§15.3-01 / §15.5-01 / §5.3-05 / §4.2-08）：多人单下单时从 SKU（其次规格组）
+		// 每席承诺服务量：多人单下单时从 SKU（其次规格组）
 		// 快照，业务侧须校验 promised_service_units = per_seat_service_units × required_seats；
 		// 0 表示未配置（历史单 / 单人单），读取方按「未提供每席量」处理。
 		field.Int64("per_seat_service_units").Default(0).StructTag(`json:"per_seat_service_units"`),
-		// 服务时长快照（分钟，§5.5）：下单时从 SKU 快照，用于预约时段重叠与容量判定；0 表示未配置。
+		// 服务时长快照（分钟，）：下单时从 SKU 快照，用于预约时段重叠与容量判定；0 表示未配置。
 		field.Int("service_duration_minutes").Default(0).StructTag(`json:"service_duration_minutes"`),
-		// 加钟累计（§3.3 / §12.5）：由「已确认」的加钟单累加，只增不改；payable_cents 保持原报价快照。
+		// 加钟累计：由「已确认」的加钟单累加，只增不改；payable_cents 保持原报价快照。
 		field.Int64("addon_cents").Default(0).StructTag(`json:"addon_cents"`),
 		field.Int64("addon_units").Default(0).StructTag(`json:"addon_units"`),
 		field.Int("required_seats").Positive().StructTag(`json:"required_seats"`),
-		// 所需技能等级快照（§5.5）：报单时从 SKU 快照，用于接单硬性校验。
+		// 所需技能等级快照：报单时从 SKU 快照，用于接单硬性校验。
 		// 取值为系统配置 app.esports.skill_levels 的等级编码；历史单保留快照时的编码。
 		field.String("required_level").MaxLen(32).Default("novice").StructTag(`json:"required_level"`),
-		// 逐席角色快照（§15.5）：报单时从 SKU 关联规格组快照每席角色/可替换条件，多人规格报价据此展示席位约束；
+		// 逐席角色快照：报单时从 SKU 关联规格组快照每席角色/可替换条件，多人规格报价据此展示席位约束；
 		// 历史单缺该字段为空（不追溯）。
 		field.JSON("seat_roles", []schematier.SeatSpec{}).Optional().StructTag(`json:"seat_roles"`),
 		field.Int("quote_version").Default(1).StructTag(`json:"quote_version"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
 		field.Enum("fulfillment_status").Values("pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled").Default("pending_payment").StructTag(`json:"fulfillment_status"`),
 		field.Enum("payment_status").Values("unpaid", "partial", "paid", "exception").Default("unpaid").StructTag(`json:"payment_status"`),
-		// 付款方式标记（§3.1）：核销成功时写入，仅用于查询与结单一致性校验。
+		// 付款方式标记：核销成功时写入，仅用于查询与结单一致性校验。
 		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史订单可读，禁止新写入。
 		field.Enum("payment_channel").Values("none", "customer_balance", "stored_value_card",
 			"wechat_work", "merchant_qr", "corporate_transfer").Default("none").StructTag(`json:"payment_channel"`),
-		// 优先派单权「独占优先通知」窗口（§5.4 业务口径）：进入待派单时若该游戏分区存在生效名单，
+		// 优先派单权「独占优先通知」窗口（业务口径）：进入待派单时若该游戏分区存在生效名单，
 		// 则只有名单内陪玩可见并可接单；名单内全部拒绝或窗口超时后释放到抢单大厅（转 grabbing）。
 		// none=未开窗（直接进大厅） / pending=优先通知中 / released=已释放到大厅 / accepted=名单内陪玩已接单。
 		field.Enum("priority_notice_status").Values("none", "pending", "released", "accepted").Default("none").
@@ -88,23 +88,23 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.String("priority_game").MaxLen(64).Default("").StructTag(`json:"priority_game"`),
 		// 释放到大厅的原因：超时 / 名单内全部拒绝 / 客服提前释放。
 		field.String("priority_release_reason").MaxLen(255).Default("").StructTag(`json:"priority_release_reason"`),
-		// 催单优先级（§5.7-05）：POST /admin/orders/:id/remind 写入的最新档位（1~3），0=未催单；
+		// 催单优先级：POST /admin/orders/:id/remind 写入的最新档位（1~3），0=未催单；
 		// 看板按该字段排序与展示（此前只落订单事件 details，无法检索/排序）。
 		field.Int("remind_priority_level").Default(0).StructTag(`json:"remind_priority_level"`),
 		field.String("remind_note").MaxLen(255).Default("").StructTag(`json:"remind_note"`),
 		field.Time("reminded_at").Optional().Nillable().StructTag(`json:"reminded_at"`),
-		// §5.9 时间线埋点（各自只写一次，永不改写）：首次进入待派单池、首次派出邀请、
+		// 时间线埋点（各自只写一次，永不改写）：首次进入待派单池、首次派出邀请、
 		// 首次有效接单、开工时间；配合 priority_notice_until / priority_released_at
 		// 可区分「名单内响应慢」与「无人可派」。各类等待时长由报表按这些时间戳派生。
 		field.Time("first_pooled_at").Optional().Nillable().StructTag(`json:"first_pooled_at"`),
 		field.Time("first_invited_at").Optional().Nillable().StructTag(`json:"first_invited_at"`),
 		field.Time("first_accepted_at").Optional().Nillable().StructTag(`json:"first_accepted_at"`),
 		field.Time("service_started_at").Optional().Nillable().StructTag(`json:"service_started_at"`),
-		// 「可以开工」时刻（§5.9-01）：全部席位就绪后业务侧写入一次，并与 order.ready_to_start
+		// 「可以开工」时刻：全部席位就绪后业务侧写入一次，并与 order.ready_to_start
 		// 订单事件同时落库；「进入待派单池」沿用 first_pooled_at 与 order.entered_pending_dispatch 事件。
 		field.Time("ready_to_start_at").Optional().Nillable().StructTag(`json:"ready_to_start_at"`),
 		field.Time("priority_released_at").Optional().Nillable().StructTag(`json:"priority_released_at"`),
-		// 客户指定的陪玩（§5.4）：有值时订单直接走指派流程，**不进优先通知窗口**；
+		// 客户指定的陪玩：有值时订单直接走指派流程，**不进优先通知窗口**；
 		// 并在派单候选中置顶标记 Preferred。报单时写入，须校验陪玩资质。
 		field.Int("preferred_player_id").Optional().Nillable().StructTag(`json:"preferred_player_id"`),
 		field.Enum("refund_status").Values("none", "pending_approval", "executing", "partial", "full", "failed").Default("none").StructTag(`json:"refund_status"`),
@@ -115,15 +115,15 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int64("close_net_service_cents").Optional().Nillable().StructTag(`json:"close_net_service_cents"`),
 		// 已预占但尚未执行的退款额度（分），售后审批通过时预占、执行时扣减。
 		field.Int64("refund_reserved_cents").Default(0).StructTag(`json:"refund_reserved_cents"`),
-		// 已知渠道成本（分，§12.1）：由客服在订单上登记的渠道费用，结单计提客服提成时从可分基数扣除，
+		// 已知渠道成本（分，）：由客服在订单上登记的渠道费用，结单计提客服提成时从可分基数扣除，
 		// 参与「工作室剩余 = 服务应付 − 陪玩分成 − 客服提成 − 渠道成本」的反算。默认 0。
 		field.Int64("channel_cost_cents").Default(0).StructTag(`json:"channel_cost_cents"`),
-		// appointment_status 末尾追加 pending_confirm（§3.2-04）：付费预约「已付款待确认档期」的独立展示态；
+		// appointment_status 末尾追加 pending_confirm：付费预约「已付款待确认档期」的独立展示态；
 		// 档期确认时限到期由任务置为该态（写 appointment_suspended_at）并暂停派单、提供全额退款/改期。既有取值保留。
 		field.Enum("appointment_status").Values("instant", "request", "confirmed", "pending_confirm").Default("instant").StructTag(`json:"appointment_status"`),
 		field.Time("requested_start_at").Optional().Nillable().StructTag(`json:"requested_start_at"`),
 		field.Time("appointment_confirmation_deadline").Optional().Nillable().StructTag(`json:"appointment_confirmation_deadline"`),
-		// 档期确认到期自动暂停派单的时刻（§3.2-04）：仅由到期处置任务写入，空表示未被自动暂停。
+		// 档期确认到期自动暂停派单的时刻：仅由到期处置任务写入，空表示未被自动暂停。
 		field.Time("appointment_suspended_at").Optional().Nillable().StructTag(`json:"appointment_suspended_at"`),
 		field.Time("payment_deadline").StructTag(`json:"payment_deadline"`),
 		field.Time("paid_at").Optional().Nillable().StructTag(`json:"paid_at"`),
@@ -134,7 +134,7 @@ func (EsportsOrder) Fields() []ent.Field {
 		// 存单时间与操作管理员，仅 deposit_status=frozen 时非空。
 		field.Time("deposited_at").Optional().Nillable().StructTag(`json:"deposited_at"`),
 		field.Int("deposited_by_admin_id").Optional().Nillable().StructTag(`json:"deposited_by_admin_id"`),
-		// 管理员历史订单补录（§3.3 / §4.1 / §12.5）：补录单固定 entry_point=admin_backfill，
+		// 管理员历史订单补录：补录单固定 entry_point=admin_backfill，
 		// 必须记录补录原因、补录人与补录时刻。陪玩分成与成长值默认正常计提；
 		// backfill_count_commission 重新定义为「是否计入客服提成」，默认 false（客服提成默认不计入）。
 		field.String("backfill_reason").MaxLen(255).Default("").StructTag(`json:"backfill_reason"`),

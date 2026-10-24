@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsAfterSaleAction 是售后方案的动作项（§13.3 / §13.6 多动作售后方案与逐项执行）。
+// EsportsAfterSaleAction 是售后方案的动作项（多动作售后方案与逐项执行）。
 //
 // 背景：售后单原先把方案压成单个 plan_action + 一组金额 / 补履约字段 + 一个总状态，
 // 无法表达「退款 + 补钟」这类多动作，也看不到部分成功后的逐项进度。动作项把方案拆成可逐项执行的粒度：
@@ -44,7 +44,7 @@ func (EsportsAfterSaleAction) Fields() []ent.Field {
 		field.Int("seat_index").Optional().Nillable().StructTag(`json:"seat_index"`),
 		field.Int64("units").Default(0).StructTag(`json:"units"`),
 		field.Int64("company_pay_cents").Default(0).StructTag(`json:"company_pay_cents"`),
-		// 退款类动作定向冲回的争议陪玩（§13.3 部分退款成员明细冲回）；留空按订单整体比例冲回。
+		// 退款类动作定向冲回的争议陪玩（部分退款成员明细冲回）；留空按订单整体比例冲回。
 		field.Int("dispute_player_id").Optional().Nillable().StructTag(`json:"dispute_player_id"`),
 		// 原核销明细引用：构成按项幂等键的 <source> 段，用于把同一动作项拆分到具体来源明细。
 		field.String("source_ref").MaxLen(120).Default("").StructTag(`json:"source_ref"`),

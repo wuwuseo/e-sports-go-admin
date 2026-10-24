@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsGift 是礼物目录（§9.1）。礼物分成与服务订单分成分开配置：按比例（commission_bp 万分比）
+// EsportsGift 是礼物目录。礼物分成与服务订单分成分开配置：按比例（commission_bp 万分比）
 // 或固定金额（commission_cents）。高额档 high_value 与年龄限制 require_age 用于送礼二次确认与拦截。
 type EsportsGift struct{ ent.Schema }
 
@@ -23,9 +23,9 @@ func (EsportsGift) Fields() []ent.Field {
 		field.Enum("commission_mode").Values("percent", "fixed").Default("percent").StructTag(`json:"commission_mode"`),
 		field.Int("commission_bp").Default(0).StructTag(`json:"commission_bp"`),
 		field.Int64("commission_cents").Default(0).StructTag(`json:"commission_cents"`),
-		// 高额档：送礼需二次确认（§9.5 大额打赏）。
+		// 高额档：送礼需二次确认（大额打赏）。
 		field.Bool("high_value").Default(false).StructTag(`json:"high_value"`),
-		// 年龄限制：仅成年客户可送（§9.5 未成年人打赏拦截）。
+		// 年龄限制：仅成年客户可送（未成年人打赏拦截）。
 		field.Bool("require_age").Default(false).StructTag(`json:"require_age"`),
 		field.Int("sort_order").Default(0).StructTag(`json:"sort_order"`),
 		field.Enum("status").Values("draft", "on_sale", "off_sale").Default("draft").StructTag(`json:"status"`),
@@ -39,10 +39,10 @@ func (EsportsGift) Indexes() []ent.Index {
 	return []ent.Index{index.Fields("code").Unique(), index.Fields("status", "sort_order")}
 }
 
-// EsportsGiftOrder 是送礼单据（§9.2）。只有支付足额核销后才落库；收礼陪玩在支付前确认并快照
+// EsportsGiftOrder 是送礼单据。只有支付足额核销后才落库；收礼陪玩在支付前确认并快照
 // （player_id + player_name），支付后不得静默改人。关联 order_id 仅用于追溯，不并入订单应付，
 // 也不重复计提服务分成。review_status 承载防刷榜标记：疑似关联交易先标记，复核通过前不生成
-// 可提现的礼物分成（§9.4）。
+// 可提现的礼物分成。
 type EsportsGiftOrder struct{ ent.Schema }
 
 func (EsportsGiftOrder) Fields() []ent.Field {
@@ -63,13 +63,13 @@ func (EsportsGiftOrder) Fields() []ent.Field {
 		field.Int("quantity").Positive().Default(1).StructTag(`json:"quantity"`),
 		field.Int64("unit_price_cents").Positive().StructTag(`json:"unit_price_cents"`),
 		field.Int64("amount_cents").Positive().StructTag(`json:"amount_cents"`),
-		// 支付构成：首版仅本金，拒绝赠送权益支付礼物（§9.5）。
+		// 支付构成：首版仅本金，拒绝赠送权益支付礼物。
 		field.Int64("principal_cents").Default(0).StructTag(`json:"principal_cents"`),
 		field.Int64("bonus_cents").Default(0).StructTag(`json:"bonus_cents"`),
 		// customer_balance_principal 余额本金 / external_* 外部收款；stored_value_card_principal 为已废弃值
 		// （2026-10-20 储值卡功能移除），保留仅为历史礼物单可读，禁止新写入。
 		field.String("payment_source").Default("customer_balance_principal").StructTag(`json:"payment_source"`),
-		// 价格档位与收款留痕（§9.1-02 / §9.2-01）：档位随单快照，改档不追溯改写历史礼物单。
+		// 价格档位与收款留痕：档位随单快照，改档不追溯改写历史礼物单。
 		field.Int("gift_tier_id").Default(0).StructTag(`json:"gift_tier_id"`),
 		field.String("gift_tier_code").MaxLen(48).Default("").StructTag(`json:"gift_tier_code"`),
 		field.String("payment_ref").MaxLen(128).Default("").StructTag(`json:"payment_ref"`),

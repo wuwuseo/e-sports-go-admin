@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// §5.9 订单时间线埋点：把「进入待派单池」「首次派出邀请」「首次有效接单」「开工」作为不同时间点，
+// 订单时间线埋点：把「进入待派单池」「首次派出邀请」「首次有效接单」「开工」作为不同时间点，
 // 各自只写一次、永不改写。各类等待时长（入池→派出、派出→接单、接单→开工、入池→开工）由报表按
 // 这些时间戳派生；配合 `priority_notice_until` / `priority_released_at` 可区分「名单内响应慢」与
 // 「无人可派」。派单候选池与接单上限等硬性条件不在本埋点内。
@@ -25,7 +25,7 @@ const (
 	timelineServiceStarted
 )
 
-// markOrderTimelineIn 事务内按「只写一次」记录订单时间线埋点（§5.9）：
+// markOrderTimelineIn 事务内按「只写一次」记录订单时间线埋点：
 // 仅当该字段仍为空时写入，重复调用与并发都不会改写已落下的首个时间点；失败不阻断主流程。
 // 返回本次是否真的写入（false = 已有值或并发已抢先），供调用方决定是否补写一次性事件。
 func markOrderTimelineIn(ctx context.Context, tx *ent.Tx, orderID int, mark orderTimelineMark, now time.Time) (bool, error) {
@@ -52,13 +52,13 @@ func markOrderTimelineIn(ctx context.Context, tx *ent.Tx, orderID int, mark orde
 	return changed == 1, nil
 }
 
-// orderEnteredPendingDispatchEvent 「进入待派单池」独立事件类型（§5.9-01）。
+// orderEnteredPendingDispatchEvent 「进入待派单池」独立事件类型。
 const orderEnteredPendingDispatchEvent = "order.entered_pending_dispatch"
 
-// orderReadyToStartEvent 「可以开工」独立事件类型（§5.9-01）。
+// orderReadyToStartEvent 「可以开工」独立事件类型。
 const orderReadyToStartEvent = "order.ready_to_start"
 
-// markOrderReadyToStartIn 事务内首次把订单标记为「可以开工」（§5.9-01）：全部席位就绪后由业务侧
+// markOrderReadyToStartIn 事务内首次把订单标记为「可以开工」：全部席位就绪后由业务侧
 // 调用一次，写 ready_to_start_at 时间戳与 order.ready_to_start 独立事件。
 //
 // 幂等：仅在 ready_to_start_at 仍为空且订单版本未变时写入；返回 false 表示已写过或并发抢先，

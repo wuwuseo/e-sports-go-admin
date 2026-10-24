@@ -9,13 +9,13 @@ import (
 	"go-admin/internal/global"
 )
 
-// §4.5 退款/退卡按充值批次还原的外部退款执行（人工核验分支）的 HTTP 入口。
+// 退款/退卡按充值批次还原的外部退款执行（人工核验分支）的 HTTP 入口。
 //
 //	POST /admin/after-sales/:id/refund-execute             按充值批次生成外部退款执行明细
 //	GET  /admin/recharge-refund-executions                 批次列表（?status= pending / executed）
 //	POST /admin/recharge-refund-executions/:id/execute     财务登记外部打款后置 executed
 
-// adminRechargeRefundExecuteHandler 按充值批次为售后单生成外部退款执行明细（§4.5）：
+// adminRechargeRefundExecuteHandler 按充值批次为售后单生成外部退款执行明细：
 // 复用 rechargeRefundQuoteFor 试算，只对可退且无异常、拆分已知的批次落明细，幂等键按
 // 「售后单 + 批次来源」拆分，重复执行不重复落账。
 // 建议接线：POST /admin/after-sales/:id/refund-execute（ownedAfterSaleHandler 包裹）。
@@ -35,7 +35,7 @@ func adminRechargeRefundExecuteHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// markRechargeRefundExecutionExecutedHandler 财务登记外部打款后置执行明细为 executed（§4.5）。
+// markRechargeRefundExecutionExecutedHandler 财务登记外部打款后置执行明细为 executed。
 // 建议接线：POST /admin/recharge-refund-executions/:id/execute。
 func markRechargeRefundExecutionExecutedHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)

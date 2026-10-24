@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 客户风控（§13.7）：
+// 客户风控：
 //  1. 高频退款客户按两档阈值自动标记：轻档落「疑似滥用复核」（watch，只标记复核、不限制下单）；
 //     重档落「限制自助下单」（restricted，自助下单入口直接拦截并要求联系客服或预付）；
 //  2. restricted 一旦落下即真实生效（自助下单 403），并保留申诉与人工复核入口：
@@ -38,7 +38,7 @@ const (
 	riskRestrictedReasonSuffix = "（自动限制自助下单，可联系客服申诉并由管理员复核解除）"
 )
 
-// customerRiskPolicy 高频退款自动标记策略（§13.7）：
+// customerRiskPolicy 高频退款自动标记策略：
 // 复核档（watch）与限制档（restricted）各自独立配置次数与金额阈值。
 type customerRiskPolicy struct {
 	WindowDays         int
@@ -82,7 +82,7 @@ func customerRiskPolicyOf(ctx context.Context, db *ent.Client) customerRiskPolic
 	}
 }
 
-// riskTier 自动风控落点（§13.7-01）。
+// riskTier 自动风控落点。
 type riskTier int
 
 const (
@@ -121,7 +121,7 @@ func riskStatusRank(status esportscustomer.RiskStatus) int {
 	return int(riskTierNone)
 }
 
-// ensureCustomerSelfServiceAllowed 自助入口的拦截（§13.7）：
+// ensureCustomerSelfServiceAllowed 自助入口的拦截：
 // ① 客户未开启「自助下单」开关时拦截（SelfOrderEnabled=false，缺省关闭）；
 // ② 「限制自助下单」时拦截，且只要求联系客服或先预付——「疑似滥用复核」不拦截、不自动处罚。
 func ensureCustomerSelfServiceAllowed(customer *ent.EsportsCustomer) error {
@@ -141,7 +141,7 @@ func ensureCustomerSelfServiceAllowed(customer *ent.EsportsCustomer) error {
 	return nil
 }
 
-// markCustomerRisk 管理员标记 / 解除客户风险（§13.7）。status=normal 时清空原因。
+// markCustomerRisk 管理员标记 / 解除客户风险。status=normal 时清空原因。
 func markCustomerRisk(ctx context.Context, db *ent.Client, customerID int, status, reason string,
 	now time.Time) (*ent.EsportsCustomer, error) {
 	status = strings.TrimSpace(status)
@@ -183,7 +183,7 @@ func listRiskCustomers(ctx context.Context, db *ent.Client, limit int) ([]*ent.E
 	).Order(ent.Desc(esportscustomer.FieldID)).Limit(limit).All(ctx)
 }
 
-// flagHighRiskCustomers 按风控两档阈值把高频退款客户自动标记，返回新标记数量（§13.7-01）。
+// flagHighRiskCustomers 按风控两档阈值把高频退款客户自动标记，返回新标记数量。
 // 口径：窗口内「已完成且退款金额 > 0」的售后单，按客户归集次数与退款总额；命中限制档 → restricted，
 // 只命中复核档 → watch。自动路径只在档位升高时写入（normal → watch → restricted 可升不可降），
 // 已是 restricted 的客户不会被改回 watch；命中限制档的客户自助下单入口即被拦截（403）。
@@ -259,7 +259,7 @@ func flagHighRiskCustomers(ctx context.Context, db *ent.Client, now time.Time, l
 	return flagged, nil
 }
 
-// customerOrderInput 客户自助下单入参（§13.2 客户自助端）。
+// customerOrderInput 客户自助下单入参（客户自助端）。
 type customerOrderInput struct {
 	SkuID             int    `json:"product_id"`
 	Quantity          int64  `json:"quantity"`
@@ -273,7 +273,7 @@ func customerSelfPrincipal(customerID int) string {
 	return "customer:" + strconv.Itoa(customerID)
 }
 
-// placeCustomerSelfOrder 客户自助下单（§13.2 / §13.7 / §5.1-02）：须已绑定登录身份与成年资格，
+// placeCustomerSelfOrder 客户自助下单：须已绑定登录身份与成年资格，
 // 且未被「限制自助下单」；有归属客服时该客服即订单负责客服，**无归属客服时也必须能自助下单**，
 // 此时订单 responsible_admin_id 为 NULL（进公共池，由 dispatch 认领）。
 func placeCustomerSelfOrder(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
@@ -287,7 +287,7 @@ func placeCustomerSelfOrder(ctx context.Context, db *ent.Client, customer *ent.E
 	if customer.AgeStatus != esportscustomer.AgeStatusAdult {
 		return nil, errAgeUnverified
 	}
-	// §5.1-02：归属客服为空不再拦截自助下单，改以 adminID=0 落单（责任客服 NULL → 公共池）。
+	// ：归属客服为空不再拦截自助下单，改以 adminID=0 落单（责任客服 NULL → 公共池）。
 	ownerAdminID := 0
 	if customer.OwnerAdminID != nil && *customer.OwnerAdminID > 0 {
 		ownerAdminID = *customer.OwnerAdminID

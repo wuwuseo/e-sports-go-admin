@@ -155,7 +155,7 @@ func seedActiveCloseRule(t *testing.T, db *ent.Client, code string, minEvidence 
 	}
 }
 
-// 审核报告 §3.2b：规则要求 2 张图片时，代提交只给自由文本必须被拒；给足 2 张图片 ID 才通过。
+// 审核报告 ：规则要求 2 张图片时，代提交只给自由文本必须被拒；给足 2 张图片 ID 才通过。
 func TestCloseSubstituteRequiresRuleImageEvidence(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_substitute_images")
 	defer db.Close()
@@ -187,7 +187,7 @@ func TestCloseSubstituteRequiresRuleImageEvidence(t *testing.T) {
 	}
 }
 
-// 审核报告 §3.2b：自由文本把「凭证张数」凑够后，「视为已提交」也不能放行缺图片的订单。
+// 审核报告 ：自由文本把「凭证张数」凑够后，「视为已提交」也不能放行缺图片的订单。
 func TestCloseAutoAcceptRequiresRuleImageEvidence(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_auto_accept_images")
 	defer db.Close()
@@ -218,7 +218,7 @@ func TestCloseAutoAcceptRequiresRuleImageEvidence(t *testing.T) {
 	}
 }
 
-// P1 回归：mode=single 不能把多人单放宽成「任一人提交即可」（功能列表 §3.4-76）。
+// P1 回归：mode=single 不能把多人单放宽成「任一人提交即可」（功能列表 ）。
 func TestCloseSingleModeRequiresEverySeat(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_single_mode")
 	defer db.Close()

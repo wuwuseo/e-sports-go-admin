@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 技能等级（§5.5 / §7.3）由专用表 EsportsSkillLevel 驱动（管理端「技能等级」页维护，
+// 技能等级由专用表 EsportsSkillLevel 驱动（管理端「技能等级」页维护，
 // 历史上曾存系统配置 app.esports.skill_levels，启动迁移一次性搬入该表并删除旧记录）：
 // 等级数量、编码与显示名可自定义，sort_order 升序即高低序（下标小 = 低档）。
 // 商品门槛、订单快照与陪玩档案只存 code 字符串，所有比较按本配置的序数进行；

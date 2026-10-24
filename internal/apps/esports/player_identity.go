@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 陪玩实名认证（§6.1）。
+// 陪玩实名认证。
 //
 // 状态机：未提交 →（提交）→ pending_verification →（管理员审核）→ verified / rejected。
 // 实名通过前陪玩 qualification 不得为 qualified（updatePlayer 把关）。
@@ -51,7 +51,7 @@ func maskIDNumber(raw string) string {
 	return raw[:6] + "********" + raw[len(raw)-4:]
 }
 
-// submitPlayerIdentity 陪玩提交实名认证（§6.1）：写 pending_verification 状态。
+// submitPlayerIdentity 陪玩提交实名认证：写 pending_verification 状态。
 // 已存在待审核 / 已通过记录时不允许重复提交（返回 errConflict）；被驳回后可重新提交。
 func submitPlayerIdentity(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, in playerIdentitySubmitInput) (*ent.EsportsPlayerIdentity, error) {
 	in.RealName = strings.TrimSpace(in.RealName)
@@ -85,7 +85,7 @@ func submitPlayerIdentity(ctx context.Context, db *ent.Client, player *ent.Espor
 		SetRequestedBy(0).Save(ctx)
 }
 
-// reviewPlayerIdentity 管理员审核陪玩实名认证（§6.1）：通过置 verified，驳回置 rejected。
+// reviewPlayerIdentity 管理员审核陪玩实名认证：通过置 verified，驳回置 rejected。
 func reviewPlayerIdentity(ctx context.Context, db *ent.Client, reviewer *ent.Admin, playerID int, in playerIdentityReviewInput, now time.Time) (*ent.EsportsPlayerIdentity, error) {
 	in.RejectReason = strings.TrimSpace(in.RejectReason)
 	if reviewer == nil || playerID < 1 || (!in.Approved && in.RejectReason == "") {
@@ -140,7 +140,7 @@ func reviewPlayerIdentity(ctx context.Context, db *ent.Client, reviewer *ent.Adm
 	return db.EsportsPlayerIdentity.Get(ctx, record.ID)
 }
 
-// isPlayerIdentityVerified 判断陪玩实名认证是否已通过（§6.1）。updatePlayer 据此把关 qualification。
+// isPlayerIdentityVerified 判断陪玩实名认证是否已通过。updatePlayer 据此把关 qualification。
 func isPlayerIdentityVerified(ctx context.Context, db *ent.Client, playerID int) (bool, error) {
 	exists, err := db.EsportsPlayerIdentity.Query().Where(
 		esportsplayeridentity.PlayerIDEQ(playerID),
@@ -166,7 +166,7 @@ func currentPlayerIdentityStatus(ctx context.Context, db *ent.Client, playerID i
 	return string(record.Status), nil
 }
 
-// playerSubmitIdentityHandler 陪玩端提交实名认证（§6.1）。
+// playerSubmitIdentityHandler 陪玩端提交实名认证。
 // 需在 app.go 接线：{Method: "POST", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerSubmitIdentityHandler}
 func playerSubmitIdentityHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
@@ -184,7 +184,7 @@ func playerSubmitIdentityHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"id": record.ID, "status": playerIdentityPending})
 }
 
-// playerIdentityStatusHandler 陪玩端查询本人实名认证状态（§6.1）。
+// playerIdentityStatusHandler 陪玩端查询本人实名认证状态。
 // 需在 app.go 接线：{Method: "GET", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerIdentityStatusHandler}
 func playerIdentityStatusHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
@@ -198,7 +198,7 @@ func playerIdentityStatusHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"status": status})
 }
 
-// adminReviewPlayerIdentityHandler 管理员审核陪玩实名认证（§6.1）。
+// adminReviewPlayerIdentityHandler 管理员审核陪玩实名认证。
 // 需在 app.go 接线：{Method: "POST", Path: "/admin/players/:id/identity/review", Auth: cmfapp.AuthAdmin, Handler: adminReviewPlayerIdentityHandler}
 func adminReviewPlayerIdentityHandler(c fiber.Ctx) error {
 	reviewer, err := requestAdmin(c)
@@ -224,7 +224,7 @@ func adminReviewPlayerIdentityHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"id": record.ID, "status": status})
 }
 
-// adminPlayerIdentityHandler 管理员查看陪玩最近一次实名认证记录（§6.1）。
+// adminPlayerIdentityHandler 管理员查看陪玩最近一次实名认证记录。
 // 身份证号只返回脱敏值；无记录时 status 为空串。
 func adminPlayerIdentityHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -268,7 +268,7 @@ func latestPlayerIdentity(ctx context.Context, db *ent.Client, playerID int) (*e
 	return record, nil
 }
 
-// ensurePlayerQualificationAllowed 实名未通过时禁止将陪玩资格置为 qualified（§6.1）。
+// ensurePlayerQualificationAllowed 实名未通过时禁止将陪玩资格置为 qualified。
 // 供 updatePlayer 及后续考核定级路径复用。
 func ensurePlayerQualificationAllowed(ctx context.Context, db *ent.Client, playerID int, qualification esportsplayer.Qualification) error {
 	if qualification != esportsplayer.QualificationQualified {

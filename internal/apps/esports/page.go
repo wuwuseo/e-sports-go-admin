@@ -15,12 +15,12 @@ import (
 	"go-admin/internal/ent/esportspageversion"
 )
 
-// pageChannelCustomerHome 是首版唯一支持的装修渠道：uni-app 客户自助端首页（§16.1）。
+// pageChannelCustomerHome 是首版唯一支持的装修渠道：uni-app 客户自助端首页。
 const pageChannelCustomerHome = "uni_customer_home"
 
-// pageAllowedChannels 是允许装修的渠道集合（§16.1）：首版只装修客户自助端首页，
+// pageAllowedChannels 是允许装修的渠道集合：首版只装修客户自助端首页，
 // 陪玩端与移动客服端首页**不在装修范围**（后两端不得被运营配置改写）。
-// 来源与 pageChannelCustomerHome 同一处常量，不另立配置项：新增渠道须同步 §16.1 口径。
+// 来源与 pageChannelCustomerHome 同一处常量，不另立配置项：新增渠道须同步 口径。
 var pageAllowedChannels = map[string]bool{pageChannelCustomerHome: true}
 
 // pageChannelAllowed 统一判定装修渠道是否在允许集合内（P0-18）。
@@ -38,7 +38,7 @@ func pageChannelAllowed(channel string) error {
 // pageMaxComponents 是单页组件数量上限，防止配置被无限膨胀。
 const pageMaxComponents = 20
 
-// 页面组件文本与图片的运行时校验上限（§16.4）。
+// 页面组件文本与图片的运行时校验上限。
 const (
 	pageTitleLimit    = 60  // title 文本上限（字符）
 	pageSubtitleLimit = 120 // subtitle 文本上限（字符）
@@ -47,9 +47,9 @@ const (
 	pageImageMaxDim   = 4096
 )
 
-// 首页装修配置键（§16.4 / §16.5）。
+// 首页装修配置键。
 const (
-	// pageAllowedDomainsKey 是外部跳转链接的「已审核 HTTPS 域名」白名单（§16.5），逗号分隔；
+	// pageAllowedDomainsKey 是外部跳转链接的「已审核 HTTPS 域名」白名单，逗号分隔；
 	// 缺省为空表示不放行任何外部跳转链接（内部跳转使用站内相对路径）。
 	pageAllowedDomainsKey = "app.esports.page_allowed_domains"
 )
@@ -59,13 +59,13 @@ const (
 // 此处以字符串常量定义，保证在旧生成代码下依然可编译。
 const pageVersionStatusPendingReview = esportspageversion.Status("pending_review")
 
-// pageLinkFields 是外部跳转链接字段：仅允许「已审核 HTTPS 域名」或站内相对路径（§16.5）。
+// pageLinkFields 是外部跳转链接字段：仅允许「已审核 HTTPS 域名」或站内相对路径。
 var pageLinkFields = map[string]bool{
 	"url": true, "link": true, "href": true, "jump": true, "jump_url": true, "target_url": true,
 }
 
 // pageImageFields 是素材 / 图片地址字段：仅允许 https://、附件表同款 public/ 存储路径
-// 或旧版站内相对路径（§16.5）。
+// 或旧版站内相对路径。
 // images 是轮播图的多图数组（P1：此前只认单数 image/icon，数组元素既不做 https 校验也不做发布前探测，
 // 等于绕过整套资源校验）；把它并入同一集合后，数组元素与单数字段走完全相同的校验与探测。
 var pageImageFields = map[string]bool{
@@ -74,7 +74,7 @@ var pageImageFields = map[string]bool{
 	"src": true, "background": true, "images": true,
 }
 
-// pageComponentTypes 是首版允许的组件类型集合（§16.3）。
+// pageComponentTypes 是首版允许的组件类型集合。
 var pageComponentTypes = map[string]bool{
 	"search": true, "carousel": true, "notice": true, "quick_nav": true,
 	"category": true, "product_list": true, "player_recommend": true,
@@ -91,7 +91,7 @@ const pageLayoutMaxColumns = 3
 // 也会让客户端渲染与运营配置失控，因此保存 / 发布期直接拒绝。
 const pageLayoutMaxDepth = 2
 
-// pageRegisteredRoutes 是 uni-app 已注册页面路径白名单（§16.5，抄录 e-sports-uniapp/src/pages.json）。
+// pageRegisteredRoutes 是 uni-app 已注册页面路径白名单（，抄录 e-sports-uniapp/src/pages.json）。
 // 站内跳转必须是客户端真实注册的页面，避免运营配置出「看似站内、实际未注册」的死链
 // 或跳转到未预期的页面；比对前去掉 query / hash。
 var pageRegisteredRoutes = map[string]bool{
@@ -133,14 +133,14 @@ var pageRegisteredRoutes = map[string]bool{
 	"/pages/wecom/index":        true,
 }
 
-// pageUniversalPropKeys 是所有组件通用的属性键（§16.2-05 属性面板四类字段）：
+// pageUniversalPropKeys 是所有组件通用的属性键（属性面板四类字段）：
 // 间距（spacing）、跳转目标（link / link_type）、数据来源（data_source）、筛选条件（filter / filters / sort）。
 var pageUniversalPropKeys = map[string]bool{
 	"spacing": true, "link": true, "link_type": true,
 	"data_source": true, "filter": true, "filters": true, "sort": true,
 }
 
-// pageExtraPropKeys 是第 4 轮为各组件补齐的专属字段（§16.3-01 / 03 / 05 / 08 / 09 / 10 / 11）。
+// pageExtraPropKeys 是第 4 轮为各组件补齐的专属字段（03 / 05 / 08 / 09 / 10 / 11）。
 // 必须与 pagePropsWhitelist 一并放行：任何未列入的键都会在保存草稿时被判「不支持的属性键」。
 var pageExtraPropKeys = map[string]map[string]bool{
 	"search":           {"hot_words": true, "scope": true},
@@ -162,7 +162,7 @@ func pagePropAllowed(compType, key string) bool {
 	return pagePropsWhitelist[compType][key]
 }
 
-// pagePropsWhitelist 是按组件类型定义的 props 键白名单（§16.5）：只允许客户端真实消费的键
+// pagePropsWhitelist 是按组件类型定义的 props 键白名单：只允许客户端真实消费的键
 // （e-sports-uniapp/src/pages/index/index.vue 渲染所用，以及管理端属性面板 / 预览的字段），
 // 其余任意键（html / script / 事件处理器等）一律返回参数错误，防止未渲染内容透传到客户端。
 // carousel 额外保留 items（既有运营配置与回归测试使用，元素为 {image, link}）。
@@ -175,7 +175,7 @@ var pagePropsWhitelist = map[string]map[string]bool{
 	"product_list": {
 		"title": true, "limit": true, "empty_text": true,
 		"product_id": true, "product_ids": true,
-		// §16.3-06（本轮口径收紧）：充值活动 / 充值赠送活动（campaign / activity）与 SKU 没有任何
+		// （本轮口径收紧）：充值活动 / 充值赠送活动（campaign / activity）与 SKU 没有任何
 		// 关联字段，商品列表永远无法据此取数。允许保存等于「先承诺、取数时再反悔」，
 		// 因此不再受理这四个键；活动引用请配置到 activity 组件（那里才有真实语义）。
 	},
@@ -200,14 +200,14 @@ var pagePropsWhitelist = map[string]map[string]bool{
 	},
 }
 
-// pageNestedPropKeys 是嵌套属性（items 元素，如导航项 / 轮播项）允许的键（§16.5）：
+// pageNestedPropKeys 是嵌套属性（items 元素，如导航项 / 轮播项）允许的键：
 // 客户端消费的 name / target / icon 与文本、实体引用键；图片、跳转键复用上面的字段集合。
 var pageNestedPropKeys = map[string]bool{
 	"name": true, "target": true, "icon": true, "title": true, "subtitle": true, "text": true,
 	"limit": true, "interval": true, "color": true, "empty_text": true, "placeholder": true,
 	"product_id": true, "product_ids": true,
 	"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true,
-	// 第 4 轮补全（§16.2-05 / §16.3）：面板四类字段与组件专属字段在嵌套项内同样放行。
+	// 第 4 轮补全：面板四类字段与组件专属字段在嵌套项内同样放行。
 	"spacing": true, "link_type": true, "data_source": true, "filters": true, "sort": true,
 	"order": true, "position": true, "style": true, "scope": true, "game": true, "level": true,
 	"online": true, "bookable": true, "valid_from": true, "valid_to": true, "rule_code": true,
@@ -215,7 +215,7 @@ var pageNestedPropKeys = map[string]bool{
 	"min_price_cents": true, "max_price_cents": true, "category_id": true,
 }
 
-// pageFilterKeys 是「筛选条件」（filter / filters）允许的键（§16.2-05 / §16.3-06 / §16.3-07）：
+// pageFilterKeys 是「筛选条件」（filter / filters）允许的键：
 // 只允许已知筛选维度，未知键返回参数错误，避免运营写入服务端根本不解析的条件。
 var pageFilterKeys = map[string]bool{
 	"game": true, "level": true, "online": true, "bookable": true, "status": true, "tag": true,
@@ -223,21 +223,21 @@ var pageFilterKeys = map[string]bool{
 	"product_id": true, "campaign_id": true, "activity_id": true,
 }
 
-// pageFilterKeysByComp 是「按组件类型的筛选条件白名单」（§16.2-05 / §16.3-06 / §16.3-07）。
+// pageFilterKeysByComp 是「按组件类型的筛选条件白名单」。
 // pageFilterKeys 只是所有组件的并集：只按并集放行会让运营把 A 组件的筛选键配到 B 组件上
 // （保存 200、取数时才 400 或干脆不生效），因此这里再按组件收窄一层（叠加校验，并集校验不变）。
 //
 // 未登记筛选维度的组件给**空集合**：没有任何服务端取数会消费它的筛选条件，
-// 允许保存等于「先承诺、取数时再反悔」（§7 不假成功），因此不接受保存。
+// 允许保存等于「先承诺、取数时再反悔」（不假成功），因此不接受保存。
 var pageFilterKeysByComp = map[string]map[string]bool{
-	// 商品列表（§16.3-06 / §16.3-11）：SKU 侧可落地的维度。
+	// 商品列表：SKU 侧可落地的维度。
 	// game 经分类（EsportsSku.category_id → EsportsProductCategory.game）落到 SKU；
 	// 充值活动维度不在其列（SKU 与活动无关联字段，活动引用属于 activity 组件）。
 	"product_list": {
 		"game": true, "category_id": true, "min_price_cents": true, "max_price_cents": true,
 		"status": true, "product_id": true,
 	},
-	// 陪玩推荐（§16.3-07）：游戏分区 / 技能等级 / 在线 / 可接单。
+	// 陪玩推荐：游戏分区 / 技能等级 / 在线 / 可接单。
 	"player_recommend": {"game": true, "level": true, "online": true, "bookable": true},
 	// 活动组件：活动 / 充值活动引用（真正有语义的组件）。
 	"activity": {"campaign_id": true, "activity_id": true},
@@ -247,12 +247,12 @@ var pageFilterKeysByComp = map[string]map[string]bool{
 	"contact_entry": {}, "orders_entry": {}, "aftersale_entry": {},
 }
 
-// pageRulesKeys 是「取数规则」（rules）允许的键（§16.3-11）：规则码与排序 / 数量 / 筛选。
+// pageRulesKeys 是「取数规则」（rules）允许的键：规则码与排序 / 数量 / 筛选。
 var pageRulesKeys = map[string]bool{
 	"rule_code": true, "data_source": true, "sort": true, "limit": true, "filter": true, "filters": true,
 }
 
-// 属性面板枚举取值（§16.2-05 / §16.3）：非法取值一律返回参数错误，避免运营配置出客户端不认的值。
+// 属性面板枚举取值：非法取值一律返回参数错误，避免运营配置出客户端不认的值。
 var (
 	pageDataSourceValues = map[string]bool{
 		"manual": true, "product": true, "campaign": true, "player": true,
@@ -270,7 +270,7 @@ var (
 	pageImageFitValues    = map[string]bool{"widthFix": true, "aspectFill": true, "aspectFit": true}
 )
 
-// 属性面板字段取值范围（§16.2-05）。
+// 属性面板字段取值范围。
 const (
 	pageSpacingMax   = 240 // 间距（px）
 	pageHotWordMax   = 10  // 热门词条数上限
@@ -295,7 +295,7 @@ type pageComponent struct {
 }
 
 // pageConfig 是首页装修的结构化配置。
-// Tabbar 为底部导航项（§16.3-12）：路径 / 数量 / 顺序构建期固定，后台只能改文案与图标。
+// Tabbar 为底部导航项：路径 / 数量 / 顺序构建期固定，后台只能改文案与图标。
 type pageConfig struct {
 	Components []pageComponent  `json:"components"`
 	Tabbar     []pageTabbarItem `json:"tabbar,omitempty"`
@@ -325,7 +325,7 @@ type pageAssetInput struct {
 	Height    int    `json:"height"`
 }
 
-// defaultPageConfig 是系统默认模板（§16.1）：未装修或配置读取失败时客户端仍可进入
+// defaultPageConfig 是系统默认模板：未装修或配置读取失败时客户端仍可进入
 // 商品、订单、我的与联系客服入口。
 func defaultPageConfig() pageConfig {
 	visible := true
@@ -348,7 +348,7 @@ func defaultPageConfig() pageConfig {
 	}}
 }
 
-// validatePageConfig 校验发布 / 保存前的配置完整性（§16.4 发布前自动检查）。
+// validatePageConfig 校验发布 / 保存前的配置完整性（发布前自动检查）。
 // 保持无 ctx / db 的既有签名：不启用域名白名单，供测试与纯静态校验使用。
 func validatePageConfig(cfg pageConfig) error {
 	return validatePageConfigWithIcons(cfg, nil, false, nil)
@@ -365,7 +365,7 @@ func validatePageConfigWithAllowedDomains(cfg pageConfig, allowedDomains map[str
 }
 
 // validatePageConfigWithIcons 在 validatePageConfigWithAllowedDomains 的基础上，
-// 额外接收「运营扩展的图标短标识清单」（§16.3-04，见 pageIconExtraAllowlist）。
+// 额外接收「运营扩展的图标短标识清单」（，见 pageIconExtraAllowlist）。
 func validatePageConfigWithIcons(cfg pageConfig, allowedDomains map[string]bool, enforceDomain bool,
 	extraIcons map[string]bool) error {
 	if len(cfg.Components) < 1 {
@@ -530,7 +530,7 @@ func pageComponentCount(comp pageComponent) int {
 	return count
 }
 
-// validatePageProps 校验组件自由属性（§16.5）：先按组件类型做 props 键白名单，
+// validatePageProps 校验组件自由属性：先按组件类型做 props 键白名单，
 // 未知键直接返回参数错误，再递归校验取值。compIndex 从 0 起，错误信息里以 1 起呈现给运营。
 func validatePageProps(compIndex int, compType string, props map[string]interface{}, allowedDomains map[string]bool,
 	enforceDomain bool, extraIcons map[string]bool) error {
@@ -541,7 +541,7 @@ func validatePageProps(compIndex int, compType string, props map[string]interfac
 		if !pagePropAllowed(compType, key) {
 			return fmt.Errorf("%w：第 %d 个组件（%s）不支持的属性键 %q", errInvalidInput, compIndex+1, compType, key)
 		}
-		// 筛选条件额外按组件类型收窄（§16.3-06 / §16.3-07）：并集校验仍由 validatePageValue 负责。
+		// 筛选条件额外按组件类型收窄：并集校验仍由 validatePageValue 负责。
 		if err := validatePageComponentFilterKeys(compIndex, compType, key, value); err != nil {
 			return err
 		}
@@ -663,7 +663,7 @@ func validatePageValue(compIndex int, key string, value interface{}, allowedDoma
 				return fmt.Errorf("%w：第 %d 个组件属性子项不支持的键 %q", errInvalidInput, compIndex+1, k)
 			}
 		}
-		// 筛选条件 / 取数规则是「受约束的字典」：键集合必须落在已知维度内（§16.2-05 / §16.3-11）。
+		// 筛选条件 / 取数规则是「受约束的字典」：键集合必须落在已知维度内。
 		if key == "filter" || key == "filters" {
 			if len(v) > pageFilterKeyMax {
 				return fmt.Errorf("%w：第 %d 个组件字段 %q 条件过多（%d/%d）", errInvalidInput, compIndex+1, key, len(v), pageFilterKeyMax)
@@ -690,7 +690,7 @@ func validatePageValue(compIndex int, key string, value interface{}, allowedDoma
 	return nil
 }
 
-// validatePageEnumValue 校验属性面板枚举取值（§16.2-05 / §16.3）：非法取值返回参数错误，
+// validatePageEnumValue 校验属性面板枚举取值：非法取值返回参数错误，
 // 而不是把客户端不认的值原样存进配置。
 func validatePageEnumValue(compIndex int, key, value string) error {
 	value = strings.TrimSpace(value)
@@ -741,7 +741,7 @@ func validatePageEnumValue(compIndex int, key, value string) error {
 	return nil
 }
 
-// validatePagePropTime 校验有效期字段（valid_from / valid_to，§16.3-02 / 03 / 08）：
+// validatePagePropTime 校验有效期字段（valid_from / valid_to，03 / 08）：
 // 支持 RFC3339 与「2006-01-02」「2006-01-02 15:04」写法，非法时间返回参数错误。
 func validatePagePropTime(compIndex int, key, value string) error {
 	if key != "valid_from" && key != "valid_to" {
@@ -756,7 +756,7 @@ func validatePagePropTime(compIndex int, key, value string) error {
 	return nil
 }
 
-// validatePageNumericProp 校验数值型属性（§16.2-05）：间距 0~240 px。
+// validatePageNumericProp 校验数值型属性：间距 0~240 px。
 func validatePageNumericProp(compIndex int, key string, value float64) error {
 	if key == "width" || key == "height" {
 		return validatePageDimension(value, compIndex, key)
@@ -779,9 +779,9 @@ func validatePageNumericProp(compIndex int, key string, value float64) error {
 // 运营可以扩展清单，但无法收窄（收窄会让存量已发布页面在新口径下不可发布）。
 const pageIconAllowlistKey = "app.esports.page_icon_allowlist"
 
-// pageIconDefaultAllowlist 是短标识图标的**基准清单**（§16.3-04 向后兼容收紧）：
+// pageIconDefaultAllowlist 是短标识图标的**基准清单**（向后兼容收紧）：
 // 取自本仓现有代码 / 文档里**实际出现过**的短标识——app.go 的 PermMenu Icon
-// （icon-apps、icon-list、icon-wallet …）与 §16.3-04 本身举例的 icon-cs。
+// （icon-apps、icon-list、icon-wallet …）与 本身举例的 icon-cs。
 // 客户端当前尚未内置图标集，因此清单外的新短标识一律拒绝，由运营按需通过
 // app.esports.page_icon_allowlist 扩展，避免运营写出 icon-nonexistent 这类坏图。
 var pageIconDefaultAllowlist = []string{
@@ -831,7 +831,7 @@ func pageIconAllowed(identifier string, extra map[string]bool) bool {
 	return extra[identifier]
 }
 
-// validatePageIcon 校验图标字段（§16.3-03 / §16.3-04 / §16.3-10）：允许 https / 站内相对路径，
+// validatePageIcon 校验图标字段：允许 https / 站内相对路径，
 // 短标识（如 icon-cs）必须命中允许清单（基准清单 ∪ extra 运营扩展项），
 // 清单外一律参数错误——客户端没有内置图标集，放行任意短标识会渲染成坏图。
 func validatePageIcon(raw string, compIndex int, extra map[string]bool) error {
@@ -872,7 +872,7 @@ func parsePagePropTime(raw string) (time.Time, error) {
 	return time.Time{}, errInvalidInput
 }
 
-// validatePageLink 校验外部跳转链接（§16.5）：站内相对路径须命中已注册页面路径白名单，
+// validatePageLink 校验外部跳转链接：站内相对路径须命中已注册页面路径白名单，
 // 外部链接仅允许 https://；enforceDomain 为 true 时还须命中「已审核 HTTPS 域名」白名单，
 // 白名单为空不放行任何外部链接。
 func validatePageLink(raw string, allowedDomains map[string]bool, enforceDomain bool, compIndex int, field string) error {
@@ -911,7 +911,7 @@ func pageRoutePath(raw string) string {
 	return raw
 }
 
-// 底部导航（tabBar）编辑口径（§16.3-12，审核报告 §8.1-8 后半放开）：
+// 底部导航（tabBar）编辑口径（，审核报告 后半放开）：
 // 允许增删条目与编辑 path / order，但条目数必须是 1~5 项。
 const (
 	pageTabbarMinItems  = 1
@@ -920,7 +920,7 @@ const (
 	pageTabbarIconLimit = 200 // 单项图标地址上限（字符）
 )
 
-// pageValidateTabbarPath 校验底部导航路径（§16.3-12）：必须是站内相对路径且命中已注册页面白名单。
+// pageValidateTabbarPath 校验底部导航路径：必须是站内相对路径且命中已注册页面白名单。
 //
 // 白名单来源与站内跳转链接**完全一致**：pageRegisteredRoutes（抄录 e-sports-uniapp/src/pages.json）。
 // 后端并不掌握前端真实页面清单，读 pages.json 不现实，因此复用这份既有的「已注册页面」常量，
@@ -945,7 +945,7 @@ func pageValidateTabbarPath(raw string) (string, error) {
 	return path, nil
 }
 
-// pageValidateTabbar 校验并规范化底部导航（§16.3-12，本轮放开路径与顺序）：
+// pageValidateTabbar 校验并规范化底部导航（，本轮放开路径与顺序）：
 //   - 条目数 1~5（允许增删）；
 //   - path 必填、必须命中已注册页面白名单、同名路径不得重复；
 //   - order 可选：未填时按提交顺序补 1..N；填了必须是 1~5 且互不重复；
@@ -991,7 +991,7 @@ func pageValidateTabbar(items []pageTabbarItem) ([]pageTabbarItem, error) {
 			return nil, fmt.Errorf("%w：底部导航第 %d 项图标标识过长", errInvalidInput, i+1)
 		}
 		if icon != "" && !strings.HasPrefix(icon, "https://") && !strings.HasPrefix(icon, "/") {
-			// 注意：底部导航**不接受短标识**（与组件字段 §16.3-04 的图标清单口径不同）——
+			// 注意：底部导航**不接受短标识**（与组件字段 的图标清单口径不同）——
 			// 客户端导航栏当前只消费图片地址，短标识会渲染成坏图，故这里直接拒绝。
 			return nil, fmt.Errorf("%w：底部导航第 %d 项图标仅允许 HTTPS 链接或站内相对路径（不支持短标识）", errInvalidInput, i+1)
 		}
@@ -1002,7 +1002,7 @@ func pageValidateTabbar(items []pageTabbarItem) ([]pageTabbarItem, error) {
 	return out, nil
 }
 
-// validatePageImageURL 校验素材 / 图片地址（§16.5 / P0-17）：站内相对路径或图标短标识放行；
+// validatePageImageURL 校验素材 / 图片地址（P0-17）：站内相对路径或图标短标识放行；
 // 外部地址仅允许 https://，且必须通过网络目标校验（拒绝 http、带用户名 / 口令、非 80/443 显式端口、
 // 指向本机 / 私网 / 链路本地地址）。域名白名单在发布前探测阶段强制（见 validatePageResources），
 // 与外部跳转链接的口径一致：保存草稿放行待审核域名，发布前才强制白名单。
@@ -1072,7 +1072,7 @@ func pageURLHost(raw string) string {
 	return strings.ToLower(u.Hostname())
 }
 
-// pageAllowedDomains 读取外部跳转链接的「已审核 HTTPS 域名」白名单（§16.5）；
+// pageAllowedDomains 读取外部跳转链接的「已审核 HTTPS 域名」白名单；
 // 缺省为空表示不放行任何外部跳转链接。
 func pageAllowedDomains(ctx context.Context, db *ent.Client) map[string]bool {
 	raw := assessmentConfigString(ctx, db, pageAllowedDomainsKey, "")
@@ -1113,7 +1113,7 @@ func decodePageConfig(raw map[string]interface{}) (pageConfig, error) {
 	return cfg, nil
 }
 
-// savePageDraft 保存首页装修草稿（§16.2）。expectedVersion 为 0 表示首次创建；
+// savePageDraft 保存首页装修草稿。expectedVersion 为 0 表示首次创建；
 // 已存在时以 draft_version 作乐观锁，版本不一致返回冲突，避免多人覆盖。
 // ponytail: 保存草稿不影响客户端，需显式发布才生效；保存后文档状态回落 draft，
 // 既有待发布的定时版本仍保留并由系统任务到点激活。
@@ -1131,7 +1131,7 @@ func savePageDraft(ctx context.Context, db *ent.Client, channel string, adminID 
 		pageIconExtraAllowlist(ctx, db)); err != nil {
 		return nil, err
 	}
-	// 底部导航（§16.3-12）不在本请求体内：保存组件草稿时须原样保留已配置的导航文案 / 图标，
+	// 底部导航不在本请求体内：保存组件草稿时须原样保留已配置的导航文案 / 图标，
 	// 否则一次「保存草稿」就会把运营改好的导航重置掉。
 	if existing, err := db.EsportsPageDocument.Query().Where(esportspagedocument.ChannelEQ(channel)).Only(ctx); err == nil {
 		if tabbar, err := pageTabbarFromConfig(existing.DraftConfig); err == nil {
@@ -1180,7 +1180,7 @@ func nextPageVersionNo(ctx context.Context, db *ent.Client, documentID int) (int
 	return last.VersionNo, nil
 }
 
-// publishPage 提交发布申请（§16.4 / §16.5）。运营编辑提交后一律落 pending_review 待审核，
+// publishPage 提交发布申请。运营编辑提交后一律落 pending_review 待审核，
 // 由有发布权限的管理员审核（普通管理员须异人审核，超级管理员可自审）后才切换生效：
 // immediate 审核通过即生效，scheduled 审核通过后转 scheduled 待系统任务到点激活。
 // 提交前执行发布校验（组件完整性、已审核 HTTPS 域名、可见的客服与订单入口）。
@@ -1232,7 +1232,7 @@ func publishPage(ctx context.Context, db *ent.Client, channel string, adminID in
 		pageIconExtraAllowlist(ctx, db)); err != nil {
 		return nil, err
 	}
-	// 发布前资源有效性校验（§16.4 增量）：图片可访问、跳转链接合法、商品/活动有效、文本超限。
+	// 发布前资源有效性校验（增量）：图片可访问、跳转链接合法、商品/活动有效、文本超限。
 	if err = validatePageResources(ctx, db, cfg); err != nil {
 		return nil, err
 	}
@@ -1259,7 +1259,7 @@ func publishPage(ctx context.Context, db *ent.Client, channel string, adminID in
 	return version, nil
 }
 
-// pagePublishReviewInput 发布审核输入（§16.4）：Approved 由路由路径决定（approve/reject），
+// pagePublishReviewInput 发布审核输入：Approved 由路由路径决定（approve/reject），
 // Reason 为驳回原因（驳回必填）。
 type pagePublishReviewInput struct {
 	Approved     bool   `json:"approved"`
@@ -1267,7 +1267,7 @@ type pagePublishReviewInput struct {
 	isSuperAdmin bool
 }
 
-// reviewPagePublish 审核一条待发布版本（§16.4 / §16.5）。普通管理员不得自审，超级管理员可自审；
+// reviewPagePublish 审核一条待发布版本。普通管理员不得自审，超级管理员可自审；
 // 通过后按 publish_mode 切换生效：immediate 一次性版本切换（旧生效版本转历史、更新文档生效指针），
 // scheduled 转 scheduled 待系统任务到点激活；驳回则转历史不生效。
 func reviewPagePublish(ctx context.Context, db *ent.Client, channel string, versionID, adminID int, in pagePublishReviewInput, now time.Time) (*ent.EsportsPageVersion, error) {
@@ -1372,7 +1372,7 @@ func pageReviewNote(base string, adminID int, action string) string {
 	return string(combined)
 }
 
-// rollbackPage 提交回滚申请（§16.4 / §16.5）：以历史快照为模板生成一条待审核版本，
+// rollbackPage 提交回滚申请：以历史快照为模板生成一条待审核版本，
 // 不原地修改旧记录；审核通过后重新发布为新版本（不恢复历史版本状态）。
 // 回滚目标快照同样执行发布校验（已审核 HTTPS 域名、可见的客服与订单入口）。
 func rollbackPage(ctx context.Context, db *ent.Client, channel string, adminID, versionNo int, now time.Time) (*ent.EsportsPageVersion, error) {
@@ -1413,7 +1413,7 @@ func rollbackPage(ctx context.Context, db *ent.Client, channel string, adminID, 
 		pageIconExtraAllowlist(ctx, db)); err != nil {
 		return nil, err
 	}
-	// 回滚同样执行发布前资源有效性校验（§16.4 增量）。
+	// 回滚同样执行发布前资源有效性校验（增量）。
 	if err = validatePageResources(ctx, db, sourceCfg); err != nil {
 		return nil, err
 	}
@@ -1454,7 +1454,7 @@ func listPageVersions(ctx context.Context, db *ent.Client, channel string, limit
 		Order(ent.Desc(esportspageversion.FieldVersionNo)).Limit(limit).All(ctx)
 }
 
-// publishedPageConfig 是客户端读取入口（§16.4）：返回当前生效快照，未发布或读取失败时回落系统默认模板。
+// publishedPageConfig 是客户端读取入口：返回当前生效快照，未发布或读取失败时回落系统默认模板。
 func publishedPageConfig(ctx context.Context, db *ent.Client, channel string) (map[string]interface{}, int, error) {
 	doc, err := db.EsportsPageDocument.Query().Where(esportspagedocument.ChannelEQ(strings.TrimSpace(channel))).Only(ctx)
 	if ent.IsNotFound(err) {
@@ -1492,7 +1492,7 @@ var pageRemovedNavTargets = map[string]string{
 // pageNavTargetHint 是报错时给出的可用替代入口（与客户端 index.vue 的 target 分支一致）。
 const pageNavTargetHint = "category（商品分类）/ orders（我的订单）/ member（会员）/ support（联系客服）"
 
-// 素材库限制（§16.2-06 / §16.5-04）：仅允许登记白名单图片类型，且单条素材不超过字节上限。
+// 素材库限制：仅允许登记白名单图片类型，且单条素材不超过字节上限。
 const (
 	// pageAssetMaxBytes 是单个素材登记允许的最大字节数（10 MiB）。
 	pageAssetMaxBytes = 10 << 20
@@ -1500,7 +1500,7 @@ const (
 	pageAssetURLMaxLen = 512
 )
 
-// pageAssetAllowedMimes 是素材允许的 MIME 白名单（§16.5-04）：装修素材只承载图片。
+// pageAssetAllowedMimes 是素材允许的 MIME 白名单：装修素材只承载图片。
 var pageAssetAllowedMimes = map[string]bool{
 	"image/jpeg": true, "image/png": true, "image/webp": true, "image/gif": true,
 }
@@ -1540,7 +1540,7 @@ func savePageAsset(ctx context.Context, db *ent.Client, adminID int, in pageAsse
 	default:
 		return nil, fmt.Errorf("%w：素材地址仅允许 HTTPS 链接、附件表 public/ 存储路径或站内相对路径", errInvalidInput)
 	}
-	// §16.2-06 / §16.5-04 / P1-20：mime 与 size_bytes 必填，体积上限与 MIME 白名单一并校验，
+	// P1-20：mime 与 size_bytes 必填，体积上限与 MIME 白名单一并校验，
 	// 缺失 / 超限 / 非图片类型一律不落库（此前二者缺失时全部跳过，上限形同虚设）。
 	if in.SizeBytes <= 0 {
 		return nil, fmt.Errorf("%w：素材大小 size_bytes 必填且须大于 0（单位：字节，上限 %d 字节）",
@@ -1670,7 +1670,7 @@ func activateScheduledPage(ctx context.Context, db *ent.Client, versionID int, n
 	return true, nil
 }
 
-// publishScheduledPages 是定时发布任务（§16.4）：激活所有到点且状态仍为 scheduled 的版本。
+// publishScheduledPages 是定时发布任务：激活所有到点且状态仍为 scheduled 的版本。
 func publishScheduledPages(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if limit <= 0 {
 		limit = 100

@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsplayerrecovery"
 )
 
-// 陪玩追偿（§13.4）：售后执行按方案生成待审批追偿单 → 非申请人审批 → 从猫粮扣回；不得自审、重复执行冲突。
+// 陪玩追偿：售后执行按方案生成待审批追偿单 → 非申请人审批 → 从猫粮扣回；不得自审、重复执行冲突。
 func TestPlayerRecoveryLifecycle(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_player_recovery")
 	defer db.Close()

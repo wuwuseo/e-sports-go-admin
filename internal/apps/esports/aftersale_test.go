@@ -117,7 +117,7 @@ func newRefundAfterSale(t *testing.T, db *ent.Client, orderID int, kind string, 
 	}, now); err != nil {
 		t.Fatal(err)
 	}
-	// §13.3：方案提交后须经「待客户确认」节点；用例中由客服代客户确认进入待审批。
+	// ：方案提交后须经「待客户确认」节点；用例中由客服代客户确认进入待审批。
 	planned, err := confirmAfterSaleByAdmin(ctx, db, created.ID, handler, now)
 	if err != nil {
 		t.Fatal(err)
@@ -163,7 +163,7 @@ func TestAfterSaleRefundOriginalLifecycle(t *testing.T) {
 	if err != nil || planned.Status != esportsaftersale.StatusPendingCustomerConfirm {
 		t.Fatalf("提交方案应进入待客户确认：%v %+v", err, planned)
 	}
-	// §13.3：客户未确认时不得审批。
+	// ：客户未确认时不得审批。
 	if _, err := approveAfterSale(ctx, db, created.ID, 12, now); !errors.Is(err, errConflict) {
 		t.Fatalf("未确认方案不应可审批：%v", err)
 	}
@@ -281,7 +281,7 @@ func TestAfterSaleExecuteUnsupportedPaths(t *testing.T) {
 		t.Fatalf("配置缺失不应落为执行失败：%+v", got)
 	}
 
-	// 补履约方案缺少承接陪玩与补钟 / 换人类型时，提交方案阶段即被拒（§13.6）。
+	// 补履约方案缺少承接陪玩与补钟 / 换人类型时，提交方案阶段即被拒。
 	makeupOrder := seedPaidOrder(t, db, "as-makeup", 1)
 	created, err := createAfterSale(ctx, db, afterSaleInput{
 		SourceType: "order", SourceID: makeupOrder.ID, Kind: "no_show", Channel: "player", Demand: "陪玩未到场，需补钟",
@@ -345,7 +345,7 @@ func TestAfterSaleMakeupServiceFlow(t *testing.T) {
 		planned.RefundCents != 0 {
 		t.Fatalf("补履约方案提交失败：%v %+v", err, planned)
 	}
-	// §13.3：补履约方案同样经「待客户确认」后才进入待审批。
+	// ：补履约方案同样经「待客户确认」后才进入待审批。
 	if _, err = confirmAfterSaleByAdmin(ctx, db, created.ID, 11, now); err != nil {
 		t.Fatal(err)
 	}

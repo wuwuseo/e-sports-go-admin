@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsRechargeIntent 记录一次「客户充值」在发起时锁定的活动资格与金额快照（§4.5）。
+// EsportsRechargeIntent 记录一次「客户充值」在发起时锁定的活动资格与金额快照。
 // 与支付意图 EsportsPaymentIntent 一对一（intent_no 唯一），核验到账后按本快照入账，
 // 避免核验时点活动已改导致赠送漂移。本实体只增不改。
 type EsportsRechargeIntent struct{ ent.Schema }

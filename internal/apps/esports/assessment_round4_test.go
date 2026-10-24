@@ -29,7 +29,7 @@ const (
 	reviewAppealWindowDaysKeyLiteral = "app.esports.review_appeal_window_days"
 )
 
-// ── §6.1-13：陪玩端考核明细必须含逐维度得分与权重（评级依据） ──
+// ── ：陪玩端考核明细必须含逐维度得分与权重（评级依据） ──
 
 // scoreEntryAssessment 走既有「建单 → 分配考官 → 打分」流程，落一条有逐维度明细的考核单。
 func scoreEntryAssessment(t *testing.T, db *ent.Client, playerID, examinerID, score int, now time.Time) *ent.EsportsAssessment {
@@ -51,7 +51,7 @@ func scoreEntryAssessment(t *testing.T, db *ent.Client, playerID, examinerID, sc
 	return scored
 }
 
-// 陪玩端「我的考核」必须能拿到逐维度得分与权重，否则评级依据对陪玩不可见（§6.1-13）。
+// 陪玩端「我的考核」必须能拿到逐维度得分与权重，否则评级依据对陪玩不可见。
 func TestListPlayerAssessmentDetailsExposeDimensionScores(t *testing.T) {
 	db := openAssessmentDB(t, "esports_r4_p13_details")
 	defer db.Close()
@@ -90,7 +90,7 @@ func TestListPlayerAssessmentDetailsExposeDimensionScores(t *testing.T) {
 	}
 }
 
-// 陪玩端考核接口（handler 层）下发的条目必须带 scores，不能只回主表（§6.1-13）。
+// 陪玩端考核接口（handler 层）下发的条目必须带 scores，不能只回主表。
 func TestPlayerAssessmentsHandlerReturnsRatingBasis(t *testing.T) {
 	db := openAssessmentDB(t, "esports_r4_p13_handler")
 	defer db.Close()
@@ -100,7 +100,7 @@ func TestPlayerAssessmentsHandlerReturnsRatingBasis(t *testing.T) {
 
 	now := time.Now().UTC()
 	_, player := seedSelfServicePlayer(t, db, "r4-assess-player", "13900000001")
-	// 考核通过会回写「合格」资格，前置是实名认证通过（§6.1）。
+	// 考核通过会回写「合格」资格，前置是实名认证通过。
 	seedVerifiedIdentity(t, db, player.ID)
 	scoreEntryAssessment(t, db, player.ID, 77, 88, now)
 
@@ -133,7 +133,7 @@ func TestPlayerAssessmentsHandlerReturnsRatingBasis(t *testing.T) {
 	}
 }
 
-// ── §7.1-03：按周期 + 比例随机抽取在岗合格陪玩生成抽查单 ──
+// ── ：按周期 + 比例随机抽取在岗合格陪玩生成抽查单 ──
 
 // 抽样必须真的随机：同一批候选连续两次抽取的集合不能完全相同。
 // 用固定种子的 rng 保证可复现（不抖动），但两轮抽取共享同一随机流，集合应不同。
@@ -286,7 +286,7 @@ func TestGenerateSpotCheckRespectsCycleWindow(t *testing.T) {
 	}
 }
 
-// ── §7.3-02：等级定期复核 + 「连续 N 期不达标」阈值 ──
+// ── ：等级定期复核 + 「连续 N 期不达标」阈值 ──
 
 // seedScoredSpotCheck 落一条「已由考官打分且已出结论」的抽查单，用于构造连续不达标期。
 func seedScoredSpotCheck(t *testing.T, db *ent.Client, playerID int, level string, failed bool, createdAt time.Time) *ent.EsportsAssessment {
@@ -308,7 +308,7 @@ func seedScoredSpotCheck(t *testing.T, db *ent.Client, playerID int, level strin
 	return item
 }
 
-// 连续 N 期抽查不达标的在岗陪玩应自动降一级并留下时间与依据（§7.3-02）。
+// 连续 N 期抽查不达标的在岗陪玩应自动降一级并留下时间与依据。
 func TestPlayerLevelReviewDemotesLongTermUnderperformers(t *testing.T) {
 	db := openAssessmentDB(t, "esports_r4_level_review")
 	defer db.Close()
@@ -410,7 +410,7 @@ func TestPlayerLevelReviewNeedsConsecutiveFailures(t *testing.T) {
 	}
 }
 
-// ── §7.5-04：评分响应补计算周期（周期口径 + 起止时间） ──
+// ── ：评分响应补计算周期（周期口径 + 起止时间） ──
 
 func TestPlayerRatingSummaryReturnsPeriod(t *testing.T) {
 	db := openAssessmentDB(t, "esports_r4_rating_period")
@@ -459,7 +459,7 @@ func TestPlayerRatingSummaryReturnsPeriod(t *testing.T) {
 	}
 }
 
-// ── §7.5-05：异常刷评自动识别 + 评价申诉流水 ──
+// ── ：异常刷评自动识别 + 评价申诉流水 ──
 
 // 命中刷评规则的评价应自动置 disputed 并留痕（规则码 + 明细 + 时间）。
 func TestDetectReviewBrushingMarksDisputedWithTrace(t *testing.T) {

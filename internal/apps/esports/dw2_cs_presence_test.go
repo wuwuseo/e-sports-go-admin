@@ -29,7 +29,7 @@ func dw2SetPresence(t *testing.T, db *ent.Client, adminID int, presence string, 
 	return row
 }
 
-// §1.1-08：客服在线状态写入口（POST /admin/cs/presence）必须能落库并被同一套在线判定读取。
+// ：客服在线状态写入口（POST /admin/cs/presence）必须能落库并被同一套在线判定读取。
 // 断言：online → 值班口径判在线；随后 offline → 立即判离线（presence 表是权威数据源）。
 func TestDw2CsPresenceWriteEntry(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_presence")
@@ -76,7 +76,7 @@ func TestDw2CsPresenceWriteEntry(t *testing.T) {
 	}
 }
 
-// §1.1-08 验收断言：客服离线后，其名下 pending_dispatch 订单被自动清空 responsible_admin_id
+// 验收断言：客服离线后，其名下 pending_dispatch 订单被自动清空 responsible_admin_id
 // 进入公共池并留事件。本用例用 presence 表（而非 last_login）驱动离线判定。
 func TestDw2OfflineCsOrdersAutoTransferToPublicPool(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_presence_transfer")

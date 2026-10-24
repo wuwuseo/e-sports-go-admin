@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/ent/esportsgrowthledger"
 )
 
-// 手动调级建立稳定覆盖期（§10.5-04）：覆盖期内成长值重算不得平掉手动调高的等级，
+// 手动调级建立稳定覆盖期：覆盖期内成长值重算不得平掉手动调高的等级，
 // 也不得登记待降级；覆盖期（可配，默认 90 天）到期后恢复成长值口径并按保护期降级。
 func TestManualMemberLevelOverrideHoldsDuringCoverageWindow(t *testing.T) {
 	db := openRound4MemberDB(t, "r4wm_member_override")

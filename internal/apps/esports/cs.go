@@ -20,15 +20,15 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客服端（§8）常量：标签数量 / 长度上限与话术状态。
+// 客服端常量：标签数量 / 长度上限与话术状态。
 const (
 	csMaxTags   = 20
 	csMaxTagLen = 30
 )
 
-// customerProfileInput 客户档案可编辑字段（§8.3）。跟进状态可选传，空表示不改。
-// Tags 为增量语义（§8.3-02）：字段缺省 / null（nil）表示不改动既有标签，显式传（含空数组）才整体覆盖。
-// ExpectedVersion 为乐观锁（§8.3-02）：>0 时按 customer.version 条件更新，版本不符返回冲突；
+// customerProfileInput 客户档案可编辑字段。跟进状态可选传，空表示不改。
+// Tags 为增量语义：字段缺省 / null（nil）表示不改动既有标签，显式传（含空数组）才整体覆盖。
+// ExpectedVersion 为乐观锁：>0 时按 customer.version 条件更新，版本不符返回冲突；
 // 缺省 0 保持既有「最后写入者胜」行为，兼容尚未接入版本号的前端。
 type customerProfileInput struct {
 	Phone                 string   `json:"phone"`
@@ -36,19 +36,19 @@ type customerProfileInput struct {
 	ConsumptionPreference string   `json:"consumption_preference"`
 	Tags                  []string `json:"tags"`
 	FollowStatus          string   `json:"follow_status"`
-	// SelfOrderEnabled 工作室是否允许该客户自助下单（§4.1 / §13.7）；不传保持原值。
+	// SelfOrderEnabled 工作室是否允许该客户自助下单；不传保持原值。
 	SelfOrderEnabled *bool `json:"self_order_enabled"`
 	ExpectedVersion  int   `json:"expected_version"`
 }
 
-// followUpInput 跟进记录输入（§8.3）。
+// followUpInput 跟进记录输入。
 type followUpInput struct {
 	Channel      string `json:"channel"`
 	Summary      string `json:"summary"`
 	NextFollowAt string `json:"next_follow_at"`
 }
 
-// scriptInput 话术库输入（§8.2）。
+// scriptInput 话术库输入。
 type scriptInput struct {
 	Title           string `json:"title"`
 	Category        string `json:"category"`
@@ -58,7 +58,7 @@ type scriptInput struct {
 	ExpectedVersion int    `json:"expected_version"`
 }
 
-// wecomIntakeInput 企微侧边栏自动建档输入（§8.4）。
+// wecomIntakeInput 企微侧边栏自动建档输入。
 type wecomIntakeInput struct {
 	CorpID      string `json:"corp_id"`
 	ExternalID  string `json:"external_id"`
@@ -86,7 +86,7 @@ func validFollowChannel(v string) bool {
 	return false
 }
 
-// loadOwnedCustomer 取客户并校验归属：仅归属客服本人或超级管理员可见（§8.2 按归属隔离）。
+// loadOwnedCustomer 取客户并校验归属：仅归属客服本人或超级管理员可见（按归属隔离）。
 func loadOwnedCustomer(ctx context.Context, db *ent.Client, adminID int, isSuper bool, customerID int) (*ent.EsportsCustomer, error) {
 	customer, err := db.EsportsCustomer.Get(ctx, customerID)
 	if err != nil {
@@ -98,7 +98,7 @@ func loadOwnedCustomer(ctx context.Context, db *ent.Client, adminID int, isSuper
 	return customer, nil
 }
 
-// updateCustomerProfile 更新客户档案扩展字段（§8.3）：手机号、消费偏好、标签、跟进状态。
+// updateCustomerProfile 更新客户档案扩展字段：手机号、消费偏好、标签、跟进状态。
 func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isSuper bool, customerID int, in customerProfileInput) (*ent.EsportsCustomer, error) {
 	if _, err := loadOwnedCustomer(ctx, db, adminID, isSuper, customerID); err != nil {
 		return nil, err
@@ -135,7 +135,7 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 	update := db.EsportsCustomer.Update().Where(esportscustomer.IDEQ(customerID)).
 		SetPhone(in.Phone).SetBirthday(in.Birthday).
 		SetConsumptionPreference(in.ConsumptionPreference).AddVersion(1)
-	// §8.3-02 标签增量语义：请求未提供 tags（JSON 中不存在 / null，解码为 nil）时不改动既有标签，
+	// 标签增量语义：请求未提供 tags（JSON 中不存在 / null，解码为 nil）时不改动既有标签，
 	// 只有显式提供（含空数组）才整体覆盖，避免漏传 tags 的调用方清空其它入口维护的标签。
 	if in.Tags != nil {
 		update.SetTags(tags)
@@ -149,7 +149,7 @@ func updateCustomerProfile(ctx context.Context, db *ent.Client, adminID int, isS
 		}
 		update.SetFollowStatus(esportscustomer.FollowStatus(in.FollowStatus))
 	}
-	// §8.3-02 乐观锁：显式传 expected_version 时按版本条件更新，避免并发改档互相覆盖。
+	// 乐观锁：显式传 expected_version 时按版本条件更新，避免并发改档互相覆盖。
 	if in.ExpectedVersion > 0 {
 		update.Where(esportscustomer.VersionEQ(in.ExpectedVersion))
 	}
@@ -179,7 +179,7 @@ func validBirthday(value string) bool {
 	return true
 }
 
-// customerProfileOverview 汇总客户档案（§8.2）：基本信息、消费 / 充值 / 送礼 / 余额 / 成长值。
+// customerProfileOverview 汇总客户档案：基本信息、消费 / 充值 / 送礼 / 余额 / 成长值。
 // ponytail: 累计值走 SQL SUM 聚合，未分页；需要更细的区间口径时改走上报表接口。
 func customerProfileOverview(ctx context.Context, db *ent.Client, adminID int, isSuper bool, customerID int) (map[string]any, error) {
 	customer, err := loadOwnedCustomer(ctx, db, adminID, isSuper, customerID)
@@ -219,7 +219,7 @@ func customerProfileOverview(ctx context.Context, db *ent.Client, adminID int, i
 	if err != nil {
 		return nil, err
 	}
-	// 身份标识 + 会员权益快照（§10.1-02 / §10.4 / P1-11）：客户卡片一次性读出全部权益字段，
+	// 身份标识 + 会员权益快照（P1-11）：客户卡片一次性读出全部权益字段，
 	// 让权益页宣称的「已生效」与真实消费点（会员折扣 / 派单置顶 / 优先预约）共用同一判定口径。
 	privilege, err := memberPrivilegeFlags(ctx, db, customerID)
 	if err != nil {
@@ -302,7 +302,7 @@ func sumGiftCents(ctx context.Context, db *ent.Client, customerID int, field str
 	return rows[0].Sum, nil
 }
 
-// addCustomerFollowUp 写跟进记录并在同一事务刷新客户最近联系时间（§8.3）。
+// addCustomerFollowUp 写跟进记录并在同一事务刷新客户最近联系时间。
 func addCustomerFollowUp(ctx context.Context, db *ent.Client, adminID int, isSuper bool, customerID int, in followUpInput, now time.Time) (*ent.EsportsCustomerFollowUp, error) {
 	if _, err := loadOwnedCustomer(ctx, db, adminID, isSuper, customerID); err != nil {
 		return nil, err
@@ -359,10 +359,10 @@ func listCustomerFollowUps(ctx context.Context, db *ent.Client, adminID int, isS
 	).Order(ent.Desc(esportscustomerfollowup.FieldID)).Limit(limit).All(ctx)
 }
 
-// wecomIntakeCard 是企微自动建档接口的返回视图（§8.4）。
+// wecomIntakeCard 是企微自动建档接口的返回视图。
 // 命中本人客户时原样透出整条档案；命中他人客户时只回最小卡片：仅保留识别信息
 // （ID / 称呼 / 归属 / 来源），不带手机号、标签、消费偏好等档案字段，并用 owned_by_other
-// 与中文 message 告知调用方客户已被他人负责，避免跨客服数据越界（§3.5-02 / §5.1-04）。
+// 与中文 message 告知调用方客户已被他人负责，避免跨客服数据越界。
 type wecomIntakeCard struct {
 	*ent.EsportsCustomer
 	OwnedByOther   bool   `json:"owned_by_other"`
@@ -481,7 +481,7 @@ func withWecomHint(card *wecomIntakeCard, hint string) *wecomIntakeCard {
 	return card
 }
 
-// wecomUpsertCustomer 企微侧边栏自动建档（§8.4）：以「企业主体 + 外部联系人标识」组合幂等。
+// wecomUpsertCustomer 企微侧边栏自动建档：以「企业主体 + 外部联系人标识」组合幂等。
 // 已存在且归属当前客服则原样返回既有档案（created=false），只补基础字段，不覆盖客服已维护的偏好与标签；
 // 已存在但归属他人则只返回最小卡片（见 wecomIntakeCard），不泄露他人客户档案。
 //
@@ -651,14 +651,14 @@ func listScripts(ctx context.Context, db *ent.Client, category string, limit int
 	return q.Order(ent.Asc(esportsscript.FieldSortOrder), ent.Desc(esportsscript.FieldID)).Limit(limit).All(ctx)
 }
 
-// csTodoItem 是待办提醒的一项（§8.2）。
+// csTodoItem 是待办提醒的一项。
 type csTodoItem struct {
 	Key   string `json:"key"`
 	Label string `json:"label"`
 	Count int    `json:"count"`
 }
 
-// countOrders 统计某履约状态下的订单数：非超管收敛到「本人负责或被授权协作」的订单（§3.5-06），
+// countOrders 统计某履约状态下的订单数：非超管收敛到「本人负责或被授权协作」的订单，
 // 与订单列表 / 详情同一可见性口径，避免协作订单在列表可见、在看板统计中丢失。
 func countOrders(ctx context.Context, db *ent.Client, adminID int, isSuper bool, status esportsorder.FulfillmentStatus) (int, error) {
 	q := db.EsportsOrder.Query().Where(esportsorder.FulfillmentStatusEQ(status))
@@ -677,7 +677,7 @@ func businessDayStart(now time.Time) time.Time {
 	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, cstZone).UTC()
 }
 
-// countCustomerBirthdaysDue 统计今日生日的归属客户数，用于客服生日礼遇待办（§10.4）。非超管只统计归属本人客户。
+// countCustomerBirthdaysDue 统计今日生日的归属客户数，用于客服生日礼遇待办。非超管只统计归属本人客户。
 func countCustomerBirthdaysDue(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) (int, error) {
 	today := now.In(cstZone).Format("01-02")
 	q := db.EsportsCustomer.Query().Where(esportscustomer.BirthdayEQ(today))
@@ -687,8 +687,8 @@ func countCustomerBirthdaysDue(ctx context.Context, db *ent.Client, adminID int,
 	return q.Count(ctx)
 }
 
-// csWorkbenchTodos 组装客服待办提醒（§8.2）：订单超时、待结单、售后待处理、跟进到期、生日礼遇（§10.4）、
-// 会员优先预约、通知失败与结单后复购跟进（§14-01）。订单类计数与列表共用「负责 OR 协作」可见性谓词（§3.5-06）。
+// csWorkbenchTodos 组装客服待办提醒：订单超时、待结单、售后待处理、跟进到期、生日礼遇、
+// 会员优先预约、通知失败与结单后复购跟进。订单类计数与列表共用「负责 OR 协作」可见性谓词。
 func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) ([]csTodoItem, error) {
 	overdue := db.EsportsOrder.Query().Where(
 		esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingPayment),
@@ -714,7 +714,7 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
-	// 复购跟进待办单列（§14-01），因此「跟进已到期」排除复购标记记录，避免同一件事计两次。
+	// 复购跟进待办单列，因此「跟进已到期」排除复购标记记录，避免同一件事计两次。
 	followCount, err := db.EsportsCustomerFollowUp.Query().Where(
 		esportscustomerfollowup.AdminIDEQ(adminID),
 		esportscustomerfollowup.NextFollowAtNotNil(),
@@ -724,12 +724,12 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
-	// 生日礼遇提醒（§10.4）：今日生日的归属客户，提醒客服跟进。
+	// 生日礼遇提醒：今日生日的归属客户，提醒客服跟进。
 	birthdayCount, err := countCustomerBirthdaysDue(ctx, db, adminID, isSuper, now)
 	if err != nil {
 		return nil, err
 	}
-	// 会员优先预约提醒（§10.4 / P1-11）：先做**过期消解**（读取时惰性判定），
+	// 会员优先预约提醒（P1-11）：先做**过期消解**（读取时惰性判定），
 	// 保证「已过期」的意向不再计入待办——不依赖定时任务注册也能自愈。
 	if _, err = expirePriorityBookingIntents(ctx, db, now, 200); err != nil {
 		return nil, err
@@ -738,24 +738,24 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
-	// 通知发送失败待办（§通知）：outbox status=dead 的事件，供客服人工处理重发。
+	// 通知发送失败待办：outbox status=dead 的事件，供客服人工处理重发。
 	notificationFailCount, err := countFailedNotifications(ctx, db)
 	if err != nil {
 		return nil, err
 	}
-	// 结单后复购跟进待办（§14-01）：结单 N 天后到期、且尚未被回访的客户维度待办。
+	// 结单后复购跟进待办：结单 N 天后到期、且尚未被回访的客户维度待办。
 	repurchaseCount, err := countRepurchaseTodosDue(ctx, db, adminID, isSuper, now)
 	if err != nil {
 		return nil, err
 	}
-	// 结单时限超时（§2.1-09，T14.3 的「管理员待办」那一半）：时限未配置（close_deadline_hours=0）时计数为 0，待办整体关闭。
+	// 结单时限超时（，T14.3 的「管理员待办」那一半）：时限未配置（close_deadline_hours=0）时计数为 0，待办整体关闭。
 	// ⚠️ 口径说明：与既有的「通知发送失败」一致，该计数是**全站口径**（未按客服可见性收敛）——
 	// 只暴露数量、不暴露单据；若要按客服收敛，需给 listCloseDeadlineOverdue 叠加 visibleOrdersToAdmin 谓词。
 	closeDeadlineCount, err := closeDeadlineOverdueCount(ctx, db, now)
 	if err != nil {
 		return nil, err
 	}
-	// 档期确认过期待处置（§3.2-04 / §5.5-06）：已付款但档期确认超时，需客服/管理员处置（全额退还或改期）。
+	// 档期确认过期待处置：已付款但档期确认超时，需客服/管理员处置（全额退还或改期）。
 	appointmentPendingCount, err := appointmentPendingDisposalCount(ctx, db)
 	if err != nil {
 		return nil, err
@@ -774,7 +774,7 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	}, nil
 }
 
-// ── 会员优先预约意向的处理与过期消解（§10.4 / P1-11） ──
+// ── 会员优先预约意向的处理与过期消解（P1-11） ──
 //
 // 修复前的缺口：意向实体只有 status 字段，代码里没有任何「处理 / 过期」的写入路径，
 // 导致客服工作台「会员优先预约」待办只增不减。此处补齐：
@@ -785,9 +785,9 @@ func csWorkbenchTodos(ctx context.Context, db *ent.Client, adminID int, isSuper 
 // priorityBookingExpiryGraceDays 是无期望时段意向的保留期：久未处理仍 pending 即按过期消解。
 const priorityBookingExpiryGraceDays = 30
 
-// resolvePriorityBookingIntent 客服处理会员优先预约意向（§10.4 / P1-11）。
+// resolvePriorityBookingIntent 客服处理会员优先预约意向（P1-11）。
 // 只允许 pending → processed / cancelled 的单向条件更新：已处理 / 已取消的意向再次处理返回冲突，
-// 并发处理只有一次生效。非超管只能处理归属本人客户的意向（§8.2 归属隔离）。
+// 并发处理只有一次生效。非超管只能处理归属本人客户的意向（归属隔离）。
 func resolvePriorityBookingIntent(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
 	intentID int, status string, now time.Time) (*ent.EsportsPriorityBookingIntent, error) {
 	if intentID < 1 || adminID < 1 {
@@ -828,7 +828,7 @@ func resolvePriorityBookingIntent(ctx context.Context, db *ent.Client, adminID i
 	return db.EsportsPriorityBookingIntent.Get(ctx, intentID)
 }
 
-// expirePriorityBookingIntents 过期消解优先预约意向（§10.4 / P1-11）：
+// expirePriorityBookingIntents 过期消解优先预约意向（P1-11）：
 // 期望时段已过、或未填期望时段且提交超过宽限期的 pending 意向，条件更新为 cancelled
 // 并记录处理时间（processed_at），使其不再计入客服待办。逐条条件更新，重复执行安全。
 func expirePriorityBookingIntents(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
@@ -865,7 +865,7 @@ func expirePriorityBookingIntents(ctx context.Context, db *ent.Client, now time.
 	return count, nil
 }
 
-// expirePriorityBookingIntentsTask 定时任务入口（§10.4 / P1-11）：批量过期消解预约意向。
+// expirePriorityBookingIntentsTask 定时任务入口（P1-11）：批量过期消解预约意向。
 //
 // ⚠️ 需由 app.go 注册（本文件不持有注册权）：
 //

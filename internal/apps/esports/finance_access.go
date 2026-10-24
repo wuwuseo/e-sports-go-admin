@@ -48,7 +48,7 @@ func financeReportRoleNames(ctx context.Context, db *ent.Client) []string {
 	return commaSeparatedRoleNames(ctx, db, financeReportRoleNamesKey)
 }
 
-// skuCostViewRolesKey 是允许查看 SKU 成本（cost_cents）的角色名配置（§15.8-03，逗号分隔）。
+// skuCostViewRolesKey 是允许查看 SKU 成本（cost_cents）的角色名配置（，逗号分隔）。
 // 缺省为空表示仅超级管理员可见；成本对未授权角色既不可写也不可读。
 const skuCostViewRolesKey = "app.esports.sku_cost_view_roles"
 
@@ -57,7 +57,7 @@ func skuCostViewRoleNames(ctx context.Context, db *ent.Client) []string {
 	return commaSeparatedRoleNames(ctx, db, skuCostViewRolesKey)
 }
 
-// canViewSkuCost 判断当前请求操作人是否有权查看 SKU 成本价（§15.8-03）：
+// canViewSkuCost 判断当前请求操作人是否有权查看 SKU 成本价：
 // 超级管理员直接放行；否则命中 sku_cost_view_roles 配置角色才放行。
 func canViewSkuCost(c fiber.Ctx) bool {
 	if super, _ := c.Locals("isSuperAdmin").(bool); super {

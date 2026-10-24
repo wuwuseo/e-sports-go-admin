@@ -14,18 +14,18 @@ import (
 	"go-admin/internal/ent/esportsprioritybookingintent"
 )
 
-// 会员优先预约（§10.4）：启用 priority_booking 等级的客户在自助端提交「陪玩 + 期望时段 + 备注」
+// 会员优先预约：启用 priority_booking 等级的客户在自助端提交「陪玩 + 期望时段 + 备注」
 // 的预约意向；客服工作台待办出现「会员优先预约」，并按会员等级置顶处理。意向与正式订单解耦，
 // 客服确认后再走既有报单链路，不污染订单 / 排单 / 报表。
 
-// priorityBookingInput 是自助端提交预约意向的入参（§10.4）。
+// priorityBookingInput 是自助端提交预约意向的入参。
 type priorityBookingInput struct {
 	PlayerID         int    `json:"player_id"`
 	RequestedStartAt string `json:"requested_start_at"`
 	Note             string `json:"note"`
 }
 
-// createPriorityBooking 客户自助提交会员优先预约意向（§10.4）：
+// createPriorityBooking 客户自助提交会员优先预约意向：
 //   - 仅当前等级启用 priority_booking 的客户可提交，否则返回 errForbidden（无权益不出现入口）；
 //   - 陪玩须存在，期望时段须为未来时间，备注限 500 字；意向初始 status=pending。
 func createPriorityBooking(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
@@ -37,7 +37,7 @@ func createPriorityBooking(ctx context.Context, db *ent.Client, customer *ent.Es
 	if in.PlayerID < 1 || len([]rune(in.Note)) > 500 {
 		return nil, errInvalidInput
 	}
-	// 权益校验：仅当前等级启用 priority_booking 的客户可提交（§10.4）。
+	// 权益校验：仅当前等级启用 priority_booking 的客户可提交。
 	rule, err := customerMemberRule(ctx, db, customer.MemberLevelCode)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func createPriorityBooking(ctx context.Context, db *ent.Client, customer *ent.Es
 		SetStatus(esportsprioritybookingintent.StatusPending).Save(ctx)
 }
 
-// ownedCustomerIDs 返回归属指定客服的客户 ID 列表（§8.2 数据隔离口径）。
+// ownedCustomerIDs 返回归属指定客服的客户 ID 列表（数据隔离口径）。
 func ownedCustomerIDs(ctx context.Context, db *ent.Client, adminID int) ([]int, error) {
 	rows, err := db.EsportsCustomer.Query().Where(
 		esportscustomer.OwnerAdminIDEQ(adminID),
@@ -77,7 +77,7 @@ func ownedCustomerIDs(ctx context.Context, db *ent.Client, adminID int) ([]int, 
 	return ids, nil
 }
 
-// countPriorityBookingsPending 统计待处理预约意向数（§10.4 客服待办）；非超管只统计归属本人客户。
+// countPriorityBookingsPending 统计待处理预约意向数（客服待办）；非超管只统计归属本人客户。
 func countPriorityBookingsPending(ctx context.Context, db *ent.Client, adminID int, isSuper bool) (int, error) {
 	q := db.EsportsPriorityBookingIntent.Query().Where(
 		esportsprioritybookingintent.StatusEQ(esportsprioritybookingintent.StatusPending),
@@ -95,7 +95,7 @@ func countPriorityBookingsPending(ctx context.Context, db *ent.Client, adminID i
 	return q.Count(ctx)
 }
 
-// priorityBookingView 是客服待办列表里的预约意向视图，附客户会员等级信息（§10.4）。
+// priorityBookingView 是客服待办列表里的预约意向视图，附客户会员等级信息。
 type priorityBookingView struct {
 	ID               int        `json:"id"`
 	CustomerID       int        `json:"customer_id"`
@@ -111,7 +111,7 @@ type priorityBookingView struct {
 	CreatedAt        time.Time  `json:"created_at"`
 }
 
-// listPriorityBookings 列出待处理预约意向并按会员等级置顶（§10.4）：
+// listPriorityBookings 列出待处理预约意向并按会员等级置顶：
 // 等级越高的客户意向越靠前（growth_threshold 降序），同等级按提交时间升序；
 // 未定级 / 停用等级排最后。非超管只看归属本人客户的意向。
 func listPriorityBookings(ctx context.Context, db *ent.Client, adminID int, isSuper bool,

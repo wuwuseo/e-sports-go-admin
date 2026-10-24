@@ -48,7 +48,7 @@ func seedActiveCampaign(t *testing.T, db *ent.Client, code string) *ent.EsportsR
 		SetStatus(esportsrechargecampaign.StatusActive).SaveX(t.Context())
 }
 
-// 图片不可访问时发布前资源校验被拒（§16.4 增量）。
+// 图片不可访问时发布前资源校验被拒（增量）。
 func TestPageResourceCheckImageUnreachable(t *testing.T) {
 	db := openPageDB(t, "esports_page_res_image")
 	// P0-17：探测只对已审核域名发起，因此先把该域名登记进白名单，再断言探测结果。
@@ -72,7 +72,7 @@ func TestPageResourceCheckImageUnreachable(t *testing.T) {
 	}
 }
 
-// 跳转链接合法性：站内路径穿越、外部链接携带凭证信息均被拒（§16.4 增量）。
+// 跳转链接合法性：站内路径穿越、外部链接携带凭证信息均被拒（增量）。
 func TestPageResourceCheckLinkSafety(t *testing.T) {
 	db := openPageDB(t, "esports_page_res_link")
 	visible := true
@@ -93,7 +93,7 @@ func TestPageResourceCheckLinkSafety(t *testing.T) {
 	}
 }
 
-// 通用文本长度超限（§16.4 增量）：公告 text 超过 500 字符被拒。
+// 通用文本长度超限（增量）：公告 text 超过 500 字符被拒。
 func TestPageResourceCheckTextTooLong(t *testing.T) {
 	db := openPageDB(t, "esports_page_res_text")
 	visible := true
@@ -107,7 +107,7 @@ func TestPageResourceCheckTextTooLong(t *testing.T) {
 	}
 }
 
-// 商品 / 活动有效性（§16.4 增量）：不存在或未生效（非上架 / 非进行中）被拒。
+// 商品 / 活动有效性（增量）：不存在或未生效（非上架 / 非进行中）被拒。
 func TestPageResourceCheckEntityValidity(t *testing.T) {
 	db := openPageDB(t, "esports_page_res_entity")
 	visible := true
@@ -118,7 +118,7 @@ func TestPageResourceCheckEntityValidity(t *testing.T) {
 		return pageConfig{Components: []pageComponent{
 			{Type: "search", Visible: &visible},
 			{Type: "product_list", Visible: &visible, Props: props},
-			// §16.3-06（本轮口径收紧）：活动引用只属于 activity 组件，
+			// （本轮口径收紧）：活动引用只属于 activity 组件，
 			// product_list 不再受理 campaign_id / activity_id（保存即 400）。
 			{Type: "activity", Visible: &visible, Props: map[string]interface{}{"campaign_id": camp.ID}},
 			{Type: "support_entry", Visible: &visible},
@@ -147,7 +147,7 @@ func TestPageResourceCheckEntityValidity(t *testing.T) {
 	}
 }
 
-// 发布前资源校验接入 publishPage（§16.4 增量）：引用不存在资源被拒，有效资源通过。
+// 发布前资源校验接入 publishPage（增量）：引用不存在资源被拒，有效资源通过。
 func TestPagePublishResourceValidityWired(t *testing.T) {
 	db := openPageDB(t, "esports_page_res_publish")
 	channel := pageChannelCustomerHome

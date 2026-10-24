@@ -17,10 +17,10 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客户评价（§7.5）第 4 轮补齐：陪玩端考核明细（§6.1-13）、评分计算周期（§7.5-04）、
-// 异常刷评自动识别 + 评价申诉流水（§7.5-05）。
+// 客户评价第 4 轮补齐：陪玩端考核明细、评分计算周期、
+// 异常刷评自动识别 + 评价申诉流水。
 
-// ── §6.1-13 陪玩端考核明细（逐维度得分与权重 = 评级依据） ──
+// ── 陪玩端考核明细（逐维度得分与权重 = 评级依据） ──
 
 // playerAssessmentView 是陪玩端「我的考核」单条视图：主表 + 逐维度得分（含权重）。
 // 权重是评级依据的一部分（同一分数在不同权重下的加权结果不同），必须一并下发。
@@ -87,7 +87,7 @@ func listPlayerAssessmentDetails(ctx context.Context, db *ent.Client, playerID, 
 	return views, nil
 }
 
-// ── §7.5-05 异常刷评自动识别 ──
+// ── 异常刷评自动识别 ──
 
 const (
 	// reviewBrushRuleKey 是刷评识别规则（JSON）；留空 = 关闭自动识别（显式降级，不伪成功）。
@@ -106,7 +106,7 @@ const (
 	reviewAppealPreviousStatusKey = "appeal_previous_status"
 )
 
-// reviewBrushRule 是刷评识别规则（§7.5-05）。
+// reviewBrushRule 是刷评识别规则。
 // JSON：{"window_hours":24,"max_reviews_per_customer":3,"identical_comment":true}
 type reviewBrushRule struct {
 	WindowHours           int  `json:"window_hours"`
@@ -115,7 +115,7 @@ type reviewBrushRule struct {
 }
 
 // resolveReviewBrushRule 读取刷评识别规则：留空 = 关闭（返回 nil）；JSON 非法 = 明确报错，
-// 避免运营写错配置后系统静默不识别（§7 不假成功）。
+// 避免运营写错配置后系统静默不识别（不假成功）。
 func resolveReviewBrushRule(ctx context.Context, db *ent.Client) (*reviewBrushRule, error) {
 	raw := strings.TrimSpace(assessmentConfigString(ctx, db, reviewBrushRuleKey, ""))
 	if raw == "" {
@@ -134,7 +134,7 @@ func resolveReviewBrushRule(ctx context.Context, db *ent.Client) (*reviewBrushRu
 	return &rule, nil
 }
 
-// detectReviewBrushing 单轮异常刷评识别（§7.5-05）：命中规则的评价置 disputed 并留痕，返回标记条数。
+// detectReviewBrushing 单轮异常刷评识别：命中规则的评价置 disputed 并留痕，返回标记条数。
 //
 // 规则（按窗口内同一客户对同一陪玩的评价判定，已终局 invalid / 申诉待复核的评价不参与）：
 //  1. review_burst_customer：同客户同陪玩在窗口内的有效评价数 ≥ max_reviews_per_customer；
@@ -231,7 +231,7 @@ func detectReviewBrushingTask(ctx context.Context, logger io.Writer) error {
 	return err
 }
 
-// ── §7.5-05 评价申诉（发起 → 管理员复核） ──
+// ── 评价申诉（发起 → 管理员复核） ──
 
 // assessmentConfigIntAllowZero 读取整数配置并允许显式 0（与 assessmentConfigInt 的「≤0 回落」不同，
 // 用于「0 = 不限时」这类语义）；缺失 / 非法回落 fallback，负数按 0 处理。
@@ -255,7 +255,7 @@ func reviewAppealWindowDays(ctx context.Context, db *ent.Client) int {
 	return assessmentConfigIntAllowZero(ctx, db, reviewAppealWindowDaysKey, defaultReviewAppealWindowDays)
 }
 
-// createReviewAppeal 发起评价申诉（§7.5-05）：客户 / 陪玩本人可对自己涉及的评价申诉，
+// createReviewAppeal 发起评价申诉：客户 / 陪玩本人可对自己涉及的评价申诉，
 // 申诉期间评价转 appeal_pending 并保留申诉前状态，供驳回时复原。
 func createReviewAppeal(ctx context.Context, db *ent.Client, reviewID int, appellantType string, appellantID int,
 	reason, evidenceRef string, now time.Time) (*ent.EsportsPlayerReviewAppeal, error) {
@@ -318,7 +318,7 @@ func createReviewAppeal(ctx context.Context, db *ent.Client, reviewID int, appel
 	return db.EsportsPlayerReviewAppeal.Get(ctx, appeal.ID)
 }
 
-// reviewReviewAppeal 管理员复核评价申诉（§7.5-05）：成立则复原评价（normal 且清自动判定标记），
+// reviewReviewAppeal 管理员复核评价申诉：成立则复原评价（normal 且清自动判定标记），
 // 驳回则复原到申诉前状态（默认 disputed / normal）。复核结论与复核人一并留痕。
 func reviewReviewAppeal(ctx context.Context, db *ent.Client, appealID, adminID int, approve bool,
 	note string, now time.Time) (*ent.EsportsPlayerReview, error) {
@@ -389,7 +389,7 @@ func reviewReviewAppeal(ctx context.Context, db *ent.Client, appealID, adminID i
 	return db.EsportsPlayerReview.Get(ctx, review.ID)
 }
 
-// listReviewAppeals 列出评价申诉（§7.5-05 管理端复核队列），可按 status 过滤。
+// listReviewAppeals 列出评价申诉（管理端复核队列），可按 status 过滤。
 func listReviewAppeals(ctx context.Context, db *ent.Client, status string, limit int) ([]*ent.EsportsPlayerReviewAppeal, error) {
 	if limit < 1 || limit > 200 {
 		limit = 100
@@ -405,7 +405,7 @@ func listReviewAppeals(ctx context.Context, db *ent.Client, status string, limit
 		ent.Desc(esportsplayerreviewappeal.FieldID)).Limit(limit).All(ctx)
 }
 
-// reviewAppealAppellant 解析自助申诉主体（§7.5-05）：优先按陪玩解析，其次按已核验客户；
+// reviewAppealAppellant 解析自助申诉主体：优先按陪玩解析，其次按已核验客户；
 // 都不是则无权申诉。handler 在 assessment_handlers.go 中调用。
 func reviewAppealAppellant(ctx context.Context, uid string) (string, int, error) {
 	if player, err := currentPlayer(ctx, global.ORM, uid); err == nil {

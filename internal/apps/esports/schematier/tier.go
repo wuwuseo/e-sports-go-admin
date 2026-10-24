@@ -37,7 +37,7 @@ type CloseFormFieldDefinition struct {
 	Version   int      `json:"version"`
 }
 
-// CloseApprovalNode 是结单审批流的一个串行节点（§3.4）：配审批角色与超时策略。
+// CloseApprovalNode 是结单审批流的一个串行节点：配审批角色与超时策略。
 // InvolvesFunds 为 true 表示涉及资金 / 争议的节点，禁止自动通过。
 type CloseApprovalNode struct {
 	Seq               int    `json:"seq"`
@@ -48,7 +48,7 @@ type CloseApprovalNode struct {
 	InvolvesFunds     bool   `json:"involves_funds"`
 }
 
-// CloseConditionNode 是结单条件树的一个节点（§3.4 结单条件自定义：字段 + 运算符 + 值，支持 AND/OR 嵌套）。
+// CloseConditionNode 是结单条件树的一个节点（结单条件自定义：字段 + 运算符 + 值，支持 AND/OR 嵌套）。
 // 组合节点填 Op（and / or / not）与 Children；叶子节点填 Field + Operator + Value。
 // 结构化字段项（min_evidence 等）在解析时会被折叠为等价叶子节点，二者共用同一套求值。
 type CloseConditionNode struct {

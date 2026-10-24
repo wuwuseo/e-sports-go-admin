@@ -16,13 +16,13 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// ── 派单排序合成（§5.5 加分项） ──
+// ── 派单排序合成（加分项） ──
 //
 // 候选排序在窗口可见性与硬性过滤之后，把可计算的加分项按可配置权重合成一个排序分：
 //   评分（综合评分均分） + 在途席位均衡 + 历史合作 + 客户偏好。
 // 客服/客户指定陪玩（Preferred）仍硬置顶，不参与加权，语义不变。
 //
-// 优先派单权（名单名次）**不参与排序**（§5.2-04 / §5.4-03）：它只体现为独占优先通知，
+// 优先派单权（名单名次）**不参与排序**：它只体现为独占优先通知，
 // 名单名次仅作为候选的展示字段（ZoneRank）。
 
 // 排序合成权重配置键（JSON，缺失或非法时逐字段回落默认值）。
@@ -33,14 +33,14 @@ const dispatchRankWeightsKey = "app.esports.dispatch_ranking_weights"
 // DistanceCapKm 是距离分量的归一化半径（km，须 >=1）：客户与陪玩距离 >= 该半径得 0 分。
 //
 // Zone 为历史配置项（app.esports.dispatch_ranking_weights 的 zone 字段），为保证既有配置
-// 仍可解析而保留；优先派单权不参与排序（§5.2-04），该权重不再影响排序结果。
+// 仍可解析而保留；优先派单权不参与排序，该权重不再影响排序结果。
 type dispatchRankWeights struct {
 	Rating     int `json:"rating"`
 	History    int `json:"history"`
 	Preference int `json:"preference"`
 	Zone       int `json:"zone"`
 	Balance    int `json:"balance"`
-	// Distance / Timezone 是 §5.5-03 新增分量，默认 0（不参与排序，保持既有行为不变）。
+	// Distance / Timezone 是 新增分量，默认 0（不参与排序，保持既有行为不变）。
 	Distance int `json:"distance"`
 	Timezone int `json:"timezone"`
 	// DistanceCapKm 距离归一化半径（km）：仅当 Distance > 0 时生效。
@@ -127,13 +127,13 @@ func dispatchRankWeightsFor(ctx context.Context, db *ent.Client) dispatchRankWei
 	return w
 }
 
-// dispatchRankFactors 是各排序分量归一化后的分值（0~100）。优先派单权不是排序分量（§5.4-03）。
+// dispatchRankFactors 是各排序分量归一化后的分值（0~100）。优先派单权不是排序分量。
 type dispatchRankFactors struct {
 	RatingScore     int
 	HistoryScore    int
 	PreferenceScore int
 	BalanceScore    int
-	// DistanceScore / TimezoneScore 为 §5.5-03 的距离与时区分量（0~100）。
+	// DistanceScore / TimezoneScore 为 的距离与时区分量（0~100）。
 	DistanceScore int
 	TimezoneScore int
 }
@@ -145,7 +145,7 @@ func dispatchRankScore(w dispatchRankWeights, f dispatchRankFactors) int {
 		w.Distance*f.DistanceScore + w.Timezone*f.TimezoneScore
 }
 
-// ── 距离 / 时区分量（§5.5-03） ──
+// ── 距离 / 时区分量 ──
 //
 // 参考点：订单所属客户档案的定位（latitude_e6 / longitude_e6）与时区（timezone）。
 // 任一缺失即视为「无加分」（分值 0），不臆造位置，因此存量数据不会因新分量产生排序抖动。
@@ -270,7 +270,7 @@ func playerCustomerCompletedOrders(ctx context.Context, db *ent.Client, playerID
 	return counts, nil
 }
 
-// ── 优先派单权自动计算（§5.4：排名制 / 积分制 / 达标制） ──
+// ── 优先派单权自动计算（：排名制 / 积分制 / 达标制） ──
 //
 // 数据源全部复用既有字段，不新增外部数据源：
 //   - ranking（排名制）：qualified 陪玩按综合评分均分降序，样本不足者不入选；
@@ -367,7 +367,7 @@ func dispatchPriorityAutoSource(grants []*ent.EsportsDispatchPriorityGrant) espo
 // autoComputeDispatchPriority 按获得方式自动计算下一期名单：候选池**先按游戏分区收窄**，
 // 再在分区内取前 quota 名并返回（按 rank 升序，长度不超过 quota）。
 //
-// 分区口径与派单/优先通知阶段一致（§6.4）：player.Games 为空表示不限分区（缺省口径），
+// 分区口径与派单/优先通知阶段一致：player.Games 为空表示不限分区（缺省口径），
 // 任何游戏都可入选；非空时必须包含 game。game 为空串时不做分区过滤（保持既有全量口径）。
 //
 // 生成阶段**不按服务时段 / 在线快照过滤**：名单是「本期资格」，可接单性由通知 / 派单阶段

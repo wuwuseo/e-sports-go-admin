@@ -21,7 +21,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 客户充值独立支付意图（§4.5）：客户发起充值时先匹配当前生效活动、锁定「活动资格与赠送明细」快照，
+// 客户充值独立支付意图：客户发起充值时先匹配当前生效活动、锁定「活动资格与赠送明细」快照，
 // 生成独立于订单的支付意图 EsportsPaymentIntent，财务核验或已验签渠道核销到账后再按快照入账，
 // 避免核验时点活动已改导致赠送漂移。与管理员即时充值 rechargeWithCampaigns 互补：后者即时匹配并入账，
 // 本链路走「发起 → 核验 → 入账」，供客户自助充值与真实收款核验使用。
@@ -40,7 +40,7 @@ const (
 	rechargeIntentMaxPrincipalCents = 100_000_000
 )
 
-// rechargeIntentInput 是客户发起充值的入参（§4.5）：实充本金 + 收款渠道 + 客户端幂等键。
+// rechargeIntentInput 是客户发起充值的入参：实充本金 + 收款渠道 + 客户端幂等键。
 // 赠送一律由服务端按当前生效活动匹配，不接受客户端传入。
 type rechargeIntentInput struct {
 	PrincipalCents int64  `json:"principal_cents"`
@@ -63,7 +63,7 @@ type rechargeIntentView struct {
 	PayWindowExpiresAt time.Time      `json:"pay_window_expires_at"`
 }
 
-// rechargeSettlementInput 是「已验签通道适配器」核销充值到账的入参（§4.5）。
+// rechargeSettlementInput 是「已验签通道适配器」核销充值到账的入参。
 // 与 payment.go 的 verifiedPayment 同口径：只能由已完成签名与到账证据校验的通道适配器构造，无公开路由。
 type rechargeSettlementInput struct {
 	IntentNo        string
@@ -159,7 +159,7 @@ func existingRechargeIntent(ctx context.Context, db *ent.Client, customerID int,
 	return rechargeIntentViewByNo(ctx, db, record.ResultRef)
 }
 
-// createRechargeIntent 客户发起充值（§4.5）：按实充本金与当前生效活动匹配出活动资格与赠送快照，
+// createRechargeIntent 客户发起充值：按实充本金与当前生效活动匹配出活动资格与赠送快照，
 // 生成独立支付意图 + 充值意图快照，返回付款码供客户外部付款。资金须财务核验或渠道核销后才入账。
 func createRechargeIntent(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
 	in rechargeIntentInput, now time.Time) (*rechargeIntentView, error) {
@@ -177,7 +177,7 @@ func createRechargeIntent(ctx context.Context, db *ent.Client, customer *ent.Esp
 	if err := validateRechargeIntentInput(in); err != nil {
 		return nil, err
 	}
-	// 渠道启停校验（§4.3-08 / §4.3-03）：停用的收款渠道不得发起充值（不生成支付意图、不伪成功）。
+	// 渠道启停校验：停用的收款渠道不得发起充值（不生成支付意图、不伪成功）。
 	if !paymentChannelEnabled(ctx, db, in.PaymentChannel) {
 		return nil, fmt.Errorf("%w：收款方式 %s 已停用", errPaymentGatewayUnavailable, in.PaymentChannel)
 	}
@@ -273,7 +273,7 @@ func recordRechargeIntent(ctx context.Context, tx *ent.Tx, customerID int, in re
 	return nil
 }
 
-// creditRechargeIntent 核验通过后按意图快照入账（§4.5）：在一个事务内把实充本金 + 赠送
+// creditRechargeIntent 核验通过后按意图快照入账：在一个事务内把实充本金 + 赠送
 // （以意图快照为准，不重新匹配活动）写入客户余额充值流水，并把支付意图置 paid。
 // 幂等靠支付意图状态与钱包流水的 (source_type, source_id, entry_type) 唯一索引兜底。
 func creditRechargeIntent(ctx context.Context, db *ent.Client, operatorID int,
@@ -322,7 +322,7 @@ func creditRechargeIntent(ctx context.Context, db *ent.Client, operatorID int,
 	return tx.Commit()
 }
 
-// verifyRechargeIntentPayment 财务核验充值到账（§4.5）：核验通过后按意图快照入账，
+// verifyRechargeIntentPayment 财务核验充值到账：核验通过后按意图快照入账，
 // 并同步支付意图状态；approve=false 驳回申请并把支付意图置无效。
 func verifyRechargeIntentPayment(ctx context.Context, db *ent.Client, adminID int, intentNo string,
 	approve bool, receivedCents int64, evidenceNote string, now time.Time) (*rechargeIntentView, error) {
@@ -369,11 +369,11 @@ func verifyRechargeIntentPayment(ctx context.Context, db *ent.Client, adminID in
 	return rechargeIntentViewByNo(ctx, db, intentNo)
 }
 
-// settleRechargeIntent 已验签通道适配器核销入口（§4.5 / §4.2 同口径）：只接受已通过签名与
+// settleRechargeIntent 已验签通道适配器核销入口（同口径）：只接受已通过签名与
 // 到账证据校验的通道通知，校验支付意图—充值意图—金额—渠道一致后按快照入账。
 // 渠道流水号 (channel, transaction_no) 唯一：同一笔到账重复回调按幂等返回已入账视图。
 //
-// §4.3-03：本入口同时服务「渠道自动回调」与「财务人工核销」——回调由 payment.go 分流进入且
+// ：本入口同时服务「渠道自动回调」与「财务人工核销」——回调由 payment.go 分流进入且
 // 没有管理员操作人（OperatorAdminID=0），此时回执的 verified_by_admin_id 保持为空。
 func settleRechargeIntent(ctx context.Context, db *ent.Client,
 	in rechargeSettlementInput, now time.Time) (*rechargeIntentView, error) {
@@ -464,7 +464,7 @@ func rechargeSettlementOperator(adminID int) *int {
 	return &adminID
 }
 
-// expireRechargeIntents 把过期的充值支付意图标记为 expired（§4.5）：只动「仍未核验且已超时」的意图，
+// expireRechargeIntents 把过期的充值支付意图标记为 expired：只动「仍未核验且已超时」的意图，
 // 已入账 / 已驳回的意图不受影响。重复运行幂等。
 func expireRechargeIntents(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if limit < 1 || limit > 1000 {

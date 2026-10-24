@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsOfflinePaymentProof 是线下 / 外部到账凭证（待核验收款单，§4.2 / §4.3）：
+// EsportsOfflinePaymentProof 是线下 / 外部到账凭证（待核验收款单，）：
 // 企微收款无回调、商户码截图、对公转账凭证都由客服提交凭证生成「待核验收款」，
 // 财务核验通过后才调用收款核销边界把订单置为已付款并放行派单；提交人不得自审。
 // 唯一键 (channel, transaction_no) 保证同一笔渠道流水不会被核销两次。

@@ -32,9 +32,9 @@ type campaignInput struct {
 	Tiers               []schema.CampaignTier `json:"tiers"`
 	Audience            string                `json:"audience"`
 	AudienceCustomerIDs []int                 `json:"audience_customer_ids"`
-	// 陪玩受众（§11.2-01）：audience=player 时按陪玩 ID 命中，奖励可入陪玩猫粮。
+	// 陪玩受众：audience=player 时按陪玩 ID 命中，奖励可入陪玩猫粮。
 	AudiencePlayerIDs []int `json:"audience_player_ids"`
-	// 奖励目标账户（§11.2-01）：customer_balance 入客户余额 / player_catfood 入陪玩猫粮。
+	// 奖励目标账户：customer_balance 入客户余额 / player_catfood 入陪玩猫粮。
 	TargetAccountType string    `json:"target_account_type"`
 	StackRule         string    `json:"stack_rule"`
 	BonusValidDays    int       `json:"bonus_valid_days"`
@@ -92,7 +92,7 @@ func validateCampaignInput(in campaignInput) error {
 			seen[id] = true
 		}
 	case "player":
-		// 陪玩受众（§11.2-01）：必须给出陪玩 ID 列表，且不与客户受众字段混用。
+		// 陪玩受众：必须给出陪玩 ID 列表，且不与客户受众字段混用。
 		if len(in.AudiencePlayerIDs) == 0 || len(in.AudienceCustomerIDs) > 0 {
 			return errInvalidInput
 		}
@@ -106,7 +106,7 @@ func validateCampaignInput(in campaignInput) error {
 	default:
 		return errInvalidInput
 	}
-	// 目标账户与受众必须自洽（§11.2-01）：猫粮奖励只能发给陪玩受众；
+	// 目标账户与受众必须自洽：猫粮奖励只能发给陪玩受众；
 	// 陪玩受众只能配猫粮目标账户（客户余额活动不接受陪玩受众）。
 	switch target := normalizeCampaignTargetAccount(in.TargetAccountType); target {
 	case string(esportsrechargecampaign.TargetAccountTypeCustomerBalance):
@@ -283,7 +283,7 @@ func campaignTierBonus(tiers []schema.CampaignTier, principalCents int64) (match
 // resolveRechargeBonus 按实充金额与受众资格解析充值赠送：阶梯取最高档，多活动按叠加规则处理，
 // 并产出写入钱包流水的规则快照。无命中返回 (0, nil, nil, nil)。
 //
-// targetAccountType 决定受众口径（§11.2-01）：customer_balance 按客户受众
+// targetAccountType 决定受众口径：customer_balance 按客户受众
 // （all / new_customer / specified 客户 ID）匹配；player_catfood 按陪玩受众
 // （all / player + audience_player_ids）匹配，ownerID 即陪玩 ID。
 func resolveRechargeBonus(ctx context.Context, db *ent.Client, targetAccountType string,
@@ -428,11 +428,11 @@ func resolveRechargeBonus(ctx context.Context, db *ent.Client, targetAccountType
 	return totalBonus, snapshot, expiresAt, nil
 }
 
-// rechargeWithCampaigns 按活动充值（§4.5 / §11.2-01）：接受客户余额与陪玩猫粮两类账户；
+// rechargeWithCampaigns 按活动充值：接受客户余额与陪玩猫粮两类账户；
 // 事务内按目标账户口径解析活动赠送并写一条充值流水（本金 / 赠送分列，附规则快照与赠送有效期）。
 // 重复幂等键返回 errConflict。
 // 余额拆分记账＝本金与赠送同一条流水分列（principal_delta_cents / bonus_delta_cents），
-// 批次账本同口径分列（principal_delta_cents / bonus_delta_cents，§4.5-04）。
+// 批次账本同口径分列（principal_delta_cents / bonus_delta_cents，）。
 func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, accountType string,
 	ownerID int, principalCents int64, note, key string, now time.Time) (*walletAccountView, error) {
 	normalized, err := normalizeWalletType(accountType)
@@ -478,7 +478,7 @@ func rechargeWithCampaigns(ctx context.Context, db *ent.Client, operatorID int, 
 // 规则快照与赠送有效期），source_type 固定为 recharge_campaign。赠送额与快照由调用方给定：
 // rechargeWithCampaigns 在事务内即时匹配活动，充值独立支付意图则按发起时锁定的活动快照传入，
 // 两处落库口径完全一致，避免赠送随活动变更漂移。
-// 流水同时落归属人、资金批次与变动前后余额（§11.6-02）；批次账本按本金/赠送分列（§4.5-04）。
+// 流水同时落归属人、资金批次与变动前后余额；批次账本按本金/赠送分列。
 func writeCampaignRechargeTx(ctx context.Context, tx *ent.Tx, operatorID int, normalized string,
 	ownerID int, principalCents, bonusCents int64, snapshot map[string]any, expiresAt *time.Time,
 	note, key string) error {
@@ -510,7 +510,7 @@ func writeCampaignRechargeTx(ctx context.Context, tx *ent.Tx, operatorID int, no
 		return err
 	}
 	if batchCents := principalCents + bonusCents; batchCents > 0 {
-		// 批次账本（§4.5 / §4.5-04）：活动充值的本金 + 赠送同样写入 recharge_batch，
+		// 批次账本：活动充值的本金 + 赠送同样写入 recharge_batch，
 		// 且本金 / 赠送分列，供消费分摊与按批次退款还原分辨来源性质。
 		if _, err := tx.EsportsLedgerEntry.Create().
 			SetAccountType(normalized).SetAccountID(strconv.Itoa(ownerID)).
@@ -709,7 +709,7 @@ func expireOwnerBonus(ctx context.Context, db *ent.Client, ownerID int, now time
 			}
 			return count, err
 		}
-		// 批次账本同步减少并登记分摊（§4.5-04）：赠送到期作废也要能在批次层追溯到。
+		// 批次账本同步减少并登记分摊：赠送到期作废也要能在批次层追溯到。
 		if _, err = tx.EsportsLedgerEntry.Create().
 			SetAccountType(walletCustomerBalance).SetAccountID(strconv.Itoa(ownerID)).
 			SetSourceType(campaignSourceType).SetSourceID(batch.sourceID).

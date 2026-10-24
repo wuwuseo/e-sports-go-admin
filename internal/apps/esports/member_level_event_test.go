@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsoutbox"
 )
 
-// 等级变更逐次留事件（§10.5-03）：事件键含「客户 + 等级 + 业务日期」而非按秒，
+// 等级变更逐次留事件：事件键含「客户 + 等级 + 业务日期」而非按秒，
 // 同日同等级重复变更各留一条；保护期到期的降级执行也必须留事件。
 func TestMemberLevelChangesLeaveEventPerChangeWithDayKey(t *testing.T) {
 	db := openRound4MemberDB(t, "r4wm_member_level_event")

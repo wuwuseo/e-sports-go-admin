@@ -33,7 +33,7 @@ func TestSplitPrepayDeduction(t *testing.T) {
 	}
 }
 
-// 按比例扣减（§4.5 proportional）：本金 / 赠送按剩余额比例分摊，本金向下取整、尾差归赠送，
+// 按比例扣减（proportional）：本金 / 赠送按剩余额比例分摊，本金向下取整、尾差归赠送，
 // 拆分之和恒等于应付额。
 func TestSplitPrepayDeductionProportional(t *testing.T) {
 	cases := []struct {
@@ -58,7 +58,7 @@ func TestSplitPrepayDeductionProportional(t *testing.T) {
 	}
 }
 
-// 余额核销配置为 proportional 时按比例分摊本金 / 赠送（§4.5）。
+// 余额核销配置为 proportional 时按比例分摊本金 / 赠送。
 func TestWalletPayProportionalDeduction(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_prepay_prop?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
@@ -99,7 +99,7 @@ func TestWalletPayProportionalDeduction(t *testing.T) {
 	}
 }
 
-// 余额核销按配置扣减：principal_first 时先扣本金（§4.5 可配置扣减顺序）。
+// 余额核销按配置扣减：principal_first 时先扣本金（可配置扣减顺序）。
 func TestWalletPayDeductionOrderConfigurable(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_prepay_order?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))

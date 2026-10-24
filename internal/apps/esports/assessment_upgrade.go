@@ -18,7 +18,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// §7.1-02 / §7.2-01 升级考核：陪玩端自助申请 + 系统按达标条件自动触发。
+// 升级考核：陪玩端自助申请 + 系统按达标条件自动触发。
 //
 // 申请门槛（服务量 / 评分 / 在岗时长）与冷却时长均按系统配置键读取、代码内回落默认值，
 // 沿用 assessmentPassScoreKey 的既有写法（assessmentConfigInt）：≤0 或非法值表示「回落默认」，
@@ -244,7 +244,7 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 	if err == nil {
 		readyAt := latest.CreatedAt.UTC().AddDate(0, 0, cooldownDays)
 		if now.UTC().Before(readyAt) {
-			// 业务日按 UTC+8 口径展示（§6 编码约定）。
+			// 业务日按 UTC+8 口径展示（编码约定）。
 			return nil, false, fmt.Errorf("%w：距上次升级考核未满 %d 天冷却期（%s 后可再次申请）",
 				errInvalidInput, cooldownDays, readyAt.In(cstZone).Format("2006-01-02"))
 		}
@@ -282,7 +282,7 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 }
 
 // loadUpgradeApplyPlayer 解析并校验自助申请主体：档案存在、资格已合格（定级为合格时已过实名门槛），
-// 并显式复核实名认证仍然有效（认证可被撤销，避免拿旧资格绕过 §6.1）。
+// 并显式复核实名认证仍然有效（认证可被撤销，避免拿旧资格绕过 ）。
 func loadUpgradeApplyPlayer(ctx context.Context, db *ent.Client, playerID int) (*ent.EsportsPlayer, error) {
 	if playerID < 1 {
 		return nil, errForbidden
@@ -308,7 +308,7 @@ func loadUpgradeApplyPlayer(ctx context.Context, db *ent.Client, playerID int) (
 	return player, nil
 }
 
-// applyPlayerUpgradeAssessment 陪玩自助申请升级考核（§7.1-02）：
+// applyPlayerUpgradeAssessment 陪玩自助申请升级考核：
 // 校验主体资格、服务量 / 评分 / 在岗时长门槛与冷却后，落一条 pending 的 upgrade 考核单。
 func applyPlayerUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*ent.EsportsAssessment, error) {
 	player, err := loadUpgradeApplyPlayer(ctx, db, playerID)
@@ -364,7 +364,7 @@ func writeUpgradeAutoTriggerCursor(ctx context.Context, db *ent.Client, cursor i
 	return err
 }
 
-// autoTriggerUpgradeAssessments 扫描达标陪玩，自动生成 pending 升级考核单（§7.2-01 系统触发）。
+// autoTriggerUpgradeAssessments 扫描达标陪玩，自动生成 pending 升级考核单（系统触发）。
 //
 // 游标推进（范式同 ledgerCursorScan）：单轮只处理游标之后的 limit 名候选（按 ID 升序），
 // 本批不足 limit 说明已扫到表尾，游标回卷 0、下一轮从头扫；否则写回本批最大 ID 续扫。

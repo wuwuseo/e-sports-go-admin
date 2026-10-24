@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// 客服代操作（§3.3）：订单须在服务中、目标陪玩须为本单服务成员、理由必填；
+// 客服代操作：订单须在服务中、目标陪玩须为本单服务成员、理由必填；
 // 事件以 actor_type=admin 留痕并记录被代操作的陪玩。
 func TestAdminServicePauseResumeOnBehalfOfPlayer(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_service_pause_admin")
@@ -72,7 +72,7 @@ func TestAdminServicePauseResumeOnBehalfOfPlayer(t *testing.T) {
 	}
 }
 
-// 争议更正（§3.3）：已结束服务段的有效 / 暂停秒数被留痕更正，事件记录前后值、停工量、责任方与原因；
+// 争议更正：已结束服务段的有效 / 暂停秒数被留痕更正，事件记录前后值、停工量、责任方与原因；
 // 非法入参被拒，进行中的服务段不可直接更正。
 func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_service_timing_correction")
@@ -155,7 +155,7 @@ func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T)
 	}
 }
 
-// 断线超阈值自动暂停（§3.3）：配置关闭或阈值内不处理；超阈值时服务段被置 paused 并写系统事件；
+// 断线超阈值自动暂停：配置关闭或阈值内不处理；超阈值时服务段被置 paused 并写系统事件；
 // 重复运行幂等。
 func TestDisconnectAutoPauseInServiceSegments(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_service_disconnect_pause")

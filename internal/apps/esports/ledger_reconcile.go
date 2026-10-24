@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 账本定时全量核验（§11.6 / §4.3 / §11.3）。
+// 账本定时全量核验。
 //
 // 账户余额不落库、一律由流水求和派生（见 schema/esports_wallet.go），所以「余额与流水对不上」
 // 在结构上不会发生；真正会静默错账的是批次级扣减与分摊引用。本任务只读扫描三类不变量：
@@ -31,7 +31,7 @@ import (
 //     （如 order / 订单号），并不指向一条 `EsportsLedgerEntry`，按四元组检索必然落空。
 //
 // 核验结果只写外盒事件与任务日志，不修改任何账本数据。
-// 每一类异常还会按账户合并成一条 ledger. 前缀的通知事件（§8.2-13，唯一出口见
+// 每一类异常还会按账户合并成一条 ledger. 前缀的通知事件（，唯一出口见
 // ledger_sum_reconcile.go 的 publishLedgerReconcileNotices），进入财务 / 超管待办。
 
 const (
@@ -68,7 +68,7 @@ type ledgerReconcileResult struct {
 	ScannedAccounts    int
 	ScannedAllocations int
 	ScannedBatches     int
-	// ScannedWalletSums 是「钱包流水求和 == 批次账本求和」维度已核验的账户数（§11.6-01）。
+	// ScannedWalletSums 是「钱包流水求和 == 批次账本求和」维度已核验的账户数。
 	ScannedWalletSums int
 	// ScanTruncated 表示已达单轮扫描上限、仍有数据未核验，下轮继续。
 	ScanTruncated bool
@@ -99,7 +99,7 @@ func reconcileLedgers(ctx context.Context, db *ent.Client, scanCap int) (ledgerR
 	if err := reconcileLedgerAllocations(ctx, db, scanCap, &result); err != nil {
 		return result, err
 	}
-	// §8.2-13：所有维度扫完后，把本轮新增的异常按账户合并、经唯一出口写成通知事件。
+	// ：所有维度扫完后，把本轮新增的异常按账户合并、经唯一出口写成通知事件。
 	// 放在最后统一出口，是因为同一账户的异常可能来自两个独立扫描阶段（余额 / 求和 / 批次 / 分摊），
 	// 逐阶段发通知会因「账户 + 小时」去重把后发现的种类吃掉。
 	if err := publishNewLedgerAnomalies(ctx, db, result.Anomalies, time.Now()); err != nil {
@@ -109,7 +109,7 @@ func reconcileLedgers(ctx context.Context, db *ent.Client, scanCap int) (ledgerR
 }
 
 // reconcileWalletBalances 逐账户核验余额不为负：登记型钱包账户（客户余额 / 陪玩猫粮），
-// 账户集合与批次账本求和核验共用同一轮扫描（§11.6-01）。
+// 账户集合与批次账本求和核验共用同一轮扫描。
 // 曾在此逐张储值卡扫描的维度随储值卡功能下线（2026-10-20）删除。
 func reconcileWalletBalances(ctx context.Context, db *ent.Client, scanCap int, result *ledgerReconcileResult) error {
 	truncated, err := ledgerCursorScan(ctx, db, ledgerCursorKeyWalletAccount, scanCap,
@@ -127,9 +127,9 @@ func reconcileWalletBalances(ctx context.Context, db *ent.Client, scanCap int, r
 				if err != nil {
 					return 0, 0, err
 				}
-				// 本账户本轮新增的异常（余额为负 + 求和不等）由 reconcileLedgers 末尾统一通知（§8.2-13）。
+				// 本账户本轮新增的异常（余额为负 + 求和不等）由 reconcileLedgers 末尾统一通知。
 				checkWalletBalanceNonNegative(result, account.AccountType.String(), strconv.Itoa(account.OwnerID), balance)
-				// §11.6-01：同一账户顺带核验「钱包流水求和 == 批次账本求和」（账户集合相同，不额外扫描）。
+				// ：同一账户顺带核验「钱包流水求和 == 批次账本求和」（账户集合相同，不额外扫描）。
 				if err = scanWalletLedgerSum(ctx, db, result,
 					account.AccountType.String(), strconv.Itoa(account.OwnerID)); err != nil {
 					return 0, 0, err
@@ -229,7 +229,7 @@ func ledgerAccountKey(accountType, accountID string) string {
 	return accountType + "\x00" + accountID
 }
 
-// 账本异常的通知出口调用点（§8.2-13）：
+// 账本异常的通知出口调用点：
 //
 // 核验发现的每一类异常（负余额 / 批次缺失 / 批次超额分摊 / 钱包流水未登记 / 钱包与批次求和不一致）
 // 都必须经 ledger_sum_reconcile.go 的 publishLedgerReconcileNotices 写出通知事件，
@@ -277,7 +277,7 @@ func (g ledgerNoticeGroups) publish(ctx context.Context, db *ent.Client, now tim
 }
 
 // publishNewLedgerAnomalies 把一次账户核验新增的异常（可能跨多个账户、多种 kind）
-// 按账户合并后统一交给唯一通知出口，是 §8.2-13 的共用调用点。
+// 按账户合并后统一交给唯一通知出口，是 的共用调用点。
 func publishNewLedgerAnomalies(ctx context.Context, db *ent.Client, anomalies []ledgerAnomaly, now time.Time) error {
 	if len(anomalies) == 0 {
 		return nil
@@ -296,7 +296,7 @@ type ledgerQuad [4]string
 // 再对每个批次做一次账本查询，避免逐条重复聚合。批次条目不存在（batchSum 为 0）或
 // 分摊额超过批次金额都会报出。分摊维度用持久游标推进，连续多轮运行扫完整圈。
 // 两类异常（批次缺失 / 批次超额分摊）与其他维度一样，由 reconcileLedgers 末尾按账户合并后
-// 走同一个通知出口（§8.2-13）。
+// 走同一个通知出口。
 func reconcileLedgerAllocations(ctx context.Context, db *ent.Client, scanCap int, result *ledgerReconcileResult) error {
 	allocatedByBatch := map[string]int64{}
 	batchQuads := map[string]ledgerQuad{}

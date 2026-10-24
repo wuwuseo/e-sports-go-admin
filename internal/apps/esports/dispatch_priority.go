@@ -18,8 +18,8 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 优先派单权（§5.4）：按游戏分区授予的**独占优先通知**，不是排序加权；仅决定优先通知窗口内
-// 谁能先看到并接单，抢单大厅在窗口结束后对所有陪玩开放。名单名次不参与派单排序（§5.2-04）。
+// 优先派单权：按游戏分区授予的**独占优先通知**，不是排序加权；仅决定优先通知窗口内
+// 谁能先看到并接单，抢单大厅在窗口结束后对所有陪玩开放。名单名次不参与派单排序。
 const (
 	// 每游戏每期名额上限；缺失或非法时回落默认值。
 	dispatchPriorityQuotaKey     = "app.esports.dispatch_priority_quota"
@@ -81,7 +81,7 @@ func validDispatchPrioritySource(source string) bool {
 	return false
 }
 
-// dispatchPriorityInput 名单录入入参（§5.4）。next_period=true 表示预生成下一期名单。
+// dispatchPriorityInput 名单录入入参。next_period=true 表示预生成下一期名单。
 type dispatchPriorityInput struct {
 	Game       string `json:"game"`
 	PlayerID   int    `json:"player_id"`
@@ -170,7 +170,7 @@ func grantDispatchPriority(ctx context.Context, db *ent.Client, adminID int, in 
 	return grant, nil
 }
 
-// revokeDispatchPriority 中途人工移出名单（§5.4「中途可人工增减」）。
+// revokeDispatchPriority 中途人工移出名单（「中途可人工增减」）。
 func revokeDispatchPriority(ctx context.Context, db *ent.Client, adminID, id int, reason string, now time.Time) (*ent.EsportsDispatchPriorityGrant, error) {
 	reason = strings.TrimSpace(reason)
 	if id < 1 || reason == "" || len([]rune(reason)) > 255 {
@@ -214,9 +214,9 @@ func listDispatchPriority(ctx context.Context, db *ent.Client, game, status stri
 	).Limit(limit).All(ctx)
 }
 
-// ── 陪玩端「我的优先派单权」状态查询（§6.1-06） ──
+// ── 陪玩端「我的优先派单权」状态查询 ──
 //
-// 与 §5.4-09 的通知列表互补：通知列表回答「现在有哪张单只通知了我」，本状态回答
+// 与 的通知列表互补：通知列表回答「现在有哪张单只通知了我」，本状态回答
 // 「我这一期是否在名单里、怎么来的、有效期到什么时候、这个游戏分区还剩几个名额」。
 
 // dispatchPriorityHolding 是一条持权记录。
@@ -249,7 +249,7 @@ type dispatchPriorityGameQuota struct {
 	Remaining int    `json:"remaining"`
 }
 
-// playerPriorityStatusView 是陪玩端优先派单权状态（§6.1-06）。
+// playerPriorityStatusView 是陪玩端优先派单权状态。
 type playerPriorityStatusView struct {
 	PlayerID int `json:"player_id"`
 	// Holding 当前是否有生效中的优先派单权（pending 的下一期名单不算持有）。
@@ -258,7 +258,7 @@ type playerPriorityStatusView struct {
 	Games    []dispatchPriorityGameQuota `json:"games"`
 }
 
-// playerPriorityStatus 查询陪玩本人的优先派单权状态（§6.1-06）：
+// playerPriorityStatus 查询陪玩本人的优先派单权状态：
 //   - 只返回未过期的 pending / active 条目（revoked / expired 属于历史，不在「当前是否持有」范围内）；
 //   - Active 同时要求 now ∈ [period_start, period_end)，避免周期切换点前后把未生效名单误报为生效；
 //   - Quota 取 app.esports.dispatch_priority_quota（缺失/非法回落 3），Used 按「同游戏同 period_start」的
@@ -357,7 +357,7 @@ func priorityQuotaKey(game string, periodStart time.Time) string {
 	return game + "|" + periodStart.UTC().Format(time.RFC3339)
 }
 
-// rebuildDispatchPriority 周期重算（§5.4）：过期名单转 expired、到点名单转 active，
+// rebuildDispatchPriority 周期重算：过期名单转 expired、到点名单转 active，
 // 并在切换点前为下一期预生成名单。获得方式为排名制/积分制/达标制的名单按各自口径自动计算
 // （见 autoComputeDispatchPriority），轮换制与人工指定仍延续本期名单。返回处理的条目数。
 func rebuildDispatchPriority(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
@@ -435,7 +435,7 @@ func rebuildDispatchPriority(ctx context.Context, db *ent.Client, now time.Time,
 				nominees = append(nominees, priorityNominee{playerID: grant.PlayerID, rank: i + 1})
 			}
 		} else {
-			// 按本游戏分区取名额：候选池在分区内收窄后再排名（§5.4），避免其它游戏占用名额。
+			// 按本游戏分区取名额：候选池在分区内收窄后再排名，避免其它游戏占用名额。
 			nominees, err = autoComputeDispatchPriority(ctx, db, source, key.game, quota)
 			if err != nil {
 				return total, err
@@ -495,7 +495,7 @@ func orderGameWith(ctx context.Context,
 	return strings.TrimSpace(category.Game), nil
 }
 
-// dispatchCandidate 是派单候选（§5.5 首版）。字段同时用于排序诊断，便于客服理解排序依据。
+// dispatchCandidate 是派单候选（首版）。字段同时用于排序诊断，便于客服理解排序依据。
 type dispatchCandidate struct {
 	PlayerID      int    `json:"player_id"`
 	DisplayName   string `json:"display_name"`
@@ -510,30 +510,30 @@ type dispatchCandidate struct {
 	RatingSamples      int     `json:"rating_samples"`
 	RatingInsuffici    bool    `json:"rating_insufficient"`
 	ActiveSeats        int     `json:"active_seats"`
-	// 历史合作：该陪玩与该客户的历史已完成订单数（§5.5 加分项）。
+	// 历史合作：该陪玩与该客户的历史已完成订单数（加分项）。
 	HistoryCompleted int `json:"history_completed"`
 	// 分区等级：当前生效优先派单权名单内的排名，0 表示不在名单或未排名。
-	// 仅作展示（客服了解名单情况），不参与排序（§5.2-04 / §5.4-03）。
+	// 仅作展示（客服了解名单情况），不参与排序。
 	ZoneRank int `json:"zone_rank"`
-	// 距客户的直线距离（米，§5.5-03）；0 表示客户或本人未采集定位（未知，不加分）。
+	// 距客户的直线距离（米，）；0 表示客户或本人未采集定位（未知，不加分）。
 	DistanceMeters int64 `json:"distance_meters"`
-	// 是否与客户档案同一天时区（§5.5-03）；任一方未配置时区时为 false。
+	// 是否与客户档案同一天时区；任一方未配置时区时为 false。
 	TimezoneMatched bool `json:"timezone_matched"`
-	// 合成排序分（§5.5）：各分量按配置权重加权，越大越靠前；仅作排序诊断。
+	// 合成排序分：各分量按配置权重加权，越大越靠前；仅作排序诊断。
 	Score int `json:"score"`
 }
 
-// dispatchCandidates 为订单列出**当前可派单对象**（§5.5 首版）。
+// dispatchCandidates 为订单列出**当前可派单对象**（首版）。
 //
-// 可见性由优先通知窗口决定（§5.4 业务口径）：
+// 可见性由优先通知窗口决定（业务口径）：
 //   - 订单处于优先通知中 → 只返回**被通知的名单内陪玩**（其他人在此也看不到，与抢单大厅一致）；
 //   - 窗口已结束（超时 / 全部拒绝 / 客服提前释放）或本就没有名单 → 返回全部合格在线陪玩。
 //
 // 硬性条件：资质 qualified、在线（与人工指派的门槛一致）；已在该订单席位上的陪玩不重复列出。
 // 排序：客服指定陪玩（preferredPlayerID）最前；其余按「评分 / 在途席位均衡 / 历史合作 /
-// 客户偏好 / 距离 / 时区」以可配置权重合成排序分降序（§5.5），同分按档案 ID 稳定兜底。
-// 优先派单权名单名次**不参与排序**（§5.2-04 / §5.4-03），只在候选上保留 ZoneRank 展示字段。
-// 距离与时区（§5.5-03）以订单所属客户档案的定位/时区为参考点，权重默认 0（不参与排序）。
+// 客户偏好 / 距离 / 时区」以可配置权重合成排序分降序，同分按档案 ID 稳定兜底。
+// 优先派单权名单名次**不参与排序**，只在候选上保留 ZoneRank 展示字段。
+// 距离与时区以订单所属客户档案的定位/时区为参考点，权重默认 0（不参与排序）。
 //
 // ponytail: 距离为球面直线距离，未接实时轨迹/导航距离；真实推送未接入。
 // 评分与历史合作按候选逐个聚合，候选量级大时可改为一次批量聚合。
@@ -618,7 +618,7 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 	}
 	requiredLevel := order.RequiredLevel
 	levels := skillLevels(ctx, db)
-	// 批量收集排序加分项所需数据（§5.5）：历史合作与分区等级、可配置权重。
+	// 批量收集排序加分项所需数据：历史合作与分区等级、可配置权重。
 	playerIDs := make([]int, 0, len(players))
 	for _, player := range players {
 		playerIDs = append(playerIDs, player.ID)
@@ -632,7 +632,7 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		return nil, err
 	}
 	weights := dispatchRankWeightsFor(ctx, db)
-	// §5.5-03：距离/时区的参考点是订单所属客户档案；客户不存在或无定位时不产生任何加分。
+	// ：距离/时区的参考点是订单所属客户档案；客户不存在或无定位时不产生任何加分。
 	var customerTZ string
 	customerLatE6, customerLonE6 := 0, 0
 	if order.CustomerID > 0 {
@@ -655,7 +655,7 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if occupied[player.ID] {
 			continue
 		}
-		// §5.5-01：连接正常（在线 + 心跳新鲜度）；有在途订单的保护异常陪玩保留资格（§6.4-01）。
+		// ：连接正常（在线 + 心跳新鲜度）；有在途订单的保护异常陪玩保留资格。
 		eligible, err := playerEligibleForDispatch(ctx, db, player, now)
 		if err != nil {
 			return nil, err
@@ -663,11 +663,11 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if !eligible {
 			continue
 		}
-		// 游戏分区权限 + 技能等级（§5.5）：不满足硬性条件的陪玩不出现在候选池。
+		// 游戏分区权限 + 技能等级：不满足硬性条件的陪玩不出现在候选池。
 		if err := checkPlayerGameLevel(levels, player, game, requiredLevel); err != nil {
 			continue
 		}
-		// §6.4-06：服务时段外 / 可接单价范围外的陪玩不作为候选（不给注定接不了的单）。
+		// ：服务时段外 / 可接单价范围外的陪玩不作为候选（不给注定接不了的单）。
 		if !playerServiceSlotAllows(player, now) || !playerAcceptsOrderPrice(player, order) {
 			continue
 		}
@@ -681,8 +681,8 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		if err != nil {
 			return nil, err
 		}
-		// 合成排序分（§5.5）：评分 / 在途席位均衡 / 历史合作 / 客户偏好。
-		// 优先派单权（名单名次）不参与排序（§5.2-04），只保留 ZoneRank 展示字段。
+		// 合成排序分：评分 / 在途席位均衡 / 历史合作 / 客户偏好。
+		// 优先派单权（名单名次）不参与排序，只保留 ZoneRank 展示字段。
 		ratingScore := 0
 		if !rating.Insufficient {
 			ratingScore = int(rating.Average * 20) // 均分 1~5 → 0~100
@@ -692,7 +692,7 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 			preferenceScore = 100
 		}
 		zoneRank := zoneRanks[player.ID]
-		// §5.5-03：距离/时区加分（权重为 0 时对排序无影响，但展示字段照常给出）。
+		// ：距离/时区加分（权重为 0 时对排序无影响，但展示字段照常给出）。
 		distanceMeters, located := dispatchDistanceMeters(player.LatitudeE6, player.LongitudeE6,
 			customerLatE6, customerLonE6)
 		if !located {

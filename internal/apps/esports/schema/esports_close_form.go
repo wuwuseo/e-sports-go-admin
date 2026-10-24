@@ -13,7 +13,7 @@ import (
 // CloseFormFieldBinding 定义在 schematier 包以避免与主 schema 包同名的生成代码导入冲突；此处以别名保留类型名。
 type CloseFormFieldBinding = schematier.CloseFormFieldBinding
 
-// EsportsCloseFormField 是结单表单的字段库（§3.4 结单表单设计器首版）。
+// EsportsCloseFormField 是结单表单的字段库（结单表单设计器首版）。
 // 字段可被多个模板复用；字段库原地编辑（不做版本化），用 enabled 控制是否可被新模板引用。
 // ponytail: 拖拽画布与任意坐标、字段级联与条件显示、字段值的历史修订均未实现。
 type EsportsCloseFormField struct{ ent.Schema }
@@ -22,7 +22,7 @@ func (EsportsCloseFormField) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("key").NotEmpty().MaxLen(48).Immutable().StructTag(`json:"key"`),
 		field.String("label").NotEmpty().MaxLen(64).StructTag(`json:"label"`),
-		// field_type 覆盖 §3.4 自定义字段类型：文本 / 数字 / 金额只读 / 单选 / 多选 / 日期时间 / 图片 / 开关 / 关联。
+		// field_type 覆盖 自定义字段类型：文本 / 数字 / 金额只读 / 单选 / 多选 / 日期时间 / 图片 / 开关 / 关联。
 		field.Enum("field_type").
 			Values("text", "number", "money", "select", "multiselect", "datetime", "image", "switch", "reference").
 			Default("text").StructTag(`json:"field_type"`),
@@ -46,8 +46,8 @@ func (EsportsCloseFormField) Indexes() []ent.Index {
 	}
 }
 
-// EsportsCloseFormTemplate 是结单表单模板（§3.4）：按 全局 / 游戏分区 / SKU + 金额区间绑定一组字段。
-// 模板不可原地修改：改模板＝新增一条递增 version 的新行，旧行转 history（§12.4 同款版本管理）。
+// EsportsCloseFormTemplate 是结单表单模板：按 全局 / 游戏分区 / SKU + 金额区间绑定一组字段。
+// 模板不可原地修改：改模板＝新增一条递增 version 的新行，旧行转 history（同款版本管理）。
 type EsportsCloseFormTemplate struct{ ent.Schema }
 
 // CloseFormFieldDefinition 存放在独立包，避免 ent 生成代码的 schema 包名冲突。
@@ -58,7 +58,7 @@ func (EsportsCloseFormTemplate) Fields() []ent.Field {
 		field.String("code").NotEmpty().MaxLen(48).Immutable().StructTag(`json:"code"`),
 		field.String("name").NotEmpty().MaxLen(64).StructTag(`json:"name"`),
 		// scope 决定适用范围：global 全局 / game 按游戏分区 / sku 按具体 SKU。
-		// scope 末尾追加 order_type（§3.4-07）：按订单类型（即时/预约）绑定模板，
+		// scope 末尾追加 order_type：按订单类型（即时/预约）绑定模板，
 		// 此时 scope_key 取 appointment_status 的取值（instant / request / confirmed）；既有取值保留。
 		field.Enum("scope").Values("global", "game", "sku", "order_type").Default("global").StructTag(`json:"scope"`),
 		// scope=game 时为游戏分区名；scope=sku 时为 SKU 的 code。
@@ -85,7 +85,7 @@ func (EsportsCloseFormTemplate) Indexes() []ent.Index {
 	}
 }
 
-// EsportsCloseFormSnapshot 记录一次结单按模板填写的字段值（§3.4）：模板版本与字段值一并留痕，
+// EsportsCloseFormSnapshot 记录一次结单按模板填写的字段值：模板版本与字段值一并留痕，
 // 便于结单审核与事后追溯；同订单可能有多条（复核驳回后可重新结单）。
 type EsportsCloseFormSnapshot struct{ ent.Schema }
 

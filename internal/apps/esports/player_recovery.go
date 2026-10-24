@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 陪玩追偿明细（§13.4）：客户额外赔付由陪玩承担时另建的扣回单。
+// 陪玩追偿明细：客户额外赔付由陪玩承担时另建的扣回单。
 // 与「退款冲回分成」相互独立：冲回是分成账上的负向明细（影响后续结算），
 // 追偿则直接从陪玩猫粮（已结算可提现余额）扣回。
 // 流程：售后执行时按方案追偿金额生成（pending）→ 由非申请人审批（approved）→ 扣回（recovered）或驳回（rejected）。
@@ -21,7 +21,7 @@ import (
 // recoveryNo 生成追偿单号，前缀 PR。
 func recoveryNo() string { return "PR" + uuid.NewString() }
 
-// createPlayerRecoveryIn 事务内创建追偿明细（待审批）；供售后执行路径调用（§13.4）。
+// createPlayerRecoveryIn 事务内创建追偿明细（待审批）；供售后执行路径调用。
 func createPlayerRecoveryIn(ctx context.Context, tx *ent.Tx, playerID, afterSaleID, orderID int,
 	amountCents int64, reason string, adminID int) (*ent.EsportsPlayerRecovery, error) {
 	reason = strings.TrimSpace(reason)
@@ -34,7 +34,7 @@ func createPlayerRecoveryIn(ctx context.Context, tx *ent.Tx, playerID, afterSale
 		SetRequestedByAdminID(adminID).Save(ctx)
 }
 
-// createRecoveryFromAfterSale 售后执行时按方案生成追偿明细（§13.4）：仅在方案填了追偿金额时创建。
+// createRecoveryFromAfterSale 售后执行时按方案生成追偿明细：仅在方案填了追偿金额时创建。
 func createRecoveryFromAfterSale(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfterSale,
 	adminID int) error {
 	if item.RecoveryCents <= 0 || item.RecoveryPlayerID == nil {

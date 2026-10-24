@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// listPlayerCreditEventsHandler 管理端查询陪玩信用记载（§13.5），可按陪玩与状态过滤。
+// listPlayerCreditEventsHandler 管理端查询陪玩信用记载，可按陪玩与状态过滤。
 func listPlayerCreditEventsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -25,7 +25,7 @@ func listPlayerCreditEventsHandler(c fiber.Ctx) error {
 	return reply(c, events)
 }
 
-// reviewPlayerCreditEventHandler 复核陪玩信用记载（§13.5）：确认责任并暂停接单，或判定不构成责任。
+// reviewPlayerCreditEventHandler 复核陪玩信用记载：确认责任并暂停接单，或判定不构成责任。
 func reviewPlayerCreditEventHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -46,7 +46,7 @@ func reviewPlayerCreditEventHandler(c fiber.Ctx) error {
 	return reply(c, event)
 }
 
-// playerCreditEventsHandler 陪玩端查询本人信用记载（§13.5），只读且只看本人。
+// playerCreditEventsHandler 陪玩端查询本人信用记载，只读且只看本人。
 func playerCreditEventsHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {

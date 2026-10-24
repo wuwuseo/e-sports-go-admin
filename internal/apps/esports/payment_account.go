@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 收款账户与收款方式启停（§4.3）：
+// 收款账户与收款方式启停：
 // 1. 收款账户必须为工作室主体名下，经财务审核后才可启用；待审核 / 驳回 / 停用账户不可用于核销；
 // 2. 客服可提交账户资料但不可自行启用（启用需财务权限，路由层以独立权限码约束）；
 // 3. 各类收款方式可在后台按渠道启停，停用后不接受新的线下到账凭证。
@@ -21,7 +21,7 @@ import (
 var externalPaymentChannelValues = []string{"wechat_work", "merchant_qr", "corporate_transfer"}
 
 // internalPaymentChannelValues 是站内扣款方式（余额）：无收款账户，但也须纳入启停
-// 与核销开关口径（§4.3-08），停用后不再接受以该方式收款。
+// 与核销开关口径，停用后不再接受以该方式收款。
 // 储值卡（stored_value_card）已随该功能下线（2026-10-20），不再作为可启停的站内方式。
 var internalPaymentChannelValues = []string{"customer_balance"}
 
@@ -40,7 +40,7 @@ func validPaymentChannel(channel string) bool {
 	return false
 }
 
-// toggleablePaymentChannel 判断该收款方式是否可被后台启停（含站内的余额，§4.3-08）。
+// toggleablePaymentChannel 判断该收款方式是否可被后台启停（含站内的余额，）。
 func toggleablePaymentChannel(channel string) bool {
 	for _, value := range paymentChannelValues {
 		if value == channel {
@@ -128,12 +128,12 @@ type paymentAccountInput struct {
 	SubmitNote  string `json:"submit_note"`
 }
 
-// paymentSubjectWhitelistKey 是允许作为收款主体的主体名白名单（逗号分隔，§4.3-07）。
-// 未配置（缺行 / 留空 / 全空白）时**一律拒绝**：默认拒绝是 §4.3-07 的落地口径，
+// paymentSubjectWhitelistKey 是允许作为收款主体的主体名白名单（逗号分隔，）。
+// 未配置（缺行 / 留空 / 全空白）时**一律拒绝**：默认拒绝是 的落地口径，
 // 否则任何主体名都能提交、再经财务审核被启用为收款账户，等于该控制默认关闭。
 const paymentSubjectWhitelistKey = "app.esports.payment_subject_whitelist"
 
-// corporateTransferThresholdKey 是「大额订单必须走对公转账」的金额阈值（分，§4.3-05）。
+// corporateTransferThresholdKey 是「大额订单必须走对公转账」的金额阈值（分，）。
 // 缺省 0 表示不限制渠道；配置为正整数后，金额达到阈值的订单只能用对公转账收款。
 const corporateTransferThresholdKey = "app.esports.corporate_transfer_threshold_cents"
 
@@ -161,7 +161,7 @@ func splitConfigList(raw string) []string {
 	return out
 }
 
-// ensurePaymentSubjectAllowed 校验收款主体落在白名单内（§4.3-07），fail-closed：
+// ensurePaymentSubjectAllowed 校验收款主体落在白名单内，fail-closed：
 // 白名单未配置（缺行 / 留空 / 全空白）时直接拒绝并提示配置键，避免任意主体名经财务审核被启用为收款账户；
 // 白名单非空时主体名须与名单项完全匹配。提交（createPaymentAccount）与批准（reviewPaymentAccount）都须走本校验。
 func ensurePaymentSubjectAllowed(ctx context.Context, db *ent.Client, subject string) error {
@@ -178,7 +178,7 @@ func ensurePaymentSubjectAllowed(ctx context.Context, db *ent.Client, subject st
 	return fmt.Errorf("%w：收款主体「%s」不在工作室主体白名单内", errInvalidInput, subject)
 }
 
-// corporateTransferThresholdCents 读取大额走对公的阈值（分，§4.3-05）。未配置或非法返回 0（不限制）。
+// corporateTransferThresholdCents 读取大额走对公的阈值（分，）。未配置或非法返回 0（不限制）。
 func corporateTransferThresholdCents(ctx context.Context, db *ent.Client) int64 {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(corporateTransferThresholdKey)).Only(ctx)
 	if err != nil {
@@ -191,7 +191,7 @@ func corporateTransferThresholdCents(ctx context.Context, db *ent.Client) int64 
 	return value
 }
 
-// ensureCorporateChannelForAmount 大额订单渠道约束（§4.3-05）：金额达到阈值时只允许对公转账，
+// ensureCorporateChannelForAmount 大额订单渠道约束：金额达到阈值时只允许对公转账，
 // 避免大额资金走企微 / 商户码等小额渠道。阈值未配置时不限制。
 func ensureCorporateChannelForAmount(ctx context.Context, db *ent.Client, channel string, amountCents int64) error {
 	threshold := corporateTransferThresholdCents(ctx, db)
@@ -202,7 +202,7 @@ func ensureCorporateChannelForAmount(ctx context.Context, db *ent.Client, channe
 		errInvalidInput, threshold, customerPaymentMethodName[channel])
 }
 
-// createPaymentAccount 提交收款账户资料（§4.3）：统一进入待财务审核，不允许直接启用。
+// createPaymentAccount 提交收款账户资料：统一进入待财务审核，不允许直接启用。
 func createPaymentAccount(ctx context.Context, db *ent.Client, in paymentAccountInput,
 	adminID int, now time.Time) (*ent.EsportsPaymentAccount, error) {
 	in.Channel = strings.TrimSpace(in.Channel)
@@ -223,7 +223,7 @@ func createPaymentAccount(ctx context.Context, db *ent.Client, in paymentAccount
 	if (in.Channel == "merchant_qr" || in.Channel == "wechat_work") && in.QrURL == "" && in.AccountNo == "" {
 		return nil, errInvalidInput
 	}
-	// §4.3-07：收款主体须为工作室主体之一（fail-closed：白名单未配置时不接受任何主体）。
+	// ：收款主体须为工作室主体之一（fail-closed：白名单未配置时不接受任何主体）。
 	if err := ensurePaymentSubjectAllowed(ctx, db, in.SubjectName); err != nil {
 		return nil, err
 	}
@@ -242,8 +242,8 @@ func createPaymentAccount(ctx context.Context, db *ent.Client, in paymentAccount
 	return item, nil
 }
 
-// reviewPaymentAccount 财务审核收款账户（§4.3）：待审核 → 启用 / 驳回；提交人不得自审。
-// 批准前按**当前**收款主体白名单重新校验（§4.3-07），白名单在提交后被改小 / 清空时不得过审。
+// reviewPaymentAccount 财务审核收款账户：待审核 → 启用 / 驳回；提交人不得自审。
+// 批准前按**当前**收款主体白名单重新校验，白名单在提交后被改小 / 清空时不得过审。
 func reviewPaymentAccount(ctx context.Context, db *ent.Client, id, adminID int,
 	approve bool, resolution string, now time.Time) (*ent.EsportsPaymentAccount, error) {
 	resolution = strings.TrimSpace(resolution)
@@ -263,7 +263,7 @@ func reviewPaymentAccount(ctx context.Context, db *ent.Client, id, adminID int,
 	if !approve && resolution == "" {
 		return nil, errInvalidInput
 	}
-	// §4.3-07：批准时必须按当前白名单重新校验主体。提交之后白名单可能被改小或清空，
+	// ：批准时必须按当前白名单重新校验主体。提交之后白名单可能被改小或清空，
 	// 若只在提交时校验，旧资料仍会被过审启用为收款账户；驳回路径不需要该校验。
 	if approve {
 		if err = ensurePaymentSubjectAllowed(ctx, db, item.SubjectName); err != nil {

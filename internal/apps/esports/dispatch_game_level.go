@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/ent/esportssku"
 )
 
-// checkPlayerGameLevel 校验陪玩游戏分区权限与技能等级（§5.5 硬性条件）。
+// checkPlayerGameLevel 校验陪玩游戏分区权限与技能等级（硬性条件）。
 // games 为空表示不限分区；game 为空（订单解析不到分区）跳过权限校验；
 // requiredLevel 为空表示订单未设门槛，跳过等级校验；
 // 门槛编码不在当前等级配置（如配置删档后的历史单）时 fail closed，不放行任何陪玩；
@@ -41,12 +41,12 @@ func checkPlayerGameLevel(levels []SkillLevel, player *ent.EsportsPlayer, game, 
 	return nil
 }
 
-// ensureOrderSkuDispatchable 校验订单绑定的 SKU 快照在派单时仍可售（§5.9-02）。
+// ensureOrderSkuDispatchable 校验订单绑定的 SKU 快照在派单时仍可售。
 //
 // 派单事务内必须先过这道关：SKU 缺失时 orderGameIn 会返回空游戏分区，进而让
-// checkPlayerGameLevel 静默跳过分区权限校验，等于绕过 §5.5 的硬性条件。
+// checkPlayerGameLevel 静默跳过分区权限校验，等于绕过 的硬性条件。
 //
-//   - sku_id <= 0：管理员补录的无 SKU 历史单（§15.6），跳过校验；
+//   - sku_id <= 0：管理员补录的无 SKU 历史单，跳过校验；
 //   - SKU 存在：status 必须为 on_sale；draft / off_sale 一律拒绝（停服走 SKU 停服流程单独处置）；
 //   - SKU 缺失：仅当订单带下单时的 SKU 编号快照（sku_code 非空 = 常规绑定单）时拒绝；
 //     无快照的历史单按其原有口径继续（无法回溯绑定关系）。
@@ -71,7 +71,7 @@ func ensureOrderSkuDispatchable(ctx context.Context, tx *ent.Tx, order *ent.Espo
 	return nil
 }
 
-// ── §6.4-06 接单配置生效逻辑（服务时段 / 可接单价 / 固排开关与时段） ──
+// ── 接单配置生效逻辑（服务时段 / 可接单价 / 固排开关与时段） ──
 
 // playerMinuteOfDay 返回 now 在业务时区（UTC+8）的当日分钟数（0~1439）。
 // schema 的服务时段字段即按「UTC+8 当日分钟数」定义，因此统一用 UTC+8，不读陪玩时区，
@@ -98,7 +98,7 @@ func withinMinuteWindow(minute, start, end int) bool {
 	return minute >= start || minute < end
 }
 
-// playerServiceSlotAllows 服务时段（§6.4-06）：未配置（0/0）恒为 true；
+// playerServiceSlotAllows 服务时段：未配置（0/0）恒为 true；
 // 配置后只有落在时段内才允许被派单（候选池、优先通知、人工指派三处同口径）。
 func playerServiceSlotAllows(player *ent.EsportsPlayer, now time.Time) bool {
 	if player == nil {
@@ -108,7 +108,7 @@ func playerServiceSlotAllows(player *ent.EsportsPlayer, now time.Time) bool {
 		player.ServiceSlotStartMinute, player.ServiceSlotEndMinute)
 }
 
-// playerFixedTeamSlotAllows 固排时段（§6.4-06）：
+// playerFixedTeamSlotAllows 固排时段：
 //   - fixed_team_enabled=false（schema 默认）→ 不限时段，沿用既有固排行为（存量陪玩不受影响）；
 //   - 开启后按固排时段 [start, end) 限制，0/0 表示不限时段。
 func playerFixedTeamSlotAllows(player *ent.EsportsPlayer, now time.Time) bool {
@@ -135,7 +135,7 @@ func orderPerSeatPriceCents(order *ent.EsportsOrder) int64 {
 	return order.PayableCents / int64(seats)
 }
 
-// playerAcceptsOrderPrice 可接单价范围（§6.4-06）：0 表示该侧不限；两侧都为 0 即不限价。
+// playerAcceptsOrderPrice 可接单价范围：0 表示该侧不限；两侧都为 0 即不限价。
 func playerAcceptsOrderPrice(player *ent.EsportsPlayer, order *ent.EsportsOrder) bool {
 	if player == nil || order == nil {
 		return false
@@ -150,7 +150,7 @@ func playerAcceptsOrderPrice(player *ent.EsportsPlayer, order *ent.EsportsOrder)
 	return true
 }
 
-// playerAcceptsDispatchTerms 汇总 §6.4-06 的接单配置判定，返回中文业务错误便于客服定位：
+// playerAcceptsDispatchTerms 汇总 的接单配置判定，返回中文业务错误便于客服定位：
 // 服务时段外、可接单价范围外都不允许被派单。
 func playerAcceptsDispatchTerms(player *ent.EsportsPlayer, order *ent.EsportsOrder, now time.Time) error {
 	if !playerServiceSlotAllows(player, now) {

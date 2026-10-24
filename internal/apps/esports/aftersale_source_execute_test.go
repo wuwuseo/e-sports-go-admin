@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// newSourceRefundAfterSale 构造一张非订单来源、已进入待审批的退款售后（§13.3 全流程前半段）。
+// newSourceRefundAfterSale 构造一张非订单来源、已进入待审批的退款售后（全流程前半段）。
 func newSourceRefundAfterSale(t *testing.T, db *ent.Client, sourceType string, sourceID int,
 	refundCents int64, handler int, now time.Time) *ent.EsportsAfterSale {
 	t.Helper()

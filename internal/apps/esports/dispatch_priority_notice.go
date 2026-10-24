@@ -16,12 +16,12 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 优先派单权「独占优先通知」窗口（§5.4 业务口径）。
+// 优先派单权「独占优先通知」窗口（业务口径）。
 //
 // 与功能列表原文（「排序加权、不是独占、抢单大厅不受影响」）不同，业务口径为：
 //   - 订单进入待派单时，若该游戏分区存在生效名单，则**只通知名单内陪玩**（其他人在抢单大厅看不到这张单）；
 //   - 名单内有人接下即成交；名单内**全部拒绝**，或**超过配置的通知时长**，订单才**释放到抢单大厅**给所有人抢；
-//   - 释放后的落点按席位数区分（§5.6-03）：单席订单转 grabbing，与普通抢单单完全一致，名单不再有特权；
+//   - 释放后的落点按席位数区分：单席订单转 grabbing，与普通抢单单完全一致，名单不再有特权；
 //     多席订单首版不进大厅，释放只闭合窗口并保持 pending_dispatch，继续由客服指派。
 const (
 	// 优先通知时长（分钟）：窗口内只有名单内陪玩可见并可接单。
@@ -32,7 +32,7 @@ const (
 	dispatchReleaseReasonDeclined = "名单内全部拒绝"
 	dispatchReleaseReasonCallback = "名单内拒绝后回退待派单"
 	dispatchReleaseReasonStaff    = "客服提前释放"
-	// 没有优先名单（或窗口已闭合）的普通待派单订单，由客服发布到抢单大厅（§5.2 / §5.6）。
+	// 没有优先名单（或窗口已闭合）的普通待派单订单，由客服发布到抢单大厅。
 	dispatchReleaseReasonPublish = "客服发布到抢单大厅"
 	// 名单内陪玩接单：窗口闭合，订单直接进入已接单。
 	dispatchReleaseReasonAccepted = "名单内陪玩已接单"
@@ -108,7 +108,7 @@ func dispatchPriorityWindowOpen(order *ent.EsportsOrder, now time.Time) bool {
 		order.PriorityNoticeUntil != nil && now.UTC().Before(*order.PriorityNoticeUntil)
 }
 
-// onOrderEnteredPendingDispatch 订单进入待派单时的统一入口（§5.4）：
+// onOrderEnteredPendingDispatch 订单进入待派单时的统一入口：
 //   - 订单有客户指定陪玩（preferred_player_id）→ 不开窗，直接留在待派单池由客服指派；
 //   - 该游戏分区有生效名单且该订单此前未通知过 → 开窗，只通知名单内陪玩；
 //   - 该订单此前已通知过（名单内拒绝后回退到待派单）→ 直接释放到大厅，避免名单内反复拒绝来回循环；
@@ -123,7 +123,7 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingDispatch {
 		return nil
 	}
-	// §5.9：首次进入待派单池的时间点（只写一次，后续回退不覆盖）。
+	// ：首次进入待派单池的时间点（只写一次，后续回退不覆盖）。
 	firstPooled, err := markOrderTimelineIn(ctx, tx, orderID, timelineFirstPooled, now)
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 	if _, err = reopenDeadDispatchSeatsForRedispatch(ctx, tx, order.ID); err != nil {
 		return err
 	}
-	// §5.9-01：「进入待派单池」是独立事件，与「发出邀请」「成员确认」「可以开工」区分开，
+	// ：「进入待派单池」是独立事件，与「发出邀请」「成员确认」「可以开工」区分开，
 	// 且与 first_pooled_at 一样只写一次。
 	//
 	// 版本占用说明：调用方在本事务内已经/即将用 order.Version+1 登记自己的事件
@@ -161,7 +161,7 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 			return err
 		}
 	}
-	// 客户指定陪玩：客户/客服已明确人选，直接走指派流程，不进入优先通知窗口（§5.4）。
+	// 客户指定陪玩：客户/客服已明确人选，直接走指派流程，不进入优先通知窗口。
 	if order.PreferredPlayerID != nil && *order.PreferredPlayerID > 0 {
 		return nil
 	}
@@ -248,7 +248,7 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 }
 
 // activePriorityPlayerIDs 取某游戏分区当前生效名单里**当前可接单**的陪玩 ID。
-// 开窗前逐项按 §5.5 硬性条件过滤：资质、连接正常（在线 + 心跳新鲜度）、游戏分区权限、
+// 开窗前逐项按 硬性条件过滤：资质、连接正常（在线 + 心跳新鲜度）、游戏分区权限、
 // 技能等级（requiredLevel）与并发/每日接单上限；全部不可接则返回空列表，调用方不开窗，
 // 订单按常规待派单流程处理，避免名单成员收到注定接不了的通知。
 func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string,
@@ -294,7 +294,7 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string,
 		if player == nil {
 			continue
 		}
-		// §5.5-01：连接正常（在线 + 心跳新鲜；有在途订单的保护异常陪玩保留资格，§6.4-01）。
+		// ：连接正常（在线 + 心跳新鲜；有在途订单的保护异常陪玩保留资格，）。
 		eligible, err := playerEligibleForDispatch(ctx, tx.Client(), player, now)
 		if err != nil {
 			return nil, err
@@ -302,14 +302,14 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string,
 		if !eligible {
 			continue
 		}
-		// §5.4-13 / §5.5-01：游戏分区权限 + 技能等级必须达标，否则不产生注定接不了的通知。
+		// ：游戏分区权限 + 技能等级必须达标，否则不产生注定接不了的通知。
 		if err = checkPlayerGameLevel(levels, player, game, requiredLevel); err != nil {
 			if errors.Is(err, errForbidden) {
 				continue
 			}
 			return nil, err
 		}
-		// §6.4-06：服务时段外 / 可接单价范围外的陪玩不产生优先通知。
+		// ：服务时段外 / 可接单价范围外的陪玩不产生优先通知。
 		if !playerServiceSlotAllows(player, now) || !playerAcceptsOrderPrice(player, order) {
 			continue
 		}
@@ -330,8 +330,8 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string,
 // 并留事件与事务外盒通知。幂等：仅 pending/accepted → released 生效一次。
 // 允许 accepted → released：名单内接单后若因转单/退回待派单需要重新释放，窗口已闭合不应再判冲突。
 //
-// 释放后的履约状态按席位数分流（§5.6-03 首版抢单大厅只开放单陪玩订单）：
-//   - required_seats == 1：转 grabbing，对全部陪玩开放（§5.4-12）；
+// 释放后的履约状态按席位数分流（首版抢单大厅只开放单陪玩订单）：
+//   - required_seats == 1：转 grabbing，对全部陪玩开放；
 //   - required_seats > 1：**保持 pending_dispatch**，只闭合窗口并留释放原因/时间，继续由客服指派。
 //     多席订单转 grabbing 会在只筛单席订单的抢单大厅里对所有人不可见，导致静默卡单。
 func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, reason string, now time.Time) (*ent.EsportsOrder, error) {
@@ -396,7 +396,7 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 }
 
 // releaseDispatchPriorityNotice 管理端提前释放：闭合优先通知窗口（单席订单转抢单大厅，
-// 多席订单保持待派单由客服指派；§5.2 客服可随时人工干预）。
+// 多席订单保持待派单由客服指派；客服可随时人工干预）。
 func releaseDispatchPriorityNotice(ctx context.Context, db *ent.Client, orderID int, reason string, now time.Time) (*ent.EsportsOrder, error) {
 	reason = strings.TrimSpace(reason)
 	if orderID < 1 || len([]rune(reason)) > 255 {
@@ -548,7 +548,7 @@ func playerNotifiedForOrderTx(ctx context.Context, tx *ent.Tx, orderID, playerID
 	).Exist(ctx)
 }
 
-// dispatchNoticeView 是陪玩端「我的优先通知」的返回体（§5.4-09）：除通知本身外带上订单号、
+// dispatchNoticeView 是陪玩端「我的优先通知」的返回体：除通知本身外带上订单号、
 // 游戏分区与响应截止时间，陪玩端无需再回查订单即可展示「哪张单、什么分区、何时截止」。
 type dispatchNoticeView struct {
 	ID          int        `json:"id"`
@@ -558,7 +558,7 @@ type dispatchNoticeView struct {
 	Status      string     `json:"status"`
 	NotifiedAt  time.Time  `json:"notified_at"`
 	NoticeUntil *time.Time `json:"notice_until"`
-	// PriorityNoticeUntil 与 NoticeUntil 同值，字段名对齐规格原文（§6.1-06 的
+	// PriorityNoticeUntil 与 NoticeUntil 同值，字段名对齐规格原文（的
 	// 「通知截止时间 priority_notice_until」），供按规格命名的客户端直接取用。
 	PriorityNoticeUntil *time.Time `json:"priority_notice_until"`
 }

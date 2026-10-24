@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// ar4SeedOrder 构造一张金额与状态可控的订单（§13.2-05 规则扫描 / §13.2-09 并发查重用）。
+// ar4SeedOrder 构造一张金额与状态可控的订单（规则扫描 / 并发查重用）。
 // payable 与「数量×单价−折扣+人工调整」的差额即金额偏离，结单时间由 closedAt 控制。
 func ar4SeedOrder(t *testing.T, db *ent.Client, suffix string, payable, unitPrice, discount, adjust int64,
 	durationMinutes, seats int, status esportsorder.FulfillmentStatus, closedAt *time.Time) *ent.EsportsOrder {
@@ -47,7 +47,7 @@ func ar4SetConfig(t *testing.T, db *ent.Client, key, value string) {
 	}
 }
 
-// §13.2-09：建单即写进行中唯一键（DB 唯一索引兜底并发），落终态必须释放，否则同来源同问题再也建不了单。
+// ：建单即写进行中唯一键（DB 唯一索引兜底并发），落终态必须释放，否则同来源同问题再也建不了单。
 func TestAfterSaleActiveDedupKeyWrittenAndReleasedOnTerminal(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_active_key")
 	defer db.Close()
@@ -140,7 +140,7 @@ func TestAfterSaleActiveDedupKeyWrittenAndReleasedOnTerminal(t *testing.T) {
 	}
 }
 
-// §13.2-09：自助申请时限配置化——超时限的自助申请必须被拒，且提示联系客服。
+// ：自助申请时限配置化——超时限的自助申请必须被拒，且提示联系客服。
 func TestCustomerSelfAfterSaleWindowRejectsOverdueApplication(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_window")
 	defer db.Close()
@@ -167,7 +167,7 @@ func TestCustomerSelfAfterSaleWindowRejectsOverdueApplication(t *testing.T) {
 	}
 }
 
-// §13.2-09：时限配置非法时必须明确报错，不静默回落。
+// ：时限配置非法时必须明确报错，不静默回落。
 func TestCustomerSelfAfterSaleWindowInvalidConfigFails(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_window_invalid")
 	defer db.Close()

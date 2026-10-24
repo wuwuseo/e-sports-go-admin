@@ -65,7 +65,7 @@ func TestServiceEvidenceSubmitOwnSegment(t *testing.T) {
 	if err := json.Unmarshal([]byte(segment.EvidenceRef), &ids); err != nil || len(ids) != 1 || ids[0] != evidence.ID {
 		t.Fatalf("凭证引用 JSON 不正确：%q, %v", segment.EvidenceRef, err)
 	}
-	// 结单提交口径（§3.4）：服务段有凭证即视为已提交。
+	// 结单提交口径：服务段有凭证即视为已提交。
 	if !segmentSubmitted(segment) {
 		t.Fatalf("segmentSubmitted 未识别凭证：%+v", segment)
 	}

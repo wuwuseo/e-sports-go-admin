@@ -37,7 +37,7 @@ func seedPendingConfirmAfterSale(t *testing.T, db *ent.Client, orderID int, refu
 	return planned, customer.ID
 }
 
-// 待客户确认（§13.3）：归属客户自助确认后进入待审批；非归属客户一律 403。
+// 待客户确认：归属客户自助确认后进入待审批；非归属客户一律 403。
 func TestAfterSaleCustomerConfirm(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_aftersale_customer_confirm")
 	defer db.Close()
@@ -69,7 +69,7 @@ func TestAfterSaleCustomerConfirm(t *testing.T) {
 	}
 }
 
-// 待客户确认（§13.3）：客户拒绝须填原因并退回处理中，客服可改方案后重新提交（再次进入待客户确认）。
+// 待客户确认：客户拒绝须填原因并退回处理中，客服可改方案后重新提交（再次进入待客户确认）。
 func TestAfterSaleCustomerDecline(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_aftersale_customer_decline")
 	defer db.Close()

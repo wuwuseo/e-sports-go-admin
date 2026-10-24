@@ -129,7 +129,7 @@ func TestWithdrawalApplyFreezesCatfood(t *testing.T) {
 	}
 }
 
-// 提现门槛、频率与手续费税费试算（§6.3 / §11.2）。
+// 提现门槛、频率与手续费税费试算。
 func TestWithdrawalPolicyGateAndFee(t *testing.T) {
 	db := openWithdrawalDB(t, "esports_withdrawal_policy")
 	ctx := t.Context()

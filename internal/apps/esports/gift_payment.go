@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 礼物「直接支付 / 发起收款」（§9.2-01）。
+// 礼物「直接支付 / 发起收款」。
 //
 // 背景：礼物原本只接受「客户余额本金」与「储值卡本金」两种付款来源，余额不足即报错。
 // 本链路补上第三种来源：余额与卡本金都不足时，客户（或客服代办）对礼物确认单**发起收款**，
@@ -45,13 +45,13 @@ const (
 // errGiftPaymentRejected 礼物收款被人工驳回（非异常，是业务终态，调用方按提示返回）。
 var errGiftPaymentRejected = errors.New("礼物收款已驳回")
 
-// giftPaymentStartInput 是发起礼物收款的入参（§9.2-01）。
+// giftPaymentStartInput 是发起礼物收款的入参。
 type giftPaymentStartInput struct {
 	Channel   string `json:"channel"`
 	ClientKey string `json:"client_key"`
 }
 
-// giftPaymentVerifyInput 是核销礼物收款的入参（§9.2-01）：人工核销与在线回调共用同一落库边界。
+// giftPaymentVerifyInput 是核销礼物收款的入参：人工核销与在线回调共用同一落库边界。
 type giftPaymentVerifyInput struct {
 	Approve       bool   `json:"approve"`
 	PaymentRef    string `json:"payment_ref"`
@@ -90,7 +90,7 @@ func newGiftPaymentIntentNo() string {
 	return giftPaymentIntentPrefix + raw[:12]
 }
 
-// startGiftPayment 对未终态的礼物确认单发起收款（§9.2-01）：
+// startGiftPayment 对未终态的礼物确认单发起收款：
 //   - 渠道必须有效且**未停用**（停用 → 明确失败，不生成收款意图）；
 //   - 在线渠道须网关可用且有启用中的收款账户（未配置 → 明确失败，不伪成功）；
 //   - 同一确认单重复发起同一渠道时幂等返回既有收款意图。
@@ -118,7 +118,7 @@ func startGiftPayment(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		intent.PaymentStatus == esportsgiftintent.PaymentStatusAwaitingPayment {
 		return giftPaymentViewOf(intent, ""), nil
 	}
-	// 渠道启停（§4.3-08 / §9.2-01）：未开通不得发起，不伪成功。
+	// 渠道启停：未开通不得发起，不伪成功。
 	if !paymentChannelEnabled(ctx, db, in.Channel) {
 		return nil, fmt.Errorf("%w：收款方式 %s 已停用", errPaymentGatewayUnavailable, in.Channel)
 	}
@@ -210,7 +210,7 @@ func giftPaymentViewOf(intent *ent.EsportsGiftIntent, payURL string) *giftPaymen
 	return view
 }
 
-// verifyGiftPayment 财务人工核销礼物收款（§9.2-01）：核对到账凭证后把收款意图置 verified
+// verifyGiftPayment 财务人工核销礼物收款：核对到账凭证后把收款意图置 verified
 // 并按外部收款来源成单；approve=false 驳回并把收款意图置 failed（明确失败，不伪成功）。
 // 职责分离：创建该礼物确认单的经办人不得自行核销到账。
 func verifyGiftPayment(ctx context.Context, db *ent.Client, adminID int, isSuper bool, intentID int,
@@ -276,7 +276,7 @@ func settleGiftPayment(ctx context.Context, db *ent.Client, adminID int, isSuper
 	return executeGiftIntent(ctx, db, adminID, isSuper, intent.ID, now)
 }
 
-// handleGiftPaymentNotification 在线渠道回调核销礼物收款（§9.2-01，AuthPublic）：
+// handleGiftPaymentNotification 在线渠道回调核销礼物收款（，AuthPublic）：
 // 按收款单号定位礼物确认单 → 网关验签 → 标记到账 → 成单。未开通渠道 / 验签失败 / 金额不符
 // 一律明确失败，不做任何资金或单据变更。
 func handleGiftPaymentNotification(ctx context.Context, db *ent.Client, channel string,

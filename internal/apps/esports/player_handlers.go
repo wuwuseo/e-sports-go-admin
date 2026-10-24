@@ -41,7 +41,7 @@ func adminPlayers(c fiber.Ctx) error {
 }
 
 // publicPlayers 客户端陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩公开字段，
-// 并按 player_recommend 组件 props 透传的查询参数（game / level / online / bookable）收窄（§16.3-07）。
+// 并按 player_recommend 组件 props 透传的查询参数（game / level / online / bookable）收窄。
 func publicPlayers(c fiber.Ctx) error {
 	props, err := parsePlayerRecommendProps(c, skillLevels(c.Context(), global.ORM))
 	if err != nil {
@@ -118,7 +118,7 @@ func playerPresenceHandler(c fiber.Ctx) error {
 	return reply(c, updated)
 }
 
-// playerHeartbeatHandler 陪玩端保活（§6.4）：只刷新心跳时戳，不改变在线状态。
+// playerHeartbeatHandler 陪玩端保活：只刷新心跳时戳，不改变在线状态。
 func playerHeartbeatHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
@@ -131,7 +131,7 @@ func playerHeartbeatHandler(c fiber.Ctx) error {
 	return reply(c, updated)
 }
 
-// playerProfileHandler 陪玩端「我的资料 / 我的等级」（§6.1 / §6.4）：
+// playerProfileHandler 陪玩端「我的资料 / 我的等级」：
 // 返回本人档案（昵称、等级、资格、上下线、接单游戏与接单上限），供陪玩端展示。
 func playerProfileHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
@@ -300,7 +300,7 @@ func playerFinishServiceHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// playerCreateOrderAfterSaleHandler 陪玩就本人服务的订单发起售后申诉（§13.2）。
+// playerCreateOrderAfterSaleHandler 陪玩就本人服务的订单发起售后申诉。
 func playerCreateOrderAfterSaleHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
@@ -317,7 +317,7 @@ func playerCreateOrderAfterSaleHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// playerOrderAfterSalesHandler 陪玩端查询本人相关售后（§13.2）。
+// playerOrderAfterSalesHandler 陪玩端查询本人相关售后。
 func playerOrderAfterSalesHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
@@ -330,7 +330,7 @@ func playerOrderAfterSalesHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// playerInviteTeammatesHandler 主陪玩在陪玩端就本人已接单的订单邀请固排占剩余席位（§5.3）。
+// playerInviteTeammatesHandler 主陪玩在陪玩端就本人已接单的订单邀请固排占剩余席位。
 func playerInviteTeammatesHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
@@ -354,7 +354,7 @@ func playerInviteTeammatesHandler(c fiber.Ctx) error {
 	return reply(c, seats)
 }
 
-// playerTeammateCandidatesHandler 陪玩端查看本人可邀请的固排候选（§5.3）。
+// playerTeammateCandidatesHandler 陪玩端查看本人可邀请的固排候选。
 func playerTeammateCandidatesHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {

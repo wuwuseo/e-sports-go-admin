@@ -18,12 +18,12 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 加钟（§3.3 订单操作 / §6.2 陪玩端加钟确认 / §12.5 特殊场景）：
+// 加钟（订单操作 / 陪玩端加钟确认 / 特殊场景）：
 // 客服对服务中订单发起加钟（追加金额与工时），陪玩确认时按**确认时点锁定的分成规则**计算并保存
 // 分成快照，把追加金额与追加服务量累加到订单（只增不改）；`kind=addon` 的加钟分成明细在
 // **收款成功后才计提**（未收款不产生应付陪玩的负债，避免「确认即计提、未收款可结算」）。
 // 加钟金额不改写原订单报价快照（`payable_cents` 保持原报价事实）。
-// 分成上限（§12.1 / §12.5）：加钟收入并入订单可分基数（`payable + addon − 已退 − 渠道成本`），
+// 分成上限：加钟收入并入订单可分基数（`payable + addon − 已退 − 渠道成本`），
 // 同时单笔加钟分成不得超过本次加钟本金，保证「陪玩 + 客服 + 渠道成本 ≤ 加钟本金」不透支。
 
 // addonInput 加钟申请入参。
@@ -45,7 +45,7 @@ func validAddonStatus(status string) bool {
 	return false
 }
 
-// addonCommissionRawCents 按规则原样算出本次加钟的陪玩分成，不做上限截断（§12.5）。
+// addonCommissionRawCents 按规则原样算出本次加钟的陪玩分成，不做上限截断。
 // 基数取本次追加金额；fixed_per_unit 以追加服务量为单位数。
 func addonCommissionRawCents(rule *ent.EsportsCommissionRule, addedCents, addedUnits int64) int64 {
 	if rule == nil {
@@ -63,11 +63,11 @@ func addonCommissionRawCents(rule *ent.EsportsCommissionRule, addedCents, addedU
 	}
 }
 
-// addonCommissionCents 按规则计算本次加钟的陪玩分成（§12.5：按加钟确认时锁定的规则计算），
+// addonCommissionCents 按规则计算本次加钟的陪玩分成（：按加钟确认时锁定的规则计算），
 // 并把结果**截断在本次加钟本金以内**——加钟收入已并入订单可分基数（`payable + addon − 已退 − 渠道成本`），
 // 单笔加钟自身也必须收支平衡：`陪玩 + 客服 + 渠道成本 ≤ 加钟本金`，不透支订单资金。
 // 只有固定额 / 每单位固定额规则可能算出超过本金的值（按比例为万分比，天然不超过本金），
-// 这里统一按本金截断（口径见 internal/apps/esports/README.md §12.1 / §12.5），并保留原值供审计对比
+// 这里统一按本金截断（口径见 internal/apps/esports/README.md ），并保留原值供审计对比
 // （见 confirmOrderAddon 的 `commission_capped` / `commission_uncapped_cents` 事件字段）。
 func addonCommissionCents(rule *ent.EsportsCommissionRule, addedCents, addedUnits int64) int64 {
 	commission := addonCommissionRawCents(rule, addedCents, addedUnits)
@@ -185,7 +185,7 @@ func listPlayerPendingAddons(ctx context.Context, db *ent.Client, playerID int) 
 	).Order(ent.Desc(esportsorderaddon.FieldID)).Limit(100).All(ctx)
 }
 
-// confirmOrderAddon 陪玩确认加钟（§6.2）：把追加金额与服务量累加到订单，并按确认时点锁定的
+// confirmOrderAddon 陪玩确认加钟：把追加金额与服务量累加到订单，并按确认时点锁定的
 // 分成规则计算、保存本次加钟分成快照（rule_id / rule_no / rule_version / commission_cents）；
 // **不在此刻计提分成**，`kind=addon` 明细等收款成功后再建（见 payOrderAddonByBalance）。
 // 不改写原订单报价快照。
@@ -226,8 +226,8 @@ func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID in
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		return nil, errConflict
 	}
-	// 确认时点锁定分成规则并计算本次加钟分成（§12.5）。
-	// 按确认时点的陪玩等级走 §12.3 的 level 级；档案缺失按无等级处理。
+	// 确认时点锁定分成规则并计算本次加钟分成。
+	// 按确认时点的陪玩等级走 的 level 级；档案缺失按无等级处理。
 	addonPlayerLevel := ""
 	if addonPlayer, pErr := tx.EsportsPlayer.Get(ctx, playerID); pErr == nil {
 		addonPlayerLevel = addonPlayer.Level
@@ -515,7 +515,7 @@ func cancelAccruedAddonCommission(ctx context.Context, tx *ent.Tx, addon *ent.Es
 	return nil
 }
 
-// hasPendingAddon 判断订单是否存在未处理（待陪玩确认）的加钟，供结单条件校验（§3.4）。
+// hasPendingAddon 判断订单是否存在未处理（待陪玩确认）的加钟，供结单条件校验。
 func hasPendingAddon(ctx context.Context, db *ent.Client, orderID int) (bool, error) {
 	return db.EsportsOrderAddon.Query().Where(
 		esportsorderaddon.OrderIDEQ(orderID),
@@ -523,7 +523,7 @@ func hasPendingAddon(ctx context.Context, db *ent.Client, orderID int) (bool, er
 	).Exist(ctx)
 }
 
-// payOrderAddonByBalance 客服对**已确认**的加钟单用客户余额收单（§3.3 / §6.2 加钟收款）。
+// payOrderAddonByBalance 客服对**已确认**的加钟单用客户余额收单（加钟收款）。
 // 约束：加钟单须 confirmed 且未收款、追加金额 > 0、客户余额足额；扣减顺序按
 // `app.esports.prepay_deduction_order`。同事务写余额消费流水、预付款落账与批次分摊，
 // 收款成功后按加钟确认时保存的规则快照计提一次 `kind=addon` 分成（幂等键
@@ -555,7 +555,7 @@ func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonI
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
-	// 账户级串行锁（§4.2 / §12.1）：与订单余额核销、售后退款共用同一把余额锁，
+	// 账户级串行锁：与订单余额核销、售后退款共用同一把余额锁，
 	// 否则「求和 → 写负数流水」窗口内并发收款可把余额扣成负数。
 	unlock := lockMoneyAccount("balance:" + strconv.Itoa(order.CustomerID))
 	defer unlock()
@@ -590,7 +590,7 @@ func payOrderAddonByBalance(ctx context.Context, db *ent.Client, adminID, addonI
 		SetDeltaCents(addon.AddedCents).Save(ctx); err != nil {
 		return nil, err
 	}
-	// 批次级逐笔扣减（§4.3 / §4.5）：记录本次加钟收款动用了哪些充值批次。
+	// 批次级逐笔扣减：记录本次加钟收款动用了哪些充值批次。
 	if err = allocateLedgerConsumption(ctx, tx, walletCustomerBalance, strconv.Itoa(customer.ID),
 		"order_addon", addon.AddonNo, addon.AddedCents); err != nil {
 		return nil, err

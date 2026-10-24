@@ -28,7 +28,7 @@ import (
 	"go-admin/internal/ent/predicate"
 )
 
-// §17 报表的取数与聚合口径：
+// 报表的取数与聚合口径：
 //   - 总量与分组统计一律走数据库端聚合（Ent 的 Aggregate / GroupBy），大样本下与订单行数无关，
 //     不再因为超过某个扫描上限而整体报错；
 //   - 只有下钻明细列表保留上限（reportDetailLimit），超限时在响应里显式给出 detail_truncated，
@@ -48,7 +48,7 @@ const (
 var reportBucketPeriods = []string{"daily", "weekly", "monthly", "yearly"}
 
 // paidPaymentStatuses 是「订单已实收」的支付状态：只有 paid（全款到账）计入营收。
-// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，不再当作实收口径（未收到的钱不能算收入）。
+// 审核报告 partial（部分收款）全仓无写入方，不再当作实收口径（未收到的钱不能算收入）。
 var paidPaymentStatuses = []esportsorder.PaymentStatus{
 	esportsorder.PaymentStatusPaid,
 }
@@ -71,11 +71,11 @@ type reportFilter struct {
 	AftersaleKind    string
 	FaultParty       string
 	Limit            int
-	// VisibleAdmin 是数据可见范围（§17-09 / §3.5-06）：非空时报表只统计「本人负责
+	// VisibleAdmin 是数据可见范围：非空时报表只统计「本人负责
 	// 或存在协作授权行」的订单，与订单列表 / 详情（loadOwnedOrder）同口径。
 	// 它与 ResponsibleAdmin（用户可选的业务筛选）分开：前者是权限边界，后者是筛选维度。
 	VisibleAdmin int
-	// 资金维度（§17 / P1-08）：只由财务资金报表接受，并真正下推到钱包流水 / 结算单查询。
+	// 资金维度（P1-08）：只由财务资金报表接受，并真正下推到钱包流水 / 结算单查询。
 	WalletAccountType string
 	WalletEntryType   string
 	SettlementStatus  string
@@ -83,10 +83,10 @@ type reportFilter struct {
 
 // financeReportDataScope 是财务资金报表的数据域标记：财务资金是账户级全量域，
 // 授权由 handler 的 canAccessFinanceReport（超管或 app.esports.finance_report_role_names 角色）判定，
-// 不存在「订单局部」口径（§17 需求明确财务报表不接受订单归属维度）。
+// 不存在「订单局部」口径（需求明确财务报表不接受订单归属维度）。
 const financeReportDataScope = "full"
 
-// reportOwnershipScope 是一次报表请求的数据域（§17 / P1-07）：同一请求内所有子查询
+// reportOwnershipScope 是一次报表请求的数据域（P1-07）：同一请求内所有子查询
 // （订单 / 钱包 / 结算 / 分成 / 提现）必须复用同一套归属过滤条件，不得出现
 // 「钱包/结算全量 + 分成局部」这类混口径。
 type reportOwnershipScope struct {
@@ -146,7 +146,7 @@ type csPerformanceRow struct {
 	RevenueCents int64  `json:"revenue_cents"`
 	RefundCents  int64  `json:"refund_cents"`
 	NetCents     int64  `json:"net_cents"`
-	// 提成（§12.2）：区间内该客服的客服提成明细净额（含负数冲回）。
+	// 提成：区间内该客服的客服提成明细净额（含负数冲回）。
 	CommissionCents int64 `json:"commission_cents"`
 }
 
@@ -160,7 +160,7 @@ type dispatchEfficiencyRow struct {
 	ExpiredCount  int    `json:"expired_count"`
 }
 
-// studioRemainderBucket 是工作室抽成汇总按周期聚合的一段（§12.7-04）。
+// studioRemainderBucket 是工作室抽成汇总按周期聚合的一段。
 type studioRemainderBucket struct {
 	Bucket               string `json:"bucket"`
 	StudioRemainderCents int64  `json:"studio_remainder_cents"`
@@ -185,7 +185,7 @@ type orderOverviewTotals struct {
 	CancelledCount int   `json:"cancelled_count"`
 }
 
-// orderTimelineAggregate 是订单时间线埋点（§5.9）四类等待时长的聚合结果。
+// orderTimelineAggregate 是订单时间线埋点四类等待时长的聚合结果。
 type orderTimelineAggregate struct {
 	PoolToInviteSeconds   int64 `json:"pool_to_invite_seconds"`
 	PoolToInviteCount     int   `json:"pool_to_invite_count"`
@@ -197,7 +197,7 @@ type orderTimelineAggregate struct {
 	PoolToStartCount      int   `json:"pool_to_start_count"`
 }
 
-// orderVisibleToAdminPredicate 是报表**唯一**一处归属过滤条件构建（§17-09 / §3.5-06 / P1-07），
+// orderVisibleToAdminPredicate 是报表**唯一**一处归属过滤条件构建（P1-07），
 // 与 loadOwnedOrder 同口径：本人负责 OR 存在协作授权行 OR（无负责客服时）本人报单兜底。
 // 所有子查询（订单聚合、席位、售后、分成对账、结算归集）都必须复用本函数，不得各自另写一套，
 // 否则同一请求会出现「部分子报表局部、部分子报表全量」的混口径。
@@ -544,7 +544,7 @@ func orderNoByID(ctx context.Context, db *ent.Client, ids []int) (map[int]string
 	return orderNos, nil
 }
 
-// addonRevenueTotals 统计符合订单筛选的订单上「已收款加钟」的实收金额（§3.3 / §12.5 / P1-16）。
+// addonRevenueTotals 统计符合订单筛选的订单上「已收款加钟」的实收金额（P1-16）。
 //
 // 取数来源：`EsportsOrderAddon` 中 `payment_status=paid` 的 `paid_cents` 之和。加钟有**独立收款记录**——
 // 陪玩确认只落应收快照（并累加订单 `addon_cents`），客服收款成功才写 `paid_cents` 并在同一事务内
@@ -627,7 +627,7 @@ func ownerOverviewReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 	// 时间轴分段：先取数据实际跨度收敛分段范围，再逐段做 SQL 聚合（只保留有数据的分段，与既有口径一致）。
 	buckets := make([]reportBucket, 0)
 	bucketPeriod := f.Period
-	// §P1-16：加钟收入（已收款加钟的实收额）计入营收与净额，并与订单营收同轴落时间轴分段。
+	// 加钟收入（已收款加钟的实收额）计入营收与净额，并与订单营收同轴落时间轴分段。
 	var addonRevenue int64
 	addonBuckets := map[string]int64{}
 	if aggregate.OrderCount > 0 {
@@ -737,7 +737,7 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		).Scan(ctx, &orderRows); err != nil {
 		return nil, err
 	}
-	// 提成（§12.2）：按业绩归属客服聚合区间内提成明细净额，含负数冲回；只有提成没有订单的客服也要成行。
+	// 提成：按业绩归属客服聚合区间内提成明细净额，含负数冲回；只有提成没有订单的客服也要成行。
 	// 订单维度筛选生效时，提成只计入「关联订单命中筛选」的明细；该限制按订单主键分片归集（Ent 无子查询表达）。
 	orderDimensions := f.ChannelSource != "" || f.EntryPoint != "" || f.PaymentChannel != "" ||
 		f.CreatedByAdmin > 0 || f.SkuID > 0 || f.Game != "" || f.AppointmentType != "" || f.SeatType != ""
@@ -752,7 +752,7 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 			query.Where(esportscscommissionentry.AdminIDEQ(f.ResponsibleAdmin))
 		}
 		if scope.AdminID > 0 {
-			// 严格局部（§17-09）：本人提成恒可见，另加被授权协作订单上的提成；礼物提成无订单号仍按本人可见。
+			// 严格局部：本人提成恒可见，另加被授权协作订单上的提成；礼物提成无订单号仍按本人可见。
 			options := []predicate.EsportsCsCommissionEntry{esportscscommissionentry.AdminIDEQ(scope.AdminID)}
 			if len(orderIDs) > 0 {
 				options = append(options, esportscscommissionentry.OrderIDIn(orderIDs...))
@@ -839,7 +839,7 @@ func csPerformanceReport(ctx context.Context, db *ent.Client, f reportFilter) (m
 		}
 		return rows[i].OrderCount > rows[j].OrderCount
 	})
-	// §17-06 下钻明细：返回可定位原单据（订单 id + order_no）的明细与截断标记。
+	// 下钻明细：返回可定位原单据（订单 id + order_no）的明细与截断标记。
 	details, detailTruncated, err := orderDetailRows(ctx, db, predicates, f.Limit)
 	if err != nil {
 		return nil, err
@@ -895,7 +895,7 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 		RespondedSeconds int64
 	}
 	groups := make([]seatGroup, 0)
-	// §17-06 下钻明细：派单效率按订单 + 席位归集，明细须能定位原单据（订单 id + order_no）。
+	// 下钻明细：派单效率按订单 + 席位归集，明细须能定位原单据（订单 id + order_no）。
 	detailCap := reportDetailCap(f.Limit)
 	details := make([]map[string]any, 0, 16)
 	// 席位聚合：Ent 无订单边可比对，按订单主键分片归集后再合并（各分组计数与时长求和均可加）。
@@ -996,7 +996,7 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 		average = respondedSeconds / int64(respondedCount)
 	}
 
-	// §5.9 等待时长：按订单时间线埋点派生四类平均等待时长（只有时间点齐全的订单才计入样本）。
+	// 等待时长：按订单时间线埋点派生四类平均等待时长（只有时间点齐全的订单才计入样本）。
 	// 入池 → 派出（客服/系统派单快慢）、派出 → 接单（陪玩响应）、接单 → 开工（开工延迟）、
 	// 入池 → 开工（端到端等待）。缺埋点的历史订单自动排除，不影响计数。
 	var timeline []orderTimelineAggregate
@@ -1051,7 +1051,7 @@ func dispatchEfficiencyReport(ctx context.Context, db *ent.Client, f reportFilte
 			"avg_pool_to_start_seconds":    avgSeconds(timelineRow.PoolToStartSeconds, timelineRow.PoolToStartCount),
 		},
 		"rows": rows,
-		// §17-06：下钻明细与截断标记，明细可定位原单据（订单 id + order_no）。
+		// ：下钻明细与截断标记，明细可定位原单据（订单 id + order_no）。
 		"details":          details,
 		"detail_truncated": detailTruncated,
 	}, nil
@@ -1189,7 +1189,7 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 			details = append(details, map[string]any{
 				"id": row.ID, "kind": row.Kind, "status": row.Status,
 				"fault_party": row.FaultParty, "refund_cents": row.RefundCents,
-				// §17-06：售后明细须带来源单据与来源订单号，便于跳回原单据核对。
+				// ：售后明细须带来源单据与来源订单号，便于跳回原单据核对。
 				"source_type": row.SourceType, "source_id": row.SourceID,
 				"created_at": row.CreatedAt,
 			})
@@ -1236,8 +1236,8 @@ func aftersaleQualityReport(ctx context.Context, db *ent.Client, f reportFilter,
 
 // financeReport 财务资金与结算：区间内钱包流水、结算单、提现单、按支付方式聚合的支付回执与分成对账。
 //
-// §17 / P1-07 财务数据域：钱包流水、结算单、支付回执、提现与分成对账共用**同一套**口径。
-// 财务资金是账户级资金流水，需求（§17）明确不提供渠道 / 入口 / 商品 / 负责客服等订单归属维度，
+// P1-07 财务数据域：钱包流水、结算单、支付回执、提现与分成对账共用**同一套**口径。
+// 财务资金是账户级资金流水，需求明确不提供渠道 / 入口 / 商品 / 负责客服等订单归属维度，
 // 因此这里恒为「账户级显式全量域」（data_scope=full）：授权由 handler 的 canAccessFinanceReport
 // 判定（超级管理员或 app.esports.finance_report_role_names 角色），未授权者 403。
 // 此前分成对账还会按 VisibleAdmin 单独收敛订单，导致同一请求出现「钱包/结算全量 + 分成局部」的
@@ -1249,7 +1249,7 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	f.ResponsibleAdmin = 0
 	// 钱包流水：按（账户类型 + 流水类型）分组求和；金额取本金 + 赠送权益，
 	// 与钱包余额（本金 + 赠送）口径一致，避免报表只看到本金、漏掉充值活动赠送的部分。
-	// 账户类型逐类分桶，不与客户余额混算（§11.3）。储值卡账户（stored_value_card）已随该功能下线
+	// 账户类型逐类分桶，不与客户余额混算。储值卡账户（stored_value_card）已随该功能下线
 	// （2026-10-20），分桶保留仅为让历史卡流水仍可读、不被混进客户余额，不再产生新数据。
 	// 资金维度（P1-08）：账户类型 / 流水类型真正下推到查询，不是「收下后忽略」。
 	var walletRows []struct {
@@ -1345,7 +1345,7 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 		voidCount, voidGross, voidNet = voidRows[0].Count, voidRows[0].Gross, voidRows[0].Net
 	}
 
-	// 提现单（§6.3 / §12.6）：与结算单同一数据域的全量资金子查询，
+	// 提现单：与结算单同一数据域的全量资金子查询，
 	// 按状态聚合申请额 / 手续费 / 代扣税费 / 实际到账，供财务对账（P1-07 子查询口径统一）。
 	var withdrawalRows []struct {
 		Status string `json:"status"`
@@ -1407,17 +1407,17 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 		}
 		return channels[i].Channel < channels[j].Channel
 	})
-	// §12.7-03 分成明细级对账：按订单 / 陪玩聚合，并保留逐笔明细供财务与结算单逐笔核对。
+	// 分成明细级对账：按订单 / 陪玩聚合，并保留逐笔明细供财务与结算单逐笔核对。
 	reconciliation, err := commissionReconciliationReport(ctx, db, f)
 	if err != nil {
 		return nil, err
 	}
-	// §12.7-04 工作室抽成汇总：按周期聚合工作室剩余（studio_remainder_cents）。
+	// 工作室抽成汇总：按周期聚合工作室剩余（studio_remainder_cents）。
 	studio, err := studioCommissionReport(ctx, db, f)
 	if err != nil {
 		return nil, err
 	}
-	// §17-06 财务下钻明细：结算单 / 支付回执须可定位原单据。
+	// 财务下钻明细：结算单 / 支付回执须可定位原单据。
 	details, detailTruncated, err := financeReportDetails(ctx, db, f, f.Limit)
 	if err != nil {
 		return nil, err
@@ -1452,7 +1452,7 @@ func financeReport(ctx context.Context, db *ent.Client, f reportFilter) (map[str
 	}, nil
 }
 
-// commissionReconciliationRow 是分成明细级对账的一行（§12.7-03）：按订单 + 陪玩聚合。
+// commissionReconciliationRow 是分成明细级对账的一行：按订单 + 陪玩聚合。
 type commissionReconciliationRow struct {
 	OrderID       int    `json:"order_id"`
 	OrderNo       string `json:"order_no"`
@@ -1465,7 +1465,7 @@ type commissionReconciliationRow struct {
 }
 
 // commissionReconciliationReport 按订单 / 陪玩给出分成明细级对账：聚合行 + 逐笔明细（含规则版本），
-// 财务可与结算单逐笔核对（§12.7-03）。
+// 财务可与结算单逐笔核对。
 // 数据域（P1-07）：分成对账与钱包 / 结算 / 回执 / 提现同属财务资金全量域，**不再**单独按
 // VisibleAdmin 收敛订单——否则同一请求会出现「钱包/结算全量 + 分成局部」的混口径。
 func commissionReconciliationReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
@@ -1615,7 +1615,7 @@ func commissionReconciliationDetails(ctx context.Context, db *ent.Client,
 	return details, truncated, nil
 }
 
-// studioCommissionReport 是工作室抽成汇总（§12.7-04）：按周期聚合工作室剩余
+// studioCommissionReport 是工作室抽成汇总：按周期聚合工作室剩余
 // （studio_remainder_cents）与客服提成本金，供老板看本期抽成合计。
 func studioCommissionReport(ctx context.Context, db *ent.Client, f reportFilter) (map[string]any, error) {
 	rangePredicates := []predicate.EsportsCsCommissionEntry{
@@ -1721,7 +1721,7 @@ func applySettlementStatusFilter(query *ent.EsportsSettlementQuery, status strin
 	return query
 }
 
-// financeReportDetails 财务下钻明细（§17-06）：结算单与支付回执可定位原单据，超限时标记截断。
+// financeReportDetails 财务下钻明细：结算单与支付回执可定位原单据，超限时标记截断。
 // 与汇总同一口径：结算状态维度与「排除作废单」同样作用到结算单明细。
 func financeReportDetails(ctx context.Context, db *ent.Client, f reportFilter, limit int) ([]map[string]any, bool, error) {
 	detailCap := reportDetailCap(limit)

@@ -14,13 +14,13 @@ import (
 	"go-admin/internal/global"
 )
 
-// §3.3-06 终止服务段。
+// 终止服务段。
 //
 // 与「结束服务」（finishPlayerService，陪玩自己上报）的区别：终止是**客服侧提前结束**某个陪玩的服务段，
 // 用于陪玩失联 / 违规 / 客户要求换人等场景，必须登记「已履约量、未履约量、责任方」三项，
 // 供后续改派或售后取用（当前实现只留痕，改派与售后沿用既有入口）。
 //
-// 实现约束（§3.3-06）：**不改 schema**，全部留痕在只增事件 order.service_terminated 的 details 里；
+// 实现约束：**不改 schema**，全部留痕在只增事件 order.service_terminated 的 details 里；
 // 责任方复用 serviceResponsibilityParties；服务段本身置 finished 并落已履约量（reported_units）。
 // 订单层面沿用「全部席位服务段结束后转 pending_close」的既有口径（player.go:854-870），
 // 因此「终止后订单保留已履约量」成立；未履约量由事件承载，交改派 / 售后处理。
@@ -165,7 +165,7 @@ func terminatePlayerService(ctx context.Context, db *ent.Client, adminID, orderI
 	}, nil
 }
 
-// adminTerminatePlayerServiceHandler 客服侧提前终止某陪玩的服务段（§3.3-06）。
+// adminTerminatePlayerServiceHandler 客服侧提前终止某陪玩的服务段。
 func adminTerminatePlayerServiceHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

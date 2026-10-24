@@ -16,7 +16,7 @@ import (
 )
 
 // seedAfterSaleSourceScene 建一条礼物单、一条客户余额充值流水与一条考核记录，
-// 用于验证 §13.1 / §13.3 的统一售后来源扩展。
+// 用于验证 的统一售后来源扩展。
 func seedAfterSaleSourceScene(t *testing.T, db *ent.Client, now time.Time) (
 	*ent.EsportsCustomer, *ent.EsportsGiftOrder, *ent.EsportsWalletTx, *ent.EsportsAssessment) {
 	t.Helper()

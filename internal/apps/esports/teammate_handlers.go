@@ -123,7 +123,7 @@ type teamDispatchInput struct {
 	TeammatePlayerIDs []int `json:"teammate_player_ids"`
 }
 
-// adminTeammateCandidates 返回主陪玩在该订单上可一起成队的合格固排（§5.3）。
+// adminTeammateCandidates 返回主陪玩在该订单上可一起成队的合格固排。
 func adminTeammateCandidates(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -143,7 +143,7 @@ func adminTeammateCandidates(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// teamDispatchHandler 客服勾选主陪玩 + 固排一次成队（§5.3）。
+// teamDispatchHandler 客服勾选主陪玩 + 固排一次成队。
 func teamDispatchHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

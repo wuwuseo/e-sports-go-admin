@@ -26,10 +26,10 @@ const (
 	defaultCancelFeeBp     = 0
 )
 
-// errCancelServiceStarted 已开工订单不允许直接取消：退款与补履约须走售后流程（§3.3 / §13）。
+// errCancelServiceStarted 已开工订单不允许直接取消：退款与补履约须走售后流程。
 var errCancelServiceStarted = errors.New("订单已开始服务，请通过售后流程处理退款")
 
-// cancelPolicy 是工作室公示的取消政策（§3.3）：付款后 FreeHours 小时内取消全额退，
+// cancelPolicy 是工作室公示的取消政策：付款后 FreeHours 小时内取消全额退，
 // 超过窗口按应付金额的 FeeBp 万分比收取手续费。
 type cancelPolicy struct {
 	FreeHours int `json:"free_hours"`
@@ -126,7 +126,7 @@ func quoteCancelOrder(policy cancelPolicy, order *ent.EsportsOrder, now time.Tim
 	return quote
 }
 
-// previewCancelOrder 已付款订单的取消试算（§3.3 公示政策）：开工与否以是否存在服务段为准。
+// previewCancelOrder 已付款订单的取消试算（公示政策）：开工与否以是否存在服务段为准。
 func previewCancelOrder(ctx context.Context, db *ent.Client, orderID, adminID int, isSuper bool, now time.Time) (*cancelQuote, error) {
 	order, err := loadOwnedOrder(ctx, db, adminID, isSuper, orderID)
 	if err != nil {
@@ -157,7 +157,7 @@ func orderServiceStarted(ctx context.Context, db *ent.Client, orderID int) (bool
 	).Exist(ctx)
 }
 
-// returnSoldQuota 取消已付款订单时把「已售」名额退回（§3.3）：占用记录转 returned，
+// returnSoldQuota 取消已付款订单时把「已售」名额退回：占用记录转 returned，
 // SKU 已售数量同步扣减，使取消后的商品容量可再次售卖。
 func returnSoldQuota(ctx context.Context, tx *ent.Tx, orderID int) error {
 	hold, err := tx.EsportsQuotaHold.Query().Where(esportsquotahold.OrderIDEQ(orderID)).Only(ctx)
@@ -188,7 +188,7 @@ func returnSoldQuota(ctx context.Context, tx *ent.Tx, orderID int) error {
 	return nil
 }
 
-// releaseSeatsOnOrderCancel 取消订单时把未终结的派单席位一并作废（§3.3）：
+// releaseSeatsOnOrderCancel 取消订单时把未终结的派单席位一并作废：
 // 待回应邀请、已接单占位与空席位都不再有效，避免订单取消后仍占陪玩容量。
 func releaseSeatsOnOrderCancel(ctx context.Context, tx *ent.Tx, orderID int) error {
 	_, err := tx.EsportsDispatchSeat.Update().Where(

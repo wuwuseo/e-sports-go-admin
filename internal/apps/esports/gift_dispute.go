@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportsgiftorder"
 )
 
-// 礼物争议（§9.5）：客户申请 → 客服审核 → 执行退款（支持部分退款）。
+// 礼物争议：客户申请 → 客服审核 → 执行退款（支持部分退款）。
 // 同一礼物订单同一时刻只允许一张进行中争议单；审核确认额不得超过申请额与礼物可退余额；
 // 审核人与申请人（客服代建时）不得为同一人，执行人不得为审核人；执行复用礼物退款事务实现。
 
@@ -176,7 +176,7 @@ func listCustomerGiftDisputes(ctx context.Context, db *ent.Client, customerID, l
 		Order(ent.Desc(esportsgiftdispute.FieldID)).Limit(limit).All(ctx)
 }
 
-// reviewGiftDispute 审核争议（§9.5）：pending_review → approved（须给确认金额）/ rejected。
+// reviewGiftDispute 审核争议：pending_review → approved（须给确认金额）/ rejected。
 // 归属客服之外的管理员、以及建单申请人不得审核；确认金额不得超过申请额与可退余额。
 func reviewGiftDispute(ctx context.Context, db *ent.Client, id, adminID int, isSuper bool,
 	in giftDisputeReviewInput, now time.Time) (*ent.EsportsGiftDispute, error) {
@@ -238,7 +238,7 @@ func reviewGiftDispute(ctx context.Context, db *ent.Client, id, adminID int, isS
 	return db.EsportsGiftDispute.Get(ctx, id)
 }
 
-// executeGiftDispute 执行争议退款（§9.5）：approved → completed，按确认金额做部分退款并冲回分成。
+// executeGiftDispute 执行争议退款：approved → completed，按确认金额做部分退款并冲回分成。
 // 执行人不得为审核人；礼物的可退余额不足时拒绝（可能已被其他退款占用）。
 func executeGiftDispute(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsGiftDispute, error) {
 	if id < 1 || adminID < 1 {
@@ -292,7 +292,7 @@ func executeGiftDispute(ctx context.Context, db *ent.Client, id, adminID int, no
 	return db.EsportsGiftDispute.Get(ctx, id)
 }
 
-// withdrawGiftDispute 撤回争议（§9.5）：进行中的争议单可由客户本人或归属客服撤回。
+// withdrawGiftDispute 撤回争议：进行中的争议单可由客户本人或归属客服撤回。
 func withdrawGiftDispute(ctx context.Context, db *ent.Client, id, customerID, adminID int, now time.Time) (*ent.EsportsGiftDispute, error) {
 	if id < 1 {
 		return nil, errInvalidInput

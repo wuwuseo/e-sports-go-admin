@@ -20,7 +20,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 会员等级（§10）相关常量。
+// 会员等级相关常量。
 const (
 	// 等级保护期天数系统配置键；未配置时用默认值（见 memberDowngradeGuardDays）。
 	memberDowngradeGuardKey = "app.esports.member_downgrade_guard_days"
@@ -28,7 +28,7 @@ const (
 	defaultMemberDowngradeGuardDays = 30
 	// 折扣基点满值：10000 = 不打折。
 	memberDiscountBpsFull = 10000
-	// 手动调级覆盖期天数系统配置键（§10.3-03 / §10.5-04）；未配置时用默认值。
+	// 手动调级覆盖期天数系统配置键；未配置时用默认值。
 	memberOverrideGuardKey = "app.esports.member_override_guard_days"
 	// 默认手动调级覆盖期：90 天内手动调级等级不被成长值重算侵蚀。
 	defaultMemberOverrideGuardDays = 90
@@ -38,7 +38,7 @@ const (
 	// 手动调级等级变更事件类型：覆盖期是「那一次调级」的属性，随只增事件载荷快照落库，
 	// 不引入新字段也不改写只增的覆盖记录（见 memberOverrideSnapshotExpiry）。
 	memberManualLevelEventType = "member.level_manual"
-	// 订单成长值按本金口径计提时的备注标记（§10.2-01）。成长值流水只增不改、schema 无支付来源字段，
+	// 订单成长值按本金口径计提时的备注标记。成长值流水只增不改、schema 无支付来源字段，
 	// 故用备注标记计提口径：冲回时据此判断该笔计提是否已剔除赠送权益，历史（全额口径）流水仍按原口径冲回。
 	orderGrowthPrincipalNote = "订单结单计提（本金口径）"
 )
@@ -59,7 +59,7 @@ type memberLevelInput struct {
 	PrepayBonusBps  int   `json:"prepay_bonus_bps,omitempty"`
 	DedicatedCs     *bool `json:"dedicated_cs"`
 	PriorityBooking *bool `json:"priority_booking"`
-	// 专属通道 / 线下活动优先（§10.1-02）：与 DedicatedCs / PriorityBooking 同一「未传不清零」口径。
+	// 专属通道 / 线下活动优先：与 DedicatedCs / PriorityBooking 同一「未传不清零」口径。
 	DedicatedChannel     *bool `json:"dedicated_channel"`
 	OfflineEventPriority *bool `json:"offline_event_priority"`
 	SortOrder            int   `json:"sort_order"`
@@ -107,7 +107,7 @@ func createMemberLevel(ctx context.Context, db *ent.Client, in memberLevelInput)
 
 // updateMemberLevel 条件更新等级配置（version 乐观锁）；code 不可改。
 // DedicatedCs / PriorityBooking 仅在请求显式携带时更新，未传保持库中原值。
-// 改门槛不影响历史成长值流水，只影响下次重算（§10.5 以流水为准）。
+// 改门槛不影响历史成长值流水，只影响下次重算（以流水为准）。
 func updateMemberLevel(ctx context.Context, db *ent.Client, id, expectedVersion int, in memberLevelInput) (*ent.EsportsMemberLevelRule, error) {
 	if id < 1 || expectedVersion < 1 {
 		return nil, errInvalidInput
@@ -167,7 +167,7 @@ func setMemberLevelStatus(ctx context.Context, db *ent.Client, id, expectedVersi
 	return db.EsportsMemberLevelRule.Get(ctx, id)
 }
 
-// deleteMemberLevel 删除会员等级配置（审核报告 §8.1-8）：只有「已停用且未被任何客户引用」的等级才允许删除。
+// deleteMemberLevel 删除会员等级配置（审核报告 ）：只有「已停用且未被任何客户引用」的等级才允许删除。
 // 启用中的等级直接拒绝（引导先停用）；仍有客户把该 code 作为当前等级 / 待生效等级时同样拒绝——
 // 删掉会让客户等级与历史覆盖记录悬空，停用是可逆口径，删除只用于清理从未被使用的脏配置。
 func deleteMemberLevel(ctx context.Context, db *ent.Client, id int) error {
@@ -236,7 +236,7 @@ func memberRuleByCode(ctx context.Context, db *ent.Client, code string) (*ent.Es
 	return item, nil
 }
 
-// customerMemberRule 返回客户当前等级对应的**启用**规则（§10.4 权益判定口径）；
+// customerMemberRule 返回客户当前等级对应的**启用**规则（权益判定口径）；
 // 未定级、规则不存在或已停用时返回 nil，表示不享受该等级任何权益。
 func customerMemberRule(ctx context.Context, db *ent.Client, levelCode string) (*ent.EsportsMemberLevelRule, error) {
 	rule, err := memberRuleByCode(ctx, db, levelCode)
@@ -276,7 +276,7 @@ func memberDiscountBps(ctx context.Context, db *ent.Client, levelCode string) (i
 	return rule.DiscountBps, nil
 }
 
-// memberDedicatedChannel 返回客户当前等级是否开通「专属通道」权益（§10.1-02）。
+// memberDedicatedChannel 返回客户当前等级是否开通「专属通道」权益。
 // 未定级、等级不存在或已停用一律返回 false（不享受任何权益，与 customerMemberRule 同口径）。
 func memberDedicatedChannel(ctx context.Context, db *ent.Client, levelCode string) (bool, error) {
 	rule, err := customerMemberRule(ctx, db, levelCode)
@@ -286,7 +286,7 @@ func memberDedicatedChannel(ctx context.Context, db *ent.Client, levelCode strin
 	return rule.DedicatedChannel, nil
 }
 
-// memberOfflineEventPriority 返回客户当前等级是否开通「线下活动优先」权益（§10.1-02）。
+// memberOfflineEventPriority 返回客户当前等级是否开通「线下活动优先」权益。
 // 未定级、等级不存在或已停用一律返回 false。
 func memberOfflineEventPriority(ctx context.Context, db *ent.Client, levelCode string) (bool, error) {
 	rule, err := customerMemberRule(ctx, db, levelCode)
@@ -296,7 +296,7 @@ func memberOfflineEventPriority(ctx context.Context, db *ent.Client, levelCode s
 	return rule.OfflineEventPriority, nil
 }
 
-// memberPrivilegeView 是客户当前生效的会员权益快照（§10.1-02 / §10.4）。
+// memberPrivilegeView 是客户当前生效的会员权益快照。
 // Active=false 表示未定级 / 等级停用 / 规则缺失，此时不得在权益页宣称「已生效」。
 type memberPrivilegeView struct {
 	CustomerID  int    `json:"customer_id"`
@@ -376,7 +376,7 @@ func customerGrowthTotal(ctx context.Context, db *ent.Client, customerID int) (i
 	return rows[0].Sum, nil
 }
 
-// orderSettlementComposition 返回订单核销资金的本金 / 赠送构成（分，§10.2-01「核销明细本金口径」）：
+// orderSettlementComposition 返回订单核销资金的本金 / 赠送构成（分，「核销明细本金口径」）：
 //   - 有核销流水（余额 / 储值卡核销）时取流水的实际本金 / 赠送列，这正是「赠送权益支付部分」的凭据；
 //   - 无核销流水（现金渠道、线下核销、历史补录单）时全额按本金计，与既有「按实付额计提」口径一致。
 //
@@ -410,11 +410,11 @@ func principalShareOfRefund(principal, bonus, refundedCents int64) int64 {
 	return min(principal*refundedCents/composition, principal)
 }
 
-// accrueOrderGrowth 结单时按**核销明细的本金**计提成长值（§10.2-01）：现金实付与已核销预付本金计入，
+// accrueOrderGrowth 结单时按**核销明细的本金**计提成长值：现金实付与已核销预付本金计入，
 // 充值赠送权益支付的部分不计（赠送不直接增加成长值）；结单前已发生的退款按本金份额扣除，
 // 避免「先退款、后结单」时按全额补计。同一订单只计提一次，
 // 重复计提靠 (source_type, source_id) 唯一索引幂等；计提后重算客户等级。
-// 流水同时落 payment_source（§10.2-03），便于事后追溯这笔成长值来自现金还是已核销预付本金。
+// 流水同时落 payment_source，便于事后追溯这笔成长值来自现金还是已核销预付本金。
 func accrueOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, now time.Time) error {
 	principal, bonus, evidence, err := orderSettlementComposition(ctx, tx.Client(), order)
 	if err != nil {
@@ -449,7 +449,7 @@ func accrueOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
 	return recomputeCustomerLevel(ctx, tx.Client(), order.CustomerID, now)
 }
 
-// reverseOrderGrowth 退款执行后按退款金额冲回成长值（§10.2/§10.5）。
+// reverseOrderGrowth 退款执行后按退款金额冲回成长值。
 // 订单尚未计提成长值（未结单即退款）时跳过；幂等靠售后单号唯一索引。
 func reverseOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, adminID int, now time.Time) error {
 	rev := refundReversalContext{
@@ -463,7 +463,7 @@ func reverseOrderGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder
 }
 
 // reverseOrderGrowthFor 成长值冲回实现（售后 / 外部退款共用）。
-// 只冲回「退款对应的本金部分」（§10.2-01「退款只冲回对应部分」）：订单按本金口径计提时，
+// 只冲回「退款对应的本金部分」（「退款只冲回对应部分」）：订单按本金口径计提时，
 // 按原核销构成算本次退还的本金份额；升级前的历史流水（payment_source = none，全额口径）
 // 沿用「按退款额冲回」，两种口径都不超过该订单已计提的成长值。
 // 成长值流水 source_type 枚举没有 external_refund 分支，外部退款沿用 after_sale 枚举、
@@ -513,7 +513,7 @@ func reverseOrderGrowthFor(ctx context.Context, tx *ent.Tx, order *ent.EsportsOr
 	return recomputeCustomerLevel(ctx, tx.Client(), order.CustomerID, now)
 }
 
-// growthReversalPaymentSource 推断成长值冲回流水的支付来源（§10.2-03）：
+// growthReversalPaymentSource 推断成长值冲回流水的支付来源：
 // 冲回是「按原计提口径退回」，故沿用该订单计提流水的支付来源；历史全额口径流水（none）
 // 无法自证来源，按「已核销预付本金」标注（既有的全额口径即按实付额计提）。
 func growthReversalPaymentSource(orderRows []*ent.EsportsGrowthLedger) esportsgrowthledger.PaymentSource {
@@ -564,11 +564,11 @@ func growthReversalCents(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrde
 	return min(max(reversal, 0), accrued), nil
 }
 
-// recomputeCustomerLevel 按成长值流水重算客户等级（§10.3）：
+// recomputeCustomerLevel 按成长值流水重算客户等级：
 //   - 未定级 → 直接定级；成长值跨过更高门槛 → 即时升级并写通知事件；
 //   - 成长值跌破当前等级门槛 → 只记录应降等级与保护期到期时间，保护期满由定时任务降级；
 //   - 成长值回升到当前等级 → 撤销待降级标记；
-//   - 手动调级覆盖期内的等级**优先于**成长值口径（§10.3-03 / §10.5-04）：人工设定可升可降，
+//   - 手动调级覆盖期内的等级**优先于**成长值口径：人工设定可升可降，
 //     重算不得覆盖人工设定；覆盖期到期后自动失效（见 settleMemberLevelOverride / applyMemberOverrideExpiries），
 //     等级回落为成长值口径结果。
 func recomputeCustomerLevel(ctx context.Context, db *ent.Client, customerID int, now time.Time) error {
@@ -580,7 +580,7 @@ func recomputeCustomerLevel(ctx context.Context, db *ent.Client, customerID int,
 	if err != nil {
 		return err
 	}
-	// 手动调级覆盖期内的等级**优先于**成长值口径（§10.3-03 / §10.5-04）。
+	// 手动调级覆盖期内的等级**优先于**成长值口径。
 	// P1-10：此前只在「覆盖等级门槛更高」时采用覆盖值（取最高），人工降级会被下一次重算顶回，
 	// 表现为「只能升不能降」；现在覆盖期内人工设定即权威等级，可升也可降，覆盖到期才回落成长值口径。
 	if overridden, err := activeMemberLevelForCustomer(ctx, db, customerID, now); err != nil {
@@ -652,7 +652,7 @@ func applyMemberLevel(ctx context.Context, db *ent.Client, customer *ent.Esports
 	return writeMemberLevelEvent(ctx, db.EsportsOutbox.Create, eventType, customer.ID, customer.MemberLevelCode, levelCode, growth, nil, now)
 }
 
-// memberLevelEventKey 生成等级变更事件键（§10.5-03）：客户 + 等级 + 业务日期（UTC+8）。
+// memberLevelEventKey 生成等级变更事件键：客户 + 等级 + 业务日期（UTC+8）。
 // 键里不含秒，避免同一秒的两次变更被 EsportsOutbox.event_key 唯一索引吞掉；
 // 同日同客户同等级的重复变更由 writeMemberLevelEvent 追加序号区分。
 func memberLevelEventKey(eventType string, customerID int, levelCode string, at time.Time) string {
@@ -663,7 +663,7 @@ func memberLevelEventKey(eventType string, customerID int, levelCode string, at 
 // 也能写事务外（`db.EsportsOutbox.Create`）；事件键冲突需重试，故传工厂而不是构造器本身。
 type memberOutboxFactory func() *ent.EsportsOutboxCreate
 
-// writeMemberLevelEvent 写等级变更事件（逐次留痕，§10.5-03）：等级每次变更都落一条只增事件，
+// writeMemberLevelEvent 写等级变更事件（逐次留痕，）：等级每次变更都落一条只增事件，
 // 载荷含变更前后等级、成长值与发生时刻，构成逐次变更记录。
 // 事件键冲突时追加序号重试，保证同一天对同一客户的每次变更各有一条事件，不被唯一索引吞掉。
 func writeMemberLevelEvent(ctx context.Context, newCreate memberOutboxFactory, eventType string, customerID int,
@@ -696,7 +696,7 @@ func writeMemberLevelEvent(ctx context.Context, newCreate memberOutboxFactory, e
 	return errConflict
 }
 
-// memberDowngradeGuardDays 读等级保护期天数（§10.3）；未配置或非法时回落默认 30 天。
+// memberDowngradeGuardDays 读等级保护期天数；未配置或非法时回落默认 30 天。
 func memberDowngradeGuardDays(ctx context.Context, db *ent.Client) (int, error) {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(memberDowngradeGuardKey)).Only(ctx)
 	if ent.IsNotFound(err) {
@@ -712,7 +712,7 @@ func memberDowngradeGuardDays(ctx context.Context, db *ent.Client) (int, error) 
 	return days, nil
 }
 
-// memberOverrideGuardDays 读手动调级覆盖期天数（§10.5-04）；未配置或非法时回落默认 90 天。
+// memberOverrideGuardDays 读手动调级覆盖期天数；未配置或非法时回落默认 90 天。
 func memberOverrideGuardDays(ctx context.Context, db *ent.Client) (int, error) {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(memberOverrideGuardKey)).Only(ctx)
 	if ent.IsNotFound(err) {
@@ -742,7 +742,7 @@ func lastMemberLevelOverride(ctx context.Context, db *ent.Client, customerID int
 	return override, nil
 }
 
-// memberOverrideCoverage 描述客户最近一次手动调级覆盖的生效窗口（§10.3-03 / §10.5-04）。
+// memberOverrideCoverage 描述客户最近一次手动调级覆盖的生效窗口。
 //   - Active：此刻是否仍在覆盖期内（覆盖期 = 覆盖记录创建时间 + 可配天数，默认 90 天）；
 //   - Rule：覆盖期内且目标等级仍启用时的等级规则；覆盖期外或等级已停用/不存在时为 nil。
 //
@@ -754,7 +754,7 @@ type memberOverrideCoverage struct {
 	Active    bool
 }
 
-// memberOverrideWindow 是手动调级时**逐次指定**的覆盖期（§10.3-03 扩展）：
+// memberOverrideWindow 是手动调级时**逐次指定**的覆盖期（扩展）：
 // 与系统配置 app.esports.member_override_guard_days 二选一，零值表示沿用系统配置。
 type memberOverrideWindow struct {
 	Days  int
@@ -857,7 +857,7 @@ func memberOverrideCoverageFor(ctx context.Context, db *ent.Client, customerID i
 	return coverage, nil
 }
 
-// activeMemberLevelForCustomer 返回覆盖期内最近一次手动调级对应的**启用**等级规则（§10.3-03 / §10.5-04）。
+// activeMemberLevelForCustomer 返回覆盖期内最近一次手动调级对应的**启用**等级规则。
 // 超出覆盖期或等级已停用/不存在时返回 nil，表示不再作为等级来源，重算回到成长值口径。
 func activeMemberLevelForCustomer(ctx context.Context, db *ent.Client, customerID int, now time.Time) (*ent.EsportsMemberLevelRule, error) {
 	coverage, err := memberOverrideCoverageFor(ctx, db, customerID, now)
@@ -955,7 +955,7 @@ func applyMemberOverrideExpiryTask(ctx context.Context, logger io.Writer) error 
 	return err
 }
 
-// applyMemberDowngrades 批量执行保护期已到期的待降级客户（§10.3），逐个条件更新，版本竞争跳过。
+// applyMemberDowngrades 批量执行保护期已到期的待降级客户，逐个条件更新，版本竞争跳过。
 // ponytail: 单批全量扫描待降级客户，未做分页游标；待降级量级在会员体系下很小。
 func applyMemberDowngrades(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if limit < 1 || limit > 1000 {
@@ -981,7 +981,7 @@ func applyMemberDowngrades(ctx context.Context, db *ent.Client, now time.Time, l
 			return count, err
 		}
 		if changed == 1 {
-			// 降级执行同样逐次留事件（§10.5-03）：客户侧与对接客服都能看到何时被降级。
+			// 降级执行同样逐次留事件：客户侧与对接客服都能看到何时被降级。
 			if err = writeMemberLevelEvent(ctx, db.EsportsOutbox.Create, "member.level_downgraded", customer.ID,
 				customer.MemberLevelCode, customer.MemberPendingLevelCode, 0,
 				map[string]interface{}{"trigger": "guard_expired"}, now); err != nil {
@@ -993,9 +993,9 @@ func applyMemberDowngrades(ctx context.Context, db *ent.Client, now time.Time, l
 	return count, nil
 }
 
-// setMemberLevelByAdmin 管理员手动调级（§10.3）：写只增覆盖记录（操作人/原因/时间）并立即改当前等级，
+// setMemberLevelByAdmin 管理员手动调级：写只增覆盖记录（操作人/原因/时间）并立即改当前等级，
 // 不修改成长值流水。
-// 覆盖期内该等级作为稳定的等级来源参与取最高（§10.5-04）：下一次成长值变动重算不会把它平掉，
+// 覆盖期内该等级作为稳定的等级来源参与取最高：下一次成长值变动重算不会把它平掉，
 // 覆盖期到期（默认 90 天，可配）后回到成长值口径，按保护期正常降级。
 //
 // windows 可选传入本次调级的覆盖期（override_days / override_until，二选一）：不传时沿用系统配置天数，
@@ -1072,7 +1072,7 @@ type memberView struct {
 	PendingLevelCode string     `json:"pending_level_code"`
 	DowngradeAfter   *time.Time `json:"downgrade_after"`
 	LevelChangedAt   *time.Time `json:"level_changed_at"`
-	// 当前等级生效的权益快照（§10.1-02 / §10.4）：客服端与自助端据此渲染权益与入口。
+	// 当前等级生效的权益快照：客服端与自助端据此渲染权益与入口。
 	DedicatedCs          bool `json:"dedicated_cs"`
 	PriorityBooking      bool `json:"priority_booking"`
 	PriorityDispatch     bool `json:"priority_dispatch"`
@@ -1133,7 +1133,7 @@ func memberViewAt(ctx context.Context, db *ent.Client, customerID int, limit int
 		view.LevelName = rule.Name
 		view.DiscountBps = rule.DiscountBps
 	}
-	// 权益快照按「启用中的等级规则」取（§10.4）：等级停用即不享受任何权益。
+	// 权益快照按「启用中的等级规则」取：等级停用即不享受任何权益。
 	if rule, err := customerMemberRule(ctx, db, customer.MemberLevelCode); err != nil {
 		return nil, err
 	} else if rule != nil {

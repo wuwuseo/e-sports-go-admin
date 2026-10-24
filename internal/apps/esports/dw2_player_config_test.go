@@ -28,7 +28,7 @@ func dw2WithinSlot(t *testing.T, startMinute, endMinute int) time.Time {
 	return day.Add(time.Duration(minutes) * time.Minute)
 }
 
-// §6.4-06：服务时段 —— 设置服务时段的陪玩在时段外不被派单（候选池与人工指派双向拦截）。
+// ：服务时段 —— 设置服务时段的陪玩在时段外不被派单（候选池与人工指派双向拦截）。
 func TestDw2ServiceSlotBlocksDispatchOutsideWindow(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dw2_service_slot")
 	defer db.Close()
@@ -85,7 +85,7 @@ func TestDw2ServiceSlotBlocksDispatchOutsideWindow(t *testing.T) {
 	}
 }
 
-// §6.4-06：可接单价范围 —— 超出本人设定价区间的订单不被派单。
+// ：可接单价范围 —— 超出本人设定价区间的订单不被派单。
 func TestDw2AcceptPriceRangeBlocksDispatch(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dw2_accept_price")
 	defer db.Close()
@@ -131,7 +131,7 @@ func TestDw2AcceptPriceRangeBlocksDispatch(t *testing.T) {
 	}
 }
 
-// §6.4-06：自动上线 —— 开启后，服务时段内心跳保活自动把陪玩置为在线（时段外不动）。
+// ：自动上线 —— 开启后，服务时段内心跳保活自动把陪玩置为在线（时段外不动）。
 func TestDw2AutoOnlineOnHeartbeat(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_auto_online")
 	defer db.Close()
@@ -170,7 +170,7 @@ func TestDw2AutoOnlineOnHeartbeat(t *testing.T) {
 	}
 }
 
-// §6.4-06：固排开关与固排时段 —— 开启后仅在固排时段内可被固排成队。
+// ：固排开关与固排时段 —— 开启后仅在固排时段内可被固排成队。
 func TestDw2FixedTeamSlotGatesTeamDispatch(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dw2_fixed_team_slot")
 	defer db.Close()
@@ -243,7 +243,7 @@ func TestDw2FixedTeamSlotGatesTeamDispatch(t *testing.T) {
 	}
 }
 
-// §6.4-06：五项配置必须可由陪玩本人写入（服务时段 / 自动上线 / 可接价 / 固排开关 / 固排时段）。
+// ：五项配置必须可由陪玩本人写入（服务时段 / 自动上线 / 可接价 / 固排开关 / 固排时段）。
 func TestDw2PlayerAcceptConfigSelfService(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_accept_config")
 	defer db.Close()

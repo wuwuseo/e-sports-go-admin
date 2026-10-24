@@ -39,7 +39,7 @@ func ar4JSONInt(payload map[string]interface{}, key string) int64 {
 	return int64(value)
 }
 
-// §13.2-05 P0：结单后金额异常须能被可配置规则扫描出来，并自动生成 channel=system 的售后单 + 命中留痕。
+// P0：结单后金额异常须能被可配置规则扫描出来，并自动生成 channel=system 的售后单 + 命中留痕。
 func TestAfterSaleRuleScanCreatesSystemAfterSaleOnClosedAmountAnomaly(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_amount")
 	defer db.Close()
@@ -119,7 +119,7 @@ func TestAfterSaleRuleScanCreatesSystemAfterSaleOnClosedAmountAnomaly(t *testing
 	}
 }
 
-// §13.2-05：结单后时长短缺按「承诺分钟 − 系统计时分钟」判定，观察窗口真实生效。
+// ：结单后时长短缺按「承诺分钟 − 系统计时分钟」判定，观察窗口真实生效。
 func TestAfterSaleRuleScanDurationShortageRespectsWindow(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_duration")
 	defer db.Close()
@@ -163,7 +163,7 @@ func TestAfterSaleRuleScanDurationShortageRespectsWindow(t *testing.T) {
 	}
 }
 
-// §13.2-05：不可计算或未达阈值的来源不得误报建单，也不得留痕。
+// ：不可计算或未达阈值的来源不得误报建单，也不得留痕。
 func TestAfterSaleRuleScanSkipsNotComputableMetrics(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_no_metric")
 	defer db.Close()
@@ -204,7 +204,7 @@ func TestAfterSaleRuleScanSkipsNotComputableMetrics(t *testing.T) {
 	}
 }
 
-// §13.2-05：命中但规则不自动建单（channel=admin / auto_create=false / 全局开关关闭）时，
+// ：命中但规则不自动建单（channel=admin / auto_create=false / 全局开关关闭）时，
 // 只写留痕 + 客服待办，不产生 channel=system 售后单。
 func TestAfterSaleRuleHitWithoutAutoCreateLeavesPendingTodo(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_todo")
@@ -283,7 +283,7 @@ func TestAfterSaleRuleHitWithoutAutoCreateLeavesPendingTodo(t *testing.T) {
 	}
 }
 
-// §13.2-05：规则本身的可配置性——非法组合明确报错，编码唯一，版本乐观锁，未命中可删除、已命中不可删除。
+// ：规则本身的可配置性——非法组合明确报错，编码唯一，版本乐观锁，未命中可删除、已命中不可删除。
 func TestAfterSaleRuleCrudValidationAndDeleteGuard(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_crud")
 	defer db.Close()
@@ -392,7 +392,7 @@ func TestAfterSaleRuleCrudValidationAndDeleteGuard(t *testing.T) {
 	}
 }
 
-// §13.2-05：规则配置变更须留审计痕迹（谁在何时改了什么）。
+// ：规则配置变更须留审计痕迹（谁在何时改了什么）。
 func TestAfterSaleRuleChangesAreAudited(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_audit")
 	defer db.Close()
@@ -430,7 +430,7 @@ func TestAfterSaleRuleChangesAreAudited(t *testing.T) {
 	}
 }
 
-// §13.2-05：service_segment_finished 规则在服务段结束（订单尚未结单）时也能命中建单，
+// ：service_segment_finished 规则在服务段结束（订单尚未结单）时也能命中建单，
 // 与 player.go 的硬编码严重时长差异分支按「同来源同问题只留一张进行中」并存。
 func TestAfterSaleRuleScanServiceSegmentFinishedTrigger(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_segment")
@@ -463,7 +463,7 @@ func TestAfterSaleRuleScanServiceSegmentFinishedTrigger(t *testing.T) {
 	}
 }
 
-// §13.2-05：gift_paid 规则可对已付款礼物单按金额超阈值命中建单。
+// ：gift_paid 规则可对已付款礼物单按金额超阈值命中建单。
 func TestAfterSaleRuleScanGiftPaidTrigger(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_rule_gift")
 	defer db.Close()

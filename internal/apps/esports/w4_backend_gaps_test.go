@@ -73,7 +73,7 @@ func w4FindAPIPermission(app cmfapp.App, method, permPath string) *cmfapp.Permis
 	return nil
 }
 
-// 路由契约（AGENTS.md §5-3）：4 条新路由都必须存在、为 AuthAdmin，且每条都有方法 + 完整路径
+// 路由契约（AGENTS.md ）：4 条新路由都必须存在、为 AuthAdmin，且每条都有方法 + 完整路径
 // 完全一致的 PermAPI 声明（路径参数写 {id}）。整体声明交给 cmfapp.ValidateApps 复核：
 // 它同时校验「管理端路由必须有同名 PermAPI」「PermAPI 必须有对应路由」「权限码唯一」「Parent 存在」。
 func TestBackendGapRoutesDeclaredWithPermissions(t *testing.T) {
@@ -151,7 +151,7 @@ func TestBackendGapRoutesDeclaredWithPermissions(t *testing.T) {
 	}
 }
 
-// 代客确认（§13.3）：把「待客户确认」推进到「待审批」，只写代确认人，不写审批人、不预占退款额度；
+// 代客确认：把「待客户确认」推进到「待审批」，只写代确认人，不写审批人、不预占退款额度；
 // 重复调用 409（不能当作审批的替代），且既有职责分离不变（处理人本人仍不能审批）。
 func TestAfterSaleProxyConfirmAdvancesToPendingApproval(t *testing.T) {
 	db := openAfterSaleDB(t, "w4_aftersale_proxy_confirm")
@@ -226,7 +226,7 @@ func TestAfterSaleProxyConfirmAdvancesToPendingApproval(t *testing.T) {
 	}
 }
 
-// 档期处置可用动作（§5.5-06 只读）：随 app.esports.appointment_expire_action 变化而变化，
+// 档期处置可用动作（只读）：随 app.esports.appointment_expire_action 变化而变化，
 // 且不产生副作用；HTTP 接线返回同一口径。
 func TestAppointmentDisposalOptionsFollowConfig(t *testing.T) {
 	db := openProductDB(t, "w4_appointment_disposal_options")
@@ -306,7 +306,7 @@ func TestAppointmentDisposalOptionsFollowConfig(t *testing.T) {
 	}
 }
 
-// 服务段计时读取（§3.3 只读）：有效 / 墙钟 / 暂停秒数与上界口径正确，且上界与更正校验完全一致
+// 服务段计时读取（只读）：有效 / 墙钟 / 暂停秒数与上界口径正确，且上界与更正校验完全一致
 // （上界值可更正，上界 +1 必被拒）；非本单成员 403；HTTP 接线字段齐全。
 func TestServiceTimingReadoutMatchesCorrectionBound(t *testing.T) {
 	db := openPlayerTestDB(t, "w4_service_timing_readout")
@@ -391,7 +391,7 @@ func TestServiceTimingReadoutMatchesCorrectionBound(t *testing.T) {
 	}
 }
 
-// 充值退款执行批次列表（§4.5 只读）：可按 status 过滤、默认按 ID 倒序、带上关联售后单号与执行人；
+// 充值退款执行批次列表（只读）：可按 status 过滤、默认按 ID 倒序、带上关联售后单号与执行人；
 // 非法 status 中文报错；HTTP 接线支持 ?status=&limit=。
 func TestRechargeRefundExecutionListQuery(t *testing.T) {
 	db := openAfterSaleDB(t, "w4_refund_execution_list")

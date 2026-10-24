@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsaftersalemessage"
 )
 
-// 售后单内回复 / 沟通记录（§13.3-04）：客服与客户在同一张售后单里来回回复，
+// 售后单内回复 / 沟通记录：客服与客户在同一张售后单里来回回复，
 // 记录只增不改（EsportsAfterSaleMessage + appendOnlyHooks），
 // visibility=internal 的内部备注仅客服侧可见，客户侧列表只返回 visibility=all。
 

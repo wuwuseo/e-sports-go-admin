@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportscommissionentry"
 )
 
-// 终态售后新证据复核（§13.6）：仅终态可申请、同单只允许一张进行中复核、异人审查、发回重处理可重新走流程。
+// 终态售后新证据复核：仅终态可申请、同单只允许一张进行中复核、异人审查、发回重处理可重新走流程。
 func TestAfterSaleReviewReopensRejectedTicket(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_aftersale_review_reopen")
 	defer db.Close()

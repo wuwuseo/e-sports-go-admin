@@ -28,7 +28,7 @@ func dw2AppointmentOrder(t *testing.T, db *ent.Client, orderNo string, skuID int
 		SaveX(t.Context())
 }
 
-// §5.9-01：席位必须记录「发出邀请时间」与「服务时段」，且「进入待派单池」「可以开工」
+// ：席位必须记录「发出邀请时间」与「服务时段」，且「进入待派单池」「可以开工」
 // 各是一条独立订单事件（各只写一次）。
 func TestDw2SeatInviteSlotAndTimelineEvents(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dw2_seat_slot")
@@ -124,7 +124,7 @@ func TestDw2SeatInviteSlotAndTimelineEvents(t *testing.T) {
 	}
 }
 
-// §5.9-01 补充口径：即时单（无档期与时长）不臆造席位时段。
+// 补充口径：即时单（无档期与时长）不臆造席位时段。
 func TestDw2InstantOrderSeatHasNoSlot(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dw2_seat_slot_instant")
 	defer db.Close()

@@ -8,9 +8,9 @@ import (
 	"go-admin/internal/global"
 )
 
-// 优先派单权（§5.4）与派单候选排序（§5.5 首版），挂「排单」菜单。
+// 优先派单权与派单候选排序（首版），挂「排单」菜单。
 
-// adminOrderPriorityNotices 某订单的优先通知明细：谁被通知、谁拒绝、谁接单（§5.4 业务口径）。
+// adminOrderPriorityNotices 某订单的优先通知明细：谁被通知、谁拒绝、谁接单（业务口径）。
 func adminOrderPriorityNotices(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -26,7 +26,7 @@ func adminOrderPriorityNotices(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// releaseOrderPriorityHandler 客服提前把优先通知窗口释放到抢单大厅（§5.2 可随时人工干预）。
+// releaseOrderPriorityHandler 客服提前把优先通知窗口释放到抢单大厅（可随时人工干预）。
 func releaseOrderPriorityHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -84,7 +84,7 @@ func declineDispatchNoticeHandler(c fiber.Ctx) error {
 	return reply(c, notice)
 }
 
-// playerPriorityStatusHandler 陪玩端「我的优先派单权」状态（§6.1-06）：
+// playerPriorityStatusHandler 陪玩端「我的优先派单权」状态：
 // 是否持有 / 来源 / 有效期 / 剩余名额。需在 app.go 接线：
 // {Method: "GET", Path: "/user/player/priority-status", Auth: cmfapp.AuthUser, Handler: playerPriorityStatusHandler}
 // 陪玩身份由 AuthUser + requestPlayer 保证，无需 PermAPI。
@@ -100,7 +100,7 @@ func playerPriorityStatusHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// adminDispatchPriority 列出优先派单权名单（管理端，§5.4）。
+// adminDispatchPriority 列出优先派单权名单（管理端，）。
 func adminDispatchPriority(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -152,7 +152,7 @@ func revokeDispatchPriorityHandler(c fiber.Ctx) error {
 	return reply(c, grant)
 }
 
-// adminDispatchCandidates 按 §5.5 排出该订单的派单候选（硬性条件过滤 + 优先派单权加权）。
+// adminDispatchCandidates 按 排出该订单的派单候选（硬性条件过滤 + 优先派单权加权）。
 func adminDispatchCandidates(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -169,7 +169,7 @@ func adminDispatchCandidates(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	// 未显式传参时回落订单上的指定陪玩（§5.4）：指定单的候选应把本人置顶。
+	// 未显式传参时回落订单上的指定陪玩：指定单的候选应把本人置顶。
 	preferred := queryInt(c, "preferred_player_id")
 	if preferred < 1 && order.PreferredPlayerID != nil {
 		preferred = *order.PreferredPlayerID

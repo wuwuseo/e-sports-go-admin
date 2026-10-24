@@ -45,7 +45,7 @@ func (EsportsWalletTx) Fields() []ent.Field {
 		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史流水/历史台账可读，禁止新写入。
 		field.Enum("account_type").Values("customer_balance", "player_catfood", "stored_value_card").StructTag(`json:"account_type"`),
 		field.Int("owner_id").Positive().StructTag(`json:"owner_id"`),
-		// withdraw：陪玩提现申请时扣减猫粮（§6.3）；驳回用 refund_return 退回。
+		// withdraw：陪玩提现申请时扣减猫粮；驳回用 refund_return 退回。
 		field.Enum("entry_type").Values("recharge", "consume", "refund_return", "adjust", "expire", "withdraw").StructTag(`json:"entry_type"`),
 		field.Int64("principal_delta_cents").Default(0).StructTag(`json:"principal_delta_cents"`),
 		field.Int64("bonus_delta_cents").Default(0).StructTag(`json:"bonus_delta_cents"`),
@@ -53,16 +53,16 @@ func (EsportsWalletTx) Fields() []ent.Field {
 		field.String("source_id").NotEmpty().MaxLen(80).StructTag(`json:"source_id"`),
 		field.Int("operator_id").Optional().Nillable().StructTag(`json:"operator_id"`),
 		field.String("note").MaxLen(255).Default("").StructTag(`json:"note"`),
-		// 归属人（§11.6-02）：归属人须显式落库，使单条流水可独立自证「这笔钱是谁的」
+		// 归属人：归属人须显式落库，使单条流水可独立自证「这笔钱是谁的」
 		// （历史上 stored_value_card 账户的 owner_id 是卡 ID，归属人须由卡上 customer_id 得出）。
 		// customer=客户 / player=陪玩 / platform=平台自有；历史数据默认 customer，可按下方 SQL 回填。
 		field.Enum("beneficiary_type").Values("customer", "player", "platform").Default("customer").StructTag(`json:"beneficiary_type"`),
 		field.Int("beneficiary_id").Default(0).StructTag(`json:"beneficiary_id"`),
-		// 变动前后余额（§11.6-02，按「本金 + 赠送」合计口径，单位分）：写入时由账本在同一事务内计算并快照，
+		// 变动前后余额（，按「本金 + 赠送」合计口径，单位分）：写入时由账本在同一事务内计算并快照，
 		// 历史流水默认 0（读取方须按 0 判定为「未快照」而不是「余额为 0」）。
 		field.Int64("balance_before_cents").Default(0).StructTag(`json:"balance_before_cents"`),
 		field.Int64("balance_after_cents").Default(0).StructTag(`json:"balance_after_cents"`),
-		// 该笔资金所属批次键（§11.6-02）：与 EsportsLedgerEntry.fund_batch 同口径，
+		// 该笔资金所属批次键：与 EsportsLedgerEntry.fund_batch 同口径，
 		// 使单条钱包流水可回溯到批次账本；手动调整等无批次场景为空串。
 		field.String("fund_batch").MaxLen(80).Default("").StructTag(`json:"fund_batch"`),
 		// 充值活动快照：活动资格 / 赠送规则 / 应付 / 赠送额 / 赠送有效期；手动充值为空。

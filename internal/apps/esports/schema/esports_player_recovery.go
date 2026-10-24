@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsPlayerRecovery 是陪玩追偿明细（§13.4）：客户额外赔付由陪玩承担时另建的扣回单。
+// EsportsPlayerRecovery 是陪玩追偿明细：客户额外赔付由陪玩承担时另建的扣回单。
 // 流程：售后执行时按方案的追偿金额生成（pending）→ 由非申请人的管理员审批（approved）→
 // 执行扣回陪玩猫粮（recovered），或驳回（rejected）。追偿与「退款冲回分成」相互独立：
 // 冲回是分成账上的负向明细，追偿是直接从陪玩可提现余额上扣回。

@@ -18,7 +18,7 @@ import (
 	"go-admin/internal/ent/esportssku"
 )
 
-// 线下 / 外部到账核销（§4.2 / §4.3）：
+// 线下 / 外部到账核销：
 // 客服上传转账截图或商户码截图只生成「待核验收款」，财务核验前订单不派单；
 // 核销只能落到启用中的工作室收款账户，且收款方式必须处于启用状态；
 // 核销复用手续收款落库边界 applyVerifiedPayment（金额校验、订单状态、配额、账本、事件一次完成），
@@ -31,12 +31,12 @@ type offlinePaymentProofInput struct {
 	AmountCents   int64  `json:"amount_cents"`
 	ProofRef      string `json:"proof_ref"`
 	Note          string `json:"note"`
-	// EvidenceAttachmentIDs 是客服上传的转账截图附件 ID（§4.2-04）：非空时按本人归属 + 私有目录 +
+	// EvidenceAttachmentIDs 是客服上传的转账截图附件 ID：非空时按本人归属 + 私有目录 +
 	// 内容哈希 + 图片/PDF MIME 强校验，并以 JSON 数组落 proof_ref；为空时兼容存量文本 proof_ref。
 	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 }
 
-// ensureOrderSkuOnSale 校验收款订单的商品仍在售（§15.7-01）：SKU 下架后不得再发起收款，
+// ensureOrderSkuOnSale 校验收款订单的商品仍在售：SKU 下架后不得再发起收款，
 // 必须在生成收款单 / 支付意图之前就明确失败，而不是等到核销环节才退回人工。
 func ensureOrderSkuOnSale(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) error {
 	if order == nil {
@@ -52,7 +52,7 @@ func ensureOrderSkuOnSale(ctx context.Context, db *ent.Client, order *ent.Esport
 	return nil
 }
 
-// ensurePaymentDeadlineConfigured 发起收款 / 核销前的上线校验（§7 / 18-02）：
+// ensurePaymentDeadlineConfigured 发起收款 / 核销前的上线校验（18-02）：
 // app.esports.payment_deadline_minutes 未配置或非法时，收款入口一律明确失败（不得伪成功）。
 func ensurePaymentDeadlineConfigured(ctx context.Context, db *ent.Client) error {
 	_, err := paymentDeadlineMinutes(ctx, db)
@@ -62,7 +62,7 @@ func ensurePaymentDeadlineConfigured(ctx context.Context, db *ent.Client) error 
 	return nil
 }
 
-// resolveOperatorProofRef 解析客服提交凭证的落库值（§4.2-04）：
+// resolveOperatorProofRef 解析客服提交凭证的落库值：
 // 传了附件 ID 就落 JSON 数组（可解析出附件与上传人），否则沿用存量文本 proof_ref。
 func resolveOperatorProofRef(ctx context.Context, db *ent.Client, in offlinePaymentProofInput,
 	adminID int) (string, error) {
@@ -105,7 +105,7 @@ func otherPendingPaymentProofExists(ctx context.Context, query *ent.EsportsOffli
 	return pending.Exist(ctx)
 }
 
-// submitOfflinePaymentProof 客服提交外部到账凭证（§4.3）：企微收款无回调、商户码截图、对公转账凭证。
+// submitOfflinePaymentProof 客服提交外部到账凭证：企微收款无回调、商户码截图、对公转账凭证。
 func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePaymentProofInput,
 	adminID int, now time.Time) (*ent.EsportsOfflinePaymentProof, error) {
 	in.TransactionNo = strings.TrimSpace(in.TransactionNo)
@@ -136,7 +136,7 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	if err != nil {
 		return nil, err
 	}
-	// §15.7-01：商品下架后直接拒绝发起收款，不生成收款单 / 支付意图。
+	// ：商品下架后直接拒绝发起收款，不生成收款单 / 支付意图。
 	if err = ensureOrderSkuOnSale(ctx, db, order); err != nil {
 		return nil, err
 	}
@@ -147,11 +147,11 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	if in.AmountCents < order.PayableCents {
 		return nil, errInvalidInput
 	}
-	// §4.3-05：大额订单只允许对公转账。
+	// ：大额订单只允许对公转账。
 	if err = ensureCorporateChannelForAmount(ctx, db, channel, in.AmountCents); err != nil {
 		return nil, err
 	}
-	// §4.2-04：客服转账凭证须落附件并校验归属与 MIME。
+	// ：客服转账凭证须落附件并校验归属与 MIME。
 	proofRef, err := resolveOperatorProofRef(ctx, db, in, adminID)
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	if intent.AmountCents != order.PayableCents {
 		return nil, errConflict
 	}
-	// 订单级串行化（§8.2-15 / B.3-1）：提交待核验凭证同样推进订单版本。
+	// 订单级串行化（B.3-1）：提交待核验凭证同样推进订单版本。
 	// 这样并发中「已读到无凭证」的余额 / 储值卡核销在写回时版本守卫必然失败，
 	// 不会出现「余额已核销 + 凭证同时挂账」的重复收款；反之凭证先落库，核销侧也会被判冲突。
 	runPaymentOrderInterleaveHook(order.ID)
@@ -198,7 +198,7 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	return item, nil
 }
 
-// verifyOfflinePaymentProof 财务核验外部到账并核销（§4.2）：核销成功后订单进入待派单。
+// verifyOfflinePaymentProof 财务核验外部到账并核销：核销成功后订单进入待派单。
 // 提交人不得自审；账户已停用 / 渠道已停用 / 订单已不满足核销条件时拒绝，凭证保持待核验以便人工处理。
 func verifyOfflinePaymentProof(ctx context.Context, db *ent.Client, id, adminID int,
 	now time.Time) (*ent.EsportsOfflinePaymentProof, error) {
@@ -226,7 +226,7 @@ func verifyOfflinePaymentProof(ctx context.Context, db *ent.Client, id, adminID 
 	if err != nil {
 		return nil, err
 	}
-	// 订单级串行化（§8.2-15 / B.3-1）：核销与「订单转已付款」在 applyVerifiedPayment 内部完成，
+	// 订单级串行化（B.3-1）：核销与「订单转已付款」在 applyVerifiedPayment 内部完成，
 	// 这里先提交式占位推进订单版本——并发中已读到旧版本的余额 / 储值卡核销随后的写回必然冲突，
 	// 反过来若别的收款动作已先提交，本次占位就影响 0 行、在动钱之前失败。
 	if err = reserveOrderPaymentVersion(ctx, db, item.OrderID); err != nil {
@@ -328,7 +328,7 @@ func listOfflinePaymentProofs(ctx context.Context, db *ent.Client, status string
 	return q.Order(ent.Desc(esportsofflinepaymentproof.FieldID)).Limit(limit).All(ctx)
 }
 
-// ── §4.3-04 收款自动对账 ──
+// ── 收款自动对账 ──
 
 // paymentReconcileMismatch 是一条对账差异：按渠道流水号 / 金额比对得出。
 type paymentReconcileMismatch struct {
@@ -353,7 +353,7 @@ type paymentReconcileReport struct {
 	Mismatches   []paymentReconcileMismatch `json:"mismatches"`
 }
 
-// reconcileOrderPaymentProofs 对订单已提交的收款单做自动对账（§4.3-04）：
+// reconcileOrderPaymentProofs 对订单已提交的收款单做自动对账：
 //  1. 按「渠道 + 渠道流水号」在渠道回执（EsportsPaymentReceipt）中找同一笔到账；
 //     找不到 → channel_unmatched（本地有凭证、渠道账单无此流水）；
 //  2. 找到但金额不一致 → amount_mismatch；

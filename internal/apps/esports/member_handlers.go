@@ -21,7 +21,7 @@ type memberLevelView struct {
 	PrepayBonusBps   int    `json:"prepay_bonus_bps"`
 	DedicatedCs      bool   `json:"dedicated_cs"`
 	PriorityBooking  bool   `json:"priority_booking"`
-	// 专属通道 / 线下活动优先（§10.1-02）。
+	// 专属通道 / 线下活动优先。
 	DedicatedChannel     bool      `json:"dedicated_channel"`
 	OfflineEventPriority bool      `json:"offline_event_priority"`
 	SortOrder            int       `json:"sort_order"`
@@ -117,7 +117,7 @@ func setMemberLevelStatusHandler(c fiber.Ctx) error {
 	return reply(c, toMemberLevelView(item))
 }
 
-// deleteMemberLevelHandler 删除会员等级（§8.1-8）：仅「已停用且未被客户引用」的等级可删，
+// deleteMemberLevelHandler 删除会员等级：仅「已停用且未被客户引用」的等级可删，
 // 否则返回中文冲突提示（启用中 → 请先停用；被引用 → 请改用停用）。
 func deleteMemberLevelHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -154,7 +154,7 @@ func adminCustomerMember(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// setCustomerMemberLevelHandler 管理员手动调级（§10.3）：记录操作人、原因与时间。
+// setCustomerMemberLevelHandler 管理员手动调级：记录操作人、原因与时间。
 // 覆盖期可选：override_days（天数）与 override_until（RFC3339 到期时刻）二选一，
 // 都不传时沿用系统配置 app.esports.member_override_guard_days；同时给出或越界返回参数错误。
 func setCustomerMemberLevelHandler(c fiber.Ctx) error {

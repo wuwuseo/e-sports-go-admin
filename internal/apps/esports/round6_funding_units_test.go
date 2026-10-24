@@ -28,7 +28,7 @@ func r6OpenDB(t *testing.T, name string) *ent.Client {
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 }
 
-// r6SeedAddonPaidOrder 构造 R6 资金口径用例订单（§12.5-02）：
+// r6SeedAddonPaidOrder 构造 R6 资金口径用例订单：
 // 服务应付 payableCents 由客户余额核销（本金 / 赠送构成按参数分列，承诺服务量 3、服务中、已占席），
 // 并按**真实链路**确认 + 收款一笔加钟（addedCents / addedUnits），使「加钟已收款」只能由只增流水派生。
 func r6SeedAddonPaidOrder(t *testing.T, db *ent.Client, suffix string, userID int,
@@ -76,7 +76,7 @@ func r6SeedAddonPaidOrder(t *testing.T, db *ent.Client, suffix string, userID in
 	return db.EsportsOrder.GetX(ctx, order.ID)
 }
 
-// §12.5-02：加钟已收款须并入订单可退额度（可退上界 = 服务应付 + 加钟已收）。
+// ：加钟已收款须并入订单可退额度（可退上界 = 服务应付 + 加钟已收）。
 // 本用例的加钟 4000 经真实余额收款写入只增流水：服务 1000 + 加钟 4000 = 5000，
 // 因此两张各退 1000 的售后单都必须能预占额度（旧口径只按 payable_cents=1000 封顶，第二张必冲突）。
 func TestAddonReceivedExtendsRefundableUpperBound(t *testing.T) {
@@ -104,7 +104,7 @@ func TestAddonReceivedExtendsRefundableUpperBound(t *testing.T) {
 	}
 }
 
-// §12.5-02：「加钟款可原路退回」——服务应付 1000（本金全额核销）+ 加钟已收 500（余额收款），
+// ：「加钟款可原路退回」——服务应付 1000（本金全额核销）+ 加钟已收 500（余额收款），
 // 一次退 1500 必须可审批 / 可执行，且退款流水按原路分别退回：
 // 服务部分回原订单核销账户（source_type=after_sale），加钟部分回加钟收款账户（source_type=after_sale_addon）。
 func TestAddonRefundReturnsViaOriginalBalanceAccount(t *testing.T) {
@@ -153,7 +153,7 @@ func TestAddonRefundReturnsViaOriginalBalanceAccount(t *testing.T) {
 	}
 }
 
-// §12.5-02 并发红线：可退上界 = 服务 1000 + 加钟已收 500 = 1500。
+// 并发红线：可退上界 = 服务 1000 + 加钟已收 500 = 1500。
 // 三张各退 750 的售后单**并发审批**：只能成功两张（恰好到上界），第三张必须 errConflict，
 // 且最终预占额不得越过上界——这是 D34 不变量「冲回不得超过原计提」的额度前提。
 func TestAddonRefundUpperBoundBlocksConcurrentOverRefund(t *testing.T) {
@@ -208,7 +208,7 @@ func TestAddonRefundUpperBoundBlocksConcurrentOverRefund(t *testing.T) {
 	}
 }
 
-// §12.1-05 / §12.5-02（D34）：统一可退基数含加钟已收款后，若「先退款、后收加钟款」使分母中途扩容，
+// （D34）：统一可退基数含加钟已收款后，若「先退款、后收加钟款」使分母中途扩容，
 // 早期已冲满的类别不得被再次冲回——同一类别累计冲回必须始终 ≤ 原计提。
 // 本用例：应付 1000 先全额退掉（服务分成 500 已 100% 冲回）；之后加钟收款 4000（加钟分成 2000），
 // 再退剩余的 4000：服务侧累计仍为 500（不得变成 900），加钟侧按统一基数冲回 1600。
@@ -297,8 +297,8 @@ func TestReversalStaysWithinAccrualWhenAddonExtendsBase(t *testing.T) {
 	}
 }
 
-// §15.5-04：单位级分摊须留痕可查（单位级明细），冲回明细按最小服务单位给出逐单位冲回额，
-// 尾差并入最后一单位（§18.2 裁决）；承诺量 3、冲回 100 分 → [33,33,34] 且合计恒等于 100。
+// ：单位级分摊须留痕可查（单位级明细），冲回明细按最小服务单位给出逐单位冲回额，
+// 尾差并入最后一单位（裁决）；承诺量 3、冲回 100 分 → [33,33,34] 且合计恒等于 100。
 func TestCommissionEntryViewExposesUnitLevelAmounts(t *testing.T) {
 	db := r6OpenDB(t, "round6_unit_level_view")
 	defer db.Close()
@@ -354,7 +354,7 @@ func TestCommissionEntryViewExposesUnitLevelAmounts(t *testing.T) {
 	if len(reversalView.ServiceUnitAmounts) != 3 ||
 		reversalView.ServiceUnitAmounts[0] != 33 || reversalView.ServiceUnitAmounts[1] != 33 ||
 		reversalView.ServiceUnitAmounts[2] != 34 {
-		t.Fatalf("退款冲回的逐单位金额应为 33/33/34（尾差在最后一单位，§18.2 裁决）：%v",
+		t.Fatalf("退款冲回的逐单位金额应为 33/33/34（尾差在最后一单位，裁决）：%v",
 			reversalView.ServiceUnitAmounts)
 	}
 }

@@ -22,7 +22,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 在线收款渠道接入（§4.3）：
+// 在线收款渠道接入：
 // 1. 渠道配置集中在系统配置项 app.esports.payment_gateways（JSON 对象，按渠道编码索引）；
 // 2. 只有「后台已开通 + 配置完整 + 存在启用中的收款账户」的渠道才可发起收款，
 //    任何一步不满足都返回 errPaymentGatewayUnavailable，严禁退化为假成功网关；
@@ -349,7 +349,7 @@ type orderPaymentStartView struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 }
 
-// ensureOrderPerSeatPromise 收款前复核多人单的每席承诺量口径（§4.2-08）：
+// ensureOrderPerSeatPromise 收款前复核多人单的每席承诺量口径：
 // required_seats > 1 的订单必须已快照每席承诺服务量，且 promised_service_units == 每席量 × 席位数 × 份数；
 // 不满足即返回参数错误（400），不允许带着不完整口径进入收款。
 func ensureOrderPerSeatPromise(order *ent.EsportsOrder) error {
@@ -378,7 +378,7 @@ func ensureOrderPerSeatPromise(order *ent.EsportsOrder) error {
 	return nil
 }
 
-// startOrderPayment 客户为本人待付款订单发起在线收款（§4.3）：
+// startOrderPayment 客户为本人待付款订单发起在线收款：
 // 校验归属 / 状态 / 渠道开通 / 启用账户 → 同一事务内保障支付意图（金额与报价确认书版本一致）
 // → 调渠道下单拿 pay_url。
 //
@@ -392,7 +392,7 @@ func startOrderPayment(ctx context.Context, db *ent.Client, customerID, orderID 
 	return startOrderPaymentCore(ctx, db, customerID, orderID, channel, now)
 }
 
-// startOrderPaymentAsOperator 客服 / 企微侧边栏为订单发起在线收款（§4.3-02）：
+// startOrderPaymentAsOperator 客服 / 企微侧边栏为订单发起在线收款：
 // 与客户自助发起共用同一套渠道开通、启用账户、金额与快照校验，仅把「客户本人」归属校验
 // 换成调用方已完成的管理端订单写入边界（app.go 中该路由已包 ownedOrderHandler，P0-12）。
 // 因此本函数的 operatorAdminID 只用于校验调用方身份与留痕，不重复判定订单归属。
@@ -411,7 +411,7 @@ func startOrderPaymentCore(ctx context.Context, db *ent.Client, customerID, orde
 	if orderID < 1 || !validPaymentChannel(channel) {
 		return nil, errInvalidInput
 	}
-	// §7 / 18-02：支付时限未配置时不得发起支付（明确失败，不返回伪成功）。
+	// 18-02：支付时限未配置时不得发起支付（明确失败，不返回伪成功）。
 	if err := ensurePaymentDeadlineConfigured(ctx, db); err != nil {
 		return nil, err
 	}
@@ -426,15 +426,15 @@ func startOrderPaymentCore(ctx context.Context, db *ent.Client, customerID, orde
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
 		return nil, errConflict
 	}
-	// §15.7-01：下架商品不得发起收款。
+	// ：下架商品不得发起收款。
 	if err = ensureOrderSkuOnSale(ctx, db, order); err != nil {
 		return nil, err
 	}
-	// §4.2-08：多人单每席承诺服务量缺失 / 与订单承诺量不一致时不得发起收款。
+	// ：多人单每席承诺服务量缺失 / 与订单承诺量不一致时不得发起收款。
 	if err = ensureOrderPerSeatPromise(order); err != nil {
 		return nil, err
 	}
-	// §4.3-05：大额订单只允许对公转账。
+	// ：大额订单只允许对公转账。
 	if err = ensureCorporateChannelForAmount(ctx, db, channel, order.PayableCents); err != nil {
 		return nil, err
 	}
@@ -479,7 +479,7 @@ func startOrderPaymentCore(ctx context.Context, db *ent.Client, customerID, orde
 	}, nil
 }
 
-// orderPaymentSubject 拼渠道收银台标题（§15.6-03）：优先用下单时的商品名快照，
+// orderPaymentSubject 拼渠道收银台标题：优先用下单时的商品名快照，
 // 历史单无快照（空串）才回落实时 SKU 标题，避免改 SKU 名后收银台标题漂移。
 func orderPaymentSubject(order *ent.EsportsOrder, sku *ent.EsportsSku) string {
 	name := strings.TrimSpace(order.SkuName)
@@ -492,7 +492,7 @@ func orderPaymentSubject(order *ent.EsportsOrder, sku *ent.EsportsSku) string {
 	return name + "（订单 " + order.OrderNo + "）"
 }
 
-// handlePaymentNotification 在线渠道回调验签 + 核销（§4.3）：
+// handlePaymentNotification 在线渠道回调验签 + 核销：
 // 取网关 → 验签（签名 / 5 分钟窗口）→ 校验渠道一致 → applyVerifiedPayment。
 // 幂等由 applyVerifiedPayment 的回执唯一索引与 priorReceipt 承接：同一 transaction_no
 // 重放返回既有 outcome；同流水号不同金额等冲突返回 errConflict。

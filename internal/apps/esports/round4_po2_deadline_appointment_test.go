@@ -28,7 +28,7 @@ func po2SeedPendingCloseOrder(t *testing.T, db *ent.Client, orderNo string, admi
 	return db.EsportsOrder.UpdateOneID(order.ID).SetUpdatedAt(now.Add(-age)).SaveX(ctx)
 }
 
-// §2.1-09：结单时限可配；超时未结单的订单进入待办并可查询，未配置（0）时待办关闭。
+// ：结单时限可配；超时未结单的订单进入待办并可查询，未配置（0）时待办关闭。
 func TestRound4W2CloseDeadlineOverdueTodo(t *testing.T) {
 	db := openCloseFormDB(t, "esports_po2_close_deadline")
 	defer db.Close()
@@ -108,7 +108,7 @@ func po2SeedExpiredAppointmentOrder(t *testing.T, db *ent.Client, code string) *
 		SaveX(ctx)
 }
 
-// §5.5-06：到期扫描把已付款预约单置为「待确认档期超时」并进待办；显式提供改期与全额退还两个入口。
+// ：到期扫描把已付款预约单置为「待确认档期超时」并进待办；显式提供改期与全额退还两个入口。
 func TestRound4W2AppointmentExpiryScanAndDisposal(t *testing.T) {
 	db := openProductDB(t, "esports_po2_appointment_expiry")
 	defer db.Close()

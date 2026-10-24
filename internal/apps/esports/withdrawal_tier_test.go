@@ -7,7 +7,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// 阶梯费率（§11.2）：手续费与代扣税费按金额命中档位（取「min_cents ≤ 金额」的最高档）。
+// 阶梯费率：手续费与代扣税费按金额命中档位（取「min_cents ≤ 金额」的最高档）。
 func TestWithdrawalFeeTiers(t *testing.T) {
 	db := openWithdrawalDB(t, "esports_withdrawal_tiers")
 	ctx := t.Context()

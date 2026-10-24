@@ -26,7 +26,7 @@ import (
 	cmfConfig "github.com/wuwuseo/cmf/config"
 )
 
-// ============ §6.1-01 短信验证码登录通道（平台级 user-auth） ============
+// ============ 短信验证码登录通道（平台级 user-auth） ============
 //
 // 存储选型：**复用既有缓存基础设施**（appInstance.Cache，默认 memory / 可切 redis），不新增 Ent 表：
 //  1. 「短时效 + 一次性」天然是 TTL 语义，缓存驱动自带过期，不需要扫表清理；
@@ -238,7 +238,7 @@ func (s *SMSCodeService) SendCode(ctx context.Context, phone, ip string) (*SendS
 	}
 	notifier, ok := s.notifiers.Get(ChannelSMS)
 	if !ok || notifier == nil || !notifier.Enabled() {
-		// §7 不假成功：网关未配置时明确失败，绝不返回「已发送」。
+		// 不假成功：网关未配置时明确失败，绝不返回「已发送」。
 		return nil, ErrSMSChannelUnavailable
 	}
 	if s.store == nil {

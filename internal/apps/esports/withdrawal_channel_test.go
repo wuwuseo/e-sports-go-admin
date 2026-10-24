@@ -9,7 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// 提现方式按工作室能力开通（§6.3-05）：渠道开关关闭时申请必须被拒且不动猫粮；
+// 提现方式按工作室能力开通：渠道开关关闭时申请必须被拒且不动猫粮；
 // 开通后可申请；从未配置开关的渠道保持既有行为（不阻断存量部署）；白名单外渠道仍被拒。
 func TestWithdrawalChannelRequiresStudioCapability(t *testing.T) {
 	db := openWithdrawalDB(t, "r4wm_withdrawal_channel")

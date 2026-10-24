@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 游戏分区权限 + 技能等级（§5.5）：分区不符、等级不足都被拒，满足者通过；候选池同步过滤。
+// 游戏分区权限 + 技能等级：分区不符、等级不足都被拒，满足者通过；候选池同步过滤。
 func TestPlayerGameLevelGuard(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_game_level_guard")
 	ctx := t.Context()
@@ -115,7 +115,7 @@ func TestGrabHallFiltersGameLevelAndCapacity(t *testing.T) {
 	}
 }
 
-// games 为空表示不限分区（§6.4 缺省）；报单会把 SKU 的 required_level 快照到订单。
+// games 为空表示不限分区（缺省）；报单会把 SKU 的 required_level 快照到订单。
 func TestPlayerGameLevelUnboundedGames(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_game_level_unbounded")
 	ctx := t.Context()

@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 补履约任务（§13.6）：售后方案 `makeup_service` 的执行动作。
+// 补履约任务：售后方案 `makeup_service` 的执行动作。
 //
 // 方案在提交时给出补履约参数（补钟 / 换人、承接陪玩、席位、补足服务量、公司承担报酬），
 // 审批通过后由执行动作创建任务；任务本身自带服务段与客服验收，**不增加原订单实收与成交额**，
@@ -40,7 +40,7 @@ func validMakeupStatus(status string) bool {
 	return false
 }
 
-// validateMakeupPlan 校验补履约方案参数（§13.6）：补履约不产生退款金额，须选补钟或换人、
+// validateMakeupPlan 校验补履约方案参数：补履约不产生退款金额，须选补钟或换人、
 // 指定资质合格的承接陪玩、席位在订单范围内；补钟须给出大于零的补足服务量。
 func validateMakeupPlan(ctx context.Context, db *ent.Client, order *ent.EsportsOrder, in afterSalePlanInput) error {
 	if in.RefundCents != 0 {
@@ -106,7 +106,7 @@ func createFulfillmentMakeupIn(ctx context.Context, tx *ent.Tx, item *ent.Esport
 	return task, nil
 }
 
-// listFulfillmentMakeups 按状态列出补履约任务（§13.6）。
+// listFulfillmentMakeups 按状态列出补履约任务。
 func listFulfillmentMakeups(ctx context.Context, db *ent.Client, status string, limit int) ([]*ent.EsportsFulfillmentMakeup, error) {
 	if limit < 1 || limit > 200 {
 		limit = 100

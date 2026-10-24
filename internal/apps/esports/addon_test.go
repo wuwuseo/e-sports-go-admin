@@ -99,7 +99,7 @@ func TestOrderAddonLifecycle(t *testing.T) {
 	}
 }
 
-// 拒绝加钟留痕且不累加订单；未处理加钟阻止结单（§3.4 结单条件默认项）。
+// 拒绝加钟留痕且不累加订单；未处理加钟阻止结单（结单条件默认项）。
 func TestOrderAddonRejectAndCloseGuard(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_addon_reject?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))

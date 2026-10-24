@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// loadOwnedAfterSaleSourceByRef 按来源类型 + 来源 ID 校验归属（§13.1 / §13.3）。
+// loadOwnedAfterSaleSourceByRef 按来源类型 + 来源 ID 校验归属。
 // order 校验负责客服；gift / recharge 校验来源单据客户归属客服；
 // assessment（陪玩申诉）无客户归属，任意管理员可见。
 // 超级管理员直接放行。

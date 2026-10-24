@@ -19,7 +19,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// csCommissionRuleInput 客服提成规则可编辑字段（§12.2）。rule_no 创建后不可变。
+// csCommissionRuleInput 客服提成规则可编辑字段。rule_no 创建后不可变。
 type csCommissionRuleInput struct {
 	RuleNo       string                    `json:"rule_no"`
 	Scope        string                    `json:"scope"`
@@ -212,7 +212,7 @@ func activateCsCommissionRule(ctx context.Context, db *ent.Client, id, adminID i
 }
 
 // rollbackCsCommissionRule 回滚到指定版本：以该行为模板新建 max version+1 的直接 active 行，
-// 并把原 active 转 history。原历史行不可变（§12.4）。
+// 并把原 active 转 history。原历史行不可变。
 func rollbackCsCommissionRule(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsCsCommissionRule, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -333,7 +333,7 @@ func lockCsCommissionOnPayment(ctx context.Context, tx *ent.Tx, order *ent.Espor
 }
 
 // csCommissionBase 计算提成基数（分）。order_amount=扣除结单前退款后的报单金额；
-// order_contribution=再扣除陪玩分成后的可分余额（§12.1）；order_count=单量固定为 1。
+// order_contribution=再扣除陪玩分成后的可分余额；order_count=单量固定为 1。
 func csCommissionBase(netPayable, contribution int64, baseMode string) int64 {
 	switch baseMode {
 	case "order_contribution":
@@ -396,9 +396,9 @@ func orderCsCommissionPeriodBase(ctx context.Context, tx *ent.Tx, adminID int, s
 	return total, nil
 }
 
-// accrueOrderCsCommission 结单时计提客服提成（§12.2），必须在 closeOrder 同一事务内、陪玩分成之后调用。
+// accrueOrderCsCommission 结单时计提客服提成，必须在 closeOrder 同一事务内、陪玩分成之后调用。
 // 提成只在订单完成后生成，未开工取消单不会走到结单；结单前已发生的退款从最终计提基数扣除。
-// 上限：陪玩分成 + 渠道成本 + 客服提成不得超过可分基数（§12.1）；并反算工作室剩余快照。
+// 上限：陪玩分成 + 渠道成本 + 客服提成不得超过可分基数；并反算工作室剩余快照。
 // 幂等：该订单已有 service 提成明细则直接返回。
 func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, now time.Time) error {
 	exists, err := tx.EsportsCsCommissionEntry.Query().Where(
@@ -438,7 +438,7 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	if rule == nil {
 		return nil
 	}
-	// 结单前履约后退款从最终计提基数扣除；加钟款属追加营收，按业务口径并入可分基数（§12.1-04）。
+	// 结单前履约后退款从最终计提基数扣除；加钟款属追加营收，按业务口径并入可分基数。
 	netPayable := order.PayableCents + order.AddonCents - order.RefundedCents
 	if netPayable <= 0 {
 		return nil
@@ -447,7 +447,7 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	if err != nil {
 		return err
 	}
-	// 可分余额 = 扣除结单前退款、陪玩分成与渠道成本后的金额，提成不得超过它（§12.1）。
+	// 可分余额 = 扣除结单前退款、陪玩分成与渠道成本后的金额，提成不得超过它。
 	channelCost := order.ChannelCostCents
 	remaining := netPayable - playerTotal - channelCost
 	if remaining < 0 {
@@ -486,7 +486,7 @@ func accrueOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	if amount <= 0 {
 		return nil
 	}
-	// 工作室剩余 = 可分余额 − 客服提成（§12.1 反算）。百分比提成的舍入尾差落入工作室剩余，等价于尾差单列。
+	// 工作室剩余 = 可分余额 − 客服提成（反算）。百分比提成的舍入尾差落入工作室剩余，等价于尾差单列。
 	studioRemainder := remaining - amount
 	if studioRemainder < 0 {
 		studioRemainder = 0
@@ -576,7 +576,7 @@ func accrueGiftCsCommission(ctx context.Context, tx *ent.Tx, gift *ent.EsportsGi
 	return err
 }
 
-// reverseGiftCsCommission 按退款比例冲回礼物客服提成（§9.5 / §12.2）：amount 为本次退款额，
+// reverseGiftCsCommission 按退款比例冲回礼物客服提成：amount 为本次退款额，
 // 累计冲回不超过已计提提成；多次部分退款的幂等键按累计退款额区分，首次全额退款沿用历史键。
 func reverseGiftCsCommission(ctx context.Context, tx *ent.Tx, accrued *ent.EsportsCsCommissionEntry,
 	gift *ent.EsportsGiftOrder, amount int64) error {
@@ -630,9 +630,9 @@ func reverseGiftCsCommission(ctx context.Context, tx *ent.Tx, accrued *ent.Espor
 	return err
 }
 
-// reverseOrderCsCommission 退款冲回客服提成（§12.2）：结单后部分退款按比例冲回，全额退款冲至零。
+// reverseOrderCsCommission 退款冲回客服提成：结单后部分退款按比例冲回，全额退款冲至零。
 // 必须在 executeAfterSaleOnce 的同一事务内、退款额度落账之后调用；幂等靠 idem_key 唯一索引兜底。
-// 客服提成每订单只有一条 service 明细，无跨明细尾差；其舍入尾差已在计提时落入工作室剩余（§12.1）。
+// 客服提成每订单只有一条 service 明细，无跨明细尾差；其舍入尾差已在计提时落入工作室剩余。
 func reverseOrderCsCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
 	rev := refundReversalContext{
 		RefundCents: item.RefundCents,
@@ -723,7 +723,7 @@ func reverseOrderCsCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Esp
 	return nil
 }
 
-// settleCsCommission 结算某客服一个周期内的全部待结算提成明细，生成独立客服提成结算单（§12.2）。
+// settleCsCommission 结算某客服一个周期内的全部待结算提成明细，生成独立客服提成结算单。
 // 与陪玩结算不同：**不写猫粮钱包**，发放由财务打款并留外部凭证。
 // P0-6：这里生成的是**草稿**，明细只「挂单」（写 settlement_id）而**不置 settled**；明细转为
 // settled 发生在登记发放成功时（markSettlementPaid，锁定之后的发放环节）。这样草稿未被锁定也不会
@@ -812,7 +812,7 @@ func createCsSettlementDraft(ctx context.Context, tx *ent.Tx, adminID int,
 	return settlement, nil
 }
 
-// markSettlementPaid 登记发放：locked → paid，并留外部打款凭证（§12.2 发放记录关联外部凭证）。
+// markSettlementPaid 登记发放：locked → paid，并留外部打款凭证（发放记录关联外部凭证）。
 // 事务、读取与提交在此；全部资金校验与状态迁移见 payLockedCsSettlement。
 func markSettlementPaid(ctx context.Context, db *ent.Client, id, adminID int, payoutRef string, now time.Time) (*ent.EsportsSettlement, error) {
 	if id < 1 {
@@ -1303,7 +1303,7 @@ type csCommissionView struct {
 	NextSettlementAt       time.Time `json:"next_settlement_at"`
 }
 
-// csCommissionSummary 客服提成概览（§12.7 当月累计）。
+// csCommissionSummary 客服提成概览（当月累计）。
 // P0-8：被冻结的待结算明细单独计入 frozen_cents，不混进待结算净额（冻结不可结算）。
 func csCommissionSummary(ctx context.Context, db *ent.Client, adminID int, now time.Time) (*csCommissionView, error) {
 	if adminID < 1 {
@@ -1342,7 +1342,7 @@ func csCommissionSummary(ctx context.Context, db *ent.Client, adminID int, now t
 	return &view, nil
 }
 
-// ── 客服提成明细冻结 / 解冻的 HTTP 入口（审核报告 §8.2-14）──
+// ── 客服提成明细冻结 / 解冻的 HTTP 入口（审核报告 ）──
 // 服务函数 freezeCsCommissionEntry / unfreezeCsCommissionEntry 早已存在但无路由，
 // 冻结只能由售后争议内部触发，财务 / 客服无法手工止血。两个 handler 与 service 同文件，
 // 避免本批次并行改动 _handlers.go 造成的冲突。

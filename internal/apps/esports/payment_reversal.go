@@ -38,7 +38,7 @@ type paymentReversalDecisionInput struct {
 
 func paymentReversalNo() string { return "RV" + uuid.NewString() }
 
-// registerPaymentReversal 财务登记已核销收款的渠道撤销 / 拒付（§3.2）：
+// registerPaymentReversal 财务登记已核销收款的渠道撤销 / 拒付：
 // 必须指向一笔已核销回执，单笔金额不得超过该回执实际到账额；同一回执可多次登记部分撤销，
 // 但累计（未 rejected 的）登记金额不得超过实际到账额。登记只记账与告警，不改订单资金状态；
 // 订单如何处置由非登记人的管理员在 decision 中明确。
@@ -136,7 +136,7 @@ func registerPaymentReversal(ctx context.Context, db *ent.Client, adminID int,
 	return db.EsportsPaymentReversal.Get(ctx, reversal.ID)
 }
 
-// decidePaymentReversal 处置渠道撤销 / 拒付（§3.2）。登记人不得自审：
+// decidePaymentReversal 处置渠道撤销 / 拒付。登记人不得自审：
 // mark_exception 把订单置为资金异常（paid → exception）转人工；
 // suspend_customer 在其上再把客户置为受限，阻断客户自助下单；
 // ignore 认定为误报，只留结论不动订单。
@@ -205,7 +205,7 @@ func decidePaymentReversal(ctx context.Context, db *ent.Client, id, adminID int,
 	}
 	if in.Action != reversalActionIgnore {
 		// 资金异常：只有仍被当作已收款的订单才需要改判，已异常或未收款的直接跳过。
-		// 审核报告 §B.3-4：partial（部分收款）无写入方，真实可改判的状态只有 paid。
+		// 审核报告 partial（部分收款）无写入方，真实可改判的状态只有 paid。
 		if order.PaymentStatus == esportsorder.PaymentStatusPaid {
 			updated, err := tx.EsportsOrder.Update().Where(
 				esportsorder.IDEQ(order.ID), esportsorder.VersionEQ(order.Version),
@@ -249,7 +249,7 @@ func decidePaymentReversal(ctx context.Context, db *ent.Client, id, adminID int,
 	return db.EsportsPaymentReversal.Get(ctx, id)
 }
 
-// listPaymentReversals 查询渠道撤销 / 拒付事件（§3.2）。orderID 为 0 表示不按订单过滤。
+// listPaymentReversals 查询渠道撤销 / 拒付事件。orderID 为 0 表示不按订单过滤。
 func listPaymentReversals(ctx context.Context, db *ent.Client, orderID int, status string,
 	limit int) ([]*ent.EsportsPaymentReversal, error) {
 	if orderID < 0 {

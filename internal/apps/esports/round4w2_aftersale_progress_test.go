@@ -26,7 +26,7 @@ func ar4ActionStatus(t *testing.T, progress *afterSaleCustomerProgress, seq int)
 	return afterSaleActionProgressItem{}
 }
 
-// §13.3-03：客户侧必须能按动作项逐项看到进度，且**不得把「待执行」显示成「已到账」**。
+// ：客户侧必须能按动作项逐项看到进度，且**不得把「待执行」显示成「已到账」**。
 func TestCustomerProgressShowsPerActionStatus(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_progress_actions")
 	defer db.Close()
@@ -89,7 +89,7 @@ func TestCustomerProgressShowsPerActionStatus(t *testing.T) {
 	}
 }
 
-// §13.3-03：全部待执行时聚合状态必须是 pending_execution（未到账），全部成功后才是 completed。
+// ：全部待执行时聚合状态必须是 pending_execution（未到账），全部成功后才是 completed。
 func TestCustomerProgressNeverClaimsSettlementBeforeExecution(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_progress_pending")
 	defer db.Close()
@@ -146,7 +146,7 @@ func TestCustomerProgressNeverClaimsSettlementBeforeExecution(t *testing.T) {
 	}
 }
 
-// §13.3-03：单动作（无动作项）售后单回落到既有字段口径，待执行同样不得显示为已到账。
+// ：单动作（无动作项）售后单回落到既有字段口径，待执行同样不得显示为已到账。
 func TestCustomerProgressSingleActionFallback(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_progress_single")
 	defer db.Close()

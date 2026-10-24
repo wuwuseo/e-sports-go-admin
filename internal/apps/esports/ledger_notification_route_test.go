@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/ent/migrate"
 )
 
-// §8.2-13 账本核验异常的通知投递回归：
+// 账本核验异常的通知投递回归：
 // ledger_reconcile.go / ledger_sum_reconcile.go 已把 5 类异常统一产出为 ledger.* 事件（收件人写在
 // payload.admin_id，另带 recipient_roles 标注 finance / super_admin），但通知分拣不认这个前缀时
 // 事件只会写进外盒、不会真的送达。这里验证两处移交都已补齐：
@@ -157,7 +157,7 @@ func TestLedgerNotificationEventRoutesToWecomAppAndFinanceAdmin(t *testing.T) {
 	}
 }
 
-// 外部退款待执行超期督办（§8.2-12）：external_refund.overdue 必须被通知分拣认领，
+// 外部退款待执行超期督办：external_refund.overdue 必须被通知分拣认领，
 // 渠道命中 wecom_app、收件人按财务优先 / 回落超管解析、中文标题与退款单号 / 超期时长进正文。
 func TestExternalRefundOverdueNotificationRoutesToFinanceAndSuperAdmin(t *testing.T) {
 	db := openLedgerNotificationDB(t, "esports_external_refund_notify_route")

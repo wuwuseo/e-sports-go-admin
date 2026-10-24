@@ -62,9 +62,9 @@ func w4gapSeedGrabbingOrder(t *testing.T, db *ent.Client, orderNo string, skuID 
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusGrabbing).SaveX(t.Context())
 }
 
-// ── A：抢单大厅每单带 game（§6.1-03 游戏分区筛选） ──
+// ── A：抢单大厅每单带 game（游戏分区筛选） ──
 
-// §6.1-03：大厅按游戏分区筛选，客户端只能拿到 priority_game（多数单为空）；
+// ：大厅按游戏分区筛选，客户端只能拿到 priority_game（多数单为空）；
 // 服务端口径是「SKU → 商品分类 → game」，列表每单必须带上同一口径解析出的 game。
 func TestW4GapGrabHallReturnsGamePerOrder(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_w4gap_grab_hall")
@@ -109,7 +109,7 @@ func TestW4GapGrabHallReturnsGamePerOrder(t *testing.T) {
 	}
 }
 
-// §6.1-03：SKU 无分类（解析不到 game）时回空串，不得用 priority_game 或猜测值顶替。
+// ：SKU 无分类（解析不到 game）时回空串，不得用 priority_game 或猜测值顶替。
 func TestW4GapGrabHallGameEmptyWhenUnresolved(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_w4gap_grab_hall_empty")
 	defer db.Close()
@@ -146,9 +146,9 @@ func TestW4GapGrabHallGameEmptyWhenUnresolved(t *testing.T) {
 	}
 }
 
-// ── B：看板逐人上下线明细（§5.8-02 / §5.8-03） ──
+// ── B：看板逐人上下线明细 ──
 
-// §5.8-02/03：看板只有 online_players 计数，客服无法做逐人明细；
+// 03：看板只有 online_players 计数，客服无法做逐人明细；
 // 响应必须补 players[] = {player_id, nickname, presence, last_active_at}，
 // 且在线口径与 online_players 计数完全一致（同一 presence 字段，不另立判定）。
 func TestW4GapDispatchBoardPlayerPresences(t *testing.T) {
@@ -231,9 +231,9 @@ func TestW4GapDispatchBoardPlayerPresences(t *testing.T) {
 	}
 }
 
-// ── C：企微侧边栏底部提示（§8.4-11） ──
+// ── C：企微侧边栏底部提示 ──
 
-// §8.4-11：侧边栏 H5 需要后端下发「底部提示」区块内容；
+// ：侧边栏 H5 需要后端下发「底部提示」区块内容；
 // 值来自系统配置键，未配置 / 空值回落空串（= 不展示该区块）。
 func TestW4GapWecomSidebarFooterTip(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_w4gap_sidebar_tip")
@@ -277,7 +277,7 @@ func TestW4GapWecomSidebarFooterTip(t *testing.T) {
 	}
 }
 
-// ── D：page 图标短标识允许清单（§16.3-04 残留风险） ──
+// ── D：page 图标短标识允许清单（残留风险） ──
 
 // w4gapIconConfig 用给定短标识构造一份含客服入口的合法装修配置。
 func w4gapIconConfig(icon string) pageConfig {
@@ -292,7 +292,7 @@ func w4gapIconConfig(icon string) pageConfig {
 	}}
 }
 
-// §16.3-04：客户端没有内置图标集，后端不能放行任意短标识——
+// ：客户端没有内置图标集，后端不能放行任意短标识——
 // 清单外的形如 icon-nonexistent 的短标识必须 400（中文提示），
 // 而 https:// 图片地址与站内相对路径照旧放行。
 func TestW4GapPageIconAllowlistRejectsUnknownShortID(t *testing.T) {
@@ -320,7 +320,7 @@ func TestW4GapPageIconAllowlistRejectsUnknownShortID(t *testing.T) {
 	}
 }
 
-// §16.3-04：允许清单可由运营通过系统配置键扩展（默认 = 基准清单）。
+// ：允许清单可由运营通过系统配置键扩展（默认 = 基准清单）。
 func TestW4GapPageIconAllowlistExtendsFromConfig(t *testing.T) {
 	db := openPageDB(t, "esports_w4gap_page_icon_allowlist")
 	defer db.Close()

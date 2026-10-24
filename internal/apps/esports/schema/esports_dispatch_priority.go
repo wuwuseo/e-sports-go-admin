@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsDispatchPriorityGrant 是「优先派单权」名单条目（§5.4）。它不是独占权：只对人工指派与
+// EsportsDispatchPriorityGrant 是「优先派单权」名单条目。它不是独占权：只对人工指派与
 // 派单排序加权，仍受在线、接单上限、游戏分区等硬性条件约束，且**不影响抢单大厅**（先到先得）。
 // 授予维度是「游戏分区 + 周期」：同一游戏同一期的名额有限，层级仅次于「客户指定陪玩」。
 type EsportsDispatchPriorityGrant struct{ ent.Schema }
@@ -49,7 +49,7 @@ func (EsportsDispatchPriorityGrant) Indexes() []ent.Index {
 	}
 }
 
-// EsportsDispatchPriorityNotice 是「优先通知」明细（§5.4 业务口径）：订单进入待派单时，
+// EsportsDispatchPriorityNotice 是「优先通知」明细（业务口径）：订单进入待派单时，
 // 按游戏分区名单逐人建一条通知记录。窗口内只有被通知的人能看到并接单；全部拒绝或窗口超时后
 // 订单释放到抢单大厅。(order_id, player_id) 唯一，保证重复开窗不重复通知。
 type EsportsDispatchPriorityNotice struct{ ent.Schema }

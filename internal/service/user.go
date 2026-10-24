@@ -178,7 +178,7 @@ func (s *UserService) Register(ctx context.Context, req *RegisterRequest) error 
 	}
 
 	// 创建用户。
-	// 手机号为空串时**不写该列**（保持 NULL）：users.phone 有唯一索引（§6.1-01，列可空），
+	// 手机号为空串时**不写该列**（保持 NULL）：users.phone 有唯一索引（，列可空），
 	// 唯一索引允许多个 NULL 但**不允许多个空串**——若这里写空串，第二个「未填手机号」的用户就建不出来。
 	create := s.client.User.Create().
 		SetEmail(req.Email).
@@ -786,7 +786,7 @@ func (s *UserService) UpdateManagedUser(ctx context.Context, id int, req *Update
 		update.SetNickname(*req.Nickname)
 	}
 	if req.Phone != nil {
-		// 空串一律落 NULL：唯一索引允许多个 NULL，但不允许多个空串（§6.1-01）。
+		// 空串一律落 NULL：唯一索引允许多个 NULL，但不允许多个空串。
 		if phone := strings.TrimSpace(*req.Phone); phone != "" {
 			update.SetPhone(phone)
 		} else {

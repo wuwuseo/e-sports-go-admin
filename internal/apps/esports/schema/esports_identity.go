@@ -18,12 +18,12 @@ func (EsportsCustomer) Fields() []ent.Field {
 		field.String("display_name").MaxLen(120).StructTag(`json:"display_name"`),
 		field.Enum("age_status").Values("unknown", "adult", "minor").Default("unknown").StructTag(`json:"age_status"`),
 		field.Bool("self_order_enabled").Default(false).StructTag(`json:"self_order_enabled"`),
-		// 客服端客户档案（§8.3）：手机号、消费偏好、客户标签、建档来源、跟进状态与最近联系时间。
+		// 客服端客户档案：手机号、消费偏好、客户标签、建档来源、跟进状态与最近联系时间。
 		field.String("phone").MaxLen(32).Default("").StructTag(`json:"phone"`),
-		// 生日（月-日，如 03-15），用于生日礼遇待办（§10.4）；空表示未填。
+		// 生日（月-日，如 03-15），用于生日礼遇待办；空表示未填。
 		field.String("birthday").MaxLen(5).Default("").StructTag(`json:"birthday"`),
 		field.String("consumption_preference").MaxLen(255).Default("").StructTag(`json:"consumption_preference"`),
-		// 客户时区与坐标（§5.5-03）：坐标用微度整数（1e-6 度）避免浮点；
+		// 客户时区与坐标：坐标用微度整数（1e-6 度）避免浮点；
 		// 与陪玩的同名字段共同支撑派单排序的距离 / 时区分量。空 / 0 表示未采集。
 		field.String("timezone").MaxLen(64).Default("").StructTag(`json:"timezone"`),
 		field.Int("latitude_e6").Default(0).StructTag(`json:"latitude_e6"`),
@@ -31,20 +31,20 @@ func (EsportsCustomer) Fields() []ent.Field {
 		field.JSON("tags", []string{}).Optional().StructTag(`json:"tags"`),
 		field.Enum("source").Values("manual", "wecom", "self", "import").Default("manual").StructTag(`json:"source"`),
 		field.Enum("follow_status").Values("new", "following", "pending", "dormant", "closed").Default("new").StructTag(`json:"follow_status"`),
-		// 风险标记（§13.7）：normal 正常 / watch 疑似滥用复核（可自动标记，**不自动处罚**）/
+		// 风险标记：normal 正常 / watch 疑似滥用复核（可自动标记，**不自动处罚**）/
 		// restricted 限制自助下单（仅人工设置）。自助下单入口按该字段拦截。
 		field.Enum("risk_status").Values("normal", "watch", "restricted").Default("normal").StructTag(`json:"risk_status"`),
 		field.String("risk_reason").MaxLen(255).Default("").StructTag(`json:"risk_reason"`),
 		field.Time("risk_marked_at").Optional().Nillable().StructTag(`json:"risk_marked_at"`),
 		field.Time("last_contact_at").Optional().Nillable().StructTag(`json:"last_contact_at"`),
-		// 企微侧边栏自动建档（§8.4）：以「企业主体 + 外部联系人标识」组合幂等。
+		// 企微侧边栏自动建档：以「企业主体 + 外部联系人标识」组合幂等。
 		// 非企微来源两字段为空（SQL NULL），NULL 在唯一索引中互不冲突，故手建客户不受影响。
 		field.String("wecom_corp_id").MaxLen(120).Optional().Nillable().StructTag(`json:"wecom_corp_id"`),
 		field.String("wecom_external_id").MaxLen(255).Optional().Nillable().StructTag(`json:"wecom_external_id"`),
-		// 会员等级（§10）：成长值不落库，由 EsportsGrowthLedger 求和得出；当前等级由重算或手动调级写入。
+		// 会员等级：成长值不落库，由 EsportsGrowthLedger 求和得出；当前等级由重算或手动调级写入。
 		// member_level_code 为空表示未定级（未配置等级或客户无成长值）。
 		field.String("member_level_code").MaxLen(32).Default("").StructTag(`json:"member_level_code"`),
-		// 应降等级与等级保护期到期时间：成长值跌破门槛时先挂起，保护期到期由定时任务降级（§10.3）。
+		// 应降等级与等级保护期到期时间：成长值跌破门槛时先挂起，保护期到期由定时任务降级。
 		field.String("member_pending_level_code").MaxLen(32).Default("").StructTag(`json:"member_pending_level_code"`),
 		field.Time("member_downgrade_after").Optional().Nillable().StructTag(`json:"member_downgrade_after"`),
 		field.Time("member_level_changed_at").Optional().Nillable().StructTag(`json:"member_level_changed_at"`),
@@ -72,42 +72,42 @@ func (EsportsPlayer) Fields() []ent.Field {
 		field.String("display_name").MaxLen(120).StructTag(`json:"display_name"`),
 		field.Enum("qualification").Values("pending", "qualified", "suspended").Default("pending").StructTag(`json:"qualification"`),
 		field.Enum("presence").Values("offline", "online", "protected_abnormal").Default("offline").StructTag(`json:"presence"`),
-		// 考核等级（§7.3）：由考核结论写入，与接单权限联动。取值为系统配置
+		// 考核等级：由考核结论写入，与接单权限联动。取值为系统配置
 		// app.esports.skill_levels 的等级编码（配置顺序即高低序），显示名随配置。
 		field.String("level").MaxLen(32).Default("novice").StructTag(`json:"level"`),
 		field.Time("level_appraised_at").Optional().Nillable().StructTag(`json:"level_appraised_at"`),
-		// 接单上限（§5.5 / §6.4 可配置项）：0 = 不限。
+		// 接单上限（可配置项）：0 = 不限。
 		// daily_limit 每日可履约席位数（按接单自然日）；concurrent_limit 同一时段并发可履约席位数。
 		field.Int("daily_limit").Default(0).StructTag(`json:"daily_limit"`),
 		field.Int("concurrent_limit").Default(0).StructTag(`json:"concurrent_limit"`),
-		// 接单游戏分区（§5.5 / §6.4）：空表示不限；否则只接这些游戏分区的订单。
+		// 接单游戏分区：空表示不限；否则只接这些游戏分区的订单。
 		field.JSON("games", []string{}).Optional().StructTag(`json:"games"`),
-		// 心跳时戳（§6.4）：陪玩端保活打点；上线时也会写入基线，
+		// 心跳时戳：陪玩端保活打点；上线时也会写入基线，
 		// 超时任务据此把长时间无心跳的在线陪玩自动离线，在途订单则转 protected_abnormal 并提醒客服。
 		field.Time("last_heartbeat_at").Optional().Nillable().StructTag(`json:"last_heartbeat_at"`),
-		// 期望报价（§6.1-12）：陪玩在资料页自填的期望单价（分），提交后进入待运营审核；0 表示未填写。
+		// 期望报价：陪玩在资料页自填的期望单价（分），提交后进入待运营审核；0 表示未填写。
 		field.Int64("expected_price_cents").Default(0).StructTag(`json:"expected_price_cents"`),
-		// 期望报价审核状态（§6.1-12）：none 未提交 / pending 待运营审核 / approved 通过 / rejected 驳回。
+		// 期望报价审核状态：none 未提交 / pending 待运营审核 / approved 通过 / rejected 驳回。
 		field.Enum("expected_price_status").Values("none", "pending", "approved", "rejected").
 			Default("none").StructTag(`json:"expected_price_status"`),
 		field.Time("expected_price_submitted_at").Optional().Nillable().StructTag(`json:"expected_price_submitted_at"`),
 		field.Int("expected_price_reviewed_by_admin_id").Optional().Nillable().StructTag(`json:"expected_price_reviewed_by_admin_id"`),
 		field.Time("expected_price_reviewed_at").Optional().Nillable().StructTag(`json:"expected_price_reviewed_at"`),
 		field.String("expected_price_review_note").MaxLen(255).Default("").StructTag(`json:"expected_price_review_note"`),
-		// 服务时段（§6.4-06）：按 UTC+8 的「当日分钟数」（0~1440）表示每日可接单窗口，须 start < end；
+		// 服务时段：按 UTC+8 的「当日分钟数」（0~1440）表示每日可接单窗口，须 start < end；
 		// 两者都为 0 表示不限时段（默认，存量档案不受影响）。时段外不被派单。
 		field.Int("service_slot_start_minute").Default(0).StructTag(`json:"service_slot_start_minute"`),
 		field.Int("service_slot_end_minute").Default(0).StructTag(`json:"service_slot_end_minute"`),
-		// 自动上线（§6.4-06）：开启后由陪玩端心跳 / 登录自动置为 online，无需手动上线。
+		// 自动上线：开启后由陪玩端心跳 / 登录自动置为 online，无需手动上线。
 		field.Bool("auto_online").Default(false).StructTag(`json:"auto_online"`),
-		// 可接单价范围（分，§6.4-06）：0 表示该侧不限；超出范围的订单不参与派单。
+		// 可接单价范围（分，）：0 表示该侧不限；超出范围的订单不参与派单。
 		field.Int64("accept_price_min_cents").Default(0).StructTag(`json:"accept_price_min_cents"`),
 		field.Int64("accept_price_max_cents").Default(0).StructTag(`json:"accept_price_max_cents"`),
-		// 固排开关与固排时段（§6.4-06）：仅开关开启且处于固排时段内，才允许以固排身份被组队。
+		// 固排开关与固排时段：仅开关开启且处于固排时段内，才允许以固排身份被组队。
 		field.Bool("fixed_team_enabled").Default(false).StructTag(`json:"fixed_team_enabled"`),
 		field.Int("fixed_team_slot_start_minute").Default(0).StructTag(`json:"fixed_team_slot_start_minute"`),
 		field.Int("fixed_team_slot_end_minute").Default(0).StructTag(`json:"fixed_team_slot_end_minute"`),
-		// 时区与坐标（§5.5-03）：坐标用微度整数（1e-6 度）避免浮点；
+		// 时区与坐标：坐标用微度整数（1e-6 度）避免浮点；
 		// 用于派单排序的距离 / 时区分量（此前 dispatchRankFactors 恒缺该分量）。空 / 0 表示未采集。
 		field.String("timezone").MaxLen(64).Default("").StructTag(`json:"timezone"`),
 		field.Int("latitude_e6").Default(0).StructTag(`json:"latitude_e6"`),
@@ -146,7 +146,7 @@ func (EsportsIdentityBinding) Indexes() []ent.Index {
 	}
 }
 
-// EsportsPlayerIdentity 是陪玩实名认证记录（§6.1）：陪玩提交真实姓名与身份证号后进入
+// EsportsPlayerIdentity 是陪玩实名认证记录：陪玩提交真实姓名与身份证号后进入
 // pending_verification，由管理员审核后置 verified / rejected；实名通过前陪玩 qualification
 // 不得为 qualified（由 player_identity.go 把关）。身份证号只存脱敏值，原始证件号不落库。
 // ponytail: 该实体由主代理统一 go generate 后生效；生成前 player_identity.go 暂用

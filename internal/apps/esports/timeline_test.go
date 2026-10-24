@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/enttest"
 )
 
-// §5.9 时间线埋点：入池 / 首次派出 / 首次接单 / 开工各自只写一次，重复流转不覆盖首个时间点。
+// 时间线埋点：入池 / 首次派出 / 首次接单 / 开工各自只写一次，重复流转不覆盖首个时间点。
 func TestOrderTimelineMarksWrittenOnce(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_order_timeline")
 	ctx := t.Context()

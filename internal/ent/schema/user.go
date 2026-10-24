@@ -93,7 +93,7 @@ func (User) Edges() []ent.Edge {
 func (User) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("email"),
-		// 手机号唯一（§6.1-01）：phone 列本身已是可空列（Optional），MySQL 5.7/8.0 与 SQLite 的
+		// 手机号唯一：phone 列本身已是可空列（Optional），MySQL 5.7/8.0 与 SQLite 的
 		// 唯一索引都允许多个 NULL，因此「未填手机号」的账号不会互相冲突；
 		// 只有空串（''）之间才会互相冲突，上线前须先把空串归一化为 NULL。
 		// 不用部分索引（partial index），MySQL 5.7 不支持。

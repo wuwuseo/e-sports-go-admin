@@ -34,7 +34,7 @@ func po2AdminPaymentApp(admin *ent.Admin, isSuper bool) *fiber.App {
 	return app
 }
 
-// §4.3-02：客服 / 企微侧边栏可为订单发起已开通渠道的在线收款，且与客户自助共用同一套口径校验。
+// ：客服 / 企微侧边栏可为订单发起已开通渠道的在线收款，且与客户自助共用同一套口径校验。
 func TestRound4W2AdminStartOrderPayment(t *testing.T) {
 	db := openProductDB(t, "esports_po2_admin_payment_start")
 	defer db.Close()
@@ -87,7 +87,7 @@ func TestRound4W2AdminStartOrderPayment(t *testing.T) {
 	}
 }
 
-// §4.3-03：已验签回调按支付意图所属单据类型分流——充值意图走 settleRechargeIntent 自动入账。
+// ：已验签回调按支付意图所属单据类型分流——充值意图走 settleRechargeIntent 自动入账。
 func TestRound4W2VerifiedCallbackRoutesRechargeIntent(t *testing.T) {
 	db := openProductDB(t, "esports_po2_pay_route_recharge")
 	defer db.Close()

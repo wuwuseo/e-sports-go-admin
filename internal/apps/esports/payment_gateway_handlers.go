@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 在线收款 HTTP 入口（§4.3）：
+// 在线收款 HTTP 入口：
 // 1. 客户为本人待付款订单发起在线收款，返回渠道收银台地址；
 // 2. 渠道异步回调必须以「原始 body + 签名头」验签，验签通过后才允许核销到账。
 // 本文件只做协议适配，业务边界仍在 startOrderPayment / handlePaymentNotification。
@@ -45,7 +45,7 @@ func userStartOrderPaymentHandler(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// adminStartOrderPaymentHandler 客服 / 企微侧边栏为订单发起在线收款（§4.3-02）。
+// adminStartOrderPaymentHandler 客服 / 企微侧边栏为订单发起在线收款。
 // 请求体：{"channel":"wechat_work"}；返回 {intent_no, channel, pay_url, amount_cents, expires_at}。
 // 路由由 ownedOrderHandler 保护（仅负责客服或超管，P0-12），权限码 esports:payments:order_start：
 // 归属边界只在路由层判定一次，service 侧不再重复校验，避免两处口径漂移。

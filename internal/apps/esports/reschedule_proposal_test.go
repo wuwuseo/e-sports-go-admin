@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/ent/esportsrescheduleproposal"
 )
 
-// §3.3 限时改期提案闭环：提案 → 客户与已接单成员逐人确认 → 目标档期原子占位 / 超时收敛。
+// 限时改期提案闭环：提案 → 客户与已接单成员逐人确认 → 目标档期原子占位 / 超时收敛。
 
 // seedRescheduleOrder 建一张已付款、已确认档期、绑定指定客户的订单（提案前置态）。
 func seedRescheduleOrder(t *testing.T, db *ent.Client, orderNo string, customerID int,
@@ -353,7 +353,7 @@ func TestRescheduleProposalTargetSlotConflictRollsBack(t *testing.T) {
 	}
 }
 
-// 生效后成员的资源占用从原档期迁移到目标档期（§5.5 口径按新档期判定）。
+// 生效后成员的资源占用从原档期迁移到目标档期（口径按新档期判定）。
 func TestRescheduleProposalMovesMemberOccupancyToTargetWindow(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_reschedule_occupancy")
 	defer db.Close()
@@ -439,7 +439,7 @@ func TestRescheduleProposalRejectsDuplicateAndWithdrawAllowsRetry(t *testing.T) 
 	if err != nil || second.ID == item.ID {
 		t.Fatalf("撤回后应可重新提案：%+v err=%v", second, err)
 	}
-	// 未付款订单不走提案（仍走 §3.2 直接改期）。
+	// 未付款订单不走提案（仍走 直接改期）。
 	unpaid := seedUnpaidOrder(t, db, "rp-dup-unpaid")
 	if _, err = proposeReschedule(ctx, db, unpaid.ID, 11, rescheduleProposalInput{
 		ExpectedVersion: unpaid.Version, StartAt: target, Reason: "未付款订单",

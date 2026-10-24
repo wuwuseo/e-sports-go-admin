@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsGiftDispute 是礼物争议单（§9.5）。礼物退款走「客户申请 → 客服审核 → 执行」闭环，
+// EsportsGiftDispute 是礼物争议单。礼物退款走「客户申请 → 客服审核 → 执行」闭环，
 // 支持部分退款：审核确认额不得超过申请额与礼物可退余额，执行时按比例冲回礼物分成、客服提成与成长值。
 // 状态机：pending_review --approve--> approved --execute--> completed；pending_review --reject--> rejected；
 // 非终态 --withdraw--> withdrawn。同一礼物订单同一时刻只允许一张进行中争议单（服务层在事务内查重）。

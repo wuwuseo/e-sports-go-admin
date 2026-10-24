@@ -721,7 +721,7 @@ func TestInflightProtectedAbnormalPlayerStaysDispatchable(t *testing.T) {
 	if err = respondPlayerInvite(ctx, db, busy.ID, seat.ID, true, now); err != nil {
 		t.Fatal(err)
 	}
-	// 接单后再让心跳超时：在途订单使其转保护异常（§6.4）。
+	// 接单后再让心跳超时：在途订单使其转保护异常。
 	db.EsportsPlayer.UpdateOneID(busy.ID).SetLastHeartbeatAt(now.Add(-30 * time.Minute).UTC()).SaveX(ctx)
 	if _, err = autoOfflineStalePlayers(ctx, db, now, 100); err != nil {
 		t.Fatal(err)

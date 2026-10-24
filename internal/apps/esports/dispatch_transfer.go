@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// 陪玩转单（§5.7）：接单后无法服务时由陪玩发起，**必须经客服确认才生效**。
+// 陪玩转单：接单后无法服务时由陪玩发起，**必须经客服确认才生效**。
 // 确认前不改动席位与订单状态（避免陪玩单方面退出占位）；确认通过时释放该席位为待补位，
 // 按剩余席位把订单退回待接单（还有队友占位）或待派单（无人占位，并重新走优先通知）。
 
@@ -26,7 +26,7 @@ type seatTransferInput struct {
 }
 
 // requestSeatTransfer 陪玩发起转单申请。仅本人在该订单上「已接单且未开始服务」的席位可发起；
-// 同一席位同时只允许一条待确认申请；已开始服务的转单属补履约范畴（§13.6），首版不支持。
+// 同一席位同时只允许一条待确认申请；已开始服务的转单属补履约范畴，首版不支持。
 // 幂等靠 idem_key 唯一索引兜底，重复提交返回既有申请。
 func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID int,
 	in seatTransferInput, now time.Time) (*ent.EsportsSeatTransferRequest, error) {
@@ -53,7 +53,7 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 		order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		return nil, fmt.Errorf("%w：仅已接单且未完结的订单可发起转单", errInvalidInput)
 	}
-	// §5.9-07：改期提案进行中时锁定订单档期与派单，转单会让提案快照失效。
+	// ：改期提案进行中时锁定订单档期与派单，转单会让提案快照失效。
 	if locked, err := pendingRescheduleProposalExists(ctx, tx, orderID, now); err != nil {
 		return nil, err
 	} else if locked {
@@ -70,7 +70,7 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 		}
 		return nil, err
 	}
-	// §5.7-02：服务中同样允许转单 —— 确认通过时先结算原陪玩的服务段，再由新陪玩接手。
+	// ：服务中同样允许转单 —— 确认通过时先结算原陪玩的服务段，再由新陪玩接手。
 	// 只有「该陪玩在本单的服务段已经结算」时才拒绝，避免对已结算的服务段重复发起。
 	serviceInProgress, err := tx.EsportsServiceSegment.Query().Where(
 		esportsservicesegment.OrderIDEQ(orderID),
@@ -141,7 +141,7 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
-	// §5.7-02 缺口二：转单申请必须写 outbox 定向通知责任客服（order.* 收件人分支已含责任客服）。
+	// 缺口二：转单申请必须写 outbox 定向通知责任客服（order.* 收件人分支已含责任客服）。
 	if _, err = tx.EsportsOutbox.Create().
 		SetEventKey("order.seat_transfer_requested:" + strconv.Itoa(created.ID)).
 		SetEventType("order.seat_transfer_requested").SetAggregateRef(order.OrderNo).
@@ -266,7 +266,7 @@ func decideSeatTransfer(ctx context.Context, db *ent.Client, adminID, id int,
 }
 
 // releaseSeatForTransfer 事务内释放该席位为待补位：席位回到 open 并清空陪玩，
-// 按剩余有效席位把订单退回待接单（还有队友占位）或待派单（无人占位，并按 §5.4 重开优先通知）。
+// 按剩余有效席位把订单退回待接单（还有队友占位）或待派单（无人占位，并按 重开优先通知）。
 func releaseSeatForTransfer(ctx context.Context, tx *ent.Tx, item *ent.EsportsSeatTransferRequest,
 	adminID int, now time.Time) error {
 	order, err := tx.EsportsOrder.Get(ctx, item.OrderID)
@@ -283,7 +283,7 @@ func releaseSeatForTransfer(ctx context.Context, tx *ent.Tx, item *ent.EsportsSe
 	if seat.Status != esportsdispatchseat.StatusAccepted {
 		return fmt.Errorf("%w：席位状态已变化，转单无法生效", errConflict)
 	}
-	// §5.7-02：服务中转单先把原陪玩在该席位的进行中服务段结算（保留历史）再释放席位。
+	// ：服务中转单先把原陪玩在该席位的进行中服务段结算（保留历史）再释放席位。
 	wasInService := order.FulfillmentStatus == esportsorder.FulfillmentStatusInService
 	if err = settleSeatServiceSegment(ctx, tx, order.ID, item.PlayerID, seat.SeatIndex, now); err != nil {
 		return err
@@ -325,7 +325,7 @@ func releaseSeatForTransfer(ctx context.Context, tx *ent.Tx, item *ent.EsportsSe
 		return err
 	}
 	if target == esportsorder.FulfillmentStatusPendingDispatch {
-		// 复用 §5.4 的开窗 / 释放逻辑，避免转单后绕开优先通知。
+		// 复用 的开窗 / 释放逻辑，避免转单后绕开优先通知。
 		if err = onOrderEnteredPendingDispatch(ctx, tx, order.ID, now); err != nil {
 			return err
 		}
@@ -377,7 +377,7 @@ func listSeatTransfers(ctx context.Context, db *ent.Client, status string,
 	return q.Order(ent.Desc(esportsseattransferrequest.FieldID)).Limit(limit).All(ctx)
 }
 
-// listSeatTransfersForAdmin 管理端按订单归属列出转单申请（§3.5-02 越权读修复）：
+// listSeatTransfersForAdmin 管理端按订单归属列出转单申请（越权读修复）：
 // 非超管只能看到「本人负责」「本人被授权协作」或「订单尚无负责客服（公共池）」的申请，
 // 归属口径与 ensureSeatTransferDecider 的确认边界一致。显式指定 order_id 且无权时返回
 // errForbidden，而不是静默返回空列表（避免调用方把越权当成「没有数据」）。

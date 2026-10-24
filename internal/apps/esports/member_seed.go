@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/ent/esportsmemberlevelrule"
 )
 
-// 五档默认会员等级（§10.1-01）。门槛单位为分（与成长值同构），折扣用基点（10000 = 原价），
+// 五档默认会员等级。门槛单位为分（与成长值同构），折扣用基点（10000 = 原价），
 // 开卡赠送比例用基点。运营可在后台改门槛 / 折扣 / 权益 / 启停，播种只在缺失时补建。
 var memberLevelSeeds = []memberLevelInput{
 	{Code: "normal", Name: "普通", GrowthThreshold: 0, DiscountBps: 10000,
@@ -28,7 +28,7 @@ var memberLevelSeeds = []memberLevelInput{
 
 func memberBoolValue(value bool) *bool { return &value }
 
-// SeedMemberLevels 幂等播种五档默认会员等级（普通 / 银卡 / 金卡 / 铂金 / 钻石，§10.1-01）。
+// SeedMemberLevels 幂等播种五档默认会员等级（普通 / 银卡 / 金卡 / 铂金 / 钻石，）。
 // 功能启用时（Provision）调用：新库没有等级规则会导致客户永不定级、会员权益全不生效。
 // 只补建缺失的 code，已存在的一律保留运营改动（门槛 / 折扣 / 权益 / 启停），重复执行安全；
 // code 唯一索引兜底并发重复播种。返回本次新建的档位数。

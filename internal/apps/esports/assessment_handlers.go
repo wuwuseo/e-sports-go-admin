@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// ── 管理端：权重配置（§7.2） ──
+// ── 管理端：权重配置 ──
 
 func adminAssessmentRules(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
@@ -41,7 +41,7 @@ func setAssessmentRulesHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// ── 管理端：考核任务（§7.1/§7.2/§7.4） ──
+// ── 管理端：考核任务 ──
 
 func adminAssessments(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
@@ -158,7 +158,7 @@ func reviewAppealHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// ── 管理端：客户评价与综合评分（§7.5） ──
+// ── 管理端：客户评价与综合评分 ──
 
 func adminPlayerReviews(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
@@ -223,9 +223,9 @@ func adminPlayerRating(c fiber.Ctx) error {
 	return reply(c, view)
 }
 
-// ── 陪玩端自助：我的考核与申诉（§7.4） ──
+// ── 陪玩端自助：我的考核与申诉 ──
 
-// playerAssessmentsHandler 陪玩端「我的考核」（§6.1-13）：返回主表 + 逐维度得分与权重（评级依据），
+// playerAssessmentsHandler 陪玩端「我的考核」：返回主表 + 逐维度得分与权重（评级依据），
 // 否则陪玩只能看到等级与结论、看不到评级依据。
 func playerAssessmentsHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
@@ -240,7 +240,7 @@ func playerAssessmentsHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// playerApplyUpgradeAssessmentHandler 陪玩端自助申请升级考核（§7.1-02）。
+// playerApplyUpgradeAssessmentHandler 陪玩端自助申请升级考核。
 // 需在 app.go 接线：{Method: "POST", Path: "/user/player/assessments/upgrade-apply", Auth: cmfapp.AuthUser, Handler: playerApplyUpgradeAssessmentHandler}
 // 陪玩身份由 AuthUser + requestPlayer 保证；按仓库约定 AuthUser 自助路由不需要 PermAPI（PermAPI 只声明管理端 /admin 路径）。
 // 目标档位由服务端按当前等级推导，客户端无需也不能指定等级。
@@ -279,7 +279,7 @@ func playerAppealHandler(c fiber.Ctx) error {
 	return reply(c, appeal)
 }
 
-// ── 客户自助：我的评价列表（§7.5 / §7.5-05） ──
+// ── 客户自助：我的评价列表 ──
 
 // userReviewsHandler 客户自助「我的评价」列表：只返回**当前登录客户本人**的评价，
 // 客户身份由 customerForVerifiedUser（AuthUser + 已绑定身份）解析，不接受客户端传 customer_id。
@@ -300,7 +300,7 @@ func userReviewsHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// ── 客户自助：已完成订单的服务评价（§7.5） ──
+// ── 客户自助：已完成订单的服务评价 ──
 
 func userSubmitReviewHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
@@ -327,7 +327,7 @@ func userSubmitReviewHandler(c fiber.Ctx) error {
 	return reply(c, review)
 }
 
-// ── 客户 / 陪玩自助：评价申诉与管理员复核（§7.5-05） ──
+// ── 客户 / 陪玩自助：评价申诉与管理员复核 ──
 
 // userReviewAppealHandler 客户或陪玩对评价发起申诉。
 // 需在 app.go 接线：{Method: "POST", Path: "/user/reviews/:id/appeal", Auth: cmfapp.AuthUser, Handler: userReviewAppealHandler}

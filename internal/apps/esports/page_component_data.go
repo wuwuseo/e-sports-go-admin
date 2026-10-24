@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/esportssku"
 )
 
-// 装修组件「按 props 取数」（§16.2-05 / §16.3-06 / §16.3-07 / §16.3-11）：
+// 装修组件「按 props 取数」：
 // 客户端把组件 props 透传为公开数据接口的同名查询参数，服务端据此**收窄**取数。
 //
 // 契约（可验收）：
@@ -63,7 +63,7 @@ var skuCatalogFilterDims = map[string]bool{
 	"status": true, "product_id": true,
 }
 
-// playerRecommendFilterDims 是 player_recommend 能落到陪玩查询上的筛选维度（§16.3-07）。
+// playerRecommendFilterDims 是 player_recommend 能落到陪玩查询上的筛选维度。
 var playerRecommendFilterDims = map[string]bool{
 	"game": true, "level": true, "online": true, "bookable": true,
 }
@@ -135,7 +135,7 @@ func validatePlayerRecommendProps(levels []SkillLevel, props playerRecommendProp
 
 func parseSkuCatalogProps(c fiber.Ctx) (skuCatalogProps, error) {
 	props := skuCatalogProps{Limit: componentPropLimit(c.Query("limit"), pageSkuListLimitMax)}
-	// rules：取数规则字典（§16.3-11），键集合由 pageRulesKeys 约束。
+	// rules：取数规则字典，键集合由 pageRulesKeys 约束。
 	rules, err := parseComponentRules(c)
 	if err != nil {
 		return props, err
@@ -149,7 +149,7 @@ func parseSkuCatalogProps(c fiber.Ctx) (skuCatalogProps, error) {
 			return props, err
 		}
 	}
-	// filter / filters：通用「筛选条件」字典（§16.2-05）。
+	// filter / filters：通用「筛选条件」字典。
 	filter, err := parseComponentFilterDict(c)
 	if err != nil {
 		return props, err
@@ -240,7 +240,7 @@ func validateSkuCatalogProps(props skuCatalogProps) error {
 	return nil
 }
 
-// skuCatalogRuleProps 是 rules 字典（§16.3-11）里的取数规则。
+// skuCatalogRuleProps 是 rules 字典里的取数规则。
 type skuCatalogRuleProps struct {
 	RuleCode   string
 	DataSource string
@@ -300,7 +300,7 @@ func parseComponentRules(c fiber.Ctx) (skuCatalogRuleProps, error) {
 	return rules, nil
 }
 
-// parseComponentFilterDict 解析 filter / filters 查询参数（JSON 对象，§16.2-05）。
+// parseComponentFilterDict 解析 filter / filters 查询参数（JSON 对象，）。
 func parseComponentFilterDict(c fiber.Ctx) (map[string]interface{}, error) {
 	out := map[string]interface{}{}
 	for _, key := range []string{"filter", "filters"} {
@@ -514,7 +514,7 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 	level := strings.TrimSpace(props.Level)
 	views := make([]publicPlayerView, 0, len(candidates))
 	for _, player := range candidates {
-		// 游戏分区沿用既有口径：档案 games 为空表示不限分区（§6.4 缺省）。
+		// 游戏分区沿用既有口径：档案 games 为空表示不限分区（缺省）。
 		if game != "" && len(player.Games) > 0 && !playerGamesContain(player.Games, game) {
 			continue
 		}
@@ -530,7 +530,7 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 		if props.Online && !healthy {
 			continue
 		}
-		// 便宜判定：连接健康 ∩ 服务时段（§6.4-06）∩ 固排时段。任一不满足即不可接单。
+		// 便宜判定：连接健康 ∩ 服务时段∩ 固排时段。任一不满足即不可接单。
 		bookable := healthy && playerServiceSlotAllows(player, now) && playerFixedTeamSlotAllows(player, now)
 		// 容量判定较贵（要开事务查席位 / 订单），只为便宜判定通过且真的配置了上限的候选执行。
 		if bookable && (player.ConcurrentLimit > 0 || player.DailyLimit > 0) {

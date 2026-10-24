@@ -9,7 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// 客服代建售后附件接入（§13.2）：客服引用本人上传的私有附件成功，evidence_ref 序列化为 JSON 数组。
+// 客服代建售后附件接入：客服引用本人上传的私有附件成功，evidence_ref 序列化为 JSON 数组。
 func TestAdminAfterSaleEvidenceOwnAttachment(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_admin_aftersale_evidence_own")
 	defer db.Close()
@@ -36,7 +36,7 @@ func TestAdminAfterSaleEvidenceOwnAttachment(t *testing.T) {
 	}
 }
 
-// 客服代建售后引用他人附件应 403（§13.2 本人限定）。
+// 客服代建售后引用他人附件应 403（本人限定）。
 func TestAdminAfterSaleEvidenceForeignAttachment(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_admin_aftersale_evidence_foreign")
 	defer db.Close()

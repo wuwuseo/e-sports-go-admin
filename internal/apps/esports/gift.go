@@ -28,17 +28,17 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 礼物模块（§9）相关常量。
+// 礼物模块相关常量。
 const (
 	// 大额打赏阈值（分）系统配置键；未配置时用默认值。
 	giftHighValueThresholdKey = "app.esports.gift_high_value_threshold_cents"
 	// 默认大额阈值 100000 分 = 1000 元。
 	defaultGiftHighValueCents = 100000
-	// 防刷榜窗口内同一「客户→陪玩」笔数达到该值即标记待复核（§9.4）。
+	// 防刷榜窗口内同一「客户→陪玩」笔数达到该值即标记待复核。
 	giftFlagPairLimit = 5
 	// 防刷榜观察窗口小时数。
 	giftFlagWindowHours = 24
-	// 外部收款（在线直付 / 收款码 / 对公转账，§9.2-01）：余额与卡本金都不足时的第三种付款来源。
+	// 外部收款（在线直付 / 收款码 / 对公转账，）：余额与卡本金都不足时的第三种付款来源。
 	giftPaymentSourceExternal = "external_channel"
 )
 
@@ -214,11 +214,11 @@ func existingGift(ctx context.Context, db *ent.Client, principal, key, hash stri
 	return db.EsportsGiftOrder.Query().Where(esportsgiftorder.GiftNoEQ(record.ResultRef)).Only(ctx)
 }
 
-// giftSendInput 是送礼请求。收礼对象在支付前确认（player_id），支付后不得静默改人（§9.2）。
+// giftSendInput 是送礼请求。收礼对象在支付前确认（player_id），支付后不得静默改人。
 type giftSendInput struct {
 	CustomerID int `json:"customer_id"`
 	GiftID     int `json:"gift_id"`
-	// 价格档位（§9.1-02）：0 表示不分档，按礼物自身价格与限制口径。
+	// 价格档位：0 表示不分档，按礼物自身价格与限制口径。
 	GiftTierID      int    `json:"gift_tier_id"`
 	PlayerID        int    `json:"player_id"`
 	Quantity        int    `json:"quantity"`
@@ -261,7 +261,7 @@ func giftCalcMode(mode string) esportscommissionentry.CalcMode {
 	return esportscommissionentry.CalcModePercent
 }
 
-// giftHighValueThresholdCents 读大额打赏阈值（§9.5）；未配置或非法时回落默认 1000 元。
+// giftHighValueThresholdCents 读大额打赏阈值；未配置或非法时回落默认 1000 元。
 func giftHighValueThresholdCents(ctx context.Context, db *ent.Client) (int64, error) {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(giftHighValueThresholdKey)).Only(ctx)
 	if ent.IsNotFound(err) {
@@ -328,7 +328,7 @@ func giftPairFlagged(ctx context.Context, db *ent.Client, customerID, playerID i
 	).Exist(ctx)
 }
 
-// giftAuthorizationPaymentMatch 校验本次核销的付款来源与确认单一致（§9.2-01）：
+// giftAuthorizationPaymentMatch 校验本次核销的付款来源与确认单一致：
 // 余额本金链路必须逐字一致；外部收款链路允许确认单上的付款来源仍是原始本金口径，
 // 只要该确认单已发起合法的外部收款通道（钱从渠道来，不再动余额）。
 func giftAuthorizationPaymentMatch(authorization *ent.EsportsGiftIntent, in giftSendInput) bool {
@@ -362,7 +362,7 @@ func sendGiftWithRole(ctx context.Context, db *ent.Client, adminID int, isSuper 
 }
 
 // sendGiftOnce 在同一事务内校验付款来源、原子扣减客户余额本金、生成礼物单据与礼物收入、
-// 计提会员成长值，并写通知事件。只有足额核销后才生成收入与成长值（§9.2）。
+// 计提会员成长值，并写通知事件。只有足额核销后才生成收入与成长值。
 func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool, in giftSendInput, now time.Time) (*ent.EsportsGiftOrder, error) {
 	key := strings.TrimSpace(in.ClientKey)
 	if in.CustomerID < 1 || in.GiftID < 1 || in.PlayerID < 1 || in.Quantity < 1 || in.Quantity > 999 ||
@@ -411,7 +411,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 	if !isSuper && (customer.OwnerAdminID == nil || *customer.OwnerAdminID != adminID) {
 		return nil, errForbidden
 	}
-	// 已验证身份：无登录绑定的客户不可送礼（§9.2 校验收付款来源）。
+	// 已验证身份：无登录绑定的客户不可送礼（校验收付款来源）。
 	if customer.UserID == nil {
 		return nil, fmt.Errorf("%w：客户未绑定已验证身份，无法送礼", errInvalidInput)
 	}
@@ -429,11 +429,11 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 	if err != nil {
 		return nil, err
 	}
-	// 同一已验证身份不可给自己送礼（§9.4/§9.5）。
+	// 同一已验证身份不可给自己送礼。
 	if player.UserID == *customer.UserID {
 		return nil, fmt.Errorf("%w：同一已验证身份不可给自己送礼", errInvalidInput)
 	}
-	// 未成年人与年龄限制：按「档位优先、礼物回落」的生效口径拦截（§9.1-02 / §9.5）。
+	// 未成年人与年龄限制：按「档位优先、礼物回落」的生效口径拦截。
 	gift, err := tx.EsportsGift.Get(ctx, in.GiftID)
 	if err != nil {
 		return nil, err
@@ -460,7 +460,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 	if authorization != nil && authorization.AmountCents != amount {
 		return nil, errConflict
 	}
-	// 大额 / 高额档二次确认（§9.5 / §9.1-02）：档位 high_value 与全局阈值任一命中都须显式确认。
+	// 大额 / 高额档二次确认：档位 high_value 与全局阈值任一命中都须显式确认。
 	threshold, err := giftHighValueThresholdCents(ctx, tx.Client())
 	if err != nil {
 		return nil, err
@@ -468,7 +468,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 	if (terms.highValue || amount >= threshold) && !in.Confirmed {
 		return nil, fmt.Errorf("%w：大额打赏需二次确认后再提交", errInvalidInput)
 	}
-	// 关联订单仅追溯，校验归属（§9.2）。
+	// 关联订单仅追溯，校验归属。
 	if in.OrderID != nil {
 		order, err := tx.EsportsOrder.Get(ctx, *in.OrderID)
 		if err != nil {
@@ -478,7 +478,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 			return nil, fmt.Errorf("%w：关联订单不属于该客户", errInvalidInput)
 		}
 	}
-	// 客户确认的付款来源不可由客服更换：余额只动本金；外部收款走已核验的收款意图（§9.2-01）。
+	// 客户确认的付款来源不可由客服更换：余额只动本金；外部收款走已核验的收款意图。
 	external := in.PaymentSource == giftPaymentSourceExternal
 	paymentAccount := walletCustomerBalance
 	paymentOwnerID := customer.ID
@@ -527,7 +527,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 		SetCommissionBp(gift.CommissionBp).SetCommissionCents(gift.CommissionCents).
 		SetIncomeCents(income).SetReviewStatus(reviewStatus).
 		SetStatus(esportsgiftorder.StatusPaid)
-	// 外部收款：钱没有经过预付账户，礼物单不记预付本金占用，只留收款凭证（§9.2-01）。
+	// 外部收款：钱没有经过预付账户，礼物单不记预付本金占用，只留收款凭证。
 	if external {
 		create.SetPrincipalCents(0).SetPaymentRef(authorization.PaymentRef)
 	}
@@ -569,7 +569,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 			return nil, err
 		}
 	}
-	// 余额支付记批次账本（§4.5-04）：客户余额支付的礼物在批次账本同步记一条负向条目并登记分摊，
+	// 余额支付记批次账本：客户余额支付的礼物在批次账本同步记一条负向条目并登记分摊，
 	// 使「这笔余额被礼物消费掉」在批次层可追溯。
 	// 来源记钱包流水号而非礼物单号：账本核验「钱包流水求和 == 批次账本求和」按流水号 / 主键匹配，
 	// 用业务单号会被判成「未登记」并算出假差额（余额核销订单走 `wallet_tx` / 流水号同此口径）；
@@ -586,7 +586,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 			return nil, err
 		}
 	}
-	// 疑似关联交易先标记：复核通过前不生成可提现礼物分成，也不计提成长值/不升级（§9.4）。
+	// 疑似关联交易先标记：复核通过前不生成可提现礼物分成，也不计提成长值/不升级。
 	// 复核通过后由 reviewGiftOrder 补记同一笔成长值（幂等键为礼物单号）。
 	if !flagged {
 		if err = createGiftCommissionEntry(ctx, tx, order, income); err != nil {
@@ -621,7 +621,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 			return nil, errConflict
 		}
 	}
-	// 通知陪玩与客服（§9.2）。
+	// 通知陪玩与客服。
 	if _, err = tx.EsportsOutbox.Create().SetEventKey("gift.paid:" + giftNo).
 		SetEventType("gift.paid").SetAggregateRef(giftNo).
 		SetPayload(map[string]interface{}{
@@ -637,7 +637,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 	return db.EsportsGiftOrder.Get(ctx, order.ID)
 }
 
-// createGiftCommissionEntry 把礼物收入写成一条 kind=gift 的分成明细，随订单收入一起结算（§9.3），
+// createGiftCommissionEntry 把礼物收入写成一条 kind=gift 的分成明细，随订单收入一起结算，
 // 明细里以 kind 区分。幂等靠 idem_key 唯一索引。
 func createGiftCommissionEntry(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, income int64) error {
 	if income <= 0 {
@@ -659,7 +659,7 @@ func createGiftCommissionEntry(ctx context.Context, tx *ent.Tx, order *ent.Espor
 	return nil
 }
 
-// giftGrowthPaymentSource 礼物成长值的支付来源（§10.2-03）：礼物一律只动本金，
+// giftGrowthPaymentSource 礼物成长值的支付来源：礼物一律只动本金，
 // 故余额本金支付的礼物记为「已核销预付本金」；外部收款礼物记为「现金」。
 func giftGrowthPaymentSource(order *ent.EsportsGiftOrder) esportsgrowthledger.PaymentSource {
 	if order.PaymentSource == giftPaymentSourceExternal {
@@ -668,10 +668,10 @@ func giftGrowthPaymentSource(order *ent.EsportsGiftOrder) esportsgrowthledger.Pa
 	return esportsgrowthledger.PaymentSourcePrepaidPrincipal
 }
 
-// accrueGiftGrowth 为正常礼物或复核通过的疑似礼物计提成长值（§10.2）。
+// accrueGiftGrowth 为正常礼物或复核通过的疑似礼物计提成长值。
 // 疑似礼物在送礼时挂起，复核通过后调用本函数补记；同一礼物单只允许一条流水，
 // (source_type, source_id) 唯一索引兜底幂等，重复调用直接视为已计提。
-// 流水同时落支付来源（§10.2-03），使单条成长值流水可自证「来自哪种钱」。
+// 流水同时落支付来源，使单条成长值流水可自证「来自哪种钱」。
 func accrueGiftGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, operatorID int) error {
 	if order.AmountCents <= 0 {
 		return nil
@@ -691,7 +691,7 @@ func accrueGiftGrowth(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrd
 	return nil
 }
 
-// reverseGiftGrowthIn 退款时冲回礼物成长值（§10.2/§10.5）。
+// reverseGiftGrowthIn 退款时冲回礼物成长值。
 // 只有该礼物单已经计提过成长值（正常礼物，或疑似礼物已复核通过）才需要冲回；
 // 待复核/被驳回的礼物从未计提，退款不得凭空产生负成长值。
 // 幂等由 (source_type, source_id) 唯一索引兜底，sourceID 由各退款路径传入以保证多次部分退款互不覆盖。
@@ -724,7 +724,7 @@ func reverseGiftGrowthIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsGift
 	return nil
 }
 
-// reviewGiftOrder 复核疑似关联礼物（§9.4）：approve 补建分成明细（释放收入）并补记成长值，
+// reviewGiftOrder 复核疑似关联礼物：approve 补建分成明细（释放收入）并补记成长值，
 // reject 不释放分成、不计成长值；复核后状态不可再改。
 func reviewGiftOrder(ctx context.Context, db *ent.Client, adminID, giftOrderID int, decision string, now time.Time) (*ent.EsportsGiftOrder, error) {
 	if giftOrderID < 1 || adminID < 1 {
@@ -786,7 +786,7 @@ func reviewGiftOrder(ctx context.Context, db *ent.Client, adminID, giftOrderID i
 	return db.EsportsGiftOrder.Get(ctx, order.ID)
 }
 
-// refundGift 礼物全额退款（§9.5）：仅超级管理员可直接执行——退还本金、冲回礼物分成、
+// refundGift 礼物全额退款：仅超级管理员可直接执行——退还本金、冲回礼物分成、
 // 客服提成与成长值。归属客服不得单人直接退款，只能走礼物争议（客户申请 → 审核 → 执行）
 // 的部分退款路径（refundGiftIn）；该路径保留独立审批与执行人分离校验。
 // 仅已支付且未退款的礼物可全额退。
@@ -820,7 +820,7 @@ func refundGift(ctx context.Context, db *ent.Client, adminID int, isSuper bool, 
 	return db.EsportsGiftOrder.Get(ctx, order.ID)
 }
 
-// refundGiftIn 在同一事务内执行礼物退款，amount 可小于礼物金额（§9.5 部分退款）。
+// refundGiftIn 在同一事务内执行礼物退款，amount 可小于礼物金额（部分退款）。
 // sourceID 作为钱包流水 / 成长值的来源标识，保证多次部分退款各自幂等。
 // 退款一律退回客户余额：储值卡支付路径已随功能下线（2026-10-20），历史卡支付的礼物单
 // 其卡表已 DROP，按「卡不可用 → 退回客户余额」口径处理。
@@ -907,7 +907,7 @@ func refundGiftIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, 
 	return nil
 }
 
-// reverseGiftCommissionIn 按退款比例冲回礼物分成（§9.5）：累计冲回不超过已计提的陪玩礼物收入。
+// reverseGiftCommissionIn 按退款比例冲回礼物分成：累计冲回不超过已计提的陪玩礼物收入。
 // 只有已生成礼物收入（未因待复核而挂起）才需要冲回；多次部分退款的幂等键按累计退款额区分。
 func reverseGiftCommissionIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsGiftOrder, amount int64) error {
 	incomeExists, err := tx.EsportsCommissionEntry.Query().
@@ -1031,7 +1031,7 @@ func giftPeriodStart(period string, now time.Time) (time.Time, error) {
 	}
 }
 
-// giftLeaderboard 礼物榜单（§9.4）：board=customer 为客户贡献榜（按送礼人），board=player 为
+// giftLeaderboard 礼物榜单：board=customer 为客户贡献榜（按送礼人），board=player 为
 // 陪玩收礼榜（按收礼陪玩）；period 支持 daily/weekly/monthly。只统计已支付且未退款的礼物。
 // ponytail: 应用层内存聚合，礼物量级到十万级时改为 SQL 分组聚合。
 func giftLeaderboard(ctx context.Context, db *ent.Client, board, period string, now time.Time, limit int) ([]giftLeaderboardRow, error) {

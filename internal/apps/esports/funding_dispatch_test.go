@@ -25,7 +25,7 @@ func seedDispatchOrderWithSeats(t *testing.T, db *ent.Client, orderNo string, sk
 		SaveX(t.Context())
 }
 
-// §5.2-04 / §5.4-03：优先派单权只体现为「独占优先通知」，不参与派单排序。
+// ：优先派单权只体现为「独占优先通知」，不参与派单排序。
 // 两个候选仅「是否在优先名单 / 名单名次」不同时，合成排序分必须相等（ZoneRank 仍作为展示字段保留）。
 func TestDispatchPriorityExcludedFromRankingScore(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_priority_not_in_score")

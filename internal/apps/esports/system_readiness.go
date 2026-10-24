@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 上线自检（§18 上线启用条件）。
+// 上线自检（上线启用条件）。
 //
 // 目的：把「代码已闭环、但需要外部配置才能真正用」的能力逐项摊开，让运营在上线前就看到
 // 哪些能力只是壳（在线收款 / 推送 / 企微），而不是等业务方点下去才发现 503。
@@ -215,7 +215,7 @@ func systemReadiness(ctx context.Context, db *ent.Client, getenv func(string) st
 		Detail: "未配置时使用内置默认（余额 / 猫粮，100 分每单位）",
 	})
 
-	// 9. 功能集配置声明（§18-02）：核对「已声明 ↔ 已落库」，缺失则后台无法配置该键。
+	// 9. 功能集配置声明：核对「已声明 ↔ 已落库」，缺失则后台无法配置该键。
 	if check := declaredConfigCheck(ctx, db); check != nil {
 		add(*check)
 	}

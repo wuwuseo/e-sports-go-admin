@@ -20,7 +20,7 @@ func dw2LocatedPlayer(t *testing.T, db *ent.Client, userID int, timezone string,
 	return db.EsportsPlayer.GetX(t.Context(), player.ID)
 }
 
-// §5.5-03：排序分必须含可复现、可断言的「距离或时区」分量。
+// ：排序分必须含可复现、可断言的「距离或时区」分量。
 //   - 权重为 0（默认）时排序行为与既有完全一致（不参与排序）；
 //   - 打开 distance 权重后，离客户更近的候选排前；
 //   - 打开 timezone 权重后，与客户同时区的候选排前。

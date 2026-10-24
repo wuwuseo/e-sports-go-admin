@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 陪玩端主动邀请固排（§5.3）：主陪玩就本人已接单的订单邀请固排占剩余席位，非成员 / 非固排被拒。
+// 陪玩端主动邀请固排：主陪玩就本人已接单的订单邀请固排占剩余席位，非成员 / 非固排被拒。
 func TestPlayerInviteTeammatesOnOwnOrder(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_player_team_invite")
 	defer db.Close()

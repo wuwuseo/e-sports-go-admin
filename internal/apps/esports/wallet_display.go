@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// walletDisplayConfigKey 是钱包展示配置（§11.4）：工作室可配置每类账户的展示名称、图标、
+// walletDisplayConfigKey 是钱包展示配置：工作室可配置每类账户的展示名称、图标、
 // 说明文案、计费单位名与固定换算倍率（每单位对应多少分）。示例：
 //
 //	{"customer_balance":{"display_name":"账户余额","icon":"wallet","description":"可用于支付订单",

@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 客户自助站内付款（§4.3 / §4.4 / §13.2）：与管理端共用核销边界，但必须核对订单归属、
+// 客户自助站内付款：与管理端共用核销边界，但必须核对订单归属、
 // 受站内渠道启停约束，且钱包流水不写后台操作人、订单事件 actor 记为 customer。
 
 // selfPaymentSeedOrder 建一名客户与一张待付款订单（SKU 单价 1000 分 × quantity）。
@@ -61,7 +61,7 @@ func TestCustomerSelfBalancePayment(t *testing.T) {
 		walletInput{PrincipalCents: 2500, Note: "客户充值"}, "cs-balance-recharge"); err != nil {
 		t.Fatal(err)
 	}
-	// §4.3-08：站内方式受后台启停约束，停用后客户自助路径同样拒绝。
+	// ：站内方式受后台启停约束，停用后客户自助路径同样拒绝。
 	if err := setPaymentChannelEnabled(ctx, db, walletCustomerBalance, false); err != nil {
 		t.Fatal(err)
 	}

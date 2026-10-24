@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	// serviceDisconnectPauseKey 断线自动暂停阈值（分钟，§3.3）：缺省或非法视为关闭，不自动暂停。
+	// serviceDisconnectPauseKey 断线自动暂停阈值（分钟，）：缺省或非法视为关闭，不自动暂停。
 	serviceDisconnectPauseKey = "app.esports.service_disconnect_pause_minutes"
 	// serviceDisconnectActor 断线自动暂停事件的系统操作人标识，便于与人工操作区分。
 	serviceDisconnectActor = "disconnect_watchdog"
@@ -30,7 +30,7 @@ const (
 	serviceTimingCorrectionMaxRatioBp = 12000
 )
 
-// serviceResponsibilityParties 停工责任方枚举（§3.3）：陪玩 / 客户 / 平台 / 不可抗力。
+// serviceResponsibilityParties 停工责任方枚举：陪玩 / 客户 / 平台 / 不可抗力。
 var serviceResponsibilityParties = map[string]struct{}{
 	"player": {}, "customer": {}, "platform": {}, "force_majeure": {},
 }
@@ -65,7 +65,7 @@ func serviceDisconnectPauseTimeout(ctx context.Context, db *ent.Client) (time.Du
 	return time.Duration(minutes) * time.Minute, true
 }
 
-// ensureOrderResponsibleAdmin 校验写操作的订单归属（§3.3）：只有订单负责客服或超级管理员可代操作。
+// ensureOrderResponsibleAdmin 校验写操作的订单归属：只有订单负责客服或超级管理员可代操作。
 // 与 order_access.loadStrictOwnedOrder 同一口径，但这里在事务内已加载订单，避免重复查询；
 // 协作客服只有读权限，不能借代暂停 / 时长更正改写他人订单。
 func ensureOrderResponsibleAdmin(order *ent.EsportsOrder, adminID int, isSuper bool) error {
@@ -78,7 +78,7 @@ func ensureOrderResponsibleAdmin(order *ent.EsportsOrder, adminID int, isSuper b
 	return nil
 }
 
-// setServicePauseByAdmin 客服代陪玩暂停 / 恢复服务段（§3.3）：校验订单归属（负责客服或超管）、订单在服务中、
+// setServicePauseByAdmin 客服代陪玩暂停 / 恢复服务段：校验订单归属（负责客服或超管）、订单在服务中、
 // 目标陪玩为该单服务成员、理由必填；事件 actor_type=admin、actor_id=管理员 ID，details 用
 // on_behalf_of_player_id 记录被代操作的陪玩，以区分「本人操作」与「客服代操作」。暂停 / 恢复的计时口径复用本人操作路径。
 func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderID, playerID int,
@@ -103,7 +103,7 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return playerServiceTiming{}, err
 	}
-	// §6.2-02：暂停要求订单在服务中；恢复额外允许订单已因「记名停工」进入待结单
+	// ：暂停要求订单在服务中；恢复额外允许订单已因「记名停工」进入待结单
 	// （客服误操作或陪玩重新联系上后可回退到服务中），避免整单被永久卡在待结单。
 	if pause {
 		if order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
@@ -145,7 +145,7 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 		}).Save(ctx); err != nil {
 		return playerServiceTiming{}, err
 	}
-	// §6.2-02：客服记名停工后按剩余履约量判定整单是否进入待结单。
+	// ：客服记名停工后按剩余履约量判定整单是否进入待结单。
 	if pause {
 		if _, err = transitionToPendingCloseOnAdminStop(ctx, tx, orderID, newVersion, adminID, now); err != nil {
 			return playerServiceTiming{}, err
@@ -163,7 +163,7 @@ func setServicePauseByAdmin(ctx context.Context, db *ent.Client, adminID, orderI
 	if err != nil {
 		return playerServiceTiming{}, err
 	}
-	// §6.2-04：代暂停/恢复的响应同样带逐成员履约量与订单级仍需履约量。
+	// ：代暂停/恢复的响应同样带逐成员履约量与订单级仍需履约量。
 	_, _, summary, err := loadOrderFulfillment(ctx, db, orderID)
 	if err != nil {
 		return playerServiceTiming{}, err
@@ -197,7 +197,7 @@ func serviceTimingCorrectionBound(order *ent.EsportsOrder, segment *ent.EsportsS
 	return span, upper
 }
 
-// serviceTimingReadout 是服务段计时只读接口的视图（审核报告 §3.1 缺口：时长更正无法预填）：
+// serviceTimingReadout 是服务段计时只读接口的视图（审核报告 缺口：时长更正无法预填）：
 // 前端据此预填「当前有效时长」与「可填上限」，避免猜一个数再被更正校验拒绝。
 // 上界与更正校验同源（serviceTimingCorrectionBound），两处口径不会漂移。
 type serviceTimingReadout struct {
@@ -281,7 +281,7 @@ func ensureServiceTimingCorrectionWithinBound(order *ent.EsportsOrder, span, upp
 	return nil
 }
 
-// correctServiceTiming 争议更正（§3.3）：管理员对已结束服务段的有效 / 暂停秒数做留痕更正，并登记停工量
+// correctServiceTiming 争议更正：管理员对已结束服务段的有效 / 暂停秒数做留痕更正，并登记停工量
 // （累计暂停秒数 + 停工次数）与责任方。更正必须写只增事件 order.service_timing_corrected，记录更正前后值、
 // 原因与操作人，绝不静默改写。原始计时随更正一并变化，历史以事件为准。
 // 仅对 status=finished 的服务段开放：进行中的服务段应通过客服代暂停 / 恢复（setServicePauseByAdmin）调整，
@@ -374,7 +374,7 @@ func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID,
 		SetDetails(details).Save(ctx); err != nil {
 		return serviceTimingCorrection{}, err
 	}
-	// §6.2-02：登记停工量 / 责任方后同样按剩余履约量判定整单是否进入待结单
+	// ：登记停工量 / 责任方后同样按剩余履约量判定整单是否进入待结单
 	// （若全部席位已结束，结单路径已经推进过，此处为幂等的补充判定）。
 	if _, err = transitionToPendingCloseOnAdminStop(ctx, tx, orderID, newVersion, adminID, now); err != nil {
 		return serviceTimingCorrection{}, err
@@ -391,7 +391,7 @@ func correctServiceTiming(ctx context.Context, db *ent.Client, adminID, orderID,
 	}, nil
 }
 
-// countSeatServiceDowntime 统计某订单某席位的停工次数（§3.3）：以只增事件 order.service_paused 的条数为准，
+// countSeatServiceDowntime 统计某订单某席位的停工次数：以只增事件 order.service_paused 的条数为准，
 // 与服务段累计暂停秒数（停工量）配合使用。details 中的 seat_index 以 JSON 反序列化为 float64。
 func countSeatServiceDowntime(ctx context.Context, db *ent.Client, orderID, seatIndex int) (int, error) {
 	events, err := db.EsportsOrderEvent.Query().Where(
@@ -433,7 +433,7 @@ func seatIndexOf(details map[string]interface{}) int {
 	}
 }
 
-// autoPauseDisconnectedPlayers 断线超阈值自动暂停（§3.3）：阈值由
+// autoPauseDisconnectedPlayers 断线超阈值自动暂停：阈值由
 // app.esports.service_disconnect_pause_minutes 配置（缺省 0 即关闭）。对「存在 in_service 服务段」
 // 且心跳已超阈值未更新的陪玩，把其服务段置 paused 并写 order.service_paused 事件（原因注明「断线自动暂停」，
 // actor_type=system）。幂等：服务段一旦转为 paused，后续运行不再匹配；心跳恢复并重新开始新服务段才会再次触发。

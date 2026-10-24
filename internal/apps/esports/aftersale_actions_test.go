@@ -19,7 +19,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// newMultiActionAfterSale 构造一张已受理、已提交多动作方案并进入待审批的售后单（§13.3 / §13.6）。
+// newMultiActionAfterSale 构造一张已受理、已提交多动作方案并进入待审批的售后单。
 func newMultiActionAfterSale(t *testing.T, db *ent.Client, orderID int, kind string, handler int,
 	actions []afterSaleActionInput, now time.Time) *ent.EsportsAfterSale {
 	t.Helper()

@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// registerPaymentReversalHandler 财务登记已核销收款的渠道撤销 / 拒付（§3.2）。
+// registerPaymentReversalHandler 财务登记已核销收款的渠道撤销 / 拒付。
 func registerPaymentReversalHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -25,7 +25,7 @@ func registerPaymentReversalHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// listPaymentReversalsHandler 查询渠道撤销 / 拒付事件（§3.2），可按订单与状态过滤。
+// listPaymentReversalsHandler 查询渠道撤销 / 拒付事件，可按订单与状态过滤。
 func listPaymentReversalsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -41,7 +41,7 @@ func listPaymentReversalsHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// decidePaymentReversalHandler 处置渠道撤销 / 拒付（§3.2）：登记人不得自审。
+// decidePaymentReversalHandler 处置渠道撤销 / 拒付：登记人不得自审。
 func decidePaymentReversalHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

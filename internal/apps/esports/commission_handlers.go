@@ -77,7 +77,7 @@ func rollbackCommissionRuleHandler(c fiber.Ctx) error {
 	return reply(c, rule)
 }
 
-// setOrderManualCommissionRuleHandler 设置 / 清除订单的「单笔手动指定」分成规则（§12.3）。
+// setOrderManualCommissionRuleHandler 设置 / 清除订单的「单笔手动指定」分成规则。
 // rule_id=0 表示清除；订单已锁定成员规则时返回冲突。
 func setOrderManualCommissionRuleHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
@@ -105,7 +105,7 @@ func adminCommissionEntries(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
 	}
-	// §12.7-01：返回读模型（规则数值 + 扣减项 + 到手净额 + 逐单位留痕），而非原始明细。
+	// ：返回读模型（规则数值 + 扣减项 + 到手净额 + 逐单位留痕），而非原始明细。
 	items, err := listCommissionEntryViews(c.Context(), global.ORM,
 		queryInt(c, "player_id"), queryInt(c, "order_id"), c.Query("status"), queryLimit(c, 200))
 	if err != nil {
@@ -169,7 +169,7 @@ func lockSettlementHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// adminSettlementDetail 结算单详情：主表 + 本期可下钻明细（带规则版本，§12.6-06）。
+// adminSettlementDetail 结算单详情：主表 + 本期可下钻明细（带规则版本，）。
 // 建议接线：GET /admin/settlements/:id（管理端 Auth）。
 func adminSettlementDetail(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -187,7 +187,7 @@ func adminSettlementDetail(c fiber.Ctx) error {
 }
 
 // playerCommissionEntries 陪玩端分成明细：与管理员同一读模型，
-// 供陪玩端渲染分成方式、规则版本号、扣减项与到手净额（§12.7-01）。
+// 供陪玩端渲染分成方式、规则版本号、扣减项与到手净额。
 func playerCommissionEntries(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {

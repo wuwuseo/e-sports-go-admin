@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 考官端周期化考核（§7.1-03 随机抽查 / §7.3-02 等级定期复核）。
+// 考官端周期化考核（随机抽查 / 等级定期复核）。
 //
 // 两个任务共用一套「周期 + 配置」读取写法，配置键均由主控在 app.go 声明：
 //   - 抽查：按比例随机抽取「在岗合格」陪玩建 spot_check 单（不去替考官指定人选，分配仍走既有 assign 接口）；
@@ -45,9 +45,9 @@ const (
 	levelReviewDemotionNotePrefix = "等级定期复核降级："
 )
 
-// ── §7.1-03 随机抽查 ──
+// ── 随机抽查 ──
 
-// sampleSpotCheckCandidates 按比例从候选陪玩中随机抽样（§7.1-03）：逐人独立判定，
+// sampleSpotCheckCandidates 按比例从候选陪玩中随机抽样：逐人独立判定，
 // ratioBP 为万分比（>=10000 全抽、<=0 不抽）。rng 由调用方注入，任务每次运行新建随机流，
 // 测试可注入固定种子以获得可复现结果。
 func sampleSpotCheckCandidates(candidates []*ent.EsportsPlayer, ratioBP int, rng *rand.Rand) []*ent.EsportsPlayer {
@@ -99,7 +99,7 @@ func spotCheckBlockedPlayerIDs(ctx context.Context, db *ent.Client, now time.Tim
 	return blocked, nil
 }
 
-// generateSpotCheckAssessments 单轮随机抽查生成（§7.1-03）：
+// generateSpotCheckAssessments 单轮随机抽查生成：
 // 候选 = 在岗（qualification=qualified）且在线、且不在本周期拦截名单内的陪玩；
 // 按 spot_check_ratio_bp 随机抽样后逐人建 pending 抽查单（目标档位取当前等级，来源 system）。
 //
@@ -156,9 +156,9 @@ func generateSpotCheckAssessmentsTask(ctx context.Context, logger io.Writer) err
 	return err
 }
 
-// ── §7.3-02 等级定期复核 ──
+// ── 等级定期复核 ──
 
-// consecutiveSpotCheckFailurePeriods 统计陪玩「从最近一期往前连续不达标」的期数（§7.3-02）。
+// consecutiveSpotCheckFailurePeriods 统计陪玩「从最近一期往前连续不达标」的期数。
 //
 // 口径：把 now 往前按 cycleDays 天切期，第 i 期窗口为 [now-(i+1)*cycle, now-i*cycle)；
 //   - 该期存在「由考官真实打分」的不通过抽查单（status=failed 且有打分明细）→ 不达标期，计数 +1；
@@ -256,7 +256,7 @@ func levelReviewDemotionRecorded(ctx context.Context, db *ent.Client, playerID i
 	return false, nil
 }
 
-// runPlayerLevelReview 单轮等级定期复核（§7.3-02）：对「连续 N 期抽查不达标」的在岗合格陪玩降一档，
+// runPlayerLevelReview 单轮等级定期复核：对「连续 N 期抽查不达标」的在岗合格陪玩降一档，
 // 并落一条降级记录（时间 + 依据）。返回本轮实际降级人数。
 //
 // 不降到 novice 以下：已是 novice 的陪玩跳过（保留最低档）。

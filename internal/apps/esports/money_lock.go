@@ -16,7 +16,7 @@ func lockMoneyAccount(key string) func() {
 
 // moneyAccountLockKey 按账本身份生成账户锁键，供「求和 → 写负数流水」路径统一取锁：
 // 客户余额 → balance:<ownerID>、猫粮 → catfood:<playerID>。
-// 同一账户必须用同一把锁，否则跨路径并发仍可超扣（§4.2 / §11.6）。
+// 同一账户必须用同一把锁，否则跨路径并发仍可超扣。
 func moneyAccountLockKey(accountType, accountID string) string {
 	switch accountType {
 	case walletPlayerCatfood:

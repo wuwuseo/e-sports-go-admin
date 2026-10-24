@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// adminPaymentAccounts 收款账户列表（§4.3）：按渠道 / 状态筛选。
+// adminPaymentAccounts 收款账户列表：按渠道 / 状态筛选。
 func adminPaymentAccounts(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -78,7 +78,7 @@ func disablePaymentAccountHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// adminPaymentChannels 收款方式启停状态（§4.3）：含启用中的账户数量。
+// adminPaymentChannels 收款方式启停状态：含启用中的账户数量。
 func adminPaymentChannels(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -112,8 +112,8 @@ func setPaymentChannelStatusHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// adminOfflinePaymentProofs 待核验收款单列表（§4.2）：财务核验外部到账的入口。
-// 带 reconcile=1 且指定 order_id 时，一并返回该订单的收款自动对账结果（§4.3-04），
+// adminOfflinePaymentProofs 待核验收款单列表：财务核验外部到账的入口。
+// 带 reconcile=1 且指定 order_id 时，一并返回该订单的收款自动对账结果，
 // 财务只看差异笔而不是逐笔人工比对；不带该参数时保持原数组响应（向后兼容）。
 func adminOfflinePaymentProofs(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {

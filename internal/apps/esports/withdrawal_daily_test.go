@@ -8,7 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// 每日提现次数上限（§6.3）：当日达到上限后再申请被拒，次日自然日重置。
+// 每日提现次数上限：当日达到上限后再申请被拒，次日自然日重置。
 func TestWithdrawalDailyLimit(t *testing.T) {
 	db := openWithdrawalDB(t, "esports_withdrawal_daily_limit")
 	ctx := t.Context()

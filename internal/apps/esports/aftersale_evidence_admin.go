@@ -7,7 +7,7 @@ import (
 	"go-admin/internal/ent"
 )
 
-// §13.2 客服代建售后附件接入：客服通过 admin 通道代客户建售后时可附带凭证附件，
+// 客服代建售后附件接入：客服通过 admin 通道代客户建售后时可附带凭证附件，
 // 附件须为客服本人上传（admin.UID），校验通过后把引用序列化进 evidence_ref 的 JSON 数组。
 
 // adminCreateAfterSaleInput 客服代建售后入参：在既有 afterSaleInput 基础上增加凭证附件 ID 列表。
@@ -18,7 +18,7 @@ type adminCreateAfterSaleInput struct {
 	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 }
 
-// createAfterSaleWithEvidence 客服代建售后（§13.2）：在 createAfterSale 外层附加附件解析，
+// createAfterSaleWithEvidence 客服代建售后：在 createAfterSale 外层附加附件解析，
 // 凭证附件按客服本人（admin.UID）校验归属，非空时把引用序列化进 evidence_ref 后复用 createAfterSale
 // 落库；引用他人附件返回 errForbidden。不改 createAfterSale 的既有校验逻辑。
 func createAfterSaleWithEvidence(ctx context.Context, db *ent.Client, in afterSaleInput,

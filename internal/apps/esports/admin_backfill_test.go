@@ -30,7 +30,7 @@ func seedBackfillSku(t *testing.T, db *ent.Client, code string) *ent.EsportsSku 
 	return sku
 }
 
-// 管理员历史订单补录（§3.3 / §4.1 / §12.5）：入口固定、不占名额、分成与成长值默认计提、
+// 管理员历史订单补录：入口固定、不占名额、分成与成长值默认计提、
 // 客服提成默认不计、留痕审计且幂等。
 func TestAdminBackfillOrderIsolatesCommissionAndQuota(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_admin_backfill")
@@ -259,7 +259,7 @@ func TestOrderCountsCsCommissionOnlyForBackfill(t *testing.T) {
 	}
 }
 
-// 无 SKU 历史补录（§15.6）：product_id 可省略，用 unit_price_cents 兜底定价、不绑定 SKU、不占名额，且幂等。
+// 无 SKU 历史补录：product_id 可省略，用 unit_price_cents 兜底定价、不绑定 SKU、不占名额，且幂等。
 func TestAdminBackfillWithoutSku(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_admin_backfill_no_sku")
 	defer db.Close()

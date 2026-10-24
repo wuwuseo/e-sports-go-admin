@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// ar4SeedAfterSale 建一张可控证据 / 状态的售后单（§13.3-04 / §13.7-03 用）。
+// ar4SeedAfterSale 建一张可控证据 / 状态的售后单（用）。
 func ar4SeedAfterSale(t *testing.T, db *ent.Client, order *ent.EsportsOrder, customerID int,
 	kind, evidenceRef string, status esportsaftersale.Status, now time.Time) *ent.EsportsAfterSale {
 	t.Helper()
@@ -25,7 +25,7 @@ func ar4SeedAfterSale(t *testing.T, db *ent.Client, order *ent.EsportsOrder, cus
 		SetStatus(status).SetCustomerID(customerID).SaveX(t.Context())
 }
 
-// §13.3-04：客服回复后该售后单可查到该条沟通，客户侧可见 visibility=all，internal 备注不可见。
+// ：客服回复后该售后单可查到该条沟通，客户侧可见 visibility=all，internal 备注不可见。
 func TestAfterSaleMessageAdminReplyVisibleToCustomerAndInternalHidden(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_message_flow")
 	defer db.Close()
@@ -106,7 +106,7 @@ func TestAfterSaleMessageAdminReplyVisibleToCustomerAndInternalHidden(t *testing
 	}
 }
 
-// §13.7-03：客服可对缺证售后单发起补证提示，客户侧能查到提示与待补证标记；
+// ：客服可对缺证售后单发起补证提示，客户侧能查到提示与待补证标记；
 // 客户回复带附件后待补证标记解除；已结束单据明确拒绝。
 func TestAfterSaleEvidenceRequestVisibleAndResolvedByAttachment(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_r4w2_evidence_request")

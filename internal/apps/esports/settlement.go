@@ -25,12 +25,12 @@ type closeOrderInput struct {
 	FormValues map[string]any `json:"form_values"`
 	// SubstituteReports 是客服代未上报成员补填的服务段上报；仅生效提交规则允许代提交时接受。
 	SubstituteReports []closeSubstituteReport `json:"substitute_reports"`
-	// ViewedEvidenceAttachmentIDs 是客服声明「已查看」的服务段凭证附件 ID（§3.4-03）：
+	// ViewedEvidenceAttachmentIDs 是客服声明「已查看」的服务段凭证附件 ID：
 	// 必须覆盖该订单全部服务段 evidence_ref 里的图片附件 ID，否则结单返回参数错误。
 	ViewedEvidenceAttachmentIDs []int `json:"viewed_evidence_attachment_ids"`
 }
 
-// ensureCloseEvidenceViewed 校验「结单前已查看陪玩上传的凭证图片」（§3.4-03）：
+// ensureCloseEvidenceViewed 校验「结单前已查看陪玩上传的凭证图片」：
 // 返回本次确认覆盖的附件 ID（按需查看集合裁剪，避免把无关或伪造 ID 写进留痕）；
 // 存在必须查看的凭证而请求未完整覆盖时返回参数错误。
 //
@@ -98,7 +98,7 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingClose {
 		return nil, errConflict
 	}
-	// §3.4：解析生效结单规则（SKU 结单要求 > sku 规则 > game > global）。
+	// ：解析生效结单规则（SKU 结单要求 > sku 规则 > game > global）。
 	// 结构化默认项（凭证 ≥N、时长不为零、无未处理加钟 / 售后）是硬性底线；配置了通用 AND/OR
 	// 条件树时两者按 AND 合并求值，条件树不能删掉底线。
 	rule, err := resolveCloseRule(ctx, tx.Client(), order)
@@ -114,25 +114,25 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 		return nil, fmt.Errorf("%w：结单条件未满足：%s", errInvalidInput,
 			strings.Join(status.Reasons, "；"))
 	}
-	// §3.4-03：结单前必须逐张查看陪玩上传的凭证图片，并落「已查看附件 + 操作人」留痕。
+	// ：结单前必须逐张查看陪玩上传的凭证图片，并落「已查看附件 + 操作人」留痕。
 	viewedEvidence, err := ensureCloseEvidenceViewed(ctx, tx.Client(), orderID, in.ViewedEvidenceAttachmentIDs)
 	if err != nil {
 		return nil, err
 	}
-	// §3.4 结单表单：按订单解析生效模板，校验必填字段并写快照（无适用模板时跳过）。
+	// 结单表单：按订单解析生效模板，校验必填字段并写快照（无适用模板时跳过）。
 	if err = applyCloseForm(ctx, tx, order, adminID, in.FormValues, in.Note, now); err != nil {
 		return nil, err
 	}
-	// §3.4 提交规则：校验陪玩个人服务段上报达标情况，允许代提交时可先补填（无适用规则时跳过）。
+	// 提交规则：校验陪玩个人服务段上报达标情况，允许代提交时可先补填（无适用规则时跳过）。
 	if err = applyCloseSubmitRule(ctx, tx, order, adminID, in.SubstituteReports); err != nil {
 		return nil, err
 	}
-	// §3.4-03：把「已查看凭证」写进结单留痕（复核路径也要带，故随 extra 传入 finalize）。
+	// ：把「已查看凭证」写进结单留痕（复核路径也要带，故随 extra 传入 finalize）。
 	evidenceDetails := map[string]interface{}{
 		"viewed_evidence_attachment_ids": viewedEvidence,
 		"viewed_by_admin_id":             adminID,
 	}
-	// §3.4 结单审批：命中生效审批流（按金额阈值）或结单规则的复核阈值时，订单进入「待复核」
+	// 结单审批：命中生效审批流（按金额阈值）或结单规则的复核阈值时，订单进入「待复核」
 	// 并建立审批进度（逐节点串行审批，末节点通过才真正结单）。
 	approval, err := startCloseApprovalIfNeeded(ctx, tx, order, conds.ReviewThresholdCents)
 	if err != nil {
@@ -177,7 +177,7 @@ func closeOrder(ctx context.Context, db *ent.Client, orderID, adminID int, in cl
 
 // finalizeCloseOrderIn 事务内把订单转为 completed：写 closed_at、事件与事务外盒，并同事务计提
 // 陪玩分成、客服提成与客户成长值。供「直接结单」与「复核通过」两条路径共用（不负责 commit）。
-// extra 为并入 order.closed 事件 details 的补充留痕（如 §3.4-03 的已查看凭证 ID 与操作人）。
+// extra 为并入 order.closed 事件 details 的补充留痕（如 的已查看凭证 ID 与操作人）。
 func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int, actorType, note string, extra map[string]interface{}, now time.Time) error {
 	segments, err := tx.EsportsServiceSegment.Query().Where(
 		esportsservicesegment.OrderIDEQ(order.ID),
@@ -246,11 +246,11 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	if err != nil {
 		return err
 	}
-	// 陪玩分成与成长值始终正常计提（含补录单，§12.5 / §10.2）。
+	// 陪玩分成与成长值始终正常计提（含补录单，）。
 	if err = accrueOrderCommission(ctx, tx, updatedOrder, now); err != nil {
 		return err
 	}
-	// §3.3 / §12.5 补录隔离：历史补录单默认不计提客服提成，
+	// 补录隔离：历史补录单默认不计提客服提成，
 	// 写一条客服提成排除外盒留痕，避免后台把补录单推进到结单流程后误把历史流水算进当期业绩。
 	if !orderCountsCsCommission(updatedOrder) {
 		_, err = tx.EsportsOutbox.Create().SetEventKey("order.cs_commission_excluded:" + updatedOrder.OrderNo).
@@ -266,7 +266,7 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	if err = accrueOrderGrowth(ctx, tx, updatedOrder, now); err != nil {
 		return err
 	}
-	// 结单后复购跟进（§14-01）：在同一事务内生成「客户维度复购待办」，不必等定时任务窗口。
+	// 结单后复购跟进：在同一事务内生成「客户维度复购待办」，不必等定时任务窗口。
 	// 该函数在「未配置(repurchase_follow_up_days=0) / 未结单 / 无归属客服」时是明确的 no-op（nil, nil），
 	// 因此不会阻断结单主链路；定时任务 esports_schedule_repurchase_follow_ups 仍保留作兜底（幂等）。
 	if _, err = createRepurchaseFollowUpForOrder(ctx, tx.Client(), order.ID, now); err != nil {
@@ -275,7 +275,7 @@ func finalizeCloseOrderIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	return nil
 }
 
-// closeAddonRevenueAndCommission 汇总订单「已收款加钟」的实收额与加钟分成成本（§3.3 / §12.5 / P1-16）。
+// closeAddonRevenueAndCommission 汇总订单「已收款加钟」的实收额与加钟分成成本（P1-16）。
 // 取数与 report.go 的 addonRevenueTotals 同一口径：只看 payment_status=paid 的加钟单——
 // 营收侧累加 paid_cents（客服收款成功才写），成本侧累加该加钟确认时快照的 commission_cents
 // （收款成功后才按它计提 kind=addon 分成）。未确认 / 未收款 / 已拒绝 / 已取消的加钟两边都不计，
@@ -313,7 +313,7 @@ func closeReviewApproval(ctx context.Context, tx *ent.Tx, orderID int) (*ent.Esp
 	return approval, nil
 }
 
-// ensureCloseReviewActor 校验结单复核 / 驳回人资格（§3.4 不得自审 + §3.5 订单权限与数据隔离）：
+// ensureCloseReviewActor 校验结单复核 / 驳回人资格（不得自审 + 订单权限与数据隔离）：
 //  1. 负责客服本人不得复核自己结的单（沿用原口径，补中文说明便于排查）；
 //  2. 负责客服为空（自助单 / 公共池单 / 尚未指派）时，「比对负责客服」无人可挡——这正是
 //     原实现的漏洞：任何持权管理员都能复核自己提交的结单。此处退回**订单可见范围**判定：
@@ -338,7 +338,7 @@ func ensureCloseReviewActor(ctx context.Context, db *ent.Client, order *ent.Espo
 }
 
 // approveCloseReview 复核通过：推进当前审批节点；末节点通过后订单转 completed 并走完整结单计提。
-// 审批人不得为该订单负责客服（不得自审，§3.4）；节点角色为 super_admin 时须超级管理员。
+// 审批人不得为该订单负责客服（不得自审，）；节点角色为 super_admin 时须超级管理员。
 func approveCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int, isSuper bool,
 	note string, now time.Time) (*ent.EsportsOrder, error) {
 	note = strings.TrimSpace(note)
@@ -445,7 +445,7 @@ func rejectCloseReview(ctx context.Context, db *ent.Client, orderID, adminID int
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// ── §2.1-09 结单时限配置化与超时待办 ──
+// ── 结单时限配置化与超时待办 ──
 
 // closeDeadlineHoursKey 结单时限（小时）：订单进入待结单后超过该时长仍未结单即进客服 / 管理员待办。
 // 0 或配置非法 = 关闭该待办（不设时限），与「未配置的能力必须显式降级」的口径一致。
@@ -464,7 +464,7 @@ func closeDeadlineHours(ctx context.Context, db *ent.Client) int {
 	return hours
 }
 
-// closeDeadlineOverdueItem 是「超结单时限未结单」待办项（§2.1-09）。
+// closeDeadlineOverdueItem 是「超结单时限未结单」待办项。
 type closeDeadlineOverdueItem struct {
 	OrderID            int       `json:"order_id"`
 	OrderNo            string    `json:"order_no"`
@@ -474,7 +474,7 @@ type closeDeadlineOverdueItem struct {
 	FulfillmentStatus  string    `json:"fulfillment_status"`
 }
 
-// listCloseDeadlineOverdue 列出超过结单时限仍未结单的订单（§2.1-09）：
+// listCloseDeadlineOverdue 列出超过结单时限仍未结单的订单：
 // 口径 = 履约状态为待结单 / 待结单复核，且最近一次状态变更（updated_at）已超过 close_deadline_hours。
 // 时限未配置（0）时返回空列表——待办整体关闭。
 func listCloseDeadlineOverdue(ctx context.Context, db *ent.Client, now time.Time, limit int) ([]closeDeadlineOverdueItem, error) {
@@ -509,7 +509,7 @@ func listCloseDeadlineOverdue(ctx context.Context, db *ent.Client, now time.Time
 	return items, nil
 }
 
-// closeDeadlineOverdueCount 超结单时限未结单的单量（客服待办计数用，§2.1-09）。
+// closeDeadlineOverdueCount 超结单时限未结单的单量（客服待办计数用，）。
 func closeDeadlineOverdueCount(ctx context.Context, db *ent.Client, now time.Time) (int, error) {
 	items, err := listCloseDeadlineOverdue(ctx, db, now, 1000)
 	if err != nil {
@@ -518,7 +518,7 @@ func closeDeadlineOverdueCount(ctx context.Context, db *ent.Client, now time.Tim
 	return len(items), nil
 }
 
-// scanCloseDeadlineTask 结单时限扫描任务（§2.1-09）：把超时未结单订单写进客服 / 管理员待办
+// scanCloseDeadlineTask 结单时限扫描任务：把超时未结单订单写进客服 / 管理员待办
 // （只增的事务外盒事件，按订单 + 业务日去重），供 cs 待办列表与看板查询。
 // 时限未配置时直接跳过（0 条）。
 func scanCloseDeadlineTask(ctx context.Context, logger io.Writer) error {
@@ -532,7 +532,7 @@ func scanCloseDeadlineTask(ctx context.Context, logger io.Writer) error {
 	return nil
 }
 
-// scanCloseDeadlineOverdue 扫描并落「超结单时限」待办（§2.1-09），重复运行幂等。
+// scanCloseDeadlineOverdue 扫描并落「超结单时限」待办，重复运行幂等。
 func scanCloseDeadlineOverdue(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	items, err := listCloseDeadlineOverdue(ctx, db, now, limit)
 	if err != nil {

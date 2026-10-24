@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// 通知收件人解析（§通知）。
+// 通知收件人解析。
 //
 // 寻址约定（ent.Message.user_uid）：
 //   - 管理员：直接写 Admin.UID。后台消息中心（/api/v1/admin/auth/messages）按登录态 uid
@@ -68,10 +68,10 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 	}
 	switch {
 	case eventType == "order.priority_notice":
-		// §5.4-09：优先接单通知只投给被通知的名单内陪玩本人（绝不放宽为通用 order.* 收件人）。
+		// ：优先接单通知只投给被通知的名单内陪玩本人（绝不放宽为通用 order.* 收件人）。
 		return resolvePlayerPayloadRecipients(payload)
 	case eventType == "order.grab_attempt_lost":
-		// §5.6-04：落败抢单只定向通知本人，避免把「抢单未成功」广播给客户与客服。
+		// ：落败抢单只定向通知本人，避免把「抢单未成功」广播给客户与客服。
 		return resolvePlayerPayloadRecipients(payload)
 	case strings.HasPrefix(eventType, "order."):
 		return resolveOrderNotificationRecipients(ctx, db, eventType, aggregateRef, payload)
@@ -82,29 +82,29 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 	case eventType == "dispatch.remind_player":
 		return resolveDispatchRemindPlayerRecipients(ctx, db, aggregateRef, payload)
 	case eventType == "dispatch.service_overtime":
-		// §5.7 服务超时提醒客服确认是否加钟。
+		// 服务超时提醒客服确认是否加钟。
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
 	case eventType == "dispatch.auto_pool_release":
-		// §5.1-05 客服离线 / 积压自动转公共池：定向通知原负责客服。
+		// 客服离线 / 积压自动转公共池：定向通知原负责客服。
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "dispatch.escalation_"):
-		// §5.9-06 派单逐级升级：定向通知责任客服。
+		// 派单逐级升级：定向通知责任客服。
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
 	case eventType == "service.duration_mismatch":
-		// §6.2-03 服务时长差异过大提醒客服核实。
+		// 服务时长差异过大提醒客服核实。
 		return resolveOrderAdminNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "settlement."):
-		// §6.1-15 服务段结束进入待结算：定向通知该陪玩。
+		// 服务段结束进入待结算：定向通知该陪玩。
 		return resolvePlayerPayloadRecipients(payload)
 	case strings.HasPrefix(eventType, "payment."):
 		return resolvePaymentNotificationRecipients(ctx, db, eventType, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "ledger."):
-		// §8.2-13 账本核验异常：逐收件人的告警事件在载荷里点名 admin_id（财务或超管），
+		// 账本核验异常：逐收件人的告警事件在载荷里点名 admin_id（财务或超管），
 		// 沿用「按 payload.admin_id 定向管理员」的既有解析；账本事件没有关联订单，
 		// 订单回查查不到即跳过，只剩载荷点名的收件人。
 		return resolveFinanceNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "external_refund."):
-		// §8.2-12 外部退款待执行超期督办：与账本告警同一套收件人口径（财务优先、回落超管）。
+		// 外部退款待执行超期督办：与账本告警同一套收件人口径（财务优先、回落超管）。
 		return resolveFinanceNotificationRecipients(ctx, db, aggregateRef, payload)
 	case strings.HasPrefix(eventType, "gift."):
 		return resolveGiftNotificationRecipients(ctx, db, aggregateRef, payload)
@@ -118,7 +118,7 @@ func resolveNotificationRecipients(ctx context.Context, db *ent.Client, eventTyp
 	return nil, errNotificationRecipientMissing
 }
 
-// resolvePlayerPayloadRecipients 解析「载荷里已带 player_id」的定向单播事件（§5.4-09 / §5.6-04 / §6.1-15）：
+// resolvePlayerPayloadRecipients 解析「载荷里已带 player_id」的定向单播事件：
 // 取不到 player_id 时返回 errNotificationRecipientMissing，由外盒退避重试直至 dead，
 // 绝不降级成客户 / 客服 / 全员广播。
 func resolvePlayerPayloadRecipients(payload map[string]interface{}) ([]notificationRecipient, error) {
@@ -144,7 +144,7 @@ func resolveOrderNotificationRecipients(ctx context.Context, db *ent.Client, eve
 	if order.ResponsibleAdminID != nil {
 		set.addAdmin(ctx, db, *order.ResponsibleAdminID, notificationRoleAdmin)
 	}
-	// §6.1-15：接单邀请必须同时触达「待回应（invited）席位」的陪玩；其余 order.* 事件仍只带已接单成员。
+	// ：接单邀请必须同时触达「待回应（invited）席位」的陪玩；其余 order.* 事件仍只带已接单成员。
 	statuses := []esportsdispatchseat.Status{esportsdispatchseat.StatusAccepted}
 	if eventType == "order.seat_invited" {
 		statuses = append(statuses, esportsdispatchseat.StatusInvited)

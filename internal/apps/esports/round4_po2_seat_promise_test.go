@@ -28,7 +28,7 @@ func po2SeedSku(t *testing.T, db *ent.Client, code string, seats int, units, per
 	return sku
 }
 
-// §15.3-01 / §15.6-03 / §4.2-08：多人 SKU 每席承诺量落库、缺每席量下单 400、收款前复核口径。
+// ：多人 SKU 每席承诺量落库、缺每席量下单 400、收款前复核口径。
 func TestRound4W2MemberDiscountSnapshotAndBoosting(t *testing.T) {
 	db := openProductDB(t, "esports_po2_member_boosting")
 	defer db.Close()

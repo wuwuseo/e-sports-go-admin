@@ -24,7 +24,7 @@ func openAddonDB(t *testing.T, name string) *ent.Client {
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 }
 
-// 加钟收款（§3.3）：仅「已确认且未收款」的加钟单可按客户余额核销；余额不足与重复收款均被拒。
+// 加钟收款：仅「已确认且未收款」的加钟单可按客户余额核销；余额不足与重复收款均被拒。
 func TestPayOrderAddonByBalance(t *testing.T) {
 	db := openAddonDB(t, "esports_addon_pay")
 	defer db.Close()
@@ -98,7 +98,7 @@ func TestPayOrderAddonByBalance(t *testing.T) {
 	}
 }
 
-// 加钟退款分摊（§12.5）：售后退款按比例同时冲回原单服务分成与加钟分成。
+// 加钟退款分摊：售后退款按比例同时冲回原单服务分成与加钟分成。
 func TestAddonCommissionReversalOnRefund(t *testing.T) {
 	db := openAddonDB(t, "esports_addon_reversal")
 	defer db.Close()
@@ -145,7 +145,7 @@ func TestAddonCommissionReversalOnRefund(t *testing.T) {
 		t.Fatalf("收款后应生成一条加钟分成明细：%d", n)
 	}
 
-	// §12.5-02：统一可退基数 = 结单净服务额 / 应付 1000 + 加钟已收 4000 = 5000，
+	// ：统一可退基数 = 结单净服务额 / 应付 1000 + 加钟已收 4000 = 5000，
 	// 退款 500 = 10% → 服务冲回 -50（500×10%）、加钟冲回 -200（2000×10%），两类比例一致。
 	paid := db.EsportsOrder.GetX(ctx, order.ID)
 	item := &ent.EsportsAfterSale{AfterSaleNo: "AS-ADDON-1", RefundCents: 500}

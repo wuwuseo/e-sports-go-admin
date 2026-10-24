@@ -19,7 +19,7 @@ func openRound4MemberDB(t *testing.T, name string) *ent.Client {
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
 }
 
-// 五档等级幂等播种（§10.1-01）：新库播种后恰好五档、门槛递增且最低档门槛为 0，
+// 五档等级幂等播种：新库播种后恰好五档、门槛递增且最低档门槛为 0，
 // 新客户结单即可被命中；重复播种不新增、不覆盖运营对已有等级的改动。
 func TestSeedMemberLevelsIdempotentFiveTiers(t *testing.T) {
 	db := openRound4MemberDB(t, "r4wm_member_seed")
@@ -91,7 +91,7 @@ func TestSeedMemberLevelsIdempotentFiveTiers(t *testing.T) {
 	}
 }
 
-// 播种后新客户结单可被等级命中（§10.1-01 验收：不出现「等级表为空 → 永不定级」）。
+// 播种后新客户结单可被等级命中（验收：不出现「等级表为空 → 永不定级」）。
 func TestSeedMemberLevelsLevelsUpFreshCustomerOnClose(t *testing.T) {
 	db := openRound4MemberDB(t, "r4wm_member_seed_close")
 	defer db.Close()

@@ -23,7 +23,7 @@ func seedScheduledPaidOrder(t *testing.T, db *ent.Client, orderNo string, start 
 		SaveX(t.Context())
 }
 
-// §5.5 并发上限按服务时段重叠判定：重叠占容量，不重叠不占（旧口径「未结束即占位」会误挡）。
+// 并发上限按服务时段重叠判定：重叠占容量，不重叠不占（旧口径「未结束即占位」会误挡）。
 func TestDispatchConcurrencyUsesServiceWindowOverlap(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dispatch_window_overlap")
 	defer db.Close()
@@ -53,7 +53,7 @@ func TestDispatchConcurrencyUsesServiceWindowOverlap(t *testing.T) {
 	}
 }
 
-// §5.5 每日上限按「服务开始自然日」归集：不同日期的预约不再互相误挡，同日才累计。
+// 每日上限按「服务开始自然日」归集：不同日期的预约不再互相误挡，同日才累计。
 func TestDispatchDailyLimitUsesServiceStartBusinessDay(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dispatch_window_daily")
 	defer db.Close()

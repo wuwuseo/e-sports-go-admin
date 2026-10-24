@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客服在线状态与「离线 / 积压 → 自动转公共池」（§1.1-08 / §5.1-05 / §5.8-04）。
+// 客服在线状态与「离线 / 积压 → 自动转公共池」。
 //
 // 在线状态口径（可验收断言）：
 //   - 数据源优先级：EsportsCsPresence（presence 表）> Admin.last_login / 最近一次管理员订单操作；
@@ -61,7 +61,7 @@ type csAdminActivity struct {
 	LastActiveAt *time.Time
 }
 
-// csAdminActivities 批量计算客服在线状态与最近活跃时间（§5.8-04 / §1.1-08）。
+// csAdminActivities 批量计算客服在线状态与最近活跃时间。
 // 看板与「离线 / 积压自动转池」任务共用同一口径，避免两处判定漂移。
 func csAdminActivities(ctx context.Context, db *ent.Client, adminIDs []int, now time.Time) (map[int]csAdminActivity, error) {
 	out := make(map[int]csAdminActivity, len(adminIDs))
@@ -147,14 +147,14 @@ func csAdminActivities(ctx context.Context, db *ent.Client, adminIDs []int, now 
 	return out, nil
 }
 
-// csPresenceStates 客服可写入的在线状态（§1.1-08）：与 schema 枚举一致。
+// csPresenceStates 客服可写入的在线状态：与 schema 枚举一致。
 var csPresenceStates = map[string]esportscspresence.Presence{
 	"online":  esportscspresence.PresenceOnline,
 	"busy":    esportscspresence.PresenceBusy,
 	"offline": esportscspresence.PresenceOffline,
 }
 
-// setCsPresence 客服在线状态写入口（§1.1-08，POST /admin/cs/presence）。
+// setCsPresence 客服在线状态写入口（，POST /admin/cs/presence）。
 //
 // 口径（可验收断言）：
 //   - 状态只接受 online / busy / offline，其他值一律参数错误（不静默落 offline）；
@@ -214,7 +214,7 @@ func setCsPresence(ctx context.Context, db *ent.Client, adminID, actorAdminID in
 	return update.Save(ctx)
 }
 
-// adminSetCsPresenceHandler 客服在线打点（§1.1-08）。
+// adminSetCsPresenceHandler 客服在线打点。
 // 请求体：{"presence":"online|busy|offline"}，可选 {"admin_id":N}（仅超管可代他人打点）。
 func adminSetCsPresenceHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
@@ -240,7 +240,7 @@ func adminSetCsPresenceHandler(c fiber.Ctx) error {
 	return reply(c, row)
 }
 
-// adminListCsPresencesHandler 客服在线清单（§1.1-08）：与排单看板顶部共用同一套在线判定
+// adminListCsPresencesHandler 客服在线清单：与排单看板顶部共用同一套在线判定
 // （presence 表权威，无档案时回落「最近登录 / 最近一次管理员订单操作」）。
 func adminListCsPresencesHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -254,7 +254,7 @@ func adminListCsPresencesHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"offline_timeout_minutes": timeout, "admins": admins})
 }
 
-// releaseOrderToPublicPool 把「待派单」订单释放到公共池（§5.1 / §14）：
+// releaseOrderToPublicPool 把「待派单」订单释放到公共池：
 // 仅负责客服或超管可操作；清空 responsible_admin_id 后由值班客服认领。
 // 已接单/服务中的订单不允许直接释放，必须先撤单/转单，避免绕过履约责任。
 func releaseOrderToPublicPool(ctx context.Context, db *ent.Client, adminID int, isSuper bool,
@@ -272,7 +272,7 @@ func releaseOrderToPublicPool(ctx context.Context, db *ent.Client, adminID int, 
 	if err != nil {
 		return nil, err
 	}
-	// §3.3-11：存单冻结期间禁止一切写操作，清空归属客服属于写操作。
+	// ：存单冻结期间禁止一切写操作，清空归属客服属于写操作。
 	if err = ensureOrderNotFrozen(order); err != nil {
 		return nil, err
 	}
@@ -329,7 +329,7 @@ func releaseOrderToPublicPoolHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// autoTransferBacklogOrders 客服离线 / 订单积压自动转公共池（§5.1-05 / §1.1-08），
+// autoTransferBacklogOrders 客服离线 / 订单积压自动转公共池，
 // 由定时任务周期收敛（任务名 esports_auto_transfer_backlog_orders，注册与 CronJob 由主控加）。
 //
 // 开关口径（可验收断言）：

@@ -16,7 +16,7 @@ import (
 	cmfconfig "github.com/wuwuseo/cmf/config"
 )
 
-// 角色播种回归（§2.1-01 / §16.5-03）：
+// 角色播种回归：
 //   - 幂等播种客服 / 财务 / 考官 / 运营编辑四类最小权限角色，白名单精确到权限 code；
 //   - 排单与报单权限各自独立成项；
 //   - 客服 / 财务另播种只读角色，只持有页面装修读权限，写接口在策略层被拒（403 同源）。
@@ -193,7 +193,7 @@ func TestInitMinimalRolesSeedsFourLeastPrivilegeRoles(t *testing.T) {
 		"esports:wallets:adjust", "esports:wallets:recharge")
 	assertGranted(t, "cs_admin", granted["cs_admin"],
 		"esports:orders:close", "esports:aftersales:plan", "esports:cs:workbench", "esports:dispatch:assign",
-		// 代客收款：客服需要替客户走余额核销并提交转账凭证（§4.3）。
+		// 代客收款：客服需要替客户走余额核销并提交转账凭证。
 		// 「收款执行」不是「资金审批」——核销凭证、退款审批、结算锁定/发放、账户审核仍全部归财务，
 		// 因此 pay_balance / payments:proof_submit 属于客服白名单，
 		// 而 wallets:adjust（直接调整余额）与 wallets:recharge（直接充值）依然禁止。

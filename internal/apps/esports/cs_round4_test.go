@@ -14,7 +14,7 @@ import (
 // 第 4 轮新增配置键字面量（RED 阶段生产常量尚未存在）。
 const repurchaseFollowUpDaysKeyLiteral = "app.esports.repurchase_follow_up_days"
 
-// ── §8.3-02：客户归属转移 ──
+// ── ：客户归属转移 ──
 
 // 归属转移：改 owner_admin_id、留操作人与时间、历史跟进不变；越权与非法目标被拒。
 func TestTransferCustomerOwner(t *testing.T) {
@@ -101,7 +101,7 @@ func TestTransferCustomerOwnerBySuperAdmin(t *testing.T) {
 	}
 }
 
-// ── §8.3-02：档案改动乐观锁 ──
+// ── ：档案改动乐观锁 ──
 
 // 带 expected_version 的改档为乐观锁：版本正确自增，过期版本返回冲突。
 func TestUpdateCustomerProfileOptimisticLock(t *testing.T) {
@@ -141,7 +141,7 @@ func TestUpdateCustomerProfileOptimisticLock(t *testing.T) {
 	}
 }
 
-// ── §3.5-06（剩余）：客服看板 / 待办计数纳入「被授权协作」订单 ──
+// ── （剩余）：客服看板 / 待办计数纳入「被授权协作」订单 ──
 
 // 协作客服的待办计数必须与订单列表口径一致（负责 OR 协作）。
 func TestCsWorkbenchTodosIncludeCollaboratorOrders(t *testing.T) {
@@ -200,7 +200,7 @@ func TestCsWorkbenchTodosIncludeCollaboratorOrders(t *testing.T) {
 	}
 }
 
-// ── §14-01：结单后复购跟进待办 ──
+// ── ：结单后复购跟进待办 ──
 
 // 结单 N 天后自动生成客户维度复购跟进待办，可被客服工作台看到并可标记完成。
 func TestScheduleRepurchaseFollowUps(t *testing.T) {

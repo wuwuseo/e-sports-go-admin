@@ -47,7 +47,7 @@ func jsonIntArray(ids ...int) string {
 	return "[" + strings.Join(parts, ",") + "]"
 }
 
-// §3.4-03：结单条件返回待查看凭证附件；结单必须回传覆盖全部附件的已查看列表并留痕。
+// ：结单条件返回待查看凭证附件；结单必须回传覆盖全部附件的已查看列表并留痕。
 func TestRound4W2CloseRequiresEvidenceViewed(t *testing.T) {
 	db := openCloseFormDB(t, "esports_po2_close_evidence")
 	defer db.Close()
@@ -95,7 +95,7 @@ func TestRound4W2CloseRequiresEvidenceViewed(t *testing.T) {
 	}
 }
 
-// §3.4-07：按订单类型（即时 / 预约）绑定结单表单模板，预约单命中、即时单不命中。
+// ：按订单类型（即时 / 预约）绑定结单表单模板，预约单命中、即时单不命中。
 func TestRound4W2CloseFormScopeOrderType(t *testing.T) {
 	db := openCloseFormDB(t, "esports_po2_close_order_type")
 	defer db.Close()

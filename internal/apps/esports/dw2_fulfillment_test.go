@@ -39,7 +39,7 @@ func dw2ServiceOrder(t *testing.T, db *ent.Client, orderNo string, seats int, pr
 	return order
 }
 
-// §6.2-04：暂停/恢复与订单/服务段视图必须返回逐成员「已服务量 / 暂停量 / 仍需履约量」
+// ：暂停/恢复与订单/服务段视图必须返回逐成员「已服务量 / 暂停量 / 仍需履约量」
 // （仍需履约量 = 承诺量 + 加钟量 − 已上报量），并且暂停后有效时长冻结、恢复后暂停时长固化。
 func TestDw2ServiceFulfillmentUnitsView(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_fulfillment")
@@ -139,7 +139,7 @@ func TestDw2ServiceFulfillmentUnitsView(t *testing.T) {
 	}
 }
 
-// §6.2-02：客服记名停工（代暂停 / 时长更正登记停工量）后，若整单再无进行中的服务段，
+// ：客服记名停工（代暂停 / 时长更正登记停工量）后，若整单再无进行中的服务段，
 // 必须按剩余履约量把订单转入 pending_close，并把剩余履约量登记到事件。
 func TestDw2AdminServiceStopMovesOrderToPendingClose(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_admin_stop_close")
@@ -186,7 +186,7 @@ func TestDw2AdminServiceStopMovesOrderToPendingClose(t *testing.T) {
 	}
 }
 
-// §6.2-02 反例：仍有其他成员在服务中时，记名停工不得把整单转待结单。
+// 反例：仍有其他成员在服务中时，记名停工不得把整单转待结单。
 func TestDw2AdminServiceStopKeepsInServiceWhileOthersServing(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_admin_stop_keep")
 	defer db.Close()

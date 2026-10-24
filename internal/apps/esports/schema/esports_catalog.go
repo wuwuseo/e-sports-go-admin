@@ -41,7 +41,7 @@ func (EsportsSku) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("code").NotEmpty().MaxLen(80).Immutable().StructTag(`json:"code"`),
 		field.String("title").NotEmpty().MaxLen(160).StructTag(`json:"title"`),
-		// service_type 枚举仅在末尾追加 boosting 预留值（§3.1-04）：代练首版未开放，
+		// service_type 枚举仅在末尾追加 boosting 预留值：代练首版未开放，
 		// 业务侧须对 boosting 显式返回「代练首版未开放」参数错误；既有取值一个都不删除。
 		field.Enum("service_type").Values("play", "teaching", "entertainment", "boosting").StructTag(`json:"service_type"`),
 		field.Int("category_id").Optional().Nillable().StructTag(`json:"category_id"`),
@@ -56,20 +56,20 @@ func (EsportsSku) Fields() []ent.Field {
 		field.Int("adjustment_approval_bp").Default(2000).StructTag(`json:"adjustment_approval_bp"`),
 		field.Int64("service_units").Positive().StructTag(`json:"service_units"`),
 		field.String("service_unit_name").NotEmpty().MaxLen(32).StructTag(`json:"service_unit_name"`),
-		// 每席承诺服务量（§15.3-01 / §15.5-01）：多人 SKU（required_seats>1）必须 >0，
+		// 每席承诺服务量：多人 SKU（required_seats>1）必须 >0，
 		// 下单校验 promised_service_units = per_seat_service_units × required_seats；0=未配置（下单报参数错误）。
 		field.Int64("per_seat_service_units").Default(0).StructTag(`json:"-"`),
-		// SKU 成本（分，§15.8-03）：可选，仅财务角色只读可见，供订单毛利口径；
+		// SKU 成本（分，）：可选，仅财务角色只读可见，供订单毛利口径；
 		// 未填写为 NULL（历史 SKU 不回填），读取方按 nil 处理。
 		field.Int64("cost_cents").Optional().Nillable().StructTag(`json:"cost_cents"`),
-		// 单次服务的标准时长（分钟，§5.5）：用于预约时段重叠与服务开始自然日的容量判定；0 表示未配置，
+		// 单次服务的标准时长（分钟，）：用于预约时段重叠与服务开始自然日的容量判定；0 表示未配置，
 		// 此时容量判定回落到「未结束即占位」的保守口径。
 		field.Int("service_duration_minutes").Default(0).StructTag(`json:"service_duration_minutes"`),
 		field.Int("required_seats").Positive().Default(1).StructTag(`json:"-"`),
-		// 所需技能等级（§5.5）：陪玩等级不得低于该值。取值为系统配置 app.esports.skill_levels
+		// 所需技能等级：陪玩等级不得低于该值。取值为系统配置 app.esports.skill_levels
 		// 的等级编码（配置顺序即高低序）；列默认 novice 只是历史兜底，应用层总是显式写入配置内的编码。
 		field.String("required_level").MaxLen(32).Default("novice").StructTag(`json:"required_level"`),
-		// 结单要求（§15.3）：引用生效结单规则的 code；下单时随 SKU 快照，结单按该规则的条件与审批流执行。
+		// 结单要求：引用生效结单规则的 code；下单时随 SKU 快照，结单按该规则的条件与审批流执行。
 		// 为空表示按 游戏分区 / 全局 规则逐级回落。
 		field.String("close_rule_code").MaxLen(48).Default("").StructTag(`json:"close_rule_code"`),
 		field.Int64("quota_total").Default(-1).StructTag(`json:"quota_total"`), // -1 means unlimited; quota counts purchased SKU units.

@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsPageDocument 是某渠道首页装修的当前工作副本（§16）。一个渠道只有一行：
+// EsportsPageDocument 是某渠道首页装修的当前工作副本。一个渠道只有一行：
 // draft_config 为运营正在编辑的结构化配置，published_version_no 指向当前生效的不可变快照。
 // draft_version 作乐观锁，避免多人同时保存草稿互相覆盖。
 // ponytail: 首版仅支持 uni-app 客户自助端单渠道 uni_customer_home；渠道字段保留以便后续扩展。
@@ -35,7 +35,7 @@ func (EsportsPageDocument) Indexes() []ent.Index {
 	}
 }
 
-// EsportsPageVersion 是首页装修的不可变发布快照（§16.4）。发布 / 回滚均生成新版本，
+// EsportsPageVersion 是首页装修的不可变发布快照。发布 / 回滚均生成新版本，
 // 不原地修改旧记录；同一渠道同一时刻只有一条 status=published，其余历史版本转 history。
 // 定时发布先落 status=scheduled，由系统任务到点激活。
 type EsportsPageVersion struct{ ent.Schema }
@@ -46,7 +46,7 @@ func (EsportsPageVersion) Fields() []ent.Field {
 		field.String("channel").NotEmpty().MaxLen(48).StructTag(`json:"channel"`),
 		field.Int("version_no").StructTag(`json:"version_no"`),
 		field.JSON("config", map[string]interface{}{}).StructTag(`json:"config"`),
-		// scheduled 定时待发布 / pending_review 发布待审核（§16.4，immediate 且开启审核时先落此态）/
+		// scheduled 定时待发布 / pending_review 发布待审核（，immediate 且开启审核时先落此态）/
 		// published 当前生效 / history 历史或已驳回。
 		field.Enum("status").Values("scheduled", "pending_review", "published", "history").Default("scheduled").StructTag(`json:"status"`),
 		field.Enum("publish_mode").Values("immediate", "scheduled").Default("immediate").StructTag(`json:"publish_mode"`),
@@ -67,7 +67,7 @@ func (EsportsPageVersion) Indexes() []ent.Index {
 	}
 }
 
-// EsportsPageAsset 是装修素材库条目（§16.2）。只登记受控资源地址与尺寸，
+// EsportsPageAsset 是装修素材库条目。只登记受控资源地址与尺寸，
 // 不做字节存储与裁剪。
 // ponytail: 上传 / 裁剪 / 外部域名白名单强校验未实现，仅登记名称、地址与尺寸。
 type EsportsPageAsset struct{ ent.Schema }

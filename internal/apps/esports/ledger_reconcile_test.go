@@ -22,7 +22,7 @@ func hasLedgerAnomaly(result ledgerReconcileResult, kind string) bool {
 	return false
 }
 
-// 账本全量核验（§11.6）：健康账本无异常，异常账本按不变量分类报出，异常落外盒事件。
+// 账本全量核验：健康账本无异常，异常账本按不变量分类报出，异常落外盒事件。
 func TestLedgerReconcileDetectsAnomalies(t *testing.T) {
 	db := openWalletTestDB(t, "esports_ledger_reconcile")
 	ctx := t.Context()

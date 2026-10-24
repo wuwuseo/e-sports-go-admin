@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportswithdrawalpayout"
 )
 
-// 打款执行状态机（§11.2 补全）：提现审核通过后的落账拆成明确阶段
+// 打款执行状态机（补全）：提现审核通过后的落账拆成明确阶段
 // approved → pay_requested → paid / pay_failed，打款失败可退回重试。
 // 提现单自身状态保持 approved，直到打款成功才置为 paid；猫粮在申请时已出账，
 // 打款阶段不再动钱包，只落外部打款凭证与到账留痕。
@@ -89,7 +89,7 @@ func requestWithdrawalPayout(ctx context.Context, db *ent.Client, adminID, withd
 }
 
 // markWithdrawalPayoutPaid 标记打款成功：pay_requested → paid，同一事务把提现单 approved → paid，
-// 回填完税凭证、到账时间与打款人（§11.2）。猫粮在申请时已出账，此处不再动钱包。
+// 回填完税凭证、到账时间与打款人。猫粮在申请时已出账，此处不再动钱包。
 // 幂等：提现单状态守卫 + 流水号唯一索引兜底，同一流水号不重复落账。
 func markWithdrawalPayoutPaid(ctx context.Context, db *ent.Client, adminID, payoutID int,
 	taxRef string, now time.Time) (*ent.EsportsWithdrawalPayout, error) {

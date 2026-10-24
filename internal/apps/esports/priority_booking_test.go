@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsprioritybookingintent"
 )
 
-// 专属客服权益（§10.4）：等级开启 dedicated_cs 时，客户卡片返回等级名、专属客服标识与负责客服姓名。
+// 专属客服权益：等级开启 dedicated_cs 时，客户卡片返回等级名、专属客服标识与负责客服姓名。
 func TestMemberDedicatedCSProfileDisplay(t *testing.T) {
 	db := openMemberDB(t, "esports_member_dedicated_cs")
 	defer db.Close()
@@ -53,7 +53,7 @@ func TestMemberDedicatedCSProfileDisplay(t *testing.T) {
 	}
 }
 
-// 优先预约（§10.4）：提交生成 pending 意向并计入工作台待办，非超管按归属隔离。
+// 优先预约：提交生成 pending 意向并计入工作台待办，非超管按归属隔离。
 func TestPriorityBookingSubmitAndTodo(t *testing.T) {
 	db := openMemberDB(t, "esports_priority_booking_todo")
 	defer db.Close()
@@ -105,7 +105,7 @@ func TestPriorityBookingSubmitAndTodo(t *testing.T) {
 	}
 }
 
-// 优先预约（§10.4）：无权益等级 / 未定级客户被拒；期望时段须为未来时间。
+// 优先预约：无权益等级 / 未定级客户被拒；期望时段须为未来时间。
 func TestPriorityBookingRequiresBenefit(t *testing.T) {
 	db := openMemberDB(t, "esports_priority_booking_guard")
 	defer db.Close()
@@ -149,7 +149,7 @@ func TestPriorityBookingRequiresBenefit(t *testing.T) {
 	}
 }
 
-// 优先预约（§10.4）：待办列表按会员等级置顶（门槛越高越靠前），未定级排最后。
+// 优先预约：待办列表按会员等级置顶（门槛越高越靠前），未定级排最后。
 func TestPriorityBookingSortedByLevel(t *testing.T) {
 	db := openMemberDB(t, "esports_priority_booking_sort")
 	defer db.Close()

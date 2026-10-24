@@ -94,7 +94,7 @@ func seedActiveApprovalFlow(t *testing.T, db *ent.Client, in closeApprovalFlowIn
 	return flow
 }
 
-// 多节点串行审批（§3.4）：逐节点推进、super_admin 节点须超管、末节点通过才结单。
+// 多节点串行审批：逐节点推进、super_admin 节点须超管、末节点通过才结单。
 func TestCloseApprovalFlowMultiNode(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_approval_multi")
 	defer db.Close()
@@ -141,7 +141,7 @@ func TestCloseApprovalFlowMultiNode(t *testing.T) {
 	}
 }
 
-// 审批驳回回退待结单，重新结单重建审批进度（§3.4）。
+// 审批驳回回退待结单，重新结单重建审批进度。
 func TestCloseApprovalRejectAndRestart(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_approval_reject")
 	defer db.Close()
@@ -175,7 +175,7 @@ func TestCloseApprovalRejectAndRestart(t *testing.T) {
 	}
 }
 
-// 审批节点超时（§3.4）：允许自动通过的节点超时自动推进，资金节点只升级提醒。
+// 审批节点超时：允许自动通过的节点超时自动推进，资金节点只升级提醒。
 func TestCloseApprovalTimeout(t *testing.T) {
 	db := openCloseFormDB(t, "esports_close_approval_timeout")
 	defer db.Close()

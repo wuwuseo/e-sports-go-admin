@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 售后跨来源越权回归（§13.1 / §13.3）：构造「订单 ID 与礼物 / 充值流水 ID 同号」的场景，
+// 售后跨来源越权回归：构造「订单 ID 与礼物 / 充值流水 ID 同号」的场景，
 // 验证不同来源的售后单按各自来源解析真实归属，而不是一律把 source_id 当订单 ID 查订单归属。
 //
 // 布局：customerA 归属客服 11，其订单 order.ID 与 customerB 的 gift.ID / recharge.ID 同为 1；

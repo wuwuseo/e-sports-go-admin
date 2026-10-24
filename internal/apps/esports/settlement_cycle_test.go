@@ -207,7 +207,7 @@ func TestGenerateDuePlayerSettlementsUsesPlayerCycle(t *testing.T) {
 	}
 }
 
-// 争议冻结（§12.6）：冻结明细不参与结算，解冻后恢复；人工冻结可按陪玩收窄。
+// 争议冻结：冻结明细不参与结算，解冻后恢复；人工冻结可按陪玩收窄。
 func TestCommissionFreezeExcludesEntryFromSettlement(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_commission_freeze")
 	defer db.Close()

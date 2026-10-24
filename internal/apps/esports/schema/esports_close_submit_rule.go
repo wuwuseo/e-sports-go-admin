@@ -8,9 +8,9 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsCloseSubmitRule 是结单提交规则（§3.4）：规定订单结单前「陪玩个人服务段上报」（服务量 + 凭证）
+// EsportsCloseSubmitRule 是结单提交规则：规定订单结单前「陪玩个人服务段上报」（服务量 + 凭证）
 // 需要多少成员完成、是否允许客服代提交、未达标如何处理。按 全局 / 游戏分区 / SKU 绑定。
-// 规则不可原地修改：改规则＝新增一条递增 version 的新行，旧行转 history（§12.4 同款版本管理）。
+// 规则不可原地修改：改规则＝新增一条递增 version 的新行，旧行转 history（同款版本管理）。
 type EsportsCloseSubmitRule struct{ ent.Schema }
 
 func (EsportsCloseSubmitRule) Fields() []ent.Field {

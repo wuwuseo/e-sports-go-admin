@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsPlayerCreditEvent 是陪玩责任信用记载（§13.5）。售后责任方判定为陪玩并执行完成后
+// EsportsPlayerCreditEvent 是陪玩责任信用记载。售后责任方判定为陪玩并执行完成后
 // 由系统自动只增记载（fault_admitted），提供复核入口决定是否处罚：
 // recorded（已记载，尚不影响接单）→ penalty_applied（复核确认责任并暂停接单）| cleared（复核判定不构成责任）。
 // 记载本身不改接单资格，资格变更只由复核动作显式触发，避免自动处罚误伤。

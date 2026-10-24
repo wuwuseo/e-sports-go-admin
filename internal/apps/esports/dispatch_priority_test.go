@@ -421,7 +421,7 @@ func TestGrabHallScopedByPriorityNotice(t *testing.T) {
 	}
 }
 
-// 客户指定陪玩的订单不进优先通知窗口，直接留在待派单池由客服指派，并在派单候选中置顶（§5.4）。
+// 客户指定陪玩的订单不进优先通知窗口，直接留在待派单池由客服指派，并在派单候选中置顶。
 func TestPreferredPlayerSkipsPriorityWindow(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_preferred_skip")
 	ctx := t.Context()

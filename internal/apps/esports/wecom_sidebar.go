@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 企微侧边栏接入模式配置（§8.4）。
+// 企微侧边栏接入模式配置。
 //
 // auth_mode 决定侧边栏 H5 如何识别当前客户：
 //   - js_sdk（默认）：启用企微 JS-SDK，宿主注入 adapter 后自动识别当前外部联系人；
@@ -38,7 +38,7 @@ type wecomSidebarConfig struct {
 	AuthMode string `json:"auth_mode"`
 	// JsSdkEnabled 是 auth_mode 的布尔化表达，便于前端直接判断开关。
 	JsSdkEnabled bool `json:"js_sdk_enabled"`
-	// FooterTip 是侧边栏「底部提示」区块文案（§8.4-11），来自系统配置键
+	// FooterTip 是侧边栏「底部提示」区块文案，来自系统配置键
 	// app.esports.wecom_sidebar_footer_tip；空串表示前端不展示该区块。
 	FooterTip string `json:"footer_tip"`
 }
@@ -71,12 +71,12 @@ func publicWecomSidebarConfig(c fiber.Ctx) error {
 	return reply(c, wecomSidebarConfig{
 		AuthMode:     mode,
 		JsSdkEnabled: mode == wecomAuthModeJsSDK,
-		// §8.4-11：底部提示由后台配置下发；未配置即空串，前端据此隐藏该区块。
+		// ：底部提示由后台配置下发；未配置即空串，前端据此隐藏该区块。
 		FooterTip: wecomConfigString(c.Context(), global.ORM, wecomSidebarFooterTipKey),
 	})
 }
 
-// ── 企微 JS-SDK 签名（§8.4） ──
+// ── 企微 JS-SDK 签名 ──
 //
 // 签名算法遵循企业微信官方 JS-SDK 规则：signature = sha1(jsapi_ticket=xxx&noncestr=xxx&timestamp=xxx&url=xxx)，
 // 字段按字典序排列（jsapi_ticket < noncestr < timestamp < url），值不做 URL 转义。
@@ -155,7 +155,7 @@ type wecomJsConfigResponse struct {
 	Signature string `json:"signature"`
 }
 
-// wecomJsConfigHandler 获取企业微信 JS-SDK 签名（§8.4，AuthAdmin）。
+// wecomJsConfigHandler 获取企业微信 JS-SDK 签名（，AuthAdmin）。
 // 配置缺失时返回 503「企微未配置」，由前端降级为手动输入 / 复制话术。
 func wecomJsConfigHandler(c fiber.Ctx) error {
 	var in wecomJsConfigInput
@@ -181,8 +181,8 @@ func wecomJsConfigHandler(c fiber.Ctx) error {
 	})
 }
 
-// adminWecomPaymentMethodsHandler 侧边栏收款方式（§8.4，AuthAdmin）：
-// 复用客户自助端收款方式视图 listCustomerPaymentMethods（§4.3），
+// adminWecomPaymentMethodsHandler 侧边栏收款方式（，AuthAdmin）：
+// 复用客户自助端收款方式视图 listCustomerPaymentMethods，
 // 供客服在侧边栏向客户出示启用的收款方式、财务审核通过的收款账户与二维码。
 func adminWecomPaymentMethodsHandler(c fiber.Ctx) error {
 	methods, err := listCustomerPaymentMethods(c.Context(), global.ORM)

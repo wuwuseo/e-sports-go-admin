@@ -24,7 +24,7 @@ import (
 	"go-admin/internal/tasks"
 )
 
-// 本文件是「清零残留」批次（审核报告 §8 / §B.3）的回归：
+// 本文件是「清零残留」批次（审核报告 ）的回归：
 //  1. 外部渠道退款动作项新增 awaiting_execution（已登记待执行），售后单不落 execution_failed，
 //     财务执行外部退款后动作项转 succeeded、售后单结案；
 //  2. 代客确认 / 客户确认共用入口补存单冻结守卫；
@@ -62,7 +62,7 @@ func w8ResponseMessage(body map[string]any) string {
 	return message
 }
 
-// §8.2-11：外部渠道退款登记后动作项落 awaiting_execution（不是假 succeeded），
+// ：外部渠道退款登记后动作项落 awaiting_execution（不是假 succeeded），
 // 售后单停在 pending_execution（不被当作 unresolved 落 execution_failed）；
 // 财务执行外部退款成功后动作项转 succeeded、售后单结案。
 func TestAfterSaleActionAwaitingExecutionOnExternalRefund(t *testing.T) {
@@ -134,7 +134,7 @@ func TestAfterSaleActionAwaitingExecutionOnExternalRefund(t *testing.T) {
 	}
 }
 
-// §B.3-7：客户确认与代客确认共用 confirmAfterSalePlanIn，冻结订单不得被推进到待审批；
+// 客户确认与代客确认共用 confirmAfterSalePlanIn，冻结订单不得被推进到待审批；
 // 两个入口都返回 errOrderFrozen，HTTP 层映射 409 + 中文提示，状态与额度均不变。
 func TestAfterSaleConfirmRejectedWhenOrderFrozen(t *testing.T) {
 	db := openAfterSaleDB(t, "w8_aftersale_confirm_frozen")
@@ -206,7 +206,7 @@ func TestAfterSaleConfirmRejectedWhenOrderFrozen(t *testing.T) {
 	}
 }
 
-// §8.2-14：客服提成明细冻结 / 解冻必须有管理端路由 + 方法路径完全一致的 PermAPI，
+// ：客服提成明细冻结 / 解冻必须有管理端路由 + 方法路径完全一致的 PermAPI，
 // 冻结需填原因（中文提示），解冻记录操作人（外盒留痕）。
 func TestCsCommissionEntryFreezeRoutesAndHandlers(t *testing.T) {
 	app := esportsAppDeclaration(t)
@@ -318,7 +318,7 @@ func TestCsCommissionEntryFreezeRoutesAndHandlers(t *testing.T) {
 	}
 }
 
-// §8.1-8：会员等级删除路由 + 语义（启用中拒绝、被客户引用拒绝、停用且无引用才可删）。
+// ：会员等级删除路由 + 语义（启用中拒绝、被客户引用拒绝、停用且无引用才可删）。
 func TestMemberLevelDeleteRouteSemantics(t *testing.T) {
 	app := esportsAppDeclaration(t)
 	app.Enabled = true
@@ -380,7 +380,7 @@ func TestMemberLevelDeleteRouteSemantics(t *testing.T) {
 	}
 }
 
-// §8.2-12：外部退款超时督办任务必须同时有 tasks.Register 注册与 cron 种子（成对），
+// ：外部退款超时督办任务必须同时有 tasks.Register 注册与 cron 种子（成对），
 // 种子表达式为每小时第 15 分（6 段含秒）。
 func TestExternalRefundOverdueTaskRegisteredWithCronSeed(t *testing.T) {
 	const name = "esports_expire_pending_external_refunds"

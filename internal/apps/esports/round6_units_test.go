@@ -11,8 +11,8 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// §15.5-04：逐最小服务单位分摊「折后明细金额 ÷ 承诺服务量」，
-// **尾差固定记在最后一单位**（§18.2 裁决：台账举例 [34,33,33] 与它自己的规则矛盾，
+// ：逐最小服务单位分摊「折后明细金额 ÷ 承诺服务量」，
+// **尾差固定记在最后一单位**（裁决：台账举例 [34,33,33] 与它自己的规则矛盾，
 // 以规则为准，实现 [33,33,34]；本仓资金分摊的既有约定同为「尾差归最后一条」）。
 func TestServiceUnitAllocationTailOnLastUnit(t *testing.T) {
 	full := unitReversalTargets(100, 3, 100, 100)
@@ -42,7 +42,7 @@ func TestServiceUnitAllocationTailOnLastUnit(t *testing.T) {
 	}
 }
 
-// §15.5-04：单位级分摊须真正参与退款金额除法——退款冲回明细的金额即由
+// ：单位级分摊须真正参与退款金额除法——退款冲回明细的金额即由
 // 「逐单位金额 × 退款额 ÷ 统一可退基数」逐单位求和得出，且逐单位明细留痕可查。
 func TestServiceUnitRefundAllocationDrivesReversalEntries(t *testing.T) {
 	db := r6OpenDB(t, "round6_unit_level_refund")

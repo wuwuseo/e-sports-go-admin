@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// 「清零残留」批次（审核报告 §8.2-16 / §B.3-2 / §8.1-8）回归测试。
+// 「清零残留」批次（审核报告 ）回归测试。
 // 本文件全部辅助物以 w8 前缀命名，避免与并行批次 / 既有测试的辅助物撞名。
 
 // 单元测试不下发真实 DNS：默认所有域名解析到公网地址；
@@ -118,7 +118,7 @@ func w8ImageConfig(urls ...string) pageConfig {
 	}}
 }
 
-// ── §8.2-16 / §B.3-2：DNS rebinding 防护 ──
+// ── DNS rebinding 防护 ──
 
 // 白名单域名解析到环回 / 私网 / 链路本地 / 唯一本地 / 未指定地址时：拒绝且**不发请求**。
 func TestPageProbeRejectsNonPublicResolvedIP(t *testing.T) {
@@ -235,7 +235,7 @@ func TestPageProbeDialUsesValidatedIPs(t *testing.T) {
 	}
 }
 
-// ── §8.2-16 后半：串行 → 有并发上限的并行 + 同一 URL 只探测一次 ──
+// ── 后半：串行 → 有并发上限的并行 + 同一 URL 只探测一次 ──
 
 // 多个 URL：并行探测、结果与串行一致（全部通过即通过）、重复 URL 只探测一次、并发不超过上限。
 func TestPageResourcesProbeInParallelWithDedup(t *testing.T) {
@@ -335,7 +335,7 @@ func TestPageResourcesProbeTotalTimeout(t *testing.T) {
 	}
 }
 
-// ── §8.1-8 后半：底部导航允许增删条目与编辑 path / order ──
+// ── 后半：底部导航允许增删条目与编辑 path / order ──
 
 // w8TabbarItem 构造一个只填必填字段的导航项。
 func w8TabbarItem(path, text string, order *int) pageTabbarItem {

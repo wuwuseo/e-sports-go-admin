@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsRechargeRefundExecution 是按充值批次还原的外部退款执行明细（§4.5 执行落账编排）。
+// EsportsRechargeRefundExecution 是按充值批次还原的外部退款执行明细（执行落账编排）。
 //
 // 背景：退款 / 退卡试算（rechargeRefundQuoteFor）已能按充值批次给出可退本金与作废赠送，
 // 但真实外部打款仍缺一条「按批次生成执行单」的落账链——退卡走 stored_value.go 的申请 / 审核，

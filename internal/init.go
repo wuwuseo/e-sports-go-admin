@@ -478,7 +478,7 @@ func initSeedData() error {
 	return nil
 }
 
-// minimalRoleSpec 描述一类按显式白名单播种的最小权限角色（§2.1-01 / §16.5-03）。
+// minimalRoleSpec 描述一类按显式白名单播种的最小权限角色。
 //
 // 与 normal_admin 不同，这里绝不使用「全部非敏感权限」式的通配授权：
 // permissionCodes 就是该角色的全部授权来源，权限点按 esports 权限 code 精确列出，
@@ -495,7 +495,7 @@ type minimalRoleSpec struct {
 
 // minimalRoleSpecs 返回内置最小权限角色清单（顺序即播种与日志顺序）。
 //
-// 排单权限独立成项（§2.1-01）：esports:dispatch:* 与 esports:report:*（报单）
+// 排单权限独立成项：esports:dispatch:* 与 esports:report:*（报单）
 // 是两套互不包含的权限项，报单角色不会自动获得排单能力，反之亦然。
 func minimalRoleSpecs() []minimalRoleSpec {
 	return []minimalRoleSpec{
@@ -560,7 +560,7 @@ func minimalRoleSpecs() []minimalRoleSpec {
 				// 这里只授予「发起与提交」，凭证核验、收款账户审核、退款审批等资金审批仍归财务。
 				"esports:orders:pay_balance", "esports:payments:order_start",
 				"esports:payments:proof_submit", "esports:payments:proofs",
-				// 预约档期处置（§5.5）：超时未确认档期的退还/改期由责任客服处理。
+				// 预约档期处置：超时未确认档期的退还/改期由责任客服处理。
 				"esports:orders:appointment_dispose",
 				// 礼物：代客送礼与礼物单查看；档位配置、争议复核裁定仍归运营/超管。
 				"esports:gift:menu",
@@ -652,7 +652,7 @@ func minimalRoleSpecs() []minimalRoleSpec {
 	}
 }
 
-// initMinimalRoles 幂等播种最小权限角色（§2.1-01 / §16.5-03）。
+// initMinimalRoles 幂等播种最小权限角色。
 //
 // 幂等与兼容口径（与 initNormalAdminRole 一致）：
 //   - 角色已存在时整角色跳过：既有的手工授权（增删改）一律不被覆盖或回填；
@@ -905,7 +905,7 @@ func initSystemConfigSeedData() error {
 		},
 	}
 
-	// 短信验证码登录配置项（§6.1-01，平台级 user-auth，键不带功能集前缀）
+	// 短信验证码登录配置项（，平台级 user-auth，键不带功能集前缀）
 	smsLoginConfigs := []struct {
 		name   string
 		key    string

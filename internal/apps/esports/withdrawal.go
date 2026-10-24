@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 提现配置键（§6.3 提现门槛与频率、§11.2 手续费与代扣税费）。缺失或非法时回落默认值：
+// 提现配置键（提现门槛与频率、手续费与代扣税费）。缺失或非法时回落默认值：
 // 门槛与频率不限、手续费与税费为 0。
 const (
 	withdrawalMinCentsKey    = "app.esports.withdrawal_min_cents"
@@ -24,19 +24,19 @@ const (
 	withdrawalDailyLimitKey  = "app.esports.withdrawal_daily_limit"
 	withdrawalFeeBpKey       = "app.esports.withdrawal_fee_bp"
 	withdrawalTaxBpKey       = "app.esports.withdrawal_tax_bp"
-	// 阶梯费率（§11.2）：JSON 数组按金额分档覆盖单一基点，如
+	// 阶梯费率：JSON 数组按金额分档覆盖单一基点，如
 	// [{"min_cents":0,"bp":100},{"min_cents":50000,"bp":50}]，取「min_cents ≤ 金额」的最高档。
 	withdrawalFeeTiersKey = "app.esports.withdrawal_fee_tiers"
 	withdrawalTaxTiersKey = "app.esports.withdrawal_tax_tiers"
 	// 提现明细来源类型，驳回退回用独立来源类型以便区分。
 	withdrawalSourceType       = "withdrawal"
 	withdrawalRejectSourceType = "withdrawal_reject"
-	// 提现方式（渠道）开关配置项键前缀（§6.3-05）：银行/微信/支付宝各一个开关，
+	// 提现方式（渠道）开关配置项键前缀：银行/微信/支付宝各一个开关，
 	// 值 "enabled" / "disabled"；未配置视为开通（沿用既有部署行为，不阻断存量提现）。
 	withdrawalChannelConfigPrefix = "app.esports.withdrawal_channel."
 )
 
-// withdrawalChannelValues 是提现方式的取值集合（§11.2：提现到银行卡 / 微信 / 支付宝）。
+// withdrawalChannelValues 是提现方式的取值集合（：提现到银行卡 / 微信 / 支付宝）。
 var withdrawalChannelValues = []string{"bank_card", "wechat", "alipay"}
 
 func validWithdrawalChannel(channel string) bool {
@@ -48,7 +48,7 @@ func validWithdrawalChannel(channel string) bool {
 	return false
 }
 
-// withdrawalChannelConfigKey 提现方式开关配置项键（§6.3-05 工作室能力开通）。
+// withdrawalChannelConfigKey 提现方式开关配置项键（工作室能力开通）。
 func withdrawalChannelConfigKey(channel string) string {
 	return withdrawalChannelConfigPrefix + channel
 }
@@ -167,7 +167,7 @@ func withdrawalPolicyOf(ctx context.Context, db *ent.Client) withdrawalPolicy {
 	}
 }
 
-// withdrawalApplyInput 提现申请入参（§6.3）。
+// withdrawalApplyInput 提现申请入参。
 type withdrawalApplyInput struct {
 	AmountCents    int64  `json:"amount_cents"`
 	Channel        string `json:"channel"`
@@ -189,7 +189,7 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 	key := strings.TrimSpace(in.IdempotencyKey)
 	in.AccountRef = strings.TrimSpace(in.AccountRef)
 	in.Note = strings.TrimSpace(in.Note)
-	// 提现方式必须属于三个合法渠道，且该渠道已按工作室能力开通（§6.3-05）：未开通渠道不接受申请。
+	// 提现方式必须属于三个合法渠道，且该渠道已按工作室能力开通：未开通渠道不接受申请。
 	if !validWithdrawalChannel(in.Channel) {
 		return nil, errInvalidInput
 	}
@@ -222,7 +222,7 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 			}
 		}
 	}
-	// 每日提现次数上限（§6.3）：按业务时区（UTC+8）自然日统计当日申请数（含已驳回）。
+	// 每日提现次数上限：按业务时区（UTC+8）自然日统计当日申请数（含已驳回）。
 	if policy.DailyLimit > 0 {
 		dayStart := businessDayStart(now)
 		count, err := db.EsportsWithdrawal.Query().Where(
@@ -237,7 +237,7 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 			return nil, fmt.Errorf("%w：今日提现申请已达上限 %d 次", errInvalidInput, policy.DailyLimit)
 		}
 	}
-	// 阶梯费率（§11.2）：命中档位按档位基点，否则回落单一费率。
+	// 阶梯费率：命中档位按档位基点，否则回落单一费率。
 	fee := in.AmountCents * int64(policy.feeBpFor(in.AmountCents)) / 10000
 	tax := in.AmountCents * int64(policy.taxBpFor(in.AmountCents)) / 10000
 	net := in.AmountCents - fee - tax
@@ -368,7 +368,7 @@ func reviewWithdrawal(ctx context.Context, db *ent.Client, adminID, id int, in w
 	return db.EsportsWithdrawal.Get(ctx, id)
 }
 
-// payWithdrawal 登记打款：审核通过 → 已打款，留外部打款凭证与完税凭证、到账时间与打款人（§11.2）。
+// payWithdrawal 登记打款：审核通过 → 已打款，留外部打款凭证与完税凭证、到账时间与打款人。
 // 打款不再动猫粮钱包——申请时钱已离开猫粮账户。
 func payWithdrawal(ctx context.Context, db *ent.Client, adminID, id int, payoutRef, taxRef string, now time.Time) (*ent.EsportsWithdrawal, error) {
 	payoutRef = strings.TrimSpace(payoutRef)
@@ -383,7 +383,7 @@ func payWithdrawal(ctx context.Context, db *ent.Client, adminID, id int, payoutR
 	if item.Status != esportswithdrawal.StatusApproved {
 		return nil, errConflict
 	}
-	// 资金职责分离：审核人与打款执行人不得为同一人（§3.5 / §12.6 / §18-05）。
+	// 资金职责分离：审核人与打款执行人不得为同一人。
 	if item.ReviewedByAdminID != nil && *item.ReviewedByAdminID == adminID {
 		return nil, fmt.Errorf("%w：审核人不得同时登记打款", errForbidden)
 	}
@@ -428,13 +428,13 @@ func getWithdrawal(ctx context.Context, db *ent.Client, id int) (*ent.EsportsWit
 	return db.EsportsWithdrawal.Get(ctx, id)
 }
 
-// withdrawalChannelOption 提现方式的开通状态（§6.3-05）：陪玩端据此只展示已开通的提现方式。
+// withdrawalChannelOption 提现方式的开通状态：陪玩端据此只展示已开通的提现方式。
 type withdrawalChannelOption struct {
 	Channel string `json:"channel"`
 	Enabled bool   `json:"enabled"`
 }
 
-// playerWithdrawableView 陪玩端提现概览（§6.3 收入状态）：可提现猫粮余额、待审提现金额与已开通提现方式。
+// playerWithdrawableView 陪玩端提现概览（收入状态）：可提现猫粮余额、待审提现金额与已开通提现方式。
 type playerWithdrawableView struct {
 	WithdrawableCents   int64                     `json:"withdrawable_cents"`
 	PendingReviewCents  int64                     `json:"pending_review_cents"`

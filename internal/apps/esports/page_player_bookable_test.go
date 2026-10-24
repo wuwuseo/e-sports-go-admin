@@ -14,7 +14,7 @@ import (
 )
 
 // 本文件是 T7 的回归：publicPlayerView.Bookable 必须回填「此刻真的可接单」，
-// 客户端不能再拿 Online 当 Bookable（§6.4-06 服务时段 / 接单容量，§16.3-07 陪玩推荐组件）。
+// 客户端不能再拿 Online 当 Bookable（服务时段 / 接单容量，陪玩推荐组件）。
 // 辅助物统一 pbk 前缀，避免与同包其它并行任务的测试辅助物撞名；播种 / HTTP 断言复用
 // page_component_data_test.go 的 pcq* helper 与 dispatch_test.go 的 seedPaidOrder。
 

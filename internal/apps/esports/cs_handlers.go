@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// adminCustomerProfile 客户档案汇总（§8.2/§8.3）：基本信息 + 消费 / 充值 / 送礼 / 余额 / 成长值。
+// adminCustomerProfile 客户档案汇总：基本信息 + 消费 / 充值 / 送礼 / 余额 / 成长值。
 func adminCustomerProfile(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)
 	if err != nil {
@@ -50,7 +50,7 @@ func updateCustomerProfileHandler(c fiber.Ctx) error {
 	return reply(c, customer)
 }
 
-// adminCustomerFollowUps 客户跟进记录时间线（§8.3）。
+// adminCustomerFollowUps 客户跟进记录时间线。
 func adminCustomerFollowUps(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)
 	if err != nil {
@@ -90,7 +90,7 @@ func createCustomerFollowUpHandler(c fiber.Ctx) error {
 	return reply(c, record)
 }
 
-// transferCustomerOwnerHandler 客户归属转移（§8.3-02）。
+// transferCustomerOwnerHandler 客户归属转移。
 // 需在 app.go 接线 + PermAPI：
 //
 //	POST /admin/customers/:id/owner-transfer → transferCustomerOwnerHandler
@@ -121,7 +121,7 @@ func transferCustomerOwnerHandler(c fiber.Ctx) error {
 	return reply(c, customer)
 }
 
-// wecomIntakeHandler 企微侧边栏自动建档（§8.4）：企业主体 + 外部联系人标识幂等。
+// wecomIntakeHandler 企微侧边栏自动建档：企业主体 + 外部联系人标识幂等。
 func wecomIntakeHandler(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)
 	if err != nil {
@@ -138,7 +138,7 @@ func wecomIntakeHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"customer": customer, "created": created})
 }
 
-// adminScripts 话术库列表（§8.2），可按分类过滤。
+// adminScripts 话术库列表，可按分类过滤。
 func adminScripts(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
 		return businessError(c, err)
@@ -207,7 +207,7 @@ func setScriptStatusHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// adminResolvePriorityBookingHandler 客服处理会员优先预约意向（§10.4 / P1-11）：
+// adminResolvePriorityBookingHandler 客服处理会员优先预约意向（P1-11）：
 // pending → processed（已处理）/ cancelled（已取消），处理后工作台「会员优先预约」待办随之下降。
 //
 // 需在 app.go 接线 + PermAPI（本文件不持有路由注册权）：
@@ -238,7 +238,7 @@ func adminResolvePriorityBookingHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// csWorkbenchHandler 客服工作台聚合（§8.2）：我的客户数、我的订单池（含公共池）、待办提醒、本人业绩。
+// csWorkbenchHandler 客服工作台聚合：我的客户数、我的订单池（含公共池）、待办提醒、本人业绩。
 // 三个客服入口（PC 工作台 / 移动客服端 / 企微侧边栏）共用本接口。
 func csWorkbenchHandler(c fiber.Ctx) error {
 	operator, err := requestAdmin(c)

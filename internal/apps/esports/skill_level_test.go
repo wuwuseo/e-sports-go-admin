@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// 技能等级表驱动（§5.5 / §7.3）：保存校验、序数比较、升降档、
+// 技能等级表驱动：保存校验、序数比较、升降档、
 // 派单 fail-closed（门槛档被删）、旧系统配置一次性迁移。
 func TestSkillLevelsTableDriven(t *testing.T) {
 	db := openProductDB(t, "esports_skill_levels")

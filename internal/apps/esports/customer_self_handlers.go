@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客户自助端（§13.2 / §10）：统一以「登录用户绑定的客户」为数据边界。
+// 客户自助端：统一以「登录用户绑定的客户」为数据边界。
 
 // userProfileHandler 我的资料（会员等级、成长值、标签、风险只读）。
 func userProfileHandler(c fiber.Ctx) error {
@@ -40,7 +40,7 @@ func userOrdersHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// userOrderMembersHandler 订单服务成员（§7.5 服务评价前置数据）：仅限本人订单。
+// userOrderMembersHandler 订单服务成员（服务评价前置数据）：仅限本人订单。
 func userOrderMembersHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
@@ -113,7 +113,7 @@ func userWalletHandler(c fiber.Ctx) error {
 	return reply(c, wallet)
 }
 
-// userAfterSalesHandler 我的售后单（§13.2 进度可查）。
+// userAfterSalesHandler 我的售后单（进度可查）。
 func userAfterSalesHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
@@ -127,7 +127,7 @@ func userAfterSalesHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// userCreateAfterSaleHandler 客户自助发起售后（§13.2）：仅可对本人订单发起；支持上传本人凭证附件。
+// userCreateAfterSaleHandler 客户自助发起售后：仅可对本人订单发起；支持上传本人凭证附件。
 func userCreateAfterSaleHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
@@ -145,7 +145,7 @@ func userCreateAfterSaleHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// userPaymentMethodsHandler 客户自助读取当前启用的收款方式与财务审核通过的收款账户（§4.3）。
+// userPaymentMethodsHandler 客户自助读取当前启用的收款方式与财务审核通过的收款账户。
 func userPaymentMethodsHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	if _, err := customerForVerifiedUser(c.Context(), global.ORM, uid); err != nil {
@@ -158,7 +158,7 @@ func userPaymentMethodsHandler(c fiber.Ctx) error {
 	return reply(c, methods)
 }
 
-// userSubmitPaymentProofHandler 客户为本人订单提交付款凭证（§4.3）：生成「待核验收款」，
+// userSubmitPaymentProofHandler 客户为本人订单提交付款凭证：生成「待核验收款」，
 // 落入既有 offline_payment 财务核验链路。
 func userSubmitPaymentProofHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
@@ -181,7 +181,7 @@ func userSubmitPaymentProofHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// userPaymentProofsHandler 客户查询本人订单的收款核验进度（§4.3）。
+// userPaymentProofsHandler 客户查询本人订单的收款核验进度。
 func userPaymentProofsHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
@@ -199,7 +199,7 @@ func userPaymentProofsHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// paymentNotifyHandler 在线支付渠道验签回调（§4.3）。
+// paymentNotifyHandler 在线支付渠道验签回调。
 // 保留函数名以兼容既有引用：实际验签与核销在 paymentGatewayNotifyHandler，
 // 渠道未配置 / 未开通时由该入口返回 503，不再返回「未开通」占位。
 func paymentNotifyHandler(c fiber.Ctx) error {

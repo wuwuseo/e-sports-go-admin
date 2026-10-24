@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// ── 加钟（§3.3 / §6.2 / §12.5）：客服对服务中订单发起，陪玩确认 ──
+// ── 加钟：客服对服务中订单发起，陪玩确认 ──
 
 func listOrderAddonsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -61,7 +61,7 @@ func cancelOrderAddonHandler(c fiber.Ctx) error {
 	return reply(c, addon)
 }
 
-// payOrderAddonByBalanceHandler 客服收款：对已确认的加钟单用客户余额核销追加金额（§3.3），
+// payOrderAddonByBalanceHandler 客服收款：对已确认的加钟单用客户余额核销追加金额，
 // 收款成功后按确认时保存的规则快照计提加钟分成。
 func payOrderAddonByBalanceHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)

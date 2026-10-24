@@ -116,7 +116,7 @@ func loadOrderMembers(ctx context.Context,
 }
 
 // resolveCommissionRuleForPlayerIn 按单个陪玩解析当前规则，避免全单取首位成员的个体约定。
-// §12.3 五级优先级：单笔手动指定 > 陪玩个体约定(player) > 陪玩等级(level) > 游戏或服务类型(game) > 全局默认。
+// 五级优先级：单笔手动指定 > 陪玩个体约定(player) > 陪玩等级(level) > 游戏或服务类型(game) > 全局默认。
 // 无规则返回 nil；接单时把结果（包括无规则）锁定到席位，后续规则变更不影响该成员。
 // scheduled 版本到达预设时间即适用，不依赖定时任务是否已补写状态。
 func resolveCommissionRuleForPlayerIn(ctx context.Context,
@@ -166,7 +166,7 @@ func resolveCommissionRuleForPlayerIn(ctx context.Context,
 	if rule := pick(esportscommissionrule.ScopePlayer, strconv.Itoa(playerID)); rule != nil {
 		return rule, nil
 	}
-	// 「陪玩等级」这一级让 §7.3 的等级与分成联动自动生效，无需为每人单独配规则。
+	// 「陪玩等级」这一级让 的等级与分成联动自动生效，无需为每人单独配规则。
 	if level := strings.TrimSpace(playerLevel); level != "" {
 		if rule := pick(esportscommissionrule.ScopeLevel, level); rule != nil {
 			return rule, nil
@@ -221,7 +221,7 @@ func createCommissionRule(ctx context.Context, db *ent.Client, in ruleInput, adm
 	if in.Scope != "global" && in.ScopeKey == "" {
 		return nil, errInvalidInput
 	}
-	// scope=level 的 scope_key 必须是当前等级配置中的编码，否则这条规则永远解析不到（§12.3）。
+	// scope=level 的 scope_key 必须是当前等级配置中的编码，否则这条规则永远解析不到。
 	if in.Scope == "level" && !validPlayerLevel(skillLevels(ctx, db), in.ScopeKey) {
 		return nil, errInvalidInput
 	}
@@ -338,7 +338,7 @@ func activateCommissionRule(ctx context.Context, db *ent.Client, id, adminID int
 }
 
 // rollbackCommissionRule 回滚到指定版本：以该行的 rule_no 与配置为模板新建 max version+1 的
-// 直接 active 行，并把原 active 转 history。原历史行不可变（§12.4）。
+// 直接 active 行，并把原 active 转 history。原历史行不可变。
 func rollbackCommissionRule(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsCommissionRule, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -394,14 +394,14 @@ func listCommissionRules(ctx context.Context, db *ent.Client, ruleNo string, lim
 	return q.Order(ent.Desc(esportscommissionrule.FieldID)).Limit(limit).All(ctx)
 }
 
-// tailReversalNote 是「舍入尾差单列」冲回明细的备注标记（§12.1-05）：
+// tailReversalNote 是「舍入尾差单列」冲回明细的备注标记：
 // 多条原明细按比例截断产生的尾差不再并入最后一条冲回明细，而是单列一条 kind=reversal 明细，
 // 既保证冲回合计等于精确值，也让尾差可被单独查询与对账。
 const tailReversalNote = "舍入尾差单列"
 
-// splitServiceUnits 把「折后明细金额」按最小服务单位拆分（§15.5-04）：
+// splitServiceUnits 把「折后明细金额」按最小服务单位拆分：
 // 每单位金额 = 折后金额 ÷ 承诺服务量（整数分向下取整），舍入尾差固定记在最后一单位，
-// 逐单位金额合计恒等于折后金额。（§18.2 裁决：优先「尾差记在最后一单位」的规则，
+// 逐单位金额合计恒等于折后金额。（裁决：优先「尾差记在最后一单位」的规则，
 // 而不是台账举例 [34,33,33]。）
 func splitServiceUnits(amount int64, units int64) []int64 {
 	if units < 1 {
@@ -418,9 +418,9 @@ func splitServiceUnits(amount int64, units int64) []int64 {
 	return parts
 }
 
-// unitReversalTargets 按最小服务单位分摊「某类明细（服务 / 加钟）的退款冲回目标」（§15.5-04）：
+// unitReversalTargets 按最小服务单位分摊「某类明细（服务 / 加钟）的退款冲回目标」：
 // 先按「折后明细金额 ÷ 承诺服务量」求逐单位金额，再逐单位按退款比例（退款额 ÷ 统一可退基数）
-// 求逐单位冲回额；两步的舍入尾差都并入最后一单位（§18.2 裁决）。
+// 求逐单位冲回额；两步的舍入尾差都并入最后一单位（裁决）。
 // 返回值合计恒等于 amount×refundCents÷refundBase，即该类冲回目标本身——
 // 单位级分摊因此真正参与退款金额除法，而不仅仅是展示。
 func unitReversalTargets(amount, units, refundCents, refundBase int64) []int64 {
@@ -455,7 +455,7 @@ func sumUnitAmounts(parts []int64) int64 {
 // addonWalletSourceType 是加钟余额收款流水的来源类型（见 addon.go payOrderAddonByBalance）。
 const addonWalletSourceType = "order_addon"
 
-// addonReceivedCents 订单「加钟已收款」合计（分，§12.5-02）：由只增钱包流水
+// addonReceivedCents 订单「加钟已收款」合计（分，）：由只增钱包流水
 // （source_type=order_addon、entry_type=consume，source_id=本单加钟单号）求和派生，
 // 沿用本仓「余额一律由流水求和派生」的口径，不新增冗余余额字段。
 // 加钟单尚未收款（无收款流水）时返回 0，即不计入可退额度。
@@ -497,7 +497,7 @@ func orderAddonConsumeRows(ctx context.Context, client *ent.Client, orderID int)
 	).Order(ent.Asc(esportswallettx.FieldID)).All(ctx)
 }
 
-// refundableCommissionBase 是退款冲回的统一「可退基数」（§12.1-05 / §12.5-02）：
+// refundableCommissionBase 是退款冲回的统一「可退基数」：
 // 服务与加钟两类冲回必须按同一基数计算比例，否则同一次退款两类冲回比例不一致（加钟侧被少冲）。
 // 基数 = 结单净服务额快照（缺失时回落订单应付额）+ 加钟已收款：与可退上界（服务应付 + 加钟已收）
 // 同源，保证「把可退额度全部退完」时服务 / 加钟冲回都恰好回到 100% 原计提（D34 不变量）。
@@ -563,7 +563,7 @@ func splitPool(pool int64, members []commissionMember) []int64 {
 }
 
 // sumOrderCommissionCents 订单累计非作废分成明细净额（含加钟明细与冲回负数），
-// 供计算剩余可分基数（§12.1-04）。
+// 供计算剩余可分基数。
 func sumOrderCommissionCents(ctx context.Context, tx *ent.Tx, orderID int) (int64, error) {
 	entries, err := tx.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.OrderIDEQ(orderID),
@@ -607,7 +607,7 @@ func accrueOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOr
 	if netPayable <= 0 {
 		return nil
 	}
-	// 可分基数（§12.1-04）：服务应付 + 加钟追加金额 − 已退款。加钟分成先于结单计提，
+	// 可分基数：服务应付 + 加钟追加金额 − 已退款。加钟分成先于结单计提，
 	// 须从服务侧上限中一并扣除，保证「陪玩分成 + 客服提成 + 渠道成本 ≤ 可分基数」。
 	accrued, err := sumOrderCommissionCents(ctx, tx, order.ID)
 	if err != nil {
@@ -704,7 +704,7 @@ type refundReversalContext struct {
 }
 
 // reverseOrderCommission 退款按比例冲回分成，必须在 executeAfterSaleOnce 的同一事务内、
-// 退款额度落账之后调用。新增 kind=reversal 的负数明细，使退款金额落在退款当期（§12.6）；
+// 退款额度落账之后调用。新增 kind=reversal 的负数明细，使退款金额落在退款当期；
 // 幂等靠 idem_key 唯一索引兜底，重复执行不重复冲回。
 func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, item *ent.EsportsAfterSale, now time.Time) error {
 	rev := refundReversalContext{
@@ -717,8 +717,8 @@ func reverseOrderCommission(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 }
 
 // reverseOrderCommissionFor 冲回实现（售后 / 外部退款共用）。
-// 服务与加钟两类明细都按同一「可退基数」计算冲回目标（§12.1-05 / §12.5-02），
-// 舍入尾差不再并入最后一条冲回明细，而是单列为独立的冲回行（§12.1-05）。
+// 服务与加钟两类明细都按同一「可退基数」计算冲回目标，
+// 舍入尾差不再并入最后一条冲回明细，而是单列为独立的冲回行。
 // 售后单指定争议陪玩时优先冲回该成员的明细：先冲满其本人分成（不超过该类冲回目标），
 // 剩余目标再按比例分摊其他成员；未指定或该成员无明细时维持整体比例冲回。
 func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder,
@@ -728,7 +728,7 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 	}
 	entries, err := tx.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.OrderIDEQ(order.ID),
-		// §12.5：退款同时冲回原单服务分成与加钟分成（加钟退款分摊）。
+		// ：退款同时冲回原单服务分成与加钟分成（加钟退款分摊）。
 		esportscommissionentry.KindIn(
 			esportscommissionentry.KindService, esportscommissionentry.KindAddon),
 		// 已撤销（void）的加钟明细不再参与退款冲回，避免二次冲回。
@@ -792,7 +792,7 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 				amounts[i] = amount * entries[i].AmountCents / subTotal
 				allocated += amounts[i]
 			}
-			// 尾差单列（§12.1-05）：不再并入最后一条明细，而是独立冲回行，便于单独对账。
+			// 尾差单列：不再并入最后一条明细，而是独立冲回行，便于单独对账。
 			if tail := amount - allocated; tail != 0 {
 				tails = append(tails, reversalTail{index: sub[len(sub)-1], addon: addon, amount: tail})
 			}
@@ -842,9 +842,9 @@ func reverseOrderCommissionFor(ctx context.Context, tx *ent.Tx, order *ent.Espor
 	}
 	var amounts []int64
 	var tails []reversalTail
-	// §15.5-04：两类冲回目标先按最小服务单位分摊求和（逐单位金额 × 退款额 ÷ 统一可退基数，
+	// ：两类冲回目标先按最小服务单位分摊求和（逐单位金额 × 退款额 ÷ 统一可退基数，
 	// 尾差并入最后一单位），再用该目标在条目级按比例冲回；单位级与条目级共用同一可退基数。
-	// D34（§12.1-05）：同一类别累计冲回不得超过原计提——加钟收款后统一基数扩容时，
+	// D34：同一类别累计冲回不得超过原计提——加钟收款后统一基数扩容时，
 	// 早期已冲满的类别不得因分母变大而被再次冲回，故目标按「原计提 − 既有冲回」封顶。
 	serviceUnits := order.PromisedServiceUnits
 	addonUnits := order.AddonUnits
@@ -940,7 +940,7 @@ func commissionCloseBase(order *ent.EsportsOrder) int64 {
 }
 
 // settlePlayerCommission 结算某陪玩一个周期内全部待结算明细，汇总正向/负向并写入猫粮流水。
-// net 为负表示冲回，不阻断结算（§12.6 退款记在退款当期）。
+// net 为负表示冲回，不阻断结算（退款记在退款当期）。
 func settlePlayerCommission(ctx context.Context, db *ent.Client, playerID int,
 	periodStart, periodEnd time.Time, adminID int, now time.Time) (*ent.EsportsSettlement, error) {
 	if playerID < 1 || !periodStart.Before(periodEnd) {
@@ -958,7 +958,7 @@ func settlePlayerCommission(ctx context.Context, db *ent.Client, playerID int,
 		esportscommissionentry.PlayerIDEQ(playerID),
 		esportscommissionentry.StatusEQ(esportscommissionentry.StatusPendingSettlement),
 		esportscommissionentry.SettlementIDIsNil(),
-		// §12.6：被争议冻结的明细不参与当期结算，解冻后才可结算。
+		// ：被争议冻结的明细不参与当期结算，解冻后才可结算。
 		esportscommissionentry.FrozenAtIsNil(),
 	).All(ctx)
 	if err != nil {
@@ -1132,7 +1132,7 @@ func getSettlement(ctx context.Context, db *ent.Client, id int) (*ent.EsportsSet
 	return db.EsportsSettlement.Get(ctx, id)
 }
 
-// settlementDetailView 是结算单详情读模型（§12.6-06）：主表 + 本期可下钻明细，
+// settlementDetailView 是结算单详情读模型：主表 + 本期可下钻明细，
 // 明细带 rule_no / rule_version，使规则版本可以从结算单追溯。
 //
 // Entries 用 any 承载两种读模型：
@@ -1149,7 +1149,7 @@ type settlementDetailView struct {
 	DetailTruncated bool `json:"detail_truncated"`
 }
 
-// csSettlementEntryView 是客服提成明细的结算单详情读模型（§12.2 / §12.6-06）：
+// csSettlementEntryView 是客服提成明细的结算单详情读模型：
 // 与陪玩侧字段名对齐（金额、类型、来源单号、时间 + 规则快照 + 状态），
 // 主体侧差异用 admin_id（业绩归属客服）替代 player_id。
 type csSettlementEntryView struct {
@@ -1351,9 +1351,9 @@ func listCommissionEntries(ctx context.Context, db *ent.Client, playerID, orderI
 	return q.Order(ent.Desc(esportscommissionentry.FieldID)).Limit(limit).All(ctx)
 }
 
-// commissionEntryView 是分成明细的读模型（§12.7-01）：在明细原始字段（分成方式、
+// commissionEntryView 是分成明细的读模型：在明细原始字段（分成方式、
 // 规则版本、基数、金额）之上补出规则数值、该明细被冲回的扣减项与到手净额，
-// 以及按最小服务单位拆分的留痕（§15.5-04）。
+// 以及按最小服务单位拆分的留痕。
 type commissionEntryView struct {
 	*ent.EsportsCommissionEntry
 	// RuleValueBp / RuleValueCents 是该明细规则快照的数值：percent 看 bp，固定额看分。
@@ -1363,7 +1363,7 @@ type commissionEntryView struct {
 	DeductedCents int64 `json:"deducted_cents"`
 	// NetCents 是到手净额：本明细金额 + 扣减项（明细行扣减后净额；冲回行即其本身金额）。
 	NetCents int64 `json:"net_cents"`
-	// ServiceUnitAmounts 是逐最小服务单位留痕（§15.5-04，承诺量 > 1 时给出）：
+	// ServiceUnitAmounts 是逐最小服务单位留痕（，承诺量 > 1 时给出）：
 	// 分成明细为「每单位折后金额」，退款冲回明细为「每单位冲回额」，尾差记在最后一单位。
 	ServiceUnitAmounts []int64 `json:"service_unit_amounts,omitempty"`
 }
@@ -1426,7 +1426,7 @@ func commissionEntryViews(ctx context.Context, db *ent.Client, entries []*ent.Es
 			rules[rule.ID] = rule
 		}
 	}
-	// 单位级分摊的分母按口径取：服务明细用承诺服务量，加钟明细用加钟服务量（§15.5-04）。
+	// 单位级分摊的分母按口径取：服务明细用承诺服务量，加钟明细用加钟服务量。
 	type orderUnits struct{ service, addon int64 }
 	unitsByOrder := map[int]orderUnits{}
 	if len(orderIDs) > 0 {
@@ -1463,7 +1463,7 @@ func commissionEntryViews(ctx context.Context, db *ent.Client, entries []*ent.Es
 			view.DeductedCents = giftReversed[entry.PlayerID]
 		}
 		view.NetCents = entry.AmountCents + view.DeductedCents
-		// §15.5-04：逐最小服务单位留痕，尾差记在最后一单位（§18.2 裁决）。
+		// ：逐最小服务单位留痕，尾差记在最后一单位（裁决）。
 		// 分成明细给「每单位折后金额」（折后明细金额 ÷ 承诺服务量），退款冲回明细给「每单位冲回额」；
 		// 尾差单列行不再重复拆分，礼物类不按订单服务量拆分。
 		units := unitsByOrder[orderID].service
@@ -1493,7 +1493,7 @@ func commissionEntryViews(ctx context.Context, db *ent.Client, entries []*ent.Es
 
 type playerCommissionView struct {
 	PendingSettlementCents int64 `json:"pending_settlement_cents"`
-	// FrozenCents 被争议冻结的待结算金额（§12.6）：仍属待结算但不参与当期结算。
+	// FrozenCents 被争议冻结的待结算金额：仍属待结算但不参与当期结算。
 	FrozenCents      int64     `json:"frozen_cents"`
 	SettledCents     int64     `json:"settled_cents"`
 	NextSettlementAt time.Time `json:"next_settlement_at"`
@@ -1532,7 +1532,7 @@ func nextSettlementAt(period string, now time.Time) time.Time {
 }
 
 // playerCommissionSummary 陪玩端分成概览：待结算净额、争议冻结额、已结算合计、下次结算时间。
-// 结算周期按 §12.6 逐级覆盖解析（陪玩 → 等级 → 游戏 → 全局 → 系统配置）。
+// 结算周期按 逐级覆盖解析（陪玩 → 等级 → 游戏 → 全局 → 系统配置）。
 func playerCommissionSummary(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*playerCommissionView, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
@@ -1578,7 +1578,7 @@ func playerCommissionSummary(ctx context.Context, db *ent.Client, playerID int, 
 	}, nil
 }
 
-// freezeOrderCommissionForDispute 冻结订单的待结算分成明细（§12.6 争议冻结）。
+// freezeOrderCommissionForDispute 冻结订单的待结算分成明细（争议冻结）。
 // playerID 非空时只冻结该成员；已结算 / 已冻结的明细不受影响，返回本次冻结条数。
 func freezeOrderCommissionForDispute(ctx context.Context, db *ent.Client, orderID int,
 	playerID *int, reason string, adminID int, now time.Time) (int, error) {
@@ -1634,8 +1634,8 @@ func unfreezeCommissionForOrder(ctx context.Context, entries *ent.EsportsCommiss
 	return changed, nil
 }
 
-// setOrderManualCommissionRule 设置或清除订单的「单笔手动指定」分成规则（§12.3 五级优先级最高一级）。
-// 只对尚未锁定规则的席位生效：成员在接单 / 抢单时点已把规则快照写入席位（§12.4），
+// setOrderManualCommissionRule 设置或清除订单的「单笔手动指定」分成规则（五级优先级最高一级）。
+// 只对尚未锁定规则的席位生效：成员在接单 / 抢单时点已把规则快照写入席位，
 // 事后改写会破坏「关键时点锁定」语义，因此订单已存在锁定席位时直接拒绝，由派单流程重新指派。
 // ruleID=0 表示清除，恢复按个体 / 等级 / 游戏 / 全局逐级回落。
 func setOrderManualCommissionRule(ctx context.Context, db *ent.Client, orderID, ruleID, adminID int, now time.Time) (*ent.EsportsOrder, error) {

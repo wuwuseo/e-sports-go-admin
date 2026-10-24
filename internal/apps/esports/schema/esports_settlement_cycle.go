@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsSettlementCycle 是结算周期配置（§12.6）。周期支持日结 / 周结 / 月结 / 自定义间隔，
+// EsportsSettlementCycle 是结算周期配置。周期支持日结 / 周结 / 月结 / 自定义间隔，
 // 配置维度按「全局默认 → 按游戏 → 按等级 → 单个陪玩」逐级覆盖：同一维度同一 scope_key 只保留一条配置，
 // 解析时取优先级最高且启用的那条；全部缺失时回落到系统配置项 app.esports.settlement_period。
 // 自定义间隔以 UTC 自然日从 epoch 对齐切分（与日/周/月的自然周期口径一致，无需额外锚点配置）。

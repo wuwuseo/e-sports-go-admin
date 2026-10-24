@@ -31,7 +31,7 @@ func ownedAfterSaleReviewHandler(next fiber.Handler) fiber.Handler {
 	}
 }
 
-// requestAfterSaleReviewHandler 提交终态售后的新证据复核申请（§13.6）。
+// requestAfterSaleReviewHandler 提交终态售后的新证据复核申请。
 func requestAfterSaleReviewHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -52,7 +52,7 @@ func requestAfterSaleReviewHandler(c fiber.Ctx) error {
 	return reply(c, review)
 }
 
-// listAfterSaleReviewsHandler 查看某售后单的复核历史（§13.6）。
+// listAfterSaleReviewsHandler 查看某售后单的复核历史。
 func listAfterSaleReviewsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -68,7 +68,7 @@ func listAfterSaleReviewsHandler(c fiber.Ctx) error {
 	return reply(c, reviews)
 }
 
-// decideAfterSaleReviewHandler 异人审查复核申请（§13.6）：维持结论或发回重新处理。
+// decideAfterSaleReviewHandler 异人审查复核申请：维持结论或发回重新处理。
 func decideAfterSaleReviewHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -89,7 +89,7 @@ func decideAfterSaleReviewHandler(c fiber.Ctx) error {
 	return reply(c, review)
 }
 
-// withdrawAfterSaleReviewHandler 申请人撤回待审查的复核申请（§13.6）。
+// withdrawAfterSaleReviewHandler 申请人撤回待审查的复核申请。
 func withdrawAfterSaleReviewHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

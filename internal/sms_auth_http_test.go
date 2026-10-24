@@ -27,7 +27,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// ============ §6.1-01 HTTP 契约测试用替身（内部包无法引用 service 包的未导出替身） ============
+// ============ HTTP 契约测试用替身（内部包无法引用 service 包的未导出替身） ============
 
 type smsHTTPTestStore struct {
 	mu      sync.Mutex
@@ -107,7 +107,7 @@ func smsHTTPTestCode(t *testing.T, content string) string {
 	return ""
 }
 
-// ============ §6.1-01 HTTP 契约 ============
+// ============ HTTP 契约 ============
 
 // TestUserAuthSMSLoginHTTPContract 锁定对外契约与安全红线：
 //  1. 发码响应只有 sent / expires_in，**不含验证码**；

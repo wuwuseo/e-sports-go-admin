@@ -21,7 +21,7 @@ func seedTeammatePlayer(t *testing.T, db *ent.Client, userID int, name string) *
 		SetPresence(esportsplayer.PresenceOffline).SaveX(t.Context())
 }
 
-// 固排（§5.3）：发起 → 确认 → 解除的完整闭环，以及幂等、重复、越权拦截。
+// 固排：发起 → 确认 → 解除的完整闭环，以及幂等、重复、越权拦截。
 func TestTeammateRequestAcceptDissolve(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_teammate?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))

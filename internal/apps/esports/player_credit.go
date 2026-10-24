@@ -27,7 +27,7 @@ type playerCreditReviewInput struct {
 
 func playerCreditEventNo() string { return "PC" + uuid.NewString() }
 
-// recordPlayerFaultCredit 售后执行完成后按责任方自动记载陪玩信用（§13.5）：
+// recordPlayerFaultCredit 售后执行完成后按责任方自动记载陪玩信用：
 // 仅 fault_party=player 且能定位到陪玩时记载，同一售后单只记载一次（幂等）。
 // 记载本身只增不改接单资格，是否处罚由复核入口决定，避免自动处罚误伤。
 func recordPlayerFaultCredit(ctx context.Context, tx *ent.Tx, afterSaleID int) error {
@@ -78,7 +78,7 @@ func recordPlayerFaultCredit(ctx context.Context, tx *ent.Tx, afterSaleID int) e
 	return err
 }
 
-// reviewPlayerCreditEvent 复核陪玩信用记载（§13.5）：
+// reviewPlayerCreditEvent 复核陪玩信用记载：
 // penalty 确认责任并把接单资格置为 suspended；clear 判定不构成责任只清记录。
 // 恢复接单资格走既有的陪玩档案编辑入口，不在此处自动恢复。
 func reviewPlayerCreditEvent(ctx context.Context, db *ent.Client, eventID, adminID int,
@@ -137,7 +137,7 @@ func reviewPlayerCreditEvent(ctx context.Context, db *ent.Client, eventID, admin
 	return db.EsportsPlayerCreditEvent.Get(ctx, eventID)
 }
 
-// listPlayerCreditEvents 查询陪玩信用记载（§13.5）。playerID 为 0 表示不按陪玩过滤，
+// listPlayerCreditEvents 查询陪玩信用记载。playerID 为 0 表示不按陪玩过滤，
 // status 为空表示不按状态过滤。
 func listPlayerCreditEvents(ctx context.Context, db *ent.Client, playerID int, status string,
 	limit int) ([]*ent.EsportsPlayerCreditEvent, error) {

@@ -22,7 +22,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// §16.3-06 / §16.3-07 的「取数半」：客户端组件接口必须按装修 props 真正收窄取数。
+// 的「取数半」：客户端组件接口必须按装修 props 真正收窄取数。
 // 本文件全部辅助物以 pcq 前缀命名，避免与并行桶的同名测试辅助物撞名。
 
 // pcqTestNow 固定测试时刻（UTC 12:00 = 业务时区 UTC+8 20:00，当日分钟数 1200）。
@@ -111,7 +111,7 @@ func pcqMessage(payload map[string]any) string {
 	return msg
 }
 
-// ── §16.3-07 陪玩推荐：game / level / online / bookable ──
+// ── 陪玩推荐：game / level / online / bookable ──
 
 // 四个筛选键都必须真的收窄，且各自复用既有判定口径：
 // level 走 playerLevelRank（不低于该等级）、online 走 presence + playerConnectionHealthy、
@@ -234,7 +234,7 @@ func TestPcqPublicPlayersHandlerHonoursProps(t *testing.T) {
 		t.Fatalf("level+online 未按 props 收窄：%v", got)
 	}
 
-	// filter 字典形态（§16.2-05 的「筛选条件」）同样被消费。
+	// filter 字典形态（的「筛选条件」）同样被消费。
 	status, payload = pcqDoGet(t, app, "/players?filter="+url.QueryEscape(`{"level":"senior","online":true}`))
 	if status != fiber.StatusOK {
 		t.Fatalf("filter 字典取数失败：status=%d msg=%s", status, pcqMessage(payload))
@@ -252,7 +252,7 @@ func TestPcqPublicPlayersHandlerHonoursProps(t *testing.T) {
 	}
 }
 
-// ── §16.3-06 / §16.3-11 商品列表：显式 id / limit / filter / sort / 规则取数 ──
+// ── 商品列表：显式 id / limit / filter / sort / 规则取数 ──
 
 // 显式 id 列表优先，limit 与既有 100 条上限取更严者；未配置时保持既有默认返回。
 func TestPcqPublicSkusExplicitIDsAndLimit(t *testing.T) {
@@ -357,7 +357,7 @@ func TestPcqPublicSkusFilterAndSortProps(t *testing.T) {
 	}
 }
 
-// 「按规则自动取数」（§16.3-11）：data_source / rule_code / rules 落到既有字段；
+// 「按规则自动取数」：data_source / rule_code / rules 落到既有字段；
 // 无数据关系的规则与数据来源明确 400，而不是静默当全量。
 func TestPcqPublicSkusRuleDataSource(t *testing.T) {
 	db := openGiftDB(t, "esports_pcq_sku_rule")
@@ -442,7 +442,7 @@ func TestPcqPublicSkusCampaignPropsRejectedExplicitly(t *testing.T) {
 	}
 }
 
-// ── §16.3-06 口径收紧：商品列表不再受理活动键 + 按组件类型的筛选键白名单 ──
+// ── 口径收紧：商品列表不再受理活动键 + 按组件类型的筛选键白名单 ──
 
 // pcqPropsFor 构造「含必需客服入口」的最小组件集（本文件自用，避免依赖并行桶的辅助物）。
 func pcqPropsFor(compType string, props map[string]interface{}) []pageComponent {

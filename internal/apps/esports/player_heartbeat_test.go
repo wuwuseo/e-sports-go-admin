@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 心跳超时自动离线（§6.4）：空闲陪玩置离线，有在途订单的转保护异常并提醒，心跳正常与无心跳基线的档案不动。
+// 心跳超时自动离线：空闲陪玩置离线，有在途订单的转保护异常并提醒，心跳正常与无心跳基线的档案不动。
 func TestPlayerHeartbeatAutoOfflineProtectsInflightOrders(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_player_heartbeat")
 	defer db.Close()
@@ -33,7 +33,7 @@ func TestPlayerHeartbeatAutoOfflineProtectsInflightOrders(t *testing.T) {
 	if err := respondPlayerInvite(ctx, db, busy.ID, seat.ID, true, now); err != nil {
 		t.Fatal(err)
 	}
-	// §5.5：人工指派按连接健康度（在线 + 心跳新鲜）校验，故先把在途订单建好再制造心跳超时失联。
+	// ：人工指派按连接健康度（在线 + 心跳新鲜）校验，故先把在途订单建好再制造心跳超时失联。
 	db.EsportsPlayer.UpdateOneID(busy.ID).SetLastHeartbeatAt(stale).ExecX(ctx)
 
 	fresh := seedPlayer(t, db, 923, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
@@ -114,7 +114,7 @@ func TestPlayerHeartbeatKeepsPresenceSemantics(t *testing.T) {
 	}
 }
 
-// 抢单资格（§6.4）：主动下线但心跳新鲜（app 仍打开、连接正常）仍可抢单。
+// 抢单资格：主动下线但心跳新鲜（app 仍打开、连接正常）仍可抢单。
 func TestPlayerGrabAllowsManualOfflineWithFreshHeartbeat(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_player_grab_offline_fresh")
 	defer db.Close()
@@ -130,7 +130,7 @@ func TestPlayerGrabAllowsManualOfflineWithFreshHeartbeat(t *testing.T) {
 	}
 }
 
-// 抢单资格（§6.4）：心跳超时自动离线与连接异常（protected_abnormal）禁止抢新单。
+// 抢单资格：心跳超时自动离线与连接异常（protected_abnormal）禁止抢新单。
 func TestPlayerGrabBlocksAutoOfflineAndProtectedAbnormal(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_player_grab_stale")
 	defer db.Close()
@@ -165,7 +165,7 @@ func TestPlayerGrabBlocksAutoOfflineAndProtectedAbnormal(t *testing.T) {
 	}
 }
 
-// 在途保护（§6.4）：有在途订单的失联陪玩转 protected_abnormal，在途履约保留，且禁止抢新单。
+// 在途保护：有在途订单的失联陪玩转 protected_abnormal，在途履约保留，且禁止抢新单。
 func TestPlayerHeartbeatProtectsInflightAndBlocksGrab(t *testing.T) {
 	db := openPlayerTestDB(t, "esports_player_heartbeat_inflight_grab")
 	defer db.Close()
@@ -181,7 +181,7 @@ func TestPlayerHeartbeatProtectsInflightAndBlocksGrab(t *testing.T) {
 	if err := respondPlayerInvite(ctx, db, busy.ID, seat.ID, true, now); err != nil {
 		t.Fatal(err)
 	}
-	// §5.5：人工指派按连接健康度（在线 + 心跳新鲜）校验，故先把在途订单建好再制造心跳超时失联。
+	// ：人工指派按连接健康度（在线 + 心跳新鲜）校验，故先把在途订单建好再制造心跳超时失联。
 	db.EsportsPlayer.UpdateOneID(busy.ID).SetLastHeartbeatAt(now.Add(-30 * time.Minute).UTC()).SaveX(ctx)
 
 	if _, err := autoOfflineStalePlayers(ctx, db, now, 100); err != nil {

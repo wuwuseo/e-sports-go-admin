@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/ent/esportsskususpensionitem"
 )
 
-// §15.7 停服申请 → 异人审批 → 受影响订单逐单处置：
+// 停服申请 → 异人审批 → 受影响订单逐单处置：
 //
 //  1. 申请：管理员就某在售 SKU 发起停服申请，落原因、生效方式（立即 / 定时）、申请人，
 //     并在申请时点抓一份受影响订单统计快照；同一 SKU 同一时刻只允许一张进行中申请。
@@ -30,7 +30,7 @@ import (
 // 与既有 商品上下架接口的关系：PUT /admin/products/{id} 直接改 status 的既有行为完全不变（不做审批、
 // 不生成处置清单）；停服是「有审批与处置联动的下架」，只在下架需要审批与在途订单收敛时使用。
 
-// 逐单处置方式（§15.7）。
+// 逐单处置方式。
 const (
 	suspensionDisposalCancelRefund = "cancel_refund"
 	suspensionDisposalReschedule   = "reschedule"
@@ -81,7 +81,7 @@ func suspensionPendingKey(skuID int) string {
 	return "product:" + strconv.Itoa(skuID)
 }
 
-// suspensionAffectedOrders 枚举该 SKU 下的未终结订单（§15.7）：未付款、已付款待派单、派单中、
+// suspensionAffectedOrders 枚举该 SKU 下的未终结订单：未付款、已付款待派单、派单中、
 // 服务中等都算受影响；已结单与已取消不在处置范围内。
 func suspensionAffectedOrders(ctx context.Context, orders *ent.EsportsOrderClient, skuID int) ([]*ent.EsportsOrder, error) {
 	return orders.Query().Where(
@@ -295,7 +295,7 @@ func reviewSkuSuspension(ctx context.Context, db *ent.Client, id, reviewerID int
 	return db.EsportsSkuSuspension.Get(ctx, id)
 }
 
-// cancelSkuSuspension 撤回尚未审批的停服申请（§15.7 状态机里的 cancelled）：申请人本人或超级管理员
+// cancelSkuSuspension 撤回尚未审批的停服申请（状态机里的 cancelled）：申请人本人或超级管理员
 // 可撤回，SKU 保持原状，进行中占位释放。已审批的申请不可撤回。
 func cancelSkuSuspension(ctx context.Context, db *ent.Client, id, adminID int, isSuper bool,
 	now time.Time) (*ent.EsportsSkuSuspension, error) {

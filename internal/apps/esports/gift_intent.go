@@ -21,7 +21,7 @@ import (
 type giftIntentInput struct {
 	CustomerID int `json:"customer_id"`
 	GiftID     int `json:"gift_id"`
-	// 价格档位（§9.1-02）：0 表示不分档。
+	// 价格档位：0 表示不分档。
 	GiftTierID    int    `json:"gift_tier_id"`
 	PlayerID      int    `json:"player_id"`
 	Quantity      int    `json:"quantity"`
@@ -30,7 +30,7 @@ type giftIntentInput struct {
 	ClientKey     string `json:"client_key"`
 }
 
-// customerGiftIntentInput 是客户自助创建礼物确认单的入参（§9.2）：客户身份由登录态解析。
+// customerGiftIntentInput 是客户自助创建礼物确认单的入参：客户身份由登录态解析。
 type customerGiftIntentInput struct {
 	GiftID        int    `json:"gift_id"`
 	GiftTierID    int    `json:"gift_tier_id"`
@@ -40,7 +40,7 @@ type customerGiftIntentInput struct {
 	ClientKey     string `json:"client_key"`
 }
 
-// giftIntentView 是礼物确认单的对外返回结构（§9.2）：对齐 EsportsGiftIntent，不暴露归属客服 ID。
+// giftIntentView 是礼物确认单的对外返回结构：对齐 EsportsGiftIntent，不暴露归属客服 ID。
 type giftIntentView struct {
 	ID             int    `json:"id"`
 	CustomerID     int    `json:"customer_id"`
@@ -54,12 +54,12 @@ type giftIntentView struct {
 	UnitPriceCents int64  `json:"unit_price_cents"`
 	AmountCents    int64  `json:"amount_cents"`
 	PaymentSource  string `json:"payment_source"`
-	// 价格档位快照（§9.1-02）。
+	// 价格档位快照。
 	GiftTierID   int    `json:"gift_tier_id"`
 	GiftTierCode string `json:"gift_tier_code"`
 	HighValue    bool   `json:"high_value"`
 	RequireAge   bool   `json:"require_age"`
-	// 收款信息（§9.2-01）。
+	// 收款信息。
 	PaymentChannel   string     `json:"payment_channel"`
 	PaymentStatus    string     `json:"payment_status"`
 	PaymentIntentNo  *string    `json:"payment_intent_no"`
@@ -95,7 +95,7 @@ func toGiftIntentView(item *ent.EsportsGiftIntent) giftIntentView {
 	}
 }
 
-// createCustomerGiftIntent 客户自助创建礼物确认单（§9.2 / §9.2-01）：解析登录客户，复用 createGiftIntent
+// createCustomerGiftIntent 客户自助创建礼物确认单：解析登录客户，复用 createGiftIntent
 // 的校验与落库。本金充足时直接可送礼；本金不足时**不再直接报本金不足**，而是落成确认单并提示客户
 // 走「发起收款」（余额 / 卡本金都不足时的第三种付款来源），收款核验后才成单。
 func createCustomerGiftIntent(ctx context.Context, db *ent.Client, uid string, in customerGiftIntentInput, now time.Time) (*ent.EsportsGiftIntent, error) {
@@ -121,7 +121,7 @@ func createCustomerGiftIntent(ctx context.Context, db *ent.Client, uid string, i
 	}, now)
 }
 
-// customerGiftIntentFunding 判断确认单的本金来源是否充足（§9.2 / §9.2-01）：
+// customerGiftIntentFunding 判断确认单的本金来源是否充足：
 // 余额本金链路在发起时就要能足额核销；不足时客户端应改走发起收款。
 // 返回 (是否充足, 提示)。
 func customerGiftIntentFunding(ctx context.Context, db *ent.Client,
@@ -149,7 +149,7 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 		return nil, errInvalidInput
 	}
 	// 付款来源仅支持客户余额本金；储值卡本金（stored_value_card_principal）随功能下线，
-	// 外部收款走 confirmation 之后的 payment/start 链路（§9.2-01）。
+	// 外部收款走 confirmation 之后的 payment/start 链路。
 	if in.PaymentSource != "customer_balance_principal" {
 		return nil, errInvalidInput
 	}
@@ -203,7 +203,7 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if terms.requireAdult && customer.AgeStatus != esportscustomer.AgeStatusAdult {
 		return nil, errAgeUnverified
 	}
-	// 余额本金不足时不再直接拒绝：客户可改走「发起收款」（§9.2-01），
+	// 余额本金不足时不再直接拒绝：客户可改走「发起收款」，
 	// 真正的资金校验仍在送礼核销时强制执行，不存在伪成功。
 	if in.OrderID != nil {
 		order, err := db.EsportsOrder.Get(ctx, *in.OrderID)
@@ -296,7 +296,7 @@ func confirmGiftIntent(ctx context.Context, db *ent.Client, uid string, intentID
 	if err != nil {
 		return nil, err
 	}
-	// 年龄限制按确认单上的档位快照生效（§9.1-02）：require_age=false 的档位不拦未成年客户。
+	// 年龄限制按确认单上的档位快照生效：require_age=false 的档位不拦未成年客户。
 	if customer.AgeStatus != esportscustomer.AgeStatusAdult && intent.RequireAge {
 		return nil, errAgeUnverified
 	}

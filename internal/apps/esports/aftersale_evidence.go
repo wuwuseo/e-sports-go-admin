@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/ent/attachment"
 )
 
-// §13.2 客户售后凭证上传：移动端先把图片/文档作为私有附件上传（前台统一上传端点），
+// 客户售后凭证上传：移动端先把图片/文档作为私有附件上传（前台统一上传端点），
 // 再把附件 ID 通过 evidence_attachment_ids 引用进售后单 / 复核单。引用以 JSON 数组形式
 // 序列化进既有 evidence_ref 文本字段，历史纯文本证据（非 JSON）不受影响。
 
@@ -99,7 +99,7 @@ type customerAfterSaleInput struct {
 	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 }
 
-// customerUploadSubject 返回客户上传附件的归属域标识 "user:<uid>"（§13.2 本人限定）。
+// customerUploadSubject 返回客户上传附件的归属域标识 "user:<uid>"（本人限定）。
 // 客户未绑定前台用户（无 user_id / 无 uid）时无法校验凭证归属，返回 errForbidden。
 func customerUploadSubject(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer) (string, error) {
 	if customer == nil || customer.UserID == nil {
@@ -115,7 +115,7 @@ func customerUploadSubject(ctx context.Context, db *ent.Client, customer *ent.Es
 	return "user:" + account.UID, nil
 }
 
-// listCustomerAfterSaleEvidence 客户自助读取售后凭证附件清单（§13.2 只读确认）：
+// listCustomerAfterSaleEvidence 客户自助读取售后凭证附件清单（只读确认）：
 // 解析 evidence_ref 的 JSON 附件 ID 返回附件详情，仅售后单归属客户本人可读。
 func listCustomerAfterSaleEvidence(ctx context.Context, db *ent.Client, customerID, afterSaleID int) ([]*ent.Attachment, error) {
 	if customerID < 1 || afterSaleID < 1 {

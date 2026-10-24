@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsoutbox"
 )
 
-// 售后限时（§13.5）：各阶段按对应锚点计算截止时间，阶段不适用或时限为 0 时不计算。
+// 售后限时：各阶段按对应锚点计算截止时间，阶段不适用或时限为 0 时不计算。
 func TestAfterSaleSLADeadline(t *testing.T) {
 	policy := afterSaleSLAPolicy{AcceptHours: 2, PlanHours: 24, CustomerConfirmHours: 48, ExecuteHours: 24}
 	created := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
@@ -81,7 +81,7 @@ func seedAfterSaleSLARow(t *testing.T, db *ent.Client, no string, status esports
 	return create.SaveX(t.Context())
 }
 
-// 超时升级（§13.5）：只对超出当前阶段时限的单写升级外盒，幂等；调整时限后以新阈值再评估。
+// 超时升级：只对超出当前阶段时限的单写升级外盒，幂等；调整时限后以新阈值再评估。
 func TestCheckAfterSaleSLABreaches(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_aftersale_sla_scan")
 	defer db.Close()
@@ -127,7 +127,7 @@ func TestCheckAfterSaleSLABreaches(t *testing.T) {
 	}
 }
 
-// 列表视图带出当前阶段时限与是否超时（§13.5）。
+// 列表视图带出当前阶段时限与是否超时。
 func TestAfterSaleViewCarriesSLA(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_aftersale_sla_view")
 	defer db.Close()

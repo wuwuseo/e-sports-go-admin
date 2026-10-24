@@ -18,7 +18,7 @@ const (
 	defaultPlayerHeartbeatTimeout = 10
 )
 
-// playerHeartbeatTimeout 心跳超时阈值（§6.4）：配置缺失或非法时回落 10 分钟。
+// playerHeartbeatTimeout 心跳超时阈值：配置缺失或非法时回落 10 分钟。
 func playerHeartbeatTimeout(ctx context.Context, db *ent.Client) time.Duration {
 	fallback := time.Duration(defaultPlayerHeartbeatTimeout) * time.Minute
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(playerHeartbeatTimeoutKey)).Only(ctx)
@@ -32,10 +32,10 @@ func playerHeartbeatTimeout(ctx context.Context, db *ent.Client) time.Duration {
 	return time.Duration(minutes) * time.Minute
 }
 
-// recordPlayerHeartbeat 陪玩端保活（§6.4）：只写心跳时戳，不改变在线状态，
+// recordPlayerHeartbeat 陪玩端保活：只写心跳时戳，不改变在线状态，
 // 避免客户端把一次保活误当作上线 / 下线操作。
 //
-// 例外（§6.4-06 自动上线）：开启 auto_online 且心跳时「处于本人服务时段内」时，把 offline
+// 例外（自动上线）：开启 auto_online 且心跳时「处于本人服务时段内」时，把 offline
 // 自动置为 online——这就是「自动上线」的生效点。自动上线只负责上线，不在时段外把人踢下线
 // （时段外由心跳超时任务按失联口径收敛），也不会覆盖 protected_abnormal。
 func recordPlayerHeartbeat(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*ent.EsportsPlayer, error) {
@@ -72,7 +72,7 @@ func recordPlayerHeartbeat(ctx context.Context, db *ent.Client, playerID int, no
 	return db.EsportsPlayer.Get(ctx, playerID)
 }
 
-// autoOfflineStalePlayers 心跳超时自动离线（§6.4）：只处理「在线且已有心跳基线」的陪玩，
+// autoOfflineStalePlayers 心跳超时自动离线：只处理「在线且已有心跳基线」的陪玩，
 // 无心跳记录的存量档案不动（避免升级后一次性把在线陪玩全部离线）。
 // 存在在途订单（待接单 / 已接单 / 服务中订单上的已接单席位）时转 protected_abnormal 并写外盒提醒，
 // 保证自动离线不会直接丢掉在途履约；其余转 offline。返回本次处理条数。
@@ -131,7 +131,7 @@ func autoOfflineStalePlayers(ctx context.Context, db *ent.Client, now time.Time,
 	return count, nil
 }
 
-// playerCanGrabNewOrder 判定陪玩当前是否具备「抢新单」资格（§6.4）：
+// playerCanGrabNewOrder 判定陪玩当前是否具备「抢新单」资格：
 // 连接异常（protected_abnormal）一律禁止；online 视为可抢（失联 online 由超时任务收敛为
 // offline / protected_abnormal）；人工下线（offline）仅在心跳新鲜（连接正常）时仍可抢，
 // 断开后心跳陈旧自然失去抢单资格。

@@ -45,7 +45,7 @@ func seedCustomerOrder(t *testing.T, db *ent.Client, orderNo string, customerID 
 		SetFulfillmentStatus(status).SaveX(t.Context())
 }
 
-// 客户自助数据隔离（§13.2）：只能读到本人订单，跨客户详情返回 403。
+// 客户自助数据隔离：只能读到本人订单，跨客户详情返回 403。
 func TestCustomerSelfOrderIsolation(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_customer_self_isolation")
 	defer db.Close()
@@ -74,7 +74,7 @@ func TestCustomerSelfOrderIsolation(t *testing.T) {
 	}
 }
 
-// 客户自助资料与余额（§10 / §11.3）：等级名与下一档门槛按成长值推导，余额本金 / 赠送分列。
+// 客户自助资料与余额：等级名与下一档门槛按成长值推导，余额本金 / 赠送分列。
 func TestCustomerSelfProfileAndWallet(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_customer_self_profile")
 	defer db.Close()
@@ -122,7 +122,7 @@ func TestCustomerSelfProfileAndWallet(t *testing.T) {
 	}
 }
 
-// 订单服务成员视图（§7.5 服务评价前置）：本人订单返回成员与是否已评价，他人订单 403。
+// 订单服务成员视图（服务评价前置）：本人订单返回成员与是否已评价，他人订单 403。
 func TestCustomerOrderMembers(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_customer_order_members")
 	defer db.Close()
@@ -156,7 +156,7 @@ func TestCustomerOrderMembers(t *testing.T) {
 	}
 }
 
-// 客户自助发起售后（§13.2）：仅本人订单可发起，渠道固定为 customer 且绑定客户。
+// 客户自助发起售后：仅本人订单可发起，渠道固定为 customer 且绑定客户。
 func TestCreateCustomerAfterSaleSelfService(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_customer_self_aftersale")
 	defer db.Close()

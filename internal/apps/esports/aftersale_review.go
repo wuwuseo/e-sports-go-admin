@@ -24,7 +24,7 @@ const (
 type afterSaleReviewInput struct {
 	Reason      string `json:"reason"`
 	EvidenceRef string `json:"evidence_ref"`
-	// EvidenceAttachmentIDs 复核附带凭证附件 ID 列表（§13.2）：须为申请人本人上传的私有附件，
+	// EvidenceAttachmentIDs 复核附带凭证附件 ID 列表：须为申请人本人上传的私有附件，
 	// 非空时校验归属并把引用序列化为 evidence_ref 的 JSON 数组。
 	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 }
@@ -36,7 +36,7 @@ type afterSaleReviewDecisionInput struct {
 
 func afterSaleReviewNo() string { return "AR" + uuid.NewString() }
 
-// requestAfterSaleReview 提交终态售后的新证据复核申请（§13.6）：
+// requestAfterSaleReview 提交终态售后的新证据复核申请：
 // 仅 rejected / completed 的终态售后可申请，同一售后单同一时刻只允许一张进行中复核。
 func requestAfterSaleReview(ctx context.Context, db *ent.Client, afterSaleID, adminID int,
 	in afterSaleReviewInput, now time.Time) (*ent.EsportsAfterSaleReview, error) {
@@ -45,7 +45,7 @@ func requestAfterSaleReview(ctx context.Context, db *ent.Client, afterSaleID, ad
 	if afterSaleID < 1 || adminID < 1 || in.Reason == "" || len([]rune(in.Reason)) > 500 {
 		return nil, errInvalidInput
 	}
-	// §13.2：复核附带凭证附件时按申请人（客服本人）校验归属，并把引用序列化进 evidence_ref。
+	// ：复核附带凭证附件时按申请人（客服本人）校验归属，并把引用序列化进 evidence_ref。
 	if len(in.EvidenceAttachmentIDs) > 0 {
 		staff, err := db.Admin.Get(ctx, adminID)
 		if err != nil {
@@ -127,7 +127,7 @@ func requestAfterSaleReview(ctx context.Context, db *ent.Client, afterSaleID, ad
 	return db.EsportsAfterSaleReview.Get(ctx, review.ID)
 }
 
-// decideAfterSaleReview 异人审查复核申请（§13.6）：
+// decideAfterSaleReview 异人审查复核申请：
 // uphold 维持原结论（售后单保持终态）；reopen 发回重新处理（售后单回到 processing 允许重新提交方案）。
 func decideAfterSaleReview(ctx context.Context, db *ent.Client, reviewID, adminID int,
 	in afterSaleReviewDecisionInput, now time.Time) (*ent.EsportsAfterSaleReview, error) {

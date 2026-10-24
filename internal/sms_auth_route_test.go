@@ -18,7 +18,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// TestUserAuthSMSCodeRoutesArePublic §6.1-01：
+// TestUserAuthSMSCodeRoutesArePublic ：
 // 短信验证码通道挂在平台级 user-auth 分组下（/api/v1/user/auth/*），必须是 AuthPublic：
 // 无令牌请求不得被该分组的 JWT 中间件拦成 401（Fiber 的 USE 中间件对同前缀的后注册路由同样生效，
 // 因此这两条公开路由必须在鉴权分组**之前**注册）。同时锁定既有受保护路由仍要求鉴权。

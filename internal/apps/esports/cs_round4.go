@@ -17,10 +17,10 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客服端第 4 轮补齐：订单可见性统一口径（§3.5-06 剩余）、客户归属转移（§8.3-02）、
-// 结单后复购跟进待办（§14-01）。
+// 客服端第 4 轮补齐：订单可见性统一口径（剩余）、客户归属转移、
+// 结单后复购跟进待办。
 
-// ── §3.5-06 订单可见性统一谓词 ──
+// ── 订单可见性统一谓词 ──
 
 // visibleOrdersToAdmin 是订单的可见性谓词：负责客服 OR 被授权协作。
 // 与订单列表 / 详情（handlers.go adminOrderScope、order_access.go loadOwnedOrder）同一口径，
@@ -32,9 +32,9 @@ func visibleOrdersToAdmin(adminID int) predicate.EsportsOrder {
 	)
 }
 
-// ── §8.3-02 客户归属转移 ──
+// ── 客户归属转移 ──
 
-// transferCustomerOwner 转交客户归属（§8.3-02）：改 owner_admin_id 并在同一事务追加一条交接留痕
+// transferCustomerOwner 转交客户归属：改 owner_admin_id 并在同一事务追加一条交接留痕
 // （操作人 + 时间 + 说明）。历史跟进记录不变：跟进表只增不改，交接本身就是新的一条追加记录。
 //
 // 权限：仅当前归属客服或超管可转交（沿用 loadOwnedCustomer 的档案边界）。
@@ -118,7 +118,7 @@ func transferCustomerOwner(ctx context.Context, db *ent.Client, operatorID int, 
 // customerTransferPrefix 是归属交接留痕记录的摘要前缀，便于归档检索与人工区分。
 const customerTransferPrefix = "【归属转移】"
 
-// ── §14-01 结单后复购跟进 ──
+// ── 结单后复购跟进 ──
 
 const (
 	// repurchaseFollowUpDaysKey 是结单后生成复购回访待办的天数；0 = 关闭。
@@ -231,7 +231,7 @@ func createRepurchaseFollowUpForOrder(ctx context.Context, db *ent.Client, order
 	).Order(ent.Desc(esportscustomerfollowup.FieldID)).First(ctx)
 }
 
-// scheduleRepurchaseFollowUps 补齐「已结单满 N 天但尚未生成复购待办」的订单（§14-01）。
+// scheduleRepurchaseFollowUps 补齐「已结单满 N 天但尚未生成复购待办」的订单。
 // 结单钩子未接线时由本任务兜底，保证复购跟进一定有落点。
 func scheduleRepurchaseFollowUps(ctx context.Context, db *ent.Client, now time.Time, limit int) (int, error) {
 	if limit < 1 || limit > 500 {
@@ -272,7 +272,7 @@ func scheduleRepurchaseFollowUpsTask(ctx context.Context, logger io.Writer) erro
 	return err
 }
 
-// countRepurchaseTodosDue 统计客服当前「复购跟进」待办数（§14-01）：
+// countRepurchaseTodosDue 统计客服当前「复购跟进」待办数：
 // 仅统计摘要带复购前缀、已到期，且是该客户最新一条跟进记录的复购待办——
 // 客服补一条普通跟进即视为「已回访」，待办自动消失（跟进表只增不改，无法原地改状态）。
 func countRepurchaseTodosDue(ctx context.Context, db *ent.Client, adminID int, isSuper bool, now time.Time) (int, error) {

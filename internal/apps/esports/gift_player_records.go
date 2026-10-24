@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/ent/esportsgiftorder"
 )
 
-// 陪玩端收礼记录与本人榜单排名（§6.1-14）。
+// 陪玩端收礼记录与本人榜单排名。
 //
 // 礼物收入此前只在陪玩分成明细（kind=gift）里可见，榜单只有管理端入口；
 // 本查询给陪玩端补上「谁送了什么礼物、送了多少钱」的收礼明细，以及本人在收礼榜上的名次。
@@ -40,7 +40,7 @@ type playerGiftRecordView struct {
 	Records     []playerGiftRecord `json:"records"`
 }
 
-// listPlayerGiftRecords 查询当前登录陪玩的收礼记录与本人榜单排名（§6.1-14）。
+// listPlayerGiftRecords 查询当前登录陪玩的收礼记录与本人榜单排名。
 // 只统计已支付且未全额退款的礼物（与榜单同口径）；period 支持 daily/weekly/monthly。
 func listPlayerGiftRecords(ctx context.Context, db *ent.Client, uid, period string,
 	now time.Time, limit int) (*playerGiftRecordView, error) {

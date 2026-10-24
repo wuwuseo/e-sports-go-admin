@@ -19,7 +19,7 @@ import (
 )
 
 // poSeedSpecGroup SKU：造一个引用规格组的在售 SKU（同组两档位用同一 group）。
-// §15.3-01：多人 SKU 须声明每席承诺服务量，整单服务量 = 每席量 × 席位数。
+// ：多人 SKU 须声明每席承诺服务量，整单服务量 = 每席量 × 席位数。
 func poSeedPaidOrderWithSoldQuota(t *testing.T, db *ent.Client, code string) *ent.EsportsOrder {
 	t.Helper()
 	ctx := t.Context()
@@ -230,7 +230,7 @@ func TestRound4PO3401BuiltinCloseFormAndSubmitRule(t *testing.T) {
 	}
 
 	customer := saveCustomerOrFail(t, db, 11)
-	// 启用内置结单模板 + 强制采集服务结果（§3.4-01 ①②，默认关闭，需显式开启）。
+	// 启用内置结单模板 + 强制采集服务结果（①②，默认关闭，需显式开启）。
 	poSeedConfig(t, db, "app.esports.close_form_require_service_result", "true")
 	sku, err := saveSku(ctx, db, skuInput{
 		Code: "PO-CLOSE-1", Title: "多人结单商品", ServiceType: "play", UnitPriceCents: 9000,

@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 并发接单上限（§5.5 / §6.4）：陪玩已占满并发席位后，再次指派被拒。
+// 并发接单上限：陪玩已占满并发席位后，再次指派被拒。
 func TestPlayerConcurrentDispatchLimit(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dispatch_limit_concurrent")
 	ctx := t.Context()
@@ -34,7 +34,7 @@ func TestPlayerConcurrentDispatchLimit(t *testing.T) {
 	}
 }
 
-// 每日接单上限（§5.5 / §6.4）：陪玩当日接满后，抢单被拒。
+// 每日接单上限：陪玩当日接满后，抢单被拒。
 func TestPlayerDailyDispatchLimit(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_dispatch_limit_daily")
 	ctx := t.Context()

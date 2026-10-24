@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsgifttier"
 )
 
-// 礼物价格档位（§9.1-02）：同一礼物可配置多档价格，每档独立设置高额二次确认（high_value）
+// 礼物价格档位：同一礼物可配置多档价格，每档独立设置高额二次确认（high_value）
 // 与年龄限制（require_age），使 require_age 真正按档生效。
 //
 // 口径：
@@ -187,7 +187,7 @@ func listGiftTiers(ctx context.Context, db *ent.Client, giftID int, status strin
 		ent.Asc(esportsgifttier.FieldPriceCents), ent.Asc(esportsgifttier.FieldID)).All(ctx)
 }
 
-// giftSaleTerms 是一次送礼实际生效的价格与限制口径（§9.1-02）。
+// giftSaleTerms 是一次送礼实际生效的价格与限制口径。
 type giftSaleTerms struct {
 	tier         *ent.EsportsGiftTier
 	unitPrice    int64

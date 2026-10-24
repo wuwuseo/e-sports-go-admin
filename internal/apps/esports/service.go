@@ -77,17 +77,17 @@ type skuInput struct {
 	ServiceUnits         int64    `json:"service_units"`
 	ServiceUnitName      string   `json:"service_unit_name"`
 	RequiredSeats        int      `json:"-"`
-	// RequiredLevel 为该 SKU 的技能等级门槛（§5.5）：枚举 novice / skilled / senior / mentor，
+	// RequiredLevel 为该 SKU 的技能等级门槛：枚举 novice / skilled / senior / mentor，
 	// 未传回落 novice（兼容旧前端）；报单时快照到订单，派单候选与接单校验据此拦截低等级陪玩。
 	RequiredLevel *string `json:"required_level"`
-	// PerSeatServiceUnits 为多人 SKU 每个席位承诺的服务量（§15.3-01 / §5.3-05）：required_seats > 1 时必填，
+	// PerSeatServiceUnits 为多人 SKU 每个席位承诺的服务量：required_seats > 1 时必填，
 	// 下单按「每席量 × 席位数 × 份数」落承诺量；0 表示未配置（单人单回落整单服务量）。
 	PerSeatServiceUnits int64 `json:"-"`
-	// CostCents 为 SKU 成本价（分，可空，§15.8-03）：仅授权角色可读，用于毛利口径；nil 表示未登记成本。
+	// CostCents 为 SKU 成本价（分，可空，）：仅授权角色可读，用于毛利口径；nil 表示未登记成本。
 	CostCents *int64 `json:"cost_cents"`
-	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
+	// ServiceDurationMinutes 为单次服务标准时长（分钟，）：用于预约时段重叠与容量判定，0 表示未配置。
 	ServiceDurationMinutes int `json:"service_duration_minutes"`
-	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
+	// CloseRuleCode 为该 SKU 的「结单要求」：引用生效结单规则的 code，留空按游戏 / 全局回落。
 	CloseRuleCode string `json:"close_rule_code"`
 	QuotaTotal    int64  `json:"quota_total"`
 	SortOrder     int    `json:"sort_order"`
@@ -115,15 +115,15 @@ type skuUpdateInput struct {
 	ServiceUnits         int64    `json:"service_units"`
 	ServiceUnitName      string   `json:"service_unit_name"`
 	RequiredSeats        int      `json:"-"`
-	// RequiredLevel 同 skuInput（§5.5）：nil 表示保持既有门槛，避免整表回传把 senior 静默降级。
+	// RequiredLevel 同 skuInput：nil 表示保持既有门槛，避免整表回传把 senior 静默降级。
 	RequiredLevel *string `json:"required_level"`
-	// PerSeatServiceUnits 同 skuInput（§15.3-01）。
+	// PerSeatServiceUnits 同 skuInput。
 	PerSeatServiceUnits int64 `json:"-"`
-	// CostCents 同 skuInput（§15.8-03），但区分三态：未传保持不变、显式 null 清空。
+	// CostCents 同 skuInput，但区分三态：未传保持不变、显式 null 清空。
 	CostCents optionalInt64 `json:"cost_cents"`
-	// ServiceDurationMinutes 为单次服务标准时长（分钟，§5.5）：用于预约时段重叠与容量判定，0 表示未配置。
+	// ServiceDurationMinutes 为单次服务标准时长（分钟，）：用于预约时段重叠与容量判定，0 表示未配置。
 	ServiceDurationMinutes int `json:"service_duration_minutes"`
-	// CloseRuleCode 为该 SKU 的「结单要求」（§15.3）：引用生效结单规则的 code，留空按游戏 / 全局回落。
+	// CloseRuleCode 为该 SKU 的「结单要求」：引用生效结单规则的 code，留空按游戏 / 全局回落。
 	CloseRuleCode string `json:"close_rule_code"`
 	QuotaTotal    int64  `json:"quota_total"`
 	SortOrder     int    `json:"sort_order"`
@@ -132,7 +132,7 @@ type skuUpdateInput struct {
 
 type customerInput struct {
 	DisplayName string `json:"display_name"`
-	// Phone 是手工建档时的手机号（§8.3 / P1-12）：可选；填了就在同一租户内唯一，
+	// Phone 是手工建档时的手机号（P1-12）：可选；填了就在同一租户内唯一，
 	// 命中既有客户即返回冲突提示，避免同一个人被建成两条档案。
 	Phone string `json:"phone"`
 }
@@ -141,27 +141,27 @@ type orderInput struct {
 	CustomerID int   `json:"customer_id"`
 	SkuID      int   `json:"product_id"`
 	Quantity   int64 `json:"quantity"`
-	// 客户指定陪玩（§5.4）：可选。omitempty 让不传该字段时的幂等哈希与既有口径保持一致。
+	// 客户指定陪玩：可选。omitempty 让不传该字段时的幂等哈希与既有口径保持一致。
 	PreferredPlayerID int `json:"preferred_player_id,omitempty"`
-	// 预约开始时间（§3.2 / §5.5）：可选。带值时订单落为预约单（appointment_status=request，
-	// 须确认档期后才能派单），并在下单时按派单同一套并发 / 每日容量口径复核指定陪玩（§4.6）。
+	// 预约开始时间：可选。带值时订单落为预约单（appointment_status=request，
+	// 须确认档期后才能派单），并在下单时按派单同一套并发 / 每日容量口径复核指定陪玩。
 	RequestedStartAt *time.Time `json:"requested_start_at,omitempty"`
-	// 重复报单确认（§4.6）：时间窗内已有相同报单时须显式置 true 才放行。omitempty 让不传该字段时
+	// 重复报单确认：时间窗内已有相同报单时须显式置 true 才放行。omitempty 让不传该字段时
 	// 的幂等哈希与既有口径保持一致。
 	ConfirmDuplicate bool `json:"confirm_duplicate,omitempty"`
-	// 报单入口（§3.4）：移动客服端传 cs_mobile 以区别于后台 cs_pc；客户自助下单由身份前缀决定。
+	// 报单入口：移动客服端传 cs_mobile 以区别于后台 cs_pc；客户自助下单由身份前缀决定。
 	// 仅允许 cs_pc / cs_mobile / wecom_sidebar 三个客服侧入口，非法值回落 cs_pc。
 	EntryPoint string `json:"entry_point,omitempty"`
-	// 经授权的人工调整（§4.2）：非零时须同时给出 4–255 字的 manual_adjust_reason；
+	// 经授权的人工调整：非零时须同时给出 4–255 字的 manual_adjust_reason；
 	// 绝对值超过 SKU 的 adjustment_approval_bp 免审额度时，报单环节不予受理（须先落单再走改价审批）。
 	ManualAdjustCents  int64  `json:"manual_adjust_cents,omitempty"`
 	ManualAdjustReason string `json:"manual_adjust_reason,omitempty"`
-	// 负责客服（§4.2）：留空默认建单人；显式指定时须为启用中的管理员。
+	// 负责客服：留空默认建单人；显式指定时须为启用中的管理员。
 	ResponsibleAdminID int `json:"responsible_admin_id,omitempty"`
-	// 站内收款方式（§4.2 / §4.3）：customer_balance 时在下单环节复核资金可用余额；
+	// 站内收款方式：customer_balance 时在下单环节复核资金可用余额；
 	// 留空或 external 表示走外部收款，下单不锁资金。
 	PaymentChannel string `json:"payment_channel,omitempty"`
-	// 订单价明显偏离 SKU 标准价时的偏离原因（§4.6-02）：超阈值且开启强制时必填。
+	// 订单价明显偏离 SKU 标准价时的偏离原因：超阈值且开启强制时必填。
 	PriceDeviationReason string `json:"price_deviation_reason,omitempty"`
 }
 
@@ -267,7 +267,7 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if err := validateSkuCloseRuleCode(ctx, db, in.CloseRuleCode); err != nil {
 		return nil, err
 	}
-	// §5.5：技能等级门槛未传回落配置最低档（兼容旧前端），非法编码直接拒绝，
+	// ：技能等级门槛未传回落配置最低档（兼容旧前端），非法编码直接拒绝，
 	// 避免「门槛字段写了但永不生效」。
 	requiredLevel, err := skuRequiredLevel(ctx, db, in.RequiredLevel)
 	if err != nil {
@@ -356,7 +356,7 @@ func newSkuCreate(db *ent.Client, in skuInput, requiredLevel string, code string
 	return create
 }
 
-// skuRequiredLevel 解析并校验 SKU 技能等级门槛（§5.5）：未传 / 空串回落配置最低档，
+// skuRequiredLevel 解析并校验 SKU 技能等级门槛：未传 / 空串回落配置最低档，
 // 取值必须是当前等级配置里的编码。
 func skuRequiredLevel(ctx context.Context, db *ent.Client, raw *string) (string, error) {
 	levels := skillLevels(ctx, db)
@@ -370,7 +370,7 @@ func skuRequiredLevel(ctx context.Context, db *ent.Client, raw *string) (string,
 	return value, nil
 }
 
-// normalizeSkuPerSeatUnits 统一 SKU 每席承诺量口径（§15.5-01 / P1-24）：
+// normalizeSkuPerSeatUnits 统一 SKU 每席承诺量口径（P1-24）：
 // SKU 未配置时跟随所挂规格组，两者都配置但不一致时拒绝，避免同一规格两套口径。
 func normalizeSkuPerSeatUnits(perSeat *int64, groupPerSeat int64) error {
 	if groupPerSeat <= 0 {
@@ -396,7 +396,7 @@ func validateSkuSeatPromise(requiredSeats int, perSeat int64) error {
 	return fmt.Errorf("%w：多人 SKU 必须配置每席承诺服务量（per_seat_service_units）", errInvalidInput)
 }
 
-// validateSkuServiceType 校验 SKU 服务类型（§3.1-04）：代练（boosting）为预留枚举位，
+// validateSkuServiceType 校验 SKU 服务类型：代练（boosting）为预留枚举位，
 // 首版未开放上架与下单——必须显式返回「未开放」而不是与非法值混为一谈的笼统参数错误。
 func validateSkuServiceType(raw string) error {
 	switch strings.TrimSpace(raw) {
@@ -409,7 +409,7 @@ func validateSkuServiceType(raw string) error {
 	}
 }
 
-// validateSkuCostCents 校验 SKU 成本价（§15.8-03）：可空；登记时须为非负整数分。
+// validateSkuCostCents 校验 SKU 成本价：可空；登记时须为非负整数分。
 func validateSkuCostCents(cost *int64) error {
 	if cost == nil {
 		return nil
@@ -420,7 +420,7 @@ func validateSkuCostCents(cost *int64) error {
 	return nil
 }
 
-// saveCustomer 手工建档客户（§8.3）。手机号可选，但填了就必须满足「同一租户内手机号唯一」
+// saveCustomer 手工建档客户。手机号可选，但填了就必须满足「同一租户内手机号唯一」
 // （P1-12）：命中既有客户时返回冲突提示，由客服改用既有客户，而不是再建一条重复档案。
 // 手机号唯一校验与企微自动建档（cs.go wecomUpsertCustomer）共用 ensureCustomerPhoneUnique，
 // 两条建档入口口径一致。
@@ -561,7 +561,7 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 	if err := validateSkuCloseRuleCode(ctx, tx.Client(), in.CloseRuleCode); err != nil {
 		return nil, err
 	}
-	// §5.5：未传 required_level 时保持既有门槛——管理端编辑表单整表回传，不得静默降级为最低档。
+	// ：未传 required_level 时保持既有门槛——管理端编辑表单整表回传，不得静默降级为最低档。
 	requiredLevel := current.RequiredLevel
 	if in.RequiredLevel != nil {
 		if requiredLevel, err = skuRequiredLevel(ctx, db, in.RequiredLevel); err != nil {
@@ -583,7 +583,7 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 		SetCloseRuleCode(strings.TrimSpace(in.CloseRuleCode)).
 		SetQuotaTotal(in.QuotaTotal).SetSortOrder(in.SortOrder).
 		SetStatus(esportssku.Status(in.Status)).AddVersion(1)
-	// §15.8-03 / P1-22：成本价三态——未传保持不变（整表回传不静默清空），显式 null 才清空。
+	// P1-22：成本价三态——未传保持不变（整表回传不静默清空），显式 null 才清空。
 	if in.CostCents.Present {
 		if in.CostCents.Value == nil {
 			update.ClearCostCents()
@@ -669,7 +669,7 @@ func placeOrderWithPrincipal(ctx context.Context, db *ent.Client, principal stri
 	return order, err
 }
 
-// applyOrderManualAdjust 计算下单应付金额并校验收单环节的人工调整（§4.2-02）：
+// applyOrderManualAdjust 计算下单应付金额并校验收单环节的人工调整：
 //   - 未填调整金额时只走会员折扣；
 //   - 填了调整金额必须同时给出 4–255 字原因；
 //   - 调整后的小计不得低于 SKU 最低允许价 × 份数；
@@ -736,7 +736,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if err != nil {
 		return nil, err
 	}
-	// §5.1-02：客户自助下单允许「无归属客服」——此时 adminID=0，订单进公共池（responsible_admin_id 为 NULL）。
+	// ：客户自助下单允许「无归属客服」——此时 adminID=0，订单进公共池（responsible_admin_id 为 NULL）。
 	// 客服侧报单仍严格校验归属，避免越权代报。
 	selfService := adminID < 1
 	if selfService {
@@ -761,7 +761,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if err != nil {
 		return nil, err
 	}
-	// 承诺服务量 = Σ 每席承诺量 × 份数（§5.3-05 验收口径），并复核溢出与正值约束。
+	// 承诺服务量 = Σ 每席承诺量 × 份数（验收口径），并复核溢出与正值约束。
 	if seatTotalUnits > math.MaxInt64/in.Quantity {
 		return nil, errInvalidInput
 	}
@@ -769,12 +769,12 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if promisedUnits <= 0 {
 		return nil, fmt.Errorf("%w：承诺服务量必须为正，请检查 SKU 每席承诺服务量配置", errInvalidInput)
 	}
-	// §4.6 报单校验补充（顺序：先硬拦截后提醒）：预约开始时间合法性 → 客户欠款拦截 → 重复报单提醒。
+	// 报单校验补充（顺序：先硬拦截后提醒）：预约开始时间合法性 → 客户欠款拦截 → 重复报单提醒。
 	// 三项都在本事务内完成，未通过即整单回滚（不占名额、不写幂等记录），不影响既有幂等与报价快照语义。
 	if err = validateAppointmentStart(in, now); err != nil {
 		return nil, err
 	}
-	// §4.6-04：欠款默认「有欠款即提醒」，配置阈值后升级为强制拦截。
+	// ：欠款默认「有欠款即提醒」，配置阈值后升级为强制拦截。
 	debtCents, debtRemind, err := customerDebtTier(ctx, tx.Client(), customer.ID,
 		customerDebtLimitCents(ctx, tx.Client()), customerDebtRemindCents(ctx, tx.Client()), now)
 	if err != nil {
@@ -784,7 +784,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		duplicateOrderWindowMinutes(ctx, tx.Client())); err != nil {
 		return nil, err
 	}
-	// §4.2-02：指定负责客服须为启用中的管理员；留空默认建单人。客户自助下单（无归属客服）落 NULL。
+	// ：指定负责客服须为启用中的管理员；留空默认建单人。客户自助下单（无归属客服）落 NULL。
 	responsibleAdminID := adminID
 	if in.ResponsibleAdminID > 0 && in.ResponsibleAdminID != adminID {
 		operator, adminErr := tx.Admin.Query().Where(
@@ -812,17 +812,17 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if updated != 1 {
 		return nil, errConflict
 	}
-	// 优惠顺序（§10.4）：商品规格价 → 会员折扣 → 经授权人工调整；下单即落 manual_adjust_cents，
-	// 后续改价在其上覆盖（§4.2-02）。
+	// 优惠顺序：商品规格价 → 会员折扣 → 经授权人工调整；下单即落 manual_adjust_cents，
+	// 后续改价在其上覆盖。
 	subtotal := sku.UnitPriceCents * in.Quantity
-	// 会员权益一次读出（§10.1-02 / §10.4 / P1-11 权益消费点）：折扣与「专属通道 / 会员优先派单」
+	// 会员权益一次读出（P1-11 权益消费点）：折扣与「专属通道 / 会员优先派单」
 	// 共用同一份快照，避免权益页宣称已生效而下单路径根本没读过该字段。
 	privilege, err := memberPrivilegeFlags(ctx, tx.Client(), customer.ID)
 	if err != nil {
 		return nil, err
 	}
 	discountBps := privilege.DiscountBps
-	// §4.2-06：单笔折扣上限复核（配置缺失表示不限制）。
+	// ：单笔折扣上限复核（配置缺失表示不限制）。
 	if err = ensureOrderDiscountWithinLimit(discountBps, orderDiscountLimitBps(ctx, tx.Client())); err != nil {
 		return nil, err
 	}
@@ -832,19 +832,19 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		return nil, err
 	}
 	if payable <= 0 {
-		// §4.6：普通服务单折后应付为零时拦截。
+		// ：普通服务单折后应付为零时拦截。
 		return nil, fmt.Errorf("%w：该订单会员折扣后应付金额为零，无法报单", errInvalidInput)
 	}
-	// §4.6-02：订单价明显偏离 SKU 标准价时的提醒 / 原因必填。
+	// ：订单价明显偏离 SKU 标准价时的提醒 / 原因必填。
 	deviation, err := evaluatePriceDeviation(ctx, tx.Client(), subtotal, payable, in.PriceDeviationReason)
 	if err != nil {
 		return nil, err
 	}
-	// §4.2-06：显式选择站内收款方式时复核资金可用余额，避免下单成功而收款才失败。
+	// ：显式选择站内收款方式时复核资金可用余额，避免下单成功而收款才失败。
 	if err = ensureOrderFundsAvailable(ctx, tx.Client(), customer.ID, payable, in.PaymentChannel); err != nil {
 		return nil, err
 	}
-	// §4.6 报单校验：指定陪玩须存在且资质合格（未通过考核或已停用不允许选择）。
+	// 报单校验：指定陪玩须存在且资质合格（未通过考核或已停用不允许选择）。
 	if in.PreferredPlayerID > 0 {
 		player, playerErr := tx.EsportsPlayer.Get(ctx, in.PreferredPlayerID)
 		if playerErr != nil {
@@ -853,7 +853,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		if player.Qualification != esportsplayer.QualificationQualified {
 			return nil, fmt.Errorf("%w：指定陪玩未通过考核或已停用，不可指定", errInvalidInput)
 		}
-		// §4.6 预约冲突与资源复核：带预约开始时间时按派单同一套容量口径复核该陪玩能否占位。
+		// 预约冲突与资源复核：带预约开始时间时按派单同一套容量口径复核该陪玩能否占位。
 		if err = checkAppointmentCapacity(ctx, tx, player, sku, in.RequestedStartAt, now); err != nil {
 			return nil, err
 		}
@@ -867,7 +867,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		entryPoint = normalizeEntryPoint(in.EntryPoint, principal)
 	}
 	// 下单时固定适用结单表单（包括无模板）；后续发布新版本不改变旧单结单要求。
-	// §3.4-07：探针带上订单类型字段，保证 scope=order_type 的模板在报单环节即可命中。
+	// ：探针带上订单类型字段，保证 scope=order_type 的模板在报单环节即可命中。
 	closeProbe := &ent.EsportsOrder{SkuID: sku.ID, PayableCents: payable,
 		AppointmentStatus: esportsorder.AppointmentStatusInstant}
 	if in.RequestedStartAt != nil {
@@ -877,7 +877,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if err != nil {
 		return nil, err
 	}
-	// §3.4-01：仅在启用内置结单模板时兜底锁定它，默认不改变存量「无模板」口径。
+	// ：仅在启用内置结单模板时兜底锁定它，默认不改变存量「无模板」口径。
 	if closeTemplate == nil && closeFormRequireServiceResult(ctx, tx.Client()) {
 		if closeTemplate, err = ensureBuiltinCloseFormTemplate(ctx, tx.Client()); err != nil {
 			return nil, err
@@ -885,20 +885,20 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	}
 	creator := tx.EsportsOrder.Create().SetOrderNo(orderNo).SetCustomerID(customer.ID).
 		SetSkuID(sku.ID).
-		// §15.6-03：下单即固定商品 / 规格名快照，之后改 SKU 标题或规格名不追溯历史单。
+		// ：下单即固定商品 / 规格名快照，之后改 SKU 标题或规格名不追溯历史单。
 		SetSkuCode(sku.Code).SetSkuName(sku.Title).
 		SetChannelSource(esportsorder.ChannelSource(customer.Source.String())).SetEntryPoint(entryPoint).
 		SetQuantity(in.Quantity).SetUnitPriceCents(sku.UnitPriceCents).
 		SetMinUnitPriceCents(sku.MinUnitPriceCents).SetAdjustmentApprovalBp(sku.AdjustmentApprovalBp).
 		SetDiscountCents(discount).SetManualAdjustCents(in.ManualAdjustCents).SetPayableCents(payable).
-		// §10.4-08：会员等级与折扣基点快照，事后改折扣规则不追溯。
+		// ：会员等级与折扣基点快照，事后改折扣规则不追溯。
 		SetMemberLevelCode(customer.MemberLevelCode).SetMemberDiscountBps(discountBps).
-		// §15.3-01 / §15.5-01 / §5.3-05：承诺量按「Σ 每席承诺量 × 份数」落库。
+		// ：承诺量按「Σ 每席承诺量 × 份数」落库。
 		SetPromisedServiceUnits(promisedUnits).SetPerSeatServiceUnits(perSeatUnits).
 		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(sku.RequiredLevel).
 		SetServiceDurationMinutes(sku.ServiceDurationMinutes).
 		SetPaymentDeadline(deadline).SetCloseFormTemplateLockedAt(now.UTC())
-	// §5.1-02：客户自助下单且客户无归属客服时负责客服为 NULL，订单进公共池；建单人同样留空。
+	// ：客户自助下单且客户无归属客服时负责客服为 NULL，订单进公共池；建单人同样留空。
 	if adminID > 0 {
 		creator = creator.SetCreatedByAdminID(adminID)
 	}
@@ -908,14 +908,14 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if closeTemplate != nil {
 		creator = creator.SetCloseFormTemplateID(closeTemplate.ID)
 	}
-	// §15.5-02：报单时把规格组席位定义（含逐席承诺量）快照进订单 seat_roles（后续改规格不影响历史单）。
+	// ：报单时把规格组席位定义（含逐席承诺量）快照进订单 seat_roles（后续改规格不影响历史单）。
 	if len(seatSnapshot) > 0 {
 		creator = creator.SetSeatRoles(seatSnapshot)
 	}
 	if in.PreferredPlayerID > 0 {
 		creator = creator.SetPreferredPlayerID(in.PreferredPlayerID)
 	}
-	// 带预约开始时间即落为预约单（§3.2 / §5.5）：写档期提案与确认时限（缺省 24 小时且不晚于开始时间），
+	// 带预约开始时间即落为预约单：写档期提案与确认时限（缺省 24 小时且不晚于开始时间），
 	// 档期确认前不得派单；与 rescheduleOrder 的提案字段口径一致。
 	if in.RequestedStartAt != nil {
 		startAt := in.RequestedStartAt.UTC()
@@ -943,7 +943,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if in.RequestedStartAt != nil {
 		details["requested_start_at"] = in.RequestedStartAt.UTC().Format(time.RFC3339)
 	}
-	// §4.2-02：人工调整的原因与指定负责客服留痕。
+	// ：人工调整的原因与指定负责客服留痕。
 	if in.ManualAdjustCents != 0 {
 		details["manual_adjust_cents"] = in.ManualAdjustCents
 		details["manual_adjust_reason"] = strings.TrimSpace(in.ManualAdjustReason)
@@ -951,17 +951,17 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if responsibleAdminID != adminID {
 		details["responsible_admin_id"] = responsibleAdminID
 	}
-	// §4.6-02：明显偏离 SKU 标准价时把偏离度与原因写进订单事件（提醒 + 留痕）。
+	// ：明显偏离 SKU 标准价时把偏离度与原因写进订单事件（提醒 + 留痕）。
 	if deviation != nil {
 		details["price_deviation_bp"] = deviation.DeviationBp
 		details["price_deviation_standard_cents"] = deviation.StandardCents
 		details["price_deviation_reason"] = deviation.Reason
 	}
-	// §4.6-04：有未结清欠款时记录提醒金额。
+	// ：有未结清欠款时记录提醒金额。
 	if debtRemind {
 		details["debt_remind_cents"] = debtCents
 	}
-	// §10.1-02 / P1-11：会员权益在下单路径被真实消费并留痕——「专属通道」「会员优先派单」
+	// P1-11：会员权益在下单路径被真实消费并留痕——「专属通道」「会员优先派单」
 	// 作为派单优先级标记写入订单事件，供派单置顶与客服识别（权益页的「已生效」由此可追溯）。
 	if privilege.DedicatedChannel || privilege.PriorityDispatch {
 		details["member_dispatch_priority"] = map[string]bool{
@@ -969,7 +969,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 			"priority_dispatch": privilege.PriorityDispatch,
 		}
 	}
-	// §5.1-02：客户自助下单的订单事件归到客户身份（无客服主体），其余仍记客服操作人。
+	// ：客户自助下单的订单事件归到客户身份（无客服主体），其余仍记客服操作人。
 	actorType, actorID := "admin", strconv.Itoa(adminID)
 	if adminID < 1 {
 		actorType, actorID = "customer", strconv.Itoa(customer.ID)
@@ -979,7 +979,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		SetDetails(details).Save(ctx); err != nil {
 		return nil, err
 	}
-	// §4.6-04 提醒档：欠款提醒写一条事务外盒，供客服工作台催收；不阻断下单。
+	// 提醒档：欠款提醒写一条事务外盒，供客服工作台催收；不阻断下单。
 	if debtRemind {
 		if _, err = tx.EsportsOutbox.Create().SetEventKey("order.debt_remind:" + orderNo).
 			SetEventType("order.debt_remind").SetAggregateRef(orderNo).
@@ -989,7 +989,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 			return nil, err
 		}
 	}
-	// §4.6-02 提醒档：偏离标准价的独立提醒外盒（关闭强制填写时也会落；订单事件已按版本唯一，
+	// 提醒档：偏离标准价的独立提醒外盒（关闭强制填写时也会落；订单事件已按版本唯一，
 	// 故提醒走事务外盒而非第二条订单事件）。
 	if deviation != nil {
 		if _, err = tx.EsportsOutbox.Create().SetEventKey("order.price_deviation_flagged:" + orderNo).

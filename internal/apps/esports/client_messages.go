@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客户端站内消息中心（§通知闭环）：
+// 客户端站内消息中心：
 // 通知投递侧的寻址约定是 customer:<customer_id> / player:<player_id>（见
 // notification_recipients.go），本文件按同一地址读取 ent.Message，补齐客户与陪玩的
 // 「可读」闭环。列表只返回展示必需字段，事件载荷 / extra 等内部字段不出网关。

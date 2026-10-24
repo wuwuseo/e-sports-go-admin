@@ -6,7 +6,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// §18-02：功能集配置声明的另一半——自检必须暴露「声明了但没落库」的配置键。
+// ：功能集配置声明的另一半——自检必须暴露「声明了但没落库」的配置键。
 // apps.Provision 只在键被声明时建 SystemConfig 行；行缺失（Provision 未执行、库被重置、
 // 行被手工删除）时后台无法配置该键，运维只能手写数据库，因此必须在上线自检里可见。
 func TestReadinessReportsDeclaredConfigRowsMissing(t *testing.T) {

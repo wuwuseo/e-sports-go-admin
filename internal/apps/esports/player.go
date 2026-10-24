@@ -62,12 +62,12 @@ type playerUpdateInput struct {
 	DisplayName   string `json:"display_name"`
 	Qualification string `json:"qualification"`
 	Presence      string `json:"presence"`
-	// 接单上限（§5.5 / §6.4）：0 = 不限。
+	// 接单上限：0 = 不限。
 	DailyLimit      int `json:"daily_limit"`
 	ConcurrentLimit int `json:"concurrent_limit"`
-	// 接单游戏分区（§5.5 / §6.4）：空表示不限。
+	// 接单游戏分区：空表示不限。
 	Games []string `json:"games"`
-	// §6.4-06 五项接单配置：指针表示「未传即不修改」（管理端表单不会因漏字段清空陪玩自设配置）。
+	// 五项接单配置：指针表示「未传即不修改」（管理端表单不会因漏字段清空陪玩自设配置）。
 	ServiceSlotStartMinute   *int   `json:"service_slot_start_minute"`
 	ServiceSlotEndMinute     *int   `json:"service_slot_end_minute"`
 	AutoOnline               *bool  `json:"auto_online"`
@@ -87,7 +87,7 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 		!validQualification || !validPresence || in.DailyLimit < 0 || in.ConcurrentLimit < 0 {
 		return nil, errInvalidInput
 	}
-	// §6.1：实名认证通过前不得将资格置为合格。
+	// ：实名认证通过前不得将资格置为合格。
 	if err := ensurePlayerQualificationAllowed(ctx, db, id, esportsplayer.Qualification(in.Qualification)); err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 		SetPresence(esportsplayer.Presence(in.Presence)).
 		SetDailyLimit(in.DailyLimit).SetConcurrentLimit(in.ConcurrentLimit).
 		SetGames(in.Games)
-	// §6.4-06：五项接单配置（未传字段不覆盖）。
+	// ：五项接单配置（未传字段不覆盖）。
 	update, err := applyPlayerAcceptConfig(update, playerAcceptConfig{
 		ServiceSlotStartMinute:   in.ServiceSlotStartMinute,
 		ServiceSlotEndMinute:     in.ServiceSlotEndMinute,
@@ -111,7 +111,7 @@ func updatePlayer(ctx context.Context, db *ent.Client, id int, in playerUpdateIn
 	if err != nil {
 		return nil, err
 	}
-	// §6.4：管理端把陪玩置为在线时同样写入心跳基线，超时任务才能据此判断失联。
+	// ：管理端把陪玩置为在线时同样写入心跳基线，超时任务才能据此判断失联。
 	if in.Presence == "online" {
 		update.SetLastHeartbeatAt(time.Now().UTC())
 	}
@@ -271,13 +271,13 @@ type publicPlayerView struct {
 	Presence      string   `json:"presence"`
 	Online        bool     `json:"online"`
 	// Bookable 表示当前时刻是否真正可接单：在线连接健康 ∩ 服务时段 ∩ 固排时段 ∩
-	// 并发 / 每日接单容量（§6.4-06）。客户端据此决定是否展示「立即下单」，
+	// 并发 / 每日接单容量。客户端据此决定是否展示「立即下单」，
 	// 不能再用 Online 代替（在线 ≠ 可接单）。
 	Bookable bool `json:"bookable"`
 }
 
 // listPublicPlayers 陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩；game 非空时按游戏分区过滤，
-// games 为空表示不限分区（§6.4 缺省口径）。
+// games 为空表示不限分区（缺省口径）。
 //
 // 保留既有签名（其余调用方与既有回归测试沿用）；筛选逻辑统一收敛到 listPublicPlayersByProps，
 // 由 publicPlayers 按装修 props 传入 game / level / online / bookable。
@@ -308,7 +308,7 @@ func setPlayerPresence(ctx context.Context, db *ent.Client, playerID int, online
 		presence = esportsplayer.PresenceOnline
 	}
 	update := db.EsportsPlayer.Update().Where(esportsplayer.IDEQ(playerID)).SetPresence(presence)
-	// §6.4：上线即写入心跳基线，客户端失联后由超时任务接管自动离线。
+	// ：上线即写入心跳基线，客户端失联后由超时任务接管自动离线。
 	if online {
 		update.SetLastHeartbeatAt(time.Now().UTC())
 	} else {
@@ -325,7 +325,7 @@ func setPlayerPresence(ctx context.Context, db *ent.Client, playerID int, online
 	return db.EsportsPlayer.Get(ctx, playerID)
 }
 
-// playerPresenceLabel 把 presence 枚举翻译成可直接展示的中文状态文案（§6.4-01 / P1-01）。
+// playerPresenceLabel 把 presence 枚举翻译成可直接展示的中文状态文案（P1-01）。
 //
 // 只有 offline 才叫「已下线」；心跳超时且存在在途订单的陪玩落 protected_abnormal，
 // 语义是「连接异常（受保护）」——他仍在履约，前端不得展示成已下线。
@@ -343,13 +343,13 @@ func playerPresenceLabel(presence esportsplayer.Presence) string {
 type playerDashboardView struct {
 	Presence string `json:"presence"`
 	// PresenceLabel 是 presence 的可直接展示文案（在线 / 已下线 / 连接异常（受保护）），
-	// 前端应以此字段渲染状态，不要用 online 布尔值自行拼「已下线」（§6.4-01）。
+	// 前端应以此字段渲染状态，不要用 online 布尔值自行拼「已下线」。
 	PresenceLabel     string `json:"presence_label"`
 	Online            bool   `json:"online"`
 	PendingInvites    int    `json:"pending_invites"`
 	ActiveOrders      int    `json:"active_orders"`
 	TodayCatfoodCents int64  `json:"today_catfood_cents"`
-	// 可提现猫粮余额（§6.3 收入状态：待结算 / 已结算可提现 / 已提现）。
+	// 可提现猫粮余额（收入状态：待结算 / 已结算可提现 / 已提现）。
 	CatfoodBalanceCents int64 `json:"catfood_balance_cents"`
 }
 
@@ -375,7 +375,7 @@ func playerOrderIDs(ctx context.Context, db *ent.Client, playerID int) ([]int, e
 }
 
 // playerDashboard 陪玩端首页：在线状态、待接邀请数、进行中订单数、当日猫粮收入。
-// ponytail: 收入口径简化（未接入 §12 分成），当日口径用 UTC 自然日。
+// ponytail: 收入口径简化（未接入 分成），当日口径用 UTC 自然日。
 func playerDashboard(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*playerDashboardView, error) {
 	player, err := db.EsportsPlayer.Get(ctx, playerID)
 	if err != nil {
@@ -517,7 +517,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 			return err
 		}
 	}
-	// 提前查订单：接受时校验分区 / 等级（§5.5），拒绝时用于回退判断。
+	// 提前查订单：接受时校验分区 / 等级，拒绝时用于回退判断。
 	order, err := tx.EsportsOrder.Get(ctx, seat.OrderID)
 	if err != nil {
 		return err
@@ -530,7 +530,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 			order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance {
 			return errConflict
 		}
-		// §5.5：接受邀请必须复核资质与在线状态 —— 邀请发出后陪玩可能已被停资格、
+		// ：接受邀请必须复核资质与在线状态 —— 邀请发出后陪玩可能已被停资格、
 		// 自动离线或转保护异常，此时不得再让其占位。
 		if player.Qualification != esportsplayer.QualificationQualified ||
 			player.Presence == esportsplayer.PresenceProtectedAbnormal ||
@@ -592,7 +592,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 		if err != nil {
 			return err
 		}
-		// §5.9：首次有效接单的时间点（只写一次）。
+		// ：首次有效接单的时间点（只写一次）。
 		if _, err = markOrderTimelineIn(ctx, tx, seat.OrderID, timelineFirstAccepted, now); err != nil {
 			return err
 		}
@@ -602,7 +602,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 			SetDetails(map[string]interface{}{"seat_index": seat.SeatIndex}).Save(ctx); err != nil {
 			return err
 		}
-		// §5.9-01：全部席位就绪 = 「可以开工」，写独立事件与 ready_to_start_at（只写一次）。
+		// ：全部席位就绪 = 「可以开工」，写独立事件与 ready_to_start_at（只写一次）。
 		if _, err = markOrderReadyToStartIn(ctx, tx, seat.OrderID, newVersion, now); err != nil {
 			return err
 		}
@@ -620,7 +620,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 	if err != nil {
 		return err
 	}
-	// 退回待派单：优先通知已开过窗时直接释放到大厅，否则按名单重新开窗（§5.4 业务口径）。
+	// 退回待派单：优先通知已开过窗时直接释放到大厅，否则按名单重新开窗（业务口径）。
 	if targetStatus == esportsorder.FulfillmentStatusPendingDispatch {
 		if err = onOrderEnteredPendingDispatch(ctx, tx, seat.OrderID, now); err != nil {
 			return err
@@ -639,7 +639,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 
 // listGrabHall 抢单大厅：可抢的 grabbing 单席位订单，外加「优先通知中且本人被通知」的待派单单席位订单。
 // 优先通知窗口内的订单对未被通知的陪玩**不可见**（名单内独占）；窗口超时、名单内全部拒绝或客服提前
-// 释放后订单转 grabbing，才对所有人开放（§5.4 业务口径）。
+// 释放后订单转 grabbing，才对所有人开放（业务口径）。
 func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Time) ([]*ent.EsportsOrder, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
@@ -732,7 +732,7 @@ func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Ti
 	return visible, nil
 }
 
-// playerGrabHallItem 是抢单大厅条目（§6.1-03 / P1-06）：**专用最小信息视图**，
+// playerGrabHallItem 是抢单大厅条目（P1-06）：**专用最小信息视图**，
 // 不再是完整订单实体。只暴露「可见即可抢」所必需的字段：订单号、商品/规格名、游戏分区、
 // 席位、档期与时长、单价与总价、等级要求与优先通知截止时间。
 //
@@ -819,9 +819,9 @@ func listGrabHallItems(ctx context.Context, db *ent.Client, playerID int, now ti
 
 // grabPlayerOrder 抢单：合格且「可抢新单」的陪玩抢下 grabbing 单席位订单的唯一 open 席位。
 // 可抢新单 = 非 protected_abnormal 且（online 或 心跳新鲜）：人工下线但连接正常仍可抢，
-// 自动离线（心跳超时）与连接异常（protected_abnormal）禁止抢新单（§6.4）。
+// 自动离线（心跳超时）与连接异常（protected_abnormal）禁止抢新单。
 //
-// §5.6-04：抢单成功写 order.seat_accepted 通知外盒（经 order.* 收件人解析定向通知客户与责任客服）；
+// ：抢单成功写 order.seat_accepted 通知外盒（经 order.* 收件人解析定向通知客户与责任客服）；
 // 落败（席位/订单已被他人抢下）时在事务回滚后补一条 order.grab_attempt_lost 定向通知本人，
 // 使「谁抢过本单」可查。
 func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int, now time.Time) (*ent.EsportsOrder, error) {
@@ -832,7 +832,7 @@ func grabPlayerOrder(ctx context.Context, db *ent.Client, playerID, orderID int,
 	return order, err
 }
 
-// recordGrabAttemptLost 记录一次落败的抢单尝试（§5.6-04）。event_key 按 (订单号, 陪玩) 去重，
+// recordGrabAttemptLost 记录一次落败的抢单尝试。event_key 按 (订单号, 陪玩) 去重，
 // 同一人对同一单只留一条痕迹；写失败只记日志，不影响抢单主流程。
 func recordGrabAttemptLost(ctx context.Context, db *ent.Client, order *ent.EsportsOrder, playerID int) {
 	if order == nil || playerID < 1 {
@@ -925,7 +925,7 @@ func grabPlayerOrderTx(ctx context.Context, db *ent.Client, playerID, orderID in
 	).SetPlayerID(playerID).SetStatus(esportsdispatchseat.StatusAccepted).
 		SetSource(esportsdispatchseat.SourceGrab).SetRespondedAt(now.UTC()).
 		SetCommissionRuleLockedAt(now.UTC()).ClearExpiresAt().AddVersion(1)
-	// §5.9-01：抢单不是「发出邀请」，不写 invited_at；但同样按订单档期落本席服务时段。
+	// ：抢单不是「发出邀请」，不写 invited_at；但同样按订单档期落本席服务时段。
 	update = applySeatServiceSlot(update, order)
 	if rule != nil {
 		update.SetCommissionRuleID(rule.ID)
@@ -960,7 +960,7 @@ func grabPlayerOrderTx(ctx context.Context, db *ent.Client, playerID, orderID in
 	if changed != 1 {
 		return order, errConflict
 	}
-	// §5.9：首次有效接单的时间点（只写一次）。
+	// ：首次有效接单的时间点（只写一次）。
 	if _, err = markOrderTimelineIn(ctx, tx, orderID, timelineFirstAccepted, now); err != nil {
 		return nil, err
 	}
@@ -974,11 +974,11 @@ func grabPlayerOrderTx(ctx context.Context, db *ent.Client, playerID, orderID in
 		SetDetails(map[string]interface{}{"seat_index": 1, "from_priority_notice": fromNotice}).Save(ctx); err != nil {
 		return nil, err
 	}
-	// §5.9-01：单席抢单成功即全部席位就绪，「可以开工」写独立事件与 ready_to_start_at（只写一次）。
+	// ：单席抢单成功即全部席位就绪，「可以开工」写独立事件与 ready_to_start_at（只写一次）。
 	if _, err = markOrderReadyToStartIn(ctx, tx, orderID, eventVersion, now); err != nil {
 		return nil, err
 	}
-	// §5.6-04：抢单成功写通知外盒，经 order.* 收件人解析定向通知客户与责任客服。
+	// ：抢单成功写通知外盒，经 order.* 收件人解析定向通知客户与责任客服。
 	if _, err = tx.EsportsOutbox.Create().
 		SetEventKey("order.seat_accepted:" + order.OrderNo + ":" + strconv.Itoa(playerID)).
 		SetEventType("order.seat_accepted").SetAggregateRef(order.OrderNo).
@@ -1088,7 +1088,7 @@ func startPlayerService(ctx context.Context, db *ent.Client, playerID, orderID i
 	if err != nil {
 		return nil, err
 	}
-	// §5.9：开工（首个成员开始服务）的时间点（只写一次）。
+	// ：开工（首个成员开始服务）的时间点（只写一次）。
 	if _, err = markOrderTimelineIn(ctx, tx, orderID, timelineServiceStarted, now); err != nil {
 		return nil, err
 	}
@@ -1104,7 +1104,7 @@ func startPlayerService(ctx context.Context, db *ent.Client, playerID, orderID i
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// adminStoppedSeatIndexes 从只增事件派生「当前处于客服记名停工状态」的席位集合（§6.2-02）。
+// adminStoppedSeatIndexes 从只增事件派生「当前处于客服记名停工状态」的席位集合。
 //
 // 口径：按事件 ID 顺序重放 order.service_paused / order.service_resumed，
 // 只有 actor_type=admin 的暂停才把席位标记为「记名停工」；任何一次恢复都会清掉标记。
@@ -1134,7 +1134,7 @@ func adminStoppedSeatIndexes(ctx context.Context, db *ent.Client, orderID int) (
 	return stopped, nil
 }
 
-// transitionToPendingCloseOnAdminStop 客服记名停工后判定整单是否进入待结单（§6.2-02）。
+// transitionToPendingCloseOnAdminStop 客服记名停工后判定整单是否进入待结单。
 //
 // 口径（可验收断言）：
 //   - 仅当订单仍在 in_service 时评估；
@@ -1387,7 +1387,7 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 		SetDetails(details).Save(ctx); err != nil {
 		return nil, err
 	}
-	// §6.1-15：服务段结束即进入待结算，写一条 settlement.* 生产事件定向通知该陪玩，
+	// ：服务段结束即进入待结算，写一条 settlement.* 生产事件定向通知该陪玩，
 	// 让「服务完成 → 待结算」在陪玩端消息中心可见（结算周期单由结算模块按周期生成）。
 	if _, err = tx.EsportsOutbox.Create().
 		SetEventKey("settlement.segment_finished:" + strconv.Itoa(segment.ID)).
@@ -1417,7 +1417,7 @@ func finishPlayerService(ctx context.Context, db *ent.Client, playerID, orderID 
 			return nil, err
 		}
 	}
-	// §13.2：差异超过严重阈值时自动建立售后单（channel=system，来源陪玩为该成员），
+	// ：差异超过严重阈值时自动建立售后单（channel=system，来源陪玩为该成员），
 	// 让客服在统一售后状态机内核实与处置；同订单同问题已有进行中售后单时跳过（幂等）。
 	if durationMismatch && serviceDurationMismatch(systemSeconds, reportedSeconds,
 		serviceSevereSeconds(ctx, tx.Client())) {

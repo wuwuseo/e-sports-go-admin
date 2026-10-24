@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// 结单审批流（§3.4）：节点串行可增删，每个节点配审批角色（admin 任一管理员 / super_admin 超级管理员）
+// 结单审批流：节点串行可增删，每个节点配审批角色（admin 任一管理员 / super_admin 超级管理员）
 // 与超时策略；涉及资金 / 争议的节点禁止自动通过。
 // 订单进入待复核时建立一条审批进度 `EsportsCloseApproval`，审批逐个节点推进，末节点通过才真正结单。
 // 未配置审批流时回落结单规则的金额复核阈值，行为等价于内置的单节点「管理员复核」（flow_id = 0）。
@@ -62,7 +62,7 @@ func normalizeCloseApprovalFlowInput(in closeApprovalFlowInput) (closeApprovalFl
 			return in, fmt.Errorf("%w：审批节点须从 1 连续递增，且名称 / 角色 / 超时（0~720 小时）合法", errInvalidInput)
 		}
 		if node.InvolvesFunds && node.AutoPassOnTimeout {
-			return in, fmt.Errorf("%w：涉及资金 / 争议的节点不能自动通过（§3.4）", errInvalidInput)
+			return in, fmt.Errorf("%w：涉及资金 / 争议的节点不能自动通过", errInvalidInput)
 		}
 		nodes = append(nodes, node)
 	}
@@ -168,7 +168,7 @@ func activateCloseApprovalFlow(ctx context.Context, db *ent.Client, id int) (*en
 }
 
 // rollbackCloseApprovalFlow 回滚到指定版本：以该行配置为模板新建 max version+1 的直接 active 行，
-// 并把原 active 转 history（原历史行不可变，§12.4）。
+// 并把原 active 转 history（原历史行不可变，）。
 func rollbackCloseApprovalFlow(ctx context.Context, db *ent.Client, id, adminID int) (*ent.EsportsCloseApprovalFlow, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -435,7 +435,7 @@ func approveCloseApprovalIn(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 		if autoPassed {
 			actorType = "system"
 		}
-		// §3.4-03：复核通过也要在结单留痕里带上「已查看凭证附件 + 复核人」，
+		// ：复核通过也要在结单留痕里带上「已查看凭证附件 + 复核人」，
 		// 凭证集合在结单申请环节已被强制确认过，这里按订单服务段重新汇总落库。
 		extra := map[string]interface{}{"viewed_by_admin_id": adminID}
 		if reviewed, err := serviceEvidenceAttachmentIDs(ctx, tx.Client(), order.ID); err != nil {

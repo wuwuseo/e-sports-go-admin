@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsWithdrawalPayout 是提现审核通过后的打款执行单（§11.2 补全）：
+// EsportsWithdrawalPayout 是提现审核通过后的打款执行单（补全）：
 // 提现申请 → 财务审核通过（approved）后，落账拆成明确阶段：财务提交打款执行（pay_requested），
 // 随后标记打款成功（paid，猫粮已出账 + 到账时间 + 打款人）或失败（pay_failed，退回可重试）。
 // 提现单自身状态保持 approved，直到打款成功才置为 paid。
@@ -25,7 +25,7 @@ func (EsportsWithdrawalPayout) Fields() []ent.Field {
 		field.String("transaction_no").NotEmpty().MaxLen(128).StructTag(`json:"transaction_no"`),
 		// 实际打款金额（分），须等于提现单 net_cents。
 		field.Int64("amount_cents").Positive().StructTag(`json:"amount_cents"`),
-		// 完税凭证（§11.2），打款成功后回填。
+		// 完税凭证，打款成功后回填。
 		field.String("tax_ref").MaxLen(128).Default("").StructTag(`json:"tax_ref"`),
 		field.Enum("status").Values("pay_requested", "paid", "pay_failed").
 			Default("pay_requested").StructTag(`json:"status"`),

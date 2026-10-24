@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/ent/esportspaymentintent"
 )
 
-// 客户自助端收款闭环（§4.3）：客户读取启用的收款方式与财务审核通过的收款账户，
+// 客户自助端收款闭环：客户读取启用的收款方式与财务审核通过的收款账户，
 // 为订单上传转账/扫码截图凭证生成「待核验收款」，落入既有 offline_payment 财务核验链路；
 // 并可查询核验进度（待核验 / 已核销 / 被驳回）。
 
@@ -48,7 +48,7 @@ type customerPaymentMethodView struct {
 	Accounts []customerPaymentAccountView `json:"accounts"`
 }
 
-// listCustomerPaymentMethods 客户读取当前启用的收款方式与财务审核通过的收款账户（§4.3）。
+// listCustomerPaymentMethods 客户读取当前启用的收款方式与财务审核通过的收款账户。
 // 后台关闭的外部收款方式不返回；未通过审核（待审核 / 驳回 / 停用）的账户不返回。
 func listCustomerPaymentMethods(ctx context.Context, db *ent.Client) ([]customerPaymentMethodView, error) {
 	channels, err := listPaymentChannels(ctx, db)
@@ -59,7 +59,7 @@ func listCustomerPaymentMethods(ctx context.Context, db *ent.Client) ([]customer
 	for _, channel := range channels {
 		enabled[channel.Channel] = channel.Enabled
 	}
-	// 站内方式（余额）同样受后台启停约束（§4.3-08）：停用后不再作为可选收款方式。
+	// 站内方式（余额）同样受后台启停约束：停用后不再作为可选收款方式。
 	// 储值卡（stored_value_card）已随该功能下线（2026-10-20），不再作为客户可选收款方式下发。
 	methods := []customerPaymentMethodView{
 		{Channel: "customer_balance", Name: customerPaymentMethodName["customer_balance"], Kind: "internal", Enabled: enabled["customer_balance"], Accounts: []customerPaymentAccountView{}},
@@ -149,7 +149,7 @@ func matchesEvidenceUploader(uploadedBy, subject string) bool {
 	return false
 }
 
-// adminUploadSubject 返回管理端上传附件的归属标识 "admin:<uid>"（§4.2 客服凭证归属可追溯）。
+// adminUploadSubject 返回管理端上传附件的归属标识 "admin:<uid>"（客服凭证归属可追溯）。
 func adminUploadSubject(ctx context.Context, db *ent.Client, adminID int) (string, error) {
 	if adminID < 1 {
 		return "", errForbidden
@@ -161,7 +161,7 @@ func adminUploadSubject(ctx context.Context, db *ent.Client, adminID int) (strin
 	return "admin:" + operator.UID, nil
 }
 
-// customerPaymentProofInput 客户自助提交付款凭证入参（§4.3）。
+// customerPaymentProofInput 客户自助提交付款凭证入参。
 type customerPaymentProofInput struct {
 	AccountID             int    `json:"account_id"`
 	TransactionNo         string `json:"transaction_no"`
@@ -227,7 +227,7 @@ func ensureOrderPaymentIntent(ctx context.Context, tx *ent.Tx, order *ent.Esport
 	return intent, nil
 }
 
-// submitCustomerOfflinePaymentProof 客户为本人订单提交外部到账凭证（§4.3）：
+// submitCustomerOfflinePaymentProof 客户为本人订单提交外部到账凭证：
 // 校验订单归属与待付款状态 → 校验收款账户（渠道启用 + 账户审核通过）→ 保障支付意图 →
 // 生成「待核验收款」落入既有 offline_payment 财务核验链路。提交人记为客户侧（无归属客服自审限制）。
 func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, customer *ent.EsportsCustomer,
@@ -279,15 +279,15 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 	if in.AmountCents < order.PayableCents {
 		return nil, errInvalidInput
 	}
-	// §15.7-01：商品下架后直接拒绝发起收款，不生成收款单 / 支付意图。
+	// ：商品下架后直接拒绝发起收款，不生成收款单 / 支付意图。
 	if err = ensureOrderSkuOnSale(ctx, db, order); err != nil {
 		return nil, err
 	}
-	// §4.3-05：大额订单只允许对公转账。
+	// ：大额订单只允许对公转账。
 	if err = ensureCorporateChannelForAmount(ctx, db, channel, in.AmountCents); err != nil {
 		return nil, err
 	}
-	// 订单级串行化（§8.2-15 / B.3-1）：客户自助提交凭证与客服代提交走同一套「同单是否已有待核验
+	// 订单级串行化（B.3-1）：客户自助提交凭证与客服代提交走同一套「同单是否已有待核验
 	// 凭证」判定，因此必须同样纳入订单级占位——否则「另一路径已核销」与「客户自助提交」可以各自
 	// 读到「待付款、无凭证」，随后都落库，形成「订单已付款 + 仍挂一张待核验凭证」的悬账。
 	// 占位用的 expectedVersion 取自本函数进事务前的订单读，保证守卫的是这段窗口。
@@ -370,7 +370,7 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 	return item, nil
 }
 
-// resetRejectedPaymentProof 把被驳回的到账凭证原地重置为待核验（§4.3 客户补交同一笔转账）：
+// resetRejectedPaymentProof 把被驳回的到账凭证原地重置为待核验（客户补交同一笔转账）：
 // 只刷新支付意图、收款账户、金额与凭证引用，并清空核验结论与核销回填，
 // 凭证单号、创建时间与提交人归属（submitted_by_admin_id，客服提交时保留）保持不变；
 // 驳回结论本身从凭证行上清空，但驳回动作已进管理端审计日志，可按凭证单号回溯。
@@ -408,7 +408,7 @@ type customerPaymentProofView struct {
 	VerifiedAt    *time.Time `json:"verified_at"`
 }
 
-// listCustomerPaymentProofs 客户查询本人订单的收款核验进度（§4.3）：他人订单返回 403。
+// listCustomerPaymentProofs 客户查询本人订单的收款核验进度：他人订单返回 403。
 func listCustomerPaymentProofs(ctx context.Context, db *ent.Client, customerID, orderID int) ([]customerPaymentProofView, error) {
 	if customerID < 1 || orderID < 1 {
 		return nil, errInvalidInput

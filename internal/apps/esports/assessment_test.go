@@ -118,7 +118,7 @@ func TestScoreAssessmentPassAndQualify(t *testing.T) {
 	if _, err := scoreAssessment(ctx, db, assessment.ID, 22, allDimensionScores(100), "越权", now); !errors.Is(err, errForbidden) {
 		t.Fatalf("越权打分未被拦截：%v", err)
 	}
-	// 定级为合格前须实名认证通过（§6.1）。
+	// 定级为合格前须实名认证通过。
 	seedVerifiedIdentity(t, db, player.ID)
 	// 全 100 分，加权总分 100 ≥ 60 通过。
 	passed, err := scoreAssessment(ctx, db, assessment.ID, 11, allDimensionScores(100), "表现优秀", now)
@@ -206,7 +206,7 @@ func TestAssessmentAppeal(t *testing.T) {
 	if _, err := createAppeal(ctx, db, player.ID, assessment.ID, "再来一次", now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复申诉未被拦截：%v", err)
 	}
-	// 复核通过：failed → passed，重放定级；改判同样受实名认证门槛约束（§6.1）。
+	// 复核通过：failed → passed，重放定级；改判同样受实名认证门槛约束。
 	seedVerifiedIdentity(t, db, player.ID)
 	reviewed, err := reviewAppeal(ctx, db, assessment.ID, 11, true, "成绩录入有误", now)
 	if err != nil || reviewed.Status != esportsassessment.StatusPassed || reviewed.AppealStatus != esportsassessment.AppealStatusApproved {

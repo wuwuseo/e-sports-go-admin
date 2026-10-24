@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsRescheduleProposal 是已付款订单的限时改期提案（§3.3）。
+// EsportsRescheduleProposal 是已付款订单的限时改期提案。
 // 已付款订单不再由客服直接改写 requested_start_at，而是先建立一张带时限的提案：
 // pending（待客户与已接单成员逐人确认）→ confirmed（全部通过后生效，档期在同一事务内原子切换并占用）
 // | rejected（任一确认人拒绝）| expired（提案超时，由定时任务收敛）| withdrawn（客服撤回）。
@@ -59,7 +59,7 @@ func (EsportsRescheduleProposal) Indexes() []ent.Index {
 	}
 }
 
-// EsportsRescheduleConfirmation 是改期提案的逐人确认明细（§3.3），只增不改。
+// EsportsRescheduleConfirmation 是改期提案的逐人确认明细，只增不改。
 // 需要确认的两类人各记一条：客户（confirmer_type=customer，confirmer_id=客户 ID）与
 // 订单上每名已接单成员（confirmer_type=player，confirmer_id=陪玩 ID，seat_index 记录所在席位）。
 // 全部为 confirmed 且无 rejected 时提案才生效；任一人 rejected 即刻把提案置 rejected。

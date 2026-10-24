@@ -27,7 +27,7 @@ func parsePathID(c fiber.Ctx, field string) (int, error) {
 	return id, nil
 }
 
-// confirmOrderAppointmentHandler 确认预约档期（§3.2 / §5.5）：档期提案 request → confirmed，
+// confirmOrderAppointmentHandler 确认预约档期：档期提案 request → confirmed，
 // 同一事务内做资源核验；未确认档期的预约单不允许派单。
 func confirmOrderAppointmentHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
@@ -154,7 +154,7 @@ func cancelOrderHandler(c fiber.Ctx) error {
 	}
 	var in struct {
 		Reason string `json:"reason"`
-		// FaultParty 取消责任方（§3.3-08）：customer / player / admin / platform / none，留空按客户方责任。
+		// FaultParty 取消责任方：customer / player / admin / platform / none，留空按客户方责任。
 		FaultParty string `json:"fault_party"`
 	}
 	if err := c.Bind().Body(&in); err != nil {
@@ -167,7 +167,7 @@ func cancelOrderHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// previewCancelOrderHandler 已付款订单取消试算（§3.3 公示取消政策）：返回免费窗口、
+// previewCancelOrderHandler 已付款订单取消试算（公示取消政策）：返回免费窗口、
 // 手续费与应退金额，供客服在取消前向客户公示。
 func previewCancelOrderHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
@@ -186,8 +186,8 @@ func previewCancelOrderHandler(c fiber.Ctx) error {
 	return reply(c, quote)
 }
 
-// rescheduleOrderHandler 未付款订单的直接改期（PUT /admin/orders/:id/appointment，§3.2）。
-// 已付款订单在此被拦截并指向限时改期提案入口（§3.3）：付费档期已被派单席位占用，
+// rescheduleOrderHandler 未付款订单的直接改期（PUT /admin/orders/:id/appointment，）。
+// 已付款订单在此被拦截并指向限时改期提案入口：付费档期已被派单席位占用，
 // 须经客户与已接单成员逐人确认后由提案生效时原子切换。
 func rescheduleOrderHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
@@ -214,7 +214,7 @@ func rescheduleOrderHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// setOrderChannelCostHandler 登记订单渠道成本（§12.1）。
+// setOrderChannelCostHandler 登记订单渠道成本。
 func setOrderChannelCostHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -391,7 +391,7 @@ func walletMutationHandler(adjust bool) fiber.Handler {
 	}
 }
 
-// disposeExpiredAppointmentHandler 处置「已付款待确认档期超时」订单（§5.5-06）：
+// disposeExpiredAppointmentHandler 处置「已付款待确认档期超时」订单：
 // 请求体 {"action":"refund|reschedule","reason":"...","start_at":"RFC3339","expected_version":N}。
 // 路由由 ownedOrderHandler 保护（仅负责客服或超管，P0-12），权限码 esports:orders:appointment_dispose；
 // action=refund 会触发全额退款，故归属边界必须在进入本 handler 之前判完。

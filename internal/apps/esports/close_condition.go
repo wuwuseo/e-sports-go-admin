@@ -16,7 +16,7 @@ import (
 	"go-admin/internal/apps/esports/schematier"
 )
 
-// 结单条件自定义（§3.4）：字段 + 运算符 + 值，支持 AND / OR / NOT 嵌套。
+// 结单条件自定义：字段 + 运算符 + 值，支持 AND / OR / NOT 嵌套。
 // 结单执行（closeOrder）与「结单按钮是否可点」共用同一套求值（checkCloseConditions），
 // 保证条件不满足时既拦截结单、也能在前端把按钮置灰。
 // 结构化条件项（凭证 ≥N、服务时长 / 服务量不为零、无未处理加钟 / 售后）折叠为
@@ -193,7 +193,7 @@ func closeConditionFactsOf(ctx context.Context, db *ent.Client, order *ent.Espor
 	return facts, nil
 }
 
-// closeConditionEvidenceCount 统计订单全部服务段的「服务凭证张数」（§3.4 evidence_count）：
+// closeConditionEvidenceCount 统计订单全部服务段的「服务凭证张数」（evidence_count）：
 // 与 serviceEvidenceAttachmentIDs 同一解析口径，JSON 数组形态（如 [11,12]）按其中的附件 ID
 // 去重后计张数（同一段传两张图算 2 张，跨段重复的 ID 只算 1 张）；
 // 非空但不是合法 JSON 数组的历史文本引用（如 shot-1 / backfill:xxx）整段按 1 张计，
@@ -335,7 +335,7 @@ func closeConditionLeaf(field, operator string, expected float64) schematier.Clo
 	return schematier.CloseConditionNode{Field: field, Operator: operator, Value: &value}
 }
 
-// structuredCloseConditionTree 把结构化条件项折叠为等价条件树（§3.4 默认项），
+// structuredCloseConditionTree 把结构化条件项折叠为等价条件树（默认项），
 // 使「未配置条件树」与「配置条件树」走同一套求值逻辑。无条件项时返回 nil（视为无条件可结单）。
 func structuredCloseConditionTree(conds closeConditions) *schematier.CloseConditionNode {
 	var children []schematier.CloseConditionNode
@@ -363,7 +363,7 @@ func structuredCloseConditionTree(conds closeConditions) *schematier.CloseCondit
 	return &schematier.CloseConditionNode{Op: closeCondOpAnd, Children: children}
 }
 
-// mergeCloseConditionTrees 把默认底线树与自定义条件树按 AND 合并（§3.4）：
+// mergeCloseConditionTrees 把默认底线树与自定义条件树按 AND 合并：
 // 任一侧为 nil 时返回另一侧（默认树无条件项 / 规则未配置条件树，行为与历史一致），
 // 两棵都在时包一个 and 节点，求值仍会递归收集两侧全部叶子，条件状态逐项明细不丢。
 func mergeCloseConditionTrees(defaultTree, customTree *schematier.CloseConditionNode) *schematier.CloseConditionNode {
@@ -390,12 +390,12 @@ type closeConditionStatus struct {
 	Reasons              []string                  `json:"reasons"`
 	Fields               []closeConditionFieldSpec `json:"fields"`
 	Operators            []string                  `json:"operators"`
-	// §3.4-03：结单前必须逐张查看的服务段凭证附件 ID（陪玩上传的图片）。
+	// ：结单前必须逐张查看的服务段凭证附件 ID（陪玩上传的图片）。
 	// 结单接口须原样回传覆盖全部 ID 的 viewed_evidence_attachment_ids，缺一即参数错误。
 	EvidenceAttachmentIDs []int `json:"evidence_attachment_ids"`
 }
 
-// serviceEvidenceAttachmentIDs 汇总订单全部服务段 evidence_ref 中的凭证附件 ID（§3.4-03），
+// serviceEvidenceAttachmentIDs 汇总订单全部服务段 evidence_ref 中的凭证附件 ID，
 // 升序去重返回。仅解析 JSON 数组形态（陪玩上传的图片附件 ID）；历史文本型凭证（如 oss://...）
 // 解析不出附件，不纳入「已查看」强制口径，避免存量单被新规则追溯拦截。
 func serviceEvidenceAttachmentIDs(ctx context.Context, db *ent.Client, orderID int) ([]int, error) {
@@ -448,7 +448,7 @@ func orderCloseConditionStatus(ctx context.Context, db *ent.Client, orderID int)
 	return checkCloseConditions(ctx, db, order, rule)
 }
 
-// checkCloseConditions 按订单生效的结单规则求值结单条件（§3.4）。
+// checkCloseConditions 按订单生效的结单规则求值结单条件。
 // 默认结构化条件树（structuredCloseConditionTree）是硬性底线，永远参与求值；
 // 规则配置了 condition_tree 时与其按 AND 合并（TreeConfigured 仍表示「规则是否配置了条件树」），
 // 因此自定义条件树只能加严、不能删掉「有凭证」「服务量不为零」这类默认底线。
@@ -462,7 +462,7 @@ func checkCloseConditions(ctx context.Context, db *ent.Client, order *ent.Esport
 	}
 	// 默认底线树：由生效规则的结构化条件项折叠而来，无任何默认项时为 nil。
 	tree := structuredCloseConditionTree(conds)
-	// §3.4-03：无论条件树是否配置，都要给出「结单前必须查看」的服务段凭证附件 ID。
+	// ：无论条件树是否配置，都要给出「结单前必须查看」的服务段凭证附件 ID。
 	evidenceIDs, err := serviceEvidenceAttachmentIDs(ctx, db, order.ID)
 	if err != nil {
 		return status, err

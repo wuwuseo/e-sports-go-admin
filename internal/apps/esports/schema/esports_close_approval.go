@@ -15,9 +15,9 @@ type CloseApprovalNode = schematier.CloseApprovalNode
 
 type CloseApprovalStep = schematier.CloseApprovalStep
 
-// EsportsCloseApprovalFlow 是结单审批流（§3.4）：节点串行可增删，每个节点配审批角色与超时策略；
+// EsportsCloseApprovalFlow 是结单审批流：节点串行可增删，每个节点配审批角色与超时策略；
 // 涉及资金 / 争议的节点禁止自动通过。按 全局 / 游戏分区 / SKU 绑定，并可按金额阈值触发。
-// 流不可原地修改：改流＝新增一条递增 version 的新行，旧行转 history（§12.4 同款版本管理）。
+// 流不可原地修改：改流＝新增一条递增 version 的新行，旧行转 history（同款版本管理）。
 type EsportsCloseApprovalFlow struct{ ent.Schema }
 
 func (EsportsCloseApprovalFlow) Fields() []ent.Field {
@@ -48,7 +48,7 @@ func (EsportsCloseApprovalFlow) Indexes() []ent.Index {
 	}
 }
 
-// EsportsCloseApproval 是订单的结单审批进度（§3.4）：一条订单一行，记录当前节点与逐步结果。
+// EsportsCloseApproval 是订单的结单审批进度：一条订单一行，记录当前节点与逐步结果。
 // flow_id = 0 表示由结单规则的金额复核阈值触发的内置单节点「管理员复核」。
 type EsportsCloseApproval struct{ ent.Schema }
 

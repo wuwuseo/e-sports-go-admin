@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsExternalRefund 是外部渠道退款登记（§13 补全）：针对已核销的外部付款订单退款，
+// EsportsExternalRefund 是外部渠道退款登记（补全）：针对已核销的外部付款订单退款，
 // 余额 / 储值卡原路退之外的场景，由财务登记外部退款凭证（渠道 + 流水号 + 金额 + 关联售后/订单），
 // 真实通道退款仍走人工登记，登记后经财务核验执行。幂等：同一外部退款流水号只能登记一次。
 type EsportsExternalRefund struct{ ent.Schema }

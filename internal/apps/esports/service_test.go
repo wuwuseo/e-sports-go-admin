@@ -110,7 +110,7 @@ func saveCustomerOrFail(t *testing.T, db *ent.Client, ownerID int) *ent.EsportsC
 		t.Fatal(err)
 	}
 	// 自助服务（下单/购卡/充值）默认开启：self_order_enabled 缺省 false，测试客户需显式开启，
-	// 否则 ensureCustomerSelfServiceAllowed 会拦截（§13.7 自助入口总开关）。
+	// 否则 ensureCustomerSelfServiceAllowed 会拦截（自助入口总开关）。
 	customer, err = db.EsportsCustomer.UpdateOneID(customer.ID).
 		SetAgeStatus("adult").SetSelfOrderEnabled(true).Save(t.Context())
 	if err != nil {
@@ -119,7 +119,7 @@ func saveCustomerOrFail(t *testing.T, db *ent.Client, ownerID int) *ent.EsportsC
 	return customer
 }
 
-// 报单指定陪玩须资质合格：未通过考核的陪玩被拒，合格陪玩写入订单，未指定时字段为空（§4.6 / §5.4）。
+// 报单指定陪玩须资质合格：未通过考核的陪玩被拒，合格陪玩写入订单，未指定时字段为空。
 func TestPlaceOrderValidatesPreferredPlayer(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_place_order_preferred?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))

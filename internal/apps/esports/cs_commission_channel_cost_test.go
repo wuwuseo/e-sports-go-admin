@@ -14,7 +14,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// 渠道成本与工作室剩余反算（§12.1）：可分基数 = 服务应付 − 陪玩分成 − 渠道成本，
+// 渠道成本与工作室剩余反算：可分基数 = 服务应付 − 陪玩分成 − 渠道成本，
 // 工作室剩余 = 可分基数 − 客服提成，随明细快照。
 func TestCsCommissionChannelCostAndStudioRemainder(t *testing.T) {
 	db := openCsCommissionDB(t, "esports_cs_commission_channel_cost")
@@ -97,7 +97,7 @@ func TestSetOrderChannelCost(t *testing.T) {
 	}
 }
 
-// 退款冲回的舍入尾差单列（§12.1）：多条原明细按比例截断后，尾差归最后一条冲回明细，
+// 退款冲回的舍入尾差单列：多条原明细按比例截断后，尾差归最后一条冲回明细，
 // 使冲回合计与「总原明细金额 × 退款比例」的精确值一致。
 func TestPlayerCommissionReversalTail(t *testing.T) {
 	db := openCsCommissionDB(t, "esports_reversal_tail")

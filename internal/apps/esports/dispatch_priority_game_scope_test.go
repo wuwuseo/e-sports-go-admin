@@ -11,7 +11,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// 优先派单权下一期名单的游戏分区口径（§5.4 / §6.4）：
+// 优先派单权下一期名单的游戏分区口径：
 // 名额是「每个游戏分区」的，候选池必须先按分区收窄，再在分区内取名次；
 // 生成阶段不按服务时段 / 在线快照过滤（可接单性由通知 / 派单阶段判定）。
 
@@ -116,7 +116,7 @@ func TestDispatchPriorityNextPeriodIgnoresServiceSlotAtGeneration(t *testing.T) 
 	_ = second
 }
 
-// games 为空表示不限分区（§6.4 缺省口径）：可进入任意分区的名单。
+// games 为空表示不限分区（缺省口径）：可进入任意分区的名单。
 func TestDispatchPriorityNextPeriodUnlimitedGames(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_priority_game_scope_unlimited")
 	defer db.Close()

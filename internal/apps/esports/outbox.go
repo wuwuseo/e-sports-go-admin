@@ -128,7 +128,7 @@ func outboxBackoff(attempt int) time.Duration {
 	return time.Minute * time.Duration(1<<(attempt-1))
 }
 
-// 业务事件站内信口径（§2.1-05 ①，P0）：
+// 业务事件站内信口径（①，P0）：
 //   - 绝不写 user_uid="" 的全员广播；也绝不把事件载荷序列化进正文；
 //   - 定向投递：载荷点名了管理员（操作人/责任人等）就只发给他；
 //     资金/账务类业务事件载荷里没有管理员时，发给超管（最小可见范围）；

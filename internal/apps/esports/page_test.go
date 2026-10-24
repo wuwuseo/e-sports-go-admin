@@ -100,7 +100,7 @@ func TestPageDraftOptimisticLock(t *testing.T) {
 	}
 }
 
-// 轮播图每张图片各自保存跳转链接（§16.3-02）：多图多链接在草稿存储与客户端归一化后
+// 轮播图每张图片各自保存跳转链接：多图多链接在草稿存储与客户端归一化后
 // 不得丢失或串号；旧版 images 数组的兼容逻辑不得覆盖 items 中的 link。
 func TestPageCarouselKeepsPerImageLinks(t *testing.T) {
 	db := openPageDB(t, "esports_page_carousel_links")
@@ -233,7 +233,7 @@ func TestPageEntryComponentsOptional(t *testing.T) {
 	}
 }
 
-// 发布规则封闭（§16.4 / §16.5）：提交发布申请落待审核，未审核不生效；
+// 发布规则封闭：提交发布申请落待审核，未审核不生效；
 // 提交人自审被拒，异人审核通过后一次性版本切换；回滚同样须异人审核。
 func TestPagePublishRequiresReviewAndRollback(t *testing.T) {
 	db := openPageDB(t, "esports_page_review")
@@ -415,7 +415,7 @@ func TestPublishScheduledPages(t *testing.T) {
 	}
 }
 
-// 强制已审核 HTTPS 域名（§16.5）：外部跳转链接发布前校验，未配置白名单 / 未审核域名 / http 一律拒绝；
+// 强制已审核 HTTPS 域名：外部跳转链接发布前校验，未配置白名单 / 未审核域名 / http 一律拒绝；
 // 保存草稿放行待审核域名；immediate 与 scheduled 走同样校验。
 func TestPagePublishDomainWhitelist(t *testing.T) {
 	db := openPageDB(t, "esports_page_domain")

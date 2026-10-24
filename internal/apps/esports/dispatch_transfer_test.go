@@ -233,7 +233,7 @@ func TestSeatTransferGuards(t *testing.T) {
 			t.Fatalf("第 %d 组非法入参应被拒，err=%v", i+1, err)
 		}
 	}
-	// §5.7-02：服务中允许转单（确认通过时先结算原陪玩服务段再由新陪玩接手），原「已开始服务后
+	// ：服务中允许转单（确认通过时先结算原陪玩服务段再由新陪玩接手），原「已开始服务后
 	// 不可转单」的口径已被取代；仅当该陪玩在本单的服务段**已结算**时才拒绝。
 	db.EsportsServiceSegment.Create().SetOrderID(order.ID).SetPlayerID(player.ID).
 		SetSeatIndex(1).SetStartedAt(now.UTC()).
@@ -241,7 +241,7 @@ func TestSeatTransferGuards(t *testing.T) {
 	if _, err := requestSeatTransfer(ctx, db, player.ID, order.ID, seatTransferInput{
 		Reason: "有事", IdempotencyKey: "transfer-guard-key-3",
 	}, now); err != nil {
-		t.Fatalf("服务中应允许发起转单（§5.7-02），err=%v", err)
+		t.Fatalf("服务中应允许发起转单，err=%v", err)
 	}
 	db.EsportsServiceSegment.Update().Where(
 		esportsservicesegment.OrderIDEQ(order.ID),

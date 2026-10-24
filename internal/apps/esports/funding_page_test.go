@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// 页面装修 props 白名单（§16.5）：未知键（html / script / 事件处理器 / 富文本注入键）
+// 页面装修 props 白名单：未知键（html / script / 事件处理器 / 富文本注入键）
 // 一律按参数错误拒绝，错误文案须含第几个组件与键名。
 func TestFundingPagePropsWhitelistRejectsUnknownKeys(t *testing.T) {
 	visible := true
@@ -167,7 +167,7 @@ func TestFundingPageLinkRequiresRegisteredRoute(t *testing.T) {
 	}
 }
 
-// 外部跳转域名白名单回归（§16.5）：未审核域名 / 空白名单 / 非 https 仍被拒，白名单域名仍通过。
+// 外部跳转域名白名单回归：未审核域名 / 空白名单 / 非 https 仍被拒，白名单域名仍通过。
 func TestFundingPageLinkExternalDomainWhitelistRegression(t *testing.T) {
 	visible := true
 	build := func(link string) pageConfig {

@@ -38,11 +38,11 @@ const (
 // errInsufficientBalance 余额不足以完成扣减。
 var errInsufficientBalance = errors.New("钱包余额不足")
 
-// prepayDeductionOrderKey 预付款扣减顺序配置键（§4.5）：bonus_first 先赠送后本金 /
+// prepayDeductionOrderKey 预付款扣减顺序配置键：bonus_first 先赠送后本金 /
 // principal_first 先本金后赠送 / proportional 本金与赠送按剩余比例分摊。
 const prepayDeductionOrderKey = "app.esports.prepay_deduction_order"
 
-// prepayDeductionOrder 读取扣减顺序配置；缺失或非法回落 bonus_first（§4.5 默认「先赠送后本金」）。
+// prepayDeductionOrder 读取扣减顺序配置；缺失或非法回落 bonus_first（默认「先赠送后本金」）。
 func prepayDeductionOrder(ctx context.Context, db *ent.Client) string {
 	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(prepayDeductionOrderKey)).Only(ctx)
 	if err != nil {
@@ -56,7 +56,7 @@ func prepayDeductionOrder(ctx context.Context, db *ent.Client) string {
 	}
 }
 
-// splitPrepayDeduction 按扣减顺序把应付额拆成本金 / 赠送两部分（§4.5）。
+// splitPrepayDeduction 按扣减顺序把应付额拆成本金 / 赠送两部分。
 // principal_first 先扣本金（预付款本金批次优先）；proportional 按本金 / 赠送剩余额比例分摊
 // （本金向下取整，尾差归赠送），先扣赠送则为默认。拆分之和恒等于应付额，故调用前须保证余额充足。
 func splitPrepayDeduction(order string, principalCents, bonusCents, amountCents int64) (principalDeduct, bonusDeduct int64) {
@@ -91,7 +91,7 @@ type walletAccountView struct {
 	PrincipalCents int64  `json:"principal_cents"`
 	BonusCents     int64  `json:"bonus_cents"`
 	BalanceCents   int64  `json:"balance_cents"`
-	// 展示口径（§11.4）：工作室可配的账户展示名称、图标、说明与固定倍率换算金额。
+	// 展示口径：工作室可配的账户展示名称、图标、说明与固定倍率换算金额。
 	Display walletDisplay `json:"display"`
 }
 
@@ -100,7 +100,7 @@ type walletBalance struct {
 	BonusCents     int64
 }
 
-// userWalletDisplayHandler 客户端钱包展示口径（§11.4）：按账户类型下发展示名称、图标、说明、
+// userWalletDisplayHandler 客户端钱包展示口径：按账户类型下发展示名称、图标、说明、
 // 单位名与固定倍率，客户余额 / 陪玩猫粮共用同一份配置。
 // 只读系统配置、不涉及余额，故不下发 display_amount：金额由客户端拿自己的余额按 unit_cents 换算一次，
 // 避免服务端与客户端各算一遍造成二次换算。
@@ -116,7 +116,7 @@ func adminWalletDisplayHandler(c fiber.Ctx) error {
 
 func (b walletBalance) total() int64 { return b.PrincipalCents + b.BonusCents }
 
-// walletBeneficiaryFor 由账户类型推出归属人（§11.6-02）：客户余额归属客户、陪玩猫粮归属陪玩。
+// walletBeneficiaryFor 由账户类型推出归属人：客户余额归属客户、陪玩猫粮归属陪玩。
 func walletBeneficiaryFor(accountType string, ownerID int) (esportswallettx.BeneficiaryType, int) {
 	if accountType == walletPlayerCatfood {
 		return esportswallettx.BeneficiaryTypePlayer, ownerID
@@ -289,7 +289,7 @@ func listWalletTransactions(ctx context.Context, db *ent.Client, accountType str
 	return rows, nil
 }
 
-// backfillWalletTxSelfProving 为「未快照」的历史流水补齐读模型字段（§11.6-02）：归属人、资金批次、
+// backfillWalletTxSelfProving 为「未快照」的历史流水补齐读模型字段：归属人、资金批次、
 // 变动前后余额。只改内存中的返回副本，不落库（钱包流水只增不改）。
 // 已写入的三项保持原值；仅当字段确为未快照（归属人 0 / 批次空 / 前后余额均为 0）时才派生。
 func backfillWalletTxSelfProving(ctx context.Context, db *ent.Client, accountType string, ownerID int,
@@ -408,8 +408,8 @@ func walletEntry(ctx context.Context, db *ent.Client, operatorID int, accountTyp
 		}
 		return nil, err
 	}
-	// 批次账本（§4.5 / §4.5-04）：充值的正向部分写入批次，本金 / 赠送分列，
-	// 供消费时按批次逐笔扣减（§4.3）与按来源性质还原。
+	// 批次账本：充值的正向部分写入批次，本金 / 赠送分列，
+	// 供消费时按批次逐笔扣减与按来源性质还原。
 	if batchCents := in.PrincipalCents + in.BonusCents; batchCents > 0 {
 		if _, err = tx.EsportsLedgerEntry.Create().
 			SetAccountType(normalized).SetAccountID(strconv.Itoa(ownerID)).
@@ -453,11 +453,11 @@ func payOrderWithBalance(ctx context.Context, db *ent.Client, adminID, orderID i
 	return payOrderWithBalanceCore(ctx, db, adminID, 0, orderID, now)
 }
 
-// payOrderWithBalanceAsCustomer 客户自助余额核销（§4.3 / §13.2）：与管理端共用同一核销边界
+// payOrderWithBalanceAsCustomer 客户自助余额核销：与管理端共用同一核销边界
 // （金额、订单状态、支付时限、配额与账本口径全部复用），差异只有三点：
 //   - 订单必须属于当前客户（actorCustomerID），避免用他人身份核销；
 //   - 钱包流水不写 operator_id（客户不是后台操作人），备注标记「客户自助」；
-//   - 订单事件 actor 记为 customer，且站内方式受后台渠道启停约束（§4.3-08）。
+//   - 订单事件 actor 记为 customer，且站内方式受后台渠道启停约束。
 func payOrderWithBalanceAsCustomer(ctx context.Context, db *ent.Client, customerID, orderID int,
 	now time.Time) (*ent.EsportsOrder, error) {
 	if customerID < 1 || orderID < 1 {
@@ -477,7 +477,7 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 	if err != nil {
 		return nil, err
 	}
-	// 订单级串行化（§8.2-15）：以「进事务前读到的订单版本」为本次收款的仲裁依据，
+	// 订单级串行化：以「进事务前读到的订单版本」为本次收款的仲裁依据，
 	// 任何并发收款动作（另一收款方式核销 / 提交待核验凭证）都会推进该版本，本次写回随之冲突。
 	runPaymentOrderInterleaveHook(orderID)
 	unlock := lockMoneyAccount("balance:" + strconv.Itoa(meta.CustomerID))
@@ -502,7 +502,7 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid || !now.UTC().Before(order.PaymentDeadline) {
 		return nil, errConflict
 	}
-	// 订单级占位（§8.2-15）：先把该订单行按读到的版本推进一格，等价于拿订单行写锁。
+	// 订单级占位：先把该订单行按读到的版本推进一格，等价于拿订单行写锁。
 	// 影响行数为 0 说明另一个收款动作已经推进过该订单（含并发提交的待核验凭证），本次必须失败回滚。
 	if err = lockOrderPaymentSlot(ctx, tx, order.ID, meta.Version); err != nil {
 		return nil, err
@@ -581,7 +581,7 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 	if changed != 1 {
 		return nil, errConflict
 	}
-	// 进入待派单：若该游戏分区有优先派单权生效名单，则只通知名单内陪玩（§5.4 业务口径）。
+	// 进入待派单：若该游戏分区有优先派单权生效名单，则只通知名单内陪玩（业务口径）。
 	if err = onOrderEnteredPendingDispatch(ctx, tx, order.ID, now); err != nil {
 		return nil, err
 	}
@@ -610,7 +610,7 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 		SetDeltaCents(payable).Save(ctx); err != nil {
 		return nil, err
 	}
-	// 批次级逐笔扣减（§4.3 / §4.5 / §4.5-04）：记录本次余额消费动用了哪些充值批次，
+	// 批次级逐笔扣减：记录本次余额消费动用了哪些充值批次，
 	// 并按实际扣减构成分别记本金 / 赠送动用量。
 	if err = allocateLedgerConsumptionWithComposition(ctx, tx, walletCustomerBalance, strconv.Itoa(customer.ID),
 		"order", order.OrderNo, principalDeduct, bonusDeduct); err != nil {
@@ -640,7 +640,7 @@ func payOrderWithBalanceCore(ctx context.Context, db *ent.Client, operatorID, ac
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
-// ── 收款并发窗口的订单级串行化（§8.2-15 / 附录 B.3-1） ──
+// ── 收款并发窗口的订单级串行化（附录 B.3-1） ──
 //
 // 余额核销、转账凭证提交/核验两条路径都要先判「同一订单是否已有待核验凭证」，
 // 再决定是否把订单转已付款。只靠「同事务内读凭证」关不掉极端并发窗口：两个请求可能各自读到

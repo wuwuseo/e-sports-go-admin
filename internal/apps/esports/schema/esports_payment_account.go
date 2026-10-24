@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsPaymentAccount 是工作室收款账户（§4.3）：企业微信收款 / 工作室商户码 / 对公转账。
+// EsportsPaymentAccount 是工作室收款账户：企业微信收款 / 工作室商户码 / 对公转账。
 // 收款账户必须挂在工作主体名下并经财务审核后启用，客服不能新增或更换收款主体；
 // 订单外部到账只能核销到启用中的账户，停用 / 待审核 / 驳回账户一律不可用。
 type EsportsPaymentAccount struct{ ent.Schema }

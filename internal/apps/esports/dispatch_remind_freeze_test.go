@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/ent/esportsorderevent"
 )
 
-// 存单冻结期间催单必须被拒（§3.3-11）：催单会改订单字段并抬升版本，属订单写操作。
+// 存单冻结期间催单必须被拒：催单会改订单字段并抬升版本，属订单写操作。
 func TestRemindOrderRejectedWhenDepositFrozen(t *testing.T) {
 	db := openDepositDB(t, "esports_remind_frozen_guard")
 	defer db.Close()

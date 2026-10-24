@@ -18,7 +18,7 @@ import (
 	"go-admin/internal/ent/systemconfig"
 )
 
-// §3.3 限时改期提案闭环（已付款订单）。
+// 限时改期提案闭环（已付款订单）。
 //
 // 已付款订单的档期是「已占用并被派单席位引用」的资源，不能由客服单方面改写，因此改期改为：
 //
@@ -27,9 +27,9 @@ import (
 //	  → 全部确认齐备时在**一个事务内**切换订单档期并复核 / 占用目标档期资源（applyRescheduleProposal）
 //	  → 超时由定时任务 expireRescheduleProposals 收敛为 expired
 //
-// 未付款订单仍走既有 §3.2 的直接改期（PUT /admin/orders/{id}/appointment），本文件不改变它的口径。
+// 未付款订单仍走既有 的直接改期（PUT /admin/orders/{id}/appointment），本文件不改变它的口径。
 const (
-	// rescheduleProposalHoursKey 改期提案的确认时限（小时，§3.3）。
+	// rescheduleProposalHoursKey 改期提案的确认时限（小时，）。
 	rescheduleProposalHoursKey = "app.esports.reschedule_proposal_hours"
 	// defaultRescheduleProposalHours 提案确认时限缺省值（小时）。
 	defaultRescheduleProposalHours = 24
@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	// errRescheduleProposalRequired 已付款订单改期必须走限时改期提案（§3.3）：
+	// errRescheduleProposalRequired 已付款订单改期必须走限时改期提案：
 	// 由 HTTP 入口映射为明确中文提示，指向改期提案接口。
 	errRescheduleProposalRequired = errors.New("已付款订单改期须走限时改期提案")
 )
@@ -67,7 +67,7 @@ type rescheduleProposalDecisionInput struct {
 	Note   string `json:"note"`
 }
 
-// rescheduleProposalHours 返回改期提案确认时限（小时，§3.3），缺省 24。
+// rescheduleProposalHours 返回改期提案确认时限（小时，），缺省 24。
 // 配置缺失或非法时回落缺省值，不因配置问题阻断改期。
 func rescheduleProposalHours(ctx context.Context, db *ent.Client) int {
 	item, err := db.SystemConfig.Query().Where(
@@ -82,7 +82,7 @@ func rescheduleProposalHours(ctx context.Context, db *ent.Client) int {
 	return hours
 }
 
-// proposeReschedule 客服对**已付款在途订单**发起限时改期提案（§3.3）。
+// proposeReschedule 客服对**已付款在途订单**发起限时改期提案。
 // 提案本身**不改订单**：只落一张 pending 提案（含原档期快照、目标档期、确认时限、提案人与备注），
 // 并写 `order.reschedule_proposed` 外盒留痕。确认时限取 `app.esports.reschedule_proposal_hours`
 // （缺省 24 小时）且不晚于目标开始时间。
@@ -104,7 +104,7 @@ func proposeReschedule(ctx context.Context, db *ent.Client, orderID, adminID int
 	if err != nil {
 		return nil, err
 	}
-	// 仅已付款在途订单走提案：未付款仍走 §3.2 直接改期，终态订单不可改期。
+	// 仅已付款在途订单走提案：未付款仍走 直接改期，终态订单不可改期。
 	if order.PaymentStatus != esportsorder.PaymentStatusPaid ||
 		order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
 		order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled ||
@@ -116,7 +116,7 @@ func proposeReschedule(ctx context.Context, db *ent.Client, orderID, adminID int
 		duration = order.ServiceDurationMinutes
 	}
 	if duration <= 0 {
-		return nil, fmt.Errorf("%w：请指定目标服务时长，才能按 §5.5 时段口径复核目标档期", errInvalidInput)
+		return nil, fmt.Errorf("%w：请指定目标服务时长，才能按 时段口径复核目标档期", errInvalidInput)
 	}
 	start := in.StartAt.UTC()
 	deadline := now.UTC().Add(time.Duration(rescheduleProposalHours(ctx, tx.Client())) * time.Hour)
@@ -168,7 +168,7 @@ func proposeReschedule(ctx context.Context, db *ent.Client, orderID, adminID int
 	return db.EsportsRescheduleProposal.Get(ctx, item.ID)
 }
 
-// confirmRescheduleProposal 记录一次提案确认（§3.3）。客户与每名已接单成员各自调用一次；
+// confirmRescheduleProposal 记录一次提案确认。客户与每名已接单成员各自调用一次；
 // accept=false 表示拒绝，提案立即终结为 rejected（订单不变）。
 //
 // 确认与生效分成两个事务：确认先落库（唯一索引保证同一人只留一条、重复确认幂等），
@@ -199,7 +199,7 @@ func confirmRescheduleProposal(ctx context.Context, db *ent.Client, proposalID i
 	return db.EsportsRescheduleProposal.Get(ctx, proposalID)
 }
 
-// confirmRescheduleProposalByCustomer 客户自助确认 / 拒绝改期提案（§3.3）：按登录用户解析
+// confirmRescheduleProposalByCustomer 客户自助确认 / 拒绝改期提案：按登录用户解析
 // 「已绑定身份的客户」（customerForVerifiedUser 要求 User 为 active 且存在 active 身份绑定），
 // 非本人订单返回 403。**不提供客服代客户确认的入口**，避免绕过客户同意。
 func confirmRescheduleProposalByCustomer(ctx context.Context, db *ent.Client, uid string,
@@ -213,7 +213,7 @@ func confirmRescheduleProposalByCustomer(ctx context.Context, db *ent.Client, ui
 	}, accept, note, now)
 }
 
-// confirmRescheduleProposalByPlayer 订单上已接单成员自助确认 / 拒绝改期提案（§3.3）：
+// confirmRescheduleProposalByPlayer 订单上已接单成员自助确认 / 拒绝改期提案：
 // 按登录用户解析陪玩档案，本人未在该订单持有 accepted 席位时由服务层返回 403。
 func confirmRescheduleProposalByPlayer(ctx context.Context, db *ent.Client, uid string,
 	proposalID int, accept bool, note string, now time.Time) (*ent.EsportsRescheduleProposal, error) {
@@ -226,7 +226,7 @@ func confirmRescheduleProposalByPlayer(ctx context.Context, db *ent.Client, uid 
 	}, accept, note, now)
 }
 
-// recordRescheduleConfirmation 在事务内校验确认人资格并落一条确认明细（§3.3）：
+// recordRescheduleConfirmation 在事务内校验确认人资格并落一条确认明细：
 // 客户须为订单客户（「已绑定身份」由入口 customerForVerifiedUser 保证），
 // 成员须在本单持有 accepted 席位。同一人重复提交同一结论幂等，改动结论拒绝。
 func recordRescheduleConfirmation(ctx context.Context, db *ent.Client, proposalID int,
@@ -256,7 +256,7 @@ func recordRescheduleConfirmation(ctx context.Context, db *ent.Client, proposalI
 			return errForbidden
 		}
 	case esportsrescheduleconfirmation.ConfirmerTypePlayer:
-		// §5.9-07：已接单成员与待回应（invited）成员都必须逐人确认档期变更。
+		// ：已接单成员与待回应（invited）成员都必须逐人确认档期变更。
 		seat, seatErr := tx.EsportsDispatchSeat.Query().Where(
 			esportsdispatchseat.OrderIDEQ(item.OrderID),
 			esportsdispatchseat.PlayerIDEQ(confirmer.ID),
@@ -326,7 +326,7 @@ func recordRescheduleConfirmation(ctx context.Context, db *ent.Client, proposalI
 	return tx.Commit()
 }
 
-// rescheduleConfirmationsComplete 判断提案是否已凑齐全部确认（§3.3）：
+// rescheduleConfirmationsComplete 判断提案是否已凑齐全部确认：
 // 订单客户一条 confirmed，且订单上每名已接单成员各一条 confirmed。
 // 成员集合按**确认时点**订单上的 accepted 席位实时计算：提案建立后又接单的成员同样必须确认。
 func rescheduleConfirmationsComplete(ctx context.Context, tx *ent.Tx,
@@ -365,7 +365,7 @@ func rescheduleConfirmationsComplete(ctx context.Context, tx *ent.Tx,
 	return true, nil
 }
 
-// pendingRescheduleProposalExists 判定订单是否存在**仍有效**的进行中改期提案（§5.9-07）。
+// pendingRescheduleProposalExists 判定订单是否存在**仍有效**的进行中改期提案。
 // 提案 pending 期间订单档期处于「待切换」状态，任何新派单 / 改派 / 转单都会让提案的
 // order_version 与原档期快照失效，因此必须在这些入口先挡掉。已过确认时限或目标时间已过的
 // 提案不再锁定（由过期任务收敛），避免死锁。
@@ -385,7 +385,7 @@ func pendingRescheduleProposalExists(ctx context.Context, tx *ent.Tx, orderID in
 	return false, nil
 }
 
-// rescheduleConfirmableMembers 返回「必须逐人确认改期提案」的成员席位（§5.9-07）：
+// rescheduleConfirmableMembers 返回「必须逐人确认改期提案」的成员席位：
 // 已接单成员 + **待回应（invited）成员**。待接单成员虽未确认接单，但已持有席位承诺与
 // 目标档期占用，档期变更同样需要其同意，否则提案生效后会与新档期冲突。
 func rescheduleConfirmableMembers(ctx context.Context, tx *ent.Tx, orderID int) ([]*ent.EsportsDispatchSeat, error) {
@@ -408,7 +408,7 @@ func acceptedRescheduleMembers(ctx context.Context, tx *ent.Tx, orderID int) ([]
 }
 
 // targetRescheduleOrder 把目标档期做成内存订单快照，供 checkPlayerDispatchLimit 做
-// 「时段重叠 + 服务开始自然日」判定（§5.5），不落库、不替代订单实体。
+// 「时段重叠 + 服务开始自然日」判定，不落库、不替代订单实体。
 func targetRescheduleOrder(order *ent.EsportsOrder, item *ent.EsportsRescheduleProposal) *ent.EsportsOrder {
 	start := item.ToStartAt.UTC()
 	return &ent.EsportsOrder{
@@ -426,11 +426,11 @@ func sameRescheduleStart(a, b *time.Time) bool {
 	return a.UTC().Equal(b.UTC())
 }
 
-// applyRescheduleProposal 让「确认已齐」的提案生效（§3.3）。返回 (nil, nil) 表示确认尚未凑齐，本轮不生效。
+// applyRescheduleProposal 让「确认已齐」的提案生效。返回 (nil, nil) 表示确认尚未凑齐，本轮不生效。
 // 在**同一个事务**内完成：
 //
 //  1. 复核提案仍进行中、未超时、目标开始时间未过，订单仍处于提案发起时的版本与原档期（防旧提案覆盖新档期）；
-//  2. 按既有 §5.5 并发口径复核并**占用**目标档期资源：逐名已接单成员复用
+//  2. 按既有 并发口径复核并**占用**目标档期资源：逐名已接单成员复用
 //     reservePlayerDispatchCapacity（陪玩版本条件更新串行化并发占位）+ checkPlayerDispatchLimit
 //     的时段重叠 / 服务开始自然日判定，并排除该成员在本单正被改期的席位，避免自己与自己冲突；
 //  3. 以 order_version 条件更新把订单 requested_start_at / service_duration_minutes 切到目标档期，
@@ -556,7 +556,7 @@ func applyRescheduleProposal(ctx context.Context, db *ent.Client, proposalID int
 	return db.EsportsOrder.Get(ctx, order.ID)
 }
 
-// withdrawRescheduleProposal 客服撤回进行中的改期提案（§3.3）：提案转 withdrawn，订单不变。
+// withdrawRescheduleProposal 客服撤回进行中的改期提案：提案转 withdrawn，订单不变。
 func withdrawRescheduleProposal(ctx context.Context, db *ent.Client, proposalID, adminID int,
 	now time.Time) (*ent.EsportsRescheduleProposal, error) {
 	if proposalID < 1 || adminID < 1 {
@@ -650,7 +650,7 @@ func expireRescheduleProposal(ctx context.Context, db *ent.Client, proposalID in
 	return true, nil
 }
 
-// expireRescheduleProposals 批量过期改期提案（§3.3），仿 expireDispatchInvites：逐个在独立事务内处理，
+// expireRescheduleProposals 批量过期改期提案，仿 expireDispatchInvites：逐个在独立事务内处理，
 // 版本竞争失败（errConflict）时跳过，交由下一轮或并发方收敛。返回本轮实际过期的条数。
 // 由定时任务 `esports_expire_reschedule_proposals` 周期调用。
 func expireRescheduleProposals(ctx context.Context, db *ent.Client, now time.Time,
@@ -681,7 +681,7 @@ func expireRescheduleProposals(ctx context.Context, db *ent.Client, now time.Tim
 	return count, nil
 }
 
-// ── 用户侧：本人可见的改期提案（§3.3） ──
+// ── 用户侧：本人可见的改期提案 ──
 //
 // 客户端此前只能「按客服告知的提案 ID」确认，看不到自己待确认的提案列表，也无法判断
 // 「还差谁的确认」。下面两个入口把提案读模型按登录身份收窄后下发：
@@ -706,7 +706,7 @@ type userRescheduleProposalProgress struct {
 	PendingConfirmers []reschedulePendingConfirmer `json:"pending_confirmers"`
 }
 
-// userRescheduleProposalView 是用户侧提案列表的单条视图（§3.3）：
+// userRescheduleProposalView 是用户侧提案列表的单条视图：
 // 含提案号、来源订单、原档期 / 目标档期、状态、确认截止时间与逐人确认进度摘要。
 type userRescheduleProposalView struct {
 	ProposalID                 int        `json:"proposal_id"`
@@ -981,7 +981,7 @@ type reschedulePendingConfirmer struct {
 	SeatIndex int    `json:"seat_index"`
 }
 
-// rescheduleProposalView 提案 + 确认进度（§3.3）：供客服看到「还差谁的确认」。
+// rescheduleProposalView 提案 + 确认进度：供客服看到「还差谁的确认」。
 type rescheduleProposalView struct {
 	*ent.EsportsRescheduleProposal
 	Confirmations     []*ent.EsportsRescheduleConfirmation `json:"confirmations"`

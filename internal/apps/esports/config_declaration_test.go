@@ -16,7 +16,7 @@ import (
 //   - app.esports.payment_channel.<channel>：由收款账户按渠道动态创建，声明某个固定键名没有意义。
 //   - app.esports.withdrawal_channel.<channel>：渠道是固定枚举（bank_card/wechat/alipay），代码按前缀拼键读取。
 //     这里豁免的只是「裸前缀」这个正则误报——三个真实渠道键仍必须显式声明在 Config 里，
-//     否则后台配不了提现渠道开关（§6.3-05），运维只能手写数据库。
+//     否则后台配不了提现渠道开关，运维只能手写数据库。
 var esportsDynamicConfigPrefixes = []string{"payment_channel", "withdrawal_channel"}
 
 // esportsRetiredConfigKeys 列出「历史遗留、只在启动迁移中读取（搬完即删）」的退役配置键。
@@ -71,7 +71,7 @@ func esportsReadConfigKeys(t *testing.T) map[string][]string {
 	return keys
 }
 
-// TestEsportsConfigKeysAreDeclared 锁定 §18-02：后台只能配置已在功能集 Config 中声明的键。
+// TestEsportsConfigKeysAreDeclared 锁定 ：后台只能配置已在功能集 Config 中声明的键。
 // apps.Provision 只为已声明的键建 SystemConfig 行，因此「读了但没声明」的键在后台根本不存在，
 // 运维只能手写数据库（README 多处却要求运维去设置它们）。本测试断言「读取 ⊆ 声明」。
 //

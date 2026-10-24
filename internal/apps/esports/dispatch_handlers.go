@@ -18,7 +18,7 @@ func parseSeatIndex(c fiber.Ctx) (int, error) {
 	return index, nil
 }
 
-// dispatchBoardHandler 排单看板（§5.8）。sort=remind_priority 时按催单优先级降序（§5.7-05）。
+// dispatchBoardHandler 排单看板。sort=remind_priority 时按催单优先级降序。
 func dispatchBoardHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -160,7 +160,7 @@ func remindOrderHandler(c fiber.Ctx) error {
 	return reply(c, fiber.Map{"order_id": id})
 }
 
-// publishOrderToGrabHallHandler 客服把待派单订单发布到抢单大厅（§5.2 / §5.6）。
+// publishOrderToGrabHallHandler 客服把待派单订单发布到抢单大厅。
 func publishOrderToGrabHallHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

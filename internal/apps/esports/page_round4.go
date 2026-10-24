@@ -17,16 +17,16 @@ import (
 	"go-admin/internal/ent/esportspageversion"
 )
 
-// 页面装修第 4 轮补齐（§16.2-05 / §16.2-06 / §16.3 / §16.4-02 / §16.4-06 / §16.5-04）：
+// 页面装修第 4 轮补齐：
 //   - 有效期过滤（过期组件 / 轮播项不下发）；
 //   - 底部导航文案与图标（路径 / 数量 / 顺序固定）；
 //   - 设备预览码（换取的必须是草稿）；
 //   - 按客户端能力下发兼容快照 + 版本缓存；
 //   - 素材被引用位置反查与失效标记。
 
-// ── §16.3-02 / §16.3-03 / §16.3-08 有效期过滤 ──
+// ── 有效期过滤 ──
 
-// filterExpiredPageConfig 剔除已过有效期的组件与嵌套项（§16.3-02 / 03 / 08）：
+// filterExpiredPageConfig 剔除已过有效期的组件与嵌套项（03 / 08）：
 //   - 组件顶层带 valid_from / valid_to 且当前不在区间内 → 整块不下发；
 //   - items 元素带 valid_from / valid_to 且过期 → 该条不下发；
 //   - support_entry（客服与订单入口）永不因有效期被剔除，避免运营配错时间把入口关掉。
@@ -225,9 +225,9 @@ func filterExpiredProps(props map[string]interface{}, now time.Time) map[string]
 	return out
 }
 
-// ── §16.3-12 底部导航文案 / 图标 ──
+// ── 底部导航文案 / 图标 ──
 
-// pageTabbarItem 是底部导航项（§16.3-12，审核报告 §8.1-8 后放开）：
+// pageTabbarItem 是底部导航项（，审核报告 后放开）：
 // 允许增删条目（1~5 项）、允许编辑 path 与 order；path 仍须命中已注册页面白名单。
 // order 未填时按提交顺序补齐（见 pageValidateTabbar），落库后客户端按 order 升序展示。
 type pageTabbarItem struct {
@@ -238,7 +238,7 @@ type pageTabbarItem struct {
 	Visible *bool  `json:"visible,omitempty"`
 }
 
-// pageTabbarPaths 是底部导航的**默认**路径与顺序（§16.3-12，对应客户端 pages.json tabBar 三项）。
+// pageTabbarPaths 是底部导航的**默认**路径与顺序（，对应客户端 pages.json tabBar 三项）。
 // 本轮放开编辑后它只作为系统默认值，不再是唯一合法形状（见 pageValidateTabbar）。
 var pageTabbarPaths = []string{"/pages/index/index", "/pages/order/list", "/pages/mine/index"}
 
@@ -255,7 +255,7 @@ func defaultPageTabbar() []pageTabbarItem {
 	return items
 }
 
-// validatePageTabbar 校验导航项（§16.3-12，审核报告 §8.1-8 后放开）：
+// validatePageTabbar 校验导航项（，审核报告 后放开）：
 // 允许增删条目、允许编辑 path 与 order，安全约束（站内相对路径 + 已注册页面白名单 +
 // path/order 不重复 + 条目数 1~5）由 pageValidateTabbar 统一实施，本函数只做转发，
 // 保持既有调用点（保存导航 / 读取配置回落）签名不变。
@@ -297,7 +297,7 @@ func visiblePageTabbar(items []pageTabbarItem) []pageTabbarItem {
 	return out
 }
 
-// savePageTabbar 保存底部导航文案 / 图标（§16.3-12）：只改 text / icon / visible，
+// savePageTabbar 保存底部导航文案 / 图标：只改 text / icon / visible，
 // 以草稿版本作乐观锁，并把导航写进草稿配置（随发布快照一并生效）。
 func savePageTabbar(ctx context.Context, db *ent.Client, channel string, adminID, expectedVersion int,
 	items []pageTabbarItem) (*ent.EsportsPageDocument, error) {
@@ -336,7 +336,7 @@ func savePageTabbar(ctx context.Context, db *ent.Client, channel string, adminID
 	return db.EsportsPageDocument.Get(ctx, doc.ID)
 }
 
-// ── §16.4-02 设备预览码 ──
+// ── 设备预览码 ──
 
 const (
 	// pagePreviewSecretKey 是预览码签名密钥；未配置时生成预览码明确失败（不伪成功）。
@@ -356,7 +356,7 @@ type pagePreviewCodeView struct {
 	ExpiresAt    string `json:"expires_at"`
 }
 
-// pagePreviewSecret 读取预览码签名密钥；未配置返回明确的未配置错误（§7 不假成功）。
+// pagePreviewSecret 读取预览码签名密钥；未配置返回明确的未配置错误（不假成功）。
 func pagePreviewSecret(ctx context.Context, db *ent.Client) (string, error) {
 	secret := strings.TrimSpace(assessmentConfigString(ctx, db, pagePreviewSecretKey, ""))
 	if secret == "" {
@@ -373,7 +373,7 @@ func signPagePreviewPayload(secret, payload string) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(payload)) + "." + signature
 }
 
-// issuePagePreviewCode 生成设备预览码（§16.4-02）：指向当前草稿版本，有效期 30 分钟。
+// issuePagePreviewCode 生成设备预览码：指向当前草稿版本，有效期 30 分钟。
 func issuePagePreviewCode(ctx context.Context, db *ent.Client, channel string, now time.Time) (*pagePreviewCodeView, error) {
 	channel = strings.TrimSpace(channel)
 	if channel == "" || len(channel) > 48 {
@@ -402,7 +402,7 @@ func issuePagePreviewCode(ctx context.Context, db *ent.Client, channel string, n
 	}, nil
 }
 
-// resolvePagePreviewCode 兑换预览码（§16.4-02）：验签 + 校验有效期后返回**草稿**配置与草稿版本号。
+// resolvePagePreviewCode 兑换预览码：验签 + 校验有效期后返回**草稿**配置与草稿版本号。
 // 签名不符 / 过期 / 渠道不存在一律返回参数错误（不泄露草稿内容）。
 func resolvePagePreviewCode(ctx context.Context, db *ent.Client, code string, now time.Time) (map[string]interface{}, int, error) {
 	code = strings.TrimSpace(code)
@@ -446,7 +446,7 @@ func resolvePagePreviewCode(ctx context.Context, db *ent.Client, code string, no
 	return doc.DraftConfig, doc.DraftVersion, nil
 }
 
-// ── §16.4-06 能力协商与兼容快照 ──
+// ── 能力协商与兼容快照 ──
 
 // pageSnapshot 是下发快照：实际下发的配置 + 版本号 + 是否为当前生效版本 / 是否回落默认模板。
 type pageSnapshot struct {
@@ -458,7 +458,7 @@ type pageSnapshot struct {
 	Fallback         bool
 }
 
-// pageCapabilities 解析客户端能力声明（§16.4-06）：capab 为逗号分隔的「客户端支持的组件类型」清单。
+// pageCapabilities 解析客户端能力声明：capab 为逗号分隔的「客户端支持的组件类型」清单。
 // 未传（nil）表示客户端未声明能力 → 不做裁剪；显式传空串表示不支持任何组件 → 只能回默认模板。
 func pageCapabilities(raw string, provided bool) map[string]bool {
 	if !provided {
@@ -499,7 +499,7 @@ func pageComponentSupportsCaps(comp pageComponent, caps map[string]bool) bool {
 	return true
 }
 
-// pageSnapshotForClient 组装兼容快照（§16.4-06）：优先当前生效版本；不兼容时回退到最近一个
+// pageSnapshotForClient 组装兼容快照：优先当前生效版本；不兼容时回退到最近一个
 // 完全兼容的历史生效版本；都没有则回系统默认模板（fallback=true）。
 func pageSnapshotForClient(ctx context.Context, db *ent.Client, channel string, caps map[string]bool, now time.Time) (*pageSnapshot, error) {
 	channel = strings.TrimSpace(channel)
@@ -570,7 +570,7 @@ func pageSnapshotForClient(ctx context.Context, db *ent.Client, channel string, 
 	}, nil
 }
 
-// ── §16.2-06 素材被引用位置反查 ──
+// ── 素材被引用位置反查 ──
 
 // pageAssetUsage 是素材被引用的位置（渠道 / 版本 / 组件 / 属性路径）。
 type pageAssetUsage struct {
@@ -604,7 +604,7 @@ func pageAssetUsageView(ctx context.Context, db *ent.Client, assetID int) (map[s
 	}, nil
 }
 
-// pageAssetUsages 反查某地址被哪些页面组件引用（草稿 + 全部历史版本，§16.2-06）。
+// pageAssetUsages 反查某地址被哪些页面组件引用（草稿 + 全部历史版本，）。
 func pageAssetUsages(ctx context.Context, db *ent.Client, assetURL string) ([]pageAssetUsage, error) {
 	assetURL = strings.TrimSpace(assetURL)
 	out := make([]pageAssetUsage, 0)

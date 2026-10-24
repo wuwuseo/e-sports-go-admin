@@ -18,7 +18,7 @@ import (
 	"go-admin/internal/ent/role"
 )
 
-// 账本核验新增维度：「钱包流水求和 == 批次账本求和」（§11.6-01）。
+// 账本核验新增维度：「钱包流水求和 == 批次账本求和」。
 //
 // 口径（逐账户比对；登记账户 = customer_balance / player_catfood）：
 //
@@ -64,13 +64,13 @@ func ledgerBatchAccountType(walletAccountType string) string {
 	return walletAccountType
 }
 
-// scanWalletLedgerSum 对单个账户执行「钱包流水求和 == 批次账本求和」核验（§11.6-01）。
+// scanWalletLedgerSum 对单个账户执行「钱包流水求和 == 批次账本求和」核验。
 // 由余额核验的同一轮账户扫描顺带调用：两者账户集合完全一致（登记钱包账户），
 // 复用同一游标与单轮上限，不新增配置键、不重复扫表。
 //
 // 本函数只负责「判定 + 记录异常」，不直接发通知：通知出口由调用方（ledger_reconcile.go 的
 // 账户 / 卡扫描）把该账户本轮新增的全部异常（余额类 + 求和类）合并成一条事件后统一写出，
-// 确保所有异常种类走同一个出口、同一小时窗口只提醒一次（§8.2-13）。
+// 确保所有异常种类走同一个出口、同一小时窗口只提醒一次。
 func scanWalletLedgerSum(ctx context.Context, db *ent.Client,
 	result *ledgerReconcileResult, accountType, accountID string) error {
 	result.ScannedWalletSums++
@@ -158,7 +158,7 @@ func ledgerPrepayTracker(accountType string) bool {
 	return accountType == walletCustomerBalance
 }
 
-// 账本对账异常的通知出口（§11.6-01 / P1-21 / §8.2-13）。
+// 账本对账异常的通知出口（P1-21 / ）。
 //
 // 口径：**全部**账本核验异常种类都经本处唯一的出口函数写通知事件，而不是只写一条聚合事件
 // ledger.reconcile_anomaly。覆盖的异常种类（见 ledger_reconcile.go / 本文件的种类常量）：
@@ -198,7 +198,7 @@ type ledgerReconcileNoticeRecipient struct {
 	Role    string
 }
 
-// publishLedgerReconcileNotices 是账本核验异常的**唯一通知出口**（P1-21 / §8.2-13）：
+// publishLedgerReconcileNotices 是账本核验异常的**唯一通知出口**（P1-21 / ）：
 // 传入某个账户本轮新增的异常（可能同时含多种 kind），为每个收件人写一条通知事件。
 // 收件人优先取财务角色成员（app.esports.finance_report_role_names 配置的启用角色下的启用管理员），
 // 未配置或没有成员时回落启用中的超级管理员；两者都取不到时不做通知（异常仍可经
@@ -400,7 +400,7 @@ func atoiOrZero(value string) int {
 	return parsed
 }
 
-// ledgerReconcileAnomalyView 是管理端可查的核验异常事件视图（§11.6-01）。
+// ledgerReconcileAnomalyView 是管理端可查的核验异常事件视图。
 type ledgerReconcileAnomalyView struct {
 	EventKey           string          `json:"event_key"`
 	OccurredAt         string          `json:"occurred_at"`
@@ -414,7 +414,7 @@ type ledgerReconcileAnomalyView struct {
 	Anomalies          []ledgerAnomaly `json:"anomalies"`
 }
 
-// listLedgerReconcileAnomalies 列出最近的账本核验异常事件（§11.6-01 管理端可查）。
+// listLedgerReconcileAnomalies 列出最近的账本核验异常事件（管理端可查）。
 // 数据来源是核验任务写下的 ledger.reconcile_anomaly 外盒事件，按时间倒序。
 func listLedgerReconcileAnomalies(ctx context.Context, db *ent.Client, limit int) ([]ledgerReconcileAnomalyView, error) {
 	if limit < 1 || limit > 200 {

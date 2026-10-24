@@ -12,7 +12,7 @@ import (
 const (
 	serviceDurationMismatchMinutesKey = "app.esports.service_duration_mismatch_minutes"
 	defaultServiceMismatchMinutes     = 15
-	// 严重差异阈值（§13.2）：超过该阈值时系统自动建立售后台账，供客服核实与处置。
+	// 严重差异阈值：超过该阈值时系统自动建立售后台账，供客服核实与处置。
 	serviceDurationSevereMinutesKey = "app.esports.service_duration_severe_minutes"
 	defaultServiceSevereMinutes     = 30
 )

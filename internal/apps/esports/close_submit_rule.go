@@ -12,7 +12,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 )
 
-// 结单提交规则（§3.4）：规定结单前「陪玩个人服务段上报」（服务量 + 凭证）需要多少成员完成、
+// 结单提交规则：规定结单前「陪玩个人服务段上报」（服务量 + 凭证）需要多少成员完成、
 // 是否允许客服代提交、未达标如何处理；按 全局 / 游戏分区 / SKU 绑定，与结单规则同款版本管理。
 // 口径：服务段 status=finished 且（上报服务量 > 0 或已填服务凭证）视为该成员「已提交」。
 
@@ -162,7 +162,7 @@ func activateCloseSubmitRule(ctx context.Context, db *ent.Client, id int) (*ent.
 }
 
 // rollbackCloseSubmitRule 回滚到指定版本：以该行配置为模板新建 max version+1 的直接 active 行，
-// 并把原 active 转 history（原历史行不可变，§12.4）。
+// 并把原 active 转 history（原历史行不可变，）。
 func rollbackCloseSubmitRule(ctx context.Context, db *ent.Client, id, adminID int) (*ent.EsportsCloseSubmitRule, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -259,7 +259,7 @@ func resolveCloseSubmitRule(ctx context.Context, db *ent.Client, order *ent.Espo
 }
 
 // submitRequiredCount 按模式算「最少提交成员数」：multi 全部 / custom 按比例向上取整 / single 单人单。
-// 依据（功能列表 §3.4-76）：单人单本人提交，临时多人单所有实际服务成员逐人提交。
+// 依据（功能列表 ）：单人单本人提交，临时多人单所有实际服务成员逐人提交。
 // 因此 mode=single 只表达「单人单由本人提交」，**不能**把多人单放宽成「任一人提交即可」——
 // 只要订单有多个服务段仍返回 total。原实现 single 一律返回 1，等于允许一次提交覆盖多人，
 // 与上述规则冲突，此处收严；代价是 multi 与 single 在多席订单上行为一致（single 退化为
@@ -289,13 +289,13 @@ func submitRequiredCount(rule *ent.EsportsCloseSubmitRule, total int) int {
 	}
 }
 
-// segmentSubmitted 判定陪玩服务段是否构成一次有效「个人上报」（§3.4）。
+// segmentSubmitted 判定陪玩服务段是否构成一次有效「个人上报」。
 func segmentSubmitted(segment *ent.EsportsServiceSegment) bool {
 	return segment.Status == esportsservicesegment.StatusFinished &&
 		(segment.ReportedUnits > 0 || strings.TrimSpace(segment.EvidenceRef) != "")
 }
 
-// requireAllSegmentsSubmitted 未配置提交规则时的默认口径（§3.4-01 ③）：
+// requireAllSegmentsSubmitted 未配置提交规则时的默认口径（③）：
 // 多人单（服务段 > 1）要求每一名陪玩都形成有效上报；单人单沿用既有口径（单段结单条件已覆盖）。
 func requireAllSegmentsSubmitted(segments []*ent.EsportsServiceSegment) error {
 	if len(segments) <= 1 {
@@ -346,7 +346,7 @@ func unsubmittedMembers(ctx context.Context, db *ent.Client, orderID int) ([]uns
 
 // evidenceImageAttachmentIDs 解析单条 evidence_ref 里的图片附件 ID（JSON 数组形态，如 [11,12]），
 // 按 ID 去重、忽略非正数；非数组 / 非法 JSON / 历史 oss:// 与纯文本一律返回空。
-// 用途：判定代提交凭证是否真的带图片——自由文本不算图片凭证（审核报告 §3.2b）。
+// 用途：判定代提交凭证是否真的带图片——自由文本不算图片凭证（审核报告 ）。
 func evidenceImageAttachmentIDs(ref string) []int {
 	ref = strings.TrimSpace(ref)
 	if ref == "" || !strings.HasPrefix(ref, "[") {
@@ -367,7 +367,7 @@ func evidenceImageAttachmentIDs(ref string) []int {
 	return out
 }
 
-// closeSubmitMinEvidenceImages 返回订单生效结单规则要求的最少服务凭证图片张数（§3.4 默认项
+// closeSubmitMinEvidenceImages 返回订单生效结单规则要求的最少服务凭证图片张数（默认项
 // 「服务截图不少于 N 张」）。未配置生效结单规则时返回 0：此时凭证张数仍由结单条件统一判定
 // （历史文本凭证按 1 张计），不对代提交 / 视为已提交额外加码，避免存量单被新口径追溯拦截。
 func closeSubmitMinEvidenceImages(ctx context.Context, db *ent.Client, order *ent.EsportsOrder) (int, error) {
@@ -378,10 +378,10 @@ func closeSubmitMinEvidenceImages(ctx context.Context, db *ent.Client, order *en
 	return effectiveCloseConditions(rule).MinEvidence, nil
 }
 
-// applySubstituteReports 客服代未上报成员补填服务段上报（§3.4 代提交）：逐条写回并留痕。
+// applySubstituteReports 客服代未上报成员补填服务段上报（代提交）：逐条写回并留痕。
 // minImages 为生效结单规则要求的最少图片张数：>0 时每条代提交的凭证必须是不少于该张数的
 // 图片附件 ID（JSON 数组），纯文本凭证不能替代图片，否则「代提交」就成了绕过
-// 「服务截图不少于 N 张」的通道（审核报告 §3.2b）。
+// 「服务截图不少于 N 张」的通道（审核报告 ）。
 func applySubstituteReports(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int,
 	segments []*ent.EsportsServiceSegment, substitutes []closeSubstituteReport, minImages int) error {
 	bySeat := make(map[int]*ent.EsportsServiceSegment, len(segments))
@@ -437,9 +437,9 @@ func applySubstituteReports(ctx context.Context, tx *ent.Tx, order *ent.EsportsO
 	return nil
 }
 
-// applyCloseSubmitRule 结单时按生效提交规则校验陪玩上报达标情况（§3.4）。
+// applyCloseSubmitRule 结单时按生效提交规则校验陪玩上报达标情况。
 // 规则允许代提交时先用 substitutes 补填未上报成员再复核；仍未达标按 on_missing 阻塞 / 提醒 / 视为已提交。
-// §3.4-01 ③：未配置任何生效提交规则时，多人单（服务段 > 1）仍要求逐人上报，
+// ③：未配置任何生效提交规则时，多人单（服务段 > 1）仍要求逐人上报，
 // 避免「没配规则 = 谁都不用上报」把多人单的结单口径放空。
 func applyCloseSubmitRule(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrder, adminID int,
 	substitutes []closeSubstituteReport) error {
@@ -460,7 +460,7 @@ func applyCloseSubmitRule(ctx context.Context, tx *ent.Tx, order *ent.EsportsOrd
 	if required == 0 {
 		return nil
 	}
-	// 审核报告 §3.2b：代提交 / 视为已提交不能让自由文本凭证绕过「服务截图不少于 N 张」。
+	// 审核报告 ：代提交 / 视为已提交不能让自由文本凭证绕过「服务截图不少于 N 张」。
 	// 仅在订单确实配了生效结单规则时加码（未配置时沿用结单条件既有口径）。
 	minImages, err := closeSubmitMinEvidenceImages(ctx, tx.Client(), order)
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsAfterSaleRule 是售后自动建单规则（§13.2-05）：把「条件 + 动作」做成可配置规则，
+// EsportsAfterSaleRule 是售后自动建单规则：把「条件 + 动作」做成可配置规则，
 // 覆盖结单后金额异常 / 时长严重不符等场景，命中后由任务在同一事务内建 channel=system 的售后单。
 //
 // 口径：
@@ -71,7 +71,7 @@ func (EsportsAfterSaleRule) Indexes() []ent.Index {
 	}
 }
 
-// EsportsAfterSaleRuleHit 是规则命中留痕（§13.2-05，只增不改）：每条规则对每个来源单据至多命中一次，
+// EsportsAfterSaleRuleHit 是规则命中留痕（，只增不改）：每条规则对每个来源单据至多命中一次，
 // 由 dedup_key = <rule_code>:<source_type>:<source_id> 的唯一索引兜底，避免重复建单与重复提醒。
 // 命中后若建单成功，回填 after_sale_id；未建单（auto_create=false）时该列为空。
 //

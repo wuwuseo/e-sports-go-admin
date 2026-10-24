@@ -6,7 +6,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 结单表单设计器（§3.4）：字段库与模板配置挂在「结算」菜单下。
+// 结单表单设计器：字段库与模板配置挂在「结算」菜单下。
 
 func listCloseFormFieldsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {

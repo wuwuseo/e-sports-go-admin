@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/ent/esportsplayer"
 )
 
-// §6.1-12：陪玩可自助提交「期望报价」，状态先落 pending（待运营审核）；
+// ：陪玩可自助提交「期望报价」，状态先落 pending（待运营审核）；
 // 运营审核通过 / 驳回（驳回须填写原因）；待审核期间不得重复提交；资料视图回显全部字段。
 func TestDw2PlayerExpectedPriceSubmitAndReview(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_expected_price")
@@ -86,7 +86,7 @@ func TestDw2PlayerExpectedPriceSubmitAndReview(t *testing.T) {
 	}
 }
 
-// §6.1-12：期望报价允许区间由配置约束（min,max，0=该侧不限），越界必须拒绝。
+// ：期望报价允许区间由配置约束（min,max，0=该侧不限），越界必须拒绝。
 func TestDw2PlayerExpectedPriceLimits(t *testing.T) {
 	db := openTransferDB(t, "esports_dw2_expected_price_limits")
 	defer db.Close()

@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/esportsorder"
 )
 
-// 多动作售后方案与逐项执行（§13.3 / §13.6）。
+// 多动作售后方案与逐项执行。
 //
 // 设计要点：
 //   - 动作项（EsportsAfterSaleAction）是方案的增量真相，售后单上的 plan_action / refund_cents /
@@ -40,7 +40,7 @@ const (
 	actionPlanSummaryMakeup     = "makeup_service"
 )
 
-// afterSaleActionInput 方案动作项入参（§13.3 / §13.6 多动作方案）。
+// afterSaleActionInput 方案动作项入参（多动作方案）。
 type afterSaleActionInput struct {
 	ActionType string `json:"action_type"`
 	// 资金类动作金额（分）；补履约类动作须为 0。
@@ -50,7 +50,7 @@ type afterSaleActionInput struct {
 	SeatIndex       int   `json:"seat_index"`
 	Units           int64 `json:"units"`
 	CompanyPayCents int64 `json:"company_pay_cents"`
-	// 退款类动作定向冲回的争议陪玩（§13.3 部分退款成员明细冲回）。
+	// 退款类动作定向冲回的争议陪玩（部分退款成员明细冲回）。
 	DisputePlayerID int `json:"dispute_player_id"`
 	// 原核销明细引用（构成按项幂等键的 <source> 段）；留空按来源单据兜底。
 	SourceRef string `json:"source_ref"`
@@ -120,7 +120,7 @@ func listAfterSaleActions(ctx context.Context, db *ent.Client, afterSaleID, limi
 	).Order(ent.Asc(esportsaftersaleaction.FieldSeq)).Limit(limit).All(ctx)
 }
 
-// submitAfterSaleActionsPlan 提交多动作方案（§13.3 / §13.6）：
+// submitAfterSaleActionsPlan 提交多动作方案：
 // 在同一事务内清空上一轮动作项、写入本轮动作项，并把售后单聚合字段更新为摘要后进入「待客户确认」。
 // 既有单动作路径（未传 actions）不受影响。
 func submitAfterSaleActionsPlan(ctx context.Context, db *ent.Client, id, adminID int,
@@ -222,7 +222,7 @@ func submitAfterSaleActionsPlan(ctx context.Context, db *ent.Client, id, adminID
 			source: afterSaleActionSourceRef(item, order, raw.SourceRef),
 		})
 	}
-	// §13.4：追偿须判责陪玩并指定承接陪玩，且不得超过本次赔付总额。
+	// ：追偿须判责陪玩并指定承接陪玩，且不得超过本次赔付总额。
 	if in.RecoveryCents > 0 && (in.FaultParty != "player" || in.RecoveryPlayerID < 1) {
 		return nil, fmt.Errorf("%w：向陪玩追偿时须把责任方判为陪玩并指定承接陪玩", errInvalidInput)
 	}
@@ -323,7 +323,7 @@ func submitAfterSaleActionsPlan(ctx context.Context, db *ent.Client, id, adminID
 	return db.EsportsAfterSale.Get(ctx, id)
 }
 
-// executeAfterSaleActions 逐项执行动作项（§13.6）：逐项开事务、逐项更新进度，允许部分成功。
+// executeAfterSaleActions 逐项执行动作项：逐项开事务、逐项更新进度，允许部分成功。
 // 允许从 pending_execution 首发，或从 execution_failed 续跑尚未完成的动作项（人工处理后重试）。
 func executeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID int, now time.Time) (*ent.EsportsAfterSale, error) {
 	if id < 1 || adminID < 1 {
@@ -359,7 +359,7 @@ func executeAfterSaleActions(ctx context.Context, db *ent.Client, id, adminID in
 	return finalizeAfterSaleActions(ctx, db, id, adminID, now)
 }
 
-// executeAfterSaleActionSeq 执行指定序号的单个动作项并刷新总状态，供人工逐项重试（§13.6）。
+// executeAfterSaleActionSeq 执行指定序号的单个动作项并刷新总状态，供人工逐项重试。
 func executeAfterSaleActionSeq(ctx context.Context, db *ent.Client, afterSaleID, seq, adminID int,
 	now time.Time) (*ent.EsportsAfterSaleAction, error) {
 	if afterSaleID < 1 || seq < 1 || adminID < 1 {
@@ -393,7 +393,7 @@ func executeAfterSaleActionSeq(ctx context.Context, db *ent.Client, afterSaleID,
 }
 
 // runAfterSaleAction 执行单个动作项；失败时在独立事务内把动作项落为 failed 并写订单事件留痕，
-// 退款类动作项失败时另把订单退款状态落 failed 并留原因（§3.2-03）。
+// 退款类动作项失败时另把订单退款状态落 failed 并留原因。
 func runAfterSaleAction(ctx context.Context, db *ent.Client, item *ent.EsportsAfterSale,
 	action *ent.EsportsAfterSaleAction, adminID int, now time.Time) {
 	if err := executeAfterSaleActionOnce(ctx, db, item, action, adminID, now); err != nil {
@@ -544,7 +544,7 @@ func executeFundingAction(ctx context.Context, tx *ent.Tx, item *ent.EsportsAfte
 			order.Version, false, nil
 	}
 	// 统一额度落账：从预占额度扣减并累加 refunded_cents（与既有单动作同一条件表达式口径）。
-	// §12.5-02：可退上界 = 服务应付 + 加钟已收款，并发谓词必须带上同一上界。
+	// ：可退上界 = 服务应付 + 加钟已收款，并发谓词必须带上同一上界。
 	addonReceived, err := addonReceivedCents(ctx, tx.Client(), order.ID)
 	if err != nil {
 		return "", 0, false, err
@@ -659,7 +659,7 @@ func markAfterSaleActionFailed(ctx context.Context, db *ent.Client, item *ent.Es
 	_ = tx.Commit()
 }
 
-// finalizeAfterSaleActions 汇总逐项执行结果推导售后单总状态（§13.6）：
+// finalizeAfterSaleActions 汇总逐项执行结果推导售后单总状态：
 //   - 全部动作项成功 → completed（既有终态），解冻分成、建追偿、记陪玩信用并写完成事件；
 //   - 仍有外部渠道退款处于 awaiting_execution（已登记待财务执行）且其余项无失败 → 售后单停留在
 //     pending_execution 并写「已登记待财务执行」说明，**不**落 execution_failed（钱未出账不算失败）；
@@ -755,7 +755,7 @@ func finalizeAfterSaleActionsInTx(ctx context.Context, tx *ent.Tx, id, adminID i
 		).SetStatus(esportsaftersale.StatusCompleted).SetExecutorAdminID(adminID).
 			SetResolvedAt(now.UTC()).
 			SetResolution(fmt.Sprintf("多动作方案全部执行完成（共 %d 项）", succeeded)).
-			// §13.2-09：落终态释放进行中唯一键。
+			// ：落终态释放进行中唯一键。
 			ClearActiveDedupKey().AddVersion(1).Save(ctx)
 		if err != nil {
 			return nil, err
@@ -763,17 +763,17 @@ func finalizeAfterSaleActionsInTx(ctx context.Context, tx *ent.Tx, id, adminID i
 		if changed != 1 {
 			return nil, errConflict
 		}
-		// §12.6：执行完成即争议终结，解冻该订单待结算分成明细。
+		// ：执行完成即争议终结，解冻该订单待结算分成明细。
 		if item.SourceType == esportsaftersale.SourceTypeOrder {
 			if _, err = unfreezeCommissionForOrder(ctx, tx.EsportsCommissionEntry, item.SourceID); err != nil {
 				return nil, err
 			}
 		}
-		// §13.4：追偿按售后单统一建单（逐项执行时已禁用，避免重复）。
+		// ：追偿按售后单统一建单（逐项执行时已禁用，避免重复）。
 		if err = createRecoveryFromAfterSale(ctx, tx, item, adminID); err != nil {
 			return nil, err
 		}
-		// §13.5：责任方为陪玩时自动记载信用（同售后单幂等）。
+		// ：责任方为陪玩时自动记载信用（同售后单幂等）。
 		if err = recordPlayerFaultCredit(ctx, tx, id); err != nil {
 			return nil, err
 		}
@@ -843,7 +843,7 @@ func afterSaleActionSeqFromExternalRefundTransactionNo(transactionNo string) int
 	return seq
 }
 
-// afterSaleActionAwaitingExternalRefundExecuted 财务执行外部退款成功后回写售后动作项（§8.2-11）：
+// afterSaleActionAwaitingExternalRefundExecuted 财务执行外部退款成功后回写售后动作项：
 // 按外部退款幂等键（AS-EXT-<售后单号>:a<序号>）定位动作项，把 awaiting_execution 转 succeeded，
 // 并在其余项已无未结项时把售后单结案（落 completed）。
 // 与退款执行同一事务，任一步失败整体回滚——不会出现「钱已出账、动作项还挂着待执行」的半截状态。

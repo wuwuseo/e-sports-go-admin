@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsSkuSuspension 是 SKU 停服（下架并停服）申请（§15.7）：一次下架动作的申请 → 异人审批 →
+// EsportsSkuSuspension 是 SKU 停服（下架并停服）申请：一次下架动作的申请 → 异人审批 →
 // 受影响订单逐单处置闭环。它与既有直接上下架接口（PUT /admin/products/{id} 直接改 status）并存：
 // 直接下架不做审批与订单处置，停服申请用于「需要审批、且必须逐单收敛在途订单」的下架场景。
 //

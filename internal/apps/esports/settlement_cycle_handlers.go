@@ -76,7 +76,7 @@ func setSettlementCycleStatusHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// freezeOrderCommissionHandler 手工冻结订单待结算分成明细（§12.6 争议冻结），可按陪玩收窄。
+// freezeOrderCommissionHandler 手工冻结订单待结算分成明细（争议冻结），可按陪玩收窄。
 func freezeOrderCommissionHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {

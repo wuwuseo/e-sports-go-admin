@@ -10,7 +10,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 售后单内沟通记录接口（§13.3-04）。
+// 售后单内沟通记录接口。
 //
 // 建议接线（主控统一加）：
 //   - GET  /admin/aftersales/:id/messages  AuthAdmin，需 PermAPI

@@ -21,7 +21,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 外部渠道退款（§13 补全）：针对已核销的外部付款订单退款，余额 / 储值卡原路退之外的场景。
+// 外部渠道退款（补全）：针对已核销的外部付款订单退款，余额 / 储值卡原路退之外的场景。
 // 真实通道退款仍走人工登记：财务登记外部退款凭证（registered），经财务核验后执行（executed），
 // 执行时把订单累计已退额与退款状态对齐留痕。幂等：同一外部退款流水号只能登记一次。
 
@@ -38,7 +38,7 @@ type registerExternalRefundInput struct {
 	Reason        string `json:"reason"`
 }
 
-// externalRefundRequireAfterSaleKey 是否强制外部退款关联售后单（§13.7-04 赔付收口到售后单）：
+// externalRefundRequireAfterSaleKey 是否强制外部退款关联售后单（赔付收口到售后单）：
 // 1 = 拒绝未关联售后单的对外付款登记；0 / 未配置 = 保留既有登记路径，但一律写私下赔付疑似留痕。
 const externalRefundRequireAfterSaleKey = "app.esports.external_refund_require_aftersale"
 
@@ -58,17 +58,17 @@ func externalRefundRequireAfterSale(ctx context.Context, client *ent.Client) boo
 // 状态 registered。只记账留痕，不改订单退款状态（订单退款状态在执行时对齐）。
 // 幂等：同一外部退款流水号只能登记一次（唯一索引兜底）。
 //
-// 赔付依据（§13.7-04）：赔付须收口到售后单，`app.esports.external_refund_require_aftersale=1`
+// 赔付依据：赔付须收口到售后单，`app.esports.external_refund_require_aftersale=1`
 // 时未关联售后单的对外付款直接拒绝（无责任判定 / 无方案的私下赔付不落账）；
 // 未开启该开关时保留既有登记路径，但同一事务内额外写 `payout.offbook_suspected` 事务外盒留痕，
 // 供风控 / 财务复核疑似私下赔付。
 //
-// 额度口径（§13）：登记阶段只做「登记不虚占/不透支」的基本校验，避免大量待执行登记
+// 额度口径：登记阶段只做「登记不虚占/不透支」的基本校验，避免大量待执行登记
 // 叠加起来超过订单可退额：
 //   - 关联售后单（AfterSaleID != nil）时，该金额已在审批阶段预占进 refund_reserved_cents，
 //     登记阶段不再重复计入，也不再额外校验（执行时按预占额度核销）；
 //   - 未关联售后单时，按 refunded_cents + refund_reserved_cents + 该订单已登记未执行的外部退款
-//     合计 + 本次 <= 服务应付 + 加钟已收款（§12.5-02 可退上界）校验，不得侵占已被售后预占的额度。
+//     合计 + 本次 <= 服务应付 + 加钟已收款（可退上界）校验，不得侵占已被售后预占的额度。
 func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 	in registerExternalRefundInput, now time.Time) (*ent.EsportsExternalRefund, error) {
 	in.Channel = strings.TrimSpace(in.Channel)
@@ -82,7 +82,7 @@ func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 	if in.AfterSaleID != nil && *in.AfterSaleID < 1 {
 		return nil, errInvalidInput
 	}
-	// §13.7-04：赔付须收口到售后单（严格模式），无售后依据的对外付款不得登记。
+	// ：赔付须收口到售后单（严格模式），无售后依据的对外付款不得登记。
 	requireAfterSale := in.AfterSaleID == nil && externalRefundRequireAfterSale(ctx, db)
 	if requireAfterSale {
 		return nil, fmt.Errorf("%w：外部退款须关联售后单（赔付须有售后方案与责任判定依据），请先在售后单内审批后再登记",
@@ -103,7 +103,7 @@ func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 		}
 	} else {
 		// 未关联售后单：除已落账 / 已预占额度外，还要扣掉同订单其他「已登记未执行」的外部退款，
-		// 否则多笔待执行登记会合计透支订单可退额（§12.5-02：服务应付 + 加钟已收款）。
+		// 否则多笔待执行登记会合计透支订单可退额（：服务应付 + 加钟已收款）。
 		pending, err := externalRefundPendingCents(ctx, tx, order.ID)
 		if err != nil {
 			return nil, err
@@ -147,7 +147,7 @@ func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
-	// §13.7-04 私下赔付检测留痕：未关联售后单的对外付款额外写一条非通知类事务外盒
+	// 私下赔付检测留痕：未关联售后单的对外付款额外写一条非通知类事务外盒
 	// （payout.* 前缀不属于通知事件，由业务事件投递器定向投给超管），供风控 / 财务复核。
 	if in.AfterSaleID == nil {
 		if _, err = tx.EsportsOutbox.Create().
@@ -167,17 +167,17 @@ func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 	return db.EsportsExternalRefund.Get(ctx, refund.ID)
 }
 
-// executeExternalRefund 财务核验并执行外部退款（§3.2-03 / §13）：
+// executeExternalRefund 财务核验并执行外部退款：
 // 先做只读前置校验（状态 / 登记人 / 冻结），再把订单退款状态置 executing（独立事务提交，
 // 结果未定的对外付款可被对账识别），最后在单事务内完成「registered → executed + 额度落账 + 冲回」。
 // 执行阶段任何失败都把订单退款状态落 failed 并留原因——外部渠道的钱已经出账，
 // 落账失败必须显式交人工处理，不能回退成「没发生过」。
 //
-// 额度口径（§13）：
+// 额度口径：
 //   - 关联售后单（AfterSaleID != nil）：金额在售后审批时已预占，执行时要求
 //     refund_reserved_cents >= 本次金额，扣减预占并累加已退额，不再要求额外预占；
 //   - 未关联售后单：按 refunded_cents + refund_reserved_cents + 本次 <= 服务应付 + 加钟已收款
-//     （§12.5-02 可退上界）校验，只累加已退额，不得侵占已被售后占用的额度。
+//     （可退上界）校验，只累加已退额，不得侵占已被售后占用的额度。
 //
 // 两种情况都用条件表达式防并发，保证累计 refunded_cents 不超过可退上界（服务应付 + 加钟已收款）。
 //
@@ -209,7 +209,7 @@ func executeExternalRefund(ctx context.Context, db *ent.Client, adminID, id int,
 	if err = ensureOrderPaymentStatusRefundableForExternalRefund(order); err != nil {
 		return nil, err
 	}
-	// §3.2-03：外部渠道退款已受理、结果未定 → 订单退款状态置 executing
+	// ：外部渠道退款已受理、结果未定 → 订单退款状态置 executing
 	// （独立事务提交，便于对账识别「已出款但未落账」的未决单）；已是 executing 时幂等跳过。
 	if order.RefundStatus != esportsorder.RefundStatusExecuting {
 		if err = markOrderRefundExecuting(ctx, db, order.ID, adminID,
@@ -270,7 +270,7 @@ func executeExternalRefundOnce(ctx context.Context, db *ent.Client, adminID, id 
 	}
 	// 订单退款状态对齐：超退靠条件表达式拦截，累计已退额与退款状态同一事务更新。
 	targetRefunded := order.RefundedCents + refund.AmountCents
-	// §12.5-02：可退上界 = 服务应付 + 加钟已收款（只增流水求和派生），两条谓词都必须带上同一上界。
+	// ：可退上界 = 服务应付 + 加钟已收款（只增流水求和派生），两条谓词都必须带上同一上界。
 	addonReceived, err := addonReceivedCents(ctx, tx.Client(), order.ID)
 	if err != nil {
 		return nil, err
@@ -335,7 +335,7 @@ func executeExternalRefundOnce(ctx context.Context, db *ent.Client, adminID, id 
 		}).Save(ctx); err != nil {
 		return nil, err
 	}
-	// §8.2-11：财务执行成功后，把对应的售后动作项从 awaiting_execution 转 succeeded；
+	// ：财务执行成功后，把对应的售后动作项从 awaiting_execution 转 succeeded；
 	// 其余项已无未结项时同一事务内把售后单结案（详见 aftersale_actions.go）。
 	if err = afterSaleActionAwaitingExternalRefundExecuted(ctx, tx, refund, adminID, now); err != nil {
 		return nil, err
@@ -377,7 +377,7 @@ func ensureOrderPaymentStatusRefundableForExternalRefund(order *ent.EsportsOrder
 	return nil
 }
 
-// externalRefundChannelSupported 订单支付渠道是否为外部渠道（§13 补全）：
+// externalRefundChannelSupported 订单支付渠道是否为外部渠道（补全）：
 // 微信 / 商户码 / 对公转账这类非预付账户渠道的退款必须走通道退款单，不能直接改钱包。
 func externalRefundChannelSupported(channel esportsorder.PaymentChannel) bool {
 	switch channel {
@@ -485,7 +485,7 @@ func listExternalRefunds(ctx context.Context, db *ent.Client, orderID int, statu
 	return q.Order(ent.Desc(esportsexternalrefund.FieldID)).Limit(limit).All(ctx)
 }
 
-// ── 外部退款待执行超期督办（审核报告 §8.2-12） ──
+// ── 外部退款待执行超期督办（审核报告 ） ──
 //
 // 外部渠道退款登记成 registered 之后，待执行期间额度一直被占着：关联售后单时它压在售后审批
 // 预占的 refund_reserved_cents 上，未关联时它按「已登记未执行」继续占住订单可退额。只要有单
@@ -505,7 +505,7 @@ const externalRefundOverdueEventType = "external_refund.overdue"
 // externalRefundOverdueHours 待执行外部退款的超期阈值（小时）：登记时间早于 now-该值、且仍为
 // registered 的单即视为超期待督办。
 //
-// 刻意做成代码内常量而不是新增系统配置项：§8.2-12 只要求「有督办」，不为它扩张后台配置面
+// 刻意做成代码内常量而不是新增系统配置项：只要求「有督办」，不为它扩张后台配置面
 // （新增 app.esports.* 键必须同时进 app.go 的 Config 声明，且会让运维多一个必配项）。
 const externalRefundOverdueHours = 24
 

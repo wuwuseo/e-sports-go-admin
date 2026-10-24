@@ -73,7 +73,7 @@ func TestCloseConditionTreeValidation(t *testing.T) {
 	}
 }
 
-// AND/OR 嵌套条件树（§3.4）：凭证 ≥1 且（系统时长 ≥600 秒 或 上报服务量 ≥2）；
+// AND/OR 嵌套条件树：凭证 ≥1 且（系统时长 ≥600 秒 或 上报服务量 ≥2）；
 // 该规则同时配置了默认结构化条件项，求值时自定义树与默认底线按 AND 合并（不能被替换）；
 // 条件未满足时结单被拦截、条件状态接口同步给出逐项明细（供结单按钮置灰）。
 func TestCloseConditionTreeAndOrEvaluation(t *testing.T) {
@@ -163,7 +163,7 @@ func TestCloseConditionTreeNotOperator(t *testing.T) {
 	}
 }
 
-// SKU「结单要求」（§15.3）：SKU 直接引用结单规则 code，优先于全局规则；清空后回落全局。
+// SKU「结单要求」：SKU 直接引用结单规则 code，优先于全局规则；清空后回落全局。
 func TestSkuCloseRuleReferenceWins(t *testing.T) {
 	db := openCloseRuleDB(t, "esports_close_condition_sku")
 	defer db.Close()

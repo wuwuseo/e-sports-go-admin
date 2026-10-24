@@ -14,11 +14,11 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 非订单来源售后执行（§13.3 / §13.6）：
+// 非订单来源售后执行：
 // 礼物 / 充值两类来源从「待执行」落账并完成，各按自身退款口径原路退回、
 // 冲回分成 / 权益，幂等靠售后单状态流转 + 下游唯一索引兜底。
 
-// completeSourceAfterSale 事务内把非订单售后单置为已完成并写外盒留痕（§13.6）。
+// completeSourceAfterSale 事务内把非订单售后单置为已完成并写外盒留痕。
 func completeSourceAfterSale(ctx context.Context, tx *ent.Tx, id, adminID int, eventType string,
 	payload map[string]interface{}, now time.Time) error {
 	changed, err := tx.EsportsAfterSale.Update().Where(
@@ -26,7 +26,7 @@ func completeSourceAfterSale(ctx context.Context, tx *ent.Tx, id, adminID int, e
 		esportsaftersale.StatusEQ(esportsaftersale.StatusPendingExecution),
 	).SetStatus(esportsaftersale.StatusCompleted).SetExecutorAdminID(adminID).
 		SetResolvedAt(now.UTC()).AddVersion(1).
-		// §13.2-09：落终态释放进行中唯一键。
+		// ：落终态释放进行中唯一键。
 		ClearActiveDedupKey().Save(ctx)
 	if err != nil {
 		return err
@@ -91,7 +91,7 @@ func executeGiftAfterSale(ctx context.Context, db *ent.Client, id, adminID int, 
 }
 
 // executeRechargeAfterSale 充值售后执行：按充值批次还原可退本金 / 作废赠送 / 已消费金额，
-// 同一事务内写内部退款流水冲减余额、按批次生成外部退款执行明细（§4.5）。
+// 同一事务内写内部退款流水冲减余额、按批次生成外部退款执行明细。
 //
 // 部分退款口径：允许 item.RefundCents <= 试算可退本金（剩余可返本金），本金按实际退款额冲减；
 // 赠送按「退款本金 / 可退本金」同比例作废（全额退款时比例 = 100%，与既有「未消费赠送随退作废」
@@ -165,7 +165,7 @@ func executeRechargeAfterSale(ctx context.Context, db *ent.Client, id, adminID i
 		}
 		return nil, fmt.Errorf("%w：批次账本冲回写入失败：%v", errExecutionFailed, err)
 	}
-	// 外部退款执行明细（§4.5）：按批次还原实付本金 / 赠送权益 / 已消费金额，幂等落账。
+	// 外部退款执行明细：按批次还原实付本金 / 赠送权益 / 已消费金额，幂等落账。
 	if err = executeRechargeRefundQuoteTx(ctx, tx, item, quote); err != nil {
 		return nil, fmt.Errorf("%w：按批次退款执行明细写入失败：%v", errExecutionFailed, err)
 	}

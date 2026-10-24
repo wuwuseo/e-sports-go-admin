@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 客户风控（§13.7）：风险名单查询、人工标记 / 解除，以及客户自助下单入口的风险拦截。
+// 客户风控：风险名单查询、人工标记 / 解除，以及客户自助下单入口的风险拦截。
 
 func listRiskCustomersHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
@@ -22,7 +22,7 @@ func listRiskCustomersHandler(c fiber.Ctx) error {
 	return reply(c, items)
 }
 
-// markCustomerRiskHandler 人工标记 / 解除客户风险（§13.7）。
+// markCustomerRiskHandler 人工标记 / 解除客户风险。
 func markCustomerRiskHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
@@ -45,7 +45,7 @@ func markCustomerRiskHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// userPlaceOrderHandler 客户自助下单（§13.2）：须已绑定登录身份、成年且未被限制自助下单。
+// userPlaceOrderHandler 客户自助下单：须已绑定登录身份、成年且未被限制自助下单。
 func userPlaceOrderHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)

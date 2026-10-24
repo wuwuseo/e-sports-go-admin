@@ -9,7 +9,7 @@ import (
 	"go-admin/internal/ent/esportswallettx"
 )
 
-// 成长值按核销明细的本金计提（§10.2-01）：余额本金 5000 + 赠送权益 5000 支付的
+// 成长值按核销明细的本金计提：余额本金 5000 + 赠送权益 5000 支付的
 // 10000 应付订单只产生 5000 成长值；退款只冲回对应部分——按原核销构成退还的本金份额冲回，
 // 退满后成长值恰好归零且不多冲。
 func TestOrderGrowthAccruesPrincipalOnlyAndReversesPrincipalShare(t *testing.T) {

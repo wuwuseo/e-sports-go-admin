@@ -14,8 +14,8 @@ import (
 // 定义在 schematier 包以避免与主 schema 包同名的生成代码导入冲突；此处以别名保留类型名。
 type CsCommissionTier = schematier.CsCommissionTier
 
-// EsportsCsCommissionRule 是客服提成规则（§12.2）。与陪玩分成规则一样不可原地修改：改规则＝
-// 新增一条递增 version 的新行，旧行转 history（§12.4）。version 在支付核销/结单时随明细快照。
+// EsportsCsCommissionRule 是客服提成规则。与陪玩分成规则一样不可原地修改：改规则＝
+// 新增一条递增 version 的新行，旧行转 history。version 在支付核销/结单时随明细快照。
 // ponytail: 「单笔手动指定」优先级未实现；预设生效时间由 scheduled 状态与定时任务处理。
 type EsportsCsCommissionRule struct{ ent.Schema }
 
@@ -57,8 +57,8 @@ func (EsportsCsCommissionRule) Indexes() []ent.Index {
 	}
 }
 
-// EsportsCsCommissionEntry 是客服提成明细（§12.2）。退款冲回不使用「修改原明细」表达，而是新增
-// kind=reversal 的负数明细，使退款金额落在退款当期（§12.6）。提成只在订单完成后生成。
+// EsportsCsCommissionEntry 是客服提成明细。退款冲回不使用「修改原明细」表达，而是新增
+// kind=reversal 的负数明细，使退款金额落在退款当期。提成只在订单完成后生成。
 type EsportsCsCommissionEntry struct{ ent.Schema }
 
 func (EsportsCsCommissionEntry) Fields() []ent.Field {
@@ -85,14 +85,14 @@ func (EsportsCsCommissionEntry) Fields() []ent.Field {
 		field.Int("matched_tier_bp").Default(0).StructTag(`json:"matched_tier_bp"`),
 		// 提成金额（分）；reversal 为负数。
 		field.Int64("amount_cents").Default(0).StructTag(`json:"amount_cents"`),
-		// 该笔计提时点的已知渠道成本快照（分，§12.1）；reversal 为 0。
+		// 该笔计提时点的已知渠道成本快照（分，）；reversal 为 0。
 		field.Int64("channel_cost_cents").Default(0).StructTag(`json:"channel_cost_cents"`),
-		// 工作室剩余快照（分，§12.1 反算）：服务应付 − 结单前退款 − 陪玩分成 − 渠道成本 − 本笔客服提成。
+		// 工作室剩余快照（分，反算）：服务应付 − 结单前退款 − 陪玩分成 − 渠道成本 − 本笔客服提成。
 		// 仅在 kind=service 时非零，reversal 为 0。
 		field.Int64("studio_remainder_cents").Default(0).StructTag(`json:"studio_remainder_cents"`),
 		field.Enum("status").Values("pending_settlement", "settled", "void").Default("pending_settlement").StructTag(`json:"status"`),
 		field.Int("settlement_id").Optional().Nillable().StructTag(`json:"settlement_id"`),
-		// 争议冻结（§12.6 / P0-8）：被争议冻结的明细不得进入结算单、不得置 settled。
+		// 争议冻结（P0-8）：被争议冻结的明细不得进入结算单、不得置 settled。
 		// 冻结与状态正交（仍为 pending_settlement），解冻后恢复可结算，口径与陪玩分成明细一致。
 		field.Time("frozen_at").Optional().Nillable().StructTag(`json:"frozen_at"`),
 		field.String("frozen_reason").MaxLen(255).Default("").StructTag(`json:"frozen_reason"`),

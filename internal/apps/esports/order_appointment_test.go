@@ -22,7 +22,7 @@ func seedUnpaidOrder(t *testing.T, db *ent.Client, orderNo string) *ent.EsportsO
 		SetPaymentDeadline(now.Add(time.Hour)).SaveX(t.Context())
 }
 
-// §3.2 / §5.5 预约档期确认：改期生成带时限的提案，确认后才允许派单。
+// 预约档期确认：改期生成带时限的提案，确认后才允许派单。
 func TestOrderAppointmentConfirmationGatesDispatch(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_order_appointment")
 	defer db.Close()

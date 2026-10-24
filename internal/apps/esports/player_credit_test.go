@@ -13,7 +13,7 @@ import (
 	"go-admin/internal/ent/esportsplayercreditevent"
 )
 
-// playerFaultAfterSale 构造一张责任方为陪玩、含追偿金额并执行完成的售后单（§13.4 + §13.5）。
+// playerFaultAfterSale 构造一张责任方为陪玩、含追偿金额并执行完成的售后单（+ ）。
 func playerFaultAfterSale(t *testing.T, db *ent.Client, order *ent.EsportsOrder, kind string,
 	playerID int, refundCents, recoveryCents int64, now time.Time) *ent.EsportsAfterSale {
 	t.Helper()
@@ -48,7 +48,7 @@ func playerFaultAfterSale(t *testing.T, db *ent.Client, order *ent.EsportsOrder,
 	return done
 }
 
-// 陪玩责任信用联动（§13.5）：责任方为陪玩的售后执行后自动只增记载，复核决定是否暂停接单。
+// 陪玩责任信用联动：责任方为陪玩的售后执行后自动只增记载，复核决定是否暂停接单。
 func TestAfterSalePlayerFaultRecordsPlayerCredit(t *testing.T) {
 	db := openAfterSaleDB(t, "esports_player_credit")
 	defer db.Close()

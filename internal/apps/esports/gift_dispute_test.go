@@ -60,7 +60,7 @@ func giftReversalTotal(ctx context.Context, db *ent.Client, kind esportscommissi
 	return total
 }
 
-// 礼物争议部分退款闭环（§9.5）：申请 → 审核 → 执行，按比例冲回陪玩分成 / 客服提成 / 成长值；
+// 礼物争议部分退款闭环：申请 → 审核 → 执行，按比例冲回陪玩分成 / 客服提成 / 成长值；
 // 二次退款补齐剩余额度后转全额退款，累计冲回不超过已计提金额。
 func TestGiftDisputePartialRefundLifecycle(t *testing.T) {
 	db := openGiftDB(t, "esports_gift_dispute_flow")

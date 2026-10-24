@@ -64,7 +64,7 @@ func TestReportAftersaleQualityFiltersHandlerAdmin(t *testing.T) {
 }
 
 // P1-09 任何未实现的筛选参数不得静默接受：
-// 派单效率的需求筛选项里没有「业绩归属客服」（§17 只列负责客服），必须显式 400；
+// 派单效率的需求筛选项里没有「业绩归属客服」（只列负责客服），必须显式 400；
 // 同时按需求的「负责客服」维度仍须可用。
 func TestReportDispatchEfficiencyRejectsPerformanceAdminDimension(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_report_dispatch_dims?mode=memory&cache=shared&_fk=1",

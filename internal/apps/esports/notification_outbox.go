@@ -15,7 +15,7 @@ import (
 	"go-admin/internal/ent/predicate"
 )
 
-// 通知发送适配层（§通知）：基于现有 EsportsOutbox，按事件类型把事件映射到通知通道
+// 通知发送适配层：基于现有 EsportsOutbox，按事件类型把事件映射到通知通道
 // （企微应用消息 / 语音 / 推送），因暂无渠道密钥，通道开关可配置（notification_channels），
 // 发送失败的事件置 dead 并计入客服失败待办（csWorkbenchTodos 的 notification_failed 项）。
 //
@@ -51,7 +51,7 @@ const legacyNotificationChannelsConfigKey = "notification_channels"
 var errNotificationSenderUnavailable = errors.New("通知发送通道尚未配置")
 
 // errNotificationChannelDegraded 表示「通道已启用但网关未配置」：投递侧必须显式降级并留痕，
-// 不能因为站内信成功就把它当作已送达（§5.7-06 不假成功）。
+// 不能因为站内信成功就把它当作已送达（不假成功）。
 var errNotificationChannelDegraded = errors.New("通知通道已启用但网关未配置，已降级")
 
 // notificationDegradedChannelsField 是站内信 extra 中记录降级通道的字段名，供客服与运维观测。
@@ -76,20 +76,20 @@ var notifyChannelTargets = []struct {
 	channels []string
 }{
 	{"dispatch.remind_admin", []string{notifyChannelWecomApp}},
-	// 第 1 档催单定向在线陪玩（§5.7）：走陪玩端推送；客服侧的第 2 档起用 remind_admin。
+	// 第 1 档催单定向在线陪玩：走陪玩端推送；客服侧的第 2 档起用 remind_admin。
 	{"dispatch.remind_player", []string{notifyChannelPush}},
-	// 服务超时提醒客服确认加钟（§5.7）。
+	// 服务超时提醒客服确认加钟。
 	{"dispatch.service_overtime", []string{notifyChannelWecomApp}},
-	// 派单逐级升级（§5.9-06）：企微 + 语音；语音网关未配置时由 deliver 记录 degraded_channels
-	// 明确降级（§5.7-06），绝不伪成功。
+	// 派单逐级升级：企微 + 语音；语音网关未配置时由 deliver 记录 degraded_channels
+	// 明确降级，绝不伪成功。
 	{"dispatch.escalation_no_taker", []string{notifyChannelWecomApp, notifyChannelVoice}},
 	{"dispatch.escalation_member_absent", []string{notifyChannelWecomApp, notifyChannelVoice}},
 	{"dispatch.escalation_starting_unfilled", []string{notifyChannelWecomApp, notifyChannelVoice}},
-	// 客服离线 / 积压自动转公共池（§5.1-05）：定向通知原负责客服。
+	// 客服离线 / 积压自动转公共池：定向通知原负责客服。
 	{"dispatch.auto_pool_release", []string{notifyChannelWecomApp}},
-	// 服务时长差异过大提醒客服核实（§6.2-03）。
+	// 服务时长差异过大提醒客服核实。
 	{"service.duration_mismatch", []string{notifyChannelWecomApp}},
-	// 服务段结束进入待结算（§6.1-15）：定向推送该陪玩。
+	// 服务段结束进入待结算：定向推送该陪玩。
 	// 只映射本事件，不整段收编 settlement.* ：结算模块自身的 settlement.generated /
 	// settlement.reversed 属业务事件，必须继续由业务消费方处理。
 	{"settlement.segment_finished", []string{notifyChannelPush}},
@@ -98,14 +98,14 @@ var notifyChannelTargets = []struct {
 	{"member.", []string{notifyChannelWecomApp}},
 	{"customer.", []string{notifyChannelWecomApp}},
 	{"payment.", []string{notifyChannelWecomApp}},
-	// 账本核验异常（§8.2-13）：逐收件人的 ledger.* 告警事件走企微直达财务 / 超管。
+	// 账本核验异常：逐收件人的 ledger.* 告警事件走企微直达财务 / 超管。
 	// 汇总审计事件 ledger.reconcile_anomaly 不在此列，见 ledgerAuditAggregateEventType 的排除口径。
 	{"ledger.", []string{notifyChannelWecomApp}},
-	// 外部退款待执行超期督办（§8.2-12）：与 ledger. 同一套前缀口径，走企微直达财务 / 超管。
+	// 外部退款待执行超期督办：与 ledger. 同一套前缀口径，走企微直达财务 / 超管。
 	{"external_refund.", []string{notifyChannelWecomApp}},
-	// 抢单未成功（§5.6-04）：只推送给落败者本人；必须排在通用 order. 之前。
+	// 抢单未成功：只推送给落败者本人；必须排在通用 order. 之前。
 	{"order.grab_attempt_lost", []string{notifyChannelPush}},
-	// 优先接单通知（§5.4-09）：只推送给被通知的名单内陪玩；必须排在通用 order. 之前。
+	// 优先接单通知：只推送给被通知的名单内陪玩；必须排在通用 order. 之前。
 	{"order.priority_notice", []string{notifyChannelPush}},
 	{"order.", []string{notifyChannelWecomApp, notifyChannelPush}},
 	{"player.", []string{notifyChannelPush}},
@@ -283,7 +283,7 @@ func (s *compositeNotificationSender) deliver(ctx context.Context, channels []st
 	for _, channel := range channels {
 		err := s.webhook.send(ctx, channel, eventType, aggregateRef, payload, recipients)
 		if errors.Is(err, errNotificationWebhookNotConfigured) {
-			// §5.7-06：通道已启用但网关未配置 —— 明确降级并可见（写入站内信且记日志），
+			// ：通道已启用但网关未配置 —— 明确降级并可见（写入站内信且记日志），
 			// 既不伪成功也不把事件无限重试。
 			degraded = append(degraded, channel)
 			log.Printf("[esports][notification] 通道 %s 已启用但未配置网关，明确降级 event=%s ref=%s",
@@ -336,7 +336,7 @@ func (s *messageNotificationSender) Send(ctx context.Context, channel, eventType
 }
 
 // sendToRecipients 逐收件人写站内信。degraded 是本次投递中「已启用但网关未配置」的通道，
-// 非空时写入消息 extra 的 degraded_channels，让降级可见（§5.7-06）。
+// 非空时写入消息 extra 的 degraded_channels，让降级可见。
 func (s *messageNotificationSender) sendToRecipients(ctx context.Context, channel, eventKey, eventType, aggregateRef string, payload map[string]interface{}, recipients []notificationRecipient, degraded []string) error {
 	if len(recipients) == 0 {
 		return errNotificationRecipientMissing
@@ -434,7 +434,7 @@ func (s *messageNotificationSender) messageAlreadySent(ctx context.Context, addr
 
 // notificationEventText 是事件类型 → 业务可读标题的映射；未命中时按前缀给出通用标题。
 var notificationEventText = map[string]string{
-	// 账本核验异常（§8.2-13）：ledger.* 是命名空间前缀，这里给命名空间级文案，
+	// 账本核验异常：ledger.* 是命名空间前缀，这里给命名空间级文案，
 	// 具体事件类型统一由 notificationEventTitle 的 ledger. 前缀回落给出同一标题。
 	"ledger.":                           "账本对账异常",
 	"external_refund.":                  "外部退款督办提醒",
@@ -461,20 +461,20 @@ var notificationEventText = map[string]string{
 	"order.restored":                    "订单已恢复",
 	"order.transferred":                 "订单已转移",
 	"order.after_sale_created":          "订单售后已创建",
-	// §5.4-09 / §5.6-04 / §5.7-02 / §5.3-06 / §3.3-03：派单域新增事件的专用文案。
+	// ：派单域新增事件的专用文案。
 	"order.priority_notice":         "优先接单通知",
 	"order.grab_attempt_lost":       "抢单未成功",
 	"order.seat_transfer_requested": "陪玩申请转单待确认",
 	"order.seat_transfer_approved":  "转单已通过",
 	"order.seat_refill_required":    "席位待补位",
 	"order.service_player_replaced": "服务中已更换陪玩",
-	// §6.1-15：服务段结束进入待结算。
+	// ：服务段结束进入待结算。
 	"settlement.segment_finished": "服务段已结束待结算",
-	// §5.9-06：派单逐级升级。
+	// ：派单逐级升级。
 	"dispatch.escalation_no_taker":          "无人接单待人工干预",
 	"dispatch.escalation_member_absent":     "多人缺席待补位",
 	"dispatch.escalation_starting_unfilled": "临近开始仍未满员",
-	// §5.1-05：客服离线 / 积压自动转公共池。
+	// ：客服离线 / 积压自动转公共池。
 	"dispatch.auto_pool_release":           "订单已自动转入公共池",
 	"aftersale.source_created":             "售后单已创建",
 	"aftersale.review_requested":           "售后待审批",
@@ -525,10 +525,10 @@ func notificationEventTitle(eventType string) string {
 	case strings.HasPrefix(eventType, "dispatch."):
 		return "派单提醒"
 	case strings.HasPrefix(eventType, "ledger."):
-		// §8.2-13：账本核验异常直达财务 / 超管。
+		// ：账本核验异常直达财务 / 超管。
 		return "账本对账异常"
 	case strings.HasPrefix(eventType, "external_refund."):
-		// §8.2-12：外部退款待执行超期督办。
+		// ：外部退款待执行超期督办。
 		return "外部退款督办提醒"
 	}
 	return "业务通知"
@@ -562,7 +562,7 @@ func notificationEventSummary(eventType, aggregateRef string, payload map[string
 			parts = append(parts, fmt.Sprintf("陪玩上报 %d 秒，系统计时 %d 秒，请核实", reported, system))
 		}
 	}
-	// §5.4-09：优先接单通知必须带游戏分区与响应截止时间，陪玩端无需再回查订单。
+	// ：优先接单通知必须带游戏分区与响应截止时间，陪玩端无需再回查订单。
 	if eventType == "order.priority_notice" {
 		if game := payloadString(payload, "game"); game != "" {
 			parts = append(parts, "分区 "+game)
@@ -571,7 +571,7 @@ func notificationEventSummary(eventType, aggregateRef string, payload map[string
 			parts = append(parts, "请在 "+until+" 前响应")
 		}
 	}
-	// §5.9-06：升级通知带未满员席位情况，客服一眼看出缺几个。
+	// ：升级通知带未满员席位情况，客服一眼看出缺几个。
 	if strings.HasPrefix(eventType, "dispatch.escalation_") {
 		required := payloadInt(payload, "required_seats")
 		accepted := payloadInt(payload, "accepted_seats")
@@ -579,7 +579,7 @@ func notificationEventSummary(eventType, aggregateRef string, payload map[string
 			parts = append(parts, fmt.Sprintf("席位 %d/%d 已接单", accepted, required))
 		}
 	}
-	// §8.2-13：账本异常要让财务 / 超管一眼看出是哪个账户、哪类异常、去哪里复核，无需回查事件载荷。
+	// ：账本异常要让财务 / 超管一眼看出是哪个账户、哪类异常、去哪里复核，无需回查事件载荷。
 	if strings.HasPrefix(eventType, "ledger.") {
 		if accountType := payloadString(payload, "account_type"); accountType != "" {
 			parts = append(parts, "账户类型 "+accountType)
@@ -594,7 +594,7 @@ func notificationEventSummary(eventType, aggregateRef string, payload map[string
 			parts = append(parts, "复核入口 "+endpoint)
 		}
 	}
-	// §8.2-12：外部退款超期督办要带退款单号、渠道、金额与超期时长，财务不必回查即可排优先级。
+	// ：外部退款超期督办要带退款单号、渠道、金额与超期时长，财务不必回查即可排优先级。
 	if strings.HasPrefix(eventType, "external_refund.") {
 		if refundNo := payloadString(payload, "refund_no"); refundNo != "" {
 			parts = append(parts, "退款单号 "+refundNo)

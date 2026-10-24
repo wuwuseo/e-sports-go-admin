@@ -52,7 +52,7 @@ func w4PriorityBookingProcessPath(intentID int) string {
 	return "/admin/priority-bookings/" + strconv.Itoa(intentID) + "/process"
 }
 
-// 路由契约（AGENTS.md §5-3）：新接线的「处理会员优先预约」路由必须同时具备
+// 路由契约（AGENTS.md ）：新接线的「处理会员优先预约」路由必须同时具备
 // 方法 + 完整路径完全一致的 PermAPI 声明，且处理函数就是本次实现的 handler。
 func TestPriorityBookingProcessRouteDeclaredWithPermission(t *testing.T) {
 	app := esportsAppDeclaration(t)

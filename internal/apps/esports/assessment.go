@@ -32,7 +32,7 @@ const (
 	defaultReviewRuleVersion   = "v1"
 )
 
-// 考核维度固定六项（§7.2），与 schema 枚举保持一致。
+// 考核维度固定六项，与 schema 枚举保持一致。
 var assessmentDimensions = []string{
 	"game_skill", "teaching", "attitude", "communication", "compliance", "stability",
 }
@@ -85,7 +85,7 @@ func assessmentConfigString(ctx context.Context, db *ent.Client, key, fallback s
 	return value
 }
 
-// ── 权重配置（§7.2） ──
+// ── 权重配置 ──
 
 type assessmentWeightInput struct {
 	Dimension string `json:"dimension"`
@@ -172,7 +172,7 @@ func resolveAssessmentWeights(ctx context.Context, db *ent.Client, assessmentTyp
 	return weights, nil
 }
 
-// ── 考核任务（§7.1/§7.2） ──
+// ── 考核任务 ──
 
 type assessmentInput struct {
 	PlayerID        int        `json:"player_id"`
@@ -218,7 +218,7 @@ func createAssessment(ctx context.Context, db *ent.Client, adminID int, in asses
 	if in.AssessmentType == "upgrade" {
 		create.SetActiveDedupKey(upgradeDedupKey(in.PlayerID))
 	}
-	// 陪玩自助申请（§7.1-02）没有操作管理员，adminID=0 时不落 created_by_admin_id（保持 NULL）。
+	// 陪玩自助申请没有操作管理员，adminID=0 时不落 created_by_admin_id（保持 NULL）。
 	if adminID > 0 {
 		create.SetCreatedByAdminID(adminID)
 	}
@@ -378,7 +378,7 @@ func scoreAssessment(ctx context.Context, db *ent.Client, id, adminID int, score
 }
 
 // applyAssessmentOutcome 按考核结论更新陪玩档案：入职/升级/复考通过则定级并开通接单权限；
-// 抽查通过仅刷新考核时间，抽查不通过则降一档并暂停接单权限（§7.2/§7.3/§7.4）。
+// 抽查通过仅刷新考核时间，抽查不通过则降一档并暂停接单权限。
 // ponytail: 等级→分成率的自动换算未做，具体分成率仍按既有「按陪玩」分成规则维护。
 func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.EsportsAssessment, passed bool, now time.Time) error {
 	player, err := tx.EsportsPlayer.Get(ctx, assessment.PlayerID)
@@ -394,7 +394,7 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 		if !passed {
 			return nil
 		}
-		// 与 updatePlayer 手工改档同一道门槛（§6.1）：考核通过也不能把未通过实名认证的陪玩设为「合格」。
+		// 与 updatePlayer 手工改档同一道门槛：考核通过也不能把未通过实名认证的陪玩设为「合格」。
 		// 返回错误即由调用方事务回滚，评分明细与考核状态都不会落地。
 		if err := ensurePlayerQualificationAllowed(ctx, tx.Client(), player.ID, esportsplayer.QualificationQualified); err != nil {
 			if errors.Is(err, errInvalidInput) {
@@ -427,7 +427,7 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 	return err
 }
 
-// revertAssessmentOutcome 申诉改判「通过 → 不通过」时回滚该次考核带来的业务影响（P0-15 / §7.4）：
+// revertAssessmentOutcome 申诉改判「通过 → 不通过」时回滚该次考核带来的业务影响（P0-15 / ）：
 //   - 撤销该次考核写入的等级提升与「合格」标记，并把依赖该结论的接单权限置为不可用
 //     （qualification → suspended，派单侧只认 qualified，见 dispatch.go 的资格校验）；
 //   - 等级只在「当前等级正是本次考核写入的目标档」时回退一档：后续更高档考核的成果不得被旧单改判抹掉
@@ -464,7 +464,7 @@ func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Es
 	return err
 }
 
-// restoreAssessmentOutcome 申诉改判「不通过 → 通过」时补记业务影响（P0-15 / §7.4）：
+// restoreAssessmentOutcome 申诉改判「不通过 → 通过」时补记业务影响（P0-15 / ）：
 // 入职 / 升级 / 复考与正常通过同一口径（定级 + 合格 + 实名门槛），抽查复核则解除该次不通过造成的暂停。
 // 抽查复核的通过结论不写等级，改判通过也不擅自上抬等级——降级可能另有原因，不能借一次改判抹掉。
 func restoreAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.EsportsAssessment, now time.Time) error {
@@ -478,7 +478,7 @@ func restoreAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.E
 	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1).
 		SetLevelAppraisedAt(now.UTC())
 	if player.Qualification == esportsplayer.QualificationSuspended {
-		// 与正常通过同一道实名门槛（§6.1）：未实名不得设为合格。
+		// 与正常通过同一道实名门槛：未实名不得设为合格。
 		if err = ensurePlayerQualificationAllowed(ctx, tx.Client(), player.ID, esportsplayer.QualificationQualified); err != nil {
 			if errors.Is(err, errInvalidInput) {
 				return fmt.Errorf("%w：考核改判通过但陪玩实名认证未通过，不得设为合格", errInvalidInput)
@@ -491,7 +491,7 @@ func restoreAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.E
 	return err
 }
 
-// ── 申诉（§7.4） ──
+// ── 申诉 ──
 
 // createAppeal 陪玩对已出结论的考核发起申诉，每个任务仅一次。
 func createAppeal(ctx context.Context, db *ent.Client, playerID, assessmentID int, reason string, now time.Time) (*ent.EsportsAssessmentAppeal, error) {
@@ -613,12 +613,12 @@ func reviewAppeal(ctx context.Context, db *ent.Client, assessmentID, adminID int
 	return db.EsportsAssessment.Get(ctx, assessmentID)
 }
 
-// ── 客户评价与综合评分（§7.5） ──
+// ── 客户评价与综合评分 ──
 
 // upsertReview 写入或更新一条评价，同时追加修订历史；同「订单+客户+陪玩」仅保留最新版本。
 // 已核验（客户本人提交、计入综合评分）的评价不得被客服代录覆盖（P0-16）：代录只是补充线索，
 // 若允许它把 verified 改回 false，等于用未核验内容改写客户真实评价并把它从综合评分里剔除。
-// 需要更正已核验评价时只能走评价申诉 / 撤回流程（§7.5-05）。未核验记录的代录更新照旧保留。
+// 需要更正已核验评价时只能走评价申诉 / 撤回流程。未核验记录的代录更新照旧保留。
 func upsertReview(ctx context.Context, tx *ent.Tx, orderID, customerID, playerID, rating int, comment string, verified bool) (*ent.EsportsPlayerReview, error) {
 	existing, err := tx.EsportsPlayerReview.Query().Where(
 		esportsplayerreview.OrderIDEQ(orderID),
@@ -757,7 +757,7 @@ type playerRatingView struct {
 	SampleCount  int     `json:"sample_count"`
 	Insufficient bool    `json:"insufficient"`
 	RuleVersion  string  `json:"rule_version"`
-	// 计算周期（§7.5-04）：与样本数 / 规则版本一并返回，供事后复核「这个分数是哪个窗口算出来的」。
+	// 计算周期：与样本数 / 规则版本一并返回，供事后复核「这个分数是哪个窗口算出来的」。
 	// PeriodScope 为口径名：sample_window=按纳入样本的时间跨度；empty=无样本，以计算时刻为起止。
 	PeriodScope string `json:"period_scope"`
 	PeriodStart string `json:"period_start"`
@@ -767,7 +767,7 @@ type playerRatingView struct {
 }
 
 // playerRatingSummary 陪玩综合评分：仅纳入已核验身份、状态正常的评价；样本不足时不当作低分。
-// 响应同时给出计算周期（口径 + 起止时间 + 跨度天数 + 计算时刻，§7.5-04），字段恒非空。
+// 响应同时给出计算周期（口径 + 起止时间 + 跨度天数 + 计算时刻，），字段恒非空。
 func playerRatingSummary(ctx context.Context, db *ent.Client, playerID int) (*playerRatingView, error) {
 	if playerID < 1 {
 		return nil, errInvalidInput
@@ -808,7 +808,7 @@ func playerRatingSummary(ctx context.Context, db *ent.Client, playerID int) (*pl
 	}, nil
 }
 
-// ratingPeriod 推导评分计算周期（§7.5-04）：有样本时取纳入样本 createdAt 的最小/最大值（向上取整天数），
+// ratingPeriod 推导评分计算周期：有样本时取纳入样本 createdAt 的最小/最大值（向上取整天数），
 // 无样本时以计算时刻为起止、口径标记 empty，保证响应中的周期字段恒非空。
 func ratingPeriod(rows []*ent.EsportsPlayerReview, now time.Time) (string, time.Time, time.Time, int) {
 	if len(rows) == 0 {
@@ -854,7 +854,7 @@ type assessmentDetailView struct {
 	Appeal     *ent.EsportsAssessmentAppeal  `json:"appeal"`
 }
 
-// assessmentDetail 返回考核任务 + 逐维度打分 + 申诉记录，构成完整考核记录（§7.4）。
+// assessmentDetail 返回考核任务 + 逐维度打分 + 申诉记录，构成完整考核记录。
 func assessmentDetail(ctx context.Context, db *ent.Client, id int) (*assessmentDetailView, error) {
 	if id < 1 {
 		return nil, errInvalidInput
@@ -881,7 +881,7 @@ func assessmentDetail(ctx context.Context, db *ent.Client, id int) (*assessmentD
 	return &assessmentDetailView{Assessment: assessment, Scores: scores, Appeal: appeal}, nil
 }
 
-// ── 客户自助：我的评价列表（§7.5） ──
+// ── 客户自助：我的评价列表 ──
 
 // 评价申诉状态枚举（与客户端契约一致）：none 未申诉 / pending 待复核 / approved 申诉成立 / rejected 申诉驳回。
 const (
@@ -891,7 +891,7 @@ const (
 	userReviewAppealRejected = "rejected"
 )
 
-// userReviewView 是客户本人评价列表的单条视图（§7.5 / §7.5-05）。
+// userReviewView 是客户本人评价列表的单条视图。
 // 关键补口：申诉接口需要评价 ID，而客户端此前拿不到自己的评价列表，申诉 UI 只能靠客服转述；
 // 这里一并给出 appeal_status 与 can_appeal，客户端可自行判断「能不能申诉、申诉走到哪一步」。
 type userReviewView struct {

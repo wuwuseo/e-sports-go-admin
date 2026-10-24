@@ -118,7 +118,7 @@ var adminOrderFulfillmentStatuses = map[string]struct{}{
 
 // adminOrderPaymentStatuses 是管理端订单列表可筛选的支付状态白名单。
 // 只列真实会被写入的状态：unpaid（待支付）→ paid（已收款），渠道撤销 / 拒付时为 exception。
-// 审核报告 §B.3-4：partial（部分收款）全仓无写入方，故不再出现在筛选白名单里，避免一个永远 0 条的死筛选项。
+// 审核报告 partial（部分收款）全仓无写入方，故不再出现在筛选白名单里，避免一个永远 0 条的死筛选项。
 var adminOrderPaymentStatuses = map[string]struct{}{
 	string(esportsorder.PaymentStatusUnpaid):    {},
 	string(esportsorder.PaymentStatusPaid):      {},
@@ -193,7 +193,7 @@ func (filter adminOrderFilter) apply(q *ent.EsportsOrderQuery) *ent.EsportsOrder
 
 // adminOrderScope 是订单的行级边界：非超管可见「本人负责」或「被授权协作」的订单。
 // allOrders 为 true 时不做收敛（超管，或命中 app.esports.finance_report_role_names 的财务角色，
-// 见 §3.5-05：财务需要看到全部订单及其金额明细）。
+// 见 ：财务需要看到全部订单及其金额明细）。
 func adminOrderScope(operatorID int, isSuper, allOrders bool) *ent.EsportsOrderQuery {
 	q := global.ORM.EsportsOrder.Query()
 	if isSuper || allOrders {
@@ -206,7 +206,7 @@ func adminOrderScope(operatorID int, isSuper, allOrders bool) *ent.EsportsOrderQ
 	return q
 }
 
-// canViewAllOrders 判断当前操作人是否可看全部订单（§3.5-05）：超管，或命中财务角色配置。
+// canViewAllOrders 判断当前操作人是否可看全部订单：超管，或命中财务角色配置。
 // 财务角色沿用 finance_access.go 的同一配置键与判定，避免出现第二套财务口径。
 func canViewAllOrders(c fiber.Ctx) bool {
 	return canAccessFinanceReport(c)
@@ -266,14 +266,14 @@ func fail(c fiber.Ctx, status int, message string) error {
 
 func businessError(c fiber.Ctx, err error) error {
 	switch {
-	// §4.6 报单校验：重复报单提醒 / 客户欠款拦截 / 预约时段资源冲突都给前端明确中文提示与 409。
+	// 报单校验：重复报单提醒 / 客户欠款拦截 / 预约时段资源冲突都给前端明确中文提示与 409。
 	// 这三类需排在 errInvalidInput 之前：预约资源冲突错误同时包裹了 errInvalidInput（容量判定口径）。
 	case errors.Is(err, errDuplicateOrder):
 		return fail(c, fiber.StatusConflict, err.Error())
 	case errors.Is(err, errCustomerDebt):
 		return fail(c, fiber.StatusConflict, err.Error())
 	case errors.Is(err, errPriceDeviation):
-		// §4.6-02：订单价明显偏离 SKU 标准价，需客服确认并填写偏离原因，状态码 409。
+		// ：订单价明显偏离 SKU 标准价，需客服确认并填写偏离原因，状态码 409。
 		return fail(c, fiber.StatusConflict, err.Error())
 	case errors.Is(err, errAppointmentResource):
 		return fail(c, fiber.StatusConflict, err.Error())
@@ -320,7 +320,7 @@ func requestAdmin(c fiber.Ctx) (*ent.Admin, error) {
 }
 
 // publicSkus 客户端商品列表（AuthPublic）：保持既有「仅在售」口径，
-// 并按 product_list 组件 props 透传的查询参数收窄取数（§16.3-06 / §16.3-11）。
+// 并按 product_list 组件 props 透传的查询参数收窄取数。
 func publicSkus(c fiber.Ctx) error {
 	props, err := parseSkuCatalogProps(c)
 	if err != nil {
@@ -336,14 +336,14 @@ func publicSkus(c fiber.Ctx) error {
 			"id": item.ID, "code": item.Code, "title": item.Title,
 			"service_type": item.ServiceType, "unit_price_cents": item.UnitPriceCents,
 			"service_units": item.ServiceUnits, "service_unit_name": item.ServiceUnitName,
-			// §15.6-01：报单页需要一并看到结单要求与标准时长，避免再单独查后台接口。
+			// ：报单页需要一并看到结单要求与标准时长，避免再单独查后台接口。
 			"close_rule_code": item.CloseRuleCode, "service_duration_minutes": item.ServiceDurationMinutes,
 		})
 	}
 	return reply(c, public)
 }
 
-// skuOrderQuotePreview 是报单页的报价试算结果（§15.6-01）：不落单即可看到会员折扣金额、
+// skuOrderQuotePreview 是报单页的报价试算结果：不落单即可看到会员折扣金额、
 // 应付金额、承诺服务量与该 SKU 适用的结单要求。
 type skuOrderQuotePreview struct {
 	SkuID                int    `json:"product_id"`
@@ -357,7 +357,7 @@ type skuOrderQuotePreview struct {
 	PromisedServiceUnits int64  `json:"promised_service_units"`
 	ServiceUnitName      string `json:"service_unit_name"`
 	CloseRuleCode        string `json:"close_rule_code"`
-	// §15.3-01 / §5.3-05：多人规格的每席承诺服务量与席位数（详情接口须能读到该字段）。
+	// ：多人规格的每席承诺服务量与席位数（详情接口须能读到该字段）。
 	PerSeatServiceUnits int64 `json:"-"`
 	RequiredSeats       int   `json:"-"`
 	// 会员权益消费点（P1-11）：报价页直接展示会员权益是否生效，以及本次订单是否会带
@@ -453,7 +453,7 @@ func skuNotOrderableReason(cause error) string {
 	return message
 }
 
-// skuOrderQuote 按（客户，SKU，份数）试算报价（§15.6-01）：只读计算，不落单、不占名额。
+// skuOrderQuote 按（客户，SKU，份数）试算报价：只读计算，不落单、不占名额。
 // 该入口只针对单个 SKU，配置缺失直接返回明确错误（P1-23 的「明确只针对该 SKU」分支）。
 func skuOrderQuote(ctx context.Context, db *ent.Client, customerID, skuID int, quantity int64) (*skuOrderQuotePreview, error) {
 	if skuID < 1 {
@@ -490,7 +490,7 @@ func adminSkus(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	// §15.8-03：成本价只对授权角色（配置 sku_cost_view_roles，缺省仅超管）可见，其余角色按未登记返回。
+	// ：成本价只对授权角色（配置 sku_cost_view_roles，缺省仅超管）可见，其余角色按未登记返回。
 	if !canViewSkuCost(c) {
 		for _, item := range items {
 			item.CostCents = nil

@@ -130,7 +130,7 @@ func TestRechargeRefundExecSecondPartialRefundOnSameSource(t *testing.T) {
 	}
 }
 
-// D34 的判定依据：退款冲回累计不得超过原计提（§12.1-05 / §12.5-02）。
+// D34 的判定依据：退款冲回累计不得超过原计提。
 // 覆盖「结单前已退款导致 serviceBase < payable」的场景，分多次部分退款后逐类校验。
 // 该不变量依赖调用方已按 refunded + reserved + 本次 <= payable 预占额度
 // （下例只按剩余可退额退款，与生产调用方同口径）。
@@ -198,7 +198,7 @@ func TestRefundReversalNeverExceedsAccrual(t *testing.T) {
 	}
 }
 
-// 存单冻结期间禁止一切写操作（§3.3-11）：释放到公共池、授予与撤销协作客服都是写操作，
+// 存单冻结期间禁止一切写操作：释放到公共池、授予与撤销协作客服都是写操作，
 // 必须同样被冻结守卫拦截，否则冻结期可改归属/协作、解冻后回不到冻结前状态。
 func TestFrozenOrderBlocksPoolReleaseAndCollaboratorWrites(t *testing.T) {
 	db := openDepositDB(t, "esports_freeze_guards")
@@ -329,7 +329,7 @@ func TestAddonRevenueJoinsDistributableBase(t *testing.T) {
 		t.Fatalf("客服提成基数应含加钟款：base=%d amount=%d（期望 30000 / 3000）",
 			csEntry.BaseCents, csEntry.AmountCents)
 	}
-	// §12.1-04：陪玩分成 + 客服提成 + 渠道成本 ≤ 可分基数；工作室剩余由可分基数反算。
+	// ：陪玩分成 + 客服提成 + 渠道成本 ≤ 可分基数；工作室剩余由可分基数反算。
 	var playerTotal int64
 	entries := db.EsportsCommissionEntry.Query().Where(
 		esportscommissionentry.OrderIDEQ(order.ID)).AllX(ctx)

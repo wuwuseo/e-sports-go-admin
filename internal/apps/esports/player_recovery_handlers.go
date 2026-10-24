@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/global"
 )
 
-// 陪玩追偿明细（§13.4）：售后赔付由陪玩承担时生成的扣回单，审批后从猫粮扣回。
+// 陪玩追偿明细：售后赔付由陪玩承担时生成的扣回单，审批后从猫粮扣回。
 
 func listPlayerRecoveriesHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {

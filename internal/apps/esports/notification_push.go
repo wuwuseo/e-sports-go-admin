@@ -17,7 +17,7 @@ import (
 	"go-admin/internal/ent"
 )
 
-// 通知推送网关（§通知）：读取 SystemConfig 的 app.esports.notification_push_webhook，
+// 通知推送网关：读取 SystemConfig 的 app.esports.notification_push_webhook，
 // 逐通道 POST 业务通知。配置示例：
 //
 //	{"url":"https://push.example.com/esports/notify","secret":"whsec_xxx","timeout_seconds":5}

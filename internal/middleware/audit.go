@@ -66,7 +66,7 @@ func AdminAuditRules() map[string]AuditRule {
 		// 认证
 		"POST /api/v1/admin/auth/logout": {Module: "认证", Action: "登出"},
 
-		// —— 陪玩报单（§2.1-05 ② / §15.7-03）：资金 / 价格 / 规格 / 结单要求 / 内容发布变更 ——
+		// —— 陪玩报单（② / ）：资金 / 价格 / 规格 / 结单要求 / 内容发布变更 ——
 		// 价格与规格：Snapshot 让操作日志带上改前改后值（实体的价格/规格/结单要求字段）。
 		"POST /api/v1/esports/admin/products":                         {Module: "陪玩报单·商品", Action: "创建商品"},
 		"PUT /api/v1/esports/admin/products/:id":                      {Module: "陪玩报单·商品", Action: "编辑商品（价格/结单要求）", Snapshot: AuditSnapshotEsportsSku},

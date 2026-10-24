@@ -246,7 +246,7 @@ func TestPublishOrderToGrabHallReopensSeats(t *testing.T) {
 	}
 }
 
-// 会员优先等级客户的待派单订单在看板置顶并被标记，非会员订单保持原顺序（§10.4）。
+// 会员优先等级客户的待派单订单在看板置顶并被标记，非会员订单保持原顺序。
 func TestDispatchBoardPrioritizesMemberOrders(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_member_priority_board?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
@@ -296,7 +296,7 @@ func TestDispatchBoardPrioritizesMemberOrders(t *testing.T) {
 	}
 }
 
-// 公共池脱敏（§5.1 / §8.2）：非超管看公共池只得到客户/金额掩码的摘要，超管看完整数据。
+// 公共池脱敏：非超管看公共池只得到客户/金额掩码的摘要，超管看完整数据。
 func TestDispatchBoardPublicPoolMasking(t *testing.T) {
 	db := enttest.Open(t, "sqlite3", "file:esports_dispatch_pool_mask?mode=memory&cache=shared&_fk=1",
 		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))

@@ -8,7 +8,7 @@ import (
 	"go-admin/internal/ent/esportsplayerreview"
 )
 
-// orderMemberView 客户自助「订单服务成员」视图：已完成订单服务评价（§7.5）的前置数据。
+// orderMemberView 客户自助「订单服务成员」视图：已完成订单服务评价的前置数据。
 type orderMemberView struct {
 	PlayerID    int    `json:"player_id"`
 	SeatIndex   int    `json:"seat_index"`

@@ -29,7 +29,7 @@ func closeOrderHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// approveCloseReviewHandler 复核通过结单（§3.4 高额单管理员复核）。
+// approveCloseReviewHandler 复核通过结单（高额单管理员复核）。
 func approveCloseReviewHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -53,7 +53,7 @@ func approveCloseReviewHandler(c fiber.Ctx) error {
 	return reply(c, order)
 }
 
-// rejectCloseReviewHandler 复核驳回结单（§3.4，回退到待结单）。
+// rejectCloseReviewHandler 复核驳回结单（，回退到待结单）。
 func rejectCloseReviewHandler(c fiber.Ctx) error {
 	adminID, err := requireAdmin(c)
 	if err != nil {
@@ -87,8 +87,8 @@ func adminAfterSales(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	// §13.5：附带当前阶段时限与是否超时，前端据此高亮；
-	// §8.2-24：同时带出「等待财务执行外部退款的动作项数」与「关联外部退款是否已超期」。
+	// ：附带当前阶段时限与是否超时，前端据此高亮；
+	// ：同时带出「等待财务执行外部退款的动作项数」与「关联外部退款是否已超期」。
 	views, err := afterSaleAdminViewsOf(c.Context(), global.ORM, items, time.Now())
 	if err != nil {
 		return businessError(c, err)
@@ -108,7 +108,7 @@ func adminAfterSaleDetail(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	// §13.5 限时信息 + §8.2-24 外部执行信号：与列表复用同一聚合函数，避免两套口径。
+	// 限时信息 + 外部执行信号：与列表复用同一聚合函数，避免两套口径。
 	view, err := afterSaleAdminViewOf(c.Context(), global.ORM, item, time.Now())
 	if err != nil {
 		return businessError(c, err)
@@ -130,7 +130,7 @@ func createAfterSaleHandler(c fiber.Ctx) error {
 	if err := loadOwnedAfterSaleSourceByRef(c.Context(), global.ORM, admin.ID, isSuper, in.SourceType, in.SourceID); err != nil {
 		return businessError(c, err)
 	}
-	// §13.2：客服代建售后支持引用本人上传的凭证附件（evidence_attachment_ids）。
+	// ：客服代建售后支持引用本人上传的凭证附件（evidence_attachment_ids）。
 	item, err := createAfterSaleWithEvidence(c.Context(), global.ORM, in.afterSaleInput, in.EvidenceAttachmentIDs, admin.ID, time.Now())
 	if err != nil {
 		return businessError(c, err)
@@ -138,7 +138,7 @@ func createAfterSaleHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// userConfirmAfterSaleHandler 客户自助确认方案（§13.3）。
+// userConfirmAfterSaleHandler 客户自助确认方案。
 func userConfirmAfterSaleHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
@@ -156,7 +156,7 @@ func userConfirmAfterSaleHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// userDeclineAfterSaleHandler 客户自助拒绝方案（§13.3）：须填原因，退回处理中。
+// userDeclineAfterSaleHandler 客户自助拒绝方案：须填原因，退回处理中。
 func userDeclineAfterSaleHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
@@ -216,7 +216,7 @@ func planAfterSaleHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// afterSaleRefundReviewerOf 从登录态解析当前操作人的资金复核资格（§3.3-09 / §13.5-02）：
+// afterSaleRefundReviewerOf 从登录态解析当前操作人的资金复核资格：
 // 超级管理员直接具备；否则读取活跃角色名，命中「退款财务复核角色」配置即具备。
 // uid 缺失或角色未解析时返回零值 = 非财务角色，由服务层按门槛明确拒绝，不静默放行。
 func afterSaleRefundReviewerOf(c fiber.Ctx) afterSaleRefundReviewer {
@@ -304,7 +304,7 @@ func withdrawAfterSaleHandler(c fiber.Ctx) error {
 	return reply(c, item)
 }
 
-// listFulfillmentMakeupsHandler 列出补履约任务（§13.6）。
+// listFulfillmentMakeupsHandler 列出补履约任务。
 func listFulfillmentMakeupsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)

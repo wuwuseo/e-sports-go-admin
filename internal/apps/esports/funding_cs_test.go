@@ -106,7 +106,7 @@ func csCustomerOf(t *testing.T, resp csJSONResponse) map[string]any {
 	return customer
 }
 
-// §3.5-02 / §5.1-04：企微自动建档命中他人客户时不得回传整条档案，
+// ：企微自动建档命中他人客户时不得回传整条档案，
 // 只回最小卡片并标记归属，让调用方知道客户已被他人负责。
 func TestWecomIntakeCrossCsReturnsMinimalCard(t *testing.T) {
 	db := openCSDB(t, "funding_cs_intake_cross")
@@ -226,7 +226,7 @@ func TestWecomIntakeSameCsIdempotent(t *testing.T) {
 	}
 }
 
-// §8.3-02：PUT profile 未提供 tags 时不改动既有标签；显式空数组才清空。
+// ：PUT profile 未提供 tags 时不改动既有标签；显式空数组才清空。
 func TestCustomerProfileTagsIncremental(t *testing.T) {
 	db := openCSDB(t, "funding_cs_tags_keep")
 	defer db.Close()

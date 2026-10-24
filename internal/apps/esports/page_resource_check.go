@@ -18,10 +18,10 @@ import (
 	"go-admin/internal/ent/esportssku"
 )
 
-// 发布前资源有效性校验（§16.4 增量补充）：在既有域名白名单校验之后执行，
+// 发布前资源有效性校验（增量补充）：在既有域名白名单校验之后执行，
 // 不改动、不回退既有校验链（validatePageConfigWithAllowedDomains）。
 //
-// 本轮（清零残留 §8.2-16）在此文件内做两件事：
+// 本轮（清零残留 ）在此文件内做两件事：
 //  1. DNS rebinding 防护：白名单域名解析出的 IP 逐条必须为公网地址，否则直接拒绝且**不发请求**；
 //     真正拨号时用的是**同一份被校验过的解析结果**（自建 Transport 的 DialContext）。
 //  2. 图片探测串行 → 有并发上限的并行 + 同一 URL 只探测一次 + 整体超时。
@@ -66,27 +66,27 @@ var pageDialIP = func(ctx context.Context, network, address string) (net.Conn, e
 	return (&net.Dialer{Timeout: pageImageProbeTimeout}).DialContext(ctx, network, address)
 }
 
-// pageProbeImage 探测外部图片 URL 可访问性（§16.4）：默认 HEAD→GET，失败视为不可访问。
+// pageProbeImage 探测外部图片 URL 可访问性：默认 HEAD→GET，失败视为不可访问。
 // 以包级变量暴露，便于测试中替换为桩函数，避免单元测试发起真实网络请求。
 // 默认实现使用 pageProbeHTTPClient：其拨号器会用「被校验过的解析结果」连目标 IP。
 var pageProbeImage = func(ctx context.Context, rawURL string) error {
 	return probePageImageURLWithClient(ctx, pageProbeHTTPClient(), rawURL)
 }
 
-// 指向商品 / 活动的组件属性键（§16.4）：自由 props 中引用这些键时，发布前校验其有效性。
+// 指向商品 / 活动的组件属性键：自由 props 中引用这些键时，发布前校验其有效性。
 var (
 	pageProductFields  = map[string]bool{"product_id": true, "product_ids": true}
 	pageCampaignFields = map[string]bool{"campaign_id": true, "campaign_ids": true, "activity_id": true, "activity_ids": true}
 )
 
-// validatePageResources 发布前校验资源有效性（§16.4 增量）：图片 URL 可访问、跳转链接合法性、
+// validatePageResources 发布前校验资源有效性（增量）：图片 URL 可访问、跳转链接合法性、
 // 商品/活动有效性、文本长度超限。additive：应在域名白名单校验通过后调用。
 //
 // P0-17：外部图片探测必须先过 `app.esports.page_allowed_domains` 域名白名单，
 // 不在白名单内的地址**不发起任何网络请求**，直接判定不可用（避免发布动作被当作 SSRF 探测器）。
 // 白名单缺失时按 fail-closed 处理：视为空集合，拒绝全部外部图片探测并提示配置键。
 //
-// §8.2-16：白名单域名还要过「解析后 IP 必须是公网地址」的二次校验（见 pageCheckExternalImage），
+// ：白名单域名还要过「解析后 IP 必须是公网地址」的二次校验（见 pageCheckExternalImage），
 // 且全部组件的同步校验通过后才并行发起探测（同一 URL 只探测一次，结果统一汇总）。
 func validatePageResources(ctx context.Context, db *ent.Client, cfg pageConfig) error {
 	allowedDomains := pageAllowedDomains(ctx, db)
@@ -197,7 +197,7 @@ func pageEntityFieldID(key string, value interface{}) (int, bool) {
 	}
 }
 
-// pageCheckEntity 校验商品 / 活动引用有效（§16.4）：须存在且处于可售卖 / 进行中状态。
+// pageCheckEntity 校验商品 / 活动引用有效：须存在且处于可售卖 / 进行中状态。
 func pageCheckEntity(ctx context.Context, db *ent.Client, key string, id, compIndex int) error {
 	var err error
 	switch key {
@@ -231,7 +231,7 @@ func pageCheckCampaign(ctx context.Context, db *ent.Client, id int) error {
 	return err
 }
 
-// validatePageLinkSafety 校验跳转链接合法性（§16.4 增量）：站内相对路径拒绝协议相对 / 路径穿越 /
+// validatePageLinkSafety 校验跳转链接合法性（增量）：站内相对路径拒绝协议相对 / 路径穿越 /
 // 控制字符；外部链接须为可解析的 https 且不含凭证信息。
 func validatePageLinkSafety(raw string, compIndex int, field string) error {
 	raw = strings.TrimSpace(raw)
@@ -254,7 +254,7 @@ func validatePageLinkSafety(raw string, compIndex int, field string) error {
 	return nil
 }
 
-// pageCheckExternalImage 校验发布前的外部图片地址（P0-17 + §8.2-16）。
+// pageCheckExternalImage 校验发布前的外部图片地址（P0-17 + ）。
 // 顺序刻意固定：先做网络目标校验（协议 / 凭证 / 端口 / 内网字面量），再过域名白名单，
 // 再做「解析后 IP 全为公网」的二次校验，最后才**登记**探测任务（全部组件同步校验通过后并行探测）——
 // 任何一步不通过都不会产生网络请求。
@@ -278,7 +278,7 @@ func pageCheckExternalImage(ctx context.Context, allowedDomains map[string]bool,
 	if err := pageProbeAllowed(allowedDomains, raw); err != nil {
 		return fmt.Errorf("%w：第 %d 个组件字段 %q 的图片不可用：%v", errInvalidInput, compIndex+1, field, err)
 	}
-	// §8.2-16：白名单域名解析出的每个 IP 都必须是公网地址（DNS rebinding 防护第一道）。
+	// ：白名单域名解析出的每个 IP 都必须是公网地址（DNS rebinding 防护第一道）。
 	// 这里先解析一次是为了「快速失败且不发请求」；拨号时还会用同一套校验再解析一次，
 	// 真正建立连接所用的 IP 是拨号那一刻被校验过的结果（见 pageProbeDialContext）。
 	if _, err := pageVerifyHostIPsPublic(ctx, host); err != nil {
@@ -310,7 +310,7 @@ func pageProbeAllowed(allowedDomains map[string]bool, rawURL string) error {
 // 以及 localhost / *.localhost 这类必然指向本机的主机名。返回的中文片段由调用方拼接字段上下文。
 //
 // 这里只看字面量主机；域名解析后的 IP 校验在 pageVerifyHostIPsPublic / pageProbeDialContext
-// 两处完成（§8.2-16 DNS rebinding 防护），白名单仍是第一道闸门。
+// 两处完成（DNS rebinding 防护），白名单仍是第一道闸门。
 func pageValidateHTTPSURLTarget(rawURL string) error {
 	u, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil {
@@ -348,7 +348,7 @@ func pageHostIsLocalOrPrivate(host string) bool {
 	return !pageIPIsPublicTarget(ip)
 }
 
-// pageIPIsPublicTarget 判断单个解析结果是否可作为探测目标（§8.2-16）：
+// pageIPIsPublicTarget 判断单个解析结果是否可作为探测目标：
 // 拒绝环回（127/8、::1）、私网（10/8、172.16/12、192.168/16）、链路本地（169.254/16、fe80::/10）、
 // IPv6 唯一本地（fc00::/7）、未指定（0.0.0.0、::）、组播以及 IPv4 映射的上述地址。
 func pageIPIsPublicTarget(ip net.IP) bool {
@@ -380,7 +380,7 @@ func pageIPIsPublicTarget(ip net.IP) bool {
 	return true
 }
 
-// pageVerifyHostIPsPublic 解析域名并逐条校验解析结果（§8.2-16）：
+// pageVerifyHostIPsPublic 解析域名并逐条校验解析结果：
 // 只要有一条命中环回 / 私网 / 链路本地 / 唯一本地 / 未指定地址，整体拒绝（不做「取第一条」放行）。
 // 返回的 IP 列表即本次校验所依据的解析结果，供调用方在**同一份结果**上拨号。
 func pageVerifyHostIPsPublic(ctx context.Context, host string) ([]net.IP, error) {
@@ -404,7 +404,7 @@ func pageVerifyHostIPsPublic(ctx context.Context, host string) ([]net.IP, error)
 	return ips, nil
 }
 
-// pageProbeDialContext 是图片探测客户端专用的拨号器（§8.2-16）：
+// pageProbeDialContext 是图片探测客户端专用的拨号器：
 // 先解析并逐条校验 IP，再用**校验通过的同一份解析结果**逐条拨号。
 // 这样「校验时解析到公网、请求时又解析到内网」的时间窗被彻底关闭——连接目标就是被校验过的 IP。
 func pageProbeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -450,7 +450,7 @@ type pageProbeTarget struct {
 }
 
 // pageProbeCollector 收集待探测的外部图片地址：同步校验阶段只登记，
-// 全部组件校验通过后再并行探测（§8.2-16 后半：串行 → 有并发上限的并行）。
+// 全部组件校验通过后再并行探测（后半：串行 → 有并发上限的并行）。
 type pageProbeCollector struct {
 	order   []string
 	targets map[string]pageProbeTarget

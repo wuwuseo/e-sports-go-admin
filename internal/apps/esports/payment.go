@@ -97,7 +97,7 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 		p.AmountCents <= 0 || p.ConfirmedAt.IsZero() {
 		return nil, errInvalidInput
 	}
-	// §4.3-03：支付意图按所属单据类型分流——订单收款 / 客户充值 / 客户自助购卡。
+	// ：支付意图按所属单据类型分流——订单收款 / 客户充值 / 客户自助购卡。
 	// 充值意图与购卡意图的 order_id 是保留段（非真实订单），必须走各自核销入口，
 	// 否则 tx.EsportsOrder.Get 必然查不到而导致到账无法入账。
 	intent, err := db.EsportsPaymentIntent.Query().Where(
@@ -115,7 +115,7 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 		// 历史购卡支付意图：卡表已随功能 DROP，回调无法自动核销，明确失败交人工处置（不伪成功）。
 		return nil, fmt.Errorf("%w：该支付意图属于已下线的储值卡购卡功能，到账需人工核对处置", errNotConfigured)
 	}
-	// §7 / 18-02：支付时限未配置时不得核销（明确失败，不返回伪成功）。
+	// 18-02：支付时限未配置时不得核销（明确失败，不返回伪成功）。
 	if err := ensurePaymentDeadlineConfigured(ctx, db); err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 		if changed != 1 {
 			return nil, errConflict
 		}
-		// 进入待派单：若该游戏分区有优先派单权生效名单，则只通知名单内陪玩（§5.4 业务口径）。
+		// 进入待派单：若该游戏分区有优先派单权生效名单，则只通知名单内陪玩（业务口径）。
 		// 窗口与「当前可接单」判定必须用核销动作时刻：晚核验的订单若用真实到账时刻，
 		// 优先通知窗口会在开窗瞬间就已过期，名单内陪玩收不到通知。
 		appliedAt := p.AppliedAt
@@ -290,7 +290,7 @@ func applyVerifiedPaymentOnce(ctx context.Context, db *ent.Client, p verifiedPay
 
 var errPaymentGatewayUnavailable = errors.New("收款通道尚未配置")
 
-// paymentDocumentKind 是支付意图所属单据类型（§4.3-03）：订单 / 客户充值 / 已下线的购卡。
+// paymentDocumentKind 是支付意图所属单据类型：订单 / 客户充值 / 已下线的购卡。
 // 三类意图共用 EsportsPaymentIntent 表，用 order_id 的保留段区分。
 type paymentDocumentKind int
 
@@ -317,7 +317,7 @@ func paymentDocumentKindOf(orderID int) paymentDocumentKind {
 	return paymentDocumentOrder
 }
 
-// settleChannelRecharge 已验签回调核销客户充值意图（§4.3-03）：转 settleRechargeIntent，
+// settleChannelRecharge 已验签回调核销客户充值意图：转 settleRechargeIntent，
 // 渠道回调没有管理员操作人（OperatorAdminID=0），到账依据是渠道流水号。
 func settleChannelRecharge(ctx context.Context, db *ent.Client, p verifiedPayment,
 	intent *ent.EsportsPaymentIntent) (*paymentOutcome, error) {
