@@ -230,7 +230,7 @@ func confirmOrderAddon(ctx context.Context, db *ent.Client, playerID, addonID in
 	// 按确认时点的陪玩等级走 §12.3 的 level 级；档案缺失按无等级处理。
 	addonPlayerLevel := ""
 	if addonPlayer, pErr := tx.EsportsPlayer.Get(ctx, playerID); pErr == nil {
-		addonPlayerLevel = addonPlayer.Level.String()
+		addonPlayerLevel = addonPlayer.Level
 	}
 	rule, err := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
 		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, addonPlayerLevel, now)

@@ -338,8 +338,8 @@ func TestPriorityNoticeSkipsPlayersBelowRequiredLevel(t *testing.T) {
 	game := "英雄联盟"
 	junior := seedPlayer(t, db, 1601, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	senior := seedPlayer(t, db, 1602, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(junior.ID).SetLevel(esportsplayer.LevelNovice).SaveX(ctx)
-	db.EsportsPlayer.UpdateOneID(senior.ID).SetLevel(esportsplayer.LevelSenior).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(junior.ID).SetLevel("novice").SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(senior.ID).SetLevel("senior").SaveX(ctx)
 	sku := seedGameSku(t, db, "R4-PL", game)
 	for _, player := range []*ent.EsportsPlayer{junior, senior} {
 		if _, err := grantDispatchPriority(ctx, db, 7, basePriorityInput(game, player.ID), now); err != nil {
@@ -347,7 +347,7 @@ func TestPriorityNoticeSkipsPlayersBelowRequiredLevel(t *testing.T) {
 		}
 	}
 	order := seedPendingOrderWithSku(t, db, "R4-PL-1", sku.ID)
-	db.EsportsOrder.UpdateOneID(order.ID).SetRequiredLevel(esportsorder.RequiredLevelSenior).SaveX(ctx)
+	db.EsportsOrder.UpdateOneID(order.ID).SetRequiredLevel("senior").SaveX(ctx)
 
 	tx, err := db.Tx(ctx)
 	if err != nil {

@@ -66,7 +66,8 @@ func listTeammateCandidatesAt(ctx context.Context, db *ent.Client, orderID, main
 	if err != nil {
 		return nil, err
 	}
-	requiredLevel := order.RequiredLevel.String()
+	requiredLevel := order.RequiredLevel
+	levels := skillLevels(ctx, db)
 	out := make([]teammateDispatchCandidate, 0, len(players))
 	for _, p := range players {
 		if occupied[p.ID] {
@@ -76,7 +77,7 @@ func listTeammateCandidatesAt(ctx context.Context, db *ent.Client, orderID, main
 			p.Presence != esportsplayer.PresenceOnline {
 			continue
 		}
-		if err := checkPlayerGameLevel(p, game, requiredLevel); err != nil {
+		if err := checkPlayerGameLevel(levels, p, game, requiredLevel); err != nil {
 			continue
 		}
 		// §6.4-06：固排时段外的固排不作为候选（未开启固排时段限制者不受影响）。
@@ -86,7 +87,7 @@ func listTeammateCandidatesAt(ctx context.Context, db *ent.Client, orderID, main
 		out = append(out, teammateDispatchCandidate{
 			PlayerID:      p.ID,
 			DisplayName:   p.DisplayName,
-			Level:         p.Level.String(),
+			Level:         p.Level,
 			Qualification: p.Qualification.String(),
 			Presence:      p.Presence.String(),
 		})
@@ -126,7 +127,8 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 	if err != nil {
 		return nil, err
 	}
-	requiredLevel := order.RequiredLevel.String()
+	requiredLevel := order.RequiredLevel
+	levels := skillLevels(ctx, tx.Client())
 
 	// 主陪玩硬性校验。
 	main, err := tx.EsportsPlayer.Get(ctx, mainPlayerID)
@@ -140,7 +142,7 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 	if err = reservePlayerDispatchCapacity(ctx, tx, main, order, now, 0); err != nil {
 		return nil, err
 	}
-	if err = checkPlayerGameLevel(main, game, requiredLevel); err != nil {
+	if err = checkPlayerGameLevel(levels, main, game, requiredLevel); err != nil {
 		return nil, err
 	}
 
@@ -174,7 +176,7 @@ func teamDispatch(ctx context.Context, db *ent.Client, orderID, mainPlayerID int
 		if err = reservePlayerDispatchCapacity(ctx, tx, p, order, now, 0); err != nil {
 			return nil, err
 		}
-		if err = checkPlayerGameLevel(p, game, requiredLevel); err != nil {
+		if err = checkPlayerGameLevel(levels, p, game, requiredLevel); err != nil {
 			return nil, err
 		}
 		// §6.4-06：固排时段外的固排不得成队（未开启固排时段限制者不受影响）。

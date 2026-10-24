@@ -267,7 +267,6 @@ var (
 	pageMemberStyleValues = map[string]bool{"card": true, "list": true, "compact": true}
 	pageSearchScopeValues = map[string]bool{"product": true, "player": true, "both": true}
 	pagePositionValues    = map[string]bool{"top": true, "bottom": true, "inline": true}
-	pagePlayerLevelValues = map[string]bool{"novice": true, "skilled": true, "senior": true, "mentor": true, "any": true}
 	pageImageFitValues    = map[string]bool{"widthFix": true, "aspectFill": true, "aspectFit": true}
 )
 
@@ -725,7 +724,12 @@ func validatePageEnumValue(compIndex int, key, value string) error {
 	case "position":
 		allowed = pagePositionValues
 	case "level":
-		allowed = pagePlayerLevelValues
+		// 技能等级已改为配置驱动：保存时只按编码格式校验（any 或小写字母开头的编码），
+		// 取数侧对不在当前配置的编码优雅降级为不过滤；选项列表由装修前端从 /skill-levels 拉取。
+		if value != "any" && !skillLevelCodePattern.MatchString(value) {
+			return fmt.Errorf("%w：第 %d 个组件字段 %q 的取值 %q 不支持", errInvalidInput, compIndex+1, key, value)
+		}
+		return nil
 	case "fit":
 		allowed = pageImageFitValues
 	default:

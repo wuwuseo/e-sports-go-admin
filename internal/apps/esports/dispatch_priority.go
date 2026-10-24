@@ -616,7 +616,8 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 	if err != nil {
 		return nil, err
 	}
-	requiredLevel := order.RequiredLevel.String()
+	requiredLevel := order.RequiredLevel
+	levels := skillLevels(ctx, db)
 	// 批量收集排序加分项所需数据（§5.5）：历史合作与分区等级、可配置权重。
 	playerIDs := make([]int, 0, len(players))
 	for _, player := range players {
@@ -663,7 +664,7 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 			continue
 		}
 		// 游戏分区权限 + 技能等级（§5.5）：不满足硬性条件的陪玩不出现在候选池。
-		if err := checkPlayerGameLevel(player, game, requiredLevel); err != nil {
+		if err := checkPlayerGameLevel(levels, player, game, requiredLevel); err != nil {
 			continue
 		}
 		// §6.4-06：服务时段外 / 可接单价范围外的陪玩不作为候选（不给注定接不了的单）。
@@ -713,7 +714,7 @@ func dispatchCandidates(ctx context.Context, db *ent.Client, order *ent.EsportsO
 		candidates = append(candidates, &dispatchCandidate{
 			PlayerID:           player.ID,
 			DisplayName:        player.DisplayName,
-			Level:              player.Level.String(),
+			Level:              player.Level,
 			Qualification:      player.Qualification.String(),
 			Presence:           player.Presence.String(),
 			Preferred:          preferredPlayerID > 0 && player.ID == preferredPlayerID,

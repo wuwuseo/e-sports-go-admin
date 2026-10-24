@@ -305,13 +305,13 @@ func (_u *EsportsSkuUpdate) AddRequiredSeats(v int) *EsportsSkuUpdate {
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (_u *EsportsSkuUpdate) SetRequiredLevel(v esportssku.RequiredLevel) *EsportsSkuUpdate {
+func (_u *EsportsSkuUpdate) SetRequiredLevel(v string) *EsportsSkuUpdate {
 	_u.mutation.SetRequiredLevel(v)
 	return _u
 }
 
 // SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
-func (_u *EsportsSkuUpdate) SetNillableRequiredLevel(v *esportssku.RequiredLevel) *EsportsSkuUpdate {
+func (_u *EsportsSkuUpdate) SetNillableRequiredLevel(v *string) *EsportsSkuUpdate {
 	if v != nil {
 		_u.SetRequiredLevel(*v)
 	}
@@ -649,7 +649,7 @@ func (_u *EsportsSkuUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 		_spec.AddField(esportssku.FieldRequiredSeats, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.RequiredLevel(); ok {
-		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeEnum, value)
+		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CloseRuleCode(); ok {
 		_spec.SetField(esportssku.FieldCloseRuleCode, field.TypeString, value)
@@ -986,13 +986,13 @@ func (_u *EsportsSkuUpdateOne) AddRequiredSeats(v int) *EsportsSkuUpdateOne {
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (_u *EsportsSkuUpdateOne) SetRequiredLevel(v esportssku.RequiredLevel) *EsportsSkuUpdateOne {
+func (_u *EsportsSkuUpdateOne) SetRequiredLevel(v string) *EsportsSkuUpdateOne {
 	_u.mutation.SetRequiredLevel(v)
 	return _u
 }
 
 // SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
-func (_u *EsportsSkuUpdateOne) SetNillableRequiredLevel(v *esportssku.RequiredLevel) *EsportsSkuUpdateOne {
+func (_u *EsportsSkuUpdateOne) SetNillableRequiredLevel(v *string) *EsportsSkuUpdateOne {
 	if v != nil {
 		_u.SetRequiredLevel(*v)
 	}
@@ -1360,7 +1360,7 @@ func (_u *EsportsSkuUpdateOne) sqlSave(ctx context.Context) (_node *EsportsSku, 
 		_spec.AddField(esportssku.FieldRequiredSeats, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.RequiredLevel(); ok {
-		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeEnum, value)
+		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CloseRuleCode(); ok {
 		_spec.SetField(esportssku.FieldCloseRuleCode, field.TypeString, value)

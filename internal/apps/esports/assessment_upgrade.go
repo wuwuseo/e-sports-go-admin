@@ -92,20 +92,6 @@ func resolveExistingUpgrade(item *ent.EsportsAssessment) (*ent.EsportsAssessment
 		errInvalidInput, item.TaskNo)
 }
 
-// nextUpgradeLevel 返回当前等级的上一档；已是最高档（mentor）返回 false。
-func nextUpgradeLevel(current esportsplayer.Level) (esportsplayer.Level, bool) {
-	switch current {
-	case esportsplayer.LevelNovice:
-		return esportsplayer.LevelSkilled, true
-	case esportsplayer.LevelSkilled:
-		return esportsplayer.LevelSenior, true
-	case esportsplayer.LevelSenior:
-		return esportsplayer.LevelMentor, true
-	default:
-		return esportsplayer.LevelMentor, false
-	}
-}
-
 // playerQualificationLabel 资格枚举的中文提示文案（面向陪玩的拒绝理由）。
 func playerQualificationLabel(qualification esportsplayer.Qualification) string {
 	switch qualification {
@@ -229,7 +215,7 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 	if err != nil {
 		return nil, false, err
 	}
-	target, ok := nextUpgradeLevel(player.Level)
+	target, ok := nextSkillLevel(skillLevels(ctx, db), player.Level)
 	if !ok {
 		return nil, false, fmt.Errorf("%w：当前已是最高等级（%s），无需申请升级考核", errInvalidInput, player.Level)
 	}
@@ -266,7 +252,7 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 	assessment, err := createAssessment(ctx, tx.Client(), 0, assessmentInput{
 		PlayerID:       playerID,
 		AssessmentType: "upgrade",
-		TargetLevel:    target.String(),
+		TargetLevel:    target,
 		Source:         source,
 		Note:           note,
 	}, now)
@@ -420,7 +406,7 @@ func autoTriggerUpgradeAssessments(ctx context.Context, db *ent.Client, now time
 	tenureDays := assessmentConfigInt(ctx, db, upgradeMinTenureDaysKey, defaultUpgradeMinTenureDays)
 	q := db.EsportsPlayer.Query().Where(
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
-		esportsplayer.LevelNEQ(esportsplayer.LevelMentor),
+		esportsplayer.LevelNEQ(skillLevelHighest(skillLevels(ctx, db))),
 		// 在岗时长门槛与门槛判定同一配置键，SQL 层先裁剪不会漏掉达标者。
 		esportsplayer.CreatedAtLTE(now.UTC().AddDate(0, 0, -tenureDays)),
 		esportsplayer.IDGT(cursor),

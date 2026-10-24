@@ -68231,7 +68231,7 @@ type EsportsOrderMutation struct {
 	addaddon_units                            *int64
 	required_seats                            *int
 	addrequired_seats                         *int
-	required_level                            *esportsorder.RequiredLevel
+	required_level                            *string
 	seat_roles                                *[]schematier.SeatSpec
 	appendseat_roles                          []schematier.SeatSpec
 	quote_version                             *int
@@ -70177,12 +70177,12 @@ func (m *EsportsOrderMutation) ResetRequiredSeats() {
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (m *EsportsOrderMutation) SetRequiredLevel(el esportsorder.RequiredLevel) {
-	m.required_level = &el
+func (m *EsportsOrderMutation) SetRequiredLevel(s string) {
+	m.required_level = &s
 }
 
 // RequiredLevel returns the value of the "required_level" field in the mutation.
-func (m *EsportsOrderMutation) RequiredLevel() (r esportsorder.RequiredLevel, exists bool) {
+func (m *EsportsOrderMutation) RequiredLevel() (r string, exists bool) {
 	v := m.required_level
 	if v == nil {
 		return
@@ -70193,7 +70193,7 @@ func (m *EsportsOrderMutation) RequiredLevel() (r esportsorder.RequiredLevel, ex
 // OldRequiredLevel returns the old "required_level" field's value of the EsportsOrder entity.
 // If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EsportsOrderMutation) OldRequiredLevel(ctx context.Context) (v esportsorder.RequiredLevel, err error) {
+func (m *EsportsOrderMutation) OldRequiredLevel(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldRequiredLevel is only allowed on UpdateOne operations")
 	}
@@ -73040,7 +73040,7 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 		m.SetRequiredSeats(v)
 		return nil
 	case esportsorder.FieldRequiredLevel:
-		v, ok := value.(esportsorder.RequiredLevel)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -85962,7 +85962,7 @@ type EsportsPlayerMutation struct {
 	display_name                           *string
 	qualification                          *esportsplayer.Qualification
 	presence                               *esportsplayer.Presence
-	level                                  *esportsplayer.Level
+	level                                  *string
 	level_appraised_at                     *time.Time
 	daily_limit                            *int
 	adddaily_limit                         *int
@@ -86271,12 +86271,12 @@ func (m *EsportsPlayerMutation) ResetPresence() {
 }
 
 // SetLevel sets the "level" field.
-func (m *EsportsPlayerMutation) SetLevel(e esportsplayer.Level) {
-	m.level = &e
+func (m *EsportsPlayerMutation) SetLevel(s string) {
+	m.level = &s
 }
 
 // Level returns the value of the "level" field in the mutation.
-func (m *EsportsPlayerMutation) Level() (r esportsplayer.Level, exists bool) {
+func (m *EsportsPlayerMutation) Level() (r string, exists bool) {
 	v := m.level
 	if v == nil {
 		return
@@ -86287,7 +86287,7 @@ func (m *EsportsPlayerMutation) Level() (r esportsplayer.Level, exists bool) {
 // OldLevel returns the old "level" field's value of the EsportsPlayer entity.
 // If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EsportsPlayerMutation) OldLevel(ctx context.Context) (v esportsplayer.Level, err error) {
+func (m *EsportsPlayerMutation) OldLevel(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldLevel is only allowed on UpdateOne operations")
 	}
@@ -87861,7 +87861,7 @@ func (m *EsportsPlayerMutation) SetField(name string, value ent.Value) error {
 		m.SetPresence(v)
 		return nil
 	case esportsplayer.FieldLevel:
-		v, ok := value.(esportsplayer.Level)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -112208,7 +112208,7 @@ type EsportsSkuMutation struct {
 	addservice_duration_minutes *int
 	required_seats              *int
 	addrequired_seats           *int
-	required_level              *esportssku.RequiredLevel
+	required_level              *string
 	close_rule_code             *string
 	quota_total                 *int64
 	addquota_total              *int64
@@ -113105,12 +113105,12 @@ func (m *EsportsSkuMutation) ResetRequiredSeats() {
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (m *EsportsSkuMutation) SetRequiredLevel(el esportssku.RequiredLevel) {
-	m.required_level = &el
+func (m *EsportsSkuMutation) SetRequiredLevel(s string) {
+	m.required_level = &s
 }
 
 // RequiredLevel returns the value of the "required_level" field in the mutation.
-func (m *EsportsSkuMutation) RequiredLevel() (r esportssku.RequiredLevel, exists bool) {
+func (m *EsportsSkuMutation) RequiredLevel() (r string, exists bool) {
 	v := m.required_level
 	if v == nil {
 		return
@@ -113121,7 +113121,7 @@ func (m *EsportsSkuMutation) RequiredLevel() (r esportssku.RequiredLevel, exists
 // OldRequiredLevel returns the old "required_level" field's value of the EsportsSku entity.
 // If the EsportsSku object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *EsportsSkuMutation) OldRequiredLevel(ctx context.Context) (v esportssku.RequiredLevel, err error) {
+func (m *EsportsSkuMutation) OldRequiredLevel(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldRequiredLevel is only allowed on UpdateOne operations")
 	}
@@ -113906,7 +113906,7 @@ func (m *EsportsSkuMutation) SetField(name string, value ent.Value) error {
 		m.SetRequiredSeats(v)
 		return nil
 	case esportssku.FieldRequiredLevel:
-		v, ok := value.(esportssku.RequiredLevel)
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}

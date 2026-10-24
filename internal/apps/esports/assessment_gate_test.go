@@ -139,7 +139,7 @@ func TestScoreAssessmentQualifiesVerifiedPlayerWithTargetLevel(t *testing.T) {
 		t.Fatal(err)
 	}
 	updated := db.EsportsPlayer.GetX(ctx, player.ID)
-	if updated.Qualification != esportsplayer.QualificationQualified || updated.Level != esportsplayer.LevelSenior || updated.LevelAppraisedAt == nil {
+	if updated.Qualification != esportsplayer.QualificationQualified || updated.Level != "senior" || updated.LevelAppraisedAt == nil {
 		t.Fatalf("未按 target_level 定级：%+v", updated)
 	}
 }

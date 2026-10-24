@@ -210,6 +210,11 @@ func RequiredSeats(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldRequiredSeats, v))
 }
 
+// RequiredLevel applies equality check predicate on the "required_level" field. It's identical to RequiredLevelEQ.
+func RequiredLevel(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldRequiredLevel, v))
+}
+
 // QuoteVersion applies equality check predicate on the "quote_version" field. It's identical to QuoteVersionEQ.
 func QuoteVersion(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldQuoteVersion, v))
@@ -1881,23 +1886,68 @@ func RequiredSeatsLTE(v int) predicate.EsportsOrder {
 }
 
 // RequiredLevelEQ applies the EQ predicate on the "required_level" field.
-func RequiredLevelEQ(v RequiredLevel) predicate.EsportsOrder {
+func RequiredLevelEQ(v string) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldRequiredLevel, v))
 }
 
 // RequiredLevelNEQ applies the NEQ predicate on the "required_level" field.
-func RequiredLevelNEQ(v RequiredLevel) predicate.EsportsOrder {
+func RequiredLevelNEQ(v string) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNEQ(FieldRequiredLevel, v))
 }
 
 // RequiredLevelIn applies the In predicate on the "required_level" field.
-func RequiredLevelIn(vs ...RequiredLevel) predicate.EsportsOrder {
+func RequiredLevelIn(vs ...string) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldIn(FieldRequiredLevel, vs...))
 }
 
 // RequiredLevelNotIn applies the NotIn predicate on the "required_level" field.
-func RequiredLevelNotIn(vs ...RequiredLevel) predicate.EsportsOrder {
+func RequiredLevelNotIn(vs ...string) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotIn(FieldRequiredLevel, vs...))
+}
+
+// RequiredLevelGT applies the GT predicate on the "required_level" field.
+func RequiredLevelGT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldRequiredLevel, v))
+}
+
+// RequiredLevelGTE applies the GTE predicate on the "required_level" field.
+func RequiredLevelGTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldRequiredLevel, v))
+}
+
+// RequiredLevelLT applies the LT predicate on the "required_level" field.
+func RequiredLevelLT(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldRequiredLevel, v))
+}
+
+// RequiredLevelLTE applies the LTE predicate on the "required_level" field.
+func RequiredLevelLTE(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldRequiredLevel, v))
+}
+
+// RequiredLevelContains applies the Contains predicate on the "required_level" field.
+func RequiredLevelContains(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContains(FieldRequiredLevel, v))
+}
+
+// RequiredLevelHasPrefix applies the HasPrefix predicate on the "required_level" field.
+func RequiredLevelHasPrefix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasPrefix(FieldRequiredLevel, v))
+}
+
+// RequiredLevelHasSuffix applies the HasSuffix predicate on the "required_level" field.
+func RequiredLevelHasSuffix(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldHasSuffix(FieldRequiredLevel, v))
+}
+
+// RequiredLevelEqualFold applies the EqualFold predicate on the "required_level" field.
+func RequiredLevelEqualFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEqualFold(FieldRequiredLevel, v))
+}
+
+// RequiredLevelContainsFold applies the ContainsFold predicate on the "required_level" field.
+func RequiredLevelContainsFold(v string) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldContainsFold(FieldRequiredLevel, v))
 }
 
 // SeatRolesIsNil applies the IsNil predicate on the "seat_roles" field.

@@ -36,7 +36,7 @@ func scoreEntryAssessment(t *testing.T, db *ent.Client, playerID, examinerID, sc
 	t.Helper()
 	ctx := t.Context()
 	item, err := createAssessment(ctx, db, 9, assessmentInput{
-		PlayerID: playerID, AssessmentType: "entry", TargetLevel: string(esportsplayer.LevelNovice),
+		PlayerID: playerID, AssessmentType: "entry", TargetLevel: string("novice"),
 	}, now)
 	if err != nil {
 		t.Fatalf("建考核单失败：%v", err)
@@ -58,7 +58,7 @@ func TestListPlayerAssessmentDetailsExposeDimensionScores(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
-	player := seedUpgradePlayer(t, db, 501, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	player := seedUpgradePlayer(t, db, 501, "novice", now.AddDate(0, 0, -30))
 	scored := scoreEntryAssessment(t, db, player.ID, 77, 90, now)
 
 	views, err := listPlayerAssessmentDetails(ctx, db, player.ID, 50)
@@ -186,9 +186,9 @@ func TestGenerateSpotCheckAssessmentsCreatesTasks(t *testing.T) {
 	now := time.Now().UTC()
 
 	eligible := []*ent.EsportsPlayer{
-		seedUpgradePlayer(t, db, 601, esportsplayer.LevelSenior, now.AddDate(0, 0, -60)),
-		seedUpgradePlayer(t, db, 602, esportsplayer.LevelSkilled, now.AddDate(0, 0, -60)),
-		seedUpgradePlayer(t, db, 603, esportsplayer.LevelNovice, now.AddDate(0, 0, -60)),
+		seedUpgradePlayer(t, db, 601, "senior", now.AddDate(0, 0, -60)),
+		seedUpgradePlayer(t, db, 602, "skilled", now.AddDate(0, 0, -60)),
+		seedUpgradePlayer(t, db, 603, "novice", now.AddDate(0, 0, -60)),
 	}
 	// 未合格 / 离线：不属于「在岗合格」。
 	seedPlayer(t, db, 604, esportsplayer.QualificationPending, esportsplayer.PresenceOnline)
@@ -227,7 +227,7 @@ func TestGenerateSpotCheckAssessmentsCreatesTasks(t *testing.T) {
 		if row == nil {
 			t.Fatalf("在岗合格陪玩 %d 未生成抽查单", player.ID)
 		}
-		if row.TargetLevel != player.Level.String() {
+		if row.TargetLevel != player.Level {
 			t.Fatalf("抽查目标档位应为其当前等级 %s，实际 %s", player.Level, row.TargetLevel)
 		}
 	}
@@ -248,8 +248,8 @@ func TestGenerateSpotCheckRespectsCycleWindow(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
-	due := seedUpgradePlayer(t, db, 611, esportsplayer.LevelSenior, now.AddDate(0, 0, -60))
-	recent := seedUpgradePlayer(t, db, 612, esportsplayer.LevelSenior, now.AddDate(0, 0, -60))
+	due := seedUpgradePlayer(t, db, 611, "senior", now.AddDate(0, 0, -60))
+	recent := seedUpgradePlayer(t, db, 612, "senior", now.AddDate(0, 0, -60))
 	if _, err := db.EsportsAssessment.Create().SetTaskNo("AS-due").
 		SetPlayerID(due.ID).SetAssessmentType(esportsassessment.AssessmentTypeSpotCheck).
 		SetTargetLevel("senior").SetStatus(esportsassessment.StatusPassed).
@@ -315,7 +315,7 @@ func TestPlayerLevelReviewDemotesLongTermUnderperformers(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
-	player := seedUpgradePlayer(t, db, 701, esportsplayer.LevelSenior, now.AddDate(0, 0, -180))
+	player := seedUpgradePlayer(t, db, 701, "senior", now.AddDate(0, 0, -180))
 	for i := 0; i < 3; i++ {
 		// 每期 30 天，倒序落在第 i+1 期窗口内。
 		created := now.AddDate(0, 0, -30*(i+1)).Add(time.Hour)
@@ -335,7 +335,7 @@ func TestPlayerLevelReviewDemotesLongTermUnderperformers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reloaded.Level != esportsplayer.LevelSkilled {
+	if reloaded.Level != "skilled" {
 		t.Fatalf("等级应降一档为 skilled，实际 %s", reloaded.Level)
 	}
 	if reloaded.LevelAppraisedAt == nil {
@@ -371,7 +371,7 @@ func TestPlayerLevelReviewDemotesLongTermUnderperformers(t *testing.T) {
 	if again != 0 {
 		t.Fatalf("同一周期内不应重复降级，实际 %d", again)
 	}
-	if level := db.EsportsPlayer.GetX(ctx, player.ID).Level; level != esportsplayer.LevelSkilled {
+	if level := db.EsportsPlayer.GetX(ctx, player.ID).Level; level != "skilled" {
 		t.Fatalf("重复运行后等级应保持 skilled，实际 %s", level)
 	}
 }
@@ -383,11 +383,11 @@ func TestPlayerLevelReviewNeedsConsecutiveFailures(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
-	short := seedUpgradePlayer(t, db, 702, esportsplayer.LevelSenior, now.AddDate(0, 0, -180))
+	short := seedUpgradePlayer(t, db, 702, "senior", now.AddDate(0, 0, -180))
 	seedScoredSpotCheck(t, db, short.ID, "senior", true, now.AddDate(0, 0, -30).Add(time.Hour))
 	seedScoredSpotCheck(t, db, short.ID, "senior", true, now.AddDate(0, 0, -60).Add(time.Hour))
 
-	broken := seedUpgradePlayer(t, db, 703, esportsplayer.LevelSenior, now.AddDate(0, 0, -180))
+	broken := seedUpgradePlayer(t, db, 703, "senior", now.AddDate(0, 0, -180))
 	seedScoredSpotCheck(t, db, broken.ID, "senior", true, now.AddDate(0, 0, -30).Add(time.Hour))
 	seedScoredSpotCheck(t, db, broken.ID, "senior", false, now.AddDate(0, 0, -60).Add(time.Hour))
 	seedScoredSpotCheck(t, db, broken.ID, "senior", true, now.AddDate(0, 0, -90).Add(time.Hour))
@@ -402,10 +402,10 @@ func TestPlayerLevelReviewNeedsConsecutiveFailures(t *testing.T) {
 	if demoted != 0 {
 		t.Fatalf("未达连续 N 期阈值不应降级，实际降级 %d 人", demoted)
 	}
-	if level := db.EsportsPlayer.GetX(ctx, short.ID).Level; level != esportsplayer.LevelSenior {
+	if level := db.EsportsPlayer.GetX(ctx, short.ID).Level; level != "senior" {
 		t.Fatalf("期数不足不应降级，实际 %s", level)
 	}
-	if level := db.EsportsPlayer.GetX(ctx, broken.ID).Level; level != esportsplayer.LevelSenior {
+	if level := db.EsportsPlayer.GetX(ctx, broken.ID).Level; level != "senior" {
 		t.Fatalf("连续计数被打断不应降级，实际 %s", level)
 	}
 }

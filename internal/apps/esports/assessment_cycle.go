@@ -135,7 +135,7 @@ func generateSpotCheckAssessments(ctx context.Context, db *ent.Client, now time.
 		if _, err = createAssessment(ctx, db, 0, assessmentInput{
 			PlayerID:       player.ID,
 			AssessmentType: "spot_check",
-			TargetLevel:    player.Level.String(),
+			TargetLevel:    player.Level,
 			Source:         "system",
 			Note:           fmt.Sprintf("系统按万分比 %d 比例随机抽查（抽查周期 %d 天）", ratioBP, cycleDays),
 		}, now); err != nil {
@@ -268,7 +268,7 @@ func runPlayerLevelReview(ctx context.Context, db *ent.Client, now time.Time, li
 	failPeriods := assessmentConfigInt(ctx, db, levelReviewFailPeriodsKey, defaultLevelReviewFailTimes)
 	players, err := db.EsportsPlayer.Query().Where(
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
-		esportsplayer.LevelNEQ(esportsplayer.LevelNovice),
+		esportsplayer.LevelNEQ(skillLevelLowest(skillLevels(ctx, db))),
 	).Order(ent.Asc(esportsplayer.FieldID)).Limit(limit).All(ctx)
 	if err != nil {
 		return 0, err
@@ -289,7 +289,7 @@ func runPlayerLevelReview(ctx context.Context, db *ent.Client, now time.Time, li
 		if recorded {
 			continue
 		}
-		target := demoteLevel(player.Level)
+		target := demoteSkillLevel(skillLevels(ctx, db), player.Level)
 		note := fmt.Sprintf("%s连续 %d 期抽查不达标（复核周期 %d 天，判定时刻 %s），依据：抽查结论不通过",
 			levelReviewDemotionNotePrefix, streak, cycleDays, now.In(cstZone).Format("2006-01-02 15:04"))
 		if err = applyLevelReviewDemotion(ctx, db, player, target, note, now); err != nil {
@@ -301,7 +301,7 @@ func runPlayerLevelReview(ctx context.Context, db *ent.Client, now time.Time, li
 }
 
 // applyLevelReviewDemotion 在同一事务内降级并留下降级记录（时间 + 依据）。
-func applyLevelReviewDemotion(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, target esportsplayer.Level, note string, now time.Time) error {
+func applyLevelReviewDemotion(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, target string, note string, now time.Time) error {
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return err
@@ -310,7 +310,7 @@ func applyLevelReviewDemotion(ctx context.Context, db *ent.Client, player *ent.E
 	// 降级记录：一条 note 可检索、无打分明细的 system 抽查复核单（时间 + 依据）。
 	if _, err = tx.EsportsAssessment.Create().SetTaskNo("LR" + fmt.Sprintf("%d-%d", player.ID, now.UnixNano())).
 		SetPlayerID(player.ID).SetAssessmentType(esportsassessment.AssessmentTypeSpotCheck).
-		SetTargetLevel(target.String()).SetStatus(esportsassessment.StatusFailed).
+		SetTargetLevel(target).SetStatus(esportsassessment.StatusFailed).
 		SetSource(esportsassessment.SourceSystem).SetNote(note).
 		SetScoredAt(now.UTC()).SetTotalScore(0).Save(ctx); err != nil {
 		return err

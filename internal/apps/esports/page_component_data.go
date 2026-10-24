@@ -70,7 +70,7 @@ var playerRecommendFilterDims = map[string]bool{
 
 // ── 参数解析（handler 层：只做参数解析） ──
 
-func parsePlayerRecommendProps(c fiber.Ctx) (playerRecommendProps, error) {
+func parsePlayerRecommendProps(c fiber.Ctx, levels []SkillLevel) (playerRecommendProps, error) {
 	// 沿用既有 queryLimit 的宽松口径（非法 / <1 / >500 回落 fallback），再由取数函数按既有上限收紧。
 	props := playerRecommendProps{Limit: componentPropLimit(c.Query("limit"), 100)}
 	filter, err := parseComponentFilterDict(c)
@@ -115,15 +115,17 @@ func parsePlayerRecommendProps(c fiber.Ctx) (playerRecommendProps, error) {
 			return props, fmt.Errorf("%w：陪玩推荐的可接单筛选取值 %q 非法（仅支持 true / false）", errInvalidInput, raw)
 		}
 	}
-	if err := validatePlayerRecommendProps(props); err != nil {
+	if err := validatePlayerRecommendProps(levels, props); err != nil {
 		return props, err
 	}
 	return props, nil
 }
 
-func validatePlayerRecommendProps(props playerRecommendProps) error {
-	if props.Level != "" && !pagePlayerLevelValues[props.Level] {
-		return fmt.Errorf("%w：陪玩推荐的技能等级取值 %q 不支持", errInvalidInput, props.Level)
+func validatePlayerRecommendProps(levels []SkillLevel, props playerRecommendProps) error {
+	// 技能等级已配置驱动：查询入参必须是当前配置中的编码（any = 不限）；
+	// 已存装修配置里的失效编码不走这里，由取数侧优雅降级为不过滤。
+	if props.Level != "" && props.Level != "any" && !validPlayerLevel(levels, props.Level) {
+		return fmt.Errorf("%w：陪玩推荐的技能等级取值 %q 不在当前等级配置中", errInvalidInput, props.Level)
 	}
 	if props.Game != "" && len([]rune(props.Game)) > pageGameLimit {
 		return fmt.Errorf("%w：陪玩推荐筛选条件 %q 的取值过长", errInvalidInput, "game")
@@ -483,6 +485,7 @@ func applySkuCatalogOrder(q *ent.EsportsSkuQuery, props skuCatalogProps) (*ent.E
 // 丢弃（bookable=true 收窄）或保留并回填 Bookable=false（未开开关），不因容量判定额外回填行。
 // 绝不为扫描上限（200）内的全部候选开事务做容量查询。
 func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerRecommendProps, now time.Time) ([]publicPlayerView, error) {
+	levelLevels := skillLevels(ctx, db)
 	limit := props.Limit
 	if limit < 1 || limit > playerRecommendScanCap {
 		limit = 100
@@ -491,7 +494,7 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
 		esportsplayer.PresenceEQ(esportsplayer.PresenceOnline),
 	)
-	if levels := playerMinLevelValues(props.Level); len(levels) > 0 {
+	if levels := playerMinLevelValues(skillLevels(ctx, db), props.Level); len(levels) > 0 {
 		q.Where(esportsplayer.LevelIn(levels...))
 	}
 	// 候选窗口取既有上限：游戏分区 / 连接 / 服务时段 / 容量都在内存里判定，
@@ -515,8 +518,12 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 		if game != "" && len(player.Games) > 0 && !playerGamesContain(player.Games, game) {
 			continue
 		}
-		if level != "" && level != "any" && playerLevelRank(player.Level.String()) < playerLevelRank(level) {
-			continue
+		if level != "" && level != "any" {
+			if minRank, ok := skillLevelRank(levelLevels, level); ok &&
+				skillLevelRankOrBelow(levelLevels, player.Level) < minRank {
+				continue
+			}
+			// 门槛编码不在当前配置（删档后）：展示侧优雅降级为不过滤。
 		}
 		healthy := playerConnectionHealthyWith(player, now, timeout)
 		// online=true 是收窄开关，只要求连接正常（复用 playerConnectionHealthy 的心跳口径，不另立一套）。
@@ -549,7 +556,7 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 			games = []string{}
 		}
 		views = append(views, publicPlayerView{
-			ID: player.ID, DisplayName: player.DisplayName, Level: player.Level.String(),
+			ID: player.ID, DisplayName: player.DisplayName, Level: player.Level,
 			Games: games, Qualification: player.Qualification.String(),
 			Presence: player.Presence.String(), Online: player.Presence == esportsplayer.PresenceOnline,
 			Bookable: bookable,
@@ -561,19 +568,22 @@ func listPublicPlayersByProps(ctx context.Context, db *ent.Client, props playerR
 	return views, nil
 }
 
-// playerMinLevelValues 把「最低技能等级」prop 展开为可下推 SQL 的等级集合。
-// 等级序沿用既有 playerLevelRank（novice < skilled < senior < mentor），不另立一套；
-// 空值 / any 表示不限等级。
-func playerMinLevelValues(level string) []esportsplayer.Level {
+// playerMinLevelValues 把「最低技能等级」prop 展开为可下推 SQL 的等级编码集合：
+// 按当前等级配置取序数 ≥ 门槛档的全部编码；空值 / any 表示不限等级；
+// 门槛编码不在配置中返回 nil（不过滤，避免删档后页面取数直接报错）。
+func playerMinLevelValues(levels []SkillLevel, level string) []string {
 	level = strings.TrimSpace(level)
 	if level == "" || level == "any" {
 		return nil
 	}
-	minRank := playerLevelRank(level)
-	out := make([]esportsplayer.Level, 0, 4)
-	for _, candidate := range []string{"novice", "skilled", "senior", "mentor"} {
-		if playerLevelRank(candidate) >= minRank {
-			out = append(out, esportsplayer.Level(candidate))
+	minRank, ok := skillLevelRank(levels, level)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(levels))
+	for _, item := range levels {
+		if rank, _ := skillLevelRank(levels, item.Code); rank >= minRank {
+			out = append(out, item.Code)
 		}
 	}
 	return out

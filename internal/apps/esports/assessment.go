@@ -54,24 +54,10 @@ func validDimension(d string) bool {
 	return false
 }
 
-func validPlayerLevel(l string) bool {
-	switch l {
-	case "novice", "skilled", "senior", "mentor":
-		return true
-	}
-	return false
-}
-
-// demoteLevel 抽查不达标时降一档；已是最低档保持 novice（§7.3 长期不达标降级）。
-func demoteLevel(current esportsplayer.Level) esportsplayer.Level {
-	switch current {
-	case esportsplayer.LevelMentor:
-		return esportsplayer.LevelSenior
-	case esportsplayer.LevelSenior:
-		return esportsplayer.LevelSkilled
-	default:
-		return esportsplayer.LevelNovice
-	}
+// validPlayerLevel 判断编码是否为当前等级配置中的合法档位。
+func validPlayerLevel(levels []SkillLevel, code string) bool {
+	_, ok := skillLevelRank(levels, code)
+	return ok
 }
 
 // assessmentConfigInt 读取整数型系统配置，缺失/非法/非正数时回落默认值。
@@ -211,11 +197,11 @@ func createAssessment(ctx context.Context, db *ent.Client, adminID int, in asses
 		len([]rune(in.Note)) > 500 {
 		return nil, errInvalidInput
 	}
-	// 入职默认定级 novice；其余类型目标等级必填且合法。
+	// 入职默认定级最低档；其余类型目标等级必填且合法。
 	if in.AssessmentType == "entry" && in.TargetLevel == "" {
-		in.TargetLevel = "novice"
+		in.TargetLevel = skillLevelLowest(skillLevels(ctx, db))
 	}
-	if in.TargetLevel != "" && !validPlayerLevel(in.TargetLevel) {
+	if in.TargetLevel != "" && !validPlayerLevel(skillLevels(ctx, db), in.TargetLevel) {
 		return nil, errInvalidInput
 	}
 	if in.AssessmentType != "entry" && in.TargetLevel == "" {
@@ -400,6 +386,7 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 		return err
 	}
 	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1)
+	levels := skillLevels(ctx, tx.Client())
 	switch assessment.AssessmentType {
 	case esportsassessment.AssessmentTypeEntry,
 		esportsassessment.AssessmentTypeUpgrade,
@@ -416,14 +403,14 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 			return err
 		}
 		level := assessment.TargetLevel
-		if !validPlayerLevel(level) {
-			level = string(esportsplayer.LevelNovice)
+		if !validPlayerLevel(levels, level) {
+			level = skillLevelLowest(levels)
 		}
 		// 升级考核的定级回写必须单调：旧单（尤其是申诉改判）不得把已经升上去的等级改回旧目标档。
 		// 复核通过的升级单仍要把资格置为「合格」并刷新考核时间。
 		if assessment.AssessmentType != esportsassessment.AssessmentTypeUpgrade ||
-			playerLevelRank(level) > playerLevelRank(player.Level.String()) {
-			update.SetLevel(esportsplayer.Level(level))
+			skillLevelRankOrBelow(levels, level) > skillLevelRankOrBelow(levels, player.Level) {
+			update.SetLevel(level)
 		}
 		update.SetQualification(esportsplayer.QualificationQualified).
 			SetLevelAppraisedAt(now.UTC())
@@ -431,7 +418,7 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 		if passed {
 			update.SetLevelAppraisedAt(now.UTC())
 		} else {
-			update.SetLevel(demoteLevel(player.Level)).
+			update.SetLevel(demoteSkillLevel(levels, player.Level)).
 				SetQualification(esportsplayer.QualificationSuspended).
 				SetLevelAppraisedAt(now.UTC())
 		}
@@ -454,6 +441,7 @@ func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Es
 	if err != nil {
 		return err
 	}
+	levels := skillLevels(ctx, tx.Client())
 	// 结论不通过即不得保留接单权限：先无条件收紧为 suspended，再按考核类型回退等级。
 	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1).
 		SetQualification(esportsplayer.QualificationSuspended)
@@ -462,15 +450,15 @@ func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Es
 		esportsassessment.AssessmentTypeUpgrade,
 		esportsassessment.AssessmentTypeRetry:
 		target := assessment.TargetLevel
-		if !validPlayerLevel(target) {
-			// 入职缺目标等级时 applyAssessmentOutcome 写的是 novice，改判同样按 novice 口径回退。
-			target = string(esportsplayer.LevelNovice)
+		if !validPlayerLevel(levels, target) {
+			// 入职缺目标等级时 applyAssessmentOutcome 写的是最低档，改判同样按最低档口径回退。
+			target = skillLevelLowest(levels)
 		}
-		if player.Level.String() == target {
-			update.SetLevel(demoteLevel(player.Level))
+		if player.Level == target {
+			update.SetLevel(demoteSkillLevel(levels, player.Level))
 		}
 	case esportsassessment.AssessmentTypeSpotCheck:
-		update.SetLevel(demoteLevel(player.Level))
+		update.SetLevel(demoteSkillLevel(levels, player.Level))
 	}
 	_, err = update.Save(ctx)
 	return err

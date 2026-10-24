@@ -267,9 +267,9 @@ func saveSku(ctx context.Context, db *ent.Client, in skuInput) (*ent.EsportsSku,
 	if err := validateSkuCloseRuleCode(ctx, db, in.CloseRuleCode); err != nil {
 		return nil, err
 	}
-	// §5.5：技能等级门槛未传回落 novice（兼容旧前端），非法枚举值直接拒绝，
+	// §5.5：技能等级门槛未传回落配置最低档（兼容旧前端），非法编码直接拒绝，
 	// 避免「门槛字段写了但永不生效」。
-	requiredLevel, err := skuRequiredLevel(in.RequiredLevel)
+	requiredLevel, err := skuRequiredLevel(ctx, db, in.RequiredLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func generateSkuCode(ctx context.Context, db *ent.Client, offset int) (string, e
 }
 
 // newSkuCreate 构造 SKU 创建语句，code 由调用方确定（手填或自动生成）。
-func newSkuCreate(db *ent.Client, in skuInput, requiredLevel esportssku.RequiredLevel, code string) *ent.EsportsSkuCreate {
+func newSkuCreate(db *ent.Client, in skuInput, requiredLevel string, code string) *ent.EsportsSkuCreate {
 	create := db.EsportsSku.Create().SetCode(code).SetTitle(in.Title).
 		SetServiceType(esportssku.ServiceType(in.ServiceType)).SetDescription(in.Description).
 		SetUnitPriceCents(in.UnitPriceCents).
@@ -356,21 +356,18 @@ func newSkuCreate(db *ent.Client, in skuInput, requiredLevel esportssku.Required
 	return create
 }
 
-// skuRequiredLevel 解析并校验 SKU 技能等级门槛（§5.5）：未传 / 空串回落 novice，
-// 取值必须落在 schema 枚举 novice / skilled / senior / mentor 内。
-func skuRequiredLevel(raw *string) (esportssku.RequiredLevel, error) {
-	if raw == nil {
-		return esportssku.RequiredLevelNovice, nil
+// skuRequiredLevel 解析并校验 SKU 技能等级门槛（§5.5）：未传 / 空串回落配置最低档，
+// 取值必须是当前等级配置里的编码。
+func skuRequiredLevel(ctx context.Context, db *ent.Client, raw *string) (string, error) {
+	levels := skillLevels(ctx, db)
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return skillLevelLowest(levels), nil
 	}
-	value := esportssku.RequiredLevel(strings.TrimSpace(*raw))
-	switch value {
-	case "", esportssku.RequiredLevelNovice:
-		return esportssku.RequiredLevelNovice, nil
-	case esportssku.RequiredLevelSkilled, esportssku.RequiredLevelSenior, esportssku.RequiredLevelMentor:
-		return value, nil
-	default:
-		return "", fmt.Errorf("%w：技能等级门槛只能是 novice / skilled / senior / mentor", errInvalidInput)
+	value := strings.TrimSpace(*raw)
+	if _, ok := skillLevelRank(levels, value); !ok {
+		return "", fmt.Errorf("%w：技能等级门槛必须是当前等级配置中的编码", errInvalidInput)
 	}
+	return value, nil
 }
 
 // normalizeSkuPerSeatUnits 统一 SKU 每席承诺量口径（§15.5-01 / P1-24）：
@@ -564,10 +561,10 @@ func updateSku(ctx context.Context, db *ent.Client, id int, in skuUpdateInput) (
 	if err := validateSkuCloseRuleCode(ctx, tx.Client(), in.CloseRuleCode); err != nil {
 		return nil, err
 	}
-	// §5.5：未传 required_level 时保持既有门槛——管理端编辑表单整表回传，不得把 senior 静默降级为 novice。
-	requiredLevel := esportssku.RequiredLevel(current.RequiredLevel)
+	// §5.5：未传 required_level 时保持既有门槛——管理端编辑表单整表回传，不得静默降级为最低档。
+	requiredLevel := current.RequiredLevel
 	if in.RequiredLevel != nil {
-		if requiredLevel, err = skuRequiredLevel(in.RequiredLevel); err != nil {
+		if requiredLevel, err = skuRequiredLevel(ctx, db, in.RequiredLevel); err != nil {
 			return nil, err
 		}
 	}
@@ -898,7 +895,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		SetMemberLevelCode(customer.MemberLevelCode).SetMemberDiscountBps(discountBps).
 		// §15.3-01 / §15.5-01 / §5.3-05：承诺量按「Σ 每席承诺量 × 份数」落库。
 		SetPromisedServiceUnits(promisedUnits).SetPerSeatServiceUnits(perSeatUnits).
-		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(esportsorder.RequiredLevel(sku.RequiredLevel)).
+		SetRequiredSeats(sku.RequiredSeats).SetRequiredLevel(sku.RequiredLevel).
 		SetServiceDurationMinutes(sku.ServiceDurationMinutes).
 		SetPaymentDeadline(deadline).SetCloseFormTemplateLockedAt(now.UTC())
 	// §5.1-02：客户自助下单且客户无归属客服时负责客服为 NULL，订单进公共池；建单人同样留空。

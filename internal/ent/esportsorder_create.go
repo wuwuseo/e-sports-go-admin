@@ -421,13 +421,13 @@ func (_c *EsportsOrderCreate) SetRequiredSeats(v int) *EsportsOrderCreate {
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (_c *EsportsOrderCreate) SetRequiredLevel(v esportsorder.RequiredLevel) *EsportsOrderCreate {
+func (_c *EsportsOrderCreate) SetRequiredLevel(v string) *EsportsOrderCreate {
 	_c.mutation.SetRequiredLevel(v)
 	return _c
 }
 
 // SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
-func (_c *EsportsOrderCreate) SetNillableRequiredLevel(v *esportsorder.RequiredLevel) *EsportsOrderCreate {
+func (_c *EsportsOrderCreate) SetNillableRequiredLevel(v *string) *EsportsOrderCreate {
 	if v != nil {
 		_c.SetRequiredLevel(*v)
 	}
@@ -1609,7 +1609,7 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 		_node.RequiredSeats = value
 	}
 	if value, ok := _c.mutation.RequiredLevel(); ok {
-		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeEnum, value)
+		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeString, value)
 		_node.RequiredLevel = value
 	}
 	if value, ok := _c.mutation.SeatRoles(); ok {

@@ -701,13 +701,13 @@ func (_u *EsportsOrderUpdate) AddRequiredSeats(v int) *EsportsOrderUpdate {
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (_u *EsportsOrderUpdate) SetRequiredLevel(v esportsorder.RequiredLevel) *EsportsOrderUpdate {
+func (_u *EsportsOrderUpdate) SetRequiredLevel(v string) *EsportsOrderUpdate {
 	_u.mutation.SetRequiredLevel(v)
 	return _u
 }
 
 // SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
-func (_u *EsportsOrderUpdate) SetNillableRequiredLevel(v *esportsorder.RequiredLevel) *EsportsOrderUpdate {
+func (_u *EsportsOrderUpdate) SetNillableRequiredLevel(v *string) *EsportsOrderUpdate {
 	if v != nil {
 		_u.SetRequiredLevel(*v)
 	}
@@ -1864,7 +1864,7 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 		_spec.AddField(esportsorder.FieldRequiredSeats, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.RequiredLevel(); ok {
-		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeEnum, value)
+		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SeatRoles(); ok {
 		_spec.SetField(esportsorder.FieldSeatRoles, field.TypeJSON, value)
@@ -2816,13 +2816,13 @@ func (_u *EsportsOrderUpdateOne) AddRequiredSeats(v int) *EsportsOrderUpdateOne 
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (_u *EsportsOrderUpdateOne) SetRequiredLevel(v esportsorder.RequiredLevel) *EsportsOrderUpdateOne {
+func (_u *EsportsOrderUpdateOne) SetRequiredLevel(v string) *EsportsOrderUpdateOne {
 	_u.mutation.SetRequiredLevel(v)
 	return _u
 }
 
 // SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
-func (_u *EsportsOrderUpdateOne) SetNillableRequiredLevel(v *esportsorder.RequiredLevel) *EsportsOrderUpdateOne {
+func (_u *EsportsOrderUpdateOne) SetNillableRequiredLevel(v *string) *EsportsOrderUpdateOne {
 	if v != nil {
 		_u.SetRequiredLevel(*v)
 	}
@@ -4009,7 +4009,7 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 		_spec.AddField(esportsorder.FieldRequiredSeats, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.RequiredLevel(); ok {
-		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeEnum, value)
+		_spec.SetField(esportsorder.FieldRequiredLevel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SeatRoles(); ok {
 		_spec.SetField(esportsorder.FieldSeatRoles, field.TypeJSON, value)

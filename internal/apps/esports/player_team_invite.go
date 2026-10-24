@@ -64,7 +64,8 @@ func playerInviteTeammates(ctx context.Context, db *ent.Client, playerID, orderI
 	if err != nil {
 		return nil, err
 	}
-	requiredLevel := order.RequiredLevel.String()
+	requiredLevel := order.RequiredLevel
+	levels := skillLevels(ctx, tx.Client())
 	validSet, err := confirmedTeammatePlayerIDs(ctx, tx.Client(), playerID, game)
 	if err != nil {
 		return nil, err
@@ -89,7 +90,7 @@ func playerInviteTeammates(ctx context.Context, db *ent.Client, playerID, orderI
 		if err = reservePlayerDispatchCapacity(ctx, tx, p, order, now, 0); err != nil {
 			return nil, err
 		}
-		if err = checkPlayerGameLevel(p, game, requiredLevel); err != nil {
+		if err = checkPlayerGameLevel(levels, p, game, requiredLevel); err != nil {
 			return nil, err
 		}
 		team = append(team, p)

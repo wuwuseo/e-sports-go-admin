@@ -3908,6 +3908,12 @@ func init() {
 	esportsorderDescRequiredSeats := esportsorderFields[32].Descriptor()
 	// esportsorder.RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
 	esportsorder.RequiredSeatsValidator = esportsorderDescRequiredSeats.Validators[0].(func(int) error)
+	// esportsorderDescRequiredLevel is the schema descriptor for required_level field.
+	esportsorderDescRequiredLevel := esportsorderFields[33].Descriptor()
+	// esportsorder.DefaultRequiredLevel holds the default value on creation for the required_level field.
+	esportsorder.DefaultRequiredLevel = esportsorderDescRequiredLevel.Default.(string)
+	// esportsorder.RequiredLevelValidator is a validator for the "required_level" field. It is called by the builders before save.
+	esportsorder.RequiredLevelValidator = esportsorderDescRequiredLevel.Validators[0].(func(string) error)
 	// esportsorderDescQuoteVersion is the schema descriptor for quote_version field.
 	esportsorderDescQuoteVersion := esportsorderFields[35].Descriptor()
 	// esportsorder.DefaultQuoteVersion holds the default value on creation for the quote_version field.
@@ -4640,6 +4646,12 @@ func init() {
 	esportsplayerDescDisplayName := esportsplayerFields[1].Descriptor()
 	// esportsplayer.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
 	esportsplayer.DisplayNameValidator = esportsplayerDescDisplayName.Validators[0].(func(string) error)
+	// esportsplayerDescLevel is the schema descriptor for level field.
+	esportsplayerDescLevel := esportsplayerFields[4].Descriptor()
+	// esportsplayer.DefaultLevel holds the default value on creation for the level field.
+	esportsplayer.DefaultLevel = esportsplayerDescLevel.Default.(string)
+	// esportsplayer.LevelValidator is a validator for the "level" field. It is called by the builders before save.
+	esportsplayer.LevelValidator = esportsplayerDescLevel.Validators[0].(func(string) error)
 	// esportsplayerDescDailyLimit is the schema descriptor for daily_limit field.
 	esportsplayerDescDailyLimit := esportsplayerFields[6].Descriptor()
 	// esportsplayer.DefaultDailyLimit holds the default value on creation for the daily_limit field.
@@ -6036,6 +6048,12 @@ func init() {
 	esportssku.DefaultRequiredSeats = esportsskuDescRequiredSeats.Default.(int)
 	// esportssku.RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
 	esportssku.RequiredSeatsValidator = esportsskuDescRequiredSeats.Validators[0].(func(int) error)
+	// esportsskuDescRequiredLevel is the schema descriptor for required_level field.
+	esportsskuDescRequiredLevel := esportsskuFields[15].Descriptor()
+	// esportssku.DefaultRequiredLevel holds the default value on creation for the required_level field.
+	esportssku.DefaultRequiredLevel = esportsskuDescRequiredLevel.Default.(string)
+	// esportssku.RequiredLevelValidator is a validator for the "required_level" field. It is called by the builders before save.
+	esportssku.RequiredLevelValidator = esportsskuDescRequiredLevel.Validators[0].(func(string) error)
 	// esportsskuDescCloseRuleCode is the schema descriptor for close_rule_code field.
 	esportsskuDescCloseRuleCode := esportsskuFields[16].Descriptor()
 	// esportssku.DefaultCloseRuleCode holds the default value on creation for the close_rule_code field.

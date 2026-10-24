@@ -61,13 +61,13 @@ func (_c *EsportsPlayerCreate) SetNillablePresence(v *esportsplayer.Presence) *E
 }
 
 // SetLevel sets the "level" field.
-func (_c *EsportsPlayerCreate) SetLevel(v esportsplayer.Level) *EsportsPlayerCreate {
+func (_c *EsportsPlayerCreate) SetLevel(v string) *EsportsPlayerCreate {
 	_c.mutation.SetLevel(v)
 	return _c
 }
 
 // SetNillableLevel sets the "level" field if the given value is not nil.
-func (_c *EsportsPlayerCreate) SetNillableLevel(v *esportsplayer.Level) *EsportsPlayerCreate {
+func (_c *EsportsPlayerCreate) SetNillableLevel(v *string) *EsportsPlayerCreate {
 	if v != nil {
 		_c.SetLevel(*v)
 	}
@@ -698,7 +698,7 @@ func (_c *EsportsPlayerCreate) createSpec() (*EsportsPlayer, *sqlgraph.CreateSpe
 		_node.Presence = value
 	}
 	if value, ok := _c.mutation.Level(); ok {
-		_spec.SetField(esportsplayer.FieldLevel, field.TypeEnum, value)
+		_spec.SetField(esportsplayer.FieldLevel, field.TypeString, value)
 		_node.Level = value
 	}
 	if value, ok := _c.mutation.LevelAppraisedAt(); ok {

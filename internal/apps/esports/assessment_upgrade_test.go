@@ -24,7 +24,7 @@ const upgradeAutoTriggerCursorKeyLiteral = "app.esports.upgrade_auto_trigger_cur
 
 // seedUpgradePlayer 建一个已入驻的合格陪玩：created_at 是 Immutable 字段，只能在 Create 时显式写入，
 // 因此这里不使用通用 seedPlayer；实名认证一并置为通过（§6.1 定级前置条件）。
-func seedUpgradePlayer(t *testing.T, db *ent.Client, userID int, level esportsplayer.Level, createdAt time.Time) *ent.EsportsPlayer {
+func seedUpgradePlayer(t *testing.T, db *ent.Client, userID int, level string, createdAt time.Time) *ent.EsportsPlayer {
 	t.Helper()
 	player := db.EsportsPlayer.Create().SetUserID(userID).SetDisplayName("升级陪玩").
 		SetQualification(esportsplayer.QualificationQualified).
@@ -57,7 +57,7 @@ func seedUpgradeReviews(t *testing.T, db *ent.Client, playerID, count, rating in
 }
 
 // seedUpgradeEligiblePlayer 建一个达标陪玩：入驻 ≥ 7 天、累计服务量 30（默认门槛）、5 条 5 星评价。
-func seedUpgradeEligiblePlayer(t *testing.T, db *ent.Client, userID int, level esportsplayer.Level, createdAt time.Time) *ent.EsportsPlayer {
+func seedUpgradeEligiblePlayer(t *testing.T, db *ent.Client, userID int, level string, createdAt time.Time) *ent.EsportsPlayer {
 	t.Helper()
 	player := seedUpgradePlayer(t, db, userID, level, createdAt)
 	seedUpgradeServiceSegments(t, db, player.ID, 12, 18)
@@ -89,7 +89,7 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	// 资格已是合格但实名认证未通过（§6.1）。
 	unverified := db.EsportsPlayer.Create().SetUserID(201).SetDisplayName("未实名").
 		SetQualification(esportsplayer.QualificationQualified).SetPresence(esportsplayer.PresenceOnline).
-		SetLevel(esportsplayer.LevelNovice).SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
+		SetLevel("novice").SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
 	seedUpgradeServiceSegments(t, db, unverified.ID, 40)
 	seedUpgradeReviews(t, db, unverified.ID, 5, 5)
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, unverified.ID, now); err == nil ||
@@ -100,7 +100,7 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	// 资格待审核。
 	pending := db.EsportsPlayer.Create().SetUserID(202).SetDisplayName("待审核").
 		SetQualification(esportsplayer.QualificationPending).SetPresence(esportsplayer.PresenceOffline).
-		SetLevel(esportsplayer.LevelNovice).SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
+		SetLevel("novice").SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
 	seedVerifiedIdentity(t, db, pending.ID)
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, pending.ID, now); err == nil ||
 		!errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "资格") {
@@ -108,14 +108,14 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	}
 
 	// 已是最高等级。
-	mentor := seedUpgradeEligiblePlayer(t, db, 203, esportsplayer.LevelMentor, now.AddDate(0, 0, -90))
+	mentor := seedUpgradeEligiblePlayer(t, db, 203, "mentor", now.AddDate(0, 0, -90))
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, mentor.ID, now); err == nil ||
 		!strings.Contains(err.Error(), "最高等级") {
 		t.Fatalf("最高等级陪玩未被拦截：%v", err)
 	}
 
 	// 服务量不足：进行中的服务段不计入门槛。
-	lowService := seedUpgradePlayer(t, db, 204, esportsplayer.LevelNovice, now.AddDate(0, 0, -90))
+	lowService := seedUpgradePlayer(t, db, 204, "novice", now.AddDate(0, 0, -90))
 	seedUpgradeServiceSegments(t, db, lowService.ID, 5)
 	db.EsportsServiceSegment.Create().SetOrderID(8801).SetPlayerID(lowService.ID).SetSeatIndex(1).
 		SetStartedAt(now).SetStatus(esportsservicesegment.StatusInService).
@@ -127,14 +127,14 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	}
 
 	// 在岗时长不足。
-	fresh := seedUpgradeEligiblePlayer(t, db, 205, esportsplayer.LevelNovice, now.AddDate(0, 0, -1))
+	fresh := seedUpgradeEligiblePlayer(t, db, 205, "novice", now.AddDate(0, 0, -1))
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, fresh.ID, now); err == nil ||
 		!strings.Contains(err.Error(), "在岗") {
 		t.Fatalf("在岗时长不足未被拦截：%v", err)
 	}
 
 	// 样本充足但评分低于门槛（3 星 = 60 分 < 默认 80 分）。
-	lowRating := seedUpgradePlayer(t, db, 206, esportsplayer.LevelNovice, now.AddDate(0, 0, -90))
+	lowRating := seedUpgradePlayer(t, db, 206, "novice", now.AddDate(0, 0, -90))
 	seedUpgradeServiceSegments(t, db, lowRating.ID, 30)
 	seedUpgradeReviews(t, db, lowRating.ID, 5, 3)
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, lowRating.ID, now); err == nil ||
@@ -143,7 +143,7 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	}
 
 	// 样本不足不当作低分：无评价但服务量与在岗达标仍可申请。
-	noReview := seedUpgradePlayer(t, db, 207, esportsplayer.LevelNovice, now.AddDate(0, 0, -90))
+	noReview := seedUpgradePlayer(t, db, 207, "novice", now.AddDate(0, 0, -90))
 	seedUpgradeServiceSegments(t, db, noReview.ID, 30)
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, noReview.ID, now); err != nil {
 		t.Fatalf("样本不足被当作低分拒绝：%v", err)
@@ -151,7 +151,7 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 
 	// 门槛可配置：调高服务量门槛后同一类陪玩被拒，提示带出配置值。
 	seedUpgradeConfig(t, db, upgradeMinServiceUnitsKey, "999")
-	blocked := seedUpgradeEligiblePlayer(t, db, 208, esportsplayer.LevelNovice, now.AddDate(0, 0, -90))
+	blocked := seedUpgradeEligiblePlayer(t, db, 208, "novice", now.AddDate(0, 0, -90))
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, blocked.ID, now); err == nil ||
 		!strings.Contains(err.Error(), "999") {
 		t.Fatalf("配置化门槛未生效：%v", err)
@@ -164,7 +164,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	player := seedUpgradeEligiblePlayer(t, db, 301, esportsplayer.LevelSkilled, now.AddDate(0, 0, -30))
+	player := seedUpgradeEligiblePlayer(t, db, 301, "skilled", now.AddDate(0, 0, -30))
 
 	created, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
 	if err != nil {
@@ -201,7 +201,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 	}
 
 	// 冷却期届满（上次升级单 created_at 在 31 天前）后可再次申请。
-	expired := seedUpgradeEligiblePlayer(t, db, 302, esportsplayer.LevelNovice, now.AddDate(0, 0, -60))
+	expired := seedUpgradeEligiblePlayer(t, db, 302, "novice", now.AddDate(0, 0, -60))
 	db.EsportsAssessment.Create().SetTaskNo("AS-UPGRADE-OLD-1").SetPlayerID(expired.ID).
 		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetTargetLevel("skilled").
 		SetStatus(esportsassessment.StatusFailed).SetSource(esportsassessment.SourceApply).
@@ -212,7 +212,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 	}
 
 	// 冷却时长配置化：90 天冷却下，31 天前的上一单仍在冷却期内。
-	strict := seedUpgradeEligiblePlayer(t, db, 303, esportsplayer.LevelNovice, now.AddDate(0, 0, -60))
+	strict := seedUpgradeEligiblePlayer(t, db, 303, "novice", now.AddDate(0, 0, -60))
 	db.EsportsAssessment.Create().SetTaskNo("AS-UPGRADE-OLD-2").SetPlayerID(strict.ID).
 		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetTargetLevel("skilled").
 		SetStatus(esportsassessment.StatusFailed).SetSource(esportsassessment.SourceApply).
@@ -232,27 +232,27 @@ func TestAutoTriggerUpgradeAssessmentsIsIdempotentAndScansEligible(t *testing.T)
 	ctx := t.Context()
 	now := time.Now().UTC()
 
-	eligible := seedUpgradeEligiblePlayer(t, db, 401, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	eligible := seedUpgradeEligiblePlayer(t, db, 401, "novice", now.AddDate(0, 0, -30))
 
 	// 已有进行中的升级单：幂等依据，不得重复建单。
-	inProgress := seedUpgradeEligiblePlayer(t, db, 402, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	inProgress := seedUpgradeEligiblePlayer(t, db, 402, "novice", now.AddDate(0, 0, -30))
 	db.EsportsAssessment.Create().SetTaskNo("AS-UPGRADE-IN-PROGRESS").SetPlayerID(inProgress.ID).
 		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetTargetLevel("skilled").
 		SetStatus(esportsassessment.StatusPending).SaveX(ctx)
 
 	// 未达标：服务量不足。
-	short := seedUpgradePlayer(t, db, 403, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	short := seedUpgradePlayer(t, db, 403, "novice", now.AddDate(0, 0, -30))
 	seedUpgradeServiceSegments(t, db, short.ID, 5)
 	seedUpgradeReviews(t, db, short.ID, 5, 5)
 
 	// 资格暂停：不自动触发。
-	suspended := seedUpgradePlayer(t, db, 404, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	suspended := seedUpgradePlayer(t, db, 404, "novice", now.AddDate(0, 0, -30))
 	seedUpgradeServiceSegments(t, db, suspended.ID, 30)
 	seedUpgradeReviews(t, db, suspended.ID, 5, 5)
 	db.EsportsPlayer.UpdateOneID(suspended.ID).SetQualification(esportsplayer.QualificationSuspended).SaveX(ctx)
 
 	// 已达最高档：无升级空间。
-	mentor := seedUpgradeEligiblePlayer(t, db, 405, esportsplayer.LevelMentor, now.AddDate(0, 0, -30))
+	mentor := seedUpgradeEligiblePlayer(t, db, 405, "mentor", now.AddDate(0, 0, -30))
 
 	count, err := autoTriggerUpgradeAssessments(ctx, db, now, upgradeAutoTriggerBatchCap)
 	if err != nil {
@@ -299,7 +299,7 @@ func TestAutoTriggerUpgradeAssessmentsRespectsBatchLimit(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 	for i := 0; i < 3; i++ {
-		seedUpgradeEligiblePlayer(t, db, 501+i, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+		seedUpgradeEligiblePlayer(t, db, 501+i, "novice", now.AddDate(0, 0, -30))
 	}
 
 	if _, err := autoTriggerUpgradeAssessments(ctx, db, now, 0); !errors.Is(err, errInvalidInput) {
@@ -330,7 +330,7 @@ func TestAutoTriggerUpgradeAssessmentsTaskLogsCount(t *testing.T) {
 	global.ORM = db
 	t.Cleanup(func() { global.ORM = previous })
 	ctx := t.Context()
-	seedUpgradeEligiblePlayer(t, db, 601, esportsplayer.LevelNovice, time.Now().UTC().AddDate(0, 0, -30))
+	seedUpgradeEligiblePlayer(t, db, 601, "novice", time.Now().UTC().AddDate(0, 0, -30))
 
 	var log bytes.Buffer
 	if err := autoTriggerUpgradeAssessmentsTask(ctx, &log); err != nil {
@@ -348,7 +348,7 @@ func TestPlayerUpgradeApplySecondSubmissionReturnsExistingSingle(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	player := seedUpgradeEligiblePlayer(t, db, 711, esportsplayer.LevelSkilled, now.AddDate(0, 0, -30))
+	player := seedUpgradeEligiblePlayer(t, db, 711, "skilled", now.AddDate(0, 0, -30))
 
 	first, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
 	if err != nil {
@@ -373,7 +373,7 @@ func TestUpgradeAssessmentActiveSingleIsUnique(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	player := seedUpgradeEligiblePlayer(t, db, 721, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	player := seedUpgradeEligiblePlayer(t, db, 721, "novice", now.AddDate(0, 0, -30))
 
 	if _, err := createAssessment(ctx, db, 0, assessmentInput{
 		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled", Source: "system",
@@ -405,7 +405,7 @@ func TestCreateAssessmentRecordsCreatedByAdminID(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
-	player := seedUpgradeEligiblePlayer(t, db, 731, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	player := seedUpgradeEligiblePlayer(t, db, 731, "novice", now.AddDate(0, 0, -30))
 	byAdmin, err := createAssessment(ctx, db, 11, assessmentInput{
 		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled",
 	}, now)
@@ -416,7 +416,7 @@ func TestCreateAssessmentRecordsCreatedByAdminID(t *testing.T) {
 		t.Fatalf("管理员建单未写入 created_by_admin_id：%+v", byAdmin.CreatedByAdminID)
 	}
 
-	selfPlayer := seedUpgradeEligiblePlayer(t, db, 732, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	selfPlayer := seedUpgradeEligiblePlayer(t, db, 732, "novice", now.AddDate(0, 0, -30))
 	bySelf, err := applyPlayerUpgradeAssessment(ctx, db, selfPlayer.ID, now)
 	if err != nil {
 		t.Fatalf("陪玩自助申请失败：%v", err)
@@ -433,7 +433,7 @@ func TestUpgradeApplyBlockedWhileAppealPending(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	player := seedUpgradeEligiblePlayer(t, db, 741, esportsplayer.LevelNovice, now.AddDate(0, 0, -60))
+	player := seedUpgradeEligiblePlayer(t, db, 741, "novice", now.AddDate(0, 0, -60))
 
 	old := db.EsportsAssessment.Create().SetTaskNo("AS-UPGRADE-APPEAL-1").SetPlayerID(player.ID).
 		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetTargetLevel("skilled").
@@ -462,7 +462,7 @@ func TestUpgradeAppealApprovalNeverLowersLevel(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	player := seedUpgradePlayer(t, db, 751, esportsplayer.LevelSenior, now.AddDate(0, 0, -90))
+	player := seedUpgradePlayer(t, db, 751, "senior", now.AddDate(0, 0, -90))
 
 	// 旧单目标档是 skilled，陪玩其后已升到 senior。
 	old := db.EsportsAssessment.Create().SetTaskNo("AS-UPGRADE-APPEAL-2").SetPlayerID(player.ID).
@@ -476,7 +476,7 @@ func TestUpgradeAppealApprovalNeverLowersLevel(t *testing.T) {
 	if err != nil || reviewed.Status != esportsassessment.StatusPassed {
 		t.Fatalf("申诉改判失败：%+v, %v", reviewed, err)
 	}
-	if got := db.EsportsPlayer.GetX(ctx, player.ID).Level; got != esportsplayer.LevelSenior {
+	if got := db.EsportsPlayer.GetX(ctx, player.ID).Level; got != "senior" {
 		t.Fatalf("旧申诉改判把等级降回了 %s，期望保持 senior", got)
 	}
 }
@@ -491,9 +491,9 @@ func TestAutoTriggerUpgradeAssessmentsStarvedTailPlayerGetsAssessment(t *testing
 
 	// 3 名 SQL 可命中但不达标的陪玩（无已完成服务段 → Go 层门槛恒 false），ID 都小于尾部达人。
 	for i := 0; i < 3; i++ {
-		seedUpgradePlayer(t, db, 801+i, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+		seedUpgradePlayer(t, db, 801+i, "novice", now.AddDate(0, 0, -30))
 	}
-	tail := seedUpgradeEligiblePlayer(t, db, 899, esportsplayer.LevelNovice, now.AddDate(0, 0, -30))
+	tail := seedUpgradeEligiblePlayer(t, db, 899, "novice", now.AddDate(0, 0, -30))
 
 	const cap = 3
 	if count, err := autoTriggerUpgradeAssessments(ctx, db, now, cap); err != nil || count != 0 {
@@ -536,7 +536,7 @@ func TestPlayerUpgradeApplyConcurrentSubmissionsKeepSinglePending(t *testing.T) 
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	player := seedUpgradeEligiblePlayer(t, db, 771, esportsplayer.LevelSkilled, now.AddDate(0, 0, -30))
+	player := seedUpgradeEligiblePlayer(t, db, 771, "skilled", now.AddDate(0, 0, -30))
 
 	submit := func() (*ent.EsportsAssessment, error) {
 		var item *ent.EsportsAssessment
@@ -592,7 +592,7 @@ func TestUpgradeAssessmentDedupKeyLifecycleAcrossTerminalPaths(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	now := time.Now().UTC()
-	player := seedUpgradeEligiblePlayer(t, db, 761, esportsplayer.LevelSkilled, now.AddDate(0, 0, -90))
+	player := seedUpgradeEligiblePlayer(t, db, 761, "skilled", now.AddDate(0, 0, -90))
 
 	pending, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
 	if err != nil {

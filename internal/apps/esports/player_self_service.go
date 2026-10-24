@@ -138,7 +138,7 @@ func playerSelfProfile(ctx context.Context, db *ent.Client, player *ent.EsportsP
 	return &playerSelfProfileView{
 		ID: player.ID, DisplayName: player.DisplayName, Phone: phone,
 		Qualification: player.Qualification.String(), Presence: player.Presence.String(),
-		Level: player.Level.String(), LevelAppraisedAt: player.LevelAppraisedAt,
+		Level: player.Level, LevelAppraisedAt: player.LevelAppraisedAt,
 		DailyLimit: player.DailyLimit, ConcurrentLimit: player.ConcurrentLimit,
 		Games:                    games,
 		ServiceSlotStartMinute:   player.ServiceSlotStartMinute,

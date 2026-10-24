@@ -175,13 +175,13 @@ func (_c *EsportsSkuCreate) SetNillableRequiredSeats(v *int) *EsportsSkuCreate {
 }
 
 // SetRequiredLevel sets the "required_level" field.
-func (_c *EsportsSkuCreate) SetRequiredLevel(v esportssku.RequiredLevel) *EsportsSkuCreate {
+func (_c *EsportsSkuCreate) SetRequiredLevel(v string) *EsportsSkuCreate {
 	_c.mutation.SetRequiredLevel(v)
 	return _c
 }
 
 // SetNillableRequiredLevel sets the "required_level" field if the given value is not nil.
-func (_c *EsportsSkuCreate) SetNillableRequiredLevel(v *esportssku.RequiredLevel) *EsportsSkuCreate {
+func (_c *EsportsSkuCreate) SetNillableRequiredLevel(v *string) *EsportsSkuCreate {
 	if v != nil {
 		_c.SetRequiredLevel(*v)
 	}
@@ -625,7 +625,7 @@ func (_c *EsportsSkuCreate) createSpec() (*EsportsSku, *sqlgraph.CreateSpec) {
 		_node.RequiredSeats = value
 	}
 	if value, ok := _c.mutation.RequiredLevel(); ok {
-		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeEnum, value)
+		_spec.SetField(esportssku.FieldRequiredLevel, field.TypeString, value)
 		_node.RequiredLevel = value
 	}
 	if value, ok := _c.mutation.CloseRuleCode(); ok {

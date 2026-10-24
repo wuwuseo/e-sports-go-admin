@@ -86,7 +86,7 @@ type EsportsOrder struct {
 	// RequiredSeats holds the value of the "required_seats" field.
 	RequiredSeats int `json:"required_seats"`
 	// RequiredLevel holds the value of the "required_level" field.
-	RequiredLevel esportsorder.RequiredLevel `json:"required_level"`
+	RequiredLevel string `json:"required_level"`
 	// SeatRoles holds the value of the "seat_roles" field.
 	SeatRoles []schematier.SeatSpec `json:"seat_roles"`
 	// QuoteVersion holds the value of the "quote_version" field.
@@ -441,7 +441,7 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field required_level", values[i])
 			} else if value.Valid {
-				_m.RequiredLevel = esportsorder.RequiredLevel(value.String)
+				_m.RequiredLevel = value.String
 			}
 		case esportsorder.FieldSeatRoles:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -871,7 +871,7 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredSeats))
 	builder.WriteString(", ")
 	builder.WriteString("required_level=")
-	builder.WriteString(fmt.Sprintf("%v", _m.RequiredLevel))
+	builder.WriteString(_m.RequiredLevel)
 	builder.WriteString(", ")
 	builder.WriteString("seat_roles=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SeatRoles))

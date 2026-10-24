@@ -43,7 +43,7 @@ func adminPlayers(c fiber.Ctx) error {
 // publicPlayers 客户端陪玩推荐（AuthPublic）：仅返回合格且在线的陪玩公开字段，
 // 并按 player_recommend 组件 props 透传的查询参数（game / level / online / bookable）收窄（§16.3-07）。
 func publicPlayers(c fiber.Ctx) error {
-	props, err := parsePlayerRecommendProps(c)
+	props, err := parsePlayerRecommendProps(c, skillLevels(c.Context(), global.ORM))
 	if err != nil {
 		return businessError(c, err)
 	}

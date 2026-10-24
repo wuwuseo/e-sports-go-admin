@@ -81,7 +81,7 @@ func TestSettlementCycleResolutionPrefersMostSpecific(t *testing.T) {
 	now := time.Now().UTC()
 
 	player := seedPlayer(t, db, 4711, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel(esportsplayer.LevelSenior).
+	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("senior").
 		SetGames([]string{"王者荣耀", "和平精英"}).SaveX(ctx)
 	player = db.EsportsPlayer.GetX(ctx, player.ID)
 

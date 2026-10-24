@@ -545,7 +545,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 		if gErr != nil {
 			return gErr
 		}
-		if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+		if err = checkPlayerGameLevel(skillLevels(ctx, tx.Client()), player, game, order.RequiredLevel); err != nil {
 			return err
 		}
 	}
@@ -555,7 +555,7 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 	).SetStatus(target).SetRespondedAt(now.UTC()).AddVersion(1)
 	if accept {
 		rule, ruleErr := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-			tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level.String(), now)
+			tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level, now)
 		if ruleErr != nil {
 			return ruleErr
 		}
@@ -721,7 +721,7 @@ func listGrabHall(ctx context.Context, db *ent.Client, playerID int, now time.Ti
 			}
 			gameCache[order.SkuID] = game
 		}
-		if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+		if err = checkPlayerGameLevel(skillLevels(ctx, tx.Client()), player, game, order.RequiredLevel); err != nil {
 			if errors.Is(err, errForbidden) {
 				continue
 			}
@@ -803,7 +803,7 @@ func listGrabHallItems(ctx context.Context, db *ent.Client, playerID int, now ti
 			PromisedServiceUnits:   order.PromisedServiceUnits,
 			PerSeatServiceUnits:    order.PerSeatServiceUnits,
 			ServiceDurationMinutes: order.ServiceDurationMinutes,
-			RequiredLevel:          order.RequiredLevel.String(),
+			RequiredLevel:          order.RequiredLevel,
 			AppointmentStatus:      order.AppointmentStatus.String(),
 			RequestedStartAt:       order.RequestedStartAt,
 			UnitPriceCents:         order.UnitPriceCents, PayableCents: order.PayableCents,
@@ -887,11 +887,11 @@ func grabPlayerOrderTx(ctx context.Context, db *ent.Client, playerID, orderID in
 	if err != nil {
 		return nil, err
 	}
-	if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+	if err = checkPlayerGameLevel(skillLevels(ctx, tx.Client()), player, game, order.RequiredLevel); err != nil {
 		return nil, err
 	}
 	rule, err := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level.String(), now)
+		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level, now)
 	if err != nil {
 		return nil, err
 	}

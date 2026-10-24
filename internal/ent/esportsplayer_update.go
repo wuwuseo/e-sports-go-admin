@@ -93,13 +93,13 @@ func (_u *EsportsPlayerUpdate) SetNillablePresence(v *esportsplayer.Presence) *E
 }
 
 // SetLevel sets the "level" field.
-func (_u *EsportsPlayerUpdate) SetLevel(v esportsplayer.Level) *EsportsPlayerUpdate {
+func (_u *EsportsPlayerUpdate) SetLevel(v string) *EsportsPlayerUpdate {
 	_u.mutation.SetLevel(v)
 	return _u
 }
 
 // SetNillableLevel sets the "level" field if the given value is not nil.
-func (_u *EsportsPlayerUpdate) SetNillableLevel(v *esportsplayer.Level) *EsportsPlayerUpdate {
+func (_u *EsportsPlayerUpdate) SetNillableLevel(v *string) *EsportsPlayerUpdate {
 	if v != nil {
 		_u.SetLevel(*v)
 	}
@@ -673,7 +673,7 @@ func (_u *EsportsPlayerUpdate) sqlSave(ctx context.Context) (_node int, err erro
 		_spec.SetField(esportsplayer.FieldPresence, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.Level(); ok {
-		_spec.SetField(esportsplayer.FieldLevel, field.TypeEnum, value)
+		_spec.SetField(esportsplayer.FieldLevel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LevelAppraisedAt(); ok {
 		_spec.SetField(esportsplayer.FieldLevelAppraisedAt, field.TypeTime, value)
@@ -893,13 +893,13 @@ func (_u *EsportsPlayerUpdateOne) SetNillablePresence(v *esportsplayer.Presence)
 }
 
 // SetLevel sets the "level" field.
-func (_u *EsportsPlayerUpdateOne) SetLevel(v esportsplayer.Level) *EsportsPlayerUpdateOne {
+func (_u *EsportsPlayerUpdateOne) SetLevel(v string) *EsportsPlayerUpdateOne {
 	_u.mutation.SetLevel(v)
 	return _u
 }
 
 // SetNillableLevel sets the "level" field if the given value is not nil.
-func (_u *EsportsPlayerUpdateOne) SetNillableLevel(v *esportsplayer.Level) *EsportsPlayerUpdateOne {
+func (_u *EsportsPlayerUpdateOne) SetNillableLevel(v *string) *EsportsPlayerUpdateOne {
 	if v != nil {
 		_u.SetLevel(*v)
 	}
@@ -1503,7 +1503,7 @@ func (_u *EsportsPlayerUpdateOne) sqlSave(ctx context.Context) (_node *EsportsPl
 		_spec.SetField(esportsplayer.FieldPresence, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.Level(); ok {
-		_spec.SetField(esportsplayer.FieldLevel, field.TypeEnum, value)
+		_spec.SetField(esportsplayer.FieldLevel, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.LevelAppraisedAt(); ok {
 		_spec.SetField(esportsplayer.FieldLevelAppraisedAt, field.TypeTime, value)

@@ -348,6 +348,9 @@ func init() {
 			// —— 商品编码自动生成（新建商品时按「前缀-全局流水」生成，唯一索引兜底）——
 			{Key: "product_code_prefix", Name: "商品编码前缀", Value: "SKU", Type: "string", Group: "esports", Remark: "新建商品自动生成编码的前缀，最终形如 SKU-000001；留空回落 SKU"},
 			{Key: "product_code_serial_width", Name: "商品编码流水位数", Value: "6", Type: "number", Group: "esports", Remark: "流水号补零位数，1~12；≤0 或非法回落 6"},
+			// —— 技能等级（§5.5 / §7.3，配置驱动：数量/编码/显示名可自定义，顺序即高低序）——
+			// 在「系统配置」页（esports 组）编辑；缺失或非法整体回落内置四级。
+			{Key: "skill_levels", Name: "技能等级配置", Value: "[{\"code\":\"novice\",\"name\":\"新手\"},{\"code\":\"skilled\",\"name\":\"熟练\"},{\"code\":\"senior\",\"name\":\"资深\"},{\"code\":\"mentor\",\"name\":\"导师\"}]", Type: "string", Group: "esports", Remark: "JSON 数组 [{code,name}]，顺序即高低序（下标小 = 低档），1~12 档；编码为小写字母开头的字母数字下划线（≤32），显示名非空（≤32 字）；商品门槛 / 订单快照 / 陪玩档案存 code；缺失、非法或含重复编码时整体回落内置四级"},
 			// —— §13.5 售后四段时限（小时，0 = 该阶段不限时；超时只写升级外盒，不自动流转状态）——
 			{Key: "aftersale_accept_hours", Name: "售后受理时限（小时）", Value: "2", Type: "number", Group: "esports", Remark: "0 表示该阶段不限时；非法值（<0 或 >2160）回落 2"},
 			{Key: "aftersale_plan_hours", Name: "售后方案时限（小时）", Value: "24", Type: "number", Group: "esports", Remark: "0 不限时；非法值回落 24"},
@@ -451,6 +454,8 @@ func init() {
 		},
 		Routes: []cmfapp.Route{
 			{Method: "GET", Path: "/products", Auth: cmfapp.AuthPublic, Handler: publicSkus},
+			// 技能等级配置（§5.5）：公开读供管理端表单与 H5 文案；配置本身在系统配置页（esports 组）编辑。
+			{Method: "GET", Path: "/skill-levels", Auth: cmfapp.AuthPublic, Handler: publicSkillLevels},
 			// 在线支付渠道验签回调（§4.3）：原始 body + 签名头验签后核销；
 			// 渠道编码优先取路径参数，兼容仅带 X-Pay-Channel 头的旧回调地址。
 			{Method: "POST", Path: "/payment-notify", Auth: cmfapp.AuthPublic, Handler: paymentGatewayNotifyHandler},

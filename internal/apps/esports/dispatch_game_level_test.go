@@ -10,7 +10,6 @@ import (
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsorder"
 	"go-admin/internal/ent/esportsplayer"
-	"go-admin/internal/ent/esportssku"
 )
 
 // 游戏分区权限 + 技能等级（§5.5）：分区不符、等级不足都被拒，满足者通过；候选池同步过滤。
@@ -21,12 +20,12 @@ func TestPlayerGameLevelGuard(t *testing.T) {
 	game := "王者荣耀"
 
 	sku := seedGameSku(t, db, "GL", game)
-	db.EsportsSku.UpdateOneID(sku.ID).SetRequiredLevel(esportssku.RequiredLevelSenior).SaveX(ctx)
+	db.EsportsSku.UpdateOneID(sku.ID).SetRequiredLevel("senior").SaveX(ctx)
 
 	order := db.EsportsOrder.Create().SetOrderNo("GL-1").SetCustomerID(1).SetSkuID(sku.ID).
 		SetQuantity(1).SetUnitPriceCents(1000).SetPayableCents(1000).
 		SetPromisedServiceUnits(1).SetRequiredSeats(1).
-		SetRequiredLevel(esportsorder.RequiredLevelSenior).
+		SetRequiredLevel("senior").
 		SetPaymentDeadline(now.UTC().Add(time.Hour)).
 		SetPaymentStatus(esportsorder.PaymentStatusPaid).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).
@@ -39,12 +38,12 @@ func TestPlayerGameLevelGuard(t *testing.T) {
 	// 等级不足：games 含 game，但 level=novice < senior。
 	lowLevel := seedPlayer(t, db, 9502, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(lowLevel.ID).
-		SetGames([]string{game}).SetLevel(esportsplayer.LevelNovice).SaveX(ctx)
+		SetGames([]string{game}).SetLevel("novice").SaveX(ctx)
 
 	// 满足：games 含 game + level=mentor。
 	ok := seedPlayer(t, db, 9503, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(ok.ID).
-		SetGames([]string{game}).SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+		SetGames([]string{game}).SetLevel("mentor").SaveX(ctx)
 
 	// 候选池：分区不符与等级不足的陪玩不应出现，满足者应出现。
 	candidates, err := dispatchCandidates(ctx, db, order, 0, 20, now)
@@ -87,16 +86,16 @@ func TestGrabHallFiltersGameLevelAndCapacity(t *testing.T) {
 	order := db.EsportsOrder.Create().SetOrderNo("HALL-1").SetCustomerID(1).SetSkuID(sku.ID).
 		SetQuantity(1).SetUnitPriceCents(1000).SetPayableCents(1000).
 		SetPromisedServiceUnits(1).SetRequiredSeats(1).
-		SetRequiredLevel(esportsorder.RequiredLevelSenior).
+		SetRequiredLevel("senior").
 		SetPaymentDeadline(now.Add(time.Hour)).SetPaymentStatus(esportsorder.PaymentStatusPaid).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusGrabbing).SaveX(ctx)
 	wrongGame := seedPlayer(t, db, 9701, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(wrongGame.ID).SetGames([]string{"英雄联盟"}).SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(wrongGame.ID).SetGames([]string{"英雄联盟"}).SetLevel("mentor").SaveX(ctx)
 	lowLevel := seedPlayer(t, db, 9702, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(lowLevel.ID).SetGames([]string{"王者荣耀"}).SetLevel(esportsplayer.LevelNovice).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(lowLevel.ID).SetGames([]string{"王者荣耀"}).SetLevel("novice").SaveX(ctx)
 	eligible := seedPlayer(t, db, 9703, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(eligible.ID).SetGames([]string{"王者荣耀"}).
-		SetLevel(esportsplayer.LevelMentor).SetConcurrentLimit(1).SaveX(ctx)
+		SetLevel("mentor").SetConcurrentLimit(1).SaveX(ctx)
 	for _, playerID := range []int{wrongGame.ID, lowLevel.ID} {
 		if hall, err := listGrabHall(ctx, db, playerID, now); err != nil || len(hall) != 0 {
 			t.Fatalf("无资格陪玩不应看到该单：player=%d, hall=%+v, err=%v", playerID, hall, err)
@@ -124,16 +123,16 @@ func TestPlayerGameLevelUnboundedGames(t *testing.T) {
 	game := "王者荣耀"
 
 	sku := seedGameSku(t, db, "GLU", game)
-	db.EsportsSku.UpdateOneID(sku.ID).SetRequiredLevel(esportssku.RequiredLevelSenior).SaveX(ctx)
+	db.EsportsSku.UpdateOneID(sku.ID).SetRequiredLevel("senior").SaveX(ctx)
 
 	// games 为空（不限分区）但 level=mentor 满足等级。
 	player := seedPlayer(t, db, 9601, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("mentor").SaveX(ctx)
 
 	order := db.EsportsOrder.Create().SetOrderNo("GLU-1").SetCustomerID(1).SetSkuID(sku.ID).
 		SetQuantity(1).SetUnitPriceCents(1000).SetPayableCents(1000).
 		SetPromisedServiceUnits(1).SetRequiredSeats(1).
-		SetRequiredLevel(esportsorder.RequiredLevelSenior).
+		SetRequiredLevel("senior").
 		SetPaymentDeadline(now.UTC().Add(time.Hour)).
 		SetPaymentStatus(esportsorder.PaymentStatusPaid).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).

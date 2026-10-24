@@ -49,7 +49,7 @@ type EsportsSku struct {
 	// RequiredSeats holds the value of the "required_seats" field.
 	RequiredSeats int `json:"-"`
 	// RequiredLevel holds the value of the "required_level" field.
-	RequiredLevel esportssku.RequiredLevel `json:"required_level"`
+	RequiredLevel string `json:"required_level"`
 	// CloseRuleCode holds the value of the "close_rule_code" field.
 	CloseRuleCode string `json:"close_rule_code"`
 	// QuotaTotal holds the value of the "quota_total" field.
@@ -203,7 +203,7 @@ func (_m *EsportsSku) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field required_level", values[i])
 			} else if value.Valid {
-				_m.RequiredLevel = esportssku.RequiredLevel(value.String)
+				_m.RequiredLevel = value.String
 			}
 		case esportssku.FieldCloseRuleCode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -345,7 +345,7 @@ func (_m *EsportsSku) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.RequiredSeats))
 	builder.WriteString(", ")
 	builder.WriteString("required_level=")
-	builder.WriteString(fmt.Sprintf("%v", _m.RequiredLevel))
+	builder.WriteString(_m.RequiredLevel)
 	builder.WriteString(", ")
 	builder.WriteString("close_rule_code=")
 	builder.WriteString(_m.CloseRuleCode)

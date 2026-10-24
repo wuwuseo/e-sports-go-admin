@@ -64,6 +64,11 @@ func DisplayName(v string) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldDisplayName, v))
 }
 
+// Level applies equality check predicate on the "level" field. It's identical to LevelEQ.
+func Level(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEQ(FieldLevel, v))
+}
+
 // LevelAppraisedAt applies equality check predicate on the "level_appraised_at" field. It's identical to LevelAppraisedAtEQ.
 func LevelAppraisedAt(v time.Time) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldLevelAppraisedAt, v))
@@ -325,23 +330,68 @@ func PresenceNotIn(vs ...Presence) predicate.EsportsPlayer {
 }
 
 // LevelEQ applies the EQ predicate on the "level" field.
-func LevelEQ(v Level) predicate.EsportsPlayer {
+func LevelEQ(v string) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldLevel, v))
 }
 
 // LevelNEQ applies the NEQ predicate on the "level" field.
-func LevelNEQ(v Level) predicate.EsportsPlayer {
+func LevelNEQ(v string) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldNEQ(FieldLevel, v))
 }
 
 // LevelIn applies the In predicate on the "level" field.
-func LevelIn(vs ...Level) predicate.EsportsPlayer {
+func LevelIn(vs ...string) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldIn(FieldLevel, vs...))
 }
 
 // LevelNotIn applies the NotIn predicate on the "level" field.
-func LevelNotIn(vs ...Level) predicate.EsportsPlayer {
+func LevelNotIn(vs ...string) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldNotIn(FieldLevel, vs...))
+}
+
+// LevelGT applies the GT predicate on the "level" field.
+func LevelGT(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGT(FieldLevel, v))
+}
+
+// LevelGTE applies the GTE predicate on the "level" field.
+func LevelGTE(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldGTE(FieldLevel, v))
+}
+
+// LevelLT applies the LT predicate on the "level" field.
+func LevelLT(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLT(FieldLevel, v))
+}
+
+// LevelLTE applies the LTE predicate on the "level" field.
+func LevelLTE(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldLTE(FieldLevel, v))
+}
+
+// LevelContains applies the Contains predicate on the "level" field.
+func LevelContains(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldContains(FieldLevel, v))
+}
+
+// LevelHasPrefix applies the HasPrefix predicate on the "level" field.
+func LevelHasPrefix(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldHasPrefix(FieldLevel, v))
+}
+
+// LevelHasSuffix applies the HasSuffix predicate on the "level" field.
+func LevelHasSuffix(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldHasSuffix(FieldLevel, v))
+}
+
+// LevelEqualFold applies the EqualFold predicate on the "level" field.
+func LevelEqualFold(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldEqualFold(FieldLevel, v))
+}
+
+// LevelContainsFold applies the ContainsFold predicate on the "level" field.
+func LevelContainsFold(v string) predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldContainsFold(FieldLevel, v))
 }
 
 // LevelAppraisedAtEQ applies the EQ predicate on the "level_appraised_at" field.

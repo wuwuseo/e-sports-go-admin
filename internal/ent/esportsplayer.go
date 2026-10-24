@@ -27,7 +27,7 @@ type EsportsPlayer struct {
 	// Presence holds the value of the "presence" field.
 	Presence esportsplayer.Presence `json:"presence"`
 	// Level holds the value of the "level" field.
-	Level esportsplayer.Level `json:"level"`
+	Level string `json:"level"`
 	// LevelAppraisedAt holds the value of the "level_appraised_at" field.
 	LevelAppraisedAt *time.Time `json:"level_appraised_at"`
 	// DailyLimit holds the value of the "daily_limit" field.
@@ -145,7 +145,7 @@ func (_m *EsportsPlayer) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field level", values[i])
 			} else if value.Valid {
-				_m.Level = esportsplayer.Level(value.String)
+				_m.Level = value.String
 			}
 		case esportsplayer.FieldLevelAppraisedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -353,7 +353,7 @@ func (_m *EsportsPlayer) String() string {
 	builder.WriteString(fmt.Sprintf("%v", _m.Presence))
 	builder.WriteString(", ")
 	builder.WriteString("level=")
-	builder.WriteString(fmt.Sprintf("%v", _m.Level))
+	builder.WriteString(_m.Level)
 	builder.WriteString(", ")
 	if v := _m.LevelAppraisedAt; v != nil {
 		builder.WriteString("level_appraised_at=")

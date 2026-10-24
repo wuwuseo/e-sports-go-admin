@@ -72,8 +72,9 @@ func (EsportsPlayer) Fields() []ent.Field {
 		field.String("display_name").MaxLen(120).StructTag(`json:"display_name"`),
 		field.Enum("qualification").Values("pending", "qualified", "suspended").Default("pending").StructTag(`json:"qualification"`),
 		field.Enum("presence").Values("offline", "online", "protected_abnormal").Default("offline").StructTag(`json:"presence"`),
-		// 考核等级（§7.3）：新手 / 熟练 / 资深 / 导师，由考核结论写入，与接单权限联动。
-		field.Enum("level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"level"`),
+		// 考核等级（§7.3）：由考核结论写入，与接单权限联动。取值为系统配置
+		// app.esports.skill_levels 的等级编码（配置顺序即高低序），显示名随配置。
+		field.String("level").MaxLen(32).Default("novice").StructTag(`json:"level"`),
 		field.Time("level_appraised_at").Optional().Nillable().StructTag(`json:"level_appraised_at"`),
 		// 接单上限（§5.5 / §6.4 可配置项）：0 = 不限。
 		// daily_limit 每日可履约席位数（按接单自然日）；concurrent_limit 同一时段并发可履约席位数。

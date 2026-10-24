@@ -137,7 +137,7 @@ func TestPlayerSelfServiceIgnoresPrivilegedFields(t *testing.T) {
 	}
 	saved := db.EsportsPlayer.GetX(ctx, player.ID)
 	if saved.Qualification != esportsplayer.QualificationPending ||
-		saved.Level != esportsplayer.LevelNovice || saved.Presence != esportsplayer.PresenceOffline ||
+		saved.Level != "novice" || saved.Presence != esportsplayer.PresenceOffline ||
 		saved.DailyLimit != 0 || saved.ConcurrentLimit != 0 || saved.UserID != account.ID {
 		t.Fatalf("特权字段被越权修改：%+v", saved)
 	}

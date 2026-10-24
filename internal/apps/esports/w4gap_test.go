@@ -57,7 +57,7 @@ func w4gapSeedGrabbingOrder(t *testing.T, db *ent.Client, orderNo string, skuID 
 	return db.EsportsOrder.Create().SetOrderNo(orderNo).SetCustomerID(1).SetSkuID(skuID).
 		SetQuantity(1).SetUnitPriceCents(1000).SetPayableCents(1000).
 		SetPromisedServiceUnits(1).SetRequiredSeats(1).
-		SetRequiredLevel(esportsorder.RequiredLevelSenior).
+		SetRequiredLevel("senior").
 		SetPaymentDeadline(now.Add(time.Hour)).SetPaymentStatus(esportsorder.PaymentStatusPaid).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusGrabbing).SaveX(t.Context())
 }
@@ -80,7 +80,7 @@ func TestW4GapGrabHallReturnsGamePerOrder(t *testing.T) {
 		SetStatus(user.StatusActive).SetPhone("13900000009").SaveX(ctx)
 	player := seedPlayer(t, db, account.ID, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{w4gapGame}).
-		SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+		SetLevel("mentor").SaveX(ctx)
 
 	status, payload := sendJSON(t, w4gapGrabHallApp(w4gapPlayerUID), "GET", "/user/player/grab-hall", "")
 	if status != 200 {
@@ -130,7 +130,7 @@ func TestW4GapGrabHallGameEmptyWhenUnresolved(t *testing.T) {
 	account := db.User.Create().SetEmail("w4gap-nocat@example.com").SetUID("w4gap-nocat").
 		SetStatus(user.StatusActive).SetPhone("13900000010").SaveX(ctx)
 	player := seedPlayer(t, db, account.ID, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("mentor").SaveX(ctx)
 
 	status, payload := sendJSON(t, w4gapGrabHallApp("w4gap-nocat"), "GET", "/user/player/grab-hall", "")
 	if status != 200 {

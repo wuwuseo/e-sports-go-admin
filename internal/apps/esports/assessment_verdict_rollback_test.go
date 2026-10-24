@@ -57,10 +57,10 @@ func TestAppealPassToFailedRevertsUpgradeLevel(t *testing.T) {
 
 	player := seedPlayer(t, db, 1302, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	seedVerifiedIdentity(t, db, player.ID)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel(esportsplayer.LevelSenior).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("senior").SaveX(ctx)
 
 	assessment := runScoredAssessmentForTest(t, db, "upgrade", "mentor", player.ID, allDimensionScores(100), now)
-	if got := db.EsportsPlayer.GetX(ctx, player.ID); got.Level != esportsplayer.LevelMentor ||
+	if got := db.EsportsPlayer.GetX(ctx, player.ID); got.Level != "mentor" ||
 		got.Qualification != esportsplayer.QualificationQualified {
 		t.Fatalf("用例前提不成立：升级考核应已把等级抬到 mentor：%+v", got)
 	}
@@ -72,7 +72,7 @@ func TestAppealPassToFailedRevertsUpgradeLevel(t *testing.T) {
 		t.Fatalf("申诉改判失败：%v", err)
 	}
 	updated := db.EsportsPlayer.GetX(ctx, player.ID)
-	if updated.Level != esportsplayer.LevelSenior {
+	if updated.Level != "senior" {
 		t.Fatalf("改判不通过后等级未回退一档，实际 %s", updated.Level)
 	}
 	if updated.Qualification != esportsplayer.QualificationSuspended {
@@ -89,7 +89,7 @@ func TestAppealFailedToPassedRestoresQualification(t *testing.T) {
 
 	player := seedPlayer(t, db, 1303, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	seedVerifiedIdentity(t, db, player.ID)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("mentor").SaveX(ctx)
 
 	assessment := runScoredAssessmentForTest(t, db, "spot_check", "mentor", player.ID, allDimensionScores(0), now)
 	if got := db.EsportsPlayer.GetX(ctx, player.ID); got.Qualification != esportsplayer.QualificationSuspended {
@@ -107,7 +107,7 @@ func TestAppealFailedToPassedRestoresQualification(t *testing.T) {
 	if updated.Qualification != esportsplayer.QualificationQualified {
 		t.Fatalf("改判通过后未恢复接单权限，实际 %s", updated.Qualification)
 	}
-	if updated.Level != esportsplayer.LevelSenior || updated.LevelAppraisedAt == nil {
+	if updated.Level != "senior" || updated.LevelAppraisedAt == nil {
 		t.Fatalf("改判通过后考核时间未刷新或等级被擅自上抬：%+v", updated)
 	}
 }

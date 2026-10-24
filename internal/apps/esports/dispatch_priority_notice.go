@@ -255,8 +255,9 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string,
 	order *ent.EsportsOrder, now time.Time) ([]int, error) {
 	requiredLevel := ""
 	if order != nil {
-		requiredLevel = order.RequiredLevel.String()
+		requiredLevel = order.RequiredLevel
 	}
+	levels := skillLevels(ctx, tx.Client())
 	grants, err := tx.EsportsDispatchPriorityGrant.Query().Where(
 		esportsdispatchprioritygrant.GameEQ(game),
 		esportsdispatchprioritygrant.StatusEQ(esportsdispatchprioritygrant.StatusActive),
@@ -302,7 +303,7 @@ func activePriorityPlayerIDs(ctx context.Context, tx *ent.Tx, game string,
 			continue
 		}
 		// §5.4-13 / §5.5-01：游戏分区权限 + 技能等级必须达标，否则不产生注定接不了的通知。
-		if err = checkPlayerGameLevel(player, game, requiredLevel); err != nil {
+		if err = checkPlayerGameLevel(levels, player, game, requiredLevel); err != nil {
 			if errors.Is(err, errForbidden) {
 				continue
 			}

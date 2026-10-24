@@ -159,7 +159,7 @@ func printSkuSamples(skus []*appent.EsportsSku, sample int) {
 // 因此只出报告，不自动改。
 func reportNoviceLevelSkus(ctx context.Context, client *appent.Client, sample int) error {
 	skus, err := client.EsportsSku.Query().
-		Where(esportssku.RequiredLevelEQ(esportssku.RequiredLevelNovice)).
+		Where(esportssku.RequiredLevelEQ("novice")).
 		Order(appent.Asc(esportssku.FieldID)).All(ctx)
 	if err != nil {
 		return err

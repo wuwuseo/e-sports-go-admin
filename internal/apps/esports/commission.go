@@ -198,7 +198,7 @@ func commissionRuleForMember(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	// 回退解析要读当时的陪玩等级；档案缺失按无等级处理（跳过 level 级）。
 	playerLevel := ""
 	if player, pErr := tx.EsportsPlayer.Get(ctx, member.PlayerID); pErr == nil {
-		playerLevel = player.Level.String()
+		playerLevel = player.Level
 	}
 	return resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
 		tx.EsportsSku, tx.EsportsProductCategory, order, member.PlayerID, playerLevel, now)
@@ -221,8 +221,8 @@ func createCommissionRule(ctx context.Context, db *ent.Client, in ruleInput, adm
 	if in.Scope != "global" && in.ScopeKey == "" {
 		return nil, errInvalidInput
 	}
-	// scope=level 的 scope_key 必须是陪玩等级枚举值，否则这条规则永远解析不到（§12.3）。
-	if in.Scope == "level" && !validPlayerLevel(in.ScopeKey) {
+	// scope=level 的 scope_key 必须是当前等级配置中的编码，否则这条规则永远解析不到（§12.3）。
+	if in.Scope == "level" && !validPlayerLevel(skillLevels(ctx, db), in.ScopeKey) {
 		return nil, errInvalidInput
 	}
 	switch in.CalcMode {

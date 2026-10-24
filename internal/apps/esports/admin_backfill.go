@@ -193,14 +193,14 @@ func backfillOrderWithRole(ctx context.Context, db *ent.Client, adminID int, isS
 	adjustmentBp := 2000
 	promisedUnits := in.Quantity
 	requiredSeats := 1
-	requiredLevel := esportsorder.RequiredLevelNovice
+	requiredLevel := skillLevelLowest(skillLevels(ctx, db))
 	serviceDuration := 0
 	if sku != nil {
 		minUnitPrice = sku.MinUnitPriceCents
 		adjustmentBp = sku.AdjustmentApprovalBp
 		promisedUnits = sku.ServiceUnits * in.Quantity
 		requiredSeats = sku.RequiredSeats
-		requiredLevel = esportsorder.RequiredLevel(sku.RequiredLevel)
+		requiredLevel = sku.RequiredLevel
 		serviceDuration = sku.ServiceDurationMinutes
 	}
 	orderNo := uuid.NewString()

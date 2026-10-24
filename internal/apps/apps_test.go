@@ -1,7 +1,6 @@
 package apps
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
@@ -12,6 +11,7 @@ import (
 	"go-admin/internal/apps/esports"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/enttest"
 	"go-admin/internal/ent/migrate"
 	"go-admin/internal/ent/systemconfig"
@@ -48,46 +48,6 @@ func TestProvisionCMSIdempotent(t *testing.T) {
 	loaded := client.CmsContent.GetX(t.Context(), model.ID)
 	if loaded.CategoryID != category.ID {
 		t.Fatal("generated CMS model did not persist category")
-	}
-}
-
-func TestSeedPagePreviewSecret(t *testing.T) {
-	client := enttest.Open(t, "sqlite3", "file:page_preview_secret_seed?mode=memory&cache=shared&_fk=1",
-		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
-	defer client.Close()
-	const key = "app.esports.page_preview_secret"
-	item := cmfapp.ConfigItem{Key: "page_preview_secret", Name: "页面预览签名密钥", Type: "string", Group: "esports"}
-	seed := func() string {
-		t.Helper()
-		if err := seedPagePreviewSecret(t.Context(), client, key, item); err != nil {
-			t.Fatal(err)
-		}
-		return client.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).OnlyX(t.Context()).Value
-	}
-	checkRandom := func(value string) {
-		t.Helper()
-		decoded, err := hex.DecodeString(value)
-		if err != nil || len(decoded) != 32 {
-			t.Fatalf("预览密钥应是 32 字节随机值的 hex 编码，长度=%d，解码错误=%v", len(decoded), err)
-		}
-	}
-	first := seed()
-	checkRandom(first)
-	if got := seed(); got != first {
-		t.Fatal("重复播种不应轮换已有密钥")
-	}
-	client.SystemConfig.Update().Where(systemconfig.KeyEQ(key)).SetValue("custom-secret").ExecX(t.Context())
-	if got := seed(); got != "custom-secret" {
-		t.Fatal("重复播种不应覆盖管理员配置的密钥")
-	}
-	client.SystemConfig.Update().Where(systemconfig.KeyEQ(key)).SetValue(" \t ").ExecX(t.Context())
-	backfilled := seed()
-	checkRandom(backfilled)
-	if backfilled == first {
-		t.Fatal("历史空值应生成新的随机密钥")
-	}
-	if count := client.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).CountX(t.Context()); count != 1 {
-		t.Fatalf("预览密钥配置行数=%d，期望 1", count)
 	}
 }
 
@@ -335,5 +295,35 @@ func TestRetireSkuPermissionsMigratesRoleGrants(t *testing.T) {
 	}
 	if client.CasbinRule.Query().Where(casbinrule.V2EQ("/api/v1/esports/admin/skus")).ExistX(ctx) {
 		t.Fatal("旧商品接口授权仍存在")
+	}
+}
+
+// 功能集字典种子：随功能集启停、幂等，其他功能集不受影响。
+func TestProvisionDictSeeds(t *testing.T) {
+	client := enttest.Open(t, "sqlite3", "file:source_apps_dict_seed?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer client.Close()
+	ctx := t.Context()
+
+	// esports 功能集启用：种入 sys_config_group/esports；重复执行幂等。
+	for run := 0; run < 2; run++ {
+		if err := provisionDictSeeds(ctx, client, cmfapp.App{Code: "esports", Enabled: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := client.DictData.Query().Where(dictdata.DictTypeEQ("sys_config_group"), dictdata.ValueEQ("esports")).CountX(ctx); n != 1 {
+		t.Fatalf("sys_config_group/esports 种子数 = %d, want 1", n)
+	}
+	label := client.DictData.Query().Where(dictdata.DictTypeEQ("sys_config_group"), dictdata.ValueEQ("esports")).OnlyX(ctx).Label
+	if label != "业务配置" {
+		t.Fatalf("字典 label = %q, want 业务配置", label)
+	}
+
+	// 未注册字典种子的功能集：无副作用。
+	if err := provisionDictSeeds(ctx, client, cmfapp.App{Code: "cms", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	if n := client.DictData.Query().Where(dictdata.DictTypeEQ("sys_config_group")).CountX(ctx); n != 1 {
+		t.Fatalf("sys_config_group 总数 = %d, want 1", n)
 	}
 }

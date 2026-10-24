@@ -10,24 +10,12 @@ import (
 	"go-admin/internal/ent/esportssku"
 )
 
-// playerLevelRank 等级 → 序数，用于比较（novice < skilled < senior < mentor）。
-func playerLevelRank(level string) int {
-	switch level {
-	case "skilled":
-		return 1
-	case "senior":
-		return 2
-	case "mentor":
-		return 3
-	default:
-		return 0
-	}
-}
-
 // checkPlayerGameLevel 校验陪玩游戏分区权限与技能等级（§5.5 硬性条件）。
 // games 为空表示不限分区；game 为空（订单解析不到分区）跳过权限校验；
-// 陪玩等级低于订单所需等级时拒绝。
-func checkPlayerGameLevel(player *ent.EsportsPlayer, game, requiredLevel string) error {
+// requiredLevel 为空表示订单未设门槛，跳过等级校验；
+// 门槛编码不在当前等级配置（如配置删档后的历史单）时 fail closed，不放行任何陪玩；
+// 陪玩档案的等级编码失效按最低档以下处理（低于一切有效档）。
+func checkPlayerGameLevel(levels []SkillLevel, player *ent.EsportsPlayer, game, requiredLevel string) error {
 	if game != "" && len(player.Games) > 0 {
 		found := false
 		for _, g := range player.Games {
@@ -40,7 +28,14 @@ func checkPlayerGameLevel(player *ent.EsportsPlayer, game, requiredLevel string)
 			return fmt.Errorf("%w：该陪玩未开通「%s」游戏分区的接单权限", errForbidden, game)
 		}
 	}
-	if playerLevelRank(player.Level.String()) < playerLevelRank(requiredLevel) {
+	if requiredLevel == "" {
+		return nil
+	}
+	requiredRank, ok := skillLevelRank(levels, requiredLevel)
+	if !ok {
+		return fmt.Errorf("%w：订单所需技能等级（%s）已不在等级配置中，无法派单", errForbidden, requiredLevel)
+	}
+	if skillLevelRankOrBelow(levels, player.Level) < requiredRank {
 		return fmt.Errorf("%w：该陪玩技能等级低于订单要求（%s）", errForbidden, requiredLevel)
 	}
 	return nil

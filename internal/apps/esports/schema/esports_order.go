@@ -65,7 +65,8 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.Int64("addon_units").Default(0).StructTag(`json:"addon_units"`),
 		field.Int("required_seats").Positive().StructTag(`json:"required_seats"`),
 		// 所需技能等级快照（§5.5）：报单时从 SKU 快照，用于接单硬性校验。
-		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
+		// 取值为系统配置 app.esports.skill_levels 的等级编码；历史单保留快照时的编码。
+		field.String("required_level").MaxLen(32).Default("novice").StructTag(`json:"required_level"`),
 		// 逐席角色快照（§15.5）：报单时从 SKU 关联规格组快照每席角色/可替换条件，多人规格报价据此展示席位约束；
 		// 历史单缺该字段为空（不追溯）。
 		field.JSON("seat_roles", []schematier.SeatSpec{}).Optional().StructTag(`json:"seat_roles"`),

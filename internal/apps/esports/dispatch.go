@@ -564,7 +564,7 @@ func assignDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 	if err != nil {
 		return nil, err
 	}
-	if err = checkPlayerGameLevel(player, game, order.RequiredLevel.String()); err != nil {
+	if err = checkPlayerGameLevel(skillLevels(ctx, tx.Client()), player, game, order.RequiredLevel); err != nil {
 		return nil, err
 	}
 	// §6.4-06：服务时段外 / 可接单价范围外的陪玩不得被指派（给出明确中文原因）。

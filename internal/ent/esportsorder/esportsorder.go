@@ -323,6 +323,10 @@ var (
 	DefaultAddonUnits int64
 	// RequiredSeatsValidator is a validator for the "required_seats" field. It is called by the builders before save.
 	RequiredSeatsValidator func(int) error
+	// DefaultRequiredLevel holds the default value on creation for the "required_level" field.
+	DefaultRequiredLevel string
+	// RequiredLevelValidator is a validator for the "required_level" field. It is called by the builders before save.
+	RequiredLevelValidator func(string) error
 	// DefaultQuoteVersion holds the default value on creation for the "quote_version" field.
 	DefaultQuoteVersion int
 	// DefaultVersion holds the default value on creation for the "version" field.
@@ -415,34 +419,6 @@ func EntryPointValidator(ep EntryPoint) error {
 		return nil
 	default:
 		return fmt.Errorf("esportsorder: invalid enum value for entry_point field: %q", ep)
-	}
-}
-
-// RequiredLevel defines the type for the "required_level" enum field.
-type RequiredLevel string
-
-// RequiredLevelNovice is the default value of the RequiredLevel enum.
-const DefaultRequiredLevel = RequiredLevelNovice
-
-// RequiredLevel values.
-const (
-	RequiredLevelNovice  RequiredLevel = "novice"
-	RequiredLevelSkilled RequiredLevel = "skilled"
-	RequiredLevelSenior  RequiredLevel = "senior"
-	RequiredLevelMentor  RequiredLevel = "mentor"
-)
-
-func (rl RequiredLevel) String() string {
-	return string(rl)
-}
-
-// RequiredLevelValidator is a validator for the "required_level" field enum values. It is called by the builders before save.
-func RequiredLevelValidator(rl RequiredLevel) error {
-	switch rl {
-	case RequiredLevelNovice, RequiredLevelSkilled, RequiredLevelSenior, RequiredLevelMentor:
-		return nil
-	default:
-		return fmt.Errorf("esportsorder: invalid enum value for required_level field: %q", rl)
 	}
 }
 

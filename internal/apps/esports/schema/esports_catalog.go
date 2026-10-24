@@ -66,8 +66,9 @@ func (EsportsSku) Fields() []ent.Field {
 		// 此时容量判定回落到「未结束即占位」的保守口径。
 		field.Int("service_duration_minutes").Default(0).StructTag(`json:"service_duration_minutes"`),
 		field.Int("required_seats").Positive().Default(1).StructTag(`json:"-"`),
-		// 所需技能等级（§5.5）：陪玩等级不得低于该值（novice 最低 = 无门槛）。
-		field.Enum("required_level").Values("novice", "skilled", "senior", "mentor").Default("novice").StructTag(`json:"required_level"`),
+		// 所需技能等级（§5.5）：陪玩等级不得低于该值。取值为系统配置 app.esports.skill_levels
+		// 的等级编码（配置顺序即高低序）；列默认 novice 只是历史兜底，应用层总是显式写入配置内的编码。
+		field.String("required_level").MaxLen(32).Default("novice").StructTag(`json:"required_level"`),
 		// 结单要求（§15.3）：引用生效结单规则的 code；下单时随 SKU 快照，结单按该规则的条件与审批流执行。
 		// 为空表示按 游戏分区 / 全局 规则逐级回落。
 		field.String("close_rule_code").MaxLen(48).Default("").StructTag(`json:"close_rule_code"`),

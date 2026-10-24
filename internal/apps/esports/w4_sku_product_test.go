@@ -88,7 +88,7 @@ func TestW4SkuRequiredLevelWritePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sku.RequiredLevel != esportssku.RequiredLevelSenior {
+	if sku.RequiredLevel != "senior" {
 		t.Fatalf("技能等级门槛未落库：%q", sku.RequiredLevel)
 	}
 
@@ -100,7 +100,7 @@ func TestW4SkuRequiredLevelWritePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plain.RequiredLevel != esportssku.RequiredLevelNovice {
+	if plain.RequiredLevel != "novice" {
 		t.Fatalf("未传技能等级时应回落 novice：%q", plain.RequiredLevel)
 	}
 
@@ -122,7 +122,7 @@ func TestW4SkuRequiredLevelWritePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kept.RequiredLevel != esportssku.RequiredLevelSenior {
+	if kept.RequiredLevel != "senior" {
 		t.Fatalf("更新未传技能等级时不应降级：%q", kept.RequiredLevel)
 	}
 
@@ -136,7 +136,7 @@ func TestW4SkuRequiredLevelWritePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.RequiredLevel != esportssku.RequiredLevelMentor {
+	if updated.RequiredLevel != "mentor" {
 		t.Fatalf("技能等级门槛未更新：%q", updated.RequiredLevel)
 	}
 	if _, err = updateSku(ctx, db, sku.ID, skuUpdateInput{
@@ -154,7 +154,7 @@ func TestW4SkuRequiredLevelWritePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if order.RequiredLevel != esportsorder.RequiredLevelMentor {
+	if order.RequiredLevel != "mentor" {
 		t.Fatalf("报单未把 SKU 技能等级快照到订单：%q", order.RequiredLevel)
 	}
 }
@@ -191,9 +191,9 @@ func TestW4SkuRequiredLevelDispatchGuard(t *testing.T) {
 
 	// games 为空表示不限分区，因此这里只考察等级门槛。
 	lowLevel := seedPlayer(t, db, 9801, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(lowLevel.ID).SetLevel(esportsplayer.LevelNovice).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(lowLevel.ID).SetLevel("novice").SaveX(ctx)
 	eligible := seedPlayer(t, db, 9802, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(eligible.ID).SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(eligible.ID).SetLevel("mentor").SaveX(ctx)
 
 	candidates, err := dispatchCandidates(ctx, db, order, 0, 20, now)
 	if err != nil {
@@ -367,7 +367,7 @@ func TestW4SkuHandlerRequiredLevel(t *testing.T) {
 		t.Fatalf("创建响应未返回商品 ID：%+v", payload)
 	}
 	stored := db.EsportsSku.GetX(t.Context(), int(id))
-	if stored.RequiredLevel != esportssku.RequiredLevelSkilled {
+	if stored.RequiredLevel != "skilled" {
 		t.Fatalf("创建入口未落库 required_level：%q", stored.RequiredLevel)
 	}
 	if stored.RequiredSeats != 1 || stored.PerSeatServiceUnits != 0 {
@@ -383,7 +383,7 @@ func TestW4SkuHandlerRequiredLevel(t *testing.T) {
 	if status != fiber.StatusOK {
 		t.Fatalf("更新 SKU 应成功，status=%d payload=%+v", status, payload)
 	}
-	if got := db.EsportsSku.GetX(t.Context(), int(id)).RequiredLevel; got != esportssku.RequiredLevelMentor {
+	if got := db.EsportsSku.GetX(t.Context(), int(id)).RequiredLevel; got != "mentor" {
 		t.Fatalf("更新入口未落库 required_level：%q", got)
 	}
 	if got := db.EsportsSku.GetX(t.Context(), int(id)); got.RequiredSeats != 1 || got.PerSeatServiceUnits != 0 {

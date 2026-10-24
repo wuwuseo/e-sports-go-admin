@@ -6,21 +6,19 @@ package apps
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	cmfapp "github.com/wuwuseo/cmf/app"
 	"github.com/wuwuseo/cmf/config"
 	"github.com/wuwuseo/cmf/jwt"
 
-	"go-admin/internal/apps/esports"
+	"go-admin/internal/apps/apphook"
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/casbinrule"
 	"go-admin/internal/ent/cronjob"
+	"go-admin/internal/ent/dictdata"
 	"go-admin/internal/ent/systemconfig"
 	"go-admin/internal/ent/systempermission"
 	"go-admin/internal/global"
@@ -30,44 +28,6 @@ import (
 
 var reservedCodes = []string{"admin", "public", "user", "plugin", "attachments", "auth"}
 
-// retiredAppPermissions 记录功能集已合并/下线的权限码。种子权限只做创建与更新、
-// 不删除历史行，不显式清理会在超管菜单树里留下孤儿菜单。
-var retiredAppPermissions = map[string][]string{
-	"esports": {
-		"esports:pages:home_menu", "esports:products:detail", "esports:orders:seat_roles",
-		"esports:spec_groups:list", "esports:spec_groups:create", "esports:spec_groups:update",
-		"esports:skus:list", "esports:skus:create", "esports:skus:update",
-		"esports:skus:suspension_request", "esports:skus:suspension_list",
-		"esports:skus:suspension_detail", "esports:skus:suspension_decision",
-		"esports:skus:suspension_cancel", "esports:skus:suspension_disposal",
-		"esports:skus:add", "esports:skus:edit",
-	},
-}
-
-type appPolicyMigration struct{ from, to, method, kind string }
-
-var appPolicyMigrations = map[string][]appPolicyMigration{
-	"esports": {
-		{"/api/v1/esports/admin/skus", "/api/v1/esports/admin/products", "GET", "api"},
-		{"/api/v1/esports/admin/skus", "/api/v1/esports/admin/products", "POST", "api"},
-		{"/api/v1/esports/admin/skus/{id}", "/api/v1/esports/admin/products/{id}", "PUT", "api"},
-		{"/api/v1/esports/admin/skus/{id}/suspensions", "/api/v1/esports/admin/products/{id}/suspensions", "POST", "api"},
-		{"/api/v1/esports/admin/sku-suspensions", "/api/v1/esports/admin/product-suspensions", "GET", "api"},
-		{"/api/v1/esports/admin/sku-suspensions/{id}", "/api/v1/esports/admin/product-suspensions/{id}", "GET", "api"},
-		{"/api/v1/esports/admin/sku-suspensions/{id}/decision", "/api/v1/esports/admin/product-suspensions/{id}/decision", "POST", "api"},
-		{"/api/v1/esports/admin/sku-suspensions/{id}/cancel", "/api/v1/esports/admin/product-suspensions/{id}/cancel", "POST", "api"},
-		{"/api/v1/esports/admin/sku-suspensions/{id}/orders/{orderId}/disposal", "/api/v1/esports/admin/product-suspensions/{id}/orders/{orderId}/disposal", "POST", "api"},
-		{"esports:skus:add", "esports:products:add", "button", "button"},
-		{"esports:skus:edit", "esports:products:edit", "button", "button"},
-	},
-}
-
-// appMenuPathMigrations 记录菜单路径变更后的角色授权迁移。角色授权以菜单路径为
-// Casbin object，路径改了但角色规则没跟着走，非超管角色会丢掉该菜单。
-var appMenuPathMigrations = map[string][][2]string{
-	"esports": {{"/esports/pages", "/esports/pages/home"}},
-}
-
 func options() cmfapp.Options {
 	return cmfapp.Options{BasePath: "/api/v1", ReservedCodes: reservedCodes}
 }
@@ -75,7 +35,39 @@ func options() cmfapp.Options {
 // Validate checks the registry before Ent begins its automatic migration.
 func Validate() error { return cmfapp.Validate(options()) }
 
+// provisionDictSeeds 幂等种入功能集声明的字典项（随功能集启停：仅 Enabled 的功能集
+// 会执行到此处；dict_type + value 查重）。
+func provisionDictSeeds(ctx context.Context, client *ent.Client, a cmfapp.App) error {
+	ext := apphook.Lookup(a.Code)
+	if ext == nil {
+		return nil
+	}
+	for _, item := range ext.DictSeeds() {
+		subject := item.Value
+		if item.DictType == "sys_config_group" {
+			subject = "config group " + subject
+		}
+		exists, err := client.DictData.Query().
+			Where(dictdata.DictTypeEQ(item.DictType), dictdata.ValueEQ(item.Value)).
+			Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("app %s: query dict %s: %w", a.Code, subject, err)
+		}
+		if exists {
+			continue
+		}
+		if _, err := client.DictData.Create().
+			SetLabel(item.Label).SetValue(item.Value).SetDictType(item.DictType).
+			SetSort(item.Sort).SetStatus(1).SetIsDefault(false).Save(ctx); err != nil {
+			return fmt.Errorf("app %s: create dict %s: %w", a.Code, subject, err)
+		}
+	}
+	return nil
+}
+
 // Provision inserts missing settings and updates declared permissions.
+// 功能集自身的种子数据与迁移（字典、特殊配置、退役权限、Casbin 迁移、定时任务、
+// 业务基准数据）由各功能集通过 apphook 注册，此处按编码统一执行。
 func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) error {
 	if err := Validate(); err != nil {
 		return err
@@ -91,13 +83,17 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 		if !a.Enabled {
 			continue
 		}
+		ext := apphook.Lookup(a.Code)
 		for _, item := range a.Config {
 			key := "app." + a.Code + "." + item.Key
-			if key == "app.esports.page_preview_secret" {
-				if err := seedPagePreviewSecret(ctx, client, key, item); err != nil {
+			if ext != nil {
+				handled, err := ext.SeedConfig(ctx, client, key, item)
+				if err != nil {
 					return fmt.Errorf("app %s: seed config %s: %w", a.Code, key, err)
 				}
-				continue
+				if handled {
+					continue
+				}
 			}
 			exists, err := client.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Exist(ctx)
 			if err != nil {
@@ -111,6 +107,9 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 				SetRemark(item.Remark).SetStatus(1).Save(ctx); err != nil {
 				return fmt.Errorf("app %s: create config %s: %w", a.Code, key, err)
 			}
+		}
+		if err := provisionDictSeeds(ctx, client, a); err != nil {
+			return err
 		}
 		seeds, err := permissionSeeds(a, domain)
 		if err != nil {
@@ -132,46 +131,18 @@ func Provision(ctx context.Context, cfg *config.Config, client *ent.Client) erro
 	return nil
 }
 
-// seedPagePreviewSecret gives each installation its own persistent signing key.
-// Older installations may already have an empty seed row; fill only that value.
-func seedPagePreviewSecret(ctx context.Context, client *ent.Client, key string, item cmfapp.ConfigItem) error {
-	row, err := client.SystemConfig.Query().Where(systemconfig.KeyEQ(key)).Only(ctx)
-	if err != nil && !ent.IsNotFound(err) {
-		return fmt.Errorf("query config: %w", err)
-	}
-	if err == nil && strings.TrimSpace(row.Value) != "" {
-		return nil
-	}
-	bytes := make([]byte, 32)
-	if _, err := rand.Read(bytes); err != nil {
-		return fmt.Errorf("generate random signing key: %w", err)
-	}
-	secret := hex.EncodeToString(bytes)
-	if row != nil {
-		// Preserve a value set by an administrator after the read.
-		if _, err := client.SystemConfig.Update().
-			Where(systemconfig.KeyEQ(key), systemconfig.ValueEQ(row.Value)).
-			SetValue(secret).Save(ctx); err != nil {
-			return fmt.Errorf("update empty config: %w", err)
-		}
-		return nil
-	}
-	if _, err := client.SystemConfig.Create().SetKey(key).SetName(item.Name).
-		SetValue(secret).SetType(item.Type).SetGroup(item.Group).
-		SetRemark(item.Remark).SetStatus(1).Save(ctx); err != nil {
-		return fmt.Errorf("create config: %w", err)
-	}
-	return nil
-}
-
-// retireAppPermissions 清理功能集已退役的权限行，并把变更过路径的菜单授权平移到新路径。
-// 两步都必须幂等：Provision 每次启动都会执行。
+// retireAppPermissions 迁移功能集的 Casbin 规则与菜单授权，并清理已退役的权限行。
+// 各步都必须幂等：Provision 每次启动都会执行。迁移与清理清单由功能集经 apphook 声明。
 func retireAppPermissions(ctx context.Context, client *ent.Client, appCode, domain string) error {
-	for _, migration := range appPolicyMigrations[appCode] {
+	ext := apphook.Lookup(appCode)
+	if ext == nil {
+		return nil
+	}
+	for _, migration := range ext.PolicyMigrations() {
 		oldRules, err := client.CasbinRule.Query().Where(
 			casbinrule.PtypeEQ("p"), casbinrule.V1EQ(domain),
-			casbinrule.V2EQ(migration.from), casbinrule.V3EQ(migration.method),
-			casbinrule.V4EQ(migration.kind),
+			casbinrule.V2EQ(migration.From), casbinrule.V3EQ(migration.Method),
+			casbinrule.V4EQ(migration.Kind),
 		).All(ctx)
 		if err != nil {
 			return err
@@ -179,7 +150,7 @@ func retireAppPermissions(ctx context.Context, client *ent.Client, appCode, doma
 		for _, old := range oldRules {
 			exists, err := client.CasbinRule.Query().Where(
 				casbinrule.PtypeEQ(old.Ptype), casbinrule.V0EQ(old.V0), casbinrule.V1EQ(old.V1),
-				casbinrule.V2EQ(migration.to), casbinrule.V3EQ(old.V3),
+				casbinrule.V2EQ(migration.To), casbinrule.V3EQ(old.V3),
 				casbinrule.V4EQ(old.V4), casbinrule.V5EQ(old.V5),
 			).Exist(ctx)
 			if err != nil {
@@ -189,78 +160,69 @@ func retireAppPermissions(ctx context.Context, client *ent.Client, appCode, doma
 				if err := client.CasbinRule.DeleteOne(old).Exec(ctx); err != nil {
 					return err
 				}
-			} else if _, err := client.CasbinRule.UpdateOne(old).SetV2(migration.to).Save(ctx); err != nil {
-				return fmt.Errorf("app %s: migrate policy %s -> %s: %w", appCode, migration.from, migration.to, err)
+			} else if _, err := client.CasbinRule.UpdateOne(old).SetV2(migration.To).Save(ctx); err != nil {
+				return fmt.Errorf("app %s: migrate policy %s -> %s: %w", appCode, migration.From, migration.To, err)
 			}
 		}
 	}
-	if appCode == "esports" {
-		for _, path := range []string{
-			"/api/v1/esports/admin/spec-groups", "/api/v1/esports/admin/spec-groups/{id}",
-			"/api/v1/esports/admin/products/{id}", "/api/v1/esports/admin/orders/{id}/seat-roles",
-		} {
-			query := client.CasbinRule.Delete().Where(
-				casbinrule.PtypeEQ("p"), casbinrule.V1EQ(domain), casbinrule.V2EQ(path),
-				casbinrule.V4EQ("api"),
-			)
-			if path == "/api/v1/esports/admin/products/{id}" {
-				query = query.Where(casbinrule.V3EQ("GET"))
-			}
-			if _, err := query.Exec(ctx); err != nil {
-				return err
-			}
+	for _, rule := range ext.RetiredPolicies() {
+		query := client.CasbinRule.Delete().Where(
+			casbinrule.PtypeEQ("p"), casbinrule.V1EQ(domain), casbinrule.V2EQ(rule.Path),
+			casbinrule.V4EQ("api"),
+		)
+		if rule.Method != "" {
+			query = query.Where(casbinrule.V3EQ(rule.Method))
+		}
+		if _, err := query.Exec(ctx); err != nil {
+			return fmt.Errorf("app %s: retire policy %s: %w", appCode, rule.Path, err)
 		}
 	}
-	for _, code := range retiredAppPermissions[appCode] {
+	for _, code := range ext.RetiredPermissions() {
 		if _, err := client.SystemPermission.Delete().
 			Where(systempermission.DomainEQ(domain), systempermission.CodeEQ(code)).
 			Exec(ctx); err != nil {
 			return fmt.Errorf("app %s: retire permission %s: %w", appCode, code, err)
 		}
 	}
-	for _, migration := range appMenuPathMigrations[appCode] {
-		from, to := migration[0], migration[1]
+	for _, migration := range ext.MenuPathMigrations() {
 		if _, err := client.CasbinRule.Update().
 			Where(
 				casbinrule.PtypeEQ("p"),
 				casbinrule.V1EQ(domain),
-				casbinrule.V2EQ(from),
+				casbinrule.V2EQ(migration.From),
 				casbinrule.V4EQ("menu"),
 			).
-			SetV2(to).
+			SetV2(migration.To).
 			Save(ctx); err != nil {
-			return fmt.Errorf("app %s: migrate menu grant %s -> %s: %w", appCode, from, to, err)
+			return fmt.Errorf("app %s: migrate menu grant %s -> %s: %w", appCode, migration.From, migration.To, err)
 		}
 	}
 	return nil
 }
 
-// seedFeatureBaseline 为公司功能集播种「新库必需」的基准数据（幂等，已有数据一律不改动）。
+// seedFeatureBaseline 播种功能集声明的「新库必需」基准数据（幂等，已有数据一律不改动）。
 // 与 seedCronJobs 的分工：前者保证任务会被调度，本函数保证**业务本身可用**。
-// 以会员等级为例：全新库里等级表为空，客户将永远无法定级，折扣、优先派单、
-// 专属客服等按等级生效的权益会**全部静默失效**（审计 D14），因此功能启用时必须播种五档默认等级。
+// 基准清单由功能集经 apphook 声明（如 esports 的会员等级，审计 D14）。
 func seedFeatureBaseline(ctx context.Context, client *ent.Client, code string) error {
-	if code != "esports" {
+	ext := apphook.Lookup(code)
+	if ext == nil {
 		return nil
 	}
-	if _, err := esports.SeedMemberLevels(ctx, client); err != nil {
-		return fmt.Errorf("app %s: seed member levels: %w", code, err)
-	}
-	if _, err := esports.SeedRechargeCampaign(ctx, client); err != nil {
-		return fmt.Errorf("app %s: seed recharge campaign: %w", code, err)
+	if err := ext.SeedBaseline(ctx, client); err != nil {
+		return fmt.Errorf("app %s: seed baseline: %w", code, err)
 	}
 	return nil
 }
 
-// seedCronJobs 为公司功能集自带的定时任务播种 CronJob 行（幂等，按 name 判重）。
-// 任务函数注册在 Go 侧，但只有存在 enabled 的 CronJob 行才会被调度器加载，
-// 缺少种子会导致订单超时释放、结算生成、保护期降级、账本核验、外盒/通知投递等永不执行。
+// seedCronJobs 播种功能集自带的定时任务 CronJob 行（幂等，按 name 判重）。
+// 任务函数注册在功能集 Go 侧，但只有存在 enabled 的 CronJob 行才会被调度器加载。
 // 已存在的行一律不改动（尊重运维在后台的启停与表达式调整）。
 func seedCronJobs(ctx context.Context, client *ent.Client, code string) error {
-	if code != "esports" {
+	ext := apphook.Lookup(code)
+	if ext == nil {
 		return nil
 	}
-	for _, seed := range esports.CronSeeds() {
+	for _, seed := range ext.CronSeeds() {
 		exists, err := client.CronJob.Query().Where(cronjob.NameEQ(seed.Name)).Exist(ctx)
 		if err != nil {
 			return fmt.Errorf("app %s: query cron job %s: %w", code, seed.Name, err)

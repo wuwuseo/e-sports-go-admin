@@ -36,7 +36,7 @@ func pcqSeedPlayer(t *testing.T, db *ent.Client, userID int, level string) *ent.
 	return db.EsportsPlayer.Create().SetUserID(userID).SetDisplayName("陪玩" + strconv.Itoa(userID)).
 		SetQualification(esportsplayer.QualificationQualified).
 		SetPresence(esportsplayer.PresenceOnline).
-		SetLevel(esportsplayer.Level(level)).SaveX(t.Context())
+		SetLevel((level)).SaveX(t.Context())
 }
 
 // pcqSeedSku 造一个在售 SKU（CategoryID 为空表示不挂分类）。

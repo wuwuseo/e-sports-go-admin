@@ -133,6 +133,10 @@ var (
 	UserIDValidator func(int) error
 	// DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
 	DisplayNameValidator func(string) error
+	// DefaultLevel holds the default value on creation for the "level" field.
+	DefaultLevel string
+	// LevelValidator is a validator for the "level" field. It is called by the builders before save.
+	LevelValidator func(string) error
 	// DefaultDailyLimit holds the default value on creation for the "daily_limit" field.
 	DefaultDailyLimit int
 	// DefaultConcurrentLimit holds the default value on creation for the "concurrent_limit" field.
@@ -228,34 +232,6 @@ func PresenceValidator(pr Presence) error {
 		return nil
 	default:
 		return fmt.Errorf("esportsplayer: invalid enum value for presence field: %q", pr)
-	}
-}
-
-// Level defines the type for the "level" enum field.
-type Level string
-
-// LevelNovice is the default value of the Level enum.
-const DefaultLevel = LevelNovice
-
-// Level values.
-const (
-	LevelNovice  Level = "novice"
-	LevelSkilled Level = "skilled"
-	LevelSenior  Level = "senior"
-	LevelMentor  Level = "mentor"
-)
-
-func (l Level) String() string {
-	return string(l)
-}
-
-// LevelValidator is a validator for the "level" field enum values. It is called by the builders before save.
-func LevelValidator(l Level) error {
-	switch l {
-	case LevelNovice, LevelSkilled, LevelSenior, LevelMentor:
-		return nil
-	default:
-		return fmt.Errorf("esportsplayer: invalid enum value for level field: %q", l)
 	}
 }
 

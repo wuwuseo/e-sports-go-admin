@@ -126,7 +126,7 @@ func TestScoreAssessmentPassAndQualify(t *testing.T) {
 		t.Fatalf("打分通过失败：%+v, %v", passed, err)
 	}
 	updated := db.EsportsPlayer.GetX(ctx, player.ID)
-	if updated.Qualification != esportsplayer.QualificationQualified || updated.Level != esportsplayer.LevelNovice || updated.LevelAppraisedAt == nil {
+	if updated.Qualification != esportsplayer.QualificationQualified || updated.Level != "novice" || updated.LevelAppraisedAt == nil {
 		t.Fatalf("通过后未定级开通接单权限：%+v", updated)
 	}
 	if db.EsportsAssessmentScore.Query().CountX(ctx) != 6 {
@@ -146,7 +146,7 @@ func TestScoreAssessmentSpotCheckDemote(t *testing.T) {
 		t.Fatal(err)
 	}
 	player := seedPlayer(t, db, 101, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel(esportsplayer.LevelMentor).SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("mentor").SaveX(ctx)
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
 	assessment, err := createAssessment(ctx, db, 11, assessmentInput{
@@ -162,7 +162,7 @@ func TestScoreAssessmentSpotCheckDemote(t *testing.T) {
 		t.Fatal(err)
 	}
 	updated := db.EsportsPlayer.GetX(ctx, player.ID)
-	if updated.Level != esportsplayer.LevelSenior || updated.Qualification != esportsplayer.QualificationSuspended {
+	if updated.Level != "senior" || updated.Qualification != esportsplayer.QualificationSuspended {
 		t.Fatalf("抽查不达标未降级并暂停接单：%+v", updated)
 	}
 	// 非 entry 类型缺目标等级被拒。
@@ -213,7 +213,7 @@ func TestAssessmentAppeal(t *testing.T) {
 		t.Fatalf("申诉复核失败：%+v, %v", reviewed, err)
 	}
 	updated := db.EsportsPlayer.GetX(ctx, player.ID)
-	if updated.Level != esportsplayer.LevelNovice || updated.Qualification != esportsplayer.QualificationQualified {
+	if updated.Level != "novice" || updated.Qualification != esportsplayer.QualificationQualified {
 		t.Fatalf("改判后未重放定级：%+v", updated)
 	}
 	if _, err := reviewAppeal(ctx, db, assessment.ID, 11, true, "再来", now); !errors.Is(err, errConflict) {

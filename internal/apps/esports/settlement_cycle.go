@@ -47,7 +47,7 @@ func validSettlementCyclePeriod(period string) bool {
 }
 
 // validateSettlementCycle 校验维度、键值与周期组合；非法返回 errInvalidInput。
-func validateSettlementCycle(scope, scopeKey, period string, intervalDays int) error {
+func validateSettlementCycle(levels []SkillLevel, scope, scopeKey, period string, intervalDays int) error {
 	switch scope {
 	case "global":
 		if scopeKey != "" {
@@ -58,10 +58,8 @@ func validateSettlementCycle(scope, scopeKey, period string, intervalDays int) e
 			return fmt.Errorf("%w：按游戏维度须填游戏分区名", errInvalidInput)
 		}
 	case "level":
-		switch scopeKey {
-		case "novice", "skilled", "senior", "mentor":
-		default:
-			return fmt.Errorf("%w：按等级维度的等级值非法", errInvalidInput)
+		if !validPlayerLevel(levels, scopeKey) {
+			return fmt.Errorf("%w：按等级维度的等级值必须是当前等级配置中的编码", errInvalidInput)
 		}
 	case "player":
 		id, err := strconv.Atoi(scopeKey)
@@ -101,7 +99,7 @@ func createSettlementCycle(ctx context.Context, db *ent.Client, in settlementCyc
 	if in.Period == "" {
 		in.Period = "weekly"
 	}
-	if err := validateSettlementCycle(in.Scope, in.ScopeKey, in.Period, in.IntervalDays); err != nil {
+	if err := validateSettlementCycle(skillLevels(ctx, db), in.Scope, in.ScopeKey, in.Period, in.IntervalDays); err != nil {
 		return nil, err
 	}
 	create := db.EsportsSettlementCycle.Create().
@@ -135,7 +133,7 @@ func updateSettlementCycle(ctx context.Context, db *ent.Client, id int, in settl
 	if err != nil {
 		return nil, err
 	}
-	if err = validateSettlementCycle(cycle.Scope.String(), cycle.ScopeKey, in.Period, in.IntervalDays); err != nil {
+	if err = validateSettlementCycle(skillLevels(ctx, db), cycle.Scope.String(), cycle.ScopeKey, in.Period, in.IntervalDays); err != nil {
 		return nil, err
 	}
 	update := db.EsportsSettlementCycle.UpdateOneID(id).
@@ -191,7 +189,7 @@ func resolveSettlementCycle(ctx context.Context, db *ent.Client, player *ent.Esp
 		if row := pick("player", strconv.Itoa(player.ID)); row != nil {
 			return cycleFromRow(row, "player", row.ScopeKey), nil
 		}
-		if row := pick("level", player.Level.String()); row != nil {
+		if row := pick("level", player.Level); row != nil {
 			return cycleFromRow(row, "level", row.ScopeKey), nil
 		}
 		for _, game := range player.Games {
