@@ -73,8 +73,12 @@ func adminCsCommissionEntries(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
 	}
+	orderID, err := orderIDByNo(c.Context(), global.ORM, c.Query("order_no"))
+	if err != nil {
+		return businessError(c, err)
+	}
 	items, err := listCsCommissionEntries(c.Context(), global.ORM,
-		queryInt(c, "admin_id"), queryInt(c, "order_id"), c.Query("status"), queryLimit(c, 200))
+		queryInt(c, "admin_id"), orderID, c.Query("status"), queryLimit(c, 200))
 	if err != nil {
 		return businessError(c, err)
 	}

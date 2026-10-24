@@ -25,9 +25,10 @@ type giftIntentInput struct {
 	GiftTierID    int    `json:"gift_tier_id"`
 	PlayerID      int    `json:"player_id"`
 	Quantity      int    `json:"quantity"`
-	OrderID       *int   `json:"order_id"`
-	PaymentSource string `json:"payment_source"`
-	ClientKey     string `json:"client_key"`
+	// OrderNo 关联订单仅追溯：管理端统一按订单号传入（不传不关联）。
+	OrderNo       *string `json:"order_no"`
+	PaymentSource string  `json:"payment_source"`
+	ClientKey     string  `json:"client_key"`
 }
 
 // customerGiftIntentInput 是客户自助创建礼物确认单的入参：客户身份由登录态解析。
@@ -157,10 +158,19 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if err != nil {
 		return nil, err
 	}
+	// 关联订单号 → 订单 ID（仅追溯；幂等比对与落库都用内部 ID）。
+	var orderID *int
+	if in.OrderNo != nil && strings.TrimSpace(*in.OrderNo) != "" {
+		parsed, parseErr := orderIDByNo(ctx, db, *in.OrderNo)
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		orderID = &parsed
+	}
 	prior, err := db.EsportsGiftIntent.Query().Where(esportsgiftintent.CreatedByAdminIDEQ(adminID), esportsgiftintent.ClientKeyEQ(key)).Only(ctx)
 	if err == nil {
 		if prior.CustomerID == in.CustomerID && prior.GiftID == in.GiftID && prior.PlayerID == in.PlayerID && prior.Quantity == in.Quantity &&
-			sameOptionalID(prior.OrderID, in.OrderID) && prior.PaymentSource == in.PaymentSource {
+			sameOptionalID(prior.OrderID, orderID) && prior.PaymentSource == in.PaymentSource {
 			return prior, nil
 		}
 		return nil, errConflict
@@ -205,8 +215,8 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	}
 	// 余额本金不足时不再直接拒绝：客户可改走「发起收款」，
 	// 真正的资金校验仍在送礼核销时强制执行，不存在伪成功。
-	if in.OrderID != nil {
-		order, err := db.EsportsOrder.Get(ctx, *in.OrderID)
+	if orderID != nil {
+		order, err := db.EsportsOrder.Get(ctx, *orderID)
 		if err != nil {
 			return nil, err
 		}
@@ -229,8 +239,8 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if terms.tier != nil {
 		create.SetGiftTierCode(terms.tier.TierCode)
 	}
-	if in.OrderID != nil {
-		create.SetOrderID(*in.OrderID)
+	if orderID != nil {
+		create.SetOrderID(*orderID)
 	}
 	intent, err := create.Save(ctx)
 	if ent.IsConstraintError(err) {
@@ -361,9 +371,20 @@ func executeGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper
 	if validGiftPaymentChannel(intent.PaymentChannel.String()) {
 		paymentSource = giftPaymentSourceExternal
 	}
+	// 关联订单在 intent 快照里是内部订单 ID；送礼入参已统一为订单号，这里反向取号传入。
+	var intentOrderNo *string
+	if intent.OrderID != nil {
+		nos, nosErr := orderNosOf(ctx, db, []int{*intent.OrderID})
+		if nosErr != nil {
+			return nil, nosErr
+		}
+		if no, ok := nos[*intent.OrderID]; ok {
+			intentOrderNo = &no
+		}
+	}
 	in := giftSendInput{CustomerID: intent.CustomerID, GiftID: intent.GiftID,
 		GiftTierID: intent.GiftTierID,
-		PlayerID:   intent.PlayerID, Quantity: intent.Quantity, OrderID: intent.OrderID,
+		PlayerID:   intent.PlayerID, Quantity: intent.Quantity, OrderNo: intentOrderNo,
 		PaymentSource: paymentSource,
 		Confirmed:     true, AuthorizationID: intent.ID, ClientKey: fmt.Sprintf("gift-intent:%d", intent.ID)}
 	order, err := sendGiftWithRole(ctx, db, adminID, isSuper, in, now)

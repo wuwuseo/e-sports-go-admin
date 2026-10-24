@@ -13,6 +13,16 @@ import (
 	"go-admin/internal/ent/migrate"
 )
 
+// intentOrderNoForTest 取意图关联订单的订单号（凭证创建已改为按订单号定位订单）。
+func intentOrderNoForTest(t *testing.T, db *ent.Client, intent *ent.EsportsPaymentIntent) string {
+	t.Helper()
+	order, err := db.EsportsOrder.Get(t.Context(), intent.OrderID)
+	if err != nil {
+		t.Fatalf("查询意图订单失败：%v", err)
+	}
+	return order.OrderNo
+}
+
 // seedPayableOrderForOffline 建一张待付款订单 + 已验证报价 + 指定渠道的收款意图。
 func seedPayableOrderForOffline(t *testing.T, db *ent.Client, suffix, channel string) *ent.EsportsPaymentIntent {
 	t.Helper()
@@ -118,7 +128,7 @@ func TestPaymentAccountReviewAndChannelSwitch(t *testing.T) {
 
 	intent := seedPayableOrderForOffline(t, db, "switch", "wechat_work")
 	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "WX-SWITCH-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "WX-SWITCH-0001",
 		AmountCents: intent.AmountCents, ProofRef: "proof/wecom-0001.png",
 	}, 11, now)
 	if err != nil || proof.Status != "pending_verification" {
@@ -129,7 +139,7 @@ func TestPaymentAccountReviewAndChannelSwitch(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "WX-SWITCH-0002",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "WX-SWITCH-0002",
 		AmountCents: intent.AmountCents, ProofRef: "proof/wecom-0002.png",
 	}, 11, now); !errors.Is(err, errForbidden) {
 		t.Fatalf("停用收款方式后提交凭证应被拒，err=%v", err)
@@ -169,28 +179,28 @@ func TestOfflinePaymentProofVerificationAppliesOrder(t *testing.T) {
 
 	// 金额不足应付一律拒绝。
 	if _, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "CORP-LOW-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "CORP-LOW-0001",
 		AmountCents: intent.AmountCents - 100, ProofRef: "proof/corp-low.png",
 	}, 11, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("金额不足应付应被拒，err=%v", err)
 	}
 	// 凭证引用过短（无有效凭证）拒绝。
 	if _, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "CORP-SHORT-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "CORP-SHORT-0001",
 		AmountCents: intent.AmountCents, ProofRef: "x",
 	}, 11, now); !errors.Is(err, errInvalidInput) {
 		t.Fatalf("凭证引用过短应被拒，err=%v", err)
 	}
 	// 未启用（待审核）账户不可作为收款账户。
 	if _, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: pending.ID, TransactionNo: "CORP-PENDING-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: pending.ID, TransactionNo: "CORP-PENDING-0001",
 		AmountCents: intent.AmountCents, ProofRef: "proof/corp-pending.png",
 	}, 11, now); !errors.Is(err, errForbidden) {
 		t.Fatalf("未启用账户不可核销，err=%v", err)
 	}
 
 	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "CORP-OK-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "CORP-OK-0001",
 		AmountCents: intent.AmountCents, ProofRef: "proof/corp-ok-0001.pdf", Note: "对公转账回单",
 	}, 11, now)
 	if err != nil {
@@ -203,7 +213,7 @@ func TestOfflinePaymentProofVerificationAppliesOrder(t *testing.T) {
 	}
 	// 同一渠道流水不可重复提交。
 	if _, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "CORP-OK-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "CORP-OK-0001",
 		AmountCents: intent.AmountCents, ProofRef: "proof/corp-ok-dup.pdf",
 	}, 11, now); !errors.Is(err, errConflict) {
 		t.Fatalf("重复渠道流水应被拒，err=%v", err)
@@ -245,7 +255,7 @@ func TestOfflinePaymentProofRejection(t *testing.T) {
 	account := seedActivePaymentAccount(t, db, "merchant_qr", "MCH-0001")
 	intent := seedPayableOrderForOffline(t, db, "reject", "merchant_qr")
 	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "QR-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "QR-0001",
 		AmountCents: intent.AmountCents, ProofRef: "proof/qr-0001.png",
 	}, 11, now)
 	if err != nil {
@@ -267,7 +277,7 @@ func TestOfflinePaymentProofRejection(t *testing.T) {
 	}
 	// 驳回后可重新提交（不同流水号）。
 	if _, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "QR-0002",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "QR-0002",
 		AmountCents: intent.AmountCents, ProofRef: "proof/qr-0002.png",
 	}, 11, now); err != nil {
 		t.Fatalf("驳回后应可重新提交凭证，err=%v", err)
@@ -288,7 +298,7 @@ func TestCSOfflineProofAutoCreatesIntent(t *testing.T) {
 	now := time.Now().UTC()
 
 	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "WX-CS-AUTO-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "WX-CS-AUTO-0001",
 		AmountCents: 5000, ProofRef: "proof/cs-auto.png", Note: "客服代收",
 	}, 11, now)
 	if err != nil {

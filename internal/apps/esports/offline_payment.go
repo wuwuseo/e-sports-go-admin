@@ -25,7 +25,8 @@ import (
 // 提交人不得自审；唯一键 (channel, transaction_no) 保证同一笔渠道流水不会被核销两次。
 
 type offlinePaymentProofInput struct {
-	OrderID       int    `json:"order_id"`
+	// OrderNo 由管理端统一按订单号定位订单（不再收数字订单 ID）。
+	OrderNo       string `json:"order_no"`
 	AccountID     int    `json:"account_id"`
 	TransactionNo string `json:"transaction_no"`
 	AmountCents   int64  `json:"amount_cents"`
@@ -111,7 +112,7 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	in.TransactionNo = strings.TrimSpace(in.TransactionNo)
 	in.ProofRef = strings.TrimSpace(in.ProofRef)
 	in.Note = strings.TrimSpace(in.Note)
-	if in.OrderID < 1 || in.AccountID < 1 || adminID < 1 || in.AmountCents <= 0 ||
+	if in.OrderNo == "" || in.AccountID < 1 || adminID < 1 || in.AmountCents <= 0 ||
 		in.TransactionNo == "" || len([]rune(in.TransactionNo)) > 128 ||
 		len([]rune(in.Note)) > 500 ||
 		(len(in.EvidenceAttachmentIDs) == 0 &&
@@ -132,7 +133,11 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 	if _, err = requireActivePaymentAccount(ctx, db, account.ID, channel); err != nil {
 		return nil, err
 	}
-	order, err := db.EsportsOrder.Get(ctx, in.OrderID)
+	orderID, err := orderIDByNo(ctx, db, in.OrderNo)
+	if err != nil {
+		return nil, err
+	}
+	order, err := db.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}

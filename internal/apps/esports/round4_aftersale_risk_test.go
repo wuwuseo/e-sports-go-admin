@@ -311,7 +311,7 @@ func TestExternalRefundWithoutAfterSaleRejectedInStrictMode(t *testing.T) {
 	order := seedRefundFailureOrder(t, db, "ER-STRICT")
 	_, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-R4-STRICT-1", AmountCents: 300,
-		OrderID: order.ID, Reason: "私下赔付",
+		OrderNo: order.OrderNo, Reason: "私下赔付",
 	}, now)
 	if !errors.Is(err, errInvalidInput) {
 		t.Fatalf("严格模式下未关联售后单的外部退款登记应被拒，实际 err=%v", err)
@@ -331,7 +331,7 @@ func TestExternalRefundWithoutAfterSaleLeavesOffbookTrail(t *testing.T) {
 	order := seedRefundFailureOrder(t, db, "ER-OFFBOOK")
 	if _, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-R4-OFFBOOK-1", AmountCents: 300,
-		OrderID: order.ID, Reason: "无售后依据的对外付款",
+		OrderNo: order.OrderNo, Reason: "无售后依据的对外付款",
 	}, now); err != nil {
 		t.Fatalf("默认模式下未关联售后单的外部退款登记应可登记：%v", err)
 	}

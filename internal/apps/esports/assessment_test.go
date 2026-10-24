@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"fmt"
 	"errors"
 	"testing"
 	"time"
@@ -256,8 +257,17 @@ func TestPlayerReviewUpsertRatingAndModeration(t *testing.T) {
 		t.Fatal("修订历史未按版本追加")
 	}
 	// 代录评价标记未验证，不计入综合评分。
+	// 传入不存在的订单号：代录评价按订单号定位订单，错号应被拒绝。
+	badNo := fmt.Sprintf("NO-SUCH-ORDER-%d", order.ID+1)
+	_, badErr := recordReviewByAdmin(ctx, db, reviewInput{
+		OrderNo: badNo, CustomerID: customer.ID, PlayerID: player.ID, Rating: 1, Comment: "客服代录",
+	})
+	if !errors.Is(badErr, errInvalidInput) {
+		t.Fatalf("不存在订单号应被拒绝：%v", badErr)
+	}
+	proxyOrder := seedReviewOrderForTest(t, db, "review-proxy-1", customer.ID, player.ID)
 	proxy, err := recordReviewByAdmin(ctx, db, reviewInput{
-		OrderID: order.ID + 1, CustomerID: customer.ID, PlayerID: player.ID, Rating: 1, Comment: "客服代录",
+		OrderNo: proxyOrder.OrderNo, CustomerID: customer.ID, PlayerID: player.ID, Rating: 1, Comment: "客服代录",
 	})
 	if err != nil || proxy.Verified {
 		t.Fatalf("代录评价失败：%+v, %v", proxy, err)

@@ -57,7 +57,7 @@ func TestOrderLockBlocksBalancePaymentWhenProofSubmittedInWindow(t *testing.T) {
 	var proofErr error
 	setPaymentOrderInterleaveHook(t, onceOnlyHook(func() {
 		_, proofErr = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-			OrderID: order.ID, AccountID: account.ID, TransactionNo: "WX-OL-TXN-0001",
+			OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "WX-OL-TXN-0001",
 			AmountCents: order.PayableCents, ProofRef: "proof/ol-lock-0001.png",
 		}, 11, now)
 	}))
@@ -108,7 +108,7 @@ func TestOrderLockBlocksProofSubmitWhenBalancePaidInWindow(t *testing.T) {
 	}))
 
 	if _, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "WX-OL-TXN-0002",
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "WX-OL-TXN-0002",
 		AmountCents: order.PayableCents, ProofRef: "proof/ol-lock-0003.png",
 	}, 11, now); !errors.Is(err, errConflict) {
 		t.Fatalf("交错点后提交凭证必须判冲突，err=%v", err)
@@ -199,7 +199,7 @@ func TestOrderLockKeepsSingleRequestPaymentPathsWorking(t *testing.T) {
 		intent := seedPayableOrderForOffline(t, db, "olnormproof", "wechat_work")
 		order := db.EsportsOrder.GetX(ctx, intent.OrderID)
 		proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-			OrderID: order.ID, AccountID: account.ID, TransactionNo: "WX-OL-TXN-0003",
+			OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "WX-OL-TXN-0003",
 			AmountCents: order.PayableCents, ProofRef: "proof/ol-lock-0004.png",
 		}, 11, now)
 		if err != nil {

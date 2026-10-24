@@ -65,7 +65,7 @@ func TestExternalRefundRejectsSelfExecution(t *testing.T) {
 
 	refund, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-SELF-1", AmountCents: 500,
-		OrderID: order.ID, Reason: "外部渠道退款",
+		OrderNo: order.OrderNo, Reason: "外部渠道退款",
 	}, now)
 	if err != nil {
 		t.Fatal(err)
@@ -103,13 +103,13 @@ func TestExternalRefundWithoutAfterSaleRespectsReservation(t *testing.T) {
 	}
 	if _, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-GUARD-OVER", AmountCents: 1300,
-		OrderID: order.ID, Reason: "超退登记",
+		OrderNo: order.OrderNo, Reason: "超退登记",
 	}, now); !errors.Is(err, errConflict) {
 		t.Fatalf("登记阶段超退未被拦截：%v", err)
 	}
 	first, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-GUARD-1", AmountCents: 900,
-		OrderID: order.ID, Reason: "外部渠道退款一",
+		OrderNo: order.OrderNo, Reason: "外部渠道退款一",
 	}, now)
 	if err != nil {
 		t.Fatal(err)
@@ -117,14 +117,14 @@ func TestExternalRefundWithoutAfterSaleRespectsReservation(t *testing.T) {
 	// 同订单第二笔待执行登记 300 仍可登记，累计不超过剩余额度 1200。
 	if _, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-GUARD-2", AmountCents: 300,
-		OrderID: order.ID, Reason: "外部渠道退款二",
+		OrderNo: order.OrderNo, Reason: "外部渠道退款二",
 	}, now); err != nil {
 		t.Fatalf("剩余额度内登记失败：%v", err)
 	}
 	// 第三笔 1 分即透支，登记阶段拦截。
 	if _, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-GUARD-3", AmountCents: 1,
-		OrderID: order.ID, Reason: "再登记一分钱",
+		OrderNo: order.OrderNo, Reason: "再登记一分钱",
 	}, now); !errors.Is(err, errConflict) {
 		t.Fatalf("多笔待执行登记透支未被拦截：%v", err)
 	}
@@ -163,7 +163,7 @@ func TestExternalRefundLinkedAfterSaleReversesEntitlements(t *testing.T) {
 	}
 	refund, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 		Channel: "wechat_work", TransactionNo: "ER-LINKED-1", AmountCents: 1000,
-		OrderID: order.ID, AfterSaleID: &item.ID, Reason: "按售后方案外部退款",
+		OrderNo: order.OrderNo, AfterSaleID: &item.ID, Reason: "按售后方案外部退款",
 	}, now)
 	if err != nil {
 		t.Fatal(err)
@@ -284,7 +284,7 @@ func TestExternalRefundRepeatedPartialRefunds(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		refund, err := registerExternalRefund(ctx, db, 11, registerExternalRefundInput{
 			Channel: "wechat_work", TransactionNo: "ER-PARTIAL-" + strconv.Itoa(i),
-			AmountCents: 500, OrderID: order.ID, Reason: "分次外部退款",
+			AmountCents: 500, OrderNo: order.OrderNo, Reason: "分次外部退款",
 		}, now)
 		if err != nil {
 			t.Fatalf("第 %d 笔登记失败：%v", i+1, err)

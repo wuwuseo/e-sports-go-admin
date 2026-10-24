@@ -702,7 +702,8 @@ func submitCustomerReview(ctx context.Context, db *ent.Client, customerID, order
 }
 
 type reviewInput struct {
-	OrderID    int    `json:"order_id"`
+	// OrderNo 管理端代录评价按订单号定位订单。
+	OrderNo    string `json:"order_no"`
 	CustomerID int    `json:"customer_id"`
 	PlayerID   int    `json:"player_id"`
 	Rating     int    `json:"rating"`
@@ -712,7 +713,11 @@ type reviewInput struct {
 // recordReviewByAdmin 客服代录反馈：标识为未验证，不直接计入陪玩综合评分。
 func recordReviewByAdmin(ctx context.Context, db *ent.Client, in reviewInput) (*ent.EsportsPlayerReview, error) {
 	in.Comment = strings.TrimSpace(in.Comment)
-	if in.OrderID < 1 || in.CustomerID < 1 || in.PlayerID < 1 ||
+	orderID, err := orderIDByNo(ctx, db, in.OrderNo)
+	if err != nil {
+		return nil, err
+	}
+	if orderID < 1 || in.CustomerID < 1 || in.PlayerID < 1 ||
 		in.Rating < 1 || in.Rating > 5 || len([]rune(in.Comment)) > 500 {
 		return nil, errInvalidInput
 	}
@@ -724,7 +729,7 @@ func recordReviewByAdmin(ctx context.Context, db *ent.Client, in reviewInput) (*
 		return nil, err
 	}
 	defer tx.Rollback()
-	review, err := upsertReview(ctx, tx, in.OrderID, in.CustomerID, in.PlayerID, in.Rating, in.Comment, false)
+	review, err := upsertReview(ctx, tx, orderID, in.CustomerID, in.PlayerID, in.Rating, in.Comment, false)
 	if err != nil {
 		return nil, err
 	}

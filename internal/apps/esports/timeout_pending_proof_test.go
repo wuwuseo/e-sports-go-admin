@@ -30,7 +30,7 @@ func seedExpiredOrderWithPendingProof(t *testing.T, db *ent.Client, suffix, acco
 	intent := seedPayableOrderForOffline(t, db, suffix, "corporate_transfer")
 	account := seedActivePaymentAccount(t, db, "corporate_transfer", accountNo)
 	if _, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "CORP-EXPIRE-" + suffix,
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "CORP-EXPIRE-" + suffix,
 		AmountCents: intent.AmountCents, ProofRef: "proof/expire-" + suffix + ".png",
 	}, 11, now); err != nil {
 		t.Fatalf("提交待核验到账凭证失败：%v", err)
@@ -174,7 +174,7 @@ func TestVerifyOfflinePaymentProofAcceptsProofSubmittedBeforeDeadline(t *testing
 	db.EsportsConfirmation.UpdateOneID(intent.ConfirmationID).SetExpiresAt(deadline).ExecX(ctx)
 
 	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: intent.OrderID, AccountID: account.ID, TransactionNo: "CORP-LATE-VERIFY-0001",
+		OrderNo: intentOrderNoForTest(t, db, intent), AccountID: account.ID, TransactionNo: "CORP-LATE-VERIFY-0001",
 		AmountCents: intent.AmountCents, ProofRef: "proof/corp-late-verify.png",
 	}, 11, now)
 	if err != nil {

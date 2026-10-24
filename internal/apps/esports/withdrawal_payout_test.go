@@ -160,7 +160,7 @@ func TestExternalRefundRegisterExecuteAndIdempotency(t *testing.T) {
 	order := seedPaidOrder(t, db, "ext-refund-1", 1)
 
 	reg, err := registerExternalRefund(ctx, db, 8, registerExternalRefundInput{
-		Channel: "wechat_work", TransactionNo: "WX-REFUND-1", AmountCents: 300, OrderID: order.ID,
+		Channel: "wechat_work", TransactionNo: "WX-REFUND-1", AmountCents: 300, OrderNo: order.OrderNo,
 	}, now)
 	if err != nil {
 		t.Fatalf("登记外部退款应成功，err=%v", err)
@@ -174,7 +174,7 @@ func TestExternalRefundRegisterExecuteAndIdempotency(t *testing.T) {
 	}
 	// 同一流水号重复登记冲突。
 	if _, err = registerExternalRefund(ctx, db, 8, registerExternalRefundInput{
-		Channel: "wechat_work", TransactionNo: "WX-REFUND-1", AmountCents: 300, OrderID: order.ID,
+		Channel: "wechat_work", TransactionNo: "WX-REFUND-1", AmountCents: 300, OrderNo: order.OrderNo,
 	}, now); !errors.Is(err, errConflict) {
 		t.Fatalf("同一退款流水号重复登记应冲突，err=%v", err)
 	}
@@ -200,7 +200,7 @@ func TestExternalRefundRegisterExecuteAndIdempotency(t *testing.T) {
 	// 超退拦截：再登记 800 分退款，已退 300 分 + 本次 800 分已超过应付额 1000 分，
 	// 登记阶段即按累计可退额度拦截，避免待执行登记虚占/透支订单额度。
 	if _, err = registerExternalRefund(ctx, db, 8, registerExternalRefundInput{
-		Channel: "wechat_work", TransactionNo: "WX-REFUND-2", AmountCents: 800, OrderID: order.ID,
+		Channel: "wechat_work", TransactionNo: "WX-REFUND-2", AmountCents: 800, OrderNo: order.OrderNo,
 	}, now); !errors.Is(err, errConflict) {
 		t.Fatalf("登记超退退款应冲突，err=%v", err)
 	}

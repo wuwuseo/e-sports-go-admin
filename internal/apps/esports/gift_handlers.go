@@ -169,7 +169,11 @@ func adminGiftOrders(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	views, err := giftOrderViewsOf(c.Context(), global.ORM, items)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
 }
 
 func adminGiftIntents(c fiber.Ctx) error {

@@ -51,7 +51,7 @@ func seedReversalFixture(t *testing.T, db *ent.Client, suffix string) (*ent.Espo
 		SetChannel("corporate_transfer").SetExpiresAt(order.PaymentDeadline).SaveX(ctx)
 	account := seedActivePaymentAccount(t, db, "corporate_transfer", "6222-9999-0000-"+suffix)
 	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "CORP-" + suffix,
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "CORP-" + suffix,
 		AmountCents: intent.AmountCents, ProofRef: "proof/" + suffix + ".pdf",
 	}, 11, now)
 	if err != nil {

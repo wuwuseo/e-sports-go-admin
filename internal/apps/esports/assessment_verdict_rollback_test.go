@@ -128,7 +128,7 @@ func TestAdminProxyReviewCannotOverwriteVerifiedReview(t *testing.T) {
 	}
 
 	_, err = recordReviewByAdmin(ctx, db, reviewInput{
-		OrderID: order.ID, CustomerID: customer.ID, PlayerID: player.ID, Rating: 1, Comment: "客服代录覆盖",
+		OrderNo: order.OrderNo, CustomerID: customer.ID, PlayerID: player.ID, Rating: 1, Comment: "客服代录覆盖",
 	})
 	if !errors.Is(err, errConflict) {
 		t.Fatalf("代录覆盖已核验评价未被拦截：%v", err)
@@ -163,13 +163,13 @@ func TestAdminProxyReviewStillUpsertsUnverifiedReview(t *testing.T) {
 	order := seedReviewOrderForTest(t, db, "review-upsert-1", customer.ID, player.ID)
 
 	first, err := recordReviewByAdmin(ctx, db, reviewInput{
-		OrderID: order.ID, CustomerID: customer.ID, PlayerID: player.ID, Rating: 3, Comment: "电话回访",
+		OrderNo: order.OrderNo, CustomerID: customer.ID, PlayerID: player.ID, Rating: 3, Comment: "电话回访",
 	})
 	if err != nil || first.Verified {
 		t.Fatalf("首次代录失败：%+v, %v", first, err)
 	}
 	second, err := recordReviewByAdmin(ctx, db, reviewInput{
-		OrderID: order.ID, CustomerID: customer.ID, PlayerID: player.ID, Rating: 4, Comment: "回访更正",
+		OrderNo: order.OrderNo, CustomerID: customer.ID, PlayerID: player.ID, Rating: 4, Comment: "回访更正",
 	})
 	if err != nil {
 		t.Fatalf("未核验评价应允许代录更新：%v", err)

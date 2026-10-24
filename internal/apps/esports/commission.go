@@ -1356,6 +1356,8 @@ func listCommissionEntries(ctx context.Context, db *ent.Client, playerID, orderI
 // 以及按最小服务单位拆分的留痕。
 type commissionEntryView struct {
 	*ent.EsportsCommissionEntry
+	// OrderNo 管理端订单列展示订单号（不再裸显示订单 ID）。
+	OrderNo        string `json:"order_no"`
 	// RuleValueBp / RuleValueCents 是该明细规则快照的数值：percent 看 bp，固定额看分。
 	RuleValueBp    int   `json:"rule_value_bp"`
 	RuleValueCents int64 `json:"rule_value_cents"`
@@ -1414,6 +1416,10 @@ func commissionEntryViews(ctx context.Context, db *ent.Client, entries []*ent.Es
 		case esportscommissionentry.KindGiftReversal:
 			giftReversed[entry.PlayerID] += entry.AmountCents
 		}
+	}
+	orderNos, err := orderNosOf(ctx, db, orderIDs)
+	if err != nil {
+		return nil, err
 	}
 	rules := map[int]*ent.EsportsCommissionRule{}
 	if len(ruleIDs) > 0 {
@@ -1485,6 +1491,9 @@ func commissionEntryViews(ctx context.Context, db *ent.Client, entries []*ent.Es
 		}
 		if units > 1 && amount > 0 {
 			view.ServiceUnitAmounts = splitServiceUnits(amount, units)
+		}
+		if entry.OrderID != nil {
+			view.OrderNo = orderNos[*entry.OrderID]
 		}
 		views = append(views, view)
 	}

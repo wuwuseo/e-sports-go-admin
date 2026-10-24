@@ -313,7 +313,11 @@ func listFulfillmentMakeupsHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	views, err := fulfillmentMakeupViewsOf(c.Context(), global.ORM, items)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
 }
 
 // startFulfillmentMakeupHandler 开始补履约服务（pending → servicing）。

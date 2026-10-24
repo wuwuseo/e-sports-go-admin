@@ -164,12 +164,20 @@ func adminPlayerReviews(c fiber.Ctx) error {
 	if _, err := requestAdmin(c); err != nil {
 		return businessError(c, err)
 	}
-	items, err := listReviews(c.Context(), global.ORM, queryInt(c, "player_id"),
-		queryInt(c, "order_id"), c.Query("status"), queryInt(c, "limit"))
+	orderID, err := orderIDByNo(c.Context(), global.ORM, c.Query("order_no"))
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	items, err := listReviews(c.Context(), global.ORM, queryInt(c, "player_id"),
+		orderID, c.Query("status"), queryInt(c, "limit"))
+	if err != nil {
+		return businessError(c, err)
+	}
+	views, err := playerReviewAdminViewsOf(c.Context(), global.ORM, items)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
 }
 
 func recordReviewHandler(c fiber.Ctx) error {
@@ -370,7 +378,11 @@ func adminReviewAppeals(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	views, err := reviewAppealViewsOf(c.Context(), global.ORM, items)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
 }
 
 func reviewReviewAppealHandler(c fiber.Ctx) error {

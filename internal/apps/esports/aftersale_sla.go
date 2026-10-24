@@ -165,6 +165,9 @@ type afterSaleView struct {
 	SLALimitHours int        `json:"sla_limit_hours"`
 	SLADeadline   *time.Time `json:"sla_deadline"`
 	SLAOverdue    bool       `json:"sla_overdue"`
+	// OrderNo 订单来源售后单的订单号（管理端展示 / 外部退款登记表单预填用）；
+	// 非订单来源为空串。
+	OrderNo string `json:"order_no"`
 	// SourceTypeLabel 来源类型中文名：来源类型枚举里的 stored_value_card 已随储值卡功能下线，
 	// 由后端统一给出「储值卡（已停用）」，两端无需再维护这个废弃值的中文映射。
 	SourceTypeLabel string `json:"source_type_label"`
@@ -193,6 +196,21 @@ func afterSaleViewsOf(ctx context.Context, db *ent.Client, items []*ent.EsportsA
 	views := make([]afterSaleView, 0, len(items))
 	for _, item := range items {
 		views = append(views, afterSaleViewOf(item, policy, now))
+	}
+	// 订单来源售后单补订单号（一次批量查询；管理端展示与外部退款登记都用它）。
+	orderIDs := make([]int, 0, len(views))
+	for _, view := range views {
+		if view.SourceType == esportsaftersale.SourceTypeOrder && view.SourceID > 0 {
+			orderIDs = append(orderIDs, view.SourceID)
+		}
+	}
+	nos, err := orderNosOf(ctx, db, orderIDs)
+	if err == nil {
+		for i := range views {
+			if views[i].SourceType == esportsaftersale.SourceTypeOrder {
+				views[i].OrderNo = nos[views[i].SourceID]
+			}
+		}
 	}
 	return views
 }

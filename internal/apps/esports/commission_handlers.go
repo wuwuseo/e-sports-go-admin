@@ -106,8 +106,12 @@ func adminCommissionEntries(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	// ：返回读模型（规则数值 + 扣减项 + 到手净额 + 逐单位留痕），而非原始明细。
+	orderID, err := orderIDByNo(c.Context(), global.ORM, c.Query("order_no"))
+	if err != nil {
+		return businessError(c, err)
+	}
 	items, err := listCommissionEntryViews(c.Context(), global.ORM,
-		queryInt(c, "player_id"), queryInt(c, "order_id"), c.Query("status"), queryLimit(c, 200))
+		queryInt(c, "player_id"), orderID, c.Query("status"), queryLimit(c, 200))
 	if err != nil {
 		return businessError(c, err)
 	}

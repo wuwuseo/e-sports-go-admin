@@ -30,15 +30,19 @@ func listPaymentReversalsHandler(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
 	}
-	orderID, err := queryIntDefault(c, "order_id", 0)
+	orderID, err := orderIDByNo(c.Context(), global.ORM, c.Query("order_no"))
 	if err != nil {
-		return businessError(c, errInvalidInput)
+		return businessError(c, err)
 	}
 	items, err := listPaymentReversals(c.Context(), global.ORM, orderID, c.Query("status"), queryLimit(c, 100))
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	views, err := paymentReversalViewsOf(c.Context(), global.ORM, items)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, views)
 }
 
 // decidePaymentReversalHandler 处置渠道撤销 / 拒付：登记人不得自审。

@@ -18,12 +18,28 @@ func adminSeatTransfers(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	isSuper, _ := c.Locals("isSuperAdmin").(bool)
-	items, err := listSeatTransfersForAdmin(c.Context(), global.ORM, adminID, isSuper, c.Query("status"),
-		queryInt(c, "order_id"), queryInt(c, "player_id"), queryLimit(c, 100))
+	orderID, err := orderIDByNo(c.Context(), global.ORM, c.Query("order_no"))
 	if err != nil {
 		return businessError(c, err)
 	}
-	return reply(c, items)
+	items, err := listSeatTransfersForAdmin(c.Context(), global.ORM, adminID, isSuper, c.Query("status"),
+		orderID, queryInt(c, "player_id"), queryLimit(c, 100))
+	if err != nil {
+		return businessError(c, err)
+	}
+	ids := make([]int, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.OrderID)
+	}
+	nos, err := orderNosOf(c.Context(), global.ORM, ids)
+	if err != nil {
+		return businessError(c, err)
+	}
+	views := make([]seatTransferView, 0, len(items))
+	for _, item := range items {
+		views = append(views, seatTransferView{EsportsSeatTransferRequest: item, OrderNo: nos[item.OrderID]})
+	}
+	return reply(c, views)
 }
 
 // decideSeatTransferHandler 客服确认转单：通过则释放席位为待补位，驳回须填原因。

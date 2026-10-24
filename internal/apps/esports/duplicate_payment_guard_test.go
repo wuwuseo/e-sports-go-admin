@@ -42,7 +42,7 @@ func TestBalancePaymentBlockedByPendingOfflineProof(t *testing.T) {
 		t.Fatal(err)
 	}
 	proof, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "WX-DUP-BAL-TXN-1",
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "WX-DUP-BAL-TXN-1",
 		AmountCents: order.PayableCents, ProofRef: "proof/dup-balance-0001.png",
 	}, 11, now)
 	if err != nil {
@@ -104,7 +104,7 @@ func TestOfflineProofRejectedAfterBalancePaid(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "CORP-DUP-PAID-TXN-1",
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "CORP-DUP-PAID-TXN-1",
 		AmountCents: order.PayableCents, ProofRef: "proof/dup-paid-0001.png",
 	}, 11, now); !errors.Is(err, errConflict) {
 		t.Fatalf("已用余额收款的订单再提交转账凭证应被拒，err=%v", err)
@@ -155,14 +155,14 @@ func TestOfflineVerifyRejectsDuplicatePendingProof(t *testing.T) {
 	intent := seedPayableOrderForOffline(t, db, "dupmulti", "wechat_work")
 	order := db.EsportsOrder.GetX(ctx, intent.OrderID)
 	first, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "WX-DUP-MULTI-TXN-1",
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "WX-DUP-MULTI-TXN-1",
 		AmountCents: order.PayableCents, ProofRef: "proof/dup-multi-0001.png",
 	}, 11, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	second, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "WX-DUP-MULTI-TXN-2",
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "WX-DUP-MULTI-TXN-2",
 		AmountCents: order.PayableCents, ProofRef: "proof/dup-multi-0002.png",
 	}, 11, now)
 	if err != nil {

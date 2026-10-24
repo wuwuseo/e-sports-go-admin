@@ -33,7 +33,8 @@ type registerExternalRefundInput struct {
 	Channel       string `json:"channel"`
 	TransactionNo string `json:"transaction_no"`
 	AmountCents   int64  `json:"amount_cents"`
-	OrderID       int    `json:"order_id"`
+	// OrderNo 管理端统一按订单号定位订单。
+	OrderNo       string `json:"order_no"`
 	AfterSaleID   *int   `json:"aftersale_id"`
 	Reason        string `json:"reason"`
 }
@@ -75,8 +76,15 @@ func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 	in.TransactionNo = strings.TrimSpace(in.TransactionNo)
 	in.Reason = strings.TrimSpace(in.Reason)
 	if adminID < 1 || in.Channel == "" || len(in.Channel) > 48 || in.TransactionNo == "" ||
-		len(in.TransactionNo) > 128 || in.AmountCents < 1 || in.OrderID < 1 ||
+		len(in.TransactionNo) > 128 || in.AmountCents < 1 ||
 		len([]rune(in.Reason)) > 255 {
+		return nil, errInvalidInput
+	}
+	orderID, err := orderIDByNo(ctx, db, in.OrderNo)
+	if err != nil {
+		return nil, err
+	}
+	if orderID < 1 {
 		return nil, errInvalidInput
 	}
 	if in.AfterSaleID != nil && *in.AfterSaleID < 1 {
@@ -93,7 +101,7 @@ func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 		return nil, err
 	}
 	defer tx.Rollback()
-	order, err := tx.EsportsOrder.Get(ctx, in.OrderID)
+	order, err := tx.EsportsOrder.Get(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +128,7 @@ func registerExternalRefund(ctx context.Context, db *ent.Client, adminID int,
 	}
 	create := tx.EsportsExternalRefund.Create().SetRefundNo(externalRefundNo()).
 		SetChannel(in.Channel).SetTransactionNo(in.TransactionNo).
-		SetAmountCents(in.AmountCents).SetOrderID(in.OrderID).
+		SetAmountCents(in.AmountCents).SetOrderID(orderID).
 		SetStatus(esportsexternalrefund.StatusRegistered).
 		SetReason(in.Reason).SetRegisteredByAdminID(adminID)
 	if in.AfterSaleID != nil {

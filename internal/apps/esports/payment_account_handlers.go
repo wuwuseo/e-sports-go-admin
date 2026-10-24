@@ -119,22 +119,29 @@ func adminOfflinePaymentProofs(c fiber.Ctx) error {
 	if _, err := requireAdmin(c); err != nil {
 		return businessError(c, err)
 	}
-	orderID := queryInt(c, "order_id")
+	orderID, err := orderIDByNo(c.Context(), global.ORM, c.Query("order_no"))
+	if err != nil {
+		return businessError(c, err)
+	}
 	items, err := listOfflinePaymentProofs(c.Context(), global.ORM, c.Query("status"), orderID, queryLimit(c, 200))
+	if err != nil {
+		return businessError(c, err)
+	}
+	views, err := offlinePaymentProofViewsOf(c.Context(), global.ORM, items)
 	if err != nil {
 		return businessError(c, err)
 	}
 	if raw := strings.TrimSpace(c.Query("reconcile")); raw == "1" || strings.EqualFold(raw, "true") {
 		if orderID < 1 {
-			return fail(c, fiber.StatusBadRequest, "自动对账须指定订单 order_id")
+			return fail(c, fiber.StatusBadRequest, "自动对账须指定订单号 order_no")
 		}
 		report, err := reconcileOrderPaymentProofs(c.Context(), global.ORM, orderID)
 		if err != nil {
 			return businessError(c, err)
 		}
-		return reply(c, fiber.Map{"items": items, "reconcile": report})
+		return reply(c, fiber.Map{"items": views, "reconcile": report})
 	}
-	return reply(c, items)
+	return reply(c, views)
 }
 
 // submitOfflinePaymentProofHandler 客服提交外部到账凭证：生成「待核验收款」，核销前订单不派单。

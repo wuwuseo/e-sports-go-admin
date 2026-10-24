@@ -222,7 +222,8 @@ type giftSendInput struct {
 	GiftTierID      int    `json:"gift_tier_id"`
 	PlayerID        int    `json:"player_id"`
 	Quantity        int    `json:"quantity"`
-	OrderID         *int   `json:"order_id"`
+	// OrderNo 关联订单仅追溯：管理端统一按订单号传入（不传不关联）。
+	OrderNo         *string `json:"order_no"`
 	PaymentSource   string `json:"payment_source"`
 	Confirmed       bool   `json:"confirmed"`
 	AuthorizationID int    `json:"authorization_id"`
@@ -369,6 +370,15 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 		len(key) < 8 || len(key) > 128 {
 		return nil, errInvalidInput
 	}
+	// 关联订单号 → 订单 ID（仅追溯；管理端统一按订单号传入）。
+	var orderID *int
+	if in.OrderNo != nil && strings.TrimSpace(*in.OrderNo) != "" {
+		parsed, err := orderIDByNo(ctx, db, *in.OrderNo)
+		if err != nil {
+			return nil, err
+		}
+		orderID = &parsed
+	}
 	// 付款来源只允许「客户余额本金」或「外部收款」；储值卡本金（stored_value_card_principal）
 	// 随功能下线（2026-10-20），历史值仅可读。
 	if (in.PaymentSource != "customer_balance_principal") &&
@@ -398,7 +408,7 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 		if authorization.Status != esportsgiftintent.StatusConfirmed || authorization.ConfirmationRef == "" ||
 			!now.UTC().Before(authorization.ExpiresAt) || authorization.CustomerID != in.CustomerID ||
 			authorization.GiftID != in.GiftID || authorization.PlayerID != in.PlayerID ||
-			authorization.Quantity != in.Quantity || !sameOptionalID(authorization.OrderID, in.OrderID) ||
+			authorization.Quantity != in.Quantity || !sameOptionalID(authorization.OrderID, orderID) ||
 			!giftAuthorizationPaymentMatch(authorization, in) ||
 			authorization.GiftTierID != in.GiftTierID {
 			return nil, errConflict
@@ -469,8 +479,8 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 		return nil, fmt.Errorf("%w：大额打赏需二次确认后再提交", errInvalidInput)
 	}
 	// 关联订单仅追溯，校验归属。
-	if in.OrderID != nil {
-		order, err := tx.EsportsOrder.Get(ctx, *in.OrderID)
+	if orderID != nil {
+		order, err := tx.EsportsOrder.Get(ctx, *orderID)
 		if err != nil {
 			return nil, err
 		}
@@ -540,8 +550,8 @@ func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool
 	if giftCsRuleID > 0 {
 		create.SetCsCommissionRuleID(giftCsRuleID)
 	}
-	if in.OrderID != nil {
-		create.SetOrderID(*in.OrderID)
+	if orderID != nil {
+		create.SetOrderID(*orderID)
 	}
 	if authorization != nil {
 		create.SetGiftIntentID(authorization.ID)

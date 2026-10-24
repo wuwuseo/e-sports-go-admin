@@ -90,7 +90,7 @@ func TestRound4PO15701OffSaleSkuBlocksPaymentInitiation(t *testing.T) {
 
 	// 客服提交到账凭证 → 明确失败。
 	_, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "PO-OFF-CS-1",
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "PO-OFF-CS-1",
 		AmountCents: order.PayableCents, ProofRef: "po-offline-proof-ref-15701",
 	}, 12, now)
 	if err == nil || !strings.Contains(err.Error(), "下架") {
@@ -129,7 +129,7 @@ func TestRound4PO4204CSProofEvidenceAttachment(t *testing.T) {
 	notImage := poSeedProofAttachment(t, db, "admin:"+admin.UID, "text/plain")
 	bodyOf := func(txn string, ids []int) map[string]any {
 		return map[string]any{
-			"order_id": order.ID, "account_id": account.ID, "transaction_no": txn,
+			"order_no": order.OrderNo, "account_id": account.ID, "transaction_no": txn,
 			"amount_cents": order.PayableCents, "proof_ref": "po-offline-proof-ref-4204",
 			"evidence_attachment_ids": ids,
 		}
@@ -184,7 +184,7 @@ func TestRound4PO1802PaymentDeadlineRequiredOnInitiation(t *testing.T) {
 	db.SystemConfig.Delete().Where(systemconfig.KeyEQ("app.esports.payment_deadline_minutes")).ExecX(ctx)
 
 	if _, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: account.ID, TransactionNo: "PO-DEAD-1",
+		OrderNo: order.OrderNo, AccountID: account.ID, TransactionNo: "PO-DEAD-1",
 		AmountCents: order.PayableCents, ProofRef: "po-offline-proof-ref-1802",
 	}, 12, now); !errors.Is(err, errNotConfigured) {
 		t.Fatalf("支付时限未配置时应拒绝客服发起收款：%v", err)
@@ -220,7 +220,7 @@ func TestRound4PO4305LargeAmountRequiresCorporateTransfer(t *testing.T) {
 
 	// 大额 + 非对公渠道 → 明确拒绝。
 	_, err := submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: wecom.ID, TransactionNo: "PO-CORP-1",
+		OrderNo: order.OrderNo, AccountID: wecom.ID, TransactionNo: "PO-CORP-1",
 		AmountCents: order.PayableCents, ProofRef: "po-offline-proof-ref-4305",
 	}, 12, now)
 	if err == nil || !strings.Contains(err.Error(), "对公") {
@@ -233,7 +233,7 @@ func TestRound4PO4305LargeAmountRequiresCorporateTransfer(t *testing.T) {
 	}
 	// 对公渠道放行。
 	if _, err = submitOfflinePaymentProof(ctx, db, offlinePaymentProofInput{
-		OrderID: order.ID, AccountID: corporate.ID, TransactionNo: "PO-CORP-2",
+		OrderNo: order.OrderNo, AccountID: corporate.ID, TransactionNo: "PO-CORP-2",
 		AmountCents: order.PayableCents, ProofRef: "po-offline-proof-ref-4305b",
 	}, 12, now); err != nil {
 		t.Fatalf("大额订单走对公应放行：%v", err)
@@ -347,7 +347,7 @@ func TestRound4PO4304ChannelReconciliationDiff(t *testing.T) {
 	app := poPaymentApp(admin, true)
 	post := func(key, txn string, amount int64) *ent.EsportsOfflinePaymentProof {
 		status, payload := poSendJSON(t, app, http.MethodPost, "/admin/offline-payment-proofs", key, map[string]any{
-			"order_id": order.ID, "account_id": account.ID, "transaction_no": txn,
+			"order_no": order.OrderNo, "account_id": account.ID, "transaction_no": txn,
 			"amount_cents": amount, "proof_ref": "po-reconcile-proof-" + key,
 		})
 		if status != fiber.StatusOK {
@@ -375,7 +375,7 @@ func TestRound4PO4304ChannelReconciliationDiff(t *testing.T) {
 	seedReceipt(overpaid, order.PayableCents+500)
 
 	status, payload := poSendJSON(t, app, http.MethodGet,
-		fmt.Sprintf("/admin/offline-payment-proofs?order_id=%d&reconcile=1", order.ID), "", nil)
+		fmt.Sprintf("/admin/offline-payment-proofs?order_no=%s&reconcile=1", order.OrderNo), "", nil)
 	if status != fiber.StatusOK {
 		t.Fatalf("自动对账请求失败：status=%d msg=%s", status, poMessage(payload))
 	}
