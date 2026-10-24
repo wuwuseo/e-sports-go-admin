@@ -325,6 +325,10 @@ func init() {
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
+		// 系统配置页的业务配置分组（sys_config_group 核心字典的功能集例外，cmf v1.4.0 起允许）。
+		Dicts: []cmfapp.DictItem{
+			{Type: "sys_config_group", Label: "业务配置", Value: "esports", Sort: 3},
+		},
 		Config: []cmfapp.ConfigItem{
 			{Key: "payment_deadline_minutes", Name: "订单支付时限（分钟）", Value: "30", Type: "number", Group: "esports", Remark: "待付款订单的支付时限，超时由任务过期释放名额；须为 1~1440 的正整数"},
 			{Key: "duplicate_order_window_minutes", Name: "重复报单提醒时间窗（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；窗口内同客户同 SKU 相似订单需显式确认后才可下单"},
