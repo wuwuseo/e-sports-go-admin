@@ -326,7 +326,7 @@ go generate ./internal/apps        # 汇总 apps 的 schema 与注册表
 go generate ./internal/ent         # 生成 Ent 客户端
 ```
 
-新增业务模块时，在 `internal/apps/<code>/` 同时声明配置、路由、权限与 Ent Schema，参见 [docs/source-apps.md](docs/source-apps.md)。
+新增业务模块时，在 `internal/apps/<code>/` 同时声明配置、字典、路由、权限与 Ent Schema，参见 [docs/source-apps.md](docs/source-apps.md)。
 
 ### 添加一个通用接口
 
