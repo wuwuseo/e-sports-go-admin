@@ -7,7 +7,14 @@
 1. 在 `internal/apps/<code>/` 添加 `app.go`，在 `init()` 中调用 `app.Register(app.App{...})`。`code` 必须以小写字母开头，后续只能是小写字母或数字，且不能使用 `admin`、`public`、`user`、`plugin`、`attachments`、`auth`。
 2. `App` 声明 `Config`、`Dicts`、`Routes` 和 `Permissions`。路由路径是以 `/` 开头的功能集内相对路径；例如 `GET /items` 挂载为 `GET /api/v1/<code>/items`。路由鉴权可选 `AuthPublic`、`AuthUser`、`AuthAdmin`。
 3. 每条管理端路由都要声明一条方法和完整路径一致的 `PermAPI` 权限；每条 API 权限也必须对应管理端路由。路径参数在权限中写成 `{id}`，在 Fiber 路由中写成 `:id`。所有权限代码以 `<code>:` 开头，`Parent` 引用同功能集内的权限代码。
-4. 字典种子写在 `Dicts`。`Type` 必须以 `<code>_` 开头（例如 `cms_category_group`），且同一功能集内 `(Type, Value)` 不能重复，避免与其他功能集或核心字典（`sys_*`、`slide_group` 等）撞名。字典数据是全局表，没有功能集或域字段，启动时仅按 `(dict_type, value)` 判重插入，不覆盖已存在的值。
+4. 字典种子写在 `Dicts`。`Type` 必须以 `<code>_` 开头（例如 `cms_category_group`），且同一功能集内 `(Type, Value)` 不能重复，避免与其他功能集或核心字典（`sys_*`、`slide_group` 等）撞名。字典数据是全局表，没有功能集或域字段，启动时仅按 `(dict_type, value)` 判重插入，不覆盖已存在的值。例如：
+
+   ```go
+   Dicts: []cmfapp.DictItem{
+       {Type: "cms_category_group", Label: "新闻", Value: "news", Sort: 1},
+       {Type: "cms_category_group", Label: "公告", Value: "notice", Sort: 2, IsDefault: true},
+   },
+   ```
 5. 如需 Ent 模型，在 `internal/apps/<code>/schema/` 定义标准 `ent.Schema`。类型名以功能集代码首字母大写形式开头，例如 `CmsContent`；关系只能引用同一功能集的 schema。字段需按项目生成钩子添加 JSON `StructTag`。
 6. 依次运行生成命令并提交全部生成文件：
 
