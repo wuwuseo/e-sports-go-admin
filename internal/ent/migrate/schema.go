@@ -3448,6 +3448,33 @@ var (
 			},
 		},
 	}
+	// EsportsSkillLevelsColumns holds the columns for the "esports_skill_levels" table.
+	EsportsSkillLevelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "code", Type: field.TypeString, Size: 32},
+		{Name: "name", Type: field.TypeString, Size: 32},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsSkillLevelsTable holds the schema information for the "esports_skill_levels" table.
+	EsportsSkillLevelsTable = &schema.Table{
+		Name:       TablePrefix + "esports_skill_levels",
+		Columns:    EsportsSkillLevelsColumns,
+		PrimaryKey: []*schema.Column{EsportsSkillLevelsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsskilllevel_code",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsSkillLevelsColumns[1]},
+			},
+			{
+				Name:    "esportsskilllevel_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsSkillLevelsColumns[3]},
+			},
+		},
+	}
 	// EsportsProductsColumns holds the columns for the "esports_products" table.
 	EsportsProductsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -4468,6 +4495,7 @@ var (
 		EsportsServiceSegmentsTable,
 		EsportsSettlementsTable,
 		EsportsSettlementCyclesTable,
+		EsportsSkillLevelsTable,
 		EsportsProductsTable,
 		EsportsProductSuspensionsTable,
 		EsportsSkuSuspensionItemsTable,

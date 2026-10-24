@@ -1088,6 +1088,18 @@ func (f EsportsSettlementCycleFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSettlementCycleMutation", m)
 }
 
+// The EsportsSkillLevelFunc type is an adapter to allow the use of ordinary
+// function as EsportsSkillLevel mutator.
+type EsportsSkillLevelFunc func(context.Context, *ent.EsportsSkillLevelMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsSkillLevelFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsSkillLevelMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsSkillLevelMutation", m)
+}
+
 // The EsportsSkuFunc type is an adapter to allow the use of ordinary
 // function as EsportsSku mutator.
 type EsportsSkuFunc func(context.Context, *ent.EsportsSkuMutation) (ent.Value, error)

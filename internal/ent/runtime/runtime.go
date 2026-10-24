@@ -93,6 +93,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportssettlementcycle"
+	"go-admin/internal/ent/esportsskilllevel"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
@@ -5956,6 +5957,58 @@ func init() {
 	esportssettlementcycle.DefaultUpdatedAt = esportssettlementcycleDescUpdatedAt.Default.(func() time.Time)
 	// esportssettlementcycle.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportssettlementcycle.UpdateDefaultUpdatedAt = esportssettlementcycleDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsskilllevelFields := schema.EsportsSkillLevel{}.Fields()
+	_ = esportsskilllevelFields
+	// esportsskilllevelDescCode is the schema descriptor for code field.
+	esportsskilllevelDescCode := esportsskilllevelFields[0].Descriptor()
+	// esportsskilllevel.CodeValidator is a validator for the "code" field. It is called by the builders before save.
+	esportsskilllevel.CodeValidator = func() func(string) error {
+		validators := esportsskilllevelDescCode.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(code string) error {
+			for _, fn := range fns {
+				if err := fn(code); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsskilllevelDescName is the schema descriptor for name field.
+	esportsskilllevelDescName := esportsskilllevelFields[1].Descriptor()
+	// esportsskilllevel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	esportsskilllevel.NameValidator = func() func(string) error {
+		validators := esportsskilllevelDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsskilllevelDescSortOrder is the schema descriptor for sort_order field.
+	esportsskilllevelDescSortOrder := esportsskilllevelFields[2].Descriptor()
+	// esportsskilllevel.DefaultSortOrder holds the default value on creation for the sort_order field.
+	esportsskilllevel.DefaultSortOrder = esportsskilllevelDescSortOrder.Default.(int)
+	// esportsskilllevelDescCreatedAt is the schema descriptor for created_at field.
+	esportsskilllevelDescCreatedAt := esportsskilllevelFields[3].Descriptor()
+	// esportsskilllevel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsskilllevel.DefaultCreatedAt = esportsskilllevelDescCreatedAt.Default.(func() time.Time)
+	// esportsskilllevelDescUpdatedAt is the schema descriptor for updated_at field.
+	esportsskilllevelDescUpdatedAt := esportsskilllevelFields[4].Descriptor()
+	// esportsskilllevel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportsskilllevel.DefaultUpdatedAt = esportsskilllevelDescUpdatedAt.Default.(func() time.Time)
+	// esportsskilllevel.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportsskilllevel.UpdateDefaultUpdatedAt = esportsskilllevelDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportsskuFields := schema.EsportsSku{}.Fields()
 	_ = esportsskuFields
 	// esportsskuDescCode is the schema descriptor for code field.

@@ -101,6 +101,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportssettlementcycle"
+	"go-admin/internal/ent/esportsskilllevel"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
@@ -315,6 +316,8 @@ type Client struct {
 	EsportsSettlement *EsportsSettlementClient
 	// EsportsSettlementCycle is the client for interacting with the EsportsSettlementCycle builders.
 	EsportsSettlementCycle *EsportsSettlementCycleClient
+	// EsportsSkillLevel is the client for interacting with the EsportsSkillLevel builders.
+	EsportsSkillLevel *EsportsSkillLevelClient
 	// EsportsSku is the client for interacting with the EsportsSku builders.
 	EsportsSku *EsportsSkuClient
 	// EsportsSkuSuspension is the client for interacting with the EsportsSkuSuspension builders.
@@ -460,6 +463,7 @@ func (c *Client) init() {
 	c.EsportsServiceSegment = NewEsportsServiceSegmentClient(c.config)
 	c.EsportsSettlement = NewEsportsSettlementClient(c.config)
 	c.EsportsSettlementCycle = NewEsportsSettlementCycleClient(c.config)
+	c.EsportsSkillLevel = NewEsportsSkillLevelClient(c.config)
 	c.EsportsSku = NewEsportsSkuClient(c.config)
 	c.EsportsSkuSuspension = NewEsportsSkuSuspensionClient(c.config)
 	c.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(c.config)
@@ -664,6 +668,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsServiceSegment:          NewEsportsServiceSegmentClient(cfg),
 		EsportsSettlement:              NewEsportsSettlementClient(cfg),
 		EsportsSettlementCycle:         NewEsportsSettlementCycleClient(cfg),
+		EsportsSkillLevel:              NewEsportsSkillLevelClient(cfg),
 		EsportsSku:                     NewEsportsSkuClient(cfg),
 		EsportsSkuSuspension:           NewEsportsSkuSuspensionClient(cfg),
 		EsportsSkuSuspensionItem:       NewEsportsSkuSuspensionItemClient(cfg),
@@ -795,6 +800,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsServiceSegment:          NewEsportsServiceSegmentClient(cfg),
 		EsportsSettlement:              NewEsportsSettlementClient(cfg),
 		EsportsSettlementCycle:         NewEsportsSettlementCycleClient(cfg),
+		EsportsSkillLevel:              NewEsportsSkillLevelClient(cfg),
 		EsportsSku:                     NewEsportsSkuClient(cfg),
 		EsportsSkuSuspension:           NewEsportsSkuSuspensionClient(cfg),
 		EsportsSkuSuspensionItem:       NewEsportsSkuSuspensionItemClient(cfg),
@@ -876,11 +882,11 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
 		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
 		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
-		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
-		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
-		c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsSkillLevel, c.EsportsSku, c.EsportsSkuSuspension,
+		c.EsportsSkuSuspensionItem, c.EsportsTeammate, c.EsportsWalletAccount,
+		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Use(hooks...)
@@ -921,11 +927,11 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
 		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
 		c.EsportsServiceSegment, c.EsportsSettlement, c.EsportsSettlementCycle,
-		c.EsportsSku, c.EsportsSkuSuspension, c.EsportsSkuSuspensionItem,
-		c.EsportsTeammate, c.EsportsWalletAccount, c.EsportsWalletTx,
-		c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog, c.Message,
-		c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession, c.OperationLog,
-		c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
+		c.EsportsSkillLevel, c.EsportsSku, c.EsportsSkuSuspension,
+		c.EsportsSkuSuspensionItem, c.EsportsTeammate, c.EsportsWalletAccount,
+		c.EsportsWalletTx, c.EsportsWithdrawal, c.EsportsWithdrawalPayout, c.LoginLog,
+		c.Message, c.MessagePreference, c.OAuthProviderConfig, c.OAuthSession,
+		c.OperationLog, c.Plugin, c.Role, c.Slide, c.SystemConfig, c.SystemPermission,
 		c.ThirdPartyUser, c.User, c.UserRole,
 	} {
 		n.Intercept(interceptors...)
@@ -1115,6 +1121,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsSettlement.mutate(ctx, m)
 	case *EsportsSettlementCycleMutation:
 		return c.EsportsSettlementCycle.mutate(ctx, m)
+	case *EsportsSkillLevelMutation:
+		return c.EsportsSkillLevel.mutate(ctx, m)
 	case *EsportsSkuMutation:
 		return c.EsportsSku.mutate(ctx, m)
 	case *EsportsSkuSuspensionMutation:
@@ -13304,6 +13312,139 @@ func (c *EsportsSettlementCycleClient) mutate(ctx context.Context, m *EsportsSet
 	}
 }
 
+// EsportsSkillLevelClient is a client for the EsportsSkillLevel schema.
+type EsportsSkillLevelClient struct {
+	config
+}
+
+// NewEsportsSkillLevelClient returns a client for the EsportsSkillLevel from the given config.
+func NewEsportsSkillLevelClient(c config) *EsportsSkillLevelClient {
+	return &EsportsSkillLevelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsskilllevel.Hooks(f(g(h())))`.
+func (c *EsportsSkillLevelClient) Use(hooks ...Hook) {
+	c.hooks.EsportsSkillLevel = append(c.hooks.EsportsSkillLevel, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsskilllevel.Intercept(f(g(h())))`.
+func (c *EsportsSkillLevelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsSkillLevel = append(c.inters.EsportsSkillLevel, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsSkillLevel entity.
+func (c *EsportsSkillLevelClient) Create() *EsportsSkillLevelCreate {
+	mutation := newEsportsSkillLevelMutation(c.config, OpCreate)
+	return &EsportsSkillLevelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsSkillLevel entities.
+func (c *EsportsSkillLevelClient) CreateBulk(builders ...*EsportsSkillLevelCreate) *EsportsSkillLevelCreateBulk {
+	return &EsportsSkillLevelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsSkillLevelClient) MapCreateBulk(slice any, setFunc func(*EsportsSkillLevelCreate, int)) *EsportsSkillLevelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsSkillLevelCreateBulk{err: fmt.Errorf("calling to EsportsSkillLevelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsSkillLevelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsSkillLevelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsSkillLevel.
+func (c *EsportsSkillLevelClient) Update() *EsportsSkillLevelUpdate {
+	mutation := newEsportsSkillLevelMutation(c.config, OpUpdate)
+	return &EsportsSkillLevelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsSkillLevelClient) UpdateOne(_m *EsportsSkillLevel) *EsportsSkillLevelUpdateOne {
+	mutation := newEsportsSkillLevelMutation(c.config, OpUpdateOne, withEsportsSkillLevel(_m))
+	return &EsportsSkillLevelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsSkillLevelClient) UpdateOneID(id int) *EsportsSkillLevelUpdateOne {
+	mutation := newEsportsSkillLevelMutation(c.config, OpUpdateOne, withEsportsSkillLevelID(id))
+	return &EsportsSkillLevelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsSkillLevel.
+func (c *EsportsSkillLevelClient) Delete() *EsportsSkillLevelDelete {
+	mutation := newEsportsSkillLevelMutation(c.config, OpDelete)
+	return &EsportsSkillLevelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsSkillLevelClient) DeleteOne(_m *EsportsSkillLevel) *EsportsSkillLevelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsSkillLevelClient) DeleteOneID(id int) *EsportsSkillLevelDeleteOne {
+	builder := c.Delete().Where(esportsskilllevel.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsSkillLevelDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsSkillLevel.
+func (c *EsportsSkillLevelClient) Query() *EsportsSkillLevelQuery {
+	return &EsportsSkillLevelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsSkillLevel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsSkillLevel entity by its id.
+func (c *EsportsSkillLevelClient) Get(ctx context.Context, id int) (*EsportsSkillLevel, error) {
+	return c.Query().Where(esportsskilllevel.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsSkillLevelClient) GetX(ctx context.Context, id int) *EsportsSkillLevel {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsSkillLevelClient) Hooks() []Hook {
+	return c.hooks.EsportsSkillLevel
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsSkillLevelClient) Interceptors() []Interceptor {
+	return c.inters.EsportsSkillLevel
+}
+
+func (c *EsportsSkillLevelClient) mutate(ctx context.Context, m *EsportsSkillLevelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsSkillLevelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsSkillLevelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsSkillLevelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsSkillLevelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsSkillLevel mutation op: %q", m.Op())
+	}
+}
+
 // EsportsSkuClient is a client for the EsportsSku schema.
 type EsportsSkuClient struct {
 	config
@@ -16308,12 +16449,12 @@ type (
 		EsportsRechargeCampaign, EsportsRechargeIntent, EsportsRechargeRefundExecution,
 		EsportsReportExport, EsportsRescheduleConfirmation, EsportsRescheduleProposal,
 		EsportsScript, EsportsSeatTransferRequest, EsportsServiceSegment,
-		EsportsSettlement, EsportsSettlementCycle, EsportsSku, EsportsSkuSuspension,
-		EsportsSkuSuspensionItem, EsportsTeammate, EsportsWalletAccount,
-		EsportsWalletTx, EsportsWithdrawal, EsportsWithdrawalPayout, LoginLog, Message,
-		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
-		UserRole []ent.Hook
+		EsportsSettlement, EsportsSettlementCycle, EsportsSkillLevel, EsportsSku,
+		EsportsSkuSuspension, EsportsSkuSuspensionItem, EsportsTeammate,
+		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal,
+		EsportsWithdrawalPayout, LoginLog, Message, MessagePreference,
+		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,
+		SystemConfig, SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
@@ -16342,11 +16483,12 @@ type (
 		EsportsRechargeCampaign, EsportsRechargeIntent, EsportsRechargeRefundExecution,
 		EsportsReportExport, EsportsRescheduleConfirmation, EsportsRescheduleProposal,
 		EsportsScript, EsportsSeatTransferRequest, EsportsServiceSegment,
-		EsportsSettlement, EsportsSettlementCycle, EsportsSku, EsportsSkuSuspension,
-		EsportsSkuSuspensionItem, EsportsTeammate, EsportsWalletAccount,
-		EsportsWalletTx, EsportsWithdrawal, EsportsWithdrawalPayout, LoginLog, Message,
-		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
-		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		EsportsSettlement, EsportsSettlementCycle, EsportsSkillLevel, EsportsSku,
+		EsportsSkuSuspension, EsportsSkuSuspensionItem, EsportsTeammate,
+		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal,
+		EsportsWithdrawalPayout, LoginLog, Message, MessagePreference,
+		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,
+		SystemConfig, SystemPermission, ThirdPartyUser, User,
 		UserRole []ent.Interceptor
 	}
 )

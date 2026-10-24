@@ -192,6 +192,8 @@ type Tx struct {
 	EsportsSettlement *EsportsSettlementClient
 	// EsportsSettlementCycle is the client for interacting with the EsportsSettlementCycle builders.
 	EsportsSettlementCycle *EsportsSettlementCycleClient
+	// EsportsSkillLevel is the client for interacting with the EsportsSkillLevel builders.
+	EsportsSkillLevel *EsportsSkillLevelClient
 	// EsportsSku is the client for interacting with the EsportsSku builders.
 	EsportsSku *EsportsSkuClient
 	// EsportsSkuSuspension is the client for interacting with the EsportsSkuSuspension builders.
@@ -457,6 +459,7 @@ func (tx *Tx) init() {
 	tx.EsportsServiceSegment = NewEsportsServiceSegmentClient(tx.config)
 	tx.EsportsSettlement = NewEsportsSettlementClient(tx.config)
 	tx.EsportsSettlementCycle = NewEsportsSettlementCycleClient(tx.config)
+	tx.EsportsSkillLevel = NewEsportsSkillLevelClient(tx.config)
 	tx.EsportsSku = NewEsportsSkuClient(tx.config)
 	tx.EsportsSkuSuspension = NewEsportsSkuSuspensionClient(tx.config)
 	tx.EsportsSkuSuspensionItem = NewEsportsSkuSuspensionItemClient(tx.config)

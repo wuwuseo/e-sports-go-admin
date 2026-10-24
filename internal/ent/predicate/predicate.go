@@ -276,6 +276,9 @@ type EsportsSettlement func(*sql.Selector)
 // EsportsSettlementCycle is the predicate function for esportssettlementcycle builders.
 type EsportsSettlementCycle func(*sql.Selector)
 
+// EsportsSkillLevel is the predicate function for esportsskilllevel builders.
+type EsportsSkillLevel func(*sql.Selector)
+
 // EsportsSku is the predicate function for esportssku builders.
 type EsportsSku func(*sql.Selector)
 

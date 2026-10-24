@@ -22,7 +22,7 @@ type esportsExtension struct{}
 
 func (esportsExtension) DictSeeds() []apphook.DictSeed {
 	// 系统配置页按 sys_config_group 字典渲染分组 tab；esports 组的配置项
-	// （如 app.esports.skill_levels 技能等级配置）在该 tab 下编辑。
+	// （如 app.esports.payment_gateways 在线收款渠道）在该 tab 下编辑。
 	return []apphook.DictSeed{
 		{DictType: "sys_config_group", Label: "业务配置", Value: "esports", Sort: 3},
 	}
@@ -80,6 +80,9 @@ func (esportsExtension) RetiredPermissions() []string {
 		"esports:skus:suspension_detail", "esports:skus:suspension_decision",
 		"esports:skus:suspension_cancel", "esports:skus:suspension_disposal",
 		"esports:skus:add", "esports:skus:edit",
+		// 技能等级改独立菜单后清理的历史残留：商品模块下旧「配置技能等级」按钮
+		// （商品门槛选项走公开读 /skill-levels，无需权限）。
+		"esports:products:skill_levels", "esports:products:skill_levels_manage",
 	}
 }
 
@@ -126,6 +129,11 @@ func (esportsExtension) CronSeeds() []apphook.CronSeed { return CronSeeds() }
 // 以会员等级为例：全新库里等级表为空，客户将永远无法定级，折扣、优先派单、
 // 专属客服等按等级生效的权益会**全部静默失效**（审计 D14），因此功能启用时必须播种五档默认等级。
 func (esportsExtension) SeedBaseline(ctx context.Context, client *ent.Client) error {
+	// 技能等级已改专用表驱动：把旧的系统配置 app.esports.skill_levels 一次性搬入
+	// EsportsSkillLevel 并删除配置记录（表已有数据时只删记录，幂等）。
+	if err := MigrateSkillLevelsFromConfig(ctx, client); err != nil {
+		return fmt.Errorf("migrate skill levels: %w", err)
+	}
 	if _, err := SeedMemberLevels(ctx, client); err != nil {
 		return fmt.Errorf("seed member levels: %w", err)
 	}

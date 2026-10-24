@@ -92,6 +92,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportssettlementcycle"
+	"go-admin/internal/ent/esportsskilllevel"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
@@ -588,6 +589,11 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportssettlementcycle.TablePrefix
 		esportssettlementcycle.TablePrefix = prefix
 		esportssettlementcycle.Table = prefix + strings.TrimPrefix(esportssettlementcycle.Table, old)
+	}
+	{
+		old := esportsskilllevel.TablePrefix
+		esportsskilllevel.TablePrefix = prefix
+		esportsskilllevel.Table = prefix + strings.TrimPrefix(esportsskilllevel.Table, old)
 	}
 	{
 		old := esportssku.TablePrefix

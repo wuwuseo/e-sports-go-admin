@@ -96,6 +96,7 @@ import (
 	"go-admin/internal/ent/esportsservicesegment"
 	"go-admin/internal/ent/esportssettlement"
 	"go-admin/internal/ent/esportssettlementcycle"
+	"go-admin/internal/ent/esportsskilllevel"
 	"go-admin/internal/ent/esportssku"
 	"go-admin/internal/ent/esportsskususpension"
 	"go-admin/internal/ent/esportsskususpensionitem"
@@ -274,6 +275,7 @@ func checkColumn(t, c string) error {
 			esportsservicesegment.Table:          esportsservicesegment.ValidColumn,
 			esportssettlement.Table:              esportssettlement.ValidColumn,
 			esportssettlementcycle.Table:         esportssettlementcycle.ValidColumn,
+			esportsskilllevel.Table:              esportsskilllevel.ValidColumn,
 			esportssku.Table:                     esportssku.ValidColumn,
 			esportsskususpension.Table:           esportsskususpension.ValidColumn,
 			esportsskususpensionitem.Table:       esportsskususpensionitem.ValidColumn,

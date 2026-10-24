@@ -312,6 +312,10 @@ type EsportsSettlementCycle struct {
 	appschemaesports.EsportsSettlementCycle
 }
 
+type EsportsSkillLevel struct {
+	appschemaesports.EsportsSkillLevel
+}
+
 type EsportsSku struct{ appschemaesports.EsportsSku }
 
 type EsportsSkuSuspension struct {

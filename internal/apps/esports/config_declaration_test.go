@@ -19,6 +19,11 @@ import (
 //     否则后台配不了提现渠道开关（§6.3-05），运维只能手写数据库。
 var esportsDynamicConfigPrefixes = []string{"payment_channel", "withdrawal_channel"}
 
+// esportsRetiredConfigKeys 列出「历史遗留、只在启动迁移中读取（搬完即删）」的退役配置键。
+// 它们不应再声明进 Config（否则系统配置页会重新出现可编辑入口，与新的专用页面双入口打架）：
+//   - skill_levels：技能等级已改专用表 EsportsSkillLevel 驱动，迁移见 MigrateSkillLevelsFromConfig。
+var esportsRetiredConfigKeys = []string{"skill_levels"}
+
 // esportsConfigKeyLiteral 只匹配真实的字符串字面量，避免把注释里提到的键名当成读取点。
 var esportsConfigKeyLiteral = regexp.MustCompile(`"app\.esports\.([a-z0-9_]+)`)
 
@@ -49,7 +54,14 @@ func esportsReadConfigKeys(t *testing.T) map[string][]string {
 						break
 					}
 				}
-				if dynamic {
+				retired := false
+				for _, retiredKey := range esportsRetiredConfigKeys {
+					if key == retiredKey {
+						retired = true
+						break
+					}
+				}
+				if dynamic || retired {
 					continue
 				}
 				keys[key] = append(keys[key], name+":"+strconv.Itoa(i+1))
