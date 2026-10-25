@@ -664,6 +664,8 @@ func init() {
 			// 客服在线状态写入口与列表：离线/积压自动转池已由 交付，此处只补原子写入口。
 			{Method: "POST", Path: "/admin/cs/presence", Auth: cmfapp.AuthAdmin, Handler: adminSetCsPresenceHandler},
 			{Method: "GET", Path: "/admin/cs/presences", Auth: cmfapp.AuthAdmin, Handler: adminListCsPresencesHandler},
+			// 客服列表（选择器数据源）：负责客服 / 考官 / 转单目标等场景按姓名选择。
+			{Method: "GET", Path: "/admin/cs-staff", Auth: cmfapp.AuthAdmin, Handler: csStaffListHandler},
 			// 客户归属转移：追加交接留痕，历史跟进不变。
 			{Method: "POST", Path: "/admin/customers/:id/owner-transfer", Auth: cmfapp.AuthAdmin, Handler: transferCustomerOwnerHandler},
 			// 页面预览码与底部导航；素材引用反查
@@ -1164,6 +1166,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "复核陪玩期望报价", Code: "esports:players:expected_price_review", Path: "/api/v1/esports/admin/players/{id}/expected-price/review", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "写入客服在线状态", Code: "esports:cs:presence_write", Path: "/api/v1/esports/admin/cs/presence", Method: "POST", Parent: "esports:cs:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看客服在线状态", Code: "esports:cs:presence_list", Path: "/api/v1/esports/admin/cs/presences", Method: "GET", Parent: "esports:cs:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看客服列表", Code: "esports:cs_staff:list", Path: "/api/v1/esports/admin/cs-staff", Method: "GET", Parent: "esports:cs:menu"},
 			{Type: cmfapp.PermAPI, Name: "转移客户归属", Code: "esports:customers:transfer_owner", Path: "/api/v1/esports/admin/customers/{id}/owner-transfer", Method: "POST", Parent: "esports:cs:menu"},
 			{Type: cmfapp.PermAPI, Name: "生成页面预览码", Code: "esports:pages:preview_code", Path: "/api/v1/esports/admin/pages/{channel}/preview-code", Method: "POST", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "保存底部导航", Code: "esports:pages:tabbar_update", Path: "/api/v1/esports/admin/pages/{channel}/tabbar", Method: "PUT", Parent: "esports:page:menu"},
