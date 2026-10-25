@@ -125,6 +125,8 @@ const (
 	FieldPriorityReleasedAt = "priority_released_at"
 	// FieldPreferredPlayerID holds the string denoting the preferred_player_id field in the database.
 	FieldPreferredPlayerID = "preferred_player_id"
+	// FieldPreferredPlayerIds holds the string denoting the preferred_player_ids field in the database.
+	FieldPreferredPlayerIds = "preferred_player_ids"
 	// FieldRefundStatus holds the string denoting the refund_status field in the database.
 	FieldRefundStatus = "refund_status"
 	// FieldRefundedCents holds the string denoting the refunded_cents field in the database.
@@ -241,6 +243,7 @@ var Columns = []string{
 	FieldReadyToStartAt,
 	FieldPriorityReleasedAt,
 	FieldPreferredPlayerID,
+	FieldPreferredPlayerIds,
 	FieldRefundStatus,
 	FieldRefundedCents,
 	FieldCloseNetServiceCents,

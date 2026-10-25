@@ -1080,6 +1080,24 @@ func (_u *EsportsOrderUpdate) ClearPreferredPlayerID() *EsportsOrderUpdate {
 	return _u
 }
 
+// SetPreferredPlayerIds sets the "preferred_player_ids" field.
+func (_u *EsportsOrderUpdate) SetPreferredPlayerIds(v []int) *EsportsOrderUpdate {
+	_u.mutation.SetPreferredPlayerIds(v)
+	return _u
+}
+
+// AppendPreferredPlayerIds appends value to the "preferred_player_ids" field.
+func (_u *EsportsOrderUpdate) AppendPreferredPlayerIds(v []int) *EsportsOrderUpdate {
+	_u.mutation.AppendPreferredPlayerIds(v)
+	return _u
+}
+
+// ClearPreferredPlayerIds clears the value of the "preferred_player_ids" field.
+func (_u *EsportsOrderUpdate) ClearPreferredPlayerIds() *EsportsOrderUpdate {
+	_u.mutation.ClearPreferredPlayerIds()
+	return _u
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (_u *EsportsOrderUpdate) SetRefundStatus(v esportsorder.RefundStatus) *EsportsOrderUpdate {
 	_u.mutation.SetRefundStatus(v)
@@ -1972,6 +1990,17 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.PreferredPlayerIDCleared() {
 		_spec.ClearField(esportsorder.FieldPreferredPlayerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PreferredPlayerIds(); ok {
+		_spec.SetField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPreferredPlayerIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsorder.FieldPreferredPlayerIds, value)
+		})
+	}
+	if _u.mutation.PreferredPlayerIdsCleared() {
+		_spec.ClearField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.RefundStatus(); ok {
 		_spec.SetField(esportsorder.FieldRefundStatus, field.TypeEnum, value)
@@ -3195,6 +3224,24 @@ func (_u *EsportsOrderUpdateOne) ClearPreferredPlayerID() *EsportsOrderUpdateOne
 	return _u
 }
 
+// SetPreferredPlayerIds sets the "preferred_player_ids" field.
+func (_u *EsportsOrderUpdateOne) SetPreferredPlayerIds(v []int) *EsportsOrderUpdateOne {
+	_u.mutation.SetPreferredPlayerIds(v)
+	return _u
+}
+
+// AppendPreferredPlayerIds appends value to the "preferred_player_ids" field.
+func (_u *EsportsOrderUpdateOne) AppendPreferredPlayerIds(v []int) *EsportsOrderUpdateOne {
+	_u.mutation.AppendPreferredPlayerIds(v)
+	return _u
+}
+
+// ClearPreferredPlayerIds clears the value of the "preferred_player_ids" field.
+func (_u *EsportsOrderUpdateOne) ClearPreferredPlayerIds() *EsportsOrderUpdateOne {
+	_u.mutation.ClearPreferredPlayerIds()
+	return _u
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (_u *EsportsOrderUpdateOne) SetRefundStatus(v esportsorder.RefundStatus) *EsportsOrderUpdateOne {
 	_u.mutation.SetRefundStatus(v)
@@ -4117,6 +4164,17 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if _u.mutation.PreferredPlayerIDCleared() {
 		_spec.ClearField(esportsorder.FieldPreferredPlayerID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.PreferredPlayerIds(); ok {
+		_spec.SetField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedPreferredPlayerIds(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, esportsorder.FieldPreferredPlayerIds, value)
+		})
+	}
+	if _u.mutation.PreferredPlayerIdsCleared() {
+		_spec.ClearField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.RefundStatus(); ok {
 		_spec.SetField(esportsorder.FieldRefundStatus, field.TypeEnum, value)

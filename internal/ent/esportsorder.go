@@ -127,6 +127,8 @@ type EsportsOrder struct {
 	PriorityReleasedAt *time.Time `json:"priority_released_at"`
 	// PreferredPlayerID holds the value of the "preferred_player_id" field.
 	PreferredPlayerID *int `json:"preferred_player_id"`
+	// PreferredPlayerIds holds the value of the "preferred_player_ids" field.
+	PreferredPlayerIds []int `json:"preferred_player_ids"`
 	// RefundStatus holds the value of the "refund_status" field.
 	RefundStatus esportsorder.RefundStatus `json:"refund_status"`
 	// RefundedCents holds the value of the "refunded_cents" field.
@@ -198,7 +200,7 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsorder.FieldSeatRoles:
+		case esportsorder.FieldSeatRoles, esportsorder.FieldPreferredPlayerIds:
 			values[i] = new([]byte)
 		case esportsorder.FieldBackfillCountCommission:
 			values[i] = new(sql.NullBool)
@@ -573,6 +575,14 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.PreferredPlayerID = new(int)
 				*_m.PreferredPlayerID = int(value.Int64)
+			}
+		case esportsorder.FieldPreferredPlayerIds:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field preferred_player_ids", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.PreferredPlayerIds); err != nil {
+					return fmt.Errorf("unmarshal field preferred_player_ids: %w", err)
+				}
 			}
 		case esportsorder.FieldRefundStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -950,6 +960,9 @@ func (_m *EsportsOrder) String() string {
 		builder.WriteString("preferred_player_id=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("preferred_player_ids=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PreferredPlayerIds))
 	builder.WriteString(", ")
 	builder.WriteString("refund_status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RefundStatus))

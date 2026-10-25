@@ -70261,6 +70261,8 @@ type EsportsOrderMutation struct {
 	priority_released_at                      *time.Time
 	preferred_player_id                       *int
 	addpreferred_player_id                    *int
+	preferred_player_ids                      *[]int
+	appendpreferred_player_ids                []int
 	refund_status                             *esportsorder.RefundStatus
 	refunded_cents                            *int64
 	addrefunded_cents                         *int64
@@ -73163,6 +73165,71 @@ func (m *EsportsOrderMutation) ResetPreferredPlayerID() {
 	delete(m.clearedFields, esportsorder.FieldPreferredPlayerID)
 }
 
+// SetPreferredPlayerIds sets the "preferred_player_ids" field.
+func (m *EsportsOrderMutation) SetPreferredPlayerIds(i []int) {
+	m.preferred_player_ids = &i
+	m.appendpreferred_player_ids = nil
+}
+
+// PreferredPlayerIds returns the value of the "preferred_player_ids" field in the mutation.
+func (m *EsportsOrderMutation) PreferredPlayerIds() (r []int, exists bool) {
+	v := m.preferred_player_ids
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreferredPlayerIds returns the old "preferred_player_ids" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldPreferredPlayerIds(ctx context.Context) (v []int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreferredPlayerIds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreferredPlayerIds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreferredPlayerIds: %w", err)
+	}
+	return oldValue.PreferredPlayerIds, nil
+}
+
+// AppendPreferredPlayerIds adds i to the "preferred_player_ids" field.
+func (m *EsportsOrderMutation) AppendPreferredPlayerIds(i []int) {
+	m.appendpreferred_player_ids = append(m.appendpreferred_player_ids, i...)
+}
+
+// AppendedPreferredPlayerIds returns the list of values that were appended to the "preferred_player_ids" field in this mutation.
+func (m *EsportsOrderMutation) AppendedPreferredPlayerIds() ([]int, bool) {
+	if len(m.appendpreferred_player_ids) == 0 {
+		return nil, false
+	}
+	return m.appendpreferred_player_ids, true
+}
+
+// ClearPreferredPlayerIds clears the value of the "preferred_player_ids" field.
+func (m *EsportsOrderMutation) ClearPreferredPlayerIds() {
+	m.preferred_player_ids = nil
+	m.appendpreferred_player_ids = nil
+	m.clearedFields[esportsorder.FieldPreferredPlayerIds] = struct{}{}
+}
+
+// PreferredPlayerIdsCleared returns if the "preferred_player_ids" field was cleared in this mutation.
+func (m *EsportsOrderMutation) PreferredPlayerIdsCleared() bool {
+	_, ok := m.clearedFields[esportsorder.FieldPreferredPlayerIds]
+	return ok
+}
+
+// ResetPreferredPlayerIds resets all changes to the "preferred_player_ids" field.
+func (m *EsportsOrderMutation) ResetPreferredPlayerIds() {
+	m.preferred_player_ids = nil
+	m.appendpreferred_player_ids = nil
+	delete(m.clearedFields, esportsorder.FieldPreferredPlayerIds)
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (m *EsportsOrderMutation) SetRefundStatus(es esportsorder.RefundStatus) {
 	m.refund_status = &es
@@ -74260,7 +74327,7 @@ func (m *EsportsOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsOrderMutation) Fields() []string {
-	fields := make([]string, 0, 75)
+	fields := make([]string, 0, 76)
 	if m.order_no != nil {
 		fields = append(fields, esportsorder.FieldOrderNo)
 	}
@@ -74422,6 +74489,9 @@ func (m *EsportsOrderMutation) Fields() []string {
 	}
 	if m.preferred_player_id != nil {
 		fields = append(fields, esportsorder.FieldPreferredPlayerID)
+	}
+	if m.preferred_player_ids != nil {
+		fields = append(fields, esportsorder.FieldPreferredPlayerIds)
 	}
 	if m.refund_status != nil {
 		fields = append(fields, esportsorder.FieldRefundStatus)
@@ -74602,6 +74672,8 @@ func (m *EsportsOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.PriorityReleasedAt()
 	case esportsorder.FieldPreferredPlayerID:
 		return m.PreferredPlayerID()
+	case esportsorder.FieldPreferredPlayerIds:
+		return m.PreferredPlayerIds()
 	case esportsorder.FieldRefundStatus:
 		return m.RefundStatus()
 	case esportsorder.FieldRefundedCents:
@@ -74761,6 +74833,8 @@ func (m *EsportsOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldPriorityReleasedAt(ctx)
 	case esportsorder.FieldPreferredPlayerID:
 		return m.OldPreferredPlayerID(ctx)
+	case esportsorder.FieldPreferredPlayerIds:
+		return m.OldPreferredPlayerIds(ctx)
 	case esportsorder.FieldRefundStatus:
 		return m.OldRefundStatus(ctx)
 	case esportsorder.FieldRefundedCents:
@@ -75189,6 +75263,13 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPreferredPlayerID(v)
+		return nil
+	case esportsorder.FieldPreferredPlayerIds:
+		v, ok := value.([]int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreferredPlayerIds(v)
 		return nil
 	case esportsorder.FieldRefundStatus:
 		v, ok := value.(esportsorder.RefundStatus)
@@ -75826,6 +75907,9 @@ func (m *EsportsOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsorder.FieldPreferredPlayerID) {
 		fields = append(fields, esportsorder.FieldPreferredPlayerID)
 	}
+	if m.FieldCleared(esportsorder.FieldPreferredPlayerIds) {
+		fields = append(fields, esportsorder.FieldPreferredPlayerIds)
+	}
 	if m.FieldCleared(esportsorder.FieldCloseNetServiceCents) {
 		fields = append(fields, esportsorder.FieldCloseNetServiceCents)
 	}
@@ -75929,6 +76013,9 @@ func (m *EsportsOrderMutation) ClearField(name string) error {
 		return nil
 	case esportsorder.FieldPreferredPlayerID:
 		m.ClearPreferredPlayerID()
+		return nil
+	case esportsorder.FieldPreferredPlayerIds:
+		m.ClearPreferredPlayerIds()
 		return nil
 	case esportsorder.FieldCloseNetServiceCents:
 		m.ClearCloseNetServiceCents()
@@ -76129,6 +76216,9 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 		return nil
 	case esportsorder.FieldPreferredPlayerID:
 		m.ResetPreferredPlayerID()
+		return nil
+	case esportsorder.FieldPreferredPlayerIds:
+		m.ResetPreferredPlayerIds()
 		return nil
 	case esportsorder.FieldRefundStatus:
 		m.ResetRefundStatus()

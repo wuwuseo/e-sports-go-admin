@@ -706,6 +706,12 @@ func (_c *EsportsOrderCreate) SetNillablePreferredPlayerID(v *int) *EsportsOrder
 	return _c
 }
 
+// SetPreferredPlayerIds sets the "preferred_player_ids" field.
+func (_c *EsportsOrderCreate) SetPreferredPlayerIds(v []int) *EsportsOrderCreate {
+	_c.mutation.SetPreferredPlayerIds(v)
+	return _c
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (_c *EsportsOrderCreate) SetRefundStatus(v esportsorder.RefundStatus) *EsportsOrderCreate {
 	_c.mutation.SetRefundStatus(v)
@@ -1691,6 +1697,10 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.PreferredPlayerID(); ok {
 		_spec.SetField(esportsorder.FieldPreferredPlayerID, field.TypeInt, value)
 		_node.PreferredPlayerID = &value
+	}
+	if value, ok := _c.mutation.PreferredPlayerIds(); ok {
+		_spec.SetField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON, value)
+		_node.PreferredPlayerIds = value
 	}
 	if value, ok := _c.mutation.RefundStatus(); ok {
 		_spec.SetField(esportsorder.FieldRefundStatus, field.TypeEnum, value)

@@ -143,6 +143,9 @@ type orderInput struct {
 	Quantity   int64 `json:"quantity"`
 	// 客户指定陪玩：可选。omitempty 让不传该字段时的幂等哈希与既有口径保持一致。
 	PreferredPlayerID int `json:"preferred_player_id,omitempty"`
+	// 多陪玩（多人单）：第一个为主陪玩；提交后整体落到订单快照，
+	// 派单时客服按列表逐席位指派。omitempty 兼容旧请求的幂等哈希。
+	PreferredPlayerIDs []int `json:"preferred_player_ids,omitempty"`
 	// 预约开始时间：可选。带值时订单落为预约单（appointment_status=request，
 	// 须确认档期后才能派单），并在下单时按派单同一套并发 / 每日容量口径复核指定陪玩。
 	RequestedStartAt *time.Time `json:"requested_start_at,omitempty"`
@@ -656,6 +659,34 @@ func placeOrder(ctx context.Context, db *ent.Client, adminID int, in orderInput,
 	return placeOrderWithPrincipal(ctx, db, fmt.Sprintf("admin:%d", adminID), adminID, in, key, now)
 }
 
+// normalizePreferredPlayerIDs 归一「指定陪玩」：兼容单字段与多陪玩数组，
+// 首项优先（单字段作为首项兜底），去重后数量不得超过商品席位数（required_seats）。
+// 资质 / 房间 / 容量等业务校验由调用方逐人执行。
+func normalizePreferredPlayerIDs(single int, many []int, sku *ent.EsportsSku) ([]int, error) {
+	ids := make([]int, 0, len(many)+1)
+	if single > 0 {
+		ids = append(ids, single)
+	}
+	ids = append(ids, many...)
+	seen := make(map[int]struct{}, len(ids))
+	normalized := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if id < 1 {
+			return nil, fmt.Errorf("%w：指定陪玩 ID 无效", errInvalidInput)
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	if sku != nil && sku.RequiredSeats > 0 && len(normalized) > sku.RequiredSeats {
+		return nil, fmt.Errorf("%w：指定陪玩数（%d）不能超过商品席位数（%d）",
+			errInvalidInput, len(normalized), sku.RequiredSeats)
+	}
+	return normalized, nil
+}
+
 // placeOrderWithPrincipal 按调用方身份（客服下单 / 客户自助下单）落单，幂等键按身份隔离。
 func placeOrderWithPrincipal(ctx context.Context, db *ent.Client, principal string, adminID int,
 	in orderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
@@ -845,8 +876,12 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		return nil, err
 	}
 	// 报单校验：指定陪玩须存在且资质合格（未通过考核或已停用不允许选择）。
-	if in.PreferredPlayerID > 0 {
-		player, playerErr := tx.EsportsPlayer.Get(ctx, in.PreferredPlayerID)
+	preferredIDs, err := normalizePreferredPlayerIDs(in.PreferredPlayerID, in.PreferredPlayerIDs, sku)
+	if err != nil {
+		return nil, err
+	}
+	for _, playerID := range preferredIDs {
+		player, playerErr := tx.EsportsPlayer.Get(ctx, playerID)
 		if playerErr != nil {
 			return nil, playerErr
 		}
@@ -857,6 +892,9 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 		if err = checkAppointmentCapacity(ctx, tx, player, sku, in.RequestedStartAt, now); err != nil {
 			return nil, err
 		}
+	}
+	if len(preferredIDs) > 0 {
+		in.PreferredPlayerID = preferredIDs[0]
 	}
 	orderNo := uuid.NewString()
 	entryPoint := esportsorder.EntryPointCsPc
@@ -914,6 +952,9 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	}
 	if in.PreferredPlayerID > 0 {
 		creator = creator.SetPreferredPlayerID(in.PreferredPlayerID)
+	}
+	if len(preferredIDs) > 0 {
+		creator = creator.SetPreferredPlayerIds(preferredIDs)
 	}
 	// 带预约开始时间即落为预约单：写档期提案与确认时限（缺省 24 小时且不晚于开始时间），
 	// 档期确认前不得派单；与 rescheduleOrder 的提案字段口径一致。

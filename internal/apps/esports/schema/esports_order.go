@@ -107,6 +107,9 @@ func (EsportsOrder) Fields() []ent.Field {
 		// 客户指定的陪玩：有值时订单直接走指派流程，**不进优先通知窗口**；
 		// 并在派单候选中置顶标记 Preferred。报单时写入，须校验陪玩资质。
 		field.Int("preferred_player_id").Optional().Nillable().StructTag(`json:"preferred_player_id"`),
+		// 多陪玩快照（多人单）：报单时指定的全部陪玩（第一个与 preferred_player_id 一致）。
+		// 指定后订单直接由客服指派、不进优先通知窗口；派单时按此列表逐席位人工指派。
+		field.JSON("preferred_player_ids", []int{}).Optional().StructTag(`json:"preferred_player_ids"`),
 		field.Enum("refund_status").Values("none", "pending_approval", "executing", "partial", "full", "failed").Default("none").StructTag(`json:"refund_status"`),
 		// 累计已退金额（分），退款执行成功后累加。
 		field.Int64("refunded_cents").Default(0).StructTag(`json:"refunded_cents"`),

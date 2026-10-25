@@ -2805,6 +2805,16 @@ func PreferredPlayerIDNotNil() predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotNull(FieldPreferredPlayerID))
 }
 
+// PreferredPlayerIdsIsNil applies the IsNil predicate on the "preferred_player_ids" field.
+func PreferredPlayerIdsIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldPreferredPlayerIds))
+}
+
+// PreferredPlayerIdsNotNil applies the NotNil predicate on the "preferred_player_ids" field.
+func PreferredPlayerIdsNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldPreferredPlayerIds))
+}
+
 // RefundStatusEQ applies the EQ predicate on the "refund_status" field.
 func RefundStatusEQ(v RefundStatus) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldRefundStatus, v))

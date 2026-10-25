@@ -4048,33 +4048,33 @@ func init() {
 	// esportsorder.RemindNoteValidator is a validator for the "remind_note" field. It is called by the builders before save.
 	esportsorder.RemindNoteValidator = esportsorderDescRemindNote.Validators[0].(func(string) error)
 	// esportsorderDescRefundedCents is the schema descriptor for refunded_cents field.
-	esportsorderDescRefundedCents := esportsorderFields[55].Descriptor()
+	esportsorderDescRefundedCents := esportsorderFields[56].Descriptor()
 	// esportsorder.DefaultRefundedCents holds the default value on creation for the refunded_cents field.
 	esportsorder.DefaultRefundedCents = esportsorderDescRefundedCents.Default.(int64)
 	// esportsorderDescRefundReservedCents is the schema descriptor for refund_reserved_cents field.
-	esportsorderDescRefundReservedCents := esportsorderFields[57].Descriptor()
+	esportsorderDescRefundReservedCents := esportsorderFields[58].Descriptor()
 	// esportsorder.DefaultRefundReservedCents holds the default value on creation for the refund_reserved_cents field.
 	esportsorder.DefaultRefundReservedCents = esportsorderDescRefundReservedCents.Default.(int64)
 	// esportsorderDescChannelCostCents is the schema descriptor for channel_cost_cents field.
-	esportsorderDescChannelCostCents := esportsorderFields[58].Descriptor()
+	esportsorderDescChannelCostCents := esportsorderFields[59].Descriptor()
 	// esportsorder.DefaultChannelCostCents holds the default value on creation for the channel_cost_cents field.
 	esportsorder.DefaultChannelCostCents = esportsorderDescChannelCostCents.Default.(int64)
 	// esportsorderDescBackfillReason is the schema descriptor for backfill_reason field.
-	esportsorderDescBackfillReason := esportsorderFields[69].Descriptor()
+	esportsorderDescBackfillReason := esportsorderFields[70].Descriptor()
 	// esportsorder.DefaultBackfillReason holds the default value on creation for the backfill_reason field.
 	esportsorder.DefaultBackfillReason = esportsorderDescBackfillReason.Default.(string)
 	// esportsorder.BackfillReasonValidator is a validator for the "backfill_reason" field. It is called by the builders before save.
 	esportsorder.BackfillReasonValidator = esportsorderDescBackfillReason.Validators[0].(func(string) error)
 	// esportsorderDescBackfillCountCommission is the schema descriptor for backfill_count_commission field.
-	esportsorderDescBackfillCountCommission := esportsorderFields[70].Descriptor()
+	esportsorderDescBackfillCountCommission := esportsorderFields[71].Descriptor()
 	// esportsorder.DefaultBackfillCountCommission holds the default value on creation for the backfill_count_commission field.
 	esportsorder.DefaultBackfillCountCommission = esportsorderDescBackfillCountCommission.Default.(bool)
 	// esportsorderDescCreatedAt is the schema descriptor for created_at field.
-	esportsorderDescCreatedAt := esportsorderFields[73].Descriptor()
+	esportsorderDescCreatedAt := esportsorderFields[74].Descriptor()
 	// esportsorder.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsorder.DefaultCreatedAt = esportsorderDescCreatedAt.Default.(func() time.Time)
 	// esportsorderDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsorderDescUpdatedAt := esportsorderFields[74].Descriptor()
+	esportsorderDescUpdatedAt := esportsorderFields[75].Descriptor()
 	// esportsorder.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsorder.DefaultUpdatedAt = esportsorderDescUpdatedAt.Default.(func() time.Time)
 	// esportsorder.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

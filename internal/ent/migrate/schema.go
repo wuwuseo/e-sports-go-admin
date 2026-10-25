@@ -2304,6 +2304,7 @@ var (
 		{Name: "ready_to_start_at", Type: field.TypeTime, Nullable: true},
 		{Name: "priority_released_at", Type: field.TypeTime, Nullable: true},
 		{Name: "preferred_player_id", Type: field.TypeInt, Nullable: true},
+		{Name: "preferred_player_ids", Type: field.TypeJSON, Nullable: true},
 		{Name: "refund_status", Type: field.TypeEnum, Enums: []string{"none", "pending_approval", "executing", "partial", "full", "failed"}, Default: "none"},
 		{Name: "refunded_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "close_net_service_cents", Type: field.TypeInt64, Nullable: true},
@@ -2340,7 +2341,7 @@ var (
 			{
 				Name:    "esportsorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[74]},
+				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[75]},
 			},
 			{
 				Name:    "esportsorder_responsible_admin_id_fulfillment_status",
@@ -2350,7 +2351,7 @@ var (
 			{
 				Name:    "esportsorder_channel_source_entry_point_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[17], EsportsOrdersColumns[18], EsportsOrdersColumns[74]},
+				Columns: []*schema.Column{EsportsOrdersColumns[17], EsportsOrdersColumns[18], EsportsOrdersColumns[75]},
 			},
 		},
 	}
