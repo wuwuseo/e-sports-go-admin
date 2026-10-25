@@ -34,3 +34,4 @@ go.work.local
 internal/utils/data/
 .zcode/
 adapter_coverage
+/dist
