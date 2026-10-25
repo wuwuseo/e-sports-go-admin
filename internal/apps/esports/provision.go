@@ -83,6 +83,8 @@ func (esportsExtension) RetiredPermissions() []string {
 		// 技能等级改独立菜单后清理的历史残留：商品模块下旧「配置技能等级」按钮
 		// （商品门槛选项走公开读 /skill-levels，无需权限）。
 		"esports:products:skill_levels", "esports:products:skill_levels_manage",
+		// 上线自检改独立菜单后清理旧挂靠的权限码（接口路径不变，按路径授权的角色不受影响）。
+		"esports:payments:readiness",
 	}
 }
 

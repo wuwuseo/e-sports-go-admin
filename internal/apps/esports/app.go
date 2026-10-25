@@ -1312,7 +1312,7 @@ func init() {
 			// 收款管理：收款账户财务审核、收款方式启停、外部到账核销与到账凭证。
 			{Type: cmfapp.PermMenu, Name: "收款管理", Code: "esports:payment:menu", MenuPath: "/esports/payments", Parent: "esports:operations:menu", Component: "esports/payments/index", Icon: "icon-safe", SortOrder: 52},
 			{Type: cmfapp.PermAPI, Name: "查看收款账户", Code: "esports:payments:accounts", Path: "/api/v1/esports/admin/payment-accounts", Method: "GET", Parent: "esports:payment:menu"},
-			{Type: cmfapp.PermAPI, Name: "上线自检", Code: "esports:payments:readiness", Path: "/api/v1/esports/admin/readiness", Method: "GET", Parent: "esports:payment:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看上线自检", Code: "esports:readiness:view", Path: "/api/v1/esports/admin/readiness", Method: "GET", Parent: "esports:readiness:menu"},
 			{Type: cmfapp.PermAPI, Name: "提交收款账户", Code: "esports:payments:account_create", Path: "/api/v1/esports/admin/payment-accounts", Method: "POST", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "审核收款账户", Code: "esports:payments:account_review", Path: "/api/v1/esports/admin/payment-accounts/{id}/review", Method: "POST", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "停用收款账户", Code: "esports:payments:account_disable", Path: "/api/v1/esports/admin/payment-accounts/{id}/disable", Method: "POST", Parent: "esports:payment:menu"},
@@ -1354,6 +1354,8 @@ func init() {
 			// 装修编辑器组件，作为运营管理下的一条菜单（不再设「客户首页」子菜单）。
 			{Type: cmfapp.PermMenu, Name: "运营管理", Code: "esports:operations:menu", MenuPath: "/esports/operations", Icon: "icon-apps", SortOrder: 39},
 			{Type: cmfapp.PermMenu, Name: "页面装修", Code: "esports:page:menu", MenuPath: "/esports/pages/home", Parent: "esports:operations:menu", Component: "esports/pages/index", Icon: "icon-desktop", SortOrder: 53},
+			// 上线自检：独立菜单，逐项检查上线所需配置（收款/通知/企微等）。
+			{Type: cmfapp.PermMenu, Name: "上线自检", Code: "esports:readiness:menu", MenuPath: "/esports/readiness", Parent: "esports:operations:menu", Component: "esports/readiness/index", Icon: "icon-check-circle", SortOrder: 54},
 			{Type: cmfapp.PermAPI, Name: "查看装修文档", Code: "esports:pages:list", Path: "/api/v1/esports/admin/pages", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看装修详情", Code: "esports:pages:detail", Path: "/api/v1/esports/admin/pages/{channel}", Method: "GET", Parent: "esports:page:menu"},
 			{Type: cmfapp.PermAPI, Name: "保存草稿", Code: "esports:pages:draft_save", Path: "/api/v1/esports/admin/pages/{channel}/draft", Method: "PUT", Parent: "esports:page:menu"},
