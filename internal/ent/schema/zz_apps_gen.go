@@ -54,6 +54,14 @@ type EsportsAssessmentScore struct {
 	appschemaesports.EsportsAssessmentScore
 }
 
+type EsportsCheckout struct {
+	appschemaesports.EsportsCheckout
+}
+
+type EsportsCheckoutAttempt struct {
+	appschemaesports.EsportsCheckoutAttempt
+}
+
 type EsportsCloseApproval struct {
 	appschemaesports.EsportsCloseApproval
 }

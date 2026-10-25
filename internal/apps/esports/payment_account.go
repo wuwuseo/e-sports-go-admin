@@ -18,7 +18,11 @@ import (
 // 3. 各类收款方式可在后台按渠道启停，停用后不接受新的线下到账凭证。
 
 // externalPaymentChannelValues 是需走收款账户与到账凭证的外部渠道。
-var externalPaymentChannelValues = []string{"wechat_work", "merchant_qr", "corporate_transfer"}
+// wechat_merchant_qr / alipay_merchant_qr 是聚合收款固定码兜底按支付渠道细分的商家码：
+// 与服务商动态支付一样需要启用中的收款账户与凭证核验，但不走 http_hmac 网关。
+var externalPaymentChannelValues = []string{
+	"wechat_work", "merchant_qr", "corporate_transfer", "wechat_merchant_qr", "alipay_merchant_qr",
+}
 
 // internalPaymentChannelValues 是站内扣款方式（余额）：无收款账户，但也须纳入启停
 // 与核销开关口径，停用后不再接受以该方式收款。
@@ -28,6 +32,13 @@ var internalPaymentChannelValues = []string{"customer_balance"}
 // paymentChannelValues 是可启停的收款方式全集（外部 + 站内）。
 var paymentChannelValues = []string{
 	"wechat_work", "merchant_qr", "corporate_transfer", "customer_balance",
+	"wechat_merchant_qr", "alipay_merchant_qr",
+}
+
+// fixedMerchantQRChannel 判断是否为「按支付渠道细分的固定商家码」：
+// 该类渠道只做收款账户 + 人工凭证核验，不需要 http_hmac 在线网关配置。
+func fixedMerchantQRChannel(channel string) bool {
+	return channel == "wechat_merchant_qr" || channel == "alipay_merchant_qr"
 }
 
 // validPaymentChannel 判断是否为需收款账户的外部渠道。

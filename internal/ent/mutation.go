@@ -30,6 +30,8 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscheckout"
+	"go-admin/internal/ent/esportscheckoutattempt"
 	"go-admin/internal/ent/esportscloseapproval"
 	"go-admin/internal/ent/esportscloseapprovalflow"
 	"go-admin/internal/ent/esportscloseformfield"
@@ -160,6 +162,8 @@ const (
 	TypeEsportsAssessmentAppeal        = "EsportsAssessmentAppeal"
 	TypeEsportsAssessmentRule          = "EsportsAssessmentRule"
 	TypeEsportsAssessmentScore         = "EsportsAssessmentScore"
+	TypeEsportsCheckout                = "EsportsCheckout"
+	TypeEsportsCheckoutAttempt         = "EsportsCheckoutAttempt"
 	TypeEsportsCloseApproval           = "EsportsCloseApproval"
 	TypeEsportsCloseApprovalFlow       = "EsportsCloseApprovalFlow"
 	TypeEsportsCloseFormField          = "EsportsCloseFormField"
@@ -25155,6 +25159,2004 @@ func (m *EsportsAssessmentScoreMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsAssessmentScoreMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsAssessmentScore edge %s", name)
+}
+
+// EsportsCheckoutMutation represents an operation that mutates the EsportsCheckout nodes in the graph.
+type EsportsCheckoutMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *int
+	business_type       *esportscheckout.BusinessType
+	business_id         *int
+	addbusiness_id      *int
+	customer_id         *int
+	addcustomer_id      *int
+	amount_cents        *int64
+	addamount_cents     *int64
+	business_expires_at *time.Time
+	channel_mode        *esportscheckout.ChannelMode
+	status              *esportscheckout.Status
+	entry_token         *string
+	version             *int
+	addversion          *int
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*EsportsCheckout, error)
+	predicates          []predicate.EsportsCheckout
+}
+
+var _ ent.Mutation = (*EsportsCheckoutMutation)(nil)
+
+// esportscheckoutOption allows management of the mutation configuration using functional options.
+type esportscheckoutOption func(*EsportsCheckoutMutation)
+
+// newEsportsCheckoutMutation creates new mutation for the EsportsCheckout entity.
+func newEsportsCheckoutMutation(c config, op Op, opts ...esportscheckoutOption) *EsportsCheckoutMutation {
+	m := &EsportsCheckoutMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCheckout,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCheckoutID sets the ID field of the mutation.
+func withEsportsCheckoutID(id int) esportscheckoutOption {
+	return func(m *EsportsCheckoutMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCheckout
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCheckout, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCheckout.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCheckout sets the old EsportsCheckout of the mutation.
+func withEsportsCheckout(node *EsportsCheckout) esportscheckoutOption {
+	return func(m *EsportsCheckoutMutation) {
+		m.oldValue = func(context.Context) (*EsportsCheckout, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCheckoutMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCheckoutMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCheckoutMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCheckoutMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCheckout.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetBusinessType sets the "business_type" field.
+func (m *EsportsCheckoutMutation) SetBusinessType(et esportscheckout.BusinessType) {
+	m.business_type = &et
+}
+
+// BusinessType returns the value of the "business_type" field in the mutation.
+func (m *EsportsCheckoutMutation) BusinessType() (r esportscheckout.BusinessType, exists bool) {
+	v := m.business_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBusinessType returns the old "business_type" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldBusinessType(ctx context.Context) (v esportscheckout.BusinessType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBusinessType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBusinessType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBusinessType: %w", err)
+	}
+	return oldValue.BusinessType, nil
+}
+
+// ResetBusinessType resets all changes to the "business_type" field.
+func (m *EsportsCheckoutMutation) ResetBusinessType() {
+	m.business_type = nil
+}
+
+// SetBusinessID sets the "business_id" field.
+func (m *EsportsCheckoutMutation) SetBusinessID(i int) {
+	m.business_id = &i
+	m.addbusiness_id = nil
+}
+
+// BusinessID returns the value of the "business_id" field in the mutation.
+func (m *EsportsCheckoutMutation) BusinessID() (r int, exists bool) {
+	v := m.business_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBusinessID returns the old "business_id" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldBusinessID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBusinessID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBusinessID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBusinessID: %w", err)
+	}
+	return oldValue.BusinessID, nil
+}
+
+// AddBusinessID adds i to the "business_id" field.
+func (m *EsportsCheckoutMutation) AddBusinessID(i int) {
+	if m.addbusiness_id != nil {
+		*m.addbusiness_id += i
+	} else {
+		m.addbusiness_id = &i
+	}
+}
+
+// AddedBusinessID returns the value that was added to the "business_id" field in this mutation.
+func (m *EsportsCheckoutMutation) AddedBusinessID() (r int, exists bool) {
+	v := m.addbusiness_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBusinessID resets all changes to the "business_id" field.
+func (m *EsportsCheckoutMutation) ResetBusinessID() {
+	m.business_id = nil
+	m.addbusiness_id = nil
+}
+
+// SetCustomerID sets the "customer_id" field.
+func (m *EsportsCheckoutMutation) SetCustomerID(i int) {
+	m.customer_id = &i
+	m.addcustomer_id = nil
+}
+
+// CustomerID returns the value of the "customer_id" field in the mutation.
+func (m *EsportsCheckoutMutation) CustomerID() (r int, exists bool) {
+	v := m.customer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerID returns the old "customer_id" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldCustomerID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerID: %w", err)
+	}
+	return oldValue.CustomerID, nil
+}
+
+// AddCustomerID adds i to the "customer_id" field.
+func (m *EsportsCheckoutMutation) AddCustomerID(i int) {
+	if m.addcustomer_id != nil {
+		*m.addcustomer_id += i
+	} else {
+		m.addcustomer_id = &i
+	}
+}
+
+// AddedCustomerID returns the value that was added to the "customer_id" field in this mutation.
+func (m *EsportsCheckoutMutation) AddedCustomerID() (r int, exists bool) {
+	v := m.addcustomer_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCustomerID resets all changes to the "customer_id" field.
+func (m *EsportsCheckoutMutation) ResetCustomerID() {
+	m.customer_id = nil
+	m.addcustomer_id = nil
+}
+
+// SetAmountCents sets the "amount_cents" field.
+func (m *EsportsCheckoutMutation) SetAmountCents(i int64) {
+	m.amount_cents = &i
+	m.addamount_cents = nil
+}
+
+// AmountCents returns the value of the "amount_cents" field in the mutation.
+func (m *EsportsCheckoutMutation) AmountCents() (r int64, exists bool) {
+	v := m.amount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountCents returns the old "amount_cents" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldAmountCents(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountCents is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountCents requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountCents: %w", err)
+	}
+	return oldValue.AmountCents, nil
+}
+
+// AddAmountCents adds i to the "amount_cents" field.
+func (m *EsportsCheckoutMutation) AddAmountCents(i int64) {
+	if m.addamount_cents != nil {
+		*m.addamount_cents += i
+	} else {
+		m.addamount_cents = &i
+	}
+}
+
+// AddedAmountCents returns the value that was added to the "amount_cents" field in this mutation.
+func (m *EsportsCheckoutMutation) AddedAmountCents() (r int64, exists bool) {
+	v := m.addamount_cents
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAmountCents resets all changes to the "amount_cents" field.
+func (m *EsportsCheckoutMutation) ResetAmountCents() {
+	m.amount_cents = nil
+	m.addamount_cents = nil
+}
+
+// SetBusinessExpiresAt sets the "business_expires_at" field.
+func (m *EsportsCheckoutMutation) SetBusinessExpiresAt(t time.Time) {
+	m.business_expires_at = &t
+}
+
+// BusinessExpiresAt returns the value of the "business_expires_at" field in the mutation.
+func (m *EsportsCheckoutMutation) BusinessExpiresAt() (r time.Time, exists bool) {
+	v := m.business_expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBusinessExpiresAt returns the old "business_expires_at" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldBusinessExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBusinessExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBusinessExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBusinessExpiresAt: %w", err)
+	}
+	return oldValue.BusinessExpiresAt, nil
+}
+
+// ResetBusinessExpiresAt resets all changes to the "business_expires_at" field.
+func (m *EsportsCheckoutMutation) ResetBusinessExpiresAt() {
+	m.business_expires_at = nil
+}
+
+// SetChannelMode sets the "channel_mode" field.
+func (m *EsportsCheckoutMutation) SetChannelMode(em esportscheckout.ChannelMode) {
+	m.channel_mode = &em
+}
+
+// ChannelMode returns the value of the "channel_mode" field in the mutation.
+func (m *EsportsCheckoutMutation) ChannelMode() (r esportscheckout.ChannelMode, exists bool) {
+	v := m.channel_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannelMode returns the old "channel_mode" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldChannelMode(ctx context.Context) (v esportscheckout.ChannelMode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannelMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannelMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannelMode: %w", err)
+	}
+	return oldValue.ChannelMode, nil
+}
+
+// ResetChannelMode resets all changes to the "channel_mode" field.
+func (m *EsportsCheckoutMutation) ResetChannelMode() {
+	m.channel_mode = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsCheckoutMutation) SetStatus(e esportscheckout.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsCheckoutMutation) Status() (r esportscheckout.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldStatus(ctx context.Context) (v esportscheckout.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsCheckoutMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetEntryToken sets the "entry_token" field.
+func (m *EsportsCheckoutMutation) SetEntryToken(s string) {
+	m.entry_token = &s
+}
+
+// EntryToken returns the value of the "entry_token" field in the mutation.
+func (m *EsportsCheckoutMutation) EntryToken() (r string, exists bool) {
+	v := m.entry_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEntryToken returns the old "entry_token" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldEntryToken(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEntryToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEntryToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEntryToken: %w", err)
+	}
+	return oldValue.EntryToken, nil
+}
+
+// ResetEntryToken resets all changes to the "entry_token" field.
+func (m *EsportsCheckoutMutation) ResetEntryToken() {
+	m.entry_token = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *EsportsCheckoutMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *EsportsCheckoutMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *EsportsCheckoutMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *EsportsCheckoutMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *EsportsCheckoutMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCheckoutMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCheckoutMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCheckoutMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsCheckoutMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsCheckoutMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsCheckout entity.
+// If the EsportsCheckout object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsCheckoutMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsCheckoutMutation builder.
+func (m *EsportsCheckoutMutation) Where(ps ...predicate.EsportsCheckout) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCheckoutMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCheckoutMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCheckout, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCheckoutMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCheckoutMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCheckout).
+func (m *EsportsCheckoutMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCheckoutMutation) Fields() []string {
+	fields := make([]string, 0, 11)
+	if m.business_type != nil {
+		fields = append(fields, esportscheckout.FieldBusinessType)
+	}
+	if m.business_id != nil {
+		fields = append(fields, esportscheckout.FieldBusinessID)
+	}
+	if m.customer_id != nil {
+		fields = append(fields, esportscheckout.FieldCustomerID)
+	}
+	if m.amount_cents != nil {
+		fields = append(fields, esportscheckout.FieldAmountCents)
+	}
+	if m.business_expires_at != nil {
+		fields = append(fields, esportscheckout.FieldBusinessExpiresAt)
+	}
+	if m.channel_mode != nil {
+		fields = append(fields, esportscheckout.FieldChannelMode)
+	}
+	if m.status != nil {
+		fields = append(fields, esportscheckout.FieldStatus)
+	}
+	if m.entry_token != nil {
+		fields = append(fields, esportscheckout.FieldEntryToken)
+	}
+	if m.version != nil {
+		fields = append(fields, esportscheckout.FieldVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscheckout.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportscheckout.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCheckoutMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscheckout.FieldBusinessType:
+		return m.BusinessType()
+	case esportscheckout.FieldBusinessID:
+		return m.BusinessID()
+	case esportscheckout.FieldCustomerID:
+		return m.CustomerID()
+	case esportscheckout.FieldAmountCents:
+		return m.AmountCents()
+	case esportscheckout.FieldBusinessExpiresAt:
+		return m.BusinessExpiresAt()
+	case esportscheckout.FieldChannelMode:
+		return m.ChannelMode()
+	case esportscheckout.FieldStatus:
+		return m.Status()
+	case esportscheckout.FieldEntryToken:
+		return m.EntryToken()
+	case esportscheckout.FieldVersion:
+		return m.Version()
+	case esportscheckout.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportscheckout.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCheckoutMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscheckout.FieldBusinessType:
+		return m.OldBusinessType(ctx)
+	case esportscheckout.FieldBusinessID:
+		return m.OldBusinessID(ctx)
+	case esportscheckout.FieldCustomerID:
+		return m.OldCustomerID(ctx)
+	case esportscheckout.FieldAmountCents:
+		return m.OldAmountCents(ctx)
+	case esportscheckout.FieldBusinessExpiresAt:
+		return m.OldBusinessExpiresAt(ctx)
+	case esportscheckout.FieldChannelMode:
+		return m.OldChannelMode(ctx)
+	case esportscheckout.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportscheckout.FieldEntryToken:
+		return m.OldEntryToken(ctx)
+	case esportscheckout.FieldVersion:
+		return m.OldVersion(ctx)
+	case esportscheckout.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportscheckout.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCheckout field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCheckoutMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscheckout.FieldBusinessType:
+		v, ok := value.(esportscheckout.BusinessType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBusinessType(v)
+		return nil
+	case esportscheckout.FieldBusinessID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBusinessID(v)
+		return nil
+	case esportscheckout.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerID(v)
+		return nil
+	case esportscheckout.FieldAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountCents(v)
+		return nil
+	case esportscheckout.FieldBusinessExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBusinessExpiresAt(v)
+		return nil
+	case esportscheckout.FieldChannelMode:
+		v, ok := value.(esportscheckout.ChannelMode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannelMode(v)
+		return nil
+	case esportscheckout.FieldStatus:
+		v, ok := value.(esportscheckout.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportscheckout.FieldEntryToken:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEntryToken(v)
+		return nil
+	case esportscheckout.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case esportscheckout.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportscheckout.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCheckout field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCheckoutMutation) AddedFields() []string {
+	var fields []string
+	if m.addbusiness_id != nil {
+		fields = append(fields, esportscheckout.FieldBusinessID)
+	}
+	if m.addcustomer_id != nil {
+		fields = append(fields, esportscheckout.FieldCustomerID)
+	}
+	if m.addamount_cents != nil {
+		fields = append(fields, esportscheckout.FieldAmountCents)
+	}
+	if m.addversion != nil {
+		fields = append(fields, esportscheckout.FieldVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCheckoutMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscheckout.FieldBusinessID:
+		return m.AddedBusinessID()
+	case esportscheckout.FieldCustomerID:
+		return m.AddedCustomerID()
+	case esportscheckout.FieldAmountCents:
+		return m.AddedAmountCents()
+	case esportscheckout.FieldVersion:
+		return m.AddedVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCheckoutMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscheckout.FieldBusinessID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBusinessID(v)
+		return nil
+	case esportscheckout.FieldCustomerID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCustomerID(v)
+		return nil
+	case esportscheckout.FieldAmountCents:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmountCents(v)
+		return nil
+	case esportscheckout.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCheckout numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCheckoutMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCheckoutMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCheckoutMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown EsportsCheckout nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCheckoutMutation) ResetField(name string) error {
+	switch name {
+	case esportscheckout.FieldBusinessType:
+		m.ResetBusinessType()
+		return nil
+	case esportscheckout.FieldBusinessID:
+		m.ResetBusinessID()
+		return nil
+	case esportscheckout.FieldCustomerID:
+		m.ResetCustomerID()
+		return nil
+	case esportscheckout.FieldAmountCents:
+		m.ResetAmountCents()
+		return nil
+	case esportscheckout.FieldBusinessExpiresAt:
+		m.ResetBusinessExpiresAt()
+		return nil
+	case esportscheckout.FieldChannelMode:
+		m.ResetChannelMode()
+		return nil
+	case esportscheckout.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportscheckout.FieldEntryToken:
+		m.ResetEntryToken()
+		return nil
+	case esportscheckout.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case esportscheckout.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportscheckout.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCheckout field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCheckoutMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCheckoutMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCheckoutMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCheckoutMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCheckoutMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCheckoutMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCheckoutMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCheckout unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCheckoutMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCheckout edge %s", name)
+}
+
+// EsportsCheckoutAttemptMutation represents an operation that mutates the EsportsCheckoutAttempt nodes in the graph.
+type EsportsCheckoutAttemptMutation struct {
+	config
+	op                Op
+	typ               string
+	id                *int
+	checkout_id       *int
+	addcheckout_id    *int
+	provider          *esportscheckoutattempt.Provider
+	pay_channel       *esportscheckoutattempt.PayChannel
+	merchant_no       *string
+	provider_trade_no *string
+	status            *esportscheckoutattempt.Status
+	pay_url           *string
+	qr_payload        *string
+	expires_at        *time.Time
+	active_dedup_key  *string
+	created_at        *time.Time
+	updated_at        *time.Time
+	clearedFields     map[string]struct{}
+	done              bool
+	oldValue          func(context.Context) (*EsportsCheckoutAttempt, error)
+	predicates        []predicate.EsportsCheckoutAttempt
+}
+
+var _ ent.Mutation = (*EsportsCheckoutAttemptMutation)(nil)
+
+// esportscheckoutattemptOption allows management of the mutation configuration using functional options.
+type esportscheckoutattemptOption func(*EsportsCheckoutAttemptMutation)
+
+// newEsportsCheckoutAttemptMutation creates new mutation for the EsportsCheckoutAttempt entity.
+func newEsportsCheckoutAttemptMutation(c config, op Op, opts ...esportscheckoutattemptOption) *EsportsCheckoutAttemptMutation {
+	m := &EsportsCheckoutAttemptMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsCheckoutAttempt,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsCheckoutAttemptID sets the ID field of the mutation.
+func withEsportsCheckoutAttemptID(id int) esportscheckoutattemptOption {
+	return func(m *EsportsCheckoutAttemptMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsCheckoutAttempt
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsCheckoutAttempt, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsCheckoutAttempt.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsCheckoutAttempt sets the old EsportsCheckoutAttempt of the mutation.
+func withEsportsCheckoutAttempt(node *EsportsCheckoutAttempt) esportscheckoutattemptOption {
+	return func(m *EsportsCheckoutAttemptMutation) {
+		m.oldValue = func(context.Context) (*EsportsCheckoutAttempt, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsCheckoutAttemptMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsCheckoutAttemptMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsCheckoutAttemptMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsCheckoutAttemptMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsCheckoutAttempt.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCheckoutID sets the "checkout_id" field.
+func (m *EsportsCheckoutAttemptMutation) SetCheckoutID(i int) {
+	m.checkout_id = &i
+	m.addcheckout_id = nil
+}
+
+// CheckoutID returns the value of the "checkout_id" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) CheckoutID() (r int, exists bool) {
+	v := m.checkout_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckoutID returns the old "checkout_id" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldCheckoutID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckoutID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckoutID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckoutID: %w", err)
+	}
+	return oldValue.CheckoutID, nil
+}
+
+// AddCheckoutID adds i to the "checkout_id" field.
+func (m *EsportsCheckoutAttemptMutation) AddCheckoutID(i int) {
+	if m.addcheckout_id != nil {
+		*m.addcheckout_id += i
+	} else {
+		m.addcheckout_id = &i
+	}
+}
+
+// AddedCheckoutID returns the value that was added to the "checkout_id" field in this mutation.
+func (m *EsportsCheckoutAttemptMutation) AddedCheckoutID() (r int, exists bool) {
+	v := m.addcheckout_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCheckoutID resets all changes to the "checkout_id" field.
+func (m *EsportsCheckoutAttemptMutation) ResetCheckoutID() {
+	m.checkout_id = nil
+	m.addcheckout_id = nil
+}
+
+// SetProvider sets the "provider" field.
+func (m *EsportsCheckoutAttemptMutation) SetProvider(e esportscheckoutattempt.Provider) {
+	m.provider = &e
+}
+
+// Provider returns the value of the "provider" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) Provider() (r esportscheckoutattempt.Provider, exists bool) {
+	v := m.provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProvider returns the old "provider" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldProvider(ctx context.Context) (v esportscheckoutattempt.Provider, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProvider: %w", err)
+	}
+	return oldValue.Provider, nil
+}
+
+// ResetProvider resets all changes to the "provider" field.
+func (m *EsportsCheckoutAttemptMutation) ResetProvider() {
+	m.provider = nil
+}
+
+// SetPayChannel sets the "pay_channel" field.
+func (m *EsportsCheckoutAttemptMutation) SetPayChannel(ec esportscheckoutattempt.PayChannel) {
+	m.pay_channel = &ec
+}
+
+// PayChannel returns the value of the "pay_channel" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) PayChannel() (r esportscheckoutattempt.PayChannel, exists bool) {
+	v := m.pay_channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayChannel returns the old "pay_channel" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldPayChannel(ctx context.Context) (v esportscheckoutattempt.PayChannel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayChannel: %w", err)
+	}
+	return oldValue.PayChannel, nil
+}
+
+// ResetPayChannel resets all changes to the "pay_channel" field.
+func (m *EsportsCheckoutAttemptMutation) ResetPayChannel() {
+	m.pay_channel = nil
+}
+
+// SetMerchantNo sets the "merchant_no" field.
+func (m *EsportsCheckoutAttemptMutation) SetMerchantNo(s string) {
+	m.merchant_no = &s
+}
+
+// MerchantNo returns the value of the "merchant_no" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) MerchantNo() (r string, exists bool) {
+	v := m.merchant_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMerchantNo returns the old "merchant_no" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldMerchantNo(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMerchantNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMerchantNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMerchantNo: %w", err)
+	}
+	return oldValue.MerchantNo, nil
+}
+
+// ResetMerchantNo resets all changes to the "merchant_no" field.
+func (m *EsportsCheckoutAttemptMutation) ResetMerchantNo() {
+	m.merchant_no = nil
+}
+
+// SetProviderTradeNo sets the "provider_trade_no" field.
+func (m *EsportsCheckoutAttemptMutation) SetProviderTradeNo(s string) {
+	m.provider_trade_no = &s
+}
+
+// ProviderTradeNo returns the value of the "provider_trade_no" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) ProviderTradeNo() (r string, exists bool) {
+	v := m.provider_trade_no
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderTradeNo returns the old "provider_trade_no" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldProviderTradeNo(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderTradeNo is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderTradeNo requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderTradeNo: %w", err)
+	}
+	return oldValue.ProviderTradeNo, nil
+}
+
+// ClearProviderTradeNo clears the value of the "provider_trade_no" field.
+func (m *EsportsCheckoutAttemptMutation) ClearProviderTradeNo() {
+	m.provider_trade_no = nil
+	m.clearedFields[esportscheckoutattempt.FieldProviderTradeNo] = struct{}{}
+}
+
+// ProviderTradeNoCleared returns if the "provider_trade_no" field was cleared in this mutation.
+func (m *EsportsCheckoutAttemptMutation) ProviderTradeNoCleared() bool {
+	_, ok := m.clearedFields[esportscheckoutattempt.FieldProviderTradeNo]
+	return ok
+}
+
+// ResetProviderTradeNo resets all changes to the "provider_trade_no" field.
+func (m *EsportsCheckoutAttemptMutation) ResetProviderTradeNo() {
+	m.provider_trade_no = nil
+	delete(m.clearedFields, esportscheckoutattempt.FieldProviderTradeNo)
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsCheckoutAttemptMutation) SetStatus(e esportscheckoutattempt.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) Status() (r esportscheckoutattempt.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldStatus(ctx context.Context) (v esportscheckoutattempt.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsCheckoutAttemptMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetPayURL sets the "pay_url" field.
+func (m *EsportsCheckoutAttemptMutation) SetPayURL(s string) {
+	m.pay_url = &s
+}
+
+// PayURL returns the value of the "pay_url" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) PayURL() (r string, exists bool) {
+	v := m.pay_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPayURL returns the old "pay_url" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldPayURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPayURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPayURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPayURL: %w", err)
+	}
+	return oldValue.PayURL, nil
+}
+
+// ResetPayURL resets all changes to the "pay_url" field.
+func (m *EsportsCheckoutAttemptMutation) ResetPayURL() {
+	m.pay_url = nil
+}
+
+// SetQrPayload sets the "qr_payload" field.
+func (m *EsportsCheckoutAttemptMutation) SetQrPayload(s string) {
+	m.qr_payload = &s
+}
+
+// QrPayload returns the value of the "qr_payload" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) QrPayload() (r string, exists bool) {
+	v := m.qr_payload
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQrPayload returns the old "qr_payload" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldQrPayload(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQrPayload is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQrPayload requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQrPayload: %w", err)
+	}
+	return oldValue.QrPayload, nil
+}
+
+// ResetQrPayload resets all changes to the "qr_payload" field.
+func (m *EsportsCheckoutAttemptMutation) ResetQrPayload() {
+	m.qr_payload = nil
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *EsportsCheckoutAttemptMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldExpiresAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *EsportsCheckoutAttemptMutation) ResetExpiresAt() {
+	m.expires_at = nil
+}
+
+// SetActiveDedupKey sets the "active_dedup_key" field.
+func (m *EsportsCheckoutAttemptMutation) SetActiveDedupKey(s string) {
+	m.active_dedup_key = &s
+}
+
+// ActiveDedupKey returns the value of the "active_dedup_key" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) ActiveDedupKey() (r string, exists bool) {
+	v := m.active_dedup_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldActiveDedupKey returns the old "active_dedup_key" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldActiveDedupKey(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldActiveDedupKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldActiveDedupKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldActiveDedupKey: %w", err)
+	}
+	return oldValue.ActiveDedupKey, nil
+}
+
+// ClearActiveDedupKey clears the value of the "active_dedup_key" field.
+func (m *EsportsCheckoutAttemptMutation) ClearActiveDedupKey() {
+	m.active_dedup_key = nil
+	m.clearedFields[esportscheckoutattempt.FieldActiveDedupKey] = struct{}{}
+}
+
+// ActiveDedupKeyCleared returns if the "active_dedup_key" field was cleared in this mutation.
+func (m *EsportsCheckoutAttemptMutation) ActiveDedupKeyCleared() bool {
+	_, ok := m.clearedFields[esportscheckoutattempt.FieldActiveDedupKey]
+	return ok
+}
+
+// ResetActiveDedupKey resets all changes to the "active_dedup_key" field.
+func (m *EsportsCheckoutAttemptMutation) ResetActiveDedupKey() {
+	m.active_dedup_key = nil
+	delete(m.clearedFields, esportscheckoutattempt.FieldActiveDedupKey)
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsCheckoutAttemptMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsCheckoutAttemptMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsCheckoutAttemptMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsCheckoutAttemptMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsCheckoutAttempt entity.
+// If the EsportsCheckoutAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsCheckoutAttemptMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsCheckoutAttemptMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsCheckoutAttemptMutation builder.
+func (m *EsportsCheckoutAttemptMutation) Where(ps ...predicate.EsportsCheckoutAttempt) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsCheckoutAttemptMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsCheckoutAttemptMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsCheckoutAttempt, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsCheckoutAttemptMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsCheckoutAttemptMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsCheckoutAttempt).
+func (m *EsportsCheckoutAttemptMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsCheckoutAttemptMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.checkout_id != nil {
+		fields = append(fields, esportscheckoutattempt.FieldCheckoutID)
+	}
+	if m.provider != nil {
+		fields = append(fields, esportscheckoutattempt.FieldProvider)
+	}
+	if m.pay_channel != nil {
+		fields = append(fields, esportscheckoutattempt.FieldPayChannel)
+	}
+	if m.merchant_no != nil {
+		fields = append(fields, esportscheckoutattempt.FieldMerchantNo)
+	}
+	if m.provider_trade_no != nil {
+		fields = append(fields, esportscheckoutattempt.FieldProviderTradeNo)
+	}
+	if m.status != nil {
+		fields = append(fields, esportscheckoutattempt.FieldStatus)
+	}
+	if m.pay_url != nil {
+		fields = append(fields, esportscheckoutattempt.FieldPayURL)
+	}
+	if m.qr_payload != nil {
+		fields = append(fields, esportscheckoutattempt.FieldQrPayload)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, esportscheckoutattempt.FieldExpiresAt)
+	}
+	if m.active_dedup_key != nil {
+		fields = append(fields, esportscheckoutattempt.FieldActiveDedupKey)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportscheckoutattempt.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportscheckoutattempt.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsCheckoutAttemptMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportscheckoutattempt.FieldCheckoutID:
+		return m.CheckoutID()
+	case esportscheckoutattempt.FieldProvider:
+		return m.Provider()
+	case esportscheckoutattempt.FieldPayChannel:
+		return m.PayChannel()
+	case esportscheckoutattempt.FieldMerchantNo:
+		return m.MerchantNo()
+	case esportscheckoutattempt.FieldProviderTradeNo:
+		return m.ProviderTradeNo()
+	case esportscheckoutattempt.FieldStatus:
+		return m.Status()
+	case esportscheckoutattempt.FieldPayURL:
+		return m.PayURL()
+	case esportscheckoutattempt.FieldQrPayload:
+		return m.QrPayload()
+	case esportscheckoutattempt.FieldExpiresAt:
+		return m.ExpiresAt()
+	case esportscheckoutattempt.FieldActiveDedupKey:
+		return m.ActiveDedupKey()
+	case esportscheckoutattempt.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportscheckoutattempt.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsCheckoutAttemptMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportscheckoutattempt.FieldCheckoutID:
+		return m.OldCheckoutID(ctx)
+	case esportscheckoutattempt.FieldProvider:
+		return m.OldProvider(ctx)
+	case esportscheckoutattempt.FieldPayChannel:
+		return m.OldPayChannel(ctx)
+	case esportscheckoutattempt.FieldMerchantNo:
+		return m.OldMerchantNo(ctx)
+	case esportscheckoutattempt.FieldProviderTradeNo:
+		return m.OldProviderTradeNo(ctx)
+	case esportscheckoutattempt.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportscheckoutattempt.FieldPayURL:
+		return m.OldPayURL(ctx)
+	case esportscheckoutattempt.FieldQrPayload:
+		return m.OldQrPayload(ctx)
+	case esportscheckoutattempt.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	case esportscheckoutattempt.FieldActiveDedupKey:
+		return m.OldActiveDedupKey(ctx)
+	case esportscheckoutattempt.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportscheckoutattempt.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsCheckoutAttempt field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCheckoutAttemptMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportscheckoutattempt.FieldCheckoutID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckoutID(v)
+		return nil
+	case esportscheckoutattempt.FieldProvider:
+		v, ok := value.(esportscheckoutattempt.Provider)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProvider(v)
+		return nil
+	case esportscheckoutattempt.FieldPayChannel:
+		v, ok := value.(esportscheckoutattempt.PayChannel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayChannel(v)
+		return nil
+	case esportscheckoutattempt.FieldMerchantNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMerchantNo(v)
+		return nil
+	case esportscheckoutattempt.FieldProviderTradeNo:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderTradeNo(v)
+		return nil
+	case esportscheckoutattempt.FieldStatus:
+		v, ok := value.(esportscheckoutattempt.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportscheckoutattempt.FieldPayURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPayURL(v)
+		return nil
+	case esportscheckoutattempt.FieldQrPayload:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQrPayload(v)
+		return nil
+	case esportscheckoutattempt.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	case esportscheckoutattempt.FieldActiveDedupKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetActiveDedupKey(v)
+		return nil
+	case esportscheckoutattempt.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportscheckoutattempt.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCheckoutAttempt field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsCheckoutAttemptMutation) AddedFields() []string {
+	var fields []string
+	if m.addcheckout_id != nil {
+		fields = append(fields, esportscheckoutattempt.FieldCheckoutID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsCheckoutAttemptMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportscheckoutattempt.FieldCheckoutID:
+		return m.AddedCheckoutID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsCheckoutAttemptMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportscheckoutattempt.FieldCheckoutID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCheckoutID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCheckoutAttempt numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsCheckoutAttemptMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportscheckoutattempt.FieldProviderTradeNo) {
+		fields = append(fields, esportscheckoutattempt.FieldProviderTradeNo)
+	}
+	if m.FieldCleared(esportscheckoutattempt.FieldActiveDedupKey) {
+		fields = append(fields, esportscheckoutattempt.FieldActiveDedupKey)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsCheckoutAttemptMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsCheckoutAttemptMutation) ClearField(name string) error {
+	switch name {
+	case esportscheckoutattempt.FieldProviderTradeNo:
+		m.ClearProviderTradeNo()
+		return nil
+	case esportscheckoutattempt.FieldActiveDedupKey:
+		m.ClearActiveDedupKey()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCheckoutAttempt nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsCheckoutAttemptMutation) ResetField(name string) error {
+	switch name {
+	case esportscheckoutattempt.FieldCheckoutID:
+		m.ResetCheckoutID()
+		return nil
+	case esportscheckoutattempt.FieldProvider:
+		m.ResetProvider()
+		return nil
+	case esportscheckoutattempt.FieldPayChannel:
+		m.ResetPayChannel()
+		return nil
+	case esportscheckoutattempt.FieldMerchantNo:
+		m.ResetMerchantNo()
+		return nil
+	case esportscheckoutattempt.FieldProviderTradeNo:
+		m.ResetProviderTradeNo()
+		return nil
+	case esportscheckoutattempt.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportscheckoutattempt.FieldPayURL:
+		m.ResetPayURL()
+		return nil
+	case esportscheckoutattempt.FieldQrPayload:
+		m.ResetQrPayload()
+		return nil
+	case esportscheckoutattempt.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	case esportscheckoutattempt.FieldActiveDedupKey:
+		m.ResetActiveDedupKey()
+		return nil
+	case esportscheckoutattempt.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportscheckoutattempt.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsCheckoutAttempt field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsCheckoutAttemptMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsCheckoutAttemptMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsCheckoutAttemptMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsCheckoutAttemptMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsCheckoutAttemptMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsCheckoutAttemptMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsCheckoutAttemptMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCheckoutAttempt unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsCheckoutAttemptMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsCheckoutAttempt edge %s", name)
 }
 
 // EsportsCloseApprovalMutation represents an operation that mutates the EsportsCloseApproval nodes in the graph.

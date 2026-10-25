@@ -284,6 +284,30 @@ func (f EsportsAssessmentScoreFunc) Mutate(ctx context.Context, m ent.Mutation) 
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsAssessmentScoreMutation", m)
 }
 
+// The EsportsCheckoutFunc type is an adapter to allow the use of ordinary
+// function as EsportsCheckout mutator.
+type EsportsCheckoutFunc func(context.Context, *ent.EsportsCheckoutMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCheckoutFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCheckoutMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCheckoutMutation", m)
+}
+
+// The EsportsCheckoutAttemptFunc type is an adapter to allow the use of ordinary
+// function as EsportsCheckoutAttempt mutator.
+type EsportsCheckoutAttemptFunc func(context.Context, *ent.EsportsCheckoutAttemptMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsCheckoutAttemptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsCheckoutAttemptMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsCheckoutAttemptMutation", m)
+}
+
 // The EsportsCloseApprovalFunc type is an adapter to allow the use of ordinary
 // function as EsportsCloseApproval mutator.
 type EsportsCloseApprovalFunc func(context.Context, *ent.EsportsCloseApprovalMutation) (ent.Value, error)

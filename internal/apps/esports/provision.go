@@ -30,6 +30,8 @@ func (esportsExtension) DictSeeds() []apphook.DictSeed {
 
 // SeedConfig 只特判页面预览签名密钥：该密钥不能存源码固定值，首次播种随机生成
 // （其余配置项返回 handled=false，交给宿主通用的「缺失才创建」逻辑）。
+// 聚合收款服务商密钥（app.esports.payment_providers 内的 app_secret / private_key 等）
+// 属于普通配置项：同样走通用播种，运行时只读；接口与日志只暴露「是否已配置」。
 func (esportsExtension) SeedConfig(ctx context.Context, client *ent.Client, key string, item cmfapp.ConfigItem) (bool, error) {
 	if item.Key != "page_preview_secret" {
 		return false, nil

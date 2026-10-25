@@ -107,6 +107,10 @@ func startGiftPayment(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if _, err = loadOwnedCustomer(ctx, db, adminID, isSuper, intent.CustomerID); err != nil {
 		return nil, err
 	}
+	// 聚合收款互斥：礼物确认单已有进行中的 checkout 动态支付尝试时，不再从旧收款入口另起一笔。
+	if err = ensureNoActiveCheckoutAttempt(ctx, db, checkoutBusinessTypeGift, intent.ID); err != nil {
+		return nil, err
+	}
 	if intent.Status == esportsgiftintent.StatusConsumed || intent.Status == esportsgiftintent.StatusCancelled {
 		return nil, errConflict
 	}
@@ -215,6 +219,10 @@ func giftPaymentViewOf(intent *ent.EsportsGiftIntent, payURL string) *giftPaymen
 // 职责分离：创建该礼物确认单的经办人不得自行核销到账。
 func verifyGiftPayment(ctx context.Context, db *ent.Client, adminID int, isSuper bool, intentID int,
 	in giftPaymentVerifyInput, now time.Time) (*ent.EsportsGiftOrder, error) {
+	// 聚合收款互斥：动态支付在途时不得人工核销礼物收款，避免同一确认单两边同时成单。
+	if err := ensureNoActiveCheckoutAttempt(ctx, db, checkoutBusinessTypeGift, intentID); err != nil {
+		return nil, err
+	}
 	return settleGiftPayment(ctx, db, adminID, isSuper, intentID, in, now, true)
 }
 

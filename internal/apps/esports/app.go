@@ -227,6 +227,16 @@ func expireRechargeIntentsTask(ctx context.Context, logger io.Writer) error {
 	return err
 }
 
+// compensateCheckoutPaymentsTask 聚合收款查单补偿：服务商回调可能丢失，
+// 每 5 分钟对 pending / creating 尝试主动查单，确认成功走结算；失败 / 超时置 expired。
+func compensateCheckoutPaymentsTask(ctx context.Context, logger io.Writer) error {
+	queried, settled, expired, err := compensateCheckoutPayments(ctx, global.ORM, time.Now(), 200)
+	if err == nil {
+		_, _ = fmt.Fprintf(logger, "聚合收款查单补偿：查单 %d、入账 %d、过期/关闭 %d\n", queried, settled, expired)
+	}
+	return err
+}
+
 // reconcileLedgersTask 全量核验账本：逐账户核对余额不为负、逐批次核对分摊不超额与引用完整，
 // 异常写外盒事件供告警与人工复核。
 func reconcileLedgersTask(ctx context.Context, logger io.Writer) error {
@@ -299,6 +309,7 @@ func init() {
 		tasks.Register("esports_expire_reschedule_proposals", expireRescheduleProposalsTask)
 		tasks.Register("esports_apply_due_sku_suspensions", applyDueSkuSuspensionsTask)
 		tasks.Register("esports_expire_recharge_intents", expireRechargeIntentsTask)
+		tasks.Register("esports_compensate_checkout_payments", compensateCheckoutPaymentsTask)
 		tasks.Register("esports_deliver_outbox", deliverOutboxTask)
 		tasks.Register("esports_deliver_notifications", deliverNotificationsTask)
 		tasks.Register("esports_auto_trigger_upgrade_assessments", autoTriggerUpgradeAssessmentsTask)
@@ -348,6 +359,14 @@ func init() {
 			{Key: "notification_channels", Name: "通知通道开关", Value: "", Type: "string", Group: "esports", Remark: "逗号分隔启用的通知通道（wecom_app/voice/push），如 \"wecom_app,push\"；为空表示不启用任何通道，通知事件将进入失败待办"},
 			{Key: "notification_push_webhook", Name: "通知推送网关", Value: "", Type: "string", Group: "esports", Remark: "JSON：{\"url\":\"https://...\",\"secret\":\"...\",\"timeout_seconds\":5}；配置后按收件人推送并带 X-Esports-Signature 签名；留空表示不推送（站内信仍投递）"},
 			{Key: "payment_gateways", Name: "在线收款渠道配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按渠道编码索引）：{\"wechat_work\":{\"kind\":\"http_hmac\",\"base_url\":\"https://...\",\"app_id\":\"...\",\"app_secret\":\"...\",\"notify_url\":\"...\",\"enabled\":true}}；未配置的渠道发起收款返回 503"},
+			// —— 聚合收款（订单 / 充值 / 礼物共用入口码，一个业务单一条 checkout）——
+			// 密钥只在此处配置：GET /admin/payment-providers 只返回「是否已配置」，接口与日志不回显原值。
+			{Key: "payment_providers", Name: "聚合收款服务商配置", Value: "{\"shouqianba\":{\"enabled\":false,\"merchant_no\":\"\",\"app_id\":\"\",\"app_secret\":\"\",\"notify_base\":\"\"},\"huifu\":{\"enabled\":false,\"merchant_no\":\"\",\"sys_id\":\"\",\"product_id\":\"\",\"private_key\":\"\",\"public_key\":\"\",\"notify_base\":\"\"},\"priority\":[\"shouqianba\",\"huifu\"]}", Type: "string", Group: "esports", Remark: "JSON：shouqianba / huifu 两家服务商配置（enabled、merchant_no、app_id、app_secret、notify_base 等）；priority 决定受理前切换顺序，已受理的尝试不改投；密钥字段接口与日志永不回显；未配置时动态支付不可用，客户走固定商家码+人工核验"},
+			{Key: "checkout_attempt_window_minutes", Name: "聚合支付尝试有效期（分钟）", Value: "5", Type: "number", Group: "esports", Remark: "单次动态支付尝试（服务商商户单号）的有效时长，1~60；缺失/非法回落 5；超时后可在业务时限内换新商户单号重试"},
+			// 汇付 RSA 密钥单独成键：2048 位 PEM 超过 SystemConfig.value 的 2048 字符上限，
+			// 不能塞进 payment_providers 的 JSON；后台可见但接口只回显「是否已配置」。
+			{Key: "payment_provider_huifu_private_key", Name: "汇付天下商户 RSA 私钥", Value: "", Type: "string", Group: "esports", Remark: "PEM（PKCS#1 / PKCS#8），2048 位；仅用于请求签名，接口 / 日志永不回显；与 payment_providers.huifu.private_key 二选一"},
+			{Key: "payment_provider_huifu_public_key", Name: "汇付天下 RSA 公钥", Value: "", Type: "string", Group: "esports", Remark: "PEM（X.509 / PKCS#1 / 证书），用于验证汇付响应与异步通知签名；接口 / 日志永不回显"},
 			{Key: "wallet_display", Name: "钱包展示配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按账户类型索引）：{\"customer_balance\":{\"display_name\":\"账户余额\",\"unit_name\":\"元\",\"unit_cents\":100},\"player_catfood\":{\"display_name\":\"猫粮\",\"unit_name\":\"猫粮\",\"unit_cents\":100}}；留空用内置默认"},
 			// —— 商品编码自动生成（新建商品时按「前缀-全局流水」生成，唯一索引兜底）——
 			{Key: "product_code_prefix", Name: "商品编码前缀", Value: "SKU", Type: "string", Group: "esports", Remark: "新建商品自动生成编码的前缀，最终形如 SKU-000001；留空回落 SKU"},
@@ -462,8 +481,16 @@ func init() {
 			{Method: "GET", Path: "/skill-levels", Auth: cmfapp.AuthPublic, Handler: publicSkillLevels},
 			// 在线支付渠道验签回调：原始 body + 签名头验签后核销；
 			// 渠道编码优先取路径参数，兼容仅带 X-Pay-Channel 头的旧回调地址。
+			// 聚合收款服务商回调必须声明在 /payment-notify/:channel 之前，否则会被通用渠道路由吞掉。
+			{Method: "POST", Path: "/payment-notify/shouqianba", Auth: cmfapp.AuthPublic, Handler: shouqianbaPaymentNotifyHandler},
+			{Method: "POST", Path: "/payment-notify/huifu", Auth: cmfapp.AuthPublic, Handler: huifuPaymentNotifyHandler},
 			{Method: "POST", Path: "/payment-notify", Auth: cmfapp.AuthPublic, Handler: paymentGatewayNotifyHandler},
 			{Method: "POST", Path: "/payment-notify/:channel", Auth: cmfapp.AuthPublic, Handler: paymentGatewayNotifyHandler},
+			// 聚合收款扫码页公开入口：按入口令牌读取最小信息、创建支付尝试、轮询状态；
+			// 验签回调确认成功或服务端查单补偿才会入账。
+			{Method: "GET", Path: "/public/checkouts/:token", Auth: cmfapp.AuthPublic, Handler: publicCheckoutHandler},
+			{Method: "POST", Path: "/public/checkouts/:token/attempts", Auth: cmfapp.AuthPublic, Handler: publicCheckoutAttemptHandler},
+			{Method: "GET", Path: "/public/checkouts/:token/status", Auth: cmfapp.AuthPublic, Handler: publicCheckoutStatusHandler},
 			// 客户端交易入口：礼物目录、陪玩推荐、已生效充值赠送活动，均为顶层公开路径。
 			{Method: "GET", Path: "/gifts", Auth: cmfapp.AuthPublic, Handler: publicGifts},
 			{Method: "GET", Path: "/players", Auth: cmfapp.AuthPublic, Handler: publicPlayers},
@@ -539,6 +566,8 @@ func init() {
 			{Method: "POST", Path: "/admin/payment-accounts/:id/disable", Auth: cmfapp.AuthAdmin, Handler: disablePaymentAccountHandler},
 			{Method: "GET", Path: "/admin/payment-channels", Auth: cmfapp.AuthAdmin, Handler: adminPaymentChannels},
 			{Method: "POST", Path: "/admin/payment-channels/:channel/status", Auth: cmfapp.AuthAdmin, Handler: setPaymentChannelStatusHandler},
+			// 聚合收款服务商配置只读脱敏视图：密钥显示「是否已配置」，不回显原值。
+			{Method: "GET", Path: "/admin/payment-providers", Auth: cmfapp.AuthAdmin, Handler: adminPaymentProviders},
 			// 待核验收款：客服提交企微 / 商户码 / 对公到账凭证，财务核验后核销并放行派单。
 			{Method: "GET", Path: "/admin/offline-payment-proofs", Auth: cmfapp.AuthAdmin, Handler: adminOfflinePaymentProofs},
 			{Method: "POST", Path: "/admin/offline-payment-proofs", Auth: cmfapp.AuthAdmin, Handler: submitOfflinePaymentProofHandler},
@@ -909,6 +938,10 @@ func init() {
 			{Method: "GET", Path: "/user/orders/:id/members", Auth: cmfapp.AuthUser, Handler: userOrderMembersHandler},
 			// 客户自助收款闭环：读收款方式与账户、提交付款凭证、查询核验进度。
 			{Method: "GET", Path: "/user/payment-methods", Auth: cmfapp.AuthUser, Handler: userPaymentMethodsHandler},
+			// 聚合收款入口：客户为本人订单 / 充值意图 / 礼物确认单创建或复用 checkout；
+			// 动态支付与固定码在同一业务单上互斥，支付尝试由扫码页公开入口创建。
+			{Method: "POST", Path: "/user/checkouts", Auth: cmfapp.AuthUser, Handler: userCreateCheckoutHandler},
+			{Method: "GET", Path: "/user/checkouts/:id", Auth: cmfapp.AuthUser, Handler: userCheckoutHandler},
 			{Method: "POST", Path: "/user/orders/:id/payment-proof", Auth: cmfapp.AuthUser, Handler: userSubmitPaymentProofHandler},
 			{Method: "GET", Path: "/user/orders/:id/payment-proofs", Auth: cmfapp.AuthUser, Handler: userPaymentProofsHandler},
 			// 在线收款：已开通渠道发起收款，返回渠道收银台地址；核销走公开回调 payment-notify。
@@ -1318,6 +1351,7 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "停用收款账户", Code: "esports:payments:account_disable", Path: "/api/v1/esports/admin/payment-accounts/{id}/disable", Method: "POST", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看收款方式启停", Code: "esports:payments:channels", Path: "/api/v1/esports/admin/payment-channels", Method: "GET", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "启停收款方式", Code: "esports:payments:channel_status", Path: "/api/v1/esports/admin/payment-channels/{channel}/status", Method: "POST", Parent: "esports:payment:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看聚合收款服务商", Code: "esports:payments:providers", Path: "/api/v1/esports/admin/payment-providers", Method: "GET", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看待核验收款", Code: "esports:payments:proofs", Path: "/api/v1/esports/admin/offline-payment-proofs", Method: "GET", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "提交到账凭证", Code: "esports:payments:proof_submit", Path: "/api/v1/esports/admin/offline-payment-proofs", Method: "POST", Parent: "esports:payment:menu"},
 			{Type: cmfapp.PermAPI, Name: "核销外部到账", Code: "esports:payments:proof_verify", Path: "/api/v1/esports/admin/offline-payment-proofs/{id}/verify", Method: "POST", Parent: "esports:payment:menu"},

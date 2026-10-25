@@ -876,6 +876,88 @@ var (
 			},
 		},
 	}
+	// EsportsCheckoutsColumns holds the columns for the "esports_checkouts" table.
+	EsportsCheckoutsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "business_type", Type: field.TypeEnum, Enums: []string{"order", "recharge", "gift"}},
+		{Name: "business_id", Type: field.TypeInt},
+		{Name: "customer_id", Type: field.TypeInt},
+		{Name: "amount_cents", Type: field.TypeInt64},
+		{Name: "business_expires_at", Type: field.TypeTime},
+		{Name: "channel_mode", Type: field.TypeEnum, Enums: []string{"aggregate", "manual"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"open", "paid", "expired", "cancelled"}, Default: "open"},
+		{Name: "entry_token", Type: field.TypeString, Size: 64},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsCheckoutsTable holds the schema information for the "esports_checkouts" table.
+	EsportsCheckoutsTable = &schema.Table{
+		Name:       TablePrefix + "esports_checkouts",
+		Columns:    EsportsCheckoutsColumns,
+		PrimaryKey: []*schema.Column{EsportsCheckoutsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportscheckout_business_type_business_id",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCheckoutsColumns[1], EsportsCheckoutsColumns[2]},
+			},
+			{
+				Name:    "esportscheckout_entry_token",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCheckoutsColumns[8]},
+			},
+			{
+				Name:    "esportscheckout_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCheckoutsColumns[7]},
+			},
+		},
+	}
+	// EsportsCheckoutAttemptsColumns holds the columns for the "esports_checkout_attempts" table.
+	EsportsCheckoutAttemptsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "checkout_id", Type: field.TypeInt},
+		{Name: "provider", Type: field.TypeEnum, Enums: []string{"shouqianba", "huifu"}},
+		{Name: "pay_channel", Type: field.TypeEnum, Enums: []string{"wechat", "alipay"}},
+		{Name: "merchant_no", Type: field.TypeString, Size: 64},
+		{Name: "provider_trade_no", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"creating", "pending", "paid", "failed", "expired"}, Default: "creating"},
+		{Name: "pay_url", Type: field.TypeString, Size: 1024, Default: ""},
+		{Name: "qr_payload", Type: field.TypeString, Size: 2048, Default: ""},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "active_dedup_key", Type: field.TypeString, Nullable: true, Size: 80},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsCheckoutAttemptsTable holds the schema information for the "esports_checkout_attempts" table.
+	EsportsCheckoutAttemptsTable = &schema.Table{
+		Name:       TablePrefix + "esports_checkout_attempts",
+		Columns:    EsportsCheckoutAttemptsColumns,
+		PrimaryKey: []*schema.Column{EsportsCheckoutAttemptsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportscheckoutattempt_merchant_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCheckoutAttemptsColumns[4]},
+			},
+			{
+				Name:    "esportscheckoutattempt_checkout_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsCheckoutAttemptsColumns[1], EsportsCheckoutAttemptsColumns[6]},
+			},
+			{
+				Name:    "esportscheckoutattempt_provider_provider_trade_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCheckoutAttemptsColumns[2], EsportsCheckoutAttemptsColumns[5]},
+			},
+			{
+				Name:    "esportscheckoutattempt_active_dedup_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsCheckoutAttemptsColumns[10]},
+			},
+		},
+	}
 	// EsportsCloseApprovalsColumns holds the columns for the "esports_close_approvals" table.
 	EsportsCloseApprovalsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -1767,7 +1849,7 @@ var (
 		{Name: "gift_tier_code", Type: field.TypeString, Size: 48, Default: ""},
 		{Name: "high_value", Type: field.TypeBool, Default: false},
 		{Name: "require_age", Type: field.TypeBool, Default: false},
-		{Name: "payment_channel", Type: field.TypeEnum, Enums: []string{"none", "customer_balance", "stored_value_card", "wechat_work", "merchant_qr", "corporate_transfer"}, Default: "none"},
+		{Name: "payment_channel", Type: field.TypeEnum, Enums: []string{"none", "customer_balance", "stored_value_card", "wechat_work", "merchant_qr", "corporate_transfer", "wechat_merchant_qr", "alipay_merchant_qr"}, Default: "none"},
 		{Name: "payment_status", Type: field.TypeEnum, Enums: []string{"not_required", "awaiting_payment", "pending_verification", "verified", "failed"}, Default: "not_required"},
 		{Name: "payment_intent_no", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "payment_ref", Type: field.TypeString, Size: 128, Default: ""},
@@ -4428,6 +4510,8 @@ var (
 		EsportsAssessmentAppealsTable,
 		EsportsAssessmentRulesTable,
 		EsportsAssessmentScoresTable,
+		EsportsCheckoutsTable,
+		EsportsCheckoutAttemptsTable,
 		EsportsCloseApprovalsTable,
 		EsportsCloseApprovalFlowsTable,
 		EsportsCloseFormFieldsTable,

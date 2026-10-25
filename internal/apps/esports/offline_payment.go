@@ -149,6 +149,10 @@ func submitOfflinePaymentProof(ctx context.Context, db *ent.Client, in offlinePa
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
 		return nil, errConflict
 	}
+	// 聚合收款互斥：该订单有进行中的动态支付尝试时，不允许再提交固定码凭证。
+	if err = ensureNoActiveCheckoutAttempt(ctx, db, checkoutBusinessTypeOrder, order.ID); err != nil {
+		return nil, err
+	}
 	if in.AmountCents < order.PayableCents {
 		return nil, errInvalidInput
 	}
@@ -219,6 +223,10 @@ func verifyOfflinePaymentProof(ctx context.Context, db *ent.Client, id, adminID 
 	}
 	if item.SubmittedByAdminID != nil && *item.SubmittedByAdminID == adminID {
 		return nil, errForbidden
+	}
+	// 聚合收款互斥：动态支付在途时不得人工核销固定码凭证，避免同一订单两边同时入账。
+	if err = ensureNoActiveCheckoutAttempt(ctx, db, checkoutBusinessTypeOrder, item.OrderID); err != nil {
+		return nil, err
 	}
 	channel := item.Channel.String()
 	if !paymentChannelEnabled(ctx, db, channel) {

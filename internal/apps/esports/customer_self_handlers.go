@@ -2,6 +2,7 @@ package esports
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -146,10 +147,30 @@ func userCreateAfterSaleHandler(c fiber.Ctx) error {
 }
 
 // userPaymentMethodsHandler 客户自助读取当前启用的收款方式与财务审核通过的收款账户。
+// 传 business_type + business_id 时额外返回该业务的动态聚合支付可用性与固定码账户，
+// 并校验业务归属（不传时保持原数组形态，兼容既有客户端）。
 func userPaymentMethodsHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
-	if _, err := customerForVerifiedUser(c.Context(), global.ORM, uid); err != nil {
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
 		return businessError(c, err)
+	}
+	businessType := strings.TrimSpace(c.Query("business_type"))
+	businessIDRaw := strings.TrimSpace(c.Query("business_id"))
+	if businessType != "" || businessIDRaw != "" {
+		if businessType == "" || businessIDRaw == "" {
+			return fail(c, fiber.StatusBadRequest, "business_type 与 business_id 须同时提供")
+		}
+		businessID, err := parseQueryBusinessID(businessIDRaw)
+		if err != nil {
+			return businessError(c, err)
+		}
+		view, err := customerPaymentMethodsForBusiness(c.Context(), global.ORM, customer,
+			businessType, businessID, time.Now())
+		if err != nil {
+			return businessError(c, err)
+		}
+		return reply(c, view)
 	}
 	methods, err := listCustomerPaymentMethods(c.Context(), global.ORM)
 	if err != nil {

@@ -54,9 +54,11 @@ func giftPaymentSourceExternalChannel(channel string) bool {
 }
 
 // validGiftPaymentChannel 礼物收款支持的通道（与 schema 枚举一致，排除 none / 余额 / 卡本金）。
+// wechat_merchant_qr / alipay_merchant_qr 为按支付渠道细分的固定商家码与聚合动态支付记账渠道。
 func validGiftPaymentChannel(channel string) bool {
 	switch channel {
-	case "wechat_work", "merchant_qr", "corporate_transfer":
+	case "wechat_work", "merchant_qr", "corporate_transfer",
+		"wechat_merchant_qr", "alipay_merchant_qr":
 		return true
 	default:
 		return false

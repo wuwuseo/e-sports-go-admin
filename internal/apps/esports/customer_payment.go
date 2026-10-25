@@ -26,6 +26,8 @@ var customerPaymentMethodName = map[string]string{
 	"wechat_work":        "企微收款",
 	"merchant_qr":        "商户码",
 	"corporate_transfer": "对公转账",
+	"wechat_merchant_qr": "微信商家码",
+	"alipay_merchant_qr": "支付宝商家码",
 }
 
 // customerPaymentAccountView 客户侧收款账户视图：只暴露收款所需信息，不含审核人 / 提交人等后台字段。
@@ -271,6 +273,10 @@ func submitCustomerOfflinePaymentProof(ctx context.Context, db *ent.Client, cust
 	}
 	if order.CustomerID != customer.ID {
 		return nil, errForbidden
+	}
+	// 聚合收款互斥：该订单有进行中的动态支付尝试时，不允许再提交固定码 / 转账凭证。
+	if err = ensureNoActiveCheckoutAttempt(ctx, db, checkoutBusinessTypeOrder, order.ID); err != nil {
+		return nil, err
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingPayment ||
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {

@@ -136,6 +136,23 @@ func systemReadiness(ctx context.Context, db *ent.Client, getenv func(string) st
 			name = channel.Channel
 		}
 		key := "payment_channel:" + channel.Channel
+		// 固定商家码（按渠道细分）只做收款账户 + 人工凭证核验，不依赖 http_hmac 网关配置；
+		// 但它同样需要有审核通过的收款账户才能真正收款。
+		if fixedMerchantQRChannel(channel.Channel) {
+			if channel.ActiveAccounts > 0 {
+				add(readinessCheck{
+					Key: key, Name: "固定商家码 · " + name, Status: readinessReady,
+					Detail: fmt.Sprintf("固定码收款可用，已审核账户 %d 个（到账走人工凭证核验）", channel.ActiveAccounts),
+				})
+			} else {
+				add(readinessCheck{
+					Key: key, Name: "固定商家码 · " + name, Status: readinessDegraded,
+					Detail: "没有审核通过的收款账户，无法使用该固定码收款",
+					Action: "在「收款账户」提交并审核至少一个账户",
+				})
+			}
+			continue
+		}
 		cfg, cfgErr := paymentGatewayConfigFor(ctx, db, channel.Channel)
 		gatewayReady := cfgErr == nil && strings.TrimSpace(cfg.Kind) != ""
 		switch {

@@ -33,6 +33,7 @@ func CronSeeds() []CronSeed {
 		{Name: "esports_expire_reschedule_proposals", Expression: "0 * * * * *", Description: "改期提案到期失效"},
 		{Name: "esports_apply_due_sku_suspensions", Expression: "0 * * * * *", Description: "到点的 SKU 停服申请生效"},
 		{Name: "esports_expire_recharge_intents", Expression: "0 */5 * * * *", Description: "充值支付意图过期"},
+		{Name: "esports_compensate_checkout_payments", Expression: "0 */5 * * * *", Description: "聚合收款查单补偿与超时关闭"},
 		{Name: "esports_deliver_outbox", Expression: "0 * * * * *", Description: "事务外盒事件投递与失败重试"},
 		{Name: "esports_deliver_notifications", Expression: "0 * * * * *", Description: "关键通知定向投递与失败待办"},
 		{Name: "esports_auto_trigger_upgrade_assessments", Expression: "0 25 * * * *", Description: "达标陪玩自动生成升级考核单"},

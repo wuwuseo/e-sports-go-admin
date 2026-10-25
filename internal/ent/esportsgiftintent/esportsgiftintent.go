@@ -205,6 +205,8 @@ const (
 	PaymentChannelWechatWork        PaymentChannel = "wechat_work"
 	PaymentChannelMerchantQr        PaymentChannel = "merchant_qr"
 	PaymentChannelCorporateTransfer PaymentChannel = "corporate_transfer"
+	PaymentChannelWechatMerchantQr  PaymentChannel = "wechat_merchant_qr"
+	PaymentChannelAlipayMerchantQr  PaymentChannel = "alipay_merchant_qr"
 )
 
 func (pc PaymentChannel) String() string {
@@ -214,7 +216,7 @@ func (pc PaymentChannel) String() string {
 // PaymentChannelValidator is a validator for the "payment_channel" field enum values. It is called by the builders before save.
 func PaymentChannelValidator(pc PaymentChannel) error {
 	switch pc {
-	case PaymentChannelNone, PaymentChannelCustomerBalance, PaymentChannelStoredValueCard, PaymentChannelWechatWork, PaymentChannelMerchantQr, PaymentChannelCorporateTransfer:
+	case PaymentChannelNone, PaymentChannelCustomerBalance, PaymentChannelStoredValueCard, PaymentChannelWechatWork, PaymentChannelMerchantQr, PaymentChannelCorporateTransfer, PaymentChannelWechatMerchantQr, PaymentChannelAlipayMerchantQr:
 		return nil
 	default:
 		return fmt.Errorf("esportsgiftintent: invalid enum value for payment_channel field: %q", pc)

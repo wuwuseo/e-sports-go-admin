@@ -58,6 +58,10 @@ type Tx struct {
 	EsportsAssessmentRule *EsportsAssessmentRuleClient
 	// EsportsAssessmentScore is the client for interacting with the EsportsAssessmentScore builders.
 	EsportsAssessmentScore *EsportsAssessmentScoreClient
+	// EsportsCheckout is the client for interacting with the EsportsCheckout builders.
+	EsportsCheckout *EsportsCheckoutClient
+	// EsportsCheckoutAttempt is the client for interacting with the EsportsCheckoutAttempt builders.
+	EsportsCheckoutAttempt *EsportsCheckoutAttemptClient
 	// EsportsCloseApproval is the client for interacting with the EsportsCloseApproval builders.
 	EsportsCloseApproval *EsportsCloseApprovalClient
 	// EsportsCloseApprovalFlow is the client for interacting with the EsportsCloseApprovalFlow builders.
@@ -392,6 +396,8 @@ func (tx *Tx) init() {
 	tx.EsportsAssessmentAppeal = NewEsportsAssessmentAppealClient(tx.config)
 	tx.EsportsAssessmentRule = NewEsportsAssessmentRuleClient(tx.config)
 	tx.EsportsAssessmentScore = NewEsportsAssessmentScoreClient(tx.config)
+	tx.EsportsCheckout = NewEsportsCheckoutClient(tx.config)
+	tx.EsportsCheckoutAttempt = NewEsportsCheckoutAttemptClient(tx.config)
 	tx.EsportsCloseApproval = NewEsportsCloseApprovalClient(tx.config)
 	tx.EsportsCloseApprovalFlow = NewEsportsCloseApprovalFlowClient(tx.config)
 	tx.EsportsCloseFormField = NewEsportsCloseFormFieldClient(tx.config)

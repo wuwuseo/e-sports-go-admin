@@ -26,6 +26,9 @@ func externalPaymentChannel(channel string) (esportsorder.PaymentChannel, bool) 
 		return esportsorder.PaymentChannelMerchantQr, true
 	case string(esportsorder.PaymentChannelCorporateTransfer):
 		return esportsorder.PaymentChannelCorporateTransfer, true
+	// 按支付渠道细分的固定 / 聚合商家码在订单侧统一记为商户码（订单枚举不新增历史值）。
+	case "wechat_merchant_qr", "alipay_merchant_qr":
+		return esportsorder.PaymentChannelMerchantQr, true
 	default:
 		return esportsorder.PaymentChannelNone, false
 	}

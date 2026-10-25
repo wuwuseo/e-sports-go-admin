@@ -117,7 +117,8 @@ func validateRechargeIntentInput(in rechargeIntentInput) error {
 		return fmt.Errorf("%w：幂等键长度须为 8–128", errInvalidInput)
 	}
 	switch in.PaymentChannel {
-	case "wechat_work", "merchant_qr", "corporate_transfer":
+	case "wechat_work", "merchant_qr", "corporate_transfer",
+		"wechat_merchant_qr", "alipay_merchant_qr":
 	case "customer_balance":
 		return fmt.Errorf("%w：充值不走余额划转，请选择外部收款渠道并由财务核验", errInvalidInput)
 	default:
@@ -342,6 +343,10 @@ func verifyRechargeIntentPayment(ctx context.Context, db *ent.Client, adminID in
 	recharge, err := db.EsportsRechargeIntent.Query().Where(
 		esportsrechargeintent.IntentNoEQ(intentNo)).Only(ctx)
 	if err != nil {
+		return nil, err
+	}
+	// 聚合收款互斥：该充值有进行中的动态支付尝试时不得人工核销，避免同一笔充值两边入账。
+	if err = ensureNoActiveCheckoutAttempt(ctx, db, checkoutBusinessTypeRecharge, recharge.ID); err != nil {
 		return nil, err
 	}
 	if !approve {

@@ -36,9 +36,12 @@ func (EsportsGiftIntent) Fields() []ent.Field {
 		// 收款通道：none 未发起收款 / customer_balance 余额本金 /
 		// wechat_work / merchant_qr / corporate_transfer 走在线渠道或人工核销。余额本金不足时，
 		// 业务侧改走外部渠道收款，而不是直接报本金不足。
+		// wechat_merchant_qr / alipay_merchant_qr 为按渠道细分的固定商家码（聚合收款的固定码兜底与
+		// 服务商动态支付都按实际支付渠道记账）。
 		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史意图可读，禁止新写入。
 		field.Enum("payment_channel").
-			Values("none", "customer_balance", "stored_value_card", "wechat_work", "merchant_qr", "corporate_transfer").
+			Values("none", "customer_balance", "stored_value_card", "wechat_work", "merchant_qr",
+				"corporate_transfer", "wechat_merchant_qr", "alipay_merchant_qr").
 			Default("none").StructTag(`json:"payment_channel"`),
 		// 收款状态：not_required 余额直扣 / awaiting_payment 待客户支付 /
 		// pending_verification 待财务核验 / verified 已到账 / failed 渠道明确失败（不伪成功）。

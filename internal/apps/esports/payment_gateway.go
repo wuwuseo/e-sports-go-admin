@@ -426,6 +426,10 @@ func startOrderPaymentCore(ctx context.Context, db *ent.Client, customerID, orde
 		order.PaymentStatus != esportsorder.PaymentStatusUnpaid {
 		return nil, errConflict
 	}
+	// 聚合收款互斥：同一订单已有进行中的 checkout 动态支付尝试时，旧在线收款入口不再另起一笔。
+	if err = ensureNoActiveCheckoutAttempt(ctx, db, checkoutBusinessTypeOrder, order.ID); err != nil {
+		return nil, err
+	}
 	// ：下架商品不得发起收款。
 	if err = ensureOrderSkuOnSale(ctx, db, order); err != nil {
 		return nil, err

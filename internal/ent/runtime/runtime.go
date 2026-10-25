@@ -26,6 +26,8 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentrule"
 	"go-admin/internal/ent/esportsassessmentscore"
+	"go-admin/internal/ent/esportscheckout"
+	"go-admin/internal/ent/esportscheckoutattempt"
 	"go-admin/internal/ent/esportscloseapproval"
 	"go-admin/internal/ent/esportscloseapprovalflow"
 	"go-admin/internal/ent/esportscloseformfield"
@@ -1457,6 +1459,106 @@ func init() {
 	esportsassessmentscoreDescCreatedAt := esportsassessmentscoreFields[5].Descriptor()
 	// esportsassessmentscore.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsassessmentscore.DefaultCreatedAt = esportsassessmentscoreDescCreatedAt.Default.(func() time.Time)
+	esportscheckoutFields := schema.EsportsCheckout{}.Fields()
+	_ = esportscheckoutFields
+	// esportscheckoutDescBusinessID is the schema descriptor for business_id field.
+	esportscheckoutDescBusinessID := esportscheckoutFields[1].Descriptor()
+	// esportscheckout.BusinessIDValidator is a validator for the "business_id" field. It is called by the builders before save.
+	esportscheckout.BusinessIDValidator = esportscheckoutDescBusinessID.Validators[0].(func(int) error)
+	// esportscheckoutDescCustomerID is the schema descriptor for customer_id field.
+	esportscheckoutDescCustomerID := esportscheckoutFields[2].Descriptor()
+	// esportscheckout.CustomerIDValidator is a validator for the "customer_id" field. It is called by the builders before save.
+	esportscheckout.CustomerIDValidator = esportscheckoutDescCustomerID.Validators[0].(func(int) error)
+	// esportscheckoutDescAmountCents is the schema descriptor for amount_cents field.
+	esportscheckoutDescAmountCents := esportscheckoutFields[3].Descriptor()
+	// esportscheckout.AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
+	esportscheckout.AmountCentsValidator = esportscheckoutDescAmountCents.Validators[0].(func(int64) error)
+	// esportscheckoutDescEntryToken is the schema descriptor for entry_token field.
+	esportscheckoutDescEntryToken := esportscheckoutFields[7].Descriptor()
+	// esportscheckout.EntryTokenValidator is a validator for the "entry_token" field. It is called by the builders before save.
+	esportscheckout.EntryTokenValidator = func() func(string) error {
+		validators := esportscheckoutDescEntryToken.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(entry_token string) error {
+			for _, fn := range fns {
+				if err := fn(entry_token); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscheckoutDescVersion is the schema descriptor for version field.
+	esportscheckoutDescVersion := esportscheckoutFields[8].Descriptor()
+	// esportscheckout.DefaultVersion holds the default value on creation for the version field.
+	esportscheckout.DefaultVersion = esportscheckoutDescVersion.Default.(int)
+	// esportscheckoutDescCreatedAt is the schema descriptor for created_at field.
+	esportscheckoutDescCreatedAt := esportscheckoutFields[9].Descriptor()
+	// esportscheckout.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscheckout.DefaultCreatedAt = esportscheckoutDescCreatedAt.Default.(func() time.Time)
+	// esportscheckoutDescUpdatedAt is the schema descriptor for updated_at field.
+	esportscheckoutDescUpdatedAt := esportscheckoutFields[10].Descriptor()
+	// esportscheckout.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportscheckout.DefaultUpdatedAt = esportscheckoutDescUpdatedAt.Default.(func() time.Time)
+	// esportscheckout.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportscheckout.UpdateDefaultUpdatedAt = esportscheckoutDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportscheckoutattemptFields := schema.EsportsCheckoutAttempt{}.Fields()
+	_ = esportscheckoutattemptFields
+	// esportscheckoutattemptDescCheckoutID is the schema descriptor for checkout_id field.
+	esportscheckoutattemptDescCheckoutID := esportscheckoutattemptFields[0].Descriptor()
+	// esportscheckoutattempt.CheckoutIDValidator is a validator for the "checkout_id" field. It is called by the builders before save.
+	esportscheckoutattempt.CheckoutIDValidator = esportscheckoutattemptDescCheckoutID.Validators[0].(func(int) error)
+	// esportscheckoutattemptDescMerchantNo is the schema descriptor for merchant_no field.
+	esportscheckoutattemptDescMerchantNo := esportscheckoutattemptFields[3].Descriptor()
+	// esportscheckoutattempt.MerchantNoValidator is a validator for the "merchant_no" field. It is called by the builders before save.
+	esportscheckoutattempt.MerchantNoValidator = func() func(string) error {
+		validators := esportscheckoutattemptDescMerchantNo.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(merchant_no string) error {
+			for _, fn := range fns {
+				if err := fn(merchant_no); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportscheckoutattemptDescProviderTradeNo is the schema descriptor for provider_trade_no field.
+	esportscheckoutattemptDescProviderTradeNo := esportscheckoutattemptFields[4].Descriptor()
+	// esportscheckoutattempt.ProviderTradeNoValidator is a validator for the "provider_trade_no" field. It is called by the builders before save.
+	esportscheckoutattempt.ProviderTradeNoValidator = esportscheckoutattemptDescProviderTradeNo.Validators[0].(func(string) error)
+	// esportscheckoutattemptDescPayURL is the schema descriptor for pay_url field.
+	esportscheckoutattemptDescPayURL := esportscheckoutattemptFields[6].Descriptor()
+	// esportscheckoutattempt.DefaultPayURL holds the default value on creation for the pay_url field.
+	esportscheckoutattempt.DefaultPayURL = esportscheckoutattemptDescPayURL.Default.(string)
+	// esportscheckoutattempt.PayURLValidator is a validator for the "pay_url" field. It is called by the builders before save.
+	esportscheckoutattempt.PayURLValidator = esportscheckoutattemptDescPayURL.Validators[0].(func(string) error)
+	// esportscheckoutattemptDescQrPayload is the schema descriptor for qr_payload field.
+	esportscheckoutattemptDescQrPayload := esportscheckoutattemptFields[7].Descriptor()
+	// esportscheckoutattempt.DefaultQrPayload holds the default value on creation for the qr_payload field.
+	esportscheckoutattempt.DefaultQrPayload = esportscheckoutattemptDescQrPayload.Default.(string)
+	// esportscheckoutattempt.QrPayloadValidator is a validator for the "qr_payload" field. It is called by the builders before save.
+	esportscheckoutattempt.QrPayloadValidator = esportscheckoutattemptDescQrPayload.Validators[0].(func(string) error)
+	// esportscheckoutattemptDescActiveDedupKey is the schema descriptor for active_dedup_key field.
+	esportscheckoutattemptDescActiveDedupKey := esportscheckoutattemptFields[9].Descriptor()
+	// esportscheckoutattempt.ActiveDedupKeyValidator is a validator for the "active_dedup_key" field. It is called by the builders before save.
+	esportscheckoutattempt.ActiveDedupKeyValidator = esportscheckoutattemptDescActiveDedupKey.Validators[0].(func(string) error)
+	// esportscheckoutattemptDescCreatedAt is the schema descriptor for created_at field.
+	esportscheckoutattemptDescCreatedAt := esportscheckoutattemptFields[10].Descriptor()
+	// esportscheckoutattempt.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportscheckoutattempt.DefaultCreatedAt = esportscheckoutattemptDescCreatedAt.Default.(func() time.Time)
+	// esportscheckoutattemptDescUpdatedAt is the schema descriptor for updated_at field.
+	esportscheckoutattemptDescUpdatedAt := esportscheckoutattemptFields[11].Descriptor()
+	// esportscheckoutattempt.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportscheckoutattempt.DefaultUpdatedAt = esportscheckoutattemptDescUpdatedAt.Default.(func() time.Time)
+	// esportscheckoutattempt.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportscheckoutattempt.UpdateDefaultUpdatedAt = esportscheckoutattemptDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportscloseapprovalFields := schema.EsportsCloseApproval{}.Fields()
 	_ = esportscloseapprovalFields
 	// esportscloseapprovalDescOrderID is the schema descriptor for order_id field.
