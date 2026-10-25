@@ -50,6 +50,8 @@ type rechargeIntentInput struct {
 
 // rechargeIntentView 是充值意图视图：支付意图 + 锁定的活动快照与付款指引。
 type rechargeIntentView struct {
+	// ID 充值意图主键：客户端收银台以 business_type=recharge + business_id=ID 创建聚合收款。
+	ID                 int            `json:"id"`
 	IntentNo           string         `json:"intent_no"`
 	IntentStatus       string         `json:"intent_status"`
 	CustomerID         int            `json:"customer_id"`
@@ -502,6 +504,7 @@ func expireRechargeIntents(ctx context.Context, db *ent.Client, now time.Time, l
 
 func rechargeIntentViewOf(intent *ent.EsportsPaymentIntent, recharge *ent.EsportsRechargeIntent) *rechargeIntentView {
 	return &rechargeIntentView{
+		ID:                 recharge.ID,
 		IntentNo:           recharge.IntentNo,
 		IntentStatus:       intent.Status.String(),
 		CustomerID:         recharge.CustomerID,

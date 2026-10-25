@@ -726,6 +726,8 @@ func init() {
 			{Method: "POST", Path: "/admin/gift-intents/:id/payment/verify", Auth: cmfapp.AuthAdmin, Handler: verifyGiftPaymentHandler},
 			{Method: "GET", Path: "/admin/ledger-reconcile-anomalies", Auth: cmfapp.AuthAdmin, Handler: adminLedgerReconcileAnomalies},
 			{Method: "GET", Path: "/admin/players/:id/availability", Auth: cmfapp.AuthAdmin, Handler: adminPlayerAvailabilityHandler},
+			// 主陪玩的已确认固排（报单指定陪玩时一键带入，只读）。
+			{Method: "GET", Path: "/admin/players/:id/teammates", Auth: cmfapp.AuthAdmin, Handler: adminPlayerTeammatesHandler},
 			{Method: "GET", Path: "/user/player/players/:id/availability", Auth: cmfapp.AuthUser, Handler: userPlayerAvailabilityHandler},
 			{Method: "GET", Path: "/user/player/gift-records", Auth: cmfapp.AuthUser, Handler: userPlayerGiftRecordsHandler},
 			// 公开：礼物收款回调：原始字节 + `X-Pay-Signature` 验签，渠道取 `?channel=` 或 `X-Pay-Channel`。
@@ -1148,6 +1150,7 @@ func init() {
 			// 陪玩模块：管理端陪玩档案；陪玩端自助接口属独立客户端，不挂管理菜单。
 			{Type: cmfapp.PermMenu, Name: "陪玩", Code: "esports:player:menu", MenuPath: "/esports/players", Parent: "esports:operations:menu", Component: "esports/players/index", Icon: "icon-user", SortOrder: 45},
 			{Type: cmfapp.PermAPI, Name: "查看陪玩", Code: "esports:players:list", Path: "/api/v1/esports/admin/players", Method: "GET", Parent: "esports:player:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看陪玩固排", Code: "esports:players:teammates", Path: "/api/v1/esports/admin/players/{id}/teammates", Method: "GET", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "创建陪玩", Code: "esports:players:create", Path: "/api/v1/esports/admin/players", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "编辑陪玩", Code: "esports:players:update", Path: "/api/v1/esports/admin/players/{id}", Method: "PUT", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看陪玩实名认证", Code: "esports:players:identity_view", Path: "/api/v1/esports/admin/players/{id}/identity", Method: "GET", Parent: "esports:player:menu"},
