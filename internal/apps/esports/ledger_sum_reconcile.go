@@ -353,37 +353,49 @@ func walletRowHasAllocation(ctx context.Context, db *ent.Client, scan ledgerWall
 	).Exist(ctx)
 }
 
-// walletRowsBookedInLedger 标记哪些钱包流水在账本里有对应条目（按 source_id = 流水号 或 流水主键匹配，
-// 不限定账户类型：余额核销订单的条目记在 customer_order_prepayment 账户下）。
+// walletRowsBookedInLedger 标记哪些钱包流水在账本里有对应条目，匹配键有三类：
+//   - source_id = 流水号（tx_no）或流水主键：消费核销等路径的账本条目直接以流水号溯源；
+//   - 「来源类型:来源单号」组合键：充值路径的钱包流水与批次账本条目共享业务来源单号
+//     （recharge_campaign 的充值批次 key），但流水号是各自独立生成的 UUID，必须按组合键对上。
+// 不限定账户类型：余额核销订单的条目记在 customer_order_prepayment 账户下。
 func walletRowsBookedInLedger(ctx context.Context, db *ent.Client, rows []*ent.EsportsWalletTx) ([]bool, error) {
 	booked := make([]bool, len(rows))
 	if len(rows) == 0 {
 		return booked, nil
 	}
 	indexBySource := map[string][]int{}
+	indexByCombo := map[string][]int{}
 	keys := make([]string, 0, len(rows)*2)
-	for i, row := range rows {
-		for _, key := range []string{row.TxNo, strconv.Itoa(row.ID)} {
-			if key == "" {
-				continue
-			}
-			if _, ok := indexBySource[key]; !ok {
-				keys = append(keys, key)
-			}
-			indexBySource[key] = append(indexBySource[key], i)
+	addKey := func(index map[string][]int, key string, i int) {
+		if key == "" {
+			return
 		}
+		if _, ok := index[key]; !ok {
+			keys = append(keys, key)
+		}
+		index[key] = append(index[key], i)
+	}
+	for i, row := range rows {
+		addKey(indexBySource, row.TxNo, i)
+		addKey(indexBySource, strconv.Itoa(row.ID), i)
+		addKey(indexBySource, row.SourceID, i)
+		addKey(indexByCombo, row.SourceType+":"+row.SourceID, i)
 	}
 	const chunkSize = 200
 	for start := 0; start < len(keys); start += chunkSize {
 		end := min(start+chunkSize, len(keys))
 		entries, err := db.EsportsLedgerEntry.Query().
 			Where(esportsledgerentry.SourceIDIn(keys[start:end]...)).
-			Select(esportsledgerentry.FieldSourceID).All(ctx)
+			Select(esportsledgerentry.FieldSourceType, esportsledgerentry.FieldSourceID).All(ctx)
 		if err != nil {
 			return nil, err
 		}
 		for _, entry := range entries {
 			for _, i := range indexBySource[entry.SourceID] {
+				booked[i] = true
+			}
+			combo := string(entry.SourceType) + ":" + entry.SourceID
+			for _, i := range indexByCombo[combo] {
 				booked[i] = true
 			}
 		}

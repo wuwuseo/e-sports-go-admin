@@ -104,6 +104,28 @@ func TestLedgerReconcileDetectsAnomalies(t *testing.T) {
 	}
 }
 
+// 回归：按活动充值（writeCampaignRechargeTx）的钱包流水与批次账本条目共享业务来源单号
+// （recharge_campaign 的充值批次 key），但流水号是各自独立生成的 UUID——核验匹配必须能按
+// 「来源类型:来源单号」组合键对上，否则每笔活动充值都会被误报「流水求和不一致」。
+func TestLedgerReconcileCampaignRechargeNotMismatched(t *testing.T) {
+	db := openWalletTestDB(t, "esports_ledger_reconcile_campaign")
+	ctx := t.Context()
+	customer := saveCustomerOrFail(t, db, 21)
+
+	if _, err := rechargeWithCampaigns(ctx, db, 11, walletCustomerBalance, customer.ID,
+		10000, "按活动充值", "camp-reconcile-1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := reconcileLedgers(ctx, db, ledgerReconcileScanCap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasLedgerAnomaly(result, ledgerAnomalyWalletBatchMismatch) {
+		t.Fatalf("按活动充值不应被误报流水求和不一致：%+v", result.Anomalies)
+	}
+}
+
 // 分摊引用的批次条目不存在（或不是正向条目）时按「批次缺失」报出。
 func TestLedgerReconcileDetectsMissingBatch(t *testing.T) {
 	db := openWalletTestDB(t, "esports_ledger_reconcile_batch")
