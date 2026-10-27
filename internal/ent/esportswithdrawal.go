@@ -35,6 +35,8 @@ type EsportsWithdrawal struct {
 	Channel esportswithdrawal.Channel `json:"channel"`
 	// AccountRef holds the value of the "account_ref" field.
 	AccountRef string `json:"account_ref"`
+	// PayoutAccountID holds the value of the "payout_account_id" field.
+	PayoutAccountID *int `json:"payout_account_id"`
 	// Status holds the value of the "status" field.
 	Status esportswithdrawal.Status `json:"status"`
 	// RejectReason holds the value of the "reject_reason" field.
@@ -67,7 +69,7 @@ func (*EsportsWithdrawal) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportswithdrawal.FieldID, esportswithdrawal.FieldPlayerID, esportswithdrawal.FieldAmountCents, esportswithdrawal.FieldFeeCents, esportswithdrawal.FieldTaxCents, esportswithdrawal.FieldNetCents, esportswithdrawal.FieldReviewedByAdminID, esportswithdrawal.FieldPaidByAdminID, esportswithdrawal.FieldVersion:
+		case esportswithdrawal.FieldID, esportswithdrawal.FieldPlayerID, esportswithdrawal.FieldAmountCents, esportswithdrawal.FieldFeeCents, esportswithdrawal.FieldTaxCents, esportswithdrawal.FieldNetCents, esportswithdrawal.FieldPayoutAccountID, esportswithdrawal.FieldReviewedByAdminID, esportswithdrawal.FieldPaidByAdminID, esportswithdrawal.FieldVersion:
 			values[i] = new(sql.NullInt64)
 		case esportswithdrawal.FieldWithdrawalNo, esportswithdrawal.FieldIdemKey, esportswithdrawal.FieldChannel, esportswithdrawal.FieldAccountRef, esportswithdrawal.FieldStatus, esportswithdrawal.FieldRejectReason, esportswithdrawal.FieldPayoutRef, esportswithdrawal.FieldTaxRef, esportswithdrawal.FieldNote:
 			values[i] = new(sql.NullString)
@@ -147,6 +149,13 @@ func (_m *EsportsWithdrawal) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field account_ref", values[i])
 			} else if value.Valid {
 				_m.AccountRef = value.String
+			}
+		case esportswithdrawal.FieldPayoutAccountID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field payout_account_id", values[i])
+			} else if value.Valid {
+				_m.PayoutAccountID = new(int)
+				*_m.PayoutAccountID = int(value.Int64)
 			}
 		case esportswithdrawal.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -286,6 +295,11 @@ func (_m *EsportsWithdrawal) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("account_ref=")
 	builder.WriteString(_m.AccountRef)
+	builder.WriteString(", ")
+	if v := _m.PayoutAccountID; v != nil {
+		builder.WriteString("payout_account_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

@@ -64,6 +64,31 @@ func WithdrawalID(v int) predicate.EsportsWithdrawalPayout {
 	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldWithdrawalID, v))
 }
 
+// BatchID applies equality check predicate on the "batch_id" field. It's identical to BatchIDEQ.
+func BatchID(v int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldBatchID, v))
+}
+
+// Provider applies equality check predicate on the "provider" field. It's identical to ProviderEQ.
+func Provider(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldProvider, v))
+}
+
+// ProviderOrderNo applies equality check predicate on the "provider_order_no" field. It's identical to ProviderOrderNoEQ.
+func ProviderOrderNo(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldProviderOrderNo, v))
+}
+
+// ProviderStatus applies equality check predicate on the "provider_status" field. It's identical to ProviderStatusEQ.
+func ProviderStatus(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldProviderStatus, v))
+}
+
+// FailCode applies equality check predicate on the "fail_code" field. It's identical to FailCodeEQ.
+func FailCode(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldFailCode, v))
+}
+
 // TransactionNo applies equality check predicate on the "transaction_no" field. It's identical to TransactionNoEQ.
 func TransactionNo(v string) predicate.EsportsWithdrawalPayout {
 	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldTransactionNo, v))
@@ -217,6 +242,326 @@ func WithdrawalIDLT(v int) predicate.EsportsWithdrawalPayout {
 // WithdrawalIDLTE applies the LTE predicate on the "withdrawal_id" field.
 func WithdrawalIDLTE(v int) predicate.EsportsWithdrawalPayout {
 	return predicate.EsportsWithdrawalPayout(sql.FieldLTE(FieldWithdrawalID, v))
+}
+
+// BatchIDEQ applies the EQ predicate on the "batch_id" field.
+func BatchIDEQ(v int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldBatchID, v))
+}
+
+// BatchIDNEQ applies the NEQ predicate on the "batch_id" field.
+func BatchIDNEQ(v int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNEQ(FieldBatchID, v))
+}
+
+// BatchIDIn applies the In predicate on the "batch_id" field.
+func BatchIDIn(vs ...int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldIn(FieldBatchID, vs...))
+}
+
+// BatchIDNotIn applies the NotIn predicate on the "batch_id" field.
+func BatchIDNotIn(vs ...int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNotIn(FieldBatchID, vs...))
+}
+
+// BatchIDGT applies the GT predicate on the "batch_id" field.
+func BatchIDGT(v int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGT(FieldBatchID, v))
+}
+
+// BatchIDGTE applies the GTE predicate on the "batch_id" field.
+func BatchIDGTE(v int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGTE(FieldBatchID, v))
+}
+
+// BatchIDLT applies the LT predicate on the "batch_id" field.
+func BatchIDLT(v int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLT(FieldBatchID, v))
+}
+
+// BatchIDLTE applies the LTE predicate on the "batch_id" field.
+func BatchIDLTE(v int) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLTE(FieldBatchID, v))
+}
+
+// BatchIDIsNil applies the IsNil predicate on the "batch_id" field.
+func BatchIDIsNil() predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldIsNull(FieldBatchID))
+}
+
+// BatchIDNotNil applies the NotNil predicate on the "batch_id" field.
+func BatchIDNotNil() predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNotNull(FieldBatchID))
+}
+
+// ProviderEQ applies the EQ predicate on the "provider" field.
+func ProviderEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldProvider, v))
+}
+
+// ProviderNEQ applies the NEQ predicate on the "provider" field.
+func ProviderNEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNEQ(FieldProvider, v))
+}
+
+// ProviderIn applies the In predicate on the "provider" field.
+func ProviderIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldIn(FieldProvider, vs...))
+}
+
+// ProviderNotIn applies the NotIn predicate on the "provider" field.
+func ProviderNotIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNotIn(FieldProvider, vs...))
+}
+
+// ProviderGT applies the GT predicate on the "provider" field.
+func ProviderGT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGT(FieldProvider, v))
+}
+
+// ProviderGTE applies the GTE predicate on the "provider" field.
+func ProviderGTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGTE(FieldProvider, v))
+}
+
+// ProviderLT applies the LT predicate on the "provider" field.
+func ProviderLT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLT(FieldProvider, v))
+}
+
+// ProviderLTE applies the LTE predicate on the "provider" field.
+func ProviderLTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLTE(FieldProvider, v))
+}
+
+// ProviderContains applies the Contains predicate on the "provider" field.
+func ProviderContains(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContains(FieldProvider, v))
+}
+
+// ProviderHasPrefix applies the HasPrefix predicate on the "provider" field.
+func ProviderHasPrefix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasPrefix(FieldProvider, v))
+}
+
+// ProviderHasSuffix applies the HasSuffix predicate on the "provider" field.
+func ProviderHasSuffix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasSuffix(FieldProvider, v))
+}
+
+// ProviderEqualFold applies the EqualFold predicate on the "provider" field.
+func ProviderEqualFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEqualFold(FieldProvider, v))
+}
+
+// ProviderContainsFold applies the ContainsFold predicate on the "provider" field.
+func ProviderContainsFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContainsFold(FieldProvider, v))
+}
+
+// ProviderOrderNoEQ applies the EQ predicate on the "provider_order_no" field.
+func ProviderOrderNoEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoNEQ applies the NEQ predicate on the "provider_order_no" field.
+func ProviderOrderNoNEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNEQ(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoIn applies the In predicate on the "provider_order_no" field.
+func ProviderOrderNoIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldIn(FieldProviderOrderNo, vs...))
+}
+
+// ProviderOrderNoNotIn applies the NotIn predicate on the "provider_order_no" field.
+func ProviderOrderNoNotIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNotIn(FieldProviderOrderNo, vs...))
+}
+
+// ProviderOrderNoGT applies the GT predicate on the "provider_order_no" field.
+func ProviderOrderNoGT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGT(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoGTE applies the GTE predicate on the "provider_order_no" field.
+func ProviderOrderNoGTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGTE(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoLT applies the LT predicate on the "provider_order_no" field.
+func ProviderOrderNoLT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLT(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoLTE applies the LTE predicate on the "provider_order_no" field.
+func ProviderOrderNoLTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLTE(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoContains applies the Contains predicate on the "provider_order_no" field.
+func ProviderOrderNoContains(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContains(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoHasPrefix applies the HasPrefix predicate on the "provider_order_no" field.
+func ProviderOrderNoHasPrefix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasPrefix(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoHasSuffix applies the HasSuffix predicate on the "provider_order_no" field.
+func ProviderOrderNoHasSuffix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasSuffix(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoIsNil applies the IsNil predicate on the "provider_order_no" field.
+func ProviderOrderNoIsNil() predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldIsNull(FieldProviderOrderNo))
+}
+
+// ProviderOrderNoNotNil applies the NotNil predicate on the "provider_order_no" field.
+func ProviderOrderNoNotNil() predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNotNull(FieldProviderOrderNo))
+}
+
+// ProviderOrderNoEqualFold applies the EqualFold predicate on the "provider_order_no" field.
+func ProviderOrderNoEqualFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEqualFold(FieldProviderOrderNo, v))
+}
+
+// ProviderOrderNoContainsFold applies the ContainsFold predicate on the "provider_order_no" field.
+func ProviderOrderNoContainsFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContainsFold(FieldProviderOrderNo, v))
+}
+
+// ProviderStatusEQ applies the EQ predicate on the "provider_status" field.
+func ProviderStatusEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldProviderStatus, v))
+}
+
+// ProviderStatusNEQ applies the NEQ predicate on the "provider_status" field.
+func ProviderStatusNEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNEQ(FieldProviderStatus, v))
+}
+
+// ProviderStatusIn applies the In predicate on the "provider_status" field.
+func ProviderStatusIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldIn(FieldProviderStatus, vs...))
+}
+
+// ProviderStatusNotIn applies the NotIn predicate on the "provider_status" field.
+func ProviderStatusNotIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNotIn(FieldProviderStatus, vs...))
+}
+
+// ProviderStatusGT applies the GT predicate on the "provider_status" field.
+func ProviderStatusGT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGT(FieldProviderStatus, v))
+}
+
+// ProviderStatusGTE applies the GTE predicate on the "provider_status" field.
+func ProviderStatusGTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGTE(FieldProviderStatus, v))
+}
+
+// ProviderStatusLT applies the LT predicate on the "provider_status" field.
+func ProviderStatusLT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLT(FieldProviderStatus, v))
+}
+
+// ProviderStatusLTE applies the LTE predicate on the "provider_status" field.
+func ProviderStatusLTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLTE(FieldProviderStatus, v))
+}
+
+// ProviderStatusContains applies the Contains predicate on the "provider_status" field.
+func ProviderStatusContains(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContains(FieldProviderStatus, v))
+}
+
+// ProviderStatusHasPrefix applies the HasPrefix predicate on the "provider_status" field.
+func ProviderStatusHasPrefix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasPrefix(FieldProviderStatus, v))
+}
+
+// ProviderStatusHasSuffix applies the HasSuffix predicate on the "provider_status" field.
+func ProviderStatusHasSuffix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasSuffix(FieldProviderStatus, v))
+}
+
+// ProviderStatusEqualFold applies the EqualFold predicate on the "provider_status" field.
+func ProviderStatusEqualFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEqualFold(FieldProviderStatus, v))
+}
+
+// ProviderStatusContainsFold applies the ContainsFold predicate on the "provider_status" field.
+func ProviderStatusContainsFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContainsFold(FieldProviderStatus, v))
+}
+
+// FailCodeEQ applies the EQ predicate on the "fail_code" field.
+func FailCodeEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEQ(FieldFailCode, v))
+}
+
+// FailCodeNEQ applies the NEQ predicate on the "fail_code" field.
+func FailCodeNEQ(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNEQ(FieldFailCode, v))
+}
+
+// FailCodeIn applies the In predicate on the "fail_code" field.
+func FailCodeIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldIn(FieldFailCode, vs...))
+}
+
+// FailCodeNotIn applies the NotIn predicate on the "fail_code" field.
+func FailCodeNotIn(vs ...string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldNotIn(FieldFailCode, vs...))
+}
+
+// FailCodeGT applies the GT predicate on the "fail_code" field.
+func FailCodeGT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGT(FieldFailCode, v))
+}
+
+// FailCodeGTE applies the GTE predicate on the "fail_code" field.
+func FailCodeGTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldGTE(FieldFailCode, v))
+}
+
+// FailCodeLT applies the LT predicate on the "fail_code" field.
+func FailCodeLT(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLT(FieldFailCode, v))
+}
+
+// FailCodeLTE applies the LTE predicate on the "fail_code" field.
+func FailCodeLTE(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldLTE(FieldFailCode, v))
+}
+
+// FailCodeContains applies the Contains predicate on the "fail_code" field.
+func FailCodeContains(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContains(FieldFailCode, v))
+}
+
+// FailCodeHasPrefix applies the HasPrefix predicate on the "fail_code" field.
+func FailCodeHasPrefix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasPrefix(FieldFailCode, v))
+}
+
+// FailCodeHasSuffix applies the HasSuffix predicate on the "fail_code" field.
+func FailCodeHasSuffix(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldHasSuffix(FieldFailCode, v))
+}
+
+// FailCodeEqualFold applies the EqualFold predicate on the "fail_code" field.
+func FailCodeEqualFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldEqualFold(FieldFailCode, v))
+}
+
+// FailCodeContainsFold applies the ContainsFold predicate on the "fail_code" field.
+func FailCodeContainsFold(v string) predicate.EsportsWithdrawalPayout {
+	return predicate.EsportsWithdrawalPayout(sql.FieldContainsFold(FieldFailCode, v))
 }
 
 // ChannelEQ applies the EQ predicate on the "channel" field.

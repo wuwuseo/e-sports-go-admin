@@ -235,6 +235,8 @@ func adminResolvePriorityBookingHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	// 本路由未套 syncedRoutes 的广播包装（路由契约测试要求 handler 指向原始函数），成功后自行广播。
+	notifyDispatchChanged(map[string]any{"method": c.Method(), "path": c.Route().Path})
 	return reply(c, item)
 }
 

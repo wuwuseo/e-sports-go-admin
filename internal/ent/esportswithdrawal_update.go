@@ -175,6 +175,33 @@ func (_u *EsportsWithdrawalUpdate) SetNillableAccountRef(v *string) *EsportsWith
 	return _u
 }
 
+// SetPayoutAccountID sets the "payout_account_id" field.
+func (_u *EsportsWithdrawalUpdate) SetPayoutAccountID(v int) *EsportsWithdrawalUpdate {
+	_u.mutation.ResetPayoutAccountID()
+	_u.mutation.SetPayoutAccountID(v)
+	return _u
+}
+
+// SetNillablePayoutAccountID sets the "payout_account_id" field if the given value is not nil.
+func (_u *EsportsWithdrawalUpdate) SetNillablePayoutAccountID(v *int) *EsportsWithdrawalUpdate {
+	if v != nil {
+		_u.SetPayoutAccountID(*v)
+	}
+	return _u
+}
+
+// AddPayoutAccountID adds value to the "payout_account_id" field.
+func (_u *EsportsWithdrawalUpdate) AddPayoutAccountID(v int) *EsportsWithdrawalUpdate {
+	_u.mutation.AddPayoutAccountID(v)
+	return _u
+}
+
+// ClearPayoutAccountID clears the value of the "payout_account_id" field.
+func (_u *EsportsWithdrawalUpdate) ClearPayoutAccountID() *EsportsWithdrawalUpdate {
+	_u.mutation.ClearPayoutAccountID()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsWithdrawalUpdate) SetStatus(v esportswithdrawal.Status) *EsportsWithdrawalUpdate {
 	_u.mutation.SetStatus(v)
@@ -518,6 +545,15 @@ func (_u *EsportsWithdrawalUpdate) sqlSave(ctx context.Context) (_node int, err 
 	if value, ok := _u.mutation.AccountRef(); ok {
 		_spec.SetField(esportswithdrawal.FieldAccountRef, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.PayoutAccountID(); ok {
+		_spec.SetField(esportswithdrawal.FieldPayoutAccountID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPayoutAccountID(); ok {
+		_spec.AddField(esportswithdrawal.FieldPayoutAccountID, field.TypeInt, value)
+	}
+	if _u.mutation.PayoutAccountIDCleared() {
+		_spec.ClearField(esportswithdrawal.FieldPayoutAccountID, field.TypeInt)
+	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportswithdrawal.FieldStatus, field.TypeEnum, value)
 	}
@@ -736,6 +772,33 @@ func (_u *EsportsWithdrawalUpdateOne) SetNillableAccountRef(v *string) *EsportsW
 	if v != nil {
 		_u.SetAccountRef(*v)
 	}
+	return _u
+}
+
+// SetPayoutAccountID sets the "payout_account_id" field.
+func (_u *EsportsWithdrawalUpdateOne) SetPayoutAccountID(v int) *EsportsWithdrawalUpdateOne {
+	_u.mutation.ResetPayoutAccountID()
+	_u.mutation.SetPayoutAccountID(v)
+	return _u
+}
+
+// SetNillablePayoutAccountID sets the "payout_account_id" field if the given value is not nil.
+func (_u *EsportsWithdrawalUpdateOne) SetNillablePayoutAccountID(v *int) *EsportsWithdrawalUpdateOne {
+	if v != nil {
+		_u.SetPayoutAccountID(*v)
+	}
+	return _u
+}
+
+// AddPayoutAccountID adds value to the "payout_account_id" field.
+func (_u *EsportsWithdrawalUpdateOne) AddPayoutAccountID(v int) *EsportsWithdrawalUpdateOne {
+	_u.mutation.AddPayoutAccountID(v)
+	return _u
+}
+
+// ClearPayoutAccountID clears the value of the "payout_account_id" field.
+func (_u *EsportsWithdrawalUpdateOne) ClearPayoutAccountID() *EsportsWithdrawalUpdateOne {
+	_u.mutation.ClearPayoutAccountID()
 	return _u
 }
 
@@ -1111,6 +1174,15 @@ func (_u *EsportsWithdrawalUpdateOne) sqlSave(ctx context.Context) (_node *Espor
 	}
 	if value, ok := _u.mutation.AccountRef(); ok {
 		_spec.SetField(esportswithdrawal.FieldAccountRef, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.PayoutAccountID(); ok {
+		_spec.SetField(esportswithdrawal.FieldPayoutAccountID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedPayoutAccountID(); ok {
+		_spec.AddField(esportswithdrawal.FieldPayoutAccountID, field.TypeInt, value)
+	}
+	if _u.mutation.PayoutAccountIDCleared() {
+		_spec.ClearField(esportswithdrawal.FieldPayoutAccountID, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportswithdrawal.FieldStatus, field.TypeEnum, value)

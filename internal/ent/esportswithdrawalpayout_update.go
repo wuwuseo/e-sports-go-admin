@@ -49,6 +49,95 @@ func (_u *EsportsWithdrawalPayoutUpdate) AddWithdrawalID(v int) *EsportsWithdraw
 	return _u
 }
 
+// SetBatchID sets the "batch_id" field.
+func (_u *EsportsWithdrawalPayoutUpdate) SetBatchID(v int) *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.ResetBatchID()
+	_u.mutation.SetBatchID(v)
+	return _u
+}
+
+// SetNillableBatchID sets the "batch_id" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdate) SetNillableBatchID(v *int) *EsportsWithdrawalPayoutUpdate {
+	if v != nil {
+		_u.SetBatchID(*v)
+	}
+	return _u
+}
+
+// AddBatchID adds value to the "batch_id" field.
+func (_u *EsportsWithdrawalPayoutUpdate) AddBatchID(v int) *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.AddBatchID(v)
+	return _u
+}
+
+// ClearBatchID clears the value of the "batch_id" field.
+func (_u *EsportsWithdrawalPayoutUpdate) ClearBatchID() *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.ClearBatchID()
+	return _u
+}
+
+// SetProvider sets the "provider" field.
+func (_u *EsportsWithdrawalPayoutUpdate) SetProvider(v string) *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdate) SetNillableProvider(v *string) *EsportsWithdrawalPayoutUpdate {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// SetProviderOrderNo sets the "provider_order_no" field.
+func (_u *EsportsWithdrawalPayoutUpdate) SetProviderOrderNo(v string) *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.SetProviderOrderNo(v)
+	return _u
+}
+
+// SetNillableProviderOrderNo sets the "provider_order_no" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdate) SetNillableProviderOrderNo(v *string) *EsportsWithdrawalPayoutUpdate {
+	if v != nil {
+		_u.SetProviderOrderNo(*v)
+	}
+	return _u
+}
+
+// ClearProviderOrderNo clears the value of the "provider_order_no" field.
+func (_u *EsportsWithdrawalPayoutUpdate) ClearProviderOrderNo() *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.ClearProviderOrderNo()
+	return _u
+}
+
+// SetProviderStatus sets the "provider_status" field.
+func (_u *EsportsWithdrawalPayoutUpdate) SetProviderStatus(v string) *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.SetProviderStatus(v)
+	return _u
+}
+
+// SetNillableProviderStatus sets the "provider_status" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdate) SetNillableProviderStatus(v *string) *EsportsWithdrawalPayoutUpdate {
+	if v != nil {
+		_u.SetProviderStatus(*v)
+	}
+	return _u
+}
+
+// SetFailCode sets the "fail_code" field.
+func (_u *EsportsWithdrawalPayoutUpdate) SetFailCode(v string) *EsportsWithdrawalPayoutUpdate {
+	_u.mutation.SetFailCode(v)
+	return _u
+}
+
+// SetNillableFailCode sets the "fail_code" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdate) SetNillableFailCode(v *string) *EsportsWithdrawalPayoutUpdate {
+	if v != nil {
+		_u.SetFailCode(*v)
+	}
+	return _u
+}
+
 // SetChannel sets the "channel" field.
 func (_u *EsportsWithdrawalPayoutUpdate) SetChannel(v esportswithdrawalpayout.Channel) *EsportsWithdrawalPayoutUpdate {
 	_u.mutation.SetChannel(v)
@@ -289,6 +378,26 @@ func (_u *EsportsWithdrawalPayoutUpdate) check() error {
 			return &ValidationError{Name: "withdrawal_id", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.withdrawal_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Provider(); ok {
+		if err := esportswithdrawalpayout.ProviderValidator(v); err != nil {
+			return &ValidationError{Name: "provider", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.provider": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProviderOrderNo(); ok {
+		if err := esportswithdrawalpayout.ProviderOrderNoValidator(v); err != nil {
+			return &ValidationError{Name: "provider_order_no", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.provider_order_no": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProviderStatus(); ok {
+		if err := esportswithdrawalpayout.ProviderStatusValidator(v); err != nil {
+			return &ValidationError{Name: "provider_status", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.provider_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.FailCode(); ok {
+		if err := esportswithdrawalpayout.FailCodeValidator(v); err != nil {
+			return &ValidationError{Name: "fail_code", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.fail_code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Channel(); ok {
 		if err := esportswithdrawalpayout.ChannelValidator(v); err != nil {
 			return &ValidationError{Name: "channel", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.channel": %w`, err)}
@@ -339,6 +448,30 @@ func (_u *EsportsWithdrawalPayoutUpdate) sqlSave(ctx context.Context) (_node int
 	}
 	if value, ok := _u.mutation.AddedWithdrawalID(); ok {
 		_spec.AddField(esportswithdrawalpayout.FieldWithdrawalID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.BatchID(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldBatchID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBatchID(); ok {
+		_spec.AddField(esportswithdrawalpayout.FieldBatchID, field.TypeInt, value)
+	}
+	if _u.mutation.BatchIDCleared() {
+		_spec.ClearField(esportswithdrawalpayout.FieldBatchID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldProvider, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProviderOrderNo(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldProviderOrderNo, field.TypeString, value)
+	}
+	if _u.mutation.ProviderOrderNoCleared() {
+		_spec.ClearField(esportswithdrawalpayout.FieldProviderOrderNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.ProviderStatus(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldProviderStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FailCode(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldFailCode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Channel(); ok {
 		_spec.SetField(esportswithdrawalpayout.FieldChannel, field.TypeEnum, value)
@@ -432,6 +565,95 @@ func (_u *EsportsWithdrawalPayoutUpdateOne) SetNillableWithdrawalID(v *int) *Esp
 // AddWithdrawalID adds value to the "withdrawal_id" field.
 func (_u *EsportsWithdrawalPayoutUpdateOne) AddWithdrawalID(v int) *EsportsWithdrawalPayoutUpdateOne {
 	_u.mutation.AddWithdrawalID(v)
+	return _u
+}
+
+// SetBatchID sets the "batch_id" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetBatchID(v int) *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.ResetBatchID()
+	_u.mutation.SetBatchID(v)
+	return _u
+}
+
+// SetNillableBatchID sets the "batch_id" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetNillableBatchID(v *int) *EsportsWithdrawalPayoutUpdateOne {
+	if v != nil {
+		_u.SetBatchID(*v)
+	}
+	return _u
+}
+
+// AddBatchID adds value to the "batch_id" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) AddBatchID(v int) *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.AddBatchID(v)
+	return _u
+}
+
+// ClearBatchID clears the value of the "batch_id" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) ClearBatchID() *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.ClearBatchID()
+	return _u
+}
+
+// SetProvider sets the "provider" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetProvider(v string) *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.SetProvider(v)
+	return _u
+}
+
+// SetNillableProvider sets the "provider" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetNillableProvider(v *string) *EsportsWithdrawalPayoutUpdateOne {
+	if v != nil {
+		_u.SetProvider(*v)
+	}
+	return _u
+}
+
+// SetProviderOrderNo sets the "provider_order_no" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetProviderOrderNo(v string) *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.SetProviderOrderNo(v)
+	return _u
+}
+
+// SetNillableProviderOrderNo sets the "provider_order_no" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetNillableProviderOrderNo(v *string) *EsportsWithdrawalPayoutUpdateOne {
+	if v != nil {
+		_u.SetProviderOrderNo(*v)
+	}
+	return _u
+}
+
+// ClearProviderOrderNo clears the value of the "provider_order_no" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) ClearProviderOrderNo() *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.ClearProviderOrderNo()
+	return _u
+}
+
+// SetProviderStatus sets the "provider_status" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetProviderStatus(v string) *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.SetProviderStatus(v)
+	return _u
+}
+
+// SetNillableProviderStatus sets the "provider_status" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetNillableProviderStatus(v *string) *EsportsWithdrawalPayoutUpdateOne {
+	if v != nil {
+		_u.SetProviderStatus(*v)
+	}
+	return _u
+}
+
+// SetFailCode sets the "fail_code" field.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetFailCode(v string) *EsportsWithdrawalPayoutUpdateOne {
+	_u.mutation.SetFailCode(v)
+	return _u
+}
+
+// SetNillableFailCode sets the "fail_code" field if the given value is not nil.
+func (_u *EsportsWithdrawalPayoutUpdateOne) SetNillableFailCode(v *string) *EsportsWithdrawalPayoutUpdateOne {
+	if v != nil {
+		_u.SetFailCode(*v)
+	}
 	return _u
 }
 
@@ -688,6 +910,26 @@ func (_u *EsportsWithdrawalPayoutUpdateOne) check() error {
 			return &ValidationError{Name: "withdrawal_id", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.withdrawal_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Provider(); ok {
+		if err := esportswithdrawalpayout.ProviderValidator(v); err != nil {
+			return &ValidationError{Name: "provider", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.provider": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProviderOrderNo(); ok {
+		if err := esportswithdrawalpayout.ProviderOrderNoValidator(v); err != nil {
+			return &ValidationError{Name: "provider_order_no", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.provider_order_no": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ProviderStatus(); ok {
+		if err := esportswithdrawalpayout.ProviderStatusValidator(v); err != nil {
+			return &ValidationError{Name: "provider_status", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.provider_status": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.FailCode(); ok {
+		if err := esportswithdrawalpayout.FailCodeValidator(v); err != nil {
+			return &ValidationError{Name: "fail_code", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.fail_code": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Channel(); ok {
 		if err := esportswithdrawalpayout.ChannelValidator(v); err != nil {
 			return &ValidationError{Name: "channel", err: fmt.Errorf(`ent: validator failed for field "EsportsWithdrawalPayout.channel": %w`, err)}
@@ -755,6 +997,30 @@ func (_u *EsportsWithdrawalPayoutUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := _u.mutation.AddedWithdrawalID(); ok {
 		_spec.AddField(esportswithdrawalpayout.FieldWithdrawalID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.BatchID(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldBatchID, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBatchID(); ok {
+		_spec.AddField(esportswithdrawalpayout.FieldBatchID, field.TypeInt, value)
+	}
+	if _u.mutation.BatchIDCleared() {
+		_spec.ClearField(esportswithdrawalpayout.FieldBatchID, field.TypeInt)
+	}
+	if value, ok := _u.mutation.Provider(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldProvider, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProviderOrderNo(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldProviderOrderNo, field.TypeString, value)
+	}
+	if _u.mutation.ProviderOrderNoCleared() {
+		_spec.ClearField(esportswithdrawalpayout.FieldProviderOrderNo, field.TypeString)
+	}
+	if value, ok := _u.mutation.ProviderStatus(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldProviderStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.FailCode(); ok {
+		_spec.SetField(esportswithdrawalpayout.FieldFailCode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Channel(); ok {
 		_spec.SetField(esportswithdrawalpayout.FieldChannel, field.TypeEnum, value)

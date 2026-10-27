@@ -20,6 +20,16 @@ const (
 	FieldPayoutNo = "payout_no"
 	// FieldWithdrawalID holds the string denoting the withdrawal_id field in the database.
 	FieldWithdrawalID = "withdrawal_id"
+	// FieldBatchID holds the string denoting the batch_id field in the database.
+	FieldBatchID = "batch_id"
+	// FieldProvider holds the string denoting the provider field in the database.
+	FieldProvider = "provider"
+	// FieldProviderOrderNo holds the string denoting the provider_order_no field in the database.
+	FieldProviderOrderNo = "provider_order_no"
+	// FieldProviderStatus holds the string denoting the provider_status field in the database.
+	FieldProviderStatus = "provider_status"
+	// FieldFailCode holds the string denoting the fail_code field in the database.
+	FieldFailCode = "fail_code"
 	// FieldChannel holds the string denoting the channel field in the database.
 	FieldChannel = "channel"
 	// FieldTransactionNo holds the string denoting the transaction_no field in the database.
@@ -56,6 +66,11 @@ var Columns = []string{
 	FieldID,
 	FieldPayoutNo,
 	FieldWithdrawalID,
+	FieldBatchID,
+	FieldProvider,
+	FieldProviderOrderNo,
+	FieldProviderStatus,
+	FieldFailCode,
 	FieldChannel,
 	FieldTransactionNo,
 	FieldAmountCents,
@@ -85,6 +100,20 @@ var (
 	PayoutNoValidator func(string) error
 	// WithdrawalIDValidator is a validator for the "withdrawal_id" field. It is called by the builders before save.
 	WithdrawalIDValidator func(int) error
+	// DefaultProvider holds the default value on creation for the "provider" field.
+	DefaultProvider string
+	// ProviderValidator is a validator for the "provider" field. It is called by the builders before save.
+	ProviderValidator func(string) error
+	// ProviderOrderNoValidator is a validator for the "provider_order_no" field. It is called by the builders before save.
+	ProviderOrderNoValidator func(string) error
+	// DefaultProviderStatus holds the default value on creation for the "provider_status" field.
+	DefaultProviderStatus string
+	// ProviderStatusValidator is a validator for the "provider_status" field. It is called by the builders before save.
+	ProviderStatusValidator func(string) error
+	// DefaultFailCode holds the default value on creation for the "fail_code" field.
+	DefaultFailCode string
+	// FailCodeValidator is a validator for the "fail_code" field. It is called by the builders before save.
+	FailCodeValidator func(string) error
 	// TransactionNoValidator is a validator for the "transaction_no" field. It is called by the builders before save.
 	TransactionNoValidator func(string) error
 	// AmountCentsValidator is a validator for the "amount_cents" field. It is called by the builders before save.
@@ -174,6 +203,31 @@ func ByPayoutNo(opts ...sql.OrderTermOption) OrderOption {
 // ByWithdrawalID orders the results by the withdrawal_id field.
 func ByWithdrawalID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldWithdrawalID, opts...).ToFunc()
+}
+
+// ByBatchID orders the results by the batch_id field.
+func ByBatchID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBatchID, opts...).ToFunc()
+}
+
+// ByProvider orders the results by the provider field.
+func ByProvider(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProvider, opts...).ToFunc()
+}
+
+// ByProviderOrderNo orders the results by the provider_order_no field.
+func ByProviderOrderNo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProviderOrderNo, opts...).ToFunc()
+}
+
+// ByProviderStatus orders the results by the provider_status field.
+func ByProviderStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProviderStatus, opts...).ToFunc()
+}
+
+// ByFailCode orders the results by the fail_code field.
+func ByFailCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFailCode, opts...).ToFunc()
 }
 
 // ByChannel orders the results by the channel field.

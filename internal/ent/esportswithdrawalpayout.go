@@ -21,6 +21,16 @@ type EsportsWithdrawalPayout struct {
 	PayoutNo string `json:"payout_no"`
 	// WithdrawalID holds the value of the "withdrawal_id" field.
 	WithdrawalID int `json:"withdrawal_id"`
+	// BatchID holds the value of the "batch_id" field.
+	BatchID *int `json:"batch_id"`
+	// Provider holds the value of the "provider" field.
+	Provider string `json:"provider"`
+	// ProviderOrderNo holds the value of the "provider_order_no" field.
+	ProviderOrderNo *string `json:"provider_order_no,omitempty"`
+	// ProviderStatus holds the value of the "provider_status" field.
+	ProviderStatus string `json:"provider_status"`
+	// FailCode holds the value of the "fail_code" field.
+	FailCode string `json:"fail_code"`
 	// Channel holds the value of the "channel" field.
 	Channel esportswithdrawalpayout.Channel `json:"channel"`
 	// TransactionNo holds the value of the "transaction_no" field.
@@ -53,9 +63,9 @@ func (*EsportsWithdrawalPayout) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportswithdrawalpayout.FieldID, esportswithdrawalpayout.FieldWithdrawalID, esportswithdrawalpayout.FieldAmountCents, esportswithdrawalpayout.FieldSubmittedByAdminID, esportswithdrawalpayout.FieldPaidByAdminID, esportswithdrawalpayout.FieldVersion:
+		case esportswithdrawalpayout.FieldID, esportswithdrawalpayout.FieldWithdrawalID, esportswithdrawalpayout.FieldBatchID, esportswithdrawalpayout.FieldAmountCents, esportswithdrawalpayout.FieldSubmittedByAdminID, esportswithdrawalpayout.FieldPaidByAdminID, esportswithdrawalpayout.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportswithdrawalpayout.FieldPayoutNo, esportswithdrawalpayout.FieldChannel, esportswithdrawalpayout.FieldTransactionNo, esportswithdrawalpayout.FieldTaxRef, esportswithdrawalpayout.FieldStatus, esportswithdrawalpayout.FieldFailReason:
+		case esportswithdrawalpayout.FieldPayoutNo, esportswithdrawalpayout.FieldProvider, esportswithdrawalpayout.FieldProviderOrderNo, esportswithdrawalpayout.FieldProviderStatus, esportswithdrawalpayout.FieldFailCode, esportswithdrawalpayout.FieldChannel, esportswithdrawalpayout.FieldTransactionNo, esportswithdrawalpayout.FieldTaxRef, esportswithdrawalpayout.FieldStatus, esportswithdrawalpayout.FieldFailReason:
 			values[i] = new(sql.NullString)
 		case esportswithdrawalpayout.FieldPaidAt, esportswithdrawalpayout.FieldCreatedAt, esportswithdrawalpayout.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -91,6 +101,38 @@ func (_m *EsportsWithdrawalPayout) assignValues(columns []string, values []any) 
 				return fmt.Errorf("unexpected type %T for field withdrawal_id", values[i])
 			} else if value.Valid {
 				_m.WithdrawalID = int(value.Int64)
+			}
+		case esportswithdrawalpayout.FieldBatchID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field batch_id", values[i])
+			} else if value.Valid {
+				_m.BatchID = new(int)
+				*_m.BatchID = int(value.Int64)
+			}
+		case esportswithdrawalpayout.FieldProvider:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider", values[i])
+			} else if value.Valid {
+				_m.Provider = value.String
+			}
+		case esportswithdrawalpayout.FieldProviderOrderNo:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_order_no", values[i])
+			} else if value.Valid {
+				_m.ProviderOrderNo = new(string)
+				*_m.ProviderOrderNo = value.String
+			}
+		case esportswithdrawalpayout.FieldProviderStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_status", values[i])
+			} else if value.Valid {
+				_m.ProviderStatus = value.String
+			}
+		case esportswithdrawalpayout.FieldFailCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field fail_code", values[i])
+			} else if value.Valid {
+				_m.FailCode = value.String
 			}
 		case esportswithdrawalpayout.FieldChannel:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -208,6 +250,25 @@ func (_m *EsportsWithdrawalPayout) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("withdrawal_id=")
 	builder.WriteString(fmt.Sprintf("%v", _m.WithdrawalID))
+	builder.WriteString(", ")
+	if v := _m.BatchID; v != nil {
+		builder.WriteString("batch_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("provider=")
+	builder.WriteString(_m.Provider)
+	builder.WriteString(", ")
+	if v := _m.ProviderOrderNo; v != nil {
+		builder.WriteString("provider_order_no=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("provider_status=")
+	builder.WriteString(_m.ProviderStatus)
+	builder.WriteString(", ")
+	builder.WriteString("fail_code=")
+	builder.WriteString(_m.FailCode)
 	builder.WriteString(", ")
 	builder.WriteString("channel=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Channel))

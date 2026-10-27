@@ -248,6 +248,20 @@ func compensateCheckoutPaymentsTask(ctx context.Context, logger io.Writer) error
 	return err
 }
 
+// esportsSyncPayoutBatchesTask 云账户代发批次查单补偿与状态收敛：
+// 渠道未启用 / 配置不完整时整轮跳过（只记日志，不报错中断调度）。
+func esportsSyncPayoutBatchesTask(ctx context.Context, logger io.Writer) error {
+	provider, err := payoutBatchProvider(ctx)
+	if err != nil {
+		_, _ = fmt.Fprintf(logger, "云账户代发未启用或配置不完整，跳过代发批次查单：%v\n", err)
+		return nil
+	}
+	run := esportsSyncPayoutBatches(ctx, global.ORM, provider, time.Now(), logger)
+	_, _ = fmt.Fprintf(logger, "代发批次查单补偿：扫描 %d、收敛 %d、跳过 %d、失败 %d\n",
+		run.Scanned, run.Converged, run.Skipped, run.Failed)
+	return nil
+}
+
 // reconcileLedgersTask 全量核验账本：逐账户核对余额不为负、逐批次核对分摊不超额与引用完整，
 // 异常写外盒事件供告警与人工复核。
 func reconcileLedgersTask(ctx context.Context, logger io.Writer) error {
@@ -321,6 +335,7 @@ func init() {
 		tasks.Register("esports_apply_due_sku_suspensions", applyDueSkuSuspensionsTask)
 		tasks.Register("esports_expire_recharge_intents", expireRechargeIntentsTask)
 		tasks.Register("esports_compensate_checkout_payments", compensateCheckoutPaymentsTask)
+		tasks.Register("esports_sync_payout_batches", esportsSyncPayoutBatchesTask)
 		tasks.Register("esports_deliver_outbox", deliverOutboxTask)
 		tasks.Register("esports_deliver_notifications", deliverNotificationsTask)
 		tasks.Register("esports_auto_trigger_upgrade_assessments", autoTriggerUpgradeAssessmentsTask)
@@ -378,6 +393,11 @@ func init() {
 			// 不能塞进 payment_providers 的 JSON；后台可见但接口只回显「是否已配置」。
 			{Key: "payment_provider_huifu_private_key", Name: "汇付天下商户 RSA 私钥", Value: "", Type: "string", Group: "esports", Remark: "PEM（PKCS#1 / PKCS#8），2048 位；仅用于请求签名，接口 / 日志永不回显；与 payment_providers.huifu.private_key 二选一"},
 			{Key: "payment_provider_huifu_public_key", Name: "汇付天下 RSA 公钥", Value: "", Type: "string", Group: "esports", Remark: "PEM（X.509 / PKCS#1 / 证书），用于验证汇付响应与异步通知签名；接口 / 日志永不回显"},
+			// —— 陪玩打款（人工 / 云账户代发）——
+			{Key: "payout_provider", Name: "陪玩打款渠道", Value: "manual", Type: "string", Group: "esports", Remark: "manual=人工打款（默认），yunzhanghu=云账户代发；非 yunzhanghu 时批量代发入口禁用"},
+			{Key: "payout_provider_yunzhanghu", Name: "云账户代发配置", Value: "{\"enabled\":false,\"dealer_id\":\"\",\"app_key\":\"\",\"base_url\":\"\",\"notify_base\":\"\",\"sign_base\":\"\"}", Type: "string", Group: "esports", Remark: "JSON：enabled 开关；dealer_id 商户号；app_key 应用标识；base_url 接口地址；notify_base 回调地址前缀；sign_base 签约地址前缀；密钥不回显"},
+			{Key: "payout_provider_yunzhanghu_private_key", Name: "云账户商户 RSA 私钥", Value: "", Type: "string", Group: "esports", Remark: "PEM（PKCS#1 / PKCS#8），用于请求签名；单独成键是因为 2048 位 PEM 超过 SystemConfig.value 的 2048 字符上限，无法放进 payout_provider_yunzhanghu 的 JSON；接口与日志永不回显"},
+			{Key: "payout_provider_yunzhanghu_public_key", Name: "云账户 RSA 公钥", Value: "", Type: "string", Group: "esports", Remark: "PEM（X.509 / PKCS#1 / 证书），用于验证云账户回调与响应签名；接口与日志永不回显"},
 			{Key: "wallet_display", Name: "钱包展示配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按账户类型索引）：{\"customer_balance\":{\"display_name\":\"账户余额\",\"unit_name\":\"元\",\"unit_cents\":100},\"player_catfood\":{\"display_name\":\"猫粮\",\"unit_name\":\"猫粮\",\"unit_cents\":100}}；留空用内置默认"},
 			// —— 商品编码自动生成（新建商品时按「前缀-全局流水」生成，唯一索引兜底）——
 			{Key: "product_code_prefix", Name: "商品编码前缀", Value: "SKU", Type: "string", Group: "esports", Remark: "新建商品自动生成编码的前缀，最终形如 SKU-000001；留空回落 SKU"},
@@ -486,7 +506,10 @@ func init() {
 			{Key: "player_expected_price_limits_cents", Name: "期望报价允许区间（分）", Value: "0,0", Type: "string", Group: "esports", Remark: "格式 \"min,max\"（两个非负整数分，逗号分隔）；\"0,0\"=两侧都不限（也是缺失/空/字段数≠2/非数字/负数/min>max 的回落）；**键名虽含 _cents 但实际是字符串，后台数字框写不进去**"},
 			{Key: "repurchase_follow_up_days", Name: "结单后复购跟进天数", Value: "7", Type: "number", Group: "esports", Remark: "缺失/空/非数字/负数回落 7；**显式 0 = 关闭**（不生成复购回访待办）；>0 时结单后该天数生成客户维度复购跟进待办"},
 		},
-		Routes: syncedRoutes([]cmfapp.Route{
+		// 路由契约测试要求下列 handler 直接指向原始函数，不套看板广播包装（广播在 handler 成功后自行触发）。
+		Routes: append([]cmfapp.Route{
+			{Method: "POST", Path: "/admin/priority-bookings/:id/process", Auth: cmfapp.AuthAdmin, Handler: adminResolvePriorityBookingHandler},
+		}, syncedRoutes([]cmfapp.Route{
 			{Method: "GET", Path: "/products", Auth: cmfapp.AuthPublic, Handler: publicSkus},
 			// 技能等级：公开读供管理端表单与 H5 文案；配置本体在「技能等级」页编辑（下方 admin 路由）。
 			{Method: "GET", Path: "/skill-levels", Auth: cmfapp.AuthPublic, Handler: publicSkillLevels},
@@ -495,6 +518,10 @@ func init() {
 			// 聚合收款服务商回调必须声明在 /payment-notify/:channel 之前，否则会被通用渠道路由吞掉。
 			{Method: "POST", Path: "/payment-notify/shouqianba", Auth: cmfapp.AuthPublic, Handler: shouqianbaPaymentNotifyHandler},
 			{Method: "POST", Path: "/payment-notify/huifu", Auth: cmfapp.AuthPublic, Handler: huifuPaymentNotifyHandler},
+			// 云账户代发打款回调：验签后按 provider_order_no 幂等落账；同样必须声明在通用回调之前。
+			{Method: "POST", Path: "/payment-notify/yunzhanghu", Auth: cmfapp.AuthPublic, Handler: handleYunzhanghuPayoutNotify},
+			// 云账户签约结果回调：验签后回填签约号 / 户名 / 脱敏账号并置 active，必须排在通用回调之前。
+			{Method: "POST", Path: "/payment-notify/yunzhanghu/sign", Auth: cmfapp.AuthPublic, Handler: handleYunzhanghuSignNotify},
 			{Method: "POST", Path: "/payment-notify", Auth: cmfapp.AuthPublic, Handler: paymentGatewayNotifyHandler},
 			{Method: "POST", Path: "/payment-notify/:channel", Auth: cmfapp.AuthPublic, Handler: paymentGatewayNotifyHandler},
 			// 聚合收款扫码页公开入口：按入口令牌读取最小信息、创建支付尝试、轮询状态；
@@ -622,7 +649,6 @@ func init() {
 			{Method: "POST", Path: "/admin/customers/:id/member/level", Auth: cmfapp.AuthAdmin, Handler: setCustomerMemberLevelHandler},
 			// 会员优先预约：客服端待处理预约意向列表，按会员等级置顶；处理意向使其从待办消解。
 			{Method: "GET", Path: "/admin/priority-bookings", Auth: cmfapp.AuthAdmin, Handler: adminPriorityBookingsHandler},
-			{Method: "POST", Path: "/admin/priority-bookings/:id/process", Auth: cmfapp.AuthAdmin, Handler: adminResolvePriorityBookingHandler},
 			// 礼物模块：礼物目录、送礼、退款、复核与榜单。
 			{Method: "GET", Path: "/admin/gifts", Auth: cmfapp.AuthAdmin, Handler: adminGifts},
 			{Method: "POST", Path: "/admin/gifts", Auth: cmfapp.AuthAdmin, Handler: createGiftHandler},
@@ -855,6 +881,14 @@ func init() {
 			{Method: "GET", Path: "/admin/withdrawals/:id/payouts", Auth: cmfapp.AuthAdmin, Handler: listWithdrawalPayoutsHandler},
 			{Method: "POST", Path: "/admin/withdrawal-payouts/:id/paid", Auth: cmfapp.AuthAdmin, Handler: markWithdrawalPayoutPaidHandler},
 			{Method: "POST", Path: "/admin/withdrawal-payouts/:id/failed", Auth: cmfapp.AuthAdmin, Handler: markWithdrawalPayoutFailedHandler},
+			// 云账户批量代发编排：预览 / 一键提交 / 列表 / 明细 / 手动同步 / 失败重试。
+			// preview 必须声明在 /:id 之前，否则会被路径参数路由吞掉。
+			{Method: "GET", Path: "/admin/payout-batches/preview", Auth: cmfapp.AuthAdmin, Handler: adminPayoutBatchPreview},
+			{Method: "GET", Path: "/admin/payout-batches", Auth: cmfapp.AuthAdmin, Handler: adminPayoutBatches},
+			{Method: "POST", Path: "/admin/payout-batches", Auth: cmfapp.AuthAdmin, Handler: createPayoutBatchHandler},
+			{Method: "GET", Path: "/admin/payout-batches/:id", Auth: cmfapp.AuthAdmin, Handler: adminPayoutBatchDetail},
+			{Method: "POST", Path: "/admin/payout-batches/:id/sync", Auth: cmfapp.AuthAdmin, Handler: syncPayoutBatchHandler},
+			{Method: "POST", Path: "/admin/payout-batches/:id/retry", Auth: cmfapp.AuthAdmin, Handler: retryPayoutBatchHandler},
 			{Method: "POST", Path: "/admin/external-refunds", Auth: cmfapp.AuthAdmin, Handler: registerExternalRefundHandler},
 			{Method: "GET", Path: "/admin/external-refunds", Auth: cmfapp.AuthAdmin, Handler: listExternalRefundsHandler},
 			{Method: "POST", Path: "/admin/external-refunds/:id/execute", Auth: cmfapp.AuthAdmin, Handler: executeExternalRefundHandler},
@@ -908,6 +942,10 @@ func init() {
 			{Method: "POST", Path: "/user/player/withdrawals", Auth: cmfapp.AuthUser, Handler: playerApplyWithdrawal},
 			{Method: "GET", Path: "/user/player/withdrawals", Auth: cmfapp.AuthUser, Handler: playerWithdrawals},
 			{Method: "GET", Path: "/user/player/withdrawals/summary", Auth: cmfapp.AuthUser, Handler: playerWithdrawalSummaryHandler},
+			// 陪玩端收款账户签约（云账户代发）：查询账户、获取签约地址、解约。
+			{Method: "GET", Path: "/user/player/payout-account", Auth: cmfapp.AuthUser, Handler: playerPayoutAccountsHandler},
+			{Method: "POST", Path: "/user/player/payout-account/sign-url", Auth: cmfapp.AuthUser, Handler: playerPayoutSignURLHandler},
+			{Method: "POST", Path: "/user/player/payout-account/unbind", Auth: cmfapp.AuthUser, Handler: playerPayoutUnbindHandler},
 			// 陪玩端优先派单权通知（业务口径）：窗口内查看与拒绝；接受复用 orders/{id}/grab。
 			{Method: "GET", Path: "/user/player/dispatch-notices", Auth: cmfapp.AuthUser, Handler: playerDispatchNotices},
 			{Method: "POST", Path: "/user/player/dispatch-notices/:id/decline", Auth: cmfapp.AuthUser, Handler: declineDispatchNoticeHandler},
@@ -1036,7 +1074,7 @@ func init() {
 			{Method: "GET", Path: "/admin/orders/:id/players/:playerId/service/timing", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(adminServiceTimingHandler)},
 			// 充值退款执行批次列表（只读）：?status= pending / executed、?limit=。
 			{Method: "GET", Path: "/admin/recharge-refund-executions", Auth: cmfapp.AuthAdmin, Handler: listRechargeRefundExecutionsHandler},
-		}),
+		})...),
 		Permissions: []cmfapp.Permission{
 			// 商品模块：一个模块一个菜单。
 			{Type: cmfapp.PermMenu, Name: "商品", Code: "esports:product:menu", MenuPath: "/esports/products", Parent: "esports:operations:menu", Component: "esports/products/index", Icon: "icon-apps", SortOrder: 40},
@@ -1302,6 +1340,13 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看提现打款记录", Code: "esports:settlements:payout_list", Path: "/api/v1/esports/admin/withdrawals/{id}/payouts", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "标记打款成功", Code: "esports:settlements:payout_paid", Path: "/api/v1/esports/admin/withdrawal-payouts/{id}/paid", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "标记打款失败", Code: "esports:settlements:payout_failed", Path: "/api/v1/esports/admin/withdrawal-payouts/{id}/failed", Method: "POST", Parent: "esports:settlement:menu"},
+			// 云账户批量代发编排（明细单独一个权限码：ValidateApps 要求权限码全局唯一）。
+			{Type: cmfapp.PermAPI, Name: "预览批量代发", Code: "esports:settlements:payout_batches_preview", Path: "/api/v1/esports/admin/payout-batches/preview", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看代发批次", Code: "esports:settlements:payout_batches_read", Path: "/api/v1/esports/admin/payout-batches", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "提交批量代发", Code: "esports:settlements:payout_batches_create", Path: "/api/v1/esports/admin/payout-batches", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看代发批次详情", Code: "esports:settlements:payout_batches_detail", Path: "/api/v1/esports/admin/payout-batches/{id}", Method: "GET", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "同步代发批次", Code: "esports:settlements:payout_batches_sync", Path: "/api/v1/esports/admin/payout-batches/{id}/sync", Method: "POST", Parent: "esports:settlement:menu"},
+			{Type: cmfapp.PermAPI, Name: "重试代发批次", Code: "esports:settlements:payout_batches_retry", Path: "/api/v1/esports/admin/payout-batches/{id}/retry", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "登记外部退款", Code: "esports:settlements:external_refund_register", Path: "/api/v1/esports/admin/external-refunds", Method: "POST", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "查看外部退款", Code: "esports:settlements:external_refund_list", Path: "/api/v1/esports/admin/external-refunds", Method: "GET", Parent: "esports:settlement:menu"},
 			{Type: cmfapp.PermAPI, Name: "执行外部退款", Code: "esports:settlements:external_refund_execute", Path: "/api/v1/esports/admin/external-refunds/{id}/execute", Method: "POST", Parent: "esports:settlement:menu"},

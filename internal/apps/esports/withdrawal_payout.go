@@ -113,34 +113,57 @@ func markWithdrawalPayoutPaid(ctx context.Context, db *ent.Client, adminID, payo
 	if payout.SubmittedByAdminID != nil && *payout.SubmittedByAdminID == adminID {
 		return nil, fmt.Errorf("%w：打款提交人不得自行确认到账", errForbidden)
 	}
-	changed, err := tx.EsportsWithdrawalPayout.Update().Where(
-		esportswithdrawalpayout.IDEQ(payoutID),
-		esportswithdrawalpayout.StatusEQ(esportswithdrawalpayout.StatusPayRequested),
-		esportswithdrawalpayout.VersionEQ(payout.Version),
-	).SetStatus(esportswithdrawalpayout.StatusPaid).SetTaxRef(taxRef).
-		SetPaidByAdminID(adminID).SetPaidAt(now.UTC()).AddVersion(1).Save(ctx)
-	if err != nil {
+	if err = settleWithdrawalPayoutPaid(ctx, tx, payout, now, adminID, taxRef); err != nil {
 		return nil, err
-	}
-	if changed != 1 {
-		return nil, errConflict
-	}
-	changed, err = tx.EsportsWithdrawal.Update().Where(
-		esportswithdrawal.IDEQ(payout.WithdrawalID),
-		esportswithdrawal.StatusEQ(esportswithdrawal.StatusApproved),
-	).SetStatus(esportswithdrawal.StatusPaid).
-		SetPayoutRef(payout.TransactionNo).SetTaxRef(taxRef).
-		SetPaidByAdminID(adminID).SetPaidAt(now.UTC()).AddVersion(1).Save(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if changed != 1 {
-		return nil, errConflict
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
 	return db.EsportsWithdrawalPayout.Get(ctx, payoutID)
+}
+
+// settleWithdrawalPayoutPaid 打款成功落账核心：pay_requested → paid，同一事务内把提现单
+// approved → paid，回填完税凭证与到账时间。人工打款与云账户代发回调共用本函数。
+// 调用方负责开启 / 提交事务；operatorID <= 0 表示系统自动落账（代发回调），不写打款人。
+func settleWithdrawalPayoutPaid(ctx context.Context, tx *ent.Tx, payout *ent.EsportsWithdrawalPayout,
+	paidAt time.Time, operatorID int, taxRef string) error {
+	if payout == nil || payout.ID < 1 {
+		return errInvalidInput
+	}
+	if payout.Status != esportswithdrawalpayout.StatusPayRequested {
+		return errConflict
+	}
+	update := tx.EsportsWithdrawalPayout.Update().Where(
+		esportswithdrawalpayout.IDEQ(payout.ID),
+		esportswithdrawalpayout.StatusEQ(esportswithdrawalpayout.StatusPayRequested),
+		esportswithdrawalpayout.VersionEQ(payout.Version),
+	).SetStatus(esportswithdrawalpayout.StatusPaid).SetTaxRef(taxRef).SetPaidAt(paidAt.UTC())
+	if operatorID > 0 {
+		update = update.SetPaidByAdminID(operatorID)
+	}
+	changed, err := update.AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return errConflict
+	}
+	wdUpdate := tx.EsportsWithdrawal.Update().Where(
+		esportswithdrawal.IDEQ(payout.WithdrawalID),
+		esportswithdrawal.StatusEQ(esportswithdrawal.StatusApproved),
+	).SetStatus(esportswithdrawal.StatusPaid).
+		SetPayoutRef(payout.TransactionNo).SetTaxRef(taxRef).SetPaidAt(paidAt.UTC())
+	if operatorID > 0 {
+		wdUpdate = wdUpdate.SetPaidByAdminID(operatorID)
+	}
+	changed, err = wdUpdate.AddVersion(1).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return errConflict
+	}
+	return nil
 }
 
 // markWithdrawalPayoutFailed 标记打款失败：pay_requested → pay_failed，须填失败原因。

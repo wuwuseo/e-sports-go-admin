@@ -2722,6 +2722,47 @@ var (
 			},
 		},
 	}
+	// EsportsPayoutBatchesColumns holds the columns for the "esports_payout_batches" table.
+	EsportsPayoutBatchesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "batch_no", Type: field.TypeString, Size: 64},
+		{Name: "idem_key", Type: field.TypeString, Size: 120},
+		{Name: "provider", Type: field.TypeString, Size: 32, Default: "yunzhanghu"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"submitting", "submitted", "partial", "settled", "failed"}, Default: "submitting"},
+		{Name: "total_count", Type: field.TypeInt, Default: 0},
+		{Name: "total_cents", Type: field.TypeInt64, Default: 0},
+		{Name: "provider_batch_no", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "fail_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "submitted_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "submitted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "settled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPayoutBatchesTable holds the schema information for the "esports_payout_batches" table.
+	EsportsPayoutBatchesTable = &schema.Table{
+		Name:       TablePrefix + "esports_payout_batches",
+		Columns:    EsportsPayoutBatchesColumns,
+		PrimaryKey: []*schema.Column{EsportsPayoutBatchesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportspayoutbatch_batch_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPayoutBatchesColumns[1]},
+			},
+			{
+				Name:    "esportspayoutbatch_idem_key",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPayoutBatchesColumns[2]},
+			},
+			{
+				Name:    "esportspayoutbatch_provider_batch_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPayoutBatchesColumns[7]},
+			},
+		},
+	}
 	// EsportsPlayersColumns holds the columns for the "esports_players" table.
 	EsportsPlayersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -2850,6 +2891,39 @@ var (
 				Name:    "esportsplayeridentity_status_created_at",
 				Unique:  false,
 				Columns: []*schema.Column{EsportsPlayerIdentitiesColumns[4], EsportsPlayerIdentitiesColumns[9]},
+			},
+		},
+	}
+	// EsportsPlayerPayoutAccountsColumns holds the columns for the "esports_player_payout_accounts" table.
+	EsportsPlayerPayoutAccountsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "player_id", Type: field.TypeInt},
+		{Name: "provider", Type: field.TypeString, Size: 32, Default: "yunzhanghu"},
+		{Name: "account_type", Type: field.TypeEnum, Enums: []string{"bank_card", "alipay"}},
+		{Name: "account_name", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "account_no_masked", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "provider_sign_no", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "active", "disabled", "expired"}, Default: "pending"},
+		{Name: "signed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsPlayerPayoutAccountsTable holds the schema information for the "esports_player_payout_accounts" table.
+	EsportsPlayerPayoutAccountsTable = &schema.Table{
+		Name:       TablePrefix + "esports_player_payout_accounts",
+		Columns:    EsportsPlayerPayoutAccountsColumns,
+		PrimaryKey: []*schema.Column{EsportsPlayerPayoutAccountsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsplayerpayoutaccount_player_id_provider_account_type",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsPlayerPayoutAccountsColumns[1], EsportsPlayerPayoutAccountsColumns[2], EsportsPlayerPayoutAccountsColumns[3]},
+			},
+			{
+				Name:    "esportsplayerpayoutaccount_status",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsPlayerPayoutAccountsColumns[7]},
 			},
 		},
 	}
@@ -3814,6 +3888,7 @@ var (
 		{Name: "net_cents", Type: field.TypeInt64},
 		{Name: "channel", Type: field.TypeEnum, Enums: []string{"bank_card", "wechat", "alipay"}},
 		{Name: "account_ref", Type: field.TypeString, Size: 128},
+		{Name: "payout_account_id", Type: field.TypeInt, Nullable: true},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending_review", "approved", "paid", "rejected"}, Default: "pending_review"},
 		{Name: "reject_reason", Type: field.TypeString, Size: 255, Default: ""},
 		{Name: "reviewed_by_admin_id", Type: field.TypeInt, Nullable: true},
@@ -3846,12 +3921,12 @@ var (
 			{
 				Name:    "esportswithdrawal_player_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsWithdrawalsColumns[2], EsportsWithdrawalsColumns[20]},
+				Columns: []*schema.Column{EsportsWithdrawalsColumns[2], EsportsWithdrawalsColumns[21]},
 			},
 			{
 				Name:    "esportswithdrawal_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsWithdrawalsColumns[10], EsportsWithdrawalsColumns[20]},
+				Columns: []*schema.Column{EsportsWithdrawalsColumns[11], EsportsWithdrawalsColumns[21]},
 			},
 		},
 	}
@@ -3860,6 +3935,11 @@ var (
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "payout_no", Type: field.TypeString, Size: 64},
 		{Name: "withdrawal_id", Type: field.TypeInt},
+		{Name: "batch_id", Type: field.TypeInt, Nullable: true},
+		{Name: "provider", Type: field.TypeString, Size: 32, Default: "manual"},
+		{Name: "provider_order_no", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "provider_status", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "fail_code", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "channel", Type: field.TypeEnum, Enums: []string{"bank_card", "wechat", "alipay"}},
 		{Name: "transaction_no", Type: field.TypeString, Size: 128},
 		{Name: "amount_cents", Type: field.TypeInt64},
@@ -3887,17 +3967,27 @@ var (
 			{
 				Name:    "esportswithdrawalpayout_transaction_no",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[4]},
+				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[9]},
+			},
+			{
+				Name:    "esportswithdrawalpayout_provider_order_no",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[5]},
+			},
+			{
+				Name:    "esportswithdrawalpayout_batch_id",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[3]},
 			},
 			{
 				Name:    "esportswithdrawalpayout_withdrawal_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[2], EsportsWithdrawalPayoutsColumns[7]},
+				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[2], EsportsWithdrawalPayoutsColumns[12]},
 			},
 			{
 				Name:    "esportswithdrawalpayout_status_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[7], EsportsWithdrawalPayoutsColumns[13]},
+				Columns: []*schema.Column{EsportsWithdrawalPayoutsColumns[12], EsportsWithdrawalPayoutsColumns[18]},
 			},
 		},
 	}
@@ -4558,9 +4648,11 @@ var (
 		EsportsPaymentIntentsTable,
 		EsportsPaymentReceiptsTable,
 		EsportsPaymentReversalsTable,
+		EsportsPayoutBatchesTable,
 		EsportsPlayersTable,
 		EsportsPlayerCreditEventsTable,
 		EsportsPlayerIdentitiesTable,
+		EsportsPlayerPayoutAccountsTable,
 		EsportsPlayerRecoveriesTable,
 		EsportsPlayerReviewsTable,
 		EsportsPlayerReviewAppealsTable,

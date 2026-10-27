@@ -152,12 +152,16 @@ type Tx struct {
 	EsportsPaymentReceipt *EsportsPaymentReceiptClient
 	// EsportsPaymentReversal is the client for interacting with the EsportsPaymentReversal builders.
 	EsportsPaymentReversal *EsportsPaymentReversalClient
+	// EsportsPayoutBatch is the client for interacting with the EsportsPayoutBatch builders.
+	EsportsPayoutBatch *EsportsPayoutBatchClient
 	// EsportsPlayer is the client for interacting with the EsportsPlayer builders.
 	EsportsPlayer *EsportsPlayerClient
 	// EsportsPlayerCreditEvent is the client for interacting with the EsportsPlayerCreditEvent builders.
 	EsportsPlayerCreditEvent *EsportsPlayerCreditEventClient
 	// EsportsPlayerIdentity is the client for interacting with the EsportsPlayerIdentity builders.
 	EsportsPlayerIdentity *EsportsPlayerIdentityClient
+	// EsportsPlayerPayoutAccount is the client for interacting with the EsportsPlayerPayoutAccount builders.
+	EsportsPlayerPayoutAccount *EsportsPlayerPayoutAccountClient
 	// EsportsPlayerRecovery is the client for interacting with the EsportsPlayerRecovery builders.
 	EsportsPlayerRecovery *EsportsPlayerRecoveryClient
 	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
@@ -443,9 +447,11 @@ func (tx *Tx) init() {
 	tx.EsportsPaymentIntent = NewEsportsPaymentIntentClient(tx.config)
 	tx.EsportsPaymentReceipt = NewEsportsPaymentReceiptClient(tx.config)
 	tx.EsportsPaymentReversal = NewEsportsPaymentReversalClient(tx.config)
+	tx.EsportsPayoutBatch = NewEsportsPayoutBatchClient(tx.config)
 	tx.EsportsPlayer = NewEsportsPlayerClient(tx.config)
 	tx.EsportsPlayerCreditEvent = NewEsportsPlayerCreditEventClient(tx.config)
 	tx.EsportsPlayerIdentity = NewEsportsPlayerIdentityClient(tx.config)
+	tx.EsportsPlayerPayoutAccount = NewEsportsPlayerPayoutAccountClient(tx.config)
 	tx.EsportsPlayerRecovery = NewEsportsPlayerRecoveryClient(tx.config)
 	tx.EsportsPlayerReview = NewEsportsPlayerReviewClient(tx.config)
 	tx.EsportsPlayerReviewAppeal = NewEsportsPlayerReviewAppealClient(tx.config)

@@ -201,6 +201,12 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 		len(key) < 8 || len(key) > 128 {
 		return nil, errInvalidInput
 	}
+	// 云账户代发：必须已有生效的签约收款账户，否则在扣减猫粮前直接拒绝；
+	// 人工打款（默认）返回 nil，行为与改动前完全一致。
+	payoutAccountID, err := payoutAccountIDForWithdrawal(ctx, db, playerID, in.Channel)
+	if err != nil {
+		return nil, err
+	}
 	unlock := lockMoneyAccount("catfood:" + strconv.Itoa(playerID))
 	defer unlock()
 	policy := withdrawalPolicyOf(ctx, db)
@@ -264,6 +270,8 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 		SetCreatedAt(now.UTC()).
 		SetAmountCents(in.AmountCents).SetFeeCents(fee).SetTaxCents(tax).SetNetCents(net).
 		SetChannel(esportswithdrawal.Channel(in.Channel)).SetAccountRef(in.AccountRef).
+		// 云账户代发时记录使用的签约账户快照；人工打款为空。
+		SetNillablePayoutAccountID(payoutAccountID).
 		SetStatus(esportswithdrawal.StatusPendingReview).SetNote(in.Note).Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {

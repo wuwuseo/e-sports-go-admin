@@ -76,9 +76,11 @@ import (
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportspaymentreversal"
+	"go-admin/internal/ent/esportspayoutbatch"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayercreditevent"
 	"go-admin/internal/ent/esportsplayeridentity"
+	"go-admin/internal/ent/esportsplayerpayoutaccount"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewappeal"
@@ -257,9 +259,11 @@ func checkColumn(t, c string) error {
 			esportspaymentintent.Table:           esportspaymentintent.ValidColumn,
 			esportspaymentreceipt.Table:          esportspaymentreceipt.ValidColumn,
 			esportspaymentreversal.Table:         esportspaymentreversal.ValidColumn,
+			esportspayoutbatch.Table:             esportspayoutbatch.ValidColumn,
 			esportsplayer.Table:                  esportsplayer.ValidColumn,
 			esportsplayercreditevent.Table:       esportsplayercreditevent.ValidColumn,
 			esportsplayeridentity.Table:          esportsplayeridentity.ValidColumn,
+			esportsplayerpayoutaccount.Table:     esportsplayerpayoutaccount.ValidColumn,
 			esportsplayerrecovery.Table:          esportsplayerrecovery.ValidColumn,
 			esportsplayerreview.Table:            esportsplayerreview.ValidColumn,
 			esportsplayerreviewappeal.Table:      esportsplayerreviewappeal.ValidColumn,

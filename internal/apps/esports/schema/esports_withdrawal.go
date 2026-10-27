@@ -30,6 +30,8 @@ func (EsportsWithdrawal) Fields() []ent.Field {
 		field.Enum("channel").Values("bank_card", "wechat", "alipay").StructTag(`json:"channel"`),
 		// 收款账号或收款标识。
 		field.String("account_ref").NotEmpty().MaxLen(128).StructTag(`json:"account_ref"`),
+		// 代发渠道绑定签约账户快照：人工提现为空，云账户代发时记录使用的收款账户。
+		field.Int("payout_account_id").Optional().Nillable().StructTag(`json:"payout_account_id"`),
 		field.Enum("status").Values("pending_review", "approved", "paid", "rejected").
 			Default("pending_review").StructTag(`json:"status"`),
 		field.String("reject_reason").MaxLen(255).Default("").StructTag(`json:"reject_reason"`),

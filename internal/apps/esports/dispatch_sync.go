@@ -40,9 +40,15 @@ func withDispatchBroadcast(next fiber.Handler) fiber.Handler {
 	}
 }
 
-// syncedRoutes 给功能集声明的全部路由统一套上看板广播。
+// syncedRoutes 给功能集声明的写路由统一套上看板广播。
+// 只读路由（GET / HEAD / OPTIONS）不套包装：广播本来就只对写操作生效，
+// 不包装也让路由契约测试能直接比对到原始 handler。
 func syncedRoutes(routes []cmfapp.Route) []cmfapp.Route {
 	for i := range routes {
+		switch routes[i].Method {
+		case fiber.MethodGet, fiber.MethodHead, fiber.MethodOptions:
+			continue
+		}
 		routes[i].Handler = withDispatchBroadcast(routes[i].Handler)
 	}
 	return routes

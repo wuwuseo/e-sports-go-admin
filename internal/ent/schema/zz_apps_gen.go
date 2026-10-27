@@ -236,6 +236,10 @@ type EsportsPaymentReversal struct {
 	appschemaesports.EsportsPaymentReversal
 }
 
+type EsportsPayoutBatch struct {
+	appschemaesports.EsportsPayoutBatch
+}
+
 type EsportsPlayer struct{ appschemaesports.EsportsPlayer }
 
 type EsportsPlayerCreditEvent struct {
@@ -244,6 +248,10 @@ type EsportsPlayerCreditEvent struct {
 
 type EsportsPlayerIdentity struct {
 	appschemaesports.EsportsPlayerIdentity
+}
+
+type EsportsPlayerPayoutAccount struct {
+	appschemaesports.EsportsPlayerPayoutAccount
 }
 
 type EsportsPlayerRecovery struct {

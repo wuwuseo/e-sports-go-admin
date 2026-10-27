@@ -90,6 +90,20 @@ func (_c *EsportsWithdrawalCreate) SetAccountRef(v string) *EsportsWithdrawalCre
 	return _c
 }
 
+// SetPayoutAccountID sets the "payout_account_id" field.
+func (_c *EsportsWithdrawalCreate) SetPayoutAccountID(v int) *EsportsWithdrawalCreate {
+	_c.mutation.SetPayoutAccountID(v)
+	return _c
+}
+
+// SetNillablePayoutAccountID sets the "payout_account_id" field if the given value is not nil.
+func (_c *EsportsWithdrawalCreate) SetNillablePayoutAccountID(v *int) *EsportsWithdrawalCreate {
+	if v != nil {
+		_c.SetPayoutAccountID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *EsportsWithdrawalCreate) SetStatus(v esportswithdrawal.Status) *EsportsWithdrawalCreate {
 	_c.mutation.SetStatus(v)
@@ -509,6 +523,10 @@ func (_c *EsportsWithdrawalCreate) createSpec() (*EsportsWithdrawal, *sqlgraph.C
 	if value, ok := _c.mutation.AccountRef(); ok {
 		_spec.SetField(esportswithdrawal.FieldAccountRef, field.TypeString, value)
 		_node.AccountRef = value
+	}
+	if value, ok := _c.mutation.PayoutAccountID(); ok {
+		_spec.SetField(esportswithdrawal.FieldPayoutAccountID, field.TypeInt, value)
+		_node.PayoutAccountID = &value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(esportswithdrawal.FieldStatus, field.TypeEnum, value)

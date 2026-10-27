@@ -94,6 +94,11 @@ func AccountRef(v string) predicate.EsportsWithdrawal {
 	return predicate.EsportsWithdrawal(sql.FieldEQ(FieldAccountRef, v))
 }
 
+// PayoutAccountID applies equality check predicate on the "payout_account_id" field. It's identical to PayoutAccountIDEQ.
+func PayoutAccountID(v int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldEQ(FieldPayoutAccountID, v))
+}
+
 // RejectReason applies equality check predicate on the "reject_reason" field. It's identical to RejectReasonEQ.
 func RejectReason(v string) predicate.EsportsWithdrawal {
 	return predicate.EsportsWithdrawal(sql.FieldEQ(FieldRejectReason, v))
@@ -562,6 +567,56 @@ func AccountRefEqualFold(v string) predicate.EsportsWithdrawal {
 // AccountRefContainsFold applies the ContainsFold predicate on the "account_ref" field.
 func AccountRefContainsFold(v string) predicate.EsportsWithdrawal {
 	return predicate.EsportsWithdrawal(sql.FieldContainsFold(FieldAccountRef, v))
+}
+
+// PayoutAccountIDEQ applies the EQ predicate on the "payout_account_id" field.
+func PayoutAccountIDEQ(v int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldEQ(FieldPayoutAccountID, v))
+}
+
+// PayoutAccountIDNEQ applies the NEQ predicate on the "payout_account_id" field.
+func PayoutAccountIDNEQ(v int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldNEQ(FieldPayoutAccountID, v))
+}
+
+// PayoutAccountIDIn applies the In predicate on the "payout_account_id" field.
+func PayoutAccountIDIn(vs ...int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldIn(FieldPayoutAccountID, vs...))
+}
+
+// PayoutAccountIDNotIn applies the NotIn predicate on the "payout_account_id" field.
+func PayoutAccountIDNotIn(vs ...int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldNotIn(FieldPayoutAccountID, vs...))
+}
+
+// PayoutAccountIDGT applies the GT predicate on the "payout_account_id" field.
+func PayoutAccountIDGT(v int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldGT(FieldPayoutAccountID, v))
+}
+
+// PayoutAccountIDGTE applies the GTE predicate on the "payout_account_id" field.
+func PayoutAccountIDGTE(v int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldGTE(FieldPayoutAccountID, v))
+}
+
+// PayoutAccountIDLT applies the LT predicate on the "payout_account_id" field.
+func PayoutAccountIDLT(v int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldLT(FieldPayoutAccountID, v))
+}
+
+// PayoutAccountIDLTE applies the LTE predicate on the "payout_account_id" field.
+func PayoutAccountIDLTE(v int) predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldLTE(FieldPayoutAccountID, v))
+}
+
+// PayoutAccountIDIsNil applies the IsNil predicate on the "payout_account_id" field.
+func PayoutAccountIDIsNil() predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldIsNull(FieldPayoutAccountID))
+}
+
+// PayoutAccountIDNotNil applies the NotNil predicate on the "payout_account_id" field.
+func PayoutAccountIDNotNil() predicate.EsportsWithdrawal {
+	return predicate.EsportsWithdrawal(sql.FieldNotNull(FieldPayoutAccountID))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

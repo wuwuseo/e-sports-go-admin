@@ -34,6 +34,8 @@ const (
 	FieldChannel = "channel"
 	// FieldAccountRef holds the string denoting the account_ref field in the database.
 	FieldAccountRef = "account_ref"
+	// FieldPayoutAccountID holds the string denoting the payout_account_id field in the database.
+	FieldPayoutAccountID = "payout_account_id"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldRejectReason holds the string denoting the reject_reason field in the database.
@@ -77,6 +79,7 @@ var Columns = []string{
 	FieldNetCents,
 	FieldChannel,
 	FieldAccountRef,
+	FieldPayoutAccountID,
 	FieldStatus,
 	FieldRejectReason,
 	FieldReviewedByAdminID,
@@ -247,6 +250,11 @@ func ByChannel(opts ...sql.OrderTermOption) OrderOption {
 // ByAccountRef orders the results by the account_ref field.
 func ByAccountRef(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAccountRef, opts...).ToFunc()
+}
+
+// ByPayoutAccountID orders the results by the payout_account_id field.
+func ByPayoutAccountID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPayoutAccountID, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

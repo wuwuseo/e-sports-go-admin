@@ -81,9 +81,11 @@ import (
 	"go-admin/internal/ent/esportspaymentintent"
 	"go-admin/internal/ent/esportspaymentreceipt"
 	"go-admin/internal/ent/esportspaymentreversal"
+	"go-admin/internal/ent/esportspayoutbatch"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayercreditevent"
 	"go-admin/internal/ent/esportsplayeridentity"
+	"go-admin/internal/ent/esportsplayerpayoutaccount"
 	"go-admin/internal/ent/esportsplayerrecovery"
 	"go-admin/internal/ent/esportsplayerreview"
 	"go-admin/internal/ent/esportsplayerreviewappeal"
@@ -278,12 +280,16 @@ type Client struct {
 	EsportsPaymentReceipt *EsportsPaymentReceiptClient
 	// EsportsPaymentReversal is the client for interacting with the EsportsPaymentReversal builders.
 	EsportsPaymentReversal *EsportsPaymentReversalClient
+	// EsportsPayoutBatch is the client for interacting with the EsportsPayoutBatch builders.
+	EsportsPayoutBatch *EsportsPayoutBatchClient
 	// EsportsPlayer is the client for interacting with the EsportsPlayer builders.
 	EsportsPlayer *EsportsPlayerClient
 	// EsportsPlayerCreditEvent is the client for interacting with the EsportsPlayerCreditEvent builders.
 	EsportsPlayerCreditEvent *EsportsPlayerCreditEventClient
 	// EsportsPlayerIdentity is the client for interacting with the EsportsPlayerIdentity builders.
 	EsportsPlayerIdentity *EsportsPlayerIdentityClient
+	// EsportsPlayerPayoutAccount is the client for interacting with the EsportsPlayerPayoutAccount builders.
+	EsportsPlayerPayoutAccount *EsportsPlayerPayoutAccountClient
 	// EsportsPlayerRecovery is the client for interacting with the EsportsPlayerRecovery builders.
 	EsportsPlayerRecovery *EsportsPlayerRecoveryClient
 	// EsportsPlayerReview is the client for interacting with the EsportsPlayerReview builders.
@@ -449,9 +455,11 @@ func (c *Client) init() {
 	c.EsportsPaymentIntent = NewEsportsPaymentIntentClient(c.config)
 	c.EsportsPaymentReceipt = NewEsportsPaymentReceiptClient(c.config)
 	c.EsportsPaymentReversal = NewEsportsPaymentReversalClient(c.config)
+	c.EsportsPayoutBatch = NewEsportsPayoutBatchClient(c.config)
 	c.EsportsPlayer = NewEsportsPlayerClient(c.config)
 	c.EsportsPlayerCreditEvent = NewEsportsPlayerCreditEventClient(c.config)
 	c.EsportsPlayerIdentity = NewEsportsPlayerIdentityClient(c.config)
+	c.EsportsPlayerPayoutAccount = NewEsportsPlayerPayoutAccountClient(c.config)
 	c.EsportsPlayerRecovery = NewEsportsPlayerRecoveryClient(c.config)
 	c.EsportsPlayerReview = NewEsportsPlayerReviewClient(c.config)
 	c.EsportsPlayerReviewAppeal = NewEsportsPlayerReviewAppealClient(c.config)
@@ -656,9 +664,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsPaymentIntent:           NewEsportsPaymentIntentClient(cfg),
 		EsportsPaymentReceipt:          NewEsportsPaymentReceiptClient(cfg),
 		EsportsPaymentReversal:         NewEsportsPaymentReversalClient(cfg),
+		EsportsPayoutBatch:             NewEsportsPayoutBatchClient(cfg),
 		EsportsPlayer:                  NewEsportsPlayerClient(cfg),
 		EsportsPlayerCreditEvent:       NewEsportsPlayerCreditEventClient(cfg),
 		EsportsPlayerIdentity:          NewEsportsPlayerIdentityClient(cfg),
+		EsportsPlayerPayoutAccount:     NewEsportsPlayerPayoutAccountClient(cfg),
 		EsportsPlayerRecovery:          NewEsportsPlayerRecoveryClient(cfg),
 		EsportsPlayerReview:            NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewAppeal:      NewEsportsPlayerReviewAppealClient(cfg),
@@ -790,9 +800,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsPaymentIntent:           NewEsportsPaymentIntentClient(cfg),
 		EsportsPaymentReceipt:          NewEsportsPaymentReceiptClient(cfg),
 		EsportsPaymentReversal:         NewEsportsPaymentReversalClient(cfg),
+		EsportsPayoutBatch:             NewEsportsPayoutBatchClient(cfg),
 		EsportsPlayer:                  NewEsportsPlayerClient(cfg),
 		EsportsPlayerCreditEvent:       NewEsportsPlayerCreditEventClient(cfg),
 		EsportsPlayerIdentity:          NewEsportsPlayerIdentityClient(cfg),
+		EsportsPlayerPayoutAccount:     NewEsportsPlayerPayoutAccountClient(cfg),
 		EsportsPlayerRecovery:          NewEsportsPlayerRecoveryClient(cfg),
 		EsportsPlayerReview:            NewEsportsPlayerReviewClient(cfg),
 		EsportsPlayerReviewAppeal:      NewEsportsPlayerReviewAppealClient(cfg),
@@ -886,8 +898,9 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsOrderCollaborator, c.EsportsOrderEvent, c.EsportsOutbox,
 		c.EsportsPageAsset, c.EsportsPageDocument, c.EsportsPageVersion,
 		c.EsportsPaymentAccount, c.EsportsPaymentIntent, c.EsportsPaymentReceipt,
-		c.EsportsPaymentReversal, c.EsportsPlayer, c.EsportsPlayerCreditEvent,
-		c.EsportsPlayerIdentity, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
+		c.EsportsPaymentReversal, c.EsportsPayoutBatch, c.EsportsPlayer,
+		c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity,
+		c.EsportsPlayerPayoutAccount, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewAppeal, c.EsportsPlayerReviewRevision,
 		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent,
 		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
@@ -932,8 +945,9 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsOrderCollaborator, c.EsportsOrderEvent, c.EsportsOutbox,
 		c.EsportsPageAsset, c.EsportsPageDocument, c.EsportsPageVersion,
 		c.EsportsPaymentAccount, c.EsportsPaymentIntent, c.EsportsPaymentReceipt,
-		c.EsportsPaymentReversal, c.EsportsPlayer, c.EsportsPlayerCreditEvent,
-		c.EsportsPlayerIdentity, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
+		c.EsportsPaymentReversal, c.EsportsPayoutBatch, c.EsportsPlayer,
+		c.EsportsPlayerCreditEvent, c.EsportsPlayerIdentity,
+		c.EsportsPlayerPayoutAccount, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewAppeal, c.EsportsPlayerReviewRevision,
 		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent,
 		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
@@ -1095,12 +1109,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsPaymentReceipt.mutate(ctx, m)
 	case *EsportsPaymentReversalMutation:
 		return c.EsportsPaymentReversal.mutate(ctx, m)
+	case *EsportsPayoutBatchMutation:
+		return c.EsportsPayoutBatch.mutate(ctx, m)
 	case *EsportsPlayerMutation:
 		return c.EsportsPlayer.mutate(ctx, m)
 	case *EsportsPlayerCreditEventMutation:
 		return c.EsportsPlayerCreditEvent.mutate(ctx, m)
 	case *EsportsPlayerIdentityMutation:
 		return c.EsportsPlayerIdentity.mutate(ctx, m)
+	case *EsportsPlayerPayoutAccountMutation:
+		return c.EsportsPlayerPayoutAccount.mutate(ctx, m)
 	case *EsportsPlayerRecoveryMutation:
 		return c.EsportsPlayerRecovery.mutate(ctx, m)
 	case *EsportsPlayerReviewMutation:
@@ -10668,6 +10686,139 @@ func (c *EsportsPaymentReversalClient) mutate(ctx context.Context, m *EsportsPay
 	}
 }
 
+// EsportsPayoutBatchClient is a client for the EsportsPayoutBatch schema.
+type EsportsPayoutBatchClient struct {
+	config
+}
+
+// NewEsportsPayoutBatchClient returns a client for the EsportsPayoutBatch from the given config.
+func NewEsportsPayoutBatchClient(c config) *EsportsPayoutBatchClient {
+	return &EsportsPayoutBatchClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportspayoutbatch.Hooks(f(g(h())))`.
+func (c *EsportsPayoutBatchClient) Use(hooks ...Hook) {
+	c.hooks.EsportsPayoutBatch = append(c.hooks.EsportsPayoutBatch, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportspayoutbatch.Intercept(f(g(h())))`.
+func (c *EsportsPayoutBatchClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsPayoutBatch = append(c.inters.EsportsPayoutBatch, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsPayoutBatch entity.
+func (c *EsportsPayoutBatchClient) Create() *EsportsPayoutBatchCreate {
+	mutation := newEsportsPayoutBatchMutation(c.config, OpCreate)
+	return &EsportsPayoutBatchCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsPayoutBatch entities.
+func (c *EsportsPayoutBatchClient) CreateBulk(builders ...*EsportsPayoutBatchCreate) *EsportsPayoutBatchCreateBulk {
+	return &EsportsPayoutBatchCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsPayoutBatchClient) MapCreateBulk(slice any, setFunc func(*EsportsPayoutBatchCreate, int)) *EsportsPayoutBatchCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsPayoutBatchCreateBulk{err: fmt.Errorf("calling to EsportsPayoutBatchClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsPayoutBatchCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsPayoutBatchCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsPayoutBatch.
+func (c *EsportsPayoutBatchClient) Update() *EsportsPayoutBatchUpdate {
+	mutation := newEsportsPayoutBatchMutation(c.config, OpUpdate)
+	return &EsportsPayoutBatchUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsPayoutBatchClient) UpdateOne(_m *EsportsPayoutBatch) *EsportsPayoutBatchUpdateOne {
+	mutation := newEsportsPayoutBatchMutation(c.config, OpUpdateOne, withEsportsPayoutBatch(_m))
+	return &EsportsPayoutBatchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsPayoutBatchClient) UpdateOneID(id int) *EsportsPayoutBatchUpdateOne {
+	mutation := newEsportsPayoutBatchMutation(c.config, OpUpdateOne, withEsportsPayoutBatchID(id))
+	return &EsportsPayoutBatchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsPayoutBatch.
+func (c *EsportsPayoutBatchClient) Delete() *EsportsPayoutBatchDelete {
+	mutation := newEsportsPayoutBatchMutation(c.config, OpDelete)
+	return &EsportsPayoutBatchDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsPayoutBatchClient) DeleteOne(_m *EsportsPayoutBatch) *EsportsPayoutBatchDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsPayoutBatchClient) DeleteOneID(id int) *EsportsPayoutBatchDeleteOne {
+	builder := c.Delete().Where(esportspayoutbatch.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsPayoutBatchDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsPayoutBatch.
+func (c *EsportsPayoutBatchClient) Query() *EsportsPayoutBatchQuery {
+	return &EsportsPayoutBatchQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsPayoutBatch},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsPayoutBatch entity by its id.
+func (c *EsportsPayoutBatchClient) Get(ctx context.Context, id int) (*EsportsPayoutBatch, error) {
+	return c.Query().Where(esportspayoutbatch.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsPayoutBatchClient) GetX(ctx context.Context, id int) *EsportsPayoutBatch {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsPayoutBatchClient) Hooks() []Hook {
+	return c.hooks.EsportsPayoutBatch
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsPayoutBatchClient) Interceptors() []Interceptor {
+	return c.inters.EsportsPayoutBatch
+}
+
+func (c *EsportsPayoutBatchClient) mutate(ctx context.Context, m *EsportsPayoutBatchMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsPayoutBatchCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsPayoutBatchUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsPayoutBatchUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsPayoutBatchDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsPayoutBatch mutation op: %q", m.Op())
+	}
+}
+
 // EsportsPlayerClient is a client for the EsportsPlayer schema.
 type EsportsPlayerClient struct {
 	config
@@ -11064,6 +11215,139 @@ func (c *EsportsPlayerIdentityClient) mutate(ctx context.Context, m *EsportsPlay
 		return (&EsportsPlayerIdentityDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown EsportsPlayerIdentity mutation op: %q", m.Op())
+	}
+}
+
+// EsportsPlayerPayoutAccountClient is a client for the EsportsPlayerPayoutAccount schema.
+type EsportsPlayerPayoutAccountClient struct {
+	config
+}
+
+// NewEsportsPlayerPayoutAccountClient returns a client for the EsportsPlayerPayoutAccount from the given config.
+func NewEsportsPlayerPayoutAccountClient(c config) *EsportsPlayerPayoutAccountClient {
+	return &EsportsPlayerPayoutAccountClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsplayerpayoutaccount.Hooks(f(g(h())))`.
+func (c *EsportsPlayerPayoutAccountClient) Use(hooks ...Hook) {
+	c.hooks.EsportsPlayerPayoutAccount = append(c.hooks.EsportsPlayerPayoutAccount, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsplayerpayoutaccount.Intercept(f(g(h())))`.
+func (c *EsportsPlayerPayoutAccountClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsPlayerPayoutAccount = append(c.inters.EsportsPlayerPayoutAccount, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsPlayerPayoutAccount entity.
+func (c *EsportsPlayerPayoutAccountClient) Create() *EsportsPlayerPayoutAccountCreate {
+	mutation := newEsportsPlayerPayoutAccountMutation(c.config, OpCreate)
+	return &EsportsPlayerPayoutAccountCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsPlayerPayoutAccount entities.
+func (c *EsportsPlayerPayoutAccountClient) CreateBulk(builders ...*EsportsPlayerPayoutAccountCreate) *EsportsPlayerPayoutAccountCreateBulk {
+	return &EsportsPlayerPayoutAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsPlayerPayoutAccountClient) MapCreateBulk(slice any, setFunc func(*EsportsPlayerPayoutAccountCreate, int)) *EsportsPlayerPayoutAccountCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsPlayerPayoutAccountCreateBulk{err: fmt.Errorf("calling to EsportsPlayerPayoutAccountClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsPlayerPayoutAccountCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsPlayerPayoutAccountCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsPlayerPayoutAccount.
+func (c *EsportsPlayerPayoutAccountClient) Update() *EsportsPlayerPayoutAccountUpdate {
+	mutation := newEsportsPlayerPayoutAccountMutation(c.config, OpUpdate)
+	return &EsportsPlayerPayoutAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsPlayerPayoutAccountClient) UpdateOne(_m *EsportsPlayerPayoutAccount) *EsportsPlayerPayoutAccountUpdateOne {
+	mutation := newEsportsPlayerPayoutAccountMutation(c.config, OpUpdateOne, withEsportsPlayerPayoutAccount(_m))
+	return &EsportsPlayerPayoutAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsPlayerPayoutAccountClient) UpdateOneID(id int) *EsportsPlayerPayoutAccountUpdateOne {
+	mutation := newEsportsPlayerPayoutAccountMutation(c.config, OpUpdateOne, withEsportsPlayerPayoutAccountID(id))
+	return &EsportsPlayerPayoutAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsPlayerPayoutAccount.
+func (c *EsportsPlayerPayoutAccountClient) Delete() *EsportsPlayerPayoutAccountDelete {
+	mutation := newEsportsPlayerPayoutAccountMutation(c.config, OpDelete)
+	return &EsportsPlayerPayoutAccountDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsPlayerPayoutAccountClient) DeleteOne(_m *EsportsPlayerPayoutAccount) *EsportsPlayerPayoutAccountDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsPlayerPayoutAccountClient) DeleteOneID(id int) *EsportsPlayerPayoutAccountDeleteOne {
+	builder := c.Delete().Where(esportsplayerpayoutaccount.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsPlayerPayoutAccountDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsPlayerPayoutAccount.
+func (c *EsportsPlayerPayoutAccountClient) Query() *EsportsPlayerPayoutAccountQuery {
+	return &EsportsPlayerPayoutAccountQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsPlayerPayoutAccount},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsPlayerPayoutAccount entity by its id.
+func (c *EsportsPlayerPayoutAccountClient) Get(ctx context.Context, id int) (*EsportsPlayerPayoutAccount, error) {
+	return c.Query().Where(esportsplayerpayoutaccount.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsPlayerPayoutAccountClient) GetX(ctx context.Context, id int) *EsportsPlayerPayoutAccount {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsPlayerPayoutAccountClient) Hooks() []Hook {
+	return c.hooks.EsportsPlayerPayoutAccount
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsPlayerPayoutAccountClient) Interceptors() []Interceptor {
+	return c.inters.EsportsPlayerPayoutAccount
+}
+
+func (c *EsportsPlayerPayoutAccountClient) mutate(ctx context.Context, m *EsportsPlayerPayoutAccountMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsPlayerPayoutAccountCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsPlayerPayoutAccountUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsPlayerPayoutAccountUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsPlayerPayoutAccountDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsPlayerPayoutAccount mutation op: %q", m.Op())
 	}
 }
 
@@ -16727,9 +17011,10 @@ type (
 		EsportsOrder, EsportsOrderAddon, EsportsOrderCollaborator, EsportsOrderEvent,
 		EsportsOutbox, EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
 		EsportsPaymentAccount, EsportsPaymentIntent, EsportsPaymentReceipt,
-		EsportsPaymentReversal, EsportsPlayer, EsportsPlayerCreditEvent,
-		EsportsPlayerIdentity, EsportsPlayerRecovery, EsportsPlayerReview,
-		EsportsPlayerReviewAppeal, EsportsPlayerReviewRevision, EsportsPriceAdjustment,
+		EsportsPaymentReversal, EsportsPayoutBatch, EsportsPlayer,
+		EsportsPlayerCreditEvent, EsportsPlayerIdentity, EsportsPlayerPayoutAccount,
+		EsportsPlayerRecovery, EsportsPlayerReview, EsportsPlayerReviewAppeal,
+		EsportsPlayerReviewRevision, EsportsPriceAdjustment,
 		EsportsPriorityBookingIntent, EsportsProductCategory, EsportsQuotaHold,
 		EsportsRechargeCampaign, EsportsRechargeIntent, EsportsRechargeRefundExecution,
 		EsportsReportExport, EsportsRescheduleConfirmation, EsportsRescheduleProposal,
@@ -16762,9 +17047,10 @@ type (
 		EsportsOrder, EsportsOrderAddon, EsportsOrderCollaborator, EsportsOrderEvent,
 		EsportsOutbox, EsportsPageAsset, EsportsPageDocument, EsportsPageVersion,
 		EsportsPaymentAccount, EsportsPaymentIntent, EsportsPaymentReceipt,
-		EsportsPaymentReversal, EsportsPlayer, EsportsPlayerCreditEvent,
-		EsportsPlayerIdentity, EsportsPlayerRecovery, EsportsPlayerReview,
-		EsportsPlayerReviewAppeal, EsportsPlayerReviewRevision, EsportsPriceAdjustment,
+		EsportsPaymentReversal, EsportsPayoutBatch, EsportsPlayer,
+		EsportsPlayerCreditEvent, EsportsPlayerIdentity, EsportsPlayerPayoutAccount,
+		EsportsPlayerRecovery, EsportsPlayerReview, EsportsPlayerReviewAppeal,
+		EsportsPlayerReviewRevision, EsportsPriceAdjustment,
 		EsportsPriorityBookingIntent, EsportsProductCategory, EsportsQuotaHold,
 		EsportsRechargeCampaign, EsportsRechargeIntent, EsportsRechargeRefundExecution,
 		EsportsReportExport, EsportsRescheduleConfirmation, EsportsRescheduleProposal,
