@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscustomer"
 	"go-admin/internal/ent/esportsorder"
+	"go-admin/internal/ent/esportsplayer"
 )
 
 // 管理端统一以订单号（order_no，全局唯一）作为订单的业务标识：
@@ -62,6 +64,64 @@ func orderNosOf(ctx context.Context, db *ent.Client, ids []int) (map[int]string,
 }
 
 // ── 管理端列表视图：实体 + 订单号（订单列统一展示订单号，不再裸显示订单 ID） ──
+
+// playerNamesOf 批量解析陪玩显示名（展示侧用）：返回 playerID → display_name，
+// 查不到的 ID 不在结果里（展示侧回落显示 #ID）。
+func playerNamesOf(ctx context.Context, db *ent.Client, ids []int) (map[int]string, error) {
+	uniq := uniquePositiveIDs(ids)
+	out := make(map[int]string, len(uniq))
+	if len(uniq) == 0 {
+		return out, nil
+	}
+	players, err := db.EsportsPlayer.Query().
+		Where(esportsplayer.IDIn(uniq...)).
+		Select(esportsplayer.FieldID, esportsplayer.FieldDisplayName).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, player := range players {
+		out[player.ID] = player.DisplayName
+	}
+	return out, nil
+}
+
+// customerNamesOf 批量解析客户显示名，口径同 playerNamesOf。
+func customerNamesOf(ctx context.Context, db *ent.Client, ids []int) (map[int]string, error) {
+	uniq := uniquePositiveIDs(ids)
+	out := make(map[int]string, len(uniq))
+	if len(uniq) == 0 {
+		return out, nil
+	}
+	customers, err := db.EsportsCustomer.Query().
+		Where(esportscustomer.IDIn(uniq...)).
+		Select(esportscustomer.FieldID, esportscustomer.FieldDisplayName).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, customer := range customers {
+		out[customer.ID] = customer.DisplayName
+	}
+	return out, nil
+}
+
+// uniquePositiveIDs 去重并剔除非法 ID（<=0），供批量查询收窄 IN 列表。
+func uniquePositiveIDs(ids []int) []int {
+	uniq := make([]int, 0, len(ids))
+	seen := make(map[int]struct{}, len(ids))
+	for _, id := range ids {
+		if id < 1 {
+			continue
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		uniq = append(uniq, id)
+	}
+	return uniq
+}
 
 // offlinePaymentProofView 待核验收款列表视图（客服工作台 / 收款管理共用）。
 type offlinePaymentProofView struct {
@@ -136,21 +196,33 @@ func playerReviewAdminViewsOf(ctx context.Context, db *ent.Client,
 type fulfillmentMakeupView struct {
 	*ent.EsportsFulfillmentMakeup
 	OrderNo string `json:"order_no"`
+	// PlayerName 承接陪玩显示名；查不到时为空串，前端回落 #ID。
+	PlayerName string `json:"player_name"`
 }
 
 func fulfillmentMakeupViewsOf(ctx context.Context, db *ent.Client,
 	items []*ent.EsportsFulfillmentMakeup) ([]fulfillmentMakeupView, error) {
 	ids := make([]int, 0, len(items))
+	playerIDs := make([]int, 0, len(items))
 	for _, item := range items {
 		ids = append(ids, item.OrderID)
+		playerIDs = append(playerIDs, item.PlayerID)
 	}
 	nos, err := orderNosOf(ctx, db, ids)
 	if err != nil {
 		return nil, err
 	}
+	names, err := playerNamesOf(ctx, db, playerIDs)
+	if err != nil {
+		return nil, err
+	}
 	views := make([]fulfillmentMakeupView, 0, len(items))
 	for _, item := range items {
-		views = append(views, fulfillmentMakeupView{EsportsFulfillmentMakeup: item, OrderNo: nos[item.OrderID]})
+		views = append(views, fulfillmentMakeupView{
+			EsportsFulfillmentMakeup: item,
+			OrderNo:                  nos[item.OrderID],
+			PlayerName:               names[item.PlayerID],
+		})
 	}
 	return views, nil
 }
@@ -159,17 +231,25 @@ func fulfillmentMakeupViewsOf(ctx context.Context, db *ent.Client,
 type giftOrderView struct {
 	*ent.EsportsGiftOrder
 	OrderNo string `json:"order_no"`
+	// CustomerName 客户显示名；查不到时为空串，前端回落 #ID。
+	CustomerName string `json:"customer_name"`
 }
 
 func giftOrderViewsOf(ctx context.Context, db *ent.Client,
 	items []*ent.EsportsGiftOrder) ([]giftOrderView, error) {
 	ids := make([]int, 0, len(items))
+	customerIDs := make([]int, 0, len(items))
 	for _, item := range items {
 		if item.OrderID != nil {
 			ids = append(ids, *item.OrderID)
 		}
+		customerIDs = append(customerIDs, item.CustomerID)
 	}
 	nos, err := orderNosOf(ctx, db, ids)
+	if err != nil {
+		return nil, err
+	}
+	names, err := customerNamesOf(ctx, db, customerIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +259,61 @@ func giftOrderViewsOf(ctx context.Context, db *ent.Client,
 		if item.OrderID != nil {
 			no = nos[*item.OrderID]
 		}
-		views = append(views, giftOrderView{EsportsGiftOrder: item, OrderNo: no})
+		views = append(views, giftOrderView{
+			EsportsGiftOrder: item,
+			OrderNo:          no,
+			CustomerName:     names[item.CustomerID],
+		})
+	}
+	return views, nil
+}
+
+// adminGiftIntentView 管理端礼物确认单列表视图（补客户显示名，避免列表裸显示客户 ID）。
+// 与 gift_intent.go 的 giftIntentView 区分：这里保留实体全字段，仅追加展示字段。
+type adminGiftIntentView struct {
+	*ent.EsportsGiftIntent
+	CustomerName string `json:"customer_name"`
+}
+
+func adminGiftIntentViewsOf(ctx context.Context, db *ent.Client,
+	items []*ent.EsportsGiftIntent) ([]adminGiftIntentView, error) {
+	customerIDs := make([]int, 0, len(items))
+	for _, item := range items {
+		customerIDs = append(customerIDs, item.CustomerID)
+	}
+	names, err := customerNamesOf(ctx, db, customerIDs)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]adminGiftIntentView, 0, len(items))
+	for _, item := range items {
+		views = append(views, adminGiftIntentView{
+			EsportsGiftIntent: item,
+			CustomerName:      names[item.CustomerID],
+		})
+	}
+	return views, nil
+}
+
+// adminOrderView 管理端订单列表视图（补客户显示名，避免列表裸显示客户 ID）。
+type adminOrderView struct {
+	*ent.EsportsOrder
+	CustomerName string `json:"customer_name"`
+}
+
+func adminOrderViewsOf(ctx context.Context, db *ent.Client,
+	items []*ent.EsportsOrder) ([]adminOrderView, error) {
+	customerIDs := make([]int, 0, len(items))
+	for _, item := range items {
+		customerIDs = append(customerIDs, item.CustomerID)
+	}
+	names, err := customerNamesOf(ctx, db, customerIDs)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]adminOrderView, 0, len(items))
+	for _, item := range items {
+		views = append(views, adminOrderView{EsportsOrder: item, CustomerName: names[item.CustomerID]})
 	}
 	return views, nil
 }

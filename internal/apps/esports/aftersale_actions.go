@@ -120,6 +120,44 @@ func listAfterSaleActions(ctx context.Context, db *ent.Client, afterSaleID, limi
 	).Order(ent.Asc(esportsaftersaleaction.FieldSeq)).Limit(limit).All(ctx)
 }
 
+// afterSaleActionView 动作项列表视图：补承接陪玩 / 争议陪玩的显示名，
+// 查不到时为空串（前端回落 #ID），避免管理端裸展示玩家 ID。
+type afterSaleActionView struct {
+	*ent.EsportsAfterSaleAction
+	PlayerName        string `json:"player_name"`
+	DisputePlayerName string `json:"dispute_player_name"`
+}
+
+// afterSaleActionViewsOf 批量补全动作项的陪玩显示名（一次查询，不逐项查库）。
+func afterSaleActionViewsOf(ctx context.Context, db *ent.Client,
+	items []*ent.EsportsAfterSaleAction) ([]afterSaleActionView, error) {
+	ids := make([]int, 0, len(items)*2)
+	for _, item := range items {
+		if item.PlayerID != nil {
+			ids = append(ids, *item.PlayerID)
+		}
+		if item.DisputePlayerID != nil {
+			ids = append(ids, *item.DisputePlayerID)
+		}
+	}
+	names, err := playerNamesOf(ctx, db, ids)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]afterSaleActionView, 0, len(items))
+	for _, item := range items {
+		view := afterSaleActionView{EsportsAfterSaleAction: item}
+		if item.PlayerID != nil {
+			view.PlayerName = names[*item.PlayerID]
+		}
+		if item.DisputePlayerID != nil {
+			view.DisputePlayerName = names[*item.DisputePlayerID]
+		}
+		views = append(views, view)
+	}
+	return views, nil
+}
+
 // submitAfterSaleActionsPlan 提交多动作方案：
 // 在同一事务内清空上一轮动作项、写入本轮动作项，并把售后单聚合字段更新为摘要后进入「待客户确认」。
 // 既有单动作路径（未传 actions）不受影响。

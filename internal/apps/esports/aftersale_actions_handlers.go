@@ -23,9 +23,13 @@ func listAfterSaleActionsHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	views, err := afterSaleActionViewsOf(c.Context(), global.ORM, actions)
+	if err != nil {
+		return businessError(c, err)
+	}
 	return reply(c, fiber.Map{
 		"progress": afterSaleActionProgressOf(actions),
-		"actions":  actions,
+		"actions":  views,
 	})
 }
 

@@ -28,6 +28,10 @@ func expireOrdersTask(ctx context.Context, logger io.Writer) error {
 	count, err := expireDueOrders(ctx, global.ORM, time.Now(), 100)
 	if err == nil {
 		_, _ = fmt.Fprintf(logger, "处理待付款超时订单：%d\n", count)
+		if count > 0 {
+			// 看板状态已变，推一次 SSE 让管理端立即刷新（定时任务无 HTTP 上下文）。
+			notifyDispatchChanged(map[string]any{"source": "task"})
+		}
 	}
 	return err
 }
@@ -36,6 +40,9 @@ func expireDispatchInvitesTask(ctx context.Context, logger io.Writer) error {
 	count, err := expireDispatchInvites(ctx, global.ORM, time.Now(), 100)
 	if err == nil {
 		_, _ = fmt.Fprintf(logger, "处理过期派单邀请：%d\n", count)
+		if count > 0 {
+			notifyDispatchChanged(map[string]any{"source": "task"})
+		}
 	}
 	return err
 }
@@ -62,6 +69,10 @@ func expireDispatchPriorityNoticeTask(ctx context.Context, logger io.Writer) err
 	count, err := expireDispatchPriorityNotices(ctx, global.ORM, time.Now(), 200)
 	if err == nil {
 		_, _ = fmt.Fprintf(logger, "处理优先通知超时释放：%d\n", count)
+		if count > 0 {
+			// 订单从优先名单释放到抢单大厅，看板需要立即同步。
+			notifyDispatchChanged(map[string]any{"source": "task"})
+		}
 	}
 	return err
 }
@@ -475,7 +486,7 @@ func init() {
 			{Key: "player_expected_price_limits_cents", Name: "期望报价允许区间（分）", Value: "0,0", Type: "string", Group: "esports", Remark: "格式 \"min,max\"（两个非负整数分，逗号分隔）；\"0,0\"=两侧都不限（也是缺失/空/字段数≠2/非数字/负数/min>max 的回落）；**键名虽含 _cents 但实际是字符串，后台数字框写不进去**"},
 			{Key: "repurchase_follow_up_days", Name: "结单后复购跟进天数", Value: "7", Type: "number", Group: "esports", Remark: "缺失/空/非数字/负数回落 7；**显式 0 = 关闭**（不生成复购回访待办）；>0 时结单后该天数生成客户维度复购跟进待办"},
 		},
-		Routes: []cmfapp.Route{
+		Routes: syncedRoutes([]cmfapp.Route{
 			{Method: "GET", Path: "/products", Auth: cmfapp.AuthPublic, Handler: publicSkus},
 			// 技能等级：公开读供管理端表单与 H5 文案；配置本体在「技能等级」页编辑（下方 admin 路由）。
 			{Method: "GET", Path: "/skill-levels", Auth: cmfapp.AuthPublic, Handler: publicSkillLevels},
@@ -1025,7 +1036,7 @@ func init() {
 			{Method: "GET", Path: "/admin/orders/:id/players/:playerId/service/timing", Auth: cmfapp.AuthAdmin, Handler: readableOrderHandler(adminServiceTimingHandler)},
 			// 充值退款执行批次列表（只读）：?status= pending / executed、?limit=。
 			{Method: "GET", Path: "/admin/recharge-refund-executions", Auth: cmfapp.AuthAdmin, Handler: listRechargeRefundExecutionsHandler},
-		},
+		}),
 		Permissions: []cmfapp.Permission{
 			// 商品模块：一个模块一个菜单。
 			{Type: cmfapp.PermMenu, Name: "商品", Code: "esports:product:menu", MenuPath: "/esports/products", Parent: "esports:operations:menu", Component: "esports/products/index", Icon: "icon-apps", SortOrder: 40},

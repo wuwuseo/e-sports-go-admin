@@ -344,3 +344,27 @@ func TestDispatchBoardPublicPoolMasking(t *testing.T) {
 		t.Fatalf("超管不应有掩码标记：%v", super.MaskedPublicPoolIDs)
 	}
 }
+
+// 看板客户名映射：各桶客户 ID 一次查询补全显示名；脱敏订单（customer_id=0）不泄露名字。
+func TestDispatchBoardCustomerNames(t *testing.T) {
+	db := enttest.Open(t, "sqlite3", "file:esports_dispatch_board_names?mode=memory&cache=shared&_fk=1",
+		enttest.WithMigrateOptions(migrate.WithForeignKeys(false)))
+	defer db.Close()
+	ctx := t.Context()
+
+	customer := db.EsportsCustomer.Create().SetDisplayName("客户小明").SetOwnerAdminID(11).SaveX(ctx)
+	board := &dispatchBoard{
+		PendingDispatch: []*ent.EsportsOrder{{ID: 1, CustomerID: customer.ID}},
+		PublicPool:      []*ent.EsportsOrder{{ID: 2, CustomerID: 0}},
+	}
+	names, err := dispatchBoardCustomerNames(ctx, db, board)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if names[customer.ID] != "客户小明" {
+		t.Fatalf("客户名补全失败：%v", names)
+	}
+	if len(names) != 1 {
+		t.Fatalf("脱敏订单不应带出客户名：%v", names)
+	}
+}

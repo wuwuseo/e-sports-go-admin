@@ -171,6 +171,10 @@ type afterSaleView struct {
 	// SourceTypeLabel 来源类型中文名：来源类型枚举里的 stored_value_card 已随储值卡功能下线，
 	// 由后端统一给出「储值卡（已停用）」，两端无需再维护这个废弃值的中文映射。
 	SourceTypeLabel string `json:"source_type_label"`
+	// CustomerName / PlayerName 客户与陪玩显示名（批量补全）：查不到时为空串，
+	// 前端回落显示 #ID；无客户 / 陪玩来源的售后单两边都为空串。
+	CustomerName string `json:"customer_name"`
+	PlayerName   string `json:"player_name"`
 }
 
 // afterSaleSourceTypeLabels 来源类型的中文名（含已废弃但仍需可读的 stored_value_card）。
@@ -209,6 +213,31 @@ func afterSaleViewsOf(ctx context.Context, db *ent.Client, items []*ent.EsportsA
 		for i := range views {
 			if views[i].SourceType == esportsaftersale.SourceTypeOrder {
 				views[i].OrderNo = nos[views[i].SourceID]
+			}
+		}
+	}
+	// 客户 / 陪玩补显示名（各一次批量查询；缺失时留空由前端回落 #ID）。
+	customerIDs := make([]int, 0, len(views))
+	playerIDs := make([]int, 0, len(views))
+	for _, view := range views {
+		if view.CustomerID != nil {
+			customerIDs = append(customerIDs, *view.CustomerID)
+		}
+		if view.PlayerID != nil {
+			playerIDs = append(playerIDs, *view.PlayerID)
+		}
+	}
+	if names, err := customerNamesOf(ctx, db, customerIDs); err == nil {
+		for i := range views {
+			if views[i].CustomerID != nil {
+				views[i].CustomerName = names[*views[i].CustomerID]
+			}
+		}
+	}
+	if names, err := playerNamesOf(ctx, db, playerIDs); err == nil {
+		for i := range views {
+			if views[i].PlayerID != nil {
+				views[i].PlayerName = names[*views[i].PlayerID]
 			}
 		}
 	}

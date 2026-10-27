@@ -696,7 +696,11 @@ func adminOrders(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
-	return writeAdminList(c, window, total, items)
+	views, err := adminOrderViewsOf(c.Context(), global.ORM, items)
+	if err != nil {
+		return businessError(c, err)
+	}
+	return writeAdminList(c, window, total, views)
 }
 
 func adminOrder(c fiber.Ctx) error {

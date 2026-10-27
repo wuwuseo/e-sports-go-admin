@@ -1332,6 +1332,9 @@ type dispatchBoard struct {
 	// 公共池脱敏：非超管在公共池只看到脱敏摘要，客户身份与金额字段被掩码；
 	// 此字段列出被掩码的订单 ID，供前端以「***」展示。超管为空（看完整数据）。
 	MaskedPublicPoolIDs []int `json:"masked_public_pool_ids"`
+	// CustomerNames 是各订单桶里出现过的客户 ID → 客户显示名，供看板直接展示客户名、免二次查询。
+	// 在脱敏之后生成：公共池订单的 customer_id 已被置 0，带不出被掩码客户的名字。
+	CustomerNames map[int]string `json:"customer_names"`
 }
 
 // loadDispatchBoardPlayers 组装看板的逐人上下线明细：
@@ -1525,7 +1528,28 @@ func loadDispatchBoardSorted(ctx context.Context, db *ent.Client, adminID int, i
 	if sortBy == dispatchBoardSortRemindPriority {
 		sortBoardByRemindPriority(board)
 	}
+	// 客户名批量补全（一次查询）；公共池脱敏订单的 customer_id 已为 0，安全跳过。
+	if board.CustomerNames, err = dispatchBoardCustomerNames(ctx, db, board); err != nil {
+		return nil, err
+	}
 	return board, nil
+}
+
+// dispatchBoardCustomerNames 收集各订单桶的客户 ID 并批量取显示名
+// （必须在脱敏之后调用，被掩码订单的 customer_id 已是 0）。
+func dispatchBoardCustomerNames(ctx context.Context, db *ent.Client,
+	board *dispatchBoard) (map[int]string, error) {
+	buckets := [][]*ent.EsportsOrder{
+		board.PendingDispatch, board.PublicPool, board.Grabbing, board.PendingAcceptance,
+		board.Accepted, board.InService, board.PendingClose, board.Abnormal,
+	}
+	ids := make([]int, 0, 64)
+	for _, bucket := range buckets {
+		for _, order := range bucket {
+			ids = append(ids, order.CustomerID)
+		}
+	}
+	return customerNamesOf(ctx, db, ids)
 }
 
 // sortBoardByRemindPriority 按催单优先级降序重排看板各订单桶。

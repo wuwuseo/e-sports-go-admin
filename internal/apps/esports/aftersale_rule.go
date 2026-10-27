@@ -103,8 +103,10 @@ func normalizeAfterSaleRuleInput(in afterSaleRuleInput) (afterSaleRuleInput, err
 	if in.Status == "" {
 		in.Status = string(esportsaftersalerule.StatusDraft)
 	}
-	if !validAfterSaleRuleCode(in.Code) {
-		return in, fmt.Errorf("%w：规则编码必填，只允许小写字母、数字与下划线，且不超过 48 字符", errInvalidInput)
+	// 编码由后台自动生成：新建时为空由 createAfterSaleRule 补齐，编辑时为空表示保持原编码不变，
+	// 只有显式传入时才校验格式。
+	if in.Code != "" && !validAfterSaleRuleCode(in.Code) {
+		return in, fmt.Errorf("%w：规则编码只允许小写字母、数字与下划线，且不超过 48 字符", errInvalidInput)
 	}
 	if in.Name == "" || len([]rune(in.Name)) > 120 {
 		return in, fmt.Errorf("%w：规则名称必填且不超过 120 字", errInvalidInput)
@@ -151,6 +153,12 @@ func normalizeAfterSaleRuleInput(in afterSaleRuleInput) (afterSaleRuleInput, err
 		return in, err
 	}
 	return in, nil
+}
+
+// afterSaleRuleCode 自动生成规则编码：rule_ 前缀 + UUID 去横线前 16 位（小写字母数字，共 21 字符）。
+// ponytail: 碰撞靠 UUID 概率兜底，撞上时唯一索引报「已存在」明确失败，不做自增重试。
+func afterSaleRuleCode() string {
+	return "rule_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:16]
 }
 
 // validAfterSaleRuleCode 规则编码：小写字母 / 数字 / 下划线，1–48 字符（入库唯一）。
@@ -263,8 +271,11 @@ func getAfterSaleRule(ctx context.Context, db *ent.Client, id int) (*ent.Esports
 	return db.EsportsAfterSaleRule.Get(ctx, id)
 }
 
-// createAfterSaleRule 新建规则（同一事务内写配置变更留痕）。
+// createAfterSaleRule 新建规则（同一事务内写配置变更留痕）；规则编码由后台自动生成。
 func createAfterSaleRule(ctx context.Context, db *ent.Client, adminID int, in afterSaleRuleInput, now time.Time) (*ent.EsportsAfterSaleRule, error) {
+	if strings.TrimSpace(in.Code) == "" {
+		in.Code = afterSaleRuleCode()
+	}
 	in, err := normalizeAfterSaleRuleInput(in)
 	if err != nil {
 		return nil, err

@@ -127,6 +127,8 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		// 兜底：App 未初始化注册表时至少保证站内信渠道可用
 		notifierRegistry = service.BuildNotifiers(hub)
 	}
+	// 定时任务没有 fiber 上下文，通过全局句柄广播派单看板变更。
+	global.Hub = hub
 	prefSvc := service.NewMessagePreferenceService()
 	messageService := service.NewMessageServiceWithNotifiers(notifierRegistry, prefSvc)
 	broadcastService := service.NewMessageBroadcastService(messageService)
