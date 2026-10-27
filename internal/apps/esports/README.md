@@ -12,7 +12,7 @@
 
 ## 管理端菜单
 
-一个模块一个菜单，均为顶层菜单（当前 18 个）：**商品**（`/esports/products`，产品分类与商品/规格维护）、**订单**（`/esports/orders`，订单列表、详情与改价/改期/取消/余额核销/结单）、**报单**（`/esports/reports`，客服报单、客户、年龄资格复核）、**钱包**（`/esports/wallets`，客户余额与陪玩猫粮账户、充值/调整/流水）、**排单**（`/esports/dispatch`，排单看板、席位指派/撤回、公共池认领、转单、催单、优先派单权名单与独占优先通知、陪玩转单确认）、**陪玩**（`/esports/players`，陪玩档案创建与编辑/上下线）、**售后**（`/esports/aftersales`，售后单受理/方案/审批/执行/退款）、**结算**（`/esports/settlements`，分成规则/分成明细/结算单/客服提成规则/客服提成明细与发放/提现审核/批量代发）、**充值活动**（`/esports/campaigns`，充值活动配置与状态管理，第 9 个顶层菜单，SortOrder 48）、**会员等级**（`/esports/members`，会员等级配置与客户会员查询/手动调级，第 10 个顶层菜单，SortOrder 49）、**礼物**（`/esports/gifts`，礼物目录、代客送礼、单据复核/退款、收礼/贡献榜单，第 11 个顶层菜单，SortOrder 50）、**考核**（`/esports/assessments`，考核权重配置、考核任务打分定级、申诉复核、客户评价与综合评分，第 12 个顶层菜单，SortOrder 51）、**报表**（`/esports/stats`，五类经营统计报表入口，第 13 个顶层菜单，SortOrder 52）、**页面装修**（`/esports/pages`，uni-app 客户自助端首页装修、发布版本与素材库，第 14 个顶层菜单，SortOrder 53）、**客服工作台**（`/esports/cs`，客服端客户档案与跟进、企微自动建档、话术库、订单池与待办聚合，第 15 个顶层菜单，SortOrder 54）、**结单表单**（`/esports/close-forms`，字段库 / 模板 / 提交规则 / 审批流，第 16 个顶层菜单）、**收款管理**（`/esports/payments`，收款渠道与账户、支付回执核销、渠道撤销 / 拒付、上线自检，第 17 个顶层菜单）、**风险客户**（`/esports/risk-customers`，被标记客户列表与风险标记解除，第 18 个顶层菜单）。菜单权限码分别为 `esports:product:menu`、`esports:order:menu`、`esports:report:menu`、`esports:wallet:menu`、`esports:dispatch:menu`、`esports:player:menu`、`esports:aftersale:menu`、`esports:settlement:menu`、`esports:close_form:menu`、`esports:campaign:menu`、`esports:member:menu`、`esports:gift:menu`、`esports:payment:menu`、`esports:assessment:menu`、`esports:stats:menu`、`esports:page:menu`、`esports:cs:menu`、`esports:risk:menu`，子页面按钮沿用 `esports:skus:*`、`esports:categories:*`、`esports:orders:*`、`esports:customers:*`、`esports:age_checks:*`、`esports:wallets:*`、`esports:dispatch:*`、`esports:players:*`、`esports:aftersales:*`、`esports:settlements:*`、`esports:campaigns:*`、`esports:members:*`、`esports:gifts:*`、`esports:assessments:*`、`esports:stats:*`、`esports:scripts:*`、`esports:pages:*`、`esports:close_forms:*`、`esports:payments:*`、`esports:risk:*`。陪玩端自助接口属独立客户端（uni-app），不挂管理端菜单，其按钮权限统一归到 `esports:players:manage`。
+一个模块一个菜单，均为顶层菜单（当前 19 个）：**商品**（`/esports/products`，产品分类与商品/规格维护）、**订单**（`/esports/orders`，订单列表、详情与改价/改期/取消/余额核销/结单）、**报单**（`/esports/reports`，客服报单、客户、年龄资格复核）、**钱包**（`/esports/wallets`，客户余额与陪玩猫粮账户、充值/调整/流水）、**排单**（`/esports/dispatch`，排单看板、席位指派/撤回、公共池认领、转单、催单、优先派单权名单与独占优先通知、陪玩转单确认）、**陪玩**（`/esports/players`，陪玩档案创建与编辑/上下线）、**售后**（`/esports/aftersales`，售后单受理/方案/审批/执行/退款）、**结算**（`/esports/settlements`，分成规则/分成明细/结算单/客服提成规则/客服提成明细与发放/提现审核/批量代发）、**充值活动**（`/esports/campaigns`，充值活动配置与状态管理，第 9 个顶层菜单，SortOrder 48）、**会员等级**（`/esports/members`，会员等级配置与客户会员查询/手动调级，第 10 个顶层菜单，SortOrder 49）、**礼物**（`/esports/gifts`，礼物目录、代客送礼、单据复核/退款、收礼/贡献榜单，第 11 个顶层菜单，SortOrder 50）、**考核**（`/esports/assessments`，考核权重配置、考核任务打分定级、申诉复核、客户评价与综合评分，第 12 个顶层菜单，SortOrder 51）、**报表**（`/esports/stats`，五类经营统计报表入口，第 13 个顶层菜单，SortOrder 52）、**页面装修**（`/esports/pages`，uni-app 客户自助端首页装修、发布版本与素材库，第 14 个顶层菜单，SortOrder 53）、**客服工作台**（`/esports/cs`，客服端客户档案与跟进、企微自动建档、话术库、订单池与待办聚合，第 15 个顶层菜单，SortOrder 54）、**结单表单**（`/esports/close-forms`，字段库 / 模板 / 提交规则 / 审批流，第 16 个顶层菜单）、**收款管理**（`/esports/payments`，收款渠道与账户、支付回执核销、渠道撤销 / 拒付、上线自检，第 17 个顶层菜单）、**风险客户**（`/esports/risk-customers`，被标记客户列表与风险标记解除，第 18 个顶层菜单）、**实名认证**（`/esports/realnames`，客户 / 陪玩统一实名档案列表、详情、人工审核与代提交，第 19 个顶层菜单）。菜单权限码分别为 `esports:product:menu`、`esports:order:menu`、`esports:report:menu`、`esports:wallet:menu`、`esports:dispatch:menu`、`esports:player:menu`、`esports:aftersale:menu`、`esports:settlement:menu`、`esports:close_form:menu`、`esports:campaign:menu`、`esports:member:menu`、`esports:gift:menu`、`esports:payment:menu`、`esports:assessment:menu`、`esports:stats:menu`、`esports:page:menu`、`esports:cs:menu`、`esports:risk:menu`、`esports:realname:menu`，子页面按钮沿用 `esports:skus:*`、`esports:categories:*`、`esports:orders:*`、`esports:customers:*`、`esports:age_checks:*`、`esports:wallets:*`、`esports:dispatch:*`、`esports:players:*`、`esports:aftersales:*`、`esports:settlements:*`、`esports:campaigns:*`、`esports:members:*`、`esports:gifts:*`、`esports:assessments:*`、`esports:stats:*`、`esports:scripts:*`、`esports:pages:*`、`esports:close_forms:*`、`esports:payments:*`、`esports:risk:*`、`esports:realnames:*`。陪玩端自助接口属独立客户端（uni-app），不挂管理端菜单，其按钮权限统一归到 `esports:players:manage`。
 
 ### 商品与报价（§15）
 
@@ -703,3 +703,29 @@ go test ./...
 四类改动都是**行为收紧**，不需要数据库迁移；除收款主体白名单是新增的**前置配置**外，其余都不需要改配置。白名单未登记完成前不要放开收款账户的提交与启用。
 
 维护约定：新增能力时同步改写本节「仍未实现」列表，不要再把已完成项留在里面。
+
+## 统一实名认证（微信 / 支付宝 / 第三方 / 人工，2026-10）
+
+客户与陪玩共用一张实名档案（`esports_real_name_verifications`）与一张只增的核验流水表（`esports_real_name_attempts`）：同一主体只有一条档案，重复提交在待审 / 已通过时返回 409，驳回或失效后可重新提交。旧表 `esports_player_identities` **保留只读**、不再写入，初始化时把历史 `verified` 记录一次性迁入新表（幂等，跳过已存在档案）；旧陪玩实名接口（`GET/POST /user/player/identity`、`GET/POST /admin/players/:id/identity`）保留为**兼容别名**，内部转发统一实现并投影成旧字段，权限码不变。
+
+**渠道**：`manual` 人工审核始终可用；`third_party` 需运营在 `app.esports.realname_providers` 配置完整才出现在用户端可选列表；微信 / 支付宝目前是**骨架**（`ready()` 恒 false），未接入前不注册、不出现。渠道异常（超时、非 2xx、坏 JSON、缺跳转地址）一律返回 503「实名核验服务暂不可用」，绝不静默通过。
+
+**接口**：
+
+| 角色 | 接口 | 说明 |
+| --- | --- | --- |
+| 客户 | `GET/POST /user/realname` | 主体由登录态决定；GET 返回状态 + 可用渠道，POST 提交 |
+| 陪玩 | `GET/POST /user/player/realname` | 同上，主体为当前陪玩档案 |
+| 公开 | `POST /realname/callback/:channel` | 渠道异步回调：先验签再落定，重复回调幂等 |
+| 管理端 | `GET /admin/realnames`、`GET /admin/realnames/:id` | 列表（按主体类型 / 状态 / 渠道筛选）与详情（含最近 20 条流水） |
+| 管理端 | `POST /admin/realnames/:id/review` | 人工审核，驳回须填原因 |
+| 管理端 | `POST /admin/realnames/submit` | 代提交，`subject_type` / `subject_id` 放在请求体，渠道缺省人工审核 |
+
+**状态机**：`pending → verified / rejected / expired`。非人工渠道的待审记录超过 `app.esports.realname_pending_timeout_minutes`（默认 30）由 `esports_expire_realname_pending` 任务置 `expired` 并把流水置 `abandoned`；人工审核不超时。每日提交次数受 `app.esports.realname_daily_attempt_limit`（默认 5，0 = 不限）限制，按 UTC+8 自然日统计流水条数。
+
+**拦截**：`realname_required_order` / `realname_required_recharge` / `realname_required_withdrawal` 三个开关默认关闭（与改动前行为一致）。开启后未实名主体在确认报价 / 创建充值意图 / 申请提现时被拦截，响应为 `403` + `{code: 403, message, error_code: "realname_required", scope: "order|recharge|withdrawal"}`（保留 `code=HTTP 状态码`，`error_code` 为追加口径），客户端据 `scope` 引导到对应主体的实名页。
+
+**回调验签**：请求头 `X-App-Id` / `X-Timestamp`（Unix 秒，±5 分钟）/ `X-Nonce` / `X-Signature`，签名 = `hex(HMAC-SHA256(app_secret, app_id + "\n" + timestamp + "\n" + nonce + "\n" + 原始 body))`，比较用恒定位数。签名失败 403、时间戳过期 400、渠道未配置 503。`app_secret` 不在接口与日志中出现。
+
+**敏感信息**：证件号只存脱敏值（保留前 6 后 4），原始号码不落库；列表 / 详情出参只给脱敏值，并有测试断言出参不含原号。
+

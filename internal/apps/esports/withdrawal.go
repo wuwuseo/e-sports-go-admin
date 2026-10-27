@@ -201,6 +201,10 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 		len(key) < 8 || len(key) > 128 {
 		return nil, errInvalidInput
 	}
+	// 实名守卫：开关开启且陪玩未实名时拒绝提现（配置默认关闭，行为与改动前一致）。
+	if err := ensureRealNameVerified(ctx, db, realnameSubjectTypePlayer, playerID, realNameScopeWithdrawal); err != nil {
+		return nil, err
+	}
 	// 云账户代发：必须已有生效的签约收款账户，否则在扣减猫粮前直接拒绝；
 	// 人工打款（默认）返回 nil，行为与改动前完全一致。
 	payoutAccountID, err := payoutAccountIDForWithdrawal(ctx, db, playerID, in.Channel)

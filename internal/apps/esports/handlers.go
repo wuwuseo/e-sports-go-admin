@@ -264,7 +264,23 @@ func fail(c fiber.Ctx, status int, message string) error {
 	return c.Status(status).JSON(fiber.Map{"code": status, "message": message})
 }
 
+// failRealNameRequired 实名拦截响应：code 仍为 HTTP 状态码（保持既有前端解析口径），
+// 追加 error_code 与 scope 供客户端识别并跳转实名页。
+func failRealNameRequired(c fiber.Ctx, scope string) error {
+	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+		"code":       fiber.StatusForbidden,
+		"message":    errRealNameRequired.Error(),
+		"error_code": "realname_required",
+		"scope":      scope,
+	})
+}
+
 func businessError(c fiber.Ctx, err error) error {
+	// 实名拦截优先判定：错误同时被 errInvalidInput 之外的哨兵包裹时也不会走错分支。
+	var realNameErr *realNameRequiredError
+	if errors.As(err, &realNameErr) {
+		return failRealNameRequired(c, realNameErr.Scope)
+	}
 	switch {
 	// 报单校验：重复报单提醒 / 客户欠款拦截 / 预约时段资源冲突都给前端明确中文提示与 409。
 	// 这三类需排在 errInvalidInput 之前：预约资源冲突错误同时包裹了 errInvalidInput（容量判定口径）。
@@ -297,6 +313,11 @@ func businessError(c fiber.Ctx, err error) error {
 		return fail(c, fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, errNotConfigured):
 		return fail(c, fiber.StatusServiceUnavailable, err.Error())
+	case errors.Is(err, errRealNameProviderUnavailable):
+		// 渠道异常绝不静默通过：提示稍后重试或改人工审核。
+		return fail(c, fiber.StatusServiceUnavailable, err.Error())
+	case errors.Is(err, errRealNameRejected):
+		return fail(c, fiber.StatusBadRequest, err.Error())
 	case errors.Is(err, errOrderFrozen):
 		// 存单冻结拦截：给前端明确中文提示（而非笼统的「业务状态已变化」），状态码 409。
 		return fail(c, fiber.StatusConflict, errOrderFrozen.Error())

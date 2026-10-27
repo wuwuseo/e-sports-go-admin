@@ -120,6 +120,10 @@ func confirmQuote(ctx context.Context, db *ent.Client, userUID string, orderID, 
 	if customer.AgeStatus != esportscustomer.AgeStatusAdult {
 		return nil, errAgeUnverified
 	}
+	// 实名守卫：开关开启且客户未实名时拒绝确认报价（配置默认关闭，行为与改动前一致）。
+	if err := ensureRealNameVerified(ctx, db, realnameSubjectTypeCustomer, customer.ID, realNameScopeOrder); err != nil {
+		return nil, err
+	}
 	order, err := db.EsportsOrder.Query().Where(esportsorder.IDEQ(orderID), esportsorder.CustomerIDEQ(customer.ID)).Only(ctx)
 	if ent.IsNotFound(err) {
 		return nil, errForbidden

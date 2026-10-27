@@ -94,6 +94,8 @@ import (
 	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportsrealnameattempt"
+	"go-admin/internal/ent/esportsrealnameverification"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportsrechargeintent"
 	"go-admin/internal/ent/esportsrechargerefundexecution"
@@ -306,6 +308,10 @@ type Client struct {
 	EsportsProductCategory *EsportsProductCategoryClient
 	// EsportsQuotaHold is the client for interacting with the EsportsQuotaHold builders.
 	EsportsQuotaHold *EsportsQuotaHoldClient
+	// EsportsRealNameAttempt is the client for interacting with the EsportsRealNameAttempt builders.
+	EsportsRealNameAttempt *EsportsRealNameAttemptClient
+	// EsportsRealNameVerification is the client for interacting with the EsportsRealNameVerification builders.
+	EsportsRealNameVerification *EsportsRealNameVerificationClient
 	// EsportsRechargeCampaign is the client for interacting with the EsportsRechargeCampaign builders.
 	EsportsRechargeCampaign *EsportsRechargeCampaignClient
 	// EsportsRechargeIntent is the client for interacting with the EsportsRechargeIntent builders.
@@ -468,6 +474,8 @@ func (c *Client) init() {
 	c.EsportsPriorityBookingIntent = NewEsportsPriorityBookingIntentClient(c.config)
 	c.EsportsProductCategory = NewEsportsProductCategoryClient(c.config)
 	c.EsportsQuotaHold = NewEsportsQuotaHoldClient(c.config)
+	c.EsportsRealNameAttempt = NewEsportsRealNameAttemptClient(c.config)
+	c.EsportsRealNameVerification = NewEsportsRealNameVerificationClient(c.config)
 	c.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(c.config)
 	c.EsportsRechargeIntent = NewEsportsRechargeIntentClient(c.config)
 	c.EsportsRechargeRefundExecution = NewEsportsRechargeRefundExecutionClient(c.config)
@@ -677,6 +685,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		EsportsPriorityBookingIntent:   NewEsportsPriorityBookingIntentClient(cfg),
 		EsportsProductCategory:         NewEsportsProductCategoryClient(cfg),
 		EsportsQuotaHold:               NewEsportsQuotaHoldClient(cfg),
+		EsportsRealNameAttempt:         NewEsportsRealNameAttemptClient(cfg),
+		EsportsRealNameVerification:    NewEsportsRealNameVerificationClient(cfg),
 		EsportsRechargeCampaign:        NewEsportsRechargeCampaignClient(cfg),
 		EsportsRechargeIntent:          NewEsportsRechargeIntentClient(cfg),
 		EsportsRechargeRefundExecution: NewEsportsRechargeRefundExecutionClient(cfg),
@@ -813,6 +823,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		EsportsPriorityBookingIntent:   NewEsportsPriorityBookingIntentClient(cfg),
 		EsportsProductCategory:         NewEsportsProductCategoryClient(cfg),
 		EsportsQuotaHold:               NewEsportsQuotaHoldClient(cfg),
+		EsportsRealNameAttempt:         NewEsportsRealNameAttemptClient(cfg),
+		EsportsRealNameVerification:    NewEsportsRealNameVerificationClient(cfg),
 		EsportsRechargeCampaign:        NewEsportsRechargeCampaignClient(cfg),
 		EsportsRechargeIntent:          NewEsportsRechargeIntentClient(cfg),
 		EsportsRechargeRefundExecution: NewEsportsRechargeRefundExecutionClient(cfg),
@@ -903,7 +915,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.EsportsPlayerPayoutAccount, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewAppeal, c.EsportsPlayerReviewRevision,
 		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent,
-		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
+		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRealNameAttempt,
+		c.EsportsRealNameVerification, c.EsportsRechargeCampaign,
 		c.EsportsRechargeIntent, c.EsportsRechargeRefundExecution,
 		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
 		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
@@ -950,7 +963,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.EsportsPlayerPayoutAccount, c.EsportsPlayerRecovery, c.EsportsPlayerReview,
 		c.EsportsPlayerReviewAppeal, c.EsportsPlayerReviewRevision,
 		c.EsportsPriceAdjustment, c.EsportsPriorityBookingIntent,
-		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRechargeCampaign,
+		c.EsportsProductCategory, c.EsportsQuotaHold, c.EsportsRealNameAttempt,
+		c.EsportsRealNameVerification, c.EsportsRechargeCampaign,
 		c.EsportsRechargeIntent, c.EsportsRechargeRefundExecution,
 		c.EsportsReportExport, c.EsportsRescheduleConfirmation,
 		c.EsportsRescheduleProposal, c.EsportsScript, c.EsportsSeatTransferRequest,
@@ -1135,6 +1149,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.EsportsProductCategory.mutate(ctx, m)
 	case *EsportsQuotaHoldMutation:
 		return c.EsportsQuotaHold.mutate(ctx, m)
+	case *EsportsRealNameAttemptMutation:
+		return c.EsportsRealNameAttempt.mutate(ctx, m)
+	case *EsportsRealNameVerificationMutation:
+		return c.EsportsRealNameVerification.mutate(ctx, m)
 	case *EsportsRechargeCampaignMutation:
 		return c.EsportsRechargeCampaign.mutate(ctx, m)
 	case *EsportsRechargeIntentMutation:
@@ -12416,6 +12434,272 @@ func (c *EsportsQuotaHoldClient) mutate(ctx context.Context, m *EsportsQuotaHold
 	}
 }
 
+// EsportsRealNameAttemptClient is a client for the EsportsRealNameAttempt schema.
+type EsportsRealNameAttemptClient struct {
+	config
+}
+
+// NewEsportsRealNameAttemptClient returns a client for the EsportsRealNameAttempt from the given config.
+func NewEsportsRealNameAttemptClient(c config) *EsportsRealNameAttemptClient {
+	return &EsportsRealNameAttemptClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsrealnameattempt.Hooks(f(g(h())))`.
+func (c *EsportsRealNameAttemptClient) Use(hooks ...Hook) {
+	c.hooks.EsportsRealNameAttempt = append(c.hooks.EsportsRealNameAttempt, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsrealnameattempt.Intercept(f(g(h())))`.
+func (c *EsportsRealNameAttemptClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsRealNameAttempt = append(c.inters.EsportsRealNameAttempt, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsRealNameAttempt entity.
+func (c *EsportsRealNameAttemptClient) Create() *EsportsRealNameAttemptCreate {
+	mutation := newEsportsRealNameAttemptMutation(c.config, OpCreate)
+	return &EsportsRealNameAttemptCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsRealNameAttempt entities.
+func (c *EsportsRealNameAttemptClient) CreateBulk(builders ...*EsportsRealNameAttemptCreate) *EsportsRealNameAttemptCreateBulk {
+	return &EsportsRealNameAttemptCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsRealNameAttemptClient) MapCreateBulk(slice any, setFunc func(*EsportsRealNameAttemptCreate, int)) *EsportsRealNameAttemptCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsRealNameAttemptCreateBulk{err: fmt.Errorf("calling to EsportsRealNameAttemptClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsRealNameAttemptCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsRealNameAttemptCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsRealNameAttempt.
+func (c *EsportsRealNameAttemptClient) Update() *EsportsRealNameAttemptUpdate {
+	mutation := newEsportsRealNameAttemptMutation(c.config, OpUpdate)
+	return &EsportsRealNameAttemptUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsRealNameAttemptClient) UpdateOne(_m *EsportsRealNameAttempt) *EsportsRealNameAttemptUpdateOne {
+	mutation := newEsportsRealNameAttemptMutation(c.config, OpUpdateOne, withEsportsRealNameAttempt(_m))
+	return &EsportsRealNameAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsRealNameAttemptClient) UpdateOneID(id int) *EsportsRealNameAttemptUpdateOne {
+	mutation := newEsportsRealNameAttemptMutation(c.config, OpUpdateOne, withEsportsRealNameAttemptID(id))
+	return &EsportsRealNameAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsRealNameAttempt.
+func (c *EsportsRealNameAttemptClient) Delete() *EsportsRealNameAttemptDelete {
+	mutation := newEsportsRealNameAttemptMutation(c.config, OpDelete)
+	return &EsportsRealNameAttemptDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsRealNameAttemptClient) DeleteOne(_m *EsportsRealNameAttempt) *EsportsRealNameAttemptDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsRealNameAttemptClient) DeleteOneID(id int) *EsportsRealNameAttemptDeleteOne {
+	builder := c.Delete().Where(esportsrealnameattempt.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsRealNameAttemptDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsRealNameAttempt.
+func (c *EsportsRealNameAttemptClient) Query() *EsportsRealNameAttemptQuery {
+	return &EsportsRealNameAttemptQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsRealNameAttempt},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsRealNameAttempt entity by its id.
+func (c *EsportsRealNameAttemptClient) Get(ctx context.Context, id int) (*EsportsRealNameAttempt, error) {
+	return c.Query().Where(esportsrealnameattempt.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsRealNameAttemptClient) GetX(ctx context.Context, id int) *EsportsRealNameAttempt {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsRealNameAttemptClient) Hooks() []Hook {
+	return c.hooks.EsportsRealNameAttempt
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsRealNameAttemptClient) Interceptors() []Interceptor {
+	return c.inters.EsportsRealNameAttempt
+}
+
+func (c *EsportsRealNameAttemptClient) mutate(ctx context.Context, m *EsportsRealNameAttemptMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsRealNameAttemptCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsRealNameAttemptUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsRealNameAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsRealNameAttemptDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsRealNameAttempt mutation op: %q", m.Op())
+	}
+}
+
+// EsportsRealNameVerificationClient is a client for the EsportsRealNameVerification schema.
+type EsportsRealNameVerificationClient struct {
+	config
+}
+
+// NewEsportsRealNameVerificationClient returns a client for the EsportsRealNameVerification from the given config.
+func NewEsportsRealNameVerificationClient(c config) *EsportsRealNameVerificationClient {
+	return &EsportsRealNameVerificationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `esportsrealnameverification.Hooks(f(g(h())))`.
+func (c *EsportsRealNameVerificationClient) Use(hooks ...Hook) {
+	c.hooks.EsportsRealNameVerification = append(c.hooks.EsportsRealNameVerification, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `esportsrealnameverification.Intercept(f(g(h())))`.
+func (c *EsportsRealNameVerificationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.EsportsRealNameVerification = append(c.inters.EsportsRealNameVerification, interceptors...)
+}
+
+// Create returns a builder for creating a EsportsRealNameVerification entity.
+func (c *EsportsRealNameVerificationClient) Create() *EsportsRealNameVerificationCreate {
+	mutation := newEsportsRealNameVerificationMutation(c.config, OpCreate)
+	return &EsportsRealNameVerificationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of EsportsRealNameVerification entities.
+func (c *EsportsRealNameVerificationClient) CreateBulk(builders ...*EsportsRealNameVerificationCreate) *EsportsRealNameVerificationCreateBulk {
+	return &EsportsRealNameVerificationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EsportsRealNameVerificationClient) MapCreateBulk(slice any, setFunc func(*EsportsRealNameVerificationCreate, int)) *EsportsRealNameVerificationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EsportsRealNameVerificationCreateBulk{err: fmt.Errorf("calling to EsportsRealNameVerificationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EsportsRealNameVerificationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EsportsRealNameVerificationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for EsportsRealNameVerification.
+func (c *EsportsRealNameVerificationClient) Update() *EsportsRealNameVerificationUpdate {
+	mutation := newEsportsRealNameVerificationMutation(c.config, OpUpdate)
+	return &EsportsRealNameVerificationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EsportsRealNameVerificationClient) UpdateOne(_m *EsportsRealNameVerification) *EsportsRealNameVerificationUpdateOne {
+	mutation := newEsportsRealNameVerificationMutation(c.config, OpUpdateOne, withEsportsRealNameVerification(_m))
+	return &EsportsRealNameVerificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EsportsRealNameVerificationClient) UpdateOneID(id int) *EsportsRealNameVerificationUpdateOne {
+	mutation := newEsportsRealNameVerificationMutation(c.config, OpUpdateOne, withEsportsRealNameVerificationID(id))
+	return &EsportsRealNameVerificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for EsportsRealNameVerification.
+func (c *EsportsRealNameVerificationClient) Delete() *EsportsRealNameVerificationDelete {
+	mutation := newEsportsRealNameVerificationMutation(c.config, OpDelete)
+	return &EsportsRealNameVerificationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EsportsRealNameVerificationClient) DeleteOne(_m *EsportsRealNameVerification) *EsportsRealNameVerificationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EsportsRealNameVerificationClient) DeleteOneID(id int) *EsportsRealNameVerificationDeleteOne {
+	builder := c.Delete().Where(esportsrealnameverification.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EsportsRealNameVerificationDeleteOne{builder}
+}
+
+// Query returns a query builder for EsportsRealNameVerification.
+func (c *EsportsRealNameVerificationClient) Query() *EsportsRealNameVerificationQuery {
+	return &EsportsRealNameVerificationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEsportsRealNameVerification},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a EsportsRealNameVerification entity by its id.
+func (c *EsportsRealNameVerificationClient) Get(ctx context.Context, id int) (*EsportsRealNameVerification, error) {
+	return c.Query().Where(esportsrealnameverification.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EsportsRealNameVerificationClient) GetX(ctx context.Context, id int) *EsportsRealNameVerification {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EsportsRealNameVerificationClient) Hooks() []Hook {
+	return c.hooks.EsportsRealNameVerification
+}
+
+// Interceptors returns the client interceptors.
+func (c *EsportsRealNameVerificationClient) Interceptors() []Interceptor {
+	return c.inters.EsportsRealNameVerification
+}
+
+func (c *EsportsRealNameVerificationClient) mutate(ctx context.Context, m *EsportsRealNameVerificationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EsportsRealNameVerificationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EsportsRealNameVerificationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EsportsRealNameVerificationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EsportsRealNameVerificationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown EsportsRealNameVerification mutation op: %q", m.Op())
+	}
+}
+
 // EsportsRechargeCampaignClient is a client for the EsportsRechargeCampaign schema.
 type EsportsRechargeCampaignClient struct {
 	config
@@ -17016,15 +17300,16 @@ type (
 		EsportsPlayerRecovery, EsportsPlayerReview, EsportsPlayerReviewAppeal,
 		EsportsPlayerReviewRevision, EsportsPriceAdjustment,
 		EsportsPriorityBookingIntent, EsportsProductCategory, EsportsQuotaHold,
-		EsportsRechargeCampaign, EsportsRechargeIntent, EsportsRechargeRefundExecution,
-		EsportsReportExport, EsportsRescheduleConfirmation, EsportsRescheduleProposal,
-		EsportsScript, EsportsSeatTransferRequest, EsportsServiceSegment,
-		EsportsSettlement, EsportsSettlementCycle, EsportsSkillLevel, EsportsSku,
-		EsportsSkuSuspension, EsportsSkuSuspensionItem, EsportsTeammate,
-		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal,
-		EsportsWithdrawalPayout, LoginLog, Message, MessagePreference,
-		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,
-		SystemConfig, SystemPermission, ThirdPartyUser, User, UserRole []ent.Hook
+		EsportsRealNameAttempt, EsportsRealNameVerification, EsportsRechargeCampaign,
+		EsportsRechargeIntent, EsportsRechargeRefundExecution, EsportsReportExport,
+		EsportsRescheduleConfirmation, EsportsRescheduleProposal, EsportsScript,
+		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
+		EsportsSettlementCycle, EsportsSkillLevel, EsportsSku, EsportsSkuSuspension,
+		EsportsSkuSuspensionItem, EsportsTeammate, EsportsWalletAccount,
+		EsportsWalletTx, EsportsWithdrawal, EsportsWithdrawalPayout, LoginLog, Message,
+		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
+		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
+		UserRole []ent.Hook
 	}
 	inters struct {
 		Admin, AdminRole, AdminThirdPartyUser, Attachment, AttachmentGroup, Blacklist,
@@ -17052,15 +17337,15 @@ type (
 		EsportsPlayerRecovery, EsportsPlayerReview, EsportsPlayerReviewAppeal,
 		EsportsPlayerReviewRevision, EsportsPriceAdjustment,
 		EsportsPriorityBookingIntent, EsportsProductCategory, EsportsQuotaHold,
-		EsportsRechargeCampaign, EsportsRechargeIntent, EsportsRechargeRefundExecution,
-		EsportsReportExport, EsportsRescheduleConfirmation, EsportsRescheduleProposal,
-		EsportsScript, EsportsSeatTransferRequest, EsportsServiceSegment,
-		EsportsSettlement, EsportsSettlementCycle, EsportsSkillLevel, EsportsSku,
-		EsportsSkuSuspension, EsportsSkuSuspensionItem, EsportsTeammate,
-		EsportsWalletAccount, EsportsWalletTx, EsportsWithdrawal,
-		EsportsWithdrawalPayout, LoginLog, Message, MessagePreference,
-		OAuthProviderConfig, OAuthSession, OperationLog, Plugin, Role, Slide,
-		SystemConfig, SystemPermission, ThirdPartyUser, User,
+		EsportsRealNameAttempt, EsportsRealNameVerification, EsportsRechargeCampaign,
+		EsportsRechargeIntent, EsportsRechargeRefundExecution, EsportsReportExport,
+		EsportsRescheduleConfirmation, EsportsRescheduleProposal, EsportsScript,
+		EsportsSeatTransferRequest, EsportsServiceSegment, EsportsSettlement,
+		EsportsSettlementCycle, EsportsSkillLevel, EsportsSku, EsportsSkuSuspension,
+		EsportsSkuSuspensionItem, EsportsTeammate, EsportsWalletAccount,
+		EsportsWalletTx, EsportsWithdrawal, EsportsWithdrawalPayout, LoginLog, Message,
+		MessagePreference, OAuthProviderConfig, OAuthSession, OperationLog, Plugin,
+		Role, Slide, SystemConfig, SystemPermission, ThirdPartyUser, User,
 		UserRole []ent.Interceptor
 	}
 )

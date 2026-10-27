@@ -85,6 +85,8 @@ import (
 	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportsrealnameattempt"
+	"go-admin/internal/ent/esportsrealnameverification"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportsrechargeintent"
 	"go-admin/internal/ent/esportsrechargerefundexecution"
@@ -558,6 +560,16 @@ func initGeneratedTablePrefixes(prefix string) {
 		old := esportsquotahold.TablePrefix
 		esportsquotahold.TablePrefix = prefix
 		esportsquotahold.Table = prefix + strings.TrimPrefix(esportsquotahold.Table, old)
+	}
+	{
+		old := esportsrealnameattempt.TablePrefix
+		esportsrealnameattempt.TablePrefix = prefix
+		esportsrealnameattempt.Table = prefix + strings.TrimPrefix(esportsrealnameattempt.Table, old)
+	}
+	{
+		old := esportsrealnameverification.TablePrefix
+		esportsrealnameverification.TablePrefix = prefix
+		esportsrealnameverification.Table = prefix + strings.TrimPrefix(esportsrealnameverification.Table, old)
 	}
 	{
 		old := esportsrechargecampaign.TablePrefix

@@ -86,6 +86,8 @@ import (
 	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportsrealnameattempt"
+	"go-admin/internal/ent/esportsrealnameverification"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportsrechargeintent"
 	"go-admin/internal/ent/esportsrechargerefundexecution"
@@ -5479,6 +5481,102 @@ func init() {
 	esportsquotahold.DefaultUpdatedAt = esportsquotaholdDescUpdatedAt.Default.(func() time.Time)
 	// esportsquotahold.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	esportsquotahold.UpdateDefaultUpdatedAt = esportsquotaholdDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsrealnameattemptFields := schema.EsportsRealNameAttempt{}.Fields()
+	_ = esportsrealnameattemptFields
+	// esportsrealnameattemptDescSubjectID is the schema descriptor for subject_id field.
+	esportsrealnameattemptDescSubjectID := esportsrealnameattemptFields[1].Descriptor()
+	// esportsrealnameattempt.SubjectIDValidator is a validator for the "subject_id" field. It is called by the builders before save.
+	esportsrealnameattempt.SubjectIDValidator = esportsrealnameattemptDescSubjectID.Validators[0].(func(int) error)
+	// esportsrealnameattemptDescProviderRef is the schema descriptor for provider_ref field.
+	esportsrealnameattemptDescProviderRef := esportsrealnameattemptFields[5].Descriptor()
+	// esportsrealnameattempt.ProviderRefValidator is a validator for the "provider_ref" field. It is called by the builders before save.
+	esportsrealnameattempt.ProviderRefValidator = esportsrealnameattemptDescProviderRef.Validators[0].(func(string) error)
+	// esportsrealnameattemptDescFailReason is the schema descriptor for fail_reason field.
+	esportsrealnameattemptDescFailReason := esportsrealnameattemptFields[6].Descriptor()
+	// esportsrealnameattempt.DefaultFailReason holds the default value on creation for the fail_reason field.
+	esportsrealnameattempt.DefaultFailReason = esportsrealnameattemptDescFailReason.Default.(string)
+	// esportsrealnameattempt.FailReasonValidator is a validator for the "fail_reason" field. It is called by the builders before save.
+	esportsrealnameattempt.FailReasonValidator = esportsrealnameattemptDescFailReason.Validators[0].(func(string) error)
+	// esportsrealnameattemptDescRequestedBy is the schema descriptor for requested_by field.
+	esportsrealnameattemptDescRequestedBy := esportsrealnameattemptFields[7].Descriptor()
+	// esportsrealnameattempt.DefaultRequestedBy holds the default value on creation for the requested_by field.
+	esportsrealnameattempt.DefaultRequestedBy = esportsrealnameattemptDescRequestedBy.Default.(int)
+	// esportsrealnameattemptDescCreatedAt is the schema descriptor for created_at field.
+	esportsrealnameattemptDescCreatedAt := esportsrealnameattemptFields[8].Descriptor()
+	// esportsrealnameattempt.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsrealnameattempt.DefaultCreatedAt = esportsrealnameattemptDescCreatedAt.Default.(func() time.Time)
+	// esportsrealnameattemptDescUpdatedAt is the schema descriptor for updated_at field.
+	esportsrealnameattemptDescUpdatedAt := esportsrealnameattemptFields[9].Descriptor()
+	// esportsrealnameattempt.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportsrealnameattempt.DefaultUpdatedAt = esportsrealnameattemptDescUpdatedAt.Default.(func() time.Time)
+	// esportsrealnameattempt.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportsrealnameattempt.UpdateDefaultUpdatedAt = esportsrealnameattemptDescUpdatedAt.UpdateDefault.(func() time.Time)
+	esportsrealnameverificationFields := schema.EsportsRealNameVerification{}.Fields()
+	_ = esportsrealnameverificationFields
+	// esportsrealnameverificationDescSubjectID is the schema descriptor for subject_id field.
+	esportsrealnameverificationDescSubjectID := esportsrealnameverificationFields[1].Descriptor()
+	// esportsrealnameverification.SubjectIDValidator is a validator for the "subject_id" field. It is called by the builders before save.
+	esportsrealnameverification.SubjectIDValidator = esportsrealnameverificationDescSubjectID.Validators[0].(func(int) error)
+	// esportsrealnameverificationDescRealName is the schema descriptor for real_name field.
+	esportsrealnameverificationDescRealName := esportsrealnameverificationFields[2].Descriptor()
+	// esportsrealnameverification.RealNameValidator is a validator for the "real_name" field. It is called by the builders before save.
+	esportsrealnameverification.RealNameValidator = func() func(string) error {
+		validators := esportsrealnameverificationDescRealName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(real_name string) error {
+			for _, fn := range fns {
+				if err := fn(real_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsrealnameverificationDescIDNumberMasked is the schema descriptor for id_number_masked field.
+	esportsrealnameverificationDescIDNumberMasked := esportsrealnameverificationFields[3].Descriptor()
+	// esportsrealnameverification.IDNumberMaskedValidator is a validator for the "id_number_masked" field. It is called by the builders before save.
+	esportsrealnameverification.IDNumberMaskedValidator = func() func(string) error {
+		validators := esportsrealnameverificationDescIDNumberMasked.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id_number_masked string) error {
+			for _, fn := range fns {
+				if err := fn(id_number_masked); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// esportsrealnameverificationDescProviderRef is the schema descriptor for provider_ref field.
+	esportsrealnameverificationDescProviderRef := esportsrealnameverificationFields[7].Descriptor()
+	// esportsrealnameverification.ProviderRefValidator is a validator for the "provider_ref" field. It is called by the builders before save.
+	esportsrealnameverification.ProviderRefValidator = esportsrealnameverificationDescProviderRef.Validators[0].(func(string) error)
+	// esportsrealnameverificationDescFailReason is the schema descriptor for fail_reason field.
+	esportsrealnameverificationDescFailReason := esportsrealnameverificationFields[8].Descriptor()
+	// esportsrealnameverification.DefaultFailReason holds the default value on creation for the fail_reason field.
+	esportsrealnameverification.DefaultFailReason = esportsrealnameverificationDescFailReason.Default.(string)
+	// esportsrealnameverification.FailReasonValidator is a validator for the "fail_reason" field. It is called by the builders before save.
+	esportsrealnameverification.FailReasonValidator = esportsrealnameverificationDescFailReason.Validators[0].(func(string) error)
+	// esportsrealnameverificationDescRequestedBy is the schema descriptor for requested_by field.
+	esportsrealnameverificationDescRequestedBy := esportsrealnameverificationFields[11].Descriptor()
+	// esportsrealnameverification.DefaultRequestedBy holds the default value on creation for the requested_by field.
+	esportsrealnameverification.DefaultRequestedBy = esportsrealnameverificationDescRequestedBy.Default.(int)
+	// esportsrealnameverificationDescCreatedAt is the schema descriptor for created_at field.
+	esportsrealnameverificationDescCreatedAt := esportsrealnameverificationFields[12].Descriptor()
+	// esportsrealnameverification.DefaultCreatedAt holds the default value on creation for the created_at field.
+	esportsrealnameverification.DefaultCreatedAt = esportsrealnameverificationDescCreatedAt.Default.(func() time.Time)
+	// esportsrealnameverificationDescUpdatedAt is the schema descriptor for updated_at field.
+	esportsrealnameverificationDescUpdatedAt := esportsrealnameverificationFields[13].Descriptor()
+	// esportsrealnameverification.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	esportsrealnameverification.DefaultUpdatedAt = esportsrealnameverificationDescUpdatedAt.Default.(func() time.Time)
+	// esportsrealnameverification.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	esportsrealnameverification.UpdateDefaultUpdatedAt = esportsrealnameverificationDescUpdatedAt.UpdateDefault.(func() time.Time)
 	esportsrechargecampaignFields := schema.EsportsRechargeCampaign{}.Fields()
 	_ = esportsrechargecampaignFields
 	// esportsrechargecampaignDescCode is the schema descriptor for code field.

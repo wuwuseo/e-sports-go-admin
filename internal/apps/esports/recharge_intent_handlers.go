@@ -22,6 +22,10 @@ func userCreateRechargeIntentHandler(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	// 实名守卫：开关开启且客户未实名时拒绝自助充值（管理端代充不经过此 handler）。
+	if err := ensureRealNameVerified(c.Context(), global.ORM, realnameSubjectTypeCustomer, customer.ID, realNameScopeRecharge); err != nil {
+		return businessError(c, err)
+	}
 	var in rechargeIntentInput
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")

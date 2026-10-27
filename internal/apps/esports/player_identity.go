@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -12,14 +11,16 @@ import (
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/esportsplayeridentity"
+	"go-admin/internal/ent/esportsrealnameverification"
 	"go-admin/internal/global"
 )
 
-// 陪玩实名认证。
+// 陪玩实名认证兼容门面。
 //
-// 状态机：未提交 →（提交）→ pending_verification →（管理员审核）→ verified / rejected。
-// 实名通过前陪玩 qualification 不得为 qualified（updatePlayer 把关）。
-// 身份证号只存脱敏值（保留前 6 后 4），原始证件号不落库。
+// 2026-10 起陪玩实名并入统一实名（realname.go）：
+// 存储读写真源改为 EsportsRealNameVerification（subject_type=player，channel/method=manual），
+// 本文件只保留旧的入参 / 出参形状与四个旧路由 handler，内部全部转发统一实现。
+// 旧表 esports_player_identities 保留只读，仅迁移时被 realname_migrate.go 读取。
 const (
 	playerIdentityPending  = "pending_verification"
 	playerIdentityVerified = "verified"
@@ -51,119 +52,100 @@ func maskIDNumber(raw string) string {
 	return raw[:6] + "********" + raw[len(raw)-4:]
 }
 
-// submitPlayerIdentity 陪玩提交实名认证：写 pending_verification 状态。
-// 已存在待审核 / 已通过记录时不允许重复提交（返回 errConflict）；被驳回后可重新提交。
-func submitPlayerIdentity(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, in playerIdentitySubmitInput) (*ent.EsportsPlayerIdentity, error) {
-	in.RealName = strings.TrimSpace(in.RealName)
-	in.IDNumber = strings.TrimSpace(in.IDNumber)
-	if player == nil || player.ID < 1 || in.RealName == "" || len([]rune(in.RealName)) > 120 ||
-		!validIDNumber(in.IDNumber) {
-		return nil, errInvalidInput
+// playerIdentityStatusFromRealName 统一档案状态 → 旧状态口径。
+// expired 在旧口径里没有对应值，按 rejected 处理（用户可重新提交）。
+func playerIdentityStatusFromRealName(status esportsrealnameverification.Status) string {
+	switch status {
+	case esportsrealnameverification.StatusPending:
+		return playerIdentityPending
+	case esportsrealnameverification.StatusVerified:
+		return playerIdentityVerified
+	default:
+		return playerIdentityRejected
 	}
-	existing, err := db.EsportsPlayerIdentity.Query().Where(
-		esportsplayeridentity.PlayerIDEQ(player.ID),
-		esportsplayeridentity.StatusIn(esportsplayeridentity.StatusPendingVerification, esportsplayeridentity.StatusVerified),
-	).First(ctx)
-	if err == nil && existing != nil {
-		return nil, errConflict
-	}
-	if err != nil && !ent.IsNotFound(err) {
-		return nil, err
-	}
-	// 被驳回后重新提交：删除旧 rejected 记录后再写新 pending，避免
-	// (player_id,status) 唯一索引在第二次驳回时冲突。
-	if _, err = db.EsportsPlayerIdentity.Delete().Where(
-		esportsplayeridentity.PlayerIDEQ(player.ID),
-		esportsplayeridentity.StatusEQ(esportsplayeridentity.StatusRejected),
-	).Exec(ctx); err != nil {
-		return nil, err
-	}
-	return db.EsportsPlayerIdentity.Create().SetPlayerID(player.ID).
-		SetRealName(in.RealName).
-		SetIDNumberMasked(maskIDNumber(in.IDNumber)).
-		SetStatus(esportsplayeridentity.StatusPendingVerification).
-		SetRequestedBy(0).Save(ctx)
 }
 
-// reviewPlayerIdentity 管理员审核陪玩实名认证：通过置 verified，驳回置 rejected。
-func reviewPlayerIdentity(ctx context.Context, db *ent.Client, reviewer *ent.Admin, playerID int, in playerIdentityReviewInput, now time.Time) (*ent.EsportsPlayerIdentity, error) {
-	in.RejectReason = strings.TrimSpace(in.RejectReason)
-	if reviewer == nil || playerID < 1 || (!in.Approved && in.RejectReason == "") {
-		return nil, errInvalidInput
+// playerIdentityView 把统一档案投影为旧实体形状（内存对象，不落库）。
+func playerIdentityView(record *ent.EsportsRealNameVerification) *ent.EsportsPlayerIdentity {
+	view := &ent.EsportsPlayerIdentity{
+		ID:             record.ID,
+		PlayerID:       record.SubjectID,
+		RealName:       record.RealName,
+		IDNumberMasked: record.IDNumberMasked,
+		Status:         esportsplayeridentity.Status(playerIdentityStatusFromRealName(record.Status)),
+		RejectReason:   record.FailReason,
+		RequestedBy:    record.RequestedBy,
+		CreatedAt:      record.CreatedAt,
 	}
-	if len([]rune(in.RejectReason)) > 255 {
-		return nil, errInvalidInput
+	if record.ReviewedByAdminID != nil {
+		view.ReviewedByAdminID = record.ReviewedByAdminID
 	}
-	tx, err := db.Tx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-	record, err := tx.EsportsPlayerIdentity.Query().Where(
-		esportsplayeridentity.PlayerIDEQ(playerID),
-		esportsplayeridentity.StatusEQ(esportsplayeridentity.StatusPendingVerification),
-	).Only(ctx)
-	if ent.IsNotFound(err) {
-		return nil, errConflict
-	}
-	if err != nil {
-		return nil, err
-	}
-	upd := tx.EsportsPlayerIdentity.Update().Where(
-		esportsplayeridentity.IDEQ(record.ID),
-		esportsplayeridentity.StatusEQ(esportsplayeridentity.StatusPendingVerification),
-	).SetReviewedByAdminID(reviewer.ID).SetReviewedAt(now.UTC())
-	if in.Approved {
-		upd = upd.SetStatus(esportsplayeridentity.StatusVerified)
+	if record.Status == esportsrealnameverification.StatusVerified && record.VerifiedAt != nil {
+		view.ReviewedAt = record.VerifiedAt
 	} else {
-		// 兼容历史遗留的多条 rejected：先删除其它 rejected 行，再落本次驳回，
-		// 避免 (player_id,status) 唯一索引冲突。
-		if _, err = tx.EsportsPlayerIdentity.Delete().Where(
-			esportsplayeridentity.PlayerIDEQ(playerID),
-			esportsplayeridentity.StatusEQ(esportsplayeridentity.StatusRejected),
-			esportsplayeridentity.IDNEQ(record.ID),
-		).Exec(ctx); err != nil {
-			return nil, err
-		}
-		upd = upd.SetStatus(esportsplayeridentity.StatusRejected).SetRejectReason(in.RejectReason)
+		updatedAt := record.UpdatedAt
+		view.ReviewedAt = &updatedAt
 	}
-	changed, err := upd.Save(ctx)
+	return view
+}
+
+// submitPlayerIdentity 陪玩提交实名认证（兼容旧接口）：内部走统一实名的 manual 渠道。
+// 已待审 / 已通过时返回 errConflict；被驳回后可重新提交。
+func submitPlayerIdentity(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, in playerIdentitySubmitInput) (*ent.EsportsPlayerIdentity, error) {
+	if player == nil || player.ID < 1 {
+		return nil, errInvalidInput
+	}
+	if _, err := submitRealName(ctx, db, realnameSubjectTypePlayer, player.ID, 0,
+		realNameSubmitInput{RealName: in.RealName, IDNumber: in.IDNumber, Channel: realNameChannelManual, Method: realNameMethodManual},
+		time.Now()); err != nil {
+		return nil, err
+	}
+	record, err := realNameVerificationFor(ctx, db, realnameSubjectTypePlayer, player.ID)
 	if err != nil {
 		return nil, err
 	}
-	if changed != 1 {
-		return nil, errConflict
+	if record == nil {
+		return nil, fmt.Errorf("%w：实名档案写入失败", errConflict)
 	}
-	if err = tx.Commit(); err != nil {
+	return playerIdentityView(record), nil
+}
+
+// reviewPlayerIdentity 管理员审核陪玩实名认证（兼容旧接口）：按 playerID 找待审档案再审核。
+func reviewPlayerIdentity(ctx context.Context, db *ent.Client, reviewer *ent.Admin, playerID int, in playerIdentityReviewInput, now time.Time) (*ent.EsportsPlayerIdentity, error) {
+	if reviewer == nil || playerID < 1 {
+		return nil, errInvalidInput
+	}
+	record, err := realNameVerificationFor(ctx, db, realnameSubjectTypePlayer, playerID)
+	if err != nil {
 		return nil, err
 	}
-	return db.EsportsPlayerIdentity.Get(ctx, record.ID)
+	if record == nil || record.Status != esportsrealnameverification.StatusPending {
+		return nil, errConflict
+	}
+	reviewed, err := reviewRealName(ctx, db, reviewer.ID, record.ID, realNameReviewInput{
+		Approved: in.Approved, RejectReason: in.RejectReason,
+	}, now)
+	if err != nil {
+		return nil, err
+	}
+	return playerIdentityView(reviewed), nil
 }
 
 // isPlayerIdentityVerified 判断陪玩实名认证是否已通过。updatePlayer 据此把关 qualification。
 func isPlayerIdentityVerified(ctx context.Context, db *ent.Client, playerID int) (bool, error) {
-	exists, err := db.EsportsPlayerIdentity.Query().Where(
-		esportsplayeridentity.PlayerIDEQ(playerID),
-		esportsplayeridentity.StatusEQ(esportsplayeridentity.StatusVerified),
-	).Exist(ctx)
-	if err != nil {
-		return false, err
-	}
-	return exists, nil
+	return isRealNameVerified(ctx, db, realnameSubjectTypePlayer, playerID)
 }
 
-// currentPlayerIdentityStatus 取陪玩当前实名认证状态；无记录返回空串（未提交）。
+// currentPlayerIdentityStatus 取陪玩当前实名认证状态（旧口径）；无记录返回空串（未提交）。
 func currentPlayerIdentityStatus(ctx context.Context, db *ent.Client, playerID int) (string, error) {
-	record, err := db.EsportsPlayerIdentity.Query().Where(
-		esportsplayeridentity.PlayerIDEQ(playerID),
-	).Order(ent.Desc(esportsplayeridentity.FieldID)).First(ctx)
-	if ent.IsNotFound(err) {
-		return "", nil
-	}
+	record, err := realNameVerificationFor(ctx, db, realnameSubjectTypePlayer, playerID)
 	if err != nil {
 		return "", err
 	}
-	return string(record.Status), nil
+	if record == nil {
+		return "", nil
+	}
+	return playerIdentityStatusFromRealName(record.Status), nil
 }
 
 // playerSubmitIdentityHandler 陪玩端提交实名认证。
@@ -254,18 +236,13 @@ func adminPlayerIdentityHandler(c fiber.Ctx) error {
 	})
 }
 
-// latestPlayerIdentity 取陪玩最近一次实名认证记录；无记录返回 nil。
+// latestPlayerIdentity 取陪玩最近一次实名认证记录（统一档案投影）；无记录返回 nil。
 func latestPlayerIdentity(ctx context.Context, db *ent.Client, playerID int) (*ent.EsportsPlayerIdentity, error) {
-	record, err := db.EsportsPlayerIdentity.Query().Where(
-		esportsplayeridentity.PlayerIDEQ(playerID),
-	).Order(ent.Desc(esportsplayeridentity.FieldID)).First(ctx)
-	if ent.IsNotFound(err) {
-		return nil, nil
-	}
-	if err != nil {
+	record, err := realNameVerificationFor(ctx, db, realnameSubjectTypePlayer, playerID)
+	if err != nil || record == nil {
 		return nil, err
 	}
-	return record, nil
+	return playerIdentityView(record), nil
 }
 
 // ensurePlayerQualificationAllowed 实名未通过时禁止将陪玩资格置为 qualified。

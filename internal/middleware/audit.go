@@ -94,6 +94,9 @@ func AdminAuditRules() map[string]AuditRule {
 		"POST /api/v1/esports/admin/payment-channels/:channel/status":  {Module: "陪玩报单·收款账户", Action: "启停收款方式"},
 		"POST /api/v1/esports/admin/offline-payment-proofs/:id/verify": {Module: "陪玩报单·资金", Action: "核销外部到账"},
 		"POST /api/v1/esports/admin/offline-payment-proofs/:id/reject": {Module: "陪玩报单·资金", Action: "驳回到账凭证"},
+		// 统一实名：人工审核与管理端代提交都会改动主体的实名结论，必须留痕。
+		"POST /api/v1/esports/admin/realnames/:id/review": {Module: "陪玩报单·实名认证", Action: "人工审核实名"},
+		"POST /api/v1/esports/admin/realnames/submit":     {Module: "陪玩报单·实名认证", Action: "代提交实名"},
 		// 售后赔付
 		"POST /api/v1/esports/admin/after-sales/:id/approve":        {Module: "陪玩报单·售后赔付", Action: "审批售后"},
 		"POST /api/v1/esports/admin/after-sales/:id/execute":        {Module: "陪玩报单·售后赔付", Action: "执行售后"},

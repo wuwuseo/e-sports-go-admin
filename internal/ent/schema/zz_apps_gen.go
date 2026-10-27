@@ -286,6 +286,14 @@ type EsportsQuotaHold struct {
 	appschemaesports.EsportsQuotaHold
 }
 
+type EsportsRealNameAttempt struct {
+	appschemaesports.EsportsRealNameAttempt
+}
+
+type EsportsRealNameVerification struct {
+	appschemaesports.EsportsRealNameVerification
+}
+
 type EsportsRechargeCampaign struct {
 	appschemaesports.EsportsRechargeCampaign
 }

@@ -3195,6 +3195,74 @@ var (
 			},
 		},
 	}
+	// EsportsRealNameAttemptsColumns holds the columns for the "esports_real_name_attempts" table.
+	EsportsRealNameAttemptsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "subject_type", Type: field.TypeEnum, Enums: []string{"customer", "player"}},
+		{Name: "subject_id", Type: field.TypeInt},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"wechat", "alipay", "third_party", "manual"}},
+		{Name: "method", Type: field.TypeEnum, Enums: []string{"two_factor", "face", "manual"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "passed", "failed", "abandoned"}, Default: "pending"},
+		{Name: "provider_ref", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "fail_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "requested_by", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsRealNameAttemptsTable holds the schema information for the "esports_real_name_attempts" table.
+	EsportsRealNameAttemptsTable = &schema.Table{
+		Name:       TablePrefix + "esports_real_name_attempts",
+		Columns:    EsportsRealNameAttemptsColumns,
+		PrimaryKey: []*schema.Column{EsportsRealNameAttemptsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsrealnameattempt_subject_type_subject_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsRealNameAttemptsColumns[1], EsportsRealNameAttemptsColumns[2], EsportsRealNameAttemptsColumns[9]},
+			},
+			{
+				Name:    "esportsrealnameattempt_channel_provider_ref",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsRealNameAttemptsColumns[3], EsportsRealNameAttemptsColumns[6]},
+			},
+		},
+	}
+	// EsportsRealNameVerificationsColumns holds the columns for the "esports_real_name_verifications" table.
+	EsportsRealNameVerificationsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "subject_type", Type: field.TypeEnum, Enums: []string{"customer", "player"}},
+		{Name: "subject_id", Type: field.TypeInt},
+		{Name: "real_name", Type: field.TypeString, Size: 120},
+		{Name: "id_number_masked", Type: field.TypeString, Size: 32},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"wechat", "alipay", "third_party", "manual"}},
+		{Name: "method", Type: field.TypeEnum, Enums: []string{"two_factor", "face", "manual"}},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "verified", "rejected", "expired"}, Default: "pending"},
+		{Name: "provider_ref", Type: field.TypeString, Nullable: true, Size: 255},
+		{Name: "fail_reason", Type: field.TypeString, Size: 255, Default: ""},
+		{Name: "verified_at", Type: field.TypeTime, Nullable: true},
+		{Name: "reviewed_by_admin_id", Type: field.TypeInt, Nullable: true},
+		{Name: "requested_by", Type: field.TypeInt, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// EsportsRealNameVerificationsTable holds the schema information for the "esports_real_name_verifications" table.
+	EsportsRealNameVerificationsTable = &schema.Table{
+		Name:       TablePrefix + "esports_real_name_verifications",
+		Columns:    EsportsRealNameVerificationsColumns,
+		PrimaryKey: []*schema.Column{EsportsRealNameVerificationsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "esportsrealnameverification_subject_type_subject_id",
+				Unique:  true,
+				Columns: []*schema.Column{EsportsRealNameVerificationsColumns[1], EsportsRealNameVerificationsColumns[2]},
+			},
+			{
+				Name:    "esportsrealnameverification_status_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{EsportsRealNameVerificationsColumns[7], EsportsRealNameVerificationsColumns[14]},
+			},
+		},
+	}
 	// EsportsRechargeCampaignsColumns holds the columns for the "esports_recharge_campaigns" table.
 	EsportsRechargeCampaignsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -4661,6 +4729,8 @@ var (
 		EsportsPriorityBookingIntentsTable,
 		EsportsProductCategoriesTable,
 		EsportsQuotaHoldsTable,
+		EsportsRealNameAttemptsTable,
+		EsportsRealNameVerificationsTable,
 		EsportsRechargeCampaignsTable,
 		EsportsRechargeIntentsTable,
 		EsportsRechargeRefundExecutionsTable,

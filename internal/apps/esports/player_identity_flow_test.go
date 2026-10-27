@@ -44,4 +44,12 @@ func TestPlayerIdentitySecondRejectNoUniqueConflict(t *testing.T) {
 	if record == nil || record.Status != "rejected" || record.RejectReason != "证件过期" {
 		t.Fatalf("最终实名记录 = %+v", record)
 	}
+	// 统一实名档案一主体一条：驳回重提只原地回写，不新增行。
+	count, err := db.EsportsRealNameVerification.Query().Count(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("实名档案行数 %d，期望 1", count)
+	}
 }

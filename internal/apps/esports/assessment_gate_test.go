@@ -13,15 +13,22 @@ import (
 	"go-admin/internal/ent/esportsassessmentappeal"
 	"go-admin/internal/ent/esportsassessmentscore"
 	"go-admin/internal/ent/esportsplayer"
-	"go-admin/internal/ent/esportsplayeridentity"
+	"go-admin/internal/ent/esportsrealnameverification"
 )
 
-// seedVerifiedIdentity 直接落一条已通过的实名认证记录，供考核定级用例使用。
+// seedVerifiedIdentity 直接落一条已通过的实名档案，供考核定级用例使用。
+// 2026-10 起陪玩实名并入统一实名表，旧表 esports_player_identities 已退役为只读。
 func seedVerifiedIdentity(t *testing.T, db *ent.Client, playerID int) {
 	t.Helper()
-	db.EsportsPlayerIdentity.Create().SetPlayerID(playerID).SetRealName("张三").
+	db.EsportsRealNameVerification.Create().
+		SetSubjectType(esportsrealnameverification.SubjectTypePlayer).
+		SetSubjectID(playerID).
+		SetRealName("张三").
 		SetIDNumberMasked("110101********1234").
-		SetStatus(esportsplayeridentity.StatusVerified).SaveX(t.Context())
+		SetChannel(esportsrealnameverification.ChannelManual).
+		SetMethod(esportsrealnameverification.MethodManual).
+		SetStatus(esportsrealnameverification.StatusVerified).
+		SetVerifiedAt(time.Now()).SaveX(t.Context())
 }
 
 // 未分配考官的 pending 考核不可评分：创建人本人也不行，避免绕过分配环节直接推动定级。

@@ -359,6 +359,9 @@ func init() {
 		// 外部退款待执行超时督办（审核报告 ）：只写督办事件，不自动执行、不自动取消；
 		// 任务函数由 external_refund.go 提供（expirePendingExternalRefundTask），注册名与 cron 种子必须成对。
 		tasks.Register("esports_expire_pending_external_refunds", expirePendingExternalRefundTask)
+		// 统一实名：pending（非人工）到点置 expired，流水置 abandoned。
+		// 注册与 cron_seeds.go 的种子必须成对，否则一致性测试会红。
+		tasks.Register("esports_expire_realname_pending", expireRealNamePendingTask)
 	}
 	cmfapp.Register(cmfapp.App{
 		Code: "esports", Name: "陪玩报单", Version: "0.1.0", Enabled: featureEnabled,
@@ -505,6 +508,14 @@ func init() {
 			{Key: "page_preview_secret", Name: "页面预览签名密钥", Value: "", Type: "string", Group: "esports", Remark: "**全局单份 HMAC-SHA256 密钥**（不是每设备一份）；首次播种时随机生成 32 字节密钥，启动时也会补齐历史空值；运行中留空则预览码功能不可用，生成接口明确失败「页面预览签名密钥未配置」；换密钥会让已发出的预览码立刻失效（预览码 TTL 30 分钟）"},
 			{Key: "player_expected_price_limits_cents", Name: "期望报价允许区间（分）", Value: "0,0", Type: "string", Group: "esports", Remark: "格式 \"min,max\"（两个非负整数分，逗号分隔）；\"0,0\"=两侧都不限（也是缺失/空/字段数≠2/非数字/负数/min>max 的回落）；**键名虽含 _cents 但实际是字符串，后台数字框写不进去**"},
 			{Key: "repurchase_follow_up_days", Name: "结单后复购跟进天数", Value: "7", Type: "number", Group: "esports", Remark: "缺失/空/非数字/负数回落 7；**显式 0 = 关闭**（不生成复购回访待办）；>0 时结单后该天数生成客户维度复购跟进待办"},
+			// —— 统一实名认证 ——
+			// 渠道配置按渠道编码索引；未开通或配置不完整的渠道不出现在用户端可选列表。
+			{Key: "realname_providers", Name: "实名核验渠道配置", Value: "", Type: "string", Group: "esports", Remark: "JSON（按渠道编码索引）：{\"third_party\":{\"enabled\":true,\"base_url\":\"https://...\",\"app_id\":\"...\",\"app_secret\":\"...\",\"notify_url\":\"https://.../api/v1/esports/realname/callback/third_party\"}}；app_secret 接口与日志永不回显；微信 / 支付宝为预留骨架，未接入前恒不可用；manual 人工审核始终可用"},
+			{Key: "realname_required_order", Name: "下单前强制实名", Value: "false", Type: "string", Group: "esports", Remark: "true/1/yes/on=开启；缺失或非法按关闭处理（默认关闭，不改变既有下单链路）；开启后未实名客户确认报价返回 403 + error_code=realname_required"},
+			{Key: "realname_required_recharge", Name: "充值前强制实名", Value: "false", Type: "string", Group: "esports", Remark: "同上；开启后未实名客户创建充值意图返回 403 + error_code=realname_required"},
+			{Key: "realname_required_withdrawal", Name: "提现前强制实名", Value: "false", Type: "string", Group: "esports", Remark: "同上；开启后未实名陪玩申请提现返回 403 + error_code=realname_required"},
+			{Key: "realname_daily_attempt_limit", Name: "实名每日提交次数上限（次）", Value: "5", Type: "number", Group: "esports", Remark: "0=不限；≤0 以外的非法值回落 5；按 UTC+8 自然日统计流水条数；达上限后提交返回 409"},
+			{Key: "realname_pending_timeout_minutes", Name: "实名待审有效期（分钟）", Value: "30", Type: "number", Group: "esports", Remark: "非人工渠道的待审记录超时置 expired（人工审核不超时）；<1 或非法回落 30；由 esports_expire_realname_pending 任务每 5 分钟扫描"},
 		},
 		// 路由契约测试要求下列 handler 直接指向原始函数，不套看板广播包装（广播在 handler 成功后自行触发）。
 		Routes: append([]cmfapp.Route{
@@ -535,6 +546,11 @@ func init() {
 			{Method: "GET", Path: "/campaigns", Auth: cmfapp.AuthPublic, Handler: publicCampaigns},
 			{Method: "GET", Path: "/user/orders/:id/quote", Auth: cmfapp.AuthUser, Handler: userOrderQuote},
 			{Method: "POST", Path: "/user/orders/:id/confirm", Auth: cmfapp.AuthUser, Handler: userConfirmQuote},
+			// 统一实名：客户自助查询 / 提交（主体由登录态决定，不接受请求参数指定）。
+			{Method: "GET", Path: "/user/realname", Auth: cmfapp.AuthUser, Handler: userRealNameStatusHandler},
+			{Method: "POST", Path: "/user/realname", Auth: cmfapp.AuthUser, Handler: userRealNameSubmitHandler},
+			// 渠道异步核验回调：公开路由，处理器内验签 + 幂等落定。
+			{Method: "POST", Path: "/realname/callback/:channel", Auth: cmfapp.AuthPublic, Handler: realNameCallbackHandler},
 			{Method: "GET", Path: "/admin/products", Auth: cmfapp.AuthAdmin, Handler: adminSkus},
 			{Method: "POST", Path: "/admin/products", Auth: cmfapp.AuthAdmin, Handler: createSku},
 			{Method: "PUT", Path: "/admin/products/:id", Auth: cmfapp.AuthAdmin, Handler: updateSkuHandler},
@@ -898,6 +914,12 @@ func init() {
 			{Method: "PUT", Path: "/admin/players/:id", Auth: cmfapp.AuthAdmin, Handler: updatePlayerHandler},
 			{Method: "GET", Path: "/admin/players/:id/identity", Auth: cmfapp.AuthAdmin, Handler: adminPlayerIdentityHandler},
 			{Method: "POST", Path: "/admin/players/:id/identity/review", Auth: cmfapp.AuthAdmin, Handler: adminReviewPlayerIdentityHandler},
+			// 统一实名：客户 / 陪玩共用档案的列表、详情、人工审核与管理端代提交。
+			{Method: "GET", Path: "/admin/realnames", Auth: cmfapp.AuthAdmin, Handler: adminRealNames},
+			{Method: "GET", Path: "/admin/realnames/:id", Auth: cmfapp.AuthAdmin, Handler: adminRealNameDetail},
+			{Method: "POST", Path: "/admin/realnames/:id/review", Auth: cmfapp.AuthAdmin, Handler: adminReviewRealNameHandler},
+			// 代提交用静态路径（不走 /:subjectType/:subjectId），主体类型与 ID 放在请求体。
+			{Method: "POST", Path: "/admin/realnames/submit", Auth: cmfapp.AuthAdmin, Handler: adminSubmitRealNameHandler},
 			// 陪玩端自助：供 uni-app 客户端调用，不挂管理端菜单。
 			{Method: "GET", Path: "/user/player/dashboard", Auth: cmfapp.AuthUser, Handler: playerDashboardHandler},
 			{Method: "GET", Path: "/user/player/profile", Auth: cmfapp.AuthUser, Handler: playerProfileHandler},
@@ -909,6 +931,9 @@ func init() {
 			{Method: "POST", Path: "/user/player/messages/read", Auth: cmfapp.AuthUser, Handler: playerMessagesMarkReadHandler},
 			{Method: "POST", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerSubmitIdentityHandler},
 			{Method: "GET", Path: "/user/player/identity", Auth: cmfapp.AuthUser, Handler: playerIdentityStatusHandler},
+			// 陪玩端统一实名（支持配置的渠道核验）；旧 /identity 保留为兼容别名（仅人工渠道）。
+			{Method: "GET", Path: "/user/player/realname", Auth: cmfapp.AuthUser, Handler: playerRealNameStatusHandler},
+			{Method: "POST", Path: "/user/player/realname", Auth: cmfapp.AuthUser, Handler: playerRealNameSubmitHandler},
 			{Method: "POST", Path: "/user/player/presence", Auth: cmfapp.AuthUser, Handler: playerPresenceHandler},
 			// 陪玩端保活：刷新心跳时戳，超时由 esports_auto_offline_players 任务自动离线。
 			{Method: "POST", Path: "/user/player/heartbeat", Auth: cmfapp.AuthUser, Handler: playerHeartbeatHandler},
@@ -1205,7 +1230,12 @@ func init() {
 			{Type: cmfapp.PermAPI, Name: "查看陪玩实名认证", Code: "esports:players:identity_view", Path: "/api/v1/esports/admin/players/{id}/identity", Method: "GET", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermAPI, Name: "审核陪玩实名认证", Code: "esports:players:identity_review", Path: "/api/v1/esports/admin/players/{id}/identity/review", Method: "POST", Parent: "esports:player:menu"},
 			{Type: cmfapp.PermButton, Name: "陪玩管理按钮", Code: "esports:players:manage", Parent: "esports:player:menu"},
-
+			// 统一实名（客户 / 陪玩共用）：档案列表、详情、人工审核与管理端代提交。
+			{Type: cmfapp.PermMenu, Name: "实名认证", Code: "esports:realname:menu", MenuPath: "/esports/realnames", Parent: "esports:operations:menu", Component: "esports/realnames/index", Icon: "icon-safe", SortOrder: 55},
+			{Type: cmfapp.PermAPI, Name: "查看实名档案", Code: "esports:realnames:list", Path: "/api/v1/esports/admin/realnames", Method: "GET", Parent: "esports:realname:menu"},
+			{Type: cmfapp.PermAPI, Name: "查看实名档案详情", Code: "esports:realnames:detail", Path: "/api/v1/esports/admin/realnames/{id}", Method: "GET", Parent: "esports:realname:menu"},
+			{Type: cmfapp.PermAPI, Name: "审核实名认证", Code: "esports:realnames:review", Path: "/api/v1/esports/admin/realnames/{id}/review", Method: "POST", Parent: "esports:realname:menu"},
+			{Type: cmfapp.PermAPI, Name: "代提交实名认证", Code: "esports:realnames:submit", Path: "/api/v1/esports/admin/realnames/submit", Method: "POST", Parent: "esports:realname:menu"},
 			// 售后模块：售后单受理 / 方案 / 审批 / 执行 / 退款。
 			{Type: cmfapp.PermMenu, Name: "售后", Code: "esports:aftersale:menu", MenuPath: "/esports/aftersales", Component: "esports/aftersales/index", Icon: "icon-archive", SortOrder: 46},
 			{Type: cmfapp.PermAPI, Name: "查看售后单", Code: "esports:aftersales:list", Path: "/api/v1/esports/admin/after-sales", Method: "GET", Parent: "esports:aftersale:menu"},

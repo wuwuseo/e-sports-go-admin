@@ -178,6 +178,10 @@ type Tx struct {
 	EsportsProductCategory *EsportsProductCategoryClient
 	// EsportsQuotaHold is the client for interacting with the EsportsQuotaHold builders.
 	EsportsQuotaHold *EsportsQuotaHoldClient
+	// EsportsRealNameAttempt is the client for interacting with the EsportsRealNameAttempt builders.
+	EsportsRealNameAttempt *EsportsRealNameAttemptClient
+	// EsportsRealNameVerification is the client for interacting with the EsportsRealNameVerification builders.
+	EsportsRealNameVerification *EsportsRealNameVerificationClient
 	// EsportsRechargeCampaign is the client for interacting with the EsportsRechargeCampaign builders.
 	EsportsRechargeCampaign *EsportsRechargeCampaignClient
 	// EsportsRechargeIntent is the client for interacting with the EsportsRechargeIntent builders.
@@ -460,6 +464,8 @@ func (tx *Tx) init() {
 	tx.EsportsPriorityBookingIntent = NewEsportsPriorityBookingIntentClient(tx.config)
 	tx.EsportsProductCategory = NewEsportsProductCategoryClient(tx.config)
 	tx.EsportsQuotaHold = NewEsportsQuotaHoldClient(tx.config)
+	tx.EsportsRealNameAttempt = NewEsportsRealNameAttemptClient(tx.config)
+	tx.EsportsRealNameVerification = NewEsportsRealNameVerificationClient(tx.config)
 	tx.EsportsRechargeCampaign = NewEsportsRechargeCampaignClient(tx.config)
 	tx.EsportsRechargeIntent = NewEsportsRechargeIntentClient(tx.config)
 	tx.EsportsRechargeRefundExecution = NewEsportsRechargeRefundExecutionClient(tx.config)

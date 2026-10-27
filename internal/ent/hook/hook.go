@@ -1004,6 +1004,30 @@ func (f EsportsQuotaHoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsQuotaHoldMutation", m)
 }
 
+// The EsportsRealNameAttemptFunc type is an adapter to allow the use of ordinary
+// function as EsportsRealNameAttempt mutator.
+type EsportsRealNameAttemptFunc func(context.Context, *ent.EsportsRealNameAttemptMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsRealNameAttemptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsRealNameAttemptMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRealNameAttemptMutation", m)
+}
+
+// The EsportsRealNameVerificationFunc type is an adapter to allow the use of ordinary
+// function as EsportsRealNameVerification mutator.
+type EsportsRealNameVerificationFunc func(context.Context, *ent.EsportsRealNameVerificationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f EsportsRealNameVerificationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EsportsRealNameVerificationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EsportsRealNameVerificationMutation", m)
+}
+
 // The EsportsRechargeCampaignFunc type is an adapter to allow the use of ordinary
 // function as EsportsRechargeCampaign mutator.
 type EsportsRechargeCampaignFunc func(context.Context, *ent.EsportsRechargeCampaignMutation) (ent.Value, error)

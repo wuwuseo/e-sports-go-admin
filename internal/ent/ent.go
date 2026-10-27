@@ -89,6 +89,8 @@ import (
 	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportsrealnameattempt"
+	"go-admin/internal/ent/esportsrealnameverification"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportsrechargeintent"
 	"go-admin/internal/ent/esportsrechargerefundexecution"
@@ -272,6 +274,8 @@ func checkColumn(t, c string) error {
 			esportsprioritybookingintent.Table:   esportsprioritybookingintent.ValidColumn,
 			esportsproductcategory.Table:         esportsproductcategory.ValidColumn,
 			esportsquotahold.Table:               esportsquotahold.ValidColumn,
+			esportsrealnameattempt.Table:         esportsrealnameattempt.ValidColumn,
+			esportsrealnameverification.Table:    esportsrealnameverification.ValidColumn,
 			esportsrechargecampaign.Table:        esportsrechargecampaign.ValidColumn,
 			esportsrechargeintent.Table:          esportsrechargeintent.ValidColumn,
 			esportsrechargerefundexecution.Table: esportsrechargerefundexecution.ValidColumn,

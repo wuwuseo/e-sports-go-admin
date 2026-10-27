@@ -50,5 +50,6 @@ func CronSeeds() []CronSeed {
 		{Name: "esports_expire_member_level_overrides", Expression: "0 25 0 * * *", Description: "会员手动调级覆盖到期回落成长值口径"},
 		{Name: "esports_expire_priority_booking_intents", Expression: "0 5 * * * *", Description: "会员优先预约意向过期消解，待办不再堆积"},
 		{Name: "esports_expire_pending_external_refunds", Expression: "0 15 * * * *", Description: "外部退款登记后长期未执行超期督办，只提醒不代办"},
+		{Name: "esports_expire_realname_pending", Expression: "0 */5 * * * *", Description: "统一实名待审超时置失效并把流水置放弃"},
 	}
 }

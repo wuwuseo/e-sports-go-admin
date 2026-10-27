@@ -146,11 +146,10 @@ func (EsportsIdentityBinding) Indexes() []ent.Index {
 	}
 }
 
-// EsportsPlayerIdentity 是陪玩实名认证记录：陪玩提交真实姓名与身份证号后进入
-// pending_verification，由管理员审核后置 verified / rejected；实名通过前陪玩 qualification
-// 不得为 qualified（由 player_identity.go 把关）。身份证号只存脱敏值，原始证件号不落库。
-// ponytail: 该实体由主代理统一 go generate 后生效；生成前 player_identity.go 暂用
-// EsportsIdentityBinding 承载认证状态（见该文件注释），生成后应切换到此实体。
+// EsportsPlayerIdentity 是旧版陪玩实名认证记录（历史实体）。
+// Deprecated: 已由统一实名（EsportsRealNameVerification）取代（2026-10）。
+// 表保留只读、不再写入；仅 realname_migrate.go 一次性迁移时只读访问。
+// 实名通过前陪玩 qualification 不得为 qualified，判断改读统一档案。
 type EsportsPlayerIdentity struct{ ent.Schema }
 
 func (EsportsPlayerIdentity) Fields() []ent.Field {

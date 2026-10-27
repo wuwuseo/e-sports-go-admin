@@ -255,6 +255,12 @@ type EsportsProductCategory func(*sql.Selector)
 // EsportsQuotaHold is the predicate function for esportsquotahold builders.
 type EsportsQuotaHold func(*sql.Selector)
 
+// EsportsRealNameAttempt is the predicate function for esportsrealnameattempt builders.
+type EsportsRealNameAttempt func(*sql.Selector)
+
+// EsportsRealNameVerification is the predicate function for esportsrealnameverification builders.
+type EsportsRealNameVerification func(*sql.Selector)
+
 // EsportsRechargeCampaign is the predicate function for esportsrechargecampaign builders.
 type EsportsRechargeCampaign func(*sql.Selector)
 

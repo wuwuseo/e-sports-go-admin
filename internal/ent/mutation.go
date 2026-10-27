@@ -90,6 +90,8 @@ import (
 	"go-admin/internal/ent/esportsprioritybookingintent"
 	"go-admin/internal/ent/esportsproductcategory"
 	"go-admin/internal/ent/esportsquotahold"
+	"go-admin/internal/ent/esportsrealnameattempt"
+	"go-admin/internal/ent/esportsrealnameverification"
 	"go-admin/internal/ent/esportsrechargecampaign"
 	"go-admin/internal/ent/esportsrechargeintent"
 	"go-admin/internal/ent/esportsrechargerefundexecution"
@@ -224,6 +226,8 @@ const (
 	TypeEsportsPriorityBookingIntent   = "EsportsPriorityBookingIntent"
 	TypeEsportsProductCategory         = "EsportsProductCategory"
 	TypeEsportsQuotaHold               = "EsportsQuotaHold"
+	TypeEsportsRealNameAttempt         = "EsportsRealNameAttempt"
+	TypeEsportsRealNameVerification    = "EsportsRealNameVerification"
 	TypeEsportsRechargeCampaign        = "EsportsRechargeCampaign"
 	TypeEsportsRechargeIntent          = "EsportsRechargeIntent"
 	TypeEsportsRechargeRefundExecution = "EsportsRechargeRefundExecution"
@@ -103465,6 +103469,2100 @@ func (m *EsportsQuotaHoldMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *EsportsQuotaHoldMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown EsportsQuotaHold edge %s", name)
+}
+
+// EsportsRealNameAttemptMutation represents an operation that mutates the EsportsRealNameAttempt nodes in the graph.
+type EsportsRealNameAttemptMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int
+	subject_type    *esportsrealnameattempt.SubjectType
+	subject_id      *int
+	addsubject_id   *int
+	channel         *esportsrealnameattempt.Channel
+	method          *esportsrealnameattempt.Method
+	status          *esportsrealnameattempt.Status
+	provider_ref    *string
+	fail_reason     *string
+	requested_by    *int
+	addrequested_by *int
+	created_at      *time.Time
+	updated_at      *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*EsportsRealNameAttempt, error)
+	predicates      []predicate.EsportsRealNameAttempt
+}
+
+var _ ent.Mutation = (*EsportsRealNameAttemptMutation)(nil)
+
+// esportsrealnameattemptOption allows management of the mutation configuration using functional options.
+type esportsrealnameattemptOption func(*EsportsRealNameAttemptMutation)
+
+// newEsportsRealNameAttemptMutation creates new mutation for the EsportsRealNameAttempt entity.
+func newEsportsRealNameAttemptMutation(c config, op Op, opts ...esportsrealnameattemptOption) *EsportsRealNameAttemptMutation {
+	m := &EsportsRealNameAttemptMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsRealNameAttempt,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsRealNameAttemptID sets the ID field of the mutation.
+func withEsportsRealNameAttemptID(id int) esportsrealnameattemptOption {
+	return func(m *EsportsRealNameAttemptMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsRealNameAttempt
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsRealNameAttempt, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsRealNameAttempt.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsRealNameAttempt sets the old EsportsRealNameAttempt of the mutation.
+func withEsportsRealNameAttempt(node *EsportsRealNameAttempt) esportsrealnameattemptOption {
+	return func(m *EsportsRealNameAttemptMutation) {
+		m.oldValue = func(context.Context) (*EsportsRealNameAttempt, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsRealNameAttemptMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsRealNameAttemptMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsRealNameAttemptMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsRealNameAttemptMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsRealNameAttempt.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSubjectType sets the "subject_type" field.
+func (m *EsportsRealNameAttemptMutation) SetSubjectType(et esportsrealnameattempt.SubjectType) {
+	m.subject_type = &et
+}
+
+// SubjectType returns the value of the "subject_type" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) SubjectType() (r esportsrealnameattempt.SubjectType, exists bool) {
+	v := m.subject_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectType returns the old "subject_type" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldSubjectType(ctx context.Context) (v esportsrealnameattempt.SubjectType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectType: %w", err)
+	}
+	return oldValue.SubjectType, nil
+}
+
+// ResetSubjectType resets all changes to the "subject_type" field.
+func (m *EsportsRealNameAttemptMutation) ResetSubjectType() {
+	m.subject_type = nil
+}
+
+// SetSubjectID sets the "subject_id" field.
+func (m *EsportsRealNameAttemptMutation) SetSubjectID(i int) {
+	m.subject_id = &i
+	m.addsubject_id = nil
+}
+
+// SubjectID returns the value of the "subject_id" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) SubjectID() (r int, exists bool) {
+	v := m.subject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectID returns the old "subject_id" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldSubjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectID: %w", err)
+	}
+	return oldValue.SubjectID, nil
+}
+
+// AddSubjectID adds i to the "subject_id" field.
+func (m *EsportsRealNameAttemptMutation) AddSubjectID(i int) {
+	if m.addsubject_id != nil {
+		*m.addsubject_id += i
+	} else {
+		m.addsubject_id = &i
+	}
+}
+
+// AddedSubjectID returns the value that was added to the "subject_id" field in this mutation.
+func (m *EsportsRealNameAttemptMutation) AddedSubjectID() (r int, exists bool) {
+	v := m.addsubject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSubjectID resets all changes to the "subject_id" field.
+func (m *EsportsRealNameAttemptMutation) ResetSubjectID() {
+	m.subject_id = nil
+	m.addsubject_id = nil
+}
+
+// SetChannel sets the "channel" field.
+func (m *EsportsRealNameAttemptMutation) SetChannel(e esportsrealnameattempt.Channel) {
+	m.channel = &e
+}
+
+// Channel returns the value of the "channel" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) Channel() (r esportsrealnameattempt.Channel, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannel returns the old "channel" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldChannel(ctx context.Context) (v esportsrealnameattempt.Channel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannel: %w", err)
+	}
+	return oldValue.Channel, nil
+}
+
+// ResetChannel resets all changes to the "channel" field.
+func (m *EsportsRealNameAttemptMutation) ResetChannel() {
+	m.channel = nil
+}
+
+// SetMethod sets the "method" field.
+func (m *EsportsRealNameAttemptMutation) SetMethod(e esportsrealnameattempt.Method) {
+	m.method = &e
+}
+
+// Method returns the value of the "method" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) Method() (r esportsrealnameattempt.Method, exists bool) {
+	v := m.method
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMethod returns the old "method" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldMethod(ctx context.Context) (v esportsrealnameattempt.Method, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMethod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMethod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMethod: %w", err)
+	}
+	return oldValue.Method, nil
+}
+
+// ResetMethod resets all changes to the "method" field.
+func (m *EsportsRealNameAttemptMutation) ResetMethod() {
+	m.method = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsRealNameAttemptMutation) SetStatus(e esportsrealnameattempt.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) Status() (r esportsrealnameattempt.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldStatus(ctx context.Context) (v esportsrealnameattempt.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsRealNameAttemptMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetProviderRef sets the "provider_ref" field.
+func (m *EsportsRealNameAttemptMutation) SetProviderRef(s string) {
+	m.provider_ref = &s
+}
+
+// ProviderRef returns the value of the "provider_ref" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) ProviderRef() (r string, exists bool) {
+	v := m.provider_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderRef returns the old "provider_ref" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldProviderRef(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderRef: %w", err)
+	}
+	return oldValue.ProviderRef, nil
+}
+
+// ClearProviderRef clears the value of the "provider_ref" field.
+func (m *EsportsRealNameAttemptMutation) ClearProviderRef() {
+	m.provider_ref = nil
+	m.clearedFields[esportsrealnameattempt.FieldProviderRef] = struct{}{}
+}
+
+// ProviderRefCleared returns if the "provider_ref" field was cleared in this mutation.
+func (m *EsportsRealNameAttemptMutation) ProviderRefCleared() bool {
+	_, ok := m.clearedFields[esportsrealnameattempt.FieldProviderRef]
+	return ok
+}
+
+// ResetProviderRef resets all changes to the "provider_ref" field.
+func (m *EsportsRealNameAttemptMutation) ResetProviderRef() {
+	m.provider_ref = nil
+	delete(m.clearedFields, esportsrealnameattempt.FieldProviderRef)
+}
+
+// SetFailReason sets the "fail_reason" field.
+func (m *EsportsRealNameAttemptMutation) SetFailReason(s string) {
+	m.fail_reason = &s
+}
+
+// FailReason returns the value of the "fail_reason" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) FailReason() (r string, exists bool) {
+	v := m.fail_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailReason returns the old "fail_reason" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldFailReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailReason: %w", err)
+	}
+	return oldValue.FailReason, nil
+}
+
+// ResetFailReason resets all changes to the "fail_reason" field.
+func (m *EsportsRealNameAttemptMutation) ResetFailReason() {
+	m.fail_reason = nil
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *EsportsRealNameAttemptMutation) SetRequestedBy(i int) {
+	m.requested_by = &i
+	m.addrequested_by = nil
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) RequestedBy() (r int, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldRequestedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// AddRequestedBy adds i to the "requested_by" field.
+func (m *EsportsRealNameAttemptMutation) AddRequestedBy(i int) {
+	if m.addrequested_by != nil {
+		*m.addrequested_by += i
+	} else {
+		m.addrequested_by = &i
+	}
+}
+
+// AddedRequestedBy returns the value that was added to the "requested_by" field in this mutation.
+func (m *EsportsRealNameAttemptMutation) AddedRequestedBy() (r int, exists bool) {
+	v := m.addrequested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *EsportsRealNameAttemptMutation) ResetRequestedBy() {
+	m.requested_by = nil
+	m.addrequested_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsRealNameAttemptMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsRealNameAttemptMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsRealNameAttemptMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsRealNameAttemptMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsRealNameAttempt entity.
+// If the EsportsRealNameAttempt object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameAttemptMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsRealNameAttemptMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsRealNameAttemptMutation builder.
+func (m *EsportsRealNameAttemptMutation) Where(ps ...predicate.EsportsRealNameAttempt) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsRealNameAttemptMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsRealNameAttemptMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsRealNameAttempt, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsRealNameAttemptMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsRealNameAttemptMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsRealNameAttempt).
+func (m *EsportsRealNameAttemptMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsRealNameAttemptMutation) Fields() []string {
+	fields := make([]string, 0, 10)
+	if m.subject_type != nil {
+		fields = append(fields, esportsrealnameattempt.FieldSubjectType)
+	}
+	if m.subject_id != nil {
+		fields = append(fields, esportsrealnameattempt.FieldSubjectID)
+	}
+	if m.channel != nil {
+		fields = append(fields, esportsrealnameattempt.FieldChannel)
+	}
+	if m.method != nil {
+		fields = append(fields, esportsrealnameattempt.FieldMethod)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsrealnameattempt.FieldStatus)
+	}
+	if m.provider_ref != nil {
+		fields = append(fields, esportsrealnameattempt.FieldProviderRef)
+	}
+	if m.fail_reason != nil {
+		fields = append(fields, esportsrealnameattempt.FieldFailReason)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, esportsrealnameattempt.FieldRequestedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsrealnameattempt.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportsrealnameattempt.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsRealNameAttemptMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsrealnameattempt.FieldSubjectType:
+		return m.SubjectType()
+	case esportsrealnameattempt.FieldSubjectID:
+		return m.SubjectID()
+	case esportsrealnameattempt.FieldChannel:
+		return m.Channel()
+	case esportsrealnameattempt.FieldMethod:
+		return m.Method()
+	case esportsrealnameattempt.FieldStatus:
+		return m.Status()
+	case esportsrealnameattempt.FieldProviderRef:
+		return m.ProviderRef()
+	case esportsrealnameattempt.FieldFailReason:
+		return m.FailReason()
+	case esportsrealnameattempt.FieldRequestedBy:
+		return m.RequestedBy()
+	case esportsrealnameattempt.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportsrealnameattempt.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsRealNameAttemptMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsrealnameattempt.FieldSubjectType:
+		return m.OldSubjectType(ctx)
+	case esportsrealnameattempt.FieldSubjectID:
+		return m.OldSubjectID(ctx)
+	case esportsrealnameattempt.FieldChannel:
+		return m.OldChannel(ctx)
+	case esportsrealnameattempt.FieldMethod:
+		return m.OldMethod(ctx)
+	case esportsrealnameattempt.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsrealnameattempt.FieldProviderRef:
+		return m.OldProviderRef(ctx)
+	case esportsrealnameattempt.FieldFailReason:
+		return m.OldFailReason(ctx)
+	case esportsrealnameattempt.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case esportsrealnameattempt.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportsrealnameattempt.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsRealNameAttempt field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsRealNameAttemptMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsrealnameattempt.FieldSubjectType:
+		v, ok := value.(esportsrealnameattempt.SubjectType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectType(v)
+		return nil
+	case esportsrealnameattempt.FieldSubjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectID(v)
+		return nil
+	case esportsrealnameattempt.FieldChannel:
+		v, ok := value.(esportsrealnameattempt.Channel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannel(v)
+		return nil
+	case esportsrealnameattempt.FieldMethod:
+		v, ok := value.(esportsrealnameattempt.Method)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMethod(v)
+		return nil
+	case esportsrealnameattempt.FieldStatus:
+		v, ok := value.(esportsrealnameattempt.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsrealnameattempt.FieldProviderRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderRef(v)
+		return nil
+	case esportsrealnameattempt.FieldFailReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailReason(v)
+		return nil
+	case esportsrealnameattempt.FieldRequestedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case esportsrealnameattempt.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportsrealnameattempt.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameAttempt field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsRealNameAttemptMutation) AddedFields() []string {
+	var fields []string
+	if m.addsubject_id != nil {
+		fields = append(fields, esportsrealnameattempt.FieldSubjectID)
+	}
+	if m.addrequested_by != nil {
+		fields = append(fields, esportsrealnameattempt.FieldRequestedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsRealNameAttemptMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsrealnameattempt.FieldSubjectID:
+		return m.AddedSubjectID()
+	case esportsrealnameattempt.FieldRequestedBy:
+		return m.AddedRequestedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsRealNameAttemptMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsrealnameattempt.FieldSubjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubjectID(v)
+		return nil
+	case esportsrealnameattempt.FieldRequestedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequestedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameAttempt numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsRealNameAttemptMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsrealnameattempt.FieldProviderRef) {
+		fields = append(fields, esportsrealnameattempt.FieldProviderRef)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsRealNameAttemptMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsRealNameAttemptMutation) ClearField(name string) error {
+	switch name {
+	case esportsrealnameattempt.FieldProviderRef:
+		m.ClearProviderRef()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameAttempt nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsRealNameAttemptMutation) ResetField(name string) error {
+	switch name {
+	case esportsrealnameattempt.FieldSubjectType:
+		m.ResetSubjectType()
+		return nil
+	case esportsrealnameattempt.FieldSubjectID:
+		m.ResetSubjectID()
+		return nil
+	case esportsrealnameattempt.FieldChannel:
+		m.ResetChannel()
+		return nil
+	case esportsrealnameattempt.FieldMethod:
+		m.ResetMethod()
+		return nil
+	case esportsrealnameattempt.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsrealnameattempt.FieldProviderRef:
+		m.ResetProviderRef()
+		return nil
+	case esportsrealnameattempt.FieldFailReason:
+		m.ResetFailReason()
+		return nil
+	case esportsrealnameattempt.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case esportsrealnameattempt.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportsrealnameattempt.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameAttempt field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsRealNameAttemptMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsRealNameAttemptMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsRealNameAttemptMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsRealNameAttemptMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsRealNameAttemptMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsRealNameAttemptMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsRealNameAttemptMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsRealNameAttempt unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsRealNameAttemptMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsRealNameAttempt edge %s", name)
+}
+
+// EsportsRealNameVerificationMutation represents an operation that mutates the EsportsRealNameVerification nodes in the graph.
+type EsportsRealNameVerificationMutation struct {
+	config
+	op                      Op
+	typ                     string
+	id                      *int
+	subject_type            *esportsrealnameverification.SubjectType
+	subject_id              *int
+	addsubject_id           *int
+	real_name               *string
+	id_number_masked        *string
+	channel                 *esportsrealnameverification.Channel
+	method                  *esportsrealnameverification.Method
+	status                  *esportsrealnameverification.Status
+	provider_ref            *string
+	fail_reason             *string
+	verified_at             *time.Time
+	reviewed_by_admin_id    *int
+	addreviewed_by_admin_id *int
+	requested_by            *int
+	addrequested_by         *int
+	created_at              *time.Time
+	updated_at              *time.Time
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*EsportsRealNameVerification, error)
+	predicates              []predicate.EsportsRealNameVerification
+}
+
+var _ ent.Mutation = (*EsportsRealNameVerificationMutation)(nil)
+
+// esportsrealnameverificationOption allows management of the mutation configuration using functional options.
+type esportsrealnameverificationOption func(*EsportsRealNameVerificationMutation)
+
+// newEsportsRealNameVerificationMutation creates new mutation for the EsportsRealNameVerification entity.
+func newEsportsRealNameVerificationMutation(c config, op Op, opts ...esportsrealnameverificationOption) *EsportsRealNameVerificationMutation {
+	m := &EsportsRealNameVerificationMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeEsportsRealNameVerification,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withEsportsRealNameVerificationID sets the ID field of the mutation.
+func withEsportsRealNameVerificationID(id int) esportsrealnameverificationOption {
+	return func(m *EsportsRealNameVerificationMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *EsportsRealNameVerification
+		)
+		m.oldValue = func(ctx context.Context) (*EsportsRealNameVerification, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().EsportsRealNameVerification.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withEsportsRealNameVerification sets the old EsportsRealNameVerification of the mutation.
+func withEsportsRealNameVerification(node *EsportsRealNameVerification) esportsrealnameverificationOption {
+	return func(m *EsportsRealNameVerificationMutation) {
+		m.oldValue = func(context.Context) (*EsportsRealNameVerification, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m EsportsRealNameVerificationMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m EsportsRealNameVerificationMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *EsportsRealNameVerificationMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *EsportsRealNameVerificationMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().EsportsRealNameVerification.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetSubjectType sets the "subject_type" field.
+func (m *EsportsRealNameVerificationMutation) SetSubjectType(et esportsrealnameverification.SubjectType) {
+	m.subject_type = &et
+}
+
+// SubjectType returns the value of the "subject_type" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) SubjectType() (r esportsrealnameverification.SubjectType, exists bool) {
+	v := m.subject_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectType returns the old "subject_type" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldSubjectType(ctx context.Context) (v esportsrealnameverification.SubjectType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectType: %w", err)
+	}
+	return oldValue.SubjectType, nil
+}
+
+// ResetSubjectType resets all changes to the "subject_type" field.
+func (m *EsportsRealNameVerificationMutation) ResetSubjectType() {
+	m.subject_type = nil
+}
+
+// SetSubjectID sets the "subject_id" field.
+func (m *EsportsRealNameVerificationMutation) SetSubjectID(i int) {
+	m.subject_id = &i
+	m.addsubject_id = nil
+}
+
+// SubjectID returns the value of the "subject_id" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) SubjectID() (r int, exists bool) {
+	v := m.subject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubjectID returns the old "subject_id" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldSubjectID(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubjectID: %w", err)
+	}
+	return oldValue.SubjectID, nil
+}
+
+// AddSubjectID adds i to the "subject_id" field.
+func (m *EsportsRealNameVerificationMutation) AddSubjectID(i int) {
+	if m.addsubject_id != nil {
+		*m.addsubject_id += i
+	} else {
+		m.addsubject_id = &i
+	}
+}
+
+// AddedSubjectID returns the value that was added to the "subject_id" field in this mutation.
+func (m *EsportsRealNameVerificationMutation) AddedSubjectID() (r int, exists bool) {
+	v := m.addsubject_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSubjectID resets all changes to the "subject_id" field.
+func (m *EsportsRealNameVerificationMutation) ResetSubjectID() {
+	m.subject_id = nil
+	m.addsubject_id = nil
+}
+
+// SetRealName sets the "real_name" field.
+func (m *EsportsRealNameVerificationMutation) SetRealName(s string) {
+	m.real_name = &s
+}
+
+// RealName returns the value of the "real_name" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) RealName() (r string, exists bool) {
+	v := m.real_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRealName returns the old "real_name" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldRealName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRealName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRealName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRealName: %w", err)
+	}
+	return oldValue.RealName, nil
+}
+
+// ResetRealName resets all changes to the "real_name" field.
+func (m *EsportsRealNameVerificationMutation) ResetRealName() {
+	m.real_name = nil
+}
+
+// SetIDNumberMasked sets the "id_number_masked" field.
+func (m *EsportsRealNameVerificationMutation) SetIDNumberMasked(s string) {
+	m.id_number_masked = &s
+}
+
+// IDNumberMasked returns the value of the "id_number_masked" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) IDNumberMasked() (r string, exists bool) {
+	v := m.id_number_masked
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIDNumberMasked returns the old "id_number_masked" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldIDNumberMasked(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIDNumberMasked is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIDNumberMasked requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIDNumberMasked: %w", err)
+	}
+	return oldValue.IDNumberMasked, nil
+}
+
+// ResetIDNumberMasked resets all changes to the "id_number_masked" field.
+func (m *EsportsRealNameVerificationMutation) ResetIDNumberMasked() {
+	m.id_number_masked = nil
+}
+
+// SetChannel sets the "channel" field.
+func (m *EsportsRealNameVerificationMutation) SetChannel(e esportsrealnameverification.Channel) {
+	m.channel = &e
+}
+
+// Channel returns the value of the "channel" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) Channel() (r esportsrealnameverification.Channel, exists bool) {
+	v := m.channel
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChannel returns the old "channel" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldChannel(ctx context.Context) (v esportsrealnameverification.Channel, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChannel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChannel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChannel: %w", err)
+	}
+	return oldValue.Channel, nil
+}
+
+// ResetChannel resets all changes to the "channel" field.
+func (m *EsportsRealNameVerificationMutation) ResetChannel() {
+	m.channel = nil
+}
+
+// SetMethod sets the "method" field.
+func (m *EsportsRealNameVerificationMutation) SetMethod(e esportsrealnameverification.Method) {
+	m.method = &e
+}
+
+// Method returns the value of the "method" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) Method() (r esportsrealnameverification.Method, exists bool) {
+	v := m.method
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMethod returns the old "method" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldMethod(ctx context.Context) (v esportsrealnameverification.Method, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMethod is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMethod requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMethod: %w", err)
+	}
+	return oldValue.Method, nil
+}
+
+// ResetMethod resets all changes to the "method" field.
+func (m *EsportsRealNameVerificationMutation) ResetMethod() {
+	m.method = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *EsportsRealNameVerificationMutation) SetStatus(e esportsrealnameverification.Status) {
+	m.status = &e
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) Status() (r esportsrealnameverification.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldStatus(ctx context.Context) (v esportsrealnameverification.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *EsportsRealNameVerificationMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetProviderRef sets the "provider_ref" field.
+func (m *EsportsRealNameVerificationMutation) SetProviderRef(s string) {
+	m.provider_ref = &s
+}
+
+// ProviderRef returns the value of the "provider_ref" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) ProviderRef() (r string, exists bool) {
+	v := m.provider_ref
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderRef returns the old "provider_ref" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldProviderRef(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderRef is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderRef requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderRef: %w", err)
+	}
+	return oldValue.ProviderRef, nil
+}
+
+// ClearProviderRef clears the value of the "provider_ref" field.
+func (m *EsportsRealNameVerificationMutation) ClearProviderRef() {
+	m.provider_ref = nil
+	m.clearedFields[esportsrealnameverification.FieldProviderRef] = struct{}{}
+}
+
+// ProviderRefCleared returns if the "provider_ref" field was cleared in this mutation.
+func (m *EsportsRealNameVerificationMutation) ProviderRefCleared() bool {
+	_, ok := m.clearedFields[esportsrealnameverification.FieldProviderRef]
+	return ok
+}
+
+// ResetProviderRef resets all changes to the "provider_ref" field.
+func (m *EsportsRealNameVerificationMutation) ResetProviderRef() {
+	m.provider_ref = nil
+	delete(m.clearedFields, esportsrealnameverification.FieldProviderRef)
+}
+
+// SetFailReason sets the "fail_reason" field.
+func (m *EsportsRealNameVerificationMutation) SetFailReason(s string) {
+	m.fail_reason = &s
+}
+
+// FailReason returns the value of the "fail_reason" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) FailReason() (r string, exists bool) {
+	v := m.fail_reason
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailReason returns the old "fail_reason" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldFailReason(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailReason is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailReason requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailReason: %w", err)
+	}
+	return oldValue.FailReason, nil
+}
+
+// ResetFailReason resets all changes to the "fail_reason" field.
+func (m *EsportsRealNameVerificationMutation) ResetFailReason() {
+	m.fail_reason = nil
+}
+
+// SetVerifiedAt sets the "verified_at" field.
+func (m *EsportsRealNameVerificationMutation) SetVerifiedAt(t time.Time) {
+	m.verified_at = &t
+}
+
+// VerifiedAt returns the value of the "verified_at" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) VerifiedAt() (r time.Time, exists bool) {
+	v := m.verified_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVerifiedAt returns the old "verified_at" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldVerifiedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVerifiedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVerifiedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVerifiedAt: %w", err)
+	}
+	return oldValue.VerifiedAt, nil
+}
+
+// ClearVerifiedAt clears the value of the "verified_at" field.
+func (m *EsportsRealNameVerificationMutation) ClearVerifiedAt() {
+	m.verified_at = nil
+	m.clearedFields[esportsrealnameverification.FieldVerifiedAt] = struct{}{}
+}
+
+// VerifiedAtCleared returns if the "verified_at" field was cleared in this mutation.
+func (m *EsportsRealNameVerificationMutation) VerifiedAtCleared() bool {
+	_, ok := m.clearedFields[esportsrealnameverification.FieldVerifiedAt]
+	return ok
+}
+
+// ResetVerifiedAt resets all changes to the "verified_at" field.
+func (m *EsportsRealNameVerificationMutation) ResetVerifiedAt() {
+	m.verified_at = nil
+	delete(m.clearedFields, esportsrealnameverification.FieldVerifiedAt)
+}
+
+// SetReviewedByAdminID sets the "reviewed_by_admin_id" field.
+func (m *EsportsRealNameVerificationMutation) SetReviewedByAdminID(i int) {
+	m.reviewed_by_admin_id = &i
+	m.addreviewed_by_admin_id = nil
+}
+
+// ReviewedByAdminID returns the value of the "reviewed_by_admin_id" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) ReviewedByAdminID() (r int, exists bool) {
+	v := m.reviewed_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewedByAdminID returns the old "reviewed_by_admin_id" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldReviewedByAdminID(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewedByAdminID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewedByAdminID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewedByAdminID: %w", err)
+	}
+	return oldValue.ReviewedByAdminID, nil
+}
+
+// AddReviewedByAdminID adds i to the "reviewed_by_admin_id" field.
+func (m *EsportsRealNameVerificationMutation) AddReviewedByAdminID(i int) {
+	if m.addreviewed_by_admin_id != nil {
+		*m.addreviewed_by_admin_id += i
+	} else {
+		m.addreviewed_by_admin_id = &i
+	}
+}
+
+// AddedReviewedByAdminID returns the value that was added to the "reviewed_by_admin_id" field in this mutation.
+func (m *EsportsRealNameVerificationMutation) AddedReviewedByAdminID() (r int, exists bool) {
+	v := m.addreviewed_by_admin_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReviewedByAdminID clears the value of the "reviewed_by_admin_id" field.
+func (m *EsportsRealNameVerificationMutation) ClearReviewedByAdminID() {
+	m.reviewed_by_admin_id = nil
+	m.addreviewed_by_admin_id = nil
+	m.clearedFields[esportsrealnameverification.FieldReviewedByAdminID] = struct{}{}
+}
+
+// ReviewedByAdminIDCleared returns if the "reviewed_by_admin_id" field was cleared in this mutation.
+func (m *EsportsRealNameVerificationMutation) ReviewedByAdminIDCleared() bool {
+	_, ok := m.clearedFields[esportsrealnameverification.FieldReviewedByAdminID]
+	return ok
+}
+
+// ResetReviewedByAdminID resets all changes to the "reviewed_by_admin_id" field.
+func (m *EsportsRealNameVerificationMutation) ResetReviewedByAdminID() {
+	m.reviewed_by_admin_id = nil
+	m.addreviewed_by_admin_id = nil
+	delete(m.clearedFields, esportsrealnameverification.FieldReviewedByAdminID)
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *EsportsRealNameVerificationMutation) SetRequestedBy(i int) {
+	m.requested_by = &i
+	m.addrequested_by = nil
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) RequestedBy() (r int, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldRequestedBy(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// AddRequestedBy adds i to the "requested_by" field.
+func (m *EsportsRealNameVerificationMutation) AddRequestedBy(i int) {
+	if m.addrequested_by != nil {
+		*m.addrequested_by += i
+	} else {
+		m.addrequested_by = &i
+	}
+}
+
+// AddedRequestedBy returns the value that was added to the "requested_by" field in this mutation.
+func (m *EsportsRealNameVerificationMutation) AddedRequestedBy() (r int, exists bool) {
+	v := m.addrequested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *EsportsRealNameVerificationMutation) ResetRequestedBy() {
+	m.requested_by = nil
+	m.addrequested_by = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *EsportsRealNameVerificationMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *EsportsRealNameVerificationMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *EsportsRealNameVerificationMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *EsportsRealNameVerificationMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the EsportsRealNameVerification entity.
+// If the EsportsRealNameVerification object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsRealNameVerificationMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *EsportsRealNameVerificationMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the EsportsRealNameVerificationMutation builder.
+func (m *EsportsRealNameVerificationMutation) Where(ps ...predicate.EsportsRealNameVerification) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the EsportsRealNameVerificationMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *EsportsRealNameVerificationMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.EsportsRealNameVerification, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *EsportsRealNameVerificationMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *EsportsRealNameVerificationMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (EsportsRealNameVerification).
+func (m *EsportsRealNameVerificationMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *EsportsRealNameVerificationMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.subject_type != nil {
+		fields = append(fields, esportsrealnameverification.FieldSubjectType)
+	}
+	if m.subject_id != nil {
+		fields = append(fields, esportsrealnameverification.FieldSubjectID)
+	}
+	if m.real_name != nil {
+		fields = append(fields, esportsrealnameverification.FieldRealName)
+	}
+	if m.id_number_masked != nil {
+		fields = append(fields, esportsrealnameverification.FieldIDNumberMasked)
+	}
+	if m.channel != nil {
+		fields = append(fields, esportsrealnameverification.FieldChannel)
+	}
+	if m.method != nil {
+		fields = append(fields, esportsrealnameverification.FieldMethod)
+	}
+	if m.status != nil {
+		fields = append(fields, esportsrealnameverification.FieldStatus)
+	}
+	if m.provider_ref != nil {
+		fields = append(fields, esportsrealnameverification.FieldProviderRef)
+	}
+	if m.fail_reason != nil {
+		fields = append(fields, esportsrealnameverification.FieldFailReason)
+	}
+	if m.verified_at != nil {
+		fields = append(fields, esportsrealnameverification.FieldVerifiedAt)
+	}
+	if m.reviewed_by_admin_id != nil {
+		fields = append(fields, esportsrealnameverification.FieldReviewedByAdminID)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, esportsrealnameverification.FieldRequestedBy)
+	}
+	if m.created_at != nil {
+		fields = append(fields, esportsrealnameverification.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, esportsrealnameverification.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *EsportsRealNameVerificationMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case esportsrealnameverification.FieldSubjectType:
+		return m.SubjectType()
+	case esportsrealnameverification.FieldSubjectID:
+		return m.SubjectID()
+	case esportsrealnameverification.FieldRealName:
+		return m.RealName()
+	case esportsrealnameverification.FieldIDNumberMasked:
+		return m.IDNumberMasked()
+	case esportsrealnameverification.FieldChannel:
+		return m.Channel()
+	case esportsrealnameverification.FieldMethod:
+		return m.Method()
+	case esportsrealnameverification.FieldStatus:
+		return m.Status()
+	case esportsrealnameverification.FieldProviderRef:
+		return m.ProviderRef()
+	case esportsrealnameverification.FieldFailReason:
+		return m.FailReason()
+	case esportsrealnameverification.FieldVerifiedAt:
+		return m.VerifiedAt()
+	case esportsrealnameverification.FieldReviewedByAdminID:
+		return m.ReviewedByAdminID()
+	case esportsrealnameverification.FieldRequestedBy:
+		return m.RequestedBy()
+	case esportsrealnameverification.FieldCreatedAt:
+		return m.CreatedAt()
+	case esportsrealnameverification.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *EsportsRealNameVerificationMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case esportsrealnameverification.FieldSubjectType:
+		return m.OldSubjectType(ctx)
+	case esportsrealnameverification.FieldSubjectID:
+		return m.OldSubjectID(ctx)
+	case esportsrealnameverification.FieldRealName:
+		return m.OldRealName(ctx)
+	case esportsrealnameverification.FieldIDNumberMasked:
+		return m.OldIDNumberMasked(ctx)
+	case esportsrealnameverification.FieldChannel:
+		return m.OldChannel(ctx)
+	case esportsrealnameverification.FieldMethod:
+		return m.OldMethod(ctx)
+	case esportsrealnameverification.FieldStatus:
+		return m.OldStatus(ctx)
+	case esportsrealnameverification.FieldProviderRef:
+		return m.OldProviderRef(ctx)
+	case esportsrealnameverification.FieldFailReason:
+		return m.OldFailReason(ctx)
+	case esportsrealnameverification.FieldVerifiedAt:
+		return m.OldVerifiedAt(ctx)
+	case esportsrealnameverification.FieldReviewedByAdminID:
+		return m.OldReviewedByAdminID(ctx)
+	case esportsrealnameverification.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case esportsrealnameverification.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case esportsrealnameverification.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown EsportsRealNameVerification field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsRealNameVerificationMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case esportsrealnameverification.FieldSubjectType:
+		v, ok := value.(esportsrealnameverification.SubjectType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectType(v)
+		return nil
+	case esportsrealnameverification.FieldSubjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubjectID(v)
+		return nil
+	case esportsrealnameverification.FieldRealName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRealName(v)
+		return nil
+	case esportsrealnameverification.FieldIDNumberMasked:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIDNumberMasked(v)
+		return nil
+	case esportsrealnameverification.FieldChannel:
+		v, ok := value.(esportsrealnameverification.Channel)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChannel(v)
+		return nil
+	case esportsrealnameverification.FieldMethod:
+		v, ok := value.(esportsrealnameverification.Method)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMethod(v)
+		return nil
+	case esportsrealnameverification.FieldStatus:
+		v, ok := value.(esportsrealnameverification.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case esportsrealnameverification.FieldProviderRef:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderRef(v)
+		return nil
+	case esportsrealnameverification.FieldFailReason:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailReason(v)
+		return nil
+	case esportsrealnameverification.FieldVerifiedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVerifiedAt(v)
+		return nil
+	case esportsrealnameverification.FieldReviewedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewedByAdminID(v)
+		return nil
+	case esportsrealnameverification.FieldRequestedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case esportsrealnameverification.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case esportsrealnameverification.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameVerification field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *EsportsRealNameVerificationMutation) AddedFields() []string {
+	var fields []string
+	if m.addsubject_id != nil {
+		fields = append(fields, esportsrealnameverification.FieldSubjectID)
+	}
+	if m.addreviewed_by_admin_id != nil {
+		fields = append(fields, esportsrealnameverification.FieldReviewedByAdminID)
+	}
+	if m.addrequested_by != nil {
+		fields = append(fields, esportsrealnameverification.FieldRequestedBy)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *EsportsRealNameVerificationMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case esportsrealnameverification.FieldSubjectID:
+		return m.AddedSubjectID()
+	case esportsrealnameverification.FieldReviewedByAdminID:
+		return m.AddedReviewedByAdminID()
+	case esportsrealnameverification.FieldRequestedBy:
+		return m.AddedRequestedBy()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *EsportsRealNameVerificationMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case esportsrealnameverification.FieldSubjectID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubjectID(v)
+		return nil
+	case esportsrealnameverification.FieldReviewedByAdminID:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReviewedByAdminID(v)
+		return nil
+	case esportsrealnameverification.FieldRequestedBy:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequestedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameVerification numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *EsportsRealNameVerificationMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(esportsrealnameverification.FieldProviderRef) {
+		fields = append(fields, esportsrealnameverification.FieldProviderRef)
+	}
+	if m.FieldCleared(esportsrealnameverification.FieldVerifiedAt) {
+		fields = append(fields, esportsrealnameverification.FieldVerifiedAt)
+	}
+	if m.FieldCleared(esportsrealnameverification.FieldReviewedByAdminID) {
+		fields = append(fields, esportsrealnameverification.FieldReviewedByAdminID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *EsportsRealNameVerificationMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *EsportsRealNameVerificationMutation) ClearField(name string) error {
+	switch name {
+	case esportsrealnameverification.FieldProviderRef:
+		m.ClearProviderRef()
+		return nil
+	case esportsrealnameverification.FieldVerifiedAt:
+		m.ClearVerifiedAt()
+		return nil
+	case esportsrealnameverification.FieldReviewedByAdminID:
+		m.ClearReviewedByAdminID()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameVerification nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *EsportsRealNameVerificationMutation) ResetField(name string) error {
+	switch name {
+	case esportsrealnameverification.FieldSubjectType:
+		m.ResetSubjectType()
+		return nil
+	case esportsrealnameverification.FieldSubjectID:
+		m.ResetSubjectID()
+		return nil
+	case esportsrealnameverification.FieldRealName:
+		m.ResetRealName()
+		return nil
+	case esportsrealnameverification.FieldIDNumberMasked:
+		m.ResetIDNumberMasked()
+		return nil
+	case esportsrealnameverification.FieldChannel:
+		m.ResetChannel()
+		return nil
+	case esportsrealnameverification.FieldMethod:
+		m.ResetMethod()
+		return nil
+	case esportsrealnameverification.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case esportsrealnameverification.FieldProviderRef:
+		m.ResetProviderRef()
+		return nil
+	case esportsrealnameverification.FieldFailReason:
+		m.ResetFailReason()
+		return nil
+	case esportsrealnameverification.FieldVerifiedAt:
+		m.ResetVerifiedAt()
+		return nil
+	case esportsrealnameverification.FieldReviewedByAdminID:
+		m.ResetReviewedByAdminID()
+		return nil
+	case esportsrealnameverification.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case esportsrealnameverification.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case esportsrealnameverification.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown EsportsRealNameVerification field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *EsportsRealNameVerificationMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *EsportsRealNameVerificationMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *EsportsRealNameVerificationMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *EsportsRealNameVerificationMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *EsportsRealNameVerificationMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *EsportsRealNameVerificationMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *EsportsRealNameVerificationMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown EsportsRealNameVerification unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *EsportsRealNameVerificationMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown EsportsRealNameVerification edge %s", name)
 }
 
 // EsportsRechargeCampaignMutation represents an operation that mutates the EsportsRechargeCampaign nodes in the graph.

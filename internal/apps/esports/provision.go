@@ -138,6 +138,10 @@ func (esportsExtension) SeedBaseline(ctx context.Context, client *ent.Client) er
 	if err := MigrateSkillLevelsFromConfig(ctx, client); err != nil {
 		return fmt.Errorf("migrate skill levels: %w", err)
 	}
+	// 旧陪玩实名 verified 记录一次性迁入统一实名档案（幂等，只读旧表）。
+	if _, err := MigratePlayerIdentityToRealName(ctx, client); err != nil {
+		return fmt.Errorf("migrate player identities: %w", err)
+	}
 	if _, err := SeedMemberLevels(ctx, client); err != nil {
 		return fmt.Errorf("seed member levels: %w", err)
 	}
