@@ -573,6 +573,17 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	slides.Put("/:id", handler.UpdateSlide)
 	slides.Delete("/:id", handler.DeleteSlide)
 
+	// 幻灯片分组管理路由(数据源为字典类型 slide_group,与幻灯片表单分组下拉同源)
+	slideGroupService := service.NewSlideGroupService()
+	slideGroups := adminAuth.Group("/slide-groups", func(c fiber.Ctx) error {
+		c.Locals("service.SlideGroupService", slideGroupService)
+		return c.Next()
+	})
+	slideGroups.Get("", handler.ListSlideGroups)
+	slideGroups.Post("", handler.CreateSlideGroup)
+	slideGroups.Put("/:id", handler.UpdateSlideGroup)
+	slideGroups.Delete("/:id", handler.DeleteSlideGroup)
+
 	// 公开幻灯片接口(免登录,前台按分组拉取)
 	public.Get("/slides", func(c fiber.Ctx) error {
 		c.Locals("service.SlideService", slideService)

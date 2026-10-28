@@ -586,7 +586,7 @@ func minimalRoleSpecs() []minimalRoleSpec {
 				// 订单读取与渠道成本登记
 				"esports:orders:list", "esports:orders:get", "esports:orders:channel-cost",
 				// 收款账户与到账核销（不含账户新增/审核/停用）
-				"esports:payments:accounts", "esports:payments:channels", "esports:payments:readiness",
+				"esports:payments:accounts", "esports:payments:channels",
 				"esports:payments:proofs", "esports:payments:proof_verify", "esports:payments:proof_reject",
 				"esports:payments:reversal_list",
 				// 结算与提现

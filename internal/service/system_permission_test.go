@@ -816,7 +816,8 @@ func TestInitSystemPermissions_CreatesAllDefaultSeeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("count system permissions failed: %v", err)
 	}
-	const wantCount = 200
+	// 200 项基础种子 + 幻灯片分组 5 项（4 个接口权限 + 1 个分组管理按钮）
+	const wantCount = 205
 	if count != wantCount {
 		t.Fatalf("default system permission count = %d, want %d", count, wantCount)
 	}

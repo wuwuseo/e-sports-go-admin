@@ -662,6 +662,25 @@ definitions:
     - display_name
     - name
     type: object
+  service.CreateSlideGroupRequest:
+    properties:
+      label:
+        maxLength: 100
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      value:
+        maxLength: 100
+        type: string
+    required:
+    - label
+    - value
+    type: object
   service.CreateSlideRequest:
     properties:
       group_code:
@@ -1117,9 +1136,13 @@ definitions:
         type: string
       password:
         type: string
+      phone:
+        type: string
       timestamp:
         description: 请求时间戳（防止重放攻击）
         type: integer
+      username:
+        type: string
     type: object
   service.MarkReadRequest:
     properties:
@@ -1500,6 +1523,16 @@ definitions:
       updated_by:
         type: string
     type: object
+  service.SMSLoginRequest:
+    properties:
+      code:
+        type: string
+      phone:
+        type: string
+    required:
+    - code
+    - phone
+    type: object
   service.SaveRolePermissionsRequest:
     properties:
       domain:
@@ -1511,6 +1544,41 @@ definitions:
     required:
     - domain
     - permissions
+    type: object
+  service.SendSMSCodeRequest:
+    properties:
+      phone:
+        type: string
+    required:
+    - phone
+    type: object
+  service.SendSMSCodeResponse:
+    properties:
+      expires_in:
+        type: integer
+      sent:
+        type: boolean
+    type: object
+  service.SlideGroupResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      label:
+        type: string
+      remark:
+        type: string
+      slide_count:
+        type: integer
+      sort:
+        type: integer
+      status:
+        type: integer
+      updated_at:
+        type: string
+      value:
+        type: string
     type: object
   service.SlidePublicResponse:
     properties:
@@ -1948,6 +2016,22 @@ definitions:
         maxLength: 255
         type: string
       updated_by:
+        type: string
+    type: object
+  service.UpdateSlideGroupRequest:
+    properties:
+      label:
+        maxLength: 100
+        type: string
+      remark:
+        maxLength: 500
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      value:
+        maxLength: 100
         type: string
     type: object
   service.UpdateSlideRequest:
@@ -7022,6 +7106,190 @@ paths:
       summary: 从角色移除权限
       tags:
       - 权限管理
+  /api/v1/admin/auth/slide-groups:
+    get:
+      description: 返回全部分组(按 sort 升序),并附带每个分组下的幻灯片数量
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/service.SlideGroupResponse'
+                  type: array
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 获取幻灯片分组列表
+      tags:
+      - 幻灯片分组
+    post:
+      consumes:
+      - application/json
+      description: 创建一个幻灯片分组(写入数据字典 slide_group)
+      parameters:
+      - description: 分组信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateSlideGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.SlideGroupResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 创建幻灯片分组
+      tags:
+      - 幻灯片分组
+  /api/v1/admin/auth/slide-groups/{id}:
+    delete:
+      description: 删除分组;分组下仍有幻灯片时拒绝删除
+      parameters:
+      - description: 分组ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 删除幻灯片分组
+      tags:
+      - 幻灯片分组
+    put:
+      consumes:
+      - application/json
+      description: 更新分组标签、编码、排序、状态与备注;分组已关联幻灯片时不允许修改编码
+      parameters:
+      - description: 分组ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 分组信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateSlideGroupRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/service.SlideGroupResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - BearerAuth: []
+      summary: 更新幻灯片分组
+      tags:
+      - 幻灯片分组
   /api/v1/admin/auth/slides:
     get:
       description: 获取幻灯片列表,支持分页、分组和状态筛选
@@ -9097,6 +9365,28 @@ paths:
       summary: 公开幻灯片列表
       tags:
       - 公开接口
+  /api/v1/user/auth/login-by-sms:
+    post:
+      consumes:
+      - application/json
+      description: 用手机号 + 短信验证码登录并签发与密码登录同一套令牌；验证码一次性、短时效。
+      parameters:
+      - description: 手机号与验证码
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.SMSLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 业务失败：手机号或验证码错误
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 短信验证码登录
+      tags:
+      - 用户认证
   /api/v1/user/auth/oauth/{provider}:
     delete:
       parameters:
@@ -9152,6 +9442,28 @@ paths:
       summary: List current user OAuth identities
       tags:
       - OAuth
+  /api/v1/user/auth/sms-code:
+    post:
+      consumes:
+      - application/json
+      description: 向指定手机号发送登录验证码；返回是否已发送，不返回验证码本身。短信渠道未配置时明确失败。
+      parameters:
+      - description: 手机号
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.SendSMSCodeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 业务失败：短信渠道未配置 / 发送过于频繁 / 当日上限
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: 发送短信验证码
+      tags:
+      - 用户认证
 securityDefinitions:
   BearerAuth:
     description: 使用Bearer {token}格式进行认证
