@@ -4,6 +4,8 @@ import (
 	"embed"
 	"io/fs"
 	stdlog "log"
+	"mime"
+	"path"
 	"strings"
 
 	"go-admin/internal"
@@ -82,26 +84,52 @@ func main() {
 			FS:     subFS,
 			Browse: false,
 		})
-		app.Use(func(c fiber.Ctx) error {
-			if strings.HasPrefix(c.Path(), "/api/") || strings.HasPrefix(c.Path(), "/uploads/") {
-				return c.Next()
-			}
-			return staticHandler(c)
-		})
-
-		// SPA fallback：静态文件未命中时返回 index.html（/uploads 上传直链除外，
-		// 缺失文件应返回 404 而非 HTML）
-		app.Use(func(c fiber.Ctx) error {
-			if strings.HasPrefix(c.Path(), "/api/") ||
-				strings.HasPrefix(c.Path(), "/uploads/") {
-				return c.Next()
-			}
+		// 首页统一出口：index.html 必须每次协商，避免浏览器长期缓存旧首页后
+		// 继续引用已被新构建替换掉的 hash 资源。
+		sendIndex := func(c fiber.Ctx) error {
 			indexFile, err := fs.ReadFile(subFS, "index.html")
 			if err != nil {
 				return err
 			}
+			c.Set(fiber.HeaderCacheControl, "no-cache, must-revalidate")
 			c.Type("html")
 			return c.Send(indexFile)
+		}
+
+		app.Use(func(c fiber.Ctx) error {
+			p := c.Path()
+			if strings.HasPrefix(p, "/api/") || strings.HasPrefix(p, "/uploads/") {
+				return c.Next()
+			}
+			// 构建产物：文件名带内容哈希，可永久缓存；缺失时必须返回 404。
+			// 若落到 SPA fallback，浏览器会把 index.html 当成 ES module 执行，
+			// 报 MIME 类型错误，动态 import 永不 resolve，表现为页面卡死。
+			if strings.HasPrefix(p, "/assets/") {
+				name := strings.TrimPrefix(path.Clean(p), "/")
+				data, err := fs.ReadFile(subFS, name)
+				if err != nil {
+					return c.SendStatus(fiber.StatusNotFound)
+				}
+				if ct := mime.TypeByExtension(path.Ext(name)); ct != "" {
+					c.Set(fiber.HeaderContentType, ct)
+				}
+				c.Set(fiber.HeaderCacheControl, "public, max-age=31536000, immutable")
+				return c.Send(data)
+			}
+			if p == "/" || p == "/index.html" {
+				return sendIndex(c)
+			}
+			return staticHandler(c)
+		})
+
+		// SPA fallback：仅前端路由返回 index.html（/uploads 缺失文件仍应 404）
+		app.Use(func(c fiber.Ctx) error {
+			p := c.Path()
+			if strings.HasPrefix(p, "/api/") ||
+				strings.HasPrefix(p, "/uploads/") {
+				return c.Next()
+			}
+			return sendIndex(c)
 		})
 	})
 	bootstrap.RegisterRoute(internal.RegisterRoute)
