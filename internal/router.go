@@ -18,6 +18,7 @@ import (
 	adminqueue "go-admin/internal/queue"
 	"go-admin/internal/service"
 	"go-admin/internal/utils"
+	"go-admin/internal/ws"
 	"go-admin/pluginapi"
 
 	"github.com/gofiber/fiber/v3"
@@ -537,6 +538,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	frontAttachments.Get("/chunk/status/:upload_id", handler.GetChunkUploadStatus)
 	frontAttachments.Delete("/chunk/:upload_id", handler.CancelChunkUpload)
 
+	// 实时通知凭证（用户端）：颁发自己 uid 的 ticket，供 /api/v1/realtime 建连
+	frontAuth.Post("/realtime/ticket", ws.IssueTicket)
+
 	// 操作日志管理路由
 	opLogs := adminAuth.Group("/operation-logs")
 	opLogs.Get("/", handler.ListOperationLogs)
@@ -661,6 +665,9 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 	// SSE 凭证接口（鉴权后访问）
 	adminAuth.Post("/sse/ticket", handler.IssueSSETicket)
 
+	// 实时通知凭证接口：只颁发自己的 uid，无需额外 RBAC 授权
+	adminAuthBase.Post("/realtime/ticket", ws.IssueTicket)
+
 	// SSE 连接接口（不走 BlacklistCheck/Permission，ticket 鉴权独立）
 	sseGroup := admin.Group("/sse", func(c fiber.Ctx) error {
 		c.Locals("utils.Response", utils.NewResponse())
@@ -670,6 +677,10 @@ func RegisterRoute(app *fiber.App, config *config.Config) {
 		return c.Next()
 	})
 	sseGroup.Get("/connect", handler.SSEConnect)
+
+	// WS 连接端点：ticket 在升级前校验，失败返回 401，不升级
+	v1.Get("/realtime", ws.Connect)
+
 	// 陪玩报单（esports）管理端路由纳入统一操作审计（② / ）：
 	// 功能集路由由 apps.Mount 在 /api/v1/esports 下自带鉴权链挂载，与 /api/v1/admin/auth
 	// 的审计挂载点不是同一棵树，故在此按前缀挂同一套审计中间件（必须在 Mount 之前注册）。
