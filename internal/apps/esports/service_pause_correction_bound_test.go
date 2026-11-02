@@ -28,6 +28,7 @@ func TestServiceTimingCorrectionBoundRejectsOutOfRange(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, base); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, base)
 	if _, err := startPlayerService(ctx, db, player.ID, order.ID, base); err != nil {
 		t.Fatal(err)
 	}

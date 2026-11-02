@@ -115,8 +115,13 @@ func TestE2EEndToEndBusinessFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if grabbed.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted {
-		t.Fatalf("抢单后订单未转已接单：%+v", grabbed)
+	if grabbed.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCustomerConfirm {
+		t.Fatalf("抢单后订单未转待客户确认：%+v", grabbed)
+	}
+	// 客户确认后才算正式接单。
+	mustConfirmGrab(t, db, order.ID, now)
+	if got := db.EsportsOrder.GetX(ctx, order.ID); got.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted {
+		t.Fatalf("客户确认后订单未转已接单：%+v", got)
 	}
 
 	// ========== 4. 服务（开始 → 结束 → 待结单）==========

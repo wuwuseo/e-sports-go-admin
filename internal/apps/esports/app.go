@@ -351,6 +351,7 @@ func init() {
 		tasks.Register("esports_run_player_level_review", runPlayerLevelReviewTask)
 		tasks.Register("esports_detect_review_brushing", detectReviewBrushingTask)
 		tasks.Register("esports_schedule_repurchase_follow_ups", scheduleRepurchaseFollowUpsTask)
+		tasks.Register("esports_auto_confirm_customer_grabs", autoConfirmCustomerGrabsTask)
 		// 会员覆盖到期回落与会员优先预约意向过期消解。
 		// 两者均已有「读取时惰性判定」兜底（member.go settleMemberLevelOverride / cs.go csWorkbenchTodos），
 		// 任务只是把回落 / 消解提前到固定时点；注册与 cron_seeds.go 的种子必须成对。
@@ -421,6 +422,7 @@ func init() {
 			{Key: "prepay_deduction_order", Name: "预付款扣减顺序", Value: "bonus_first", Type: "string", Group: "esports", Remark: "bonus_first=先赠送后本金（默认）/ principal_first=先本金后赠送 / proportional=按剩余比例分摊；留空或非法回落 bonus_first"},
 			// —— 排单与派单 ——
 			{Key: "dispatch_invite_ttl_minutes", Name: "派单邀请有效期（分钟）", Value: "10", Type: "number", Group: "esports", Remark: "邀请到期未回应即回收改派；合法 1~1440，为 0 或非法回落 10（无「0 关闭」语义）"},
+			{Key: "customer_grab_confirm_minutes", Name: "抢单后客户确认时限（分钟）", Value: "5", Type: "number", Group: "esports", Remark: "抢单成功后等待客户确认陪玩的时限；合法 1~1440，为 0 或非法回落 5；超时由定时任务自动确认"},
 			{Key: "dispatch_priority_quota", Name: "优先派单名额上限（人）", Value: "3", Type: "number", Group: "esports", Remark: "每个游戏每期的优先名单名额；<1 或非法回落 3；候选不足时宁缺毋滥，不填满名额"},
 			{Key: "dispatch_priority_auto", Name: "优先权达标制阈值", Value: "{\"rating_min\":4.0,\"completed_min\":1}", Type: "string", Group: "esports", Remark: "JSON：{\"rating_min\":4.0,\"completed_min\":1}；rating_min 须 0<x≤5，completed_min≥0（0 表示不卡完成单数）；整体或单字段非法回落默认"},
 			{Key: "dispatch_priority_notice_minutes", Name: "优先通知独占时长（分钟）", Value: "3", Type: "number", Group: "esports", Remark: "名单内陪玩的独占抢单窗口；合法 1~1440，为 0 或非法回落 3；超时释放到抢单大厅"},
@@ -1012,6 +1014,9 @@ func init() {
 			{Method: "GET", Path: "/user/orders/:id", Auth: cmfapp.AuthUser, Handler: userOrderDetailHandler},
 			{Method: "POST", Path: "/user/orders/:id/cancel", Auth: cmfapp.AuthUser, Handler: userCancelUnpaidOrderHandler},
 			{Method: "GET", Path: "/user/orders/:id/members", Auth: cmfapp.AuthUser, Handler: userOrderMembersHandler},
+			// 抢单后客户确认 / 更换陪玩：确认转已接单；更换释放席位并重新上架抢单大厅。
+			{Method: "POST", Path: "/user/orders/:id/confirm-player", Auth: cmfapp.AuthUser, Handler: userConfirmPlayerHandler},
+			{Method: "POST", Path: "/user/orders/:id/decline-player", Auth: cmfapp.AuthUser, Handler: userDeclinePlayerHandler},
 			// 客户自助收款闭环：读收款方式与账户、提交付款凭证、查询核验进度。
 			{Method: "GET", Path: "/user/payment-methods", Auth: cmfapp.AuthUser, Handler: userPaymentMethodsHandler},
 			// 聚合收款入口：客户为本人订单 / 充值意图 / 礼物确认单创建或复用 checkout；

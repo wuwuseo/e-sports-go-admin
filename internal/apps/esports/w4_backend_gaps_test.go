@@ -327,6 +327,7 @@ func TestServiceTimingReadoutMatchesCorrectionBound(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}

@@ -410,9 +410,13 @@ func TestGrabHallScopedByPriorityNotice(t *testing.T) {
 		t.Fatalf("名单内抢单应成功，err=%v", err)
 	}
 	accepted := db.EsportsOrder.GetX(ctx, order.ID)
-	if accepted.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted ||
+	if accepted.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCustomerConfirm ||
 		accepted.PriorityNoticeStatus != esportsorder.PriorityNoticeStatusAccepted {
-		t.Fatalf("接单后应转已接单并闭合窗口：%+v", accepted)
+		t.Fatalf("接单后应转待客户确认并闭合窗口：%+v", accepted)
+	}
+	mustConfirmGrab(t, db, order.ID, now)
+	if got := db.EsportsOrder.GetX(ctx, order.ID); got.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted {
+		t.Fatalf("客户确认后应转已接单：%+v", got)
 	}
 	notice := db.EsportsDispatchPriorityNotice.Query().Where(
 		esportsdispatchprioritynotice.OrderIDEQ(order.ID)).OnlyX(ctx)

@@ -72,7 +72,10 @@ func (EsportsOrder) Fields() []ent.Field {
 		field.JSON("seat_roles", []schematier.SeatSpec{}).Optional().StructTag(`json:"seat_roles"`),
 		field.Int("quote_version").Default(1).StructTag(`json:"quote_version"`),
 		field.Int("version").Default(1).StructTag(`json:"version"`),
-		field.Enum("fulfillment_status").Values("pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled").Default("pending_payment").StructTag(`json:"fulfillment_status"`),
+		// pending_customer_confirm 是抢单成功后等待客户确认陪玩的独立状态：
+		// 客户确认后转 accepted；客户更换则释放回 grabbing 重新抢单。
+		field.Enum("fulfillment_status").Values("pending_payment", "pending_dispatch", "pending_acceptance", "grabbing",
+			"pending_customer_confirm", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled").Default("pending_payment").StructTag(`json:"fulfillment_status"`),
 		field.Enum("payment_status").Values("unpaid", "partial", "paid", "exception").Default("unpaid").StructTag(`json:"payment_status"`),
 		// 付款方式标记：核销成功时写入，仅用于查询与结单一致性校验。
 		// stored_value_card 为已废弃值（2026-10-20 储值卡功能移除），保留仅为历史订单可读，禁止新写入。
@@ -110,6 +113,9 @@ func (EsportsOrder) Fields() []ent.Field {
 		// 多陪玩快照（多人单）：报单时指定的全部陪玩（第一个与 preferred_player_id 一致）。
 		// 指定后订单直接由客服指派、不进优先通知窗口；派单时按此列表逐席位人工指派。
 		field.JSON("preferred_player_ids", []int{}).Optional().StructTag(`json:"preferred_player_ids"`),
+		// 抢单后客户确认截止时间：陪玩抢单成功时写入，超时由定时任务自动确认；
+		// 客户确认 / 更换后保留原值作审计，不再影响流转。
+		field.Time("customer_confirm_deadline").Optional().Nillable().StructTag(`json:"customer_confirm_deadline"`),
 		field.Enum("refund_status").Values("none", "pending_approval", "executing", "partial", "full", "failed").Default("none").StructTag(`json:"refund_status"`),
 		// 累计已退金额（分），退款执行成功后累加。
 		field.Int64("refunded_cents").Default(0).StructTag(`json:"refunded_cents"`),

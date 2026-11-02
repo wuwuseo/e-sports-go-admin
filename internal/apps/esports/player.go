@@ -939,20 +939,24 @@ func grabPlayerOrderTx(ctx context.Context, db *ent.Client, playerID, orderID in
 	if changed != 1 {
 		return order, errConflict
 	}
+	// 抢单成功后先进入「待客户确认」，客户确认才转 accepted；超时由定时任务自动确认。
+	confirmDeadline := now.UTC().Add(customerGrabConfirmTTL(ctx, db))
 	if fromNotice {
-		// 名单内接单：闭合窗口（其余待回应通知作废），订单直接进入已接单。
+		// 名单内接单：闭合窗口（其余待回应通知作废），订单进入待客户确认。
 		if err = closeDispatchPriorityWindowOnAccept(ctx, tx, order, playerID, now); err != nil {
 			return nil, err
 		}
 		changed, err = tx.EsportsOrder.Update().Where(
 			esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version+1),
 			esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusPendingDispatch),
-		).SetFulfillmentStatus(esportsorder.FulfillmentStatusAccepted).AddVersion(1).Save(ctx)
+		).SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingCustomerConfirm).
+			SetCustomerConfirmDeadline(confirmDeadline).AddVersion(1).Save(ctx)
 	} else {
 		changed, err = tx.EsportsOrder.Update().Where(
 			esportsorder.IDEQ(orderID), esportsorder.VersionEQ(order.Version),
 			esportsorder.FulfillmentStatusEQ(esportsorder.FulfillmentStatusGrabbing),
-		).SetFulfillmentStatus(esportsorder.FulfillmentStatusAccepted).AddVersion(1).Save(ctx)
+		).SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingCustomerConfirm).
+			SetCustomerConfirmDeadline(confirmDeadline).AddVersion(1).Save(ctx)
 	}
 	if err != nil {
 		return nil, err
@@ -971,20 +975,21 @@ func grabPlayerOrderTx(ctx context.Context, db *ent.Client, playerID, orderID in
 	if _, err = tx.EsportsOrderEvent.Create().SetOrderID(orderID).
 		SetOrderVersion(eventVersion).SetEventType("order.grabbed").
 		SetActorType("player").SetActorID(strconv.Itoa(playerID)).
-		SetDetails(map[string]interface{}{"seat_index": 1, "from_priority_notice": fromNotice}).Save(ctx); err != nil {
+		SetDetails(map[string]interface{}{
+			"seat_index": 1, "from_priority_notice": fromNotice,
+			"pending_customer_confirm": true,
+		}).Save(ctx); err != nil {
 		return nil, err
 	}
-	// ：单席抢单成功即全部席位就绪，「可以开工」写独立事件与 ready_to_start_at（只写一次）。
-	if _, err = markOrderReadyToStartIn(ctx, tx, orderID, eventVersion, now); err != nil {
-		return nil, err
-	}
-	// ：抢单成功写通知外盒，经 order.* 收件人解析定向通知客户与责任客服。
+	// 抢单只代表陪玩抢到席位，尚未开工：「可以开工」事件与 ready_to_start_at 推迟到客户确认时写。
+	// 抢单成功写通知外盒，经 order.* 收件人解析定向通知客户、责任客服与该席位陪玩。
 	if _, err = tx.EsportsOutbox.Create().
-		SetEventKey("order.seat_accepted:" + order.OrderNo + ":" + strconv.Itoa(playerID)).
-		SetEventType("order.seat_accepted").SetAggregateRef(order.OrderNo).
+		SetEventKey("order.customer_confirm_required:" + order.OrderNo + ":" + strconv.Itoa(eventVersion)).
+		SetEventType("order.customer_confirm_required").SetAggregateRef(order.OrderNo).
 		SetPayload(map[string]interface{}{
 			"order_no": order.OrderNo, "player_id": playerID, "seat_index": 1,
 			"source": "grab", "from_priority_notice": fromNotice,
+			"confirm_deadline": confirmDeadline.Format(time.RFC3339),
 		}).Save(ctx); err != nil {
 		if !ent.IsConstraintError(err) {
 			return nil, err
@@ -1004,10 +1009,12 @@ func listPlayerOrders(ctx context.Context, db *ent.Client, playerID int, bucket 
 	bucket = strings.TrimSpace(bucket)
 	buckets := map[string]esportsorder.FulfillmentStatus{
 		"pending_acceptance": esportsorder.FulfillmentStatusPendingAcceptance,
-		"accepted":           esportsorder.FulfillmentStatusAccepted,
-		"in_service":         esportsorder.FulfillmentStatusInService,
-		"pending_close":      esportsorder.FulfillmentStatusPendingClose,
-		"completed":          esportsorder.FulfillmentStatusCompleted,
+		// 抢单后等客户确认同样属于「待接单」：陪玩需要看到自己刚抢到、尚未开工的订单。
+		"pending_customer_confirm": esportsorder.FulfillmentStatusPendingCustomerConfirm,
+		"accepted":                 esportsorder.FulfillmentStatusAccepted,
+		"in_service":               esportsorder.FulfillmentStatusInService,
+		"pending_close":            esportsorder.FulfillmentStatusPendingClose,
+		"completed":                esportsorder.FulfillmentStatusCompleted,
 	}
 	if bucket != "" {
 		if _, ok := buckets[bucket]; !ok {

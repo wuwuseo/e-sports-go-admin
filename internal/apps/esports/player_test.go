@@ -157,8 +157,11 @@ func TestPlayerGrabOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if grabbed.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted {
-		t.Fatalf("订单未转已接单：%+v", grabbed)
+	if grabbed.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCustomerConfirm {
+		t.Fatalf("订单未转待客户确认：%+v", grabbed)
+	}
+	if grabbed.CustomerConfirmDeadline == nil {
+		t.Fatal("抢单后应写入客户确认截止时间")
 	}
 	seat := db.EsportsDispatchSeat.Query().OnlyX(ctx)
 	if seat.Status != esportsdispatchseat.StatusAccepted || seat.Source != esportsdispatchseat.SourceGrab ||
@@ -190,6 +193,7 @@ func TestPlayerServiceFlow(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	started, err := startPlayerService(ctx, db, player.ID, order.ID, now)
 	if err != nil {
 		t.Fatal(err)
@@ -236,6 +240,7 @@ func TestPlayerServicePauseResumeExcludesPausedTime(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
@@ -287,6 +292,7 @@ func TestPlayerServiceDurationMismatchCreatesReviewTask(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}

@@ -129,6 +129,8 @@ type EsportsOrder struct {
 	PreferredPlayerID *int `json:"preferred_player_id"`
 	// PreferredPlayerIds holds the value of the "preferred_player_ids" field.
 	PreferredPlayerIds []int `json:"preferred_player_ids"`
+	// CustomerConfirmDeadline holds the value of the "customer_confirm_deadline" field.
+	CustomerConfirmDeadline *time.Time `json:"customer_confirm_deadline"`
 	// RefundStatus holds the value of the "refund_status" field.
 	RefundStatus esportsorder.RefundStatus `json:"refund_status"`
 	// RefundedCents holds the value of the "refunded_cents" field.
@@ -208,7 +210,7 @@ func (*EsportsOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case esportsorder.FieldOrderNo, esportsorder.FieldSkuCode, esportsorder.FieldSkuName, esportsorder.FieldSpecName, esportsorder.FieldChannelSource, esportsorder.FieldEntryPoint, esportsorder.FieldMemberLevelCode, esportsorder.FieldRequiredLevel, esportsorder.FieldFulfillmentStatus, esportsorder.FieldPaymentStatus, esportsorder.FieldPaymentChannel, esportsorder.FieldPriorityNoticeStatus, esportsorder.FieldPriorityGame, esportsorder.FieldPriorityReleaseReason, esportsorder.FieldRemindNote, esportsorder.FieldRefundStatus, esportsorder.FieldAppointmentStatus, esportsorder.FieldDepositStatus, esportsorder.FieldBackfillReason:
 			values[i] = new(sql.NullString)
-		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldManualCommissionRuleSetAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldRemindedAt, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldReadyToStartAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldAppointmentSuspendedAt, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldBackfilledAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
+		case esportsorder.FieldCsCommissionRuleLockedAt, esportsorder.FieldManualCommissionRuleSetAt, esportsorder.FieldCloseFormTemplateLockedAt, esportsorder.FieldPriorityNoticeUntil, esportsorder.FieldRemindedAt, esportsorder.FieldFirstPooledAt, esportsorder.FieldFirstInvitedAt, esportsorder.FieldFirstAcceptedAt, esportsorder.FieldServiceStartedAt, esportsorder.FieldReadyToStartAt, esportsorder.FieldPriorityReleasedAt, esportsorder.FieldCustomerConfirmDeadline, esportsorder.FieldRequestedStartAt, esportsorder.FieldAppointmentConfirmationDeadline, esportsorder.FieldAppointmentSuspendedAt, esportsorder.FieldPaymentDeadline, esportsorder.FieldPaidAt, esportsorder.FieldClosedAt, esportsorder.FieldDepositedAt, esportsorder.FieldBackfilledAt, esportsorder.FieldCreatedAt, esportsorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -583,6 +585,13 @@ func (_m *EsportsOrder) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.PreferredPlayerIds); err != nil {
 					return fmt.Errorf("unmarshal field preferred_player_ids: %w", err)
 				}
+			}
+		case esportsorder.FieldCustomerConfirmDeadline:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field customer_confirm_deadline", values[i])
+			} else if value.Valid {
+				_m.CustomerConfirmDeadline = new(time.Time)
+				*_m.CustomerConfirmDeadline = value.Time
 			}
 		case esportsorder.FieldRefundStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -963,6 +972,11 @@ func (_m *EsportsOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("preferred_player_ids=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PreferredPlayerIds))
+	builder.WriteString(", ")
+	if v := _m.CustomerConfirmDeadline; v != nil {
+		builder.WriteString("customer_confirm_deadline=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("refund_status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RefundStatus))

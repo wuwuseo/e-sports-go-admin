@@ -162,8 +162,9 @@ func resolveOrderNotificationRecipients(ctx context.Context, db *ent.Client, eve
 			set.addPlayer(*seat.PlayerID, notificationRolePlayer)
 		}
 	}
-	// 邀请事件若未落席位陪玩（例如载荷自带 player_id 的历史事件），用载荷兜底补齐。
-	if eventType == "order.seat_invited" {
+	// 邀请事件若未落席位陪玩（例如载荷自带 player_id 的历史事件），用载荷兜底补齐；
+	// 客户更换陪玩后原席位已回收，也要靠载荷里的 player_id 定向通知被换下的陪玩。
+	if eventType == "order.seat_invited" || eventType == "order.customer_declined_player" {
 		set.addPlayer(payloadInt(payload, "player_id"), notificationRolePlayer)
 	}
 	return set.result()

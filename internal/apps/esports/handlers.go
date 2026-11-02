@@ -104,16 +104,17 @@ func writeAdminList(c fiber.Ctx, window adminListWindow, total int, items any) e
 }
 
 var adminOrderFulfillmentStatuses = map[string]struct{}{
-	string(esportsorder.FulfillmentStatusPendingPayment):     {},
-	string(esportsorder.FulfillmentStatusPendingDispatch):    {},
-	string(esportsorder.FulfillmentStatusPendingAcceptance):  {},
-	string(esportsorder.FulfillmentStatusGrabbing):           {},
-	string(esportsorder.FulfillmentStatusAccepted):           {},
-	string(esportsorder.FulfillmentStatusInService):          {},
-	string(esportsorder.FulfillmentStatusPendingClose):       {},
-	string(esportsorder.FulfillmentStatusPendingCloseReview): {},
-	string(esportsorder.FulfillmentStatusCompleted):          {},
-	string(esportsorder.FulfillmentStatusCancelled):          {},
+	string(esportsorder.FulfillmentStatusPendingPayment):         {},
+	string(esportsorder.FulfillmentStatusPendingDispatch):        {},
+	string(esportsorder.FulfillmentStatusPendingAcceptance):      {},
+	string(esportsorder.FulfillmentStatusPendingCustomerConfirm): {},
+	string(esportsorder.FulfillmentStatusGrabbing):               {},
+	string(esportsorder.FulfillmentStatusAccepted):               {},
+	string(esportsorder.FulfillmentStatusInService):              {},
+	string(esportsorder.FulfillmentStatusPendingClose):           {},
+	string(esportsorder.FulfillmentStatusPendingCloseReview):     {},
+	string(esportsorder.FulfillmentStatusCompleted):              {},
+	string(esportsorder.FulfillmentStatusCancelled):              {},
 }
 
 // adminOrderPaymentStatuses 是管理端订单列表可筛选的支付状态白名单。

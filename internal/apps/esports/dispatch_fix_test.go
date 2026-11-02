@@ -154,6 +154,7 @@ func TestSeatTransferSucceedsAfterPriorityNoticeAccepted(t *testing.T) {
 	if _, err = grabPlayerOrder(ctx, db, listed.ID, order.ID, now); err != nil {
 		t.Fatalf("名单内陪玩应可接单，err=%v", err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	accepted := db.EsportsOrder.GetX(ctx, order.ID)
 	if accepted.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted ||
 		accepted.PriorityNoticeStatus != esportsorder.PriorityNoticeStatusAccepted {

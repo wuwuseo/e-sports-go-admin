@@ -23,6 +23,24 @@ import (
 // 派单邀请默认有效期（分钟）对应的系统配置键。
 const dispatchInviteTTLKey = "app.esports.dispatch_invite_ttl_minutes"
 
+// 抢单成功后客户确认时限（分钟）对应的系统配置键。
+const customerGrabConfirmMinutesKey = "app.esports.customer_grab_confirm_minutes"
+
+// customerGrabConfirmTTL 读取「抢单后客户确认时限」：默认 5 分钟，合法 1~1440，
+// 缺失 / 非法一律回落，不做「0 关闭」语义（否则订单会立刻被自动确认）。
+func customerGrabConfirmTTL(ctx context.Context, db *ent.Client) time.Duration {
+	const fallback = 5 * time.Minute
+	item, err := db.SystemConfig.Query().Where(systemconfig.KeyEQ(customerGrabConfirmMinutesKey)).Only(ctx)
+	if err != nil {
+		return fallback
+	}
+	minutes, err := strconv.Atoi(item.Value)
+	if err != nil || minutes < 1 || minutes > 24*60 {
+		return fallback
+	}
+	return time.Duration(minutes) * time.Minute
+}
+
 // orderEnteredPendingCloseEvent 是「订单进入待结单」的只增事件类型（P1-02 的席位移除收敛路径复用）。
 const orderEnteredPendingCloseEvent = "order.pending_close_entered"
 
@@ -756,6 +774,7 @@ func revokeDispatchSeat(ctx context.Context, db *ent.Client, orderID, seatIndex,
 		return nil, err
 	}
 	if !remainingActive && (order.FulfillmentStatus == esportsorder.FulfillmentStatusPendingAcceptance ||
+		order.FulfillmentStatus == esportsorder.FulfillmentStatusPendingCustomerConfirm ||
 		order.FulfillmentStatus == esportsorder.FulfillmentStatusAccepted) {
 		target = esportsorder.FulfillmentStatusPendingDispatch
 	}
@@ -1103,6 +1122,9 @@ func publishOrderToGrabHall(ctx context.Context, db *ent.Client, orderID, adminI
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
+	// 提交成功后再广播，避免发布失败惊动大厅；走优先窗口分支时 release 内已广播过一次，
+	// 重复事件由前端防抖合并为一次重拉。
+	broadcastHallOrder(orderID)
 	return db.EsportsOrder.Get(ctx, orderID)
 }
 
@@ -1313,11 +1335,13 @@ type dispatchBoard struct {
 	PublicPool        []*ent.EsportsOrder `json:"public_pool"`
 	Grabbing          []*ent.EsportsOrder `json:"grabbing"`
 	PendingAcceptance []*ent.EsportsOrder `json:"pending_acceptance"`
-	Accepted          []*ent.EsportsOrder `json:"accepted"`
-	InService         []*ent.EsportsOrder `json:"in_service"`
-	PendingClose      []*ent.EsportsOrder `json:"pending_close"`
-	Abnormal          []*ent.EsportsOrder `json:"abnormal"`
-	OnlinePlayers     int                 `json:"online_players"`
+	// PendingCustomerConfirm 是「陪玩已抢单、等待客户确认」的订单桶。
+	PendingCustomerConfirm []*ent.EsportsOrder `json:"pending_customer_confirm"`
+	Accepted               []*ent.EsportsOrder `json:"accepted"`
+	InService              []*ent.EsportsOrder `json:"in_service"`
+	PendingClose           []*ent.EsportsOrder `json:"pending_close"`
+	Abnormal               []*ent.EsportsOrder `json:"abnormal"`
+	OnlinePlayers          int                 `json:"online_players"`
 	// Players 是逐人上下线明细：在线优先、同类按 ID 升序。
 	Players []dispatchBoardPlayer `json:"players"`
 	// PlayersTruncated 表示合格陪玩总数超过明细上限，明细不全（计数仍为全量真实值）。
@@ -1475,6 +1499,9 @@ func loadDispatchBoardSorted(ctx context.Context, db *ent.Client, adminID int, i
 	if board.PendingAcceptance, err = bucket(esportsorder.FulfillmentStatusPendingAcceptance); err != nil {
 		return nil, err
 	}
+	if board.PendingCustomerConfirm, err = bucket(esportsorder.FulfillmentStatusPendingCustomerConfirm); err != nil {
+		return nil, err
+	}
 	if board.Accepted, err = bucket(esportsorder.FulfillmentStatusAccepted); err != nil {
 		return nil, err
 	}
@@ -1541,7 +1568,7 @@ func dispatchBoardCustomerNames(ctx context.Context, db *ent.Client,
 	board *dispatchBoard) (map[int]string, error) {
 	buckets := [][]*ent.EsportsOrder{
 		board.PendingDispatch, board.PublicPool, board.Grabbing, board.PendingAcceptance,
-		board.Accepted, board.InService, board.PendingClose, board.Abnormal,
+		board.PendingCustomerConfirm, board.Accepted, board.InService, board.PendingClose, board.Abnormal,
 	}
 	ids := make([]int, 0, 64)
 	for _, bucket := range buckets {
@@ -1560,7 +1587,7 @@ func sortBoardByRemindPriority(board *dispatchBoard) {
 	}
 	buckets := [][]*ent.EsportsOrder{
 		board.PendingDispatch, board.PublicPool, board.Grabbing, board.PendingAcceptance,
-		board.Accepted, board.InService, board.PendingClose, board.Abnormal,
+		board.PendingCustomerConfirm, board.Accepted, board.InService, board.PendingClose, board.Abnormal,
 	}
 	for _, bucket := range buckets {
 		sort.SliceStable(bucket, func(i, j int) bool {
@@ -1592,7 +1619,8 @@ func dispatchAbnormalOrders(ctx context.Context, db *ent.Client, adminID int, is
 			esportsorder.PaymentStatusEQ(esportsorder.PaymentStatusException),
 			esportsorder.FulfillmentStatusIn(
 				esportsorder.FulfillmentStatusPendingDispatch,
-				esportsorder.FulfillmentStatusPendingAcceptance),
+				esportsorder.FulfillmentStatusPendingAcceptance,
+				esportsorder.FulfillmentStatusPendingCustomerConfirm),
 		),
 	)
 	if !isSuper {

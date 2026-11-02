@@ -30,6 +30,7 @@ func TestAdminServicePauseResumeOnBehalfOfPlayer(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
@@ -87,6 +88,7 @@ func TestServiceTimingCorrectionWritesBeforeAfterAndResponsibility(t *testing.T)
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	if _, err := startPlayerService(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
@@ -170,12 +172,14 @@ func TestDisconnectAutoPauseInServiceSegments(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, stale.ID, staleOrder.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, staleOrder.ID, now)
 	if _, err := startPlayerService(ctx, db, stale.ID, staleOrder.ID, now); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := grabPlayerOrder(ctx, db, fresh.ID, freshOrder.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, freshOrder.ID, now)
 	if _, err := startPlayerService(ctx, db, fresh.ID, freshOrder.ID, now); err != nil {
 		t.Fatal(err)
 	}

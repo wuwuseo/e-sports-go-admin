@@ -127,6 +127,8 @@ const (
 	FieldPreferredPlayerID = "preferred_player_id"
 	// FieldPreferredPlayerIds holds the string denoting the preferred_player_ids field in the database.
 	FieldPreferredPlayerIds = "preferred_player_ids"
+	// FieldCustomerConfirmDeadline holds the string denoting the customer_confirm_deadline field in the database.
+	FieldCustomerConfirmDeadline = "customer_confirm_deadline"
 	// FieldRefundStatus holds the string denoting the refund_status field in the database.
 	FieldRefundStatus = "refund_status"
 	// FieldRefundedCents holds the string denoting the refunded_cents field in the database.
@@ -244,6 +246,7 @@ var Columns = []string{
 	FieldPriorityReleasedAt,
 	FieldPreferredPlayerID,
 	FieldPreferredPlayerIds,
+	FieldCustomerConfirmDeadline,
 	FieldRefundStatus,
 	FieldRefundedCents,
 	FieldCloseNetServiceCents,
@@ -433,16 +436,17 @@ const DefaultFulfillmentStatus = FulfillmentStatusPendingPayment
 
 // FulfillmentStatus values.
 const (
-	FulfillmentStatusPendingPayment     FulfillmentStatus = "pending_payment"
-	FulfillmentStatusPendingDispatch    FulfillmentStatus = "pending_dispatch"
-	FulfillmentStatusPendingAcceptance  FulfillmentStatus = "pending_acceptance"
-	FulfillmentStatusGrabbing           FulfillmentStatus = "grabbing"
-	FulfillmentStatusAccepted           FulfillmentStatus = "accepted"
-	FulfillmentStatusInService          FulfillmentStatus = "in_service"
-	FulfillmentStatusPendingClose       FulfillmentStatus = "pending_close"
-	FulfillmentStatusPendingCloseReview FulfillmentStatus = "pending_close_review"
-	FulfillmentStatusCompleted          FulfillmentStatus = "completed"
-	FulfillmentStatusCancelled          FulfillmentStatus = "cancelled"
+	FulfillmentStatusPendingPayment         FulfillmentStatus = "pending_payment"
+	FulfillmentStatusPendingDispatch        FulfillmentStatus = "pending_dispatch"
+	FulfillmentStatusPendingAcceptance      FulfillmentStatus = "pending_acceptance"
+	FulfillmentStatusGrabbing               FulfillmentStatus = "grabbing"
+	FulfillmentStatusPendingCustomerConfirm FulfillmentStatus = "pending_customer_confirm"
+	FulfillmentStatusAccepted               FulfillmentStatus = "accepted"
+	FulfillmentStatusInService              FulfillmentStatus = "in_service"
+	FulfillmentStatusPendingClose           FulfillmentStatus = "pending_close"
+	FulfillmentStatusPendingCloseReview     FulfillmentStatus = "pending_close_review"
+	FulfillmentStatusCompleted              FulfillmentStatus = "completed"
+	FulfillmentStatusCancelled              FulfillmentStatus = "cancelled"
 )
 
 func (fs FulfillmentStatus) String() string {
@@ -452,7 +456,7 @@ func (fs FulfillmentStatus) String() string {
 // FulfillmentStatusValidator is a validator for the "fulfillment_status" field enum values. It is called by the builders before save.
 func FulfillmentStatusValidator(fs FulfillmentStatus) error {
 	switch fs {
-	case FulfillmentStatusPendingPayment, FulfillmentStatusPendingDispatch, FulfillmentStatusPendingAcceptance, FulfillmentStatusGrabbing, FulfillmentStatusAccepted, FulfillmentStatusInService, FulfillmentStatusPendingClose, FulfillmentStatusPendingCloseReview, FulfillmentStatusCompleted, FulfillmentStatusCancelled:
+	case FulfillmentStatusPendingPayment, FulfillmentStatusPendingDispatch, FulfillmentStatusPendingAcceptance, FulfillmentStatusGrabbing, FulfillmentStatusPendingCustomerConfirm, FulfillmentStatusAccepted, FulfillmentStatusInService, FulfillmentStatusPendingClose, FulfillmentStatusPendingCloseReview, FulfillmentStatusCompleted, FulfillmentStatusCancelled:
 		return nil
 	default:
 		return fmt.Errorf("esportsorder: invalid enum value for fulfillment_status field: %q", fs)
@@ -900,6 +904,11 @@ func ByPriorityReleasedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByPreferredPlayerID orders the results by the preferred_player_id field.
 func ByPreferredPlayerID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPreferredPlayerID, opts...).ToFunc()
+}
+
+// ByCustomerConfirmDeadline orders the results by the customer_confirm_deadline field.
+func ByCustomerConfirmDeadline(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCustomerConfirmDeadline, opts...).ToFunc()
 }
 
 // ByRefundStatus orders the results by the refund_status field.

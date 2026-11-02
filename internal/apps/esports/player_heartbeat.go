@@ -165,6 +165,7 @@ func playerHasInflightOrder(ctx context.Context, db *ent.Client, playerID int) (
 		esportsorder.IDIn(ids...),
 		esportsorder.FulfillmentStatusIn(
 			esportsorder.FulfillmentStatusPendingAcceptance,
+			esportsorder.FulfillmentStatusPendingCustomerConfirm,
 			esportsorder.FulfillmentStatusAccepted,
 			esportsorder.FulfillmentStatusInService,
 		),

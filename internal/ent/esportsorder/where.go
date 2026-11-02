@@ -290,6 +290,11 @@ func PreferredPlayerID(v int) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldPreferredPlayerID, v))
 }
 
+// CustomerConfirmDeadline applies equality check predicate on the "customer_confirm_deadline" field. It's identical to CustomerConfirmDeadlineEQ.
+func CustomerConfirmDeadline(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldCustomerConfirmDeadline, v))
+}
+
 // RefundedCents applies equality check predicate on the "refunded_cents" field. It's identical to RefundedCentsEQ.
 func RefundedCents(v int64) predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldEQ(FieldRefundedCents, v))
@@ -2813,6 +2818,56 @@ func PreferredPlayerIdsIsNil() predicate.EsportsOrder {
 // PreferredPlayerIdsNotNil applies the NotNil predicate on the "preferred_player_ids" field.
 func PreferredPlayerIdsNotNil() predicate.EsportsOrder {
 	return predicate.EsportsOrder(sql.FieldNotNull(FieldPreferredPlayerIds))
+}
+
+// CustomerConfirmDeadlineEQ applies the EQ predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldEQ(FieldCustomerConfirmDeadline, v))
+}
+
+// CustomerConfirmDeadlineNEQ applies the NEQ predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineNEQ(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNEQ(FieldCustomerConfirmDeadline, v))
+}
+
+// CustomerConfirmDeadlineIn applies the In predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIn(FieldCustomerConfirmDeadline, vs...))
+}
+
+// CustomerConfirmDeadlineNotIn applies the NotIn predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineNotIn(vs ...time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotIn(FieldCustomerConfirmDeadline, vs...))
+}
+
+// CustomerConfirmDeadlineGT applies the GT predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineGT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGT(FieldCustomerConfirmDeadline, v))
+}
+
+// CustomerConfirmDeadlineGTE applies the GTE predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineGTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldGTE(FieldCustomerConfirmDeadline, v))
+}
+
+// CustomerConfirmDeadlineLT applies the LT predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineLT(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLT(FieldCustomerConfirmDeadline, v))
+}
+
+// CustomerConfirmDeadlineLTE applies the LTE predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineLTE(v time.Time) predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldLTE(FieldCustomerConfirmDeadline, v))
+}
+
+// CustomerConfirmDeadlineIsNil applies the IsNil predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineIsNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldIsNull(FieldCustomerConfirmDeadline))
+}
+
+// CustomerConfirmDeadlineNotNil applies the NotNil predicate on the "customer_confirm_deadline" field.
+func CustomerConfirmDeadlineNotNil() predicate.EsportsOrder {
+	return predicate.EsportsOrder(sql.FieldNotNull(FieldCustomerConfirmDeadline))
 }
 
 // RefundStatusEQ applies the EQ predicate on the "refund_status" field.

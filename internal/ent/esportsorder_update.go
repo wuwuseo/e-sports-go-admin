@@ -1098,6 +1098,26 @@ func (_u *EsportsOrderUpdate) ClearPreferredPlayerIds() *EsportsOrderUpdate {
 	return _u
 }
 
+// SetCustomerConfirmDeadline sets the "customer_confirm_deadline" field.
+func (_u *EsportsOrderUpdate) SetCustomerConfirmDeadline(v time.Time) *EsportsOrderUpdate {
+	_u.mutation.SetCustomerConfirmDeadline(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmDeadline sets the "customer_confirm_deadline" field if the given value is not nil.
+func (_u *EsportsOrderUpdate) SetNillableCustomerConfirmDeadline(v *time.Time) *EsportsOrderUpdate {
+	if v != nil {
+		_u.SetCustomerConfirmDeadline(*v)
+	}
+	return _u
+}
+
+// ClearCustomerConfirmDeadline clears the value of the "customer_confirm_deadline" field.
+func (_u *EsportsOrderUpdate) ClearCustomerConfirmDeadline() *EsportsOrderUpdate {
+	_u.mutation.ClearCustomerConfirmDeadline()
+	return _u
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (_u *EsportsOrderUpdate) SetRefundStatus(v esportsorder.RefundStatus) *EsportsOrderUpdate {
 	_u.mutation.SetRefundStatus(v)
@@ -2001,6 +2021,12 @@ func (_u *EsportsOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.PreferredPlayerIdsCleared() {
 		_spec.ClearField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CustomerConfirmDeadline(); ok {
+		_spec.SetField(esportsorder.FieldCustomerConfirmDeadline, field.TypeTime, value)
+	}
+	if _u.mutation.CustomerConfirmDeadlineCleared() {
+		_spec.ClearField(esportsorder.FieldCustomerConfirmDeadline, field.TypeTime)
 	}
 	if value, ok := _u.mutation.RefundStatus(); ok {
 		_spec.SetField(esportsorder.FieldRefundStatus, field.TypeEnum, value)
@@ -3242,6 +3268,26 @@ func (_u *EsportsOrderUpdateOne) ClearPreferredPlayerIds() *EsportsOrderUpdateOn
 	return _u
 }
 
+// SetCustomerConfirmDeadline sets the "customer_confirm_deadline" field.
+func (_u *EsportsOrderUpdateOne) SetCustomerConfirmDeadline(v time.Time) *EsportsOrderUpdateOne {
+	_u.mutation.SetCustomerConfirmDeadline(v)
+	return _u
+}
+
+// SetNillableCustomerConfirmDeadline sets the "customer_confirm_deadline" field if the given value is not nil.
+func (_u *EsportsOrderUpdateOne) SetNillableCustomerConfirmDeadline(v *time.Time) *EsportsOrderUpdateOne {
+	if v != nil {
+		_u.SetCustomerConfirmDeadline(*v)
+	}
+	return _u
+}
+
+// ClearCustomerConfirmDeadline clears the value of the "customer_confirm_deadline" field.
+func (_u *EsportsOrderUpdateOne) ClearCustomerConfirmDeadline() *EsportsOrderUpdateOne {
+	_u.mutation.ClearCustomerConfirmDeadline()
+	return _u
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (_u *EsportsOrderUpdateOne) SetRefundStatus(v esportsorder.RefundStatus) *EsportsOrderUpdateOne {
 	_u.mutation.SetRefundStatus(v)
@@ -4175,6 +4221,12 @@ func (_u *EsportsOrderUpdateOne) sqlSave(ctx context.Context) (_node *EsportsOrd
 	}
 	if _u.mutation.PreferredPlayerIdsCleared() {
 		_spec.ClearField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CustomerConfirmDeadline(); ok {
+		_spec.SetField(esportsorder.FieldCustomerConfirmDeadline, field.TypeTime, value)
+	}
+	if _u.mutation.CustomerConfirmDeadlineCleared() {
+		_spec.ClearField(esportsorder.FieldCustomerConfirmDeadline, field.TypeTime)
 	}
 	if value, ok := _u.mutation.RefundStatus(); ok {
 		_spec.SetField(esportsorder.FieldRefundStatus, field.TypeEnum, value)

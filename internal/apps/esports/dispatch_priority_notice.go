@@ -244,6 +244,9 @@ func onOrderEnteredPendingDispatch(ctx context.Context, tx *ent.Tx, orderID int,
 		}).Save(ctx); err != nil {
 		return err
 	}
+	// 开窗后订单立即出现在名单内陪玩的抢单大厅：广播一次刷新信号。
+	// 名单外玩家重拉后列表为空，以 listGrabHall 结果为准。
+	broadcastHallOrder(order.ID)
 	return nil
 }
 
@@ -391,6 +394,10 @@ func releaseDispatchPriorityNoticeIn(ctx context.Context, tx *ent.Tx, order *ent
 		if !ent.IsConstraintError(err) {
 			return nil, err
 		}
+	}
+	// 单席订单已转 grabbing、对全员开放：广播大厅刷新；多人单仍留待派单，不广播。
+	if !keepPendingDispatch {
+		broadcastHallOrder(order.ID)
 	}
 	return tx.EsportsOrder.Get(ctx, order.ID)
 }

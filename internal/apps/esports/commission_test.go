@@ -302,6 +302,7 @@ func TestNoPlayerRuleAtGrabDoesNotGainLaterRule(t *testing.T) {
 	if _, err := grabPlayerOrder(ctx, db, player.ID, order.ID, now); err != nil {
 		t.Fatal(err)
 	}
+	mustConfirmGrab(t, db, order.ID, now)
 	seat := db.EsportsDispatchSeat.Query().OnlyX(ctx)
 	if seat.CommissionRuleLockedAt == nil || seat.CommissionRuleID != nil {
 		t.Fatalf("无规则接单未锁定空规则：%+v", seat)

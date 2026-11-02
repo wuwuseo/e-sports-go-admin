@@ -31,6 +31,7 @@ func customerOrderBucketStatuses(bucket string) ([]esportsorder.FulfillmentStatu
 			esportsorder.FulfillmentStatusPendingDispatch,
 			esportsorder.FulfillmentStatusPendingAcceptance,
 			esportsorder.FulfillmentStatusGrabbing,
+			esportsorder.FulfillmentStatusPendingCustomerConfirm,
 		}, nil
 	case "in_progress":
 		return []esportsorder.FulfillmentStatus{

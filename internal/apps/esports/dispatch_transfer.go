@@ -49,6 +49,7 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 		return nil, err
 	}
 	if order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingAcceptance &&
+		order.FulfillmentStatus != esportsorder.FulfillmentStatusPendingCustomerConfirm &&
 		order.FulfillmentStatus != esportsorder.FulfillmentStatusAccepted &&
 		order.FulfillmentStatus != esportsorder.FulfillmentStatusInService {
 		return nil, fmt.Errorf("%w：仅已接单且未完结的订单可发起转单", errInvalidInput)

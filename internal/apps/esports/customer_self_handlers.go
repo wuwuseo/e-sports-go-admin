@@ -59,6 +59,42 @@ func userOrderMembersHandler(c fiber.Ctx) error {
 	return reply(c, members)
 }
 
+// userConfirmPlayerHandler 客户确认抢单陪玩：待客户确认 → 已接单。
+func userConfirmPlayerHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	order, err := confirmGrabbedPlayerByCustomer(c.Context(), global.ORM, customer.ID, orderID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
+// userDeclinePlayerHandler 客户更换陪玩：释放当前席位，订单回抢单大厅重新抢。
+func userDeclinePlayerHandler(c fiber.Ctx) error {
+	uid, _ := c.Locals("uid").(string)
+	customer, err := customerForVerifiedUser(c.Context(), global.ORM, uid)
+	if err != nil {
+		return businessError(c, err)
+	}
+	orderID, err := parsePathID(c, "订单")
+	if err != nil {
+		return businessError(c, err)
+	}
+	order, err := declineGrabbedPlayerByCustomer(c.Context(), global.ORM, customer.ID, orderID, time.Now())
+	if err != nil {
+		return businessError(c, err)
+	}
+	return reply(c, order)
+}
+
 // userOrderDetailHandler 我的订单详情。
 func userOrderDetailHandler(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)

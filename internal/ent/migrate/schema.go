@@ -2287,7 +2287,7 @@ var (
 		{Name: "seat_roles", Type: field.TypeJSON, Nullable: true},
 		{Name: "quote_version", Type: field.TypeInt, Default: 1},
 		{Name: "version", Type: field.TypeInt, Default: 1},
-		{Name: "fulfillment_status", Type: field.TypeEnum, Enums: []string{"pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled"}, Default: "pending_payment"},
+		{Name: "fulfillment_status", Type: field.TypeEnum, Enums: []string{"pending_payment", "pending_dispatch", "pending_acceptance", "grabbing", "pending_customer_confirm", "accepted", "in_service", "pending_close", "pending_close_review", "completed", "cancelled"}, Default: "pending_payment"},
 		{Name: "payment_status", Type: field.TypeEnum, Enums: []string{"unpaid", "partial", "paid", "exception"}, Default: "unpaid"},
 		{Name: "payment_channel", Type: field.TypeEnum, Enums: []string{"none", "customer_balance", "stored_value_card", "wechat_work", "merchant_qr", "corporate_transfer"}, Default: "none"},
 		{Name: "priority_notice_status", Type: field.TypeEnum, Enums: []string{"none", "pending", "released", "accepted"}, Default: "none"},
@@ -2305,6 +2305,7 @@ var (
 		{Name: "priority_released_at", Type: field.TypeTime, Nullable: true},
 		{Name: "preferred_player_id", Type: field.TypeInt, Nullable: true},
 		{Name: "preferred_player_ids", Type: field.TypeJSON, Nullable: true},
+		{Name: "customer_confirm_deadline", Type: field.TypeTime, Nullable: true},
 		{Name: "refund_status", Type: field.TypeEnum, Enums: []string{"none", "pending_approval", "executing", "partial", "full", "failed"}, Default: "none"},
 		{Name: "refunded_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "close_net_service_cents", Type: field.TypeInt64, Nullable: true},
@@ -2341,7 +2342,7 @@ var (
 			{
 				Name:    "esportsorder_customer_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[75]},
+				Columns: []*schema.Column{EsportsOrdersColumns[2], EsportsOrdersColumns[76]},
 			},
 			{
 				Name:    "esportsorder_responsible_admin_id_fulfillment_status",
@@ -2351,7 +2352,7 @@ var (
 			{
 				Name:    "esportsorder_channel_source_entry_point_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsOrdersColumns[17], EsportsOrdersColumns[18], EsportsOrdersColumns[75]},
+				Columns: []*schema.Column{EsportsOrdersColumns[17], EsportsOrdersColumns[18], EsportsOrdersColumns[76]},
 			},
 		},
 	}

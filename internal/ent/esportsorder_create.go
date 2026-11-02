@@ -712,6 +712,20 @@ func (_c *EsportsOrderCreate) SetPreferredPlayerIds(v []int) *EsportsOrderCreate
 	return _c
 }
 
+// SetCustomerConfirmDeadline sets the "customer_confirm_deadline" field.
+func (_c *EsportsOrderCreate) SetCustomerConfirmDeadline(v time.Time) *EsportsOrderCreate {
+	_c.mutation.SetCustomerConfirmDeadline(v)
+	return _c
+}
+
+// SetNillableCustomerConfirmDeadline sets the "customer_confirm_deadline" field if the given value is not nil.
+func (_c *EsportsOrderCreate) SetNillableCustomerConfirmDeadline(v *time.Time) *EsportsOrderCreate {
+	if v != nil {
+		_c.SetCustomerConfirmDeadline(*v)
+	}
+	return _c
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (_c *EsportsOrderCreate) SetRefundStatus(v esportsorder.RefundStatus) *EsportsOrderCreate {
 	_c.mutation.SetRefundStatus(v)
@@ -1701,6 +1715,10 @@ func (_c *EsportsOrderCreate) createSpec() (*EsportsOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.PreferredPlayerIds(); ok {
 		_spec.SetField(esportsorder.FieldPreferredPlayerIds, field.TypeJSON, value)
 		_node.PreferredPlayerIds = value
+	}
+	if value, ok := _c.mutation.CustomerConfirmDeadline(); ok {
+		_spec.SetField(esportsorder.FieldCustomerConfirmDeadline, field.TypeTime, value)
+		_node.CustomerConfirmDeadline = &value
 	}
 	if value, ok := _c.mutation.RefundStatus(); ok {
 		_spec.SetField(esportsorder.FieldRefundStatus, field.TypeEnum, value)

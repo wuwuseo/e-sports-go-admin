@@ -41,9 +41,9 @@ func TestGrabWritesOutboxAndRecordsLostAttempts(t *testing.T) {
 		t.Fatalf("抢单应成功，err=%v", err)
 	}
 	rows := db.EsportsOutbox.Query().Where(
-		esportsoutbox.EventTypeEQ("order.seat_accepted")).AllX(ctx)
+		esportsoutbox.EventTypeEQ("order.customer_confirm_required")).AllX(ctx)
 	if len(rows) != 1 {
-		t.Fatalf("抢单成功应写一条 order.seat_accepted 外盒，got=%d", len(rows))
+		t.Fatalf("抢单成功应写一条 order.customer_confirm_required 外盒，got=%d", len(rows))
 	}
 	if rows[0].AggregateRef != order.OrderNo {
 		t.Fatalf("外盒聚合键应为订单号，got=%q", rows[0].AggregateRef)

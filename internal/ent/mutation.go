@@ -70271,6 +70271,7 @@ type EsportsOrderMutation struct {
 	addpreferred_player_id                    *int
 	preferred_player_ids                      *[]int
 	appendpreferred_player_ids                []int
+	customer_confirm_deadline                 *time.Time
 	refund_status                             *esportsorder.RefundStatus
 	refunded_cents                            *int64
 	addrefunded_cents                         *int64
@@ -73238,6 +73239,55 @@ func (m *EsportsOrderMutation) ResetPreferredPlayerIds() {
 	delete(m.clearedFields, esportsorder.FieldPreferredPlayerIds)
 }
 
+// SetCustomerConfirmDeadline sets the "customer_confirm_deadline" field.
+func (m *EsportsOrderMutation) SetCustomerConfirmDeadline(t time.Time) {
+	m.customer_confirm_deadline = &t
+}
+
+// CustomerConfirmDeadline returns the value of the "customer_confirm_deadline" field in the mutation.
+func (m *EsportsOrderMutation) CustomerConfirmDeadline() (r time.Time, exists bool) {
+	v := m.customer_confirm_deadline
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCustomerConfirmDeadline returns the old "customer_confirm_deadline" field's value of the EsportsOrder entity.
+// If the EsportsOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsOrderMutation) OldCustomerConfirmDeadline(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCustomerConfirmDeadline is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCustomerConfirmDeadline requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCustomerConfirmDeadline: %w", err)
+	}
+	return oldValue.CustomerConfirmDeadline, nil
+}
+
+// ClearCustomerConfirmDeadline clears the value of the "customer_confirm_deadline" field.
+func (m *EsportsOrderMutation) ClearCustomerConfirmDeadline() {
+	m.customer_confirm_deadline = nil
+	m.clearedFields[esportsorder.FieldCustomerConfirmDeadline] = struct{}{}
+}
+
+// CustomerConfirmDeadlineCleared returns if the "customer_confirm_deadline" field was cleared in this mutation.
+func (m *EsportsOrderMutation) CustomerConfirmDeadlineCleared() bool {
+	_, ok := m.clearedFields[esportsorder.FieldCustomerConfirmDeadline]
+	return ok
+}
+
+// ResetCustomerConfirmDeadline resets all changes to the "customer_confirm_deadline" field.
+func (m *EsportsOrderMutation) ResetCustomerConfirmDeadline() {
+	m.customer_confirm_deadline = nil
+	delete(m.clearedFields, esportsorder.FieldCustomerConfirmDeadline)
+}
+
 // SetRefundStatus sets the "refund_status" field.
 func (m *EsportsOrderMutation) SetRefundStatus(es esportsorder.RefundStatus) {
 	m.refund_status = &es
@@ -74335,7 +74385,7 @@ func (m *EsportsOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsOrderMutation) Fields() []string {
-	fields := make([]string, 0, 76)
+	fields := make([]string, 0, 77)
 	if m.order_no != nil {
 		fields = append(fields, esportsorder.FieldOrderNo)
 	}
@@ -74500,6 +74550,9 @@ func (m *EsportsOrderMutation) Fields() []string {
 	}
 	if m.preferred_player_ids != nil {
 		fields = append(fields, esportsorder.FieldPreferredPlayerIds)
+	}
+	if m.customer_confirm_deadline != nil {
+		fields = append(fields, esportsorder.FieldCustomerConfirmDeadline)
 	}
 	if m.refund_status != nil {
 		fields = append(fields, esportsorder.FieldRefundStatus)
@@ -74682,6 +74735,8 @@ func (m *EsportsOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.PreferredPlayerID()
 	case esportsorder.FieldPreferredPlayerIds:
 		return m.PreferredPlayerIds()
+	case esportsorder.FieldCustomerConfirmDeadline:
+		return m.CustomerConfirmDeadline()
 	case esportsorder.FieldRefundStatus:
 		return m.RefundStatus()
 	case esportsorder.FieldRefundedCents:
@@ -74843,6 +74898,8 @@ func (m *EsportsOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldPreferredPlayerID(ctx)
 	case esportsorder.FieldPreferredPlayerIds:
 		return m.OldPreferredPlayerIds(ctx)
+	case esportsorder.FieldCustomerConfirmDeadline:
+		return m.OldCustomerConfirmDeadline(ctx)
 	case esportsorder.FieldRefundStatus:
 		return m.OldRefundStatus(ctx)
 	case esportsorder.FieldRefundedCents:
@@ -75278,6 +75335,13 @@ func (m *EsportsOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPreferredPlayerIds(v)
+		return nil
+	case esportsorder.FieldCustomerConfirmDeadline:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCustomerConfirmDeadline(v)
 		return nil
 	case esportsorder.FieldRefundStatus:
 		v, ok := value.(esportsorder.RefundStatus)
@@ -75918,6 +75982,9 @@ func (m *EsportsOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsorder.FieldPreferredPlayerIds) {
 		fields = append(fields, esportsorder.FieldPreferredPlayerIds)
 	}
+	if m.FieldCleared(esportsorder.FieldCustomerConfirmDeadline) {
+		fields = append(fields, esportsorder.FieldCustomerConfirmDeadline)
+	}
 	if m.FieldCleared(esportsorder.FieldCloseNetServiceCents) {
 		fields = append(fields, esportsorder.FieldCloseNetServiceCents)
 	}
@@ -76024,6 +76091,9 @@ func (m *EsportsOrderMutation) ClearField(name string) error {
 		return nil
 	case esportsorder.FieldPreferredPlayerIds:
 		m.ClearPreferredPlayerIds()
+		return nil
+	case esportsorder.FieldCustomerConfirmDeadline:
+		m.ClearCustomerConfirmDeadline()
 		return nil
 	case esportsorder.FieldCloseNetServiceCents:
 		m.ClearCloseNetServiceCents()
@@ -76227,6 +76297,9 @@ func (m *EsportsOrderMutation) ResetField(name string) error {
 		return nil
 	case esportsorder.FieldPreferredPlayerIds:
 		m.ResetPreferredPlayerIds()
+		return nil
+	case esportsorder.FieldCustomerConfirmDeadline:
+		m.ResetCustomerConfirmDeadline()
 		return nil
 	case esportsorder.FieldRefundStatus:
 		m.ResetRefundStatus()

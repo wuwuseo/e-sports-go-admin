@@ -311,14 +311,25 @@
 - **名单（§5.4）**：`GET/POST /admin/dispatch/priority`、`POST /admin/dispatch/priority/:id/revoke`。周期支持日 / 周 / 半月 / 月（半月为每月 1–15 日与 16 日至次月 1 日）；每游戏每期名额上限取系统配置 `app.esports.dispatch_priority_quota`（缺失回落 3）；获得方式 `ranking / points / threshold / rotation / manual`；`next_period=true` 可在切换点前预生成下一期名单。重复录入同一陪玩、超出名额、非法周期/来源/排名都会被拒（判重先于判名额，报错更精确）；`game` 必须对应**启用中**的商品分类（游戏分区），填错直接返回参数错误并指出名单项（「名单项 game「xxx」找不到对应的启用游戏分区（商品分类）…」），不再静默落库后静默不开窗。移出名单须填原因，移出后名额立即释放。
 - **周期重算**：`esports_rebuild_dispatch_priority` 任务把已过期的生效名单转 `expired`、把到点的待生效名单转 `active`，并为下一期预生成名单（延续本期生效名单、按排名、`source=rotation`、状态 `pending`）；下一期已存在名单时不覆盖、不重复生成。
 - **开窗与通知（独占）**：订单进入待派单时统一走 `onOrderEnteredPendingDispatch`（资金核销、席位拒绝/撤回/过期回退等全部路径都已接入）。若订单 SKU → 分类能解析出游戏分区且该分区有生效名单，则开窗：订单记 `priority_notice_status=pending`、`priority_notice_until=now+app.esports.dispatch_priority_notice_minutes`（缺失回落 3 分钟）、`priority_game` 快照，并按名单逐人写 `EsportsDispatchPriorityNotice`（`notified`）与事务外盒事件 `order.priority_notice`。窗口内**只有被通知的人**在抢单大厅看得到这张单（`listGrabHall` 只对他的名单外订单做过滤）；其他人看不到、直接抢会被拒（403「该订单正在优先通知名单内陪玩，暂未对大厅开放」）。解析不到游戏分区或该分区没有名单时不开窗，订单留在待派单池由客服指派；**`required_seats > 1` 的多席订单同样不开窗**（首版抢单大厅只接受单席，开窗只会产生必失败的通知与长期「通知中」），留待客服指派或固排成队。
-- **接受与闭合**：名单内陪玩走既有 `POST /user/player/orders/:id/grab` 接单——窗口内该接口额外放行「被通知的本人」，接单成功后订单直接转 `accepted`、本人通知转 `accepted`、其余待回应通知作废、订单 `priority_notice_status=accepted`。
+- **接受与闭合**：名单内陪玩走既有 `POST /user/player/orders/:id/grab` 接单——窗口内该接口额外放行「被通知的本人」，接单成功后订单先转 `pending_customer_confirm`（待客户确认）、本人通知转 `accepted`、其余待回应通知作废、订单 `priority_notice_status=accepted`；客户确认后才转 `accepted`。
 - **拒绝与释放**：`GET /user/player/dispatch-notices` 看我的优先通知，`POST /user/player/dispatch-notices/:id/decline` 拒绝（只能拒自己的通知）。名单内仍有人待回应时订单留在待派单；**最后一人拒绝**时订单释放到抢单大厅（`fulfillment_status=grabbing`、`priority_notice_status=released`、原因「名单内全部拒绝」）。`esports_expire_dispatch_priority_notice` 任务把超过截止时间的窗口同样释放到大厅（原因「优先通知超时」）。释放后不再重复通知、名单不再有特权，任何人可抢。
 - **客服干预**：`GET /admin/orders/:id/priority-notices` 看谁被通知/拒绝/接单；`POST /admin/orders/:id/release-priority` 由客服提前释放到大厅（§5.2「可随时人工干预」）；客服指派不受窗口限制，指派成功后窗口**立即闭合**——`pending → released`、释放原因写「已人工指派确定陪玩」并记 `priority_released_at`，待回应通知置 expired、写 `order.priority_notice_closed` 事件，且**不改履约状态**（多席订单仍停在待派单）；固排成队确定陪玩后同样闭合。
 - **派单候选（§5.5 首版）**：`GET /admin/orders/:id/dispatch-candidates` 列出**当前可派单对象**——窗口内只列被通知的名单内陪玩，窗口外列全部合格在线陪玩；硬性条件与人工指派门槛一致（资质 `qualified` 且在线），已在本订单席位上的陪玩不再列出。排序为：指定陪玩（订单 `preferred_player_id` 优先，接口参数 `preferred_player_id` 可覆盖；命中者标记 `Preferred` 置顶）→ 评分高者优先（**样本不足不当作低分**）→ 近 7 天在途席位数少者优先（轮转均衡）→ 档案 ID 兜底。
 
 已实现 §5.6 的独立发布动作「发布到抢单大厅」（`POST /admin/orders/{id}/publish-grab`）：把已付款待派单的**单陪玩**订单直接转 `grabbing`（多人订单返回参数错误并提示改用指派），窗口仍开着时等价于「提前释放」；发布前把被撤回 / 过期的席位重置为 `open`，保证抢单大厅一定有可抢席位，并留 `order.published_to_grab_hall` 事件与事务外盒。
 
-已实现 **「客户指定陪玩的订单跳过优先通知窗口」（§5.4）**：订单新增可空字段 `preferred_player_id`，报单时可选填并校验陪玩资质（非 `qualified` 返回参数错误，§4.6）；`onOrderEnteredPendingDispatch` 对指定单**不开优先通知窗口**，订单留在待派单池由客服指派；派单候选默认回落订单上的指定陪玩并置顶标记 `Preferred`。
+已实现 **「客户指定陪玩的订单跳过优先通知窗口」（§5.4）**：订单新增可空字段 `preferred_player_id`，报单时可选填并校验陪玩资质（非 `qualified` 返回参数错误，§4.6）；`onOrderEnteredPendingDispatch` 对指定单**不开优先通知窗口**，订单留在待派单池由客服指派；派单候选默认回落订单上的指定陪玩并置顶标记 `Preferred`。客户端下单页可通过公开 `GET /players` 列表直接选择陪玩，选中后以 `preferred_player_id` 提交，语义与首页推荐卡带入一致。
+
+### 抢单后客户确认 / 更换（2026-11）
+
+抢单（大厅与优先通知窗口内接单）成功后不再直接进入 `accepted`，而是进入新履约状态 `pending_customer_confirm`（待客户确认）：
+
+- **抢占与截止时间**：订单写入 `customer_confirm_deadline = now + app.esports.customer_grab_confirm_minutes`（系统配置 `customer_grab_confirm_minutes`，默认 5 分钟，1~1440，非法回落 5），写 `order.grabbed` 事件（details 标 `pending_customer_confirm`）与事务外盒 `order.customer_confirm_required`（客户 + 责任客服 + 该席位陪玩）。此时**不写** `ready_to_start_at`，陪玩开工接口会拒绝。
+- **客户确认**：`POST /user/orders/{id}/confirm-player` → 订单转 `accepted`，写 `order.customer_confirmed_player` 事件与 `order.ready_to_start`（此后陪玩可开工），并写通知外盒。
+- **客户更换**：`POST /user/orders/{id}/decline-player` → 当前陪玩席位 `accepted → revoked → open`，订单直接回 `grabbing`，写 `order.customer_declined_player` 事件（被换下的陪玩按 payload `player_id` 定向通知），并广播抢单大厅刷新；不经过待派单，也无需客服确认。
+- **超时自动确认**：任务 `esports_auto_confirm_customer_grabs`（每分钟）扫描截止时间已过的订单并自动确认，保证陪玩不被长期挂起。
+- **兼容口径**：客服看板新增 `pending_customer_confirm` 桶；管理端订单列表可按该状态筛选；客服可在待确认期间撤席（`revokeDispatchSeat` 放开该状态，订单回待派单后重新指派）；陪玩「我的订单」按待接单可见该单；订单冻结（存单）期间确认 / 更换返回冲突。
+- **不适用**：客服指派邀请接单、客户指定陪玩单（仍由客服指派）不发生客户确认环节；多人单不进抢单大厅，也不涉及。
 
 已实现 **§5.9 的等待时长埋点**：订单新增 `first_pooled_at` / `first_invited_at` / `first_accepted_at` / `service_started_at` / `priority_released_at`（各自只写一次、永不改写），统一在进入待派单（`onOrderEnteredPendingDispatch`）、派出邀请、有效接单、开工与优先通知释放处落点；派单效率报表（`dispatch_efficiency`）据此派生 `avg_pool_to_invite_seconds` / `avg_invite_to_accept_seconds` / `avg_accept_to_start_seconds` / `avg_pool_to_start_seconds` 四类平均等待时长（时间点不全的历史订单不计入样本）。
 
