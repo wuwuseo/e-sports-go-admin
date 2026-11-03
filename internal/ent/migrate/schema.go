@@ -2777,6 +2777,7 @@ var (
 		{Name: "daily_limit", Type: field.TypeInt, Default: 0},
 		{Name: "concurrent_limit", Type: field.TypeInt, Default: 0},
 		{Name: "games", Type: field.TypeJSON, Nullable: true},
+		{Name: "game_levels", Type: field.TypeJSON, Nullable: true},
 		{Name: "last_heartbeat_at", Type: field.TypeTime, Nullable: true},
 		{Name: "expected_price_cents", Type: field.TypeInt64, Default: 0},
 		{Name: "expected_price_status", Type: field.TypeEnum, Enums: []string{"none", "pending", "approved", "rejected"}, Default: "none"},

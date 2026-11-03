@@ -191,9 +191,9 @@ func TestW4SkuRequiredLevelDispatchGuard(t *testing.T) {
 
 	// games 为空表示不限分区，因此这里只考察等级门槛。
 	lowLevel := seedPlayer(t, db, 9801, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(lowLevel.ID).SetLevel("novice").SaveX(ctx)
+	setTestPlayerLevel(t, db, lowLevel, "novice")
 	eligible := seedPlayer(t, db, 9802, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(eligible.ID).SetLevel("mentor").SaveX(ctx)
+	setTestPlayerLevel(t, db, eligible, "mentor")
 
 	candidates, err := dispatchCandidates(ctx, db, order, 0, 20, now)
 	if err != nil {

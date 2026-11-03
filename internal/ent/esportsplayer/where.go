@@ -534,6 +534,16 @@ func GamesNotNil() predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldNotNull(FieldGames))
 }
 
+// GameLevelsIsNil applies the IsNil predicate on the "game_levels" field.
+func GameLevelsIsNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldIsNull(FieldGameLevels))
+}
+
+// GameLevelsNotNil applies the NotNil predicate on the "game_levels" field.
+func GameLevelsNotNil() predicate.EsportsPlayer {
+	return predicate.EsportsPlayer(sql.FieldNotNull(FieldGameLevels))
+}
+
 // LastHeartbeatAtEQ applies the EQ predicate on the "last_heartbeat_at" field.
 func LastHeartbeatAtEQ(v time.Time) predicate.EsportsPlayer {
 	return predicate.EsportsPlayer(sql.FieldEQ(FieldLastHeartbeatAt, v))

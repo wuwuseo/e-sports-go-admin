@@ -554,8 +554,12 @@ func respondPlayerInvite(ctx context.Context, db *ent.Client, playerID, seatID i
 		esportsdispatchseat.StatusEQ(esportsdispatchseat.StatusInvited),
 	).SetStatus(target).SetRespondedAt(now.UTC()).AddVersion(1)
 	if accept {
+		game, gameErr := orderGameIn(ctx, tx, order.SkuID)
+		if gameErr != nil {
+			return gameErr
+		}
 		rule, ruleErr := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-			tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level, now)
+			tx.EsportsSku, tx.EsportsProductCategory, order, playerID, playerLevelForCommission(player, game), now)
 		if ruleErr != nil {
 			return ruleErr
 		}
@@ -891,7 +895,7 @@ func grabPlayerOrderTx(ctx context.Context, db *ent.Client, playerID, orderID in
 		return nil, err
 	}
 	rule, err := resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
-		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, player.Level, now)
+		tx.EsportsSku, tx.EsportsProductCategory, order, playerID, playerLevelForCommission(player, game), now)
 	if err != nil {
 		return nil, err
 	}

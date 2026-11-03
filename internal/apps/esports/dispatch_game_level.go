@@ -39,10 +39,61 @@ func checkPlayerGameLevel(levels []SkillLevel, player *ent.EsportsPlayer, game, 
 	if !ok {
 		return fmt.Errorf("%w：订单所需技能等级（%s）已不在等级配置中，无法派单", errForbidden, requiredLevel)
 	}
-	if skillLevelRankOrBelow(levels, player.Level) < requiredRank {
-		return fmt.Errorf("%w：该陪玩技能等级低于订单要求（%s）", errForbidden, requiredLevel)
+	// 分区订单只看该分区的等级；level 只是展示用的最高档派生值。
+	appraised := player.Level
+	if game != "" {
+		appraised = playerGameLevel(player, game)
+		if appraised == "" {
+			return fmt.Errorf("%w：该陪玩尚未通过「%s」分区考核（无分区等级）", errForbidden, game)
+		}
+	}
+	if skillLevelRankOrBelow(levels, appraised) < requiredRank {
+		return fmt.Errorf("%w：该陪玩在「%s」分区的技能等级低于订单要求（%s）", errForbidden, game, requiredLevel)
 	}
 	return nil
+}
+
+// playerGameLevel 返回陪玩在指定分区的等级；该分区没有考核记录时返回空串（视为无等级）。
+func playerGameLevel(player *ent.EsportsPlayer, game string) string {
+	if player == nil || game == "" || player.GameLevels == nil {
+		return ""
+	}
+	return player.GameLevels[game]
+}
+
+// highestPlayerGameLevel 返回全部分区等级中的最高档，用于维护展示用的 level 字段；
+// 没有任何有效分区等级时返回 fallback（不把历史值清空）。
+func highestPlayerGameLevel(levels []SkillLevel, gameLevels map[string]string, fallback string) string {
+	best := ""
+	for _, lv := range gameLevels {
+		if !validPlayerLevel(levels, lv) {
+			continue
+		}
+		if best == "" || skillLevelRankOrBelow(levels, lv) > skillLevelRankOrBelow(levels, best) {
+			best = lv
+		}
+	}
+	if best == "" {
+		return fallback
+	}
+	return best
+}
+
+// cloneGameLevels 复制分区等级 map，避免直接改 ent 实体上的共享引用。
+func cloneGameLevels(src map[string]string) map[string]string {
+	dst := make(map[string]string, len(src)+1)
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+// playerLevelForCommission 返回分成规则用的等级：分区订单取该分区等级，无分区或无记录时回落 level。
+func playerLevelForCommission(player *ent.EsportsPlayer, game string) string {
+	if lv := playerGameLevel(player, game); lv != "" {
+		return lv
+	}
+	return player.Level
 }
 
 // ensureOrderSkuDispatchable 校验订单绑定的 SKU 快照在派单时仍可售。

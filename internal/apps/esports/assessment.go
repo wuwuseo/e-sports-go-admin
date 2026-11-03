@@ -413,24 +413,41 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 		if !validPlayerLevel(levels, level) {
 			level = skillLevelLowest(levels)
 		}
-		// 升级考核的定级回写必须单调：旧单（尤其是申诉改判）不得把已经升上去的等级改回旧目标档。
+		game := strings.TrimSpace(assessment.Game)
+		gameLevels := cloneGameLevels(player.GameLevels)
+		// 分区等级是接单权威：同一分区的升级必须单调，旧单（尤其是申诉改判）不得把已升上去的分区等级改回旧档。
 		// 复核通过的升级单仍要把资格置为「合格」并刷新考核时间。
-		if assessment.AssessmentType != esportsassessment.AssessmentTypeUpgrade ||
-			skillLevelRankOrBelow(levels, level) > skillLevelRankOrBelow(levels, player.Level) {
-			update.SetLevel(level)
+		if game != "" {
+			current := gameLevels[game]
+			if assessment.AssessmentType != esportsassessment.AssessmentTypeUpgrade ||
+				current == "" ||
+				skillLevelRankOrBelow(levels, level) > skillLevelRankOrBelow(levels, current) {
+				gameLevels[game] = level
+			}
+			// 开通该分区：与已有分区取并集，不覆盖陪玩自己关掉的分区。
+			if !slices.Contains(player.Games, game) {
+				update.SetGames(append(slices.Clone(player.Games), game))
+			}
 		}
-		// 考核通过即开通该游戏分区：与已有分区取并集，不覆盖陪玩自己关掉的分区。
-		if game := strings.TrimSpace(assessment.Game); game != "" && !slices.Contains(player.Games, game) {
-			update.SetGames(append(player.Games, game))
-		}
+		update.SetGameLevels(gameLevels)
+		// level 只是展示用的最高档派生值，不参与接单校验。
+		update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
 		update.SetQualification(esportsplayer.QualificationQualified).
 			SetLevelAppraisedAt(now.UTC())
 	case esportsassessment.AssessmentTypeSpotCheck:
 		if passed {
 			update.SetLevelAppraisedAt(now.UTC())
 		} else {
-			update.SetLevel(demoteSkillLevel(levels, player.Level)).
-				SetQualification(esportsplayer.QualificationSuspended).
+			// 抽查不通过按分区降级：只降该次抽查绑定的分区，其余分区不受影响。
+			if game := strings.TrimSpace(assessment.Game); game != "" {
+				gameLevels := cloneGameLevels(player.GameLevels)
+				gameLevels[game] = demoteSkillLevel(levels, playerGameLevel(player, game))
+				update.SetGameLevels(gameLevels)
+				update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
+			} else {
+				update.SetLevel(demoteSkillLevel(levels, player.Level))
+			}
+			update.SetQualification(esportsplayer.QualificationSuspended).
 				SetLevelAppraisedAt(now.UTC())
 		}
 	}
@@ -465,26 +482,49 @@ func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Es
 			// 入职缺目标等级时 applyAssessmentOutcome 写的是最低档，改判同样按最低档口径回退。
 			target = skillLevelLowest(levels)
 		}
-		if player.Level == target {
+		if strings.TrimSpace(assessment.Game) == "" && player.Level == target {
 			update.SetLevel(demoteSkillLevel(levels, player.Level))
 		}
 	case esportsassessment.AssessmentTypeSpotCheck:
-		update.SetLevel(demoteSkillLevel(levels, player.Level))
+		if game := strings.TrimSpace(assessment.Game); game != "" {
+			gameLevels := cloneGameLevels(player.GameLevels)
+			gameLevels[game] = demoteSkillLevel(levels, playerGameLevel(player, game))
+			update.SetGameLevels(gameLevels)
+			update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
+		} else {
+			update.SetLevel(demoteSkillLevel(levels, player.Level))
+		}
 	}
-	// 改判不通过要收回该次考核开通的分区；同分区若仍有其它已通过考核则保留。
+	// 改判不通过要收回该次考核开通的分区与分区等级；同分区若仍有其它已通过考核，
+	// 分区保留、等级回落到那些考核的最高目标档。
 	if game := strings.TrimSpace(assessment.Game); game != "" {
-		others, queryErr := tx.EsportsAssessment.Query().Where(
+		rows, queryErr := tx.EsportsAssessment.Query().Where(
 			esportsassessment.PlayerIDEQ(player.ID),
 			esportsassessment.IDNEQ(assessment.ID),
 			esportsassessment.StatusEQ(esportsassessment.StatusPassed),
 			esportsassessment.GameEQ(game),
-		).Exist(ctx)
+		).All(ctx)
 		if queryErr != nil {
 			return queryErr
 		}
-		if !others {
+		gameLevels := cloneGameLevels(player.GameLevels)
+		if len(rows) == 0 {
 			update.SetGames(slices.DeleteFunc(player.Games, func(g string) bool { return g == game }))
+			delete(gameLevels, game)
+		} else {
+			best := ""
+			for _, row := range rows {
+				if validPlayerLevel(levels, row.TargetLevel) &&
+					(best == "" || skillLevelRankOrBelow(levels, row.TargetLevel) > skillLevelRankOrBelow(levels, best)) {
+					best = row.TargetLevel
+				}
+			}
+			if best != "" {
+				gameLevels[game] = best
+			}
 		}
+		update.SetGameLevels(gameLevels)
+		update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
 	}
 	_, err = update.Save(ctx)
 	return err

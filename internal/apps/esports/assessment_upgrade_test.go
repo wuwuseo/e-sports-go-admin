@@ -30,7 +30,8 @@ func seedUpgradePlayer(t *testing.T, db *ent.Client, userID int, level string, c
 		SetQualification(esportsplayer.QualificationQualified).
 		SetPresence(esportsplayer.PresenceOnline).
 		SetLevel(level).SetCreatedAt(createdAt.UTC()).
-		SetGames([]string{"王者荣耀"}).SaveX(t.Context())
+		SetGames([]string{"王者荣耀"}).
+		SetGameLevels(testGameLevels([]string{"王者荣耀"}, level)).SaveX(t.Context())
 	seedVerifiedIdentity(t, db, player.ID)
 	return player
 }
@@ -90,7 +91,9 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	// 资格已是合格但实名认证未通过。
 	unverified := db.EsportsPlayer.Create().SetUserID(201).SetDisplayName("未实名").
 		SetQualification(esportsplayer.QualificationQualified).SetPresence(esportsplayer.PresenceOnline).
-		SetLevel("novice").SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
+		SetLevel("novice").SetGames([]string{"王者荣耀"}).
+		SetGameLevels(testGameLevels([]string{"王者荣耀"}, "novice")).
+		SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
 	seedUpgradeServiceSegments(t, db, unverified.ID, 40)
 	seedUpgradeReviews(t, db, unverified.ID, 5, 5)
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, unverified.ID, now); err == nil ||
@@ -101,7 +104,9 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	// 资格待审核。
 	pending := db.EsportsPlayer.Create().SetUserID(202).SetDisplayName("待审核").
 		SetQualification(esportsplayer.QualificationPending).SetPresence(esportsplayer.PresenceOffline).
-		SetLevel("novice").SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
+		SetLevel("novice").SetGames([]string{"王者荣耀"}).
+		SetGameLevels(testGameLevels([]string{"王者荣耀"}, "novice")).
+		SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
 	seedVerifiedIdentity(t, db, pending.ID)
 	if _, err := applyPlayerUpgradeAssessment(ctx, db, pending.ID, now); err == nil ||
 		!errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "资格") {

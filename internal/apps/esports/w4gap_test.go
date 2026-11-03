@@ -80,7 +80,8 @@ func TestW4GapGrabHallReturnsGamePerOrder(t *testing.T) {
 		SetStatus(user.StatusActive).SetPhone("13900000009").SaveX(ctx)
 	player := seedPlayer(t, db, account.ID, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{w4gapGame}).
-		SetLevel("mentor").SaveX(ctx)
+		SetLevel("mentor").
+		SetGameLevels(map[string]string{w4gapGame: "mentor"}).SaveX(ctx)
 
 	status, payload := sendJSON(t, w4gapGrabHallApp(w4gapPlayerUID), "GET", "/user/player/grab-hall", "")
 	if status != 200 {

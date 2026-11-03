@@ -89442,6 +89442,7 @@ type EsportsPlayerMutation struct {
 	addconcurrent_limit                    *int
 	games                                  *[]string
 	appendgames                            []string
+	game_levels                            *map[string]string
 	last_heartbeat_at                      *time.Time
 	expected_price_cents                   *int64
 	addexpected_price_cents                *int64
@@ -90002,6 +90003,55 @@ func (m *EsportsPlayerMutation) ResetGames() {
 	m.games = nil
 	m.appendgames = nil
 	delete(m.clearedFields, esportsplayer.FieldGames)
+}
+
+// SetGameLevels sets the "game_levels" field.
+func (m *EsportsPlayerMutation) SetGameLevels(value map[string]string) {
+	m.game_levels = &value
+}
+
+// GameLevels returns the value of the "game_levels" field in the mutation.
+func (m *EsportsPlayerMutation) GameLevels() (r map[string]string, exists bool) {
+	v := m.game_levels
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGameLevels returns the old "game_levels" field's value of the EsportsPlayer entity.
+// If the EsportsPlayer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsPlayerMutation) OldGameLevels(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGameLevels is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGameLevels requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGameLevels: %w", err)
+	}
+	return oldValue.GameLevels, nil
+}
+
+// ClearGameLevels clears the value of the "game_levels" field.
+func (m *EsportsPlayerMutation) ClearGameLevels() {
+	m.game_levels = nil
+	m.clearedFields[esportsplayer.FieldGameLevels] = struct{}{}
+}
+
+// GameLevelsCleared returns if the "game_levels" field was cleared in this mutation.
+func (m *EsportsPlayerMutation) GameLevelsCleared() bool {
+	_, ok := m.clearedFields[esportsplayer.FieldGameLevels]
+	return ok
+}
+
+// ResetGameLevels resets all changes to the "game_levels" field.
+func (m *EsportsPlayerMutation) ResetGameLevels() {
+	m.game_levels = nil
+	delete(m.clearedFields, esportsplayer.FieldGameLevels)
 }
 
 // SetLastHeartbeatAt sets the "last_heartbeat_at" field.
@@ -91067,7 +91117,7 @@ func (m *EsportsPlayerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsPlayerMutation) Fields() []string {
-	fields := make([]string, 0, 30)
+	fields := make([]string, 0, 31)
 	if m.user_id != nil {
 		fields = append(fields, esportsplayer.FieldUserID)
 	}
@@ -91094,6 +91144,9 @@ func (m *EsportsPlayerMutation) Fields() []string {
 	}
 	if m.games != nil {
 		fields = append(fields, esportsplayer.FieldGames)
+	}
+	if m.game_levels != nil {
+		fields = append(fields, esportsplayer.FieldGameLevels)
 	}
 	if m.last_heartbeat_at != nil {
 		fields = append(fields, esportsplayer.FieldLastHeartbeatAt)
@@ -91184,6 +91237,8 @@ func (m *EsportsPlayerMutation) Field(name string) (ent.Value, bool) {
 		return m.ConcurrentLimit()
 	case esportsplayer.FieldGames:
 		return m.Games()
+	case esportsplayer.FieldGameLevels:
+		return m.GameLevels()
 	case esportsplayer.FieldLastHeartbeatAt:
 		return m.LastHeartbeatAt()
 	case esportsplayer.FieldExpectedPriceCents:
@@ -91253,6 +91308,8 @@ func (m *EsportsPlayerMutation) OldField(ctx context.Context, name string) (ent.
 		return m.OldConcurrentLimit(ctx)
 	case esportsplayer.FieldGames:
 		return m.OldGames(ctx)
+	case esportsplayer.FieldGameLevels:
+		return m.OldGameLevels(ctx)
 	case esportsplayer.FieldLastHeartbeatAt:
 		return m.OldLastHeartbeatAt(ctx)
 	case esportsplayer.FieldExpectedPriceCents:
@@ -91366,6 +91423,13 @@ func (m *EsportsPlayerMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGames(v)
+		return nil
+	case esportsplayer.FieldGameLevels:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGameLevels(v)
 		return nil
 	case esportsplayer.FieldLastHeartbeatAt:
 		v, ok := value.(time.Time)
@@ -91721,6 +91785,9 @@ func (m *EsportsPlayerMutation) ClearedFields() []string {
 	if m.FieldCleared(esportsplayer.FieldGames) {
 		fields = append(fields, esportsplayer.FieldGames)
 	}
+	if m.FieldCleared(esportsplayer.FieldGameLevels) {
+		fields = append(fields, esportsplayer.FieldGameLevels)
+	}
 	if m.FieldCleared(esportsplayer.FieldLastHeartbeatAt) {
 		fields = append(fields, esportsplayer.FieldLastHeartbeatAt)
 	}
@@ -91752,6 +91819,9 @@ func (m *EsportsPlayerMutation) ClearField(name string) error {
 		return nil
 	case esportsplayer.FieldGames:
 		m.ClearGames()
+		return nil
+	case esportsplayer.FieldGameLevels:
+		m.ClearGameLevels()
 		return nil
 	case esportsplayer.FieldLastHeartbeatAt:
 		m.ClearLastHeartbeatAt()
@@ -91799,6 +91869,9 @@ func (m *EsportsPlayerMutation) ResetField(name string) error {
 		return nil
 	case esportsplayer.FieldGames:
 		m.ResetGames()
+		return nil
+	case esportsplayer.FieldGameLevels:
+		m.ResetGameLevels()
 		return nil
 	case esportsplayer.FieldLastHeartbeatAt:
 		m.ResetLastHeartbeatAt()

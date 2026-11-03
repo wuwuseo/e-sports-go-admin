@@ -57,7 +57,7 @@ func TestAppealPassToFailedRevertsUpgradeLevel(t *testing.T) {
 
 	player := seedPlayer(t, db, 1302, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	seedVerifiedIdentity(t, db, player.ID)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("senior").SaveX(ctx)
+	setTestPlayerLevel(t, db, player, "senior")
 
 	assessment := runScoredAssessmentForTest(t, db, "upgrade", "mentor", player.ID, allDimensionScores(100), now)
 	if got := db.EsportsPlayer.GetX(ctx, player.ID); got.Level != "mentor" ||
@@ -89,7 +89,9 @@ func TestAppealFailedToPassedRestoresQualification(t *testing.T) {
 
 	player := seedPlayer(t, db, 1303, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	seedVerifiedIdentity(t, db, player.ID)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("mentor").SaveX(ctx)
+	// 只开通一个分区：抽查/改判的影响面才与全局派生等级一致。
+	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{"王者荣耀"}).ExecX(ctx)
+	setTestPlayerLevel(t, db, player, "mentor")
 
 	assessment := runScoredAssessmentForTest(t, db, "spot_check", "mentor", player.ID, allDimensionScores(0), now)
 	if got := db.EsportsPlayer.GetX(ctx, player.ID); got.Qualification != esportsplayer.QualificationSuspended {

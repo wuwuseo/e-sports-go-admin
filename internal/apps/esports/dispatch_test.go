@@ -35,11 +35,33 @@ var testSeedPlayerGames = []string{
 	"P1在线语义分区", "P1闭合分区", "P1多席分区", "P1固排分区",
 }
 
+// testGameLevels 把一组分区统一映射到同一个等级，供测试构造分区等级 map。
+func testGameLevels(games []string, level string) map[string]string {
+	m := make(map[string]string, len(games))
+	for _, g := range games {
+		m[g] = level
+	}
+	return m
+}
+
+// setTestPlayerLevel 测试用：同步更新全局展示等级与全部分区的等级。
+func setTestPlayerLevel(t *testing.T, db *ent.Client, player *ent.EsportsPlayer, level string) {
+	t.Helper()
+	ctx := t.Context()
+	saved := db.EsportsPlayer.GetX(ctx, player.ID)
+	db.EsportsPlayer.UpdateOneID(player.ID).
+		SetLevel(level).
+		SetGameLevels(testGameLevels(saved.Games, level)).
+		ExecX(ctx)
+}
+
 func seedPlayer(t *testing.T, db *ent.Client, userID int, qualification esportsplayer.Qualification, presence esportsplayer.Presence) *ent.EsportsPlayer {
 	t.Helper()
 	return db.EsportsPlayer.Create().SetUserID(userID).SetDisplayName("陪玩").
 		SetQualification(qualification).SetPresence(presence).
-		SetGames(testSeedPlayerGames).SaveX(t.Context())
+		SetGames(testSeedPlayerGames).
+		SetGameLevels(testGameLevels(testSeedPlayerGames, "novice")).
+		SaveX(t.Context())
 }
 
 func countEventsByType(t *testing.T, db *ent.Client) map[string]int {

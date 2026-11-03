@@ -132,16 +132,27 @@ func generateSpotCheckAssessments(ctx context.Context, db *ent.Client, now time.
 	picked := sampleSpotCheckCandidates(candidates, ratioBP, rand.New(rand.NewSource(time.Now().UnixNano())))
 	created := 0
 	for _, player := range picked {
-		if _, err = createAssessment(ctx, db, 0, assessmentInput{
-			PlayerID:       player.ID,
-			AssessmentType: "spot_check",
-			TargetLevel:    player.Level,
-			Source:         "system",
-			Note:           fmt.Sprintf("系统按万分比 %d 比例随机抽查（抽查周期 %d 天）", ratioBP, cycleDays),
-		}, now); err != nil {
-			return created, err
+		// 等级按分区独立：对每个已开通且有等级的分区各建一单抽查。
+		if len(player.Games) == 0 {
+			continue
 		}
-		created++
+		for _, game := range player.Games {
+			level := playerGameLevel(player, game)
+			if level == "" {
+				continue
+			}
+			if _, err = createAssessment(ctx, db, 0, assessmentInput{
+				PlayerID:       player.ID,
+				AssessmentType: "spot_check",
+				TargetLevel:    level,
+				Game:           game,
+				Source:         "system",
+				Note:           fmt.Sprintf("系统按万分比 %d 比例随机抽查（抽查周期 %d 天）", ratioBP, cycleDays),
+			}, now); err != nil {
+				return created, err
+			}
+			created++
+		}
 	}
 	return created, nil
 }

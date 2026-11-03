@@ -186,6 +186,18 @@ func (_u *EsportsPlayerUpdate) ClearGames() *EsportsPlayerUpdate {
 	return _u
 }
 
+// SetGameLevels sets the "game_levels" field.
+func (_u *EsportsPlayerUpdate) SetGameLevels(v map[string]string) *EsportsPlayerUpdate {
+	_u.mutation.SetGameLevels(v)
+	return _u
+}
+
+// ClearGameLevels clears the value of the "game_levels" field.
+func (_u *EsportsPlayerUpdate) ClearGameLevels() *EsportsPlayerUpdate {
+	_u.mutation.ClearGameLevels()
+	return _u
+}
+
 // SetLastHeartbeatAt sets the "last_heartbeat_at" field.
 func (_u *EsportsPlayerUpdate) SetLastHeartbeatAt(v time.Time) *EsportsPlayerUpdate {
 	_u.mutation.SetLastHeartbeatAt(v)
@@ -704,6 +716,12 @@ func (_u *EsportsPlayerUpdate) sqlSave(ctx context.Context) (_node int, err erro
 	if _u.mutation.GamesCleared() {
 		_spec.ClearField(esportsplayer.FieldGames, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.GameLevels(); ok {
+		_spec.SetField(esportsplayer.FieldGameLevels, field.TypeJSON, value)
+	}
+	if _u.mutation.GameLevelsCleared() {
+		_spec.ClearField(esportsplayer.FieldGameLevels, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.LastHeartbeatAt(); ok {
 		_spec.SetField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime, value)
 	}
@@ -983,6 +1001,18 @@ func (_u *EsportsPlayerUpdateOne) AppendGames(v []string) *EsportsPlayerUpdateOn
 // ClearGames clears the value of the "games" field.
 func (_u *EsportsPlayerUpdateOne) ClearGames() *EsportsPlayerUpdateOne {
 	_u.mutation.ClearGames()
+	return _u
+}
+
+// SetGameLevels sets the "game_levels" field.
+func (_u *EsportsPlayerUpdateOne) SetGameLevels(v map[string]string) *EsportsPlayerUpdateOne {
+	_u.mutation.SetGameLevels(v)
+	return _u
+}
+
+// ClearGameLevels clears the value of the "game_levels" field.
+func (_u *EsportsPlayerUpdateOne) ClearGameLevels() *EsportsPlayerUpdateOne {
+	_u.mutation.ClearGameLevels()
 	return _u
 }
 
@@ -1533,6 +1563,12 @@ func (_u *EsportsPlayerUpdateOne) sqlSave(ctx context.Context) (_node *EsportsPl
 	}
 	if _u.mutation.GamesCleared() {
 		_spec.ClearField(esportsplayer.FieldGames, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.GameLevels(); ok {
+		_spec.SetField(esportsplayer.FieldGameLevels, field.TypeJSON, value)
+	}
+	if _u.mutation.GameLevelsCleared() {
+		_spec.ClearField(esportsplayer.FieldGameLevels, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.LastHeartbeatAt(); ok {
 		_spec.SetField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime, value)

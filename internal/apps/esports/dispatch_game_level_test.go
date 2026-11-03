@@ -38,12 +38,14 @@ func TestPlayerGameLevelGuard(t *testing.T) {
 	// 等级不足：games 含 game，但 level=novice < senior。
 	lowLevel := seedPlayer(t, db, 9502, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(lowLevel.ID).
-		SetGames([]string{game}).SetLevel("novice").SaveX(ctx)
+		SetGames([]string{game}).SetLevel("novice").
+		SetGameLevels(map[string]string{game: "novice"}).SaveX(ctx)
 
 	// 满足：games 含 game + level=mentor。
 	ok := seedPlayer(t, db, 9503, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(ok.ID).
-		SetGames([]string{game}).SetLevel("mentor").SaveX(ctx)
+		SetGames([]string{game}).SetLevel("mentor").
+		SetGameLevels(map[string]string{game: "mentor"}).SaveX(ctx)
 
 	// 候选池：分区不符与等级不足的陪玩不应出现，满足者应出现。
 	candidates, err := dispatchCandidates(ctx, db, order, 0, 20, now)
@@ -90,12 +92,18 @@ func TestGrabHallFiltersGameLevelAndCapacity(t *testing.T) {
 		SetPaymentDeadline(now.Add(time.Hour)).SetPaymentStatus(esportsorder.PaymentStatusPaid).
 		SetFulfillmentStatus(esportsorder.FulfillmentStatusGrabbing).SaveX(ctx)
 	wrongGame := seedPlayer(t, db, 9701, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(wrongGame.ID).SetGames([]string{"英雄联盟"}).SetLevel("mentor").SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(wrongGame.ID).
+		SetGames([]string{"英雄联盟"}).SetLevel("mentor").
+		SetGameLevels(map[string]string{"英雄联盟": "mentor"}).SaveX(ctx)
 	lowLevel := seedPlayer(t, db, 9702, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(lowLevel.ID).SetGames([]string{"王者荣耀"}).SetLevel("novice").SaveX(ctx)
+	db.EsportsPlayer.UpdateOneID(lowLevel.ID).
+		SetGames([]string{"王者荣耀"}).SetLevel("novice").
+		SetGameLevels(map[string]string{"王者荣耀": "novice"}).SaveX(ctx)
 	eligible := seedPlayer(t, db, 9703, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(eligible.ID).SetGames([]string{"王者荣耀"}).
-		SetLevel("mentor").SetConcurrentLimit(1).SaveX(ctx)
+		SetLevel("mentor").
+		SetGameLevels(map[string]string{"王者荣耀": "mentor"}).
+		SetConcurrentLimit(1).SaveX(ctx)
 	for _, playerID := range []int{wrongGame.ID, lowLevel.ID} {
 		if hall, err := listGrabHall(ctx, db, playerID, now); err != nil || len(hall) != 0 {
 			t.Fatalf("无资格陪玩不应看到该单：player=%d, hall=%+v, err=%v", playerID, hall, err)
@@ -127,7 +135,7 @@ func TestPlayerGameLevelUnboundedGames(t *testing.T) {
 
 	// games 为空（不限分区）但 level=mentor 满足等级。
 	player := seedPlayer(t, db, 9601, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("mentor").SaveX(ctx)
+	setTestPlayerLevel(t, db, player, "mentor")
 
 	order := db.EsportsOrder.Create().SetOrderNo("GLU-1").SetCustomerID(1).SetSkuID(sku.ID).
 		SetQuantity(1).SetUnitPriceCents(1000).SetPayableCents(1000).
@@ -168,5 +176,33 @@ func TestAssignDispatchSeatRequiresPassedGame(t *testing.T) {
 	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{game}).ExecX(ctx)
 	if _, err := assignDispatchSeat(ctx, db, order.ID, 1, player.ID, 11, now); err != nil {
 		t.Fatalf("已开通分区应可指派：%v", err)
+	}
+}
+
+// 等级按分区独立：同一陪玩在不同分区的等级不同，校验只取订单所属分区的等级。
+func TestGameLevelScopedByGame(t *testing.T) {
+	db := openDispatchPriorityDB(t, "esports_game_level_scoped")
+	ctx := t.Context()
+	player := seedPlayer(t, db, 9710, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	db.EsportsPlayer.UpdateOneID(player.ID).
+		SetGames([]string{"王者荣耀", "英雄联盟"}).
+		SetLevel("mentor"). // 展示用最高档
+		SetGameLevels(map[string]string{"王者荣耀": "mentor", "英雄联盟": "novice"}).
+		SaveX(ctx)
+	player = db.EsportsPlayer.GetX(ctx, player.ID)
+	levels := []SkillLevel{{"novice", "新手"}, {"senior", "高级"}, {"mentor", "导师"}}
+
+	if err := checkPlayerGameLevel(levels, player, "王者荣耀", "senior"); err != nil {
+		t.Fatalf("王者荣耀 mentor 应通过 senior 门槛：%v", err)
+	}
+	if err := checkPlayerGameLevel(levels, player, "英雄联盟", "senior"); !errors.Is(err, errForbidden) {
+		t.Fatalf("英雄联盟 novice 不应通过 senior 门槛：%v", err)
+	}
+	// 分区在 games 里但没有等级记录：视为无等级，按最低档以下处理。
+	db.EsportsPlayer.UpdateOneID(player.ID).
+		SetGameLevels(map[string]string{"王者荣耀": "mentor"}).ExecX(ctx)
+	player = db.EsportsPlayer.GetX(ctx, player.ID)
+	if err := checkPlayerGameLevel(levels, player, "英雄联盟", "novice"); !errors.Is(err, errForbidden) {
+		t.Fatalf("分区无等级记录应拒绝：%v", err)
 	}
 }

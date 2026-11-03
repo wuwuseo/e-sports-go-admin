@@ -34,6 +34,8 @@ const (
 	FieldConcurrentLimit = "concurrent_limit"
 	// FieldGames holds the string denoting the games field in the database.
 	FieldGames = "games"
+	// FieldGameLevels holds the string denoting the game_levels field in the database.
+	FieldGameLevels = "game_levels"
 	// FieldLastHeartbeatAt holds the string denoting the last_heartbeat_at field in the database.
 	FieldLastHeartbeatAt = "last_heartbeat_at"
 	// FieldExpectedPriceCents holds the string denoting the expected_price_cents field in the database.
@@ -95,6 +97,7 @@ var Columns = []string{
 	FieldDailyLimit,
 	FieldConcurrentLimit,
 	FieldGames,
+	FieldGameLevels,
 	FieldLastHeartbeatAt,
 	FieldExpectedPriceCents,
 	FieldExpectedPriceStatus,

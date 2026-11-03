@@ -122,6 +122,12 @@ func (_c *EsportsPlayerCreate) SetGames(v []string) *EsportsPlayerCreate {
 	return _c
 }
 
+// SetGameLevels sets the "game_levels" field.
+func (_c *EsportsPlayerCreate) SetGameLevels(v map[string]string) *EsportsPlayerCreate {
+	_c.mutation.SetGameLevels(v)
+	return _c
+}
+
 // SetLastHeartbeatAt sets the "last_heartbeat_at" field.
 func (_c *EsportsPlayerCreate) SetLastHeartbeatAt(v time.Time) *EsportsPlayerCreate {
 	_c.mutation.SetLastHeartbeatAt(v)
@@ -716,6 +722,10 @@ func (_c *EsportsPlayerCreate) createSpec() (*EsportsPlayer, *sqlgraph.CreateSpe
 	if value, ok := _c.mutation.Games(); ok {
 		_spec.SetField(esportsplayer.FieldGames, field.TypeJSON, value)
 		_node.Games = value
+	}
+	if value, ok := _c.mutation.GameLevels(); ok {
+		_spec.SetField(esportsplayer.FieldGameLevels, field.TypeJSON, value)
+		_node.GameLevels = value
 	}
 	if value, ok := _c.mutation.LastHeartbeatAt(); ok {
 		_spec.SetField(esportsplayer.FieldLastHeartbeatAt, field.TypeTime, value)

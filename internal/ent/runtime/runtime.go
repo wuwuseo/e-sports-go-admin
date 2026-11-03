@@ -4850,71 +4850,71 @@ func init() {
 	// esportsplayer.DefaultConcurrentLimit holds the default value on creation for the concurrent_limit field.
 	esportsplayer.DefaultConcurrentLimit = esportsplayerDescConcurrentLimit.Default.(int)
 	// esportsplayerDescExpectedPriceCents is the schema descriptor for expected_price_cents field.
-	esportsplayerDescExpectedPriceCents := esportsplayerFields[10].Descriptor()
+	esportsplayerDescExpectedPriceCents := esportsplayerFields[11].Descriptor()
 	// esportsplayer.DefaultExpectedPriceCents holds the default value on creation for the expected_price_cents field.
 	esportsplayer.DefaultExpectedPriceCents = esportsplayerDescExpectedPriceCents.Default.(int64)
 	// esportsplayerDescExpectedPriceReviewNote is the schema descriptor for expected_price_review_note field.
-	esportsplayerDescExpectedPriceReviewNote := esportsplayerFields[15].Descriptor()
+	esportsplayerDescExpectedPriceReviewNote := esportsplayerFields[16].Descriptor()
 	// esportsplayer.DefaultExpectedPriceReviewNote holds the default value on creation for the expected_price_review_note field.
 	esportsplayer.DefaultExpectedPriceReviewNote = esportsplayerDescExpectedPriceReviewNote.Default.(string)
 	// esportsplayer.ExpectedPriceReviewNoteValidator is a validator for the "expected_price_review_note" field. It is called by the builders before save.
 	esportsplayer.ExpectedPriceReviewNoteValidator = esportsplayerDescExpectedPriceReviewNote.Validators[0].(func(string) error)
 	// esportsplayerDescServiceSlotStartMinute is the schema descriptor for service_slot_start_minute field.
-	esportsplayerDescServiceSlotStartMinute := esportsplayerFields[16].Descriptor()
+	esportsplayerDescServiceSlotStartMinute := esportsplayerFields[17].Descriptor()
 	// esportsplayer.DefaultServiceSlotStartMinute holds the default value on creation for the service_slot_start_minute field.
 	esportsplayer.DefaultServiceSlotStartMinute = esportsplayerDescServiceSlotStartMinute.Default.(int)
 	// esportsplayerDescServiceSlotEndMinute is the schema descriptor for service_slot_end_minute field.
-	esportsplayerDescServiceSlotEndMinute := esportsplayerFields[17].Descriptor()
+	esportsplayerDescServiceSlotEndMinute := esportsplayerFields[18].Descriptor()
 	// esportsplayer.DefaultServiceSlotEndMinute holds the default value on creation for the service_slot_end_minute field.
 	esportsplayer.DefaultServiceSlotEndMinute = esportsplayerDescServiceSlotEndMinute.Default.(int)
 	// esportsplayerDescAutoOnline is the schema descriptor for auto_online field.
-	esportsplayerDescAutoOnline := esportsplayerFields[18].Descriptor()
+	esportsplayerDescAutoOnline := esportsplayerFields[19].Descriptor()
 	// esportsplayer.DefaultAutoOnline holds the default value on creation for the auto_online field.
 	esportsplayer.DefaultAutoOnline = esportsplayerDescAutoOnline.Default.(bool)
 	// esportsplayerDescAcceptPriceMinCents is the schema descriptor for accept_price_min_cents field.
-	esportsplayerDescAcceptPriceMinCents := esportsplayerFields[19].Descriptor()
+	esportsplayerDescAcceptPriceMinCents := esportsplayerFields[20].Descriptor()
 	// esportsplayer.DefaultAcceptPriceMinCents holds the default value on creation for the accept_price_min_cents field.
 	esportsplayer.DefaultAcceptPriceMinCents = esportsplayerDescAcceptPriceMinCents.Default.(int64)
 	// esportsplayerDescAcceptPriceMaxCents is the schema descriptor for accept_price_max_cents field.
-	esportsplayerDescAcceptPriceMaxCents := esportsplayerFields[20].Descriptor()
+	esportsplayerDescAcceptPriceMaxCents := esportsplayerFields[21].Descriptor()
 	// esportsplayer.DefaultAcceptPriceMaxCents holds the default value on creation for the accept_price_max_cents field.
 	esportsplayer.DefaultAcceptPriceMaxCents = esportsplayerDescAcceptPriceMaxCents.Default.(int64)
 	// esportsplayerDescFixedTeamEnabled is the schema descriptor for fixed_team_enabled field.
-	esportsplayerDescFixedTeamEnabled := esportsplayerFields[21].Descriptor()
+	esportsplayerDescFixedTeamEnabled := esportsplayerFields[22].Descriptor()
 	// esportsplayer.DefaultFixedTeamEnabled holds the default value on creation for the fixed_team_enabled field.
 	esportsplayer.DefaultFixedTeamEnabled = esportsplayerDescFixedTeamEnabled.Default.(bool)
 	// esportsplayerDescFixedTeamSlotStartMinute is the schema descriptor for fixed_team_slot_start_minute field.
-	esportsplayerDescFixedTeamSlotStartMinute := esportsplayerFields[22].Descriptor()
+	esportsplayerDescFixedTeamSlotStartMinute := esportsplayerFields[23].Descriptor()
 	// esportsplayer.DefaultFixedTeamSlotStartMinute holds the default value on creation for the fixed_team_slot_start_minute field.
 	esportsplayer.DefaultFixedTeamSlotStartMinute = esportsplayerDescFixedTeamSlotStartMinute.Default.(int)
 	// esportsplayerDescFixedTeamSlotEndMinute is the schema descriptor for fixed_team_slot_end_minute field.
-	esportsplayerDescFixedTeamSlotEndMinute := esportsplayerFields[23].Descriptor()
+	esportsplayerDescFixedTeamSlotEndMinute := esportsplayerFields[24].Descriptor()
 	// esportsplayer.DefaultFixedTeamSlotEndMinute holds the default value on creation for the fixed_team_slot_end_minute field.
 	esportsplayer.DefaultFixedTeamSlotEndMinute = esportsplayerDescFixedTeamSlotEndMinute.Default.(int)
 	// esportsplayerDescTimezone is the schema descriptor for timezone field.
-	esportsplayerDescTimezone := esportsplayerFields[24].Descriptor()
+	esportsplayerDescTimezone := esportsplayerFields[25].Descriptor()
 	// esportsplayer.DefaultTimezone holds the default value on creation for the timezone field.
 	esportsplayer.DefaultTimezone = esportsplayerDescTimezone.Default.(string)
 	// esportsplayer.TimezoneValidator is a validator for the "timezone" field. It is called by the builders before save.
 	esportsplayer.TimezoneValidator = esportsplayerDescTimezone.Validators[0].(func(string) error)
 	// esportsplayerDescLatitudeE6 is the schema descriptor for latitude_e6 field.
-	esportsplayerDescLatitudeE6 := esportsplayerFields[25].Descriptor()
+	esportsplayerDescLatitudeE6 := esportsplayerFields[26].Descriptor()
 	// esportsplayer.DefaultLatitudeE6 holds the default value on creation for the latitude_e6 field.
 	esportsplayer.DefaultLatitudeE6 = esportsplayerDescLatitudeE6.Default.(int)
 	// esportsplayerDescLongitudeE6 is the schema descriptor for longitude_e6 field.
-	esportsplayerDescLongitudeE6 := esportsplayerFields[26].Descriptor()
+	esportsplayerDescLongitudeE6 := esportsplayerFields[27].Descriptor()
 	// esportsplayer.DefaultLongitudeE6 holds the default value on creation for the longitude_e6 field.
 	esportsplayer.DefaultLongitudeE6 = esportsplayerDescLongitudeE6.Default.(int)
 	// esportsplayerDescVersion is the schema descriptor for version field.
-	esportsplayerDescVersion := esportsplayerFields[27].Descriptor()
+	esportsplayerDescVersion := esportsplayerFields[28].Descriptor()
 	// esportsplayer.DefaultVersion holds the default value on creation for the version field.
 	esportsplayer.DefaultVersion = esportsplayerDescVersion.Default.(int)
 	// esportsplayerDescCreatedAt is the schema descriptor for created_at field.
-	esportsplayerDescCreatedAt := esportsplayerFields[28].Descriptor()
+	esportsplayerDescCreatedAt := esportsplayerFields[29].Descriptor()
 	// esportsplayer.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsplayer.DefaultCreatedAt = esportsplayerDescCreatedAt.Default.(func() time.Time)
 	// esportsplayerDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsplayerDescUpdatedAt := esportsplayerFields[29].Descriptor()
+	esportsplayerDescUpdatedAt := esportsplayerFields[30].Descriptor()
 	// esportsplayer.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsplayer.DefaultUpdatedAt = esportsplayerDescUpdatedAt.Default.(func() time.Time)
 	// esportsplayer.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

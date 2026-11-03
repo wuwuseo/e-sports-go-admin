@@ -82,7 +82,8 @@ func TestSettlementCycleResolutionPrefersMostSpecific(t *testing.T) {
 
 	player := seedPlayer(t, db, 4711, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("senior").
-		SetGames([]string{"王者荣耀", "和平精英"}).SaveX(ctx)
+		SetGames([]string{"王者荣耀", "和平精英"}).
+		SetGameLevels(map[string]string{"王者荣耀": "senior", "和平精英": "senior"}).SaveX(ctx)
 	player = db.EsportsPlayer.GetX(ctx, player.ID)
 
 	mustCreate := func(in settlementCycleInput) *ent.EsportsSettlementCycle {

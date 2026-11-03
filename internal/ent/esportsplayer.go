@@ -36,6 +36,8 @@ type EsportsPlayer struct {
 	ConcurrentLimit int `json:"concurrent_limit"`
 	// Games holds the value of the "games" field.
 	Games []string `json:"games"`
+	// GameLevels holds the value of the "game_levels" field.
+	GameLevels map[string]string `json:"game_levels"`
 	// LastHeartbeatAt holds the value of the "last_heartbeat_at" field.
 	LastHeartbeatAt *time.Time `json:"last_heartbeat_at"`
 	// ExpectedPriceCents holds the value of the "expected_price_cents" field.
@@ -86,7 +88,7 @@ func (*EsportsPlayer) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case esportsplayer.FieldGames:
+		case esportsplayer.FieldGames, esportsplayer.FieldGameLevels:
 			values[i] = new([]byte)
 		case esportsplayer.FieldAutoOnline, esportsplayer.FieldFixedTeamEnabled:
 			values[i] = new(sql.NullBool)
@@ -172,6 +174,14 @@ func (_m *EsportsPlayer) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.Games); err != nil {
 					return fmt.Errorf("unmarshal field games: %w", err)
+				}
+			}
+		case esportsplayer.FieldGameLevels:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field game_levels", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.GameLevels); err != nil {
+					return fmt.Errorf("unmarshal field game_levels: %w", err)
 				}
 			}
 		case esportsplayer.FieldLastHeartbeatAt:
@@ -368,6 +378,9 @@ func (_m *EsportsPlayer) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("games=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Games))
+	builder.WriteString(", ")
+	builder.WriteString("game_levels=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GameLevels))
 	builder.WriteString(", ")
 	if v := _m.LastHeartbeatAt; v != nil {
 		builder.WriteString("last_heartbeat_at=")

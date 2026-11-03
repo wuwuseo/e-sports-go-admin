@@ -136,6 +136,10 @@ func TestScoreAssessmentPassAndQualify(t *testing.T) {
 	if len(updated.Games) != 2 || updated.Games[0] != "英雄联盟" || updated.Games[1] != "王者荣耀" {
 		t.Fatalf("考核通过后分区应为并集：%#v", updated.Games)
 	}
+	// 等级写入该分区，等级 map 是接单权威，全局 level 只做展示派生。
+	if updated.GameLevels["王者荣耀"] != "novice" {
+		t.Fatalf("考核通过后应写入分区等级：%#v", updated.GameLevels)
+	}
 	if db.EsportsAssessmentScore.Query().CountX(ctx) != 6 {
 		t.Fatal("未写入逐维度打分")
 	}
@@ -153,7 +157,7 @@ func TestScoreAssessmentSpotCheckDemote(t *testing.T) {
 		t.Fatal(err)
 	}
 	player := seedPlayer(t, db, 101, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
-	db.EsportsPlayer.UpdateOneID(player.ID).SetLevel("mentor").SaveX(ctx)
+	setTestPlayerLevel(t, db, player, "mentor")
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
 	assessment, err := createAssessment(ctx, db, 11, assessmentInput{

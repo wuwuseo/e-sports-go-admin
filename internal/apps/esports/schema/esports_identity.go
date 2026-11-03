@@ -82,6 +82,8 @@ func (EsportsPlayer) Fields() []ent.Field {
 		field.Int("concurrent_limit").Default(0).StructTag(`json:"concurrent_limit"`),
 		// 接单游戏分区：只能由考核通过写入；空表示无任何分区权限（订单分区为空时不受限）。
 		field.JSON("games", []string{}).Optional().StructTag(`json:"games"`),
+		// 按游戏分区的等级（分区 → 等级编码），由分区考核写入，是分区接单等级的权威来源。
+		field.JSON("game_levels", map[string]string{}).Optional().StructTag(`json:"game_levels"`),
 		// 心跳时戳：陪玩端保活打点；上线时也会写入基线，
 		// 超时任务据此把长时间无心跳的在线陪玩自动离线，在途订单则转 protected_abnormal 并提醒客服。
 		field.Time("last_heartbeat_at").Optional().Nillable().StructTag(`json:"last_heartbeat_at"`),

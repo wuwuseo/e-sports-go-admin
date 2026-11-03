@@ -215,15 +215,20 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 	if err != nil {
 		return nil, false, err
 	}
-	target, ok := nextSkillLevel(skillLevels(ctx, db), player.Level)
-	if !ok {
-		return nil, false, fmt.Errorf("%w：当前已是最高等级（%s），无需申请升级考核", errInvalidInput, player.Level)
-	}
 	// 升级考核必须绑定分区：取陪玩已通过考核的第一个分区；尚未开通任何分区则不能申请。
 	if len(player.Games) == 0 {
 		return nil, false, fmt.Errorf("%w：请先通过至少一个游戏分区考核后再申请升级", errInvalidInput)
 	}
 	game := player.Games[0]
+	// 升级目标按该分区的当前等级推算，不读全局 level（那只是最高档派生值）。
+	current := playerGameLevel(player, game)
+	if current == "" {
+		return nil, false, fmt.Errorf("%w：「%s」分区尚未通过考核，不能申请升级", errInvalidInput, game)
+	}
+	target, ok := nextSkillLevel(skillLevels(ctx, db), current)
+	if !ok {
+		return nil, false, fmt.Errorf("%w：当前已是最高等级（%s），无需申请升级考核", errInvalidInput, current)
+	}
 	tx, err := db.Tx(ctx)
 	if err != nil {
 		return nil, false, err
