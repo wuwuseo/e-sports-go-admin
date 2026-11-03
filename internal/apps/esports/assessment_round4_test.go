@@ -36,7 +36,7 @@ func scoreEntryAssessment(t *testing.T, db *ent.Client, playerID, examinerID, sc
 	t.Helper()
 	ctx := t.Context()
 	item, err := createAssessment(ctx, db, 9, assessmentInput{
-		PlayerID: playerID, AssessmentType: "entry", TargetLevel: string("novice"),
+		PlayerID: playerID, AssessmentType: "entry", TargetLevel: string("novice"), Game: "王者荣耀",
 	}, now)
 	if err != nil {
 		t.Fatalf("建考核单失败：%v", err)

@@ -148,6 +148,10 @@ func (esportsExtension) SeedBaseline(ctx context.Context, client *ent.Client) er
 	if _, err := SeedRechargeCampaign(ctx, client); err != nil {
 		return fmt.Errorf("seed recharge campaign: %w", err)
 	}
+	// 默认游戏分区（商品分类）：新库无分类时派单名单、考核、陪玩接单分区都无从选择。
+	if _, err := SeedGameZones(ctx, client); err != nil {
+		return fmt.Errorf("seed game zones: %w", err)
+	}
 	return nil
 }
 

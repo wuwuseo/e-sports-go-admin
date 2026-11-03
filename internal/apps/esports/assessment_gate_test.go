@@ -39,7 +39,7 @@ func TestScoreAssessmentRejectsUnassignedExaminer(t *testing.T) {
 	player := seedPlayer(t, db, 101, esportsplayer.QualificationPending, esportsplayer.PresenceOffline)
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
-	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry"}, now)
+	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry", Game: "王者荣耀"}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestScoreAssessmentAllowsAssignedExaminer(t *testing.T) {
 	seedVerifiedIdentity(t, db, player.ID)
 
 	assessment, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "entry",
+		PlayerID: player.ID, AssessmentType: "entry", Game: "王者荣耀",
 	}, now)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +97,7 @@ func TestScoreAssessmentBlocksUnverifiedQualification(t *testing.T) {
 	player := seedPlayer(t, db, 103, esportsplayer.QualificationPending, esportsplayer.PresenceOffline)
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
-	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry"}, now)
+	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry", Game: "王者荣耀"}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestScoreAssessmentQualifiesVerifiedPlayerWithTargetLevel(t *testing.T) {
 	seedVerifiedIdentity(t, db, player.ID)
 
 	assessment, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "senior",
+		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "senior", Game: "王者荣耀",
 	}, now)
 	if err != nil {
 		t.Fatal(err)
@@ -159,7 +159,7 @@ func TestReviewAppealBlocksUnverifiedQualification(t *testing.T) {
 	player := seedPlayer(t, db, 105, esportsplayer.QualificationPending, esportsplayer.PresenceOffline)
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
-	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry"}, now)
+	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry", Game: "王者荣耀"}, now)
 	if err != nil {
 		t.Fatal(err)
 	}

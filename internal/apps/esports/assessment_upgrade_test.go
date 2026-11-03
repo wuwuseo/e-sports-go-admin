@@ -29,7 +29,8 @@ func seedUpgradePlayer(t *testing.T, db *ent.Client, userID int, level string, c
 	player := db.EsportsPlayer.Create().SetUserID(userID).SetDisplayName("升级陪玩").
 		SetQualification(esportsplayer.QualificationQualified).
 		SetPresence(esportsplayer.PresenceOnline).
-		SetLevel(level).SetCreatedAt(createdAt.UTC()).SaveX(t.Context())
+		SetLevel(level).SetCreatedAt(createdAt.UTC()).
+		SetGames([]string{"王者荣耀"}).SaveX(t.Context())
 	seedVerifiedIdentity(t, db, player.ID)
 	return player
 }
@@ -376,12 +377,12 @@ func TestUpgradeAssessmentActiveSingleIsUnique(t *testing.T) {
 	player := seedUpgradeEligiblePlayer(t, db, 721, "novice", now.AddDate(0, 0, -30))
 
 	if _, err := createAssessment(ctx, db, 0, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled", Source: "system",
+		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled", Source: "system", Game: "王者荣耀",
 	}, now); err != nil {
 		t.Fatalf("第一条升级单建单失败：%v", err)
 	}
 	if _, err := createAssessment(ctx, db, 0, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled", Source: "system",
+		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled", Source: "system", Game: "王者荣耀",
 	}, now); !errors.Is(err, errConflict) {
 		t.Fatalf("第二条进行中升级单未被唯一索引拦下：%v", err)
 	}
@@ -391,7 +392,7 @@ func TestUpgradeAssessmentActiveSingleIsUnique(t *testing.T) {
 	// 其他考核类型不去重：入职考核连续两条都必须能建（可空去重键允许多个 NULL）。
 	for i := 0; i < 2; i++ {
 		if _, err := createAssessment(ctx, db, 11, assessmentInput{
-			PlayerID: player.ID, AssessmentType: "entry",
+			PlayerID: player.ID, AssessmentType: "entry", Game: "王者荣耀",
 		}, now); err != nil {
 			t.Fatalf("第 %d 条入职考核被误拦：%v", i+1, err)
 		}
@@ -407,7 +408,7 @@ func TestCreateAssessmentRecordsCreatedByAdminID(t *testing.T) {
 
 	player := seedUpgradeEligiblePlayer(t, db, 731, "novice", now.AddDate(0, 0, -30))
 	byAdmin, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled",
+		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "skilled", Game: "王者荣耀",
 	}, now)
 	if err != nil {
 		t.Fatalf("管理员建单失败：%v", err)
@@ -614,7 +615,7 @@ func TestUpgradeAssessmentDedupKeyLifecycleAcrossTerminalPaths(t *testing.T) {
 		t.Fatalf("评分落终态后去重键未清空：%q", *got.ActiveDedupKey)
 	}
 	again, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "senior",
+		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "senior", Game: "王者荣耀",
 	}, now)
 	if err != nil {
 		t.Fatalf("终态后仍无法再建升级单（去重键未释放）：%v", err)
@@ -644,7 +645,7 @@ func TestUpgradeAssessmentDedupKeyLifecycleAcrossTerminalPaths(t *testing.T) {
 		t.Fatalf("申诉复核落终态后去重键未清空：%q", *got.ActiveDedupKey)
 	}
 	if _, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "senior",
+		PlayerID: player.ID, AssessmentType: "upgrade", TargetLevel: "senior", Game: "王者荣耀",
 	}, now); err != nil {
 		t.Fatalf("申诉复核结束后去重键仍占用：%v", err)
 	}

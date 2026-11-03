@@ -18,6 +18,8 @@
 
 商品采用单层目录。公开接口为 `GET /products`，管理接口为 `GET/POST /admin/products`、`PUT /admin/products/:id`；商品停服使用 `/admin/products/:id/suspensions` 与 `/admin/product-suspensions`。分类接口保持不变。每件商品只有一个价格、服务量、结单规则与库存，不再有规格组、子 SKU 或商品级席位配置。新建商品固定为一人服务；存量订单的席位和服务量快照保留，供履约与历史报表读取。
 
+启用功能集时会幂等播种两条默认游戏分区（商品分类 `GAME_DELTA_FORCE` 三角洲行动 / `GAME_DELTA_FORCE_MOBILE` 三角洲行动手游，均为启用状态）：只补建缺失的 `code`，已有分类（含运营改名、排序、停用）一律保留，重复启动不新增也不覆盖。
+
 迁移时把旧 `esports_skus` 原行和原 ID 改为 `esports_products` 商品行，旧父商品与规格组表删除；订单、名额、确认、停服和售后规则的关联列改为 `product_id`，订单的编号与名称快照列改为 `product_code` / `product_name`。订单 ID 与分成明细的 `order_id` 不重新编号。已有非超管角色的旧商品与停服接口授权迁移到新路径。
 
 `required_level` 创建时默认 `novice`，编辑未传时保持原值。`cost_cents` 编辑时未传表示保持、`null` 表示清空、数值表示覆盖。`GET /admin/products?quote_customer_id=&quote_quantity=` 按商品逐条试算会员折扣、应付额和承诺服务量；单件商品不能报价时标记 `not_orderable`，只有指定 `quote_product_id` 才对该件商品返回明确错误。

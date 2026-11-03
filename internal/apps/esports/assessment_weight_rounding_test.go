@@ -105,7 +105,7 @@ func runScoredAssessmentForTest(t *testing.T, db *ent.Client, assessmentType, ta
 	t.Helper()
 	ctx := t.Context()
 	assessment, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: playerID, AssessmentType: assessmentType, TargetLevel: targetLevel,
+		PlayerID: playerID, AssessmentType: assessmentType, TargetLevel: targetLevel, Game: "王者荣耀",
 	}, now)
 	if err != nil {
 		t.Fatalf("创建考核任务失败：%v", err)

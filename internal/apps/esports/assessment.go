@@ -200,6 +200,10 @@ func createAssessment(ctx context.Context, db *ent.Client, adminID int, in asses
 		len([]rune(in.Note)) > 500 || len([]rune(in.Game)) > 64 {
 		return nil, errInvalidInput
 	}
+	// 分区必填：入职 / 升级 / 复考都要指明考哪个分区；抽查只复核等级，不绑分区。
+	if in.AssessmentType != "spot_check" && in.Game == "" {
+		return nil, fmt.Errorf("%w：请指定考核的游戏分区", errInvalidInput)
+	}
 	// 入职默认定级最低档；其余类型目标等级必填且合法。
 	if in.AssessmentType == "entry" && in.TargetLevel == "" {
 		in.TargetLevel = skillLevelLowest(skillLevels(ctx, db))

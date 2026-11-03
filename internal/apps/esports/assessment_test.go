@@ -189,7 +189,7 @@ func TestAssessmentAppeal(t *testing.T) {
 	player := seedPlayer(t, db, 101, esportsplayer.QualificationPending, esportsplayer.PresenceOffline)
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
-	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry"}, now)
+	assessment, err := createAssessment(ctx, db, 11, assessmentInput{PlayerID: player.ID, AssessmentType: "entry", Game: "王者荣耀"}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
