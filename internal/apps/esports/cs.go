@@ -235,6 +235,7 @@ func customerProfileOverview(ctx context.Context, db *ent.Client, adminID int, i
 		"principal_cents":   balance.PrincipalCents,
 		"bonus_cents":       balance.BonusCents,
 		"balance_cents":     balance.total(),
+		"balance_display":   walletDisplayFor(walletDisplayConfig(ctx, db), walletCustomerBalance, balance.total()),
 		"recharged_cents":   recharged,
 		"consumed_cents":    consumed,
 		"refunded_cents":    refunded,

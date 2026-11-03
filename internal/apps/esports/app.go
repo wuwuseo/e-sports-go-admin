@@ -1033,6 +1033,8 @@ func init() {
 			{Method: "POST", Path: "/user/aftersales", Auth: cmfapp.AuthUser, Handler: userCreateAfterSaleHandler},
 			{Method: "GET", Path: "/user/wallets", Auth: cmfapp.AuthUser, Handler: userWalletHandler},
 			// 钱包展示口径：两端读取服务端配置的名称 / 单位 / 换算倍率，避免客户端硬编码。
+			// 公开展示元数据不包含余额、流水或身份，供所有端的名称与单位展示共用。
+			{Method: "GET", Path: "/wallets/display", Auth: cmfapp.AuthPublic, Handler: userWalletDisplayHandler},
 			{Method: "GET", Path: "/user/wallets/display", Auth: cmfapp.AuthUser, Handler: userWalletDisplayHandler},
 			{Method: "GET", Path: "/user/profile", Auth: cmfapp.AuthUser, Handler: userProfileHandler},
 			// 客户站内消息（通知闭环）：读取 customer:<id> 地址下的通用消息并回执已读，

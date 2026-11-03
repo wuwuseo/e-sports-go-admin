@@ -1,9 +1,12 @@
 package esports
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	cmfapp "github.com/wuwuseo/cmf/app"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsplayer"
@@ -111,5 +114,63 @@ func TestWalletDisplayAmountRounding(t *testing.T) {
 	}
 	if got := walletDisplayAmount(100, 0); got != "1.00" {
 		t.Fatalf("非法倍率未回落 100：%s", got)
+	}
+}
+
+// 客服客户档案直接携带客户余额的展示配置，不额外要求钱包管理权限。
+func TestCustomerProfileIncludesWalletDisplay(t *testing.T) {
+	db := openAfterSaleDB(t, "esports_cs_wallet_display")
+	defer db.Close()
+	ctx := t.Context()
+	customer := saveCustomerOrFail(t, db, 11)
+	if _, err := walletRecharge(ctx, db, 11, walletCustomerBalance, customer.ID,
+		walletInput{PrincipalCents: 2050, Note: "客服展示测试"}, "cs-wallet-display-1"); err != nil {
+		t.Fatal(err)
+	}
+	db.SystemConfig.Create().SetKey(walletDisplayConfigKey).SetName("钱包展示配置").
+		SetValue(`{"customer_balance":{"display_name":"星币账户","unit_name":"星币","unit_cents":50}}`).
+		SetStatus(1).SaveX(ctx)
+	view, err := customerProfileOverview(ctx, db, 11, false, customer.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	display, ok := view["balance_display"].(walletDisplay)
+	if !ok || display.DisplayName != "星币账户" || display.UnitName != "星币" || display.DisplayAmount != "41.00" {
+		t.Fatalf("客服客户余额未使用展示配置：%+v", view["balance_display"])
+	}
+	if view["balance_cents"] != int64(2050) {
+		t.Fatalf("展示换算不得更改账本金额：%v", view["balance_cents"])
+	}
+	if _, err := customerProfileOverview(ctx, db, 12, false, customer.ID); err != errForbidden {
+		t.Fatalf("展示配置不得绕过客户归属校验：%v", err)
+	}
+}
+
+// 公开接口只下发展示元数据，不包含任何人的钱包余额或身份。
+func TestPublicWalletDisplayContainsOnlyMetadata(t *testing.T) {
+	found := false
+	for _, app := range cmfapp.Registered() {
+		if app.Code != "esports" {
+			continue
+		}
+		for _, route := range app.Routes {
+			if route.Path == "/wallets/display" && route.Method == "GET" {
+				found = route.Auth == cmfapp.AuthPublic
+			}
+		}
+	}
+	if !found {
+		t.Fatal("各端共用的钱包展示接口应允许公开读取元数据")
+	}
+	db := openAfterSaleDB(t, "esports_public_wallet_display")
+	defer db.Close()
+	payload, err := json.Marshal(walletDisplayConfig(t.Context(), db))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"balance_cents", "owner_id", "display_amount", "transactions"} {
+		if strings.Contains(string(payload), key) {
+			t.Fatalf("公开展示配置不应包含 %s：%s", key, payload)
+		}
 	}
 }
