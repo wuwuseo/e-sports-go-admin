@@ -72,6 +72,8 @@ type playerSelfProfileView struct {
 	Presence         string     `json:"presence"`
 	Level            string     `json:"level"`
 	LevelAppraisedAt *time.Time `json:"level_appraised_at"`
+	// GameLevels 是分区 → 等级；接单等级以它为准，Level 只是最高档展示值。
+	GameLevels map[string]string `json:"game_levels"`
 	DailyLimit       int        `json:"daily_limit"`
 	ConcurrentLimit  int        `json:"concurrent_limit"`
 	Games            []string   `json:"games"`
@@ -155,11 +157,16 @@ func playerSelfProfile(ctx context.Context, db *ent.Client, player *ent.EsportsP
 	if games == nil {
 		games = []string{}
 	}
+	gameLevels := player.GameLevels
+	if gameLevels == nil {
+		gameLevels = map[string]string{}
+	}
 	return &playerSelfProfileView{
 		ID: player.ID, DisplayName: player.DisplayName, Phone: phone,
 		Qualification: player.Qualification.String(), Presence: player.Presence.String(),
 		Level: player.Level, LevelAppraisedAt: player.LevelAppraisedAt,
-		DailyLimit: player.DailyLimit, ConcurrentLimit: player.ConcurrentLimit,
+		GameLevels:  gameLevels,
+		DailyLimit:  player.DailyLimit, ConcurrentLimit: player.ConcurrentLimit,
 		Games:                    games,
 		ServiceSlotStartMinute:   player.ServiceSlotStartMinute,
 		ServiceSlotEndMinute:     player.ServiceSlotEndMinute,
