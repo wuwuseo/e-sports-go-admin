@@ -115,7 +115,7 @@ func TestGrabHallFiltersGameLevelAndCapacity(t *testing.T) {
 	}
 }
 
-// games 为空表示不限分区（缺省）；报单会把 SKU 的 required_level 快照到订单。
+// 派单要求分区资格来自考核；测试陪玩默认开通全部分区，报单会把 SKU 的 required_level 快照到订单。
 func TestPlayerGameLevelUnboundedGames(t *testing.T) {
 	db := openDispatchPriorityDB(t, "esports_game_level_unbounded")
 	ctx := t.Context()
@@ -139,6 +139,34 @@ func TestPlayerGameLevelUnboundedGames(t *testing.T) {
 		SaveX(ctx)
 
 	if _, err := assignDispatchSeat(ctx, db, order.ID, 1, player.ID, 11, now); err != nil {
-		t.Fatalf("games 为空应视为不限分区，等级满足应通过：%v", err)
+		t.Fatalf("已开通分区且等级满足应通过：%v", err)
+	}
+}
+
+// 派单路径同样要求分区资格来自考核：未开通任何分区的陪玩不能指派到有分区的订单。
+func TestAssignDispatchSeatRequiresPassedGame(t *testing.T) {
+	db := openDispatchPriorityDB(t, "esports_dispatch_seat_requires_game")
+	ctx := t.Context()
+	now := time.Now()
+	game := "王者荣耀"
+	sku := seedGameSku(t, db, "ASRG", game)
+	player := seedPlayer(t, db, 9701, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// 覆盖测试基建的默认分区全集，模拟尚未通过任何分区考核。
+	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{}).ExecX(ctx)
+	order := db.EsportsOrder.Create().SetOrderNo("ASRG-1").SetCustomerID(1).SetSkuID(sku.ID).
+		SetQuantity(1).SetUnitPriceCents(1000).SetPayableCents(1000).
+		SetPromisedServiceUnits(1).SetRequiredSeats(1).
+		SetPaymentDeadline(now.UTC().Add(time.Hour)).
+		SetPaymentStatus(esportsorder.PaymentStatusPaid).
+		SetFulfillmentStatus(esportsorder.FulfillmentStatusPendingDispatch).
+		SaveX(ctx)
+
+	if _, err := assignDispatchSeat(ctx, db, order.ID, 1, player.ID, 11, now); !errors.Is(err, errForbidden) {
+		t.Fatalf("未通过分区考核不应被指派：%v", err)
+	}
+	// 开通该分区后可指派。
+	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{game}).ExecX(ctx)
+	if _, err := assignDispatchSeat(ctx, db, order.ID, 1, player.ID, 11, now); err != nil {
+		t.Fatalf("已开通分区应可指派：%v", err)
 	}
 }
