@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/user"
 	"go-admin/internal/global"
@@ -122,6 +123,25 @@ func normalizePlayerSelfGames(raw []string) ([]string, error) {
 	return games, nil
 }
 
+// passedAssessmentGames 返回陪玩已通过考核的游戏分区集合（只认 status=passed 且 game 非空）。
+func passedAssessmentGames(ctx context.Context, db *ent.Client, playerID int) (map[string]struct{}, error) {
+	rows, err := db.EsportsAssessment.Query().Where(
+		esportsassessment.PlayerIDEQ(playerID),
+		esportsassessment.StatusEQ(esportsassessment.StatusPassed),
+		esportsassessment.GameNEQ(""),
+	).Select(esportsassessment.FieldGame).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	allowed := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		if game := strings.TrimSpace(row.Game); game != "" {
+			allowed[game] = struct{}{}
+		}
+	}
+	return allowed, nil
+}
+
 // playerSelfProfile 组装自助资料视图（手机号取登录账号，查不到按空串处理）。
 func playerSelfProfile(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer) (*playerSelfProfileView, error) {
 	phone := ""
@@ -204,6 +224,18 @@ func updatePlayerSelfProfile(ctx context.Context, db *ent.Client, playerID int, 
 	}
 	if err != nil {
 		return nil, err
+	}
+	// 分区资格只来自考核：提交的每个分区都必须是该陪玩已通过考核的分区。
+	if in.Games != nil {
+		allowed, allowErr := passedAssessmentGames(ctx, tx.Client(), playerID)
+		if allowErr != nil {
+			return nil, allowErr
+		}
+		for _, g := range games {
+			if _, ok := allowed[g]; !ok {
+				return nil, fmt.Errorf("%w：只能选择已通过考核的游戏分区", errInvalidInput)
+			}
+		}
 	}
 	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(playerID)).SetDisplayName(displayName)
 	if in.Games != nil {

@@ -25,6 +25,8 @@ type EsportsAssessment struct {
 	AssessmentType esportsassessment.AssessmentType `json:"assessment_type"`
 	// TargetLevel holds the value of the "target_level" field.
 	TargetLevel string `json:"target_level"`
+	// Game holds the value of the "game" field.
+	Game string `json:"game"`
 	// Status holds the value of the "status" field.
 	Status esportsassessment.Status `json:"status"`
 	// AppealStatus holds the value of the "appeal_status" field.
@@ -63,7 +65,7 @@ func (*EsportsAssessment) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case esportsassessment.FieldID, esportsassessment.FieldPlayerID, esportsassessment.FieldExaminerAdminID, esportsassessment.FieldTotalScore, esportsassessment.FieldCreatedByAdminID, esportsassessment.FieldVersion:
 			values[i] = new(sql.NullInt64)
-		case esportsassessment.FieldTaskNo, esportsassessment.FieldAssessmentType, esportsassessment.FieldTargetLevel, esportsassessment.FieldStatus, esportsassessment.FieldAppealStatus, esportsassessment.FieldSource, esportsassessment.FieldNote, esportsassessment.FieldActiveDedupKey:
+		case esportsassessment.FieldTaskNo, esportsassessment.FieldAssessmentType, esportsassessment.FieldTargetLevel, esportsassessment.FieldGame, esportsassessment.FieldStatus, esportsassessment.FieldAppealStatus, esportsassessment.FieldSource, esportsassessment.FieldNote, esportsassessment.FieldActiveDedupKey:
 			values[i] = new(sql.NullString)
 		case esportsassessment.FieldScheduledAt, esportsassessment.FieldContactedAt, esportsassessment.FieldScoredAt, esportsassessment.FieldCreatedAt, esportsassessment.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -111,6 +113,12 @@ func (_m *EsportsAssessment) assignValues(columns []string, values []any) error 
 				return fmt.Errorf("unexpected type %T for field target_level", values[i])
 			} else if value.Valid {
 				_m.TargetLevel = value.String
+			}
+		case esportsassessment.FieldGame:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field game", values[i])
+			} else if value.Valid {
+				_m.Game = value.String
 			}
 		case esportsassessment.FieldStatus:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -249,6 +257,9 @@ func (_m *EsportsAssessment) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("target_level=")
 	builder.WriteString(_m.TargetLevel)
+	builder.WriteString(", ")
+	builder.WriteString("game=")
+	builder.WriteString(_m.Game)
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))

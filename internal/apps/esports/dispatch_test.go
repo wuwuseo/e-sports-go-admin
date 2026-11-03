@@ -28,10 +28,18 @@ func seedPaidOrder(t *testing.T, db *ent.Client, orderNo string, requiredSeats i
 		SaveX(t.Context())
 }
 
+// testSeedPlayerGames 是测试陪玩默认开通的分区全集：派单 / 邀请 / 抢单都要求分区资格来自考核，
+// 既有用例靠这份兜底继续可用；需要验证「未开通分区」的用例自行覆盖 games。
+var testSeedPlayerGames = []string{
+	"王者荣耀", "英雄联盟", "LOL", "混合分区", "离线分区", "抢单分区",
+	"P1在线语义分区", "P1闭合分区", "P1多席分区", "P1固排分区",
+}
+
 func seedPlayer(t *testing.T, db *ent.Client, userID int, qualification esportsplayer.Qualification, presence esportsplayer.Presence) *ent.EsportsPlayer {
 	t.Helper()
 	return db.EsportsPlayer.Create().SetUserID(userID).SetDisplayName("陪玩").
-		SetQualification(qualification).SetPresence(presence).SaveX(t.Context())
+		SetQualification(qualification).SetPresence(presence).
+		SetGames(testSeedPlayerGames).SaveX(t.Context())
 }
 
 func countEventsByType(t *testing.T, db *ent.Client) map[string]int {

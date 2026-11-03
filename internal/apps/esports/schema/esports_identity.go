@@ -80,7 +80,7 @@ func (EsportsPlayer) Fields() []ent.Field {
 		// daily_limit 每日可履约席位数（按接单自然日）；concurrent_limit 同一时段并发可履约席位数。
 		field.Int("daily_limit").Default(0).StructTag(`json:"daily_limit"`),
 		field.Int("concurrent_limit").Default(0).StructTag(`json:"concurrent_limit"`),
-		// 接单游戏分区：空表示不限；否则只接这些游戏分区的订单。
+		// 接单游戏分区：只能由考核通过写入；空表示无任何分区权限（订单分区为空时不受限）。
 		field.JSON("games", []string{}).Optional().StructTag(`json:"games"`),
 		// 心跳时戳：陪玩端保活打点；上线时也会写入基线，
 		// 超时任务据此把长时间无心跳的在线陪玩自动离线，在途订单则转 protected_abnormal 并提醒客服。

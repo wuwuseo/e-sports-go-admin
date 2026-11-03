@@ -762,6 +762,7 @@ var (
 		{Name: "player_id", Type: field.TypeInt},
 		{Name: "assessment_type", Type: field.TypeEnum, Enums: []string{"entry", "upgrade", "spot_check", "retry"}},
 		{Name: "target_level", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "game", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "scheduled", "passed", "failed"}, Default: "pending"},
 		{Name: "appeal_status", Type: field.TypeEnum, Enums: []string{"none", "pending", "approved", "rejected"}, Default: "none"},
 		{Name: "source", Type: field.TypeEnum, Enums: []string{"apply", "system"}, Default: "apply"},
@@ -791,17 +792,17 @@ var (
 			{
 				Name:    "esportsassessment_active_dedup_key",
 				Unique:  true,
-				Columns: []*schema.Column{EsportsAssessmentsColumns[15]},
+				Columns: []*schema.Column{EsportsAssessmentsColumns[16]},
 			},
 			{
 				Name:    "esportsassessment_player_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsAssessmentsColumns[2], EsportsAssessmentsColumns[17]},
+				Columns: []*schema.Column{EsportsAssessmentsColumns[2], EsportsAssessmentsColumns[18]},
 			},
 			{
 				Name:    "esportsassessment_status_assessment_type",
 				Unique:  false,
-				Columns: []*schema.Column{EsportsAssessmentsColumns[5], EsportsAssessmentsColumns[3]},
+				Columns: []*schema.Column{EsportsAssessmentsColumns[6], EsportsAssessmentsColumns[3]},
 			},
 		},
 	}

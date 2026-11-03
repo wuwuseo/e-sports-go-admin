@@ -3,9 +3,11 @@ package esports
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 	"testing"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsplayer"
 	"go-admin/internal/ent/user"
 )
@@ -26,6 +28,9 @@ func TestPlayerSelfServiceUpdateProfile(t *testing.T) {
 	defer db.Close()
 	ctx := t.Context()
 	account, player := seedSelfServicePlayer(t, db, "self-update", "13900000000")
+	// 分区资格只来自考核：预置两条已通过考核，自助才可提交这两个分区。
+	seedPassedAssessment(t, db, player.ID, "王者荣耀")
+	seedPassedAssessment(t, db, player.ID, "英雄联盟")
 
 	phone := "13800138000"
 	games := []string{" 王者荣耀 ", "英雄联盟", "王者荣耀", ""}
@@ -180,5 +185,64 @@ func TestPlayerSelfServiceVersionConflict(t *testing.T) {
 	}
 	if got := db.EsportsPlayer.GetX(ctx, player.ID).DisplayName; got != "第一次" {
 		t.Fatalf("过期写入覆盖了最新数据：%s", got)
+	}
+}
+
+// seedPassedAssessment 造一条已通过且绑定分区的考核记录（自助改分区的资格来源）。
+func seedPassedAssessment(t *testing.T, db *ent.Client, playerID int, game string) {
+	t.Helper()
+	ctx := t.Context()
+	db.EsportsAssessment.Create().
+		SetTaskNo("AS-SEED-" + game + "-" + strconv.Itoa(playerID)).
+		SetPlayerID(playerID).
+		SetAssessmentType(esportsassessment.AssessmentTypeEntry).
+		SetTargetLevel("novice").
+		SetGame(game).
+		SetStatus(esportsassessment.StatusPassed).
+		SaveX(ctx)
+}
+
+// 自助提交 games 只能选择已通过考核的分区；没有考核时不能提交任何分区。
+func TestPlayerSelfServiceGamesRequirePassedAssessment(t *testing.T) {
+	db := openPlayerTestDB(t, "esports_player_self_games")
+	defer db.Close()
+	ctx := t.Context()
+	_, player := seedSelfServicePlayer(t, db, "self-games", "13500000000")
+
+	// 没有任何已通过考核：提交任意分区都被拒。
+	notPassed := []string{"英雄联盟"}
+	if _, err := updatePlayerSelfProfile(ctx, db, player.ID, playerSelfProfileInput{
+		DisplayName: "陪玩", Games: &notPassed, Version: player.Version,
+	}); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("无考核时提交分区未被拒绝：%v", err)
+	}
+
+	seedPassedAssessment(t, db, player.ID, "王者荣耀")
+	// 未通过考核的分区仍被拒。
+	if _, err := updatePlayerSelfProfile(ctx, db, player.ID, playerSelfProfileInput{
+		DisplayName: "陪玩", Games: &notPassed, Version: player.Version,
+	}); !errors.Is(err, errInvalidInput) {
+		t.Fatalf("未通过考核的分区未被拒绝：%v", err)
+	}
+	// 已通过考核的分区可以提交。
+	allowed := []string{"王者荣耀"}
+	updated, err := updatePlayerSelfProfile(ctx, db, player.ID, playerSelfProfileInput{
+		DisplayName: "陪玩", Games: &allowed, Version: player.Version,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(updated.Games) != 1 || updated.Games[0] != "王者荣耀" {
+		t.Fatalf("已通过分区未写入：%#v", updated.Games)
+	}
+	// 提交空数组仍然合法（关闭全部接单分区）。
+	empty := []string{}
+	if _, err := updatePlayerSelfProfile(ctx, db, player.ID, playerSelfProfileInput{
+		DisplayName: "陪玩", Games: &empty, Version: updated.Version,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := db.EsportsPlayer.GetX(ctx, player.ID).Games; len(got) != 0 {
+		t.Fatalf("清空分区未生效：%#v", got)
 	}
 }

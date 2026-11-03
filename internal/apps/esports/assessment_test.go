@@ -94,10 +94,12 @@ func TestScoreAssessmentPassAndQualify(t *testing.T) {
 		t.Fatal(err)
 	}
 	player := seedPlayer(t, db, 101, esportsplayer.QualificationPending, esportsplayer.PresenceOffline)
+	// 预置一个已有分区：考核通过后应取并集，不覆盖本人已开通的分区。
+	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{"英雄联盟"}).ExecX(ctx)
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
 	assessment, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "entry",
+		PlayerID: player.ID, AssessmentType: "entry", Game: "王者荣耀",
 	}, now)
 	if err != nil || assessment.Status != esportsassessment.StatusPending || assessment.TargetLevel != "novice" {
 		t.Fatalf("创建入职考核失败：%+v, %v", assessment, err)
@@ -129,6 +131,10 @@ func TestScoreAssessmentPassAndQualify(t *testing.T) {
 	updated := db.EsportsPlayer.GetX(ctx, player.ID)
 	if updated.Qualification != esportsplayer.QualificationQualified || updated.Level != "novice" || updated.LevelAppraisedAt == nil {
 		t.Fatalf("通过后未定级开通接单权限：%+v", updated)
+	}
+	// 考核通过即开通该分区，并与已有分区取并集。
+	if len(updated.Games) != 2 || updated.Games[0] != "英雄联盟" || updated.Games[1] != "王者荣耀" {
+		t.Fatalf("考核通过后分区应为并集：%#v", updated.Games)
 	}
 	if db.EsportsAssessmentScore.Query().CountX(ctx) != 6 {
 		t.Fatal("未写入逐维度打分")

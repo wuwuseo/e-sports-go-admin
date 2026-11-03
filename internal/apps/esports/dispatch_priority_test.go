@@ -307,6 +307,10 @@ func TestOnOrderEnteredPendingDispatchOpensWindow(t *testing.T) {
 	game := "王者荣耀"
 	listed := seedPlayer(t, db, 5001, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	other := seedPlayer(t, db, 5002, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// 两人都已开通该分区，释放后大厅可见性只取决于订单状态。
+	for _, id := range []int{listed.ID, other.ID} {
+		db.EsportsPlayer.UpdateOneID(id).SetGames([]string{game}).ExecX(ctx)
+	}
 	sku := seedGameSku(t, db, "DP-HOOK", game)
 	if _, err := grantDispatchPriority(ctx, db, 7, basePriorityInput(game, listed.ID), now); err != nil {
 		t.Fatal(err)
@@ -383,6 +387,10 @@ func TestGrabHallScopedByPriorityNotice(t *testing.T) {
 	now := time.Now()
 	listed := seedPlayer(t, db, 6001, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	outsider := seedPlayer(t, db, 6002, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// 两人都已开通该分区，可见性差异只来自优先通知名单。
+	for _, id := range []int{listed.ID, outsider.ID} {
+		db.EsportsPlayer.UpdateOneID(id).SetGames([]string{"王者荣耀"}).ExecX(ctx)
+	}
 	sku := seedGameSku(t, db, "DP-HALL", "王者荣耀")
 	order := seedPendingOrderWithSku(t, db, "DP-HALL-1", sku.ID)
 	openPriorityWindow(t, db, order, "王者荣耀", []int{listed.ID}, now.Add(10*time.Minute))
@@ -535,6 +543,10 @@ func TestExpirePriorityNoticeReleasesToHall(t *testing.T) {
 	now := time.Now()
 	listed := seedPlayer(t, db, 8001, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	outsider := seedPlayer(t, db, 8002, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// 两人都已开通该分区，窗口内外的差异只来自优先通知状态。
+	for _, id := range []int{listed.ID, outsider.ID} {
+		db.EsportsPlayer.UpdateOneID(id).SetGames([]string{"王者荣耀"}).ExecX(ctx)
+	}
 	sku := seedGameSku(t, db, "DP-EXPIRE", "王者荣耀")
 	order := seedPendingOrderWithSku(t, db, "DP-EXPIRE-1", sku.ID)
 	// 窗口已过截止时间。

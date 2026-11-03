@@ -1373,30 +1373,36 @@ func init() {
 	esportsassessment.DefaultTargetLevel = esportsassessmentDescTargetLevel.Default.(string)
 	// esportsassessment.TargetLevelValidator is a validator for the "target_level" field. It is called by the builders before save.
 	esportsassessment.TargetLevelValidator = esportsassessmentDescTargetLevel.Validators[0].(func(string) error)
+	// esportsassessmentDescGame is the schema descriptor for game field.
+	esportsassessmentDescGame := esportsassessmentFields[4].Descriptor()
+	// esportsassessment.DefaultGame holds the default value on creation for the game field.
+	esportsassessment.DefaultGame = esportsassessmentDescGame.Default.(string)
+	// esportsassessment.GameValidator is a validator for the "game" field. It is called by the builders before save.
+	esportsassessment.GameValidator = esportsassessmentDescGame.Validators[0].(func(string) error)
 	// esportsassessmentDescTotalScore is the schema descriptor for total_score field.
-	esportsassessmentDescTotalScore := esportsassessmentFields[11].Descriptor()
+	esportsassessmentDescTotalScore := esportsassessmentFields[12].Descriptor()
 	// esportsassessment.DefaultTotalScore holds the default value on creation for the total_score field.
 	esportsassessment.DefaultTotalScore = esportsassessmentDescTotalScore.Default.(int)
 	// esportsassessmentDescNote is the schema descriptor for note field.
-	esportsassessmentDescNote := esportsassessmentFields[12].Descriptor()
+	esportsassessmentDescNote := esportsassessmentFields[13].Descriptor()
 	// esportsassessment.DefaultNote holds the default value on creation for the note field.
 	esportsassessment.DefaultNote = esportsassessmentDescNote.Default.(string)
 	// esportsassessment.NoteValidator is a validator for the "note" field. It is called by the builders before save.
 	esportsassessment.NoteValidator = esportsassessmentDescNote.Validators[0].(func(string) error)
 	// esportsassessmentDescActiveDedupKey is the schema descriptor for active_dedup_key field.
-	esportsassessmentDescActiveDedupKey := esportsassessmentFields[14].Descriptor()
+	esportsassessmentDescActiveDedupKey := esportsassessmentFields[15].Descriptor()
 	// esportsassessment.ActiveDedupKeyValidator is a validator for the "active_dedup_key" field. It is called by the builders before save.
 	esportsassessment.ActiveDedupKeyValidator = esportsassessmentDescActiveDedupKey.Validators[0].(func(string) error)
 	// esportsassessmentDescVersion is the schema descriptor for version field.
-	esportsassessmentDescVersion := esportsassessmentFields[15].Descriptor()
+	esportsassessmentDescVersion := esportsassessmentFields[16].Descriptor()
 	// esportsassessment.DefaultVersion holds the default value on creation for the version field.
 	esportsassessment.DefaultVersion = esportsassessmentDescVersion.Default.(int)
 	// esportsassessmentDescCreatedAt is the schema descriptor for created_at field.
-	esportsassessmentDescCreatedAt := esportsassessmentFields[16].Descriptor()
+	esportsassessmentDescCreatedAt := esportsassessmentFields[17].Descriptor()
 	// esportsassessment.DefaultCreatedAt holds the default value on creation for the created_at field.
 	esportsassessment.DefaultCreatedAt = esportsassessmentDescCreatedAt.Default.(func() time.Time)
 	// esportsassessmentDescUpdatedAt is the schema descriptor for updated_at field.
-	esportsassessmentDescUpdatedAt := esportsassessmentFields[17].Descriptor()
+	esportsassessmentDescUpdatedAt := esportsassessmentFields[18].Descriptor()
 	// esportsassessment.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	esportsassessment.DefaultUpdatedAt = esportsassessmentDescUpdatedAt.Default.(func() time.Time)
 	// esportsassessment.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

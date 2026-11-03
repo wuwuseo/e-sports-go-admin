@@ -21438,6 +21438,7 @@ type EsportsAssessmentMutation struct {
 	addplayer_id           *int
 	assessment_type        *esportsassessment.AssessmentType
 	target_level           *string
+	game                   *string
 	status                 *esportsassessment.Status
 	appeal_status          *esportsassessment.AppealStatus
 	source                 *esportsassessment.Source
@@ -21722,6 +21723,42 @@ func (m *EsportsAssessmentMutation) OldTargetLevel(ctx context.Context) (v strin
 // ResetTargetLevel resets all changes to the "target_level" field.
 func (m *EsportsAssessmentMutation) ResetTargetLevel() {
 	m.target_level = nil
+}
+
+// SetGame sets the "game" field.
+func (m *EsportsAssessmentMutation) SetGame(s string) {
+	m.game = &s
+}
+
+// Game returns the value of the "game" field in the mutation.
+func (m *EsportsAssessmentMutation) Game() (r string, exists bool) {
+	v := m.game
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGame returns the old "game" field's value of the EsportsAssessment entity.
+// If the EsportsAssessment object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EsportsAssessmentMutation) OldGame(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGame is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGame requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGame: %w", err)
+	}
+	return oldValue.Game, nil
+}
+
+// ResetGame resets all changes to the "game" field.
+func (m *EsportsAssessmentMutation) ResetGame() {
+	m.game = nil
 }
 
 // SetStatus sets the "status" field.
@@ -22422,7 +22459,7 @@ func (m *EsportsAssessmentMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EsportsAssessmentMutation) Fields() []string {
-	fields := make([]string, 0, 18)
+	fields := make([]string, 0, 19)
 	if m.task_no != nil {
 		fields = append(fields, esportsassessment.FieldTaskNo)
 	}
@@ -22434,6 +22471,9 @@ func (m *EsportsAssessmentMutation) Fields() []string {
 	}
 	if m.target_level != nil {
 		fields = append(fields, esportsassessment.FieldTargetLevel)
+	}
+	if m.game != nil {
+		fields = append(fields, esportsassessment.FieldGame)
 	}
 	if m.status != nil {
 		fields = append(fields, esportsassessment.FieldStatus)
@@ -22493,6 +22533,8 @@ func (m *EsportsAssessmentMutation) Field(name string) (ent.Value, bool) {
 		return m.AssessmentType()
 	case esportsassessment.FieldTargetLevel:
 		return m.TargetLevel()
+	case esportsassessment.FieldGame:
+		return m.Game()
 	case esportsassessment.FieldStatus:
 		return m.Status()
 	case esportsassessment.FieldAppealStatus:
@@ -22538,6 +22580,8 @@ func (m *EsportsAssessmentMutation) OldField(ctx context.Context, name string) (
 		return m.OldAssessmentType(ctx)
 	case esportsassessment.FieldTargetLevel:
 		return m.OldTargetLevel(ctx)
+	case esportsassessment.FieldGame:
+		return m.OldGame(ctx)
 	case esportsassessment.FieldStatus:
 		return m.OldStatus(ctx)
 	case esportsassessment.FieldAppealStatus:
@@ -22602,6 +22646,13 @@ func (m *EsportsAssessmentMutation) SetField(name string, value ent.Value) error
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTargetLevel(v)
+		return nil
+	case esportsassessment.FieldGame:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGame(v)
 		return nil
 	case esportsassessment.FieldStatus:
 		v, ok := value.(esportsassessment.Status)
@@ -22863,6 +22914,9 @@ func (m *EsportsAssessmentMutation) ResetField(name string) error {
 		return nil
 	case esportsassessment.FieldTargetLevel:
 		m.ResetTargetLevel()
+		return nil
+	case esportsassessment.FieldGame:
+		m.ResetGame()
 		return nil
 	case esportsassessment.FieldStatus:
 		m.ResetStatus()

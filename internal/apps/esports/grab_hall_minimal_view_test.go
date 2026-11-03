@@ -21,6 +21,8 @@ func TestGrabHallMinimalViewHidesSensitiveFields(t *testing.T) {
 	now := time.Now()
 
 	player := seedPlayer(t, db, 7701, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// 分区资格只来自考核：陪玩须开通订单所属分区才能在大厅看到它。
+	db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{"抢单分区"}).ExecX(ctx)
 	sku := seedGameSku(t, db, "GH-SKU-1", "抢单分区")
 	order := db.EsportsOrder.Create().
 		SetOrderNo("GH-ORDER-1").SetCustomerID(4242).SetSkuID(sku.ID).

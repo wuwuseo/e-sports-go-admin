@@ -39,6 +39,8 @@ func (EsportsAssessment) Fields() []ent.Field {
 		field.Enum("assessment_type").Values("entry", "upgrade", "spot_check", "retry").StructTag(`json:"assessment_type"`),
 		// 目标等级：升级 / 复考时陪玩申请的等级，入职默认 novice；空串表示未指定。
 		field.String("target_level").MaxLen(32).Default("").StructTag(`json:"target_level"`),
+		// 本次考核针对的游戏分区（与商品分类的 game 同口径）；空串表示不绑分区。
+		field.String("game").MaxLen(64).Default("").StructTag(`json:"game"`),
 		field.Enum("status").Values("pending", "scheduled", "passed", "failed").Default("pending").StructTag(`json:"status"`),
 		field.Enum("appeal_status").Values("none", "pending", "approved", "rejected").Default("none").StructTag(`json:"appeal_status"`),
 		field.Enum("source").Values("apply", "system").Default("apply").StructTag(`json:"source"`),

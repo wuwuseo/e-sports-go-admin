@@ -11,12 +11,16 @@ import (
 )
 
 // checkPlayerGameLevel 校验陪玩游戏分区权限与技能等级（硬性条件）。
-// games 为空表示不限分区；game 为空（订单解析不到分区）跳过权限校验；
+// 分区资格只来自考核：订单有分区时，陪玩 games 必须包含该分区，games 为空视为无任何权限；
+// game 为空（订单解析不到分区）跳过权限校验；
 // requiredLevel 为空表示订单未设门槛，跳过等级校验；
 // 门槛编码不在当前等级配置（如配置删档后的历史单）时 fail closed，不放行任何陪玩；
 // 陪玩档案的等级编码失效按最低档以下处理（低于一切有效档）。
 func checkPlayerGameLevel(levels []SkillLevel, player *ent.EsportsPlayer, game, requiredLevel string) error {
-	if game != "" && len(player.Games) > 0 {
+	if game != "" {
+		if len(player.Games) == 0 {
+			return fmt.Errorf("%w：该陪玩尚未通过「%s」分区考核", errForbidden, game)
+		}
 		found := false
 		for _, g := range player.Games {
 			if g == game {

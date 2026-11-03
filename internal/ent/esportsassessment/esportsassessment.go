@@ -24,6 +24,8 @@ const (
 	FieldAssessmentType = "assessment_type"
 	// FieldTargetLevel holds the string denoting the target_level field in the database.
 	FieldTargetLevel = "target_level"
+	// FieldGame holds the string denoting the game field in the database.
+	FieldGame = "game"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldAppealStatus holds the string denoting the appeal_status field in the database.
@@ -66,6 +68,7 @@ var Columns = []string{
 	FieldPlayerID,
 	FieldAssessmentType,
 	FieldTargetLevel,
+	FieldGame,
 	FieldStatus,
 	FieldAppealStatus,
 	FieldSource,
@@ -101,6 +104,10 @@ var (
 	DefaultTargetLevel string
 	// TargetLevelValidator is a validator for the "target_level" field. It is called by the builders before save.
 	TargetLevelValidator func(string) error
+	// DefaultGame holds the default value on creation for the "game" field.
+	DefaultGame string
+	// GameValidator is a validator for the "game" field. It is called by the builders before save.
+	GameValidator func(string) error
 	// DefaultTotalScore holds the default value on creation for the "total_score" field.
 	DefaultTotalScore int
 	// DefaultNote holds the default value on creation for the "note" field.
@@ -252,6 +259,11 @@ func ByAssessmentType(opts ...sql.OrderTermOption) OrderOption {
 // ByTargetLevel orders the results by the target_level field.
 func ByTargetLevel(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTargetLevel, opts...).ToFunc()
+}
+
+// ByGame orders the results by the game field.
+func ByGame(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGame, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

@@ -132,6 +132,8 @@ func TestSeatTransferSucceedsAfterPriorityNoticeAccepted(t *testing.T) {
 	game := "王者荣耀"
 
 	listed := seedPlayer(t, db, 8301, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// 抢单要求已开通该分区。
+	db.EsportsPlayer.UpdateOneID(listed.ID).SetGames([]string{game}).ExecX(ctx)
 	// P1-05-02：名单 game 必须能对上启用中的商品分类游戏分区，先建分类再录名单。
 	sku := seedGameSku(t, db, "D-FIX-TR-PRIO", game)
 	if _, err := grantDispatchPriority(ctx, db, 7, basePriorityInput(game, listed.ID), now); err != nil {

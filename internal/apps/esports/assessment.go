@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -178,6 +179,7 @@ type assessmentInput struct {
 	PlayerID        int        `json:"player_id"`
 	AssessmentType  string     `json:"assessment_type"`
 	TargetLevel     string     `json:"target_level"`
+	Game            string     `json:"game"`
 	Note            string     `json:"note"`
 	Source          string     `json:"source"`
 	ExaminerAdminID *int       `json:"examiner_admin_id"`
@@ -188,13 +190,14 @@ type assessmentInput struct {
 func createAssessment(ctx context.Context, db *ent.Client, adminID int, in assessmentInput, now time.Time) (*ent.EsportsAssessment, error) {
 	in.AssessmentType = strings.TrimSpace(in.AssessmentType)
 	in.TargetLevel = strings.TrimSpace(in.TargetLevel)
+	in.Game = strings.TrimSpace(in.Game)
 	in.Note = strings.TrimSpace(in.Note)
 	in.Source = strings.TrimSpace(in.Source)
 	if in.Source == "" {
 		in.Source = "apply"
 	}
 	if !validAssessmentType(in.AssessmentType) || (in.Source != "apply" && in.Source != "system") ||
-		len([]rune(in.Note)) > 500 {
+		len([]rune(in.Note)) > 500 || len([]rune(in.Game)) > 64 {
 		return nil, errInvalidInput
 	}
 	// 入职默认定级最低档；其余类型目标等级必填且合法。
@@ -212,7 +215,7 @@ func createAssessment(ctx context.Context, db *ent.Client, adminID int, in asses
 	}
 	create := db.EsportsAssessment.Create().SetTaskNo("AS" + uuid.NewString()).
 		SetPlayerID(in.PlayerID).SetAssessmentType(esportsassessment.AssessmentType(in.AssessmentType)).
-		SetTargetLevel(in.TargetLevel).SetStatus(esportsassessment.StatusPending).
+		SetTargetLevel(in.TargetLevel).SetGame(in.Game).SetStatus(esportsassessment.StatusPending).
 		SetSource(esportsassessment.Source(in.Source)).SetNote(in.Note)
 	// 升级考核写入唯一索引兜底键：同一陪玩至多一条进行中升级单（并发双击不会落两条）。
 	if in.AssessmentType == "upgrade" {
@@ -412,6 +415,10 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 			skillLevelRankOrBelow(levels, level) > skillLevelRankOrBelow(levels, player.Level) {
 			update.SetLevel(level)
 		}
+		// 考核通过即开通该游戏分区：与已有分区取并集，不覆盖陪玩自己关掉的分区。
+		if game := strings.TrimSpace(assessment.Game); game != "" && !slices.Contains(player.Games, game) {
+			update.SetGames(append(player.Games, game))
+		}
 		update.SetQualification(esportsplayer.QualificationQualified).
 			SetLevelAppraisedAt(now.UTC())
 	case esportsassessment.AssessmentTypeSpotCheck:
@@ -459,6 +466,21 @@ func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Es
 		}
 	case esportsassessment.AssessmentTypeSpotCheck:
 		update.SetLevel(demoteSkillLevel(levels, player.Level))
+	}
+	// 改判不通过要收回该次考核开通的分区；同分区若仍有其它已通过考核则保留。
+	if game := strings.TrimSpace(assessment.Game); game != "" {
+		others, queryErr := tx.EsportsAssessment.Query().Where(
+			esportsassessment.PlayerIDEQ(player.ID),
+			esportsassessment.IDNEQ(assessment.ID),
+			esportsassessment.StatusEQ(esportsassessment.StatusPassed),
+			esportsassessment.GameEQ(game),
+		).Exist(ctx)
+		if queryErr != nil {
+			return queryErr
+		}
+		if !others {
+			update.SetGames(slices.DeleteFunc(player.Games, func(g string) bool { return g == game }))
+		}
 	}
 	_, err = update.Save(ctx)
 	return err

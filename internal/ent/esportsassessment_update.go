@@ -77,6 +77,20 @@ func (_u *EsportsAssessmentUpdate) SetNillableTargetLevel(v *string) *EsportsAss
 	return _u
 }
 
+// SetGame sets the "game" field.
+func (_u *EsportsAssessmentUpdate) SetGame(v string) *EsportsAssessmentUpdate {
+	_u.mutation.SetGame(v)
+	return _u
+}
+
+// SetNillableGame sets the "game" field if the given value is not nil.
+func (_u *EsportsAssessmentUpdate) SetNillableGame(v *string) *EsportsAssessmentUpdate {
+	if v != nil {
+		_u.SetGame(*v)
+	}
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *EsportsAssessmentUpdate) SetStatus(v esportsassessment.Status) *EsportsAssessmentUpdate {
 	_u.mutation.SetStatus(v)
@@ -373,6 +387,11 @@ func (_u *EsportsAssessmentUpdate) check() error {
 			return &ValidationError{Name: "target_level", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.target_level": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Game(); ok {
+		if err := esportsassessment.GameValidator(v); err != nil {
+			return &ValidationError{Name: "game", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.game": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := esportsassessment.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.status": %w`, err)}
@@ -424,6 +443,9 @@ func (_u *EsportsAssessmentUpdate) sqlSave(ctx context.Context) (_node int, err 
 	}
 	if value, ok := _u.mutation.TargetLevel(); ok {
 		_spec.SetField(esportsassessment.FieldTargetLevel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Game(); ok {
+		_spec.SetField(esportsassessment.FieldGame, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsassessment.FieldStatus, field.TypeEnum, value)
@@ -559,6 +581,20 @@ func (_u *EsportsAssessmentUpdateOne) SetTargetLevel(v string) *EsportsAssessmen
 func (_u *EsportsAssessmentUpdateOne) SetNillableTargetLevel(v *string) *EsportsAssessmentUpdateOne {
 	if v != nil {
 		_u.SetTargetLevel(*v)
+	}
+	return _u
+}
+
+// SetGame sets the "game" field.
+func (_u *EsportsAssessmentUpdateOne) SetGame(v string) *EsportsAssessmentUpdateOne {
+	_u.mutation.SetGame(v)
+	return _u
+}
+
+// SetNillableGame sets the "game" field if the given value is not nil.
+func (_u *EsportsAssessmentUpdateOne) SetNillableGame(v *string) *EsportsAssessmentUpdateOne {
+	if v != nil {
+		_u.SetGame(*v)
 	}
 	return _u
 }
@@ -872,6 +908,11 @@ func (_u *EsportsAssessmentUpdateOne) check() error {
 			return &ValidationError{Name: "target_level", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.target_level": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Game(); ok {
+		if err := esportsassessment.GameValidator(v); err != nil {
+			return &ValidationError{Name: "game", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.game": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := esportsassessment.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.status": %w`, err)}
@@ -940,6 +981,9 @@ func (_u *EsportsAssessmentUpdateOne) sqlSave(ctx context.Context) (_node *Espor
 	}
 	if value, ok := _u.mutation.TargetLevel(); ok {
 		_spec.SetField(esportsassessment.FieldTargetLevel, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Game(); ok {
+		_spec.SetField(esportsassessment.FieldGame, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(esportsassessment.FieldStatus, field.TypeEnum, value)

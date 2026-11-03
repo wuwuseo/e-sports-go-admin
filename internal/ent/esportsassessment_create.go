@@ -52,6 +52,20 @@ func (_c *EsportsAssessmentCreate) SetNillableTargetLevel(v *string) *EsportsAss
 	return _c
 }
 
+// SetGame sets the "game" field.
+func (_c *EsportsAssessmentCreate) SetGame(v string) *EsportsAssessmentCreate {
+	_c.mutation.SetGame(v)
+	return _c
+}
+
+// SetNillableGame sets the "game" field if the given value is not nil.
+func (_c *EsportsAssessmentCreate) SetNillableGame(v *string) *EsportsAssessmentCreate {
+	if v != nil {
+		_c.SetGame(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *EsportsAssessmentCreate) SetStatus(v esportsassessment.Status) *EsportsAssessmentCreate {
 	_c.mutation.SetStatus(v)
@@ -287,6 +301,10 @@ func (_c *EsportsAssessmentCreate) defaults() {
 		v := esportsassessment.DefaultTargetLevel
 		_c.mutation.SetTargetLevel(v)
 	}
+	if _, ok := _c.mutation.Game(); !ok {
+		v := esportsassessment.DefaultGame
+		_c.mutation.SetGame(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := esportsassessment.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -353,6 +371,14 @@ func (_c *EsportsAssessmentCreate) check() error {
 	if v, ok := _c.mutation.TargetLevel(); ok {
 		if err := esportsassessment.TargetLevelValidator(v); err != nil {
 			return &ValidationError{Name: "target_level", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.target_level": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.Game(); !ok {
+		return &ValidationError{Name: "game", err: errors.New(`ent: missing required field "EsportsAssessment.game"`)}
+	}
+	if v, ok := _c.mutation.Game(); ok {
+		if err := esportsassessment.GameValidator(v); err != nil {
+			return &ValidationError{Name: "game", err: fmt.Errorf(`ent: validator failed for field "EsportsAssessment.game": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
@@ -445,6 +471,10 @@ func (_c *EsportsAssessmentCreate) createSpec() (*EsportsAssessment, *sqlgraph.C
 	if value, ok := _c.mutation.TargetLevel(); ok {
 		_spec.SetField(esportsassessment.FieldTargetLevel, field.TypeString, value)
 		_node.TargetLevel = value
+	}
+	if value, ok := _c.mutation.Game(); ok {
+		_spec.SetField(esportsassessment.FieldGame, field.TypeString, value)
+		_node.Game = value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(esportsassessment.FieldStatus, field.TypeEnum, value)

@@ -104,6 +104,26 @@ func TestSkillLevelsTableDriven(t *testing.T) {
 		t.Fatalf("同级门槛应放行：%v", err)
 	}
 
+	// 分区严格口径：games 为空视为无任何分区权限；订单分区为空时仍放行。
+	if err := checkPlayerGameLevel(levels, player, "王者荣耀", ""); !errors.Is(err, errForbidden) ||
+		!strings.Contains(err.Error(), "尚未通过") {
+		t.Fatalf("games 为空应视为无分区权限：%v", err)
+	}
+	if err := checkPlayerGameLevel(levels, player, "", ""); err != nil {
+		t.Fatalf("订单分区为空时应放行：%v", err)
+	}
+	// 开通该分区后放行；其它分区仍拒绝。
+	if _, err := db.EsportsPlayer.UpdateOneID(player.ID).SetGames([]string{"王者荣耀"}).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	player = db.EsportsPlayer.GetX(ctx, player.ID)
+	if err := checkPlayerGameLevel(levels, player, "王者荣耀", ""); err != nil {
+		t.Fatalf("已开通分区应放行：%v", err)
+	}
+	if err := checkPlayerGameLevel(levels, player, "英雄联盟", ""); !errors.Is(err, errForbidden) {
+		t.Fatalf("未开通分区应拒绝：%v", err)
+	}
+
 	// 整体保存会全删重建：改档后旧编码失效、新编码按提交顺序取档。
 	if _, err := saveSkillLevels(ctx, db, []SkillLevel{{"iron", "黑铁"}, {"bronze", "青铜"}}); err != nil {
 		t.Fatal(err)

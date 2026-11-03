@@ -152,6 +152,10 @@ func TestReleaseSingleSeatPriorityEntersGrabHall(t *testing.T) {
 	game := "王者荣耀"
 	listed := seedPlayer(t, db, 13301, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
 	outsider := seedPlayer(t, db, 13302, esportsplayer.QualificationQualified, esportsplayer.PresenceOnline)
+	// 两人都已开通该分区，释放后应都能在大厅看到这张单。
+	for _, id := range []int{listed.ID, outsider.ID} {
+		db.EsportsPlayer.UpdateOneID(id).SetGames([]string{game}).ExecX(ctx)
+	}
 	sku := seedGameSku(t, db, "FND-SINGLE", game)
 	order := seedDispatchOrderWithSeats(t, db, "FND-SINGLE-1", sku.ID, 1)
 	openPriorityWindow(t, db, order, game, []int{listed.ID}, now.Add(10*time.Minute))

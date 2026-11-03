@@ -69,6 +69,11 @@ func TargetLevel(v string) predicate.EsportsAssessment {
 	return predicate.EsportsAssessment(sql.FieldEQ(FieldTargetLevel, v))
 }
 
+// Game applies equality check predicate on the "game" field. It's identical to GameEQ.
+func Game(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldEQ(FieldGame, v))
+}
+
 // ExaminerAdminID applies equality check predicate on the "examiner_admin_id" field. It's identical to ExaminerAdminIDEQ.
 func ExaminerAdminID(v int) predicate.EsportsAssessment {
 	return predicate.EsportsAssessment(sql.FieldEQ(FieldExaminerAdminID, v))
@@ -312,6 +317,71 @@ func TargetLevelEqualFold(v string) predicate.EsportsAssessment {
 // TargetLevelContainsFold applies the ContainsFold predicate on the "target_level" field.
 func TargetLevelContainsFold(v string) predicate.EsportsAssessment {
 	return predicate.EsportsAssessment(sql.FieldContainsFold(FieldTargetLevel, v))
+}
+
+// GameEQ applies the EQ predicate on the "game" field.
+func GameEQ(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldEQ(FieldGame, v))
+}
+
+// GameNEQ applies the NEQ predicate on the "game" field.
+func GameNEQ(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldNEQ(FieldGame, v))
+}
+
+// GameIn applies the In predicate on the "game" field.
+func GameIn(vs ...string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldIn(FieldGame, vs...))
+}
+
+// GameNotIn applies the NotIn predicate on the "game" field.
+func GameNotIn(vs ...string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldNotIn(FieldGame, vs...))
+}
+
+// GameGT applies the GT predicate on the "game" field.
+func GameGT(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldGT(FieldGame, v))
+}
+
+// GameGTE applies the GTE predicate on the "game" field.
+func GameGTE(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldGTE(FieldGame, v))
+}
+
+// GameLT applies the LT predicate on the "game" field.
+func GameLT(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldLT(FieldGame, v))
+}
+
+// GameLTE applies the LTE predicate on the "game" field.
+func GameLTE(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldLTE(FieldGame, v))
+}
+
+// GameContains applies the Contains predicate on the "game" field.
+func GameContains(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldContains(FieldGame, v))
+}
+
+// GameHasPrefix applies the HasPrefix predicate on the "game" field.
+func GameHasPrefix(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldHasPrefix(FieldGame, v))
+}
+
+// GameHasSuffix applies the HasSuffix predicate on the "game" field.
+func GameHasSuffix(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldHasSuffix(FieldGame, v))
+}
+
+// GameEqualFold applies the EqualFold predicate on the "game" field.
+func GameEqualFold(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldEqualFold(FieldGame, v))
+}
+
+// GameContainsFold applies the ContainsFold predicate on the "game" field.
+func GameContainsFold(v string) predicate.EsportsAssessment {
+	return predicate.EsportsAssessment(sql.FieldContainsFold(FieldGame, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.
