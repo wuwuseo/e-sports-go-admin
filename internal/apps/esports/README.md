@@ -76,13 +76,19 @@
 
 考核权重通过 `GET/POST /admin/assessment-rules` 维护，按考核类型（`entry` 入职 / `upgrade` 升级 / `spot_check` 抽查复核 / `retry` 复考）分组，覆盖六个维度（`game_skill 游戏技能 / teaching 教学能力 / attitude 服务态度 / communication 沟通能力 / compliance 合规意识 / stability 稳定性`），权重以基点 `weight_bp` 表示。写入为**覆盖式**：须覆盖全部六个维度、每维权重为正且合计**恰为 10000**，否则返回参数错误；未配置任何权重时按等权回落（`10000/6` 取整，余数分给靠前维度，合计仍为 10000）。
 
-考核任务走 `GET/POST /admin/assessments`、`GET /admin/assessments/:id`。新建时 `task_no` 由服务端生成，入职默认目标等级 `novice`，非入职类型必须指定目标等级；状态机为 `pending`（待分配考官）→ `scheduled`（已约考核，`POST /admin/assessments/:id/assign` 写入考官与约定时间）→ `passed / failed`。打分走 `POST /admin/assessments/:id/score`（仅分配到的考官可打分，未分配时任意管理员可打），body 逐维度给出 `{dimension, score(0~100), comment(必填)}`，**须覆盖全部权重为正的维度**；服务端按各维权重快照加权得总分（`Σ score*weight_bp/10000`），与全局通过线（系统配置键 `app.esports.assessment_pass_score`，默认 60）比较判定通过。结论落地：入职 / 升级 / 复考通过时按目标等级写入 `level`、置 `qualification=qualified` 并刷新 `level_appraised_at`；抽查通过仅刷新考核时间，抽查不通过则降一档（`mentor→senior→skilled→novice`）并置 `qualification=suspended` 暂停接单。`GET /admin/assessments/:id` 返回任务 + 逐维度打分 + 申诉记录，构成完整考核记录。
+考核任务走 `GET/POST /admin/assessments`、`GET /admin/assessments/:id`。新建时 `task_no` 由服务端生成，所有类型（包括抽查）必须指定游戏分区 `game`，入职默认目标为配置最低档，非入职类型必须指定目标等级；状态机为 `pending`（待分配考官）→ `scheduled`（已约考核，`POST /admin/assessments/:id/assign` 写入考官与约定时间）→ `passed / failed`。打分走 `POST /admin/assessments/:id/score`（仅分配到的考官可打分，未分配考官时不可打分），body 逐维度给出 `{dimension, score(0~100), comment(必填)}`，**须覆盖全部权重为正的维度**；服务端按各维权重快照加权得总分（`Σ score*weight_bp/10000`），与全局通过线（系统配置键 `app.esports.assessment_pass_score`，默认 60）比较判定通过。结论落地：入职 / 升级 / 复考通过时按目标等级写入 `game_levels[game]`，`level` 派生为全部有效分区的最高档，置 `qualification=qualified` 并刷新 `level_appraised_at`；抽查通过仅刷新考核时间，抽查不通过则只降低绑定分区一档（按当前等级配置顺序）并置 `qualification=suspended` 暂停接单。`GET /admin/assessments/:id` 返回任务 + 逐维度打分 + 申诉记录，构成完整考核记录。
+
+陪玩自助升级走 `POST /user/player/assessments/upgrade-apply`，请求体为 `{"game":"英雄联盟"}`；分区必须已开通且有有效等级，目标档由服务端按该分区的当前等级推导。自动升级扫描所有已开通分区，每轮为一个仍可升级的分区建单；任意分区满级不会阻断其它分区。仍保留同一陪玩最多一条进行中升级考核、全局申请冷却与原有服务量 / 评分 / 在岗门槛。
+
+抽查由系统对各已开通分区分别建单；抽查申诉改判不通过时只降低对应分区一档，不再用历史通过考核的目标档覆盖降级。定期复核按分区统计连续不达标期数、降级和去重留痕。正常接单、加钟确认及无接单快照的分成解析统一读取订单分区等级，已锁定的分成规则快照不变。评分、申诉回写与定期降级均校验陪玩档案版本；冲突返回 409，相关事务整体回滚，刷新后可重试。
+
+人工验收：为同一陪玩设置「王者荣耀最高档、英雄联盟初级」，在陪玩端选择英雄联盟申请升级，确认目标只升一档；确认英雄联盟加钟按初级分成；创建抽查时留空分区应被拒绝；将已通过抽查申诉改判为不通过，确认仅对应分区下降一档、资格暂停。自动任务与并发回滚由 `game_level_regression_test.go` 覆盖。
 
 申诉走 `POST /user/player/assessments/:id/appeal`（陪玩端自助，body `{reason}`，仅已出结论的考核可发、每任务仅一次）与 `POST /admin/assessments/:id/appeal/review`（`decision` 为 `approve` 改判并重放定级 / `reject` 维持原结论）。
 
 客户评价：已完成订单的已核验身份客户可走 `POST /user/orders/:id/reviews`（body `{player_id, rating(1~5), comment}`）对**实际服务成员**逐人评价；客服代录走 `POST /admin/player-reviews`（`verified=false`，不计入综合评分）。同「订单 + 客户 + 陪玩」仅保留一份当前有效评价（唯一索引），修改时递增 `version` 并向只增表 `EsportsPlayerReviewRevision` 追加一条修订历史。综合评分走 `GET /admin/players/:id/rating`，仅纳入 `verified=true` 且 `status=normal` 的评价，返回平均分、样本数、是否样本不足（低于系统配置键 `app.esports.review_min_samples`，默认 5）与规则版本（`app.esports.review_rule_version`，默认 `v1`）。异常刷评 / 评价申诉由管理员走 `POST /admin/player-reviews/:id/status` 复核为 `normal / disputed / invalid`，`disputed / invalid` 不计入评分。
 
-未实现的 `ponytail` 项：等级 → 分成率的自动换算（等级与接单权限联动已实现，具体分成率仍按既有「按陪玩」分成规则维护）、按考核类型的差异化通过线（当前统一用 `assessment_pass_score`）、复考的关联与自动触发、申诉多次发起（每任务仅一次）、考核记录与结论的专用导出。
+未实现的 `ponytail` 项：按考核类型的差异化通过线（当前统一用 `assessment_pass_score`）、复考的关联与自动触发、申诉多次发起（每任务仅一次）、考核记录与结论的专用导出。
 
 ### 经营统计报表（§17）
 

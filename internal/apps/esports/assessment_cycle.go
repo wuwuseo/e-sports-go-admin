@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsassessment"
 	"go-admin/internal/ent/esportsassessmentscore"
@@ -177,13 +179,14 @@ func generateSpotCheckAssessmentsTask(ctx context.Context, logger io.Writer) err
 //   - 该期没有任何抽查结论（未知期）→ 同样打断计数（无证据不判定「长期不达标」）。
 //
 // 定期复核自身生成的降级记录没有打分明细，因此不会被再次计入，避免自我强化。
-func consecutiveSpotCheckFailurePeriods(ctx context.Context, db *ent.Client, playerID int, now time.Time, cycleDays int) (int, error) {
+func consecutiveSpotCheckFailurePeriods(ctx context.Context, db *ent.Client, playerID int, game string, now time.Time, cycleDays int) (int, error) {
 	if playerID < 1 || cycleDays < 1 {
 		return 0, errInvalidInput
 	}
 	from := now.UTC().AddDate(0, 0, -cycleDays*20)
 	rows, err := db.EsportsAssessment.Query().Where(
 		esportsassessment.PlayerIDEQ(playerID),
+		esportsassessment.GameEQ(game),
 		esportsassessment.AssessmentTypeEQ(esportsassessment.AssessmentTypeSpotCheck),
 		esportsassessment.StatusIn(esportsassessment.StatusPassed, esportsassessment.StatusFailed),
 		esportsassessment.CreatedAtGTE(from),
@@ -241,9 +244,10 @@ func consecutiveSpotCheckFailurePeriods(ctx context.Context, db *ent.Client, pla
 
 // levelReviewDemotionRecorded 判断该陪玩在本复核周期内是否已落过降级记录（幂等闸门）：
 // 降级记录 = 无打分明细、note 带前缀的 system 抽查复核单。
-func levelReviewDemotionRecorded(ctx context.Context, db *ent.Client, playerID int, now time.Time, cycleDays int) (bool, error) {
+func levelReviewDemotionRecorded(ctx context.Context, db *ent.Client, playerID int, game string, now time.Time, cycleDays int) (bool, error) {
 	rows, err := db.EsportsAssessment.Query().Where(
 		esportsassessment.PlayerIDEQ(playerID),
+		esportsassessment.GameEQ(game),
 		esportsassessment.AssessmentTypeEQ(esportsassessment.AssessmentTypeSpotCheck),
 		esportsassessment.SourceEQ(esportsassessment.SourceSystem),
 		esportsassessment.CreatedAtGT(now.UTC().AddDate(0, 0, -cycleDays)),
@@ -277,60 +281,86 @@ func runPlayerLevelReview(ctx context.Context, db *ent.Client, now time.Time, li
 	}
 	cycleDays := assessmentConfigInt(ctx, db, levelReviewCycleDaysKey, defaultLevelReviewCycleDays)
 	failPeriods := assessmentConfigInt(ctx, db, levelReviewFailPeriodsKey, defaultLevelReviewFailTimes)
+	levels := skillLevels(ctx, db)
 	players, err := db.EsportsPlayer.Query().Where(
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
-		esportsplayer.LevelNEQ(skillLevelLowest(skillLevels(ctx, db))),
+		esportsplayer.LevelNEQ(skillLevelLowest(levels)),
 	).Order(ent.Asc(esportsplayer.FieldID)).Limit(limit).All(ctx)
 	if err != nil {
 		return 0, err
 	}
 	demoted := 0
 	for _, player := range players {
-		streak, err := consecutiveSpotCheckFailurePeriods(ctx, db, player.ID, now, cycleDays)
-		if err != nil {
-			return demoted, err
+		playerDemoted := false
+		for _, game := range player.Games {
+			current := playerGameLevel(player, game)
+			if !validPlayerLevel(levels, current) || current == skillLevelLowest(levels) {
+				continue
+			}
+			streak, err := consecutiveSpotCheckFailurePeriods(ctx, db, player.ID, game, now, cycleDays)
+			if err != nil {
+				return demoted, err
+			}
+			if streak < failPeriods {
+				continue
+			}
+			note := fmt.Sprintf("%s「%s」连续 %d 期抽查不达标（复核周期 %d 天，判定时刻 %s），依据：抽查结论不通过",
+				levelReviewDemotionNotePrefix, game, streak, cycleDays, now.In(cstZone).Format("2006-01-02 15:04"))
+			changed, err := applyLevelReviewDemotion(ctx, db, player.ID, game, note, now, cycleDays)
+			if err != nil {
+				return demoted, err
+			}
+			playerDemoted = playerDemoted || changed
 		}
-		if streak < failPeriods {
-			continue
+		if playerDemoted {
+			demoted++
 		}
-		recorded, err := levelReviewDemotionRecorded(ctx, db, player.ID, now, cycleDays)
-		if err != nil {
-			return demoted, err
-		}
-		if recorded {
-			continue
-		}
-		target := demoteSkillLevel(skillLevels(ctx, db), player.Level)
-		note := fmt.Sprintf("%s连续 %d 期抽查不达标（复核周期 %d 天，判定时刻 %s），依据：抽查结论不通过",
-			levelReviewDemotionNotePrefix, streak, cycleDays, now.In(cstZone).Format("2006-01-02 15:04"))
-		if err = applyLevelReviewDemotion(ctx, db, player, target, note, now); err != nil {
-			return demoted, err
-		}
-		demoted++
 	}
 	return demoted, nil
 }
 
 // applyLevelReviewDemotion 在同一事务内降级并留下降级记录（时间 + 依据）。
-func applyLevelReviewDemotion(ctx context.Context, db *ent.Client, player *ent.EsportsPlayer, target string, note string, now time.Time) error {
+func applyLevelReviewDemotion(ctx context.Context, db *ent.Client, playerID int, game, note string, now time.Time, cycleDays int) (bool, error) {
 	tx, err := db.Tx(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback()
+	player, err := tx.EsportsPlayer.Get(ctx, playerID)
+	if err != nil {
+		return false, err
+	}
+	recorded, err := levelReviewDemotionRecorded(ctx, tx.Client(), playerID, game, now, cycleDays)
+	if err != nil || recorded {
+		return false, err
+	}
+	levels := skillLevels(ctx, tx.Client())
+	current := playerGameLevel(player, game)
+	if !validPlayerLevel(levels, current) || current == skillLevelLowest(levels) {
+		return false, nil
+	}
+	target := demoteSkillLevel(levels, current)
+	gameLevels := cloneGameLevels(player.GameLevels)
+	gameLevels[game] = target
 	// 降级记录：一条 note 可检索、无打分明细的 system 抽查复核单（时间 + 依据）。
-	if _, err = tx.EsportsAssessment.Create().SetTaskNo("LR" + fmt.Sprintf("%d-%d", player.ID, now.UnixNano())).
+	if _, err = tx.EsportsAssessment.Create().SetTaskNo("LR" + uuid.NewString()).
 		SetPlayerID(player.ID).SetAssessmentType(esportsassessment.AssessmentTypeSpotCheck).
-		SetTargetLevel(target).SetStatus(esportsassessment.StatusFailed).
+		SetGame(game).SetTargetLevel(target).SetStatus(esportsassessment.StatusFailed).
 		SetSource(esportsassessment.SourceSystem).SetNote(note).
 		SetScoredAt(now.UTC()).SetTotalScore(0).Save(ctx); err != nil {
-		return err
+		return false, err
 	}
-	if _, err = tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).
-		SetLevel(target).SetLevelAppraisedAt(now.UTC()).AddVersion(1).Save(ctx); err != nil {
-		return err
+	update := tx.EsportsPlayer.Update().Where(
+		esportsplayer.IDEQ(player.ID), esportsplayer.VersionEQ(player.Version),
+	).SetGameLevels(gameLevels).SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level)).
+		SetLevelAppraisedAt(now.UTC()).AddVersion(1)
+	if err = saveAssessmentPlayerUpdate(ctx, update); err != nil {
+		return false, err
 	}
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // runPlayerLevelReviewTask 定时任务入口：需由主控注册为 esports_run_player_level_review

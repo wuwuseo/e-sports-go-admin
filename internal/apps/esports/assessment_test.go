@@ -1,8 +1,8 @@
 package esports
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -161,7 +161,7 @@ func TestScoreAssessmentSpotCheckDemote(t *testing.T) {
 	now := time.Date(2026, 10, 11, 10, 0, 0, 0, time.UTC)
 
 	assessment, err := createAssessment(ctx, db, 11, assessmentInput{
-		PlayerID: player.ID, AssessmentType: "spot_check", TargetLevel: "mentor",
+		PlayerID: player.ID, AssessmentType: "spot_check", TargetLevel: "mentor", Game: "王者荣耀",
 	}, now)
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +173,8 @@ func TestScoreAssessmentSpotCheckDemote(t *testing.T) {
 		t.Fatal(err)
 	}
 	updated := db.EsportsPlayer.GetX(ctx, player.ID)
-	if updated.Level != "senior" || updated.Qualification != esportsplayer.QualificationSuspended {
+	if updated.GameLevels["王者荣耀"] != "senior" || updated.GameLevels["英雄联盟"] != "mentor" ||
+		updated.Level != "mentor" || updated.Qualification != esportsplayer.QualificationSuspended {
 		t.Fatalf("抽查不达标未降级并暂停接单：%+v", updated)
 	}
 	// 非 entry 类型缺目标等级被拒。

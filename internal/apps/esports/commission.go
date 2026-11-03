@@ -196,9 +196,13 @@ func commissionRuleForMember(ctx context.Context, tx *ent.Tx, order *ent.Esports
 	}
 	// 旧数据没有接单快照时保留兼容回退；新订单必须走锁定分支。
 	// 回退解析要读当时的陪玩等级；档案缺失按无等级处理（跳过 level 级）。
+	game, err := orderGameIn(ctx, tx, order.SkuID)
+	if err != nil {
+		return nil, err
+	}
 	playerLevel := ""
 	if player, pErr := tx.EsportsPlayer.Get(ctx, member.PlayerID); pErr == nil {
-		playerLevel = player.Level
+		playerLevel = playerLevelForCommission(player, game)
 	}
 	return resolveCommissionRuleForPlayerIn(ctx, tx.EsportsCommissionRule,
 		tx.EsportsSku, tx.EsportsProductCategory, order, member.PlayerID, playerLevel, now)
@@ -1357,7 +1361,7 @@ func listCommissionEntries(ctx context.Context, db *ent.Client, playerID, orderI
 type commissionEntryView struct {
 	*ent.EsportsCommissionEntry
 	// OrderNo 管理端订单列展示订单号（不再裸显示订单 ID）。
-	OrderNo        string `json:"order_no"`
+	OrderNo string `json:"order_no"`
 	// RuleValueBp / RuleValueCents 是该明细规则快照的数值：percent 看 bp，固定额看分。
 	RuleValueBp    int   `json:"rule_value_bp"`
 	RuleValueCents int64 `json:"rule_value_cents"`

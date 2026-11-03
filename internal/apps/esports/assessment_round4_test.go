@@ -299,7 +299,7 @@ func seedScoredSpotCheck(t *testing.T, db *ent.Client, playerID int, level strin
 	item := db.EsportsAssessment.Create().
 		SetTaskNo(fmt.Sprintf("AS-sc-%d-%s", playerID, createdAt.Format("20060102"))).
 		SetPlayerID(playerID).SetAssessmentType(esportsassessment.AssessmentTypeSpotCheck).
-		SetTargetLevel(level).SetStatus(status).SetSource(esportsassessment.SourceSystem).
+		SetGame("王者荣耀").SetTargetLevel(level).SetStatus(status).SetSource(esportsassessment.SourceSystem).
 		SetTotalScore(40).SetScoredAt(createdAt.UTC()).SetCreatedAt(createdAt.UTC()).SaveX(ctx)
 	// 真有打分明细 = 该期由考官真实评过（区别于定期复核自己生成的降级记录）。
 	db.EsportsAssessmentScore.Create().SetAssessmentID(item.ID).

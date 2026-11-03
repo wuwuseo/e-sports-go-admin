@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -84,7 +85,10 @@ func findInProgressUpgradeAssessment(ctx context.Context, db *ent.Client, player
 
 // resolveExistingUpgrade 把「已存在进行中升级单」转换成对外结果：
 // 待处理 / 已约考表示重复提交，幂等返回既有单；申诉待复核则拦截并给出中文提示。
-func resolveExistingUpgrade(item *ent.EsportsAssessment) (*ent.EsportsAssessment, error) {
+func resolveExistingUpgrade(item *ent.EsportsAssessment, game string) (*ent.EsportsAssessment, error) {
+	if item.Game != game {
+		return nil, fmt.Errorf("%w：「%s」分区已有进行中的升级考核，请处理完成后再申请其它分区", errConflict, item.Game)
+	}
 	if item.Status == esportsassessment.StatusPending || item.Status == esportsassessment.StatusScheduled {
 		return item, nil
 	}
@@ -204,7 +208,7 @@ func playerUpgradeEligibility(ctx context.Context, db *ent.Client, player *ent.E
 //     此处回滚后回查并返回既有单，而不是把数据库错误抛给用户。
 //
 // created 表示本次调用是否真的新建了单据，供自动触发任务计数。
-func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, source, note string, now time.Time) (*ent.EsportsAssessment, bool, error) {
+func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, game, source, note string, now time.Time) (*ent.EsportsAssessment, bool, error) {
 	if playerID < 1 {
 		return nil, false, errForbidden
 	}
@@ -215,11 +219,17 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 	if err != nil {
 		return nil, false, err
 	}
-	// 升级考核必须绑定分区：取陪玩已通过考核的第一个分区；尚未开通任何分区则不能申请。
+	game = strings.TrimSpace(game)
+	if game == "" {
+		return nil, false, fmt.Errorf("%w：请选择要升级的游戏分区", errInvalidInput)
+	}
+	// 升级只作用于指定的已开通分区，不能用其它分区的等级推算目标。
 	if len(player.Games) == 0 {
 		return nil, false, fmt.Errorf("%w：请先通过至少一个游戏分区考核后再申请升级", errInvalidInput)
 	}
-	game := player.Games[0]
+	if !slices.Contains(player.Games, game) {
+		return nil, false, fmt.Errorf("%w：「%s」分区未开通，不能申请升级", errInvalidInput, game)
+	}
 	// 升级目标按该分区的当前等级推算，不读全局 level（那只是最高档派生值）。
 	current := playerGameLevel(player, game)
 	if current == "" {
@@ -240,7 +250,7 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 		return nil, false, err
 	}
 	if inProgress != nil {
-		item, resolveErr := resolveExistingUpgrade(inProgress)
+		item, resolveErr := resolveExistingUpgrade(inProgress, game)
 		return item, false, resolveErr
 	}
 	cooldownDays := assessmentConfigInt(ctx, tx.Client(), upgradeCooldownDaysKey, defaultUpgradeCooldownDays)
@@ -276,7 +286,7 @@ func createUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, 
 				return nil, false, queryErr
 			}
 			if existing != nil {
-				item, resolveErr := resolveExistingUpgrade(existing)
+				item, resolveErr := resolveExistingUpgrade(existing, game)
 				return item, false, resolveErr
 			}
 		}
@@ -321,7 +331,7 @@ func loadUpgradeApplyPlayer(ctx context.Context, db *ent.Client, playerID int) (
 
 // applyPlayerUpgradeAssessment 陪玩自助申请升级考核：
 // 校验主体资格、服务量 / 评分 / 在岗时长门槛与冷却后，落一条 pending 的 upgrade 考核单。
-func applyPlayerUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, now time.Time) (*ent.EsportsAssessment, error) {
+func applyPlayerUpgradeAssessment(ctx context.Context, db *ent.Client, playerID int, game string, now time.Time) (*ent.EsportsAssessment, error) {
 	player, err := loadUpgradeApplyPlayer(ctx, db, playerID)
 	if err != nil {
 		return nil, err
@@ -334,7 +344,7 @@ func applyPlayerUpgradeAssessment(ctx context.Context, db *ent.Client, playerID 
 		return nil, fmt.Errorf("%w：暂未达到升级考核申请门槛（%s）",
 			errInvalidInput, strings.Join(eligibility.unmet(), "、"))
 	}
-	item, _, err := createUpgradeAssessment(ctx, db, playerID, "apply",
+	item, _, err := createUpgradeAssessment(ctx, db, playerID, game, "apply",
 		"陪玩自助申请升级考核："+eligibility.summary(), now)
 	if err != nil {
 		return nil, err
@@ -417,7 +427,6 @@ func autoTriggerUpgradeAssessments(ctx context.Context, db *ent.Client, now time
 	tenureDays := assessmentConfigInt(ctx, db, upgradeMinTenureDaysKey, defaultUpgradeMinTenureDays)
 	q := db.EsportsPlayer.Query().Where(
 		esportsplayer.QualificationEQ(esportsplayer.QualificationQualified),
-		esportsplayer.LevelNEQ(skillLevelHighest(skillLevels(ctx, db))),
 		// 在岗时长门槛与门槛判定同一配置键，SQL 层先裁剪不会漏掉达标者。
 		esportsplayer.CreatedAtLTE(now.UTC().AddDate(0, 0, -tenureDays)),
 		esportsplayer.IDGT(cursor),
@@ -438,7 +447,20 @@ func autoTriggerUpgradeAssessments(ctx context.Context, db *ent.Client, now time
 		return 0, err
 	}
 	count := 0
+	levels := skillLevels(ctx, db)
 	for _, player := range candidates {
+		// 展示用最高档不能筛掉其它仍可升级的分区；每轮选一个可升级的已开通分区。
+		game := ""
+		for _, candidate := range player.Games {
+			current := playerGameLevel(player, candidate)
+			if _, ok := nextSkillLevel(levels, current); current != "" && ok {
+				game = candidate
+				break
+			}
+		}
+		if game == "" {
+			continue
+		}
 		eligibility, err := playerUpgradeEligibility(ctx, db, player, now)
 		if err != nil {
 			return count, err
@@ -446,7 +468,7 @@ func autoTriggerUpgradeAssessments(ctx context.Context, db *ent.Client, now time
 		if !eligibility.qualify() {
 			continue
 		}
-		_, created, err := createUpgradeAssessment(ctx, db, player.ID, "system",
+		_, created, err := createUpgradeAssessment(ctx, db, player.ID, game, "system",
 			"系统按达标条件自动生成升级考核："+eligibility.summary(), now)
 		if err != nil {
 			// 冷却期 / 申诉待复核等业务拦截跳过即可，不中断整轮；其余错误上抛交由任务重试。

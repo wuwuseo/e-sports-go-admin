@@ -251,13 +251,19 @@ func playerAssessmentsHandler(c fiber.Ctx) error {
 // playerApplyUpgradeAssessmentHandler 陪玩端自助申请升级考核。
 // 需在 app.go 接线：{Method: "POST", Path: "/user/player/assessments/upgrade-apply", Auth: cmfapp.AuthUser, Handler: playerApplyUpgradeAssessmentHandler}
 // 陪玩身份由 AuthUser + requestPlayer 保证；按仓库约定 AuthUser 自助路由不需要 PermAPI（PermAPI 只声明管理端 /admin 路径）。
-// 目标档位由服务端按当前等级推导，客户端无需也不能指定等级。
+// 目标档位由服务端按指定分区的当前等级推导，客户端不能指定等级。
 func playerApplyUpgradeAssessmentHandler(c fiber.Ctx) error {
 	player, err := requestPlayer(c)
 	if err != nil {
 		return businessError(c, err)
 	}
-	item, err := applyPlayerUpgradeAssessment(c.Context(), global.ORM, player.ID, time.Now())
+	var in struct {
+		Game string `json:"game"`
+	}
+	if err := c.Bind().Body(&in); err != nil {
+		return fail(c, fiber.StatusBadRequest, "请求正文无效")
+	}
+	item, err := applyPlayerUpgradeAssessment(c.Context(), global.ORM, player.ID, in.Game, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}

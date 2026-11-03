@@ -81,10 +81,10 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	ctx := t.Context()
 	now := time.Now().UTC()
 
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, 0, now); !errors.Is(err, errForbidden) {
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, 0, "王者荣耀", now); !errors.Is(err, errForbidden) {
 		t.Fatalf("非法陪玩 ID 未被拦截：%v", err)
 	}
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, 9999, now); !errors.Is(err, errForbidden) {
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, 9999, "王者荣耀", now); !errors.Is(err, errForbidden) {
 		t.Fatalf("不存在的陪玩未被拦截：%v", err)
 	}
 
@@ -96,7 +96,7 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 		SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
 	seedUpgradeServiceSegments(t, db, unverified.ID, 40)
 	seedUpgradeReviews(t, db, unverified.ID, 5, 5)
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, unverified.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, unverified.ID, "王者荣耀", now); err == nil ||
 		!errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "实名认证") {
 		t.Fatalf("未实名陪玩未被拦截：%v", err)
 	}
@@ -108,14 +108,14 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 		SetGameLevels(testGameLevels([]string{"王者荣耀"}, "novice")).
 		SetCreatedAt(now.AddDate(0, 0, -60)).SaveX(ctx)
 	seedVerifiedIdentity(t, db, pending.ID)
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, pending.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, pending.ID, "王者荣耀", now); err == nil ||
 		!errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "资格") {
 		t.Fatalf("资格未通过的陪玩未被拦截：%v", err)
 	}
 
 	// 已是最高等级。
 	mentor := seedUpgradeEligiblePlayer(t, db, 203, "mentor", now.AddDate(0, 0, -90))
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, mentor.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, mentor.ID, "王者荣耀", now); err == nil ||
 		!strings.Contains(err.Error(), "最高等级") {
 		t.Fatalf("最高等级陪玩未被拦截：%v", err)
 	}
@@ -127,14 +127,14 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 		SetStartedAt(now).SetStatus(esportsservicesegment.StatusInService).
 		SetReportedUnits(1000).SaveX(ctx)
 	seedUpgradeReviews(t, db, lowService.ID, 5, 5)
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, lowService.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, lowService.ID, "王者荣耀", now); err == nil ||
 		!strings.Contains(err.Error(), "服务量") {
 		t.Fatalf("服务量不足未被拦截：%v", err)
 	}
 
 	// 在岗时长不足。
 	fresh := seedUpgradeEligiblePlayer(t, db, 205, "novice", now.AddDate(0, 0, -1))
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, fresh.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, fresh.ID, "王者荣耀", now); err == nil ||
 		!strings.Contains(err.Error(), "在岗") {
 		t.Fatalf("在岗时长不足未被拦截：%v", err)
 	}
@@ -143,7 +143,7 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	lowRating := seedUpgradePlayer(t, db, 206, "novice", now.AddDate(0, 0, -90))
 	seedUpgradeServiceSegments(t, db, lowRating.ID, 30)
 	seedUpgradeReviews(t, db, lowRating.ID, 5, 3)
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, lowRating.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, lowRating.ID, "王者荣耀", now); err == nil ||
 		!strings.Contains(err.Error(), "评分") {
 		t.Fatalf("评分低于门槛未被拦截：%v", err)
 	}
@@ -151,14 +151,14 @@ func TestPlayerUpgradeApplyEligibilityGuards(t *testing.T) {
 	// 样本不足不当作低分：无评价但服务量与在岗达标仍可申请。
 	noReview := seedUpgradePlayer(t, db, 207, "novice", now.AddDate(0, 0, -90))
 	seedUpgradeServiceSegments(t, db, noReview.ID, 30)
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, noReview.ID, now); err != nil {
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, noReview.ID, "王者荣耀", now); err != nil {
 		t.Fatalf("样本不足被当作低分拒绝：%v", err)
 	}
 
 	// 门槛可配置：调高服务量门槛后同一类陪玩被拒，提示带出配置值。
 	seedUpgradeConfig(t, db, upgradeMinServiceUnitsKey, "999")
 	blocked := seedUpgradeEligiblePlayer(t, db, 208, "novice", now.AddDate(0, 0, -90))
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, blocked.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, blocked.ID, "王者荣耀", now); err == nil ||
 		!strings.Contains(err.Error(), "999") {
 		t.Fatalf("配置化门槛未生效：%v", err)
 	}
@@ -172,7 +172,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 	now := time.Now().UTC()
 	player := seedUpgradeEligiblePlayer(t, db, 301, "skilled", now.AddDate(0, 0, -30))
 
-	created, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
+	created, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now)
 	if err != nil {
 		t.Fatalf("自助申请升级考核失败：%v", err)
 	}
@@ -189,7 +189,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 	}
 
 	// 幂等：已有进行中的升级单时重复点击返回既有单，不新建、也不报错。
-	repeat, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
+	repeat, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now)
 	if err != nil || repeat.ID != created.ID {
 		t.Fatalf("重复申请未幂等返回既有单：%+v, %v", repeat, err)
 	}
@@ -201,7 +201,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 
 	// 上一单落定（failed）后进入冷却期。
 	db.EsportsAssessment.UpdateOneID(created.ID).SetStatus(esportsassessment.StatusFailed).SaveX(ctx)
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now); err == nil ||
 		!errors.Is(err, errInvalidInput) || !strings.Contains(err.Error(), "冷却") {
 		t.Fatalf("冷却期内重复申请未被拦截：%v", err)
 	}
@@ -212,7 +212,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetTargetLevel("skilled").
 		SetStatus(esportsassessment.StatusFailed).SetSource(esportsassessment.SourceApply).
 		SetCreatedAt(now.AddDate(0, 0, -31)).SaveX(ctx)
-	again, err := applyPlayerUpgradeAssessment(ctx, db, expired.ID, now)
+	again, err := applyPlayerUpgradeAssessment(ctx, db, expired.ID, "王者荣耀", now)
 	if err != nil || again.Status != esportsassessment.StatusPending {
 		t.Fatalf("冷却期届满后仍不能申请：%+v, %v", again, err)
 	}
@@ -224,7 +224,7 @@ func TestPlayerUpgradeApplyCreatesPendingAndEnforcesCooldown(t *testing.T) {
 		SetStatus(esportsassessment.StatusFailed).SetSource(esportsassessment.SourceApply).
 		SetCreatedAt(now.AddDate(0, 0, -31)).SaveX(ctx)
 	seedUpgradeConfig(t, db, upgradeCooldownDaysKey, "90")
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, strict.ID, now); err == nil ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, strict.ID, "王者荣耀", now); err == nil ||
 		!strings.Contains(err.Error(), "90 天") {
 		t.Fatalf("配置化冷却时长未生效：%v", err)
 	}
@@ -356,11 +356,11 @@ func TestPlayerUpgradeApplySecondSubmissionReturnsExistingSingle(t *testing.T) {
 	now := time.Now().UTC()
 	player := seedUpgradeEligiblePlayer(t, db, 711, "skilled", now.AddDate(0, 0, -30))
 
-	first, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
+	first, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now)
 	if err != nil {
 		t.Fatalf("首次自助申请失败：%v", err)
 	}
-	second, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
+	second, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now)
 	if err != nil {
 		t.Fatalf("重复申请应幂等返回既有单，实际报错：%v", err)
 	}
@@ -423,7 +423,7 @@ func TestCreateAssessmentRecordsCreatedByAdminID(t *testing.T) {
 	}
 
 	selfPlayer := seedUpgradeEligiblePlayer(t, db, 732, "novice", now.AddDate(0, 0, -30))
-	bySelf, err := applyPlayerUpgradeAssessment(ctx, db, selfPlayer.ID, now)
+	bySelf, err := applyPlayerUpgradeAssessment(ctx, db, selfPlayer.ID, "王者荣耀", now)
 	if err != nil {
 		t.Fatalf("陪玩自助申请失败：%v", err)
 	}
@@ -442,14 +442,14 @@ func TestUpgradeApplyBlockedWhileAppealPending(t *testing.T) {
 	player := seedUpgradeEligiblePlayer(t, db, 741, "novice", now.AddDate(0, 0, -60))
 
 	old := db.EsportsAssessment.Create().SetTaskNo("AS-UPGRADE-APPEAL-1").SetPlayerID(player.ID).
-		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetTargetLevel("skilled").
+		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetGame("王者荣耀").SetTargetLevel("skilled").
 		SetStatus(esportsassessment.StatusFailed).SetSource(esportsassessment.SourceApply).
 		SetCreatedAt(now.AddDate(0, 0, -40)).SaveX(ctx)
 	if _, err := createAppeal(ctx, db, player.ID, old.ID, "成绩有误", now); err != nil {
 		t.Fatalf("发起申诉失败：%v", err)
 	}
 	// 已过冷却期，但申诉待复核仍须拦截。
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now); !errors.Is(err, errInvalidInput) ||
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now); !errors.Is(err, errInvalidInput) ||
 		!strings.Contains(err.Error(), "申诉") {
 		t.Fatalf("申诉待复核期间的升级申请未被拦截：%v", err)
 	}
@@ -457,7 +457,7 @@ func TestUpgradeApplyBlockedWhileAppealPending(t *testing.T) {
 	if _, err := reviewAppeal(ctx, db, old.ID, 11, false, "维持原结论", now); err != nil {
 		t.Fatalf("复核申诉失败：%v", err)
 	}
-	if _, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now); err != nil {
+	if _, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now); err != nil {
 		t.Fatalf("申诉复核结束后仍不能申请：%v", err)
 	}
 }
@@ -472,7 +472,7 @@ func TestUpgradeAppealApprovalNeverLowersLevel(t *testing.T) {
 
 	// 旧单目标档是 skilled，陪玩其后已升到 senior。
 	old := db.EsportsAssessment.Create().SetTaskNo("AS-UPGRADE-APPEAL-2").SetPlayerID(player.ID).
-		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetTargetLevel("skilled").
+		SetAssessmentType(esportsassessment.AssessmentTypeUpgrade).SetGame("王者荣耀").SetTargetLevel("skilled").
 		SetStatus(esportsassessment.StatusFailed).SetSource(esportsassessment.SourceApply).
 		SetCreatedAt(now.AddDate(0, 0, -40)).SaveX(ctx)
 	if _, err := createAppeal(ctx, db, player.ID, old.ID, "成绩有误", now); err != nil {
@@ -548,7 +548,7 @@ func TestPlayerUpgradeApplyConcurrentSubmissionsKeepSinglePending(t *testing.T) 
 		var item *ent.EsportsAssessment
 		var err error
 		for attempt := 0; attempt < 10; attempt++ {
-			item, err = applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
+			item, err = applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now)
 			if err == nil || !strings.Contains(err.Error(), "database table is locked") {
 				return item, err
 			}
@@ -600,7 +600,7 @@ func TestUpgradeAssessmentDedupKeyLifecycleAcrossTerminalPaths(t *testing.T) {
 	now := time.Now().UTC()
 	player := seedUpgradeEligiblePlayer(t, db, 761, "skilled", now.AddDate(0, 0, -90))
 
-	pending, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, now)
+	pending, err := applyPlayerUpgradeAssessment(ctx, db, player.ID, "王者荣耀", now)
 	if err != nil {
 		t.Fatalf("自助申请失败：%v", err)
 	}

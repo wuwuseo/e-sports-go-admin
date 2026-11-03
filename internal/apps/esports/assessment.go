@@ -200,8 +200,8 @@ func createAssessment(ctx context.Context, db *ent.Client, adminID int, in asses
 		len([]rune(in.Note)) > 500 || len([]rune(in.Game)) > 64 {
 		return nil, errInvalidInput
 	}
-	// 分区必填：入职 / 升级 / 复考都要指明考哪个分区；抽查只复核等级，不绑分区。
-	if in.AssessmentType != "spot_check" && in.Game == "" {
+	// 所有考核均按分区定级或复核，抽查也必须明确影响的分区。
+	if in.Game == "" {
 		return nil, fmt.Errorf("%w：请指定考核的游戏分区", errInvalidInput)
 	}
 	// 入职默认定级最低档；其余类型目标等级必填且合法。
@@ -386,13 +386,19 @@ func scoreAssessment(ctx context.Context, db *ent.Client, id, adminID int, score
 
 // applyAssessmentOutcome 按考核结论更新陪玩档案：入职/升级/复考通过则定级并开通接单权限；
 // 抽查通过仅刷新考核时间，抽查不通过则降一档并暂停接单权限。
-// ponytail: 等级→分成率的自动换算未做，具体分成率仍按既有「按陪玩」分成规则维护。
+// 分成在接单或加钟确认时按订单分区的等级匹配已配置规则并锁定快照。
 func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.EsportsAssessment, passed bool, now time.Time) error {
+	game := strings.TrimSpace(assessment.Game)
+	if game == "" {
+		return fmt.Errorf("%w：请指定考核的游戏分区", errInvalidInput)
+	}
 	player, err := tx.EsportsPlayer.Get(ctx, assessment.PlayerID)
 	if err != nil {
 		return err
 	}
-	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1)
+	update := tx.EsportsPlayer.Update().Where(
+		esportsplayer.IDEQ(player.ID), esportsplayer.VersionEQ(player.Version),
+	).AddVersion(1)
 	levels := skillLevels(ctx, tx.Client())
 	switch assessment.AssessmentType {
 	case esportsassessment.AssessmentTypeEntry,
@@ -413,7 +419,6 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 		if !validPlayerLevel(levels, level) {
 			level = skillLevelLowest(levels)
 		}
-		game := strings.TrimSpace(assessment.Game)
 		gameLevels := cloneGameLevels(player.GameLevels)
 		// 分区等级是接单权威：同一分区的升级必须单调，旧单（尤其是申诉改判）不得把已升上去的分区等级改回旧档。
 		// 复核通过的升级单仍要把资格置为「合格」并刷新考核时间。
@@ -439,77 +444,64 @@ func applyAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Esp
 			update.SetLevelAppraisedAt(now.UTC())
 		} else {
 			// 抽查不通过按分区降级：只降该次抽查绑定的分区，其余分区不受影响。
-			if game := strings.TrimSpace(assessment.Game); game != "" {
-				gameLevels := cloneGameLevels(player.GameLevels)
-				gameLevels[game] = demoteSkillLevel(levels, playerGameLevel(player, game))
-				update.SetGameLevels(gameLevels)
-				update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
-			} else {
-				update.SetLevel(demoteSkillLevel(levels, player.Level))
-			}
+			gameLevels := cloneGameLevels(player.GameLevels)
+			gameLevels[game] = demoteSkillLevel(levels, playerGameLevel(player, game))
+			update.SetGameLevels(gameLevels)
+			update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
 			update.SetQualification(esportsplayer.QualificationSuspended).
 				SetLevelAppraisedAt(now.UTC())
 		}
 	}
-	_, err = update.Save(ctx)
-	return err
+	return saveAssessmentPlayerUpdate(ctx, update)
 }
 
-// revertAssessmentOutcome 申诉改判「通过 → 不通过」时回滚该次考核带来的业务影响（P0-15 / ）：
-//   - 撤销该次考核写入的等级提升与「合格」标记，并把依赖该结论的接单权限置为不可用
-//     （qualification → suspended，派单侧只认 qualified，见 dispatch.go 的资格校验）；
-//   - 等级只在「当前等级正是本次考核写入的目标档」时回退一档：后续更高档考核的成果不得被旧单改判抹掉
-//     （与 applyAssessmentOutcome 的升级单调口径对称）；
-//   - 抽查复核的通过结论本就不写等级，改判为不通过按抽查不达标的既有口径降一档。
-//
-// 只复用陪玩档案上既有的 level / qualification 写入口，不新增字段；「暂停接单」在该档案上就是
-// qualification=suspended，其它暂停来源（如信用分、presence）不在本文件可达范围内。
+// saveAssessmentPlayerUpdate 拒绝过期版本写入，让评分或申诉事务整体回滚，防止整张分区等级被覆盖。
+func saveAssessmentPlayerUpdate(ctx context.Context, update *ent.EsportsPlayerUpdate) error {
+	n, err := update.Save(ctx)
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf("%w：陪玩档案已变化，请刷新后重试考核操作", errConflict)
+	}
+	return nil
+}
+
+// revertAssessmentOutcome 撤销定级考核时按同分区其它通过的定级结果回退；
+// 抽查改判不通过只降低该分区一档，不重放历史目标等级。两者均暂停接单。
 func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.EsportsAssessment, now time.Time) error {
+	game := strings.TrimSpace(assessment.Game)
+	if game == "" {
+		return fmt.Errorf("%w：请指定考核的游戏分区", errInvalidInput)
+	}
 	player, err := tx.EsportsPlayer.Get(ctx, assessment.PlayerID)
 	if err != nil {
 		return err
 	}
 	levels := skillLevels(ctx, tx.Client())
 	// 结论不通过即不得保留接单权限：先无条件收紧为 suspended，再按考核类型回退等级。
-	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1).
+	update := tx.EsportsPlayer.Update().Where(
+		esportsplayer.IDEQ(player.ID), esportsplayer.VersionEQ(player.Version),
+	).AddVersion(1).
 		SetQualification(esportsplayer.QualificationSuspended)
+	gameLevels := cloneGameLevels(player.GameLevels)
 	switch assessment.AssessmentType {
-	case esportsassessment.AssessmentTypeEntry,
-		esportsassessment.AssessmentTypeUpgrade,
-		esportsassessment.AssessmentTypeRetry:
-		target := assessment.TargetLevel
-		if !validPlayerLevel(levels, target) {
-			// 入职缺目标等级时 applyAssessmentOutcome 写的是最低档，改判同样按最低档口径回退。
-			target = skillLevelLowest(levels)
-		}
-		if strings.TrimSpace(assessment.Game) == "" && player.Level == target {
-			update.SetLevel(demoteSkillLevel(levels, player.Level))
-		}
 	case esportsassessment.AssessmentTypeSpotCheck:
-		if game := strings.TrimSpace(assessment.Game); game != "" {
-			gameLevels := cloneGameLevels(player.GameLevels)
-			gameLevels[game] = demoteSkillLevel(levels, playerGameLevel(player, game))
-			update.SetGameLevels(gameLevels)
-			update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
-		} else {
-			update.SetLevel(demoteSkillLevel(levels, player.Level))
-		}
-	}
-	// 改判不通过要收回该次考核开通的分区与分区等级；同分区若仍有其它已通过考核，
-	// 分区保留、等级回落到那些考核的最高目标档。
-	if game := strings.TrimSpace(assessment.Game); game != "" {
+		gameLevels[game] = demoteSkillLevel(levels, playerGameLevel(player, game))
+	default:
 		rows, queryErr := tx.EsportsAssessment.Query().Where(
 			esportsassessment.PlayerIDEQ(player.ID),
 			esportsassessment.IDNEQ(assessment.ID),
 			esportsassessment.StatusEQ(esportsassessment.StatusPassed),
 			esportsassessment.GameEQ(game),
+			esportsassessment.AssessmentTypeIn(esportsassessment.AssessmentTypeEntry,
+				esportsassessment.AssessmentTypeUpgrade, esportsassessment.AssessmentTypeRetry),
 		).All(ctx)
 		if queryErr != nil {
 			return queryErr
 		}
-		gameLevels := cloneGameLevels(player.GameLevels)
 		if len(rows) == 0 {
-			update.SetGames(slices.DeleteFunc(player.Games, func(g string) bool { return g == game }))
+			update.SetGames(slices.DeleteFunc(slices.Clone(player.Games), func(g string) bool { return g == game }))
 			delete(gameLevels, game)
 		} else {
 			best := ""
@@ -519,15 +511,16 @@ func revertAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.Es
 					best = row.TargetLevel
 				}
 			}
-			if best != "" {
+			// 撤销考核不能抬回已被其它抽查降下去的等级。
+			current := playerGameLevel(player, game)
+			if best != "" && (current == "" || skillLevelRankOrBelow(levels, best) < skillLevelRankOrBelow(levels, current)) {
 				gameLevels[game] = best
 			}
 		}
-		update.SetGameLevels(gameLevels)
-		update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
 	}
-	_, err = update.Save(ctx)
-	return err
+	update.SetGameLevels(gameLevels)
+	update.SetLevel(highestPlayerGameLevel(levels, gameLevels, player.Level))
+	return saveAssessmentPlayerUpdate(ctx, update)
 }
 
 // restoreAssessmentOutcome 申诉改判「不通过 → 通过」时补记业务影响（P0-15 / ）：
@@ -541,7 +534,9 @@ func restoreAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.E
 	if err != nil {
 		return err
 	}
-	update := tx.EsportsPlayer.Update().Where(esportsplayer.IDEQ(player.ID)).AddVersion(1).
+	update := tx.EsportsPlayer.Update().Where(
+		esportsplayer.IDEQ(player.ID), esportsplayer.VersionEQ(player.Version),
+	).AddVersion(1).
 		SetLevelAppraisedAt(now.UTC())
 	if player.Qualification == esportsplayer.QualificationSuspended {
 		// 与正常通过同一道实名门槛：未实名不得设为合格。
@@ -553,8 +548,7 @@ func restoreAssessmentOutcome(ctx context.Context, tx *ent.Tx, assessment *ent.E
 		}
 		update.SetQualification(esportsplayer.QualificationQualified)
 	}
-	_, err = update.Save(ctx)
-	return err
+	return saveAssessmentPlayerUpdate(ctx, update)
 }
 
 // ── 申诉 ──
