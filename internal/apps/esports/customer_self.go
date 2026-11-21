@@ -161,6 +161,11 @@ func createCustomerAfterSaleWithEvidence(ctx context.Context, db *ent.Client, cu
 	if source.CustomerID == nil || *source.CustomerID != customer.ID {
 		return nil, errForbidden
 	}
+	// 未付款订单没有资金往来，售后无从发起（也避免「未付款单挂一条退款售后」污染对账）；
+	// 客户此时应取消订单或联系客服。exception 是支付冲正，说明付过款，仍然放行。
+	if source.Order != nil && source.Order.PaymentStatus == esportsorder.PaymentStatusUnpaid {
+		return nil, fmt.Errorf("%w：订单还未付款，无需发起售后；如需帮助请联系客服", errInvalidInput)
+	}
 	if order := source.Order; order != nil &&
 		(order.FulfillmentStatus == esportsorder.FulfillmentStatusCompleted ||
 			order.FulfillmentStatus == esportsorder.FulfillmentStatusCancelled) {
