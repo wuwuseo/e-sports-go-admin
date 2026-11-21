@@ -4,8 +4,8 @@
 
 ## 1. 仓库定位与边界
 
-- 本仓库是 **EsportsPartner 的服务端**（Go + Fiber v3 + Ent + Casbin），承载通用后台能力与 `esports` 陪玩报单业务功能集。
-- 管理端前端在**同级目录 `go-admin-web`**，客户端 / 陪玩端 / 移动客服端在**同级目录 `e-sports-uniapp`**；本仓库不包含它们的源码。
+- 本仓库 **[e-sports-go-admin](https://gitee.com/wanglei199104/e-sports-go-admin)** 是 **EsportsPartner 的服务端**（Go + Fiber v3 + Ent + Casbin），承载通用后台能力与 `esports` 陪玩报单业务功能集。
+- 管理端前端仓库 **[e-sports-go-admin-web](https://gitee.com/wanglei199104/e-sports-go-admin-web)**（本地目录 `go-admin-web`），客户端 / 陪玩端 / 移动客服端仓库 **[e-sports-uniapp](https://gitee.com/wanglei199104/e-sports-uniapp)**（本地目录 `e-sports-uniapp`）；本仓库不包含它们的源码。
 - 管理端构建产物经 `//go:embed web/dist` 打进二进制；`web/` 已在 `.gitignore` 中，属于本地构建产物，不要提交。
 - 三层职责不要混：`handler` 只做参数解析与响应，`service` 承载业务规则与事务，`middleware` 处理认证、权限、审计等横切逻辑。
 
@@ -76,7 +76,7 @@ go run main.go
 | `internal/tasks/` | Go 后台任务注册表（`tasks.Register`） |
 | `internal/cron/` `internal/queue/` | 定时任务管理与任务队列运行时 |
 | `internal/plugin/` `pluginapi/` | 进程外插件管理、协议与运行时 |
-| `cmd/` | 辅助命令（`captcha-reencrypt`、`reset-admin-password`、`cleanup-e2e`） |
+| `cmd/` | 辅助命令（`captcha-reencrypt`、`reset-admin-password`、`cleanup-e2e`、`verify-role-access`、`esports-demo-seed`、`esports-data-repair`、`esports-stored-value-export`） |
 | `config/` `docs/` `data/` | 配置、Swagger 与专题文档、运行时数据（勿提交） |
 
 ## 5. 生成代码：只改源，不手改产物
