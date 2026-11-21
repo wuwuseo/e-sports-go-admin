@@ -152,6 +152,13 @@ func (esportsExtension) SeedBaseline(ctx context.Context, client *ent.Client) er
 	if _, err := SeedGameZones(ctx, client); err != nil {
 		return fmt.Errorf("seed game zones: %w", err)
 	}
+	// 演示数据（1 个测试商品 / 1 个测试客户 / 5 个陪玩）：默认关闭，只在联调与演示
+	// 环境用 ESPORTS_DEMO_SEED 显式开启，避免生产库出现测试商品与测试账号。
+	if DemoSeedEnabled() {
+		if _, err := SeedDemoData(ctx, client); err != nil {
+			return fmt.Errorf("seed demo data: %w", err)
+		}
+	}
 	return nil
 }
 
