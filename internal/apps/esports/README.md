@@ -181,7 +181,7 @@ go test ./internal/apps/esports -run '^TestHuifuLocalSandbox$' -count=1 -v
 
 ### 储值卡功能移除（2026-10-20）
 
-> **产品决定：储值卡（原 §4.4「储值卡与套餐」/ §11.3「储值卡账户」）整体下线。**这是产品决策、不是缺陷修复，也不存在「回归」。三仓库（`go-admin` / `go-admin-web` / `e-sports-uniapp`）的代码删除均已完成、已提交（`d99e2bf` / `7adcd51` / `fc5851a`）。`app.go`、`init.go`、`cron_seeds.go` 与两个前端仓库的 `src` 全仓 grep `stored_value|storedValue|储值卡|stored-value` 均为 0 命中（仅剩 `schema/*.go` 里「已废弃、禁止新写入」的说明与历史兼容分支）。
+> **产品决定：储值卡（原 §4.4「储值卡与套餐」/ §11.3「储值卡账户」）整体下线。**这是产品决策、不是缺陷修复，也不存在「回归」。三仓库（`e-sports-go-admin` / `e-sports-go-admin-web` / `e-sports-uniapp`）的代码删除均已完成、已提交（`d99e2bf` / `7adcd51` / `fc5851a`）。`app.go`、`init.go`、`cron_seeds.go` 与两个前端仓库的 `src` 全仓 grep `stored_value|storedValue|储值卡|stored-value` 均为 0 命中（仅剩 `schema/*.go` 里「已废弃、禁止新写入」的说明与历史兼容分支）。
 
 **移除的能力（原先都有实现，现全部不可用，接口调用会 404）**
 

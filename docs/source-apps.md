@@ -1,6 +1,6 @@
 # 源码功能集
 
-源码功能集编入 go-admin 的同一个二进制，与进程外插件独立。通用注册、校验、路由挂载和生成命令位于 `github.com/wuwuseo/cmf/app`；go-admin 负责鉴权、配置与权限入库。
+源码功能集编入 e-sports-go-admin 的同一个二进制，与进程外插件独立。通用注册、校验、路由挂载和生成命令位于 `github.com/wuwuseo/cmf/app`；e-sports-go-admin 负责鉴权、配置与权限入库。
 
 ## 新增功能集
 
