@@ -2,14 +2,19 @@ package esports
 
 import (
 	"bytes"
+	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -218,86 +223,95 @@ func newHuifuMock(t *testing.T) (*huifuMock, *httptest.Server) {
 	return mock, server
 }
 
-func (m *huifuMock) writeSigned(w http.ResponseWriter, data map[string]any) {
-	sign, err := huifuSign(data, m.platformPriv)
+// 测试服务直接按官方原文签名，独立于生产代码的签名、解包辅助函数。
+func huifuFixtureSign(t *testing.T, raw []byte, key *rsa.PrivateKey) string {
+	t.Helper()
+	digest := sha256.Sum256(raw)
+	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
 	if err != nil {
-		http.Error(w, "sign", http.StatusInternalServerError)
-		return
+		t.Fatal(err)
 	}
-	body, _ := json.Marshal(map[string]any{"sign": sign, "sign_type": "RSA2", "data": data})
+	return base64.StdEncoding.EncodeToString(signature)
+}
+
+func (m *huifuMock) writeSigned(w http.ResponseWriter, data map[string]any) {
+	raw, _ := json.Marshal(data)
+	body, _ := json.Marshal(map[string]any{"sign": huifuFixtureSign(m.t, raw, m.platformPriv), "data": json.RawMessage(raw)})
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(body)
 }
 
 func (m *huifuMock) handle(w http.ResponseWriter, r *http.Request) {
-	raw, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "body", http.StatusBadRequest)
+	var envelope struct {
+		SysID     string          `json:"sys_id"`
+		ProductID string          `json:"product_id"`
+		Sign      string          `json:"sign"`
+		Data      json.RawMessage `json:"data"`
+	}
+	if json.NewDecoder(r.Body).Decode(&envelope) != nil {
+		http.Error(w, "外层报文错误", 400)
 		return
 	}
-	var envelope map[string]any
-	if err = json.Unmarshal(raw, &envelope); err != nil {
-		http.Error(w, "json", http.StatusBadRequest)
+	if envelope.SysID != "HF-SYS" || envelope.ProductID != "HF-PRODUCT" || len(envelope.Data) == 0 || envelope.Data[0] != '{' {
+		http.Error(w, "公共参数不符合斗拱", 400)
 		return
 	}
-	data, _ := envelope["data"].(map[string]any)
-	sign, _ := envelope["sign"].(string)
-	if err = huifuVerify(data, sign, m.merchantPub); err != nil {
-		http.Error(w, "signature", http.StatusForbidden)
+	digest := sha256.Sum256(envelope.Data)
+	signature, err := base64.StdEncoding.DecodeString(envelope.Sign)
+	if err != nil || rsa.VerifyPKCS1v15(m.merchantPub, crypto.SHA256, digest[:], signature) != nil {
+		http.Error(w, "原文签名不正确", 403)
 		return
 	}
-	merchantNo, _ := data["mer_ord_id"].(string)
-	amount, _ := data["trans_amt"].(string)
-	tradeType, _ := data["trade_type"].(string)
+	var data map[string]any
+	if json.Unmarshal(envelope.Data, &data) != nil {
+		http.Error(w, "业务参数不是 JSON", 400)
+		return
+	}
+	merchantNo, _ := data["req_seq_id"].(string)
 	m.mu.Lock()
-	m.amountYuan = amount
-	m.mu.Unlock()
+	defer m.mu.Unlock()
 	switch r.URL.Path {
-	case "/top/trans/pullPayInfo":
-		m.mu.Lock()
-		fail := m.failCreate
-		tradeNo := m.tradeNo
-		m.mu.Unlock()
-		if fail {
-			m.writeSigned(w, map[string]any{
-				"resp_code": "99000000", "sub_resp_code": "99", "sub_resp_desc": "模拟服务商受理失败",
-			})
+	case "/v4/trade/payment/create":
+		if m.failCreate {
+			m.writeSigned(w, map[string]any{"resp_code": "10000000", "resp_desc": "参数无效"})
 			return
 		}
+		var device map[string]string
+		deviceText, _ := data["terminal_device_data"].(string)
+		if json.Unmarshal([]byte(deviceText), &device) != nil || device["device_ip"] == "" ||
+			data["trade_type"] != "A_NATIVE" || data["notify_url"] != "https://studio.example.com/api/v1/esports/payment-notify/huifu" {
+			http.Error(w, "风控、交易类型或通知地址不正确", 400)
+			return
+		}
+		m.amountYuan, _ = data["trans_amt"].(string)
 		m.writeSigned(w, map[string]any{
-			"resp_code": "00000000", "sub_resp_code": "00", "resp_desc": "success",
-			"hf_seq_id": tradeNo, "mer_ord_id": merchantNo, "trans_amt": amount,
-			"trans_stat": "I", "trade_type": tradeType,
-			"qr_code": "https://qr.mock.huifu/" + merchantNo,
+			"resp_code": "00000100", "resp_desc": "交易处理中", "huifu_id": "HF-MERCHANT-1",
+			"req_seq_id": merchantNo, "req_date": data["req_date"], "hf_seq_id": m.tradeNo, "trans_amt": m.amountYuan,
+			"trans_stat": "P", "trade_type": "A_NATIVE", "qr_code": "https://qr.mock.huifu/" + merchantNo,
 		})
-	case "/top/trans/query":
-		m.mu.Lock()
-		status := m.status
-		tradeNo := m.tradeNo
-		amountYuan := m.amountYuan
-		m.mu.Unlock()
+	case "/v4/trade/payment/scanpay/query":
 		m.writeSigned(w, map[string]any{
-			"resp_code": "00000000", "sub_resp_code": "00", "resp_desc": "success",
-			"hf_seq_id": tradeNo, "mer_ord_id": merchantNo, "trans_amt": amountYuan,
-			"trans_stat": status, "trade_type": tradeType,
-			"trans_time": time.Now().UTC().Format("20060102150405"),
+			"resp_code": "00000000", "huifu_id": "HF-MERCHANT-1", "req_seq_id": merchantNo,
+			"req_date": data["req_date"], "hf_seq_id": m.tradeNo, "trans_amt": m.amountYuan,
+			"trans_stat": m.status, "trade_type": "A_NATIVE", "end_time": time.Now().In(cstZone).Format("20060102150405"),
 		})
 	default:
-		http.Error(w, "not found", http.StatusNotFound)
+		http.Error(w, "接口路径不正确", 404)
 	}
 }
 
 func (m *huifuMock) notificationBody(merchantNo, tradeNo, status string, cents int64, payChannel string) []byte {
-	data := map[string]any{
-		"resp_code": "00000000", "sub_resp_code": "00",
-		"mer_ord_id": merchantNo, "hf_seq_id": tradeNo,
-		"trans_amt": huifuAmountString(cents), "trans_stat": status,
-		"trade_type": huifuTradeType(payChannel),
-		"trans_time": time.Now().UTC().Format("20060102150405"),
+	tradeType := "A_NATIVE"
+	if payChannel == "wechat" {
+		tradeType = "T_JSAPI"
 	}
-	sign, _ := huifuSign(data, m.platformPriv)
-	body, _ := json.Marshal(map[string]any{"sign": sign, "sign_type": "RSA2", "data": data})
-	return body
+	data, _ := json.Marshal(map[string]any{
+		"resp_code": "00000000", "huifu_id": "HF-MERCHANT-1", "sys_id": "HF-SYS", "product_id": "HF-PRODUCT",
+		"req_seq_id": merchantNo, "hf_seq_id": tradeNo,
+		"trans_amt": huifuAmountString(cents), "trans_stat": status, "trans_type": tradeType,
+		"end_time": time.Now().In(cstZone).Format("20060102150405"),
+	})
+	return []byte(url.Values{"resp_data": {string(data)}, "sign": {huifuFixtureSign(m.t, data, m.platformPriv)}}.Encode())
 }
 
 // postCheckoutWebhook 以真实 HTTP handler 处理一次服务商回调。
@@ -310,6 +324,9 @@ func postCheckoutWebhook(t *testing.T, db *ent.Client, path string, handler fibe
 	app.Post(path, handler)
 	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	if path == huifuNotifyPath {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 	resp, err := app.Test(req, fiber.TestConfig{Timeout: 10 * time.Second})
 	if err != nil {
 		t.Fatalf("调用回调失败：%v", err)
@@ -571,7 +588,7 @@ func TestCheckoutLateNotificationAfterAttemptExpiry(t *testing.T) {
 func TestCheckoutFallsBackToNextProviderBeforeAcceptance(t *testing.T) {
 	db := openWalletTestDB(t, "esports_checkout_fallback")
 	defer db.Close()
-	ctx := t.Context()
+	ctx := context.WithValue(t.Context(), checkoutClientIPKey{}, "127.0.0.1")
 	customer, order := seedCustomerPaymentFixture(t, db, "checkout-fallback")
 	sqbKey := "SQB-TERMINAL-KEY-4"
 	sqb, sqbServer := newSQBMock(t, sqbKey)
@@ -589,7 +606,7 @@ func TestCheckoutFallsBackToNextProviderBeforeAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = createCheckoutAttempt(ctx, db, checkout, "wechat", now); err == nil {
+	if _, err = createCheckoutAttempt(ctx, db, checkout, "alipay", now); err == nil {
 		t.Fatal("收钱吧受理失败时应返回错误")
 	}
 	failed, err := db.EsportsCheckoutAttempt.Query().Where(
@@ -597,7 +614,7 @@ func TestCheckoutFallsBackToNextProviderBeforeAcceptance(t *testing.T) {
 	if err != nil || failed.Status != esportscheckoutattempt.StatusFailed {
 		t.Fatalf("受理失败应留下 failed 尝试：%+v %v", failed, err)
 	}
-	fallback, err := createCheckoutAttempt(ctx, db, checkout, "wechat", now.Add(time.Second))
+	fallback, err := createCheckoutAttempt(ctx, db, checkout, "alipay", now.Add(time.Second))
 	if err != nil {
 		t.Fatalf("切换到汇付天下失败：%v", err)
 	}
@@ -658,7 +675,7 @@ func TestCheckoutDoesNotSwitchProviderWhenAcceptanceUnknown(t *testing.T) {
 func TestCheckoutRechargeHuifuCreditsWallet(t *testing.T) {
 	db := openWalletTestDB(t, "esports_checkout_recharge")
 	defer db.Close()
-	ctx := t.Context()
+	ctx := context.WithValue(t.Context(), checkoutClientIPKey{}, "127.0.0.1")
 	customer, _ := seedCustomerPaymentFixture(t, db, "checkout-recharge")
 	now := time.Now().UTC()
 	rechargeView, err := createRechargeIntent(ctx, db, customer, rechargeIntentInput{
@@ -687,7 +704,7 @@ func TestCheckoutRechargeHuifuCreditsWallet(t *testing.T) {
 	}
 	body := huifu.notificationBody(attempt.MerchantNo, huifu.tradeNo, "S", 5000, "alipay")
 	status, ack := postCheckoutWebhook(t, db, huifuNotifyPath, huifuPaymentNotifyHandler, body)
-	if status != http.StatusOK || !strings.Contains(ack, "00000000") {
+	if status != http.StatusOK || ack != "RECV_ORD_ID_"+attempt.MerchantNo {
 		t.Fatalf("汇付回调应答不正确：%d %q", status, ack)
 	}
 	balance, err := walletBalanceOf(ctx, db, walletCustomerBalance, customer.ID)

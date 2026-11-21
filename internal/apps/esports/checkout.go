@@ -717,7 +717,7 @@ func createCheckoutAttempt(ctx context.Context, db *ent.Client, checkout *ent.Es
 		}
 	}
 
-	providers, err := availableCheckoutProviders(ctx, db)
+	providers, err := availableCheckoutProviders(ctx, db, payChannel)
 	if err != nil {
 		return nil, err
 	}
@@ -786,6 +786,7 @@ func createCheckoutAttempt(ctx context.Context, db *ent.Client, checkout *ent.Es
 		SetProvider(esportscheckoutattempt.Provider(provider.Name())).
 		SetPayChannel(esportscheckoutattempt.PayChannel(payChannel)).
 		SetMerchantNo(merchantNo).
+		SetCreatedAt(now.UTC()).
 		SetStatus(esportscheckoutattempt.StatusCreating).
 		SetExpiresAt(attemptExpiry).
 		SetActiveDedupKey(checkoutDedupKey(current.ID)).Save(ctx)
@@ -813,6 +814,7 @@ func createCheckoutAttempt(ctx context.Context, db *ent.Client, checkout *ent.Es
 		subject = "陪玩服务"
 	}
 	result, err := provider.CreatePayment(ctx, checkoutPaymentRequest{
+		RequestedAt: attempt.CreatedAt, ClientIP: checkoutClientIP(ctx),
 		MerchantNo: merchantNo, PayChannel: payChannel, AmountCents: current.AmountCents,
 		Subject: subject, ExpiresAt: attemptExpiry,
 	})
@@ -855,6 +857,7 @@ func resumeCheckoutAttempt(ctx context.Context, db *ent.Client,
 		subject = "陪玩服务"
 	}
 	result, err := provider.CreatePayment(ctx, checkoutPaymentRequest{
+		RequestedAt: attempt.CreatedAt, ClientIP: checkoutClientIP(ctx),
 		MerchantNo: attempt.MerchantNo, PayChannel: attempt.PayChannel.String(),
 		AmountCents: checkout.AmountCents, Subject: subject, ExpiresAt: attempt.ExpiresAt,
 	})
@@ -1087,7 +1090,7 @@ func markCheckoutAttemptFailed(ctx context.Context, db *ent.Client,
 func settleCheckoutPayment(ctx context.Context, db *ent.Client, providerName string,
 	notice *checkoutNotification, now time.Time) (*ent.EsportsCheckoutAttempt, error) {
 	if notice == nil || strings.TrimSpace(notice.MerchantNo) == "" ||
-		strings.TrimSpace(notice.ProviderTradeNo) == "" {
+		(notice.Paid && strings.TrimSpace(notice.ProviderTradeNo) == "") {
 		return nil, errInvalidInput
 	}
 	providerName = strings.TrimSpace(providerName)
@@ -1402,7 +1405,7 @@ func compensateCheckoutPayments(ctx context.Context, db *ent.Client, now time.Ti
 			providers[attempt.Provider.String()] = provider
 		}
 		queried++
-		notice, queryErr := provider.QueryPayment(ctx, attempt.MerchantNo)
+		notice, queryErr := provider.QueryPayment(ctx, attempt.MerchantNo, attempt.CreatedAt)
 		if queryErr != nil {
 			if err == nil {
 				err = queryErr

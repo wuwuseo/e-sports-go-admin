@@ -1,6 +1,7 @@
 package esports
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -99,7 +100,8 @@ func publicCheckoutAttemptHandler(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
-	attempt, err := createCheckoutAttempt(c.Context(), global.ORM, item, in.PayChannel, time.Now())
+	ctx := context.WithValue(c.Context(), checkoutClientIPKey{}, c.IP())
+	attempt, err := createCheckoutAttempt(ctx, global.ORM, item, in.PayChannel, time.Now())
 	if err != nil {
 		return businessError(c, err)
 	}
@@ -151,20 +153,20 @@ func checkoutNotifyHandler(c fiber.Ctx, providerName string) error {
 	})
 	notice, err := provider.VerifyNotification(c.Context(), headers, c.Body())
 	if err != nil {
-		status, ack := provider.NotifyAck(false)
+		status, ack := provider.NotifyAck(false, "")
 		return c.Status(status).SendString(ack)
 	}
 	_, settleErr := settleCheckoutPayment(c.Context(), global.ORM, providerName, notice, time.Now())
 	if settleErr != nil {
 		if isCheckoutBusinessException(settleErr) || isCheckoutNotFound(settleErr) {
 			// 异常到账已写外盒事件交财务；未知商户单号不是本站业务，均不再让服务商重试。
-			status, ack := provider.NotifyAck(true)
+			status, ack := provider.NotifyAck(true, notice.RequestID)
 			return c.Status(status).SendString(ack)
 		}
-		status, ack := provider.NotifyAck(false)
+		status, ack := provider.NotifyAck(false, "")
 		return c.Status(status).SendString(ack)
 	}
-	status, ack := provider.NotifyAck(true)
+	status, ack := provider.NotifyAck(true, notice.RequestID)
 	return c.Status(status).SendString(ack)
 }
 

@@ -2,6 +2,27 @@
 
 本功能集通过 `app.go` 注册到 `/api/v1/esports`；管理端页面位于 `go-admin-web/src/apps/esports`。Ent Schema 只放在本目录的 `schema/`，由 `go generate ./internal/apps` 汇入主 Schema，再由 `go generate ./internal/ent` 生成客户端。不要直接修改生成文件。
 
+## 斗拱支付协议与官方本地沙箱（2026-11-04）
+
+汇付收款适配已按[斗拱文档](https://paas.huifu.com/docs/start/#/dgjs)修正为 V4 聚合支付：下单 `POST /v4/trade/payment/create`，查单 `POST /v4/trade/payment/scanpay/query`。默认网关为 `https://api.huifu.com`；`base_url` 可显式切换官方本地模拟网关，不修改 hosts 或关闭 TLS 校验。
+
+- 请求为 `sys_id/product_id/sign/data`，`data` 必须是对象；排序 JSON 使用 SHA256WithRSA 与 Base64，保留中文及 `<>&`。同步响应验签，支付通知读取表单 `resp_data/sign` 并按业务原文验签；成功 ACK 为 `RECV_ORD_ID_<req_seq_id>`。控台 Webhook 属于另一套协议，本适配器未接入。
+- `merchant_no` 对应 `huifu_id`；`sys_id`、`product_id`、商户私钥、汇付公钥及 `notify_base` 必须齐全。密钥兼容 PEM 和 SDK 导出的 PKCS8/X509 Base64；仍通过现有独立密钥配置项保存，不回显到配置摘要。可选 `skill_source` 按配置传入来源头，本地沙箱使用导出的值。
+- 当前支持支付宝 `A_NATIVE` 正扫。微信需要另接 JSAPI/小程序等授权参数，当前不向页面声明为汇付可用渠道；收钱吧渠道能力保持原样。不得构造不存在的 `W_NATIVE` 交易。
+- 查单使用尝试创建时的北京时间日期和原请求流水号，跨日重试不改请求日期。金额使用整数分；回调同时校验商户、签名、订单金额与渠道。重复通知不重复入账，迟到失败不覆盖成功；网络异常、验签失败、重复交易和未知业务码保留待查，不自动改投。
+
+已使用[官方本地沙箱 1.0.0](https://paas.huifu.com/docs/devtools/#/huifu_payment_local_sandbox)预览包完成本地实连。`TestHuifuLocalSandbox` 复用项目收款适配、真实通知 handler 和查单补偿，在内存 SQLite 中验证充值入账：成功通知、重复通知、迟到失败、篡改通知拦截、通知缺失后的查单补偿及重复补偿。它不会修改开发库或生产库配置和余额；未设置凭证路径时自动跳过。
+
+复现方式：先按官方说明启动 `official-demo` 沙箱并导出 `sandbox-credentials.json`，将启动 JSON 输出保存为同目录 `runtime.jsonl`（内含本机管理令牌，禁止提交）。再运行：
+
+```powershell
+$env:HUIFU_LOCAL_SANDBOX_CREDENTIALS = '<本机凭证目录>\sandbox-credentials.json'
+# 启动状态文件不在同目录时可设置 HUIFU_LOCAL_SANDBOX_RUNTIME。
+go test ./internal/apps/esports -run '^TestHuifuLocalSandbox$' -count=1 -v
+```
+
+普通协议回归运行 `go test ./internal/apps/esports -run 'TestHuifuDougong|TestCheckout|TestPaymentProviders|TestYunzhanghu'`。本地模拟通过只证明覆盖范围内的协议与业务闭环，真实商户权限、渠道授权、公网通知及真实资金结果仍需后续商户联调。
+
 ## 当前状态
 
 本节保留逐阶段开发记录。**2026-10-17 已按当前代码逐条复核并改写早期的「未实现 / 未接入」表述**：已成项的直接标注「已实现」并指向后文对应章节，仅保留真正仍未实现的条项，避免早期清单继续误导。请以当前代码与 `陪玩报单系统-功能列表.md` 的 P0 条项为准；是否可上线仍须按实际通道、端到端流程和权限在业务环境验收，`GET /admin/readiness` 的 ready 只代表运行配置齐备，不代表功能已验收。

@@ -12,6 +12,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -188,9 +189,37 @@ func (p *yunzhanghuProvider) ensureReady() error {
 
 // ── 签名与报文 ──
 
-// yunzhanghuSign 商户私钥签名：待签串复用 huifuCanonical（参数名升序 k=v&k=v，剔除 sign 与空值）。
+// yunzhanghuCanonical 云账户签名待签串：参数名 ASCII 升序，剔除 sign / sign_type 与空值，
+// 以 key=value 用 & 连接。非标量（嵌套对象）不参与签名，避免序列化差异导致验签漂移。
+func yunzhanghuCanonical(fields map[string]any) string {
+	keys := make([]string, 0, len(fields))
+	for key, value := range fields {
+		switch value.(type) {
+		case string, json.Number, float64, bool, nil:
+		default:
+			continue
+		}
+		switch key {
+		case "sign", "sign_type":
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		value := strings.TrimSpace(fmt.Sprint(fields[key]))
+		if value == "" {
+			continue
+		}
+		parts = append(parts, key+"="+value)
+	}
+	return strings.Join(parts, "&")
+}
+
+// yunzhanghuSign 商户私钥签名：待签串复用 yunzhanghuCanonical（参数名升序 k=v&k=v，剔除 sign 与空值）。
 func yunzhanghuSign(fields map[string]any, key *rsa.PrivateKey) (string, error) {
-	digest := sha256.Sum256([]byte(huifuCanonical(fields)))
+	digest := sha256.Sum256([]byte(yunzhanghuCanonical(fields)))
 	raw, err := rsa.SignPKCS1v15(nil, key, cryptoSHA256, digest[:])
 	if err != nil {
 		return "", err
@@ -208,7 +237,7 @@ func yunzhanghuVerify(fields map[string]any, signature string, key *rsa.PublicKe
 	if err != nil {
 		return fmt.Errorf("%w：云账户签名不是合法 Base64", errForbidden)
 	}
-	digest := sha256.Sum256([]byte(huifuCanonical(fields)))
+	digest := sha256.Sum256([]byte(yunzhanghuCanonical(fields)))
 	if err = rsa.VerifyPKCS1v15(key, cryptoSHA256, digest[:], raw); err != nil {
 		return fmt.Errorf("%w：云账户签名校验失败", errForbidden)
 	}
