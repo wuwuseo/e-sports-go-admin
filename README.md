@@ -38,7 +38,7 @@
 | 陪玩管理 | 档案与资格、在线状态、心跳保活、自助接单/开工/完工、考核定级、责任信用 |
 | 服务与结单 | 服务凭证、结单规则、结单表单设计器、提交规则、串行审批流、待复核 |
 | 售后与退款 | 受理→方案→客户确认→审批→执行状态机、补履约任务、陪玩追偿、SLA 超时升级、终态复核 |
-| 资金与账本 | 客户余额、陪玩猫粮、只增流水、批次分摊、充值活动、在线收款与回调 |
+| 资金与账本 | 客户余额、陪玩猫粮、只增流水、批次分摊、充值活动、在线收款与回调（收钱吧 / 汇付斗拱 V4 聚合支付） |
 | 结算与提现 | 陪玩分成规则与结算单、客服提成（含争议冻结、作废与重开）、提现申请与审核打款、退款冲回、渠道成本与工作室剩余 |
 | 会员与礼物 | 会员等级与成长值、生日礼遇、优先预约、礼物目录、代客送礼、防刷榜、贡献榜 |
 | 客服工作台 | 客户档案与跟进、企微自动建档、话术库、订单池与待办聚合、数据隔离 |
@@ -87,7 +87,7 @@ go-admin/
 │   ├── middleware/              # JWT、权限、黑名单、数据域、审计等
 │   ├── ent/                     # Ent 生成代码与通用 schema
 │   ├── captcha/  casbin/  cron/  oauth/  plugin/  queue/  tasks/  utils/  global/
-├── cmd/                         # captcha-reencrypt / cleanup-e2e / reset-admin-password
+├── cmd/                         # captcha-reencrypt / cleanup-e2e / reset-admin-password / verify-role-access / esports-demo-seed / esports-data-repair / esports-stored-value-export
 ├── pluginapi/                   # 插件 gRPC 协议与运行时
 ├── web/dist/                    # 管理端构建产物（go:embed，需自行构建）
 ├── data/                        # 运行时：logs / storage / plugins / cron
@@ -190,6 +190,8 @@ $env:ESPORTS_EXPERIMENTAL="1"
 
 启用后还需在系统配置中确认 `app.esports.payment_deadline_minutes` 为非零（默认 30），否则待付款订单无法支付。上线前请逐项完成 [esports README](internal/apps/esports/README.md) 中的验收清单。
 
+联调与演示环境可设 `ESPORTS_DEMO_SEED=1`，随启动幂等播种演示数据；不想重启服务时，直接运行 `go run ./cmd/esports-demo-seed`（与启动开关共用同一实现，按唯一键判存，不会覆盖已有运营改动）。
+
 访问地址：
 
 - 管理端：<http://localhost:9501>
@@ -266,6 +268,7 @@ filesystem:
 | `CMF_CONFIG_SECRET_ACTIVE_VERSION` / `CMF_CONFIG_SECRET_KEY_V1` | 系统配置密钥版本与 AES-256-GCM 主密钥（Base64） |
 | `CMF_PLUGIN_REQUIRE_SIGNATURE` / `CMF_PLUGIN_TRUSTED_PUBLIC_KEYS` | 插件签名开关与可信公钥 |
 | `ESPORTS_EXPERIMENTAL` | `1` 时启用陪玩报单业务功能集 |
+| `ESPORTS_DEMO_SEED` | `1` 时启动即幂等播种演示数据（1 个测试商品 / 1 个测试客户 / 5 个陪玩），仅联调与演示环境使用 |
 | `CMF_NOTIFY_SMS_ACCESS_KEY` 等 | 通知渠道密钥，按 `config.yml` 键名推导 |
 
 > 密钥轮换后需重跑 `go run ./cmd/captcha-reencrypt --dry-run=false` 重新加密存量配置。
@@ -409,11 +412,11 @@ WantedBy=multi-user.target
 
 ### 注册的后台任务
 
-`esports` 功能集在启用后注册 **36 个**任务（由 Cron 管理端或队列调度）：
+`esports` 功能集在启用后注册 **40 个**任务（由 Cron 管理端或队列调度）：
 
-`esports_activate_scheduled_commission_rules`、`esports_apply_due_sku_suspensions`、`esports_apply_member_downgrade`、`esports_auto_offline_players`、`esports_auto_pause_disconnected_players`、`esports_auto_transfer_backlog_orders`、`esports_auto_trigger_upgrade_assessments`、`esports_check_aftersale_sla`、`esports_check_close_approval_timeout`、`esports_check_service_overtime`、`esports_deliver_notifications`、`esports_deliver_outbox`、`esports_detect_review_brushing`、`esports_expire_appointment_confirmations`、`esports_expire_dispatch_invites`、`esports_expire_dispatch_priority_notice`、`esports_expire_member_level_overrides`、`esports_expire_orders`、`esports_expire_pending_external_refunds`、`esports_expire_priority_booking_intents`、`esports_expire_recharge_intents`、`esports_expire_reschedule_proposals`、`esports_expire_wallet_bonus`、`esports_flag_high_risk_customers`、`esports_generate_cs_settlements`、`esports_generate_player_settlements`、`esports_generate_spot_checks`、`esports_publish_scheduled_pages`、`esports_rebuild_dispatch_priority`、`esports_reconcile_ledgers`、`esports_remind_dispatch_ladder`、`esports_run_player_level_review`、`esports_scan_aftersale_rules`、`esports_scan_close_deadline`、`esports_scan_dispatch_escalations`、`esports_schedule_repurchase_follow_ups`。
+`esports_activate_scheduled_commission_rules`、`esports_apply_due_sku_suspensions`、`esports_apply_member_downgrade`、`esports_auto_confirm_customer_grabs`、`esports_auto_offline_players`、`esports_auto_pause_disconnected_players`、`esports_auto_transfer_backlog_orders`、`esports_auto_trigger_upgrade_assessments`、`esports_check_aftersale_sla`、`esports_check_close_approval_timeout`、`esports_check_service_overtime`、`esports_compensate_checkout_payments`、`esports_deliver_notifications`、`esports_deliver_outbox`、`esports_detect_review_brushing`、`esports_expire_appointment_confirmations`、`esports_expire_dispatch_invites`、`esports_expire_dispatch_priority_notice`、`esports_expire_member_level_overrides`、`esports_expire_orders`、`esports_expire_pending_external_refunds`、`esports_expire_priority_booking_intents`、`esports_expire_recharge_intents`、`esports_expire_realname_pending`、`esports_expire_reschedule_proposals`、`esports_expire_wallet_bonus`、`esports_flag_high_risk_customers`、`esports_generate_cs_settlements`、`esports_generate_player_settlements`、`esports_generate_spot_checks`、`esports_publish_scheduled_pages`、`esports_rebuild_dispatch_priority`、`esports_reconcile_ledgers`、`esports_remind_dispatch_ladder`、`esports_run_player_level_review`、`esports_scan_aftersale_rules`、`esports_scan_close_deadline`、`esports_scan_dispatch_escalations`、`esports_schedule_repurchase_follow_ups`、`esports_sync_payout_batches`。
 
-> 该清单与 `internal/apps/esports/*.go` 中 `tasks.Register` 的注册项一一对应（36 注册 / 36 种子，种子见 `internal/apps/esports/cron_seeds.go`）。其中 `esports_expire_member_level_overrides`（会员手动调级覆盖到期回落）与 `esports_expire_priority_booking_intents`（会员优先预约意向过期消解）为 2026-10 新增；两者对应的回落 / 消解在读路径也有惰性判定，因此任务未注册时能力仍自愈。**2026-10-20 移除储值卡功能后**，`esports_expire_stored_value_cards`（卡到期作废赠送）与 `esports_expire_customer_stored_value_intents`（自助购卡支付意图过期）两个任务连同其种子一并删除，注册 / 种子数由 38 降为 36；2026-10-19 新增的 `esports_expire_pending_external_refunds` 本轮补入本清单；`esports_apply_due_sku_suspensions` 为历史任务名，2026-10-22 单一商品迁移后其语义已是「商品停服申请生效」，任务名保持不变。
+> 该清单与 `internal/apps/esports/*.go` 中 `tasks.Register` 的注册项一一对应（40 注册 / 40 种子，种子见 `internal/apps/esports/cron_seeds.go`）。其中 `esports_expire_member_level_overrides`（会员手动调级覆盖到期回落）与 `esports_expire_priority_booking_intents`（会员优先预约意向过期消解）为 2026-10 新增；两者对应的回落 / 消解在读路径也有惰性判定，因此任务未注册时能力仍自愈。**2026-10-20 移除储值卡功能后**，`esports_expire_stored_value_cards`（卡到期作废赠送）与 `esports_expire_customer_stored_value_intents`（自助购卡支付意图过期）两个任务连同其种子一并删除；2026-10-19 新增的 `esports_expire_pending_external_refunds` 本轮补入本清单；`esports_apply_due_sku_suspensions` 为历史任务名，2026-10-22 单一商品迁移后其语义已是「商品停服申请生效」，任务名保持不变。2026-11 补入 `esports_auto_confirm_customer_grabs`（客户超时未确认抢单陪玩自动确认）、`esports_compensate_checkout_payments`（聚合收款查单补偿与超时关闭）、`esports_sync_payout_batches`（云账户代发批次查单补偿与状态收敛）、`esports_expire_realname_pending`（统一实名待审超时置失效并把流水置放弃），注册 / 种子数由 36 升至 40。
 
 ## 安全基线
 
