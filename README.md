@@ -8,9 +8,9 @@
 
 | 仓库 | 角色 | 技术栈 | 身份 |
 | --- | --- | --- | --- |
-| **go-admin**（本仓库） | 后端 API | Go + Fiber v3 + Ent + Casbin | `admin` 管理端 / `user` 用户端 |
-| **go-admin-web**（同级目录） | 管理端 / 客服端 | Vue 3 + TS + Vite + Arco Design | 客服、超级管理员 |
-| **e-sports-uniapp**（同级目录） | 客户端 / 陪玩端 / 移动客服端 | Vue 3 + TS + uni-app | 客户、陪玩、客服 |
+| **[e-sports-go-admin](https://gitee.com/wanglei199104/e-sports-go-admin)**（本仓库，本地目录 `go-admin`） | 后端 API | Go + Fiber v3 + Ent + Casbin | `admin` 管理端 / `user` 用户端 |
+| **[e-sports-go-admin-web](https://gitee.com/wanglei199104/e-sports-go-admin-web)**（同级目录，本地目录 `go-admin-web`） | 管理端 / 客服端 | Vue 3 + TS + Vite + Arco Design | 客服、超级管理员 |
+| **[e-sports-uniapp](https://gitee.com/wanglei199104/e-sports-uniapp)**（同级目录，本地目录 `e-sports-uniapp`） | 客户端 / 陪玩端 / 移动客服端 | Vue 3 + TS + uni-app | 客户、陪玩、客服 |
 
 > 后端通过 `go:embed` 把管理端构建产物打进二进制；开发时管理端 Vite 将 `/api` 代理到 `127.0.0.1:9501`。
 
