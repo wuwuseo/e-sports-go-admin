@@ -1,10 +1,16 @@
 package esports
 
 import (
+	"encoding/json"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/gofiber/fiber/v3"
+
+	"go-admin/internal/global"
 )
 
 // 快捷入口 target 指向「已下线的储值卡功能」时的行为（2026-10-20 储值卡移除后的收尾）：
@@ -157,5 +163,102 @@ func TestNormalizePageConfigKeepsCleanNav(t *testing.T) {
 	}
 	if !navFound {
 		t.Fatal("干净配置不应被删掉 quick_nav 组件")
+	}
+}
+
+// TestAdminPageDocumentPrunesRemovedNavTarget 编辑器读取草稿时也剔除已下线入口。
+//
+// 这是「装修页保存 / 发布永远报校验未通过」的回归测试：存量脏草稿含 prepay_card 时，
+// 编辑器原先会把脏项原样回传，保存被 validatePageEnumValue 拦下，形成死循环。
+// 期望：读取即归一化、且不回写数据库；编辑器把读到的配置原样保存即可自愈。
+func TestAdminPageDocumentPrunesRemovedNavTarget(t *testing.T) {
+	db := openPageDB(t, "esports_page_nav_admin_read")
+	defer db.Close()
+	ctx := t.Context()
+
+	// 先落合法草稿，再直接改成含 prepay_card 的配置绕过保存期校验，模拟历史脏草稿。
+	if _, err := savePageDraft(ctx, db, pageChannelCustomerHome, 1, pageDraftInput{
+		Components: quickNavComponents("category"),
+	}); err != nil {
+		t.Fatalf("合法草稿应保存成功：%v", err)
+	}
+	doc, err := db.EsportsPageDocument.Query().Only(ctx)
+	if err != nil {
+		t.Fatalf("读取页面文档失败：%v", err)
+	}
+	dirty := pageConfig{Components: quickNavComponents("category", "prepay_card")}
+	if _, err = db.EsportsPageDocument.UpdateOneID(doc.ID).
+		SetDraftConfig(pageConfigToMap(dirty)).Save(ctx); err != nil {
+		t.Fatalf("写入脏草稿失败：%v", err)
+	}
+
+	previous := global.ORM
+	global.ORM = db
+	t.Cleanup(func() { global.ORM = previous })
+
+	admin := seedAdminAccount(t, db, "pnt-admin")
+	app := fiber.New()
+	app.Use(func(c fiber.Ctx) error {
+		c.Locals("uid", admin.UID)
+		c.Locals("isSuperAdmin", true)
+		return c.Next()
+	})
+	app.Get("/admin/pages/:channel", adminPageDocument)
+
+	status, payload := pcqDoGet(t, app, "/admin/pages/"+pageChannelCustomerHome)
+	if status != http.StatusOK {
+		t.Fatalf("读取草稿接口应成功，status=%d payload=%v", status, payload)
+	}
+	data, _ := payload["data"].(map[string]any)
+	comps, _ := data["components"].([]any)
+	if len(comps) == 0 {
+		t.Fatalf("响应缺少 components：%v", payload)
+	}
+
+	var targets []string
+	for _, raw := range comps {
+		comp, _ := raw.(map[string]any)
+		if comp["type"] != "quick_nav" {
+			continue
+		}
+		props, _ := comp["props"].(map[string]any)
+		items, _ := props["items"].([]any)
+		for _, rawItem := range items {
+			item, _ := rawItem.(map[string]any)
+			target, _ := item["target"].(string)
+			targets = append(targets, strings.TrimSpace(target))
+		}
+	}
+	if !containsString(targets, "category") {
+		t.Fatalf("可用入口不应被剔除，实际 %v", targets)
+	}
+	if containsString(targets, "prepay_card") {
+		t.Fatalf("编辑器读到的配置不应再含已下线入口，实际 %v", targets)
+	}
+
+	// 读取侧只做归一化，不回写快照外的业务数据（草稿仍保持原样，避免误伤历史记录）。
+	kept, err := db.EsportsPageDocument.Get(ctx, doc.ID)
+	if err != nil {
+		t.Fatalf("重新读取文档失败：%v", err)
+	}
+	raw, err := json.Marshal(kept.DraftConfig)
+	if err != nil {
+		t.Fatalf("序列化草稿失败：%v", err)
+	}
+	if !strings.Contains(string(raw), "prepay_card") {
+		t.Fatal("读取接口不应回写数据库，草稿应保持原样")
+	}
+
+	// 模拟「打开编辑器后直接保存」：回传归一化后的配置必须能保存、且随后可以发布。
+	// ExpectedVersion 取编辑器读到的 draft_version（乐观锁，与真实前端一致）。
+	clean := pageConfig{Components: quickNavComponents(targets...)}
+	if _, err = savePageDraft(ctx, db, pageChannelCustomerHome, 1, pageDraftInput{
+		Components: clean.Components, ExpectedVersion: doc.DraftVersion,
+	}); err != nil {
+		t.Fatalf("归一化后的配置应可保存（自愈链路）：%v", err)
+	}
+	if _, err = publishPage(ctx, db, pageChannelCustomerHome, admin.ID,
+		pagePublishInput{Mode: "immediate"}, time.Now()); err != nil {
+		t.Fatalf("自愈后的草稿应可提交发布：%v", err)
 	}
 }

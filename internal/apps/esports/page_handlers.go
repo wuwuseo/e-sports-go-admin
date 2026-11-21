@@ -64,6 +64,10 @@ func adminPageDocument(c fiber.Ctx) error {
 	if err != nil {
 		return businessError(c, err)
 	}
+	// 编辑器读取侧同样剔除已下线功能的快捷入口：否则存量脏草稿会把已下线 target
+	// 原样回传，保存 / 发布时被 validatePageEnumValue 永远拦下（表现为「校验未通过」死循环）。
+	// 这里只归一化读取结果、不改库；编辑器下次保存即自然回写干净配置。
+	cfg = pruneRemovedPageNavTargets(cfg)
 	return reply(c, fiber.Map{"document": doc, "components": cfg.Components})
 }
 
