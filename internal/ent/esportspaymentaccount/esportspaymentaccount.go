@@ -124,6 +124,8 @@ const (
 	ChannelWechatWork        Channel = "wechat_work"
 	ChannelMerchantQr        Channel = "merchant_qr"
 	ChannelCorporateTransfer Channel = "corporate_transfer"
+	ChannelWechatMerchantQr  Channel = "wechat_merchant_qr"
+	ChannelAlipayMerchantQr  Channel = "alipay_merchant_qr"
 )
 
 func (c Channel) String() string {
@@ -133,7 +135,7 @@ func (c Channel) String() string {
 // ChannelValidator is a validator for the "channel" field enum values. It is called by the builders before save.
 func ChannelValidator(c Channel) error {
 	switch c {
-	case ChannelWechatWork, ChannelMerchantQr, ChannelCorporateTransfer:
+	case ChannelWechatWork, ChannelMerchantQr, ChannelCorporateTransfer, ChannelWechatMerchantQr, ChannelAlipayMerchantQr:
 		return nil
 	default:
 		return fmt.Errorf("esportspaymentaccount: invalid enum value for channel field: %q", c)

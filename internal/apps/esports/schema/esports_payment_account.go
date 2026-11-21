@@ -8,14 +8,19 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// EsportsPaymentAccount 是工作室收款账户：企业微信收款 / 工作室商户码 / 对公转账。
+// EsportsPaymentAccount 是工作室收款账户：企业微信收款 / 工作室商户码 / 对公转账，
+// 以及聚合收款固定码兜底按支付渠道细分的微信商家码 / 支付宝商家码。
 // 收款账户必须挂在工作主体名下并经财务审核后启用，客服不能新增或更换收款主体；
 // 订单外部到账只能核销到启用中的账户，停用 / 待审核 / 驳回账户一律不可用。
 type EsportsPaymentAccount struct{ ent.Schema }
 
 func (EsportsPaymentAccount) Fields() []ent.Field {
 	return []ent.Field{
-		field.Enum("channel").Values("wechat_work", "merchant_qr", "corporate_transfer").
+		// 渠道取值须与 payment_account.go 的 externalPaymentChannelValues 保持一致：
+		// 客户侧收款方式列表按该切片渲染，缺一个就会出现「能看见渠道但永远配不上账户」。
+		field.Enum("channel").
+			Values("wechat_work", "merchant_qr", "corporate_transfer",
+				"wechat_merchant_qr", "alipay_merchant_qr").
 			StructTag(`json:"channel"`),
 		// 收款主体名称（须为工作室主体，非个人）。
 		field.String("subject_name").NotEmpty().MaxLen(120).StructTag(`json:"subject_name"`),

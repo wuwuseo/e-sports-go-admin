@@ -231,7 +231,8 @@ func createPaymentAccount(ctx context.Context, db *ent.Client, in paymentAccount
 	if in.Channel == "corporate_transfer" && in.AccountNo == "" {
 		return nil, errInvalidInput
 	}
-	if (in.Channel == "merchant_qr" || in.Channel == "wechat_work") && in.QrURL == "" && in.AccountNo == "" {
+	if (in.Channel == "merchant_qr" || in.Channel == "wechat_work" ||
+		fixedMerchantQRChannel(in.Channel)) && in.QrURL == "" && in.AccountNo == "" {
 		return nil, errInvalidInput
 	}
 	// ：收款主体须为工作室主体之一（fail-closed：白名单未配置时不接受任何主体）。

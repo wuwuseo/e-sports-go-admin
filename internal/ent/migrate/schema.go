@@ -2577,7 +2577,7 @@ var (
 	// EsportsPaymentAccountsColumns holds the columns for the "esports_payment_accounts" table.
 	EsportsPaymentAccountsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "channel", Type: field.TypeEnum, Enums: []string{"wechat_work", "merchant_qr", "corporate_transfer"}},
+		{Name: "channel", Type: field.TypeEnum, Enums: []string{"wechat_work", "merchant_qr", "corporate_transfer", "wechat_merchant_qr", "alipay_merchant_qr"}},
 		{Name: "subject_name", Type: field.TypeString, Size: 120},
 		{Name: "account_no", Type: field.TypeString, Size: 128, Default: ""},
 		{Name: "qr_url", Type: field.TypeString, Size: 255, Default: ""},
