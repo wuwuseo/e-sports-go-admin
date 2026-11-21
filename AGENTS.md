@@ -4,8 +4,8 @@
 
 ## 1. 仓库定位与边界
 
-- 本仓库 **[e-sports-go-admin](https://gitee.com/wanglei199104/e-sports-go-admin)** 是 **EsportsPartner 的服务端**（Go + Fiber v3 + Ent + Casbin），承载通用后台能力与 `esports` 陪玩报单业务功能集。
-- 管理端前端仓库 **[e-sports-go-admin-web](https://gitee.com/wanglei199104/e-sports-go-admin-web)**（本地目录 `go-admin-web`），客户端 / 陪玩端 / 移动客服端仓库 **[e-sports-uniapp](https://gitee.com/wanglei199104/e-sports-uniapp)**（本地目录 `e-sports-uniapp`）；本仓库不包含它们的源码。
+- EsportsPartner 的服务端是 **[e-sports-go-admin](https://gitee.com/wanglei199104/e-sports-go-admin)**（Go + Fiber v3 + Ent + Casbin），即本仓库，承载通用后台能力与 `esports` 陪玩报单业务功能集。
+- EsportsPartner 的管理端仓库是 **[e-sports-go-admin-web](https://gitee.com/wanglei199104/e-sports-go-admin-web)**，本地目录 `go-admin-web`；客户端 / 陪玩端 / 移动客服端仓库是 **[e-sports-uniapp](https://gitee.com/wanglei199104/e-sports-uniapp)**，本地目录 `e-sports-uniapp`；本仓库不包含它们的源码。
 - 管理端构建产物经 `//go:embed web/dist` 打进二进制；`web/` 已在 `.gitignore` 中，属于本地构建产物，不要提交。
 - 三层职责不要混：`handler` 只做参数解析与响应，`service` 承载业务规则与事务，`middleware` 处理认证、权限、审计等横切逻辑。
 
