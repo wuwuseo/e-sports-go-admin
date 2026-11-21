@@ -2,9 +2,12 @@ package esports
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	cmfcrypto "github.com/wuwuseo/cmf/crypto"
@@ -34,8 +37,8 @@ import (
 const (
 	// DemoSeedEnv 是演示数据播种开关，取值 1/true/yes/on 时随 SeedBaseline 生效。
 	DemoSeedEnv = "ESPORTS_DEMO_SEED"
-	// DemoSeedPassword 是全部演示账号（客户 + 5 个陪玩）的统一初始密码。
-	DemoSeedPassword = "Demo@esports2026"
+	// DemoSeedPasswordEnv 可指定演示账号的统一初始密码；未设置时每次播种随机生成。
+	DemoSeedPasswordEnv = "ESPORTS_DEMO_PASSWORD"
 
 	// DemoSeedSkuCode 是演示商品编码，同时是幂等判存用的唯一键。
 	DemoSeedSkuCode = "DEMO_DELTA_PLAY_01"
@@ -53,6 +56,31 @@ const (
 	demoCustomerPhone = "13800000001"
 	demoCustomerUID   = "940000001"
 )
+
+var (
+	demoSeedPasswordOnce sync.Once
+	demoSeedPassword     string
+)
+
+// DemoSeedPassword 返回本次播种使用的统一初始密码：优先取 ESPORTS_DEMO_PASSWORD，
+// 未设置时随机生成（Demo + 16 位十六进制）。源码不保留任何可用凭证；
+// 调用方（命令行工具或启动日志）负责打印一次，供联调取用。
+func DemoSeedPassword() string {
+	demoSeedPasswordOnce.Do(func() {
+		if value := strings.TrimSpace(os.Getenv(DemoSeedPasswordEnv)); value != "" {
+			demoSeedPassword = value
+			return
+		}
+		buf := make([]byte, 8)
+		if _, err := rand.Read(buf); err != nil {
+			// crypto/rand 失败极罕见：退化为时间戳派生值，至少不留下固定口令。
+			demoSeedPassword = fmt.Sprintf("Demo%d", time.Now().UnixNano())
+			return
+		}
+		demoSeedPassword = "Demo" + hex.EncodeToString(buf)
+	})
+	return demoSeedPassword
+}
 
 // demoPlayerSpec 描述一个演示陪玩：账号 + 档案一起播，等级取 defaultSkillLevels 的编码。
 type demoPlayerSpec struct {
@@ -381,7 +409,7 @@ func ensureDemoUser(ctx context.Context, db *ent.Client, username, nickname, pho
 		return nil, false, err
 	}
 
-	hashed, salt, err := cmfcrypto.HashPassword(DemoSeedPassword)
+	hashed, salt, err := cmfcrypto.HashPassword(DemoSeedPassword())
 	if err != nil {
 		return nil, false, err
 	}

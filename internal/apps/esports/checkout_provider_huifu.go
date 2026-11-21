@@ -138,8 +138,6 @@ func parseRSAPublicKeyPEM(raw string) (*rsa.PublicKey, error) {
 	return key, nil
 }
 
-const cryptoSHA256 = crypto.SHA256
-
 func huifuSign(data []byte, key *rsa.PrivateKey) (string, error) {
 	digest := sha256.Sum256(data)
 	signature, err := rsa.SignPKCS1v15(nil, key, crypto.SHA256, digest[:])
@@ -337,14 +335,18 @@ func (p *huifuProvider) CreatePayment(ctx context.Context, req checkoutPaymentRe
 	if req.MerchantNo == "" || req.AmountCents <= 0 {
 		return nil, errInvalidInput
 	}
+	// 以下三项是与时间、网络无关的确定性校验：同一请求重试多少次都不会成功，
+	// 必须按「服务商明确拒绝」返回，调用方才会把尝试置 failed 并释放有效键；
+	// 若误报为 errPaymentGatewayUnavailable，会留下永远不可能成功的 creating 尝试，
+	// 在有效期内把客户锁死在这家服务商上。
 	if !checkoutProviderSupports(p.Name(), req.PayChannel) {
-		return nil, fmt.Errorf("%w：汇付当前仅接入支付宝正扫，微信需先接入授权支付", errPaymentGatewayUnavailable)
+		return nil, fmt.Errorf("%w：汇付当前仅接入支付宝正扫，微信需先接入授权支付", errCheckoutProviderRejected)
 	}
 	if net.ParseIP(req.ClientIP) == nil {
-		return nil, fmt.Errorf("%w：汇付风控信息缺少有效客户 IP", errPaymentGatewayUnavailable)
+		return nil, fmt.Errorf("%w：汇付风控信息缺少有效客户 IP", errCheckoutProviderRejected)
 	}
 	if !req.ExpiresAt.After(p.now().Add(time.Minute)) {
-		return nil, fmt.Errorf("%w：汇付支付有效期需超过 60 秒", errPaymentGatewayUnavailable)
+		return nil, fmt.Errorf("%w：汇付支付有效期需超过 60 秒", errCheckoutProviderRejected)
 	}
 	requestedAt := req.RequestedAt
 	if requestedAt.IsZero() {

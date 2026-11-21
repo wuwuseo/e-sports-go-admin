@@ -44,7 +44,9 @@ func main() {
 	}
 
 	fmt.Printf("\n测试商品编码: %s（分区 %s）\n", esports.DemoSeedSkuCode, esports.DemoSeedGameZoneCode)
-	fmt.Printf("统一初始密码: %s\n", esports.DemoSeedPassword)
+	// 口令在首次调用时确定（环境变量优先，否则随机生成），必须在播种后打印，
+	// 因为播种前该值尚未生成。
+	fmt.Printf("统一初始密码: %s\n", esports.DemoSeedPassword())
 	fmt.Println("客户账号: demo_customer01 / 13800000001")
 	fmt.Println("陪玩账号: demo_player01 ~ demo_player05 / 13800000011 ~ 13800000015")
 	fmt.Printf("客户归属指定: 设置 %s=<管理员用户名> 可覆盖默认（默认取 cs_admin 角色管理员）\n", esports.DemoSeedOwnerAdminEnv)

@@ -595,7 +595,7 @@ func checkoutViewOf(ctx context.Context, db *ent.Client, item *ent.EsportsChecko
 	if (attempt.Status == esportscheckoutattempt.StatusCreating ||
 		attempt.Status == esportscheckoutattempt.StatusPending) &&
 		!time.Now().UTC().Before(attempt.ExpiresAt) {
-		if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID, time.Now().UTC()); expireErr == nil {
+		if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID); expireErr == nil {
 			if reloaded, reloadErr := db.EsportsCheckoutAttempt.Get(ctx, attempt.ID); reloadErr == nil {
 				attempt = reloaded
 			}
@@ -697,7 +697,7 @@ func createCheckoutAttempt(ctx context.Context, db *ent.Client, checkout *ent.Es
 	}
 	if active != nil {
 		if !now.UTC().Before(active.ExpiresAt) {
-			if err = expireCheckoutAttempt(ctx, db, active.ID, now); err != nil {
+			if err = expireCheckoutAttempt(ctx, db, active.ID); err != nil {
 				return nil, err
 			}
 			active = nil
@@ -712,7 +712,7 @@ func createCheckoutAttempt(ctx context.Context, db *ent.Client, checkout *ent.Es
 				return active, nil
 			case esportscheckoutattempt.StatusCreating:
 				// 上次受理结果未知（例如进程中断）：用同一商户单号重试下单，服务商按单号幂等。
-				return resumeCheckoutAttempt(ctx, db, active, now)
+				return resumeCheckoutAttempt(ctx, db, active)
 			}
 		}
 	}
@@ -842,8 +842,7 @@ func createCheckoutAttempt(ctx context.Context, db *ent.Client, checkout *ent.Es
 
 // resumeCheckoutAttempt 用同一商户单号重试服务商下单（受理结果未知的场景）。
 func resumeCheckoutAttempt(ctx context.Context, db *ent.Client,
-	attempt *ent.EsportsCheckoutAttempt, now time.Time) (*ent.EsportsCheckoutAttempt, error) {
-	_ = now
+	attempt *ent.EsportsCheckoutAttempt) (*ent.EsportsCheckoutAttempt, error) {
 	provider, err := checkoutProviderFor(ctx, db, attempt.Provider.String())
 	if err != nil {
 		return nil, err
@@ -1039,8 +1038,7 @@ func checkoutPayChannelText(channel string) string {
 }
 
 // expireCheckoutAttempt 把尝试置 expired 并释放有效键（保留支付渠道 / 商户单号供对账）。
-func expireCheckoutAttempt(ctx context.Context, db *ent.Client, attemptID int, now time.Time) error {
-	_ = now
+func expireCheckoutAttempt(ctx context.Context, db *ent.Client, attemptID int) error {
 	_, err := db.EsportsCheckoutAttempt.Update().Where(
 		esportscheckoutattempt.IDEQ(attemptID),
 		esportscheckoutattempt.StatusIn(
@@ -1130,7 +1128,7 @@ func settleCheckoutPayment(ctx context.Context, db *ent.Client, providerName str
 	if attempt.ProviderTradeNo != nil && strings.TrimSpace(*attempt.ProviderTradeNo) != "" &&
 		*attempt.ProviderTradeNo != notice.ProviderTradeNo {
 		return checkoutException(ctx, db, checkout, attempt, "trade_no_conflict",
-			"同一商户单号出现不同的服务商交易号", now)
+			"同一商户单号出现不同的服务商交易号")
 	}
 	// 服务商交易号全站唯一：被其它尝试占用说明重复推送 / 串单，转人工。
 	duplicated, err := db.EsportsCheckoutAttempt.Query().Where(
@@ -1143,17 +1141,15 @@ func settleCheckoutPayment(ctx context.Context, db *ent.Client, providerName str
 	}
 	if duplicated {
 		return checkoutException(ctx, db, checkout, attempt, "trade_no_reused",
-			"该服务商交易号已被其它支付尝试占用", now)
+			"该服务商交易号已被其它支付尝试占用")
 	}
 	if notice.AmountCents != checkout.AmountCents {
 		return checkoutException(ctx, db, checkout, attempt, "amount_mismatch",
-			fmt.Sprintf("服务商金额 %d 分与业务金额 %d 分不一致", notice.AmountCents, checkout.AmountCents),
-			now)
+			fmt.Sprintf("服务商金额 %d 分与业务金额 %d 分不一致", notice.AmountCents, checkout.AmountCents))
 	}
 	if notice.PayChannel != "" && notice.PayChannel != attempt.PayChannel.String() {
 		return checkoutException(ctx, db, checkout, attempt, "channel_mismatch",
-			fmt.Sprintf("实际支付渠道 %s 与尝试渠道 %s 不一致", notice.PayChannel, attempt.PayChannel.String()),
-			now)
+			fmt.Sprintf("实际支付渠道 %s 与尝试渠道 %s 不一致", notice.PayChannel, attempt.PayChannel.String()))
 	}
 	if notice.PaidAt.IsZero() {
 		notice.PaidAt = now.UTC()
@@ -1161,15 +1157,19 @@ func settleCheckoutPayment(ctx context.Context, db *ent.Client, providerName str
 
 	// 先落服务商交易号，保证结算失败后重试仍能按同一笔交易幂等。
 	if attempt.ProviderTradeNo == nil || *attempt.ProviderTradeNo == "" {
-		_, _ = db.EsportsCheckoutAttempt.Update().Where(
+		if _, err = db.EsportsCheckoutAttempt.Update().Where(
 			esportscheckoutattempt.IDEQ(attempt.ID),
 			esportscheckoutattempt.ProviderTradeNoIsNil(),
-		).SetProviderTradeNo(notice.ProviderTradeNo).Save(ctx)
+		).SetProviderTradeNo(notice.ProviderTradeNo).Save(ctx); err != nil {
+			// 服务商会重投回调，这里返回错误比继续结算更安全：宁可让本次回调失败，
+			// 也不能在交易号未落库的情况下入账，否则重投时无从按交易号幂等。
+			return nil, fmt.Errorf("记录服务商交易号: %w", err)
+		}
 	}
 
 	if err = applyCheckoutBusinessPayment(ctx, db, checkout, attempt, notice, now); err != nil {
 		if isCheckoutBusinessException(err) {
-			return checkoutException(ctx, db, checkout, attempt, "business_rejected", err.Error(), now)
+			return checkoutException(ctx, db, checkout, attempt, "business_rejected", err.Error())
 		}
 		return nil, err
 	}
@@ -1180,7 +1180,7 @@ func settleCheckoutPayment(ctx context.Context, db *ent.Client, providerName str
 	if err = markCheckoutPaid(ctx, db, checkout); err != nil {
 		return nil, err
 	}
-	_, _ = db.EsportsOutbox.Create().
+	if _, err = db.EsportsOutbox.Create().
 		SetEventKey("checkout.payment_confirmed:" + attempt.MerchantNo).
 		SetEventType("checkout.payment_confirmed").SetAggregateRef(attempt.MerchantNo).
 		SetPayload(map[string]interface{}{
@@ -1188,7 +1188,11 @@ func settleCheckoutPayment(ctx context.Context, db *ent.Client, providerName str
 			"business_id": checkout.BusinessID, "attempt_id": attempt.ID,
 			"provider": attempt.Provider.String(), "pay_channel": attempt.PayChannel.String(),
 			"amount_cents": checkout.AmountCents, "provider_trade_no": notice.ProviderTradeNo,
-		}).Save(ctx)
+		}).Save(ctx); err != nil && !ent.IsConstraintError(err) {
+		// 仅重复回调（event_key 唯一冲突）可以忽略；真故障必须暴露，
+		// 否则客户已付款、入口已 paid，下游却永远收不到支付确认事件。
+		return paidAttempt, fmt.Errorf("写入支付确认事件: %w", err)
+	}
 	return paidAttempt, nil
 }
 
@@ -1333,8 +1337,7 @@ func markCheckoutPaid(ctx context.Context, db *ent.Client, checkout *ent.Esports
 
 // checkoutException 异常到账：写外盒事件供财务处理，尝试置 failed 并释放有效键，返回业务冲突。
 func checkoutException(ctx context.Context, db *ent.Client, checkout *ent.EsportsCheckout,
-	attempt *ent.EsportsCheckoutAttempt, kind, detail string, now time.Time) (*ent.EsportsCheckoutAttempt, error) {
-	_ = now
+	attempt *ent.EsportsCheckoutAttempt, kind, detail string) (*ent.EsportsCheckoutAttempt, error) {
 	_, outboxErr := db.EsportsOutbox.Create().
 		SetEventKey("checkout.exception:" + attempt.MerchantNo + ":" + kind).
 		SetEventType("checkout.payment_exception").SetAggregateRef(attempt.MerchantNo).
@@ -1395,7 +1398,7 @@ func compensateCheckoutPayments(ctx context.Context, db *ent.Client, now time.Ti
 				}
 				// 服务商配置被移除时也要把超时尝试收敛为 expired，避免 pending 永久堆积。
 				if !now.UTC().Before(attempt.ExpiresAt) {
-					if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID, now); expireErr == nil {
+					if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID); expireErr == nil {
 						expired++
 					}
 				}
@@ -1411,7 +1414,7 @@ func compensateCheckoutPayments(ctx context.Context, db *ent.Client, now time.Ti
 				err = queryErr
 			}
 			if !now.UTC().Before(attempt.ExpiresAt) {
-				if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID, now); expireErr == nil {
+				if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID); expireErr == nil {
 					expired++
 				}
 			}
@@ -1432,7 +1435,7 @@ func compensateCheckoutPayments(ctx context.Context, db *ent.Client, now time.Ti
 			continue
 		}
 		if !now.UTC().Before(attempt.ExpiresAt) {
-			if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID, now); expireErr == nil {
+			if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID); expireErr == nil {
 				expired++
 			}
 		}
@@ -1488,7 +1491,13 @@ func customerPaymentMethodsForBusiness(ctx context.Context, db *ent.Client,
 		esportscheckout.BusinessIDEQ(businessID),
 	).Only(ctx)
 	if lookupErr == nil {
-		existing, _ = expireCheckoutIfDue(ctx, db, existing, now)
+		// 惰性过期失败时必须显式返回：expireCheckoutIfDue 失败会返回 (nil, err)，
+		// 继续读 existing.ID 会 nil 解引用，把 DB 抖动放大成稳定的 500。
+		expired, expireErr := expireCheckoutIfDue(ctx, db, existing, now)
+		if expireErr != nil {
+			return nil, fmt.Errorf("刷新聚合收款入口状态: %w", expireErr)
+		}
+		existing = expired
 		availability.CheckoutID = existing.ID
 		availability.CheckoutMode = existing.ChannelMode.String()
 		if existing.Status != esportscheckout.StatusOpen {
@@ -1547,5 +1556,3 @@ func ensureCheckoutBusinessOwnership(ctx context.Context, db *ent.Client,
 	}
 	return nil
 }
-
-// errorsIs 不再需要：统一使用标准库 errors.Is。

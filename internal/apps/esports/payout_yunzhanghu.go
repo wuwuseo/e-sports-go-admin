@@ -3,6 +3,7 @@ package esports
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
@@ -69,7 +70,6 @@ type payoutProvider interface {
 	SubmitBatch(ctx context.Context, req payoutBatchRequest) (*payoutBatchResult, error)
 	QueryOrder(ctx context.Context, orderNo string) (*payoutOrderResult, error)
 	VerifyNotification(header map[string]string, body []byte) (*payoutNotification, error)
-	NotifyAck(ok bool) (statusCode int, body string)
 }
 
 // payoutBatchItem 批次内一笔打款明细。
@@ -220,7 +220,7 @@ func yunzhanghuCanonical(fields map[string]any) string {
 // yunzhanghuSign 商户私钥签名：待签串复用 yunzhanghuCanonical（参数名升序 k=v&k=v，剔除 sign 与空值）。
 func yunzhanghuSign(fields map[string]any, key *rsa.PrivateKey) (string, error) {
 	digest := sha256.Sum256([]byte(yunzhanghuCanonical(fields)))
-	raw, err := rsa.SignPKCS1v15(nil, key, cryptoSHA256, digest[:])
+	raw, err := rsa.SignPKCS1v15(nil, key, crypto.SHA256, digest[:])
 	if err != nil {
 		return "", err
 	}
@@ -238,7 +238,7 @@ func yunzhanghuVerify(fields map[string]any, signature string, key *rsa.PublicKe
 		return fmt.Errorf("%w：云账户签名不是合法 Base64", errForbidden)
 	}
 	digest := sha256.Sum256([]byte(yunzhanghuCanonical(fields)))
-	if err = rsa.VerifyPKCS1v15(key, cryptoSHA256, digest[:], raw); err != nil {
+	if err = rsa.VerifyPKCS1v15(key, crypto.SHA256, digest[:], raw); err != nil {
 		return fmt.Errorf("%w：云账户签名校验失败", errForbidden)
 	}
 	return nil
@@ -650,11 +650,9 @@ func yunzhanghuHeaderValue(header map[string]string, key string) string {
 	return ""
 }
 
-// NotifyAck 回调应答：成功 HTTP 200 {"code":"SUCCESS","message":"成功"}；
+// yunzhanghuNotifyAck 回调应答：成功 HTTP 200 {"code":"SUCCESS","message":"成功"}；
 // 失败 HTTP 400 {"code":"FAIL","message":"..."} 由服务商重试。
-// ponytail: 应答口径按云账户公开文档实现，若联调口径不同只改本函数。
-func (p *yunzhanghuProvider) NotifyAck(ok bool) (int, string) { return yunzhanghuNotifyAck(ok) }
-
+// 应答口径按云账户公开文档实现，若联调口径不同只改本函数。
 func yunzhanghuNotifyAck(ok bool) (int, string) {
 	if ok {
 		return http.StatusOK, `{"code":"SUCCESS","message":"成功"}`

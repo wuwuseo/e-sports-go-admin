@@ -567,7 +567,7 @@ func TestCheckoutLateNotificationAfterAttemptExpiry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = expireCheckoutAttempt(ctx, db, attempt.ID, now.Add(time.Minute)); err != nil {
+	if err = expireCheckoutAttempt(ctx, db, attempt.ID); err != nil {
 		t.Fatal(err)
 	}
 	body := sqb.notificationBody(attempt.MerchantNo, sqb.tradeNo, "PAID", order.PayableCents, "1")
