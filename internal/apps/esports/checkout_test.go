@@ -979,3 +979,75 @@ func TestCheckoutNotifyRoutesDeclaredBeforeGenericChannelRoute(t *testing.T) {
 		t.Fatal("缺少服务商配置脱敏视图路由")
 	}
 }
+
+// 服务商明确关单：尝试置 failed、有效键释放、礼物收款登记同步释放；重复通知保持幂等。
+// 回归点：releaseGiftPaymentReservation 曾用 `_, _ =` 吞掉写库错误，礼物单会永久停在
+// 「已发起收款」，客户重新下单只能等超时自愈。
+func TestCheckoutGiftTerminalNotificationReleasesReservation(t *testing.T) {
+	db := openGiftDB(t, "esports_checkout_gift_close")
+	defer db.Close()
+	ctx := t.Context()
+	now := time.Now().UTC()
+	account := db.User.Create().SetEmail("checkout-gift-close@example.com").SetUID("checkout-gift-close-user").
+		SetStatus("active").SaveX(ctx)
+	customer := seedGiftCustomer(t, db, account.ID)
+	db.EsportsIdentityBinding.Create().SetCustomerID(customer.ID).SetProvider("user").SetSubjectScope("").
+		SetExternalSubject(account.UID).SetVerificationMethod("verified_account_link").SetVerifiedAt(now).SaveX(ctx)
+	player := seedPlayer(t, db, account.ID+100, "qualified", "online")
+	gift := seedGift(t, db, giftInput{Code: "CHECKOUT-GIFT-CLOSE", Name: "火箭", PriceCents: 10000,
+		CommissionMode: "percent", CommissionBp: 5000})
+	intent, err := createGiftIntent(ctx, db, 11, false, giftIntentInput{
+		CustomerID: customer.ID, GiftID: gift.ID, PlayerID: player.ID, Quantity: 1,
+		ClientKey: "checkout-gift-close-1",
+	}, now)
+	if err != nil {
+		t.Fatalf("创建礼物确认单失败：%v", err)
+	}
+	if _, err = confirmGiftIntent(ctx, db, account.UID, intent.ID, 1, true, now); err != nil {
+		t.Fatalf("客户确认礼物失败：%v", err)
+	}
+
+	key := "SQB-TERMINAL-KEY-CLOSE"
+	_, server := newSQBMock(t, key)
+	writePaymentProvidersConfig(t, db, paymentProvidersConfig{
+		Shouqianba: shouqianbaTestConfig(server, key, "SQB-TERMINAL-CLOSE"),
+		Priority:   []string{checkoutProviderShouqianba},
+	})
+	checkout, err := createOrReuseCheckout(ctx, db, customer, checkoutCreateInput{
+		BusinessType: checkoutBusinessTypeGift, BusinessID: intent.ID, Mode: checkoutModeAggregate,
+	}, now)
+	if err != nil {
+		t.Fatalf("礼物创建聚合入口失败：%v", err)
+	}
+	attempt, err := createCheckoutAttempt(ctx, db, checkout, "wechat", now)
+	if err != nil {
+		t.Fatalf("礼物创建支付尝试失败：%v", err)
+	}
+	reserved := db.EsportsGiftIntent.GetX(ctx, intent.ID)
+	if reserved.PaymentStatus != esportsgiftintent.PaymentStatusAwaitingPayment ||
+		reserved.PaymentIntentNo == nil || *reserved.PaymentIntentNo != attempt.MerchantNo {
+		t.Fatalf("前置条件不成立，礼物确认单未登记本次收款：%+v", reserved)
+	}
+
+	notice := &checkoutNotification{
+		Provider:   checkoutProviderShouqianba,
+		MerchantNo: attempt.MerchantNo,
+		Status:     "CLOSED",
+		Paid:       false,
+	}
+	if _, err = settleCheckoutPayment(ctx, db, checkoutProviderShouqianba, notice, now); err != nil {
+		t.Fatalf("关单通知不应返回错误：%v", err)
+	}
+	failed := db.EsportsCheckoutAttempt.GetX(ctx, attempt.ID)
+	if failed.Status != esportscheckoutattempt.StatusFailed || failed.ActiveDedupKey != nil {
+		t.Fatalf("关单通知应把尝试置 failed 并释放有效键：%+v", failed)
+	}
+	released := db.EsportsGiftIntent.GetX(ctx, intent.ID)
+	if released.PaymentStatus != esportsgiftintent.PaymentStatusNotRequired || released.PaymentIntentNo != nil {
+		t.Fatalf("礼物收款登记未释放：%+v", released)
+	}
+	// 重复关单通知：尝试已不在 creating/pending，释放为无操作，仍应成功返回。
+	if _, err = settleCheckoutPayment(ctx, db, checkoutProviderShouqianba, notice, now); err != nil {
+		t.Fatalf("重复关单通知应保持幂等：%v", err)
+	}
+}

@@ -823,7 +823,11 @@ func createCheckoutAttempt(ctx context.Context, db *ent.Client, checkout *ent.Es
 		// 「受理结果未知」，尝试保持 creating，下次用同一商户单号重试或由查单补偿收敛，
 		// 绝不把可能已受理的尝试静默改投另一家。
 		if errors.Is(err, errCheckoutProviderRejected) {
-			_ = markCheckoutAttemptFailed(ctx, db, attempt, "服务商拒绝受理")
+			if failErr := markCheckoutAttemptFailed(ctx, db, attempt); failErr != nil {
+				// 主因仍是「服务商拒绝」（errors.Is 判定不变），附带收敛失败便于定位：
+				// 置 failed 未成功会让 creating + 有效键保留，客户在有效期内被锁死在这家。
+				return nil, fmt.Errorf("%w（另：支付尝试标记 failed 失败：%v）", err, failErr)
+			}
 		}
 		return nil, err
 	}
@@ -862,7 +866,9 @@ func resumeCheckoutAttempt(ctx context.Context, db *ent.Client,
 	})
 	if err != nil {
 		if errors.Is(err, errCheckoutProviderRejected) {
-			_ = markCheckoutAttemptFailed(ctx, db, attempt, "服务商拒绝受理")
+			if failErr := markCheckoutAttemptFailed(ctx, db, attempt); failErr != nil {
+				return nil, fmt.Errorf("%w（另：支付尝试标记 failed 失败：%v）", err, failErr)
+			}
 		}
 		return nil, err
 	}
@@ -976,16 +982,20 @@ func reserveGiftPaymentForCheckout(ctx context.Context, tx *ent.Tx, giftIntentID
 // releaseGiftPaymentReservation 服务商受理失败 / 查单明确关闭时释放礼物收款登记：
 // 只有登记号仍是本尝试的商户单号且尚未到账时才清理，避免覆盖后续尝试。
 func releaseGiftPaymentReservation(ctx context.Context, db *ent.Client, checkout *ent.EsportsCheckout,
-	merchantNo string) {
+	merchantNo string) error {
 	if checkout == nil || checkout.BusinessType != esportscheckout.BusinessTypeGift {
-		return
+		return nil
 	}
-	_, _ = db.EsportsGiftIntent.Update().Where(
+	_, err := db.EsportsGiftIntent.Update().Where(
 		esportsgiftintent.IDEQ(checkout.BusinessID),
 		esportsgiftintent.PaymentStatusEQ(esportsgiftintent.PaymentStatusAwaitingPayment),
 		esportsgiftintent.PaymentIntentNoEQ(merchantNo),
 	).SetPaymentStatus(esportsgiftintent.PaymentStatusNotRequired).
 		ClearPaymentIntentNo().ClearPaymentExpiresAt().AddVersion(1).Save(ctx)
+	if err != nil {
+		return fmt.Errorf("释放礼物收款登记: %w", err)
+	}
+	return nil
 }
 
 // checkoutPaymentSubject 服务商收银台标题（不含敏感信息）。
@@ -1052,7 +1062,10 @@ func expireCheckoutAttempt(ctx context.Context, db *ent.Client, attemptID int) e
 	if attempt, lookupErr := db.EsportsCheckoutAttempt.Get(ctx, attemptID); lookupErr == nil &&
 		attempt.Status == esportscheckoutattempt.StatusExpired {
 		if checkout, checkoutErr := db.EsportsCheckout.Get(ctx, attempt.CheckoutID); checkoutErr == nil {
-			releaseGiftPaymentReservation(ctx, db, checkout, attempt.MerchantNo)
+			// 尝试已 expired，释放失败可安全重入；把错误上报，避免礼物单停在「已发起收款」。
+			if releaseErr := releaseGiftPaymentReservation(ctx, db, checkout, attempt.MerchantNo); releaseErr != nil {
+				return releaseErr
+			}
 		}
 	}
 	return nil
@@ -1061,11 +1074,11 @@ func expireCheckoutAttempt(ctx context.Context, db *ent.Client, attemptID int) e
 // markCheckoutAttemptFailed 受理失败 / 异常到账：置 failed、清空有效键；
 // 礼物登记按商户单号释放（期间若已有到账则不动）。
 func markCheckoutAttemptFailed(ctx context.Context, db *ent.Client,
-	attempt *ent.EsportsCheckoutAttempt, note string) error {
+	attempt *ent.EsportsCheckoutAttempt) error {
 	if attempt == nil {
 		return errInvalidInput
 	}
-	changed, err := db.EsportsCheckoutAttempt.Update().Where(
+	_, err := db.EsportsCheckoutAttempt.Update().Where(
 		esportscheckoutattempt.IDEQ(attempt.ID),
 		esportscheckoutattempt.StatusIn(
 			esportscheckoutattempt.StatusCreating, esportscheckoutattempt.StatusPending),
@@ -1073,12 +1086,13 @@ func markCheckoutAttemptFailed(ctx context.Context, db *ent.Client,
 	if err != nil {
 		return err
 	}
-	if changed == 1 {
-		if checkout, lookupErr := db.EsportsCheckout.Get(ctx, attempt.CheckoutID); lookupErr == nil {
-			releaseGiftPaymentReservation(ctx, db, checkout, attempt.MerchantNo)
+	// 无论本次是否真的改了状态都尝试释放：服务商重投 / 补偿重跑能把上次失败的释放补上。
+	// 释放条件限定「商户单号仍是本尝试且仍在等待付款」，不会覆盖后续尝试的登记。
+	if checkout, lookupErr := db.EsportsCheckout.Get(ctx, attempt.CheckoutID); lookupErr == nil {
+		if releaseErr := releaseGiftPaymentReservation(ctx, db, checkout, attempt.MerchantNo); releaseErr != nil {
+			return fmt.Errorf("支付尝试 %d 已置 failed，但释放礼物收款登记失败: %w", attempt.ID, releaseErr)
 		}
 	}
-	_ = note
 	return nil
 }
 
@@ -1107,7 +1121,11 @@ func settleCheckoutPayment(ctx context.Context, db *ent.Client, providerName str
 	// 其余保持 pending 交给查单补偿继续确认。
 	if !notice.Paid {
 		if checkoutProviderTerminalFailure(notice.Status) {
-			_ = markCheckoutAttemptFailed(ctx, db, attempt, "服务商关闭")
+			// 关单已确认但本地收敛失败：返回错误让服务商重投，
+			// 否则尝试悬挂在 pending、有效键不释放，客户会被锁到 expires_at。
+			if failErr := markCheckoutAttemptFailed(ctx, db, attempt); failErr != nil {
+				return nil, fmt.Errorf("收敛服务商关闭的支付尝试: %w", failErr)
+			}
 		}
 		return attempt, nil
 	}
@@ -1351,7 +1369,7 @@ func checkoutException(ctx context.Context, db *ent.Client, checkout *ent.Esport
 	if outboxErr != nil && !ent.IsConstraintError(outboxErr) {
 		return nil, outboxErr
 	}
-	if err := markCheckoutAttemptFailed(ctx, db, attempt, kind); err != nil {
+	if err := markCheckoutAttemptFailed(ctx, db, attempt); err != nil {
 		return nil, err
 	}
 	return nil, fmt.Errorf("%w：聚合收款异常到账（%s），已转财务处理", errConflict, kind)
@@ -1416,6 +1434,8 @@ func compensateCheckoutPayments(ctx context.Context, db *ent.Client, now time.Ti
 			if !now.UTC().Before(attempt.ExpiresAt) {
 				if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID); expireErr == nil {
 					expired++
+				} else if err == nil {
+					err = fmt.Errorf("过期支付尝试 %d: %w", attempt.ID, expireErr)
 				}
 			}
 			continue
@@ -1429,14 +1449,18 @@ func compensateCheckoutPayments(ctx context.Context, db *ent.Client, now time.Ti
 			}
 		}
 		if notice != nil && checkoutProviderTerminalFailure(notice.Status) && !notice.Paid {
-			if failErr := markCheckoutAttemptFailed(ctx, db, attempt, "服务商关闭"); failErr == nil {
+			if failErr := markCheckoutAttemptFailed(ctx, db, attempt); failErr == nil {
 				expired++
+			} else if err == nil {
+				err = fmt.Errorf("关闭支付尝试 %d: %w", attempt.ID, failErr)
 			}
 			continue
 		}
 		if !now.UTC().Before(attempt.ExpiresAt) {
 			if expireErr := expireCheckoutAttempt(ctx, db, attempt.ID); expireErr == nil {
 				expired++
+			} else if err == nil {
+				err = fmt.Errorf("过期支付尝试 %d: %w", attempt.ID, expireErr)
 			}
 		}
 	}
