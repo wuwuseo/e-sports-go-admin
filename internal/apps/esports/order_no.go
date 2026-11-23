@@ -2,8 +2,11 @@ package esports
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"strings"
+	"time"
 
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportscustomer"
@@ -345,4 +348,56 @@ func reviewAppealViewsOf(ctx context.Context, db *ent.Client,
 		views = append(views, reviewAppealView{EsportsPlayerReviewAppeal: item, OrderNo: nos[item.OrderID]})
 	}
 	return views, nil
+}
+
+// ── 订单号生成 ──
+
+// 订单号格式：{前缀}{下单时间}{客户ID}{随机数字}，例如 ES2026112319123400012345678901。
+// 前缀由后台系统配置控制；时间按业务时区（UTC+8）取到秒；随机段避免同一客户同一秒内撞号。
+const (
+	orderNoPrefixConfigKey = "app.esports.order_no_prefix"
+	orderNoDefaultPrefix   = "ES"
+	orderNoPrefixMaxLen    = 8
+	orderNoRandomDigits    = 8
+	orderNoTimeLayout      = "20060102150405"
+)
+
+// newOrderNo 生成可读订单号。order_no 有唯一索引，随机段用 crypto/rand，
+// 同一客户同一秒内需要生成 1e8 个量级才可能碰撞，实际业务可忽略。
+func newOrderNo(ctx context.Context, db *ent.Client, customerID int, now time.Time) string {
+	return fmt.Sprintf("%s%s%d%0*d",
+		orderNoPrefix(ctx, db),
+		now.In(cstZone).Format(orderNoTimeLayout),
+		customerID,
+		orderNoRandomDigits,
+		orderNoRandomSuffix(),
+	)
+}
+
+// orderNoPrefix 读取并规整后台配置的前缀：只保留大写字母与数字，最长 8 位；
+// 未配置或规整后为空时回落默认前缀，避免生成难以辨认的订单号。
+func orderNoPrefix(ctx context.Context, db *ent.Client) string {
+	raw := strings.ToUpper(strings.TrimSpace(systemConfigValue(ctx, db, orderNoPrefixConfigKey)))
+	var b strings.Builder
+	for _, r := range raw {
+		if (r >= 0x41 && r <= 0x5A) || (r >= 0x30 && r <= 0x39) {
+			b.WriteRune(r)
+			if b.Len() >= orderNoPrefixMaxLen {
+				break
+			}
+		}
+	}
+	if b.Len() == 0 {
+		return orderNoDefaultPrefix
+	}
+	return b.String()
+}
+
+// orderNoRandomSuffix 返回定长随机数字段；熵源异常时退回纳秒，保证仍能生成。
+func orderNoRandomSuffix() int {
+	var buf [4]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return int(time.Now().UnixNano() % 100000000)
+	}
+	return int(binary.BigEndian.Uint32(buf[:]) % 100000000)
 }

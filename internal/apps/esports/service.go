@@ -15,8 +15,6 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/google/uuid"
-
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/admin"
 	"go-admin/internal/ent/esportscustomer"
@@ -896,7 +894,7 @@ func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, admin
 	if len(preferredIDs) > 0 {
 		in.PreferredPlayerID = preferredIDs[0]
 	}
-	orderNo := uuid.NewString()
+	orderNo := newOrderNo(ctx, tx.Client(), customer.ID, now)
 	entryPoint := esportsorder.EntryPointCsPc
 	if strings.HasPrefix(principal, "customer:") {
 		entryPoint = esportsorder.EntryPointCustomerSelf

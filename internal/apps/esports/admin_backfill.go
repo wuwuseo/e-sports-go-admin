@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
-
 	"go-admin/internal/ent"
 	"go-admin/internal/ent/esportsdispatchseat"
 	"go-admin/internal/ent/esportsidempotency"
@@ -203,7 +201,7 @@ func backfillOrderWithRole(ctx context.Context, db *ent.Client, adminID int, isS
 		requiredLevel = sku.RequiredLevel
 		serviceDuration = sku.ServiceDurationMinutes
 	}
-	orderNo := uuid.NewString()
+	orderNo := newOrderNo(ctx, tx.Client(), customer.ID, now)
 	creator := tx.EsportsOrder.Create().SetOrderNo(orderNo).SetCustomerID(customer.ID).
 		SetSkuID(skuID).SetCreatedByAdminID(adminID).SetResponsibleAdminID(responsibleAdminID).
 		SetChannelSource(esportsorder.ChannelSource(customer.Source.String())).

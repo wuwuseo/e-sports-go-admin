@@ -372,6 +372,7 @@ func init() {
 		},
 		Config: []cmfapp.ConfigItem{
 			{Key: "payment_deadline_minutes", Name: "订单支付时限（分钟）", Value: "30", Type: "number", Group: "esports", Remark: "待付款订单的支付时限，超时由任务过期释放名额；须为 1~1440 的正整数"},
+			{Key: "order_no_prefix", Name: "订单号前缀", Value: "ES", Type: "string", Group: "esports", Remark: "订单号格式：前缀 + 下单时间（yyyyMMddHHmmss，UTC+8）+ 客户ID + 8 位随机数字；前缀仅允许大写字母与数字，最长 8 位，留空或非法时回落 ES"},
 			{Key: "duplicate_order_window_minutes", Name: "重复报单提醒时间窗（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；窗口内同客户同 SKU 相似订单需显式确认后才可下单"},
 			{Key: "customer_debt_limit_cents", Name: "客户欠款拦截阈值（分）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；客户欠款超过该值时拒绝新报单"},
 			{Key: "service_disconnect_pause_minutes", Name: "断线自动暂停阈值（分钟）", Value: "0", Type: "number", Group: "esports", Remark: "0 关闭；服务中陪玩心跳超时该时长后自动暂停服务段"},
