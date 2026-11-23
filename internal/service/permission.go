@@ -507,6 +507,35 @@ func (s *PermissionService) ensurePermissionRoleInScope(ctx context.Context, rol
 	return nil
 }
 
+// ensurePermissionRoleMutable 校验目标角色允许被当前操作者修改：
+// 超管角色保护 → 不得修改自己所属角色。权限写接口的统一前置。
+func (s *PermissionService) ensurePermissionRoleMutable(ctx context.Context, operatorUID, roleName string) error {
+	if isSuperAdminRole(roleName) {
+		return ErrSuperAdminProtected
+	}
+	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
+	if err != nil {
+		return fmt.Errorf("检查角色归属失败: %w", err)
+	}
+	if isSelf {
+		return ErrSelfRolePermissionMutationForbidden
+	}
+	return nil
+}
+
+// ensurePermissionRoleExists 校验角色存在且在操作人数据域内。权限写接口的统一前置
+// （ensurePermissionRoleInScope 对超管操作人直接放行，故存在性必须单独确认）。
+func (s *PermissionService) ensurePermissionRoleExists(ctx context.Context, roleName string, operators []*EffectiveDataScope) error {
+	exists, err := s.client.Role.Query().Where(role.NameEQ(roleName)).Exist(ctx)
+	if err != nil {
+		return fmt.Errorf("检查角色失败: %w", err)
+	}
+	if !exists {
+		return ErrRoleNotFound
+	}
+	return s.ensurePermissionRoleInScope(ctx, roleName, operators)
+}
+
 func (s *PermissionService) visiblePermissionRoleNames(ctx context.Context, operators []*EffectiveDataScope) ([]string, error) {
 	op := permissionDataScope(operators)
 	if op == nil || op.IsSuperAdmin {
@@ -776,29 +805,11 @@ func (s *PermissionService) CreatePermission(ctx context.Context, operatorUID st
 		return ErrInvalidPermissionType
 	}
 
-	// 禁止为超级管理员分配/创建权限
-	if isSuperAdminRole(req.RoleName) {
-		return ErrSuperAdminProtected
+	// 禁止为超级管理员分配/创建权限；禁止修改自己所属角色；角色须存在且在数据域内。
+	if err := s.ensurePermissionRoleMutable(ctx, operatorUID, req.RoleName); err != nil {
+		return err
 	}
-
-	// 禁止修改自己所属角色的权限
-	isSelf, err := s.isSelfRole(ctx, operatorUID, req.RoleName)
-	if err != nil {
-		return fmt.Errorf("检查角色归属失败: %w", err)
-	}
-	if isSelf {
-		return ErrSelfRolePermissionMutationForbidden
-	}
-
-	// 检查角色是否存在
-	exists, err := s.client.Role.Query().Where(role.NameEQ(req.RoleName)).Exist(ctx)
-	if err != nil {
-		return fmt.Errorf("检查角色失败: %w", err)
-	}
-	if !exists {
-		return ErrRoleNotFound
-	}
-	if err := s.ensurePermissionRoleInScope(ctx, req.RoleName, operators); err != nil {
+	if err := s.ensurePermissionRoleExists(ctx, req.RoleName, operators); err != nil {
 		return err
 	}
 
@@ -807,7 +818,7 @@ func (s *PermissionService) CreatePermission(ctx context.Context, operatorUID st
 	}
 
 	// 检查权限是否已存在
-	exists, err = s.client.CasbinRule.Query().
+	exists, err := s.client.CasbinRule.Query().
 		Where(
 			casbinrule.PtypeEQ("p"),
 			casbinrule.V0EQ(req.RoleName),
@@ -874,34 +885,16 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, operatorUID st
 		return ErrInvalidPermissionType
 	}
 
-	// 禁止修改超级管理员权限
-	if isSuperAdminRole(req.RoleName) {
-		return ErrSuperAdminProtected
+	// 禁止修改超级管理员权限；禁止修改自己所属角色；角色须存在且在数据域内。
+	if err := s.ensurePermissionRoleMutable(ctx, operatorUID, req.RoleName); err != nil {
+		return err
 	}
-
-	// 禁止修改自己所属角色的权限
-	isSelf, err := s.isSelfRole(ctx, operatorUID, req.RoleName)
-	if err != nil {
-		return fmt.Errorf("检查角色归属失败: %w", err)
-	}
-	if isSelf {
-		return ErrSelfRolePermissionMutationForbidden
-	}
-
-	// 检查角色是否存在
-	exists, err := s.client.Role.Query().Where(role.NameEQ(req.RoleName)).Exist(ctx)
-	if err != nil {
-		return fmt.Errorf("检查角色失败: %w", err)
-	}
-	if !exists {
-		return ErrRoleNotFound
-	}
-	if err := s.ensurePermissionRoleInScope(ctx, req.RoleName, operators); err != nil {
+	if err := s.ensurePermissionRoleExists(ctx, req.RoleName, operators); err != nil {
 		return err
 	}
 
 	// 查找要更新的权限
-	_, err = s.client.CasbinRule.Query().
+	_, err := s.client.CasbinRule.Query().
 		Where(
 			casbinrule.PtypeEQ("p"),
 			casbinrule.V0EQ(req.RoleName),
@@ -988,25 +981,16 @@ func (s *PermissionService) UpdatePermission(ctx context.Context, operatorUID st
 
 // DeletePermission 删除权限
 func (s *PermissionService) DeletePermission(ctx context.Context, operatorUID string, roleName, domain, object, action string, operators ...*EffectiveDataScope) error {
-	// 禁止删除超级管理员权限
-	if isSuperAdminRole(roleName) {
-		return ErrSuperAdminProtected
-	}
-
-	// 禁止修改自己所属角色的权限
-	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
-	if err != nil {
-		return fmt.Errorf("检查角色归属失败: %w", err)
-	}
-	if isSelf {
-		return ErrSelfRolePermissionMutationForbidden
+	// 禁止删除超级管理员权限；禁止修改自己所属角色；角色须在操作人数据域内。
+	if err := s.ensurePermissionRoleMutable(ctx, operatorUID, roleName); err != nil {
+		return err
 	}
 	if err := s.ensurePermissionRoleInScope(ctx, roleName, operators); err != nil {
 		return err
 	}
 
 	// 查找要删除的权限
-	_, err = s.client.CasbinRule.Query().
+	_, err := s.client.CasbinRule.Query().
 		Where(
 			casbinrule.PtypeEQ("p"),
 			casbinrule.V0EQ(roleName),
@@ -1219,29 +1203,11 @@ func (s *PermissionService) ListAllPermissions(ctx context.Context, operatorUID 
 
 // AssignPermissionsToRole 为角色分配权限
 func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, operatorUID string, roleName, domain string, permissions []PermissionRule, operators ...*EffectiveDataScope) error {
-	// 禁止为超级管理员分配权限
-	if isSuperAdminRole(roleName) {
-		return ErrSuperAdminProtected
+	// 禁止为超级管理员分配权限；禁止修改自己所属角色；角色须存在且在数据域内。
+	if err := s.ensurePermissionRoleMutable(ctx, operatorUID, roleName); err != nil {
+		return err
 	}
-
-	// 禁止修改自己所属角色的权限
-	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
-	if err != nil {
-		return fmt.Errorf("检查角色归属失败: %w", err)
-	}
-	if isSelf {
-		return ErrSelfRolePermissionMutationForbidden
-	}
-
-	// 检查角色是否存在
-	exists, err := s.client.Role.Query().Where(role.NameEQ(roleName)).Exist(ctx)
-	if err != nil {
-		return fmt.Errorf("检查角色失败: %w", err)
-	}
-	if !exists {
-		return ErrRoleNotFound
-	}
-	if err := s.ensurePermissionRoleInScope(ctx, roleName, operators); err != nil {
+	if err := s.ensurePermissionRoleExists(ctx, roleName, operators); err != nil {
 		return err
 	}
 
@@ -1327,29 +1293,11 @@ func (s *PermissionService) AssignPermissionsToRole(ctx context.Context, operato
 
 // RemovePermissionsFromRole 从角色移除权限
 func (s *PermissionService) RemovePermissionsFromRole(ctx context.Context, operatorUID string, roleName, domain string, permissions []PermissionRule, operators ...*EffectiveDataScope) error {
-	// 禁止从超级管理员角色移除权限
-	if isSuperAdminRole(roleName) {
-		return ErrSuperAdminProtected
+	// 禁止从超级管理员角色移除权限；禁止修改自己所属角色；角色须存在且在数据域内。
+	if err := s.ensurePermissionRoleMutable(ctx, operatorUID, roleName); err != nil {
+		return err
 	}
-
-	// 禁止修改自己所属角色的权限
-	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
-	if err != nil {
-		return fmt.Errorf("检查角色归属失败: %w", err)
-	}
-	if isSelf {
-		return ErrSelfRolePermissionMutationForbidden
-	}
-
-	// 检查角色是否存在
-	exists, err := s.client.Role.Query().Where(role.NameEQ(roleName)).Exist(ctx)
-	if err != nil {
-		return fmt.Errorf("检查角色失败: %w", err)
-	}
-	if !exists {
-		return ErrRoleNotFound
-	}
-	if err := s.ensurePermissionRoleInScope(ctx, roleName, operators); err != nil {
+	if err := s.ensurePermissionRoleExists(ctx, roleName, operators); err != nil {
 		return err
 	}
 
@@ -1473,18 +1421,10 @@ func (s *PermissionService) SaveRolePermissions(ctx context.Context, operatorUID
 		return err
 	}
 
-	// 禁止覆盖式保存超级管理员权限
-	if isSuperAdminRole(roleName) {
-		return ErrSuperAdminProtected
-	}
-
-	// 禁止修改自己所属角色的权限
-	isSelf, err := s.isSelfRole(ctx, operatorUID, roleName)
-	if err != nil {
-		return fmt.Errorf("检查角色归属失败: %w", err)
-	}
-	if isSelf {
-		return ErrSelfRolePermissionMutationForbidden
+	// 禁止覆盖式保存超级管理员权限；禁止修改自己所属角色。
+	// 数据域校验前置保留（按角色 ID 载入后先确认该角色对操作人可见）。
+	if err := s.ensurePermissionRoleMutable(ctx, operatorUID, roleName); err != nil {
+		return err
 	}
 
 	seen := make(map[string]struct{}, len(req.Permissions))

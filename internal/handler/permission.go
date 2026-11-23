@@ -56,22 +56,8 @@ func CreatePermission(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	err = permissionService.CreatePermission(c.Context(), uid, req, op)
 	if err != nil {
-		if errors.Is(err, service.ErrRoleScopeEscalation) {
-			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
-		}
-		if err == service.ErrRoleNotFound {
-			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSuperAdminProtected {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrPermissionScopeEscalation {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSelfRolePermissionMutationForbidden {
-			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
-		}
-		return resp.Fail(global.ResponseInternalServerError, "创建权限失败").ToJSON(c)
+		return mapPermissionWriteError(c, resp, err,
+			permissionNotFound{sentinel: service.ErrRoleNotFound}, "创建权限失败")
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -122,22 +108,8 @@ func UpdatePermission(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	err = permissionService.UpdatePermission(c.Context(), uid, req, op)
 	if err != nil {
-		if errors.Is(err, service.ErrRoleScopeEscalation) {
-			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
-		}
-		if err == service.ErrPermissionNotFound {
-			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSuperAdminProtected {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrPermissionScopeEscalation {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSelfRolePermissionMutationForbidden {
-			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
-		}
-		return resp.Fail(global.ResponseInternalServerError, "更新权限失败").ToJSON(c)
+		return mapPermissionWriteError(c, resp, err,
+			permissionNotFound{sentinel: service.ErrPermissionNotFound}, "更新权限失败")
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -193,22 +165,8 @@ func DeletePermission(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	err = permissionService.DeletePermission(c.Context(), uid, roleName, domain, object, action, op)
 	if err != nil {
-		if errors.Is(err, service.ErrRoleScopeEscalation) {
-			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
-		}
-		if err == service.ErrPermissionNotFound {
-			return resp.Fail(global.ResponseNotFound, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSuperAdminProtected {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrPermissionScopeEscalation {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSelfRolePermissionMutationForbidden {
-			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
-		}
-		return resp.Fail(global.ResponseInternalServerError, "删除权限失败").ToJSON(c)
+		return mapPermissionWriteError(c, resp, err,
+			permissionNotFound{sentinel: service.ErrPermissionNotFound}, "删除权限失败")
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -438,22 +396,8 @@ func AssignPermissionsToRole(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	err = permissionService.AssignPermissionsToRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions, op)
 	if err != nil {
-		if errors.Is(err, service.ErrRoleScopeEscalation) {
-			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
-		}
-		if err == service.ErrRoleNotFound {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSuperAdminProtected {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrPermissionScopeEscalation {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSelfRolePermissionMutationForbidden {
-			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
-		}
-		return resp.Fail(global.ResponseInternalServerError, "为角色分配权限失败").ToJSON(c)
+		return mapPermissionWriteError(c, resp, err,
+			permissionNotFound{sentinel: service.ErrRoleNotFound, status: global.ResponseErrorCode}, "为角色分配权限失败")
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -506,22 +450,8 @@ func RemovePermissionsFromRole(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	err = permissionService.RemovePermissionsFromRole(c.Context(), uid, req.RoleName, req.Domain, req.Permissions, op)
 	if err != nil {
-		if errors.Is(err, service.ErrRoleScopeEscalation) {
-			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
-		}
-		if err == service.ErrRoleNotFound {
-			return resp.Fail(global.ResponseErrorCode, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSuperAdminProtected {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrPermissionScopeEscalation {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSelfRolePermissionMutationForbidden {
-			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
-		}
-		return resp.Fail(global.ResponseInternalServerError, "从角色移除权限失败").ToJSON(c)
+		return mapPermissionWriteError(c, resp, err,
+			permissionNotFound{sentinel: service.ErrRoleNotFound, status: global.ResponseErrorCode}, "从角色移除权限失败")
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -828,23 +758,15 @@ func SaveRolePermissions(c fiber.Ctx) error {
 	uid, _ := c.Locals("uid").(string)
 	err = permissionService.SaveRolePermissions(c.Context(), uid, id, req, op)
 	if err != nil {
-		if errors.Is(err, service.ErrRoleScopeEscalation) {
-			return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+		// 保留原有观测口径：越权升级之外的所有失败都记一条错误日志。
+		if !errors.Is(err, service.ErrRoleScopeEscalation) {
+			log.Error("保存角色权限失败", zap.Int("role_id", id), zap.String("domain", req.Domain), zap.Error(err))
 		}
-		log.Error("保存角色权限失败", zap.Int("role_id", id), zap.String("domain", req.Domain), zap.Error(err))
-		if err == service.ErrRoleNotFound {
-			return resp.Fail(global.ResponseNotFound, "角色不存在").ToJSON(c)
-		}
-		if err == service.ErrSuperAdminProtected {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrPermissionScopeEscalation {
-			return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
-		}
-		if err == service.ErrSelfRolePermissionMutationForbidden {
-			return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
-		}
-		return resp.Fail(global.ResponseInternalServerError, "保存角色权限失败").ToJSON(c)
+		return mapPermissionWriteError(c, resp, err, permissionNotFound{
+			sentinel: service.ErrRoleNotFound,
+			status:   global.ResponseNotFound,
+			message:  "角色不存在",
+		}, "保存角色权限失败")
 	}
 
 	logService := c.Locals("service.OperationLogService").(service.OperationLogServiceInterface)
@@ -861,4 +783,39 @@ func permissionDomainAllowed(c fiber.Ctx, requested string) bool {
 func permissionOperatorScope(c fiber.Ctx) (*service.EffectiveDataScope, error) {
 	dataPermSvc := c.Locals("service.DataPermissionService").(service.DataPermissionOperatorProvider)
 	return dataPermSvc.NewOperatorContext(c.Context(), getOperatorUID(c), getOperatorDomain(c))
+}
+
+// permissionNotFound 描述「角色 / 权限不存在」分支在各入口的既有差异。
+type permissionNotFound struct {
+	// sentinel 是视为「不存在」的 service 层哨兵。
+	sentinel error
+	// status 为 0 时使用 404。
+	status int
+	// message 为空时使用 err.Error()（保留后端返回的具体原因）。
+	message string
+}
+
+// mapPermissionWriteError 统一权限写接口的 service 层错误映射，避免同一业务错误
+// 在不同入口漂移成不同状态码。fallback 用于未识别错误的 500 文案。
+func mapPermissionWriteError(c fiber.Ctx, resp *utils.Response, err error,
+	notFound permissionNotFound, fallback string) error {
+	switch {
+	case errors.Is(err, service.ErrRoleScopeEscalation):
+		return resp.Fail(global.ResponseRoleScopeEscalation, global.ResponseMsg[global.ResponseRoleScopeEscalation]).ToJSON(c)
+	case notFound.sentinel != nil && errors.Is(err, notFound.sentinel):
+		status := notFound.status
+		if status == 0 {
+			status = global.ResponseNotFound
+		}
+		message := notFound.message
+		if message == "" {
+			message = err.Error()
+		}
+		return resp.Fail(status, message).ToJSON(c)
+	case errors.Is(err, service.ErrSuperAdminProtected), errors.Is(err, service.ErrPermissionScopeEscalation):
+		return resp.Fail(global.ResponseForbidden, err.Error()).ToJSON(c)
+	case errors.Is(err, service.ErrSelfRolePermissionMutationForbidden):
+		return resp.Fail(global.ResponseSelfRolePermissionForbidden, global.ResponseMsg[global.ResponseSelfRolePermissionForbidden]).ToJSON(c)
+	}
+	return resp.Fail(global.ResponseInternalServerError, fallback).ToJSON(c)
 }
