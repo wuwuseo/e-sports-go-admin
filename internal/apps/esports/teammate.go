@@ -34,7 +34,7 @@ func requestTeammate(ctx context.Context, db *ent.Client, initiatorID, teammateI
 	game = strings.TrimSpace(game)
 	idemKey = strings.TrimSpace(idemKey)
 	if initiatorID < 1 || teammateID < 1 || initiatorID == teammateID ||
-		game == "" || len([]rune(game)) > 64 || len(idemKey) < 8 || len(idemKey) > 128 {
+		game == "" || len([]rune(game)) > 64 || !validIdempotencyKey(idemKey) {
 		return nil, errInvalidInput
 	}
 	lo, hi := sortPair(initiatorID, teammateID)

@@ -23,7 +23,7 @@ func requestPriceAdjustment(ctx context.Context, db *ent.Client, orderID, adminI
 	in.Reason = strings.TrimSpace(in.Reason)
 	in.RequestKey = strings.TrimSpace(in.RequestKey)
 	if orderID < 1 || adminID < 1 || in.ExpectedVersion < 1 ||
-		in.Reason == "" || len([]rune(in.Reason)) > 255 || len(in.RequestKey) < 8 || len(in.RequestKey) > 128 {
+		in.Reason == "" || len([]rune(in.Reason)) > 255 || !validIdempotencyKey(in.RequestKey) {
 		return nil, errInvalidInput
 	}
 	if _, err := loadOwnedOrder(ctx, db, adminID, isSuper, orderID); err != nil {

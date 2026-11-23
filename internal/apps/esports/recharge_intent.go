@@ -115,7 +115,7 @@ func rechargeIntentPayWindow(ctx context.Context, db *ent.Client) time.Duration 
 // validateRechargeIntentInput 充值发起入参校验（任一不满足即拒绝，不写任何数据）。
 func validateRechargeIntentInput(in rechargeIntentInput) error {
 	key := strings.TrimSpace(in.IdempotencyKey)
-	if len(key) < 8 || len(key) > 128 {
+	if !validIdempotencyKey(key) {
 		return fmt.Errorf("%w：幂等键长度须为 8–128", errInvalidInput)
 	}
 	switch in.PaymentChannel {

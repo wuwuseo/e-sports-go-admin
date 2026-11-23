@@ -198,7 +198,7 @@ func applyWithdrawal(ctx context.Context, db *ent.Client, playerID int, in withd
 	}
 	if playerID < 1 || in.AmountCents <= 0 || in.AccountRef == "" ||
 		len(in.AccountRef) > 128 || len([]rune(in.Note)) > 255 ||
-		len(key) < 8 || len(key) > 128 {
+		!validIdempotencyKey(key) {
 		return nil, errInvalidInput
 	}
 	// 实名守卫：开关开启且陪玩未实名时拒绝提现（配置默认关闭，行为与改动前一致）。

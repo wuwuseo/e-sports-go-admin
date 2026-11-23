@@ -33,7 +33,7 @@ func requestSeatTransfer(ctx context.Context, db *ent.Client, playerID, orderID 
 	key := strings.TrimSpace(in.IdempotencyKey)
 	in.Reason = strings.TrimSpace(in.Reason)
 	if playerID < 1 || orderID < 1 || in.Reason == "" || len([]rune(in.Reason)) > 255 ||
-		len(key) < 8 || len(key) > 128 {
+		!validIdempotencyKey(key) {
 		return nil, errInvalidInput
 	}
 	tx, err := db.Tx(ctx)

@@ -127,7 +127,7 @@ func backfillOrderWithRole(ctx context.Context, db *ent.Client, adminID int, isS
 		return nil, fmt.Errorf("%w：补录原因必填，长度须为 4–255 个字符", errInvalidInput)
 	}
 	if in.CustomerID < 1 || in.SkuID < 0 || in.Quantity < 1 || in.Quantity > 1000 ||
-		len(key) < 8 || len(key) > 128 ||
+		!validIdempotencyKey(key) ||
 		(in.FulfillmentStatus != backfillStatusCompleted && in.FulfillmentStatus != backfillStatusCancelled) ||
 		(in.PaymentStatus != esportsorder.PaymentStatusPaid.String() &&
 			in.PaymentStatus != esportsorder.PaymentStatusUnpaid.String()) {

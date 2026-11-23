@@ -22,7 +22,7 @@ func backfillOrderHandler(c fiber.Ctx) error {
 		return fail(c, fiber.StatusBadRequest, "请求正文无效")
 	}
 	key := c.Get("Idempotency-Key")
-	if len(key) < 8 || len(key) > 128 {
+	if !validIdempotencyKey(key) {
 		return fail(c, fiber.StatusBadRequest, "缺少有效的 Idempotency-Key（8-128 字符）")
 	}
 	order, err := backfillOrderWithRole(c.Context(), global.ORM, adminID, isSuper, in, key, time.Now())

@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"go-admin/internal/ent"
+	"go-admin/internal/ent/esportscheckout"
 	"go-admin/internal/global"
 )
 
@@ -75,7 +76,7 @@ func publicCheckoutHandler(c fiber.Ctx) error {
 	}
 	wechat, alipay := false, false
 	// 只有「聚合动态支付」入口才展示微信 / 支付宝渠道；固定码模式由收款方式列表给出账户。
-	if item.Status.String() == "open" && item.ChannelMode.String() == "aggregate" {
+	if item.Status == esportscheckout.StatusOpen && item.ChannelMode == esportscheckout.ChannelModeAggregate {
 		availableWechat, availableAlipay, _, availabilityErr := checkoutChannelAvailability(c.Context(), global.ORM)
 		if availabilityErr == nil {
 			wechat, alipay = availableWechat, availableAlipay
@@ -115,7 +116,7 @@ func publicCheckoutStatusHandler(c fiber.Ctx) error {
 		return businessError(c, err)
 	}
 	return reply(c, checkoutStatusView{
-		Status: item.Status.String(), Paid: item.Status.String() == "paid",
+		Status: item.Status.String(), Paid: item.Status == esportscheckout.StatusPaid,
 	})
 }
 

@@ -146,7 +146,7 @@ func createGiftIntent(ctx context.Context, db *ent.Client, adminID int, isSuper 
 	if in.PaymentSource == "" {
 		in.PaymentSource = "customer_balance_principal"
 	}
-	if adminID < 1 || in.CustomerID < 1 || in.GiftID < 1 || in.PlayerID < 1 || in.Quantity < 1 || in.Quantity > 999 || len(key) < 8 || len(key) > 128 {
+	if adminID < 1 || in.CustomerID < 1 || in.GiftID < 1 || in.PlayerID < 1 || in.Quantity < 1 || in.Quantity > 999 || !validIdempotencyKey(key) {
 		return nil, errInvalidInput
 	}
 	// 付款来源仅支持客户余额本金；储值卡本金（stored_value_card_principal）随功能下线，

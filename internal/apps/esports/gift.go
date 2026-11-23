@@ -369,7 +369,7 @@ func sendGiftWithRole(ctx context.Context, db *ent.Client, adminID int, isSuper 
 func sendGiftOnce(ctx context.Context, db *ent.Client, adminID int, isSuper bool, in giftSendInput, now time.Time) (*ent.EsportsGiftOrder, error) {
 	key := strings.TrimSpace(in.ClientKey)
 	if in.CustomerID < 1 || in.GiftID < 1 || in.PlayerID < 1 || in.Quantity < 1 || in.Quantity > 999 ||
-		len(key) < 8 || len(key) > 128 {
+		!validIdempotencyKey(key) {
 		return nil, errInvalidInput
 	}
 	// 关联订单号 → 订单 ID（仅追溯；管理端统一按订单号传入）。

@@ -746,7 +746,7 @@ func applyOrderManualAdjust(subtotal, discount int64, in orderInput, sku *ent.Es
 
 func placeOrderOnce(ctx context.Context, db *ent.Client, principal string, adminID int,
 	in orderInput, key string, now time.Time) (*ent.EsportsOrder, error) {
-	if in.CustomerID < 1 || in.SkuID < 1 || in.Quantity < 1 || in.Quantity > 1000 || len(key) < 8 || len(key) > 128 {
+	if in.CustomerID < 1 || in.SkuID < 1 || in.Quantity < 1 || in.Quantity > 1000 || !validIdempotencyKey(key) {
 		return nil, errInvalidInput
 	}
 	hash := orderRequestHash(in)
